@@ -95,6 +95,8 @@ def setup_signals(storages):
 def main(argv):
     me = argv[0]
     sys.path.insert(0, directory(me, 2))
+    import zLOG
+    zLOG.initialize()
 
     global LOG, INFO, ERROR
     from zLOG import LOG, INFO, WARNING, ERROR, PANIC
@@ -203,7 +205,7 @@ def main(argv):
     if args:
         if len(args) > 1:
             print usage
-            print 'Unrecognizd arguments: ', " ".join(args[1:])
+            print 'Unrecognized arguments: ', " ".join(args[1:])
             sys.exit(1)
         fs = args[0]
 
@@ -211,6 +213,7 @@ def main(argv):
         os.environ['Z_DEBUG_MODE'] = '1'
     if detailed:
         os.environ['STUPID_LOG_SEVERITY'] = '-300'
+        zLOG.initialize()
 
     set_uid(UID)
 
@@ -308,17 +311,18 @@ def main(argv):
 
 def rotate_logs():
     import zLOG
-    # There hasn't been a clear way to reinitialize the MinimalLogger.
-    # I'll checkin the public initialize() method soon, but also try some
-    # other strategies for older Zope installs :-(.
     init = getattr(zLOG, 'initialize', None)
     if init is not None:
         init()
         return
     # This will work if the minimal logger is in use, but not if some
-    # other logger is active.
-    import zLOG.MinimalLogger
-    zLOG.MinimalLogger._log.initialize()
+    # other logger is active.  MinimalLogger exists only in Zopes
+    # pre-2.7.
+    try:
+        import zLOG.MinimalLogger
+        zLOG.MinimalLogger._log.initialize()
+    except ImportError:
+        pass
 
 def rotate_logs_handler(signum, frame):
     rotate_logs()
