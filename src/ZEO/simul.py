@@ -440,6 +440,10 @@ class SimpleCacheSimulation(BuddyCacheSimulation):
     def allocatorFactory(self, size):
         return SimpleAllocator(size)
 
+    def finish(self):
+        BuddyCacheSimulation.finish(self)
+        self.allocator.report()
+
 MINSIZE = 256
 
 class BuddyAllocator:
@@ -535,18 +539,41 @@ class SimpleAllocator:
         self.rover = self.avail
         node = BlockNode(None, arenasize, 0)
         node.linkbefore(self.avail)
+        # Allocator statistics
+        self.nallocs = 0
+        self.nfrees = 0
+        self.allocloops = 0
+        self.freeloops = 0
+        self.freebytes = arenasize
+        self.freeblocks = 1
+        self.allocbytes = 0
+        self.allocblocks = 0
+
+    def report(self):
+        print ("NA=%d AL=%d NF=%d FL=%d ABy=%d ABl=%d FBy=%d FBl=%d" %
+               (self.nallocs, self.allocloops,
+                self.nfrees, self.freeloops,
+                self.allocbytes, self.allocblocks,
+                self.freebytes, self.freeblocks))
 
     def alloc(self, size):
-        # Exact fit algorithm
+        self.nallocs += 1
+        # First fit algorithm
         rover = stop = self.rover
         free = None
         while 1:
+            self.allocloops += 1
             if rover.size >= size:
                 if rover.size == size:
                     self.rover = rover.next
                     rover.unlink()
+                    self.freeblocks -= 1
+                    self.allocblocks += 1
+                    self.freebytes -= size
+                    self.allocbytes += size
                     return rover
                 free = rover
+                break
             rover = rover.next
             if rover is stop:
                 break
@@ -556,11 +583,20 @@ class SimpleAllocator:
         assert free.size > size
         node = BlockNode(None, size, free.addr + free.size - size)
         free.size -= size
+        #self.freeblocks += 0 # No change here
+        self.allocblocks += 1
+        self.freebytes -= size
+        self.allocbytes += size
         return node
 
     def free(self, node):
+        self.nfrees += 1
+        self.freebytes += node.size
+        self.allocbytes -= node.size
+        self.allocblocks -= 1
         x = self.avail.next
         while x is not self.avail and x.addr < node.addr:
+            self.freeloops += 1
             x = x.next
         if node.addr + node.size == x.addr: # Merge with next
             x.addr -= node.size
@@ -568,16 +604,19 @@ class SimpleAllocator:
             node = x
         else: # Insert new node into free list
             node.linkbefore(x)
+            self.freeblocks += 1
         x = node.prev
         if node.addr == x.addr + x.size and x is not self.avail:
             # Merge with previous node in free list
             node.unlink()
             x.size += node.size
             node = x
+            self.freeblocks -= 1
         # It's possible that either one of the merges above invalidated
         # the rover.
         # It's simplest to simply reset the rover to the newly freed block.
-        # XXX But is this optimal?
+        # It also seems optimal; if I only move the rover when it's
+        # become invalid, there performance goes way down.
         self.rover = node
 
     def dump(self, msg=""):
@@ -591,6 +630,7 @@ class SimpleAllocator:
             count += 1
             node = node.next
         print count, "free blocks,", bytes, "free bytes"
+        self.report()
 
 class BlockNode(Node):
 
