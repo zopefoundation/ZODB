@@ -92,7 +92,7 @@ class Tracer(object):
         oid2name = self.oid2name
         # First determine which oids weren't seen at all, and synthesize msgs
         # for them.
-        NOT_SEEN = "this oid was neither defined nor referenced"
+        NOT_SEEN = "this oid was not defined (no data record for it found)"
         for oid in oids:
             if oid not in oid2name:
                 msgs.append( (oid, None, NOT_SEEN) )
