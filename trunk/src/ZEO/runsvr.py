@@ -119,11 +119,13 @@ class Options:
         self.load_configuration()
 
     def load_configuration(self):
-        if self.rootconf or not self.configuration:
+        if not self.configuration:
             return
-        c = ZConfig.Context.Context()
+        here = os.path.dirname(sys.argv[0])
+        schemafile = os.path.join(here, "schema.xml")
+        schema = ZConfig.loadSchema(schemafile)
         try:
-            self.rootconf = c.loadURL(self.configuration)
+            self.rootconf = ZConfig.loadConfig(schema, self.configuration)[0]
         except ZConfig.ConfigurationError, errobj:
             self.usage(str(errobj))
 
@@ -148,9 +150,9 @@ class Options:
 class ZEOOptions(Options):
 
     hostname = None                     # A subclass may set this
-    hostconf = None                     # <Host> section
-    zeoconf = None                      # <ZEO> section
-    logconf = None                      # <Log> section
+    read_only = None
+    transaction_timeout = None
+    invalidation_queue_size = None
 
     family = None                       # set by -a; AF_UNIX or AF_INET
     address = None                      # set by -a; string or (host, port)
@@ -183,11 +185,22 @@ class ZEOOptions(Options):
                     self.usage("invalid port number: %r" % port)
                 self.address = (host, port)
         elif opt in ("-f", "--filename"):
-            from ZODB.FileStorage import FileStorage
+            from ZODB.config import FileStorage
+            class FSConfig:
+                def __init__(self, name, path):
+                    self._name = name
+                    self.path = path
+                    self.create = 0
+                    self.read_only = 0
+                    self.stop = None
+                    self.quota = None
+                def getSectionName(self):
+                    return self._name
             if not self.storages:
                 self.storages = {}
             key = str(1 + len(self.storages))
-            self.storages[key] = (FileStorage, {"file_name": arg})
+            conf = FSConfig(key, arg)
+            self.storages[key] = FileStorage(conf)
         else:
             # Pass it to the base class, for --help/-h
             Options.handle_option(self, opt, arg)
@@ -205,20 +218,6 @@ class ZEOOptions(Options):
         Options.load_configuration(self) # Sets self.rootconf
         if not self.rootconf:
             return
-        try:
-            self.hostconf = self.rootconf.getSection("Host")
-        except ZConfig.ConfigurationConflictingSectionError:
-            if not self.hostname:
-                self.hostname = socket.getfqdn()
-            self.hostconf = self.rootconf.getSection("Host", self.hostname)
-        if self.hostconf is None:
-            # If no <Host> section exists, fall back to the root
-            self.hostconf = self.rootconf
-        self.zeoconf = self.hostconf.getSection("ZEO")
-        if self.zeoconf is None:
-            # If no <ZEO> section exists, fall back to the host (or root)
-            self.zeoconf = self.hostconf
-        self.logconf = self.hostconf.getSection("Log")
 
         # Now extract options from various configuration sections
         self.load_zeoconf()
@@ -226,39 +225,29 @@ class ZEOOptions(Options):
         self.load_storages()
 
     def load_zeoconf(self):
-        # Get some option defaults from the configuration
-        if self.family:
-            # -a option overrides
-            return
-        port = self.zeoconf.getint("server-port")
-        path = self.zeoconf.get("path")
-        if port and path:
-            self.usage(
-                "Configuration contains conflicting ZEO information:\n"
-                "Exactly one of 'path' and 'server-port' may be given.")
-        if port:
-            host = self.hostconf.get("hostname", "")
-            self.family = socket.AF_INET
-            self.address = (host, port)
-        elif path:
-            self.family = socket.AF_UNIX
-            self.address = path
+        # Get some option values from the configuration
+        if self.family is None:
+            self.family = self.rootconf.address.family
+            self.address = self.rootconf.address.address
+
+        self.read_only = self.rootconf.read_only
+        self.transaction_timeout = self.rootconf.transaction_timeout
+        self.invalidation_queue_size = self.rootconf.invalidation_queue_size
 
     def load_logconf(self):
         # Get logging options from conf, unless overridden by environment
-        if not self.logconf:
-            return
+        # XXX This still needs to be supported in the config schema.
         reinit = 0
         if os.getenv("EVENT_LOG_FILE") is None:
             if os.getenv("STUPID_LOG_FILE") is None:
-                path = self.logconf.get("path")
+                path = None # self.logconf.get("path")
                 if path is not None:
                     os.environ["EVENT_LOG_FILE"] = path
                     os.environ["STUPID_LOG_FILE"] = path
                     reinit = 1
         if os.getenv("EVENT_LOG_SEVERITY") is None:
             if os.getenv("STUPID_LOG_SEVERITY") is None:
-                level = self.logconf.get("level")
+                level = None # self.logconf.get("level")
                 if level is not None:
                     os.environ["EVENT_LOG_SEVERITY"] = level
                     os.environ["STUPID_LOG_SEVERITY"] = level
@@ -271,17 +260,10 @@ class ZEOOptions(Options):
         if self.storages:
             # -f option overrides
             return
-        storagesections = self.zeoconf.getChildSections("Storage")
+
         self.storages = {}
-        import ZODB.StorageConfig
-        for section in storagesections:
-            name = section.name
-            if not name:
-                name = str(1 + len(self.storages))
-            if self.storages.has_key(name):
-                # (Actually, the parser doesn't allow this)
-                self.usage("duplicate storage name %r" % name)
-            self.storages[name] = ZODB.StorageConfig.getStorageInfo(section)
+        for opener in self.rootconf.storages:
+            self.storages[opener.name] = opener
 
 
 class ZEOServer:
@@ -329,10 +311,10 @@ class ZEOServer:
 
     def open_storages(self):
         self.storages = {}
-        for name, (cls, args) in self.options.storages.items():
-            info("open storage %r: %s.%s(**%r)" %
-                 (name, cls.__module__, cls.__name__, args))
-            self.storages[name] = cls(**args)
+        for name, opener in self.options.storages.items():
+            info("opening storage %r using %s"
+                 % (name, opener.__class__.__name__))
+            self.storages[name] = opener.open()
 
     def setup_signals(self):
         """Set up signal handlers.
@@ -356,7 +338,12 @@ class ZEOServer:
 
     def create_server(self):
         from ZEO.StorageServer import StorageServer
-        self.server = StorageServer(self.options.address, self.storages)
+        self.server = StorageServer(
+            self.options.address,
+            self.storages,
+            read_only=self.options.read_only,
+            invalidation_queue_size=self.options.invalidation_queue_size,
+            transaction_timeout=self.options.transaction_timeout)
 
     def loop_forever(self):
         import ThreadedAsync.LoopCallback
