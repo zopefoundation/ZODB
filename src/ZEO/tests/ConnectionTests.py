@@ -16,11 +16,9 @@ import os
 import sys
 import time
 import random
-import select
 import socket
 import asyncore
 import tempfile
-import thread # XXX do we really need to catch thread.error
 import threading
 import time
 
