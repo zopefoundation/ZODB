@@ -323,8 +323,8 @@ class Connection(smac.SizedMessageAsyncConnection):
             self.__reply_lock.acquire()
             # wait until reply...
         else:
-            # Do loop only if lock is already acquired.  XXX But can't
-            # we already guarantee that the lock is already acquired?
+            # Do loop until asyncore handler unlocks the lock.
+            assert not self.__reply_lock.acquire(0)
             while not self.__reply_lock.acquire(0):
                 try:
                     asyncore.poll(10.0, self._map)
