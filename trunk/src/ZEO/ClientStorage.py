@@ -141,16 +141,15 @@ class ClientStorage:
         name -- The storage name, defaulting to ''.  If this is false,
             str(addr) is used as the storage name.
 
-        client -- The client name, defaulting to None.  If this is
-            false, the environment value ZEO_CLIENT is used.  If the
-            effective value is true, the client cache is persistent.
-            See ClientCache for more info.
+        client -- A name used to construct persistent cache filenames.
+            Defaults to None, in which case the cache is not persistent.
 
         debug -- Ignored.  This is present only for backwards
             compatibility with ZEO 1.
 
-        var -- The 'var' directory, defaulting to None, in which
-            the persistent cache files should be written.
+        var -- When client is not None, this specifies the directory
+            where the persistent cache files are created.  It defaults
+            to None, in whichcase the current directory is used.
 
         min_disconnect_poll -- The minimum delay in seconds between
             attempts to connect to the server, in seconds.  Defaults
@@ -249,7 +248,7 @@ class ClientStorage:
         self._oid = '\0\0\0\0\0\0\0\0'
 
         # Decide whether to use non-temporary files
-        client = client or os.environ.get('ZEO_CLIENT')
+        client = client
         self._cache = self.ClientCacheClass(storage, cache_size,
                                             client=client, var=var)
 
