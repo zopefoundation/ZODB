@@ -23,7 +23,7 @@ import time
 
 import zLOG
 
-import ZEO.ClientStorage
+from ZEO.ClientStorage import ClientStorage
 from ZEO.Exceptions import Disconnected
 from ZEO.zrpc.marshal import Marshaller
 
@@ -31,6 +31,10 @@ from ZODB.Transaction import get_transaction
 from ZODB.POSException import ReadOnlyError
 from ZODB.tests import StorageTestBase
 from ZODB.tests.StorageTestBase import zodb_unpickle, MinPO
+
+class DummyDB:
+    def invalidate(self, *args):
+        pass
 
 class ConnectionTests(StorageTestBase.StorageTestBase):
     """Tests that explicitly manage the server process.
@@ -67,7 +71,16 @@ class ConnectionTests(StorageTestBase.StorageTestBase):
 
     def openClientStorage(self, cache='', cache_size=200000, wait=1,
                           read_only=0, read_only_fallback=0):
-        raise NotImplementedError
+        base = ClientStorage(self.addr,
+                             client=cache,
+                             cache_size=cache_size,
+                             wait=wait,
+                             min_disconnect_poll=0.1,
+                             read_only=read_only,
+                             read_only_fallback=read_only_fallback)
+        storage = base
+        storage.registerDB(DummyDB(), None)
+        return storage
 
     def shutdownServer(self, index=0):
         raise NotImplementedError
@@ -490,4 +503,3 @@ class ConnectionTests(StorageTestBase.StorageTestBase):
 
         self._storage = self.openClientStorage()
         self._dostore()
-        
