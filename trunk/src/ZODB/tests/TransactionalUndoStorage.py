@@ -519,8 +519,8 @@ class TransactionalUndoStorage:
 
         pack_times = []
         def set_pack_time():
-            snooze()
             pack_times.append(time.time())
+            snooze()
 
         root["key0"] = MinPO(0)
         root["key1"] = MinPO(1)
