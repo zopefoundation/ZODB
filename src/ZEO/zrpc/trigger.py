@@ -11,11 +11,10 @@
 # FOR A PARTICULAR PURPOSE
 #
 ##############################################################################
-import asyncore
 
+import asyncore
 import os
 import socket
-import string
 import thread
 
 if os.name == 'posix':
