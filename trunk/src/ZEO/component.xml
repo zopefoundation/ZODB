@@ -88,7 +88,7 @@
     <key name="authentication-realm" required="no">
       <description>
         The authentication realm of the server.  Some authentication
-        schemes use a realm to identify the logic set of usernames
+        schemes use a realm to identify the logical set of usernames
         that are accepted by this server.
       </description>
     </key>
