@@ -112,10 +112,10 @@ class ConflictError(TransactionError):
         return self.class_name
 
     def get_old_serial(self):
-        return self.serials[0]
+        return self.serials[1]
 
     def get_new_serial(self):
-        return self.serials[1]
+        return self.serials[0]
 
     def get_serials(self):
         return self.serials
