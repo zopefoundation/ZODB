@@ -572,7 +572,7 @@ OBJECT_HEADER_SIZE = 1 + 4 + 16
 # disk.
 
 class FileCache(object):
-    
+
     def __init__(self, maxsize, fpath, parent, reuse=True):
         # Maximum total of object sizes we keep in cache.
         self.maxsize = maxsize
@@ -624,7 +624,7 @@ class FileCache(object):
         else:
             self.new = False
             self.f = None
-        
+
         # Statistics:  _n_adds, _n_added_bytes,
         #              _n_evicts, _n_evicted_bytes
         self.clearStats()
@@ -661,7 +661,7 @@ class FileCache(object):
             elif status in '1234':
                 size = int(status)
             else:
-                assert 0, status
+                assert 0, hex(ord(status))
 
             self.filemap[ofs] = size, ent
             if ent is None and size > max_free_size:
@@ -839,7 +839,7 @@ class FileCache(object):
         # disk where the object was stored.  We need to load the
         # header to update the in-memory data structures held by
         # ClientCache.
-        
+
         # XXX Or we could just keep the header in memory at all times.
 
         e = self.key2entry.get(key)
@@ -861,11 +861,11 @@ class FileCache(object):
     # This method should be called when the object header is modified.
 
     def update(self, obj):
-        
+
         e = self.key2entry[obj.key]
         self.f.seek(e.offset + OBJECT_HEADER_SIZE)
         obj.serialize_header(self.f)
-        
+
     def settid(self, tid):
         if self.tid is not None:
             if tid < self.tid:
