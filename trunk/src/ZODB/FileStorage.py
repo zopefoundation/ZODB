@@ -184,7 +184,7 @@
 #   may have a back pointer to a version record or to a non-version
 #   record.
 #
-__version__='$Revision: 1.63 $'[11:-2]
+__version__='$Revision: 1.64 $'[11:-2]
 
 import struct, time, os, bpthread, string, base64, sys
 from struct import pack, unpack
@@ -1979,7 +1979,7 @@ class FileIterator(Iterator):
     _ltid=z64
     
     def __init__(self, file):
-        if type(file) is type(''): file=open(file, 'r+b')
+        if type(file) is type(''): file=open(file, 'rb')
         self._file=file
         if file.read(4) != packed_version: raise FileStorageFormatError, name
         file.seek(0,2)
