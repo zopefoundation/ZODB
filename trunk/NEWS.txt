@@ -29,6 +29,16 @@ DB
   raised.  In ZODB 3.6, these optional arguments will be removed.
 
 
+BTrees
+------
+
+- A new family of BTree types, in the ``IFBTree`` module, map
+  signed integers (32 bits) to C floats (also 32 bits).  The
+  intended use is to help construct search indices, where, e.g.,
+  integer word or document identifiers map to scores of some
+  kind.  This is easier than trying to work with scaled integer
+  score in an ``IIBTree``, and Zope3 has moved to ``IFBTrees``
+  for these purposes in its search code.
 
 Tools
 -----
