@@ -13,8 +13,8 @@
 ##############################################################################
 """Database objects
 
-$Id: DB.py,v 1.55 2003/10/02 18:17:19 jeremy Exp $"""
-__version__='$Revision: 1.55 $'[11:-2]
+$Id: DB.py,v 1.56 2003/11/18 13:17:16 tseaver Exp $"""
+__version__='$Revision: 1.56 $'[11:-2]
 
 import cPickle, cStringIO, sys, POSException, UndoLogCompatible
 from Connection import Connection
@@ -277,7 +277,7 @@ class DB(UndoLogCompatible.UndoLogCompatible, object):
         transaction.register(CommitVersion(self, source, destination))
 
     def exportFile(self, oid, file=None):
-        raise 'Not yet implemented'
+        raise NotImplementedError
 
     def getCacheDeactivateAfter(self):
         return self._cache_deactivate_after
@@ -301,7 +301,7 @@ class DB(UndoLogCompatible.UndoLogCompatible, object):
         return self._version_pool_size
 
     def importFile(self, file):
-        raise 'Not yet implemented'
+        raise NotImplementedError
 
     def invalidate(self, oids, connection=None, version='',
                    rc=sys.getrefcount):

@@ -14,7 +14,7 @@
 
 """
 Revision information:
-$Id: testTransaction.py,v 1.14 2003/10/05 14:34:35 chrism Exp $
+$Id: testTransaction.py,v 1.15 2003/11/18 13:17:16 tseaver Exp $
 """
 
 """
@@ -521,7 +521,7 @@ class TransactionTests(unittest.TestCase):
         except Transaction.POSException.TransactionError:
             pass
         else:
-            raise "Hosed Application didn't stop commits"
+            self.fail("Hosed Application didn't stop commits")
 
 
 class DataObject:

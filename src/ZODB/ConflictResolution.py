@@ -14,6 +14,7 @@
 import sys
 from cStringIO import StringIO
 from cPickle import Unpickler, Pickler
+from pickle import PicklingError
 
 from ZODB.POSException import ConflictError
 import zLOG
@@ -47,7 +48,7 @@ class PersistentReference:
         return "PR(%s %s)" % (id(self), self.data)
 
     def __getstate__(self):
-        raise "Can't pickle PersistentReference"
+        raise PicklingError, "Can't pickle PersistentReference"
 
 class PersistentReferenceFactory:
 

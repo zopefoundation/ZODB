@@ -612,7 +612,7 @@ class BTreeTests(MappingBase):
                 del self.t[k]
                 deleted.append(k)
                 if self.t.has_key(k):
-                    raise "had problems deleting %s" % k
+                    self.fail( "had problems deleting %s" % k )
         badones = []
         for x in deleted:
             if self.t.has_key(x):
