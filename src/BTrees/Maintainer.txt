@@ -35,6 +35,9 @@ Macros for Keys
 KEY_TYPE
 The C type declaration for keys (e.g., int or PyObject*).
 
+KEY_TYPE_IS_PYOBJECT
+Define if KEY_TYPE is a PyObject*, else undef.
+
 KEY_CHECK(K)
 Tests whether the PyObject* K can be converted to the (C) key type
 (KEY_TYPE).  The macro should return a boolean (zero for false,
@@ -83,6 +86,9 @@ Macros for Values
 
 VALUE_TYPE
 The C type declaration for values (e.g., int or PyObject*).
+
+VALUE_TYPE_IS_PYOBJECT
+Define if VALUE_TYPE is a PyObject*, else undef.
 
 TEST_VALUE(X, Y)
 Like Python's cmp().  Compares X to Y, where X & Y are C values of

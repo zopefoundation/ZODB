@@ -12,7 +12,7 @@
 
  ****************************************************************************/
 
-#define BUCKETTEMPLATE_C "$Id: BucketTemplate.c,v 1.45 2002/06/20 15:03:28 tim_one Exp $\n"
+#define BUCKETTEMPLATE_C "$Id: BucketTemplate.c,v 1.46 2002/06/27 00:32:54 tim_one Exp $\n"
 
 /* Use BUCKET_SEARCH to find the index at which a key belongs.
  * INDEX    An int lvalue to hold the index i such that KEY belongs at
@@ -855,36 +855,42 @@ bucket_byValue(Bucket *self, PyObject *args)
 static int
 _bucket_clear(Bucket *self)
 {
-  int i;
+    const int len = self->len;
+    /* Don't declare i at this level.  If neither keys nor values are
+     * PyObject*, i won't be referenced, and you'll get a nuisance compiler
+     * wng for declaring it here.
+     */
+    self->len = self->size = 0;
 
-  if (self->next)
-    {
-      Py_DECREF(self->next);
-      self->next=0;
+    if (self->next) {
+        Py_DECREF(self->next);
+        self->next = NULL;
     }
 
-  for (i=self->len; --i >= 0; )
-    {
-      DECREF_KEY(self->keys[i]);
-      if (self->values)
-        {
-          DECREF_VALUE(self->values[i]);
-        }
-    }
-  self->len=0;
-  if (self->values)
-    {
-      free(self->values);
-      self->values=0;
-    }
-  if (self->keys)
-    {
-      free(self->keys);
-      self->keys=0;
-    }
-  self->size=0;
+    /* Silence compiler warning about unused variable len for the case
+       when neither key nor value is an object, i.e. II. */
+    (void)len;
 
-  return 0;
+    if (self->keys) {
+#ifdef KEY_TYPE_IS_PYOBJECT
+        int i;
+        for (i = 0; i < len; ++i)
+            DECREF_KEY(self->keys[i]);
+#endif
+        free(self->keys);
+        self->keys = NULL;
+    }
+
+    if (self->values) {
+#ifdef VALUE_TYPE_IS_PYOBJECT
+        int i;
+        for (i = 0; i < len; ++i)
+            DECREF_VALUE(self->values[i]);
+#endif
+        free(self->values);
+        self->values = NULL;
+    }
+    return 0;
 }
 
 #ifdef PERSISTENT

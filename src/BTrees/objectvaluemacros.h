@@ -1,7 +1,8 @@
 
-#define VALUEMACROS_H "$Id: objectvaluemacros.h,v 1.3 2001/03/20 13:52:00 jim Exp $\n"
+#define VALUEMACROS_H "$Id: objectvaluemacros.h,v 1.4 2002/06/27 00:32:54 tim_one Exp $\n"
 
 #define VALUE_TYPE PyObject *
+#define VALUE_TYPE_IS_PYOBJECT
 #define TEST_VALUE(VALUE, TARGET) PyObject_Compare((VALUE),(TARGET))
 #define DECLARE_VALUE(NAME) VALUE_TYPE NAME
 #define INCREF_VALUE(k) Py_INCREF(k)

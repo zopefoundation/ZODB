@@ -12,7 +12,7 @@
 
  ****************************************************************************/
 
-#define BTREETEMPLATE_C "$Id: BTreeTemplate.c,v 1.68 2002/06/25 16:23:26 tim_one Exp $\n"
+#define BTREETEMPLATE_C "$Id: BTreeTemplate.c,v 1.69 2002/06/27 00:32:54 tim_one Exp $\n"
 
 /* Sanity-check a BTree.  This is a private helper for BTree_check.  Return:
  *      -1         Error.  If it's an internal inconsistency in the BTree,
@@ -548,7 +548,9 @@ _BTree_clear(BTree *self)
 	}
 
         for (i = 1; i < len; i++) {
+#ifdef KEY_TYPE_IS_PYOBJECT
 	    DECREF_KEY(self->data[i].key);
+#endif
             Py_DECREF(self->data[i].child);
         }
 	free(self->data);

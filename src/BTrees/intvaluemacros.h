@@ -1,7 +1,8 @@
 
-#define VALUEMACROS_H "$Id: intvaluemacros.h,v 1.7 2001/04/03 15:02:17 jim Exp $\n"
+#define VALUEMACROS_H "$Id: intvaluemacros.h,v 1.8 2002/06/27 00:32:54 tim_one Exp $\n"
 
 #define VALUE_TYPE int
+#undef VALUE_TYPE_IS_PYOBJECT
 #define TEST_VALUE(K, T) (((K) < (T)) ? -1 : (((K) > (T)) ? 1: 0)) 
 #define VALUE_SAME(VALUE, TARGET) ( (VALUE) == (TARGET) )
 #define DECLARE_VALUE(NAME) VALUE_TYPE NAME

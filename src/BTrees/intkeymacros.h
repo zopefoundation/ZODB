@@ -1,7 +1,8 @@
 
-#define KEYMACROS_H "$Id: intkeymacros.h,v 1.9 2002/06/25 02:00:55 tim_one Exp $\n"
+#define KEYMACROS_H "$Id: intkeymacros.h,v 1.10 2002/06/27 00:32:54 tim_one Exp $\n"
 
 #define KEY_TYPE int
+#undef KEY_TYPE_IS_PYOBJECT
 #define KEY_CHECK PyInt_Check
 #define TEST_KEY_SET_OR(V, K, T) if ( ( (V) = (((K) < (T)) ? -1 : (((K) > (T)) ? 1: 0)) ) , 0 )
 #define DECREF_KEY(KEY)
