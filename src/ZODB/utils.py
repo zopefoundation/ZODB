@@ -18,8 +18,9 @@ import TimeStamp, time
 from struct import pack, unpack
 
 z64 = '\0'*8
+t32 = 1L << 32
 
-if sys.version_info >= (2, 2):
+if sys.hexversion >= 0x02020000:
 
     # Note that the distinction between ints and longs is blurred in
     # Python 2.2.  So make u64() and U64() the same.
@@ -35,8 +36,6 @@ if sys.version_info >= (2, 2):
     U64 = u64
 
 else:
-
-    t32 = 1L << 32
 
     def p64(v):
         """Pack an integer or long into a 8-byte string"""
