@@ -266,3 +266,90 @@ Optimization points:
   immediate test-and-branch, and for a very unlikely case (BTree
   nodes are rarely empty).  It's better to get into the loop right
   away so the normal case makes progress ASAP.
+
+
+The BUCKET_SEARCH Macro
+=======================
+This has a different job than BTREE_SEARCH:  the key 0 slot is
+legitimate in a bucket, and we want to find the index at which the
+key belongs.  If the key is larger than the bucket's largest key, a
+new slot at index len is where it belongs, else it belongs at the
+smallest i with keys[i] >= the key we're looking for.  We also need
+to know whether or not the key is present (BTREE_SEARCH didn't care;
+it only wanted to find the next node to search).
+
+The mechanics of the search are quite similar, though.  The primary
+loop invariant changes to (say we're searching for key k):
+
+    K(lo-1) < k < K(hi)
+
+where K(i) means keys[i], and we pretend K(-1) is minus infinity and
+K(len) is plus infinity.
+
+If the bucket is empty, lo=hi=i=0 at the start, the loop body is never
+entered, and the macro sets INDEX to 0 and ABSENT to true.  That's why
+_cmp is initialized to 1 (_cmp becomes ABSENT).
+
+Else the bucket is not empty, lo<hi at the start, and the loop body
+is entered.  The invariant is obviously satisfied then, as lo=0 and
+hi=len.
+
+If K[i]<k, lo is set to i+1, preserving that K(lo-1) = K[i] < k.
+If K[i]>k, hi is set to i, preserving that K[hi] = K[i] > k.
+If the loop exits after either of those, _cmp != 0, so ABSENT becomes
+true.
+If K[i]=k, the loop breaks, so that INDEX becomes i, and ABSENT
+becomes false (_cmp=0 in this case).
+
+The same case analysis for BTREE_SEARCH on lo and hi holds here:
+
+a. (lo == i == hi) if and only if (lo   == hi).
+b. (lo == i  < hi) if and only if (lo+1 == hi).
+c. (lo  < i  < hi) if and only if (lo+1  < hi).
+
+So long as lo+1 < hi, we're in case #c, and either break with
+equality (in which case the right results are obviously computed) or
+narrow the range.  If equality doesn't obtain, the range eventually
+narrows to cases #a or #b.
+
+To go from #c to #a, we must have lo+2==hi at the start, and
+K[i]=K[lo+1]<k.  Then the new lo gets set to i+1 = lo+2 = hi, and the
+loop exits with lo=hi=i and _cmp<0.  This is correct, because we
+know that k != K(i) (loop invariant! we actually know something
+stronger, that k < K(hi); since i=hi, this implies k != K(i)).
+
+Else #c eventually falls into case #b, lo+1==hi and i==lo.  The
+invariant tells us K(lo-1) < k < K(hi) = K(lo+1), so if the key
+is present it must be at K(lo).  i==lo in this case, so we test
+K(lo) against k.  As always, if equality obtains we do the right
+thing, else case #b becomes case #a.
+
+When #b becomes #a, the last comparison was non-equal, so _cmp is
+non-zero, and the loop exits because lo==hi==i in case #a.  The
+invariant then tells us K(lo-1) < k < K(lo), so the key is in fact
+not present, it's correct to exit with _cmp non-zero, and i==lo is
+again the index at which k belongs.
+
+Optimization points:
+
++ As for BTREE_SEARCH, shifting of signed ints is cheaper than
+  division.
+
++ Unlike as for BTREE_SEARCH, there's nothing special about searching
+  an empty bucket, and the macro computes thoroughly sensible results
+  in that case.
+
++ The order of _cmp comparisons differs from BTREE_SEARCH.  When
+  searching a bucket, it's much more likely (than when searching a
+  BTree node) that the key is present, so testing __cmp==0 isn't a
+  systematic waste of cycles.  At the extreme, if all searches are
+  successful (key present), on average this saves one comparison per
+  search, against leaving the determination of _cmp==0 implicit (as
+  BTREE_SEARCH does).  But even on successful searches, __cmp != 0 is
+  a more popular outcome than __cmp == 0 across iterations (unless
+  the bucket has only a few keys), so it's important to check one
+  of the inequality cases first.  It turns out it's better on average
+  to check K(i) < key (than to check K(i) > key), because when it
+  pays it narrows the range more (we get a little boost from setting
+  lo=i+1 in this case; the other case sets hi=i, which isn't as much
+  of a narrowing).
