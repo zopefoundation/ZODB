@@ -84,8 +84,8 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.20 1999/07/21 21:11:07 klm Exp $"""
-__version__='$Revision: 1.20 $'[11:-2]
+$Id: Connection.py,v 1.21 1999/08/11 14:35:59 jim Exp $"""
+__version__='$Revision: 1.21 $'[11:-2]
 
 from cPickleCache import PickleCache
 from POSException import ConflictError, ExportError
@@ -336,16 +336,17 @@ class Connection(ExportImport.ExportImport):
         
         load=src.load
         store=tmp.store
-        invalidate=self._invalidating.append
         dest=self._version
         get=self._cache.get
+        oids=src._index.keys()
+        invalidating=self._invalidating
+        invalidating[len(invalidating):]=oids
         
-        for oid in src._index.keys():
+        for oid in oids:
             data, serial = load(oid, src)
             s=store(oid, serial, data, dest, t)
             o=get(oid, None)
             if o is not None: o._p_serial=s
-            invalidate(oid)
 
     def abort_sub(self, t):
         tmp=self._tmp
