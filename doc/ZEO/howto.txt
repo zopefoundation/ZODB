@@ -34,9 +34,9 @@ The install command should create a /home/zope/lib/python/ZEO directoy.
 Configuring server
 ------------------
 
-The script ZEO/runzeo.py runs the ZEO server.  The server can be
+The script runzeo.py runs the ZEO server.  The server can be
 configured using command-line arguments or a config file.  This
-document describes only describes the config file.  Run ZEO/runzeo.py
+document describes only describes the config file.  Run runzeo.py
 -h to see the list of command-line arguments.
 
 The runzeo.py script imports the ZEO package.  ZEO must either be
@@ -70,7 +70,7 @@ server writes its log file to /var/tmp/zeo.log and uses a custom
 format for each line.  Assuming the example configuration it stored in
 zeo.config, you can run a server by typing:
 
-    python ~/src/ZODB3/ZEO/runzeo.py -C zeo.config
+    python /usr/local/bin/runzeo.py -C zeo.config
 
 A configuration file consists of a <zeo> section and a storage
 section, where the storage section can use any of the valid ZODB
