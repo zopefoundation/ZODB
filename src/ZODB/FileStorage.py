@@ -114,20 +114,19 @@
 #   may have a back pointer to a version record or to a non-version
 #   record.
 #
-__version__='$Revision: 1.76 $'[11:-2]
+__version__='$Revision: 1.77 $'[11:-2]
 
-import struct, time, os, bpthread, string, base64, sys
+import struct, time, os, string, base64, sys
 from struct import pack, unpack
-from cPickle import loads
 import POSException
 from POSException import UndoError
 from TimeStamp import TimeStamp
 from lock_file import lock_file
 from utils import t32, p64, U64, cp
-from zLOG import LOG, WARNING, ERROR, PANIC, register_subsystem
+from zLOG import LOG, BLATHER, WARNING, ERROR, PANIC, register_subsystem
 register_subsystem('ZODB FS')
 import BaseStorage
-from cPickle import Pickler, Unpickler
+from cPickle import Pickler, Unpickler, loads
 import ConflictResolution
 
 try: from posix import fsync
@@ -185,6 +184,7 @@ class FileStorage(BaseStorage.BaseStorage,
             create = 1
 
         if read_only:
+            self._is_read_only = 1
             if create:
                 raise ValueError, "can\'t create a read-only file"
         elif stop is not None:
@@ -242,6 +242,7 @@ class FileStorage(BaseStorage.BaseStorage,
                 self._file, file_name, index, vindex, tindex, stop,
                 read_only=read_only,
                 )
+        self._ltid = tid
 
         self._ts = tid = TimeStamp(tid)
         t = time.time()
@@ -262,7 +263,8 @@ class FileStorage(BaseStorage.BaseStorage,
         self._index_get=index.get
         self._vindex_get=vindex.get
 
-    def __len__(self): return len(self._index)
+    def __len__(self):
+        return len(self._index)
 
     def _newIndexes(self):
         # hook to use something other than builtin dict
@@ -389,13 +391,20 @@ class FileStorage(BaseStorage.BaseStorage,
 
     def close(self):
         self._file.close()
-        if hasattr(self,'_lock_file'):  self._lock_file.close()
-        if self._tfile:                 self._tfile.close()
-        try: self._save_index()
-        except: pass # We don't care if this fails.
+        if hasattr(self,'_lock_file'):
+            self._lock_file.close()
+        if self._tfile:
+            self._tfile.close()
+        try:
+            self._save_index()
+        except:
+            # XXX should log the error, though
+            pass # We don't care if this fails.
         
     def commitVersion(self, src, dest, transaction, abort=None):
         # We are going to commit by simply storing back pointers.
+        if self._is_read_only:
+            raise POSException.ReadOnlyError()
         if not (src and isinstance(src, StringType)
                 and isinstance(dest, StringType)):
             raise POSException.VersionCommitError('Invalid source version')
@@ -413,9 +422,8 @@ class FileStorage(BaseStorage.BaseStorage,
         
         self._lock_acquire()
         try:
-            file=self._file
-            read=file.read
-            seek=file.seek
+            read=self._file.read
+            seek=self._file.seek
             tfile=self._tfile
             write=tfile.write
             tindex=self._tindex
@@ -607,6 +615,8 @@ class FileStorage(BaseStorage.BaseStorage,
         finally: self._lock_release()
 
     def store(self, oid, serial, data, version, transaction):
+        if self._is_read_only:
+            raise POSException.ReadOnlyError()
         if transaction is not self._transaction:
             raise POSException.StorageTransactionError(self, transaction)
 
@@ -632,8 +642,8 @@ class FileStorage(BaseStorage.BaseStorage,
                 if serial != oserial:
                     data=self.tryToResolveConflict(oid, oserial, serial, data)
                     if not data:
-                        raise POSException.ConflictError, (
-                            serial, oserial)
+                        raise POSException.ConflictError(oid=oid,
+                                                serials=(oserial, serial))
             else:
                 oserial=serial
                     
@@ -672,13 +682,17 @@ class FileStorage(BaseStorage.BaseStorage,
         finally:
             self._lock_release()
 
-    def supportsUndo(self): return 1
-    def supportsVersions(self): return 1
+    def supportsUndo(self):
+        return 1
+    
+    def supportsVersions(self):
+        return 1
 
     def _clear_temp(self):
         self._tindex.clear()
         self._tvindex.clear()
-        self._tfile.seek(0)
+        if self._tfile is not None:
+            self._tfile.seek(0)
 
     def _begin(self, tid, u, d, e):
         self._thl=23+len(u)+len(d)+len(e)
@@ -702,9 +716,9 @@ class FileStorage(BaseStorage.BaseStorage,
 
             # We have to check lengths here because struct.pack
             # doesn't raise an exception on overflow!
-            if luser > 65535: raise FileStorageError, 'user name too long'
-            if ldesc > 65535: raise FileStorageError, 'description too long'
-            if lext  > 65535: raise FileStorageError, 'too much extension data'
+            if luser > 65535: raise FileStorageError('user name too long')
+            if ldesc > 65535: raise FileStorageError('description too long')
+            if lext > 65535: raise FileStorageError('too much extension data')
 
             tlen=self._thl
             pos=self._pos
@@ -718,7 +732,7 @@ class FileStorage(BaseStorage.BaseStorage,
                 # suspect.
                 write(pack(
                     ">8s" "8s" "c"  "H"        "H"        "H"
-                     ,tid, stl, 'c', luser,     ldesc,     lext,
+                     ,tid, stl,'c',  luser,     ldesc,     lext,
                     ))
                 if user: write(user)
                 if desc: write(desc)
@@ -754,6 +768,7 @@ class FileStorage(BaseStorage.BaseStorage,
 
             self._index.update(self._tindex)
             self._vindex.update(self._tvindex)
+        self._ltid = tid
 
     def _abort(self):
         if self._nextpos:
@@ -761,6 +776,8 @@ class FileStorage(BaseStorage.BaseStorage,
             self._nextpos=0
 
     def undo(self, transaction_id):
+        if self._is_read_only:
+            raise POSException.ReadOnlyError()
         self._lock_acquire()
         try:
             self._clear_index()
@@ -808,7 +825,8 @@ class FileStorage(BaseStorage.BaseStorage,
             return t.keys()            
         finally: self._lock_release()
 
-    def supportsTransactionalUndo(self): return 1
+    def supportsTransactionalUndo(self):
+        return 1
 
     def _undoDataInfo(self, oid, pos, tpos):
         """Return the serial, data pointer, data, and version for the oid
@@ -930,7 +948,9 @@ class FileStorage(BaseStorage.BaseStorage,
         # writing a file position rather than a pickle. Sometimes, we
         # may do conflict resolution, in which case we actually copy
         # new data that results from resolution.
-        
+
+        if self._is_read_only:
+            raise POSException.ReadOnlyError()
         if transaction is not self._transaction:
             raise POSException.StorageTransactionError(self, transaction)
         
@@ -1175,6 +1195,8 @@ class FileStorage(BaseStorage.BaseStorage,
         the associated data are copied, since the old records are not copied.
         """
 
+        if self._is_read_only:
+            raise POSException.ReadOnlyError()
         # Ugh, this seems long
         
         packing=1 # are we in the packing phase (or the copy phase)
@@ -1551,8 +1573,32 @@ class FileStorage(BaseStorage.BaseStorage,
             self._packt=z64
             _lock_release()
 
-    def iterator(self):
-        return FileIterator(self._file_name)
+    def iterator(self, start=None, stop=None):
+        return FileIterator(self._file_name, start, stop)
+
+    def lastTransaction(self):
+        """Return transaction id for last committed transaction"""
+        return self._ltid
+
+    def lastSerial(self, oid):
+        """Return last serialno committed for object oid.
+
+        If there is no serialno for this oid -- which can only occur
+        if it is a new object -- return None.
+        """
+        try:
+            pos = self._index[oid]
+        except KeyError:
+            return None
+        self._file.seek(pos)
+        # first 8 bytes are oid, second 8 bytes are serialno
+        h = self._file.read(16)
+        if len(h) < 16:
+            raise CorruptedDataError, h
+        if h[:8] != oid:
+            h = h + self._file.read(26) # get rest of header
+            raise CorruptedDataError, h
+        return h[8:]
 
 def shift_transactions_forward(index, vindex, tindex, file, pos, opos):
     """Copy transactions forward in the data file
@@ -1969,14 +2015,46 @@ class FileIterator(Iterator):
     """
     _ltid=z64
     
-    def __init__(self, file):
+    def __init__(self, file, start=None, stop=None):
         if isinstance(file, StringType):
-            file=open(file, 'rb')
-        self._file=file
-        if file.read(4) != packed_version: raise FileStorageFormatError, name
+            file = open(file, 'rb')
+        self._file = file
+        if file.read(4) != packed_version:
+            raise FileStorageFormatError, name
         file.seek(0,2)
-        self._file_size=file.tell()
-        self._pos=4L
+        self._file_size = file.tell()
+        self._pos = 4L
+        assert start is None or isinstance(start, StringType)
+        assert stop is None or isinstance(stop, StringType)
+        if start:
+            self._skip_to_start(start)
+        self._stop = stop
+
+    def _skip_to_start(self, start):
+        # Scan through the transaction records doing almost no sanity
+        # checks. 
+        while 1:
+            self._file.seek(self._pos)
+            h = self._file.read(16)
+            if len(h) < 16:
+                return
+            tid, stl = unpack(">8s8s", h)
+            if tid >= start:
+                return
+            tl = U64(stl)
+            try:
+                self._pos += tl + 8
+            except OverflowError:
+                self._pos = long(self._pos) + tl + 8
+            if __debug__:
+                # Sanity check
+                self._file.seek(self._pos - 8, 0)
+                rtl = self._file.read(8)
+                if rtl != stl:
+                    pos = self._file.tell() - 8
+                    panic("%s has inconsistent transaction length at %s "
+                          "(%s != %s)",
+                          self._file.name, pos, U64(rtl), U64(stl))
 
     def next(self, index=0):
         file=self._file
@@ -1984,6 +2062,7 @@ class FileIterator(Iterator):
         read=file.read
         pos=self._pos
 
+        LOG("ZODB FS", BLATHER, "next(%d)" % index)
         while 1:
             # Read the transaction record
             seek(pos)
@@ -1994,7 +2073,7 @@ class FileIterator(Iterator):
             if el < 0: el=t32-el
 
             if tid <= self._ltid:
-                warn("%s time-stamp reduction at %s", name, pos)
+                warn("%s time-stamp reduction at %s", self._file.name, pos)
             self._ltid=tid
 
             tl=U64(stl)
@@ -2004,11 +2083,12 @@ class FileIterator(Iterator):
                 # cleared.  They may also be corrupted,
                 # in which case, we don't want to totally lose the data.
                 warn("%s truncated, possibly due to damaged records at %s",
-                     name, pos)
+                     self._file.name, pos)
                 break
 
             if status not in ' up':
-                warn('%s has invalid status, %s, at %s', name, status, pos)
+                warn('%s has invalid status, %s, at %s', self._file.name,
+                     status, pos)
 
             if tl < (23+ul+dl+el):
                 # We're in trouble. Find out if this is bad data in
@@ -2022,15 +2102,23 @@ class FileIterator(Iterator):
                 # reasonable:
                 if self._file_size - rtl < pos or rtl < 23:
                     nearPanic('%s has invalid transaction header at %s',
-                              name, pos)
+                              self._file.name, pos)
                     warn("It appears that there is invalid data at the end of "
                          "the file, possibly due to a system crash.  %s "
                          "truncated to recover from bad data at end."
-                         % name)
+                         % self._file.name)
                     break
                 else:
-                    warn('%s has invalid transaction header at %s', name, pos)
+                    warn('%s has invalid transaction header at %s',
+                         self._file.name, pos)
                     break
+
+            if self._stop is not None:
+                LOG("ZODB FS", BLATHER,
+                    ("tid %x > stop %x ? %d" %
+                     (U64(tid), U64(self._stop), tid > self._stop)))
+            if self._stop is not None and tid > self._stop:
+                raise IndexError, index
 
             tpos=pos
             tend=tpos+tl
@@ -2041,7 +2129,7 @@ class FileIterator(Iterator):
                 h=read(8)
                 if h != stl:
                     panic('%s has inconsistent transaction length at %s',
-                          name, pos)
+                          self._file.name, pos)
                 pos=tend+8
                 continue
 
@@ -2067,7 +2155,7 @@ class FileIterator(Iterator):
             h=read(8)
             if h != stl:
                 warn("%s redundant transaction length check failed at %s",
-                     name, pos)
+                     self._file.name, pos)
                 break
             self._pos=pos+8
 
@@ -2075,7 +2163,7 @@ class FileIterator(Iterator):
 
         raise IndexError, index
     
-class RecordIterator(Iterator):
+class RecordIterator(Iterator, BaseStorage.TransactionRecord):
     """Iterate over the transactions in a FileStorage file.
     """
     def __init__(self, tid, status, user, desc, ext, pos, stuff):
@@ -2127,9 +2215,8 @@ class RecordIterator(Iterator):
             return r
         
         raise IndexError, index
-    
 
-class Record:
+class Record(BaseStorage.DataRecord):
     """An abstract database record
     """
     def __init__(self, *args):

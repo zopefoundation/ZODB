@@ -10,14 +10,14 @@
 # FOR A PARTICULAR PURPOSE
 # 
 ##############################################################################
-'''BoboPOS-defined exceptions
+"""BoboPOS-defined exceptions
 
-$Id: POSException.py,v 1.8 2001/11/28 15:51:20 matt Exp $'''
-__version__='$Revision: 1.8 $'[11:-2]
+$Id: POSException.py,v 1.9 2002/01/17 17:34:33 jeremy Exp $"""
+__version__ = '$Revision: 1.9 $'.split()[-2:][0]
 
 from string import join
-StringType=type('')
-DictType=type({})
+from types import StringType, DictType
+from ZODB import utils
 
 class POSError(Exception):
     """Persistent object system error
@@ -28,10 +28,94 @@ class TransactionError(POSError):
     """
 
 class ConflictError(TransactionError):
-    """Two transactions tried to modify the same object at once
+    """Two transactions tried to modify the same object at once.  This
+    transaction should be resubmitted.
 
-    This transaction should be resubmitted.
+    Instance attributes:
+      oid : string
+        the OID (8-byte packed string) of the object in conflict
+      class_name : string
+        the fully-qualified name of that object's class
+      message : string
+        a human-readable explanation of the error
+      serials : (string, string)
+        a pair of 8-byte packed strings; these are the serial numbers
+        (old and new) of the object in conflict.  (Serial numbers are
+        closely related [equal?] to transaction IDs; a ConflictError may
+        be triggered by a serial number mismatch.)
+
+    The caller should pass either object or oid as a keyword argument,
+    but not both of them.  If object is passed, it should be a
+    persistent object with an _p_oid attribute.
     """
+
+    def __init__(self, message=None, object=None, oid=None, serials=None):
+        if message is None:
+            self.message = "database conflict error"
+        else:
+            self.message = message
+
+        if object is None:
+            self.oid = None
+            self.class_name = None
+        else:
+            self.oid = object._p_oid
+            klass = object.__class__
+            self.class_name = klass.__module__ + "." + klass.__name__
+
+        if oid is not None:
+            assert self.oid is None
+            self.oid = oid
+
+        self.serials = serials
+
+    def __str__(self):
+        extras = []
+        if self.oid:
+            extras.append("oid %016x" % utils.U64(self.oid))
+        if self.class_name:
+            extras.append("class %s" % self.class_name)
+        if self.serials:
+            extras.append("serial was %016x, now %016x" %
+                          tuple(map(utils.U64, self.serials)))
+        if extras:
+            return "%s (%s)" % (self.message, ", ".join(extras))
+        else:
+            return self.message
+
+    def get_oid(self):
+        return self.oid
+
+    def get_class_name(self):
+        return self.class_name
+
+    def get_old_serial(self):
+        return self.serials[0]
+
+    def get_new_serial(self):
+        return self.serials[1]
+
+    def get_serials(self):
+        return self.serials
+
+
+class ReadConflictError(ConflictError):
+    """A conflict detected at read time -- attempt to read an object
+    that has changed in another transaction (eg. another thread
+    or process).
+    """
+    def __init__(self, message=None, object=None, serials=None):
+        if message is None:
+            message = "database read conflict error"
+        ConflictError.__init__(self, message=message, object=object,
+                               serials=serials)
+
+class BTreesConflictError(ConflictError):
+    """A special subclass for BTrees conflict errors, which return
+    an undocumented four-tuple."""
+    def __init__(self, *btree_args):
+        ConflictError.__init__(self, message="BTrees conflict error")
+        self.btree = btree_args
 
 class VersionError(POSError):
     """An error in handling versions occurred
@@ -82,6 +166,10 @@ class StorageSystemError(StorageError):
 
 class MountedStorageError(StorageError):
     """Unable to access mounted storage.
+    """
+
+class ReadOnlyError(StorageError):
+    """Unable to modify objects in a read-only storage.
     """
 
 class ExportError(POSError):

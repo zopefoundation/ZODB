@@ -12,11 +12,11 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.61 2001/11/28 15:51:18 matt Exp $"""
-__version__='$Revision: 1.61 $'[11:-2]
+$Id: Connection.py,v 1.62 2002/01/17 17:34:33 jeremy Exp $"""
+__version__='$Revision: 1.62 $'[11:-2]
 
 from cPickleCache import PickleCache
-from POSException import ConflictError
+from POSException import ConflictError, ReadConflictError
 from ExtensionClass import Base
 import ExportImport, TmpStore
 from zLOG import LOG, ERROR, BLATHER
@@ -248,7 +248,7 @@ class Connection(ExportImport.ExportImport):
                 or
                 invalid(None)
                 ):
-                raise ConflictError, `oid`
+                raise ConflictError(object=object)
             self._invalidating.append(oid)
 
         else:
@@ -315,7 +315,7 @@ class Connection(ExportImport.ExportImport):
                     or
                     invalid(None)
                     ):
-                    raise ConflictError, `oid`
+                    raise ConflictError(object=object)
                 self._invalidating.append(oid)
                 
             klass = object.__class__
@@ -459,7 +459,7 @@ class Connection(ExportImport.ExportImport):
             if invalid(oid) or invalid(None):
                 if not hasattr(object.__class__, '_p_independent'):
                     get_transaction().register(self)
-                    raise ConflictError(`oid`, `object.__class__`)
+                    raise ReadConflictError(object=object)
                 invalid=1
             else:
                 invalid=0
@@ -484,7 +484,7 @@ class Connection(ExportImport.ExportImport):
                     except KeyError: pass
                 else:
                     get_transaction().register(self)
-                    raise ConflictError(`oid`, `object.__class__`)
+                    raise ConflictError(object=object)
 
         except ConflictError:
             raise
@@ -544,7 +544,7 @@ class Connection(ExportImport.ExportImport):
 
     def tpc_begin(self, transaction, sub=None):
         if self._invalid(None): # Some nitwit invalidated everything!
-            raise ConflictError, "transaction already invalidated"
+            raise ConflictError("transaction already invalidated")
         self._invalidating=[]
         self._creating=[]
 

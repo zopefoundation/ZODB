@@ -14,7 +14,7 @@
 """
 # Do this portably in the face of checking out with -kv
 import string
-__version__ = string.split('$Revision: 1.16 $')[-2:][0]
+__version__ = string.split('$Revision: 1.17 $')[-2:][0]
 
 import ThreadLock, bpthread
 import time, UndoLogCompatible
@@ -26,6 +26,7 @@ class BaseStorage(UndoLogCompatible.UndoLogCompatible):
     _transaction=None # Transaction that is being committed
     _serial=z64       # Transaction serial number
     _tstatus=' '      # Transaction status, used for copying data
+    _is_read_only = 0
 
     def __init__(self, name, base=None):
         
@@ -42,8 +43,10 @@ class BaseStorage(UndoLogCompatible.UndoLogCompatible):
         t=time.time()
         t=self._ts=apply(TimeStamp,(time.gmtime(t)[:5]+(t%60,)))
         self._serial=`t`
-        if base is None: self._oid='\0\0\0\0\0\0\0\0'
-        else:            self._oid=base._oid
+        if base is None:
+            self._oid='\0\0\0\0\0\0\0\0'
+        else:
+            self._oid=base._oid
 
     def abortVersion(self, src, transaction):
         if transaction is not self._transaction:
@@ -55,15 +58,24 @@ class BaseStorage(UndoLogCompatible.UndoLogCompatible):
             raise POSException.StorageTransactionError(self, transaction)
         return []
 
-    def close(self): pass
+    def close(self):
+        pass
 
-    def getName(self): return self.__name__
-    def getSize(self): return len(self)*300 # WAG!
-    def history(self, oid, version, length=1): pass
+    def getName(self):
+        return self.__name__
+    
+    def getSize(self):
+        return len(self)*300 # WAG!
+    
+    def history(self, oid, version, length=1):
+        pass
                     
-    def modifiedInVersion(self, oid): return ''
+    def modifiedInVersion(self, oid):
+        return ''
 
     def new_oid(self, last=None):
+        if self._is_read_only:
+            raise POSException.ReadOnlyError()
         if last is None:
             self._lock_acquire()
             try:
@@ -79,10 +91,17 @@ class BaseStorage(UndoLogCompatible.UndoLogCompatible):
             if d < 255: return last[:-1]+chr(d+1)+'\0'*(8-len(last))
             else:       return self.new_oid(last[:-1])
 
-    def registerDB(self, db, limit): pass # we don't care
+    def registerDB(self, db, limit):
+        pass # we don't care
 
-    def supportsUndo(self): return 0
-    def supportsVersions(self): return 0
+    def isReadOnly(self):
+        return self._is_read_only
+    
+    def supportsUndo(self):
+        return 0
+    
+    def supportsVersions(self):
+        return 0
         
     def tpc_abort(self, transaction):
         self._lock_acquire()
@@ -171,15 +190,22 @@ class BaseStorage(UndoLogCompatible.UndoLogCompatible):
         pass
 
     def undo(self, transaction_id):
+        if self._is_read_only:
+            raise POSException.ReadOnlyError()
         raise POSException.UndoError, 'non-undoable transaction'
 
-    def undoLog(self, first, last, filter=None): return ()
+    def undoLog(self, first, last, filter=None):
+        return ()
 
-    def versionEmpty(self, version): return 1
+    def versionEmpty(self, version):
+        return 1
 
-    def versions(self, max=None): return ()
+    def versions(self, max=None):
+        return ()
 
-    def pack(self, t, referencesf): pass
+    def pack(self, t, referencesf):
+        if self._is_read_only:
+            raise POSException.ReadOnlyError()
 
     def getSerial(self, oid):
         self._lock_acquire()
@@ -232,3 +258,9 @@ class BaseStorage(UndoLogCompatible.UndoLogCompatible):
                 
             self.tpc_vote(transaction)
             self.tpc_finish(transaction)
+
+class TransactionRecord:
+    """Abstract base class for iterator protocol"""
+
+class DataRecord:
+    """Abstract base class for iterator protocol"""

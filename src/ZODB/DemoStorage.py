@@ -78,7 +78,7 @@ method::
 and call it to monitor the storage.
 
 """
-__version__='$Revision: 1.8 $'[11:-2]
+__version__='$Revision: 1.9 $'[11:-2]
 
 import base64, time, string
 from ZODB import POSException, BaseStorage, utils
@@ -244,7 +244,8 @@ class DemoStorage(BaseStorage.BaseStorage):
                 else:
                     nv=old
 
-                if serial != oserial: raise POSException.ConflictError
+                if serial != oserial:
+                    raise POSException.ConflictError(serials=(oserial, serial))
                 
             serial=self._serial
             r=[oid, serial, old, version and (version, nv) or None, data]
