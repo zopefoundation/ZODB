@@ -14,6 +14,7 @@
 import os
 import time
 import unittest
+import warnings
 
 import ZODB
 import ZODB.FileStorage
@@ -48,9 +49,15 @@ class DBTests(unittest.TestCase):
 
     def testSets(self):
         # test set methods that have non-trivial implementations
-        self.db.setCacheDeactivateAfter(12) # deprecated
+        warnings.filterwarnings("error", category=DeprecationWarning)
+        self.assertRaises(DeprecationWarning,
+                          self.db.setCacheDeactivateAfter, 12)
+        self.assertRaises(DeprecationWarning,
+                          self.db.setVersionCacheDeactivateAfter, 12)
+        # XXX There is no API call for removing the warning we just
+        # added, but filters appears to be a public variable.
+        del warnings.filters[0]
         self.db.setCacheSize(15)
-        self.db.setVersionCacheDeactivateAfter(12) # deprecated
         self.db.setVersionCacheSize(15)
 
     def test_removeVersionPool(self):
