@@ -70,7 +70,7 @@ class SizedMessageAsyncConnection(asyncore.dispatcher):
     __super_init = asyncore.dispatcher.__init__
     __super_close = asyncore.dispatcher.close
 
-    __closed = 1 # Marker indicating that we're closed
+    __closed = True # Marker indicating that we're closed
 
     socket = None # to outwit Sam's getattr
 
@@ -99,7 +99,7 @@ class SizedMessageAsyncConnection(asyncore.dispatcher):
         self.__msg_size = 4
         self.__output_lock = threading.Lock() # Protects __output
         self.__output = []
-        self.__closed = 0
+        self.__closed = False
         # Each side of the connection sends and receives messages.  A
         # MAC is generated for each message and depends on each
         # previous MAC; the state of the MAC generator depends on the
@@ -225,13 +225,13 @@ class SizedMessageAsyncConnection(asyncore.dispatcher):
             self.__input_lock.release()
 
     def readable(self):
-        return 1
+        return True
 
     def writable(self):
         if len(self.__output) == 0:
-            return 0
+            return False
         else:
-            return 1
+            return True
 
     def handle_write(self):
         self.__output_lock.acquire()
@@ -302,5 +302,5 @@ class SizedMessageAsyncConnection(asyncore.dispatcher):
 
     def close(self):
         if not self.__closed:
-            self.__closed = 1
+            self.__closed = True
             self.__super_close()
