@@ -147,7 +147,7 @@ class TestBTrees(TestCase):
             assert x == i, (x,i)
             i = i + 1
         # BTree items must lie about their lengths, so we convert to list
-        assert len(list(v)) == 100, len(v)
+        assert len(v) == 100, len(v)
         #assert len(v) == 100, len(v)
 
     def testItemsWorks(self):

@@ -85,10 +85,25 @@
 
 static char BTree_module_documentation[] = 
 ""
-"\n$Id: BTreeTemplate.c,v 1.2 2001/02/01 22:46:17 jim Exp $"
+"\n$Id: BTreeTemplate.c,v 1.3 2001/02/04 18:00:31 jim Exp $"
 ;
 
 #include "cPersistence.h"
+
+/***************************************************************
+   The following are macros that ought to be in cPersistence.h */
+#ifndef PER_USE 
+
+#define PER_USE(O) \
+(((O)->state != cPersistent_GHOST_STATE \
+  || (cPersistenceCAPI->setstate((PyObject*)(O)) >= 0)) \
+ ? (((O)->state==cPersistent_UPTODATE_STATE) \
+    ? ((O)->state=cPersistent_STICKY_STATE) : 1) : 0)
+
+#define Ghost_Test(O) ((O)->state == cPersistent_GHOST_STATE)
+#endif
+/***************************************************************/
+
 
 static void PyVar_Assign(PyObject **v, PyObject *e) { Py_XDECREF(*v); *v=e;}
 #define ASSIGN(V,E) PyVar_Assign(&(V),(E))
@@ -123,13 +138,6 @@ typedef struct bucket_s {
   struct bucket_s *next;
   Item *data;
 } Bucket;
-
-static int 
-useBucket(Bucket *b)
-{
-  PER_USE_OR_RETURN(b, -1);
-  return 0;
-}
 
 staticforward PyExtensionClass BucketType;
 
@@ -314,20 +322,42 @@ BTreeItems_length_or_nonzero(BTreeItems *self, int nonzero)
 static int
 BTreeItems_length( BTreeItems *self)
 {                              
-  /* Waaa. We need to lie about the length.
+  return BTreeItems_length_or_nonzero(self, 0);
+}
 
-     Getting the length could be quite expensive.
-     Python calls length if we do: x[-1], and we want
-     x[-1] to be cheap, as it's a useful way to get the
-     maximum key in a range of keys.
+static int 
+firstBucketOffset(Bucket **bucket, int *offset)
+{
+  Bucket *b;
 
-     If we didn't provide a length, Python would
-     not use it and pass the negative index to us, 
-     but then list and map wouldn't work, as they insist 
-     on being able to get a length and do the right thing
-     even when the length is a lie!
-   */
-  return 0; /*BTreeItems_length_or_nonzero(self, 0);*/
+  *offset = (*bucket)->len - 1;
+  while ((*bucket)->len < 1)
+    {
+      b=(*bucket)->next;
+      if (b==NULL) return 0;
+      Py_INCREF(b);
+      PER_ALLOW_DEACTIVATION((*bucket));
+      ASSIGNB((*bucket), b);
+      UNLESS (PER_USE(*bucket)) return -1;
+      *offset = 0;
+    }
+}
+
+static int 
+lastBucketOffset(Bucket **bucket, int *offset, Bucket *firstbucket, int i)
+{
+  Bucket *b;
+
+  *offset = (*bucket)->len - 1;
+  while ((*bucket)->len < 1)
+    {
+      b=PreviousBucket((*bucket), firstbucket, i);
+      if (b==NULL) return 0;
+      PER_ALLOW_DEACTIVATION((*bucket));
+      ASSIGNB((*bucket), b);
+      UNLESS (PER_USE(*bucket)) return -1;
+      *offset = (*bucket)->len - 1;
+    }
 }
 
 /*
@@ -362,21 +392,15 @@ BTreeItems_seek(BTreeItems *self, int i)
       Py_INCREF(currentbucket);
       currentoffset = self->first;
 
-      if (useBucket(currentbucket) < 0) goto err;
+      UNLESS (PER_USE(currentbucket)) goto err;
 
       /* We need to be careful that we have a valid offset! */
       if (currentoffset >= currentbucket->len)
         {
-          currentoffset = currentbucket->len - 1;
-          while (currentbucket->len < 1)
+          switch (firstBucketOffset(&currentbucket, &currentoffset))
             {
-              b=currentbucket->next;
-              if (b==NULL) goto no_match;
-              Py_INCREF(b);
-              PER_ALLOW_DEACTIVATION(currentbucket);
-              ASSIGNB(currentbucket, b);
-              if (useBucket(currentbucket) < 0) goto err;
-              currentoffset = 0;
+            case 0: goto no_match;
+            case -1: goto err;
             }
         }
       pseudoindex = 0;
@@ -386,27 +410,23 @@ BTreeItems_seek(BTreeItems *self, int i)
       /* Position to the end of the sequence. */
       ASSIGNBC(currentbucket, self->lastbucket);
       currentoffset = self->last;
-      if (useBucket(currentbucket) < 0) goto err;
+      UNLESS (PER_USE(currentbucket)) goto err;
       
       /* We need to be careful that we have a valid offset! */
       if (currentoffset >= currentbucket->len)
         {
-          currentoffset = currentbucket->len - 1;
-          while (currentbucket->len < 1)
+          switch (lastBucketOffset(&currentbucket, &currentoffset,
+                                   self->firstbucket, i))
             {
-              b=PreviousBucket(currentbucket, self->firstbucket, i);
-              if (b==NULL) goto no_match;
-              PER_ALLOW_DEACTIVATION(currentbucket);
-              ASSIGNB(currentbucket, b);
-              if (useBucket(currentbucket) < 0) goto err;
-              currentoffset = currentbucket->len - 1;
+            case 0: goto no_match;
+            case -1: goto err;
             }
         }
       pseudoindex = -1;
     }
   else
     {
-      if (useBucket(currentbucket) < 0) goto err;
+      UNLESS (PER_USE(currentbucket)) goto err;
       
       /* We need to be careful that we have a valid offset! */
       if (currentoffset >= currentbucket->len) goto no_match;
@@ -431,7 +451,7 @@ BTreeItems_seek(BTreeItems *self, int i)
               
               PER_ALLOW_DEACTIVATION(currentbucket);
               ASSIGNB(currentbucket, b);
-              if (useBucket(currentbucket) < 0) goto err;
+              UNLESS (PER_USE(currentbucket)) goto err;
 
               delta += currentoffset;
               pseudoindex -= currentoffset + 1;
@@ -468,7 +488,7 @@ BTreeItems_seek(BTreeItems *self, int i)
                   Py_INCREF(b);
                   PER_ALLOW_DEACTIVATION(currentbucket);
                   ASSIGNB(currentbucket, b);
-                  if (useBucket(currentbucket) < 0) goto err;
+                  UNLESS (PER_USE(currentbucket)) goto err;
                   currentoffset = 0;
                   if (currentbucket->len) break;
                 } 
@@ -692,48 +712,6 @@ Twople(PyObject *i1, PyObject *i2)
 }
 
 /*
-** BTree_ini
-**
-** Broadtree intializer; allocates the inital bucket
-**
-** Arguments:	self	The BTree to initialize
-**
-** Returns:	 0 	on success
-**		-1	on error
-*/
-static int
-BTree_ini(BTree *self)
-{
-  PyObject *b;
-
-  UNLESS (b=PyObject_CallObject(OBJECT(&BucketType), NULL)) return -1;
-  self->data->value=b;
-  self->len=1;
-  self->firstbucket = BUCKET(b);
-  Py_INCREF(b);
-  return 0;
-}
-
-/*
-** BTree_init
-**
-** BTree Initializer; allocates space for 2 BTreeItems
-** 
-** Arguments:	self	The BTree 
-**
-** Returns:	 0	on success
-**		-1	on error (from BTree_ini)
-*/
-static int
-BTree_init(BTree *self)
-{
-  UNLESS (self->data=PyMalloc(sizeof(BTreeItem)*2)) return -1;
-  self->size=2;
-  return BTree_ini(self);
-}
-
-
-/*
 ** _bucket_get
 **
 ** Get the bucket item with the matching key
@@ -831,40 +809,48 @@ _BTree_get(BTree *self, PyObject *keyarg
 
   PER_USE_OR_RETURN(self, NULL);
 
-  UNLESS (self->data) if (BTree_init(self) < 0) goto err;
-  
-  for (min=0, max=self->len, i=max/2; max-min > 1; i=(min+max)/2)
+  if (self->len)
     {
-      cmp=TEST_KEY(self->data[i].key, key);
-      if (cmp < 0) min=i;
-      else if (cmp == 0)
-	{
-	  min=i;
-	  break;
-	}
-      else max=i;
-    }
-
-  if (Bucket_Check(self->data[min].value)) 
-    r=_bucket_get(BUCKET(self->data[min].value), keyarg
-#ifndef NOVAL
-                  , has_key
-#endif
-                  );
-  else
-    r=_BTree_get( BTREE(self->data[min].value), keyarg
+      for (min=0, max=self->len, i=max/2; max-min > 1; i=(min+max)/2)
+        {
+          cmp=TEST_KEY(self->data[i].key, key);
+          if (cmp < 0) min=i;
+          else if (cmp == 0)
+            {
+              min=i;
+              break;
+            }
+          else max=i;
+        }
+      
+      if (Bucket_Check(self->data[min].value)) 
+        r=_bucket_get(BUCKET(self->data[min].value), keyarg
 #ifndef NOVAL
                       , has_key
 #endif
                       );
+      else
+        r=_BTree_get( BTREE(self->data[min].value), keyarg
+#ifndef NOVAL
+                      , has_key
+#endif
+                      );
+    }
+  else
+    {  /* No data */
+#ifndef NOVAL
+      UNLESS (has_key) 
+        {
+          PyErr_SetObject(PyExc_KeyError, keyarg);
+          r=NULL;
+        }
+      else
+#endif
+        r=PyInt_FromLong(0);
+    }
 
   PER_ALLOW_DEACTIVATION(self);
   return r;
-
-err:
-
-  PER_ALLOW_DEACTIVATION(self);
-  return NULL;
 }    
 
 static PyObject *
@@ -1512,6 +1498,55 @@ Bucket_findRangeEnd(Bucket *self, PyObject *keyarg, int low, int *offset)
   return i;
 }
 
+static PyObject *
+Bucket_maxminKey(Bucket *self, PyObject *args, int min)
+{
+  PyObject *key=0;
+  int rc, offset;
+  
+  if (args && ! PyArg_ParseTuple(args, "|O", &key)) return NULL;
+    
+  PER_USE_OR_RETURN(self, NULL);
+
+  UNLESS (self->data && self->len) goto empty;
+  
+  /* Find the low range */  
+  if (key) 
+    {
+      if ((rc = Bucket_findRangeEnd(self, key, min, &offset)) <= 0)
+        {
+          if (rc < 0) return NULL;
+          goto empty;
+        }
+    }
+  else if (min) offset = 0;
+  else offset = self->len -1;
+
+  COPY_KEY_TO_OBJECT(key, self->data[offset].key);
+  PER_ALLOW_DEACTIVATION(self);
+
+  return key;
+  
+ empty:
+  PyErr_SetString(PyExc_ValueError, "empty bucket");
+
+ err:
+  PER_ALLOW_DEACTIVATION(self);
+  return NULL;
+}
+
+static PyObject *
+Bucket_minKey(Bucket *self, PyObject *args)
+{
+  return Bucket_maxminKey(self, args, 1);
+}
+
+static PyObject *
+Bucket_maxKey(Bucket *self, PyObject *args)
+{
+  return Bucket_maxminKey(self, args, 0);
+}
+
 static int 
 Bucket_rangeSearch(Bucket *self, PyObject *args, int *low, int *high)
 {
@@ -1761,17 +1796,17 @@ _BTree_clear(BTree *self)
 {
   int i;
 
-  UNLESS (self->data) return 0;
-
   for (i=self->len; --i >= 0; )
     {
-      DECREF_KEY(self->data[i].key);
+      if (i) DECREF_KEY(self->data[i].key);
       Py_DECREF(self->data[i].value);
     }
 
-  i=BTree_ini(self);
+  Py_XDECREF(self->firstbucket);
+  self->firstbucket=NULL;
+  self->len=0;
 
-  return i;
+  return 0;
 }
 
 /*
@@ -2006,15 +2041,19 @@ static struct PyMethodDef Bucket_methods[] = {
      "keys() -- Return the keys"},
   {"has_key",	(PyCFunction) bucket_has_key,	METH_VARARGS,
      "has_key(key) -- Test whether the bucket contains the given key"},
+  {"clear",	(PyCFunction) bucket_clear,	METH_VARARGS,
+   "clear() -- Remove all of the items from the bucket"},
+  {"maxKey", (PyCFunction) Bucket_maxKey,	METH_VARARGS,
+   "maxKey([key]) -- Fine the maximum key\n\n"
+   "If an argument is given, find the maximum <= the argument"},
+  {"minKey", (PyCFunction) Bucket_minKey,	METH_VARARGS,
+   "minKey([key]) -- Fine the minimum key\n\n"
+   "If an argument is given, find the minimum >= the argument"},
 #ifndef NOVAL
   {"values",	(PyCFunction) bucket_values,	METH_VARARGS,
      "values() -- Return the values"},
   {"items",	(PyCFunction) bucket_items,	METH_VARARGS,
      "items() -- Return the items"},
-#endif
-  {"clear",	(PyCFunction) bucket_clear,	METH_VARARGS,
-     "clear() -- Remove all of the items from the bucket"},
-#ifndef NOVAL
   {"get",	(PyCFunction) bucket_getm,	METH_VARARGS,
    "get(key[,default]) -- Look up a value\n\n"
    "Return the default (or None) if the key is not found."
@@ -2189,6 +2228,94 @@ BTree_findRangeEnd(BTree *self, PyObject *keyarg, int low,
   return i;
 }    
 
+static PyObject *
+BTree_maxminKey(BTree *self, PyObject *args, int min)
+{
+  PyObject *key=0;
+  Bucket *bucket = NULL;
+  int offset, rc;
+  
+  UNLESS (PyArg_ParseTuple(args, "|O", &key)) return NULL;
+  
+  PER_USE_OR_RETURN(self, NULL);
+
+  UNLESS (self->data && self->len) goto empty;
+  
+  /* Find the  range */
+  
+  if (key) 
+    {
+      if ((rc = BTree_findRangeEnd(self, key, min, &bucket, &offset)) <= 0)
+        {
+          if (rc < 0) goto err;
+          goto empty;
+        } 
+      PER_ALLOW_DEACTIVATION(self);
+      PER_USE_OR_RETURN(bucket, NULL);
+    }
+  else if (min)
+    {
+      bucket = self->firstbucket;
+      Py_INCREF(bucket);
+      PER_ALLOW_DEACTIVATION(self);
+      PER_USE_OR_RETURN(bucket, NULL);
+      offset = 0;
+      if (offset >= bucket->len)
+        {
+          switch (firstBucketOffset(&bucket, &offset))
+            {
+            case 0:  goto empty;
+            case -1: goto err;
+            }
+        }
+    }
+  else
+    {
+      bucket = BTree_lastBucket(self);
+      PER_ALLOW_DEACTIVATION(self);
+      PER_USE_OR_RETURN(bucket, NULL);
+      if (bucket->len)
+        offset = bucket->len - 1; 
+      else
+        {
+          switch (lastBucketOffset(&bucket, &offset, self->firstbucket, -1))
+            {
+            case 0:  goto empty;
+            case -1: goto err;
+            }
+        }
+    }
+  
+  COPY_KEY_TO_OBJECT(key, bucket->data[offset].key);
+  PER_ALLOW_DEACTIVATION(bucket);
+  Py_DECREF(bucket);
+
+  return key;
+  
+ empty:
+  PyErr_SetString(PyExc_ValueError, "empty tree");
+
+ err:
+  PER_ALLOW_DEACTIVATION(self);
+  if (bucket)  
+    {
+      PER_ALLOW_DEACTIVATION(bucket);
+      Py_DECREF(bucket);
+    }
+  return NULL;
+}
+
+static PyObject *
+BTree_minKey(BTree *self, PyObject *args)
+{
+  return BTree_maxminKey(self, args, 1);
+}
+
+static PyObject *
+BTree_maxKey(BTree *self, PyObject *args)
+{
+  return BTree_maxminKey(self, args, 0);
+}
 
 /*
 ** BTree_rangeSearch
@@ -2221,7 +2348,7 @@ BTree_rangeSearch(BTree *self, PyObject *args
   
   if (f && f != Py_None) 
     {
-      UNLESS (rc = BTree_findRangeEnd(self, f, 1, &lowbucket, &lowoffset))
+      if ((rc = BTree_findRangeEnd(self, f, 1, &lowbucket, &lowoffset)) <= 0)
         {
           if (rc < 0) goto err;
           goto empty;
@@ -2238,8 +2365,7 @@ BTree_rangeSearch(BTree *self, PyObject *args
   
   if (l && l != Py_None) 
     {
-      UNLESS (rc = BTree_findRangeEnd(self, l, 0,
-                                          &highbucket, &highoffset))
+      if ((rc = BTree_findRangeEnd(self, l, 0, &highbucket, &highoffset)) <= 0)
         {
           Py_DECREF(lowbucket);
           if (rc < 0) goto err;
@@ -2338,7 +2464,7 @@ BTree_has_key(BTree *self, PyObject *args)
 }
 
 static PyObject *
- BTree_addUnique(BTree *self, PyObject *args)
+BTree_addUnique(BTree *self, PyObject *args)
 {
   int grew;
   PyObject *key, *v;
@@ -2373,6 +2499,12 @@ static struct PyMethodDef BTree_methods[] = {
    "get(key[,default]) -- Look up a value\n\n"
    "Return the default (or None) if the key is not found."
   },
+  {"maxKey", (PyCFunction) BTree_maxKey,	METH_VARARGS,
+   "maxKey([key]) -- Fine the maximum key\n\n"
+   "If an argument is given, find the maximum <= the argument"},
+  {"minKey", (PyCFunction) BTree_minKey,	METH_VARARGS,
+   "minKey([key]) -- Fine the minimum key\n\n"
+   "If an argument is given, find the minimum >= the argument"},
 #endif
   {"clear",	(PyCFunction) BTree_clear,	METH_VARARGS,
    "clear() -- Remove all of the items from the BTree"},  
@@ -2612,7 +2744,7 @@ INITMODULE ()
   d = PyModule_GetDict(m);
 
   PyDict_SetItemString(d, "__version__",
-		       PyString_FromString("$Revision: 1.2 $"));
+		       PyString_FromString("$Revision: 1.3 $"));
 
   PyExtensionClass_Export(d,PREFIX "Bucket",BucketType);
   PyExtensionClass_Export(d,PREFIX "BTree",BTreeType);
