@@ -43,7 +43,7 @@ def fsdump(path, file=None, with_offset=1):
         if with_offset:
             print >> file, ("Trans #%05d tid=%016x time=%s size=%d"
                             % (i, u64(trans.tid), str(TimeStamp(trans.tid)),
-                               trans._tend - trans._pos))
+                               trans._tend - trans._tpos))
         else:
             print >> file, "Trans #%05d tid=%016x time=%s" % \
                   (i, u64(trans.tid), str(TimeStamp(trans.tid)))
