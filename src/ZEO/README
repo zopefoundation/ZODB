@@ -93,7 +93,7 @@ Zope Enterprize Objects, ZEO 0.2
     option to the start.py script to indicate the storage
     to be served. The form of the -S option is::
 
-       -S storage_name=module_path:attribute_name
+       -Sstorage_name=module_path:attribute_name
 
     Where:
 
