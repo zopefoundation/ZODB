@@ -53,9 +53,10 @@ class TransactionBuffer:
         self.pickler.dump((oid, version, data))
         self.count += 1
         # Estimate per-record cache size
-        self.size = self.size + len(data) + (27 + 12)
+        self.size = self.size + len(data) + 31
         if version:
-            self.size = self.size + len(version) + 4
+            # Assume version data has same size as non-version data
+            self.size = self.size + len(version) + len(data) + 12
 
     def invalidate(self, oid, version):
         self.pickler.dump((oid, version, None))
