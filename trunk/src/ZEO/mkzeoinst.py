@@ -20,9 +20,9 @@ Given an "instance home directory" <home> and some configuration
 options (all of which have default values), create the following:
 
 <home>/etc/zeo.conf     -- ZEO config file
-<home>/etc/runner.conf  -- zdctl+zdrun config file
+<home>/etc/zeoctl.conf  -- zdctl+zdrun config file
 <home>/var/             -- Directory for data files: Data.fs etc.
-<home>/log/             -- Directory for log files: zeo.log and runner.log
+<home>/log/             -- Directory for log files: zeo.log and zeoctl.log
 <home>/bin/zeoctl       -- start/stop script (a shim for zdctl.py)
 
 The script will not overwrite existing files; instead, it will issue a
@@ -65,7 +65,7 @@ zeo_conf_template = """# ZEO configuration file
 </eventlog>
 """
 
-runner_conf_template = """# runner configuration file
+runner_conf_template = """# %(package)sctl configuration file
 
 <runner>
   program %(server)s -C %(home)s/etc/%(package)s.conf
@@ -87,7 +87,7 @@ runner_conf_template = """# runner configuration file
 <eventlog>
   level info
   <logfile>
-    path %(home)s/log/runner.log
+    path %(home)s/log/%(package)sctl.log
   </logfile>
 </eventlog>
 """
@@ -103,7 +103,7 @@ zdctl_template = """#!/bin/sh
 # chkconfig: 345 90 10
 # description: start a %(PACKAGE)s server
 
-exec %(zdctl)s -C %(home)s/etc/runner.conf ${1+"$@"}
+exec %(zdctl)s -C %(home)s/etc/%(package)sctl.conf ${1+"$@"}
 """
 
 def main():
@@ -139,7 +139,7 @@ def main():
     makedir(home, "log")
     makedir(home, "bin")
     makefile(zeo_conf_template, home, "etc", "zeo.conf", **params)
-    makefile(runner_conf_template, home, "etc", "runner.conf", **params)
+    makefile(runner_conf_template, home, "etc", "zeoctl.conf", **params)
     makexfile(zdctl_template, home, "bin", "zeoctl", **params)
     print "All done."
 
