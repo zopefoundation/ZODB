@@ -22,9 +22,10 @@ import socket
 import signal
 import asyncore
 import threading
+import logging
+
 import ThreadedAsync.LoopCallback
 
-import zLOG
 from ZEO.StorageServer import StorageServer
 from ZEO.runzeo import ZEOOptions
 
@@ -38,9 +39,11 @@ def cleanup(storage):
     except AttributeError:
         pass
 
+logger = logging.getLogger('ZEO.tests.zeoserver')
 
 def log(label, msg, *args):
-    zLOG.LOG(label, zLOG.DEBUG, msg % args)
+    message = "(%s) %s" % (label, msg)
+    logger.debug(message, args)
 
 
 class ZEOTestServer(asyncore.dispatcher):
@@ -67,8 +70,7 @@ class ZEOTestServer(asyncore.dispatcher):
         self._keep = keep
         # Count down to zero, the number of connects
         self._count = 1
-        # For zLOG
-        self._label ='zeoserver:%d @ %s' % (os.getpid(), addr)
+        self._label ='%d @ %s' % (os.getpid(), addr)
         self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
         # Some ZEO tests attempt a quick start of the server using the same
         # port so we have to set the reuse flag.
@@ -126,7 +128,7 @@ class Suicide(threading.Thread):
         # as long as 300 seconds.  Set this timeout to 330 to minimize
         # chance that the server gives up before the clients.
         time.sleep(330)
-        log("zeoserver", "suicide thread invoking shutdown")
+        log(str(os.getpid()), "suicide thread invoking shutdown")
 
         # If the server hasn't shut down yet, the client may not be
         # able to connect to it.  If so, try to kill the process to
@@ -146,8 +148,8 @@ class Suicide(threading.Thread):
 def main():
     global pid
     pid = os.getpid()
-    label = 'zeoserver:%d' % pid
-    log(label, 'starting')
+    label = str(pid)
+    log(label, "starting")
 
     # We don't do much sanity checking of the arguments, since if we get it
     # wrong, it's a bug in the test suite.

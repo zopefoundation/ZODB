@@ -21,8 +21,9 @@ import socket
 import logging
 import StringIO
 import tempfile
+import logging
 
-import zLOG
+logger = logging.getLogger('ZEO.tests.forker')
 
 class ZEOConfig:
     """Class to generate ZEO configuration file. """
@@ -143,19 +144,19 @@ def start_zeo_server(storage_conf, zeo_conf, port, keep=0):
     for i in range(120):
         time.sleep(0.25)
         try:
-            zLOG.LOG('forker', zLOG.DEBUG, 'connect %s' % i)
+            logger.debug('connect %s', i)
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             s.connect(adminaddr)
             ack = s.recv(1024)
             s.close()
-            zLOG.LOG('forker', zLOG.DEBUG, 'acked: %s' % ack)
+            logging.debug('acked: %s' % ack)
             break
         except socket.error, e:
             if e[0] not in (errno.ECONNREFUSED, errno.ECONNRESET):
                 raise
             s.close()
     else:
-        zLOG.LOG('forker', zLOG.DEBUG, 'boo hoo')
+        logging.debug('boo hoo')
         raise
     return ('localhost', port), adminaddr, pid, tmpfile
 
@@ -187,5 +188,5 @@ def shutdown_zeo_server(adminaddr):
             if e[0] == errno.ECONNRESET:
                 raise
             ack = 'no ack received'
-        zLOG.LOG('shutdownServer', zLOG.DEBUG, 'acked: %s' % ack)
+        logger.debug('shutdown_zeo_server(): acked: %s' % ack)
         s.close()

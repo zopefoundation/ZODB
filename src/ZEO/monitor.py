@@ -13,16 +13,16 @@
 ##############################################################################
 """Monitor behavior of ZEO server and record statistics.
 
-$Id: monitor.py,v 1.5 2003/11/28 16:44:47 jim Exp $
+$Id: monitor.py,v 1.6 2004/04/25 11:34:15 gintautasm Exp $
 """
 
 import asyncore
 import socket
 import time
 import types
+import logging
 
 import ZEO
-import zLOG
 
 class StorageStats:
     """Per-storage usage statistics."""
@@ -129,7 +129,8 @@ class StatsServer(asyncore.dispatcher):
         else:
             self.create_socket(socket.AF_UNIX, socket.SOCK_STREAM)
         self.set_reuse_addr()
-        zLOG.LOG("ZSM", zLOG.INFO, "monitor listening on %s" % repr(self.addr))
+        logger = logging.getLogger('ZEO.monitor')
+        logger.info("listening on %s", repr(self.addr))
         self.bind(self.addr)
         self.listen(5)
 

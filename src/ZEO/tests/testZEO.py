@@ -20,15 +20,12 @@ import socket
 import asyncore
 import tempfile
 import unittest
-
-# Zope/ZODB3 imports
-import zLOG
+import logging
 
 # ZODB test support
 import ZODB
 from ZODB.tests.MinPO import MinPO
 from ZODB.tests.StorageTestBase import zodb_unpickle
-
 
 # ZODB test mixin classes
 from ZODB.tests import StorageTestBase, BasicStorage, VersionStorage, \
@@ -38,6 +35,8 @@ from ZODB.tests import StorageTestBase, BasicStorage, VersionStorage, \
 
 from ZEO.ClientStorage import ClientStorage
 from ZEO.tests import forker, Cache, CommitLockTests, ThreadTests
+
+logger = logging.getLogger('ZEO.tests.testZEO')
 
 class DummyDB:
     def invalidate(self, *args):
@@ -113,7 +112,7 @@ class GenericTests(
     """Combine tests from various origins in one class."""
 
     def setUp(self):
-        zLOG.LOG("testZEO", zLOG.INFO, "setUp() %s" % self.id())
+        logger.info("setUp() %s", self.id()) # XXX is this really needed?
         port = get_port()
         zconf = forker.ZEOConfig(('', port))
         zport, adminaddr, pid, path = forker.start_zeo_server(self.getConfig(),
