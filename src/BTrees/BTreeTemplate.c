@@ -12,7 +12,7 @@
 
  ****************************************************************************/
 
-#define BTREETEMPLATE_C "$Id: BTreeTemplate.c,v 1.69 2002/06/27 00:32:54 tim_one Exp $\n"
+#define BTREETEMPLATE_C "$Id: BTreeTemplate.c,v 1.70 2002/06/28 19:58:13 tim_one Exp $\n"
 
 /* Sanity-check a BTree.  This is a private helper for BTree_check.  Return:
  *      -1         Error.  If it's an internal inconsistency in the BTree,
@@ -226,43 +226,50 @@ BTree_get(BTree *self, PyObject *key)
 }
 
 /*
-  Copy data from the current BTree to the newly created BTree, next.
-  Reset length to reflect the fact that we've given up some data.
-*/
+ * Move data from the current BTree, from index onward, to the newly created
+ * BTree 'next'.  self and next must both be activated.  If index is OOB (< 0
+ * or >= self->len), use self->len / 2 as the index (i.e., split at the
+ * midpoint).  self must have at least 2 children on entry, and index must
+ * be such that self and next each have at least one child at exit.  self's
+ * accessed time is updated.
+ *
+ * Return:
+ *    -1    error
+ *     0    OK
+ */
 static int
 BTree_split(BTree *self, int index, BTree *next)
 {
-  int next_size;
-  ASSERT(self->len > 1, "split of empty tree", -1);
+    int next_size;
+    Sized *child;
 
-  if (index < 0 || index >= self->len) index=self->len/2;
+    if (index < 0 || index >= self->len)
+	index = self->len / 2;
 
-  next_size=self->len-index;
-  ASSERT(next_size > 0, "split creates empty tree", -1);
+    next_size = self->len - index;
+    ASSERT(index > 0, "split creates empty tree", -1);
+    ASSERT(next_size > 0, "split creates empty tree", -1);
 
-  UNLESS (next->data=PyMalloc(sizeof(BTreeItem)*next_size)) return -1;
-  memcpy(next->data, self->data+index, sizeof(BTreeItem)*next_size);
-  next->size=next->len=next_size;
+    next->data = PyMalloc(sizeof(BTreeItem) * next_size);
+    if (!next->data)
+	return -1;
+    memcpy(next->data, self->data + index, sizeof(BTreeItem) * next_size);
+    next->size = next_size;  /* but don't set len until we succeed */
 
-  self->len = index;
-
-  if (SameType_Check(self, next->data->child))
-    {
-      PER_USE_OR_RETURN(BTREE(next->data->child), -1);
-      next->firstbucket = BTREE(next->data->child)->firstbucket;
-      Py_XINCREF(next->firstbucket);
-      PER_ALLOW_DEACTIVATION(BTREE(next->data->child));
-      PER_ACCESSED(BTREE(next->data->child));
+    /* Set next's firstbucket.  self->firstbucket is still correct. */
+    child = next->data[0].child;
+    if (SameType_Check(self, child)) {
+        PER_USE_OR_RETURN(child, -1);
+	next->firstbucket = BTREE(child)->firstbucket;
+	PER_UNUSE(child);
     }
-  else
-    {
-      next->firstbucket = BUCKET(next->data->child);
-      Py_XINCREF(next->firstbucket);
-    }
+    else
+	next->firstbucket = BUCKET(child);
+    Py_INCREF(next->firstbucket);
 
-  if (PER_CHANGED(self) < 0)
-    return -1;
-  return 0;
+    next->len = next_size;
+    self->len = index;
+    return PER_CHANGED(self) < 0 ? -1 : 0;
 }
 
 
