@@ -1,6 +1,6 @@
 ##############################################################################
 #
-# Copyright (c) 2001, 2002, 2003 Zope Corporation and Contributors.
+# Copyright (c) 2001, 2002 Zope Corporation and Contributors.
 # All Rights Reserved.
 #
 # This software is subject to the provisions of the Zope Public License,
@@ -45,9 +45,6 @@ class StorageServer:
     def get_info(self):
         return self.rpc.call('get_info')
 
-    def getAuthProtocol(self):
-        return self.rpc.call('getAuthProtocol')
-    
     def lastTransaction(self):
         # Not in protocol version 2.0.0; see __init__()
         return self.rpc.call('lastTransaction')
