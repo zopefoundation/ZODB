@@ -115,7 +115,7 @@
 #   may have a back pointer to a version record or to a non-version
 #   record.
 #
-__version__='$Revision: 1.135 $'[11:-2]
+__version__='$Revision: 1.136 $'[11:-2]
 
 import base64
 from cPickle import Pickler, Unpickler, loads
@@ -293,7 +293,7 @@ class FileStorage(BaseStorage.BaseStorage,
 
         self._ts = tid = TimeStamp(tid)
         t = time.time()
-        t = apply(TimeStamp, (time.gmtime(t)[:5] + (t % 60,)))
+        t = TimeStamp(*time.gmtime(t)[:5] + (t % 60,))
         if tid > t:
             warn("%s Database records in the future", file_name);
             if tid.timeTime() - t.timeTime() > 86400*30:
@@ -1460,7 +1460,7 @@ class FileStorage(BaseStorage.BaseStorage,
         if self._is_read_only:
             raise POSException.ReadOnlyError()
         
-        stop=`apply(TimeStamp, time.gmtime(t)[:5]+(t%60,))`
+        stop=`TimeStamp(*time.gmtime(t)[:5]+(t%60,))`
         if stop==z64: raise FileStorageError, 'Invalid pack time'
 
         # If the storage is empty, there's nothing to do.

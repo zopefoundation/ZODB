@@ -56,7 +56,7 @@ def get_timestamp(prev_ts=None):
     the argument.
     """
     t = time.time()
-    t = apply(TimeStamp, (time.gmtime(t)[:5] + (t % 60,)))
+    t = TimeStamp(*time.gmtime(t)[:5] + (t % 60,))
     if prev_ts is not None:
         t = t.laterThan(prev_ts)
     return t

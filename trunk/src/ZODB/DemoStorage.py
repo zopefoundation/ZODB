@@ -79,7 +79,7 @@ method::
 and call it to monitor the storage.
 
 """
-__version__='$Revision: 1.18 $'[11:-2]
+__version__='$Revision: 1.19 $'[11:-2]
 
 import base64, time, string
 from ZODB import POSException, BaseStorage, utils
@@ -436,7 +436,7 @@ class DemoStorage(BaseStorage.BaseStorage):
         self._lock_acquire()
         try:
 
-            stop=`apply(TimeStamp, time.gmtime(t)[:5]+(t%60,))`
+            stop=`TimeStamp(*time.gmtime(t)[:5]+(t%60,))`
             _data=self._data
 
             # Build indexes up to the pack time:
