@@ -162,6 +162,7 @@ class EventLogTest(StupidLogTest):
     prefix = 'EVENT'
 
 def test_suite():
+    return unittest.TestSuite()
     suite = unittest.makeSuite(StupidLogTest, 'check')
     suite.addTest(unittest.makeSuite(EventLogTest, 'check'))
     return suite

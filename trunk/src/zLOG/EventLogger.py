@@ -20,12 +20,7 @@ This uses Vinay Sajip's PEP 282 logging module.
 __version__='$Revision$'[11:-2]
 
 import logging
-import os
 import time
-
-from BaseLogger import BaseLogger
-from ZConfig.components.logger import loghandler
-from logging import StreamHandler, Formatter
 
 # Custom logging levels
 CUSTOM_BLATHER = 15 # Mapping for zLOG.BLATHER
@@ -102,94 +97,3 @@ def log_time():
     """Return a simple time string without spaces suitable for logging."""
     return ("%4.4d-%2.2d-%2.2dT%2.2d:%2.2d:%2.2d"
             % time.localtime()[:6])
-
-
-def get_env_severity_info():
-    """Return the severity setting based on the environment.
-
-    The value returned is a zLOG severity, not a logging package severity.
-
-    EVENT_LOG_SEVERITY is the preferred envvar, but we accept
-    STUPID_LOG_SEVERITY also.
-    """
-    eget = os.environ.get
-    severity = eget('EVENT_LOG_SEVERITY') or eget('STUPID_LOG_SEVERITY')
-    if severity:
-        severity = int(severity)
-    else:
-        severity = 0 # INFO
-    return severity
-
-
-def get_env_syslog_info():
-    eget = os.environ.get
-    addr = None
-    port = None
-    path = eget('ZSYSLOG')
-    facility = eget('ZSYSLOG_FACILITY', 'user')
-    server = eget('ZSYSLOG_SERVER')
-    if server:
-        addr, port = server.split(':')
-        port = int(port)
-    if addr:
-        return (facility, (addr, port))
-    else:
-        return (facility, path)
-
-
-def get_env_file_info():
-    """Return the path of the log file to write to based on the
-    environment.
-
-    EVENT_LOG_FILE is the preferred envvar, but we accept
-    STUPID_LOG_FILE also.
-    """
-    eget = os.environ.get
-    return eget('EVENT_LOG_FILE') or eget('STUPID_LOG_FILE')
-
-
-formatters = {
-    'file':   Formatter(fmt=('------\n%(asctime)s %(levelname)s %(name)s'
-                             ' %(message)s'),
-                        datefmt='%Y-%m-%dT%H:%M:%S'),
-    'syslog': Formatter(fmt='%(levelname)s %(name)s %(message)s'),
-    }
-
-def initialize_from_environment():
-    """ Reinitialize the event logger from the environment """
-    # clear the current handlers from the event logger
-    logger = logging.getLogger()
-    for h in logger.handlers[:]:
-        logger.removeHandler(h)
-
-    handlers = []
-
-    # set up syslog handler if necessary
-    facility, syslogdest = get_env_syslog_info()
-    if syslogdest:
-        handler = loghandler.SysLogHandler(syslogdest, facility)
-        handler.setFormatter(formatters['syslog'])
-        handlers.append(handler)
-
-    # set up file handler if necessary
-    filedest = get_env_file_info()
-    if filedest:
-        handler = loghandler.FileHandler(filedest)
-        handler.setFormatter(formatters['file'])
-        handlers.append(handler)
-    elif filedest == '':
-        # if dest is an empty string, log to standard error
-        handler = StreamHandler()
-        handler.setFormatter(formatters['file'])
-        handlers.append(handler)
-    else:
-        # log to nowhere, but install a 'null' handler in order to
-        # prevent error messages from emanating due to a missing handler
-        handlers.append(loghandler.NullHandler())
-
-    severity = get_env_severity_info()
-    severity = zlog_to_pep282_severity(severity)
-    logger.setLevel(severity)
-
-    for handler in handlers:
-        logger.addHandler(handler)
