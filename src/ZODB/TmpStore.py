@@ -37,10 +37,6 @@ class TmpStore:
         self._db = None
         self._creating = []
 
-    def __del__(self):
-        # XXX Is this necessary?
-        self._file.close()
-
     def close(self):
         self._file.close()
 

@@ -16,7 +16,7 @@
 This module provides a wrapper that causes a database connection to be created
 and used when bobo publishes a bobo_application object.
 """
-__version__='$Revision: 1.12 $'[11:-2]
+__version__='$Revision: 1.13 $'[11:-2]
 
 StringType=type('')
 connection_open_hooks = []
@@ -52,8 +52,7 @@ class ZApplicationWrapper:
                 hook(conn)
 
         # arrange for the connection to be closed when the request goes away
-        cleanup=Cleanup()
-        cleanup.__del__=conn.close
+        cleanup = Cleanup(conn)
         REQUEST._hold(cleanup)
 
         conn.setDebugInfo(REQUEST.environ, REQUEST.other)
@@ -81,4 +80,9 @@ class ZApplicationWrapper:
         return connection.root()[aname]
 
 
-class Cleanup: pass
+class Cleanup:
+    def __init__(self, jar):
+        self._jar = jar
+
+    def __del__(self):
+        self._jar.close()
