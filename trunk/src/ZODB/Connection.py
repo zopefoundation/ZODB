@@ -13,7 +13,7 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.120 2004/02/24 21:31:03 jeremy Exp $"""
+$Id: Connection.py,v 1.121 2004/02/24 21:38:38 jeremy Exp $"""
 
 import logging
 import sys
@@ -57,8 +57,8 @@ class Connection(ExportImport, object):
     object and all objects reachable from it are associated with the
     Connection that loaded them.  When the objects are modified, the
     Connection is registered with the current transaction.
-    
-    ZODB is organized so that each thread should have its own
+
+    The typical use of ZODB is for each thread should have its own
     Connection and that no thread should have more than one Connection
     to the same database.  A thread is associated with a Connection by
     loading objects from that Connection.  Objects loaded by one
@@ -76,7 +76,10 @@ class Connection(ExportImport, object):
     connection or the transaction the connection is registered with,
     the application should provide locking.
 
-    $Id: Connection.py,v 1.120 2004/02/24 21:31:03 jeremy Exp $
+    XXX We should document an intended API for using a Connection via
+    multiple threads.
+
+    $Id: Connection.py,v 1.121 2004/02/24 21:38:38 jeremy Exp $
     """
 
     _tmp = None
