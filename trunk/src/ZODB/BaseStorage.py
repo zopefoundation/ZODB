@@ -84,7 +84,7 @@
 ##############################################################################
 """Handy standard storage machinery
 """
-__version__='$Revision: 1.5 $'[11:-2]
+__version__='$Revision: 1.6 $'[11:-2]
 
 import time, bpthread, UndoLogCompatible
 from POSException import UndoError
@@ -186,6 +186,8 @@ class BaseStorage(UndoLogCompatible.UndoLogCompatible):
 
     def _begin(self, tid, u, d, e):
         pass
+
+    def tpc_vote(self, transaction): pass
 
     def tpc_finish(self, transaction, f=None):
         self._lock_acquire()
