@@ -1,6 +1,6 @@
 ##############################################################################
 #
-# Copyright (c) 2002, 2003 Zope Corporation and Contributors.
+# Copyright (c) 2002 Zope Corporation and Contributors.
 # All Rights Reserved.
 #
 # This software is subject to the provisions of the Zope Public License,
@@ -41,27 +41,18 @@ class Factory:
     def __init__(self, class_path, callback, *args, **kw):
         self.class_path = class_path
         self.callback = callback
-        self.setArgs(list(args), kw)
-        self.resolved = _marker
+        self.args = args
+        self.kw = kw
+        self.instance = _marker
 
     def __repr__(self):
         return ('<Factory instance for class "%s" with positional args "%s" '
                 'and keword args "%s"' % (self.class_path, self.args, self.kw))
 
-    __str__ = __repr__
-
     def __call__(self):
-        if self.resolved is _marker:
-            package = importer(self.class_path)
-            inst = package(*self.args, **self.kw)
-            if self.callback:
-                self.callback(inst)
-            self.resolved = inst
-        return self.resolved
-
-    def setArgs(self, args, kw):
-        self.args = args
-        self.kw = kw
-
-    def getArgs(self):
-        return (self.args, self.kw)
+        if self.instance is _marker:
+            constructor = importer(self.class_path)
+            self.instance = constructor(*self.args, **self.kw)
+            if self.callback is not None:
+                self.callback(self.instance)
+        return self.instance
