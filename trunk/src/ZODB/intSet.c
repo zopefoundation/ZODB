@@ -10,7 +10,7 @@
 
 static char intSet_module_documentation[] = 
 ""
-"\n$Id: intSet.c,v 1.1 1997/08/05 14:55:22 jim Exp $"
+"\n$Id: intSet.c,v 1.2 1997/09/08 18:41:59 jim Exp $"
 ;
 
 #include <limits.h>
@@ -179,31 +179,6 @@ intSet_remove(intSet *self, PyObject *args)
   if(intSet_modify(self, key, 0) < 0) return NULL;
   RETURN_NONE;
 }
-
-static PyObject *
-intSet___getstate__(intSet *self, PyObject *args)
-{
-  PyObject *r, *item;
-  int i, l;
-  INTSET_DATA_TYPE *d;
-
-  PER_USE_OR_RETURN(self, NULL);
-
-  UNLESS(r=PyTuple_New(self->len)) return PER_RETURN(self, NULL);
-  d=self->data;
-
-  for(i=self->len; --i >= 0;)
-    {
-      UNLESS(item=PyInt_FromLong(d[i])) goto err;
-      PyTuple_SET_ITEM(r,i,item);
-    }
-  
-  return PER_RETURN(self, r);
-
-err:
-  Py_DECREF(r);
-  return PER_RETURN(self, NULL);
-}
   
 static PyObject *
 intSet_clear(intSet *self, PyObject *args)
@@ -214,34 +189,67 @@ intSet_clear(intSet *self, PyObject *args)
 }
 
 static PyObject *
+intSet___getstate__(intSet *self, PyObject *args)
+{
+  PyObject *r=0;
+  int i, l;
+  char *c;
+  INTSET_DATA_TYPE *d;
+
+  PER_USE_OR_RETURN(self, NULL);
+
+  l=self->len;
+  UNLESS(r=PyString_FromStringAndSize(NULL,l*4)) goto err;
+  UNLESS(c=PyString_AsString(r)) goto err;
+  d=self->data;
+  for(i=0; i < l; i++, *d++)
+    {
+      *c++ = (int)( *d        & 0xff);
+      *c++ = (int)((*d >> 8)  & 0xff);
+      *c++ = (int)((*d >> 16) & 0xff);
+      *c++ = (int)((*d >> 24) & 0xff);
+    }
+  
+  return PER_RETURN(self, r);
+
+err:
+  Py_DECREF(r);
+  return PER_RETURN(self, NULL);
+}
+
+static PyObject *
 intSet___setstate__(intSet *self, PyObject *args)
 {
-  PyObject *data, *ok=0;
-  int i, l;
+  PyObject *data;
+  int i, l, v;
+  char *c;
   INTSET_DATA_TYPE k;
 
   PER_PREVENT_DEACTIVATION(self); 
 
   UNLESS(PyArg_ParseTuple(args,"O",&data)) return PER_RETURN(self, NULL);
-  if((l=PyObject_Length(data)) < 0) return PER_RETURN(self, NULL);
+  UNLESS(c=PyString_AsString(data)) return PER_RETURN(self, NULL);
+
+  if((l=PyString_Size(data)) < 0) return PER_RETURN(self, NULL);
+  l/=4;
 
   intSet_clear(self, NULL);
   if(l > self->size && intSet_grow(self,l) < 0)
     return PER_RETURN(self, NULL);
 
   PyErr_Clear();
-  for(i=l; --i >= 0; )
+
+  for(i=0; i < l; i++)
     {
-      UNLESS_ASSIGN(ok,PySequence_GetItem(data,i  ))
-	return PER_RETURN(self, NULL);
-      k=PyInt_AsLong(ok);
-      if(k < 0 && PyErr_Occurred()) return PER_RETURN(self, NULL);
-      self->data[i]=k;
+      v  = ((int)(unsigned char)*c++)      ;
+      v |= ((int)(unsigned char)*c++) <<  8;
+      v |= ((int)(unsigned char)*c++) << 16;
+      v |= ((int)(unsigned char)*c++) << 24;
+      self->data[i]=v;
     }
 
   self->len=l;
 
-  Py_XDECREF(ok);
   Py_INCREF(Py_None);
   return PER_RETURN(self, Py_None);
 }
@@ -519,7 +527,7 @@ void
 initintSet()
 {
   PyObject *m, *d;
-  char *rev="$Revision: 1.1 $";
+  char *rev="$Revision: 1.2 $";
 
   UNLESS(ExtensionClassImported) return;
 
@@ -558,6 +566,9 @@ initintSet()
   Revision Log:
 
   $Log: intSet.c,v $
+  Revision 1.2  1997/09/08 18:41:59  jim
+  Added logic to save data in binary form.
+
   Revision 1.1  1997/08/05 14:55:22  jim
   *** empty log message ***
 
