@@ -1,4 +1,4 @@
-Zope Enterprise Option (ZEO) Revision History
+Zope Enterprise Objects (ZEO) Revision History
 
   ZEO 0.2 
 
