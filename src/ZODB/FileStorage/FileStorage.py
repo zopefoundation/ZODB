@@ -1801,9 +1801,12 @@ class FileIterator(Iterator, FileStorageFormatter):
     def _skip_to_start(self, start):
         # Scan through the transaction records doing almost no sanity
         # checks.
+        file = self._file
+        read = file.read
+        seek = file.seek
         while 1:
-            self._file.seek(self._pos)
-            h = self._file.read(16)
+            seek(self._pos)
+            h = read(16)
             if len(h) < 16:
                 return
             tid, stl = unpack(">8s8s", h)
@@ -1816,13 +1819,12 @@ class FileIterator(Iterator, FileStorageFormatter):
                 self._pos = long(self._pos) + tl + 8
             if __debug__:
                 # Sanity check
-                self._file.seek(self._pos - 8, 0)
-                rtl = self._file.read(8)
+                seek(self._pos - 8, 0)
+                rtl = read(8)
                 if rtl != stl:
-                    pos = self._file.tell() - 8
+                    pos = file.tell() - 8
                     panic("%s has inconsistent transaction length at %s "
-                          "(%s != %s)",
-                          self._file.name, pos, u64(rtl), u64(stl))
+                          "(%s != %s)", file.name, pos, u64(rtl), u64(stl))
 
     def next(self, index=0):
         if self._file is None:
