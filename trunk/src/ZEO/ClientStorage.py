@@ -84,7 +84,7 @@
 ##############################################################################
 """Network ZODB storage client
 """
-__version__='$Revision: 1.12 $'[11:-2]
+__version__='$Revision: 1.13 $'[11:-2]
 
 import struct, time, os, socket, string, Sync, zrpc, ClientCache
 import tempfile, Invalidator, ExtensionClass, thread
@@ -98,7 +98,10 @@ from zLOG import LOG, PROBLEM, INFO
 
 TupleType=type(())
 
-class UnrecognizedResult(POSException.StorageError):
+class ClientStorageError(POSException.StorageError):
+    """An error occured in the ZEO Client Storage"""
+
+class UnrecognizedResult(ClientStorageError):
     """A server call returned an unrecognized result
     """
 
@@ -444,8 +447,13 @@ class ClientStorage(ExtensionClass.Base, BaseStorage.BaseStorage):
                 if vlen: v=read(vlen)
                 else: v=''
                 p=read(dlen)
+                if len(p) != dlen:
+                    raise ClientStorageError, (
+                        "Unexpected end of file in client storage "
+                        "temporary file."
+                        )
                 cache.update(oid, s, v, p)
-                i=i+22+vlen+dlen
+                i=i+14+vlen+dlen
 
             seek(0)
 
