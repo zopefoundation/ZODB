@@ -83,7 +83,7 @@
 # 
 ##############################################################################
 
-__version__ = "$Revision: 1.11 $"[11:-2]
+__version__ = "$Revision: 1.12 $"[11:-2]
 
 import asyncore, socket, string, sys, cPickle, os
 from smac import SizedMessageAsyncConnection
@@ -191,7 +191,7 @@ for n in (
     'history', 'load', 'loadSerial',
     'modifiedInVersion', 'new_oid', 'new_oids', 'pack', 'store',
     'storea', 'tpc_abort', 'tpc_begin', 'tpc_begin_sync',
-    'tpc_finish', 'undo', 'undoLog', 'undoInfo', 'versionEmpty',
+    'tpc_finish', 'undo', 'undoLog', 'undoInfo', 'versionEmpty', 'versions',
     'vote', 'zeoLoad', 'zeoVerify', 'beginZeoVerify', 'endZeoVerify',
     ):
     storage_methods[n]=1
@@ -262,7 +262,7 @@ class Connection(SizedMessageAsyncConnection):
             name, args = args[0], args[1:]
             if __debug__:
                 m=`tuple(args)`
-                if len(m) > 60: m=m[:60]+' ...'
+                if len(m) > 90: m=m[:90]+' ...'
                 blather('call: %s%s' % (name, m))
                 
             if not storage_method(name):
@@ -283,7 +283,14 @@ class Connection(SizedMessageAsyncConnection):
             if len(m) > 60: m=m[:60]+' ...'
             blather('%s: %s' % (rt, m))
             
-        r=dump(r,1)
+        try: r=dump(r,1)
+        except:
+            # Ugh, must be an unpicklable exception
+            r=StorageServerError("Couldn't pickle result %s" % `r`)
+            dump('',1) # clear pickler
+            r=dump(r,1)
+            rt='E'
+            
         self.message_output(rt+r)
 
     def get_info(self):
@@ -301,8 +308,16 @@ class Connection(SizedMessageAsyncConnection):
         v=storage.modifiedInVersion(oid)
         if v: pv, sv = storage.load(oid, v)
         else: pv=sv=None
-        p, s = storage.load(oid,'')
+        try:
+            p, s = storage.load(oid,'')
+        except KeyError:
+            if sv:
+                # Created in version, no non-version data
+                p=s=None
+            else:
+                raise
         return p, s, v, pv, sv
+            
 
     def beginZeoVerify(self):
         self.message_output('bN.')            
@@ -337,6 +352,26 @@ class Connection(SizedMessageAsyncConnection):
     def _pack(self, t):
         self.__storage.pack(t, referencesf)
         self.message_output('S'+dump(self.get_info(), 1))
+
+    def abortVersion(self, src, id):
+        t=self._transaction
+        if t is None or id != t.id:
+            raise POSException.StorageTransactionError(self, id)
+        oids=self.__storage.abortVersion(src, t)
+        a=self.__invalidated.append
+        for oid in oids: a((oid,src))
+        return oids
+
+    def commitVersion(self, src, dest, id):
+        t=self._transaction
+        if t is None or id != t.id:
+            raise POSException.StorageTransactionError(self, id)
+        oids=self.__storage.commitVersion(src, dest, t)
+        a=self.__invalidated.append
+        for oid in oids:
+            a((oid,dest))
+            if dest: a((oid,src))
+        return oids
 
     def store(self, oid, serial, data, version, id):
         t=self._transaction
