@@ -194,7 +194,7 @@ static struct PyMethodDef TreeSet_methods[] = {
 static PyExtensionClass TreeSetType = {
   PyObject_HEAD_INIT(NULL)
   0,				/*ob_size*/
-  PREFIX "TreeSet",		/*tp_name*/
+  MOD_NAME_PREFIX "TreeSet",		/*tp_name*/
   sizeof(BTree),		/*tp_basicsize*/
   0,				/*tp_itemsize*/
   /************* methods ********************/

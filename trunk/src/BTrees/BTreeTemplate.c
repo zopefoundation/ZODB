@@ -1304,7 +1304,7 @@ static PyNumberMethods BTree_as_number_for_nonzero = {
 static PyExtensionClass BTreeType = {
   PyObject_HEAD_INIT(NULL)
   0,				/*ob_size*/
-  PREFIX "BTree",			/*tp_name*/
+  MOD_NAME_PREFIX "BTree",			/*tp_name*/
   sizeof(BTree),		/*tp_basicsize*/
   0,				/*tp_itemsize*/
   /************* methods ********************/
