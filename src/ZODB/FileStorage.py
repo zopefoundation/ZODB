@@ -115,7 +115,7 @@
 #   may have a back pointer to a version record or to a non-version
 #   record.
 #
-__version__='$Revision: 1.119 $'[11:-2]
+__version__='$Revision: 1.120 $'[11:-2]
 
 import base64
 from cPickle import Pickler, Unpickler, loads
@@ -137,12 +137,7 @@ from ZODB.POSException import UndoError, POSKeyError, MultipleUndoErrors
 from ZODB.TimeStamp import TimeStamp
 from ZODB.lock_file import lock_file
 from ZODB.utils import p64, u64, cp, z64
-
-try:
-    from ZODB.fsIndex import fsIndex
-except ImportError:
-    def fsIndex():
-        return {}
+from ZODB.fsIndex import fsIndex
 
 from zLOG import LOG, BLATHER, WARNING, ERROR, PANIC
 
@@ -317,7 +312,7 @@ class FileStorage(BaseStorage.BaseStorage,
 
     def _newIndexes(self):
         # hook to use something other than builtin dict
-        return {}, {}, {}, {}
+        return fsIndex(), {}, {}, {}
 
     def _save_index(self):
         """Write the database index to a file to support quick startup."""
