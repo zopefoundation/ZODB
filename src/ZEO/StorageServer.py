@@ -83,7 +83,7 @@
 # 
 ##############################################################################
 
-__version__ = "$Revision: 1.17 $"[11:-2]
+__version__ = "$Revision: 1.18 $"[11:-2]
 
 import asyncore, socket, string, sys, cPickle, os
 from smac import SizedMessageAsyncConnection
@@ -128,6 +128,7 @@ class StorageServer(asyncore.dispatcher):
             except: pass
         else:
             self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
+            self.set_reuse_addr()
 
         self.bind(connection)
 
