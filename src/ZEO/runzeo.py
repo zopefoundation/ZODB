@@ -235,7 +235,7 @@ class ZEOServer:
                 storage.close()
             except: # Keep going
                 log("failed to close storage %r" % name,
-                    level=logging.EXCEPTION, exc_info=True)
+                    level=logging.exception, exc_info=True)
 
 
 # Signal names

@@ -124,7 +124,7 @@ class IDataManager(zope.interface.Interface):
         transaction being committed.
         """
 
-    def commit(transaction):
+    def commit(object, transaction):
         """Commit modifications to registered objects.
 
         Save the object as part of the data to be made persistent if
@@ -134,7 +134,7 @@ class IDataManager(zope.interface.Interface):
         errors occur it saves the objects in the storage. 
         """
 
-    def abort(transaction):
+    def abort(object, transaction):
         """Abort a transaction and forget all changes.
 
         Abort must be called outside of a two-phase commit.

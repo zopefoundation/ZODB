@@ -164,14 +164,17 @@
     <key name="version-cache-size" datatype="integer" default="100"/>
   </sectiontype>
 
-  <sectiontype name="blobfilestorage" datatype=".BlobFileStorage"
-    implements="ZODB.storage" extends="filestorage">
+  <sectiontype name="blobstorage" datatype=".BlobStorage"
+    implements="ZODB.storage">
     <key name="blob-dir" required="yes">
       <description>
         Path name to the blob storage directory.
       </description>
     </key>
+    <section type="ZODB.storage" name="*" attribute="base"/>
   </sectiontype>
+
+
     
 
 

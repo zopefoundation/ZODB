@@ -132,13 +132,12 @@ class FileStorage(BaseConfig):
                            read_only=self.config.read_only,
                            quota=self.config.quota)
 
-class BlobFileStorage(FileStorage):
+class BlobStorage(BaseConfig):
 
     def open(self):
         from ZODB.Blobs.BlobStorage import BlobStorage
-        base_storage = FileStorage.open(self)
-        return BlobStorage(self.config.blob_dir, base_storage)
-
+        base = self.config.base.open()
+        return BlobStorage(self.config.blob_dir, base)
 
         
 class ZEOClient(BaseConfig):
