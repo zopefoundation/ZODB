@@ -25,17 +25,44 @@ Pickle format
 -------------
 
 ZODB stores serialized objects using a custom format based on pickle.
-Each serialized object has two parts: the class metadata and the
+Each serialized object has two parts: the class description and the
 object state.  The class description must provide enough information
 to call the class's ``__new__`` and create an empty object.  Once the
 object exists as a ghost, its state is passed to ``__setstate__``.
 
-The class metadata can be represented in two different ways, in order
-to provide backwards compatibility with many earlier versions of ZODB.
-The class metadata is always a two-tuple.  The first element may also
-be a tuple, containing two string elements: name of a module and the
-name of a class.  The second element of the class metadata tuple is a
-tuple of arguments to pass to the class's ``__new__``.
+The class description can be in a variety of formats, in part to
+provide backwards compatibility with earlier versions of Zope.  The
+two current formats for class description are:
+
+    - type(obj)
+    - type(obj), obj.__getnewargs__()
+
+The second of these options is used if the object has a
+__getnewargs__() method.  It is intended to support objects like
+persistent classes that have custom C layouts that are determined by
+arguments to __new__().
+
+The type object is usually stored using the standard pickle mechanism,
+which uses a string containing the class's module and name.  The type
+may itself be a persistent object, in which case a persistent
+reference (see below) is used.
+
+Earlier versions of Zope supported several other kinds of class
+descriptions.  The current serialization code reads these
+descriptions, but does not write them.
+
+The four formats are:
+
+    1. (module name, class name), None
+    2. (module name, class name), __getinitargs__()
+    3. class, None
+    4. class, __getinitargs__()
+
+Formats 2 and 4 are used only if the class defines an
+__getinitargs__() method.  Formats 3 and 4 are used if the class does
+not have an __module__ attribute.  (I'm not sure when this applies,
+but I think it occurs for some but not all ZClasses.)
+
 
 Persistent references
 ---------------------
