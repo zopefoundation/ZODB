@@ -86,12 +86,13 @@
 """
 import cPickle, cStringIO
 
-def referencesf(p,rootl,
+def referencesf(p, rootl=None,
                 Unpickler=cPickle.Unpickler,
                 StringIO=cStringIO.StringIO,
                 tt=type(()),
-                type=type):
+                type=type, None=None):
 
+    if rootl is None: rootl=[]
     u=Unpickler(StringIO(p))
     l=len(rootl)
     u.persistent_load=rootl
@@ -113,4 +114,5 @@ def referencesf(p,rootl,
         if v:
             if type(v) is tt: v=v[0]
             rootl[i]=v
-                
+
+    return rootl
