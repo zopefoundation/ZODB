@@ -80,7 +80,7 @@ class ConnectionDotAdd(unittest.TestCase):
         self.assert_(obj._p_jar is None)
         self.assertRaises(KeyError, self.datamgr.get, oid)
 
-    def checkTcpAbortAfterCommit(self):
+    def checkTpcAbortAfterCommit(self):
         obj = StubObject()
         self.datamgr.add(obj)
         oid = obj._p_oid
