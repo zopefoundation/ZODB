@@ -115,7 +115,7 @@
 #   may have a back pointer to a version record or to a non-version
 #   record.
 #
-__version__='$Revision: 1.101 $'[11:-2]
+__version__='$Revision: 1.102 $'[11:-2]
 
 import base64
 from cPickle import Pickler, Unpickler, loads
@@ -2409,7 +2409,7 @@ class UndoSearch:
     def search(self):
         """Search for another record."""
         dict = self._readnext()
-        if self.filter is None or self.filter(d):
+        if self.filter is None or self.filter(dict):
             if self.i >= self.first:
                 self.results.append(dict)
             self.i += 1
