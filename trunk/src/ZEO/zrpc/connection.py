@@ -349,6 +349,29 @@ class Connection(smac.SizedMessageAsyncConnection):
         else:
             return r_args
 
+    # For testing purposes, it is useful to begin a synchronous call
+    # but not block waiting for its response.  Since these methods are
+    # used for testing they can assume they are not in async mode and
+    # call asyncore.poll() directly to get the message out without
+    # also waiting for the reply.
+
+    def _deferred_call(self, method, *args):
+        if self.closed:
+            raise DisconnectedError()
+        msgid = self.send_call(method, args, 0)
+        asyncore.poll(0.01, self._map)
+        return msgid
+
+    def _deferred_wait(self, msgid):
+        r_flags, r_args = self.wait(msgid)
+        if (isinstance(r_args, types.TupleType)
+            and type(r_args[0]) == types.ClassType
+            and issubclass(r_args[0], Exception)):
+            inst = r_args[1]
+            raise inst # error raised by server
+        else:
+            return r_args
+
     def callAsync(self, method, *args):
         if self.closed:
             raise DisconnectedError()
