@@ -55,7 +55,7 @@ def main(args):
     if args[0] == "-r":
         ro_svr = 1
         del args[0]
-    port, storage_name, rawargs = args
+    port, storage_name, rawargs = args[0], args[1], args[2:]
     klass = load_storage_class(storage_name)
     args = []
     for arg in rawargs:
@@ -66,7 +66,7 @@ def main(args):
     zeo_port = int(port)
     test_port = zeo_port + 1
     t = ZEOTestServer(('', test_port), storage)
-    addr = [('', zeo_port)]
+    addr = ('', zeo_port)
     serv = ZEO.StorageServer.StorageServer(addr, {'1': storage}, ro_svr)
     import zLOG
     label = "winserver:%d" % os.getpid()
