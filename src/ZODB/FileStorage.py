@@ -115,7 +115,7 @@
 #   may have a back pointer to a version record or to a non-version
 #   record.
 #
-__version__='$Revision: 1.108 $'[11:-2]
+__version__='$Revision: 1.109 $'[11:-2]
 
 import base64
 from cPickle import Pickler, Unpickler, loads
@@ -2098,17 +2098,26 @@ def _loadBack_impl(file, oid, back):
         if vlen:
             file.seek(vlen + 16, 1)
         if plen != z64:
-            return file.read(U64(plen)), serial, old
+            return file.read(U64(plen)), serial, old, tloc
         back = file.read(8) # We got a back pointer!
 
 def _loadBack(file, oid, back):
-    data, serial, old = _loadBack_impl(file, oid, back)
+    data, serial, old, tloc = _loadBack_impl(file, oid, back)
     return data, serial
 
 def _loadBackPOS(file, oid, back):
     """Return position of data record for backpointer."""
-    data, serial, old = _loadBack_impl(file, oid, back)
+    data, serial, old, tloc = _loadBack_impl(file, oid, back)
     return old
+
+def _loadBackTxn(file, oid, back):
+    """Return data, serial, and txn id for backpointer."""
+    data, serial, old, stloc = _loadBack_impl(file, oid, back)
+    tloc = U64(stloc)
+    file.seek(tloc)
+    h = file.read(TRANS_HDR_LEN)
+    tid = h[:8]
+    return data, serial, tid
 
 def _truncate(file, name, pos):
     seek=file.seek
@@ -2346,6 +2355,7 @@ class RecordIterator(Iterator, BaseStorage.TransactionRecord):
                 break
 
             self._pos = pos + dlen
+            tid = None
             if plen:
                 p = self._file.read(plen)
             else:
@@ -2359,9 +2369,9 @@ class RecordIterator(Iterator, BaseStorage.TransactionRecord):
                     # this.
                     p = None
                 else:
-                    p = _loadBack(self._file, oid, p)[0]
+                    p, _s, tid = _loadBackTxn(self._file, oid, p)
 
-            r = Record(oid, serial, version, p)
+            r = Record(oid, serial, version, p, tid)
 
             return r
 
@@ -2370,7 +2380,7 @@ class RecordIterator(Iterator, BaseStorage.TransactionRecord):
 class Record(BaseStorage.DataRecord):
     """An abstract database record."""
     def __init__(self, *args):
-        self.oid, self.serial, self.version, self.data = args
+        self.oid, self.serial, self.version, self.data, self.data_txn = args
 
 class UndoSearch:
 
