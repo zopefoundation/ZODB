@@ -183,12 +183,20 @@ sections:
 \declaremodule{}{ZConfig}
 \modulesynopsis{Configuration package}
 
-The main \module{ZConfig} package exports a single function:
+The main \module{ZConfig} package exports two convenience functions:
 
 \begin{funcdesc}{load}{url}
   Load and return a configuration from a URL or pathname given by
   \var{url}.  \var{url} may be a URL, absolute pathname, or relative
   pathname.  Fragment identifiers are not supported.
+\end{funcdesc}
+
+\begin{funcdesc}{loadfile}{file\optional{, url}}
+  Load and return a configuration from an opened file object.
+  If \var{url} is omitted, one will be computed based on the
+  \member{name} attribute of \var{file}, if it exists.  If no URL can
+  be determined, all \keyword{include} statements in the configuration
+  must use absolute URLs.
 \end{funcdesc}
 
 
@@ -218,13 +226,22 @@ subclassed, so this should not prove to be difficult.
   replacement of the class.
 \end{classdesc}
 
-The context object offers one method that is intended to be called
-once:
+The context object offers two methods that are used to load a
+configuration.  Exactly one of these methods should be called, and it
+should be called only once:
 
 \begin{methoddesc}{load}{url}
   Load and return a configuration object from a resource.  The
   resource is identified by a URL or path given as \var{url}.
   Fragment identifiers are not supported.
+\end{methoddesc}
+
+\begin{methoddesc}{loadfile}{file\optional{, url}}
+  Load and return a configuration from an opened file object.
+  If \var{url} is omitted, one will be computed based on the
+  \member{name} attribute of \var{file}, if it exists.  If no URL can
+  be determined, all \keyword{include} statements in the configuration
+  must use absolute URLs.
 \end{methoddesc}
 
 The following methods are defined to be individually overridable by
