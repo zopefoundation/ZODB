@@ -2,6 +2,30 @@ What's new in ZODB3 3.3 ?
 =========================
 Release date: DD-MMM-YYYY
 
+BTrees
+------
+
+The BTrees __init__.py file is now just a comment.  It had been trying
+to set up support for (long gone) "int sets", and to import an old
+version of Zope's Interface package, which doesn't even ship with ZODB.
+The latter in particular created problems, at least clashing with
+PythonCAD's Interface package.
+
+Tools
+-----
+
+New tool fsoids.py, for heavy debugging of FileStorages; shows all
+uses of specified oids in the entire database (e.g., suppose oid 0x345620
+is missing -- did it ever exist?  if so, when?  who referenced it?  when
+was the last transaction that modified an object that referenced it?
+which objects did it reference?  what kind of object was it?).
+ZODB/test/testfsoids.py is a tutorial doctest.
+
+
+What's new in ZODB3 3.3 ?
+=========================
+Release date: DD-MMM-YYYY
+
 Connection
 ----------
 
@@ -34,30 +58,6 @@ the relevant transaction manager instead.  For example,
     transaction.begin()
 
 if using the default ThreadTransactionManager (see news for 3.3a3 below).
-
-BTrees
-------
-
-The BTrees __init__.py file is now just a comment.  It had been trying
-to set up support for (long gone) "int sets", and to import an old
-version of Zope's Interface package, which doesn't even ship with ZODB.
-The latter in particular created problems, at least clashing with
-PythonCAD's Interface package.
-
-Tools
------
-
-New tool fsoids.py, for heavy debugging of FileStorages; shows all
-uses of specified oids in the entire database (e.g., suppose oid 0x345620
-is missing -- did it ever exist?  if so, when?  who referenced it?  when
-was the last transaction that modified an object that referenced it?
-which objects did it reference?  what kind of object was it?).
-ZODB/test/testfsoids.py is a tutorial doctest.
-
-
-What's new in ZODB3 3.3 ?
-=========================
-Release date: DD-MMM-YYYY
 
 Tools
 -----
