@@ -84,8 +84,8 @@
 ##############################################################################
 """Database objects
 
-$Id: DB.py,v 1.9 1999/07/01 13:26:37 brian Exp $"""
-__version__='$Revision: 1.9 $'[11:-2]
+$Id: DB.py,v 1.10 1999/07/07 19:57:55 jim Exp $"""
+__version__='$Revision: 1.10 $'[11:-2]
 
 import cPickle, cStringIO, sys, POSException
 from Connection import Connection
@@ -151,8 +151,7 @@ class DB:
 
         # Pass through methods:
         for m in ('history', 'modifiedInVersion',
-                  'supportsUndo', 'supportsVersions',
-                  'undo', 'undoLog',
+                  'supportsUndo', 'supportsVersions', 'undoLog',
                   'versionEmpty', 'versions'):
             setattr(self, m, getattr(storage, m))
         
@@ -454,6 +453,10 @@ class DB:
     def setVersionPoolSize(self, v): self._version_pool_size=v
 
     def cacheStatistics(self): return () # :(
+
+    def undo(self, id):
+        for oid in self._storage.undo(id):
+            self.invalidate(oid)
 
     def versionEmpty(self, version):
         return self._storage.versionEmpty(version)
