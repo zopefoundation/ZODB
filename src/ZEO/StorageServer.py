@@ -61,6 +61,12 @@ class StorageServer:
     ZEOStorage instance only handles a single storage.
     """
 
+    # Classes we instantiate.  A subclass might override.
+
+    DispatcherClass = Dispatcher
+    ZEOStorageClass = None # patched up later
+    ManagedServerConnectionClass = ManagedServerConnection
+
     def __init__(self, addr, storages, read_only=0):
 
         """StorageServer constructor.
@@ -103,8 +109,9 @@ class StorageServer:
             s._waiting = []
         self.read_only = read_only
         self.connections = {}
-        self.dispatcher = Dispatcher(addr, factory=self.new_connection,
-                                     reuse_addr=1)
+        self.dispatcher = self.DispatcherClass(addr,
+                                               factory=self.new_connection,
+                                               reuse_addr=1)
 
     def new_connection(self, sock, addr):
         """Internal: factory to create a new connection.
@@ -113,8 +120,8 @@ class StorageServer:
         whenever accept() returns a socket for a new incoming
         connection.
         """
-        z = ZEOStorage(self, self.read_only)
-        c = ManagedServerConnection(sock, addr, z, self)
+        z = self.ZEOStorageClass(self, self.read_only)
+        c = self.ManagedServerConnectionClass(sock, addr, z, self)
         log("new connection %s: %s" % (addr, `c`))
         return c
 
@@ -190,6 +197,12 @@ class StorageServer:
 class ZEOStorage:
     """Proxy to underlying storage for a single remote client."""
 
+    # Classes we instantiate.  A subclass might override.
+
+    ClientStorageStubClass = ClientStub.ClientStorage
+    DelayedCommitStrategyClass = None # patched up later
+    ImmediateCommitStrategyClass = None # patched up later
+
     def __init__(self, server, read_only=0):
         self.server = server
         self.client = None
@@ -199,7 +212,7 @@ class ZEOStorage:
         self.read_only = read_only
 
     def notifyConnected(self, conn):
-        self.client = ClientStub.ClientStorage(conn)
+        self.client = self.ClientStorageStubClass(conn)
 
     def notifyDisconnected(self):
         # When this storage closes, we must ensure that it aborts
@@ -378,11 +391,11 @@ class ZEOStorage:
 
         # (This doesn't require a lock because we're using asyncore)
         if self.storage._transaction is None:
-            self.strategy = ImmediateCommitStrategy(self.storage,
-                                                    self.client)
+            self.strategy = self.ImmediateCommitStrategyClass(self.storage,
+                                                              self.client)
         else:
-            self.strategy = DelayedCommitStrategy(self.storage,
-                                                  self.wait)
+            self.strategy = self.DelayedCommitStrategyClass(self.storage,
+                                                            self.wait)
 
         t = Transaction()
         t.id = id
@@ -723,3 +736,8 @@ class SlowMethodThread(threading.Thread):
             self.delay.error(sys.exc_info())
         else:
             self.delay.reply(result)
+
+# Patch up class references
+StorageServer.ZEOStorageClass = ZEOStorage
+ZEOStorage.DelayedCommitStrategyClass = DelayedCommitStrategy
+ZEOStorage.ImmediateCommitStrategyClass = ImmediateCommitStrategy
