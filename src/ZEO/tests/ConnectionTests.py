@@ -425,6 +425,7 @@ class ConnectionTests(CommonSetupTearDown):
             # John Heintz's suggestion to make sure all exceptions
             # inherit from POSException.
         zLOG.LOG("checkReconnection", zLOG.INFO, "finished")
+        self._storage.close()
 
     def checkBadMessage1(self):
         # not even close to a real message
