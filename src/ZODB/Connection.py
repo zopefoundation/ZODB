@@ -229,6 +229,14 @@ class Connection(ExportImport, object):
         self._inv_lock = threading.Lock()
         self._invalidated = d = {}
         self._invalid = d.has_key
+
+        # We intend to prevent committing a transaction in which
+        # ReadConflictError occurs.  _conflicts is the set of oids that
+        # experienced ReadConflictError.  Any time we raise ReadConflictError,
+        # the oid should be added to this set, and we should be sure that the
+        # object is registered.  Because it's registered, Connection.commit()
+        # will raise ReadConflictError again (because the oid is in
+        # _conflicts).
         self._conflicts = {}
 
         # If MVCC is enabled, then _mvcc is True and _txn_time stores
@@ -905,6 +913,7 @@ class Connection(ExportImport, object):
             finally:
                 self._inv_lock.release()
         else:
+            self._conflicts[obj._p_oid] = 1
             self._register(obj)
             raise ReadConflictError(object=obj)
 
