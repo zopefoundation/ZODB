@@ -123,7 +123,10 @@ class Options:
     def load_configuration(self):
         if self.rootconf or not self.configuration:
             return
-        self.rootconf = ZConfig.load(self.configuration)
+        try:
+            self.rootconf = ZConfig.load(self.configuration)
+        except ZConfig.Common.ConfigurationError, errobj:
+            self.usage(str(errobj))
 
     def help(self):
         """Print a long help message (self.doc) to stdout and exit(0).
