@@ -1,7 +1,5 @@
 <schema>
 
-  <!-- XXX This schema still needs logging support. -->
-
   <description>
     This schema describes the configuration of the ZEO storage server
     process.
@@ -12,6 +10,8 @@
 
   <!-- Use the ZEO server information structure. -->
   <import package="ZEO"/>
+
+  <import package="zLOG"/>
 
 
   <section type="zeo" name="*" required="yes" attribute="zeo" />
@@ -34,4 +34,7 @@
       represent small integers starting at '1'.
     </description>
   </multisection>
+
+  <section name="*" type="logger" attribute="logger" required="no" />
+
 </schema>
