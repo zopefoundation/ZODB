@@ -599,6 +599,8 @@ looking for an attribute \member{container} on the \var{mapping}
 object; the value of that attribute should be another mapping or
 \code{None}.  If this search does not yield a value, an empty string
 is used.
+Note that the lookup is expected to be case-insensitive; this module
+will always use a lower-case version of the name to perform the query.
 
 For these functions, the \var{mapping} argument can be a \class{dict},
 or any type that supports the \method{get()} method of the mapping
@@ -621,6 +623,15 @@ containment chain is optional.
   constructs in \var{s}, or \exception{SubstitutionRecursionError} if
   any name expands to include a reference to itself either directly or
   indirectly.
+\end{funcdesc}
+
+An additional function is provided which provides some interesting
+information about a source string:
+
+\begin{funcdesc}{getnames}{s}
+  Return a list of the names referenced by the string \var{s}.  The
+  names will have been converted to lower case.  Each name will only
+  be included once, even if it is referenced multiple times.
 \end{funcdesc}
 
 The following exceptions are defined:
