@@ -43,12 +43,12 @@ class TransactionManager(object):
     def begin(self):
         if self._txn is not None:
             self._txn.abort()
-        self._txn = Transaction(self._synchs.as_list(), self)
+        self._txn = Transaction(self._synchs.as_weakref_list(), self)
         return self._txn
 
     def get(self):
         if self._txn is None:
-            self._txn = Transaction(self._synchs.as_list(), self)
+            self._txn = Transaction(self._synchs.as_weakref_list(), self)
         return self._txn
 
     def free(self, txn):
@@ -82,7 +82,7 @@ class ThreadTransactionManager(object):
             txn.abort()
         synchs = self._synchs.get(tid)
         if synchs is not None:
-            synchs = synchs.as_list()
+            synchs = synchs.as_weakref_list()
         txn = self._txns[tid] = Transaction(synchs, self)
         return txn
 
@@ -92,7 +92,7 @@ class ThreadTransactionManager(object):
         if txn is None:
             synchs = self._synchs.get(tid)
             if synchs is not None:
-                synchs = synchs.as_list()
+                synchs = synchs.as_weakref_list()
             txn = self._txns[tid] = Transaction(synchs, self)
         return txn
 

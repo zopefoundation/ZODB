@@ -130,10 +130,12 @@ class _ConnectionPool(object):
             assert result in self.all
         return result
 
-    # Return a list of all connections we currently know about.
-    def all_as_list(self):
-        return self.all.as_list()
-
+    # For every live connection c, invoke f(c).
+    def map(self, f):
+        for wr in self.all.as_weakref_list():
+            c = wr()
+            if c is not None:
+                f(c)
 
 class DB(object):
     """The Object Database
@@ -294,8 +296,7 @@ class DB(object):
         self._a()
         try:
             for pool in self._pools.values():
-                for c in pool.all_as_list():
-                    f(c)
+                pool.map(f)
         finally:
             self._r()
 
@@ -562,22 +563,26 @@ class DB(object):
     def connectionDebugInfo(self):
         result = []
         t = time()
-        for version, pool in self._pools.items():
-            for c in pool.all_as_list():
-                o = c._opened
-                d = c._debug_info
-                if d:
-                    if len(d) == 1:
-                        d = d[0]
-                else:
-                    d = ''
-                d = "%s (%s)" % (d, len(c._cache))
 
-                result.append({
-                    'opened': o and ("%s (%.2fs)" % (ctime(o), t-o)),
-                    'info': d,
-                    'version': version,
-                    })
+        def get_info(c):
+            # `result`, `time` and `version` are lexically inherited.
+            o = c._opened
+            d = c._debug_info
+            if d:
+                if len(d) == 1:
+                    d = d[0]
+            else:
+                d = ''
+            d = "%s (%s)" % (d, len(c._cache))
+
+            result.append({
+                'opened': o and ("%s (%.2fs)" % (ctime(o), t-o)),
+                'info': d,
+                'version': version,
+                })
+
+        for version, pool in self._pools.items():
+            pool.map(get_info)
         return result
 
     def getActivityMonitor(self):
@@ -614,25 +619,27 @@ class DB(object):
         # Zope will rebind this method to arbitrary user code at runtime.
         return find_global(modulename, globalname)
 
-    def setCacheSize(self, v):
+    def setCacheSize(self, size):
         self._a()
         try:
-            self._cache_size = v
+            self._cache_size = size
             pool = self._pools.get('')
             if pool is not None:
-                for c in pool.all_as_list():
-                    c._cache.cache_size = v
+                def setsize(c):
+                    c._cache.cache_size = size
+                pool.map(setsize)
         finally:
             self._r()
 
-    def setVersionCacheSize(self, v):
+    def setVersionCacheSize(self, size):
         self._a()
         try:
-            self._version_cache_size = v
+            self._version_cache_size = size
+            def setsize(c):
+                c._cache.cache_size = size
             for version, pool in self._pools.items():
                 if version:
-                    for c in pool.all_as_list():
-                        c._cache.cache_size = v
+                    pool.map(setsize)
         finally:
             self._r()
 
