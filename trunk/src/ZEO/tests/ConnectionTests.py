@@ -31,6 +31,7 @@ from ZEO.Exceptions import ClientDisconnected
 from ZEO.zrpc.marshal import Marshaller
 from ZEO.tests import forker
 
+from ZODB.DB import DB
 from ZODB.Transaction import get_transaction, Transaction
 from ZODB.POSException import ReadOnlyError
 from ZODB.tests.StorageTestBase import StorageTestBase
@@ -61,6 +62,7 @@ class CommonSetupTearDown(StorageTestBase):
     invq = None
     timeout = None
     monitor = 0
+    db_class = DummyDB
 
     def setUp(self):
         """Test setup for connection tests.
@@ -472,6 +474,36 @@ class ConnectionTests(CommonSetupTearDown):
             for t in threads:
                 t.closeclients()
 
+    def checkCrossDBInvalidations(self):
+        db1 = DB(self.openClientStorage())
+        c1 = db1.open()
+        r1 = c1.root()
+
+        r1["a"] = MinPO("a")
+        get_transaction().commit()
+        
+        db2 = DB(self.openClientStorage())
+        r2 = db2.open().root()
+
+        self.assertEqual(r2["a"].value, "a")
+
+        r2["b"] = MinPO("b")
+        get_transaction().commit()
+
+        # make sure the invalidation is received in the other client
+        c1._storage.sync()
+        self.assert_(r1._p_oid in c1._invalidated)
+
+        # force the invalidations to be applied...
+        c1.setLocalTransaction()
+        c1.getTransaction().register(c1)
+        c1.getTransaction().abort()
+        r1.keys() # unghostify
+        self.assertEqual(r1._p_serial, r2._p_serial)
+
+        db2.close()
+        db1.close()
+        
 class ReconnectionTests(CommonSetupTearDown):
     keep = 1
     invq = 2
