@@ -19,7 +19,7 @@ The components you get with the ZODB3 release are as follows:
 - ZConfig -- a Zope configuration language
 - documentation
 
-Our primary development platforms are Linux and Windows 2000.  The
+Our primary development platforms are Linux and Windows XP.  The
 test suite should pass without error on all of these platforms,
 although it can take a long time on Windows -- longer if you use
 ZoneAlarm.  Many particularly slow tests are skipped unless you pass
@@ -30,14 +30,32 @@ Compatibility
 
 ZODB 3.3.1 requires Python 2.3.4 or later.
 
-The Zope 2.8 and X3 releases should be compatible with this version of ZODB.
-Note that Zope 2.7 and higher includes ZEO, so this package should only be
-needed to run a ZEO server.
+The Zope X3 release should be compatible with this version of ZODB.  Zope 3
+and Zope 2.8 have moved to ZODB 3.4.  Note that Zope 2.7 and higher includes
+ZEO, so this package should only be needed to run a ZEO server.
 
-The ZEO server in ZODB 3.3.1 is currently incompatible with earlier
-versions of ZODB.  If you want to test the software, you must be
-running this release for both client and server.  A backwards
-compatibility mechanism will be provided in a later release.
+The ZEO in ZODB 3.3 is only partly compatible with earlier versions of ZODB.
+ZODB 3.3 uses multiversion concurrency control (MVCC), which is new in 3.3,
+and earlier ZEO servers do not support MVCC:  a 3.3 ZEO client cannot talk
+with an older ZEO server.  In the other direction, a 3.3 ZEO server can talk
+with older ZEO clients, but because the names of some basic classes have
+changed, if any 3.3 clients commit modifications to the database it's likely
+that the database will contain instances of classes that don't exist in
+(can't be loaded by) older ZEO clients.  For example, the database root
+object was an instance of ``ZODB.PersistentMapping.PersistentMapping`` before
+ZODB 3.3, but is an instance of ``persistent.mapping.PersistentMapping`` in
+ZODB 3.3.  A 3.3.1 client can still load a
+``ZODB.PersistentMapping.PersistentMapping`` object, but is this just an alias
+for ``persistent.mapping.PersistentMapping``, and an object of the latter
+type will be stored if a 3.3 client commits a change to the root object.  An
+older ZEO client cannot load the root object so changed.
+
+This limits migration possibilities:  a 3.3 ZEO server can be used with
+older ZEO clients and serve an older database, so long as no 3.3 ZEO
+clients commit changes to the database.  The most practical upgrade path
+is to bring up both servers and clients using 3.3.1, not trying to mix
+pre-3.3 and post-3.3 ZEO clients and servers.
+
 
 Prerequisites
 -------------
