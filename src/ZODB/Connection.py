@@ -84,8 +84,8 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.39 2000/09/21 21:34:31 shane Exp $"""
-__version__='$Revision: 1.39 $'[11:-2]
+$Id: Connection.py,v 1.40 2000/10/06 15:20:56 brian Exp $"""
+__version__='$Revision: 1.40 $'[11:-2]
 
 from cPickleCache import PickleCache
 from POSException import ConflictError, ExportError
@@ -510,7 +510,7 @@ class Connection(ExportImport.ExportImport):
 
     def tpc_begin(self, transaction, sub=None):
         if self._invalid(None): # Some nitwit invalidated everything!
-            raise ConflictError, oid 
+            raise ConflictError, "transaction already invalidated"
         self._invalidating=[]
 
         if sub:
