@@ -23,11 +23,11 @@ def get():
 def begin():
     return manager.begin()
 
-def commit():
-    manager.get().commit()
+def commit(sub=False):
+    manager.get().commit(sub)
 
-def abort():
-    manager.get().abort()
+def abort(sub=False):
+    manager.get().abort(sub)
 
 # XXX Issue deprecation warning if this variant is used?
 get_transaction = get
