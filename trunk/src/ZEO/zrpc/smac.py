@@ -85,10 +85,29 @@
 """Sized message async connections
 """
 
-__version__ = "$Revision: 1.10 $"[11:-2]
+__version__ = "$Revision: 1.11 $"[11:-2]
 
 import asyncore, string, struct, zLOG, sys, Acquisition
+import socket, errno
 from zLOG import LOG, TRACE, ERROR, INFO
+
+# Use the dictionary to make sure we get the minimum number of errno
+# entries.   We expect that EWOULDBLOCK == EAGAIN on most systems --
+# or that only one is actually used.
+
+tmp_dict = {errno.EWOULDBLOCK: 0,
+            errno.EAGAIN: 0,
+            errno.EINTR: 0,
+            }
+expected_socket_read_errors = tuple(tmp_dict.keys())
+
+tmp_dict = {errno.EAGAIN: 0,
+            errno.EWOULDBLOCK: 0,
+            errno.ENOBUFS: 0,
+            errno.EINTR: 0,
+            }
+expected_socket_write_errors = tuple(tmp_dict.keys())
+del tmp_dict
 
 class SizedMessageAsyncConnection(Acquisition.Explicit, asyncore.dispatcher):
 
@@ -116,7 +135,12 @@ class SizedMessageAsyncConnection(Acquisition.Explicit, asyncore.dispatcher):
                     join=string.join, StringType=type(''), _type=type,
                     _None=None):
 
-        d=self.recv(8096)
+        try:
+            d=self.recv(8096)
+        except socket.error, err:
+            if err[0] in expected_socket_read_errors:
+                return
+            raise
         if not d: return
 
         inp=self.__inp
@@ -160,7 +184,12 @@ class SizedMessageAsyncConnection(Acquisition.Explicit, asyncore.dispatcher):
         output=self.__output
         while output:
             v=output[0]
-            n=self.send(v)
+            try:
+                n=self.send(v)
+            except socket.error, err:
+                if err[0] in expected_socket_write_errors:
+                    break # we couldn't write anything
+                raise
             if n < len(v):
                 output[0]=v[n:]
                 break # we can't write any more
