@@ -21,6 +21,8 @@ class ClientStorage:
     StorageServer; i.e. the StorageServer calls these methods and they
     are executed in the ClientStorage.
 
+    See the ClientStorage class for documentation on these methods.
+
     It is currently important that all methods here are asynchronous
     (meaning they don't have a return value and the caller doesn't
     wait for them to complete), *and* that none of them cause any
@@ -31,10 +33,14 @@ class ClientStorage:
     Python method names.  That's because the on-the-wire protocol was
     fixed for ZEO 2 and we don't want to change it.  There are some
     aliases in ClientStorage.py to make up for this.
-
     """
 
     def __init__(self, rpc):
+        """Constructor.
+
+        The argument is a connection: an instance of the
+        zrpc.connection.Connection class.
+        """
         self.rpc = rpc
 
     def beginVerify(self):
