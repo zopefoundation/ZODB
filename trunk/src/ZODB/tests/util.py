@@ -13,12 +13,12 @@
 ##############################################################################
 """Conventience function for creating test databases
 
-$Id: util.py,v 1.2 2004/02/19 02:59:10 jeremy Exp $
+$Id: util.py,v 1.3 2004/02/19 18:24:00 jeremy Exp $
 """
 
 import time
 import persistent
-from ZODB.DemoStorage import DemoStorage
+from ZODB.MappingStorage import MappingStorage
 from ZODB.DB import DB as _DB
 try:
     from transaction import get_transaction
@@ -26,7 +26,7 @@ except ImportError:
     pass # else assume ZODB will install it as a builtin
 
 def DB(name='Test'):
-    return _DB(DemoStorage(name))
+    return _DB(MappingStorage(name))
 
 def commit():
     get_transaction().commit()
