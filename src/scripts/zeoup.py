@@ -22,7 +22,7 @@ import ZODB
 from ZEO.ClientStorage import ClientStorage
 
 def check_server(addr, storage):
-    cs = ClientStorage(addr, storage=storage,
+    cs = ClientStorage(addr, storage=storage, debug=1,
                        wait_for_server_on_startup=0)
     # _startup() is an artifact of the way ZEO 1.0 works.  The
     # ClientStorage doesn't get fully initialized until registerDB()
