@@ -143,20 +143,6 @@ BTreeItems_seek(BTreeItems *self, int i)
     currentbucket = self->currentbucket;
     if (currentbucket == NULL) goto no_match;
 
-    /* Make sure that the index and pseudoindex have the same sign. */
-    if (pseudoindex < 0 && i >= 0) {
-        /* Position to the start of the sequence. */
-        currentbucket = self->firstbucket;
-        currentoffset = self->first;
-        pseudoindex = 0;
-    }
-    else if (pseudoindex >= 0 && i < 0) {
-        /* Position to the end of the sequence. */
-        currentbucket = self->lastbucket;
-        currentoffset = self->last;
-        pseudoindex = -1;
-    }
-
     delta = i - pseudoindex;
     while (delta > 0) {         /* move right */
         int max;
