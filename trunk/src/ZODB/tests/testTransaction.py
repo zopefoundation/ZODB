@@ -76,8 +76,11 @@ class SubtransTests:
 class AllTests(TransactionTestBase, BasicTests, SubtransTests):
     pass
 
+def test_suite():
+    return unittest.makeSuite(AllTests, 'check')
+
 def main():
-    tests = unittest.makeSuite(AllTests, 'check')
+    tests = test_suite()
     runner = unittest.TextTestRunner()
     runner.run(tests)
 
