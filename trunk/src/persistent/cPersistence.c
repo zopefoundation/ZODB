@@ -1,6 +1,7 @@
 /*****************************************************************************
 
-  Copyright (c) 2001 Zope Corporation and Contributors. All Rights Reserved.
+  Copyright (c) 2001, 2002 Zope Corporation and Contributors.
+  All Rights Reserved.
   
   This software is subject to the provisions of the Zope Public License,
   Version 2.0 (ZPL).  A copy of the ZPL should accompany this distribution.
@@ -13,7 +14,7 @@
 static char cPersistence_doc_string[] = 
 "Defines Persistent mixin class for persistent objects.\n"
 "\n"
-"$Id: cPersistence.c,v 1.48 2002/01/25 14:51:55 gvanrossum Exp $\n";
+"$Id: cPersistence.c,v 1.49 2002/02/11 23:40:42 gvanrossum Exp $\n";
 
 #include <string.h>
 #include "cPersistence.h"

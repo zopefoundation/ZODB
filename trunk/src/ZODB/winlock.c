@@ -1,6 +1,7 @@
 /*****************************************************************************
 
-  Copyright (c) 2001 Zope Corporation and Contributors. All Rights Reserved.
+  Copyright (c) 2001, 2002 Zope Corporation and Contributors.
+  All Rights Reserved.
   
   This software is subject to the provisions of the Zope Public License,
   Version 2.0 (ZPL).  A copy of the ZPL should accompany this distribution.
@@ -13,7 +14,7 @@
 static char winlock_doc_string[] = 
 "Lock files on Windows."
 "\n"
-"$Id: winlock.c,v 1.7 2002/01/25 14:51:56 gvanrossum Exp $\n";
+"$Id: winlock.c,v 1.8 2002/02/11 23:40:42 gvanrossum Exp $\n";
 
 #include "Python.h"
 

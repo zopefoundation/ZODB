@@ -1,6 +1,7 @@
 ##############################################################################
 #
-# Copyright (c) 2001 Zope Corporation and Contributors. All Rights Reserved.
+# Copyright (c) 2001, 2002 Zope Corporation and Contributors.
+# All Rights Reserved.
 # 
 # This software is subject to the provisions of the Zope Public License,
 # Version 2.0 (ZPL).  A copy of the ZPL should accompany this distribution.
@@ -12,8 +13,8 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.62 2002/01/17 17:34:33 jeremy Exp $"""
-__version__='$Revision: 1.62 $'[11:-2]
+$Id: Connection.py,v 1.63 2002/02/11 23:40:42 gvanrossum Exp $"""
+__version__='$Revision: 1.63 $'[11:-2]
 
 from cPickleCache import PickleCache
 from POSException import ConflictError, ReadConflictError

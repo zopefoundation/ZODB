@@ -1,6 +1,7 @@
 /*****************************************************************************
 
-  Copyright (c) 2001 Zope Corporation and Contributors. All Rights Reserved.
+  Copyright (c) 2001, 2002 Zope Corporation and Contributors.
+  All Rights Reserved.
   
   This software is subject to the provisions of the Zope Public License,
   Version 2.0 (ZPL).  A copy of the ZPL should accompany this distribution.
@@ -15,7 +16,7 @@
  Set operations
  ****************************************************************************/
 
-#define SETOPTEMPLATE_C "$Id: SetOpTemplate.c,v 1.9 2002/01/24 20:18:29 matt Exp $\n"
+#define SETOPTEMPLATE_C "$Id: SetOpTemplate.c,v 1.10 2002/02/11 23:40:40 gvanrossum Exp $\n"
 
 #ifdef INTSET_H
 static int 

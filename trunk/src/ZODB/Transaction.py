@@ -1,6 +1,7 @@
 ##############################################################################
 #
-# Copyright (c) 2001 Zope Corporation and Contributors. All Rights Reserved.
+# Copyright (c) 2001, 2002 Zope Corporation and Contributors.
+# All Rights Reserved.
 # 
 # This software is subject to the provisions of the Zope Public License,
 # Version 2.0 (ZPL).  A copy of the ZPL should accompany this distribution.
@@ -12,8 +13,8 @@
 ##############################################################################
 """Transaction management
 
-$Id: Transaction.py,v 1.32 2001/11/28 15:51:20 matt Exp $"""
-__version__='$Revision: 1.32 $'[11:-2]
+$Id: Transaction.py,v 1.33 2002/02/11 23:40:42 gvanrossum Exp $"""
+__version__='$Revision: 1.33 $'[11:-2]
 
 import time, sys, struct, POSException
 from struct import pack

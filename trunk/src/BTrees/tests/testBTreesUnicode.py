@@ -1,6 +1,7 @@
 ##############################################################################
 #
-# Copyright (c) 2001 Zope Corporation and Contributors. All Rights Reserved.
+# Copyright (c) 2001, 2002 Zope Corporation and Contributors.
+# All Rights Reserved.
 # 
 # This software is subject to the provisions of the Zope Public License,
 # Version 2.0 (ZPL).  A copy of the ZPL should accompany this distribution.
@@ -11,7 +12,7 @@
 # 
 ##############################################################################
 
-__version__ = '$Id: testBTreesUnicode.py,v 1.5 2001/11/28 15:50:54 matt Exp $'
+__version__ = '$Id: testBTreesUnicode.py,v 1.6 2002/02/11 23:40:40 gvanrossum Exp $'
 
 import unittest,types
 from BTrees.OOBTree import OOBTree

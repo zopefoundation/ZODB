@@ -1,6 +1,7 @@
 ##############################################################################
 #
-# Copyright (c) 2001 Zope Corporation and Contributors. All Rights Reserved.
+# Copyright (c) 2001, 2002 Zope Corporation and Contributors.
+# All Rights Reserved.
 # 
 # This software is subject to the provisions of the Zope Public License,
 # Version 2.0 (ZPL).  A copy of the ZPL should accompany this distribution.
@@ -12,8 +13,8 @@
 ##############################################################################
 """BoboPOS-defined exceptions
 
-$Id: POSException.py,v 1.10 2002/01/25 02:15:07 gvanrossum Exp $"""
-__version__ = '$Revision: 1.10 $'.split()[-2:][0]
+$Id: POSException.py,v 1.11 2002/02/11 23:40:42 gvanrossum Exp $"""
+__version__ = '$Revision: 1.11 $'.split()[-2:][0]
 
 from string import join
 from types import StringType, DictType

@@ -1,6 +1,7 @@
 /*****************************************************************************
 
-  Copyright (c) 2001 Zope Corporation and Contributors. All Rights Reserved.
+  Copyright (c) 2001, 2002 Zope Corporation and Contributors.
+  All Rights Reserved.
   
   This software is subject to the provisions of the Zope Public License,
   Version 2.0 (ZPL).  A copy of the ZPL should accompany this distribution.
@@ -11,7 +12,7 @@
   
  ****************************************************************************/
 
-#define SETTEMPLATE_C "$Id: SetTemplate.c,v 1.12 2001/11/28 15:50:54 matt Exp $\n"
+#define SETTEMPLATE_C "$Id: SetTemplate.c,v 1.13 2002/02/11 23:40:40 gvanrossum Exp $\n"
 
 static PyObject *
 Set_insert(Bucket *self, PyObject *args)
