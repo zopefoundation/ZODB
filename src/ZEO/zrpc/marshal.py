@@ -16,7 +16,7 @@ from cStringIO import StringIO
 import struct
 import types
 
-from ZEO.zrpc.error import ZRPCError
+from ZEO.zrpc.error import ZRPCError, DecodingError
 
 class Marshaller:
     """Marshal requests and replies to second across network"""
