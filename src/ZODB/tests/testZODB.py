@@ -11,16 +11,52 @@
 # FOR A PARTICULAR PURPOSE.
 # 
 ##############################################################################
-import sys, os
+import unittest
 
 import ZODB
 import ZODB.FileStorage
 from ZODB.PersistentMapping import PersistentMapping
+from ZODB.POSException import ReadConflictError
 from ZODB.tests.StorageTestBase import removefs
-import unittest
+from Persistence import Persistent
 
-class ExportImportTests:
-    def checkDuplicate(self, abort_it=0, dup_name='test_duplicate'):
+class P(Persistent):
+    pass
+
+class Independent(Persistent):
+
+    def _p_independent(self):
+        return True
+
+class DecoyIndependent(Persistent):
+
+    def _p_independent(self):
+        return False
+
+class ZODBTests(unittest.TestCase):
+
+    def setUp(self):
+        self._storage = ZODB.FileStorage.FileStorage(
+            'ZODBTests.fs', create=1)
+        self._db = ZODB.DB(self._storage)
+
+    def populate(self):
+        get_transaction().begin()
+        conn = self._db.open()
+        root = conn.root()
+        root['test'] = pm = PersistentMapping()
+        for n in range(100):
+            pm[n] = PersistentMapping({0: 100 - n})
+        get_transaction().note('created test data')
+        get_transaction().commit()
+        conn.close()
+
+    def tearDown(self):
+        self._storage.close()
+        removefs("ZODBTests.fs")
+
+    def checkExportImport(self, abort_it=0, dup_name='test_duplicate'):
+        self.populate()
         get_transaction().begin()
         get_transaction().note('duplication')
         # Duplicate the 'test' object.
@@ -83,29 +119,8 @@ class ExportImportTests:
         finally:
             conn.close()
 
-    def checkDuplicateAborted(self):
-        self.checkDuplicate(abort_it=1, dup_name='test_duplicate_aborted')
-
-
-class ZODBTests(unittest.TestCase, ExportImportTests):
-
-    def setUp(self):
-        self._storage = ZODB.FileStorage.FileStorage(
-            'ZODBTests.fs', create=1)
-        self._db = ZODB.DB(self._storage)
-        get_transaction().begin()
-        conn = self._db.open()
-        root = conn.root()
-        root['test'] = pm = PersistentMapping()
-        for n in range(100):
-            pm[n] = PersistentMapping({0: 100 - n})
-        get_transaction().note('created test data')
-        get_transaction().commit()
-        conn.close()
-
-    def tearDown(self):
-        self._storage.close()
-        removefs("ZODBTests.fs")
+    def checkExportImportAborted(self):
+        self.checkExportImport(abort_it=1, dup_name='test_duplicate_aborted')
 
     def checkVersionOnly(self):
         # Make sure the changes to make empty transactions a no-op
@@ -124,6 +139,7 @@ class ZODBTests(unittest.TestCase, ExportImportTests):
     def checkResetCache(self):
         # The cache size after a reset should be 0 and the GC attributes
         # ought to be linked to it rather than the old cache.
+        self.populate()
         conn = self._db.open()
         try:
             conn.root()
@@ -173,10 +189,99 @@ class ZODBTests(unittest.TestCase, ExportImportTests):
             conn1.close()
             conn2.close()
 
+    def checkReadConflict(self):
+        self.obj = P()
+        self.readConflict()
+
+    def readConflict(self, shouldFail=True):
+        # Two transactions run concurrently.  Each reads some object,
+        # then one commits and the other tries to read an object
+        # modified by the first.  This read should fail with a conflict
+        # error because the object state read is not necessarily
+        # consistent with the objects read earlier in the transaction.
+
+        conn = self._db.open()
+        conn.setLocalTransaction()
+        r1 = conn.root()
+        r1["p"] = self.obj
+        self.obj.child1 = P()
+        conn.getTransaction().commit()
+
+        # start a new transaction with a new connection
+        cn2 = self._db.open()
+        # start a new transaction with the other connection
+        cn2.setLocalTransaction()
+        r2 = cn2.root()
+
+        self.assertEqual(r1._p_serial, r2._p_serial)
+        
+        self.obj.child2 = P()
+        conn.getTransaction().commit()
+
+        # resume the transaction using cn2
+        obj = r2["p"]
+        # An attempt to access obj should fail, because r2 was read
+        # earlier in the transaction and obj was modified by the othe
+        # transaction.
+        if shouldFail:
+            self.assertRaises(ReadConflictError, lambda: obj.child1)
+        else:
+            # make sure that accessing the object succeeds
+            obj.child1
+        cn2.getTransaction().abort()
+
+    def testReadConflictIgnored(self):
+        # Test that an application that catches a read conflict and
+        # continues can not commit the transaction later.
+        root = self._db.open().root()
+        root["real_data"] = real_data = PersistentDict()
+        root["index"] = index = PersistentDict()
+
+        real_data["a"] = PersistentDict({"indexed_value": False})
+        real_data["b"] = PersistentDict({"indexed_value": True})
+        index[True] = PersistentDict({"b": 1})
+        index[False] = PersistentDict({"a": 1})
+        get_transaction().commit()
+
+        # load some objects from one connection
+        cn2 = self._db.open()
+        cn2.setLocalTransaction()
+        r2 = cn2.root()
+        real_data2 = r2["real_data"]
+        index2 = r2["index"]
+
+        real_data["b"]["indexed_value"] = False
+        del index[True]["b"]
+        index[False]["b"] = 1
+        cn2.getTransaction().commit()
+
+        del real_data2["a"]
+        try:
+            del index2[False]["a"]
+        except ReadConflictError:
+            # This is the crux of the text.  Ignore the error.
+            pass
+        else:
+            self.fail("No conflict occurred")
+
+        # real_data2 still ready to commit
+        self.assert_(real_data2._p_changed)
+
+        # index2 values not ready to commit
+        self.assert_(not index2._p_changed)
+        self.assert_(not index2[False]._p_changed)
+        self.assert_(not index2[True]._p_changed)
+
+        self.assertRaises(ConflictError, get_transaction().commit)
+        get_transaction().abort()
+
+    def checkIndependent(self):
+        self.obj = Independent()
+        self.readConflict(shouldFail=False)
+
+    def checkNotIndependent(self):
+        self.obj = DecoyIndependent()
+        self.readConflict()
 
 def test_suite():
     return unittest.makeSuite(ZODBTests, 'check')
-
-if __name__=='__main__':
-    unittest.main(defaultTest='test_suite')
-

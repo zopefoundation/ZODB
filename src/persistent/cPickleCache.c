@@ -90,7 +90,7 @@ process must skip such objects, rather than deactivating them.
 static char cPickleCache_doc_string[] =
 "Defines the PickleCache used by ZODB Connection objects.\n"
 "\n"
-"$Id: cPickleCache.c,v 1.80 2003/04/02 16:50:49 jeremy Exp $\n";
+"$Id: cPickleCache.c,v 1.81 2003/04/08 15:55:44 jeremy Exp $\n";
 
 #define ASSIGN(V,E) {PyObject *__e; __e=(E); Py_XDECREF(V); (V)=__e;}
 #define UNLESS(E) if(!(E))
@@ -352,6 +352,7 @@ cc_invalidate(ccobject *self, PyObject *args)
 	      _invalidate(self, key);
 	      Py_DECREF(key);
 	  }
+	  /* XXX Do we really want to modify the input? */
 	  PySequence_DelSlice(inv, 0, l);
       }
   }
