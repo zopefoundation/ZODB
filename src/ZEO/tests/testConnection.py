@@ -35,7 +35,6 @@ class FileStorageConfig:
                          create and 'yes' or 'no',
                          read_only and 'yes' or 'no')
 
-
 class BerkeleyStorageConfig:
     def getConfig(self, path, create, read_only):
         return """\
@@ -45,48 +44,91 @@ class BerkeleyStorageConfig:
             read_only %s
         </Storage>""" % (path, read_only)
 
+class MappingStorageConfig:
+    def getConfig(self, path, create, read_only):
+        return """\
+        <Storage>
+            type MappingStorage
+            name %s
+        </Storage>""" % path
 
+
+
 class FileStorageConnectionTests(
     FileStorageConfig,
     ConnectionTests.ConnectionTests
     ):
     """FileStorage-specific connection tests."""
-
+    level = 2
 
 class FileStorageReconnectionTests(
     FileStorageConfig,
     ConnectionTests.ReconnectionTests
     ):
     """FileStorage-specific re-connection tests."""
+    # Run this at level 1 because MappingStorage can't do reconnection tests
+    level = 1
 
 class FileStorageTimeoutTests(
     FileStorageConfig,
     ConnectionTests.TimeoutTests
     ):
-    # doesn't test anything that is storage-specific
-    pass
+    level = 2
+
 
 class BDBConnectionTests(
     BerkeleyStorageConfig,
     ConnectionTests.ConnectionTests
     ):
     """Berkeley storage connection tests."""
-
+    level = 2
 
 class BDBReconnectionTests(
     BerkeleyStorageConfig,
     ConnectionTests.ReconnectionTests
     ):
     """Berkeley storage re-connection tests."""
+    level = 2
+
+class BDBTimeoutTests(
+    BerkeleyStorageConfig,
+    ConnectionTests.TimeoutTests
+    ):
+    level = 2
 
 
-test_classes = [FileStorageConnectionTests, FileStorageReconnectionTests,
+class MappingStorageConnectionTests(
+    MappingStorageConfig,
+    ConnectionTests.ConnectionTests
+    ):
+    """Mapping storage connection tests."""
+    level = 1
+
+# The ReconnectionTests can't work with MappingStorage because it's only an
+# in-memory storage and has no persistent state.
+
+class MappingStorageTimeoutTests(
+    MappingStorageConfig,
+    ConnectionTests.TimeoutTests
+    ):
+    level = 1
+
+
+
+test_classes = [FileStorageConnectionTests,
+                FileStorageReconnectionTests,
                 FileStorageTimeoutTests]
+
+test_classes.extend(
+    [MappingStorageConnectionTests,
+     MappingStorageTimeoutTests])
+
 
 import BDBStorage
 if BDBStorage.is_available:
     test_classes.append(BDBConnectionTests)
     test_classes.append(BDBReconnectionTests)
+    test_classes.append(BDBTimeoutTests)
 
 
 def test_suite():
