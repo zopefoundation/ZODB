@@ -47,7 +47,8 @@ def connect(storage):
     raise RuntimeError, "Unable to connect to ZEO server"
 
 def pack1(addr, storage, days, wait):
-    cs = ClientStorage(addr, storage=storage, wait_for_server_on_startup=wait)
+    cs = ClientStorage(addr, storage=storage,
+                       wait_for_server_on_startup=wait)
     if wait:
         # _startup() is an artifact of the way ZEO 1.0 works.  The
         # ClientStorage doesn't get fully initialized until registerDB()
@@ -60,7 +61,7 @@ def pack1(addr, storage, days, wait):
     cs.pack(wait=1, days=days)
     cs.close()
 
-def pack2(addr, storage, days, wait):
+def pack2(addr, storage, days):
     cs = ClientStorage(addr, storage=storage, wait=1)
     cs.pack(wait=1, days=days)
     cs.close()
@@ -111,7 +112,7 @@ def main():
     if zeoversion == 1:
         pack1(addr, storage, days, wait)
     else:
-        pack(addr, storage, days)
+        pack2(addr, storage, days)
 
 if __name__ == "__main__":
     try:
