@@ -306,18 +306,9 @@ class Connection(smac.SizedMessageAsyncConnection):
         return msgid
 
     def call(self, method, *args):
-        self.__replies_cond.acquire()
-        try:
-            while self.__replies and not self.closed:
-                log("waiting for previous call to finish %s" %
-                    repr(self.__replies.values()[0]))
-                self.__replies_cond.wait(30)
-            if self.closed:
-                raise DisconnectedError()
-            msgid = self.send_call(method, args, 0)
-            self.__replies[msgid] = None
-        finally:
-            self.__replies_cond.release()
+        if self.closed:
+            raise DisconnectedError()
+        msgid = self.send_call(method, args, 0)
         r_flags, r_args = self.wait(msgid)
         if (isinstance(r_args, types.TupleType)
             and type(r_args[0]) == types.ClassType
@@ -367,8 +358,6 @@ class Connection(smac.SizedMessageAsyncConnection):
                 reply = self.__replies.get(msgid)
                 if reply is not None:
                     del self.__replies[msgid]
-                    assert len(self.__replies) == 0
-                    self.__replies_cond.notifyAll()
                     return reply
                 if self.is_async():
                     self.__replies_cond.wait(10.0)
