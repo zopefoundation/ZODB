@@ -11,8 +11,10 @@
 # FOR A PARTICULAR PURPOSE
 #
 ##############################################################################
-"""
-"""
-__version__='$Revision: 1.4 $'[11:-2]
+"""Manage the asyncore mainloop in a multi-threaded app.
 
-from LoopCallback import register_loop_callback
+$Id: __init__.py,v 1.5 2002/11/26 15:05:59 jeremy Exp $
+"""
+
+from LoopCallback import register_loop_callback, loop
+
