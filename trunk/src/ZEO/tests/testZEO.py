@@ -99,7 +99,6 @@ class GenericTests(StorageTestBase.StorageTestBase,
 
     def setUp(self):
         zLOG.LOG("testZEO", zLOG.INFO, "setUp() %s" % self.id())
-        self.running = 1
         client, exit, pid = forker.start_zeo(*self.getStorage())
         self._pids = [pid]
         self._servers = [exit]
@@ -107,7 +106,6 @@ class GenericTests(StorageTestBase.StorageTestBase,
         client.registerDB(DummyDB(), None)
 
     def tearDown(self):
-        self.running = 0
         self._storage.close()
         for server in self._servers:
             server.close()
@@ -225,8 +223,6 @@ class ConnectionTests(StorageTestBase.StorageTestBase):
         The ZEO server uses the storage object returned by the
         getStorage() method.
         """
-        zLOG.LOG("testZEO", zLOG.INFO, "setUp() %s" % self.id())
-        self.running = 1
         self.file = tempfile.mktemp()
         self.addr = []
         self._pids = []
@@ -254,7 +250,8 @@ class ConnectionTests(StorageTestBase.StorageTestBase):
         """Try to cause the tests to halt"""
         if getattr(self, '_storage', None) is not None:
             self._storage.close()
-        self.shutdownServer()
+        for i in range(len(self._servers)):
+            self.shutdownServer(i)
         # file storage appears to create four files
         for i in range(len(self.addr)):
             for ext in '', '.index', '.lock', '.tmp':
@@ -367,7 +364,6 @@ class ConnectionTests(StorageTestBase.StorageTestBase):
         zLOG.LOG("checkReconnection", zLOG.INFO,
                  "About to shutdown server")
         self.shutdownServer()
-        self.running = 1
         zLOG.LOG("checkReconnection", zLOG.INFO,
                  "About to restart server")
         self._startServer(create=0)
@@ -402,13 +398,13 @@ class UnixConnectionTests(ConnectionTests):
         self._servers.append(server)
 
     def shutdownServer(self, index=0):
-        if self.running:
-            self.running = 0
-            self._servers[index].close()
+        self._servers[index].close()
+        if self._pids[index] is not None:
             try:
                 os.waitpid(self._pids[index], 0)
-            except os.error:
-                pass
+                self._pids[index] = None
+            except os.error, err:
+                print err
 
 class WindowsConnectionTests(ConnectionTests):
 
@@ -421,11 +417,11 @@ class WindowsConnectionTests(ConnectionTests):
         self._servers.append(test_addr)
 
     def shutdownServer(self, index=0):
-        if self.running:
-            self.running = 0
+        if self._servers[index] is not None:
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             s.connect(self._servers[index])
             s.close()
+            self._servers[index] = None
             # XXX waitpid() isn't available until Python 2.3
             time.sleep(0.5)
 
