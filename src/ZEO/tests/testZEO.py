@@ -150,7 +150,6 @@ class FileStorageTests(GenericTests):
 
     def getConfig(self):
         filename = self.__fs_base = tempfile.mktemp()
-        # Return a 1-tuple
         return """\
         <Storage>
             type FileStorage
@@ -165,7 +164,6 @@ class BDBTests(FileStorageTests):
 
     def getStorage(self):
         self._envdir = tempfile.mktemp()
-        # Return a 1-tuple
         return """\
         <Storage>
             type BDBFullStorage
@@ -178,15 +176,12 @@ class MappingStorageTests(FileStorageTests):
 
     def getStorage(self):
         self._envdir = tempfile.mktemp()
-        # Return a 1-tuple
         return """\
         <Storage>
             type MappingStorage
             name %s
         </Storage>
         """ % self._envdir
-
-
 
 
 test_classes = [FileStorageTests, MappingStorageTests]
