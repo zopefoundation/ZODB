@@ -145,10 +145,12 @@ class RecoveryStorage(IteratorDeepCompare):
 
         # copy the final transaction manually.  even though there
         # was a pack, the restore() ought to succeed.
-        final = list(self._storage.iterator())[-1]
+        it = self._storage.iterator()
+        final = list(it)[-1]
         self._dst.tpc_begin(final, final.tid, final.status)
         for r in final:
             self._dst.restore(r.oid, r.serial, r.data, r.version, r.data_txn,
                               final)
+        it.close()
         self._dst.tpc_vote(final)
         self._dst.tpc_finish(final)
