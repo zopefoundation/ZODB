@@ -13,9 +13,10 @@
 ##############################################################################
 """Transaction management
 
-$Id: Transaction.py,v 1.52 2003/10/02 22:11:28 jeremy Exp $
+$Id: Transaction.py,v 1.53 2003/10/02 22:48:07 tim_one Exp $
 """
 import sys
+from thread import get_ident as _get_ident
 
 from zLOG import LOG, ERROR, PANIC, INFO, BLATHER, WARNING
 from ZODB.POSException import ConflictError, TransactionError
@@ -453,39 +454,26 @@ information on the error that lead to this problem.
 ############################################################################
 # install get_transaction:
 
-try:
-    import thread
+# Map thread ident to its Transaction instance.
+_tid2tran = {}
 
-except:
-    _t = Transaction(None)
+# Get Transaction associated with current thread; if none, create a
+# new Transaction and return it.
+def get_transaction():
+    tid = _get_ident()
+    result = _tid2tran.get(tid)
+    if result is None:
+        _tid2tran[tid] = result = Transaction(tid)
+    return result
 
-    def get_transaction():
-        return _t
-
-    def free_transaction():
-        _t.__init__()
-
-else:
-    _t = {}
-
-    def get_transaction():
-        id = thread.get_ident()
-        t = _t.get(id, None)
-        if t is None:
-            _t[id] = t = Transaction(id)
-        return t
-
-    def free_transaction():
-        id = thread.get_ident()
-        try:
-            del _t[id]
-        except KeyError:
-            pass
-
-    del thread
-
-del _t
+# Forget whatever Transaction (if any) is associated with current thread.
+def free_transaction():
+    tid = _get_ident()
+    try:
+        del _tid2tran[tid]
+    except KeyError:
+        pass
 
 import __builtin__
-__builtin__.get_transaction=get_transaction
+__builtin__.get_transaction = get_transaction
 del __builtin__
