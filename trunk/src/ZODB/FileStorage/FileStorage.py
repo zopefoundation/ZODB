@@ -13,7 +13,7 @@
 ##############################################################################
 """Storage implementation using a log written to a single file.
 
-$Revision: 1.8 $
+$Revision: 1.9 $
 """
 
 import base64
@@ -1319,7 +1319,10 @@ class FileStorage(BaseStorage.BaseStorage,
         if not self._index:
             return
 
-        # Record pack time so we don't undo while packing
+        # Set _packt to None for the duration, which blocks undo for the
+        # duration.
+        # XXX That appears to be the only use for _packt; if so, could be
+        # XXX cleaner.
         self._lock_acquire()
         try:
             if self._packt != z64:
