@@ -13,7 +13,7 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.95 2003/06/13 16:54:43 jeremy Exp $"""
+$Id: Connection.py,v 1.96 2003/06/13 17:00:04 jeremy Exp $"""
 
 from __future__ import nested_scopes
 
@@ -725,31 +725,24 @@ class Connection(ExportImport.ExportImport):
         if not store_return:
             return
         if isinstance(store_return, StringType):
-            # This code is duplicated in the body of the for loop below.
             assert oid is not None
-            serial = store_return
-            obj = self._cache.get(oid, None)
-            if obj is None:
-                return
-            if serial == ResolvedSerial:
-                del obj._p_changed # transition from changed to ghost
-            else:
-                if change:
-                    obj._p_changed = 0 # transition from changed to uptodate
-                obj._p_serial = serial
+            self._handle_one_serial(oid, store_return, change)
         else:
             for oid, serial in store_return:
-                if not isinstance(serial, StringType):
-                    raise serial
-                obj = self._cache.get(oid, None)
-                if obj is None:
-                    continue
-                if serial == ResolvedSerial:
-                    del obj._p_changed # transition from changed to ghost
-                else:
-                    if change:
-                        obj._p_changed = 0 # trans. from changed to uptodate
-                    obj._p_serial = serial
+                self._handle_one_serial(oid, serial, change)
+
+    def _handle_one_serial(self, oid, serial, change):
+        if not isinstance(serial, StringType):
+            raise serial
+        obj = self._cache.get(oid, None)
+        if obj is None:
+            return
+        if serial == ResolvedSerial:
+            del obj._p_changed # transition from changed to ghost
+        else:
+            if change:
+                obj._p_changed = 0 # trans. from changed to uptodate
+            obj._p_serial = serial
 
     def tpc_finish(self, transaction):
         # It's important that the storage call the function we pass
