@@ -56,7 +56,7 @@ def report(oid, data, serial, fs, missing):
             description = "%s.%s" % info
         else:
             description = str(info)
-        print "\toid %s %s: %s" % (hex(u64(oid)), reason, description)
+        print "\toid %s %s: %r" % (hex(u64(oid)), reason, description)
     print
 
 def main(path):
@@ -80,7 +80,7 @@ def main(path):
         for info in refs:
             try:
                 ref, klass = info
-            except TypeError:
+            except (ValueError, TypeError):
                 # failed to unpack
                 ref = info
                 klass = '<unknown>'
