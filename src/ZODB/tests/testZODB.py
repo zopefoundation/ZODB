@@ -242,7 +242,9 @@ class ZODBTests(unittest.TestCase):
             self.assertEqual(r1['item'], 2)
             self.assertEqual(r2['item'], 2)
             for msg, obj, filename, lineno in hook.warnings:
-                self.assert_(msg.startswith("getTransaction() is deprecated."))
+                self.assert_(
+                    msg.startswith("setLocalTransaction() is deprecated.") or
+                    msg.startswith("getTransaction() is deprecated."))
         finally:
             conn1.close()
             conn2.close()
