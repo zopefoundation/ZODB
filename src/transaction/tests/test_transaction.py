@@ -46,15 +46,11 @@ from ZODB.utils import positive_id
 class TransactionTests(unittest.TestCase):
 
     def setUp(self):
-        self.orig_tm = transaction.manager
-        transaction.manager = transaction.TransactionManager()
-        self.sub1 = DataObject()
-        self.sub2 = DataObject()
-        self.sub3 = DataObject()
-        self.nosub1 = DataObject(nost=1)
-
-    def tearDown(self):
-        transaction.manager = self.orig_tm
+        self.txn_mgr = transaction.TransactionManager()
+        self.sub1 = DataObject(self.txn_mgr)
+        self.sub2 = DataObject(self.txn_mgr)
+        self.sub3 = DataObject(self.txn_mgr)
+        self.nosub1 = DataObject(self.txn_mgr, nost=1)
 
     # basic tests with two sub trans jars
     # really we only need one, so tests for
@@ -64,7 +60,7 @@ class TransactionTests(unittest.TestCase):
         self.sub1.modify()
         self.sub2.modify()
 
-        transaction.commit()
+        self.txn_mgr.commit()
 
         assert self.sub1._p_jar.ccommit_sub == 0
         assert self.sub1._p_jar.ctpc_finish == 1
@@ -74,13 +70,13 @@ class TransactionTests(unittest.TestCase):
         self.sub1.modify()
         self.sub2.modify()
 
-        transaction.abort()
+        self.txn_mgr.abort()
 
         assert self.sub2._p_jar.cabort == 1
 
     def testTransactionNote(self):
 
-        t = transaction.get()
+        t = self.txn_mgr.get()
 
         t.note('This is a note.')
         self.assertEqual(t.description, 'This is a note.')
@@ -94,12 +90,12 @@ class TransactionTests(unittest.TestCase):
         self.sub1.modify()
         self.sub2.modify()
 
-        transaction.commit(1)
+        self.txn_mgr.commit(1)
 
         assert self.sub1._p_jar.ctpc_vote == 0
         assert self.sub1._p_jar.ctpc_finish == 1
 
-        transaction.commit()
+        self.txn_mgr.commit()
 
         assert self.sub1._p_jar.ccommit_sub == 1
         assert self.sub1._p_jar.ctpc_vote == 1
@@ -109,8 +105,8 @@ class TransactionTests(unittest.TestCase):
         self.sub1.modify()
         self.sub2.modify()
 
-        transaction.commit(1)
-        transaction.abort()
+        self.txn_mgr.commit(1)
+        self.txn_mgr.abort()
 
         assert self.sub1._p_jar.ctpc_vote == 0
         assert self.sub1._p_jar.cabort == 0
@@ -118,12 +114,12 @@ class TransactionTests(unittest.TestCase):
 
     def testMultipleSubTransactionCommitCommit(self):
         self.sub1.modify()
-        transaction.commit(1)
+        self.txn_mgr.commit(1)
 
         self.sub2.modify()
         # reset a flag on the original to test it again
         self.sub1.ctpc_finish = 0
-        transaction.commit(1)
+        self.txn_mgr.commit(1)
 
         # this is interesting.. we go through
         # every subtrans commit with all subtrans capable
@@ -135,7 +131,7 @@ class TransactionTests(unittest.TestCase):
         # add another before we do the entire txn commit
         self.sub3.modify()
 
-        transaction.commit()
+        self.txn_mgr.commit()
 
         # we did an implicit sub commit, is this impl artifact?
         assert self.sub3._p_jar.ccommit_sub == 1
@@ -161,12 +157,12 @@ class TransactionTests(unittest.TestCase):
         # add it
         self.sub1.modify()
 
-        transaction.commit(1)
+        self.txn_mgr.commit(1)
 
         # add another
         self.sub2.modify()
 
-        transaction.commit(1)
+        self.txn_mgr.commit(1)
 
         assert self.sub1._p_jar.ctpc_vote == 0
         assert self.sub1._p_jar.ctpc_finish > 0
@@ -175,10 +171,10 @@ class TransactionTests(unittest.TestCase):
         self.sub3.modify()
 
         # abort the sub transaction
-        transaction.abort(1)
+        self.txn_mgr.abort(1)
 
         # commit the container transaction
-        transaction.commit()
+        self.txn_mgr.commit()
 
         assert self.sub3._p_jar.cabort == 1
         assert self.sub1._p_jar.ccommit_sub == 1
@@ -190,7 +186,7 @@ class TransactionTests(unittest.TestCase):
 
         self.nosub1.modify()
 
-        transaction.commit()
+        self.txn_mgr.commit()
 
         assert self.nosub1._p_jar.ctpc_finish == 1
 
@@ -198,7 +194,7 @@ class TransactionTests(unittest.TestCase):
 
         self.nosub1.modify()
 
-        transaction.abort()
+        self.txn_mgr.abort()
 
         assert self.nosub1._p_jar.ctpc_finish == 0
         assert self.nosub1._p_jar.cabort == 1
@@ -221,7 +217,7 @@ class TransactionTests(unittest.TestCase):
         self.sub1.modify(tracing='sub')
         self.nosub1.modify(tracing='nosub')
 
-        transaction.commit(1)
+        self.txn_mgr.commit(1)
 
         assert self.sub1._p_jar.ctpc_finish == 1
 
@@ -229,7 +225,7 @@ class TransactionTests(unittest.TestCase):
         # in a subtrans
         assert self.nosub1._p_jar.ctpc_finish == 0
 
-        transaction.abort()
+        self.txn_mgr.abort()
 
         assert self.nosub1._p_jar.cabort == 1
         assert self.sub1._p_jar.cabort_sub == 1
@@ -239,11 +235,11 @@ class TransactionTests(unittest.TestCase):
         self.sub1.modify()
         self.nosub1.modify()
 
-        transaction.commit(1)
+        self.txn_mgr.commit(1)
 
         assert self.nosub1._p_jar.ctpc_vote == 0
 
-        transaction.commit()
+        self.txn_mgr.commit()
 
         #assert self.nosub1._p_jar.ccommit_sub == 0
         assert self.nosub1._p_jar.ctpc_vote == 1
@@ -276,12 +272,12 @@ class TransactionTests(unittest.TestCase):
         # add it
         self.sub1.modify()
 
-        transaction.commit(1)
+        self.txn_mgr.commit(1)
 
         # add another
         self.nosub1.modify()
 
-        transaction.commit(1)
+        self.txn_mgr.commit(1)
 
         assert self.sub1._p_jar.ctpc_vote == 0
         assert self.nosub1._p_jar.ctpc_vote == 0
@@ -291,7 +287,7 @@ class TransactionTests(unittest.TestCase):
         self.sub2.modify()
 
         # commit the container transaction
-        transaction.commit()
+        self.txn_mgr.commit()
 
         # we did an implicit sub commit
         assert self.sub2._p_jar.ccommit_sub == 1
@@ -316,7 +312,7 @@ class TransactionTests(unittest.TestCase):
         self.sub2.modify()
 
         try:
-            transaction.abort()
+            self.txn_mgr.abort()
         except TestTxnException: pass
 
         assert self.nosub1._p_jar.cabort == 1
@@ -330,7 +326,7 @@ class TransactionTests(unittest.TestCase):
         self.sub1.modify(nojar=1)
 
         try:
-            transaction.commit()
+            self.txn_mgr.commit()
         except TestTxnException: pass
 
         assert self.nosub1._p_jar.ctpc_finish == 0
@@ -345,7 +341,7 @@ class TransactionTests(unittest.TestCase):
         self.sub1.modify(nojar=1)
 
         try:
-            transaction.commit()
+            self.txn_mgr.commit()
         except TestTxnException: pass
 
         assert self.nosub1._p_jar.ctpc_finish == 0
@@ -371,7 +367,7 @@ class TransactionTests(unittest.TestCase):
         self.sub1.modify(nojar=1)
 
         try:
-            transaction.commit()
+            self.txn_mgr.commit()
         except TestTxnException: pass
 
         assert self.nosub1._p_jar.ctpc_abort == 1
@@ -385,7 +381,7 @@ class TransactionTests(unittest.TestCase):
         self.sub1.modify(nojar=1)
 
         try:
-            transaction.commit()
+            self.txn_mgr.commit()
         except TestTxnException:
             pass
 
@@ -402,19 +398,19 @@ class TransactionTests(unittest.TestCase):
         # they come out of the dictionary.
 
         self.sub1.modify()
-        transaction.commit(1)
+        self.txn_mgr.commit(1)
 
         self.nosub1.modify()
 
         self.sub2._p_jar = SubTransactionJar(errors='commit_sub')
         self.sub2.modify(nojar=1)
 
-        transaction.commit(1)
+        self.txn_mgr.commit(1)
 
         self.sub3.modify()
 
         try:
-            transaction.commit()
+            self.txn_mgr.commit()
         except TestTxnException:
             pass
 
@@ -441,17 +437,17 @@ class TransactionTests(unittest.TestCase):
 
         self.sub1._p_jar = SubTransactionJar(errors='commit_sub')
         self.sub1.modify(nojar=1)
-        transaction.commit(1)
+        self.txn_mgr.commit(1)
 
         self.nosub1.modify()
         self.sub2._p_jar = SubTransactionJar(errors='abort_sub')
         self.sub2.modify(nojar=1)
-        transaction.commit(1)
+        self.txn_mgr.commit(1)
 
         self.sub3.modify()
 
         try:
-            transaction.commit()
+            self.txn_mgr.commit()
         except TestTxnException, err:
             pass
         else:
@@ -500,7 +496,8 @@ class TransactionTests(unittest.TestCase):
 
 class DataObject:
 
-    def __init__(self, nost=0):
+    def __init__(self, txn_mgr, nost=0):
+        self.txn_mgr = txn_mgr
         self.nost = nost
         self._p_jar = None
 
@@ -510,7 +507,7 @@ class DataObject:
                 self._p_jar = NoSubTransactionJar(tracing=tracing)
             else:
                 self._p_jar = SubTransactionJar(tracing=tracing)
-        transaction.get().register(self)
+        self.txn_mgr.get().register(self)
 
 class TestTxnException(Exception):
     pass
@@ -635,7 +632,7 @@ def test_join():
     """
 
 def test_suite():
-    from doctest import DocTestSuite
+    from zope.testing.doctest import DocTestSuite
     return unittest.TestSuite((
         DocTestSuite(),
         unittest.makeSuite(TransactionTests),

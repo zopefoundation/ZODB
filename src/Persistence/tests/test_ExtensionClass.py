@@ -16,7 +16,7 @@
 $Id$
 """
 
-from doctest import DocTestSuite
+from zope.testing.doctest import DocTestSuite
 import pickle
 
 from Persistence import Persistent

@@ -13,7 +13,7 @@
 ##############################################################################
 """Test behavior of Connection plus cPickleCache."""
 
-import doctest
+from zope.testing import doctest
 
 from persistent import Persistent
 import transaction

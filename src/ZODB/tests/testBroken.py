@@ -20,7 +20,7 @@ import sys
 import unittest
 import persistent
 import transaction
-from doctest import DocTestSuite
+from zope.testing.doctest import DocTestSuite
 from ZODB.tests.util import DB
 
 def test_integration():

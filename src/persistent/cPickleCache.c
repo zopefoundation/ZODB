@@ -115,7 +115,6 @@ typedef struct {
     int klass_count;                     /* count of persistent classes */
     PyObject *data;                      /* oid -> object dict */
     PyObject *jar;                       /* Connection object */
-    PyObject *setklassstate;             /* ??? */
     int cache_size;                      /* target number of items in cache */
 
     /* Most of the time the ring contains only:
@@ -331,58 +330,48 @@ cc_minimize(ccobject *self, PyObject *args)
     return lockgc(self, 0);
 }
 
-static void
+static int
 _invalidate(ccobject *self, PyObject *key)
 {
-    static PyObject *_p_invalidate;
-    PyObject *v = PyDict_GetItem(self->data, key);
+    static PyObject *_p_invalidate = NULL;
+    PyObject *meth, *v;
 
-    if (!_p_invalidate) {
+    v = PyDict_GetItem(self->data, key);
+    if (v == NULL)
+	return 0;
+
+    if (_p_invalidate == NULL)
+      {
 	_p_invalidate = PyString_InternFromString("_p_invalidate");
-	if (!_p_invalidate) {
+	if (_p_invalidate == NULL)
+          {
 	    /* It doesn't make any sense to ignore this error, but
 	       the caller ignores all errors.
+
+               TODO: and why does it do that? This should be fixed
 	    */
-	    PyErr_Clear();
-	    return;
-	}
+	    return -1;
+          }
+      }
+
+    if (v->ob_refcnt <= 1 && PyType_Check(v)) {
+      /* This looks wrong, but it isn't. We use strong references to types
+         because they don't have the ring members.
+
+         The result is that we *never* remove classes unless
+         they are modified.  We can fix this by using wekrefs uniformly.
+      */
+      self->klass_count--;
+      return PyDict_DelItem(self->data, key);
     }
 
-    if (!v)
-	return;
-    if (PyType_Check(v)) {
-        /* This looks wrong, but it isn't. We use strong references to types
-           because they don't have the ring members.
+    meth = PyObject_GetAttr(v, _p_invalidate);
+    if (meth == NULL)
+      return -1;
 
-           The result is that we *never* remove classes unless
-           they are modified.
-
-         */
-	if (v->ob_refcnt <= 1) {
-	    self->klass_count--;
-	    if (PyDict_DelItem(self->data, key) < 0)
-		PyErr_Clear();
-	}
-	else {
-	    v = PyObject_CallFunction(self->setklassstate, "O", v);
-	    if (v)
-		Py_DECREF(v);
-	    else
-		PyErr_Clear();
-	}
-    } else {
-	PyObject *meth, *err;
-
-	meth = PyObject_GetAttr(v, _p_invalidate);
-	if (!meth) {
-	    PyErr_Clear();
-	    return;
-	}
-	err = PyObject_CallObject(meth, NULL);
-	Py_DECREF(meth);
-	if (!err)
-	    PyErr_Clear();
-    }
+    v = PyObject_CallObject(meth, NULL);
+    Py_DECREF(meth);
+    return v == NULL ? -1 : 0;
 }
 
 static PyObject *
@@ -391,16 +380,23 @@ cc_invalidate(ccobject *self, PyObject *inv)
   PyObject *key, *v;
   int i = 0;
 
-  if (PyDict_Check(inv)) {
+  if (PyDict_Check(inv))
+    {
       while (PyDict_Next(inv, &i, &key, &v))
-	  _invalidate(self, key);
+        {
+	  if (_invalidate(self, key) < 0)
+            return NULL;
+        }
       PyDict_Clear(inv);
-  }
+    }
   else {
       if (PyString_Check(inv))
-	  _invalidate(self, inv);
+        {
+	  if (_invalidate(self, inv) < 0)
+            return NULL;
+        }
       else {
-	  int l;
+	  int l, r;
 
 	  l = PyObject_Length(inv);
 	  if (l < 0)
@@ -409,8 +405,10 @@ cc_invalidate(ccobject *self, PyObject *inv)
 	      key = PySequence_GetItem(inv, i);
 	      if (!key)
 		  return NULL;
-	      _invalidate(self, key);
+	      r = _invalidate(self, key);
 	      Py_DECREF(key);
+              if (r < 0)
+                return NULL;
 	  }
 	  /* Dubious:  modifying the input may be an unexpected side effect. */
 	  PySequence_DelSlice(inv, 0, l);
@@ -669,7 +667,7 @@ cc_init(ccobject *self, PyObject *args, PyObject *kwds)
     if (!PyArg_ParseTuple(args, "O|i", &jar, &cache_size))
 	return -1;
 
-    self->setklassstate = self->jar = NULL;
+    self->jar = NULL;
     self->data = PyDict_New();
     if (self->data == NULL) {
 	Py_DECREF(self);
@@ -686,11 +684,6 @@ cc_init(ccobject *self, PyObject *args, PyObject *kwds)
     non-ghost objects.
     */
     PyObject_GC_UnTrack((void *)self->data);
-    self->setklassstate = PyObject_GetAttrString(jar, "setklassstate");
-    if (self->setklassstate == NULL) {
-	Py_DECREF(self);
-	return -1;
-    }
     self->jar = jar;
     Py_INCREF(jar);
     self->cache_size = cache_size;
@@ -708,7 +701,6 @@ cc_dealloc(ccobject *self)
 {
     Py_XDECREF(self->data);
     Py_XDECREF(self->jar);
-    Py_XDECREF(self->setklassstate);
     PyObject_GC_Del(self);
 }
 
@@ -755,7 +747,6 @@ cc_clear(ccobject *self)
     }
 
     Py_XDECREF(self->jar);
-    Py_XDECREF(self->setklassstate);
 
     while (PyDict_Next(self->data, &pos, &k, &v)) {
 	Py_INCREF(v);
@@ -765,7 +756,6 @@ cc_clear(ccobject *self)
     Py_XDECREF(self->data);
     self->data = NULL;
     self->jar = NULL;
-    self->setklassstate = NULL;
     return 0;
 }
 
@@ -794,7 +784,6 @@ cc_traverse(ccobject *self, visitproc visit, void *arg)
     }
 
     VISIT(self->jar);
-    VISIT(self->setklassstate);
 
     here = self->ring_home.r_next;
 
