@@ -88,7 +88,7 @@ process must skip such objects, rather than deactivating them.
 static char cPickleCache_doc_string[] =
 "Defines the PickleCache used by ZODB Connection objects.\n"
 "\n"
-"$Id: cPickleCache.c,v 1.77 2003/04/01 16:17:50 jeremy Exp $\n";
+"$Id: cPickleCache.c,v 1.78 2003/04/01 18:44:25 jeremy Exp $\n";
 
 #define ASSIGN(V,E) {PyObject *__e; __e=(E); Py_XDECREF(V); (V)=__e;}
 #define UNLESS(E) if(!(E))
@@ -506,7 +506,7 @@ cc_oid_unreferenced(ccobject *self, PyObject *oid)
     Py_INCREF(v);
 
     /* XXX Should we call _Py_ForgetReference() on error exit? */
-    if (PyDict_DelItem(self->data, oid) < 0)
+    if (PyDict_DelItem(self->data, oid) < 0) 
 	return -1;
     Py_DECREF((ccobject *)((cPersistentObject *)v)->cache);
 
@@ -648,6 +648,7 @@ cc_setattr(ccobject *self, char *name, PyObject *value)
 static int
 cc_length(ccobject *self)
 {
+    fprintf(stderr, "non_ghost_count = %d\n", self->non_ghost_count);
     return PyObject_Length(self->data);
 }
   
@@ -762,6 +763,9 @@ cc_add_item(ccobject *self, PyObject *key, PyObject *v)
     
     if (PyDict_SetItem(self->data, key, v) < 0) 
 	return -1;
+    /* Remove the reference used by the dict.  The cache should only
+       have borrowed references to objects. */
+    Py_DECREF(v);
     
     p = (cPersistentObject *)v;
     Py_INCREF(self);
@@ -774,12 +778,7 @@ cc_add_item(ccobject *self, PyObject *key, PyObject *v)
 	p->ring.prev =  self->ring_home.prev;
 	self->ring_home.prev->next = &p->ring;
 	self->ring_home.prev = &p->ring;
-    } else {
-	/* steal a reference from the dictionary; 
-	   ghosts have a weak reference */
-	Py_DECREF(v);
     }
-    
     return 0;
 }
 
