@@ -1,6 +1,6 @@
 /*
 
-  $Id: cPersistence.c,v 1.3 1997/03/11 20:53:07 jim Exp $
+  $Id: cPersistence.c,v 1.4 1997/03/14 22:51:40 jim Exp $
 
   C Persistence Module
 
@@ -56,18 +56,17 @@
 
 
 *****************************************************************************/
-static char *what_string = "$Id: cPersistence.c,v 1.3 1997/03/11 20:53:07 jim Exp $";
+static char *what_string = "$Id: cPersistence.c,v 1.4 1997/03/14 22:51:40 jim Exp $";
 
 #include <time.h>
-#include "Python.h"
-#include "ExtensionClass.h"
+#include "cPersistence.h"
 
 #define ASSIGN(V,E) {PyObject *__e; __e=(E); Py_XDECREF(V); (V)=__e;}
 #define UNLESS(E) if(!(E))
 #define UNLESS_ASSIGN(V,E) ASSIGN(V,E) UNLESS(V)
 
 static PyObject *py_store, *py_oops, *py_keys, *py_setstate, *py___changed__,
-  *py___dict__, *py_one;
+  *py___dict__, *py_mtime, *py_onearg;
 
 static void
 init_strings()
@@ -77,9 +76,10 @@ init_strings()
   INIT_STRING(oops);
   INIT_STRING(keys);
   INIT_STRING(setstate);
+  INIT_STRING(mtime);
   INIT_STRING(__changed__);
   INIT_STRING(__dict__);
-  py_one=PyInt_FromLong(1);
+  py_onearg=Py_BuildValue("(i)",1);
 #undef INIT_STRING
 }
 
@@ -154,11 +154,6 @@ PyString_BuildFormat(va_alist) va_dcl
 
 /****************************************************************************/
 
-typedef struct {
-  PyObject_HEAD
-  time_t value;
-} PATimeobject;
-
 static void
 PATime_dealloc(PATimeobject *self){  PyMem_DEL(self);}
 
@@ -186,24 +181,12 @@ PATimeType = {
 
 /* Declarations for objects of type Persistent */
 
-typedef struct {
-  PyObject_HEAD
-  PyObject *oid;
-  PyObject *jar;
-  PyObject *rtime;
-  PATimeobject *atime;
-  int state;			
 #define GHOST_STATE -1
 #define UPTODATE_STATE 0
 #define CHANGED_STATE 1
-} Perobject;
 
 staticforward PyExtensionClass Pertype;
 staticforward PyExtensionClass TPertype;
-
-/* ---------------------------------------------------------------- */
-
-/* ---------------------------------------------------------------- */
 
 static char Per___changed____doc__[] = 
 "__changed__([flag]) -- Flag or determine whether an object has changed\n"
@@ -218,7 +201,7 @@ static PyObject *changed_args=(PyObject*)Per___changed____doc__;
 
 static PyObject *
 Per___changed__(self, args)
-	Perobject *self;
+	cPersistentObject *self;
 	PyObject *args;
 {
   PyObject *o;
@@ -241,10 +224,10 @@ static char Per___save____doc__[] =
 
 static PyObject *
 Per___save__(self, args)
-	Perobject *self;
+	cPersistentObject *self;
 	PyObject *args;
 {
-  if(self->oid && self->jar && self->state != GHOST_STATE)
+  if(self->oid && self->jar && self->state == CHANGED_STATE)
     return callmethod1(self->jar,py_store,(PyObject*)self);
   Py_INCREF(Py_None);
   return Py_None;
@@ -261,7 +244,7 @@ static char Per___inform_abort____doc__[] =
 
 static PyObject *
 Per___inform_abort__(self, args)
-	Perobject *self;
+	cPersistentObject *self;
 	PyObject *args;
 {
   PyObject *transaction, *start_time;
@@ -285,7 +268,7 @@ static char Per__p___init____doc__[] =
 
 static PyObject *
 Per__p___init__(self, args)
-     Perobject *self;
+     cPersistentObject *self;
      PyObject *args;
 {
   PyObject *oid, *jar;
@@ -301,7 +284,7 @@ Per__p___init__(self, args)
 }
 
 static PyObject *
-Per__p___reinit__(Perobject *self, PyObject *args)
+Per__p___reinit__(cPersistentObject *self, PyObject *args)
 {
   PyObject *oid, *jar, *copy;
 
@@ -321,9 +304,28 @@ Per__p___reinit__(Perobject *self, PyObject *args)
   return Py_None;
 }
 
+static int
+Per_setstate(self)
+     cPersistentObject *self;
+{
+  if(self->state==GHOST_STATE && self->jar)
+    {
+      PyObject *r;
+      
+      self->state=UPTODATE_STATE;
+      UNLESS(r=callmethod1(self->jar,py_setstate,(PyObject*)self))
+	{
+	  self->state=GHOST_STATE;
+	  return -1;
+	}
+      Py_DECREF(r);
+    }
+  return 0;
+}
+
 static PyObject *
 Per__getstate__(self,args)
-     Perobject *self;
+     cPersistentObject *self;
      PyObject *args;
 {
   PyObject *__dict__, *d=0;
@@ -376,7 +378,7 @@ err:
 
 static PyObject *
 Per__setstate__(self,args)
-     Perobject *self;
+     cPersistentObject *self;
      PyObject *args;
 {
   PyObject *__dict__, *v, *keys=0, *key=0, *e=0;
@@ -435,7 +437,7 @@ static struct PyMethodDef Per_methods[] = {
 
 static void
 Per_dealloc(self)
-	Perobject *self;
+	cPersistentObject *self;
 {
   Py_XDECREF(self->oid);
   Py_XDECREF(self->jar);
@@ -446,7 +448,7 @@ Per_dealloc(self)
 }
 
 static void
-Per_set_atime(Perobject *self)
+Per_set_atime(cPersistentObject *self)
 {
   /* Record access times */
   UNLESS(self->atime)
@@ -457,7 +459,7 @@ Per_set_atime(Perobject *self)
 }
 
 static PyObject *
-Per_atime(Perobject *self)
+Per_atime(cPersistentObject *self)
 {
   UNLESS(self->atime) Per_set_atime(self);
   Py_XINCREF(self->atime);
@@ -465,7 +467,7 @@ Per_atime(Perobject *self)
 }
 
 static PyObject *
-Per_getattr(Perobject *self, PyObject *oname, char *name)
+Per_getattr(cPersistentObject *self, PyObject *oname, char *name)
 {
   char *n=name;
 
@@ -515,6 +517,15 @@ Per_getattr(Perobject *self, PyObject *oname, char *name)
 		return Per_atime(self);
 	      }
 	    break;
+	  case 'm':
+	    if(strcmp(n,"time")==0)
+	      {
+		if(self->jar)
+		  return callmethod1(self->jar,py_mtime,(PyObject*)self);
+		Py_INCREF(Py_None);
+		return Py_None;
+	      }
+	    break;
 	  case 'r':
 	    if(strcmp(n,"ead_time")==0) 
 	      {
@@ -551,7 +562,7 @@ Per_getattr(Perobject *self, PyObject *oname, char *name)
 }
 
 static PyObject*
-Per_getattro(Perobject *self, PyObject *name)
+Per_getattro(cPersistentObject *self, PyObject *name)
 {
   char *s;
 
@@ -560,7 +571,18 @@ Per_getattro(Perobject *self, PyObject *name)
 }
 
 static int
-Per_setattro(Perobject *self, PyObject *oname, PyObject *v)
+changed(PyObject *self)
+{
+  PyObject *c;
+
+  UNLESS(c=PyObject_GetAttr(self,py___changed__)) return -1;
+  UNLESS_ASSIGN(c,PyObject_CallObject(c,py_onearg)) return -1;
+  Py_DECREF(c);
+  return 0;
+}
+
+static int
+Per_setattro(cPersistentObject *self, PyObject *oname, PyObject *v)
 {
   char *name="";
 
@@ -615,11 +637,7 @@ Per_setattro(Perobject *self, PyObject *oname, PyObject *v)
 
       if(! (*name=='_' && name[1]=='v' && name[2]=='_')
 	 && self->state != CHANGED_STATE && self->jar)
-	{
-	  UNLESS(r=callmethod1((PyObject*)self,py___changed__,py_one))
-	    return -1;
-	  Py_DECREF(r);
-	}
+	if(changed((PyObject*)self) < 0) return -1;
     }
 
   return PyEC_SetAttr((PyObject*)self,oname,v);
@@ -651,7 +669,7 @@ static PyExtensionClass Pertype = {
 	PyObject_HEAD_INIT(NULL)
 	0,				/*ob_size*/
 	"Persistent",			/*tp_name*/
-	sizeof(Perobject),		/*tp_basicsize*/
+	sizeof(cPersistentObject),	/*tp_basicsize*/
 	0,				/*tp_itemsize*/
 	/* methods */
 	(destructor)Per_dealloc,	/*tp_dealloc*/
@@ -687,20 +705,25 @@ static struct PyMethodDef cP_methods[] = {
 
 /* Initialization function for the module (*must* be called initcPersistence) */
 
-static char cPersistence_module_documentation[] = 
-""
-;
+static cPersistenceCAPIstruct
+truecPersistenceCAPI = {
+  &(Pertype.methods),
+  (getattrofunc)Per_getattro,	/*tp_getattr with object key*/
+  (setattrofunc)Per_setattro,	/*tp_setattr with object key*/
+  changed,
+  Per_setstate,
+};
 
 void
 initcPersistence()
 {
   PyObject *m, *d;
-  char *rev="$Revision: 1.3 $";
+  char *rev="$Revision: 1.4 $";
 
   PATimeType.ob_type=&PyType_Type;
 
   m = Py_InitModule4("cPersistence", cP_methods,
-		     cPersistence_module_documentation,
+		     "",
 		     (PyObject*)NULL,PYTHON_API_VERSION);
 
   init_strings();
@@ -710,12 +733,25 @@ initcPersistence()
 		       PyString_FromStringAndSize(rev+11,strlen(rev+11)-2));
   PyExtensionClass_Export(d,"Persistent",Pertype);
   PyDict_SetItemString(d,"atimeType",(PyObject*)&PATimeType);
+
+  cPersistenceCAPI=&truecPersistenceCAPI;
+  PyDict_SetItemString(d, "CAPI",
+		       PyCObject_FromVoidPtr(cPersistenceCAPI,NULL));
+
+
   CHECK_FOR_ERRORS("can't initialize module dt");
 }
 
 /****************************************************************************
 
   $Log: cPersistence.c,v $
+  Revision 1.4  1997/03/14 22:51:40  jim
+  Added exported C interface, so that other C classes could subclass
+  from it.
+
+  Added _p_mtime attribute, which returns the persistent modification
+  time.
+
   Revision 1.3  1997/03/11 20:53:07  jim
   Added access-time tracking and special type for efficient access time
   management.
