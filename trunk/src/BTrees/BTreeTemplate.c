@@ -12,7 +12,7 @@
 
  ****************************************************************************/
 
-#define BTREETEMPLATE_C "$Id: BTreeTemplate.c,v 1.43 2002/06/11 02:59:05 tim_one Exp $\n"
+#define BTREETEMPLATE_C "$Id: BTreeTemplate.c,v 1.44 2002/06/11 18:52:16 tim_one Exp $\n"
 
 /*
 ** _BTree_get
@@ -342,6 +342,7 @@ _BTree_set(BTree *self, PyObject *keyarg, PyObject *value,
            int unique, int noval)
 {
     int min, grew, copied=1, changed=0, bchanged=0;
+    int childlength;
     BTreeItem *d;
     KEY_TYPE key;
 
@@ -375,14 +376,21 @@ _BTree_set(BTree *self, PyObject *keyarg, PyObject *value,
 
     /* A bucket changed size. */
     bchanged = 1;
+
+    UNLESS(PER_USE(d->child))
+        goto err;
+    childlength = d->child->len;
+    PER_ALLOW_DEACTIVATION(d->child);
+    PER_ACCESSED(d->child);
+
     if (value) {
-        /* A bucket got bigger. */
+        /* A bucket got bigger -- if it's "too big", split it. */
         int toobig;
 
         if (SameType_Check(self, d->child))
-            toobig = BTREE(d->child)->len > MAX_BTREE_SIZE(d->child);
+            toobig = childlength > MAX_BTREE_SIZE(d->child);
         else
-            toobig = BUCKET(d->child)->len > MAX_BUCKET_SIZE(d->child);
+            toobig = childlength > MAX_BUCKET_SIZE(d->child);
 
         if (toobig) {
             if (BTree_grow(self, min, noval) < 0)
@@ -400,7 +408,7 @@ _BTree_set(BTree *self, PyObject *keyarg, PyObject *value,
             goto err;
         grew = 1; /* Reset flag, since we handled it */
     }
-    if (d->child->len > 0)
+    if (childlength > 0)
         goto Done;
 
     /* The child became empty. */
