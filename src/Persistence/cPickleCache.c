@@ -88,7 +88,7 @@ process must skip such objects, rather than deactivating them.
 static char cPickleCache_doc_string[] =
 "Defines the PickleCache used by ZODB Connection objects.\n"
 "\n"
-"$Id: cPickleCache.c,v 1.59 2002/04/15 19:12:14 jeremy Exp $\n";
+"$Id: cPickleCache.c,v 1.60 2002/04/16 06:26:44 htrd Exp $\n";
 
 #define ASSIGN(V,E) {PyObject *__e; __e=(E); Py_XDECREF(V); (V)=__e;}
 #define UNLESS(E) if(!(E))
@@ -108,7 +108,8 @@ static PyObject *py__p_oid, *py_reload, *py__p_jar, *py__p_changed;
    release, providing noone has been reporting and RuntimeErrors
    that it uses to report problems.
 */
-#define MUCH_RING_CHECKING 0
+
+/* #define MUCH_RING_CHECKING 1 */
 
 /* Do we want 'engine noise'.... abstract debugging output useful for
    visualizing cache behavior */
