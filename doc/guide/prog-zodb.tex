@@ -222,6 +222,8 @@ it with data, insert it into the \class{BTree} instance, and commit
 this transaction.
 
 \begin{verbatim}# Create new User instance
+import transaction
+
 newuser = User() 
 
 # Add whatever attributes you want to track
@@ -233,18 +235,18 @@ newuser.first_name = 'Andrew' ; newuser.last_name = 'Kuchling'
 userdb[newuser.id] = newuser
 
 # Commit the change
-get_transaction().commit()
+transaction.commit()
 \end{verbatim}
 
-When you import the ZODB package, it adds a new function,
-\function{get_transaction()}, to Python's collection of built-in
-functions.  \function{get_transaction()} returns a \class{Transaction}
-object, which has two important methods: \method{commit()} and
-\method{abort()}.  \method{commit()} writes any modified objects
-to disk, making the changes permanent, while \method{abort()} rolls
+The \module{transaction} module defines a few top-level functions for
+working with transactions.  \method{commit()} writes any modified
+objects to disk, making the changes permanent.  \method{abort()} rolls
 back any changes that have been made, restoring the original state of
 the objects.  If you're familiar with database transactional
-semantics, this is all what you'd expect.
+semantics, this is all what you'd expect.  \method{get()} returns a
+\class{Transaction} object that has additional methods like
+\method{status()}, to check the current state of the transaction, and
+\method{note()}, to add a note to the transaction metadata.
 
 Because the integration with Python is so complete, it's a lot like
 having transactional semantics for your program's variables, and you
@@ -257,7 +259,7 @@ can experiment with transactions at the Python interpreter's prompt:
 >>> newuser.first_name = 'Bob'   # Change first name
 >>> newuser.first_name           # Verify the change
 'Bob'
->>> get_transaction().abort()    # Abort transaction
+>>> transaction.abort()          # Abort transaction
 >>> newuser.first_name           # The value has changed back
 'Andrew'
 \end{verbatim}
@@ -340,7 +342,7 @@ would then look like this:
 \begin{verbatim}
     def add_friend(self, friend):
         self.friends.append(otherUser)
-        self._p_changed = 1
+        self._p_changed = True
 \end{verbatim}
 
 Alternatively, you could use a ZODB-aware list or mapping type that
@@ -355,17 +357,45 @@ and may make it into a future upstream release of Zope.
 
 \subsubsection{\method{__getattr__}, \method{__delattr__}, and \method{__setattr__}}
 
-% XXX This section could be out-of-date.  I've got to remember how we
-% decided to do this before the beta release.
+ZODB allows persistent classes to have hook methods like
+\method{__getattr__} and \method{__setattr__}.  There are four special
+methods that control attribute access; the rules for each are a little
+different.
 
-Recent versions of ZODB allow writing persistent classes that have
-\method{__getattr__}, \method{__delattr__}, or \method{__setattr__}
-methods.  The one minor complication is that the machinery for
-automatically detecting changes to the object is disabled while the
-\method{__getattr__}, \method{__delattr__}, or \method{__setattr__}
-method is executing.  This means that if the object is modified, the
-object should be marked as dirty by setting the object's
-\member{_p_changed} method to true.
+The \method{__getattr__} method works pretty much the same for
+persistent classes as it does for other classes.  No special handling
+is needed.  If an object is a ghost, then it will be activated before
+\method{__getattr__} is called.
+
+The other methods are more delicate.  They will override the hooks
+provided by \class{Persistent}, so user code must call special methods
+to invoke those hooks anyway.
+
+The \method{__getattribute__} method will be called for all attribute
+access; it overrides the attribute access support inherited from
+\class{Persistent}.  A user-defined
+\method{__getattribute__} must always give the \class{Persistent} base
+class a chance to handle special attribute, as well as
+\member{__dict__} or \member{__class__}.  The user code should
+call \method{_p_getattr}, passing the name of the attribute as the
+only argument.  If it returns True, the user code should call
+\class{Persistent}'s \method{__getattribute__} to get the value.  If
+not, the custom user code can run.
+
+A \method{__setattr__} hook will also override the \class{Persistent}
+\method{__setattr__} hook.  User code must treat it much like 
+\method{__getattribute__}.  The user-defined code must call
+\method{_p_setattr} first to all \class{Persistent} to handle special
+attributes; \method{_p_setattr} takes the attribute name and value.
+If it returns True, \class{Persistent} handled the attribute.  If not,
+the user code can run.  If the user code modifies the object's state,
+it must assigned to \member{_p_changed}.
+
+A \method{__delattr__} hooks must be implemented the same was as a the
+last two hooks.  The user code must call \method{_p_delattr}, passing
+the name of the attribute as an argument.  If the call returns True,
+\class{Persistent} handled the attribute; if not, the user code can
+run.
 
 \subsection{Writing Persistent Classes}
 
