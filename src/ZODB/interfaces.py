@@ -39,3 +39,14 @@ class IConnection(zope.interface.Interface):
         must implement the IPersistent interface and must not
         already be associated with a Connection.
         """
+
+class IBlobStorage(zope.interface.Interface):
+    """A storage supporting BLOBs."""
+
+    def storeBlob(oid, serial, data, blob, version, transaction):
+        """Stores data that has a BLOB attached."""
+
+    def loadBlob(oid, serial, version, blob):
+        """Loads the BLOB data for 'oid' into the given blob object.
+        """
+
