@@ -19,6 +19,7 @@
                   (sectiontype | abstracttype)*,
                   (section | key | multisection | multikey)*)>
 <!ATTLIST schema
+          extends    NMTOKEN  #IMPLIED
           prefix     NMTOKEN  #IMPLIED
           handler    NMTOKEN  #IMPLIED
           keytype    NMTOKEN  #IMPLIED
