@@ -3,7 +3,7 @@ What's new in ZODB3 3.3 ?
 Release date: DD-MMM-YYYY
 
 Tools
---------
+-----
 
 ZODB.utils.oid_repr() changed to add a leading "0x", and to strip leading
 zeroes.  This is used, e.g., in the detail of a POSKeyError exception, to
@@ -25,6 +25,10 @@ fsrefs.py:
 
     Now makes two passes, so that an accurate report can be given of all
     invalid references.
+
+analyze.py produced spurious "len of unsized object" messages when
+finding a data record for an object uncreation or version abort.  These
+no longer appear.
 
 
 What's new in ZODB3 3.3 beta 2
