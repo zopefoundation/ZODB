@@ -13,14 +13,14 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.63 2002/02/11 23:40:42 gvanrossum Exp $"""
-__version__='$Revision: 1.63 $'[11:-2]
+$Id: Connection.py,v 1.64 2002/03/27 10:14:03 htrd Exp $"""
+__version__='$Revision: 1.64 $'[11:-2]
 
-from cPickleCache import PickleCache
+from cPickleCache import PickleCache, MUCH_RING_CHECKING
 from POSException import ConflictError, ReadConflictError
 from ExtensionClass import Base
 import ExportImport, TmpStore
-from zLOG import LOG, ERROR, BLATHER
+from zLOG import LOG, ERROR, BLATHER, WARNING
 from coptimizations import new_persistent_id
 from ConflictResolution import ResolvedSerial
 
@@ -31,6 +31,11 @@ from time import time
 from types import StringType, ClassType
 
 global_code_timestamp = 0
+
+if MUCH_RING_CHECKING:
+  # To get rid of this warning, change the define inside cPickleCache.c and recompile.
+  LOG('ZODB',WARNING, 'Using cPickleCache with low performance (but extra debugging checks)')
+del MUCH_RING_CHECKING
 
 def updateCodeTimestamp():
     '''
@@ -65,11 +70,34 @@ class Connection(ExportImport.ExportImport):
         """Create a new Connection"""
         self._version=version
         self._cache=cache=PickleCache(self, cache_size, cache_deactivate_after)
+        if version:
+            # Caches for versions end up empty if the version
+            # is not used for a while. Non-version caches
+            # keep their content indefinitely.
+            self._cache.cache_drain_resistance = 100
         self._incrgc=self.cacheGC=cache.incrgc
         self._invalidated=d={}
         self._invalid=d.has_key
         self._committed=[]
         self._code_timestamp = global_code_timestamp
+
+    def _cache_items(self):
+        # find all items on the lru list
+        items = self._cache.lru_items()
+        # fine everything. some on the lru list, some not
+        everything = self._cache.cache_data
+        # remove those items that are on the lru list
+        for k,v in items:
+            del everything[k]
+        # return a list of [ghosts....not recently used.....recently used]
+        return everything.items() + items
+
+    def __repr__(self):
+        if self._version:
+            ver = ' (in version %s)' % `self._version`
+        else:
+            ver = ''
+        return '<Connection at %08x%s>' % (id(self),ver)
 
     def _breakcr(self):
         try: del self._cache
@@ -414,9 +442,9 @@ class Connection(ExportImport.ExportImport):
         for oid in creating:
             o=cache_get(oid, None)
             if o is not None:
+                del cache[oid]
                 del o._p_jar
                 del o._p_oid
-                del cache[oid]
 
     #XXX
 
@@ -441,9 +469,14 @@ class Connection(ExportImport.ExportImport):
     def root(self): return self['\0\0\0\0\0\0\0\0']
 
     def setstate(self, object):
+        oid=object._p_oid
+
+        if self._storage is None:
+            msg = "Shouldn't load state for %s when the connection is closed" % `oid`
+            LOG('ZODB',ERROR, msg)
+            raise RuntimeError(msg)
+
         try:
-            oid=object._p_oid
-             
             p, serial = self._storage.load(oid, self._version)
 
             # XXX this is quite conservative!

@@ -14,10 +14,20 @@
 static char cPersistence_doc_string[] = 
 "Defines Persistent mixin class for persistent objects.\n"
 "\n"
-"$Id: cPersistence.c,v 1.50 2002/03/08 18:36:13 jeremy Exp $\n";
+"$Id: cPersistence.c,v 1.51 2002/03/27 10:14:04 htrd Exp $\n";
 
 #include <string.h>
 #include "cPersistence.h"
+
+/* the layout of this struct is the same as the start of ccobject in cPickleCache.c */
+struct ccobject_head_struct {
+  PyObject_HEAD
+  CPersistentRing ring_home;
+  int non_ghost_count;
+};
+
+#define HOME(O)             ((!((O)->cache))?(NULL): (&(((struct ccobject_head_struct *)((O)->cache))->ring_home)) )
+#define NON_GHOST_COUNT(O)  ((!((O)->cache))?(NULL): (&(((struct ccobject_head_struct *)((O)->cache))->non_ghost_count)) )
 
 #define ASSIGN(V,E) {PyObject *__e; __e=(E); Py_XDECREF(V); (V)=__e;}
 #define UNLESS(E) if(!(E))
@@ -112,20 +122,81 @@ if(self->state < 0 && self->jar)                                 \
 {								 \
   PyObject *r;							 \
       								 \
+  int *count = NON_GHOST_COUNT(self);                            \
+  if(count)                                                      \
+  {                                                              \
+      (*count)++;                                                \
+      self->ring.next = HOME(self);                              \
+      self->ring.prev = HOME(self)->prev;                        \
+      HOME(self)->prev->next = &self->ring;                      \
+      HOME(self)->prev = &self->ring;                            \
+      Py_INCREF(self);                                           \
+  }                                                              \
   self->state=cPersistent_CHANGED_STATE; 	                 \
   UNLESS(r=callmethod1(self->jar,py_setstate,(PyObject*)self))   \
     {                                                            \
-      self->state=cPersistent_GHOST_STATE;                       \
+      ghostify(self);                                            \
       return ER;                                                 \
     }								 \
   self->state=cPersistent_UPTODATE_STATE;			 \
   Py_DECREF(r);							 \
 }
 
+#define KEEP_THIS_ONE_AROUND_FOR_A_WHILE(self) \
+ if(HOME(self) && self->state>=0) {            \
+ self->ring.prev->next = self->ring.next;      \
+ self->ring.next->prev = self->ring.prev;      \
+ self->ring.next = HOME(self);           \
+ self->ring.prev = HOME(self)->prev;       \
+ HOME(self)->prev->next = &self->ring;    \
+ HOME(self)->prev = &self->ring; }
+
+
 
 /****************************************************************************/
 
 staticforward PyExtensionClass Pertype;
+
+static void
+accessed(cPersistentObject *self)
+{
+    KEEP_THIS_ONE_AROUND_FOR_A_WHILE(self);
+}
+
+static void
+ghostify(cPersistentObject *self)
+{
+    int *count;
+    count = NON_GHOST_COUNT(self);
+    if(count && (self->state>=0))
+    {
+        (*count)--;
+        self->ring.next->prev = self->ring.prev;
+        self->ring.prev->next = self->ring.next;
+        self->ring.prev = NULL;
+        self->ring.next = NULL;
+        self->state = cPersistent_GHOST_STATE;
+        Py_DECREF(self);
+    }
+    else
+    {
+        self->state = cPersistent_GHOST_STATE;
+    }
+}
+
+static void
+deallocated(cPersistentObject *self)
+{
+    if(self->state>=0) ghostify(self);
+    if(self->cache)
+    {
+        PyObject *v=PyObject_CallMethod(self->cache,"_oid_unreferenced","O",self->oid);
+        if(!v) PyErr_Clear(); /* and explode later */
+        Py_XDECREF(v);
+    }
+    Py_XDECREF(self->jar);
+    Py_XDECREF(self->oid);
+}
 
 static int
 changed(cPersistentObject *self)
@@ -185,7 +256,7 @@ Per___changed__(cPersistentObject *self, PyObject *args)
 static PyObject *
 Per__p_deactivate(cPersistentObject *self, PyObject *args)
 {
-  PyObject *dict;
+  PyObject *dict,*dict2=NULL;
 
 #ifdef DEBUG_LOG
   if (idebug_log < 0) call_debug("reinit",self);
@@ -197,12 +268,21 @@ Per__p_deactivate(cPersistentObject *self, PyObject *args)
   if (self->state==cPersistent_UPTODATE_STATE && self->jar &&
       HasInstDict(self) && (dict=INSTANCE_DICT(self)))
     {
+      dict2 = PyDict_Copy(dict);
       PyDict_Clear(dict);
       /* Note that we need to set to ghost state unless we are 
 	 called directly. Methods that override this need to
          do the same! */
-      self->state=cPersistent_GHOST_STATE;
+      ghostify(self);
     }
+
+  /* need to delay releasing the last reference on instance attributes
+  until after we have finished accounting for losing our state */
+  if(dict2)
+  {
+      PyDict_Clear(dict2);
+      Py_DECREF(dict2);
+  }
 
   Py_INCREF(Py_None);
   return Py_None;
@@ -333,8 +413,8 @@ Per_dealloc(cPersistentObject *self)
 #ifdef DEBUG_LOG
   if(idebug_log < 0) call_debug("del",self);
 #endif
-  Py_XDECREF(self->jar);
-  Py_XDECREF(self->oid);
+  deallocated(self);
+  Py_XDECREF(self->cache);
   Py_DECREF(self->ob_type);
   PyObject_DEL(self);
 }
@@ -387,7 +467,7 @@ Per_getattr(cPersistentObject *self, PyObject *oname, char *name,
 	      {
 		UPDATE_STATE_IF_NECESSARY(self, NULL);
 
-		self->atime=((long)(time(NULL)/3))%65536;
+		KEEP_THIS_ONE_AROUND_FOR_A_WHILE(self);
 
 		if (self->serial[7]=='\0' && self->serial[6]=='\0' &&
 		    self->serial[5]=='\0' && self->serial[4]=='\0' &&
@@ -419,7 +499,7 @@ Per_getattr(cPersistentObject *self, PyObject *oname, char *name,
     {
       UPDATE_STATE_IF_NECESSARY(self, NULL);
 
-      self->atime=((long)(time(NULL)/3))%65536;
+      KEEP_THIS_ONE_AROUND_FOR_A_WHILE(self);
     }
 
   return getattrf((PyObject *)self, oname);
@@ -466,6 +546,21 @@ _setattro(cPersistentObject *self, PyObject *oname, PyObject *v,
     {
       if(name[3]=='o' && name[4]=='i' && name[5]=='d' && ! name[6])
 	{
+	  if(HOME(self))
+	  {
+	    int result;
+	    if(!v)
+	    {
+              PyErr_SetString(PyExc_ValueError,"can not delete the oid of a cached object");
+              return -1;
+	    }
+	    if(PyObject_Cmp(self->oid,v,&result)<0) return -1;
+	    if(result)
+	    {
+              PyErr_SetString(PyExc_ValueError,"can not change the oid of a cached object");
+              return -1;
+            }
+	  }
 	  Py_XINCREF(v);
 	  ASSIGN(self->oid, v);
 	  return 0;
@@ -509,7 +604,6 @@ _setattro(cPersistentObject *self, PyObject *oname, PyObject *v,
 	      v=PyObject_GetAttr(OBJECT(self), py__p_deactivate);
 	      if (v) { ASSIGN(v, PyObject_CallObject(v, NULL)); }
 	      if (v) { Py_DECREF(v); }
-	      self->state=cPersistent_GHOST_STATE;
 	      return 0;
 	    }
 	  if (PyObject_IsTrue(v)) return changed(self);
@@ -521,8 +615,7 @@ _setattro(cPersistentObject *self, PyObject *oname, PyObject *v,
     {
       UPDATE_STATE_IF_NECESSARY(self, -1);
       
-      /* Record access times */
-      self->atime=((long)(time(NULL)/3))%65536;
+      KEEP_THIS_ONE_AROUND_FOR_A_WHILE(self);
 
       if((! (*name=='_' && name[1]=='v' && name[2]=='_'))
 	 && (self->state != cPersistent_CHANGED_STATE && self->jar)
@@ -680,9 +773,11 @@ truecPersistenceCAPI = {
   (getattrofunc)Per_getattro,	/*tp_getattr with object key*/
   (setattrofunc)Per_setattro,	/*tp_setattr with object key*/
   changed,
+  accessed,
+  ghostify,
+  deallocated,
   (intfunctionwithpythonarg)Per_setstate,
   (pergetattr)Per_getattr,
-  (persetattr)_setattro,
 };
 
 void
