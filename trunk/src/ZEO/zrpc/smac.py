@@ -13,13 +13,15 @@
 ##############################################################################
 """Sized message async connections
 
-$Id: smac.py,v 1.27 2002/09/16 16:57:11 gvanrossum Exp $
+$Id: smac.py,v 1.28 2002/09/27 19:14:16 gvanrossum Exp $
 """
 
 import asyncore, struct
 from ZEO.Exceptions import Disconnected
-from zLOG import LOG, TRACE, ERROR, INFO, BLATHER
+import zLOG
 from types import StringType
+
+from ZEO.zrpc.log import log
 
 import socket, errno
 
@@ -60,7 +62,7 @@ class SizedMessageAsyncConnection(asyncore.dispatcher):
         if debug is not None:
             self._debug = debug
         elif not hasattr(self, '_debug'):
-            self._debug = __debug__ and 'smac'
+            self._debug = __debug__
         self.__state = None
         self.__inp = None # None, a single String, or a list
         self.__input_len = 0
@@ -179,7 +181,7 @@ class SizedMessageAsyncConnection(asyncore.dispatcher):
                     m = message[:40]+' ...'
                 else:
                     m = message
-                LOG(self._debug, TRACE, 'message_output %s' % `m`)
+                log('smac message_output %s' % `m`, level=zLOG.TRACE)
 
         if self.__closed:
             raise Disconnected, (
