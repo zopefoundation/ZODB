@@ -13,8 +13,8 @@
 ##############################################################################
 """Database objects
 
-$Id: DB.py,v 1.47 2003/01/17 17:23:14 shane Exp $"""
-__version__='$Revision: 1.47 $'[11:-2]
+$Id: DB.py,v 1.48 2003/04/08 15:55:44 jeremy Exp $"""
+__version__='$Revision: 1.48 $'[11:-2]
 
 import cPickle, cStringIO, sys, POSException, UndoLogCompatible
 from Connection import Connection
@@ -25,6 +25,12 @@ from time import time, ctime
 from zLOG import LOG, ERROR
 
 from types import StringType
+
+def list2dict(L):
+    d = {}
+    for elt in L:
+        d[elt] = 1
+    return d
 
 class DB(UndoLogCompatible.UndoLogCompatible):
     """The Object Database
@@ -282,17 +288,7 @@ class DB(UndoLogCompatible.UndoLogCompatible):
     def importFile(self, file):
         raise 'Not yet implemented'
 
-    def begin_invalidation(self):
-        # Must be called before first call to invalidate and before
-        # the storage lock is held.
-        self._a()
-
-    def finish_invalidation(self):
-        # Must be called after begin_invalidation() and after final
-        # invalidate() call.
-        self._r()
-
-    def invalidate(self, oid, connection=None, version='',
+    def invalidate(self, oids, connection=None, version='',
                    rc=sys.getrefcount):
         """Invalidate references to a given oid.
 
@@ -304,9 +300,11 @@ class DB(UndoLogCompatible.UndoLogCompatible):
         if connection is not None:
             version=connection._version
         # Update modified in version cache
-        h=hash(oid)%131
-        o=self._miv_cache.get(h, None)
-        if o is not None and o[0]==oid: del self._miv_cache[h]
+        # XXX must make this work with list or dict to backport to 2.6
+        for oid in oids:
+            h=hash(oid)%131
+            o=self._miv_cache.get(h, None)
+            if o is not None and o[0]==oid: del self._miv_cache[h]
 
         # Notify connections
         for pool, allocated in self._pools[1]:
@@ -315,7 +313,7 @@ class DB(UndoLogCompatible.UndoLogCompatible):
                     (not version or cc._version==version)):
                     if rc(cc) <= 3:
                         cc.close()
-                    cc.invalidate(oid)
+                    cc.invalidate(oids)
 
         temps=self._temps
         if temps:
@@ -324,7 +322,7 @@ class DB(UndoLogCompatible.UndoLogCompatible):
                 if rc(cc) > 3:
                     if (cc is not connection and
                         (not version or cc._version==version)):
-                        cc.invalidate(oid)
+                        cc.invalidate(oids)
                     t.append(cc)
                 else: cc.close()
             self._temps=t
@@ -561,8 +559,10 @@ class DB(UndoLogCompatible.UndoLogCompatible):
             transaction.register(TransactionalUndo(self, id))
         else:
             # fall back to old undo
+            d = {}
             for oid in storage.undo(id):
-                self.invalidate(oid)
+                d[oid] = 1
+            self.invalidate(d)
 
     def versionEmpty(self, version):
         return self._storage.versionEmpty(version)
@@ -589,14 +589,14 @@ class CommitVersion:
     def abort(self, reallyme, t): pass
 
     def commit(self, reallyme, t):
-        db=self._db
         dest=self._dest
-        oids=db._storage.commitVersion(self._version, dest, t)
-        for oid in oids: db.invalidate(oid, version=dest)
+        oids = self._db._storage.commitVersion(self._version, dest, t)
+        oids = list2dict(oids)
+        self._db.invalidate(oids, version=dest)
         if dest:
             # the code above just invalidated the dest version.
             # now we need to invalidate the source!
-            for oid in oids: db.invalidate(oid, version=self._version)
+            self._db.invalidate(oids, version=self._version)
 
 class AbortVersion(CommitVersion):
     """An object that will see to version abortion
@@ -605,11 +605,9 @@ class AbortVersion(CommitVersion):
     """
 
     def commit(self, reallyme, t):
-        db=self._db
         version=self._version
-        oids = db._storage.abortVersion(version, t)
-        for oid in oids:
-            db.invalidate(oid, version=version)
+        oids = self._db._storage.abortVersion(version, t)
+        self._db.invalidate(list2dict(oids), version=version)
 
 
 class TransactionalUndo(CommitVersion):
@@ -623,7 +621,5 @@ class TransactionalUndo(CommitVersion):
     # similarity of rhythm that I think it's justified.
 
     def commit(self, reallyme, t):
-        db=self._db
-        oids=db._storage.transactionalUndo(self._version, t)
-        for oid in oids:
-            db.invalidate(oid)
+        oids = self._db._storage.transactionalUndo(self._version, t)
+        self._db.invalidate(list2dict(oids))
