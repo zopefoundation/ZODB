@@ -373,6 +373,16 @@ retrieve values from the section:
   neither \var{min} nor \var{max} is given.
 \end{methoddesc}
 
+\begin{methoddesc}[Configuration]{getlist}{key\optional{, default}}
+  Return the value for \var{key}, converted to a list.  List items are
+  separated by whitespace.
+\end{methoddesc}
+
+\begin{methoddesc}[Configuration]{has_key}{key}
+  Return \code{True} if \var{key} has an associated value, otherwise
+  returns \code{False}.
+\end{methoddesc}
+
 \begin{methoddesc}[Configuration]{items}{}
   Return a list of key-value pairs from this section, including any
   available from the delegate section.
