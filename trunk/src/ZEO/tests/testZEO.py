@@ -3,6 +3,7 @@
 import asyncore
 import os
 import random
+import socket
 import sys
 import tempfile
 import time
@@ -163,7 +164,57 @@ class ZEOFileStorageTests(GenericTests):
         # file storage appears to create four files
         for ext in '', '.index', '.lock', '.tmp':
             path = self.__fs_base + ext
-            os.unlink(path)
+            try:
+                os.remove(path)
+            except os.error:
+                pass
+
+class WindowsGenericTests(GenericTests):
+    """Subclass to support server creation on Windows.
+
+    On Windows, the getStorage() design won't work because the storage
+    can't be created in the parent process and passed to the child.
+    All the work has to be done in the server's process.
+    """
+    __super_setUp = StorageTestBase.StorageTestBase.setUp
+    __super_tearDown = StorageTestBase.StorageTestBase.tearDown
+
+    def setUp(self):
+        self.__super_setUp()
+        args = self.getStorageInfo()
+        name = args[0]
+        args = args[1:]
+        zeo_addr, self.test_addr, self.test_pid = \
+                  forker.start_zeo_server(name, args)
+        storage = ZEO.ClientStorage.ClientStorage(zeo_addr, debug=1,
+                                                  min_disconnect_poll=0.5)
+        self._storage = PackWaitWrapper(storage)
+        storage.registerDB(DummyDB(), None)
+
+    def tearDown(self):
+        self._storage.close()
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.connect(self.test_addr)
+        # the connection should cause the storage server to die
+##        os.waitpid(self.test_pid, 0)
+        time.sleep(0.5)
+        self.delStorage()
+        self.__super_tearDown()
+
+class WindowsZEOFileStorageTests(WindowsGenericTests):
+
+    def getStorageInfo(self):
+        self.__fs_base = tempfile.mktemp()
+        return 'FileStorage', self.__fs_base, '1'
+
+    def delStorage(self):
+        # file storage appears to create four files
+        for ext in '', '.index', '.lock', '.tmp':
+            path = self.__fs_base + ext
+            try:
+                os.remove(path)
+            except os.error:
+                pass
 
 class ConnectionTests(ZEOTestBase):
     """Tests that explicitly manage the server process.
@@ -296,6 +347,13 @@ def get_methods(klass):
                 meth[k] = 1
     return meth.keys()
 
+if os.name == "posix":
+    test_classes = ZEOFileStorageTests, ConnectionTests
+elif os.name == "nt":
+    test_classes = WindowsZEOFileStorageTests
+else:
+    raise RuntimeError, "unsupported os: %s" % os.name
+
 def makeTestSuite(testname=''):
     suite = unittest.TestSuite()
     name = 'check' + testname
@@ -304,6 +362,9 @@ def makeTestSuite(testname=''):
             if meth.startswith(name):
                 suite.addTest(klass(meth))
     return suite
+
+def test_suite():
+    return unittest.makeSuite(WindowsZEOFileStorageTests, 'check')
 
 def main():
     import sys, getopt
