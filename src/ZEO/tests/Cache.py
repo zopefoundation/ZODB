@@ -25,16 +25,17 @@ class TransUndoStorageWithCache:
             return
 
         # Now start an undo transaction
-        self._transaction.note('undo1')
-        self._storage.tpc_begin(self._transaction)
+        t = Transaction()
+        t.note('undo1')
+        self._storage.tpc_begin(t)
 
-        oids = self._storage.transactionalUndo(tid, self._transaction)
+        oids = self._storage.transactionalUndo(tid, t)
 
         # Make sure this doesn't load invalid data into the cache
         self._storage.load(oid, '')
         
-        self._storage.tpc_vote(self._transaction)
-        self._storage.tpc_finish(self._transaction)
+        self._storage.tpc_vote(t)
+        self._storage.tpc_finish(t)
 
         assert len(oids) == 1
         assert oids[0] == oid
