@@ -120,14 +120,18 @@ class Options:
         """
         self.load_configuration()
 
+    def load_schema(self):
+        here = os.path.dirname(ZEO.__file__)
+        schemafile = os.path.join(here, "schema.xml")
+        self.schema = ZConfig.loadSchema(schemafile)
+
     def load_configuration(self):
         if not self.configuration:
             return
-        here = os.path.dirname(ZEO.__file__)
-        schemafile = os.path.join(here, "schema.xml")
-        schema = ZConfig.loadSchema(schemafile)
+        self.load_schema()
         try:
-            self.rootconf = ZConfig.loadConfig(schema, self.configuration)[0]
+            self.rootconf, nil = ZConfig.loadConfig(self.schema,
+                                                    self.configuration)
         except ZConfig.ConfigurationError, errobj:
             self.usage(str(errobj))
 
@@ -253,12 +257,12 @@ class ZEOOptions(Options):
     def load_zeoconf(self):
         # Get some option values from the configuration
         if self.family is None:
-            self.family = self.rootconf.address.family
-            self.address = self.rootconf.address.address
+            self.family = self.rootconf.zeo.address.family
+            self.address = self.rootconf.zeo.address.address
 
-        self.read_only = self.rootconf.read_only
-        self.transaction_timeout = self.rootconf.transaction_timeout
-        self.invalidation_queue_size = 100
+        self.read_only = self.rootconf.zeo.read_only
+        self.transaction_timeout = self.rootconf.zeo.transaction_timeout
+        self.invalidation_queue_size = self.rootconf.zeo.invalidation_queue_size
 
     def load_logconf(self):
         # Get logging options from conf, unless overridden by environment
