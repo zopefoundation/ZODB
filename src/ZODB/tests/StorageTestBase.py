@@ -116,13 +116,13 @@ def removefs(base):
         except os.error, err:
             if err[0] != errno.ENOENT:
                 raise
-        
-
+
+
 class StorageTestBase(unittest.TestCase):
 
     # XXX It would be simpler if concrete tests didn't need to extend
     # setUp() and tearDown().
-    
+
     def setUp(self):
         # You need to override this with a setUp that creates self._storage
         self._storage = None
@@ -139,12 +139,12 @@ class StorageTestBase(unittest.TestCase):
     def _dostore(self, oid=None, revid=None, data=None, version=None,
                  already_pickled=0, user=None, description=None):
         """Do a complete storage transaction.  The defaults are:
-        
+
          - oid=None, ask the storage for a new oid
          - revid=None, use a revid of ZERO
          - data=None, pickle up some arbitrary data (the integer 7)
          - version=None, use the empty string version
-        
+
         Returns the object's new revision id.
         """
         if oid is None:
@@ -177,7 +177,7 @@ class StorageTestBase(unittest.TestCase):
             self._storage.tpc_abort(t)
             raise
         return revid
-        
+
     def _dostoreNP(self, oid=None, revid=None, data=None, version=None,
                    user=None, description=None):
         return self._dostore(oid, revid, data, version, already_pickled=1)

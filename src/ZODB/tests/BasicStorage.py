@@ -16,7 +16,7 @@ from ZODB.tests.StorageTestBase \
 ZERO = '\0'*8
 
 
-
+
 class BasicStorage:
     def checkBasics(self):
         t = Transaction()

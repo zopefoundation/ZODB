@@ -51,7 +51,7 @@ class TransactionalUndoStorage:
         for oid in newrevs.keys():
             newrevs[oid] = self._transaction_newserial(oid)
         return newrevs
-    
+
     def checkSimpleTransactionalUndo(self):
         eq = self.assertEqual
         oid = self._storage.new_oid()
@@ -366,7 +366,7 @@ class TransactionalUndoStorage:
         eq(zodb_unpickle(data), MinPO(33))
         data, revid2 = self._storage.load(oid2, '')
         eq(zodb_unpickle(data), MinPO(54))
-        
+
 
     def checkNotUndoable(self):
         eq = self.assertEqual

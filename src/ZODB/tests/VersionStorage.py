@@ -12,7 +12,7 @@ from ZODB.Transaction import Transaction
 from ZODB.tests.MinPO import MinPO
 from ZODB.tests.StorageTestBase import zodb_unpickle
 
-
+
 class VersionStorage:
     def checkVersionedStoreAndLoad(self):
         eq = self.assertEqual
@@ -23,7 +23,7 @@ class VersionStorage:
         # And now store some new revisions in a version
         version = 'test-version'
         revid = self._dostore(oid, revid=revid, data=MinPO(13),
-                              version=version)  
+                              version=version)
         revid = self._dostore(oid, revid=revid, data=MinPO(14),
                               version=version)
         revid = self._dostore(oid, revid=revid, data=MinPO(15),
@@ -137,12 +137,12 @@ class VersionStorage:
     def checkAbortVersion(self):
         eq = self.assertEqual
         oid, version = self._setup_version()
-        
+
         # XXX Not sure I can write a test for getSerial() in the
         # presence of aborted versions, because FileStorage and
         # Berkeley storage give a different answer. I think Berkeley
         # is right and FS is wrong.
-        
+
 ##        s1 = self._storage.getSerial(oid)
         # Now abort the version -- must be done in a transaction
         t = Transaction()
@@ -178,7 +178,7 @@ class VersionStorage:
             self.assertRaises(POSException.VersionError,
                               self._storage.abortVersion,
                               '', t)
-        
+
         # But now we really try to abort the version
         oids = self._storage.abortVersion(version, t)
         self._storage.tpc_vote(t)
@@ -258,7 +258,7 @@ class VersionStorage:
         eq(zodb_unpickle(data), MinPO(51))
         data, revid2 = self._storage.load(oid1, '')
         eq(zodb_unpickle(data), MinPO(51))
-        
+
         # Okay, now let's commit object1 to version2
         t = Transaction()
         self._storage.tpc_begin(t)
@@ -274,7 +274,7 @@ class VersionStorage:
         eq(zodb_unpickle(data), MinPO(54))
 
         # an object can only exist in one version, so a load from
-        # version1 should now give the non-version data 
+        # version1 should now give the non-version data
         data, revid2 = self._storage.load(oid1, version1)
         eq(zodb_unpickle(data), MinPO(51))
 

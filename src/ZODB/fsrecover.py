@@ -2,14 +2,14 @@
 #
 # Copyright (c) 2001, 2002 Zope Corporation and Contributors.
 # All Rights Reserved.
-# 
+#
 # This software is subject to the provisions of the Zope Public License,
 # Version 2.0 (ZPL).  A copy of the ZPL should accompany this distribution.
 # THIS SOFTWARE IS PROVIDED "AS IS" AND ANY AND ALL EXPRESS OR IMPLIED
 # WARRANTIES ARE DISCLAIMED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 # WARRANTIES OF TITLE, MERCHANTABILITY, AGAINST INFRINGEMENT, AND FITNESS
 # FOR A PARTICULAR PURPOSE
-# 
+#
 ##############################################################################
 
 
@@ -49,14 +49,14 @@ Options:
        Pack data to t seconds in the past. Note that is the "-p"
        option is used, then t should be 0.
 
-    
+
 Important note: The ZODB package must be imporable.  You may need
                 to adjust the Python path accordingly.
 
 """
 
 # Algorithm:
-# 
+#
 #     position to start of input
 #     while 1:
 #         if end of file: break
@@ -81,7 +81,7 @@ except ImportError:
     elif os.path.exists('FileStorage.py'):  sys.path.append('..')
     import ZODB
 
-            
+
 import getopt, ZODB.FileStorage, struct, time
 from struct import unpack
 from ZODB.utils import t32, p64, U64
@@ -185,7 +185,7 @@ def iprogress(i):
     sys.stdout.flush()
 
 def progress(p):
-    for i in range(p): iprogress(i) 
+    for i in range(p): iprogress(i)
 
 def recover(argv=sys.argv):
 
@@ -199,7 +199,7 @@ def recover(argv=sys.argv):
             elif opt == '-f': force=1
             elif opt == '-P': pack=time.time()-float(v)
 
-        
+
         force = filter(lambda opt: opt[0]=='-f', opts)
         partial = filter(lambda opt: opt[0]=='-p', opts)
         verbose = filter(lambda opt: opt[0]=='-v', opts)
@@ -208,7 +208,7 @@ def recover(argv=sys.argv):
     except:
         die()
         print __doc__ % argv[0]
-        
+
 
     if os.path.exists(outp) and not force:
         die("%s exists" % outp)
@@ -267,7 +267,7 @@ def recover(argv=sys.argv):
                     ok=1
 
         if verbose:
-            print 'begin', 
+            print 'begin',
             if verbose > 1: print
             sys.stdout.flush()
 
@@ -317,14 +317,13 @@ def recover(argv=sys.argv):
     print "\n%s bytes removed during recovery" % bad
     if undone:
         print "%s bytes of undone transaction data were skipped" % undone
-    
+
     if pack is not None:
         print "Packing ..."
         from ZODB.referencesf import referencesf
         ofs.pack(pack, referencesf)
 
     ofs.close()
-                
+
 
 if __name__=='__main__': recover()
-

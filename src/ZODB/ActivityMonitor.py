@@ -2,19 +2,19 @@
 #
 # Copyright (c) 2001, 2002 Zope Corporation and Contributors.
 # All Rights Reserved.
-# 
+#
 # This software is subject to the provisions of the Zope Public License,
 # Version 2.0 (ZPL).  A copy of the ZPL should accompany this distribution.
 # THIS SOFTWARE IS PROVIDED "AS IS" AND ANY AND ALL EXPRESS OR IMPLIED
 # WARRANTIES ARE DISCLAIMED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 # WARRANTIES OF TITLE, MERCHANTABILITY, AGAINST INFRINGEMENT, AND FITNESS
 # FOR A PARTICULAR PURPOSE
-# 
+#
 ##############################################################################
 """ZODB transfer activity monitoring
 
-$Id: ActivityMonitor.py,v 1.2 2002/06/10 20:20:44 shane Exp $"""
-__version__='$Revision: 1.2 $'[11:-2]
+$Id: ActivityMonitor.py,v 1.3 2002/08/14 22:07:09 mj Exp $"""
+__version__='$Revision: 1.3 $'[11:-2]
 
 import time
 
@@ -104,4 +104,3 @@ class ActivityMonitor:
         div['loads'] = div['loads'] + total_loads
 
         return res
-

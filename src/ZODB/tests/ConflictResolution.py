@@ -59,7 +59,7 @@ class ConflictResolvingStorage:
         obj.inc()
         # The effect of committing two transactions with the same
         # pickle is to commit two different transactions relative to
-        # revid1 that add two to _value.  
+        # revid1 that add two to _value.
         revid2 = self._dostoreNP(oid, revid=revid1, data=zodb_pickle(obj))
         revid3 = self._dostoreNP(oid, revid=revid1, data=zodb_pickle(obj))
 
@@ -79,7 +79,7 @@ class ConflictResolvingStorage:
         obj.inc()
         # The effect of committing two transactions with the same
         # pickle is to commit two different transactions relative to
-        # revid1 that add two to _value.  
+        # revid1 that add two to _value.
         revid2 = self._dostoreNP(oid, revid=revid1, data=zodb_pickle(obj))
         self.assertRaises(ConflictError,
                           self._dostoreNP,
@@ -89,7 +89,7 @@ class ConflictResolvingStorage:
         from ZODB.ConflictResolution import bad_class
         dummy_class_tuple = ('*foobar', ())
         assert bad_class(dummy_class_tuple) == 1
-    
+
     def checkBuggyResolve1(self):
         obj = PCounter3()
         obj.inc()
@@ -102,7 +102,7 @@ class ConflictResolvingStorage:
         obj.inc()
         # The effect of committing two transactions with the same
         # pickle is to commit two different transactions relative to
-        # revid1 that add two to _value.  
+        # revid1 that add two to _value.
         revid2 = self._dostoreNP(oid, revid=revid1, data=zodb_pickle(obj))
         self.assertRaises(AttributeError,
                           self._dostoreNP,
@@ -120,7 +120,7 @@ class ConflictResolvingStorage:
         obj.inc()
         # The effect of committing two transactions with the same
         # pickle is to commit two different transactions relative to
-        # revid1 that add two to _value.  
+        # revid1 that add two to _value.
         revid2 = self._dostoreNP(oid, revid=revid1, data=zodb_pickle(obj))
         self.assertRaises(TypeError,
                           self._dostoreNP,
@@ -132,7 +132,7 @@ class ConflictResolvingTransUndoStorage:
         # This test is based on checkNotUndoable in the
         # TransactionalUndoStorage test suite.  Except here, conflict
         # resolution should allow us to undo the transaction anyway.
-        
+
         obj = PCounter()
         obj.inc()
         oid = self._storage.new_oid()
@@ -153,7 +153,7 @@ class ConflictResolvingTransUndoStorage:
         # This test is based on checkNotUndoable in the
         # TransactionalUndoStorage test suite.  Except here, conflict
         # resolution should allow us to undo the transaction anyway.
-        
+
         obj = PCounter2()
         obj.inc()
         oid = self._storage.new_oid()
@@ -170,4 +170,3 @@ class ConflictResolvingTransUndoStorage:
         self.assertRaises(UndoError, self._storage.transactionalUndo,
                           tid, t)
         self._storage.tpc_abort(t)
-

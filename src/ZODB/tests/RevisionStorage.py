@@ -6,7 +6,7 @@ from ZODB.tests.StorageTestBase import zodb_unpickle, zodb_pickle
 ZERO = '\0'*8
 
 class RevisionStorage:
-    
+
     def checkLoadSerial(self):
         oid = self._storage.new_oid()
         revid = ZERO
@@ -18,4 +18,3 @@ class RevisionStorage:
         for revid, value in revisions.items():
             data = self._storage.loadSerial(oid, revid)
             self.assertEqual(zodb_unpickle(data), value)
-    

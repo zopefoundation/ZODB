@@ -2,33 +2,33 @@
 #
 # Copyright (c) 2001, 2002 Zope Corporation and Contributors.
 # All Rights Reserved.
-# 
+#
 # This software is subject to the provisions of the Zope Public License,
 # Version 2.0 (ZPL).  A copy of the ZPL should accompany this distribution.
 # THIS SOFTWARE IS PROVIDED "AS IS" AND ANY AND ALL EXPRESS OR IMPLIED
 # WARRANTIES ARE DISCLAIMED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 # WARRANTIES OF TITLE, MERCHANTABILITY, AGAINST INFRINGEMENT, AND FITNESS
 # FOR A PARTICULAR PURPOSE
-# 
+#
 ##############################################################################
 """Implement an OID to File-position (long integer) mapping
 """
-# 
+#
 # To save space, we do two things:
-# 
+#
 #     1. We split the keys (OIDS) into 6-byte prefixes and 2-byte suffixes.
 #        We use the prefixes as keys in a mapping from prefix to mappings
 #        of suffix to data:
-# 
+#
 #           data is  {prefix -> {suffix -> data}}
-# 
+#
 #     2. We limit the data size to 48 bits. This should allow databases
 #        as large as 256 terabytes.
-# 
+#
 # Mostof the space is consumed by items in the mappings from 2-byte
 # suffix to 6-byte data. This should reduce the overall memory usage to
 # 8-16 bytes per OID.
-# 
+#
 # We use p64 to convert integers to 8-byte strings and lop off the two
 # high-order bytes when saving. On loading data, we add the leading
 # bytes back before using U64 to convert the data back to (long)
@@ -51,7 +51,7 @@ def str2num(s):
     if h:
         return (long(h) << 32) + l
     else:
-       return l
+        return l
 
 class fsIndex:
 

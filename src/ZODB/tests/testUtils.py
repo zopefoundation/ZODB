@@ -14,7 +14,7 @@ class TestUtils(unittest.TestCase):
     large = [random.randrange(1L<<32, 1L<<64, int=long)
              for i in range(NUM)]
     all = small + large
-    
+
     def checkLongToStringToLong(self):
         for num in self.all:
             s = p64(num)
@@ -33,9 +33,8 @@ class TestUtils(unittest.TestCase):
 
 def test_suite():
     return unittest.makeSuite(TestUtils, 'check')
-            
+
 if __name__ == "__main__":
     loader = unittest.TestLoader()
     loader.testMethodPrefix = "check"
     unittest.main(testLoader=loader)
-    

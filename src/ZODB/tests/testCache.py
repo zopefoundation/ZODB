@@ -50,7 +50,7 @@ class CacheTestBase(unittest.TestCase):
         if d is None:
             d = r[i] = PersistentMapping()
             get_transaction().commit()
-            
+
         for i in range(15):
             o = d.get(i)
             if o is None:
@@ -116,7 +116,7 @@ class DBMethods(CacheTestBase):
         c.klass_items()
 
 class LRUCacheTests(CacheTestBase):
-    
+
     def checkLRU(self):
         # verify the LRU behavior of the cache
         dataset_size = 5
@@ -166,7 +166,7 @@ class LRUCacheTests(CacheTestBase):
         CONNS = 3
         for i in range(CONNS):
             self.noodle_new_connection()
-        
+
         self.assertEquals(self.db.cacheSize(), CACHE_SIZE * CONNS)
         details = self.db.cacheDetailSize()
         self.assertEquals(len(details), CONNS)
@@ -183,7 +183,7 @@ class LRUCacheTests(CacheTestBase):
         CONNS = 3
         for i in range(CONNS):
             self.noodle_new_connection()
-        
+
         for klass, count in self.db.cacheDetail():
             if klass.endswith('MinPO'):
                 self.assertEqual(count, CONNS * CACHE_SIZE)
@@ -236,7 +236,7 @@ class CacheErrors(unittest.TestCase):
     def checkBogusObject(self):
         def add(key, obj):
             self.cache[key] = obj
-        
+
         key = p64(2)
         # value isn't persistent
         self.assertRaises(TypeError, add, key, 12)

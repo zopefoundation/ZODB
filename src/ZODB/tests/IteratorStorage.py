@@ -9,7 +9,7 @@ from ZODB.tests.StorageTestBase import zodb_unpickle
 from ZODB.utils import U64, p64
 from ZODB.Transaction import Transaction
 
-
+
 class IteratorCompare:
 
     def iter_verify(self, txniter, revids, val0):

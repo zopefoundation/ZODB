@@ -2,21 +2,21 @@
 #
 # Copyright (c) 2001, 2002 Zope Corporation and Contributors.
 # All Rights Reserved.
-# 
+#
 # This software is subject to the provisions of the Zope Public License,
 # Version 2.0 (ZPL).  A copy of the ZPL should accompany this distribution.
 # THIS SOFTWARE IS PROVIDED "AS IS" AND ANY AND ALL EXPRESS OR IMPLIED
 # WARRANTIES ARE DISCLAIMED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 # WARRANTIES OF TITLE, MERCHANTABILITY, AGAINST INFRINGEMENT, AND FITNESS
 # FOR A PARTICULAR PURPOSE
-# 
+#
 ##############################################################################
 """Implement an bobo_application object that is BoboPOS3 aware
 
 This module provides a wrapper that causes a database connection to be created
 and used when bobo publishes a bobo_application object.
 """
-__version__='$Revision: 1.10 $'[11:-2]
+__version__='$Revision: 1.11 $'[11:-2]
 
 StringType=type('')
 connection_open_hooks = []
@@ -34,7 +34,7 @@ class ZApplicationWrapper:
                 get_transaction().commit()
             conn.close()
             self._klass=klass
-        
+
 
     # This hack is to overcome a bug in Bobo!
     def __getattr__(self, name):
@@ -57,16 +57,16 @@ class ZApplicationWrapper:
         REQUEST._hold(cleanup)
 
         conn.setDebugInfo(REQUEST.environ, REQUEST.other)
-        
+
         v=conn.root()[aname]
 
         if name is not None:
             if hasattr(v, '__bobo_traverse__'):
                 return v.__bobo_traverse__(REQUEST, name)
-            
+
             if hasattr(v,name): return getattr(v,name)
             return v[name]
-        
+
         return v
 
 
@@ -77,9 +77,8 @@ class ZApplicationWrapper:
             connection=db.open()
         elif type(connection) is StringType:
             connection=db.open(connection)
-        
+
         return connection.root()[aname]
-    
+
 
 class Cleanup: pass
-

@@ -61,7 +61,7 @@ class SynchronizedStorage:
 
 ##    def verifyCommitting(self, callable, *args):
 ##        self.assertRaises(StorageTransactionError, callable *args)
-    
+
     def verifyNotCommitting(self, callable, *args):
         args = (StorageTransactionError, callable) + args
         apply(self.assertRaises, args)
@@ -92,17 +92,17 @@ class SynchronizedStorage:
     def checkStoreNotCommitting(self):
         self.verifyNotCommitting(self._storage.store,
                                  OID, SERIALNO, "", "", Transaction())
-    
+
     def checkStoreWrongTrans(self):
         self.verifyWrongTrans(self._storage.store,
                               OID, SERIALNO, "", "", Transaction())
 
 ##    def checkNewOidNotCommitting(self):
 ##        self.verifyNotCommitting(self._storage.new_oid)
-    
+
 ##    def checkNewOidWrongTrans(self):
 ##        self.verifyWrongTrans(self._storage.new_oid)
-    
+
 
     def checkAbortNotCommitting(self):
         self._storage.tpc_abort(Transaction())
@@ -123,7 +123,7 @@ class SynchronizedStorage:
         self._storage.tpc_begin(t)
         self._storage.tpc_finish(Transaction())
         self._storage.tpc_abort(t)
-    
+
     def checkBeginCommitting(self):
         t = Transaction()
         self._storage.tpc_begin(t)

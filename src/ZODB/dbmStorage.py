@@ -2,14 +2,14 @@
 #
 # Copyright (c) 2001, 2002 Zope Corporation and Contributors.
 # All Rights Reserved.
-# 
+#
 # This software is subject to the provisions of the Zope Public License,
 # Version 2.0 (ZPL).  A copy of the ZPL should accompany this distribution.
 # THIS SOFTWARE IS PROVIDED "AS IS" AND ANY AND ALL EXPRESS OR IMPLIED
 # WARRANTIES ARE DISCLAIMED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 # WARRANTIES OF TITLE, MERCHANTABILITY, AGAINST INFRINGEMENT, AND FITNESS
 # FOR A PARTICULAR PURPOSE
-# 
+#
 ##############################################################################
 """Very Simple dbm-based ZODB storage
 
@@ -18,7 +18,7 @@ don't support versions or Undo.  This may be useful when implementing
 objects like hit counters that don't need or want to participate
 in undo or versions.
 """
-__version__='$Revision: 1.3 $'[11:-2]
+__version__='$Revision: 1.4 $'[11:-2]
 
 import base64, POSException, time, string, utils
 
@@ -40,7 +40,7 @@ class anydbmStorage(MappingStorage):
     def getSize(self):
         # This is a little iffy, since we aren't entirely sure what the file is
         self._lock_acquire()
-        try:    
+        try:
             try:
                 return (os.stat(self.__name__+'.data')[6] +
                         os.stat(self.__name__+'.dir')[6]
@@ -73,9 +73,9 @@ class gdbmStorage(anydbmStorage):
         finally: self._lock_release()
 
     def pack(self, t, referencesf):
-        
+
         self._lock_acquire()
-        try:    
+        try:
             # Build an index of *only* those objects reachable
             # from the root.
             index=self._index
@@ -86,7 +86,7 @@ class gdbmStorage(anydbmStorage):
             while rootl:
                 oid=pop()
                 if referenced(oid): continue
-    
+
                 # Scan non-version pickle for references
                 r=index[oid]
                 pindex[oid]=r
@@ -107,7 +107,7 @@ class gdbmStorage(anydbmStorage):
 
             index.sync()
             index.reorganize()
-    
+
         finally: self._lock_release()
 
 

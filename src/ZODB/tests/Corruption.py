@@ -35,7 +35,7 @@ class FileStorageCorruptTests(StorageTestBase):
     def checkTruncatedIndex(self):
         oids = self._do_stores()
         self._close()
-        
+
         # truncation the index file
         path = self.path + '.index'
         self.failUnless(os.path.exists(path))
@@ -52,7 +52,7 @@ class FileStorageCorruptTests(StorageTestBase):
     def checkCorruptedIndex(self):
         oids = self._do_stores()
         self._close()
-        
+
         # truncation the index file
         path = self.path + '.index'
         self.failUnless(os.path.exists(path))

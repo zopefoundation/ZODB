@@ -2,19 +2,19 @@
 #
 # Copyright (c) 2001, 2002 Zope Corporation and Contributors.
 # All Rights Reserved.
-# 
+#
 # This software is subject to the provisions of the Zope Public License,
 # Version 2.0 (ZPL).  A copy of the ZPL should accompany this distribution.
 # THIS SOFTWARE IS PROVIDED "AS IS" AND ANY AND ALL EXPRESS OR IMPLIED
 # WARRANTIES ARE DISCLAIMED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 # WARRANTIES OF TITLE, MERCHANTABILITY, AGAINST INFRINGEMENT, AND FITNESS
 # FOR A PARTICULAR PURPOSE
-# 
+#
 ##############################################################################
 
 """
 Revision information:
-$Id: testTransaction.py,v 1.9 2002/08/14 15:37:08 jeremy Exp $
+$Id: testTransaction.py,v 1.10 2002/08/14 22:07:09 mj Exp $
 """
 
 """
@@ -41,7 +41,7 @@ TODO
 
     add in tests for objects which are modified multiple times,
     for example an object that gets modified in multiple sub txns.
-    
+
 """
 
 import random
@@ -61,9 +61,9 @@ class TransactionTests(unittest.TestCase):
         self.nosub1 = DataObject(nost=1)
 
     def tearDown(self):
-        
+
         Transaction.free_transaction()
-    
+
     # basic tests with two sub trans jars
     # really we only need one, so tests for
     # sub1 should identical to tests for sub2
@@ -84,7 +84,7 @@ class TransactionTests(unittest.TestCase):
 
         get_transaction().abort()
 
-        assert self.sub2._p_jar.cabort == 1        
+        assert self.sub2._p_jar.cabort == 1
 
     def testSubTransactionCommitCommit(self):
 
@@ -92,10 +92,10 @@ class TransactionTests(unittest.TestCase):
         self.sub2.modify()
 
         get_transaction().commit(1)
-        
+
         assert self.sub1._p_jar.ctpc_vote == 0
         assert self.sub1._p_jar.ctpc_finish == 1
-        
+
         get_transaction().commit()
 
         assert self.sub1._p_jar.ccommit_sub == 1
@@ -108,13 +108,13 @@ class TransactionTests(unittest.TestCase):
 
         get_transaction().commit(1)
         get_transaction().abort()
-        
+
         assert self.sub1._p_jar.ctpc_vote == 0
         assert self.sub1._p_jar.cabort == 0
         assert self.sub1._p_jar.cabort_sub == 1
-        
+
     def testMultipleSubTransactionCommitCommit(self):
-        
+
         # add it
         self.sub1.modify()
 
@@ -133,7 +133,7 @@ class TransactionTests(unittest.TestCase):
         # objects... i don't like this but its an impl artifact
 
         assert self.sub1._p_jar.ctpc_vote == 0
-        assert self.sub1._p_jar.ctpc_finish > 0        
+        assert self.sub1._p_jar.ctpc_finish > 0
 
         # add another before we do the entire txn commit
         self.sub3.modify()
@@ -160,7 +160,7 @@ class TransactionTests(unittest.TestCase):
         sub1 calling method tpc_finish
         sub2 calling method tpc_finish
         """
-        
+
         # add it
         self.sub1.modify()
 
@@ -172,7 +172,7 @@ class TransactionTests(unittest.TestCase):
         get_transaction().commit(1)
 
         assert self.sub1._p_jar.ctpc_vote == 0
-        assert self.sub1._p_jar.ctpc_finish > 0        
+        assert self.sub1._p_jar.ctpc_finish > 0
 
         # add another before we do the entire txn commit
         self.sub3.modify()
@@ -185,7 +185,7 @@ class TransactionTests(unittest.TestCase):
 
         assert self.sub3._p_jar.cabort == 1
         assert self.sub1._p_jar.ccommit_sub == 1
-        assert self.sub1._p_jar.ctpc_finish > 1        
+        assert self.sub1._p_jar.ctpc_finish > 1
 
     # repeat adding in a nonsub trans jars
 
@@ -213,7 +213,7 @@ class TransactionTests(unittest.TestCase):
         the nosub jar should not have tpc_finish
         called on it till the containing txn
         ends.
-        
+
         sub calling method commit
         nosub calling method tpc_begin
         sub calling method tpc_finish
@@ -221,7 +221,7 @@ class TransactionTests(unittest.TestCase):
         nosub calling method abort
         sub calling method abort_sub
         """
-        
+
         self.sub1.modify(tracing='sub')
         self.nosub1.modify(tracing='nosub')
 
@@ -276,10 +276,10 @@ class TransactionTests(unittest.TestCase):
         nosub calling method tpc_finish
         sub1 calling method tpc_finish
         """
-        
+
         # add it
         self.sub1.modify()
-        
+
         get_transaction().commit(1)
 
         # add another
@@ -288,15 +288,15 @@ class TransactionTests(unittest.TestCase):
         get_transaction().commit(1)
 
         assert self.sub1._p_jar.ctpc_vote == 0
-        assert self.nosub1._p_jar.ctpc_vote == 0        
-        assert self.sub1._p_jar.ctpc_finish > 0     
+        assert self.nosub1._p_jar.ctpc_vote == 0
+        assert self.sub1._p_jar.ctpc_finish > 0
 
         # add another before we do the entire txn commit
         self.sub2.modify()
 
         # commit the container transaction
         get_transaction().commit()
-        
+
         # we did an implicit sub commit
         assert self.sub2._p_jar.ccommit_sub == 1
         assert self.sub1._p_jar.ctpc_finish > 1
@@ -308,28 +308,28 @@ class TransactionTests(unittest.TestCase):
     # error handling by throwing errors from
     # various jar methods
     ###
-    
+
     # first the recoverable errors
 
     def testExceptionInAbort(self):
 
         self.sub1._p_jar = SubTransactionJar(errors='abort')
-        
+
         self.nosub1.modify()
         self.sub1.modify(nojar=1)
         self.sub2.modify()
-        
-        try: 
+
+        try:
             get_transaction().abort()
         except TestTxnException: pass
 
         assert self.nosub1._p_jar.cabort == 1
         assert self.sub2._p_jar.cabort == 1
-        
-    def testExceptionInCommit(self): 
+
+    def testExceptionInCommit(self):
 
         self.sub1._p_jar = SubTransactionJar(errors='commit')
-        
+
         self.nosub1.modify()
         self.sub1.modify(nojar=1)
 
@@ -345,14 +345,14 @@ class TransactionTests(unittest.TestCase):
     def testExceptionInTpcVote(self):
 
         self.sub1._p_jar = SubTransactionJar(errors='tpc_vote')
-        
+
         self.nosub1.modify()
         self.sub1.modify(nojar=1)
 
         try:
             get_transaction().commit()
         except TestTxnException: pass
-        
+
         assert self.nosub1._p_jar.ctpc_finish == 0
         assert self.nosub1._p_jar.ccommit == 1
         assert self.nosub1._p_jar.ctpc_abort == 1
@@ -363,7 +363,7 @@ class TransactionTests(unittest.TestCase):
         """
         ok this test reveals a bug in the TM.py
         as the nosub tpc_abort there is ignored.
-        
+
         nosub calling method tpc_begin
         nosub calling method commit
         sub calling method tpc_begin
@@ -372,11 +372,11 @@ class TransactionTests(unittest.TestCase):
         nosub calling method tpc_abort
         """
         self.sub1._p_jar = SubTransactionJar(errors='tpc_begin')
-        
+
         self.nosub1.modify()
         self.sub1.modify(nojar=1)
 
-        try: 
+        try:
             get_transaction().commit()
         except TestTxnException: pass
 
@@ -401,7 +401,7 @@ class TransactionTests(unittest.TestCase):
     ### More Failure modes...
     # now we mix in some sub transactions
     ###
-    
+
     def testExceptionInSubCommitSub(self):
         """
         this tests exhibits some odd behavior,
@@ -433,19 +433,19 @@ class TransactionTests(unittest.TestCase):
         try:
             get_transaction().commit()
         except TestTxnException: pass
-        
+
 
         # odd this doesn't seem to be entirely deterministic..
         if self.sub1._p_jar.ccommit_sub:
-            assert self.sub1._p_jar.ctpc_abort == 1            
+            assert self.sub1._p_jar.ctpc_abort == 1
         else:
-            assert self.sub1._p_jar.cabort_sub == 1        
-            
+            assert self.sub1._p_jar.cabort_sub == 1
+
         if self.sub3._p_jar.ccommit_sub:
-            assert self.sub3._p_jar.ctpc_abort == 1                        
+            assert self.sub3._p_jar.ctpc_abort == 1
         else:
-            assert self.sub3._p_jar.cabort_sub == 1                    
-        
+            assert self.sub3._p_jar.cabort_sub == 1
+
         assert self.sub2._p_jar.ctpc_abort == 1
         assert self.nosub1._p_jar.ctpc_abort == 1
 
@@ -458,7 +458,7 @@ class TransactionTests(unittest.TestCase):
         self.sub2._p_jar = SubTransactionJar(errors='abort_sub')
         self.sub2.modify(nojar=1)
         get_transaction().commit(1)
-        
+
         self.sub3.modify()
 
         try:
@@ -516,7 +516,7 @@ class TransactionTests(unittest.TestCase):
                     succeed += 1
                 elif jar.ctpc_abort:
                     fail += 1
-            
+
             if Transaction.hosed:
                 self.assert_(fail > 0 and succeed > 0)
                 break
@@ -526,7 +526,7 @@ class TransactionTests(unittest.TestCase):
                 self.setUp()
         else:
             self.fail("Couldn't provoke hosed state.")
-        
+
         self.sub2.modify()
 
         try:
@@ -566,22 +566,22 @@ class BasicJar:
         self.ctpc_vote = 0
         self.ctpc_finish = 0
         self.cabort_sub = 0
-        self.ccommit_sub = 0        
-        
+        self.ccommit_sub = 0
+
     def check(self, method):
         if self.tracing:
             print '%s calling method %s'%(str(self.tracing),method)
-        
+
         if ((type(self.errors) is TupleType and method in self.errors)
             or method == self.errors):
             raise TestTxnException("error %s" % method)
 
-    ## basic jar txn interface 
+    ## basic jar txn interface
 
     def abort(self, *args):
         self.check('abort')
         self.cabort += 1
-        
+
     def commit(self, *args):
         self.check('commit')
         self.ccommit += 1
@@ -607,11 +607,11 @@ class SubTransactionJar(BasicJar):
     def abort_sub(self, txn):
         self.check('abort_sub')
         self.cabort_sub = 1
-    
+
     def commit_sub(self, txn):
         self.check('commit_sub')
         self.ccommit_sub = 1
-        
+
 class NoSubTransactionJar(BasicJar): pass
 
 def test_suite():

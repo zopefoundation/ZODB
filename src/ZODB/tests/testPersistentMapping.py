@@ -31,7 +31,7 @@ class PMTests(unittest.TestCase):
         s.store('\000' * 8, None, pickle, '', t)
         s.tpc_vote(t)
         s.tpc_finish(t)
-        
+
         db = ZODB.DB(s)
         # If the root can be loaded successfully, we should be okay.
         r = db.open().root()

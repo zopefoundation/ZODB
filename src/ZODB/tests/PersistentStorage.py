@@ -4,7 +4,7 @@ class PersistentStorage:
 
     def checkUpdatesPersist(self):
         oids = []
-        
+
         def new_oid_wrapper(l=oids, new_oid=self._storage.new_oid):
             oid = new_oid()
             l.append(oid)
@@ -31,7 +31,7 @@ class PersistentStorage:
             if ver:
                 p, s = self._storage.load(oid, ver)
                 objects.append((oid, ver, p, s))
-                
+
         self._storage.close()
         self.open()
 

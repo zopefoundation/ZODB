@@ -2,20 +2,20 @@
 #
 # Copyright (c) 2001, 2002 Zope Corporation and Contributors.
 # All Rights Reserved.
-# 
+#
 # This software is subject to the provisions of the Zope Public License,
 # Version 2.0 (ZPL).  A copy of the ZPL should accompany this distribution.
 # THIS SOFTWARE IS PROVIDED "AS IS" AND ANY AND ALL EXPRESS OR IMPLIED
 # WARRANTIES ARE DISCLAIMED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 # WARRANTIES OF TITLE, MERCHANTABILITY, AGAINST INFRINGEMENT, AND FITNESS
 # FOR A PARTICULAR PURPOSE
-# 
+#
 ##############################################################################
 """Handy standard storage machinery
 """
 # Do this portably in the face of checking out with -kv
 import string
-__version__ = string.split('$Revision: 1.19 $')[-2:][0]
+__version__ = string.split('$Revision: 1.20 $')[-2:][0]
 
 import ThreadLock, bpthread
 import time, UndoLogCompatible
@@ -30,7 +30,7 @@ class BaseStorage(UndoLogCompatible.UndoLogCompatible):
     _is_read_only = 0
 
     def __init__(self, name, base=None):
-        
+
         self.__name__=name
 
         # Allocate locks:
@@ -64,13 +64,13 @@ class BaseStorage(UndoLogCompatible.UndoLogCompatible):
 
     def getName(self):
         return self.__name__
-    
+
     def getSize(self):
         return len(self)*300 # WAG!
-    
+
     def history(self, oid, version, length=1):
         pass
-                    
+
     def modifiedInVersion(self, oid):
         return ''
 
@@ -97,13 +97,13 @@ class BaseStorage(UndoLogCompatible.UndoLogCompatible):
 
     def isReadOnly(self):
         return self._is_read_only
-    
+
     def supportsUndo(self):
         return 0
-    
+
     def supportsVersions(self):
         return 0
-        
+
     def tpc_abort(self, transaction):
         self._lock_acquire()
         try:
@@ -147,7 +147,7 @@ class BaseStorage(UndoLogCompatible.UndoLogCompatible):
             self._tstatus=status
 
             self._begin(self._serial, user, desc, ext)
-            
+
         finally: self._lock_release()
 
     def _begin(self, tid, u, d, e):
@@ -247,7 +247,7 @@ class BaseStorage(UndoLogCompatible.UndoLogCompatible):
         else:
             restoring = 0
         for transaction in other.iterator():
-            
+
             tid=transaction.tid
             if _ts is None:
                 _ts=TimeStamp(tid)
@@ -265,7 +265,7 @@ class BaseStorage(UndoLogCompatible.UndoLogCompatible):
                         ok=1
 
             if verbose: print _ts
-            
+
             self.tpc_begin(transaction, tid, transaction.status)
             for r in transaction:
                 oid=r.oid
@@ -276,7 +276,7 @@ class BaseStorage(UndoLogCompatible.UndoLogCompatible):
                     pre=preget(oid, None)
                     s=self.store(oid, pre, r.data, r.version, transaction)
                     preindex[oid]=s
-                
+
             self.tpc_vote(transaction)
             self.tpc_finish(transaction)
 

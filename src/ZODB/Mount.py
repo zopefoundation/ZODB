@@ -2,19 +2,19 @@
 #
 # Copyright (c) 2001, 2002 Zope Corporation and Contributors.
 # All Rights Reserved.
-# 
+#
 # This software is subject to the provisions of the Zope Public License,
 # Version 2.0 (ZPL).  A copy of the ZPL should accompany this distribution.
 # THIS SOFTWARE IS PROVIDED "AS IS" AND ANY AND ALL EXPRESS OR IMPLIED
 # WARRANTIES ARE DISCLAIMED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 # WARRANTIES OF TITLE, MERCHANTABILITY, AGAINST INFRINGEMENT, AND FITNESS
 # FOR A PARTICULAR PURPOSE
-# 
+#
 ##############################################################################
 """Mounted database support
 
-$Id: Mount.py,v 1.15 2002/05/23 20:53:22 shane Exp $"""
-__version__='$Revision: 1.15 $'[11:-2]
+$Id: Mount.py,v 1.16 2002/08/14 22:07:09 mj Exp $"""
+__version__='$Revision: 1.16 $'[11:-2]
 
 import thread, Persistence, Acquisition
 import ExtensionClass, string, time, sys
@@ -188,7 +188,7 @@ class MountPoint(Persistence.Persistent, Acquisition.Implicit):
             data = t[0]
 
         return data.__of__(parent)
-        
+
     def __of__(self, parent):
         # Accesses the database, returning an acquisition
         # wrapper around the connected object rather than around self.
@@ -277,7 +277,7 @@ class MountedConnectionCloser:
             try: del conn._mount_parent_jar
             except: pass
             conn.close()
-        
+
         if close_db:
             # Stop using this database. Close it if no other
             # MountPoint is using it.

@@ -15,7 +15,7 @@
 
 See ZODB/ActivityMonitor.py
 
-$Id: testActivityMonitor.py,v 1.2 2002/06/10 20:20:44 shane Exp $
+$Id: testActivityMonitor.py,v 1.3 2002/08/14 22:07:09 mj Exp $
 """
 
 import unittest
@@ -74,7 +74,7 @@ class Tests(unittest.TestCase):
         am.setHistoryLength(0.1)
         self.assertEqual(am.getHistoryLength(), 0.1)
         self.assert_(len(am.log) <= 1)
-        
+
     def testActivityAnalysis(self):
         am = ActivityMonitor(history_length=3600)
         c = FakeConnection()
@@ -98,7 +98,7 @@ class Tests(unittest.TestCase):
         self.assert_(div['start'] > 0)
         self.assert_(div['start'] >= lastend)
         self.assert_(div['start'] < div['end'])
-        
+
 
 def test_suite():
     return unittest.makeSuite(Tests)

@@ -2,14 +2,14 @@
 #
 # Copyright (c) 2001, 2002 Zope Corporation and Contributors.
 # All Rights Reserved.
-# 
+#
 # This software is subject to the provisions of the Zope Public License,
 # Version 2.0 (ZPL).  A copy of the ZPL should accompany this distribution.
 # THIS SOFTWARE IS PROVIDED "AS IS" AND ANY AND ALL EXPRESS OR IMPLIED
 # WARRANTIES ARE DISCLAIMED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 # WARRANTIES OF TITLE, MERCHANTABILITY, AGAINST INFRINGEMENT, AND FITNESS
 # FOR A PARTICULAR PURPOSE
-# 
+#
 ##############################################################################
 usage="""Test speed of a ZODB storage
 
@@ -34,7 +34,7 @@ Options:
 
     -M         Output means only
 """
-  
+
 import sys, os, getopt, string, time
 sys.path.insert(0, os.getcwd())
 
@@ -114,11 +114,11 @@ def main(args):
         sys.stderr.write("mean:\t%s\t%.4f\t%.4f (s/o)\n" % (r, t, t/r))
 
     db.close()
-            
-    
+
+
 def compress(s):
     c=zlib.compressobj()
     o=c.compress(s)
-    return o+c.flush()    
+    return o+c.flush()
 
 if __name__=='__main__': main(sys.argv[1:])
