@@ -1,6 +1,6 @@
 /*
 
-  $Id: cPersistence.h,v 1.5 1997/05/19 17:51:20 jim Exp $
+  $Id: cPersistence.h,v 1.6 1997/06/06 19:13:32 jim Exp $
 
   Definitions to facilitate making cPersistent subclasses in C.
 
@@ -56,6 +56,9 @@
 
 
   $Log: cPersistence.h,v $
+  Revision 1.6  1997/06/06 19:13:32  jim
+  Changed/fixed convenience macros.
+
   Revision 1.5  1997/05/19 17:51:20  jim
   Added macros to simplify C PO implementation.
 
@@ -116,10 +119,13 @@ typedef struct {
 
 static cPersistenceCAPIstruct *cPersistenceCAPI;
 
-#define PER_ACTIVATE(O) (cPersistenceCAPI->setstate((PyObject*)(self)) >= 0)
-#define PER_CHANGED(O)  (cPersistenceCAPI->changed((PyObject*)(self)) >= 0)
-#define PER_PREVENT_DEACTIVATION(O) (self->atime=(time_t)1);
-#define PER_ALLOW_DEACTIVATION(O) (self->atime=time(NULL));
+#define PER_USE_OR_RETURN(O,R) \
+  if(cPersistenceCAPI->setstate((PyObject*)(O)) < 0) return (R)
+
+#define PER_CHANGED(O) (cPersistenceCAPI->changed((PyObject*)(O)))
+
+#define PER_PREVENT_DEACTIVATION(O) ((O)->atime=(time_t)1);
+#define PER_ALLOW_DEACTIVATION(O) ((O)->atime=time(NULL));
 
 #endif
 
