@@ -2,15 +2,6 @@ What's new in ZODB3 3.3 ?
 =========================
 Release date: DD-MMM-YYYY
 
-BTrees
-------
-
-The BTrees __init__.py file is now just a comment.  It had been trying
-to set up support for (long gone) "int sets", and to import an old
-version of Zope's Interface package, which doesn't even ship with ZODB.
-The latter in particular created problems, at least clashing with
-PythonCAD's Interface package.
-
 Tools
 -----
 
@@ -64,6 +55,33 @@ the relevant transaction manager instead.  For example,
     transaction.begin()
 
 if using the default ThreadTransactionManager (see news for 3.3a3 below).
+
+BTrees
+------
+
+The BTrees __init__.py file is now just a comment.  It had been trying
+to set up support for (long gone) "int sets", and to import an old
+version of Zope's Interface package, which doesn't even ship with ZODB.
+The latter in particular created problems, at least clashing with
+PythonCAD's Interface package.
+
+POSException
+------------
+
+Collector #1488 (TemporaryStorage -- going backward in time).  This
+confusion was really due to that the detail on a ConflictError exception
+didn't make sense.  It called the current revision "was", and the old
+revision "now".  The detail is much more informative now.  For example,
+if the exception said:
+
+    ConflictError: database conflict error (oid 0xcb22,
+    serial was 0x03441422948b4399, now 0x034414228c3728d5)
+
+before, it now says:
+
+    ConflictError: database conflict error (oid 0xcb22,
+    serial this txn started with 0x034414228c3728d5 2002-04-14 20:50:32.863000,
+    serial currently committed 0x03441422948b4399 2002-04-14 20:50:34.815000)
 
 Tools
 -----

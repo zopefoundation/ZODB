@@ -15,7 +15,6 @@
 import sys
 import time
 from struct import pack, unpack
-from types import StringType
 from binascii import hexlify
 import cPickle
 import cStringIO
@@ -34,6 +33,7 @@ __all__ = ['z64',
            'tid_repr',
            'positive_id',
            'get_refs',
+           'readable_tid_repr',
           ]
 
 z64 = '\0'*8
@@ -89,7 +89,7 @@ def newTimeStamp(old=None,
 
 
 def oid_repr(oid):
-    if isinstance(oid, StringType) and len(oid) == 8:
+    if isinstance(oid, str) and len(oid) == 8:
         # Convert to hex and strip leading zeroes.
         as_hex = hexlify(oid).lstrip('0')
         # Ensure two characters per input byte.
@@ -103,6 +103,15 @@ def oid_repr(oid):
 
 serial_repr = oid_repr
 tid_repr = serial_repr
+
+# For example, produce
+#     '0x03441422948b4399 2002-04-14 20:50:34.815000'
+# for 8-byte string tid '\x03D\x14"\x94\x8bC\x99'.
+def readable_tid_repr(tid):
+    result = tid_repr(tid)
+    if isinstance(tid, str) and len(tid) == 8:
+        result = "%s %s" % (result, TimeStamp(tid))
+    return result
 
 # Addresses can "look negative" on some boxes, some of the time.  If you
 # feed a "negative address" to an %x format, Python 2.3 displays it as
