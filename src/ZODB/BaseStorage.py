@@ -86,7 +86,7 @@
 """
 # Do this portably in the face of checking out with -kv
 import string
-__version__ = string.split('$Revision: 1.12 $')[-2:][0]
+__version__ = string.split('$Revision: 1.13 $')[-2:][0]
 
 import ThreadLock, bpthread
 import time, UndoLogCompatible
@@ -213,15 +213,17 @@ class BaseStorage(UndoLogCompatible.UndoLogCompatible):
         self._lock_acquire()
         try:
             if transaction is not self._transaction: return
-            if f is not None: f()
+            try:
+                if f is not None: f()
 
-            u,d,e=self._ude
-            self._finish(self._serial, u, d, e)
-            self._clear_temp()
+                u,d,e=self._ude
+                self._finish(self._serial, u, d, e)
+                self._clear_temp()
+            finally:
+                self._ude=None
+                self._transaction=None
+                self._commit_lock_release()
         finally:
-            self._ude=None
-            self._transaction=None
-            self._commit_lock_release()
             self._lock_release()
 
     def _finish(self, tid, u, d, e):
