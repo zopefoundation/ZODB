@@ -84,20 +84,22 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.59 2001/09/18 18:19:24 jeremy Exp $"""
-__version__='$Revision: 1.59 $'[11:-2]
+$Id: Connection.py,v 1.60 2001/11/06 02:47:48 jeremy Exp $"""
+__version__='$Revision: 1.60 $'[11:-2]
 
 from cPickleCache import PickleCache
-from POSException import ConflictError, ExportError
-from cStringIO import StringIO
-from cPickle import Unpickler, Pickler
+from POSException import ConflictError
 from ExtensionClass import Base
-from time import time
-import Transaction, string, ExportImport, sys, traceback, TmpStore
+import ExportImport, TmpStore
 from zLOG import LOG, ERROR, BLATHER
 from coptimizations import new_persistent_id
 from ConflictResolution import ResolvedSerial
-from types import StringType
+
+from cPickle import Unpickler, Pickler
+from cStringIO import StringIO
+import sys
+from time import time
+from types import StringType, ClassType
 
 global_code_timestamp = 0
 
@@ -111,9 +113,6 @@ def updateCodeTimestamp():
     global_code_timestamp = time()
 
 ExtensionKlass=Base.__class__
-
-class HelperClass: pass
-ClassType=type(HelperClass)
 
 class Connection(ExportImport.ExportImport):
     """Object managers for individual object space.
