@@ -159,5 +159,6 @@ static PyExtensionClass TreeSetType = {
   0L,0L,
   "Set implemented as sorted tree of items", 
   METHOD_CHAIN(TreeSet_methods),
-  EXTENSIONCLASS_BASICNEW_FLAG | PERSISTENT_TYPE_FLAG,
+  EXTENSIONCLASS_BASICNEW_FLAG | PERSISTENT_TYPE_FLAG 
+  | EXTENSIONCLASS_NOINSTDICT_FLAG,
 };

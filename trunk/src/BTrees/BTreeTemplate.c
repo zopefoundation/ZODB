@@ -85,7 +85,7 @@
 
 static char BTree_module_documentation[] = 
 ""
-"\n$Id: BTreeTemplate.c,v 1.4 2001/02/05 02:28:53 jim Exp $"
+"\n$Id: BTreeTemplate.c,v 1.5 2001/02/15 18:15:10 jim Exp $"
 ;
 
 #include "cPersistence.h"
@@ -110,7 +110,6 @@ static void PyVar_Assign(PyObject **v, PyObject *e) { Py_XDECREF(*v); *v=e;}
 #define ASSIGNC(V,E) (Py_INCREF((E)), PyVar_Assign(&(V),(E)))
 #define UNLESS(E) if (!(E))
 #define UNLESS_ASSIGN(V,E) ASSIGN(V,E); UNLESS(V)
-#define RETURN_NONE Py_INCREF(Py_None); return Py_None
 #define LIST(O) ((PyListObject*)(O))
 #define OBJECT(O) ((PyObject*)(O))
 
@@ -749,10 +748,7 @@ BTree__p_deactivate(BTree *self, PyObject *args)
 {
   if (self->state==cPersistent_UPTODATE_STATE)
     {
-      PyObject *dict;
-
       if (_BTree_clear(self) < 0) return NULL;
-      if (HasInstDict(self) && (dict=INSTANCE_DICT(self))) PyDict_Clear(dict);
       self->state=cPersistent_GHOST_STATE;
     }
 
@@ -775,13 +771,17 @@ static PyObject *
 BTree_clear(BTree *self, PyObject *args)
 {
   PER_USE_OR_RETURN(self, NULL);
-  if (_BTree_clear(self) < 0) goto err;
 
-  if (PER_CHANGED(self) < 0) goto err;
+  if (self->len)
+    {
+      if (_BTree_clear(self) < 0) goto err;
+      if (PER_CHANGED(self) < 0) goto err;
+    }
 
   PER_ALLOW_DEACTIVATION(self);
 
-  RETURN_NONE;
+  Py_INCREF(Py_None); 
+  return Py_None;
 
 err:
   PER_ALLOW_DEACTIVATION(self);
@@ -797,36 +797,43 @@ err:
 static PyObject *
 BTree_getstate(BTree *self, PyObject *args)
 {
-  PyObject *r=0, *o, *item;
-  PyObject *result;
+  PyObject *r=0, *o, *item, *result;
   int i;
 
   PER_USE_OR_RETURN(self, NULL);
 
-  UNLESS (r=PyTuple_New(self->len)) goto err;
-  for (i=self->len; --i >= 0; )
+  if (self->len)
     {
-      UNLESS (item=PyTuple_New(2)) goto err;
-      if (i)
+      UNLESS (r=PyTuple_New(self->len)) goto err;
+      for (i=self->len; --i >= 0; )
         {
-          COPY_KEY_TO_OBJECT(o, self->data[i].key);
-        }
-      else
-        {
-          o=Py_None;
+          UNLESS (item=PyTuple_New(2)) goto err;
+          if (i)
+            {
+              COPY_KEY_TO_OBJECT(o, self->data[i].key);
+            }
+          else
+            {
+              o=Py_None;
+              Py_INCREF(o);
+            }
+          PyTuple_SET_ITEM(item, 0, o);
+          o=self->data[i].value;
           Py_INCREF(o);
+          PyTuple_SET_ITEM(item, 1, o);
+          PyTuple_SET_ITEM(r,i,item);
         }
-      PyTuple_SET_ITEM(item, 0, o);
-      o=self->data[i].value;
-      Py_INCREF(o);
-      PyTuple_SET_ITEM(item, 1, o);
-      PyTuple_SET_ITEM(r,i,item);
+      result = Py_BuildValue("OO", r, self->firstbucket);
+      Py_DECREF(r);
     }
-
-  result = Py_BuildValue("OO", r, self->firstbucket);
+  else
+    {
+      result = Py_None;
+      Py_INCREF(result);
+    }  
+      
 
   PER_ALLOW_DEACTIVATION(self);
-  Py_DECREF(r);
 
   return result;
 
@@ -851,43 +858,44 @@ BTree_setstate(BTree *self, PyObject *args)
 
   if (!PyArg_ParseTuple(args,"O",&state)) return NULL;
 
-  if (!PyArg_ParseTuple(state,"O|O",&items, &firstbucket))
-    return NULL;
-
-  if ((l=PyTuple_Size(items)) < 0) return NULL;
  
   PER_PREVENT_DEACTIVATION(self); 
-  ASSIGNB(self->firstbucket, firstbucket);
 
-  for (i=self->len, d=self->data; --i >= 0; d++)
-    {
-      if (d != self->data)
-        DECREF_KEY(d->key);
-      Py_DECREF(d->value);
-    }
-  self->len=0;
+  if (_BTree_clear(self) < 0) goto err;
 
-  if (l > self->size)
+  if (state != Py_None)
     {
-      UNLESS (d=PyRealloc(self->data, sizeof(BTreeItem)*l)) goto err;
-      self->data=d;
-      self->size=l;
-    }
 
-  for (i=0, d=self->data; i < l; i++, d++)
-    {
-      UNLESS (PyArg_ParseTuple(PyTuple_GET_ITEM(state,i), "OO", 
-                               &k, &(d->value)))
-	goto err;
-      if (i) 
+      if (!PyArg_ParseTuple(state,"O|O",&items, &firstbucket))
+        goto err;
+
+      if ((l=PyTuple_Size(items)) < 0) goto err;
+
+      self->firstbucket = firstbucket;
+      Py_INCREF(firstbucket);
+
+      if (l > self->size)
         {
-          COPY_KEY_FROM_ARG(d->key, k, &copied);
-          UNLESS (&copied) return NULL;
-          INCREF_KEY(d->key);
+          UNLESS (d=PyRealloc(self->data, sizeof(BTreeItem)*l)) goto err;
+          self->data=d;
+          self->size=l;
         }
-      Py_INCREF(d->value);
+
+      for (i=0, d=self->data; i < l; i++, d++)
+        {
+          UNLESS (PyArg_ParseTuple(PyTuple_GET_ITEM(state,i), "OO", 
+                                   &k, &(d->value)))
+            goto err;
+          if (i) 
+            {
+              COPY_KEY_FROM_ARG(d->key, k, &copied);
+              UNLESS (&copied) return NULL;
+              INCREF_KEY(d->key);
+            }
+          Py_INCREF(d->value);
+        }
+      self->len=l;
     }
-  self->len=l;
 
   PER_ALLOW_DEACTIVATION(self);
 
@@ -1164,8 +1172,7 @@ BTree_has_key(BTree *self, PyObject *args)
 {
   PyObject *key;
 
-  UNLESS (PyArg_ParseTuple(args,"O",&key)) return NULL;
-  return _BTree_get(self, key, 1);
+  UNLESS (PyArg_ParseTuple(args,"O",&key)) return NULL;  return _BTree_get(self, key, 1);
 }
 
 static PyObject *
@@ -1314,7 +1321,8 @@ static PyExtensionClass BTreeType = {
   0L,0L,
   "Mapping type implemented as sorted list of items", 
   METHOD_CHAIN(BTree_methods),
-  EXTENSIONCLASS_BASICNEW_FLAG | PERSISTENT_TYPE_FLAG,
+  EXTENSIONCLASS_BASICNEW_FLAG | PERSISTENT_TYPE_FLAG 
+  | EXTENSIONCLASS_NOINSTDICT_FLAG,
 };
 
 #include "TreeSetTemplate.c"
@@ -1362,7 +1370,7 @@ INITMODULE ()
   d = PyModule_GetDict(m);
 
   PyDict_SetItemString(d, "__version__",
-		       PyString_FromString("$Revision: 1.4 $"));
+		       PyString_FromString("$Revision: 1.5 $"));
 
   PyExtensionClass_Export(d,PREFIX "Bucket", BucketType);
   PyExtensionClass_Export(d,PREFIX "BTree", BTreeType);
