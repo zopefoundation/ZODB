@@ -867,10 +867,10 @@ class FileCache(object):
         obj.serialize_header(self.f)
 
     def settid(self, tid):
-        if self.tid is not None:
-            if tid < self.tid:
-                raise ValueError(
-                    "new last tid must be greater that previous one")
+        if self.tid is not None and tid <= self.tid:
+            raise ValueError("new last tid (%s) must be greater than "
+                             "previous one (%s)" % (u64(tid),
+                                                    u64(self.tid)))
         self.tid = tid
         self.f.seek(4)
         self.f.write(tid)
