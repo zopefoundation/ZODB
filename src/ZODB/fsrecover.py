@@ -104,7 +104,7 @@ def read_transaction_header(file, pos, file_size):
     tid, stl, status, ul, dl, el = unpack(">8s8scHHH",h)
     if el < 0: el=t32-el
 
-    tl=U64(stl)
+    tl=u64(stl)
 
     if status=='c': raise EOFError
 
@@ -293,7 +293,7 @@ def recover(inp, outp, verbose=0, partial=0, force=0, pack=0):
             for r in transaction:
                 oid = r.oid
                 if verbose > 1:
-                    print U64(oid), r.version, len(r.data)
+                    print u64(oid), r.version, len(r.data)
                 pre = preindex.get(oid)
                 s = ofs.store(oid, pre, r.data, r.version, transaction)
                 preindex[oid] = s
