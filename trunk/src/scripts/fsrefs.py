@@ -68,8 +68,7 @@ import types
 
 from ZODB.FileStorage import FileStorage
 from ZODB.TimeStamp import TimeStamp
-from ZODB.utils import u64, oid_repr, get_refs
-from ZODB.FileStorage.fsdump import get_pickle_metadata
+from ZODB.utils import u64, oid_repr, get_refs, get_pickle_metadata
 from ZODB.POSException import POSKeyError
 
 VERBOSE = 0
