@@ -184,7 +184,7 @@
 #   may have a back pointer to a version record or to a non-version
 #   record.
 #
-__version__='$Revision: 1.33 $'[11:-2]
+__version__='$Revision: 1.34 $'[11:-2]
 
 import struct, time, os, bpthread, string, base64, sys
 from struct import pack, unpack
@@ -459,6 +459,7 @@ class FileStorage(BaseStorage.BaseStorage):
             write=tfile.write
             tappend=self._tappend
             index=self._index
+            index_get=index.get
 
             srcpos=self._vindex_get(src, 0)
             spos=p64(srcpos)
@@ -485,7 +486,7 @@ class FileStorage(BaseStorage.BaseStorage):
                 h=read(58) # oid, serial, prev(oid), tloc, vlen, plen, pnv, pv
                 oid=h[:8]
                 pnv=h[-16:-8]
-                if index[oid]==srcpos:
+                if index_get(oid, None) == srcpos:
                     # This is a current record!
                     tappend((oid,here))
                     appoids(oid)
