@@ -207,7 +207,7 @@ class IMerge(Interface.Base):
         """
 
     def intersection(c1, c2):
-        """Compute the Union of c1 and c2.
+        """Compute the intersection of c1 and c2.
 
         If c1 is None, then c2 is returned, otherwise, if c2 is None,
         then c1 is returned.
