@@ -27,6 +27,25 @@ class Object:
         return self._oid
 
 
+def dumps(obj):
+    def getpersid(obj):
+        return obj.getoid()
+    s = StringIO()
+    p = pickle.Pickler(s)
+    p.persistent_id = getpersid
+    p.dump(obj)
+    return s.getvalue()
+
+
+def makeloader(persfunc):
+    def loads(str, persfunc=persfunc):
+        fp = StringIO(str)
+        u = pickle.Unpickler(fp)
+        u.persistent_load = persfunc
+        return u.load()
+    return loads
+
+
 
 class PackableStorage:
     def _newobj(self):
@@ -36,54 +55,40 @@ class PackableStorage:
         self._cache[obj.getoid()] = obj
         return obj
 
-    def checkOldRevisionPacked(self):
-        # The initial revision has an object graph like so:
-        # o1 -> o2 -> o3
-        o1 = self._newobj()
-        o2 = self._newobj()
-        o3 = self._newobj()
-        o1.object = o2
-        o2.object = o3
-        # Pickle these objects
-        def dumps(obj):
-            def getpersid(obj):
-                return obj.getoid()
-            s = StringIO()
-            p = pickle.Pickler(s)
-            p.persistent_id = getpersid
-            p.dump(obj)
-            return s.getvalue()
-        p1, p2, p3 = map(dumps, (o1, o2, o3))
-        # Now commit these objects
-        revid1 = self._dostoreNP(oid=o1.getoid(), data=p1)
-        revid2 = self._dostoreNP(oid=o2.getoid(), data=p2)
-        revid3 = self._dostoreNP(oid=o3.getoid(), data=p3)
-        # Record this moment in history so we can pack everything before it
-        t0 = time.time()
-        # Now change the object graph to look like so:
-        # o1 -> o3
-        # and note that o2 is no longer referenced
-        o1.object = o3
-        p11 = dumps(o1)
-        revid11 = self._dostoreNP(oid=o1.getoid(), revid=revid1, data=p11)
-        # Pack away transaction 2
-        self._storage.pack(t0, referencesf)
-        # Now, objects 1 and 3 should exist, but object 2 should have been
-        # reference counted away.  First, we need a custom unpickler.
-        def loads(str, persfunc=self._cache.get):
-            fp = StringIO(str)
-            u = pickle.Unpickler(fp)
-            u.persistent_load = persfunc
-            return u.load()
-        # Get object 1
-        data, revid = self._storage.load(o1.getoid(), '')
-        assert revid == revid11
-        from ZODB import utils
-        assert loads(data).getoid() == o1.getoid()
-        # Get object 3
-        data, revid = self._storage.load(o3.getoid(), '')
-        assert revid == revid2
-        assert loads(data).getoid() == o3.getoid()
-        # Object 2 should fail
+    def checkSimplePack(self):
+        # Create the object
+        obj = self._newobj()
+        oid = obj.getoid()
+        obj.value = 1
+        # Commit three different revisions
+        revid1 = self._dostoreNP(oid, data=pickle.dumps(obj))
+        obj.value = 2
+        revid2 = self._dostoreNP(oid, revid=revid1, data=pickle.dumps(obj))
+        obj.value = 3
+        revid3 = self._dostoreNP(oid, revid=revid2, data=pickle.dumps(obj))
+        # Now make sure all three revisions can be extracted
+        #loads = makeloader(self._cache.get)
+        data = self._storage.loadSerial(oid, revid1)
+        pobj = pickle.loads(data)
+        assert pobj.getoid() == oid and pobj.value == 1
+        data = self._storage.loadSerial(oid, revid2)
+        pobj = pickle.loads(data)
+        assert pobj.getoid() == oid and pobj.value == 2
+        data = self._storage.loadSerial(oid, revid3)
+        pobj = pickle.loads(data)
+        assert pobj.getoid() == oid and pobj.value == 3
+        # Now pack away all but the most current revision
+        self._storage.pack(time.time(), referencesf)
+        # Make sure the first two revisions are gone but the third (current)
+        # still exists.
         self.assertRaises(KeyError,
-                          self._storage.load, o2.getoid(), '')
+                          self._storage.loadSerial, oid, revid1)
+        self.assertRaises(KeyError,
+                          self._storage.loadSerial, oid, revid2)
+        data = self._storage.loadSerial(oid, revid3)
+        pobj = pickle.loads(data)
+        assert pobj.getoid() == oid and pobj.value == 3
+        data, revid = self._storage.load(oid, '')
+        assert revid == revid3
+        pobj = pickle.loads(data)
+        assert pobj.getoid() == oid and pobj.value == 3
