@@ -19,6 +19,7 @@ import logging
 import unittest
 
 import ZConfig
+import zLOG.LogHandlers
 import zLOG.tests
 
 
@@ -54,7 +55,11 @@ class TestzLOGConfig(unittest.TestCase):
         self.assertEqual(conf.logger.level, logging.INFO)
         logger = conf.logger()
         self.assert_(isinstance(logger, logging.Logger))
-        self.assertEqual(logger.handlers, [])
+        # Make sure there's a NullHandler, since a warning gets
+        # printed if there are no handlers:
+        self.assertEqual(len(logger.handlers), 1)
+        self.assert_(isinstance(logger.handlers[0],
+                                zLOG.LogHandlers.NullHandler))
 
     # XXX need to make sure each loghandler datatype gets exercised.
 

@@ -235,8 +235,12 @@ class LoggerWrapper:
             logger.handlers = []
             logger.propagate = 0
             logger.setLevel(self.level)
-            for handler_factory in self.handler_factories:
-                handler =  handler_factory()
-                logger.addHandler(handler)
+            if self.handler_factories:
+                for handler_factory in self.handler_factories:
+                    handler =  handler_factory()
+                    logger.addHandler(handler)
+            else:
+                from zLOG.LogHandlers import NullHandler
+                logger.addHandler(NullHandler())
             self.resolved = logger
         return self.resolved
