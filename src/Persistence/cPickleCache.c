@@ -15,7 +15,7 @@
 static char cPickleCache_doc_string[] =
 "Defines the PickleCache used by ZODB Connection objects.\n"
 "\n"
-"$Id: cPickleCache.c,v 1.47 2002/04/02 14:35:36 gvanrossum Exp $\n";
+"$Id: cPickleCache.c,v 1.48 2002/04/02 19:47:19 jeremy Exp $\n";
 
 #define ASSIGN(V,E) {PyObject *__e; __e=(E); Py_XDECREF(V); (V)=__e;}
 #define UNLESS(E) if(!(E))
@@ -641,12 +641,13 @@ cc_subscript(ccobject *self, PyObject *key)
 {
   PyObject *r;
 
-  if(check_ring(self,"__getitem__")) return NULL;
+  if (check_ring(self, "__getitem__")) 
+      return NULL;
 
-  UNLESS (r=(PyObject *)object_from_oid(self, key))
-  {
-    PyErr_SetObject(PyExc_KeyError, key);
-    return NULL;
+  r = (PyObject *)object_from_oid(self, key);
+  if (r == NULL) {
+      PyErr_SetObject(PyExc_KeyError, key);
+      return NULL;
   }
 
   return r;
@@ -696,7 +697,7 @@ cc_add_item(ccobject *self, PyObject *key, PyObject *v)
 	if (object_again != v) {
 	    Py_DECREF(object_again);
 	    PyErr_SetString(PyExc_ValueError,
-			    "Can not re-register object under a different oid");
+		    "Can not re-register object under a different oid");
 	    return -1;
 	} else {
 	    /* re-register under the same oid - no work needed */
@@ -815,10 +816,10 @@ cc_ass_sub(ccobject *self, PyObject *key, PyObject *v)
 }
 
 static int 
-_check_ring(ccobject *self,const char *context)
+_check_ring(ccobject *self, const char *context)
 {
     CPersistentRing *here = &(self->ring_home);
-    int expected = 1+self->non_ghost_count;
+    int expected = 1 + self->non_ghost_count;
     int total = 0;
     do {
         if (++total > (expected + 10)) 
@@ -835,30 +836,27 @@ _check_ring(ccobject *self,const char *context)
 	    return 9;
         if (here->next->prev != here) 
 	    return 10;
-        if (!self->ring_lock)
-        {
+        if (!self->ring_lock) {
             /* if the ring must be locked then it only contains object other than persistent instances */
-            if (here!=&self->ring_home)
-            {
-                cPersistentObject *object = object_from_ring(self,here,context);
-                if (!object) return 12;
-                if (object->state==cPersistent_GHOST_STATE)
+            if (here != &self->ring_home) {
+                cPersistentObject *object = object_from_ring(self, here, 
+							     context);
+                if (!object) 
+		    return 12;
+                if (object->state == cPersistent_GHOST_STATE)
                     return 13;
             }
         }
         here = here->next;
-    }
-    while(here!=&self->ring_home);
+    } while (here != &self->ring_home);
 
-    if (self->ring_lock)
-    {
-        if (total<expected) return 6;       /* ring too small; too big is ok when locked */
+    if (self->ring_lock) {
+        if (total < expected) 
+	    return 6;       /* ring too small; too big is ok when locked */
+    } else {
+        if (total != expected) 
+	    return 14;     /* ring size wrong, or bad ghost accounting */
     }
-    else
-    {
-        if (total!=expected) return 14;     /* ring size wrong, or bad ghost accounting */
-    }
-
 
     return 0;
 }
@@ -889,21 +887,14 @@ static int
 present_in_ring(ccobject *self,CPersistentRing *target)
 {
     CPersistentRing *here = self->ring_home.next;
-    while(1)
-    {
-        if (here==target)
-        {
+    while (1) {
+        if (here == target) 
             return 1;
-        }
-        if (here==&self->ring_home)
-        {
-            /* back to the home position, and we didnt find it */
-            return 0;
-        }
+        if (here == &self->ring_home)
+            return 0; /* back to the home position, and we didnt find it */
         here = here->next;
     }
 }
-
 
 static PyMappingMethods cc_as_mapping = {
   (inquiry)cc_length,		/*mp_length*/
