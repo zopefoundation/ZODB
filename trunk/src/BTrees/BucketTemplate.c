@@ -12,7 +12,7 @@
 
  ****************************************************************************/
 
-#define BUCKETTEMPLATE_C "$Id: BucketTemplate.c,v 1.50 2003/04/07 21:43:14 jeremy Exp $\n"
+#define BUCKETTEMPLATE_C "$Id: BucketTemplate.c,v 1.51 2003/04/11 19:17:07 tim_one Exp $\n"
 
 /* Use BUCKET_SEARCH to find the index at which a key belongs.
  * INDEX    An int lvalue to hold the index i such that KEY belongs at
@@ -299,17 +299,25 @@ _bucket_set(Bucket *self, PyObject *keyarg, PyObject *v,
 {
     int i, cmp;
     KEY_TYPE key;
+    VALUE_TYPE value;
     int result = -1;    /* until proven innocent */
     int copied = 1;
 
     COPY_KEY_FROM_ARG(key, keyarg, copied);
     UNLESS(copied) return -1;
 
+    /* Copy the value early (if needed), so that in case of error a
+     * pile of bucket mutations don't need to be undone.
+     */
+    if (v && !noval) {
+    	COPY_VALUE_FROM_ARG(value, v, copied);
+    	UNLESS(copied) return -1;
+    }
+
     PER_USE_OR_RETURN(self, -1);
 
     BUCKET_SEARCH(i, cmp, self, key, goto Done);
     if (cmp == 0) {
-        VALUE_TYPE value;
         /* The key exists, at index i. */
 
         if (v) {
@@ -397,8 +405,7 @@ _bucket_set(Bucket *self, PyObject *keyarg, PyObject *v,
     INCREF_KEY(self->keys[i]);
 
     if (! noval) {
-        COPY_VALUE_FROM_ARG(self->values[i], v, copied);
-        UNLESS(copied) return -1;
+        COPY_VALUE(self->values[i], value);
         INCREF_VALUE(self->values[i]);
     }
 
