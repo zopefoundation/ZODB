@@ -86,7 +86,7 @@
 """Start the server storage.
 """
 
-__version__ = "$Revision: 1.7 $"[11:-2]
+__version__ = "$Revision: 1.8 $"[11:-2]
 
 import sys, os, getopt, string
 
@@ -104,9 +104,11 @@ def get_storage(m, n):
     d, m = os.path.split(m)
     if d: p=[d]+p
     import imp
+    if m[-3:]=='.py': m=m[:-3]
     im=imp.find_module(m,p)
     im=imp.load_module(m, im[0], im[1], im[2])
     return getattr(im, n)
+
 
 def main(argv):
     me=argv[0]
@@ -114,12 +116,16 @@ def main(argv):
     sys.path.insert(0, directory(me, 2))
 
     args=[]
+    last=''
     for a in argv[1:]:
-        if a[:1] != '-' and string.find(a, '=') > 0:
+        if (a[:1] != '-' and string.find(a, '=') > 0
+            and last != '-S' # lame, sorry
+            ):
             a=string.split(a,'=')
             os.environ[a[0]]=string.join(a[1:],'=')
             continue
         args.append(a)
+        last=a
 
     INSTANCE_HOME=os.environ.get('INSTANCE_HOME', directory(me, 4))
 
@@ -128,6 +134,8 @@ def main(argv):
                            )
 
     opts, args = getopt.getopt(args, 'p:Dh:U:sS:')
+
+    
     
     fs=os.path.join(INSTANCE_HOME, 'var', 'Data.fs')
 
@@ -145,10 +153,20 @@ def main(argv):
 
        -s -- Don't use zdeamon
 
-       -Sname=module -- A storage specification The name is the
-          storage name used in the ZEO protocol and the module is a
-          module that defines an attribute with the given name that
-          provides the storage.
+       -S storage_name=module_path:attr_name -- A storage specification
+
+          where:
+
+            storage_name -- is the storage name used in the ZEO protocol.
+               This is the name that you give as the optional
+               'storage' keyword argument to the ClientStorage constructor.
+
+            module_path -- This is the path to a Python module
+               that defines the storage object(s) to be served.
+               The module path should ommit the prefix (e.g. '.py').
+
+            attr_name -- This is the name to which the storage object
+              is assigned in the module.
 
     if no file name is specified, then %s is used.
     """ % (me, fs)
@@ -157,7 +175,6 @@ def main(argv):
     debug=0
     host=''
     unix=None
-    storages=None
     prefix=''
     Z=1
     for o, v in opts:
@@ -166,10 +183,6 @@ def main(argv):
         elif o=='-U': unix=v
         elif o=='-D': debug=1
         elif o=='-s': Z=0
-        elif o=='-S':
-            if storages is None: storages={}
-            n, m = string.split(v,'=')
-            storages[n]=get_storage(m,n)
 
     try:
         from ZServer.medusa import asyncore
@@ -198,11 +211,28 @@ def main(argv):
             import zdaemon
             zdaemon.run(sys.argv, '')
 
-    import ZEO.StorageServer, ZODB.FileStorage, asyncore, zLOG
+    import ZEO.StorageServer, asyncore, zLOG
 
-    if not storages: storages={'1': ZODB.FileStorage.FileStorage(fs)}
+    storages={}
+    for o, v in opts:
+        if o=='-S':
+            n, m = string.split(v,'=')
+            if string.find(m,':'):
+                # we got an attribute name
+                m, a = string.split(m,':')
+            else:
+                # attribute name must be same as storage name
+                a=n
+            storages[n]=get_storage(m,a)
 
-    zLOG.LOG('ZEO Server', zLOG.INFO, 'Serving %s' % storages)
+    if not storages:
+        import ZODB.FileStorage
+        storages['1']=ZODB.FileStorage.FileStorage(fs)
+
+    items=storages.items()
+    items.sort()
+    for kv in items:
+        zLOG.LOG('ZEO Server', zLOG.INFO, 'Serving %s:\t%s' % kv)
 
     if not unix: unix=host, port
 
