@@ -86,7 +86,7 @@
 static char TimeStamp_module_documentation[] = 
 "Defines 64-bit TimeStamp objects used as ZODB serial numbers.\n"
 "\n"
-"\n$Id: TimeStamp.c,v 1.7 2001/03/28 00:28:27 jeremy Exp $\n";
+"\n$Id: TimeStamp.c,v 1.8 2001/11/08 17:06:27 bwarsaw Exp $\n";
 
 #include <stdlib.h>
 #include <time.h>
@@ -485,7 +485,7 @@ void
 initTimeStamp(void)
 {
   PyObject *m, *d, *s;
-  char *rev="$Revision: 1.7 $";
+  char *rev="$Revision: 1.8 $";
 
   if (TimeStamp_init_gmoff() < 0) return;
   if (! ExtensionClassImported) return;
@@ -507,12 +507,14 @@ initTimeStamp(void)
   PyDict_SetItemString(d,"TimeStampType", OBJECT(&TimeStampType));
 
   s = PyString_FromString("TimeStamp.error");
-  if (s == NULL)
-      return;
   PyDict_SetItemString(d, "error", s);
-  Py_DECREF(s);
+  Py_XDECREF(s);
 
-  PyDict_SetItemString(d, "__version__",
-		       PyString_FromStringAndSize(rev + 11, 
-						  strlen(rev + 11) - 2));
+  s = PyString_FromStringAndSize(rev + 11, strlen(rev + 11) - 2);
+  PyDict_SetItemString(d, "__version__", s);
+  Py_XDECREF(s);
+
+  /* Check for errors */
+  if (PyErr_Occurred())
+    Py_FatalError("can't initialize module TimeStamp");
 }
