@@ -12,8 +12,8 @@
 ##############################################################################
 """Mounted database support
 
-$Id: Mount.py,v 1.11 2001/11/28 15:51:20 matt Exp $"""
-__version__='$Revision: 1.11 $'[11:-2]
+$Id: Mount.py,v 1.12 2001/12/04 23:04:14 shane Exp $"""
+__version__='$Revision: 1.12 $'[11:-2]
 
 import thread, Persistence, Acquisition
 import ExtensionClass, string, time, sys
@@ -268,13 +268,14 @@ class MountedConnectionCloser:
             self.mp = None
             # Detect whether we should close the database.
             close_db = self.close_db
-            t = mp._v_data
+            t = mp.__dict__.get('_v_data', None)
             if t is not None:
-                mp._v_data = None
+                del mp.__dict__['_v_data']
                 data = t[0]
-                if not close_db and getattr(data, '_v__object_deleted__', 0):
+                if not close_db and data.__dict__.get(
+                    '_v__object_deleted__', 0):
                     # This mount point has been deleted.
-                    del data._v__object_deleted__
+                    del data.__dict__['_v__object_deleted__']
                     close_db = 1
             # Close the child connection.
             try: del conn._mount_parent_jar
