@@ -359,3 +359,25 @@ only with great care:
        or implicitly) on an address-based comparison result will
        eventually cause serious failure.
 \end{enumerate}
+
+
+\subsubsection{BTree Diagnostic Tools}
+
+A BTree (or TreeSet) is a complex data structure, really a graph of
+variable-size nodes, connected in multiple ways via three distinct kinds
+of C pointers.  There are some tools available to help check internal
+consistency of a BTree as a whole.
+
+Most generally useful is the \module{BTrees.check} module.  The
+\function{check.check()} function examines a BTree (or Bucket, Set, or
+TreeSet) for value-based consistency, such as that the keys are in
+strictly increasing order.  See the function docstring for details.
+The \function{check.display()} function displays the internal structure
+of a BTree.
+
+BTrees and TreeSets also have a \method{_check()} method.  This verifies
+that the (possibly many) internal pointers in a BTree or TreeSet
+are mutually consistent, and raises \exception{AssertionError} if they're
+not.  If a \method{_check()} method call fails, in may point to a bug
+in the implementation of BTrees or conflict resolution, or may point to
+database corruption.
