@@ -192,48 +192,54 @@ BTree nodes.)
 
 When searching for a key k, then, the child pointer we want to follow
 is the one at index i such that K(i) <= k < K(i+1).  There can be
-only one such i, since the keys are strictly increasing.  And there is
-at *least* one such i provided the tree isn't empty.  For the moment,
-assume the tree isn't empty (we'll get back to that later).
+at most one such i, since the K(i) are strictly increasing.  And there
+is at least one such i provided the tree isn't empty (so that 0 < len).
+For the moment, assume the tree isn't empty (we'll get back to that
+later).
 
 The macro's chief loop invariant is
 
     K(lo) < k < K(hi)
 
-This holds trivially at the start, since lo is set to 0 ahd hi to
+This holds trivially at the start, since lo is set to 0, and hi to
 x->len, and we pretend K(0) is minus infinity and K(len) is plus
 infinity.  Inside the loop, if K(i) < k we set lo to i, and if
 K(i) > k we set hi to i.  These obviously preserve the invariant.
 If K(i) == k, the loop breaks and sets the result to i, and since
 K(i) == k in that case i is obviously the correct result.
 
-What if the key isn't present?  lo and hi move toward each other,
-narrowing the range, until eventually lo+1 == hi.  At that point,
-i = (lo+hi)/2 = (lo+lo+1)/2 = lo + 1/2 = lo, so that:
+Other cases depend on how i = floor((lo + hi)/2) works, exactly.
+Suppose lo + d = hi for some d >= 0.  Then i = floor((lo + lo + d)/2) =
+floor(lo + d/2) = lo + floor(d/2).  So:
 
-1. The loop's "i > lo" test is false, so the loop ends then.
+a. [d == 0] (lo == i == hi) if and only if (lo   == hi).
+b. [d == 1] (lo == i  < hi) if and only if (lo+1 == hi).
+c. [d  > 1] (lo  < i  < hi) if and only if (lo+1  < hi).
 
-and
+If the node is empty (x->len == 0), then lo==i==hi==0 at the start,
+and the loop exits immediately (the first "i > lo" test fails),
+without entering the body.
 
-2. The invariant still holds, so K(i) < k < K(i+1), and i is again
-   the correct answer.
+Else lo < hi at the start, and the invariant K(lo) < k < K(hi) holds.
 
-Can we get out of the loop too early?  No:  if hi = lo + d for some d
-greater than 1, then i = (lo+lo+d)/2 = lo + d/2, and d/2 is at least 1
-since d is at least 2:  i is strictly greater than lo then, and the
-loop continues.
+If lo+1 < hi, we're in case #c:  i is strictly between lo and hi,
+so the loop body is entered, and regardless of whether the body sets
+the new lo or the new hi to i, the new lo is strictly less than the
+new hi, and the difference between the new lo and new hi is strictly
+less than the difference between the old lo and old hi.  So long as
+the new lo + 1 remains < the new hi, we stay in this case.  We can't
+stay in this case forever, though:  because hi-lo decreases on each
+trip but remains > 0, lo+1 == hi must eventually become true.  (In
+fact, it becomes true quickly, in about log2(x->len) trips; the
+point is more that lo doesn't equal hi when the loop ends, it has to
+end with lo+1==hi and i==lo).
 
-Can lo==hi?  Yes, but only if the node is empty.  Then i, lo and hi
-all start out as 0, and the loop exits immediately.  If the loop
-isn't empty, then lo and hi start out with different values.  Whenever
-lo and hi have different values, lo <= (lo + hi)/2 < hi, so i and lo
-are strictly smaller than hi, so setting either lo or hi to i leaves
-the new lo strictly smaller than the new hi.
+Then we're in case #b:  i==lo==hi-1 then, and the loop exits.  The
+invariant still holds, with lo==i and hi==lo+1==i+1:
 
-Can the loop fail to terminate?  No:  by the above, when lo < hi-1,
-lo < i=(lo+hi)/2 < hi, so setting either lo or hi to i leaves the
-new lo and hi strictly closer to each other than were the old lo and
-hi.
+    K(i) < k < K(i+1)
+
+so i is again the correct answer.
 
 Optimization points:
 
