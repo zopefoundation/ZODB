@@ -80,7 +80,7 @@ class StartTests(unittest.TestCase):
         # database may still be locked when the next test starts.
         i = 100
         while 1:
-            if self.getpids():
+            if not self.getpids():
                 break
             time.sleep(0.1)
             i -= 1
