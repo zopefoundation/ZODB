@@ -100,7 +100,7 @@ class StorageServer:
             except:
                 pass
 
-    def close(self, conn):
+    def close_conn(self, conn):
         for sid, cl in self.connections.items():
             if conn.obj in cl:
                 cl.remove(conn.obj)

@@ -394,7 +394,7 @@ class ManagedServerConnection(ServerConnection):
     def close(self):
         self.obj.notifyDisconnected()
         self.__super_close()
-        self.__mgr.close(self)
+        self.__mgr.close_conn(self)
 
 class ManagedConnection(Connection):
     """A connection that notifies its ConnectionManager of closing.
