@@ -152,7 +152,7 @@
   <sectiontype name="zodb" datatype=".ZODBDatabase"
                implements="ZODB.database">
     <section type="ZODB.storage" name="*" attribute="storage"/>
-    <key name="cache-size" datatype="byte-size" default="5000"/>
+    <key name="cache-size" datatype="integer" default="5000"/>
     <key name="pool-size" datatype="integer" default="7"/>
     <key name="version-pool-size" datatype="integer" default="3"/>
     <key name="version-cache-size" datatype="integer" default="100"/>
