@@ -83,7 +83,7 @@
 # 
 ##############################################################################
 
-__version__ = "$Revision: 1.24 $"[11:-2]
+__version__ = "$Revision: 1.25 $"[11:-2]
 
 import asyncore, socket, string, sys, os
 from smac import SizedMessageAsyncConnection
@@ -142,6 +142,7 @@ class StorageServer(asyncore.dispatcher):
     def register_connection(self, connection, storage_id):
         storage=self.__storages.get(storage_id, None)
         if storage is None:
+            LOG('ZEO Server', ERROR, "Unknown storage_id: %s" % storage_id)
             connection.close()
             return None, None
         
