@@ -115,7 +115,7 @@
 #   may have a back pointer to a version record or to a non-version
 #   record.
 #
-__version__='$Revision: 1.132 $'[11:-2]
+__version__='$Revision: 1.133 $'[11:-2]
 
 import base64
 from cPickle import Pickler, Unpickler, loads
@@ -595,6 +595,8 @@ class FileStorage(BaseStorage.BaseStorage,
             pos=_index[oid]
         except KeyError:
             raise POSKeyError(oid)
+        except TypeError:
+            raise TypeError, 'invalid oid %r' % (oid,)
         file.seek(pos)
         read=file.read
         h=read(DATA_HDR_LEN)
@@ -616,6 +618,8 @@ class FileStorage(BaseStorage.BaseStorage,
             pos = _index[oid]
         except KeyError:
             raise POSKeyError(oid)
+        except TypeError:
+            raise TypeError, 'invalid oid %r' % (oid,)
         file.seek(pos)
         read = file.read
         h = read(DATA_HDR_LEN)
@@ -655,6 +659,8 @@ class FileStorage(BaseStorage.BaseStorage,
                 pos = self._index[oid]
             except KeyError:
                 raise POSKeyError(oid)
+            except TypeError:
+                raise TypeError, 'invalid oid %r' % (oid,)
             while 1:
                 seek(pos)
                 h=read(DATA_HDR_LEN)
@@ -686,6 +692,8 @@ class FileStorage(BaseStorage.BaseStorage,
                 pos = self._index[oid]
             except KeyError:
                 raise POSKeyError(oid)
+            except TypeError:
+                raise TypeError, 'invalid oid %r' % (oid,)
             file=self._file
             file.seek(pos)
             doid,serial,prev,tloc,vlen = unpack(">8s8s8s8sH", file.read(34))
@@ -1082,7 +1090,12 @@ class FileStorage(BaseStorage.BaseStorage,
     def getSerial(self, oid):
         self._lock_acquire()
         try:
-            return self._getSerial(oid, self._index[oid])
+            try:
+                return self._getSerial(oid, self._index[oid])
+            except KeyError:
+                raise POSKeyError(oid)
+            except TypeError:
+                raise TypeError, 'invalid oid %r' % (oid,)
         finally:
             self._lock_release()
 
@@ -1370,7 +1383,12 @@ class FileStorage(BaseStorage.BaseStorage,
             file=self._file
             seek=file.seek
             read=file.read
-            pos=self._index[oid]
+            try:
+                pos=self._index[oid]
+            except KeyError:
+                raise POSKeyError(oid)
+            except TypeError:
+                raise TypeError, 'invalid oid %r' % (oid,)
             wantver=version
 
             while 1:
@@ -1503,6 +1521,8 @@ class FileStorage(BaseStorage.BaseStorage,
             pos = self._index[oid]
         except KeyError:
             return None
+        except TypeError:
+            raise TypeError, 'invalid oid %r' % (oid,)
         self._file.seek(pos)
         # first 8 bytes are oid, second 8 bytes are serialno
         h = self._file.read(16)
