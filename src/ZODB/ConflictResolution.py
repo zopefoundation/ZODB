@@ -38,10 +38,8 @@ def state(self, oid, serial, prfactory, p=''):
     file = StringIO(p)
     unpickler = Unpickler(file)
     unpickler.persistent_load = prfactory.persistent_load
-    class_tuple = unpickler.load()
-    state = unpickler.load()
-    return state
-
+    unpickler.load() # skip the class tuple
+    return unpickler.load()
 
 class PersistentReference:
 
