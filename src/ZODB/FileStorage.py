@@ -184,7 +184,7 @@
 #   may have a back pointer to a version record or to a non-version
 #   record.
 #
-__version__='$Revision: 1.35 $'[11:-2]
+__version__='$Revision: 1.36 $'[11:-2]
 
 import struct, time, os, bpthread, string, base64, sys
 from struct import pack, unpack
@@ -630,7 +630,7 @@ class FileStorage(BaseStorage.BaseStorage):
             write=tfile.write
             pos=self._pos
             here=tfile.tell()+pos+self._thl
-            self._tappend(oid, here)
+            self._tappend((oid, here))
             serial=self._serial
             write(pack(">8s8s8s8sH8s",
                        oid,serial,p64(old),p64(pos),
