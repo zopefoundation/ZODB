@@ -2,17 +2,17 @@
 
   Copyright (c) 2001, 2002 Zope Corporation and Contributors.
   All Rights Reserved.
-  
+
   This software is subject to the provisions of the Zope Public License,
   Version 2.0 (ZPL).  A copy of the ZPL should accompany this distribution.
   THIS SOFTWARE IS PROVIDED "AS IS" AND ANY AND ALL EXPRESS OR IMPLIED
   WARRANTIES ARE DISCLAIMED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
   WARRANTIES OF TITLE, MERCHANTABILITY, AGAINST INFRINGEMENT, AND FITNESS
   FOR A PARTICULAR PURPOSE
-  
+
  ****************************************************************************/
 
-#define BUCKETTEMPLATE_C "$Id: BucketTemplate.c,v 1.33 2002/06/06 19:30:21 jeremy Exp $\n"
+#define BUCKETTEMPLATE_C "$Id: BucketTemplate.c,v 1.34 2002/06/08 15:57:48 tim_one Exp $\n"
 
 /*
 ** _bucket_get
@@ -33,7 +33,7 @@ _bucket_get(Bucket *self, PyObject *keyarg, int has_key)
   int min, max, i, l, cmp, copied=1;
   PyObject *r;
   KEY_TYPE key;
-  
+
   COPY_KEY_FROM_ARG(key, keyarg, copied);
   UNLESS (copied) return NULL;
 
@@ -92,7 +92,7 @@ bucket_getitem(Bucket *self, PyObject *key)
 ** Returns:     -1      on error, and MemoryError exception is set
 **               0      on success
 */
-static int 
+static int
 Bucket_grow(Bucket *self, int newsize, int noval)
 {
   KEY_TYPE *keys;
@@ -133,7 +133,7 @@ Bucket_grow(Bucket *self, int newsize, int noval)
 
 Overflow:
   PyErr_NoMemory();
-  return -1;  
+  return -1;
 }
 
 /*
@@ -151,12 +151,12 @@ Overflow:
 **		 1	on success with a new value (growth)
 */
 static int
-_bucket_set(Bucket *self, PyObject *keyarg, PyObject *v, 
+_bucket_set(Bucket *self, PyObject *keyarg, PyObject *v,
             int unique, int noval, int *changed)
 {
   int min, max, i, l, cmp, copied=1;
   KEY_TYPE key;
-  
+
   COPY_KEY_FROM_ARG(key, keyarg, copied);
   UNLESS(copied) return -1;
 
@@ -200,19 +200,19 @@ _bucket_set(Bucket *self, PyObject *keyarg, PyObject *v,
 	      self->len--;
 
 	      DECREF_KEY(self->keys[i]);
-	      if (i < self->len)	
+	      if (i < self->len)
                 memmove(self->keys+i, self->keys+i+1,
                         sizeof(KEY_TYPE)*(self->len-i));
 
               if (self->values && ! noval)
                 {
                   DECREF_VALUE(self->values[i]);
-                  if (i < self->len)	
+                  if (i < self->len)
                     memmove(self->values+i, self->values+i+1,
                             sizeof(VALUE_TYPE)*(self->len-i));
 
                 }
-	      
+
               if (! self->len)
 		{
 		  self->size=0;
@@ -317,7 +317,7 @@ Mapping_update(PyObject *self, PyObject *args)
       Py_INCREF(Py_None);
       return Py_None;
     }
-    
+
   if (!PySequence_Check(seq))
     {
       items = PyObject_GetAttr(seq, items_str);
@@ -422,7 +422,7 @@ Bucket_nextBucket(Bucket *self, Bucket **r)
   return 0;
 }
 
-static int 
+static int
 Bucket_deleteNextBucket(Bucket *self)
 {
   PER_USE_OR_RETURN(self, -1);
@@ -442,14 +442,14 @@ Bucket_deleteNextBucket(Bucket *self)
   return -1;
 }
 /*
- Bucket_findRangeEnd -- Find the index of a range endpoint 
+ Bucket_findRangeEnd -- Find the index of a range endpoint
  (possibly) contained in a bucket.
 
  Arguments:	self		The bucket
 		key		the key to match against
 		low             end flag
                 offset          The output offset
-	
+
 
  If low, return bucket and index of the smallest item >= key,
  otherwise return bucket and index of the largest item <= key.
@@ -467,7 +467,7 @@ Bucket_findRangeEnd(Bucket *self, PyObject *keyarg, int low, int *offset)
 
   PER_USE_OR_RETURN(self, -1);
 
-  for (min=0, max=self->len, i=max/2, l=max; i != l; l=i, i=(min+max)/2) 
+  for (min=0, max=self->len, i=max/2, l=max; i != l; l=i, i=(min+max)/2)
     {
       TEST_KEY_SET_OR(cmp, self->keys[i], key) goto err;
       if (cmp < 0)
@@ -478,7 +478,7 @@ Bucket_findRangeEnd(Bucket *self, PyObject *keyarg, int low, int *offset)
           PER_ACCESSED(self);
           *offset=i;
           return 1;
-        } 
+        }
       else
         max=i;
   }
@@ -486,10 +486,10 @@ Bucket_findRangeEnd(Bucket *self, PyObject *keyarg, int low, int *offset)
   /* OK, no matches, pick max or min, depending on whether
      we want an upper or low end.
   */
-  if (low) 
+  if (low)
     {
       if (max == self->len) i=0;
-      else 
+      else
         {
           i=1;
           *offset=max;
@@ -498,7 +498,7 @@ Bucket_findRangeEnd(Bucket *self, PyObject *keyarg, int low, int *offset)
   else
     {
       if (max == 0) i=0;
-      else 
+      else
         {
           i=1;
           *offset=min;
@@ -520,15 +520,15 @@ Bucket_maxminKey(Bucket *self, PyObject *args, int min)
 {
   PyObject *key=0;
   int rc, offset;
-  
+
   if (args && ! PyArg_ParseTuple(args, "|O", &key)) return NULL;
-    
+
   PER_USE_OR_RETURN(self, NULL);
 
   UNLESS (self->len) goto empty;
-  
-  /* Find the low range */  
-  if (key) 
+
+  /* Find the low range */
+  if (key)
     {
       if ((rc = Bucket_findRangeEnd(self, key, min, &offset)) <= 0)
         {
@@ -544,7 +544,7 @@ Bucket_maxminKey(Bucket *self, PyObject *args, int min)
   PER_ACCESSED(self);
 
   return key;
-  
+
  empty:
   PyErr_SetString(PyExc_ValueError, "empty bucket");
   PER_ALLOW_DEACTIVATION(self);
@@ -564,35 +564,35 @@ Bucket_maxKey(Bucket *self, PyObject *args)
   return Bucket_maxminKey(self, args, 0);
 }
 
-static int 
+static int
 Bucket_rangeSearch(Bucket *self, PyObject *args, int *low, int *high)
 {
   PyObject *f=0, *l=0;
   int rc;
-  
+
   if (args && ! PyArg_ParseTuple(args,"|OO",&f, &l)) return -1;
-    
+
   UNLESS (self->len) goto empty;
-  
-  /* Find the low range */  
-  if (f && f != Py_None) 
+
+  /* Find the low range */
+  if (f && f != Py_None)
     {
       UNLESS (rc = Bucket_findRangeEnd(self, f, 1, low))
         {
           if (rc < 0) return -1;
           goto empty;
         }
-    } 
+    }
   else *low = 0;
-  
+
   /* Find the high range */
-  if (l && l != Py_None) 
+  if (l && l != Py_None)
     {
       UNLESS (rc = Bucket_findRangeEnd(self, l, 0, high))
         {
           if (rc < 0) return -1;
           goto empty;
-        } 
+        }
     }
   else *high=self->len - 1;
 
@@ -613,13 +613,13 @@ Bucket_rangeSearch(Bucket *self, PyObject *args, int *low, int *high)
 **		args	(unused)
 **
 ** Returns:	list of bucket keys
-*/  
+*/
 static PyObject *
 bucket_keys(Bucket *self, PyObject *args)
 {
   PyObject *r=0, *key;
   int i, low, high;
-  
+
   PER_USE_OR_RETURN(self, NULL);
 
   if (Bucket_rangeSearch(self, args, &low, &high) < 0) goto err;
@@ -690,7 +690,7 @@ bucket_values(Bucket *self, PyObject *args)
 **
 ** Arguments:	self	The Bucket
 **		args	(unused)
-**		
+**
 ** Returns:	list of all items in the bucket
 */
 static PyObject *
@@ -716,7 +716,7 @@ bucket_items(Bucket *self, PyObject *args)
       COPY_VALUE_TO_OBJECT(o, self->values[i]);
       UNLESS (o) goto err;
       PyTuple_SET_ITEM(item, 1, o);
-      
+
       if (PyList_SetItem(r, i-low, item) < 0) goto err;
 
       item = 0;
@@ -748,16 +748,16 @@ bucket_byValue(Bucket *self, PyObject *args)
   COPY_VALUE_FROM_ARG(min, omin, copied);
   UNLESS(copied) return NULL;
 
-  for (i=0, l=0; i < self->len; i++) 
-    if (TEST_VALUE(self->values[i], min) >= 0) 
+  for (i=0, l=0; i < self->len; i++)
+    if (TEST_VALUE(self->values[i], min) >= 0)
       l++;
-    
+
   UNLESS (r=PyList_New(l)) goto err;
 
   for (i=0, l=0; i < self->len; i++)
     {
       if (TEST_VALUE(self->values[i], min) < 0) continue;
-      
+
       UNLESS (item = PyTuple_New(2)) goto err;
 
       COPY_KEY_TO_OBJECT(o, self->keys[i]);
@@ -770,7 +770,7 @@ bucket_byValue(Bucket *self, PyObject *args)
       DECREF_VALUE(v);
       UNLESS (o) goto err;
       PyTuple_SET_ITEM(item, 0, o);
-      
+
       if (PyList_SetItem(r, l, item) < 0) goto err;
       l++;
 
@@ -804,7 +804,7 @@ _bucket_clear(Bucket *self)
 {
   int i;
 
-  if (self->next) 
+  if (self->next)
     {
       Py_DECREF(self->next);
       self->next=0;
@@ -813,13 +813,13 @@ _bucket_clear(Bucket *self)
   for (i=self->len; --i >= 0; )
     {
       DECREF_KEY(self->keys[i]);
-      if (self->values) 
+      if (self->values)
         {
           DECREF_VALUE(self->values[i]);
         }
     }
   self->len=0;
-  if (self->values) 
+  if (self->values)
     {
       free(self->values);
       self->values=0;
@@ -861,7 +861,7 @@ bucket_clear(Bucket *self, PyObject *args)
     }
   PER_ALLOW_DEACTIVATION(self);
   PER_ACCESSED(self);
-  Py_INCREF(Py_None); 
+  Py_INCREF(Py_None);
   return Py_None;
 
 err:
@@ -891,7 +891,7 @@ bucket_getstate(Bucket *self, PyObject *args)
           UNLESS (o) goto err;
           PyTuple_SET_ITEM(items, l, o);
           l++;
-          
+
           COPY_VALUE_TO_OBJECT(o, self->values[i]);
           UNLESS (o) goto err;
           PyTuple_SET_ITEM(items, l, o);
@@ -909,11 +909,11 @@ bucket_getstate(Bucket *self, PyObject *args)
         }
     }
 
-  if (self->next) 
+  if (self->next)
     ASSIGN(items, Py_BuildValue("OO", items, self->next));
   else
     ASSIGN(items, Py_BuildValue("(O)", items));
-  
+
   PER_ALLOW_DEACTIVATION(self);
   PER_ACCESSED(self);
 
@@ -953,10 +953,10 @@ _bucket_setstate(Bucket *self, PyObject *args)
       Py_DECREF(self->next);
       self->next=0;
     }
-  
+
   if (len > self->size)
     {
-      UNLESS (keys=PyRealloc(self->keys, sizeof(KEY_TYPE)*len)) 
+      UNLESS (keys=PyRealloc(self->keys, sizeof(KEY_TYPE)*len))
         return -1;
       UNLESS (values=PyRealloc(self->values, sizeof(VALUE_TYPE)*len))
         return -1;
@@ -964,7 +964,7 @@ _bucket_setstate(Bucket *self, PyObject *args)
       self->values=values;
       self->size=len;
     }
-  
+
   for (i=0, l=0; i<len; i++)
     {
       k=PyTuple_GET_ITEM(items, l);
@@ -1001,7 +1001,7 @@ bucket_setstate(Bucket *self, PyObject *args)
 
   UNLESS (PyArg_ParseTuple(args, "O", &args)) return NULL;
 
-  PER_PREVENT_DEACTIVATION(self); 
+  PER_PREVENT_DEACTIVATION(self);
   r=_bucket_setstate(self, args);
   PER_ALLOW_DEACTIVATION(self);
   PER_ACCESSED(self);
@@ -1051,7 +1051,7 @@ _bucket__p_resolveConflict(PyObject *ob_type, PyObject *s[3])
   PyObject *r=0, *a;
   Bucket *b[3];
   int i;
-  
+
   for (i=0; i < 3; i++)
     {
       if ((b[i]=(Bucket*)PyObject_CallObject(OBJECT(ob_type), NULL)))
@@ -1197,7 +1197,7 @@ bucket_repr(Bucket *self)
   static PyObject *format;
   PyObject *r, *t;
 
-  UNLESS (format) UNLESS (format=PyString_FromString(MOD_NAME_PREFIX "Bucket(%s)")) 
+  UNLESS (format) UNLESS (format=PyString_FromString(MOD_NAME_PREFIX "Bucket(%s)"))
     return NULL;
   UNLESS (t=PyTuple_New(1)) return NULL;
   UNLESS (r=bucket_items(self,NULL)) goto err;
@@ -1231,26 +1231,26 @@ static PyExtensionClass BucketType = {
   (reprfunc)0,			/*tp_str*/
   (getattrofunc)0,		/*tp_getattro*/
   0,				/*tp_setattro*/
-  
+
   /* Space for future expansion */
   0L,0L,
-  "Mapping type implemented as sorted list of items", 
+  "Mapping type implemented as sorted list of items",
   METHOD_CHAIN(Bucket_methods),
   EXTENSIONCLASS_BASICNEW_FLAG
 #ifdef PERSISTENT
-  | PERSISTENT_TYPE_FLAG 
+  | PERSISTENT_TYPE_FLAG
 #endif
   | EXTENSIONCLASS_NOINSTDICT_FLAG,
 };
 
 
-static int 
+static int
 nextBucket(SetIteration *i)
 {
   if (i->position >= 0)
     {
       UNLESS(PER_USE(BUCKET(i->set))) return -1;
-          
+
       if (i->position)
         {
           DECREF_KEY(i->key);
@@ -1274,6 +1274,6 @@ nextBucket(SetIteration *i)
       PER_ALLOW_DEACTIVATION(BUCKET(i->set));
     }
 
-          
+
   return 0;
 }
