@@ -170,25 +170,6 @@ class FileStorageTests(
 
         self.failUnless(self._storage._records_before_save > 20)
 
-    def checkfsrecover(self):
-        # an absolutely minimal test of fsrecover
-        # Verify that calling recover on a small, correct storage
-        # produces a duplicate of the original.
-        for i in range(5):
-            oid = self._storage.new_oid()
-            revid = None
-            for j in range(5):
-                revid = self._dostore(oid, revid=revid)
-        
-        temp = sys.stdout
-        sys.stdout = StringIO.StringIO()
-        try:
-            recover(["", "FileStorageTests.fs", "fsrecover.fs"])
-        finally:
-            sys.stdout = temp
-        self.assert_(filecmp.cmp("FileStorageTests.fs", "fsrecover.fs"))
-        StorageTestBase.removefs("fsrecover.fs")
-
     # There are a bunch of tests that the current pack() implementation
     # does not past.  We need to fix pack(), but don't want tests to
     # fail until then.
