@@ -115,7 +115,7 @@
 #   may have a back pointer to a version record or to a non-version
 #   record.
 #
-__version__='$Revision: 1.91 $'[11:-2]
+__version__='$Revision: 1.92 $'[11:-2]
 
 import struct, time, os, string, base64, sys
 from struct import pack, unpack
@@ -1084,7 +1084,9 @@ class FileStorage(BaseStorage.BaseStorage,
                 tid, tl, status, ul, dl, el = struct.unpack(">8s8scHHH", h)
                 if tid < self._packt:
                     break
-                if status != ' ':
+                if status == 'p':
+                    break
+                elif status != ' ':
                     continue
                 d = u = ''
                 if ul:
