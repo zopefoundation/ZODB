@@ -20,10 +20,8 @@ import sys
 import threading
 import warnings
 from time import time
-from utils import u64
 
 from persistent import PickleCache
-from persistent.interfaces import IPersistent
 
 import transaction
 
@@ -33,7 +31,7 @@ from ZODB.POSException \
      import ConflictError, ReadConflictError, InvalidObjectReference, \
             ConnectionStateError
 from ZODB.TmpStore import TmpStore
-from ZODB.utils import oid_repr, z64, positive_id
+from ZODB.utils import u64, oid_repr, z64, positive_id
 from ZODB.serialize import ObjectWriter, ConnectionObjectReader, myhasattr
 from ZODB.interfaces import IConnection
 from zope.interface import implements

@@ -15,9 +15,7 @@
 
 $Id$"""
 
-import string
 import time
-import sys
 import thread
 import logging
 import persistent
@@ -187,7 +185,7 @@ class MountPoint(persistent.Persistent, Acquisition.Implicit):
             if newMount:
                 try: id = data.getId()
                 except: id = '???'  # data has no getId() method.  Bad.
-                p = string.join(parent.getPhysicalPath() + (id,), '/')
+                p = '/'.join(parent.getPhysicalPath() + (id,))
                 logger.info('Mounted database %s at %s',
                             self._getMountParams(), p)
         else:
