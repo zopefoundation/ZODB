@@ -26,6 +26,9 @@ class IteratorCompare:
                 val = val + 1
         eq(val, val0 + len(revids))
 
+# XXX need a test case that covers iteration over a storage that
+# includes a transactional undo that un-created an object.
+
 class IteratorStorage(IteratorCompare):
 
     def checkSimpleIteration(self):
