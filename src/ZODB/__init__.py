@@ -12,7 +12,7 @@
 #
 ##############################################################################
 
-__version__ = '3.1b2'
+__version__ = '3.1+'
 
 import sys
 import cPersistence, Persistence

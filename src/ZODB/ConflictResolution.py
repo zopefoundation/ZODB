@@ -116,6 +116,15 @@ def tryToResolveConflict(self, oid, committedSerial, oldSerial, newpickle,
         return file.getvalue(1)
     except ConflictError:
         return 0
+    except:
+        # If anything else went wrong, catch it here and avoid passing an
+        # arbitrary exception back to the client.  The error here will mask
+        # the original ConflictError.  A client can recover from a
+        # ConflictError, but not necessarily from other errors.  But log
+        # the error so that any problems can be fixed.
+        zLOG.LOG("Conflict Resolution", zLOG.ERROR,
+                 "Unexpected error", error=sys.exc_info())
+        return 0
 
 class ConflictResolvingStorage:
     "Mix-in class that provides conflict resolution handling for storages"
