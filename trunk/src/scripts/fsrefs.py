@@ -29,6 +29,7 @@ from ZODB.fsdump import get_pickle_metadata
 
 import cPickle
 import cStringIO
+import traceback
 import types
 
 def get_refs(pickle):
@@ -49,24 +50,38 @@ def report(oid, data, serial, fs, missing):
     ts = TimeStamp(serial)
     print "oid %s %s.%s" % (hex(u64(oid)), from_mod, from_class)
     print "last updated: %s, tid=%s" % (ts, hex(u64(serial)))
-    print "refers to unknown object%s:" % plural
-    for oid, info in missing:
+    print "refers to invalid object%s:" % plural
+    for oid, info, reason in missing:
         if isinstance(info, types.TupleType):
             description = "%s.%s" % info
         else:
             description = str(info)
-        print "\toid %s: %s" % (hex(u64(oid)), description)
+        print "\toid %s %s: %s" % (hex(u64(oid)), reason, description)
     print
 
 def main(path):
     fs = FileStorage(path, read_only=1)
+    noload = {}
     for oid in fs._index.keys():
-        data, serial = fs.load(oid, "")
+        try:
+            data, serial = fs.load(oid, "")
+        except:
+            print "oid %s failed to load" % hex(u64(oid))
+            traceback.print_exc()
+            noload[oid] = 1
+
+            # XXX If we get here after we've already loaded objects
+            # that refer to this one, we won't get error reports from
+            # them.  We could fix this by making two passes over the
+            # storage, but that seems like overkill.
+            
         refs = get_refs(data)
-        missing = []
+        missing = [] # contains 3-tuples of oid, klass-metadata, reason 
         for ref, klass in refs:
             if not fs._index.has_key(ref):
-                missing.append((ref, klass))
+                missing.append((ref, klass, "missing"))
+            if noload.has_key(ref):
+                missing.append((ref, klass, "failed to load"))
         if missing:
             report(oid, data, serial, fs, missing)
 
