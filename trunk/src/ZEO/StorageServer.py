@@ -83,7 +83,7 @@
 # 
 ##############################################################################
 
-__version__ = "$Revision: 1.31 $"[11:-2]
+__version__ = "$Revision: 1.32 $"[11:-2]
 
 import asyncore, socket, string, sys, os
 from smac import SizedMessageAsyncConnection
@@ -247,7 +247,6 @@ class ZEOConnection(SizedMessageAsyncConnection):
         self.__server=server
         self.__invalidated=[]
         self.__closed=None
-        self._pack_trigger = trigger.trigger()
         if __debug__: debug='ZEO Server'
         else: debug=0
         SizedMessageAsyncConnection.__init__(self, sock, addr, debug=debug)
