@@ -84,7 +84,7 @@
 ##############################################################################
 """Handy standard storage machinery
 """
-__version__='$Revision: 1.3 $'[11:-2]
+__version__='$Revision: 1.4 $'[11:-2]
 
 import time, bpthread
 from POSException import UndoError
@@ -195,12 +195,12 @@ class BaseStorage:
 
             u,d,e=self._ude
             self._finish(self._serial, u, d, e)
-
             self._clear_temp()
+        finally:
             self._ude=None
             self._transaction=None
             self._commit_lock_release()
-        finally: self._lock_release()
+            self._lock_release()
 
     def _finish(self, tid, u, d, e):
         pass
