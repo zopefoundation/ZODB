@@ -84,8 +84,8 @@
 ##############################################################################
 """Transaction management
 
-$Id: Transaction.py,v 1.10 1999/06/29 19:28:10 jim Exp $"""
-__version__='$Revision: 1.10 $'[11:-2]
+$Id: Transaction.py,v 1.11 1999/07/07 19:57:03 jim Exp $"""
+__version__='$Revision: 1.11 $'[11:-2]
 
 import time, sys, struct
 from struct import pack
@@ -210,7 +210,10 @@ class Transaction:
                     if not jars.has_key(i):
                         jars[i]=j
                         if subtransaction: subj[i]=j
-                        j.tpc_begin(self, subtransaction)
+                        if subtransaction:
+                            j.tpc_begin(self, subtransaction)
+                        else:
+                            j.tpc_begin(self)
                     j.commit(o,self)
                     del objects[-1]
 
