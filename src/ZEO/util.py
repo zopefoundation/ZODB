@@ -26,6 +26,12 @@ def parentdir(p, n=1):
     return d
 
 class Environment:
+    """Determine location of the Data.fs & ZEO_SERVER.pid files.
+
+    Pass the argv[0] used to start ZEO to the constructor.
+
+    Use the zeo_pid and fs attributes to get the filenames.
+    """
 
     def __init__(self, argv0):
         v = os.environ.get("INSTANCE_HOME")
@@ -45,6 +51,6 @@ class Environment:
         pid = os.environ.get("ZEO_SERVER_PID")
         if pid is None:
             pid = os.path.join(self.var, "ZEO_SERVER.pid")
-        self.zeo_pid = pid
 
+        self.zeo_pid = pid
         self.fs = os.path.join(self.var, "Data.fs")
