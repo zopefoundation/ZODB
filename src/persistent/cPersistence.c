@@ -1,6 +1,6 @@
 /*
 
-  $Id: cPersistence.c,v 1.4 1997/03/14 22:51:40 jim Exp $
+  $Id: cPersistence.c,v 1.5 1997/03/14 22:59:34 jim Exp $
 
   C Persistence Module
 
@@ -56,7 +56,7 @@
 
 
 *****************************************************************************/
-static char *what_string = "$Id: cPersistence.c,v 1.4 1997/03/14 22:51:40 jim Exp $";
+static char *what_string = "$Id: cPersistence.c,v 1.5 1997/03/14 22:59:34 jim Exp $";
 
 #include <time.h>
 #include "cPersistence.h"
@@ -705,20 +705,22 @@ static struct PyMethodDef cP_methods[] = {
 
 /* Initialization function for the module (*must* be called initcPersistence) */
 
+typedef int (*intfunctionwithpythonarg)(PyObject*);
+
 static cPersistenceCAPIstruct
 truecPersistenceCAPI = {
   &(Pertype.methods),
   (getattrofunc)Per_getattro,	/*tp_getattr with object key*/
   (setattrofunc)Per_setattro,	/*tp_setattr with object key*/
   changed,
-  Per_setstate,
+  (intfunctionwithpythonarg)Per_setstate,
 };
 
 void
 initcPersistence()
 {
   PyObject *m, *d;
-  char *rev="$Revision: 1.4 $";
+  char *rev="$Revision: 1.5 $";
 
   PATimeType.ob_type=&PyType_Type;
 
@@ -745,6 +747,10 @@ initcPersistence()
 /****************************************************************************
 
   $Log: cPersistence.c,v $
+  Revision 1.5  1997/03/14 22:59:34  jim
+  Changed the way Per_setstate was exported to get rid of compilation
+  error.
+
   Revision 1.4  1997/03/14 22:51:40  jim
   Added exported C interface, so that other C classes could subclass
   from it.
