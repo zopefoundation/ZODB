@@ -1,6 +1,6 @@
 /*
 
-  $Id: cPickleCache.c,v 1.7 1997/05/30 14:29:47 jim Exp $
+  $Id: cPickleCache.c,v 1.8 1997/06/30 15:27:51 jim Exp $
 
   C implementation of a pickle jar cache.
 
@@ -56,7 +56,7 @@
       (540) 371-6909
 
 ***************************************************************************/
-static char *what_string = "$Id: cPickleCache.c,v 1.7 1997/05/30 14:29:47 jim Exp $";
+static char *what_string = "$Id: cPickleCache.c,v 1.8 1997/06/30 15:27:51 jim Exp $";
 
 #define ASSIGN(V,E) {PyObject *__e; __e=(E); Py_XDECREF(V); (V)=__e;}
 #define UNLESS(E) if(!(E))
@@ -79,7 +79,32 @@ typedef struct {
   int position;
   int cache_size;
   int cache_age;
+  /* Cache statistics */
+  int sum_deal;
+  int sum_deac;
+  double sum_age;
+  int n, na;
+  time_t last_check;		/* Time of last gc */
+  double mean_age;
+  double mean_deal;
+  double mean_deac;
+  double df, dfa;			/* Degees of freedom for above stats */
 } ccobject;
+
+#define WEIGHTING_PERIOD 600
+
+/*
+  How to compute weighted means?
+
+  Assume we have two means, a current mean, M, and a mean as of some
+  time d seconds in the past, Md.  The means have effective degrees
+  of freedom, N, and Nd. Where Nd is adjusted by d is some fashion.
+  The combined mean is (M*N+Md*Nd)/(N+Nd).  The degrees of freedom
+  of the combined mean, Nc, is N+Nd.  Nd is computed by weighting
+  an old degree of freedom with the weight: I/(I+d), where I is some
+  suitably chosen constant, which we will call a "weighting period".
+  
+ */
 
 staticforward PyTypeObject Cctype;
 
@@ -96,41 +121,90 @@ gc_item(ccobject *self, PyObject *key, PyObject *v, time_t now, time_t dt)
 
   if(v && key)
     {
+      self->n++;
       if(v->ob_type==(PyTypeObject*)PATimeType)
 	{
 	  if(((PATimeobject*)v)->object->ob_refcnt <= 1)
 	    {
+	      self->sum_deal++;
 	      UNLESS(-1 != PyDict_DelItem(self->data, key)) return -1;
 	    }
 	  else
 	    {
 	      t=((PATimeobject*)v)->object->atime;
-	      if(t != (time_t)1 && (! dt || now-t > dt))
+	      if(t != (time_t)1)
 		{
-		  /* We have a cPersistent object that hasn't been used in
-		     a while.  Reinitialize it, hopefully freeing it's state.
-		     */
-		  v=(PyObject*)(((PATimeobject*)v)->object);
-		  if(key=PyObject_GetAttr(v,py__p___reinit__))
+		  self->na++;
+		  t=now-t;
+		  self->sum_age += t;
+		  if((! dt || t > dt))
 		    {
-		      ASSIGN(key,PyObject_CallObject(key,NULL));
-		      UNLESS(key) return -1;
-		      Py_DECREF(key);
+		      /* We have a cPersistent object that hasn't been used in
+			 a while.  Reinitialize it, hopefully freeing it's
+			 state.
+			 */
+		      v=(PyObject*)(((PATimeobject*)v)->object);
+		      if(((cPersistentObject*)v)->state !=
+			 cPersistent_UPTODATE_STATE) return 0;
+		      self->sum_deac++;
+		      if(key=PyObject_GetAttr(v,py__p___reinit__))
+			{
+			  ASSIGN(key,PyObject_CallObject(key,NULL));
+			  UNLESS(key) return -1;
+			  Py_DECREF(key);
+			}
+		      PyErr_Clear();
 		    }
-		  PyErr_Clear();
 		}
 	    }
 	}
       else if(v->ob_refcnt <= 1)
 	{
+	  self->sum_deal++;
 	  UNLESS(-1 != PyDict_DelItem(self->data, key)) return -1;
 	}
     }
   return 0;
 }
 
+static void
+update_stats(ccobject *self, time_t now)
+{
+  double d, deal, deac;
+
+  d=now-self->last_check;
+  if(d < 1) return;
+
+  self->df  *= WEIGHTING_PERIOD/(WEIGHTING_PERIOD+d);
+  self->dfa *= WEIGHTING_PERIOD/(WEIGHTING_PERIOD+d);
+
+  self->mean_age=((self->mean_age*self->dfa+self->sum_age)/
+		  (self->dfa+self->na));
+  self->sum_age=0;
+
+  deac=self->sum_deac/d;
+  self->sum_deac=0;
+  self->mean_deac=((self->mean_deac*self->dfa+deac)/
+		   (self->dfa+self->na));
+  self->sum_deac=0;
+
+  self->dfa += self->na;
+  self->na=0;
+
+  deal=self->sum_deal/d;
+  self->sum_deal=0;
+  self->mean_deal=((self->mean_deal*self->df +deal)/
+		   (self->df +self->n));
+  self->sum_deal=0;
+
+  self->df += self->n;
+  self->n=0;
+
+  self->last_check=now;
+}
+
 static int
-fullgc(ccobject *self)
+fullgc(ccobject *self, int idt)
 {
   PyObject *key, *v;
   int i;
@@ -142,33 +216,75 @@ fullgc(ccobject *self)
   dt=self->cache_age*3/i;
   if(dt < 10) dt=10;
   now=time(NULL);
+  if(idt) dt=idt;
 
   for(i=0; PyDict_Next(self->data, &i, &key, &v); )
     if(gc_item(self,key,v,now,dt) < 0) return -1;
   self->position=0;
+
+  if(now-self->last_check > 1) update_stats(self, now);
+  
   return 0;
 }
 
+static PyObject *
+ccitems(ccobject *self, PyObject *args)
+{
+  PyObject *r, *key, *v, *item=0;
+  int i;
+
+  UNLESS(PyArg_ParseTuple(args,"")) return NULL;
+  UNLESS(r=PyList_New(0)) return NULL;
+
+  for(i=0; PyDict_Next(self->data, &i, &key, &v); )
+    {
+      if(key && v)
+	{
+	  if(v->ob_type==(PyTypeObject*)PATimeType)
+	    {
+	      ASSIGN(item, Py_BuildValue("OO",key,((PATimeobject*)v)->object));
+	    }
+	  else
+	    {
+	      ASSIGN(item, Py_BuildValue("OO",key,v));
+	    }
+	  UNLESS(item) goto err;
+	  if(PyList_Append(r,item) < 0) goto err;
+	}
+    }
+  Py_XDECREF(item);
+  return r;
+
+err:
+  Py_XDECREF(item);
+  Py_DECREF(r);
+  return NULL;
+}
+
 static int
-reallyfullgc(ccobject *self)
+reallyfullgc(ccobject *self, int dt)
 {
   PyObject *key, *v;
   int i, l, last;
+  time_t now;
 
   if((last=PyDict_Size(self->data)) < 0) return -1;
 
+  now=time(NULL);
   /* First time through should get refcounts to 1 */
   for(i=0; PyDict_Next(self->data, &i, &key, &v); )
-    if(gc_item(self,key,v,0,0) < 0) return -1;
+    if(gc_item(self,key,v,now,dt) < 0) return -1;
 
   if((l=PyDict_Size(self->data)) < 0) return -1;
   while(l < last)
     {
       for(i=0; PyDict_Next(self->data, &i, &key, &v); )
-	if(gc_item(self,key,v,0,0) < 0) return -1;
+	if(gc_item(self,key,v,now,dt) < 0) return -1;
       last=l;
       if((l=PyDict_Size(self->data)) < 0) return -1;
     }
+
+  if(now-self->last_check > 1) update_stats(self, now);
 
   self->position=0;
   return 0;
@@ -208,14 +324,18 @@ maybegc(ccobject *self, PyObject *thisv)
 	self->position=0;
     }
   self->cache_size=size;
+
+  if(now-self->last_check > 1) update_stats(self, now);
+
   return 0;
 }
 
 static PyObject *
 cc_full_sweep(ccobject *self, PyObject *args)
 {
-  UNLESS(PyArg_Parse(args, "")) return NULL;
-  UNLESS(-1 != fullgc(self)) return NULL;
+  int dt=0;
+  UNLESS(PyArg_ParseTuple(args, "|i", &dt)) return NULL;
+  UNLESS(-1 != fullgc(self,dt)) return NULL;
   Py_INCREF(Py_None);
   return Py_None;
 }
@@ -223,18 +343,29 @@ cc_full_sweep(ccobject *self, PyObject *args)
 static PyObject *
 cc_reallyfull_sweep(ccobject *self, PyObject *args)
 {
-  UNLESS(PyArg_Parse(args, "")) return NULL;
-  UNLESS(-1 != reallyfullgc(self)) return NULL;
+  int dt=0;
+  UNLESS(PyArg_ParseTuple(args, "|i", &dt)) return NULL;
+  UNLESS(-1 != reallyfullgc(self,dt)) return NULL;
   Py_INCREF(Py_None);
   return Py_None;
 }
 
 static struct PyMethodDef cc_methods[] = {
-  {"full_sweep",	(PyCFunction)cc_full_sweep,	0,
-   "Perform a full sweep of the cache, looking for objects that can be removed"
+  {"full_sweep",	(PyCFunction)cc_full_sweep,	1,
+   "full_sweep([age]) -- Perform a full sweep of the cache\n\n"
+   "Make a single pass through the cache, removing any objects that are no\n"
+   "longer referenced, and deactivating objects that have not been\n"
+   "accessed in the number of seconds given by 'age'.  "
+   "'age defaults to the cache age.\n"
    },
-  {"minimize",	(PyCFunction)cc_reallyfull_sweep,	0,
-   "Try to free as many objects as possible"
+  {"minimize",	(PyCFunction)cc_reallyfull_sweep,	1,
+   "minimize([age]) -- Remove as many objects as possible\n\n"
+   "Make multiple passes through the cache, removing any objects that are no\n"
+   "longer referenced, and deactivating objects that have not been\n"
+   "accessed in the number of seconds given by 'age'.  'age defaults to 0.\n"
+   },
+  {"items",	(PyCFunction)ccitems,	1,
+   "items() -- Return the cache items."
    },
   {NULL,		NULL}		/* sentinel */
 };
@@ -253,6 +384,17 @@ newccobject(int cache_size, int cache_age)
       self->position=0;
       self->cache_size=cache_size;
       self->cache_age=cache_age < 1 ? 1 : cache_age;
+      self->sum_deal=0;
+      self->sum_deac=0;
+      self->sum_age=0;
+      self->mean_deal=0;
+      self->mean_deac=0;
+      self->mean_age=0;
+      self->df=1;
+      self->dfa=1;
+      self->n=0;
+      self->na=0;
+      self->last_check=time(NULL);
       return self;
     }
   Py_DECREF(self);
@@ -278,6 +420,18 @@ cc_getattr(ccobject *self, char *name)
 	return PyInt_FromLong(self->cache_age);
       if(strcmp(name,"cache_size")==0)
 	return PyInt_FromLong(self->cache_size);
+      if(strcmp(name,"cache_mean_age")==0)
+	return PyFloat_FromDouble(self->mean_age);
+      if(strcmp(name,"cache_mean_deal")==0)
+	return PyFloat_FromDouble(self->mean_deal);
+      if(strcmp(name,"cache_mean_deac")==0)
+	return PyFloat_FromDouble(self->mean_deac);
+      if(strcmp(name,"cache_df")==0)
+	return PyFloat_FromDouble(self->df);
+      if(strcmp(name,"cache_dfa")==0)
+	return PyFloat_FromDouble(self->dfa);
+      if(strcmp(name,"cache_last_gc_time")==0)
+	return PyFloat_FromDouble(self->last_check);
     }
 
   if(r=Py_FindMethod(cc_methods, (PyObject *)self, name))
@@ -466,7 +620,7 @@ void
 initcPickleCache()
 {
   PyObject *m, *d;
-  char *rev="$Revision: 1.7 $";
+  char *rev="$Revision: 1.8 $";
 
   Cctype.ob_type=&PyType_Type;
 
@@ -494,6 +648,11 @@ initcPickleCache()
 
 /******************************************************************************
  $Log: cPickleCache.c,v $
+ Revision 1.8  1997/06/30 15:27:51  jim
+ Added machinery to track cache statistics.
+ Fixed bug in garbage collector, which had a nasty habit
+ of activating inactive objects so that it could deactivate them.
+
  Revision 1.7  1997/05/30 14:29:47  jim
  Added new algorithm for adjusting cache age based on cache size.  Not,
  if the cache size gets really big, the cache age can drop to as low as
