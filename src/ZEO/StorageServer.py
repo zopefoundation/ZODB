@@ -83,7 +83,7 @@
 # 
 ##############################################################################
 
-__version__ = "$Revision: 1.28 $"[11:-2]
+__version__ = "$Revision: 1.29 $"[11:-2]
 
 import asyncore, socket, string, sys, os
 from smac import SizedMessageAsyncConnection
@@ -93,10 +93,12 @@ from cPickle import Unpickler
 from ZODB.POSException import TransactionError, UndoError, VersionCommitError
 from ZODB.Transaction import Transaction
 import traceback
-from zLOG import LOG, INFO, ERROR, TRACE
+from zLOG import LOG, INFO, ERROR, TRACE, BLATHER
 from ZODB.referencesf import referencesf
 from thread import start_new_thread
 from cStringIO import StringIO
+from ZEO import trigger
+from ZEO import asyncwrap
 
 class StorageServerError(POSException.StorageError): pass
 
@@ -123,7 +125,6 @@ class StorageServer(asyncore.dispatcher):
 
         self.__connections={}
         self.__get_connections=self.__connections.get
-
 
         asyncore.dispatcher.__init__(self)
 
@@ -184,8 +185,8 @@ class StorageServer(asyncore.dispatcher):
             sock, addr = self.accept()
         except socket.error:
             sys.stderr.write('warning: accept failed\n')
-
-        ZEOConnection(self, sock, addr)
+        else:
+            ZEOConnection(self, sock, addr)
 
     def log_info(self, message, type='info'):
         if type=='error': type=ERROR
@@ -234,6 +235,7 @@ class ZEOConnection(SizedMessageAsyncConnection):
         self.__server=server
         self.__invalidated=[]
         self.__closed=None
+        self._pack_trigger = trigger.trigger()
         if __debug__: debug='ZEO Server'
         else: debug=0
         SizedMessageAsyncConnection.__init__(self, sock, addr, debug=debug)
@@ -384,16 +386,21 @@ class ZEOConnection(SizedMessageAsyncConnection):
         if wait: return _noreturn
 
     def _pack(self, t, wait=0):
-        try: 
+        try:
+            LOG('ZEO Server', BLATHER, 'pack begin')
             self.__storage.pack(t, referencesf)
+            LOG('ZEO Server', BLATHER, 'pack end')
         except:
             LOG('ZEO Server', ERROR,
                 'Pack failed for %s' % self.__storage_id,
                 error=sys.exc_info())
-            if wait: self.return_error(sys.exc_info()[0], sys.exc_info()[1])
+            if wait:
+                self.return_error(sys.exc_info()[0], sys.exc_info()[1])
+                self._pack_trigger.pull_trigger()
         else:
             if wait:
                 self.message_output('RN.')
+                self._pack_trigger.pull_trigger()
             else:
                 # Broadcast new size statistics
                 self.__server.invalidate(0, self.__storage_id, (),
@@ -469,7 +476,7 @@ class ZEOConnection(SizedMessageAsyncConnection):
         oids=self.__storage.undo(transaction_id)
         if oids:
             self.__server.invalidate(
-                self, self.__storage_id, map(lambda oid: (oid,None,''), oids)
+                self, self.__storage_id, map(lambda oid: (oid,None), oids)
                 )
             return oids
         return ()
@@ -571,7 +578,10 @@ if __name__=='__main__':
     import ZODB.FileStorage
     name, port = sys.argv[1:3]
     blather(name, port)
-    try: port='',string.atoi(port)
-    except: pass
+    try:
+        port='', int(port)
+    except:
+        pass
+    
     StorageServer(port, ZODB.FileStorage.FileStorage(name))
-    asyncore.loop()
+    asyncwrap.loop()
