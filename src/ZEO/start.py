@@ -86,7 +86,7 @@
 """Start the server storage.
 """
 
-__version__ = "$Revision: 1.15 $"[11:-2]
+__version__ = "$Revision: 1.16 $"[11:-2]
 
 import sys, os, getopt, string
 
@@ -154,8 +154,8 @@ def main(argv):
 
          The username to run the ZEO server as. You may want to run
          the ZEO server as 'nobody' or some other user with limited
-         resouces. The only works under Unix, and if ZServer is
-         started by root.
+         resouces. The only works under Unix, and if the storage
+         server is started by root.
 
        -p port -- port to listen on
 
