@@ -115,7 +115,7 @@
 #   may have a back pointer to a version record or to a non-version
 #   record.
 #
-__version__='$Revision: 1.89 $'[11:-2]
+__version__='$Revision: 1.90 $'[11:-2]
 
 import struct, time, os, string, base64, sys
 from struct import pack, unpack
@@ -716,8 +716,8 @@ class FileStorage(BaseStorage.BaseStorage,
         #
         # - Nothing is returned
         #
-        # - data can be None, which indicates a George Bailey object (i.e. one
-        #   who's creation has been transactionally undone).
+        # - data can be None, which indicates a George Bailey object
+        #   (i.e. one who's creation has been transactionally undone).
         if self._is_read_only:
             raise POSException.ReadOnlyError()
         if transaction is not self._transaction:
@@ -727,16 +727,18 @@ class FileStorage(BaseStorage.BaseStorage,
         try:
             # Position of the non-version data
             pnv = None
-            # We need to get some information about previous revisions of the
-            # object.  Specifically, we need the position of the non-version
-            # data if this update is in a version.  We also need the position
-            # of the previous record in this version.
+            # We need to get some information about previous revisions
+            # of the object.  Specifically, we need the position of
+            # the non-version data if this update is in a version.  We
+            # also need the position of the previous record in this
+            # version.
             old = self._index_get(oid, 0)
             if old:
                 self._file.seek(old)
                 # Read the previous revision record
                 h = self._file.read(42)
-                doid,oserial,sprev,stloc,vlen,splen = unpack(">8s8s8s8sH8s", h)
+                doid,oserial,sprev,stloc,vlen,splen = unpack(">8s8s8s8sH8s",
+                                                             h)
                 if doid != oid:
                     raise CorruptedDataError, h
             # Calculate the file position in the temporary file
@@ -791,62 +793,65 @@ class FileStorage(BaseStorage.BaseStorage,
             self._tfile.seek(0)
 
     def _begin(self, tid, u, d, e):
-        self._thl=TRANS_HDR_LEN+len(u)+len(d)+len(e)
-        self._nextpos=0
+        self._nextpos = 0
+        self._thl = TRANS_HDR_LEN + len(u) + len(d) + len(e)
+        if self._thl > 65535:
+            # one of u, d, or e may be > 65535
+            # We have to check lengths here because struct.pack
+            # doesn't raise an exception on overflow!
+            if len(u) > 65535:
+                raise FileStorageError('user name too long')
+            if len(d) > 65535:
+                raise FileStorageError('description too long')
+            if len(e) > 65535:
+                raise FileStorageError('too much extension data')
+
 
     def tpc_vote(self, transaction):
         self._lock_acquire()
         try:
-            if transaction is not self._transaction: return
-            tfile=self._tfile
-            dlen=tfile.tell()
-            if not dlen: return # No data in this trans
-            file=self._file
-            write=file.write
-            tfile.seek(0)
-            tid=self._serial
+            if transaction is not self._transaction:
+                return
+            dlen = self._tfile.tell()
+            if not dlen:
+                return # No data in this trans
+            self._tfile.seek(0)
             user, desc, ext = self._ude
-            luser=len(user)
-            ldesc=len(desc)
-            lext=len(ext)
+            luser = len(user)
+            ldesc = len(desc)
+            lext = len(ext)
 
-            # We have to check lengths here because struct.pack
-            # doesn't raise an exception on overflow!
-            if luser > 65535: raise FileStorageError('user name too long')
-            if ldesc > 65535: raise FileStorageError('description too long')
-            if lext > 65535: raise FileStorageError('too much extension data')
-
-            tlen=self._thl
-            pos=self._pos
-            file.seek(pos)
-            tl=tlen+dlen
-            stl=p64(tl)
+            self._file.seek(self._pos)
+            tl = self._thl + dlen
+            stl = p64(tl)
 
             try:
                 # Note that we use a status of 'c', for checkpoint.
                 # If this flag isn't cleared, anything after this is
                 # suspect.
-                write(pack(
-                    ">8s" "8s" "c"  "H"        "H"        "H"
-                     ,tid, stl,'c',  luser,     ldesc,     lext,
+                self._file.write(pack(
+                    ">8s"          "8s" "c"  "H"        "H"        "H"
+                     ,self._serial, stl,'c',  luser,     ldesc,     lext,
                     ))
-                if user: write(user)
-                if desc: write(desc)
-                if ext: write(ext)
+                if user:
+                    self._file.write(user)
+                if desc:
+                    self._file.write(desc)
+                if ext:
+                    self._file.write(ext)
 
-                cp(tfile, file, dlen)
+                cp(self._tfile, self._file, dlen)
 
-                write(stl)
-                file.flush()
+                self._file.write(stl)
+                self._file.flush()
             except:
                 # Hm, an error occured writing out the data. Maybe the
                 # disk is full. We don't want any turd at the end.
-                file.truncate(pos)
+                self._file.truncate(self._pos)
                 raise
-            
-            self._nextpos=pos+(tl+8)
-            
-        finally: self._lock_release()
+            self._nextpos = self._pos + (tl + 8)
+        finally:
+            self._lock_release()
  
     def _finish(self, tid, u, d, e):
         nextpos=self._nextpos
