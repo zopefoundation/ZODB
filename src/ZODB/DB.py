@@ -84,8 +84,8 @@
 ##############################################################################
 """Database objects
 
-$Id: DB.py,v 1.12 1999/07/30 14:34:33 jim Exp $"""
-__version__='$Revision: 1.12 $'[11:-2]
+$Id: DB.py,v 1.13 1999/08/16 13:54:14 jim Exp $"""
+__version__='$Revision: 1.13 $'[11:-2]
 
 import cPickle, cStringIO, sys, POSException
 from Connection import Connection
@@ -405,6 +405,32 @@ class DB:
 
 
             pools,pooll=self._pools
+
+            # pools is a mapping object:
+            #
+            #   {version -> (pool, allocated, lock)
+            #
+            # where:
+            #
+            #   pool is the connection pool for the version,
+            #   allocated is a list of all of the allocated
+            #     connections, and
+            #   lock is a lock that is used to block when a pool is
+            #     empty and no more connections can be allocated.
+            #
+            # pooll is a list of all of the pools and allocated for
+            # use in cases where we need to iterate over all
+            # connections or all inactive connections.
+
+            # Pool locks are tricky.  Basically, the lock needs to be
+            # set whenever the pool becomes empty so that threads are
+            # forced to wait until the pool gets a connection it it.
+            # The lock is acquired when the (empty) pool is
+            # created. The The lock is acquired just prior to removing
+            # the last connection from the pool and just after adding
+            # a connection to an empty pool.
+
+            
             if pools.has_key(version):
                 pool, allocated, pool_lock = pools[version]
             else:
@@ -443,8 +469,13 @@ class DB:
 
             elif len(pool)==1:
                 # Taking last one, lock the pool
-                # We know that the pool lock is not set.
+                # Note that another thread might grab the lock
+                # before us, so we might actually block, however,
+                # when we get the lock back, there *will* be a
+                # connection in the pool.
+                self._r()
                 pool_lock.acquire()
+                self._a()
 
             c=pool[-1]
             del pool[-1]
