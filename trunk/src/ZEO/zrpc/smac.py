@@ -13,7 +13,7 @@
 ##############################################################################
 """Sized message async connections
 
-$Id: smac.py,v 1.26 2002/09/07 23:50:51 jeremy Exp $
+$Id: smac.py,v 1.27 2002/09/16 16:57:11 gvanrossum Exp $
 """
 
 import asyncore, struct
@@ -66,7 +66,7 @@ class SizedMessageAsyncConnection(asyncore.dispatcher):
         self.__input_len = 0
         self.__msg_size = 4
         self.__output = []
-        self.__closed = None
+        self.__closed = 0
         self.__super_init(sock, map)
 
     # XXX avoid expensive getattr calls?  Can't remember exactly what
@@ -181,7 +181,7 @@ class SizedMessageAsyncConnection(asyncore.dispatcher):
                     m = message
                 LOG(self._debug, TRACE, 'message_output %s' % `m`)
 
-        if self.__closed is not None:
+        if self.__closed:
             raise Disconnected, (
                 "This action is temporarily unavailable."
                 "<p>"
@@ -195,6 +195,6 @@ class SizedMessageAsyncConnection(asyncore.dispatcher):
                 self.__output.append(message[i:i+SEND_SIZE])
 
     def close(self):
-        if self.__closed is None:
+        if not self.__closed:
             self.__closed = 1
             self.__super_close()
