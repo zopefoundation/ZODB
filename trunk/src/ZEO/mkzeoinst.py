@@ -45,6 +45,8 @@ import getopt
 
 zeo_conf_template = """# ZEO configuration file
 
+%%define INSTANCE %(home)s
+
 <zeo>
   address %(port)d
   read-only false
@@ -54,40 +56,42 @@ zeo_conf_template = """# ZEO configuration file
 </zeo>
 
 <filestorage 1>
-  path %(home)s/var/Data.fs
+  path $INSTANCE/var/Data.fs
 </filestorage>
 
 <eventlog>
   level info
   <logfile>
-    path %(home)s/log/zeo.log
+    path $INSTANCE/log/zeo.log
   </logfile>
 </eventlog>
 """
 
 runner_conf_template = """# %(package)sctl configuration file
 
+%%define INSTANCE %(home)s
+
 <runner>
-  program %(server)s -C %(home)s/etc/%(package)s.conf
-  socket-name %(home)s/etc/%(package)s.zdsock
+  program %(server)s -C $INSTANCE/etc/%(package)s.conf
+  socket-name $INSTANCE/etc/%(package)s.zdsock
   daemon true
   forever false
   backoff-limit 10
   exit-codes 0, 2
-  directory %(home)s
+  directory $INSTANCE
   default-to-interactive true
   # user zope
   python %(python)s
   zdrun %(zdrun)s
   # This logfile should match the one in the %(package)s.conf file.
   # It is used by zdctl's logtail command, zdrun/zdctl doesn't write it.
-  logfile %(home)s/log/%(package)s.log
+  logfile $INSTANCE/log/%(package)s.log
 </runner>
 
 <eventlog>
   level info
   <logfile>
-    path %(home)s/log/%(package)sctl.log
+    path $INSTANCE/log/%(package)sctl.log
   </logfile>
 </eventlog>
 """
@@ -103,7 +107,9 @@ zdctl_template = """#!/bin/sh
 # chkconfig: 345 90 10
 # description: start a %(PACKAGE)s server
 
-exec %(zdctl)s -C %(home)s/etc/%(package)sctl.conf ${1+"$@"}
+INSTANCE='%(home)s'
+
+exec %(zdctl)s -C "$INSTANCE/etc/%(package)sctl.conf" ${1+"$@"}
 """
 
 def main():
