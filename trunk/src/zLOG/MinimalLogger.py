@@ -11,7 +11,7 @@
 # FOR A PARTICULAR PURPOSE
 #
 ##############################################################################
-__version__='$Revision: 1.18 $'[11:-2]
+__version__='$Revision: 1.19 $'[11:-2]
 
 import os, sys, time
 
@@ -20,7 +20,7 @@ try:
 except ImportError:
     textwrap = None
 
-from FormatException import format_exception
+from traceback import format_exception
 
 def severity_string(severity, mapping={
     -300: 'TRACE',
