@@ -39,7 +39,7 @@ import zLOG
 from ZODB.ConflictResolution import ResolvedSerial
 from ZODB.POSException import StorageError, StorageTransactionError
 from ZODB.POSException import TransactionError, ReadOnlyError, ConflictError
-from ZODB.referencesf import referencesf
+from ZODB.serialize import referencesf
 from ZODB.Transaction import Transaction
 from ZODB.utils import u64, oid_repr
 

@@ -365,7 +365,7 @@ def recover(inp, outp, verbose=0, partial=0, force=0, pack=0):
 
     if pack is not None:
         print "Packing ..."
-        from ZODB.referencesf import referencesf
+        from ZODB.serialize import referencesf
         ofs.pack(pack, referencesf)
 
     ofs.close()

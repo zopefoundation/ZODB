@@ -17,7 +17,7 @@
 import time
 
 from ZODB import POSException
-from ZODB.referencesf import referencesf
+from ZODB.serialize import referencesf
 from ZODB.Transaction import Transaction
 from ZODB.tests.MinPO import MinPO
 from ZODB.tests.StorageTestBase import zodb_unpickle
