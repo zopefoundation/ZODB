@@ -11,9 +11,9 @@
 # FOR A PARTICULAR PURPOSE
 # 
 ##############################################################################
-__version__='$Revision: 1.4 $'[11:-2]
+__version__='$Revision: 1.5 $'[11:-2]
 
-import string, sys
+import sys
 
 format_exception_only = None
 
@@ -47,8 +47,7 @@ def format_exception(etype, value, tb, limit=None, delimiter='\n',
         except: pass
         tb = tb.tb_next
         n = n+1
-    result.append(string.join(format_exception_only(etype, value),
-                              ' '))
+    result.append(' '.join(format_exception_only(etype, value)))
     if trailer: result.append(trailer)
     
-    return string.join(result, delimiter)
+    return delimiter.join(result)
