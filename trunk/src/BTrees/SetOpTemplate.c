@@ -16,7 +16,7 @@
  Set operations
  ****************************************************************************/
 
-#define SETOPTEMPLATE_C "$Id: SetOpTemplate.c,v 1.13 2002/05/30 21:00:30 tim_one Exp $\n"
+#define SETOPTEMPLATE_C "$Id: SetOpTemplate.c,v 1.14 2002/05/31 09:41:07 htrd Exp $\n"
 
 #ifdef INTSET_H
 static int 
@@ -223,7 +223,7 @@ set_operation(PyObject *s1, PyObject *s2,
 
   while (i1.position >= 0 && i2.position >= 0)
     {
-      cmp=TEST_KEY(i1.key, i2.key);
+      TEST_KEY_SET_OR(cmp, i1.key, i2.key) return NULL;
       if(cmp < 0)
 	{
 	  if(c1)

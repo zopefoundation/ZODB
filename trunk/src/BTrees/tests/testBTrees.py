@@ -735,6 +735,23 @@ class TestOIBuckets(BucketTests, TestCase):
     def setUp(self):
         self.t = OIBucket()
 
+# cmp error propagation tests
+
+class DoesntLikeBeingCompared:
+    def __cmp__(self,other):
+        raise ValueError('incomparable')
+
+class TestCmpError(TestCase):
+    def testFoo(self):
+        t = OOBTree()
+        t['hello world'] = None
+        try:
+            t[DoesntLikeBeingCompared()] = None
+        except ValueError,e:
+            assert str(e)=='incomparable'
+        else:
+            raise ValueError('incomarable objects should not be allowed into the tree')
+
 def test_suite():
     TIOBTree = makeSuite(TestIOBTrees, 'test')
     TOOBTree = makeSuite(TestOOBTrees, 'test')
@@ -755,11 +772,13 @@ def test_suite():
     TOOBucket = makeSuite(TestOOBuckets, 'test')
     TOIBucket = makeSuite(TestOIBuckets, 'test')
     TIIBucket = makeSuite(TestIIBuckets, 'test')
-    
+
     alltests = TestSuite((TIOSet, TOOSet, TOISet, TIISet,
                           TIOTreeSet, TOOTreeSet, TOITreeSet, TIITreeSet,
                           TIOBucket, TOOBucket, TOIBucket, TIIBucket,
-                          TOOBTree, TIOBTree, TOIBTree, TIIBTree))
+                          TOOBTree, TIOBTree, TOIBTree, TIIBTree,
+                          makeSuite(TestCmpError),
+                         ))
 
     return alltests
 
