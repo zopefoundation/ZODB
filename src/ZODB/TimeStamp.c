@@ -86,7 +86,7 @@
 static char TimeStamp_module_documentation[] = 
 "Defines 64-bit TimeStamp objects used as ZODB serial numbers.\n"
 "\n"
-"\n$Id: TimeStamp.c,v 1.8 2001/11/08 17:06:27 bwarsaw Exp $\n";
+"\n$Id: TimeStamp.c,v 1.9 2001/11/26 20:33:24 andreasjung Exp $\n";
 
 #include <stdlib.h>
 #include <time.h>
@@ -96,7 +96,6 @@ static char TimeStamp_module_documentation[] =
 #include "Python.h"
 #endif
 
-static PyObject *ErrorObject;
 
 /* ----------------------------------------------------- */
 
@@ -184,7 +183,7 @@ TimeStamp___init__(TimeStamp *self, PyObject *args)
     {
       if (m != 8)
 	{
-	  PyErr_SetString(ErrorObject, "8-character string expected");
+	  PyErr_SetString(PyExc_ValueError, "8-character string expected");
 	  return NULL;
 	}
       memcpy(self->data, s, 8);
@@ -485,7 +484,7 @@ void
 initTimeStamp(void)
 {
   PyObject *m, *d, *s;
-  char *rev="$Revision: 1.8 $";
+  char *rev="$Revision: 1.9 $";
 
   if (TimeStamp_init_gmoff() < 0) return;
   if (! ExtensionClassImported) return;
