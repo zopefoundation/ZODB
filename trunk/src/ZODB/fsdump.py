@@ -50,7 +50,6 @@ def fsdump(path, file=None, with_offset=1):
         print >> file, "\toffset=%d status=%s user=%s description=%s" % \
               (trans._tpos, `trans.status`, trans.user, trans.description)
         j = 0
-        tsize = 0
         for rec in trans:
             if rec.data is None:
                 fullclass = "undo or abort of object creation"
@@ -84,7 +83,6 @@ def fsdump(path, file=None, with_offset=1):
                 size += DATA_VERSION_HDR_LEN
             else:
                 size += DATA_HDR_LEN
-            tsize += size
             print >> file, "  data #%05d oid=%016x %sclass=%s size=%d %s" % \
                   (j, u64(rec.oid), version, fullclass, size, bp)
             j += 1
