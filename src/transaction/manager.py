@@ -23,18 +23,14 @@ class AbstractTransactionManager(object):
         # commit calls _finishCommit() or abort()
         assert txn._status is Status.ACTIVE
         txn._status = Status.PREPARING
-        prepare_ok = True
         self.logger.debug("%s: prepare", txn)
         try:
             for r in txn._resources:
-                if prepare_ok and not r.prepare(txn):
-                    raise AbortError(r)
+                r.prepare(txn)
         except:
             txn._status = Status.FAILED
             raise
         txn._status = Status.PREPARED
-        # XXX An error below is intolerable.  What state to use?
-        # Need code to handle this case.
         self._finishCommit(txn)
 
     def _finishCommit(self, txn):
