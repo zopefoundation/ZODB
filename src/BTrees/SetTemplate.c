@@ -234,7 +234,7 @@ set_repr(Bucket *self)
   static PyObject *format;
   PyObject *r, *t;
 
-  UNLESS (format) UNLESS (format=PyString_FromString(PREFIX "Bucket(%s)")) 
+  UNLESS (format) UNLESS (format=PyString_FromString(PREFIX "Set(%s)")) 
     return NULL;
   UNLESS (t=PyTuple_New(1)) return NULL;
   UNLESS (r=bucket_keys(self,NULL)) goto err;
