@@ -15,8 +15,9 @@
 """
 # Do this portably in the face of checking out with -kv
 import string
-__version__ = string.split('$Revision: 1.23 $')[-2:][0]
+__version__ = string.split('$Revision: 1.24 $')[-2:][0]
 
+import cPickle
 import ThreadLock, bpthread
 import time, UndoLogCompatible
 import POSException
@@ -138,9 +139,9 @@ class BaseStorage(UndoLogCompatible.UndoLogCompatible):
             desc = transaction.description
             ext = transaction._extension
             if ext:
-                ext = dumps(ext,1)
+                ext = cPickle.dumps(ext, 1)
             else:
-                ext=""
+                ext = ""
             self._ude = user, desc, ext
 
             if tid is None:
