@@ -64,7 +64,7 @@ class PMTests(unittest.TestCase):
 def find_global(modulename, classname):
     """Helper for this test suite to get special PersistentMapping"""
 
-    print modulename, classname
+    #print modulename, classname
     if classname == "PersistentMapping":
         class PersistentMapping:
             def __setstate__(self, state):
