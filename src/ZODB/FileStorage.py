@@ -115,7 +115,7 @@
 #   may have a back pointer to a version record or to a non-version
 #   record.
 #
-__version__='$Revision: 1.120 $'[11:-2]
+__version__='$Revision: 1.121 $'[11:-2]
 
 import base64
 from cPickle import Pickler, Unpickler, loads
@@ -786,7 +786,7 @@ class FileStorage(BaseStorage.BaseStorage,
         try:
             prev_pos = 0
             if prev_txn is not None:
-                prev_txn_pos = self._txn_find(prev_txn)
+                prev_txn_pos = self._txn_find(prev_txn, 0)
                 if prev_txn_pos:
                     prev_pos = self._data_find(prev_txn_pos, oid, data)
             old = self._index_get(oid, 0)
@@ -1159,12 +1159,12 @@ class FileStorage(BaseStorage.BaseStorage,
         # Find the right transaction to undo and call _txn_undo_write().
         tid = base64.decodestring(transaction_id + '\n')
         assert len(tid) == 8
-        tpos = self._txn_find(tid)
+        tpos = self._txn_find(tid, 1)
         tindex = self._txn_undo_write(tpos)
         self._tindex.update(tindex)
         return tindex.keys()
 
-    def _txn_find(self, tid):
+    def _txn_find(self, tid, stop_at_pack):
         pos = self._pos
         # XXX Why 39?  Only because undoLog() uses it as a boundary.
         while pos > 39:
@@ -1175,9 +1175,10 @@ class FileStorage(BaseStorage.BaseStorage,
             _tid = h[:8]
             if _tid == tid:
                 return pos
-            status = h[16] # get the c in 8s8sc
-            if status == 'p' or _tid < self._packt:
-                break
+            if stop_at_pack:
+                # check the status field of the transaction header
+                if h[16] == 'p' or _tid < self._packt:
+                    break
         raise UndoError(None, "Invalid transaction id")
 
     def _txn_undo_write(self, tpos):
