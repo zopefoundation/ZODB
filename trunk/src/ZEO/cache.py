@@ -72,7 +72,7 @@ class ClientCache:
     # @param path path of persistent snapshot of cache state
     # @param size maximum size of object data, in bytes
 
-    def __init__(self, path=None, size=None, trace=True):
+    def __init__(self, path=None, size=None, trace=False):
         self.path = path
         self.size = size
         self.log = logging.getLogger("zeo.cache")
@@ -460,7 +460,7 @@ class Object(object):
         # Write standard form of Object to file, f.
         self.serialize_header(f)
         f.write(self.data)
-        f.write(struct.pack(">8s", self.key[0]))
+        f.write(self.key[0])
 
     def serialize_header(self, f):
         s = struct.pack(self.fmt, self.end_tid or "\0" * 8,
@@ -486,7 +486,7 @@ class Object(object):
             if dlen != len(data):
                 raise ValueError("corrupted record, data")
             s = f.read(8)
-            if struct.pack(">8s", s) != oid:
+            if s != oid:
                 raise ValueError("corrupted record, oid")
         return cls((oid, start_tid), version, data, start_tid, end_tid)
 
