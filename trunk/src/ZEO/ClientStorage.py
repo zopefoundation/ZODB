@@ -232,6 +232,11 @@ class ClientStorage:
         self._username = username
         self._password = password
         self._realm = realm
+
+        # Flag tracking disconnections in the middle of a transaction.  This
+        # is reset in tpc_begin() and set in notifyDisconnected().
+        self._midtxn_disconnect = 0
+
         # _server_addr is used by sortKey()
         self._server_addr = None
         self._tfile = None
@@ -514,7 +519,7 @@ class ClientStorage:
         if self._server_addr is None:
             raise ClientDisconnected
         else:
-            return self._server_addr
+            return '%s:%s' % (self._storage, self._server_addr)
 
     def verify_cache(self, server):
         """Internal routine called to verify the cache.
@@ -583,6 +588,7 @@ class ClientStorage:
         self._connection = None
         self._ready.clear()
         self._server = disconnected_stub
+        self._midtxn_disconnect = 1
 
     def __len__(self):
         """Return the size of the storage."""
@@ -821,6 +827,7 @@ class ClientStorage:
         if self._is_read_only:
             raise POSException.ReadOnlyError()
         self._tpc_cond.acquire()
+        self._midtxn_disconnect = 0
         while self._transaction is not None:
             # It is allowable for a client to call two tpc_begins in a
             # row with the same transaction, and the second of these
@@ -891,6 +898,12 @@ class ClientStorage:
             return
         self._load_lock.acquire()
         try:
+            if self._midtxn_disconnect:
+                raise ClientDisconnected(
+                       'Calling tpc_finish() on a disconnected transaction')
+
+            tid = self._server.tpc_finish(self._serial)
+
             self._lock.acquire()  # for atomic processing of invalidations
             try:
                 self._update_cache()
@@ -898,8 +911,6 @@ class ClientStorage:
                     f()
             finally:
                 self._lock.release()
-
-            tid = self._server.tpc_finish(self._serial)
             self._cache.setLastTid(tid)
 
             r = self._check_serials()

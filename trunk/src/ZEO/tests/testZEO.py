@@ -162,6 +162,10 @@ class GenericTests(
         if hasattr(ZODB, "__version__"):
             ReadOnlyStorage.ReadOnlyStorage.checkWriteMethods(self)
 
+    def checkSortKey(self):
+        key = '%s:%s' % (self._storage._storage, self._storage._server_addr)
+        self.assertEqual(self._storage.sortKey(), key)
+
 
 class FileStorageTests(GenericTests):
     """Test ZEO backed by a FileStorage."""
