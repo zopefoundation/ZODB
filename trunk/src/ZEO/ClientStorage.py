@@ -84,7 +84,7 @@
 ##############################################################################
 """Network ZODB storage client
 """
-__version__='$Revision: 1.29 $'[11:-2]
+__version__='$Revision: 1.30 $'[11:-2]
 
 import struct, time, os, socket, string, Sync, zrpc, ClientCache
 import tempfile, Invalidator, ExtensionClass, thread
@@ -289,8 +289,9 @@ class ClientStorage(ExtensionClass.Base, BaseStorage.BaseStorage):
         self._lock_acquire()
         try:
             oids=self._call('abortVersion', src, self._serial)
-            invalidate=self._cache.invalidate
-            for oid in oids: invalidate(oid, src)
+            vlen = pack(">H", len(src))
+            for oid in oids:
+                self._tfile.write("i%s%s%s" % (oid, vlen, src))
             return oids
         finally: self._lock_release()
 
@@ -307,12 +308,15 @@ class ClientStorage(ExtensionClass.Base, BaseStorage.BaseStorage):
             oids=self._call('commitVersion', src, dest, self._serial)
             invalidate=self._cache.invalidate
             if dest:
+                vlen = pack(">H", len(src))
                 # just invalidate our version data
-                for oid in oids: invalidate(oid, src)
+                for oid in oids:
+                    self._tfile.write("i%s%s%s" % (oid, vlen, src))
             else:
+                vlen = pack(">H", len(dest))
                 # dest is '', so invalidate version and non-version
-                for oid in oids: invalidate(oid, dest)
-                
+                for oid in oids:
+                    self._tfile.write("i%s%s%s" % (oid, vlen, dest))
             return oids
         finally: self._lock_release()
 
@@ -385,8 +389,10 @@ class ClientStorage(ExtensionClass.Base, BaseStorage.BaseStorage):
                                           data, version, self._serial)
             
             write=self._tfile.write
-            write(oid+pack(">HI", len(version), len(data))+version)
-            write(data)
+            buf = string.join(("s", oid,
+                               pack(">HI", len(version), len(data)),
+                               version, data), "")
+            write(buf)
 
             if self._serials:
                 s=self._serials
@@ -508,23 +514,32 @@ class ClientStorage(ExtensionClass.Base, BaseStorage.BaseStorage):
             seek(0)
             i=0
             while i < size:
-                oid=read(8)
-                s=seriald[oid]
-                h=read(6)
-                vlen, dlen = unpack(">HI", h)
-                if vlen: v=read(vlen)
-                else: v=''
-                p=read(dlen)
-                if len(p) != dlen:
-                    raise ClientStorageError, (
-                        "Unexpected end of file in client storage "
-                        "temporary file."
-                        )
-                if s==ResolvedSerial:
-                    cache.invalidate(oid, v)
-                else:
-                    update(oid, s, v, p)
-                i=i+14+vlen+dlen
+                opcode=read(1)
+                if opcode == "s":
+                    oid=read(8)
+                    s=seriald[oid]
+                    h=read(6)
+                    vlen, dlen = unpack(">HI", h)
+                    if vlen: v=read(vlen)
+                    else: v=''
+                    p=read(dlen)
+                    if len(p) != dlen:
+                        raise ClientStorageError, (
+                            "Unexpected end of file in client storage "
+                            "temporary file."
+                            )
+                    if s==ResolvedSerial:
+                        cache.invalidate(oid, v)
+                    else:
+                        update(oid, s, v, p)
+                    i=i+15+vlen+dlen
+                elif opcode == "i":
+                    oid=read(8)
+                    h=read(2)
+                    vlen=unpack(">H", h)[0]
+                    v=read(vlen)
+                    self._cache.invalidate(oid, v)
+                    i=i+11+vlen
 
             seek(0)
 
