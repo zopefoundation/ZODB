@@ -1,6 +1,6 @@
 /***********************************************************************
 
-  $Id: cPersistence.c,v 1.22 1997/12/15 15:28:09 jim Exp $
+  $Id: cPersistence.c,v 1.23 1998/01/09 22:19:28 jim Exp $
 
   C Persistence Module
 
@@ -12,7 +12,7 @@
 
 
 *****************************************************************************/
-static char *what_string = "$Id: cPersistence.c,v 1.22 1997/12/15 15:28:09 jim Exp $";
+static char *what_string = "$Id: cPersistence.c,v 1.23 1998/01/09 22:19:28 jim Exp $";
 
 #include <time.h>
 #include "cPersistence.h"
@@ -351,46 +351,13 @@ Per__p___reinit__(cPersistentObject *self, PyObject *args)
   if(PyArg_Parse(args,""))
     {
       if(self->state==cPersistent_UPTODATE_STATE)
-	if(init=PyObject_GetAttr((PyObject*)self,py___init__))
-	  {
-
-	    if(copy=PyObject_GetAttr((PyObject*)self,py___getinitargs__))
-	      {
-		ASSIGN(copy,PyObject_CallObject(copy,NULL));
-		UNLESS(copy) goto err;
-		UNLESS(PyTuple_Check(copy))
-		  {
-		    ASSIGN(copy,PySequence_Tuple(copy));
-		    UNLESS(copy) goto err;
-		  }
-	      }
-	    else
-	      {
-		copy=NULL;
-		PyErr_Clear();
-	      }
-	    
-	    if(HasInstDict(self) && (dict=INSTANCE_DICT(self)))
+	{
+	  if(HasInstDict(self) && (dict=INSTANCE_DICT(self)))
+	    {
 	      PyDict_Clear(dict);
-
-	    dict=self->jar;
-	    self->jar=NULL;	/* Grasping at straws :-( */
-	    ASSIGN(copy,PyObject_CallObject(init,copy));
-	    self->state=cPersistent_GHOST_STATE;
-	    self->jar=dict;
-	    UNLESS(copy) goto err;
-	    Py_DECREF(copy);
-	    Py_DECREF(init);
-	  }
-	else
-	  {
-	    PyErr_Clear();
-	    if(HasInstDict(self) && (dict=INSTANCE_DICT(self)))
-	      {
-		PyDict_Clear(dict);
-		self->state=cPersistent_GHOST_STATE;
-	      }
-	  }
+	      self->state=cPersistent_GHOST_STATE;
+	    }
+	}
     }
   else
     {
@@ -891,7 +858,7 @@ void
 initcPersistence()
 {
   PyObject *m, *d;
-  char *rev="$Revision: 1.22 $";
+  char *rev="$Revision: 1.23 $";
 
   PATimeType.ob_type=&PyType_Type;
 
@@ -921,6 +888,10 @@ initcPersistence()
 /****************************************************************************
 
   $Log: cPersistence.c,v $
+  Revision 1.23  1998/01/09 22:19:28  jim
+  Fixed bug in deactivation logic.  The stupid thing was calling a
+  constructor when deactivating.
+
   Revision 1.22  1997/12/15 15:28:09  jim
   Some cleanup.  Removed unused old routine.
   Renamed _p___reinit__ to _p_deactivate.
