@@ -273,8 +273,8 @@ class GC(FileStorageFormatter):
         if th.status == 'p':
             # Delay import to cope with circular imports.
             # XXX put exceptions in a separate module
-            from ZODB.FileStorage.FileStorage import FileStorageError
-            raise FileStorageError(
+            from ZODB.FileStorage.FileStorage import RedundantPackWarning
+            raise RedundantPackWarning(
                 "The database has already been packed to a later time"
                 " or no changes have been made since the last pack")
 

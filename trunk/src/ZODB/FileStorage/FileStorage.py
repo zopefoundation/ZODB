@@ -13,7 +13,7 @@
 ##############################################################################
 """Storage implementation using a log written to a single file.
 
-$Revision: 1.11 $
+$Revision: 1.12 $
 """
 
 import base64
@@ -46,7 +46,7 @@ except ImportError:
     def fsIndex():
         return {}
 
-from zLOG import LOG, BLATHER, WARNING, ERROR, PANIC
+from zLOG import LOG, BLATHER, INFO, WARNING, ERROR, PANIC
 
 t32 = 1L << 32
 
@@ -55,6 +55,9 @@ packed_version = "FS21"
 def blather(message, *data):
     LOG('ZODB FS', BLATHER, "%s blather: %s\n" % (packed_version,
                                                   message % data))
+def info(message, *data):
+    LOG('ZODB FS', INFO, "%s  info: %s\n" % (packed_version,
+                                             message % data))
 
 def warn(message, *data):
     LOG('ZODB FS', WARNING, "%s  warn: %s\n" % (packed_version,
@@ -95,6 +98,10 @@ class CorruptedTransactionError(CorruptedFileStorageError):
 class FileStorageQuotaError(FileStorageError,
                             POSException.StorageSystemError):
     """File storage quota exceeded."""
+
+# Intended to be raised only in fspack.py, and ignored here.
+class RedundantPackWarning(FileStorageError):
+    pass
 
 class TempFormatter(FileStorageFormatter):
     """Helper class used to read formatted FileStorage data."""
@@ -1329,7 +1336,11 @@ class FileStorage(BaseStorage.BaseStorage,
                               self._commit_lock_release,
                               current_size)
         try:
-            opos = p.pack()
+            opos = None
+            try:
+                opos = p.pack()
+            except RedundantPackWarning, detail:
+                info(str(detail))
             if opos is None:
                 return
             oldpath = self._file_name + ".old"

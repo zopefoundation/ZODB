@@ -22,6 +22,13 @@ for the pack attempt to raise a spurious
 exception.  This did no damage to the database, or to the transaction
 in progress, but no pack was performed then.
 
+By popular demand, FileStorage.pack() no longer propagates a
+
+    FileStorageError:  The database has already been packed to a
+    later time or no changes have been made since the last pack
+
+exception.  Instead that message is logged (at INFO level), and
+the pack attempt simply returns then (no pack is performed).
 
 ZEO
 ---
