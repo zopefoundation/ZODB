@@ -1009,13 +1009,11 @@ Python's standard library.  This component can be imported using
 \end{verbatim}
 
 This component defines two abstract types and several concrete section
-types.  These can be imported as a unit, as above, or as three smaller
-components usable in creating alternate logging packages.  The
-configuration component for Zope's \module{zLOG} package, starting
-with Zope 2.8, is an example of using this component in this way.
+types.  These can be imported as a unit, as above, or as four smaller
+components usable in creating alternate logging packages.
 
-The first of the three type groups contains the abstract types, and
-can be imported using
+The first of the four smaller components contains the abstract types,
+and can be imported using
 
 \begin{verbatim}
 <import package="ZConfig.components.logger" file="abstract.xml"/>
@@ -1039,19 +1037,27 @@ The two abstract types imported by this are:
 \end{definitions}
 
 
-The second type group provides section types that act as factories for
-\class{logging.Logger} objects.  This can be imported using
+The second and third of the smaller components provides section types
+that act as factories for \class{logging.Logger} objects.  These can be
+imported using
 
 \begin{verbatim}
-<import package="ZConfig.components.logger" file="loggers.xml"/>
+<import package="ZConfig.components.logger" file="eventlog.xml"/>
+<import package="ZConfig.components.logger" file="logger.xml"/>
 \end{verbatim}
 
-The types defined in this component implement the
-\datatype{ZConfig.logger.log} abstract type.
+The types defined in these components implement the
+\datatype{ZConfig.logger.log} abstract type.  The \file{eventlog.xml}
+component defines an \datatype{eventlog} type which represents the
+root logger from the the \module{logging} package (the return value of
+\function{logging.getLogger()}), while the \file{logger.xml} component
+defines a \datatype{logger} section type which represents a named
+logger (as returned by \function{logging.getLogger(\var{name})}).
 
 
-The third type group provides section types that are factories for
-\class{logging.Handler} objects.  This can be imported using
+The third of the smaller components provides section types that are
+factories for \class{logging.Handler} objects.  This can be imported
+using
 
 \begin{verbatim}
 <import package="ZConfig.components.logger" file="handlers.xml"/>
