@@ -2,6 +2,20 @@ What's new in ZODB3 3.3 ?
 =========================
 Release date: DD-MMM-YYYY
 
+Connection
+----------
+
+ZODB intends to raise ConnnectionStateError if an attempt is made to
+close a connection while modifications are pending (the connection is
+involved in a transaction that hasn't been abort()'ed or commit()'ed).
+It was missing the case where the only pending modifications were made
+in subtransactions.  This has been fixed.  If an attempt to close a
+connection with pending subtransactions is made now,
+
+    ConnnectionStateError: Cannot close a connection with a pending subtransaction
+
+is raised.
+
 transaction
 -----------
 
