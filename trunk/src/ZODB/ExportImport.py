@@ -209,14 +209,14 @@ class ExportImport:
             try: file_name=file.name
             except: file_name='(unknown)'    
         read=file.read
-        
-        if read(4) == '<?xm':
+
+        magic=read(4)
+        if magic == '<?xm':
             file.seek(0)
             return self.importXML(file, clue)
-        else:
-            file.seek(0)
-            if file.read(4) != 'ZEXP':
-                raise POSException.ExportError, 'Invalid export header'
+
+        if magic != 'ZEXP':
+            raise POSException.ExportError, 'Invalid export header'
 
         t=get_transaction().sub()
 
