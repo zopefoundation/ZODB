@@ -766,8 +766,7 @@ class ClientStorage:
             try:
                 self._server.tpc_abort(self._serial)
             except ClientDisconnected:
-                # log the error and continue
-                pass
+                log2(BLATHER, 'ClientDisconnected in tpc_abort() ignored')
         finally:
             self._tbuf.clear()
             self._seriald.clear()
