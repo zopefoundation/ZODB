@@ -80,7 +80,7 @@ def U64(v):
         return l
 
 def check(path):
-    file = open(path, 'r')
+    file = open(path, 'rb')
 
     file.seek(0, 2)
     file_size = file.tell()
