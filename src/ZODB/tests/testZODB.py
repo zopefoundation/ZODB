@@ -11,6 +11,8 @@
 # FOR A PARTICULAR PURPOSE.
 # 
 ##############################################################################
+from __future__ import nested_scopes
+
 import unittest
 
 import ZODB
@@ -250,14 +252,14 @@ class ZODBTests(unittest.TestCase):
         real_data2 = r2["real_data"]
         index2 = r2["index"]
 
-        real_data["b"]["indexed_value"] = False
+        real_data["b"]["indexed_value"] = 0
         del index[1]["b"]
         index[0]["b"] = 1
         cn2.getTransaction().commit()
 
         del real_data2["a"]
         try:
-            del index2[False]["a"]
+            del index2[0]["a"]
         except ReadConflictError:
             # This is the crux of the text.  Ignore the error.
             pass
@@ -277,7 +279,7 @@ class ZODBTests(unittest.TestCase):
 
     def checkIndependent(self):
         self.obj = Independent()
-        self.readConflict(shouldFail=False)
+        self.readConflict(shouldFail=0)
 
     def checkNotIndependent(self):
         self.obj = DecoyIndependent()
