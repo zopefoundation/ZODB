@@ -85,14 +85,14 @@
 """Simple rpc mechanisms
 """
 
-__version__ = "$Revision: 1.8 $"[11:-2]
+__version__ = "$Revision: 1.9 $"[11:-2]
 
 from cPickle import loads
 from thread import allocate_lock
 from smac import SizedMessageAsyncConnection
 import socket, string, struct, asyncore, sys, time, cPickle
 TupleType=type(())
-from zLOG import LOG, TRACE, DEBUG
+from zLOG import LOG, TRACE, DEBUG, INFO
 
 # We create a special fast pickler! This allows us
 # to create slightly more efficient pickles and
@@ -118,11 +118,12 @@ class asyncRPC(SizedMessageAsyncConnection):
         self.__r=None
         l.acquire()
 
-    def connect(self, tryonce=1):
+    def connect(self, tryonce=1, log_type='client'):
         t=self._tmin
         connection = self._connection
         debug=self._debug
         while 1:
+            if log_type: LOG(log_type, INFO, 'Trying to connect to server')
             try:
                 if type(connection) is type(''):
                     s=socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
