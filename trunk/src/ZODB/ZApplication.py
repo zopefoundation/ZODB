@@ -86,6 +86,9 @@ class BoboApplication:
         v=conn.root()[aname]
 
         if name is not None:
+            if hasattr(v, '__bobo_traverse__'):
+                return v.__bobo_traverse__(REQUEST, name)
+            
             if hasattr(v,name): return getattr(v,name)
             return v[name]
         

@@ -47,7 +47,7 @@
 ##############################################################################
 """File-based BoboPOS3 storage
 """
-__version__='$Revision: 1.1 $'[11:-2]
+__version__='$Revision: 1.2 $'[11:-2]
 
 import struct, time, os, bpthread
 now=time.time
@@ -141,6 +141,10 @@ class FileStorage:
                     write(pack(">8siiHi4s", oid,pos,tloc,0,0,pc))
                 pos=unpack(">i",h[-4:])[0]
         finally: self._r()
+
+    def close(self):
+        self._file.close()
+        # Eventuallly, we should save_index
         
     def commitVersion(self, src, dest):
         self._a()
@@ -415,7 +419,7 @@ class FileStorage:
     def tpc_abort(self, transaction):
         self._a()
         try:
-            if transaction != self._transaction: return
+            if transaction is not self._transaction: return
             del self._tindex[:]
             self._transaction=None
             self._cr()
@@ -436,7 +440,7 @@ class FileStorage:
     def tpc_finish(self, transaction, f=None):
         self._a()
         try:
-            if transaction != self._transaction: return
+            if transaction is not self._transaction: return
             if f is not None: f()
             file=self._file
             write=file.write
@@ -496,6 +500,8 @@ class FileStorage:
             seek(4,1)
             return read(vlen) != version
         finally: self._r()
+
+
         
 
 packed_version='FS10'
