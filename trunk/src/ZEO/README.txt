@@ -23,25 +23,25 @@ web:
 What's here?
 ============
 
-(This list of filenames is mostly for ZEO developers.)
+This list of filenames is mostly for ZEO developers::
 
-ClientCache.py          client-side cache implementation
-ClientStorage.py        client-side storage implementation
-ClientStub.py           RPC stubs for callbacks from server to client
-CommitLog.py            buffer used during two-phase commit on the server
-Exceptions.py           definitions of exceptions
-ICache.py               interface definition for the client-side cache
-ServerStub.py           RPC stubs for the server
-StorageServer.py        server-side storage implementation
-TransactionBuffer.py    buffer used for transaction data in the client
-__init__.py             near-empty file to make this directory a package
-simul.py                command-line tool to simulate cache behavior
-start.py                command-line tool to start the storage server
-stats.py                command-line tool to process client cache traces
-tests/                  unit tests and other test utilities
-util.py                 utilities used by the server startup tool
-version.txt             text file indicating the ZEO version
-zrpc/                   subpackage implementing Remote Procedure Call (RPC)
+ ClientCache.py          client-side cache implementation
+ ClientStorage.py        client-side storage implementation
+ ClientStub.py           RPC stubs for callbacks from server to client
+ CommitLog.py            buffer used during two-phase commit on the server
+ Exceptions.py           definitions of exceptions
+ ICache.py               interface definition for the client-side cache
+ ServerStub.py           RPC stubs for the server
+ StorageServer.py        server-side storage implementation
+ TransactionBuffer.py    buffer used for transaction data in the client
+ __init__.py             near-empty file to make this directory a package
+ simul.py                command-line tool to simulate cache behavior
+ start.py                command-line tool to start the storage server
+ stats.py                command-line tool to process client cache traces
+ tests/                  unit tests and other test utilities
+ util.py                 utilities used by the server startup tool
+ version.txt             text file indicating the ZEO version
+ zrpc/                   subpackage implementing Remote Procedure Call (RPC)
 
 Client Cache Tracing
 ====================
