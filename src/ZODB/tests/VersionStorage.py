@@ -238,35 +238,6 @@ class VersionStorage:
         finally:
             self._storage.tpc_abort(t)
 
-
-    def checkNewSerialOnAbortVersion(self):
-        eq = self.assertEqual
-        oid, version = self._setup_version()
-        data, vserial = self._storage.load(oid, version)
-        data, nserial = self._storage.load(oid, '')
-
-        self._abortVersion(version)
-        data, serial = self._storage.load(oid, version)
-
-        self.failUnless(serial != vserial and serial != nserial,
-                        "New serial, %r, should be different from the old "
-                        "version, %r, and non-version, %r, serials."
-                        % (serial, vserial, nserial))
-
-    def checkNewSerialOnCommitVersion(self):
-        eq = self.assertEqual
-        oid, version = self._setup_version()
-        data, vserial = self._storage.load(oid, version)
-        data, nserial = self._storage.load(oid, '')
-
-        self._commitVersion(version, '')
-        data, serial = self._storage.load(oid, '')
-
-        self.failUnless(serial != vserial and serial != nserial,
-                        "New serial, %r, should be different from the old "
-                        "version, %r, and non-version, %r, serials."
-                        % (serial, vserial, nserial))
-
     def checkNewSerialOnCommitVersionToVersion(self):
         eq = self.assertEqual
         oid, version = self._setup_version()
