@@ -13,6 +13,22 @@ from ZODB.tests.StorageTestBase import zodb_unpickle
 
 
 class TransactionalUndoVersionStorage:
+
+    def _x_dostore(self, *args, **kwargs):
+        # ugh: backwards compatibilty for ZEO 1.0 which runs these
+        # tests but has a _dostore() method that does not support the
+        # description kwarg.
+        try:
+            return self._dostore(*args, **kwargs)
+        except TypeError:
+            # assume that the type error means we've got a _dostore()
+            # without the description kwarg
+            try:
+                del kwargs['description']
+            except KeyError:
+                pass # not expected
+        return self._dostore(*args, **kwargs)
+    
     def checkUndoInVersion(self):
         oid = self._storage.new_oid()
         version = 'one'
@@ -110,18 +126,18 @@ class TransactionalUndoVersionStorage:
         oid = self._storage.new_oid()
         revid = '\000' * 8
         for i in range(4):
-            revid = self._dostore(oid, revid, description='packable%d' % i)
+            revid = self._x_dostore(oid, revid, description='packable%d' % i)
         pt = time.time()
         time.sleep(1)
         
         oid1 = self._storage.new_oid()
         version = 'version'
-        revid1 = self._dostore(oid1, data=MinPO(0), description='create1')
-        revid2 = self._dostore(oid1, data=MinPO(1), revid=revid1,
+        revid1 = self._x_dostore(oid1, data=MinPO(0), description='create1')
+        revid2 = self._x_dostore(oid1, data=MinPO(1), revid=revid1,
                                version=version, description='version1')
-        revid3 = self._dostore(oid1, data=MinPO(2), revid=revid2,
+        revid3 = self._x_dostore(oid1, data=MinPO(2), revid=revid2,
                                version=version, description='version2')
-        self._dostore(description='create2')
+        self._x_dostore(description='create2')
 
         t = Transaction()
         t.description = 'commit version'
@@ -157,18 +173,18 @@ class TransactionalUndoVersionStorage:
         oid = self._storage.new_oid()
         revid = '\000' * 8
         for i in range(3):
-            revid = self._dostore(oid, revid, description='packable%d' % i)
+            revid = self._x_dostore(oid, revid, description='packable%d' % i)
         pt = time.time()
         time.sleep(1)
         
         oid1 = self._storage.new_oid()
         version = 'version'
-        revid1 = self._dostore(oid1, data=MinPO(0), description='create1')
-        revid2 = self._dostore(oid1, data=MinPO(1), revid=revid1,
+        revid1 = self._x_dostore(oid1, data=MinPO(0), description='create1')
+        revid2 = self._x_dostore(oid1, data=MinPO(1), revid=revid1,
                                version=version, description='version1')
-        revid3 = self._dostore(oid1, data=MinPO(2), revid=revid2,
+        revid3 = self._x_dostore(oid1, data=MinPO(2), revid=revid2,
                                version=version, description='version2')
-        self._dostore(description='create2')
+        self._x_dostore(description='create2')
 
         t = Transaction()
         t.description = 'abort version'
