@@ -78,10 +78,8 @@ def zodb_unpickle(data):
     if isinstance(klass_info, types.TupleType):
         if isinstance(klass_info[0], types.TupleType):
             modname, klassname = klass_info[0]
-            args = klass_info[1]
         else:
             modname, klassname = klass_info
-            args = None
         if modname == "__main__":
             ns = globals()
         else:

@@ -85,9 +85,10 @@ class BasicStorage:
         eq(value, MinPO(11))
         eq(revid, newrevid)
 
-    def checkNonVersionStore(self, oid=None, revid=None, version=None):
+##    def checkNonVersionStore(self, oid=None, revid=None, version=None):
+    def checkNonVersionStore(self):
         revid = ZERO
-        newrevid = self._dostore(revid=revid)
+        newrevid = self._dostore(revid=None)
         # Finish the transaction.
         self.assertNotEqual(newrevid, revid)
 
