@@ -114,8 +114,6 @@ static struct PyMethodDef TreeSet_methods[] = {
      "has_key(key) -- Test whether the bucket contains the given key"},
   {"keys",	(PyCFunction) BTree_keys,	METH_VARARGS,
      "keys() -- Return the keys"},
-  {"items",	(PyCFunction) BTree_keys,	METH_VARARGS,
-     "items() -- Return the items"},
   {"maxKey", (PyCFunction) BTree_maxKey,	METH_VARARGS,
    "maxKey([key]) -- Fine the maximum key\n\n"
    "If an argument is given, find the maximum <= the argument"},

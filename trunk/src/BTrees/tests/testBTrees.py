@@ -135,7 +135,10 @@ class Base:
         try:
             root = self._getRoot()
             #XXX BTree stuff doesn't implement comparison
-            assert list(root['t'].items()) == list(t.items())
+            if hasattr(t, 'items'):
+                assert list(root['t'].items()) == list(t.items())
+            else:
+                assert list(root['t'].keys()) == list(t.keys())
         finally:
             self._closeDB(root)
             self._delDB()
@@ -157,7 +160,10 @@ class Base:
             root = self._getRoot()
             root['t']._p_changed = None
             get_transaction().commit()
-            assert list(root['t'].items()) == list(t.items())
+            if hasattr(t,'items'):
+                assert list(root['t'].items()) == list(t.items())
+            else:
+                assert list(root['t'].keys()) == list(t.keys())
         finally:
             self._closeDB(root)
             self._delDB()
@@ -302,13 +308,6 @@ class NormalSetTests(Base):
     def testHasKeyFails(self):
         t = self.t
         assert not t.has_key(1)
-
-    def testItems(self):
-        t = self.t
-        t.insert(1)
-        t.insert(3)
-        t.insert(5)
-        assert lsubtract(t.items(), [1,3,5]) == [], t.items()
 
     def testKeys(self):
         t = self.t

@@ -205,8 +205,6 @@ static struct PyMethodDef Set_methods[] = {
    "__setstate__() -- Set the state of the object"},
   {"keys",	(PyCFunction) bucket_keys,	METH_VARARGS,
      "keys() -- Return the keys"},
-  {"items",	(PyCFunction) bucket_keys,	METH_VARARGS,
-     "items() -- Return the items"},
   {"has_key",	(PyCFunction) bucket_has_key,	METH_VARARGS,
      "has_key(key) -- Test whether the bucket contains the given key"},
   {"clear",	(PyCFunction) bucket_clear,	METH_VARARGS,
