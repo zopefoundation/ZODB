@@ -1,6 +1,7 @@
 /*****************************************************************************
 
-  Copyright (c) 2001 Zope Corporation and Contributors. All Rights Reserved.
+  Copyright (c) 2001, 2004 Zope Corporation and Contributors. 
+  All Rights Reserved.
 
   This software is subject to the provisions of the Zope Public License,
   Version 2.0 (ZPL).  A copy of the ZPL should accompany this distribution.
@@ -18,7 +19,10 @@ PyObject *TimeStamp_FromDate(int, int, int, int, int, double);
 PyObject *TimeStamp_FromString(const char *);
 
 static char TimeStampModule_doc[] =
-"A 64-bit TimeStamp used as a ZODB serial number.\n";
+"A 64-bit TimeStamp used as a ZODB serial number.\n"
+"\n"
+"$Id: TimeStamp.c,v 1.5 2004/05/03 20:17:57 spascoe Exp $\n";
+
 
 typedef struct {
     PyObject_HEAD
