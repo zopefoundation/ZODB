@@ -57,7 +57,7 @@ def short_repr(obj):
         elts = []
         size = 0
         for elt in obj:
-            r = repr(elt)
+            r = short_repr(elt)
             elts.append(r)
             size += len(r)
             if size > REPR_LIMIT:
