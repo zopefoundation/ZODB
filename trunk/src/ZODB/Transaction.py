@@ -13,8 +13,8 @@
 ##############################################################################
 """Transaction management
 
-$Id: Transaction.py,v 1.33 2002/02/11 23:40:42 gvanrossum Exp $"""
-__version__='$Revision: 1.33 $'[11:-2]
+$Id: Transaction.py,v 1.34 2002/03/08 02:09:21 jeremy Exp $"""
+__version__='$Revision: 1.34 $'[11:-2]
 
 import time, sys, struct, POSException
 from struct import pack
@@ -61,7 +61,11 @@ class Transaction:
         r._extension=self._extension
         return r
         
-    def __str__(self): return "%.3f\t%s" % (self._id or 0, self.user)
+    def __str__(self):
+        if self._id is None:
+            return "Transaction user=%s" % `self.user`
+        else:
+            return "Transaction thread=%s user=%s" % (self._id, `self.user`)
 
     def __del__(self):
         if self._objects: self.abort(freeme=0)
@@ -345,22 +349,30 @@ try:
     import thread
 
 except:
-    _t=Transaction(None)
-    def get_transaction(_t=_t): return _t
-    def free_transaction(_t=_t): _t.__init__()
+    _t = Transaction(None)
+    
+    def get_transaction(_t=_t):
+        return _t
+    
+    def free_transaction(_t=_t):
+        _t.__init__()
 
 else:
-    _t={}
-    def get_transaction(_id=thread.get_ident, _t=_t, get=_t.get, None=None):
-        id=_id()
-        t=get(id, None)
-        if t is None: _t[id]=t=Transaction(id)
+    _t = {}
+    
+    def get_transaction(_id=thread.get_ident, _t=_t, get=_t.get):
+        id = _id()
+        t = get(id, None)
+        if t is None:
+            _t[id] = t = Transaction(id)
         return t
 
     def free_transaction(_id=thread.get_ident, _t=_t):
-        id=_id()
-        try: del _t[id]
-        except KeyError: pass
+        id = _id()
+        try:
+            del _t[id]
+        except KeyError:
+            pass
 
     del thread
 
