@@ -14,7 +14,7 @@
 
 """
 Revision information:
-$Id: testTransaction.py,v 1.7 2002/04/15 18:55:11 jeremy Exp $
+$Id: testTransaction.py,v 1.8 2002/08/12 20:00:49 jeremy Exp $
 """
 
 """
@@ -360,10 +360,11 @@ class TransactionTests(unittest.TestCase):
 
     def testExceptionInTpcFinish(self):
 
-        self.sub1._p_jar = SubTransactionJar(errors='tpc_finish')
+        for sub in self.sub1, self.sub2:
+            sub._p_jar = SubTransactionJar(errors='tpc_finish')
+            sub.modify(nojar=1)
         
         self.nosub1.modify()
-        self.sub1.modify(nojar=1)
 
         try: 
             get_transaction().commit()
@@ -543,10 +544,11 @@ class TransactionTests(unittest.TestCase):
     # last test, check the hosing mechanism
 
     def testHoserStoppage(self):
-
-        self.sub1._p_jar = SubTransactionJar(errors='tpc_finish')
+        # must have errors in at least two jars to guarantee a failure
+        for sub in self.sub1, self.sub2:
+            sub._p_jar = SubTransactionJar(errors='tpc_finish')
+            sub.modify(nojar=1)
         self.nosub1.modify()
-        self.sub1.modify(nojar=1)
 
         try:
             get_transaction().commit()
