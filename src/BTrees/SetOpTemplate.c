@@ -16,7 +16,7 @@
  Set operations
  ****************************************************************************/
 
-#define SETOPTEMPLATE_C "$Id: SetOpTemplate.c,v 1.21 2002/06/05 19:26:55 tim_one Exp $\n"
+#define SETOPTEMPLATE_C "$Id: SetOpTemplate.c,v 1.22 2002/06/07 06:44:01 tim_one Exp $\n"
 
 #ifdef INTSET_H
 static int 
@@ -487,7 +487,7 @@ multiunion_m(PyObject *ignored, PyObject *args)
             /* No cheap way:  iterate over set's elements one at a time. */
             int merge;  /* dummy needed for initSetIteration */
 
-            if (initSetIteration(&setiter, set, 1, &merge) < 0) goto Error;
+            if (initSetIteration(&setiter, set, -1, &merge) < 0) goto Error;
             if (setiter.next(&setiter) < 0) goto Error;
             while (setiter.position >= 0) {
                 if (result->len >= result->size && Bucket_grow(result, -1, 1) < 0)
