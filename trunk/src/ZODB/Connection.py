@@ -84,8 +84,8 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.19 1999/07/20 19:08:50 jim Exp $"""
-__version__='$Revision: 1.19 $'[11:-2]
+$Id: Connection.py,v 1.20 1999/07/21 21:11:07 klm Exp $"""
+__version__='$Revision: 1.20 $'[11:-2]
 
 from cPickleCache import PickleCache
 from POSException import ConflictError, ExportError
@@ -469,6 +469,17 @@ class Connection(ExportImport.ExportImport):
         get_transaction().abort()
         self._cache.invalidate(self._invalidated)
 
+
+    ######################################################################
+    # Just plain weird. Don't try this at home kids.
+    def exchange(self, old, new):
+        oid=old._p_oid
+        new._p_oid=oid
+        new._p_jar=self
+        new._p_changed=1
+        get_transaction().register(new)
+        self.cache[oid]=new
+        
 class tConnection(Connection):
 
     def close(self):
