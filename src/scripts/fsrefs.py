@@ -76,8 +76,14 @@ def main(path):
             # storage, but that seems like overkill.
             
         refs = get_refs(data)
-        missing = [] # contains 3-tuples of oid, klass-metadata, reason 
-        for ref, klass in refs:
+        missing = [] # contains 3-tuples of oid, klass-metadata, reason
+        for info in refs:
+            try:
+                ref, klass = info
+            except TypeError:
+                # failed to unpack
+                ref = info
+                klass = '<unknown>'
             if not fs._index.has_key(ref):
                 missing.append((ref, klass, "missing"))
             if noload.has_key(ref):
