@@ -39,15 +39,6 @@ class StorageServer:
     def extensionMethod(self, name):
         return ExtensionMethodWrapper(self.rpc, name).call
 
-    def _update(self):
-        """Handle pending incoming messages.
-
-        This method is typically only used when no asyncore mainloop
-        is already active.  It can cause arbitrary callbacks from the
-        server to the client to be handled.
-        """
-        self.rpc.pending()
-
     def register(self, storage_name, read_only):
         self.rpc.call('register', storage_name, read_only)
 
