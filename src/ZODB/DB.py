@@ -84,8 +84,8 @@
 ##############################################################################
 """Database objects
 
-$Id: DB.py,v 1.24 2000/09/16 02:38:54 jim Exp $"""
-__version__='$Revision: 1.24 $'[11:-2]
+$Id: DB.py,v 1.25 2000/10/05 20:17:46 jim Exp $"""
+__version__='$Revision: 1.25 $'[11:-2]
 
 import cPickle, cStringIO, sys, POSException, UndoLogCompatible
 from Connection import Connection
@@ -526,7 +526,9 @@ class DB(UndoLogCompatible.UndoLogCompatible):
                     })
         return r
         
-    def pack(self, t):
+    def pack(self, t=None, days=0):
+        if t is None: t=time()
+        t=t-(days*86400)
         self._storage.pack(t,referencesf)
                            
     def setCacheDeactivateAfter(self, v):
