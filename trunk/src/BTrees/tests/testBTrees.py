@@ -26,85 +26,64 @@ from unittest import TestCase, TestSuite, TextTestRunner, makeSuite
 from glob import glob
 
 from ZODB.tests.StorageTestBase import removefs
+from ZODB import DB
+from ZODB.MappingStorage import MappingStorage
 
 class Base:
     """ Tests common to all types: sets, buckets, and BTrees """
+
+    db = None
+    
     def tearDown(self):
         self.t = None
         del self.t
+        if self.db is not None:
+            self.db.close()
 
     def _getRoot(self):
-        from ZODB.FileStorage import FileStorage
-        from ZODB.DB import DB
-        self._fsname = 'fs_tmp__%s' % os.getpid()
-        s = FileStorage(self._fsname)
-        db = DB(s)
-        root = db.open().root()
-        return root
+        if self.db is None:
+            self.db = DB(MappingStorage())
+        return self.db.open().root()
 
-    def _closeDB(self, root):
-        if root is not None:
-            root._p_jar._db.close()
-
-    def _delDB(self):
-        removefs(self._fsname)
+    def _closeRoot(self, root):
+        root._p_jar.close()
 
     def testLoadAndStore(self):
         for i in 0, 10, 1000:
             t = self.t.__class__()
             self._populate(t, i)
             root = None
-            try:
-                root = self._getRoot()
-                root[i] = t
-                get_transaction().commit()
-            except:
-                self._closeDB(root)
-                self._delDB()
-                raise
+            root = self._getRoot()
+            root[i] = t
+            get_transaction().commit()
 
-            self._closeDB(root)
+            root2 = self._getRoot()
+            if hasattr(t, 'items'):
+                self.assertEqual(list(root2[i].items()) , list(t.items()))
+            else:
+                self.assertEqual(list(root2[i].keys()) , list(t.keys()))
 
-            root = None
-            try:
-                root = self._getRoot()
-                #XXX BTree stuff doesn't implement comparison
-                if hasattr(t, 'items'):
-                    self.assertEqual(list(root[i].items()) , list(t.items()))
-                else:
-                    self.assertEqual(list(root[i].keys()) , list(t.keys()))
-            finally:
-                self._closeDB(root)
-                self._delDB()
+            self._closeRoot(root)
+            self._closeRoot(root2)
 
     def testGhostUnghost(self):
         for i in 0, 10, 1000:
             t = self.t.__class__()
             self._populate(t, i)
-            root = None
-            try:
-                root = self._getRoot()
-                root[i] = t
-                get_transaction().commit()
-            except:
-                self._closeDB(root)
-                self._delDB()
-                raise
+            root = self._getRoot()
+            root[i] = t
+            get_transaction().commit()
 
-            self._closeDB(root)
+            root2 = self._getRoot()
+            root2[i]._p_deactivate()
+            get_transaction().commit()
+            if hasattr(t, 'items'):
+                self.assertEqual(list(root2[i].items()) , list(t.items()))
+            else:
+                self.assertEqual(list(root2[i].keys()) , list(t.keys()))
 
-            root = None
-            try:
-                root = self._getRoot()
-                root[i]._p_changed = None
-                get_transaction().commit()
-                if hasattr(t,'items'):
-                    self.assertEqual(list(root[i].items()) , list(t.items()))
-                else:
-                    self.assertEqual(list(root[i].keys()) , list(t.keys()))
-            finally:
-                self._closeDB(root)
-                self._delDB()
+            self._closeRoot(root)
+            self._closeRoot(root2)
 
 class MappingBase(Base):
     """ Tests common to mappings (buckets, btrees) """
