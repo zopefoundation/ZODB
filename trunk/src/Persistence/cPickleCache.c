@@ -15,7 +15,7 @@
 static char cPickleCache_doc_string[] =
 "Defines the PickleCache used by ZODB Connection objects.\n"
 "\n"
-"$Id: cPickleCache.c,v 1.48 2002/04/02 19:47:19 jeremy Exp $\n";
+"$Id: cPickleCache.c,v 1.49 2002/04/02 22:22:03 bwarsaw Exp $\n";
 
 #define ASSIGN(V,E) {PyObject *__e; __e=(E); Py_XDECREF(V); (V)=__e;}
 #define UNLESS(E) if(!(E))
@@ -44,20 +44,27 @@ static PyObject *py__p_oid, *py_reload, *py__p_jar, *py__p_changed;
 #define ENGINE_NOISE(A) ((void)A)
 #endif
 
-/* the layout of this struct is the same as the start of ccobject_head in cPersistence.c */
+/* This object is the pickle cache.  The layout of this struct is the same
+ * as the start of ccobject_head in cPersistence.c
+ * XXX Why do they need to have the same layouts?
+ */
 typedef struct {
     CACHE_HEAD
-    int klass_count;
-    PyObject *data;
-    PyObject *jar;
-    PyObject *setklassstate;
-    int cache_size;
-    int ring_lock;
+    int klass_count;                         /* XXX for ZClass support? */
+    PyObject *data;                          /* oid -> object dict */
+    PyObject *jar;                           /* Connection object */
+    PyObject *setklassstate;                 /* ??? */
+    int cache_size;                          /* number of items in cache */
+    int ring_lock;                           /* ??? */
+    /* XXX Settable from Python, this appears to be a ratio controlling how
+     * the cache gets gradually smaller.  It is probably an error for this
+     * to be negative.
+     */
     int cache_drain_resistance;
 } ccobject;
 
 static int present_in_ring(ccobject *self, CPersistentRing *target);
-static int check_ring(ccobject *self, const char *context);
+static int ring_corrupt(ccobject *self, const char *context);
 static int cc_ass_sub(ccobject *self, PyObject *key, PyObject *v);
 
 /* ---------------------------------------------------------------- */
@@ -85,7 +92,10 @@ object_from_ring(ccobject *self, CPersistentRing *here, const char *context)
 
     PyObject *object;
 
-    object = (PyObject *)(((char *)here) - offsetof(cPersistentObject, ring));
+    /* given a pointer to a ring slot in a cPersistent_HEAD, we want to get
+     * the pointer to the Python object that slot is embedded in.
+     */
+    object = (PyObject *)(((void *)here) - offsetof(cPersistentObject, ring));
 
 #ifdef MUCH_RING_CHECKING
     if (!PyExtensionInstance_Check(object)) {
@@ -119,7 +129,6 @@ scan_gc_items(ccobject *self,int target)
 {
     cPersistentObject *object;
     int error;
-    CPersistentRing placeholder;
     CPersistentRing *here = self->ring_home.next;
 
 #ifdef MUCH_RING_CHECKING
@@ -128,19 +137,24 @@ scan_gc_items(ccobject *self,int target)
 	safety_counter = 10000;
 #endif
 
+    /* Scan through the ring until we either find the ring_home (i.e. start
+     * of the ring, or we've ghosted enough objects to reach the target
+     * size.
+     */
     while (1) {
-        if (check_ring(self, "mid-gc")) 
+        if (ring_corrupt(self, "mid-gc")) 
 	    return -1;
 
 #ifdef MUCH_RING_CHECKING
         if (!safety_counter--) {
-            /* This loop has been running for a very long time.
-               It is possible that someone loaded a very large number of objects,
-               and now wants us to blow them all away. However it may
-               also indicate a logic error. If the loop has been running this
+            /* This loop has been running for a very long time.  It is
+               possible that someone loaded a very large number of objects,
+               and now wants us to blow them all away. However it may also
+               indicate a logic error. If the loop has been running this
                long then you really have to doubt it will ever terminate.
-               In the MUCH_RING_CHECKING build we prefer to raise an exception
-               here */
+               In the MUCH_RING_CHECKING build we prefer to raise an
+               exception here
+            */
             PyErr_SetString(PyExc_RuntimeError,
 			    "scan_gc_items safety counter exceeded");
             return -1;
@@ -172,26 +186,24 @@ scan_gc_items(ccobject *self,int target)
         else if (object->state == cPersistent_UPTODATE_STATE) {
             /* deactivate it. This is the main memory saver. */
 
+            /* Save the next pointer of the object we're about to ghostify,
+             * so that we can follow the link after the ghosted object is
+             * removed from the ring (via ghostify()).
+             */
+            CPersistentRing *next = here->next;
+
             ENGINE_NOISE("G");
 
-            /* add a placeholder */
-            placeholder.next = here->next;
-            placeholder.prev = here;
-            here->next->prev = &placeholder;
-            here->next = &placeholder;
-
+            /* In Python, "obj._p_changed = None" spells, ghostify */
             error = PyObject_SetAttr((PyObject *)object, py__p_changed, 
 				     Py_None);
 
-            /* unlink the placeholder */
-            placeholder.next->prev = placeholder.prev;
-            placeholder.prev->next = placeholder.next;
+            here = next;
 
-            here = placeholder.next;
-
-            if(error)
+            if (error)
                 return -1; /* problem */
-        } else {
+        }
+        else {
             ENGINE_NOISE(".");
             here = here->next;
         }
@@ -201,12 +213,16 @@ scan_gc_items(ccobject *self,int target)
 static PyObject *
 lockgc(ccobject *self, int target_size)
 {
+    /* We think this is thread-safe because of the GIL, and there's nothing
+     * in between checking the ring_lock and acquiring it that calls back
+     * into Python.
+     */
     if (self->ring_lock) {
         Py_INCREF(Py_None);
         return Py_None;
     }
 
-    if (check_ring(self, "pre-gc")) 
+    if (ring_corrupt(self, "pre-gc")) 
 	return NULL;
     ENGINE_NOISE("<");
     self->ring_lock = 1;
@@ -216,7 +232,7 @@ lockgc(ccobject *self, int target_size)
     }
     self->ring_lock = 0;
     ENGINE_NOISE(">\n");
-    if (check_ring(self, "post-gc")) 
+    if (ring_corrupt(self, "post-gc")) 
 	return NULL;
 
     Py_INCREF(Py_None);
@@ -409,7 +425,7 @@ cc_lru_items(ccobject *self, PyObject *args)
         return NULL;
     }
 
-    if (check_ring(self, "pre-cc_items")) 
+    if (ring_corrupt(self, "pre-cc_items")) 
 	return NULL;
 
     l = PyList_New(0);
@@ -566,7 +582,7 @@ cc_getattr(ccobject *self, char *name)
 {
   PyObject *r;
 
-  if (check_ring(self, "getattr")) 
+  if (ring_corrupt(self, "getattr")) 
       return NULL;
 
   if(*name=='c')
@@ -641,7 +657,7 @@ cc_subscript(ccobject *self, PyObject *key)
 {
   PyObject *r;
 
-  if (check_ring(self, "__getitem__")) 
+  if (ring_corrupt(self, "__getitem__")) 
       return NULL;
 
   r = (PyObject *)object_from_oid(self, key);
@@ -727,7 +743,7 @@ cc_add_item(ccobject *self, PyObject *key, PyObject *v)
 	*/
     }
     
-    if (check_ring(self, "pre-setitem")) 
+    if (ring_corrupt(self, "pre-setitem")) 
 	return -1;
     if (PyDict_SetItem(self->data, key, v)) 
 	return -1;
@@ -749,7 +765,7 @@ cc_add_item(ccobject *self, PyObject *key, PyObject *v)
 	Py_DECREF(v);
     }
     
-    if (check_ring(self, "post-setitem")) 
+    if (ring_corrupt(self, "post-setitem")) 
 	return -1;
     else
 	return 0;
@@ -762,7 +778,7 @@ cc_del_item(ccobject *self, PyObject *key)
     cPersistentObject *p;
 
     /* unlink this item from the ring */
-    if (check_ring(self, "pre-delitem")) 
+    if (ring_corrupt(self, "pre-delitem")) 
 	return -1;
 
     v = (PyObject *)object_from_oid(self, key);
@@ -800,7 +816,7 @@ cc_del_item(ccobject *self, PyObject *key)
 	return -1;
     }
 
-    if (check_ring(self, "post-delitem")) 
+    if (ring_corrupt(self, "post-delitem")) 
 	return -1;
 
     return 0;
@@ -816,7 +832,7 @@ cc_ass_sub(ccobject *self, PyObject *key, PyObject *v)
 }
 
 static int 
-_check_ring(ccobject *self, const char *context)
+_ring_corrupt(ccobject *self, const char *context)
 {
     CPersistentRing *here = &(self->ring_home);
     int expected = 1 + self->non_ghost_count;
@@ -861,18 +877,11 @@ _check_ring(ccobject *self, const char *context)
     return 0;
 }
 
-/* XXX This function returns false if everything is okay, which is
-   backwards given its name.  All the tests say:
-
-   if (check_ring(...))
-       return error
-*/
-
 static int 
-check_ring(ccobject *self, const char *context)
+ring_corrupt(ccobject *self, const char *context)
 {
 #ifdef MUCH_RING_CHECKING
-    int code = _check_ring(self,context);
+    int code = _ring_corrupt(self,context);
     if (code) {
         PyErr_Format(PyExc_RuntimeError,
 		     "broken ring (code %d) in %s, size %d",
