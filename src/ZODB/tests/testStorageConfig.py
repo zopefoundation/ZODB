@@ -56,10 +56,10 @@ class StorageTestCase(unittest.TestCase):
         sample = """
         <Storage>
         type       ClientStorage
-        addr       %s
+        addr       zep://www.python.org:9001
         wait       no
         </Storage>
-        """ % self.tmpfn
+        """
         io = StringIO(sample)
         rootconf = ZConfig.loadfile(io)
         storageconf = rootconf.getSection("Storage")
