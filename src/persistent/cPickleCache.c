@@ -12,10 +12,85 @@
 
  ****************************************************************************/
 
+/*
+
+Objects are stored under three different regimes:
+
+Regime 1: Persistent Classes
+
+Persistent Classes are part of ZClasses. They are stored in the
+self->data dictionary, and are never garbage collected.
+
+The klass_items() method returns a sequence of (oid,object) tuples
+for every Persistent Class, which should make it possible to
+implement garbage collection in Python if necessary.
+
+Regime 2: Ghost Objects
+
+There is no benefit to keeping a ghost object which has no
+external references, therefore a weak reference scheme is
+used to ensure that ghost objects are removed from memory
+as soon as possible, when the last external reference is lost.
+
+Ghost objects are stored in the self->data dictionary. Normally
+a dictionary keeps a strong reference on its values, however
+this reference count is 'stolen'.
+
+This weak reference scheme leaves a dangling reference, in the
+dictionary, when the last external reference is lost. To clean up
+this dangling reference the persistent object dealloc function
+calls self->cache->_oid_unreferenced(self->oid). The cache looks
+up the oid in the dictionary, ensures it points to an object whose
+reference count is zero, then removes it from the dictionary. Before
+removing the object from the dictionary it must temporarily resurrect
+the object in much the same way that class instances are resurrected
+before their __del__ is called.
+
+Since ghost objects are stored under a different regime to
+non-ghost objects, an extra ghostify function in cPersistenceAPI
+replaces self->state=GHOST_STATE assignments that were common in
+other persistent classes (such as BTrees).
+
+Regime 3: Non-Ghost Objects
+
+Non-ghost objects are stored in two data structures. Firstly, in
+the dictionary along with everything else, with a *strong* reference.
+Secondly, they are stored in a doubly-linked-list which encodes
+the order in which these objects have been most recently used.
+
+The doubly-link-list nodes contain next and previous pointers
+linking together the cache and all non-ghost persistent objects.
+
+The node embedded in the cache is the home position. On every
+attribute access a non-ghost object will relink itself just
+behind the home position in the ring. Objects accessed least
+recently will eventually find themselves positioned after
+the home position.
+
+Occasionally other nodes are temporarily inserted in the ring
+as position markers. The cache contains a ring_lock flag which
+must be set and unset before and after doing so. Only if the flag
+is unset can the cache assume that all nodes are either his own
+home node, or nodes from persistent objects. This assumption is
+useful during the garbage collection process.
+
+The number of non-ghost objects is counted in self->non_ghost_count.
+The garbage collection process consists of traversing the ring, and
+deactivating (that is, turning into a ghost) every object until
+self->non_ghost_count is down to the target size, or until it
+reaches the home position again.
+
+Note that objects in the sticky or changed states are still kept
+in the ring, however they can not be deactivated. The garbage
+collection process must skip such objects, rather than deactivating
+them.
+
+*/
+
 static char cPickleCache_doc_string[] =
 "Defines the PickleCache used by ZODB Connection objects.\n"
 "\n"
-"$Id: cPickleCache.c,v 1.50 2002/04/03 00:03:32 jeremy Exp $\n";
+"$Id: cPickleCache.c,v 1.51 2002/04/03 17:00:44 htrd Exp $\n";
 
 #define ASSIGN(V,E) {PyObject *__e; __e=(E); Py_XDECREF(V); (V)=__e;}
 #define UNLESS(E) if(!(E))
@@ -30,9 +105,10 @@ static char cPickleCache_doc_string[] =
 
 static PyObject *py__p_oid, *py_reload, *py__p_jar, *py__p_changed;
 
-/* define this for extra debugging checks, and lousy performance */
-/* Are any of these checks necessary in production code?  How do we
-   decide when to disable it?
+/* define this for extra debugging checks, and lousy performance.
+   Not really necessary in production code... disable this before
+   release, providing noone has been reporting and RuntimeErrors
+   that it uses to report problems.
 */
 #define MUCH_RING_CHECKING 1
 
@@ -44,23 +120,36 @@ static PyObject *py__p_oid, *py_reload, *py__p_jar, *py__p_changed;
 #define ENGINE_NOISE(A) ((void)A)
 #endif
 
-/* This object is the pickle cache.  The layout of this struct is the same
- * as the start of ccobject_head in cPersistence.c
- * XXX Why do they need to have the same layouts?
- */
+/* This object is the pickle cache.  The CACHE_HEAD macro guarantees that
+layout of this struct is the same as the start of ccobject_head in
+cPersistence.c */
 typedef struct {
     CACHE_HEAD
-    int klass_count;                         /* XXX for ZClass support? */
+    int klass_count;                         /* count of persistent classes */
     PyObject *data;                          /* oid -> object dict */
     PyObject *jar;                           /* Connection object */
     PyObject *setklassstate;                 /* ??? */
-    int cache_size;                          /* number of items in cache */
-    int ring_lock;                           /* ??? */
-    /* XXX Settable from Python, this appears to be a ratio controlling how
-     * the cache gets gradually smaller.  It is probably an error for this
-     * to be negative.
-     */
+    int cache_size;                          /* target number of items in cache */
+
+    /* Most of the time the ring contains only:
+       * many nodes corresponding to persistent objects
+       * one 'home' node from the cache.
+    In some cases it is handy to temporarily add other types
+    of node into the ring as placeholders. 'ring_lock' is a boolean
+    indicating that someone has already done this. Currently this
+    is only used by the garbage collection code. */
+
+    int ring_lock;
+
+    /* 'cache_drain_resistance' controls how quickly the cache size will drop
+    when it is smaller than the configured size. A value of zero means it will
+    not drop below the configured size (suitable for most caches). Otherwise,
+    it will remove cache_non_ghost_count/cache_drain_resistance items from
+    the cache every time (suitable for rarely used caches, such as those
+    associated with Zope versions. */
+
     int cache_drain_resistance;
+
 } ccobject;
 
 static int present_in_ring(ccobject *self, CPersistentRing *target);
@@ -127,6 +216,8 @@ object_from_ring(ccobject *self, CPersistentRing *here, const char *context)
 static int
 scan_gc_items(ccobject *self,int target)
 {
+    /* This function must only be called with the ring lock held */
+
     cPersistentObject *object;
     int error;
     CPersistentRing *here = self->ring_home.next;
@@ -174,8 +265,9 @@ scan_gc_items(ccobject *self,int target)
             return 0;
 
         /* At this point we know that the ring only contains nodes from
-        persistent objects, plus our own home node. We can safely
-        assume this is a persistent object now we know it is not the home */
+        persistent objects, plus our own home node. We know this because
+        the ring lock is held.  We can safely assume the current ring
+        node is a persistent object now we know it is not the home */
         object = object_from_ring(self, here, "scan_gc_items");
         if (!object) 
 	    return -1;
@@ -190,6 +282,8 @@ scan_gc_items(ccobject *self,int target)
              * so that we can follow the link after the ghosted object is
              * removed from the ring (via ghostify()).
              */
+
+            /* FIXME: This needs to be changed back to a placeholder */
             CPersistentRing *next = here->next;
 
             ENGINE_NOISE("G");
@@ -420,6 +514,8 @@ cc_lru_items(ccobject *self, PyObject *args)
 	return NULL;
 
     if (self->ring_lock) {
+	/* When the ring lock is held, we have no way of know which ring nodes
+	belong to persistent objects, and which a placeholders. */
         PyErr_SetString(PyExc_ValueError,
 		".lru_items() is unavailable during garbage collection");
         return NULL;
@@ -498,6 +594,8 @@ cc_oid_unreferenced(ccobject *self, PyObject *args)
 
 #ifdef Py_TRACE_REFS
 #error "this code path has not been tested - Toby Dickenson"
+    /* not tested, but it should still work. I would appreciate
+       reports of success */
     _Py_NewReference(v);
     /* it may be a problem that v->ob_type is still NULL? */
 #else
@@ -682,12 +780,14 @@ cc_add_item(ccobject *self, PyObject *key, PyObject *v)
 			"Cache values must be persistent objects.");
 	return -1;
     }
-    /* Is this set of tests necessary? */
     class = (PyExtensionClass *)(v->ob_type);
     if (!((class->class_flags & PERSISTENT_TYPE_FLAG)
 	  && v->ob_type->tp_basicsize >= sizeof(cPersistentObject))) {
 	PyErr_SetString(PyExc_ValueError, 
 			"Cache values must be persistent objects.");
+	/* Must be either persistent classes (ie ZClasses), or instances
+	of persistent classes (ie Python classeses that derive from
+	Persistence.Persistent, BTrees, etc) */
 	return -1;
     }
 
@@ -698,7 +798,8 @@ cc_add_item(ccobject *self, PyObject *key, PyObject *v)
 
     if (oid == NULL)
 	return -1;
-    /* XXX key and oid should both be PyString objects */
+    /* XXX key and oid should both be PyString objects.
+       May be helpful to check this. */
     if (PyObject_Cmp(key, oid, &result) < 0) {
 	Py_DECREF(oid);
 	return -1;
