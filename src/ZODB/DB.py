@@ -13,12 +13,12 @@
 ##############################################################################
 """Database objects
 
-$Id: DB.py,v 1.58 2003/12/24 16:02:00 jeremy Exp $"""
-__version__='$Revision: 1.58 $'[11:-2]
+$Id: DB.py,v 1.59 2004/01/06 21:44:25 jeremy Exp $"""
+__version__='$Revision: 1.59 $'[11:-2]
 
 import cPickle, cStringIO, sys, POSException, UndoLogCompatible
 from Connection import Connection
-from bpthread import allocate_lock
+from thread import allocate_lock
 from Transaction import Transaction, get_transaction
 from referencesf import referencesf
 from time import time, ctime
@@ -281,6 +281,9 @@ class DB(UndoLogCompatible.UndoLogCompatible, object):
 
     def getCacheSize(self):
         return self._cache_size
+
+    def lastTransaction(self):
+        return self._storage.lastTransaction()
 
     def getName(self): return self._storage.getName()
 
