@@ -71,6 +71,15 @@ trying to determine the object's class path.  This was confusing.  The code
 has been changed to obtain the class path from the object's pickle, without
 trying to import application modules or classes.
 
+FileStorage
+-----------
+
+Collector 1581:  When an attempt to pack a corrupted ``Data.fs`` file was
+made, it was possible for the pack routine to die with a reference to an
+undefined global while it was trying to raise ``CorruptedError``.  It
+raises ``CorruptedError``, as it always intended, in these cases now.
+
+
 Install
 -------
 
