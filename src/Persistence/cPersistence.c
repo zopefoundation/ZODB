@@ -82,7 +82,7 @@
   attributions are listed in the accompanying credits file.
   
  ****************************************************************************/
-static char *what_string = "$Id: cPersistence.c,v 1.29 1999/05/14 19:21:49 jim Exp $";
+static char *what_string = "$Id: cPersistence.c,v 1.30 1999/06/10 19:55:29 jim Exp $";
 
 #include <string.h>
 #include "cPersistence.h"
@@ -441,6 +441,8 @@ Per_dealloc(self)
   if(idebug_log < 0) call_debug("del",self);
 #endif
   Py_XDECREF(self->jar);
+  Py_XDECREF(self->oid);
+  Py_DECREF(self->ob_type);
   PyMem_DEL(self);
 }
 
@@ -699,7 +701,7 @@ void
 initcPersistence()
 {
   PyObject *m, *d;
-  char *rev="$Revision: 1.29 $";
+  char *rev="$Revision: 1.30 $";
 
   TimeStamp=PyString_FromString("TimeStamp");
   if (! TimeStamp) return;
