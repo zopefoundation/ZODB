@@ -1,0 +1,22 @@
+# ZEO Client Storage interface                        -*- python -*-
+#
+# This file tells Zope to look to a ZEO Storage Server for all of its
+# database objects.
+
+
+__version__ = "$Id: custom_zodb.py.dist,v 1.1 1999/11/16 15:48:51 petrilli Exp $"[11:-2]
+
+# First we have to get the right ZEO components 
+import ZEO.ClientStorage
+
+# Lets set this in variables
+
+ZSS_HOST = ''                           # Host name where ZSS is running
+ZSS_PORT = 8800                         # Port that the ZSS is running on
+ZSS_ASYNC = 1                           # Set to 1 for async calls
+ZSS_NAME = 'MyStorage'                  # 
+
+# Now we tell Zope where its storage is:
+Storage=ZEO.ClientStorage.ClientStorage((ZSS_HOST, ZSS_PORT),
+                                        async=ZSS_ASYNC, name=ZSS_NAME)
+
