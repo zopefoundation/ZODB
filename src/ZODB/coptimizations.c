@@ -318,8 +318,8 @@ static struct PyMethodDef Module_Level__methods[] = {
 void
 initcoptimizations(void)
 {
-  PyObject *m, *d;
-  char *rev="$Revision: 1.12 $";
+  PyObject *m, *d, *s;
+  char *rev="$Revision: 1.13 $";
 
 #define make_string(S) if (! (py_ ## S=PyString_FromString(#S))) return
   make_string(_p_oid);
@@ -348,6 +348,11 @@ initcoptimizations(void)
   persistent_idType.ob_type=&PyType_Type;
   PyDict_SetItemString(d,"persistent_idType", OBJECT(&persistent_idType));
 
-  PyDict_SetItemString(d, "__version__",
-		       PyString_FromStringAndSize(rev+11,strlen(rev+11)-2));  
+  s = PyString_FromStringAndSize(rev+11,strlen(rev+11)-2);
+  PyDict_SetItemString(d, "__version__", s);
+  Py_XDECREF(s);
+
+  /* Check for errors */
+  if (PyErr_Occurred())
+    Py_FatalError("can't initialize module coptimizations");
 }
