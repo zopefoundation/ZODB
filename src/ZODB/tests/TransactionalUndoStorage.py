@@ -15,7 +15,6 @@
 
 Any storage that supports transactionalUndo() must pass these tests.
 """
-from __future__ import nested_scopes
 
 import time
 import types

@@ -13,8 +13,6 @@
 ##############################################################################
 """A debugging version of the server that records network activity."""
 
-from __future__ import nested_scopes
-
 import struct
 import time
 

@@ -18,8 +18,6 @@ multiple connections.
 """
 # XXX This code is currently broken.
 
-from __future__ import nested_scopes
-
 import ZODB
 from ZEO.ClientStorage import ClientStorage
 from ZODB.MappingStorage import MappingStorage

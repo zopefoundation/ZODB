@@ -17,7 +17,6 @@ Each DB Connection has a separate PickleCache.  The Cache serves two
 purposes. It acts like a memo for unpickling.  It also keeps recent
 objects in memory under the assumption that they may be used again.
 """
-from __future__ import nested_scopes
 
 import time
 import types

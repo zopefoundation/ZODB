@@ -7,9 +7,6 @@ usage: netspace.py [-P | -v] data.fs
 -v: print info for all objects, even if a traversal path isn't found
 """
 
-
-from __future__ import nested_scopes
-
 import ZODB
 from ZODB.FileStorage import FileStorage
 from ZODB.utils import U64

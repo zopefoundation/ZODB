@@ -1,4 +1,3 @@
-from __future__ import nested_scopes
 # Some simple tests for zeopack.py
 # For this to work, zeopack.py must by on your PATH.
 
