@@ -1,6 +1,6 @@
 /*
 
-  $Id: cPersistence.c,v 1.2 1997/02/21 20:49:09 jim Exp $
+  $Id: cPersistence.c,v 1.3 1997/03/11 20:53:07 jim Exp $
 
   C Persistence Module
 
@@ -55,21 +55,8 @@
       (540) 371-6909
 
 
-  Full description
-
-  $Log: cPersistence.c,v $
-  Revision 1.2  1997/02/21 20:49:09  jim
-  Added logic to treat attributes starting with _v_ as volatile.
-  Changes in these attributes to not make the object thing it's been
-  saved and these attributes are not saved by the default __getstate__
-  method.
-
-  Revision 1.1  1997/02/14 20:24:55  jim
-  *** empty log message ***
-
-
-*/
-static char *what_string = "$Id: cPersistence.c,v 1.2 1997/02/21 20:49:09 jim Exp $";
+*****************************************************************************/
+static char *what_string = "$Id: cPersistence.c,v 1.3 1997/03/11 20:53:07 jim Exp $";
 
 #include <time.h>
 #include "Python.h"
@@ -132,7 +119,70 @@ callmethod2(PyObject *self, PyObject *name, PyObject *arg, PyObject *arg2)
   return self;
 }
 
-/* ----------------------------------------------------- */
+static PyObject *
+#ifdef HAVE_STDARG_PROTOTYPES
+/* VARARGS 2 */
+PyString_BuildFormat(char *stringformat, char *format, ...)
+#else
+/* VARARGS */
+PyString_BuildFormat(va_alist) va_dcl
+#endif
+{
+  va_list va;
+  PyObject *args=0, *retval=0, *v=0;
+#ifdef HAVE_STDARG_PROTOTYPES
+  va_start(va, format);
+#else
+  PyObject *ErrType;
+  char *stringformat, *format;
+  va_start(va);
+  ErrType = va_arg(va, PyObject *);
+  stringformat   = va_arg(va, char *);
+  format   = va_arg(va, char *);
+#endif
+  
+  args = Py_VaBuildValue(format, va);
+  va_end(va);
+  if(! args) return NULL;
+  if(!(retval=PyString_FromString(stringformat))) return NULL;
+
+  v=PyString_Format(retval, args);
+  Py_DECREF(retval);
+  Py_DECREF(args);
+  return v;
+}
+
+/****************************************************************************/
+
+typedef struct {
+  PyObject_HEAD
+  time_t value;
+} PATimeobject;
+
+static void
+PATime_dealloc(PATimeobject *self){  PyMem_DEL(self);}
+
+static PyObject *
+PATime_repr(PATimeobject *self)
+{
+  return PyString_BuildFormat("<access time: %d>","i",self->value);
+}
+
+static PyTypeObject 
+PATimeType = {
+  PyObject_HEAD_INIT(NULL)  0,
+  "PersistentATime",			/*tp_name*/
+  sizeof(PATimeobject),	/*tp_basicsize*/
+  0,				/*tp_itemsize*/
+  /* methods */
+  (destructor)PATime_dealloc,	/*tp_dealloc*/
+  0L,0L,0L,0L,
+  (reprfunc)PATime_repr,		/*tp_repr*/
+  0L,0L,0L,0L,0L,0L,0L,0L,0L,0L,
+  "Values for holding access times for persistent objects"
+};
+
+/****************************************************************************/
 
 /* Declarations for objects of type Persistent */
 
@@ -141,7 +191,7 @@ typedef struct {
   PyObject *oid;
   PyObject *jar;
   PyObject *rtime;
-  time_t atime;
+  PATimeobject *atime;
   int state;			
 #define GHOST_STATE -1
 #define UPTODATE_STATE 0
@@ -251,6 +301,27 @@ Per__p___init__(self, args)
 }
 
 static PyObject *
+Per__p___reinit__(Perobject *self, PyObject *args)
+{
+  PyObject *oid, *jar, *copy;
+
+  UNLESS(PyArg_Parse(args, "(OOO)", &oid, &jar, &copy)) return NULL;
+  UNLESS(self->oid)
+    {
+      Py_INCREF(oid);
+      ASSIGN(self->oid, oid);
+    }
+  if(self->oid==oid || PyObject_Compare(self->oid, oid))
+    {
+      UNLESS(args=PyObject_GetAttr(copy,py___dict__)) return NULL;
+      ASSIGN(INSTANCE_DICT(self),args);
+      self->state=GHOST_STATE;
+    }
+  Py_INCREF(Py_None);
+  return Py_None;
+}
+
+static PyObject *
 Per__getstate__(self,args)
      Perobject *self;
      PyObject *args;
@@ -350,6 +421,8 @@ static struct PyMethodDef Per_methods[] = {
   {"__inform_commit__",	(PyCFunction)Per___save__,	0,	Per___inform_commit____doc__},
   {"__inform_abort__",	(PyCFunction)Per___inform_abort__,	0,	Per___inform_abort____doc__},
   {"_p___init__",	(PyCFunction)Per__p___init__,	0,	Per__p___init____doc__},
+  {"_p___reinit__",	(PyCFunction)Per__p___reinit__,	0,
+   "_p___reinit__(oid,jar,copy) -- Reinitialize from a newly created copy"},
   {"__getstate__",	(PyCFunction)Per__getstate__,	0,
    "__getstate__() -- Return the state of the object" },
   {"__setstate__",	(PyCFunction)Per__setstate__,	0,
@@ -368,7 +441,27 @@ Per_dealloc(self)
   Py_XDECREF(self->jar);
 
   Py_XDECREF(self->rtime);
+  Py_XDECREF(self->atime);
   PyMem_DEL(self);
+}
+
+static void
+Per_set_atime(Perobject *self)
+{
+  /* Record access times */
+  UNLESS(self->atime)
+    UNLESS(self->atime=PyObject_NEW(PATimeobject,
+				    &PATimeType))
+    return;
+  self->atime->value=time(NULL);
+}
+
+static PyObject *
+Per_atime(Perobject *self)
+{
+  UNLESS(self->atime) Per_set_atime(self);
+  Py_XINCREF(self->atime);
+  return (PyObject*)self->atime;
 }
 
 static PyObject *
@@ -414,6 +507,14 @@ Per_getattr(Perobject *self, PyObject *oname, char *name)
 	  case 'c':
 	    if(strcmp(n,"hanged")==0) 
 	      return PyInt_FromLong(self->state == CHANGED_STATE);
+	    break;
+	  case 'a':
+	    if(strcmp(n,"time")==0)
+	      {
+		if(self->state != UPTODATE_STATE) Per_set_atime(self);
+		return Per_atime(self);
+	      }
+	    break;
 	  case 'r':
 	    if(strcmp(n,"ead_time")==0) 
 	      {
@@ -442,9 +543,8 @@ Per_getattr(Perobject *self, PyObject *oname, char *name)
 	    }
 	  Py_DECREF(r);
 	}
-      
-      /* Record access times */
-      self->atime=time(NULL);
+
+      Per_set_atime(self);
     }
 
   return Py_FindAttr((PyObject *)self, oname);
@@ -511,7 +611,7 @@ Per_setattro(Perobject *self, PyObject *oname, PyObject *v)
 	}
       
       /* Record access times */
-      self->atime=time(NULL);
+      Per_set_atime(self);
 
       if(! (*name=='_' && name[1]=='v' && name[2]=='_')
 	 && self->state != CHANGED_STATE && self->jar)
@@ -594,22 +694,39 @@ static char cPersistence_module_documentation[] =
 void
 initcPersistence()
 {
-	PyObject *m, *d;
+  PyObject *m, *d;
+  char *rev="$Revision: 1.3 $";
 
-	/* Create the module and add the functions */
-	m = Py_InitModule4("cPersistence", cP_methods,
-		cPersistence_module_documentation,
-		(PyObject*)NULL,PYTHON_API_VERSION);
+  PATimeType.ob_type=&PyType_Type;
 
-	init_strings();
+  m = Py_InitModule4("cPersistence", cP_methods,
+		     cPersistence_module_documentation,
+		     (PyObject*)NULL,PYTHON_API_VERSION);
 
-	/* Add some symbolic constants to the module */
-	d = PyModule_GetDict(m);
+  init_strings();
 
-	/* XXXX Add constants here */
-	PyExtensionClass_Export(d,"Persistent",Pertype);
-
-	/* Check for errors */
-	CHECK_FOR_ERRORS("can't initialize module dt");
+  d = PyModule_GetDict(m);
+  PyDict_SetItemString(d,"__version__",
+		       PyString_FromStringAndSize(rev+11,strlen(rev+11)-2));
+  PyExtensionClass_Export(d,"Persistent",Pertype);
+  PyDict_SetItemString(d,"atimeType",(PyObject*)&PATimeType);
+  CHECK_FOR_ERRORS("can't initialize module dt");
 }
 
+/****************************************************************************
+
+  $Log: cPersistence.c,v $
+  Revision 1.3  1997/03/11 20:53:07  jim
+  Added access-time tracking and special type for efficient access time
+  management.
+
+  Revision 1.2  1997/02/21 20:49:09  jim
+  Added logic to treat attributes starting with _v_ as volatile.
+  Changes in these attributes to not make the object thing it's been
+  saved and these attributes are not saved by the default __getstate__
+  method.
+
+  Revision 1.1  1997/02/14 20:24:55  jim
+  *** empty log message ***
+
+ ****************************************************************************/
