@@ -14,8 +14,9 @@
 ##############################################################################
 """Cache simulation.
 
-Usage: simul.py [-l] [-s size] tracefile
+Usage: simul.py [-b] [-l] [-s size] tracefile
 
+-b: simulate buddy system cache (default: simulate ZEO 2.0 cache)
 -l: simulate idealized LRU cache (default: simulate ZEO 2.0 cache)
 -s size: cache size in MB (default 20 MB)
 """
@@ -34,11 +35,13 @@ def main():
     cachelimit = 20*1000*1000
     simclass = ZEOCacheSimulation
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "ls:")
+        opts, args = getopt.getopt(sys.argv[1:], "bls:")
     except getopt.error, msg:
         usage(msg)
         return 2
     for o, a in opts:
+        if o == '-b':
+            simclass = BuddyCacheSimulation
         if o == '-l':
             simclass = LRUCacheSimulation
         if o == '-s':
@@ -392,6 +395,177 @@ class Node:
         self.prev = prev
         self.next = next
         prev.next = next.prev = self
+
+class BuddyCacheSimulation(LRUCacheSimulation):
+
+    def __init__(self, cachelimit):
+        LRUCacheSimulation.__init__(self, roundup(cachelimit))
+
+    def restart(self):
+        LRUCacheSimulation.restart(self)
+        self.allocator = BuddyAllocator(self.cachelimit)
+
+    # LRUCacheSimulation.load() is just fine
+
+    def write(self, oid, size):
+        node = self.cache.get(oid)
+        if node is not None:
+            node.unlink()
+            assert self.head.next is not None
+            self.size -= node.size
+            self.allocator.free(node)
+        while 1:
+            node = self.allocator.alloc(size)
+            if node is not None:
+                break
+            # Failure to allocate.  Evict something and try again.
+            node = self.head.next
+            assert node is not self.head
+            self.evicts += 1
+            self.total_evicts += 1
+            node.unlink()
+            assert self.head.next is not None
+            del self.cache[node.oid]
+            self.size -= node.size
+            self.allocator.free(node)
+        node.oid = oid
+        self.cache[oid] = node
+        node.linkbefore(self.head)
+        self.size += node.size
+
+    def inval(self, oid):
+        node = self.cache.get(oid)
+        if node is not None:
+            assert node.oid == oid
+            self.invals += 1
+            self.total_invals += 1
+            node.unlink()
+            assert self.head.next is not None
+            del self.cache[oid]
+            self.size -= node.size
+            assert self.size >= 0
+            self.allocator.free(node)
+
+class BuddyNode(Node):
+
+    __slots__ = ['addr']
+
+    def __init__(self, oid, size, addr):
+        Node.__init__(self, oid, size)
+        self.addr = addr
+
+MINSIZE = 256
+
+def roundup(size):
+    k = MINSIZE
+    while k < size:
+        k += k
+    return k
+
+class BuddyAllocator:
+
+    def __init__(self, cachelimit):
+        cachelimit = roundup(cachelimit)
+        self.cachelimit = cachelimit
+        self.avail = {} # Map rounded-up sizes to free list node heads
+        self.nodes = {} # Map address to node
+        k = MINSIZE
+        while k <= cachelimit:
+            self.avail[k] = n = Node(None, None) # Not BuddyNode; has no addr
+            n.linkbefore(n)
+            k += k
+        node = BuddyNode(None, cachelimit, 0)
+        self.nodes[0] = node
+        node.linkbefore(self.avail[cachelimit])
+
+    def alloc(self, size):
+        size = roundup(size)
+        k = size
+        while k <= self.cachelimit:
+            head = self.avail[k]
+            node = head.next
+            if node is not head:
+                break
+            k += k
+        else:
+            return None # Store is full, or block is too large
+        node.unlink()
+        size2 = node.size
+        while size2 > size:
+            size2 = size2 / 2
+            assert size2 >= size
+            node.size = size2
+            buddy = BuddyNode(None, size2, node.addr + size2)
+            self.nodes[buddy.addr] = buddy
+            buddy.linkbefore(self.avail[size2])
+        node.oid = 1 # Flag as in-use
+        return node
+
+    def free(self, node):
+        assert node is self.nodes[node.addr]
+        assert node.prev is node.next is None
+        node.oid = None # Flag as free
+        while node.size < self.cachelimit:
+            buddy_addr = node.addr ^ node.size
+            buddy = self.nodes[buddy_addr]
+            assert buddy.addr == buddy_addr
+            if buddy.oid is not None or buddy.size != node.size:
+                break
+            # Merge node with buddy
+            buddy.unlink()
+            if buddy.addr < node.addr: # buddy prevails
+                del self.nodes[node.addr]
+                node = buddy
+            else: # node prevails
+                del self.nodes[buddy.addr]
+            node.size *= 2
+        assert node is self.nodes[node.addr]
+        node.linkbefore(self.avail[node.size])
+
+    def dump(self, msg=""):
+        if msg:
+            print msg,
+        size = MINSIZE
+        blocks = bytes = 0
+        while size <= self.cachelimit:
+            head = self.avail[size]
+            node = head.next
+            count = 0
+            while node is not head:
+                count += 1
+                node = node.next
+            if count:
+                print "%d:%d" % (size, count),
+            blocks += count
+            bytes += count*size
+            size += size
+        print "-- %d, %d" % (bytes, blocks)
+
+def testbuddy():
+    # Run one of Knuth's experiments as a test
+    import random, heapq
+    reportfreq = 100
+    cachelimit = 2**17
+    cache = BuddyAllocator(cachelimit)
+    queue = []
+    T = 0
+    while T < 5000:
+        while queue and queue[0][0] <= T:
+            time, node = heapq.heappop(queue)
+            assert time == T
+            cache.free(node)
+        size = random.randint(100, 2000)
+        lifetime = random.randint(1, 100)
+        node = cache.alloc(size)
+        if node is None:
+            print "out of mem"
+            cache.dump("T=%d:" % T)
+            break
+        else:
+            heapq.heappush(queue, (T + lifetime, node))
+        T = T+1
+        if T % reportfreq == 0:
+            cache.dump("T=%d:" % T)
 
 def hitrate(loads, hits):
     return "%5.1f%%" % (100.0 * hits / max(1, loads))
