@@ -88,6 +88,9 @@ def main():
     records = 0
     versions = 0
     t0 = te = None
+    datarecords = 0
+    datasize = 0L
+    file0 = file1 = 0
     while 1:
         r = f.read(24)
         if len(r) < 24:
@@ -98,11 +101,18 @@ def main():
             t0 = ts
         te = ts
         dlen, code = code & 0x7fffff00, code & 0xff
+        if dlen:
+            datarecords += 1
+            datasize += dlen
         version = '-'
         if code & 0x80:
             version = 'V'
             versions += 1
         current = code & 1
+        if current:
+            file1 += 1
+        else:
+            file0 += 1
         code = code & 0x7e
         bycode[code] = bycode.get(code, 0) + 1
         if verbose:
@@ -125,13 +135,20 @@ def main():
 
     # Print statistics
     if dostats:
-        print
+        if verbose:
+            print
         print "Read %s records (%s bytes) in %.1f seconds" % (
             addcommas(records), addcommas(bytes), rte-rt0)
-        print "Version bit set in %s records" % addcommas(versions)
+        print "Version:    %s records" % addcommas(versions)
         print "First time: %s" % time.ctime(t0)
         print "Last time:  %s" % time.ctime(te)
         print "Duration:   %s seconds" % addcommas(te-t0)
+        print "File stats: %s in file 0; %s in file 1" % (
+            addcommas(file0), addcommas(file1))
+        print "Data recs:  %s (%.1f%%), average size %.1f KB" % (
+            addcommas(datarecords),
+            100.0 * datarecords / records,
+            datasize / 1024.0 / datarecords)
         print
         codes = bycode.keys()
         codes.sort()
