@@ -19,14 +19,15 @@ ZERO = '\0'*8
 
 class BasicStorage:
     def checkBasics(self):
-        self._storage.tpc_begin(self._transaction)
+        t = Transaction()
+        self._storage.tpc_begin(t)
         # This should simply return
-        self._storage.tpc_begin(self._transaction)
+        self._storage.tpc_begin(t)
         # Aborting is easy
-        self._storage.tpc_abort(self._transaction)
+        self._storage.tpc_abort(t)
         # Test a few expected exceptions when we're doing operations giving a
         # different Transaction object than the one we've begun on.
-        self._storage.tpc_begin(self._transaction)
+        self._storage.tpc_begin(t)
         self.assertRaises(
             POSException.StorageTransactionError,
             self._storage.store,
@@ -65,7 +66,7 @@ class BasicStorage:
             POSException.StorageTransactionError,
             self._storage.store,
             0, 1, 2, 3, Transaction())
-        self._storage.tpc_abort(self._transaction)
+        self._storage.tpc_abort(t)
 
     def checkSerialIsNoneForInitialRevision(self):
         eq = self.assertEqual
@@ -125,7 +126,6 @@ class BasicStorage:
         # Now abort this transaction
         self._storage.tpc_abort(self._transaction)
         # Now start all over again
-        self._transaction = Transaction()
         oid = self._storage.new_oid()
         self._dostore(oid=oid, data=MinPO(6))
 
@@ -133,14 +133,13 @@ class BasicStorage:
         oid1 = self._storage.new_oid()
         revid1 = self._dostore(oid=oid1, data=MinPO(-2))
         oid = self._storage.new_oid()
-        self._storage.tpc_begin(self._transaction)
-        self._storage.store(oid, ZERO, zodb_pickle(MinPO(5)),
-                            '', self._transaction)
+        t = Transaction()
+        self._storage.tpc_begin(t)
+        self._storage.store(oid, ZERO, zodb_pickle(MinPO(5)), '', t)
         # Now abort this transaction
-        self._storage.tpc_vote(self._transaction)
-        self._storage.tpc_abort(self._transaction)
+        self._storage.tpc_vote(t)
+        self._storage.tpc_abort(t)
         # Now start all over again
-        self._transaction = Transaction()
         oid = self._storage.new_oid()
         revid = self._dostore(oid=oid, data=MinPO(6))
 

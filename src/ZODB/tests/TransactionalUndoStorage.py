@@ -5,6 +5,7 @@ Any storage that supports transactionalUndo() must pass these tests.
 
 import types
 from ZODB import POSException
+from ZODB.Transaction import Transaction
 
 from ZODB.tests.MinPO import MinPO
 from ZODB.tests.StorageTestBase import zodb_pickle, zodb_unpickle
@@ -37,13 +38,14 @@ class TransactionalUndoStorage:
 
     def _multi_obj_transaction(self, objs):
         newrevs = {}
-        self._storage.tpc_begin(self._transaction)
+        t = Transaction()
+        self._storage.tpc_begin(t)
         self._transaction_begin()
         for oid, rev, data in objs:
-            self._transaction_store(oid, rev, data, '', self._transaction)
+            self._transaction_store(oid, rev, data, '', t)
             newrevs[oid] = None
-        self._transaction_vote(self._transaction)
-        self._storage.tpc_finish(self._transaction)
+        self._transaction_vote(t)
+        self._storage.tpc_finish(t)
         for oid in newrevs.keys():
             newrevs[oid] = self._transaction_newserial(oid)
         return newrevs
@@ -58,11 +60,12 @@ class TransactionalUndoStorage:
         info = self._storage.undoInfo()
         tid = info[0]['id']
         # Now start an undo transaction
-        self._transaction.note('undo1')
-        self._storage.tpc_begin(self._transaction)
-        oids = self._storage.transactionalUndo(tid, self._transaction)
-        self._storage.tpc_vote(self._transaction)
-        self._storage.tpc_finish(self._transaction)
+        t = Transaction()
+        t.note('undo1')
+        self._storage.tpc_begin(t)
+        oids = self._storage.transactionalUndo(tid, t)
+        self._storage.tpc_vote(t)
+        self._storage.tpc_finish(t)
         eq(len(oids), 1)
         eq(oids[0], oid)
         data, revid = self._storage.load(oid, '')
@@ -70,11 +73,12 @@ class TransactionalUndoStorage:
         # Do another one
         info = self._storage.undoInfo()
         tid = info[2]['id']
-        self._transaction.note('undo2')
-        self._storage.tpc_begin(self._transaction)
-        oids = self._storage.transactionalUndo(tid, self._transaction)
-        self._storage.tpc_vote(self._transaction)
-        self._storage.tpc_finish(self._transaction)
+        t = Transaction()
+        t.note('undo2')
+        self._storage.tpc_begin(t)
+        oids = self._storage.transactionalUndo(tid, t)
+        self._storage.tpc_vote(t)
+        self._storage.tpc_finish(t)
         eq(len(oids), 1)
         eq(oids[0], oid)
         data, revid = self._storage.load(oid, '')
@@ -82,11 +86,12 @@ class TransactionalUndoStorage:
         # Try to undo the first record
         info = self._storage.undoInfo()
         tid = info[4]['id']
-        self._transaction.note('undo3')
-        self._storage.tpc_begin(self._transaction)
-        oids = self._storage.transactionalUndo(tid, self._transaction)
-        self._storage.tpc_vote(self._transaction)
-        self._storage.tpc_finish(self._transaction)
+        t = Transaction()
+        t.note('undo3')
+        self._storage.tpc_begin(t)
+        oids = self._storage.transactionalUndo(tid, t)
+        self._storage.tpc_vote(t)
+        self._storage.tpc_finish(t)
 
         eq(len(oids), 1)
         eq(oids[0], oid)
@@ -96,10 +101,11 @@ class TransactionalUndoStorage:
         # And now let's try to redo the object's creation
         info = self._storage.undoInfo()
         tid = info[0]['id']
-        self._storage.tpc_begin(self._transaction)
-        oids = self._storage.transactionalUndo(tid, self._transaction)
-        self._storage.tpc_vote(self._transaction)
-        self._storage.tpc_finish(self._transaction)
+        t = Transaction()
+        self._storage.tpc_begin(t)
+        oids = self._storage.transactionalUndo(tid, t)
+        self._storage.tpc_vote(t)
+        self._storage.tpc_finish(t)
         eq(len(oids), 1)
         eq(oids[0], oid)
         data, revid = self._storage.load(oid, '')
@@ -113,10 +119,11 @@ class TransactionalUndoStorage:
         # Undo the last transaction
         info = self._storage.undoInfo()
         tid = info[0]['id']
-        self._storage.tpc_begin(self._transaction)
-        oids = self._storage.transactionalUndo(tid, self._transaction)
-        self._storage.tpc_vote(self._transaction)
-        self._storage.tpc_finish(self._transaction)
+        t = Transaction()
+        self._storage.tpc_begin(t)
+        oids = self._storage.transactionalUndo(tid, t)
+        self._storage.tpc_vote(t)
+        self._storage.tpc_finish(t)
         eq(len(oids), 1)
         eq(oids[0], oid)
         data, revid = self._storage.load(oid, '')
@@ -125,10 +132,11 @@ class TransactionalUndoStorage:
         # creation.  Let's undo the object creation.
         info = self._storage.undoInfo()
         tid = info[2]['id']
-        self._storage.tpc_begin(self._transaction)
-        oids = self._storage.transactionalUndo(tid, self._transaction)
-        self._storage.tpc_vote(self._transaction)
-        self._storage.tpc_finish(self._transaction)
+        t = Transaction()
+        self._storage.tpc_begin(t)
+        oids = self._storage.transactionalUndo(tid, t)
+        self._storage.tpc_vote(t)
+        self._storage.tpc_finish(t)
         eq(len(oids), 1)
         eq(oids[0], oid)
         self.assertRaises(KeyError, self._storage.load, oid, '')
@@ -141,10 +149,11 @@ class TransactionalUndoStorage:
         # Undo the last transaction
         info = self._storage.undoInfo()
         tid = info[0]['id']
-        self._storage.tpc_begin(self._transaction)
-        oids = self._storage.transactionalUndo(tid, self._transaction)
-        self._storage.tpc_vote(self._transaction)
-        self._storage.tpc_finish(self._transaction)
+        t = Transaction()
+        self._storage.tpc_begin(t)
+        oids = self._storage.transactionalUndo(tid, t)
+        self._storage.tpc_vote(t)
+        self._storage.tpc_finish(t)
         eq(len(oids), 1)
         eq(oids[0], oid)
         data, revid = self._storage.load(oid, '')
@@ -153,10 +162,11 @@ class TransactionalUndoStorage:
         # creation.  Let's redo the last undo
         info = self._storage.undoInfo()
         tid = info[0]['id']
-        self._storage.tpc_begin(self._transaction)
-        oids = self._storage.transactionalUndo(tid, self._transaction)
-        self._storage.tpc_vote(self._transaction)
-        self._storage.tpc_finish(self._transaction)
+        t = Transaction()
+        self._storage.tpc_begin(t)
+        oids = self._storage.transactionalUndo(tid, t)
+        self._storage.tpc_vote(t)
+        self._storage.tpc_finish(t)
         eq(len(oids), 1)
         eq(oids[0], oid)
         data, revid = self._storage.load(oid, '')
@@ -171,26 +181,28 @@ class TransactionalUndoStorage:
         oid2 = self._storage.new_oid()
         revid1 = revid2 = ZERO
         # Store two objects in the same transaction
-        self._storage.tpc_begin(self._transaction)
+        t = Transaction()
+        self._storage.tpc_begin(t)
         self._transaction_begin()
-        self._transaction_store(oid1, revid1, p31, '', self._transaction)
-        self._transaction_store(oid2, revid2, p51, '', self._transaction)
+        self._transaction_store(oid1, revid1, p31, '', t)
+        self._transaction_store(oid2, revid2, p51, '', t)
         # Finish the transaction
-        self._transaction_vote(self._transaction)
+        self._transaction_vote(t)
         revid1 = self._transaction_newserial(oid1)
         revid2 = self._transaction_newserial(oid2)
-        self._storage.tpc_finish(self._transaction)
+        self._storage.tpc_finish(t)
         eq(revid1, revid2)
         # Update those same two objects
-        self._storage.tpc_begin(self._transaction)
+        t = Transaction()
+        self._storage.tpc_begin(t)
         self._transaction_begin()
-        self._transaction_store(oid1, revid1, p32, '', self._transaction)
-        self._transaction_store(oid2, revid2, p52, '', self._transaction)
+        self._transaction_store(oid1, revid1, p32, '', t)
+        self._transaction_store(oid2, revid2, p52, '', t)
         # Finish the transaction
-        self._transaction_vote(self._transaction)
+        self._transaction_vote(t)
         revid1 = self._transaction_newserial(oid1)
         revid2 = self._transaction_newserial(oid2)
-        self._storage.tpc_finish(self._transaction)
+        self._storage.tpc_finish(t)
         eq(revid1, revid2)
         # Make sure the objects have the current value
         data, revid1 = self._storage.load(oid1, '')
@@ -200,10 +212,11 @@ class TransactionalUndoStorage:
         # Now attempt to undo the transaction containing two objects
         info = self._storage.undoInfo()
         tid = info[0]['id']
-        self._storage.tpc_begin(self._transaction)
-        oids = self._storage.transactionalUndo(tid, self._transaction)
-        self._storage.tpc_vote(self._transaction)
-        self._storage.tpc_finish(self._transaction)
+        t = Transaction()
+        self._storage.tpc_begin(t)
+        oids = self._storage.transactionalUndo(tid, t)
+        self._storage.tpc_vote(t)
+        self._storage.tpc_finish(t)
         eq(len(oids), 2)
         self.failUnless(oid1 in oids)
         self.failUnless(oid2 in oids)
@@ -249,14 +262,15 @@ class TransactionalUndoStorage:
         info = self._storage.undoInfo()
         tid = info[0]['id']
         tid1 = info[1]['id']
-        self._storage.tpc_begin(self._transaction)
-        oids = self._storage.transactionalUndo(tid, self._transaction)
-        oids1 = self._storage.transactionalUndo(tid1, self._transaction)
-        self._storage.tpc_vote(self._transaction)
-        self._storage.tpc_finish(self._transaction)
+        t = Transaction()
+        self._storage.tpc_begin(t)
+        oids = self._storage.transactionalUndo(tid, t)
+        oids1 = self._storage.transactionalUndo(tid1, t)
+        self._storage.tpc_vote(t)
+        self._storage.tpc_finish(t)
         # We get the finalization stuff called an extra time:
-##        self._storage.tpc_vote(self._transaction)
-##        self._storage.tpc_finish(self._transaction)
+##        self._storage.tpc_vote(t)
+##        self._storage.tpc_finish(t)
         eq(len(oids), 2)
         eq(len(oids1), 2)
         unless(oid1 in oids)
@@ -268,10 +282,11 @@ class TransactionalUndoStorage:
         # Now try to undo the one we just did to undo, whew
         info = self._storage.undoInfo()
         tid = info[0]['id']
-        self._storage.tpc_begin(self._transaction)
-        oids = self._storage.transactionalUndo(tid, self._transaction)
-        self._storage.tpc_vote(self._transaction)
-        self._storage.tpc_finish(self._transaction)
+        t = Transaction()
+        self._storage.tpc_begin(t)
+        oids = self._storage.transactionalUndo(tid, t)
+        self._storage.tpc_vote(t)
+        self._storage.tpc_finish(t)
         eq(len(oids), 2)
         unless(oid1 in oids)
         unless(oid2 in oids)
@@ -292,23 +307,25 @@ class TransactionalUndoStorage:
         revid1 = self._dostore(oid1, data=p31, already_pickled=1)
         revid2 = self._dostore(oid2, data=p51, already_pickled=1)
         # Update those same two objects
-        self._storage.tpc_begin(self._transaction)
+        t = Transaction()
+        self._storage.tpc_begin(t)
         self._transaction_begin()
-        self._transaction_store(oid1, revid1, p32, '', self._transaction)
-        self._transaction_store(oid2, revid2, p52, '', self._transaction)
+        self._transaction_store(oid1, revid1, p32, '', t)
+        self._transaction_store(oid2, revid2, p52, '', t)
         # Finish the transaction
-        self._transaction_vote(self._transaction)
-        self._storage.tpc_finish(self._transaction)
+        self._transaction_vote(t)
+        self._storage.tpc_finish(t)
         revid1 = self._transaction_newserial(oid1)
         revid2 = self._transaction_newserial(oid2)
         eq(revid1, revid2)
         # Now attempt to undo the transaction containing two objects
         info = self._storage.undoInfo()
         tid = info[0]['id']
-        self._storage.tpc_begin(self._transaction)
-        oids = self._storage.transactionalUndo(tid, self._transaction)
-        self._storage.tpc_vote(self._transaction)
-        self._storage.tpc_finish(self._transaction)
+        t = Transaction()
+        self._storage.tpc_begin(t)
+        oids = self._storage.transactionalUndo(tid, t)
+        self._storage.tpc_vote(t)
+        self._storage.tpc_finish(t)
         eq(len(oids), 2)
         self.failUnless(oid1 in oids)
         self.failUnless(oid2 in oids)
@@ -318,13 +335,14 @@ class TransactionalUndoStorage:
         eq(zodb_unpickle(data), MinPO(51))
         # Like the above, but this time, the second transaction contains only
         # one object.
-        self._storage.tpc_begin(self._transaction)
+        t = Transaction()
+        self._storage.tpc_begin(t)
         self._transaction_begin()
-        self._transaction_store(oid1, revid1, p33, '', self._transaction)
-        self._transaction_store(oid2, revid2, p53, '', self._transaction)
+        self._transaction_store(oid1, revid1, p33, '', t)
+        self._transaction_store(oid2, revid2, p53, '', t)
         # Finish the transaction
-        self._transaction_vote(self._transaction)
-        self._storage.tpc_finish(self._transaction)
+        self._transaction_vote(t)
+        self._storage.tpc_finish(t)
         revid1 = self._transaction_newserial(oid1)
         revid2 = self._transaction_newserial(oid2)
         eq(revid1, revid2)
@@ -334,10 +352,11 @@ class TransactionalUndoStorage:
         # Now attempt to undo the transaction containing two objects
         info = self._storage.undoInfo()
         tid = info[1]['id']
-        self._storage.tpc_begin(self._transaction)
-        oids = self._storage.transactionalUndo(tid, self._transaction)
-        self._storage.tpc_vote(self._transaction)
-        self._storage.tpc_finish(self._transaction)
+        t = Transaction()
+        self._storage.tpc_begin(t)
+        oids = self._storage.transactionalUndo(tid, t)
+        self._storage.tpc_vote(t)
+        self._storage.tpc_finish(t)
         eq(len(oids), 1)
         self.failUnless(oid1 in oids)
         self.failUnless(not oid2 in oids)
@@ -357,11 +376,12 @@ class TransactionalUndoStorage:
         # Start the undo
         info = self._storage.undoInfo()
         tid = info[1]['id']
-        self._storage.tpc_begin(self._transaction)
+        t = Transaction()
+        self._storage.tpc_begin(t)
         self.assertRaises(POSException.UndoError,
                           self._storage.transactionalUndo,
-                          tid, self._transaction)
-        self._storage.tpc_abort(self._transaction)
+                          tid, t)
+        self._storage.tpc_abort(t)
         # Now have more fun: object1 and object2 are in the same transaction,
         # which we'll try to undo to, but one of them has since modified in
         # different transaction, so the undo should fail.
@@ -372,12 +392,13 @@ class TransactionalUndoStorage:
         p81, p82, p91, p92 = map(zodb_pickle,
                                  map(MinPO, (81, 82, 91, 92)))
 
-        self._storage.tpc_begin(self._transaction)
+        t = Transaction()
+        self._storage.tpc_begin(t)
         self._transaction_begin()
-        self._transaction_store(oid1, revid1, p81, '', self._transaction)
-        self._transaction_store(oid2, revid2, p91, '', self._transaction)
-        self._transaction_vote(self._transaction)
-        self._storage.tpc_finish(self._transaction)
+        self._transaction_store(oid1, revid1, p81, '', t)
+        self._transaction_store(oid2, revid2, p91, '', t)
+        self._transaction_vote(t)
+        self._storage.tpc_finish(t)
         revid1 = self._transaction_newserial(oid1)
         revid2 = self._transaction_newserial(oid2)
         eq(revid1, revid2)
@@ -394,8 +415,9 @@ class TransactionalUndoStorage:
         self.assertNotEqual(revid2, revid_22)
         info = self._storage.undoInfo()
         tid = info[1]['id']
-        self._storage.tpc_begin(self._transaction)
+        t = Transaction()
+        self._storage.tpc_begin(t)
         self.assertRaises(POSException.UndoError,
                           self._storage.transactionalUndo,
-                          tid, self._transaction)
-        self._storage.tpc_abort(self._transaction)
+                          tid, t)
+        self._storage.tpc_abort(t)

@@ -67,13 +67,13 @@ class SynchronizedStorage:
         apply(self.assertRaises, args)
 
     def verifyWrongTrans(self, callable, *args):
-        self._storage.tpc_begin(self._transaction)
+        self._storage.tpc_begin(Transaction())
         args = (StorageTransactionError, callable) + args
         apply(self.assertRaises, args)
 
     def checkAbortVersionNotCommitting(self):
         self.verifyNotCommitting(self._storage.abortVersion,
-                                 VERSION, self._transaction)
+                                 VERSION, Transaction())
 
     def checkAbortVersionWrongTrans(self):
         self.verifyWrongTrans(self._storage.abortVersion,
@@ -81,7 +81,7 @@ class SynchronizedStorage:
 
     def checkCommitVersionNotCommitting(self):
         self.verifyNotCommitting(self._storage.commitVersion,
-                                 VERSION, "", self._transaction)
+                                 VERSION, "", Transaction())
 
     def checkCommitVersionWrongTrans(self):
         self.verifyWrongTrans(self._storage.commitVersion,
@@ -90,7 +90,7 @@ class SynchronizedStorage:
 
     def checkStoreNotCommitting(self):
         self.verifyNotCommitting(self._storage.store,
-                                 OID, SERIALNO, "", "", self._transaction)
+                                 OID, SERIALNO, "", "", Transaction())
     
     def checkStoreWrongTrans(self):
         self.verifyWrongTrans(self._storage.store,
@@ -107,18 +107,19 @@ class SynchronizedStorage:
         self._storage.tpc_abort(Transaction())
 
     def checkAbortWrongTrans(self):
-        self._storage.tpc_begin(self._transaction)
+        self._storage.tpc_begin(Transaction())
         self._storage.tpc_abort(Transaction())
 
     def checkFinishNotCommitting(self):
         self._storage.tpc_finish(Transaction())
 
     def checkFinishWrongTrans(self):
-        self._storage.tpc_begin(self._transaction)
+        self._storage.tpc_begin(Transaction())
         self._storage.tpc_finish(Transaction())
     
     def checkBeginCommitting(self):
-        self._storage.tpc_begin(self._transaction)
-        self._storage.tpc_begin(self._transaction)
+        t = Transaction()
+        self._storage.tpc_begin(t)
+        self._storage.tpc_begin(t)
 
     # XXX how to check undo?

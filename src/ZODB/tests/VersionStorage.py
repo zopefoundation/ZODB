@@ -8,6 +8,7 @@ Any storage that supports versions should be able to pass all these tests.
 # code.  Barry and Jeremy didn't understand versions then.
 
 from ZODB import POSException
+from ZODB.Transaction import Transaction
 from ZODB.tests.MinPO import MinPO
 from ZODB.tests.StorageTestBase import zodb_unpickle
 
@@ -144,10 +145,11 @@ class VersionStorage:
         
 ##        s1 = self._storage.getSerial(oid)
         # Now abort the version -- must be done in a transaction
-        self._storage.tpc_begin(self._transaction)
-        oids = self._storage.abortVersion(version, self._transaction)
-        self._storage.tpc_vote(self._transaction)
-        self._storage.tpc_finish(self._transaction)
+        t = Transaction()
+        self._storage.tpc_begin(t)
+        oids = self._storage.abortVersion(version, t)
+        self._storage.tpc_vote(t)
+        self._storage.tpc_finish(t)
 ##        s2 = self._storage.getSerial(oid)
 ##        eq(s1, s2) # or self.assert(s2 > s1) ?
         eq(len(oids), 1)
@@ -159,14 +161,15 @@ class VersionStorage:
         eq = self.assertEqual
         oid, version = self._setup_version()
         # Now abort a bogus version
-        self._storage.tpc_begin(self._transaction)
+        t = Transaction()
+        self._storage.tpc_begin(t)
 
         #JF# The spec is silent on what happens if you abort or commit
         #JF# a non-existent version. FileStorage consideres this a noop.
         #JF# We can change the spec, but until we do ....
         #JF# self.assertRaises(POSException.VersionError,
         #JF#                   self._storage.abortVersion,
-        #JF#                   'bogus', self._transaction)
+        #JF#                   'bogus', t)
 
         # And try to abort the empty version
         if (hasattr(self._storage, 'supportsTransactionalUndo')
@@ -174,12 +177,12 @@ class VersionStorage:
             # XXX FileStorage used to be broken on this one
             self.assertRaises(POSException.VersionError,
                               self._storage.abortVersion,
-                              '', self._transaction)
+                              '', t)
         
         # But now we really try to abort the version
-        oids = self._storage.abortVersion(version, self._transaction)
-        self._storage.tpc_vote(self._transaction)
-        self._storage.tpc_finish(self._transaction)
+        oids = self._storage.abortVersion(version, t)
+        self._storage.tpc_vote(t)
+        self._storage.tpc_finish(t)
         eq(len(oids), 1)
         eq(oids[0], oid)
         data, revid = self._storage.load(oid, '')
@@ -194,19 +197,21 @@ class VersionStorage:
         oid1, version1 = self._setup_version('one')
         data, revid1 = self._storage.load(oid1, version1)
         eq(zodb_unpickle(data), MinPO(54))
-        self._storage.tpc_begin(self._transaction)
+        t = Transaction()
+        self._storage.tpc_begin(t)
         self.assertRaises(POSException.VersionCommitError,
                           self._storage.commitVersion,
-                          'one', 'one', self._transaction)
+                          'one', 'one', t)
 
     def checkModifyAfterAbortVersion(self):
         eq = self.assertEqual
         oid, version = self._setup_version()
         # Now abort the version
-        self._storage.tpc_begin(self._transaction)
-        oids = self._storage.abortVersion(version, self._transaction)
-        self._storage.tpc_vote(self._transaction)
-        self._storage.tpc_finish(self._transaction)
+        t = Transaction()
+        self._storage.tpc_begin(t)
+        oids = self._storage.abortVersion(version, t)
+        self._storage.tpc_vote(t)
+        self._storage.tpc_finish(t)
         # Load the object's current state (which gets us the revid)
         data, revid = self._storage.load(oid, '')
         # And modify it a few times
@@ -225,10 +230,11 @@ class VersionStorage:
         data, revid = self._storage.load(oid, '')
         eq(zodb_unpickle(data), MinPO(51))
         # Try committing this version to the empty version
-        self._storage.tpc_begin(self._transaction)
-        oids = self._storage.commitVersion(version, '', self._transaction)
-        self._storage.tpc_vote(self._transaction)
-        self._storage.tpc_finish(self._transaction)
+        t = Transaction()
+        self._storage.tpc_begin(t)
+        oids = self._storage.commitVersion(version, '', t)
+        self._storage.tpc_vote(t)
+        self._storage.tpc_finish(t)
         data, revid = self._storage.load(oid, '')
         eq(zodb_unpickle(data), MinPO(54))
 
@@ -251,11 +257,12 @@ class VersionStorage:
         eq(zodb_unpickle(data), MinPO(51))
         
         # Okay, now let's commit object1 to version2
-        self._storage.tpc_begin(self._transaction)
+        t = Transaction()
+        self._storage.tpc_begin(t)
         oids = self._storage.commitVersion(version1, version2,
-                                           self._transaction)
-        self._storage.tpc_vote(self._transaction)
-        self._storage.tpc_finish(self._transaction)
+                                           t)
+        self._storage.tpc_vote(t)
+        self._storage.tpc_finish(t)
         eq(len(oids), 1)
         eq(oids[0], oid1)
         data, revid = self._storage.load(oid1, version2)
@@ -286,10 +293,11 @@ class VersionStorage:
         eq(zodb_unpickle(data), MinPO(51))
 
         # First, let's abort version1
-        self._storage.tpc_begin(self._transaction)
-        oids = self._storage.abortVersion(version1, self._transaction)
-        self._storage.tpc_vote(self._transaction)
-        self._storage.tpc_finish(self._transaction)
+        t = Transaction()
+        self._storage.tpc_begin(t)
+        oids = self._storage.abortVersion(version1, t)
+        self._storage.tpc_vote(t)
+        self._storage.tpc_finish(t)
         eq(len(oids), 1)
         eq(oids[0], oid1)
         data, revid = self._storage.load(oid1, '')
@@ -310,10 +318,11 @@ class VersionStorage:
         data, revid = self._storage.load(oid2, version2)
         eq(zodb_unpickle(data), MinPO(54))
         # Okay, now let's commit version2 back to the trunk
-        self._storage.tpc_begin(self._transaction)
-        oids = self._storage.commitVersion(version2, '', self._transaction)
-        self._storage.tpc_vote(self._transaction)
-        self._storage.tpc_finish(self._transaction)
+        t = Transaction()
+        self._storage.tpc_begin(t)
+        oids = self._storage.commitVersion(version2, '', t)
+        self._storage.tpc_vote(t)
+        self._storage.tpc_finish(t)
         eq(len(oids), 1)
         eq(oids[0], oid2)
         data, revid = self._storage.load(oid1, '')
