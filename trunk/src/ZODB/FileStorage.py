@@ -115,7 +115,7 @@
 #   may have a back pointer to a version record or to a non-version
 #   record.
 #
-__version__='$Revision: 1.100 $'[11:-2]
+__version__='$Revision: 1.101 $'[11:-2]
 
 import base64
 from cPickle import Pickler, Unpickler, loads
@@ -2224,7 +2224,6 @@ class FileIterator(Iterator):
         read=file.read
         pos=self._pos
 
-        LOG("ZODB FS", BLATHER, "next(%d)" % index)
         while 1:
             # Read the transaction record
             seek(pos)
@@ -2275,10 +2274,6 @@ class FileIterator(Iterator):
                          self._file.name, pos)
                     break
 
-            if self._stop is not None:
-                LOG("ZODB FS", BLATHER,
-                    ("tid %x > stop %x ? %d" %
-                     (U64(tid), U64(self._stop), tid > self._stop)))
             if self._stop is not None and tid > self._stop:
                 raise IndexError, index
 
