@@ -85,12 +85,13 @@
 """Simple rpc mechanisms
 """
 
-__version__ = "$Revision: 1.9 $"[11:-2]
+__version__ = "$Revision: 1.10 $"[11:-2]
 
-from cPickle import loads
+from ZODB.cPickle import loads
+from ZODB import cPickle
 from thread import allocate_lock
 from smac import SizedMessageAsyncConnection
-import socket, string, struct, asyncore, sys, time, cPickle
+import socket, string, struct, asyncore, sys, time
 TupleType=type(())
 from zLOG import LOG, TRACE, DEBUG, INFO
 
