@@ -16,7 +16,6 @@ import asyncore
 import os
 import socket
 import thread
-import errno
 
 if os.name == 'posix':
 
