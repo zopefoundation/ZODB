@@ -15,7 +15,7 @@
 """
 # Do this portably in the face of checking out with -kv
 import string
-__version__ = string.split('$Revision: 1.29 $')[-2:][0]
+__version__ = string.split('$Revision: 1.30 $')[-2:][0]
 
 import cPickle
 import ThreadLock, bpthread
@@ -295,7 +295,8 @@ class BaseStorage(UndoLogCompatible.UndoLogCompatible):
                         print ('Time stamps back in order %s' % (t))
                         ok=1
 
-            if verbose: print _ts
+            if verbose:
+                print _ts
 
             self.tpc_begin(transaction, tid, transaction.status)
             for r in transaction:
