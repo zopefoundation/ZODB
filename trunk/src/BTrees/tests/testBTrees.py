@@ -243,12 +243,13 @@ class MappingBase(Base):
         self.assertEqual(list(self.t.items()) , items)
 
     def testEmptyRangeSearches(self):
-        t=self.t
-        t.update([(1,1),(5,5),(9,9)])
-        self.assertEqual(list(t.keys(-6,-4)),[], list(t.keys(-6,-4)))
-        self.assertEqual(list(t.keys(2,4)),[], list(t.keys(2,4)))
-        self.assertEqual(list(t.keys(6,8)),[], list(t.keys(6,8)))
-        self.assertEqual(list(t.keys(10,12)),[], list(t.keys(10,12)))
+        t = self.t
+        t.update([(1,1), (5,5), (9,9)])
+        self.assertEqual(list(t.keys(-6,-4)), [], list(t.keys(-6,-4)))
+        self.assertEqual(list(t.keys(2,4)), [], list(t.keys(2,4)))
+        self.assertEqual(list(t.keys(6,8)), [], list(t.keys(6,8)))
+        self.assertEqual(list(t.keys(10,12)), [], list(t.keys(10,12)))
+        self.assertEqual(list(t.keys(9, 1)), [], list(t.keys(9, 1)))
 
     def testSlicing(self):
         # Test that slicing of .keys()/.values()/.items() works exactly the
@@ -421,12 +422,13 @@ class NormalSetTests(Base):
         self.assertEqual(list(self.t.keys()) , items)
 
     def testEmptyRangeSearches(self):
-        t=self.t
-        t.update([1,5,9])
-        self.assertEqual(list(t.keys(-6,-4)),[], list(t.keys(-6,-4)))
-        self.assertEqual(list(t.keys(2,4)),[], list(t.keys(2,4)))
-        self.assertEqual(list(t.keys(6,8)),[], list(t.keys(6,8)))
-        self.assertEqual(list(t.keys(10,12)),[], list(t.keys(10,12)))
+        t = self.t
+        t.update([1, 5, 9])
+        self.assertEqual(list(t.keys(-6,-4)), [], list(t.keys(-6,-4)))
+        self.assertEqual(list(t.keys(2,4)), [], list(t.keys(2,4)))
+        self.assertEqual(list(t.keys(6,8)), [], list(t.keys(6,8)))
+        self.assertEqual(list(t.keys(10,12)), [], list(t.keys(10,12)))
+        self.assertEqual(list(t.keys(9,1)), [], list(t.keys(9,1)))
 
     def testSlicing(self):
         # Test that slicing of .keys() works exactly the same way as slicing
