@@ -84,8 +84,8 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.49 2001/04/02 14:54:54 chrism Exp $"""
-__version__='$Revision: 1.49 $'[11:-2]
+$Id: Connection.py,v 1.50 2001/04/14 23:16:44 shane Exp $"""
+__version__='$Revision: 1.50 $'[11:-2]
 
 from cPickleCache import PickleCache
 from POSException import ConflictError, ExportError
@@ -260,9 +260,20 @@ class Connection(ExportImport.ExportImport):
         # Return the connection to the pool.
         db._closeConnection(self)
                         
+    __onCommitActions=()
+    def onCommitAction(self, method_name, *args, **kw):
+        self.__onCommitActions = self.__onCommitActions + (
+            (method_name, args, kw),)
+        get_transaction().register(self)
+
     def commit(self, object, transaction, _type=type, _st=type('')):
         if object is self:
-            return # we registered ourself  
+            # We registered ourself.  Execute a commit action, if any.
+            if self.__onCommitActions:
+                method_name, args, kw = self.__onCommitActions[0]
+                self.__onCommitActions = self.__onCommitActions[1:]
+                apply(getattr(self, method_name), (transaction,) + args, kw)
+            return
         oid=object._p_oid
         invalid=self._invalid
         if oid is None or object._p_jar is not self:
@@ -413,6 +424,7 @@ class Connection(ExportImport.ExportImport):
 
     def commit_sub(self, t,
                    _type=type, _st=type(''), _None=None):
+        """Commit all work done in subtransactions"""
         tmp=self._tmp
         if tmp is _None: return
         src=self._storage
@@ -597,6 +609,7 @@ class Connection(ExportImport.ExportImport):
             raise
 
     def tpc_abort(self, transaction):
+        self.__onCommitActions = ()
         self._storage.tpc_abort(transaction)
         cache=self._cache
         cache.invalidate(self._invalidated)
@@ -622,6 +635,7 @@ class Connection(ExportImport.ExportImport):
 
     def tpc_vote(self, transaction,
                  _type=type, _st=type('')):
+        self.__onCommitActions = ()
         try: vote=self._storage.tpc_vote
         except: return
         s=vote(transaction)
