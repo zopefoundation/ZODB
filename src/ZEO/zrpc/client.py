@@ -172,6 +172,7 @@ class ConnectionManager:
                 self.thread = t = ConnectThread(self, self.client,
                                                 self.addrlist,
                                                 self.tmin, self.tmax)
+                t.setDaemon(1)
                 t.start()
             if sync:
                 while self.connection is None:
