@@ -95,7 +95,7 @@ def main(argv):
     sys.path.insert(0, directory(me, 2))
 
     global LOG, INFO, ERROR
-    from zLOG import LOG, INFO, ERROR, PANIC
+    from zLOG import LOG, INFO, WARNING, ERROR, PANIC
     from ZEO.util import Environment
     env = Environment(me)
 
@@ -222,6 +222,15 @@ def main(argv):
             zdaemon.run(sys.argv, env.zeo_pid)
 
     try:
+
+        if Z:
+            # Change current directory (for core dumps etc.)
+            try:
+                os.chdir(env.var)
+            except os.error:
+                LOG('ZEO/start.py', WARNING, "Couldn't chdir to %s" % env.var)
+            else:
+                LOG('ZEO/start.py', INFO, "Changed directory to %s" % env.var)
 
         import ZEO.StorageServer, asyncore
 
