@@ -12,7 +12,7 @@
   
  ****************************************************************************/
 
-#define BTREETEMPLATE_C "$Id: BTreeTemplate.c,v 1.31 2002/05/31 17:22:40 tim_one Exp $\n"
+#define BTREETEMPLATE_C "$Id: BTreeTemplate.c,v 1.32 2002/05/31 17:56:59 tim_one Exp $\n"
 
 /*
 ** _BTree_get
@@ -144,16 +144,16 @@ BTree_clone(BTree *self)
   Py_XINCREF(n1->firstbucket);
   
   /* Initialize our data to hold split data */
-  self->data=d;
-  self->len=2;
-  self->size=2;
-  self->data->child=OBJECT(n1);
+  self->data = d;
+  self->len = 2;
+  self->size = 2;
+  self->data->child = SIZED(n1);
   COPY_KEY(self->data[1].key, n2->data->key);
 
   /* We take the unused reference from n2, so there's no reason to INCREF! */
   /* INCREF_KEY(self->data[1].key); */
 
-  self->data[1].child=OBJECT(n2);
+  self->data[1].child = SIZED(n2);
 
   return 0;
 
@@ -179,7 +179,7 @@ static int
 BTree_grow(BTree *self, int index, int noval)
 {
   int i;
-  PyObject *v, *e=0;
+  Sized *v, *e=0;
   BTreeItem *d;
 
   if (self->len == self->size)
@@ -203,9 +203,10 @@ BTree_grow(BTree *self, int index, int noval)
   d=self->data+index;
   if (self->len)
     {
-      v=d->child;
+      v = d->child;
       /* Create a new object of the same type as the target value */
-      UNLESS (e=PyObject_CallObject(OBJECT(v->ob_type), NULL)) return -1;
+      e = SIZED(PyObject_CallObject(OBJECT(v->ob_type), NULL));
+      UNLESS (e) return -1;
 
       PER_USE_OR_RETURN(BUCKET(v), -1);
 
@@ -257,13 +258,13 @@ BTree_grow(BTree *self, int index, int noval)
     {
       if (noval)
         {
-          UNLESS (d->child=PyObject_CallObject(OBJECT(&SetType), NULL))
-            return -1;
+          d->child = SIZED(PyObject_CallObject(OBJECT(&SetType), NULL));
+          UNLESS (d->child) return -1;
         }
       else
         {
-          UNLESS (d->child=PyObject_CallObject(OBJECT(&BucketType), NULL))
-            return -1;
+          d->child = SIZED(PyObject_CallObject(OBJECT(&BucketType), NULL));
+          UNLESS (d->child) return -1;
         }
       self->len=1;
       Py_INCREF(d->child);
@@ -284,7 +285,7 @@ BTree_lastBucket(BTree *self)
       return NULL;
     }
 
-  o=self->data[self->len - 1].child;
+  o = OBJECT(self->data[self->len - 1].child);
   Py_INCREF(o);
 
   UNLESS (SameType_Check(self, o)) return BUCKET(o);
@@ -638,7 +639,7 @@ BTree_getstate(BTree *self, PyObject *args)
                   PyTuple_SET_ITEM(r,l,o);
                   l++;
                 }
-              o=self->data[i].child;
+              o = OBJECT(self->data[i].child);
               Py_INCREF(o);
               PyTuple_SET_ITEM(r,l,o);
               l++;
@@ -698,23 +699,23 @@ _BTree_setstate(BTree *self, PyObject *state, int noval)
               UNLESS (copied) return -1;
               INCREF_KEY(d->key);
             }
-          d->child=PyTuple_GET_ITEM(items,l);
+          d->child = SIZED(PyTuple_GET_ITEM(items,l));
           if (PyTuple_Check(d->child))
             {
               if (noval)
                 {
-                  UNLESS (d->child=PyObject_CallObject(OBJECT(&SetType), 
-                                                       NULL))
-                    return -1;
+                  d->child = SIZED(PyObject_CallObject(OBJECT(&SetType),
+                                                       NULL));
+                  UNLESS (d->child) return -1;
                   if (_set_setstate(BUCKET(d->child), 
                                     PyTuple_GET_ITEM(items,l))
                       < 0) return -1;
                 }
               else
                 {
-                  UNLESS (d->child=PyObject_CallObject(OBJECT(&BucketType), 
-                                                       NULL))
-                    return -1;
+                  d->child = SIZED(PyObject_CallObject(OBJECT(&BucketType), 
+                                                       NULL));
+                  UNLESS (d->child) return -1;
                   if (_bucket_setstate(BUCKET(d->child), 
                                        PyTuple_GET_ITEM(items,l))
                       < 0) return -1;
@@ -729,7 +730,8 @@ _BTree_setstate(BTree *self, PyObject *state, int noval)
 
       if (len)
         {
-          if (! firstbucket) firstbucket=self->data->child;
+          if (! firstbucket)
+            firstbucket = OBJECT(self->data->child);
 
           UNLESS (ExtensionClassSubclassInstance_Check(
                     firstbucket, 

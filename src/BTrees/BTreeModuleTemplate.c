@@ -121,7 +121,7 @@ static void PyVar_AssignB(Bucket **v, Bucket *e) { Py_XDECREF(*v); *v=e;}
 
 typedef struct BTreeItem_s {
   KEY_TYPE key;
-  PyObject *child;
+  Sized *child; /* points to another BTree, or to a Bucket of some sort */
 } BTreeItem;
 
 typedef struct BTree_s {
@@ -323,7 +323,7 @@ static char BTree_module_documentation[] =
 "\n"
 MASTER_ID
 BTREEITEMSTEMPLATE_C
-"$Id: BTreeModuleTemplate.c,v 1.25 2002/05/31 17:30:30 tim_one Exp $\n"
+"$Id: BTreeModuleTemplate.c,v 1.26 2002/05/31 17:56:59 tim_one Exp $\n"
 BTREETEMPLATE_C
 BUCKETTEMPLATE_C
 KEYMACROS_H
