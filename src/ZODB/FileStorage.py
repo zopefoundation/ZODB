@@ -184,7 +184,7 @@
 #   may have a back pointer to a version record or to a non-version
 #   record.
 #
-__version__='$Revision: 1.36 $'[11:-2]
+__version__='$Revision: 1.37 $'[11:-2]
 
 import struct, time, os, bpthread, string, base64, sys
 from struct import pack, unpack
@@ -583,6 +583,34 @@ class FileStorage(BaseStorage.BaseStorage):
         self._lock_acquire()
         try: return self._load(oid, version, self._index, self._file)
         finally: self._lock_release()
+
+    def loadSerial(self, oid, serial):
+        _index=self._index
+        file=self._file
+        seek=file.seek
+        read=file.read
+        pos=_index[oid]
+        while 1:
+            seek(pos)
+            h=read(42)
+            doid,dserial,prev,tloc,vlen,plen = unpack(">8s8s8s8sH8s", h)
+            if doid != oid: raise CorruptedDataError, h
+            if dserial == serial: break # Yeee ha!
+            # Keep looking for serial
+            pos=u64(prev)
+            if not pos: raise KeyError, serial
+            continue
+            
+        if vlen:
+            pnv=read(8) # Read location of non-version data
+            read(8) # skip past version link
+            read(vlen) # skip version
+
+        if plen != z64: return read(u64(plen))
+
+        # We got a backpointer, probably from a commit.
+        pnv=read(8)
+        return _loadBack(file, oid, pnv)[0]
                     
     def modifiedInVersion(self, oid):
         self._lock_acquire()
