@@ -35,9 +35,10 @@ class EventLogger(BaseLogger):
 
     # Get our logger object:
     logger = logging.getLogger('event')
-    # Add a null handler to prevent warnings about loggers with no handlers:
-    logger.addHandler(loghandler.NullHandler())
-    logger.propagate = 0
+    if not logger.handlers:
+        # Add a null handler to prevent warnings about loggers with no
+        # handlers:
+        logger.addHandler(loghandler.NullHandler())
 
     def log(self, subsystem, severity, summary, detail, error):
 
@@ -200,3 +201,5 @@ def initialize_from_environment():
 
     for handler in handlers:
         event_logger.logger.addHandler(handler)
+
+    event_logger.logger.propagate = 0
