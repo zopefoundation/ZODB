@@ -259,23 +259,23 @@ class ZODBTests(unittest.TestCase):
         # error because the object state read is not necessarily
         # consistent with the objects read earlier in the transaction.
 
-        conn = self._db.open(mvcc=False)
-        conn.setLocalTransaction()
+        tm1 = transaction.TransactionManager()
+        conn = self._db.open(mvcc=False, txn_mgr=tm1)
         r1 = conn.root()
         r1["p"] = self.obj
         self.obj.child1 = P()
-        conn.getTransaction().commit()
+        tm1.get().commit()
 
         # start a new transaction with a new connection
-        cn2 = self._db.open(mvcc=False)
+        tm2 = transaction.TransactionManager()
+        cn2 = self._db.open(mvcc=False, txn_mgr=tm2)
         # start a new transaction with the other connection
-        cn2.setLocalTransaction()
         r2 = cn2.root()
 
         self.assertEqual(r1._p_serial, r2._p_serial)
 
         self.obj.child2 = P()
-        conn.getTransaction().commit()
+        tm1.get().commit()
 
         # resume the transaction using cn2
         obj = r2["p"]
@@ -287,7 +287,7 @@ class ZODBTests(unittest.TestCase):
         else:
             # make sure that accessing the object succeeds
             obj.child1
-        cn2.getTransaction().abort()
+        tm2.get().abort()
 
     def checkReadConflictIgnored(self):
         # Test that an application that catches a read conflict and
@@ -303,8 +303,8 @@ class ZODBTests(unittest.TestCase):
         get_transaction().commit()
 
         # load some objects from one connection
-        cn2 = self._db.open(mvcc=False)
-        cn2.setLocalTransaction()
+        tm = transaction.TransactionManager()
+        cn2 = self._db.open(mvcc=False, txn_mgr=tm)
         r2 = cn2.root()
         real_data2 = r2["real_data"]
         index2 = r2["index"]
@@ -331,7 +331,7 @@ class ZODBTests(unittest.TestCase):
         self.assert_(not index2[0]._p_changed)
         self.assert_(not index2[1]._p_changed)
 
-        self.assertRaises(ConflictError, cn2.getTransaction().commit)
+        self.assertRaises(ConflictError, tm.get().commit)
         get_transaction().abort()
 
     def checkIndependent(self):
