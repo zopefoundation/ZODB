@@ -4,7 +4,7 @@
 __doc__='''Python implementation of persistent base types
 
 
-$Id: Persistence.py,v 1.3 1997/03/08 22:03:54 jfulton Exp $'''
+$Id: Persistence.py,v 1.4 1997/03/14 16:19:55 jim Exp $'''
 #     Copyright 
 #
 #       Copyright 1996 Digital Creations, L.C., 910 Princess Anne
@@ -60,6 +60,11 @@ $Id: Persistence.py,v 1.3 1997/03/08 22:03:54 jfulton Exp $'''
 #   (540) 371-6909
 #
 # $Log: Persistence.py,v $
+# Revision 1.4  1997/03/14 16:19:55  jim
+# Changed so no longer save on del.
+# Added check in __save__ so that we don't save if we have decided that
+# we haven't changed.
+#
 # Revision 1.3  1997/03/08 22:03:54  jfulton
 # Paul made change to clear method to see if keys exist.
 #
@@ -71,7 +76,7 @@ $Id: Persistence.py,v 1.3 1997/03/08 22:03:54 jfulton Exp $'''
 #
 #
 # 
-__version__='$Revision: 1.3 $'[11:-2]
+__version__='$Revision: 1.4 $'[11:-2]
 
 class Persistent:
     """\
@@ -189,9 +194,7 @@ class Persistent:
 	Update the object in a persistent database.
 	'''
 	jar=self._p_jar
-	if jar: jar.store(self)
-
-    __del__=__save__
+	if jar and self._p_changed: jar.store(self)
 
     def __changed__(self,value=None):
 	'''\
