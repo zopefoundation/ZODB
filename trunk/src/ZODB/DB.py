@@ -18,7 +18,6 @@ $Id$"""
 import cPickle, cStringIO, sys
 import threading
 from time import time, ctime
-import warnings
 import logging
 
 from ZODB.broken import find_global
