@@ -170,7 +170,7 @@ class FileStorageFormatter:
         self.ltid = th.tid
         if th.status == "c":
             self.fail(pos, "transaction with checkpoint flag set")
-        if not (th.status == " " or th.status == "p"):
+        if not th.status in " pu": # recognize " ", "p", and "u" as valid
             self.fail(pos, "invalid transaction status: %r", th.status)
         if th.tlen < th.headerlen():
             self.fail(pos, "invalid transaction header: "
