@@ -15,7 +15,7 @@
 static char cPickleCache_doc_string[] =
 "Defines the PickleCache used by ZODB Connection objects.\n"
 "\n"
-"$Id: cPickleCache.c,v 1.44 2002/04/01 23:45:48 jeremy Exp $\n";
+"$Id: cPickleCache.c,v 1.45 2002/04/02 06:03:39 jeremy Exp $\n";
 
 #define ASSIGN(V,E) {PyObject *__e; __e=(E); Py_XDECREF(V); (V)=__e;}
 #define UNLESS(E) if(!(E))
@@ -31,6 +31,9 @@ static char cPickleCache_doc_string[] =
 static PyObject *py__p_oid, *py_reload, *py__p_jar, *py__p_changed;
 
 /* define this for extra debugging checks, and lousy performance */
+/* Are any of these checks necessary in production code?  How do we
+   decide when to disable it?
+*/
 #define MUCH_RING_CHECKING 1
 
 /* Do we want 'engine noise'.... abstract debugging output useful for
@@ -121,16 +124,16 @@ scan_gc_items(ccobject *self,int target)
 
 #ifdef MUCH_RING_CHECKING
     int safety_counter = self->cache_size*10;
-    if(safety_counter<10000) safety_counter = 10000;
+    if (safety_counter<10000) 
+	safety_counter = 10000;
 #endif
 
-    while(1)
-    {
-        if(check_ring(self,"mid-gc")) return -1;
+    while (1) {
+        if (check_ring(self, "mid-gc")) 
+	    return -1;
 
 #ifdef MUCH_RING_CHECKING
-        if(!safety_counter--)
-        {
+        if (!safety_counter--) {
             /* This loop has been running for a very long time.
                It is possible that someone loaded a very large number of objects,
                and now wants us to blow them all away. However it may
@@ -138,37 +141,35 @@ scan_gc_items(ccobject *self,int target)
                long then you really have to doubt it will ever terminate.
                In the MUCH_RING_CHECKING build we prefer to raise an exception
                here */
-            PyErr_SetString(PyExc_RuntimeError,"scan_gc_items safety counter exceeded");
+            PyErr_SetString(PyExc_RuntimeError,
+			    "scan_gc_items safety counter exceeded");
             return -1;
         }
 
-        if(!present_in_ring(self,here))
-        {
-            /* Our current working position is no longer in the ring. Thats bad. */
-            PyErr_SetString(PyExc_RuntimeError,"working position fell out the ring, in scan_gc_items");
+        if (!present_in_ring(self, here)) {
+            /* Our current working position is no longer in the ring. 
+	       That's bad. */ 
+            PyErr_SetString(PyExc_RuntimeError,
+		    "working position fell out the ring, in scan_gc_items");
             return -1;
         }
 #endif
 
-        if(here==&self->ring_home)
-        {
-            /* back to the home position. stop looking */
+	/* back to the home position. stop looking */
+        if (here == &self->ring_home)
             return 0;
-        }
 
         /* At this point we know that the ring only contains nodes from
         persistent objects, plus our own home node. We can safely
         assume this is a persistent object now we know it is not the home */
-        object = object_from_ring(self,here,"scan_gc_items");
-        if(!object) return -1;
+        object = object_from_ring(self, here, "scan_gc_items");
+        if (!object) 
+	    return -1;
 
-        if(self->non_ghost_count<=target)
-        {
-            /* we are small enough */
+	/* we are small enough */
+        if (self->non_ghost_count <= target)
             return 0;
-        }
-        else if(object->state==cPersistent_UPTODATE_STATE)
-        {
+        else if (object->state == cPersistent_UPTODATE_STATE) {
             /* deactivate it. This is the main memory saver. */
 
             ENGINE_NOISE("G");
@@ -177,49 +178,46 @@ scan_gc_items(ccobject *self,int target)
             placeholder.next = here->next;
             placeholder.prev = here;
             here->next->prev = &placeholder;
-            here->next       = &placeholder;
+            here->next = &placeholder;
 
-            error = PyObject_SetAttr((PyObject *)object,py__p_changed,Py_None);
+            error = PyObject_SetAttr((PyObject *)object, py__p_changed, 
+				     Py_None);
 
             /* unlink the placeholder */
-            placeholder.next->prev=placeholder.prev;
-            placeholder.prev->next=placeholder.next;
+            placeholder.next->prev = placeholder.prev;
+            placeholder.prev->next = placeholder.next;
 
             here = placeholder.next;
 
             if(error)
                 return -1; /* problem */
-        }
-        else
-        {
+        } else {
             ENGINE_NOISE(".");
-
             here = here->next;
         }
     }
 }
 
-
 static PyObject *
-lockgc(ccobject *self,int target_size)
+lockgc(ccobject *self, int target_size)
 {
-    if(self->ring_lock)
-    {
+    if (self->ring_lock) {
         Py_INCREF(Py_None);
         return Py_None;
     }
 
-    if(check_ring(self,"pre-gc")) return NULL;
+    if (check_ring(self, "pre-gc")) 
+	return NULL;
     ENGINE_NOISE("<");
     self->ring_lock = 1;
-    if(scan_gc_items(self,target_size))
-    {
+    if (scan_gc_items(self, target_size)) {
         self->ring_lock = 0;
         return NULL;
     }
     self->ring_lock = 0;
     ENGINE_NOISE(">\n");
-    if(check_ring(self,"post-gc")) return NULL;
+    if (check_ring(self, "post-gc")) 
+	return NULL;
 
     Py_INCREF(Py_None);
     return Py_None;
@@ -228,23 +226,22 @@ lockgc(ccobject *self,int target_size)
 static PyObject *
 cc_incrgc(ccobject *self, PyObject *args)
 {
-    int n=1;
-
+    int n = 1;
     int starting_size = self->non_ghost_count;
-
     int target_size = self->cache_size;
 
-    if(self->cache_drain_resistance>=1)
-    {
+    if (self->cache_drain_resistance >= 1) {
         /* This cache will gradually drain down to a small size. Check
            a (small) number of objects proportional to the current size */
 
-        int target_size_2 = starting_size - 1 - starting_size/self->cache_drain_resistance;
-        if(target_size_2<target_size)
+        int target_size_2 = (starting_size - 1 
+			     - starting_size / self->cache_drain_resistance);
+        if (target_size_2 < target_size)
             target_size = target_size_2;
     }
 
-    UNLESS (PyArg_ParseTuple(args, "|i",&n)) return NULL;
+    if (!PyArg_ParseTuple(args, "|i:incrgc", &n)) 
+	return NULL;
 
     return lockgc(self,target_size);
 }
@@ -252,54 +249,46 @@ cc_incrgc(ccobject *self, PyObject *args)
 static PyObject *
 cc_full_sweep(ccobject *self, PyObject *args)
 {
-  int dt=0;
-  UNLESS(PyArg_ParseTuple(args, "|i", &dt)) return NULL;
-  return lockgc(self,0);
+    int dt = 0;
+    if (!PyArg_ParseTuple(args, "|i:full_sweep", &dt)) 
+	return NULL;
+    return lockgc(self,0);
 }
 
 static PyObject *
 cc_reallyfull_sweep(ccobject *self, PyObject *args)
 {
-  int dt=0;
-  UNLESS(PyArg_ParseTuple(args, "|i", &dt)) return NULL;
+  int dt = 0;
+  if (!PyArg_ParseTuple(args, "|i:reallyfull_sweep", &dt)) 
+      return NULL;
   return lockgc(self,0);
 }
 
 static void
 _invalidate(ccobject *self, PyObject *key)
 {
-    PyObject *v=object_from_oid(self, key);
+    PyObject *v = object_from_oid(self, key);
 
-    if(!v)
-    {
-        /* shouldnt this be an error? for now Ill follow Jims lead */
-        PyErr_Clear();
+    if (!v)
+	return;
+    if (PyExtensionClass_Check(v)) {
+	if (v->ob_refcnt <= 1) {
+	    self->klass_count--;
+	    if (PyDict_DelItem(self->data, key) < 0)
+		PyErr_Clear();
+	}
+	else {
+	    v = PyObject_CallFunction(self->setklassstate, "O", v);
+	    if (v) 
+		Py_DECREF(v);
+	    else 
+		PyErr_Clear();
+	}
+    } else {
+	if (PyObject_DelAttr(v, py__p_changed) < 0)
+	    PyErr_Clear();
     }
-    else
-    {
-        if (PyExtensionClass_Check(v))
-        {
-            if(v->ob_refcnt <= 1)
-            {
-                self->klass_count--;
-                if (PyDict_DelItem(self->data, key) < 0)
-                  PyErr_Clear();
-            }
-            else
-            {
-                v=PyObject_CallFunction(self->setklassstate,
-                                        "O", v);
-                if (v) Py_DECREF(v);
-                else PyErr_Clear();
-            }
-        }
-        else
-        {
-            if(PyObject_DelAttr(v,py__p_changed) < 0)
-                PyErr_Clear();
-        }
-        Py_DECREF(v);
-    }
+    Py_DECREF(v);
 }
 
 static PyObject *
@@ -379,21 +368,26 @@ cc_klass_items(ccobject *self, PyObject *args)
     PyObject *l,*k,*v;
     int p = 0;
 
-    if(!PyArg_ParseTuple(args,"")) return NULL;
+    if (!PyArg_ParseTuple(args, ":klass_items")) 
+	return NULL;
 
-    l = PyList_New(0);
-    if(!l) return NULL;
+    l = PyList_New(PyDict_Size(self->data));
+    if (l == NULL) 
+	return NULL;
 
-    while(PyDict_Next(self->data, &p, &k, &v))
-    {
-        if(PyExtensionClass_Check(v))
-        {
-            v=PyObject_CallMethod(l,"append","((OO))",k,v);
-            if(!v)
-            {
-                Py_DECREF(l);
-                return NULL;
-            }
+    while (PyDict_Next(self->data, &p, &k, &v)) {
+        if(PyExtensionClass_Check(v)) {
+	    v = Py_BuildValue("OO", k, v);
+	    if (v == NULL) {
+		Py_DECREF(l);
+		return NULL;
+	    }
+	    if (PyList_Append(l, v) < 0) {
+		Py_DECREF(v);
+		Py_DECREF(l);
+		return NULL;
+	    }
+	    Py_DECREF(v);
         }
     }
 
@@ -406,35 +400,41 @@ cc_lru_items(ccobject *self, PyObject *args)
     PyObject *l;
     CPersistentRing *here;
 
-    if(!PyArg_ParseTuple(args,"")) return NULL;
+    if (!PyArg_ParseTuple(args, ":lru_items")) 
+	return NULL;
 
-    if(self->ring_lock)
-    {
-        PyErr_SetString(PyExc_ValueError,".lru_items() is unavailable during garbage collection");
+    if (self->ring_lock) {
+        PyErr_SetString(PyExc_ValueError,
+		".lru_items() is unavailable during garbage collection");
         return NULL;
     }
 
-    if(check_ring(self,"pre-cc_items")) return NULL;
+    if (check_ring(self, "pre-cc_items")) 
+	return NULL;
 
     l = PyList_New(0);
-    if(!l) return NULL;
+    if (l == NULL) 
+	return NULL;
 
     here = self->ring_home.next;
-    while(here!=&self->ring_home)
-    {
-        cPersistentObject *object = object_from_ring(self,here,"cc_items");
+    while (here != &self->ring_home) {
         PyObject *v;
-        if(!object)
-        {
+        cPersistentObject *object = object_from_ring(self, here, "cc_items");
+
+        if (object == NULL) {
             Py_DECREF(l);
             return NULL;
         }
-        v=PyObject_CallMethod(l,"append","((OO))",object->oid,object);
-        if(!v)
-        {
+	v = Py_BuildValue("OO", object->oid, object);
+	if (v == NULL) {
             Py_DECREF(l);
             return NULL;
-        }
+	}
+	if (PyList_Append(l, v) < 0) {
+	    Py_DECREF(v);
+            Py_DECREF(l);
+            return NULL;
+	}
         Py_DECREF(v);
         here = here->next;
     }
@@ -442,23 +442,38 @@ cc_lru_items(ccobject *self, PyObject *args)
     return l;
 }
 
+/* XXX What does this function do? */
+
 static PyObject *
 cc_oid_unreferenced(ccobject *self, PyObject *args)
 {
-    PyObject *oid,*v;
-    if(!PyArg_ParseTuple(args,"O",&oid)) return NULL;
+    PyObject *oid, *v;
+    if (!PyArg_ParseTuple(args, "O:_oid_unreferenced", &oid)) 
+	return NULL;
 
     v = PyDict_GetItem(self->data, oid);
-    if(!v) return NULL;
+    if (v == NULL) {
+	PyErr_SetObject(PyExc_KeyError, oid);
+	/* jeremy debug
+	   fprintf(stderr, "oid_unreferenced: key error\n");
+	*/
+	return NULL;
+    }
 
-    if(v->ob_refcnt)
-    {
-        PyErr_Format(PyExc_ValueError,"object has reference count of %d, should be zero",v->ob_refcnt);
+    /* jeremy debug
+    fprintf(stderr, "oid_unreferenced: %X %d %s\n", v,
+	    v->ob_refcnt, v->ob_type->tp_name);
+    */
+
+    if (v->ob_refcnt) {
+        PyErr_Format(PyExc_ValueError,
+	     "object has reference count of %d, should be zero", v->ob_refcnt);
         return NULL;
     }
 
     /* Need to be very hairy here because a dictionary is about
-       to decref an already deleted object */
+       to decref an already deleted object. 
+    */
 
 #ifdef Py_TRACE_REFS
 #error "this code path has not been tested - Toby Dickenson"
@@ -468,9 +483,9 @@ cc_oid_unreferenced(ccobject *self, PyObject *args)
     Py_INCREF(v);
 #endif
 
-    if(v->ob_refcnt!=1)
-    {
-        PyErr_SetString(PyExc_ValueError,"refcount is not 1 after resurrection");
+    if (v->ob_refcnt != 1) {
+        PyErr_SetString(PyExc_ValueError,
+			"refcount is not 1 after resurrection");
         return NULL;
     }
 
@@ -479,9 +494,9 @@ cc_oid_unreferenced(ccobject *self, PyObject *args)
 
     PyDict_DelItem(self->data, oid);
 
-    if(v->ob_refcnt!=1)
-    {
-        PyErr_SetString(PyExc_ValueError,"refcount is not 1 after removal from dict");
+    if (v->ob_refcnt != 1) {
+        PyErr_SetString(PyExc_ValueError,
+			"refcount is not 1 after removal from dict");
         return NULL;
     }
 
@@ -546,7 +561,8 @@ cc_getattr(ccobject *self, char *name)
 {
   PyObject *r;
 
-  if(check_ring(self,"getattr")) return NULL;
+  if (check_ring(self, "getattr")) 
+      return NULL;
 
   if(*name=='c')
     {
@@ -632,179 +648,196 @@ cc_subscript(ccobject *self, PyObject *key)
 }
 
 static int
-cc_ass_sub(ccobject *self, PyObject *key, PyObject *v)
+cc_add_item(ccobject *self, PyObject *key, PyObject *v)
 {
     int result;
-    if(v)
-    {
-        if( ( PyExtensionInstance_Check(v) &&
-              (((PyExtensionClass*)(v->ob_type))->class_flags & PERSISTENT_TYPE_FLAG) &&
-              (v->ob_type->tp_basicsize >= sizeof(cPersistentObject))
-            )
-            ||
-            PyExtensionClass_Check(v)
-          )
-        {
-            PyObject *oid = PyObject_GetAttr(v,py__p_oid);
-            PyObject *object_again;
-            if(!oid)
-            {
-                return -1;
-            }
-            if(PyObject_Cmp(key,oid,&result))
-            {
-                Py_DECREF(oid);
-                return -1;
-            }
-            Py_DECREF(oid);
-            if(result)
-            {
-                PyErr_SetString(PyExc_ValueError,"key must be the same as the object's oid attribute");
-                return -1;
-            }
-            object_again = object_from_oid(self, key);
-            if(object_again)
-            {
-                if(object_again!=v)
-                {
-                    Py_DECREF(object_again);
-                    PyErr_SetString(PyExc_ValueError,"Can not re-register object under a different oid");
-                    return -1;
-                }
-                else
-                {
-                    /* re-register under the same oid - no work needed */
-                    Py_DECREF(object_again);
-                    return 0;
-                }
-            }
-            if(PyExtensionClass_Check(v))
-            {
-                if(PyDict_SetItem(self->data, key, v)) return -1;
-                self->klass_count++;
-                return 0;
-            }
-            else
-            {
-                if(((cPersistentObject*)v)->cache) {
-                    if(((cPersistentObject*)v)->cache != (PerCache *)self) {
-                        /* This object is already in a different cache. */
-                        PyErr_SetString(PyExc_ValueError, 
+    PyExtensionClass *class;
+
+    if (!PyExtensionInstance_Check(v)) {
+	PyErr_SetString(PyExc_ValueError, 
+			"Cache values must be persistent objects.");
+	return -1;
+    }
+    /* Is this set of tests necessary? */
+    class = (PyExtensionClass *)(v->ob_type);
+    if (!((class->class_flags & PERSISTENT_TYPE_FLAG)
+	  && v->ob_type->tp_basicsize >= sizeof(cPersistentObject))) {
+	PyErr_SetString(PyExc_ValueError, 
+			"Cache values must be persistent objects.");
+	return -1;
+    }
+
+    /* XXX Why not self->oid? */
+    PyObject *oid = PyObject_GetAttr(v, py__p_oid);
+    PyObject *object_again;
+    cPersistentObject *p;
+
+    if (oid == NULL)
+	return -1;
+    /* XXX key and oid should both be PyString objects */
+    if (PyObject_Cmp(key, oid, &result)) {
+	Py_DECREF(oid);
+	return -1;
+    }
+    Py_DECREF(oid);
+    if (result) {
+	PyErr_SetString(PyExc_ValueError,
+			"key must be the same as the object's oid attribute");
+	return -1;
+    }
+    object_again = object_from_oid(self, key);
+    if (object_again) {
+	/* XXX Do we need to check for this? */
+	if (object_again != v) {
+	    Py_DECREF(object_again);
+	    PyErr_SetString(PyExc_ValueError,
+			    "Can not re-register object under a different oid");
+	    return -1;
+	} else {
+	    /* re-register under the same oid - no work needed */
+	    Py_DECREF(object_again);
+	    return 0;
+	}
+    }
+    if (PyExtensionClass_Check(v)) {
+	if (PyDict_SetItem(self->data, key, v)) 
+	    return -1;
+	self->klass_count++;
+	return 0;
+    } else {
+	PerCache *cache = ((cPersistentObject *)v)->cache;
+	if (cache) {
+	    if (cache != (PerCache *)self)
+		/* This object is already in a different cache. */
+		PyErr_SetString(PyExc_ValueError, 
 				"Cache values may only be in one cache.");
-                        return -1;
-                    } 
-		    /* else:
-		       
-		       This object is already one of ours, which
-		       is ok.  It would be very strange if someone
-		       was trying to register the same object under a
-		       different key. 
-		    */
-                }
-
-                if(check_ring(self,"pre-setitem")) return -1;
-                if(PyDict_SetItem(self->data, key, v)) return -1;
-
-                Py_INCREF(self);
-                ((cPersistentObject*)v)->cache = (PerCache *)self;
-                if(((cPersistentObject*)v)->state>=0)
-                {
-                    /* insert this non-ghost object into the ring just behind the home position */
-                    self->non_ghost_count++;
-                    ((cPersistentObject*)v)->ring.next = &self->ring_home;
-                    ((cPersistentObject*)v)->ring.prev = self->ring_home.prev;
-                    self->ring_home.prev->next = &((cPersistentObject*)v)->ring;
-                    self->ring_home.prev = &((cPersistentObject*)v)->ring;
-                }
-                else
-                {
-                    /* steal a reference from the dictionary; ghosts have a weak reference */
-                    Py_DECREF(v);
-                }
-
-                if(check_ring(self,"post-setitem")) return -1;
-                return 0;
-            }
-        }
-        else
-        {
-            PyErr_SetString(PyExc_ValueError, "Cache values must be persistent objects.");
-            return -1;
-        }
+	    return -1;
+	} 
+	/* else:
+	   
+	   This object is already one of ours, which is ok.  It
+	   would be very strange if someone was trying to register
+	   the same object under a different key. 
+	*/
     }
+    
+    if (check_ring(self, "pre-setitem")) 
+	return -1;
+    if (PyDict_SetItem(self->data, key, v)) 
+	return -1;
+    
+    Py_INCREF(self);
+    p = (cPersistentObject *)v;
+    p->cache = (PerCache *)self;
+    if (p->state >= 0) {
+	/* insert this non-ghost object into the ring just 
+	   behind the home position */
+	self->non_ghost_count++;
+	p->ring.next = &self->ring_home;
+	p->ring.prev =  self->ring_home.prev;
+	self->ring_home.prev->next = &p->ring;
+	self->ring_home.prev = &p->ring;
+    } else {
+	/* steal a reference from the dictionary; 
+	   ghosts have a weak reference */
+	Py_DECREF(v);
+    }
+    
+    if (check_ring(self, "post-setitem")) 
+	return -1;
     else
-    {
-        /* unlink this item from the ring */
-        if(check_ring(self,"pre-delitem")) return -1;
-
-        v = (PyObject *)object_from_oid(self,key);
-        if(!v) return -1;
-
-        if(PyExtensionClass_Check(v))
-        {
-            self->klass_count--;
-        }
-        else
-        {
-            if(((cPersistentObject*)v)->state>=0)
-            {
-                self->non_ghost_count--;
-                ((cPersistentObject*)v)->ring.next->prev = ((cPersistentObject*)v)->ring.prev;
-                ((cPersistentObject*)v)->ring.prev->next = ((cPersistentObject*)v)->ring.next;
-                ((cPersistentObject*)v)->ring.prev = NULL;
-                ((cPersistentObject*)v)->ring.next = NULL;
-            }
-            else
-            {
-                /* This is a ghost object, so we havent kept a reference count on it.
-                For it have stayed alive this long someone else must be keeping a reference
-                to it. Therefore we need to temporarily give it back a reference count
-                before calling DelItem below */
-                Py_INCREF(v);
-            }
-
-            Py_DECREF((PyObject *)((cPersistentObject*)v)->cache);
-            ((cPersistentObject*)v)->cache = NULL;
-        }
-
-        Py_DECREF(v);
-
-        if(PyDict_DelItem(self->data, key))
-        {
-            PyErr_SetString(PyExc_RuntimeError,
-                           "unexpectedly couldnt remove key in cc_ass_sub");
-            return -1;
-        }
-
-        if(check_ring(self,"post-delitem")) return -1;
-
-        return 0;
-    }
+	return 0;
 }
 
-static int _check_ring(ccobject *self,const char *context)
+static int
+cc_del_item(ccobject *self, PyObject *key)
 {
+    PyObject *v;
+    cPersistentObject *p;
 
+    /* unlink this item from the ring */
+    if (check_ring(self, "pre-delitem")) 
+	return -1;
+
+    v = (PyObject *)object_from_oid(self, key);
+    if (v == NULL)
+	return -1;
+
+    if (PyExtensionClass_Check(v)) {
+	self->klass_count--;
+    } else {
+	p = (cPersistentObject *)v;
+	if (p->state >= 0) {
+	    self->non_ghost_count--;
+	    p->ring.next->prev = p->ring.prev;
+	    p->ring.prev->next = p->ring.next;
+	    p->ring.prev = NULL;
+	    p->ring.next = NULL;
+	} else {
+	    /* This is a ghost object, so we havent kept a reference
+	       count on it.  For it have stayed alive this long
+	       someone else must be keeping a reference to
+	       it. Therefore we need to temporarily give it back a
+	       reference count before calling DelItem below */
+	    Py_INCREF(v);
+	}
+
+	Py_DECREF((PyObject *)p->cache);
+	p->cache = NULL;
+    }
+
+    Py_DECREF(v);
+
+    if (PyDict_DelItem(self->data, key) < 0) {
+	PyErr_SetString(PyExc_RuntimeError,
+			"unexpectedly couldnt remove key in cc_ass_sub");
+	return -1;
+    }
+
+    if (check_ring(self, "post-delitem")) 
+	return -1;
+
+    return 0;
+}
+
+static int
+cc_ass_sub(ccobject *self, PyObject *key, PyObject *v)
+{
+    if (v)
+	return cc_add_item(self, key, v);
+    else
+	return cc_del_item(self, key);
+}
+
+static int 
+_check_ring(ccobject *self,const char *context)
+{
     CPersistentRing *here = &(self->ring_home);
     int expected = 1+self->non_ghost_count;
     int total = 0;
-    do
-    {
-        if(++total>(expected+10)) return 3;            /* ring too big, by a large margin */
-        if(!here->next) return 4;                      /* various linking problems */
-        if(!here->prev) return 5;
-        if(!here->next->prev) return 7;
-        if(!here->prev->next) return 8;
-        if(here->prev->next!=here) return 9;
-        if(here->next->prev!=here) return 10;
-        if(!self->ring_lock)
+    do {
+        if (++total > (expected + 10)) 
+	    return 3;            /* ring too big, by a large margin */
+        if (!here->next)
+	    return 4;                      /* various linking problems */
+        if (!here->prev) 
+	    return 5;
+        if (!here->next->prev) 
+	    return 7;
+        if (!here->prev->next) 
+	    return 8;
+        if (here->prev->next != here) 
+	    return 9;
+        if (here->next->prev != here) 
+	    return 10;
+        if (!self->ring_lock)
         {
             /* if the ring must be locked then it only contains object other than persistent instances */
-            if(here!=&self->ring_home)
+            if (here!=&self->ring_home)
             {
                 cPersistentObject *object = object_from_ring(self,here,context);
-                if(!object) return 12;
-                if(object->state==cPersistent_GHOST_STATE)
+                if (!object) return 12;
+                if (object->state==cPersistent_GHOST_STATE)
                     return 13;
             }
         }
@@ -812,27 +845,35 @@ static int _check_ring(ccobject *self,const char *context)
     }
     while(here!=&self->ring_home);
 
-    if(self->ring_lock)
+    if (self->ring_lock)
     {
-        if(total<expected) return 6;       /* ring too small; too big is ok when locked */
+        if (total<expected) return 6;       /* ring too small; too big is ok when locked */
     }
     else
     {
-        if(total!=expected) return 14;     /* ring size wrong, or bad ghost accounting */
+        if (total!=expected) return 14;     /* ring size wrong, or bad ghost accounting */
     }
 
 
     return 0;
 }
 
-static int check_ring(ccobject *self,const char *context)
+/* XXX This function returns false if everything is okay, which is
+   backwards given its name.  All the tests say:
+
+   if (check_ring(...))
+       return error
+*/
+
+static int 
+check_ring(ccobject *self, const char *context)
 {
 #ifdef MUCH_RING_CHECKING
-    int code=_check_ring(self,context);
-    if(code)
-    {
-        /*printf(stderr,"BROKEN RING (code %d) in %s, size %d\n",code,context,PyDict_Size(self->data));*/
-        PyErr_Format(PyExc_RuntimeError,"broken ring (code %d) in %s, size %d",code,context,PyDict_Size(self->data));
+    int code = _check_ring(self,context);
+    if (code) {
+        PyErr_Format(PyExc_RuntimeError,
+		     "broken ring (code %d) in %s, size %d",
+		     code, context, PyDict_Size(self->data));
         return code;
     }
 #endif
@@ -845,11 +886,11 @@ present_in_ring(ccobject *self,CPersistentRing *target)
     CPersistentRing *here = self->ring_home.next;
     while(1)
     {
-        if(here==target)
+        if (here==target)
         {
             return 1;
         }
-        if(here==&self->ring_home)
+        if (here==&self->ring_home)
         {
             /* back to the home position, and we didnt find it */
             return 0;
@@ -897,7 +938,7 @@ newccobject(PyObject *jar, int cache_size, int cache_age)
   
   UNLESS(self = PyObject_NEW(ccobject, &Cctype)) return NULL;
   self->setklassstate=self->jar=NULL;
-  if((self->data=PyDict_New()))
+  if ((self->data=PyDict_New()))
     {
       self->jar=jar; 
       Py_INCREF(jar);
