@@ -268,11 +268,8 @@ class StorageServer:
     def store(self, oid, serial, data, version, trans):
         return self.rpc.call('store', oid, serial, data, version, trans)
 
-    def transactionalUndo(self, trans_id, trans):
-        return self.rpc.call('transactionalUndo', trans_id, trans)
-
-    def undo(self, trans_id):
-        return self.rpc.call('undo', trans_id)
+    def undo(self, trans_id, trans):
+        return self.rpc.call('undo', trans_id, trans)
 
     def undoLog(self, first, last):
         return self.rpc.call('undoLog', first, last)

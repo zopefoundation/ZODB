@@ -130,13 +130,6 @@ test_classes = [FileStorageConnectionTests,
                 MappingStorageConnectionTests,
                 MappingStorageTimeoutTests]
 
-import BDBStorage
-if BDBStorage.is_available:
-    test_classes += [BDBConnectionTests,
-                     BDBReconnectionTests,
-                     BDBInvqTests,
-                     BDBTimeoutTests]
-
 def test_suite():
     suite = unittest.TestSuite()
     for klass in test_classes:

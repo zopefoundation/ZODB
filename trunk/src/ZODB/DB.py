@@ -13,8 +13,8 @@
 ##############################################################################
 """Database objects
 
-$Id: DB.py,v 1.59 2004/01/06 21:44:25 jeremy Exp $"""
-__version__='$Revision: 1.59 $'[11:-2]
+$Id: DB.py,v 1.60 2004/02/18 01:13:00 jeremy Exp $"""
+__version__='$Revision: 1.60 $'[11:-2]
 
 import cPickle, cStringIO, sys, POSException, UndoLogCompatible
 from Connection import Connection
@@ -574,82 +574,70 @@ class DB(UndoLogCompatible.UndoLogCompatible, object):
     def cacheStatistics(self): return () # :(
 
     def undo(self, id, transaction=None):
-        storage=self._storage
-        try: supportsTransactionalUndo = storage.supportsTransactionalUndo
-        except AttributeError:
-            supportsTransactionalUndo=0
-        else:
-            supportsTransactionalUndo=supportsTransactionalUndo()
-
-        if supportsTransactionalUndo:
-            # new style undo
-            if transaction is None:
-                transaction = get_transaction()
-            transaction.register(TransactionalUndo(self, id))
-        else:
-            # fall back to old undo
-            d = {}
-            for oid in storage.undo(id):
-                d[oid] = 1
-            # XXX I think we need to remove old undo to use mvcc
-            self.invalidate(None, d)
+        if transaction is None:
+            transaction = get_transaction()
+        transaction.register(TransactionalUndo(self, id))
 
     def versionEmpty(self, version):
         return self._storage.versionEmpty(version)
 
-class CommitVersion:
-    """An object that will see to version commit
+class ResourceManager(object):
+    """Transaction participation for a version or undo resource."""
 
-    in cooperation with a transaction manager.
-    """
-    def __init__(self, db, version, dest=''):
-        self._db=db
-        s=db._storage
-        self._version=version
-        self._dest=dest
-        self.tpc_abort=s.tpc_abort
-        self.tpc_begin=s.tpc_begin
-        self.tpc_vote=s.tpc_vote
-        self.tpc_finish=s.tpc_finish
-        self._sortKey=s.sortKey
+    def __init__(self, db):
+        self._db = db
+        # Delegate the actual 2PC methods to the storage
+        self.tpc_begin = self._db._storage.tpc_begin
+        self.tpc_vote = self._db._storage.tpc_vote
+        self.tpc_finish = self._db._storage.tpc_finish
+        self.tpc_abort = self._db._storage.tpc_abort
 
     def sortKey(self):
-        return "%s:%s" % (self._sortKey(), id(self))
+        return "%s:%s" % (self._db._storage.sortKey(), id(self))
 
-    def abort(self, reallyme, t): pass
+    # The object registers itself with the txn manager, so the ob
+    # argument to the methods below is self.
 
-    def commit(self, reallyme, t):
+    def abort(self, ob, t):
+        pass
+
+    def commit(self, ob, t):
+        pass
+
+class CommitVersion(ResourceManager):
+
+    def __init__(self, db, version, dest=''):
+        super(CommitVersion, self).__init__(db)
+        self._version = version
+        self._dest = dest
+
+    def commit(self, ob, t):
         dest=self._dest
-        tid, oids = self._db._storage.commitVersion(self._version, dest, t)
+        tid, oids = self._db._storage.commitVersion(self._version, self._dest,
+                                                    t)
         oids = list2dict(oids)
-        self._db.invalidate(tid, oids, version=dest)
-        if dest:
+        self._db.invalidate(tid, oids, version=self._dest)
+        if self._dest:
             # the code above just invalidated the dest version.
             # now we need to invalidate the source!
             self._db.invalidate(tid, oids, version=self._version)
 
-class AbortVersion(CommitVersion):
-    """An object that will see to version abortion
+class AbortVersion(ResourceManager):
 
-    in cooperation with a transaction manager.
-    """
+    def __init__(self, db, version):
+        super(AbortVersion, self).__init__(db)
+        self._version = version
+        
+    def commit(self, ob, t):
+        tid, oids = self._db._storage.abortVersion(self._version, t)
+        self._db.invalidate(tid, list2dict(oids), version=self._version)
 
-    def commit(self, reallyme, t):
-        version = self._version
-        tid, oids = self._db._storage.abortVersion(version, t)
-        self._db.invalidate(tid, list2dict(oids), version=version)
+class TransactionalUndo(ResourceManager):
 
+    def __init__(self, db, tid):
+        super(TransactionalUndo, self).__init__(db)
+        self._tid = tid
 
-class TransactionalUndo(CommitVersion):
-    """An object that will see to transactional undo
-
-    in cooperation with a transaction manager.
-    """
-
-    # I (Jim) am lazy.  I'm reusing __init__ and abort and reusing the
-    # version attr for the transaction id.  There's such a strong
-    # similarity of rhythm that I think it's justified.
-
-    def commit(self, reallyme, t):
-        tid, oids = self._db._storage.transactionalUndo(self._version, t)
+    def commit(self, ob, t):
+        tid, oids = self._db._storage.undo(self._tid, t)
         self._db.invalidate(tid, list2dict(oids))

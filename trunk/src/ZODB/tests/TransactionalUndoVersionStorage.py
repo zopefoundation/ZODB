@@ -11,8 +11,8 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
-# Check interactions between transactionalUndo() and versions.  Any storage
-# that supports both transactionalUndo() and versions must pass these tests.
+# Check interactions between undo() and versions.  Any storage that
+# supports both undo() and versions must pass these tests.
 
 import time
 

@@ -41,7 +41,7 @@ substantially simplified.
 New and/or unspecified methods:
 
 tpc_vote(): handled like tpc_abort
-transactionalUndo(): handled like undo()  (which is how?)
+undo(): how's that handled?
 
 Methods that have nothing to do with committing/non-committing:
 load(), loadSerial(), getName(), getSize(), __len__(), history(),

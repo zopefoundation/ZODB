@@ -994,7 +994,7 @@ class ClientStorage(object):
                     self._cache.store(oid, version, s, None, data)
         self._tbuf.clear()
 
-    def transactionalUndo(self, trans_id, txn):
+    def undo(self, trans_id, txn):
         """Storage API: undo a transaction.
 
         This is executed in a transactional context.  It has no effect
@@ -1004,7 +1004,7 @@ class ClientStorage(object):
         a storage.
         """
         self._check_trans(txn)
-        tid, oids = self._server.transactionalUndo(trans_id, id(txn))
+        tid, oids = self._server.undo(trans_id, id(txn))
         for oid in oids:
             self._tbuf.invalidate(oid, '')
         return tid, oids

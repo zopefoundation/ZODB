@@ -79,7 +79,7 @@ method::
 and call it to monitor the storage.
 
 """
-__version__='$Revision: 1.23 $'[11:-2]
+__version__='$Revision: 1.24 $'[11:-2]
 
 import base64, time, string
 from ZODB import POSException, BaseStorage, utils
@@ -277,9 +277,6 @@ class DemoStorage(BaseStorage.BaseStorage):
         finally: self._lock_release()
         return self._tid
 
-    def supportsUndo(self):
-        return 1
-
     def supportsVersions(self):
         return 1
 
@@ -320,57 +317,6 @@ class DemoStorage(BaseStorage.BaseStorage):
                     v = self._vindex[version] = {}
                 v[oid] = r
         self._ltid = self._tid
-
-    def undo(self, transaction_id):
-        self._lock_acquire()
-        try:
-            transaction_id=base64.decodestring(transaction_id+'\n')
-            try: t=self._data[transaction_id][4]
-            except KeyError:
-                raise UndoError, 'Invalid undo transaction id'
-
-            index=self._index
-            vindex=self._vindex
-            vindex_get=self._vindex.get
-            for r in t:
-                if index[r[0]] is not r:
-                    raise POSException.UndoError, 'non-undoable transaction'
-
-            oids=[]
-            for r in t:
-                oid, pre, vdata, p, tid = r
-                if pre:
-
-                    index[oid] = pre
-                    oids.append(oid)
-
-                    # Delete old version data
-                    if vdata:
-                        version=vdata[0]
-                        v=vindex.get(version, None)
-                        if v: del v[oid]
-
-                    # Add new version data (from pre):
-                    oid, prepre, vdata, p, tid = pre
-                    if vdata:
-                        version=vdata[0]
-                        v=vindex.get(version, None)
-                        if v is None: v=vindex[version]={}
-                        v[oid]=pre
-
-                else:
-                    del index[oid]
-                    if vdata:
-                        version=vdata[0]
-                        v=vindex.get(version, None)
-                        if v: del v[oid]
-                        if not v: del vindex[version]
-
-            del self._data[transaction_id]
-
-            return oids
-
-        finally: self._lock_release()
 
     def undoLog(self, first, last, filter=None):
         if last < 0:
