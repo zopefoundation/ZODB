@@ -79,7 +79,7 @@ method::
 and call it to monitor the storage.
 
 """
-__version__='$Revision: 1.17 $'[11:-2]
+__version__='$Revision: 1.18 $'[11:-2]
 
 import base64, time, string
 from ZODB import POSException, BaseStorage, utils
@@ -90,7 +90,6 @@ from BTrees import OOBTree
 class DemoStorage(BaseStorage.BaseStorage):
 
     def __init__(self, name='Demo Storage', base=None, quota=None):
-
         BaseStorage.BaseStorage.__init__(self, name, base)
 
         # We use a BTree because the items are sorted!
@@ -226,13 +225,16 @@ class DemoStorage(BaseStorage.BaseStorage):
 
         self._lock_acquire()
         try:
-            old=self._index.get(oid, None)
+            old = self._index.get(oid, None)
             if old is None:
                 # Hm, nothing here, check the base version:
-                try: p, oserial = self._base.load(oid, '')
-                except: pass
-                else:
-                    old= oid, oserial, None, None, p
+                if self._base:
+                    try:
+                        p, oserial = self._base.load(oid, '')
+                    except KeyError:
+                        pass
+                    else:
+                        old = oid, oserial, None, None, p
 
             nv=None
             if old:
@@ -453,9 +455,9 @@ class DemoStorage(BaseStorage.BaseStorage):
                 # Scan non-version pickle for references
                 r=index.get(oid, None)
                 if r is None:
-                    # Base storage
-                    p, s = self._base.load(oid, '')
-                    referencesf(p, rootl)
+                    if self._base:
+                        p, s = self._base.load(oid, '')
+                        referencesf(p, rootl)
                 else:
                     pindex[oid]=r
                     oid, serial, pre, vdata, p = r
