@@ -1,0 +1,9 @@
+include MANIFEST MANIFEST.in
+include *.txt
+include test.py
+recursive-include src *.h *.c *.xml *.txt *.sh *.conf *.bat
+include src/ZConfig/scripts/zconfig
+graft doc
+graft src/scripts
+graft src/ZConfig/doc
+global-exclude .cvsignore
