@@ -12,6 +12,8 @@
 #
 ##############################################################################
 import unittest
+import random
+
 from ZODB.fsIndex import fsIndex
 from ZODB.utils import p64
 
@@ -63,6 +65,21 @@ class Test(unittest.TestCase):
         self.assertEqual(index.get(p64(399000)), 399002)
         self.assertEqual(len(index), 600)
 
+    def testMaxKey(self):
+        index = fsIndex()
+
+        # An empty index should complain.
+        self.assertRaises(ValueError, index.maxKey)
+
+        # Now build up a tree with random values, and check maxKey at each
+        # step.
+        correct_max = ""   # smaller than anything we'll add
+        for i in range(1000):
+            key = p64(random.randrange(100000000))
+            index[key] = i
+            correct_max = max(correct_max, key)
+            index_max = index.maxKey()
+            self.assertEqual(index_max, correct_max)
 
 def test_suite():
     loader=unittest.TestLoader()
