@@ -427,8 +427,8 @@ class ManagedServerConnection(Connection):
 
     def close(self):
         self.obj.notifyDisconnected()
-        self.__super_close()
         self.__mgr.close_conn(self)
+        self.__super_close()
 
 class ManagedConnection(Connection):
     """Client-side Connection subclass."""
@@ -469,5 +469,5 @@ class ManagedConnection(Connection):
         return self.check_mgr_async()
 
     def close(self):
+        self.__mgr.close_conn(self)
         self.__super_close()
-        self.__mgr.notify_closed(self)

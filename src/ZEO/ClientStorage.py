@@ -13,7 +13,7 @@
 ##############################################################################
 """Network ZODB storage client
 
-$Id: ClientStorage.py,v 1.64 2002/09/20 13:35:07 gvanrossum Exp $
+$Id: ClientStorage.py,v 1.65 2002/09/20 17:37:34 gvanrossum Exp $
 """
 
 # XXX TO DO
@@ -107,6 +107,7 @@ class ClientStorage:
         self._is_read_only = read_only
         self._storage = storage
         self._read_only_fallback = read_only_fallback
+        self._connection = None
 
         self._info = {'length': 0, 'size': 0, 'name': 'ZEO Client',
                       'supportsUndo':0, 'supportsVersions': 0,
@@ -200,11 +201,9 @@ class ClientStorage:
         self._server._update()
 
     def testConnection(self, conn):
-        """Return a pair (stub, preferred).
+        """Test a connection.
 
-        Where:
-        - stub is an RPC stub
-        - preferred is: 1 if the connection is an optimal match,
+        This returns:   1 if the connection is an optimal match,
                         0 if it is a suboptimal but acceptable match
         It can also raise DisconnectedError or ReadOnlyError.
 
@@ -217,27 +216,33 @@ class ClientStorage:
         stub = ServerStub.StorageServer(conn)
         try:
             stub.register(str(self._storage), self._is_read_only)
-            return (stub, 1)
+            return 1
         except POSException.ReadOnlyError:
             if not self._read_only_fallback:
                 raise
             log2(INFO, "Got ReadOnlyError; trying again with read_only=1")
             stub.register(str(self._storage), read_only=1)
-            return (stub, 0)
+            return 0
 
-    def notifyConnected(self, stub):
-        """Start using the given RPC stub.
+    def notifyConnected(self, conn):
+        """Start using the given connection.
 
         This is called by ConnectionManager after it has decided which
-        connection should be used.  The stub is one returned by a
-        previous testConnection() call.
+        connection should be used.
         """
-        log2(INFO, "Connected to storage")
+        if self._connection is not None:
+            log2(INFO, "Reconnected to storage")
+        else:
+            log2(INFO, "Connected to storage")
+        stub = ServerStub.StorageServer(conn)
         self._oids = []
         self._info.update(stub.get_info())
         self.verify_cache(stub)
 
         # XXX The stub should be saved here and set in endVerify() below.
+        if self._connection is not None:
+            self._connection.close()
+        self._connection = conn
         self._server = stub
 
     def verify_cache(self, server):
@@ -257,6 +262,7 @@ class ClientStorage:
 
     def notifyDisconnected(self):
         log2(PROBLEM, "Disconnected from storage")
+        self._connection = None
         self._server = disconnected_stub
 
     def __len__(self):
