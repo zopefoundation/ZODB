@@ -102,7 +102,6 @@ class ExportImport:
 
         def persistent_load(ooid,
                             Ghost=Ghost,
-                            atoi=string.atoi,
                             oids=oids, wrote_oid=oids.has_key,
                             new_oid=storage.new_oid):
 
