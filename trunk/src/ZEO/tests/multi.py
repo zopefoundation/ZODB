@@ -53,14 +53,17 @@ def start_server(addr):
     pid, exit = forker.start_zeo_server(storage, addr)
     return pid, exit
 
-def start_client(addr):
+def start_client(addr, client_func=None):
     pid = os.fork()
     if pid == 0:
         import ZEO.ClientStorage
         if VERBOSE:
             print "Client process started:", os.getpid()
         cli = ZEO.ClientStorage.ClientStorage(addr, client=CLIENT_CACHE)
-        run(cli)
+        if client_func is None:
+            run(cli)
+        else:
+            client_func(cli)
         cli.close()
         os._exit(0)
     else:
@@ -106,20 +109,14 @@ def run(storage):
 
     print "Client completed:", pid
 
-def shutdown_server(addr):
-    import ZEO.ClientStorage
-    # XXX this doesn't work!
-    cli = ZEO.ClientStorage.ClientStorage(addr)
-    cli._server.rpc.callAsync('shutdown')
-
-def main():
+def main(client_func=None):
     if VERBOSE:
         print "Main process:", os.getpid()
     addr = tempfile.mktemp()
     t0 = time.time()
     server_pid, server = start_server(addr)
     t1 = time.time()
-    pids = [start_client(addr) for i in range(CLIENTS)]
+    pids = [start_client(addr, client_func) for i in range(CLIENTS)]
     for pid in pids:
         assert type(pid) == types.IntType, "invalid pid type: %s (%s)" % \
                (repr(pid), type(pid))
