@@ -84,13 +84,16 @@
 ##############################################################################
 """Database objects
 
-$Id: DB.py,v 1.5 1999/05/12 15:55:43 jim Exp $"""
-__version__='$Revision: 1.5 $'[11:-2]
+$Id: DB.py,v 1.6 1999/05/18 15:55:09 jim Exp $"""
+__version__='$Revision: 1.6 $'[11:-2]
 
-import cPickle, cStringIO, sys
+import cPickle, cStringIO, sys, POSException
 from Connection import Connection
 from bpthread import allocate_lock
 from Transaction import Transaction
+from referencesf import referencesf
+
+StringType=type('')
 
 class DB:
     """The Object Database
@@ -117,6 +120,7 @@ class DB:
 
         """
         self._storage=storage
+        storage.registerDB(self, None)
         try: storage.load('\0\0\0\0\0\0\0\0','')
         except:
             import PersistentMapping
@@ -199,7 +203,7 @@ class DB:
         finally: self._r()
 
     def abortVersion(self, version):
-        raise 'Not Yet Implemented'
+        AbortVersion(self, version)
 
     def cacheDetail(self):
         """Return information on objects in the various caches
@@ -271,7 +275,7 @@ class DB:
     def close(self): self._storage.close()
 
     def commitVersion(self, source, destination=''):
-        raise 'Not yet implemented'
+        CommitVersion(self, source, destination)
 
     def exportFile(self, oid, file=None):
         raise 'Not yet implemented'
@@ -294,7 +298,8 @@ class DB:
     def importFile(self, file):
         raise 'Not yet implemented'
 
-    def invalidate(self, oid, connection=None, rc=sys.getrefcount):
+    def invalidate(self, oid, connection=None, version='',
+                   rc=sys.getrefcount):
         """Invalidate references to a given oid.
 
         This is used to indicate that one of the connections has committed a
@@ -303,7 +308,6 @@ class DB:
         connection.
         """
         if connection is not None: version=connection._version
-        else: version=''
         self._a()
         try:
             pools,pooll=self._pools
@@ -327,6 +331,11 @@ class DB:
                 self._temps=t
         finally: self._r()
 
+    def invalidateMany(self, oids=None, version=''):
+        if oids is None: self.invalidate(None, version=version)
+        else:
+            for oid in oids: self.invalidate(oid, version=version)
+
     def objectCount(self): return len(self._storage)
         
     def open(self, version='', transaction=None, temporary=0, force=None,
@@ -344,6 +353,9 @@ class DB:
         Note that the connection pool is managed as a stack, to increate the
         likelihood that the connection's stack will include useful objects.
         """
+        if type(version) is not StringType:
+            raise POSException.Unimplemented, 'temporary versions'
+        
         self._a()
         try:
 
@@ -430,7 +442,7 @@ class DB:
         finally: self._r()
         
     def pack(self, t):
-        self._storage.pack(t,referencesf,-1)
+        self._storage.pack(t,referencesf)
                            
     def setCacheDeactivateAfter(self, v): self._cache_deactivate_after=v
     def setCacheSize(self, v): self._cache_size=v
@@ -449,20 +461,37 @@ class DB:
     def versionEmpty(self, version):
         return self._storage.versionEmpty(version)
 
-def referencesf(p,rootl,
-                Unpickler=cPickle.Unpickler,
-                StringIO=cStringIO.StringIO):
-    u=Unpickler(StringIO(p))
-    u.persistent_load=rootl
-    u.noload()
-    try: u.noload()
-    except:
-        # Hm.  We failed to do second load.  Maybe there wasn't a
-        # second pickle.  Let's check:
-        f=StringIO(p)
-        u=Unpickler(f)
-        u.persistent_load=[]
-        u.noload()
-        if len(p) > f.tell(): raise ValueError, 'Error unpickling, %s' % p
+class CommitVersion:
+    """An object that will see to version commit
+
+    in cooperation with a transaction manager.
+    """
+    def __init__(self, db, version, dest=''):
+        self._db=db
+        s=db._storage
+        self._version=version
+        self._dest=dest
+        self.tpc_abort=s.tpc_abort
+        self.tpc_begin=s.tpc_begin
+        self.tpc_finish=s.tpc_finish
+        get_transaction().register(self)
+
+    def abort(self, reallyme, t): pass
+
+    def commit(self, reallyme, t):
+        db=self._db
+        dest=self._dest
+        for oid in db._storage.commitVersion(self._version, dest, t):
+            db.invalidate(oid, version=dest)
     
-    
+class AbortVersion(CommitVersion):
+    """An object that will see to version abortion
+
+    in cooperation with a transaction manager.
+    """
+
+    def commit(self, reallyme, t):
+        db=self._db
+        version=self._version
+        for oid in db._storage.abortVersion(version, t):
+            db.invalidate(oid, version=version)

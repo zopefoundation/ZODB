@@ -84,22 +84,22 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.5 1999/05/12 15:55:43 jim Exp $"""
-__version__='$Revision: 1.5 $'[11:-2]
+$Id: Connection.py,v 1.6 1999/05/18 15:55:09 jim Exp $"""
+__version__='$Revision: 1.6 $'[11:-2]
 
 from cPickleCache import PickleCache
-from bpthread import allocate_lock
-from POSException import ConflictError
+from POSException import ConflictError, ExportError
 from cStringIO import StringIO
 from cPickle import Unpickler, Pickler
 from ExtensionClass import Base
+import Transaction, string, ExportImport 
 
 ExtensionKlass=Base.__class__
 
 class HelperClass: pass
 ClassType=type(HelperClass)
 
-class Connection:
+class Connection(ExportImport.ExportImport):
     """Object managers for individual object space.
 
     An object space is a version of collection of objects.  In a
@@ -117,10 +117,9 @@ class Connection:
         self._version=version
         self._cache=cache=PickleCache(self, cache_size, cache_deactivate_after)
         self._incrgc=cache.incrgc
-        self._invalidated={}
-        lock=allocate_lock()
-        self._a=lock.acquire
-        self._r=lock.release
+        self._invalidated=d={}
+        self._invalid=d.has_key
+        self._committed=[]
 
     def _breakcr(self):
         try: del self._cache
@@ -217,11 +216,7 @@ class Connection:
         Any objects modified since the last transaction are invalidated.
         """     
         self._db=odb
-        cache=self._cache
-        for oid in self._invalidated.keys():
-            if cache.has_key(oid):
-                cache[oid]._p_deactivate()
-        self._invalidated.clear()
+        self._cache.invalidate(self._invalidated)
 
         return self
 
@@ -232,7 +227,8 @@ class Connection:
 
     def commit(self, object, transaction):
         oid=object._p_oid
-        if self._invalidated.has_key(oid): raise ConflictError, oid
+        invalid=self._invalid
+        if invalid(oid) or invalid(None): raise ConflictError, oid
         self._invalidating.append(oid)
         plan=self._planToStore
         stack=[]
@@ -283,7 +279,7 @@ class Connection:
                 oid=object._p_oid
                 try: serial=object._p_serial
                 except: serial='\0'*8
-                if self._invalidated.has_key(oid): raise ConflictError, oid
+                if invalid(oid): raise ConflictError, oid
                 klass = object.__class__
 
                 if klass is ExtensionKlass:
@@ -320,9 +316,6 @@ class Connection:
 
         return topoid
 
-    def commitVersion(self, destination=''):
-        raise 'Not Implemented Yet!'
-
     def db(self): return self._db
 
     def getVersion(self): return self._version
@@ -334,9 +327,7 @@ class Connection:
         it.  The object data will be actually invalidated at certain
         transaction boundaries.
         """
-        self._a()
         self._invalidated[oid]=1
-        self._r()
 
     def modifiedInVersion(self, o):
         return self._db.modifiedInVersion(o._p_oid)
@@ -347,11 +338,8 @@ class Connection:
         # Note, we no longer mess with the object's state
         # flag, _p_changed.  This is the object's job.
         oid=object._p_oid
-        self._a()
-        if self._invalidated.has_key(oid):
-            self._r()
-            raise ConflictError, oid
-        self._r()
+        invalid=self._invalid
+        if invalid(oid) or invalid(None): raise ConflictError, oid
         p, serial = self._storage.load(oid, self._version)
         file=StringIO(p)
         unpickler=Unpickler(file)
@@ -368,45 +356,25 @@ class Connection:
     def tpc_abort(self, transaction):
         self._storage.tpc_abort(transaction)
         cache=self._cache
-        invalidated=self._invalidated
-        for oid in invalidated.keys():
-            if cache.has_key(oid):
-                cache[oid]._p_deactivate()
-        invalidated.clear()
-        for oid in self._invalidating:
-            cache[oid]._p_deactivate()
+        cache.invalidate(self._invalidated)
+        cache.invalidate(self._invalidating)
 
     def tpc_begin(self, transaction):
+        if self._invalid(None): # Some nitwit invalidated everything!
+            raise ConflictError, oid 
         self._invalidating=[]
         self._storage.tpc_begin(transaction)
 
     def tpc_finish(self, transaction):
         self._storage.tpc_finish(transaction, self.tpc_finish_)
-        cache=self._cache
-        invalidated=self._invalidated
-        for oid in invalidated.keys():
-            if cache.has_key(oid):
-                cache[oid]._p_deactivate()
-        invalidated.clear()
+        self._cache.invalidate(self._invalidated)
 
     def tpc_finish_(self):
         invalidate=self._db.invalidate
         for oid in self._invalidating: invalidate(oid, self)
 
-    def exportFile(self, oid, file=None):
-        pass # Not implemented yet
-
-    def importFile(self, file):
-        pass # Not implemented yet
-
-    ######################################################################
-    # BoboPOS 2 compat.
-
-    def export_file(self, o, file=None): return self.exportFile(o._p_oid, file)
-
-    import_file=importFile
-
 class tConnection(Connection):
 
     def close(self):
         self._breakcr()
+
