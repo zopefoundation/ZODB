@@ -85,7 +85,7 @@
 """Simple rpc mechanisms
 """
 
-__version__ = "$Revision: 1.13 $"[11:-2]
+__version__ = "$Revision: 1.14 $"[11:-2]
 
 from cPickle import loads
 import cPickle
@@ -107,7 +107,9 @@ class UnUnPickleableError(Exception):
 
 class asyncRPC(SizedMessageAsyncConnection):
 
-    __map=0
+    # Flag indicating whether a main loop is running. If one isn't running,
+    # then we'll have to provide our own main loop at times.
+    __haveMainLoop=0  
     def __Wakeup(*args): pass
 
     def __init__(self, connection, outOfBand=None, tmin=5, tmax=300, debug=0):
@@ -159,7 +161,9 @@ class asyncRPC(SizedMessageAsyncConnection):
                 return 1
 
     def finishConnect(self, s):
-        SizedMessageAsyncConnection.__init__(self, s, '', {})
+        if self.__haveMainLoop: map=None # use the main loop map
+        else: map = {} # provide a dummy map
+        SizedMessageAsyncConnection.__init__(self, s, '', map)
 
     # we are our own socket map!
     def keys(self): return (self._fileno,)
@@ -171,7 +175,7 @@ class asyncRPC(SizedMessageAsyncConnection):
         raise KeyError, key
 
     def sync(self):
-        if self.__map: return # in async mode
+        if self.__haveMainLoop: return # in async mode
 
         # Ick, I have to do my own select loop, which sucks
         while 1:
@@ -188,10 +192,10 @@ class asyncRPC(SizedMessageAsyncConnection):
         self.__lr()
 
     def setLoop(self, map=None, Wakeup=lambda : None):
-        if map is None: self.__map=0
+        if map is None: self.__haveMainLoop=0
         else:
             self.add_channel(map) # asyncore registration
-            self.__map=1
+            self.__haveMainLoop=1
 
         self.__Wakeup=Wakeup
 
@@ -202,7 +206,8 @@ class asyncRPC(SizedMessageAsyncConnection):
             self._last_args=args=dump(args,1)
             self.message_output(args)
 
-            if self.__map: self.__Wakeup() # You dumb bastard
+            if self.__haveMainLoop:
+                self.__Wakeup() # Wakeup the main loop
             else: self.readLoop()
 
             while 1:
@@ -231,7 +236,8 @@ class asyncRPC(SizedMessageAsyncConnection):
 
     def sendMessage(self, *args):
         self.message_output(dump(args,1))
-        if self.__map: self.__Wakeup() # You dumb bastard
+        if self.__haveMainLoop:
+            self.__Wakeup() # Wake up the main loop
         else: asyncore.poll(0.0, self)
 
     def setOutOfBand(self, f):
@@ -275,8 +281,10 @@ class asyncRPC(SizedMessageAsyncConnection):
         return self.__r
 
     def closeIntensionally(self):
-        if self.__map:
-            self.__Wakeup(lambda self=self: self.close()) # You dumb bastard
+        if self.__haveMainLoop:
+            # We aren't willing to close until told to by the main loop.
+            # So we'll tell the main loop to tell us. :)
+            self.__Wakeup(lambda self=self: self.close()) 
         else: self.close()
         
     def close(self):
