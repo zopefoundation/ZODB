@@ -87,9 +87,10 @@
 This module provides a wrapper that causes a database connection to be created
 and used when bobo publishes a bobo_application object.
 """
-__version__='$Revision: 1.7 $'[11:-2]
+__version__='$Revision: 1.8 $'[11:-2]
 
 StringType=type('')
+connection_open_hooks = []
 
 class ZApplicationWrapper:
 
@@ -116,6 +117,10 @@ class ZApplicationWrapper:
             version=REQUEST.get(version_support,'')
         else: version=''
         conn=db.open(version)
+
+        if connection_open_hooks:
+            for hook in connection_open_hooks:
+                hook(conn)
 
         # arrange for the connection to be closed when the request goes away
         cleanup=Cleanup()

@@ -84,8 +84,8 @@
 ##############################################################################
 """Database objects
 
-$Id: DB.py,v 1.28 2001/04/19 16:06:25 jeremy Exp $"""
-__version__='$Revision: 1.28 $'[11:-2]
+$Id: DB.py,v 1.29 2001/05/17 18:35:10 shane Exp $"""
+__version__='$Revision: 1.29 $'[11:-2]
 
 import cPickle, cStringIO, sys, POSException, UndoLogCompatible
 from Connection import Connection
@@ -104,6 +104,7 @@ class DB(UndoLogCompatible.UndoLogCompatible):
     or more connections, which manage object spaces.  Most of the actual work
     of managing objects is done by the connections.
     """
+    klass = Connection
 
     def __init__(self, storage,
                  pool_size=7,
@@ -404,7 +405,7 @@ class DB(UndoLogCompatible.UndoLogCompatible):
                 # This is a temporary connection.
                 # We won't bother with the pools.  This will be
                 # a one-use connection.
-                c=Connection(
+                c=self.klass(
                     version=version,
                     cache_size=self._version_cache_size,
                     cache_deactivate_after=
@@ -455,7 +456,7 @@ class DB(UndoLogCompatible.UndoLogCompatible):
                 c=None
                 if version:
                     if self._version_pool_size > len(allocated) or force:
-                        c=Connection(
+                        c=self.klass(
                             version=version,
                             cache_size=self._version_cache_size,
                             cache_deactivate_after=
@@ -463,7 +464,7 @@ class DB(UndoLogCompatible.UndoLogCompatible):
                         allocated.append(c)
                         pool.append(c)
                 elif self._pool_size > len(allocated) or force:
-                    c=Connection(
+                    c=self.klass(
                         version=version,
                         cache_size=self._cache_size,
                         cache_deactivate_after=

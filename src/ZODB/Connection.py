@@ -84,8 +84,8 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.52 2001/05/16 20:47:38 jeremy Exp $"""
-__version__='$Revision: 1.52 $'[11:-2]
+$Id: Connection.py,v 1.53 2001/05/17 18:35:10 shane Exp $"""
+__version__='$Revision: 1.53 $'[11:-2]
 
 from cPickleCache import PickleCache
 from POSException import ConflictError, ExportError
@@ -98,6 +98,17 @@ from zLOG import LOG, ERROR, BLATHER
 from coptimizations import new_persistent_id
 from ConflictResolution import ResolvedSerial
 from types import StringType
+
+global_code_timestamp = 0
+
+def updateCodeTimestamp():
+    '''
+    Called after changes are made to persistence-based classes.
+    Causes all connection caches to be re-created as the
+    connections are reopened.
+    '''
+    global global_code_timestamp
+    global_code_timestamp = time()
 
 ExtensionKlass=Base.__class__
 
@@ -116,6 +127,7 @@ class Connection(ExportImport.ExportImport):
     _tmp=None
     _debug_info=()
     _opened=None
+    _code_timestamp = 0
 
     # Experimental. Other connections can register to be closed
     # when we close by putting something here.
@@ -129,6 +141,7 @@ class Connection(ExportImport.ExportImport):
         self._invalidated=d={}
         self._invalid=d.has_key
         self._committed=[]
+        self._code_timestamp = global_code_timestamp
 
     def _breakcr(self):
         try: del self._cache
@@ -218,14 +231,28 @@ class Connection(ExportImport.ExportImport):
         """Begin a new transaction.
 
         Any objects modified since the last transaction are invalidated.
-        """     
+        """
         self._db=odb
         self._storage=s=odb._storage
         self.new_oid=s.new_oid
-        self._cache.invalidate(self._invalidated)
+        if self._code_timestamp != global_code_timestamp:
+            # New code is in place.  Start a new cache.
+            self._resetCache()
+        else:
+            self._cache.invalidate(self._invalidated)
         self._opened=time()
 
         return self
+
+    def _resetCache(self):
+        '''
+        Creates a new cache, discarding the old.
+        '''
+        self._code_timestamp = global_code_timestamp
+        self._invalidated.clear()
+        orig_cache = self._cache
+        self._cache = PickleCache(self, orig_cache.cache_size,
+                                  orig_cache.cache_age)
 
     def abort(self, object, transaction):
         """Abort the object in the transaction.
