@@ -46,7 +46,7 @@ The module defines several standard severities:
 
   PANIC=300    -- We're dead!
 
-Also, looging facilities will normally ignore negative severities.
+Also, logging facilities will normally ignore negative severities.
 
 To plug in a log handler, simply replace the log_write function
 with a callable object that takes 5 arguments:
@@ -86,7 +86,7 @@ There is a default event logging facility that:
     can be overridden with the environment variable EVENT_LOG_SEVERITY
 
 """
-__version__='$Revision: 1.9 $'[11:-2]
+__version__='$Revision: 1.10 $'[11:-2]
 
 from MinimalLogger import log_write, log_time, severity_string, \
      _set_log_dest, initialize
