@@ -269,7 +269,7 @@ class GC(FileStorageFormatter):
         try:
             th = self._read_txn_header(pos)
         except CorruptedDataError, err:
-            if err.buf != "": 
+            if err.buf != "":
                 raise
         if th.status == 'p':
             # Delay import to cope with circular imports.
@@ -408,6 +408,10 @@ class PackCopier(DataCopier):
 
 class FileStoragePacker(FileStorageFormatter):
 
+    # path is the storage file path.
+    # stop is the pack time, as a TimeStamp.
+    # la and lr are the acquire() and release() methods of the storage's lock.
+    # cla and clr similarly, for the storage's commit lock.
     def __init__(self, path, stop, la, lr, cla, clr):
         self._name = path
         self._file = open(path, "rb")
