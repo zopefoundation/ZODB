@@ -11,7 +11,7 @@
 
 static char BTree_module_documentation[] = 
 ""
-"\n$Id: BTree.c,v 1.4 1997/09/17 17:20:32 jim Exp $"
+"\n$Id: BTree.c,v 1.5 1997/10/01 02:47:06 jim Exp $"
 ;
 
 #define PERSISTENT
@@ -1292,16 +1292,16 @@ bucket_setstate(Bucket *self, PyObject *args)
       goto err;
     }
   
-  if(l>self->size)
+  if(l > self->size)
     if(self->data)
       {
-	UNLESS(d=PyRealloc(self->data, sizeof(BTreeItem)*l)) goto err;
+	UNLESS(d=PyRealloc(self->data, sizeof(Item)*l)) goto err;
 	self->data=d;
 	self->size=l;
       }
     else
       {
-	UNLESS(d=PyMalloc(sizeof(BTreeItem)*l)) goto err;
+	UNLESS(d=PyMalloc(sizeof(Item)*l)) goto err;
 	self->data=d;
 	self->size=l;
       }
@@ -1713,7 +1713,7 @@ initBTree()
 #endif
 {
   PyObject *m, *d;
-  char *rev="$Revision: 1.4 $";
+  char *rev="$Revision: 1.5 $";
 
   UNLESS(PyExtensionClassCAPI=PyCObject_Import("ExtensionClass","CAPI"))
       return;
@@ -1773,6 +1773,9 @@ initBTree()
 Revision Log:
 
   $Log: BTree.c,v $
+  Revision 1.5  1997/10/01 02:47:06  jim
+  Fixed bug in setstate that allocates too much memory.
+
   Revision 1.4  1997/09/17 17:20:32  jim
   Fixed bug in deleting members from BTree.
 
