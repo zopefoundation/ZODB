@@ -84,7 +84,7 @@
 ##############################################################################
 """Network ZODB storage client
 """
-__version__='$Revision: 1.27 $'[11:-2]
+__version__='$Revision: 1.28 $'[11:-2]
 
 import struct, time, os, socket, string, Sync, zrpc, ClientCache
 import tempfile, Invalidator, ExtensionClass, thread
@@ -120,7 +120,7 @@ class ClientStorage(ExtensionClass.Base, BaseStorage.BaseStorage):
     def __init__(self, connection, storage='1', cache_size=20000000,
                  name='', client='', debug=0, var=None,
                  min_disconnect_poll=5, max_disconnect_poll=300,
-                 wait_for_server_on_starup=1):
+                 wait_for_server_on_startup=1):
 
         # Decide whether to use non-temporary files
         client=client or os.environ.get('ZEO_CLIENT','')
@@ -128,7 +128,7 @@ class ClientStorage(ExtensionClass.Base, BaseStorage.BaseStorage):
         self._connection=connection
         self._storage=storage
         self._debug=debug
-        self._wait_for_server_on_starup=wait_for_server_on_starup
+        self._wait_for_server_on_startup=wait_for_server_on_startup
 
         self._info={'length': 0, 'size': 0, 'name': 'ZEO Client',
                     'supportsUndo':0, 'supportsVersions': 0,
@@ -198,7 +198,7 @@ class ClientStorage(ExtensionClass.Base, BaseStorage.BaseStorage):
 
     def _startup(self):
 
-        if not self._call.connect(not self._wait_for_server_on_starup):
+        if not self._call.connect(not self._wait_for_server_on_startup):
 
             # If we can't connect right away, go ahead and open the cache
             # and start a separate thread to try and reconnect.
@@ -542,7 +542,7 @@ class ClientStorage(ExtensionClass.Base, BaseStorage.BaseStorage):
         finally: self._lock_release()
 
 
-    def undoInfo(self, first, last, specification):
+    def undoInfo(self, first=0, last=-20, specification=None):
         self._lock_acquire()
         try:
             return self._call('undoInfo', first, last, specification)
