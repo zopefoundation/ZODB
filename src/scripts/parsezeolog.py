@@ -29,10 +29,10 @@ def parse_line(line):
     """Parse a log entry and return time, method info, and client."""
     t = parse_time(line)
     if t is None:
-        return None, None, None
+        return None, None
     mo = rx_meth.search(line)
     if mo is None:
-        return None, None, None
+        return None, None
     meth_name = mo.group(1)
     meth_args = mo.group(2).strip()
     if meth_args.endswith(')'):
