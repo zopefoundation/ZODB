@@ -115,7 +115,7 @@
 #   may have a back pointer to a version record or to a non-version
 #   record.
 #
-__version__='$Revision: 1.114 $'[11:-2]
+__version__='$Revision: 1.115 $'[11:-2]
 
 import base64
 from cPickle import Pickler, Unpickler, loads
@@ -285,6 +285,10 @@ class FileStorage(BaseStorage.BaseStorage,
                 read_only=read_only,
                 )
         self._ltid = tid
+        
+        # self._pos should always point just past the last
+        # transaction.  During 2PC, data is written after _pos.
+        # invariant is restored at tpc_abort() or tpc_finish().
 
         self._ts = tid = TimeStamp(tid)
         t = time.time()
@@ -402,15 +406,12 @@ class FileStorage(BaseStorage.BaseStorage,
             return ltid
 
     def _restore_index(self):
-        """Load the database index from a file to support quick startup
-        """
-        file_name=self.__name__
-        index_name=file_name+'.index'
-
-        try: f=open(index_name,'rb')
-        except: return None
-
-        p=Unpickler(f)
+        """Load database index to support quick startup."""
+        try:
+            f = open("%s.index" % self.__name__, 'rb')
+        except:
+            return None
+        p = Unpickler(f)
 
         try:
             info=p.load()
@@ -419,16 +420,17 @@ class FileStorage(BaseStorage.BaseStorage,
             warn("Failed to load database index: %s: %s" %
                  (exc, err))
             return None
-        index=info.get('index')
-        pos=info.get('pos')
-        oid=info.get('oid')
-        vindex=info.get('vindex')
+        index = info.get('index')
+        pos = info.get('pos')
+        oid = info.get('oid')
+        vindex = info.get('vindex')
         if index is None or pos is None or oid is None or vindex is None:
             return None
         pos = long(pos)
 
-        tid=self._sane(index, pos)
-        if not tid: return None
+        tid = self._sane(index, pos)
+        if not tid:
+            return None
 
         return index, vindex, pos, oid, tid
 
