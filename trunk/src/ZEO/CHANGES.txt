@@ -13,6 +13,45 @@ Zope Enterprise Objects (ZEO) Revision History
         will wait to connect to a storage before returning from
         initialization. 
 
+  Planned for (future) ZEO releases
+
+    New Features
+
+      - Provide optional data compression. This should enhance
+        performance over slow connections to the storage server and
+        reduce the server I/O load.
+
+      - Provide optional authentication adapters that allow for
+        pluggable authentication and encryption schemes.
+
+        This is a feature that is listed on the ZEO fact sheet, but
+        that didn't make it into the 1.0 release. Firewall or secure
+        tunneling techniques can be used to secure communication
+        between clients and the storage for now when the client and
+        storage are on different machines. (If they are on the same
+        machine, then unix-domain sockets or the loop-back interface
+        can be used.)
+
+      - Provide an option to start a client process without waiting
+        for a connection to the storage server.  This was the original
+        intent, however, it turns out that it can be extremely
+        problemantic to get storage errors resulting from attempts to
+        read objects not in the cache during process (e.g. Zope)
+        startup. In addition, some smarter cache management can be
+        done to decrease the probability of important objects being
+        removed from the cache.  
+ 
+      - Provide improved client cache management. This will involve
+        changes like:
+
+        o Increasing the number of cache files to reduce the number of
+          objects lost from the cache (or that need to be recovered)
+          when the cache "rolls over".
+
+        o Use separate indexes for each cache.  
+
+        o use better cache indexing structures
+
   ZEO 0.4.1
 
     Bugs fixed
