@@ -12,7 +12,7 @@
 
  ****************************************************************************/
 
-#define BUCKETTEMPLATE_C "$Id: BucketTemplate.c,v 1.48 2002/10/05 00:39:56 gvanrossum Exp $\n"
+#define BUCKETTEMPLATE_C "$Id: BucketTemplate.c,v 1.49 2002/11/19 19:07:53 tim_one Exp $\n"
 
 /* Use BUCKET_SEARCH to find the index at which a key belongs.
  * INDEX    An int lvalue to hold the index i such that KEY belongs at
@@ -175,6 +175,13 @@ Overflow:
   return -1;
 }
 
+/* So far, bucket_append is called only by multiunion_m(), so is called
+ * only when MULTI_INT_UNION is defined.  Flavors of BTree/Bucket that
+ * don't support MULTI_INT_UNION don't call bucket_append (yet), and
+ * gcc complains if bucket_append is compiled in those cases.  So only
+ * compile bucket_append if it's going to be used.
+ */
+#ifdef MULTI_INT_UNION
 /*
  * Append a slice of the "from" bucket to self.
  *
@@ -261,7 +268,7 @@ bucket_append(Bucket *self, Bucket *from, int i, int n,
 #endif
     return 0;
 }
-
+#endif /* MULTI_INT_UNION */
 
 /*
 ** _bucket_set: Assign a value to a key in a bucket, delete a key+value
