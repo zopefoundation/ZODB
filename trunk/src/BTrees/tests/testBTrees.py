@@ -607,6 +607,16 @@ class TestIOBTrees(BTreeTests, TestCase):
     def _noneraises(self):
         self.t[None] = 1
 
+    def testEmptyFirstBucketReportedByGuido(self):
+        b = self.t
+        for i in xrange(29972): # reduce to 29971 and it works
+            b[i] = i
+        for i in xrange(30): # reduce to 29 and it works
+            del b[i]
+            b[i+40000] = i
+
+        self.assertEqual(b.keys()[0], 30)
+
 class TestOOBTrees(BTreeTests, TestCase):
     def setUp(self):
         self.t = OOBTree()
