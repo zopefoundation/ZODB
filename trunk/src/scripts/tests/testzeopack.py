@@ -60,6 +60,12 @@ class PackerTests(StorageTestBase):
         os.system("zeopack.py -h %s -p %s" % (self.host, self.port))
         assert os.path.exists(self.path + ".old")
 
+    def testPackDays(self):
+        self.set_inet_addr()
+        self.start()
+        os.system("zeopack.py -h %s -p %s -d 1" % (self.host, self.port))
+        assert os.path.exists(self.path + ".old")
+
     def testAF_UNIXPack(self):
         self.addr = tempfile.mktemp(suffix=".zeo-socket")
         self.start()
