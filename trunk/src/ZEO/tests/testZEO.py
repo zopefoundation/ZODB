@@ -107,6 +107,24 @@ class GenericTests(
 
     """Combine tests from various origins in one class."""
 
+    def setUp(self):
+        zLOG.LOG("testZEO", zLOG.INFO, "setUp() %s" % self.id())
+        zeoport, adminaddr, pid = forker.start_zeo_server(self.getConfig())
+        self._pids = [pid]
+        self._servers = [adminaddr]
+        self._storage = ClientStorage(zeoport, '1', cache_size=20000000,
+                                      min_disconnect_poll=0.5, wait=1)
+        self._storage.registerDB(DummyDB(), None)
+
+    def tearDown(self):
+        self._storage.close()
+        for server in self._servers:
+            forker.shutdown_zeo_server(server)
+        if hasattr(os, 'waitpid'):
+            # Not in Windows Python until 2.3
+            for pid in self._pids:
+                os.waitpid(pid, 0)
+
     def open(self, read_only=0):
         # XXX Needed to support ReadOnlyStorage tests.  Ought to be a
         # cleaner way.
@@ -129,24 +147,6 @@ class FileStorageTests(GenericTests):
     """Test ZEO backed by a FileStorage."""
     level = 2
 
-    def setUp(self):
-        zLOG.LOG("testZEO", zLOG.INFO, "setUp() %s" % self.id())
-        zeoport, adminaddr, pid = forker.start_zeo_server(self.getConfig())
-        self._pids = [pid]
-        self._servers = [adminaddr]
-        self._storage = ClientStorage(zeoport, '1', cache_size=20000000,
-                                      min_disconnect_poll=0.5, wait=1)
-        self._storage.registerDB(DummyDB(), None)
-
-    def tearDown(self):
-        self._storage.close()
-        for server in self._servers:
-            forker.shutdown_zeo_server(server)
-        if hasattr(os, 'waitpid'):
-            # Not in Windows Python until 2.3
-            for pid in self._pids:
-                os.waitpid(pid, 0)
-
     def getConfig(self):
         filename = self.__fs_base = tempfile.mktemp()
         return """\
@@ -157,11 +157,18 @@ class FileStorageTests(GenericTests):
         </Storage>
         """ % filename
 
+    def checkPackVersionsInPast(self):
+        # FileStorage can't cope with backpointers to objects
+        # created in versions.  Should fix if we can figure out actually how
+        # to fix it.
+        pass
+
+
 class BDBTests(FileStorageTests):
     """ZEO backed by a Berkeley full storage."""
     level = 2
 
-    def getStorage(self):
+    def getConfig(self):
         self._envdir = tempfile.mktemp()
         return """\
         <Storage>
@@ -173,7 +180,7 @@ class BDBTests(FileStorageTests):
 class MappingStorageTests(FileStorageTests):
     """ZEO backed by a Mapping storage."""
 
-    def getStorage(self):
+    def getConfig(self):
         self._envdir = tempfile.mktemp()
         return """\
         <Storage>
@@ -181,6 +188,55 @@ class MappingStorageTests(FileStorageTests):
             name %s
         </Storage>
         """ % self._envdir
+
+    # Tests which MappingStorage can't possibly pass, because it doesn't
+    # support versions or undo.
+    def checkVersions(self): pass
+    def checkVersionedStoreAndLoad(self): pass
+    def checkVersionedLoadErrors(self): pass
+    def checkVersionLock(self): pass
+    def checkVersionEmpty(self): pass
+    def checkUndoUnresolvable(self): pass
+    def checkUndoInvalidation(self): pass
+    def checkUndoInVersion(self): pass
+    def checkUndoCreationBranch2(self): pass
+    def checkUndoCreationBranch1(self): pass
+    def checkUndoConflictResolution(self): pass
+    def checkUndoCommitVersion(self): pass
+    def checkUndoAbortVersion(self): pass
+    def checkTwoObjectUndoAtOnce(self): pass
+    def checkTwoObjectUndoAgain(self): pass
+    def checkTwoObjectUndo(self): pass
+    def checkTransactionalUndoAfterPackWithObjectUnlinkFromRoot(self): pass
+    def checkTransactionalUndoAfterPack(self): pass
+    def checkSimpleTransactionalUndo(self): pass
+    def checkReadMethods(self): pass
+    def checkPackVersions(self): pass
+    def checkPackUnlinkedFromRoot(self): pass
+    def checkPackOnlyOneObject(self): pass
+    def checkPackJustOldRevisions(self): pass
+    def checkPackEmptyStorage(self): pass
+    def checkPackAllRevisions(self): pass
+    def checkPackVersionsInPast(self): pass
+    def checkNotUndoable(self): pass
+    def checkNewSerialOnCommitVersionToVersion(self): pass
+    def checkModifyAfterAbortVersion(self): pass
+    def checkLoadSerial(self): pass
+    def checkCreateObjectInVersionWithAbort(self): pass
+    def checkCommitVersionSerialno(self): pass
+    def checkCommitVersionInvalidation(self): pass
+    def checkCommitToOtherVersion(self): pass
+    def checkCommitToNonVersion(self): pass
+    def checkCommitLockUndoFinish(self): pass
+    def checkCommitLockUndoClose(self): pass
+    def checkCommitLockUndoAbort(self): pass
+    def checkCommitEmptyVersionInvalidation(self): pass
+    def checkAbortVersionSerialno(self): pass
+    def checkAbortVersionInvalidation(self): pass
+    def checkAbortVersionErrors(self): pass
+    def checkAbortVersion(self): pass
+    def checkAbortOneVersionCommitTheOther(self): pass
+    def checkResolve(self): pass
 
 
 test_classes = [FileStorageTests, MappingStorageTests]
