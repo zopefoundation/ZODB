@@ -13,6 +13,9 @@ Zope Enterprise Objects (ZEO) Revision History
         will wait to connect to a storage before returning from
         initialization. 
 
+      - Restarting the ZEO server shortly after shutting down could
+        lead to "address already in use" errors.
+
   Planned for (future) ZEO releases
 
     New Features
