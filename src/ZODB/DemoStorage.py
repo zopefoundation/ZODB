@@ -79,7 +79,7 @@ method::
 and call it to monitor the storage.
 
 """
-__version__='$Revision: 1.14 $'[11:-2]
+__version__='$Revision: 1.15 $'[11:-2]
 
 import base64, time, string
 from ZODB import POSException, BaseStorage, utils
@@ -141,8 +141,8 @@ class DemoStorage(BaseStorage.BaseStorage):
             oids = []
             for r in v.values():
                 oid, serial, pre, (version, nv), p = r
+                oids.append(oid)
                 if nv:
-                    oids.append(oid)
                     oid, serial, pre, vdata, p = nv
                     self._tindex.append([oid, serial, r, None, p])
                 else:
