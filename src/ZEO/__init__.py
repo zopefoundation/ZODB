@@ -21,4 +21,4 @@ ZEO's home on the web is
 
 """
 
-version = "2.0b3"
+version = "2.0+"
