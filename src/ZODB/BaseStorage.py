@@ -13,7 +13,7 @@
 ##############################################################################
 """Handy standard storage machinery
 
-$Id: BaseStorage.py,v 1.46 2004/03/21 16:38:53 sf Exp $
+$Id: BaseStorage.py,v 1.47 2004/04/13 22:01:51 fdrake Exp $
 """
 import cPickle
 import threading
@@ -353,7 +353,7 @@ class BaseStorage(UndoLogCompatible):
         """Copy transactions from another storage.
 
         This is typically used for converting data from one storage to
-        another.  `other' must have an .iterator() method.
+        another.  `other` must have an .iterator() method.
         """
         _ts=None
         ok=1
