@@ -1,6 +1,6 @@
-What's new in ZODB3 3.3.1a2?
+What's new in ZODB3 3.3.1c1?
 ============================
-Release date: DD-MMM-2005
+Release date: 01-Apr-2005
 
 BTrees
 ------
