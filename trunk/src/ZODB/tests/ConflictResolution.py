@@ -39,7 +39,7 @@ class PCounter2(PCounter):
 
 class PCounter3(PCounter):
     def _p_resolveConflict(self, oldState, savedState, newState):
-        raise AttributeError, "no attribute"
+        raise AttributeError, "no attribute (testing conflict resolution)"
 
 class PCounter4(PCounter):
     def _p_resolveConflict(self, oldState, savedState):
