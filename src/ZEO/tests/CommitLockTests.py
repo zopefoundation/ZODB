@@ -195,7 +195,7 @@ class CommitLockUndoTests(CommitLockTests):
 
     def _begin_undo(self, trans_id, txn):
         rpc = self._storage._server.rpc
-        return rpc._deferred_call('transactionalUndo', trans_id, id(txn))
+        return rpc._deferred_call('undo', trans_id, id(txn))
 
     def _finish_undo(self, msgid):
         return self._storage._server.rpc._deferred_wait(msgid)
