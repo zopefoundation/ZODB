@@ -29,15 +29,17 @@ import zLOG
 from ZEO.ClientStorage import ClientStorage
 from ZEO.Exceptions import ClientDisconnected
 from ZEO.zrpc.marshal import Marshaller
+from ZEO.zrpc.error import DisconnectedError
 from ZEO.tests import forker
 
 from ZODB.DB import DB
 from ZODB.Transaction import get_transaction, Transaction
-from ZODB.POSException import ReadOnlyError
+from ZODB.POSException import ReadOnlyError, ConflictError
 from ZODB.tests.StorageTestBase import StorageTestBase
 from ZODB.tests.MinPO import MinPO
 from ZODB.tests.StorageTestBase import zodb_pickle, zodb_unpickle
 from ZODB.tests.StorageTestBase import handle_all_serials, ZERO
+from ZODB.tests.StorageTestBase import handle_serials
 
 class TestClientStorage(ClientStorage):
 
@@ -843,6 +845,105 @@ class TimeoutTests(CommonSetupTearDown):
         storage.tpc_begin(txn)
         storage.tpc_abort(txn)
         storage.close()
+
+    def checkTimeoutAfterVote(self):
+        raises = self.assertRaises
+        unless = self.failUnless
+        self.startServer()
+        self._storage = storage = self.openClientStorage()
+        # Assert that the zeo cache is empty
+        unless(not storage._cache._index)
+        # Create the object
+        oid = storage.new_oid()
+        obj = MinPO(7)
+        ZERO = '\0'*8
+        # Now do a store, sleeping before the finish so as to cause a timeout
+        t = Transaction()
+        storage.tpc_begin(t)
+        revid1 = storage.store(oid, ZERO, zodb_pickle(obj), '', t)
+        storage.tpc_vote(t)
+        # Now sleep long enough for the storage to time out
+        time.sleep(3)
+        storage.sync()
+        unless(not storage.is_connected())
+        storage._wait()
+        unless(storage.is_connected())
+        # We expect finish to fail
+        raises(ClientDisconnected, storage.tpc_finish, t)
+        # The cache should still be empty
+        unless(not storage._cache._index)
+        # Load should fail since the object should not be in either the cache
+        # or the server.
+        raises(KeyError, storage.load, oid, '')
+
+    def checkTimeoutProvokingConflicts(self):
+        eq = self.assertEqual
+        raises = self.assertRaises
+        unless = self.failUnless
+        self.startServer()
+        self._storage = storage = self.openClientStorage()
+        # Assert that the zeo cache is empty
+        unless(not storage._cache._index)
+        # Create the object
+        oid = storage.new_oid()
+        obj = MinPO(7)
+        ZERO = '\0'*8
+        # We need to successfully commit an object now so we have something to
+        # conflict about.
+        t = Transaction()
+        storage.tpc_begin(t)
+        revid1a = storage.store(oid, ZERO, zodb_pickle(obj), '', t)
+        revid1b = storage.tpc_vote(t)
+        revid1 = handle_serials(oid, revid1a, revid1b)
+        storage.tpc_finish(t)
+        # Now do a store, sleeping before the finish so as to cause a timeout
+        obj.value = 8
+        t = Transaction()
+        storage.tpc_begin(t)
+        revid2a = storage.store(oid, revid1, zodb_pickle(obj), '', t)
+        revid2b = storage.tpc_vote(t)
+        revid2 = handle_serials(oid, revid2a, revid2b)
+        # Now sleep long enough for the storage to time out
+        time.sleep(3)
+        storage.sync()
+        unless(not storage.is_connected())
+        storage._wait()
+        unless(storage.is_connected())
+        # We expect finish to fail
+        raises(ClientDisconnected, storage.tpc_finish, t)
+        # Now we think we've committed the second transaction, but we really
+        # haven't.  A third one should produce a POSKeyError on the server,
+        # which manifests as a ConflictError on the client.
+        obj.value = 9
+        t = Transaction()
+        storage.tpc_begin(t)
+        storage.store(oid, revid2, zodb_pickle(obj), '', t)
+        raises(ConflictError, storage.tpc_vote, t)
+        # Even aborting won't help
+        storage.tpc_abort(t)
+        storage.tpc_finish(t)
+        # Try again
+        obj.value = 10
+        t = Transaction()
+        storage.tpc_begin(t)
+        storage.store(oid, revid2, zodb_pickle(obj), '', t)
+        # Even aborting won't help
+        raises(ConflictError, storage.tpc_vote, t)
+        # Abort this one and try a transaction that should succeed
+        storage.tpc_abort(t)
+        storage.tpc_finish(t)
+        # Now do a store, sleeping before the finish so as to cause a timeout
+        obj.value = 11
+        t = Transaction()
+        storage.tpc_begin(t)
+        revid2a = storage.store(oid, revid1, zodb_pickle(obj), '', t)
+        revid2b = storage.tpc_vote(t)
+        revid2 = handle_serials(oid, revid2a, revid2b)
+        storage.tpc_finish(t)
+        # Now load the object and verify that it has a value of 11
+        data, revid = storage.load(oid, '')
+        eq(zodb_unpickle(data), MinPO(11))
+        eq(revid, revid2)
 
 class MSTThread(threading.Thread):
 
