@@ -84,8 +84,8 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.11 1999/06/29 18:28:16 jim Exp $"""
-__version__='$Revision: 1.11 $'[11:-2]
+$Id: Connection.py,v 1.12 1999/07/05 21:07:37 jim Exp $"""
+__version__='$Revision: 1.12 $'[11:-2]
 
 from cPickleCache import PickleCache
 from POSException import ConflictError, ExportError
@@ -211,7 +211,7 @@ class Connection(ExportImport.ExportImport):
 
         return oid
 
-    def _setDB(self, odb=None):
+    def _setDB(self, odb):
         """Begin a new transaction.
 
         Any objects modified since the last transaction are invalidated.
@@ -232,8 +232,9 @@ class Connection(ExportImport.ExportImport):
 
     def close(self):
         self._incrgc()
-        self._db._closeConnection(self)
-        self._db=self._storage=self._tmp=None
+        db=self._db
+        self._db=self._storage=self._tmp=self.new_oid=None
+        db._closeConnection(self)
 
     def commit(self, object, transaction):
         oid=object._p_oid
