@@ -14,6 +14,7 @@
 
 import threading
 import time
+from random import Random
 
 from BTrees.check import check, display
 from BTrees.OOBTree import OOBTree
@@ -54,6 +55,74 @@ class FailableThread(TestThread):
             # that they stop quickly.
             self.stop.set()
             raise
+
+
+class StressTask:
+    # Append integers startnum, startnum + step, startnum + 2*step, ...
+    # to 'tree'.  If sleep is given, sleep
+    # that long after each append.  At the end, instance var .added_keys
+    # is a list of the ints the thread believes it added successfully.
+    def __init__(self, testcase, db, threadnum, startnum,
+                 step=2, sleep=None):
+        self.db = db
+        self.threadnum = threadnum
+        self.startnum = startnum
+        self.step = step
+        self.sleep = sleep
+        self.added_keys = []
+        self.cn = self.db.open()
+        self.cn.setLocalTransaction()
+        self.cn.sync()
+
+    def doStep(self):
+        tree = self.cn.root()["tree"]
+        key = self.startnum
+        tree[key] = self.threadnum
+
+    def commit(self):
+        cn = self.cn
+        key = self.startnum
+        cn.getTransaction().note("add key %s" % key)
+        try:
+            cn.getTransaction().commit()
+        except ConflictError, msg:
+            cn.getTransaction().abort()
+            cn.sync()
+        else:
+            if self.sleep:
+                time.sleep(self.sleep)
+            self.added_keys.append(key)
+        self.startnum += self.step
+
+    def cleanup(self):
+        self.cn.getTransaction().abort()
+        self.cn.close()
+
+def _runTasks(rounds, *tasks):
+    '''run *task* interleaved for *rounds* rounds.'''
+    def commit(run, actions):
+        actions.append(':')
+        for t in run:
+            t.commit()
+        del run[:]
+    r = Random()
+    r.seed(1064589285) # make it deterministic
+    run = []
+    actions = []
+    try:
+        for i in range(rounds):
+            t = r.choice(tasks)
+            if t in run:
+                commit(run, actions)
+            run.append(t)
+            t.doStep()
+            actions.append(`t.startnum`)
+        commit(run,actions)
+        # stderr.write(' '.join(actions)+'\n')
+    finally:
+        for t in tasks:
+            t.cleanup()
+
 
 class StressThread(FailableThread):
 
@@ -347,6 +416,31 @@ class InvalidationTests:
         stop.set()
         for t in threads:
             t.cleanup()
+
+    def checkConcurrentUpdates2Storages_emulated(self):
+        self._storage = storage1 = self.openClientStorage()
+        storage2 = self.openClientStorage()
+        db1 = DB(storage1)
+        db2 = DB(storage2)
+
+        cn = db1.open()
+        tree = cn.root()["tree"] = OOBTree()
+        get_transaction().commit()
+        # DM: allow time for invalidations to come in and process them
+        time.sleep(0.1)
+
+        # Run two threads that update the BTree
+        t1 = StressTask(self, db1, 1, 1,)
+        t2 = StressTask(self, db2, 2, 2,)
+        _runTasks(100, t1, t2)
+
+        cn.sync()
+        self._check_tree(cn, tree)
+        self._check_threads(tree, t1, t2)
+
+        cn.close()
+        db1.close()
+        db2.close()
 
     def checkConcurrentUpdates2Storages(self):
         self._storage = storage1 = self.openClientStorage()
