@@ -84,14 +84,17 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.4 1999/05/10 23:15:55 jim Exp $"""
-__version__='$Revision: 1.4 $'[11:-2]
+$Id: Connection.py,v 1.5 1999/05/12 15:55:43 jim Exp $"""
+__version__='$Revision: 1.5 $'[11:-2]
 
 from cPickleCache import PickleCache
 from bpthread import allocate_lock
 from POSException import ConflictError
 from cStringIO import StringIO
 from cPickle import Unpickler, Pickler
+from ExtensionClass import Base
+
+ExtensionKlass=Base.__class__
 
 class HelperClass: pass
 ClassType=type(HelperClass)
@@ -139,12 +142,18 @@ class Connection:
         object = unpickler.load()
 
         klass, args = object
+
+        if type(klass) is tt:
+            module, name = klass
+            klass=self._db._classFactory(self, module, name)
+        
         if (args is None or
             not args and not hasattr(klass,'__getinitargs__')):
             object=klass.__basicnew__()
         else:
             object=apply(klass,args)
-            object.__dict__.clear()
+            if klass is not ExtensionKlass:
+                object.__dict__.clear()
 
         object._p_oid=oid
         object._p_jar=self
@@ -167,19 +176,27 @@ class Connection:
             # to create the instance wo hitting the db, so go for it!
             oid, klass = oid
             if cache.has_key(oid): return cache[oid]
+
+            if type(klass) is tt:
+                module, name = klass
+                try: klass=self._db._classFactory(self, module, name)
+                except:
+                    # Eek, we couldn't get the class. Hm.
+                    # Maybe their's more current data in the
+                    # object's actual record!
+                    return self[oid]
+            
             object=klass.__basicnew__()
             object._p_oid=oid
             object._p_jar=self
             object._p_changed=None
             
             cache[oid]=object
+
             return object
-                
-        if type(oid) is st: oid=atoi(oid)
 
         if cache.has_key(oid): return cache[oid]
-        object=cache[oid]=self[oid]
-        return object
+        return self[oid]
 
     def _planToStore(self,object,stackp):
         oid=object._p_oid
@@ -188,8 +205,10 @@ class Connection:
             object._p_jar=self
             object._p_oid=oid
             stackp(object)
+            
         elif object._p_changed:
             stackp(object)
+
         return oid
 
     def _setDB(self, odb=None):
@@ -220,6 +239,7 @@ class Connection:
         stackup=stack.append
         topoid=plan(object,stackup)
         version=self._version
+
         if stack:
             # Create a special persistent_id that passes T and the subobject
             # stack along:
@@ -235,8 +255,17 @@ class Connection:
                     object._p_oid=oid
                     stackup(object)
 
-                if hasattr(object.__class__, '__getinitargs__'): return oid
-                return oid, object.__class__
+                klass=object.__class__
+
+                if klass is ExtensionKlass: return oid
+                
+                if hasattr(klass, '__getinitargs__'): return oid
+
+                try: module=klass.__module__
+                except: module=''
+                if module: klass=module, klass.__name__
+                
+                return oid, klass
 
             file=StringIO()
             seek=file.seek
@@ -252,23 +281,42 @@ class Connection:
                 object=stack[-1]
                 del stack[-1]
                 oid=object._p_oid
-                serial=object._p_serial
+                try: serial=object._p_serial
+                except: serial='\0'*8
                 if self._invalidated.has_key(oid): raise ConflictError, oid
-                cls = object.__class__
-                if hasattr(cls, '__getinitargs__'):
-                    args = object.__getinitargs__()
-                    len(args) # XXX Assert it's a sequence
+                klass = object.__class__
+
+                if klass is ExtensionKlass:
+                    # Ye Ha!
+                    dict={}
+                    dict.update(object.__dict__)
+                    del dict['_p_jar']
+                    args=object.__name__, object.__bases__, dict
+                    state=None
                 else:
-                    args = None # New no-constructor protocol!
+                    if hasattr(klass, '__getinitargs__'):
+                        args = object.__getinitargs__()
+                        len(args) # XXX Assert it's a sequence
+                    else:
+                        args = None # New no-constructor protocol!
+
+                    try: module=klass.__module__
+                    except: module=''
+                    if module: klass=module, klass.__name__
+                    state=object.__getstate__()
+
                 seek(0)
                 clear_memo()
-                dump((cls,args))
-                state=object.__getstate__()
+                dump((klass,args))
                 dump(state)
                 p=file()
                 object._p_serial=dbstore(oid,serial,p,version,transaction)
                 object._p_changed=0
-                cache[oid]=object
+                try: cache[oid]=object
+                except:
+                    # Dang, I bet its wrapped:
+                    if hasattr(object, 'aq_base'):
+                        cache[oid]=object.aq_base
 
         return topoid
 

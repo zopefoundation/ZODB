@@ -123,6 +123,8 @@ static cPersistenceCAPIstruct *cPersistenceCAPI;
 
 #define cPersistanceModuleName "cPersistence"
 
+#define PERSISTENT_TYPE_FLAG EXTENSIONCLASS_USER_FLAG8
+
 #define PER_USE_OR_RETURN(O,R) {                        \
   if ((O)->state==cPersistent_GHOST_STATE &&            \
       cPersistenceCAPI->setstate((PyObject*)(O)) < 0)	\

@@ -82,68 +82,40 @@
 # attributions are listed in the accompanying credits file.
 # 
 ##############################################################################
-"""Implement an bobo_application object that is BoboPOS3 aware
 
-This module provides a wrapper that causes a database connection to be created
-and used when bobo publishes a bobo_application object.
-"""
-__version__='$Revision: 1.4 $'[11:-2]
+import POSException
 
-StringType=type('')
+# Try to create a function that creates Unix file locks.  On windows
+# this will fail.
+try:
+    import fcntl, FCNTL
 
-class ZApplicationWrapper:
+    lock_file_FLAG=FCNTL.LOCK_EX|FCNTL.LOCK_NB
 
-    def __init__(self, db, name, klass= None, klass_args= (),
-                 version_cookie_name=None):
-        self._stuff = db, name, version_cookie_name
-        if klass is not None:
-            conn=db.open()
-            root=conn.root()
-            if not root.has_key(name):
-                root[name]=klass()
-                get_transaction().commit()
-            conn.close()
-            self._klass=klass
-        
+    def lock_file(file, error=POSException.StorageSystemError):
+        try: un=file.fileno()
+        except: return # don't care if not a real file
 
-    # This hack is to overcome a bug in Bobo!
-    def __getattr__(self, name):
-        return getattr(self._klass, name)
+        try: fcntl.flock(un,lock_file_FLAG)
+        except:
+            raise error, (
+                "Could not lock the database file.  There must be\n"
+                "another process that has opened the file.\n"
+                "<p>")
 
-    def __bobo_traverse__(self, REQUEST=None, name=None):
-        db, aname, version_support = self._stuff
-        if version_support is not None and REQUEST is not None:
-            version=REQUEST.get(version_support,'')
-        else: version=''
-        conn=db.open(version)
-
-        # arrange for the connection to be closed when the request goes away
-        cleanup=Cleanup()
-        cleanup.__del__=conn.close
-        REQUEST[Cleanup]=cleanup
-        
-        v=conn.root()[aname]
-
-        if name is not None:
-            if hasattr(v, '__bobo_traverse__'):
-                return v.__bobo_traverse__(REQUEST, name)
-            
-            if hasattr(v,name): return getattr(v,name)
-            return v[name]
-        
-        return v
-
-
-    def __call__(self, connection=None):
-        db, aname, version_support = self._stuff
-
-        if connection is None:
-            connection=db.open()
-        elif type(connection) is StringType:
-            connection=db.open(connection)
-        
-        return connection.root()[aname]
+except:
+    # Try windows-specific code:
+    try:
+        from winlock import LockFile
+        def lock_file(file, error=POSException.StorageSystemError):
+            try: un=file.fileno()
+            except: return # don't care if not a real file
+            try: LockFile(un,0,0,1,0) # just lock the first byte, who cares
+            except:
+                raise error, (
+                    "Could not lock the database file.  There must be\n"
+                    "another process that has opened the file.\n"
+                    "<p>")            
+    except:
+        def lock_file(file, error=None): pass
     
-
-class Cleanup: pass
-
