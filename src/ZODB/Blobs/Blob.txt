@@ -83,23 +83,16 @@ Now we can read it:
     'Hi, Blob!\nBlob is fine.'
     >>> f4a.close()
 
-Please, always remember closing an opened blob, otherwise you might get
-blocked later on. Therefore you should avoid using the result of open()
-without binding it to a name:
+You shouldn't need to explicitly close a blob unless you hold a reference
+to it via a name.  If the first line in the following test kept a reference
+around via a name, the second call to open it in a writable mode would fail
+with a BlobError, but it doesn't.
 
-    >>> myblob.open("r").read()
+    >>> myblob.open("r+").read()
     'Hi, Blob!\nBlob is fine.'
     >>> f4b = myblob.open("a")
-    Traceback (most recent call last):
-        ...
-    BlobError: Already opened for reading.
+    >>> f4b.close()
     
-To clean that up, we have to commit or abort the current transaction, so the reference
-counters for opened blob files get to a valid state again:
-
-    >>> import transaction
-    >>> transaction.commit()
-
 We can read lines out of the blob too:
 
     >>> f5 = myblob.open("r")
@@ -125,6 +118,7 @@ We can use the object returned by a blob open call as an iterable:
     >>> for line in f7:
     ...     print line
     Hi, Blob!
+    <BLANKLINE>
     Blob is fine.
     >>> f7.close()
 
