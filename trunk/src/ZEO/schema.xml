@@ -16,7 +16,7 @@
 
   <section type="zeo" name="*" required="yes" attribute="zeo" />
 
-  <multisection name="+" type="storage"
+  <multisection name="+" type="ZODB.storage"
                 attribute="storages"
                 required="yes">
     <description>
