@@ -11,10 +11,7 @@
 # FOR A PARTICULAR PURPOSE
 #
 ##############################################################################
-"""Sized message async connections
-
-$Id: smac.py,v 1.34 2002/10/02 19:55:24 gvanrossum Exp $
-"""
+"""Sized Message Async Connections."""
 
 import asyncore, struct
 import threading
