@@ -117,7 +117,7 @@ class ClientCache:
     # `ent` is an Entry giving the object's key ((oid, start_tid) pair).
     def install(self, f, ent):
         # Called by cache storage layer to insert object.
-        o = Object.fromFile(f, ent.key, header_only=True)
+        o = Object.fromFile(f, ent.key, skip_data=True)
         if o is None:
             return
         oid = o.key[0]
@@ -126,8 +126,12 @@ class ClientCache:
         elif o.end_tid is None:
             self.current[oid] = o.start_tid
         else:
-            L = self.noncurrent.setdefault(oid, [])
-            bisect.insort_left(L, (o.start_tid, o.end_tid))
+            this_span = o.start_tid, o.end_tid
+            span_list = self.noncurrent.get(oid)
+            if span_list:
+                bisect.insort_left(span_list, this_span)
+            else:
+                self.noncurrent[oid] = [this_span]
 
     def close(self):
         self.fc.close()
@@ -422,7 +426,7 @@ class ClientCache:
 # data and whether it is in a version.
 # <p>
 # The serialized format does not include the key, because it is stored
-# in the header used by the cache's storage format.
+# in the header used by the cache file's storage format.
 # <p>
 # Instances of Object are generally short-lived -- they're really a way to
 # package data on the way to or from the disk file.
@@ -506,9 +510,12 @@ class Object(object):
     # fromFile is a class constructor, unserializing an Object from the
     # current position in file f.  Exclusive access to f for the duration
     # is assumed.  The key is a (oid, start_tid) pair, and the oid must
-    # match the serialized oid.  If header_only is true, .data is left
-    # None in the Object returned.
-    def fromFile(cls, f, key, header_only=False):
+    # match the serialized oid.  If `skip_data` is true, .data is left
+    # None in the Object returned, but all the other fields are populated.
+    # Else (`skip_data` is false, the default), all fields including .data
+    # are populated.  .data can be big, so it's prudent to skip it when it
+    # isn't needed.
+    def fromFile(cls, f, key, skip_data=False):
         s = f.read(cls.FIXED_HEADER_SIZE)
         if not s:
             return None
@@ -522,7 +529,7 @@ class Object(object):
         if vlen != len(version):
             raise ValueError("corrupted record, version")
 
-        if header_only:
+        if skip_data:
             data = None
             f.seek(dlen, 1)
         else:
@@ -675,9 +682,11 @@ class FileCache(object):
         self.fpath = fpath
         if reuse and fpath and os.path.exists(fpath):
             # Reuse an existing file.  scan() will open & read it.
-            assert fpath
             self.f = None
         else:
+            if reuse:
+                logger.warning("reuse=True but the given file path %r "
+                               "doesn't exist; ignoring reuse=True", fpath)
             if fpath:
                 self.f = open(fpath, 'wb+')
             else:
@@ -897,7 +906,7 @@ class FileCache(object):
         # Load the object header into memory so we know how to
         # update the parent's in-memory data structures.
         self.f.seek(e.offset + OBJECT_HEADER_SIZE)
-        o = Object.fromFile(self.f, e.key, header_only=True)
+        o = Object.fromFile(self.f, e.key, skip_data=True)
         self.parent._evicted(o)
 
     ##
@@ -932,7 +941,7 @@ class FileCache(object):
         size, e2 = self.filemap[offset]
         assert size >= 5  # only free blocks are tiny
         self.f.seek(offset + OBJECT_HEADER_SIZE)
-        o = Object.fromFile(self.f, key, header_only=True)
+        o = Object.fromFile(self.f, key, skip_data=True)
         # Because `size` >= 5, we can change an allocated block to a free
         # block just by overwriting the 'a' status byte with 'f' -- the
         # size field stays the same.
