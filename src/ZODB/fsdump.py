@@ -1,3 +1,29 @@
+##############################################################################
+#
+# Copyright (c) 2002 Zope Corporation and Contributors.
+# All Rights Reserved.
+#
+# This software is subject to the provisions of the Zope Public License,
+# Version 2.0 (ZPL).  A copy of the ZPL should accompany this distribution.
+# THIS SOFTWARE IS PROVIDED "AS IS" AND ANY AND ALL EXPRESS OR IMPLIED
+# WARRANTIES ARE DISCLAIMED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+# WARRANTIES OF TITLE, MERCHANTABILITY, AGAINST INFRINGEMENT, AND FITNESS
+# FOR A PARTICULAR PURPOSE
+#
+##############################################################################
+"""Low-level text dumps of FileStorage contents.
+
+fsdump() prints a two-line summary of each transaction and a one-line
+summary of each data record in that transaction.  This report is often
+useful when analyzing a storage's contents.
+
+Dumper() prints a very detailed representation of the contents.  Each
+header field is printed on a separate line.  This produces lots of
+data that is useful when debugging the storage implementation.
+"""
+
+from ZODB.FileStorage import TRANS_HDR, TRANS_HDR_LEN
+from ZODB.FileStorage import DATA_HDR, DATA_HDR_LEN, DATA_VERSION_HDR_LEN
 from ZODB.FileStorage import FileIterator
 from ZODB.TimeStamp import TimeStamp
 from ZODB.utils import u64
@@ -6,6 +32,7 @@ from ZODB.tests.StorageTestBase import zodb_unpickle
 from cPickle import Unpickler
 from cStringIO import StringIO
 import md5
+import struct
 import types
 
 def get_pickle_metadata(data):
@@ -36,9 +63,9 @@ def get_pickle_metadata(data):
         classname = ''
     return modname, classname
 
-def fsdump(path, file=None, with_offset=1):
+def fsdump(path, file=None, with_offset=True, start=None, stop=None):
     i = 0
-    iter = FileIterator(path)
+    iter = FileIterator(path, start, stop)
     for trans in iter:
         if with_offset:
             print >> file, ("Trans #%05d tid=%016x time=%s size=%d"
@@ -89,10 +116,6 @@ def fsdump(path, file=None, with_offset=1):
         print >> file
         i += 1
     iter.close()
-
-import struct
-from ZODB.FileStorage import TRANS_HDR, TRANS_HDR_LEN
-from ZODB.FileStorage import DATA_HDR, DATA_HDR_LEN, DATA_VERSION_HDR_LEN
 
 def fmt(p64):
     # Return a nicely formatted string for a packaged 64-bit value
