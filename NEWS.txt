@@ -2,6 +2,25 @@ What's new in ZODB3 3.3 ?
 =========================
 Release date: DD-MMM-YYYY
 
+transaction
+-----------
+
+Growing pains:  ZODB 3.1 and 3.2 had a bug wherein Transaction.begin()
+didn't abort the current transaction if the only pending changes were in a
+subtransaction.  In ZODB 3.3, it's intended that transaction managers be
+used instead of invoking methods directly on Transaction objects, and
+calling begin() on a transaction manager didn't have this old bug.  However,
+Transaction.begin() still exists in 3.3, and it had a worse bug:  it never
+aborted the transaction (not even if changes were pending outside of
+subtransactions).  Transaction.begin() has been changed to abort the
+transaction, although it's still strongly recommended to invoke begin() on
+the relevant transaction manager instead.  For example,
+
+    import transaction
+    transaction.begin()
+
+if using the default ThreadTransactionManager (see news for 3.3a3 below).
+
 BTrees
 ------
 

@@ -230,11 +230,14 @@ class Transaction(object):
                 self._resources.append(adapter)
 
     def begin(self):
-        # TODO: I'm not sure how this should be implemented.  Not doing
-        # anything now, but my best guess is: If nothing has happened
-        # yet, it's fine.  Otherwise, abort this transaction and let
-        # the txn manager create a new one.
-        pass
+        if (self._resources or
+              self._sub or
+              self._nonsub or
+              self._synchronizers):
+            self.abort()
+        # Else aborting wouldn't do anything, except if _manager is non-None,
+        # in which case it would do nothing besides uselessly free() this
+        # transaction.
 
     def commit(self, subtransaction=False):
         if not subtransaction and self._sub and self._resources:
@@ -247,8 +250,6 @@ class Transaction(object):
         if not subtransaction:
             for s in self._synchronizers:
                 s.beforeCompletion(self)
-
-        if not subtransaction:
             self.status = Status.COMMITTING
 
         self._commitResources(subtransaction)
