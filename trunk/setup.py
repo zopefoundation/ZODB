@@ -173,7 +173,6 @@ def copy_other_files(cmd, outputbase):
         "ZODB",
         "zdaemon",
         "zdaemon/tests",
-        "zLOG",
         ]:
         dir = convert_path(dir)
         inputdir = os.path.join("src", dir)
