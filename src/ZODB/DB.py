@@ -84,8 +84,8 @@
 ##############################################################################
 """Database objects
 
-$Id: DB.py,v 1.15 1999/08/26 20:24:12 jim Exp $"""
-__version__='$Revision: 1.15 $'[11:-2]
+$Id: DB.py,v 1.16 1999/08/27 20:38:03 jim Exp $"""
+__version__='$Revision: 1.16 $'[11:-2]
 
 import cPickle, cStringIO, sys, POSException
 from Connection import Connection
@@ -497,9 +497,15 @@ class DB:
         for version, (pool, allocated, lock) in pools.items():
             for c in allocated:
                 o=c._opened
+                d=c._debug_info
+                if d:
+                    if len(d)==1: d=d[0]
+                else: d=''
+                d="%s (%s)" % (d, len(c._cache))
+                
                 r.append({
                     'opened': o and ("%s (%.2fs)" % (ctime(o), t-o)),
-                    'info': c._debug_info,
+                    'info': d,
                     'version': version,
                     })
         return r
