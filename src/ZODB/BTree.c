@@ -11,7 +11,7 @@
 
 static char BTree_module_documentation[] = 
 ""
-"\n$Id: BTree.c,v 1.7 1997/10/30 20:58:43 jim Exp $"
+"\n$Id: BTree.c,v 1.8 1997/11/03 15:17:53 jim Exp $"
 ;
 
 #define PERSISTENT
@@ -1360,8 +1360,11 @@ err:
 }
 
 static PyObject *
-bucket_has_key(Bucket *self, PyObject *key)
+bucket_has_key(Bucket *self, PyObject *args)
 {
+  PyObject *key;
+
+  UNLESS(PyArg_ParseTuple(args,"O",&key)) return NULL;
   return _bucket_get(self, key, 1);
 }
 
@@ -1523,8 +1526,11 @@ BTree_items(BTree *self, PyObject *args)
 }
 
 static PyObject *
-BTree_has_key(BTree *self, PyObject *key)
+BTree_has_key(BTree *self, PyObject *args)
 {
+  PyObject *key;
+
+  UNLESS(PyArg_ParseTuple(args,"O",&key)) return NULL;
   return _BTree_get(self, key, 1);
 }
 
@@ -1714,7 +1720,7 @@ initBTree()
 #endif
 {
   PyObject *m, *d;
-  char *rev="$Revision: 1.7 $";
+  char *rev="$Revision: 1.8 $";
 
   UNLESS(PyExtensionClassCAPI=PyCObject_Import("ExtensionClass","CAPI"))
       return;
@@ -1774,6 +1780,9 @@ initBTree()
 Revision Log:
 
   $Log: BTree.c,v $
+  Revision 1.8  1997/11/03 15:17:53  jim
+  Fixed stupid bug in has_key methods.
+
   Revision 1.7  1997/10/30 20:58:43  jim
   Upped bucket sizes.
 
