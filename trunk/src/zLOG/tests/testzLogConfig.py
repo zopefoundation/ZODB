@@ -31,7 +31,7 @@ class TestzLOGConfig(unittest.TestCase):
     _schematext = """
       <schema>
         <import package='zLOG'/>
-        <section type='logger' name='*' attribute='logger'/>
+        <section type='eventlog' name='*' attribute='eventlog'/>
       </schema>
     """
 
@@ -62,10 +62,10 @@ class TestzLOGConfig(unittest.TestCase):
 
     def test_config_without_logger(self):
         conf = self.get_config("")
-        self.assert_(conf.logger is None)
+        self.assert_(conf.eventlog is None)
 
     def test_config_without_handlers(self):
-        logger = self.check_simple_logger("<logger/>")
+        logger = self.check_simple_logger("<eventlog/>")
         # Make sure there's a NullHandler, since a warning gets
         # printed if there are no handlers:
         self.assertEqual(len(logger.handlers), 1)
@@ -74,12 +74,12 @@ class TestzLOGConfig(unittest.TestCase):
 
     def test_with_logfile(self):
         fn = tempfile.mktemp()
-        logger = self.check_simple_logger("<logger>\n"
+        logger = self.check_simple_logger("<eventlog>\n"
                                           "  <logfile>\n"
                                           "    path %s\n"
                                           "    level debug\n"
                                           "  </logfile>\n"
-                                          "</logger>" % fn)
+                                          "</eventlog>" % fn)
         # Make sure there's exactly one handler, since a warning gets
         # printed if there are no handlers, and we don't want an
         # unnecessary NullHandler getting added:
@@ -92,9 +92,9 @@ class TestzLOGConfig(unittest.TestCase):
 
     def check_simple_logger(self, text, level=logging.NOTSET):
         conf = self.get_config(text)
-        self.assertEqual(conf.logger.level, level)
-        self.assert_(conf.logger is not None)
-        logger = conf.logger()
+        self.assert_(conf.eventlog is not None)
+        self.assertEqual(conf.eventlog.level, level)
+        logger = conf.eventlog()
         self.assert_(isinstance(logger, logging.Logger))
         return logger
 

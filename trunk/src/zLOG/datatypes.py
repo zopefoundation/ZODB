@@ -211,25 +211,10 @@ def smtp_handler(section):
                    section.toaddrs,
                    section.subject)
 
-## def custom_handler(section):
-##     formatter_klass, formatter_pos, formatter_kw = section.formatter
-##     handler_klass, handler_pos, handler_kw = section.constructor
-##     level = section.level
-
-##     formatter = Factory(formatter_klass, None, formatter_pos, formatter_kw)
-
-##     def callback(inst, formatter=formatter, level=level):
-##         inst.setFormatter(formatter())
-##         inst.setLevel(level)
-
-##     return Factory(handler_klass, callback, *handler_pos, **handler_kw)
-
-def logger(section):
-    return LoggerWrapper(section.level, section.handlers)
 
 _marker = []
 
-class LoggerWrapper:
+class EventLogFactory:
     """
     A wrapper used to create loggers while delaying actual logger
     instance construction.  We need to do this because we may
@@ -238,9 +223,9 @@ class LoggerWrapper:
     An instance of this wrapper is a callable which, when called, returns a
     logger object.
     """
-    def __init__(self, level, handler_factories):
-        self.level = level
-        self.handler_factories = handler_factories
+    def __init__(self, section):
+        self.level = section.level
+        self.handler_factories = section.handlers
         self.resolved = _marker
 
     def __call__(self):
