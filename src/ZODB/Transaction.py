@@ -13,8 +13,8 @@
 ##############################################################################
 """Transaction management
 
-$Id: Transaction.py,v 1.34 2002/03/08 02:09:21 jeremy Exp $"""
-__version__='$Revision: 1.34 $'[11:-2]
+$Id: Transaction.py,v 1.35 2002/04/12 18:29:15 jeremy Exp $"""
+__version__='$Revision: 1.35 $'[11:-2]
 
 import time, sys, struct, POSException
 from struct import pack
@@ -276,7 +276,7 @@ class Transaction:
                     # Bug if it does, we need to yell FIRE!
                     # Someone finished, so don't allow any more
                     # work without at least a restart!
-                    hosed=1
+                    hosed = 1
                     LOG('ZODB', PANIC,
                         "A storage error occurred in the last phase of a "
                         "two-phase commit.  This shouldn\'t happen. "
@@ -287,7 +287,7 @@ class Transaction:
                     raise
                 
             except:
-                t,v,tb=sys.exc_info()
+                t, v, tb = sys.exc_info()
 
                 # Ugh, we got an got an error during commit, so we
                 # have to clean up.
@@ -295,32 +295,42 @@ class Transaction:
                 # First, we have to abort any uncommitted objects.
                 for o in objects[ncommitted:]:
                     try:
-                        j=getattr(o, '_p_jar', o)
-                        if j is not None: j.abort(o, self)
-                    except: pass
+                        j = getattr(o, '_p_jar', o)
+                        if j is not None:
+                            j.abort(o, self)
+                    except:
+                        pass
 
                 # Then, we unwind TPC for the jars that began it.
                 if jarsv is None:
                     jarsv = jars.values()
                 for j in jarsv:
-                    try: j.tpc_abort(self) # This should never fail
+                    try:
+                        j.tpc_abort(self) # This should never fail
                     except:     
                         LOG('ZODB', ERROR,
                             "A storage error occured during object abort "
-                            "This shouldn\'t happen. ",
+                            "This shouldn't happen. ",
                             error=sys.exc_info())
                 
                 # Ugh, we need to abort work done in sub-transactions.
                 while subjars:
-                    j=subjars.pop()
-                    j.abort_sub(self) # This should never fail
+                    j = subjars.pop()
+                    try:
+                        j.abort_sub(self) # This should never fail
+                    except:
+                        LOG('ZODB', ERROR,
+                            "A storage error occured during sub-transaction "
+                            "object abort.  This shouldn't happen.",
+                            error=sys.exc_info())
 
-                raise t,v,tb
+                raise t, v, tb
 
         finally:
-            tb=None
+            tb = None
             del objects[:] # clear registered
-            if not subtransaction and self._id is not None: free_transaction()
+            if not subtransaction and self._id is not None:
+                free_transaction()
 
     def register(self,object):
         'Register the given object for transaction control.'
