@@ -13,7 +13,7 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.86 2003/02/06 20:32:18 shane Exp $"""
+$Id: Connection.py,v 1.87 2003/03/04 21:00:23 jeremy Exp $"""
 
 from cPickleCache import PickleCache
 from POSException import ConflictError, ReadConflictError
@@ -91,6 +91,8 @@ class Connection(ExportImport.ExportImport):
     def setLocalTransaction(self):
         """Use a transaction bound to the connection rather than the thread"""
         if self._transaction is None:
+            # XXX The connection may already be registered with a
+            # transaction.  I guess we should abort that transaction.
             self._transaction = Transaction()
         return self._transaction
 
@@ -473,6 +475,9 @@ class Connection(ExportImport.ExportImport):
     def db(self): return self._db
 
     def getVersion(self): return self._version
+
+    def isReadOnly(self):
+        return self._storage.isReadOnly()
 
     def invalidate(self, oid):
         """Invalidate a particular oid
