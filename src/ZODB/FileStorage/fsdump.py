@@ -11,7 +11,6 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
-import md5
 import struct
 
 from ZODB.FileStorage import FileIterator
@@ -39,12 +38,12 @@ def fsdump(path, file=None, with_offset=1):
                 fullclass = "undo or abort of object creation"
             else:
                 modname, classname = get_pickle_metadata(rec.data)
-                dig = md5.new(rec.data).hexdigest()
                 fullclass = "%s.%s" % (modname, classname)
-            # special case for testing purposes
-            if fullclass == "ZODB.tests.MinPO.MinPO":
-                obj = zodb_unpickle(rec.data)
-                fullclass = "%s %s" % (fullclass, obj.value)
+                # FIXME: Is this used?
+                # special case for testing purposes
+                if fullclass == "ZODB.tests.MinPO.MinPO":
+                    obj = zodb_unpickle(rec.data)
+                    fullclass = "%s %s" % (fullclass, obj.value)
             if rec.version:
                 version = "version=%s " % rec.version
             else:
