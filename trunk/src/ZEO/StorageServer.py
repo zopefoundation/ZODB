@@ -83,7 +83,7 @@
 # 
 ##############################################################################
 
-__version__ = "$Revision: 1.27 $"[11:-2]
+__version__ = "$Revision: 1.28 $"[11:-2]
 
 import asyncore, socket, string, sys, os
 from smac import SizedMessageAsyncConnection
@@ -315,14 +315,19 @@ class ZEOConnection(SizedMessageAsyncConnection):
 
     def get_info(self):
         storage=self.__storage
-        return {
+        info = {
             'length': len(storage),
             'size': storage.getSize(),
             'name': storage.getName(),
-            'supportsUndo': storage.supportsUndo(),
-            'supportsVersions': storage.supportsVersions(),
-            'supportsTransactionalUndo': storage.supportsTransactionalUndo(),
             }
+        for feature in ('supportsUndo',
+                        'supportsVersions',
+                        'supportsTransactionalUndo',):
+            if hasattr(storage, feature):
+                info[feature] = getattr(storage, feature)()
+            else:
+                info[feature] = 0
+        return info
 
     def get_size_info(self):
         storage=self.__storage
