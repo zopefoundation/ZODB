@@ -1,7 +1,7 @@
 /* fsBTree - FileStorage index BTree
 
-   This BTree implments a mapping from 2-character strings
-   to six-character strings. This allows us to effieciently store
+   This BTree implements a mapping from 2-character strings
+   to six-character strings. This allows us to efficiently store
    a FileStorage index as a nested mapping of 6-character oid prefix
    to mapping of 2-character oid suffix to 6-character (byte) file
    positions.
@@ -13,7 +13,7 @@ typedef unsigned char char6[6];
 
 /* Setup template macros */
 
-#define MASTER_ID "$Id: _fsBTree.c,v 1.6 2003/04/04 21:41:54 jeremy Exp $\n"
+#define MASTER_ID "$Id: _fsBTree.c,v 1.7 2003/09/03 17:14:25 kiko Exp $\n"
 
 #define PERSISTENT
 
@@ -24,7 +24,7 @@ typedef unsigned char char6[6];
                 
 /*#include "intkeymacros.h"*/
 
-#define KEYMACROS_H "$Id: _fsBTree.c,v 1.6 2003/04/04 21:41:54 jeremy Exp $\n"
+#define KEYMACROS_H "$Id: _fsBTree.c,v 1.7 2003/09/03 17:14:25 kiko Exp $\n"
 #define KEY_TYPE char2
 #undef KEY_TYPE_IS_PYOBJECT
 #define KEY_CHECK(K) (PyString_Check(K) && PyString_GET_SIZE(K)==2)
@@ -39,7 +39,7 @@ typedef unsigned char char6[6];
       (STATUS)=0; } 
 
 /*#include "intvaluemacros.h"*/
-#define VALUEMACROS_H "$Id: _fsBTree.c,v 1.6 2003/04/04 21:41:54 jeremy Exp $\n"
+#define VALUEMACROS_H "$Id: _fsBTree.c,v 1.7 2003/09/03 17:14:25 kiko Exp $\n"
 #define VALUE_TYPE char6
 #undef VALUE_TYPE_IS_PYOBJECT
 #define TEST_VALUE(K, T) memcmp(K,T,6)
