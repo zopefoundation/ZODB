@@ -15,6 +15,7 @@ from cStringIO import StringIO
 from cPickle import Unpickler, Pickler
 
 from ZODB.POSException import ConflictError
+import zLOG
 
 bad_classes = {}
 
@@ -70,20 +71,29 @@ def persistent_id(object):
         return None
     return object.data
 
+def load_class(class_tuple):
+    try:
+        klass = _classFactory(class_tuple[0], class_tuple[1])
+    except (ImportError, AttributeError):
+        zLOG.LOG("Conflict Resolution", zLOG.BLATHER,
+                 "Unable to load class", error=sys.exc_info())
+        bad_class[class_tuple] = 1
+        return None
+    return klass
+
 def tryToResolveConflict(self, oid, committedSerial, oldSerial, newpickle,
                          committedData=''):
-    #class_tuple, old, committed, newstate = ('',''), 0, 0, 0
+    # class_tuple, old, committed, newstate = ('',''), 0, 0, 0
     try:
+        prfactory = PersistentReferenceFactory()
         file = StringIO(newpickle)
         unpickler = Unpickler(file)
-        prfactory = PersistentReferenceFactory()
         unpickler.persistent_load = prfactory.persistent_load
         class_tuple = unpickler.load()[0]
         if bad_class(class_tuple):
             return 0
-
         newstate = unpickler.load()
-        klass = _classFactory(class_tuple[0], class_tuple[1])
+        klass = load_class(class_tuple)
         inst = klass.__basicnew__()
 
         try:
