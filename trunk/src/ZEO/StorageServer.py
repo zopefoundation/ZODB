@@ -131,7 +131,7 @@ class ZEOStorage:
 
     def notifyDisconnected(self):
         # When this storage closes, we must ensure that it aborts
-        # any pending transaction.  Not sure if this is the cleanest way.
+        # any pending transaction.
         if self.transaction is not None:
             self.log("disconnected during transaction %s" % self.transaction)
             self.abort()
