@@ -158,12 +158,10 @@ method::
 and call it to minotor the storage.
 
 """
-__version__='$Revision: 1.1 $'[11:-2]
+__version__='$Revision: 1.2 $'[11:-2]
 
 import base64, POSException, BTree, BaseStorage, time, string, utils
 from TimeStamp import TimeStamp
-
-class DemoStorageError: pass
 
 class MappingStorage(BaseStorage.BaseStorage):
 
@@ -171,7 +169,6 @@ class MappingStorage(BaseStorage.BaseStorage):
 
         BaseStorage.BaseStorage.__init__(self, name)
 
-        # We use a BTree because the items are sorted!
         self._index={}
         self._tindex=[]
 
@@ -180,7 +177,9 @@ class MappingStorage(BaseStorage.BaseStorage):
         
     def getSize(self):
         s=32
-        for oid, p in self._index.items():
+        index=self._index
+        for oid in index.keys():
+            p=index[oid]
             s=s+56+len(p)
             
         return s
@@ -252,9 +251,11 @@ class MappingStorage(BaseStorage.BaseStorage):
         """
         o=[]
         o.append('Index:')
-        items=self._index.items()
-        items.sort()
-        for oid, r in items:
+        index=self._index
+        keys=index.keys()
+        keys.sort()
+        for oid in keys:
+            r=index[oid]
             o.append('  %s: %s, %s' %
                      (utils.u64(oid),TimeStamp(r[:8]),`r[8:]`))
             
