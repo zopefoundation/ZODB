@@ -18,7 +18,7 @@ Adapted from DBTab/StorageTypes.py.
 
 import re
 
-from ZConfig.Common import asBoolean
+from ZConfig.Config import asBoolean
 
 
 def convertFileStorageArgs(quota=None, stop=None, **kw):
