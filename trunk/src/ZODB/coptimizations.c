@@ -83,6 +83,7 @@
   
  ****************************************************************************/
 #include "Python.h"
+#define DONT_USE_CPERSISTENCECAPI
 #include "cPersistence.h"
 
 static void PyVar_Assign(PyObject **v, PyObject *e) { Py_XDECREF(*v); *v=e;}
@@ -317,7 +318,7 @@ void
 initcoptimizations(void)
 {
   PyObject *m, *d;
-  char *rev="$Revision: 1.10 $";
+  char *rev="$Revision: 1.11 $";
 
 #define make_string(S) if (! (py_ ## S=PyString_FromString(#S))) return
   make_string(_p_oid);
