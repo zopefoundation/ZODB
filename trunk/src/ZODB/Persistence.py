@@ -1,10 +1,9 @@
 #!/usr/local/bin/python 
 # $What$
 
-__doc__='''Python implementation of persistent base types
+__doc__='''Python implementation of a persistent base types
 
-
-$Id: Persistence.py,v 1.11 1997/12/15 23:01:17 jim Exp $'''
+$Id: Persistence.py,v 1.12 1998/03/12 15:38:51 jim Exp $'''
 #     Copyright 
 #
 #       Copyright 1996 Digital Creations, L.C., 910 Princess Anne
@@ -59,7 +58,7 @@ $Id: Persistence.py,v 1.11 1997/12/15 23:01:17 jim Exp $'''
 #
 #   (540) 371-6909
 #
-__version__='$Revision: 1.11 $'[11:-2]
+__version__='$Revision: 1.12 $'[11:-2]
 
 try:
     from cPersistence import Persistent
@@ -147,10 +146,9 @@ except:
 	    old=self._p_changed
 	    if v != -1:
 		if v and not old and self._p_jar is not None:
-		    try:
-			get_transaction().register(self)
-			self._p_changed=1
+		    try: get_transaction().register(self)
 		    except: pass
+		self._p_changed = not not v
 
 	    return old
 	
@@ -193,6 +191,9 @@ except:
 
 ############################################################################
 # $Log: Persistence.py,v $
+# Revision 1.12  1998/03/12 15:38:51  jim
+# Fixed bug in __changed__.
+#
 # Revision 1.11  1997/12/15 23:01:17  jim
 # *** empty log message ***
 #
