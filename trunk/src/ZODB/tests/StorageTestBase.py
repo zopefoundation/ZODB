@@ -100,8 +100,7 @@ def handle_serials(oid, *args):
 
     A helper for function _handle_all_serials().
     """
-    args = (oid,) + args
-    return apply(handle_all_serials, args)[oid]
+    return handle_all_serials(oid, *args)[oid]
 
 def import_helper(name):
     mod = __import__(name)
