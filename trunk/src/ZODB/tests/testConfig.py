@@ -116,54 +116,10 @@ class ZEOConfigTest(ConfigTestBase):
         self.assertRaises(ClientDisconnected, self._test, cfg)
 
 
-class BDBConfigTest(ConfigTestBase):
-    def setUp(self):
-        self._path = tempfile.mktemp()
-        try:
-            os.mkdir(self._path)
-        except OSError, e:
-            if e.errno <> errno.EEXIST:
-                raise
-
-    def test_bdbfull_simple(self):
-        cfg = """
-        <zodb>
-          <fullstorage>
-             envdir %s
-          </fullstorage>
-        </zodb>
-        """ % self._path
-        self._test(cfg)
-
-    def test_bdbminimal_simple(self):
-        cfg = """
-        <zodb>
-          <minimalstorage>
-            envdir %s
-          </minimalstorage>
-        </zodb>
-        """ % self._path
-        self._test(cfg)
-
-
 def test_suite():
     suite = unittest.TestSuite()
     suite.addTest(unittest.makeSuite(ZODBConfigTest))
-    # Only run the ZEO test if ZEO is available
-    try:
-        import ZEO
-    except ImportError:
-        pass
-    else:
-        suite.addTest(unittest.makeSuite(ZEOConfigTest))
-    # Only run the Berkeley tests if bsddb is available
-    try:
-        import BDBStorage
-    except ImportError:
-        pass
-    else:
-        if BDBStorage.is_available:
-            suite.addTest(unittest.makeSuite(BDBConfigTest))
+    suite.addTest(unittest.makeSuite(ZEOConfigTest))
     return suite
 
 
