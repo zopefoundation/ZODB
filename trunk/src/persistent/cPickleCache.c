@@ -90,7 +90,7 @@ process must skip such objects, rather than deactivating them.
 static char cPickleCache_doc_string[] =
 "Defines the PickleCache used by ZODB Connection objects.\n"
 "\n"
-"$Id: cPickleCache.c,v 1.81 2003/04/08 15:55:44 jeremy Exp $\n";
+"$Id: cPickleCache.c,v 1.82 2003/04/23 20:05:51 jeremy Exp $\n";
 
 #define ASSIGN(V,E) {PyObject *__e; __e=(E); Py_XDECREF(V); (V)=__e;}
 #define UNLESS(E) if(!(E))
@@ -104,6 +104,7 @@ static char cPickleCache_doc_string[] =
 #undef Py_FindMethod
 
 static PyObject *py__p_oid, *py_reload, *py__p_jar, *py__p_changed;
+static cPersistenceCAPIstruct *capi;
 
 /* Do we want 'engine noise'.... abstract debugging output useful for
    visualizing cache behavior */
@@ -462,6 +463,46 @@ cc_lru_items(ccobject *self, PyObject *args)
     return l;
 }
 
+/* Be very careful about calling clear().
+
+   It removes all non-ghost objects from the ring without otherwise
+   removing them from the cache.  The method should only be called
+   after the cache is no longer in use.
+*/
+
+static PyObject *
+cc_clear(ccobject *self, PyObject *args)
+{
+    CPersistentRing *here;
+
+    if (!PyArg_ParseTuple(args, ":clear"))
+	return NULL;
+
+    if (self->ring_lock) {
+	/* When the ring lock is held, we have no way of know which
+	   ring nodes belong to persistent objects, and which a
+	   placeholders. */
+        PyErr_SetString(PyExc_ValueError,
+		".lru_items() is unavailable during garbage collection");
+        return NULL;
+    }
+
+    self->ring_lock = 1;
+    while ((here = self->ring_home.next) != & self->ring_home) {
+	cPersistentObject *o = OBJECT_FROM_RING(self, here, "clear");
+
+	self->non_ghost_count--;
+	o->ring.next->prev = &self->ring_home;
+	self->ring_home.next = o->ring.next;
+	o->ring.next = NULL;
+	o->ring.prev = NULL;
+	Py_DECREF(o);
+    }
+    self->ring_lock = 0;
+    Py_INCREF(Py_None);
+    return Py_None;
+}
+
 static int
 cc_oid_unreferenced(ccobject *self, PyObject *oid)
 {
@@ -570,6 +611,8 @@ static struct PyMethodDef cc_methods[] = {
    "get(key [, default]) -- get an item, or a default"},
   {"ringlen", (PyCFunction)cc_ringlen, METH_VARARGS,
    "ringlen() -- Returns number of non-ghost items in cache."},
+  {"clear", (PyCFunction)cc_clear, METH_VARARGS,
+   "clear() -- remove all objects from the cache"},
   {NULL,		NULL}		/* sentinel */
 };
 
@@ -923,7 +966,6 @@ void
 initcPickleCache(void)
 {
     PyObject *m, *d;
-    cPersistenceCAPIstruct *capi;
 
     Cctype.ob_type = &PyType_Type;
 

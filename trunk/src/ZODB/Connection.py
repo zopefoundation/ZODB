@@ -13,7 +13,7 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.89 2003/04/22 18:04:37 jeremy Exp $"""
+$Id: Connection.py,v 1.90 2003/04/23 20:05:51 jeremy Exp $"""
 
 from __future__ import nested_scopes
 
@@ -131,12 +131,15 @@ class Connection(ExportImport.ExportImport):
         return '<Connection at %08x%s>' % (id(self), ver)
 
     def _breakcr(self):
-        try: del self._cache
-        except: pass
-        try: del self._incrgc
-        except: pass
-        try: del self.cacheGC
-        except: pass
+        # Persistent objects and the cache don't participate in GC.
+        # Explicitly remove references from the connection to its
+        # cache and to the root object, because they refer back to the
+        # connection.
+        self._cache.clear()
+        self._cache = None
+        self._incrgc = None
+        self.cacheGC = None
+        self._root_ = None
 
     def __getitem__(self, oid, tt=type(())):
         obj = self._cache.get(oid, None)
