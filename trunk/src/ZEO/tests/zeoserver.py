@@ -119,6 +119,8 @@ class Suicide(threading.Thread):
         # If this process doesn't exit in 60 seconds, commit suicide
         time.sleep(60)
         from ZEO.tests.forker import shutdown_zeo_server
+        # XXX If the -k option was given to zeoserver, then the process will
+        # go away but the temp files won't get cleaned up.
         shutdown_zeo_server(self._adminaddr)
 
 
