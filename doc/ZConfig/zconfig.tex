@@ -708,15 +708,6 @@ The following data types are provided by the default type registry.
   example, \samp{128MB}).  Suffixes are case insensitive and may be
   \samp{KB}, \samp{MB}, or \samp{GB}
 
-\term{\datatype{constructor}}
-  Parse value in the form \samp{fn('1', '2', kw1='a', kw2='b')} into a
-  3-tuple where the first element is the string \code{'fn'}, the 2nd
-  element is the list \code{['1', '2']}, and the 3rd element is the
-  dictionary \code{\{'kw1': 'a', 'kw2': 'b'\}}.  This is useful when
-  representing a Python-style constructor as a value.  Python syntax
-  rules are enforced, but only constants are allowed as positional and
-  keyword arguments.  The 3-tuple is returned.
-
 \term{\datatype{existing-dirpath}}
   Validates that the directory portion of a pathname exists.  For
   example, if the value provided is \file{/foo/bar}, \file{/foo} must
@@ -759,10 +750,6 @@ The following data types are provided by the default type registry.
   address.  If the first character is not a digit, the value 
   is assumed to be a hostname.  Hostnames are converted to lower
   case.
-
-\term{\datatype{key-value}}
-  Parse a value in the form \code{'A B'} into the list \code{['A',
-  'B']}.  Returns the list.
 
 \term{\datatype{locale}}
   Any valid locale specifier accepted by the available
