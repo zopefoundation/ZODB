@@ -84,14 +84,16 @@ else:
         rd, wr = os.pipe()
         pid = os.fork()
         if pid == 0:
-            if PROFILE:
-                p = profile.Profile()
-                p.runctx("run_server(storage, addr, rd, wr)", globals(),
-                         locals())
-                p.dump_stats("stats.s.%d" % os.getpid())
-            else:
-                run_server(storage, addr, rd, wr)
-            os._exit(0)
+            try:
+                if PROFILE:
+                    p = profile.Profile()
+                    p.runctx("run_server(storage, addr, rd, wr)", globals(),
+                             locals())
+                    p.dump_stats("stats.s.%d" % os.getpid())
+                else:
+                    run_server(storage, addr, rd, wr)
+            finally:
+                os._exit(0)
         else:
             os.close(rd)
             return pid, ZEOClientExit(wr)
