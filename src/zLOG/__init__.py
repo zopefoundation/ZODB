@@ -86,11 +86,11 @@ There is a default event logging facility that:
     can be overridden with the environment variable EVENT_LOG_SEVERITY
 
 """
-__version__='$Revision: 1.8 $'[11:-2]
+__version__='$Revision: 1.9 $'[11:-2]
 
 from MinimalLogger import log_write, log_time, severity_string, \
      _set_log_dest, initialize
-from FormatException import format_exception
+from traceback import format_exception
 
 # Standard severities
 TRACE   = -300
