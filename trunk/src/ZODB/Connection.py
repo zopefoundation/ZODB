@@ -13,7 +13,7 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.103 2003/12/08 21:12:25 jeremy Exp $"""
+$Id: Connection.py,v 1.104 2003/12/10 20:02:15 shane Exp $"""
 
 import sys
 import threading
@@ -33,16 +33,20 @@ from ZODB.utils import oid_repr, z64
 from ZODB.serialize \
      import ObjectWriter, getClassMetadata, ConnectionObjectReader
 
-global_code_timestamp = 0
+global_reset_counter = 0
 
-def updateCodeTimestamp():
-    """Called after changes are made to persistence-based classes.
-
-    Causes all connection caches to be re-created as the connections are
-    reopened.
+def resetCaches():
+    """Causes all connection caches to be reset as connections are reopened.
+    
+    Zope's refresh feature uses this.  When you reload Python modules,
+    instances of classes continue to use the old class definitions.
+    To use the new code immediately, the refresh feature asks ZODB to
+    clear caches by calling resetCaches().  When the instances are
+    loaded by subsequent connections, they will use the new class
+    definitions.
     """
-    global global_code_timestamp
-    global_code_timestamp = time()
+    global global_reset_counter
+    global_reset_counter += 1
 
 class Connection(ExportImport, object):
     """Object managers for individual object space.
@@ -55,11 +59,8 @@ class Connection(ExportImport, object):
     _tmp=None
     _debug_info=()
     _opened=None
-    _code_timestamp = 0
+    _reset_counter = 0
     _transaction = None
-
-    # Experimental. Other connections can register to be closed
-    # when we close by putting something here.
 
     def __init__(self, version='', cache_size=400,
                  cache_deactivate_after=60):
@@ -76,7 +77,7 @@ class Connection(ExportImport, object):
             self._cache.cache_drain_resistance = 100
         self._incrgc = self.cacheGC = cache.incrgc
         self._committed = []
-        self._code_timestamp = global_code_timestamp
+        self._reset_counter = global_reset_counter
         self._load_count = 0   # Number of objects unghosted
         self._store_count = 0  # Number of objects stored
 
@@ -161,7 +162,7 @@ class Connection(ExportImport, object):
         self._storage = odb._storage
         self._sortKey = odb._storage.sortKey
         self.new_oid = odb._storage.new_oid
-        if self._code_timestamp != global_code_timestamp:
+        if self._reset_counter != global_reset_counter:
             # New code is in place.  Start a new cache.
             self._resetCache()
         else:
@@ -173,8 +174,11 @@ class Connection(ExportImport, object):
         return self
 
     def _resetCache(self):
-        """Creates a new cache, discarding the old."""
-        self._code_timestamp = global_code_timestamp
+        """Creates a new cache, discarding the old.
+
+        See the docstring for the resetCaches() function.
+        """
+        self._reset_counter = global_reset_counter
         self._invalidated.clear()
         cache_size = self._cache.cache_size
         self._cache = cache = PickleCache(self, cache_size)
