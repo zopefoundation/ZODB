@@ -11,7 +11,6 @@
 # FOR A PARTICULAR PURPOSE
 # 
 ##############################################################################
-
 """A ZEO client-server stress test to look for leaks.
 
 The stress test should run in an infinite loop and should involve
@@ -105,34 +104,32 @@ def start_child(zaddr):
     if pid != 0:
         return pid
     
-    try:
-        storage = ClientStorage(zaddr, debug=1, min_disconnect_poll=0.5)
-        db = ZODB.DB(storage, pool_size=NUM_CONNECTIONS)
-        setup(db.open())
-        conns = []
-        conn_count = 0
+    storage = ClientStorage(zaddr, debug=1, min_disconnect_poll=0.5)
+    db = ZODB.DB(storage, pool_size=NUM_CONNECTIONS)
+    setup(db.open())
+    conns = []
+    conn_count = 0
 
-        for i in range(NUM_CONNECTIONS):
+    for i in range(NUM_CONNECTIONS):
+        c = db.open()
+        c.__count = 0
+        conns.append(c)
+        conn_count += 1
+
+    while conn_count < 25:
+        c = random.choice(conns)
+        if c.__count > NUM_TRANSACTIONS_PER_CONN:
+            conns.remove(c)
+            c.close()
+            conn_count += 1
             c = db.open()
             c.__count = 0
             conns.append(c)
-            conn_count += 1
+        else:
+            c.__count += 1
+        work(c)
 
-        while conn_count < 25:
-            c = random.choice(conns)
-            if c.__count > NUM_TRANSACTIONS_PER_CONN:
-                conns.remove(c)
-                c.close()
-                conn_count += 1
-                c = db.open()
-                c.__count = 0
-                conns.append(c)
-            else:
-                c.__count += 1
-            work(c)
-
-    finally:
-        os._exit(0)
+    os._exit(0)
 
 if __name__ == "__main__":
     main()

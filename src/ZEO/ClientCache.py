@@ -73,7 +73,7 @@ file 0 and file 1.
 
 """
 
-__version__ = "$Revision: 1.21 $"[11:-2]
+__version__ = "$Revision: 1.22 $"[11:-2]
 
 import os, tempfile
 from struct import pack, unpack

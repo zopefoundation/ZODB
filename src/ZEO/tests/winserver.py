@@ -11,7 +11,6 @@
 # FOR A PARTICULAR PURPOSE
 # 
 ##############################################################################
-
 """Helper file used to launch ZEO server for Windows tests"""
 
 import asyncore

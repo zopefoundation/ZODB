@@ -11,7 +11,6 @@
 # FOR A PARTICULAR PURPOSE
 # 
 ##############################################################################
-
 """Test suite for ZEO based on ZODB.tests"""
 
 import asyncore
@@ -27,6 +26,8 @@ import unittest
 import ZEO.ClientStorage, ZEO.StorageServer
 import ThreadedAsync, ZEO.trigger
 from ZODB.FileStorage import FileStorage
+from ZODB.TimeStamp import TimeStamp
+from ZODB.Transaction import Transaction
 import thread
 
 from ZEO.tests import forker, Cache
@@ -35,7 +36,7 @@ from ZEO.smac import Disconnected
 # Sorry Jim...
 from ZODB.tests import StorageTestBase, BasicStorage, VersionStorage, \
      TransactionalUndoStorage, TransactionalUndoVersionStorage, \
-     PackableStorage, Synchronization, ConflictResolution, RevisionStorage
+     PackableStorage, Synchronization, ConflictResolution
 from ZODB.tests.MinPO import MinPO
 from ZODB.tests.StorageTestBase import zodb_unpickle
 
@@ -56,9 +57,63 @@ class PackWaitWrapper:
         self.storage.pack(t, f, wait=1)
 
 class ZEOTestBase(StorageTestBase.StorageTestBase):
-    """Version of the storage test class that supports ZEO."""
-    pass
+    """Version of the storage test class that supports ZEO.
     
+    For ZEO, we don't always get the serialno/exception for a
+    particular store as the return value from the store.   But we
+    will get no later than the return value from vote.
+    """
+    
+    def _dostore(self, oid=None, revid=None, data=None, version=None,
+                 already_pickled=0):
+        """Do a complete storage transaction.
+
+        The defaults are:
+         - oid=None, ask the storage for a new oid
+         - revid=None, use a revid of ZERO
+         - data=None, pickle up some arbitrary data (the integer 7)
+         - version=None, use the empty string version
+        
+        Returns the object's new revision id.
+        """
+        if oid is None:
+            oid = self._storage.new_oid()
+        if revid is None:
+            revid = ZERO
+        if data is None:
+            data = MinPO(7)
+        if not already_pickled:
+            data = StorageTestBase.zodb_pickle(data)
+        if version is None:
+            version = ''
+        # Begin the transaction
+        t = Transaction()
+        self._storage.tpc_begin(t)
+        # Store an object
+        r1 = self._storage.store(oid, revid, data, version, t)
+        s1 = self._get_serial(r1)
+        # Finish the transaction
+        r2 = self._storage.tpc_vote(t)
+        s2 = self._get_serial(r2)
+        self._storage.tpc_finish(t)
+        # s1, s2 can be None or dict
+        assert not (s1 and s2)
+        return s1 and s1[oid] or s2 and s2[oid]
+
+    def _get_serial(self, r):
+        """Return oid -> serialno dict from sequence of ZEO replies."""
+        d = {}
+        if r is None:
+            return None
+        if type(r) == types.StringType:
+            raise RuntimeError, "unexpected ZEO response: no oid"
+        else:
+            for oid, serial in r:
+                if isinstance(serial, Exception):
+                    raise serial
+                d[oid] = serial
+        return d
+
 # Some of the ZEO tests depend on the version of FileStorage available
 # for the tests.  If we run these tests using Zope 2.3, FileStorage
 # doesn't support TransactionalUndo.
@@ -75,14 +130,13 @@ if hasattr(FileStorage, 'supportsTransactionalUndo'):
 else:
     class VersionDependentTests:
         pass
-
+        
 class GenericTests(ZEOTestBase,
                    VersionDependentTests,
                    Cache.StorageWithCache,
                    Cache.TransUndoStorageWithCache,
                    BasicStorage.BasicStorage,
                    VersionStorage.VersionStorage,
-                   RevisionStorage.RevisionStorage,
                    PackableStorage.PackableStorage,
                    Synchronization.SynchronizedStorage,
                    ):
@@ -94,12 +148,16 @@ class GenericTests(ZEOTestBase,
     returns a specific storage, e.g. FileStorage.
     """
 
+    __super_setUp = StorageTestBase.StorageTestBase.setUp
+    __super_tearDown = StorageTestBase.StorageTestBase.tearDown
+
     def setUp(self):
         """Start a ZEO server using a Unix domain socket
 
         The ZEO server uses the storage object returned by the
         getStorage() method.
         """
+        self.__super_setUp()
         self.running = 1
         client, exit, pid = forker.start_zeo(self.getStorage())
         self._pid = pid
@@ -114,13 +172,68 @@ class GenericTests(ZEOTestBase,
         self._server.close()
         os.waitpid(self._pid, 0)
         self.delStorage()
+        self.__super_tearDown()
+
+    def checkTwoArgBegin(self):
+        # XXX ZEO doesn't support 2-arg begin
+        pass
 
     def checkLargeUpdate(self):
         obj = MinPO("X" * (10 * 128 * 1024))
         self._dostore(data=obj)
 
-    def checkTwoArgBegin(self):
-        pass # ZEO 1 doesn't support two-arg begin
+    def checkCommitLockOnCommit(self):
+        self._checkCommitLock("tpc_finish")
+
+    def checkCommitLockOnAbort(self):
+        self._checkCommitLock("tpc_abort")
+
+    def _checkCommitLock(self, method_name):
+        # check the commit lock when a client attemps a transaction,
+        # but fails/exits before finishing the commit.
+
+        # Start on transaction normally.
+        t = Transaction()
+        self._storage.tpc_begin(t)
+
+        # Start a second transaction on a different connection without
+        # blocking the test thread.
+        self._storages = []
+        for i in range(3):
+            storage2 = self._duplicate_client()
+            t2 = Transaction()
+            tid = self._get_timestamp()
+            storage2._call.sendMessage('tpc_begin_sync',
+                                       tid, t2.user, t2.description,
+                                       t2._extension)
+            if i == 0:
+                storage2.close()
+            else:
+                self._storages.append((storage2, t2))
+
+        oid = self._storage.new_oid()
+        self._storage.store(oid, None, '', '', t)
+        self._storage.tpc_vote(t)
+        self._storage.tpc_finish(t)
+
+        for store, trans in self._storages:
+            store.tpc_abort(trans)
+            store.close()
+
+        # Make sure the server is still responsive
+        self._dostore()
+
+    def _duplicate_client(self):
+        "Open another ClientStorage to the same server."
+        addr = self._storage._connection
+        new = ZEO.ClientStorage.ClientStorage(addr)
+        new.registerDB(DummyDB(), None)
+        return new
+
+    def _get_timestamp(self):
+        t = time.time()
+        t = apply(TimeStamp,(time.gmtime(t)[:5]+(t%60,)))
+        return 't'
 
 class ZEOFileStorageTests(GenericTests):
     __super_setUp = GenericTests.setUp
@@ -148,8 +261,11 @@ class WindowsGenericTests(GenericTests):
     can't be created in the parent process and passed to the child.
     All the work has to be done in the server's process.
     """
+    __super_setUp = StorageTestBase.StorageTestBase.setUp
+    __super_tearDown = StorageTestBase.StorageTestBase.tearDown
 
     def setUp(self):
+        self.__super_setUp()
         args = self.getStorageInfo()
         name = args[0]
         args = args[1:]
@@ -169,6 +285,7 @@ class WindowsGenericTests(GenericTests):
 ##        os.waitpid(self.test_pid, 0)
         time.sleep(0.5)
         self.delStorage()
+        self.__super_tearDown()
 
 class WindowsZEOFileStorageTests(WindowsGenericTests):
 
@@ -192,6 +309,8 @@ class ConnectionTests(ZEOTestBase):
     start and stop a ZEO storage server.
     """
     
+    __super_tearDown = StorageTestBase.StorageTestBase.tearDown
+
     ports = []
     for i in range(200):
         ports.append(random.randrange(25000, 30000))
@@ -207,7 +326,6 @@ class ConnectionTests(ZEOTestBase):
 
     def tearDown(self):
         """Try to cause the tests to halt"""
-        self._storage.close()
         self.shutdownServer()
         # file storage appears to create four files
         for ext in '', '.index', '.lock', '.tmp':
@@ -218,6 +336,7 @@ class ConnectionTests(ZEOTestBase):
             path = "c1-test-%d.zec" % i
             if os.path.exists(path):
                 os.unlink(path)
+        self.__super_tearDown()
 
     def checkBasicPersistence(self):
         """Verify cached data persists across client storage instances.
