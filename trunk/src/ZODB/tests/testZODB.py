@@ -16,6 +16,7 @@ import unittest
 import ZODB
 import ZODB.FileStorage
 from ZODB.POSException import ReadConflictError, ConflictError
+from ZODB.POSException import TransactionFailedError
 from ZODB.tests.warnhook import WarningsHook
 
 from persistent import Persistent
@@ -254,7 +255,7 @@ class ZODBTests(unittest.TestCase):
         self.obj = P()
         self.readConflict()
 
-    def readConflict(self, shouldFail=1):
+    def readConflict(self, shouldFail=True):
         # Two transactions run concurrently.  Each reads some object,
         # then one commits and the other tries to read an object
         # modified by the first.  This read should fail with a conflict
@@ -290,6 +291,15 @@ class ZODBTests(unittest.TestCase):
             # the transaction should re-raise it.  checkNotIndependent()
             # failed this part of the test for a long time.
             self.assertRaises(ReadConflictError, tm2.get().commit)
+
+            # And since that commit failed, trying to commit again should
+            # fail again.
+            self.assertRaises(TransactionFailedError, tm2.get().commit)
+            # And again.
+            self.assertRaises(TransactionFailedError, tm2.get().commit)
+            # Etc.
+            self.assertRaises(TransactionFailedError, tm2.get().commit)
+
         else:
             # make sure that accessing the object succeeds
             obj.child1
@@ -337,12 +347,13 @@ class ZODBTests(unittest.TestCase):
         self.assert_(not index2[0]._p_changed)
         self.assert_(not index2[1]._p_changed)
 
-        self.assertRaises(ConflictError, tm.get().commit)
-        transaction.abort()
+        self.assertRaises(ReadConflictError, tm.get().commit)
+        self.assertRaises(TransactionFailedError, tm.get().commit)
+        tm.get().abort()
 
     def checkIndependent(self):
         self.obj = Independent()
-        self.readConflict(shouldFail=0)
+        self.readConflict(shouldFail=False)
 
     def checkNotIndependent(self):
         self.obj = DecoyIndependent()
@@ -437,6 +448,149 @@ class ZODBTests(unittest.TestCase):
 
         finally:
             del warnings.filters[0]
+
+    def checkFailingCommitSticks(self):
+        # See also checkFailingSubtransactionCommitSticks.
+        cn = self._db.open()
+        rt = cn.root()
+        rt['a'] = 1
+
+        # Arrange for commit to fail during tpc_vote.
+        poisoned = PoisonedObject(PoisonedJar(break_tpc_vote=True))
+        transaction.get().register(poisoned)
+
+        self.assertRaises(PoisonedError, transaction.get().commit)
+        # Trying to commit again fails too.
+        self.assertRaises(TransactionFailedError, transaction.get().commit)
+        self.assertRaises(TransactionFailedError, transaction.get().commit)
+        self.assertRaises(TransactionFailedError, transaction.get().commit)
+
+        # The change to rt['a'] is lost.
+        self.assertRaises(KeyError, rt.__getitem__, 'a')
+
+        # Trying to modify an object also fails, because Transaction.join()
+        # also raises TransactionFailedError.
+        self.assertRaises(TransactionFailedError, rt.__setitem__, 'b', 2)
+
+        # Clean up via abort(), and try again.
+        transaction.get().abort()
+        rt['a'] = 1
+        transaction.get().commit()
+        self.assertEqual(rt['a'], 1)
+
+        # Cleaning up via begin() should also work.
+        rt['a'] = 2
+        transaction.get().register(poisoned)
+        self.assertRaises(PoisonedError, transaction.get().commit)
+        self.assertRaises(TransactionFailedError, transaction.get().commit)
+        # The change to rt['a'] is lost.
+        self.assertEqual(rt['a'], 1)
+        # Trying to modify an object also fails.
+        self.assertRaises(TransactionFailedError, rt.__setitem__, 'b', 2)
+        # Clean up via begin(), and try again.
+        transaction.begin()
+        rt['a'] = 2
+        transaction.get().commit()
+        self.assertEqual(rt['a'], 2)
+
+        cn.close()
+
+    def checkFailingSubtransactionCommitSticks(self):
+        cn = self._db.open()
+        rt = cn.root()
+        rt['a'] = 1
+        transaction.get().commit(True)
+        self.assertEqual(rt['a'], 1)
+
+        rt['b'] = 2
+        # Subtransactions don't do tpc_vote, so we poison tpc_begin.
+        poisoned = PoisonedObject(PoisonedJar(break_tpc_begin=True))
+        transaction.get().register(poisoned)
+        self.assertRaises(PoisonedError, transaction.get().commit, True)
+        # Trying to subtxn-commit again fails too.
+        self.assertRaises(TransactionFailedError, transaction.get().commit, True)
+        self.assertRaises(TransactionFailedError, transaction.get().commit, True)
+        # Top-level commit also fails.
+        self.assertRaises(TransactionFailedError, transaction.get().commit)
+
+        # The changes to rt['a'] and rt['b'] are lost.
+        self.assertRaises(KeyError, rt.__getitem__, 'a')
+        self.assertRaises(KeyError, rt.__getitem__, 'b')
+
+        # Trying to modify an object also fails, because Transaction.join()
+        # also raises TransactionFailedError.
+        self.assertRaises(TransactionFailedError, rt.__setitem__, 'b', 2)
+
+        # Clean up via abort(), and try again.
+        transaction.get().abort()
+        rt['a'] = 1
+        transaction.get().commit()
+        self.assertEqual(rt['a'], 1)
+
+        # Cleaning up via begin() should also work.
+        rt['a'] = 2
+        transaction.get().register(poisoned)
+        self.assertRaises(PoisonedError, transaction.get().commit, True)
+        self.assertRaises(TransactionFailedError, transaction.get().commit, True)
+        # The change to rt['a'] is lost.
+        self.assertEqual(rt['a'], 1)
+        # Trying to modify an object also fails.
+        self.assertRaises(TransactionFailedError, rt.__setitem__, 'b', 2)
+        # Clean up via begin(), and try again.
+        transaction.begin()
+        rt['a'] = 2
+        transaction.get().commit(True)
+        self.assertEqual(rt['a'], 2)
+        transaction.get().commit()
+
+        cn2 = self._db.open()
+        rt = cn.root()
+        self.assertEqual(rt['a'], 2)
+
+        cn.close()
+        cn2.close()
+
+class PoisonedError(Exception):
+    pass
+
+# PoisonedJar arranges to raise exceptions from interesting places.
+# For whatever reason, subtransaction commits don't call tpc_vote.
+class PoisonedJar:
+    def __init__(self, break_tpc_begin=False, break_tpc_vote=False):
+        self.break_tpc_begin = break_tpc_begin
+        self.break_tpc_vote = break_tpc_vote
+
+    def sortKey(self):
+        return str(id(self))
+
+    # A way to poison a subtransaction commit.
+    def tpc_begin(self, *args):
+        if self.break_tpc_begin:
+            raise PoisonedError("tpc_begin fails")
+
+    # A way to poison a top-level commit.
+    def tpc_vote(self, *args):
+        if self.break_tpc_vote:
+            raise PoisonedError("tpc_vote fails")
+
+    # commit_sub is needed else this jar is ignored during subtransaction
+    # commit.
+    def commit_sub(*args):
+        pass
+
+    def abort_sub(*args):
+        pass
+
+    def commit(*args):
+        pass
+
+    def abort(*self):
+        pass
+
+
+class PoisonedObject:
+    def __init__(self, poisonedjar):
+        self._p_jar = poisonedjar
 
 def test_suite():
     return unittest.makeSuite(ZODBTests, 'check')

@@ -22,7 +22,7 @@ Connection
 
 ZODB intends to raise ConnnectionStateError if an attempt is made to close
 a connection while modifications are pending (the connection is involved in
-a transaction that hasn't been ``abort()``'ed or ``commit()``'ed). It was
+a transaction that hasn't been ``abort()``'ed or ``commit()``'ed).  It was
 missing the case where the only pending modifications were made in
 subtransactions.  This has been fixed.  If an attempt to close a connection
 with pending subtransactions is made now::
@@ -33,6 +33,39 @@ is raised.
 
 transaction
 -----------
+
+- Transactions have new, backward-incompatible behavior in one respect:
+  if a ``Transaction.commit()``, ``Transaction.commit(False)``, or
+  ``Transaction.commit(True)`` raised an exception, prior behavior was that
+  the transaction effectively aborted, and a new transaction began.
+  A primary bad consequence was that, if in a sequence of subtransaction
+  commits, one of the commits failed but the exception was suppressed,
+  all changes up to and including the failing commit were lost, but
+  later subtransaction commits in the sequence got no indication that
+  something had gone wrong, nor did the final (top level) commit.  This
+  could easily lead to inconsistent data being committed, from the
+  application's point of view.
+
+  The new behavior is that a failing commit "sticks" until explicitly
+  cleared.  Now if an exception is raised by a ``commit()`` call (whether
+  subtransaction or top level) on a Transaction object ``T``:
+
+    - Pending changes are aborted, exactly as they were for a failing
+      commit before.
+
+    - But ``T`` remains the current transaction object (if ``tm`` is ``T``'s
+      transaction manger, ``tm.get()`` continues to return ``T``).
+
+    - All subsequent attempts to do ``T.commit()``, ``T.join()``, or
+      ``T.register()`` raise the new ``TransactionFailedError`` exception.
+      Note that if you try to modify a persistent object, that object's
+      resource manager (usually a ``Connection`` object) will attempt to
+      ``join()`` the failed transaction, and ``TransactionFailedError``
+      will be raised right away.
+
+  So after a transaction or subtransaction commit fails, that must be
+  explicitly cleared now, either by invoking ``abort()`` on the transaction
+  object, or by invoking ``begin()`` on its transaction manager.
 
 - Some explanations of new transaction features in the 3.3a3 news
   were incorrect, and this news file has been retroactively edited to
@@ -59,12 +92,13 @@ transaction
       >>> import transaction
       >>> txn = transaction.begin()  # start a txn using the default TM
 
-  if using the default ThreadTransactionManager (see news for 3.3a3 below).
-  In 3.3, it's intended that a single Transaction object is used for exactly
-  one transaction.  So, unlike as in 3.2, when somtimes Transaction objects
-  were reused across transactions, but sometimes weren't, when you do
-  ``Transaction.begin()`` in 3.3 a brand new transaction object is
-  created.  That's why this use is deprecated.  Code of the form:
+  if using the default ``ThreadTransactionManager`` (see news for 3.3a3
+  below). In 3.3, it's intended that a single ``Transaction`` object is
+  used for exactly one transaction.  So, unlike as in 3.2, when somtimes
+  ``Transaction`` objects were reused across transactions, but sometimes
+  weren't, when you do ``Transaction.begin()`` in 3.3 a brand new
+  transaction object is created.  That's why this use is deprecated.  Code
+  of the form:
 
       >>> txn = transaction.get()
       >>> ...
@@ -72,10 +106,8 @@ transaction
       >>> ...
       >>> txn.commit()
 
-  can't work as intended is 3.3, because ``txn`` is no longer the current
-  Transaction object the instant ``txn.begin()`` returns.
-
-
+  can't work as intended ib 3.3, because ``txn`` is no longer the current
+  ``Transaction`` object the instant ``txn.begin()`` returns.
 
 BTrees
 ------
