@@ -360,7 +360,28 @@ only with great care:
        Any part of a comparison implementation that relies (explicitly
        or implicitly) on an address-based comparison result will
        eventually cause serious failure.
+
+\item  Do not use \class{Persistent} objects as keys, or objects of a
+       subclass of \class{Persistent}.
 \end{enumerate}
+
+That last item may be surprising.  It stems from details of how
+conflict resolution is implemented:  the states passed to conflict
+resolution do not materialize persistent subobjects (if a persistent
+object P is a key in a BTree, then P is a subobject of the bucket
+containing P).  Instead, if an object O references a persistent subobject
+P directly, and O is involved in a conflict, the states passed to
+conflict resolution contain an instance of an internal
+\class{PersistentReference} stub class everywhere O references P.
+Two \class{PersistentReference} instances compare equal if and only if
+they "represent" the same persistent object; when they're not equal,
+they compare by memory address, and, as expalined before, memory-based
+comparison must never happen in a sane persistent BTree.  Note that it
+doesn't help in this case if your \class{Persistent} subclass defines
+a sane \method{__cmp__()} method:  conflict resolution doesn't know
+about your class, and so also doesn't know about its \method{__cmp__()}
+method.  It only sees instances of the internal \class{PersistentReference}
+stub class.
 
 
 \subsubsection{Iteration and Mutation}
