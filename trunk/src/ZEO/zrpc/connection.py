@@ -12,6 +12,7 @@
 # 
 ##############################################################################
 import asyncore
+import select
 import sys
 import threading
 import types
