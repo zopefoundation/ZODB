@@ -12,7 +12,7 @@
 
  ****************************************************************************/
 
-#define BTREETEMPLATE_C "$Id: BTreeTemplate.c,v 1.62 2002/06/18 22:56:01 tim_one Exp $\n"
+#define BTREETEMPLATE_C "$Id: BTreeTemplate.c,v 1.63 2002/06/19 20:20:07 jeremy Exp $\n"
 
 /*
 ** _BTree_get
@@ -763,93 +763,90 @@ err:
 static int
 _BTree_setstate(BTree *self, PyObject *state, int noval)
 {
-  PyObject *items, *firstbucket=0;
-  BTreeItem *d;
-  int len, l, i, copied=1;
+    PyObject *items, *firstbucket=0;
+    BTreeItem *d;
+    int len, l, i, copied=1;
 
-  if (_BTree_clear(self) < 0) return -1;
+    if (_BTree_clear(self) < 0) 
+	return -1;
 
-  if (state != Py_None)
-    {
+    /* The state of a BTree can be one of the following:
+       None -- an empty BTree
+       A one-tuple -- a single bucket btree
+       A two-tuple -- a BTree with more than one bucket
+       See comments for BTree_getstate() for the details.
+    */
 
-      if (!PyArg_ParseTuple(state,"O|O",&items, &firstbucket))
+    if (state == Py_None)
+	return 0;
+
+    if (!PyArg_ParseTuple(state, "O|O:__setstate__", &items, &firstbucket))
         return -1;
 
-      if ((len=PyTuple_Size(items)) < 0) return -1;
-      len=(len+1)/2;
-      assert(len > 0);
+    len = PyTuple_Size(items);
+    if (len < 0)
+	return -1;
+    len = (len + 1) / 2;
+    assert(len > 0);
 
-      assert(self->size == 0); /* XXX we called _BTree_clear() above! */
-      assert(self->data == NULL); /* ditto */
-      if (len > self->size)
-        {
-          UNLESS (d = PyRealloc(self->data, sizeof(BTreeItem)*len)) return -1;
-          self->data = d;
-          self->size = len;
-        }
+    assert(self->size == 0); /* XXX we called _BTree_clear() above! */
+    assert(self->data == NULL); /* ditto */
+    self->data = PyMalloc(sizeof(BTreeItem) * len);
+    if (self->data == NULL)
+	return -1;
+    self->size = len;
 
-      for (i = 0, d = self->data, l = 0; i < len; i++, d++)
-        {
-          if (i)
-            {
-              COPY_KEY_FROM_ARG(d->key, PyTuple_GET_ITEM(items,l), copied);
-              l++;
-              UNLESS (copied) return -1;
-              INCREF_KEY(d->key);
-            }
-          d->child = SIZED(PyTuple_GET_ITEM(items,l));
-          if (PyTuple_Check(d->child))
-            {
-              if (noval)
-                {
-                  d->child = SIZED(PyObject_CallObject(OBJECT(&SetType),
-                                                       NULL));
-                  UNLESS (d->child) return -1;
-                  if (_set_setstate(BUCKET(d->child),
-                                    PyTuple_GET_ITEM(items,l))
-                      < 0) return -1;
-                }
-              else
-                {
-                  d->child = SIZED(PyObject_CallObject(OBJECT(&BucketType),
-                                                       NULL));
-                  UNLESS (d->child) return -1;
-                  if (_bucket_setstate(BUCKET(d->child),
-                                       PyTuple_GET_ITEM(items,l))
-                      < 0) return -1;
-                }
-            }
-          else
-            {
-              Py_INCREF(d->child);
-            }
-          l++;
-        }
-
-      assert(len > 0);
-      if (len)
-        {
-          if (! firstbucket)
-            firstbucket = OBJECT(self->data->child);
-
-          UNLESS (ExtensionClassSubclassInstance_Check(
-                    firstbucket,
-                    noval ? &SetType : &BucketType))
-            {
-              PyErr_SetString(PyExc_TypeError,
-                              "No firstbucket in non-empty BTree");
-              return -1;
-            }
-
-          self->firstbucket = BUCKET(firstbucket);
-          Py_INCREF(firstbucket);
-          assert(firstbucket->ob_refcnt > 1);
-        }
-
-      self->len = len;
+    for (i = 0, d = self->data, l = 0; i < len; i++, d++) {
+	PyObject *v;
+	if (i) { /* skip the first key slot */
+	    COPY_KEY_FROM_ARG(d->key, PyTuple_GET_ITEM(items,l), copied);
+	    l++;
+	    if (!copied)
+		return -1;
+	    INCREF_KEY(d->key);
+	}
+	v = PyTuple_GET_ITEM(items, l);
+	if (PyTuple_Check(v)) {
+	    /* Handle the special case in __getstate__() for a BTree
+	       with a single bucket. */
+	    if (noval) {
+		d->child = SIZED(PyObject_CallObject(OBJECT(&SetType),
+						     NULL));
+		UNLESS (d->child) return -1;
+		if (_set_setstate(BUCKET(d->child), v) < 0)
+		    return -1;
+	    }
+	    else {
+		d->child = SIZED(PyObject_CallObject(OBJECT(&BucketType),
+						     NULL));
+		UNLESS (d->child) return -1;
+		if (_bucket_setstate(BUCKET(d->child), v) < 0)
+		    return -1;
+	    }
+	}
+	else {
+	    d->child = (Sized *)v;
+	    Py_INCREF(v);
+	}
+	l++;
     }
 
-  return 0;
+    if (!firstbucket)
+	firstbucket = OBJECT(self->data->child);
+
+    if (!ExtensionClassSubclassInstance_Check(
+	    firstbucket, noval ? &SetType : &BucketType)) {
+	PyErr_SetString(PyExc_TypeError, "No firstbucket in non-empty BTree");
+	return -1;
+    }
+
+    self->firstbucket = BUCKET(firstbucket);
+    Py_INCREF(firstbucket);
+    assert(firstbucket->ob_refcnt > 1);
+
+    self->len = len;
+
+    return 0;
 }
 
 static PyObject *
