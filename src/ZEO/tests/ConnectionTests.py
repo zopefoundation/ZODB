@@ -168,7 +168,7 @@ class CommonSetupTearDown(StorageTestBase):
             zconf.transaction_timeout = self.timeout
         return zconf
 
-    def startServer(self, create=1, index=0, read_only=0, ro_svr=0):
+    def startServer(self, create=1, index=0, read_only=0, ro_svr=0, keep=None):
         addr = self.addr[index]
         zLOG.LOG("testZEO", zLOG.INFO,
                  "startServer(create=%d, index=%d, read_only=%d) @ %s" %
@@ -176,9 +176,10 @@ class CommonSetupTearDown(StorageTestBase):
         path = "%s.%d" % (self.file, index)
         sconf = self.getConfig(path, create, read_only)
         zconf = self.getServerConfig(addr, ro_svr)
-        zeoport, adminaddr, pid, path = forker.start_zeo_server(sconf, zconf,
-                                                                addr[1],
-                                                                self.keep)
+        if keep is None:
+            keep = self.keep
+        zeoport, adminaddr, pid, path = forker.start_zeo_server(
+            sconf, zconf, addr[1], keep)
         self.conf_paths.append(path)
         self._pids.append(pid)
         self._servers.append(adminaddr)
@@ -564,6 +565,10 @@ class ConnectionTests(CommonSetupTearDown):
         db1.close()
 
 class ReconnectionTests(CommonSetupTearDown):
+    # The setUp() starts a server automatically.  In order for its
+    # state to persist, we set the class variable keep to 1.  In
+    # order for its state to be cleaned up, the last startServer()
+    # call in the test must pass keep=0.
     keep = 1
     invq = 2
 
@@ -574,7 +579,7 @@ class ReconnectionTests(CommonSetupTearDown):
         self.shutdownServer()
         self._servers = []
         # Start a read-only server
-        self.startServer(create=0, index=0, read_only=1)
+        self.startServer(create=0, index=0, read_only=1, keep=0)
         # Start a read-only client
         self._storage = self.openClientStorage(read_only=1)
         # Stores should fail here
@@ -587,7 +592,7 @@ class ReconnectionTests(CommonSetupTearDown):
         self.shutdownServer()
         self._servers = []
         # Start a read-only server
-        self.startServer(create=0, index=0, read_only=1)
+        self.startServer(create=0, index=0, read_only=1, keep=0)
         # Start a read-only-fallback client
         self._storage = self.openClientStorage(read_only_fallback=1)
         # Stores should fail here
@@ -611,7 +616,7 @@ class ReconnectionTests(CommonSetupTearDown):
         self.assertRaises(ReadOnlyError, self._dostore)
 
         # Restart the server
-        self.startServer(create=0, read_only=1)
+        self.startServer(create=0, read_only=1, keep=0)
         # Poll until the client connects
         self.pollUp()
         # Stores should still fail
@@ -635,7 +640,7 @@ class ReconnectionTests(CommonSetupTearDown):
         self.assertRaises(ClientDisconnected, self._dostore)
 
         # Restart the server
-        self.startServer(create=0, read_only=1)
+        self.startServer(create=0, read_only=1, keep=0)
         # Poll until the client connects
         self.pollUp()
         # Stores should fail here
@@ -664,7 +669,7 @@ class ReconnectionTests(CommonSetupTearDown):
         self.assertRaises(ClientDisconnected, self._dostore)
 
         # Restart the server, this time read-write
-        self.startServer(create=0)
+        self.startServer(create=0, keep=0)
         # Poll until the client sconnects
         self.pollUp()
         # Stores should now succeed
@@ -688,7 +693,7 @@ class ReconnectionTests(CommonSetupTearDown):
         self.assertRaises(ReadOnlyError, self._dostore)
 
         # Start a read-write server
-        self.startServer(index=1, read_only=0)
+        self.startServer(index=1, read_only=0, keep=0)
         # After a while, stores should work
         for i in range(300): # Try for 30 seconds
             try:
@@ -711,7 +716,7 @@ class ReconnectionTests(CommonSetupTearDown):
         self.shutdownServer()
         self.pollDown()
         self._storage.verify_result = None
-        self.startServer(create=0)
+        self.startServer(create=0, keep=0)
         self.pollUp()
         # There were no transactions committed, so no verification
         # should be needed.
@@ -739,7 +744,7 @@ class ReconnectionTests(CommonSetupTearDown):
         self._storage.verify_result = None
         perstorage.verify_result = None
         zLOG.LOG("testZEO", zLOG.INFO, '2ALLBEEF')
-        self.startServer(create=0)
+        self.startServer(create=0, keep=0)
         self.pollUp()
         self.pollUp(storage=perstorage)
         # There were no transactions committed, so no verification
