@@ -32,7 +32,8 @@ def usage(msg):
 
 def main():
     # Parse options
-    cachelimit = 20*1000*1000
+    MB = 1024*1024
+    cachelimit = 20*MB
     simclass = ZEOCacheSimulation
     try:
         opts, args = getopt.getopt(sys.argv[1:], "bls:")
@@ -45,7 +46,7 @@ def main():
         if o == '-l':
             simclass = LRUCacheSimulation
         if o == '-s':
-            cachelimit = int(float(a) * 1e6)
+            cachelimit = int(float(a)*MB)
     if len(args) != 1:
         usage("exactly one file argument required")
         return 2
