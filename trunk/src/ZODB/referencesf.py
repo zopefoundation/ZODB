@@ -19,7 +19,7 @@ def referencesf(p, rootl=None,
                 Unpickler=cPickle.Unpickler,
                 StringIO=cStringIO.StringIO,
                 tt=type(()),
-                type=type, None=None):
+                type=type):
 
     if rootl is None: rootl=[]
     u=Unpickler(StringIO(p))
