@@ -1,6 +1,6 @@
 ##############################################################################
 #
-# Copyright (c) 2001, 2002 Zope Corporation and Contributors.
+# Copyright (c) 2004 Zope Corporation and Contributors.
 # All Rights Reserved.
 #
 # This software is subject to the provisions of the Zope Public License,
@@ -12,15 +12,7 @@
 #
 ##############################################################################
 
-from persistent import Persistent
-
 from zope.testing.doctestunit import DocFileSuite
 
-class P(Persistent):
-    def __init__(self):
-        self.x = 0
-    def inc(self):
-        self.x += 1
-
 def test_suite():
-    return DocFileSuite("persistent.txt", globs={"P": P})
+    return DocFileSuite("dbopen.txt")

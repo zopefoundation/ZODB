@@ -34,6 +34,8 @@ from ZODB.TmpStore import TmpStore
 from ZODB.utils import u64, oid_repr, z64, positive_id
 from ZODB.serialize import ObjectWriter, ConnectionObjectReader, myhasattr
 from ZODB.interfaces import IConnection
+from ZODB.utils import DEPRECATED_ARGUMENT, deprecated36
+
 from zope.interface import implements
 
 global_reset_counter = 0
@@ -262,9 +264,8 @@ class Connection(ExportImport, object):
         method.  You can pass a transaction manager (TM) to DB.open()
         to control which TM the Connection uses.
         """
-        warnings.warn("getTransaction() is deprecated. "
-                      "Use the txn_mgr argument to DB.open() instead.",
-                      DeprecationWarning)
+        deprecated36("getTransaction() is deprecated. "
+                     "Use the txn_mgr argument to DB.open() instead.")
         return self._txn_mgr.get()
 
     def setLocalTransaction(self):
@@ -276,9 +277,8 @@ class Connection(ExportImport, object):
         can pass a transaction manager (TM) to DB.open() to control
         which TM the Connection uses.
         """
-        warnings.warn("setLocalTransaction() is deprecated. "
-                      "Use the txn_mgr argument to DB.open() instead.",
-                      DeprecationWarning)
+        deprecated36("setLocalTransaction() is deprecated. "
+                     "Use the txn_mgr argument to DB.open() instead.")
         if self._txn_mgr is transaction.manager:
             if self._synch:
                 self._txn_mgr.unregisterSynch(self)
@@ -486,14 +486,14 @@ class Connection(ExportImport, object):
 
     def cacheFullSweep(self, dt=None):
         # XXX needs doc string
-        warnings.warn("cacheFullSweep is deprecated. "
-                      "Use cacheMinimize instead.", DeprecationWarning)
+        deprecated36("cacheFullSweep is deprecated. "
+                     "Use cacheMinimize instead.")
         if dt is None:
             self._cache.full_sweep()
         else:
             self._cache.full_sweep(dt)
 
-    def cacheMinimize(self, dt=None):
+    def cacheMinimize(self, dt=DEPRECATED_ARGUMENT):
         """Deactivate all unmodified objects in the cache.
 
         Call _p_deactivate() on each cached object, attempting to turn
@@ -503,9 +503,8 @@ class Connection(ExportImport, object):
         :Parameters:
           - `dt`: ignored.  It is provided only for backwards compatibility.
         """
-        if dt is not None:
-            warnings.warn("The dt argument to cacheMinimize is ignored.",
-                          DeprecationWarning)
+        if dt is not DEPRECATED_ARGUMENT:
+            deprecated36("cacheMinimize() dt= is ignored.")
         self._cache.minimize()
 
     def cacheGC(self):
@@ -781,8 +780,8 @@ class Connection(ExportImport, object):
             # an oid is being registered.  I can't think of any way to
             # achieve that without assignment to _p_jar.  If there is
             # a way, this will be a very confusing warning.
-            warnings.warn("Assigning to _p_jar is deprecated",
-                          DeprecationWarning)
+            deprecated36("Assigning to _p_jar is deprecated, and will be "
+                         "changed to raise an exception.")
         elif obj._p_oid in self._added:
             # It was registered before it was added to _added.
             return
