@@ -15,11 +15,13 @@
 
 import os
 import sys
+import time
 import errno
 import getopt
 import random
 import socket
 import asyncore
+import threading
 import ThreadedAsync.LoopCallback
 
 import ZConfig.Context
@@ -108,6 +110,18 @@ class ZEOTestServer(asyncore.dispatcher):
         self._count -= 1
 
 
+class Suicide(threading.Thread):
+    def __init__(self, addr):
+        threading.Thread.__init__(self)
+        self._adminaddr = addr
+
+    def run(self):
+        # If this process doesn't exit in 60 seconds, commit suicide
+        time.sleep(60)
+        from ZEO.tests.forker import shutdown_zeo_server
+        shutdown_zeo_server(self._adminaddr)
+
+
 def main():
     label = 'zeoserver:%d' % os.getpid()
     log(label, 'starting')
@@ -140,9 +154,10 @@ def main():
     # The rest of the args are hostname, portnum
     zeo_port = int(args[0])
     test_port = zeo_port + 1
+    test_addr = ('', test_port)
     try:
         log(label, 'creating the test server, ro: %s, keep: %s', ro_svr, keep)
-        t = ZEOTestServer(('', test_port), storage, keep)
+        t = ZEOTestServer(test_addr, storage, keep)
     except socket.error, e:
         if e[0] <> errno.EADDRINUSE: raise
         log(label, 'addr in use, closing and exiting')
@@ -155,6 +170,11 @@ def main():
         addr, {'1': storage}, ro_svr,
         invalidation_queue_size=invalidation_queue_size,
         transaction_timeout=transaction_timeout)
+    # Create daemon suicide thread
+    d = Suicide(test_addr)
+    d.setDaemon(1)
+    d.start()
+    # Loop for socket events
     log(label, 'entering ThreadedAsync loop')
     ThreadedAsync.LoopCallback.loop()
 
