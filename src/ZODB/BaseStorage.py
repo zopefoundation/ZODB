@@ -86,7 +86,7 @@
 """
 # Do this portably in the face of checking out with -kv
 import string
-__version__ = string.split('$Revision: 1.14 $')[-2:][0]
+__version__ = string.split('$Revision: 1.15 $')[-2:][0]
 
 import ThreadLock, bpthread
 import time, UndoLogCompatible
@@ -252,6 +252,15 @@ class BaseStorage(UndoLogCompatible.UndoLogCompatible):
     def versions(self, max=None): return ()
 
     def pack(self, t, referencesf): pass
+
+    def getSerial(self, oid):
+        self._lock_acquire()
+        try:
+            v = self.modifiedInVersion(oid)
+            pickledata, serial = self.load(oid, v)
+            return serial
+        finally:
+            self._lock_release()
 
     def loadSerial(self, oid, serial):
         raise POSException.Unsupported, (
