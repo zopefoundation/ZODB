@@ -21,4 +21,4 @@ ZEO is now part of ZODB; ZODB's home on the web is
 
 """
 
-version = "2.3a2"
+version = "2.3a3"
