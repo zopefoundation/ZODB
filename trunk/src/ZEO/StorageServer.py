@@ -41,7 +41,7 @@
 #   SUCH DAMAGE.
 ######################################################################
 
-__version__ = "$Revision: 1.6 $"[11:-2]
+__version__ = "$Revision: 1.7 $"[11:-2]
 
 import asyncore, socket, string, sys, cPickle
 from smac import SizedMessageAsyncConnection
@@ -49,6 +49,8 @@ from ZODB import POSException
 from ZODB.Transaction import Transaction
 import traceback
 from zLOG import LOG, INFO, ERROR
+from ZODB.referencesf import referencesf
+from thread import start_new_thread
 
 class StorageServerError(POSException.StorageError): pass
 
@@ -227,7 +229,9 @@ class Connection(SizedMessageAsyncConnection):
             self.message_output('I'+dumps(((oid, osv, v),)))
             
         return _noreturn
-        
+
+    def pack(self, t):
+        start_new_thread(self.__storage.pack, (t, referencesf))
 
     def store(self, oid, serial, data, version, id):
         t=self._transaction
