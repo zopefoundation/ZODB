@@ -1,5 +1,5 @@
 ##############################################################################
-# 
+#
 # Copyright (c) 2001 Zope Corporation and Contributors. All Rights Reserved.
 # 
 # This software is subject to the provisions of the Zope Public License,
@@ -12,8 +12,8 @@
 ##############################################################################
 """Database objects
 
-$Id: DB.py,v 1.37 2002/01/09 18:54:20 Brian Exp $"""
-__version__='$Revision: 1.37 $'[11:-2]
+$Id: DB.py,v 1.38 2002/01/09 19:15:31 Brian Exp $"""
+__version__='$Revision: 1.38 $'[11:-2]
 
 import cPickle, cStringIO, sys, POSException, UndoLogCompatible
 from Connection import Connection
@@ -72,15 +72,20 @@ class DB(UndoLogCompatible.UndoLogCompatible):
         self._storage=storage
         storage.registerDB(self, None)
         if not hasattr(storage,'tpc_vote'): storage.tpc_vote=lambda *args: None
-        try: storage.load('\0\0\0\0\0\0\0\0','')
-        except:
+        try:
+            storage.load('\0\0\0\0\0\0\0\0','')
+        except KeyError:
+            # Create the database's root in the storage if it doesn't exist
             import PersistentMapping
-            file=cStringIO.StringIO()
-            p=cPickle.Pickler(file,1)
-            p.dump((PersistentMapping.PersistentMapping,None))
-            p.dump({'_container': {}})
-            t=Transaction()
-            t.description='initial database creation'
+            root = PersistentMapping.PersistentMapping()
+            # Manually create a pickle for the root to put in the storage.
+            # The pickle must be in the special ZODB format.
+            file = cStringIO.StringIO()
+            p = cPickle.Pickler(file, 1)
+            p.dump((root.__class__, None))
+            p.dump(root.__getstate__())
+            t = Transaction()
+            t.description = 'initial database creation'
             storage.tpc_begin(t)
             storage.store('\0\0\0\0\0\0\0\0', None, file.getvalue(), '', t)
             storage.tpc_vote(t)
@@ -182,7 +187,7 @@ class DB(UndoLogCompatible.UndoLogCompatible):
 
                 module = getattr(ob.__class__, '__module__', '')
                 module = module and '%s.' % module or ''
-
+    
                 detail.append({
                     'conn_no': cn,
                     'oid': oid,
