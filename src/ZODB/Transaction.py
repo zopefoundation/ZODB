@@ -13,7 +13,7 @@
 ##############################################################################
 """Transaction management
 
-$Id: Transaction.py,v 1.58 2004/02/27 00:31:53 faassen Exp $
+$Id: Transaction.py,v 1.59 2004/04/01 03:56:58 jeremy Exp $
 """
 import sys
 from thread import get_ident as _get_ident
@@ -64,6 +64,7 @@ class Transaction:
         self._id=id
         self._objects=[]
         self._append=self._objects.append
+        raise RuntimeError
 
     def _init(self):
         self._objects=[]
@@ -532,25 +533,27 @@ class DataManagerAdapter(object):
 ############################################################################
 # install get_transaction:
 
-# Map thread ident to its Transaction instance.
-_tid2tran = {}
+### Map thread ident to its Transaction instance.
+##_tid2tran = {}
 
-# Get Transaction associated with current thread; if none, create a
-# new Transaction and return it.
-def get_transaction():
-    tid = _get_ident()
-    result = _tid2tran.get(tid)
-    if result is None:
-        _tid2tran[tid] = result = Transaction(tid)
-    return result
+### Get Transaction associated with current thread; if none, create a
+### new Transaction and return it.
+##def get_transaction():
+##    tid = _get_ident()
+##    result = _tid2tran.get(tid)
+##    if result is None:
+##        _tid2tran[tid] = result = Transaction(tid)
+##    return result
 
-# Forget whatever Transaction (if any) is associated with current thread.
-def free_transaction():
-    tid = _get_ident()
-    try:
-        del _tid2tran[tid]
-    except KeyError:
-        pass
+### Forget whatever Transaction (if any) is associated with current thread.
+##def free_transaction():
+##    tid = _get_ident()
+##    try:
+##        del _tid2tran[tid]
+##    except KeyError:
+##        pass
+
+from transaction import get as get_transaction
 
 import __builtin__
 __builtin__.get_transaction = get_transaction

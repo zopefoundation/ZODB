@@ -13,9 +13,9 @@
 ##############################################################################
 """Tests for application-level conflict resolution."""
 
-from ZODB.Transaction import Transaction
 from ZODB.POSException import ConflictError, UndoError
 from persistent import Persistent
+from transaction import Transaction
 
 from ZODB.tests.StorageTestBase import zodb_unpickle, zodb_pickle
 

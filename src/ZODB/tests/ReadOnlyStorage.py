@@ -12,7 +12,7 @@
 #
 ##############################################################################
 from ZODB.POSException import ReadOnlyError, Unsupported
-from ZODB.Transaction import Transaction
+import transaction
 
 class ReadOnlyStorage:
 
@@ -47,7 +47,7 @@ class ReadOnlyStorage:
     def checkWriteMethods(self):
         self._make_readonly()
         self.assertRaises(ReadOnlyError, self._storage.new_oid)
-        t = Transaction()
+        t = transaction.Transaction()
         self.assertRaises(ReadOnlyError, self._storage.tpc_begin, t)
 
         if self._storage.supportsVersions():

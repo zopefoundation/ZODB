@@ -11,3 +11,4 @@ is syntactically simple, but semantically complex.  The semantics
 were not easy to express in the interface. This could probably use
 more work.  The semantics are presented in detail through examples of
 a sample data manager in transaction.tests.test_SampleDataManager.
+

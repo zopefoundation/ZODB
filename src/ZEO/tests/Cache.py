@@ -13,9 +13,10 @@
 ##############################################################################
 """Tests of the ZEO cache"""
 
-from ZODB.Transaction import Transaction
 from ZODB.tests.MinPO import MinPO
 from ZODB.tests.StorageTestBase import zodb_unpickle
+
+from transaction import Transaction
 
 class TransUndoStorageWithCache:
 

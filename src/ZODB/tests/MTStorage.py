@@ -3,13 +3,13 @@ import sys
 import threading
 import time
 
-import ZODB
 from persistent.mapping import PersistentMapping
+import transaction
 
+import ZODB
 from ZODB.tests.StorageTestBase \
      import zodb_pickle, zodb_unpickle, handle_serials
 from ZODB.tests.MinPO import MinPO
-from ZODB.Transaction import Transaction
 from ZODB.POSException import ConflictError
 
 SHORT_DELAY = 0.01
@@ -59,6 +59,7 @@ class ZODBClientThread(TestThread):
 
     def runtest(self):
         conn = self.db.open()
+        conn.sync()
         root = conn.root()
         d = self.get_thread_dict(root)
         if d is None:
@@ -126,7 +127,7 @@ class StorageClientThread(TestThread):
 
     def dostore(self, i):
         data = zodb_pickle(MinPO((self.getName(), i)))
-        t = Transaction()
+        t = transaction.Transaction()
         oid = self.oid()
         self.pause()
 

@@ -27,6 +27,8 @@ import sys
 import threading
 import time
 
+import transaction
+
 from ZEO import ClientStub
 from ZEO.CommitLog import CommitLog
 from ZEO.monitor import StorageStats, StatsServer
@@ -40,7 +42,6 @@ from ZODB.ConflictResolution import ResolvedSerial
 from ZODB.POSException import StorageError, StorageTransactionError
 from ZODB.POSException import TransactionError, ReadOnlyError, ConflictError
 from ZODB.serialize import referencesf
-from ZODB.Transaction import Transaction
 from ZODB.utils import u64, oid_repr
 
 _label = "ZSS" # Default label used for logging.
@@ -365,7 +366,7 @@ class ZEOStorage:
                 raise StorageTransactionError("Multiple simultaneous tpc_begin"
                                               " requests from one client.")
 
-        self.transaction = t = Transaction()
+        self.transaction = t = transaction.Transaction()
         t.id = id
         t.user = user
         t.description = description

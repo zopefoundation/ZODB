@@ -16,8 +16,9 @@
 
 import time
 
+import transaction
+
 from ZODB.serialize import referencesf
-from ZODB.Transaction import Transaction
 from ZODB.tests.MinPO import MinPO
 from ZODB.tests.StorageTestBase import zodb_unpickle
 
@@ -114,7 +115,7 @@ class TransactionalUndoVersionStorage:
                         version=version, description='version2')
         self._x_dostore(description='create2')
 
-        t = Transaction()
+        t = transaction.Transaction()
         t.description = 'commit version'
         self._storage.tpc_begin(t)
         self._storage.commitVersion(version, '', t)

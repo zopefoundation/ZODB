@@ -26,9 +26,9 @@ import unittest
 from cPickle import Pickler, Unpickler
 from cStringIO import StringIO
 
-from ZODB.Transaction import Transaction
-from ZODB.utils import u64
+import transaction
 
+from ZODB.utils import u64
 from ZODB.tests.MinPO import MinPO
 
 ZERO = '\0'*8
@@ -184,7 +184,7 @@ class StorageTestBase(unittest.TestCase):
         if version is None:
             version = ''
         # Begin the transaction
-        t = Transaction()
+        t = transaction.Transaction()
         if user is not None:
             t.user = user
         if description is not None:
@@ -211,7 +211,7 @@ class StorageTestBase(unittest.TestCase):
     def _undo(self, tid, expected_oids=None, note=None):
         # Undo a tid that affects a single object (oid).
         # XXX This is very specialized
-        t = Transaction()
+        t = transaction.Transaction()
         t.note(note or "undo")
         self._storage.tpc_begin(t)
         tid, oids = self._storage.undo(tid, t)
@@ -224,7 +224,7 @@ class StorageTestBase(unittest.TestCase):
         return self._storage.lastTransaction()
 
     def _commitVersion(self, src, dst):
-        t = Transaction()
+        t = transaction.Transaction()
         t.note("commit %r to %r" % (src, dst))
         self._storage.tpc_begin(t)
         tid, oids = self._storage.commitVersion(src, dst, t)
@@ -233,7 +233,7 @@ class StorageTestBase(unittest.TestCase):
         return oids
 
     def _abortVersion(self, ver):
-        t = Transaction()
+        t = transaction.Transaction()
         t.note("abort %r" % ver)
         self._storage.tpc_begin(t)
         tid, oids = self._storage.abortVersion(ver, t)

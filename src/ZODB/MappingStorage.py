@@ -21,7 +21,7 @@ It is meant to illustrate the simplest possible storage.
 The Mapping storage uses a single data structure to map object ids to data.
 """
 
-__version__='$Revision: 1.12 $'[11:-2]
+__version__='$Revision: 1.13 $'[11:-2]
 
 from ZODB import utils
 from ZODB import BaseStorage
@@ -67,6 +67,16 @@ class MappingStorage(BaseStorage.BaseStorage):
             return p[8:], p[:8], "" # pickle, tid, version
         finally:
             self._lock_release()
+
+    def getTid(self, oid):
+        self._lock_acquire()
+        try:
+            # The tid is the first 8 bytes of the buffer.
+            s = self._index[oid]
+            return s[:8]
+        finally:
+            self._lock_release()
+        
 
     def store(self, oid, serial, data, version, transaction):
         if transaction is not self._transaction:

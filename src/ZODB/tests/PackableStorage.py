@@ -127,7 +127,7 @@ class PackableStorageBase:
         try:
             self._storage.load(ZERO, '')
         except KeyError:
-            from ZODB.Transaction import Transaction
+            from transaction import Transaction
             file = StringIO()
             p = cPickle.Pickler(file, 1)
             p.dump((PersistentMapping, None))

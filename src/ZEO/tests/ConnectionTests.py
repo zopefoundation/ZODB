@@ -29,12 +29,14 @@ from ZEO.zrpc.marshal import Marshaller
 from ZEO.tests import forker
 
 from ZODB.DB import DB
-from ZODB.Transaction import get_transaction, Transaction
 from ZODB.POSException import ReadOnlyError, ConflictError
 from ZODB.tests.StorageTestBase import StorageTestBase
 from ZODB.tests.MinPO import MinPO
 from ZODB.tests.StorageTestBase \
      import zodb_pickle, zodb_unpickle, handle_all_serials, handle_serials
+
+import transaction
+from transaction import Transaction
 
 ZERO = '\0'*8
 
@@ -465,7 +467,7 @@ class ConnectionTests(CommonSetupTearDown):
                 zLOG.LOG("checkReconnection", zLOG.INFO,
                          "Error after server restart; retrying.",
                          error=sys.exc_info())
-                get_transaction().abort()
+                transaction.abort()
             # Give the other thread a chance to run.
             time.sleep(0.1)
         zLOG.LOG("checkReconnection", zLOG.INFO, "finished")
@@ -552,7 +554,7 @@ class ConnectionTests(CommonSetupTearDown):
         r1 = c1.root()
 
         r1["a"] = MinPO("a")
-        get_transaction().commit()
+        transaction.commit()
 
         db2 = DB(self.openClientStorage())
         r2 = db2.open().root()
@@ -560,7 +562,7 @@ class ConnectionTests(CommonSetupTearDown):
         self.assertEqual(r2["a"].value, "a")
 
         r2["b"] = MinPO("b")
-        get_transaction().commit()
+        transaction.commit()
 
         # make sure the invalidation is received in the other client
         for i in range(10):

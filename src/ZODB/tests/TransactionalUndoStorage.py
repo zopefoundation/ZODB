@@ -18,13 +18,15 @@ Any storage that supports undo() must pass these tests.
 
 import time
 import types
+
+from persistent import Persistent
+from transaction import Transaction
+
 from ZODB import POSException
-from ZODB.Transaction import Transaction
 from ZODB.serialize import referencesf
 from ZODB.utils import p64
 from ZODB import DB
 
-from persistent import Persistent
 from ZODB.tests.MinPO import MinPO
 from ZODB.tests.StorageTestBase import zodb_pickle, zodb_unpickle
 

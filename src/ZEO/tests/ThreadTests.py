@@ -15,9 +15,8 @@
 
 import threading
 
-from ZODB.Transaction import Transaction
+import transaction
 from ZODB.tests.StorageTestBase import zodb_pickle, MinPO
-
 import ZEO.ClientStorage
 
 ZERO = '\0'*8
@@ -25,7 +24,7 @@ ZERO = '\0'*8
 class BasicThread(threading.Thread):
     def __init__(self, storage, doNextEvent, threadStartedEvent):
         self.storage = storage
-        self.trans = Transaction()
+        self.trans = transaction.Transaction()
         self.doNextEvent = doNextEvent
         self.threadStartedEvent = threadStartedEvent
         self.gotValueError = 0

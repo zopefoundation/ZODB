@@ -19,12 +19,12 @@ http://www.zope.org/Documentation/Developer/Models/ZODB/ZODB_Architecture_Storag
 All storages should be able to pass these tests.
 """
 
-from ZODB.Transaction import Transaction
 from ZODB import POSException
-
 from ZODB.tests.MinPO import MinPO
 from ZODB.tests.StorageTestBase \
      import zodb_unpickle, zodb_pickle, handle_serials
+
+import transaction
 
 ZERO = '\0'*8
 
@@ -32,7 +32,7 @@ ZERO = '\0'*8
 
 class BasicStorage:
     def checkBasics(self):
-        t = Transaction()
+        t = transaction.Transaction()
         self._storage.tpc_begin(t)
         # This should simply return
         self._storage.tpc_begin(t)
@@ -44,10 +44,10 @@ class BasicStorage:
         self.assertRaises(
             POSException.StorageTransactionError,
             self._storage.store,
-            0, 0, 0, 0, Transaction())
+            0, 0, 0, 0, transaction.Transaction())
 
         try:
-            self._storage.abortVersion('dummy', Transaction())
+            self._storage.abortVersion('dummy', transaction.Transaction())
         except (POSException.StorageTransactionError,
                 POSException.VersionCommitError):
             pass # test passed ;)
@@ -55,7 +55,7 @@ class BasicStorage:
             assert 0, "Should have failed, invalid transaction."
 
         try:
-            self._storage.commitVersion('dummy', 'dummer', Transaction())
+            self._storage.commitVersion('dummy', 'dummer', transaction.Transaction())
         except (POSException.StorageTransactionError,
                 POSException.VersionCommitError):
             pass # test passed ;)
@@ -65,13 +65,13 @@ class BasicStorage:
         self.assertRaises(
             POSException.StorageTransactionError,
             self._storage.store,
-            0, 1, 2, 3, Transaction())
+            0, 1, 2, 3, transaction.Transaction())
         self._storage.tpc_abort(t)
 
     def checkSerialIsNoneForInitialRevision(self):
         eq = self.assertEqual
         oid = self._storage.new_oid()
-        txn = Transaction()
+        txn = transaction.Transaction()
         self._storage.tpc_begin(txn)
         # Use None for serial.  Don't use _dostore() here because that coerces
         # serial=None to serial=ZERO.
@@ -120,7 +120,7 @@ class BasicStorage:
 
     def checkWriteAfterAbort(self):
         oid = self._storage.new_oid()
-        t = Transaction()
+        t = transaction.Transaction()
         self._storage.tpc_begin(t)
         self._storage.store(oid, ZERO, zodb_pickle(MinPO(5)), '', t)
         # Now abort this transaction
@@ -133,7 +133,7 @@ class BasicStorage:
         oid1 = self._storage.new_oid()
         revid1 = self._dostore(oid=oid1, data=MinPO(-2))
         oid = self._storage.new_oid()
-        t = Transaction()
+        t = transaction.Transaction()
         self._storage.tpc_begin(t)
         self._storage.store(oid, ZERO, zodb_pickle(MinPO(5)), '', t)
         # Now abort this transaction
@@ -176,7 +176,7 @@ class BasicStorage:
 
     def checkTwoArgBegin(self):
         # XXX how standard is three-argument tpc_begin()?
-        t = Transaction()
+        t = transaction.Transaction()
         tid = '\0\0\0\0\0psu'
         self._storage.tpc_begin(t, tid)
         oid = self._storage.new_oid()
@@ -205,7 +205,7 @@ class BasicStorage:
 
     def checkNote(self):
         oid = self._storage.new_oid()
-        t = Transaction()
+        t = transaction.Transaction()
         self._storage.tpc_begin(t)
         t.note('this is a test')
         self._storage.store(oid, ZERO, zodb_pickle(MinPO(5)), '', t)
