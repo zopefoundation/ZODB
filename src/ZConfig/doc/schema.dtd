@@ -1,0 +1,99 @@
+<!--
+  *************************************************************************
+  Copyright (c) 2002, 2003 Zope Corporation and Contributors.
+  All Rights Reserved.
+
+  This software is subject to the provisions of the Zope Public License,
+  Version 2.0 (ZPL).  A copy of the ZPL should accompany this distribution.
+  THIS SOFTWARE IS PROVIDED "AS IS" AND ANY AND ALL EXPRESS OR IMPLIED
+  WARRANTIES ARE DISCLAIMED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+  WARRANTIES OF TITLE, MERCHANTABILITY, AGAINST INFRINGEMENT, AND FITNESS
+  FOR A PARTICULAR PURPOSE.
+  *************************************************************************
+
+  Please note that not all documents that conform to this DTD are
+  legal ZConfig schema.  The ZConfig reference manual describes many
+  constraints that are important to understanding ZConfig schema.
+  -->
+
+<!-- DTD for ZConfig schema documents. -->
+
+<!ELEMENT schema (description?, metadefault?, example?,
+                  import*,
+                  (sectiontype | abstracttype)*,
+                  (section | key | multisection | multikey)*)>
+<!ATTLIST schema
+          extends    NMTOKEN  #IMPLIED
+          prefix     NMTOKEN  #IMPLIED
+          handler    NMTOKEN  #IMPLIED
+          keytype    NMTOKEN  #IMPLIED
+          datatype   NMTOKEN  #IMPLIED>
+
+<!ELEMENT component (description?, (sectiontype | abstracttype)*)>
+<!ATTLIST component
+          prefix     NMTOKEN  #IMPLIED>
+
+<!ELEMENT import EMPTY>
+<!ATTLIST import
+          file       CDATA    #IMPLIED
+          package    NMTOKEN  #IMPLIED
+          src        CDATA    #IMPLIED>
+
+<!ELEMENT description (#PCDATA)*>
+<!ATTLIST description
+          format     NMTOKEN  #IMPLIED>
+
+<!ELEMENT metadefault (#PCDATA)*>
+<!ELEMENT example     (#PCDATA)*>
+
+<!ELEMENT sectiontype (description?, 
+                       (section | key | multisection | multikey)*)>
+<!ATTLIST sectiontype
+          name       NMTOKEN  #REQUIRED
+          prefix     NMTOKEN  #IMPLIED
+          keytype    NMTOKEN  #IMPLIED
+          datatype   NMTOKEN  #IMPLIED
+          implements NMTOKEN  #IMPLIED
+          extends    NMTOKEN  #IMPLIED>
+
+<!ELEMENT abstracttype (description?)>
+<!ATTLIST abstracttype
+          name       NMTOKEN  #REQUIRED
+          prefix     NMTOKEN  #IMPLIED>
+
+<!ELEMENT default    (#PCDATA)*>
+<!ATTLIST default
+          key        CDATA    #IMPLIED>
+
+<!ELEMENT key (description?, metadefault?, example?, default*)>
+<!ATTLIST key
+          name       CDATA    #REQUIRED
+          attribute  NMTOKEN  #IMPLIED
+          datatype   NMTOKEN  #IMPLIED
+          handler    NMTOKEN  #IMPLIED
+          required   (yes|no) "no"
+          default    CDATA    #IMPLIED>
+
+<!ELEMENT multikey (description?, metadefault?, example?, default*)>
+<!ATTLIST multikey
+          name       CDATA    #REQUIRED
+          attribute  NMTOKEN  #IMPLIED
+          datatype   NMTOKEN  #IMPLIED
+          handler    NMTOKEN  #IMPLIED
+          required   (yes|no) "no">
+
+<!ELEMENT section (description?)>
+<!ATTLIST section
+          name       CDATA    #REQUIRED
+          attribute  NMTOKEN  #IMPLIED
+          type       NMTOKEN  #REQUIRED
+          handler    NMTOKEN  #IMPLIED
+          required   (yes|no) "no">
+
+<!ELEMENT multisection (description?)>
+<!ATTLIST multisection
+          name       CDATA    #REQUIRED
+          attribute  NMTOKEN  #IMPLIED
+          type       NMTOKEN  #REQUIRED
+          handler    NMTOKEN  #IMPLIED
+          required   (yes|no) "no">
