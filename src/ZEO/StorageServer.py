@@ -11,7 +11,7 @@
 # FOR A PARTICULAR PURPOSE
 #
 ##############################################################################
-"""Network ZODB storage server
+"""The StorageServer class and the exception that it may raise.
 
 This server acts as a front-end for one or more real storages, like
 file storage or Berkeley storage.
@@ -37,19 +37,15 @@ from ZODB.POSException import TransactionError, ReadOnlyError
 from ZODB.referencesf import referencesf
 from ZODB.Transaction import Transaction
 
-# We create a special fast pickler! This allows us
-# to create slightly more efficient pickles and
-# to create them a tad faster.
-pickler = cPickle.Pickler()
-pickler.fast = 1 # Don't use the memo
-dump = pickler.dump
+_label = "ZSS" # Default label used for logging.
 
-_label = "ZSS"
 def set_label():
+    """Internal helper to reset the logging label (e.g. after fork())."""
     global _label
     _label = "ZSS:%s" % os.getpid()
     
 def log(message, level=zLOG.INFO, label=None, error=None):
+    """Internal helper to log a message using zLOG."""
     zLOG.LOG(label or _label, level, message, error=error)
 
 class StorageServerError(StorageError):
@@ -499,28 +495,28 @@ class ImmediateCommitStrategy:
         try:
             newserial = self.storage.store(oid, serial, data, version,
                                            self.txn)
-        except TransactionError, err:
-            # Storage errors are passed to the client
+        except Exception, err:
+            if not isinstance(err, TransactionError):
+                # Unexpected errors are logged and passed to the client
+                exc_info = sys.exc_info()
+                log("store error: %s, %s" % exc_info[:2],
+                    zLOG.ERROR, error=exc_info)
+                del exc_info
+            # Try to pickle the exception.  If it can't be pickled,
+            # the RPC response would fail, so use something else.
+            pickler = cPickle.Pickler()
+            pickler.fast = 1
+            try:
+                pickler.dump(err, 1)
+            except:
+                msg = "Couldn't pickle storage exception: %s" % repr(err)
+                log(msg, zLOG.ERROR)
+                err = StorageServerError(msg)
+            # The exception is reported back as newserial for this oid
             newserial = err
-        except Exception:
-            # Unexpected storage errors are logged and passed to the client
-            exc_info = sys.exc_info()
-            log("store error: %s, %s" % exc_info[:2],
-                zLOG.ERROR, error=exc_info)
-            newserial = exc_info[1]
-            del exc_info
         else:
             if serial != "\0\0\0\0\0\0\0\0":
                 self.invalidated.append((oid, version))
-
-        try:
-            dump(newserial, 1)
-        except:
-            msg = "Couldn't pickle storage exception: %s" % repr(newserial)
-            log(msg, zLOG.ERROR)
-            dump('', 1) # clear pickler
-            r = StorageServerError(msg)
-            newserial = r
         self.serials.append((oid, newserial))
 
     def commitVersion(self, src, dest):
