@@ -440,9 +440,9 @@ anything if you run with -O.
 ...     pass
 ... else:
 ...     from persistent.interfaces import IPersistent
-...     assert IPersistent.isImplementedByInstancesOf(Persistent)
+...     assert IPersistent.implementedBy(Persistent)
 ...     p = Persistent()
-...     assert IPersistent.isImplementedBy(p)
-...     assert IPersistent.isImplementedByInstancesOf(P)
+...     assert IPersistent.providedBy(p)
+...     assert IPersistent.implementedBy(P)
 ...     p = P()
-...     assert IPersistent.isImplementedBy(p)
+...     assert IPersistent.providedBy(p)
