@@ -12,8 +12,11 @@
 #
 ##############################################################################
 
+from zope.interface import implements
+
+from ZODB.Blobs.interfaces import IBlobStorage
 from ZODB import POSException
-from ZODB.utils import p64, u64, z64
+from ZODB.utils import p64, u64, z64, cp
 
 import tempfile
 
@@ -21,6 +24,8 @@ class TmpStore:
     """A storage to support subtransactions."""
 
     _bver = ''
+
+    implements(IBlobStorage)
 
     def __init__(self, base_version, storage):
         self._transaction = None
@@ -36,6 +41,8 @@ class TmpStore:
         # _tindex: map oid to pos for new updates
         self._tindex = {}
         self._creating = []
+
+        self.blob_files = {}
 
     def close(self):
         self._file.close()
@@ -60,6 +67,9 @@ class TmpStore:
         size = u64(h[8:])
         serial = h[:8]
         return self._file.read(size), serial
+
+    def sortKey(self):
+        return self._storage.sortKey()
 
     # TODO: clarify difference between self._storage & self._db._storage
 
@@ -119,5 +129,27 @@ class TmpStore:
 
     def versionEmpty(self, version):
         # TODO: what is this supposed to do?
+        # NOTE: This appears to implement the opposite of what it should.
         if version == self._bver:
             return len(self._index)
+
+    # Blob support
+
+    def loadBlob(self, oid, serial, version):
+        return self.blob_files.get(oid)
+        
+    def storeBlob(self, oid, oldserial, data, blobfile, version, transaction):
+        result = self.store(oid, oldserial, data, version, transaction)
+
+        target = file(self.generateBlobFile(oid), "w")
+        src = file(blobfile, "r")
+        cp(src, target)
+
+        return result
+        
+    def generateBlobFile(self, oid):
+        if not self.blob_files.has_key(oid):
+            handle, name = tempfile.mkstemp()
+            handle.close()
+            self.blob_files[oid] = name
+        return self.blob_files[oid]

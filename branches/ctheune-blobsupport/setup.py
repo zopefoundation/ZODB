@@ -128,21 +128,37 @@ cZopeInterface = Extension(
             sources= ['src/zope/interface/_zope_interface_coptimizations.c']
             )
 
-exts += [cPersistence, cPickleCache, TimeStamp, winlock, cZopeInterface]
+cZopeProxy = Extension(
+            name = 'zope.proxy._zope_proxy_proxy',
+            sources= ['src/zope/proxy/_zope_proxy_proxy.c']
+            )
+
+exts += [cPersistence,
+         cPickleCache,
+         TimeStamp,
+         winlock,
+         cZopeInterface,
+         cZopeProxy,
+        ]
 
 # The ZODB.zodb4 code is not being packaged, because it is only
 # need to convert early versions of Zope3 databases to ZODB3.
 
 packages = ["BTrees", "BTrees.tests",
             "ZEO", "ZEO.auth", "ZEO.zrpc", "ZEO.tests",
-            "ZODB", "ZODB.FileStorage", "ZODB.Blobs",
+            "ZODB", "ZODB.FileStorage", "ZODB.Blobs", "ZODB.Blobs.tests",
             "ZODB.tests",
             "Persistence", "Persistence.tests",
             "persistent", "persistent.tests",
             "transaction", "transaction.tests",
             "ThreadedAsync",
             "zdaemon", "zdaemon.tests",
-            "zope", "zope.interface", "zope.testing",
+
+            "zope",
+            "zope.interface", "zope.interface.tests",
+            "zope.proxy", "zope.proxy.tests",
+            "zope.testing",
+
             "ZopeUndo", "ZopeUndo.tests",
             "ZConfig", "ZConfig.tests",
             "ZConfig.components",
@@ -187,6 +203,7 @@ def copy_other_files(cmd, outputbase):
         "ZODB/tests",
         "zdaemon",
         "zdaemon/tests",
+        "zope/interface", "zope/interface/tests",
         ]:
         dir = convert_path(dir)
         inputdir = os.path.join("src", dir)

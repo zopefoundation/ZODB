@@ -23,15 +23,18 @@ need a Blob with some data:
     >>> blob = Blob()
     >>> data = blob.open("w")
     >>> data.write("I'm a happy Blob.")
+    >>> data.close()
 
 We also need a database with a blob supporting storage:
 
     >>> from ZODB.MappingStorage import MappingStorage
+    >>> from ZODB.Blobs.BlobStorage import BlobStorage
+    >>> from ZODB.DB import DB
     >>> from tempfile import mkdtemp
     >>> base_storage = MappingStorage("test")
     >>> blob_dir = mkdtemp()
     >>> blob_storage = BlobStorage(blob_dir, base_storage)
-    >>> database = DB(storage)
+    >>> database = DB(blob_storage)
     
 Putting a Blob into a Connection works like every other object:
 
@@ -40,12 +43,11 @@ Putting a Blob into a Connection works like every other object:
     >>> root['myblob'] = blob
     >>> import transaction
     >>> transaction.commit()
-    >>> connection.close()
 
 Getting stuff out of there works similar:
 
-    >>> connection = database.open()
-    >>> root = connection.root()
+    >>> connection2 = database.open()
+    >>> root = connection2.root()
     >>> blob2 = root['myblob']
     >>> IBlob.isImplementedBy(blob2)
     True
@@ -56,17 +58,18 @@ You can't put blobs into a database that has uses a Non-Blob-Storage, though:
 
     >>> no_blob_storage = MappingStorage()
     >>> database2 = DB(no_blob_storage)
-    >>> connection = database.open()
-    >>> root = connection.root()
-    >>> root['myblob'] = blob
-    >>> transaction.commit()
+    >>> connection3 = database2.open()
+    >>> root = connection3.root()
+    >>> root['myblob'] = Blob()
+    >>> transaction.commit()        # doctest: +ELLIPSIS
     Traceback (most recent call last):
         ...
-    POSException.Unsupported: Storing Blobs is not supported.
+    Unsupported: Storing Blobs in <ZODB.MappingStorage.MappingStorage instance at ...> is not supported.
 
 While we are testing this, we don't need the storage directory and databases anymore:
 
-    >>> import os
-    >>> os.unlink(blob_dir)
+    >>> import shutil
+    >>> shutil.rmtree(blob_dir)
+    >>> transaction.abort()
     >>> database.close()
     >>> database2.close()

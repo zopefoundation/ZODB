@@ -1,6 +1,6 @@
 ##############################################################################
 #
-# Copyright (c) 2004 Zope Corporation and Contributors.
+# Copyright (c) 2003 Zope Corporation and Contributors.
 # All Rights Reserved.
 #
 # This software is subject to the provisions of the Zope Public License,
@@ -11,10 +11,21 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
+"""More convenience functions for dealing with proxies.
 
-from zope.testing.doctestunit import DocFileSuite
+$Id$
+"""
+from zope.interface import moduleProvides
+from zope.proxy.interfaces import IProxyIntrospection
+from types import ClassType
+from zope.proxy._zope_proxy_proxy import *
+from zope.proxy._zope_proxy_proxy import _CAPI
 
-def test_suite():
-    return DocFileSuite("dbopen.txt",
-                        "multidb.txt",
-                        )
+moduleProvides(IProxyIntrospection)
+__all__ = tuple(IProxyIntrospection)
+
+def ProxyIterator(p):
+    yield p
+    while isProxy(p):
+        p = getProxiedObject(p)
+        yield p
