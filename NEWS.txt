@@ -2,6 +2,15 @@ What's new in ZODB3 3.3 ?
 =========================
 Release date: DD-MMM-YYYY
 
+BTrees
+------
+
+The BTrees __init__.py file is now just a comment.  It had been trying
+to set up support for (long gone) "int sets", and to import an old
+version of Zope's Interface package, which doesn't even ship with ZODB.
+The latter in particular created problems, at least clashing with
+PythonCAD's Interface package.
+
 Tools
 -----
 
