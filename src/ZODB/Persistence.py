@@ -3,7 +3,7 @@
 
 __doc__='''Python implementation of a persistent base types
 
-$Id: Persistence.py,v 1.12 1998/03/12 15:38:51 jim Exp $'''
+$Id: Persistence.py,v 1.13 1998/06/05 22:07:05 jim Exp $'''
 #     Copyright 
 #
 #       Copyright 1996 Digital Creations, L.C., 910 Princess Anne
@@ -58,7 +58,7 @@ $Id: Persistence.py,v 1.12 1998/03/12 15:38:51 jim Exp $'''
 #
 #   (540) 371-6909
 #
-__version__='$Revision: 1.12 $'[11:-2]
+__version__='$Revision: 1.13 $'[11:-2]
 
 try:
     from cPersistence import Persistent
@@ -80,7 +80,7 @@ except:
 	You must not override the object's '__getattr__' and '__setattr__'
 	methods.  If you override the objects '__getstate__' method, then
 	you must be careful not to include any attributes with names
-	starting with '_p_' in the state.
+	starting with '_p_' or '_v_' in the state.
     
 	""" 
 	_p_oid=None        # A Persistent object-id, unique within a jar
@@ -129,7 +129,8 @@ except:
     
 	def __setattr__(self,key,value):
 	    ' '
-	    if key[:3]=='_p_':
+            k=key[:3]
+	    if k=='_p_' or k=='_v_':
 		self.__dict__[key]=value
 		return
 
@@ -191,6 +192,10 @@ except:
 
 ############################################################################
 # $Log: Persistence.py,v $
+# Revision 1.13  1998/06/05 22:07:05  jim
+# Fixed bug in Persistent.__setattr__ that caused changes to
+# "volatile" attributes (starting with _v_) to cause database writes.
+#
 # Revision 1.12  1998/03/12 15:38:51  jim
 # Fixed bug in __changed__.
 #
