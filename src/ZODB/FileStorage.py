@@ -184,7 +184,7 @@
 #   may have a back pointer to a version record or to a non-version
 #   record.
 #
-__version__='$Revision: 1.48 $'[11:-2]
+__version__='$Revision: 1.49 $'[11:-2]
 
 import struct, time, os, bpthread, string, base64, sys
 from struct import pack, unpack
@@ -697,7 +697,8 @@ class FileStorage(BaseStorage.BaseStorage):
 
             return serial
         
-        finally: self._lock_release()
+        finally:
+            self._lock_release()
 
     def supportsUndo(self): return 1
     def supportsVersions(self): return 1
@@ -1001,6 +1002,8 @@ class FileStorage(BaseStorage.BaseStorage):
         locked=0
         _lock_acquire=self._lock_acquire
         _lock_release=self._lock_release
+        _commit_lock_acquire=self._commit_lock_acquire
+        _commit_lock_release=self._commit_lock_release
         index, vindex, tindex, tvindex = self._newIndexes()
         name=self.__name__
         file=open(name, 'rb')
@@ -1108,6 +1111,7 @@ class FileStorage(BaseStorage.BaseStorage):
                         return
                     
                     packing=0
+                    _commit_lock_acquire()
                     _lock_acquire()
                     locked=1
                     self._packt=None # Prevent undo until we're done
@@ -1290,6 +1294,7 @@ class FileStorage(BaseStorage.BaseStorage):
                 if locked:
                     # temporarily release the lock to give other threads
                     # a chance to do some work!
+                    _commit_lock_release()
                     _lock_release()
                     locked=0
 
@@ -1324,8 +1329,9 @@ class FileStorage(BaseStorage.BaseStorage):
 
 
                 if not packing:
-                    # We are in the copying phase.  Lets update the
-                    # pack time and release the lock so others can write.
+                    # We are in the copying phase. We need to get the lock
+                    # again to avoid someone writing data while we read it.
+                    _commit_lock_acquire()
                     _lock_acquire()
                     locked=1
 
@@ -1358,7 +1364,9 @@ class FileStorage(BaseStorage.BaseStorage):
 
         finally:
 
-            if locked: _lock_release()
+            if locked:
+                _commit_lock_release()
+                _lock_release()
 
             _lock_acquire()
             self._packt=z64
