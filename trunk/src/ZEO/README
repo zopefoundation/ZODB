@@ -10,9 +10,18 @@ Zope Enterprize Option, ZEO 0.2
     cd lib/python
     ln -s ../../ZServer .
 
+  Finally, you need to link the cPickle extension from your lib/python
+  directory into your ZEO directory::
+
+    cd lib/python/ZEO
+    ln -s ../cPickle.so .
+
+  This is necessary because ZEO uses a (relatively) new
+  cPickle feature that wasn't included in Python 1.5.2.
+
   To start the storage server, go to your Zope install directory and::
 
-    lib/python/ZEO/start.py -p port_number
+    python lib/python/ZEO/start.py -p port_number
 
   (Run start without arguments to see options.)
 
@@ -22,7 +31,7 @@ Zope Enterprize Option, ZEO 0.2
   If the server and client *are* on the same machine, then you can use 
   a Unix domain socket::
 
-    lib/python/ZEO/start.py -U filename
+    python lib/python/ZEO/start.py -U filename
 
   To get Zope to use the server, create a custom_zodb module,
   custom_zodb.py, in your Zope install directory, so that Zope uses a
@@ -37,7 +46,6 @@ Zope Enterprize Option, ZEO 0.2
   itself to async mode (if and) when the asyncore main loop is called.
 
   You can also give the name of a Unix domain socket file::
-
 
     import ZEO.ClientStorage
     Storage=ZEO.ClientStorage.ClientStorage(filename)
