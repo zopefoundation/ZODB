@@ -13,7 +13,7 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.94 2003/05/30 19:20:55 jeremy Exp $"""
+$Id: Connection.py,v 1.95 2003/06/13 16:54:43 jeremy Exp $"""
 
 from __future__ import nested_scopes
 
@@ -716,19 +716,26 @@ class Connection(ExportImport.ExportImport):
         # tpc_vote() calls already did this.  The change=1 argument
         # exists to allow commit_sub() to avoid setting the flag
         # again.
+
+        # When conflict resolution occurs, the object state held by
+        # the connection does not match what is written to the
+        # database.  Invalidate the object here to guarantee that
+        # the new state is read the next time the object is used.
+        
         if not store_return:
             return
         if isinstance(store_return, StringType):
+            # This code is duplicated in the body of the for loop below.
             assert oid is not None
             serial = store_return
             obj = self._cache.get(oid, None)
             if obj is None:
                 return
             if serial == ResolvedSerial:
-                obj._p_changed = None
+                del obj._p_changed # transition from changed to ghost
             else:
                 if change:
-                    obj._p_changed = 0
+                    obj._p_changed = 0 # transition from changed to uptodate
                 obj._p_serial = serial
         else:
             for oid, serial in store_return:
@@ -738,10 +745,10 @@ class Connection(ExportImport.ExportImport):
                 if obj is None:
                     continue
                 if serial == ResolvedSerial:
-                    obj._p_changed = None
+                    del obj._p_changed # transition from changed to ghost
                 else:
                     if change:
-                        obj._p_changed = 0
+                        obj._p_changed = 0 # trans. from changed to uptodate
                     obj._p_serial = serial
 
     def tpc_finish(self, transaction):
