@@ -74,7 +74,7 @@ Zope Enterprise Objects
     If you do install new Zope products, then you need to take a
     special step to cause the new products to be properly registered
     in the database.  The easiest way to do this is to start Zope
-    once without ZEO_CLIENT set.
+    once with the environment variable FORCE_PRODUCT_LOAD set.
 
     The interaction between ZEO and Zope product installation is
     unfortunate.  In the future, this interaction will be removed by 
