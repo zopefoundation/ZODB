@@ -73,7 +73,7 @@ file 0 and file 1.
 
 """
 
-__version__ = "$Revision: 1.25 $"[11:-2]
+__version__ = "$Revision: 1.26 $"[11:-2]
 
 import os
 import sys
@@ -111,14 +111,11 @@ class ClientCache:
                     except:
                         var = os.getcwd()
 
-            # Get the list of cache file names
             fmt = os.path.join(var, "c%s-%s-%%s.zec" % (storage, client))
+            # Initialize pairs of filenames, file objects, and serialnos.
             self._p = p = [fmt % 0, fmt % 1]
-            # get the list of cache files
             self._f = f = [None, None]
-
-            # initialize cache serial numbers
-            s=['\0\0\0\0\0\0\0\0', '\0\0\0\0\0\0\0\0']
+            s = ['\0\0\0\0\0\0\0\0', '\0\0\0\0\0\0\0\0']
             for i in 0, 1:
                 if os.path.exists(p[i]):
                     fi = open(p[i],'r+b')
