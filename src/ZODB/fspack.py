@@ -195,7 +195,7 @@ class FileStorageFormatter:
 def DataHeaderFromString(s):
     return DataHeader(*struct.unpack(DATA_HDR, s))
 
-class DataHeader:
+class DataHeader(object):
     """Header for a data record."""
 
     __slots__ = (
@@ -203,10 +203,9 @@ class DataHeader:
         # These three attributes are only defined when vlen > 0
         "pnv", "vprev", "version")
 
-    version = ""
-    back = 0
-
     def __init__(self, oid, serial, prev, tloc, vlen, plen):
+        self.back = 0 # default
+        self.version = "" # default
         self.oid = oid
         self.serial = serial
         if isinstance(prev, StringType):
@@ -251,7 +250,7 @@ class DataHeader:
 def TxnHeaderFromString(s):
     return TxnHeader(*struct.unpack(TRANS_HDR, s))
 
-class TxnHeader:
+class TxnHeader(object):
     """Header for a transaction record."""
 
     __slots__ = ("tid", "tlen", "status", "user", "descr", "ext",
