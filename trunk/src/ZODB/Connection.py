@@ -84,8 +84,8 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.42 2001/01/15 15:49:29 chrism Exp $"""
-__version__='$Revision: 1.42 $'[11:-2]
+$Id: Connection.py,v 1.43 2001/01/15 18:49:49 jim Exp $"""
+__version__='$Revision: 1.43 $'[11:-2]
 
 from cPickleCache import PickleCache
 from POSException import ConflictError, ExportError
@@ -438,9 +438,22 @@ class Connection(ExportImport.ExportImport):
     def setstate(self,object):
         try:
             oid=object._p_oid
-            #invalid=self._invalid
-            #if invalid(oid) or invalid(None): raise ConflictError, oid
+             
             p, serial = self._storage.load(oid, self._version)
+
+            # XXX this is quite conservative!
+            # We need, however, to avoid reading data from a transaction
+            # that committed after the current "session" started, as
+            # that might lead to mixing of cached data from earlier
+            # transactions and new inconsistent data.
+            #
+            # Note that we (carefully) wait until after we call the
+            # storage to make sure that we don't miss an invaildation
+            # notifications between the time we check and the time we
+            # read.
+            invalid=self._invalid
+            if invalid(oid) or invalid(None): raise ConflictError, oid
+
             file=StringIO(p)
             unpickler=Unpickler(file)
             unpickler.persistent_load=self._persistent_load
@@ -540,6 +553,13 @@ class Connection(ExportImport.ExportImport):
         
 
     def tpc_finish(self, transaction):
+
+        # It's important that the storage call the function we pass
+        # (self.tpc_finish_) while it still has it's lock.  We don't
+        # want another thread to be able to read any updated data
+        # until we've had a chance to send an invalidation message to
+        # all of the other connections!
+        
         self._storage.tpc_finish(transaction, self.tpc_finish_)
         self._cache.invalidate(self._invalidated)
         self._incrgc() # This is a good time to do some GC
