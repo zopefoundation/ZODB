@@ -15,6 +15,8 @@
 
 import random
 import unittest
+from persistent import Persistent
+import ZODB.coptimizations
 
 NUM = 100
 
@@ -43,6 +45,13 @@ class TestUtils(unittest.TestCase):
         self.assertEquals(U64("\000\000\000\000\000\000\000\001"), 1)
         self.assertEquals(u64("\000\000\000\001\000\000\000\000"), 1L<<32)
         self.assertEquals(U64("\000\000\000\001\000\000\000\000"), 1L<<32)
+
+    def checkPersistentIdHandlesDescriptor(self):
+        class P(Persistent):
+            pass
+        L = []
+        pid = ZODB.coptimizations.new_persistent_id(None, L)
+        pid(P)
 
 def test_suite():
     return unittest.makeSuite(TestUtils, 'check')
