@@ -79,7 +79,7 @@ method::
 and call it to monitor the storage.
 
 """
-__version__='$Revision: 1.16 $'[11:-2]
+__version__='$Revision: 1.17 $'[11:-2]
 
 import base64, time, string
 from ZODB import POSException, BaseStorage, utils
@@ -355,8 +355,8 @@ class DemoStorage(BaseStorage.BaseStorage):
         finally: self._lock_release()
 
     def undoLog(self, first, last, filter=None):
-        # I think this is wrong given the handling of first and last
-        # in FileStorage.
+        if last < 0:
+            last = first - last + 1
         self._lock_acquire()
         try:
             # XXX Shouldn't this be sorted?
@@ -505,25 +505,27 @@ class DemoStorage(BaseStorage.BaseStorage):
 
                 if o:
                     if len(o) != len(t):
-                        _data[tid]=1, u, d, e, tuple(o) # Reset data
+                        _data[tid] = 1, u, d, e, tuple(o) # Reset data
                 else:
                     deleted.append(tid)
 
             # Now delete empty transactions
-            for tid in deleted: del _data[tid]
+            for tid in deleted:
+                del _data[tid]
 
             # Now reset previous pointers for "current" records:
             for r in pindex.values():
-                r[2]=None # Previous record
-                if r[3]: # vdata
-                    r[3][1][2]=None
-
-            pindex=None
+                r[2] = None # Previous record
+                if r[3] and r[3][1]: # vdata
+                    # If this record contains version data and
+                    # non-version data, then clear it out.
+                    r[3][1][2] = None
 
             # Finally, rebuild indexes from transaction data:
             self._index, self._vindex = self._build_indexes()
 
-        finally: self._lock_release()
+        finally:
+            self._lock_release()
         self.getSize()
 
     def _splat(self):
