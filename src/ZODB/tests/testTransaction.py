@@ -14,7 +14,7 @@
 
 """
 Revision information:
-$Id: testTransaction.py,v 1.8 2002/08/12 20:00:49 jeremy Exp $
+$Id: testTransaction.py,v 1.9 2002/08/14 15:37:08 jeremy Exp $
 """
 
 """
@@ -44,6 +44,7 @@ TODO
     
 """
 
+import random
 from types import TupleType
 import unittest
 
@@ -358,24 +359,6 @@ class TransactionTests(unittest.TestCase):
         assert self.sub1._p_jar.ctpc_abort == 1
         assert Transaction.hosed == 0
 
-    def testExceptionInTpcFinish(self):
-
-        for sub in self.sub1, self.sub2:
-            sub._p_jar = SubTransactionJar(errors='tpc_finish')
-            sub.modify(nojar=1)
-        
-        self.nosub1.modify()
-
-        try: 
-            get_transaction().commit()
-        except TestTxnException: pass
-        except Transaction.POSException.TransactionError: pass
-        
-        assert Transaction.hosed == 1
-
-        # reset the transaction hosed flag        
-        Transaction.hosed = 0
-        
     def testExceptionInTpcBegin(self):
         """
         ok this test reveals a bug in the TM.py
@@ -494,67 +477,55 @@ class TransactionTests(unittest.TestCase):
         else:
             self.assertEqual(self.sub3._p_jar.cabort_sub, 1)
 
-    ### XXX
-    def BUGtestExceptionInSubTpcBegin(self):
-
-        """
-        bug, we short circuit on notifying objects in
-        previous subtransactions of the transaction outcome
-
-        untested but this probably also applies to error
-        in tpc_finish, as the error has to do with
-        not checking the implicit sub transaction commit
-        done when closing the outer transaction.
-        
-        trace:
-        
-        nosub1 calling method tpc_begin
-        sub2 calling method tpc_begin
-        sub2 calling method commit
-        nosub1 calling method tpc_finish
-        sub2 calling method tpc_finish
-        sub3 calling method tpc_begin
-        sub3 calling method commit
-        sub1 calling method tpc_begin
-        sub1 calling method abort
-        sub1 calling method tpc_abort
-        sub3 calling method tpc_abort
-        """
-        
-        self.nosub1.modify(tracing='nosub1')
-
-        self.sub2._p_jar = SubTransactionJar(tracing='sub2')
-        
-        self.sub2.modify(nojar=1)
-        
-        get_transaction().commit(1)
-
-        self.sub3.modify(tracing='sub3')
-        
-        self.sub1._p_jar = SubTransactionJar(tracing='sub1',
-                                                errors='tpc_begin')
-        self.sub1.modify(nojar=1)        
-
-        try:
-            get_transaction().commit()
-        except TestTxnException: pass
-
-    ## done with exception permutations
-
     # last test, check the hosing mechanism
 
     def testHoserStoppage(self):
-        # must have errors in at least two jars to guarantee a failure
-        for sub in self.sub1, self.sub2:
-            sub._p_jar = SubTransactionJar(errors='tpc_finish')
-            sub.modify(nojar=1)
-        self.nosub1.modify()
+        # It's hard to test the "hosed" state of the database, where
+        # hosed means that a failure occurred in the second phase of
+        # the two phase commit.  It's hard because the database can
+        # recover from such an error if it occurs during the very first
+        # tpc_finish() call of the second phase.
 
-        try:
-            get_transaction().commit()
-        except TestTxnException: pass
+        objects = self.sub1, self.sub2, self.sub3, self.nosub1
 
-        assert Transaction.hosed == 1
+        for i in range(10):
+            L = list(objects)
+            random.shuffle(L)
+            obj = L.pop()
+            obj.modify()
+            obj2 = L.pop()
+            obj2._p_jar = SubTransactionJar(errors='tpc_finish')
+            obj2.modify(nojar=1)
+
+            try:
+                get_transaction().commit()
+            except TestTxnException:
+                pass
+
+            # figure out all the jars that may be involved
+            jars = {}
+            for obj in objects:
+                jar = obj._p_jar
+                if jar is not None:
+                    jars[jar] = 1
+            jars = jars.keys()
+            succeed = 0
+            fail = 0
+            for jar in jars:
+                if jar.ctpc_finish:
+                    succeed += 1
+                elif jar.ctpc_abort:
+                    fail += 1
+            
+            if Transaction.hosed:
+                self.assert_(fail > 0 and succeed > 0)
+                break
+            else:
+                self.assert_(fail and not succeed),
+                get_transaction().abort()
+                self.setUp()
+        else:
+            self.fail("Couldn't provoke hosed state.")
         
         self.sub2.modify()
 
