@@ -28,6 +28,15 @@
 #   - 8-byte transaction record length - 8.
 #
 #   - 1-byte status code
+#     ' '  (a blank) completed transaction that hasn't been packed
+#     'p'  completed transaction that has been packed
+#     'c'  checkpoint -- a transaction in progress, at the end of the file;
+#          it's been thru vote() but not finish(); if finish() completes
+#          normally, it will be overwritten with a blank; if finish() dies
+#          (e.g., out of disk space), cleanup code will try to truncate
+#          the file to chop off this incomplete transaction
+#     'u'  uncertain; no longer used; was previously used to record something
+#          about non-transactional undo
 #
 #   - 2-byte length of user name
 #
