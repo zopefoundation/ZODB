@@ -32,6 +32,13 @@ warning level; if time appears to have run backwards at least 30
 minutes, the message is logged at critical level (and you should
 investigate to find and repair the true cause).
 
+Tools
+-----
+
+fsrefs.py:  Fleshed out the module docstring, and repaired a bug
+wherein spurious error msgs could be produced after reporting a
+problem with an unloadable object.
+
 Test suite
 ----------
 
