@@ -13,7 +13,7 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.69 2002/06/12 19:40:47 jeremy Exp $"""
+$Id: Connection.py,v 1.70 2002/06/14 15:29:30 jeremy Exp $"""
 
 from cPickleCache import PickleCache, MUCH_RING_CHECKING
 from POSException import ConflictError, ReadConflictError
@@ -480,7 +480,18 @@ class Connection(ExportImport.ExportImport):
         except KeyError:
             return self._version
 
-    def root(self): return self['\0\0\0\0\0\0\0\0']
+    def register(self, object):
+        """Register an object with the appropriate transaction manager.
+
+        A subclass could override this method to customize the default
+        policy of one transaction manager for each thread.
+        """
+        assert object._p_jar is self
+        assert object._p_oid is not None
+        get_transaction().register(object)
+
+    def root(self):
+        return self['\0\0\0\0\0\0\0\0']
 
     def setstate(self, object):
         oid = object._p_oid
