@@ -84,8 +84,8 @@
 ##############################################################################
 """Transaction management
 
-$Id: Transaction.py,v 1.24 2000/08/07 20:44:58 brian Exp $"""
-__version__='$Revision: 1.24 $'[11:-2]
+$Id: Transaction.py,v 1.25 2001/01/18 18:12:21 jim Exp $"""
+__version__='$Revision: 1.25 $'[11:-2]
 
 import time, sys, struct, POSException
 from struct import pack
@@ -122,7 +122,7 @@ class Transaction:
         r=self.__class__()
         r.user=self.user
         r.description=self.description
-        r._extention=self._extension
+        r._extension=self._extension
         return r
         
     def __str__(self): return "%.3f\t%s" % (self._id, self.user)
@@ -187,6 +187,7 @@ class Transaction:
 
         objects=self._objects
         jars={}
+        jarsv = None
         subj=self._sub
         subjars=()
         if subtransaction:
@@ -260,11 +261,45 @@ class Transaction:
                     
                     j.commit_sub(self)
 
-                for jar in jars.values():
+                jarsv = jars.values()
+                for jar in jarsv:
                     if not subtransaction:
                         try: jar=jar.tpc_vote
                         except: pass
                         else: jar(self) # last chance to bail
+
+                try:
+                    # Try to finish one jar, since we may be able to
+                    # recover if the first one fails.
+                    if jarsv:
+                        jarsv[-1].tpc_finish(self) # This should never fail
+                        jarsv.pop() # It didn't, so it's taken care of.
+                except:
+                    # Bug if it does, we need to keep track of it
+                    LOG('ZODB', ERROR,
+                        "A storage error occurred in the last phase of a "
+                        "two-phase commit.  This shouldn\'t happen. ",
+                        error=sys.exc_info())
+                    raise
+
+                try:
+                    while jarsv:
+                        jarsv[-1].tpc_finish(self) # This should never fail
+                        jarsv.pop() # It didn't, so it's taken care of.
+                except:                        
+                    # Bug if it does, we need to yell FIRE!
+                    # Someone finished, so don't allow any more
+                    # work without at least a restart!
+                    global hosed
+                    hosed=1
+                    LOG('ZODB', PANIC,
+                        "A storage error occurred in the last phase of a "
+                        "two-phase commit.  This shouldn\'t happen. "
+                        "The application may be in a hosed state, so "
+                        "transactions will not be allowed to commit "
+                        "until the site/storage is reset by a restart. ",
+                        error=sys.exc_info())
+                    raise
                 
             except:
                 t,v,tb=sys.exc_info()
@@ -280,7 +315,9 @@ class Transaction:
                     except: pass
 
                 # Then, we unwind TPC for the jars that began it.
-                for j in jars.values():
+                if jarsv is None:
+                    jarsv = jars.values()
+                for j in jarsv:
                     try: j.tpc_abort(self) # This should never fail
                     except: pass
 
@@ -290,26 +327,6 @@ class Transaction:
                     j.abort_sub(self) # This should never fail
 
                 raise t,v,tb
-
-            for j in jars.values():
-                try:
-                    j.tpc_finish(self) # This should never fail
-                except:
-                    # Bug if it does, we need to keep track of it and
-                    # not allow any more work without at least a restart!
-                    global hosed
-                    hosed=1
-                    LOG('ZODB', PANIC,
-                        "A storage error occurred in the last phase of a "
-                        "two-phase commit.  This shouldn\'t happen. "
-                        "The application may be in a hosed state, so "
-                        "transactions will not be allowed to commit "
-                        "until the site/storage is reset by a restart. ",
-                        error=sys.exc_info())
-                    if t is None:
-                        t,v,tb=sys.exc_info()
-                        
-            if t is not None: raise t,v,tb
 
         finally:
             tb=None
