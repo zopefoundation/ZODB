@@ -85,7 +85,7 @@
 
 static char BTree_module_documentation[] = 
 ""
-"\n$Id: BTreeTemplate.c,v 1.5 2001/02/15 18:15:10 jim Exp $"
+"\n$Id: BTreeTemplate.c,v 1.6 2001/02/16 20:49:11 jim Exp $"
 ;
 
 #include "cPersistence.h"
@@ -1066,7 +1066,7 @@ BTree_rangeSearch(BTree *self, PyObject *args, char type)
   int lowoffset;
   int highoffset;
   
-  UNLESS (PyArg_ParseTuple(args,"|OO",&f, &l)) return NULL;
+  UNLESS (! args || PyArg_ParseTuple(args,"|OO",&f, &l)) return NULL;
   
   PER_USE_OR_RETURN(self, NULL);
 
@@ -1327,7 +1327,23 @@ static PyExtensionClass BTreeType = {
 
 #include "TreeSetTemplate.c"
 
+#include "SetOpTemplate.c"
+
 static struct PyMethodDef module_methods[] = {
+  {"union", (PyCFunction) union_m,	METH_VARARGS,
+   "union(o1, o2 [, w1, w2]) -- compurte the union of o1 and o2\n"
+   "\nw1 and w2 are weights, which are only meaningful for integer values"
+  },
+  {"intersection", (PyCFunction) intersection_m,	METH_VARARGS,
+   "intersection(o1, o2 [, w1, w2]) -- "
+   "compurte the intersection of o1 and o2\n"
+   "\nw1 and w2 are weights, which are only meaningful for integer values"
+  },
+  {"difference", (PyCFunction) difference_m,	METH_VARARGS,
+   "difference(o1, o2 [, w1, w2]) -- "
+   "compurte the difference between o1 and o2\n"
+   "\nw1 and w2 are weights, which are only meaningful for integer values"
+  },
   {NULL,		NULL}		/* sentinel */
 };
 
@@ -1370,7 +1386,7 @@ INITMODULE ()
   d = PyModule_GetDict(m);
 
   PyDict_SetItemString(d, "__version__",
-		       PyString_FromString("$Revision: 1.5 $"));
+		       PyString_FromString("$Revision: 1.6 $"));
 
   PyExtensionClass_Export(d,PREFIX "Bucket", BucketType);
   PyExtensionClass_Export(d,PREFIX "BTree", BTreeType);
