@@ -75,23 +75,33 @@ class ZODBClientThread(TestThread):
         transaction.commit()
         time.sleep(self.delay)
 
+    # Return a new PersistentMapping, and store it on the root object under
+    # the name (.getName()) of the current thread.
     def get_thread_dict(self, root):
+        # This is vicious:  multiple threads are slamming changes into the
+        # root object, then trying to read the root object, simultaneously
+        # and without any coordination.  Conflict errors are rampant.  It
+        # used to go around at most 10 times, but that fairly often failed
+        # to make progress in the 7-thread tests on some test boxes.  Going
+        # around (at most) 1000 times was enough so that a 100-thread test
+        # reliably passed on Tim's hyperthreaded WinXP box (but at the
+        # original 10 retries, the same test reliably failed with 15 threads).
         name = self.getName()
-        # arbitrarily limit to 10 re-tries
-        for i in range(10):
+        MAXRETRIES = 1000
+
+        for i in range(MAXRETRIES):
             try:
-                m = PersistentMapping()
-                root[name] = m
-                transaction.commit()
+                root[name] = PersistentMapping()
+                get_transaction().commit()
                 break
-            except ConflictError, err:
-                transaction.abort()
+            except ConflictError:
                 root._p_jar.sync()
-        for i in range(10):
+
+        for i in range(MAXRETRIES):
             try:
                 return root.get(name)
             except ConflictError:
-                transaction.abort()
+                root._p_jar.sync()
 
 class StorageClientThread(TestThread):
 
