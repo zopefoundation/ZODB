@@ -1,5 +1,48 @@
 Zope Enterprise Objects (ZEO) Revision History
 
+  ZEO 0.4
+
+    Bugs fixed
+
+      - The new (in 0.3) logic to switch to an ordinary user when
+        started as root was executed too late so that some files were
+        incorrectly owned by root. This caused ZEO clients to fail
+        when the cache files were rotated.
+
+      - There were some unusual error conditions that were not handled
+        correctly that could cause clients to fail.  This was detected
+        only when ZEO was put into production on zope.org.
+
+      - The cache files weren't rotated on reads. This could cause the
+        caches to grow way beyond their target sizes.
+
+      - Exceptions raised in the servers asynchronous store handler
+        could cause the client and server to get out of sync.
+
+      - Connection and disconnection events weren't logged on the
+        server.
+
+    Features added
+
+      - ClientStorage objects have two new constructor arguments,
+        min_disconnect_poll and max_disconnect_poll to set the minimum
+        and maximum times to wait, in seconds, before retrying to
+        reconnect when disconnected from the ZEO server.
+
+      - A call to get database info on startup was eliminated in
+        favor of having the server send the information
+        automatically. This eliminates a round-trip and, therefore
+        speeds up startup a tiny bit.
+
+      - Database size info is now sent to all clients (asynchronously)
+        after a pack and after a transaction commit, allowing all
+        clients to have timely size information.
+
+      - Added client logging of connection attempts.
+
+      - Added a misc subdirectory with sample storage server start and
+        stop scripts and with a sample custom_zodb.py module.
+
   ZEO 0.3.0
 
     Bugs fixed
