@@ -41,7 +41,6 @@ import socket
 import zLOG
 
 import ZConfig
-import ZConfig.Common
 
 
 class Options:
@@ -125,7 +124,7 @@ class Options:
             return
         try:
             self.rootconf = ZConfig.load(self.configuration)
-        except ZConfig.Common.ConfigurationError, errobj:
+        except ZConfig.ConfigurationError, errobj:
             self.usage(str(errobj))
 
     def help(self):
@@ -208,7 +207,7 @@ class ZEOOptions(Options):
             return
         try:
             self.hostconf = self.rootconf.getSection("Host")
-        except ZConfig.Common.ConfigurationConflictingSectionError:
+        except ZConfig.ConfigurationConflictingSectionError:
             if not self.hostname:
                 self.hostname = socket.getfqdn()
             self.hostconf = self.rootconf.getSection("Host", self.hostname)
