@@ -85,6 +85,10 @@ RuntimeError: commit
 1
 >>> len(cn.aborted)
 3
+
+Clean up:
+
+>>> transaction.abort()
 """
 
 import transaction
