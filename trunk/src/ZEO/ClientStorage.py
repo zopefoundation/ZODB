@@ -84,7 +84,7 @@
 ##############################################################################
 """Network ZODB storage client
 """
-__version__='$Revision: 1.13 $'[11:-2]
+__version__='$Revision: 1.14 $'[11:-2]
 
 import struct, time, os, socket, string, Sync, zrpc, ClientCache
 import tempfile, Invalidator, ExtensionClass, thread
@@ -104,6 +104,11 @@ class ClientStorageError(POSException.StorageError):
 class UnrecognizedResult(ClientStorageError):
     """A server call returned an unrecognized result
     """
+
+class ClientDisconnected(ClientStorageError):
+    """The database storage is disconnected from the storage.
+    """
+    
 
 class ClientStorage(ExtensionClass.Base, BaseStorage.BaseStorage):
 
@@ -184,10 +189,10 @@ class ClientStorage(ExtensionClass.Base, BaseStorage.BaseStorage):
     def notifyDisconnected(self, ignored):
         LOG("ClientStorage", PROBLEM, "Disconnected from storage")
         self._connected=0
+        self._transaction=None
         thread.start_new_thread(self._call.connect,(0,))
         try: self._commit_lock_release()
         except: pass
-
 
     def becomeAsync(self, map):
         self._lock_acquire()
@@ -401,6 +406,7 @@ class ClientStorage(ExtensionClass.Base, BaseStorage.BaseStorage):
                 self._lock_release()
                 self._commit_lock_acquire()
                 self._lock_acquire()
+                if not self._connected: raise ClientDisconnected()
                 try: r=self._call(self.__begin, id, user, desc, ext)
                 except:
                     self._commit_lock_release()
