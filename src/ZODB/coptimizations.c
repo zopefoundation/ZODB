@@ -92,7 +92,7 @@ static void PyVar_Assign(PyObject **v, PyObject *e) { Py_XDECREF(*v); *v=e;}
 #define OBJECT(O) ((PyObject*)(O))
 
 static PyObject *py__p_oid, *py__p_jar, *py___getinitargs__, *py___module__;
-static PyObject *py_new_oid;
+static PyObject *py_new_oid, *py___class__;
 
 
 typedef struct {
@@ -144,15 +144,23 @@ persistent_id_call(persistent_id *self, PyObject *args, PyObject *kwargs)
    */
 
 
-  /* Filter out most objects with low-level test. Yee ha! */
-  UNLESS (PyExtensionClass_Check(object)
-	  ||
-	  (PyExtensionInstance_Check(object) &&
-	   (((PyExtensionClass*)(object->ob_type))->class_flags 
-	    & PERSISTENT_TYPE_FLAG)
-	   )
-	  )
-    goto not_persistent;
+  /* Filter out most objects with low-level test. 
+     Yee ha! 
+     (Also get klass along the way.)
+  */
+  if (! PyExtensionClass_Check(object))
+    if (PyExtensionInstance_Check(object))
+      {
+	UNLESS (klass=PyObject_GetAttr(object, py___class__)) return NULL;
+	UNLESS (
+		PyExtensionClass_Check(klass) &&
+		(((PyExtensionClass*)klass)->class_flags 
+		 & PERSISTENT_TYPE_FLAG)
+		)
+	  goto not_persistent;
+      }
+    else 
+      goto not_persistent;
 
   UNLESS (oid=PyObject_GetAttr(object, py__p_oid)) 
     {
@@ -203,7 +211,6 @@ persistent_id_call(persistent_id *self, PyObject *args, PyObject *kwargs)
       if hasattr(klass, '__getinitargs__'): return oid
   */
 
-  klass=OBJECT(object->ob_type);
   if ((r=PyObject_GetAttr(klass, py___getinitargs__)))
     {
       Py_DECREF(r);
@@ -299,13 +306,14 @@ void
 initcoptimizations()
 {
   PyObject *m, *d;
-  char *rev="$Revision: 1.1 $";
+  char *rev="$Revision: 1.2 $";
 
 #define make_string(S) if (! (py_ ## S=PyString_FromString(#S))) return
   make_string(_p_oid);
   make_string(_p_jar);
   make_string(__getinitargs__);
   make_string(__module__);
+  make_string(__class__);
   make_string(new_oid);
 
   UNLESS (ExtensionClassImported) return;
