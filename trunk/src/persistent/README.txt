@@ -1,6 +1,6 @@
 ===================
 Persistence support
-==================
+===================
 
 (This document is under construction. More basic documentation will
  eventually appear here.)
