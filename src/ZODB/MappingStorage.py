@@ -21,7 +21,7 @@ It is meant to illustrate the simplest possible storage.
 The Mapping storage uses a single data structure to map object ids to data.
 """
 
-from ZODB import utils
+from ZODB.utils import u64, z64
 from ZODB import BaseStorage
 from ZODB import POSException
 from persistent.TimeStamp import TimeStamp
@@ -115,7 +115,7 @@ class MappingStorage(BaseStorage.BaseStorage):
             if not self._index:
                 return
             # Build an index of *only* those objects reachable from the root.
-            rootl = ['\0\0\0\0\0\0\0\0']
+            rootl = [z64]
             pindex = {}
             while rootl:
                 oid = rootl.pop()
@@ -144,6 +144,6 @@ class MappingStorage(BaseStorage.BaseStorage):
         for oid in keys:
             r = self._index[oid]
             o.append('  %s: %s, %s' %
-                     (utils.u64(oid),TimeStamp(r[:8]),`r[8:]`))
+                     (u64(oid),TimeStamp(r[:8]),`r[8:]`))
 
         return '\n'.join(o)
