@@ -82,7 +82,7 @@
   attributions are listed in the accompanying credits file.
   
  ****************************************************************************/
-static char *what_string = "$Id: cPersistence.c,v 1.32 1999/07/13 21:14:21 jim Exp $";
+static char *what_string = "$Id: cPersistence.c,v 1.33 1999/09/14 18:13:10 jim Exp $";
 
 #include <string.h>
 #include "cPersistence.h"
@@ -93,6 +93,7 @@ static char *what_string = "$Id: cPersistence.c,v 1.32 1999/07/13 21:14:21 jim E
 #define OBJECT(V) ((PyObject*)(V))
 
 static PyObject *py_keys, *py_setstate, *py___dict__, *py_timeTime;
+static PyObject *py__p_changed, *py__p_deactivate;
 
 static PyObject *TimeStamp;
 
@@ -123,6 +124,8 @@ init_strings()
   INIT_STRING(setstate);
   INIT_STRING(timeTime);
   INIT_STRING(__dict__);
+  INIT_STRING(_p_changed);
+  INIT_STRING(_p_deactivate);
 #undef INIT_STRING
 }
 
@@ -277,7 +280,7 @@ Per___changed__(cPersistentObject *self, PyObject *args)
   PyObject *v=0;
 
   if (args && ! PyArg_ParseTuple(args, "|O",&v)) return NULL;
-  if (! v) return PyObject_GetAttrString(OBJECT(self), "_p_changed");
+  if (! v) return PyObject_GetAttr(OBJECT(self), py__p_changed);
 
   if (PyObject_IsTrue(v)) 
     {
@@ -304,6 +307,9 @@ Per__p_deactivate(cPersistentObject *self, PyObject *args)
       HasInstDict(self) && (dict=INSTANCE_DICT(self)))
     {
       PyDict_Clear(dict);
+      /* Note that we need to set to ghost state unless we are 
+	 called directly. Methods that override this need to
+         do the same! */
       self->state=cPersistent_GHOST_STATE;
     }
 
@@ -311,6 +317,7 @@ Per__p_deactivate(cPersistentObject *self, PyObject *args)
   return Py_None;
 }
 
+/* Load the object's state if necessary and become sticky */
 static int
 Per_setstate(cPersistentObject *self)
 {
@@ -603,7 +610,9 @@ _setattro(cPersistentObject *self, PyObject *oname, PyObject *v,
 	    }
 	  if (v==Py_None)
 	    {
-	      if (Per__p_deactivate(self, NULL)) Py_DECREF(Py_None);
+	      v=PyObject_GetAttr(OBJECT(self), py__p_deactivate);
+	      if (v) ASSIGN(v, PyObject_CallObject(v, NULL));
+	      if (v) Py_DECREF(v);
 	      self->state=cPersistent_GHOST_STATE;
 	      return 0;
 	    }
@@ -709,7 +718,7 @@ void
 initcPersistence()
 {
   PyObject *m, *d;
-  char *rev="$Revision: 1.32 $";
+  char *rev="$Revision: 1.33 $";
 
   TimeStamp=PyString_FromString("TimeStamp");
   if (! TimeStamp) return;
