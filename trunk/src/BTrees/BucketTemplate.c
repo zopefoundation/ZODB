@@ -12,7 +12,7 @@
 
  ****************************************************************************/
 
-#define BUCKETTEMPLATE_C "$Id: BucketTemplate.c,v 1.51 2003/04/11 19:17:07 tim_one Exp $\n"
+#define BUCKETTEMPLATE_C "$Id: BucketTemplate.c,v 1.52 2003/04/11 19:38:18 tim_one Exp $\n"
 
 /* Use BUCKET_SEARCH to find the index at which a key belongs.
  * INDEX    An int lvalue to hold the index i such that KEY belongs at
@@ -331,8 +331,6 @@ _bucket_set(Bucket *self, PyObject *keyarg, PyObject *v,
             }
 
             /* The key exists at index i, and we need to replace the value. */
-            COPY_VALUE_FROM_ARG(value, v, copied);
-            UNLESS(copied) goto Done;
 #ifdef VALUE_SAME
             /* short-circuit if no change */
             if (VALUE_SAME(self->values[i], value)) {
