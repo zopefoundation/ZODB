@@ -1,27 +1,15 @@
-# Copyright (c) 2001 Zope Corporation and Contributors.  All Rights Reserved.
-#
-# This software is subject to the provisions of the Zope Public License,
-# Version 1.1 (ZPL).  A copy of the ZPL should accompany this
-# distribution.  THIS SOFTWARE IS PROVIDED "AS IS" AND ANY AND ALL
-# EXPRESS OR IMPLIED WARRANTIES ARE DISCLAIMED, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF TITLE, MERCHANTABILITY, AGAINST
-# INFRINGEMENT, AND FITNESS FOR A PARTICULAR PURPOSE.
-
 """Library for forking storage server and connecting client storage"""
 
 import asyncore
 import os
+import profile
 import random
 import socket
 import sys
-import traceback
 import types
 import ZEO.ClientStorage, ZEO.StorageServer
 
-# Change value of PROFILE to enable server-side profiling
 PROFILE = 0
-if PROFILE:
-    import hotshot
 
 def get_port():
     """Return a port that is not in use.
@@ -78,11 +66,9 @@ else:
             buf = self.recv(4)
             if buf:
                 assert buf == "done"
-                server.close_server()
                 asyncore.socket_map.clear()
 
         def handle_close(self):
-            server.close_server()
             asyncore.socket_map.clear()
 
     class ZEOClientExit:
@@ -91,27 +77,20 @@ else:
             self.pipe = pipe
 
         def close(self):
-            try:
-                os.write(self.pipe, "done")
-                os.close(self.pipe)
-            except os.error:
-                pass
+            os.write(self.pipe, "done")
+            os.close(self.pipe)
 
     def start_zeo_server(storage, addr):
         rd, wr = os.pipe()
         pid = os.fork()
         if pid == 0:
-            try:
-                if PROFILE:
-                    p = hotshot.Profile("stats.s.%d" % os.getpid())
-                    p.runctx("run_server(storage, addr, rd, wr)",
-                             globals(), locals())
-                    p.close()
-                else:
-                    run_server(storage, addr, rd, wr)
-            except:
-                print "Exception in ZEO server process"
-                traceback.print_exc()
+            if PROFILE:
+                p = profile.Profile()
+                p.runctx("run_server(storage, addr, rd, wr)", globals(),
+                         locals())
+                p.dump_stats("stats.s.%d" % os.getpid())
+            else:
+                run_server(storage, addr, rd, wr)
             os._exit(0)
         else:
             os.close(rd)
@@ -119,11 +98,11 @@ else:
 
     def run_server(storage, addr, rd, wr):
         # in the child, run the storage server
-        global server
         os.close(wr)
         ZEOServerExit(rd)
-        server = ZEO.StorageServer.StorageServer(addr, {'1':storage})
+        serv = ZEO.StorageServer.StorageServer(addr, {'1':storage})
         asyncore.loop()
+        os.close(rd)
         storage.close()
         if isinstance(addr, types.StringType):
             os.unlink(addr)
@@ -149,7 +128,6 @@ else:
         s = ZEO.ClientStorage.ClientStorage(addr, storage_id,
                                             debug=1, client=cache,
                                             cache_size=cache_size,
-                                            min_disconnect_poll=0.5,
-                                            wait_for_server_on_startup=1)
+                                            min_disconnect_poll=0.5)
         return s, exit, pid
 
