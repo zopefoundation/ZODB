@@ -14,7 +14,7 @@
 
 """
 Revision information:
-$Id: testTransaction.py,v 1.13 2003/10/02 18:17:17 jeremy Exp $
+$Id: testTransaction.py,v 1.14 2003/10/05 14:34:35 chrism Exp $
 """
 
 """
@@ -85,6 +85,17 @@ class TransactionTests(unittest.TestCase):
         get_transaction().abort()
 
         assert self.sub2._p_jar.cabort == 1
+
+    def testTransactionNote(self):
+
+        t = get_transaction()
+
+        t.note('This is a note.')
+        self.assertEqual(t.description, 'This is a note.')
+        t.note('Another.')
+        self.assertEqual(t.description, 'This is a note.\n\nAnother.')
+
+        t.abort()
 
     def testSubTransactionCommitCommit(self):
 
