@@ -47,7 +47,17 @@ License, version 2.0.
 
 The \module{ZConfig} package has been tested with Python 2.1 and 2.2.
 Python 2.0 is not supported.
-It only relies on the Python standard library.
+\module{ZConfig} only relies on the Python standard library.
+
+Configurations which use \module{ZConfig} are described using
+\dfn{schema}.  A schema is a specification for the allowed structure
+and content of the configuration.  \module{ZConfig} schema are written
+using a small XML-based language.  The schema language allows the
+schema author to specify the names of the keys allowed at the top
+level and within sections, to define the types of sections which may
+be used (and where), the types of each values, whether a key or
+section must be specified or is optional, default values for keys, and
+whether a value can be given only once or repeatedly.
 
 
 \section{Configuration Syntax \label{syntax}}
@@ -225,6 +235,11 @@ For example, the value for the \code{key} will evaluate to
 %define name value
 key $name
 \end{verbatim} %$ <-- bow to font-lock
+
+
+\section{Writing Configuration Schema \label{writing-schema}}
+
+XXX to be written
 
 
 \section{Standard \module{ZConfig} Datatypes\label{standard-datatypes}}
@@ -477,6 +492,56 @@ The following exceptions are defined by this package:
 \begin{excdesc}{SubstitutionSyntaxError}
   Raised when the source text contains syntactical errors.
 \end{excdesc}
+
+
+\subsection{Basic Usage}
+
+The simplest use of \refmodule{ZConfig} is to load a configuration
+based on a schema stored in a file.  This example loads a
+configuration file specified on the command line using a schema in the
+same directory as the script:
+
+\begin{verbatim}
+import os
+import sys
+import ZConfig
+
+try:
+    myfile = __file__
+except NameError:
+    # really should follow symlinks here:
+    myfile = sys.argv[0]
+
+mydir = os.path.dirname(os.path.abspath(myfile))
+
+schema = ZConfig.loadSchema(os.path.join(mydir, 'schema.xml'))
+conf = ZConfig.loadConfig(schema, sys.argv[1])
+\end{verbatim}
+
+If the schema file contained this schema:
+
+\begin{verbatim}
+<schema>
+  <key name='server' required='yes'/>
+  <key name='attempts' datatype='integer' default='5'/>
+</schema>
+\end{verbatim}
+
+and the file specified on the command line contained this text:
+
+\begin{verbatim}
+# sample configuration
+
+server www.example.com
+\end{verbatim}
+
+then the configuration object \code{conf} loaded above would have two
+attributes:
+
+\begin{tableii}{l|l}{member}{Attribute}{Value}
+  \lineii{server}{\code{'www.example.com'}}
+  \lineii{attempts}{\code{5}}
+\end{tableii}
 
 
 \section{\module{ZConfig.Context} --- Application context}
