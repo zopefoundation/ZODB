@@ -84,8 +84,8 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.32 2000/05/09 19:09:16 jim Exp $"""
-__version__='$Revision: 1.32 $'[11:-2]
+$Id: Connection.py,v 1.33 2000/05/20 15:54:28 jim Exp $"""
+__version__='$Revision: 1.33 $'[11:-2]
 
 from cPickleCache import PickleCache
 from POSException import ConflictError, ExportError
@@ -438,6 +438,15 @@ class Connection(ExportImport.ExportImport):
             LOG('ZODB',ERROR, "Couldn't load state for %s" % `oid`,
                 error=sys.exc_info())
             raise
+
+    def oldstate(self, object, serial):
+        oid=object._p_oid
+        p = self._storage.loadSerial(oid, serial)
+        file=StringIO(p)
+        unpickler=Unpickler(file)
+        unpickler.persistent_load=self._persistent_load
+        unpickler.load()
+        return  unpickler.load()
 
     def setklassstate(self, object,
                       tt=type(()), ct=type(HelperClass)):

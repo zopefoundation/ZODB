@@ -84,7 +84,7 @@
 ##############################################################################
 """Handy standard storage machinery
 """
-__version__='$Revision: 1.6 $'[11:-2]
+__version__='$Revision: 1.7 $'[11:-2]
 
 import time, bpthread, UndoLogCompatible
 from POSException import UndoError
@@ -218,3 +218,6 @@ class BaseStorage(UndoLogCompatible.UndoLogCompatible):
 
     def pack(self, t, referencesf): pass
 
+    def loadSerial(self, oid, serial):
+        raise POSException.Unsupported, (
+            "Retrieval of historical revisions is not supported")
