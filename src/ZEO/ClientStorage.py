@@ -13,7 +13,7 @@
 ##############################################################################
 """Network ZODB storage client
 
-$Id: ClientStorage.py,v 1.67 2002/09/23 20:24:54 gvanrossum Exp $
+$Id: ClientStorage.py,v 1.68 2002/09/25 22:02:44 bwarsaw Exp $
 """
 
 # XXX TO DO
@@ -507,7 +507,7 @@ class ClientStorage:
     def undoInfo(self, first=0, last=-20, specification=None):
         return self._server.undoInfo(first, last, specification)
 
-    def undoLog(self, first, last, filter=None):
+    def undoLog(self, first=0, last=-20, filter=None):
         if filter is not None:
             return () # can't pass a filter to server
 
