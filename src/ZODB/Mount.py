@@ -13,10 +13,11 @@
 ##############################################################################
 """Mounted database support
 
-$Id: Mount.py,v 1.17 2003/02/05 16:49:02 shane Exp $"""
-__version__='$Revision: 1.17 $'[11:-2]
+$Id: Mount.py,v 1.18 2003/02/05 19:45:02 shane Exp $"""
+__version__='$Revision: 1.18 $'[11:-2]
 
 import thread, Persistence, Acquisition
+from Acquisition import aq_base
 import ExtensionClass, string, time, sys
 from POSException import MountedStorageError
 from zLOG import LOG, ERROR, INFO, WARNING
@@ -151,10 +152,10 @@ class MountPoint(Persistence.Persistent, Acquisition.Implicit):
 
     def _getObjectFromConnection(self, conn):
         obj = self._getMountRoot(conn.root())
-        data = getattr(obj, 'aq_base', obj)
+        data = aq_base(obj)
         # Store the data object in a tuple to hide from acquisition.
         self._v_data = (data,)
-        data._v_mount_point_ = self
+        data._v_mount_point_ = (aq_base(self),)
         return data
 
     def _getOrOpenObject(self, parent):
