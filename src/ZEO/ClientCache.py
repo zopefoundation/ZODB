@@ -97,10 +97,11 @@ with '\0\0\0\0'.
 If var is not writable, then temporary files are used for
 file 0 and file 1.
 
-$Id: ClientCache.py,v 1.30 2002/08/28 18:58:35 gvanrossum Exp $
+$Id: ClientCache.py,v 1.31 2002/08/30 18:13:43 gvanrossum Exp $
 """
 
 import os
+import time
 import tempfile
 from struct import pack, unpack
 from thread import allocate_lock
@@ -185,6 +186,7 @@ class ClientCache:
 
         self._limit = size / 2
         self._current = current
+        self._setup_trace()
 
     def open(self):
         # Two tasks:
@@ -230,18 +232,31 @@ class ClientCache:
         try:
             p = self._get(oid, None)
             if p is None:
+                self._trace(0x10, oid, version)
                 return None
             f = self._f[p < 0]
             ap = abs(p)
             f.seek(ap)
             h = f.read(27)
+            if len(h) != 27:
+                log("invalidate: short record for oid %16x "
+                    "at position %d in cache file %d"
+                    % (U64(oid), ap, p < 0))
+                del self._index[oid]
+                return None
             if h[:8] != oid:
-                return
+                log("invalidate: oid mismatch: expected %16x read %16x "
+                    "at position %d in cache file %d"
+                    % (U64(oid), U64(h[:8]), ap, p < 0))
+                del self._index[oid]
+                return None
             f.seek(p+8) # Switch from reading to writing
             if version and h[15:19] != '\0\0\0\0':
+                self._trace(0x1A, oid, version)
                 # There's still relevant non-version data in the cache record
                 f.write('n')
             else:
+                self._trace(0x1C, oid, version)
                 del self._index[oid]
                 f.write('i')
         finally:
@@ -252,6 +267,7 @@ class ClientCache:
         try:
             p = self._get(oid, None)
             if p is None:
+                self._trace(0x20, oid, version)
                 return None
             f = self._f[p < 0]
             ap = abs(p)
@@ -272,15 +288,21 @@ class ClientCache:
 
             if h[8]=='n':
                 if version:
+                    self._trace(0x22, oid, version)
                     return None
                 if not dlen:
+                    # XXX This shouldn't actually happen
+                    self._trace(0x24, oid, version)
                     del self._index[oid]
                     return None
 
             if not vlen or not version:
                 if dlen:
-                    return read(dlen), h[19:]
+                    data = read(dlen)
+                    self._trace(0x2A, oid, version, h[19:], dlen)
+                    return data, h[19:]
                 else:
+                    self._trace(0x26, oid, version)
                     return None
 
             if dlen:
@@ -290,13 +312,17 @@ class ClientCache:
             if version != v:
                 if dlen:
                     seek(p+27)
-                    return read(dlen), h[19:]
+                    data = read(dlen)
+                    self._trace(0x2C, oid, version, h[19:], dlen)
+                    return data, h[19:]
                 else:
+                    self._trace(0x28, oid, version)
                     return None
 
             vdlen = unpack(">i", vheader[-4:])[0]
             vdata = read(vdlen)
             vserial = read(8)
+            self._trace(0x2E, oid, version, vserial, vdlen)
             return vdata, vserial
         finally:
             self._release()
@@ -304,6 +330,7 @@ class ClientCache:
     def update(self, oid, serial, version, data):
         self._acquire()
         try:
+            self._trace(0x3A, oid, version, serial, len(data))
             if version:
                 # We need to find and include non-version data
                 p = self._get(oid, None)
@@ -345,6 +372,7 @@ class ClientCache:
         try:
             p = self._get(oid, None)
             if p is None:
+                self._trace(0x40, oid)
                 return None
             f = self._f[p < 0]
             ap = abs(p)
@@ -364,12 +392,16 @@ class ClientCache:
                 return None
 
             if h[8] == 'n':
+                self._trace(0x4A, oid)
                 return None
 
             if not vlen:
+                self._trace(0x4C, oid)
                 return ''
             seek(dlen, 1)
-            return read(vlen)
+            version = read(vlen)
+            self._trace(0x4E, oid, version)
+            return version
         finally:
             self._release()
 
@@ -381,6 +413,7 @@ class ClientCache:
             if self._pos + size > self._limit:
                 current = not self._current
                 self._current = current
+                self._trace(0x70)
                 log("flipping cache files.  new current = %d" % current)
                 # Delete the half of the index that's no longer valid
                 index = self._index
@@ -406,9 +439,12 @@ class ClientCache:
         finally:
             self._release()
 
-
     def store(self, oid, p, s, version, pv, sv):
         self._acquire()
+        if s:
+            self._trace(0x5A, oid, version, s, len(p))
+        else:
+            self._trace(0x5C, oid, version, sv, len(pv))
         try:
             self._store(oid, p, s, version, pv, sv)
         finally:
@@ -445,6 +481,41 @@ class ClientCache:
             self._index[oid] = self._pos
 
         self._pos += tlen
+
+    def _setup_trace(self):
+        # See if cache tracing is requested through $ZEO_CACHE_TRACE.
+        # If not, or if we can't write to the trace file,
+        # disable tracing by setting self._trace to a dummy function.
+        self._tracefile = None
+        tfn = os.environ.get("ZEO_CACHE_TRACE")
+        if tfn:
+            try:
+                self._tracefile = open(tfn, "ab")
+                self._trace(0x00)
+            except IOError:
+                self._tracefile = None
+        if self._tracefile is None:
+            def notrace(*args):
+                pass
+            self._trace = notrace
+
+    def _trace(self, code, oid='', version='', serial='', dlen=0,
+               # Remaining arguments are speed hacks
+               time_time=time.time, struct_pack=pack):
+        # The code argument is two hex digits; bits 0 and 7 must be zero.
+        # The first hex digit shows the operation, the second the outcome.
+        # If the second digit is in "02468" then it is a 'miss'.
+        # If it is in "ACE" then it is a 'hit'.
+        # This method has been carefully tuned to be as fast as possible.
+        # Note: when tracing is disabled, this method is hidden by a dummy.
+        if version:
+            code |= 0x80
+        self._tracefile.write(
+            struct_pack(">ii8s8s",
+                        time_time(),
+                        (dlen+255) & 0x7fffff00 | code | self._current,
+                        oid,
+                        serial))
 
 def read_index(index, serial, f, fileindex):
     seek = f.seek
