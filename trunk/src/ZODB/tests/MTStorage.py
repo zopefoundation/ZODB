@@ -30,10 +30,8 @@ class TestThread(threading.Thread):
     method.
     """
 
-    def __init__(self, test):
+    def __init__(self):
         threading.Thread.__init__(self)
-        self.test = test
-        self._fail = None
         self._exc_info = None
 
     def run(self):
@@ -41,9 +39,6 @@ class TestThread(threading.Thread):
             self.runtest()
         except:
             self._exc_info = sys.exc_info()
-
-    def fail(self, msg=""):
-        self._test.fail(msg)
 
     def join(self, timeout=None):
         threading.Thread.join(self, timeout)
@@ -55,7 +50,7 @@ class ZODBClientThread(TestThread):
     __super_init = TestThread.__init__
 
     def __init__(self, db, test, commits=10, delay=SHORT_DELAY):
-        self.__super_init(test)
+        self.__super_init()
         self.setDaemon(1)
         self.db = db
         self.test = test
@@ -102,7 +97,7 @@ class StorageClientThread(TestThread):
     __super_init = TestThread.__init__
 
     def __init__(self, storage, test, commits=10, delay=SHORT_DELAY):
-        self.__super_init(test)
+        self.__super_init()
         self.storage = storage
         self.test = test
         self.commits = commits
