@@ -36,20 +36,21 @@ def transact(f, note=None, retries=5):
     # XXX deal with ZEO disconnected errors?
     
     def g(*args, **kwargs):
-        while retries:
-            retries -= 1
+        n = retries
+        while n:
+            n -= 1
             try:
                 r = f(*args, **kwargs)
             except ReadConflictError, msg:
                 get_transaction().abort()
-                if not retries:
+                if not n:
                     raise
                 continue
             try:
                 _commit(note)
             except ConflictError, msg:
                 get_transaction().abort()
-                if not retries:
+                if not n:
                     raise
                 continue
             return r
