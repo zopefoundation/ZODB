@@ -94,6 +94,7 @@ static void PyVar_Assign(PyObject **v, PyObject *e) { Py_XDECREF(*v); *v=e;}
 static PyObject *py__p_oid, *py__p_jar, *py___getinitargs__, *py___module__;
 static PyObject *py_new_oid, *py___class__, *py___name__;
 
+static PyObject *InvalidObjectReference;
 
 typedef struct {
   PyObject_HEAD
@@ -306,7 +307,7 @@ void
 initcoptimizations()
 {
   PyObject *m, *d;
-  char *rev="$Revision: 1.5 $";
+  char *rev="$Revision: 1.6 $";
 
 #define make_string(S) if (! (py_ ## S=PyString_FromString(#S))) return
   make_string(_p_oid);
@@ -316,6 +317,14 @@ initcoptimizations()
   make_string(__class__);
   make_string(__name__);
   make_string(new_oid);
+			
+  /* Get InvalidObjectReference error */
+  UNLESS (m=PyString_FromString("POSException")) return;
+  ASSIGN(m, PyImport_Import(m));
+  UNLESS (m) return;
+  ASSIGN(m, PyObject_GetAttrString(m, "InvalidObjectReference"));
+  UNLESS (m) return;
+  InvalidObjectReference=m;
 
   UNLESS (ExtensionClassImported) return;
 
