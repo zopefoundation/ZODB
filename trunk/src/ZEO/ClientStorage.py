@@ -84,7 +84,7 @@
 ##############################################################################
 """Network ZODB storage client
 """
-__version__='$Revision: 1.24 $'[11:-2]
+__version__='$Revision: 1.25 $'[11:-2]
 
 import struct, time, os, socket, string, Sync, zrpc, ClientCache
 import tempfile, Invalidator, ExtensionClass, thread
@@ -245,8 +245,8 @@ class ClientStorage(ExtensionClass.Base, BaseStorage.BaseStorage):
         finally: self._lock_release()
 
         if self._async:
-            import ZServer.medusa.asyncore
-            self.becomeAsync(ZServer.medusa.asyncore.socket_map)
+            import asyncore
+            self.becomeAsync(asyncore.socket_map)
 
 
     ### Is there a race condition between notifyConnected and
@@ -274,10 +274,7 @@ class ClientStorage(ExtensionClass.Base, BaseStorage.BaseStorage):
         try:
             self._async=1
             if self._connected:
-                import ZServer.PubCore.ZEvent
-
-                self._call.setLoop(map,
-                                   ZServer.PubCore.ZEvent.Wakeup)
+                self._call.setLoop(map, getWakeup())
                 self.__begin='tpc_begin'
         finally: self._lock_release()
 
@@ -562,3 +559,9 @@ class ClientStorage(ExtensionClass.Base, BaseStorage.BaseStorage):
         try: return self._call('versions', max)
         finally: self._lock_release()
 
+def getWakeup(_w=[]):
+    if _w: return _w[0]
+    import trigger
+    t=trigger.trigger().pull_trigger
+    _w.append(t)
+    return t
