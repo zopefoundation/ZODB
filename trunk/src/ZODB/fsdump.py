@@ -126,7 +126,7 @@ class Dumper:
             self.dump_data(pos)
         stlen2 = self.file.read(8)
         print >> self.dest, "redundant trec len: %d" % u64(stlen2)
-        return True
+        return 1
 
     def dump_data(self, tloc):
         pos = self.file.tell()
