@@ -175,11 +175,9 @@ class BDBTests(FileStorageTests):
 
 
 test_classes = [FileStorageTests]
-try:
-    from BDBStorage.BDBFullStorage import BDBFullStorage
-except ImportError:
-    pass
-else:
+
+import BDBStorage
+if BDBStorage.is_available:
     test_classes.append(BDBTests)
 
 

@@ -75,11 +75,9 @@ class BDBReconnectionTests(
 
 
 test_classes = [FileStorageConnectionTests, FileStorageReconnectionTests]
-try:
-    from BDBStorage.BDBFullStorage import BDBFullStorage
-except ImportError:
-    pass
-else:
+
+import BDBStorage
+if BDBStorage.is_available:
     test_classes.append(BDBConnectionTests)
     test_classes.append(BDBReconnectionTests)
 
