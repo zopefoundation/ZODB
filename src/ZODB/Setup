@@ -1,8 +1,8 @@
 *shared*
-cPersistence cPersistence.c    -I../../Components/ExtensionClass
-cPickleCache cPickleCache.c    -I../../Components/ExtensionClass
-TimeStamp TimeStamp.c   -I../../Components/ExtensionClass -DUSE_EXTENSION_CLASS
-coptimizations coptimizations.c -I../../Components/ExtensionClass
+cPersistence cPersistence.c    -I../../Components/ExtensionClass/src
+cPickleCache cPickleCache.c    -I../../Components/ExtensionClass/src
+TimeStamp TimeStamp.c   -I../../Components/ExtensionClass/src -DUSE_EXTENSION_CLASS
+coptimizations coptimizations.c -I../../Components/ExtensionClass/src
 
 
 # This is an auxilary file that provides file locking on windows.
