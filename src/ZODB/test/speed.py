@@ -15,6 +15,9 @@ Options:
     -z         Test compressing data
 
     -D         Run in debug mode
+
+    -L         Test loads as well as stores by minimizing
+               the cache after eachrun
 """
   
 import sys, os, getopt, string, time
@@ -27,10 +30,11 @@ class P(Persistence.Persistent): pass
 
 def main(args):
 
-    opts, args = getopt.getopt(args, 'zd:n:Ds:')
+    opts, args = getopt.getopt(args, 'zd:n:Ds:M')
     z=s=None
     data=sys.argv[0]
     nrep=5
+    minimize=0
     for o, v in opts:
         if o=='-n': nrep=string.atoi(v)
         elif o=='-d': data=v
@@ -39,6 +43,7 @@ def main(args):
             global zlib
             import zlib
             z=compress
+        elif o=='-M': minimize=1
         elif o=='-D':
             global debug
             os.environ['STUPID_LOG_FILE']=''
@@ -53,7 +58,10 @@ def main(args):
         s=ZODB.FileStorage.FileStorage('zeo_speed.fs', create=1)
 
     data=open(data).read()
-    db=ZODB.DB(s)
+    db=ZODB.DB(s,
+               # disable cache deactivation
+               cache_size=4000,
+               cache_deactivate_after=6000,)
 
     results={}
     for j in range(nrep):
@@ -75,7 +83,12 @@ def main(args):
             jar.close()
             sys.stderr.write("%s %s %s\n" % (j, r, time.time()-t))
             sys.stdout.flush()
-    
+            rt=d=p=v=None # release all references
+            if minimize:
+                time.sleep(3)
+                jar.cacheMinimize(3)
+
+            
     
 def compress(s):
     c=zlib.compressobj()
