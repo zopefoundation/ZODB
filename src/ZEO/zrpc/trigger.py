@@ -58,7 +58,7 @@ if os.name == 'posix':
             asyncore.file_dispatcher.__init__(self, r)
             self.lock = thread.allocate_lock()
             self.thunks = []
-            self._closed = None
+            self._closed = 0
 
         # Override the asyncore close() method, because it seems that
         # it would only close the r file descriptor and not w.  The
@@ -67,7 +67,7 @@ if os.name == 'posix':
         # the default close.  But that would leave w open...
 
         def close(self):
-            if self._closed is None:
+            if not self._closed:
                 self._closed = 1
                 self.del_channel()
                 for fd in self._fds:
