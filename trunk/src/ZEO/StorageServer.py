@@ -249,7 +249,7 @@ class ZEOStorage:
     def endZeoVerify(self):
         self.client.endVerify()
 
-    def pack(self, time, wait=0):
+    def pack(self, time, wait=1):
         if wait:
             return run_in_thread(self.pack_impl, time)
         else:
