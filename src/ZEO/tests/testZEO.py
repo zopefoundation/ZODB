@@ -9,16 +9,18 @@ import unittest
 
 import ZEO.ClientStorage, ZEO.StorageServer
 import ThreadedAsync, ZEO.trigger
+from ZODB.FileStorage import FileStorage
 
-from ZEO.tests import forker
+from ZEO.tests import forker, Cache
 
 # Sorry Jim...
 from ZODB.tests import StorageTestBase, BasicStorage, VersionStorage, \
      TransactionalUndoStorage, TransactionalUndoVersionStorage, \
-     PackableStorage, Synchronization
+     PackableStorage, Synchronization, ConflictResolution
+from ZODB.tests.MinPO import MinPO
+
 
 ZERO = '\0'*8
-import pickle
 
 class DummyDB:
     def invalidate(self, *args):
@@ -59,9 +61,9 @@ class ZEOTestBase(StorageTestBase.StorageTestBase):
         if revid is None:
             revid = ZERO
         if data is None:
-            data = 7
+            data = MinPO(7)
         if not already_pickled:
-            data = pickle.dumps(data)
+            data = StorageTestBase.zodb_pickle(data)
         if version is None:
             version = ''
         # Begin the transaction
@@ -91,12 +93,18 @@ class ZEOTestBase(StorageTestBase.StorageTestBase):
                     raise serial
                 d[oid] = serial
         return d
+
+    def checkLargeUpdate(self):
+        obj = MinPO("X" * (10 * 128 * 1024))
+        self._dostore(data=obj)
         
 class GenericTests(ZEOTestBase,
+                   Cache.StorageWithCache,
                    BasicStorage.BasicStorage,
                    VersionStorage.VersionStorage,
                    PackableStorage.PackableStorage,
                    Synchronization.SynchronizedStorage,
+                   ConflictResolution.ConflictResolvingStorage,
                    ):
     """An abstract base class for ZEO tests
 
@@ -133,14 +141,12 @@ class GenericTests(ZEOTestBase,
 class ZEOFileStorageTests(GenericTests):
     __super_setUp = GenericTests.setUp
     
-    from ZODB.FileStorage import FileStorage
-
     def setUp(self):
         self.__fs_base = tempfile.mktemp()
         self.__super_setUp()
 
     def getStorage(self):
-        return self.FileStorage(self.__fs_base, create=1)
+        return FileStorage(self.__fs_base, create=1)
 
     def delStorage(self):
         # file storage appears to create three files
