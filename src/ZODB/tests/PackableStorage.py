@@ -175,7 +175,10 @@ class PackableStorage(PackableStorageBase):
                 root[i].value = MinPO(i)
                 get_transaction().commit()
 
-        threads = [ClientThread(db, choices) for i in range(4)]
+        NUM_LOOP_TRIP = 50
+        timer = ElapsedTimer(time.time())
+        threads = [ClientThread(db, choices, NUM_LOOP_TRIP, timer, i)
+                   for i in range(4)]
         for t in threads:
             t.start()
 
@@ -190,24 +193,44 @@ class PackableStorage(PackableStorageBase):
         if True in liveness:
             # They should have finished by now.
             print 'Liveness:', liveness
-            # Display how far each thread got, one column per thread.
-            i = 0
-            fmt = "(%2s %10s)"
-            while True:
-                found_one = False
-                columns = []
-                for t in threads:
-                    if i < len(t.outcomes):
-                        found_one = True
-                        result = tuple(t.outcomes[i])
-                    else:
-                        result = ('--', '--')
-                    columns.append(fmt % result)
-                if found_one:
-                    print ' '.join(columns)
-                    i += 1
-                else:
-                    break
+            # Combine the outcomes, and sort by start time.
+            outcomes = []
+            for t in threads:
+                outcomes.extend(t.outcomes)
+            # each outcome list has as many of these as a loop trip got thru:
+            #     thread_id
+            #     elapsed millis at loop top
+            #     elapsed millis at attempt to assign to self.root[index]
+            #     index into self.root getting replaced
+            #     elapsed millis when outcome known
+            #     'OK' or 'Conflict'
+            #     True if we got beyond this line, False if it raised an
+            #         exception (one possible Conflict cause):
+            #             self.root[index].value = MinPO(j)
+            def cmp_by_time(a, b):
+                return cmp((a[1], a[0]), (b[1], b[0]))
+            outcomes.sort(cmp_by_time)
+            counts = [0] * 4
+            for outcome in outcomes:
+                n = len(outcome)
+                assert n >= 2
+                tid = outcome[0]
+                print 'tid:%d top:%5d' % (tid, outcome[1]),
+                if n > 2:
+                    print 'commit:%5d' % outcome[2],
+                    if n > 3:
+                        print 'index:%2d' % outcome[3],
+                        if n > 4:
+                            print 'known:%5d' % outcome[4],
+                            if n > 5:
+                                print '%8s' % outcome[5],
+                                if n > 6:
+                                    print 'assigned:%5s' % outcome[6],
+                counts[tid] += 1
+                if counts[tid] == NUM_LOOP_TRIP:
+                    print 'thread %d done' % tid,
+                print
+
             self.fail('a thread is still alive')
 
         # Iterate over the storage to make sure it's sane, but not every
@@ -575,22 +598,49 @@ class PackableUndoStorage(PackableStorageBase):
 # random write activity while the main thread is packing it.
 class ClientThread(TestThread):
 
-    def __init__(self, db, choices):
+    def __init__(self, db, choices, loop_trip, timer, thread_id):
         TestThread.__init__(self)
         self.root = db.open().root()
         self.choices = choices
-        # list of pairs, (root index written to, 'OK' or 'Conflict')
+        self.loop_trip = loop_trip
+        self.millis = timer.elapsed_millis
+        self.thread_id = thread_id
+        # list of lists; each list has as many of these as a loop trip
+        # got thru:
+        #     thread_id
+        #     elapsed millis at loop top
+        #     elapsed millis at attempt
+        #     index into self.root getting replaced
+        #     elapsed millis when outcome known
+        #     'OK' or 'Conflict'
+        #     True if we got beyond this line, False if it raised an exception:
+        #          self.root[index].value = MinPO(j)
         self.outcomes = []
 
     def runtest(self):
         from random import choice
 
-        for j in range(50):
+        for j in range(self.loop_trip):
+            assign_worked = False
+            alist = [self.thread_id, self.millis()]
+            self.outcomes.append(alist)
             try:
                 index = choice(self.choices)
+                alist.extend([self.millis(), index])
                 self.root[index].value = MinPO(j)
+                assign_worked = True
                 get_transaction().commit()
-                self.outcomes.append((index, 'OK'))
+                alist.append(self.millis())
+                alist.append('OK')
             except ConflictError:
+                alist.append(self.millis())
+                alist.append('Conflict')
                 get_transaction().abort()
-                self.outcomes.append((index, 'Conflict'))
+            alist.append(assign_worked)
+
+class ElapsedTimer:
+    def __init__(self, start_time):
+        self.start_time = start_time
+
+    def elapsed_millis(self):
+        return int((time.time() - self.start_time) * 1000)
