@@ -176,6 +176,7 @@ class WindowsGenericTests(GenericTests):
     """
 
     def setUp(self):
+        zLOG.LOG("testZEO", zLOG.INFO, "setUp() %s" % self.id())
         args = self.getStorageInfo()
         name = args[0]
         args = args[1]
@@ -224,6 +225,7 @@ class ConnectionTests(StorageTestBase.StorageTestBase):
         The ZEO server uses the storage object returned by the
         getStorage() method.
         """
+        zLOG.LOG("testZEO", zLOG.INFO, "setUp() %s" % self.id())
         self.running = 1
         self.file = tempfile.mktemp()
         self.addr = []
