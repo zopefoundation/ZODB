@@ -1,2 +1,2 @@
 #define INTKEY int
-#include "BTreeTemplate.c"
+#include "BTree.c"

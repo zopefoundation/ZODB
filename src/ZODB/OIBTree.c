@@ -1,2 +1,2 @@
 #define INTVAL int
-#include "BTreeTemplate.c"
+#include "BTree.c"
