@@ -14,7 +14,7 @@
 static char cPersistence_doc_string[] = 
 "Defines Persistent mixin class for persistent objects.\n"
 "\n"
-"$Id: cPersistence.c,v 1.56 2002/04/02 22:29:34 jeremy Exp $\n";
+"$Id: cPersistence.c,v 1.57 2002/04/02 22:46:48 jeremy Exp $\n";
 
 #include "cPersistence.h"
 
@@ -22,10 +22,6 @@ static char cPersistence_doc_string[] =
 struct ccobject_head_struct {
     CACHE_HEAD
 };
-
-#define HOME(O) (((O)->cache == NULL) ? NULL : &(O)->cache->ring_home)
-#define NON_GHOST_COUNT(O) \
-    (((O)->cache == NULL) ? NULL : &(O)->cache->non_ghost_count)
 
 #define ASSIGN(V,E) {PyObject *__e; __e=(E); Py_XDECREF(V); (V)=__e;}
 #define UNLESS(E) if(!(E))
@@ -92,7 +88,7 @@ static PyObject *
 callmethod(PyObject *self, PyObject *name)
 {
   self=PyObject_GetAttr(self,name);
-  if(self)
+  if (self)
     ASSIGN(self,PyObject_CallObject(self,NULL));
   return self;
 }
@@ -158,13 +154,15 @@ staticforward PyExtensionClass Pertype;
 static void
 accessed(cPersistentObject *self)
 {
-    if (HOME(self) && self->state >= 0) {
+    /* Do nothing unless the object is in a cache and not a ghost. */
+    if (self->cache && self->state >= 0) {
+	CPersistentRing *home = &self->cache->ring_home;
 	self->ring.prev->next = self->ring.next;
 	self->ring.next->prev = self->ring.prev;
-	self->ring.next = HOME(self);
-	self->ring.prev = HOME(self)->prev;
-	HOME(self)->prev->next = &self->ring;
-	HOME(self)->prev = &self->ring; 
+	self->ring.next = home;
+	self->ring.prev = home->prev;
+	home->prev->next = &self->ring;
+	home->prev = &self->ring; 
     }
 }
 
@@ -298,7 +296,7 @@ Per__p_deactivate(cPersistentObject *self, PyObject *args)
 
   /* need to delay releasing the last reference on instance attributes
   until after we have finished accounting for losing our state */
-  if(dict2)
+  if (dict2)
   {
       PyDict_Clear(dict2);
       Py_DECREF(dict2);
@@ -340,7 +338,7 @@ Per__getstate__(cPersistentObject *self, PyObject *args)
         char *ck;
 	  
         for(pos=0; PyDict_Next(__dict__, &pos, &k, &v); ) {
-            if(PyString_Check(k) && (ck=PyString_AS_STRING(k)) &&
+            if (PyString_Check(k) && (ck=PyString_AS_STRING(k)) &&
                (*ck=='_' && ck[1]=='v' && ck[2]=='_'))
 	    {
                 if ((d=PyDict_New()) == NULL)
@@ -373,21 +371,21 @@ Per__setstate__(cPersistentObject *self, PyObject *args)
   PyObject *__dict__, *v, *keys=0, *key=0, *e=0;
   int l, i;
 
-  if(HasInstDict(self))
+  if (HasInstDict(self))
     {
 
        UNLESS(PyArg_ParseTuple(args, "O", &v)) return NULL;
 #ifdef DEBUG_LOG
-       if(idebug_log < 0) call_debug("set",self);
+       if (idebug_log < 0) call_debug("set",self);
 #endif
-       if(v!=Py_None)
+       if (v!=Py_None)
 	 {
 	   __dict__=INSTANCE_DICT(self);
 	   
-	   if(PyDict_Check(v))
+	   if (PyDict_Check(v))
 	     {
 	       for(i=0; PyDict_Next(v, &i, &key, &e);)
-		 if(PyDict_SetItem(__dict__, key, e) < 0)
+		 if (PyDict_SetItem(__dict__, key, e) < 0)
 		   return NULL;
 	     }
 	   else
@@ -437,7 +435,7 @@ static void
 Per_dealloc(cPersistentObject *self)
 {
 #ifdef DEBUG_LOG
-  if(idebug_log < 0) call_debug("del",self);
+  if (idebug_log < 0) call_debug("del",self);
 #endif
   deallocated(self);
   Py_XDECREF(self->cache);
@@ -459,21 +457,21 @@ Per_getattr(cPersistentObject *self, PyObject *oname, char *name,
 {
   char *n=name;
 
-  if(n && *n++=='_')
-    if(*n++=='p' && *n++=='_')
+  if (n && *n++=='_')
+    if (*n++=='p' && *n++=='_')
       {
 	switch(*n++)
 	  {
 	  case 'o':
-	    if(*n++=='i' && *n++=='d' && ! *n) return orNothing(self->oid);
+	    if (*n++=='i' && *n++=='d' && ! *n) return orNothing(self->oid);
 	    break;
 	  case 'j':
-	    if(*n++=='a' && *n++=='r' && ! *n) return orNothing(self->jar);
+	    if (*n++=='a' && *n++=='r' && ! *n) return orNothing(self->jar);
 	    break;
 	  case 'c':
-	    if(strcmp(n,"hanged")==0)
+	    if (strcmp(n,"hanged")==0)
 	      {
-		if(self->state < 0)
+		if (self->state < 0)
 		  {
 		    Py_INCREF(Py_None);
 		    return Py_None;
@@ -483,13 +481,13 @@ Per_getattr(cPersistentObject *self, PyObject *oname, char *name,
 	      }
 	    break;
 	  case 's':
-	    if(strcmp(n,"erial")==0)
+	    if (strcmp(n,"erial")==0)
 	      return PyString_FromStringAndSize(self->serial, 8);
-	    if(strcmp(n,"elf")==0) 
+	    if (strcmp(n,"elf")==0) 
 	      return orNothing(OBJECT(self));
 	    break;
 	  case 'm':
-	    if(strcmp(n,"time")==0)
+	    if (strcmp(n,"time")==0)
 	      {
                   if (!unghostify(self))
                       return NULL;
@@ -520,7 +518,7 @@ Per_getattr(cPersistentObject *self, PyObject *oname, char *name,
 
 	return getattrf((PyObject *)self, oname);
       }
-  if(! (name && *name++=='_' && *name++=='_' &&
+  if (! (name && *name++=='_' && *name++=='_' &&
 	(strcmp(name,"dict__")==0 || strcmp(name,"class__")==0
 	 || strcmp(name, "of__")==0)))
     {
@@ -565,41 +563,44 @@ static int
 _setattro(cPersistentObject *self, PyObject *oname, PyObject *v,
 	     int (*setattrf)(PyObject *, PyObject*, PyObject*))
 {
-  char *name="";
+  char *name = "";
 
-  UNLESS(oname) return -1;
-  if(PyString_Check(oname)) UNLESS(name=PyString_AS_STRING(oname)) return -1;
+  if (oname == NULL)
+      return -1;
+  if (!PyString_Check(oname)) 
+      return -1;
+  name = PyString_AS_STRING(oname);
+  if (name == NULL)
+      return -1;
 	
-  if(*name=='_' && name[1]=='p' && name[2]=='_')
-    {
-      if(name[3]=='o' && name[4]=='i' && name[5]=='d' && ! name[6])
-	{
-	  if(HOME(self))
-	  {
-	    int result;
-	    if(!v)
-	    {
-              PyErr_SetString(PyExc_ValueError,"can not delete the oid of a cached object");
-              return -1;
-	    }
-	    if(PyObject_Cmp(self->oid,v,&result)<0) return -1;
-	    if(result)
-	    {
-              PyErr_SetString(PyExc_ValueError,"can not change the oid of a cached object");
-              return -1;
-            }
+  if (*name == '_' && name[1] == 'p' && name[2] == '_') {
+      if (name[3] == 'o' && name[4] == 'i' && name[5] == 'd' && ! name[6]) {
+	  if (self->cache) {
+	      int result;
+	      if (v == NULL) {
+		  PyErr_SetString(PyExc_ValueError,
+				  "can not delete the oid of a cached object");
+		  return -1;
+	      }
+	      if (PyObject_Cmp(self->oid, v, &result) < 0)
+		  return -1;
+	      if (result) {
+		  PyErr_SetString(PyExc_ValueError,
+				  "can not change the oid of a cached object");
+		  return -1;
+	      }
 	  }
 	  Py_XINCREF(v);
 	  ASSIGN(self->oid, v);
 	  return 0;
-	}
-      if(name[3]=='j' && name[4]=='a' && name[5]=='r' && ! name[6])
+      }
+      if (name[3]=='j' && name[4]=='a' && name[5]=='r' && ! name[6])
 	{
 	  Py_XINCREF(v);
 	  ASSIGN(self->jar, v);
 	  return 0;
 	}
-      if(name[3]=='s' && strcmp(name+4,"erial")==0)
+      if (name[3]=='s' && strcmp(name+4,"erial")==0)
 	{
 	  if (v)
 	    {
@@ -616,7 +617,7 @@ _setattro(cPersistentObject *self, PyObject *oname, PyObject *v,
 	    memset(self->serial, 0, 8);
 	  return 0;
 	}
-      if(name[3]=='c' && strcmp(name+4,"hanged")==0) 
+      if (name[3]=='c' && strcmp(name+4,"hanged")==0) 
 	{
 	  if (! v)
 	    {
@@ -646,11 +647,11 @@ _setattro(cPersistentObject *self, PyObject *oname, PyObject *v,
       
       accessed(self);
 
-      if((! (*name=='_' && name[1]=='v' && name[2]=='_'))
+      if ((! (*name=='_' && name[1]=='v' && name[2]=='_'))
 	 && (self->state != cPersistent_CHANGED_STATE && self->jar)
 	 && setattrf
 	 )
-	if(changed(self) < 0) return -1;
+	if (changed(self) < 0) return -1;
     }
 
   if (setattrf)
@@ -666,10 +667,9 @@ Per_setattro(cPersistentObject *self, PyObject *oname, PyObject *v)
   PyObject *m;
 
   if (v && (((PyExtensionClass*)self->ob_type)->class_flags 
-	    & EXTENSIONCLASS_USERSETATTR_FLAG)
-      )
+	    & EXTENSIONCLASS_USERSETATTR_FLAG))
     {
-      r=_setattro(self,oname, v, NULL);
+      r = _setattro(self, oname, v, NULL);
       if (r < 1) return r;
 
       m=PyObject_GetAttr(OBJECT(self), py___setattr__);
@@ -773,7 +773,7 @@ set_debug_log(PyObject *ignored, PyObject *args)
 {
   Py_INCREF(args);
   ASSIGN(debug_log, args);
-  if(debug_log) idebug_log=-1;
+  if (debug_log) idebug_log=-1;
   else idebug_log=0;
   Py_INCREF(Py_None);
   return Py_None;
