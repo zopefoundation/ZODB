@@ -32,12 +32,8 @@ class FileStorageTests(
     ):
 
     def open(self, **kwargs):
-        if kwargs:
-            self._storage = apply(ZODB.FileStorage.FileStorage,
-                                  ('FileStorageTests.fs',), kwargs)
-        else:
-            self._storage = ZODB.FileStorage.FileStorage(
-                'FileStorageTests.fs', **kwargs)
+        self._storage = ZODB.FileStorage.FileStorage('FileStorageTests.fs',
+                                                     **kwargs)
 
     def setUp(self):
         self.open(create=1)
