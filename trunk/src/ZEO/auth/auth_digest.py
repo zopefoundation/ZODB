@@ -36,6 +36,7 @@ this is a sound approach; SRP would be preferred.
 
 import base64
 import os
+import random
 import sha
 import struct
 import time
