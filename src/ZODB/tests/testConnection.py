@@ -335,6 +335,73 @@ class UserMethodTests(unittest.TestCase):
         >>> cn.cacheMinimize(12)
         """
 
+class InvalidationTests(unittest.TestCase):
+
+    # It's harder to write serious tests, because some of the critical
+    # correctness issues relate to concurrency.  We'll have to depend
+    # on the various concurrent updates and NZODBThreads tests to
+    # handle these.
+
+    def test_invalidate(self):
+        r"""
+
+        This test initializes the database with several persistent
+        objects, then manually delivers invalidations and verifies that
+        they have the expected effect.
+
+        >>> db = databaseFromString("<zodb>\n<mappingstorage/>\n</zodb>")
+        >>> cn = db.open()
+        >>> p1 = Persistent()
+        >>> p2 = Persistent()
+        >>> p3 = Persistent()
+        >>> r = cn.root()
+        >>> r.update(dict(p1=p1, p2=p2, p3=p3))
+        >>> get_transaction().commit()
+
+        Transaction ids are 8-byte strings, just like oids; p64() will
+        create one from an int.
+
+        >>> cn.invalidate(p64(1), {p1._p_oid: 1})
+        >>> cn._txn_time
+        '\x00\x00\x00\x00\x00\x00\x00\x01'
+        >>> p1._p_oid in cn._invalidated
+        True
+        >>> p2._p_oid in cn._invalidated
+        False
+        
+        >>> cn.invalidate(p64(10), {p2._p_oid: 1, p64(76): 1})
+        >>> cn._txn_time
+        '\x00\x00\x00\x00\x00\x00\x00\x01'
+        >>> p1._p_oid in cn._invalidated
+        True
+        >>> p2._p_oid in cn._invalidated
+        True
+
+        Calling invalidate() doesn't affect the object state until
+        a transaction boundary.
+        
+        >>> p1._p_state
+        0
+        >>> p2._p_state
+        0
+        >>> p3._p_state
+        0
+
+        The sync() method will abort the current transaction and
+        process any pending invalidations.
+
+        >>> cn.sync()
+        >>> p1._p_state
+        -1
+        >>> p2._p_state
+        -1
+        >>> p3._p_state
+        0
+        >>> cn._invalidated
+        {}
+        
+        """
+
 # ---- stubs
 
 class StubObject(Persistent):
