@@ -20,7 +20,7 @@ ClientStorageError -- exception raised by ClientStorage
 UnrecognizedResult -- exception raised by ClientStorage
 ClientDisconnected -- exception raised by ClientStorage
 
-$Id: ClientStorage.py,v 1.73 2002/10/01 21:12:12 gvanrossum Exp $
+$Id: ClientStorage.py,v 1.74 2002/10/04 16:46:23 gvanrossum Exp $
 """
 
 # XXX TO DO
@@ -97,6 +97,13 @@ class ClientStorage:
     This class is thread-safe; transactions are serialized in
     tpc_begin().
     """
+
+    # Classes we instantiate.  A subclass might override.
+
+    TransactionBufferClass = TransactionBuffer
+    ClientCacheClass = ClientCache.ClientCache
+    ConnectionManagerClass = ConnectionManager
+    StorageServerStubClass = ServerStub.StorageServer
 
     def __init__(self, addr, storage='1', cache_size=20000000,
                  name='', client=None, debug=0, var=None,
@@ -202,7 +209,7 @@ class ClientStorage:
                       'supportsUndo':0, 'supportsVersions': 0,
                       'supportsTransactionalUndo': 0}
 
-        self._tbuf = TransactionBuffer()
+        self._tbuf = self.TransactionBufferClass()
         self._db = None
 
         # _serials: stores (oid, serialno) as returned by server
@@ -235,12 +242,12 @@ class ClientStorage:
 
         # Decide whether to use non-temporary files
         client = client or os.environ.get('ZEO_CLIENT')
-        self._cache = ClientCache.ClientCache(storage, cache_size,
-                                              client=client, var=var)
+        self._cache = self.ClientCacheClass(storage, cache_size,
+                                            client=client, var=var)
 
-        self._rpc_mgr = ConnectionManager(addr, self,
-                                          tmin=min_disconnect_poll,
-                                          tmax=max_disconnect_poll)
+        self._rpc_mgr = self.ConnectionManagerClass(addr, self,
+                                                    tmin=min_disconnect_poll,
+                                                    tmax=max_disconnect_poll)
 
         if wait:
             self._rpc_mgr.connect(sync=1)
@@ -311,7 +318,7 @@ class ClientStorage:
         """
         log2(INFO, "Testing connection %r" % conn)
         # XXX Check the protocol version here?
-        stub = ServerStub.StorageServer(conn)
+        stub = self.StorageServerStubClass(conn)
         try:
             stub.register(str(self._storage), self._is_read_only)
             return 1
@@ -332,7 +339,7 @@ class ClientStorage:
             log2(INFO, "Reconnected to storage")
         else:
             log2(INFO, "Connected to storage")
-        stub = ServerStub.StorageServer(conn)
+        stub = self.StorageServerStubClass(conn)
         self._oids = []
         self._info.update(stub.get_info())
         self.verify_cache(stub)
