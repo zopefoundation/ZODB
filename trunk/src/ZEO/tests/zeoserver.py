@@ -20,7 +20,7 @@ import getopt
 import random
 import socket
 import asyncore
-import ThreadedAsync
+import ThreadedAsync.LoopCallback
 
 import ZConfig
 import zLOG
@@ -141,7 +141,7 @@ def main():
     log(label, 'creating the storage server')
     serv = ZEO.StorageServer.StorageServer(addr, {'1': storage}, ro_svr)
     log(label, 'entering ThreadedAsync loop')
-    ThreadedAsync.loop()
+    ThreadedAsync.LoopCallback.loop()
 
 
 if __name__ == '__main__':
