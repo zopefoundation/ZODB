@@ -44,7 +44,7 @@ class Environment:
 
         pid = os.environ.get("ZEO_SERVER_PID")
         if pid is None:
-            pid = os.path.join(v, "ZEO_SERVER.pid")
+            pid = os.path.join(self.var, "ZEO_SERVER.pid")
         self.zeo_pid = pid    
         
         self.fs = os.path.join(self.var, "Data.fs")
