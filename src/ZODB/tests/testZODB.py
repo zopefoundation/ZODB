@@ -1,7 +1,5 @@
 import sys, os
 
-sys.path[0:0] = [os.curdir, os.path.join(os.pardir, os.pardir)]
-
 import ZODB
 import ZODB.FileStorage
 from ZODB.PersistentMapping import PersistentMapping
