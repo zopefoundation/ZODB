@@ -3,7 +3,7 @@
 # This file tells Zope to look to a ZEO Storage Server for all of its
 # database objects.
 
-__version__ = "$Release: $"[11:-2]
+__version__ = "$Revision: 1.3 $"[11:-2]
 
 # First we have to get the right ZEO components 
 import ZEO.ClientStorage
