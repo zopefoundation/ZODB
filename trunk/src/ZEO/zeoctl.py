@@ -1,3 +1,5 @@
+#!/usr/bin/env python2.3
+
 """Wrapper script for zdctl.py that causes it to use the ZEO schema."""
 
 import os
