@@ -14,7 +14,7 @@
 static char coptimizations_doc_string[] = 
 "C optimization for new_persistent_id().\n"
 "\n"
-"$Id: coptimizations.c,v 1.22 2002/12/12 19:02:07 jeremy Exp $\n";
+"$Id: coptimizations.c,v 1.23 2002/12/13 21:56:05 jeremy Exp $\n";
 
 #include "Python.h"
 #define DONT_USE_CPERSISTENCECAPI
@@ -81,14 +81,17 @@ get_class(PyObject *object, PyObject **out_class)
 		PyErr_Clear();
 		return 0;
 	    }
-	    if (!PyExtensionClass_Check(class) ||
-		!(((PyExtensionClass*)class)->class_flags 
+	    /* The __class__ must be an extension class. */
+	    if (!(((PyExtensionClass*)class)->class_flags 
 		  & PERSISTENT_TYPE_FLAG)) {
 		Py_DECREF(class);
 		return 0;
 	    }
 	}
 	else
+	    /* Most objects will exit via this path.  They are neither
+	       extension classes nor instances of them.
+	    */
 	    return 0;
     }
     *out_class = class;
@@ -107,7 +110,7 @@ get_class_tuple(PyObject *class, PyObject *oid)
 	goto err;
     if (!PyObject_IsTrue(module)) {
 	Py_DECREF(module);
-	/* XXX Handle degenerate 1.x ZClass case. */
+	/* If the class has no __module__, it must be a degnerate ZClass. */
 	return oid;
     }
 
@@ -172,21 +175,20 @@ set_oid(persistent_id *self, PyObject *object)
 static PyObject *
 persistent_id_call(persistent_id *self, PyObject *args, PyObject *kwargs)
 {
-    PyObject *object, *oid, *klass=NULL;
+    PyObject *object, *oid=NULL, *klass=NULL;
     PyObject *t1, *t2;
     int setjar = 0;
 
     if (!PyArg_ParseTuple(args, "O", &object))
 	return NULL;
 
-    /* If it is an extension class, get the class. */
+    /* If it is not an extension class, get the object's class. */
     if (!get_class(object, &klass))
 	goto return_none;
 
     oid = PyObject_GetAttr(object, py__p_oid);
     if (!oid) {
 	PyErr_Clear();
-	Py_XDECREF(klass);
 	goto return_none;
     }
 
@@ -219,11 +221,11 @@ persistent_id_call(persistent_id *self, PyObject *args, PyObject *kwargs)
 	|| PyObject_HasAttr(klass, py___getinitargs__))
 	goto return_oid;
 
-    if (!klass)  /* pass through ZClass special case */
-	goto return_oid;
     t2 = get_class_tuple(klass, oid);
     if (!t2)
 	goto err;
+    if (t2 == oid) /* Couldn't find class info, just used oid. */
+	goto return_oid;
     t1 = PyTuple_New(2);
     if (!t1) {
 	Py_DECREF(t2);
@@ -246,6 +248,8 @@ persistent_id_call(persistent_id *self, PyObject *args, PyObject *kwargs)
     return oid;
 
  return_none:
+    Py_XDECREF(oid);
+    Py_XDECREF(klass);
     Py_INCREF(Py_None);
     return Py_None;
 }
