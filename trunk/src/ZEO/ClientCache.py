@@ -144,7 +144,7 @@ file 0 and file 1.
 
 """
 
-__version__ = "$Revision: 1.10 $"[11:-2]
+__version__ = "$Revision: 1.11 $"[11:-2]
 
 import os, tempfile
 from struct import pack, unpack
@@ -327,7 +327,7 @@ class ClientCache:
                 # we need to remove the old file before
                 # we open the new one. Waaaaaaaaaa.
                 if self._f[current] is not None:
-                    close(self._f[current])
+                    self._f[current].close()
                     try: os.remove(self._p[current])
                     except: pass
                 self._f[current]=open(self._p[current],'w+b')
