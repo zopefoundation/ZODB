@@ -424,7 +424,8 @@ class ClientStorage:
 
     def _handle_extensions(self):
         for name in self.getExtensionMethods():
-            setattr(self, name, self._server.extensionMethod(name))
+            if not hasattr(self, name):
+                setattr(self, name, self._server.extensionMethod(name))
 
     def set_server_addr(self, addr):
         # Normalize server address and convert to string
