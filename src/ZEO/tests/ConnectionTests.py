@@ -30,7 +30,6 @@ from ZEO.ClientStorage import ClientStorage
 from ZEO.Exceptions import ClientDisconnected
 from ZEO.zrpc.marshal import Marshaller
 from ZEO.tests import forker
-from ZEO.tests.InvalidationTests import InvalidationTests
 
 from ZODB.DB import DB
 from ZODB.Transaction import get_transaction, Transaction
