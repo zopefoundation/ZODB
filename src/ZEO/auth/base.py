@@ -108,7 +108,7 @@ class Database:
 
     def add_user(self, username, password):
         if self._users.has_key(username):
-            raise LookupError, "User %s does already exist" % username
+            raise LookupError, "User %s already exists" % username
         self._store_password(username, password)
 
     def del_user(self, username):
