@@ -45,7 +45,7 @@ def short_repr(obj):
     # The pickle is near the beginning, too, and you can often fit the
     # module name in the pickle.
 
-    if isinstance(obj, types.StringType):
+    if isinstance(obj, str):
         if len(obj) > REPR_LIMIT:
             r = repr(obj[:REPR_LIMIT])
         else:
@@ -53,7 +53,7 @@ def short_repr(obj):
         if len(r) > REPR_LIMIT:
             r = r[:REPR_LIMIT-4] + '...' + r[-1]
         return r
-    elif isinstance(obj, types.TupleType):
+    elif isinstance(obj, (list, tuple)):
         elts = []
         size = 0
         for elt in obj:
@@ -62,7 +62,10 @@ def short_repr(obj):
             size += len(r)
             if size > REPR_LIMIT:
                 break
-        r = "(%s)" % (", ".join(elts))
+        if isinstance(obj, tuple):
+            r = "(%s)" % (", ".join(elts))
+        else:
+            r = "[%s]" % (", ".join(elts))
     else:
         r = repr(obj)
     if len(r) > REPR_LIMIT:
