@@ -91,12 +91,13 @@ register_subsystem('ZODB')
 sys.modules['cPersistence']=cPersistence
 
 Persistent=cPersistence.Persistent
-del cPersistence
 
 # Install Persistent and PersistentMapping in Persistence
 if not hasattr(Persistence, 'Persistent'):
     Persistence.Persistent=Persistent
     Persistent.__module__='Persistence'
+    Persistence.Overridable=cPersistence.Overridable
+    Persistence.Overridable.__module__='Persistence'
     if not hasattr(Persistence, 'PersistentMapping'):
         import PersistentMapping
         sys.modules['PersistentMapping']=PersistentMapping
@@ -107,6 +108,8 @@ if not hasattr(Persistence, 'Persistent'):
         Persistence.PersistentMapping=PersistentMapping
         PersistentMapping.__module__='Persistence'
         del PersistentMapping
+
+del cPersistence
 
 from DB import DB
 
