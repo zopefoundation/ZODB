@@ -403,10 +403,13 @@ class PackableStorage(PackableStorageBase):
         self.assertEqual(1,len(self._storage.undoLog()))
 
     def dont_checkPackUndoLogUndoable(self):
-        # A disabled test. I wanted to test that the content of the undo log was consistent,
-        # but every storage appears to include something slightly different. If the result of
-        # this method is only used to fill a GUI then this difference doesnt matter.
-        # Perhaps re-enable this test once we agree what should be asserted.
+        # A disabled test. I wanted to test that the content of the
+        # undo log was consistent, but every storage appears to
+        # include something slightly different. If the result of this
+        # method is only used to fill a GUI then this difference
+        # doesnt matter.  Perhaps re-enable this test once we agree
+        # what should be asserted.
+
         self._initroot()
         # Create two `persistent' object
         obj1 = self._newobj()
@@ -415,21 +418,28 @@ class PackableStorage(PackableStorageBase):
         obj2 = self._newobj()
         oid2 = obj2.getoid()
         obj2.value = 2
+        
         # Commit the first revision of each of them
-        revid11 = self._dostoreNP(oid1, data=pickle.dumps(obj1), description="1-1")
-        revid22 = self._dostoreNP(oid2, data=pickle.dumps(obj2), description="2-2")
+        revid11 = self._dostoreNP(oid1, data=pickle.dumps(obj1),
+                                  description="1-1")
+        revid22 = self._dostoreNP(oid2, data=pickle.dumps(obj2),
+                                  description="2-2")
+        
         # remember the time. everything above here will be packed away
-        now = packtime = time.time()
-        while packtime <= now:
-            packtime = time.time()
+        snooze()
+        packtime = time.time()
+        snooze()
         # Commit two revisions of the first object
         obj1.value = 3
-        revid13 = self._dostoreNP(oid1, revid=revid11, data=pickle.dumps(obj1), description="1-3")
+        revid13 = self._dostoreNP(oid1, revid=revid11,
+                                  data=pickle.dumps(obj1), description="1-3")
         obj1.value = 4
-        revid14 = self._dostoreNP(oid1, revid=revid13, data=pickle.dumps(obj1), description="1-4")
+        revid14 = self._dostoreNP(oid1, revid=revid13,
+                                  data=pickle.dumps(obj1), description="1-4")
         # Commit one revision of the second object
         obj2.value = 5
-        revid25 = self._dostoreNP(oid2, revid=revid22, data=pickle.dumps(obj2), description="2-5")
+        revid25 = self._dostoreNP(oid2, revid=revid22,
+                                  data=pickle.dumps(obj2), description="2-5")
         # Now pack
         self.assertEqual(6,len(self._storage.undoLog()))
         print '\ninitial undoLog was'
