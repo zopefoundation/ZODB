@@ -144,7 +144,7 @@ file 0 and file 1.
 
 """
 
-__version__ = "$Revision: 1.14 $"[11:-2]
+__version__ = "$Revision: 1.15 $"[11:-2]
 
 import os, tempfile
 from struct import pack, unpack
@@ -277,7 +277,8 @@ class ClientCache:
                 if dlen:
                     seek(-dlen-vlen, 1)
                     return read(dlen), h[19:]
-                else: None
+                else:
+                    return None
 
             dlen=unpack(">i", read(4))[0]
             return read(dlen), read(8)
