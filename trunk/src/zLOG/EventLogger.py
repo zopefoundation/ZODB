@@ -33,7 +33,7 @@ class EventLogger(BaseLogger):
     logger = logging.getLogger('event')
     logger.addHandler(NullHandler())
     log_format = '%(sev)s %(subsys)s %(summary)s%(detail)s'
-    
+
     def log(self, subsystem, severity, summary, detail, error):
         if error:
             kw = {'exc_info':1}
@@ -60,9 +60,9 @@ class EventLogger(BaseLogger):
         severity = zlog_to_pep282_severity(severity)
         self.logger.log(severity, msg, **kw)
 
-EventLogger = EventLogger()
+event_logger = EventLogger()
 
-log_write = EventLogger.log
+log_write = event_logger.log
 
 def severity_string(severity, mapping={
     -300: 'TRACE',
@@ -101,7 +101,7 @@ def zlog_to_pep282_severity(zlog_severity):
         return logging.INFO
     else:
         return logging.DEBUG
-        
+
 def log_time():
     """Return a simple time string without spaces suitable for logging."""
     return ("%4.4d-%2.2d-%2.2dT%2.2d:%2.2d:%2.2d"
@@ -155,7 +155,7 @@ formatters = {
 def initialize_from_environment():
     """ Reinitialize the event logger from the environment """
     # clear the current handlers from the event logger
-    EventLogger.logger.handlers = []
+    event_logger.logger.handlers = []
 
     handlers = []
 
@@ -184,8 +184,7 @@ def initialize_from_environment():
 
     severity = get_env_severity_info()
     severity = zlog_to_pep282_severity(severity)
-    EventLogger.logger.setLevel(severity)
+    event_logger.logger.setLevel(severity)
 
     for handler in handlers:
-        EventLogger.logger.addHandler(handler)
-
+        event_logger.logger.addHandler(handler)
