@@ -87,7 +87,7 @@
 
 class UndoLogCompatible:
 
-    def undoInfo(self, first, last, specification):
+    def undoInfo(self, first=0, last=-20, specification=None):
         if specification:
             def filter(desc, spec=specification.items()):
                 get=desc.get
