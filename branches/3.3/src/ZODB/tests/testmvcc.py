@@ -145,7 +145,7 @@ commit the transaction.
 >>> tm2.get().commit()
 Traceback (most recent call last):
  ...
-ConflictError: database conflict error (oid 0000000000000001, class ZODB.tests.MinPO.MinPO)
+ConflictError: database conflict error (oid 0x01, class ZODB.tests.MinPO.MinPO)
 
 The failed commit aborted the current transaction, so we can try
 again.  This example will demonstrate that we can commit a transaction
@@ -338,7 +338,7 @@ False
 >>> r1["b"]._p_activate()
 Traceback (most recent call last):
  ...
-ReadConflictError: database read conflict error (oid 0000000000000002, class ZODB.tests.MinPO.MinPO)
+ReadConflictError: database read conflict error (oid 0x02, class ZODB.tests.MinPO.MinPO)
 >>> oid in cn1._invalidated
 True
 >>> ts.count
