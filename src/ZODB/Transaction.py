@@ -84,8 +84,8 @@
 ##############################################################################
 """Transaction management
 
-$Id: Transaction.py,v 1.16 1999/10/18 17:14:31 jim Exp $"""
-__version__='$Revision: 1.16 $'[11:-2]
+$Id: Transaction.py,v 1.17 1999/11/10 22:17:18 klm Exp $"""
+__version__='$Revision: 1.17 $'[11:-2]
 
 import time, sys, struct, POSException
 from struct import pack
@@ -279,7 +279,7 @@ class Transaction:
                     global hosed
                     hosed=1
                     LOG('ZODB', PANIC,
-                        "An storage error occurred in the last phase of a "
+                        "A storage error occurred in the last phase of a "
                         "two-phase commit.  This shouldn\'t happen. "
                         "The application may be in a hosed state, so "
                         "we will not allow transactions to commit from "
