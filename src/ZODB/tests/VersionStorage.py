@@ -50,7 +50,8 @@ class VersionStorage:
         oid = self._storage.new_oid()
         revid = self._dostore(oid, data=MinPO(11))
         version = 'test-version'
-        revid = self._dostore(oid, revid=revid, data=MinPO(12), version=version)
+        revid = self._dostore(oid, revid=revid, data=MinPO(12),
+                              version=version)
         self.assertRaises(POSException.VersionLockError,
                           self._dostore,
                           oid, revid=revid, data=MinPO(14),
