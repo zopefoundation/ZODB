@@ -22,7 +22,7 @@ class FileHandler(StreamHandler):
     A file handler which allows for reopening of logs in favor of the
     'rollover' features of the standard PEP282 FileHandler.
     """
-    def __init__(self, filename, mode="a+"):
+    def __init__(self, filename, mode="a"):
         StreamHandler.__init__(self, open(filename, mode))
         self.baseFilename = filename
         self.mode = mode
