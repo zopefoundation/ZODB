@@ -151,7 +151,11 @@ persistent_id_call(persistent_id *self, PyObject *args, PyObject *kwargs)
   if (! PyExtensionClass_Check(object))
     if (PyExtensionInstance_Check(object))
       {
-	UNLESS (klass=PyObject_GetAttr(object, py___class__)) return NULL;
+	UNLESS (klass=PyObject_GetAttr(object, py___class__)) 
+	  {
+	    PyErr_Clear();
+	    goto not_persistent;
+	  }
 	UNLESS (
 		PyExtensionClass_Check(klass) &&
 		(((PyExtensionClass*)klass)->class_flags 
@@ -306,7 +310,7 @@ void
 initcoptimizations()
 {
   PyObject *m, *d;
-  char *rev="$Revision: 1.2 $";
+  char *rev="$Revision: 1.3 $";
 
 #define make_string(S) if (! (py_ ## S=PyString_FromString(#S))) return
   make_string(_p_oid);
