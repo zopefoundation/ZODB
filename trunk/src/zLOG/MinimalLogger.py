@@ -11,7 +11,7 @@
 # FOR A PARTICULAR PURPOSE
 # 
 ##############################################################################
-__version__='$Revision: 1.8 $'[11:-2]
+__version__='$Revision: 1.9 $'[11:-2]
 
 import os,  sys, time
 
@@ -54,8 +54,11 @@ class stupid_log_write:
 
     def initialize(self):
         global _log_dest, _log_level
+        eget = os.environ.get
 
-        path = os.environ.get('STUPID_LOG_FILE', None)
+        # EVENT_LOG_FILE is the preferred envvar, but we accept
+        # STUPID_LOG_FILE also
+        path = eget('EVENT_LOG_FILE') or eget('STUPID_LOG_FILE')
         if path is None:
             _log_dest = None
         else:
@@ -64,7 +67,9 @@ class stupid_log_write:
             else:
                 _log_dest = sys.stderr
 
-        severity = os.environ.get('STUPID_LOG_SEVERITY', None)
+        # EVENT_LOG_SEVERITY is the preferred envvar, but we accept
+        # STUPID_LOG_SEVERITY also
+        severity = eget('EVENT_LOG_SEVERITY') or eget('STUPID_LOG_SEVERITY')
         if severity:
             _log_level = int(severity)
         else:

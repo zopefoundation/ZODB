@@ -32,10 +32,9 @@ class StupidLogTest(unittest.TestCase):
     """Test zLOG with the default implementation.
 
     The default implementation uses the environment variables
-    STUPID_LOG_FILE and STUPID_LOG_SEVERITY.  I am not making this
-    up. 
+    STUPID_LOG_FILE and STUPID_LOG_SEVERITY.
     """
-
+    prefix = 'STUPID'
     def setUp(self):
         self.path = tempfile.mktemp()
         self._severity = 0
@@ -47,13 +46,17 @@ class StupidLogTest(unittest.TestCase):
             pass
         if os.environ.has_key('STUPID_LOG_FILE'):
             del os.environ['STUPID_LOG_FILE']
+        if os.environ.has_key('EVENT_LOG_FILE'):
+            del os.environ['EVENT_LOG_FILE']
         if os.environ.has_key('STUPID_LOG_SEVERITY'):
             del os.environ['STUPID_LOG_SEVERITY']
+        if os.environ.has_key('EVENT_LOG_SEVERITY'):
+            del os.environ['EVENT_LOG_SEVERITY']
             
     def setLog(self, severity=0):
-        os.environ['STUPID_LOG_FILE'] = self.path
+        os.environ['%s_LOG_FILE' % self.prefix] = self.path
         if severity:
-            os.environ['STUPID_LOG_SEVERITY'] = str(severity)
+            os.environ['%s_LOG_SEVERITY' % self.prefix] = str(severity)
         self._severity = severity
         zLOG.MinimalLogger._log.initialize()
 
@@ -128,8 +131,14 @@ class StupidLogTest(unittest.TestCase):
         self.verifyEntry(f, subsys="basic", severity=zLOG.ERROR,
                          error=err)
 
+class EventLogTest(StupidLogTest):
+    """ Test alternate envvars EVENT_LOG_FILE and EVENT_LOG_SEVERITY """
+    prefix = 'EVENT'
+
 def test_suite():
-    return unittest.makeSuite(StupidLogTest, 'check')
+    suite = unittest.makeSuite(StupidLogTest, 'check')
+    suite.addTest(unittest.makeSuite(EventLogTest, 'check'))
+    return suite
             
 if __name__ == "__main__":
     loader = unittest.TestLoader()

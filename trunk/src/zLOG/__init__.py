@@ -72,21 +72,21 @@ The callable object can provide a reinitialize method that may be
 called with no arguments to reopen the log files (if any) as part of a
 log-rotation facility. 
 
-There is a default stupid logging facility that:
+There is a default event logging facility that:
 
   - swallows logging information by default,
 
   - outputs to sys.stderr if the environment variable
-    STUPID_LOG_FILE is set to an empty string, and
+    EVENT_LOG_FILE is set to an empty string, and
 
   - outputs to file if the environment variable
-    STUPID_LOG_FILE is set to a file name.
+    EVENT_LOG_FILE is set to a file name.
 
   - Ignores errors that have a severity < 0 by default. This
-    can be overridden with the environment variable STUPID_LOG_SEVERITY
+    can be overridden with the environment variable EVENT_LOG_SEVERITY
 
 """
-__version__='$Revision: 1.5 $'[11:-2]
+__version__='$Revision: 1.6 $'[11:-2]
 
 from MinimalLogger import log_write, log_time, severity_string, \
      _set_log_dest
