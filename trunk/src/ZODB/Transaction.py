@@ -84,8 +84,8 @@
 ##############################################################################
 """Transaction management
 
-$Id: Transaction.py,v 1.12 1999/07/22 15:03:09 jim Exp $"""
-__version__='$Revision: 1.12 $'[11:-2]
+$Id: Transaction.py,v 1.13 1999/08/11 13:56:21 jim Exp $"""
+__version__='$Revision: 1.13 $'[11:-2]
 
 import time, sys, struct
 from struct import pack
@@ -205,15 +205,11 @@ class Transaction:
                 while objects:
                     o=objects[-1]
                     j=getattr(o, '_p_jar', o)
-                    #if j is None:
-                    #    print 'waaa'
-                    #    print o, o._p_oid
-                    #    raise 'what the hell'
                     i=id(j)
                     if not jars.has_key(i):
                         jars[i]=j
-                        if subtransaction: subj[i]=j
                         if subtransaction:
+                            subj[i]=j
                             j.tpc_begin(self, subtransaction)
                         else:
                             j.tpc_begin(self)
