@@ -358,7 +358,7 @@ class Connection(smac.SizedMessageAsyncConnection):
             log("wait() async=%d" % self.is_async(), level=zLOG.TRACE)
         if self.is_async():
             self.trigger.pull_trigger()
-            
+
         self.__replies_cond.acquire()
         try:
             while 1:
@@ -423,16 +423,9 @@ class Connection(smac.SizedMessageAsyncConnection):
                     raise
                 else:
                     self.handle_error()
-                    
 
-class ServerConnection(Connection):
-    """Connection on the server side"""
-
-    # The server side does not send a protocol message.  Instead, it
-    # adapts to whatever the client sends it.
-
-class ManagedServerConnection(ServerConnection):
-    """A connection that notifies its ConnectionManager of closing"""
+class ManagedServerConnection(Connection):
+    """Server-side Connection subclass."""
     __super_init = Connection.__init__
     __super_close = Connection.close
 
@@ -447,11 +440,7 @@ class ManagedServerConnection(ServerConnection):
         self.__mgr.close_conn(self)
 
 class ManagedConnection(Connection):
-    """A connection that notifies its ConnectionManager of closing.
-
-    A managed connection also defers the ThreadedAsync work to its
-    manager.
-    """
+    """Client-side Connection subclass."""
     __super_init = Connection.__init__
     __super_close = Connection.close
 
@@ -459,6 +448,8 @@ class ManagedConnection(Connection):
         self.__mgr = mgr
         self.__super_init(sock, addr, obj)
         self.check_mgr_async()
+
+    # Defer the ThreadedAsync work to the manager.
 
     def close_trigger(self):
         # the manager should actually close the trigger
