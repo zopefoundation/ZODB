@@ -87,12 +87,10 @@ class IteratorStorage(IteratorCompare):
         txniter = self._storage.iterator()
         for trans in txniter:
             for data in trans:
-                print repr(data.oid), repr(data.data)
-        
+                pass
 
     def undoLastTrans(self):
         info = self._storage.undoInfo()
-        print len(info)
         tid = info[0]['id']
         t = Transaction()
         self._storage.tpc_begin(t)
