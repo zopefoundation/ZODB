@@ -186,7 +186,7 @@
 #   may have a back pointer to a version record or to a non-version
 #   record.
 #
-__version__='$Revision: 1.70 $'[11:-2]
+__version__='$Revision: 1.71 $'[11:-2]
 
 import struct, time, os, bpthread, string, base64, sys
 from struct import pack, unpack
@@ -465,9 +465,8 @@ class FileStorage(BaseStorage.BaseStorage,
         
     def commitVersion(self, src, dest, transaction, abort=None):
         # We are going to commit by simply storing back pointers.
-        if (not src or
-            type(src) is not StringType or type(dest) is not StringType
-            ):
+        if not (src and isinstance(src, StringType)
+                and isinstance(dest, StringType)):
             raise POSException.VersionCommitError('Invalid source version')
 
         if src == dest:
@@ -2012,7 +2011,8 @@ class FileIterator(Iterator):
     _ltid=z64
     
     def __init__(self, file):
-        if type(file) is type(''): file=open(file, 'rb')
+        if isinstance(file, StringType):
+            file=open(file, 'rb')
         self._file=file
         if file.read(4) != packed_version: raise FileStorageFormatError, name
         file.seek(0,2)
