@@ -868,7 +868,7 @@ will be properly propogated.
   raised.  If the name is not provided in the stock set of data types
   by this registry and has not otherwise been registered, this method
   uses the \method{search()} method to load the conversion function.
-  This is the only method the \module{ZConfig.schema} module requires.
+  This is the only method the rest of \module{ZConfig} requires.
 \end{methoddesc}
 
 \begin{methoddesc}{register}{name, conversion}
@@ -926,13 +926,14 @@ exported by the \module{ZConfig} package.  These classes may be useful
 for some applications, especially applications that want to use a
 non-default data type registry.
 
-\begin{classdesc}{Resource}{file, url}
+\begin{classdesc}{Resource}{file, url\optional{, fragment}}
   Object that allows an open file object and a URL to be bound
   together to ease handling.  Instances have the attributes
-  \member{file} and \member{url} which store the constructor
-  arguments.  These objects also have a \method{close()} method which
-  will call \method{close()} on \var{file}, then set the \member{file}
-  attribute to \code{None} and the \member{closed} to \code{True}.
+  \member{file}, \member{url}, and \member{fragment} which store the
+  constructor arguments.  These objects also have a \method{close()}
+  method which will call \method{close()} on \var{file}, then set the
+  \member{file} attribute to \code{None} and the \member{closed} to
+  \code{True}.
 \end{classdesc}
 
 \begin{classdesc}{BaseLoader}{}
@@ -941,11 +942,14 @@ non-default data type registry.
   for the instance to be used via the public API.
 \end{classdesc}
 
-\begin{classdesc}{ConfigLoader}{schema}
+\begin{classdesc}{ConfigLoader}{schema\optional{, library}}
   Loader for configuration files.  Each configuration file must
   conform to the schema \var{schema}.  The \method{load*()} methods
   return a tuple consisting of the configuration object and a
   composite handler.
+  The schema component directory is stored in the directory identified
+  by \var{library}, which defaults to \constant{LIBRARY_DIR} if
+  omitted or \code{None}.
 \end{classdesc}
 
 \begin{classdesc}{SchemaLoader}{\optional{registry}}
@@ -955,6 +959,10 @@ non-default data type registry.
   otherwise an instance of \class{ZConfig.datatypes.Registry} will be
   used.
 \end{classdesc}
+
+\begin{datadesc}{LIBRARY_DIR}
+  Default directory for the schema component library.
+\end{datadesc}
 
 
 \subsection{Loader Objects}
