@@ -238,8 +238,9 @@ finiSetIteration(SetIteration *i)
          * value need to be cleaned up.
          */
         DECREF_KEY(i->key);
-        if (i->usesValue)
+        if (i->usesValue) {
             DECREF_VALUE(i->value);
+        }
     }
     i->position = -1;   /* stop any stray next calls from doing harm */
 }
@@ -410,7 +411,7 @@ static char BTree_module_documentation[] =
 "\n"
 MASTER_ID
 BTREEITEMSTEMPLATE_C
-"$Id: BTreeModuleTemplate.c,v 1.30 2002/06/08 04:41:44 tim_one Exp $\n"
+"$Id: BTreeModuleTemplate.c,v 1.31 2002/06/10 04:57:43 tim_one Exp $\n"
 BTREETEMPLATE_C
 BUCKETTEMPLATE_C
 KEYMACROS_H
