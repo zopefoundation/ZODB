@@ -179,44 +179,70 @@ staticforward PyExtensionClass BTreeType;
  * 1. Declare a new iterator and a "merge" int:
  *        SetIteration si = {0,0,0};
  *        int merge = 0;
- *    XXX Using "{0,0,0}" or "{0,0}" appear most common, but I don't
- *    XXX think it makes any difference; looks like "{0}" would work too;
- *    XXX looks like not initializing it at all would also work.
+ *    Using "{0,0,0}" or "{0,0}" appear most common.  Only one {0} is
+ *    necssary.  At least one must be given so that finiSetIteration() works
+ *    correctly even if you don't get around to calling initSetIteration().
  * 2. Initialize it via
  *        initSetIteration(&si, PyObject *s, int weight, &merge)
- *    There's an error if that returns an int < 0.  Note that si.set must
- *        be Py_XDECREF'ed in this case.
- *    If it's successful, si.hasValue is set to true iff s has values (as
- *    well as keys).
+ *    It's an error if that returns an int < 0.  In case of error on the
+ *    init call, calling finiSetIteration(&si) is optional.  But if the
+ *    init call succeeds, you must eventually call finiSetIteration(),
+ *    and whether or not subsequent calls to si.next() fail.
  * 3. Get the first element:
  *        if (si.next(&si) < 0) { there was an error }
  *    If the set isn't empty, this sets si.position to an int >= 0,
- *    si.key to the element's key (of type KEY_TYPE), and si.value to
+ *    si.key to the element's key (of type KEY_TYPE), and maybe si.value to
  *    the element's value (of type VALUE_TYPE).  si.value is defined
- *    iff merge was set to true by the initSetIteration() call.  If
- *    there was an error, the caller is responsible for Py_XDECREF'ing
- *    si.set.
+ *    iff merge was set to true by the initSetIteration() call, which is
+ *    equivalent to whether si.usesValue is true.
  * 4. Process all the elements:
  *        while (si.position >= 0) {
  *            do something with si.key and/or si.value;
- *            if (si.next(&si) < 0) {
- *                there was an error;
- *                Py_XDECREF(si.set);
- *                do whatever else is appropriate for the caller;
- *            }
+ *            if (si.next(&si) < 0) { there was an error; }
  *        }
- * 5. Decref the SetIteration's set:
- *        Py_XDECREF(si.set);
+ * 5. Finalize the SetIterator:
+ *        finiSetIteration(&si);
+ *    This is mandatory!  si may contain references to iterator objects,
+ *    keys and values, and they must be cleaned up else they'll leak.  If
+ *    this were C++ we'd hide that in the destructor, but in C you have to
+ *    do it by hand.
  */
 typedef struct SetIteration_s
 {
   PyObject *set;    /* the set, bucket, BTree, ..., being iterated */
   int position;     /* initialized to 0; set to -1 by next() when done */
+  int usesValue;    /* true iff 'set' has values & we iterate them */
   int hasValue;     /* true iff 'set' has values (as well as keys) */
   KEY_TYPE key;     /* next() sets to next key */
   VALUE_TYPE value; /* next() may set to next value */
   int (*next)(struct SetIteration_s*);  /* function to get next key+value */
 } SetIteration;
+
+/* Finish the set iteration protocol.  This MUST be called by everyone
+ * who starts a set iteration, unless the initial call to initSetIteration
+ * failed; in that case, and only that case, calling finiSetIteration is
+ * optional.
+ */
+static void
+finiSetIteration(SetIteration *i)
+{
+    assert(i != NULL);
+    if (i->set == NULL)
+        return;
+    Py_DECREF(i->set);
+    i->set = NULL;      /* so it doesn't hurt to call this again */
+
+    if (i->position > 0) {
+        /* next() was called at least once, but didn't finish iterating
+         * (else position would be negative).  So the cached key and
+         * value need to be cleaned up.
+         */
+        DECREF_KEY(i->key);
+        if (i->usesValue)
+            DECREF_VALUE(i->value);
+    }
+    i->position = -1;   /* stop any stray next calls from doing harm */
+}
 
 static PyObject *
 IndexError(int i)
@@ -384,7 +410,7 @@ static char BTree_module_documentation[] =
 "\n"
 MASTER_ID
 BTREEITEMSTEMPLATE_C
-"$Id: BTreeModuleTemplate.c,v 1.29 2002/06/02 07:46:43 tim_one Exp $\n"
+"$Id: BTreeModuleTemplate.c,v 1.30 2002/06/08 04:41:44 tim_one Exp $\n"
 BTREETEMPLATE_C
 BUCKETTEMPLATE_C
 KEYMACROS_H

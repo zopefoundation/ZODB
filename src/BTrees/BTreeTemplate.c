@@ -12,7 +12,7 @@
   
  ****************************************************************************/
 
-#define BTREETEMPLATE_C "$Id: BTreeTemplate.c,v 1.36 2002/06/06 19:30:21 jeremy Exp $\n"
+#define BTREETEMPLATE_C "$Id: BTreeTemplate.c,v 1.37 2002/06/08 04:41:44 tim_one Exp $\n"
 
 /*
 ** _BTree_get
@@ -1065,7 +1065,7 @@ BTree_byValue(BTree *self, PyObject *args)
   VALUE_TYPE min;
   VALUE_TYPE v;
   int copied=1;
-  SetIteration it={0,0};
+  SetIteration it = {0, 0, 1};
 
   PER_USE_OR_RETURN(self, NULL);
 
@@ -1114,6 +1114,7 @@ BTree_byValue(BTree *self, PyObject *args)
   UNLESS (item) goto err;
   Py_DECREF(item);
 
+  finiSetIteration(&it);
   PER_ALLOW_DEACTIVATION(self);
   PER_ACCESSED(self);
   return r;
@@ -1122,7 +1123,7 @@ BTree_byValue(BTree *self, PyObject *args)
   PER_ALLOW_DEACTIVATION(self);
   PER_ACCESSED(self);
   Py_XDECREF(r);
-  Py_XDECREF(it.set);
+  finiSetIteration(&it);
   Py_XDECREF(item);
   return NULL;
 }
