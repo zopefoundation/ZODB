@@ -83,7 +83,7 @@ class PersistentMapping(UserDict, persistent.Persistent):
 
     # Effectively, the original rep is part of the "API."  To provide
     # full compatibility, the getstate and setstate must read and
-    # right objects using the old rep.
+    # write objects using the old rep.
 
     # As a result, the PersistentMapping must save and restore the
     # actual internal dictionary using the name _container.
