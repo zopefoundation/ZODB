@@ -14,7 +14,7 @@
 static char cPersistence_doc_string[] = 
 "Defines Persistent mixin class for persistent objects.\n"
 "\n"
-"$Id: cPersistence.c,v 1.62 2002/06/18 21:37:56 jeremy Exp $\n";
+"$Id: cPersistence.c,v 1.63 2002/09/30 16:02:32 gvanrossum Exp $\n";
 
 #include "cPersistence.h"
 
@@ -845,7 +845,7 @@ initcPersistence(void)
 {
   PyObject *m, *d, *s;
 
-  s = PyString_FromString("TimeStamp");
+  s = PyString_FromString("ZODB.TimeStamp");
   if (s == NULL)
       return;
   m = PyImport_Import(s);
