@@ -386,7 +386,7 @@ class ConnectionTests(CommonSetupTearDown):
         # objects that weren't in the _seriald, because the client was
         # interrupted waiting for tpc_vote() to return.  When the next
         # transaction committed, it tried to do something with the
-        # bogus _tbuf entries.  The exaplanation is wrong/incomplete,
+        # bogus _tbuf entries.  The explanation is wrong/incomplete,
         # because tpc_begin() should clear the _tbuf.
 
         # 2003-01-15T15:44:19 ERROR(200) ZODB A storage error occurred
@@ -463,6 +463,65 @@ class ConnectionTests(CommonSetupTearDown):
         # But oid1 should have been purged, so that trying to load it will
         # try to fetch it from the (non-existent) ZEO server.
         self.assertRaises(ClientDisconnected, self._storage.load, oid1, '')
+        self._storage.close()
+
+    def checkVerificationInvalidationPersists(self):
+        # This tests a subtle invalidation bug from ZODB 3.3:
+        # invalidations processed as part of ZEO cache verification acted
+        # kinda OK wrt the in-memory cache structures, but had no effect
+        # on the cache file.  So opening the file cache again could
+        # incorrectly believe that a previously invalidated object was
+        # still current.  This takes some effort to set up.
+
+        # First, using a persistent cache ('test'), create an object
+        # MinPO(13).  We used to see this again at the end of this test,
+        # despite that we modify it, and despite that it gets invalidated
+        # in 'test', before the end.
+        self._storage = self.openClientStorage('test')
+        oid = self._storage.new_oid()
+        obj = MinPO(13)
+        self._dostore(oid, data=obj)
+        self._storage.close()
+
+        # Now modify obj via a temp connection.  `test` won't learn about
+        # this until we open a connection using `test` again.
+        self._storage = self.openClientStorage()
+        pickle, rev = self._storage.load(oid, '')
+        newobj = zodb_unpickle(pickle)
+        self.assertEqual(newobj, obj)
+        newobj.value = 42 # .value *should* be 42 forever after now, not 13
+        self._dostore(oid, data=newobj, revid=rev)
+        self._storage.close()
+
+        # Open 'test' again.  `oid` in this cache should be (and is)
+        # invalidated during cache verification.  The bug was that it
+        # got invalidated (kinda) in memory, but not in the cache file.
+        self._storage = self.openClientStorage('test')
+
+        # The invalidation happened already.  Now create and store a new
+        # object before closing this storage:  this is so `test` believes
+        # it's seen transactions beyond the one that invalidated `oid`, so
+        # that the *next* time we open `test` it doesn't process another
+        # invalidation for `oid`.  It's also important that we not try to
+        # load `oid` now:  because it's been (kinda) invalidated in the
+        # cache's memory structures, loading it now would fetch the
+        # current revision from the server, thus hiding the bug.
+        obj2 = MinPO(666)
+        oid2 = self._storage.new_oid()
+        self._dostore(oid2, data=obj2)
+        self._storage.close()
+
+        # Finally, open `test` again and load `oid`.  `test` believes
+        # it's beyond the transaction that modified `oid`, so its view
+        # of whether it has an up-to-date `oid` comes solely from the disk
+        # file, unaffected by cache verification.
+        self._storage = self.openClientStorage('test')
+        pickle, rev = self._storage.load(oid, '')
+        newobj_copy = zodb_unpickle(pickle)
+        # This used to fail, with
+        #     AssertionError: MinPO(13) != MinPO(42)
+        # That is, `test` retained a stale revision of the object on disk.
+        self.assertEqual(newobj_copy, newobj)
         self._storage.close()
 
     def checkReconnection(self):
