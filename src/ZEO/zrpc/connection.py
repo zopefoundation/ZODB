@@ -351,7 +351,7 @@ class Connection(smac.SizedMessageAsyncConnection):
     def _pull_trigger(self, tryagain=10):
         try:
             self.trigger.pull_trigger()
-        except OSError, e:
+        except OSError:
             self.trigger.close()
             self.trigger = trigger()
             if tryagain > 0:
