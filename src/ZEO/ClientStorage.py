@@ -709,15 +709,12 @@ class ClientStorage(object):
                 self._tbuf.invalidate(oid, "")
         return tid, oids
 
-    def history(self, oid, version, length=1, filter=None):
+    def history(self, oid, version, length=1):
         """Storage API: return a sequence of HistoryEntry objects.
 
         This does not support the optional filter argument defined by
         the Storage API.
         """
-        if filter is not None:
-            log2(WARNING, "filter argument to history() ignored")
-        # XXX should I run filter on the results?
         return self._server.history(oid, version, length)
 
     def getSerial(self, oid):
