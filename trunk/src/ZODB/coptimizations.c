@@ -14,7 +14,7 @@
 static char coptimizations_doc_string[] = 
 "C optimization for new_persistent_id().\n"
 "\n"
-"$Id: coptimizations.c,v 1.25 2003/12/11 05:16:50 jeremy Exp $\n";
+"$Id: coptimizations.c,v 1.26 2003/12/11 16:02:56 jeremy Exp $\n";
 
 #include "cPersistence.h"
 
@@ -196,8 +196,10 @@ persistent_id_call(persistent_id *self, PyObject *args, PyObject *kwargs)
 		    goto err;
 	    }
 	    descr = PyObject_GetAttr(oid, __get__);
-	    if (descr)
+	    if (descr) {
+		Py_DECREF(descr);
 		goto return_none;
+	    }
 	    /* Otherwise it's not a descriptor and it's just some
 	       weird value.  Maybe we'll get an error later.
 	    */
