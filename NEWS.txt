@@ -25,6 +25,15 @@ ZEO client cache
 - Fixed a bug wherein an object removed from the client cache didn't
   properly mark the file slice it occupied as being available for reuse.
 
+ZEO
+---
+
+Collector 1503:  excessive logging.  It was possible for a ZEO client to
+log "waiting for cache verification to finish" messages at a very high
+rate, producing gigabytes of such messages in short order.
+``ClientStorage._wait_sync()`` was changed to log no more than one
+such message per 5 minutes.
+
 persistent
 ----------
 
@@ -58,7 +67,6 @@ Collector 1581:  When an attempt to pack a corrupted ``Data.fs`` file was
 made, it was possible for the pack routine to die with a reference to an
 undefined global while it was trying to raise ``CorruptedError``.  It
 raises ``CorruptedError``, as it always intended, in these cases now.
-
 
 Install
 -------
