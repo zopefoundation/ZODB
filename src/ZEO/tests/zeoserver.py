@@ -90,10 +90,10 @@ class ZEOTestServer(asyncore.dispatcher):
     def handle_accept(self):
         sock, addr = self.accept()
         self.log('in handle_accept()')
-        # When we're done with everything, close the server.  Do not write
-        # the ack character until the server is finished closing.
+        # When we're done with everything, close the storage.  Do not write
+        # the ack character until the storage is finished closing.
         if self._count <= 0:
-            self.log('closing the server')
+            self.log('closing the storage')
             self._server.close_server()
             if not self._keep:
                 for storage in self._server.storages.values():
