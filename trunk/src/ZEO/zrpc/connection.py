@@ -20,7 +20,7 @@ import types
 
 import ThreadedAsync
 from ZEO.zrpc import smac
-from ZEO.zrpc.error import ZRPCError, DisconnectedError, DecodingError
+from ZEO.zrpc.error import ZRPCError, DisconnectedError
 from ZEO.zrpc.log import log, short_repr
 from ZEO.zrpc.marshal import Marshaller
 from ZEO.zrpc.trigger import trigger
@@ -188,13 +188,11 @@ class Connection(smac.SizedMessageAsyncConnection):
 
     def message_input(self, message):
         """Decoding an incoming message and dispatch it"""
-        # XXX Not sure what to do with errors that reach this level.
-        # Need to catch ZRPCErrors in handle_reply() and
-        # handle_request() so that they get back to the client.
-        try:
-            msgid, flags, name, args = self.marshal.decode(message)
-        except DecodingError, msg:
-            return self.return_error(None, None, DecodingError, msg)
+        # If something goes wrong during decoding, the marshaller
+        # will raise an exception.  The exception will ultimately
+        # result in asycnore calling handle_error(), which will
+        # close the connection.
+        msgid, flags, name, args = self.marshal.decode(message)
 
         if __debug__:
             log("recv msg: %s, %s, %s, %s" % (msgid, flags, name,
@@ -276,9 +274,6 @@ class Connection(smac.SizedMessageAsyncConnection):
         self.poll()
 
     def return_error(self, msgid, flags, err_type, err_value):
-        if flags is None:
-            self.log_error("Exception raised during decoding")
-            return
         if flags & ASYNC:
             self.log_error("Asynchronous call raised exception: %s" % self)
             return
