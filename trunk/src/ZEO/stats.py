@@ -374,6 +374,8 @@ explain = {
     0x10: "invalidate (miss)",
     0x1A: "invalidate (hit, version)",
     0x1C: "invalidate (hit, saving non-current)",
+    # 0x1E can occur during startup verification.
+    0x1E: "invalidate (hit, discarding current or non-current)",
 
     0x20: "load (miss)",
     0x22: "load (hit)",
