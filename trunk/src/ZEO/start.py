@@ -118,7 +118,7 @@ def main(argv):
 
        -D -- Run in debug mode
 
-       -d -- Set STUPD_LOG_SEVERITY to -300
+       -d -- Set STUPID_LOG_SEVERITY to -300
 
        -U -- Unix-domain socket file to listen on
 
