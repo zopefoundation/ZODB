@@ -97,6 +97,9 @@ class HandlerFactory(Factory):
         logger.setLevel(self.section.level)
         return logger
 
+    def getLevel(self):
+        return self.section.level
+
 class FileHandlerFactory(HandlerFactory):
     def create_loghandler(self):
         from zLOG.LogHandlers import StreamHandler, FileHandler
@@ -224,3 +227,14 @@ class EventLogFactory(Factory):
             from zLOG.LogHandlers import NullHandler
             logger.addHandler(NullHandler())
         return logger
+
+    def getLowestHandlerLevel(self):
+        """ Return the lowest log level provided by any of our handlers
+        (used by Zope startup logger code to decide what to send
+        to stderr during startup) """
+        lowest = self.level
+        for factory in self.handler_factories:
+            handler_level = factory.getLevel()
+            if handler_level < lowest:
+                lowest = factory.getLevel()
+        return lowest
