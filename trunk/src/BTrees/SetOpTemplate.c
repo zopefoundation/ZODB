@@ -16,7 +16,7 @@
  Set operations
  ****************************************************************************/
 
-#define SETOPTEMPLATE_C "$Id: SetOpTemplate.c,v 1.19 2002/06/03 17:45:08 tim_one Exp $\n"
+#define SETOPTEMPLATE_C "$Id: SetOpTemplate.c,v 1.20 2002/06/05 16:03:11 tim_one Exp $\n"
 
 #ifdef INTSET_H
 static int 
@@ -459,20 +459,28 @@ multiunion_m(PyObject *ignored, PyObject *args)
         /* If set is a bucket, do a straight resize + memcpy. */
         if (set->ob_type == (PyTypeObject*)&SetType ||
             set->ob_type == (PyTypeObject*)&BucketType) {
+            int setsize;
+            int size_desired;
 
-            const int setsize = SIZED(set)->len;
-            int size_desired = result->len + setsize;
+            UNLESS (PER_USE(set)) goto Error;
+            setsize = SIZED(set)->len;
+            size_desired = result->len + setsize;
             /* If there are more to come, overallocate by 25% (arbitrary). */
             if (i < n-1)
                 size_desired += size_desired >> 2;
             if (size_desired && size_desired > result->size) {
-                if (Bucket_grow(result, size_desired, 1) < 0)
+                if (Bucket_grow(result, size_desired, 1) < 0) {
+                    PER_ALLOW_DEACTIVATION(set);
+                    PER_ACCESSED(set);
                     goto Error;
+                }
             }
             memcpy(result->keys + result->len,
                    BUCKET(set)->keys,
                    setsize * sizeof(KEY_TYPE));
             result->len += setsize;
+            PER_ALLOW_DEACTIVATION(set);
+            PER_ACCESSED(set);
         }
         else {
             /* No cheap way:  iterate over set's elements one at a time. */
