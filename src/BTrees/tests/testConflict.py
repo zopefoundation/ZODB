@@ -24,12 +24,12 @@ from ZODB.POSException import ConflictError
 class Base:
     """ Tests common to all types: sets, buckets, and BTrees """
 
-    storage = None
+    db = None
 
     def tearDown(self):
         del self.t
-        if self.storage is not None:
-            self.storage.close()
+        if self.db is not None:
+            self.db.close()
             self.storage.cleanup()
 
     def openDB(self):
