@@ -315,13 +315,13 @@ The context object offers two methods that are used to load a
 configuration.  Exactly one of these methods should be called, and it
 should be called only once:
 
-\begin{methoddesc}{load}{url}
+\begin{methoddesc}{loadURL}{url}
   Load and return a configuration object from a resource.  The
   resource is identified by a URL or path given as \var{url}.
   Fragment identifiers are not supported.
 \end{methoddesc}
 
-\begin{methoddesc}{loadfile}{file\optional{, url}}
+\begin{methoddesc}{loadFile}{file\optional{, url}}
   Load and return a configuration from an opened file object.
   If \var{url} is omitted, one will be computed based on the
   \member{name} attribute of \var{file}, if it exists.  If no URL can
@@ -362,7 +362,7 @@ subclasses; this should suffice for most context specialization.
 
 \begin{methoddesc}{createToplevelSection}{url}
   Create a new section that represents a section loaded and returned
-  by the \method{load()} method of the context object.  The returned
+  by the \method{loadURL()} method of the context object.  The returned
   section should be conform to the interface of the
   \class{ImportingConfiguration} class (see the
   \refmodule{ZConfig.Config} module's documentation for more
