@@ -119,9 +119,12 @@ class ZEOStorage:
     def close(self):
         # When this storage closes, we must ensure that it aborts
         # any pending transaction.  Not sure if this is the clearest way.
-        zLOG.LOG
         if self._transaction is not None:
+            self._log("close during transaction %s" % self._transaction,
+                      zLOG.BLATHER)
             self.tpc_abort(self._transaction.id)
+        else:
+            self._log("close", zLOG.BLATHER)
         self._conn.close()
 
     def notifyConnected(self, conn):
