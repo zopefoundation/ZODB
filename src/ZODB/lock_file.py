@@ -21,10 +21,13 @@ try:
     lock_file_FLAG = fcntl.LOCK_EX | fcntl.LOCK_NB
 
     def lock_file(file, error=POSException.StorageSystemError):
-        try: un=file.fileno()
-        except: return # don't care if not a real file
+        try:
+            un=file.fileno()
+        except:
+            return # don't care if not a real file
 
-        try: fcntl.flock(un,lock_file_FLAG)
+        try:
+            fcntl.flock(un,lock_file_FLAG)
         except:
             raise error, (
                 "Could not lock the database file.  There must be\n"
@@ -36,14 +39,19 @@ except:
     try:
         from winlock import LockFile
         def lock_file(file, error=POSException.StorageSystemError):
-            try: un=file.fileno()
-            except: return # don't care if not a real file
-            try: LockFile(un,0,0,1,0) # just lock the first byte, who cares
+            try:
+                un=file.fileno()
+            except:
+                return # don't care if not a real file
+            
+            try:
+                LockFile(un,0,0,1,0) # just lock the first byte, who cares
             except:
                 raise error, (
                     "Could not lock the database file.  There must be\n"
                     "another process that has opened the file.\n"
                     "<p>")            
     except:
-        def lock_file(file, error=None): pass
+        def lock_file(file, error=None):
+            pass
     
