@@ -1,18 +1,32 @@
 # Rules to convert the documentation to a single PDF file.
 #
+# PostScript and HTML output are also supported, though PDF is the
+# default.
+#
 # See the README.txt file for information on the mkhowto program used
 # to generate the PDF and PostScript versions of the documentation.
 
-.PHONY:	default all pdf ps
+.PHONY:	default all html pdf ps
 
 default:  pdf
-all:	  pdf ps
+all:	  html pdf ps
 
+html:   zconfig/zconfig.html
 pdf:	zconfig.pdf
 ps:	zconfig.ps
 
-zconfig.pdf:  zconfig.tex
+zconfig/zconfig.html:  zconfig.tex schema.dtd xmlmarkup.perl
+	mkhowto --html $<
+
+zconfig.pdf:  zconfig.tex schema.dtd xmlmarkup.sty
 	mkhowto --pdf $<
 
-zconfig.ps:  zconfig.tex
+zconfig.ps:  zconfig.tex schema.dtd xmlmarkup.sty
 	mkhowto --postscript $<
+
+clean:
+	rm -f zconfig.l2h zconfig.l2h~
+
+clobber:  clean
+	rm -f zconfig.pdf zconfig.ps
+	rm -rf zconfig
