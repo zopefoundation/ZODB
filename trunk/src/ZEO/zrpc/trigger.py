@@ -117,7 +117,7 @@ if os.name == 'posix':
 
 else:
 
-    # XXX Should define a base class that has the common methods and
+    # TODO:  Should define a base class that has the common methods and
     # then put the platform-specific in a subclass named trigger.
 
     # win32-safe version

@@ -326,10 +326,10 @@ script already has the appropriate magical comments for chkconfig.
 zdctl reference
 ---------------
 
-XXX TBD
+TBD
 
 
 zdrun reference
 ---------------
 
-XXX TBD
+TBD

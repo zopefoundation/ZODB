@@ -1,6 +1,6 @@
 <component prefix="ZODB.config">
 
-  <!-- XXX needs descriptions for everything -->
+  <!-- TODO needs descriptions for everything -->
 
   <abstracttype name="ZODB.storage"/>
   <abstracttype name="ZODB.database"/>
@@ -95,7 +95,7 @@
     <key name="var">
       <description>
         The directory where persistent cache files are stored.  By
-        default cache files, if they are persistent, are stored in 
+        default cache files, if they are persistent, are stored in
         the current directory.
       </description>
     </key>

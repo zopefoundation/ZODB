@@ -61,7 +61,7 @@ class TmpStore:
         serial = h[:8]
         return self._file.read(size), serial
 
-    # XXX clarify difference between self._storage & self._db._storage
+    # TODO: clarify difference between self._storage & self._db._storage
 
     def modifiedInVersion(self, oid):
         if self._index.has_key(oid):
@@ -118,6 +118,6 @@ class TmpStore:
         return ()
 
     def versionEmpty(self, version):
-        # XXX what is this supposed to do?
+        # TODO: what is this supposed to do?
         if version == self._bver:
             return len(self._index)

@@ -115,7 +115,7 @@ class Status:
     - The number of currently active transactions.
     - The number of reported queued transactions.
     - Client restarts.
-    - Number of current connections. XXX (This might not be useful.)
+    - Number of current connections (but this might not be useful).
 
     We can observe these events by reading the following sorts of log
     entries:
@@ -191,7 +191,7 @@ class Status:
         if mo is None:
             return
         called_method = mo.group('method')
-        # XXX exit earlier if we've got zeoLoad, because it's the most
+        # Exit early if we've got zeoLoad, because it's the most
         # frequently called method and we don't use it.
         if called_method == "zeoLoad":
             return
