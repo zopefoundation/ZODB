@@ -33,10 +33,6 @@
 <!ATTLIST component
           prefix     NMTOKEN  #IMPLIED>
 
-<!ELEMENT extension (description?, (sectiontype | abstracttype)*)>
-<!ATTLIST extension
-          prefix     NMTOKEN  #IMPLIED>
-
 <!ELEMENT import EMPTY>
 <!ATTLIST import
           file       CDATA    #IMPLIED
