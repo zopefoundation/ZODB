@@ -17,10 +17,8 @@ import os
 import sys
 import time
 import errno
-import types
 import random
 import socket
-import asyncore
 import tempfile
 import traceback
 
@@ -30,6 +28,7 @@ import zLOG
 PROFILE = 0
 if PROFILE:
     import hotshot
+
 
 def get_port():
     """Return a port that is not in use.
@@ -53,7 +52,7 @@ def get_port():
     raise RuntimeError, "Can't find port"
 
 
-def start_zeo_server(conf, addr=None, ro_svr=0):
+def start_zeo_server(conf, addr=None, ro_svr=0, keep=0):
     """Start a ZEO server in a separate process.
 
     Returns the ZEO port, the test server port, and the pid.
@@ -76,6 +75,8 @@ def start_zeo_server(conf, addr=None, ro_svr=0):
     args = [sys.executable, script, '-C', tmpfile]
     if ro_svr:
         args.append('-r')
+    if keep:
+        args.append('-k')
     args.append(str(port))
     d = os.environ.copy()
     d['PYTHONPATH'] = os.pathsep.join(sys.path)

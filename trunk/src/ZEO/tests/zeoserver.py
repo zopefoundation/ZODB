@@ -65,13 +65,14 @@ class ZEOTestServer(asyncore.dispatcher):
     """
     __super_init = asyncore.dispatcher.__init__
 
-    def __init__(self, addr, storage):
+    def __init__(self, addr, storage, keep):
         self.__super_init()
-        self.storage = storage
+        self._storage = storage
+        self._keep = keep
         # Count down to zero, the number of connects
-        self.count = 1
+        self._count = 1
         # For zLOG
-        self.label ='zeoserver:%d @ %s' % (os.getpid(), addr)
+        self._label ='zeoserver:%d @ %s' % (os.getpid(), addr)
         self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
         # Some ZEO tests attempt a quick start of the server using the same
         # port so we have to set the reuse flag.
@@ -87,22 +88,23 @@ class ZEOTestServer(asyncore.dispatcher):
         self.log('bound and listening')
 
     def log(self, msg, *args):
-        log(self.label, msg, *args)
+        log(self._label, msg, *args)
 
     def handle_accept(self):
         sock, addr = self.accept()
         self.log('in handle_accept()')
         # When we're done with everything, close the storage.  Do not write
         # the ack character until the storage is finished closing.
-        if self.count <= 0:
+        if self._count <= 0:
             self.log('closing the storage')
-            self.storage.close()
-            cleanup(self.storage)
+            self._storage.close()
+            if not self._keep:
+                cleanup(self._storage)
             self.log('exiting')
             os._exit(0)
         self.log('continuing')
         sock.send('X')
-        self.count -= 1
+        self._count -= 1
 
 
 def main():
@@ -111,12 +113,15 @@ def main():
     # We don't do much sanity checking of the arguments, since if we get it
     # wrong, it's a bug in the test suite.
     ro_svr = 0
+    keep = 0
     configfile = None
     # Parse the arguments and let getopt.error percolate
-    opts, args = getopt.getopt(sys.argv[1:], 'rC:')
+    opts, args = getopt.getopt(sys.argv[1:], 'rkC:')
     for opt, arg in opts:
         if opt == '-r':
             ro_svr = 1
+        elif opt == '-k':
+            keep = 1
         elif opt == '-C':
             configfile = arg
     # Open the config file and let ZConfig parse the data there.  Then remove
@@ -129,8 +134,8 @@ def main():
     zeo_port = int(args[0])
     test_port = zeo_port + 1
     try:
-        log(label, 'creating the test server')
-        t = ZEOTestServer(('', test_port), storage)
+        log(label, 'creating the test server, ro: %s, keep: %s', ro_svr, keep)
+        t = ZEOTestServer(('', test_port), storage, keep)
     except socket.error, e:
         if e[0] <> errno.EADDRINUSE: raise
         log(label, 'addr in use, closing and exiting')
