@@ -3,7 +3,7 @@
 
 __doc__='''Python implementation of a persistent base types
 
-$Id: Persistence.py,v 1.13 1998/06/05 22:07:05 jim Exp $'''
+$Id: Persistence.py,v 1.14 1998/07/02 16:17:44 jim Exp $'''
 #     Copyright 
 #
 #       Copyright 1996 Digital Creations, L.C., 910 Princess Anne
@@ -58,7 +58,7 @@ $Id: Persistence.py,v 1.13 1998/06/05 22:07:05 jim Exp $'''
 #
 #   (540) 371-6909
 #
-__version__='$Revision: 1.13 $'[11:-2]
+__version__='$Revision: 1.14 $'[11:-2]
 
 try:
     from cPersistence import Persistent
@@ -129,19 +129,31 @@ except:
     
 	def __setattr__(self,key,value):
 	    ' '
+            changed=self._p_changed
+            if changed:
+                self.__dict__[key]=value
+                return
+
             k=key[:3]
 	    if k=='_p_' or k=='_v_':
 		self.__dict__[key]=value
 		return
-
+                
 	    jar=self._p_jar
-	    if self._p_changed is None:	jar.setstate(self)
-	    self.__dict__[key]=value
-	    if jar is not None:
-		try:
-		    get_transaction().register(self)
-		    self._p_changed=1
-		except: pass
+            if jar is None:
+		self.__dict__[key]=value
+		return
+
+            d=self.__dict__
+	    if changed is None:
+                d['_p_changed']=1
+                jar.setstate(self)
+
+	    d[key]=value
+            try:
+                get_transaction().register(self)
+                d['_p_changed']=1
+            except: pass
     
 	def __changed__(self,v=-1):
 	    old=self._p_changed
@@ -192,6 +204,10 @@ except:
 
 ############################################################################
 # $Log: Persistence.py,v $
+# Revision 1.14  1998/07/02 16:17:44  jim
+# Fixed bug that caused bogus registrations when custom __setstate__
+# methods did setattrs.
+#
 # Revision 1.13  1998/06/05 22:07:05  jim
 # Fixed bug in Persistent.__setattr__ that caused changes to
 # "volatile" attributes (starting with _v_) to cause database writes.
