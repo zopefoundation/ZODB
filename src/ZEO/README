@@ -28,4 +28,4 @@ Zope Enterprize Option, iteration 1
   something like:
 
     python z2.py -P8700 ZEO_CLIENT=8700
-    python z2.py -P8800 ZEO_CLIENT=8800
+    python z2.py -P8800 ZEO_CLIENT=8700
