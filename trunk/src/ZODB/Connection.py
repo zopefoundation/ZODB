@@ -84,14 +84,15 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.22 1999/08/13 21:49:07 klm Exp $"""
-__version__='$Revision: 1.22 $'[11:-2]
+$Id: Connection.py,v 1.23 1999/08/25 17:35:45 jim Exp $"""
+__version__='$Revision: 1.23 $'[11:-2]
 
 from cPickleCache import PickleCache
 from POSException import ConflictError, ExportError
 from cStringIO import StringIO
 from cPickle import Unpickler, Pickler
 from ExtensionClass import Base
+from time import time
 import Transaction, string, ExportImport, sys, traceback, TmpStore
 from zLOG import LOG, ERROR
 
@@ -110,6 +111,8 @@ class Connection(ExportImport.ExportImport):
     The Connection manages movement of objects in and out of object storage.
     """
     _tmp=None
+    _debug_info=()
+    _opened=None
 
     def __init__(self, version='', cache_size=400,
                  cache_deactivate_after=60):
@@ -220,6 +223,7 @@ class Connection(ExportImport.ExportImport):
         self._storage=s=odb._storage
         self.new_oid=s.new_oid
         self._cache.invalidate(self._invalidated)
+        self._opened=time()
 
         return self
 
@@ -233,7 +237,8 @@ class Connection(ExportImport.ExportImport):
     def close(self):
         self._incrgc()
         db=self._db
-        self._db=self._storage=self._tmp=self.new_oid=None
+        self._db=self._storage=self._tmp=self.new_oid=self._opened=None
+        self._debug_info=()
         db._closeConnection(self)
 
     def commit(self, object, transaction):
@@ -469,6 +474,9 @@ class Connection(ExportImport.ExportImport):
     def sync(self):
         get_transaction().abort()
         self._cache.invalidate(self._invalidated)
+
+    def getDebugInfo(self): return self._debug_info
+    def setDebugInfo(self, *args): self._debug_info=self._debug_info+args
 
 
     ######################################################################
