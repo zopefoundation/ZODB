@@ -13,7 +13,7 @@
 ##############################################################################
 """Storage implementation using a log written to a single file.
 
-$Revision: 1.13 $
+$Revision: 1.14 $
 """
 
 import base64
@@ -40,6 +40,7 @@ from ZODB.FileStorage.fspack import FileStoragePacker
 from ZODB.FileStorage.format \
      import FileStorageFormatter, DataHeader, TxnHeader, DATA_HDR, \
      DATA_HDR_LEN, TRANS_HDR, TRANS_HDR_LEN, CorruptedDataError
+from ZODB.loglevels import BLATHER
 
 try:
     from ZODB.fsIndex import fsIndex
@@ -50,10 +51,6 @@ except ImportError:
 t32 = 1L << 32
 
 packed_version = "FS21"
-
-# XXX this isn't really needed, right?
-CUSTOM_BLATHER = 15
-logging.addLevelName("BLATHER", CUSTOM_BLATHER)
 
 logger = logging.getLogger('zodb.FileStorage')
 
