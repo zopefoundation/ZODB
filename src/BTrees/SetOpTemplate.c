@@ -16,7 +16,7 @@
  Set operations
  ****************************************************************************/
 
-#define SETOPTEMPLATE_C "$Id: SetOpTemplate.c,v 1.14 2002/05/31 09:41:07 htrd Exp $\n"
+#define SETOPTEMPLATE_C "$Id: SetOpTemplate.c,v 1.15 2002/05/31 14:58:29 tim_one Exp $\n"
 
 #ifdef INTSET_H
 static int 
@@ -153,7 +153,7 @@ copyRemaining(Bucket *r, SetIteration *i, int merge, int w)
 {
   while (i->position >= 0)
     {
-      if(r->len >= r->size && Bucket_grow(r, ! merge) < 0) return -1;
+      if(r->len >= r->size && Bucket_grow(r, -1, ! merge) < 0) return -1;
       COPY_KEY(r->keys[r->len], i->key);
       INCREF_KEY(r->keys[r->len]);
 
@@ -228,7 +228,7 @@ set_operation(PyObject *s1, PyObject *s2,
 	{
 	  if(c1)
 	    {
-	      if(r->len >= r->size && Bucket_grow(r, ! merge) < 0) goto err;
+	      if(r->len >= r->size && Bucket_grow(r, -1, ! merge) < 0) goto err;
               COPY_KEY(r->keys[r->len], i1.key);
               INCREF_KEY(r->keys[r->len]);
               if (merge)
@@ -244,7 +244,7 @@ set_operation(PyObject *s1, PyObject *s2,
 	{
 	  if(c12)
 	    {
-	      if(r->len >= r->size && Bucket_grow(r, ! merge) < 0) goto err;
+	      if(r->len >= r->size && Bucket_grow(r, -1, ! merge) < 0) goto err;
               COPY_KEY(r->keys[r->len], i1.key);
               INCREF_KEY(r->keys[r->len]);
               if (merge)
@@ -265,7 +265,7 @@ set_operation(PyObject *s1, PyObject *s2,
 	{
 	  if(c2)
 	    {
-	      if(r->len >= r->size && Bucket_grow(r, ! merge) < 0) goto err;
+	      if(r->len >= r->size && Bucket_grow(r, -1, ! merge) < 0) goto err;
               COPY_KEY(r->keys[r->len], i2.key);
               INCREF_KEY(r->keys[r->len]);
               if (merge)
@@ -447,7 +447,7 @@ multiunion_m(PyObject *ignored, PyObject *args)
         if (setiter.next(&setiter) < 0)
             goto Error;
         while (setiter.position >= 0) {
-            if (result->len >= result->size && Bucket_grow(result, 1) < 0)
+            if (result->len >= result->size && Bucket_grow(result, -1, 1) < 0)
                 goto Error;
             COPY_KEY(result->keys[result->len], setiter.key);
             ++result->len;

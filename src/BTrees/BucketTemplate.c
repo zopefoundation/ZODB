@@ -12,7 +12,7 @@
   
  ****************************************************************************/
 
-#define BUCKETTEMPLATE_C "$Id: BucketTemplate.c,v 1.30 2002/05/31 09:41:07 htrd Exp $\n"
+#define BUCKETTEMPLATE_C "$Id: BucketTemplate.c,v 1.31 2002/05/31 14:58:29 tim_one Exp $\n"
 
 /*
 ** _bucket_get
@@ -74,39 +74,63 @@ bucket_getitem(Bucket *self, PyObject *key)
   return _bucket_get(self, key, 0);
 }
 
+/*
+** Bucket_grow
+**
+** Resize a bucket.
+**
+** Arguments:   self    The bucket.
+**              newsize The new maximum capacity.  If < 0, double the
+**                      current size unless the bucket is currently empty,
+**                      in which case use MIN_BUCKET_ALLOC.
+**              noval   Boolean; if true, allocate only key space and not
+**                      value space
+**
+** Returns:     -1      on error, and MemoryError exception is set
+**               0      on success
+*/
 static int 
-Bucket_grow(Bucket *self, int noval)
+Bucket_grow(Bucket *self, int newsize, int noval)
 {
   KEY_TYPE *keys;
   VALUE_TYPE *values;
 
   if (self->size)
     {
-      UNLESS (keys=PyRealloc(self->keys, sizeof(KEY_TYPE)*self->size*2))
+      if (newsize < 0)
+        newsize = self->size * 2;
+      if (newsize < 0)    /* int overflow */
+        goto Overflow;
+      UNLESS (keys = PyRealloc(self->keys, sizeof(KEY_TYPE) * newsize))
         return -1;
-      
+
       UNLESS (noval)
         {
-          UNLESS (values=PyRealloc(self->values,
-                                   sizeof(VALUE_TYPE)*self->size*2))
+          UNLESS (values = PyRealloc(self->values,
+                                      sizeof(VALUE_TYPE) * newsize))
             return -1;
-          self->values=values;
+          self->values = values;
         }
-      self->keys=keys;
-      self->size*=2;
+      self->keys = keys;
     }
   else
     {
-      UNLESS (self->keys=PyMalloc(sizeof(KEY_TYPE)*MIN_BUCKET_ALLOC))
+      if (newsize < 0)
+        newsize = MIN_BUCKET_ALLOC;
+      UNLESS (self->keys = PyMalloc(sizeof(KEY_TYPE) * newsize))
         return -1;
-      UNLESS (noval || 
-              (self->values=PyMalloc(sizeof(VALUE_TYPE)*MIN_BUCKET_ALLOC))
-              )
-        return -1;
-      self->size=MIN_BUCKET_ALLOC;
+      UNLESS (noval)
+        {
+          UNLESS (self->values = PyMalloc(sizeof(VALUE_TYPE) * newsize))
+            return -1;
+        }
     }
-  
+  self->size = newsize;
   return 0;
+
+Overflow:
+  PyErr_NoMemory();
+  return -1;  
 }
 
 /*
@@ -213,7 +237,7 @@ _bucket_set(Bucket *self, PyObject *keyarg, PyObject *v,
       goto err;
     }
 
-  if (self->len==self->size && Bucket_grow(self, noval) < 0) goto err;
+  if (self->len==self->size && Bucket_grow(self, -1, noval) < 0) goto err;
 
   if (max != i) i++;
 

@@ -12,7 +12,7 @@
   
  ****************************************************************************/
 
-#define MERGETEMPLATE_C "$Id: MergeTemplate.c,v 1.10 2002/05/31 09:41:07 htrd Exp $\n"
+#define MERGETEMPLATE_C "$Id: MergeTemplate.c,v 1.11 2002/05/31 14:58:29 tim_one Exp $\n"
 
 /****************************************************************************
  Set operations
@@ -21,7 +21,7 @@
 static int
 merge_output(Bucket *r, SetIteration *i, int mapping)
 {
-  if(r->len >= r->size && Bucket_grow(r, ! mapping) < 0) return -1;
+  if(r->len >= r->size && Bucket_grow(r, -1, ! mapping) < 0) return -1;
   COPY_KEY(r->keys[r->len], i->key);
   INCREF_KEY(r->keys[r->len]);
   if (mapping)
