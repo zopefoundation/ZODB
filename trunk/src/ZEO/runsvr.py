@@ -94,7 +94,7 @@ class Options:
 
     # Default set of options.  Subclasses should override.
     _short_options = "C:h"
-    _long_options = ["--configuration=", "--help"]
+    _long_options = ["configuration=", "help"]
 
     def handle_option(self, opt, arg):
         """Handle one option.  Subclasses should override.
@@ -158,10 +158,10 @@ class ZEOOptions(Options):
 
     _short_options = "a:C:f:h"
     _long_options = [
-        "--address=",
-        "--configuration=",
-        "--filename=",
-        "--help",
+        "address=",
+        "configuration=",
+        "filename=",
+        "help",
         ]
 
     def handle_option(self, opt, arg):
