@@ -56,16 +56,18 @@ def start_server(addr):
 def start_client(addr, client_func=None):
     pid = os.fork()
     if pid == 0:
-        import ZEO.ClientStorage
-        if VERBOSE:
-            print "Client process started:", os.getpid()
-        cli = ZEO.ClientStorage.ClientStorage(addr, client=CLIENT_CACHE)
-        if client_func is None:
-            run(cli)
-        else:
-            client_func(cli)
-        cli.close()
-        os._exit(0)
+        try:
+            import ZEO.ClientStorage
+            if VERBOSE:
+                print "Client process started:", os.getpid()
+            cli = ZEO.ClientStorage.ClientStorage(addr, client=CLIENT_CACHE)
+            if client_func is None:
+                run(cli)
+            else:
+                client_func(cli)
+            cli.close()
+        finally:
+            os._exit(0)
     else:
         return pid
 
