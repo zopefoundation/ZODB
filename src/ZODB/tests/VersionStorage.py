@@ -20,10 +20,14 @@ Any storage that supports versions should be able to pass all these tests.
 # They were introduced when Jim reviewed the original version of the
 # code.  Barry and Jeremy didn't understand versions then.
 
+import time
+
 from ZODB import POSException
+from ZODB.referencesf import referencesf
 from ZODB.Transaction import Transaction
 from ZODB.tests.MinPO import MinPO
-from ZODB.tests.StorageTestBase import zodb_unpickle
+from ZODB.tests.StorageTestBase import zodb_unpickle, snooze
+from ZODB import DB
 
 class VersionStorage:
 
@@ -376,3 +380,91 @@ class VersionStorage:
         self._storage.tpc_vote(t)
         self._storage.tpc_finish(t)
         self.assertEqual(oids, [oid])
+        
+    def checkPackVersions(self):
+        db = DB(self._storage)
+        cn = db.open(version="testversion")
+        root = cn.root()
+
+        obj = root["obj"] = MinPO("obj")
+        root["obj2"] = MinPO("obj2")
+        txn = get_transaction()
+        txn.note("create 2 objs in version")
+        txn.commit()
+
+        obj.value = "77"
+        txn = get_transaction()
+        txn.note("modify obj in version")
+        txn.commit()
+
+        # undo the modification to generate a mix of backpointers
+        # and versions for pack to chase
+        info = db.undoInfo()
+        db.undo(info[0]["id"])
+        txn = get_transaction()
+        txn.note("undo modification")
+        txn.commit()
+
+        snooze()
+        self._storage.pack(time.time(), referencesf)
+
+        db.commitVersion("testversion")
+        txn = get_transaction()
+        txn.note("commit version")
+        txn.commit()
+
+        cn = db.open()
+        root = cn.root()
+        root["obj"] = "no version"
+
+        txn = get_transaction()
+        txn.note("modify obj")
+        txn.commit()
+
+        self._storage.pack(time.time(), referencesf)
+
+    def checkPackVersionsInPast(self):
+        db = DB(self._storage)
+        cn = db.open(version="testversion")
+        root = cn.root()
+
+        obj = root["obj"] = MinPO("obj")
+        root["obj2"] = MinPO("obj2")
+        txn = get_transaction()
+        txn.note("create 2 objs in version")
+        txn.commit()
+
+        obj.value = "77"
+        txn = get_transaction()
+        txn.note("modify obj in version")
+        txn.commit()
+
+        t0 = time.time()
+        snooze()
+
+        # undo the modification to generate a mix of backpointers
+        # and versions for pack to chase
+        info = db.undoInfo()
+        db.undo(info[0]["id"])
+        txn = get_transaction()
+        txn.note("undo modification")
+        txn.commit()
+
+        self._storage.pack(t0, referencesf)
+
+        db.commitVersion("testversion")
+        txn = get_transaction()
+        txn.note("commit version")
+        txn.commit()
+
+        cn = db.open()
+        root = cn.root()
+        root["obj"] = "no version"
+
+        txn = get_transaction()
+        txn.note("modify obj")
+        txn.commit()
+
+        self._storage.pack(time.time(), referencesf)
+
+
