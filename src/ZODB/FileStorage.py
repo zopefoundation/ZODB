@@ -184,7 +184,7 @@
 #   may have a back pointer to a version record or to a non-version
 #   record.
 #
-__version__='$Revision: 1.55 $'[11:-2]
+__version__='$Revision: 1.56 $'[11:-2]
 
 import struct, time, os, bpthread, string, base64, sys
 from struct import pack, unpack
@@ -904,7 +904,7 @@ class FileStorage(BaseStorage.BaseStorage,
         if tipos != pos:
             # Eek, a later transaction modified the data, but,
             # maybe it is pointing at the same data we are.
-            cserial, cdataptr, cver, cdata = self._undoDataInfo(
+            cserial, cdataptr, cdata, cver = self._undoDataInfo(
                 oid, ipos, tpos)
             # Versions of undone record and current record *must* match!
             if cver != version:
