@@ -1,6 +1,6 @@
 /***********************************************************************
 
-  $Id: cPersistence.c,v 1.20 1997/11/13 19:46:24 jim Exp $
+  $Id: cPersistence.c,v 1.21 1997/12/11 16:03:30 jim Exp $
 
   C Persistence Module
 
@@ -12,7 +12,7 @@
 
 
 *****************************************************************************/
-static char *what_string = "$Id: cPersistence.c,v 1.20 1997/11/13 19:46:24 jim Exp $";
+static char *what_string = "$Id: cPersistence.c,v 1.21 1997/12/11 16:03:30 jim Exp $";
 
 #include <time.h>
 #include "cPersistence.h"
@@ -848,7 +848,8 @@ static PyExtensionClass Pertype = {
 	/* Space for future expansion */
 	0L,0L,
 	Pertype__doc__, 		/* Documentation string */
-	METHOD_CHAIN(Per_methods)
+	METHOD_CHAIN(Per_methods),
+	EXTENSIONCLASS_BASICNEW_FLAG,
 };
 
 /* End of code for Persistent objects */
@@ -900,7 +901,7 @@ void
 initcPersistence()
 {
   PyObject *m, *d;
-  char *rev="$Revision: 1.20 $";
+  char *rev="$Revision: 1.21 $";
 
   PATimeType.ob_type=&PyType_Type;
 
@@ -927,6 +928,9 @@ initcPersistence()
 /****************************************************************************
 
   $Log: cPersistence.c,v $
+  Revision 1.21  1997/12/11 16:03:30  jim
+  Set EXTENSIONCLASS_BASICNEW_FLAG to support __basicnew__ protocol.
+
   Revision 1.20  1997/11/13 19:46:24  jim
   Fixed minor error handling bug in reinit.
 
