@@ -149,7 +149,7 @@ Also, the object ids time stamps are big-endian, so comparisons
 are meaningful.
 
 """
-__version__='$Revision: 1.10 $'[11:-2]
+__version__='$Revision: 1.11 $'[11:-2]
 
 import struct, time, os, bpthread, string, base64
 now=time.time
@@ -264,7 +264,11 @@ class FileStorage:
         self._ts=tid=TimeStamp(tid)
         t=time.time()
         t=apply(TimeStamp,(time.gmtime(t)[:5]+(t%60,)))
-        if tid > t: warn("%s Database records in the future", file_name);
+        if tid > t:
+            warn("%s Database records in the future", file_name);
+            if tid.timeTime() - t.timeTime() > 86400*30:
+                # a month in the future? This is bogus, use current time
+                self._ts=t
             
 
     def __len__(self): return len(self._index)
