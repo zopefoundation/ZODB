@@ -197,7 +197,7 @@ class Connection(smac.SizedMessageAsyncConnection):
         if __debug__:
             log("recv msg: %s, %s, %s, %s" % (msgid, flags, name,
                                               short_repr(args)),
-                level=zLOG.DEBUG)
+                level=zLOG.TRACE)
         if name == REPLY:
             self.handle_reply(msgid, flags, args)
         else:
@@ -299,7 +299,8 @@ class Connection(smac.SizedMessageAsyncConnection):
         finally:
             self.__msgid_lock.release()
         if __debug__:
-            log("send msg: %d, %d, %s, ..." % (msgid, flags, method))
+            log("send msg: %d, %d, %s, ..." % (msgid, flags, method),
+                zLOG.TRACE)
         buf = self.marshal.encode(msgid, flags, method, args)
         self.message_output(buf)
         return msgid
