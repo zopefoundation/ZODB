@@ -84,8 +84,8 @@
 ##############################################################################
 """Transaction management
 
-$Id: Transaction.py,v 1.29 2001/06/04 12:28:46 andreas Exp $"""
-__version__='$Revision: 1.29 $'[11:-2]
+$Id: Transaction.py,v 1.30 2001/06/04 18:25:38 andreas Exp $"""
+__version__='$Revision: 1.30 $'[11:-2]
 
 import time, sys, struct, POSException
 from struct import pack
@@ -368,8 +368,12 @@ class Transaction:
                     jarsv = jars.values()
                 for j in jarsv:
                     try: j.tpc_abort(self) # This should never fail
-                    except: pass
-
+                    except:     
+                        LOG('ZODB', ERROR,
+                            "A storage error occured during object abort "
+                            "This shouldn\'t happen. ",
+                            error=sys.exc_info())
+                
                 # Ugh, we need to abort work done in sub-transactions.
                 while subjars:
                     j=subjars.pop()
