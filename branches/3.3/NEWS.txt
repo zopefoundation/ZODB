@@ -33,6 +33,12 @@ Install
 
 The C header file ``ring.h`` is now installed.
 
+Tools
+-----
+
+- ``BTrees.check.display()`` now displays the oids (if any) of the
+  BTree's or TreeSet's constituent objects.
+
 
 What's new in ZODB3 3.3?
 ========================
