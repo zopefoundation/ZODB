@@ -1,6 +1,6 @@
 /*
 
-  $Id: cPickleCache.c,v 1.3 1997/03/28 20:18:34 jim Exp $
+  $Id: cPickleCache.c,v 1.4 1997/04/11 19:13:21 jim Exp $
 
   C implementation of a pickle jar cache.
 
@@ -56,7 +56,7 @@
       (540) 371-6909
 
 ***************************************************************************/
-static char *what_string = "$Id: cPickleCache.c,v 1.3 1997/03/28 20:18:34 jim Exp $";
+static char *what_string = "$Id: cPickleCache.c,v 1.4 1997/04/11 19:13:21 jim Exp $";
 
 #define ASSIGN(V,E) {PyObject *__e; __e=(E); Py_XDECREF(V); (V)=__e;}
 #define UNLESS(E) if(!(E))
@@ -159,7 +159,7 @@ reallyfullgc(ccobject *self)
 }
 
 static int
-maybegc(ccobject *self)
+maybegc(ccobject *self, PyObject *thisv)
 {
   int n, s;
   time_t now,dt;
@@ -177,7 +177,7 @@ maybegc(ccobject *self)
     {
       if(PyDict_Next(self->data, &(self->position), &key, &v))
 	{
-	  if(gc_item(self,key,v,now,dt) < 0) return -1;
+	  if(v != thisv && gc_item(self,key,v,now,dt) < 0) return -1;
 	}
       else
 	self->position=0;
@@ -245,6 +245,15 @@ static PyObject *
 cc_getattr(ccobject *self, char *name)
 {
   PyObject *r;
+
+  if(*name=='c')
+    {
+      if(strcmp(name,"cache_age")==0)
+	return PyInt_FromLong(self->cache_age);
+      if(strcmp(name,"cache_size")==0)
+	return PyInt_FromLong(self->cache_size);
+    }
+
   if(r=Py_FindMethod(cc_methods, (PyObject *)self, name))
     return r;
   PyErr_Clear();
@@ -260,16 +269,16 @@ cc_setattr(ccobject *self, char *name, PyObject *value)
 
       if(strcmp(name,"cache_age")==0)
 	{
-	  if(PyArg_Parse(value,"i",&v)) return 0;
-	  else return -1;
+	  UNLESS(PyArg_Parse(value,"i",&v)) return -1;
 	  if(v > 0)self->cache_age=v;
+	  return 0;
 	}
 
       if(strcmp(name,"cache_size")==0)
 	{
-	  if(PyArg_Parse(value,"i",&v)) return 0;
-	  else return -1;
+	  UNLESS(PyArg_Parse(value,"i",&v)) return -1;
 	  if(v > 0)self->cache_size=v;
+	  return 0;
 	}
     }
   PyErr_SetString(PyExc_AttributeError, name);
@@ -308,7 +317,7 @@ cc_subscript(ccobject *self, PyObject *key)
     PyErr_SetObject(PyExc_KeyError, key);
     return NULL;
   }
-  UNLESS(-1 != maybegc(self))
+  UNLESS(-1 != maybegc(self,r))
     {
       Py_DECREF(r);
       return NULL;
@@ -343,13 +352,14 @@ cc_ass_sub(ccobject *self, PyObject *key, PyObject *v)
 	PyErr_Clear();
 
       UNLESS(-1 != PyDict_SetItem(self->data,key,t)) return -1;
+      return maybegc(self, t);
       Py_DECREF(t);
     }
   else
     {
       UNLESS(-1 != PyDict_DelItem(self->data,key)) return -1;
+      return maybegc(self, NULL);
     }
-  return maybegc(self);
 }
 
 static PyMappingMethods cc_as_mapping = {
@@ -426,7 +436,7 @@ void
 initcPickleCache()
 {
   PyObject *m, *d;
-  char *rev="$Revision: 1.3 $";
+  char *rev="$Revision: 1.4 $";
 
   Cctype.ob_type=&PyType_Type;
 
@@ -454,6 +464,10 @@ initcPickleCache()
 
 /******************************************************************************
  $Log: cPickleCache.c,v $
+ Revision 1.4  1997/04/11 19:13:21  jim
+ Added code to be more conservative about GCing.
+ Fixed setattr bugs.
+
  Revision 1.3  1997/03/28 20:18:34  jim
  Simplified reinit logic.
 
