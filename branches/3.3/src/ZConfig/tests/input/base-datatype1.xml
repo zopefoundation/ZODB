@@ -1,0 +1,4 @@
+<schema datatype="ZConfig.tests.test_schema.MySection">
+  <sectiontype name="type-1"/>
+</schema>
+

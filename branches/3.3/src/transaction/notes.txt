@@ -1,0 +1,269 @@
+[more info may (or may not) be added to
+
+    http://zope.org/Wikis/ZODB/ReviseTransactionAPI
+]
+
+Notes on a future transaction API
+=================================
+
+I did a brief review of the current transaction APIs from ZODB 3 and
+ZODB 4, considering some of the issues that have come up since last
+winter when most of the initial design and implementation of ZODB 4's
+transaction API was done.
+
+Participants
+------------
+
+There are four participants in the transaction APIs.
+
+1. Application -- Some application code is ultimately in charge of the
+transaction process.  It uses transactional resources, decides the
+scope of individual transactions, and commits or aborts transactions.
+
+2. Resource Manager -- Typically library or framework code that provides
+transactional access to some resource -- a ZODB database, a relational
+database, or some other resource.  It provides an API for application
+code that isn't defined by the transaction framework.  It collaborates
+with the transaction manager to find the current transaction.  It
+collaborates with the transaction for registration, notification, and
+for committing changes.
+
+The ZODB Connection is a resource manager.  In ZODB 4, it is called a
+data manager.  In ZODB 3, it is called a jar.  In other literature,
+resource manager seems to be common.
+
+3. Transaction -- coordinates the actions of application and resource
+managers for a particular activity.  The transaction usually has a
+short lifetime.  The application begins it, resources register with it
+as the application runs, then it finishes with a commit or abort.
+
+4. Transaction Manager -- coordinates the use of transaction.  The
+transaction manager provides policies for associating resource
+managers with specific transactions.  The question "What is the
+current transaction?" is answered by the transaction manager.
+
+I'm taking as a starting point the transaction API that was defined
+for ZODB 4.  I reviewed it again after a lot of time away, and I still
+think it's on the right track.
+
+Current transaction
+-------------------
+
+The first question is "What is the current transaction?"  This
+question is decided by the transaction manager.  An application could
+chose an application manager that suites its need best.  
+
+In the current ZODB, the transaction manager is essentially the
+implementation of ZODB.Transaction.get_transaction() and the
+associated thread id -> txn dict.  I think we can encapsulate this
+policy an a first-class object and allow applications to decide which
+one they want to use.  By default, a thread-based txn manager would be
+provided.
+
+The other responsibility of the transaction manager is to decide when
+to start a new transaction.  The current ZODB transaction manager
+starts one whenever a client calls get() and there is no current
+transaction.  I think there could be some benefit to an explicit new()
+operation that will always create a new transaction.  A particular
+manager could implement the policy that get() called before new()
+returns None or raises an exception.
+
+Basic transaction API
+---------------------
+
+A transaction module or package can export a very simple API for
+interacting with transactions.  It hides most of the complexity from
+applications that want to use the standard Zope policies.  Here's a
+sketch of an implementation:
+
+_mgr = TransactionManager()
+
+def get():
+    """Return the current transaction."""
+    return _mgr.get()
+
+def new():
+    """Return a new transaction."""
+    return _mgr.new()
+
+def commit():
+    """Commit the current transaction."""
+    _mgr.get().commit()
+
+def abort():
+    """Abort the current transaction."""
+    _mgr.get().abort()
+
+Application code can just import the transaction module to use the
+get(), new(), abort(), and commit() methods.
+
+The individual transaction objects should have a register() method
+that is used by a resource manager to register that it has
+modifications for this transaction.  It's part of the basic API, but
+not the basic user API.
+
+Extended transaction API
+------------------------
+
+There are a few other methods that might make sense on a transaction:
+
+status() -- return a code or string indicating what state the
+transaction is in -- begin, aborted, committed, etc.
+
+note() -- add metadata to txn
+
+The transaction module should have a mechanism for installing a new
+transaction manager.
+
+Suspend and resume
+------------------
+
+If the transaction manager's job is to decide what the current
+transaction is, then it would make sense to have suspend() and
+resume() APIs that allow the current activity to be stopped for a
+time.  The goal of these APIs is to allow more control over
+coordination.  
+
+It seems like user code would call suspend() and resume() on
+individual transaction objects, which would interact with the
+transaction manager.
+
+If suspend() and resume() are supported, then we need to think about
+whether those events need to be communicated to the resource
+managers. 
+
+This is a new feature that isn't needed for ZODB 3.3.
+
+Registration and notification
+-----------------------------
+
+The transaction object coordinates the activities of resource
+managers.  When a managed resource is modified, its manager must
+register with the current transaction.  (It's an error to modify an
+object when there is no transaction?)
+
+When the transaction commits or aborts, the transaction calls back to
+each registered resource manager.  The callbacks form the two-phase
+commit protocol.  I like the ZODB 4 names and approach prepare() (does
+tpc_begin through tpc_vote on the storage).
+
+A resource manager does not register with a transaction if none of its
+resources are modified.  Some resource managers would like to know
+about transaction boundaries anyway.  A ZODB Connection would like to
+process invalidations at every commit, even if none of its objects
+were modified.
+
+It's not clear what the notification interface should look like or
+what events are of interest.  In theory, transaction begin, abort, and
+commit are all interesting; perhaps a combined abort-or-commit event
+would be useful.  The ZODB use case only needs one event.
+
+The java transaction API has beforeCompletion and afterCompletion,
+where after gets passed a status code to indicate abort or commit.
+I think these should be sufficient.
+
+Nested transactions / savepoints
+--------------------------------
+
+ZODB 3 and ZODB 4 each have a limited form of nested transactions.
+They are called subtransactions in ZODB 3 and savepoints in ZODB 4.
+The essential mechanism is the same:  At the time of subtransaction is
+committed, all the modifications up to that time are written out to a
+temporary file.  The application can later revert to that saved state
+or commit the main transaction, which copies modifications from the
+temporary file to the real storage.
+
+The savepoint mechanism can be used to implement the subtransaction
+model, by creating a savepoint every time a subtransaction starts or
+ends.
+
+If a resource manager joins a transaction after a savepoint, we need
+to create an initial savepoint for the new resource manager that will
+rollback all its changes.  If the new resource manager doesn't support
+savepoints, we probably need to mark earlier savepoints as invalid.
+There are some edges cases to work out here.
+
+It's not clear how nested transactions affect the transaction manager
+API.  If we just use savepoint(), then there's no issue to sort out.
+A nested transaction API may be more convenient.  One possibility is
+to pass a transaction object to new() indicating that the new
+transaction is a child of the current transaction.  Example:
+
+    transaction.new(transaction.get())
+
+That seems rather wordy.  Perhaps:
+
+    transaction.child()
+
+where this creates a new nested transaction that is a child of the
+current one, raising an exception if there is no current transaction.
+
+This illustrates that a subtransaction feature could create new
+requirements for the transaction manager API.  
+
+The current ZODB 3 API is that calling commit(1) or commit(True) means
+"commit a subtransaction."  abort() has the same API.  We need to
+support this API for backwards compatibility.  A new API would be a
+new feature that isn't necessary for ZODB 3.3.
+
+ZODB Connection and Transactions
+--------------------------------
+
+The Connection has three interactions with a transaction manager.
+First, it registers itself with the transaction manager for
+synchronization messages.  Second, it registers with the current
+transaction the first time an object is modified in that transaction.
+Third, there is an option to explicitly pass a transaction manager to
+the connection constructor via DB.open(); the connection always uses
+this transaction manager, regardless of the default manager.
+
+Deadlock and recovery
+---------------------
+
+ZODB uses a global sort order to prevent deadlock when it commits
+transactions involving multiple resource managers.  The resource
+manager must define a sortKey() method that provides a global ordering
+for resource managers.  The sort code doesn't exist in ZODB 4, but
+could be added fairly easily.
+
+The transaction managers don't support recovery, where recovery means
+restoring a system to a consistent state after a failure during the
+second phase of two-phase commit.  When a failure occurs in the second
+phase, some transaction participations may not know the outcome of the
+transaction.  (It would be cool to support recovery, but that's not
+being discussed now.)
+
+In the absence of real recovery manager means that our transaction
+commit implementation needs to play many tricks to avoid the need for
+recovery (pseudo-recovery).  For example, if the first resource
+manager fails in the second phase, we attempt to abort all the other
+resource managers.  (This isn't strictly correct, because we don't know the
+status of the first resource manager if it fails.)  If we used
+something more like the ZODB 4 implementation, we'd need to make sure
+all the pseudo-recovery work is done in the new implementation.
+
+Closing resource managers
+-------------------------
+
+The ZODB Connection is explicitly opened and closed by the
+application; other resource managers probably get closed to.  The
+relationship between transactions and closed resource managers is
+undefined in the current API.  A transaction will probably fail if the
+Connection is closed, or succeed by accident if the Connection is
+re-opened. 
+
+The resource manager - transaction API should include some means for
+dealing with close.  The likely approach is to raise an error if you
+close a resource manager that is currently registered with a
+transaction. 
+
+First steps
+-----------
+
+I would definitely like to see some things in ZODB 3.3:
+
+    - simplified module-level transaction calls
+    - notifications for abort-commit event
+    - restructured Connection to track modified objects itself
+    - explicit transaction manager object
+
