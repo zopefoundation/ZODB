@@ -108,8 +108,9 @@ else:
         rd, wr = os.pipe()
         pid = os.fork()
         if pid == 0:
+            asyncore.socket_map.clear() # Don't service the parent's sockets
             import ZEO.zrpc.log
-            reload(ZEO.zrpc.log)
+            reload(ZEO.zrpc.log) # Don't share the logging file object
             try:
                 if PROFILE:
                     p = hotshot.Profile("stats.s.%d" % os.getpid())
