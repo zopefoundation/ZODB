@@ -27,14 +27,17 @@ You must specify either -p and -h or -U.
 import getopt
 import socket
 import sys
+import time
 
 import ZODB
 from ZODB.POSException import ConflictError
+from ZODB.tests.MinPO import MinPO
 from ZEO.ClientStorage import ClientStorage
 
 ZEO_VERSION = 2
 
 def check_server(addr, storage, write):
+    t0 = time.time()
     if ZEO_VERSION == 2:
         cs = ClientStorage(addr, storage=storage, wait=1,
                            read_only=(not write))
@@ -51,7 +54,8 @@ def check_server(addr, storage, write):
         cn = db.open()
         root = cn.root()
         try:
-            root['zeoup'] = root.get('zeoup', 0) + 1
+            obj = root['zeoup'] = root.get('zeoup', MinPO(0))
+            obj.value += 1
             get_transaction().commit()
         except ConflictError:
             pass
@@ -59,7 +63,9 @@ def check_server(addr, storage, write):
         db.close()
     else:
         data, serial = cs.load("\0\0\0\0\0\0\0\0", "")
-        
+        cs.close()
+    t1 = time.time()
+    print "Elapsed time: %.2f" % (t1 - t0)
 
 def usage(exit=1):
     print __doc__
