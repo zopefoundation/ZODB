@@ -1,3 +1,18 @@
+What's new in ZODB3 3.3 ?
+=========================
+Release date: DD-MMM-YYYY
+
+Tools
+--------
+
+ZODB.utils.oid_repr() changed to add a leading "0x", and to strip leading
+zeroes.  This is used, e.g., in the detail of a POSKeyError exception, to
+identify the missing oid.  Before, the output was ambiguous.  For example,
+oid 17 was displayed as 0000000000000011.  As a Python integer, that's
+octal 9.  Or was it meant to be decimal 11?  Or was it meant to be hex?
+Now it displays as 0x11.
+
+
 What's new in ZODB3 3.3 beta 2
 ==============================
 Release date: 13-Aug-2004
