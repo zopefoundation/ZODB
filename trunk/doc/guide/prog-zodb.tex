@@ -300,11 +300,11 @@ methods.  (Older versions didn't support this at all.)  If you write
 such a \method{__setattr__} or \method{__delattr__} method, its code
 has to set the dirty bit manually.
 
-\item A persistent class should not have an \method{__del__} method.
+\item A persistent class should not have a \method{__del__} method.
 The database moves objects freely between memory and storage.  If an
 object has not been used in a while, it may be released and its
 contents loaded from storage the next time it is used.  Since the
-Python interpreter is unaware of persistence, it would call the
+Python interpreter is unaware of persistence, it would call
 \method{__del__} each time the object was freed.
 
 \end{itemize}
@@ -406,6 +406,39 @@ last two hooks.  The user code must call \method{_p_delattr}, passing
 the name of the attribute as an argument.  If the call returns True,
 \class{Persistent} handled the attribute; if not, the user code can
 run.
+
+\subsubsection{\method{__del__} methods}
+
+A \method{__del__} method is invoked just before the memory occupied by an
+unreferenced Python object is freed.  Because ZODB may materialize, and
+dematerialize, a given persistent object in memory any number of times,
+there isn't a meaningful relationship between when a persistent object's
+\method{__del__} method gets invoked and any natural aspect of a
+persistent object's life cycle.  For example, it is emphatically not the
+case that a persistent object's \method{__del__} method gets invoked only
+when the object is no longer referenced by other objects in the database.
+\method{__del__} is only concerned with reachability from objects in
+memory.
+
+Worse, a \method{__del__} method can interfere with the persistence
+machinery's goals.  For example, some number of persistent objects reside
+in a \class{Connection}'s memory cache.  At various times, to reduce memory
+burden, objects that haven't been referenced recently are removed from the
+cache.  If a persistent object with a \method{__del___} method is so
+removed, and the cache was holding the last memory reference to the object,
+the object's \method{__del__} method will be invoked.  If the
+\method{__del__} method then references any attribute of the object, ZODB
+needs to load the object from the database again, in order to satisfy the
+attribute reference.  This puts the object back into the cache again:  such
+an object is effectively immortal, occupying space in the memory cache
+forever, as every attempt to remove it from cache puts it back into the
+cache.  In ZODB versions prior to 3.2.2, this could even cause the cache
+reduction code to fall into an infinite loop.  The infinite loop no longer
+occurs, but such objects continue to live in the memory cache forever.
+
+Because \method{__del__} methods don't make good sense for persistent
+objects, and can create problems, persistent classes should not define
+\method{__del__} methods.
 
 \subsection{Writing Persistent Classes}
 
