@@ -39,6 +39,11 @@ Zope Enterprise Objects (ZEO) Revision History
 
       - Pack errors weren't logged in the server event log.
 
+      - If an attempt was made to commit a transaction with updates
+        while the client storage was disconnected from the server, 
+        no further write transactions would be allowed, even after 
+	reconnection, and the site would eventually hang.
+
   Planned for (future) ZEO releases
 
     New Features
