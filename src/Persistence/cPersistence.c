@@ -1,6 +1,6 @@
 /*
 
-  $Id: cPersistence.c,v 1.5 1997/03/14 22:59:34 jim Exp $
+  $Id: cPersistence.c,v 1.6 1997/03/20 20:58:25 jim Exp $
 
   C Persistence Module
 
@@ -56,7 +56,7 @@
 
 
 *****************************************************************************/
-static char *what_string = "$Id: cPersistence.c,v 1.5 1997/03/14 22:59:34 jim Exp $";
+static char *what_string = "$Id: cPersistence.c,v 1.6 1997/03/20 20:58:25 jim Exp $";
 
 #include <time.h>
 #include "cPersistence.h"
@@ -294,9 +294,16 @@ Per__p___reinit__(cPersistentObject *self, PyObject *args)
       Py_INCREF(oid);
       ASSIGN(self->oid, oid);
     }
-  if(self->oid==oid || PyObject_Compare(self->oid, oid))
+  if((self->oid==oid || PyObject_Compare(self->oid, oid)==0)
+     && self->state==cPersistent_UPTODATE_STATE)
     {
-      UNLESS(args=PyObject_GetAttr(copy,py___dict__)) return NULL;
+      UNLESS(args=PyObject_GetAttr(copy,py___dict__))
+	{
+	  printf("Could not get __dict__ of a %s,\n", self->ob_type->tp_name);
+	  PyObject_Print(self,stdout,0);
+	  printf("\n\n");
+	  return NULL;
+	}
       ASSIGN(INSTANCE_DICT(self),args);
       self->state=GHOST_STATE;
     }
@@ -720,7 +727,7 @@ void
 initcPersistence()
 {
   PyObject *m, *d;
-  char *rev="$Revision: 1.5 $";
+  char *rev="$Revision: 1.6 $";
 
   PATimeType.ob_type=&PyType_Type;
 
@@ -747,6 +754,9 @@ initcPersistence()
 /****************************************************************************
 
   $Log: cPersistence.c,v $
+  Revision 1.6  1997/03/20 20:58:25  jim
+  Fixed bug in reinit.
+
   Revision 1.5  1997/03/14 22:59:34  jim
   Changed the way Per_setstate was exported to get rid of compilation
   error.
