@@ -48,7 +48,7 @@ def num2str(n):
 def str2num(s):
     return struct.unpack(">Q", "\000\000" + s)[0]
 
-class fsIndex:
+class fsIndex(object):
 
     def __init__(self):
         self._data = {}
@@ -76,7 +76,7 @@ class fsIndex:
 
     def __len__(self):
         r = 0
-        for tree in self._data.values():
+        for tree in self._data.itervalues():
             r += len(tree)
         return r
 
@@ -85,7 +85,7 @@ class fsIndex:
             self[k] = v
 
     def has_key(self, key):
-        v=self.get(key, self)
+        v = self.get(key, self)
         return v is not self
 
     def __contains__(self, key):
@@ -101,27 +101,27 @@ class fsIndex:
         self._data.clear()
 
     def __iter__(self):
-        for prefix, tree in self._data.items():
+        for prefix, tree in self._data.iteritems():
             for suffix in tree:
                 yield prefix + suffix
 
+    iterkeys = __iter__
+
     def keys(self):
-        r = []
-        for prefix, tree in self._data.items():
-            for suffix in tree.keys():
-                r.append(prefix + suffix)
-        return r
+        return list(self.iterkeys())
+
+    def iteritems(self):
+        for prefix, tree in self._data.iteritems():
+            for suffix, value in tree.iteritems():
+                yield (prefix + suffix, str2num(value))
 
     def items(self):
-        r = []
-        for prefix, tree in self._data.items():
-            for suffix, v in tree.items():
-                r.append(((prefix + suffix), str2num(v)))
-        return r
+        return list(self.iteritems())
+
+    def itervalues(self):
+        for tree in self._data.itervalues():
+            for value in tree.itervalues():
+                yield str2num(value)
 
     def values(self):
-        r = []
-        for prefix, tree in self._data.items():
-            for v in tree.values():
-                r.append(str2num(v))
-        return r
+        return list(self.itervalues())
