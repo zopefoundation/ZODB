@@ -10,7 +10,7 @@
 
 static char cPickleJar_module_documentation[] = 
 ""
-"\n$Id: cPickleJar.c,v 1.3 1997/12/15 16:36:15 jim Exp $"
+"\n$Id: cPickleJar.c,v 1.4 1997/12/16 21:29:25 jim Exp $"
 ;
 
 #include "ExtensionClass.h"
@@ -31,7 +31,7 @@ static PyObject *Pickler, *StringIO, *arg0, *arg1,
   *py__p_oid, *py__p_jar, *py_new_oid, *py__p_changed, *py_persistent_id,
   *py_db, *py_store, *py_seek, *py_getvalue, *py_cache, *py_dump,
   *py_clear_memo, *py___class__, *py___getinitargs__,
-  *py___getstate__, *py___changed__, *py_info;
+  *py___getstate__, *py___changed__, *py_info, *one, *py_oid;
 
 /* Declarations for objects of type pid */
 
@@ -266,21 +266,32 @@ err:
   return r;
 }
 
-/* End of code for pid objects */
-/* -------------------------------------------------------- */
+static PyObject *
+pj_new_oid(PyObject *self, PyObject *args)
+{
+  PyObject *r;
 
+  UNLESS(r=PyObject_GetAttr(self, py_oid)) return NULL;
+  UNLESS_ASSIGN(r,PyNumber_Add(r,one)) return NULL;
+  if(PyObject_SetAttr(self,py_oid,r) < 0)
+    {
+      Py_DECREF(r);
+      return NULL;
+    }
+  return r;
+}
 
 /* List of methods defined in the module */
 
-static struct PyMethodDef Module_Level__methods[] = {
-  
+static struct PyMethodDef Module_Level__methods[] = {  
   {NULL, (PyCFunction)NULL, 0, NULL}		/* sentinel */
 };
 
 /* Initialization function for the module (*must* be called initcPickleJar) */
 
 static struct PyMethodDef PickleJar_methods[] = {
-  {"store",(PyCFunction)pj_store,1,""},  
+  {"store",(PyCFunction)pj_store,1,"store an object"},  
+  {"new_oid",(PyCFunction)pj_new_oid,1,"Get the next available object id"},  
   {NULL,		NULL}		/* sentinel */
 };
 
@@ -288,7 +299,7 @@ void
 initcPickleJar()
 {
   PyObject *m, *d;
-  char *rev="$Revision: 1.3 $";
+  char *rev="$Revision: 1.4 $";
   PURE_MIXIN_CLASS(PickleJar,"",PickleJar_methods);
 
   UNLESS(Pickler=PyImport_ImportModule("cPickle")) return;
@@ -298,6 +309,7 @@ initcPickleJar()
 #define INIT_STRING(S) if(!(py_ ## S = PyString_FromString(#S))) return
 
   INIT_STRING(_p_oid);
+  INIT_STRING(oid);
   INIT_STRING(_p_jar);
   INIT_STRING(new_oid);
   INIT_STRING(_p_changed);
@@ -317,6 +329,8 @@ initcPickleJar()
 
   UNLESS(arg0=Py_BuildValue("(i)",0)) return;
   UNLESS(arg1=Py_BuildValue("(i)",1)) return;
+
+  UNLESS(one=PyInt_FromLong(1)) return;
 
   /* Create the module and add the functions */
   m = Py_InitModule4("cPickleJar", Module_Level__methods,
@@ -341,6 +355,9 @@ initcPickleJar()
 Revision Log:
 
   $Log: cPickleJar.c,v $
+  Revision 1.4  1997/12/16 21:29:25  jim
+  Moved new_oid method to C.
+
   Revision 1.3  1997/12/15 16:36:15  jim
   Updated to use new pickling protocol.
 
