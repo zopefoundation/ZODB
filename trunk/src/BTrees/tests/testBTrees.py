@@ -335,6 +335,27 @@ class MappingBase(Base):
         self.assertEqual(len(tslice), 60)
         self.assertEqual(list(tslice), zip(range(20, 80), [1]*60))
 
+    def testBadUpdateTupleSize(self):
+        # This one silently ignored the excess in Zope3.
+        try:
+            self.t.update([(1, 2, 3)])
+        except TypeError:
+            pass
+        else:
+            self.fail("update() with 3-tuple didn't complain")
+
+        # This one dumped core in Zope3.
+        try:
+            self.t.update([(1,)])
+        except TypeError:
+            pass
+        else:
+            self.fail("update() with 1-tuple didn't complain")
+
+        # This one should simply succeed.
+        self.t.update([(1, 2)])
+        self.assertEqual(list(self.t.items()), [(1, 2)])
+
 
 class NormalSetTests(Base):
     """ Test common to all set types """
