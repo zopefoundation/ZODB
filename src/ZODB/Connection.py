@@ -84,8 +84,8 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.24 1999/09/15 00:36:32 jim Exp $"""
-__version__='$Revision: 1.24 $'[11:-2]
+$Id: Connection.py,v 1.25 1999/09/15 16:10:33 jim Exp $"""
+__version__='$Revision: 1.25 $'[11:-2]
 
 from cPickleCache import PickleCache
 from POSException import ConflictError, ExportError
@@ -120,7 +120,7 @@ class Connection(ExportImport.ExportImport):
         """Create a new Connection"""
         self._version=version
         self._cache=cache=PickleCache(self, cache_size, cache_deactivate_after)
-        self._incrgc=cache.incrgc
+        self._incrgc=self.cacheGC=cache.incrgc
         self._invalidated=d={}
         self._invalid=d.has_key
         self._committed=[]
@@ -129,6 +129,8 @@ class Connection(ExportImport.ExportImport):
         try: del self._cache
         except: pass
         try: del self._incrgc
+        except: pass
+        try: del self.cacheGC
         except: pass
 
     def __getitem__(self, oid,
@@ -221,6 +223,9 @@ class Connection(ExportImport.ExportImport):
         This just deactivates the thing.
         """
         self._cache.invalidate(object._p_oid)
+
+    def cacheFullSweep(self, dt=0): self._cache.full_sweep(dt)
+    def cacheMinimize(self, dt=0): self._cache.minimize(dt)
 
     def close(self):
         self._incrgc()
