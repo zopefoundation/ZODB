@@ -13,8 +13,8 @@
 ##############################################################################
 """Transaction management
 
-$Id: Transaction.py,v 1.37 2002/08/14 22:07:09 mj Exp $"""
-__version__='$Revision: 1.37 $'[11:-2]
+$Id: Transaction.py,v 1.38 2002/09/11 18:41:24 jeremy Exp $"""
+__version__='$Revision: 1.38 $'[11:-2]
 
 import time, sys, struct, POSException
 from struct import pack
@@ -206,12 +206,13 @@ class Transaction:
                         else:
                             vote(self) # last chance to bail
 
-                # Try to finish one jar, since we may be able to
-                # recover if the first one fails.
-                self._finish_one(jarsv)
-                # Once a single jar has finished, it's a fatal (hosed)
-                # error if another jar fails.
-                self._finish_rest(jarsv)
+                # Handle multiple jars separately.  If there are
+                # multiple jars and one fails during the finish, we
+                # mark this transaction manager as hosed.
+                if len(jarsv) == 1:
+                    self._finish_one(jarsv[0])
+                else:
+                    self._finish_many(jarsv)
             except:
                 # Ugh, we got an got an error during commit, so we
                 # have to clean up.
@@ -266,11 +267,9 @@ class Transaction:
                 jars[i] = j
             j.commit_sub(self)
 
-    def _finish_one(self, jarsv):
+    def _finish_one(self, jar):
         try:
-            if jarsv:
-                jarsv[-1].tpc_finish(self) # This should never fail
-                jarsv.pop() # It didn't, so it's taken care of.
+            jar.tpc_finish(self) # This should never fail
         except:
             # Bug if it does, we need to keep track of it
             LOG('ZODB', ERROR,
@@ -279,7 +278,7 @@ class Transaction:
                 error=sys.exc_info())
             raise
 
-    def _finish_rest(self, jarsv):
+    def _finish_many(self, jarsv):
         global hosed
         try:
             while jarsv:
