@@ -152,7 +152,7 @@ class Connection(smac.SizedMessageAsyncConnection):
 
     def handle_reply(self, msgid, flags, args):
         if __debug__:
-            log("recv reply: %s, %s, %s" % (msgid, flags, str(args)[:40]),
+            log("recv reply: %s, %s, %s" % (msgid, flags, short_repr(args)),
                 level=zLOG.DEBUG)
         self.__reply = msgid, flags, args
         self.__reply_lock.release() # will fail if lock is unlocked
@@ -162,14 +162,15 @@ class Connection(smac.SizedMessageAsyncConnection):
             msg = "Invalid method name: %s on %s" % (name, repr(self.obj))
             raise ZRPCError(msg)
         if __debug__:
-            log("%s%s" % (name, args), level=zLOG.BLATHER)
+            log("%s%s" % (name, short_repr(args)), level=zLOG.BLATHER)
 
         meth = getattr(self.obj, name)
         try:
             ret = meth(*args)
         except Exception, msg:
             error = sys.exc_info()[:2]
-            log("%s() raised exception: %s" % (name, msg), zLOG.ERROR, error=sys.exc_info())
+            log("%s() raised exception: %s" % (name, msg),
+                zLOG.ERROR, error=sys.exc_info())
             return self.return_error(msgid, flags, error[0], error[1])
 
         if flags & ASYNC:
