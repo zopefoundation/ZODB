@@ -14,6 +14,9 @@
 import os
 import types
 import zLOG
+import threading
+
+LOG_THREAD_ID = 0 # Set this to 1 during heavy debugging
 
 _label = "zrpc:%s" % os.getpid()
 
@@ -22,7 +25,10 @@ def new_label():
     _label = "zrpc:%s" % os.getpid()
 
 def log(message, level=zLOG.BLATHER, label=None, error=None):
-    zLOG.LOG(label or _label, level, message, error=error)
+    label = label or _label
+    if LOG_THREAD_ID:
+        label = "%s:%s" % (label, threading.currentThread().getName())
+    zLOG.LOG(label, level, message, error=error)
 
 REPR_LIMIT = 40
 
@@ -40,7 +46,13 @@ def short_repr(obj):
     # module name in the pickle.
 
     if isinstance(obj, types.StringType):
-        r = `obj[:REPR_LIMIT]`
+        if len(obj) > REPR_LIMIT:
+            r = repr(obj[:REPR_LIMIT])
+        else:
+            r = repr(obj)
+        if len(r) > REPR_LIMIT:
+            r = r[:REPR_LIMIT-4] + '...' + r[-1]
+        return r
     elif isinstance(obj, types.TupleType):
         elts = []
         size = 0
