@@ -84,8 +84,8 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.15 1999/07/07 19:52:28 jim Exp $"""
-__version__='$Revision: 1.15 $'[11:-2]
+$Id: Connection.py,v 1.16 1999/07/08 16:33:52 jim Exp $"""
+__version__='$Revision: 1.16 $'[11:-2]
 
 from cPickleCache import PickleCache
 from POSException import ConflictError, ExportError
@@ -367,8 +367,10 @@ class Connection(ExportImport.ExportImport):
         """
         self._invalidated[oid]=1
 
-    def modifiedInVersion(self, o):
-        return self._db.modifiedInVersion(o._p_oid)
+    def modifiedInVersion(self, oid):
+        try: return self._db.modifiedInVersion(oid)
+        except KeyError:
+            return self._version
 
     def root(self): return self['\0\0\0\0\0\0\0\0']
 
@@ -465,11 +467,6 @@ class Connection(ExportImport.ExportImport):
     def sync(self):
         get_transaction().abort()
         self._cache.invalidate(self._invalidated)
-
-    def modifiedInVersion(self, oid):
-        try: self._db.modifiedInVersion(oid)
-        except KeyError:
-            return self._version
 
 class tConnection(Connection):
 
