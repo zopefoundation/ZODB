@@ -9,7 +9,7 @@ pdf:	zconfig.pdf
 ps:	zconfig.ps
 
 zconfig.pdf:  zconfig.tex
-	/home/srichter/Python/python-head/dist/src/Doc/tools/mkhowto --pdf  $<
+	mkhowto --pdf $<
 
 zconfig.ps:  zconfig.tex
-	/home/srichter/Python/python-head/dist/src/Doc/tools/mkhowto --postscript $<
+	mkhowto --postscript $<
