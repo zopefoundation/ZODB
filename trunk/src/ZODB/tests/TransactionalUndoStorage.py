@@ -3,9 +3,11 @@
 Any storage that supports transactionalUndo() must pass these tests.
 """
 
+import time
 import types
 from ZODB import POSException
 from ZODB.Transaction import Transaction
+from ZODB.referencesf import referencesf
 
 from ZODB.tests.MinPO import MinPO
 from ZODB.tests.StorageTestBase import zodb_pickle, zodb_unpickle
@@ -421,3 +423,29 @@ class TransactionalUndoStorage:
                           self._storage.transactionalUndo,
                           tid, t)
         self._storage.tpc_abort(t)
+
+    def checkTransactionalUndoAfterPack(self):
+        eq = self.assertEqual
+        # Add a few object revisions
+        oid = self._storage.new_oid()
+        revid1 = self._dostore(oid, data=MinPO(51))
+        revid2 = self._dostore(oid, revid=revid1, data=MinPO(52))
+        revid3 = self._dostore(oid, revid=revid2, data=MinPO(53))
+        # Now get the undo log
+        info = self._storage.undoInfo()
+        tid = info[0]['id']
+        # Now pack just the initial revision of the object.  We need the
+        # second revision otherwise we won't be able to undo the third
+        # revision!
+        self._storage.pack(revid1, referencesf)
+        # And now attempt to undo the last transaction
+        t = Transaction()
+        self._storage.tpc_begin(t)
+        oids = self._storage.transactionalUndo(tid, t)
+        self._storage.tpc_vote(t)
+        self._storage.tpc_finish(t)
+        eq(len(oids), 1)
+        eq(oids[0], oid)
+        data, revid = self._storage.load(oid, '')
+        # The object must now be at the second state
+        eq(zodb_unpickle(data), MinPO(52))
