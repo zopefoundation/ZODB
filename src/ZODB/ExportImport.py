@@ -108,6 +108,8 @@ class ExportImport:
         while oids:
             oid=oids[0]
             del oids[0]
+            if done(oid): continue
+            done_oids[oid]=1
             try: p, serial = load(oid, version)
             except: pass # Ick, a broken reference
             else:
