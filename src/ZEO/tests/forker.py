@@ -13,14 +13,18 @@
 ##############################################################################
 """Library for forking storage server and connecting client storage"""
 
-import asyncore
 import os
+import sys
+import types
 import random
 import socket
-import sys
+import asyncore
 import traceback
-import types
+from cStringIO import StringIO
+
 import ZEO.ClientStorage
+import ZConfig
+from ZODB import StorageConfig
 
 # Change value of PROFILE to enable server-side profiling
 PROFILE = 0
@@ -50,7 +54,8 @@ def get_port():
 
 if os.name == "nt":
 
-    def start_zeo_server(storage_name, args, addr=None, ro_svr=0):
+    # XXX This is probably broken now
+    def start_zeo_server(conf, addr=None, ro_svr=0):
         """Start a ZEO server in a separate process.
 
         Returns the ZEO port, the test server port, and the pid.
@@ -107,8 +112,7 @@ else:
             except os.error:
                 pass
 
-    def start_zeo_server(storage_name, args, addr, ro_svr=0):
-        assert isinstance(args, types.TupleType)
+    def start_zeo_server(conf, addr, ro_svr=0):
         rd, wr = os.pipe()
         pid = os.fork()
         if pid == 0:
@@ -119,11 +123,11 @@ else:
                 if PROFILE:
                     p = hotshot.Profile("stats.s.%d" % os.getpid())
                     p.runctx(
-                        "run_server(addr, rd, wr, storage_name, args, ro_svr)",
+                        "run_server(addr, rd, wr, conf, ro_svr)",
                         globals(), locals())
                     p.close()
                 else:
-                    run_server(addr, rd, wr, storage_name, args, ro_svr)
+                    run_server(addr, rd, wr, conf, ro_svr)
             except:
                 print "Exception in ZEO server process"
                 traceback.print_exc()
@@ -132,26 +136,26 @@ else:
             os.close(rd)
             return pid, ZEOClientExit(wr)
 
-    def load_storage(name, args):
-        package = __import__("ZODB." + name)
-        mod = getattr(package, name)
-        klass = getattr(mod, name)
-        return klass(*args)
+    def load_storage(conf):
+        fp = StringIO(conf)
+        rootconf = ZConfig.loadfile(fp)
+        storageconf = rootconf.getSection('Storage')
+        return StorageConfig.createStorage(storageconf)
 
-    def run_server(addr, rd, wr, storage_name, args, ro_svr):
+    def run_server(addr, rd, wr, conf, ro_svr):
         # in the child, run the storage server
         global server
         os.close(wr)
         ZEOServerExit(rd)
         import ZEO.StorageServer, ZEO.zrpc.server
-        storage = load_storage(storage_name, args)
+        storage = load_storage(conf)
         server = ZEO.StorageServer.StorageServer(addr, {'1':storage}, ro_svr)
         ZEO.zrpc.server.loop()
         storage.close()
         if isinstance(addr, types.StringType):
             os.unlink(addr)
 
-    def start_zeo(storage_name, args, cache=None, cleanup=None,
+    def start_zeo(conf, cache=None, cleanup=None,
                   domain="AF_INET", storage_id="1", cache_size=20000000):
         """Setup ZEO client-server for storage.
 
@@ -168,7 +172,7 @@ else:
         else:
             raise ValueError, "bad domain: %s" % domain
 
-        pid, exit = start_zeo_server(storage_name, args, addr)
+        pid, exit = start_zeo_server(conf, addr)
         s = ZEO.ClientStorage.ClientStorage(addr, storage_id,
                                             client=cache,
                                             cache_size=cache_size,
