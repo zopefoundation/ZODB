@@ -14,22 +14,6 @@ from ZODB.tests.StorageTestBase import zodb_unpickle
 
 class VersionStorage:
 
-    def _commitVersion(self, src, dst):
-        t = Transaction()
-        self._storage.tpc_begin(t)
-        oids = self._storage.commitVersion(src, dst, t)
-        self._storage.tpc_vote(t)
-        self._storage.tpc_finish(t)
-        return oids
-
-    def _abortVersion(self, ver):
-        t = Transaction()
-        self._storage.tpc_begin(t)
-        oids = self._storage.abortVersion(ver, t)
-        self._storage.tpc_vote(t)
-        self._storage.tpc_finish(t)
-        return oids
-
     def checkCommitVersionSerialno(self):
         oid = self._storage.new_oid()
         revid1 = self._dostore(oid, data=MinPO(12))

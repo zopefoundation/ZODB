@@ -28,9 +28,11 @@ ClientDisconnected -- exception raised by ClientStorage
 
 import cPickle
 import os
+import socket
 import tempfile
 import threading
 import time
+import types
 
 from ZEO import ClientCache, ServerStub
 from ZEO.TransactionBuffer import TransactionBuffer
@@ -204,6 +206,8 @@ class ClientStorage:
         self._storage = storage
         self._read_only_fallback = read_only_fallback
         self._connection = None
+        # _server_addr is used by sortKey()
+        self._server_addr = None
 
         self._info = {'length': 0, 'size': 0, 'name': 'ZEO Client',
                       'supportsUndo':0, 'supportsVersions': 0,
@@ -339,6 +343,7 @@ class ClientStorage:
             log2(INFO, "Reconnected to storage")
         else:
             log2(INFO, "Connected to storage")
+        self.set_server_addr(conn.get_addr())
         stub = self.StorageServerStubClass(conn)
         self._oids = []
         self._info.update(stub.get_info())
@@ -349,6 +354,33 @@ class ClientStorage:
             self._connection.close()
         self._connection = conn
         self._server = stub
+
+    def set_server_addr(self, addr):
+        # Normalize server address and convert to string
+        if isinstance(addr, types.StringType):
+            self._server_addr = addr
+        else:
+            assert isinstance(addr, types.TupleType)
+            # If the server is on a remote host, we need to guarantee
+            # that all clients used the same name for the server.  If
+            # they don't, the sortKey() may be different for each client.
+            # The best solution seems to be the official name reported
+            # by gethostbyaddr().
+            host = addr[0]
+            try:
+                canonical, aliases, addrs = socket.gethostbyaddr(host)
+            except socket.error, err:
+                log2(BLATHER, "Error resoving host: %s (%s)" % (host, err))
+                canonical = host
+            self._server_addr = str((canonical, addr[1]))
+
+    def sortKey(self):
+        # If the client isn't connected to anything, it can't have a
+        # valid sortKey().  Raise an error to stop the transaction early.
+        if self._server_addr is None:
+            raise ClientDisconnected
+        else:
+            return self._server_addr
 
     def verify_cache(self, server):
         """Internal routine called to verify the cache."""
@@ -622,10 +654,14 @@ class ClientStorage:
         """Internal helper to end a transaction."""
         # the right way to set self._transaction to None
         # calls notify() on _tpc_cond in case there are waiting threads
+        self._ltid = self._serial
         self._tpc_cond.acquire()
         self._transaction = None
         self._tpc_cond.notify()
         self._tpc_cond.release()
+
+    def lastTransaction(self):
+        return self._ltid
 
     def tpc_abort(self, transaction):
         """Storage API: abort a transaction."""

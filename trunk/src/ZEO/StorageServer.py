@@ -206,17 +206,16 @@ class ZEOStorage:
 
     def __init__(self, server, read_only=0):
         self.server = server
+        self.connection = None
         self.client = None
         self.storage = None
         self.storage_id = "uninitialized"
         self.transaction = None
         self.read_only = read_only
-        self.timeout = TimeoutThread()
-        self.timeout.start()
 
     def notifyConnected(self, conn):
+        self.connection = conn # For restart_other() below
         self.client = self.ClientStorageStubClass(conn)
-        self.timeout.notifyConnected(conn)
 
     def notifyDisconnected(self):
         # When this storage closes, we must ensure that it aborts
@@ -226,7 +225,6 @@ class ZEOStorage:
             self.abort()
         else:
             self.log("disconnected")
-        self.timeout.notifyDisconnected()
 
     def __repr__(self):
         tid = self.transaction and repr(self.transaction.id)
@@ -416,13 +414,8 @@ class ZEOStorage:
                                               " requests from one client.")
 
         # (This doesn't require a lock because we're using asyncore)
-        if self.storage._transaction is None:
-            self.strategy = self.ImmediateCommitStrategyClass(self.storage,
-                                                              self.client)
-            self.timeout.begin()
-        else:
-            self.strategy = self.DelayedCommitStrategyClass(self.storage,
-                                                            self.wait)
+        self.strategy = self.DelayedCommitStrategyClass(self.storage,
+                                                        self.wait)
 
         t = Transaction()
         t.id = id
@@ -436,7 +429,6 @@ class ZEOStorage:
     def tpc_finish(self, id):
         if not self.check_tid(id):
             return
-        self.timeout.end()
         invalidated = self.strategy.tpc_finish()
         if invalidated:
             self.server.invalidate(self, self.storage_id,
@@ -448,7 +440,6 @@ class ZEOStorage:
     def tpc_abort(self, id):
         if not self.check_tid(id):
             return
-        self.timeout.end()
         strategy = self.strategy
         strategy.tpc_abort()
         self.transaction = None
@@ -469,9 +460,7 @@ class ZEOStorage:
 
     def vote(self, id):
         self.check_tid(id, exc=StorageTransactionError)
-        r = self.strategy.tpc_vote()
-        self.timeout.begin()
-        return r
+        return self.strategy.tpc_vote()
 
     def abortVersion(self, src, id):
         self.check_tid(id, exc=StorageTransactionError)
@@ -503,8 +492,10 @@ class ZEOStorage:
                      "Clients waiting: %d." % len(self.storage._waiting))
             return d
         else:
-            self.restart()
-            return None
+            return self.restart()
+
+    def dontwait(self):
+        return self.restart()
 
     def handle_waiting(self):
         while self.storage._waiting:
@@ -526,7 +517,7 @@ class ZEOStorage:
         except:
             self.log("Unexpected error handling waiting transaction",
                      level=zLOG.WARNING, error=sys.exc_info())
-            zeo_storage._conn.close()
+            zeo_storage.connection.close()
             return 0
         else:
             return 1
@@ -539,6 +530,8 @@ class ZEOStorage:
         resp = old_strategy.restart(self.strategy)
         if delay is not None:
             delay.reply(resp)
+        else:
+            return resp
 
 # A ZEOStorage instance can use different strategies to commit a
 # transaction.  The current implementation uses different strategies
@@ -767,79 +760,6 @@ class SlowMethodThread(threading.Thread):
             self.delay.error(sys.exc_info())
         else:
             self.delay.reply(result)
-
-class TimeoutThread(threading.Thread):
-    # A TimeoutThread is associated with a ZEOStorage.  It trackes
-    # how long transactions take to commit.  If a transaction takes
-    # too long, it will close the connection.
-
-    TIMEOUT = 30
-
-    def __init__(self):
-        threading.Thread.__init__(self)
-        self._lock = threading.Lock()
-        self._timestamp = None
-        self._conn = None
-
-    def begin(self):
-        self._lock.acquire()
-        try:
-            self._timestamp = time.time()
-        finally:
-            self._lock.release()
-
-    def end(self):
-        self._lock.acquire()
-        try:
-            self._timestamp = None
-        finally:
-            self._lock.release()
-
-    # There's a race here, but I hope it is harmless.
-
-    def notifyConnected(self, conn):
-        self._conn = conn
-
-    def notifyDisconnected(self):
-        self._conn = None
-
-    def run(self):
-        timeout = self.TIMEOUT
-        while self._conn is not None:
-            time.sleep(timeout)
-            
-            self._lock.acquire()
-            try:
-                if self._timestamp is not None:
-                    deadline = self._timestamp + self.TIMEOUT
-                else:
-                    log("TimeoutThread no current transaction",
-                        zLOG.BLATHER)
-                    timeout = self.TIMEOUT
-                    continue
-            finally:
-                self._lock.release()
-                
-            timeout = deadline - time.time()
-            if deadline < time.time():
-                self._abort()
-                break
-            else:
-                elapsed = self.TIMEOUT - timeout
-                log("TimeoutThread transaction has %0.2f sec to complete"
-                    " (%.2f elapsed)" % (timeout, elapsed), zLOG.BLATHER)
-        log("TimeoutThread exiting.  Connection closed.", zLOG.BLATHER)
-
-    def _abort(self):
-        # It's possible for notifyDisconnected to remove the connection
-        # just before we use it.  I think that's harmless, since it means
-        # the connection was closed.
-        log("TimeoutThread aborting transaction", zLOG.WARNING)
-        try:
-            self._conn.close()
-        except AttributeError, msg:
-            log(msg)
-
 
 # Patch up class references
 StorageServer.ZEOStorageClass = ZEOStorage

@@ -13,7 +13,7 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.78 2002/10/23 19:18:35 jeremy Exp $"""
+$Id: Connection.py,v 1.79 2002/11/18 23:17:40 jeremy Exp $"""
 
 from cPickleCache import PickleCache
 from POSException import ConflictError, ReadConflictError
@@ -184,6 +184,14 @@ class Connection(ExportImport.ExportImport):
             return obj
         return self[oid]
 
+    def sortKey(self):
+        # XXX will raise an exception if the DB hasn't been set
+        storage_key = self._sortKey()
+        # If two connections use the same storage, give them a
+        # consistent order using id().  This is unique for the
+        # lifetime of a connection, which is good enough.
+        return "%s:%s" % (storage_key, id(self))
+
     def _setDB(self, odb):
         """Begin a new transaction.
 
@@ -191,6 +199,7 @@ class Connection(ExportImport.ExportImport):
         """
         self._db=odb
         self._storage=s=odb._storage
+        self._sortKey = odb._storage.sortKey
         self.new_oid=s.new_oid
         if self._code_timestamp != global_code_timestamp:
             # New code is in place.  Start a new cache.
@@ -261,27 +270,8 @@ class Connection(ExportImport.ExportImport):
         self.__onCommitActions.append((method_name, args, kw))
         get_transaction().register(self)
 
-    # NB: commit() is responsible for calling tpc_begin() on the storage.
-    # It uses self._begun to track whether it has been called.  When
-    # self._begun is 0, it has not been called.
-
-    # This arrangement allows us to handle the special case of a
-    # transaction with no modified objects.  It is possible for
-    # registration to be occur unintentionally and for a persistent
-    # object to compensate by making itself as unchanged.  When this
-    # happens, it's possible to commit a transaction with no modified
-    # objects.
-
-    # Since tpc_begin() may raise a ReadOnlyError, don't call it if there
-    # are no objects.  This avoids spurious (?) errors when working with
-    # a read-only storage.
-
     def commit(self, object, transaction):
         if object is self:
-            if not self._begun:
-                self._storage.tpc_begin(transaction)
-                self._begun = 1
-
             # We registered ourself.  Execute a commit action, if any.
             if self.__onCommitActions is not None:
                 method_name, args, kw = self.__onCommitActions.pop(0)
@@ -305,10 +295,6 @@ class Connection(ExportImport.ExportImport):
         else:
             # Nothing to do
             return
-
-        if not self._begun:
-            self._storage.tpc_begin(transaction)
-            self._begun = 1
 
         stack = [object]
 
@@ -616,8 +602,6 @@ class Connection(ExportImport.ExportImport):
     def tpc_begin(self, transaction, sub=None):
         self._invalidating = []
         self._creating = []
-        self._begun = 0
-
         if sub:
             # Sub-transaction!
             if self._tmp is None:
@@ -626,10 +610,7 @@ class Connection(ExportImport.ExportImport):
                 self._storage = _tmp
                 _tmp.registerDB(self._db, 0)
 
-            # It's okay to always call tpc_begin() for a sub-transaction
-            # because this isn't the real storage.
-            self._storage.tpc_begin(transaction)
-            self._begun = 1
+        self._storage.tpc_begin(transaction)
 
     def tpc_vote(self, transaction):
         if self.__onCommitActions is not None:

@@ -29,9 +29,25 @@ class TransactionalUndoVersionStorage:
                 pass # not expected
         return self._dostore(*args, **kwargs)
 
+    def _undo(self, tid, oid):
+        t = Transaction()
+        self._storage.tpc_begin(t)
+        oids = self._storage.transactionalUndo(tid, t)
+        self._storage.tpc_vote(t)
+        self._storage.tpc_finish(t)
+        self.assertEqual(len(oids), 1)
+        self.assertEqual(oids[0], oid)
+
     def checkUndoInVersion(self):
         eq = self.assertEqual
         unless = self.failUnless
+
+        def check_objects(nonversiondata, versiondata):
+            data, revid = self._storage.load(oid, version)
+            self.assertEqual(zodb_unpickle(data), MinPO(versiondata))
+            data, revid = self._storage.load(oid, '')
+            self.assertEqual(zodb_unpickle(data), MinPO(nonversiondata))
+        
         oid = self._storage.new_oid()
         version = 'one'
         revid_a = self._dostore(oid, data=MinPO(91))
@@ -39,21 +55,17 @@ class TransactionalUndoVersionStorage:
                                 version=version)
         revid_c = self._dostore(oid, revid=revid_b, data=MinPO(93),
                                 version=version)
-        info=self._storage.undoInfo()
-        tid=info[0]['id']
-        t = Transaction()
-        self._storage.tpc_begin(t)
-        oids = self._storage.transactionalUndo(tid, t)
-        self._storage.tpc_vote(t)
-        self._storage.tpc_finish(t)
-        eq(len(oids), 1)
-        eq(oids[0], oid)
+        
+        info = self._storage.undoInfo()
+        self._undo(info[0]['id'], oid)
+        
         data, revid = self._storage.load(oid, '')
         eq(revid, revid_a)
         eq(zodb_unpickle(data), MinPO(91))
         data, revid = self._storage.load(oid, version)
         unless(revid > revid_b and revid > revid_c)
         eq(zodb_unpickle(data), MinPO(92))
+        
         # Now commit the version...
         t = Transaction()
         self._storage.tpc_begin(t)
@@ -63,61 +75,25 @@ class TransactionalUndoVersionStorage:
         eq(len(oids), 1)
         eq(oids[0], oid)
 
-        #JF# No, because we fall back to non-version data.
-        #JF# self.assertRaises(POSException.VersionError,
-        #JF#                   self._storage.load,
-        #JF#                   oid, version)
-        data, revid = self._storage.load(oid, version)
-        eq(zodb_unpickle(data), MinPO(92))
-        data, revid = self._storage.load(oid, '')
-        eq(zodb_unpickle(data), MinPO(92))
+        check_objects(92, 92)
+        
         # ...and undo the commit
-        info=self._storage.undoInfo()
-        tid=info[0]['id']
-        t = Transaction()
-        self._storage.tpc_begin(t)
-        oids = self._storage.transactionalUndo(tid, t)
-        self._storage.tpc_vote(t)
-        self._storage.tpc_finish(t)
-        eq(len(oids), 1)
-        eq(oids[0], oid)
-        data, revid = self._storage.load(oid, version)
-        eq(zodb_unpickle(data), MinPO(92))
-        data, revid = self._storage.load(oid, '')
-        eq(zodb_unpickle(data), MinPO(91))
-        # Now abort the version
-        t = Transaction()
-        self._storage.tpc_begin(t)
-        oids = self._storage.abortVersion(version, t)
-        self._storage.tpc_vote(t)
-        self._storage.tpc_finish(t)
-        eq(len(oids), 1)
-        eq(oids[0], oid)
-        # The object should not exist in the version now, but it should exist
-        # in the non-version
-        #JF# No, because we fall back
-        #JF# self.assertRaises(POSException.VersionError,
-        #JF#                   self._storage.load,
-        #JF#                   oid, version)
-        data, revid = self._storage.load(oid, version)
-        eq(zodb_unpickle(data), MinPO(91))
-        data, revid = self._storage.load(oid, '')
-        eq(zodb_unpickle(data), MinPO(91))
+        info = self._storage.undoInfo()
+        self._undo(info[0]['id'], oid)
+
+        check_objects(91, 92)
+
+        oids = self._abortVersion(version)
+        assert len(oids) == 1
+        assert oids[0] == oid
+
+        check_objects(91, 91)
+        
         # Now undo the abort
         info=self._storage.undoInfo()
-        tid=info[0]['id']
-        t = Transaction()
-        self._storage.tpc_begin(t)
-        oids = self._storage.transactionalUndo(tid, t)
-        self._storage.tpc_vote(t)
-        self._storage.tpc_finish(t)
-        eq(len(oids), 1)
-        eq(oids[0], oid)
-        # And the object should be back in versions 'one' and ''
-        data, revid = self._storage.load(oid, version)
-        eq(zodb_unpickle(data), MinPO(92))
-        data, revid = self._storage.load(oid, '')
-        eq(zodb_unpickle(data), MinPO(91))
+        self._undo(info[0]['id'], oid)
+        
+        check_objects(91, 92)
 
     def checkUndoCommitVersion(self):
         def load_value(oid, version=''):

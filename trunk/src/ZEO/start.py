@@ -17,6 +17,8 @@ from __future__ import nested_scopes
 
 import sys, os, getopt
 import types
+import errno
+import socket
 
 def directory(p, n=1):
     d = p

@@ -78,7 +78,7 @@ def load_class(class_tuple):
     except (ImportError, AttributeError):
         zLOG.LOG("Conflict Resolution", zLOG.BLATHER,
                  "Unable to load class", error=sys.exc_info())
-        bad_class[class_tuple] = 1
+        bad_classes[class_tuple] = 1
         return None
     return klass
 

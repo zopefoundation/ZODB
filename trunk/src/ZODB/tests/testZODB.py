@@ -94,28 +94,6 @@ class ZODBTests(unittest.TestCase, ExportImportTests):
         self._storage.close()
         removefs("ZODBTests.fs")
 
-    def checkUnmodifiedObject(self):
-        # Test that a transaction with only unmodified objects works
-        # correctly.  The specific sequence of events is:
-        #     - an object is modified
-        #     - it is registered with the transaction
-        #     - the object is explicitly "unmodified"
-        #     - the transaction commits, but now has no modified objects
-        # We'd like to avoid doing anything with the storage.
-        ltid = self._storage.lastTransaction()
-        _objects = get_transaction()._objects
-        self.assertEqual(len(_objects), 0)
-        r = self._db.open().root()
-        obj = r["test"][0]
-        obj[1] = 1
-        self.assertEqual(obj._p_changed, 1)
-        self.assertEqual(len(_objects), 1)
-        del obj._p_changed
-        self.assertEqual(obj._p_changed, None)
-        self.assertEqual(len(_objects), 1)
-        get_transaction().commit()
-        self.assertEqual(ltid, self._storage.lastTransaction())
-
     def checkVersionOnly(self):
         # Make sure the changes to make empty transactions a no-op
         # still allow things like abortVersion().  This should work

@@ -15,7 +15,7 @@
 """
 # Do this portably in the face of checking out with -kv
 import string
-__version__ = string.split('$Revision: 1.27 $')[-2:][0]
+__version__ = string.split('$Revision: 1.28 $')[-2:][0]
 
 import cPickle
 import ThreadLock, bpthread
@@ -62,6 +62,15 @@ class BaseStorage(UndoLogCompatible.UndoLogCompatible):
 
     def close(self):
         pass
+
+    def sortKey(self):
+        """Return a string that can be used to sort storage instances.
+
+        The key must uniquely identify a storage and must be the same
+        across multiple instantiations of the same storage.
+        """
+        # name may not be sufficient, e.g. ZEO has a user-definable name.
+        return self.__name__
 
     def getName(self):
         return self.__name__

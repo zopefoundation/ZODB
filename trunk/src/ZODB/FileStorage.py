@@ -115,7 +115,7 @@
 #   may have a back pointer to a version record or to a non-version
 #   record.
 #
-__version__='$Revision: 1.115 $'[11:-2]
+__version__='$Revision: 1.116 $'[11:-2]
 
 import base64
 from cPickle import Pickler, Unpickler, loads
@@ -316,9 +316,6 @@ class FileStorage(BaseStorage.BaseStorage,
         # hook to use something other than builtin dict
         return {}, {}, {}, {}
 
-    def abortVersion(self, src, transaction):
-        return self.commitVersion(src, '', transaction, abort=1)
-
     def _save_index(self):
         """Write the database index to a file to support quick startup
         """
@@ -446,6 +443,9 @@ class FileStorage(BaseStorage.BaseStorage,
             # XXX should log the error, though
             pass # We don't care if this fails.
 
+    def abortVersion(self, src, transaction):
+        return self.commitVersion(src, '', transaction, abort=1)
+
     def commitVersion(self, src, dest, transaction, abort=None):
         # We are going to commit by simply storing back pointers.
         if self._is_read_only:
@@ -526,6 +526,9 @@ class FileStorage(BaseStorage.BaseStorage,
                 here += heredelta
 
                 current_oids[oid] = 1
+                # Once we've found the data we are looking for,
+                # we can stop chasing backpointers.
+                break
 
             else:
                 # Hm.  This is a non-current record.  Is there a
@@ -768,9 +771,13 @@ class FileStorage(BaseStorage.BaseStorage,
                 if vl:
                     self._file.read(vl + 16)
                 # Make sure this looks like the right data record
+                if dl == 0:
+                    # This is also a backpointer.  Gotta trust it.
+                    return pos
                 if dl != len(data):
-                    # XXX what if this data record also has a backpointer?
-                    # I don't think that's possible, but I'm not sure.
+                    # The expected data doesn't match what's in the
+                    # backpointer.  Something is wrong.
+                    error("Mismatch between data and backpointer at %d", pos)
                     return 0
                 _data = self._file.read(dl)
                 if data != _data:
@@ -828,20 +835,7 @@ class FileStorage(BaseStorage.BaseStorage,
             # We need to write some version information if this revision is
             # happening in a version.
             if version:
-                pnv = None
-                # We need to write the position of the non-version data.
-                # If the previous revision of the object was in a version,
-                # then it will contain a pnv record.  Otherwise, the
-                # previous record is the non-version data.
-                if old:
-                    self._file.seek(old)
-                    h = self._file.read(42)
-                    doid, x, y, z, vlen, w = unpack(DATA_HDR, h)
-                    if doid != oid:
-                        raise CorruptedDataError, h
-                    # XXX assert versions match?
-                    if vlen > 0:
-                        pnv = self._file.read(8)
+                pnv = self._restore_pnv(oid, old, version, prev_pos)
                 if pnv:
                     self._tfile.write(pnv)
                 else:
@@ -853,19 +847,64 @@ class FileStorage(BaseStorage.BaseStorage,
                 self._tfile.write(p64(pv))
                 self._tvindex[version] = here
                 self._tfile.write(version)
-            # And finally, write the data
+            # And finally, write the data or a backpointer
             if data is None:
                 if prev_pos:
                     self._tfile.write(p64(prev_pos))
                 else:
                     # Write a zero backpointer, which indicates an
                     # un-creation transaction.
-                    # write a backpointer instead of data
                     self._tfile.write(z64)
             else:
                 self._tfile.write(data)
         finally:
             self._lock_release()
+
+    def _restore_pnv(self, oid, prev, version, bp):
+        # Find a valid pnv (previous non-version) pointer for this version.
+
+        # If there is no previous record, there can't be a pnv.
+        if not prev:
+            return None
+        
+        pnv = None
+
+        # Load the record pointed to be prev
+        self._file.seek(prev)
+        h = self._file.read(DATA_HDR_LEN)
+        doid, x, y, z, vlen, w = unpack(DATA_HDR, h)
+        if doid != oid:
+            raise CorruptedDataError, h
+        # If the previous record is for a version, it must have
+        # a valid pnv.
+        if vlen > 0:
+            pnv = self._file.read(8)
+            pv = self._file.read(8)
+            v = self._file.read(vlen)
+        elif bp:
+            # XXX Not sure the following is always true:
+            # The previous record is not for this version, yet we
+            # have a backpointer to it.  The current record must
+            # be an undo of an abort or commit, so the backpointer
+            # must be to a version record with a pnv.
+            self._file.seek(bp)
+            h2 = self._file.read(DATA_HDR_LEN)
+            doid2, x, y, z, vlen2, sdl = unpack(DATA_HDR, h2)
+            dl = U64(sdl)
+            if oid != doid2:
+                raise CorruptedDataError, h2
+            if vlen2 > 0:
+                pnv = self._file.read(8)
+                pv = self._file.read(8)
+                v = self._file.read(8)
+            else:
+                warn("restore could not find previous non-version data "
+                     "at %d or %d" % (prev, bp))
+            
+        return pnv
+
+    def supportsUndo(self):
+        return 1
 
     def supportsVersions(self):
         return 1
@@ -2097,7 +2136,8 @@ def _loadBack_impl(file, oid, back):
         doid, serial, prev, tloc, vlen, plen = unpack(DATA_HDR, h)
 
         if vlen:
-            file.seek(vlen + 16, 1)
+            file.read(16)
+            version = file.read(vlen)
         if plen != z64:
             return file.read(U64(plen)), serial, old, tloc
         back = file.read(8) # We got a back pointer!
@@ -2119,6 +2159,17 @@ def _loadBackTxn(file, oid, back):
     h = file.read(TRANS_HDR_LEN)
     tid = h[:8]
     return data, serial, tid
+
+def getTxnFromData(file, oid, back):
+    """Return transaction id for data at back."""
+    file.seek(U64(back))
+    h = file.read(DATA_HDR_LEN)
+    doid, serial, prev, stloc, vlen, plen = unpack(DATA_HDR, h)
+    assert oid == doid
+    tloc = U64(stloc)
+    file.seek(tloc)
+    # seek to transaction header, where tid is first 8 bytes
+    return file.read(8)
 
 def _truncate(file, name, pos):
     seek=file.seek
@@ -2336,16 +2387,23 @@ class RecordIterator(Iterator, BaseStorage.TransactionRecord):
             self._file.seek(pos)
             h = self._file.read(DATA_HDR_LEN)
             oid, serial, sprev, stloc, vlen, splen = unpack(DATA_HDR, h)
+            prev = U64(sprev)
             tloc = U64(stloc)
             plen = U64(splen)
             dlen = DATA_HDR_LEN + (plen or 8)
 
             if vlen:
                 dlen += (16 + vlen)
-                self._file.read(16) # move to the right location
+                tmp = self._file.read(16)
+                pv = U64(tmp[8:16])
                 version = self._file.read(vlen)
             else:
                 version = ''
+
+            datapos = pos + DATA_HDR_LEN
+            if vlen:
+                datapos += 16 + vlen
+            assert self._file.tell() == datapos, (self._file.tell(), datapos)
 
             if pos + dlen > self._tend or tloc != self._tpos:
                 warn("%s data record exceeds transaction record at %s",
@@ -2353,23 +2411,24 @@ class RecordIterator(Iterator, BaseStorage.TransactionRecord):
                 break
 
             self._pos = pos + dlen
-            tid = None
+            prev_txn = None
             if plen:
-                p = self._file.read(plen)
+                data = self._file.read(plen)
             else:
-                p = self._file.read(8)
-                if p == z64:
+                bp = self._file.read(8)
+                if bp == z64:
                     # If the backpointer is 0 (encoded as z64), then
                     # this transaction undoes the object creation.  It
                     # either aborts the version that created the
                     # object or undid the transaction that created it.
                     # Return None instead of a pickle to indicate
                     # this.
-                    p = None
+                    data = None
                 else:
-                    p, _s, tid = _loadBackTxn(self._file, oid, p)
+                    data, _s, tid = _loadBackTxn(self._file, oid, bp)
+                    prev_txn = getTxnFromData(self._file, oid, bp)
 
-            r = Record(oid, serial, version, p, tid)
+            r = Record(oid, serial, version, data, prev_txn)
 
             return r
 
