@@ -39,49 +39,66 @@ class ConfigTestBase(unittest.TestCase):
 
 class ZODBConfigTest(ConfigTestBase):
     def test_map_config1(self):
-        self._test("<mappingstorage/>")
+        self._test(
+            """
+            <zodb>
+              <mappingstorage/>
+            </zodb>
+            """)
 
     def test_map_config2(self):
         self._test(
-            """<mappingstorage/>
-            cache_size 1000
+            """
+            <zodb>
+              <mappingstorage/>
+              cache-size 1000
+            </zodb>
             """)
 
     def test_file_config1(self):
         path = tempfile.mktemp()
         self._test(
-            """<filestorage>
-            path %s
-            </filestorage>
+            """
+            <zodb>
+              <filestorage>
+                path %s
+              </filestorage>
+            </zodb>
             """ % path)
         os.unlink(path)
         
     def test_file_config2(self):
         path = tempfile.mktemp()
         cfg = """
-        <filestorage>
+        <zodb>
+          <filestorage>
             path %s
             create false
-            read_only true
-        </filestorage>
+            read-only true
+          </filestorage>
+        </zodb>
         """ % path
         self.assertRaises(ReadOnlyError, self._test, cfg)
 
     def test_zeo_config(self):
         cfg = """
-        <zeoclient>
+        <zodb>
+          <zeoclient>
             server /no/path/var/test/foo
             wait false
-        </zeoclient>
+          </zeoclient>
+        </zodb>
         """
         self.assertRaises(ClientDisconnected, self._test, cfg)
 
     def test_demo_config(self):
         cfg = """
-        <demostorage>
+        <zodb unused-name>
+          <demostorage>
             name foo
             <mappingstorage/>
-        </demostorage>
+          </demostorage>
+        </zodb>
         """
         self._test(cfg)
 
@@ -99,17 +116,21 @@ class BDBConfigTest(ConfigTestBase):
 
     def test_bdbfull_simple(self):
         cfg = """
-        <fullstorage>
+        <zodb>
+          <fullstorage>
             name %s
-        </fullstorage>
+          </fullstorage>
+        </zodb>
         """ % self._path
         self._test(cfg)
 
     def test_bdbminimal_simple(self):
         cfg = """
-        <minimalstorage>
+        <zodb>
+          <minimalstorage>
             name %s
-        </minimalstorage>
+          </minimalstorage>
+        </zodb>
         """ % self._path
         self._test(cfg)
 

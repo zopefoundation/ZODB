@@ -13,7 +13,7 @@
 ##############################################################################
 """Open database and storage from a configuration.
 
-$Id: config.py,v 1.6 2003/01/09 18:26:53 fdrake Exp $"""
+$Id: config.py,v 1.7 2003/01/10 06:44:50 fdrake Exp $"""
 
 import os
 import StringIO
@@ -36,18 +36,18 @@ def databaseFromString(s):
 
 def databaseFromFile(f):
     config, handle = ZConfig.loadConfigFile(getSchema(), f)
-    return databaseFromConfig(config)
+    return databaseFromConfig(config.database)
 
 def databaseFromURL(url):
     config, handler = ZConfig.loadConfig(getSchema(), url)
-    return databaseFromConfig(config)
+    return databaseFromConfig(config.database)
 
-def databaseFromConfig(config):
-    return ZODB.DB(config.storage.open(),
-                   pool_size=config.pool_size,
-                   cache_size=config.cache_size,
-                   version_pool_size=config.version_pool_size,
-                   version_cache_size=config.version_cache_size)
+def databaseFromConfig(section):
+    return ZODB.DB(section.storage.open(),
+                   pool_size=section.pool_size,
+                   cache_size=section.cache_size,
+                   version_pool_size=section.version_pool_size,
+                   version_cache_size=section.version_cache_size)
 
 class StorageConfig:
 
