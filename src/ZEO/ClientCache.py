@@ -20,14 +20,12 @@ or temporary.  It is persistent if the client argument is not None.
 
 Persistent cache files live in the var directory and are named
 'c<storage>-<client>-<digit>.zec' where <storage> is the storage
-argument (default ''), <client> is the client argument, and <digit> is
+argument (default '1'), <client> is the client argument, and <digit> is
 0 or 1.  Temporary cache files are unnamed files in the standard
 temporary directory as determined by the tempfile module.
 
-The ClientStorage overrides some of the defaults; in particular, its
-storage name defaults to '1' and its client name defaults to the value
-of the environment variable ZEO_CLIENT, if it exists, otherwise to
-None.
+The ClientStorage overrides the client name default to the value of
+the environment variable ZEO_CLIENT, if it exists.
 
 Each cache file has a 4-byte magic number followed by a sequence of
 records of the form:
@@ -37,6 +35,7 @@ records of the form:
   0: oid -- 8-byte object id
 
   8: status -- 1-byte status 'v': valid, 'n': non-version valid, 'i': invalid
+               ('n' means only the non-version data in the record is valid)
 
   9: tlen -- 4-byte (unsigned) record length
 
@@ -93,10 +92,9 @@ file 0 and file 1.
 
 """
 
-__version__ = "$Revision: 1.28 $"[11:-2]
+__version__ = "$Revision: 1.29 $"[11:-2]
 
 import os
-import sys
 import tempfile
 from struct import pack, unpack
 from thread import allocate_lock
@@ -113,7 +111,12 @@ class ClientCache:
 
     __implements__ = ICache
 
-    def __init__(self, storage='', size=20000000, client=None, var=None):
+    def __init__(self, storage='1', size=20000000, client=None, var=None):
+        # Arguments:
+        # storage -- storage name (used in persistent cache file names only)
+        # size -- size limit in bytes of both files together
+        # client -- if not None, use a persistent cache file and use this name
+        # var -- directory where to create persistent cache files
 
         # Allocate locks:
         L = allocate_lock()
@@ -122,6 +125,7 @@ class ClientCache:
 
         if client is not None:
             # Create a persistent cache
+            # CLIENT_HOME and INSTANCE_HOME are builtins set by App.FindHomes
             if var is None:
                 try:
                     var = CLIENT_HOME
@@ -175,8 +179,11 @@ class ClientCache:
         self._current = current
 
     def open(self):
-        # XXX open is overloaded to perform two tasks for
-        # optimization reasons
+        # Two tasks:
+        # - Set self._index, self._get, and self._pos.
+        # - Read and validate both cache files, returning a list of
+        #   serials to be used by verify().
+        # This may be called more than once (by the cache verification code).
         self._acquire()
         try:
             self._index=index={}
@@ -219,11 +226,11 @@ class ClientCache:
             f = self._f[p < 0]
             ap = abs(p)
             f.seek(ap)
-            h = f.read(8)
-            if h != oid:
+            h = f.read(27)
+            if h[:8] != oid:
                 return
             f.seek(p+8) # Switch from reading to writing
-            if version:
+            if version and h[15:19] != '\0\0\0\0':
                 f.write('n')
             else:
                 del self._index[oid]
@@ -266,16 +273,19 @@ class ClientCache:
 
             if dlen:
                 seek(dlen, 1)
-            v = read(vlen)
+            vheader = read(vlen+4)
+            v = vheader[:-4]
             if version != v:
                 if dlen:
-                    seek(-dlen-vlen, 1)
+                    seek(p+27)
                     return read(dlen), h[19:]
                 else:
                     return None
 
-            dlen = unpack(">i", read(4))[0]
-            return read(dlen), read(8)
+            vdlen = unpack(">i", vheader[-4:])[0]
+            vdata = read(vdlen)
+            vserial = read(8)
+            return vdata, vserial
         finally:
             self._release()
 
@@ -302,12 +312,12 @@ class ClientCache:
                     return self._store(oid, '', '', version, data, serial)
 
                 if dlen:
-                    p = read(dlen)
-                    s = h[19:]
+                    nvdata = read(dlen)
+                    nvserial = h[19:]
                 else:
                     return self._store(oid, '', '', version, data, serial)
 
-                self._store(oid, p, s, version, data, serial)
+                self._store(oid, nvdata, nvserial, version, data, serial)
             else:
                 # Simple case, just store new data:
                 self._store(oid, data, serial, '', None, None)
@@ -315,6 +325,10 @@ class ClientCache:
             self._release()
 
     def modifiedInVersion(self, oid):
+        # This should return:
+        # - The version from the record for oid, if there is one.
+        # - '', if there is no version in the record and its status is 'v'.
+        # - None, if we don't know: no valid record or status is 'n'.
         self._acquire()
         try:
             p = self._get(oid, None)
@@ -345,10 +359,10 @@ class ClientCache:
             self._release()
 
     def checkSize(self, size):
+        # Make sure we aren't going to exceed the target size.
+        # If we are, then flip the cache.
         self._acquire()
         try:
-            # Make sure we aren't going to exceed the target size.
-            # If we are, then flip the cache.
             if self._pos + size > self._limit:
                 current = not self._current
                 self._current = current
@@ -358,10 +372,9 @@ class ClientCache:
                     if (index[oid] < 0) == current:
                         del index[oid]
                 if self._p[current] is not None:
-                    # Persistent cache file:
-                    # Note that due to permission madness, waaa,
-                    # we need to remove the old file before
-                    # we open the new one. Waaaaaaaaaa.
+                    # Persistent cache file: remove the old file
+                    # before opening the new one, because the old file
+                    # may be owned by root (created before setuid()).
                     if self._f[current] is not None:
                         self._f[current].close()
                         try:
@@ -373,7 +386,7 @@ class ClientCache:
                     # Temporary cache file:
                     self._f[current] = tempfile.TemporaryFile(suffix='.zec')
                 self._f[current].write(magic)
-                self._pos = pos = 4
+                self._pos = 4
         finally:
             self._release()
 
@@ -417,12 +430,10 @@ class ClientCache:
 
         self._pos += tlen
 
-def read_index(index, serial, f, current):
+def read_index(index, serial, f, fileindex):
     seek = f.seek
     read = f.read
     pos = 4
-    seek(0, 2)
-    size = f.tell()
 
     while 1:
         f.seek(pos)
@@ -443,7 +454,7 @@ def read_index(index, serial, f, current):
             if len(vdlen) != 4:
                 break
             vdlen = unpack(">i", vdlen)[0]
-            if vlen+dlen+42+vdlen > tlen:
+            if vlen+dlen+43+vdlen != tlen:
                 break
             seek(vdlen, 1)
             vs = read(8)
@@ -453,7 +464,7 @@ def read_index(index, serial, f, current):
             vs = None
 
         if h[8] in 'vn':
-            if current:
+            if fileindex:
                 index[oid] = -pos
             else:
                 index[oid] = pos
