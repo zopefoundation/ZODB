@@ -13,6 +13,7 @@
 ##############################################################################
 """Nitty-gritty conversion of a ZODB 4 FileStorage to a ZODB 3 FileStorage."""
 
+import sys
 from cPickle import dumps, Pickler, Unpickler
 from cStringIO import StringIO
 
@@ -56,6 +57,8 @@ class DataRecordConvertingTxn(object):
         return getattr(self._txn, name)
 
     def __iter__(self):
+        errors = {}
+        skipped = 0
         for record in self._txn:
             record.tid = record.serial
             # transform the data record format
@@ -63,8 +66,20 @@ class DataRecordConvertingTxn(object):
             sio = StringIO(record.data)
             up = Unpickler(sio)
             up.persistent_load = PersistentIdentifier
-            classmeta = up.load()
-            state = up.load()
+            try:
+                classmeta = up.load()
+                state = up.load()
+            except ImportError, v:
+                v = str(v)
+                if v not in errors:
+                    if not errors:
+                        sys.stderr.write("Pickling import errors:\n")
+                    sys.stderr.write('\t'+v+'\n')
+                    errors[v] = True
+
+                skipped += 1
+                continue
+                
             sio = StringIO()
             p = Pickler(sio, 1)
             p.persistent_id = get_persistent_id
@@ -72,6 +87,23 @@ class DataRecordConvertingTxn(object):
             p.dump(state)
             record.data = sio.getvalue()
             yield record
+
+        if errors:
+            sys.stderr.write(error_explanation)
+            sys.stderr.write("%s database records skipped\n" % skipped)
+
+error_explanation = """
+There were import errors while copying data records.
+
+This is because modules referenced by the database couldn't be found.
+You might be able to fix this by getting the necessary modules.
+It's possible that the affected objects aren't used any more,
+in which case, it doesn't matter whether they were copied.
+
+(We apologise for the lame import errors that don't show full dotted
+ module names.)
+ 
+"""
 
 
 class PersistentIdentifier:
