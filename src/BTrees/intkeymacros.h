@@ -1,5 +1,5 @@
 
-#define KEYMACROS_H "$Id: intkeymacros.h,v 1.8 2002/05/31 09:41:07 htrd Exp $\n"
+#define KEYMACROS_H "$Id: intkeymacros.h,v 1.9 2002/06/25 02:00:55 tim_one Exp $\n"
 
 #define KEY_TYPE int
 #define KEY_CHECK PyInt_Check
@@ -11,4 +11,5 @@
 #define COPY_KEY_FROM_ARG(TARGET, ARG, STATUS) \
   if (PyInt_Check(ARG)) TARGET=PyInt_AS_LONG(ARG); else { \
       PyErr_SetString(PyExc_TypeError, "expected integer key"); \
-      (STATUS)=0; (TARGET)=0; } 
+      (STATUS)=0; (TARGET)=0; }
+#define MULTI_INT_UNION 1

@@ -138,8 +138,8 @@ mappings.  If left undefined, MERGE_WEIGHT defaults to
 MULTI_INT_UNION
 The value doesn't matter.  If defined, SetOpTemplate.c compiles
 code for a multiunion() function (compute a union of many input sets
-at high speed).  This currently makes sense only for II sets, so
-only _IIBTree.c defines it.
+at high speed).  This currently makes sense only for structures with
+integer keys.
 
 
 BTree Clues
