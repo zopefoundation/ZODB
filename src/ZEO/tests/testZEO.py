@@ -22,13 +22,10 @@ import sys
 import tempfile
 import thread
 import time
-import types
 import unittest
 
-import ZEO.ClientStorage, ZEO.StorageServer
-from ZODB.FileStorage import FileStorage
-from ZODB.Transaction import Transaction
-from ZODB.tests.StorageTestBase import zodb_pickle, MinPO
+import ZEO.ClientStorage
+from ZODB.Transaction import get_transaction
 from ZODB.POSException import ReadOnlyError
 import zLOG
 
