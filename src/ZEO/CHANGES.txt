@@ -2,6 +2,20 @@ Zope Enterprise Objects (ZEO) Revision History
 
   ZEO 1.0.0 beta 1
 
+    New Features
+
+      - The server can be made to reopen it's log file
+        by sending it a HUP (on systems supporting signals).  Note
+        that this requires a change to asyncore to catch interrupted
+        system calls on some platforms.
+
+      - The shutdown signals have been changed:
+
+        o To shutdown, use TERM 
+
+        o To restart, use INT.  (This must be send to the 
+          child, not the parent.
+
     Bugs Fixed
 
       - A possible (but unobserved) race condition that could
