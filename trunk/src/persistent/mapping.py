@@ -85,8 +85,8 @@
 __doc__='''Python implementation of persistent base types
 
 
-$Id: mapping.py,v 1.6 2000/04/13 14:22:54 tseaver Exp $'''
-__version__='$Revision: 1.6 $'[11:-2]
+$Id: mapping.py,v 1.7 2000/04/21 19:20:50 tseaver Exp $'''
+__version__='$Revision: 1.7 $'[11:-2]
 
 import Persistence
 import types
@@ -127,7 +127,7 @@ class PersistentMapping(Persistence.Persistent):
 
     def copy(self): return self.__class__(self._container.copy())
 
-    def get(self, key, default): return self._container.get(key, default)
+    def get(self, key, default=None): return self._container.get(key, default)
 
     def has_key(self,key): return self._container.has_key(key)
 
