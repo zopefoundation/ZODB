@@ -1,5 +1,22 @@
 Zope Enterprise Objects (ZEO) Revision History
 
+  ZEO 0.2.2
+
+    Bugs fixed
+
+      - The storage server didn't fully implement a new ZODB storage
+        protocol. This caused serving of FileStorages to fail in Zope
+        2.2.1, since FileStorages now use this protocol.
+
+      - In the start.py start script
+
+        o The '-S' option did not allow spaces between the option and it's
+          argument.  
+
+        o The '-S' option did not work with FileStorages.
+
+        o The README file didn't mention the '-S' option.
+
   ZEO 0.2.1
 
     Bugs fixed
@@ -16,6 +33,11 @@ Zope Enterprise Objects (ZEO) Revision History
 
       - New protocols (especially 'loadSerial'), used for looking at 
         DTML historical versions, were not implemented.
+
+    Features
+
+      - The '-S' option was added to the storage server startup script
+        to allow selection of one or more storages to serve.     
 
   ZEO 0.2 
 
