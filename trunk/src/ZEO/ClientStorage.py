@@ -20,7 +20,7 @@ ClientStorageError -- exception raised by ClientStorage
 UnrecognizedResult -- exception raised by ClientStorage
 ClientDisconnected -- exception raised by ClientStorage
 
-$Id: ClientStorage.py,v 1.70 2002/10/01 16:39:44 jeremy Exp $
+$Id: ClientStorage.py,v 1.71 2002/10/01 16:45:28 jeremy Exp $
 """
 
 # XXX TO DO
@@ -43,7 +43,7 @@ from ZODB import POSException
 from ZODB.TimeStamp import TimeStamp
 from zLOG import LOG, PROBLEM, INFO, BLATHER
 
-def log2(type, msg, subsys="ClientStorage:%d" % os.getpid()):
+def log2(type, msg, subsys="ZCS:%d" % os.getpid()):
     LOG(subsys, type, msg)
 
 try:
