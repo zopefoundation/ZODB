@@ -603,6 +603,8 @@ def main(module_filter, test_filter, libdir):
     if not keepStaleBytecode:
         os.path.walk(os.curdir, remove_stale_bytecode, None)
 
+    configure_logging()
+
     # Initialize the path and cwd
     global pathinit
     pathinit = PathInit(build, build_inplace, libdir)
