@@ -1,6 +1,6 @@
 /*
 
-  $Id: cPersistence.c,v 1.12 1997/04/24 12:48:48 jim Exp $
+  $Id: cPersistence.c,v 1.13 1997/04/27 09:18:01 jim Exp $
 
   C Persistence Module
 
@@ -56,7 +56,7 @@
 
 
 *****************************************************************************/
-static char *what_string = "$Id: cPersistence.c,v 1.12 1997/04/24 12:48:48 jim Exp $";
+static char *what_string = "$Id: cPersistence.c,v 1.13 1997/04/27 09:18:01 jim Exp $";
 
 #include <time.h>
 #include "cPersistence.h"
@@ -650,7 +650,8 @@ Per_atime(cPersistentObject *self)
 }
 
 static PyObject *
-Per_getattr(cPersistentObject *self, PyObject *oname, char *name)
+Per_getattr(cPersistentObject *self, PyObject *oname, char *name,
+	 PyObject *(*getattrf)(PyObject *, PyObject*))
 {
   char *n=name;
 
@@ -729,7 +730,7 @@ Per_getattr(cPersistentObject *self, PyObject *oname, char *name)
       Per_set_atime(self);
     }
 
-  return Py_FindAttr((PyObject *)self, oname);
+  return getattrf((PyObject *)self, oname);
 }
 
 static PyObject*
@@ -738,7 +739,7 @@ Per_getattro(cPersistentObject *self, PyObject *name)
   char *s;
 
   UNLESS(s=PyString_AsString(name)) return NULL;
-  return Per_getattr(self,name,s);
+  return Per_getattr(self,name,s, PyExtensionClassCAPI->getattro);
 }
 
 static int
@@ -753,7 +754,8 @@ changed(PyObject *self)
 }
 
 static int
-Per_setattro(cPersistentObject *self, PyObject *oname, PyObject *v)
+_setattro(cPersistentObject *self, PyObject *oname, PyObject *v,
+	     int (*setattrf)(PyObject *, PyObject*, PyObject*))
 {
   char *name="";
 
@@ -810,7 +812,13 @@ Per_setattro(cPersistentObject *self, PyObject *oname, PyObject *v)
 	if(changed((PyObject*)self) < 0) return -1;
     }
 
-  return PyEC_SetAttr((PyObject*)self,oname,v);
+  return setattrf((PyObject*)self,oname,v);
+}
+
+static int
+Per_setattro(cPersistentObject *self, PyObject *oname, PyObject *v)
+{
+  return _setattro(self,oname, v, PyExtensionClassCAPI->setattro);
 }
 
 static char Pertype__doc__[] = 
@@ -899,13 +907,15 @@ truecPersistenceCAPI = {
   (setattrofunc)Per_setattro,	/*tp_setattr with object key*/
   changed,
   (intfunctionwithpythonarg)Per_setstate,
+  Per_getattr,
+  _setattro,
 };
 
 void
 initcPersistence()
 {
   PyObject *m, *d;
-  char *rev="$Revision: 1.12 $";
+  char *rev="$Revision: 1.13 $";
 
   PATimeType.ob_type=&PyType_Type;
 
@@ -932,6 +942,10 @@ initcPersistence()
 /****************************************************************************
 
   $Log: cPersistence.c,v $
+  Revision 1.13  1997/04/27 09:18:01  jim
+  Added to the CAPI to support subtypes (like Record) that want to
+  extend attr functions.
+
   Revision 1.12  1997/04/24 12:48:48  jim
   Fixed bug in reinit
 

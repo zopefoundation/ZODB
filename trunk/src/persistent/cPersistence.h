@@ -1,6 +1,6 @@
 /*
 
-  $Id: cPersistence.h,v 1.2 1997/04/22 02:40:28 jim Exp $
+  $Id: cPersistence.h,v 1.3 1997/04/27 09:18:23 jim Exp $
 
   Definitions to facilitate making cPersistent subclasses in C.
 
@@ -56,6 +56,10 @@
 
 
   $Log: cPersistence.h,v $
+  Revision 1.3  1997/04/27 09:18:23  jim
+  Added to the CAPI to support subtypes (like Record) that want to
+  extend attr functions.
+
   Revision 1.2  1997/04/22 02:40:28  jim
   Changed object header layout.
 
@@ -90,6 +94,8 @@ typedef struct {
   cPersistentObject *object;
 } PATimeobject;
 
+typedef int (*persetattr)(PyObject *, PyObject*, PyObject *, setattrofunc);
+typedef PyObject *(*pergetattr)(PyObject *, PyObject*, char *, getattrofunc);
 
 typedef struct {
   PyMethodChain *methods;
@@ -97,6 +103,8 @@ typedef struct {
   setattrofunc setattro;
   int (*changed)(PyObject*);
   int (*setstate)(PyObject*);
+  pergetattr pergetattro;
+  persetattr persetattro;
 } cPersistenceCAPIstruct;
 
 static cPersistenceCAPIstruct *cPersistenceCAPI;
