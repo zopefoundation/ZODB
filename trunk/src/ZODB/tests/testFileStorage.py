@@ -1,5 +1,5 @@
 import ZODB.FileStorage
-import os, unittest
+import sys, os, unittest
 
 from ZODB.tests import StorageTestBase, BasicStorage, \
      TransactionalUndoStorage, VersionStorage, \
