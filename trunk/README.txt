@@ -49,10 +49,6 @@ be sure that you've installed the development RPMs too, since ZODB3
 builds Python extensions.  If you have the source release of ZODB3,
 you will need a C compiler.
 
-The ZConfig package requires an XML parser with SAX support.  The
-pyexpat module should be sufficient; note that pyexpat requires expat
-be installed.
-
 Installation
 ------------
 
