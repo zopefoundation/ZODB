@@ -1,11 +1,14 @@
 <schema type="ZEO">
+
+  <!-- XXX This schema still needs logging support. -->
+
   <description>
     This schema describes the configuration of the ZEO storage server
     process.
   </description>
 
   <!-- Use the storage types defined by ZODB. -->
-  <import package="zodb"/>
+  <import src="../ZODB/config.xml"/>
 
   <key name="address" datatype="socket-address"
        required="yes">
@@ -34,7 +37,7 @@
     </description>
   </key>
 
-  <key name="invalidation-history-size" datatype="integer"
+  <key name="invalidation-queue-size" datatype="integer"
        required="no"
        default="100">
     <description>
@@ -42,6 +45,16 @@
       last N transactions, where N == invalidation_queue_size.  This
       queue is used to speed client cache verification when a client
       disconnects for a short period of time.
+    </description>
+  </key>
+
+  <key name="transaction-timeout" datatype="integer"
+       required="no">
+    <description>
+      The maximum amount of time to wait for a transaction to commit
+      after acquiring the storage lock, specified in seconds.  If the
+      transaction takes too long, the client connection will be closed
+      and the transaction aborted.
     </description>
   </key>
 
