@@ -89,26 +89,29 @@ t32 = 1L << 32
 
 def p64(v, pack=struct.pack):
     """Pack an integer or long into a 8-byte string"""
-    if v < t32: h=0
+    if v < t32:
+        h = 0
     else:
-        h=v/t32
-        v=v%t32
+        h, v = divmod(v, t32)
     return pack(">II", h, v)
 
 def u64(v, unpack=struct.unpack):
     """Unpack an 8-byte string into a 64-bit (or long) integer"""
+    # XXX this seems to be just a slower version of U64()
     h, v = unpack(">ii", v)
-    if v < 0: v=t32+v
+    if v < 0:
+        v = t32 + v
     if h:
-        if h < 0: h=t32+h
-        v=h*t32+v
+        if h < 0:
+            h = t32 + h
+        v = (h << 32) + v
     return v
 
 def U64(v, unpack=struct.unpack):
     """Same as u64 but always returns a long."""
     h, v = unpack(">II", v)
     if h:
-        v=h*t32+v
+        v = (h << 32) + v
     return v
 
 def cp(f1, f2, l):
@@ -129,6 +132,7 @@ def newTimeStamp(old=None,
                  time=time.time, gmtime=time.gmtime):
     t=time()
     ts=TimeStamp(gmtime(t)[:5]+(t%60,))
-    if old is not None: return ts.laterThan(than)
+    if old is not None:
+        return ts.laterThan(old)
     
     
