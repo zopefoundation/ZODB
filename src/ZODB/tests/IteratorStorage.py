@@ -8,6 +8,7 @@ from ZODB.tests.StorageTestBase import zodb_unpickle
 
 class IteratorStorage:
     def checkSimpleIteration(self):
+        eq = self.assertEqual
         # Store a bunch of revisions of a single object
         oid = self._storage.new_oid()
         revid1 = self._dostore(oid, data=MinPO(11))
@@ -17,10 +18,10 @@ class IteratorStorage:
         val = 11
         txniter = self._storage.iterator()
         for reciter, revid in zip(txniter, (revid1, revid2, revid3)):
-            assert reciter.tid == revid
+            eq(reciter.tid, revid)
             for rec in reciter:
-                assert rec.oid == oid
-                assert rec.serial == revid
-                assert rec.version == ''
-                assert zodb_unpickle(rec.data) == MinPO(val)
+                eq(rec.oid, oid)
+                eq(rec.serial, revid)
+                eq(rec.version, '')
+                eq(zodb_unpickle(rec.data), MinPO(val))
                 val = val + 1

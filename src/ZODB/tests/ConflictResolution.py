@@ -65,7 +65,7 @@ class ConflictResolvingStorage:
 
         data, serialno = self._storage.load(oid, '')
         inst = zodb_unpickle(data)
-        self.assert_(inst._value == 5)
+        self.assertEqual(inst._value, 5)
 
     def checkUnresolvable(self):
         obj = PCounter2()

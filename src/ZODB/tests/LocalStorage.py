@@ -5,10 +5,10 @@ class LocalStorage:
     implementation for ZEO is inexact.
     """
     def checkLen(self):
+        eq = self.assertEqual
         # The length of the database ought to grow by one each time
-        assert len(self._storage) == 0
+        eq(len(self._storage), 0)
         self._dostore()
-        assert len(self._storage) == 1
+        eq(len(self._storage), 1)
         self._dostore()
-        assert len(self._storage) == 2
-
+        eq(len(self._storage), 2)
