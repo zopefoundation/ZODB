@@ -13,8 +13,7 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.67 2002/06/10 20:20:44 shane Exp $"""
-__version__='$Revision: 1.67 $'[11:-2]
+$Id: Connection.py,v 1.68 2002/06/12 15:30:05 jeremy Exp $"""
 
 from cPickleCache import PickleCache, MUCH_RING_CHECKING
 from POSException import ConflictError, ReadConflictError
@@ -33,8 +32,10 @@ from types import StringType, ClassType
 global_code_timestamp = 0
 
 if MUCH_RING_CHECKING:
-  # To get rid of this warning, change the define inside cPickleCache.c and recompile.
-  LOG('ZODB',WARNING, 'Using cPickleCache with low performance (but extra debugging checks)')
+  # To get rid of this warning, change the define inside
+  # cPickleCache.c and recompile.
+  LOG('ZODB',WARNING,
+      'Using cPickleCache with low performance (but extra debugging checks)')
 del MUCH_RING_CHECKING
 
 def updateCodeTimestamp():
@@ -102,7 +103,7 @@ class Connection(ExportImport.ExportImport):
             ver = ' (in version %s)' % `self._version`
         else:
             ver = ''
-        return '<Connection at %08x%s>' % (id(self),ver)
+        return '<Connection at %08x%s>' % (id(self), ver)
 
     def _breakcr(self):
         try: del self._cache
@@ -224,7 +225,8 @@ class Connection(ExportImport.ExportImport):
         if object is self:
             self._cache.invalidate(self._invalidated)
         else:
-            self._cache.invalidate(object._p_oid)
+            if object._p_oid is not None:
+                self._cache.invalidate(object._p_oid)
 
     def cacheFullSweep(self, dt=0):
         self._cache.full_sweep(dt)
@@ -470,7 +472,8 @@ class Connection(ExportImport.ExportImport):
         it.  The object data will be actually invalidated at certain
         transaction boundaries.
         """
-        self._invalidated[oid]=1
+        assert oid is not None
+        self._invalidated[oid] = 1
 
     def modifiedInVersion(self, oid):
         try: return self._db.modifiedInVersion(oid)
@@ -480,11 +483,12 @@ class Connection(ExportImport.ExportImport):
     def root(self): return self['\0\0\0\0\0\0\0\0']
 
     def setstate(self, object):
-        oid=object._p_oid
+        oid = object._p_oid
 
         if self._storage is None:
-            msg = "Shouldn't load state for %s when the connection is closed" % `oid`
-            LOG('ZODB',ERROR, msg)
+            msg = ("Shouldn't load state for %s "
+                   "when the connection is closed" % `oid`)
+            LOG('ZODB', ERROR, msg)
             raise RuntimeError(msg)
 
         try:
@@ -501,33 +505,36 @@ class Connection(ExportImport.ExportImport):
             # storage to make sure that we don't miss an invaildation
             # notifications between the time we check and the time we
             # read.
-            invalid=self._invalid
+            invalid = self._invalid
             if invalid(oid) or invalid(None):
                 if not hasattr(object.__class__, '_p_independent'):
                     get_transaction().register(self)
                     raise ReadConflictError(object=object)
-                invalid=1
+                invalid = 1
             else:
-                invalid=0
+                invalid = 0
 
-            file=StringIO(p)
-            unpickler=Unpickler(file)
-            unpickler.persistent_load=self._persistent_load
+            file = StringIO(p)
+            unpickler = Unpickler(file)
+            unpickler.persistent_load = self._persistent_load
             unpickler.load()
             state = unpickler.load()
 
             if hasattr(object, '__setstate__'):
                 object.__setstate__(state)
             else:
-                d=object.__dict__
-                for k,v in state.items(): d[k]=v
+                d = object.__dict__
+                for k, v in state.items():
+                    d[k] = v
 
-            object._p_serial=serial
+            object._p_serial = serial
 
             if invalid:
                 if object._p_independent():
-                    try: del self._invalidated[oid]
-                    except KeyError: pass
+                    try:
+                        del self._invalidated[oid]
+                    except KeyError:
+                        pass
                 else:
                     get_transaction().register(self)
                     raise ConflictError(object=object)
@@ -657,9 +664,7 @@ class Connection(ExportImport.ExportImport):
                         obj._p_changed = 0
                     obj._p_serial = serial
 
-
     def tpc_finish(self, transaction):
-
         # It's important that the storage call the function we pass
         # (self._invalidate_invalidating) while it still has it's
         # lock.  We don't want another thread to be able to read any
@@ -681,9 +686,9 @@ class Connection(ExportImport.ExportImport):
         self._incrgc() # This is a good time to do some GC
 
     def _invalidate_invalidating(self):
-        invalidate=self._db.invalidate
         for oid in self._invalidating:
-            invalidate(oid, self)
+            assert oid is not None
+            self._db.invalidate(oid, self)
         self._db.finish_invalidation()
 
     def sync(self):
@@ -693,15 +698,18 @@ class Connection(ExportImport.ExportImport):
         self._cache.invalidate(self._invalidated)
         self._incrgc() # This is a good time to do some GC
 
-    def getDebugInfo(self): return self._debug_info
-    def setDebugInfo(self, *args): self._debug_info=self._debug_info+args
+    def getDebugInfo(self):
+        return self._debug_info
+    
+    def setDebugInfo(self, *args):
+        self._debug_info = self._debug_info + args
 
     def getTransferCounts(self, clear=0):
         """Returns the number of objects loaded and stored.
 
         Set the clear argument to reset the counters.
         """
-        res = (self._load_count, self._store_count)
+        res = self._load_count, self._store_count
         if clear:
             self._load_count = 0
             self._store_count = 0
