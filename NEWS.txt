@@ -110,6 +110,21 @@ What's new in ZODB3 3.3.1a2?
 ============================
 Release date: DD-MMM-2005
 
+BTrees
+------
+
+Collector #1734: BTrees conflict resolution leads to index inconsistencies.
+
+Silent data loss could occur due to BTree conflict resolution when one
+transaction T1 added a new key to a BTree containing at least three buckets,
+and a concurrent transaction T2 deleted all keys in the bucket to which the
+new key was added.  Conflict resolution then created a bucket containing the
+newly added key, but the bucket remained isolated, disconnected from the
+BTree. In other words, the committed BTree didn't contain the new key added by
+T1.  Conflict resolution doesn't have enough information to repair this,
+so ``ConflictError`` is now raised in such cases.
+
+
 ZEO
 ---
 
