@@ -115,7 +115,7 @@
 #   may have a back pointer to a version record or to a non-version
 #   record.
 #
-__version__='$Revision: 1.97 $'[11:-2]
+__version__='$Revision: 1.98 $'[11:-2]
 
 import base64
 from cPickle import Pickler, Unpickler, loads
@@ -483,7 +483,8 @@ class FileStorage(BaseStorage.BaseStorage,
         current_oids = {}
         t = None
         tstatus = ' '
-        newserial = self._serial
+        if abort is None:
+            newserial = self._serial
 
         while srcpos:
             self._file.seek(srcpos)
@@ -491,6 +492,16 @@ class FileStorage(BaseStorage.BaseStorage,
             # h -> oid, serial, prev(oid), tloc, vlen, plen, pnv, pv
             oid = h[:8]
             pnv = h[-16:-8]
+            if abort:
+                # If we are aborting, the serialno in the new data
+                # record should be the same as the serialno in the last
+                # non-version data record.
+                # XXX This might be the only time that the serialno
+                # of a data record does not match the transaction id.
+                self._file.seek(U64(pnv))
+                h_pnv = self._file.read(DATA_VERSION_HDR_LEN)
+                newserial = h_pnv[8:16]
+            
             if self._index.get(oid) == srcpos:
                 # This is a current record!
                 self._tindex[oid] = here
@@ -577,26 +588,27 @@ class FileStorage(BaseStorage.BaseStorage,
 
     def _load(self, oid, version, _index, file):
         try:
-            pos=_index[oid]
+            pos = _index[oid]
         except KeyError:
             raise POSKeyError(oid)
         file.seek(pos)
-        read=file.read
-        h=read(DATA_HDR_LEN)
-        doid,serial,prev,tloc,vlen,plen = unpack(">8s8s8s8sH8s", h)
-        if doid != oid: raise CorruptedDataError, h
+        read = file.read
+        h = read(DATA_HDR_LEN)
+        doid, serial, prev, tloc, vlen, plen = unpack(">8s8s8s8sH8s", h)
+        if doid != oid:
+            raise CorruptedDataError, h
         if vlen:
-            pnv=read(8) # Read location of non-version data
+            pnv = read(8) # Read location of non-version data
             if (not version or len(version) != vlen or
                 (read(8) # skip past version link
-                 and version != read(vlen))
-                ):
+                 and version != read(vlen))):
                 return _loadBack(file, oid, pnv)
 
         # If we get here, then either this was not a version record,
         # or we've already read past the version data!
-        if plen != z64: return read(U64(plen)), serial
-        pnv=read(8)
+        if plen != z64:
+            return read(U64(plen)), serial
+        pnv = read(8)
         # We use the current serial, since that is the one that
         # will get checked when we store.
         return _loadBack(file, oid, pnv)[0], serial
