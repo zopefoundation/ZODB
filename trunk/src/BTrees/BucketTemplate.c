@@ -82,7 +82,7 @@
   
  ****************************************************************************/
 
-#define BUCKETTEMPLATE_C "$Id: BucketTemplate.c,v 1.18 2001/09/01 18:18:18 andreasjung Exp $\n"
+#define BUCKETTEMPLATE_C "$Id: BucketTemplate.c,v 1.19 2001/10/19 18:55:09 andreasjung Exp $\n"
 
 /*
 ** _bucket_get
@@ -95,6 +95,8 @@
 **
 ** Returns:	object	matching object or 0/1 object
 */
+
+
 static PyObject *
 _bucket_get(Bucket *self, PyObject *keyarg, int has_key)
 {
@@ -110,6 +112,8 @@ _bucket_get(Bucket *self, PyObject *keyarg, int has_key)
   for (min=0, max=self->len, i=max/2, l=max; i != l; l=i, i=(min+max)/2)
     {
       cmp=TEST_KEY(self->keys[i], key);
+      if (PyErr_Occurred()) goto err;
+
       if (cmp < 0) min=i;
       else if (cmp == 0)
 	{
@@ -129,6 +133,8 @@ _bucket_get(Bucket *self, PyObject *keyarg, int has_key)
   PER_ACCESSED(self);
   if (has_key) return PyInt_FromLong(0);
   PyErr_SetObject(PyExc_KeyError, keyarg);
+
+err:
   return NULL;
 }
 
