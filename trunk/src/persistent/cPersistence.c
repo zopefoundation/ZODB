@@ -14,7 +14,7 @@
 static char cPersistence_doc_string[] =
 "Defines Persistent mixin class for persistent objects.\n"
 "\n"
-"$Id: cPersistence.c,v 1.78 2004/02/20 17:20:16 jeremy Exp $\n";
+"$Id: cPersistence.c,v 1.79 2004/03/02 20:22:16 jeremy Exp $\n";
 
 #include "cPersistence.h"
 #include "structmember.h"
@@ -794,7 +794,7 @@ Per_get_changed(cPersistentObject *self)
 	Py_INCREF(Py_None);
 	return Py_None;
     }
-    return PyInt_FromLong(self->state == cPersistent_CHANGED_STATE);
+    return PyBool_FromLong(self->state == cPersistent_CHANGED_STATE);
 }
 
 static int
