@@ -204,10 +204,6 @@ class WindowsZEOFileStorageTests(WindowsGenericTests):
     def delStorage(self):
         removefs(self.__fs_base)
 
-def _fillports(ports):
-    for i in range(200):
-        ports.append(random.randrange(25000, 30000))
-
 class ConnectionTests(StorageTestBase.StorageTestBase):
     """Tests that explicitly manage the server process.
 
@@ -216,9 +212,6 @@ class ConnectionTests(StorageTestBase.StorageTestBase):
     """
 
     __super_tearDown = StorageTestBase.StorageTestBase.tearDown
-
-    ports = []
-    _fillports(ports)
 
     def setUp(self):
         """Start a ZEO server using a Unix domain socket
@@ -240,9 +233,7 @@ class ConnectionTests(StorageTestBase.StorageTestBase):
         self.addr.append(self._getAddr())
 
     def _getAddr(self):
-        if not self.ports:
-            _fillports(self.ports)
-        return 'localhost', self.ports.pop()
+        return 'localhost', random.randrange(25000, 30000)
 
     def openClientStorage(self, cache='', cache_size=200000, wait=1,
                           read_only=0, read_only_fallback=0):
@@ -485,8 +476,8 @@ class ConnectionTests(StorageTestBase.StorageTestBase):
         self.assert_(not self._storage.is_connected())
 
         # XXX From here on the test doesn't work yet
-##        zLOG.LOG("testZEO", zLOG.INFO, "WHY DOES THIS HANG???")
-##        self.assertRaises(Disconnected, self._dostore)
+        zLOG.LOG("testZEO", zLOG.INFO, "WHY DOES THIS HANG???")
+        self.assertRaises(Disconnected, self._dostore)
 
 ##        # Restart the server, this time read-write
 ##        self._startServer(create=0)
