@@ -13,7 +13,7 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.131 2004/03/01 19:07:25 jeremy Exp $"""
+$Id: Connection.py,v 1.132 2004/03/02 15:43:16 jeremy Exp $"""
 
 import logging
 import sys
@@ -102,7 +102,7 @@ class Connection(ExportImport, object):
 
     XXX Mention the database pool.
 
-    $Id: Connection.py,v 1.131 2004/03/01 19:07:25 jeremy Exp $
+    $Id: Connection.py,v 1.132 2004/03/02 15:43:16 jeremy Exp $
     
     @group User Methods: root, get, add, close, db, sync, isReadOnly,
         cacheFullSweep, cacheMinimize, getVersion, modifiedInVersion
@@ -146,7 +146,6 @@ class Connection(ExportImport, object):
             # XXX Why do we want version caches to behave this way?
 
             self._cache.cache_drain_resistance = 100
-        self._incrgc = self.cacheGC = cache.incrgc
         self._committed = []
         self._added = {}
         self._reset_counter = global_reset_counter
@@ -348,7 +347,6 @@ class Connection(ExportImport, object):
         self._invalidated.clear()
         cache_size = self._cache.cache_size
         self._cache = cache = PickleCache(self, cache_size)
-        self._incrgc = self.cacheGC = cache.incrgc
 
     def abort(self, object, transaction):
         """Abort the object in the transaction.
@@ -380,11 +378,27 @@ class Connection(ExportImport, object):
         self._cache.full_sweep(dt)
 
     def cacheMinimize(self, dt=None):
-        # XXX needs doc string
+        """Deactivate all unmodified objects in the cache.
+
+        Call _p_deactivate() on each cached object, attempting to turn
+        it into a ghost.  It is possible for individual objects to
+        remain active.
+
+        @param dt: The dt argument is provided only for backwards
+            compatibility.  It is ignored.
+        """
         if dt is not None:
             warnings.warn("The dt argument to cacheMinimize is ignored.",
                           DeprecationWarning)
         self._cache.minimize()
+
+    def cacheGC(self):
+        """Reduce cache size to target size.
+        
+        Call _p_deactivate() on cached objects until the cache size
+        falls under the target size.
+        """
+        self._cache.incrgc()
 
     __onCloseCallbacks = None
 
@@ -410,8 +424,8 @@ class Connection(ExportImport, object):
         L{onCloseCallback} are invoked and the cache is scanned for
         old objects.
         """
-        if self._incrgc is not None:
-            self._incrgc() # This is a good time to do some GC
+        if self._cache is not None:
+            self._cache.incrgc() # This is a good time to do some GC
 
         # Call the close callbacks.
         if self.__onCloseCallbacks is not None:
