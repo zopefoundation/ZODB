@@ -11,7 +11,7 @@
 
 static char BTree_module_documentation[] = 
 ""
-"\n$Id: BTree.c,v 1.15 1998/02/18 22:19:50 jim Exp $"
+"\n$Id: BTree.c,v 1.16 1998/03/24 15:17:44 jim Exp $"
 ;
 
 #define PERSISTENT
@@ -1090,15 +1090,21 @@ bucket_items(Bucket *self, PyObject *args)
 static PyObject *
 bucket__p___reinit__(Bucket *self, PyObject *args)
 {
-  int i;
-  /* Note that this implementation is broken, in that it doesn't
-     account for subclass needs. */
-  for(i=self->len; --i >= 0; )
+  if(self->state==cPersistent_UPTODATE_STATE)
     {
-      DECREF_KEY(self->data[i].key);
-      DECREF_VALUE(self->data[i].value);
+      int i;
+      PyObject *dict;
+
+      for(i=self->len; --i >= 0; )
+	{
+	  DECREF_KEY(self->data[i].key);
+	  DECREF_VALUE(self->data[i].value);
+	}
+      if(HasInstDict(self) && (dict=INSTANCE_DICT(self))) PyDict_Clear(dict);
+      self->len=0;
+      self->state=cPersistent_GHOST_STATE;
     }
-  self->len=0;
+
   Py_INCREF(Py_None);
   return Py_None;
 }
@@ -1148,9 +1154,15 @@ _BTree_clear(BTree *self)
 static PyObject *
 BTree__p___reinit__(BTree *self, PyObject *args)
 {
-  /* Note that this implementation is broken, in that it doesn't
-     account for subclass needs. */
-  if(_BTree_clear(self) < 0) return NULL;
+  if(self->state==cPersistent_UPTODATE_STATE)
+    {
+      PyObject *dict;
+
+      if(_BTree_clear(self) < 0) return NULL;
+      if(HasInstDict(self) && (dict=INSTANCE_DICT(self))) PyDict_Clear(dict);
+      self->state=cPersistent_GHOST_STATE;
+    }
+
   Py_INCREF(Py_None);
   return Py_None;
 }
@@ -1397,6 +1409,8 @@ static struct PyMethodDef Bucket_methods[] = {
 #ifdef PERSISTENT
   {"_p___reinit__",	(PyCFunction)bucket__p___reinit__,	METH_VARARGS,
    "_p___reinit__() -- Reinitialize from a newly created copy"},
+  {"_p_deactivate",	(PyCFunction)bucket__p___reinit__,	METH_VARARGS,
+   "_p_deactivate() -- Reinitialize from a newly created copy"},
 #endif
   {NULL,		NULL}		/* sentinel */
 };
@@ -1579,6 +1593,8 @@ static struct PyMethodDef BTree_methods[] = {
 #ifdef PERSISTENT
   {"_p___reinit__",	(PyCFunction)BTree__p___reinit__,	METH_VARARGS,
    "_p___reinit__() -- Reinitialize from a newly created copy"},
+  {"_p_deactivate",	(PyCFunction)BTree__p___reinit__,	METH_VARARGS,
+   "_p_deactivate() -- Reinitialize from a newly created copy"},
 #endif
   {NULL,		NULL}		/* sentinel */
 };
@@ -1746,7 +1762,7 @@ initBTree()
 #endif
 {
   PyObject *m, *d;
-  char *rev="$Revision: 1.15 $";
+  char *rev="$Revision: 1.16 $";
 
   UNLESS(PyExtensionClassCAPI=PyCObject_Import("ExtensionClass","CAPI"))
       return;
@@ -1800,6 +1816,9 @@ initBTree()
 Revision Log:
 
   $Log: BTree.c,v $
+  Revision 1.16  1998/03/24 15:17:44  jim
+  Brought reinit/deactivate machinery up to date.
+
   Revision 1.15  1998/02/18 22:19:50  jim
   Fixed C inheritence problem. Waaaaaaa.
 
