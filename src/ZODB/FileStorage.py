@@ -184,7 +184,7 @@
 #   may have a back pointer to a version record or to a non-version
 #   record.
 #
-__version__='$Revision: 1.59 $'[11:-2]
+__version__='$Revision: 1.60 $'[11:-2]
 
 import struct, time, os, bpthread, string, base64, sys
 from struct import pack, unpack
@@ -1132,7 +1132,7 @@ class FileStorage(BaseStorage.BaseStorage,
 
         return r
 
-    def history(self, oid, version=None, length=1, filter=None):
+    def history(self, oid, version=None, size=1, filter=None):
         self._lock_acquire()
         try:
             r=[]
@@ -1143,7 +1143,7 @@ class FileStorage(BaseStorage.BaseStorage,
             wantver=version
 
             while 1:
-                if len(r) >= length: return r
+                if len(r) >= size: return r
                 seek(pos)
                 h=read(42)
                 doid,serial,prev,tloc,vlen,plen = unpack(">8s8s8s8sH8s", h)
