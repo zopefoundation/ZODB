@@ -10,7 +10,7 @@
 
 static char cPickleJar_module_documentation[] = 
 ""
-"\n$Id: cPickleJar.c,v 1.4 1997/12/16 21:29:25 jim Exp $"
+"\n$Id: cPickleJar.c,v 1.5 1998/05/07 22:14:17 jim Exp $"
 ;
 
 #include "ExtensionClass.h"
@@ -31,7 +31,8 @@ static PyObject *Pickler, *StringIO, *arg0, *arg1,
   *py__p_oid, *py__p_jar, *py_new_oid, *py__p_changed, *py_persistent_id,
   *py_db, *py_store, *py_seek, *py_getvalue, *py_cache, *py_dump,
   *py_clear_memo, *py___class__, *py___getinitargs__,
-  *py___getstate__, *py___changed__, *py_info, *one, *py_oid;
+  *py___getstate__, *py___changed__, *py_info, *one, *py_oid,
+  *py___module__, *py___name__;
 
 /* Declarations for objects of type pid */
 
@@ -102,9 +103,11 @@ pid_plan(pidobject *self, PyObject *object)
   UNLESS(jar=PyObject_GetAttr(cls, py___getinitargs__))
     {
       PyErr_Clear();
-      UNLESS_ASSIGN(oid, Py_BuildValue("OO", oid, cls)) goto err;
+      UNLESS(jar=PyObject_GetAttr(cls,py___module__)) goto err;
+      UNLESS_ASSIGN(cls, PyObject_GetAttr(cls,py___name__)) goto err;
+      UNLESS_ASSIGN(oid, Py_BuildValue("O(OO)", oid, jar, cls)) goto err;
     }
-  else Py_DECREF(jar);
+  Py_DECREF(jar);
   Py_DECREF(cls);
 
   return oid;
@@ -299,7 +302,7 @@ void
 initcPickleJar()
 {
   PyObject *m, *d;
-  char *rev="$Revision: 1.4 $";
+  char *rev="$Revision: 1.5 $";
   PURE_MIXIN_CLASS(PickleJar,"",PickleJar_methods);
 
   UNLESS(Pickler=PyImport_ImportModule("cPickle")) return;
@@ -325,6 +328,8 @@ initcPickleJar()
   INIT_STRING(__getinitargs__);
   INIT_STRING(__getstate__);
   INIT_STRING(__changed__);
+  INIT_STRING(__module__);
+  INIT_STRING(__name__);
   INIT_STRING(info);
 
   UNLESS(arg0=Py_BuildValue("(i)",0)) return;
@@ -355,6 +360,11 @@ initcPickleJar()
 Revision Log:
 
   $Log: cPickleJar.c,v $
+  Revision 1.5  1998/05/07 22:14:17  jim
+  Changed the way object references are saved.  Rather than saving the
+  class, we save the class mosule and class name.  This allows us to
+  handle import errors ourself.
+
   Revision 1.4  1997/12/16 21:29:25  jim
   Moved new_oid method to C.
 
