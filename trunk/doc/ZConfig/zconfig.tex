@@ -1512,10 +1512,9 @@ import ZConfig
 try:
     myfile = __file__
 except NameError:
-    # really should follow symlinks here:
-    myfile = sys.argv[0]
+    myfile = os.path.realpath(sys.argv[0])
 
-mydir = os.path.dirname(os.path.abspath(myfile))
+mydir = os.path.dirname(myfile)
 
 schema = ZConfig.loadSchema(os.path.join(mydir, 'schema.xml'))
 conf, handler = ZConfig.loadConfig(schema, sys.argv[1])
