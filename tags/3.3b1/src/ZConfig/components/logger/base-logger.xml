@@ -1,0 +1,48 @@
+<component prefix="ZConfig.components.logger.logger">
+
+  <import package="ZConfig.components.logger" file="abstract.xml"/>
+
+  <sectiontype name="ZConfig.logger.base-logger">
+    <description>
+      Base definition for the logger types defined by
+      ZConfig.components.logger.  This exists entirely to provide
+      shared key definitions and documentation.
+    </description>
+
+    <key name="level"
+         datatype="ZConfig.components.logger.datatypes.logging_level"
+         default="info">
+      <description>
+        Verbosity setting for the logger.  Values must be a name of
+        a level, or an integer in the range [0..50].  The names of the
+        levels, in order of increasing verbosity (names on the same
+        line are equivalent):
+
+            critical, fatal
+            error
+            warn, warning
+            info
+            blather
+            debug
+            trace
+            all
+
+        The special name "notset", or the numeric value 0, indicates
+        that the setting for the parent logger should be used.
+
+        It is strongly recommended that names be used rather than
+        numeric values to ensure that configuration files can be
+        deciphered more easily.
+      </description>
+    </key>
+
+    <multisection type="ZConfig.logger.handler"
+                  attribute="handlers" name="*">
+      <description>
+        Handlers to install on this logger.  Each handler describes
+        how logging events should be presented.
+      </description>
+    </multisection>
+  </sectiontype>
+
+</component>
