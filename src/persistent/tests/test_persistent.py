@@ -90,7 +90,7 @@ class Test(unittest.TestCase):
 
             self.assert_(IPersistent.isImplementedByInstancesOf(P),
                          "%s does not implement IPersistent" % P)
-            p = self.klass()
+            p = P()
             self.assert_(IPersistent.isImplementedBy(p),
                          "%s does not implement IPersistent" % p)
 
