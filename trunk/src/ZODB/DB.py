@@ -84,8 +84,8 @@
 ##############################################################################
 """Database objects
 
-$Id: DB.py,v 1.31 2001/05/22 23:00:39 jeremy Exp $"""
-__version__='$Revision: 1.31 $'[11:-2]
+$Id: DB.py,v 1.32 2001/05/22 23:01:45 jeremy Exp $"""
+__version__='$Revision: 1.32 $'[11:-2]
 
 import cPickle, cStringIO, sys, POSException, UndoLogCompatible
 from Connection import Connection
@@ -95,7 +95,7 @@ from referencesf import referencesf
 from time import time, ctime
 from zLOG import LOG, ERROR
 
-StringType=type('')
+from types import StringType
 
 class DB(UndoLogCompatible.UndoLogCompatible):
     """The Object Database
