@@ -341,10 +341,9 @@ class ConnectThread(threading.Thread):
             wrap = ConnectWrapper(domain, addr, self.mgr, self.client)
             wrap.connect_procedure()
             if wrap.state == "notified":
-                for wrap in wrappers.keys():
-                    wrap.close()
-                wrappers[wrap] = wrap
-                return wrappers
+                for w in wrappers.keys():
+                    w.close()
+                return {wrap: wrap}
             if wrap.state != "closed":
                 wrappers[wrap] = wrap
         return wrappers
