@@ -83,7 +83,7 @@
 # 
 ##############################################################################
 
-__version__ = "$Revision: 1.8 $"[11:-2]
+__version__ = "$Revision: 1.9 $"[11:-2]
 
 import asyncore, socket, string, sys, cPickle, os
 from smac import SizedMessageAsyncConnection
@@ -188,7 +188,8 @@ class StorageServer(asyncore.dispatcher):
 
 storage_methods={}
 for n in (
-    'get_info', 'abortVersion', 'commitVersion', 'history', 'load',
+    'get_info', 'abortVersion', 'commitVersion',
+    'history', 'load', 'loadSerial',
     'modifiedInVersion', 'new_oid', 'new_oids', 'pack', 'store',
     'storea', 'tpc_abort', 'tpc_begin', 'tpc_begin_sync',
     'tpc_finish', 'undo', 'undoLog', 'undoInfo', 'versionEmpty',
