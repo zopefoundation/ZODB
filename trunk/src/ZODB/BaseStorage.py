@@ -15,7 +15,7 @@
 """
 # Do this portably in the face of checking out with -kv
 import string
-__version__ = string.split('$Revision: 1.21 $')[-2:][0]
+__version__ = string.split('$Revision: 1.22 $')[-2:][0]
 
 import ThreadLock, bpthread
 import time, UndoLogCompatible
@@ -108,12 +108,14 @@ class BaseStorage(UndoLogCompatible.UndoLogCompatible):
     def tpc_abort(self, transaction):
         self._lock_acquire()
         try:
-            if transaction is not self._transaction: return
+            if transaction is not self._transaction:
+                return
             self._abort()
             self._clear_temp()
-            self._transaction=None
+            self._transaction = None
             self._commit_lock_release()
-        finally: self._lock_release()
+        finally:
+            self._lock_release()
 
     def _abort(self):
         """Subclasses should redefine this to supply abort actions"""
@@ -122,34 +124,36 @@ class BaseStorage(UndoLogCompatible.UndoLogCompatible):
     def tpc_begin(self, transaction, tid=None, status=' '):
         self._lock_acquire()
         try:
-            if self._transaction is transaction: return
+            if self._transaction is transaction:
+                return
             self._lock_release()
             self._commit_lock_acquire()
             self._lock_acquire()
-            self._transaction=transaction
+            self._transaction = transaction
             self._clear_temp()
 
-            user=transaction.user
-            desc=transaction.description
-            ext=transaction._extension
-            if ext: ext=dumps(ext,1)
-            else: ext=""
-            self._ude=user, desc, ext
+            user = transaction.user
+            desc = transaction.description
+            ext = transaction._extension
+            if ext:
+                ext = dumps(ext,1)
+            else:
+                ext=""
+            self._ude = user, desc, ext
 
             if tid is None:
-                t=time.time()
-                t=apply(TimeStamp,(time.gmtime(t)[:5]+(t%60,)))
-                self._ts=t=t.laterThan(self._ts)
-                self._serial=`t`
+                now = time.time()
+                t = TimeStamp(*(time.gmtime(now)[:5] + (now % 60,)))
+                self._ts = t = t.laterThan(self._ts)
+                self._serial = `t`
             else:
-                self._ts=TimeStamp(tid)
-                self._serial=tid
+                self._ts = TimeStamp(tid)
+                self._serial = tid
 
-            self._tstatus=status
-
+            self._tstatus = status
             self._begin(self._serial, user, desc, ext)
-
-        finally: self._lock_release()
+        finally:
+            self._lock_release()
 
     def _begin(self, tid, u, d, e):
         """Subclasses should redefine this to supply transaction start actions.
@@ -159,7 +163,8 @@ class BaseStorage(UndoLogCompatible.UndoLogCompatible):
     def tpc_vote(self, transaction):
         self._lock_acquire()
         try:
-            if transaction is not self._transaction: return
+            if transaction is not self._transaction:
+                return
             self._vote()
         finally:
             self._lock_release()
@@ -172,16 +177,17 @@ class BaseStorage(UndoLogCompatible.UndoLogCompatible):
     def tpc_finish(self, transaction, f=None):
         self._lock_acquire()
         try:
-            if transaction is not self._transaction: return
+            if transaction is not self._transaction:
+                return
             try:
-                if f is not None: f()
-
-                u,d,e=self._ude
+                if f is not None:
+                    f()
+                u, d, e = self._ude
                 self._finish(self._serial, u, d, e)
                 self._clear_temp()
             finally:
-                self._ude=None
-                self._transaction=None
+                self._ude = None
+                self._transaction = None
                 self._commit_lock_release()
         finally:
             self._lock_release()
