@@ -140,7 +140,7 @@ Commands:
     - wall time to verify
     - average miliseconds to verify per object.
 
-$Id: zeoserverlog.py,v 1.3 2003/10/02 18:17:26 jeremy Exp $
+$Id: zeoserverlog.py,v 1.4 2003/10/24 15:29:13 jeremy Exp $
 """
 
 import datetime, sys, re, os
@@ -362,6 +362,11 @@ def minute(f, slice=16, detail=1, summary=1):
     else:
         f = xopen(f)
 
+    cols = ["time", "reads", "stores", "commits", "aborts", "txns"]
+    fmt = "%18s %6s %6s %7s %6s %6s"
+    print fmt % cols
+    print fmt % ["-"*len(col) for col in cols]
+
     mlast = r = s = c = a = cl = None
     rs = []
     ss = []
@@ -381,7 +386,7 @@ def minute(f, slice=16, detail=1, summary=1):
             if m != mlast:
                 if mlast:
                     if detail:
-                        print mlast, len(cl), r, s, c, a, a+c
+                        print fmt % (mlast, len(cl), r, s, c, a, a+c)
                     cls.append(len(cl))
                     rs.append(r)
                     ss.append(s)
@@ -406,7 +411,7 @@ def minute(f, slice=16, detail=1, summary=1):
 
     if mlast:
         if detail:
-            print mlast, len(cl), r, s, c, a, a+c
+            print fmt % (mlast, len(cl), r, s, c, a, a+c)
         cls.append(len(cl))
         rs.append(r)
         ss.append(s)
