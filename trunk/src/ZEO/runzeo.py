@@ -23,7 +23,6 @@ Options:
 -f/--filename FILENAME -- filename for FileStorage
 -h/--help -- print this usage message and exit
 -m/--monitor ADDRESS -- address of monitor server ([HOST:]PORT or PATH)
--r/--record FILENAME -- filename to record low-level network activity
 
 Unless -C is specified, -a and -f are required.
 """
@@ -91,7 +90,6 @@ class ZEOOptions(ZDOptions):
         self.add("transaction_timeout", "zeo.transaction_timeout")
         self.add("monitor_address", None, "m:", "monitor=",
                  self.handle_monitor_address)
-        self.add("record", None, "r:", "record=")
 
     def realize(self, *args):
         ZDOptions.realize(self, *args)
