@@ -2,15 +2,22 @@
 #
 # Copyright (c) 2001, 2002 Zope Corporation and Contributors.
 # All Rights Reserved.
-# 
+#
 # This software is subject to the provisions of the Zope Public License,
 # Version 2.0 (ZPL).  A copy of the ZPL should accompany this distribution.
 # THIS SOFTWARE IS PROVIDED "AS IS" AND ANY AND ALL EXPRESS OR IMPLIED
 # WARRANTIES ARE DISCLAIMED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 # WARRANTIES OF TITLE, MERCHANTABILITY, AGAINST INFRINGEMENT, AND FITNESS
 # FOR A PARTICULAR PURPOSE
-# 
+#
 ##############################################################################
+
+# XXX TO DO
+# use two indices rather than the sign bit of the index??????
+# add a shared routine to read + verify a record???
+# redesign header to include vdlen???
+# rewrite the cache using a different algorithm???
+
 """Implement a client cache
 
 The cache is managed as two files.
@@ -90,14 +97,15 @@ with '\0\0\0\0'.
 If var is not writable, then temporary files are used for
 file 0 and file 1.
 
+$Id: ClientCache.py,v 1.30 2002/08/28 18:58:35 gvanrossum Exp $
 """
-
-__version__ = "$Revision: 1.29 $"[11:-2]
 
 import os
 import tempfile
 from struct import pack, unpack
 from thread import allocate_lock
+
+from ZODB.utils import U64
 
 import zLOG
 from ZEO.ICache import ICache
@@ -186,7 +194,7 @@ class ClientCache:
         # This may be called more than once (by the cache verification code).
         self._acquire()
         try:
-            self._index=index={}
+            self._index = index = {}
             self._get = index.get
             serial = {}
             f = self._f
@@ -231,6 +239,7 @@ class ClientCache:
                 return
             f.seek(p+8) # Switch from reading to writing
             if version and h[15:19] != '\0\0\0\0':
+                # There's still relevant non-version data in the cache record
                 f.write('n')
             else:
                 del self._index[oid]
@@ -255,6 +264,9 @@ class ClientCache:
             else:
                 tlen = -1
             if tlen <= 0 or vlen < 0 or dlen < 0 or vlen+dlen > tlen:
+                log("load: bad record for oid %16x "
+                    "at position %d in cache file %d"
+                    % (U64(oid), ap, p < 0))
                 del self._index[oid]
                 return None
 
@@ -345,6 +357,9 @@ class ClientCache:
             else:
                 tlen = -1
             if tlen <= 0 or vlen < 0 or dlen < 0 or vlen+dlen > tlen:
+                log("modifiedInVersion: bad record for oid %16x "
+                    "at position %d in cache file %d"
+                    % (U64(oid), ap, p < 0))
                 del self._index[oid]
                 return None
 
@@ -366,6 +381,7 @@ class ClientCache:
             if self._pos + size > self._limit:
                 current = not self._current
                 self._current = current
+                log("flipping cache files.  new current = %d" % current)
                 # Delete the half of the index that's no longer valid
                 index = self._index
                 for oid in index.keys():
@@ -434,33 +450,50 @@ def read_index(index, serial, f, fileindex):
     seek = f.seek
     read = f.read
     pos = 4
+    count = 0
 
     while 1:
         f.seek(pos)
         h = read(27)
+        if len(h) != 27:
+            # An empty read is expected, anything else is suspect
+            if h:
+                rilog("truncated header", pos, fileindex)
+            break
 
-        if len(h)==27 and h[8] in 'vni':
+        if h[8] in 'vni':
             tlen, vlen, dlen = unpack(">iHi", h[9:19])
         else:
             tlen = -1
         if tlen <= 0 or vlen < 0 or dlen < 0 or vlen + dlen > tlen:
+            rilog("invalid header data", pos, fileindex)
             break
 
         oid = h[:8]
 
-        if h[8]=='v' and vlen:
+        if h[8] == 'v' and vlen:
             seek(dlen+vlen, 1)
             vdlen = read(4)
             if len(vdlen) != 4:
+                rilog("truncated record", pos, fileindex)
                 break
             vdlen = unpack(">i", vdlen)[0]
             if vlen+dlen+43+vdlen != tlen:
+                rilog("inconsistent lengths", pos, fileindex)
                 break
             seek(vdlen, 1)
             vs = read(8)
             if read(4) != h[9:13]:
+                rilog("inconsistent tlen", pos, fileindex)
                 break
         else:
+            if h[8] in 'vn' and vlen == 0:
+                if dlen+31 != tlen:
+                    rilog("inconsistent nv lengths", pos, fileindex)
+                seek(dlen, 1)
+                if read(4) != h[9:13]:
+                    rilog("inconsistent nv tlen", pos, fileindex)
+                    break
             vs = None
 
         if h[8] in 'vn':
@@ -477,6 +510,7 @@ def read_index(index, serial, f, fileindex):
 
 
         pos = pos + tlen
+        count += 1
 
     f.seek(pos)
     try:
@@ -484,4 +518,13 @@ def read_index(index, serial, f, fileindex):
     except:
         pass
 
+    if count:
+        log("read_index: cache file %d has %d records and %d bytes"
+            % (fileindex, count, pos))
+
     return pos
+
+def rilog(msg, pos, fileindex):
+    # Helper to log messages from read_index
+    log("read_index: %s at position %d in cache file %d"
+        % (msg, pos, fileindex))
