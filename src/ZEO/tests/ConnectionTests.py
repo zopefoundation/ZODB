@@ -234,6 +234,7 @@ class ConnectionTests(CommonSetupTearDown):
                 break
             except ClientDisconnected:
                 time.sleep(0.5)
+        self._storage.close()
 
     def checkReadOnlyClient(self):
         # Open a read-only client to a read-write server; stores fail
@@ -242,6 +243,7 @@ class ConnectionTests(CommonSetupTearDown):
         self._storage = self.openClientStorage(read_only=1)
         # Stores should fail here
         self.assertRaises(ReadOnlyError, self._dostore)
+        self._storage.close()
 
     def checkReadOnlyServer(self):
         # Open a read-only client to a read-only *server*; stores fail
@@ -255,6 +257,7 @@ class ConnectionTests(CommonSetupTearDown):
         self._storage = self.openClientStorage(read_only=1)
         # Stores should fail here
         self.assertRaises(ReadOnlyError, self._dostore)
+        self._storage.close()
 
     def checkReadOnlyFallbackWritable(self):
         # Open a fallback client to a read-write server; stores succeed
@@ -263,6 +266,7 @@ class ConnectionTests(CommonSetupTearDown):
         self._storage = self.openClientStorage(read_only_fallback=1)
         # Stores should succeed here
         self._dostore()
+        self._storage.close()
 
     def checkReadOnlyFallbackReadOnlyServer(self):
         # Open a fallback client to a read-only *server*; stores fail
@@ -277,6 +281,7 @@ class ConnectionTests(CommonSetupTearDown):
         self.assert_(self._storage.isReadOnly())
         # Stores should fail here
         self.assertRaises(ReadOnlyError, self._dostore)
+        self._storage.close()
 
     # XXX Compare checkReconnectXXX() here to checkReconnection()
     # further down.  Is the code here hopelessly naive, or is
@@ -304,6 +309,7 @@ class ConnectionTests(CommonSetupTearDown):
         self.pollUp()
         # Stores should succeed here
         self._dostore()
+        self._storage.close()
 
     def checkDisconnectionError(self):
         # Make sure we get a ClientDisconnected when we try to read an
@@ -313,6 +319,7 @@ class ConnectionTests(CommonSetupTearDown):
         self._storage = self.openClientStorage('test', 1000, wait=0)
         self.assertRaises(ClientDisconnected,
                           self._storage.load, 'fredwash', '')
+        self._storage.close()
 
     def checkDisconnectedAbort(self):
         self._storage = self.openClientStorage()
@@ -386,6 +393,7 @@ class ConnectionTests(CommonSetupTearDown):
         self._storage = self.openClientStorage('test', 1000, wait=0)
         self._storage.load(oid1, '')
         self._storage.load(oid2, '')
+        self._storage.close()
 
     def checkReconnection(self):
         # Check that the client reconnects when a server restarts.
@@ -464,6 +472,7 @@ class ConnectionTests(CommonSetupTearDown):
 
         self._storage = self.openClientStorage()
         self._dostore()
+        self._storage.close()
 
     # Test case for multiple storages participating in a single
     # transaction.  This is not really a connection test, but it needs
