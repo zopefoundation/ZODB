@@ -2,6 +2,21 @@ What's new in ZODB3 3.3
 =======================
 Release date: DD-MMM-2004
 
+Transaction Managers
+--------------------
+
+Zope3-dev Collector #139: Memory leak involving buckets and connections
+
+The transaction manager internals effectively made every Connection
+object immortal, except for those explicitly closed.  Since typical
+practice is not to close connections explicitly (and closing a DB
+happens not to close the connections to it -- although that may
+change), this caused massive memory leaks when many connections were
+opened.  The transaction manager internals were reworked to use weak
+references instead, so that connection memory (and other registered
+synch objects) now get cleaned up when nothing other than the
+transaction manager knows about them.
+
 Storages
 --------
 
