@@ -11,6 +11,14 @@
 # FOR A PARTICULAR PURPOSE
 #
 ##############################################################################
+"""A storage used for unittests.
+
+The primary purpose of this module is to have a minimal multi-version
+storage to use for unit tests.  MappingStorage isn't sufficient.
+Since even a minimal storage has some complexity, we run standard
+storage tests against the test storage.
+"""
+
 import bisect
 import threading
 import unittest
@@ -41,8 +49,9 @@ class MinimalMemoryStorage(BaseStorage, object):
     """Simple in-memory storage that supports revisions.
 
     This storage is needed to test multi-version concurrency control.
-    It is similar to MappingStorage, but keeps multiple revisions.
-    It does not support versions.
+    It is similar to MappingStorage, but keeps multiple revisions.  It
+    does not support versions.  It doesn't implement operations like
+    pack(), because they aren't necessary for testing.
     """
 
     def __init__(self):
@@ -55,6 +64,10 @@ class MinimalMemoryStorage(BaseStorage, object):
     def isCurrent(self, oid, serial):
         return serial == self._cur[oid]
 
+    def hook(self, oid, tid, version):
+        # A hook for testing
+        pass
+
     def __len__(self):
         return len(self._index)
 
@@ -66,6 +79,7 @@ class MinimalMemoryStorage(BaseStorage, object):
         try:
             assert not version
             tid = self._cur[oid]
+            self.hook(oid, tid, version)
             return self._index[(oid, tid)], tid, ""
         finally:
             self._lock_release()
