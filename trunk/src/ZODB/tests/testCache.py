@@ -158,7 +158,7 @@ class DBMethods(CacheTestBase):
                 d = r[1]
                 for i in range(len(d)):
                     d[i] = CantGetRidOfMe(i)
-                get_transaction().commit()
+                transaction.commit()
 
                 self.testcase.db.cacheMinimize()
 

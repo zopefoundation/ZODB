@@ -30,6 +30,7 @@ import shutil
 
 import ZODB
 from ZODB import FileStorage
+import transaction
 
 PYTHON = sys.executable + ' '
 
@@ -48,7 +49,7 @@ class OurDB:
         self.getdb()
         conn = self.db.open()
         conn.root()['tree'] = OOBTree()
-        get_transaction().commit()
+        transaction.commit()
         self.close()
 
     def getdb(self):
@@ -98,7 +99,7 @@ def mutatedb(db):
             keys = tree.keys()
             if keys:
                 del tree[keys[0]]
-    get_transaction().commit()
+    transaction.commit()
     db.close()
 
 def main():

@@ -33,5 +33,7 @@ def commit(sub=False):
 def abort(sub=False):
     manager.get().abort(sub)
 
-# TODO: Issue deprecation warning if this variant is used?
-get_transaction = get
+def get_transaction():
+    from ZODB.utils import deprecated36
+    deprecated36("   use transaction.get() instead of get_transaction()")
+    return get()

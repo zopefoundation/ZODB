@@ -2,6 +2,23 @@ What's new in ZODB3 3.4?
 ========================
 Release date: DD-MMM-2004
 
+transaction
+-----------
+
+- ``get_transaction()`` is officially deprecated now, and will be removed
+  in ZODB 3.6.  Use the ``transaction`` package instead.   For example,
+  instead of::
+
+      import ZODB
+      ...
+      get_transaction().commit()
+
+  do::
+
+      import transaction
+      ...
+      transaction.commit()
+
 DB
 --
 
