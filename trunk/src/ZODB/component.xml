@@ -122,6 +122,13 @@
         available.  Defaults to false.  At most one of read_only and
         read_only_fallback should be true.
       </description>
+    <key name="realm" required="no">
+      <description>
+        The authentication realm of the server.  Some authentication
+        schemes use a realm to identify the logic set of usernames
+        that are accepted by this server.
+      </description>
+    </key>
   </sectiontype>
 
   <sectiontype name="demostorage" datatype=".DemoStorage"

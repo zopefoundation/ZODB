@@ -13,7 +13,7 @@
 ##############################################################################
 """Test that the monitor produce sensible results.
 
-$Id: testMonitor.py,v 1.5 2003/05/30 17:40:30 jeremy Exp $
+$Id: testMonitor.py,v 1.6 2003/05/30 19:20:56 jeremy Exp $
 """
 
 import socket

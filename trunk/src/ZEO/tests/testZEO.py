@@ -39,8 +39,7 @@ from ZODB.tests import StorageTestBase, BasicStorage, VersionStorage, \
      MTStorage, ReadOnlyStorage
 
 from ZEO.ClientStorage import ClientStorage
-from ZEO.tests import forker, Cache
-from ZEO.tests import CommitLockTests, ThreadTests
+from ZEO.tests import forker, Cache, CommitLockTests, ThreadTests
 
 class DummyDB:
     def invalidate(self, *args):

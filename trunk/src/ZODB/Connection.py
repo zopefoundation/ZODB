@@ -13,7 +13,7 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.93 2003/05/19 15:40:58 kiko Exp $"""
+$Id: Connection.py,v 1.94 2003/05/30 19:20:55 jeremy Exp $"""
 
 from __future__ import nested_scopes
 

@@ -115,7 +115,7 @@
 #   may have a back pointer to a version record or to a non-version
 #   record.
 #
-__version__='$Revision: 1.134 $'[11:-2]
+__version__='$Revision: 1.135 $'[11:-2]
 
 import base64
 from cPickle import Pickler, Unpickler, loads

@@ -114,6 +114,7 @@ class Connection(smac.SizedMessageAsyncConnection):
 
     __super_init = smac.SizedMessageAsyncConnection.__init__
     __super_close = smac.SizedMessageAsyncConnection.close
+    __super_setSessionKey = smac.SizedMessageAsyncConnection.setSessionKey
 
     # Protocol variables:
     #
@@ -152,12 +153,17 @@ class Connection(smac.SizedMessageAsyncConnection):
         self.trigger = None
         self._prepare_async()
         self._map = {self._fileno: self}
-        # __msgid_lock guards access to msgid
+        # msgid_lock guards access to msgid
         self.msgid_lock = threading.Lock()
-        # __replies_cond is used to block when a synchronous call is
+        # replies_cond is used to block when a synchronous call is
         # waiting for a response
         self.replies_cond = threading.Condition()
         self.replies = {}
+        # waiting_for_reply is used internally to indicate whether
+        # a call is in progress.  setting a session key is deferred
+        # until after the call returns.
+        self.waiting_for_reply = 0
+        self.delay_sesskey = None
         self.register_object(obj)
         self.handshake()
 
@@ -249,7 +255,11 @@ class Connection(smac.SizedMessageAsyncConnection):
 
         meth = getattr(self.obj, name)
         try:
-            ret = meth(*args)
+            self.waiting_for_reply = 1
+            try:
+                ret = meth(*args)
+            finally:
+                self.waiting_for_reply = 0
         except (SystemExit, KeyboardInterrupt):
             raise
         except Exception, msg:
@@ -270,6 +280,10 @@ class Connection(smac.SizedMessageAsyncConnection):
                 ret.set_sender(msgid, self.send_reply, self.return_error)
             else:
                 self.send_reply(msgid, ret)
+
+        if self.delay_sesskey:
+            self.__super_setSessionKey(self.delay_sesskey)
+            self.delay_sesskey = None
 
     def handle_error(self):
         if sys.exc_info()[0] == SystemExit:
@@ -317,6 +331,12 @@ class Connection(smac.SizedMessageAsyncConnection):
             msg = self.marshal.encode(msgid, 0, REPLY, (ZRPCError, err))
         self.message_output(msg)
         self.poll()
+
+    def setSessionKey(self, key):
+        if self.waiting_for_reply:
+            self.delay_sesskey = key
+        else:
+            self.__super_setSessionKey(key)
 
     # The next two public methods (call and callAsync) are used by
     # clients to invoke methods on remote objects

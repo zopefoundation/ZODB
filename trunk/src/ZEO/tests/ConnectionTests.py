@@ -41,6 +41,8 @@ from ZODB.tests.StorageTestBase import handle_all_serials, ZERO
 
 class TestClientStorage(ClientStorage):
 
+    test_connection = 0
+
     def verify_cache(self, stub):
         self.end_verify = threading.Event()
         self.verify_result = ClientStorage.verify_cache(self, stub)
@@ -48,6 +50,12 @@ class TestClientStorage(ClientStorage):
     def endVerify(self):
         ClientStorage.endVerify(self)
         self.end_verify.set()
+
+    def testConnection(self, conn):
+        try:
+            return ClientStorage.testConnection(self, conn)
+        finally:
+            self.test_connection = 1
 
 class DummyDB:
     def invalidate(self, *args, **kwargs):
@@ -113,21 +121,36 @@ class CommonSetupTearDown(StorageTestBase):
         # port+1 is also used, so only draw even port numbers
         return 'localhost', random.randrange(25000, 30000, 2)
 
-    def getConfig(self):
+    def getConfig(self, path, create, read_only):
         raise NotImplementedError
 
     def openClientStorage(self, cache='', cache_size=200000, wait=1,
-                          read_only=0, read_only_fallback=0):
-        base = TestClientStorage(self.addr,
-                                 client=cache,
-                                 cache_size=cache_size,
-                                 wait=wait,
-                                 min_disconnect_poll=0.1,
-                                 read_only=read_only,
-                                 read_only_fallback=read_only_fallback)
-        storage = base
+                          read_only=0, read_only_fallback=0,
+                          username=None, password=None, realm=None):
+        storage = TestClientStorage(self.addr,
+                                    client=cache,
+                                    cache_size=cache_size,
+                                    wait=wait,
+                                    min_disconnect_poll=0.1,
+                                    read_only=read_only,
+                                    read_only_fallback=read_only_fallback,
+                                    username=username,
+                                    password=password,
+                                    realm=realm)
         storage.registerDB(DummyDB(), None)
         return storage
+
+    def getServerConfig(self, addr, ro_svr):
+        zconf = forker.ZEOConfig(addr)
+        if ro_svr:
+            zconf.read_only = 1
+        if self.monitor:
+             zconf.monitor_address = ("", 42000)
+        if self.invq:
+            zconf.invalidation_queue_size = self.invq
+        if self.timeout:
+            zconf.transaction_timeout = self.timeout
+        return zconf
 
     def startServer(self, create=1, index=0, read_only=0, ro_svr=0):
         addr = self.addr[index]
@@ -136,15 +159,7 @@ class CommonSetupTearDown(StorageTestBase):
                  (create, index, read_only, addr))
         path = "%s.%d" % (self.file, index)
         sconf = self.getConfig(path, create, read_only)
-        zconf = forker.ZEOConfig(addr)
-        if ro_svr:
-            zconf.read_only = 1
-        if self.monitor:
-            zconf.monitor_address = ("", 42000)
-        if self.invq:
-            zconf.invalidation_queue_size = self.invq
-        if self.timeout:
-            zconf.transaction_timeout = self.timeout
+        zconf = self.getServerConfig(addr, ro_svr)
         zeoport, adminaddr, pid, path = forker.start_zeo_server(sconf, zconf,
                                                                 addr[1],
                                                                 self.keep)
@@ -448,7 +463,6 @@ class ConnectionTests(CommonSetupTearDown):
 
         self._storage = self.openClientStorage()
         self._dostore()
-
         
     # Test case for multiple storages participating in a single
     # transaction.  This is not really a connection test, but it needs

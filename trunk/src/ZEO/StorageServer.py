@@ -1,6 +1,6 @@
 ##############################################################################
 #
-# Copyright (c) 2001, 2002 Zope Corporation and Contributors.
+# Copyright (c) 2001, 2002, 2003 Zope Corporation and Contributors.
 # All Rights Reserved.
 #
 # This software is subject to the provisions of the Zope Public License,
@@ -35,6 +35,7 @@ from ZEO.monitor import StorageStats, StatsServer
 from ZEO.zrpc.server import Dispatcher
 from ZEO.zrpc.connection import ManagedServerConnection, Delay, MTDelay
 from ZEO.zrpc.trigger import trigger
+from ZEO.Exceptions import AuthError
 
 import zLOG
 from ZODB.ConflictResolution import ResolvedSerial
@@ -62,10 +63,13 @@ class ZEOStorage:
     """Proxy to underlying storage for a single remote client."""
 
     # Classes we instantiate.  A subclass might override.
-
     ClientStorageStubClass = ClientStub.ClientStorage
 
-    def __init__(self, server, read_only=0):
+    # A list of extension methods.  A subclass with extra methods
+    # should override.
+    extensions = []
+
+    def __init__(self, server, read_only=0, auth_realm=None):
         self.server = server
         # timeout and stats will be initialized in register()
         self.timeout = None
@@ -79,7 +83,22 @@ class ZEOStorage:
         self.locked = 0
         self.verifying = 0
         self.log_label = _label
+        self.authenticated = 0
+        self.auth_realm = auth_realm
+        # The authentication protocol may define extra methods.
+        self._extensions = {}
+        for func in self.extensions:
+            self._extensions[func.func_name] = None
+        
+    def finish_auth(self, authenticated):
+        if not self.auth_realm:
+            return 1
+        self.authenticated = authenticated
+        return authenticated
 
+    def set_database(self, database):
+        self.database = database
+        
     def notifyConnected(self, conn):
         self.connection = conn # For restart_other() below
         self.client = self.ClientStorageStubClass(conn)
@@ -133,9 +152,11 @@ class ZEOStorage:
             # can be removed
             pass
         else:
-            for name in fn().keys():
-                if not hasattr(self,name):
-                    setattr(self, name, getattr(self.storage, name))
+            d = fn()
+            self._extensions.update(d)
+            for name in d.keys():
+                assert not hasattr(self, name)
+                setattr(self, name, getattr(self.storage, name))
         self.lastTransaction = self.storage.lastTransaction
 
     def _check_tid(self, tid, exc=None):
@@ -159,11 +180,25 @@ class ZEOStorage:
                 return 0
         return 1
 
+    def getAuthProtocol(self):
+        """Return string specifying name of authentication module to use.
+
+        The module name should be auth_%s where %s is auth_protocol."""
+        protocol = self.server.auth_protocol
+        if not protocol or protocol == 'none':
+            return None
+        return protocol
+    
     def register(self, storage_id, read_only):
         """Select the storage that this client will use
 
         This method must be the first one called by the client.
+        For authenticated storages this method will be called by the client
+        immediately after authentication is finished.
         """
+        if self.auth_realm and not self.authenticated:
+            raise AuthError, "Client was never authenticated with server!"
+
         if self.storage is not None:
             self.log("duplicate register() call")
             raise ValueError, "duplicate register() call"
@@ -199,12 +234,7 @@ class ZEOStorage:
                 }
 
     def getExtensionMethods(self):
-        try:
-            e = self.storage.getExtensionMethods
-        except AttributeError:
-            return {}
-        else:
-            return e()
+        return self._extensions
 
     def zeoLoad(self, oid):
         self.stats.loads += 1
@@ -579,7 +609,10 @@ class StorageServer:
     def __init__(self, addr, storages, read_only=0,
                  invalidation_queue_size=100,
                  transaction_timeout=None,
-                 monitor_address=None):
+                 monitor_address=None,
+                 auth_protocol=None,
+                 auth_filename=None,
+                 auth_realm=None):
         """StorageServer constructor.
 
         This is typically invoked from the start.py script.
@@ -620,7 +653,22 @@ class StorageServer:
         monitor_address -- The address at which the monitor server
             should listen.  If specified, a monitor server is started.
             The monitor server provides server statistics in a simple
-            text format. 
+            text format.
+
+        auth_protocol -- The name of the authentication protocol to use.
+            Examples are "digest" and "srp".
+            
+        auth_filename -- The name of the password database filename.
+            It should be in a format compatible with the authentication
+            protocol used; for instance, "sha" and "srp" require different
+            formats.
+            
+            Note that to implement an authentication protocol, a server
+            and client authentication mechanism must be implemented in a
+            auth_* module, which should be stored inside the "auth"
+            subdirectory. This module may also define a DatabaseClass
+            variable that should indicate what database should be used
+            by the authenticator.
         """
 
         self.addr = addr
@@ -635,6 +683,12 @@ class StorageServer:
         for s in storages.values():
             s._waiting = []
         self.read_only = read_only
+        self.auth_protocol = auth_protocol
+        self.auth_filename = auth_filename
+        self.auth_realm = auth_realm
+        self.database = None
+        if auth_protocol:
+            self._setup_auth(auth_protocol)
         # A list of at most invalidation_queue_size invalidations
         self.invq = []
         self.invq_bound = invalidation_queue_size
@@ -656,7 +710,41 @@ class StorageServer:
             self.monitor = StatsServer(monitor_address, self.stats)
         else:
             self.monitor = None
+            
+    def _setup_auth(self, protocol):
+        # Can't be done in global scope, because of cyclic references
+        from ZEO.auth import get_module
 
+        name = self.__class__.__name__
+
+        module = get_module(protocol)
+        if not module:
+            log("%s: no such an auth protocol: %s" % (name, protocol))
+            return
+        
+        storage_class, client, db_class = module
+        
+        if not storage_class or not issubclass(storage_class, ZEOStorage):
+            log(("%s: %s isn't a valid protocol, must have a StorageClass" %
+                 (name, protocol)))
+            self.auth_protocol = None
+            return
+        self.ZEOStorageClass = storage_class
+
+        log("%s: using auth protocol: %s" % (name, protocol))
+        
+        # We create a Database instance here for use with the authenticator
+        # modules. Having one instance allows it to be shared between multiple
+        # storages, avoiding the need to bloat each with a new authenticator
+        # Database that would contain the same info, and also avoiding any
+        # possibly synchronization issues between them.
+        self.database = db_class(self.auth_filename)
+        if self.database.realm != self.auth_realm:
+            raise ValueError("password database realm %r "
+                             "does not match storage realm %r"
+                             % (self.database.realm, self.auth_realm))
+
+        
     def new_connection(self, sock, addr):
         """Internal: factory to create a new connection.
 
@@ -664,8 +752,14 @@ class StorageServer:
         whenever accept() returns a socket for a new incoming
         connection.
         """
-        z = self.ZEOStorageClass(self, self.read_only)
-        c = self.ManagedServerConnectionClass(sock, addr, z, self)
+        if self.auth_protocol and self.database:
+            zstorage = self.ZEOStorageClass(self, self.read_only,
+                                            auth_realm=self.auth_realm)
+            zstorage.set_database(self.database)
+        else:
+            zstorage = self.ZEOStorageClass(self, self.read_only)
+            
+        c = self.ManagedServerConnectionClass(sock, addr, zstorage, self)
         log("new connection %s: %s" % (addr, `c`))
         return c
 

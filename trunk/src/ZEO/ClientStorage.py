@@ -1,6 +1,6 @@
 ##############################################################################
 #
-# Copyright (c) 2001, 2002 Zope Corporation and Contributors.
+# Copyright (c) 2001, 2002, 2003 Zope Corporation and Contributors.
 # All Rights Reserved.
 #
 # This software is subject to the provisions of the Zope Public License,
@@ -28,13 +28,14 @@ import types
 
 from ZEO import ClientCache, ServerStub
 from ZEO.TransactionBuffer import TransactionBuffer
-from ZEO.Exceptions \
-     import ClientStorageError, UnrecognizedResult, ClientDisconnected
+from ZEO.Exceptions import ClientStorageError, UnrecognizedResult, \
+     ClientDisconnected, AuthError
+from ZEO.auth import get_module
 from ZEO.zrpc.client import ConnectionManager
 
 from ZODB import POSException
 from ZODB.TimeStamp import TimeStamp
-from zLOG import LOG, PROBLEM, INFO, BLATHER
+from zLOG import LOG, PROBLEM, INFO, BLATHER, ERROR
 
 def log2(type, msg, subsys="ZCS:%d" % os.getpid()):
     LOG(subsys, type, msg)
@@ -99,8 +100,8 @@ class ClientStorage:
                  min_disconnect_poll=5, max_disconnect_poll=300,
                  wait_for_server_on_startup=None, # deprecated alias for wait
                  wait=None, # defaults to 1
-                 read_only=0, read_only_fallback=0):
-
+                 read_only=0, read_only_fallback=0,
+                 username='', password='', realm=None):
         """ClientStorage constructor.
 
         This is typically invoked from a custom_zodb.py file.
@@ -159,6 +160,17 @@ class ClientStorage:
             writable storages are available.  Defaults to false.  At
             most one of read_only and read_only_fallback should be
             true.
+
+        username -- string with username to be used when authenticating.
+            These only need to be provided if you are connecting to an
+            authenticated server storage.
+ 
+        password -- string with plaintext password to be used
+            when authenticated.
+
+        Note that the authentication protocol is defined by the server
+        and is detected by the ClientStorage upon connecting (see
+        testConnection() and doAuth() for details).
         """
 
         log2(INFO, "%s (pid=%d) created %s/%s for storage: %r" %
@@ -217,6 +229,9 @@ class ClientStorage:
         self._conn_is_read_only = 0
         self._storage = storage
         self._read_only_fallback = read_only_fallback
+        self._username = username
+        self._password = password
+        self._realm = realm
         # _server_addr is used by sortKey()
         self._server_addr = None
         self._tfile = None
@@ -347,6 +362,29 @@ class ClientStorage:
         if cn is not None:
             cn.pending()
 
+    def doAuth(self, protocol, stub):
+        if not (self._username and self._password):
+            raise AuthError, "empty username or password"
+
+        module = get_module(protocol)
+        if not module:
+            log2(PROBLEM, "%s: no such an auth protocol: %s" %
+                 (self.__class__.__name__, protocol))
+            return
+
+        storage_class, client, db_class = module
+
+        if not client:
+            log2(PROBLEM,
+                 "%s: %s isn't a valid protocol, must have a Client class" %
+                 (self.__class__.__name__, protocol))
+            raise AuthError, "invalid protocol"
+        
+        c = client(stub)
+        
+        # Initiate authentication, returns boolean specifying whether OK
+        return c.start(self._username, self._realm, self._password)
+        
     def testConnection(self, conn):
         """Internal: test the given connection.
 
@@ -372,6 +410,16 @@ class ClientStorage:
         # XXX Check the protocol version here?
         self._conn_is_read_only = 0
         stub = self.StorageServerStubClass(conn)
+
+        auth = stub.getAuthProtocol()
+        log2(INFO, "Server authentication protocol %r" % auth)
+        if auth:
+            if self.doAuth(auth, stub):
+                log2(INFO, "Client authentication successful")
+            else:
+                log2(ERROR, "Authentication failed")
+                raise AuthError, "Authentication failed"
+        
         try:
             stub.register(str(self._storage), self._is_read_only)
             return 1
@@ -416,14 +464,14 @@ class ClientStorage:
         stub = self.StorageServerStubClass(conn)
         self._oids = []
         self._info.update(stub.get_info())
-        self._handle_extensions()
         self.verify_cache(stub)
         if not conn.is_async():
             log2(INFO, "Waiting for cache verification to finish")
             self._wait_sync()
+        self._handle_extensions()
 
     def _handle_extensions(self):
-        for name in self.getExtensionMethods():
+        for name in self.getExtensionMethods().keys():
             if not hasattr(self, name):
                 setattr(self, name, self._server.extensionMethod(name))
 
