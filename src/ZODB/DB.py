@@ -13,7 +13,7 @@
 ##############################################################################
 """Database objects
 
-$Id: DB.py,v 1.72 2004/04/01 03:56:58 jeremy Exp $"""
+$Id: DB.py,v 1.73 2004/04/08 18:12:25 tim_one Exp $"""
 
 import cPickle, cStringIO, sys
 from thread import allocate_lock
@@ -72,7 +72,7 @@ class DB(object):
         setCacheDeactivateAfter,
         getVersionCacheDeactivateAfter, setVersionCacheDeactivateAfter
     """
-    
+
     klass = Connection  # Class to use for connections
     _activity_monitor = None
 
@@ -163,14 +163,21 @@ class DB(object):
         return m
 
     def _closeConnection(self, connection):
-        """Return a connection to the pool"""
+        """Return a connection to the pool.
+
+        connection._db must be self on entry.
+        """
+
         self._a()
         try:
+            assert connection._db is self
+            connection._db = None
+
             am = self._activity_monitor
             if am is not None:
                 am.closedConnection(connection)
-            version=connection._version
-            pools,pooll=self._pools
+            version = connection._version
+            pools, pooll = self._pools
             try:
                 pool, allocated, pool_lock = pools[version]
             except KeyError:
@@ -184,7 +191,7 @@ class DB(object):
                 return
 
             pool.append(connection)
-            if len(pool)==1:
+            if len(pool) == 1:
                 # Pool now usable again, unlock it.
                 pool_lock.release()
         finally:
@@ -708,7 +715,7 @@ class AbortVersion(ResourceManager):
     def __init__(self, db, version):
         super(AbortVersion, self).__init__(db)
         self._version = version
-        
+
     def commit(self, ob, t):
         tid, oids = self._db._storage.abortVersion(self._version, t)
         self._db.invalidate(tid, dict.fromkeys(oids, 1), version=self._version)
