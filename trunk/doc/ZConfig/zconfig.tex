@@ -800,7 +800,10 @@ The main \module{ZConfig} package exports these convenience functions:
 \end{funcdesc}
 
 \begin{funcdesc}{loadSchema}{url}
-  Load a schema definition from the URL \var{url}.  The resulting
+  Load a schema definition from the URL \var{url}.
+  \var{url} may be a URL, absolute pathname, or relative pathname.
+  Fragment identifiers are not supported.
+  The resulting
   schema object can be passed to \function{loadConfig()} or
   \function{loadConfigFile()}.  The schema object may be used as many
   times as needed.
