@@ -28,6 +28,22 @@ import zLOG.tests
 
 class TestzLOGConfig(unittest.TestCase):
 
+    # XXX This tries to save and restore the state of logging around
+    # the test.  Somewhat surgical; there may be a better way.
+
+    def setUp(self):
+        self._old_logger = logging.getLogger("event")
+        self._old_level = self._old_logger.level
+        self._old_handlers = self._old_logger.handlers[:]
+        self._old_logger.handlers[:] = [zLOG.LogHandlers.NullHandler()]
+
+    def tearDown(self):
+        for h in self._old_logger.handlers:
+            self._old_logger.removeHandler(h)
+        for h in self._old_handlers:
+            self._old_logger.addHandler(h)
+        self._old_logger.setLevel(self._old_level)
+
     _schema = None
     _schematext = """
       <schema>
