@@ -104,7 +104,7 @@ class ConflictResolvingStorage:
         # pickle is to commit two different transactions relative to
         # revid1 that add two to _value.
         revid2 = self._dostoreNP(oid, revid=revid1, data=zodb_pickle(obj))
-        self.assertRaises(AttributeError,
+        self.assertRaises(ConflictError,
                           self._dostoreNP,
                           oid, revid=revid1, data=zodb_pickle(obj))
 
@@ -122,7 +122,7 @@ class ConflictResolvingStorage:
         # pickle is to commit two different transactions relative to
         # revid1 that add two to _value.
         revid2 = self._dostoreNP(oid, revid=revid1, data=zodb_pickle(obj))
-        self.assertRaises(TypeError,
+        self.assertRaises(ConflictError,
                           self._dostoreNP,
                           oid, revid=revid1, data=zodb_pickle(obj))
 
