@@ -83,7 +83,7 @@
 # 
 ##############################################################################
 
-__version__ = "$Revision: 1.13 $"[11:-2]
+__version__ = "$Revision: 1.14 $"[11:-2]
 
 import asyncore, socket, string, sys, cPickle, os
 from smac import SizedMessageAsyncConnection
@@ -389,13 +389,17 @@ class Connection(SizedMessageAsyncConnection):
 
     def storea(self, oid, serial, data, version, id,
                dump=dump):
-        t=self._transaction
-        if t is None or id != t.id:
-            raise POSException.StorageTransactionError(self, id)
+        try:
+            t=self._transaction
+            if t is None or id != t.id:
+                raise POSException.StorageTransactionError(self, id)
         
-        try: newserial=self.__storage.store(oid, serial, data, version, t)
-        except POSException.ConflictError, v:
-            newserial=v
+            newserial=self.__storage.store(oid, serial, data, version, t)
+        except:
+            # all errors need to be serialized to prevent unexpected
+            # returns, which would screw up the return handling.
+            # IOW, 
+            newserial=sys.exc_info()[1]
         else:
             if serial != '\0\0\0\0\0\0\0\0':
                 self.__invalidated.append((oid, version))
