@@ -84,13 +84,13 @@
 ##############################################################################
 """Transaction management
 
-$Id: Transaction.py,v 1.7 1999/05/18 15:55:10 jim Exp $"""
-__version__='$Revision: 1.7 $'[11:-2]
+$Id: Transaction.py,v 1.8 1999/06/29 18:28:38 jim Exp $"""
+__version__='$Revision: 1.8 $'[11:-2]
 
 import time, sys, struct
 from struct import pack
 from string import split, strip, join
-
+from zLOG import LOG, ERROR
 from POSException import ConflictError
 
 class Transaction:
@@ -99,6 +99,7 @@ class Transaction:
     description=''
     _connections=None
     _extension=None
+    _sub=None # This is a subtrasaction flag
 
     def __init__(self, id=None):
         self._id=id
@@ -114,6 +115,7 @@ class Transaction:
             del self._connections
 
     def sub(self):
+        # Create a manually managed subtransaction for internal use
         r=self.__class__()
         r.user=self.user
         r.description=self.description
@@ -122,13 +124,23 @@ class Transaction:
         
     def __str__(self): return "%.3f\t%s" % (self._id, self.user)
 
-    def abort(self, freeme=1):
+    def abort(self, sub=0, freeme=1):
         '''Abort the transaction.
 
         This is called from the application.  This means that we haven\'t
         entered two-phase commit yet, so no tpc_ messages are sent.
         '''
         t=v=tb=None
+        subj=self._sub
+        subjars=()
+
+        if not sub:
+            if subj is not None:
+                # Abort of top-level transaction after commiting
+                # subtransactions.
+                subjars=subj.values()
+                self._sub=None
+
         try:
             # Abort the objects
             for o in self._objects:
@@ -138,42 +150,79 @@ class Transaction:
                 except:
                     if t is None:
                         t,v,tb=sys.exc_info()
+
+            # Ugh, we need to abort work done in sub-transactions.
+            while subjars:
+                j=subjars.pop()
+                j.abort_sub(self) # This should never fail
         
             if t is not None: raise t,v,tb
 
         finally:
             tb=None
-            if self._id is not None and freeme: free_transaction()
+            if sub:
+                del self._objects[:] # make sure it's empty (shouldn't need)
+            elif freeme:
+                if self._id is not None: free_transaction()
+            else: self._init()
 
-    def begin(self, info=None):
+    def begin(self, sub=None, info=None):
         '''Begin a new transaction.
 
         This aborts any transaction in progres.
         '''
-        if self._objects: self.abort(0)
-        self._init()
+        if self._objects: self.abort(sub, 0)
         if info:
             info=split(info,'\t')
             self.user=strip(info[0])
             self.description=strip(join(info[1:],'\t'))
 
-    def commit(self):
+    def commit(self, sub=None):
         'Finalize the transaction'
-        
-        t=v=tb=None
-        jars={}
+
         objects=self._objects
+        jars={}
+        subj=self._sub
+        subjars=()
+        if sub:
+            if subj is None: self._sub=subj={}
+        else:
+            if subj is not None:
+                if objects:
+                    # Do an implicit sub-transaction commit:
+                    self.commit(1)
+                    objects=()
+                subjars=subj.values()
+                self._sub=None
+
+        t=v=tb=None
+
         try:
             try:
                 while objects:
                     o=objects[-1]
                     j=getattr(o, '_p_jar', o)
+                    #if j is None:
+                    #    print 'waaa'
+                    #    print o, o._p_oid
+                    #    raise 'what the hell'
                     i=id(j)
                     if not jars.has_key(i):
                         jars[i]=j
-                        j.tpc_begin(self)
+                        if sub: subj[i]=j
+                        j.tpc_begin(self, sub)
                     j.commit(o,self)
                     del objects[-1]
+
+                # Commit work done in subtransactions
+                while subjars:
+                    j=subjars.pop()
+                    i=id(j)
+                    if not jars.has_key(i):
+                        jars[i]=j
+                    
+                    j.commit_sub(self)
+                
             except:
                 t,v,tb=sys.exc_info()
 
@@ -192,6 +241,11 @@ class Transaction:
                     try: j.tpc_abort(self) # This should never fail
                     except: pass
 
+                # Ugh, we need to abort work done in sub-transactions.
+                while subjars:
+                    j=subjars.pop()
+                    j.abort_sub(self) # This should never fail
+
                 raise t,v,tb
 
             for j in jars.values():
@@ -205,7 +259,9 @@ class Transaction:
 
         finally:
             tb=None
-            if self._id is not None: free_transaction()
+            if sub:
+                del self._objects[:] # make sure it's empty (shouldn't need)
+            elif self._id is not None: free_transaction()
 
     def register(self,object):
         'Register the given object for transaction control.'
