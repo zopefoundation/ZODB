@@ -11,7 +11,7 @@
 # FOR A PARTICULAR PURPOSE
 #
 ##############################################################################
-"""Provide backward compatability with storages that have undoLog, but not undoInfo."""
+"""Provide backward compatibility with storages that only have undoLog()."""
 
 
 class UndoLogCompatible:
