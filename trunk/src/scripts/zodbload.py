@@ -89,6 +89,30 @@ Usage: loadmail2 [options]
 
        Specify the mailbox for getting input data.
 
+       There is a (lame) syntax for providing options within the
+       filename. The filename may be followed by up to 3 integers,
+       min, max, and start:
+
+         -mbox 'foo.mbox 0 100 10000'
+
+       The messages from min to max will be read from the mailbox.
+       They will be assigned message numbers starting with start.
+       So, in the example above, we read the first hundred messages
+       and assign thgem message numbers starting with 10001.
+
+       The maxmum can be given as a negative number, in which case, it
+       specifies the number of messages to read.
+
+       The start defaults to the minimum. The following two options:
+
+         -mbox 'foo.mbox 300 400 300'
+
+       and
+
+         -mbox 'foo.mbox 300 -100'
+
+       are equivalent
+
 $Id$
 """
 
@@ -126,11 +150,28 @@ class MBox:
 
     def __init__(self, filename):
         if ' ' in filename:
-            filename, min, max = filename.split()
+            filename = filename.split()
+            if len(filename) < 4:
+                filename += [0, 0, -1][-(4-len(filename)):]
+            filename, min, max, start = filename
             min = int(min)
             max = int(max)
+            start = int(start)
+
+            if start < 0:
+                start = min
+
+            if max < 0:
+                # negative max is treated as a count
+                self._max = start - max
+            elif max > 0:
+                self._max = start + max - min
+            else:
+                self._max = 0
+
         else:
-            min = max = 0
+            self._max = 0
+            min = start = 0
 
         if filename.endswith('.bz2'):
             f = os.popen("bunzip2 <"+filename, 'r')
@@ -140,7 +181,7 @@ class MBox:
 
         self._mbox = mb = mailbox.UnixMailbox(f)
 
-        self.number = min
+        self.number = start
         while min:
             mb.next()
             min -= 1
@@ -291,10 +332,20 @@ def run(jobs, tid=''):
                 run1(tid, Zope2.DB, factory, job, args)
 
 
-def index(connection, messages, catalog):
+def index(connection, messages, catalog, max):
     app = connection.root()['Application']
     for message in messages:
         mail = mailfolder(app, message.mbox, message.number)
+
+        if max:
+            # Cheat and use folder implementation secrets
+            # to avoid having to read the old data
+            _objects = mail._objects
+            if len(_objects) >= max:
+                for d in _objects[:len(_objects)-max+1]:
+                    del mail.__dict__[d['id']]
+                mail._objects = _objects[len(_objects)-max+1:]
+
         docid = 'm'+str(message.number)
         mail.manage_addDTMLDocument(docid, file=message.body)
 
@@ -330,13 +381,13 @@ class IndexJob:
     catalog = 1
     prefix = 'index'
 
-    def __init__(self, mbox, number=1):
+    def __init__(self, mbox, number=1, max=0):
         self.__name__ = "%s%s_%s" % (self.prefix, number, mbox.__name__)
-        self.mbox, self.number = mbox, int(number)
+        self.mbox, self.number, self.max = mbox, int(number), int(max)
 
     def create(self):
         messages = [self.mbox.next() for i in range(self.number)]
-        return index, (messages, self.catalog)
+        return index, (messages, self.catalog, self.max)
 
 
 class InsertJob(IndexJob):
@@ -730,6 +781,9 @@ def main(args=None):
     if options["mbox"]:
         mboxes[options["mbox"]] = MBox(options["mbox"])
 
+    # Perform a ZConfig-based Zope initialization:
+    zetup(os.path.join(lib_python, '..', '..', 'etc', 'zope.conf'))
+
     if options.has_key('setup'):
         setup(lib_python)
     else:
@@ -768,6 +822,20 @@ def main(args=None):
             thread.join()
     else:
         run(jobs)
+
+
+def zetup(configfile_name):
+    from Zope.Startup.options import ZopeOptions
+    from Zope.Startup import handlers as h
+    from App import config
+    opts = ZopeOptions()
+    opts.configfile = configfile_name
+    opts.realize(args=[])
+    h.handleConfig(opts.configroot, opts.confighandlers)
+    config.setConfiguration(opts.configroot)
+    from Zope.Startup import dropPrivileges
+    dropPrivileges(opts.configroot)
+
 
 
 if __name__ == '__main__':
