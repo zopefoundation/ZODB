@@ -103,7 +103,25 @@ class PackableStorageBase:
 
 
 class PackableStorage(PackableStorageBase):
+    def _initroot(self):
+        try:
+            self._storage.load('\0\0\0\0\0\0\0\0','')
+        except KeyError:
+            import PersistentMapping
+            file = StringIO()
+            p = Pickler(file, 1)
+            p.dump((PersistentMapping.PersistentMapping, None))
+            p.dump({'_container': {}})
+            t=Transaction()
+            t.description='initial database creation'
+            self._storage.tpc_begin(t)
+            self._storage.store('\0\0\0\0\0\0\0\0',
+                                None, file.getvalue(), '', t)
+            self._storage.tpc_vote(t)
+            self._storage.tpc_finish(t)
+            
     def checkPackAllRevisions(self):
+        self._initroot()
         eq = self.assertEqual
         raises = self.assertRaises
         # Create a `persistent' object
@@ -138,6 +156,7 @@ class PackableStorage(PackableStorageBase):
         raises(KeyError, self._storage.loadSerial, oid, revid3)
 
     def checkPackJustOldRevisions(self):
+        self._initroot()
         eq = self.assertEqual
         raises = self.assertRaises
         loads = self._makeloader()
