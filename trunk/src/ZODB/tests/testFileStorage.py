@@ -167,6 +167,55 @@ class FileStorageTests(
 
         self.failUnless(self._storage._records_before_save > 20)
 
+    def checkCorruptionInPack(self):
+        # This sets up a corrupt .fs file, with a redundant transaction
+        # length mismatch.  The implementation of pack in many releases of
+        # ZODB blew up if the .fs file had such damage:  it detected the
+        # damage, but the code to raise CorruptedError referenced an undefined
+        # global.
+        import time
+
+        from ZODB.DB import DB
+        from ZODB.utils import U64, p64
+        from ZODB.FileStorage.format import CorruptedError
+
+        db = DB(self._storage)
+        conn = db.open()
+        conn.root()['xyz'] = 1
+        get_transaction().commit()
+
+        # Ensure it's all on disk.
+        db.close()
+        self._storage.close()
+
+        # Reopen before damaging.
+        self.open()
+
+        # Open .fs directly, and damage content.
+        f = open('FileStorageTests.fs', 'r+b')
+        f.seek(0, 2)
+        pos2 = f.tell() - 8
+        f.seek(pos2)
+        tlen2 = U64(f.read(8))  # length-8 of the last transaction
+        pos1 = pos2 - tlen2 + 8 # skip over the tid at the start
+        f.seek(pos1)
+        tlen1 = U64(f.read(8))  # should be redundant length-8
+        self.assertEqual(tlen1, tlen2)  # verify that it is redundant
+
+        # Now damage the second copy.
+        f.seek(pos2)
+        f.write(p64(tlen2 - 1))
+        f.close()
+
+        # Try to pack.  This used to yield
+        #     NameError: global name 's' is not defined
+        try:
+            self._storage.pack(time.time(), None)
+        except CorruptedError, detail:
+            self.assert_("redundant transaction length does not match "
+                         "initial transaction length" in str(detail))
+        else:
+            self.fail("expected CorruptedError")
 
 class FileStorageRecoveryTest(
     StorageTestBase.StorageTestBase,
