@@ -68,11 +68,14 @@ def main(args):
     t = ZEOTestServer(('', test_port), storage)
     addr = ('', zeo_port)
     serv = ZEO.StorageServer.StorageServer(addr, {'1': storage}, ro_svr)
-    import zLOG
-    label = "winserver:%d" % os.getpid()
-    while asyncore.socket_map:
-        zLOG.LOG(label, zLOG.DEBUG, "map: %r" % asyncore.socket_map)
-	asyncore.poll(30.0)
+    asyncore.loop()
+    # XXX The code below is evil because it can cause deadlocks in zrpc.
+    # (To fix it, calling ThreadedAsync._start_loop() might help.)
+##    import zLOG
+##    label = "winserver:%d" % os.getpid()
+##    while asyncore.socket_map:
+##        zLOG.LOG(label, zLOG.DEBUG, "map: %r" % asyncore.socket_map)
+##        asyncore.poll(30.0)
 
 if __name__ == "__main__":
     import sys
