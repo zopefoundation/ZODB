@@ -69,6 +69,3 @@ class LockFile:
             self._fp.close()
             os.unlink(self._path)
             self._fp = None
-
-    def __del__(self):
-        self.close()
