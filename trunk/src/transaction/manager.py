@@ -18,7 +18,7 @@ class AbstractTransactionManager(object):
     # XXX the methods below use assertions, but perhaps they should
     # check errors.  on the other hand, the transaction instances
     # do raise exceptions.
-    
+
     def commit(self, txn):
         # commit calls _finishCommit() or abort()
         assert txn._status is Status.ACTIVE
@@ -112,7 +112,7 @@ class TransactionManager(AbstractTransactionManager):
                                    "transaction is active")
         self._suspended.remove(txn)
         self._current = txn
-            
+
 class Rollback(object):
 
     __implements__ = IRollback
