@@ -8,7 +8,7 @@
 # THIS SOFTWARE IS PROVIDED "AS IS" AND ANY AND ALL EXPRESS OR IMPLIED
 # WARRANTIES ARE DISCLAIMED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 # WARRANTIES OF TITLE, MERCHANTABILITY, AGAINST INFRINGEMENT, AND FITNESS
-# FOR A PARTICULAR PURPOSE
+# FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
 """Utilities for setting up the server environment."""
@@ -16,10 +16,10 @@
 import os
 
 def parentdir(p, n=1):
-    """Return the parent of p, n levels up."""
+    """Return the ancestor of p from n levels up."""
     d = p
     while n:
-        d = os.path.split(d)[0]
+        d = os.path.dirname(d)
         if not d or d == '.':
             d = os.getcwd()
         n -= 1
