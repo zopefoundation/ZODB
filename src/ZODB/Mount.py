@@ -13,14 +13,20 @@
 ##############################################################################
 """Mounted database support
 
-$Id: Mount.py,v 1.23 2004/03/04 22:41:50 jim Exp $"""
-__version__='$Revision: 1.23 $'[11:-2]
+$Id: Mount.py,v 1.24 2004/04/22 21:27:43 gintautasm Exp $"""
+__version__='$Revision: 1.24 $'[11:-2]
 
-import thread, persistent, Acquisition
+import string
+import time
+import sys
+import thread
+import logging
+import persistent
+import Acquisition
 from Acquisition import aq_base
-import string, time, sys
 from POSException import MountedStorageError
-from zLOG import LOG, INFO, WARNING
+
+logger = logging.getLogger('zodb.Mount')
 
 # dbs is a holder for all DB objects, needed to overcome
 # threading issues.  It maps connection params to a DB object
@@ -99,7 +105,7 @@ class MountPoint(persistent.Persistent, Acquisition.Implicit):
             params = self._params
             dbInfo = dbs.get(params, None)
             if dbInfo is None:
-                LOG('ZODB', INFO, 'Opening database for mounting: %s' % params)
+                logger.info('Opening database for mounting: %s', params)
                 db = self._createDB()
                 newMount = 1
                 dbs[params] = (db, {self.__mountpoint_id:1})
@@ -183,8 +189,8 @@ class MountPoint(persistent.Persistent, Acquisition.Implicit):
                 try: id = data.getId()
                 except: id = '???'  # data has no getId() method.  Bad.
                 p = string.join(parent.getPhysicalPath() + (id,), '/')
-                LOG('ZODB', INFO, 'Mounted database %s at %s' %
-                    (self._getMountParams(), p))
+                logger.info('Mounted database %s at %s',
+                            self._getMountParams(), p)
         else:
             data = t[0]
 
@@ -229,9 +235,8 @@ class MountPoint(persistent.Persistent, Acquisition.Implicit):
         except:
             from StringIO import StringIO
         import traceback
-        exc = sys.exc_info()
-        LOG('ZODB', WARNING, 'Failed to mount database. %s (%s)' % exc[:2],
-            error=exc)
+        logger.warning('Failed to mount database. %s (%s)', exc[:2],
+                       exc_info=True)
         f=StringIO()
         traceback.print_tb(exc[2], 100, f)
         self._v_connect_error = (exc[0], exc[1], f.getvalue())
@@ -275,8 +280,10 @@ class MountedConnectionCloser:
                     del data.__dict__['_v__object_deleted__']
                     close_db = 1
             # Close the child connection.
-            try: del conn._mount_parent_jar
-            except: pass
+            try:
+                del conn._mount_parent_jar
+            except:
+                pass
             conn.close()
 
         if close_db:
@@ -295,6 +302,6 @@ class MountedConnectionCloser:
                         # No more mount points are using this database.
                         del dbs[params]
                         db.close()
-                        LOG('ZODB', INFO, 'Closed database: %s' % params)
+                        logger.info('Closed database: %s', params)
             finally:
                 dblock.release()

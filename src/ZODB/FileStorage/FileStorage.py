@@ -13,7 +13,7 @@
 ##############################################################################
 """Storage implementation using a log written to a single file.
 
-$Revision: 1.12 $
+$Revision: 1.13 $
 """
 
 import base64
@@ -23,6 +23,7 @@ import os
 import struct
 import sys
 import time
+import logging
 from types import StringType, DictType
 from struct import pack, unpack
 
@@ -46,34 +47,19 @@ except ImportError:
     def fsIndex():
         return {}
 
-from zLOG import LOG, BLATHER, INFO, WARNING, ERROR, PANIC
-
 t32 = 1L << 32
 
 packed_version = "FS21"
 
-def blather(message, *data):
-    LOG('ZODB FS', BLATHER, "%s blather: %s\n" % (packed_version,
-                                                  message % data))
-def info(message, *data):
-    LOG('ZODB FS', INFO, "%s  info: %s\n" % (packed_version,
-                                             message % data))
+# XXX this isn't really needed, right?
+CUSTOM_BLATHER = 15
+logging.addLevelName("BLATHER", CUSTOM_BLATHER)
 
-def warn(message, *data):
-    LOG('ZODB FS', WARNING, "%s  warn: %s\n" % (packed_version,
-                                                message % data))
+logger = logging.getLogger('zodb.FileStorage')
 
-def error(message, *data, **kwargs):
-    LOG('ZODB FS', ERROR, "%s ERROR: %s\n" % (packed_version,
-                                              message % data), **kwargs)
-
-def nearPanic(message, *data):
-    LOG('ZODB FS', PANIC, "%s ERROR: %s\n" % (packed_version,
-                                              message % data))
 
 def panic(message, *data):
-    message = message % data
-    LOG('ZODB FS', PANIC, "%s ERROR: %s\n" % (packed_version, message))
+    logger.critical(message, *data)
     raise CorruptedTransactionError(message)
 
 class FileStorageError(POSException.StorageError):
@@ -208,7 +194,7 @@ class FileStorage(BaseStorage.BaseStorage,
         t = time.time()
         t = TimeStamp(*time.gmtime(t)[:5] + (t % 60,))
         if tid > t:
-            warn("%s Database records in the future", file_name);
+            logger.warning("%s Database records in the future", file_name);
             if tid.timeTime() - t.timeTime() > 86400*30:
                 # a month in the future? This is bogus, use current time
                 self._ts = t
@@ -300,7 +286,7 @@ class FileStorage(BaseStorage.BaseStorage,
         """
         r = self._check_sanity(index, pos)
         if not r:
-            warn("Ignoring index for %s", self._file_name)
+            logger.warning("Ignoring index for %s", self._file_name)
         return r
 
     def _check_sanity(self, index, pos):
@@ -368,8 +354,7 @@ class FileStorage(BaseStorage.BaseStorage,
             info=p.load()
         except:
             exc, err = sys.exc_info()[:2]
-            warn("Failed to load database index: %s: %s" %
-                 (exc, err))
+            logger.warning("Failed to load database index: %s: %s", exc, err)
             return None
         index = info.get('index')
         pos = info.get('pos')
@@ -412,8 +397,7 @@ class FileStorage(BaseStorage.BaseStorage,
             self._save_index()
         except:
             # Log the error and continue
-            LOG("ZODB FS", ERROR, "Error saving index on close()",
-                error=sys.exc_info())
+            logger.error("Error saving index on close()", exc_info=True)
 
     # Return tid of most recent record for oid if that's in the
     # _oid2tid cache.  Else return None.  It's important to use this
@@ -431,7 +415,8 @@ class FileStorage(BaseStorage.BaseStorage,
                 # In older Pythons, we may overflow if we keep it an int.
                 self._oid2tid_nlookups = long(self._oid2tid_nlookups)
                 self._oid2tid_nhits = long(self._oid2tid_nhits)
-            blather("_oid2tid size %s lookups %s hits %s rate %.1f%%",
+            logger.log(BLATHER,
+                    "_oid2tid size %s lookups %s hits %s rate %.1f%%",
                     len(self._oid2tid),
                     self._oid2tid_nlookups,
                     self._oid2tid_nhits,
@@ -723,7 +708,8 @@ class FileStorage(BaseStorage.BaseStorage,
                 if h.plen != len(data):
                     # The expected data doesn't match what's in the
                     # backpointer.  Something is wrong.
-                    error("Mismatch between data and backpointer at %d", pos)
+                    logger.error("Mismatch between data and"
+                                 " backpointer at %d", pos)
                     return 0
                 _data = self._file.read(h.plen)
                 if data != _data:
@@ -1340,7 +1326,7 @@ class FileStorage(BaseStorage.BaseStorage,
             try:
                 opos = p.pack()
             except RedundantPackWarning, detail:
-                info(str(detail))
+                logger.info(str(detail))
             if opos is None:
                 return
             oldpath = self._file_name + ".old"
@@ -1612,7 +1598,7 @@ def read_index(file, name, index, vindex, tindex, stop='\377'*8,
         if not h: break
         if len(h) != TRANS_HDR_LEN:
             if not read_only:
-                warn('%s truncated at %s', name, pos)
+                logger.warning('%s truncated at %s', name, pos)
                 seek(pos)
                 file.truncate()
             break
@@ -1621,7 +1607,7 @@ def read_index(file, name, index, vindex, tindex, stop='\377'*8,
         if el < 0: el=t32-el
 
         if tid <= ltid:
-            warn("%s time-stamp reduction at %s", name, pos)
+            logger.warning("%s time-stamp reduction at %s", name, pos)
         ltid = tid
 
         if pos+(tl+8) > file_size or status=='c':
@@ -1629,13 +1615,14 @@ def read_index(file, name, index, vindex, tindex, stop='\377'*8,
             # cleared.  They may also be corrupted,
             # in which case, we don't want to totally lose the data.
             if not read_only:
-                warn("%s truncated, possibly due to damaged records at %s",
-                     name, pos)
+                logger.warning("%s truncated, possibly due to damaged"
+                               " records at %s", name, pos)
                 _truncate(file, name, pos)
             break
 
         if status not in ' up':
-            warn('%s has invalid status, %s, at %s', name, status, pos)
+            logger.warning('%s has invalid status, %s, at %s',
+                           name, status, pos)
 
         if tl < (TRANS_HDR_LEN+ul+dl+el):
             # We're in trouble. Find out if this is bad data in the
@@ -1648,12 +1635,13 @@ def read_index(file, name, index, vindex, tindex, stop='\377'*8,
             # Now check to see if the redundant transaction length is
             # reasonable:
             if file_size - rtl < pos or rtl < TRANS_HDR_LEN:
-                nearPanic('%s has invalid transaction header at %s', name, pos)
+                logger.critical('%s has invalid transaction header at %s',
+                                name, pos)
                 if not read_only:
-                    warn("It appears that there is invalid data at the end of "
+                    logger.warning(
+                         "It appears that there is invalid data at the end of "
                          "the file, possibly due to a system crash.  %s "
-                         "truncated to recover from bad data at end."
-                         % name)
+                         "truncated to recover from bad data at end." % name)
                     _truncate(file, name, pos)
                 break
             else:
@@ -1696,9 +1684,11 @@ def read_index(file, name, index, vindex, tindex, stop='\377'*8,
             if index_get(h.oid, 0) != h.prev:
                 if prev:
                     if recover: return tpos, None, None
-                    error("%s incorrect previous pointer at %s", name, pos)
+                    logger.error("%s incorrect previous pointer at %s",
+                                 name, pos)
                 else:
-                    warn("%s incorrect previous pointer at %s", name, pos)
+                    logger.warning("%s incorrect previous pointer at %s",
+                                   name, pos)
 
             pos=pos+dlen
 
@@ -1734,15 +1724,16 @@ def _truncate(file, name, pos):
             if os.path.exists(oname):
                 i += 1
             else:
-                warn("Writing truncated data from %s to %s", name, oname)
+                logger.warning("Writing truncated data from %s to %s",
+                               name, oname)
                 o = open(oname,'wb')
                 file.seek(pos)
                 cp(file, o, file_size-pos)
                 o.close()
                 break
     except:
-        error("couldn\'t write truncated data for %s", name,
-              error=sys.exc_info())
+        logger.error("couldn\'t write truncated data for %s", name,
+              exc_info=True)
         raise POSException.StorageSystemError, (
             "Couldn't save truncated data")
 
@@ -1851,7 +1842,8 @@ class FileIterator(Iterator, FileStorageFormatter):
                 raise
 
             if h.tid <= self._ltid:
-                warn("%s time-stamp reduction at %s", self._file.name, pos)
+                logger.warning("%s time-stamp reduction at %s",
+                               self._file.name, pos)
             self._ltid = h.tid
 
             if self._stop is not None and h.tid > self._stop:
@@ -1865,13 +1857,13 @@ class FileIterator(Iterator, FileStorageFormatter):
                 # Hm, the data were truncated or the checkpoint flag wasn't
                 # cleared.  They may also be corrupted,
                 # in which case, we don't want to totally lose the data.
-                warn("%s truncated, possibly due to damaged records at %s",
-                     self._file.name, pos)
+                logger.warning("%s truncated, possibly due to"
+                               " damaged records at %s", self._file.name, pos)
                 break
 
             if h.status not in " up":
-                warn('%s has invalid status, %s, at %s', self._file.name,
-                     h.status, pos)
+                logger.warning('%s has invalid status,'
+                               ' %s, at %s', self._file.name, h.status, pos)
 
             if h.tlen < h.headerlen():
                 # We're in trouble. Find out if this is bad data in
@@ -1884,16 +1876,17 @@ class FileIterator(Iterator, FileStorageFormatter):
                 # Now check to see if the redundant transaction length is
                 # reasonable:
                 if self._file_size - rtl < pos or rtl < TRANS_HDR_LEN:
-                    nearPanic("%s has invalid transaction header at %s",
-                              self._file.name, pos)
-                    warn("It appears that there is invalid data at the end of "
+                    logger.critical("%s has invalid transaction header at %s",
+                                    self._file.name, pos)
+                    logger.warning(
+                         "It appears that there is invalid data at the end of "
                          "the file, possibly due to a system crash.  %s "
                          "truncated to recover from bad data at end."
                          % self._file.name)
                     break
                 else:
-                    warn("%s has invalid transaction header at %s",
-                         self._file.name, pos)
+                    logger.warning("%s has invalid transaction header at %s",
+                                   self._file.name, pos)
                     break
 
             tpos = pos
@@ -1917,8 +1910,8 @@ class FileIterator(Iterator, FileStorageFormatter):
             self._file.seek(tend)
             rtl = u64(self._file.read(8))
             if rtl != h.tlen:
-                warn("%s redundant transaction length check failed at %s",
-                     self._file.name, tend)
+                logger.warning("%s redundant transaction length check"
+                               " failed at %s", self._file.name, tend)
                 break
             self._pos = tend + 8
 
@@ -1948,8 +1941,8 @@ class RecordIterator(Iterator, BaseStorage.TransactionRecord,
             dlen = h.recordlen()
 
             if pos + dlen > self._tend or h.tloc != self._tpos:
-                warn("%s data record exceeds transaction record at %s",
-                     file.name, pos)
+                logger.warning("%s data record exceeds transaction"
+                               " record at %s", file.name, pos)
                 break
 
             self._pos = pos + dlen
