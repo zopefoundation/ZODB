@@ -1,0 +1,90 @@
+#!/usr/bin/env python
+##############################################################################
+#
+# Copyright (c) 2003 Zope Corporation and Contributors.
+# All Rights Reserved.
+#
+# This software is subject to the provisions of the Zope Public License,
+# Version 2.0 (ZPL).  A copy of the ZPL should accompany this distribution.
+# THIS SOFTWARE IS PROVIDED "AS IS" AND ANY AND ALL EXPRESS OR IMPLIED
+# WARRANTIES ARE DISCLAIMED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+# WARRANTIES OF TITLE, MERCHANTABILITY, AGAINST INFRINGEMENT, AND FITNESS
+# FOR A PARTICULAR PURPOSE.
+#
+##############################################################################
+
+"""zconfig: Script to check validity of a configuration file.
+
+Usage:
+
+    zconfig [options] [file...]
+
+Options:
+
+    -h
+    --help          Print this help text.
+
+    -s file
+    --schema file   Use the schema in 'file' to validate the configuration;
+                    this must be specified.
+
+Each file named on the command line is checked for syntactical errors
+and schema conformance.  The schema must be specified.  If no files
+are specified and standard input is not a TTY, standard in is treated
+as a configuration file.  Specifying a schema and no configuration
+files causes the schema to be checked.
+
+"""
+
+import optparse
+import sys
+
+import ZConfig
+
+
+def main():
+    optparser = optparse.OptionParser(
+        usage="usage: %prog [-s FILE] [file ...]")
+    optparser.add_option(
+        "-s", "--schema", dest="schema",
+        help="use the schema in FILE (can be a URL)",
+        metavar="FILE")
+    options, args = optparser.parse_args()
+
+    if not options.schema:
+        print >>sys.stderr, "No schema specified, but is required."
+        usage(sys.stderr)
+        return 2
+    schema = ZConfig.loadSchema(options.schema)
+
+    if not args:
+        if sys.stdin.isatty():
+            # just checking the schema
+            return 0
+        else:
+            # stdin is a pipe
+            args = ["-"]
+
+    errors = 0
+    for fn in args:
+        try:
+            if fn == "-":
+                ZConfig.loadConfigFile(schema, sys.stdin)
+            else:
+                ZConfig.loadConfig(schema, fn)
+        except ZConfig.ConfigurationError, e:
+            print >>sys.stderr, str(e)
+            errors += 1
+
+    if errors:
+        return 1
+    else:
+        return 0
+
+
+def usage(fp):
+    print >>fp, __doc__
+
+
+if __name__ == "__main__":
+    sys.exit(main())

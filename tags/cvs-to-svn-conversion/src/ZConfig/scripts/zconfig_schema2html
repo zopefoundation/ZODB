@@ -1,0 +1,103 @@
+#!/usr/bin/env python
+##############################################################################
+#
+# Copyright (c) 2003 Zope Corporation and Contributors.
+# All Rights Reserved.
+#
+# This software is subject to the provisions of the Zope Public License,
+# Version 2.0 (ZPL).  A copy of the ZPL should accompany this distribution.
+# THIS SOFTWARE IS PROVIDED "AS IS" AND ANY AND ALL EXPRESS OR IMPLIED
+# WARRANTIES ARE DISCLAIMED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+# WARRANTIES OF TITLE, MERCHANTABILITY, AGAINST INFRINGEMENT, AND FITNESS
+# FOR A PARTICULAR PURPOSE.
+#
+##############################################################################
+
+__version__ = '$Revision: 1.3 $'[11:-2]
+
+import ZConfig.loader
+from ZConfig.info import *
+import sys, cgi
+
+def esc(x): return cgi.escape(str(x))
+def dt(x):
+    tn = type(x).__name__
+    if tn == 'instance':
+        return '%s %s'%(tn, x.__class__.__module__ + '.' + x.__class__.__name__)
+    elif tn == 'class':
+        return '%s %s'%(tn, x.__module__ + '.' + x.__name__)
+    else:
+        return '%s %s'%(tn, x.__name__)
+
+class explain:
+    done = []
+    def __call__(self, st):
+        if st.name in self.done:
+            return
+        self.done.append(st.name)
+
+        if st.description:
+            print st.description
+        for sub in st.getsubtypenames():
+            print '<dl>'
+            printContents(None, st.getsubtype(sub))
+            print '</dl>'
+explain = explain()
+
+def printSchema(schema):
+    print '<dl>'
+    for child in schema:
+        printContents(*child)
+    print '</dl>'
+
+def printContents(name, info):
+    if isinstance(info, SectionType):
+        print '<dt><b><i>', info.name, '</i></b> (%s)</dt>'%dt(info.datatype)
+        print '<dd>'
+        if info.description:
+            print info.description
+        print '<dl>'
+        for sub in info:
+            printContents(*sub)
+        print '</dl></dd>'
+    elif isinstance(info, SectionInfo):
+        st = info.sectiontype
+        if st.isabstract():
+            print '<dt><b><i>', st.name, '</i>', info.name, '</b></dt>'
+            print '<dd>'
+            if info.description:
+                print info.description
+            explain(st)
+            print '</dd>'
+        else:
+            print '<dt><b>', info.attribute, info.name, '</b>'
+            print '(%s)</dt>'%dt(info.datatype)
+            print '<dd><dl>'
+            for sub in info.sectiontype:
+                printContents(*sub)
+            print '</dl></dd>'
+    else:
+        print '<dt><b>',info.name, '</b>', '(%s)'%dt(info.datatype)
+        default = info.getdefault()
+        if isinstance(default, ValueInfo):
+            print '(default: %r)'%esc(default.value)
+        elif default is not None:
+            print '(default: %r)'%esc(default)
+        if info.metadefault:
+            print '(metadefault: %s)' % info.metadefault
+        print '</dt>'
+        if info.description:
+            print '<dd>',info.description,'</dd>'
+
+schema = ZConfig.loader.loadSchemaFile(sys.argv[1])
+
+print '''<html><body>
+<style>
+dl {margin: 0 0 1em 0;}
+</style>
+'''
+printSchema(schema)
+print '</body></html>'
+
+# vim: set filetype=python ts=4 sw=4 et si
+

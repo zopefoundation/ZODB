@@ -1,0 +1,425 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+% Copyright (c) 2001, 2002, 2003 Zope Corporation and Contributors.
+% All Rights Reserved.
+%
+% This software is subject to the provisions of the Zope Public License,
+% Version 2.0 (ZPL).  A copy of the ZPL should accompany this distribution.
+% THIS SOFTWARE IS PROVIDED "AS IS" AND ANY AND ALL EXPRESS OR IMPLIED
+% WARRANTIES ARE DISCLAIMED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+% WARRANTIES OF TITLE, MERCHANTABILITY, AGAINST INFRINGEMENT, AND FITNESS
+% FOR A PARTICULAR PURPOSE.
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\documentclass{howto}
+
+\title{ZODB Storage API}
+
+\release{1.00}
+
+\author{Zope Corporation}
+\authoraddress{
+    Lafayette Technology Center\\
+    513 Prince Edward Street\\
+    Fredericksburg, VA 22401\\
+    \url{http://www.zope.com/}
+}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+\noindent
+A ZODB storage provides the low-level storage for ZODB transactions.
+Examples include FileStorage, OracleStorage, and bsddb3Storage.  The
+storage API handles storing and retrieving individual objects in a
+transaction-specifc way.  It also handles operations like pack and
+undo.  This document describes the interface implemented by storages.
+\end{abstract}
+
+\tableofcontents
+
+
+\section{Concepts}
+
+\subsection{Versions}
+
+Versions provide support for long-running transactions.  They extend
+transaction semantics, such as atomicity and serializability, to
+computation that involves many basic transactions, spread over long
+periods of time, which may be minutes, or years.
+
+Versions were motivated by a common problem in website management,
+but may be useful in other domains as well.  Often, a website must be
+changed in such a way that changes, which may require many operations
+over a period of time, must not be visible until completed and
+approved.  Typically this problem is solved through the use of
+\dfn{staging servers}.  Essentially, two copies of a website are
+maintained.  Work is performed on a staging server.  When work is
+completed, the entire site is copied from the staging server to the
+production server.  This process is too resource intensive and too
+monolithic.  It is not uncommon for separate unrelated changes to be
+made to a website and these changes will need to be copied to the
+production server independently.  This requires an unreasonable amount
+of coordination, or multiple staging servers.
+
+ZODB addresses this problem through long-running transactions, called
+\dfn{versions}.  Changes made to a website can be made to a version
+(of the website).  The author sees the version of the site that
+reflects the changes, but people working outside of the version cannot
+see the changes.  When the changes are completed and approved, they
+can be saved, making them visible to others, almost instantaneously.
+
+Versions require support from storage managers. Version support is an
+optional feature of storage managers and support in a particular
+database will depend on support in the underlying storage manager.
+
+
+\section{Storage Interface}
+
+General issues:
+
+The objects are stored as Python pickles.  The pickle format is
+important, because various parts of ZODB depend on it, e.g. pack.
+
+Conflict resolution
+
+Various versions of the interface.
+
+Concurrency and transactions.
+
+The various exceptions that can be raised.
+
+An object that implements the \class{Storage} interface must support
+the following methods:
+
+\begin{methoddesc}{tpc_begin}{transaction\optional{, tid\optional{,
+        status}}}
+  Begin the two-phase commit for \var{transaction}.  
+
+  This method blocks until the storage is in the not committing state,
+  and then places the storage in the committing state. If the storage
+  is in the committing state and the given transaction is the
+  transaction that is already being committed, then the call does not
+  block and returns immediately without any effect.
+
+  The optional \var{tid} argument specifies the timestamp to be used
+  for the transaction ID and the new object serial numbers.  If it is
+  not specified, the implementation chooses the timestamp.
+
+  The optional \var{status} argument, which has a default value of
+  \code{'~'}, has something to do with copying transactions.
+\end{methoddesc}
+
+\begin{methoddesc}{store}{oid, serial, data, version, transaction}
+  Store \var{data}, a Python pickle, for the object ID identified by
+  \var{oid}.  A Storage need not and often will not write data
+  immediately.  If data are written, then the storage should be
+  prepared to undo the write if a transaction is aborted.
+  
+  The value of \var{serial} is opaque; it should be the value returned
+  by the \method{load()} call that read the object.  \var{version} is
+  a string that identifies the version or the empty string.
+  \var{transaction}, an instance of
+  \class{ZODB.Transaction.Transaction}, is the current transaction.
+  The current transaction is the transaction passed to the most recent
+  \method{tpc_begin()} call.
+    
+  There are several possible return values, depending in part on
+  whether the storage writes the data immediately.  The return value
+  will be one of:
+
+  \begin{itemize}
+        \item \code{None}, indicating the data has not been stored yet
+        \item a string, containing the new serial number for the
+          object
+        \item a sequence of object ID, serial number pairs, containing the
+          new serial numbers for objects updated by earlier
+          \method{store()} calls that are part of this transaction.
+          If the serial number is not a string, it is an exception
+          object that should be raised by the caller.
+          \note{This explanation is confusing; how to tell the
+          sequence of pairs from the exception?  Barry, Jeremy, please
+          clarify here.}
+  \end{itemize}
+    
+  Several different exceptions can be raised when an error occurs.
+
+  \begin{itemize}
+        \item \exception{ConflictError} is raised when \var{serial}
+          does not match the most recent serial number for object
+          \var{oid}. 
+
+        \item \exception{VersionLockError} is raised when object
+          \var{oid} is locked in a version and the \var{version}
+          argument contains a different version name or is empty.
+
+        \item \exception{StorageTransactionError} is raised when
+          \var{transaction} does not match the current transaction.
+   
+        \item \exception{StorageError} or, more often, a subclass of
+          it, is raised when an internal error occurs while the
+          storage is handling the \method{store()} call.
+  \end{itemize}
+\end{methoddesc}
+
+\begin{methoddesc}{restore}{oid, serial, data, version, transaction}
+  A lot like \method{store()} but without all the consistency checks.
+  This should only be used when we \emph{know} the data is good, hence
+  the method name.  While the signature looks like \method{store()},
+  there are some differences:
+
+  \begin{itemize}
+        \item \var{serial} is the serial number of this revision, not
+          of the previous revision.  It is used instead of
+          \code{self._serial}, which is ignored.
+
+        \item Nothing is returned.
+
+        \item \var{data} can be \code{None}, which indicates a George
+          Bailey object (one who's creation has been transactionally
+          undone).
+  \end{itemize}
+\end{methoddesc}
+
+\begin{methoddesc}{new_oid}{}
+  XXX
+\end{methoddesc}
+
+\begin{methoddesc}{tpc_vote}{transaction}
+  XXX
+\end{methoddesc}
+
+\begin{methoddesc}{tpc_finish}{transaction, func}
+  Finish the transaction, making any transaction changes
+  permanent.  Changes must be made permanent at this point.
+
+  If \var{transaction} is not the current transaction, nothing
+  happens.
+  
+  \var{func} is called with no arguments while the storage lock is
+  held, but possibly before the updated date is made durable.  This
+  argument exists to support the \class{Connection} object's
+  invalidation protocol.
+\end{methoddesc}
+
+\begin{methoddesc}{abortVersion}{version, transaction}
+  Clear any changes made by the given version.  \var{version} is the
+  version to be aborted; it may not be the empty string.
+  \var{transaction} is the current transaction.
+
+  This method is state dependent. It is an error to call this method
+  if the storage is not committing, or if the given transaction is not
+  the transaction given in the most recent \method{tpc_begin()}.
+
+  If undo is not supported, then version data may be simply
+  discarded.  If undo is supported, however, then the
+  \method{abortVersion()} operation must be undoable, which implies
+  that version data must be retained.  Use the \method{supportsUndo()}
+  method to determine if the storage supports the undo operation.
+\end{methoddesc}
+
+\begin{methoddesc}{commitVersion}{source, destination, transaction}
+  Store changes made in the \var{source} version into the
+  \var{destination} version.  A \exception{VersionCommitError} is
+  raised if the \var{source} and \var{destination} are equal or if
+  \var{source} is an empty string.  The \var{destination} may be an
+  empty string, in which case the data are saved to non-version
+  storage.
+
+  This method is state dependent.  It is an error to call this method
+  if the storage is not committing, or if the given transaction is not
+  the transaction given in the most recent \method{tpc_begin()}.
+
+  If the storage doesn't support undo, then the old version data may
+  be discarded.  If undo is supported, then this operation must be
+  undoable and old transaction data may not be discarded.  Use the
+  \method{supportsUndo()} method to determine if the storage supports
+  the undo operation.
+\end{methoddesc}
+
+\begin{methoddesc}{close}{}
+  Finalize the storage, releasing any external resources.  The storage
+  should not be used after this method is called.
+\end{methoddesc}
+
+\begin{methoddesc}{lastSerial}{oid}
+  Returns the serial number for the last committed transaction for the
+  object identified by \var{oid}.  If there is no serial number for
+  \var{oid} --- which can only occur if it represents a new object ---
+  returns \code{None}.
+  \note{This is not defined for \class{ZODB.BaseStorage}.}
+\end{methoddesc}
+
+\begin{methoddesc}{lastTransaction}{}
+  Return transaction ID for last committed transaction.
+  \note{This is not defined for \class{ZODB.BaseStorage}.}
+\end{methoddesc}
+
+\begin{methoddesc}{getName}{}
+  Returns the name of the store.  The format and interpretation of
+  this name is storage dependent.  It could be a file name, a database
+  name, etc.
+\end{methoddesc}
+
+\begin{methoddesc}{getSize}{}
+  An approximate size of the database, in bytes.
+\end{methoddesc}
+
+\begin{methoddesc}{getSerial}{oid}
+  Return the serial number of the most recent version of the object
+  identified by \var{oid}.
+\end{methoddesc}
+
+\begin{methoddesc}{load}{oid, version}
+  Returns the pickle data and serial number for the object identified
+  by \var{oid} in the version \var{version}.
+\end{methoddesc}
+
+\begin{methoddesc}{loadSerial}{oid, serial}
+  Load a historical version of the object identified by \var{oid}
+  having serial number \var{serial}.
+\end{methoddesc}
+
+\begin{methoddesc}{modifiedInVersion}{oid}
+  Returns the version that the object with identifier \var{oid} was
+  modified in, or an empty string if the object was not modified in a
+  version.
+\end{methoddesc}
+
+\begin{methoddesc}{isReadOnly}{}
+  Returns true if the storage is read-only, otherwise returns false.
+\end{methoddesc}
+
+\begin{methoddesc}{supportsTransactionalUndo}{}
+  Returns true if the storage implementation supports transactional
+  undo, or false if it does not.
+  \note{This is not defined for \class{ZODB.BaseStorage}.}
+\end{methoddesc}
+
+\begin{methoddesc}{supportsUndo}{}
+  Returns true if the storage implementation supports undo, or false
+  if it does not.
+\end{methoddesc}
+
+\begin{methoddesc}{supportsVersions}{}
+  Returns true if the storage implementation supports versions, or
+  false if it does not.
+\end{methoddesc}
+
+\begin{methoddesc}{transactionalUndo}{transaction_id, transaction}
+  Undo a transaction specified by \var{transaction_id}.  This may need
+  to do conflict resolution.
+  \note{This is not defined for \class{ZODB.BaseStorage}.}
+\end{methoddesc}
+
+\begin{methoddesc}{undo}{transaction_id}
+   Undo the transaction corresponding to the transaction ID given by
+   \var{transaction_id}.  If the transaction cannot be undone, then
+   \exception{UndoError} is raised.  On success, returns a sequence of
+   object IDs that were affected.
+\end{methoddesc}
+
+\begin{methoddesc}{undoInfo}{XXX}
+  XXX
+\end{methoddesc}
+
+\begin{methoddesc}{undoLog}{\optional{first\optional{,
+                            last\optional{, filter}}}}
+  Returns a sequence of \class{TransactionDescription} objects for
+  undoable transactions.  \var{first} gives the index of the first
+  transaction to be retured, with \code{0} (the default) being the
+  most recent.
+
+  \note{\var{last} is confusing; can Barry or Jeremy try to explain
+  this?}
+
+  If \var{filter} is provided and not \code{None}, it must be a
+  function which accepts a \class{TransactionDescription} object as a
+  parameter and returns true if the entry should be reported.  If
+  omitted or \code{None}, all entries are reported.
+\end{methoddesc}
+
+\begin{methoddesc}{versionEmpty}{version}
+  Return true if there are no transactions for the specified version.
+\end{methoddesc}
+
+\begin{methoddesc}{versions}{\optional{max}}
+  Return a sequence of the versions stored in the storage.  If
+  \var{max} is given, the implementation may choose not to return more
+  than \var{max} version names.
+\end{methoddesc}
+
+\begin{methoddesc}{history}{oid\optional{, version\optional{,
+                            size\optional{, filter}}}}
+  Return a sequence of \class{HistoryEntry} objects.  The information
+  provides a log of the changes made to the object.  Data are reported
+  in reverse chronological order.  If \var{version} is given, history
+  information is given with respect to the specified version, or only
+  the non-versioned changes if the empty string is given.  By default,
+  all changes are reported.  The number of history entries reported is
+  constrained by \var{size}, which defaults to \code{1}.  If
+  \var{filter} is provided and not \code{None}, it must be a function
+  which accepts a \class{HistoryEntry} object as a parameter and
+  returns true if the entry should be reported.  If omitted or
+  \code{None}, all entries are reported.
+\end{methoddesc}
+
+\begin{methoddesc}{pack}{t, referencesf}
+  Remove transactions from the database that are no longer needed to
+  maintain the current state of the database contents.  Undo will not
+  be restore objects to states from before the most recent call to
+  \method{pack()}.
+\end{methoddesc}
+
+\begin{methoddesc}{copyTransactionsFrom}{other\optional{, verbose}}
+  Copy transactions from another storage, given by \var{other}.  This
+  is typically used when converting a database from one storage
+  implementation to another.  This will use \method{restore()} if
+  available, but will use \method{store()} if \method{restore()} is
+  not available.  When \method{store()} is needed, this may fail with
+  \exception{ConflictError} or \exception{VersionLockError}.
+\end{methoddesc}
+
+\begin{methoddesc}{iterator}{\optional{start\optional{, stop}}}
+  Return a iterable object which produces all the transactions from a
+  range.  If \var{start} is given and not \code{None}, transactions
+  which occurred before the identified transaction are ignored.  If
+  \var{stop} is given and not \code{None}, transactions which occurred
+  after the identified transaction are ignored; the specific
+  transaction identified by \var{stop} will be included in the series
+  of transactions produced by the iterator.
+  \note{This is not defined for \class{ZODB.BaseStorage}.}
+\end{methoddesc}
+
+\begin{methoddesc}{registerDB}{db, limit}
+  Register a database \var{db} for distributed storage invalidation
+  messages.  The maximum number of objects to invalidate is given by
+  \var{limit}.  If more objects need to be invalidated than this
+  limit, then all objects are invalidated.  This argument may be
+  \code{None}, in which case no limit is set.  Non-distributed
+  storages should treat this is a null operation.  Storages should
+  work correctly even if this method is not called.
+\end{methoddesc}
+
+
+\section{ZODB.BaseStorage Implementation}
+
+\section{Notes for Storage Implementors}
+
+
+\section{Distributed Storage Interface}
+
+Distributed storages support use with multiple application processes.
+
+Distributed storages have a storage instance per application and some
+sort of central storage server that manages data on behalf of the
+individual storage instances.
+
+When a process changes an object, the object must be invaidated in all
+other processes using the storage.  The central storage sends a
+notification message to the other storage instances, which, in turn,
+send invalidation messages to their respective databases.
+
+\end{document}
