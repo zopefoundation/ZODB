@@ -376,6 +376,7 @@ class ZEOServer:
         # XXX Shouldn't this be below with _log()?
         import zLOG
         zLOG.initialize()
+        info("reinitialized zLOG")
 
     def close_storages(self):
         for name, storage in self.storages.items():
