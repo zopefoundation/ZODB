@@ -87,7 +87,7 @@ class ZEOOptionsMixin:
                  default=100)
         self.add("transaction_timeout", "zeo.transaction_timeout",
                  "t:", "timeout=", float)
-        self.add("monitor_address", None, "m:", "monitor=",
+        self.add("monitor_address", "zeo.monitor_address", "m:", "monitor=",
                  self.handle_monitor_address)
 
 
