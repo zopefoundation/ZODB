@@ -13,6 +13,8 @@ except ImportError:
     from StringIO import StringIO
 
 import time
+from ZODB import DB
+from Persistence import Persistent
 from ZODB.referencesf import referencesf
 
 
@@ -41,6 +43,9 @@ class Object:
     def getoid(self):
         return self._oid
 
+
+class C(Persistent):
+    pass
 
 # Here's where all the magic occurs.  Sadly, the pickle module is a bit
 # underdocumented, but here's what happens: by setting the persistent_id
@@ -159,8 +164,10 @@ class PackableStorage(PackableStorageBase):
         eq(pobj.value, 3)
         # Now pack all transactions; need to sleep a second to make
         # sure that the pack time is greater than the last commit time.
-        time.sleep(1)
-        self._storage.pack(time.time(), referencesf)
+        now = packtime = time.time()
+        while packtime <= now:
+            packtime = time.time()
+        self._storage.pack(packtime, referencesf)
         # All revisions of the object should be gone, since there is no
         # reference from the root object to this object.
         raises(KeyError, self._storage.loadSerial, oid, revid1)
@@ -210,8 +217,10 @@ class PackableStorage(PackableStorageBase):
         eq(pobj.value, 3)
         # Now pack just revisions 1 and 2.  The object's current revision
         # should stay alive because it's pointed to by the root.
-        time.sleep(1)
-        self._storage.pack(time.time(), referencesf)
+        now = packtime = time.time()
+        while packtime <= now:
+            packtime = time.time()
+        self._storage.pack(packtime, referencesf)
         # Make sure the revisions are gone, but that object zero and revision
         # 3 are still there and correct
         data, revid = self._storage.load(ZERO, '')
@@ -287,8 +296,10 @@ class PackableStorage(PackableStorageBase):
         # Now pack just revisions 1 and 2 of object1.  Object1's current
         # revision should stay alive because it's pointed to by the root, as
         # should Object2's current revision.
-        time.sleep(1)
-        self._storage.pack(time.time(), referencesf)
+        now = packtime = time.time()
+        while packtime <= now:
+            packtime = time.time()
+        self._storage.pack(packtime, referencesf)
         # Make sure the revisions are gone, but that object zero, object2, and
         # revision 3 of object1 are still there and correct.
         data, revid = self._storage.load(ZERO, '')
@@ -312,3 +323,43 @@ class PackableStorage(PackableStorageBase):
         pobj = pickle.loads(data)
         eq(pobj.getoid(), oid2)
         eq(pobj.value, 11)
+
+    def checkPackUnlinkedFromRoot(self):
+        eq = self.assertEqual
+        db = DB(self._storage)
+        conn = db.open()
+        root = conn.root()
+
+        txn = get_transaction()
+        txn.note('root')
+        txn.commit()
+
+        now = packtime = time.time()
+        while packtime <= now:
+            packtime = time.time()
+
+        obj = C()
+        obj.value = 7
+
+        root['obj'] = obj
+        txn = get_transaction()
+        txn.note('root -> o1')
+        txn.commit()
+
+        del root['obj']
+        txn = get_transaction()
+        txn.note('root -x-> o1')
+        txn.commit()
+
+        self._storage.pack(packtime, referencesf)
+
+        log = self._storage.undoLog()
+        tid = log[0]['id']
+        db.undo(tid)
+        txn = get_transaction()
+        txn.note('undo root -x-> o1')
+        txn.commit()
+
+        conn.sync()
+
+        eq(root['obj'].value, 7)
