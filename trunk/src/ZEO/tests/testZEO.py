@@ -30,22 +30,6 @@ import ZODB
 from ZODB.tests.MinPO import MinPO
 from ZODB.tests.StorageTestBase import zodb_unpickle
 
-# Handle potential absence of removefs
-try:
-    from ZODB.tests.StorageTestBase import removefs
-except ImportError:
-    # for compatibility with Zope 2.5 &c.
-    import errno
-
-    def removefs(base):
-        """Remove all files created by FileStorage with path base."""
-        for ext in '', '.old', '.tmp', '.lock', '.index', '.pack':
-            path = base + ext
-            try:
-                os.remove(path)
-            except os.error, err:
-                if err[0] != errno.ENOENT:
-                    raise
 
 # ZODB test mixin classes
 from ZODB.tests import StorageTestBase, BasicStorage, VersionStorage, \
@@ -67,8 +51,8 @@ class DummyDB:
     def invalidate(self, *args):
         pass
 
-class MiscZEOTests:
 
+class MiscZEOTests:
     """ZEO tests that don't fit in elsewhere."""
 
     def checkLargeUpdate(self):
@@ -97,10 +81,10 @@ class MiscZEOTests:
         finally:
             storage2.close()
 
+
 class GenericTests(
     # Base class for all ZODB tests
     StorageTestBase.StorageTestBase,
-
     # ZODB test mixin classes (in the same order as imported)
     BasicStorage.BasicStorage,
     VersionStorage.VersionStorage,
@@ -113,13 +97,13 @@ class GenericTests(
     RevisionStorage.RevisionStorage,
     MTStorage.MTStorage,
     ReadOnlyStorage.ReadOnlyStorage,
-
     # ZEO test mixin classes (in the same order as imported)
     Cache.StorageWithCache,
     Cache.TransUndoStorageWithCache,
     CommitLockTests.CommitLockTests,
     ThreadTests.ThreadTests,
-    MiscZEOTests # Locally defined (see above)
+    # Locally defined (see above)
+    MiscZEOTests
     ):
 
     """Combine tests from various origins in one class."""
@@ -140,6 +124,7 @@ class GenericTests(
         # The __version__ attribute was not present in Zope 2.5.
         if hasattr(ZODB, "__version__"):
             ReadOnlyStorage.ReadOnlyStorage.checkWriteMethods(self)
+
 
 class UnixTests(GenericTests):
 
@@ -162,19 +147,47 @@ class UnixTests(GenericTests):
         self.delStorage()
 
     def getStorage(self):
-        self.__fs_base = tempfile.mktemp()
-        return 'FileStorage', (self.__fs_base, '1')
+        filename = self.__fs_base = tempfile.mktemp()
+        # Return a 1-tuple
+        return """\
+        <Storage>
+            type FileStorage
+            file_name %s
+            create yes
+        </Storage>
+        """ % filename,
 
     def delStorage(self):
-        removefs(self.__fs_base)
+        from ZODB.FileStorage import cleanup
+        cleanup(self.__fs_base)
 
-class WindowsTests(GenericTests):
+
+class BDBTests(UnixTests):
+
+    """Add Berkeley storage tests (not sure if these are Unix specific)."""
+
+    def getStorage(self):
+        self._envdir = tempfile.mktemp()
+        # Return a 1-tuple
+        return """\
+        <Storage>
+            type Full
+            name %s
+        </Storage>
+        """ % self._envdir,
+
+    def delStorage(self):
+        from bsddb3Storage.BerkeleyBase import cleanup
+        cleanup(self._envdir)
+
+
+class WindowsTests(UnixTests):
 
     """Add Windows-specific scaffolding to the generic test suite."""
 
     def setUp(self):
         zLOG.LOG("testZEO", zLOG.INFO, "setUp() %s" % self.id())
-        args = self.getStorageInfo()
+        args = self.getStorage()
         name = args[0]
         args = args[1]
         zeo_addr, self.test_addr, self.test_pid = \
@@ -192,12 +205,6 @@ class WindowsTests(GenericTests):
         time.sleep(0.5)
         self.delStorage()
 
-    def getStorageInfo(self):
-        self.__fs_base = tempfile.mktemp()
-        return 'FileStorage', (self.__fs_base, '1') # create=1
-
-    def delStorage(self):
-        removefs(self.__fs_base)
 
 if os.name == "posix":
     test_classes = [UnixTests]
@@ -206,8 +213,15 @@ elif os.name == "nt":
 else:
     raise RuntimeError, "unsupported os: %s" % os.name
 
-def test_suite():
+try:
+    from bsddb3Storage.Full import Full
+except ImportError:
+    pass
+else:
+    test_classes.append(BDBTests)
 
+
+def test_suite():
     # shutup warnings about mktemp
     import warnings
     warnings.filterwarnings("ignore", "mktemp")
@@ -217,6 +231,7 @@ def test_suite():
         sub = unittest.makeSuite(klass, 'check')
         suite.addTest(sub)
     return suite
+
 
 if __name__ == "__main__":
     unittest.main(defaultTest='test_suite')
