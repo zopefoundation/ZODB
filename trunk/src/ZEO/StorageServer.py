@@ -116,20 +116,19 @@ class ZEOStorage:
         self.__storage_id = "uninitialized"
         self._transaction = None
 
-    def close(self):
-        # When this storage closes, we must ensure that it aborts
-        # any pending transaction.  Not sure if this is the clearest way.
-        if self._transaction is not None:
-            self._log("close during transaction %s" % self._transaction,
-                      zLOG.BLATHER)
-            self.tpc_abort(self._transaction.id)
-        else:
-            self._log("close", zLOG.BLATHER)
-        self._conn.close()
-
     def notifyConnected(self, conn):
         self._conn = conn
         self.client = ClientStub.ClientStorage(conn)
+
+    def notifyDisconnected(self):
+        # When this storage closes, we must ensure that it aborts
+        # any pending transaction.  Not sure if this is the clearest way.
+        if self._transaction is not None:
+            self._log("disconnected during transaction %s" % self._transaction,
+                      zLOG.BLATHER)
+            self.tpc_abort(self._transaction.id)
+        else:
+            self._log("disconnected", zLOG.BLATHER)
 
     def __repr__(self):
         tid = self._transaction and repr(self._transaction.id)
@@ -392,7 +391,7 @@ class ZEOStorage:
         except:
             self._log("Unexpected error handling waiting transaction",
                       level=zLOG.WARNING, error=sys.exc_info())
-            zeo_storage.close()
+            zeo_storage._conn.close()
             return 0
         else:
             return 1

@@ -389,9 +389,10 @@ class ManagedServerConnection(ServerConnection):
     def __init__(self, sock, addr, obj, mgr):
         self.__mgr = mgr
         self.__super_init(sock, addr, obj)
-        obj.notifyConnected(self)
+        self.obj.notifyConnected(self)
 
     def close(self):
+        self.obj.notifyDisconnected()
         self.__super_close()
         self.__mgr.close(self)
 
