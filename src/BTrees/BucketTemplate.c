@@ -12,7 +12,7 @@
   
  ****************************************************************************/
 
-#define BUCKETTEMPLATE_C "$Id: BucketTemplate.c,v 1.26 2002/02/20 23:59:51 jeremy Exp $\n"
+#define BUCKETTEMPLATE_C "$Id: BucketTemplate.c,v 1.27 2002/02/21 21:41:17 jeremy Exp $\n"
 
 /*
 ** _bucket_get
@@ -806,10 +806,10 @@ _bucket_clear(Bucket *self)
 static PyObject *
 bucket__p_deactivate(Bucket *self, PyObject *args)
 {
-  if (self->po_state == UPTODATE && self->po_dm)
+  if (self->state==cPersistent_UPTODATE_STATE && self->jar)
     {
       if (_bucket_clear(self) < 0) return NULL;
-      self->po_state = GHOST;
+      self->state=cPersistent_GHOST_STATE;
     }
 
   Py_INCREF(Py_None);
@@ -1130,10 +1130,14 @@ static struct PyMethodDef Bucket_methods[] = {
 };
 
 static void
-bucket_dealloc(Bucket *self)
+Bucket_dealloc(Bucket *self)
 {
   _bucket_clear(self);
-  PyPersist_TYPE->tp_dealloc((PyObject *)self);
+
+  PER_DEL(self);
+
+  Py_DECREF(self->ob_type);
+  PyMem_DEL(self);
 }
 
 /* Code to access Bucket objects as mappings */
@@ -1160,11 +1164,8 @@ bucket_repr(Bucket *self)
   static PyObject *format;
   PyObject *r, *t;
 
-  if (format == NULL) {
-      format = PyString_FromString(MOD_NAME_PREFIX "Bucket(%s)");
-      if (format == NULL)
-	  return NULL;
-  }
+  UNLESS (format) UNLESS (format=PyString_FromString(MOD_NAME_PREFIX "Bucket(%s)")) 
+    return NULL;
   UNLESS (t=PyTuple_New(1)) return NULL;
   UNLESS (r=bucket_items(self,NULL)) goto err;
   PyTuple_SET_ITEM(t,0,r);
@@ -1176,49 +1177,39 @@ err:
   return NULL;
 }
 
-static PyTypeObject BucketType = {
-    PyObject_HEAD_INIT(NULL) /* PyPersist_Type */
-    0,					/* ob_size */
-    MOD_NAME_PREFIX "Bucket",		/* tp_name */
-    sizeof(Bucket),			/* tp_basicsize */
-    0,					/* tp_itemsize */
-    (destructor)bucket_dealloc,		/* tp_dealloc */
-    0,					/* tp_print */
-    0,					/* tp_getattr */
-    0,					/* tp_setattr */
-    0,					/* tp_compare */
-    (reprfunc)bucket_repr,		/* tp_repr */
-    0,					/* tp_as_number */
-    0,					/* tp_as_sequence */
-    &Bucket_as_mapping,			/* tp_as_mapping */
-    0,					/* tp_hash */
-    0,					/* tp_call */
-    0,					/* tp_str */
-    0,					/* tp_getattro */
-    0,					/* tp_setattro */
-    0,					/* tp_as_buffer */
-/* XXX need to define traverse and clear functions */
-    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC |
-	    Py_TPFLAGS_BASETYPE, 	/* tp_flags */
-    0,					/* tp_doc */
-    0,	/* tp_traverse */
-    0,		/* tp_clear */
-    0,					/* tp_richcompare */
-    0,					/* tp_weaklistoffset */
-    0,					/* tp_iter */
-    0,					/* tp_iternext */
-    Bucket_methods,			/* tp_methods */
-    0,					/* tp_members */
-    0,					/* tp_getset */
-    0,					/* tp_base */
-    0,					/* tp_dict */
-    0,					/* tp_descr_get */
-    0,					/* tp_descr_set */
-    0,					/* tp_dictoffset */
-    0,					/* tp_init */
-    0,					/* tp_alloc */
-    PyType_GenericNew,			/* tp_new */
+static PyExtensionClass BucketType = {
+  PyObject_HEAD_INIT(NULL)
+  0,				/*ob_size*/
+  MOD_NAME_PREFIX "Bucket",			/*tp_name*/
+  sizeof(Bucket),		/*tp_basicsize*/
+  0,				/*tp_itemsize*/
+  /*********** methods ***********************/
+  (destructor) Bucket_dealloc,	/*tp_dealloc*/
+  (printfunc)0,			/*tp_print*/
+  (getattrfunc)0,		/*obsolete tp_getattr*/
+  (setattrfunc)0,		/*obsolete tp_setattr*/
+  (cmpfunc)0,			/*tp_compare*/
+  (reprfunc) bucket_repr,	/*tp_repr*/
+  0,				/*tp_as_number*/
+  0,				/*tp_as_sequence*/
+  &Bucket_as_mapping,		/*tp_as_mapping*/
+  (hashfunc)0,			/*tp_hash*/
+  (ternaryfunc)0,		/*tp_call*/
+  (reprfunc)0,			/*tp_str*/
+  (getattrofunc)0,		/*tp_getattro*/
+  0,				/*tp_setattro*/
+  
+  /* Space for future expansion */
+  0L,0L,
+  "Mapping type implemented as sorted list of items", 
+  METHOD_CHAIN(Bucket_methods),
+  EXTENSIONCLASS_BASICNEW_FLAG
+#ifdef PERSISTENT
+  | PERSISTENT_TYPE_FLAG 
+#endif
+  | EXTENSIONCLASS_NOINSTDICT_FLAG,
 };
+
 
 static int 
 nextBucket(SetIteration *i)
