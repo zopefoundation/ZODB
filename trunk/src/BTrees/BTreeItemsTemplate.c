@@ -12,7 +12,7 @@
 
  ****************************************************************************/
 
-#define BTREEITEMSTEMPLATE_C "$Id: BTreeItemsTemplate.c,v 1.14 2002/06/17 23:39:56 tim_one Exp $\n"
+#define BTREEITEMSTEMPLATE_C "$Id: BTreeItemsTemplate.c,v 1.15 2002/06/18 02:26:19 tim_one Exp $\n"
 
 /* A BTreeItems struct is returned from calling .items(), .keys() or
  * .values() on a BTree-based data structure, and is also the result of
@@ -188,6 +188,7 @@ BTreeItems_seek(BTreeItems *self, int i)
         currentoffset = 0;
     }
     while (delta < 0) {         /* move left */
+        int status;
         /* Want to move left -delta positions; the most we can move left in
          * this bucket is currentoffset positions.
          */
@@ -206,10 +207,11 @@ BTreeItems_seek(BTreeItems *self, int i)
         PER_ALLOW_DEACTIVATION(currentbucket);
         PER_ACCESSED(currentbucket);
         if (currentbucket == self->firstbucket) goto no_match;
-        b = PreviousBucket(currentbucket, self->firstbucket, i);
-        if (b == NULL) goto no_match; /* XXX this could be another error */
-        Py_DECREF(b);   /* we didn't really want it incref'ed to begin with */
-        currentbucket = b;
+        status = PreviousBucket(&currentbucket, self->firstbucket);
+        if (status == 0)
+            goto no_match;
+        else if (status < 0)
+            return -1;
         PER_USE_OR_RETURN(currentbucket, -1);
         pseudoindex -= currentoffset + 1;
         delta += currentoffset + 1;

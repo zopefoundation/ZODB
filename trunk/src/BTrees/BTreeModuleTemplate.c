@@ -260,42 +260,39 @@ IndexError(int i)
   return NULL;
 }
 
-/* Returns a new reference to the bucket before current, in the bucket
- * chain starting at first.
- * Returns NULL on error.  IndexError(i) may or may not be set then (XXX I
- * don't know what the intent is, that's just what it does; should be redone).
+/* Search for the bucket immediately preceding *current, in the bucket chain
+ * starting at first.  current, *current and first must not be NULL.
+ *
+ * Return:
+ *     1    *current holds the correct bucket; this is a borrowed reference
+ *     0    no such bucket exists; *current unaltered
+ *    -1    error; *current unaltered
  */
-static Bucket *
-PreviousBucket(Bucket *current, Bucket *first, int i)
+static int
+PreviousBucket(Bucket **current, Bucket *first)
 {
-  if (! first) return NULL;
-  if (first == current)
-    {
-      IndexError(i);
-      return NULL;
-    }
+    Bucket *trailing = NULL;    /* first travels; trailing follows it */
+    int result = 0;
 
-  while (1)
-    {
-      Bucket *next;
-      PER_USE_OR_RETURN(first, NULL);
-      next = first->next;
-      PER_ALLOW_DEACTIVATION(first);
-      PER_ACCESSED(first);
+    assert(current && *current && first);
+    if (first == *current)
+        return 0;
 
-      if (next == current)
-        {
-          Py_INCREF(first);
-          return first;
-        }
-      else if (next)
-        first=next;
-      else
-        {
-          IndexError(i);
-          return NULL;
-        }
-    }
+    do {
+        trailing = first;
+	PER_USE_OR_RETURN(first, -1);
+        first = first->next;
+        PER_ALLOW_DEACTIVATION(trailing);
+	PER_ACCESSED(trailing);
+
+	if (first == *current) {
+	    *current = trailing;
+	    result = 1;
+	    break;
+	}
+    } while (first);
+
+    return result;
 }
 
 static void *
@@ -372,7 +369,7 @@ static char BTree_module_documentation[] =
 "\n"
 MASTER_ID
 BTREEITEMSTEMPLATE_C
-"$Id: BTreeModuleTemplate.c,v 1.33 2002/06/17 23:39:56 tim_one Exp $\n"
+"$Id: BTreeModuleTemplate.c,v 1.34 2002/06/18 02:26:19 tim_one Exp $\n"
 BTREETEMPLATE_C
 BUCKETTEMPLATE_C
 KEYMACROS_H
