@@ -178,6 +178,20 @@ sections:
 \end{alltt}
 
 
+\subsection{Textual Substitution in Values}
+
+XXX Explain \keyword{\%define} and \$-substitution here.
+
+In this example, the value for the \code{key} will evaluate to
+\code{value}:
+
+\begin{verbatim}
+%define name value
+
+key $name
+\end{verbatim} %$
+
+
 \section{\module{ZConfig} --- Basic configuration support}
 
 \declaremodule{}{ZConfig}
