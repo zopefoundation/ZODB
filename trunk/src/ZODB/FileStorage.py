@@ -184,7 +184,7 @@
 #   may have a back pointer to a version record or to a non-version
 #   record.
 #
-__version__='$Revision: 1.23 $'[11:-2]
+__version__='$Revision: 1.24 $'[11:-2]
 
 import struct, time, os, bpthread, string, base64, sys
 from struct import pack, unpack
@@ -813,7 +813,7 @@ class FileStorage(BaseStorage.BaseStorage):
     
             # Initialize, 
             pv=z64
-            offset=0  # the abound of spaec freed by packing
+            offset=0  # the amount of spaec freed by packing
             pos=opos=4
             oseek(0)
             write(packed_version)
@@ -868,7 +868,8 @@ class FileStorage(BaseStorage.BaseStorage):
                 otpos=opos # start pos of output trans
 
                 # write out the transaction record
-                write(h)
+                status=packing and 'p' or ' '
+                write(h[:16]+status+h[17:])
                 thl=ul+dl+el
                 h=read(thl)
                 if len(h) != thl:
@@ -877,7 +878,6 @@ class FileStorage(BaseStorage.BaseStorage):
                 thl=23+thl
                 pos=tpos+thl
                 opos=otpos+thl
-                status=' '
 
                 while pos < tend:
                     # Read the data records for this transaction
@@ -897,7 +897,6 @@ class FileStorage(BaseStorage.BaseStorage):
                             # This is not the most current record, or
                             # the oid is no longer referenced so skip it.
                             pos=pos+dlen
-                            status='p'
                             continue
 
                         pnv=u64(read(8))
@@ -915,7 +914,6 @@ class FileStorage(BaseStorage.BaseStorage):
                                     # This object is no longer referenced
                                     # so skip it.
                                     pos=pos+dlen
-                                    status='p'
                                     continue
                                 
                                 # This is not the most current record
@@ -929,7 +927,6 @@ class FileStorage(BaseStorage.BaseStorage):
                                     # The most current record is committed, so
                                     # we can toss this one
                                     pos=pos+dlen
-                                    status='p'
                                     continue
                                 pnv=read(8)
                                 pnv=_loadBackPOS(file, oid, pnv)
@@ -937,7 +934,6 @@ class FileStorage(BaseStorage.BaseStorage):
                                     # The current non version data is later,
                                     # so this isn't the current record
                                     pos=pos+dlen
-                                    status='p'
                                     continue
 
                             nvindex[oid]=opos
