@@ -18,6 +18,7 @@ import sys
 import tempfile
 import time
 import unittest
+import errno
 
 import ZEO.start
 from ZEO.ClientStorage import ClientStorage
@@ -42,13 +43,13 @@ except ImportError:
 
 class StartTests(unittest.TestCase):
 
-    cmd = "%s %s" % (sys.executable, ZEO.start.__file__)
-    if cmd[-1] == "c":
-        cmd = cmd[:-1]
-
     def setUp(self):
+        startfile = ZEO.start.__file__
+        if startfile[-1] == 'c':
+            startfile = startfile[:-1]
+        self.env = Environment(startfile)
+        self.cmd = '%s %s' % (sys.executable, startfile)
         self.pids = {}
-        self.env = Environment(self.cmd)
 
     def tearDown(self):
         try:
@@ -158,7 +159,14 @@ class StartTests(unittest.TestCase):
         try:
             outp = self.fork("-s", "-p", str(port))
             self.connect(port=port)
-            buf1 = open(logfile1).read()
+            for i in range(10):
+                try:
+                    buf1 = open(logfile1).read()
+                except IOError, e:
+                    if e.errno != errno.ENOENT: raise
+                    time.sleep(1)
+                else:
+                    break
             self.assert_(buf1)
             os.rename(logfile1, logfile2)
             ppid, pid = self.getpids()
