@@ -32,8 +32,9 @@ def main(path, ntxn):
         th.read_meta()
         print "%s: hash=%s" % (th.get_timestamp(),
                                binascii.hexlify(hash))
-        print " " * l, ("user=%r description=%r length=%d"
-                        % (th.user, th.descr, th.length))
+        print ("user=%r description=%r length=%d"
+               % (th.user, th.descr, th.length))
+        print
         th = th.prev_txn()
         i -= 1
 
