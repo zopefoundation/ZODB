@@ -204,6 +204,10 @@ class WindowsZEOFileStorageTests(WindowsGenericTests):
     def delStorage(self):
         removefs(self.__fs_base)
 
+def _fillports(ports):
+    for i in range(200):
+        ports.append(random.randrange(25000, 30000))
+
 class ConnectionTests(StorageTestBase.StorageTestBase):
     """Tests that explicitly manage the server process.
 
@@ -214,9 +218,7 @@ class ConnectionTests(StorageTestBase.StorageTestBase):
     __super_tearDown = StorageTestBase.StorageTestBase.tearDown
 
     ports = []
-    for i in range(200):
-        ports.append(random.randrange(25000, 30000))
-    del i
+    _fillports(ports)
 
     def setUp(self):
         """Start a ZEO server using a Unix domain socket
@@ -238,6 +240,8 @@ class ConnectionTests(StorageTestBase.StorageTestBase):
         self.addr.append(self._getAddr())
 
     def _getAddr(self):
+        if not self.ports:
+            _fillports(self.ports)
         return 'localhost', self.ports.pop()
 
     def openClientStorage(self, cache='', cache_size=200000, wait=1,
