@@ -213,7 +213,8 @@ class ZEOServer:
 
     def check_socket(self):
         if self.can_connect(self.opts.family, self.opts.address):
-            self.opts.usage("address %r already in use" % self.opts.address)
+            self.opts.usage("address %s already in use" %
+                            repr(self.opts.address))
 
     def can_connect(self, family, address):
         s = socket.socket(family, socket.SOCK_STREAM)
