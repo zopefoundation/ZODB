@@ -159,6 +159,7 @@ def copy_other_files(cmd, outputbase):
     # into a package just like .py files.
     extensions = ["*.conf", "*.xml", "*.txt", "*.sh"]
     for dir in [
+        "persistent/tests",
         "ZConfig/components/basic",
         "ZConfig/components/logger",
         "ZConfig/tests/input",
