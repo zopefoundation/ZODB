@@ -848,10 +848,8 @@ This module provides these functions:
 
 The \module{ZConfig} package uses the idea of an \dfn{application
 context} to consolidate the connections between the different
-components of the package.  Most applications should not need to worry
-about the application context at all; the \function{loadURL()} function
-in the \module{ZConfig} module uses the default context implementation
-to glue everything together.
+components of the package.  Most applications should be able to use
+the context implementation provided in this module.
 
 For applications that need to change the way their configuration data
 is handled, the best way to do it is to provide an alternate
