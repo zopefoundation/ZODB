@@ -863,7 +863,7 @@ class StorageServer:
     def get_invalidations(self, tid):
         """Return a tid and list of all objects invalidation since tid.
 
-        The tid is the most recent transaction id committed by the server.
+        The tid is the most recent transaction id seen by the client.
 
         Returns None if it is unable to provide a complete list
         of invalidations for tid.  In this case, client should
