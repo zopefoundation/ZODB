@@ -84,8 +84,8 @@
 ##############################################################################
 """Database objects
 
-$Id: DB.py,v 1.29 2001/05/17 18:35:10 shane Exp $"""
-__version__='$Revision: 1.29 $'[11:-2]
+$Id: DB.py,v 1.30 2001/05/21 22:45:38 jeremy Exp $"""
+__version__='$Revision: 1.30 $'[11:-2]
 
 import cPickle, cStringIO, sys, POSException, UndoLogCompatible
 from Connection import Connection
@@ -311,6 +311,16 @@ class DB(UndoLogCompatible.UndoLogCompatible):
     def importFile(self, file):
         raise 'Not yet implemented'
 
+    def begin_invalidation(self):
+        # Must be called before first call to invalidate and before
+        # the storage lock is held.
+        self._a()
+
+    def finish_invalidation(self):
+        # Must be called after begin_invalidation() and after final
+        # invalidate() call.
+        self._r()
+
     def invalidate(self, oid, connection=None, version='',
                    rc=sys.getrefcount):
         """Invalidate references to a given oid.
@@ -320,40 +330,37 @@ class DB(UndoLogCompatible.UndoLogCompatible):
         passed in to prevent useless (but harmless) messages to the
         connection.
         """
-        if connection is not None: version=connection._version
-        self._a()
-        try:
+        if connection is not None:
+            version=connection._version
+        # Update modified in version cache
+        h=hash(oid)%131
+        o=self._miv_cache.get(h, None)
+        if o is not None and o[0]==oid: del self._miv_cache[h]
 
-            # Update modified in version cache
-            h=hash(oid)%131
-            cache=self._miv_cache
-            o=cache.get(h, None)
-            if o and o[0]==oid: del cache[h]
+        # Notify connections
+        for pool, allocated in self._pools[1]:
+            for cc in allocated:
+                if (cc is not connection and
+                    (not version or cc._version==version)):
+                    if rc(cc) <= 3:
+                        cc.close()
+                    cc.invalidate(oid)
 
-            # Notify connections
-            pools,pooll=self._pools
-            for pool, allocated in pooll:
-                for cc in allocated:
+        temps=self._temps
+        if temps:
+            t=[]
+            for cc in temps:
+                if rc(cc) > 3:
                     if (cc is not connection and
                         (not version or cc._version==version)):
-                        if rc(cc) <= 3:
-                            cc.close()
                         cc.invalidate(oid)
-
-            temps=self._temps
-            if temps:
-                t=[]
-                for cc in temps:
-                    if rc(cc) > 3:
-                        if (cc is not connection and
-                            (not version or cc._version==version)):
-                            cc.invalidate(oid)
-                        t.append(cc)
-                    else: cc.close()
-                self._temps=t
-        finally: self._r()
+                    t.append(cc)
+                else: cc.close()
+            self._temps=t
 
     def invalidateMany(self, oids=None, version=''):
+        # XXX Callers of this method need to call begin_invalidation()
+        # and finish_invalidation() to get the right locking 
         if oids is None: self.invalidate(None, version=version)
         else:
             for oid in oids: self.invalidate(oid, version=version)
