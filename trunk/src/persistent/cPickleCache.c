@@ -1,6 +1,6 @@
 /*
 
-  $Id: cPickleCache.c,v 1.2 1997/03/11 20:48:38 jim Exp $
+  $Id: cPickleCache.c,v 1.3 1997/03/28 20:18:34 jim Exp $
 
   C implementation of a pickle jar cache.
 
@@ -56,7 +56,7 @@
       (540) 371-6909
 
 ***************************************************************************/
-static char *what_string = "$Id: cPickleCache.c,v 1.2 1997/03/11 20:48:38 jim Exp $";
+static char *what_string = "$Id: cPickleCache.c,v 1.3 1997/03/28 20:18:34 jim Exp $";
 
 #define ASSIGN(V,E) {PyObject *__e; __e=(E); Py_XDECREF(V); (V)=__e;}
 #define UNLESS(E) if(!(E))
@@ -64,8 +64,9 @@ static char *what_string = "$Id: cPickleCache.c,v 1.2 1997/03/11 20:48:38 jim Ex
 #define Py_ASSIGN(P,E) if(!PyObject_AssignExpression(&(P),(E))) return NULL
 
 #include "Python.h"
+#include <time.h>
 
-static PyObject *py_reload, *py__p_jar, *py__p_atime;
+static PyObject *py_reload, *py__p_jar, *py__p_atime, *py__p___reinit__;
 
 
 /* Declarations for objects of type cCache */
@@ -101,21 +102,21 @@ gc_item(ccobject *self, PyObject *key, PyObject *v, time_t now, time_t dt)
 	{
 	  UNLESS(-1 != PyDict_DelItem(self->data, key)) return -1;
 	}
-      else if((atime=PyTuple_GET_ITEM(v,1)) &&
-	      now-((PATimeobject*)atime)->value >dt)
+      else if(! dt ||
+	      ((atime=PyTuple_GET_ITEM(v,1)) &&
+	       now-((PATimeobject*)atime)->value >dt))
 	{
 	  /* We have a cPersistent object that hasn't been used in
 	     a while.  Reinitialize it, hopefully freeing it's state.
 	     */
 	  v=PyTuple_GET_ITEM(v,0);
-	  UNLESS(key=PyObject_GetAttr(v,py__p_jar)) return -1;
-	  if(key!=Py_None)
+	  if(key=PyObject_GetAttr(v,py__p___reinit__))
 	    {
-	      UNLESS_ASSIGN(key,PyObject_GetAttr(key,py_reload)) return -1;
-	      UNLESS_ASSIGN(key,PyObject_CallFunction(key,"(O)",v))
-		return -1;
+	      ASSIGN(key,PyObject_CallObject(key,NULL));
+	      UNLESS(key) return -1;
+	      Py_DECREF(key);
 	    }
-	  Py_DECREF(key);
+	  PyErr_Clear();
 	}
     }
   return 0;
@@ -131,7 +132,7 @@ fullgc(ccobject *self)
   i=PyDict_Size(self->data)-3/self->cache_size;
   if(i < 3) i=3;
   dt=self->cache_age*3/i;
-  if(dt < 60) dt=60;
+  if(dt < 10) dt=10;
   now=time(NULL);
 
   for(i=0; PyDict_Next(self->data, &i, &key, &v); )
@@ -141,11 +142,28 @@ fullgc(ccobject *self)
 }
 
 static int
+reallyfullgc(ccobject *self)
+{
+  PyObject *key, *v;
+  int i;
+
+  /* First time through should get refcounts to 1 */
+  for(i=0; PyDict_Next(self->data, &i, &key, &v); )
+    if(gc_item(self,key,v,0,0) < 0) return -1;
+  /* Second time through should free many objects */
+  for(i=0; PyDict_Next(self->data, &i, &key, &v); )
+    if(gc_item(self,key,v,0,0) < 0) return -1;
+
+  self->position=0;
+  return 0;
+}
+
+static int
 maybegc(ccobject *self)
 {
   int n, s;
   time_t now,dt;
-  PyObject *key=0, *v=0, *atime;
+  PyObject *key=0, *v=0;
 
   s=PyDict_Size(self->data)-3;
   if(s < self->cache_size) return 0;
@@ -176,9 +194,21 @@ cc_full_sweep(ccobject *self, PyObject *args)
   return Py_None;
 }
 
+static PyObject *
+cc_reallyfull_sweep(ccobject *self, PyObject *args)
+{
+  UNLESS(PyArg_Parse(args, "")) return NULL;
+  UNLESS(-1 != reallyfullgc(self)) return NULL;
+  Py_INCREF(Py_None);
+  return Py_None;
+}
+
 static struct PyMethodDef cc_methods[] = {
   {"full_sweep",	(PyCFunction)cc_full_sweep,	0,
    "Perform a full sweep of the cache, looking for objects that can be removed"
+   },
+  {"minimize",	(PyCFunction)cc_reallyfull_sweep,	0,
+   "Try to free as many objects as possible"
    },
   {NULL,		NULL}		/* sentinel */
 };
@@ -219,6 +249,31 @@ cc_getattr(ccobject *self, char *name)
     return r;
   PyErr_Clear();
   return PyObject_GetAttrString(self->data, name);
+}
+
+static int
+cc_setattr(ccobject *self, char *name, PyObject *value)
+{
+  if(value)
+    {
+      int v;
+
+      if(strcmp(name,"cache_age")==0)
+	{
+	  if(PyArg_Parse(value,"i",&v)) return 0;
+	  else return -1;
+	  if(v > 0)self->cache_age=v;
+	}
+
+      if(strcmp(name,"cache_size")==0)
+	{
+	  if(PyArg_Parse(value,"i",&v)) return 0;
+	  else return -1;
+	  if(v > 0)self->cache_size=v;
+	}
+    }
+  PyErr_SetString(PyExc_AttributeError, name);
+  return -1;
 }
 
 static PyObject *
@@ -319,7 +374,7 @@ static PyTypeObject Cctype = {
   (destructor)cc_dealloc,	/*tp_dealloc*/
   (printfunc)0,			/*tp_print*/
   (getattrfunc)cc_getattr,	/*tp_getattr*/
-  (setattrfunc)0,		/*tp_setattr*/
+  (setattrfunc)cc_setattr,	/*tp_setattr*/
   (cmpfunc)0,			/*tp_compare*/
   (reprfunc)cc_repr,		/*tp_repr*/
   0,				/*tp_as_number*/
@@ -371,7 +426,7 @@ void
 initcPickleCache()
 {
   PyObject *m, *d;
-  char *rev="$Revision: 1.2 $";
+  char *rev="$Revision: 1.3 $";
 
   Cctype.ob_type=&PyType_Type;
 
@@ -388,6 +443,7 @@ initcPickleCache()
   py_reload=PyString_FromString("reload");
   py__p_jar=PyString_FromString("_p_jar");
   py__p_atime=PyString_FromString("_p_atime");
+  py__p___reinit__=PyString_FromString("_p___reinit__");
 
   PyDict_SetItemString(d,"__version__",
 		       PyString_FromStringAndSize(rev+11,strlen(rev+11)-2));
@@ -398,6 +454,9 @@ initcPickleCache()
 
 /******************************************************************************
  $Log: cPickleCache.c,v $
+ Revision 1.3  1997/03/28 20:18:34  jim
+ Simplified reinit logic.
+
  Revision 1.2  1997/03/11 20:48:38  jim
  Added object-deactivation support.  This only works with cPersistent
  objects.
