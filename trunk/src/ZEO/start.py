@@ -15,7 +15,7 @@
 """Start the server storage.
 """
 
-__version__ = "$Revision: 1.31 $"[11:-2]
+__version__ = "$Revision: 1.32 $"[11:-2]
 
 import sys, os, getopt, string
 
@@ -221,6 +221,10 @@ def main(argv):
         try:
             import signal
 
+            try:
+                signal.signal(signal.SIFXFSZ, signal.SIG_IGN)
+            except AttributeError:
+                pass
             signal.signal(signal.SIGTERM,
                           lambda sig, frame, s=storages: shutdown(s))
             signal.signal(signal.SIGINT,
