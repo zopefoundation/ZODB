@@ -13,7 +13,7 @@
 ##############################################################################
 """Test ExtensionClass support in Persistence.Persistent
 
-$Id: test_ExtensionClass.py,v 1.3 2003/12/29 22:40:46 tim_one Exp $
+$Id: test_ExtensionClass.py,v 1.4 2004/02/20 17:12:39 jeremy Exp $
 """
 
 from Persistence import Persistent
@@ -281,9 +281,6 @@ def test_basic_pickling():
     """
     >>> x = Simple('x', aaa=1, bbb='foo')
 
-    >>> x.__getnewargs__()
-    ()
-
     >>> print_dict(x.__getstate__())
     {'__name__': 'x', 'aaa': 1, 'bbb': 'foo'}
 
@@ -381,9 +378,6 @@ def test_pickling_w_slots_only():
     """
     >>> x = SubSlotted('x', 'y', 'z')
 
-    >>> x.__getnewargs__()
-    ()
-
     >>> d, s = x.__getstate__()
     >>> d
     >>> print_dict(s)
@@ -433,9 +427,6 @@ def test_pickling_w_slots():
     """
     >>> x = SubSubSlotted('x', 'y', 'z', aaa=1, bbb='foo')
 
-    >>> x.__getnewargs__()
-    ()
-
     >>> d, s = x.__getstate__()
     >>> print_dict(d)
     {'aaa': 1, 'bbb': 'foo'}
@@ -473,9 +464,6 @@ def test_pickling_w_slots():
 def test_pickling_w_slots_w_empty_dict():
     """
     >>> x = SubSubSlotted('x', 'y', 'z')
-
-    >>> x.__getnewargs__()
-    ()
 
     >>> d, s = x.__getstate__()
     >>> print_dict(d)
