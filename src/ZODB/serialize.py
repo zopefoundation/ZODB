@@ -34,34 +34,42 @@ The class description can be in a variety of formats, in part to
 provide backwards compatibility with earlier versions of Zope.  The
 two current formats for class description are:
 
-    - type(obj)
-    - type(obj), obj.__getnewargs__()
+    1. type(obj)
+    2. type(obj), obj.__getnewargs__()
 
-The second of these options is used if the object has a
-__getnewargs__() method.  It is intended to support objects like
-persistent classes that have custom C layouts that are determined by
-arguments to __new__().
+The second of these options is used if the object has a __getnewargs__()
+method.  It is intended to support objects like persistent classes that have
+custom C layouts that are determined by arguments to __new__().
 
-The type object is usually stored using the standard pickle mechanism,
-which uses a string containing the class's module and name.  The type
-may itself be a persistent object, in which case a persistent
-reference (see below) is used.
+The type object is usually stored using the standard pickle mechanism, which
+involves the pickle GLOBAL opcode (giving the type's module and name as
+strings).  The type may itself be a persistent object, in which case a
+persistent reference (see below) is used.
+
+It's unclear what "usually" means in the last paragraph.  There are two
+useful places to concentrate confusion about exactly which formats exist:
+
+- BaseObjectReader.getClassName() below returns a dotted "module.class"
+  string, via actually loading a pickle.  This requires that the
+  implementation of application objects be available.
+
+- ZODB/utils.py's get_pickle_metadata() tries to return the module and
+  class names (as strings) without importing any application modules or
+  classes, via analyzing the pickle.
 
 Earlier versions of Zope supported several other kinds of class
-descriptions.  The current serialization code reads these
-descriptions, but does not write them.
+descriptions.  The current serialization code reads these descriptions, but
+does not write them.  The four earlier formats are:
 
-The four formats are:
+    3. (module name, class name), None
+    4. (module name, class name), __getinitargs__()
+    5. class, None
+    6. class, __getinitargs__()
 
-    1. (module name, class name), None
-    2. (module name, class name), __getinitargs__()
-    3. class, None
-    4. class, __getinitargs__()
-
-Formats 2 and 4 are used only if the class defines an
-__getinitargs__() method.  Formats 3 and 4 are used if the class does
-not have an __module__ attribute.  (I'm not sure when this applies,
-but I think it occurs for some but not all ZClasses.)
+Formats 4 and 6 are used only if the class defines a __getinitargs__()
+method.  Formats 5 and 6 are used if the class does not have a __module__
+attribute (I'm not sure when this applies, but I think it occurs for some
+but not all ZClasses).
 
 
 Persistent references
@@ -79,7 +87,6 @@ possible to change the class of a persistent object.  If a transaction
 changed the class of an object, a new record with new class metadata
 would be written but all the old references would still include the
 old class.
-
 """
 
 import cPickle
