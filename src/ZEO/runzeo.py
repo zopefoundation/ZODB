@@ -21,7 +21,7 @@ Options:
 -a/--address ADDRESS -- server address of the form PORT, HOST:PORT, or PATH
                         (a PATH must contain at least one "/")
 -f/--filename FILENAME -- filename for FileStorage
--t/--timeout TIMEOUT -- transaction timeout in secondes (default no timeout)
+-t/--timeout TIMEOUT -- transaction timeout in seconds (default no timeout)
 -h/--help -- print this usage message and exit
 -m/--monitor ADDRESS -- address of monitor server ([HOST:]PORT or PATH)
 
