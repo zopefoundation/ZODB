@@ -1,5 +1,5 @@
-ZODB3 3.3 beta 2
-================
+ZODB3 3.3 release candidate 1
+=============================
 
 Introduction
 ------------

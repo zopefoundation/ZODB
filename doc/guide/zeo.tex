@@ -99,6 +99,7 @@ transaction:
 \begin{verbatim}
 from ZEO import ClientStorage
 from ZODB import DB
+import transaction
 
 # Change next line to connect to your ZEO server
 addr = 'kronos.example.com', 1975
@@ -112,7 +113,7 @@ root['list'] = ['a', 'b', 1.0, 3]
 root['dict'] = {'a':1, 'b':4}
 
 # Commit the transaction
-get_transaction().commit()
+transaction.commit()
 \end{verbatim}
 
 If this code runs properly, then your ZEO server is working correctly.
