@@ -13,14 +13,14 @@
 ##############################################################################
 """Database objects
 
-$Id: DB.py,v 1.61 2004/02/19 02:59:06 jeremy Exp $"""
-__version__='$Revision: 1.61 $'[11:-2]
+$Id: DB.py,v 1.62 2004/02/19 19:10:59 jeremy Exp $"""
+__version__='$Revision: 1.62 $'[11:-2]
 
 import cPickle, cStringIO, sys, POSException, UndoLogCompatible
 from Connection import Connection
 from thread import allocate_lock
 from Transaction import Transaction, get_transaction
-from referencesf import referencesf
+from serialize import referencesf
 from time import time, ctime
 from zLOG import LOG, ERROR
 
