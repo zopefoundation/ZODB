@@ -7,7 +7,7 @@ all these tests.
 from ZODB.tests.MinPO import MinPO
 from ZODB.tests.StorageTestBase import zodb_unpickle
 from ZODB.utils import U64, p64
-
+from ZODB.Transaction import Transaction
 
 
 class IteratorCompare:
@@ -26,9 +26,6 @@ class IteratorCompare:
                 val = val + 1
         eq(val, val0 + len(revids))
 
-# XXX need a test case that covers iteration over a storage that
-# includes a transactional undo that un-created an object.
-
 class IteratorStorage(IteratorCompare):
 
     def checkSimpleIteration(self):
@@ -40,6 +37,69 @@ class IteratorStorage(IteratorCompare):
         # Now iterate over all the transactions and compare carefully
         txniter = self._storage.iterator()
         self.iter_verify(txniter, [revid1, revid2, revid3], 11)
+
+    def checkVersionIterator(self):
+        if not self._storage.supportsVersions():
+            return
+        self._dostore()
+        self._dostore(version='abort')
+        self._dostore()
+        self._dostore(version='abort')
+        t = Transaction()
+        self._storage.tpc_begin(t)
+        self._storage.abortVersion('abort', t)
+        self._storage.tpc_vote(t)
+        self._storage.tpc_finish(t)
+
+        self._dostore(version='commit')
+        self._dostore()
+        self._dostore(version='commit')
+        t = Transaction()
+        self._storage.tpc_begin(t)
+        self._storage.commitVersion('commit', '', t)
+        self._storage.tpc_vote(t)
+        self._storage.tpc_finish(t)
+
+        # XXX extend these checks.  right now, just iterating with CVS
+        # FS or Berkeley will fail here, but once fixed we should
+        # check that the right data is returned.
+        txniter = self._storage.iterator()
+        for trans in txniter:
+            for data in trans:
+                pass
+
+    def checkTransactionalUndoIterator(self):
+        if not hasattr(self._storage, 'supportsTransactionalUndo'):
+            return
+        if not self._storage.supportsTransactionalUndo():
+            return
+
+        oid = self._storage.new_oid()
+        revid = self._dostore(oid)
+        self._dostore(oid, revid)
+
+        self.undoLastTrans()
+        self.undoLastTrans()
+
+        # XXX extend these checks.  right now, just iterating with CVS
+        # FS or Berkeley will fail here, but once fixed we should
+        # check that the right data is returned.
+        txniter = self._storage.iterator()
+        for trans in txniter:
+            for data in trans:
+                print repr(data.oid), repr(data.data)
+        
+
+    def undoLastTrans(self):
+        info = self._storage.undoInfo()
+        print len(info)
+        tid = info[0]['id']
+        t = Transaction()
+        self._storage.tpc_begin(t)
+        oids = self._storage.transactionalUndo(tid, t)
+        self._storage.tpc_vote(t)
+        self._storage.tpc_finish(t)
+        
 
 class ExtendedIteratorStorage(IteratorCompare):
 
