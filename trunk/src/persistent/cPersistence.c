@@ -1,6 +1,6 @@
 /*
 
-  $Id: cPersistence.c,v 1.10 1997/04/22 02:40:03 jim Exp $
+  $Id: cPersistence.c,v 1.11 1997/04/22 02:46:50 jim Exp $
 
   C Persistence Module
 
@@ -56,7 +56,7 @@
 
 
 *****************************************************************************/
-static char *what_string = "$Id: cPersistence.c,v 1.10 1997/04/22 02:40:03 jim Exp $";
+static char *what_string = "$Id: cPersistence.c,v 1.11 1997/04/22 02:46:50 jim Exp $";
 
 #include <time.h>
 #include "cPersistence.h"
@@ -528,7 +528,7 @@ Per__setstate__(self,args)
   PyObject *__dict__, *v, *keys=0, *key=0, *e=0;
   int l, i;
 
-  printf("%s(%d) ", self->ob_type->tp_name,self->oid);
+  /*printf("%s(%d) ", self->ob_type->tp_name,self->oid);*/
 
   UNLESS(PyArg_Parse(args, "O", &v)) return NULL;
   self->state=UPTODATE_STATE;
@@ -854,7 +854,7 @@ void
 initcPersistence()
 {
   PyObject *m, *d;
-  char *rev="$Revision: 1.10 $";
+  char *rev="$Revision: 1.11 $";
 
   PATimeType.ob_type=&PyType_Type;
 
@@ -881,6 +881,9 @@ initcPersistence()
 /****************************************************************************
 
   $Log: cPersistence.c,v $
+  Revision 1.11  1997/04/22 02:46:50  jim
+  Took out debugging info.
+
   Revision 1.10  1997/04/22 02:40:03  jim
   Changed object header layout and added sticky feature.
 
