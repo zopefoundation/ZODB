@@ -44,7 +44,7 @@ class TransactionBuffer:
     # can happen in Python if one thread closes a file that another
     # thread is reading.  In a debug build, an assert() can fail.
 
-    # XXX If an operation is performed on a closed TransactionBuffer,
+    # Caution:  If an operation is performed on a closed TransactionBuffer,
     # it has no effect and does not raise an exception.  The only time
     # this should occur is when a ClientStorage is closed in one
     # thread while another thread is in its tpc_finish().  It's not

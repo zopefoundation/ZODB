@@ -33,7 +33,7 @@ def transact(f, note=None, retries=5):
     TransactionError occurs, the transaction will not be retried.
     """
 
-    # XXX deal with ZEO disconnected errors?
+    # TODO:  deal with ZEO disconnected errors?
 
     def g(*args, **kwargs):
         n = retries

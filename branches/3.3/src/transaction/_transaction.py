@@ -54,7 +54,7 @@ methods and support a second argument to tpc_begin().
 
 The second argument to tpc_begin() indicates that a subtransaction
 commit is beginning (if it is true).  In a subtransaction, there is no
-tpc_vote() call.  (XXX: I don't have any idea why.)  The tpc_finish()
+tpc_vote() call (I don't know why not).  The tpc_finish()
 or tpc_abort() call applies just to that subtransaction.
 
 Once a resource manager is involved in a subtransaction, all
@@ -128,9 +128,6 @@ manager calls beforeCompletion() when it starts a top-level two-phase
 commit.  It calls afterCompletion() when a top-level transaction is
 committed or aborted.  The methods are passed the current Transaction
 as their only argument.
-
-XXX This code isn't tested.
-
 """
 
 import logging
