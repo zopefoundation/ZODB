@@ -38,6 +38,13 @@ pickle = ('((U\x0bPersistenceq\x01U\x11PersistentMappingtq\x02Nt.}q\x03U\n'
 class PMTests(unittest.TestCase):
 
     def checkOldStyleRoot(self):
+        # The Persistence module doesn't exist in Zope3's idea of what ZODB
+        # is, but the global `pickle` references it explicitly.  So just
+        # bail if Persistence isn't available.
+        try:
+            import Persistence
+        except ImportError:
+            return
         # insert the pickle in place of the root
         s = MappingStorage()
         t = Transaction()
