@@ -13,7 +13,7 @@
 ##############################################################################
 """Sized message async connections
 
-$Id: smac.py,v 1.22 2002/08/29 22:39:51 jeremy Exp $
+$Id: smac.py,v 1.23 2002/08/30 21:42:30 gvanrossum Exp $
 """
 
 import asyncore, struct
@@ -194,7 +194,6 @@ class SizedMessageAsyncConnection(asyncore.dispatcher):
         else:
             for i in range(0, len(message), SEND_SIZE):
                 self.__output.append(message[i:i+SEND_SIZE])
-            
 
     def close(self):
         if self.__closed is None:
