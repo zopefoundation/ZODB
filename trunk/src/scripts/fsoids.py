@@ -64,7 +64,7 @@ def main():
     c = Tracer(args[0])
     for oid in args[1:]:
         as_int = int(oid, 0) # 0 == auto-detect base
-        c.register_oid(as_int)
+        c.register_oids(as_int)
     if path is not None:
         for line in open(path):
             as_int = int(line, 0)
