@@ -603,31 +603,9 @@ def main(module_filter, test_filter, libdir):
     if not keepStaleBytecode:
         os.path.walk(os.curdir, remove_stale_bytecode, None)
 
-    # Get the log.ini file from the current directory instead of possibly
-    # buried in the build directory.  XXX This isn't perfect because if
-    # log.ini specifies a log file, it'll be relative to the build directory.
-    # Hmm...
-    logini = os.path.abspath("log.ini")
-
     # Initialize the path and cwd
     global pathinit
     pathinit = PathInit(build, build_inplace, libdir)
-
-    # Initialize the logging module.
-    import logging.config
-    logging.basicConfig()
-    level = os.getenv("LOGGING")
-    if level:
-        level = int(level)
-    else:
-        level = logging.CRITICAL
-    logging.root.setLevel(level)
-    if os.path.exists(logini):
-        # Hack: The ZEO tests need to pass the logging config to spawned
-        # processes.  I can't think of a better way to do it than using
-        # environment variables.
-        os.environ["LOGINI"] = logini
-        logging.config.fileConfig(logini)
 
     files = find_tests(module_filter)
     files.sort()
@@ -651,6 +629,33 @@ def main(module_filter, test_filter, libdir):
                 track.update()
     else:
         runner(files, test_filter, debug)
+
+
+def configure_logging():
+    """Initialize the logging module."""
+    import logging.config
+
+    # Get the log.ini file from the current directory instead of possibly
+    # buried in the build directory.  XXX This isn't perfect because if
+    # log.ini specifies a log file, it'll be relative to the build directory.
+    # Hmm...
+    logini = os.path.abspath("log.ini")
+
+    if os.path.exists(logini):
+        logging.config.fileConfig(logini)
+    else:
+        logging.basicConfig()
+
+    if os.environ.has_key("LOGGING"):
+        level = int(os.environ["LOGGING"])
+        logging.getLogger().setLevel(level)
+
+    if os.path.exists(logini):
+        # Hack: The ZEO tests need to pass the logging config to
+        # spawned processes.  We haven't thought of a better way to do
+        # it than using environment variables.
+        os.environ["LOGINI"] = logini
+        logging.config.fileConfig(logini)
 
 
 def process_args(argv=None):
