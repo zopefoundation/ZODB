@@ -11,9 +11,9 @@
 # FOR A PARTICULAR PURPOSE
 # 
 ##############################################################################
-__version__='$Revision: 1.9 $'[11:-2]
+__version__='$Revision: 1.10 $'[11:-2]
 
-import os,  sys, time
+import os, sys, time
 
 from FormatException import format_exception
 
@@ -26,16 +26,12 @@ def severity_string(severity, mapping={
      200: 'ERROR',    
      300: 'PANIC', 
     }):
-    """Convert a severity code to a string
-    """
-    s=int(severity)
-    if mapping.has_key(s): s=mapping[s]
-    else: s=''
+    """Convert a severity code to a string."""
+    s = mapping.get(int(severity), '')
     return "%s(%s)" % (s, severity)
 
 def log_time():
-    """Return a simple time string without spaces suitable for logging
-    """
+    """Return a simple time string without spaces suitable for logging."""
     return ("%4.4d-%2.2d-%2.2dT%2.2d:%2.2d:%2.2d"
             % time.localtime()[:6])
 
@@ -45,7 +41,6 @@ def _set_log_dest(dest):
 
 _log_dest = None
 _stupid_severity = None
-_no_stupid_log = []
 
 class stupid_log_write:
 
@@ -58,7 +53,9 @@ class stupid_log_write:
 
         # EVENT_LOG_FILE is the preferred envvar, but we accept
         # STUPID_LOG_FILE also
-        path = eget('EVENT_LOG_FILE') or eget('STUPID_LOG_FILE')
+        path = eget('EVENT_LOG_FILE')
+        if path is None:
+            path = eget('STUPID_LOG_FILE')
         if path is None:
             _log_dest = None
         else:
@@ -101,3 +98,5 @@ class stupid_log_write:
 
 _log = stupid_log_write()
 log_write = _log.log
+initialize = _log.initialize
+rotate = _log.rotate
