@@ -262,7 +262,6 @@ class ConnectThread(threading.Thread):
                         domain, err), level=zLOG.ERROR)
                     continue
                 s.setblocking(0)
-                s.setsockopt(socket.IPPROTO_TCP, 1, 1) # TCP_NODELAY
                 self.sockets[s] = addr
                 # connect() raises Connected iff it succeeds
                 # XXX can still block for a while if addr requires DNS
