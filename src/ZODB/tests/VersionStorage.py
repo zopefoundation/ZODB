@@ -1,9 +1,12 @@
+# Run the version related tests for a storage.  Any storage that supports
+# versions should be able to pass all these tests.
 
-import BasicStorage, pickle
+import pickle
 from ZODB import POSException
 
-class VersionStorage(BasicStorage.BasicStorage):
 
+
+class VersionStorage:
     def checkVersionedStoreAndLoad(self):
         # Store a couple of non-version revisions of the object
         oid = self._storage.new_oid()
