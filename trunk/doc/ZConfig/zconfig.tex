@@ -833,9 +833,11 @@ The following data types are provided by the default type registry.
 
 \term{\datatype{inet-address}}
   An Internet address expressed as a \code{(\var{hostname},
-  \var{port})} pair.  If only the port is specified, an empty string
-  will be returned for \var{hostname}.  If the port is omitted,
-  \code{None} will be returned for \var{port}.
+  \var{port})} pair.  If only the port is specified, the default host
+  will be returned for \var{hostname}.  The default host is
+  \code{localhost} on Windows and the empty string on all other
+  platforms.  If the port is omitted, \code{None} will be returned for
+  \var{port}.
 
 \term{\datatype{integer}}
   Convert a value to an integer.  This will be a Python \class{int} if
