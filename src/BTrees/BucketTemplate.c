@@ -82,7 +82,7 @@
   
  ****************************************************************************/
 
-#define BUCKETTEMPLATE_C "$Id: BucketTemplate.c,v 1.16 2001/06/20 19:32:55 matt Exp $\n"
+#define BUCKETTEMPLATE_C "$Id: BucketTemplate.c,v 1.17 2001/06/20 19:47:00 matt Exp $\n"
 
 /*
 ** _bucket_get
@@ -1113,21 +1113,7 @@ _bucket__p_resolveConflict(PyObject *ob_type, PyObject *s[3])
   Py_DECREF(b[1]);
   Py_DECREF(b[2]);
 
-  return r;
-}
-
-static PyObject *
-bucket__p_resolveConflict(Bucket *self, PyObject *args)
-{
-  PyObject *s[3];
-  PyObject *result;
-
-  UNLESS(PyArg_ParseTuple(args, "OOO", &s[0], &s[1], &s[2])) return NULL;
-
-  result = _bucket__p_resolveConflict(OBJECT(self->ob_type), s);
-
-  /* Change any errors to ConflictErrors */
-  if (result == NULL) {
+  if (r == NULL) {
   	PyObject *error;
   	PyObject *value;
   	PyObject *traceback;
@@ -1138,7 +1124,17 @@ bucket__p_resolveConflict(Bucket *self, PyObject *args)
 	PyErr_Restore(ConflictError, value, traceback);
   }
 
-  return result;
+  return r;
+}
+
+static PyObject *
+bucket__p_resolveConflict(Bucket *self, PyObject *args)
+{
+  PyObject *s[3];
+
+  UNLESS(PyArg_ParseTuple(args, "OOO", &s[0], &s[1], &s[2])) return NULL;
+
+  return _bucket__p_resolveConflict(OBJECT(self->ob_type), s);
 }
 #endif
 
