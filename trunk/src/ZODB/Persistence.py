@@ -4,7 +4,7 @@
 __doc__='''Python implementation of persistent base types
 
 
-$Id: Persistence.py,v 1.7 1997/04/03 17:33:32 jim Exp $'''
+$Id: Persistence.py,v 1.8 1997/04/04 13:52:27 jim Exp $'''
 #     Copyright 
 #
 #       Copyright 1996 Digital Creations, L.C., 910 Princess Anne
@@ -60,6 +60,10 @@ $Id: Persistence.py,v 1.7 1997/04/03 17:33:32 jim Exp $'''
 #   (540) 371-6909
 #
 # $Log: Persistence.py,v $
+# Revision 1.8  1997/04/04 13:52:27  jim
+# Fixed bug in persistent mapping that caused extraneous records to be
+# written.
+#
 # Revision 1.7  1997/04/03 17:33:32  jim
 # Changed to pass transaction to jar store method.
 #
@@ -85,7 +89,7 @@ $Id: Persistence.py,v 1.7 1997/04/03 17:33:32 jim Exp $'''
 #
 #
 # 
-__version__='$Revision: 1.7 $'[11:-2]
+__version__='$Revision: 1.8 $'[11:-2]
 
 class Persistent:
     """\
@@ -267,22 +271,22 @@ class PersistentMapping(Persistent):
 
     def __setitem__(self, key, v):
 	self._container[key]=v
-	try: del self._keys
+	try: del self._v_keys
 	except: pass
 	self.__changed__(1)
 
     def __delitem__(self, key):
 	del self._container[key]
-	try: del self._keys
+	try: del self._v_keys
 	except: pass
 	self.__changed__(1)
 
     def __len__(self):     return len(self._container)
 
     def keys(self):
-	try: return self._keys
+	try: return self._v_keys
 	except: pass
-	keys=self._keys=filter(
+	keys=self._v_keys=filter(
 	    lambda k: k[:1]!='_',
 	    self._container.keys())
 	keys.sort()
@@ -290,7 +294,7 @@ class PersistentMapping(Persistent):
 
     def clear(self):
 	self._container={}
-	if hasattr(self,'_keys'): del self._keys
+	if hasattr(self,'_v_keys'): del self._v_keys
 
     def values(self):
 	return map(lambda k, d=self: d[k], self.keys())
