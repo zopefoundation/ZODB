@@ -280,14 +280,15 @@ class TransactionalUndoStorage:
 
     def checkTwoObjectUndoAgain(self):
         eq = self.assertEqual
-        p32, p33, p52, p53 = map(zodb_pickle,
-                                 map(MinPO, (32, 33, 52, 53)))
+        p31, p32, p33, p51, p52, p53 = map(
+            zodb_pickle,
+            map(MinPO, (31, 32, 33, 51, 52, 53)))
         # Like the above, but the first revision of the objects are stored in
         # different transactions.
         oid1 = self._storage.new_oid()
         oid2 = self._storage.new_oid()
-        revid1 = self._dostore(oid1, data=MinPO(31))
-        revid2 = self._dostore(oid2, data=MinPO(51))
+        revid1 = self._dostore(oid1, data=p31, already_pickled=1)
+        revid2 = self._dostore(oid2, data=p51, already_pickled=1)
         # Update those same two objects
         self._storage.tpc_begin(self._transaction)
         self._transaction_begin()
