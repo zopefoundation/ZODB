@@ -18,7 +18,6 @@
 
 #ifdef PERSISTENT
 #include "cPersistence.h"
-//#include "persistence/persistenceAPI.h"
 #else
 #define PER_USE_OR_RETURN(self, NULL)
 #define PER_ALLOW_DEACTIVATION(self)
@@ -379,7 +378,7 @@ static char BTree_module_documentation[] =
 "\n"
 MASTER_ID
 BTREEITEMSTEMPLATE_C
-"$Id: BTreeModuleTemplate.c,v 1.38 2003/11/28 16:44:44 jim Exp $\n"
+"$Id: BTreeModuleTemplate.c,v 1.39 2004/01/14 19:16:46 jeremy Exp $\n"
 BTREETEMPLATE_C
 BUCKETTEMPLATE_C
 KEYMACROS_H
