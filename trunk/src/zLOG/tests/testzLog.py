@@ -48,6 +48,8 @@ class StupidLogTest(unittest.TestCase):
         # skip to the beginning of next entry
         line = f.readline()
         while line != "------\n":
+            if not line:
+                self.fail("can't find entry in log file")
             line = f.readline()
             
         line = f.readline().strip()
@@ -80,18 +82,21 @@ class StupidLogTest(unittest.TestCase):
                 if line == last:
                     break
 
+    def getLogFile(self):
+        return open(self.path, 'rb')
+
     def checkBasics(self):
         self.setLog()
         zLOG.LOG("basic", zLOG.INFO, "summary")
 
-        f = open(self.path, 'rb')
+        f = self.getLogFile()
         self.verifyEntry(f, subsys="basic", summary="summary")
 
     def checkDetail(self):
         self.setLog()
         zLOG.LOG("basic", zLOG.INFO, "xxx", "this is a detail")
 
-        f = open(self.path, 'rb')
+        f = self.getLogFile()
         self.verifyEntry(f, subsys="basic", detail="detail")
 
     def checkError(self):
@@ -104,7 +109,7 @@ class StupidLogTest(unittest.TestCase):
         zLOG.LOG("basic", zLOG.INFO, "summary")
         zLOG.LOG("basic", zLOG.ERROR, "raised exception", error=err)
 
-        f = open(self.path, 'rb')
+        f = self.getLogFile()
         self.verifyEntry(f, subsys="basic", summary="summary")
         self.verifyEntry(f, subsys="basic", severity=zLOG.ERROR,
                          error=err)
