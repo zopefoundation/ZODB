@@ -20,12 +20,10 @@ platform-dependent scaffolding.
 # System imports
 import unittest
 # Import the actual test class
-from ZEO.tests.ConnectionTests import ConnectionTests
+from ZEO.tests import ConnectionTests
 
 
-class FileStorageConnectionTests(ConnectionTests):
-    """Add FileStorage-specific test."""
-
+class FileStorageConfig:
     def getConfig(self, path, create, read_only):
         return """\
         <Storage>
@@ -38,9 +36,7 @@ class FileStorageConnectionTests(ConnectionTests):
                          read_only and 'yes' or 'no')
 
 
-class BDBConnectionTests(FileStorageConnectionTests):
-    """Berkeley storage tests."""
-
+class BerkeleyStorageConfig:
     def getConfig(self, path, create, read_only):
         # Full always creates and doesn't have a read_only flag
         return """\
@@ -51,13 +47,42 @@ class BDBConnectionTests(FileStorageConnectionTests):
         </Storage>""" % (path, read_only)
 
 
-test_classes = [FileStorageConnectionTests]
+class FileStorageConnectionTests(
+    FileStorageConfig,
+    ConnectionTests.ConnectionTests
+    ):
+    """FileStorage-specific connection tests."""
+
+
+class FileStorageReconnectionTests(
+    FileStorageConfig,
+    ConnectionTests.ReconnectionTests
+    ):
+    """FileStorage-specific re-connection tests."""
+
+
+class BDBConnectionTests(
+    BerkeleyStorageConfig,
+    ConnectionTests.ConnectionTests
+    ):
+    """Berkeley storage connection tests."""
+
+
+class BDBReconnectionTests(
+    BerkeleyStorageConfig,
+    ConnectionTests.ReconnectionTests
+    ):
+    """Berkeley storage re-connection tests."""
+
+
+test_classes = [FileStorageConnectionTests, FileStorageReconnectionTests]
 try:
     from bsddb3Storage.Full import Full
 except ImportError:
     pass
 else:
     test_classes.append(BDBConnectionTests)
+    test_classes.append(BDBReconnectionTests)
 
 
 def test_suite():
