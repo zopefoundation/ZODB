@@ -334,8 +334,8 @@ class ConnectionTests(StorageTestBase.StorageTestBase):
         # Stores should fail here
         self.assertRaises(ReadOnlyError, self._dostore)
 
-    def checkReadOnlyServer(self):
-        # Open a read-only client to a read-only server; stores fail
+    def checkReadOnlyStorage(self):
+        # Open a read-only client to a read-only *storage*; stores fail
 
         # We don't want the read-write server created by setUp()
         self.shutdownServer()
@@ -344,6 +344,21 @@ class ConnectionTests(StorageTestBase.StorageTestBase):
 
         # Start a read-only server
         self._startServer(create=0, index=0, read_only=1)
+        # Start a read-only client
+        self._storage = self.openClientStorage(read_only=1)
+        # Stores should fail here
+        self.assertRaises(ReadOnlyError, self._dostore)
+
+    def checkReadOnlyServer(self):
+        # Open a read-only client to a read-only *server*; stores fail
+
+        # We don't want the read-write server created by setUp()
+        self.shutdownServer()
+        self._servers = []
+        self._pids = []
+
+        # Start a read-only server
+        self._startServer(create=0, index=0, ro_svr=1)
         # Start a read-only client
         self._storage = self.openClientStorage(read_only=1)
         # Stores should fail here
