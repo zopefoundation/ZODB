@@ -11,3 +11,6 @@ documentation tools installed on your platform; see
     http://www.python.org/doc/current/doc/doc.html
 
 for more information on the tools.
+
+This documentation requires the latest version of the Python
+documentation tools from CVS.
