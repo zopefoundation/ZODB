@@ -1,7 +1,5 @@
 *shared*
 OOBTree OOBTree.c  -I../../Components/ExtensionClass -I../ZODB
 OIBTree OIBTree.c  -I../../Components/ExtensionClass -I../ZODB
-OBTree OBTree.c   -I../../Components/ExtensionClass -I../ZODB
 IIBTree IIBTree.c  -I../../Components/ExtensionClass -I../ZODB
 IOBTree IOBTree.c  -I../../Components/ExtensionClass -I../ZODB
-IBTree IBTree.c   -I../../Components/ExtensionClass -I../ZODB

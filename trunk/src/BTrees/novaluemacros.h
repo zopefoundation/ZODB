@@ -1,7 +1,0 @@
-#define NOVAL
-#define DECLARE_VALUE(NAME)
-#define DECREF_VALUE(k)
-#define INCREF_VALUE(k)
-#define COPY_VALUE(V, E)
-#define COPY_VALUE_TO_OBJECT(O, K)
-#define COPY_VALUE_FROM_ARG(TARGET, ARG, S)
