@@ -1412,7 +1412,7 @@ class FileStorage(BaseStorage.BaseStorage,
         except ValueError: # "empty tree" error
             next_oid = None
 
-        data, tid = self.load(oid, None) # ignore versions
+        data, tid = self.load(oid, "") # ignore versions
         return oid, tid, data, next_oid
 
 
