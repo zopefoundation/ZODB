@@ -8,8 +8,9 @@ Zope Enterprize Option, iteration 1
 
   (Run start without arguments to see options.)
 
-  To get Zope to use the server, create a custom_zodb module that 
-  uses a ClientStorage::
+  To get Zope to use the server, create a custom_zodb module,
+  custom_zodb.py, in your Zope install directory, so that uses a
+  ClientStorage::
 
     import ZEO.ClientStorage
     Storage=ZEO.ClientStorage.ClientStorage(('',port_number), async=1)
