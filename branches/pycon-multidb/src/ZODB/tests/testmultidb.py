@@ -91,7 +91,8 @@ True
 >>> cn2.get_connection('notroot') is cn2
 True
 
-Of course trying to get a non-existent named database doesn't work:
+Of course trying to get a connection for a database not in the group raises
+an exception:
 
 >>> cn.get_connection('no way')
 Traceback (most recent call last):
