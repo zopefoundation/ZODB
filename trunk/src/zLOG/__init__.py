@@ -83,7 +83,7 @@ There is a default event logging facility that:
     can be overridden with the environment variable EVENT_LOG_SEVERITY
 
 """
-__version__='$Revision: 1.17 $'[11:-2]
+__version__='$Revision: 1.18 $'[11:-2]
 
 from EventLogger import log_write, log_time, severity_string, \
      initialize_from_environment
@@ -132,7 +132,7 @@ def LOG(subsystem, severity, summary, detail='', error=None, reraise=None):
 
       severity -- The "severity" of the event.  This may be an integer or
                   a floating point number.  Logging back ends may
-                  consider the int() of this valua to be significant.
+                  consider the int() of this value to be significant.
                   For example, a backend may consider any severity
                   whos integer value is WARNING to be a warning.
 
