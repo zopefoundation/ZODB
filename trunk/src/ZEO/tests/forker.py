@@ -23,12 +23,6 @@ import tempfile
 
 import zLOG
 
-# Change value of PROFILE to enable server-side profiling
-PROFILE = 0
-if PROFILE:
-    import hotshot
-
-
 def get_port():
     """Return a port that is not in use.
 
@@ -49,7 +43,6 @@ def get_port():
         finally:
             s.close()
     raise RuntimeError, "Can't find port"
-
 
 def start_zeo_server(conf, addr=None, ro_svr=0, monitor=0, keep=0, invq=None,
                      timeout=None):
