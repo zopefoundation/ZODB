@@ -13,7 +13,7 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.81 2003/01/14 15:20:21 shane Exp $"""
+$Id: Connection.py,v 1.82 2003/01/15 21:29:26 jeremy Exp $"""
 
 from cPickleCache import PickleCache
 from POSException import ConflictError, ReadConflictError
@@ -512,6 +512,8 @@ class Connection(ExportImport.ExportImport):
             # storage to make sure that we don't miss an invaildation
             # notifications between the time we check and the time we
             # read.
+
+            # XXX Need unit tests for _p_independent.
             if self._invalid(oid):
                 if not hasattr(object.__class__, '_p_independent'):
                     get_transaction().register(self)
