@@ -149,7 +149,7 @@ Also, the object ids time stamps are big-endian, so comparisons
 are meaningful.
 
 """
-__version__='$Revision: 1.7 $'[11:-2]
+__version__='$Revision: 1.8 $'[11:-2]
 
 import struct, time, os, bpthread, string, base64
 now=time.time
@@ -351,7 +351,8 @@ class FileStorage:
             here=tfile.tell()+self._pos+self._thl
             oids=[]
             appoids=oids.append
-
+            tvindex=self._tvindex
+            
             while srcpos:
                 seek(srcpos)
                 h=read(58) # oid, serial, prev(oid), tloc, vlen, plen, pnv, pv
@@ -361,6 +362,7 @@ class FileStorage:
                     appoids(oid)
                     write(h[:16] + spos + middle)
                     if dest:
+                        tvindex[dest]=here
                         write(h[-16:-8]+sd+dest)
                         sd=p64(here)
 
@@ -370,7 +372,7 @@ class FileStorage:
                 spos=h[-8:]
                 srcpos=u64(spos)
                
-            self._tvindex[src]=0
+            tvindex[src]=0
 
             return oids
 
@@ -624,7 +626,8 @@ class FileStorage:
 		prev=u64(sprev)
 		dlen=42+(plen or 8)
 		if vlen: dlen=dlen+16+vlen
-		if indexpos(oid,0) != pos: raise UndoError, 'Undoable transaction'
+		if indexpos(oid,0) != pos:
+                    raise UndoError, 'Undoable transaction'
 		pos=pos+dlen
 		if pos > tend: raise UndoError, 'Undoable transaction'
 		tappend((oid,prev))
