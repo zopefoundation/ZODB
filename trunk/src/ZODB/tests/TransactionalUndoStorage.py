@@ -15,7 +15,6 @@ from ZODB.tests.StorageTestBase import zodb_pickle, zodb_unpickle
 
 ZERO = '\0'*8
 
-
 class TransactionalUndoStorage:
 
     def _transaction_begin(self):
@@ -445,7 +444,12 @@ class TransactionalUndoStorage:
         self._storage.pack(packtime, referencesf)
         # Make some basic assertions about the undo information now
         info2 = self._storage.undoInfo()
-        eq(len(info2), 2)
+        leninfo2 = len(info2)
+        eq(leninfo2, 2, "length of self._storage.undoInfo() was %s, it was expected to be %s" % (
+                        leninfo2,
+                        2
+                        )
+           )
         # And now attempt to undo the last transaction
         t = Transaction()
         self._storage.tpc_begin(t)
