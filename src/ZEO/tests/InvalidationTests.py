@@ -465,6 +465,7 @@ class InvalidationTests:
             db2._storage.sync()
 
         cn = db1.open()
+        tree = cn.root()["tree"]
         self._check_tree(cn, tree)
         self._check_threads(tree, t1, t2)
 
@@ -489,6 +490,7 @@ class InvalidationTests:
         self.go(stop, cd, t1, t2)
 
         cn = db1.open()
+        tree = cn.root()["tree"]
         self._check_tree(cn, tree)
         self._check_threads(tree, t1, t2)
 
@@ -521,7 +523,9 @@ class InvalidationTests:
             db1._storage.sync()
             db2._storage.sync()
 
+
         cn = db1.open()
+        tree = cn.root()["tree"]
         self._check_tree(cn, tree)
         self._check_threads(tree, t1, t2, t3)
 
@@ -555,7 +559,9 @@ class InvalidationTests:
             db1._storage.sync()
             db2._storage.sync()
 
+
         cn = db1.open()
+        tree = cn.root()["tree"]
         self._check_tree(cn, tree)
         self._check_threads(tree, t1, t2, t3)
 
@@ -591,7 +597,9 @@ class InvalidationTests:
         while db1.lastTransaction() != db2.lastTransaction():
             db1._storage.sync()
             db2._storage.sync()
+
         cn = db1.open()
+        tree = cn.root()["tree"]
         self._check_tree(cn, tree)
 
         # Purge the tree of the dummy entries mapping to 0.
