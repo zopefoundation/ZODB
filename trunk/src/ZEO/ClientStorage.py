@@ -84,7 +84,7 @@
 ##############################################################################
 """Network ZODB storage client
 """
-__version__='$Revision: 1.8 $'[11:-2]
+__version__='$Revision: 1.9 $'[11:-2]
 
 import struct, time, os, socket, string, Sync, zrpc, ClientCache
 import tempfile, Invalidator, ExtensionClass, thread
@@ -254,6 +254,11 @@ class ClientStorage(ExtensionClass.Base, BaseStorage.BaseStorage):
     def history(self, oid, version, length=1):
         self._lock_acquire()
         try: return self._call('history', oid, version, length)     
+        finally: self._lock_release()       
+                  
+    def loadSerial(self, oid, serial):
+        self._lock_acquire()
+        try: return self._call('loadSerial', oid, serial)     
         finally: self._lock_release()       
 
     def load(self, oid, version, _stuff=None):
