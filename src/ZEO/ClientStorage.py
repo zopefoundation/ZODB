@@ -84,7 +84,7 @@
 ##############################################################################
 """Network ZODB storage client
 """
-__version__='$Revision: 1.17 $'[11:-2]
+__version__='$Revision: 1.18 $'[11:-2]
 
 import struct, time, os, socket, string, Sync, zrpc, ClientCache
 import tempfile, Invalidator, ExtensionClass, thread
@@ -151,65 +151,17 @@ class ClientStorage(ExtensionClass.Base, BaseStorage.BaseStorage):
 
         ThreadedAsync.register_loop_callback(self.becomeAsync)
 
-    def _startup(self):
-
-        if not self._call.connect():
-            # If we can't connect right away, go ahead and open the cache
-            # and start a separate thread to try and reconnect.
-            LOG("ClientStorage", PROBLEM, "Failed to connect to storage")
-            self._cache.open()
-            thread.start_new_thread(self._call.connect,(0,))
-
-    def notifyConnected(self, s):
-        LOG("ClientStorage", INFO, "Connected to storage")
-        self._lock_acquire()
-        try:
-            # We let the connection keep coming up now that
-            # we have the storage lock. This way, we know no calls
-            # will be made while in the process of coming up.
-            self._call.finishConnect(s)
-
-            self._connected=1
-            self._oids=[]
-            self.__begin='tpc_begin_sync'
-            
-            self._call.message_output(str(self._storage))
-            self._info.update(self._call('get_info'))
-
-            cached=self._cache.open()
-            if cached:
-                self._call.sendMessage('beginZeoVerify')
-                for oid, (s, vs) in cached:
-                    self._call.sendMessage('zeoVerify', oid, s, vs)
-                self._call.sendMessage('endZeoVerify')
-
-        finally: self._lock_release()
-
-        if self._async:
-            import ZServer.medusa.asyncore
-            self.becomeAsync(ZServer.medusa.asyncore.socket_map)
-
-    def notifyDisconnected(self, ignored):
-        LOG("ClientStorage", PROBLEM, "Disconnected from storage")
-        self._connected=0
-        self._transaction=None
-        thread.start_new_thread(self._call.connect,(0,))
-        try: self._commit_lock_release()
-        except: pass
-
-    def becomeAsync(self, map):
-        self._lock_acquire()
-        try:
-            self._async=1
-            if self._connected:
-                import ZServer.PubCore.ZEvent
-
-                self._call.setLoop(map,
-                                   ZServer.PubCore.ZEvent.Wakeup)
-                self.__begin='tpc_begin'
-        finally: self._lock_release()
+        # IMPORTANT: Note that we aren't fully "there" yet.
+        # In particular, we don't actually connect to the server
+        # until we have a controlling database set with registerDB
+        # below.
 
     def registerDB(self, db, limit):
+        """Register that the storage is controlled by the given DB.
+        """
+        
+        # Among other things, we know that our data methods won't get
+        # called until after this call.
 
         invalidator=Invalidator.Invalidator(
             db.invalidate,
@@ -235,7 +187,98 @@ class ClientStorage(ExtensionClass.Base, BaseStorage.BaseStorage):
 
         self._call.setOutOfBand(out_of_band_hook)
 
+        # Now that we have our callback system in place, we can
+        # try to connect
+
         self._startup()
+
+    def _startup(self):
+
+        if not self._call.connect():
+
+            # If we can't connect right away, go ahead and open the cache
+            # and start a separate thread to try and reconnect.
+
+            LOG("ClientStorage", PROBLEM, "Failed to connect to storage")
+            self._cache.open()
+            thread.start_new_thread(self._call.connect,(0,))
+
+            # If the connect succeeds then this work will be done by
+            # notifyConnected
+
+    def notifyConnected(self, s):
+        LOG("ClientStorage", INFO, "Connected to storage")
+        self._lock_acquire()
+        try:
+            
+            # We let the connection keep coming up now that
+            # we have the storage lock. This way, we know no calls
+            # will be made while in the process of coming up.
+
+            self._call.finishConnect(s)
+
+            self._connected=1
+            self._oids=[]
+
+            # we do synchronous commits until we are sure that
+            # we have and are ready for a main loop.
+
+            # Hm. This is a little silly. If self._async, then
+            # we will really never do a synchronous commit.
+            # See below.
+            self.__begin='tpc_begin_sync'
+            
+            self._call.message_output(str(self._storage))
+
+            ### This seems silly. We should get the info asynchronously.
+            # self._info.update(self._call('get_info'))
+
+            cached=self._cache.open()
+            ### This is a little expensive for large caches
+            if cached:
+                self._call.sendMessage('beginZeoVerify')
+                for oid, (s, vs) in cached:
+                    self._call.sendMessage('zeoVerify', oid, s, vs)
+                self._call.sendMessage('endZeoVerify')
+
+        finally: self._lock_release()
+
+        if self._async:
+            import ZServer.medusa.asyncore
+            self.becomeAsync(ZServer.medusa.asyncore.socket_map)
+
+
+    ### Is there a race condition between notifyConnected and
+    ### notifyDisconnected? In Particular, what if we get
+    ### notifyDisconnected in the middle of notifyConnected?
+    ### The danger is that we'll proceed as if we were connected
+    ### without worrying if we were, but this would happen any way if
+    ### notifyDisconnected had to get the instance lock.  There's
+    ### nothing to gain by getting the instance lock.
+
+    ### Note that we *don't* have to worry about getting connected
+    ### in the middle of notifyDisconnected, because *it's*
+    ### responsible for starting the thread that makes the connection.
+
+    def notifyDisconnected(self, ignored):
+        LOG("ClientStorage", PROBLEM, "Disconnected from storage")
+        self._connected=0
+        self._transaction=None
+        thread.start_new_thread(self._call.connect,(0,))
+        try: self._commit_lock_release()
+        except: pass
+
+    def becomeAsync(self, map):
+        self._lock_acquire()
+        try:
+            self._async=1
+            if self._connected:
+                import ZServer.PubCore.ZEvent
+
+                self._call.setLoop(map,
+                                   ZServer.PubCore.ZEvent.Wakeup)
+                self.__begin='tpc_begin'
+        finally: self._lock_release()
 
     def __len__(self): return self._info['length']
 
