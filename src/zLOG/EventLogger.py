@@ -27,7 +27,10 @@ from logging import StreamHandler, Formatter
 
 class EventLogger(BaseLogger):
 
+    # Get our logger object:
     logger = logging.getLogger('event')
+    # Add a null handler to prevent warnings about loggers with no handlers:
+    logger.addHandler(NullHandler())
 
     def log(self, subsystem, severity, summary, detail, error):
 
