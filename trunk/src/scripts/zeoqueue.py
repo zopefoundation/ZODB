@@ -1,10 +1,13 @@
 #! /usr/bin/env python
 """Report on the number of currently waiting clients in the ZEO queue."""
 
-import fileinput
+import getopt
 import re
 import sys
 import time
+
+# pick arbitrary buffer size that isn't too big
+BUFSIZE = 8 * 1024 * 1024
 
 rx_time = re.compile('(\d\d\d\d-\d\d-\d\d)T(\d\d:\d\d:\d\d)')
 
@@ -81,6 +84,15 @@ class Status:
         self.t_restart = None
         self.txns = {}
 
+    def iscomplete(self):
+        # The status report will always be complete if we encounter an
+        # explicit restart.
+        if self.t_restart is not None:
+            return 1
+        # If we haven't seen a restart, assume that seeing a finished
+        # transaction is good enough.
+        return self.commit is not None
+
     def report(self):
         print "Blocked transactions:", self.n_blocked
         if not VERBOSE:
@@ -98,12 +110,13 @@ class Status:
         L = [(txn.begin, txn) for txn in self.txns.values()]
         L.sort()
 
-        first_txn = L[0][1]
-        if first_txn.isactive():
-            began = first_txn.begin
-            print "Blocked transaction began at:", time.ctime(began)
-            print "Hint:", first_txn.hint
-            print "Idle time: %d sec" % int(time.time() - began)
+        for x, txn in L:
+            if txn.isactive():
+                began = txn.begin
+                print "Blocked transaction began at:", time.ctime(began)
+                print "Hint:", txn.hint
+                print "Idle time: %d sec" % int(time.time() - began)
+                break
 
     def process(self, line):
         if line.find("calling") != -1:
@@ -213,23 +226,38 @@ class Status:
                 pass
         self.commit = self.commit_or_abort = txn
 
+def process_from(f, pos):
+    s = Status()
+    f.seek(-pos, 2)
+    f.readline()
+    for line in f.readlines(BUFSIZE):
+        s.process(line)
+    return s
+
 def main():
     global VERBOSE
-    # decide whether -v was passed on the command line
-    try:
-        i = sys.argv.index("-v")
-    except ValueError:
-        VERBOSE = 0
-    else:
-        VERBOSE = 1
-        # fileinput assumes all of sys.argv[1:] is files it should read
-        del sys.argv[i]
+    VERBOSE = 0
+    opts, args = getopt.getopt(sys.argv[1:], 'v')
+    for k, v in opts:
+        if k == '-v':
+            VERBOSE += 1
 
-    s = Status()
-    for line in fileinput.input():
-        s.process(line)
+    path = args[0]
+    f = open(path, "rb")
+
+    # Start at pos bytes from the end of the file and read forwards.
+    # If we read enough log data to have a complete snapshot of the
+    # server state, stop and print a report.  If not, move twice as
+    # far from the end of the file and repeat.
+    
+    pos = 16 * 1024
+    while 1:
+        s = process_from(f, pos)
+        if s.iscomplete():
+            break
+        pos *= 2
     s.report()
-
+    
 if __name__ == "__main__":
     main()
 
