@@ -13,7 +13,7 @@
 ##############################################################################
 """Basic pickling tests
 
-$Id: test_pickle.py,v 1.4 2004/02/19 02:59:32 jeremy Exp $
+$Id: test_pickle.py,v 1.5 2004/02/19 18:13:34 jeremy Exp $
 """
 
 from persistent import Persistent
@@ -49,9 +49,6 @@ class Simple(Persistent):
 def test_basic_pickling():
     """
     >>> x = Simple('x', aaa=1, bbb='foo')
-
-    >>> x.__getnewargs__()
-    ()
 
     >>> print_dict(x.__getstate__())
     {'__name__': 'x', 'aaa': 1, 'bbb': 'foo'}
@@ -152,9 +149,6 @@ def test_pickling_w_slots_only():
     """
     >>> x = SubSlotted('x', 'y', 'z')
 
-    >>> x.__getnewargs__()
-    ()
-
     >>> d, s = x.__getstate__()
     >>> d
     >>> print_dict(s)
@@ -206,9 +200,6 @@ def test_pickling_w_slots():
     """
     >>> x = SubSubSlotted('x', 'y', 'z', aaa=1, bbb='foo')
 
-    >>> x.__getnewargs__()
-    ()
-
     >>> d, s = x.__getstate__()
     >>> print_dict(d)
     {'aaa': 1, 'bbb': 'foo'}
@@ -248,9 +239,6 @@ def test_pickling_w_slots():
 def test_pickling_w_slots_w_empty_dict():
     """
     >>> x = SubSubSlotted('x', 'y', 'z')
-
-    >>> x.__getnewargs__()
-    ()
 
     >>> d, s = x.__getstate__()
     >>> print_dict(d)
