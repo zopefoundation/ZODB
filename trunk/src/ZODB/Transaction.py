@@ -13,8 +13,8 @@
 ##############################################################################
 """Transaction management
 
-$Id: Transaction.py,v 1.41 2002/12/02 22:16:58 jeremy Exp $"""
-__version__='$Revision: 1.41 $'[11:-2]
+$Id: Transaction.py,v 1.42 2002/12/02 22:21:16 jeremy Exp $
+"""
 
 import time, sys, struct, POSException
 from struct import pack
@@ -48,12 +48,11 @@ def jar_cmp(j1, j2):
     return cmp(k1, k2)
 
 class Transaction:
-    'Simple transaction objects for single-threaded applications.'
-    user=''
-    description=''
-    _connections=None
-    _extension=None
-    _sub=None # This is a subtrasaction flag
+    user = ''
+    description = ''
+    _connections = None
+    _extension = None
+    _sub = None # This is a subtrasaction flag
 
     # The _non_st_objects variable is either None or a list
     # of jars that do not support subtransactions. This is used to
@@ -163,10 +162,10 @@ class Transaction:
                 self._init()
 
     def begin(self, info=None, subtransaction=None):
-        '''Begin a new transaction.
+        """Begin a new transaction.
 
         This aborts any transaction in progres.
-        '''
+        """
         if self._objects:
             self.abort(subtransaction, 0)
         if info:
@@ -175,8 +174,7 @@ class Transaction:
             self.description=strip(join(info[1:],'\t'))
 
     def commit(self, subtransaction=None):
-        'Finalize the transaction'
-
+        ""Finalize the transaction."""
         objects = self._objects
 
         subjars = []
