@@ -1,6 +1,6 @@
 /*
 
-  $Id: cPickleCache.c,v 1.1 1997/02/17 18:39:02 jim Exp $
+  $Id: cPickleCache.c,v 1.2 1997/03/11 20:48:38 jim Exp $
 
   C implementation of a pickle jar cache.
 
@@ -56,22 +56,17 @@
       (540) 371-6909
 
 ***************************************************************************/
-static char *what_string = "$Id: cPickleCache.c,v 1.1 1997/02/17 18:39:02 jim Exp $";
+static char *what_string = "$Id: cPickleCache.c,v 1.2 1997/03/11 20:48:38 jim Exp $";
 
 #define ASSIGN(V,E) {PyObject *__e; __e=(E); Py_XDECREF(V); (V)=__e;}
 #define UNLESS(E) if(!(E))
 #define UNLESS_ASSIGN(V,E) ASSIGN(V,E) UNLESS(V)
 #define Py_ASSIGN(P,E) if(!PyObject_AssignExpression(&(P),(E))) return NULL
 
-#ifdef __cplusplus
-#define ARG(T,N) T N
-#define ARGDECL(T,N)
-#else
-#define ARG(T,N) N
-#define ARGDECL(T,N) T N;
-#endif
-
 #include "Python.h"
+
+static PyObject *py_reload, *py__p_jar, *py__p_atime;
+
 
 /* Declarations for objects of type cCache */
 
@@ -80,50 +75,91 @@ typedef struct {
   PyObject *data;
   int position;
   int cache_size;
+  int cache_age;
 } ccobject;
 
 staticforward PyTypeObject Cctype;
 
+static PyObject *PATimeType=NULL;
+
+typedef struct {
+  PyObject_HEAD
+  time_t value;
+} PATimeobject;
+
 /* ---------------------------------------------------------------- */
 
-static char cc_full_sweep__doc__[] = 
-"Perform a full sweep of the cache, looking for objects that can be removed"
-;
+
+static int 
+gc_item(ccobject *self, PyObject *key, PyObject *v, time_t now, time_t dt)
+{
+  PyObject *atime;
+
+  if(v && key)
+    {
+      if(PyTuple_GET_ITEM(v,0)->ob_refcnt <= 1)
+	{
+	  UNLESS(-1 != PyDict_DelItem(self->data, key)) return -1;
+	}
+      else if((atime=PyTuple_GET_ITEM(v,1)) &&
+	      now-((PATimeobject*)atime)->value >dt)
+	{
+	  /* We have a cPersistent object that hasn't been used in
+	     a while.  Reinitialize it, hopefully freeing it's state.
+	     */
+	  v=PyTuple_GET_ITEM(v,0);
+	  UNLESS(key=PyObject_GetAttr(v,py__p_jar)) return -1;
+	  if(key!=Py_None)
+	    {
+	      UNLESS_ASSIGN(key,PyObject_GetAttr(key,py_reload)) return -1;
+	      UNLESS_ASSIGN(key,PyObject_CallFunction(key,"(O)",v))
+		return -1;
+	    }
+	  Py_DECREF(key);
+	}
+    }
+  return 0;
+}
 
 static int
-fullgc(ARG(ccobject *, self))
-     ARGDECL(ccobject *, self)
+fullgc(ccobject *self)
 {
   PyObject *key, *v;
-  int i, l;
+  int i;
+  time_t now, dt;
+
+  i=PyDict_Size(self->data)-3/self->cache_size;
+  if(i < 3) i=3;
+  dt=self->cache_age*3/i;
+  if(dt < 60) dt=60;
+  now=time(NULL);
 
   for(i=0; PyDict_Next(self->data, &i, &key, &v); )
-    {
-      if(v->ob_refcnt <= 1)
-	UNLESS(-1 != PyDict_DelItem(self->data, key)) return -1;
-    }
+    if(gc_item(self,key,v,now,dt) < 0) return -1;
   self->position=0;
   return 0;
 }
 
 static int
-maybegc(ARG(ccobject *, self))
-     ARGDECL(ccobject *, self)
+maybegc(ccobject *self)
 {
-  int n, s, p;
-  int r;
-  PyObject *key=0, *v=0;
+  int n, s;
+  time_t now,dt;
+  PyObject *key=0, *v=0, *atime;
 
   s=PyDict_Size(self->data)-3;
   if(s < self->cache_size) return 0;
   n=s/self->cache_size;
   if(n < 3) n=3;
+  dt=3 * self->cache_age/n;
+  if(dt < 60) dt=60;
+  now=time(NULL);
+  
   while(--n >= 0)
     {
       if(PyDict_Next(self->data, &(self->position), &key, &v))
 	{
-	  if(v && key && v->ob_refcnt <= 1)
-	    UNLESS(-1 != PyDict_DelItem(self->data, key)) return -1;
+	  if(gc_item(self,key,v,now,dt) < 0) return -1;
 	}
       else
 	self->position=0;
@@ -132,9 +168,7 @@ maybegc(ARG(ccobject *, self))
 }
 
 static PyObject *
-cc_full_sweep(ARG(ccobject *, self), ARG(PyObject *, args))
-     ARGDECL(ccobject *, self)
-     ARGDECL(PyObject *, args)
+cc_full_sweep(ccobject *self, PyObject *args)
 {
   UNLESS(PyArg_Parse(args, "")) return NULL;
   UNLESS(-1 != fullgc(self)) return NULL;
@@ -143,7 +177,9 @@ cc_full_sweep(ARG(ccobject *, self), ARG(PyObject *, args))
 }
 
 static struct PyMethodDef cc_methods[] = {
-  {"full_sweep",	(PyCFunction)cc_full_sweep,	0,	cc_full_sweep__doc__},
+  {"full_sweep",	(PyCFunction)cc_full_sweep,	0,
+   "Perform a full sweep of the cache, looking for objects that can be removed"
+   },
   {NULL,		NULL}		/* sentinel */
 };
 
@@ -151,8 +187,7 @@ static struct PyMethodDef cc_methods[] = {
 
 
 static ccobject *
-newccobject(ARG(int,cache_size))
-     ARGDECL(int,cache_size)
+newccobject(int cache_size, int cache_age)
 {
   ccobject *self;
   
@@ -161,6 +196,7 @@ newccobject(ARG(int,cache_size))
     {
       self->position=0;
       self->cache_size=cache_size < 1 ? 1 : cache_size;
+      self->cache_age=cache_size < 1 ? 1 : cache_age;
       return self;
     }
   Py_DECREF(self);
@@ -169,17 +205,14 @@ newccobject(ARG(int,cache_size))
 
 
 static void
-cc_dealloc(ARG(ccobject *, self))
-     ARGDECL(ccobject *, self)
+cc_dealloc(ccobject *self)
 {
   Py_XDECREF(self->data);
   PyMem_DEL(self);
 }
 
 static PyObject *
-cc_getattr(ARG(ccobject *, self), ARG(char *, name))
-     ARGDECL(ccobject *, self)
-     ARGDECL(char *,           name)
+cc_getattr(ccobject *self, char *name)
 {
   PyObject *r;
   if(r=Py_FindMethod(cc_methods, (PyObject *)self, name))
@@ -189,11 +222,8 @@ cc_getattr(ARG(ccobject *, self), ARG(char *, name))
 }
 
 static PyObject *
-cc_repr(ARG(ccobject *, self))
-     ARGDECL(ccobject *, self)
+cc_repr(ccobject *self)
 {
-  PyObject *s;
-
   return PyObject_Repr(self->data);
 }
 
@@ -208,16 +238,13 @@ cc_str(self)
 /* Code to access cCache objects as mappings */
 
 static int
-cc_length(ARG(ccobject *, self))
-     ARGDECL(ccobject *, self)
+cc_length(ccobject *self)
 {
   return PyObject_Length(self->data);
 }
   
 static PyObject *
-cc_subscript(ARG(ccobject *, self), ARG(PyObject *, key))
-     ARGDECL(ccobject *, self)
-     ARGDECL(PyObject *, key)
+cc_subscript(ccobject *self, PyObject *key)
 {
   PyObject *r;
 
@@ -231,19 +258,37 @@ cc_subscript(ARG(ccobject *, self), ARG(PyObject *, key))
       Py_DECREF(r);
       return NULL;
     }
+  ASSIGN(r,PySequence_GetItem(r,0));
   return r;
 }
 
 static int
-cc_ass_sub(ARG(ccobject *, self),
-		 ARG(PyObject *, key), ARG(PyObject *, v))
-     ARGDECL(ccobject *, self)
-     ARGDECL(PyObject *,       key)
-     ARGDECL(PyObject *,       v)
+cc_ass_sub(ccobject *self, PyObject *key, PyObject *v)
 {
   if(v)
     {
-      UNLESS(-1 != PyDict_SetItem(self->data,key, v)) return -1;
+      PyObject *t;
+
+      /* Create a tuple to hold object and object access time  */
+      UNLESS(t=PyTuple_New(2)) return -1;
+
+      /* Save value as first item in tuple */
+      Py_INCREF(v);
+      PyTuple_SET_ITEM(t,0,v);
+
+      /* Now get and save the access time */
+      if(v=PyObject_GetAttr(v,py__p_atime))
+	{
+	  if(v->ob_type == (PyTypeObject *)PATimeType)
+	    PyTuple_SET_ITEM(t,1,v);
+	  else
+	    Py_DECREF(v);
+	}
+      else
+	PyErr_Clear();
+
+      UNLESS(-1 != PyDict_SetItem(self->data,key,t)) return -1;
+      Py_DECREF(t);
     }
   else
     {
@@ -265,7 +310,7 @@ static char Cctype__doc__[] =
 ;
 
 static PyTypeObject Cctype = {
-  PyObject_HEAD_INIT(&PyType_Type)
+  PyObject_HEAD_INIT(NULL)
   0,				/*ob_size*/
   "cPickleCache",		/*tp_name*/
   sizeof(ccobject),		/*tp_basicsize*/
@@ -292,26 +337,26 @@ static PyTypeObject Cctype = {
 /* End of code for cCache objects */
 /* -------------------------------------------------------- */
 
-
-static char cCM_new__doc__[] =
-""
-;
-
 static PyObject *
-cCM_new(ARG(PyObject *, self), ARG(PyObject *, args))
-     ARGDECL(PyObject *, self)	/* Not used */
-     ARGDECL(PyObject *, args)
+cCM_new(PyObject *self, PyObject *args)
 {
-  int cache_size=100;
-  UNLESS(PyArg_ParseTuple(args, "|i", &cache_size)) return NULL;
-  return (PyObject*)newccobject(cache_size);
+  int cache_size=100, cache_age=1000;
+  UNLESS(PyArg_ParseTuple(args, "|ii", &cache_size, &cache_age)) return NULL;
+  return (PyObject*)newccobject(cache_size,cache_age);
 }
 
 /* List of methods defined in the module */
 
 static struct PyMethodDef cCM_methods[] = {
-  {"PickleCache",(PyCFunction)cCM_new,	1,	cCM_new__doc__},
-  
+  {"PickleCache",(PyCFunction)cCM_new,	1,
+   "PickleCache([size,age]) -- Create a pickle jar cache\n\n"
+   "The cache will attempt to garbage collect items when the cache size is\n"
+   "greater than the given size, which defaults to 100.  Normally, objects\n"
+   "are garbage collected if their reference count is one, meaning that\n"
+   "they are only referenced by the cache.  In some cases, objects that\n"
+   "have not been accessed in 'age' seconds may be partially garbage\n"
+   "collected, meaning that most of their state is freed.\n"
+  },
   {NULL,		NULL}		/* sentinel */
 };
 
@@ -326,23 +371,37 @@ void
 initcPickleCache()
 {
   PyObject *m, *d;
-  char *rev="$Revision: 1.1 $";
+  char *rev="$Revision: 1.2 $";
 
-  /* Create the module and add the functions */
+  Cctype.ob_type=&PyType_Type;
+
+  if(PATimeType=PyImport_ImportModule("cPersistence"))
+    ASSIGN(PATimeType,PyObject_GetAttrString(PATimeType,"atimeType"));
+  UNLESS(PATimeType) PyErr_Clear();
+
   m = Py_InitModule4("cPickleCache", cCM_methods,
 		     cCache_module_documentation,
 		     (PyObject*)NULL,PYTHON_API_VERSION);
 
-  /* Add some symbolic constants to the module */
   d = PyModule_GetDict(m);
+
+  py_reload=PyString_FromString("reload");
+  py__p_jar=PyString_FromString("_p_jar");
+  py__p_atime=PyString_FromString("_p_atime");
+
   PyDict_SetItemString(d,"__version__",
 		       PyString_FromStringAndSize(rev+11,strlen(rev+11)-2));
+
   
   if (PyErr_Occurred()) Py_FatalError("can't initialize module cCache");
 }
 
 /******************************************************************************
  $Log: cPickleCache.c,v $
+ Revision 1.2  1997/03/11 20:48:38  jim
+ Added object-deactivation support.  This only works with cPersistent
+ objects.
+
  Revision 1.1  1997/02/17 18:39:02  jim
  *** empty log message ***
 
