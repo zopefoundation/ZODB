@@ -1,18 +1,20 @@
 # Module doctest.
-# Released to the public domain 16-Jan-2001,
-# by Tim Peters (tim.one@home.com).
+# Released to the public domain 16-Jan-2001, by Tim Peters (tim@python.org).
+# Major enhancements and refactoring by:
+#     Jim Fulton
+#     Edward Loper
 
 # Provided as-is; use at your own risk; no warranty; no promises; enjoy!
 
-"""Module doctest -- a framework for running examples in docstrings.
+r"""Module doctest -- a framework for running examples in docstrings.
 
 NORMAL USAGE
 
-In normal use, end each module M with:
+In simplest use, end each module M to be tested with:
 
 def _test():
-    import doctest, M           # replace M with your module's name
-    return doctest.testmod(M)   # ditto
+    import doctest
+    return doctest.testmod()
 
 if __name__ == "__main__":
     _test()
@@ -34,13 +36,19 @@ python M.py -v
 and a detailed report of all examples tried is printed to stdout, along
 with assorted summaries at the end.
 
-You can force verbose mode by passing "verbose=1" to testmod, or prohibit
-it by passing "verbose=0".  In either of those cases, sys.argv is not
+You can force verbose mode by passing "verbose=True" to testmod, or prohibit
+it by passing "verbose=False".  In either of those cases, sys.argv is not
 examined by testmod.
 
 In any case, testmod returns a 2-tuple of ints (f, t), where f is the
 number of docstring examples that failed and t is the total number of
 docstring examples attempted.
+
+There are a variety of other ways to run doctests, including integration
+with the unittest framework, and support for running non-Python text
+files containing doctests.  There are also many ways to override parts
+of doctest's default behaviors.  See the Library Reference Manual for
+details.
 
 
 WHICH DOCSTRINGS ARE EXAMINED?
@@ -56,27 +64,13 @@ WHICH DOCSTRINGS ARE EXAMINED?
 + If M.__test__ exists and "is true", it must be a dict, and
   each entry maps a (string) name to a function object, class object, or
   string.  Function and class object docstrings found from M.__test__
-  are searched even if the name is private, and strings are searched
-  directly as if they were docstrings.  In output, a key K in M.__test__
-  appears with name
+  are searched, and strings are searched directly as if they were docstrings.
+  In output, a key K in M.__test__ appears with name
       <name of M>.__test__.K
 
 Any classes found are recursively searched similarly, to test docstrings in
-their contained methods and nested classes.  All names reached from
-M.__test__ are searched.
+their contained methods and nested classes.
 
-Optionally, functions with private names can be skipped (unless listed in
-M.__test__) by supplying a function to the "isprivate" argument that will
-identify private functions.  For convenience, one such function is
-supplied.  docttest.is_private considers a name to be private if it begins
-with an underscore (like "_my_func") but doesn't both begin and end with
-(at least) two underscores (like "__init__").  By supplying this function
-or your own "isprivate" function to testmod, the behavior can be customized.
-
-If you want to test docstrings in objects with private names too, stuff
-them into an M.__test__ dict, or see ADVANCED USAGE below (e.g., pass your
-own isprivate function to Tester's constructor, or call the rundoc method
-of a Tester instance).
 
 WHAT'S THE EXECUTION CONTEXT?
 
@@ -93,48 +87,6 @@ You can force use of your own dict as the execution context by passing
 M.__dict__ merged with the globals from other imported modules.
 
 
-WHAT IF I WANT TO TEST A WHOLE PACKAGE?
-
-Piece o' cake, provided the modules do their testing from docstrings.
-Here's the test.py I use for the world's most elaborate Rational/
-floating-base-conversion pkg (which I'll distribute some day):
-
-from Rational import Cvt
-from Rational import Format
-from Rational import machprec
-from Rational import Rat
-from Rational import Round
-from Rational import utils
-
-modules = (Cvt,
-           Format,
-           machprec,
-           Rat,
-           Round,
-           utils)
-
-def _test():
-    import doctest
-    import sys
-    verbose = "-v" in sys.argv
-    for mod in modules:
-        doctest.testmod(mod, verbose=verbose, report=0)
-    doctest.master.summarize()
-
-if __name__ == "__main__":
-    _test()
-
-IOW, it just runs testmod on all the pkg modules.  testmod remembers the
-names and outcomes (# of failures, # of tries) for each item it's seen, and
-passing "report=0" prevents it from printing a summary in verbose mode.
-Instead, the summary is delayed until all modules have been tested, and
-then "doctest.master.summarize()" forces the summary at the end.
-
-So this is very nice in practice:  each module can be tested individually
-with almost no work beyond writing up docstring examples, and collections
-of modules can be tested too as a unit with no more work than the above.
-
-
 WHAT ABOUT EXCEPTIONS?
 
 No problem, as long as the only output generated by the example is the
@@ -146,25 +98,10 @@ traceback itself.  For example:
     ValueError: list.remove(x): x not in list
     >>>
 
-Note that only the exception type and value are compared (specifically,
-only the last line in the traceback).
+Note that only the exception type and value are compared.
 
 
-ADVANCED USAGE
-
-doctest.testmod() captures the testing policy I find most useful most
-often.  You may want other policies.
-
-testmod() actually creates a local instance of class doctest.Tester, runs
-appropriate methods of that class, and merges the results into global
-Tester instance doctest.master.
-
-You can create your own instances of doctest.Tester, and so build your own
-policies, or even run methods of doctest.master directly.  See
-doctest.Tester.__doc__ for details.
-
-
-SO WHAT DOES A DOCSTRING EXAMPLE LOOK LIKE ALREADY!?
+SO WHAT DOES A DOCTEST EXAMPLE LOOK LIKE ALREADY!?
 
 Oh ya.  It's easy!  In most cases a copy-and-paste of an interactive
 console session works fine -- just make sure the leading whitespace is
@@ -194,22 +131,28 @@ containing the code, and the expected output (if any) extends to the next
 
 Bummers:
 
-+ Expected output cannot contain an all-whitespace line, since such a line
-  is taken to signal the end of expected output.
-
 + Output to stdout is captured, but not output to stderr (exception
   tracebacks are captured via a different means).
 
-+ If you continue a line via backslashing in an interactive session, or for
-  any other reason use a backslash, you need to double the backslash in the
-  docstring version.  This is simply because you're in a string, and so the
-  backslash must be escaped for it to survive intact.  Like:
++ If you continue a line via backslashing in an interactive session,
+  or for any other reason use a backslash, you should use a raw
+  docstring, which will preserve your backslahses exactly as you type
+  them:
 
->>> if "yes" == \\
-...     "y" +   \\
-...     "es":   # in the source code you'll see the doubled backslashes
-...     print 'yes'
-yes
+      >>> def f(x):
+      ...     r'''Backslashes in a raw docstring: m\n'''
+      >>> print f.__doc__
+      Backslashes in a raw docstring: m\n
+
+  Otherwise, the backslash will be interpreted as part of the string.
+  E.g., the "\n" above would be interpreted as a newline character.
+  Alternatively, you can double each backslash in the doctest version
+  (and not use a raw string):
+
+      >>> def f(x):
+      ...     '''Backslashes in a raw docstring: m\\n'''
+      >>> print f.__doc__
+      Backslashes in a raw docstring: m\n
 
 The starting column doesn't matter:
 
@@ -222,349 +165,116 @@ and as many leading whitespace characters are stripped from the expected
 output as appeared in the initial ">>>" line that triggered it.
 
 If you execute this very file, the examples above will be found and
-executed, leading to this output in verbose mode:
-
-Running doctest.__doc__
-Trying: [1, 2, 3].remove(42)
-Expecting:
-Traceback (most recent call last):
-  File "<stdin>", line 1, in ?
-ValueError: list.remove(x): x not in list
-ok
-Trying: x = 12
-Expecting: nothing
-ok
-Trying: x
-Expecting: 12
-ok
-Trying:
-if x == 13:
-    print "yes"
-else:
-    print "no"
-    print "NO"
-    print "NO!!!"
-Expecting:
-no
-NO
-NO!!!
-ok
-... and a bunch more like that, with this summary at the end:
-
-5 items had no tests:
-    doctest.Tester.__init__
-    doctest.Tester.run__test__
-    doctest.Tester.summarize
-    doctest.run_docstring_examples
-    doctest.testmod
-12 items passed all tests:
-   8 tests in doctest
-   6 tests in doctest.Tester
-  10 tests in doctest.Tester.merge
-  14 tests in doctest.Tester.rundict
-   3 tests in doctest.Tester.rundoc
-   3 tests in doctest.Tester.runstring
-   2 tests in doctest.__test__._TestClass
-   2 tests in doctest.__test__._TestClass.__init__
-   2 tests in doctest.__test__._TestClass.get
-   1 tests in doctest.__test__._TestClass.square
-   2 tests in doctest.__test__.string
-   7 tests in doctest.is_private
-60 tests in 17 items.
-60 passed and 0 failed.
-
-Test passed.
+executed.
 """
+__docformat__ = 'reStructuredText en'
 
 __all__ = [
+    # 0, Option Flags
+    'register_optionflag',
+    'DONT_ACCEPT_TRUE_FOR_1',
+    'DONT_ACCEPT_BLANKLINE',
+    'NORMALIZE_WHITESPACE',
+    'ELLIPSIS',
+    'UNIFIED_DIFF',
+    'CONTEXT_DIFF',
+    # 1. Utility Functions
+    'is_private',
+    # 2. Example & DocTest
+    'Example',
+    'DocTest',
+    # 3. Doctest Parser
+    'DocTestParser',
+    # 4. Doctest Finder
+    'DocTestFinder',
+    # 5. Doctest Runner
+    'DocTestRunner',
+    'OutputChecker',
+    'DocTestFailure',
+    'UnexpectedException',
+    'DebugRunner',
+    # 6. Test Functions
     'testmod',
     'run_docstring_examples',
-    'is_private',
+    # 7. Tester
     'Tester',
-    'DocTestTestFailure',
+    # 8. Unittest Support
+    'DocTestCase',
     'DocTestSuite',
+    'DocFileCase',
+    'DocFileTest',
+    'DocFileSuite',
+    # 9. Debugging Support
+    'script_from_examples',
     'testsource',
+    'debug_src',
+    'debug_script',
     'debug',
-    'master',
 ]
 
 import __future__
 
-import pdb
-import re
-PS1 = ">>>"
-PS2 = "..."
-_isPS1 = re.compile(r"(\s*)" + re.escape(PS1)).match
-_isPS2 = re.compile(r"(\s*)" + re.escape(PS2)).match
-_isEmpty = re.compile(r"\s*$").match
-_isComment = re.compile(r"\s*#").match
-del re
+import sys, traceback, inspect, linecache, os, re, types
+import unittest, difflib, pdb, tempfile
+import warnings
+from StringIO import StringIO
 
-from types import StringTypes as _StringTypes
+real_pdb_set_trace = pdb.set_trace
 
-from inspect import isclass    as _isclass
-from inspect import isfunction as _isfunction
-from inspect import ismethod as _ismethod
-from inspect import ismodule   as _ismodule
-from inspect import classify_class_attrs as _classify_class_attrs
+# There are 4 basic classes:
+#  - Example: a <source, want> pair, plus an intra-docstring line number.
+#  - DocTest: a collection of examples, parsed from a docstring, plus
+#    info about where the docstring came from (name, filename, lineno).
+#  - DocTestFinder: extracts DocTests from a given object's docstring and
+#    its contained objects' docstrings.
+#  - DocTestRunner: runs DocTest cases, and accumulates statistics.
+#
+# So the basic picture is:
+#
+#                             list of:
+# +------+                   +---------+                   +-------+
+# |object| --DocTestFinder-> | DocTest | --DocTestRunner-> |results|
+# +------+                   +---------+                   +-------+
+#                            | Example |
+#                            |   ...   |
+#                            | Example |
+#                            +---------+
 
 # Option constants.
-DONT_ACCEPT_TRUE_FOR_1 = 1 << 0
-RUN_DEBUGGER_ON_UNEXPECTED_EXCEPTION = 1 << 1
+OPTIONFLAGS_BY_NAME = {}
+def register_optionflag(name):
+    flag = 1 << len(OPTIONFLAGS_BY_NAME)
+    OPTIONFLAGS_BY_NAME[name] = flag
+    return flag
 
-# Extract interactive examples from a string.  Return a list of triples,
-# (source, outcome, lineno).  "source" is the source code, and ends
-# with a newline iff the source spans more than one line.  "outcome" is
-# the expected output if any, else an empty string.  When not empty,
-# outcome always ends with a newline.  "lineno" is the line number,
-# 0-based wrt the start of the string, of the first source line.
+DONT_ACCEPT_TRUE_FOR_1 = register_optionflag('DONT_ACCEPT_TRUE_FOR_1')
+DONT_ACCEPT_BLANKLINE = register_optionflag('DONT_ACCEPT_BLANKLINE')
+NORMALIZE_WHITESPACE = register_optionflag('NORMALIZE_WHITESPACE')
+ELLIPSIS = register_optionflag('ELLIPSIS')
+UNIFIED_DIFF = register_optionflag('UNIFIED_DIFF')
+CONTEXT_DIFF = register_optionflag('CONTEXT_DIFF')
 
-def _extract_examples(s):
-    isPS1, isPS2 = _isPS1, _isPS2
-    isEmpty, isComment = _isEmpty, _isComment
-    examples = []
-    lines = s.split("\n")
-    i, n = 0, len(lines)
-    while i < n:
-        line = lines[i]
-        i = i + 1
-        m = isPS1(line)
-        if m is None:
-            continue
-        j = m.end(0)  # beyond the prompt
-        if isEmpty(line, j) or isComment(line, j):
-            # a bare prompt or comment -- not interesting
-            continue
-        lineno = i - 1
-        if line[j] != " ":
-            raise ValueError("line %r of docstring lacks blank after %s: %s" %
-                             (lineno, PS1, line))
-        j = j + 1
-        blanks = m.group(1)
-        nblanks = len(blanks)
-        # suck up this and following PS2 lines
-        source = []
-        while 1:
-            source.append(line[j:])
-            line = lines[i]
-            m = isPS2(line)
-            if m:
-                if m.group(1) != blanks:
-                    raise ValueError("inconsistent leading whitespace "
-                        "in line %r of docstring: %s" % (i, line))
-                i = i + 1
-            else:
-                break
-        if len(source) == 1:
-            source = source[0]
-        else:
-            # get rid of useless null line from trailing empty "..."
-            if source[-1] == "":
-                del source[-1]
-            source = "\n".join(source) + "\n"
-        # suck up response
-        if isPS1(line) or isEmpty(line):
-            expect = ""
-        else:
-            expect = []
-            while 1:
-                if line[:nblanks] != blanks:
-                    raise ValueError("inconsistent leading whitespace "
-                        "in line %r of docstring: %s" % (i, line))
-                expect.append(line[nblanks:])
-                i = i + 1
-                line = lines[i]
-                if isPS1(line) or isEmpty(line):
-                    break
-            expect = "\n".join(expect) + "\n"
-        examples.append( (source, expect, lineno) )
-    return examples
+# Special string markers for use in `want` strings:
+BLANKLINE_MARKER = '<BLANKLINE>'
+ELLIPSIS_MARKER = '...'
 
-# Capture stdout when running examples.
+######################################################################
+## Table of Contents
+######################################################################
+#  1. Utility Functions
+#  2. Example & DocTest -- store test cases
+#  3. DocTest Parser -- extracts examples from strings
+#  4. DocTest Finder -- extracts test cases from objects
+#  5. DocTest Runner -- runs test cases
+#  6. Test Functions -- convenient wrappers for testing
+#  7. Tester Class -- for backwards compatibility
+#  8. Unittest Support
+#  9. Debugging Support
+# 10. Example Usage
 
-class _SpoofOut:
-    def __init__(self):
-        self.clear()
-    def write(self, s):
-        self.buf.append(s)
-    def get(self):
-        guts = "".join(self.buf)
-        # If anything at all was written, make sure there's a trailing
-        # newline.  There's no way for the expected output to indicate
-        # that a trailing newline is missing.
-        if guts and not guts.endswith("\n"):
-            guts = guts + "\n"
-        # Prevent softspace from screwing up the next test case, in
-        # case they used print with a trailing comma in an example.
-        if hasattr(self, "softspace"):
-            del self.softspace
-        return guts
-    def clear(self):
-        self.buf = []
-        if hasattr(self, "softspace"):
-            del self.softspace
-    def flush(self):
-        # JPython calls flush
-        pass
-
-# Display some tag-and-msg pairs nicely, keeping the tag and its msg
-# on the same line when that makes sense.
-
-def _tag_out(printer, *tag_msg_pairs):
-    for tag, msg in tag_msg_pairs:
-        printer(tag + ":")
-        msg_has_nl = msg[-1:] == "\n"
-        msg_has_two_nl = msg_has_nl and \
-                        msg.find("\n") < len(msg) - 1
-        if len(tag) + len(msg) < 76 and not msg_has_two_nl:
-            printer(" ")
-        else:
-            printer("\n")
-        printer(msg)
-        if not msg_has_nl:
-            printer("\n")
-
-# Run list of examples, in context globs.  "out" can be used to display
-# stuff to "the real" stdout, and fakeout is an instance of _SpoofOut
-# that captures the examples' std output.  Return (#failures, #tries).
-
-def _run_examples_inner(out, fakeout, examples, globs, verbose, name,
-                        compileflags, optionflags):
-    import sys, traceback
-    OK, BOOM, FAIL = range(3)
-    NADA = "nothing"
-    stderr = _SpoofOut()
-    failures = 0
-    for source, want, lineno in examples:
-        if verbose:
-            _tag_out(out, ("Trying", source),
-                          ("Expecting", want or NADA))
-        fakeout.clear()
-        try:
-            exec compile(source, "<string>", "single",
-                         compileflags, 1) in globs
-            got = fakeout.get()
-            state = OK
-        except KeyboardInterrupt:
-            raise
-        except:
-            # See whether the exception was expected.
-            if want.find("Traceback (innermost last):\n") == 0 or \
-               want.find("Traceback (most recent call last):\n") == 0:
-                # Only compare exception type and value - the rest of
-                # the traceback isn't necessary.
-                want = want.split('\n')[-2] + '\n'
-                exc_type, exc_val = sys.exc_info()[:2]
-                got = traceback.format_exception_only(exc_type, exc_val)[-1]
-                state = OK
-            else:
-                # unexpected exception
-                stderr.clear()
-                traceback.print_exc(file=stderr)
-                state = BOOM
-
-                if optionflags & RUN_DEBUGGER_ON_UNEXPECTED_EXCEPTION:
-                    # Be sure to undo all wrappings.  If the test is
-                    # run under unittest, there will at at least two now.
-                    stdout = sys.stdout
-                    sys.stdout = sys.__stdout__
-                    print stderr.get()
-                    pdb.post_mortem(sys.exc_info()[2])
-                    # Restore stdout if we exit the debugger without error.
-                    sys.stdout = stdout
-
-        if state == OK:
-            if (got == want or
-                (not (optionflags & DONT_ACCEPT_TRUE_FOR_1) and
-                 (got, want) in (("True\n", "1\n"), ("False\n", "0\n"))
-                )
-               ):
-                if verbose:
-                    out("ok\n")
-                continue
-            state = FAIL
-
-        assert state in (FAIL, BOOM)
-        failures = failures + 1
-        out("*" * 65 + "\n")
-        _tag_out(out, ("Failure in example", source))
-        out("from line #%r of %s\n" % (lineno, name))
-        if state == FAIL:
-            _tag_out(out, ("Expected", want or NADA), ("Got", got))
-        else:
-            assert state == BOOM
-            _tag_out(out, ("Exception raised", stderr.get()))
-
-    return failures, len(examples)
-
-# Get the future-flags associated with the future features that have been
-# imported into globs.
-
-def _extract_future_flags(globs):
-    flags = 0
-    for fname in __future__.all_feature_names:
-        feature = globs.get(fname, None)
-        if feature is getattr(__future__, fname):
-            flags |= feature.compiler_flag
-    return flags
-
-# Run list of examples, in a shallow copy of context (dict) globs.
-# Return (#failures, #tries).
-
-def _run_examples(examples, globs, verbose, name, compileflags,
-                  optionflags):
-    import sys
-    saveout = sys.stdout
-    globs = globs.copy()
-    try:
-        sys.stdout = fakeout = _SpoofOut()
-        x = _run_examples_inner(saveout.write, fakeout, examples,
-                                globs, verbose, name, compileflags,
-                                optionflags)
-    finally:
-        sys.stdout = saveout
-        # While Python gc can clean up most cycles on its own, it doesn't
-        # chase frame objects.  This is especially irksome when running
-        # generator tests that raise exceptions, because a named generator-
-        # iterator gets an entry in globs, and the generator-iterator
-        # object's frame's traceback info points back to globs.  This is
-        # easy to break just by clearing the namespace.  This can also
-        # help to break other kinds of cycles, and even for cycles that
-        # gc can break itself it's better to break them ASAP.
-        globs.clear()
-    return x
-
-def run_docstring_examples(f, globs, verbose=0, name="NoName",
-                           compileflags=None, optionflags=0):
-    """f, globs, verbose=0, name="NoName" -> run examples from f.__doc__.
-
-    Use (a shallow copy of) dict globs as the globals for execution.
-    Return (#failures, #tries).
-
-    If optional arg verbose is true, print stuff even if there are no
-    failures.
-    Use string name in failure msgs.
-    """
-
-    try:
-        doc = f.__doc__
-        if not doc:
-            # docstring empty or None
-            return 0, 0
-        # just in case CT invents a doc object that has to be forced
-        # to look like a string <0.9 wink>
-        doc = str(doc)
-    except KeyboardInterrupt:
-        raise
-    except:
-        return 0, 0
-
-    e = _extract_examples(doc)
-    if not e:
-        return 0, 0
-    if compileflags is None:
-        compileflags = _extract_future_flags(globs)
-    return _run_examples(e, globs, verbose, name, compileflags, optionflags)
+######################################################################
+## 1. Utility Functions
+######################################################################
 
 def is_private(prefix, base):
     """prefix, base -> true iff name prefix + "." + base is "private".
@@ -575,6 +285,8 @@ def is_private(prefix, base):
     Return true iff base begins with an (at least one) underscore, but
     does not both begin and end with (at least) two underscores.
 
+    >>> warnings.filterwarnings("ignore", "is_private", DeprecationWarning,
+    ...                         "doctest", 0)
     >>> is_private("a.b", "my_func")
     False
     >>> is_private("____", "_my_func")
@@ -590,390 +302,1175 @@ def is_private(prefix, base):
     >>> is_private("", "")  # senseless but consistent
     False
     """
-
+    warnings.warn("is_private is deprecated; it wasn't useful; "
+                  "examine DocTestFinder.find() lists instead",
+                  DeprecationWarning, stacklevel=2)
     return base[:1] == "_" and not base[:2] == "__" == base[-2:]
 
-# Determine if a class of function was defined in the given module.
+def _extract_future_flags(globs):
+    """
+    Return the compiler-flags associated with the future features that
+    have been imported into the given namespace (globs).
+    """
+    flags = 0
+    for fname in __future__.all_feature_names:
+        feature = globs.get(fname, None)
+        if feature is getattr(__future__, fname):
+            flags |= feature.compiler_flag
+    return flags
 
-def _from_module(module, object):
-    if _isfunction(object):
-        return module.__dict__ is object.func_globals
-    if _isclass(object):
-        return module.__name__ == object.__module__
-    raise ValueError("object must be a class or function")
+def _normalize_module(module, depth=2):
+    """
+    Return the module specified by `module`.  In particular:
+      - If `module` is a module, then return module.
+      - If `module` is a string, then import and return the
+        module with that name.
+      - If `module` is None, then return the calling module.
+        The calling module is assumed to be the module of
+        the stack frame at the given depth in the call stack.
+    """
+    if inspect.ismodule(module):
+        return module
+    elif isinstance(module, (str, unicode)):
+        return __import__(module, globals(), locals(), ["*"])
+    elif module is None:
+        return sys.modules[sys._getframe(depth).f_globals['__name__']]
+    else:
+        raise TypeError("Expected a module, string, or None")
 
-class Tester:
-    """Class Tester -- runs docstring examples and accumulates stats.
+def _tag_msg(tag, msg, indent='    '):
+    """
+    Return a string that displays a tag-and-message pair nicely,
+    keeping the tag and its message on the same line when that
+    makes sense.  If the message is displayed on separate lines,
+    then `indent` is added to the beginning of each line.
+    """
+    # If the message doesn't end in a newline, then add one.
+    if msg[-1:] != '\n':
+        msg += '\n'
+    # If the message is short enough, and contains no internal
+    # newlines, then display it on the same line as the tag.
+    # Otherwise, display the tag on its own line.
+    if (len(tag) + len(msg) < 75 and
+        msg.find('\n', 0, len(msg)-1) == -1):
+        return '%s: %s' % (tag, msg)
+    else:
+        msg = '\n'.join([indent+l for l in msg[:-1].split('\n')])
+        return '%s:\n%s\n' % (tag, msg)
 
-In normal use, function doctest.testmod() hides all this from you,
-so use that if you can.  Create your own instances of Tester to do
-fancier things.
+def _exception_traceback(exc_info):
+    """
+    Return a string containing a traceback message for the given
+    exc_info tuple (as returned by sys.exc_info()).
+    """
+    # Get a traceback message.
+    excout = StringIO()
+    exc_type, exc_val, exc_tb = exc_info
+    traceback.print_exception(exc_type, exc_val, exc_tb, file=excout)
+    return excout.getvalue()
 
-Methods:
-    runstring(s, name)
-        Search string s for examples to run; use name for logging.
-        Return (#failures, #tries).
+# Override some StringIO methods.
+class _SpoofOut(StringIO):
+    def getvalue(self):
+        result = StringIO.getvalue(self)
+        # If anything at all was written, make sure there's a trailing
+        # newline.  There's no way for the expected output to indicate
+        # that a trailing newline is missing.
+        if result and not result.endswith("\n"):
+            result += "\n"
+        # Prevent softspace from screwing up the next test case, in
+        # case they used print with a trailing comma in an example.
+        if hasattr(self, "softspace"):
+            del self.softspace
+        return result
 
-    rundoc(object, name=None)
-        Search object.__doc__ for examples to run; use name (or
-        object.__name__) for logging.  Return (#failures, #tries).
+    def truncate(self,   size=None):
+        StringIO.truncate(self, size)
+        if hasattr(self, "softspace"):
+            del self.softspace
 
-    rundict(d, name, module=None)
-        Search for examples in docstrings in all of d.values(); use name
-        for logging.  Exclude functions and classes not defined in module
-        if specified.  Return (#failures, #tries).
+# Worst-case linear-time ellipsis matching.
+def _ellipsis_match(want, got):
+    """
+    Essentially the only subtle case:
+    >>> _ellipsis_match('aa...aa', 'aaa')
+    False
+    """
+    if ELLIPSIS_MARKER not in want:
+        return want == got
+    # Remove \n from ...\n, else the newline will be required,
+    # and (for example) ... on a line by itself can't match
+    # nothing gracefully.
+    want = want.replace(ELLIPSIS_MARKER + '\n', ELLIPSIS_MARKER)
 
-    run__test__(d, name)
-        Treat dict d like module.__test__.  Return (#failures, #tries).
+    # Find "the real" strings.
+    ws = want.split(ELLIPSIS_MARKER)
+    assert len(ws) >= 2
 
-    summarize(verbose=None)
-        Display summary of testing results, to stdout.  Return
-        (#failures, #tries).
+    # Deal with exact matches possibly needed at one or both ends.
+    startpos, endpos = 0, len(got)
+    w = ws[0]
+    if w:   # starts with exact match
+        if got.startswith(w):
+            startpos = len(w)
+            del ws[0]
+        else:
+            return False
+    w = ws[-1]
+    if w:   # ends with exact match
+        if got.endswith(w):
+            endpos -= len(w)
+            del ws[-1]
+        else:
+            return False
 
-    merge(other)
-        Merge in the test results from Tester instance "other".
+    if startpos > endpos:
+        # Exact end matches required more characters than we have, as in
+        # _ellipsis_match('aa...aa', 'aaa')
+        return False
 
->>> from doctest import Tester
->>> t = Tester(globs={'x': 42}, verbose=0)
->>> t.runstring(r'''
-...      >>> x = x * 2
-...      >>> print x
-...      42
-... ''', 'XYZ')
-*****************************************************************
-Failure in example: print x
-from line #2 of XYZ
-Expected: 42
-Got: 84
-(1, 2)
->>> t.runstring(">>> x = x * 2\\n>>> print x\\n84\\n", 'example2')
-(0, 2)
->>> t.summarize()
-*****************************************************************
-1 items had failures:
-   1 of   2 in XYZ
-***Test Failed*** 1 failures.
-(1, 4)
->>> t.summarize(verbose=1)
-1 items passed all tests:
-   2 tests in example2
-*****************************************************************
-1 items had failures:
-   1 of   2 in XYZ
-4 tests in 2 items.
-3 passed and 1 failed.
-***Test Failed*** 1 failures.
-(1, 4)
->>>
-"""
+    # For the rest, we only need to find the leftmost non-overlapping
+    # match for each piece.  If there's no overall match that way alone,
+    # there's no overall match period.
+    for w in ws:
+        # w may be '' at times, if there are consecutive ellipses, or
+        # due to an ellipsis at the start or end of `want`.  That's OK.
+        # Search for an empty string succeeds, and doesn't change startpos.
+        startpos = got.find(w, startpos, endpos)
+        if startpos < 0:
+            return False
+        startpos += len(w)
 
-    def __init__(self, mod=None, globs=None, verbose=None,
-                 isprivate=None, optionflags=0):
-        """mod=None, globs=None, verbose=None, isprivate=None,
-optionflags=0
+    return True
 
-See doctest.__doc__ for an overview.
+######################################################################
+## 2. Example & DocTest
+######################################################################
+## - An "example" is a <source, want> pair, where "source" is a
+##   fragment of source code, and "want" is the expected output for
+##   "source."  The Example class also includes information about
+##   where the example was extracted from.
+##
+## - A "doctest" is a collection of examples, typically extracted from
+##   a string (such as an object's docstring).  The DocTest class also
+##   includes information about where the string was extracted from.
 
-Optional keyword arg "mod" is a module, whose globals are used for
-executing examples.  If not specified, globs must be specified.
+class Example:
+    """
+    A single doctest example, consisting of source code and expected
+    output.  `Example` defines the following attributes:
 
-Optional keyword arg "globs" gives a dict to be used as the globals
-when executing examples; if not specified, use the globals from
-module mod.
+      - source: A single Python statement, always ending with a newline.
+        The constructor adds a newline if needed.
 
-In either case, a copy of the dict is used for each docstring
-examined.
+      - want: The expected output from running the source code (either
+        from stdout, or a traceback in case of exception).  `want` ends
+        with a newline unless it's empty, in which case it's an empty
+        string.  The constructor adds a newline if needed.
 
-Optional keyword arg "verbose" prints lots of stuff if true, only
-failures if false; by default, it's true iff "-v" is in sys.argv.
+      - lineno: The line number within the DocTest string containing
+        this Example where the Example begins.  This line number is
+        zero-based, with respect to the beginning of the DocTest.
 
-Optional keyword arg "isprivate" specifies a function used to determine
-whether a name is private.  The default function is to assume that
-no functions are private.  The "isprivate" arg may be set to
-doctest.is_private in order to skip over functions marked as private
-using an underscore naming convention; see its docs for details.
+      - indent: The example's indentation in the DocTest string.
+        I.e., the number of space characters that preceed the
+        example's first prompt.
 
-See doctest.testmod docs for the meaning of optionflags.
-"""
+      - options: A dictionary mapping from option flags to True or
+        False, which is used to override default options for this
+        example.  Any option flags not contained in this dictionary
+        are left at their default value (as specified by the
+        DocTestRunner's optionflags).  By default, no options are set.
+    """
+    def __init__(self, source, want, lineno, indent=0, options=None):
+        # Normalize inputs.
+        if not source.endswith('\n'):
+            source += '\n'
+        if want and not want.endswith('\n'):
+            want += '\n'
+        # Store properties.
+        self.source = source
+        self.want = want
+        self.lineno = lineno
+        self.indent = indent
+        if options is None: options = {}
+        self.options = options
 
-        if mod is None and globs is None:
-            raise TypeError("Tester.__init__: must specify mod or globs")
-        if mod is not None and not _ismodule(mod):
-            raise TypeError("Tester.__init__: mod must be a module; %r" % (mod,))
+class DocTest:
+    """
+    A collection of doctest examples that should be run in a single
+    namespace.  Each `DocTest` defines the following attributes:
+
+      - examples: the list of examples.
+
+      - globs: The namespace (aka globals) that the examples should
+        be run in.
+
+      - name: A name identifying the DocTest (typically, the name of
+        the object whose docstring this DocTest was extracted from).
+
+      - filename: The name of the file that this DocTest was extracted
+        from, or `None` if the filename is unknown.
+
+      - lineno: The line number within filename where this DocTest
+        begins, or `None` if the line number is unavailable.  This
+        line number is zero-based, with respect to the beginning of
+        the file.
+
+      - docstring: The string that the examples were extracted from,
+        or `None` if the string is unavailable.
+    """
+    def __init__(self, examples, globs, name, filename, lineno, docstring):
+        """
+        Create a new DocTest containing the given examples.  The
+        DocTest's globals are initialized with a copy of `globs`.
+        """
+        assert not isinstance(examples, basestring), \
+               "DocTest no longer accepts str; use DocTestParser instead"
+        self.examples = examples
+        self.docstring = docstring
+        self.globs = globs.copy()
+        self.name = name
+        self.filename = filename
+        self.lineno = lineno
+
+    def __repr__(self):
+        if len(self.examples) == 0:
+            examples = 'no examples'
+        elif len(self.examples) == 1:
+            examples = '1 example'
+        else:
+            examples = '%d examples' % len(self.examples)
+        return ('<DocTest %s from %s:%s (%s)>' %
+                (self.name, self.filename, self.lineno, examples))
+
+
+    # This lets us sort tests by name:
+    def __cmp__(self, other):
+        if not isinstance(other, DocTest):
+            return -1
+        return cmp((self.name, self.filename, self.lineno, id(self)),
+                   (other.name, other.filename, other.lineno, id(other)))
+
+######################################################################
+## 3. DocTestParser
+######################################################################
+
+class DocTestParser:
+    """
+    A class used to parse strings containing doctest examples.
+    """
+    # This regular expression is used to find doctest examples in a
+    # string.  It defines three groups: `source` is the source code
+    # (including leading indentation and prompts); `indent` is the
+    # indentation of the first (PS1) line of the source code; and
+    # `want` is the expected output (including leading indentation).
+    _EXAMPLE_RE = re.compile(r'''
+        # Source consists of a PS1 line followed by zero or more PS2 lines.
+        (?P<source>
+            (?:^(?P<indent> [ ]*) >>>    .*)    # PS1 line
+            (?:\n           [ ]*  \.\.\. .*)*)  # PS2 lines
+        \n?
+        # Want consists of any non-blank lines that do not start with PS1.
+        (?P<want> (?:(?![ ]*$)    # Not a blank line
+                     (?![ ]*>>>)  # Not a line starting with PS1
+                     .*$\n?       # But any other line
+                  )*)
+        ''', re.MULTILINE | re.VERBOSE)
+
+    # A callable returning a true value iff its argument is a blank line
+    # or contains a single comment.
+    _IS_BLANK_OR_COMMENT = re.compile(r'^[ ]*(#.*)?$').match
+
+    def get_doctest(self, string, globs, name, filename, lineno):
+        """
+        Extract all doctest examples from the given string, and
+        collect them into a `DocTest` object.
+
+        `globs`, `name`, `filename`, and `lineno` are attributes for
+        the new `DocTest` object.  See the documentation for `DocTest`
+        for more information.
+        """
+        return DocTest(self.get_examples(string, name), globs,
+                       name, filename, lineno, string)
+
+    def get_examples(self, string, name='<string>'):
+        """
+        Extract all doctest examples from the given string, and return
+        them as a list of `Example` objects.  Line numbers are
+        0-based, because it's most common in doctests that nothing
+        interesting appears on the same line as opening triple-quote,
+        and so the first interesting line is called \"line 1\" then.
+
+        The optional argument `name` is a name identifying this
+        string, and is only used for error messages.
+
+        >>> text = '''
+        ...        >>> x, y = 2, 3  # no output expected
+        ...        >>> if 1:
+        ...        ...     print x
+        ...        ...     print y
+        ...        2
+        ...        3
+        ...
+        ...        Some text.
+        ...        >>> x+y
+        ...        5
+        ...        '''
+        >>> for x in DocTestParser().get_examples(text):
+        ...     print (x.source, x.want, x.lineno)
+        ('x, y = 2, 3  # no output expected\\n', '', 1)
+        ('if 1:\\n    print x\\n    print y\\n', '2\\n3\\n', 2)
+        ('x+y\\n', '5\\n', 9)
+        """
+        examples = []
+        charno, lineno = 0, 0
+        # Find all doctest examples in the string:
+        for m in self._EXAMPLE_RE.finditer(string.expandtabs()):
+            # Update lineno (lines before this example)
+            lineno += string.count('\n', charno, m.start())
+            # Extract source/want from the regexp match.
+            (source, want) = self._parse_example(m, name, lineno)
+            # Extract extra options from the source.
+            options = self._find_options(source, name, lineno)
+            # Create an Example, and add it to the list.
+            if not self._IS_BLANK_OR_COMMENT(source):
+                examples.append( Example(source, want, lineno,
+                                         len(m.group('indent')), options) )
+            # Update lineno (lines inside this example)
+            lineno += string.count('\n', m.start(), m.end())
+            # Update charno.
+            charno = m.end()
+        return examples
+
+    def get_program(self, string, name="<string>"):
+        """
+        Return an executable program from the given string, as a string.
+
+        The format of this isn't rigidly defined.  In general, doctest
+        examples become the executable statements in the result, and
+        their expected outputs become comments, preceded by an \"#Expected:\"
+        comment.  Everything else (text, comments, everything not part of
+        a doctest test) is also placed in comments.
+
+        The optional argument `name` is a name identifying this
+        string, and is only used for error messages.
+
+        >>> text = '''
+        ...        >>> x, y = 2, 3  # no output expected
+        ...        >>> if 1:
+        ...        ...     print x
+        ...        ...     print y
+        ...        2
+        ...        3
+        ...
+        ...        Some text.
+        ...        >>> x+y
+        ...        5
+        ...        '''
+        >>> print DocTestParser().get_program(text)
+        x, y = 2, 3  # no output expected
+        if 1:
+            print x
+            print y
+        # Expected:
+        ## 2
+        ## 3
+        #
+        # Some text.
+        x+y
+        # Expected:
+        ## 5
+        """
+        string = string.expandtabs()
+        # If all lines begin with the same indentation, then strip it.
+        min_indent = self._min_indent(string)
+        if min_indent > 0:
+            string = '\n'.join([l[min_indent:] for l in string.split('\n')])
+
+        output = []
+        charnum, lineno = 0, 0
+        # Find all doctest examples in the string:
+        for m in self._EXAMPLE_RE.finditer(string.expandtabs()):
+            # Add any text before this example, as a comment.
+            if m.start() > charnum:
+                lines = string[charnum:m.start()-1].split('\n')
+                output.extend([self._comment_line(l) for l in lines])
+                lineno += len(lines)
+
+            # Extract source/want from the regexp match.
+            (source, want) = self._parse_example(m, name, lineno)
+            # Display the source
+            output.append(source)
+            # Display the expected output, if any
+            if want:
+                output.append('# Expected:')
+                output.extend(['## '+l for l in want.split('\n')])
+
+            # Update the line number & char number.
+            lineno += string.count('\n', m.start(), m.end())
+            charnum = m.end()
+        # Add any remaining text, as comments.
+        output.extend([self._comment_line(l)
+                       for l in string[charnum:].split('\n')])
+        # Trim junk on both ends.
+        while output and output[-1] == '#':
+            output.pop()
+        while output and output[0] == '#':
+            output.pop(0)
+        # Combine the output, and return it.
+        return '\n'.join(output)
+
+    def _parse_example(self, m, name, lineno):
+        """
+        Given a regular expression match from `_EXAMPLE_RE` (`m`),
+        return a pair `(source, want)`, where `source` is the matched
+        example's source code (with prompts and indentation stripped);
+        and `want` is the example's expected output (with indentation
+        stripped).
+
+        `name` is the string's name, and `lineno` is the line number
+        where the example starts; both are used for error messages.
+        """
+        # Get the example's indentation level.
+        indent = len(m.group('indent'))
+
+        # Divide source into lines; check that they're properly
+        # indented; and then strip their indentation & prompts.
+        source_lines = m.group('source').split('\n')
+        self._check_prompt_blank(source_lines, indent, name, lineno)
+        self._check_prefix(source_lines[1:], ' '*indent+'.', name, lineno)
+        source = '\n'.join([sl[indent+4:] for sl in source_lines])
+
+        # Divide want into lines; check that it's properly
+        # indented; and then strip the indentation.
+        want_lines = m.group('want').rstrip().split('\n')
+        self._check_prefix(want_lines, ' '*indent, name,
+                           lineno+len(source_lines))
+        want = '\n'.join([wl[indent:] for wl in want_lines])
+
+        return source, want
+
+    # This regular expression looks for option directives in the
+    # source code of an example.  Option directives are comments
+    # starting with "doctest:".  Warning: this may give false
+    # positives for string-literals that contain the string
+    # "#doctest:".  Eliminating these false positives would require
+    # actually parsing the string; but we limit them by ignoring any
+    # line containing "#doctest:" that is *followed* by a quote mark.
+    _OPTION_DIRECTIVE_RE = re.compile(r'#\s*doctest:\s*([^\n\'"]*)$',
+                                      re.MULTILINE)
+
+    def _find_options(self, source, name, lineno):
+        """
+        Return a dictionary containing option overrides extracted from
+        option directives in the given source string.
+
+        `name` is the string's name, and `lineno` is the line number
+        where the example starts; both are used for error messages.
+        """
+        options = {}
+        # (note: with the current regexp, this will match at most once:)
+        for m in self._OPTION_DIRECTIVE_RE.finditer(source):
+            option_strings = m.group(1).replace(',', ' ').split()
+            for option in option_strings:
+                if (option[0] not in '+-' or
+                    option[1:] not in OPTIONFLAGS_BY_NAME):
+                    raise ValueError('line %r of the doctest for %s '
+                                     'has an invalid option: %r' %
+                                     (lineno+1, name, option))
+                flag = OPTIONFLAGS_BY_NAME[option[1:]]
+                options[flag] = (option[0] == '+')
+        if options and self._IS_BLANK_OR_COMMENT(source):
+            raise ValueError('line %r of the doctest for %s has an option '
+                             'directive on a line with no example: %r' %
+                             (lineno, name, source))
+        return options
+
+    # This regular expression finds the indentation of every non-blank
+    # line in a string.
+    _INDENT_RE = re.compile('^([ ]+)(?=\S)', re.MULTILINE)
+
+    def _min_indent(self, s):
+        "Return the minimum indentation of any non-blank line in `s`"
+        return min([len(indent) for indent in self._INDENT_RE.findall(s)])
+
+    def _comment_line(self, line):
+        "Return a commented form of the given line"
+        line = line.rstrip()
+        if line:
+            return '# '+line
+        else:
+            return '#'
+
+    def _check_prompt_blank(self, lines, indent, name, lineno):
+        """
+        Given the lines of a source string (including prompts and
+        leading indentation), check to make sure that every prompt is
+        followed by a space character.  If any line is not followed by
+        a space character, then raise ValueError.
+        """
+        for i, line in enumerate(lines):
+            if len(line) >= indent+4 and line[indent+3] != ' ':
+                raise ValueError('line %r of the docstring for %s '
+                                 'lacks blank after %s: %r' %
+                                 (lineno+i+1, name,
+                                  line[indent:indent+3], line))
+
+    def _check_prefix(self, lines, prefix, name, lineno):
+        """
+        Check that every line in the given list starts with the given
+        prefix; if any line does not, then raise a ValueError.
+        """
+        for i, line in enumerate(lines):
+            if line and not line.startswith(prefix):
+                raise ValueError('line %r of the docstring for %s has '
+                                 'inconsistent leading whitespace: %r' %
+                                 (lineno+i+1, name, line))
+
+
+######################################################################
+## 4. DocTest Finder
+######################################################################
+
+class DocTestFinder:
+    """
+    A class used to extract the DocTests that are relevant to a given
+    object, from its docstring and the docstrings of its contained
+    objects.  Doctests can currently be extracted from the following
+    object types: modules, functions, classes, methods, staticmethods,
+    classmethods, and properties.
+    """
+
+    def __init__(self, verbose=False, parser=DocTestParser(),
+                 recurse=True, _namefilter=None):
+        """
+        Create a new doctest finder.
+
+        The optional argument `parser` specifies a class or
+        function that should be used to create new DocTest objects (or
+        objects that implement the same interface as DocTest).  The
+        signature for this factory function should match the signature
+        of the DocTest constructor.
+
+        If the optional argument `recurse` is false, then `find` will
+        only examine the given object, and not any contained objects.
+        """
+        self._parser = parser
+        self._verbose = verbose
+        self._recurse = recurse
+        # _namefilter is undocumented, and exists only for temporary backward-
+        # compatibility support of testmod's deprecated isprivate mess.
+        self._namefilter = _namefilter
+
+    def find(self, obj, name=None, module=None, globs=None,
+             extraglobs=None):
+        """
+        Return a list of the DocTests that are defined by the given
+        object's docstring, or by any of its contained objects'
+        docstrings.
+
+        The optional parameter `module` is the module that contains
+        the given object.  If the module is not specified or is None, then
+        the test finder will attempt to automatically determine the
+        correct module.  The object's module is used:
+
+            - As a default namespace, if `globs` is not specified.
+            - To prevent the DocTestFinder from extracting DocTests
+              from objects that are imported from other modules.
+            - To find the name of the file containing the object.
+            - To help find the line number of the object within its
+              file.
+
+        Contained objects whose module does not match `module` are ignored.
+
+        If `module` is False, no attempt to find the module will be made.
+        This is obscure, of use mostly in tests:  if `module` is False, or
+        is None but cannot be found automatically, then all objects are
+        considered to belong to the (non-existent) module, so all contained
+        objects will (recursively) be searched for doctests.
+
+        The globals for each DocTest is formed by combining `globs`
+        and `extraglobs` (bindings in `extraglobs` override bindings
+        in `globs`).  A new copy of the globals dictionary is created
+        for each DocTest.  If `globs` is not specified, then it
+        defaults to the module's `__dict__`, if specified, or {}
+        otherwise.  If `extraglobs` is not specified, then it defaults
+        to {}.
+
+        """
+        # If name was not specified, then extract it from the object.
+        if name is None:
+            name = getattr(obj, '__name__', None)
+            if name is None:
+                raise ValueError("DocTestFinder.find: name must be given "
+                        "when obj.__name__ doesn't exist: %r" %
+                                 (type(obj),))
+
+        # Find the module that contains the given object (if obj is
+        # a module, then module=obj.).  Note: this may fail, in which
+        # case module will be None.
+        if module is False:
+            module = None
+        elif module is None:
+            module = inspect.getmodule(obj)
+
+        # Read the module's source code.  This is used by
+        # DocTestFinder._find_lineno to find the line number for a
+        # given object's docstring.
+        try:
+            file = inspect.getsourcefile(obj) or inspect.getfile(obj)
+            source_lines = linecache.getlines(file)
+            if not source_lines:
+                source_lines = None
+        except TypeError:
+            source_lines = None
+
+        # Initialize globals, and merge in extraglobs.
         if globs is None:
-            globs = mod.__dict__
-        self.globs = globs
+            if module is None:
+                globs = {}
+            else:
+                globs = module.__dict__.copy()
+        else:
+            globs = globs.copy()
+        if extraglobs is not None:
+            globs.update(extraglobs)
 
+        # Recursively expore `obj`, extracting DocTests.
+        tests = []
+        self._find(tests, obj, name, module, source_lines, globs, {})
+        return tests
+
+    def _filter(self, obj, prefix, base):
+        """
+        Return true if the given object should not be examined.
+        """
+        return (self._namefilter is not None and
+                self._namefilter(prefix, base))
+
+    def _from_module(self, module, object):
+        """
+        Return true if the given object is defined in the given
+        module.
+        """
+        if module is None:
+            return True
+        elif inspect.isfunction(object):
+            return module.__dict__ is object.func_globals
+        elif inspect.isclass(object):
+            return module.__name__ == object.__module__
+        elif inspect.getmodule(object) is not None:
+            return module is inspect.getmodule(object)
+        elif hasattr(object, '__module__'):
+            return module.__name__ == object.__module__
+        elif isinstance(object, property):
+            return True # [XX] no way not be sure.
+        else:
+            raise ValueError("object must be a class or function")
+
+    def _find(self, tests, obj, name, module, source_lines, globs, seen):
+        """
+        Find tests for the given object and any contained objects, and
+        add them to `tests`.
+        """
+        if self._verbose:
+            print 'Finding tests in %s' % name
+
+        # If we've already processed this object, then ignore it.
+        if id(obj) in seen:
+            return
+        seen[id(obj)] = 1
+
+        # Find a test for this object, and add it to the list of tests.
+        test = self._get_test(obj, name, module, globs, source_lines)
+        if test is not None:
+            tests.append(test)
+
+        # Look for tests in a module's contained objects.
+        if inspect.ismodule(obj) and self._recurse:
+            for valname, val in obj.__dict__.items():
+                # Check if this contained object should be ignored.
+                if self._filter(val, name, valname):
+                    continue
+                valname = '%s.%s' % (name, valname)
+                # Recurse to functions & classes.
+                if ((inspect.isfunction(val) or inspect.isclass(val)) and
+                    self._from_module(module, val)):
+                    self._find(tests, val, valname, module, source_lines,
+                               globs, seen)
+
+        # Look for tests in a module's __test__ dictionary.
+        if inspect.ismodule(obj) and self._recurse:
+            for valname, val in getattr(obj, '__test__', {}).items():
+                if not isinstance(valname, basestring):
+                    raise ValueError("DocTestFinder.find: __test__ keys "
+                                     "must be strings: %r" %
+                                     (type(valname),))
+                if not (inspect.isfunction(val) or inspect.isclass(val) or
+                        inspect.ismethod(val) or inspect.ismodule(val) or
+                        isinstance(val, basestring)):
+                    raise ValueError("DocTestFinder.find: __test__ values "
+                                     "must be strings, functions, methods, "
+                                     "classes, or modules: %r" %
+                                     (type(val),))
+                valname = '%s.%s' % (name, valname)
+                self._find(tests, val, valname, module, source_lines,
+                           globs, seen)
+
+        # Look for tests in a class's contained objects.
+        if inspect.isclass(obj) and self._recurse:
+            for valname, val in obj.__dict__.items():
+                # Check if this contained object should be ignored.
+                if self._filter(val, name, valname):
+                    continue
+                # Special handling for staticmethod/classmethod.
+                if isinstance(val, staticmethod):
+                    val = getattr(obj, valname)
+                if isinstance(val, classmethod):
+                    val = getattr(obj, valname).im_func
+
+                # Recurse to methods, properties, and nested classes.
+                if ((inspect.isfunction(val) or inspect.isclass(val) or
+                      isinstance(val, property)) and
+                      self._from_module(module, val)):
+                    valname = '%s.%s' % (name, valname)
+                    self._find(tests, val, valname, module, source_lines,
+                               globs, seen)
+
+    def _get_test(self, obj, name, module, globs, source_lines):
+        """
+        Return a DocTest for the given object, if it defines a docstring;
+        otherwise, return None.
+        """
+        # Extract the object's docstring.  If it doesn't have one,
+        # then return None (no test for this object).
+        if isinstance(obj, basestring):
+            docstring = obj
+        else:
+            try:
+                if obj.__doc__ is None:
+                    return None
+                docstring = str(obj.__doc__)
+            except (TypeError, AttributeError):
+                return None
+
+        # Don't bother if the docstring is empty.
+        if not docstring:
+            return None
+
+        # Find the docstring's location in the file.
+        lineno = self._find_lineno(obj, source_lines)
+
+        # Return a DocTest for this object.
+        if module is None:
+            filename = None
+        else:
+            filename = getattr(module, '__file__', module.__name__)
+        return self._parser.get_doctest(docstring, globs, name,
+                                        filename, lineno)
+
+    def _find_lineno(self, obj, source_lines):
+        """
+        Return a line number of the given object's docstring.  Note:
+        this method assumes that the object has a docstring.
+        """
+        lineno = None
+
+        # Find the line number for modules.
+        if inspect.ismodule(obj):
+            lineno = 0
+
+        # Find the line number for classes.
+        # Note: this could be fooled if a class is defined multiple
+        # times in a single file.
+        if inspect.isclass(obj):
+            if source_lines is None:
+                return None
+            pat = re.compile(r'^\s*class\s*%s\b' %
+                             getattr(obj, '__name__', '-'))
+            for i, line in enumerate(source_lines):
+                if pat.match(line):
+                    lineno = i
+                    break
+
+        # Find the line number for functions & methods.
+        if inspect.ismethod(obj): obj = obj.im_func
+        if inspect.isfunction(obj): obj = obj.func_code
+        if inspect.istraceback(obj): obj = obj.tb_frame
+        if inspect.isframe(obj): obj = obj.f_code
+        if inspect.iscode(obj):
+            lineno = getattr(obj, 'co_firstlineno', None)-1
+
+        # Find the line number where the docstring starts.  Assume
+        # that it's the first line that begins with a quote mark.
+        # Note: this could be fooled by a multiline function
+        # signature, where a continuation line begins with a quote
+        # mark.
+        if lineno is not None:
+            if source_lines is None:
+                return lineno+1
+            pat = re.compile('(^|.*:)\s*\w*("|\')')
+            for lineno in range(lineno, len(source_lines)):
+                if pat.match(source_lines[lineno]):
+                    return lineno
+
+        # We couldn't find the line number.
+        return None
+
+######################################################################
+## 5. DocTest Runner
+######################################################################
+
+class DocTestRunner:
+    """
+    A class used to run DocTest test cases, and accumulate statistics.
+    The `run` method is used to process a single DocTest case.  It
+    returns a tuple `(f, t)`, where `t` is the number of test cases
+    tried, and `f` is the number of test cases that failed.
+
+        >>> tests = DocTestFinder().find(_TestClass)
+        >>> runner = DocTestRunner(verbose=False)
+        >>> for test in tests:
+        ...     print runner.run(test)
+        (0, 2)
+        (0, 1)
+        (0, 2)
+        (0, 2)
+
+    The `summarize` method prints a summary of all the test cases that
+    have been run by the runner, and returns an aggregated `(f, t)`
+    tuple:
+
+        >>> runner.summarize(verbose=1)
+        4 items passed all tests:
+           2 tests in _TestClass
+           2 tests in _TestClass.__init__
+           2 tests in _TestClass.get
+           1 tests in _TestClass.square
+        7 tests in 4 items.
+        7 passed and 0 failed.
+        Test passed.
+        (0, 7)
+
+    The aggregated number of tried examples and failed examples is
+    also available via the `tries` and `failures` attributes:
+
+        >>> runner.tries
+        7
+        >>> runner.failures
+        0
+
+    The comparison between expected outputs and actual outputs is done
+    by an `OutputChecker`.  This comparison may be customized with a
+    number of option flags; see the documentation for `testmod` for
+    more information.  If the option flags are insufficient, then the
+    comparison may also be customized by passing a subclass of
+    `OutputChecker` to the constructor.
+
+    The test runner's display output can be controlled in two ways.
+    First, an output function (`out) can be passed to
+    `TestRunner.run`; this function will be called with strings that
+    should be displayed.  It defaults to `sys.stdout.write`.  If
+    capturing the output is not sufficient, then the display output
+    can be also customized by subclassing DocTestRunner, and
+    overriding the methods `report_start`, `report_success`,
+    `report_unexpected_exception`, and `report_failure`.
+    """
+    # This divider string is used to separate failure messages, and to
+    # separate sections of the summary.
+    DIVIDER = "*" * 70
+
+    def __init__(self, checker=None, verbose=None, optionflags=0):
+        """
+        Create a new test runner.
+
+        Optional keyword arg `checker` is the `OutputChecker` that
+        should be used to compare the expected outputs and actual
+        outputs of doctest examples.
+
+        Optional keyword arg 'verbose' prints lots of stuff if true,
+        only failures if false; by default, it's true iff '-v' is in
+        sys.argv.
+
+        Optional argument `optionflags` can be used to control how the
+        test runner compares expected output to actual output, and how
+        it displays failures.  See the documentation for `testmod` for
+        more information.
+        """
+        self._checker = checker or OutputChecker()
         if verbose is None:
-            import sys
-            verbose = "-v" in sys.argv
-        self.verbose = verbose
-
-        # By default, assume that nothing is private
-        if isprivate is None:
-            isprivate = lambda prefix, base:  0
-        self.isprivate = isprivate
+            verbose = '-v' in sys.argv
+        self._verbose = verbose
         self.optionflags = optionflags
 
-        self.name2ft = {}   # map name to (#failures, #trials) pair
+        # Keep track of the examples we've run.
+        self.tries = 0
+        self.failures = 0
+        self._name2ft = {}
 
-        self.compileflags = _extract_future_flags(globs)
+        # Create a fake output target for capturing doctest output.
+        self._fakeout = _SpoofOut()
 
-    def runstring(self, s, name):
+    #/////////////////////////////////////////////////////////////////
+    # Reporting methods
+    #/////////////////////////////////////////////////////////////////
+
+    def report_start(self, out, test, example):
         """
-        s, name -> search string s for examples to run, logging as name.
-
-        Use string name as the key for logging the outcome.
-        Return (#failures, #examples).
-
-        >>> t = Tester(globs={}, verbose=1)
-        >>> test = r'''
-        ...    # just an example
-        ...    >>> x = 1 + 2
-        ...    >>> x
-        ...    3
-        ... '''
-        >>> t.runstring(test, "Example")
-        Running string Example
-        Trying: x = 1 + 2
-        Expecting: nothing
-        ok
-        Trying: x
-        Expecting: 3
-        ok
-        0 of 2 examples failed in string Example
-        (0, 2)
+        Report that the test runner is about to process the given
+        example.  (Only displays a message if verbose=True)
         """
+        if self._verbose:
+            out(_tag_msg("Trying", example.source) +
+                _tag_msg("Expecting", example.want or "nothing"))
 
-        if self.verbose:
-            print "Running string", name
-        f = t = 0
-        e = _extract_examples(s)
-        if e:
-            f, t = _run_examples(e, self.globs, self.verbose, name,
-                                 self.compileflags, self.optionflags)
-        if self.verbose:
-            print f, "of", t, "examples failed in string", name
-        self.__record_outcome(name, f, t)
-        return f, t
-
-    def rundoc(self, object, name=None):
+    def report_success(self, out, test, example, got):
         """
-        object, name=None -> search object.__doc__ for examples to run.
-
-        Use optional string name as the key for logging the outcome;
-        by default use object.__name__.
-        Return (#failures, #examples).
-        If object is a class object, search recursively for method
-        docstrings too.
-        object.__doc__ is examined regardless of name, but if object is
-        a class, whether private names reached from object are searched
-        depends on the constructor's "isprivate" argument.
-
-        >>> t = Tester(globs={}, verbose=0)
-        >>> def _f():
-        ...     '''Trivial docstring example.
-        ...     >>> assert 2 == 2
-        ...     '''
-        ...     return 32
-        ...
-        >>> t.rundoc(_f)  # expect 0 failures in 1 example
-        (0, 1)
+        Report that the given example ran successfully.  (Only
+        displays a message if verbose=True)
         """
+        if self._verbose:
+            out("ok\n")
 
-        if name is None:
-            try:
-                name = object.__name__
-            except AttributeError:
-                raise ValueError("Tester.rundoc: name must be given "
-                    "when object.__name__ doesn't exist; %r" % (object,))
-        if self.verbose:
-            print "Running", name + ".__doc__"
-        f, t = run_docstring_examples(object, self.globs, self.verbose, name,
-                                      self.compileflags, self.optionflags)
-        if self.verbose:
-            print f, "of", t, "examples failed in", name + ".__doc__"
-        self.__record_outcome(name, f, t)
-        if _isclass(object):
-            # In 2.2, class and static methods complicate life.  Build
-            # a dict "that works", by hook or by crook.
-            d = {}
-            for tag, kind, homecls, value in _classify_class_attrs(object):
-
-                if homecls is not object:
-                    # Only look at names defined immediately by the class.
-                    continue
-
-                elif self.isprivate(name, tag):
-                    continue
-
-                elif kind == "method":
-                    # value is already a function
-                    d[tag] = value
-
-                elif kind == "static method":
-                    # value isn't a function, but getattr reveals one
-                    d[tag] = getattr(object, tag)
-
-                elif kind == "class method":
-                    # Hmm.  A classmethod object doesn't seem to reveal
-                    # enough.  But getattr turns it into a bound method,
-                    # and from there .im_func retrieves the underlying
-                    # function.
-                    d[tag] = getattr(object, tag).im_func
-
-                elif kind == "property":
-                    # The methods implementing the property have their
-                    # own docstrings -- but the property may have one too.
-                    if value.__doc__ is not None:
-                        d[tag] = str(value.__doc__)
-
-                elif kind == "data":
-                    # Grab nested classes.
-                    if _isclass(value):
-                        d[tag] = value
-
-                else:
-                    raise ValueError("teach doctest about %r" % kind)
-
-            f2, t2 = self.run__test__(d, name)
-            f += f2
-            t += t2
-
-        return f, t
-
-    def rundict(self, d, name, module=None):
+    def report_failure(self, out, test, example, got):
         """
-        d, name, module=None -> search for docstring examples in d.values().
-
-        For k, v in d.items() such that v is a function or class,
-        do self.rundoc(v, name + "." + k).  Whether this includes
-        objects with private names depends on the constructor's
-        "isprivate" argument.  If module is specified, functions and
-        classes that are not defined in module are excluded.
-        Return aggregate (#failures, #examples).
-
-        Build and populate two modules with sample functions to test that
-        exclusion of external functions and classes works.
-
-        >>> import new
-        >>> m1 = new.module('_m1')
-        >>> m2 = new.module('_m2')
-        >>> test_data = \"""
-        ... def _f():
-        ...     '''>>> assert 1 == 1
-        ...     '''
-        ... def g():
-        ...    '''>>> assert 2 != 1
-        ...    '''
-        ... class H:
-        ...    '''>>> assert 2 > 1
-        ...    '''
-        ...    def bar(self):
-        ...        '''>>> assert 1 < 2
-        ...        '''
-        ... \"""
-        >>> exec test_data in m1.__dict__
-        >>> exec test_data in m2.__dict__
-        >>> m1.__dict__.update({"f2": m2._f, "g2": m2.g, "h2": m2.H})
-
-        Tests that objects outside m1 are excluded:
-
-        >>> t = Tester(globs={}, verbose=0, isprivate=is_private)
-        >>> t.rundict(m1.__dict__, "rundict_test", m1)  # _f, f2 and g2 and h2 skipped
-        (0, 3)
-
-        Again, but with the default isprivate function allowing _f:
-
-        >>> t = Tester(globs={}, verbose=0)
-        >>> t.rundict(m1.__dict__, "rundict_test_pvt", m1)  # Only f2, g2 and h2 skipped
-        (0, 4)
-
-        And once more, not excluding stuff outside m1:
-
-        >>> t = Tester(globs={}, verbose=0)
-        >>> t.rundict(m1.__dict__, "rundict_test_pvt")  # None are skipped.
-        (0, 8)
-
-        The exclusion of objects from outside the designated module is
-        meant to be invoked automagically by testmod.
-
-        >>> testmod(m1, isprivate=is_private)
-        (0, 3)
-
+        Report that the given example failed.
         """
+        # Print an error message.
+        out(self._failure_header(test, example) +
+            self._checker.output_difference(example.want, got,
+                                            self.optionflags))
 
-        if not hasattr(d, "items"):
-            raise TypeError("Tester.rundict: d must support .items(); %r" % (d,))
-        f = t = 0
-        # Run the tests by alpha order of names, for consistency in
-        # verbose-mode output.
-        names = d.keys()
-        names.sort()
-        for thisname in names:
-            value = d[thisname]
-            if _isfunction(value) or _isclass(value):
-                if module and not _from_module(module, value):
-                    continue
-                f2, t2 = self.__runone(value, name + "." + thisname)
-                f = f + f2
-                t = t + t2
-        return f, t
-
-    def run__test__(self, d, name):
-        """d, name -> Treat dict d like module.__test__.
-
-        Return (#failures, #tries).
-        See testmod.__doc__ for details.
+    def report_unexpected_exception(self, out, test, example, exc_info):
         """
+        Report that the given example raised an unexpected exception.
+        """
+        out(self._failure_header(test, example) +
+            _tag_msg("Exception raised", _exception_traceback(exc_info)))
 
+    def _failure_header(self, test, example):
+        s = (self.DIVIDER + "\n" +
+             _tag_msg("Failure in example", example.source))
+        if test.filename is None:
+            # [XX] I'm not putting +1 here, to give the same output
+            # as the old version.  But I think it *should* go here.
+            return s + ("from line #%s of %s\n" %
+                        (example.lineno, test.name))
+        elif test.lineno is None:
+            return s + ("from line #%s of %s in %s\n" %
+                        (example.lineno+1, test.name, test.filename))
+        else:
+            lineno = test.lineno+example.lineno+1
+            return s + ("from line #%s of %s (%s)\n" %
+                        (lineno, test.filename, test.name))
+
+    #/////////////////////////////////////////////////////////////////
+    # DocTest Running
+    #/////////////////////////////////////////////////////////////////
+
+    # A regular expression for handling `want` strings that contain
+    # expected exceptions.  It divides `want` into three pieces:
+    #    - the pre-exception output (`want`)
+    #    - the traceback header line (`hdr`)
+    #    - the exception message (`msg`), as generated by
+    #      traceback.format_exception_only()
+    # `msg` may have multiple lines.  We assume/require that the
+    # exception message is the first non-indented line starting with a word
+    # character following the traceback header line.
+    _EXCEPTION_RE = re.compile(r"""
+        (?P<want> .*?)   # suck up everything until traceback header
+        # Grab the traceback header.  Different versions of Python have
+        # said different things on the first traceback line.
+        ^(?P<hdr> Traceback\ \(
+            (?: most\ recent\ call\ last
+            |   innermost\ last
+            ) \) :
+        )
+        \s* $  # toss trailing whitespace on traceback header
+        .*?    # don't blink:  absorb stuff until a line *starts* with \w
+        ^ (?P<msg> \w+ .*)
+        """, re.VERBOSE | re.MULTILINE | re.DOTALL)
+
+    def __run(self, test, compileflags, out):
+        """
+        Run the examples in `test`.  Write the outcome of each example
+        with one of the `DocTestRunner.report_*` methods, using the
+        writer function `out`.  `compileflags` is the set of compiler
+        flags that should be used to execute examples.  Return a tuple
+        `(f, t)`, where `t` is the number of examples tried, and `f`
+        is the number of examples that failed.  The examples are run
+        in the namespace `test.globs`.
+        """
+        # Keep track of the number of failures and tries.
         failures = tries = 0
-        prefix = name + "."
-        savepvt = self.isprivate
-        try:
-            self.isprivate = lambda *args: 0
-            # Run the tests by alpha order of names, for consistency in
-            # verbose-mode output.
-            keys = d.keys()
-            keys.sort()
-            for k in keys:
-                v = d[k]
-                thisname = prefix + k
-                if type(v) in _StringTypes:
-                    f, t = self.runstring(v, thisname)
-                elif _isfunction(v) or _isclass(v) or _ismethod(v):
-                    f, t = self.rundoc(v, thisname)
+
+        # Save the option flags (since option directives can be used
+        # to modify them).
+        original_optionflags = self.optionflags
+
+        # Process each example.
+        for example in test.examples:
+            # Merge in the example's options.
+            self.optionflags = original_optionflags
+            if example.options:
+                for (optionflag, val) in example.options.items():
+                    if val:
+                        self.optionflags |= optionflag
+                    else:
+                        self.optionflags &= ~optionflag
+
+            # Record that we started this example.
+            tries += 1
+            self.report_start(out, test, example)
+
+            # Run the example in the given context (globs), and record
+            # any exception that gets raised.  (But don't intercept
+            # keyboard interrupts.)
+            try:
+                # Don't blink!  This is where the user's code gets run.
+                exec compile(example.source, "<string>", "single",
+                             compileflags, 1) in test.globs
+                exception = None
+            except KeyboardInterrupt:
+                raise
+            except:
+                exception = sys.exc_info()
+
+            got = self._fakeout.getvalue()  # the actual output
+            self._fakeout.truncate(0)
+
+            # If the example executed without raising any exceptions,
+            # then verify its output and report its outcome.
+            if exception is None:
+                if self._checker.check_output(example.want, got,
+                                              self.optionflags):
+                    self.report_success(out, test, example, got)
                 else:
-                    raise TypeError("Tester.run__test__: values in "
-                            "dict must be strings, functions, methods, "
-                            "or classes; %r" % (v,))
-                failures = failures + f
-                tries = tries + t
-        finally:
-            self.isprivate = savepvt
+                    self.report_failure(out, test, example, got)
+                    failures += 1
+
+            # If the example raised an exception, then check if it was
+            # expected.
+            else:
+                exc_info = sys.exc_info()
+                exc_msg = traceback.format_exception_only(*exc_info[:2])[-1]
+
+                # Search the `want` string for an exception.  If we don't
+                # find one, then report an unexpected exception.
+                m = self._EXCEPTION_RE.match(example.want)
+                if m is None:
+                    self.report_unexpected_exception(out, test, example,
+                                                     exc_info)
+                    failures += 1
+                else:
+                    e_want, e_msg = m.group('want', 'msg')
+                    # The test passes iff the pre-exception output and
+                    # the exception description match the values given
+                    # in `want`.
+                    if (self._checker.check_output(e_want, got,
+                                                   self.optionflags) and
+                        self._checker.check_output(e_msg, exc_msg,
+                                                   self.optionflags)):
+                        self.report_success(out, test, example,
+                                       got + _exception_traceback(exc_info))
+                    else:
+                        self.report_failure(out, test, example,
+                                       got + _exception_traceback(exc_info))
+                        failures += 1
+
+        # Restore the option flags (in case they were modified)
+        self.optionflags = original_optionflags
+
+        # Record and return the number of failures and tries.
+        self.__record_outcome(test, failures, tries)
         return failures, tries
 
+    def __record_outcome(self, test, f, t):
+        """
+        Record the fact that the given DocTest (`test`) generated `f`
+        failures out of `t` tried examples.
+        """
+        f2, t2 = self._name2ft.get(test.name, (0,0))
+        self._name2ft[test.name] = (f+f2, t+t2)
+        self.failures += f
+        self.tries += t
+
+    def run(self, test, compileflags=None, out=None, clear_globs=True):
+        """
+        Run the examples in `test`, and display the results using the
+        writer function `out`.
+
+        The examples are run in the namespace `test.globs`.  If
+        `clear_globs` is true (the default), then this namespace will
+        be cleared after the test runs, to help with garbage
+        collection.  If you would like to examine the namespace after
+        the test completes, then use `clear_globs=False`.
+
+        `compileflags` gives the set of flags that should be used by
+        the Python compiler when running the examples.  If not
+        specified, then it will default to the set of future-import
+        flags that apply to `globs`.
+
+        The output of each example is checked using
+        `DocTestRunner.check_output`, and the results are formatted by
+        the `DocTestRunner.report_*` methods.
+        """
+        if compileflags is None:
+            compileflags = _extract_future_flags(test.globs)
+
+        save_stdout = sys.stdout
+        if out is None:
+            out = save_stdout.write
+        sys.stdout = self._fakeout
+
+        # Patch pdb.set_trace to restore sys.stdout, so that interactive
+        # debugging output is visible (not still redirected to self._fakeout).
+        # Note that we run "the real" pdb.set_trace (captured at doctest
+        # import time) in our replacement.  Because the current run() may
+        # run another doctest (and so on), the current pdb.set_trace may be
+        # our set_trace function, which changes sys.stdout.  If we called
+        # a chain of those, we wouldn't be left with the save_stdout
+        # *this* run() invocation wants.
+        def set_trace():
+            sys.stdout = save_stdout
+            real_pdb_set_trace()
+
+        save_set_trace = pdb.set_trace
+        pdb.set_trace = set_trace
+        try:
+            return self.__run(test, compileflags, out)
+        finally:
+            sys.stdout = save_stdout
+            pdb.set_trace = save_set_trace
+            if clear_globs:
+                test.globs.clear()
+
+    #/////////////////////////////////////////////////////////////////
+    # Summarization
+    #/////////////////////////////////////////////////////////////////
     def summarize(self, verbose=None):
         """
-        verbose=None -> summarize results, return (#failures, #tests).
+        Print a summary of all the test cases that have been run by
+        this DocTestRunner, and return a tuple `(f, t)`, where `f` is
+        the total number of failed examples, and `t` is the total
+        number of tried examples.
 
-        Print summary of test results to stdout.
-        Optional arg 'verbose' controls how wordy this is.  By
-        default, use the verbose setting established by the
-        constructor.
+        The optional `verbose` argument controls how detailed the
+        summary is.  If the verbosity is not specified, then the
+        DocTestRunner's verbosity is used.
         """
-
         if verbose is None:
-            verbose = self.verbose
+            verbose = self._verbose
         notests = []
         passed = []
         failed = []
         totalt = totalf = 0
-        for x in self.name2ft.items():
+        for x in self._name2ft.items():
             name, (f, t) = x
             assert f <= t
-            totalt = totalt + t
-            totalf = totalf + f
+            totalt += t
+            totalf += f
             if t == 0:
                 notests.append(name)
             elif f == 0:
@@ -992,13 +1489,13 @@ See doctest.testmod docs for the meaning of optionflags.
                 for thing, count in passed:
                     print " %3d tests in %s" % (count, thing)
         if failed:
-            print "*" * 65
+            print self.DIVIDER
             print len(failed), "items had failures:"
             failed.sort()
             for thing, (f, t) in failed:
                 print " %3d of %3d in %s" % (f, t, thing)
         if verbose:
-            print totalt, "tests in", len(self.name2ft), "items."
+            print totalt, "tests in", len(self._name2ft), "items."
             print totalt - totalf, "passed and", totalf, "failed."
         if totalf:
             print "***Test Failed***", totalf, "failures."
@@ -1006,84 +1503,261 @@ See doctest.testmod docs for the meaning of optionflags.
             print "Test passed."
         return totalf, totalt
 
-    def merge(self, other):
+class OutputChecker:
+    """
+    A class used to check the whether the actual output from a doctest
+    example matches the expected output.  `OutputChecker` defines two
+    methods: `check_output`, which compares a given pair of outputs,
+    and returns true if they match; and `output_difference`, which
+    returns a string describing the differences between two outputs.
+    """
+    def check_output(self, want, got, optionflags):
         """
-        other -> merge in test results from the other Tester instance.
-
-        If self and other both have a test result for something
-        with the same name, the (#failures, #tests) results are
-        summed, and a warning is printed to stdout.
-
-        >>> from doctest import Tester
-        >>> t1 = Tester(globs={}, verbose=0)
-        >>> t1.runstring('''
-        ... >>> x = 12
-        ... >>> print x
-        ... 12
-        ... ''', "t1example")
-        (0, 2)
-        >>>
-        >>> t2 = Tester(globs={}, verbose=0)
-        >>> t2.runstring('''
-        ... >>> x = 13
-        ... >>> print x
-        ... 13
-        ... ''', "t2example")
-        (0, 2)
-        >>> common = ">>> assert 1 + 2 == 3\\n"
-        >>> t1.runstring(common, "common")
-        (0, 1)
-        >>> t2.runstring(common, "common")
-        (0, 1)
-        >>> t1.merge(t2)
-        *** Tester.merge: 'common' in both testers; summing outcomes.
-        >>> t1.summarize(1)
-        3 items passed all tests:
-           2 tests in common
-           2 tests in t1example
-           2 tests in t2example
-        6 tests in 3 items.
-        6 passed and 0 failed.
-        Test passed.
-        (0, 6)
-        >>>
+        Return True iff the actual output from an example (`got`)
+        matches the expected output (`want`).  These strings are
+        always considered to match if they are identical; but
+        depending on what option flags the test runner is using,
+        several non-exact match types are also possible.  See the
+        documentation for `TestRunner` for more information about
+        option flags.
         """
+        # Handle the common case first, for efficiency:
+        # if they're string-identical, always return true.
+        if got == want:
+            return True
 
-        d = self.name2ft
-        for name, (f, t) in other.name2ft.items():
-            if name in d:
-                print "*** Tester.merge: '" + name + "' in both" \
-                    " testers; summing outcomes."
-                f2, t2 = d[name]
-                f = f + f2
-                t = t + t2
-            d[name] = f, t
+        # The values True and False replaced 1 and 0 as the return
+        # value for boolean comparisons in Python 2.3.
+        if not (optionflags & DONT_ACCEPT_TRUE_FOR_1):
+            if (got,want) == ("True\n", "1\n"):
+                return True
+            if (got,want) == ("False\n", "0\n"):
+                return True
 
-    def __record_outcome(self, name, f, t):
-        if name in self.name2ft:
-            print "*** Warning: '" + name + "' was tested before;", \
-                "summing outcomes."
-            f2, t2 = self.name2ft[name]
-            f = f + f2
-            t = t + t2
-        self.name2ft[name] = f, t
+        # <BLANKLINE> can be used as a special sequence to signify a
+        # blank line, unless the DONT_ACCEPT_BLANKLINE flag is used.
+        if not (optionflags & DONT_ACCEPT_BLANKLINE):
+            # Replace <BLANKLINE> in want with a blank line.
+            want = re.sub('(?m)^%s\s*?$' % re.escape(BLANKLINE_MARKER),
+                          '', want)
+            # If a line in got contains only spaces, then remove the
+            # spaces.
+            got = re.sub('(?m)^\s*?$', '', got)
+            if got == want:
+                return True
 
-    def __runone(self, target, name):
-        if "." in name:
-            i = name.rindex(".")
-            prefix, base = name[:i], name[i+1:]
-        else:
-            prefix, base = "", base
-        if self.isprivate(prefix, base):
-            return 0, 0
-        return self.rundoc(target, name)
+        # This flag causes doctest to ignore any differences in the
+        # contents of whitespace strings.  Note that this can be used
+        # in conjunction with the ELLISPIS flag.
+        if optionflags & NORMALIZE_WHITESPACE:
+            got = ' '.join(got.split())
+            want = ' '.join(want.split())
+            if got == want:
+                return True
 
-master = None
+        # The ELLIPSIS flag says to let the sequence "..." in `want`
+        # match any substring in `got`.
+        if optionflags & ELLIPSIS:
+            if _ellipsis_match(want, got):
+                return True
+
+        # We didn't find any match; return false.
+        return False
+
+    def output_difference(self, want, got, optionflags):
+        """
+        Return a string describing the differences between the
+        expected output for an example (`want`) and the actual output
+        (`got`).  `optionflags` is the set of option flags used to
+        compare `want` and `got`.  `indent` is the indentation of the
+        original example.
+        """
+        # If <BLANKLINE>s are being used, then replace blank lines
+        # with <BLANKLINE> in the actual output string.
+        if not (optionflags & DONT_ACCEPT_BLANKLINE):
+            got = re.sub('(?m)^[ ]*(?=\n)', BLANKLINE_MARKER, got)
+
+        # Check if we should use diff.  Don't use diff if the actual
+        # or expected outputs are too short, or if the expected output
+        # contains an ellipsis marker.
+        if ((optionflags & (UNIFIED_DIFF | CONTEXT_DIFF)) and
+            want.count('\n') > 2 and got.count('\n') > 2 and
+            not (optionflags & ELLIPSIS and '...' in want)):
+            # Split want & got into lines.
+            want_lines = [l+'\n' for l in want.split('\n')]
+            got_lines = [l+'\n' for l in got.split('\n')]
+            # Use difflib to find their differences.
+            if optionflags & UNIFIED_DIFF:
+                diff = difflib.unified_diff(want_lines, got_lines, n=2,
+                                            fromfile='Expected', tofile='Got')
+                kind = 'unified'
+            elif optionflags & CONTEXT_DIFF:
+                diff = difflib.context_diff(want_lines, got_lines, n=2,
+                                            fromfile='Expected', tofile='Got')
+                kind = 'context'
+            else:
+                assert 0, 'Bad diff option'
+            # Remove trailing whitespace on diff output.
+            diff = [line.rstrip() + '\n' for line in diff]
+            return _tag_msg("Differences (" + kind + " diff)",
+                            ''.join(diff))
+
+        # If we're not using diff, then simply list the expected
+        # output followed by the actual output.
+        return (_tag_msg("Expected", want or "Nothing") +
+                _tag_msg("Got", got))
+
+class DocTestFailure(Exception):
+    """A DocTest example has failed in debugging mode.
+
+    The exception instance has variables:
+
+    - test: the DocTest object being run
+
+    - excample: the Example object that failed
+
+    - got: the actual output
+    """
+    def __init__(self, test, example, got):
+        self.test = test
+        self.example = example
+        self.got = got
+
+    def __str__(self):
+        return str(self.test)
+
+class UnexpectedException(Exception):
+    """A DocTest example has encountered an unexpected exception
+
+    The exception instance has variables:
+
+    - test: the DocTest object being run
+
+    - excample: the Example object that failed
+
+    - exc_info: the exception info
+    """
+    def __init__(self, test, example, exc_info):
+        self.test = test
+        self.example = example
+        self.exc_info = exc_info
+
+    def __str__(self):
+        return str(self.test)
+
+class DebugRunner(DocTestRunner):
+    r"""Run doc tests but raise an exception as soon as there is a failure.
+
+       If an unexpected exception occurs, an UnexpectedException is raised.
+       It contains the test, the example, and the original exception:
+
+         >>> runner = DebugRunner(verbose=False)
+         >>> test = DocTestParser().get_doctest('>>> raise KeyError\n42',
+         ...                                    {}, 'foo', 'foo.py', 0)
+         >>> try:
+         ...     runner.run(test)
+         ... except UnexpectedException, failure:
+         ...     pass
+
+         >>> failure.test is test
+         True
+
+         >>> failure.example.want
+         '42\n'
+
+         >>> exc_info = failure.exc_info
+         >>> raise exc_info[0], exc_info[1], exc_info[2]
+         Traceback (most recent call last):
+         ...
+         KeyError
+
+       We wrap the original exception to give the calling application
+       access to the test and example information.
+
+       If the output doesn't match, then a DocTestFailure is raised:
+
+         >>> test = DocTestParser().get_doctest('''
+         ...      >>> x = 1
+         ...      >>> x
+         ...      2
+         ...      ''', {}, 'foo', 'foo.py', 0)
+
+         >>> try:
+         ...    runner.run(test)
+         ... except DocTestFailure, failure:
+         ...    pass
+
+       DocTestFailure objects provide access to the test:
+
+         >>> failure.test is test
+         True
+
+       As well as to the example:
+
+         >>> failure.example.want
+         '2\n'
+
+       and the actual output:
+
+         >>> failure.got
+         '1\n'
+
+       If a failure or error occurs, the globals are left intact:
+
+         >>> del test.globs['__builtins__']
+         >>> test.globs
+         {'x': 1}
+
+         >>> test = DocTestParser().get_doctest('''
+         ...      >>> x = 2
+         ...      >>> raise KeyError
+         ...      ''', {}, 'foo', 'foo.py', 0)
+
+         >>> runner.run(test)
+         Traceback (most recent call last):
+         ...
+         UnexpectedException: <DocTest foo from foo.py:0 (2 examples)>
+
+         >>> del test.globs['__builtins__']
+         >>> test.globs
+         {'x': 2}
+
+       But the globals are cleared if there is no error:
+
+         >>> test = DocTestParser().get_doctest('''
+         ...      >>> x = 2
+         ...      ''', {}, 'foo', 'foo.py', 0)
+
+         >>> runner.run(test)
+         (0, 1)
+
+         >>> test.globs
+         {}
+
+       """
+
+    def run(self, test, compileflags=None, out=None, clear_globs=True):
+        r = DocTestRunner.run(self, test, compileflags, out, False)
+        if clear_globs:
+            test.globs.clear()
+        return r
+
+    def report_unexpected_exception(self, out, test, example, exc_info):
+        raise UnexpectedException(test, example, exc_info)
+
+    def report_failure(self, out, test, example, got):
+        raise DocTestFailure(test, example, got)
+
+######################################################################
+## 6. Test Functions
+######################################################################
+# These should be backwards compatible.
 
 def testmod(m=None, name=None, globs=None, verbose=None, isprivate=None,
-               report=True, optionflags=0):
+            report=True, optionflags=0, extraglobs=None,
+            raise_on_error=False):
     """m=None, name=None, globs=None, verbose=None, isprivate=None,
-       report=True, optionflags=0
+       report=True, optionflags=0, extraglobs=None
 
     Test examples in docstrings in functions and classes reachable
     from module m (or the current module if m is not supplied), starting
@@ -1091,7 +1765,7 @@ def testmod(m=None, name=None, globs=None, verbose=None, isprivate=None,
     are not skipped.
 
     Also test examples reachable from dict m.__test__ if it exists and is
-    not None.  m.__dict__ maps names to functions, classes and strings;
+    not None.  m.__test__ maps names to functions, classes and strings;
     function and class docstrings are tested even if the name is private;
     strings are tested directly, as if they were docstrings.
 
@@ -1107,14 +1781,12 @@ def testmod(m=None, name=None, globs=None, verbose=None, isprivate=None,
     dict is actually used for each docstring, so that each docstring's
     examples start with a clean slate.
 
+    Optional keyword arg "extraglobs" gives a dictionary that should be
+    merged into the globals that are used to execute examples.  By
+    default, no extra globals are used.  This is new in 2.4.
+
     Optional keyword arg "verbose" prints lots of stuff if true, prints
     only failures if false; by default, it's true iff "-v" is in sys.argv.
-
-    Optional keyword arg "isprivate" specifies a function used to
-    determine whether a name is private.  The default function is
-    treat all functions as public.  Optionally, "isprivate" can be
-    set to doctest.is_private to skip over functions marked as private
-    using the underscore naming convention; see its docs for details.
 
     Optional keyword arg "report" prints a summary at the end when true,
     else prints nothing at the end.  In verbose mode, the summary is
@@ -1130,11 +1802,47 @@ def testmod(m=None, name=None, globs=None, verbose=None, isprivate=None,
             DONT_ACCEPT_TRUE_FOR_1 is specified, neither substitution
             is allowed.
 
-        RUN_DEBUGGER_ON_UNEXPECTED_EXCEPTION
-            By default, a traceback is printed for each unexpected
-            exception.  If this option is specified, the first unexpected
-            exception will cause pdb's post-mortem debugger to be run.
+        DONT_ACCEPT_BLANKLINE
+            By default, if an expected output block contains a line
+            containing only the string "<BLANKLINE>", then that line
+            will match a blank line in the actual output.  When
+            DONT_ACCEPT_BLANKLINE is specified, this substitution is
+            not allowed.
 
+        NORMALIZE_WHITESPACE
+            When NORMALIZE_WHITESPACE is specified, all sequences of
+            whitespace are treated as equal.  I.e., any sequence of
+            whitespace within the expected output will match any
+            sequence of whitespace within the actual output.
+
+        ELLIPSIS
+            When ELLIPSIS is specified, then an ellipsis marker
+            ("...") in the expected output can match any substring in
+            the actual output.
+
+        UNIFIED_DIFF
+            When UNIFIED_DIFF is specified, failures that involve
+            multi-line expected and actual outputs will be displayed
+            using a unified diff.
+
+        CONTEXT_DIFF
+            When CONTEXT_DIFF is specified, failures that involve
+            multi-line expected and actual outputs will be displayed
+            using a context diff.
+
+    Optional keyword arg "raise_on_error" raises an exception on the
+    first unexpected exception or failure. This allows failures to be
+    post-mortem debugged.
+
+    Deprecated in Python 2.4:
+    Optional keyword arg "isprivate" specifies a function used to
+    determine whether a name is private.  The default function is
+    treat all functions as public.  Optionally, "isprivate" can be
+    set to doctest.is_private to skip over functions marked as private
+    using the underscore naming convention; see its docs for details.
+    """
+
+    """ [XX] This is no longer true:
     Advanced tomfoolery:  testmod runs methods of a local instance of
     class doctest.Tester, then merges the results into (or creates)
     global Tester instance doctest.master.  Methods of doctest.master
@@ -1143,307 +1851,526 @@ def testmod(m=None, name=None, globs=None, verbose=None, isprivate=None,
     displaying a summary.  Invoke doctest.master.summarize(verbose)
     when you're done fiddling.
     """
+    if isprivate is not None:
+        warnings.warn("the isprivate argument is deprecated; "
+                      "examine DocTestFinder.find() lists instead",
+                      DeprecationWarning)
 
-    global master
-
+    # If no module was given, then use __main__.
     if m is None:
-        import sys
         # DWA - m will still be None if this wasn't invoked from the command
         # line, in which case the following TypeError is about as good an error
         # as we should expect
         m = sys.modules.get('__main__')
 
-    if not _ismodule(m):
+    # Check that we were actually given a module.
+    if not inspect.ismodule(m):
         raise TypeError("testmod: module required; %r" % (m,))
+
+    # If no name was given, then use the module's name.
     if name is None:
         name = m.__name__
-    tester = Tester(m, globs=globs, verbose=verbose, isprivate=isprivate,
-                    optionflags=optionflags)
-    failures, tries = tester.rundoc(m, name)
-    f, t = tester.rundict(m.__dict__, name, m)
-    failures += f
-    tries += t
-    if hasattr(m, "__test__"):
-        testdict = m.__test__
-        if testdict:
-            if not hasattr(testdict, "items"):
-                raise TypeError("testmod: module.__test__ must support "
-                                ".items(); %r" % (testdict,))
-            f, t = tester.run__test__(testdict, name + ".__test__")
-            failures += f
-            tries += t
-    if report:
-        tester.summarize()
-    if master is None:
-        master = tester
+
+    # Find, parse, and run all tests in the given module.
+    finder = DocTestFinder(_namefilter=isprivate)
+
+    if raise_on_error:
+        runner = DebugRunner(verbose=verbose, optionflags=optionflags)
     else:
-        master.merge(tester)
-    return failures, tries
+        runner = DocTestRunner(verbose=verbose, optionflags=optionflags)
 
-###########################################################################
-# Various doctest extensions, to make using doctest with unittest
-# easier, and to help debugging when a doctest goes wrong.  Original
-# code by Jim Fulton.
+    for test in finder.find(m, name, globs=globs, extraglobs=extraglobs):
+        runner.run(test)
 
-# Utilities.
+    if report:
+        runner.summarize()
 
-# If module is None, return the calling module (the module that called
-# the routine that called _normalize_module -- this normally won't be
-# doctest!).  If module is a string, it should be the (possibly dotted)
-# name of a module, and the (rightmost) module object is returned.  Else
-# module is returned untouched; the intent appears to be that module is
-# already a module object in this case (although this isn't checked).
+    return runner.failures, runner.tries
 
-def _normalize_module(module):
-    import sys
+def run_docstring_examples(f, globs, verbose=False, name="NoName",
+                           compileflags=None, optionflags=0):
+    """
+    Test examples in the given object's docstring (`f`), using `globs`
+    as globals.  Optional argument `name` is used in failure messages.
+    If the optional argument `verbose` is true, then generate output
+    even if there are no failures.
 
-    if module is None:
-        # Get our caller's caller's module.
-        module = sys._getframe(2).f_globals['__name__']
-        module = sys.modules[module]
+    `compileflags` gives the set of flags that should be used by the
+    Python compiler when running the examples.  If not specified, then
+    it will default to the set of future-import flags that apply to
+    `globs`.
 
-    elif isinstance(module, basestring):
-        # The ["*"] at the end is a mostly meaningless incantation with
-        # a crucial property:  if, e.g., module is 'a.b.c', it convinces
-        # __import__ to return c instead of a.
-        module = __import__(module, globals(), locals(), ["*"])
+    Optional keyword arg `optionflags` specifies options for the
+    testing and output.  See the documentation for `testmod` for more
+    information.
+    """
+    # Find, parse, and run all tests in the given module.
+    finder = DocTestFinder(verbose=verbose, recurse=False)
+    runner = DocTestRunner(verbose=verbose, optionflags=optionflags)
+    for test in finder.find(f, name, globs=globs):
+        runner.run(test, compileflags=compileflags)
 
-    return module
+######################################################################
+## 7. Tester
+######################################################################
+# This is provided only for backwards compatibility.  It's not
+# actually used in any way.
 
-# tests is a list of (testname, docstring, filename, lineno) tuples.
-# If object has a __doc__ attr, and the __doc__ attr looks like it
-# contains a doctest (specifically, if it contains an instance of '>>>'),
-# then tuple
-#     prefix + name, object.__doc__, filename, lineno
-# is appended to tests.  Else tests is left alone.
-# There is no return value.
+class Tester:
+    def __init__(self, mod=None, globs=None, verbose=None,
+                 isprivate=None, optionflags=0):
 
-def _get_doctest(name, object, tests, prefix, filename='', lineno=''):
-    doc = getattr(object, '__doc__', '')
-    if isinstance(doc, basestring) and '>>>' in doc:
-        tests.append((prefix + name, doc, filename, lineno))
+        warnings.warn("class Tester is deprecated; "
+                      "use class doctest.DocTestRunner instead",
+                      DeprecationWarning, stacklevel=2)
+        if mod is None and globs is None:
+            raise TypeError("Tester.__init__: must specify mod or globs")
+        if mod is not None and not _ismodule(mod):
+            raise TypeError("Tester.__init__: mod must be a module; %r" %
+                            (mod,))
+        if globs is None:
+            globs = mod.__dict__
+        self.globs = globs
 
-# tests is a list of (testname, docstring, filename, lineno) tuples.
-# docstrings containing doctests are appended to tests (if any are found).
-# items is a dict, like a module or class dict, mapping strings to objects.
-# mdict is the global dict of a "home" module -- only objects belonging
-# to this module are searched for docstrings.  module is the module to
-# which mdict belongs.
-# prefix is a string to be prepended to an object's name when adding a
-# tuple to tests.
-# The objects (values) in items are examined (recursively), and doctests
-# belonging to functions and classes in the home module are appended to
-# tests.
-# minlineno is a gimmick to try to guess the file-relative line number
-# at which a doctest probably begins.
+        self.verbose = verbose
+        self.isprivate = isprivate
+        self.optionflags = optionflags
+        self.testfinder = DocTestFinder(_namefilter=isprivate)
+        self.testrunner = DocTestRunner(verbose=verbose,
+                                        optionflags=optionflags)
 
-def _extract_doctests(items, module, mdict, tests, prefix, minlineno=0):
+    def runstring(self, s, name):
+        test = DocTestParser().get_doctest(s, self.globs, name, None, None)
+        if self.verbose:
+            print "Running string", name
+        (f,t) = self.testrunner.run(test)
+        if self.verbose:
+            print f, "of", t, "examples failed in string", name
+        return (f,t)
 
-    for name, object in items:
-        # Only interested in named objects.
-        if not hasattr(object, '__name__'):
-            continue
+    def rundoc(self, object, name=None, module=None):
+        f = t = 0
+        tests = self.testfinder.find(object, name, module=module,
+                                     globs=self.globs)
+        for test in tests:
+            (f2, t2) = self.testrunner.run(test)
+            (f,t) = (f+f2, t+t2)
+        return (f,t)
 
-        elif hasattr(object, 'func_globals'):
-            # Looks like a function.
-            if object.func_globals is not mdict:
-                # Non-local function.
-                continue
-            code = getattr(object, 'func_code', None)
-            filename = getattr(code, 'co_filename', '')
-            lineno = getattr(code, 'co_firstlineno', -1) + 1
-            if minlineno:
-                minlineno = min(lineno, minlineno)
-            else:
-                minlineno = lineno
-            _get_doctest(name, object, tests, prefix, filename, lineno)
+    def rundict(self, d, name, module=None):
+        import new
+        m = new.module(name)
+        m.__dict__.update(d)
+        if module is None:
+            module = False
+        return self.rundoc(m, name, module)
 
-        elif hasattr(object, "__module__"):
-            # Maybe a class-like thing, in which case we care.
-            if object.__module__ != module.__name__:
-                # Not the same module.
-                continue
-            if not (hasattr(object, '__dict__')
-                    and hasattr(object, '__bases__')):
-                # Not a class.
-                continue
+    def run__test__(self, d, name):
+        import new
+        m = new.module(name)
+        m.__test__ = d
+        return self.rundoc(m, name, module)
 
-            lineno = _extract_doctests(object.__dict__.items(),
-                                       module,
-                                       mdict,
-                                       tests,
-                                       prefix + name + ".")
-            # XXX "-3" is unclear.
-            _get_doctest(name, object, tests, prefix,
-                         lineno="%s (or above)" % (lineno - 3))
+    def summarize(self, verbose=None):
+        return self.testrunner.summarize(verbose)
 
-    return minlineno
+    def merge(self, other):
+        d = self.testrunner._name2ft
+        for name, (f, t) in other.testrunner._name2ft.items():
+            if name in d:
+                print "*** Tester.merge: '" + name + "' in both" \
+                    " testers; summing outcomes."
+                f2, t2 = d[name]
+                f = f + f2
+                t = t + t2
+            d[name] = f, t
 
-# Find all the doctests belonging to the module object.
-# Return a list of
-#     (testname, docstring, filename, lineno)
-# tuples.
+######################################################################
+## 8. Unittest Support
+######################################################################
 
-def _find_tests(module, prefix=None):
-    if prefix is None:
-        prefix = module.__name__
-    mdict = module.__dict__
-    tests = []
-    # Get the module-level doctest (if any).
-    _get_doctest(prefix, module, tests, '', lineno="1 (or above)")
-    # Recursively search the module __dict__ for doctests.
-    if prefix:
-        prefix += "."
-    _extract_doctests(mdict.items(), module, mdict, tests, prefix)
-    return tests
+class DocTestCase(unittest.TestCase):
 
-# unittest helpers.
+    def __init__(self, test, optionflags=0, setUp=None, tearDown=None,
+                 checker=None):
+        unittest.TestCase.__init__(self)
+        self._dt_optionflags = optionflags
+        self._dt_checker = checker
+        self._dt_test = test
+        self._dt_setUp = setUp
+        self._dt_tearDown = tearDown
 
-# A function passed to unittest, for unittest to drive.
-# tester is doctest Tester instance.  doc is the docstring whose
-# doctests are to be run.
+    def setUp(self):
+        if self._dt_setUp is not None:
+            self._dt_setUp()
 
-def _utest(tester, name, doc, filename, lineno):
-    import sys
-    from StringIO import StringIO
+    def tearDown(self):
+        if self._dt_tearDown is not None:
+            self._dt_tearDown()
 
-    old = sys.stdout
-    sys.stdout = new = StringIO()
-    try:
-        failures, tries = tester.runstring(doc, name)
-    finally:
-        sys.stdout = old
+    def runTest(self):
+        test = self._dt_test
+        old = sys.stdout
+        new = StringIO()
+        runner = DocTestRunner(optionflags=self._dt_optionflags,
+                               checker=self._dt_checker, verbose=False)
 
-    if failures:
-        msg = new.getvalue()
-        lname = '.'.join(name.split('.')[-1:])
-        if not lineno:
-            lineno = "0 (don't know line number)"
-        # Don't change this format!  It was designed so that Emacs can
-        # parse it naturally.
-        raise DocTestTestFailure('Failed doctest test for %s\n'
-                                 '  File "%s", line %s, in %s\n\n%s' %
-                                 (name, filename, lineno, lname, msg))
+        try:
+            runner.DIVIDER = "-"*70
+            failures, tries = runner.run(test, out=new.write)
+        finally:
+            sys.stdout = old
 
-class DocTestTestFailure(Exception):
-    """A doctest test failed"""
+        if failures:
+            raise self.failureException(self.format_failure(new.getvalue()))
 
-def DocTestSuite(module=None, options=None):
-    """Convert doctest tests for a module to a unittest TestSuite.
+    def format_failure(self, err):
+        test = self._dt_test
+        if test.lineno is None:
+            lineno = 'unknown line number'
+        else:
+            lineno = 'line %s' % test.lineno
+        lname = '.'.join(test.name.split('.')[-1:])
+        return ('Failed doctest test for %s\n'
+                '  File "%s", line %s, in %s\n\n%s'
+                % (test.name, test.filename, lineno, lname, err)
+                )
 
-    The returned TestSuite is to be run by the unittest framework, and
-    runs each doctest in the module.  If any of the doctests fail,
-    then the synthesized unit test fails, and an error is raised showing
-    the name of the file containing the test and a (sometimes approximate)
-    line number.
+    def debug(self):
+        r"""Run the test case without results and without catching exceptions
 
-    The optional module argument provides the module to be tested.  It
-    can be a module object or a (possibly dotted) module name.  If not
-    specified, the module calling DocTestSuite() is used.
+           The unit test framework includes a debug method on test cases
+           and test suites to support post-mortem debugging.  The test code
+           is run in such a way that errors are not caught.  This way a
+           caller can catch the errors and initiate post-mortem debugging.
 
-    Example (although note that unittest supplies many ways to use the
-    TestSuite returned; see the unittest docs):
+           The DocTestCase provides a debug method that raises
+           UnexpectedException errors if there is an unexepcted
+           exception:
 
-        import unittest
-        import doctest
-        import my_module_with_doctests
+             >>> test = DocTestParser().get_doctest('>>> raise KeyError\n42',
+             ...                {}, 'foo', 'foo.py', 0)
+             >>> case = DocTestCase(test)
+             >>> try:
+             ...     case.debug()
+             ... except UnexpectedException, failure:
+             ...     pass
 
-        suite = doctest.DocTestSuite(my_module_with_doctests)
-        runner = unittest.TextTestRunner()
-        runner.run(suite)
+           The UnexpectedException contains the test, the example, and
+           the original exception:
+
+             >>> failure.test is test
+             True
+
+             >>> failure.example.want
+             '42\n'
+
+             >>> exc_info = failure.exc_info
+             >>> raise exc_info[0], exc_info[1], exc_info[2]
+             Traceback (most recent call last):
+             ...
+             KeyError
+
+           If the output doesn't match, then a DocTestFailure is raised:
+
+             >>> test = DocTestParser().get_doctest('''
+             ...      >>> x = 1
+             ...      >>> x
+             ...      2
+             ...      ''', {}, 'foo', 'foo.py', 0)
+             >>> case = DocTestCase(test)
+
+             >>> try:
+             ...    case.debug()
+             ... except DocTestFailure, failure:
+             ...    pass
+
+           DocTestFailure objects provide access to the test:
+
+             >>> failure.test is test
+             True
+
+           As well as to the example:
+
+             >>> failure.example.want
+             '2\n'
+
+           and the actual output:
+
+             >>> failure.got
+             '1\n'
+
+           """
+
+        runner = DebugRunner(optionflags=self._dt_optionflags,
+                             checker=self._dt_checker, verbose=False)
+        runner.run(self._dt_test)
+
+    def id(self):
+        return self._dt_test.name
+
+    def __repr__(self):
+        name = self._dt_test.name.split('.')
+        return "%s (%s)" % (name[-1], '.'.join(name[:-1]))
+
+    __str__ = __repr__
+
+    def shortDescription(self):
+        return "Doctest: " + self._dt_test.name
+
+def DocTestSuite(module=None, globs=None, extraglobs=None,
+                 optionflags=0, test_finder=None,
+                 setUp=lambda: None, tearDown=lambda: None,
+                 checker=None):
+    """
+    Convert doctest tests for a mudule to a unittest test suite.
+
+    This converts each documentation string in a module that
+    contains doctest tests to a unittest test case.  If any of the
+    tests in a doc string fail, then the test case fails.  An exception
+    is raised showing the name of the file containing the test and a
+    (sometimes approximate) line number.
+
+    The `module` argument provides the module to be tested.  The argument
+    can be either a module or a module name.
+
+    If no argument is given, the calling module is used.
     """
 
-    import unittest
+    if test_finder is None:
+        test_finder = DocTestFinder()
 
     module = _normalize_module(module)
-    tests = _find_tests(module)
-    if not tests:
+    tests = test_finder.find(module, globs=globs, extraglobs=extraglobs)
+    if globs is None:
+        globs = module.__dict__
+    if not tests: # [XX] why do we want to do this?
         raise ValueError(module, "has no tests")
 
     tests.sort()
     suite = unittest.TestSuite()
-    tester = Tester(module)
-    for name, doc, filename, lineno in tests:
-        if not filename:
+    for test in tests:
+        if len(test.examples) == 0:
+            continue
+        if not test.filename:
             filename = module.__file__
             if filename.endswith(".pyc"):
                 filename = filename[:-1]
             elif filename.endswith(".pyo"):
                 filename = filename[:-1]
-        def runit(name=name, doc=doc, filename=filename, lineno=lineno):
-            _utest(tester, name, doc, filename, lineno)
-        suite.addTest(unittest.FunctionTestCase(
-                                    runit,
-                                    description="doctest of " + name))
+            test.filename = filename
+        suite.addTest(DocTestCase(test, optionflags, setUp, tearDown,
+                                  checker))
+
     return suite
 
-# Debugging support.
+class DocFileCase(DocTestCase):
 
-def _expect(expect):
-    # Return the expected output (if any), formatted as a Python
-    # comment block.
-    if expect:
-        expect = "\n# ".join(expect.split("\n"))
-        expect = "\n# Expect:\n# %s" % expect
-    return expect
+    def id(self):
+        return '_'.join(self._dt_test.name.split('.'))
+
+    def __repr__(self):
+        return self._dt_test.filename
+    __str__ = __repr__
+
+    def format_failure(self, err):
+        return ('Failed doctest test for %s\n  File "%s", line 0\n\n%s'
+                % (self._dt_test.name, self._dt_test.filename, err)
+                )
+
+def DocFileTest(path, package=None, globs=None,
+                setUp=None, tearDown=None,
+                optionflags=0):
+    package = _normalize_module(package)
+    name = path.split('/')[-1]
+    dir = os.path.split(package.__file__)[0]
+    path = os.path.join(dir, *(path.split('/')))
+    doc = open(path).read()
+
+    if globs is None:
+        globs = {}
+
+    test = DocTestParser().get_doctest(doc, globs, name, path, 0)
+
+    return DocFileCase(test, optionflags, setUp, tearDown)
+
+def DocFileSuite(*paths, **kw):
+    """Creates a suite of doctest files.
+
+    One or more text file paths are given as strings.  These should
+    use "/" characters to separate path segments.  Paths are relative
+    to the directory of the calling module, or relative to the package
+    passed as a keyword argument.
+
+    A number of options may be provided as keyword arguments:
+
+    package
+      The name of a Python package.  Text-file paths will be
+      interpreted relative to the directory containing this package.
+      The package may be supplied as a package object or as a dotted
+      package name.
+
+    setUp
+      The name of a set-up function.  This is called before running the
+      tests in each file.
+
+    tearDown
+      The name of a tear-down function.  This is called after running the
+      tests in each file.
+
+    globs
+      A dictionary containing initial global variables for the tests.
+    """
+    suite = unittest.TestSuite()
+
+    # We do this here so that _normalize_module is called at the right
+    # level.  If it were called in DocFileTest, then this function
+    # would be the caller and we might guess the package incorrectly.
+    kw['package'] = _normalize_module(kw.get('package'))
+
+    for path in paths:
+        suite.addTest(DocFileTest(path, **kw))
+
+    return suite
+
+######################################################################
+## 9. Debugging Support
+######################################################################
+
+def script_from_examples(s):
+    r"""Extract script from text with examples.
+
+       Converts text with examples to a Python script.  Example input is
+       converted to regular code.  Example output and all other words
+       are converted to comments:
+
+       >>> text = '''
+       ...       Here are examples of simple math.
+       ...
+       ...           Python has super accurate integer addition
+       ...
+       ...           >>> 2 + 2
+       ...           5
+       ...
+       ...           And very friendly error messages:
+       ...
+       ...           >>> 1/0
+       ...           To Infinity
+       ...           And
+       ...           Beyond
+       ...
+       ...           You can use logic if you want:
+       ...
+       ...           >>> if 0:
+       ...           ...    blah
+       ...           ...    blah
+       ...           ...
+       ...
+       ...           Ho hum
+       ...           '''
+
+       >>> print script_from_examples(text)
+       # Here are examples of simple math.
+       #
+       #     Python has super accurate integer addition
+       #
+       2 + 2
+       # Expected:
+       ## 5
+       #
+       #     And very friendly error messages:
+       #
+       1/0
+       # Expected:
+       ## To Infinity
+       ## And
+       ## Beyond
+       #
+       #     You can use logic if you want:
+       #
+       if 0:
+          blah
+          blah
+       <BLANKLINE>
+       #
+       #     Ho hum
+       """
+
+    return DocTestParser().get_program(s)
+
+def _want_comment(example):
+    """
+    Return a comment containing the expected output for the given example.
+    """
+    # Return the expected output, if any
+    want = example.want
+    if want:
+        if want[-1] == '\n':
+            want = want[:-1]
+        want = "\n#     ".join(want.split("\n"))
+        want = "\n# Expected:\n#     %s" % want
+    return want
 
 def testsource(module, name):
-    """Extract the doctest examples from a docstring.
+    """Extract the test sources from a doctest docstring as a script.
 
     Provide the module (or dotted name of the module) containing the
-    tests to be extracted, and the name (within the module) of the object
-    with the docstring containing the tests to be extracted.
-
-    The doctest examples are returned as a string containing Python
-    code.  The expected output blocks in the examples are converted
-    to Python comments.
+    test to be debugged and the name (within the module) of the object
+    with the doc string with tests to be debugged.
     """
-
     module = _normalize_module(module)
-    tests = _find_tests(module, "")
-    test = [doc for (tname, doc, dummy, dummy) in tests
-                if tname == name]
+    tests = DocTestFinder().find(module)
+    test = [t for t in tests if t.name == name]
     if not test:
         raise ValueError(name, "not found in tests")
     test = test[0]
-    examples = [source + _expect(expect)
-                for source, expect, dummy in _extract_examples(test)]
-    return '\n'.join(examples)
+    testsrc = script_from_examples(test.docstring)
+    return testsrc
 
-def debug(module, name):
-    """Debug a single docstring containing doctests.
+def debug_src(src, pm=False, globs=None):
+    """Debug a single doctest docstring, in argument `src`'"""
+    testsrc = script_from_examples(src)
+    debug_script(testsrc, pm, globs)
 
-    Provide the module (or dotted name of the module) containing the
-    docstring to be debugged, and the name (within the module) of the
-    object with the docstring to be debugged.
-
-    The doctest examples are extracted (see function testsource()),
-    and written to a temp file.  The Python debugger (pdb) is then
-    invoked on that file.
-    """
-
-    import os
+def debug_script(src, pm=False, globs=None):
+    "Debug a test script.  `src` is the script, as a string."
     import pdb
-    import tempfile
 
-    module = _normalize_module(module)
-    testsrc = testsource(module, name)
     srcfilename = tempfile.mktemp("doctestdebug.py")
-    f = file(srcfilename, 'w')
-    f.write(testsrc)
+    f = open(srcfilename, 'w')
+    f.write(src)
     f.close()
 
-    globs = {}
-    globs.update(module.__dict__)
-    try:
+    if globs:
+        globs = globs.copy()
+    else:
+        globs = {}
+
+    if pm:
+        try:
+            execfile(srcfilename, globs, globs)
+        except:
+            print sys.exc_info()[1]
+            pdb.post_mortem(sys.exc_info()[2])
+    else:
         # Note that %r is vital here.  '%s' instead can, e.g., cause
         # backslashes to get treated as metacharacters on Windows.
         pdb.run("execfile(%r)" % srcfilename, globs, globs)
-    finally:
-        os.remove(srcfilename)
 
+def debug(module, name, pm=False):
+    """Debug a single doctest docstring.
 
+    Provide the module (or dotted name of the module) containing the
+    test to be debugged and the name (within the module) of the object
+    with the docstring with tests to be debugged.
+    """
+    module = _normalize_module(module)
+    testsrc = testsource(module, name)
+    debug_script(testsrc, pm, module.__dict__)
 
+######################################################################
+## 10. Example Usage
+######################################################################
 class _TestClass:
     """
     A pointless class, for sanity-checking of docstring testing.
@@ -1510,11 +2437,152 @@ __test__ = {"_TestClass": _TestClass,
                                     >>> 4 > 4
                                     False
                                     """,
-           }
+            "blank lines": r"""
+            Blank lines can be marked with <BLANKLINE>:
+                >>> print 'foo\n\nbar\n'
+                foo
+                <BLANKLINE>
+                bar
+                <BLANKLINE>
+            """,
+            }
+#             "ellipsis": r"""
+#             If the ellipsis flag is used, then '...' can be used to
+#             elide substrings in the desired output:
+#                 >>> print range(1000)
+#                 [0, 1, 2, ..., 999]
+#             """,
+#             "whitespace normalization": r"""
+#             If the whitespace normalization flag is used, then
+#             differences in whitespace are ignored.
+#                 >>> print range(30)
+#                 [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14,
+#                  15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26,
+#                  27, 28, 29]
+#             """,
+#            }
+
+def test1(): r"""
+>>> warnings.filterwarnings("ignore", "class Tester", DeprecationWarning,
+...                         "doctest", 0)
+>>> from doctest import Tester
+>>> t = Tester(globs={'x': 42}, verbose=0)
+>>> t.runstring(r'''
+...      >>> x = x * 2
+...      >>> print x
+...      42
+... ''', 'XYZ')
+**********************************************************************
+Failure in example: print x
+from line #2 of XYZ
+Expected: 42
+Got: 84
+(1, 2)
+>>> t.runstring(">>> x = x * 2\n>>> print x\n84\n", 'example2')
+(0, 2)
+>>> t.summarize()
+**********************************************************************
+1 items had failures:
+   1 of   2 in XYZ
+***Test Failed*** 1 failures.
+(1, 4)
+>>> t.summarize(verbose=1)
+1 items passed all tests:
+   2 tests in example2
+**********************************************************************
+1 items had failures:
+   1 of   2 in XYZ
+4 tests in 2 items.
+3 passed and 1 failed.
+***Test Failed*** 1 failures.
+(1, 4)
+"""
+
+def test2(): r"""
+        >>> warnings.filterwarnings("ignore", "class Tester",
+        ...                         DeprecationWarning, "doctest", 0)
+        >>> t = Tester(globs={}, verbose=1)
+        >>> test = r'''
+        ...    # just an example
+        ...    >>> x = 1 + 2
+        ...    >>> x
+        ...    3
+        ... '''
+        >>> t.runstring(test, "Example")
+        Running string Example
+        Trying: x = 1 + 2
+        Expecting: nothing
+        ok
+        Trying: x
+        Expecting: 3
+        ok
+        0 of 2 examples failed in string Example
+        (0, 2)
+"""
+def test3(): r"""
+        >>> warnings.filterwarnings("ignore", "class Tester",
+        ...                         DeprecationWarning, "doctest", 0)
+        >>> t = Tester(globs={}, verbose=0)
+        >>> def _f():
+        ...     '''Trivial docstring example.
+        ...     >>> assert 2 == 2
+        ...     '''
+        ...     return 32
+        ...
+        >>> t.rundoc(_f)  # expect 0 failures in 1 example
+        (0, 1)
+"""
+def test4(): """
+        >>> import new
+        >>> m1 = new.module('_m1')
+        >>> m2 = new.module('_m2')
+        >>> test_data = \"""
+        ... def _f():
+        ...     '''>>> assert 1 == 1
+        ...     '''
+        ... def g():
+        ...    '''>>> assert 2 != 1
+        ...    '''
+        ... class H:
+        ...    '''>>> assert 2 > 1
+        ...    '''
+        ...    def bar(self):
+        ...        '''>>> assert 1 < 2
+        ...        '''
+        ... \"""
+        >>> exec test_data in m1.__dict__
+        >>> exec test_data in m2.__dict__
+        >>> m1.__dict__.update({"f2": m2._f, "g2": m2.g, "h2": m2.H})
+
+        Tests that objects outside m1 are excluded:
+
+        >>> warnings.filterwarnings("ignore", "class Tester",
+        ...                         DeprecationWarning, "doctest", 0)
+        >>> t = Tester(globs={}, verbose=0)
+        >>> t.rundict(m1.__dict__, "rundict_test", m1)  # f2 and g2 and h2 skipped
+        (0, 4)
+
+        Once more, not excluding stuff outside m1:
+
+        >>> t = Tester(globs={}, verbose=0)
+        >>> t.rundict(m1.__dict__, "rundict_test_pvt")  # None are skipped.
+        (0, 8)
+
+        The exclusion of objects from outside the designated module is
+        meant to be invoked automagically by testmod.
+
+        >>> testmod(m1, verbose=False)
+        (0, 4)
+"""
 
 def _test():
-    import doctest
-    return doctest.testmod(doctest)
+    #import doctest
+    #doctest.testmod(doctest, verbose=False,
+    #                optionflags=ELLIPSIS | NORMALIZE_WHITESPACE |
+    #                UNIFIED_DIFF)
+    #print '~'*70
+    r = unittest.TextTestRunner()
+    r.run(DocTestSuite())
 
 if __name__ == "__main__":
     _test()

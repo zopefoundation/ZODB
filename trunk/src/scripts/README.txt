@@ -27,6 +27,15 @@ transaction and one line for each data record in that transaction.
 Includes time stamps, file positions, and class names.
 
 
+fsoids.py -- trace all uses of specified oids in a FileStorage
+
+For heavy debugging.
+A set of oids is specified by text file listing and/or command line.
+A report is generated showing all uses of these oids in the database:
+all new-revision creation/modifications, all references from all
+revisions of other objects, and all creation undos.
+
+
 fstest.py -- simple consistency checker for FileStorage
 
 usage: fstest.py [-v] data.fs

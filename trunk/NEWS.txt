@@ -5,6 +5,20 @@ Release date: DD-MMM-YYYY
 Tools
 -----
 
+New tool fsoids.py, for heavy debugging of FileStorages; shows all
+uses of specified oids in the entire database (e.g., suppose oid 0x345620
+is missing -- did it ever exist?  if so, when?  who referenced it?  when
+was the last transaction that modified an object that referenced it?
+which objects did it reference?  what kind of object was it?).
+
+
+What's new in ZODB3 3.3 ?
+=========================
+Release date: DD-MMM-YYYY
+
+Tools
+-----
+
 FileStorage.FileIterator was confused about how to read a transaction's
 user and description fields, which caused several tools to display
 binary gibberish for these values.
@@ -33,6 +47,15 @@ fsrefs.py:
 analyze.py produced spurious "len of unsized object" messages when
 finding a data record for an object uncreation or version abort.  These
 no longer appear.
+
+fsdump.py's get_pickle_metadata() function (which is used by several
+tools) was confused about what to do when the ZODB pickle started with
+a pickle GLOBAL opcode.  It actually loaded the class then, which it
+intends never to do, leading to stray messages on stdout when the class
+wasn't available, and leading to a strange return value even when it was
+available (the repr of the type object was returned as "the module name",
+and an empty string was returned as "the class name").  This has been
+repaired.
 
 
 What's new in ZODB3 3.3 beta 2
