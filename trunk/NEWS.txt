@@ -52,6 +52,17 @@ DB
   file ZODB/tests/multidb.txt for a tutorial doctest.  Thanks to Christian
   Theune for his work on this during the PyCon 2005 ZODB sprint.
 
+ZEO compatibility
+-----------------
+
+There are severe restrictions on using ZEO servers and clients at or after
+ZODB 3.3 with ZEO servers and clients from ZODB versions before 3.3.  See the
+reworked ``Compatibility`` section in ``README.txt`` for details.  If
+possible, it will be easiest to move clients and servers to 3.3+
+simultaneously.  With care, it's possible to use a 3.3+ ZEO server with
+pre-3.3 ZEO clients, but not possible to use a pre-3.3 ZEO server with 3.3+
+ZEO clients.
+
 BTrees
 ------
 
