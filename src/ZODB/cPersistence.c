@@ -85,7 +85,7 @@
 static char cPersistence_doc_string[] = 
 "Defines Persistent mixin class for persistent objects.\n"
 "\n"
-"$Id: cPersistence.c,v 1.44 2001/11/06 17:52:38 jeremy Exp $\n";
+"$Id: cPersistence.c,v 1.45 2001/11/06 19:37:00 jeremy Exp $\n";
 
 #include <string.h>
 #include "cPersistence.h"
@@ -163,13 +163,18 @@ callmethod(PyObject *self, PyObject *name)
 static PyObject *
 callmethod1(PyObject *self, PyObject *name, PyObject *arg)
 {
-  if((self=PyObject_GetAttr(self,name)) && (name=PyTuple_New(1)))
+  self = PyObject_GetAttr(self, name);
+  UNLESS(self) return NULL;
+  name = PyTuple_New(1);
+  UNLESS(name) 
     {
-      PyTuple_SET_ITEM(name, 0, arg);
-      ASSIGN(self,PyObject_CallObject(self,name));
-      PyTuple_SET_ITEM(name, 0, NULL);
-      Py_DECREF(name);
+      Py_DECREF(self);
+      return NULL;
     }
+  PyTuple_SET_ITEM(name, 0, arg);
+  ASSIGN(self, PyObject_CallObject(self, name));
+  PyTuple_SET_ITEM(name, 0, NULL);
+  Py_DECREF(name);
   return self;
 }
 
@@ -359,7 +364,7 @@ Per__setstate__(cPersistentObject *self, PyObject *args)
 		 {
 		   UNLESS_ASSIGN(key,PySequence_GetItem(keys,i)) goto err;
 		   UNLESS_ASSIGN(e,PyObject_GetItem(v,key)) goto err;
-		   UNLESS(-1 != PyObject_SetItem(__dict__,key,e)) goto err;
+		   UNLESS(-1 != PyDict_SetItem(__dict__,key,e)) goto err;
 		 }
 	       
 	       Py_XDECREF(key);
@@ -755,7 +760,7 @@ void
 initcPersistence(void)
 {
   PyObject *m, *d, *s;
-  char *rev="$Revision: 1.44 $";
+  char *rev="$Revision: 1.45 $";
 
   s = PyString_FromString("TimeStamp");
   if (s == NULL)
