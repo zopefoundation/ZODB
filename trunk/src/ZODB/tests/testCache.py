@@ -170,9 +170,6 @@ class LRUCacheTests(CacheTestBase):
             # not bother to check this
 
     def checkSize(self):
-        # XXX need to fix
-        return
-    
         self.assertEqual(self.db.cacheSize(), 0)
         self.assertEqual(self.db.cacheDetailSize(), [])
 
@@ -183,19 +180,11 @@ class LRUCacheTests(CacheTestBase):
         for i in range(CONNS):
             self.noodle_new_connection()
 
-        self.assertEquals(self.db.cacheSize(), CACHE_SIZE * CONNS)
-        details = self.db.cacheDetailSize()
-        self.assertEquals(len(details), CONNS)
-        for d in details:
-            self.assertEquals(d['ngsize'], CACHE_SIZE)
-            # the root is also in the cache as ghost, because
-            # the connection holds a reference to it
-            self.assertEquals(d['size'], CACHE_SIZE + 1)
+        # The DB cacheSize() method returns the number of non-ghost
+        # objects, which should be zero.
+        self.assertEquals(self.db.cacheSize(), 0)
 
     def checkDetail(self):
-        # XXX need to fix
-        return
-    
         CACHE_SIZE = 10
         self.db.setCacheSize(CACHE_SIZE)
 
@@ -203,22 +192,15 @@ class LRUCacheTests(CacheTestBase):
         for i in range(CONNS):
             self.noodle_new_connection()
 
-        for klass, count in self.db.cacheDetail():
-            print klass, count
-            if klass.endswith('MinPO'):
-                self.assertEqual(count, CONNS * CACHE_SIZE)
-            if klass.endswith('PersistentMapping'):
-                # one root per connection
-                self.assertEqual(count, CONNS)
+        # the only thing in the cache is the root objects,
+        # which are referenced explicitly by the connection.
+        [(klass, count)] = self.db.cacheDetail()
+        self.assertEqual(klass, "Persistence.PersistentMapping")
+        self.assertEqual(count, CONNS)
 
         for details in self.db.cacheExtremeDetail():
-            print details
-            # one dict per object.  keys:
-            if details['klass'].endswith('PersistentMapping'):
-                self.assertEqual(details['state'], None)
-            else:
-                self.assert_(details['klass'].endswith('MinPO'))
-                self.assertEqual(details['state'], 0)
+            self.assertEqual(details["klass"], "Persistence.PersistentMapping")
+            self.assertEqual(details['state'], None)
 
 class StubDataManager:
     def setklassstate(self, object):
