@@ -84,8 +84,8 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.58 2001/06/04 12:34:57 andreas Exp $"""
-__version__='$Revision: 1.58 $'[11:-2]
+$Id: Connection.py,v 1.59 2001/09/18 18:19:24 jeremy Exp $"""
+__version__='$Revision: 1.59 $'[11:-2]
 
 from cPickleCache import PickleCache
 from POSException import ConflictError, ExportError
@@ -653,7 +653,7 @@ class Connection(ExportImport.ExportImport):
 
         # When commit_sub() exceutes a store, there is no need to
         # update the _p_changed flag, because the subtransaction
-        # tpc_voteh() calls already did this.  The change=1 argument
+        # tpc_vote() calls already did this.  The change=1 argument
         # exists to allow commit_sub() to avoid setting the flag
         # again. 
         if not store_return:
