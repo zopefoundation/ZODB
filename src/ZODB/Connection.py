@@ -13,7 +13,7 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.145 2004/04/08 18:12:25 tim_one Exp $"""
+$Id: Connection.py,v 1.146 2004/04/09 11:11:32 gintautasm Exp $"""
 
 import logging
 import sys
@@ -60,7 +60,7 @@ class Connection(ExportImport, object):
     Connection that loaded them.  When a transaction commits, it uses
     the Connection to store modified objects.
 
-    The typical use of ZODB is for each thread to have its own
+    Typical use of ZODB is for each thread to have its own
     Connection and that no thread should have more than one Connection
     to the same database.  A thread is associated with a Connection by
     loading objects from that Connection.  Objects loaded by one
@@ -168,7 +168,7 @@ class Connection(ExportImport, object):
         # the lock must be held when reading _invalidated.
 
         # XXX It sucks that we have to hold the lock to read
-        # _invalidated.  Normally, _invalidated is written by call
+        # _invalidated.  Normally, _invalidated is written by calling
         # dict.update, which will execute atomically by virtue of the
         # GIL.  But some storage might generate oids where hash or
         # compare invokes Python code.  In that case, the GIL can't
@@ -200,8 +200,8 @@ class Connection(ExportImport, object):
     def setLocalTransaction(self):
         """Use a transaction bound to the connection rather than the thread"""
 
-        # XXX mark this method as depcrecated?  note that it's
-        # signature changed?
+        # XXX mark this method as deprecated?
+        # Note that its signature has changed.
 
         if self._txn_mgr is transaction:
             self._txn_mgr = transaction.TransactionManager()
@@ -277,9 +277,9 @@ class Connection(ExportImport, object):
         """Add a new object 'obj' to the database and assign it an oid.
 
         A persistent object is normally added to the database and
-        assigned an oid when it becomes reachable an object already in
+        assigned an oid when it becomes reachable to an object already in
         the database.  In some cases, it is useful to create a new
-        object and uses its oid (_p_oid) in a single transaction.
+        object and use its oid (_p_oid) in a single transaction.
 
         This method assigns a new oid regardless of whether the object
         is reachable.
@@ -357,7 +357,7 @@ class Connection(ExportImport, object):
                                               self._db.classFactory)
 
     def _resetCache(self):
-        """Creates a new cache, discarding the old.
+        """Creates a new cache, discarding the old one.
 
         See the docstring for the resetCaches() function.
         """
@@ -509,9 +509,9 @@ class Connection(ExportImport, object):
             serial = getattr(obj, "_p_serial", z64)
 
             if serial == z64:
-                # new object
+                # obj is a new object
                 self._creating.append(oid)
-                # If this object was added, it is now in _creating, so can
+                # Because obj was added, it is now in _creating, so it can
                 # be removed from _added.
                 self._added.pop(oid, None)
             else:
@@ -528,7 +528,7 @@ class Connection(ExportImport, object):
             try:
                 self._cache[oid] = obj
             except:
-                # Dang, I bet its wrapped:
+                # Dang, I bet it's wrapped:
                 if hasattr(obj, 'aq_base'):
                     self._cache[oid] = obj.aq_base
                 else:
@@ -538,7 +538,7 @@ class Connection(ExportImport, object):
         self._added_during_commit = None
 
     def commit_sub(self, t):
-        """Commit all work done in all subtransactions for this transaction"""
+        """Commit all work done in all subtransactions for this transaction."""
         if self._tmp is None:
             return
         src = self._storage
@@ -559,7 +559,7 @@ class Connection(ExportImport, object):
             self._handle_serial(s, oid, change=False)
 
     def abort_sub(self, t):
-        """Abort work done in all subtransactions for this transaction"""
+        """Abort work done in all subtransactions for this transaction."""
         if self._tmp is None:
             return
         src = self._storage
@@ -708,6 +708,7 @@ class Connection(ExportImport, object):
         # There is a harmless data race with self._invalidated.  A
         # dict update could go on in another thread, but we don't care
         # because we have to check again after the load anyway.
+
         if (obj._p_oid in self._invalidated
             and not myhasattr(obj, "_p_independent")):
             # If the object has _p_independent(), we will handle it below.
@@ -787,7 +788,7 @@ class Connection(ExportImport, object):
     def oldstate(self, obj, tid):
         """Return copy of obj that was written by tid.
 
-        XXX The returned object does not have the typical metdata
+        XXX The returned object does not have the typical metadata
         (_p_jar, _p_oid, _p_serial) set.  I'm not sure how references
         to other peristent objects are handled.
 
@@ -899,12 +900,12 @@ class Connection(ExportImport, object):
             del obj._p_changed # transition from changed to ghost
         else:
             if change:
-                obj._p_changed = 0 # trans. from changed to uptodate
+                obj._p_changed = 0 # transition from changed to up-to-date
             obj._p_serial = serial
 
     def tpc_finish(self, transaction):
-        # It's important that the storage call the function we pass
-        # while it still has it's lock.  We don't want another thread
+        # It's important that the storage calls the function we pass
+        # while it still has its lock.  We don't want another thread
         # to be able to read any updated data until we've had a chance
         # to send an invalidation message to all of the other
         # connections!
@@ -939,10 +940,10 @@ class Connection(ExportImport, object):
     def setDebugInfo(self, *args):
         self._debug_info = self._debug_info + args
 
-    def getTransferCounts(self, clear=0):
+    def getTransferCounts(self, clear=False):
         """Returns the number of objects loaded and stored.
 
-        Set the clear argument to reset the counters.
+        If clear is True, reset the counters.
         """
         res = self._load_count, self._store_count
         if clear:
