@@ -18,7 +18,7 @@ all these tests.
 """
 
 from ZODB.tests.MinPO import MinPO
-from ZODB.tests.StorageTestBase import zodb_unpickle
+from ZODB.tests.StorageTestBase import zodb_pickle, zodb_unpickle
 from ZODB.utils import U64, p64
 from ZODB.Transaction import Transaction
 
@@ -125,6 +125,27 @@ class IteratorStorage(IteratorCompare):
             self.assertEqual(txn._extension, {})
             count +=1
         self.assertEqual(count, 1)
+
+    def checkIterationIntraTransaction(self):
+        # XXX try this test with logging enabled.  If you see something like
+        #
+        # ZODB FS FS21 warn: FileStorageTests.fs truncated, possibly due to
+        # damaged records at 4
+        #
+        # Then the code in FileIterator.next() hasn't yet been fixed.
+        oid = self._storage.new_oid()
+        t = Transaction()
+        data = zodb_pickle(MinPO(0))
+        try:
+            self._storage.tpc_begin(t)
+            self._storage.store(oid, '\0'*8, data, '', t)
+            self._storage.tpc_vote(t)
+            # Don't do tpc_finish yet
+            it = self._storage.iterator()
+            for x in it:
+                pass
+        finally:
+            self._storage.tpc_finish(t)
 
 
 class ExtendedIteratorStorage(IteratorCompare):
