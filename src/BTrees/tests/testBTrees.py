@@ -83,9 +83,16 @@
 # 
 ##############################################################################
 import sys, os, time, whrandom
-sys.path.insert(0, '../..')
-os.chdir('../..')
-import ZODB
+
+print sys.path
+try:
+    sys.path.insert(0, '.')
+    import ZODB
+except:
+    sys.path.insert(0, '../..')
+    #os.chdir('../..')
+    import ZODB
+
 from BTrees.OOBTree import OOBTree
 from unittest import TestCase, TestSuite, TextTestRunner, makeSuite
 
@@ -139,7 +146,9 @@ class TestBTrees(TestCase):
         for x in v:
             assert x == i, (x,i)
             i = i + 1
-        assert len(v) == 100, len(v)
+        # BTree items must lie about their lengths, so we convert to list
+        assert len(list(v)) == 100, len(v)
+        #assert len(v) == 100, len(v)
 
     def testItemsWorks(self):
         for x in range(100):
@@ -229,8 +238,8 @@ class TestBTrees(TestCase):
                 added[k] = 1
         addl = added.keys()
         addl.sort()
-        diff = lsubtract(self.t.keys(), addl)
-        assert diff == [], diff
+        diff = lsubtract(list(self.t.keys()), addl)
+        assert diff == [], (diff, addl, list(self.t.keys()))
 
     def testRandomOverlappingInserts(self):
         added = {}
