@@ -13,7 +13,7 @@
 ##############################################################################
 """Network ZODB storage client
 
-$Id: ClientStorage.py,v 1.47 2002/08/16 21:42:49 tim_one Exp $
+$Id: ClientStorage.py,v 1.48 2002/08/16 21:58:21 tim_one Exp $
 """
 
 import cPickle
@@ -114,12 +114,12 @@ class ClientStorage:
         self.__name__ = name
 
         # A ClientStorage only allows one client to commit at a time.
-        # Mutual exclusion is achieved using tpc_cond(), which
+        # Mutual exclusion is achieved using tpc_cond, which
         # protects _transaction.  A thread that wants to assign to
-        # self._transaction must acquire tpc_cond() first.
-
-        # Invariant: If self._transaction is not None, then tpc_cond()
-        # must be acquired.
+        # self._transaction must acquire tpc_cond first.  A thread
+        # that decides it's done with a transaction (whether via success
+        # or failure) must set _transaction to None and do
+        # tpc_cond.notify() before releasing tpc_cond..
         self.tpc_cond = threading.Condition()
         self._transaction = None
 
@@ -352,6 +352,7 @@ class ClientStorage:
             # XXX we would have stayed in the while loop.
             assert self._transaction is None
             self._transaction = None
+            self.tpc_cond.notify()
             self.tpc_cond.release()
             raise ClientDisconnected()
 
