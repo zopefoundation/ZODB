@@ -67,9 +67,11 @@ abort() methods of Object to cause errors during commit.
 Note that the implementation uses lists internally, so that objects
 are committed in the order they are registered.  (In the presence of
 multiple resource managers, objects from a single resource manager are
-committed in order.  The order of resource managers depends on
-sortKey().)  I'm not sure if this is an accident of the implementation
-or a feature that should be supported by any implementation.
+committed in order.  I'm not sure if this is an accident of the
+implementation or a feature that should be supported by any
+implementation.)
+
+The order of resource managers depends on sortKey().
 
 >>> cn = TestConnection()
 >>> cn.register(Object())
@@ -82,8 +84,7 @@ RuntimeError: commit
 >>> len(cn.committed)
 1
 >>> len(cn.aborted)
-2
-
+3
 """
 
 import transaction
