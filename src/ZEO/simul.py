@@ -14,11 +14,18 @@
 ##############################################################################
 """Cache simulation.
 
-Usage: simul.py [-b] [-l] [-s size] tracefile
+Usage: simul.py [-bflz] [-s size] tracefile
 
--b: simulate buddy system cache (default: simulate ZEO 2.0 cache)
--l: simulate idealized LRU cache (default: simulate ZEO 2.0 cache)
+Use one of -b, -f, -l or -z select the cache simulator:
+-b: buddy system allocator
+-f: simple free list allocator 
+-l: idealized LRU (no allocator)
+-z: existing ZEO cache (default)
+
+Options:
 -s size: cache size in MB (default 20 MB)
+
+Note: the buddy system allocator rounds the cache size up to a power of 2
 """
 
 import sys
@@ -36,15 +43,19 @@ def main():
     cachelimit = 20*MB
     simclass = ZEOCacheSimulation
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "bls:")
+        opts, args = getopt.getopt(sys.argv[1:], "bflzs:")
     except getopt.error, msg:
         usage(msg)
         return 2
     for o, a in opts:
         if o == '-b':
             simclass = BuddyCacheSimulation
+        if o == '-f':
+            simclass = SimpleCacheSimulation
         if o == '-l':
             simclass = LRUCacheSimulation
+        if o == '-z':
+            simclass = ZEOCacheSimulation
         if o == '-s':
             cachelimit = int(float(a)*MB)
     if len(args) != 1:
@@ -164,9 +175,6 @@ class Simulation:
             self.report()
             self.restart()
 
-    def printheader(self):
-        pass
-
     def write(self, oid, size):
         pass
 
@@ -176,11 +184,43 @@ class Simulation:
     def inval(self, oid):
         pass
 
-    def finish(self):
-        self.report()
+    format = "%12s %9s %8s %8s %6s %6s %6s %6s"
+
+    # Subclass should override extraname to name known instance variables;
+    # if extraname is 'foo', both self.foo and self.total_foo must exist:
+    extraname = "*** please override ***"
+
+    def printheader(self):
+        print "%s, cache size %s bytes" % (self.__class__.__name__,
+                                           addcommas(self.cachelimit))
+        print self.format % (
+            "START TIME", "DURATION", "LOADS", "HITS",
+            "INVALS", "WRITES", self.extraname.upper(), "HITRATE")
+
+    nreports = 0
 
     def report(self):
-        pass
+        if self.loads:
+            self.nreports += 1
+            print self.format % (
+                time.ctime(self.ts0)[4:-8],
+                duration(self.ts1 - self.ts0),
+                self.loads, self.hits, self.invals, self.writes,
+                getattr(self, self.extraname),
+                hitrate(self.loads, self.hits))
+
+    def finish(self):
+        self.report()
+        if self.nreports > 1:
+            print (self.format + " OVERALL") % (
+                time.ctime(self.epoch)[4:-8],
+                duration(self.ts1 - self.epoch),
+                self.total_loads,
+                self.total_hits,
+                self.total_invals,
+                self.total_writes,
+                getattr(self, "total_" + self.extraname),
+                hitrate(self.total_loads, self.total_hits))
 
 class ZEOCacheSimulation(Simulation):
 
@@ -190,6 +230,8 @@ class ZEOCacheSimulation(Simulation):
     simulate cache validation.)
 
     """
+
+    extraname = "flips"
 
     def __init__(self, cachelimit):
         # Initialize base class
@@ -240,35 +282,9 @@ class ZEOCacheSimulation(Simulation):
             self.total_invals += 1
             del self.fileoids[1 - self.current][oid]
 
-    format = "%12s %9s %8s %8s %6s %6s %6s %6s"
-
-    def printheader(self):
-        print self.format % (
-            "START TIME", "DURATION", "LOADS", "HITS",
-            "INVALS", "WRITES", "FLIPS", "HITRATE")
-
-    def report(self):
-        if self.loads:
-            print self.format % (
-                time.ctime(self.ts0)[4:-8],
-                duration(self.ts1 - self.ts0),
-                self.loads, self.hits, self.invals, self.writes, self.flips,
-                hitrate(self.loads, self.hits))
-
-    def finish(self):
-        self.report()
-        if self.total_loads:
-            print (self.format + " OVERALL") % (
-                time.ctime(self.epoch)[4:-8],
-                duration(self.ts1 - self.epoch),
-                self.total_loads,
-                self.total_hits,
-                self.total_invals,
-                self.total_writes,
-                self.total_flips,
-                hitrate(self.total_loads, self.total_hits))
-
 class LRUCacheSimulation(Simulation):
+
+    extraname = "evicts"
 
     def __init__(self, cachelimit):
         # Initialize base class
@@ -329,34 +345,6 @@ class LRUCacheSimulation(Simulation):
             self.size -= node.size
             assert self.size >= 0
 
-    format = "%12s %9s %8s %8s %6s %6s %6s %6s"
-
-    def printheader(self):
-        print self.format % (
-            "START TIME", "DURATION", "LOADS", "HITS",
-            "INVALS", "WRITES", "EVICTS", "HITRATE")
-
-    def report(self):
-        if self.loads:
-            print self.format % (
-                time.ctime(self.ts0)[4:-8],
-                duration(self.ts1 - self.ts0),
-                self.loads, self.hits, self.invals, self.writes, self.evicts,
-                hitrate(self.loads, self.hits))
-
-    def finish(self):
-        self.report()
-        if self.total_loads:
-            print (self.format + " OVERALL") % (
-                time.ctime(self.epoch)[4:-8],
-                duration(self.ts1 - self.epoch),
-                self.total_loads,
-                self.total_hits,
-                self.total_invals,
-                self.total_writes,
-                self.total_evicts,
-                hitrate(self.total_loads, self.total_hits))
-
 class Node:
 
     """Node in a doubly-linked list, storing oid and size as payload.
@@ -399,12 +387,12 @@ class Node:
 
 class BuddyCacheSimulation(LRUCacheSimulation):
 
-    def __init__(self, cachelimit):
-        LRUCacheSimulation.__init__(self, roundup(cachelimit))
-
     def restart(self):
         LRUCacheSimulation.restart(self)
-        self.allocator = BuddyAllocator(self.cachelimit)
+        self.allocator = self.allocatorFactory(self.cachelimit)
+
+    def allocatorFactory(self, size):
+        return BuddyAllocator(size)
 
     # LRUCacheSimulation.load() is just fine
 
@@ -447,21 +435,12 @@ class BuddyCacheSimulation(LRUCacheSimulation):
             assert self.size >= 0
             self.allocator.free(node)
 
-class BuddyNode(Node):
+class SimpleCacheSimulation(BuddyCacheSimulation):
 
-    __slots__ = ['addr']
-
-    def __init__(self, oid, size, addr):
-        Node.__init__(self, oid, size)
-        self.addr = addr
+    def allocatorFactory(self, size):
+        return SimpleAllocator(size)
 
 MINSIZE = 256
-
-def roundup(size):
-    k = MINSIZE
-    while k < size:
-        k += k
-    return k
 
 class BuddyAllocator:
 
@@ -472,10 +451,10 @@ class BuddyAllocator:
         self.nodes = {} # Map address to node
         k = MINSIZE
         while k <= cachelimit:
-            self.avail[k] = n = Node(None, None) # Not BuddyNode; has no addr
+            self.avail[k] = n = Node(None, None) # Not BlockNode; has no addr
             n.linkbefore(n)
             k += k
-        node = BuddyNode(None, cachelimit, 0)
+        node = BlockNode(None, cachelimit, 0)
         self.nodes[0] = node
         node.linkbefore(self.avail[cachelimit])
 
@@ -496,7 +475,7 @@ class BuddyAllocator:
             size2 = size2 / 2
             assert size2 >= size
             node.size = size2
-            buddy = BuddyNode(None, size2, node.addr + size2)
+            buddy = BlockNode(None, size2, node.addr + size2)
             self.nodes[buddy.addr] = buddy
             buddy.linkbefore(self.avail[size2])
         node.oid = 1 # Flag as in-use
@@ -542,31 +521,114 @@ class BuddyAllocator:
             size += size
         print "-- %d, %d" % (bytes, blocks)
 
-def testbuddy():
+def roundup(size):
+    k = MINSIZE
+    while k < size:
+        k += k
+    return k
+
+class SimpleAllocator:
+
+    def __init__(self, arenasize):
+        self.arenasize = arenasize
+        self.avail = BlockNode(None, 0, 0) # Weird: empty block as list head
+        self.rover = self.avail
+        node = BlockNode(None, arenasize, 0)
+        node.linkbefore(self.avail)
+
+    def alloc(self, size):
+        # Exact fit algorithm
+        rover = stop = self.rover
+        free = None
+        while 1:
+            if rover.size >= size:
+                if rover.size == size:
+                    self.rover = rover.next
+                    rover.unlink()
+                    return rover
+                free = rover
+            rover = rover.next
+            if rover is stop:
+                break
+        if free is None: # We ran out of space
+            return None
+        # Take space from the end of the roving pointer
+        assert free.size > size
+        node = BlockNode(None, size, free.addr + free.size - size)
+        free.size -= size
+        return node
+
+    def free(self, node):
+        x = self.avail.next
+        while x is not self.avail and x.addr < node.addr:
+            x = x.next
+        if node.addr + node.size == x.addr: # Merge with next
+            x.addr -= node.size
+            x.size += node.size
+            node = x
+        else: # Insert new node into free list
+            node.linkbefore(x)
+        x = node.prev
+        if node.addr == x.addr + x.size and x is not self.avail:
+            # Merge with previous node in free list
+            node.unlink()
+            x.size += node.size
+            node = x
+        # It's possible that either one of the merges above invalidated
+        # the rover.
+        # It's simplest to simply reset the rover to the newly freed block.
+        # XXX But is this optimal?
+        self.rover = node
+
+    def dump(self, msg=""):
+        if msg:
+            print msg,
+        count = 0
+        bytes = 0
+        node = self.avail.next
+        while node is not self.avail:
+            bytes += node.size
+            count += 1
+            node = node.next
+        print count, "free blocks,", bytes, "free bytes"
+
+class BlockNode(Node):
+
+    __slots__ = ['addr']
+
+    def __init__(self, oid, size, addr):
+        Node.__init__(self, oid, size)
+        self.addr = addr
+
+def testallocator(factory=BuddyAllocator):
     # Run one of Knuth's experiments as a test
-    import random, heapq
+    import random
+    import heapq # This only runs with Python 2.3, folks :-)
     reportfreq = 100
     cachelimit = 2**17
-    cache = BuddyAllocator(cachelimit)
+    cache = factory(cachelimit)
     queue = []
     T = 0
+    blocks = 0
     while T < 5000:
         while queue and queue[0][0] <= T:
             time, node = heapq.heappop(queue)
             assert time == T
             cache.free(node)
+            blocks -= 1
         size = random.randint(100, 2000)
         lifetime = random.randint(1, 100)
         node = cache.alloc(size)
         if node is None:
             print "out of mem"
-            cache.dump("T=%d:" % T)
+            cache.dump("T=%4d: %d blocks;" % (T, blocks))
             break
         else:
+            blocks += 1
             heapq.heappush(queue, (T + lifetime, node))
         T = T+1
         if T % reportfreq == 0:
-            cache.dump("T=%d:" % T)
+            cache.dump("T=%4d: %d blocks;" % (T, blocks))
 
 def hitrate(loads, hits):
     return "%5.1f%%" % (100.0 * hits / max(1, loads))
@@ -580,6 +642,16 @@ def duration(secs):
     if mm:
         return "%d:%02d" % (mm, ss)
     return "%d" % ss
+
+def addcommas(n):
+    sign, s = '', str(n)
+    if s[0] == '-':
+        sign, s = '-', s[1:]
+    i = len(s) - 3
+    while i > 0:
+        s = s[:i] + ',' + s[i:]
+        i -= 3
+    return sign + s
 
 if __name__ == "__main__":
     sys.exit(main())
