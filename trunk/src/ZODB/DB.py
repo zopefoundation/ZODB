@@ -13,8 +13,8 @@
 ##############################################################################
 """Database objects
 
-$Id: DB.py,v 1.41 2002/04/15 18:42:51 jeremy Exp $"""
-__version__='$Revision: 1.41 $'[11:-2]
+$Id: DB.py,v 1.42 2002/06/10 20:20:44 shane Exp $"""
+__version__='$Revision: 1.42 $'[11:-2]
 
 import cPickle, cStringIO, sys, POSException, UndoLogCompatible
 from Connection import Connection
@@ -33,7 +33,8 @@ class DB(UndoLogCompatible.UndoLogCompatible):
     or more connections, which manage object spaces.  Most of the actual work
     of managing objects is done by the connections.
     """
-    klass = Connection
+    klass = Connection  # Class to use for connections
+    _activity_monitor = None
 
     def __init__(self, storage,
                  pool_size=7,
@@ -124,6 +125,9 @@ class DB(UndoLogCompatible.UndoLogCompatible):
         """Return a connection to the pool"""
         self._a()
         try:
+            am = self._activity_monitor
+            if am is not None:
+                am.closedConnection(connection)
             version=connection._version
             pools,pooll=self._pools
             pool, allocated, pool_lock = pools[version]
@@ -486,6 +490,9 @@ class DB(UndoLogCompatible.UndoLogCompatible):
                     })
         return r
         
+    def getActivityMonitor(self):
+        return self._activity_monitor
+    
     def pack(self, t=None, days=0):
         if t is None: t=time()
         t=t-(days*86400)
@@ -515,7 +522,10 @@ class DB(UndoLogCompatible.UndoLogCompatible):
 
     def setPoolSize(self, v):
         self._pool_size=v
-    
+
+    def setActivityMonitor(self, am):
+        self._activity_monitor = am
+
     def setVersionCacheDeactivateAfter(self, v):
         self._version_cache_deactivate_after=v
         for ver in self._pools[0].keys():
