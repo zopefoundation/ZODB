@@ -23,6 +23,7 @@ import threading
 
 import zLOG
 
+import ZEO.ServerStub
 from ZEO.ClientStorage import ClientStorage
 from ZEO.Exceptions import ClientDisconnected
 from ZEO.zrpc.marshal import Marshaller
@@ -34,13 +35,24 @@ from ZODB.Transaction import get_transaction, Transaction
 from ZODB.POSException import ReadOnlyError, ConflictError
 from ZODB.tests.StorageTestBase import StorageTestBase
 from ZODB.tests.MinPO import MinPO
-from ZODB.tests.StorageTestBase import zodb_pickle, zodb_unpickle
-from ZODB.tests.StorageTestBase import handle_all_serials, ZERO
-from ZODB.tests.StorageTestBase import handle_serials
+from ZODB.tests.StorageTestBase \
+     import zodb_pickle, zodb_unpickle, handle_all_serials, handle_serials
+
+ZERO = '\0'*8
+
+class TestServerStub(ZEO.ServerStub.StorageServer):
+    __super_getInvalidations = ZEO.ServerStub.StorageServer.getInvalidations
+
+    def getInvalidations(self, tid):
+        # squirrel the results away for inspection by test case
+        self._last_invals = self.__super_getInvalidations(tid)
+        return self._last_invals
 
 class TestClientStorage(ClientStorage):
 
-    test_connection = 0
+    test_connection = False
+
+    StorageServerStubClass = TestServerStub
 
     def verify_cache(self, stub):
         self.end_verify = threading.Event()
@@ -54,7 +66,7 @@ class TestClientStorage(ClientStorage):
         try:
             return ClientStorage.testConnection(self, conn)
         finally:
-            self.test_connection = 1
+            self.test_connection = True
 
 class DummyDB:
     def invalidate(self, *args, **kwargs):
@@ -571,7 +583,7 @@ class ConnectionTests(CommonSetupTearDown):
         db1.close()
 
 class InvqTests(CommonSetupTearDown):
-    invq = 2
+    invq = 3
 
     def checkQuickVerificationWith2Clients(self):
         perstorage = self.openClientStorage(cache="test")
@@ -587,7 +599,10 @@ class InvqTests(CommonSetupTearDown):
         # message is generated
         revid = self._dostore(oid)
         revid = self._dostore(oid, revid)
-        self._dostore(oid2)
+        # Create a second object and revision to guarantee it doesn't
+        # show up in the list of invalidations sent when perstore restarts.
+        revid2 = self._dostore(oid2)
+        revid2 = self._dostore(oid2, revid2)
 
         # sync() is needed to prevent invalidation for oid from arriving
         # in the middle of the load() call.
@@ -596,10 +611,11 @@ class InvqTests(CommonSetupTearDown):
         perstorage.close()
 
         revid = self._dostore(oid, revid)
-
         perstorage = self.openClientStorage(cache="test")
         self.assertEqual(perstorage.verify_result, "quick verification")
-
+        self.assertEqual(perstorage._server._last_invals,
+                         (revid, [(oid, '')]))
+                         
         self.assertEqual(perstorage.load(oid, ''),
                          self._storage.load(oid, ''))
         perstorage.close()
@@ -865,7 +881,6 @@ class TimeoutTests(CommonSetupTearDown):
         # Create the object
         oid = storage.new_oid()
         obj = MinPO(7)
-        ZERO = '\0'*8
         # Now do a store, sleeping before the finish so as to cause a timeout
         t = Transaction()
         storage.tpc_begin(t)
@@ -895,7 +910,6 @@ class TimeoutTests(CommonSetupTearDown):
         # Create the object
         oid = storage.new_oid()
         obj = MinPO(7)
-        ZERO = '\0'*8
         # We need to successfully commit an object now so we have something to
         # conflict about.
         t = Transaction()
