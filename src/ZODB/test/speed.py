@@ -18,6 +18,8 @@ Options:
 
     -L         Test loads as well as stores by minimizing
                the cache after eachrun
+
+    -M         Output means only
 """
   
 import sys, os, getopt, string, time
@@ -30,11 +32,12 @@ class P(Persistence.Persistent): pass
 
 def main(args):
 
-    opts, args = getopt.getopt(args, 'zd:n:Ds:L')
+    opts, args = getopt.getopt(args, 'zd:n:Ds:LM')
     z=s=None
     data=sys.argv[0]
     nrep=5
     minimize=0
+    detailed=1
     for o, v in opts:
         if o=='-n': nrep=string.atoi(v)
         elif o=='-d': data=v
@@ -45,6 +48,8 @@ def main(args):
             z=compress
         elif o=='-L':
             minimize=1
+        elif o=='-M':
+            detailed=0
         elif o=='-D':
             global debug
             os.environ['STUPID_LOG_FILE']=''
@@ -64,7 +69,7 @@ def main(args):
                cache_size=4000,
                cache_deactivate_after=6000,)
 
-    results={}
+    results={1:0, 10:0, 100:0, 1000:0}
     for j in range(nrep):
         for r in 1, 10, 100, 1000:
             t=time.time()
@@ -82,12 +87,21 @@ def main(args):
                 setattr(p,str(i),v)
             get_transaction().commit()
             jar.close()
-            sys.stderr.write("%s %s %s\n" % (j, r, time.time()-t))
-            sys.stdout.flush()
+            t=time.time()-t
+            if detailed:
+                sys.stderr.write("%s\t%s\t%.4f\n" % (j, r, t))
+                sys.stdout.flush()
+            results[r]=results[r]+t
             rt=d=p=v=None # release all references
             if minimize:
                 time.sleep(3)
                 jar.cacheMinimize(3)
+
+    if detailed: print '-'*24
+    for r in 1, 10, 100, 1000:
+        t=results[r]/nrep
+        sys.stderr.write("mean:\t%s\t%.4f\t%.4f (s/o)\n" % (r, t, t/r))
+
 
             
     
