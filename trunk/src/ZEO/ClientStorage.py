@@ -13,7 +13,7 @@
 ##############################################################################
 """Network ZODB storage client
 
-$Id: ClientStorage.py,v 1.56 2002/09/09 18:34:03 jeremy Exp $
+$Id: ClientStorage.py,v 1.57 2002/09/11 17:36:39 jeremy Exp $
 """
 
 # XXX TO DO
@@ -341,6 +341,8 @@ class ClientStorage:
         return self._check_serials()
 
     def tpc_begin(self, transaction, tid=None, status=' '):
+        if self._is_read_only:
+            raise POSException.ReadOnlyError()
         self._tpc_cond.acquire()
         while self._transaction is not None:
             # It is allowable for a client to call two tpc_begins in a
