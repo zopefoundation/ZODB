@@ -85,7 +85,7 @@
 """Simple rpc mechanisms
 """
 
-__version__ = "$Revision: 1.17 $"[11:-2]
+__version__ = "$Revision: 1.18 $"[11:-2]
 
 from cPickle import loads
 import cPickle
@@ -287,12 +287,15 @@ class asyncRPC(SizedMessageAsyncConnection):
             # We aren't willing to close until told to by the main loop.
             # So we'll tell the main loop to tell us. :)
             self.__Wakeup(lambda self=self: self.close()) 
-        else: self.close()
+        else:
+            self.close()
+            self.__closed = 1
         
     def close(self):
         asyncRPC.inheritedAttribute('close')(self)
         self.aq_parent.notifyDisconnected(self)
+        # causes read call to raise last exception, which should be
+        # the socket error that caused asyncore to close the socket.
         self.__r='E'+dump(sys.exc_info()[:2], 1)
-        self.__closed = 1
         try: self.__lr()
         except: pass
