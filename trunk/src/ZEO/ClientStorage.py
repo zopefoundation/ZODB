@@ -84,7 +84,7 @@
 ##############################################################################
 """Network ZODB storage client
 """
-__version__='$Revision: 1.22 $'[11:-2]
+__version__='$Revision: 1.23 $'[11:-2]
 
 import struct, time, os, socket, string, Sync, zrpc, ClientCache
 import tempfile, Invalidator, ExtensionClass, thread
@@ -368,11 +368,13 @@ class ClientStorage(ExtensionClass.Base, BaseStorage.BaseStorage):
             return oids.pop()
         finally: self._lock_release()
         
-    def pack(self, t, rf):
+    def pack(self, t=None, rf=None, wait=0, days=0):
         # Note that we ignore the rf argument.  The server
         # will provide it's own implementation.
+        if t is None: t=time.time()
+        t=t-(days*86400)
         self._lock_acquire()
-        try: return self._call('pack', t)
+        try: return self._call('pack', t, wait)
         finally: self._lock_release()
 
     def store(self, oid, serial, data, version, transaction):
