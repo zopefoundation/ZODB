@@ -36,7 +36,6 @@
 # bytes back before using u64 to convert the data back to (long)
 # integers.
 
-from __future__ import generators
 import struct
 
 from BTrees._fsBTree import fsBucket
