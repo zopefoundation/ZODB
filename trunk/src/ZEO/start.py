@@ -13,7 +13,7 @@
 ##############################################################################
 """Start the server storage.
 
-$Id: start.py,v 1.39 2002/08/05 21:39:02 jeremy Exp $
+$Id: start.py,v 1.40 2002/08/05 21:44:22 jeremy Exp $
 """
 from __future__ import nested_scopes
 
@@ -296,9 +296,17 @@ def main(argv):
 
 def rotate_logs():
     import zLOG
+    # There hasn't been a clear way to reinitialize the MinimalLogger.
+    # I'll checkin the public initialize() method soon, but also try some
+    # other strategies for older Zope installs :-(.
     init = getattr(zLOG, 'initialize', None)
     if init is not None:
         init()
+        return
+    # This will work if the minimal logger is in use, but not if some
+    # other logger is active.
+    import zLog.MinimalLogger
+    zLog.MinimalLogger._log.initialize()
 
 def rotate_logs_handler(signum, frame):
     rotate_logs()
