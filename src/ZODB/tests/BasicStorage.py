@@ -120,3 +120,22 @@ class BasicStorage:
         self._transaction = Transaction()
         oid = self._storage.new_oid()
         revid = self._dostore(oid=oid, data=MinPO(6))
+
+    def checkAbortAfterVote(self):
+        oid1 = self._storage.new_oid()
+        revid1 = self._dostore(oid=oid1, data=MinPO(-2))
+        oid = self._storage.new_oid()
+        self._storage.tpc_begin(self._transaction)
+        revid = self._storage.store(oid, ZERO, zodb_pickle(MinPO(5)),
+                                    '', self._transaction)
+        # Now abort this transaction
+        self._storage.tpc_vote(self._transaction)
+        self._storage.tpc_abort(self._transaction)
+        # Now start all over again
+        self._transaction = Transaction()
+        oid = self._storage.new_oid()
+        revid = self._dostore(oid=oid, data=MinPO(6))
+
+        for oid, revid in [(oid1, revid1), (oid, revid)]:
+            data, _revid = self._storage.load(oid, '')
+            self.assertEqual(revid, _revid)
