@@ -184,7 +184,7 @@
 #   may have a back pointer to a version record or to a non-version
 #   record.
 #
-__version__='$Revision: 1.20 $'[11:-2]
+__version__='$Revision: 1.21 $'[11:-2]
 
 import struct, time, os, bpthread, string, base64
 from struct import pack, unpack
@@ -1197,8 +1197,6 @@ def read_index(file, name, index, vindex, tindex, stop='\377'*8):
 
         del tindex[:]
 
-    _checkVindex(file, index, vindex)
-
     return pos, maxoid, ltid
 
 
@@ -1230,13 +1228,3 @@ def _loadBackPOS(file, oid, back):
         if vlen: seek(vlen+16,1)
         if plen != z64: return old
         back=read(8) # We got a back pointer!
-
-def _checkVindex(file, index, vindex):
-    seek=file.seek
-    read=file.read
-    get=index.get
-    for version, pos in vindex.items():
-        seek(pos)
-        oid=read(8)
-        if get(oid, None) != pos:
-            del vindex[version] # This version is no longer active
