@@ -547,6 +547,7 @@ class FileStorage(BaseStorage.BaseStorage,
             self._lock_release()
 
     def load(self, oid, version):
+        """Return pickle data and serial number."""
         self._lock_acquire()
         try:
             pos = self._lookup_pos(oid)
