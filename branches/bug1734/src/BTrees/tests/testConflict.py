@@ -178,7 +178,7 @@ class MappingBase(Base):
 
         test_merge(base, b1, b2, bm, 'merge insert from empty')
 
-    def testMergeEmptyAndFill(self):
+    def testFailMergeEmptyAndFill(self):
         base, b1, b2, bm, e1, e2, items = self._setupConflict()
 
         b1.clear()
@@ -186,7 +186,7 @@ class MappingBase(Base):
         b2.update(e2)
         bm.update(e2)
 
-        test_merge(base, b1, b2, bm, 'merge insert from empty')
+        test_merge(base, b1, b2, bm, 'merge insert from empty', should_fail=1)
 
     def testMergeEmpty(self):
         base, b1, b2, bm, e1, e2, items = self._setupConflict()
@@ -275,7 +275,7 @@ class SetTests(Base):
 
         test_merge(base, b1, b2, bm, 'merge insert from empty')
 
-    def testMergeEmptyAndFill(self):
+    def testFailMergeEmptyAndFill(self):
         base, b1, b2, bm, e1, e2, items = self._setupConflict()
 
         b1.clear()
@@ -283,7 +283,7 @@ class SetTests(Base):
         b2.update(e2)
         bm.update(e2)
 
-        test_merge(base, b1, b2, bm, 'merge insert from empty')
+        test_merge(base, b1, b2, bm, 'merge insert from empty', should_fail=1)
 
     def testMergeEmpty(self):
         base, b1, b2, bm, e1, e2, items = self._setupConflict()
@@ -810,7 +810,6 @@ class NastyConfict(Base, TestCase):
             self.assert_(str(detail).startswith('database conflict error'))
             transaction.abort()
         else:
-            print list(copy.items())
             self.fail("expected ConflictError")
 
 
