@@ -29,7 +29,7 @@ This module rebinds loop() in the asyncore module; i.e. once this
 module is imported, any client of the asyncore module will get
 ThreadedAsync.loop() when it calls asyncore.loop().
 """
-__version__='$Revision: 1.4 $'[11:-2]
+__version__ = '$Revision: 1.5 $'[11:-2]
 
 import asyncore
 import select
@@ -79,7 +79,7 @@ def _stop_loop():
     finally:
         _loop_lock.release()
 
-def loop (timeout=30.0, use_poll=0, map=None):
+def loop(timeout=30.0, use_poll=0, map=None):
     """Invoke asyncore mainloop
 
     This function functions like the regular asyncore.loop() function
@@ -103,11 +103,10 @@ def loop (timeout=30.0, use_poll=0, map=None):
     _stop_loop()
 
 # Woo hoo!
-asyncore.loop=loop
+asyncore.loop = loop
 
 # What the heck did we just do?
 #
 # Well, the thing is, we want to work with other asyncore aware
 # code. In particular, we don't necessarily want to make someone
 # import this module just to start or loop.
-#
