@@ -563,7 +563,7 @@ class BTreeTests(MappingBase):
         self.assertEqual(diff , [], diff)
 
     def testDeleteTwoChildrenInorderSuccessorWorks(self):
-        """ 7, 3, 8, 1, 5, 10, 6, 4 -- del 3 """
+        # 7, 3, 8, 1, 5, 10, 6, 4 -- del 3
         self.t[7] = 6
         self.t[3] = 10
         self.t[8] = 12
@@ -577,7 +577,7 @@ class BTreeTests(MappingBase):
         self.assertEqual(diff , [], diff)
 
     def testDeleteRootWorks(self):
-        """ 7, 3, 8, 1, 5, 10, 6, 4 -- del 7 """
+        # 7, 3, 8, 1, 5, 10, 6, 4 -- del 7
         self.t[7] = 6
         self.t[3] = 10
         self.t[8] = 12
