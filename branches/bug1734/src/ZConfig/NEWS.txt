@@ -1,0 +1,74 @@
+Changes since ZConfig 2.1:
+
+- More documentation has been written.
+
+- Added a timedelta datatype function; the input is the same as for
+  the time-interval datatype, but the resulting value is a
+  datetime.timedelta object.
+
+- Make sure keys specified as attributes of the <default> element are
+  converted by the appropriate key type, and are re-checked for
+  derived sections.
+
+- Refactored the ZConfig.components.logger schema components so that a
+  schema can import just one of the "eventlog" or "logger" sections if
+  desired.  This can be helpful to avoid naming conflicts.
+
+- Added a reopen() method to the logger factories.
+
+- Always use an absolute pathname when opening a FileHandler.
+
+- A fix to the logger 'format' key to allow the %(process)d expansion variable
+  that the logging package supports.
+
+- A new timedelta built-in datatype was added.  Similar to time-interval
+  except that it returns a datetime.timedelta object instead.
+
+Changes since ZConfig 2.0:
+
+- Removed compatibility with Python 2.1 and 2.2.
+
+- Schema components must really be in Python packages; the directory
+  search has been modified to perform an import to locate the package
+  rather than incorrectly implementing the search algorithm.
+
+- The default objects use for section values now provide a method
+  getSectionAttributes(); this returns a list of all the attributes of
+  the section object which store configuration-defined data (including
+  information derived from the schema).
+
+- Default information can now be included in a schema for <key
+  name="+"> and <multikey name="+"> by using <default key="...">.
+
+- More documentation has been added to discuss schema extension.
+
+- Support for a Unicode-free Python has been fixed.
+
+- Derived section types now inherit the datatype of the base type if
+  no datatype is identified explicitly.
+
+- Derived section types can now override the keytype instead of always
+  inheriting from their base type.
+
+- <import package='...'/> makes use of the current prefix if the
+  package name begins witha dot.
+
+- Added two standard datatypes:  dotted-name and dotted-suffix.
+
+- Added two standard schema components: ZConfig.components.basic and
+  ZConfig.components.logger.
+
+Changes since ZConfig 1.0:
+
+- Configurations can import additional schema components using a new
+  "%import" directive; this can be used to integrate 3rd-party
+  components into an application.
+
+- Schemas may be extended using a new "extends" attribute on the
+  <schema> element.
+
+- Better error messages when elements in a schema definition are
+  improperly nested.
+
+- The "zconfig" script can now simply verify that a schema definition
+  is valid, if that's all that's needed.

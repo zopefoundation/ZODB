@@ -1,0 +1,3 @@
+<schema keytype="ZConfig.tests.test_schema.uppercase">
+  <sectiontype name="type-2"/>
+</schema>

@@ -1,0 +1,9 @@
+<component>
+  <description>
+    Convenient loader which causes all the "basic" components to be
+    loaded.
+  </description>
+
+  <import package="ZConfig.components.basic" file="mapping.xml"/>
+
+</component>
