@@ -1,5 +1,11 @@
-# Run the version related tests for a storage.  Any storage that supports
-# versions should be able to pass all these tests.
+"""Run the version related tests for a storage.
+
+Any storage that supports versions should be able to pass all these tests.
+"""
+
+# XXX we should clean this code up to get rid of the #JF# comments.
+# They were introduced when Jim reviewed the original version of the
+# code.  Barry and Jeremy didn't understand versions then.
 
 from ZODB import POSException
 from ZODB.tests.MinPO import MinPO
@@ -154,6 +160,7 @@ class VersionStorage:
         self.assertRaises(POSException.VersionError,
                           self._storage.abortVersion,
                           '', self._transaction)
+        
         # But now we really try to abort the version
         oids = self._storage.abortVersion(version, self._transaction)
         self._storage.tpc_vote(self._transaction)
@@ -162,6 +169,16 @@ class VersionStorage:
         eq(oids[0], oid)
         data, revid = self._storage.load(oid, '')
         eq(zodb_unpickle(data), MinPO(51))
+
+    def checkCommitVersionErrors(self):
+        eq = self.assertEqual
+        oid1, version1 = self._setup_version('one')
+        data, revid1 = self._storage.load(oid1, version1)
+        eq(zodb_unpickle(data), MinPO(54))
+        self._storage.tpc_begin(self._transaction)
+        self.assertRaises(POSException.VersionCommitError,
+                          self._storage.commitVersion,
+                          'one', 'one', self._transaction)
 
     def checkModifyAfterAbortVersion(self):
         eq = self.assertEqual
@@ -199,17 +216,19 @@ class VersionStorage:
     def checkCommitToOtherVersion(self):
         eq = self.assertEqual
         oid1, version1 = self._setup_version('one')
+
         data, revid1 = self._storage.load(oid1, version1)
         eq(zodb_unpickle(data), MinPO(54))
         oid2, version2 = self._setup_version('two')
         data, revid2 = self._storage.load(oid2, version2)
         eq(zodb_unpickle(data), MinPO(54))
-        # Let's make sure we can't get object1 in version2
-        #JF# This won't fail because we fall back to non-version data.
-        #JF# In fact, it must succed and give us 51
-        #JF# self.assertRaises(POSException.VersionError,
-        #JF#                   self._storage.load, oid1, version2)
+
+        # make sure we see the non-version data when appropriate
         data, revid2 = self._storage.load(oid1, version2)
+        eq(zodb_unpickle(data), MinPO(51))
+        data, revid2 = self._storage.load(oid2, version1)
+        eq(zodb_unpickle(data), MinPO(51))
+        data, revid2 = self._storage.load(oid1, '')
         eq(zodb_unpickle(data), MinPO(51))
         
         # Okay, now let's commit object1 to version2
@@ -224,10 +243,14 @@ class VersionStorage:
         eq(zodb_unpickle(data), MinPO(54))
         data, revid = self._storage.load(oid2, version2)
         eq(zodb_unpickle(data), MinPO(54))
-        #JF# Ditto, sort of
-        #JF# self.assertRaises(POSException.VersionError,
-        #JF#                   self._storage.load, oid1, version1)
+
+        # an object can only exist in one version, so a load from
+        # version1 should now give the non-version data 
         data, revid2 = self._storage.load(oid1, version1)
+        eq(zodb_unpickle(data), MinPO(51))
+
+        # as should a version that has never been used
+        data, revid2 = self._storage.load(oid1, 'bela lugosi')
         eq(zodb_unpickle(data), MinPO(51))
 
     def checkAbortOneVersionCommitTheOther(self):
@@ -238,16 +261,11 @@ class VersionStorage:
         oid2, version2 = self._setup_version('two')
         data, revid2 = self._storage.load(oid2, version2)
         eq(zodb_unpickle(data), MinPO(54))
-        # Let's make sure we can't get object1 in version2
 
-        #JF# It's not an error to load data in a different version when data
-        #JF# are stored in non-version. See above
-        #JF#
-        #JF# self.assertRaises(POSException.VersionError,
-        #JF#                   self._storage.load, oid1, version2)
+        # Let's make sure we can't get object1 in version2
         data, revid2 = self._storage.load(oid1, version2)
         eq(zodb_unpickle(data), MinPO(51))
-        
+
         # First, let's abort version1
         self._storage.tpc_begin(self._transaction)
         oids = self._storage.abortVersion(version1, self._transaction)
@@ -279,18 +297,13 @@ class VersionStorage:
         self._storage.tpc_finish(self._transaction)
         eq(len(oids), 1)
         eq(oids[0], oid2)
-        # These objects should not be found in version 2
-        #JF# Ditto
-        #JF# self.assertRaises(POSException.VersionError,
-        #JF#                   self._storage.load, oid1, version2)
         data, revid = self._storage.load(oid1, '')
         eq(zodb_unpickle(data), MinPO(51))
-        #JF# self.assertRaises(POSException.VersionError,
-        #JF#                   self._storage.load, oid2, version2)
+
         # But the trunk should be up to date now
-        data, revid = self._storage.load(oid2, version2)
-        eq(zodb_unpickle(data), MinPO(54))
         data, revid = self._storage.load(oid2, '')
+        eq(zodb_unpickle(data), MinPO(54))
+        data, revid = self._storage.load(oid2, version2)
         eq(zodb_unpickle(data), MinPO(54))
 
         #JF# To do a test like you want, you have to add the data in a version
