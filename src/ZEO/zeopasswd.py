@@ -101,7 +101,7 @@ def options(args):
 
     return auth_protocol, auth_db, auth_realm, delete, username, password
 
-def main(args=None):
+def main(args=None, dbclass=None):
     p, auth_db, auth_realm, delete, username, password = options(args)
     if p is None:
         usage("Error: configuration does not specify auth protocol")
@@ -109,6 +109,9 @@ def main(args=None):
         from ZEO.auth.auth_digest import DigestDatabase as Database
     elif p == "srp":
         from ZEO.auth.auth_srp import SRPDatabase as Database
+    elif dbclass:
+        # dbclass is used for testing tests.auth_plaintext, see testAuth.py
+        Database = dbclass
     else:
         raise ValueError, "Unknown database type %r" % p
     if auth_db is None:

@@ -21,6 +21,7 @@ import unittest
 import zLOG
 
 from ThreadedAsync import LoopCallback
+from ZEO import zeopasswd
 from ZEO.ClientStorage import ClientStorage
 from ZEO.Exceptions import ClientDisconnected
 from ZEO.StorageServer import StorageServer
@@ -44,7 +45,18 @@ class AuthTest(CommonSetupTearDown):
             self.pwdb = self.dbclass(self.pwfile)
         self.pwdb.add_user("foo", "bar")
         self.pwdb.save()
+        self._checkZEOpasswd()
         self.__super_setUp()
+
+    def _checkZEOpasswd(self):
+        args = ["-f", self.pwfile, "-p", self.protocol]
+        if self.protocol == "plaintext":
+            from ZEO.auth.base import Database
+            zeopasswd.main(args + ["-d", "foo"], Database)
+            zeopasswd.main(args + ["foo", "bar"], Database)
+        else:
+            zeopasswd.main(args + ["-d", "foo"])
+            zeopasswd.main(args + ["foo", "bar"])
 
     def tearDown(self):
         self.__super_tearDown()
@@ -101,6 +113,7 @@ class AuthTest(CommonSetupTearDown):
         self._storage._connection._SizedMessageAsyncConnection__hmac_send = None
         # Once the client stops using the hmac, it should be disconnected.
         self.assertRaises(ClientDisconnected, self._storage.versions)
+
 
 class PlainTextAuth(AuthTest):
     import ZEO.tests.auth_plaintext
