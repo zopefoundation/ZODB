@@ -84,8 +84,8 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.41 2001/01/11 21:57:20 jim Exp $"""
-__version__='$Revision: 1.41 $'[11:-2]
+$Id: Connection.py,v 1.42 2001/01/15 15:49:29 chrism Exp $"""
+__version__='$Revision: 1.42 $'[11:-2]
 
 from cPickleCache import PickleCache
 from POSException import ConflictError, ExportError
@@ -265,7 +265,7 @@ class Connection(ExportImport.ExportImport):
             object._p_oid=oid
 
         elif object._p_changed:
-            if invalid(oid) or invalid(None): raise ConflictError, oid
+            if invalid(oid) or invalid(None): raise ConflictError, `oid`
             self._invalidating.append(oid)
 
         else:
@@ -321,7 +321,7 @@ class Connection(ExportImport.ExportImport):
             del stack[-1]
             oid=object._p_oid
             serial=getattr(object, '_p_serial', '\0\0\0\0\0\0\0\0')
-            if invalid(oid): raise ConflictError, oid
+            if invalid(oid): raise ConflictError, `oid`
             klass = object.__class__
         
             if klass is ExtensionKlass:
