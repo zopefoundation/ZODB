@@ -84,7 +84,7 @@
 ##############################################################################
 """Network ZODB storage client
 """
-__version__='$Revision: 1.18 $'[11:-2]
+__version__='$Revision: 1.19 $'[11:-2]
 
 import struct, time, os, socket, string, Sync, zrpc, ClientCache
 import tempfile, Invalidator, ExtensionClass, thread
@@ -441,19 +441,19 @@ class ClientStorage(ExtensionClass.Base, BaseStorage.BaseStorage):
             user=transaction.user
             desc=transaction.description
             ext=transaction._extension
-            t=time.time()
-            t=apply(TimeStamp,(time.gmtime(t)[:5]+(t%60,)))
-            self._ts=t=t.laterThan(self._ts)
-            self._serial=id=`t`
-
-            self._tfile.seek(0)
-            self._seriald.clear()
-            del self._serials[:]
 
             while 1:
                 self._lock_release()
                 self._commit_lock_acquire()
                 self._lock_acquire()
+
+                # We've got the local commit lock. Now get
+                # a (tentative) transaction time stamp.
+                t=time.time()
+                t=apply(TimeStamp,(time.gmtime(t)[:5]+(t%60,)))
+                self._ts=t=t.laterThan(self._ts)
+                id=`t`
+                
                 if not self._connected: raise ClientDisconnected()
                 try: r=self._call(self.__begin, id, user, desc, ext)
                 except:
@@ -461,6 +461,13 @@ class ClientStorage(ExtensionClass.Base, BaseStorage.BaseStorage):
                     raise
                 
                 if r is None: break
+
+            # We have *BOTH* the local and distributed commit
+            # lock, now we can actually get ready to get started.
+            self._serial=id
+            self._tfile.seek(0)
+            self._seriald.clear()
+            del self._serials[:]
 
             self._transaction=transaction
             
