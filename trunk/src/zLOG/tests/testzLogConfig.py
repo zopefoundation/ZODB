@@ -51,14 +51,12 @@ class TestzLOGConfig(unittest.TestCase):
     def test_logging_level(self):
         # Make sure the expected names are supported; it's not clear
         # how to check the values in a meaningful way.
+        # Just make sure they're case-insensitive.
         convert = zLOG.datatypes.logging_level
-        convert("all")
-        convert("debug")
-        convert("info")
-        convert("warn")
-        convert("error")
-        convert("fatal")
-        convert("critical")
+        for name in ["notset", "all", "trace", "debug", "blather",
+                     "info", "warn", "warning", "error", "fatal",
+                     "critical"]:
+            self.assertEqual(convert(name), convert(name.upper()))
         self.assertRaises(ValueError, convert, "hopefully-not-a-valid-value")
 
     def test_http_method(self):
