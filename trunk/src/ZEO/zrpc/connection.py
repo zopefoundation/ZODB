@@ -145,6 +145,8 @@ class Connection(smac.SizedMessageAsyncConnection):
     def __repr__(self):
         return "<%s %s>" % (self.__class__.__name__, self.addr)
 
+    __str__ = __repr__ # Defeat asyncore's dreaded __getattr__
+
     def close(self):
         if self.closed:
             return
