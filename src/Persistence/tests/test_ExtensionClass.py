@@ -13,13 +13,17 @@
 ##############################################################################
 """Test ExtensionClass support in Persistence.Persistent
 
-$Id: test_ExtensionClass.py,v 1.4 2004/02/20 17:12:39 jeremy Exp $
+$Id: test_ExtensionClass.py,v 1.5 2004/02/20 17:17:13 jeremy Exp $
 """
 
-from Persistence import Persistent
+from doctest import DocTestSuite
 import pickle
 
+from Persistence import Persistent
+
 try:
+    # The _Persistence module is only compiled in a Zope checkout,
+    # where ExtensionClass is available.
     import Persistent._Persistence
 except ImportError:
     pass
@@ -499,12 +503,6 @@ def test_pickling_w_slots_w_empty_dict():
 
     """
 
-from doctest import DocTestSuite
-import unittest
-
 def test_suite():
-    return unittest.TestSuite((
-        DocTestSuite(),
-        ))
+    return DocTestSuite()
 
-if __name__ == '__main__': unittest.main()
