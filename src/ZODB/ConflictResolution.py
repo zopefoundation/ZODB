@@ -86,6 +86,8 @@ from cStringIO import StringIO
 from cPickle import Unpickler, Pickler
 import sys
 
+from ZODB.POSException import ConflictError
+
 #import traceback
 
 bad_classes={}
@@ -157,7 +159,6 @@ def tryToResolveConflict(self, oid, committedSerial, oldSerial, newpickle,
 
         newstate=unpickler.load()
         klass=_classFactory(class_tuple[0], class_tuple[1])
-        klass._p_resolveConflict                    
         inst=klass.__basicnew__()
 
         try:
@@ -180,21 +181,7 @@ def tryToResolveConflict(self, oid, committedSerial, oldSerial, newpickle,
         pickler.dump(resolved)
         #sys.stderr.write(' r%s ' % class_tuple[1]); sys.stderr.flush()
         return file.getvalue(1)
-    except Exception, v:
-        #print '='*70
-        #print v, v.args
-        #print '='*70
-        #print old
-        #print '='*70
-        #print committed
-        #print '='*70
-        #print newstate
-        #print '='*70
-
-        #traceback.print_exc()
-
-        #sys.stderr.write(' c%s ' % class_tuple[1]); sys.stderr.flush()
-
+    except ConflictError:
         return 0
 
 class ConflictResolvingStorage:
