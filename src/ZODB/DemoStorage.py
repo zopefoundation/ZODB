@@ -137,7 +137,7 @@ The pickle data will be None for a record for an object created in
 an aborted version.
 
 It is instructive to watch what happens to the internal data structures
-as changes are made.  Foe example, in Zope, you can create an external
+as changes are made.  For example, in Zope, you can create an external
 method::
 
   import Zope
@@ -147,14 +147,16 @@ method::
 
       return Zope.DB._storage._splat()
 
-and call it to minotor the storage.
+and call it to monitor the storage.
 
 """
-__version__='$Revision: 1.6 $'[11:-2]
+__version__='$Revision: 1.7 $'[11:-2]
 
-import base64, POSException, BTree, BaseStorage, time, string, utils
+import base64, time, string
+from ZODB import POSException, BaseStorage, utils
 from TimeStamp import TimeStamp
 from cPickle import loads
+from BTrees import OOBTree
 
 class DemoStorage(BaseStorage.BaseStorage):
 
@@ -163,7 +165,7 @@ class DemoStorage(BaseStorage.BaseStorage):
         BaseStorage.BaseStorage.__init__(self, name, base)
 
         # We use a BTree because the items are sorted!
-        self._data=BTree.BTree()
+        self._data=OOBTree.OOBTree()
         self._index={}
         self._vindex={}
         self._base=base
@@ -198,6 +200,8 @@ class DemoStorage(BaseStorage.BaseStorage):
     def abortVersion(self, src, transaction):
         if transaction is not self._transaction:
             raise POSException.StorageTransactionError(self, transaction)
+        if not src:
+            raise POSException.VersionCommitError("Invalid version")
         
         self._lock_acquire()
         try:
@@ -224,6 +228,12 @@ class DemoStorage(BaseStorage.BaseStorage):
         if transaction is not self._transaction:
             raise POSException.StorageTransactionError(self, transaction)
         
+        if not src:
+            raise POSException.VersionCommitError("Invalid source version")
+        if src == dest:
+            raise POSException.VersionCommitError(
+                "Can't commit to same version: %s" % repr(src))
+
         self._lock_acquire()
         try:
             v=self._vindex.get(src, None)
@@ -233,8 +243,14 @@ class DemoStorage(BaseStorage.BaseStorage):
             oids=[]
             for r in v.values():
                 oid, serial, pre, vdata, p = r
+                assert vdata is not None
                 oids.append(oid)
-                tindex.append([oid, serial, r, None, p])
+                if dest:
+                    new_vdata = dest, vdata[1]
+                else:
+                    new_vdata = None
+                tindex.append([oid, serial, r, new_vdata, p])
+                
 
             return oids
 
@@ -243,18 +259,23 @@ class DemoStorage(BaseStorage.BaseStorage):
     def load(self, oid, version):
         self._lock_acquire()
         try:
-            try: oid, serial, pre, vdata, p = self._index[oid]
-            except:
-                if self._base: return self._base.load(oid, '')
+            try:
+                oid, serial, pre, vdata, p = self._index[oid]
+            except KeyError:
+                if self._base:
+                    return self._base.load(oid, '')
                 raise KeyError, oid
 
             if vdata:
                 oversion, nv = vdata
                 if oversion != version:
-                    if nv: oid, serial, pre, vdata, p = nv
-                    else: raise KeyError, oid
+                    if nv:
+                        oid, serial, pre, vdata, p = nv
+                    else:
+                        raise KeyError, oid
 
-            if p is None: raise KeyError, oid
+            if p is None:
+                raise KeyError, oid
             
             return p, serial
         finally: self._lock_release()
@@ -298,14 +319,14 @@ class DemoStorage(BaseStorage.BaseStorage):
                 if serial != oserial: raise POSException.ConflictError
                 
             serial=self._serial
-            r=[oid, serial, old, version and (version,nv) or None, data]
+            r=[oid, serial, old, version and (version, nv) or None, data]
             self._tindex.append(r)
 
             s=self._tsize
             s=s+72+(data and (16+len(data)) or 4)
             if version: s=s+32+len(version)
 
-            if s > self._quota:
+            if self._quota is not None and s > self._quota:
                 raise POSException.StorageError, (
                     '''<b>Quota Exceeded</b><br>
                     The maximum quota for this demonstration storage
@@ -435,13 +456,13 @@ class DemoStorage(BaseStorage.BaseStorage):
         return not self._vindex.get(version, None)
 
     def versions(self, max=None):
-        r=[]
-        a=r.append
-        for version in self._vindex.keys()[:max]:
-            if self.versionEmpty(version): continue
-            a(version)
-            if max and len(r) >= max: return r
-
+        r = []
+        for v in self._vindex.keys():
+            if self.versionEmpty(v):
+                continue
+            r.append(v)
+            if max is not None and len(r) >= max:
+                break
         return r
 
     def _build_indexes(self, stop='\377\377\377\377\377\377\377\377'):
