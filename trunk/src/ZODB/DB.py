@@ -487,9 +487,9 @@ class DB(object):
             # set whenever the pool becomes empty so that threads are
             # forced to wait until the pool gets a connection in it.
             # The lock is acquired when the (empty) pool is
-            # created. The The lock is acquired just prior to removing
-            # the last connection from the pool and just after adding
-            # a connection to an empty pool.
+            # created.  The lock is acquired just prior to removing
+            # the last connection from the pool and released just after
+            # adding a connection to an empty pool.
 
 
             if pools.has_key(version):
@@ -528,22 +528,36 @@ class DB(object):
                             pool_lock.release()
                     else: return
 
-            elif len(pool) == 1:
-                # Taking last one, lock the pool
+            elif len(pool)==1:
+                # Taking last one, lock the pool.
                 # Note that another thread might grab the lock
                 # before us, so we might actually block, however,
                 # when we get the lock back, there *will* be a
-                # connection in the pool.
+                # connection in the pool.  OTOH, there's no limit on
+                # how long we may need to wait:  if the other thread
+                # grabbed the lock in this section too, we'll wait
+                # here until another connection is closed.
+                # checkConcurrentUpdates1Storage provoked this frequently
+                # on a hyperthreaded machine, with its second thread
+                # timing out after waiting 5 minutes for DB.open() to
+                # return.  So, if we can't get the pool lock immediately,
+                # now we make a recursive call.  This allows the current
+                # thread to allocate a new connection instead of waiting
+                # arbitrarily long for the single connection in the pool
+                # right now.
                 self._r()
-                pool_lock.acquire()
+                if not pool_lock.acquire(0):
+                    result = DB.open(self, version, transaction, temporary,
+                                     force, waitflag)
+                    self._a()
+                    return result
                 self._a()
                 if len(pool) > 1:
                     # Note that the pool size will normally be 1 here,
                     # but it could be higher due to a race condition.
                     pool_lock.release()
 
-            c = pool[-1]
-            del pool[-1]
+            c = pool.pop()
             c._setDB(self, mvcc=mvcc, txn_mgr=txn_mgr, synch=synch)
             for pool, allocated in pooll:
                 for cc in pool:
@@ -553,7 +567,8 @@ class DB(object):
                 transaction[version] = c
             return c
 
-        finally: self._r()
+        finally:
+            self._r()
 
     def removeVersionPool(self, version):
         pools, pooll = self._pools
