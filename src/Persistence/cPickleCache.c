@@ -88,7 +88,7 @@ process must skip such objects, rather than deactivating them.
 static char cPickleCache_doc_string[] =
 "Defines the PickleCache used by ZODB Connection objects.\n"
 "\n"
-"$Id: cPickleCache.c,v 1.63 2002/04/18 09:18:26 htrd Exp $\n";
+"$Id: cPickleCache.c,v 1.64 2002/04/18 09:32:13 htrd Exp $\n";
 
 #define ASSIGN(V,E) {PyObject *__e; __e=(E); Py_XDECREF(V); (V)=__e;}
 #define UNLESS(E) if(!(E))
@@ -835,6 +835,7 @@ cc_add_item(ccobject *self, PyObject *key, PyObject *v)
     if (jar == NULL)
         return -1;
     if (jar==Py_None) {
+        Py_DECREF(jar);
         PyErr_SetString(PyExc_ValueError,
                         "Cached object jar missing");
 	return -1;
@@ -975,11 +976,23 @@ static int
 _ring_corrupt(ccobject *self, const char *context)
 {
     CPersistentRing *here = &(self->ring_home);
+
+    /* Determine the number of objects we expect to see in the ring.
+     * Normally this is one for the home node plus one for each
+     * non-ghost object, for which we maintain a separate total. If the
+     * ring is unlocked then this value should be precise; there should
+     * be no foreign nodes in the ring. If locked, it may be an
+     * underestimate */
     int expected = 1 + self->non_ghost_count;
+
     int total = 0;
     do {
-        if (++total > (expected + 10)) 
-	    return 3;            /* ring too big, by a large margin */
+        if (++total > (expected + 10))
+            /* ring too big, by a large margin. This probably
+             * means we are stomping through random memory. Abort
+             * now, and maybe we can deliver this error message
+             * before dumping core */ 
+	    return 3;            
         if (!here->next)
 	    return 4;                      /* various linking problems */
         if (!here->prev) 
@@ -993,15 +1006,18 @@ _ring_corrupt(ccobject *self, const char *context)
         if (here->next->prev != here) 
 	    return 10;
         if (!self->ring_lock) {
-            /* If the ring must be locked, then it only contains
-	       object other than persistent instances.
-	    */ 
+            /* If the ring is unlocked, then it must not contain
+	     * objects other than persistent instances (and the home) */ 
             if (here != &self->ring_home) {
                 cPersistentObject *object = object_from_ring(self, here, 
 							     context);
                 if (!object) 
 		    return 12;
                 if (object->state == cPersistent_GHOST_STATE)
+		    /* ghost objects should not be in the ring, according
+                     * to the ghost storage regime. Experience shows
+                     * that this error condition is likely to be caused
+                     * by a race condition bug somewhere */
                     return 13;
             }
         }
@@ -1009,8 +1025,11 @@ _ring_corrupt(ccobject *self, const char *context)
     } while (here != &self->ring_home);
 
     if (self->ring_lock) {
-        if (total < expected) 
-	    return 6;       /* ring too small; too big is ok when locked */
+        if (total < expected)
+            /* ring is too small.
+               too big is ok when locked, we have already checked it is
+               not too big */ 
+	    return 6;       
     } else {
         if (total != expected) 
 	    return 14;     /* ring size wrong, or bad ghost accounting */
