@@ -19,6 +19,8 @@ objects like hit counters that don't need or want to participate
 in undo or versions.
 """
 
+from ZODB.utils import z64
+
 from MappingStorage import MappingStorage
 from BaseStorage import BaseStorage
 import anydbm, os
@@ -56,7 +58,7 @@ class gdbmStorage(anydbmStorage):
         self._index=index=gdbm.open(filename, flag[:1]+'f', mode)
         self._tindex=[]
 
-        m='\0\0\0\0\0\0\0\0'
+        m=z64
         oid=index.firstkey()
         while oid != None:
             m=max(m, oid)
@@ -76,7 +78,7 @@ class gdbmStorage(anydbmStorage):
             # Build an index of *only* those objects reachable
             # from the root.
             index=self._index
-            rootl=['\0\0\0\0\0\0\0\0']
+            rootl=[z64]
             pop=rootl.pop
             pindex={}
             referenced=pindex.has_key

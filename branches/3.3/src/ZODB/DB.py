@@ -22,6 +22,7 @@ import warnings
 import logging
 
 from ZODB.broken import find_global
+from ZODB.utils import z64
 from ZODB.Connection import Connection
 from ZODB.serialize import referencesf
 
@@ -124,7 +125,7 @@ class DB(object):
         if not hasattr(storage,'tpc_vote'):
             storage.tpc_vote = lambda *args: None
         try:
-            storage.load('\0\0\0\0\0\0\0\0','')
+            storage.load(z64,'')
         except KeyError:
             # Create the database's root in the storage if it doesn't exist
             from persistent.mapping import PersistentMapping
@@ -138,7 +139,7 @@ class DB(object):
             t = transaction.Transaction()
             t.description = 'initial database creation'
             storage.tpc_begin(t)
-            storage.store('\0\0\0\0\0\0\0\0', None, file.getvalue(), '', t)
+            storage.store(z64, None, file.getvalue(), '', t)
             storage.tpc_vote(t)
             storage.tpc_finish(t)
 
