@@ -1,6 +1,6 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %
-% Copyright (c) 2003 Zope Corporation and Contributors.
+% Copyright (c) 2002, 2003 Zope Corporation and Contributors.
 % All Rights Reserved.
 %
 % This software is subject to the provisions of the Zope Public License,
@@ -595,7 +595,7 @@ The following datatypes are provided by the default type registry.
 \term{\datatype{byte-size}}
   A specification of a size, with byte multiplier suffixes (for
   example, \samp{128MB}).  Suffixes are case insensitive and may be
-  ``KB'', ``MB'', or ``GB''.
+  \samp{KB}, \samp{MB}, or \samp{GB}
 
 \term{\datatype{constructor}}
   Parse value in the form \samp{fn('1', '2', kw1='a', kw2='b')} into a
@@ -686,9 +686,10 @@ The following datatypes are provided by the default type registry.
   configuration files.
 
 \term{\datatype{time-interval}}
-  A specification of a time interval, with multiplier suffixes,
-  e.g. 12h.  Suffixes are case insensitive and may be ``s'' (seconds),
-  ``m'' (minutes), ``h'' (hours), or ``d'' (days).
+  A specification of a time interval, with multiplier suffixes (for
+  example, \code{12h}).  Suffixes are case insensitive and may be
+  \samp{s} (seconds), \samp{m} (minutes), \samp{h} (hours), or
+  \samp{d} (days).
 
 \end{definitions}
 
