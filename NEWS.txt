@@ -43,6 +43,17 @@ make a connection.  The ZEO reconnection tests may run much faster now,
 depending on platform, and should suffer far fewer (if any) intermittent
 "timed out waiting for storage to connect" failures.
 
+ZEO protocol and compatibility
+------------------------------
+
+ZODB 3.3 introduced multiversion concurrency control (MVCC), which required
+changes to the ZEO protocol.  The first 3.3 release should have increased
+the internal ZEO protocol version number (used by ZEO protocol negotiation
+when a client connects), but neglected to.  This has been repaired.
+
+Compatibility between pre-3.3 and post-3.3 ZEO clients and servers remains
+very limited.  See the newly updated ``Compatibility`` section in
+``README.txt`` for details.
 
 FileStorage
 -----------
