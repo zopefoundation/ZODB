@@ -86,7 +86,7 @@
 """Start the server storage.
 """
 
-__version__ = "$Revision: 1.23 $"[11:-2]
+__version__ = "$Revision: 1.24 $"[11:-2]
 
 import sys, os, getopt, string
 
@@ -319,10 +319,10 @@ def main(argv):
             zLOG.LOG("z2", zLOG.PANIC, "Startup exception",
                      error=info)
         except:
-            info2=sys.exc_info()
-            import traceback
-            apply(traceback.print_exception, info)
-            apply(traceback.print_exception, info2)
+            pass
+
+        import traceback
+        apply(traceback.print_exception, info)
             
         sys.exit(0)
 
