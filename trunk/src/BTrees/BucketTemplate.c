@@ -12,7 +12,7 @@
 
  ****************************************************************************/
 
-#define BUCKETTEMPLATE_C "$Id: BucketTemplate.c,v 1.44 2002/06/20 02:40:01 tim_one Exp $\n"
+#define BUCKETTEMPLATE_C "$Id: BucketTemplate.c,v 1.45 2002/06/20 15:03:28 tim_one Exp $\n"
 
 /* Use BUCKET_SEARCH to find the index at which a key belongs.
  * INDEX    An int lvalue to hold the index i such that KEY belongs at
@@ -460,17 +460,6 @@ bucket_split(Bucket *self, int index, Bucket *next)
   if (PER_CHANGED(self) < 0)
     return -1;
 
-  return 0;
-}
-
-static int
-Bucket_nextBucket(Bucket *self, Bucket **r)
-{
-  PER_USE_OR_RETURN(self, -1);
-  *r=self->next;
-  Py_XINCREF(*r);
-  PER_ALLOW_DEACTIVATION(self);
-  PER_ACCESSED(self);
   return 0;
 }
 
