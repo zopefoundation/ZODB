@@ -98,8 +98,8 @@ def _classFactory(location, name,
     return getattr(__import__(location, _globals, _globals, _silly),
                    name)
 
-def state(self, oid, serial, prfactory):
-    p=self.loadSerial(oid, serial)
+def state(self, oid, serial, prfactory, p=''):
+    p=p or self.loadSerial(oid, serial)
     file=StringIO(p)
     unpickler=Unpickler(file)
     unpickler.persistent_load=prfactory
@@ -142,7 +142,8 @@ def persistent_id(object,
         return None
     return object.data
 
-def tryToResolveConflict(self, oid, committedSerial, oldSerial, newpickle):
+def tryToResolveConflict(self, oid, committedSerial, oldSerial, newpickle,
+                         committedData=''):
     #class_tuple, old, committed, newstate = ('',''), 0, 0, 0
     try:
         file=StringIO(newpickle)
@@ -168,7 +169,7 @@ def tryToResolveConflict(self, oid, committedSerial, oldSerial, newpickle):
             return 0
 
         old=state(self, oid, oldSerial, prfactory)
-        committed=state(self, oid, committedSerial, prfactory)
+        committed=state(self, oid, committedSerial, prfactory, committedData)
 
         resolved=resolve(old, committed, newstate)
 
