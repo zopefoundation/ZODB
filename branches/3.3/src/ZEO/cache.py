@@ -72,7 +72,11 @@ class ClientCache:
     # @param path path of persistent snapshot of cache state (a file path)
     # @param size size of cache file, in bytes
 
-    def __init__(self, path=None, size=None, trace=False):
+    # The default size of 200MB makes a lot more sense than the traditional
+    # default of 20MB.  The default here is misleading, though, since
+    # ClientStorage is the only user of ClientCache, and it always passes an
+    # explicit size of its own choosing.
+    def __init__(self, path=None, size=200*1024**2, trace=False):
         self.path = path
         self.size = size
 
@@ -105,7 +109,7 @@ class ClientCache:
 
         # A FileCache instance does all the low-level work of storing
         # and retrieving objects to/from the cache file.
-        self.fc = FileCache(size or 10**6, self.path, self)
+        self.fc = FileCache(size, self.path, self)
 
     def open(self):
         self.fc.scan(self.install)
@@ -693,7 +697,6 @@ class FileCache(object):
         #    file that exists, that pre-existing file is used (persistent
         #    cache).  In all other cases a new file is created:  a temp
         #    file if fpath is None, else with path fpath.
-        assert maxsize >= 1000  # although 1000 is still absurdly low
         self.maxsize = maxsize
         self.parent = parent
 
@@ -879,7 +882,7 @@ class FileCache(object):
     # freed (starting at currentofs when _makeroom returns, and
     # spanning the number of bytes retured by _makeroom).
     def _makeroom(self, nbytes):
-        assert 0 < nbytes <= self.maxsize
+        assert 0 < nbytes <= self.maxsize - ZEC3_HEADER_SIZE
         if self.currentofs + nbytes > self.maxsize:
             self.currentofs = ZEC3_HEADER_SIZE
         ofs = self.currentofs

@@ -309,7 +309,7 @@ class ClientStorage(object):
             cache_path = os.path.join(dir, "%s-%s.zec" % (client, storage))
         else:
             cache_path = None
-        self._cache = self.ClientCacheClass(cache_path)
+        self._cache = self.ClientCacheClass(cache_path, size=cache_size)
         # XXX When should it be opened?
         self._cache.open()
 
