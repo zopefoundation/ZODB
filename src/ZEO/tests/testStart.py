@@ -65,14 +65,11 @@ class StartTests(unittest.TestCase):
     def getpids(self):
         if not os.path.exists(self.env.zeo_pid):
             # If there's no pid file, assume the server isn't running
-            return None, None
+            return []
         return map(int, open(self.env.zeo_pid).read().split())
 
     def stop_server(self):
-        ppid, pid = self.getpids()
-        if ppid is None:
-            return
-        self.kill(pids=[pid])
+        self.kill(pids=self.getpids())
 
     def kill(self, sig=signal.SIGTERM, pids=None):
         if pids is None:
@@ -141,7 +138,7 @@ class StartTests(unittest.TestCase):
         cs = ClientStorage(('', port), wait=wait)
         cs.close()
 
-    def testNoPort(self):
+    def testErrNoPort(self):
         outp = self.system("-s")
         self.assert_(outp.find("No port specified") != -1)
 
@@ -172,9 +169,7 @@ class StartTests(unittest.TestCase):
                     break
             self.assert_(buf1)
             os.rename(logfile1, logfile2)
-            ppid, pid = self.getpids()
-    ##        os.kill(ppid, signal.SIGHUP)
-            os.kill(pid, signal.SIGHUP)
+            self.kill(signal.SIGUSR2, pids=self.getpids())
             self.connect(port=port)
             buf2 = open(logfile1).read()
             self.assert_(buf2)
