@@ -14,7 +14,7 @@
 """Sized message async connections
 """
 
-__version__ = "$Revision: 1.18 $"[11:-2]
+__version__ = "$Revision: 1.19 $"[11:-2]
 
 import asyncore, struct
 from Exceptions import Disconnected
@@ -137,21 +137,40 @@ class SizedMessageAsyncConnection(asyncore.dispatcher):
     def handle_write(self):
         output = self.__output
         while output:
-            v = output[0]
-            while len(output)>1 and len(v)<16384:
-                del output[0]
-                v += output[0]
+            # Accumulate output into a single string so that we avoid
+            # multiple send() calls, but avoid accumulating too much
+            # data.  If we send a very small string and have more data
+            # to send, we will likely incur delays caused by the
+            # unfortunate interaction between the Nagle algorithm and
+            # delayed acks.  If we send a very large string, only a
+            # portion of it will actually be delivered at a time.
+
+            # We chose 60000 as the socket limit by looking at the
+            # largest strings that we could pass to send() without
+            # blocking.
+
+            l = 0
+            for i in range(len(output)):
+                l += len(output[i])
+                if l > 60000:
+                    break
+
+            i += 1
+            # It is very unlikely that i will be 1.
+            v = "".join(output[:i])
+            del output[:i]
+
             try:
-                n=self.send(v)
+                n = self.send(v)
             except socket.error, err:
                 if err[0] in expected_socket_write_errors:
                     break # we couldn't write anything
                 raise
             if n < len(v):
-                output[0] = v[n:]
+                # XXX It's unfortunate that we end up making many
+                # slices of a large string.
+                output.insert(0, v[n:])
                 break # we can't write any more
-            else:
-                del output[0]
 
     def handle_close(self):
         self.close()
