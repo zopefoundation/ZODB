@@ -508,8 +508,9 @@ class WindowsConnectionTests(ConnectionTests):
     def _startServer(self, create=1, index=0, read_only=0):
         path = "%s.%d" % (self.file, index)
         addr = self.addr[index]
+        args = (path, '='+str(create), '='+str(read_only))
         _addr, test_addr, test_pid = forker.start_zeo_server(
-            'FileStorage', (path, str(create), read_only), addr)
+            'FileStorage', args, addr)
         self._pids.append(test_pid)
         self._servers.append(test_addr)
 

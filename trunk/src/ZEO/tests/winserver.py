@@ -50,8 +50,13 @@ def load_storage_class(name):
     mod = getattr(package, name)
     return getattr(mod, name)
 
-def main(port, storage_name, args):
+def main(port, storage_name, rawargs):
     klass = load_storage_class(storage_name)
+    args = []
+    for arg in rawargs:
+        if arg.startswith('='):
+            arg = eval(arg[1:], {'__builtins__': {}})
+        args.append(arg)
     storage = klass(*args)
     zeo_port = int(port)
     test_port = zeo_port + 1
