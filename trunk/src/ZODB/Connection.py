@@ -13,7 +13,7 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.109 2004/01/02 22:56:43 jeremy Exp $"""
+$Id: Connection.py,v 1.110 2004/01/06 02:30:44 tim_one Exp $"""
 
 import logging
 import sys
@@ -532,6 +532,7 @@ class Connection(ExportImport, object):
             self._noncurrent[obj._p_oid] = True
         self._reader.setGhostState(obj, data)
         obj._p_serial = start
+        return True
 
     def _handle_independent(self, obj):
         # Helper method for setstate() handles possibly independent objects
