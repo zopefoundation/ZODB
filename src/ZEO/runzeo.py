@@ -21,6 +21,7 @@ Options:
 -a/--address ADDRESS -- server address of the form PORT, HOST:PORT, or PATH
                         (a PATH must contain at least one "/")
 -f/--filename FILENAME -- filename for FileStorage
+-t/--timeout TIMEOUT -- transaction timeout in secondes (default no timeout)
 -h/--help -- print this usage message and exit
 -m/--monitor ADDRESS -- address of monitor server ([HOST:]PORT or PATH)
 
@@ -84,7 +85,8 @@ class ZEOOptionsMixin:
         self.add("read_only", "zeo.read_only", default=0)
         self.add("invalidation_queue_size", "zeo.invalidation_queue_size",
                  default=100)
-        self.add("transaction_timeout", "zeo.transaction_timeout")
+        self.add("transaction_timeout", "zeo.transaction_timeout",
+                 "t:", "timeout=", float)
         self.add("monitor_address", None, "m:", "monitor=",
                  self.handle_monitor_address)
 
