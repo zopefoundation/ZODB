@@ -21,7 +21,7 @@ from ZEO.smac import Disconnected
 # Sorry Jim...
 from ZODB.tests import StorageTestBase, BasicStorage, VersionStorage, \
      TransactionalUndoStorage, TransactionalUndoVersionStorage, \
-     PackableStorage, Synchronization, ConflictResolution
+     PackableStorage, Synchronization, ConflictResolution, RevisionStorage
 from ZODB.tests.MinPO import MinPO
 from ZODB.tests.StorageTestBase import zodb_unpickle
 
@@ -104,6 +104,7 @@ class GenericTests(ZEOTestBase,
                    Cache.TransUndoStorageWithCache,
                    BasicStorage.BasicStorage,
                    VersionStorage.VersionStorage,
+                   RevisionStorage.RevisionStorage,
                    PackableStorage.PackableStorage,
                    Synchronization.SynchronizedStorage,
                    ConflictResolution.ConflictResolvingStorage,
