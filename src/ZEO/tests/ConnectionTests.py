@@ -108,7 +108,7 @@ class CommonSetupTearDown(StorageTestBase):
                 os.waitpid(pid, 0)
         for c in self.caches:
             for i in 0, 1:
-                path = "c1-test-%d.zec" % i
+                path = "c1-%s-%d.zec" % (c, i)
                 if os.path.exists(path):
                     os.unlink(path)
         self.__super_tearDown()
