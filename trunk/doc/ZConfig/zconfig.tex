@@ -481,19 +481,13 @@ methods to retrieve information from the section:
 \end{memberdesc}
 
 
-The following methods are used to modify the values defined in a
+The following method is used to modify the values defined in a
 section:
 
 \begin{methoddesc}[Configuration]{addValue}{key, value}
   Add the key \var{key} with the value \var{value}.  If there is
   already a value for \var{key}, \exception{ConfigurationError} is
   raised.
-\end{methoddesc}
-
-\begin{methoddesc}[Configuration]{setValue}{key, value}
-  Set the value for \var{key} to \var{value}.  If there is already a
-  value for \var{key}, it is replaced.  \var{key} and \var{value} must
-  be strings.
 \end{methoddesc}
 
 
