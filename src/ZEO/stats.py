@@ -62,9 +62,10 @@ def main():
     verbose = 0
     quiet = 0
     dostats = 1
+    print_histogram = 0
     interval = 900 # Every 15 minutes
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "i:qvS")
+        opts, args = getopt.getopt(sys.argv[1:], "i:qvSh")
     except getopt.error, msg:
         usage(msg)
         return 2
@@ -82,7 +83,10 @@ def main():
             verbose = 1
         if o == "-S":
             dostats = 0
+            verbose = 1
             quiet = 0
+        if o == '-h':
+            print_histogram = 1
     if len(args) != 1:
         usage("exactly one file argument required")
         return 2
@@ -104,6 +108,8 @@ def main():
     datarecords = 0
     datasize = 0L
     file0 = file1 = 0
+    oids = {}
+    total_loads = 0
     byinterval = {}
     thisinterval = None
     h0 = he = None
@@ -150,6 +156,9 @@ def main():
                 U64(serial),
                 version,
                 dlen and str(dlen) or "")
+        if code & 0x70 == 0x20:
+            oids[oid] = oids.get(oid, 0) + 1
+            total_loads += 1
         if code in (0x00, 0x70):
             if not quiet:
                 dumpbyinterval(byinterval, h0, he)
@@ -162,6 +171,7 @@ def main():
                     print '='*20, "Restart", '='*20
                 else:
                     print '-'*20, "Flip->%d" % current, '-'*20
+
     bytes = f.tell()
     f.close()
     rte = time.time()
@@ -198,6 +208,25 @@ def main():
                 addcommas(bycode.get(code, 0)),
                 code,
                 explain.get(code) or "*** unknown code ***")
+        if print_histogram:
+            print
+            print "Histogram of object load frequency"
+            total = len(oids)
+            s = addcommas(total)
+            print "Unique oids: %s" % addcommas(total)
+            print "Total loads: %s" % addcommas(total_loads)
+            width = max(len(s), len("objects"))
+            fmt = "%5d %" + str(width) + "s %3d%% %5.1f%% %4d%%"
+            hdr = "%5s %" + str(width) + "s %4s %6s %5s"
+            print hdr % ("loads", "objects", "%obj", "%load", "%cum")
+            cum = 0.0
+            for binsize, count in histogram(oids):
+                obj_percent = 100 * count / total
+                load_percent = 1000 * count * binsize / total_loads
+                load_percent /= 10.
+                cum += load_percent
+                print fmt % (binsize, addcommas(count),
+                             obj_percent, load_percent, cum)
 
 def dumpbyinterval(byinterval, h0, he):
     loads = 0
@@ -231,6 +260,14 @@ def hitrate(bycode):
         return 100.0 * hits / loads
     else:
         return 0.0
+
+def histogram(d):
+    bins = {}
+    for v in d.itervalues():
+        bins[v] = bins.get(v, 0) + 1
+    L = bins.items()
+    L.sort()
+    return L
 
 def U64(s):
     h, v = struct.unpack(">II", s)
