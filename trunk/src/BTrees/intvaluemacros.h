@@ -10,3 +10,6 @@
       PyErr_SetString(PyExc_TypeError, "expected integer value"); \
       *(STATUS)=0; } 
   
+#define MERGE_DEFAULT 1
+#define MERGE(O1, w1, O2, w2) ((O1)*(w1)+(O2)*(w2))
+#define MERGE_WEIGHT(O, w) ((O)*(w))
