@@ -83,7 +83,6 @@
 # 
 ##############################################################################
 import sys, os, time, random
-execfile(os.path.join(sys.path[0], 'framework.py'))
 
 from BTrees.OOBTree import OOBTree, OOBucket, OOSet, OOTreeSet
 from BTrees.IOBTree import IOBTree, IOBucket, IOSet, IOTreeSet
@@ -508,5 +507,3 @@ def lsubtract(l1, l2):
 
 def realseq(itemsob):
     return map(lambda x: x, itemsob)
-
-framework()
