@@ -13,7 +13,7 @@
 ##############################################################################
 """Transaction management
 
-$Id: Transaction.py,v 1.53 2003/10/02 22:48:07 tim_one Exp $
+$Id: Transaction.py,v 1.54 2003/10/05 14:25:11 jens Exp $
 """
 import sys
 from thread import get_ident as _get_ident
@@ -426,7 +426,7 @@ class Transaction:
 
     def note(self, text):
         if self.description:
-            self.description = "%s\n\n%s" % (self.description, test.strip())
+            self.description = "%s\n\n%s" % (self.description, text.strip())
         else:
             self.description = text.strip()
 
