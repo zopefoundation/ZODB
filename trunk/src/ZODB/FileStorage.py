@@ -115,7 +115,7 @@
 #   may have a back pointer to a version record or to a non-version
 #   record.
 #
-__version__='$Revision: 1.84 $'[11:-2]
+__version__='$Revision: 1.85 $'[11:-2]
 
 import struct, time, os, string, base64, sys
 from struct import pack, unpack
@@ -877,7 +877,7 @@ class FileStorage(BaseStorage.BaseStorage,
         self._lock_acquire()
         try:
             self._clear_index()
-            transaction_id=base64.decodestring(transaction_id+'==\n')
+            transaction_id=base64.decodestring(transaction_id + '\n')
             tid, tpos = transaction_id[:8], U64(transaction_id[8:])
             packt=self._packt
             if packt is None or packt > tid:
@@ -1061,9 +1061,15 @@ class FileStorage(BaseStorage.BaseStorage,
             # and commitVersion()).  In the latter case, we could still find
             # the transaction through an expensive search of the file, but
             # we're punting on that for now.
+            transaction_id = base64.decodestring(transaction_id + '\n')
             tid = transaction_id[:8]
-            oid = transaction_id[8:]
+            oid = transaction_id[16:]
             if oid == '' or not self._index.has_key(oid):
+                # We can't get the position of the transaction easily.
+                # Note that there is a position encoded in the
+                # transaction_id at [8:16], but it can't be used reliably
+                # across multiple file storages and thus breaks
+                # transactional integrity.
                 raise UndoError, 'Undoing a non-object affecting transaction'
             # Find the file position for the current revision of this object,
             # and search back for the beginning of its transaction record
@@ -1213,14 +1219,19 @@ class FileStorage(BaseStorage.BaseStorage,
                 #
                 # Note: if the txn has no data records, we're screwed.  Punt
                 # on that for now.
+                #
+                # Note that we're still encoding the transaction position
+                # in the transaction ID in order to support non-transactional
+                # undo.  This can be removed as soon as non-transactional
+                # undo is removed.
                 next = read(8)
                 # next is either the redundant txn length - 8, or an oid
                 if next == tl:
                     # There were no objects in this txn
-                    id = tid
+                    id = tid + p64(pos)
                 else:
-                    id = tid + next
-                d={'id': id,
+                    id = tid + p64(pos) + next
+                d={'id': encode(id).rstrip(),
                    'time': TimeStamp(tid).timeTime(),
                    'user_name': u,
                    'description': d}
