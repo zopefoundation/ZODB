@@ -1,7 +1,8 @@
 """Sized message async connections
 """
 
-import asyncore, string, struct
+import asyncore, string, struct, zLOG
+from zLOG import LOG, INFO, ERROR
 
 class smac(asyncore.dispatcher):
 
@@ -64,5 +65,12 @@ class smac(asyncore.dispatcher):
         if __debug__:
             if len(message) > 40: m=message[:40]+' ...'
             else: m=message
-            print 'message_output', `m`
+            LOG('smax', INFO, 'message_output %s' % `m`)
         self.__append(pack(">i",len(message))+message)
+
+    def log_info(self, message, type='info'):
+        if type=='error': type=ERROR
+        else: type=INFO
+        LOG('ZEO Server', type, message)
+
+    log=log_info
