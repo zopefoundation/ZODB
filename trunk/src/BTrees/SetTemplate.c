@@ -83,7 +83,7 @@
   
  ****************************************************************************/
 
-#define SETTEMPLATE_C "$Id: SetTemplate.c,v 1.9 2001/03/20 13:52:00 jim Exp $\n"
+#define SETTEMPLATE_C "$Id: SetTemplate.c,v 1.10 2001/03/21 14:16:58 jim Exp $\n"
 
 static PyObject *
 Set_insert(Bucket *self, PyObject *args)
@@ -179,7 +179,7 @@ _set_setstate(Bucket *self, PyObject *args)
   for (i=0; i<l; i++)
     {
       k=PyTuple_GET_ITEM(items, i);
-      COPY_KEY_FROM_ARG(self->keys[i], k, &copied);
+      COPY_KEY_FROM_ARG(self->keys[i], k, copied);
       UNLESS (copied) return -1;
       INCREF_KEY(self->keys[i]);
     }

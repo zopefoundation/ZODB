@@ -83,7 +83,7 @@
   
  ****************************************************************************/
 
-#define BTREETEMPLATE_C "$Id: BTreeTemplate.c,v 1.12 2001/03/20 13:52:00 jim Exp $\n"
+#define BTREETEMPLATE_C "$Id: BTreeTemplate.c,v 1.13 2001/03/21 14:16:58 jim Exp $\n"
 
 /*
 ** _BTree_get
@@ -96,7 +96,7 @@ _BTree_get(BTree *self, PyObject *keyarg, int has_key)
   PyObject *r;
   KEY_TYPE key;
   
-  COPY_KEY_FROM_ARG(key, keyarg, &copied);
+  COPY_KEY_FROM_ARG(key, keyarg, copied);
   UNLESS (copied) return NULL;
 
   PER_USE_OR_RETURN(self, NULL);
@@ -409,7 +409,7 @@ _BTree_set(BTree *self, PyObject *keyarg, PyObject *value,
   BTreeItem *d;
   KEY_TYPE key;
 
-  COPY_KEY_FROM_ARG(key, keyarg, &copied);
+  COPY_KEY_FROM_ARG(key, keyarg, copied);
   UNLESS (copied) return -1;
 
   PER_USE_OR_RETURN(self, -1);
@@ -754,7 +754,7 @@ _BTree_setstate(BTree *self, PyObject *state, int noval)
         {          
           if (i) 
             {
-              COPY_KEY_FROM_ARG(d->key, PyTuple_GET_ITEM(items,l), &copied);
+              COPY_KEY_FROM_ARG(d->key, PyTuple_GET_ITEM(items,l), copied);
               l++;
               UNLESS (&copied) return -1;
               INCREF_KEY(d->key);
@@ -873,7 +873,7 @@ BTree_findRangeEnd(BTree *self, PyObject *keyarg, int low,
   int min, max, i=0, cmp, copied=1;
   KEY_TYPE key;
 
-  COPY_KEY_FROM_ARG(key, keyarg, &copied);
+  COPY_KEY_FROM_ARG(key, keyarg, copied);
   UNLESS (copied) return -1;
 
   /* We don't need to: PER_USE_OR_RETURN(self, -1);
@@ -1124,7 +1124,7 @@ BTree_byValue(BTree *self, PyObject *args)
   PER_USE_OR_RETURN(self, NULL);
 
   UNLESS (PyArg_ParseTuple(args, "O", &omin)) return NULL;
-  COPY_VALUE_FROM_ARG(min, omin, &copied);
+  COPY_VALUE_FROM_ARG(min, omin, copied);
   UNLESS(copied) return NULL;
     
   UNLESS (r=PyList_New(0)) goto err;

@@ -87,7 +87,7 @@
  Set operations
  ****************************************************************************/
 
-#define SETOPTEMPLATE_C "$Id: SetOpTemplate.c,v 1.5 2001/03/20 13:52:00 jim Exp $\n"
+#define SETOPTEMPLATE_C "$Id: SetOpTemplate.c,v 1.6 2001/03/21 14:16:58 jim Exp $\n"
 
 #ifdef INTSET_H
 static int 
@@ -202,7 +202,7 @@ initSetIteration(SetIteration *i, PyObject *s, int w, int *merge)
       Py_INCREF(s);
       i->next=nextKeyAsSet;
       i->hasValue=0;
-      COPY_KEY_FROM_ARG(i->key, s, &copied);
+      COPY_KEY_FROM_ARG(i->key, s, copied);
       UNLESS (copied) return -1;
     }
 #endif
