@@ -4,7 +4,7 @@
 __doc__='''Python implementation of persistent base types
 
 
-$Id: Persistence.py,v 1.8 1997/04/04 13:52:27 jim Exp $'''
+$Id: Persistence.py,v 1.9 1997/04/22 00:16:50 jim Exp $'''
 #     Copyright 
 #
 #       Copyright 1996 Digital Creations, L.C., 910 Princess Anne
@@ -60,6 +60,9 @@ $Id: Persistence.py,v 1.8 1997/04/04 13:52:27 jim Exp $'''
 #   (540) 371-6909
 #
 # $Log: Persistence.py,v $
+# Revision 1.9  1997/04/22 00:16:50  jim
+# Changed to use new cPersistent header.
+#
 # Revision 1.8  1997/04/04 13:52:27  jim
 # Fixed bug in persistent mapping that caused extraneous records to be
 # written.
@@ -89,7 +92,7 @@ $Id: Persistence.py,v 1.8 1997/04/04 13:52:27 jim Exp $'''
 #
 #
 # 
-__version__='$Revision: 1.8 $'[11:-2]
+__version__='$Revision: 1.9 $'[11:-2]
 
 class Persistent:
     """\
@@ -142,21 +145,21 @@ class Persistent:
 	    d['_p_setstate']=jar.setstate
 	    d['_p_changed']=0
 
-    def _p___reinit__(self,oid=None,jar=None,copy=None):
+    def _p___reinit__(self,copy=None):
 	if copy is None: return
 	d=self.__dict__
 	cd=copy.__dict__
-	if self._p_oid is None: d['_p_oid']=oid
-	if self._p_oid==oid:
-	    newstate={}
-	    for key in cd.keys():
-		if key[:3] != '_p_': newstate[key]=cd[key]
-	    for key in d.keys():
-		if key[:3] != '_p_': del d[key]
-	    d['_p_newstate']=newstate
-	    d['_p_jar']=jar
-	    d['_p_setstate']=jar.setstate
-	    d['_p_changed']=0
+	oid=self._p_oid
+	jar=self._p_jar
+	newstate={}
+	for key in cd.keys():
+	    if key[:3] != '_p_': newstate[key]=cd[key]
+	for key in d.keys():
+	    if key[:3] != '_p_': del d[key]
+	d['_p_newstate']=newstate
+	d['_p_jar']=jar
+	d['_p_setstate']=jar.setstate
+	d['_p_changed']=0
 
     def __setattr__(self,key,value):
 	' '
