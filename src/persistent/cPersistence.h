@@ -1,6 +1,6 @@
 /*
 
-  $Id: cPersistence.h,v 1.3 1997/04/27 09:18:23 jim Exp $
+  $Id: cPersistence.h,v 1.4 1997/05/19 13:49:36 jim Exp $
 
   Definitions to facilitate making cPersistent subclasses in C.
 
@@ -56,6 +56,9 @@
 
 
   $Log: cPersistence.h,v $
+  Revision 1.4  1997/05/19 13:49:36  jim
+  Added include of time.h.
+
   Revision 1.3  1997/04/27 09:18:23  jim
   Added to the CAPI to support subtypes (like Record) that want to
   extend attr functions.
@@ -73,6 +76,7 @@
 #define CPERSISTENCE_H
 
 #include "ExtensionClass.h"
+#include <time.h>
 
 #define cPersistent_HEAD   PyObject_HEAD \
   PyObject *jar; \
