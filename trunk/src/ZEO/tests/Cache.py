@@ -42,7 +42,7 @@ class TransUndoStorageWithCache:
         t.note('undo1')
         self._storage.tpc_begin(t)
 
-        tid, oids = self._storage.transactionalUndo(tid, t)
+        tid, oids = self._storage.undo(tid, t)
 
         # Make sure this doesn't load invalid data into the cache
         self._storage.load(oid, '')
