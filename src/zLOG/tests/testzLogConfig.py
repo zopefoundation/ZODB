@@ -1,6 +1,6 @@
 ##############################################################################
 #
-# Copyright (c) 2002, 2003 Zope Corporation and Contributors.
+# Copyright (c) 2002 Zope Corporation and Contributors.
 # All Rights Reserved.
 #
 # This software is subject to the provisions of the Zope Public License,
@@ -16,6 +16,7 @@
 
 import cStringIO as StringIO
 import logging
+import tempfile
 import unittest
 
 import ZConfig
@@ -64,18 +65,38 @@ class TestzLOGConfig(unittest.TestCase):
         self.assert_(conf.logger is None)
 
     def test_config_without_handlers(self):
-        conf = self.get_config("<logger/>")
-        self.assert_(conf.logger is not None)
-        self.assertEqual(conf.logger.level, logging.INFO)
-        logger = conf.logger()
-        self.assert_(isinstance(logger, logging.Logger))
+        logger = self.check_simple_logger("<logger/>")
         # Make sure there's a NullHandler, since a warning gets
         # printed if there are no handlers:
         self.assertEqual(len(logger.handlers), 1)
         self.assert_(isinstance(logger.handlers[0],
                                 zLOG.LogHandlers.NullHandler))
 
+    def test_with_logfile(self):
+        fn = tempfile.mktemp()
+        logger = self.check_simple_logger("<logger>\n"
+                                          "  <logfile>\n"
+                                          "    path %s\n"
+                                          "    level debug\n"
+                                          "  </logfile>\n"
+                                          "</logger>" % fn)
+        # Make sure there's exactly one handler, since a warning gets
+        # printed if there are no handlers, and we don't want an
+        # unnecessary NullHandler getting added:
+        self.assertEqual(len(logger.handlers), 1)
+        self.assertEqual(logger.handlers[0].level, logging.DEBUG)
+        self.assert_(isinstance(logger.handlers[0],
+                                zLOG.LogHandlers.FileHandler))
+
     # XXX need to make sure each loghandler datatype gets exercised.
+
+    def check_simple_logger(self, text, level=logging.NOTSET):
+        conf = self.get_config(text)
+        self.assertEqual(conf.logger.level, level)
+        self.assert_(conf.logger is not None)
+        logger = conf.logger()
+        self.assert_(isinstance(logger, logging.Logger))
+        return logger
 
 
 def test_suite():
