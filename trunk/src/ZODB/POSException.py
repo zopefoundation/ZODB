@@ -13,8 +13,8 @@
 ##############################################################################
 """BoboPOS-defined exceptions
 
-$Id: POSException.py,v 1.13 2002/08/22 14:56:31 bwarsaw Exp $"""
-__version__ = '$Revision: 1.13 $'.split()[-2:][0]
+$Id: POSException.py,v 1.14 2002/09/05 10:19:40 htrd Exp $"""
+__version__ = '$Revision: 1.14 $'.split()[-2:][0]
 
 from string import join
 from types import StringType, DictType
@@ -103,6 +103,24 @@ class ConflictError(TransactionError):
 
     def get_serials(self):
         return self.serials
+
+class DanglingReferenceError(TransactionError):
+    """The transaction stored an object A containing a reference to another
+    object B, but B does not exist
+
+    Instance attributes:
+
+    Aoid: oid of the object being written
+
+    Boid: referenced oid that does not have a corresponding object
+    """
+
+    def __init__(self,Aoid,Boid):
+        self.Aoid = Aoid
+        self.Boid = Boid
+
+    def __str__(self):
+        return "from %r to %r" % (self.Aoid,self.Boid)
 
 
 class ReadConflictError(ConflictError):
