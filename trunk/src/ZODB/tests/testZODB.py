@@ -18,7 +18,7 @@ import unittest
 import ZODB
 import ZODB.FileStorage
 from ZODB.PersistentMapping import PersistentMapping
-from ZODB.POSException import ReadConflictError
+from ZODB.POSException import ReadConflictError, ConflictError
 from ZODB.tests.StorageTestBase import removefs
 from Persistence import Persistent
 
@@ -229,17 +229,17 @@ class ZODBTests(unittest.TestCase):
             obj.child1
         cn2.getTransaction().abort()
 
-    def testReadConflictIgnored(self):
+    def checkReadConflictIgnored(self):
         # Test that an application that catches a read conflict and
         # continues can not commit the transaction later.
         root = self._db.open().root()
-        root["real_data"] = real_data = PersistentDict()
-        root["index"] = index = PersistentDict()
+        root["real_data"] = real_data = PersistentMapping()
+        root["index"] = index = PersistentMapping()
 
-        real_data["a"] = PersistentDict({"indexed_value": 0})
-        real_data["b"] = PersistentDict({"indexed_value": 1})
-        index[1] = PersistentDict({"b": 1})
-        index[0] = PersistentDict({"a": 1})
+        real_data["a"] = PersistentMapping({"indexed_value": 0})
+        real_data["b"] = PersistentMapping({"indexed_value": 1})
+        index[1] = PersistentMapping({"b": 1})
+        index[0] = PersistentMapping({"a": 1})
         get_transaction().commit()
 
         # load some objects from one connection
@@ -252,7 +252,7 @@ class ZODBTests(unittest.TestCase):
         real_data["b"]["indexed_value"] = 0
         del index[1]["b"]
         index[0]["b"] = 1
-        cn2.getTransaction().commit()
+        get_transaction().commit()
 
         del real_data2["a"]
         try:
@@ -271,7 +271,7 @@ class ZODBTests(unittest.TestCase):
         self.assert_(not index2[0]._p_changed)
         self.assert_(not index2[1]._p_changed)
 
-        self.assertRaises(ConflictError, get_transaction().commit)
+        self.assertRaises(ConflictError, cn2.getTransaction().commit)
         get_transaction().abort()
 
     def checkIndependent(self):
