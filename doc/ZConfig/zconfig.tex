@@ -24,7 +24,7 @@ configuration mechanism is itself configured using a schema specification
 written in XML.
 
 \begin{notice}[warning]
-  ZConfig have changed a great deal since this document was initially
+  ZConfig has changed a great deal since this document was initially
   written, and parts of this have not yet been updated, though
   portions have been.  Please be patient as the documentation catches
   up.
@@ -484,6 +484,13 @@ The following exceptions are defined by this package:
 \declaremodule{}{ZConfig.Context}
 \modulesynopsis{Application context.}
 
+\begin{notice}[warning]
+  This module is provided for backward compatibility.  It may be
+  removed at some point in the future.  The configuration objects
+  returned by methods of the \class{Context} object described here are
+  very different from the schema-based configuration objects.
+\end{notice}
+
 The \module{ZConfig} package uses the idea of an \dfn{application
 context} to consolidate the connections between the different
 components of the package.  Most applications should not need to worry
@@ -592,8 +599,17 @@ taht is defined for the syntax implemented by the alternate parser.
 \modulesynopsis{Standard section objects.}
 
 
+\begin{notice}[warning]
+  This module is provided for backward compatibility.  It may be
+  removed at some point in the future.  It should really be considered
+  an implementation detail of the configuration objects returned by
+  methods of the \class{Context} object defined in the
+  \refmodule{ZConfig.Context} module.
+\end{notice}
+
 The \module{ZConfig.Config} module provides an implementation of the
-standard key-value section.
+standard key-value section for configurations loaded by the
+\module{ZConfig.Context} module.
 
 \begin{classdesc}{Configuration}{type, name, url}
   A typed section with an optional name.  The type is given by the
