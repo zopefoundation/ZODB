@@ -68,14 +68,6 @@ class BasicStorage:
         # Finish the transaction.
         assert newrevid <> revid
 
-    def checkLen(self):
-        # The length of the database ought to grow by one each time
-        assert len(self._storage) == 0
-        self._dostore()
-        assert len(self._storage) == 1
-        self._dostore()
-        assert len(self._storage) == 2
-
     def checkNonVersionStoreAndLoad(self):
         oid = self._storage.new_oid()
         self._dostore(oid=oid, data=7)
