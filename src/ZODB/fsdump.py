@@ -1,6 +1,6 @@
 from ZODB.FileStorage import FileIterator
 from ZODB.TimeStamp import TimeStamp
-from ZODB.utils import U64
+from ZODB.utils import u64
 from ZODB.tests.StorageTestBase import zodb_unpickle
 
 from cPickle import Unpickler
@@ -42,10 +42,10 @@ def fsdump(path, file=None, with_offset=1):
     for trans in iter:
         if with_offset:
             print >> file, "Trans #%05d tid=%016x time=%s offset=%d" % \
-                  (i, U64(trans.tid), str(TimeStamp(trans.tid)), trans._pos)
+                  (i, u64(trans.tid), str(TimeStamp(trans.tid)), trans._pos)
         else:
             print >> file, "Trans #%05d tid=%016x time=%s" % \
-                  (i, U64(trans.tid), str(TimeStamp(trans.tid)))
+                  (i, u64(trans.tid), str(TimeStamp(trans.tid)))
         print >> file, "\tstatus=%s user=%s description=%s" % \
               (`trans.status`, trans.user, trans.description)
         j = 0
@@ -67,11 +67,11 @@ def fsdump(path, file=None, with_offset=1):
             if rec.data_txn:
                 # XXX It would be nice to print the transaction number
                 # (i) but it would be too expensive to keep track of.
-                bp = "bp=%016x" % U64(rec.data_txn)
+                bp = "bp=%016x" % u64(rec.data_txn)
             else:
                 bp = ""
             print >> file, "  data #%05d oid=%016x %sclass=%s %s" % \
-                  (j, U64(rec.oid), version, fullclass, bp)
+                  (j, u64(rec.oid), version, fullclass, bp)
             j += 1
         print >> file
         i += 1
@@ -83,7 +83,7 @@ from ZODB.FileStorage import DATA_HDR, DATA_HDR_LEN
 
 def fmt(p64):
     # Return a nicely formatted string for a packaged 64-bit value
-    return "%016x" % U64(p64)
+    return "%016x" % u64(p64)
 
 class Dumper:
     """A very verbose dumper for debuggin FileStorage problems."""
@@ -105,12 +105,12 @@ class Dumper:
         if not h:
             return False
         tid, stlen, status, ul, dl, el = struct.unpack(TRANS_HDR, h)
-        end = pos + U64(stlen)
+        end = pos + u64(stlen)
         print >> self.dest, "=" * 60
         print >> self.dest, "offset: %d" % pos
         print >> self.dest, "end pos: %d" % end
         print >> self.dest, "transaction id: %s" % fmt(tid)
-        print >> self.dest, "trec len: %d" % U64(stlen)
+        print >> self.dest, "trec len: %d" % u64(stlen)
         print >> self.dest, "status: %r" % status
         user = descr = extra = ""
         if ul:
@@ -125,7 +125,7 @@ class Dumper:
         while self.file.tell() < end:
             self.dump_data(pos)
         stlen2 = self.file.read(8)
-        print >> self.dest, "redundant trec len: %d" % U64(stlen2)
+        print >> self.dest, "redundant trec len: %d" % u64(stlen2)
         return True
 
     def dump_data(self, tloc):
@@ -133,23 +133,23 @@ class Dumper:
         h = self.file.read(DATA_HDR_LEN)
         assert len(h) == DATA_HDR_LEN
         oid, revid, sprev, stloc, vlen, sdlen = struct.unpack(DATA_HDR, h)
-        dlen = U64(sdlen)
+        dlen = u64(sdlen)
         print >> self.dest, "-" * 60
         print >> self.dest, "offset: %d" % pos
         print >> self.dest, "oid: %s" % fmt(oid)
         print >> self.dest, "revid: %s" % fmt(revid)
-        print >> self.dest, "previous record offset: %d" % U64(sprev)
-        print >> self.dest, "transaction offset: %d" % U64(stloc)
+        print >> self.dest, "previous record offset: %d" % u64(sprev)
+        print >> self.dest, "transaction offset: %d" % u64(stloc)
         if vlen:
             pnv = self.file.read(8)
             sprevdata = self.file.read(8)
             version = self.file.read(vlen)
             print >> self.dest, "version: %r" % version
-            print >> self.dest, "non-version data offset: %d" % U64(pnv)
+            print >> self.dest, "non-version data offset: %d" % u64(pnv)
             print >> self.dest, \
-                  "previous version data offset: %d" % U64(sprevdata)
+                  "previous version data offset: %d" % u64(sprevdata)
         print >> self.dest, "len(data): %d" % dlen
         self.file.read(dlen)
         if not dlen:
             sbp = self.file.read(8)
-            print >> self.dest, "backpointer: %d" % U64(sbp)
+            print >> self.dest, "backpointer: %d" % u64(sbp)
