@@ -2,6 +2,7 @@
 # must pass these tests.
 
 import pickle
+import types
 from ZODB import POSException
 
 ZERO = '\0'*8
@@ -9,6 +10,41 @@ ZERO = '\0'*8
 
 
 class TransactionalUndoStorage:
+
+    def _transaction_begin(self):
+        self.__serials = {}
+
+    def _transaction_store(self, oid, rev, data, vers, trans):
+        r = self._storage.store(oid, rev, data, vers, trans)
+        if r:
+            if type(r) == types.StringType:
+                self.__oids[oid] = r
+            else:
+                for oid, serial in r:
+                    self.__serials[oid] = serial
+
+    def _transaction_vote(self, trans):
+        r = self._storage.tpc_vote(trans)
+        if r:
+            for oid, serial in r:
+                self.__serials[oid] = serial
+
+    def _transaction_newserial(self, oid):
+        return self.__serials[oid]
+
+    def _multi_obj_transaction(self, objs):
+        newrevs = {}
+        self._storage.tpc_begin(self._transaction)
+        self._transaction_begin()
+        for oid, rev, data in objs:
+            self._transaction_store(oid, rev, data, '', self._transaction)
+            newrevs[oid] = None
+        self._transaction_vote(self._transaction)
+        self._storage.tpc_finish(self._transaction)
+        for oid in newrevs.keys():
+            newrevs[oid] = self._transaction_newserial(oid)
+        return newrevs
+    
     def checkSimpleTransactionalUndo(self):
         oid = self._storage.new_oid()
         revid = self._dostore(oid, data=23)
@@ -128,18 +164,24 @@ class TransactionalUndoStorage:
         revid1 = revid2 = ZERO
         # Store two objects in the same transaction
         self._storage.tpc_begin(self._transaction)
-        revid1 = self._storage.store(oid1, revid1, p31, '', self._transaction)
-        revid2 = self._storage.store(oid2, revid2, p51, '', self._transaction)
+        self._transaction_begin()
+        self._transaction_store(oid1, revid1, p31, '', self._transaction)
+        self._transaction_store(oid2, revid2, p51, '', self._transaction)
         # Finish the transaction
-        self._storage.tpc_vote(self._transaction)
+        self._transaction_vote(self._transaction)
+        revid1 = self._transaction_newserial(oid1)
+        revid2 = self._transaction_newserial(oid2)
         self._storage.tpc_finish(self._transaction)
         assert revid1 == revid2
         # Update those same two objects
         self._storage.tpc_begin(self._transaction)
-        revid1 = self._storage.store(oid1, revid1, p32, '', self._transaction)
-        revid2 = self._storage.store(oid2, revid2, p52, '', self._transaction)
+        self._transaction_begin()
+        self._transaction_store(oid1, revid1, p32, '', self._transaction)
+        self._transaction_store(oid2, revid2, p52, '', self._transaction)
         # Finish the transaction
-        self._storage.tpc_vote(self._transaction)
+        self._transaction_vote(self._transaction)
+        revid1 = self._transaction_newserial(oid1)
+        revid2 = self._transaction_newserial(oid2)
         self._storage.tpc_finish(self._transaction)
         assert revid1 == revid2
         # Make sure the objects have the current value
@@ -169,27 +211,22 @@ class TransactionalUndoStorage:
         oid2 = self._storage.new_oid()
         revid1 = revid2 = ZERO
         # Store two objects in the same transaction
-        self._storage.tpc_begin(self._transaction)
-        revid1 = self._storage.store(oid1, revid1, p30, '', self._transaction)
-        revid2 = self._storage.store(oid2, revid2, p50, '', self._transaction)
-        # Finish the transaction
-        self._storage.tpc_vote(self._transaction)
-        self._storage.tpc_finish(self._transaction)
-        assert revid1 == revid2
+        d = self._multi_obj_transaction([(oid1, revid1, p30),
+                                         (oid2, revid2, p50),
+                                         ])
+        assert d[oid1] == d[oid2]
         # Update those same two objects
-        self._storage.tpc_begin(self._transaction)
-        revid1 = self._storage.store(oid1, revid1, p31, '', self._transaction)
-        revid2 = self._storage.store(oid2, revid2, p51, '', self._transaction)
-        # Finish the transaction
-        self._storage.tpc_vote(self._transaction)
-        self._storage.tpc_finish(self._transaction)
+        d = self._multi_obj_transaction([(oid1, d[oid1], p31),
+                                         (oid2, d[oid2], p51),
+                                         ])
+        assert d[oid1] == d[oid2]
         # Update those same two objects
-        self._storage.tpc_begin(self._transaction)
-        revid1 = self._storage.store(oid1, revid1, p32, '', self._transaction)
-        revid2 = self._storage.store(oid2, revid2, p52, '', self._transaction)
-        # Finish the transaction
-        self._storage.tpc_vote(self._transaction)
-        self._storage.tpc_finish(self._transaction)
+        d = self._multi_obj_transaction([(oid1, d[oid1], p32),
+                                         (oid2, d[oid2], p52),
+                                         ])
+        assert d[oid1] == d[oid2]
+        revid1 = self._transaction_newserial(oid1)
+        revid2 = self._transaction_newserial(oid2)
         assert revid1 == revid2
         # Make sure the objects have the current value
         data, revid1 = self._storage.load(oid1, '')
@@ -206,8 +243,8 @@ class TransactionalUndoStorage:
         self._storage.tpc_vote(self._transaction)
         self._storage.tpc_finish(self._transaction)
         # We get the finalization stuff called an extra time:
-        self._storage.tpc_vote(self._transaction)
-        self._storage.tpc_finish(self._transaction)
+##        self._storage.tpc_vote(self._transaction)
+##        self._storage.tpc_finish(self._transaction)
         assert len(oids) == 2
         assert len(oids1) == 2
         assert oid1 in oids and oid2 in oids
@@ -239,11 +276,14 @@ class TransactionalUndoStorage:
         revid2 = self._dostore(oid2, data=51)
         # Update those same two objects
         self._storage.tpc_begin(self._transaction)
-        revid1 = self._storage.store(oid1, revid1, p32, '', self._transaction)
-        revid2 = self._storage.store(oid2, revid2, p52, '', self._transaction)
+        self._transaction_begin()
+        self._transaction_store(oid1, revid1, p32, '', self._transaction)
+        self._transaction_store(oid2, revid2, p52, '', self._transaction)
         # Finish the transaction
-        self._storage.tpc_vote(self._transaction)
+        self._transaction_vote(self._transaction)
         self._storage.tpc_finish(self._transaction)
+        revid1 = self._transaction_newserial(oid1)
+        revid2 = self._transaction_newserial(oid2)
         assert revid1 == revid2
         # Now attempt to undo the transaction containing two objects
         info = self._storage.undoInfo()
@@ -261,11 +301,14 @@ class TransactionalUndoStorage:
         # Like the above, but this time, the second transaction contains only
         # one object.
         self._storage.tpc_begin(self._transaction)
-        revid1 = self._storage.store(oid1, revid1, p33, '', self._transaction)
-        revid2 = self._storage.store(oid2, revid2, p53, '', self._transaction)
+        self._transaction_begin()
+        self._transaction_store(oid1, revid1, p33, '', self._transaction)
+        self._transaction_store(oid2, revid2, p53, '', self._transaction)
         # Finish the transaction
-        self._storage.tpc_vote(self._transaction)
+        self._transaction_vote(self._transaction)
         self._storage.tpc_finish(self._transaction)
+        revid1 = self._transaction_newserial(oid1)
+        revid2 = self._transaction_newserial(oid2)
         assert revid1 == revid2
         # Update in different transactions
         revid1 = self._dostore(oid1, revid=revid1, data=34)
@@ -309,10 +352,13 @@ class TransactionalUndoStorage:
         p81, p82, p91, p92 = map(pickle.dumps, (81, 82, 91, 92))
 
         self._storage.tpc_begin(self._transaction)
-        revid1 = self._storage.store(oid1, revid1, p81, '', self._transaction)
-        revid2 = self._storage.store(oid2, revid2, p91, '', self._transaction)
-        self._storage.tpc_vote(self._transaction)
+        self._transaction_begin()
+        self._transaction_store(oid1, revid1, p81, '', self._transaction)
+        self._transaction_store(oid2, revid2, p91, '', self._transaction)
+        self._transaction_vote(self._transaction)
         self._storage.tpc_finish(self._transaction)
+        revid1 = self._transaction_newserial(oid1)
+        revid2 = self._transaction_newserial(oid2)
         assert revid1 == revid2
         # Make sure the objects have the expected values
         data, revid_11 = self._storage.load(oid1, '')
