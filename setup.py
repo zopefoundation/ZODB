@@ -107,17 +107,17 @@ TimeStamp = Extension(name = 'persistent.TimeStamp',
                       sources= ['src/persistent/TimeStamp.c']
                       )
 
-coptimizations = Extension(name = 'ZODB.coptimizations',
-                           include_dirs = include,
-                           sources= ['src/ZODB/coptimizations.c']
-                           )
+##coptimizations = Extension(name = 'ZODB.coptimizations',
+##                           include_dirs = include,
+##                           sources= ['src/ZODB/coptimizations.c']
+##                           )
 
 winlock = Extension(name = 'ZODB.winlock',
                     include_dirs = include,
                     sources = ['src/ZODB/winlock.c']
                     )
 
-exts += [cPersistence, cPickleCache, TimeStamp, coptimizations, winlock]
+exts += [cPersistence, cPickleCache, TimeStamp, winlock]
 
 packages = ["BTrees", "BTrees.tests",
             "ZEO", "ZEO.auth", "ZEO.zrpc", "ZEO.tests",
