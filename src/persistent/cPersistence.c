@@ -14,7 +14,7 @@
 static char cPersistence_doc_string[] = 
 "Defines Persistent mixin class for persistent objects.\n"
 "\n"
-"$Id: cPersistence.c,v 1.53 2002/04/02 06:01:22 jeremy Exp $\n";
+"$Id: cPersistence.c,v 1.54 2002/04/02 11:11:45 htrd Exp $\n";
 
 #include "cPersistence.h"
 
@@ -190,9 +190,8 @@ deallocated(cPersistentObject *self)
 	/* XXX should just add this to the C API struct */
 	v = PyObject_CallMethod((PyObject *)self->cache, 
 				"_oid_unreferenced", "O", self->oid);
-	/* XXX What does the comment below mean? */
         if (v == NULL)
-	    PyErr_Clear(); /* and explode later */
+	    PyErr_Clear(); /* I dont think this should ever happen */
 	else
 	    Py_DECREF(v);
     }
