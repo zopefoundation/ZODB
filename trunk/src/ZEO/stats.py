@@ -128,15 +128,21 @@ def main():
 
     # Read file, gathering statistics, and printing each record if verbose
     rt0 = time.time()
+    # bycode -- map code to count of occurrences
     bycode = {}
+    # records -- number of records
     records = 0
+    # version -- number of records with versions
     versions = 0
     t0 = te = None
+    # datarecords -- number of records with dlen set
     datarecords = 0
     datasize = 0L
-    file0 = file1 = 0
+    # oids -- maps oid to number of times it was loaded
     oids = {}
+    # bysize -- maps data size to number of loads
     bysize = {}
+    # bysize -- maps data size to number of writes
     bysizew = {}
     total_loads = 0
     byinterval = {}
@@ -157,12 +163,12 @@ def main():
                 if not quiet:
                     print "Skipping 8 bytes at offset", offset-8
                 continue
-            r = f_read(10)
+            r = f_read(18)
             if len(r) < 10:
                 break
             offset += 10
             records += 1
-            oidlen, serial = struct_unpack(">H8s", r)
+            oidlen, start_tid, end_tid = struct_unpack(">H8s8s", r)
             oid = f_read(oidlen)
             if len(oid) != oidlen:
                 break
@@ -187,11 +193,6 @@ def main():
             if code & 0x80:
                 version = 'V'
                 versions += 1
-            current = code & 1
-            if current:
-                file1 += 1
-            else:
-                file0 += 1
             code = code & 0x7e
             bycode[code] = bycode.get(code, 0) + 1
             byinterval[code] = byinterval.get(code, 0) + 1
@@ -199,22 +200,23 @@ def main():
                 if code & 0x70 == 0x20: # All loads
                     bysize[dlen] = d = bysize.get(dlen) or {}
                     d[oid] = d.get(oid, 0) + 1
-                elif code == 0x3A: # Update
+                elif code & 0x70 == 0x50: # All stores
                     bysizew[dlen] = d = bysizew.get(dlen) or {}
                     d[oid] = d.get(oid, 0) + 1
             if verbose:
-                print "%s %d %02x %s %016x %1s %s" % (
+                print "%s %d %02x %s %016x %016x %1s %s" % (
                     time.ctime(ts)[4:-5],
                     current,
                     code,
                     oid_repr(oid),
-                    U64(serial),
+                    U64(start_tid),
+                    U64(end_tid),
                     version,
                     dlen and str(dlen) or "")
             if code & 0x70 == 0x20:
                 oids[oid] = oids.get(oid, 0) + 1
                 total_loads += 1
-            if code in (0x00, 0x70):
+            if code == 0x00:
                 if not quiet:
                     dumpbyinterval(byinterval, h0, he)
                 byinterval = {}
@@ -222,10 +224,7 @@ def main():
                 h0 = he = ts
                 if not quiet:
                     print time.ctime(ts)[4:-5],
-                    if code == 0x00:
-                        print '='*20, "Restart", '='*20
-                    else:
-                        print '-'*20, "Flip->%d" % current, '-'*20
+                    print '='*20, "Restart", '='*20
     except KeyboardInterrupt:
         print "\nInterrupted.  Stats so far:\n"
 
@@ -248,8 +247,6 @@ def main():
         print "First time: %s" % time.ctime(t0)
         print "Last time:  %s" % time.ctime(te)
         print "Duration:   %s seconds" % addcommas(te-t0)
-        print "File stats: %s in file 0; %s in file 1" % (
-            addcommas(file0), addcommas(file1))
         print "Data recs:  %s (%.1f%%), average size %.1f KB" % (
             addcommas(datarecords),
             100.0 * datarecords / records,
@@ -314,7 +311,7 @@ def dumpbyinterval(byinterval, h0, he):
         if code & 0x70 == 0x20:
             n = byinterval[code]
             loads += n
-            if code in (0x2A, 0x2C, 0x2E):
+            if code in (0x22, 0x26):
                 hits += n
     if not loads:
         return
@@ -333,7 +330,7 @@ def hitrate(bycode):
         if code & 0x70 == 0x20:
             n = bycode[code]
             loads += n
-            if code in (0x2A, 0x2C, 0x2E):
+            if code in (0x22, 0x26):
                 hits += n
     if loads:
         return 100.0 * hits / loads
@@ -376,31 +373,18 @@ explain = {
     0x00: "_setup_trace (initialization)",
 
     0x10: "invalidate (miss)",
-    0x1A: "invalidate (hit, version, writing 'n')",
-    0x1C: "invalidate (hit, writing 'i')",
+    0x1A: "invalidate (hit, version)",
+    0x1C: "invalidate (hit, saving non-current)",
 
     0x20: "load (miss)",
-    0x22: "load (miss, version, status 'n')",
-    0x24: "load (miss, deleting index entry)",
-    0x26: "load (miss, no non-version data)",
-    0x28: "load (miss, version mismatch, no non-version data)",
-    0x2A: "load (hit, returning non-version data)",
-    0x2C: "load (hit, version mismatch, returning non-version data)",
-    0x2E: "load (hit, returning version data)",
+    0x22: "load (hit)",
+    0x24: "load (non-current, miss)",
+    0x26: "load (non-current, hit)",
 
-    0x3A: "update",
+    0x50: "store (version)",
+    0x52: "store (current, non-version)",
+    0x54: "store (non-current)",
 
-    0x40: "modifiedInVersion (miss)",
-    0x4A: "modifiedInVersion (hit, return None, status 'n')",
-    0x4C: "modifiedInVersion (hit, return '')",
-    0x4E: "modifiedInVersion (hit, return version)",
-
-    0x5A: "store (non-version data present)",
-    0x5C: "store (only version data present)",
-
-    0x6A: "_copytocurrent",
-
-    0x70: "checkSize (cache flip)",
     }
 
 if __name__ == "__main__":

@@ -19,9 +19,6 @@ method _dostore() which performs a complete store transaction for a
 single object revision.
 """
 
-import errno
-import os
-import string
 import sys
 import time
 import types
@@ -94,8 +91,7 @@ def zodb_unpickle(data):
         try:
             klass = ns[klassname]
         except KeyError:
-            sys.stderr.write("can't find %s in %s" % (klassname,
-                                                      repr(ns)))
+            print >> sys.stderr, "can't find %s in %r" % (klassname, ns)
         inst = klass()
     else:
         raise ValueError, "expected class info: %s" % repr(klass_info)
@@ -139,16 +135,6 @@ def handle_serials(oid, *args):
 def import_helper(name):
     __import__(name)
     return sys.modules[name]
-
-def removefs(base):
-    """Remove all files created by FileStorage with path base."""
-    for ext in '', '.old', '.tmp', '.lock', '.index', '.pack':
-        path = base + ext
-        try:
-            os.remove(path)
-        except os.error, err:
-            if err[0] != errno.ENOENT:
-                raise
 
 
 class StorageTestBase(unittest.TestCase):
@@ -217,25 +203,26 @@ class StorageTestBase(unittest.TestCase):
 
     # The following methods depend on optional storage features.
 
-    def _undo(self, tid, oid=None):
+    def _undo(self, tid, expected_oids=None, note=None):
         # Undo a tid that affects a single object (oid).
         # XXX This is very specialized
         t = Transaction()
-        t.note("undo")
+        t.note(note or "undo")
         self._storage.tpc_begin(t)
-        oids = self._storage.transactionalUndo(tid, t)
+        tid, oids = self._storage.transactionalUndo(tid, t)
         self._storage.tpc_vote(t)
         self._storage.tpc_finish(t)
-        if oid is not None:
-            self.assertEqual(len(oids), 1)
-            self.assertEqual(oids[0], oid)
+        if expected_oids is not None:
+            self.assertEqual(len(oids), len(expected_oids), repr(oids))
+            for oid in expected_oids:
+                self.assert_(oid in oids)
         return self._storage.lastTransaction()
 
     def _commitVersion(self, src, dst):
         t = Transaction()
         t.note("commit %r to %r" % (src, dst))
         self._storage.tpc_begin(t)
-        oids = self._storage.commitVersion(src, dst, t)
+        tid, oids = self._storage.commitVersion(src, dst, t)
         self._storage.tpc_vote(t)
         self._storage.tpc_finish(t)
         return oids
@@ -244,7 +231,7 @@ class StorageTestBase(unittest.TestCase):
         t = Transaction()
         t.note("abort %r" % ver)
         self._storage.tpc_begin(t)
-        oids = self._storage.abortVersion(ver, t)
+        tid, oids = self._storage.abortVersion(ver, t)
         self._storage.tpc_vote(t)
         self._storage.tpc_finish(t)
         return oids

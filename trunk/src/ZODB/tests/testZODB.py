@@ -16,7 +16,6 @@ import unittest
 import ZODB
 import ZODB.FileStorage
 from ZODB.POSException import ReadConflictError, ConflictError
-from ZODB.tests.StorageTestBase import removefs
 from persistent import Persistent
 from persistent.mapping import PersistentMapping
 
@@ -53,7 +52,7 @@ class ZODBTests(unittest.TestCase):
 
     def tearDown(self):
         self._db.close()
-        removefs("ZODBTests.fs")
+        self._storage.cleanup()
 
     def checkExportImport(self, abort_it=0, dup_name='test_duplicate'):
         self.populate()

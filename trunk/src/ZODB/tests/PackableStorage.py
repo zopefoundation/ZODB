@@ -121,9 +121,6 @@ class PackableStorageBase:
             return u.load()
         return loads
 
-
-
-class PackableStorage(PackableStorageBase):
     def _initroot(self):
         try:
             self._storage.load(ZERO, '')
@@ -141,6 +138,8 @@ class PackableStorage(PackableStorageBase):
             self._storage.tpc_vote(t)
             self._storage.tpc_finish(t)
 
+class PackableStorage(PackableStorageBase):
+
     def checkPackEmptyStorage(self):
         self._storage.pack(time.time(), referencesf)
 
@@ -151,6 +150,63 @@ class PackableStorage(PackableStorageBase):
     def checkPackYesterday(self):
         self._initroot()
         self._storage.pack(time.time() - 10000, referencesf)
+
+    def _PackWhileWriting(self, pack_now=0):
+        # A storage should allow some reading and writing during
+        # a pack.  This test attempts to exercise locking code
+        # in the storage to test that it is safe.  It generates
+        # a lot of revisions, so that pack takes a long time.
+
+        db = DB(self._storage)
+        conn = db.open()
+        root = conn.root()
+
+        for i in range(10):
+            root[i] = MinPO(i)
+        get_transaction().commit()
+
+        snooze()
+        packt = time.time()
+
+        choices = range(10)
+        for dummy in choices:
+            for i in choices:
+                root[i].value = MinPO(i)
+                get_transaction().commit()
+
+        threads = [ClientThread(db, choices) for i in range(4)]
+        for t in threads:
+            t.start()
+
+        if pack_now:
+            db.pack(time.time())
+        else:
+            db.pack(packt)
+
+        for t in threads:
+            t.join(30)
+        for t in threads:
+            t.join(1)
+            self.assert_(not t.isAlive())
+
+        # Iterate over the storage to make sure it's sane, but not every
+        # storage supports iterators.
+        if not hasattr(self._storage, "iterator"):
+            return
+
+        iter = self._storage.iterator()
+        for txn in iter:
+            for data in txn:
+                pass
+        iter.close()
+
+    def checkPackWhileWriting(self):
+        self._PackWhileWriting(pack_now=0)
+
+    def checkPackNowWhileWriting(self):
+        self._PackWhileWriting(pack_now=1)
+
+class PackableUndoStorage(PackableStorageBase):
 
     def checkPackAllRevisions(self):
         self._initroot()
@@ -380,61 +436,6 @@ class PackableStorage(PackableStorageBase):
         conn.sync()
 
         eq(root['obj'].value, 7)
-
-    def _PackWhileWriting(self, pack_now=0):
-        # A storage should allow some reading and writing during
-        # a pack.  This test attempts to exercise locking code
-        # in the storage to test that it is safe.  It generates
-        # a lot of revisions, so that pack takes a long time.
-
-        db = DB(self._storage)
-        conn = db.open()
-        root = conn.root()
-
-        for i in range(10):
-            root[i] = MinPO(i)
-        get_transaction().commit()
-
-        snooze()
-        packt = time.time()
-
-        choices = range(10)
-        for dummy in choices:
-            for i in choices:
-                root[i].value = MinPO(i)
-                get_transaction().commit()
-
-        threads = [ClientThread(db, choices) for i in range(4)]
-        for t in threads:
-            t.start()
-
-        if pack_now:
-            db.pack(time.time())
-        else:
-            db.pack(packt)
-
-        for t in threads:
-            t.join(30)
-        for t in threads:
-            t.join(1)
-            self.assert_(not t.isAlive())
-
-        # Iterate over the storage to make sure it's sane, but not every
-        # storage supports iterators.
-        if not hasattr(self._storage, "iterator"):
-            return
-
-        iter = self._storage.iterator()
-        for txn in iter:
-            for data in txn:
-                pass
-        iter.close()
-
-    def checkPackWhileWriting(self):
-        self._PackWhileWriting(pack_now=0)
-
-    def checkPackNowWhileWriting(self):
-        self._PackWhileWriting(pack_now=1)
 
     def checkPackUndoLog(self):
         self._initroot()

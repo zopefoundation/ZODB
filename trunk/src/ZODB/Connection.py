@@ -13,11 +13,19 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.104 2003/12/10 20:02:15 shane Exp $"""
+$Id: Connection.py,v 1.105 2003/12/24 16:02:00 jeremy Exp $"""
 
+import logging
 import sys
 import threading
 from time import time
+from types import ClassType
+
+_marker = object()
+
+def myhasattr(obj, attr):
+    # builtin hasattr() swallows exceptions
+    return getattr(obj, attr, _marker) is not _marker
 
 from persistent import PickleCache
 from zLOG import LOG, ERROR, BLATHER, WARNING
@@ -56,16 +64,19 @@ class Connection(ExportImport, object):
 
     The Connection manages movement of objects in and out of object storage.
     """
-    _tmp=None
-    _debug_info=()
-    _opened=None
-    _reset_counter = 0
+    _tmp = None
+    _debug_info = ()
+    _opened = None
+    _code_timestamp = 0
     _transaction = None
 
     def __init__(self, version='', cache_size=400,
-                 cache_deactivate_after=60):
+                 cache_deactivate_after=60, mvcc=True):
         """Create a new Connection"""
-        self._version=version
+
+        self._log = logging.getLogger("zodb.conn")
+
+        self._version = version
         self._cache = cache = PickleCache(self, cache_size)
         if version:
             # Caches for versions end up empty if the version
@@ -97,6 +108,16 @@ class Connection(ExportImport, object):
         self._invalidated = d = {}
         self._invalid = d.has_key
         self._conflicts = {}
+        self._noncurrent = {}
+
+        # If MVCC is enabled, then _mvcc is True and _txn_time stores
+        # the upper bound on transactions visible to this connection.
+        # That is, all object revisions must be written before _txn_time.
+        # If it is None, then the current revisions are acceptable.
+        # If the connection is in a version, mvcc will be disabled, because
+        # loadBefore() only returns non-version data.
+        self._mvcc = mvcc and not version
+        self._txn_time = None
 
     def getTransaction(self):
         t = self._transaction
@@ -216,11 +237,12 @@ class Connection(ExportImport, object):
         # Call the close callbacks.
         if self.__onCloseCallbacks is not None:
             for f in self.__onCloseCallbacks:
-                try: f()
-                except:
-                    f=getattr(f, 'im_self', f)
-                    LOG('ZODB',ERROR, 'Close callback failed for %s' % f,
-                        error=sys.exc_info())
+                try:
+                    f()
+                except: # except what?
+                    f = getattr(f, 'im_self', f)
+                    self._log.error("Close callback failed for %s", f,
+                                    sys.exc_info())
             self.__onCloseCallbacks = None
         self._storage = self._tmp = self.new_oid = self._opened = None
         self._debug_info = ()
@@ -303,8 +325,8 @@ class Connection(ExportImport, object):
         if tmp is None: return
         src=self._storage
 
-        LOG('ZODB', BLATHER,
-            'Commiting subtransaction of size %s' % src.getSize())
+        self._log.debug("Commiting subtransaction of size %s",
+                        src.getSize())
 
         self._storage=tmp
         self._tmp=None
@@ -363,7 +385,7 @@ class Connection(ExportImport, object):
     def isReadOnly(self):
         return self._storage.isReadOnly()
 
-    def invalidate(self, oids):
+    def invalidate(self, tid, oids):
         """Invalidate a set of oids.
 
         This marks the oid as invalid, but doesn't actually invalidate
@@ -372,6 +394,8 @@ class Connection(ExportImport, object):
         """
         self._inv_lock.acquire()
         try:
+            if self._txn_time is None:
+                self._txn_time = tid
             self._invalidated.update(oids)
         finally:
             self._inv_lock.release()
@@ -381,13 +405,15 @@ class Connection(ExportImport, object):
         try:
             self._cache.invalidate(self._invalidated)
             self._invalidated.clear()
+            self._txn_time = None
         finally:
             self._inv_lock.release()
         # Now is a good time to collect some garbage
         self._cache.incrgc()
 
     def modifiedInVersion(self, oid):
-        try: return self._db.modifiedInVersion(oid)
+        try:
+            return self._db.modifiedInVersion(oid)
         except KeyError:
             return self._version
 
@@ -411,53 +437,93 @@ class Connection(ExportImport, object):
         if self._storage is None:
             msg = ("Shouldn't load state for %s "
                    "when the connection is closed" % oid_repr(oid))
-            LOG('ZODB', ERROR, msg)
+            self._log.error(msg)
             raise RuntimeError(msg)
 
         try:
-            # Avoid reading data from a transaction that committed
-            # after the current transaction started, as that might
-            # lead to mixing of cached data from earlier transactions
-            # and new inconsistent data.
-            #
-            # Wait for check until after data is loaded from storage
-            # to avoid time-of-check to time-of-use race.
-            p, serial = self._storage.load(oid, self._version)
-            self._load_count = self._load_count + 1
-            invalid = self._is_invalidated(obj)
-            self._reader.setGhostState(obj, p)
-            obj._p_serial = serial
-            if invalid:
-                self._handle_independent(obj)
+            self._setstate(obj)
         except ConflictError:
             raise
         except:
-            LOG('ZODB', ERROR,
-                "Couldn't load state for %s" % oid_repr(oid),
-                error=sys.exc_info())
+            self._log.error("Couldn't load state for %s", oid_repr(oid),
+                            exc_info=sys.exc_info())
             raise
 
-    def _is_invalidated(self, obj):
-        # Helper method for setstate() covers three cases:
-        # returns false if obj is valid
-        # returns true if obj was invalidation, but is independent
-        # otherwise, raises ConflictError for invalidated objects
+    def _setstate(self, obj):
+        # Helper for setstate(), which provides logging of failures.
+
+        # The control flow is complicated here to avoid loading an
+        # object revision that we are sure we aren't going to use.  As
+        # a result, invalidation tests occur before and after the
+        # load.  We can only be sure about invalidations after the
+        # load.
+
+        # If an object has been invalidated, there are several cases
+        # to consider:
+        # 1. Check _p_independent()
+        # 2. Try MVCC
+        # 3. Raise ConflictError.
+
+        # Does anything actually use _p_independent()?  It would simplify
+        # the code if we could drop support for it.
+
+        # There is a harmless data race with self._invalidated.  A
+        # dict update could go on in another thread, but we don't care
+        # because we have to check again after the load anyway.
+        if (obj._p_oid in self._invalidated
+            and not myhasattr(obj, "_p_independent")):
+            # If the object has _p_independent(), we will handle it below.
+            if not (self._mvcc and self._setstate_noncurrent(obj)):
+                self.getTransaction().register(obj)
+                self._conflicts[obj._p_oid] = 1
+                raise ReadConflictError(object=obj)
+
+        p, serial = self._storage.load(obj._p_oid, self._version)
+        self._load_count += 1
+
         self._inv_lock.acquire()
         try:
-            if self._invalidated.has_key(obj._p_oid):
-                # Defer _p_independent() call until state is loaded.
-                ind = getattr(obj, "_p_independent", None)
-                if ind is not None:
-                    # Defer _p_independent() call until state is loaded.
-                    return 1
-                else:
-                    self.getTransaction().register(obj)
-                    self._conflicts[obj._p_oid] = 1
-                    raise ReadConflictError(object=obj)
-            else:
-                return 0
+            invalid = obj._p_oid in self._invalidated
         finally:
             self._inv_lock.release()
+
+        if invalid:
+            if myhasattr(obj, "_p_independent"):
+                # This call will raise a ReadConflictError if something
+                # goes wrong
+                self._handle_independent(obj)
+            elif not (self._mvcc and self._setstate_noncurrent(obj)):
+                self.getTransaction().register(obj)
+                self._conflicts[obj._p_oid] = 1
+                raise ReadConflictError(object=obj)
+
+        self._reader.setGhostState(obj, p)
+        obj._p_serial = serial
+
+    def _setstate_noncurrent(self, obj):
+        """Set state using non-current data.
+
+        Return True if state was available, False if not.
+        """
+        try:
+            # Load data that was current before the commit at txn_time.
+            t = self._storage.loadBefore(obj._p_oid, self._txn_time)
+        except KeyError:
+            return False
+        if t is None:
+            return False
+        data, start, end = t
+        # The non-current transaction must have been written before
+        # txn_time.  It must be current at txn_time, but could have
+        # been modified at txn_time.
+
+        # It's possible that end is None, if, e.g., the most recent
+        # invalidation was for version data.
+        assert start < self._txn_time <= end, \
+               (U64(start), U64(self._txn_time), U64(end))
+        self._noncurrent[obj._p_oid] = True
+        self._reader.setGhostState(obj, data)
+        obj._p_serial = start
 
     def _handle_independent(self, obj):
         # Helper method for setstate() handles possibly independent objects
@@ -499,7 +565,7 @@ class Connection(ExportImport, object):
             obj._p_changed = 0
             obj._p_serial = serial
         except:
-            LOG('ZODB',ERROR, 'setklassstate failed', error=sys.exc_info())
+            self._log.error("setklassstate failed", exc_info=sys.exc_info())
             raise
 
     def tpc_abort(self, transaction):
@@ -590,11 +656,11 @@ class Connection(ExportImport, object):
             self._storage._creating[:0]=self._creating
             del self._creating[:]
         else:
-            def callback():
+            def callback(tid):
                 d = {}
                 for oid in self._modified:
                     d[oid] = 1
-                self._db.invalidate(d, self)
+                self._db.invalidate(tid, d, self)
             self._storage.tpc_finish(transaction, callback)
 
         self._conflicts.clear()

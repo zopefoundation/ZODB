@@ -36,40 +36,40 @@ class HistoryStorage:
         h = self._storage.history(oid, size=1)
         eq(len(h), 1)
         d = h[0]
-        eq(d['serial'], revid3)
+        eq(d['tid'], revid3)
         eq(d['version'], '')
         # Try to get 2 historical revisions
         h = self._storage.history(oid, size=2)
         eq(len(h), 2)
         d = h[0]
-        eq(d['serial'], revid3)
+        eq(d['tid'], revid3)
         eq(d['version'], '')
         d = h[1]
-        eq(d['serial'], revid2)
+        eq(d['tid'], revid2)
         eq(d['version'], '')
         # Try to get all 3 historical revisions
         h = self._storage.history(oid, size=3)
         eq(len(h), 3)
         d = h[0]
-        eq(d['serial'], revid3)
+        eq(d['tid'], revid3)
         eq(d['version'], '')
         d = h[1]
-        eq(d['serial'], revid2)
+        eq(d['tid'], revid2)
         eq(d['version'], '')
         d = h[2]
-        eq(d['serial'], revid1)
+        eq(d['tid'], revid1)
         eq(d['version'], '')
         # There should be no more than 3 revisions
         h = self._storage.history(oid, size=4)
         eq(len(h), 3)
         d = h[0]
-        eq(d['serial'], revid3)
+        eq(d['tid'], revid3)
         eq(d['version'], '')
         d = h[1]
-        eq(d['serial'], revid2)
+        eq(d['tid'], revid2)
         eq(d['version'], '')
         d = h[2]
-        eq(d['serial'], revid1)
+        eq(d['tid'], revid1)
         eq(d['version'], '')
 
     def checkVersionHistory(self):
@@ -94,22 +94,22 @@ class HistoryStorage:
         h = self._storage.history(oid, version, 100)
         eq(len(h), 6)
         d = h[0]
-        eq(d['serial'], revid6)
+        eq(d['tid'], revid6)
         eq(d['version'], version)
         d = h[1]
-        eq(d['serial'], revid5)
+        eq(d['tid'], revid5)
         eq(d['version'], version)
         d = h[2]
-        eq(d['serial'], revid4)
+        eq(d['tid'], revid4)
         eq(d['version'], version)
         d = h[3]
-        eq(d['serial'], revid3)
+        eq(d['tid'], revid3)
         eq(d['version'], '')
         d = h[4]
-        eq(d['serial'], revid2)
+        eq(d['tid'], revid2)
         eq(d['version'], '')
         d = h[5]
-        eq(d['serial'], revid1)
+        eq(d['tid'], revid1)
         eq(d['version'], '')
 
     def checkHistoryAfterVersionCommit(self):
@@ -151,25 +151,25 @@ class HistoryStorage:
         h = self._storage.history(oid, version, 100)
         eq(len(h), 7)
         d = h[0]
-        eq(d['serial'], revid7)
+        eq(d['tid'], revid7)
         eq(d['version'], '')
         d = h[1]
-        eq(d['serial'], revid6)
+        eq(d['tid'], revid6)
         eq(d['version'], version)
         d = h[2]
-        eq(d['serial'], revid5)
+        eq(d['tid'], revid5)
         eq(d['version'], version)
         d = h[3]
-        eq(d['serial'], revid4)
+        eq(d['tid'], revid4)
         eq(d['version'], version)
         d = h[4]
-        eq(d['serial'], revid3)
+        eq(d['tid'], revid3)
         eq(d['version'], '')
         d = h[5]
-        eq(d['serial'], revid2)
+        eq(d['tid'], revid2)
         eq(d['version'], '')
         d = h[6]
-        eq(d['serial'], revid1)
+        eq(d['tid'], revid1)
         eq(d['version'], '')
 
     def checkHistoryAfterVersionAbort(self):
@@ -211,23 +211,23 @@ class HistoryStorage:
         h = self._storage.history(oid, version, 100)
         eq(len(h), 7)
         d = h[0]
-        eq(d['serial'], revid7)
+        eq(d['tid'], revid7)
         eq(d['version'], '')
         d = h[1]
-        eq(d['serial'], revid6)
+        eq(d['tid'], revid6)
         eq(d['version'], version)
         d = h[2]
-        eq(d['serial'], revid5)
+        eq(d['tid'], revid5)
         eq(d['version'], version)
         d = h[3]
-        eq(d['serial'], revid4)
+        eq(d['tid'], revid4)
         eq(d['version'], version)
         d = h[4]
-        eq(d['serial'], revid3)
+        eq(d['tid'], revid3)
         eq(d['version'], '')
         d = h[5]
-        eq(d['serial'], revid2)
+        eq(d['tid'], revid2)
         eq(d['version'], '')
         d = h[6]
-        eq(d['serial'], revid1)
+        eq(d['tid'], revid1)
         eq(d['version'], '')

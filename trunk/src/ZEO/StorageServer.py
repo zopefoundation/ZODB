@@ -235,6 +235,14 @@ class ZEOStorage:
     def getExtensionMethods(self):
         return self._extensions
 
+    def loadEx(self, oid, version):
+        self.stats.loads += 1
+        return self.storage.loadEx(oid, version)
+
+    def loadBefore(self, oid, tid):
+        self.stats.loads += 1
+        return self.storage.loadBefore(oid, tid)
+
     def zeoLoad(self, oid):
         self.stats.loads += 1
         v = self.storage.modifiedInVersion(oid)
@@ -260,12 +268,26 @@ class ZEOStorage:
                  % (len(invlist), u64(invtid)))
         return invtid, invlist
 
+    def verify(self, oid, version, tid):
+        try:
+            t = self.storage.getTid(oid)
+        except KeyError:
+            self.client.invalidateVerify((oid, ""))
+        else:
+            if tid != t:
+                # This will invalidate non-version data when the
+                # client only has invalid version data.  Since this is
+                # an uncommon case, we avoid the cost of checking
+                # whether the serial number matches the current
+                # non-version data.
+                self.client.invalidateVerify((oid, version))
+
     def zeoVerify(self, oid, s, sv):
         if not self.verifying:
             self.verifying = 1
             self.stats.verifying_clients += 1
         try:
-            os = self.storage.getSerial(oid)
+            os = self.storage.getTid(oid)
         except KeyError:
             self.client.invalidateVerify((oid, ''))
             # XXX It's not clear what we should do now.  The KeyError
@@ -344,7 +366,7 @@ class ZEOStorage:
     def undoLog(self, first, last):
         return run_in_thread(self.storage.undoLog, first, last)
 
-    def tpc_begin(self, id, user, description, ext, tid, status):
+    def tpc_begin(self, id, user, description, ext, tid=None, status=" "):
         if self.read_only:
             raise ReadOnlyError()
         if self.transaction is not None:
@@ -521,25 +543,25 @@ class ZEOStorage:
         return self.storage.tpc_vote(self.transaction)
 
     def _abortVersion(self, src):
-        oids = self.storage.abortVersion(src, self.transaction)
+        tid, oids = self.storage.abortVersion(src, self.transaction)
         inv = [(oid, src) for oid in oids]
         self.invalidated.extend(inv)
-        return oids
+        return tid, oids
 
     def _commitVersion(self, src, dest):
-        oids = self.storage.commitVersion(src, dest, self.transaction)
+        tid, oids = self.storage.commitVersion(src, dest, self.transaction)
         inv = [(oid, dest) for oid in oids]
         self.invalidated.extend(inv)
         if dest:
             inv = [(oid, src) for oid in oids]
             self.invalidated.extend(inv)
-        return oids
+        return tid, oids
 
     def _transactionalUndo(self, trans_id):
-        oids = self.storage.transactionalUndo(trans_id, self.transaction)
+        tid, oids = self.storage.transactionalUndo(trans_id, self.transaction)
         inv = [(oid, None) for oid in oids]
         self.invalidated.extend(inv)
-        return oids
+        return tid, oids
 
     # When a delayed transaction is restarted, the dance is
     # complicated.  The restart occurs when one ZEOStorage instance
@@ -853,6 +875,9 @@ class StorageServer:
         if earliest_tid > tid:
             log("tid to old for invq %s < %s" % (u64(tid), u64(earliest_tid)))
             return None, []
+
+        # XXX this is wrong!  must check against tid or we invalidate
+        # too much.
 
         oids = {}
         for tid, L in self.invq:

@@ -13,7 +13,7 @@
 ##############################################################################
 """Handy standard storage machinery
 
-$Id: BaseStorage.py,v 1.38 2003/12/23 14:37:13 jeremy Exp $
+$Id: BaseStorage.py,v 1.39 2003/12/24 16:02:00 jeremy Exp $
 """
 import cPickle
 import threading
@@ -32,7 +32,6 @@ from ZODB.utils import z64
 
 class BaseStorage(UndoLogCompatible):
     _transaction=None # Transaction that is being committed
-    _serial=z64       # Transaction serial number
     _tstatus=' '      # Transaction status, used for copying data
     _is_read_only = 0
 
@@ -51,7 +50,7 @@ class BaseStorage(UndoLogCompatible):
 
         t=time.time()
         t=self._ts=apply(TimeStamp,(time.gmtime(t)[:5]+(t%60,)))
-        self._serial=`t`
+        self._tid = `t`
         if base is None:
             self._oid='\0\0\0\0\0\0\0\0'
         else:
@@ -60,14 +59,17 @@ class BaseStorage(UndoLogCompatible):
     def abortVersion(self, src, transaction):
         if transaction is not self._transaction:
             raise POSException.StorageTransactionError(self, transaction)
-        return []
+        return self._tid, []
 
     def commitVersion(self, src, dest, transaction):
         if transaction is not self._transaction:
             raise POSException.StorageTransactionError(self, transaction)
-        return []
+        return self._tid, []
 
     def close(self):
+        pass
+
+    def cleanup(self):
         pass
 
     def sortKey(self):
@@ -85,7 +87,7 @@ class BaseStorage(UndoLogCompatible):
     def getSize(self):
         return len(self)*300 # WAG!
 
-    def history(self, oid, version, length=1):
+    def history(self, oid, version, length=1, filter=None):
         pass
 
     def modifiedInVersion(self, oid):
@@ -167,13 +169,13 @@ class BaseStorage(UndoLogCompatible):
                 now = time.time()
                 t = TimeStamp(*(time.gmtime(now)[:5] + (now % 60,)))
                 self._ts = t = t.laterThan(self._ts)
-                self._serial = `t`
+                self._tid = `t`
             else:
                 self._ts = TimeStamp(tid)
-                self._serial = tid
+                self._tid = tid
 
             self._tstatus = status
-            self._begin(self._serial, user, desc, ext)
+            self._begin(self._tid, user, desc, ext)
         finally:
             self._lock_release()
 
@@ -203,10 +205,11 @@ class BaseStorage(UndoLogCompatible):
                 return
             try:
                 if f is not None:
-                    f()
+                    f(self._tid)
                 u, d, e = self._ude
-                self._finish(self._serial, u, d, e)
+                self._finish(self._tid, u, d, e)
                 self._clear_temp()
+                return self._tid
             finally:
                 self._ude = None
                 self._transaction = None
@@ -249,6 +252,48 @@ class BaseStorage(UndoLogCompatible):
     def loadSerial(self, oid, serial):
         raise POSException.Unsupported, (
             "Retrieval of historical revisions is not supported")
+
+    def loadBefore(self, oid, tid):
+        """Return most recent revision of oid before tid committed."""
+
+        # XXX Is it okay for loadBefore() to return current data?
+        # There doesn't seem to be a good reason to forbid it, even
+        # though the typical use of this method will never find
+        # current data.  But maybe we should call it loadByTid()?
+
+        n = 2
+        start_time = None
+        end_time = None
+        while start_time is None:
+            # The history() approach is a hack, because the dict
+            # returned by history() doesn't contain a tid.  It
+            # contains a serialno, which is often the same, but isn't
+            # required to be.  We'll pretend it is for now.
+
+            # A second problem is that history() doesn't say anything
+            # about whether the transaction status.  If it falls before
+            # the pack time, we can't honor the MVCC request.
+
+            # Note: history() returns the most recent record first.
+
+            # XXX The filter argument to history() only appears to be
+            # supported by FileStorage.  Perhaps it shouldn't be used.
+            L = self.history(oid, "", n, lambda d: not d["version"])
+            if not L:
+                return
+            for d in L:
+                if d["serial"] < tid:
+                    start_time = d["serial"]
+                    break
+                else:
+                    end_time = d["serial"]
+            if len(L) < n:
+                break
+            n *= 2
+        if start_time is None:
+            return None
+        data = self.loadSerial(oid, start_time)
+        return data, start_time, end_time
 
     def getExtensionMethods(self):
         """getExtensionMethods
@@ -314,7 +359,7 @@ class BaseStorage(UndoLogCompatible):
                 oid=r.oid
                 if verbose: print oid_repr(oid), r.version, len(r.data)
                 if restoring:
-                    self.restore(oid, r.serial, r.data, r.version,
+                    self.restore(oid, r.tid, r.data, r.version,
                                  r.data_txn, transaction)
                 else:
                     pre=preget(oid, None)

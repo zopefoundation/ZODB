@@ -36,5 +36,4 @@ class Prefix:
 
     def __cmp__(self, o):
         l, v = self.value
-        rval = cmp(o[:l], v)
-        return rval
+        return cmp(o[:l], v)
