@@ -185,16 +185,16 @@ class Test(unittest.TestCase):
 
     if interfaces:
         def testInterface(self):
-            self.assert_(IPersistent.isImplementedByInstancesOf(Persistent),
+            self.assert_(IPersistent.implementedBy(Persistent),
                          "%s does not implement IPersistent" % Persistent)
             p = Persistent()
-            self.assert_(IPersistent.isImplementedBy(p),
+            self.assert_(IPersistent.providedBy(p),
                          "%s does not implement IPersistent" % p)
 
-            self.assert_(IPersistent.isImplementedByInstancesOf(P),
+            self.assert_(IPersistent.implementedBy(P),
                          "%s does not implement IPersistent" % P)
             p = self.klass()
-            self.assert_(IPersistent.isImplementedBy(p),
+            self.assert_(IPersistent.providedBy(p),
                          "%s does not implement IPersistent" % p)
 
     def testDataManagerAndAttributes(self):

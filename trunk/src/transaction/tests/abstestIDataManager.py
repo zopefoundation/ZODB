@@ -27,7 +27,7 @@ the data actually gets written/not written to the storge.
 
 Obviously this test suite should be expanded.
 
-$Id: abstestIDataManager.py,v 1.4 2004/02/20 16:56:57 fdrake Exp $
+$Id: abstestIDataManager.py,v 1.5 2004/03/05 22:08:50 jim Exp $
 """
 
 from unittest import TestCase
@@ -60,4 +60,4 @@ class IDataManagerTests(TestCase, object):
     def testRollback(self):
         tran = self.get_transaction()
         rb = self.datamgr.savepoint(tran)
-        self.assert_(IRollback.isImplementedBy(rb))
+        self.assert_(IRollback.providedBy(rb))
