@@ -13,7 +13,7 @@
 ##############################################################################
 """ZODB-defined exceptions
 
-$Id: POSException.py,v 1.16 2002/12/09 19:39:45 bwarsaw Exp $"""
+$Id: POSException.py,v 1.17 2002/12/10 21:42:05 bwarsaw Exp $"""
 
 from types import StringType, DictType
 import ZODB.utils
@@ -169,9 +169,9 @@ class VersionLockError(VersionError, TransactionError):
 class UndoError(POSError):
     """An attempt was made to undo a non-undoable transaction."""
 
-    def __init__(self, oid, reason=None):
-        self._oid = oid
+    def __init__(self, reason, oid=None):
         self._reason = reason
+        self._oid = oid
 
     def __str__(self):
         return _fmt_undo(self._oid, self._reason)
@@ -180,7 +180,7 @@ class MultipleUndoErrors(UndoError):
     """Several undo errors occured during a single transaction."""
     
     def __init__(self, errs):
-        # provide an oid and reason for clients that only look at that
+        # provide a reason and oid for clients that only look at that
         UndoError.__init__(self, *errs[0])
         self._errs = errs
 
