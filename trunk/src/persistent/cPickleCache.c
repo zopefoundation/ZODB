@@ -1,6 +1,6 @@
 /*
 
-  $Id: cPickleCache.c,v 1.12 1997/12/15 15:25:09 jim Exp $
+  $Id: cPickleCache.c,v 1.13 1998/02/05 14:34:40 jim Exp $
 
   C implementation of a pickle jar cache.
 
@@ -12,7 +12,7 @@
        rights reserved.
 
 ***************************************************************************/
-static char *what_string = "$Id: cPickleCache.c,v 1.12 1997/12/15 15:25:09 jim Exp $";
+static char *what_string = "$Id: cPickleCache.c,v 1.13 1998/02/05 14:34:40 jim Exp $";
 
 #define ASSIGN(V,E) {PyObject *__e; __e=(E); Py_XDECREF(V); (V)=__e;}
 #define UNLESS(E) if(!(E))
@@ -260,7 +260,10 @@ maybegc(ccobject *self, PyObject *thisv)
   if(s < self->cache_size) return 0;
   size=self->cache_size;
   self->cache_size=0;
-  n=s/size;
+
+  n=(s-size)/10;
+  /*n=s/size;*/
+
   if(n < 3) n=3;
   dt=(long)(self->cache_age*(0.2+0.8*size/s));
   if(dt < 10) dt=10;
@@ -359,6 +362,8 @@ static struct PyMethodDef cc_methods[] = {
   {"items",	(PyCFunction)ccitems,	1,
    "items() -- Return the cache items."
    },
+  {"incrgc", (PyCFunction)maybegc,	1,
+   "incrgc() -- Perform incremental garbage collection"},
   {NULL,		NULL}		/* sentinel */
 };
 
@@ -423,6 +428,11 @@ cc_getattr(ccobject *self, char *name)
 	return PyFloat_FromDouble(self->dfa);
       if(strcmp(name,"cache_last_gc_time")==0)
 	return PyFloat_FromDouble(self->last_check);
+      if(strcmp(name,"cache_data")==0)
+	{
+	  Py_INCREF(self->data);
+	  return self->data;
+	}
     }
   if(*name=='h' && strcmp(name, "has_key")==0)
     return PyObject_GetAttrString(self->data, name);
@@ -613,7 +623,7 @@ void
 initcPickleCache()
 {
   PyObject *m, *d;
-  char *rev="$Revision: 1.12 $";
+  char *rev="$Revision: 1.13 $";
 
   Cctype.ob_type=&PyType_Type;
 
@@ -643,6 +653,14 @@ initcPickleCache()
 
 /******************************************************************************
  $Log: cPickleCache.c,v $
+ Revision 1.13  1998/02/05 14:34:40  jim
+ Added getattr option to get cache data.
+
+ Added method to perform incremental gc.
+
+ Changed incremental collection effort algorithm to be based on
+ difference between actual and target size, rather than ration.
+
  Revision 1.12  1997/12/15 15:25:09  jim
  Cleaned up to avoid VC++ warnings.
 
