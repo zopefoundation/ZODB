@@ -13,7 +13,7 @@
 ##############################################################################
 """Handy standard storage machinery
 
-$Id: BaseStorage.py,v 1.31 2003/01/03 22:07:43 jeremy Exp $
+$Id: BaseStorage.py,v 1.32 2003/01/09 23:56:28 jeremy Exp $
 """
 import cPickle
 import ThreadLock, bpthread
@@ -108,6 +108,9 @@ class BaseStorage(UndoLogCompatible.UndoLogCompatible):
         return self._is_read_only
 
     def supportsUndo(self):
+        return 0
+
+    def supportsTransactionalUndo(self):
         return 0
 
     def supportsVersions(self):
