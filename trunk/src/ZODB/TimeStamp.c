@@ -85,7 +85,7 @@
 
 static char TimeStamp_module_documentation[] = 
 ""
-"\n$Id: TimeStamp.c,v 1.5 1999/07/13 21:12:54 jim Exp $"
+"\n$Id: TimeStamp.c,v 1.6 2000/03/06 21:09:14 jim Exp $"
 ;
 
 #include <stdlib.h>
@@ -117,6 +117,8 @@ static double
 TimeStamp_yad(int y)
 {
   double d, s;
+
+  y -= 1900;
   
   d=(y-1)*365;
   if (y > 0) 
@@ -166,8 +168,8 @@ TimeStamp_init_gmoff()
       return -1;
     }
   gmoff=TimeStamp_abst(
-	     t->tm_year, t->tm_mon, t->tm_mday-1, t->tm_hour*60+t->tm_min, 
-	     t->tm_sec);
+	     t->tm_year+1900, t->tm_mon, t->tm_mday-1, 
+	     t->tm_hour*60+t->tm_min, t->tm_sec);
 
   sconv=((double)60)/((double)(1<<16))/((double)(1<<16));
   return 0;
@@ -287,7 +289,7 @@ TimeStamp_timeTime(TimeStamp *self, PyObject *args)
   TimeStamp_parts(self);
 
   return PyFloat_FromDouble(
-            TimeStamp_abst(TimeStamp_y-1900, TimeStamp_m-1, TimeStamp_d-1, 
+            TimeStamp_abst(TimeStamp_y, TimeStamp_m-1, TimeStamp_d-1, 
 			   TimeStamp_mi, 0)+
 	    TimeStamp_sec(self)-gmoff
 	    );
@@ -486,7 +488,7 @@ void
 initTimeStamp()
 {
   PyObject *m, *d;
-  char *rev="$Revision: 1.5 $";
+  char *rev="$Revision: 1.6 $";
 
   if (TimeStamp_init_gmoff() < 0) return;
   if (! ExtensionClassImported) return;
