@@ -16,7 +16,6 @@
 This module provides a wrapper that causes a database connection to be created
 and used when bobo publishes a bobo_application object.
 """
-__version__='$Revision: 1.14 $'[11:-2]
 
 import transaction
 

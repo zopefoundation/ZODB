@@ -16,8 +16,6 @@
 
 $Id: list.py,v 1.7 2004/02/19 18:13:35 jeremy Exp $"""
 
-__version__='$Revision: 1.7 $'[11:-2]
-
 import persistent
 from UserList import UserList
 

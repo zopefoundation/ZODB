@@ -14,7 +14,6 @@
 """Mounted database support
 
 $Id: Mount.py,v 1.25 2004/04/23 17:26:37 gintautasm Exp $"""
-__version__='$Revision: 1.25 $'[11:-2]
 
 import string
 import time
