@@ -24,6 +24,7 @@ import logging
 from ZODB.broken import find_global
 from ZODB.Connection import Connection
 from ZODB.serialize import referencesf
+from ZODB.utils import WeakSet
 
 import transaction
 
@@ -31,6 +32,89 @@ logger = logging.getLogger('ZODB.DB')
 
 # A unique marker for detecting use of deprecated arguments.
 _deprecated = object()
+
+
+class _ConnectionPool(object):
+    """Manage a pool of connections.
+
+    CAUTION:  All methods should be called under the protection of a lock.
+    This class does no locking of its own.
+
+    There's no limit on the number of connections this can keep track of,
+    but a warning is logged if there are more than pool_size active
+    connections, and a critical problem if more than twice pool_size.
+
+    New connections are registered via push().  This will log a message if
+    "too many" connections are active.
+
+    When a connection is explicitly closed, tell the pool via repush().
+    That adds the connection to a stack of connections available for
+    reuse, and throws away the oldest stack entries if the pool is too large.
+    get() pops this stack.
+
+    If a connection is obtained via get(), the pool holds only a weak
+    reference to it thereafter.  It's not necessary to inform the pool
+    if the connection goes away.  A connection handed out by get() counts
+    against pool_size only so long as it exists, and provided it isn't
+    repush()'ed.
+    """
+
+    def __init__(self, pool_size):
+        # The largest # of connections we expect to see alive simultaneously.
+        self.pool_size = pool_size
+
+        # A weak set of all connections we've seen.  A connection vanishes
+        # from this set if get() hands it out, it's not reregistered via
+        # repush(), and it becomes unreachable.
+        self.all = WeakSet()
+
+        # A stack of connections available to hand out.  This is a subset
+        # of self.all.  push() and repush() add to this, and may remove
+        # the oldest available connections if the pool is too large.
+        # get() pops this stack.
+        self.available = []
+
+    def set_pool_size(self, pool_size):
+        self.pool_size = pool_size + 1  # _reduce_size shoots for < pool_size
+        self._reduce_size()
+        self.pool_size = pool_size
+
+    # Register a new available connection.  We must not know about c already.
+    def push(self, c):
+        assert c not in self.all
+        assert c not in self.available
+        self._reduce_size()
+        self.all.add(c)
+        self.available.append(c)
+        n, limit = len(self.all), self.pool_size
+        if n > limit:
+            reporter = logger.warn
+            if n > 2 * limit:
+                reporter = logger.critical
+            reporter("DB.open() has %s open connections with a pool_size "
+                     "of %s", n, limit)
+
+    # Reregister an available connection formerly obtained via get().
+    def repush(self, c):
+        assert c in self.all
+        assert c not in self.available
+        self._reduce_size()
+        self.available.append(c)
+
+    # Prior to pushing a connection onto self.available, throw away the
+    # oldest available connections until we're under our target size.
+    # It may not be possible be achieve this.
+    def _reduce_size(self):
+        while self.available and len(self.all) >= self.pool_size:
+            c = self.available.pop(0)
+            self.all.remove(c)
+
+    def get(self):
+        # Leave it in self.all, so we can still get at it for statistics
+        # while it's alive.
+        return self.available.pop()
+
+
 
 class DB(object):
     """The Object Database
