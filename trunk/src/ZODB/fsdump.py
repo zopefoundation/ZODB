@@ -41,15 +41,14 @@ def fsdump(path, file=None, with_offset=1):
     iter = FileIterator(path)
     for trans in iter:
         if with_offset:
-            print >> file, ("Trans #%05d tid=%016x time=%s offset=%d"
+            print >> file, ("Trans #%05d tid=%016x time=%s size=%d"
                             % (i, u64(trans.tid), str(TimeStamp(trans.tid)),
-                               trans._pos))
+                               trans._tend - trans._pos))
         else:
             print >> file, "Trans #%05d tid=%016x time=%s" % \
                   (i, u64(trans.tid), str(TimeStamp(trans.tid)))
-        print >> file, "\tsize=%d status=%s user=%s description=%s" % \
-              (trans._tend - trans._tpos, `trans.status`, trans.user,
-               trans.description)
+        print >> file, "\toffset=%d status=%s user=%s description=%s" % \
+              (trans._tpos, `trans.status`, trans.user, trans.description)
         j = 0
         tsize = 0
         for rec in trans:
