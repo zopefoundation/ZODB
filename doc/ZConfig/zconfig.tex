@@ -247,12 +247,85 @@ XXX to be written
 
 \module{ZConfig} schema are written as XML documents.
 
+Data types are searched in a special namespace defined by the data
+type registry.  The default registry has slightly magical semantics:
+If the value can be matched to a standard data type when interpreted
+as a \datatype{basic-key}, the standard data type will be used.  If
+that fails, the value must be a \datatype{dotted-name} containing at
+least one dot, and a conversion function will be sought using the
+\method{search()} method of the data type registry used to load the
+schema.
+
 
 \subsection{Schema Element Reference \label{schema-ref}}
 
 XXX need to discuss notation
 
 The following elements are used to describe a schema:
+
+\begin{elementdesc}{description}{PCDATA}
+  Descriptive text explaining the purpose the container of the
+  \element{description} element.  Most other elements can contain
+  a \element{description} element as their first child.
+\end{elementdesc}
+
+\begin{elementdesc}{example}{PCDATA}
+  An example value.  This serves only as documentation.
+\end{elementdesc}
+
+\begin{elementdesc}{metadefault}{PCDATA}
+  A description of the default value, for human readers.  This may
+  include information about how a computed value is determined when
+  the schema does not specify a default value.
+\end{elementdesc}
+
+\begin{elementdesc}{abstracttype}{description?}
+  Define an abstract section type.
+
+  \begin{attributedesc}{name}{\datatype{basic-key}}
+    The name of the abstract section type; required.
+  \end{attributedesc}
+\end{elementdesc}
+
+\begin{elementdesc}{sectiontype}{description?, (section | key)*}
+  Define a concrete section type.
+
+  \begin{attributedesc}{datatype}{\datatype{basic-key}
+                                  or \datatype{dotted-name}}
+    The data type converter which will be applied to the value of this
+    section.
+  \end{attributedesc}
+
+  \begin{attributedesc}{extends}{\datatype{basic-key}}
+    The name of a concrete section type from which this section type
+    acquires all key and section declarations.  This type does
+    \emph{not} automatically implement any abstract section type
+    implemented by the named section type.  If omitted, this section
+    is defined with only the keys are sections contained within the
+    \element{sectiontype} element.
+  \end{attributedesc}
+
+  \begin{attributedesc}{implements}{\datatype{basic-key}}
+    The name of an abstract section type which this concrete section
+    type implements.  If omitted, this section type does not implement
+    any abstract type, and can only be used if it is specified
+    directly in a schema or other section type.
+  \end{attributedesc}
+
+  \begin{attributedesc}{name}{\datatype{basic-key}}
+    The name of the section type; required.
+  \end{attributedesc}
+\end{elementdesc}
+
+\begin{elementdesc}{import}{EMPTY}
+  Import a schema component.
+
+  \begin{attributedesc}{package}{\datatype{dotted-name}}
+  \end{attributedesc}
+
+  \begin{attributedesc}{src}{\datatype{url-reference}}
+  \end{attributedesc}
+\end{elementdesc}
 
 \begin{elementdesc}{key}{description?, example?, metadefault?}
   A \element{key} element is used to describe a key-value pair which
@@ -270,12 +343,7 @@ The following elements are used to describe a schema:
   \begin{attributedesc}{datatype}{\datatype{basic-key}
                                   or \datatype{dotted-name}}
     The data type converter which will be applied to the value of this
-    key.  If the value can be matched to a standard data type when
-    interpreted as a \datatype{basic-key}, the standard data type will
-    be used.  If that fails, the value must be a
-    \datatype{dotted-name} containing at least one dot, and a
-    conversion function will be sought using the \method{search()}
-    method of the data type registry used to load the schema.
+    key.
   \end{attributedesc}
 
   \begin{attributedesc}{default}{\datatype{string}}
@@ -306,11 +374,150 @@ The following elements are used to describe a schema:
     will be reported if the configuration instance does not specify a
     value for the key.  If the value is \code{no} (the default) and
     the configuration instance does not specify a value, the value
-    reported the the application will be that specified by the
+    reported to the application will be that specified by the
     \attribute{default} attribute, if given, or \code{None}.
   \end{attributedesc}
 \end{elementdesc}
 
+
+\begin{elementdesc}{multikey}{description?, example?, metadefault?, default*}
+  A \element{multikey} element is used to describe a key-value pair
+  which may occur any number of times in the section type or top-level
+  schema in which it is listed.
+
+  \begin{attributedesc}{attribute}{\datatype{identifier}}
+    The name of the Python attribute which this key should be the
+    value of on a \class{SectionValue} instance.  This must be unique
+    within the immediate contents of a section type or schema.  If
+    this attribute is not specified, an attribute name will be
+    computed by converting hyphens in the key name to underscores.
+  \end{attributedesc}
+
+  \begin{attributedesc}{datatype}{\datatype{basic-key}
+                                  or \datatype{dotted-name}}
+    The data type converter which will be applied to the value of this
+    key.
+  \end{attributedesc}
+
+  \begin{attributedesc}{handler}{\datatype{dotted-name}}
+  \end{attributedesc}
+
+  \begin{attributedesc}{name}{\datatype{basic-key}}
+    The name of the key, as it must be given in a configuration
+    instance, or `\code{*}'.  If the value is `\code{*}', any name not
+    already specified as a key may be used, and the configuration
+    value for the key will be a dictionary mapping from the key name
+    to the value.  In this case, the \attribute{attribute} attribute
+    must be specified, and the data type for the key will be applied
+    to each key which is found.
+  \end{attributedesc}
+
+  \begin{attributedesc}{required}{\code{yes|no}}
+    Specifies whether the configuration instance is required to
+    provide the key.  If the value is \code{yes}, no \element{default}
+    elements may be specified and an error will be reported if the
+    configuration instance does not specify at least one value for the
+    key.  If the value is \code{no} (the default) and the
+    configuration instance does not specify a value, the value
+    reported to the application will be a list containing one element
+    for each \element{default} element specified as a child of the
+    \element{multikey}.  Each value will be individually converted
+    according to the \attribute{datatype} attribute.
+  \end{attributedesc}
+\end{elementdesc}
+
+
+\begin{elementdesc}{section}{description?}
+  A \element{section} element is used to describe a section which may
+  occur at most once in the section type or top-level schema in which
+  it is listed.
+
+  \begin{attributedesc}{attribute}{\datatype{identifier}}
+    The name of the Python attribute which this section should be the
+    value of on a \class{SectionValue} instance.  This must be unique
+    within the immediate contents of a section type or schema.  If
+    this attribute is not specified, an attribute name will be
+    computed by converting hyphens in the section name to underscores,
+    in which case the \attribute{name} attribute may not be \code{*}
+    or \code{+}.
+  \end{attributedesc}
+
+  \begin{attributedesc}{handler}{\datatype{dotted-name}}
+  \end{attributedesc}
+
+  \begin{attributedesc}{name}{\datatype{basic-key}}
+    The name of the section, as it must be given in a configuration
+    instance, \code{*}, or \code{+}.  If the value is \code{*}, any
+    name not already specified as a key may be used.  If the value is
+    \code{*} or \code{+}, the \attribute{attribute} attribute must be
+    specified.  If the value is \code{*}, any name is allowed, or the
+    name may be omitted.  If the value is \code{+}, any name is
+    allowed, but some name must be provided.
+  \end{attributedesc}
+
+  \begin{attributedesc}{required}{\code{yes|no}}
+    Specifies whether the configuration instance is required to
+    provide the section.  If the value is \code{yes}, an error will be
+    reported if the configuration instance does not include the
+    section.  If the value is \code{no} (the default) and the
+    configuration instance does not include the section, the value
+    reported to the application will be \code{None}.
+  \end{attributedesc}
+
+  \begin{attributedesc}{type}{\datatype{basic-key}}
+    The section type which matching sections must implement.  If the
+    value names an abstract section type, matching sections in the
+    configuration file must be of a type which specifies that it
+    implements the named abstract type.  If the name identifies a
+    concrete type, the section type must match exactly.
+  \end{attributedesc}
+\end{elementdesc}
+
+
+\begin{elementdesc}{multisection}{description?}
+  A \element{multisection} element is used to describe a section which
+  may occur any number of times in the section type or top-level
+  schema in which it is listed.
+
+  \begin{attributedesc}{attribute}{\datatype{identifier}}
+    The name of the Python attribute which matching sections should be
+    the value of on a \class{SectionValue} instance.  This is required
+    and must be unique within the immediate contents of a section type
+    or schema.  The \class{SectionValue} instance will contain a list
+    of matching sections.
+  \end{attributedesc}
+
+  \begin{attributedesc}{handler}{\datatype{dotted-name}}
+  \end{attributedesc}
+
+  \begin{attributedesc}{name}{\datatype{basic-key}}
+    For a \element{multisection}, any name not already specified as a
+    key may be used.  If the value is \code{*} or \code{+}, the
+    \attribute{attribute} attribute must be specified.  If the value
+    is \code{*}, any name is allowed, or the name may be omitted.  If
+    the value is \code{+}, any name is allowed, but some name must be
+    provided.  No other value for the \attribute{name} attribute is
+    allowed for a \element{multisection}.
+  \end{attributedesc}
+
+  \begin{attributedesc}{required}{\code{yes|no}}
+    Specifies whether the configuration instance is required to
+    provide at least one matching section.  If the value is
+    \code{yes}, an error will be reported if the configuration
+    instance does not include the section.  If the value is \code{no}
+    (the default) and the configuration instance does not include the
+    section, the value reported to the application will be
+    \code{None}.
+  \end{attributedesc}
+
+  \begin{attributedesc}{type}{\datatype{basic-key}}
+    The section type which matching sections must implement.  If the
+    value names an abstract section type, matching sections in the
+    configuration file must be of types which specify that they
+    implement the named abstract type.  If the name identifies a
+    concrete type, the section type must match exactly.
+  \end{attributedesc}
+\end{elementdesc}
 
 
 \section{Schema Components \label{schema-components}}
