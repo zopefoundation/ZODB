@@ -13,7 +13,7 @@
 ##############################################################################
 """Open database and storage from a configuration.
 
-$Id: config.py,v 1.2 2003/01/03 21:19:06 fdrake Exp $"""
+$Id: config.py,v 1.3 2003/01/06 22:42:17 jeremy Exp $"""
 
 import os
 import StringIO
@@ -62,6 +62,18 @@ class MappingStorage(StorageConfig):
     def open(self):
         from ZODB.MappingStorage import MappingStorage
         return MappingStorage(self.config.name)
+
+class DemoStorage(StorageConfig):
+
+    def open(self):
+        from ZODB.DemoStorage import DemoStorage
+        if self.config.base:
+            base = self.config.base.open()
+        else:
+            base = None
+        return DemoStorage(self.config.name,
+                           base=base,
+                           quota=self.config.quota)
 
 class FileStorage(StorageConfig):
 
