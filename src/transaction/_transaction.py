@@ -261,9 +261,10 @@ class Transaction(object):
                 self._resources.append(adapter)
 
     def begin(self):
-        warnings.warn("Transaction.begin() should no longer be used; use "
-                      "the begin() method of a transaction manager.",
-                      DeprecationWarning, stacklevel=2)
+        from ZODB.utils import deprecated36
+
+        deprecated36("Transaction.begin() should no longer be used; use "
+                      "the begin() method of a transaction manager.")
         if (self._resources or
               self._sub or
               self._nonsub or

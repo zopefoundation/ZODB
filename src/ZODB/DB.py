@@ -25,14 +25,11 @@ from ZODB.broken import find_global
 from ZODB.Connection import Connection
 from ZODB.serialize import referencesf
 from ZODB.utils import WeakSet
+from ZODB.utils import DEPRECATED_ARGUMENT, deprecated36
 
 import transaction
 
 logger = logging.getLogger('ZODB.DB')
-
-# A unique marker for detecting use of deprecated arguments.
-_deprecated = object()
-
 
 class _ConnectionPool(object):
     """Manage a pool of connections.
@@ -189,10 +186,10 @@ class DB(object):
     def __init__(self, storage,
                  pool_size=7,
                  cache_size=400,
-                 cache_deactivate_after=None,
+                 cache_deactivate_after=DEPRECATED_ARGUMENT,
                  version_pool_size=3,
                  version_cache_size=100,
-                 version_cache_deactivate_after=None,
+                 version_cache_deactivate_after=DEPRECATED_ARGUMENT,
                  ):
         """Create an object database.
 
@@ -221,10 +218,10 @@ class DB(object):
         self._version_cache_size = version_cache_size
 
         # warn about use of deprecated arguments
-        if (cache_deactivate_after is not None or
-            version_cache_deactivate_after is not None):
-            warnings.warn("cache_deactivate_after has no effect",
-                          DeprecationWarning)
+        if cache_deactivate_after is not DEPRECATED_ARGUMENT:
+            deprecated36("cache_deactivate_after has no effect")
+        if version_cache_deactivate_after is not DEPRECATED_ARGUMENT:
+            deprecated36("version_cache_deactivate_after has no effect")
 
         self._miv_cache = {}
 
@@ -483,8 +480,8 @@ class DB(object):
         return len(self._storage)
 
     def open(self, version='',
-             transaction=_deprecated, temporary=_deprecated,
-             force=_deprecated, waitflag=_deprecated,
+             transaction=DEPRECATED_ARGUMENT, temporary=DEPRECATED_ARGUMENT,
+             force=DEPRECATED_ARGUMENT, waitflag=DEPRECATED_ARGUMENT,
              mvcc=True, txn_mgr=None, synch=True):
         """Return a database Connection for use by application code.
 
@@ -505,21 +502,20 @@ class DB(object):
              register for afterCompletion() calls.
         """
 
-        if temporary is not _deprecated:
-            warnings.warn("DB.open() temporary= has no effect",
-                          DeprecationWarning)
+        if temporary is not DEPRECATED_ARGUMENT:
+            deprecated36("DB.open() temporary= ignored. "
+                         "open() no longer blocks.")
 
-        if force is not _deprecated:
-            warnings.warn("DB.open() force= has no effect",
-                          DeprecationWarning)
+        if force is not DEPRECATED_ARGUMENT:
+            deprecated36("DB.open() force= ignored. "
+                         "open() no longer blocks.")
 
-        if waitflag is not _deprecated:
-            warnings.warn("DB.open() waitflag= has no effect",
-                          DeprecationWarning)
+        if waitflag is not DEPRECATED_ARGUMENT:
+            deprecated36("DB.open() waitflag= ignored. "
+                         "open() no longer blocks.")
 
-        if transaction is not _deprecated:
-            warnings.warn("DB.open() transaction= has no effect",
-                          DeprecationWarning)
+        if transaction is not DEPRECATED_ARGUMENT:
+            deprecated36("DB.open() transaction= ignored.")
 
         self._a()
         try:
@@ -686,23 +682,19 @@ class DB(object):
 
     def getCacheDeactivateAfter(self):
         """Deprecated"""
-        warnings.warn("cache_deactivate_after has no effect",
-                      DeprecationWarning)
+        deprecated36("getCacheDeactivateAfter has no effect")
 
     def getVersionCacheDeactivateAfter(self):
         """Deprecated"""
-        warnings.warn("cache_deactivate_after has no effect",
-                      DeprecationWarning)
+        deprecated36("getVersionCacheDeactivateAfter has no effect")
 
     def setCacheDeactivateAfter(self, v):
         """Deprecated"""
-        warnings.warn("cache_deactivate_after has no effect",
-                      DeprecationWarning)
+        deprecated36("setCacheDeactivateAfter has no effect")
 
     def setVersionCacheDeactivateAfter(self, v):
         """Deprecated"""
-        warnings.warn("cache_deactivate_after has no effect",
-                      DeprecationWarning)
+        deprecated36("setVersionCacheDeactivateAfter has no effect")
 
 class ResourceManager(object):
     """Transaction participation for a version or undo resource."""

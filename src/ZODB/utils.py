@@ -19,6 +19,7 @@ from binascii import hexlify
 import cPickle
 import cStringIO
 import weakref
+import warnings
 
 from persistent.TimeStamp import TimeStamp
 
@@ -36,7 +37,25 @@ __all__ = ['z64',
            'get_refs',
            'readable_tid_repr',
            'WeakSet',
+           'DEPRECATED_ARGUMENT',
+           'deprecated36',
           ]
+
+# A unique marker to give as the default value for a deprecated argument.
+# The method should then do a
+#
+#     if that_arg is not DEPRECATED_ARGUMENT:
+#         complain
+#
+# dance.
+DEPRECATED_ARGUMENT = object()
+
+# Raise DeprecationWarning, noting that the deprecated thing will go
+# away in ZODB 3.6.  Point to the caller of our caller (i.e., at the
+# code using the deprecated thing).
+def deprecated36(msg):
+    warnings.warn("This will be removed in ZODB 3.6:\n%s" % msg,
+                  DeprecationWarning, stacklevel=3)
 
 z64 = '\0'*8
 
