@@ -115,7 +115,7 @@
 #   may have a back pointer to a version record or to a non-version
 #   record.
 #
-__version__='$Revision: 1.125 $'[11:-2]
+__version__='$Revision: 1.126 $'[11:-2]
 
 import base64
 from cPickle import Pickler, Unpickler, loads
@@ -2303,6 +2303,13 @@ class FileIterator(Iterator):
         # an __len__() but can cope with any sort of mistake in its
         # implementation.  So just return 0.
         return 0
+
+    # This allows us to pass an iterator as the `other' argument to
+    # copyTransactionsFrom() in BaseStorage.  The advantage here is that we
+    # can create the iterator manually, e.g. setting start and stop, and then
+    # just let copyTransactionsFrom() do its thing.
+    def iterator(self):
+        return self
 
     def close(self):
         file = self._file
