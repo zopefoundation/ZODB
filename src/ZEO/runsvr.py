@@ -149,7 +149,6 @@ class Options:
 
 class ZEOOptions(Options):
 
-    hostname = None                     # A subclass may set this
     read_only = None
     transaction_timeout = None
     invalidation_queue_size = None
