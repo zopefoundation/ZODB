@@ -63,8 +63,7 @@ class SynchronizedStorage:
 ##        self.assertRaises(StorageTransactionError, callable *args)
 
     def verifyNotCommitting(self, callable, *args):
-        args = (StorageTransactionError, callable) + args
-        apply(self.assertRaises, args)
+        self.assertRaises(StorageTransactionError, callable, *args)
 
     def verifyWrongTrans(self, callable, *args):
         t = Transaction()
