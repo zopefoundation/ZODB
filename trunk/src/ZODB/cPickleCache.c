@@ -15,7 +15,7 @@
 static char cPickleCache_doc_string[] =
 "Defines the PickleCache used by ZODB Connection objects.\n"
 "\n"
-"$Id: cPickleCache.c,v 1.45 2002/04/02 06:03:39 jeremy Exp $\n";
+"$Id: cPickleCache.c,v 1.46 2002/04/02 11:11:45 htrd Exp $\n";
 
 #define ASSIGN(V,E) {PyObject *__e; __e=(E); Py_XDECREF(V); (V)=__e;}
 #define UNLESS(E) if(!(E))
@@ -442,11 +442,16 @@ cc_lru_items(ccobject *self, PyObject *args)
     return l;
 }
 
-/* XXX What does this function do? */
-
 static PyObject *
 cc_oid_unreferenced(ccobject *self, PyObject *args)
 {
+    /* This is called by the persistent object deallocation
+    function when the reference count on a persistent
+    object reaches zero. We need to fix up our dictionary;
+    its reference is now dangling because we stole its
+    reference count. Be careful to not release the global
+    interpreter lock until this is complete. */
+
     PyObject *oid, *v;
     if (!PyArg_ParseTuple(args, "O:_oid_unreferenced", &oid)) 
 	return NULL;
