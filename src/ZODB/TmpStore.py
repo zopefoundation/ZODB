@@ -142,6 +142,8 @@ class TmpStore:
         pos=self._pos
         file.seek(pos)
         l=len(data)
+        if serial is None:
+            serial = '\0\0\0\0\0\0\0\0'
         file.write(oid+serial+p64(l))
         file.write(data)
         self._tindex.append((oid,pos))
