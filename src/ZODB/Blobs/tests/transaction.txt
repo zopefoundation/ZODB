@@ -123,6 +123,17 @@ blob2 (a different object) should be evident:
     >>> blob2.open('r').read()
     'this is blob 3'
 
+We shouldn't be able to persist a blob filehandle at commit time
+(although the exception which is raised when an object cannot be
+pickled appears to be particulary unhelpful for casual users at the
+moment):
+
+    >>> root1['wontwork'] = blob1.open('r')
+    >>> transaction.commit()
+    Traceback (most recent call last):
+        ...
+    TypeError: coercing to Unicode: need string or buffer, BlobFile found
+
 Attempting to change a blob simultaneously from two different
 connections should result in a write conflict error (this test is
 broken currently because I need to figure out how to commit the
@@ -139,8 +150,6 @@ changes made in each connection independently):
     Traceback (most recent call last):
         ...
     ConflictError
-
-If we modify the same blob in two different connections
 
 While we are testing this, we don't need the storage directory and databases
 anymore:
