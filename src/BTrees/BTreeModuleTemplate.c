@@ -115,6 +115,7 @@
 
 
 static PyObject *sort_str, *reverse_str, *items_str, *__setstate___str;
+static PyObject *ConflictError = NULL;
 
 static void PyVar_Assign(PyObject **v, PyObject *e) { Py_XDECREF(*v); *v=e;}
 #define ASSIGN(V,E) PyVar_Assign(&(V),(E))
@@ -340,7 +341,7 @@ static char BTree_module_documentation[] =
 "\n"
 MASTER_ID
 BTREEITEMSTEMPLATE_C
-"$Id: BTreeModuleTemplate.c,v 1.11 2001/04/03 15:02:17 jim Exp $\n"
+"$Id: BTreeModuleTemplate.c,v 1.12 2001/06/20 14:48:51 matt Exp $\n"
 BTREETEMPLATE_C
 BUCKETTEMPLATE_C
 KEYMACROS_H
@@ -355,7 +356,7 @@ BTREEITEMSTEMPLATE_C
 void 
 INITMODULE (void)
 {
-  PyObject *m, *d;
+  PyObject *m, *d, *c;
 
   UNLESS (sort_str=PyString_FromString("sort")) return;
   UNLESS (reverse_str=PyString_FromString("reverse")) return;
@@ -385,11 +386,28 @@ INITMODULE (void)
 	TreeSetType.tp_setattro=cPersistenceCAPI->setattro;
     }
   else return;
+
+  /* Grab the ConflictError class */
+
+  m = PyImport_ImportModule("ZODB.POSException");
+
+  if (m != NULL) {
+  	c = PyObject_GetAttrString(m,"ConflictError");
+  	if (c != NULL) 
+  		ConflictError = c;
+  	else 
+		ConflictError = PyExc_ValueError;
+	Py_DECREF(m);	
+  } else ConflictError = PyExc_ValueError;
+
+
 #else
   BTreeType.tp_getattro=PyExtensionClassCAPI->getattro;
   BucketType.tp_getattro=PyExtensionClassCAPI->getattro;
   SetType.tp_getattro=PyExtensionClassCAPI->getattro;
   TreeSetType.tp_getattro=PyExtensionClassCAPI->getattro;
+
+  ConflictError = PyExc_ValueError;	/* MergeTemplate checks anyway */
 #endif
 
   BTreeItemsType.ob_type=&PyType_Type;
@@ -409,7 +427,7 @@ INITMODULE (void)
   d = PyModule_GetDict(m);
 
   PyDict_SetItemString(d, "__version__",
-		       PyString_FromString("$Revision: 1.11 $"));
+		       PyString_FromString("$Revision: 1.12 $"));
 
   PyExtensionClass_Export(d,MOD_NAME_PREFIX "Bucket", BucketType);
   PyExtensionClass_Export(d,MOD_NAME_PREFIX "BTree", BTreeType);
