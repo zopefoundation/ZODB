@@ -770,6 +770,30 @@ class BTreeTests(MappingBase):
         self.assertEqual(t.insert(1, 1) , 1)
         self.assertEqual(lsubtract(list(t.keys()), [0,1]) , [])
 
+    def testDamagedIterator(self):
+        # A cute one from Steve Alexander.  This caused the BTreeItems
+        # object to go insane, accessing memory beyond the allocated part
+        # of the bucket.  If it fails, the symptom is either a C-level
+        # assertion error (if the BTree code was compiled without NDEBUG),
+        # or most likely a segfault (if the BTree code was compiled with
+        # NDEBUG).
+
+        t = self.t.__class__()
+        self._populate(t, 10)
+        # In order for this to fail, it's important that k be a "lazy"
+        # iterator, referring to the BTree by indirect position (index)
+        # instead of a fully materialized list.  Then the position can
+        # end up pointing into trash memory, if the bucket pointed to
+        # shrinks.
+        k = t.keys()
+        for dummy in range(20):
+            try:
+                del t[k[0]]
+            except RuntimeError, detail:
+                self.assertEqual(str(detail), "the bucket being iterated "
+                                              "changed size")
+                break
+
 ## BTree tests
 
 class TestIOBTrees(BTreeTests, TestCase):
