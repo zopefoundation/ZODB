@@ -634,8 +634,7 @@ Notes:
 \end{description}
 
 In each case, \var{name} is a non-empty sequence of alphanumeric and
-underscore characters not starting with a digit.  Names are converted
-to lowercase before lookup in \var{mapping}.  If there is not a
+underscore characters not starting with a digit.  If there is not a
 replacement for \var{name}, these functions search up the containment
 chain for a suitable replacement.  The containment chain is found by
 looking for an attribute \member{container} on the \var{mapping}
@@ -645,35 +644,15 @@ is used.
 Note that the lookup is expected to be case-insensitive; this module
 will always use a lower-case version of the name to perform the query.
 
-For these functions, the \var{mapping} argument can be a \class{dict},
-or any type that supports the \method{get()} method of the mapping
-protocol.  The \member{container} attribute used to search the
-containment chain is optional.
+This module these functions:
 
 \begin{funcdesc}{substitute}{s, mapping}
-  Substitute values from \var{mapping} into \var{s}.  Replacement
+  Substitute values from \var{mapping} into \var{s}.  \var{mapping}
+  can be a \class{dict} or any type that supports the \method{get()}
+  method of the mapping protocol.  Replacement
   values are copied into the result without further interpretation.
   Raises \exception{SubstitutionSyntaxError} if there are malformed
   constructs in \var{s}.
-\end{funcdesc}
-
-\begin{funcdesc}{get}{mapping, name\optional{, default}}
-  Return the value for \var{name} from \var{mapping}, replacing
-  values recursively if needed.  If \var{name} cannot be found in
-  \var{mapping}, \var{default} is returned without being
-  replaced.
-  Raises \exception{SubstitutionSyntaxError} if there are malformed
-  constructs in \var{s}, or \exception{SubstitutionRecursionError} if
-  any name expands to include a reference to itself either directly or
-  indirectly.
-\end{funcdesc}
-
-Some additional functions are provided:
-
-\begin{funcdesc}{getnames}{s}
-  Return a list of the names referenced by the string \var{s}.  The
-  names will have been converted to lower case.  Each name will only
-  be included once, even if it is referenced multiple times.
 \end{funcdesc}
 
 \begin{funcdesc}{isname}{s}
@@ -681,25 +660,12 @@ Some additional functions are provided:
   text, otherwise returns \code{False}.
 \end{funcdesc}
 
-The following exceptions are defined:
-
-\begin{excdesc}{SubstitutionError}
-  Base class for errors raised by the \module{ZConfig.Substitution}
-  module.  Instances provide the attributes \member{message} and
-  \member{context}.  \member{message} contains a description of the
-  error.  \member{context} is either \code{None} or a list of names
-  that have been looked up in the case of nested substitution.
-\end{excdesc}
+The following exception is defined:
 
 \begin{excdesc}{SubstitutionSyntaxError}
-  Raised when the source text contains syntactical errors.
-\end{excdesc}
-
-\begin{excdesc}{SubstitutionRecursionError}
-  Raised when a nested substitution is recursive.  The
-  \member{context} attribute will always be a list for this
-  exception.  An additional attribute, \member{name}, gives the name
-  for which an recursive reference was detected.
+  Raised when the source text contains syntactical errors.  Instances
+  provide the attribute \member{message}, which contains a description
+  of the error.
 \end{excdesc}
 
 
