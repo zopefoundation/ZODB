@@ -150,7 +150,7 @@ method::
 and call it to minotor the storage.
 
 """
-__version__='$Revision: 1.4 $'[11:-2]
+__version__='$Revision: 1.5 $'[11:-2]
 
 import base64, POSException, BTree, BaseStorage, time, string, utils
 from TimeStamp import TimeStamp
@@ -364,7 +364,7 @@ class DemoStorage(BaseStorage.BaseStorage):
             vindex_get=self._vindex.get
             for r in t:
                 if index[r[0]] is not r:
-                    raise POSException.UndoError, 'Undoable transaction'
+                    raise POSException.UndoError, 'non-undoable transaction'
 
             oids=[]
             for r in t:
