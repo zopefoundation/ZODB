@@ -1,9 +1,12 @@
-import UndoStorage, VersionStorage
+# Check interactions between transactionalUndo() and versions.  Any storage
+# that supports both transactionalUndo() and versions must pass these tests.
 
-class UndoVersionStorage(UndoStorage.UndoStorage,
-                         VersionStorage.VersionStorage):
+import pickle
+from ZODB import POSException
 
-    
+
+
+class TransactionalUndoVersionStorage:
     def checkUndoInVersion(self):
         oid = self._storage.new_oid()
         version = 'one'
