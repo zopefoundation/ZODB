@@ -33,7 +33,7 @@ def run(path, v=0):
         if v:
             print "%8s %5d %s" % (U64(oid), len(data), key)
     L = totals.items()
-    L.sort(lambda a, b: cmp(b, a))
+    L.sort(lambda a, b: cmp(a[1], b[1]))
     L.reverse()
     print "Totals per object class:"
     for key, (bytes, count) in L:
