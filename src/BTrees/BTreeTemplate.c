@@ -12,7 +12,7 @@
 
  ****************************************************************************/
 
-#define BTREETEMPLATE_C "$Id: BTreeTemplate.c,v 1.39 2002/06/10 20:38:06 tim_one Exp $\n"
+#define BTREETEMPLATE_C "$Id: BTreeTemplate.c,v 1.40 2002/06/11 00:19:19 tim_one Exp $\n"
 
 /*
 ** _BTree_get
@@ -367,93 +367,93 @@ _BTree_set(BTree *self, PyObject *keyarg, PyObject *value,
 			   &bchanged);
     if (grew < 0)
 	goto err;
+    if (grew == 0)
+        goto Done;
 
-    if (grew) {
-	bchanged = 1;               /* A bucket changed size */
-	if (value) {			/* got bigger */
-	    if (SameType_Check(self, d->child)) {
-		if (BTREE(d->child)->len > MAX_BTREE_SIZE(d->child)) {
-		    if (BTree_grow(self, min, noval) < 0)
-			goto err;
-		    changed = 1;
-                }
-            }
-            else {
-		if (BUCKET(d->child)->len > MAX_BUCKET_SIZE(d->child)) {
-		    if (BTree_grow(self, min, noval) < 0)
-			goto err;
-		    changed = 1;
-                }
-            }
-	}
-	else {		/* got smaller */
-	    if (min && grew > 1) {
-                /* Somebody below us deleted their first bucket and */
-		/* and an intermediate tree couldn't handle it.     */
-		if (BTree_deleteNextBucket(BTREE(d[-1].child)) < 0)
-		    goto err;
-		grew = 1; /* Reset flag, since we handled it */
-            }
+    /* A bucket changed size. */
+    bchanged = 1;
+    if (value) {
+        /* A bucket got bigger. */
+        int toobig;
 
-	    if (BUCKET(d->child)->len == 0) {       /* Got empty */
-		if (!SameType_Check(self, d->child)) {
-                    /* We are about to delete a bucket. */
-		    if (min) {
-			/* If it's not our first bucket, we can tell the
-			   previous bucket to adjust it's reference to
-			   it. */
-			if (Bucket_deleteNextBucket(BUCKET(d[-1].child)) < 0)
-			    goto err;
-                    }
-                    else {
-			/* If it's the first bucket, we can't adjust the
-			   reference to it ourselves, so we'll just
-			   increment the grew flag to indicate to a
-			   parent node that it's last bucket should
-			   adjust its reference. If there is no parent,
-			   then there's nothing to do. */
-			grew++;
-                    }
-                }
-		self->len--;
-		Py_DECREF(d->child);
-		if (min) {
-		    DECREF_KEY(d->key);
-                }
-		if (min < self->len)
-		    memmove(d, d+1, (self->len-min)*sizeof(BTreeItem));
+        if (SameType_Check(self, d->child))
+            toobig = BTREE(d->child)->len > MAX_BTREE_SIZE(d->child);
+        else
+            toobig = BUCKET(d->child)->len > MAX_BUCKET_SIZE(d->child);
 
-		if (!min) {
-		    if (self->len) {
-			/* We just deleted our first child, so we need to
-			   adjust our first bucket. */
-			if (SameType_Check(self, self->data->child)) {
-			    UNLESS (PER_USE(BTREE(self->data->child)))
-				goto err;
-			    ASSIGNB(self->firstbucket,
-				    BTREE(self->data->child)->firstbucket);
-			    Py_XINCREF(self->firstbucket);
-                            PER_ALLOW_DEACTIVATION(BTREE(self->data->child));
-                            PER_ACCESSED(BTREE(self->data->child));
-                        }
-                        else {
-			    ASSIGNB(self->firstbucket,
-				    BUCKET(self->data->child));
-			    Py_INCREF(self->firstbucket);
-                        }
-			/* We can toss our first key now */
-			DECREF_KEY(self->data->key);
-                    }
-                    else {
-			Py_XDECREF(self->firstbucket);
-			self->firstbucket = 0;
-                    }
-                }
-		changed=1;
-            }
+        if (toobig) {
+            if (BTree_grow(self, min, noval) < 0)
+                goto err;
+            changed = 1;
         }
+        goto Done;
     }
 
+    /* A bucket got smaller. */
+    if (min && grew > 1) {
+        /* Somebody below us deleted their first bucket and */
+        /* an intermediate tree couldn't handle it. */
+        if (BTree_deleteNextBucket(BTREE(d[-1].child)) < 0)
+            goto err;
+        grew = 1; /* Reset flag, since we handled it */
+    }
+    if (d->child->len > 0)
+        goto Done;
+
+    /* The child became empty. */
+    if (!SameType_Check(self, d->child)) {
+        /* We are about to delete a bucket. */
+        if (min) {
+            /* If it's not our first bucket, we can tell the
+               previous bucket to adjust it's reference to it. */
+            if (Bucket_deleteNextBucket(BUCKET(d[-1].child)) < 0)
+                goto err;
+        }
+        else {
+            /* If it's the first bucket, we can't adjust the
+               reference to it ourselves, so we'll just
+               increment the grew flag to indicate to a
+               parent node that it's last bucket should
+               adjust its reference. If there is no parent,
+               then there's nothing to do. */
+            grew++;
+        }
+    }
+    self->len--;
+    Py_DECREF(d->child);
+    if (min) {
+        DECREF_KEY(d->key);
+    }
+    if (min < self->len)
+        memmove(d, d+1, (self->len-min)*sizeof(BTreeItem));
+    if (!min) {
+        if (self->len) {
+            /* We just deleted our first child, so we need to
+               adjust our first bucket. */
+            if (SameType_Check(self, self->data->child)) {
+                UNLESS (PER_USE(BTREE(self->data->child)))
+                    goto err;
+                ASSIGNB(self->firstbucket,
+                        BTREE(self->data->child)->firstbucket);
+                Py_XINCREF(self->firstbucket);
+                PER_ALLOW_DEACTIVATION(BTREE(self->data->child));
+                PER_ACCESSED(BTREE(self->data->child));
+            }
+            else {
+                ASSIGNB(self->firstbucket, BUCKET(self->data->child));
+                Py_INCREF(self->firstbucket);
+            }
+            /* We can toss our first key now */
+            DECREF_KEY(self->data->key);
+        }
+        else {
+            Py_XDECREF(self->firstbucket);
+            self->firstbucket = 0;
+        }
+    }
+    changed = 1;
+
+Done:
 #ifdef PERSISTENT
     if (changed
 	|| (bchanged                                    /* The bucket changed */
@@ -470,7 +470,7 @@ _BTree_set(BTree *self, PyObject *keyarg, PyObject *value,
     PER_ACCESSED(self);
     return grew;
 
- err:
+err:
     PER_ALLOW_DEACTIVATION(self);
     PER_ACCESSED(self);
     return -1;
