@@ -36,13 +36,12 @@ class ConnectionManager:
         self.client = client
         self.tmin = tmin
         self.tmax = tmax
-        self.connected = 0
-        self.connection = None
+        self.cond = threading.Condition(threading.Lock())
+        self.connection = None # Protected by self.cond
         self.closed = 0
         # If thread is not None, then there is a helper thread
-        # attempting to connect.  thread is protected by thread_lock.
-        self.thread = None
-        self.thread_lock = threading.Lock()
+        # attempting to connect.
+        self.thread = None # Protected by self.cond
         self.trigger = None
         self.thr_async = 0
         ThreadedAsync.register_loop_callback(self.set_async)
@@ -85,21 +84,26 @@ class ConnectionManager:
     def close(self):
         """Prevent ConnectionManager from opening new connections"""
         self.closed = 1
-        self.thread_lock.acquire()
+        self.cond.acquire()
         try:
             t = self.thread
+            self.thread = None
+            conn = self.connection
         finally:
-            self.thread_lock.release()
+            self.cond.release()
         if t is not None:
             log("CM.close(): stopping and joining thread")
             t.stop()
             t.join(30)
             if t.isAlive():
-                log("CM.close(): self.thread.join() timed out")
-        if self.connection:
-            self.connection.close()
+                log("CM.close(): self.thread.join() timed out",
+                    level=zLOG.WARNING)
+        if conn is not None:
+            # This will call close_conn() below which clears self.connection
+            conn.close()
         if self.trigger is not None:
             self.trigger.close()
+            self.trigger = None
 
     def set_async(self, map):
         # This is the callback registered with ThreadedAsync.  The
@@ -131,23 +135,36 @@ class ConnectionManager:
         finishes quickly.
         """
 
-        # XXX will a single attempt take too long?
+        # XXX Will a single attempt take too long?
+        # XXX Answer: it depends -- normally, you'll connect or get a
+        # connection refused error very quickly.  Packet-eating
+        # firewalls and other mishaps may cause the connect to take a
+        # long time to time out though.  It's also possible that you
+        # connect quickly to a slow server, and the attempt includes
+        # at least one roundtrip to the server (the register() call).
+        # But that's as fast as you can expect it to be.
         self.connect()
-        self.thread_lock.acquire()
+        self.cond.acquire()
         try:
             t = self.thread
+            conn = self.connection
         finally:
-            self.thread_lock.release()
-        if t is not None:
+            self.cond.release()
+        if t is not None and conn is None:
             event = t.one_attempt
             event.wait()
-        return self.connected
+            self.cond.acquire()
+            try:
+                conn = self.connection
+            finally:
+                self.cond.release()
+        return conn is not None
 
     def connect(self, sync=0):
-        if self.connected == 1:
-            return
-        self.thread_lock.acquire()
+        self.cond.acquire()
         try:
+            if self.connection is not None:
+                return
             t = self.thread
             if t is None:
                 log("CM.connect(): starting ConnectThread")
@@ -155,36 +172,50 @@ class ConnectionManager:
                                                 self.addrlist,
                                                 self.tmin, self.tmax)
                 t.start()
+            if sync:
+                while self.connection is None:
+                    self.cond.wait(30)
+                    if self.connection is None:
+                        log("CM.connect(sync=1): still waiting...")
         finally:
-            self.thread_lock.release()
+            self.cond.release()
         if sync:
-            t.join(30)
-            while t.isAlive():
-                log("CM.connect(sync=1): thread join timed out")
-                t.join(30)
+            assert self.connection is not None
 
     def connect_done(self, conn, preferred):
+        # Called by ConnectWrapper.notify_client() after notifying the client
         log("CM.connect_done(preferred=%s)" % preferred)
-        self.connected = 1
-        self.connection = conn
-        if preferred:
-            self.thread_lock.acquire()
-            try:
+        self.cond.acquire()
+        try:
+            self.connection = conn
+            if preferred:
                 self.thread = None
-            finally:
-                self.thread_lock.release()
+            self.cond.notifyAll() # Wake up connect(sync=1)
+        finally:
+            self.cond.release()
 
-    def notify_closed(self, conn):
-        if conn is not self.connection:
-            # Closing a non-current connection
-            log("CM.notify_closed() non-current", level=zLOG.BLATHER)
-            return
-        log("CM.notify_closed()")
-        self.connected = 0
-        self.connection = None
+    def close_conn(self, conn):
+        # Called by the connection when it is closed
+        self.cond.acquire()
+        try:
+            if conn is not self.connection:
+                # Closing a non-current connection
+                log("CM.close_conn() non-current", level=zLOG.BLATHER)
+                return
+            log("CM.close_conn()")
+            self.connection = None
+        finally:
+            self.cond.release()
         self.client.notifyDisconnected()
         if not self.closed:
             self.connect()
+
+    def is_connected(self):
+        self.cond.acquire()
+        try:
+            return self.connection is not None
+        finally:
+            self.cond.release()
 
 # When trying to do a connect on a non-blocking socket, some outcomes
 # are expected.  Set _CONNECT_IN_PROGRESS to the errno value(s) expected
@@ -207,20 +238,20 @@ class ConnectThread(threading.Thread):
 
     The thread is passed a ConnectionManager and the manager's client
     as arguments.  It calls testConnection() on the client when a
-    socket connects; that should return a tuple (stub, score) where
-    stub is an RPC stub, and score is 1 or 0 depending on whether this
+    socket connects; that should return 1 or 0 indicating whether this
     is a preferred or a fallback connection.  It may also raise an
     exception, in which case the connection is abandoned.
 
     The thread will continue to run, attempting connections, until a
-    preferred stub is seen or until all sockets have been tried.
+    preferred connection is seen or until all sockets have been tried.
 
-    As soon as testConnection() returns a preferred stub, or after all
-    sockets have been tried and at least one fallback stub has been
-    seen, notifyConnected(stub) is called on the client and
-    connect_done() on the manager.  If this was a preferred stub, the
-    thread then exits; otherwise, it keeps trying until it gets a
-    preferred stub, and then reconnects the client using that stub.
+    As soon as testConnection() finds a preferred connection, or after
+    all sockets have been tried and at least one fallback connection
+    has been seen, notifyConnected(connection) is called on the client
+    and connect_done() on the manager.  If this was a preferred
+    connection, the thread then exits; otherwise, it keeps trying
+    until it gets a preferred connection, and then reconnects the
+    client using that connection.
 
     """
 
@@ -248,6 +279,7 @@ class ConnectThread(threading.Thread):
 
     def run(self):
         delay = self.tmin
+        success = 0
         while not self.stopped:
             success = self.try_connecting()
             if not self.one_attempt.isSet():
@@ -315,10 +347,10 @@ class ConnectThread(threading.Thread):
                     del wrappers[wrap]
 
         # If we've got wrappers left at this point, they're fallback
-        # connections.  Try notifying then until one succeeds.
+        # connections.  Try notifying them until one succeeds.
         for wrap in wrappers.keys():
             assert wrap.state == "tested" and wrap.preferred == 0
-            if self.mgr.connected:
+            if self.mgr.is_connected():
                 wrap.close()
             else:
                 wrap.notify_client()
@@ -356,7 +388,6 @@ class ConnectWrapper:
         self.state = "closed"
         self.sock = None
         self.conn = None
-        self.stub = None
         self.preferred = 0
         log("CW: attempt to connect to %s" % repr(addr))
         try:
@@ -402,8 +433,9 @@ class ConnectWrapper:
         """
         self.conn = ManagedConnection(self.sock, self.addr,
                                       self.client, self.mgr)
+        self.sock = None # The socket is now owned by the connection
         try:
-            (self.stub, self.preferred) = self.client.testConnection(self.conn)
+            self.preferred = self.client.testConnection(self.conn)
             self.state = "tested"
         except ReadOnlyError:
             log("CW: ReadOnlyError in testConnection (%s)" % repr(self.addr))
@@ -422,16 +454,12 @@ class ConnectWrapper:
 
         If this succeeds, call the manager's connect_done().
 
-        If the client is already connected, we assume it's a fallbac
-        connection, the new stub must be a preferred stub, and we
-        first disconnect the client.
+        If the client is already connected, we assume it's a fallback
+        connection, and the new connection must be a preferred
+        connection.  The client will close the old connection.
         """
-        if self.mgr.connected:
-            assert self.preferred
-            log("CW: reconnecting client to preferred stub")
-            self.mgr.connection.close()
         try:
-            self.client.notifyConnected(self.stub)
+            self.client.notifyConnected(self.conn)
         except:
             log("CW: error in notifyConnected (%s)" % repr(self.addr),
                 level=zLOG.ERROR, error=sys.exc_info())
@@ -443,7 +471,7 @@ class ConnectWrapper:
     def close(self):
         """Close the socket and reset everything."""
         self.state = "closed"
-        self.stub = self.mgr = self.client = None
+        self.mgr = self.client = None
         self.preferred = 0
         if self.conn is not None:
             # Closing the ZRPC connection will eventually close the

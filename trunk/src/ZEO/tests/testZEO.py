@@ -499,7 +499,7 @@ class ConnectionTests(StorageTestBase.StorageTestBase):
         # Start a read-only server
         self._startServer(create=0, index=0, read_only=1)
         # Start a client in fallback mode
-        self._storage = self.openClientStorage(wait=0, read_only_fallback=1)
+        self._storage = self.openClientStorage(wait=1, read_only_fallback=1)
         # Stores should fail here
         self.assertRaises(ReadOnlyError, self._dostore)
 
