@@ -327,12 +327,73 @@ class TestImports(TestCase):
         else:
             self.fail("OOBTree shouldn't have multiunion")
 
+# Subclasses must set up (as class variables):
+#     weightedUnion, weightedIntersection
+#     builders -- sequence of constructors, taking items
+class Weighted(TestCase):
+
+    def setUp(self):
+        self.Aitems = [(1, 10), (3, 30),  (5, 50), (6, 60)]
+        self.Bitems = [(2, 21), (3, 31), (4, 41),  (6, 61), (7, 71)]
+
+        self.As = [make(self.Aitems) for make in self.builders]
+        self.Bs = [make(self.Bitems) for make in self.builders]
+        self.emptys = [make([]) for make in self.builders]
+
+    def testBothNone(self):
+        for op in self.weightedUnion, self.weightedIntersection:
+            w, C = op(None, None)
+            self.assert_(C is None)
+            self.assertEqual(w, 0)
+
+            w, C = op(None, None, 42, 666)
+            self.assert_(C is None)
+            self.assertEqual(w, 0)
+
+    def testLeftNone(self):
+        for op in self.weightedUnion, self.weightedIntersection:
+            for A in self.As + self.emptys:
+                w, C = op(None, A)
+                self.assert_(C is A)
+                self.assertEqual(w, 1)
+
+                w, C = op(None, A, 42, 666)
+                self.assert_(C is A)
+                self.assertEqual(w, 666)
+
+    def testRightNone(self):
+        for op in self.weightedUnion, self.weightedIntersection:
+            for A in self.As + self.emptys:
+                w, C = op(A, None)
+                self.assert_(C is A)
+                self.assertEqual(w, 1)
+
+                w, C = op(A, None, 42, 666)
+                self.assert_(C is A)
+                self.assertEqual(w, 42)
+
+# Given a set builder (like OITreeSet or OISet), return a function that
+# takes a list of (key, value) pairs and builds a set out of the keys.
+def itemsToSet(setbuilder):
+    def result(items, setbuilder=setbuilder):
+        return setbuilder([key for key, value in items])
+    return result
+
+class TestWeightedII(Weighted):
+    from BTrees.IIBTree import weightedUnion, weightedIntersection
+    builders = IIBucket, IIBTree, itemsToSet(IISet), itemsToSet(IITreeSet)
+
+class TestWeightedOI(Weighted):
+    from BTrees.OIBTree import weightedUnion, weightedIntersection
+    builders = OIBucket, OIBTree, itemsToSet(OISet), itemsToSet(OITreeSet)
+
 
 def test_suite():
     s = TestSuite()
     for klass in (TestIIMultiUnion, TestIOMultiUnion,
                   TestImports,
-                  PureII, PureIO, PureOI, PureOO):
+                  PureII, PureIO, PureOI, PureOO,
+                  TestWeightedII, TestWeightedOI):
         s.addTest(makeSuite(klass))
     return s
 
