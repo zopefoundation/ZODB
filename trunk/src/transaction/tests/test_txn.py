@@ -33,7 +33,6 @@ class TestDataManager:
     def prepare(self, txn):
         if self._fail == "prepare":
             raise RuntimeError
-        return self._vote
 
     def abort(self, txn):
         if self._fail == "abort":
@@ -124,15 +123,6 @@ class BaseTxnTests(unittest.TestCase):
         txn.join(TestDataManager(fail="prepare"))
         self.assertRaises(RuntimeError, txn.commit)
         self.assertEqual(txn.status(), Status.FAILED)
-        txn.abort()
-
-    def testCommitPrepareFalse(self):
-        txn = self.manager.begin()
-        txn.join(TestDataManager())
-        txn.join(TestDataManager(vote=False))
-        self.assertRaises(AbortError, txn.commit)
-        self.assertEqual(txn.status(), Status.FAILED)
-        self.assertRaises(IllegalStateError, txn.commit)
         txn.abort()
 
     def testCommitFailure(self):

@@ -57,7 +57,8 @@ class IDataManager(Interface):
     def prepare(transaction):
         """Begin two-phase commit of a transaction.
 
-        DataManager should return True or False.
+        The data manager must raise an exception if it is not prepared
+        to commit the transaction after executing prepare().
         """
 
     def abort(transaction):
