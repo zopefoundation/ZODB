@@ -38,12 +38,12 @@ class Base(TestCase):
 
     def _getRoot(self):
         if self.db is None:
-            # XXX On the next line, the ZODB4 flavor of this routine
-            # XXX passes a cache_size argument:
+            # Unclear:  On the next line, the ZODB4 flavor of this routine
+            # [asses a cache_size argument:
             #     self.db = DB(MappingStorage(), cache_size=1)
-            # XXX If that's done here, though, testLoadAndStore() and
-            # XXX testGhostUnghost() both nail the CPU and seemingly
-            # XXX never finish.
+            # If that's done here, though, testLoadAndStore() and
+            # testGhostUnghost() both nail the CPU and seemingly
+            # never finish.
             self.db = DB(MappingStorage())
         return self.db.open().root()
 
@@ -137,9 +137,9 @@ class MappingBase(Base):
         for i in range(1000):
             self.t[i] = i
         r = repr(self.t)
-        # make sure the repr is 10000 bytes long for a bucket
-        # XXX since we the test is also run for btrees, skip the length
-        # XXX check if the repr starts with '<'
+        # Make sure the repr is 10000 bytes long for a bucket.
+        # But since the test is also run for btrees, skip the length
+        # check if the repr starts with '<'
         if not r.startswith('<'):
             self.assert_(len(r) > 10000)
 

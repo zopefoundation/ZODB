@@ -524,8 +524,8 @@ class InvalidationTests:
         db1.close()
         db2.close()
 
-    # XXX Temporarily disabled.  I know it fails, and there's no point
-    # XXX getting an endless number of reports about that.
+    # TODO:  Temporarily disabled.  I know it fails, and there's no point
+    # getting an endless number of reports about that.
     def xxxcheckConcurrentUpdatesInVersions(self):
         self._storage = storage1 = self.openClientStorage()
         db1 = DB(storage1)

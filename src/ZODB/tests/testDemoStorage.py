@@ -36,11 +36,11 @@ class DemoStorageTests(StorageTestBase.StorageTestBase,
         pass
 
     def checkAbortVersionNonCurrent(self):
-        # XXX Need to implement a real loadBefore for DemoStorage?
+        # TODO:  Need to implement a real loadBefore for DemoStorage?
         pass
 
     def checkLoadBeforeVersion(self):
-        # XXX Need to implement a real loadBefore for DemoStorage?
+        # TODO:  Need to implement a real loadBefore for DemoStorage?
         pass
 
     # the next three pack tests depend on undo

@@ -189,5 +189,4 @@ def loop(timeout=30.0, use_poll=0, map=None):
 
 ##asyncore.loop = deprecated_loop
 
-# XXX Remove this once we've updated ZODB4 since they share this package
 asyncore.loop = loop

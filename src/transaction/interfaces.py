@@ -27,7 +27,7 @@ class IDataManager(Interface):
 
     This is currently implemented by ZODB database connections.
 
-    XXX This exists to document ZODB4 behavior, to help create some
+    This exists to document ZODB4 behavior, to help create some
     backward-compatability support for Zope 3.  New classes shouldn't
     implement this. They should implement ZODB.interfaces.IDataManager
     for now. Our hope is that there will eventually be an interface

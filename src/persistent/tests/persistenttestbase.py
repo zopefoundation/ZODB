@@ -47,7 +47,7 @@ class Test(unittest.TestCase):
         self.assertEqual(p._p_changed, 1)
         self.assertEqual(dm.called, 1)
         del p._p_changed
-        # XXX deal with current cPersistence implementation
+        # deal with current cPersistence implementation
         if p._p_changed != 3:
             self.assertEqual(p._p_changed, None)
         self.assertEqual(dm.called, 1)
@@ -164,7 +164,7 @@ class Test(unittest.TestCase):
         p._p_jar = dm
         p._p_changed = 0
         p._p_deactivate()
-        # XXX does this really test the activate method?
+        # Unsure: does this really test the activate method?
         p._p_activate()
         self.assertEqual(p._p_changed, 0)
         self.assertEqual(p.x, 42)
@@ -266,10 +266,10 @@ class Test(unittest.TestCase):
         self.assert_(P.__dictoffset__ < P.__weakrefoffset__)
         self.assert_(P.__basicsize__ > Persistent.__basicsize__)
 
-# XXX Can anyone defend/explain the test below? The tests classes defined here
-# don't define __call__, so this weird test will always pass, but to what
-# end? What the heck is the point.  If a klass is given that happens
-# to define __call__, the test *may* mysteriously fail. Who cares?
+# Unsure:  Can anyone defend/explain the test below? The tests classes defined
+# here don't define __call__, so this weird test will always pass, but to what
+# end?  If a klass is given that happens to define __call__, the test *may*
+# mysteriously fail. Who cares?
 
 ##     def testDeactivateErrors(self):
 ##         p = self.klass()

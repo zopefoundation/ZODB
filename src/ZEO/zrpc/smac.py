@@ -133,7 +133,7 @@ class SizedMessageAsyncConnection(asyncore.dispatcher):
     def get_addr(self):
         return self.addr
 
-    # XXX avoid expensive getattr calls?  Can't remember exactly what
+    # TODO: avoid expensive getattr calls?  Can't remember exactly what
     # this comment was supposed to mean, but it has something to do
     # with the way asyncore uses getattr and uses if sock:
     def __nonzero__(self):
@@ -193,7 +193,7 @@ class SizedMessageAsyncConnection(asyncore.dispatcher):
                 else:
                     msg_size = 4
                     state = 0
-                    # XXX We call message_input() with __input_lock
+                    # Obscure:  We call message_input() with __input_lock
                     # held!!!  And message_input() may end up calling
                     # message_output(), which has its own lock.  But
                     # message_output() cannot call message_input(), so

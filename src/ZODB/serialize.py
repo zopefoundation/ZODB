@@ -454,7 +454,7 @@ class ConnectionObjectReader(BaseObjectReader):
             # to create the instance w/o hitting the db, so go for it!
             oid, klass = oid
 
-            obj = self._cache.get(oid, None) # XXX it's not a dict
+            obj = self._cache.get(oid, None)
             if obj is not None:
                 return obj
 
@@ -474,7 +474,7 @@ class ConnectionObjectReader(BaseObjectReader):
                 # current data in the object's actual record!
                 return self._conn.get(oid)
 
-            # XXX should be done by connection
+            # TODO: should be done by connection
             obj._p_oid = oid
             obj._p_jar = self._conn
             # When an object is created, it is put in the UPTODATE

@@ -760,8 +760,7 @@ earlier names:
 
 The in-memory, per-connection object cache (pickle cache) was changed
 to participate in garbage collection.  This should reduce the number
-of memory leaks, although we are still tracking a few problems.  [XXX
-might say more here]
+of memory leaks, although we are still tracking a few problems.
 
 Multi-version concurrency control
 ---------------------------------
@@ -1309,7 +1308,7 @@ The ZEO cache verification protocol was revised to require many fewer
 messages in cases where a client or server restarts quickly.
 
 The performance of full cache verification has improved dramatically.
-XXX Get measurements from Jim -- somewhere in 2x-5x recall.  The
+Measurements from Jim were somewhere in 2x-5x.  The
 implementation was fixed to use the very-fast getSerial() method on
 the storage instead of the comparatively slow load().
 
@@ -1667,7 +1666,7 @@ The ZEO version number was bumped to 2.0.2 on account of the following
 minor feature additions.
 
 The performance of full cache verification has improved dramatically.
-XXX Get measurements from Jim -- somewhere in 2x-5x recall.  The
+Measurements from Jim were somewhere in 2x-5x.  The
 implementation was fixed to use the very-fast getSerial() method on
 the storage instead of the comparatively slow load().
 

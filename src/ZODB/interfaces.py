@@ -245,7 +245,7 @@ class ITransaction(Interface):
 class IConnection(Interface):
     """ZODB connection.
 
-    XXX: This interface is incomplete.
+    TODO: This interface is incomplete.
     """
 
     def add(ob):

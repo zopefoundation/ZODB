@@ -89,7 +89,7 @@ monotonically increasing, so the first one seen during the current
 transaction remains the high-water mark for the duration of the
 transaction.
 
-XXX We'd like simple abort and commit calls to make txn boundaries,
+We'd like simple abort and commit calls to make txn boundaries,
 but that doesn't work unless an object is modified.  sync() will abort
 a transaction and process invalidations.
 
