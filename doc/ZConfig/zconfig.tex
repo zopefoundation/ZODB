@@ -378,7 +378,7 @@ The following elements are used to describe a schema:
   Exactly one of the two possible attributes must be specified.
 
   \begin{attributedesc}{package}{\datatype{dotted-name}}
-    Python-package style name that identies a directory found on
+    Python-package style name that identifies a directory found on
     \code{sys.path} containing a schema component in a file named
     \file{component.xml}.  Dots in the value are converted to
     directory separators.
@@ -414,7 +414,7 @@ The following elements are used to describe a schema:
 
   \begin{attributedesc}{default}{\datatype{string}}
     If the key-value pair is optional and this attribute is specified,
-    the value of this attribute will be converted using the appropiate
+    the value of this attribute will be converted using the appropriate
     data type converter and returned to the application as the
     configured value.  This attribute may not be specified if the
     \attribute{required} attribute is \code{yes}.
@@ -645,11 +645,11 @@ There are a number of data types which can be identified using the
 \attribute{datatype} attribute on \element{key},
 \element{sectiontype}, and \element{schema} elements.
 Applications may extend the set of datatypes by calling the
-\method{register()} method of the data type regsitry being used or by
+\method{register()} method of the data type registry being used or by
 using Python dotted-names to refer to conversion routines defined in
 code.
 
-The following datatypes are provided by the default type registry.
+The following data types are provided by the default type registry.
 
 \begin{definitions}
 \term{\datatype{basic-key}}
@@ -773,29 +773,45 @@ The following datatypes are provided by the default type registry.
 
 The main \module{ZConfig} package exports these convenience functions:
 
-\begin{funcdesc}{loadConfig}{schema, url}
+\begin{funcdesc}{loadConfig}{schema, url\optional{, overrides}}
   Load and return a configuration from a URL or pathname given by
   \var{url}.  \var{url} may be a URL, absolute pathname, or relative
   pathname.  Fragment identifiers are not supported.  \var{schema} is
-  a referennce to a schema loaded by \function{loadSchema()} or
+  a reference to a schema loaded by \function{loadSchema()} or
   \function{loadSchemaFile()}.
   The return value is a tuple containing the configuration object and
   a composite handler that, when called with a name-to-handler
   mapping, calls all the handlers for the configuration.
   % XXX need to talk about handlers and the schema definitions still!
+
+  The optional \var{overrides} argument represents information derived
+  from command-line arguments.  If given, it must be either a sequence
+  of value specifiers, or \code{None}.  A \dfn{value specifier} is a
+  string of the form \code{\var{optionpath}=\var{value}}.  The
+  \var{optionpath} specifies the ``full path'' to the configuration
+  setting: it can contain a sequence of names, separated by
+  \character{/} characters. Each name before the last names a section
+  from the configuration file, and the last name corresponds to a key
+  within the section identified by the leading section names.  If
+  \var{optionpath} contains only one name, it identifies a key in the
+  top-level schema.  \var{value} is a string that will be treated
+  just like a value in the configuration file.
 \end{funcdesc}
 
-\begin{funcdesc}{loadConfigFile}{schema, file\optional{, url}}
+\begin{funcdesc}{loadConfigFile}{schema, file\optional{,
+                                 url\optional{, overrides}}}
   Load and return a configuration from an opened file object.  If
   \var{url} is omitted, one will be computed based on the
   \member{name} attribute of \var{file}, if it exists.  If no URL can
   be determined, all \keyword{\%include} statements in the
-  configuration must use absolute URLs.  \var{schema} is a referennce
+  configuration must use absolute URLs.  \var{schema} is a reference
   to a schema loaded by \function{loadSchema()} or
   \function{loadSchemaFile()}.
   The return value is a tuple containing the configuration object and
   a composite handler that, when called with a name-to-handler
   mapping, calls all the handlers for the configuration.
+  The \var{overrides} argument is the same as for the
+  \function{loadConfig()} function.
   % XXX need to talk about handlers and the schema definitions still!
 \end{funcdesc}
 
@@ -812,8 +828,8 @@ The main \module{ZConfig} package exports these convenience functions:
 \begin{funcdesc}{loadSchemaFile}{file\optional{, url}}
   Load a schema definition from the open file object \var{file}.  If
   \var{url} is given and not \code{None}, it should be the URL of
-  resource represented by \var{file}.  If \var{url} is ommitted or
-  \code{None}, a URL may be computed from the \member{name} attrigbute
+  resource represented by \var{file}.  If \var{url} is omitted or
+  \code{None}, a URL may be computed from the \member{name} attribute
   of \var{file}, if present.  The resulting schema object can
   be passed to \function{loadConfig()} or \function{loadConfigFile()}.
   The schema object may be used as many times as needed.
@@ -950,7 +966,7 @@ attributes:
 The \module{ZConfig.datatypes} module provides the implementation of
 the default data type registry and all the standard data types
 supported by \module{ZConfig}.  A number of convenience classes are
-also provided to assist in the creation of additional datatypes.
+also provided to assist in the creation of additional data types.
 
 A \dfn{datatype registry} is an object that provides conversion
 functions for data types.  The interface for a registry is fairly
@@ -982,7 +998,7 @@ will be properly propogated.
 \end{methoddesc}
 
 \begin{methoddesc}{register}{name, conversion}
-  Registery the data type name \var{name} to use the conversion
+  Register the data type name \var{name} to use the conversion
   function \var{conversion}.  If \var{name} is already registered or
   provided as a stock data type, \exception{ValueError} is raised
   (this includes the case when \var{name} was found using the
@@ -1004,7 +1020,7 @@ The following classes are provided to define conversion functions:
   Simple memoization for potentially expensive conversions.  This
   conversion helper caches each successful conversion for re-use at a
   later time; failed conversions are not cached in any way, since it
-  is difficult to raise a meaningful excpetion providing information
+  is difficult to raise a meaningful exception providing information
   about the specific failure.
 \end{classdesc}
 
@@ -1070,7 +1086,7 @@ non-default data type registry.
 
 \subsection{Loader Objects}
 
-Loader objects provide a general public interface, an inteface which
+Loader objects provide a general public interface, an interface which
 subclasses must implement, and some utility methods.
 
 The following methods provide the public interface:
@@ -1252,7 +1268,7 @@ should be called only once:
   must use absolute URLs.
 \end{methoddesc}
 
-The following methods are defined to be individually overridable by
+The following methods are defined to be individually overridden by
 subclasses; this should suffice for most context specialization.
 
 \begin{methoddesc}{createNestedSection}{parent, type, name, delegatename}
@@ -1303,7 +1319,7 @@ subclasses; this should suffice for most context specialization.
 
 The following methods are provided to make it easy for parsers to
 support common semantics for the \keyword{\%include} statement, if
-taht is defined for the syntax implemented by the alternate parser.
+that is defined for the syntax implemented by the alternate parser.
 
 \begin{methoddesc}{includeConfiguration}{parent, url}
 \end{methoddesc}
@@ -1443,7 +1459,7 @@ The following methods are used in retrieving and managing sections:
 
 \begin{methoddesc}[Configuration]{addNamedSection}{section}
   Add a named section to this section's context.  This is only used to
-  add sections that are descendents but not children of the current
+  add sections that are descendants but not children of the current
   section.
 \end{methoddesc}
 
