@@ -223,7 +223,6 @@ class MappingBase(Base):
         self.assertEqual(diff , [], diff)
 
     def testUpdate(self):
-        "mapping update"
         d={}
         l=[]
         for i in range(10000):
@@ -332,7 +331,6 @@ class NormalSetTests(Base):
         self.assertEqual(t.minKey(9) , 10)
 
     def testUpdate(self):
-        "mapping update"
         d={}
         l=[]
         for i in range(10000):
