@@ -13,7 +13,7 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.141 2004/04/01 03:56:58 jeremy Exp $"""
+$Id: Connection.py,v 1.142 2004/04/02 17:47:57 fdrake Exp $"""
 
 import logging
 import sys
@@ -242,7 +242,6 @@ class Connection(ExportImport, object):
           - `oid`: an object id
 
         :Exceptions:
-
           - `KeyError`: if oid does not exist.  It is possible that an
             object does not exist as of the current transaction, but
             existed in the past.  It may even exist again in the
