@@ -233,11 +233,11 @@ class IIMerge(IMerge):
         if c1 is None and c2 is not None, the output is weight2 and
         c2.
 
-        if c1 is not None and c2 not None, the output is weight1 and
-        c1.
+        if c1 is not None and c2 not None and both sets, the output is 
+        weight1 and c1.
 
-        If c1 and c2 are not None, the output is 1 and a Bucket
-        such that the output values are::
+        If c1 and c2 are not None and not both sets, the output is 1 
+        and a Bucket such that the output values are::
 
           v1*weight1 + v2*weight2
 
@@ -264,7 +264,7 @@ class IIMerge(IMerge):
         if c1 is not None and c2 not None, the output is weight1 and
         c1.
 
-        If c1 and c2 are sets, the output is the sum of the weights
+        If c1 and c2 are both sets, the output is the sum of the weights
         and the (unweighted) intersection of the sets.
 
         If c1 and c2 are not None and not both sets, the output is 1
