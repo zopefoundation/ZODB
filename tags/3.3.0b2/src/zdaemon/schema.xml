@@ -1,0 +1,26 @@
+<schema>
+
+  <description>
+    This schema describes various options that control zdctl.py and
+    zdrun.py.  zdrun.py is the "daemon process manager"; it runs a
+    subprocess in the background and restarts it when it crashes.
+    zdctl.py is the user interface to zdrun.py; it can tell zdrun.py
+    to start, stop or restart the subprocess, send it a signal, etc.
+
+    There are two sections: &lt;runner&gt; defines options unique
+    zdctl.py and zdrun.py, and &lt;eventlog&gt; defines a standard
+    event logging section used by zdrun.py.
+
+    More information about zdctl.py and zdrun.py can be found in the
+    file Doc/zdctl.txt.  This all is specific to Unix/Linux.
+  </description>
+
+  <import package="ZConfig.components.logger"/>
+
+  <import package="zdaemon"/>
+
+  <section name="*" type="runner" attribute="runner" required="yes" />
+
+  <section name="*" type="eventlog" attribute="eventlog" required="no" />
+
+</schema>

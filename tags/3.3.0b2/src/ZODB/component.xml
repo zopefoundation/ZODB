@@ -1,0 +1,161 @@
+<component prefix="ZODB.config">
+
+  <!-- XXX needs descriptions for everything -->
+
+  <abstracttype name="ZODB.storage"/>
+  <abstracttype name="ZODB.database"/>
+
+  <sectiontype name="filestorage" datatype=".FileStorage"
+               implements="ZODB.storage">
+    <key name="path" required="yes">
+      <description>
+        Path name to the main storage file.  The names for
+        supplemental files, including index and lock files, will be
+        computed from this.
+      </description>
+    </key>
+    <key name="create" datatype="boolean" default="false">
+      <description>
+        Flag that indicates whether the storage should be truncated if
+        it already exists.
+      </description>
+    </key>
+    <key name="read-only" datatype="boolean" default="false">
+      <description>
+        If true, only reads may be executed against the storage.  Note
+        that the "pack" operation is not considered a write operation
+        and is still allowed on a read-only filestorage.
+      </description>
+    </key>
+    <key name="quota" datatype="byte-size">
+      <description>
+        Maximum allowed size of the storage file.  Operations which
+        would cause the size of the storage to exceed the quota will
+        result in a ZODB.FileStorage.FileStorageQuotaError being
+        raised.
+      </description>
+    </key>
+  </sectiontype>
+
+  <sectiontype name="mappingstorage" datatype=".MappingStorage"
+               implements="ZODB.storage">
+    <key name="name" default="Mapping Storage"/>
+  </sectiontype>
+
+  <!-- The BDB storages probably need to be revised somewhat still.
+       The extension relationship seems a little odd.
+    -->
+  <sectiontype name="fullstorage" datatype=".BDBFullStorage"
+               implements="ZODB.storage">
+    <key name="envdir" required="yes" />
+    <key name="interval" datatype="time-interval" default="2m" />
+    <key name="kbyte" datatype="integer" default="0" />
+    <key name="min" datatype="integer" default="0" />
+    <key name="logdir" />
+    <key name="cachesize" datatype="byte-size" default="128MB" />
+    <key name="frequency" datatype="time-interval" default="0" />
+    <key name="packtime" datatype="time-interval" default="4h" />
+    <key name="gcpack" datatype="integer" default="0" />
+    <key name="read-only" datatype="boolean" default="off"/>
+  </sectiontype>
+
+  <sectiontype name="minimalstorage" datatype=".BDBMinimalStorage"
+               implements="ZODB.storage" extends="fullstorage"/>
+
+  <sectiontype name="zeoclient" datatype=".ZEOClient"
+               implements="ZODB.storage">
+    <multikey name="server" datatype="socket-address" required="yes"/>
+    <key name="storage" default="1">
+      <description>
+        The name of the storage that the client wants to use.  If the
+        ZEO server serves more than one storage, the client selects
+        the storage it wants to use by name.  The default name is '1',
+        which is also the default name for the ZEO server.
+      </description>
+    </key>
+    <key name="cache-size" datatype="integer" default="20000000">
+      <description>
+        The maximum size of the client cache, in bytes.
+      </description>
+    </key>
+    <key name="name" default="">
+      <description>
+        The storage name.  If unspecified, the address of the server
+        will be used as the name.
+      </description>
+    </key>
+    <key name="client">
+      <description>
+        Enables persistent cache files.  The string passed here is
+        used to construct the cache filenames.  If it is not
+        specified, the client creates a temporary cache that will
+        only be used by the current object.
+      </description>
+    </key>
+    <key name="var">
+      <description>
+        The directory where persistent cache files are stored.  By
+        default cache files, if they are persistent, are stored in 
+        the current directory.
+      </description>
+    </key>
+    <key name="min-disconnect-poll" datatype="integer" default="5">
+      <description>
+        The minimum delay in seconds between attempts to connect to
+        the server, in seconds.  Defaults to 5 seconds.
+      </description>
+    </key>
+    <key name="max-disconnect-poll" datatype="integer" default="300">
+      <description>
+        The maximum delay in seconds between attempts to connect to
+        the server, in seconds.  Defaults to 300 seconds.
+      </description>
+    </key>
+    <key name="wait" datatype="boolean" default="on">
+      <description>
+        A boolean indicating whether the constructor should wait
+        for the client to connect to the server and verify the cache
+        before returning.  The default is true.
+      </description>
+    </key>
+    <key name="read-only" datatype="boolean" default="off">
+      <description>
+        A flag indicating whether this should be a read-only storage,
+        defaulting to false (i.e. writing is allowed by default).
+      </description>
+    </key>
+    <key name="read-only-fallback" datatype="boolean" default="off">
+      <description>
+        A flag indicating whether a read-only remote storage should be
+        acceptable as a fallback when no writable storages are
+        available.  Defaults to false.  At most one of read_only and
+        read_only_fallback should be true.
+      </description>
+    </key>
+    <key name="realm" required="no">
+      <description>
+        The authentication realm of the server.  Some authentication
+        schemes use a realm to identify the logic set of usernames
+        that are accepted by this server.
+      </description>
+    </key>
+  </sectiontype>
+
+  <sectiontype name="demostorage" datatype=".DemoStorage"
+               implements="ZODB.storage">
+    <key name="name" default="Demo Storage"/>
+    <section type="ZODB.storage" name="*" attribute="base"/>
+    <key name="quota" datatype="integer"/>
+  </sectiontype>
+
+
+  <sectiontype name="zodb" datatype=".ZODBDatabase"
+               implements="ZODB.database">
+    <section type="ZODB.storage" name="*" attribute="storage"/>
+    <key name="cache-size" datatype="integer" default="5000"/>
+    <key name="pool-size" datatype="integer" default="7"/>
+    <key name="version-pool-size" datatype="integer" default="3"/>
+    <key name="version-cache-size" datatype="integer" default="100"/>
+  </sectiontype>
+
+</component>
