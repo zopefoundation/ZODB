@@ -186,7 +186,7 @@
 #   may have a back pointer to a version record or to a non-version
 #   record.
 #
-__version__='$Revision: 1.67 $'[11:-2]
+__version__='$Revision: 1.68 $'[11:-2]
 
 import struct, time, os, bpthread, string, base64, sys
 from struct import pack, unpack
@@ -466,15 +466,18 @@ class FileStorage(BaseStorage.BaseStorage,
         
     def commitVersion(self, src, dest, transaction, abort=None):
         # We are going to commit by simply storing back pointers.
-
         if (not src or
             type(src) is not StringType or type(dest) is not StringType
             ):
             raise POSException.VersionCommitError('Invalid source version')
 
+        if src == dest:
+            raise POSException.VersionCommitError(
+                "Can't commit to same version: %s" % repr(src))
+
         if dest and abort:
-            raise 'VersionCommitError', (
-                'Internal error, can\'t abort to a version')
+            raise POSException.VersionCommitError(
+                "Internal error, can't abort to a version")
         
         if transaction is not self._transaction:
             raise POSException.StorageTransactionError(self, transaction)
