@@ -769,6 +769,16 @@ The following data types are provided by the default type registry.
   example, \samp{128MB}).  Suffixes are case insensitive and may be
   \samp{KB}, \samp{MB}, or \samp{GB}
 
+\term{\datatype{dotted-name}}
+  A string consisting of one or more \datatype{identifier} values
+  separated by periods (\character{.}).
+
+\term{\datatype{dotted-suffix}}
+  A string consisting of one or more \datatype{identifier} values
+  separated by periods (\character{.}), possibly prefixed by a
+  period.  This can be used to indicate a dotted name that may be
+  specified relative to some base dotted name.
+
 \term{\datatype{existing-dirpath}}
   Validates that the directory portion of a pathname exists.  For
   example, if the value provided is \file{/foo/bar}, \file{/foo} must
