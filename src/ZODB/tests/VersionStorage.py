@@ -169,7 +169,8 @@ class VersionStorage:
         #JF#                   'bogus', self._transaction)
 
         # And try to abort the empty version
-        if self._storage.supportsTransactionalUndo():
+        if (hasattr(self._storage, 'supportsTransactionalUndo')
+            and self._storage.supportsTransactionalUndo()):
             # XXX FileStorage used to be broken on this one
             self.assertRaises(POSException.VersionError,
                               self._storage.abortVersion,
@@ -185,7 +186,8 @@ class VersionStorage:
         eq(zodb_unpickle(data), MinPO(51))
 
     def checkCommitVersionErrors(self):
-        if not self._storage.supportsTransactionalUndo():
+        if not (hasattr(self._storage, 'supportsTransactionalUndo')
+            and self._storage.supportsTransactionalUndo()):
             # XXX FileStorage used to be broken on this one
             return
         eq = self.assertEqual
