@@ -22,7 +22,7 @@ __version__='$Revision$'[11:-2]
 import os, sys, time
 import logging
 from BaseLogger import BaseLogger
-from LogHandlers import FileHandler, NullHandler, SysLogHandler
+from ZConfig.components.logger import loghandler
 from logging import StreamHandler, Formatter
 
 # Custom logging levels
@@ -36,7 +36,7 @@ class EventLogger(BaseLogger):
     # Get our logger object:
     logger = logging.getLogger('event')
     # Add a null handler to prevent warnings about loggers with no handlers:
-    logger.addHandler(NullHandler())
+    logger.addHandler(loghandler.NullHandler())
     logger.propagate = 0
 
     def log(self, subsystem, severity, summary, detail, error):
@@ -174,14 +174,14 @@ def initialize_from_environment():
     # set up syslog handler if necessary
     facility, syslogdest = get_env_syslog_info()
     if syslogdest:
-        handler = SysLogHandler(syslogdest, facility)
+        handler = loghandler.SysLogHandler(syslogdest, facility)
         handler.setFormatter(formatters['syslog'])
         handlers.append(handler)
 
     # set up file handler if necessary
     filedest = get_env_file_info()
     if filedest:
-        handler = FileHandler(filedest)
+        handler = loghandler.FileHandler(filedest)
         handler.setFormatter(formatters['file'])
         handlers.append(handler)
     elif filedest == '':
@@ -192,7 +192,7 @@ def initialize_from_environment():
     else:
         # log to nowhere, but install a 'null' handler in order to
         # prevent error messages from emanating due to a missing handler
-        handlers.append(NullHandler())
+        handlers.append(loghandler.NullHandler())
 
     severity = get_env_severity_info()
     severity = zlog_to_pep282_severity(severity)
