@@ -27,7 +27,8 @@ class ClientCacheTests(unittest.TestCase):
 
     def setUp(self):
         unittest.TestCase.setUp(self)
-        self.cache = ClientCache()
+        self.cachesize = 10*1000*1000
+        self.cache = ClientCache(size=self.cachesize)
         self.cache.open()
 
     def tearDown(self):
@@ -143,6 +144,23 @@ class ClientCacheTests(unittest.TestCase):
         results = []
         cache.verify(verifier)
         self.assertEqual(results, [(oid, serial, None)])
+
+    def testCheckSize(self):
+        # Make sure that cache._index[oid] is erased for oids that are
+        # stored in the cache file that's rewritten after a flip.
+        cache = self.cache
+        oid = 'abcdefgh'
+        data = '1234'*100
+        serial = 'ABCDEFGH'
+        cache.store(oid, data, serial, '', '', '')
+        cache.checkSize(10*self.cachesize) # Force a file flip
+        oid2 = 'abcdefgz'
+        data2 = '1234'*10
+        serial2 = 'ABCDEFGZ'
+        cache.store(oid2, data2, serial2, '', '', '')
+        cache.checkSize(10*self.cachesize) # Force another file flip
+        self.assertNotEqual(cache._index.get(oid2), None)
+        self.assertEqual(cache._index.get(oid), None)
 
 class PersistentClientCacheTests(unittest.TestCase):
 
