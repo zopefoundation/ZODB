@@ -151,6 +151,7 @@ def work(db, results, nrep, compress, data, detailed, minimize, threadno=None):
     for j in range(nrep):
         for r in 1, 10, 100, 1000:
             t = time.time()
+            conflicts = 0
             
             jar = db.open()
             while 1:
@@ -171,7 +172,7 @@ def work(db, results, nrep, compress, data, detailed, minimize, threadno=None):
                         setattr(p, str(i), v)
                     get_transaction().commit()
                 except ConflictError:
-                    pass
+                    conflicts = conflicts + 1
                 else:
                     break
             jar.close()
@@ -179,10 +180,11 @@ def work(db, results, nrep, compress, data, detailed, minimize, threadno=None):
             t = time.time() - t
             if detailed:
                 if threadno is None:
-                    print "%s\t%s\t%.4f" % (j, r, t)
+                    print "%s\t%s\t%.4f\t%d" % (j, r, t, conflicts)
                 else:
-                    print "%s\t%s\t%.4f\t%d" % (j, r, t, threadno)
-            results[r] = results[r] + t
+                    print "%s\t%s\t%.4f\t%d\t%d" % (j, r, t, conflicts,
+                                                    threadno)
+            results[r].append((t, conflicts))
             rt=d=p=v=None # release all references
             if minimize:
                 time.sleep(3)
@@ -238,7 +240,7 @@ def main(args):
                cache_deactivate_after=6000,)
 
     print "Beginning work..."
-    results={1:0, 10:0, 100:0, 1000:0}
+    results={1:[], 10:[], 100:[], 1000:[]}
     if threads > 1:
         import threading
         l = [threading.Thread(target=work,
@@ -259,9 +261,17 @@ def main(args):
 
     if detailed:
         print '-'*24
+    print "num\tmean\tmin\tmax"
     for r in 1, 10, 100, 1000:
-        t=results[r]/(nrep * threads)
-        print "mean:\t%s\t%.4f\t%.4f (s/o)" % (r, t, t/r)
+        times = [time for time, conf in results[r]]
+        t = mean(times)
+        print "%d\t%.4f\t%.4f\t%.4f" % (r, t, min(times), max(times))
+
+def mean(l):
+    tot = 0
+    for v in l:
+        tot = tot + v
+    return tot / len(l)
     
 ##def compress(s):
 ##    c = zlib.compressobj()
