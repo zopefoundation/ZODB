@@ -115,7 +115,7 @@
 #   may have a back pointer to a version record or to a non-version
 #   record.
 #
-__version__='$Revision: 1.126 $'[11:-2]
+__version__='$Revision: 1.127 $'[11:-2]
 
 import base64
 from cPickle import Pickler, Unpickler, loads
@@ -135,7 +135,7 @@ except:
 from ZODB import BaseStorage, ConflictResolution, POSException
 from ZODB.POSException import UndoError, POSKeyError, MultipleUndoErrors
 from ZODB.TimeStamp import TimeStamp
-from ZODB.lock_file import lock_file
+from ZODB.lock_file import LockFile
 from ZODB.utils import p64, u64, cp, z64
 
 try:
@@ -225,18 +225,8 @@ class FileStorage(BaseStorage.BaseStorage,
 
         # Lock the database and set up the temp file.
         if not read_only:
-            try:
-                f = open(file_name + '.lock', 'r+')
-            except:
-                f = open(file_name+'.lock', 'w+')
-            lock_file(f)
-            try:
-                f.write(str(os.getpid()))
-                f.flush()
-            except:
-                pass
-            self._lock_file = f # so it stays open
-
+            # Create the lock file
+            self._lock_file = LockFile(file_name + '.lock')
             self._tfile = open(file_name + '.tmp', 'w+b')
         else:
             self._tfile = None
