@@ -81,6 +81,34 @@ make a connection.  The ZEO reconnection tests may run much faster now,
 depending on platform, and should suffer far fewer (if any) intermittent
 "timed out waiting for storage to connect" failures.
 
+
+FileStorage
+-----------
+
+- A FileStorage's index file tried to maintain the index's largest oid as a
+  separate piece of data, incrementally updated over the storage's lifetime.
+  This scheme was more complicated than necessary, so was also more brittle
+  and slower than necessary.  It indirectly participated in a rare but
+  critical bug:  when a FileStorage was created via
+  ``copyTransactionsFrom()``, the "maximum oid" saved in the index file was
+  always 0.  Use that FileStorage, and it could then create "new" oids
+  starting over at 0 again, despite that those oids were already in use by
+  old objects in the database.  Packing a FileStorage has no reason to
+  try to update the maximum oid in the index file either, so this kind of
+  damage could (and did) persist even across packing.
+
+  The index file's maximum-oid data is ignored now, but is still written
+  out so that ``.index`` files can be read by older versions of ZODB.
+  Finding the true maximum oid is done now by exploiting that the main
+  index is really a kind of BTree (long ago, this wasn't true), and finding
+  the largest key in a BTree is inexpensive.
+
+- A FileStorage's index file could be updated on disk even if the storage
+  was opened in read-only mode.  That bug has been repaired.
+
+- An efficient ``maxKey()`` implementation was added to class ``fsIndex``.
+
+
 Pickle (in-memory Connection) Cache
 -----------------------------------
 
