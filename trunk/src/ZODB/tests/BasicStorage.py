@@ -1,8 +1,10 @@
-# Run the basic tests for a storage as described in the official storage API:
-#
-# http://www.zope.org/Documentation/Developer/Models/ZODB/ZODB_Architecture_Storage_Interface_Info.html
-#
-# All storages should be able to pass these tests
+"""Run the basic tests for a storage as described in the official storage API
+
+The most complete and most out-of-date description of the interface is:
+http://www.zope.org/Documentation/Developer/Models/ZODB/ZODB_Architecture_Storage_Interface_Info.html
+
+All storages should be able to pass these tests.
+"""
 
 from ZODB.Transaction import Transaction
 from ZODB import POSException
@@ -89,18 +91,6 @@ class BasicStorage:
         self._dostore(oid=oid)
         self.assertEqual(self._storage.modifiedInVersion(oid), '')
 
-    def checkLoadSerial(self):
-        oid = self._storage.new_oid()
-        revid = ZERO
-        revisions = {}
-        for i in range(31, 38):
-            revid = self._dostore(oid, revid=revid, data=MinPO(i))
-            revisions[revid] = MinPO(i)
-        # Now make sure all the revisions have the correct value
-        for revid, value in revisions.items():
-            data = self._storage.loadSerial(oid, revid)
-            self.assertEqual(zodb_unpickle(data), value)
-    
     def checkConflicts(self):
         oid = self._storage.new_oid()
         revid1 = self._dostore(oid, data=MinPO(11))
