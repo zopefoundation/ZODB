@@ -86,6 +86,7 @@ class CommonSetupTearDown(StorageTestBase):
         self._pids = []
         self._servers = []
         self.conf_paths = []
+        self.caches = []
         self._newAddr()
         self.startServer()
 
@@ -105,13 +106,11 @@ class CommonSetupTearDown(StorageTestBase):
             # Not in Windows Python until 2.3
             for pid in self._pids:
                 os.waitpid(pid, 0)
-        for i in 0, 1:
-            path = "c1-test-%d.zec" % i
-            if os.path.exists(path):
-                try:
+        for c in self.caches:
+            for i in 0, 1:
+                path = "c1-test-%d.zec" % i
+                if os.path.exists(path):
                     os.unlink(path)
-                except os.error:
-                    pass
         self.__super_tearDown()
 
     def _newAddr(self):
@@ -127,6 +126,7 @@ class CommonSetupTearDown(StorageTestBase):
     def openClientStorage(self, cache='', cache_size=200000, wait=1,
                           read_only=0, read_only_fallback=0,
                           username=None, password=None, realm=None):
+        self.caches.append(cache)
         storage = TestClientStorage(self.addr,
                                     client=cache,
                                     cache_size=cache_size,
