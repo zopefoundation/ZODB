@@ -1,13 +1,6 @@
 Zope Enterprise Objects (ZEO) Revision History
 
-  ZEO 1.0.0
-
-    Bugs Fixed
-
-      - A forgotten argument made it unreliable to start a ClientStorage
-        after the main loop has started.
-
-  ZEO 1.0.0 beta 1
+  ZEO 0.5.0
 
     New Features
 
@@ -26,6 +19,21 @@ Zope Enterprise Objects (ZEO) Revision History
       - Client scripts can now be written to pack a remote storage and
         wait for the pack results.  This is handy when packing as part
         of cron jobs.
+
+      - It is no longer necessary to symbolically link cPickle or
+        ZServer. ZServer is no longer necessary at all.
+
+      - A Zope-style INSTANCE_HOME and var directory are no longer 
+        needed.
+
+      - If ZServer *is* available, the medusa monitor server can be
+        used in the storage server.
+
+      - An option, -d, was added to facilitate generation of a
+        detailed debug log while running in the background.
+
+      - The documentation has been simplified and spread over multiple
+        files in the doc subdirectory.
 
     Bugs Fixed
 
@@ -50,6 +58,19 @@ Zope Enterprise Objects (ZEO) Revision History
         while the client storage was disconnected from the server, 
         no further write transactions would be allowed, even after 
 	reconnection, and the site would eventually hang.
+
+      - A forgotten argument made it unreliable to start a ClientStorage
+        after the main loop has started.
+
+      - In combination with recent changes in zdeamon, startup errors
+        could cause infinite loops.
+
+      - The handling of the Python global, __debug__, was not
+        compatible with Python 2.1.
+
+      - If an exception raised on the server which could not be
+        unpickled on the client could cause the client connection to
+        fail. 
 
   Planned for (future) ZEO releases
 
