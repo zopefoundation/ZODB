@@ -198,7 +198,7 @@ staticforward PyExtensionClass BTreeType;
  *    si.set.
  * 4. Process all the elements:
  *        while (si.position >= 0) {
- *            do something si.key and/or si.value;
+ *            do something with si.key and/or si.value;
  *            if (si.next(&si) < 0) {
  *                there was an error;
  *                Py_XDECREF(si.set);
@@ -214,8 +214,8 @@ typedef struct SetIteration_s
   int position;     /* initialized to 0; set to -1 by next() when done */
   int hasValue;     /* true iff 'set' has values (as well as keys) */
   KEY_TYPE key;     /* next() sets to next key */
-  VALUE_TYPE value; /* next() sets to next value, iff hasValue is true */
-  int (*next)(struct SetIteration_s*);  /* function to get next element */
+  VALUE_TYPE value; /* next() may set to next value */
+  int (*next)(struct SetIteration_s*);  /* function to get next key+value */
 } SetIteration;
 
 static PyObject *
@@ -384,7 +384,7 @@ static char BTree_module_documentation[] =
 "\n"
 MASTER_ID
 BTREEITEMSTEMPLATE_C
-"$Id: BTreeModuleTemplate.c,v 1.28 2002/06/02 07:40:20 tim_one Exp $\n"
+"$Id: BTreeModuleTemplate.c,v 1.29 2002/06/02 07:46:43 tim_one Exp $\n"
 BTREETEMPLATE_C
 BUCKETTEMPLATE_C
 KEYMACROS_H
