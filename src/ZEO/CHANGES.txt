@@ -16,6 +16,10 @@ Zope Enterprise Objects (ZEO) Revision History
         o To restart, use INT.  (This must be send to the 
           child, not the parent.
 
+      - Client scripts can now be written to pack a remote storage and
+        wait for the pack results.  This is handy when packing as part
+        of chron jobs.
+
     Bugs Fixed
 
       - A possible (but unobserved) race condition that could
@@ -29,6 +33,11 @@ Zope Enterprise Objects (ZEO) Revision History
 
       - Restarting the ZEO server shortly after shutting down could
         lead to "address already in use" errors.
+
+      - User-level eceptions, like undo, version-lock, and conflict
+        errors were logged in the server event log.
+
+      - Pack errors weren't logged in the server event log.
 
   Planned for (future) ZEO releases
 
