@@ -387,8 +387,7 @@ subclasses; this should suffice for most context specialization.
   is being loaded.  \var{section} is the section object into which the
   contents of the resources should be loaded.  The default
   implementation implements the configuration language described in
-  section~\ref{syntax} using the \function{Parse()} function provided
-  by the \refmodule{ZConfig.ApacheStyle} module.  Providing an
+  section~\ref{syntax}.  Providing an
   alternate parser is most easily done by overriding this method and
   calling the parser support methods of the context object from the
   new parser, though different strategies are possible.
@@ -592,26 +591,6 @@ support this interface.
 \begin{methoddesc}[ImportingConfiguration]{addImport}{section}
   Add a configuration generated from an import.
 \end{methoddesc}
-
-
-\section{\module{ZConfig.ApacheStyle} --- Apache-style parser}
-
-\declaremodule{}{ZConfig.ApacheStyle}
-\modulesynopsis{Parser for Apache-style configurations.}
-
-The \module{ZConfig.ApacheStyle} module implements the configuration
-parser.  Most applications will not need to use this module directly.
-
-This module provides a single function:
-
-\begin{funcdesc}{Parse}{resource, context, section}
-  Parse text from the resource represented by \var{resource}; this is
-  an object that conforms to the same interface as the \var{resource}
-  parameter of the \class{Context} object's \method{parse()} method.
-  The application context is given as \var{context}, and the section
-  object that values and sections should be added to is given as
-  \var{section}.
-\end{funcdesc}
 
 
 \section{\module{ZConfig.Substitution} --- String substitution}
