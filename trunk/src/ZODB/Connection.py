@@ -84,8 +84,8 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.55 2001/05/22 20:57:03 jeremy Exp $"""
-__version__='$Revision: 1.55 $'[11:-2]
+$Id: Connection.py,v 1.56 2001/05/22 23:21:22 jeremy Exp $"""
+__version__='$Revision: 1.56 $'[11:-2]
 
 from cPickleCache import PickleCache
 from POSException import ConflictError, ExportError
@@ -152,7 +152,7 @@ class Connection(ExportImport.ExportImport):
         except: pass
 
     def __getitem__(self, oid,
-                    tt=type(()), ct=type(HelperClass)):
+                    tt=type(())):
         cache=self._cache
         if cache.has_key(oid): return cache[oid]
 
@@ -193,8 +193,7 @@ class Connection(ExportImport.ExportImport):
         return object
 
     def _persistent_load(self,oid,
-                        d={'__builtins__':{}},
-                        tt=type(()), st=type(''), ct=type(HelperClass)):
+                        tt=type(())):
 
         __traceback_info__=oid
 
@@ -300,7 +299,7 @@ class Connection(ExportImport.ExportImport):
         self.__onCommitActions.append((method_name, args, kw))
         get_transaction().register(self)
 
-    def commit(self, object, transaction, _type=type, _st=type('')):
+    def commit(self, object, transaction):
         if object is self:
             # We registered ourself.  Execute a commit action, if any.
             if self.__onCommitActions is not None:
@@ -432,11 +431,10 @@ class Connection(ExportImport.ExportImport):
 
             self._handle_serial(s, oid)
 
-    def commit_sub(self, t,
-                   _type=type, _st=type(''), _None=None):
+    def commit_sub(self, t):
         """Commit all work done in subtransactions"""
         tmp=self._tmp
-        if tmp is _None: return
+        if tmp is None: return
         src=self._storage
 
         LOG('ZODB', BLATHER,
@@ -514,7 +512,7 @@ class Connection(ExportImport.ExportImport):
 
     def root(self): return self['\0\0\0\0\0\0\0\0']
 
-    def setstate(self,object):
+    def setstate(self, object):
         try:
             oid=object._p_oid
              
@@ -577,8 +575,7 @@ class Connection(ExportImport.ExportImport):
         unpickler.load()
         return  unpickler.load()
 
-    def setklassstate(self, object,
-                      tt=type(()), ct=type(HelperClass)):
+    def setklassstate(self, object):
         try:
             oid=object._p_oid
             __traceback_info__=oid
