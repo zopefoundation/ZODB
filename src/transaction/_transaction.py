@@ -137,6 +137,16 @@ import logging
 import sys
 import thread
 import warnings
+import traceback
+from cStringIO import StringIO
+
+# Sigh.  In the maze of __init__.py's, ZODB.__init__.py takes 'get'
+# out of transaction.__init__.py, in order to stuff the 'get_transaction'
+# alias in __builtin__.  So here in _transaction.py, we can't import
+# exceptions from ZODB.POSException at top level (we're imported by
+# our __init__.py, which is imported by ZODB's __init__, so the ZODB
+# package isn't well-formed when we're first imported).
+# from ZODB.POSException import TransactionError, TransactionFailedError
 
 _marker = object()
 
@@ -146,13 +156,15 @@ def myhasattr(obj, attr):
     return getattr(obj, attr, _marker) is not _marker
 
 class Status:
+    # ACTIVE is the initial state.
+    ACTIVE       = "Active"
 
-    ACTIVE = "Active"
-    COMMITTING = "Committing"
-    COMMITTED = "Committed"
-    ABORTING = "Aborting"
-    ABORTED = "Aborted"
-    FAILED = "Failed"
+    COMMITTING   = "Committing"
+    COMMITTED    = "Committed"
+
+    # commit() or commit(True) raised an exception.  All further attempts
+    # to commit or join this transaction will raise TransactionFailedError.
+    COMMITFAILED = "Commit failed"
 
 class Transaction(object):
 
@@ -186,8 +198,26 @@ class Transaction(object):
         # subtransactions that were involved in subtransaction commits.
         self._nonsub = {}
 
+        # If a commit fails, the traceback is saved in _failure_traceback.
+        # If another attempt is made to commit, TransactionFailedError is
+        # raised, incorporating this traceback.
+        self._failure_traceback = None
+
+    # Raise TransactionFailedError, due to commit()/join()/register()
+    # getting called when the current transaction has already suffered
+    # a commit failure.
+    def _prior_commit_failed(self):
+        from ZODB.POSException import TransactionFailedError
+        assert self._failure_traceback is not None
+        raise TransactionFailedError("commit() previously failed, "
+                "with this traceback:\n\n%s" %
+                self._failure_traceback.getvalue())
+
     def join(self, resource):
-        if self.status != Status.ACTIVE:
+        if self.status is Status.COMMITFAILED:
+            self._prior_commit_failed() # doesn't return
+
+        if self.status is not Status.ACTIVE:
             # TODO: Should it be possible to join a committing transaction?
             # I think some users want it.
             raise ValueError("expected txn status %r, but it's %r" % (
@@ -244,6 +274,9 @@ class Transaction(object):
         # transaction.
 
     def commit(self, subtransaction=False):
+        if self.status is Status.COMMITFAILED:
+            self._prior_commit_failed() # doesn't return
+
         if not subtransaction and self._sub and self._resources:
             # This commit is for a top-level transaction that has
             # previously committed subtransactions.  Do one last
@@ -256,7 +289,20 @@ class Transaction(object):
                 s.beforeCompletion(self)
             self.status = Status.COMMITTING
 
-        self._commitResources(subtransaction)
+        try:
+            self._commitResources(subtransaction)
+        except:
+            self.status = Status.COMMITFAILED
+            # Save the traceback for TransactionFailedError.
+            ft = self._failure_traceback = StringIO()
+            t, v, tb = sys.exc_info()
+            # Record how we got into commit().
+            traceback.print_stack(sys._getframe(1), None, ft)
+            # Append the stack entries from here down to the exception.
+            traceback.print_tb(tb, None, ft)
+            # Append the exception type and value.
+            ft.writelines(traceback.format_exception_only(t, v))
+            raise t, v, tb
 
         if subtransaction:
             self._resources = []
@@ -315,9 +361,6 @@ class Transaction(object):
                 self._cleanup(L)
             finally:
                 if not subtransaction:
-                    self.status = Status.FAILED
-                    if self._manager:
-                        self._manager.free(self)
                     for s in self._synchronizers:
                         s.afterCompletion(self)
             raise t, v, tb
@@ -389,6 +432,7 @@ class Transaction(object):
                 s.beforeCompletion(self)
 
         if subtransaction and self._nonsub:
+            from ZODB.POSException import TransactionError
             raise TransactionError("Resource manager does not support "
                                    "subtransaction abort")
 
