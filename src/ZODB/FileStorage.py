@@ -184,7 +184,7 @@
 #   may have a back pointer to a version record or to a non-version
 #   record.
 #
-__version__='$Revision: 1.34 $'[11:-2]
+__version__='$Revision: 1.35 $'[11:-2]
 
 import struct, time, os, bpthread, string, base64, sys
 from struct import pack, unpack
@@ -862,6 +862,58 @@ class FileStorage(BaseStorage.BaseStorage):
             if max and len(r) >= max: return r
 
         return r
+
+    def history(self, oid, version=None, length=1, filter=None):
+        r=[]
+        file=self._file
+        seek=file.seek
+        read=file.read
+        pos=self._index[oid]
+        wantver=version
+
+        while 1:
+            if len(r) >= length: return r
+            seek(pos)
+            h=read(42)
+            doid,serial,prev,tloc,vlen,plen = unpack(">8s8s8s8sH8s", h)
+            prev=u64(prev)
+
+            if vlen:
+                nv = read(8) != z64
+                file.seek(8,1) # Skip previous version record pointer
+                version=read(vlen)
+                if wantver is not None and version != wantver:
+                    if prev:
+                        pos=prev
+                        continue
+                    else:
+                        return r
+            else:
+                version=''
+                wantver=None
+            
+            seek(u64(tloc))
+            h=read(23)
+            tid, stl, status, ul, dl, el = unpack(">8s8scHHH",h)
+            if el < 0: el=t32-el
+            user_name=read(ul)
+            description=read(dl)
+            if el: d=loads(read(el))
+            else: d={}
+            
+            d['time']=TimeStamp(serial).timeTime()
+            d['user_name']=user_name
+            d['description']=description
+            d['serial']=serial
+            d['version']=version
+            d['size']=u64(plen)
+
+            if filter is None or filter(d):
+                r.append(d)
+
+            if prev: pos=prev
+            else: return r
+
 
     def pack(self, t, referencesf):
         """Copy data from the current database file to a packed file
