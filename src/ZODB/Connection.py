@@ -84,8 +84,8 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.13 1999/07/06 19:21:44 jim Exp $"""
-__version__='$Revision: 1.13 $'[11:-2]
+$Id: Connection.py,v 1.14 1999/07/07 10:58:47 jim Exp $"""
+__version__='$Revision: 1.14 $'[11:-2]
 
 from cPickleCache import PickleCache
 from POSException import ConflictError, ExportError
@@ -402,7 +402,6 @@ class Connection(ExportImport.ExportImport):
 
     def setklassstate(self, object,
                       tt=type(()), ct=type(HelperClass)):
-        print 'setklassstate', object
         oid=object._p_oid
         __traceback_info__=oid
         p, serial = self._storage.load(oid, self._version)
