@@ -84,8 +84,8 @@
 ##############################################################################
 """Transaction management
 
-$Id: Transaction.py,v 1.26 2001/02/15 20:01:12 jim Exp $"""
-__version__='$Revision: 1.26 $'[11:-2]
+$Id: Transaction.py,v 1.27 2001/02/26 20:33:50 brian Exp $"""
+__version__='$Revision: 1.27 $'[11:-2]
 
 import time, sys, struct, POSException
 from struct import pack
@@ -103,8 +103,14 @@ class Transaction:
     _connections=None
     _extension=None
     _sub=None # This is a subtrasaction flag
-    _sub_no_partial_abort=None
 
+    # The _non_st_objects variable is either None or a list
+    # of jars that do not support subtransactions. This is used to
+    # manage non-subtransaction-supporting jars during subtransaction
+    # commits and aborts to ensure that they are correctly committed
+    # or aborted in the "outside" transaction.
+    _non_st_objects=None
+    
     def __init__(self, id=None):
         self._id=id
         self._objects=[]
@@ -138,7 +144,7 @@ class Transaction:
         entered two-phase commit yet, so no tpc_ messages are sent.
         '''
 
-        if subtransaction and self._sub_no_partial_abort:
+        if subtransaction and (self._non_st_objects is not None):
             raise POSException.TransactionError, (
                 """Attempted to abort a sub-transaction, but a participating
                 data manager doesn't support partial abort.
@@ -149,12 +155,21 @@ class Transaction:
         subjars=()
 
         if not subtransaction:
+
+            # Must add in any non-subtransaction supporting objects that
+            # may have been stowed away from previous subtransaction
+            # commits.
+            if self._non_st_objects is not None:
+                append=self._objects.append
+                for object in self._non_st_objects:
+                    append(object)
+                self._non_st_objects = None
+
             if subj is not None:
                 # Abort of top-level transaction after commiting
                 # subtransactions.
                 subjars=subj.values()
                 self._sub=None
-                self._sub_no_partial_abort=None
 
         try:
             # Abort the objects
@@ -199,6 +214,7 @@ class Transaction:
         jarsv = None
         subj=self._sub
         subjars=()
+
         if subtransaction:
             if subj is None: self._sub=subj={}
         else:
@@ -209,7 +225,15 @@ class Transaction:
                     objects=[]
                 subjars=subj.values()
                 self._sub=None
-                self._sub_no_partial_abort=None
+
+        # If not a subtransaction, then we need to add any non-
+        # subtransaction-supporting objects that may have been
+        # stowed away during subtransaction commits to _objects.
+        if (subtransaction is None) and (self._non_st_objects is not None):
+            append=objects.append
+            for object in self._non_st_objects:
+                append(object)
+            self._non_st_objects = None
 
         t=v=tb=None
 
@@ -255,12 +279,22 @@ class Transaction:
                         if not jars.has_key(i):
                             jars[i]=j
                             if subtransaction:
+
+                                # If a jar does not support subtransactions,
+                                # we need to save it away to be committed in
+                                # the outer transaction.
                                 try: j.tpc_begin(self, subtransaction)
                                 except TypeError:
                                     j.tpc_begin(self)
-                                    self._sub_no_partial_abort=1
-                                else:
+
+                                if hasattr(j, 'commit_sub'):
                                     subj[i]=j
+                                else:
+                                    if self._non_st_objects is None:
+                                        self._non_st_objects = []
+                                    self._non_st_objects.append(o)
+                                    continue
+
                             else:
                                 j.tpc_begin(self)
                         j.commit(o,self)
