@@ -153,13 +153,17 @@ class StorageTestBase(unittest.TestCase):
             t.user = user
         if description is not None:
             t.description = description
-        self._storage.tpc_begin(t)
-        # Store an object
-        r1 = self._storage.store(oid, revid, data, version, t)
-        # Finish the transaction
-        r2 = self._storage.tpc_vote(t)
-        revid = handle_serials(oid, r1, r2)
-        self._storage.tpc_finish(t)
+        try:
+            self._storage.tpc_begin(t)
+            # Store an object
+            r1 = self._storage.store(oid, revid, data, version, t)
+            # Finish the transaction
+            r2 = self._storage.tpc_vote(t)
+            revid = handle_serials(oid, r1, r2)
+            self._storage.tpc_finish(t)
+        except:
+            self._storage.tpc_abort(t)
+            raise
         return revid
         
     def _dostoreNP(self, oid=None, revid=None, data=None, version=None,
