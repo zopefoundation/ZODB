@@ -105,7 +105,7 @@ class PackableStorageBase:
 class PackableStorage(PackableStorageBase):
     def _initroot(self):
         try:
-            self._storage.load('\0\0\0\0\0\0\0\0','')
+            self._storage.load(ZERO, '')
         except KeyError:
             import PersistentMapping
             from ZODB.Transaction import Transaction
@@ -116,8 +116,7 @@ class PackableStorage(PackableStorageBase):
             t=Transaction()
             t.description='initial database creation'
             self._storage.tpc_begin(t)
-            self._storage.store('\0\0\0\0\0\0\0\0',
-                                None, file.getvalue(), '', t)
+            self._storage.store(ZERO, None, file.getvalue(), '', t)
             self._storage.tpc_vote(t)
             self._storage.tpc_finish(t)
             
