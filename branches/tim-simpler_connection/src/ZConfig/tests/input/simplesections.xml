@@ -1,0 +1,25 @@
+<schema>
+  <sectiontype name="section">
+    <key name="var" />
+    <key name="var-one" />
+    <key name="var-two" />
+    <key name="var-three" />
+  </sectiontype>
+  <sectiontype name="minimal" />
+  <sectiontype name="trivial">
+    <key name="var" />
+  </sectiontype>
+
+  <multisection type="section" name="*" attribute="sections" />
+  <section type="minimal" name="*" attribute="minimal" />
+  <section type="trivial" name="*" attribute="trivial" />
+
+  <key name="var" />
+  <key name="var-0" />
+  <key name="var-1" />
+  <key name="var-2" />
+  <key name="var-3" />
+  <key name="var-4" />
+  <key name="var-5" />
+  <key name="var-6" />
+</schema>
