@@ -9,12 +9,12 @@
 # THIS SOFTWARE IS PROVIDED "AS IS" AND ANY AND ALL EXPRESS OR IMPLIED
 # WARRANTIES ARE DISCLAIMED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 # WARRANTIES OF TITLE, MERCHANTABILITY, AGAINST INFRINGEMENT, AND FITNESS
-# FOR A PARTICULAR PURPOSE
+# FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
-"""mkzeoinst.py -- create a ZEO instance.
+"""%(program)s -- create a ZEO instance.
 
-Usage: mkzeoinst.py home [port]
+Usage: %(program)s home [port]
 
 Given an "instance home directory" <home> and some configuration
 options (all of which have default values), create the following:
@@ -108,18 +108,24 @@ exec %(zdctl)s -C %(home)s/etc/%(package)sctl.conf ${1+"$@"}
 
 def main():
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "")
+        opts, args = getopt.getopt(sys.argv[1:], "h", ["help"])
     except getopt.error, msg:
         print msg
         sys.exit(2)
+    program = os.path.basename(sys.argv[0])
+    if opts:
+        # There's only the help options, so just dump some help:
+        msg = __doc__ % {"program": program}
+        print msg
+        sys.exit()
     if len(args) not in [1, 2]:
-        print "Usage: mkzeoinst.py home [port]"
+        print "Usage: %s home [port]" % program
         sys.exit(2)
-    home = sys.argv[1]
+    home = args[0]
     if not os.path.isabs(home):
         home = os.path.abspath(home)
-    if sys.argv[2:]:
-        port = int(sys.argv[2])
+    if args[1:]:
+        port = int(args[1])
     else:
         port = 9999
     checkport(port)
