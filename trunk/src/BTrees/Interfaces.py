@@ -47,21 +47,31 @@ class IReadSequence(Interface):
 class IKeyed(ICollection):
 
     def has_key(key):
-        """Check whether the object has an item with the given key"""
+        """Check whether the object has an item with the given key.
 
-    def keys(min=None, max=None):
-        """Return an IReadSequence containing the keys in the collection
+        Return a true value if the key is present, else a false value.
+        """
 
-        The type of the IReadSequence is not specified. It could be a
-        list or a tuple or some other type.
+    def keys(min=None, max=None, excludemin=False, excludemax=False):
+        """Return an IReadSequence containing the keys in the collection.
 
-        If a min is specified, then output is constrained to
-        items having keys greater than or equal to the given min.
-        A min value of None is ignored.
+        The type of the IReadSequence is not specified. It could be a list
+        or a tuple or some other type.
 
-        If a max is specified, then output is constrained to
-        items having keys less than or equal to the given min.
-        A max value of None is ignored.
+        All arguments are optional, and may be specified as keyword
+        arguments, or by position.
+
+        If a min is specified, then output is constrained to keys greater
+        than or equal to the given min, and, if excludemin is specified and
+        true, is further constrained to keys strictly greater than min.  A
+        min value of None is ignored.  If min is None or not specified, and
+        excludemin is true, the smallest key is excluded.
+
+        If a max is specified, then output is constrained to keys less than
+        or equal to the given max, and, if excludemax is specified and
+        true, is further constrained to keys strictly less than max.  A max
+        value of None is ignored.  If max is None or not specified, and
+        excludemax is true, the largest key is excluded.
         """
 
     def maxKey(key=None):
@@ -118,91 +128,81 @@ class ISet(IKeySequence, ISetMutable):
 class ITreeSet(IKeyed, ISetMutable):
     pass
 
-
-class IMinimalDictionary(ISized):
-
-    def has_key(key):
-        """Check whether the object has an item with the given key"""
-
+class IMinimalDictionary(ISized, IKeyed):
 
     def get(key, default):
         """Get the value for the given key
 
-        Return the default if the key is not in the  collection.
+        Return the default if the key is not in the collection.
         """
 
     def __setitem__(key, value):
-        """Set the value for the given key"""
+        """Set the value for the given key."""
 
     def __delitem__(key):
-        """delete the value for the given key
+        """Delete the value for the given key.
 
-        Raise a key error if the key if not in the collection."""
-
-    def values():
-        """Return a IReadSequence containing the values in the collection
-
-        The type of the IReadSequence is not specified. It could be a
-        list or a tuple or some other type.
+        Raise KeyError if the key if not in the collection.
         """
 
-    def keys():
-        """Return an Sequence containing the keys in the collection
+    def values(min=None, max=None, excludemin=False, excludemax=False):
+        """Return an IReadSequence containing the values in the collection.
 
-        The type of the IReadSequence is not specified. It could be a
-        list or a tuple or some other type.
+        The type of the IReadSequence is not specified. It could be a list
+        or a tuple or some other type.
+
+        All arguments are optional, and may be specified as keyword
+        arguments, or by position.
+
+        If a min is specified, then output is constrained to values whose
+        keys are greater than or equal to the given min, and, if excludemin
+        is specified and true, is further constrained to values whose keys
+        are strictly greater than min.  A min value of None is ignored.  If
+        min is None or not specified, and excludemin is true, the value
+        corresponding to the smallest key is excluded.
+
+        If a max is specified, then output is constrained to values whose
+        keys are less than or equal to the given max, and, if excludemax is
+        specified and true, is further constrained to values whose keys are
+        strictly less than max.  A max value of None is ignored.  If max is
+        None or not specified, and excludemax is true, the value
+        corresponding to the largest key is excluded.
         """
 
-    def items():
-        """Return a IReadSequence containing the items in the collection
+    def items(min=None, max=None, excludemin=False, excludemax=False):
+        """Return an IReadSequence containing the items in the collection.
 
-        An item is a key-value tuple.
+        An item is a 2-tuple, a (key, value) pair.
 
-        The type of the IReadSequence is not specified. It could be a
-        list or a tuple or some other type.
+        The type of the IReadSequence is not specified.  It could be a list
+        or a tuple or some other type.
+
+        All arguments are optional, and may be specified as keyword
+        arguments, or by position.
+
+        If a min is specified, then output is constrained to items whose
+        keys are greater than or equal to the given min, and, if excludemin
+        is specified and true, is further constrained to items whose keys
+        are strictly greater than min.  A min value of None is ignored.  If
+        min is None or not specified, and excludemin is true, the item with
+        the smallest key is excluded.
+
+        If a max is specified, then output is constrained to items whose
+        keys are less than or equal to the given max, and, if excludemax is
+        specified and true, is further constrained to items whose keys are
+        strictly less than max.  A max value of None is ignored.  If max is
+        None or not specified, and excludemax is true, the item with the
+        largest key is excluded.
         """
 
-
-class IDictionaryIsh(IKeyed, IMinimalDictionary):
+class IDictionaryIsh(IMinimalDictionary):
 
     def update(collection):
-        """Add the items from the given collection object to the collection
+        """Add the items from the given collection object to the collection.
 
         The input collection must be a sequence of key-value tuples,
         or an object with an 'items' method that returns a sequence of
         key-value tuples.
-        """
-
-    def values(min=None, max=None):
-        """Return a IReadSequence containing the values in the collection
-
-        The type of the IReadSequence is not specified. It could be a
-        list or a tuple or some other type.
-
-        If a min is specified, then output is constrained to
-        items having keys greater than or equal to the given min.
-        A min value of None is ignored.
-
-        If a max is specified, then output is constrained to
-        items having keys less than or equal to the given min.
-        A max value of None is ignored.
-        """
-
-    def items(min=None, max=None):
-        """Return a IReadSequence containing the items in the collection
-
-        An item is a key-value tuple.
-
-        The type of the IReadSequence is not specified. It could be a
-        list or a tuple or some other type.
-
-        If a min is specified, then output is constrained to
-        items having keys greater than or equal to the given min.
-        A min value of None is ignored.
-
-        If a max is specified, then output is constrained to
-        items having keys less than or equal to the given min.
-        A max value of None is ignored.
         """
 
     def byValue(minValue):
@@ -247,7 +247,7 @@ class IMerge(Interface):
 
     The implementing module has a value type. The IOBTree and OOBTree
     modules have object value type. The IIBTree and OIBTree modules
-    have integer value tyoes. Other modules may be defined in the
+    have integer value types. Other modules may be defined in the
     future that have other value types.
 
     The individual types are classified into set (Set and TreeSet) and
@@ -325,7 +325,6 @@ class IIMerge(IMerge):
                   c2[key]  if the key is in c2 and c2 is a mapping
 
         Note that c1 and c2 must be collections.
-
         """
 
     def weightedIntersection(c1, c2, weight1=1, weight2=1):
