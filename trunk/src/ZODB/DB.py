@@ -84,8 +84,8 @@
 ##############################################################################
 """Database objects
 
-$Id: DB.py,v 1.33 2001/08/27 19:25:19 shane Exp $"""
-__version__='$Revision: 1.33 $'[11:-2]
+$Id: DB.py,v 1.34 2001/11/06 17:52:38 jeremy Exp $"""
+__version__='$Revision: 1.34 $'[11:-2]
 
 import cPickle, cStringIO, sys, POSException, UndoLogCompatible
 from Connection import Connection
@@ -442,7 +442,7 @@ class DB(UndoLogCompatible.UndoLogCompatible):
 
             # Pool locks are tricky.  Basically, the lock needs to be
             # set whenever the pool becomes empty so that threads are
-            # forced to wait until the pool gets a connection it it.
+            # forced to wait until the pool gets a connection in it.
             # The lock is acquired when the (empty) pool is
             # created. The The lock is acquired just prior to removing
             # the last connection from the pool and just after adding

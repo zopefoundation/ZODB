@@ -85,7 +85,7 @@
 static char cPersistence_doc_string[] = 
 "Defines Persistent mixin class for persistent objects.\n"
 "\n"
-"$Id: cPersistence.c,v 1.43 2001/03/28 14:04:15 jim Exp $\n";
+"$Id: cPersistence.c,v 1.44 2001/11/06 17:52:38 jeremy Exp $\n";
 
 #include <string.h>
 #include "cPersistence.h"
@@ -135,6 +135,20 @@ init_strings(void)
   INIT_STRING(__delattr__);
 #undef INIT_STRING
   return 0;
+}
+
+static int
+checknoargs(PyObject *args)
+{
+  if (!PyTuple_Check(args))
+    return 0;
+  if (PyTuple_GET_SIZE(args) != 0) {
+    PyErr_Format(PyExc_TypeError, 
+		 "function takes exactly 0 arguments (%d given)",
+		 PyTuple_GET_SIZE(args));
+    return 0;
+  }
+  return 1;
 }
 
 static PyObject *
@@ -243,7 +257,8 @@ Per__p_deactivate(cPersistentObject *self, PyObject *args)
   if (idebug_log < 0) call_debug("reinit",self);
 #endif
 
-  if (args && ! PyArg_ParseTuple(args,"")) return NULL;
+  if (args && !checknoargs(args))
+    return NULL;
 
   if (self->state==cPersistent_UPTODATE_STATE && self->jar &&
       HasInstDict(self) && (dict=INSTANCE_DICT(self)))
@@ -273,7 +288,7 @@ Per__getstate__(cPersistentObject *self, PyObject *args)
 {
   PyObject *__dict__, *d=0;
 
-  UNLESS(PyArg_ParseTuple(args, "")) return NULL;
+  if (!checknoargs(args)) return NULL;
 
 #ifdef DEBUG_LOG
   if(idebug_log < 0) call_debug("get",self);
@@ -289,12 +304,12 @@ Per__getstate__(cPersistentObject *self, PyObject *args)
 	  
       for(pos=0; PyDict_Next(__dict__, &pos, &k, &v); )
 	{
-	  if(PyString_Check(k) && (ck=PyString_AsString(k)) &&
+	  if(PyString_Check(k) && (ck=PyString_AS_STRING(k)) &&
 	     (*ck=='_' && ck[1]=='v' && ck[2]=='_'))
 	    {
 	      UNLESS(d=PyDict_New()) goto err;
 	      for(pos=0; PyDict_Next(__dict__, &pos, &k, &v); )
-		UNLESS(PyString_Check(k) && (ck=PyString_AsString(k)) &&
+		UNLESS(PyString_Check(k) && (ck=PyString_AS_STRING(k)) &&
 		       (*ck=='_' && ck[1]=='v' && ck[2]=='_'))
 		  if(PyDict_SetItem(d,k,v) < 0) goto err;
 	      return d;
@@ -331,8 +346,8 @@ Per__setstate__(cPersistentObject *self, PyObject *args)
 	   
 	   if(PyDict_Check(v))
 	     {
-	       for(i=0; PyDict_Next(v,&i,&key,&e);)
-		 if(PyObject_SetItem(__dict__,key,e) < 0)
+	       for(i=0; PyDict_Next(v, &i, &key, &e);)
+		 if(PyDict_SetItem(__dict__, key, e) < 0)
 		   return NULL;
 	     }
 	   else
@@ -483,7 +498,7 @@ Per_getattro(cPersistentObject *self, PyObject *name)
   PyObject *r;
 
   if (PyString_Check(name))
-    UNLESS(s=PyString_AsString(name)) return NULL;
+    UNLESS(s=PyString_AS_STRING(name)) return NULL;
 
   r = Per_getattr(self, name, s, PyExtensionClassCAPI->getattro);
   if (! r && self->state != cPersistent_GHOST_STATE &&
@@ -492,6 +507,7 @@ Per_getattro(cPersistentObject *self, PyObject *name)
       )
     {
       PyErr_Clear();
+
       r=PyObject_GetAttr(OBJECT(self), py___getattr__);
       if (r) 
 	{
@@ -510,7 +526,7 @@ _setattro(cPersistentObject *self, PyObject *oname, PyObject *v,
   char *name="";
 
   UNLESS(oname) return -1;
-  if(PyString_Check(oname)) UNLESS(name=PyString_AsString(oname)) return -1;
+  if(PyString_Check(oname)) UNLESS(name=PyString_AS_STRING(oname)) return -1;
 	
   if(*name=='_' && name[1]=='p' && name[2]=='_')
     {
@@ -739,7 +755,7 @@ void
 initcPersistence(void)
 {
   PyObject *m, *d, *s;
-  char *rev="$Revision: 1.43 $";
+  char *rev="$Revision: 1.44 $";
 
   s = PyString_FromString("TimeStamp");
   if (s == NULL)
