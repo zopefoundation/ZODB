@@ -106,9 +106,9 @@ were added.  ``fsIndex`` is a special hybrid kind of BTree used to implement
 FileStorage indices.  Thanks to Chris McDonough for code and tests.
 
 
-What's new in ZODB3 3.3.1a2?
+What's new in ZODB3 3.3.1c1?
 ============================
-Release date: DD-MMM-2005
+Release date: 01-Apr-2005
 
 BTrees
 ------
