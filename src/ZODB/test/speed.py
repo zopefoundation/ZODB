@@ -43,7 +43,7 @@ def main(args):
             global zlib
             import zlib
             z=compress
-        elif o=='-M':
+        elif o=='-L':
             minimize=1
         elif o=='-D':
             global debug
