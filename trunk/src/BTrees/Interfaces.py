@@ -249,8 +249,8 @@ class IIMerge(IMerge):
             v2 is 0 if the key was not in c2. Otherwise, v2 is 2, if
             c2 is a set, or the value from c2.
 
-        Note that c1 and c2 must be collections. None may not be
-        passed as one of the collections.
+        Note that c1 and c2 must be collections. 
+
         """
 
     def weightedIntersection(c1, c2, weight1=1, weight2=1):
@@ -280,8 +280,7 @@ class IIMerge(IMerge):
             v2 is 0 if the key was not in c2. Otherwise, v2 is 2, if
             c2 is a set, or the value from c2.
 
-        Note that c1 and c2 must be collections. None may not be
-        passed as one of the collections.
+        Note that c1 and c2 must be collections. 
         """
 
 ###############################################################
