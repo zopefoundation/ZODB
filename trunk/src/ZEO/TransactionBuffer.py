@@ -26,6 +26,12 @@ import cPickle
 
 class TransactionBuffer:
 
+    # Valid call sequences:
+    #
+    #     ((store | invalidate)* begin_iterate next* clear)* close
+    #
+    # get_size can be called any time
+
     def __init__(self):
         self.file = tempfile.TemporaryFile(suffix=".tbuf")
         self.count = 0
