@@ -62,7 +62,7 @@ if os.name == 'posix':
 
         # Override the asyncore close() method, because it seems that
         # it would only close the r file descriptor and not w.  The
-        # constructor calls file_dispactcher.__init__ and passes r,
+        # constructor calls file_dispatcher.__init__ and passes r,
         # which would get stored in a file_wrapper and get closed by
         # the default close.  But that would leave w open...
 
