@@ -1,3 +1,8 @@
+[more info may (or may not) be added to
+
+    http://zope.org/Wikis/ZODB/ReviseTransactionAPI
+]
+
 Notes on a future transaction API
 =================================
 
