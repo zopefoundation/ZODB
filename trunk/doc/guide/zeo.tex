@@ -1,0 +1,270 @@
+
+% ZEO
+%    Installing ZEO
+%    How ZEO works (ClientStorage)
+%    Configuring ZEO
+   
+\section{ZEO}
+\label{zeo}
+
+\subsection{How ZEO Works}
+
+The ZODB, as I've described it so far, can only be used within a
+single Python process (though perhaps with multiple threads).  ZEO,
+Zope Enterprise Objects, extends the ZODB machinery to provide access
+to objects over a network.  The name "Zope Enterprise Objects" is a
+bit misleading; ZEO can be used to store Python objects and access
+them in a distributed fashion without Zope ever entering the picture.
+The combination of ZEO and ZODB is essentially a Python-specific
+object database.
+
+ZEO consists of about 1400 lines of Python code.  The code is
+relatively small because it contains only code for a TCP/IP server,
+and for a new type of Storage, \class{ClientStorage}.
+\class{ClientStorage} doesn't use disk files at all; it simply
+makes remote procedure calls to the server, which then passes them on
+a regular \class{Storage} class such as \class{FileStorage}.  The
+following diagram lays out the system:
+
+XXX insert diagram here later
+
+Any number of processes can create a \class{ClientStorage}
+instance, and any number of threads in each process can be using that
+instance.  \class{ClientStorage} aggressively caches objects
+locally, so in order to avoid using stale data, the ZEO server sends
+an invalidate message to all the connected \class{ClientStorage}
+instances on every write operation.  The invalidate message contains
+the object ID for each object that's been modified, letting the
+\class{ClientStorage} instances delete the old data for the
+given object from their caches.
+
+This design decision has some consequences you should be aware of.
+First, while ZEO isn't tied to Zope, it was first written for use with
+Zope, which stores HTML, images, and program code in the database.  As
+a result, reads from the database are \emph{far} more frequent than
+writes, and ZEO is therefore better suited for read-intensive
+applications.  If every \class{ClientStorage} is writing to the
+database all the time, this will result in a storm of invalidate
+messages being sent, and this might take up more processing time than
+the actual database operations themselves.
+
+On the other hand, for applications that have few writes in comparison
+to the number of read accesses, this aggressive caching can be a major
+win.  Consider a Slashdot-like discussion forum that divides the load
+among several Web servers.  If news items and postings are represented
+by objects and accessed through ZEO, then the most heavily accessed
+objects -- the most recent or most popular postings -- will very
+quickly wind up in the caches of the
+\class{ClientStorage} instances on the front-end servers.  The
+back-end ZEO server will do relatively little work, only being called
+upon to return the occasional older posting that's requested, and to
+send the occasional invalidate message when a new posting is added.
+The ZEO server isn't going to be contacted for every single request,
+so its workload will remain manageable.
+
+\subsection{Installing ZEO}
+
+This section covers how to install the ZEO package, and how to 
+configure and run a ZEO Storage Server on a machine. 
+
+\subsubsection{Requirements}
+
+To run a ZEO server, you'll need Python 1.5.2 or 2.0, and the ZODB
+packages from \url{http://www.amk.ca/files/zodb/}
+have to be installed.  
+
+\emph{Note for Python 1.5.2 users}: ZEO requires updated versions
+of the \module{asyncore.py} and \module{asynchat.py} modules that are
+included in 1.5.2's standard library.  Current versions of the ZODB
+distribution install private versions of these modules, so you
+shouldn't need to grab updated versions yourself.  (The symptom of
+this problem is a traceback on attempting to run a ZEO client program:
+the traceback is ``TypeError: too many arguments; expected 2, got 3''
+around line 100 of \file{smac.py}.
+
+\subsubsection{Installation}
+
+Installing the ZEO package is easy.  Just run \code{python setup.py
+install}.  This will install the ZEO/ package into your Python
+installation, and copy various files into their proper locations:
+\file{zeo.conf} will be put into \file{/usr/local/etc/}, a \file{zeo} startup
+script will be put in \file{/etc/rc.d/init.d/}, and the \file{zeod}
+daemon program will be placed in \file{/usr/local/bin}.
+
+\subsection{Configuring and Running a ZEO Server}
+
+Edit \code{/usr/local/etc/zeo.conf} appropriately for your desired
+setup.  This configuration file controls the port on which ZEO will
+listen for connections, the user and group IDs under which the server
+will be executed, and the location of the concrete \class{Storage}
+object that will be made network-accessible.
+ 
+\subsection{Testing the ZEO Installation}
+
+Once a ZEO server is up and running, using it is just like using ZODB
+with a more conventional disk-based storage; no new programming
+details are introduced by using a remote server.  The only difference
+is that programs must create a \class{ClientStorage} instance instead
+of a \class{FileStorage} instance.  From that point onward, ZODB-based
+code is happily unaware that objects are being retrieved from a ZEO
+server, and not from the local disk.
+
+As an example, and to test whether ZEO is working correctly, try
+running the following lines of code, which will connect to the server,
+add some bits of data to the root of the ZODB, and commits the
+transaction:
+
+\begin{verbatim}
+from ZEO import ClientStorage
+from ZODB import DB
+
+# Change next line to connect to your ZEO server
+addr = ('kronos.example.com', 1975)
+storage = ClientStorage.ClientStorage(addr)
+db = DB(storage)
+conn = db.open()
+root = conn.root()
+
+# Store some things in the root
+root['list'] = ['a', 'b', 1.0, 3]
+root['dict'] = {'a':1, 'b':4}
+
+# Commit the transaction
+get_transaction().commit()
+\end{verbatim}
+
+If this code runs properly, then your ZEO server is working correctly.
+
+\subsection{ZEO Programming Notes}
+
+XXX The Connection.sync() method and its necessity (if it works at all!) 
+
+% That doesn't work.  I tested it.  sync() doesn't seem to get into
+% the asyncore loop.  One of us should probably look into adding an
+% API for this when we have some free time.  It would be a nice
+% small project that would get into ZODB's guts.
+
+
+
+
+\subsection{Sample Application: chatter.py}
+
+For an example application, we'll build a little chat application.
+What's interesting is that none of the application's code deals with
+network programming at all; instead, an object will hold chat
+messages, and be magically shared between all the clients through ZEO.
+I won't present the complete script here; it's included in my ZODB
+distribution, and you can download it from
+\url{http://www.amk.ca/zodb/demos/}.  Only the interesting portions of
+the code will be covered here.
+
+The basic data structure is the \class{ChatSession} object,
+which provides an \method{add_message()} method that adds a
+message, and a \method{new_messages()} method that returns a list
+of new messages that have accumulated since the last call to
+\method{new_messages()}.  Internally, \class{ChatSession}
+maintains a B-tree that uses the time as the key, and stores the
+message as the corresponding value.
+
+The constructor for \class{ChatSession} is pretty simple; it simply
+creates an attribute containing a B-tree:
+
+\begin{verbatim}
+class ChatSession(Persistent):
+    def __init__(self, name):
+        self.name = name
+        # Internal attribute: _messages holds all the chat messages.        
+        self._messages = BTree.BTree()        
+\end{verbatim}
+
+\method{add_message()} has to add a message to the
+\code{_messages} B-tree.  A complication is that it's possible
+that some other client is trying to add a message at the same time;
+when this happens, the client that commits first wins, and the second
+client will get a \exception{ConflictError} exception when it tries to
+commit.  For this application, \exception{ConflictError} isn't serious
+but simply means that the operation has to be retried; other
+applications might treat it as a fatal error.  The code uses
+\code{try...except...else} inside a \code{while} loop,
+breaking out of the loop when the commit works without raising an
+exception.
+
+\begin{verbatim}
+    def add_message(self, message):
+        """Add a message to the channel.
+        message -- text of the message to be added
+        """
+
+        while 1:
+            try:
+                now = time.time()
+                self._messages[now] = message
+                get_transaction().commit()
+            except ConflictError:
+                # Conflict occurred; this process should pause and
+                # wait for a little bit, then try again.
+                time.sleep(.2)
+                pass
+            else:
+                # No ConflictError exception raised, so break
+                # out of the enclosing while loop.
+                break
+        # end while
+\end{verbatim}
+
+\method{new_messages()} introduces the use of \textit{volatile}
+attributes.  Attributes of a persistent object that begin with
+\code{_v_} are considered volatile and are never stored in the
+database.  \method{new_messages()} needs to store the last time
+the method was called, but if the time was stored as a regular
+attribute, its value would be committed to the database and shared
+with all the other clients.  \method{new_messages()} would then
+return the new messages accumulated since any other client called
+\method{new_messages()}, which isn't what we want.
+
+\begin{verbatim}
+    def new_messages(self):
+        "Return new messages."
+
+        # self._v_last_time is the time of the most recent message
+        # returned to the user of this class. 
+        if not hasattr(self, '_v_last_time'):
+            self._v_last_time = 0
+
+        new = []
+        T = self._v_last_time
+
+        for T2, message in self._messages.items():
+            if T2 > T:
+                new.append(message)
+                self._v_last_time = T2
+
+        return new
+\end{verbatim}
+
+This application is interesting because it uses ZEO to easily share a
+data structure; ZEO and ZODB are being used for their networking
+ability, not primarily for their data storage ability.  I can foresee
+many interesting applications using ZEO in this way:
+
+\begin{itemize}
+  \item With a Tkinter front-end, and a cleverer, more scalable data
+  structure, you could build a shared whiteboard using the same
+  technique.
+
+  \item A shared chessboard object would make writing a networked chess
+  game easy.  
+
+  \item You could create a Python class containing a CD's title and
+  track information.  To make a CD database, a read-only ZEO server
+  could be opened to the world, or an HTTP or XML-RPC interface could
+  be written on top of the ZODB.
+
+  \item A program like Quicken could use a ZODB on the local disk to
+  store its data.  This avoids the need to write and maintain
+  specialized I/O code that reads in your objects and writes them out;
+  instead you can concentrate on the problem domain, writing objects
+  that represent cheques, stock portfolios, or whatever.
+
+\end{itemize}
+

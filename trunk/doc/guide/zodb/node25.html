@@ -1,0 +1,103 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<html>
+<head>
+<title>3.2.1 Requirements</title>
+<META NAME="description" CONTENT="3.2.1 Requirements">
+<META NAME="keywords" CONTENT="zodb">
+<META NAME="resource-type" CONTENT="document">
+<META NAME="distribution" CONTENT="global">
+<meta http-equiv="Content-Type" content="text/html; charset=">
+<link rel="STYLESHEET" href="zodb.css">
+<link rel="first" href="zodb.html">
+<link rel="contents" href="contents.html" title="Contents">
+
+<LINK REL="next" HREF="node26.html">
+<LINK REL="previous" HREF="node24.html">
+<LINK REL="up" HREF="node24.html">
+<LINK REL="next" HREF="node26.html">
+</head>
+<body>
+<DIV CLASS="navigation">
+<table align="center" width="100%" cellpadding="0" cellspacing="2">
+<tr>
+<td><A HREF="node24.html"><img src="/python/writing/icons/previous.gif"
+  border="0" height="32"
+  alt="Previous Page" width="32"></A></td>
+<td><A HREF="node24.html"><img src="/python/writing/icons/up.gif"
+  border="0" height="32"
+  alt="Up One Level" width="32"></A></td>
+<td><A HREF="node26.html"><img src="/python/writing/icons/next.gif"
+  border="0" height="32"
+  alt="Next Page" width="32"></A></td>
+<td align="center" width="100%">ZODB/ZEO Programming Guide</td>
+<td><A href="contents.html"><img src="/python/writing/icons/contents.gif"
+  border="0" height="32"
+  alt="Contents" width="32"></A></td>
+<td><img src="/python/writing/icons/blank.gif"
+  border="0" height="32"
+  alt="" width="32"></td>
+<td><img src="/python/writing/icons/blank.gif"
+  border="0" height="32"
+  alt="" width="32"></td>
+</tr></table>
+<b class="navlabel">Previous:</b> <a class="sectref" HREF="node24.html">3.2 Installing ZEO</A>
+<b class="navlabel">Up:</b> <a class="sectref" HREF="node24.html">3.2 Installing ZEO</A>
+<b class="navlabel">Next:</b> <a class="sectref" HREF="node26.html">3.2.2 Installation</A>
+<br><hr>
+</DIV>
+<!--End of Navigation Panel-->
+
+<H3><A NAME="SECTION000421000000000000000">
+3.2.1 Requirements</A>
+</H3>
+
+<P>
+To run a ZEO server, you'll need Python 1.5.2 or 2.0, and the ZODB
+packages from <a class="url" href="http://www.amk.ca/files/zodb/">http://www.amk.ca/files/zodb/</a>have to be installed.  
+
+<P>
+<i>Note for Python 1.5.2 users</i>: ZEO requires updated versions
+of the <tt class="module">asyncore.py</tt> and <tt class="module">asynchat.py</tt> modules that are
+included in 1.5.2's standard library.  Current versions of the ZODB
+distribution install private versions of these modules, so you
+shouldn't need to grab updated versions yourself.  (The symptom of
+this problem is a traceback on attempting to run a ZEO client program:
+the traceback is ``TypeError: too many arguments; expected 2, got 3''
+around line 100 of <span class="file">smac.py</span>.
+
+<P>
+
+<DIV CLASS="navigation">
+<p><hr>
+<table align="center" width="100%" cellpadding="0" cellspacing="2">
+<tr>
+<td><A HREF="node24.html"><img src="/python/writing/icons/previous.gif"
+  border="0" height="32"
+  alt="Previous Page" width="32"></A></td>
+<td><A HREF="node24.html"><img src="/python/writing/icons/up.gif"
+  border="0" height="32"
+  alt="Up One Level" width="32"></A></td>
+<td><A HREF="node26.html"><img src="/python/writing/icons/next.gif"
+  border="0" height="32"
+  alt="Next Page" width="32"></A></td>
+<td align="center" width="100%">ZODB/ZEO Programming Guide</td>
+<td><A href="contents.html"><img src="/python/writing/icons/contents.gif"
+  border="0" height="32"
+  alt="Contents" width="32"></A></td>
+<td><img src="/python/writing/icons/blank.gif"
+  border="0" height="32"
+  alt="" width="32"></td>
+<td><img src="/python/writing/icons/blank.gif"
+  border="0" height="32"
+  alt="" width="32"></td>
+</tr></table>
+<b class="navlabel">Previous:</b> <a class="sectref" HREF="node24.html">3.2 Installing ZEO</A>
+<b class="navlabel">Up:</b> <a class="sectref" HREF="node24.html">3.2 Installing ZEO</A>
+<b class="navlabel">Next:</b> <a class="sectref" HREF="node26.html">3.2.2 Installation</A>
+<hr>
+<span class="release-info">Release 0.03, documentation updated on February 8, 2002.</span>
+</DIV>
+<!--End of Navigation Panel-->
+
+</BODY>
+</HTML>

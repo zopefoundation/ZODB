@@ -1,0 +1,6 @@
+Update text to use BTrees, not BTree
+Write section on __setstate__
+Connection.sync seems to work now; note this
+Continue working on it
+Suppress the full GFDL text in the PDF/PS versions
+

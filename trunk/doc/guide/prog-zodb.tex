@@ -1,0 +1,565 @@
+
+%ZODB Programming
+%   How ZODB works (ExtensionClass, dirty bits)
+%   Installing ZODB
+%   Rules for Writing Persistent Classes
+   
+
+\section{ZODB Programming}
+
+\subsection{Installing ZODB}
+
+The ZODB forms part of Zope, but it's difficult and somewhat painful
+to extract the bits from Zope needed to support just the ZODB.
+Therefore I've assembled a distribution containing only the packages
+required to use the ZODB and ZEO, so you can install it and start
+programming right away.
+
+To download the distribution, go to my ZODB page at 
+\url{http://www.amk.ca/zodb/}.  
+The distribution is still experimental, so don't be surprised if the
+installation process runs into problems.  Please inform me of any
+difficulties you encounter.
+
+\subsubsection{Requirements}
+
+You'll need Python, of course; version 1.5.2 works with some fixes,
+and it also works with Python 2.0, which is what I primarily use.
+
+The code is packaged using Distutils, the new distribution tools for
+Python introduced in Python 2.0.  If you're using 1.5.2, first you'll
+have to get the latest Distutils release from the Distutils SIG page
+at \url{http://www.python.org/sigs/distutils-sig/download.html} and
+install it.  This is simply a matter of untarring or unzipping the
+release package, and then running \code{python setup.py install}.
+
+If you're using 1.5.2 and have installed previous versions of the
+Distutils, be sure to get the very latest version, since developing
+the ZODB distribution turned up some bugs along the way.  If you
+encounter problems compiling \file{ZODB/TimeStamp.c} or your compiler reports
+an error like ``Can't create build/temp.linux2/ExtensionClass.o: No
+such file or directory'', you need an updated version.  Old versions of
+Distutils have two bugs which affect the setup scripts.  First, for a
+long time the \code{define_macros} keyword in setup.py files didn't work due
+to a Distutils bug, so I hacked TimeStamp.c in earlier releases.  The
+Distutils have since been fixed, and the hack became unnecessary, so I
+removed it.  Second, the code that creates directories tries to be
+smart and caches them to save time by not trying to create a directory
+twice, but this code was broken in old versions.
+
+You'll need a C compiler to build the packages, because there are
+various C extension modules.  At the moment no one is making Windows
+binaries available, so you'll need a Windows development environment to use the 
+
+\subsubsection{Installing the Packages}
+
+Download the ZODB tarball containing all the packages for both ZODB
+and ZEO from \url{http://www.amk.ca/files/zodb/}.
+
+To build the packages, you must go into the individual directories and
+build and install them one by one.  They should be built and installed
+in this order:
+ 
+\begin{enumerate}
+  \item \code{zodb-basic}
+  \item ExtensionClass
+  \item ZODB
+  \item \code{BTree} and \code{BTrees}
+  \item ZEO
+\end{enumerate}
+
+In particular, you must install ExtensionClass before building the
+ZODB package; otherwise, the compilation in the ZODB package will die
+complaining that it can't find ExtensionClass.h.  You can manually
+hack the \#include path to make it work without installing
+ExtensionClass first, but that's a bit hackish.
+
+If you encounter any problems, please let me know at
+\email{akuchlin@mems-exchange.org}.
+
+\subsection{How ZODB Works}
+
+The ZODB is conceptually simple.  Python classes subclass a 
+\class{Persistent} class to become ZODB-aware. 
+Instances of persistent objects are brought in from a permanent
+storage medium, such as a disk file, when the program needs them, and
+remain cached in RAM.  The ZODB traps modifications to objects, so
+that when a statement such as \code{obj.size = 1} is executed, the
+modified object is marked as ``dirty''.  On request, any dirty objects
+are written out to permanent storage; this is called committing a
+transaction.  Transactions can also be aborted or rolled back, which
+results in any changes being discarded, dirty objects reverting to
+their initial state before the transaction began.
+
+The term ``transaction'' has a specific technical meaning in computer
+science.  It's extremely important that the contents of a database
+don't get corrupted by software or hardware crashes, and most database
+software offers protection against such corruption by supporting four
+useful properties, Atomicity, Consistency, Isolation, and Durability.
+In computer science jargon these four terms are collectively dubbed
+the ACID properties, forming an acronym from their names.  The
+definitions of the ACID properties are:
+
+\begin{itemize}
+
+\item[Atomicity] means that any changes to data made during a transaction 
+are all-or-nothing.  Either all the changes are applied, or none of
+them are.  If a program makes a bunch of modifications and then
+crashes, the database won't be partially modified, potentially leaving
+the data in an inconsistent state; instead all the changes will be
+forgotten.  That's bad, but it's better than having a
+partially-applied modification put the database into an inconsistent
+state.
+
+\item[Consistency] means that the data cannot be placed into a
+logically invalid state; sanity checks can be written and enforced.
+Usually this is done by defining a database schema, and requiring the
+data always matches the schema.  For example, this might enforce that
+the \code{order_number} attribute is always an integer, and not a
+string, tuple, or other object.
+
+\item[Isolation] means that two programs or threads running in two
+ different transactions cannot see each other's changes until they
+ commit their transactions.
+
+\item[Durability] means that once a transaction has been committed,
+a subsequent crash will not cause any data to be lost or corrupted.
+
+\end{itemize}
+
+The ZODB provides 3 of the ACID properties.  Only Consistency is not
+supported; the ZODB has no notion of a database schema, and therefore
+has no way of enforcing consistency with a schema.
+
+\subsection{Opening a ZODB}
+
+There are 3 main interfaces supplied by the ZODB:
+\class{Storage}, \class{DB}, and \class{Connection} classes. The
+\class{DB} and \class{Connection} interfaces both have single
+implementations, but there are several different classes that
+implement the \class{Storage} interface.
+
+\begin{itemize}
+ \item \class{Storage} classes are the lowest layer, and handle
+ storing and retrieving objects from some form of long-term storage.
+ A few different types of Storage have been written, such as
+ \class{FileStorage}, which uses regular disk files, and
+ \class{BerkeleyStorage}, which uses Sleepycat Software's BerkeleyDB
+ database.  You could write a new Storage that stored objects in a
+ relational database or Metakit file, for example, if that would
+ better suit your application.  Two example storages,
+ \class{DemoStorage} and \class{MappingStorage}, are available to use
+ as models if you want to write a new Storage.
+
+ \item The \class{DB} class sits on top of a storage, and mediates the
+ interaction between several connections.  One \class{DB} instance is
+ created per process.
+
+ \item Finally, the \class{Connection} class caches objects, and moves
+ them into and out of object storage.  A multi-threaded program can
+ open a separate \class{Connection} instance for each thread.
+ Different threads can then modify objects and commit their
+ modifications independently.
+
+\end{itemize}
+
+Preparing to use a ZODB requires 3 steps: you have to open the
+\class{Storage}, then create a \class{DB} instance that uses the \class{Storage}, and then get
+a \class{Connection} from the \class{DB instance}.  All this is only a few lines of
+code:
+
+\begin{verbatim}
+from ZODB import FileStorage, DB
+
+storage = FileStorage.FileStorage('/tmp/test-filestorage.fs')
+db = DB(storage)
+conn = db.open()
+\end{verbatim}
+
+Note that you can use a completely different data storage mechanism by
+changing the first line that opens a \class{Storage}; the above example uses a
+\class{FileStorage}.  In section~\ref{zeo}, ``How ZEO Works'',
+you'll see how ZEO uses this flexibility to good effect.
+
+\subsection{Writing a Persistent Class}
+
+Making a Python class persistent is quite simple; it simply needs to
+subclass from the \class{Persistent} class, as shown in this example:
+
+\begin{verbatim}
+import ZODB
+from Persistence import Persistent
+
+class User(Persistent):
+    pass
+\end{verbatim}
+
+The apparently unnecessary \code{import ZODB} statement is
+needed for the following \code{from...import} statement to work
+correctly, since the ZODB code does some magical tricks with
+importing.
+
+For simplicity, in the examples the \class{User} class will
+simply be used as a holder for a bunch of attributes.  Normally the
+class would define various methods that add functionality, but that
+has no impact on the ZODB's treatment of the class.
+
+The ZODB uses persistence by reachability; starting from a set of root
+objects, all the attributes of those objects are made persistent,
+whether they're simple Python data types or class instances.  There's
+no method to explicitly store objects in a ZODB database; simply
+assign them as an attribute of an object, or store them in a mapping,
+that's already in the database.  This chain of containment must
+eventually reach back to the root object of the database.
+
+As an example, we'll create a simple database of users that allows
+retrieving a \class{User} object given the user's ID.  First, we
+retrieve the primary root object of the ZODB using the \method{root()}
+method of the \class{Connection} instance.  The root object behaves
+like a Python dictionary, so you can just add a new key/value pair for
+your application's root object.  We'll insert a \class{BTree} object
+that will contain all the \class{User} objects.  (The
+\class{BTree} module is also included as part of Zope.)
+
+\begin{verbatim}
+dbroot = conn.root()
+
+# Ensure that a 'userdb' key is present 
+# in the root
+if not dbroot.has_key('userdb'):
+    import BTree
+    dbroot['userdb'] = BTree.BTree()
+
+userdb = dbroot['userdb']
+\end{verbatim}
+
+Inserting a new user is simple: create the \class{User} object, fill
+it with data, insert it into the \class{BTree} instance, and commit
+this transaction.
+
+\begin{verbatim}# Create new User instance
+newuser = User() 
+
+# Add whatever attributes you want to track
+newuser.id = 'amk' 
+newuser.first_name = 'Andrew' ; newuser.last_name = 'Kuchling'
+...
+
+# Add object to the BTree, keyed on the ID
+userdb[newuser.id] = newuser
+
+# Commit the change
+get_transaction().commit()
+\end{verbatim}
+
+When you import the ZODB package, it adds a new function,
+\function{get_transaction()}, to Python's collection of built-in
+functions.  \function{get_transaction()} returns a \class{Transaction}
+object, which has two important methods: \method{commit()} and
+\method{abort()}.  \method{commit()} writes any modified objects
+to disk, making the changes permanent, while \method{abort()} rolls
+back any changes that have been made, restoring the original state of
+the objects.  If you're familiar with database transactional
+semantics, this is all what you'd expect.
+
+Because the integration with Python is so complete, it's a lot like
+having transactional semantics for your program's variables, and you
+can experiment with transactions at the Python interpreter's prompt:
+
+\begin{verbatim}>>> newuser
+<User instance at 81b1f40>
+>>> newuser.first_name           # Print initial value
+'Andrew'         
+>>> newuser.first_name = 'Bob'   # Change first name
+>>> newuser.first_name           # Verify the change
+'Bob'
+>>> get_transaction().abort()    # Abort transaction
+>>> newuser.first_name           # The value has changed back
+'Andrew'
+\end{verbatim}
+
+\subsection{Rules for Writing Persistent Classes}
+
+Practically all persistent languages impose some restrictions on
+programming style, warning against constructs they can't handle or
+adding subtle semantic changes, and the ZODB is no exception.
+Happily, the ZODB's restrictions are fairly simple to understand, and
+in practice it isn't too painful to work around them.
+
+The summary of rules is as follows:
+
+\begin{itemize}
+\item If you modify a mutable object that's the value of an object's
+attribute, the ZODB can't catch that, and won't mark the object as
+dirty.  
+The solution is to either set the dirty bit yourself when you modify
+mutable objects, or use a wrapper for Python's lists and dictionaries
+(\class{PersistentList}, 
+\class{PersistentMapping})
+that will set the dirty bit properly.
+
+\item Certain of Python's special methods don't work when they're
+defined on ExtensionClasses.  The most important ones are the
+\method{__cmp__} method, and the reversed versions of binary
+arithmetic operations: \method{__radd__}, \method{__rsub__}, and so
+forth.
+
+\item Python's built-in \function{isinstance()} and \function{issubclass()}
+functions don't work properly on ExtensionClasses.  Solution: use
+custom \function{isinstance()} and \function{issubclass()} functions
+that handle ExtensionClasses correctly.
+
+\item Recent versions of the ZODB allow writing a class with 
+\method{__setattr__} , \method{__getattr__}, or \method{__delattr__} methods.  (Older versions didn't support this at all.)
+If you write such a \method{__setattr__} or \method{__delattr__} method, 
+its code has to set the dirty bit manually, 
+
+\end{itemize}
+
+Let's look at each of these rules in detail.
+
+\subsubsection{Modifying Mutable Objects}
+
+The ZODB uses various Python hooks to catch attribute accesses, and
+can trap most of the ways of modifying an object, but not all of them.
+If you modify a \class{User} object by assigning to one of its
+attributes, as in \code{userobj.first_name = 'Andrew'}, the ZODB will
+mark the object as having been changed, and it'll be written out on
+the following \method{commit()}.
+
+The most common idiom that \emph{isn't} caught by the ZODB is
+mutating a list or dictionary.  If \class{User} objects have a
+attribute named \code{friends} containing a list, calling
+\code{userobj.friends.append(otherUser)} doesn't mark
+\code{userobj} as modified; from the ZODB's point of
+view, \code{userobj.friends} was only read, and its value, which
+happened to be an ordinary Python list, was returned.  The ZODB isn't
+aware that the object returned was subsequently modified.
+
+This is one of the few quirks you'll have to remember when using the
+ZODB; if you modify a mutable attribute of an object in place, you
+have to manually mark the object as having been modified by setting
+its dirty bit to true.  This is done by setting the
+\member{_p_changed} attribute of the object to true:
+
+\begin{verbatim}
+userobj.friends.append(otherUser)
+userobj._p_changed = 1
+\end{verbatim}
+
+An obsolete way of doing this that's still supported is calling the
+\method{__changed__()} method instead, but setting \member{_p_changed} 
+is the preferred way.
+
+You can hide the implementation detail of having to mark objects as
+dirty by designing your class's API to not use direct attribute
+access; instead, you can use the Java-style approach of accessor
+methods for everything, and then set the dirty bit within the accessor
+method.  For example, you might forbid accessing the \code{friends}
+attribute directly, and add a \method{get_friend_list()} accessor and
+an \method{add_friend()} modifier method to the class.  \method{add_friend()}
+would then look like this:
+
+\begin{verbatim}
+    def add_friend(self, friend):
+        self.friends.append(otherUser)
+        self._p_changed = 1
+\end{verbatim}
+
+Alternatively, you could use a ZODB-aware list or mapping type that
+handles the dirty bit for you.  The ZODB comes with a
+\class{PersistentMapping} class, and I've contributed a
+\class{PersistentList} class that's included in my ZODB distribution, 
+and may make it into a future upstream release of Zope.
+
+% XXX It'd be nice to discuss what happens when an object is ``ghosted'' (e.g.
+% you set an object's _p_changed = None).  The __p_deactivate__ method should
+% not be used (it's also obsolete). 
+
+\subsubsection{Some Special Methods Don't Work}
+
+Don't bother defining certain special methods on
+ExtensionClasses, because they won't work.  Most notably, the
+\method{__cmp__} method on an ExtensionClass will never be called.
+Neither will the reversed versions of binary arithmetic operations,
+such as \method{__radd__} and \method{__rsub__}.
+
+This is a moderately annoying limitation.  It means that the
+\class{PersistentList} class can't implement comparisons with regular
+sequence objects, and therefore statements such as 
+\verb|if perslist==[]| don't do what you expect; instead of performing the correct
+comparison, they return some arbitrary fixed result, so the \code{if}
+statement will always be true or always be false.  There is no good
+solution to this problem at the moment, so all you can do is design
+class interfaces that don't need to overload
+\method{__cmp__} or the \method{__r*__} methods.
+
+This limitation is mostly Python's fault.  As of Python 2.1, the most
+recent version at this writing, the code which handles comparing two
+Python objects contains a hard-wired check for objects that are class
+instances, which means that \code{type(obj) == types.InstanceType}.
+The code inside the Python interpreter looks like this:
+
+\begin{verbatim}
+/* Code to compare objects v and w */
+if (PyInstance_Check(v) || PyInstance_Check(w))
+        return PyInstance_DoBinOp(v, w, "__cmp__", "__rcmp__", do_cmp);
+/* Do usual Python comparison of v,w */
+c = PyObject_Compare(v, w);
+\end{verbatim}
+
+While ExtensionClasses try to behave as much like regular Python
+instances as possible, they are still not instances, and
+\function{type()} doesn't return the \code{InstanceType} object, so 
+no attempt is ever made to call \method{__cmp__}.  Perhaps Python 2.2
+will repair this.
+
+\subsubsection{Fixing \function{isinstance} and \function{issubclass}}
+
+Python's built-in functions 
+\function{isinstance()} and \function{issubclass} don't
+work on ExtensionClass instances, for much the same reason that 
+\method{__cmp__} is never called; in some bits of the Python core code,
+branches are taken only if an object is of the \class{InstanceType}
+type, and this can never be true for an ExtensionClass instance.
+Python 2.1 tried to fix this, and changed these functions slightly in
+an effort to make them work for ExtensionClasses; unfortunately, the
+changes didn't work.
+
+The solution is to use customized versions of these functions that
+handle ExtensionClasses specially and fall back to the built-in
+version otherwise.  Here are the versions we've written at the MEMS Exchange:
+
+\begin{verbatim}
+# The built-in 'isinstance()' and 'issubclass()' won't work on
+# ExtensionClasses, so you have to use the versions supplied here.
+# (But those versions work fine on regular instances and classes too,
+# so you should *always* use them.)
+
+def issubclass (class1, class2):
+    """A version of 'issubclass' that works with extension classes
+    as well as regular Python classes.
+    """
+
+    # Both class objects are regular Python classes, so use the
+    # built-in 'issubclass()'.
+    if type(class1) is ClassType and type(class2) is ClassType:
+        return __builtin__.issubclass(class1, class2)
+
+    # Both so-called class objects have a '__bases__' attribute: ie.,
+    # they aren't regular Python classes, but they sure look like them.
+    # Assume they are extension classes and reimplement what the builtin
+    # 'issubclass()' does behind the scenes.
+    elif hasattr(class1, '__bases__') and hasattr(class2, '__bases__'):
+        # XXX it appears that "ec.__class__ is type(ec)" for an
+        # extension class 'ec': could we/should we use this as an
+        # additional check for extension classes?
+
+        # Breadth-first traversal of class1's superclass tree.  Order
+        # doesn't matter because we're just looking for a "yes/no"
+        # answer from the tree; if we were trying to resolve a name,
+        # order would be important!
+        stack = [class1]
+        while stack:
+            if stack[0] is class2:
+                return 1
+            stack.extend(list(stack[0].__bases__))
+            del stack[0]
+        else:
+            return 0
+
+    # Not a regular class, not an extension class: blow up for consistency
+    # with builtin 'issubclass()"
+    else:
+        raise TypeError, "arguments must be class or ExtensionClass objects"
+
+# issubclass ()
+
+def isinstance (object, klass):
+    """A version of 'isinstance' that works with extension classes
+    as well as regular Python classes."""
+
+    if type(klass) is TypeType:
+        return __builtin__.isinstance(object, klass)
+    elif hasattr(object, '__class__'):
+        return issubclass(object.__class__, klass)
+    else:
+        return 0
+\end{verbatim}
+
+I'd recommend putting these functions in a module that always gets
+imported.  The convention on my work project is to put them in
+\file{mems/lib/base.py}, which contains various fundamental classes
+and functions for our system, and access them like this:
+
+\begin{verbatim}
+from mems.lib import base
+...
+if base.isinstance(object, Class): ...
+\end{verbatim}
+
+Don't insert the modified functions into Python's
+\module{__builtin__} module, or import just the
+\function{isinstance()} and \function{issubclass} functions.  
+If you consistently use \function{base.isinstance()}, then forgetting
+to import the \module{base} module will result in a
+\exception{NameError} exception.  In the
+case of a forgotten import, calling the functions directly would use
+Python's built-in versions, leading to subtle bugs that might not be
+noticed for some time.
+
+\subsubsection{\method{__getattr__}, \method{__delattr__}, and \method{__setattr__}}
+
+Recent versions of ZODB allow writing persistent classes that have
+\method{__getattr__}, \method{__delattr__}, or \method{__setattr__}
+methods.  The one minor complication is that the machinery for
+automatically detecting changes to the object is disabled while the
+\method{__getattr__}, \method{__delattr__}, or \method{__setattr__}
+method is executing.  This means that if the object is modified, the
+object should be marked as dirty by setting the object's
+\member{_p_changed} method to true.
+
+\subsection{Writing Persistent Classes}
+
+Now that we've looked at the basics of programming using the ZODB,
+we'll turn to some more subtle tasks that are likely to come up for
+anyone using the ZODB in a production system.
+
+\subsubsection{Changing Instance Attributes}
+
+Ideally, before making a class persistent you would get its interface
+right the first time, so that no attributes would ever need to be
+added, removed, or have their interpretation change over time.  It's a
+worthy goal, but also an impractical one unless you're gifted with
+perfect knowledge of the future.  Such unnatural foresight can't be
+required of any person, so you therefore have to be prepared to handle
+such structural changes gracefully.  In object-oriented database
+terminology, this is a schema update.  The ZODB doesn't have an actual
+schema specification, but you're changing the software's expectations
+of the data contained by an object, so you're implicitly changing the
+schema.
+
+One way to handle such a change is to write a one-time conversion
+program that will loop over every single object in the database and
+update them to match the new schema.  This can be easy if your network
+of object references is quite structured, making it easy to find all
+the instances of the class being modified.  For example, if all
+\class{User} objects can be found inside a single dictionary or
+B-tree, then it would be a simple matter to loop over every
+\class{User} instance with a \keyword{for} statement.
+This is more difficult if your object graph is less structured; if
+\class{User} objects can be found as attributes of any number of
+different class instances, then there's no longer any easy way to find
+them all, short of writing a generalized object traversal function
+that would walk over every single object in a ZODB, checking each one
+to see if it's an instance of \class{User}.  
+\footnote{XXX is there a convenience method for walking the object graph hiding
+somewhere inside DC's code?  Should there be a utility method for
+doing this?  Should I write one and include it in this section?}
+Some OODBs support a feature called extents, which allow quickly
+finding all the instances of a given class, no matter where they are
+in the object graph; unfortunately the ZODB doesn't offer extents as a
+feature.
+
+XXX Rest of section not written yet: __getstate__/__setstate__
+

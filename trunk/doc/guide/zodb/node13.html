@@ -1,0 +1,149 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<html>
+<head>
+<title>2.3 Opening a ZODB</title>
+<META NAME="description" CONTENT="2.3 Opening a ZODB">
+<META NAME="keywords" CONTENT="zodb">
+<META NAME="resource-type" CONTENT="document">
+<META NAME="distribution" CONTENT="global">
+<meta http-equiv="Content-Type" content="text/html; charset=">
+<link rel="STYLESHEET" href="zodb.css">
+<link rel="first" href="zodb.html">
+<link rel="contents" href="contents.html" title="Contents">
+
+<LINK REL="next" HREF="node14.html">
+<LINK REL="previous" HREF="node12.html">
+<LINK REL="up" HREF="node8.html">
+<LINK REL="next" HREF="node14.html">
+</head>
+<body>
+<DIV CLASS="navigation">
+<table align="center" width="100%" cellpadding="0" cellspacing="2">
+<tr>
+<td><A HREF="node12.html"><img src="/python/writing/icons/previous.gif"
+  border="0" height="32"
+  alt="Previous Page" width="32"></A></td>
+<td><A HREF="node8.html"><img src="/python/writing/icons/up.gif"
+  border="0" height="32"
+  alt="Up One Level" width="32"></A></td>
+<td><A HREF="node14.html"><img src="/python/writing/icons/next.gif"
+  border="0" height="32"
+  alt="Next Page" width="32"></A></td>
+<td align="center" width="100%">ZODB/ZEO Programming Guide</td>
+<td><A href="contents.html"><img src="/python/writing/icons/contents.gif"
+  border="0" height="32"
+  alt="Contents" width="32"></A></td>
+<td><img src="/python/writing/icons/blank.gif"
+  border="0" height="32"
+  alt="" width="32"></td>
+<td><img src="/python/writing/icons/blank.gif"
+  border="0" height="32"
+  alt="" width="32"></td>
+</tr></table>
+<b class="navlabel">Previous:</b> <a class="sectref" HREF="node12.html">2.2 How ZODB Works</A>
+<b class="navlabel">Up:</b> <a class="sectref" HREF="node8.html">2 ZODB Programming</A>
+<b class="navlabel">Next:</b> <a class="sectref" HREF="node14.html">2.4 Writing a Persistent</A>
+<br><hr>
+</DIV>
+<!--End of Navigation Panel-->
+
+<H2><A NAME="SECTION000330000000000000000">
+2.3 Opening a ZODB</A>
+</H2>
+
+<P>
+There are 3 main interfaces supplied by the ZODB:
+<tt class="class">Storage</tt>, <tt class="class">DB</tt>, and <tt class="class">Connection</tt> classes. The
+<tt class="class">DB</tt> and <tt class="class">Connection</tt> interfaces both have single
+implementations, but there are several different classes that
+implement the <tt class="class">Storage</tt> interface.
+
+<P>
+
+<UL>
+<LI><tt class="class">Storage</tt> classes are the lowest layer, and handle
+ storing and retrieving objects from some form of long-term storage.
+ A few different types of Storage have been written, such as
+ <tt class="class">FileStorage</tt>, which uses regular disk files, and
+ <tt class="class">BerkeleyStorage</tt>, which uses Sleepycat Software's BerkeleyDB
+ database.  You could write a new Storage that stored objects in a
+ relational database or Metakit file, for example, if that would
+ better suit your application.  Two example storages,
+ <tt class="class">DemoStorage</tt> and <tt class="class">MappingStorage</tt>, are available to use
+ as models if you want to write a new Storage.
+
+<P>
+</LI>
+<LI>The <tt class="class">DB</tt> class sits on top of a storage, and mediates the
+ interaction between several connections.  One <tt class="class">DB</tt> instance is
+ created per process.
+
+<P>
+</LI>
+<LI>Finally, the <tt class="class">Connection</tt> class caches objects, and moves
+ them into and out of object storage.  A multi-threaded program can
+ open a separate <tt class="class">Connection</tt> instance for each thread.
+ Different threads can then modify objects and commit their
+ modifications independently.
+
+<P>
+</LI>
+</UL>
+
+<P>
+Preparing to use a ZODB requires 3 steps: you have to open the
+<tt class="class">Storage</tt>, then create a <tt class="class">DB</tt> instance that uses the <tt class="class">Storage</tt>, and then get
+a <tt class="class">Connection</tt> from the <tt class="class">DB instance</tt>.  All this is only a few lines of
+code:
+
+<P>
+<dl><dd><pre class="verbatim">
+from ZODB import FileStorage, DB
+
+storage = FileStorage.FileStorage('/tmp/test-filestorage.fs')
+db = DB(storage)
+conn = db.open()
+</pre></dl>
+
+<P>
+Note that you can use a completely different data storage mechanism by
+changing the first line that opens a <tt class="class">Storage</tt>; the above example uses a
+<tt class="class">FileStorage</tt>.  In section&nbsp;<A href="zeo.html#zeo">3</A>, ``How ZEO Works'',
+you'll see how ZEO uses this flexibility to good effect.
+
+<P>
+
+<DIV CLASS="navigation">
+<p><hr>
+<table align="center" width="100%" cellpadding="0" cellspacing="2">
+<tr>
+<td><A HREF="node12.html"><img src="/python/writing/icons/previous.gif"
+  border="0" height="32"
+  alt="Previous Page" width="32"></A></td>
+<td><A HREF="node8.html"><img src="/python/writing/icons/up.gif"
+  border="0" height="32"
+  alt="Up One Level" width="32"></A></td>
+<td><A HREF="node14.html"><img src="/python/writing/icons/next.gif"
+  border="0" height="32"
+  alt="Next Page" width="32"></A></td>
+<td align="center" width="100%">ZODB/ZEO Programming Guide</td>
+<td><A href="contents.html"><img src="/python/writing/icons/contents.gif"
+  border="0" height="32"
+  alt="Contents" width="32"></A></td>
+<td><img src="/python/writing/icons/blank.gif"
+  border="0" height="32"
+  alt="" width="32"></td>
+<td><img src="/python/writing/icons/blank.gif"
+  border="0" height="32"
+  alt="" width="32"></td>
+</tr></table>
+<b class="navlabel">Previous:</b> <a class="sectref" HREF="node12.html">2.2 How ZODB Works</A>
+<b class="navlabel">Up:</b> <a class="sectref" HREF="node8.html">2 ZODB Programming</A>
+<b class="navlabel">Next:</b> <a class="sectref" HREF="node14.html">2.4 Writing a Persistent</A>
+<hr>
+<span class="release-info">Release 0.03, documentation updated on February 8, 2002.</span>
+</DIV>
+<!--End of Navigation Panel-->
+
+</BODY>
+</HTML>
