@@ -84,7 +84,7 @@
 ##############################################################################
 """Network ZODB storage client
 """
-__version__='$Revision: 1.7 $'[11:-2]
+__version__='$Revision: 1.8 $'[11:-2]
 
 import struct, time, os, socket, string, Sync, zrpc, ClientCache
 import tempfile, Invalidator, ExtensionClass, thread
@@ -208,7 +208,7 @@ class ClientStorage(ExtensionClass.Base, BaseStorage.BaseStorage):
                 'i': (invalidator.invalidate, 1),
                 'e': (invalidator.end, 0),
                 'I': (invalidator.Invalidate, 1),
-                'r': (self._commit_lock_release, 0),
+                'U': (self._commit_lock_release, 0),
                 's': (self._serials.append, 1),
                 'S': (self._info.update, 1),
                 }.get):
