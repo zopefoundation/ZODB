@@ -113,7 +113,7 @@ else:
             try:
                 if PROFILE:
                     p = hotshot.Profile("stats.s.%d" % os.getpid())
-                    p.runctx("run_server(storage, addr, rd, wr)",
+                    p.runctx("run_server(addr, rd, wr, storage_name, args)",
                              globals(), locals())
                     p.close()
                 else:
