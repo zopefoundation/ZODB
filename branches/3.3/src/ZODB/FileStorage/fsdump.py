@@ -13,13 +13,14 @@ import types
 
 def get_pickle_metadata(data):
     # ZODB's data records contain two pickles.  The first is the class
-    # of the object, the second is the object.
-    if data.startswith('(c'):
+    # of the object, the second is the object.  We're only trying to
+    # pick apart the first here, to extract the module and class names.
+    if data.startswith('(c'):   # pickle MARK GLOBAL sequence
         # Don't actually unpickle a class, because it will attempt to
         # load the class.  Just break open the pickle and get the
         # module and class from it.
         modname, classname, rest = data.split('\n', 2)
-        modname = modname[2:]
+        modname = modname[2:]   # strip leading '(c'
         return modname, classname
     f = StringIO(data)
     u = Unpickler(f)

@@ -12,6 +12,20 @@ oid 17 was displayed as 0000000000000011.  As a Python integer, that's
 octal 9.  Or was it meant to be decimal 11?  Or was it meant to be hex?
 Now it displays as 0x11.
 
+fsrefs.py:
+
+    When run with -v, produced tracebacks for objects whose creation was
+    merely undone.  This was confusing.  Tracebacks are now produced only
+    if there's "a real" problem loading an oid.
+
+    If the current revision of object O refers to an object P whose
+    creation has been undone, this is now identified as a distinct case.
+
+    Captured and ignored most attempts to stop it via Ctrl+C.  Repaired.
+
+    Now makes two passes, so that an accurate report can be given of all
+    invalid references.
+
 
 What's new in ZODB3 3.3 beta 2
 ==============================

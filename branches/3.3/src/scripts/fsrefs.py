@@ -39,21 +39,19 @@ oid of the object is given in a message saying so, and if -v was specified
 then the traceback corresponding to the load failure is also displayed
 (this is the only effect of the -v flag).
 
-Two other kinds of errors are also detected, one strongly related to
-"failed to load", when an object O loads OK, and directly refers to a
-persistent object P but there's a problem with P:
+Three other kinds of errors are also detected, when an object O loads OK,
+and directly refers to a persistent object P but there's a problem with P:
 
  - If P doesn't exist in the database, a message saying so is displayed.
    The unsatisifiable reference to P is often called a "dangling
    reference"; P is called "missing" in the error output.
 
- - If it was earlier determined that P could not be loaded (but does exist
-   in the database), a message saying that O refers to an object that can't
-   be loaded is displayed.  Note that fsrefs only makes one pass over the
-   database, so if an object O refers to an unloadable object P, and O is
-   seen by fsrefs before P, an "O refers to the unloadable P" message will
-   not be produced; a message saying that P can't be loaded will be
-   produced when fsrefs later tries to load P, though.
+ - If the current state of the database is such that P's creation has
+   been undone, then P can't be loaded either.  This is also a kind of
+   dangling reference, but is identified as "object creation was undone".
+
+ - If P can't be loaded (but does exist in the database), a message saying
+   that O refers to an object that can't be loaded is displayed.
 
 fsrefs also (indirectly) checks that the .index file is sane, because
 fsrefs uses the index to get its idea of what constitutes "all the objects
@@ -65,28 +63,52 @@ revisions of objects; therefore fsrefs cannot find problems in versions or
 in non-current revisions.
 """
 
-from ZODB.FileStorage import FileStorage
-from ZODB.TimeStamp import TimeStamp
-from ZODB.utils import u64
-from ZODB.FileStorage.fsdump import get_pickle_metadata
-
 import cPickle
 import cStringIO
 import traceback
 import types
 
+from ZODB.FileStorage import FileStorage
+from ZODB.TimeStamp import TimeStamp
+from ZODB.utils import u64, oid_repr
+from ZODB.FileStorage.fsdump import get_pickle_metadata
+from ZODB.POSException import POSKeyError
+
 VERBOSE = 0
 
+# So full of undocumented magic it's hard to fathom.
+# The existence of cPickle.noload() isn't documented, and what it
+# does isn't documented either.  In general it unpickles, but doesn't
+# actually build any objects of user-defined classes.  Despite that
+# persistent_load is documented to be a callable, there's an
+# undocumented gimmick where if it's actually a list, for a PERSID or
+# BINPERSID opcode cPickle just appends "the persistent id" to that list.
+# Also despite that "a persistent id" is documented to be a string,
+# ZODB persistent ids are actually (often? always?) tuples, most often
+# of the form
+#     (oid, (module_name, class_name))
+# So the effect of the following is to dig into the object pickle, and
+# return a list of the persistent ids found (which are usually nested
+# tuples), without actually loading any modules or classes.
+# Note that pickle.py doesn't support any of this, it's undocumented code
+# only in cPickle.c.
 def get_refs(pickle):
-    refs = []
+    # The pickle is in two parts.  First there's the class of the object,
+    # needed to build a ghost,  See get_pickle_metadata for how complicated
+    # this can get.  The second part is the state of the object.  We want
+    # to find all the persistent references within both parts (although I
+    # expect they can only appear in the second part).
     f = cStringIO.StringIO(pickle)
     u = cPickle.Unpickler(f)
-    u.persistent_load = refs
-    u.noload()
-    u.noload()
+    u.persistent_load = refs = []
+    u.noload() # class info
+    u.noload() # instance state info
     return refs
 
-def report(oid, data, serial, fs, missing):
+# There's a problem with oid.  'data' is its pickle, and 'serial' its
+# serial number.  'missing' is a list of (oid, class, reason) triples,
+# explaining what the problem(s) is(are).
+def report(oid, data, serial, missing):
     from_mod, from_class = get_pickle_metadata(data)
     if len(missing) > 1:
         plural = "s"
@@ -101,28 +123,41 @@ def report(oid, data, serial, fs, missing):
             description = "%s.%s" % info
         else:
             description = str(info)
-        print "\toid %s %s: %r" % (hex(u64(oid)), reason, description)
+        print "\toid %s %s: %r" % (oid_repr(oid), reason, description)
     print
 
 def main(path):
     fs = FileStorage(path, read_only=1)
+
+    # Set of oids in the index that failed to load due to POSKeyError.
+    # This is what happens if undo is applied to the transaction creating
+    # the object (the oid is still in the index, but its current data
+    # record has a backpointer of 0, and POSKeyError is raised then
+    # because of that backpointer).
+    undone = {}
+
+    # Set of oids that were present in the index but failed to load.
+    # This does not include oids in undone.
     noload = {}
+
     for oid in fs._index.keys():
         try:
             data, serial = fs.load(oid, "")
+        except (KeyboardInterrupt, SystemExit):
+            raise
+        except POSKeyError:
+            undone[oid] = 1
         except:
-            print "oid %s failed to load" % hex(u64(oid))
             if VERBOSE:
                 traceback.print_exc()
             noload[oid] = 1
 
-            # If we get here after we've already loaded objects
-            # that refer to this one, we will not have gotten error reports
-            # from the latter about the current object being unloadable.
-            # We could fix this by making two passes over the storage, but
-            # that seems like overkill.
+    inactive = noload.copy()
+    inactive.update(undone)
+    for oid in fs._index.keys():
+        if oid in inactive:
             continue
-
+        data, serial = fs.load(oid, "")
         refs = get_refs(data)
         missing = [] # contains 3-tuples of oid, klass-metadata, reason
         for info in refs:
@@ -132,12 +167,14 @@ def main(path):
                 # failed to unpack
                 ref = info
                 klass = '<unknown>'
-            if not fs._index.has_key(ref):
+            if ref not in fs._index:
                 missing.append((ref, klass, "missing"))
-            if noload.has_key(ref):
+            if ref in noload:
                 missing.append((ref, klass, "failed to load"))
+            if ref in undone:
+                missing.append((ref, klass, "object creation was undone"))
         if missing:
-            report(oid, data, serial, fs, missing)
+            report(oid, data, serial, missing)
 
 if __name__ == "__main__":
     import sys
