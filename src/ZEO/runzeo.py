@@ -1,7 +1,7 @@
 #!python
 ##############################################################################
 #
-# Copyright (c) 2001, 2002 Zope Corporation and Contributors.
+# Copyright (c) 2001, 2002, 2003 Zope Corporation and Contributors.
 # All Rights Reserved.
 #
 # This software is subject to the provisions of the Zope Public License,
@@ -89,7 +89,9 @@ class ZEOOptionsMixin:
                  "t:", "timeout=", float)
         self.add("monitor_address", "zeo.monitor_address", "m:", "monitor=",
                  self.handle_monitor_address)
-
+        self.add('auth_protocol', 'zeo.auth_protocol', None,
+                 'auth-protocol=', default=None)
+        self.add('auth_filename', 'zeo.auth_filename', None, 'auth-filename=')
 
 class ZEOOptions(ZDOptions, ZEOOptionsMixin):
 
@@ -189,7 +191,9 @@ class ZEOServer:
             read_only=self.options.read_only,
             invalidation_queue_size=self.options.invalidation_queue_size,
             transaction_timeout=self.options.transaction_timeout,
-            monitor_address=self.options.monitor_address)
+            monitor_address=self.options.monitor_address,
+            auth_protocol=self.options.auth_protocol,
+            auth_filename=self.options.auth_filename)
 
     def loop_forever(self):
         import ThreadedAsync.LoopCallback

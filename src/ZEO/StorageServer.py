@@ -1,6 +1,6 @@
 ##############################################################################
 #
-# Copyright (c) 2001, 2002 Zope Corporation and Contributors.
+# Copyright (c) 2001, 2002, 2003 Zope Corporation and Contributors.
 # All Rights Reserved.
 #
 # This software is subject to the provisions of the Zope Public License,
@@ -31,6 +31,7 @@ import time
 
 from ZEO import ClientStub
 from ZEO.CommitLog import CommitLog
+from ZEO.auth.database import Database
 from ZEO.monitor import StorageStats, StatsServer
 from ZEO.zrpc.server import Dispatcher
 from ZEO.zrpc.connection import ManagedServerConnection, Delay, MTDelay
@@ -161,6 +162,8 @@ class ZEOStorage:
         """Select the storage that this client will use
 
         This method must be the first one called by the client.
+        For authenticated storages this method will be called by the client
+        immediately after authentication is finished.
         """
         if self.storage is not None:
             self.log("duplicate register() call")
@@ -410,6 +413,15 @@ class ZEOStorage:
         else:
             return self._wait(lambda: self._vote())
 
+    def getAuthProtocol(self):
+        """Return string specifying name of authentication module to use.
+
+           The module name should be auth_%s where %s is auth_protocol."""
+        protocol = self.server.auth_protocol
+        if not protocol or protocol == 'none':
+            return None
+        return protocol
+    
     def abortVersion(self, src, id):
         self._check_tid(id, exc=StorageTransactionError)
         if self.locked:
@@ -577,7 +589,9 @@ class StorageServer:
     def __init__(self, addr, storages, read_only=0,
                  invalidation_queue_size=100,
                  transaction_timeout=None,
-                 monitor_address=None):
+                 monitor_address=None,
+                 auth_protocol=None,
+                 auth_filename=None):
         """StorageServer constructor.
 
         This is typically invoked from the start.py script.
@@ -618,7 +632,22 @@ class StorageServer:
         monitor_address -- The address at which the monitor server
             should listen.  If specified, a monitor server is started.
             The monitor server provides server statistics in a simple
-            text format. 
+            text format.
+
+        auth_protocol -- The name of the authentication protocol to use.
+            Examples are "plaintext", "sha" and "srp".
+            
+        auth_filename -- The name of the password database filename.
+            It should be in a format compatible with the authentication
+            protocol used; for instance, "sha" and "srp" require different
+            formats.
+            
+            Note that to implement an authentication protocol, a server
+            and client authentication mechanism must be implemented in a
+            auth_* module, which should be stored inside the "auth"
+            subdirectory. This module may also define a DatabaseClass
+            variable that should indicate what database should be used
+            by the authenticator.
         """
 
         self.addr = addr
@@ -633,6 +662,10 @@ class StorageServer:
         for s in storages.values():
             s._waiting = []
         self.read_only = read_only
+        self.auth_protocol = auth_protocol
+        self.auth_filename = auth_filename
+        if auth_protocol:
+            self._setup_auth(auth_protocol)
         # A list of at most invalidation_queue_size invalidations
         self.invq = []
         self.invq_bound = invalidation_queue_size
@@ -654,7 +687,43 @@ class StorageServer:
             self.monitor = StatsServer(monitor_address, self.stats)
         else:
             self.monitor = None
+            
+    def _setup_auth(self, protocol):
+        # Load the auth protocol
+        fullname = 'ZEO.auth.auth_' + protocol
+        try:
+            module = __import__(fullname, globals(), locals(), protocol)
+        except ImportError:
+            log("%s: no such an auth protocol: %s" %
+                (self.__class__.__name__, protocol))
+            self.auth_protocol = None
+            return
+        
+        from ZEO.auth.storage import AuthZEOStorage
+        
+        # And set up ZEOStorageClass
+        klass = getattr(module, 'StorageClass', None)
+        if not klass or not issubclass(klass, AuthZEOStorage):
+            log(("%s: %s is not a valid auth protocol, must have a " + \
+                "StorageClass class") % (self.__class__.__name__, protocol))
+            self.auth_protocol = None
+            return
+        self.ZEOStorageClass = klass
 
+        log("%s: using auth protocol: %s" % \
+            (self.__class__.__name__, protocol))
+        
+        dbklass = getattr(module, 'DatabaseClass', None)
+        if not dbklass:
+            dbklass = Database
+
+        # We create a Database instance here for use with the authenticator
+        # modules. Having one instance allows it to be shared between multiple
+        # storages, avoiding the need to bloat each with a new authenticator
+        # Database that would contain the same info, and also avoiding any
+        # possibly synchronization issues between them.
+        self.database = dbklass(self.auth_filename)
+        
     def new_connection(self, sock, addr):
         """Internal: factory to create a new connection.
 
@@ -663,6 +732,8 @@ class StorageServer:
         connection.
         """
         z = self.ZEOStorageClass(self, self.read_only)
+        if self.auth_protocol:
+            z.set_database(self.database)
         c = self.ManagedServerConnectionClass(sock, addr, z, self)
         log("new connection %s: %s" % (addr, `c`))
         return c

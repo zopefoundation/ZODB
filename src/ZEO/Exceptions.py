@@ -24,3 +24,5 @@ class UnrecognizedResult(ClientStorageError):
 class ClientDisconnected(ClientStorageError):
     """The database storage is disconnected from the storage."""
 
+class AuthError(StorageError):
+    """The client provided invalid authentication credentials."""
