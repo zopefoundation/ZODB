@@ -3,6 +3,21 @@ What's new in ZODB3 3.5a0?
 Release date: DD-MMM-YYYY
 
 
+What's new in ZODB3 3.4a2?
+==========================
+Release date: 03-Apr-2005
+
+This was an internal release, to supply "quick fixes" for a few glitches
+in 3.4a1, and to give ongoing Zope2 and Zope3 development a release tag to
+use:
+
+- A ``pdb.set_trace()`` call was mistakenly left in method
+  ``FileStorage.modifiedInVersion()``.
+
+- The test ``checkOldStyleRoot`` failed in Zope3, because of an obscure
+  dependence on the ``Persistence`` package (which Zope3 doesn't use).
+
+
 What's new in ZODB3 3.4a1?
 ==========================
 Release date: 01-Apr-2005
