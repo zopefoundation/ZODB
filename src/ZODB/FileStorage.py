@@ -115,7 +115,7 @@
 #   may have a back pointer to a version record or to a non-version
 #   record.
 #
-__version__='$Revision: 1.129 $'[11:-2]
+__version__='$Revision: 1.130 $'[11:-2]
 
 import base64
 from cPickle import Pickler, Unpickler, loads
@@ -127,10 +127,8 @@ import time
 from types import StringType, DictType
 from struct import pack, unpack
 
-try:
-    from posix import fsync
-except:
-    fsync = None
+# Not all platforms have fsync
+fsync = getattr(os, "fsync", None)
 
 from ZODB import BaseStorage, ConflictResolution, POSException
 from ZODB.POSException import UndoError, POSKeyError, MultipleUndoErrors
