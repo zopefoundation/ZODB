@@ -12,7 +12,7 @@
 #
 ##############################################################################
 
-def convert(old, new, threshold=200, f=None, None=None):
+def convert(old, new, threshold=200, f=None):
     "Utility for converting old btree to new"
     n=0
     for k, v in old.items():
