@@ -1,6 +1,6 @@
 /*
 
-  $Id: cPickleCache.c,v 1.5 1997/04/15 19:03:29 jim Exp $
+  $Id: cPickleCache.c,v 1.6 1997/04/22 02:45:24 jim Exp $
 
   C implementation of a pickle jar cache.
 
@@ -56,15 +56,17 @@
       (540) 371-6909
 
 ***************************************************************************/
-static char *what_string = "$Id: cPickleCache.c,v 1.5 1997/04/15 19:03:29 jim Exp $";
+static char *what_string = "$Id: cPickleCache.c,v 1.6 1997/04/22 02:45:24 jim Exp $";
 
 #define ASSIGN(V,E) {PyObject *__e; __e=(E); Py_XDECREF(V); (V)=__e;}
 #define UNLESS(E) if(!(E))
 #define UNLESS_ASSIGN(V,E) ASSIGN(V,E) UNLESS(V)
 #define Py_ASSIGN(P,E) if(!PyObject_AssignExpression(&(P),(E))) return NULL
 
-#include "Python.h"
+#include "cPersistence.h"
 #include <time.h>
+
+#undef Py_FindMethod
 
 static PyObject *py_reload, *py__p_jar, *py__p_atime, *py__p___reinit__;
 
@@ -83,11 +85,6 @@ staticforward PyTypeObject Cctype;
 
 static PyObject *PATimeType=NULL;
 
-typedef struct {
-  PyObject_HEAD
-  time_t value;
-} PATimeobject;
-
 /* ---------------------------------------------------------------- */
 
 
@@ -95,28 +92,38 @@ static int
 gc_item(ccobject *self, PyObject *key, PyObject *v, time_t now, time_t dt)
 {
   PyObject *atime;
+  time_t t;
 
   if(v && key)
     {
-      if(PyTuple_GET_ITEM(v,0)->ob_refcnt <= 1)
+      if(v->ob_type==(PyTypeObject*)PATimeType)
+	{
+	  if(((PATimeobject*)v)->object->ob_refcnt <= 1)
+	    {
+	      UNLESS(-1 != PyDict_DelItem(self->data, key)) return -1;
+	    }
+	  else
+	    {
+	      t=((PATimeobject*)v)->object->atime;
+	      if(t != (time_t)1 && (! dt || now-t > dt))
+		{
+		  /* We have a cPersistent object that hasn't been used in
+		     a while.  Reinitialize it, hopefully freeing it's state.
+		     */
+		  v=(PyObject*)(((PATimeobject*)v)->object);
+		  if(key=PyObject_GetAttr(v,py__p___reinit__))
+		    {
+		      ASSIGN(key,PyObject_CallObject(key,NULL));
+		      UNLESS(key) return -1;
+		      Py_DECREF(key);
+		    }
+		  PyErr_Clear();
+		}
+	    }
+	}
+      else if(v->ob_refcnt <= 1)
 	{
 	  UNLESS(-1 != PyDict_DelItem(self->data, key)) return -1;
-	}
-      else if(! dt ||
-	      ((atime=PyTuple_GET_ITEM(v,1)) &&
-	       now-((PATimeobject*)atime)->value >dt))
-	{
-	  /* We have a cPersistent object that hasn't been used in
-	     a while.  Reinitialize it, hopefully freeing it's state.
-	     */
-	  v=PyTuple_GET_ITEM(v,0);
-	  if(key=PyObject_GetAttr(v,py__p___reinit__))
-	    {
-	      ASSIGN(key,PyObject_CallObject(key,NULL));
-	      UNLESS(key) return -1;
-	      Py_DECREF(key);
-	    }
-	  PyErr_Clear();
 	}
     }
   return 0;
@@ -129,6 +136,7 @@ fullgc(ccobject *self)
   int i;
   time_t now, dt;
 
+  if(self->cache_size < 1) return 0;
   i=PyDict_Size(self->data)-3/self->cache_size;
   if(i < 3) i=3;
   dt=self->cache_age*3/i;
@@ -161,27 +169,37 @@ reallyfullgc(ccobject *self)
 static int
 maybegc(ccobject *self, PyObject *thisv)
 {
-  int n, s;
+  int n, s, size;
   time_t now,dt;
   PyObject *key=0, *v=0;
 
+  /*printf("m");*/
+
+  if(self->cache_size < 1) return 0;
   s=PyDict_Size(self->data)-3;
   if(s < self->cache_size) return 0;
-  n=s/self->cache_size;
+  size=self->cache_size;
+  self->cache_size=0;
+  n=s/size;
   if(n < 3) n=3;
-  dt=3 * self->cache_age/n;
-  if(dt < 60) dt=60;
+  dt=self->cache_age;
+  if(dt < 1) dt=1;
   now=time(NULL);
   
   while(--n >= 0)
     {
       if(PyDict_Next(self->data, &(self->position), &key, &v))
 	{
-	  if(v != thisv && gc_item(self,key,v,now,dt) < 0) return -1;
+	  if(v != thisv && gc_item(self,key,v,now,dt) < 0)
+	    {
+	      self->cache_size=size;
+	      return -1;
+	    }
 	}
       else
 	self->position=0;
     }
+  self->cache_size=size;
   return 0;
 }
 
@@ -225,8 +243,8 @@ newccobject(int cache_size, int cache_age)
   if(self->data=PyDict_New())
     {
       self->position=0;
-      self->cache_size=cache_size < 1 ? 1 : cache_size;
-      self->cache_age=cache_size < 1 ? 1 : cache_age;
+      self->cache_size=cache_size;
+      self->cache_age=cache_age < 1 ? 1 : cache_age;
       return self;
     }
   Py_DECREF(self);
@@ -277,7 +295,7 @@ cc_setattr(ccobject *self, char *name, PyObject *value)
       if(strcmp(name,"cache_size")==0)
 	{
 	  UNLESS(PyArg_Parse(value,"i",&v)) return -1;
-	  if(v > 0)self->cache_size=v;
+	  self->cache_size=v;
 	  return 0;
 	}
     }
@@ -322,38 +340,42 @@ cc_subscript(ccobject *self, PyObject *key)
       Py_DECREF(r);
       return NULL;
     }
-  ASSIGN(r,PySequence_GetItem(r,0));
+  if(r->ob_type==(PyTypeObject *)PATimeType)
+    {
+      Py_DECREF(r);
+      r=(PyObject*)(((PATimeobject*)r)->object);
+      Py_INCREF(r);
+    }
   return r;
 }
 
 static int
 cc_ass_sub(ccobject *self, PyObject *key, PyObject *v)
 {
+
   if(v)
     {
-      PyObject *t;
-
-      /* Create a tuple to hold object and object access time  */
-      UNLESS(t=PyTuple_New(2)) return -1;
-
-      /* Save value as first item in tuple */
-      Py_INCREF(v);
-      PyTuple_SET_ITEM(t,0,v);
+      int r;
+      PyObject *t=0;
 
       /* Now get and save the access time */
-      if(v=PyObject_GetAttr(v,py__p_atime))
+      if(t=PyObject_GetAttr(v,py__p_atime))
 	{
-	  if(v->ob_type == (PyTypeObject *)PATimeType)
-	    PyTuple_SET_ITEM(t,1,v);
+	  if(t->ob_type != (PyTypeObject *)PATimeType)
+	    {
+	      Py_DECREF(t);
+	      t=0;
+	    }
 	  else
-	    Py_DECREF(v);
+	    v=t;
 	}
       else
 	PyErr_Clear();
 
-      UNLESS(-1 != PyDict_SetItem(self->data,key,t)) return -1;
-      Py_DECREF(t);
-      return maybegc(self, t);
+      r=PyDict_SetItem(self->data,key,v);
+      Py_XDECREF(t);
+      if(r < 0) return -1;
+      return maybegc(self, v);
     }
   else
     {
@@ -436,7 +458,7 @@ void
 initcPickleCache()
 {
   PyObject *m, *d;
-  char *rev="$Revision: 1.5 $";
+  char *rev="$Revision: 1.6 $";
 
   Cctype.ob_type=&PyType_Type;
 
@@ -464,6 +486,9 @@ initcPickleCache()
 
 /******************************************************************************
  $Log: cPickleCache.c,v $
+ Revision 1.6  1997/04/22 02:45:24  jim
+ Changed object header layout and added sticky feature.
+
  Revision 1.5  1997/04/15 19:03:29  jim
  Fixed leak introduced in last revision. :-(
 
