@@ -13,6 +13,7 @@
 ##############################################################################
 """Tests of the file storage recovery script."""
 
+import base64
 import os
 import random
 import sys
@@ -38,11 +39,11 @@ class RecoverTest(unittest.TestCase):
         self.path = tempfile.mktemp(suffix=".fs")
         self.storage = FileStorage(self.path)
         self.populate()
-        self.storage.close()
         self.dest = tempfile.mktemp(suffix=".fs")
         self.recovered = None
 
     def tearDown(self):
+        self.storage.close()
         if self.recovered is not None:
             self.recovered.close()
         removefs(self.path)
@@ -55,14 +56,15 @@ class RecoverTest(unittest.TestCase):
 
         # create a whole bunch of objects,
         # looks like a Data.fs > 1MB
-        for i in range(100):
+        for i in range(50):
             d = rt[i] = PersistentMapping()
             get_transaction().commit()
-            for j in range(100):
+            for j in range(50):
                 d[j] = "a" * j
             get_transaction().commit()
 
     def damage(self, num, size):
+        self.storage.close()
         # Drop size null bytes into num random spots.
         for i in range(num):
             offset = random.randint(0, self.storage._pos - size)
@@ -71,7 +73,7 @@ class RecoverTest(unittest.TestCase):
             f.write("\0" * size)
             f.close()
 
-    ITERATIONS = 10
+    ITERATIONS = 5
 
     def recover(self, source, dest):
         orig = sys.stdout
@@ -111,6 +113,41 @@ class RecoverTest(unittest.TestCase):
             self.recovered.close()
             os.remove(self.path)
             os.rename(self.dest, self.path)
+
+    def testBadTransaction(self):
+        # Find transaction headers and blast them.
+
+        L = self.storage.undoLog()
+        r = L[3]
+        tid = base64.decodestring(r["id"] + "\n")
+        pos1 = self.storage._txn_find(tid, False)
+
+        r = L[8]
+        tid = base64.decodestring(r["id"] + "\n")
+        pos2 = self.storage._txn_find(tid, False)
+        
+        self.storage.close()
+        
+        # Overwrite the entire header.
+        f = open(self.path, "a+b")
+        f.seek(pos1 - 50)
+        f.write("\0" * 100)
+        f.close()
+        self.recover(self.path, self.dest)
+        self.recovered = FileStorage(self.dest)
+        self.recovered.close()
+        os.remove(self.path)
+        os.rename(self.dest, self.path)
+
+        # Overwrite part of the header.
+        f = open(self.path, "a+b")
+        f.seek(pos2 + 10)
+        f.write("\0" * 100)
+        f.close()
+        self.recover(self.path, self.dest)
+        self.recovered = FileStorage(self.dest)
+        self.recovered.close()
+
 
 def test_suite():
     return unittest.makeSuite(RecoverTest)
