@@ -263,7 +263,15 @@ class Connection(smac.SizedMessageAsyncConnection):
         return hasattr(self.obj, name)
 
     def send_reply(self, msgid, ret):
-        msg = self.marshal.encode(msgid, 0, REPLY, ret)
+        try:
+            msg = self.marshal.encode(msgid, 0, REPLY, ret)
+        except self.marshal.errors:
+            try:
+                r = repr(ret)
+            except:
+                r = "<unreprable>"
+            err = ZRPCError("Couldn't pickle return %.100s" % r)
+            msg = self.marshal.encode(msgid, 0, REPLY, (ZRPCError, err))
         self.message_output(msg)
         self.poll()
 
@@ -280,7 +288,11 @@ class Connection(smac.SizedMessageAsyncConnection):
         try:
             msg = self.marshal.encode(msgid, 0, REPLY, (err_type, err_value))
         except self.marshal.errors:
-            err = ZRPCError("Couldn't pickle error %s" % `err_value`)
+            try:
+                r = repr(err_value)
+            except:
+                r = "<unreprable>"
+            err = ZRPCError("Couldn't pickle error %.100s" % r)
             msg = self.marshal.encode(msgid, 0, REPLY, (ZRPCError, err))
         self.message_output(msg)
         self.poll()
