@@ -14,7 +14,7 @@
 static char coptimizations_doc_string[] = 
 "C optimization for new_persistent_id().\n"
 "\n"
-"$Id: coptimizations.c,v 1.20 2002/09/30 16:02:32 gvanrossum Exp $\n";
+"$Id: coptimizations.c,v 1.21 2002/12/12 18:52:21 jeremy Exp $\n";
 
 #include "Python.h"
 #define DONT_USE_CPERSISTENCECAPI
@@ -69,8 +69,8 @@ persistent_id_dealloc(persistent_id *self)
 /* Returns the klass of a persistent object.
    Returns NULL for other objects.
 */
-static PyObject *
-get_class(PyObject *object)
+int
+get_class(PyObject *object, PyObject **out_class)
 {
     PyObject *class = NULL;
 
@@ -79,19 +79,20 @@ get_class(PyObject *object)
 	    class = PyObject_GetAttr(object, py___class__);
 	    if (!class) {
 		PyErr_Clear();
-		return NULL;
+		return 0;
 	    }
 	    if (!PyExtensionClass_Check(class) ||
 		!(((PyExtensionClass*)class)->class_flags 
 		  & PERSISTENT_TYPE_FLAG)) {
 		Py_DECREF(class);
-		return NULL;
+		return 0;
 	    }
 	}
 	else
-	    return NULL;
+	    return 0;
     }
-    return class;
+    *out_class = class;
+    return 1;
 }
 
 /* Return a two-tuple of the class's module and name.
@@ -162,14 +163,14 @@ persistent_id_call(persistent_id *self, PyObject *args, PyObject *kwargs)
     if (!PyArg_ParseTuple(args, "O", &object))
 	return NULL;
 
-    klass = get_class(object);
-    if (!klass)
+    /* If it is an extension class, get the class. */
+    if (!get_class(object, &klass))
 	goto return_none;
 
     oid = PyObject_GetAttr(object, py__p_oid);
     if (!oid) {
 	PyErr_Clear();
-	Py_DECREF(klass);
+	Py_XDECREF(klass);
 	goto return_none;
     }
 
@@ -202,11 +203,11 @@ persistent_id_call(persistent_id *self, PyObject *args, PyObject *kwargs)
 	|| PyObject_HasAttr(klass, py___getinitargs__))
 	goto return_oid;
 
+    if (!klass)  /* pass through ZClass special case */
+	goto return_oid;
     t2 = get_class_tuple(klass, oid);
     if (!t2)
 	goto err;
-    if (t2 == oid) /* pass through ZClass special case */
-	goto return_oid;
     t1 = PyTuple_New(2);
     if (!t1) {
 	Py_DECREF(t2);
