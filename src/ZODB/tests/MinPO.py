@@ -8,3 +8,6 @@ class MinPO(Persistent):
 
     def __cmp__(self, aMinPO):
         return cmp(self.value, aMinPO.value)
+
+    def __repr__(self):
+        return "MinPO(%s)" % self.value
