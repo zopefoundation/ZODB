@@ -155,6 +155,7 @@ class StartTests(unittest.TestCase):
         logfile1 = tempfile.mktemp(suffix="log")
         logfile2 = tempfile.mktemp(suffix="log")
         os.environ["STUPID_LOG_FILE"] = logfile1
+        os.environ["EVENT_LOG_FILE"] = logfile1
 
         try:
             outp = self.fork("-s", "-p", str(port))
