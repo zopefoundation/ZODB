@@ -19,6 +19,7 @@ import sys, os, getopt
 import types
 import errno
 import socket
+import ThreadedAsync
 
 def directory(p, n=1):
     d = p
@@ -291,7 +292,7 @@ def main(argv):
 
     try:
         try:
-            asyncore.loop()
+            ThreadedAsync.loop()
         finally:
             if os.path.isfile(env.zeo_pid):
                 os.unlink(env.zeo_pid)
