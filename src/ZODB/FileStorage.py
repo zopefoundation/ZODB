@@ -186,7 +186,7 @@
 #   may have a back pointer to a version record or to a non-version
 #   record.
 #
-__version__='$Revision: 1.69 $'[11:-2]
+__version__='$Revision: 1.70 $'[11:-2]
 
 import struct, time, os, bpthread, string, base64, sys
 from struct import pack, unpack
@@ -419,7 +419,7 @@ class FileStorage(BaseStorage.BaseStorage,
     
                 if opos+dlen > tend or tloc != pos: return 0
 
-                if index.get(oid,0) != opos: return 0
+                if index.get(oid, 0) != opos: return 0
     
                 opos=opos+dlen
 
@@ -443,10 +443,10 @@ class FileStorage(BaseStorage.BaseStorage,
             warn("Failed to load database index: %s: %s" %
                  (exc, err))
             return None
-        index=info.get('index', None)
-        pos=info.get('pos', None)
-        oid=info.get('oid', None)
-        vindex=info.get('vindex', None)
+        index=info.get('index')
+        pos=info.get('pos')
+        oid=info.get('oid')
+        vindex=info.get('vindex')
         if index is None or pos is None or oid is None or vindex is None:
             return None
         pos = long(pos)
@@ -517,7 +517,7 @@ class FileStorage(BaseStorage.BaseStorage,
                 h=read(58) # oid, serial, prev(oid), tloc, vlen, plen, pnv, pv
                 oid=h[:8]
                 pnv=h[-16:-8]
-                if index_get(oid, None) == srcpos:
+                if index_get(oid) == srcpos:
                     # This is a current record!
                     tindex[oid]=here
                     appoids(oid)
@@ -841,7 +841,7 @@ class FileStorage(BaseStorage.BaseStorage,
                 prev=U64(sprev)
                 dlen=42+(plen or 8)
                 if vlen: dlen=dlen+(16+vlen)
-                if index_get(oid,0) != pos: raise UndoError
+                if index_get(oid, 0) != pos: raise UndoError
                 pos=pos+dlen
                 if pos > tend: raise UndoError
                 t[oid]=prev
@@ -849,8 +849,7 @@ class FileStorage(BaseStorage.BaseStorage,
             seek(tpos+16)
             file.write('u')
             file.flush()
-            index=self._index
-            for oid, pos in t.items(): index[oid]=pos
+            self._index.update(t)
             return t.keys()            
         finally: self._lock_release()
 
@@ -916,7 +915,7 @@ class FileStorage(BaseStorage.BaseStorage,
         
         copy=1 # Can we just copy a data pointer
         tpos=self._tindex.get(oid, 0)        
-        ipos=self._index.get(oid,0)
+        ipos=self._index.get(oid, 0)
         tipos=tpos or ipos
         if tipos != pos:
             # Eek, a later transaction modified the data, but,
@@ -1393,7 +1392,7 @@ class FileStorage(BaseStorage.BaseStorage,
 
                     if vlen:
                         dlen=dlen+(16+vlen)
-                        if packing and pindex_get(oid,0) != pos:
+                        if packing and pindex_get(oid, 0) != pos:
                             # This is not the most current record, or
                             # the oid is no longer referenced so skip it.
                             pos=pos+dlen
@@ -1470,7 +1469,7 @@ class FileStorage(BaseStorage.BaseStorage,
                                 # current record, then we should still
                                 # point at one, otherwise, we should
                                 # point at the last non-version record.
-                                ppos=pindex_get(oid,0)
+                                ppos=pindex_get(oid, 0)
                                 if ppos:
                                     if ppos==p:
                                         # we were pointing to the
@@ -1490,7 +1489,7 @@ class FileStorage(BaseStorage.BaseStorage,
                                 p=p-offset
                             p=p64(p)
                             
-                    sprev=p64(index_get(oid,0))
+                    sprev=p64(index_get(oid, 0))
                     write(pack(">8s8s8s8sH8s",
                                oid,serial,sprev,p64(otpos),vlen,splen))
                     if vlen:
@@ -1681,12 +1680,12 @@ def shift_transactions_forward(index, vindex, tindex, file, pos, opos):
                 elif p >= p1:
                     # Ick, we're in trouble. Let's bail
                     # to the index and hope for the best
-                    p=index_get(oid,0)
+                    p=index_get(oid, 0)
                 p=p64(p)
 
             # WRITE
             seek(opos)
-            sprev=p64(index_get(oid,0))
+            sprev=p64(index_get(oid, 0))
             write(pack(">8s8s8s8sH8s",
                        oid,serial,sprev,p64(otpos),vlen,splen))
             if vlen:
@@ -1694,7 +1693,7 @@ def shift_transactions_forward(index, vindex, tindex, file, pos, opos):
                 else:
                     if pnv >= p2: pnv=pnv-offset
                     elif pnv >= p1:
-                        pnv=index_get(oid,0)
+                        pnv=index_get(oid, 0)
                         
                     write(p64(pnv))
                 write(pv)
