@@ -73,23 +73,6 @@ class GetsThroughBeginThread(BasicThread):
             self.gotValueError = 1
 
 
-class AbortsAfterBeginFailsThread(BasicThread):
-    # This class is identical to GetsThroughBeginThread except that it
-    # attempts to tpc_abort() after the tpc_begin() fails.  That will raise a
-    # ClientDisconnected exception which implies that we don't have the lock,
-    # and that's what we really want to test (but it's difficult given the
-    # threading module's API).
-    def run(self):
-        try:
-            self.storage.tpc_begin(self.trans)
-        except ZEO.ClientStorage.ClientStorageError:
-            self.gotValueError = 1
-        try:
-            self.storage.tpc_abort(self.trans)
-        except ClientDisconnected:
-            self.gotDisconnected = 1
-
-
 class ThreadTests:
     # Thread 1 should start a transaction, but not get all the way through it.
     # Main thread should close the connection.  Thread 1 should then get
@@ -127,24 +110,6 @@ class ThreadTests:
         thread2.join()
         self.assertEqual(thread1.gotValueError, 1)
         self.assertEqual(thread2.gotValueError, 1)
-
-    def checkThatFailedBeginDoesNotHaveLock(self):
-        doNextEvent = threading.Event()
-        threadStartedEvent = threading.Event()
-        thread1 = GetsThroughVoteThread(self._storage,
-                                        doNextEvent, threadStartedEvent)
-        thread2 = AbortsAfterBeginFailsThread(self._storage,
-                                              doNextEvent, threadStartedEvent)
-        thread1.start()
-        threadStartedEvent.wait(1)
-        thread2.start()
-        self._storage.close()
-        doNextEvent.set()
-        thread1.join()
-        thread2.join()
-        self.assertEqual(thread1.gotValueError, 1)
-        self.assertEqual(thread2.gotValueError, 1)
-        self.assertEqual(thread2.gotDisconnected, 1)
 
     # Run a bunch of threads doing small and large stores in parallel
     def checkMTStores(self):

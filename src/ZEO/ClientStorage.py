@@ -759,11 +759,19 @@ class ClientStorage:
         if transaction is not self._transaction:
             return
         try:
-            self._server.tpc_abort(self._serial)
+            # XXX Are there any transactions that should prevent an
+            # abort from occurring?  It seems wrong to swallow them
+            # all, yet you want to be sure that other abort logic is
+            # executed regardless.
+            try:
+                self._server.tpc_abort(self._serial)
+            except ClientDisconnected:
+                # log the error and continue
+                pass
+        finally:
             self._tbuf.clear()
             self._seriald.clear()
             del self._serials[:]
-        finally:
             self.end_transaction()
 
     def tpc_finish(self, transaction, f=None):
