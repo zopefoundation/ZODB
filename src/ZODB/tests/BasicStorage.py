@@ -198,13 +198,10 @@ class BasicStorage:
 
     def checkGetSize(self):
         self._dostore(data=MinPO(25))
-        # the size should be a byte count
         size = self._storage.getSize()
-        # all Zope really cares about is that the size is printable
+        # The storage API doesn't make any claims about what size
+        # means except that it ought to be printable.
         str(size)
-        if type(size) in [type(0),type(0L),type(0.0)]:
-            # a numerical size - that means we can check that the size is reasonable.
-            self.assert_(10<size<100*1024, size)
 
     def checkNote(self):
         oid = self._storage.new_oid()
@@ -214,22 +211,6 @@ class BasicStorage:
         self._storage.store(oid, ZERO, zodb_pickle(MinPO(5)), '', t)
         self._storage.tpc_vote(t)
         self._storage.tpc_finish(t)
-
-##    def checkOversizeNote(self):
-##        oid = self._storage.new_oid()
-##        t = Transaction()
-##        # Most storages cant cope with comments this long
-##        t.note('0'*128*1024)
-##        try:
-##            self._storage.tpc_begin(t)
-##            self._storage.store(oid, ZERO, zodb_pickle(MinPO(5)), '', t)
-##            self._storage.tpc_vote(t)
-##            self._storage.tpc_finish(t)
-##        except POSException.POSError:
-##            # failed as expected
-##            pass
-##        else:
-##            self.fail()
 
     def checkGetExtensionMethods(self):
         m = self._storage.getExtensionMethods()
