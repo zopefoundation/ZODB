@@ -37,6 +37,7 @@ class EventLogger(BaseLogger):
     logger = logging.getLogger('event')
     # Add a null handler to prevent warnings about loggers with no handlers:
     logger.addHandler(NullHandler())
+    logger.propagate = 0
 
     def log(self, subsystem, severity, summary, detail, error):
 
