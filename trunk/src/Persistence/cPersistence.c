@@ -14,7 +14,7 @@
 static char cPersistence_doc_string[] = 
 "Defines Persistent mixin class for persistent objects.\n"
 "\n"
-"$Id: cPersistence.c,v 1.58 2002/04/05 01:12:48 jeremy Exp $\n";
+"$Id: cPersistence.c,v 1.59 2002/04/15 18:42:51 jeremy Exp $\n";
 
 #include "cPersistence.h"
 
@@ -572,19 +572,19 @@ _setattro(cPersistentObject *self, PyObject *oname, PyObject *v,
       return -1;
 	
   if (*name == '_' && name[1] == 'p' && name[2] == '_') {
-      if (name[3] == 'o' && name[4] == 'i' && name[5] == 'd' && ! name[6]) {
+      if (strcmp(name + 3, "oid") == 0) {
 	  if (self->cache) {
 	      int result;
 	      if (v == NULL) {
 		  PyErr_SetString(PyExc_ValueError,
-				  "can not delete the oid of a cached object");
+				  "can not delete oid of cached object");
 		  return -1;
 	      }
 	      if (PyObject_Cmp(self->oid, v, &result) < 0)
 		  return -1;
 	      if (result) {
 		  PyErr_SetString(PyExc_ValueError,
-				  "can not change the oid of a cached object");
+				  "can not change oid of cached object");
 		  return -1;
 	      }
 	  }
@@ -592,32 +592,41 @@ _setattro(cPersistentObject *self, PyObject *oname, PyObject *v,
 	  ASSIGN(self->oid, v);
 	  return 0;
       }
-      if (name[3]=='j' && name[4]=='a' && name[5]=='r' && ! name[6])
-	{
+      else if (strcmp(name + 3, "jar") == 0) {
+	  if (self->cache && self->jar) {
+	      int result;
+	      if (v == NULL) {
+		  PyErr_SetString(PyExc_ValueError,
+				  "can not delete jar of cached object");
+		  return -1;
+	      }
+	      if (PyObject_Cmp(self->jar, v, &result) < 0)
+		  return -1;
+	      if (result) {
+		  PyErr_SetString(PyExc_ValueError,
+				  "can not change jar of cached object");
+		  return -1;
+	      }
+	  }
 	  Py_XINCREF(v);
 	  ASSIGN(self->jar, v);
 	  return 0;
-	}
-      if (name[3]=='s' && strcmp(name+4,"erial")==0)
-	{
-	  if (v)
-	    {
-	      if (PyString_Check(v) && PyString_Size(v)==8)
-		memcpy(self->serial, PyString_AS_STRING(v), 8);
-	      else
-		{
+      }
+      else if (strcmp(name + 3, "serial") == 0) {
+	  if (v) {
+	      if (PyString_Check(v) && PyString_GET_SIZE(v) == 8)
+		  memcpy(self->serial, PyString_AS_STRING(v), 8);
+	      else {
 		  PyErr_SetString(PyExc_ValueError,
 				  "_p_serial must be an 8-character string");
 		  return -1;
-		}
-	    }
-	  else
-	    memset(self->serial, 0, 8);
+	      }
+	  } else 
+	      memset(self->serial, 0, 8);
 	  return 0;
-	}
-      if (name[3]=='c' && strcmp(name+4,"hanged")==0) 
-	{
-	  if (! v)
+      }
+      else if (strcmp(name+3, "changed") == 0) {
+	  if (!v)
 	    {
 	      /* delatter is used to invalidate the object
 	         *even* if it has changed.

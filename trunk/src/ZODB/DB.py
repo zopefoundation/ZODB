@@ -13,8 +13,8 @@
 ##############################################################################
 """Database objects
 
-$Id: DB.py,v 1.40 2002/03/27 10:14:04 htrd Exp $"""
-__version__='$Revision: 1.40 $'[11:-2]
+$Id: DB.py,v 1.41 2002/04/15 18:42:51 jeremy Exp $"""
+__version__='$Revision: 1.41 $'[11:-2]
 
 import cPickle, cStringIO, sys, POSException, UndoLogCompatible
 from Connection import Connection
@@ -62,10 +62,10 @@ class DB(UndoLogCompatible.UndoLogCompatible):
         self._temps=[]
         self._pool_size=pool_size
         self._cache_size=cache_size
-        self._cache_deactivate_after=cache_deactivate_after
+        self._cache_deactivate_after = cache_deactivate_after
         self._version_pool_size=version_pool_size
         self._version_cache_size=version_cache_size
-        self._version_cache_deactivate_after=version_cache_deactivate_after
+        self._version_cache_deactivate_after = version_cache_deactivate_after
 
         self._miv_cache={}
 
@@ -157,17 +157,19 @@ class DB(UndoLogCompatible.UndoLogCompatible):
 
         Organized by class."""
 
-        detail={}
-        def f(con,detail=detail,have_detail=detail.has_key):
+        detail = {}
+        def f(con, detail=detail, have_detail=detail.has_key):
             for oid, ob in con._cache.items():
                 module = getattr(ob.__class__, '__module__', '')
                 module = module and '%s.' % module or ''
-                c="%s%s" % (module, ob.__class__.__name__)
-                if have_detail(c): detail[c]=detail[c]+1
-                else: detail[c]=1
+                c = "%s%s" % (module, ob.__class__.__name__)
+                if have_detail(c):
+                    detail[c] = detail[c] + 1
+                else:
+                    detail[c] = 1
         
         self._connectionMap(f)
-        detail=detail.items()
+        detail = detail.items()
         detail.sort()
         return detail
 
@@ -224,7 +226,7 @@ class DB(UndoLogCompatible.UndoLogCompatible):
     def cacheSize(self):
         m=[0]
         def f(con, m=m):
-            m[0]=m[0]+con._cache.cache_non_ghost_count
+            m[0] = m[0] + con._cache.cache_non_ghost_count
 
         self._connectionMap(f)
         return m[0]
@@ -247,8 +249,11 @@ class DB(UndoLogCompatible.UndoLogCompatible):
     def exportFile(self, oid, file=None):
         raise 'Not yet implemented'
                            
-    def getCacheDeactivateAfter(self): return self._cache_deactivate_after
-    def getCacheSize(self): return self._cache_size
+    def getCacheDeactivateAfter(self):
+        return self._cache_deactivate_after
+    
+    def getCacheSize(self):
+        return self._cache_size
 
     def getName(self): return self._storage.getName()
 
@@ -258,9 +263,12 @@ class DB(UndoLogCompatible.UndoLogCompatible):
 
     def getVersionCacheDeactivateAfter(self):
         return self._version_cache_deactivate_after
-    def getVersionCacheSize(self): return self._version_cache_size
+    
+    def getVersionCacheSize(self):
+        return self._version_cache_size
 
-    def getVersionPoolSize(self): return self._version_pool_size
+    def getVersionPoolSize(self):
+        return self._version_pool_size
 
     def importFile(self, file):
         raise 'Not yet implemented'
@@ -322,7 +330,8 @@ class DB(UndoLogCompatible.UndoLogCompatible):
         cache[h]=oid, v
         return v
 
-    def objectCount(self): return len(self._storage)
+    def objectCount(self):
+        return len(self._storage)
         
     def open(self, version='', transaction=None, temporary=0, force=None,
              waitflag=1):
@@ -361,9 +370,7 @@ class DB(UndoLogCompatible.UndoLogCompatible):
                 # a one-use connection.
                 c=self.klass(
                     version=version,
-                    cache_size=self._version_cache_size,
-                    cache_deactivate_after=
-                    self._version_cache_deactivate_after)
+                    cache_size=self._version_cache_size)
                 c._setDB(self)
                 self._temps.append(c)
                 if transaction is not None: transaction[id(c)]=c
@@ -412,17 +419,13 @@ class DB(UndoLogCompatible.UndoLogCompatible):
                     if self._version_pool_size > len(allocated) or force:
                         c=self.klass(
                             version=version,
-                            cache_size=self._version_cache_size,
-                            cache_deactivate_after=
-                            self._version_cache_deactivate_after)
+                            cache_size=self._version_cache_size)
                         allocated.append(c)
                         pool.append(c)
                 elif self._pool_size > len(allocated) or force:
                     c=self.klass(
                         version=version,
-                        cache_size=self._cache_size,
-                        cache_deactivate_after=
-                        self._cache_deactivate_after)
+                        cache_size=self._cache_size)
                     allocated.append(c)
                     pool.append(c)
                     
@@ -492,19 +495,26 @@ class DB(UndoLogCompatible.UndoLogCompatible):
             raise
                            
     def setCacheDeactivateAfter(self, v):
-        self._cache_deactivate_after=v
-        for c in self._pools[0][''][1]:
-            c._cache.cache_age=v
+        self._cache_deactivate_after = v
+        d = self._pools[0]
+        pool_info = d.get('')
+        if pool_info is not None:
+            for c in pool_info[1]:
+                c._cache.cache_age = v
 
     def setCacheSize(self, v):
-        self._cache_size=v
-        for c in self._pools[0][''][1]:
-            c._cache.cache_size=v
+        self._cache_size = v
+        d = self._pools[0]
+        pool_info = d.get('')
+        if pool_info is not None:
+            for c in pool_info[1]:
+                c._cache.cache_size = v
 
     def setClassFactory(self, factory):
-        self._classFactory=factory
+        self._classFactory = factory
 
-    def setPoolSize(self, v): self._pool_size=v
+    def setPoolSize(self, v):
+        self._pool_size=v
     
     def setVersionCacheDeactivateAfter(self, v):
         self._version_cache_deactivate_after=v
