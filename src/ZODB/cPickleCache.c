@@ -88,7 +88,7 @@ process must skip such objects, rather than deactivating them.
 static char cPickleCache_doc_string[] =
 "Defines the PickleCache used by ZODB Connection objects.\n"
 "\n"
-"$Id: cPickleCache.c,v 1.55 2002/04/05 01:12:48 jeremy Exp $\n";
+"$Id: cPickleCache.c,v 1.56 2002/04/12 22:16:20 jeremy Exp $\n";
 
 #define ASSIGN(V,E) {PyObject *__e; __e=(E); Py_XDECREF(V); (V)=__e;}
 #define UNLESS(E) if(!(E))
@@ -222,8 +222,8 @@ scan_gc_items(ccobject *self,int target)
     CPersistentRing *here = self->ring_home.next;
 
 #ifdef MUCH_RING_CHECKING
-    int safety_counter = self->cache_size*10;
-    if (safety_counter<10000) 
+    int safety_counter = self->cache_size * 10;
+    if (safety_counter < 10000) 
 	safety_counter = 10000;
 #endif
 
@@ -368,29 +368,25 @@ cc_incrgc(ccobject *self, PyObject *args)
     return lockgc(self, target_size);
 }
 
-/* XXX Does it make sense for full_sweep() and reallyfull_sweep() to
-   empty the cache completely?  I agree that it would if dt is 0, but
-   don't think it should for other times.  Perhaps it should just call
-   incrgc() if dt > 2; the new cache may be efficient enough that
-   incrgc() would suffice.
-*/
-
 static PyObject *
 cc_full_sweep(ccobject *self, PyObject *args)
 {
     int dt = 0;
     if (!PyArg_ParseTuple(args, "|i:full_sweep", &dt)) 
 	return NULL;
-    return lockgc(self, 0);
+    if (dt == 0)
+	return lockgc(self, 0);
+    else
+	return cc_incrgc(self, args);
 }
 
 static PyObject *
-cc_reallyfull_sweep(ccobject *self, PyObject *args)
+cc_minimize(ccobject *self, PyObject *args)
 {
-  int dt = 0;
-  if (!PyArg_ParseTuple(args, "|i:reallyfull_sweep", &dt)) 
-      return NULL;
-  return lockgc(self, 0);
+    int ignored;
+    if (!PyArg_ParseTuple(args, "|i:minimize", &ignored)) 
+	return NULL;
+    return lockgc(self, 0);
 }
 
 static void
@@ -425,67 +421,75 @@ cc_invalidate(ccobject *self, PyObject *args)
 {
   PyObject *inv, *key, *v;
   int i;
-  
+
+  /* XXX The code supports invalidation of all objects, but I don't
+     think it's possible for a Connection object to pass None.  If
+     this is correct, the code could be simplied.
+  */
+
   if (PyArg_ParseTuple(args, "O!", &PyDict_Type, &inv)) {
-    for (i=0; PyDict_Next(inv, &i, &key, &v); ) 
-      if (key==Py_None)
-	{ /* Eek some nitwit invalidated everything! */
-	  for (i=0; PyDict_Next(self->data, &i, &key, &v); )
-	    _invalidate(self, key);
-	  break;
-	}
-      else
-	_invalidate(self, key);
-    PyDict_Clear(inv);
+      for (i=0; PyDict_Next(inv, &i, &key, &v); ) 
+	  if (key == Py_None) {
+	      /* Eek some nitwit invalidated everything! */
+	      for (i=0; PyDict_Next(self->data, &i, &key, &v); )
+		  _invalidate(self, key);
+	      break;
+	  }
+	  else
+	      _invalidate(self, key);
+      PyDict_Clear(inv);
   }
   else {
-    PyErr_Clear();
-    UNLESS (PyArg_ParseTuple(args, "O", &inv)) return NULL;
-    if (PyString_Check(inv))
-      _invalidate(self, inv);
-    else if (inv==Py_None)	/* All */
-      for (i=0; PyDict_Next(self->data, &i, &key, &v); )
-	_invalidate(self, key);
-    else {
-      int l;
-
       PyErr_Clear();
-      if ((l=PyObject_Length(inv)) < 0) return NULL;
-      for(i=l; --i >= 0; )
-	{
-	  UNLESS (key=PySequence_GetItem(inv, i)) return NULL;
-	  _invalidate(self, key);
-	  Py_DECREF(key);
-	}
-      PySequence_DelSlice(inv, 0, l);
-    }
+      if (!PyArg_ParseTuple(args, "O:invalidate", &inv)) 
+	  return NULL;
+      if (PyString_Check(inv))
+	  _invalidate(self, inv);
+      else if (inv == Py_None)	/* All */
+	  for (i=0; PyDict_Next(self->data, &i, &key, &v); )
+	      _invalidate(self, key);
+      else {
+	  int l;
+	  
+	  PyErr_Clear();
+	  l = PyObject_Length(inv);
+	  if (l < 0)
+	      return NULL;
+	  for (i=l; --i >= 0; ) {
+	      key = PySequence_GetItem(inv, i);
+	      if (!key)
+		  return NULL;
+	      _invalidate(self, key);
+	      Py_DECREF(key);
+	  }
+	  PySequence_DelSlice(inv, 0, l);
+      }
   }
-
+  
   Py_INCREF(Py_None);
   return Py_None;
 }
   
-  
 static PyObject *
 cc_get(ccobject *self, PyObject *args)
 {
-  PyObject *r, *key, *d=0;
+    PyObject *r, *key, *d = NULL;
 
-  if (!PyArg_ParseTuple(args, "O|O:get", &key, &d)) 
-      return NULL;
+    if (!PyArg_ParseTuple(args, "O|O:get", &key, &d)) 
+	return NULL;
 
-  r = (PyObject *)object_from_oid(self, key);
-  if (!r) {
-      if (d) {
-	  r = d;
-          Py_INCREF(r);
-      } else {
-	  PyErr_SetObject(PyExc_KeyError, key);
-	  return NULL;
-      }
-  }
+    r = (PyObject *)object_from_oid(self, key);
+    if (!r) {
+	if (d) {
+	    r = d;
+	    Py_INCREF(r);
+	} else {
+	    PyErr_SetObject(PyExc_KeyError, key);
+	    return NULL;
+	}
+    }
 
-  return r;
+    return r;
 }
 
 static PyObject *
@@ -638,17 +642,13 @@ static struct PyMethodDef cc_methods[] = {
    },
   {"full_sweep", (PyCFunction)cc_full_sweep, METH_VARARGS,
    "full_sweep([age]) -- Perform a full sweep of the cache\n\n"
-   "Make a single pass through the cache, removing any objects that are no\n"
-   "longer referenced, and deactivating enough objects to bring\n"
-   "the cache under its size limit\n"
-   "The optional 'age' parameter is ignored.\n"
+   "Supported for backwards compatibility.  If the age argument is 0,\n"
+   "behaves like minimize().  Otherwise, behaves like incrgc()."
    },
-  {"minimize",	(PyCFunction)cc_reallyfull_sweep, METH_VARARGS,
-   "minimize([age]) -- Remove as many objects as possible\n\n"
-   "Make multiple passes through the cache, removing any objects that are no\n"
-   "longer referenced, and deactivating enough objects to bring the"
-   " cache under its size limit\n"
-   "The option 'age' parameter is ignored.\n"
+  {"minimize",	(PyCFunction)cc_minimize, METH_VARARGS,
+   "minimize([ignored]) -- Remove as many objects as possible\n\n"
+   "Ghostify all objects that are not modified.  Takes an optional\n"
+   "argument, but ignores it."
    },
   {"incrgc", (PyCFunction)cc_incrgc, METH_VARARGS,
    "incrgc([n]) -- Perform incremental garbage collection\n\n"
@@ -742,24 +742,24 @@ cc_setattr(ccobject *self, char *name, PyObject *value)
 static int
 cc_length(ccobject *self)
 {
-  return PyObject_Length(self->data);
+    return PyObject_Length(self->data);
 }
   
 static PyObject *
 cc_subscript(ccobject *self, PyObject *key)
 {
-  PyObject *r;
+    PyObject *r;
 
-  if (ring_corrupt(self, "__getitem__")) 
-      return NULL;
+    if (ring_corrupt(self, "__getitem__")) 
+	return NULL;
 
-  r = (PyObject *)object_from_oid(self, key);
-  if (r == NULL) {
-      PyErr_SetObject(PyExc_KeyError, key);
-      return NULL;
-  }
+    r = (PyObject *)object_from_oid(self, key);
+    if (r == NULL) {
+	PyErr_SetObject(PyExc_KeyError, key);
+	return NULL;
+    }
 
-  return r;
+    return r;
 }
 
 static int
@@ -795,16 +795,17 @@ cc_add_item(ccobject *self, PyObject *key, PyObject *v)
 	return -1;
     /* XXX key and oid should both be PyString objects.
        May be helpful to check this. */
-    if (PyObject_Cmp(key, oid, &result) < 0) {
+    result = PyObject_Compare(key, oid);
+    if (PyErr_Occurred()) {
 	Py_DECREF(oid);
 	return -1;
-    }
+    } 
     Py_DECREF(oid);
     if (result) {
-	PyErr_SetString(PyExc_ValueError,
-			"key must be the same as the object's oid attribute");
+	PyErr_SetString(PyExc_ValueError, "cache key does not match oid");
 	return -1;
     }
+
     object_again = object_from_oid(self, key);
     if (object_again) {
 	if (object_again != v) {
@@ -818,8 +819,9 @@ cc_add_item(ccobject *self, PyObject *key, PyObject *v)
 	    return 0;
 	}
     }
+
     if (PyExtensionClass_Check(v)) {
-	if (PyDict_SetItem(self->data, key, v)) 
+	if (PyDict_SetItem(self->data, key, v) < 0) 
 	    return -1;
 	self->klass_count++;
 	return 0;
@@ -842,7 +844,7 @@ cc_add_item(ccobject *self, PyObject *key, PyObject *v)
     
     if (ring_corrupt(self, "pre-setitem")) 
 	return -1;
-    if (PyDict_SetItem(self->data, key, v)) 
+    if (PyDict_SetItem(self->data, key, v) < 0) 
 	return -1;
     
     p = (cPersistentObject *)v;
@@ -1015,28 +1017,24 @@ static PyMappingMethods cc_as_mapping = {
 };
 
 static PyTypeObject Cctype = {
-  PyObject_HEAD_INIT(NULL)
-  0,				/*ob_size*/
-  "cPickleCache",		/*tp_name*/
-  sizeof(ccobject),		/*tp_basicsize*/
-  0,				/*tp_itemsize*/
-  /* methods */
-  (destructor)cc_dealloc,	/*tp_dealloc*/
-  (printfunc)0,			/*tp_print*/
-  (getattrfunc)cc_getattr,	/*tp_getattr*/
-  (setattrfunc)cc_setattr,	/*tp_setattr*/
-  (cmpfunc)0,			/*tp_compare*/
-  (reprfunc)0,   		/*tp_repr*/
-  0,				/*tp_as_number*/
-  0,				/*tp_as_sequence*/
-  &cc_as_mapping,		/*tp_as_mapping*/
-  (hashfunc)0,			/*tp_hash*/
-  (ternaryfunc)0,		/*tp_call*/
-  (reprfunc)0,  		/*tp_str*/
-
-  /* Space for future expansion */
-  0L,0L,0L,0L,
-  ""
+    PyObject_HEAD_INIT(NULL)
+    0,				/*ob_size*/
+    "cPickleCache",		/*tp_name*/
+    sizeof(ccobject),		/*tp_basicsize*/
+    0,				/*tp_itemsize*/
+    /* methods */
+    (destructor)cc_dealloc,	/*tp_dealloc*/
+    (printfunc)0,		/*tp_print*/
+    (getattrfunc)cc_getattr,	/*tp_getattr*/
+    (setattrfunc)cc_setattr,	/*tp_setattr*/
+    (cmpfunc)0,			/*tp_compare*/
+    (reprfunc)0,   		/*tp_repr*/
+    0,				/*tp_as_number*/
+    0,				/*tp_as_sequence*/
+    &cc_as_mapping,		/*tp_as_mapping*/
+    (hashfunc)0,		/*tp_hash*/
+    (ternaryfunc)0,		/*tp_call*/
+    (reprfunc)0,  		/*tp_str*/
 };
 
 static ccobject *
