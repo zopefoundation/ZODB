@@ -40,9 +40,9 @@ class DB(object):
     The DB instance manages a pool of connections.  If a connection is
     closed, it is returned to the pool and its object cache is
     preserved.  A subsequent call to open() will reuse the connection.
-    There is a limit to the pool size; if all its connections are in
-    use, calls to open() will block until one of the open connections
-    is closed.
+    There is no hard limit on the pool size.  If more than `pool_size`
+    connections are opened, a warning is logged, and if more than twice
+    that many, a critical problem is logged.
 
     The class variable 'klass' is used by open() to create database
     connections.  It is set to Connection, but a subclass could override
@@ -402,7 +402,7 @@ class DB(object):
              waitflag=1, mvcc=True, txn_mgr=None, synch=True):
         """Return a database Connection for use by application code.
 
-        The optional version argument can be used to specify that a
+        The optional `version` argument can be used to specify that a
         version connection is desired.
 
         The optional transaction argument can be provided to cause the
@@ -411,21 +411,21 @@ class DB(object):
         reused, if possible.
 
         Note that the connection pool is managed as a stack, to
-        increate the likelihood that the connection's stack will
+        increase the likelihood that the connection's stack will
         include useful objects.
 
         :Parameters:
           - `version`: the "version" that all changes will be made
              in, defaults to no version.
           - `transaction`: XXX
-          - `temporary`: XXX
-          - `force`: XXX
-          - `waitflag`: XXX
           - `mvcc`: boolean indicating whether MVCC is enabled
           - `txn_mgr`: transaction manager to use.  None means
              used the default transaction manager.
           - `synch`: boolean indicating whether Connection should
              register for afterCompletion() calls.
+          - `temporary`: XXX
+          - `force`: XXX
+          - `waitflag`: XXX
 
         """
         self._a()
