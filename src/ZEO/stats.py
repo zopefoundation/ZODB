@@ -14,10 +14,11 @@
 ##############################################################################
 """Trace file statistics analyzer.
 
-Usage: stats.py [-h] [-i interval] [-q] [-S] [-v] tracefile
--h: print histogram
+Usage: stats.py [-h] [-i interval] [-q] [-s] [-S] [-v] tracefile
+-h: print histogram of object load frequencies
 -i: summarizing interval in minutes (default 15; max 60)
 -q: quiet; don't print summaries
+-s: print histogram of object sizes
 -S: don't print statistics
 -v: verbose; print each record
 """
@@ -63,10 +64,11 @@ def main():
     verbose = 0
     quiet = 0
     dostats = 1
+    print_size_histogram = 0
     print_histogram = 0
     interval = 900 # Every 15 minutes
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "hi:qSv")
+        opts, args = getopt.getopt(sys.argv[1:], "hi:qsSv")
     except getopt.error, msg:
         usage(msg)
         return 2
@@ -82,6 +84,8 @@ def main():
         if o == "-q":
             quiet = 1
             verbose = 0
+        if o == "-s":
+            print_size_histogram = 1
         if o == "-S":
             dostats = 0
         if o == "-v":
@@ -125,6 +129,8 @@ def main():
     datasize = 0L
     file0 = file1 = 0
     oids = {}
+    bysize = {}
+    bysizew = {}
     total_loads = 0
     byinterval = {}
     thisinterval = None
@@ -163,6 +169,13 @@ def main():
         code = code & 0x7e
         bycode[code] = bycode.get(code, 0) + 1
         byinterval[code] = byinterval.get(code, 0) + 1
+        if dlen:
+            if code & 0x70 == 0x20: # All loads
+                bysize[dlen] = d = bysize.get(dlen) or {}
+                d[oid] = d.get(oid, 0) + 1
+            elif code == 0x3A: # Update
+                bysizew[dlen] = d = bysizew.get(dlen) or {}
+                d[oid] = d.get(oid, 0) + 1
         if verbose:
             print "%s %d %02x %016x %016x %1s %s" % (
                 time.ctime(ts)[4:-5],
@@ -243,6 +256,28 @@ def main():
             cum += load_percent
             print fmt % (binsize, addcommas(count),
                          obj_percent, load_percent, cum)
+
+    # Print size histogram
+    if print_size_histogram:
+        print
+        print "Histograms of object sizes"
+        print
+        dumpbysize(bysizew, "written", "writes")
+        dumpbysize(bysize, "loaded", "loads")
+
+def dumpbysize(bysize, how, how2):
+    print
+    print "Unique sizes %s: %s" % (how, addcommas(len(bysize)))
+    print "%10s %6s %6s" % ("size", "objs", how2)
+    sizes = bysize.keys()
+    sizes.sort()
+    for size in sizes:
+        loads = 0
+        for n in bysize[size].itervalues():
+            loads += n
+        print "%10s %6d %6d" % (addcommas(size),
+                                len(bysize.get(size, "")),
+                                loads)
 
 def dumpbyinterval(byinterval, h0, he):
     loads = 0
