@@ -472,7 +472,8 @@ The following methods are used in retrieving and managing sections:
   Returns a single typed section.  The type of the retrieved section
   is given by \var{type}.  If \var{name} is given and not \code{None},
   the name of the section must match \var{name}.  If there is no
-  section matching in both name and type, \exception{KeyError} is
+  section matching in both name and type,
+  \exception{ConfigurationMissingSectionError} is
   raised.  If \var{name} is not given or is \code{None}, there must be
   exactly one child section of type \var{type}; that section is
   returned.  If there is more than one section of type \var{type},
@@ -535,9 +536,12 @@ support this interface.
 \end{excdesc}
 
 \begin{excdesc}{ConfigurationMissingSectionError}
+  Raised when a requested named section is not available.
 \end{excdesc}
 
 \begin{excdesc}{ConfigurationConflictingSectionError}
+  Raised when a request for a section cannot be fulfilled without
+  ambiguity.
 \end{excdesc}
 
 
