@@ -102,7 +102,7 @@ file 0 and file 1.
 
 """
 
-__version__ = "$Id: ClientCache.py,v 1.3 1999/11/16 15:29:50 petrilli Exp $"[11:-2]
+__version__ = "$Revision: 1.4 $"[11:-2]
 
 import os, tempfile
 from struct import pack, unpack
