@@ -352,7 +352,7 @@ class ZEOStorage:
         if self.__storage._transaction:
             d = Delay()
             self.__storage._waiting.append((d, self))
-            self._log("Transaction block waiting for storage. "
+            self._log("Transaction blocked waiting for storage. "
                       "%d clients waiting." % len(self.__storage._waiting))
             return d
         else:
@@ -363,6 +363,12 @@ class ZEOStorage:
             delay, zeo_storage = self.__storage._waiting.pop(0)
             if self._restart(zeo_storage, delay):
                 break
+            if self.__storage._waiting:
+                n = len(self.__storage._waiting)
+                self._log("Blocked transaction restarted.  "
+                          "%d clients waiting." % n)
+            else:
+                self._log("Blocked transaction restarted.")
 
     def _restart(self, zeo_storage, delay):
         # call the restart() method on the appropriate server
