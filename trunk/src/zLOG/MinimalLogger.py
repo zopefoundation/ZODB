@@ -11,7 +11,7 @@
 # FOR A PARTICULAR PURPOSE
 #
 ##############################################################################
-__version__='$Revision: 1.15 $'[11:-2]
+__version__='$Revision: 1.16 $'[11:-2]
 
 import os, sys, time
 
@@ -86,7 +86,7 @@ class stupid_log_write:
         if not textwrap or len(line) < 80:
             buf.append(line)
         else:
-            buf.extend(textwrap.wrap(line, subsequent_indent=" "*20))
+            buf.extend(textwrap.wrap(line, width=79, subsequent_indent=" "*20))
 
         if detail:
             buf.append(str(detail))
@@ -99,7 +99,8 @@ class stupid_log_write:
             except '':
                 buf.append("%s: %s" % error[:2])
 
-        buf.append("") # Cause a final \n to be appended
+        if buf[-1] and buf[-1][-1] != "\n":
+            buf.append("") # Cause a final \n to be appended
 
         _log_dest.write("\n".join(buf))
         _log_dest.flush()
