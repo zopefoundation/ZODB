@@ -84,8 +84,8 @@
 ##############################################################################
 """Mounted database support
 
-$Id: Mount.py,v 1.3 2000/06/09 14:38:01 shane Exp $"""
-__version__='$Revision: 1.3 $'[11:-2]
+$Id: Mount.py,v 1.4 2000/06/12 14:45:19 shane Exp $"""
+__version__='$Revision: 1.4 $'[11:-2]
 
 import Globals, thread, Persistence, Acquisition
 import ExtensionClass, string, time, sys
@@ -100,6 +100,22 @@ dbs = {}
 # dblock is locked every time dbs is accessed.
 dblock=thread.allocate_lock()
 
+try:
+    # Make special provisions for ZClasses if we're in a Zope
+    # installation.
+    from Zope.ClassFactory import ClassFactory
+    
+    def RootDefsClassFactory(jar, module, name):
+        # Use the class definitions given at
+        # the root of the Zope installation.
+        while hasattr(jar, '_mount_parent_jar'):
+            jar = jar._mount_parent_jar
+        return ClassFactory(jar, module, name)
+except:
+    ClassFactory = None
+    RootDefsClassFactory = None
+
+
 class MountPoint(Persistence.Persistent, Acquisition.Implicit):
     '''The base class for a Zope object which, when traversed,
     accesses a different database.
@@ -111,7 +127,7 @@ class MountPoint(Persistence.Persistent, Acquisition.Implicit):
     _v_close_db = 0
     _v_connect_error = None
 
-    def __init__(self, path, params=None):
+    def __init__(self, path, params=None, classDefsFromRoot=1):
         '''
         @arg path The path within the mounted database from which
         to derive the root.
@@ -122,7 +138,11 @@ class MountPoint(Persistence.Persistent, Acquisition.Implicit):
         database, MountPoint will detect the matching params
         and use the existing database.  Include the class name of
         the storage.  For example,
-        ZEO params might be "ZODB.ZEO localhost 1081".
+        ZEO params might be "ZODB.ZEOClient localhost 1081".
+
+        @arg classDefsFromRoot If true (the default), MountPoint will
+        try to get ZClass definitions from the root database rather
+        than the mounted database.
         '''
         # The only reason we need a __mountpoint_id is to
         # be sure we don't close a database prematurely when
@@ -135,6 +155,7 @@ class MountPoint(Persistence.Persistent, Acquisition.Implicit):
             params = self.__mountpoint_id
         self._params = repr(params)
         self._path = path
+        self._classDefsFromRoot = classDefsFromRoot
 
     def _createDB(self):
         '''Gets the database object, usually by creating a Storage object
@@ -155,8 +176,12 @@ class MountPoint(Persistence.Persistent, Acquisition.Implicit):
                 db = self._createDB()
                 newMount = 1
                 dbs[params] = (db, {self.__mountpoint_id:1})
-                import Zope.ClassFactory
-                db.setClassFactory(Zope.ClassFactory.ClassFactory)
+
+                if RootDefsClassFactory is not None and \
+                   getattr(self, '_classDefsFromRoot', 1):
+                    db.setClassFactory(RootDefsClassFactory)
+                elif ClassFactory is not None:
+                    db.setClassFactory(ClassFactory)
             else:
                 db, mounts = dbInfo
                 # Be sure this object is in the list of mount points.
@@ -182,7 +207,10 @@ class MountPoint(Persistence.Persistent, Acquisition.Implicit):
                 # This mount point has been deleted.
                 del data._v__object_deleted__
                 self._v_close_db = 1
-            data._p_jar.close()
+            conn = data._p_jar
+            try: del conn._mount_parent_jar
+            except KeyError: pass
+            conn.close()
             self._v_data = None
         if self._v_close_db:
             # Stop using this database. Close it if no other
@@ -218,6 +246,11 @@ class MountPoint(Persistence.Persistent, Acquisition.Implicit):
             # Get _p_jar from parent.
             self._p_jar = jar = parent._p_jar
         conn = db.open(version=jar.getVersion())
+        # Add an attribute to the connection which
+        # makes it possible for us to find the primary
+        # database connection.  See ClassFactoryForMount().
+        conn._mount_parent_jar = jar
+
         try:
             jar.onCloseCallback(self._close)
             obj = self._getMountRoot(conn.root())
@@ -226,6 +259,7 @@ class MountPoint(Persistence.Persistent, Acquisition.Implicit):
             self._v_data = (data,)
         except:
             # Close the connection before processing the exception.
+            del conn._mount_parent_jar
             conn.close()
             raise
         if newMount:
@@ -293,4 +327,5 @@ class MountPoint(Persistence.Persistent, Acquisition.Implicit):
         f=StringIO()
         traceback.print_tb(exc[2], 100, f)
         self._v_connect_error = (exc[0], exc[1], f.getvalue())
+
 
