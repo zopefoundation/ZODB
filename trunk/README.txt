@@ -1,5 +1,5 @@
-ZODB3 3.3 beta 1
-================
+ZODB3 3.3 release candidate 1
+=============================
 
 Introduction
 ------------
@@ -28,9 +28,7 @@ ZoneAlarm.  Many particularly slow tests are skipped unless you pass
 Compatibility
 -------------
 
-ZODB 3.3 is known to work with Python 2.3.3.  For best results, we
-recommend using Python 2.3.4.  Note that Python 2.2 and earlier are
-not supported.
+ZODB 3.3 is requires Python 2.3.4 or later.
 
 The Zope 2.8 release should be compatible with this version of ZODB.
 Note that Zope 2.7 and higher includes ZEO, so this package should
@@ -39,7 +37,7 @@ only be needed to run a ZEO server.
 The ZEO server in ZODB 3.3 is currently incompatible with earlier
 versions of ZODB.  If you want to test the software, you must be
 running this release for both client and server.  A backwards
-compatibility mechanism may be provided in a beta release.
+compatibility mechanism will be provided in a later release.
 
 Prerequisites
 -------------
@@ -170,6 +168,8 @@ or subscribe at
 and view its archives at
 
     http://lists.zope.org/pipermail/zodb-dev
+
+Note that Zope Corp mailing lists have a subscriber-only posting policy.
 
 Andrew's ZODB Programmers Guide is made available in several
 forms, including DVI and HTML.  To view it online, point your
