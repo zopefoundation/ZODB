@@ -116,8 +116,6 @@ class Connection(smac.SizedMessageAsyncConnection):
 
     __super_init = smac.SizedMessageAsyncConnection.__init__
     __super_close = smac.SizedMessageAsyncConnection.close
-    __super_writable = smac.SizedMessageAsyncConnection.writable
-    __super_message_output = smac.SizedMessageAsyncConnection.message_output
 
     protocol_version = "Z200"
 
