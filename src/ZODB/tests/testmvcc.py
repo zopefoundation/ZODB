@@ -17,16 +17,17 @@ Multi-version concurrency control tests
 
 Multi-version concurrency control (MVCC) exploits storages that store
 multiple revisions of an object to avoid read conflicts.  Normally
-when an object is read from the storage, its most recent revisions is
-read.  Under MVCC, an older revision is read so that the transaction
+when an object is read from the storage, its most recent revision is
+read.  Under MVCC, an older revision may be read so that the transaction
 sees a consistent view of the database.
 
 ZODB guarantees execution-time consistency: A single transaction will
 always see a consistent view of the database while it is executing.
-If transaction A is running, has already read an object O1, and an
-external transaction B modifies object O2, then transaction A can no
+If transaction A is running, has already read an object O1, and a
+different transaction B modifies object O2, then transaction A can no
 longer read the current revision of O2.  It must either read the
 version of O2 that is consistent with O1 or raise a ReadConflictError.
+When MVCC is in use, A will do the former.
 
 This note includes doctests that explain how MVCC is implemented (and
 test that the implementation is correct).  The tests use a
@@ -61,26 +62,31 @@ Connection high-water mark
 --------------------------
 
 The ZODB Connection tracks a transaction high-water mark, which
-represents the latest transaction id that can be read by the current
-transaction and still present a consistent view of the database.  When
-a transaction commits, the database sends invalidations to all the
-other transactions; the invalidation contains the transaction id and
-the oids of modified objects.  The Connection stores the high-water
-mark in _txn_time, which is set to None until an invalidation arrives.
+bounds the latest transaction id that can be read by the current
+transaction and still present a consistent view of the database.
+Transactions with ids up to but not including the high-water mark
+are OK to read.  When a transaction commits, the database sends
+invalidations to all the other connections; the invalidation contains
+the transaction id and the oids of modified objects.  The Connection
+stores the high-water mark in _txn_time, which is set to None until
+an invalidation arrives.
 
 >>> cn = db.open()
 
+>>> print cn._txn_time
+None
+>>> cn.invalidate(100, dict.fromkeys([1, 2]))
 >>> cn._txn_time
->>> cn.invalidate(1, dict.fromkeys([1, 2]))
+100
+>>> cn.invalidate(200, dict.fromkeys([1, 2]))
 >>> cn._txn_time
-1
->>> cn.invalidate(2, dict.fromkeys([1, 2]))
->>> cn._txn_time
-1
+100
 
-The high-water mark is set to the transaction id of the first
-transaction, because transaction ids must be monotonically increasing.
-It is reset at transaction boundaries.
+A connection's high-water mark is set to the transaction id taken from
+the first invalidation processed by the connection.  Transaction ids are
+monotonically increasing, so the first one seen during the current
+transaction remains the high-water mark for the duration of the
+transaction.
 
 XXX We'd like simple abort and commit calls to make txn boundaries,
 but that doesn't work unless an object is modified.  sync() will abort
@@ -107,7 +113,7 @@ The second connection has its high-water mark set now.
 True
 
 It is safe to read "b," because it was not modified by the concurrent
-transaction. 
+transaction.
 
 >>> r2 = cn2.root()
 >>> r2["b"]._p_serial < cn2._txn_time
