@@ -184,7 +184,7 @@
 #   may have a back pointer to a version record or to a non-version
 #   record.
 #
-__version__='$Revision: 1.46 $'[11:-2]
+__version__='$Revision: 1.47 $'[11:-2]
 
 import struct, time, os, bpthread, string, base64, sys
 from struct import pack, unpack
@@ -1117,6 +1117,16 @@ class FileStorage(BaseStorage.BaseStorage):
                 tend=tpos+tl
 
                 if status=='u':
+                    if not packing:
+                        # We rely below on a constant offset for unpacked
+                        # records. This assumption holds only if we copy
+                        # undone unpacked data. This is lame, but necessary
+                        # for now to squash a bug.
+                        write(h)
+                        tl=tl+8
+                        write(read(tl-23))
+                        opos=opos+tl
+                        
                     # Undone transaction, skip it
                     pos=tend+8
                     continue
@@ -1224,12 +1234,20 @@ class FileStorage(BaseStorage.BaseStorage):
                                 # current record, then we should still
                                 # point at one, otherwise, we should
                                 # point at the last non-version record.
-                                if pindex[oid]==p:
-                                    # we were pointing to the
-                                    # current record
-                                    p=index[oid]
+                                ppos=pindex_get(oid,0)
+                                if ppos:
+                                    if ppos==p:
+                                        # we were pointing to the
+                                        # current record
+                                        p=index[oid]
+                                    else:
+                                        p=nvindex[oid]
                                 else:
-                                    p=nvindex[oid]
+                                    # Oops, this object was modified
+                                    # in a version in which it was deleted.
+                                    # Hee hee. It doesn't matter what we
+                                    # use cause it's not reachable any more.
+                                    p=0
                             else:
                                 # This points back to a non-packed record.
                                 # Just adjust for the offset
