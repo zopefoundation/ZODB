@@ -79,7 +79,7 @@ method::
 and call it to monitor the storage.
 
 """
-__version__='$Revision: 1.15 $'[11:-2]
+__version__='$Revision: 1.16 $'[11:-2]
 
 import base64, time, string
 from ZODB import POSException, BaseStorage, utils
@@ -359,6 +359,7 @@ class DemoStorage(BaseStorage.BaseStorage):
         # in FileStorage.
         self._lock_acquire()
         try:
+            # XXX Shouldn't this be sorted?
             transactions = self._data.items()
             pos = len(transactions)
             r = []
