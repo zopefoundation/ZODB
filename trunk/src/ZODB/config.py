@@ -13,7 +13,7 @@
 ##############################################################################
 """Open database and storage from a configuration.
 
-$Id: config.py,v 1.4 2003/01/07 23:25:11 fdrake Exp $"""
+$Id: config.py,v 1.5 2003/01/07 23:28:14 fdrake Exp $"""
 
 import os
 import StringIO
@@ -106,7 +106,7 @@ class ZEOClient(StorageConfig):
             read_only_fallback=self.config.read_only_fallback)
 
 class BDBStorage(StorageConfig):
-    
+
     def open(self):
         from BDBStorage.BerkeleyBase import BerkeleyConfig
         from BDBStorage.BDBFullStorage import BDBFullStorage
