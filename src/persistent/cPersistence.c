@@ -30,7 +30,6 @@ static PyObject *TimeStamp, *py_simple_new;
 static PyObject *py_keys, *py_setstate, *py___dict__, *py_timeTime;
 static PyObject *py__p_changed, *py__p_deactivate;
 static PyObject *py___getattr__, *py___setattr__, *py___delattr__;
-static PyObject *py___getstate__;
 static PyObject *py___slotnames__, *copy_reg_slotnames, *__newobj__;
 static PyObject *py___getnewargs__, *py___getstate__;
 
@@ -50,7 +49,6 @@ init_strings(void)
     INIT_STRING(__getattr__);
     INIT_STRING(__setattr__);
     INIT_STRING(__delattr__);
-    INIT_STRING(__getstate__);
     INIT_STRING(__slotnames__);
     INIT_STRING(__getnewargs__);
     INIT_STRING(__getstate__);
