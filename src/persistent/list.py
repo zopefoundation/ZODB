@@ -14,9 +14,9 @@
 
 """Python implementation of persistent list.
 
-$Id: list.py,v 1.6 2004/02/19 02:59:30 jeremy Exp $"""
+$Id: list.py,v 1.7 2004/02/19 18:13:35 jeremy Exp $"""
 
-__version__='$Revision: 1.6 $'[11:-2]
+__version__='$Revision: 1.7 $'[11:-2]
 
 import persistent
 from UserList import UserList

@@ -16,7 +16,7 @@
 This module tests and documents, through example, overriding attribute
 access methods.
 
-$Id: test_overriding_attrs.py,v 1.2 2004/02/19 02:59:32 jeremy Exp $
+$Id: test_overriding_attrs.py,v 1.3 2004/02/19 18:13:34 jeremy Exp $
 """
 
 from persistent import Persistent
@@ -74,7 +74,11 @@ class SampleOverridingGetattr(Persistent):
 
         >>> db.close()
         """
-        return name.upper(), self._p_changed
+        # Don't pretend we have any special attributes.
+        if name.startswith("__") and name.endswrith("__"):
+            raise AttributeError, name
+        else:
+            return name.upper(), self._p_changed
 
 class SampleOverridingGetattributeSetattrAndDelattr(Persistent):
     """Example of overriding __getattribute__, __setattr__, and __delattr__

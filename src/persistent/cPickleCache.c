@@ -90,7 +90,7 @@ process must skip such objects, rather than deactivating them.
 static char cPickleCache_doc_string[] =
 "Defines the PickleCache used by ZODB Connection objects.\n"
 "\n"
-"$Id: cPickleCache.c,v 1.88 2004/02/19 02:59:30 jeremy Exp $\n";
+"$Id: cPickleCache.c,v 1.89 2004/02/19 18:13:35 jeremy Exp $\n";
 
 #define DONT_USE_CPERSISTENCECAPI
 #include "cPersistence.h"
