@@ -85,10 +85,10 @@
 """Simple rpc mechanisms
 """
 
-__version__ = "$Revision: 1.12 $"[11:-2]
+__version__ = "$Revision: 1.13 $"[11:-2]
 
-from ZODB.cPickle import loads
-from ZODB import cPickle
+from cPickle import loads
+import cPickle
 from thread import allocate_lock
 from smac import SizedMessageAsyncConnection
 import socket, string, struct, asyncore, sys, time, select
@@ -101,6 +101,9 @@ from zLOG import LOG, TRACE, DEBUG, INFO
 pickler=cPickle.Pickler()
 pickler.fast=1 # Don't use the memo
 dump=pickler.dump
+
+class UnUnPickleableError(Exception):
+    "Couldn't unpickle a remote exception"
 
 class asyncRPC(SizedMessageAsyncConnection):
 
@@ -118,6 +121,10 @@ class asyncRPC(SizedMessageAsyncConnection):
         self.__lr=l.release
         self.__r=None
         l.acquire()
+
+        l=allocate_lock() # Response lock used to wait for call results
+        self.__call_la=l.acquire
+        self.__call_lr=l.release
 
     def connect(self, tryonce=1, log_type='client'):
         t=self._tmin
@@ -152,7 +159,7 @@ class asyncRPC(SizedMessageAsyncConnection):
                 return 1
 
     def finishConnect(self, s):
-        SizedMessageAsyncConnection.__init__(self, s, s.getpeername(), {})
+        SizedMessageAsyncConnection.__init__(self, s, '', {})
 
     # we are our own socket map!
     def keys(self): return (self._fileno,)
@@ -190,30 +197,37 @@ class asyncRPC(SizedMessageAsyncConnection):
 
          
     def __call__(self, *args):
-        args=dump(args,1)
-        self.message_output(args)
+        self.__call_la()
+        try:
+            self._last_args=args=dump(args,1)
+            self.message_output(args)
 
-        if self.__map: self.__Wakeup() # You dumb bastard
-        else: self.readLoop()
+            if self.__map: self.__Wakeup() # You dumb bastard
+            else: self.readLoop()
 
-        while 1:
-            r=self._read()
-            c=r[:1]
-            if c=='R':
-                if r=='RN.': return None # Common case!
-                return loads(r[1:])
-            if c=='E':
-                r=loads(r[1:])
-                if type(r) is TupleType: raise r[0], r[1]
-                raise r
-            oob=self._outOfBand
-            if oob is not None:
-                r=r[1:]
-                if r=='N.': r=None # Common case!
-                else: r=loads(r)
-                oob(c, r)
-            else:
-                raise UnrecognizedResult, r
+            while 1:
+                r=self._read()
+                c=r[:1]
+                if c=='R':
+                    if r=='RN.': return None # Common case!
+                    return loads(r[1:])
+                if c=='E':
+                    try: r=loads(r[1:])
+                    except:
+                        raise UnUnPickleableError(r[1:])
+                    if type(r) is TupleType: raise r[0], r[1]
+                    raise r
+                oob=self._outOfBand
+                if oob is not None:
+                    r=r[1:]
+                    if r=='N.': r=None # Common case!
+                    else: r=loads(r)
+                    oob(c, r)
+                else:
+                    raise UnrecognizedResult, r
+        finally:
+            self._last_args=''
+            self.__call_lr()
 
     def sendMessage(self, *args):
         self.message_output(dump(args,1))
