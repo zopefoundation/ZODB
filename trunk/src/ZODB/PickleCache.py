@@ -3,7 +3,7 @@
 
 __doc__='''PickleJar Object Cache
 
-$Id: PickleCache.py,v 1.1 1997/12/15 17:51:55 jim Exp $'''
+$Id: PickleCache.py,v 1.2 1998/03/23 15:50:27 jim Exp $'''
 #     Copyright 
 #
 #       Copyright 1996 Digital Creations, L.C., 910 Princess Anne
@@ -54,8 +54,10 @@ $Id: PickleCache.py,v 1.1 1997/12/15 17:51:55 jim Exp $'''
 #
 #   (540) 371-6909
 # 
-__version__='$Revision: 1.1 $'[11:-2]
+__version__='$Revision: 1.2 $'[11:-2]
 	
+from sys import getrefcount
+
 class PickleCache:
 
     def __init__(self, cache_size, cache_age=1000):
@@ -104,6 +106,9 @@ class PickleCache:
 ############################################################################
 #
 # $Log: PickleCache.py,v $
+# Revision 1.2  1998/03/23 15:50:27  jim
+# Added import of getrefcound from sys.
+#
 # Revision 1.1  1997/12/15 17:51:55  jim
 # Split off from PickleJar.
 #
