@@ -75,6 +75,10 @@ class CommonSetupTearDown(StorageTestBase):
         for adminaddr in self._servers:
             if adminaddr is not None:
                 forker.shutdown_zeo_server(adminaddr)
+        if hasattr(os, 'waitpid'):
+            # Not in Windows Python until 2.3
+            for pid in self._pids:
+                os.waitpid(pid, 0)
         for i in 0, 1:
             path = "c1-test-%d.zec" % i
             if os.path.exists(path):
@@ -201,8 +205,6 @@ class ConnectionTests(CommonSetupTearDown):
         # We don't want the read-write server created by setUp()
         self.shutdownServer()
         self._servers = []
-        self._pids = []
-
         # Start a read-only server
         self.startServer(create=0, index=0, ro_svr=1)
         # Start a read-only client
@@ -224,8 +226,6 @@ class ConnectionTests(CommonSetupTearDown):
         # We don't want the read-write server created by setUp()
         self.shutdownServer()
         self._servers = []
-        self._pids = []
-
         # Start a read-only server
         self.startServer(create=0, index=0, ro_svr=1)
         # Start a read-only-fallback client
@@ -248,7 +248,6 @@ class ConnectionTests(CommonSetupTearDown):
         # Shut down the server
         self.shutdownServer()
         self._servers = []
-        self._pids = []
         # Poll until the client disconnects
         self.pollDown()
         # Stores should fail now
@@ -431,8 +430,6 @@ class ReconnectionTests(CommonSetupTearDown):
         # We don't want the read-write server created by setUp()
         self.shutdownServer()
         self._servers = []
-        self._pids = []
-
         # Start a read-only server
         self.startServer(create=0, index=0, read_only=1)
         # Start a read-only client
@@ -446,8 +443,6 @@ class ReconnectionTests(CommonSetupTearDown):
         # We don't want the read-write server created by setUp()
         self.shutdownServer()
         self._servers = []
-        self._pids = []
-
         # Start a read-only server
         self.startServer(create=0, index=0, read_only=1)
         # Start a read-only-fallback client
@@ -467,7 +462,6 @@ class ReconnectionTests(CommonSetupTearDown):
         # Shut down the server
         self.shutdownServer()
         self._servers = []
-        self._pids = []
         # Poll until the client disconnects
         self.pollDown()
         # Stores should still fail
@@ -492,7 +486,6 @@ class ReconnectionTests(CommonSetupTearDown):
         # Shut down the server
         self.shutdownServer()
         self._servers = []
-        self._pids = []
         # Poll until the client disconnects
         self.pollDown()
         # Stores should fail now
@@ -512,8 +505,6 @@ class ReconnectionTests(CommonSetupTearDown):
         # We don't want the read-write server created by setUp()
         self.shutdownServer()
         self._servers = []
-        self._pids = []
-
         # Start a read-only server
         self.startServer(create=0, read_only=1)
         # Start a client in fallback mode
@@ -524,7 +515,6 @@ class ReconnectionTests(CommonSetupTearDown):
         # Shut down the server
         self.shutdownServer()
         self._servers = []
-        self._pids = []
         # Poll until the client disconnects
         self.pollDown()
         # Stores should fail now
@@ -544,8 +534,6 @@ class ReconnectionTests(CommonSetupTearDown):
         # We don't want the read-write server created by setUp()
         self.shutdownServer()
         self._servers = []
-        self._pids = []
-
         # Allocate a second address (for the second server)
         self._newAddr()
 
