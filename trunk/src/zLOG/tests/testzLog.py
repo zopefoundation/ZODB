@@ -46,8 +46,8 @@ class StupidLogTest(unittest.TestCase):
     def verifyEntry(self, f, time=None, subsys=None, severity=None,
                     summary=None, detail=None, error=None):
         # skip to the beginning of next entry
-        line = f.readline()
-        while line != "------\n":
+        line = f.readline().strip()
+        while line != "------":
             if not line:
                 self.fail("can't find entry in log file")
             line = f.readline()
@@ -67,17 +67,17 @@ class StupidLogTest(unittest.TestCase):
             line = f.readline()
             self.assert_(line.find(detail) != -1, "missing detail")
         if error is not None:
-            line = f.readline()
+            line = f.readline().strip()
             self.assert_(line.startswith('Traceback'),
                          "missing traceback")
-            last = "%s: %s\n" % (error[0], error[1])
+            last = "%s: %s" % (error[0], error[1])
             if last.startswith("exceptions."):
                 last = last[len("exceptions."):]
             while 1:
-                line = f.readline()
+                line = f.readline().strip()
                 if not line:
                     self.fail("couldn't find end of traceback")
-                if line == "------\n":
+                if line == "------":
                     self.fail("couldn't find end of traceback")
                 if line == last:
                     break
