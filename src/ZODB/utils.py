@@ -14,6 +14,7 @@
 
 import sys
 import time
+import struct
 from struct import pack, unpack
 from binascii import hexlify
 import cPickle as pickle
@@ -94,22 +95,18 @@ def readable_tid_repr(tid):
 # unsigned, but produces a FutureWarning, because Python 2.4 will display
 # it as signed.  So when you want to prodce an address, use positive_id() to
 # obtain it.
+# _ADDRESS_MASK is 2**(number_of_bits_in_a_native_pointer).  Adding this to
+# a negative address gives a positive int with the same hex representation as
+# the significant bits in the original.
+
+_ADDRESS_MASK = 256 ** struct.calcsize('P')
 def positive_id(obj):
     """Return id(obj) as a non-negative integer."""
 
     result = id(obj)
     if result < 0:
-        # This is a puzzle:  there's no way to know the natural width of
-        # addresses on this box (in particular, there's no necessary
-        # relation to sys.maxint).  Try 32 bits first (and on a 32-bit
-        # box, adding 2**32 gives a positive number with the same hex
-        # representation as the original result).
-        result += 1L << 32
-        if result < 0:
-            # Undo that, and try 64 bits.
-            result -= 1L << 32
-            result += 1L << 64
-            assert result >= 0 # else addresses are fatter than 64 bits
+        result += _ADDRESS_MASK
+        assert result > 0
     return result
 
 # Given a ZODB pickle, return pair of strings (module_name, class_name).
