@@ -164,7 +164,7 @@ class ClientStorage:
         username -- string with username to be used when authenticating.
             These only need to be provided if you are connecting to an
             authenticated server storage.
- 
+
         password -- string with plaintext password to be used
             when authenticated.
 
@@ -217,7 +217,7 @@ class ClientStorage:
         # but _server is set only after cache verification has finished
         # and clients can safely use the server.  _pending_server holds
         # a server stub while it is being verified.
-        
+
         self._server = disconnected_stub
         self._connection = None
         self._pending_server = None
@@ -372,7 +372,7 @@ class ClientStorage:
         # If there is no connection, return immediately.  Technically,
         # there are no pending invalidations so they are all handled.
         # There doesn't seem to be much benefit to raising an exception.
-        
+
         cn = self._connection
         if cn is not None:
             cn.pending()
@@ -394,12 +394,12 @@ class ClientStorage:
                  "%s: %s isn't a valid protocol, must have a Client class" %
                  (self.__class__.__name__, protocol))
             raise AuthError, "invalid protocol"
-        
+
         c = client(stub)
-        
+
         # Initiate authentication, returns boolean specifying whether OK
         return c.start(self._username, self._realm, self._password)
-        
+
     def testConnection(self, conn):
         """Internal: test the given connection.
 
@@ -434,7 +434,7 @@ class ClientStorage:
             else:
                 log2(ERROR, "Authentication failed")
                 raise AuthError, "Authentication failed"
-        
+
         try:
             stub.register(str(self._storage), self._is_read_only)
             return 1
@@ -527,7 +527,7 @@ class ClientStorage:
         # If verify_cache() finishes the cache verification process,
         # it should set self._server.  If it goes through full cache
         # verification, then endVerify() should self._server.
-        
+
         last_inval_tid = self._cache.getLastTid()
         if last_inval_tid is not None:
             ltid = server.lastTransaction()
@@ -553,7 +553,7 @@ class ClientStorage:
                 self._server = server
                 self._ready.set()
                 return "quick verification"
-            
+
         log2(INFO, "Verifying cache")
         # setup tempfile to hold zeoVerify results
         self._tfile = tempfile.TemporaryFile(suffix=".inv")
