@@ -245,6 +245,7 @@ class ConnectionTests(CommonSetupTearDown):
         self.startServer(create=0, index=0, ro_svr=1)
         # Start a read-only-fallback client
         self._storage = self.openClientStorage(read_only_fallback=1)
+        self.assert_(self._storage.isReadOnly())
         # Stores should fail here
         self.assertRaises(ReadOnlyError, self._dostore)
 
