@@ -25,6 +25,12 @@ import ZODB.config
 from ZEO.runzeo import ZEOOptions
 from zdaemon.tests.testzdoptions import TestZDOptions
 
+# When a hostname isn't specified in an address, ZConfig supplies a
+# platform-dependent default value.
+DEFAULT_HOSTNAME = ''
+if sys.platform in ['win32',]:
+    DEFAULT_HOSTNAME = 'localhost'
+
 class TestZEOOptions(TestZDOptions):
 
     OptionsClass = ZEOOptions
@@ -61,7 +67,7 @@ class TestZEOOptions(TestZDOptions):
     def test_defaults_with_schema(self):
         options = self.OptionsClass()
         options.realize(["-C", self.tempfilename])
-        self.assertEqual(options.address, ("", 5555))
+        self.assertEqual(options.address, (DEFAULT_HOSTNAME, 5555))
         self.assertEqual(len(options.storages), 1)
         opener = options.storages[0]
         self.assertEqual(opener.name, "fs")
@@ -73,7 +79,7 @@ class TestZEOOptions(TestZDOptions):
     def test_defaults_without_schema(self):
         options = self.OptionsClass()
         options.realize(["-a", "5555", "-f", "Data.fs"])
-        self.assertEqual(options.address, ("", 5555))
+        self.assertEqual(options.address, (DEFAULT_HOSTNAME, 5555))
         self.assertEqual(len(options.storages), 1)
         opener = options.storages[0]
         self.assertEqual(opener.name, "1")
@@ -87,7 +93,7 @@ class TestZEOOptions(TestZDOptions):
         options = self.OptionsClass()
         options.realize(["-C", self.tempfilename,
                          "-a", "6666", "-f", "Wisdom.fs"])
-        self.assertEqual(options.address, ("", 6666))
+        self.assertEqual(options.address, (DEFAULT_HOSTNAME, 6666))
         self.assertEqual(len(options.storages), 1)
         opener = options.storages[0]
         self.assertEqual(opener.__class__, ZODB.config.FileStorage)
