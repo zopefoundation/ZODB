@@ -95,7 +95,9 @@ from BTrees.OOBTree import OOBTree, OOBucket, OOSet, OOTreeSet
 from BTrees.IOBTree import IOBTree, IOBucket, IOSet, IOTreeSet
 from BTrees.IIBTree import IIBTree, IIBucket, IISet, IITreeSet
 from BTrees.OIBTree import OIBTree, OIBucket, OISet, OITreeSet
-from unittest import TestCase, TestSuite, TextTestRunner, makeSuite
+from unittest import TestCase, TestSuite, JUnitTextTestRunner, VerboseTextTestRunner, makeSuite
+
+TextTestRunner = VerboseTextTestRunner
 
 class Base:
     """ Tests common to all types: sets, buckets, and BTrees """
@@ -574,7 +576,6 @@ class BTreeTests(MappingBase):
         assert t.insert(1, 1) == 1
         assert lsubtract(list(t.keys()), [0,1]) == []
 
-
 ## BTree tests
 
 class TestIOBTrees(BTreeTests, TestCase):
@@ -584,12 +585,16 @@ class TestIOBTrees(BTreeTests, TestCase):
     def nonIntegerKeyRaises(self):
         self.assertRaises(TypeError, self._stringraises)
         self.assertRaises(TypeError, self._floatraises)
+        self.assertRaises(TypeError, self._noneraises)
 
     def _stringraises(self):
         self.t['c'] = 1
 
     def _floatraises(self):
         self.t[2.5] = 1
+
+    def _noneraises(self):
+        self.t[None] = 1
 
 class TestOOBTrees(BTreeTests, TestCase):
     def setUp(self):
@@ -599,25 +604,71 @@ class TestOIBTrees(BTreeTests, TestCase):
     def setUp(self):
         self.t = OIBTree()
 
+    def testNonIntegerValueRaises(self):
+        self.assertRaises(TypeError, self._stringraises)
+        self.assertRaises(TypeError, self._floatraises)
+        self.assertRaises(TypeError, self._noneraises)
+
+    def _stringraises(self):
+        self.t[1] = 'c'
+
+    def _floatraises(self):
+        self.t[1] = 1.4
+
+    def _noneraises(self):
+        self.t[1] = None
+
 class TestIIBTrees(BTreeTests, TestCase):
     def setUp(self):
         self.t = IIBTree()
 
-    def nonIntegerKeyRaises(self):
-        self.assertRaises(TypeError, self._stringraises)
-        self.assertRaises(TypeError, self._floatraises)
+    def testNonIntegerKeyRaises(self):
+        self.assertRaises(TypeError, self._stringraiseskey)
+        self.assertRaises(TypeError, self._floatraiseskey)
+        self.assertRaises(TypeError, self._noneraiseskey)
 
-    def _stringraises(self):
+    def testNonIntegerValueRaises(self):
+        self.assertRaises(TypeError, self._stringraisesvalue)
+        self.assertRaises(TypeError, self._floatraisesvalue)
+        self.assertRaises(TypeError, self._noneraisesvalue)
+
+    def _stringraiseskey(self):
         self.t['c'] = 1
 
-    def _floatraises(self):
+    def _floatraiseskey(self):
         self.t[2.5] = 1
+
+    def _noneraiseskey(self):
+        self.t[None] = 1
+
+    def _stringraisesvalue(self):
+        self.t[1] = 'c'
+
+    def _floatraisesvalue(self):
+        self.t[1] = 1.4
+
+    def _noneraisesvalue(self):
+        self.t[1] = None
 
 ## Set tests
 
 class TestIOSets(ExtendedSetTests, TestCase):
     def setUp(self):
         self.t = IOSet()
+
+    def testNonIntegerInsertRaises(self):
+        self.assertRaises(TypeError,self._insertstringraises)
+        self.assertRaises(TypeError,self._insertfloatraises)
+        self.assertRaises(TypeError,self._insertnoneraises)
+
+    def _insertstringraises(self):
+        self.t.insert('a')
+
+    def _insertfloatraises(self):
+        self.t.insert(1.4)
+
+    def _insertnoneraises(self):
+        self.t.insert(None)
 
 class TestOOSets(ExtendedSetTests, TestCase):
     def setUp(self):
