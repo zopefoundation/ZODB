@@ -13,7 +13,7 @@ To use, import the module and then call the 'install' function.
 This will install the function 'get_transaction'.  This function will
 be used by transactional objects to get the current transaction.
 
-$Id: Transaction.py,v 1.1 1997/04/11 21:42:52 jim Exp $'''
+$Id: Transaction.py,v 1.2 1997/10/30 20:23:26 brian Exp $'''
 #     Copyright 
 #
 #       Copyright 1996 Digital Creations, L.C., 910 Princess Anne
@@ -65,6 +65,9 @@ $Id: Transaction.py,v 1.1 1997/04/11 21:42:52 jim Exp $'''
 #   (540) 371-6909
 #
 # $Log: Transaction.py,v $
+# Revision 1.2  1997/10/30 20:23:26  brian
+# Fixed thread dependency
+#
 # Revision 1.1  1997/04/11 21:42:52  jim
 # *** empty log message ***
 #
@@ -85,7 +88,7 @@ $Id: Transaction.py,v 1.1 1997/04/11 21:42:52 jim Exp $'''
 #
 #
 # 
-__version__='$Revision: 1.1 $'[11:-2]
+__version__='$Revision: 1.2 $'[11:-2]
 
 # Install myself before anything else happens:
 
@@ -93,12 +96,18 @@ __version__='$Revision: 1.1 $'[11:-2]
 # get_transaction to override their's
 from SingleThreadedTransaction import *
 
-import thread, SingleThreadedTransaction
+import SingleThreadedTransaction
+
+try:
+    import thread
+    get_id=thread.get_ident
+except:
+    def get_id(): return 0
 
 theTransactions={}
 
 def get_transaction():
-    id=thread.get_ident()
+    id=get_id()
     try: theTransaction=theTransactions[id]
     except KeyError: theTransactions[id]=theTransaction=Transaction()
     return theTransaction
@@ -121,5 +130,9 @@ class Transaction(SingleThreadedTransaction.Transaction):
 	forget pending changes.
 	'''
 	self._abort()
-	id=thread.get_ident()
+	id=get_id()
 	del theTransactions[id]
+
+
+
+
