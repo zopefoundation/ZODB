@@ -14,7 +14,7 @@
 static char cPersistence_doc_string[] = 
 "Defines Persistent mixin class for persistent objects.\n"
 "\n"
-"$Id: cPersistence.c,v 1.68 2003/04/02 16:50:49 jeremy Exp $\n";
+"$Id: cPersistence.c,v 1.69 2003/04/23 20:05:51 jeremy Exp $\n";
 
 #include "cPersistence.h"
 
@@ -154,7 +154,7 @@ static void
 accessed(cPersistentObject *self)
 {
     /* Do nothing unless the object is in a cache and not a ghost. */
-    if (self->cache && self->state >= 0) {
+    if (self->cache && self->state >= 0 && self->ring.next) {
 	CPersistentRing *home = &self->cache->ring_home;
 	self->ring.prev->next = self->ring.next;
 	self->ring.next->prev = self->ring.prev;
@@ -176,6 +176,13 @@ ghostify(cPersistentObject *self)
         self->state = cPersistent_GHOST_STATE;
         return;
     }
+
+    /* If the cache has been cleared, then a non-ghost object
+       isn't in the ring any longer.
+    */
+    if (self->ring.next == NULL)
+	return;
+
     /* if we're ghostifying an object, we better have some non-ghosts */
     assert(self->cache->non_ghost_count > 0);
 

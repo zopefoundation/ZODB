@@ -13,8 +13,8 @@
 ##############################################################################
 """Database objects
 
-$Id: DB.py,v 1.49 2003/04/22 18:04:37 jeremy Exp $"""
-__version__='$Revision: 1.49 $'[11:-2]
+$Id: DB.py,v 1.50 2003/04/23 20:05:51 jeremy Exp $"""
+__version__='$Revision: 1.50 $'[11:-2]
 
 import cPickle, cStringIO, sys, POSException, UndoLogCompatible
 from Connection import Connection
@@ -255,6 +255,9 @@ class DB(UndoLogCompatible.UndoLogCompatible):
 
     def close(self):
         self._storage.close()
+        for x, allocated in self._pools[1]:
+            for c in allocated:
+                c._breakcr()
 
     def commitVersion(self, source, destination='', transaction=None):
         if transaction is None:
