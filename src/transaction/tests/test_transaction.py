@@ -660,6 +660,18 @@ def test_beforeCommitHook():
       ['hook1']
       >>> reset_log()
 
+    The hook is only called for a full commit, not for subtransactions.
+
+      >>> t = manager.begin()
+      >>> t.beforeCommitHook(hook, 'A')
+      >>> t.commit(subtransaction=True)
+      >>> log
+      []
+      >>> t.commit()
+      >>> log
+      ['hookA']
+      >>> reset_log()
+
     The hook is called before the commit does anything, so even if the
     commit fails the hook will have been called. To provoke failures in
     commit, we'll add failing resource manager to the transaction.
