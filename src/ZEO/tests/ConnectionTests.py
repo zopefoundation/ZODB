@@ -463,7 +463,7 @@ class ConnectionTests(CommonSetupTearDown):
 
         self._storage = self.openClientStorage()
         self._dostore()
-        
+
     # Test case for multiple storages participating in a single
     # transaction.  This is not really a connection test, but it needs
     # about the same infrastructure (several storage servers).
@@ -507,7 +507,7 @@ class ConnectionTests(CommonSetupTearDown):
 
         r1["a"] = MinPO("a")
         get_transaction().commit()
-        
+
         db2 = DB(self.openClientStorage())
         r2 = db2.open().root()
 
@@ -533,7 +533,7 @@ class ConnectionTests(CommonSetupTearDown):
 
         db2.close()
         db1.close()
-        
+
 class ReconnectionTests(CommonSetupTearDown):
     keep = 1
     invq = 2
@@ -687,11 +687,11 @@ class ReconnectionTests(CommonSetupTearDown):
         # There were no transactions committed, so no verification
         # should be needed.
         self.assertEqual(self._storage.verify_result, "no verification")
-        
+
     def checkNoVerificationOnServerRestartWith2Clients(self):
         perstorage = self.openClientStorage(cache="test")
         self.assertEqual(perstorage.verify_result, "full verification")
-        
+
         self._storage = self.openClientStorage()
         oid = self._storage.new_oid()
         # When we create a new storage, it should always do a full
@@ -722,7 +722,7 @@ class ReconnectionTests(CommonSetupTearDown):
     def checkQuickVerificationWith2Clients(self):
         perstorage = self.openClientStorage(cache="test")
         self.assertEqual(perstorage.verify_result, "full verification")
-        
+
         self._storage = self.openClientStorage()
         oid = self._storage.new_oid()
         # When we create a new storage, it should always do a full
@@ -735,7 +735,7 @@ class ReconnectionTests(CommonSetupTearDown):
 
         perstorage.load(oid, '')
         perstorage.close()
-        
+
         revid = self._dostore(oid, revid)
 
         perstorage = self.openClientStorage(cache="test")
@@ -743,13 +743,14 @@ class ReconnectionTests(CommonSetupTearDown):
 
         self.assertEqual(perstorage.load(oid, ''),
                          self._storage.load(oid, ''))
+        perstorage.close()
 
 
 
     def checkVerificationWith2ClientsInvqOverflow(self):
         perstorage = self.openClientStorage(cache="test")
         self.assertEqual(perstorage.verify_result, "full verification")
-        
+
         self._storage = self.openClientStorage()
         oid = self._storage.new_oid()
         # When we create a new storage, it should always do a full
