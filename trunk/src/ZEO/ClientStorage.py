@@ -13,7 +13,7 @@
 ##############################################################################
 """Network ZODB storage client
 
-$Id: ClientStorage.py,v 1.50 2002/08/16 22:49:40 jeremy Exp $
+$Id: ClientStorage.py,v 1.51 2002/08/16 22:55:44 jeremy Exp $
 """
 
 import cPickle
@@ -351,15 +351,20 @@ class ClientStorage:
         except:
             # Client may have disconnected during the tpc_begin().
             if self._server is not disconnected_stub:
-                self.tpc_cond.acquire()
-                self._transaction = None
-                self.tpc_cond.notify()
-                self.tpc_cond.release()
+                self.end_transaction()
             raise
 
         self._serial = id
         self._seriald.clear()
         del self._serials[:]
+
+    def end_transaction(self):
+        # the right way to set self._transaction to None
+        # calls notify() on tpc_cond in case there are waiting threads
+        self.tpc_cond.acquire()
+        self._transaction = None
+        self.tpc_cond.notify()
+        self.tpc_cond.release()
 
     def tpc_abort(self, transaction):
         if transaction is not self._transaction:
@@ -370,10 +375,7 @@ class ClientStorage:
             self._seriald.clear()
             del self._serials[:]
         finally:
-            self.tpc_cond.acquire()
-            self._transaction = None
-            self.tpc_cond.notify()
-            self.tpc_cond.release()
+            self.end_transaction()
 
     def tpc_finish(self, transaction, f=None):
         if transaction is not self._transaction:
@@ -389,10 +391,7 @@ class ClientStorage:
 
             self._update_cache()
         finally:
-            self.tpc_cond.acquire()
-            self._transaction = None
-            self.tpc_cond.notify()
-            self.tpc_cond.release()
+            self.end_transaction()
 
     def _update_cache(self):
         # Iterate over the objects in the transaction buffer and
