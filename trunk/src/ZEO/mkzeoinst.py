@@ -16,18 +16,23 @@
 
 Usage: mkzeoinst.py home [port]
 
-Given an "instance home directory" <home> and some configuration options (all
-of which have default values), create the following:
+Given an "instance home directory" <home> and some configuration
+options (all of which have default values), create the following:
 
-<home>/etc/zeo.conf     -- ZEO config file with default values filled in
-<home>/etc/runner.conf  -- ZEO config file with default values filled in
-<home>/var/             -- Directory for Data.fs
+<home>/etc/zeo.conf     -- ZEO config file
+<home>/etc/runner.conf  -- zdctl config file
+<home>/var/             -- Directory for data files: Data.fs etc.
 <home>/log/             -- Directory for log files: zeo.log and runner.log
 <home>/bin/zeoctl       -- start/stop script (a shim for zdctl.py)
 
 The script will not overwrite existing files; instead, it will issue a
 warning if an existing file is found that differs from the file that
 would be written if it didn't exist.
+
+The script assumes that runzeo.py, zdrun.py, and zdctl.py can be found
+on the shell's $PATH, and that their #! line names the right Python
+interpreter.  When you use the ZODB3 setup.py script to install the
+ZODB3 software, this is taken care of.
 """
 
 import os
@@ -61,6 +66,7 @@ runner_conf_template = """# runner configuration file
 
 <runner>
   program %(runzeo)s -C %(home)s/etc/zeo.conf
+  socket-name %(home)s/etc/zeo.zdsock
 </runner>
 """
 
@@ -83,6 +89,7 @@ def main():
         port = int(sys.argv[2])
     else:
         port = 9999
+    checkport(port)
     makedir(home)
     makedir(home, "etc")
     makedir(home, "var")
@@ -94,6 +101,16 @@ def main():
     makexfile(zeoctl_template, home, "bin", "zeoctl",
               home=home, python=sys.executable, zdctl=which("zdctl.py"))
     print "All done."
+
+def checkport(port):
+    import socket
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    try:
+        s.bind(("", port))
+    except socket.error:
+        print "A process is already listening on port %d" % port
+        sys.exit(2)
+    s.close()
 
 def which(program):
     strpath = os.getenv("PATH")
