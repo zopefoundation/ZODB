@@ -25,7 +25,7 @@ for storages that use versions.
 from ZODB.FileStorage import FileStorage
 from ZODB.TimeStamp import TimeStamp
 from ZODB.utils import u64
-from ZODB.fsdump import get_pickle_metadata
+from ZODB.FileStorage.fsdump import get_pickle_metadata
 
 import cPickle
 import cStringIO
