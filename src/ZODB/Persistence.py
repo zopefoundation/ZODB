@@ -4,7 +4,7 @@
 __doc__='''Python implementation of persistent base types
 
 
-$Id: Persistence.py,v 1.1 1997/02/11 13:14:06 jim Exp $'''
+$Id: Persistence.py,v 1.2 1997/03/05 22:59:48 jim Exp $'''
 #     Copyright 
 #
 #       Copyright 1996 Digital Creations, L.C., 910 Princess Anne
@@ -60,12 +60,15 @@ $Id: Persistence.py,v 1.1 1997/02/11 13:14:06 jim Exp $'''
 #   (540) 371-6909
 #
 # $Log: Persistence.py,v $
+# Revision 1.2  1997/03/05 22:59:48  jim
+# Added clear method.
+#
 # Revision 1.1  1997/02/11 13:14:06  jim
 # *** empty log message ***
 #
 #
 # 
-__version__='$Revision: 1.1 $'[11:-2]
+__version__='$Revision: 1.2 $'[11:-2]
 
 class Persistent:
     """\
@@ -242,6 +245,10 @@ class PersistentMapping(Persistent):
 	    self._container.keys())
 	keys.sort()
 	return keys
+
+    def clear(self):
+	self._container={}
+	del self._keys
 
     def values(self):
 	return map(lambda k, d=self: d[k], self.keys())
