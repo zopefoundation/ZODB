@@ -1,5 +1,6 @@
 
 import os
+import tempfile
 
 from zope.interface import implements
 
@@ -8,33 +9,22 @@ from ZODB.Blobs.exceptions import BlobError
 from ZODB import utils
 from persistent import Persistent
 
-class TempFileHandler(object):
-    """Handles holding a tempfile around.
-
-    The tempfile is unlinked when the tempfilehandler is GCed.
-    """
-    
-    def __init__(self, directory, mode)
-        self.handle, self.filename = tempfile.mkstemp(dir=directory,
-                                                      text=mode)
-        
-    def __del__(self):
-        self.handle
-        os.unlink(self.filename)
+try:
+    from ZPublisher.Iterators import IStreamIterator
+except ImportError:
+    IStreamIterator = None
 
 class Blob(Persistent):
  
     implements(IBlob)
 
-    def __init__(self):
-        self._p_blob_readers = 0
-        self._p_blob_writers = 0
-        self._p_blob_uncommitted = None
-        self._p_blob_data = None
+    _p_blob_readers = 0
+    _p_blob_writers = 0
+    _p_blob_uncommitted = None
+    _p_blob_data = None
 
     def open(self, mode):
         """Returns a file(-like) object for handling the blob data."""
-
         if mode == "r":
             if self._current_filename() is None:
                 raise BlobError, "Blob does not exist."
@@ -43,17 +33,17 @@ class Blob(Persistent):
                 raise BlobError, "Already opened for writing."
 
             self._p_blob_readers += 1
-            return BlobTempFile(self._current_filename(), "rb", self)
+            return BlobFile(self._current_filename(), "rb", self)
 
         if mode == "w":
             if self._p_blob_readers != 0:
                 raise BlobError, "Already opened for reading."
 
             if self._p_blob_uncommitted is None:
-                self._p_blob_uncommitted = self._get_uncommitted_filename()
+                self._p_blob_uncommitted = utils.mktemp()
 
             self._p_blob_writers += 1
-            return BlobTempFile(self._p_blob_uncommitted, "wb", self)
+            return BlobFile(self._p_blob_uncommitted, "wb", self)
 
         if mode =="a":
             if self._current_filename() is None:
@@ -62,15 +52,15 @@ class Blob(Persistent):
             if self._p_blob_readers != 0:
                 raise BlobError, "Already opened for reading."
 
-            if not self._p_blob_uncommitted:
+            if self._p_blob_uncommitted is None:
                 # Create a new working copy
-                self._p_blob_uncommitted = self._get_uncommitted_filename()
-                uncommitted = BlobTempFile(self._p_blob_uncommitted, "wb", self)
+                self._p_blob_uncommitted = utils.mktmp()
+                uncommitted = BlobFile(self._p_blob_uncommitted, "wb", self)
                 utils.cp(file(self._p_blob_data), uncommitted)
                 uncommitted.seek(0)
             else:
                 # Re-use existing working copy
-                uncommitted = BlobTempFile(self._p_blob_uncommitted, "ab", self)
+                uncommitted = BlobFile(self._p_blob_uncommitted, "ab", self)
             
             self._p_blob_writers +=1
             return uncommitted
@@ -80,28 +70,29 @@ class Blob(Persistent):
     def _current_filename(self):
         return self._p_blob_uncommitted or self._p_blob_data
 
-    def _get_uncommitted_filename(self):
-        return os.tempnam()
-
-class BlobFileBase:
+class BlobFile(file):
 
     # XXX those files should be created in the same partition as
     # the storage later puts them to avoid copying them ...
 
+    if IStreamIterator is not None:
+        __implements__ = (IStreamIterator,)
+
     def __init__(self, name, mode, blob):
-        file.__init__(self, name, mode)
+        super(BlobFile, self).__init__(name, mode)
         self.blob = blob
+        self.streamsize = 1<<16
 
     def write(self, data):
-        file.write(self, data)
+        super(BlobFile, self).write(data)
         self.blob._p_changed = 1
 
     def writelines(self, lines):
-        file.writelines(self, lines)
+        super(BlobFile, self).writelines(lines)
         self.blob._p_changed = 1
 
     def truncate(self, size):
-        file.truncate(self, size)
+        super(BlobFile, self).truncate(size)
         self.blob._p_changed = 1
         
     def close(self):
@@ -110,15 +101,20 @@ class BlobFileBase:
             self.blob._p_blob_writers -= 1
         else:
             self.blob._p_blob_readers -= 1
-        file.close(self)
+        super(BlobFile, self).close()
 
-class BlobFile(BlobFileBase, file):
-    pass
+    def next(self):
+        data = self.read(self.streamsize)
+        if not data:
+            self.blob._p_blob_readers -= 1
+            raise StopIteration
+        return data
 
-class BlobTempFile(BlobFileBase, NamedTempFile)
-    pass
+    def __len__(self):
+        cur_pos = self.tell()
+        self.seek(0, 2)
+        size = self.tell()
+        self.seek(cur_pos, 0)
+        return size
 
-def copy_file(old, new):
-    for chunk in old.read(4096):
-        new.write(chunk)
-    new.seek(0)
+

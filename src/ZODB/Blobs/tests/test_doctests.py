@@ -15,4 +15,4 @@
 from zope.testing.doctestunit import DocFileSuite
 
 def test_suite():
-    return DocFileSuite("../README.txt")
+    return DocFileSuite("../Blob.txt",  "connection.txt")

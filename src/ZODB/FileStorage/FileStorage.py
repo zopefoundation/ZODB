@@ -547,6 +547,7 @@ class FileStorage(BaseStorage.BaseStorage,
             self._lock_release()
 
     def load(self, oid, version):
+        """Return pickle data and serial number."""
         self._lock_acquire()
         try:
             pos = self._lookup_pos(oid)
@@ -629,7 +630,7 @@ class FileStorage(BaseStorage.BaseStorage,
         finally:
             self._lock_release()
 
-    def store(self, oid, serial, data, version, transaction):
+    def store(self, oid, oldserial, data, version, transaction):
         if self._is_read_only:
             raise POSException.ReadOnlyError()
         if transaction is not self._transaction:
@@ -652,12 +653,12 @@ class FileStorage(BaseStorage.BaseStorage,
                         pnv = h.pnv
                     cached_tid = h.tid
 
-                if serial != cached_tid:
+                if oldserial != cached_tid:
                     rdata = self.tryToResolveConflict(oid, cached_tid,
-                                                     serial, data)
+                                                     oldserial, data)
                     if rdata is None:
                         raise POSException.ConflictError(
-                            oid=oid, serials=(cached_tid, serial), data=data)
+                            oid=oid, serials=(cached_tid, oldserial), data=data)
                     else:
                         data = rdata
 
@@ -687,7 +688,7 @@ class FileStorage(BaseStorage.BaseStorage,
                 raise FileStorageQuotaError(
                     "The storage quota has been exceeded.")
 
-            if old and serial != cached_tid:
+            if old and oldserial != cached_tid:
                 return ConflictResolution.ResolvedSerial
             else:
                 return self._tid

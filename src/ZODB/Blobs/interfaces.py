@@ -13,3 +13,20 @@ class IBlob(Interface):
     # XXX need a method to initialize the blob from the storage
     # this means a) setting the _p_blob_data filename and b) putting
     # the current data in that file
+
+class IBlobStorage(Interface):
+    """A storage supporting BLOBs."""
+
+    def storeBlob(oid, oldserial, data, blob, version, transaction):
+        """Stores data that has a BLOB attached."""
+
+    def loadBlob(oid, serial, version):
+        """Return the filename of the Blob data responding to this OID and
+        serial.
+
+        Returns a filename or None if no Blob data is connected with this OID. 
+        """
+
+    def getBlobDirectory():
+        """
+        """

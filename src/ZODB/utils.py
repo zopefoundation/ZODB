@@ -21,6 +21,8 @@ import cPickle as pickle
 from cStringIO import StringIO
 import weakref
 import warnings
+from tempfile import mkstemp
+import os
 
 from persistent.TimeStamp import TimeStamp
 
@@ -305,3 +307,10 @@ class WeakSet(object):
         # We're cheating by breaking into the internals of Python's
         # WeakValueDictionary here (accessing its .data attribute).
         return self.data.data.values()
+
+
+def mktemp():
+    """Create a temp file, known by name, in a semi-secure manner."""
+    handle, filename = mkstemp()
+    os.close(handle)
+    return filename

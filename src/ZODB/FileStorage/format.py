@@ -68,16 +68,16 @@
 #
 #   - 8-byte data length
 #
-#   ? 8-byte position of non-version data
+#   ? 8-byte position of non-version data record
 #     (if version length > 0)
 #
 #   ? 8-byte position of previous record in this version
 #     (if version length > 0)
 #
-#   ?   version string
+#   ? version string
 #     (if version length > 0)
 #
-#   ?   data
+#   ? data
 #     (data length > 0)
 #
 #   ? 8-byte position of data record containing data
