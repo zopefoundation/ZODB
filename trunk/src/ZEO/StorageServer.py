@@ -86,11 +86,11 @@ class StorageServer:
             l = self.connections[storage_id] = []
         l.append(proxy)
 
-    def invalidate(self, conn, storage_id, invalidated=(), info=0):
+    def invalidate(self, conn, storage_id, invalidated=(), info=None):
         for p in self.connections.get(storage_id, ()):
             if invalidated and p is not conn:
-                p.client.Invalidate(invalidated)
-            else:
+                p.client.invalidateTrans(invalidated)
+            elif info is not None:
                 p.client.info(info)
 
     def close_server(self):
@@ -108,11 +108,9 @@ class StorageServer:
                 pass
 
     def close(self, conn):
-        removed = 0
         for sid, cl in self.connections.items():
             if conn.obj in cl:
                 cl.remove(conn.obj)
-                removed = 1
 
 class ZEOStorage:
     """Proxy to underlying storage for a single remote client."""
@@ -130,7 +128,7 @@ class ZEOStorage:
         # any pending transaction.  Not sure if this is the clearest way.
         if self._transaction is not None:
             self.__storage.tpc_abort(self._transaction)
-            self._transaction is None
+            self._transaction = None
         self._conn.close()
 
     def notifyConnected(self, conn):
@@ -240,9 +238,9 @@ class ZEOStorage:
         except: # except what?
             return None
         if os != s:
-            self.client.invalidate((oid, ''))
+            self.client.invalidateVerify((oid, ''))
         elif osv != sv:
-            self.client.invalidate((oid, v))
+            self.client.invalidateVerify((oid, v))
 
     def endZeoVerify(self):
         self.client.endVerify()
@@ -257,6 +255,8 @@ class ZEOStorage:
         t.start()
         if wait is not None:
             return wait
+        else:
+            return None
 
     def _pack(self, t, delay):
         try:
@@ -277,7 +277,8 @@ class ZEOStorage:
 
     def new_oids(self, n=100):
         """Return a sequence of n new oids, where n defaults to 100"""
-        if n < 0:
+        if n <= 0:
+            # Always return at least one
             n = 1
         return [self.__storage.new_oid() for i in range(n)]
 
@@ -374,6 +375,7 @@ class ZEOStorage:
             return d
         else:
             self.restart()
+            return None
 
     def _handle_waiting(self):
         while self.__storage._waiting:
@@ -495,7 +497,7 @@ class ImmediateCommitStrategy:
                 self.invalidated.append((oid, version))
 
         try:
-            nil = dump(newserial, 1)
+            dump(newserial, 1)
         except:
             msg = "Couldn't pickle storage exception: %s" % repr(newserial)
             slog(self.storage, msg, zLOG.ERROR)

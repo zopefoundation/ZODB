@@ -119,10 +119,10 @@ class GenericTests(StorageTestBase.StorageTestBase,
         # XXX Needed to support ReadOnlyStorage tests.  Ought to be a
         # cleaner way.
     
-        # Is this the only way to get the address?
-        addr = self._storage._rpc_mgr.addr[0][1]
+        addr = self._storage._addr
         self._storage.close()
-        self._storage = ZEO.ClientStorage.ClientStorage(addr, read_only=1,
+        self._storage = ZEO.ClientStorage.ClientStorage(addr,
+                                                        read_only=read_only,
                                                         wait=1)
 
     def checkLargeUpdate(self):
@@ -130,7 +130,7 @@ class GenericTests(StorageTestBase.StorageTestBase,
         self._dostore(data=obj)
 
     def checkZEOInvalidation(self):
-        addr = self._storage._rpc_mgr.addr[0][1]
+        addr = self._storage._addr
         storage2 = ZEO.ClientStorage.ClientStorage(addr, wait=1,
                                                    min_disconnect_poll=0.1)
         try:
