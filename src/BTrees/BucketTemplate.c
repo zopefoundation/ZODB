@@ -12,7 +12,7 @@
 
  ****************************************************************************/
 
-#define BUCKETTEMPLATE_C "$Id: BucketTemplate.c,v 1.42 2002/06/17 19:03:55 tim_one Exp $\n"
+#define BUCKETTEMPLATE_C "$Id: BucketTemplate.c,v 1.43 2002/06/18 15:58:22 tim_one Exp $\n"
 
 /* Use BUCKET_SEARCH to find the index at which a key belongs.
  * INDEX    An int lvalue to hold the index i such that KEY belongs at
@@ -427,21 +427,30 @@ bucket_split(Bucket *self, int index, Bucket *next)
 
   ASSERT(self->len > 1, "split of empty bucket", -1);
 
-  if (index < 0 || index >= self->len) index=self->len/2;
+  if (index < 0 || index >= self->len)
+    index = self->len / 2;
 
-  next_size=self->len-index;
+  next_size = self->len - index;
 
-  UNLESS (next->keys=PyMalloc(sizeof(KEY_TYPE)*next_size)) return -1;
-  memcpy(next->keys, self->keys+index, sizeof(KEY_TYPE)*next_size);
+  next->keys = PyMalloc(sizeof(KEY_TYPE) * next_size);
+  if (!next->keys)
+      return -1;
+  memcpy(next->keys, self->keys + index, sizeof(KEY_TYPE) * next_size);
   if (self->values)
     {
-      UNLESS (next->values=PyMalloc(sizeof(VALUE_TYPE)*next_size))
-        return -1;
-      memcpy(next->values, self->values+index, sizeof(VALUE_TYPE)*next_size);
+      next->values = PyMalloc(sizeof(VALUE_TYPE) * next_size);
+      if (!next->values)
+        {
+          free(next->keys);
+          next->keys = NULL;
+          return -1;
+        }
+      memcpy(next->values, self->values + index,
+             sizeof(VALUE_TYPE) * next_size);
     }
   next->size = next_size;
-  next->len= next_size;
-  self->len=index;
+  next->len = next_size;
+  self->len = index;
 
   next->next = self->next;
 
