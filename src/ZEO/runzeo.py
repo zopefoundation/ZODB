@@ -286,9 +286,14 @@ def debug(msg):
     """Log a debugging message."""
     _log(msg, zLOG.DEBUG)
 
+# XXX It would be nice if a program that extended this one (like
+# runzrs) could change the label.
+
+_label = "RUNZEO:%d" % os.getpid()
+
 def _log(msg, severity=zLOG.INFO, error=None):
     """Internal: generic logging function."""
-    zLOG.LOG("RUNSVR", severity, msg, "", error)
+    zLOG.LOG(_label, severity, msg, "", error)
 
 
 # Main program
