@@ -86,9 +86,11 @@ def file_handler(section):
         inst.setFormatter(logging.Formatter(format, dateformat))
         inst.setLevel(level)
 
+    # XXX should pick up sys.{stderr,stdout} when the factory is invoked
     if path == "STDERR":
-        # XXX should pick up sys.stderr when the factory is invoked
         return Factory('zLOG.LogHandlers.StreamHandler', callback, sys.stderr)
+    elif path == "STDOUT":
+        return Factory('zLOG.LogHandlers.StreamHandler', callback, sys.stdout)
     else:
         return Factory('zLOG.LogHandlers.FileHandler', callback, path)
 
