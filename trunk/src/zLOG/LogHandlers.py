@@ -66,7 +66,7 @@ class StartupHandler(Handler):
             self.stream.write("%s\n" % msg)
             self.flush()
         except:
-            self.handleError()
+            self.handleError(record)
 
     def flush(self):
         self.stream.flush()
