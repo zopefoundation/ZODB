@@ -386,7 +386,7 @@ class Connection(smac.SizedMessageAsyncConnection):
         finally:
             self.__replies_cond.release()
 
-    def poll(self, wait_for_reply=0):
+    def poll(self):
         """Invoke asyncore mainloop to get pending message out."""
         if __debug__:
             log("poll(), async=%d" % self.is_async(), level=zLOG.TRACE)
@@ -402,7 +402,7 @@ class Connection(smac.SizedMessageAsyncConnection):
         if self.is_async():
             return
         # Inline the asyncore poll3 function to know whether any input
-        # was actually read.  Repeat until know input is ready.
+        # was actually read.  Repeat until no input is ready.
         # XXX This only does reads.
         poll = select.poll()
         poll.register(self._fileno, select.POLLIN)
