@@ -260,7 +260,9 @@ class ZEOStorage:
             return None
 
     def pack_impl(self, time):
+        self.log("pack(time=%s) started..." % repr(time))
         self.storage.pack(time, referencesf)
+        self.log("pack(time=%s) complete" % repr(time))
         # Broadcast new size statistics
         self.server.invalidate(0, self.storage_id, (), self.get_size_info())
 
