@@ -38,7 +38,8 @@ def get_pickle_metadata(data):
 
 def fsdump(path, file=None, with_offset=1):
     i = 0
-    for trans in FileIterator(path):
+    iter = FileIterator(path)
+    for trans in iter:
         if with_offset:
             print >> file, "Trans #%05d tid=%016x time=%s offset=%d" % \
                   (i, U64(trans.tid), str(TimeStamp(trans.tid)), trans._pos)
@@ -68,4 +69,4 @@ def fsdump(path, file=None, with_offset=1):
             j += 1
         print >> file
         i += 1
-            
+    iter.close()
