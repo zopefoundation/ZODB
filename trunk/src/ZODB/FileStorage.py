@@ -184,7 +184,7 @@
 #   may have a back pointer to a version record or to a non-version
 #   record.
 #
-__version__='$Revision: 1.19 $'[11:-2]
+__version__='$Revision: 1.20 $'[11:-2]
 
 import struct, time, os, bpthread, string, base64
 from struct import pack, unpack
@@ -242,7 +242,7 @@ class FileStorage(BaseStorage.BaseStorage):
 
         if stop is None: stop='\377'*8
 
-        # Lock the database
+        # Lock the database and set up the temp file.
         if not read_only:
             try: f=open(file_name+'.lock', 'r+')
             except: f=open(file_name+'.lock', 'w+')
@@ -253,9 +253,14 @@ class FileStorage(BaseStorage.BaseStorage):
             except: pass
             self._lock_file=f # so it stays open
 
+            self._tfile=open(file_name+'.tmp','w+b')
+
+        else:
+
+            self._tfile=None
+
         BaseStorage.BaseStorage.__init__(self, file_name)
 
-        self._tfile=open(file_name+'.tmp','w+b')
         index, vindex, tindex, tvindex = self._newIndexes()
 
         self._initIndex(index, vindex, tindex, tvindex)
