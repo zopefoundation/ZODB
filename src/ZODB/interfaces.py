@@ -348,5 +348,128 @@ class IDatabase(Interface):
         entry.
         """)
 
+class IStorage(Interface):
+    """A storage is responsible for storing and retrieving data of objects.
+    """
 
+    def load(oid, version):
+        """XXX"""
+
+    def close():
+        """XXX"""
+        
+    def cleanup():
+        """XXX"""
+        
+    def lastSerial():
+        """XXX"""
+        
+    def lastTransaction():
+        """XXX"""
+
+    def lastTid(oid):
+        """Return last serialno committed for object oid."""
+
+    def loadSerial(oid, serial):
+        """XXX"""
+        
+    def loadBefore(oid, tid):
+        """XXX"""
+        
+    def iterator(start=None, stop=None):
+        """XXX"""
+    
+    def sortKey():
+        """XXX"""
+
+    def getName():
+        """XXX"""
+        
+    def getSize():
+        """XXX"""
+
+    def history(oid, version, length=1, filter=None):
+        """XXX"""
+    
+    def new_oid(last=None):
+        """XXX"""
+        
+    def set_max_oid(possible_new_max_oid):
+        """XXX"""
+
+    def registerDB(db, limit):
+        """XXX"""
+    
+    def isReadOnly():
+        """XXX"""
+    
+    def supportsUndo():
+        """XXX"""
+    
+    def supportsVersions():
+        """XXX"""
+
+    def tpc_abort(transaction):
+        """XXX"""
+        
+    def tpc_begin(transaction):
+        """XXX"""
+
+    def tpc_vote(transaction):
+        """XXX"""
+
+    def tpc_finish(transaction, f=None):
+        """XXX"""
+
+    def getSerial(oid):
+        """XXX"""
+    
+    def loadSerial(oid, serial):
+        """XXX"""
+
+    def loadBefore(oid, tid):
+        """XXX"""
+
+    def getExtensionMethods():
+        """XXX"""
+
+    def copyTransactionsFrom():
+        """XXX"""
+
+    def store(oid, oldserial, data, version, transaction):
+        """
+
+        may return the new serial or not
+        """
+
+class IUndoableStorage(IStorage):
+
+    def undo(transaction_id, txn):
+        """XXX"""
+    
+    def undoInfo():
+        """XXX"""
+    
+    def undoLog(first, last, filter=None):
+        """XXX"""
+    
+    def pack(t, referencesf):
+        """XXX"""
+
+class IVersioningStorage(IStorage):
+
+    def abortVersion(src, transaction):
+        """XXX"""
+    
+    def commitVersion(src, dest, transaction):
+        """XXX"""
+    
+    def modifiedInVersion(oid):
+        """XXX"""
+    
+    def versionEmpty(version):
+        """XXX"""
+    
+    def versions(max=None):
+        """XXX"""
 
