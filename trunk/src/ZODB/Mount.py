@@ -84,8 +84,8 @@
 ##############################################################################
 """Mounted database support
 
-$Id: Mount.py,v 1.9 2001/01/12 20:57:01 shane Exp $"""
-__version__='$Revision: 1.9 $'[11:-2]
+$Id: Mount.py,v 1.10 2001/01/31 16:30:49 shane Exp $"""
+__version__='$Revision: 1.10 $'[11:-2]
 
 import thread, Persistence, Acquisition
 import ExtensionClass, string, time, sys
@@ -238,6 +238,7 @@ class MountPoint(Persistence.Persistent, Acquisition.Implicit):
             self._v_connect_error = None
             conn = None
             newMount = 0
+            mcc = None
             try:
                 conn, newMount, mcc = self._openMountableConnection(parent)
                 data = self._getObjectFromConnection(conn)
