@@ -14,45 +14,23 @@
 
 _marker = []
 
-def importer(name):
-    components = name.split('.')
-    start = components[0]
-    g = globals()
-    package = __import__(start, g, g)
-    modulenames = [start]
-    for component in components[1:]:
-        modulenames.append(component)
-        try:
-            package = getattr(package, component)
-        except AttributeError:
-            name = '.'.join(modulenames)
-            package = __import__(name, g, g, component)
-    return package
-
 class Factory:
-    """
-    A generic wrapper for instance construction and function calling used
-    to delay construction/call until necessary.  The class path is the dotted
-    name to the class or function, args are the positional args, kw are the
-    keyword args. If it is specified, 'callback' is a function which will be
-    called back after constructing an instance or calling a function.  It must
-    take the instance (or the result of the function) as a single argument.
-    """
-    def __init__(self, class_path, callback, *args, **kw):
-        self.class_path = class_path
-        self.callback = callback
-        self.args = args
-        self.kw = kw
-        self.instance = _marker
+    """Generic wrapper for instance construction.
 
-    def __repr__(self):
-        return ('<Factory instance for class "%s" with positional args "%s" '
-                'and keword args "%s"' % (self.class_path, self.args, self.kw))
+    Calling the factory causes the instance to be created if it hasn't
+    already been created, and returns the object.  Calling the factory
+    multiple times returns the same object.
+
+    The instance is created using the factory's create() method, which
+    must be overriden by subclasses.
+    """
+    def __init__(self):
+        self.instance = _marker
 
     def __call__(self):
         if self.instance is _marker:
-            constructor = importer(self.class_path)
-            self.instance = constructor(*self.args, **self.kw)
-            if self.callback is not None:
-                self.callback(self.instance)
+            self.instance = self.create()
         return self.instance
+
+    def create(self):
+        raise NotImplementedError("subclasses need to override create()")
