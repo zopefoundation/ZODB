@@ -13,7 +13,7 @@
 ##############################################################################
 """Start the server storage.
 
-$Id: start.py,v 1.37 2002/07/25 23:08:33 jeremy Exp $
+$Id: start.py,v 1.38 2002/08/01 18:50:28 jeremy Exp $
 """
 from __future__ import nested_scopes
 
@@ -30,7 +30,7 @@ def directory(p, n=1):
     return d
 
 def get_storage(m, n, cache={}):
-    p=sys.path
+    p = sys.path
     d, m = os.path.split(m)
     if m.endswith('.py'):
         m = m[:-3]
@@ -102,6 +102,8 @@ def main(argv):
 
     global LOG, INFO, ERROR
     from zLOG import LOG, INFO, ERROR, PANIC
+    from ZEO.util import Environment
+    env = Environment(me)
 
     # XXX hack for profiling support
     global unix, storages, zeo_pid, asyncore
@@ -115,23 +117,6 @@ def main(argv):
             continue
         args.append(a)
         last = a
-
-    if os.environ.has_key('INSTANCE_HOME'):
-        INSTANCE_HOME = os.environ['INSTANCE_HOME']
-    elif os.path.isdir(os.path.join(directory(me, 4),'var')):
-        INSTANCE_HOME = directory(me, 4)
-    else:
-        INSTANCE_HOME = os.getcwd()
-
-    if os.path.isdir(os.path.join(INSTANCE_HOME, 'var')):
-        var = os.path.join(INSTANCE_HOME, 'var')
-    else:
-        var = INSTANCE_HOME
-
-    zeo_pid = os.environ.get('ZEO_SERVER_PID',
-                             os.path.join(var, 'ZEO_SERVER.pid'))
-
-    fs = os.path.join(var, 'Data.fs')
 
     usage="""%s [options] [filename]
 
@@ -175,7 +160,7 @@ def main(argv):
           -s flag.
 
     if no file name is specified, then %s is used.
-    """ % (me, fs)
+    """ % (me, env.fs)
 
     try:
         opts, args = getopt.getopt(args, 'p:Dh:U:sS:u:P:d')
@@ -192,6 +177,7 @@ def main(argv):
     UID = 'nobody'
     prof = None
     detailed = 0
+    fs = None
     for o, v in opts:
         if o =='-p':
             port = int(v)
@@ -225,7 +211,6 @@ def main(argv):
             sys.exit(1)
         fs = args[0]
 
-##    __builtins__.__debug__ = debug
     if debug:
         os.environ['Z_DEBUG_MODE'] = '1'
     if detailed:
@@ -259,8 +244,8 @@ def main(argv):
                 storages[n]=get_storage(m,a)
 
         if not storages:
-            import ZODB.FileStorage
-            storages['1']=ZODB.FileStorage.FileStorage(fs)
+            from ZODB.FileStorage import FileStorage
+            storages['1'] = FileStorage(fs or env.fs)
 
         # Try to set up a signal handler
         setup_signals(storages)
@@ -280,7 +265,7 @@ def main(argv):
         except:
             pass # getpid not supported
         else:
-            open(zeo_pid,'w').write("%s %s" % (ppid, pid))
+            open(env.zeo_pid,'w').write("%s %s" % (ppid, pid))
             
     except:
         # Log startup exception and tell zdaemon not to restart us.
@@ -324,6 +309,7 @@ def rotate_logs_handler(signum, frame):
     signal.signal(signal.SIGHUP, rotate_logs_handler)
 
 def shutdown(storages, die=1):
+    LOG("ZEO Server", INFO, "Received signal")
     import asyncore
 
     # Do this twice, in case we got some more connections
@@ -343,7 +329,6 @@ def shutdown(storages, die=1):
             pass
 
     try:
-        from zLOG import LOG, INFO
         s = die and "shutdown" or "restart"
         LOG('ZEO Server', INFO, "Shutting down (%s)" % s)
     except:
