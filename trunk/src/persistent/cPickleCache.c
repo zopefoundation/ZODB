@@ -1,6 +1,6 @@
 /*
 
-  $Id: cPickleCache.c,v 1.14 1998/02/05 14:43:10 jim Exp $
+  $Id: cPickleCache.c,v 1.15 1998/07/27 13:09:03 jim Exp $
 
   C implementation of a pickle jar cache.
 
@@ -12,7 +12,7 @@
        rights reserved.
 
 ***************************************************************************/
-static char *what_string = "$Id: cPickleCache.c,v 1.14 1998/02/05 14:43:10 jim Exp $";
+static char *what_string = "$Id: cPickleCache.c,v 1.15 1998/07/27 13:09:03 jim Exp $";
 
 #define ASSIGN(V,E) {PyObject *__e; __e=(E); Py_XDECREF(V); (V)=__e;}
 #define UNLESS(E) if(!(E))
@@ -25,7 +25,7 @@ static char *what_string = "$Id: cPickleCache.c,v 1.14 1998/02/05 14:43:10 jim E
 
 #undef Py_FindMethod
 
-static PyObject *py_reload, *py__p_jar, *py__p_atime, *py__p___reinit__;
+static PyObject *py_reload, *py__p_jar, *py__p_atime, *py__p_deactivate;
 
 
 /* Declarations for objects of type cCache */
@@ -103,7 +103,7 @@ gc_item(ccobject *self, PyObject *key, PyObject *v, time_t now, time_t dt)
 		      if(((cPersistentObject*)v)->state !=
 			 cPersistent_UPTODATE_STATE) return 0;
 		      self->sum_deac++;
-		      if(key=PyObject_GetAttr(v,py__p___reinit__))
+		      if(key=PyObject_GetAttr(v,py__p_deactivate))
 			{
 			  ASSIGN(key,PyObject_CallObject(key,NULL));
 			  UNLESS(key) return -1;
@@ -631,7 +631,7 @@ void
 initcPickleCache()
 {
   PyObject *m, *d;
-  char *rev="$Revision: 1.14 $";
+  char *rev="$Revision: 1.15 $";
 
   Cctype.ob_type=&PyType_Type;
 
@@ -648,7 +648,7 @@ initcPickleCache()
   py_reload=PyString_FromString("reload");
   py__p_jar=PyString_FromString("_p_jar");
   py__p_atime=PyString_FromString("_p_atime");
-  py__p___reinit__=PyString_FromString("_p___reinit__");
+  py__p_deactivate=PyString_FromString("_p_deactivate");
 
   PyDict_SetItemString(d,"__version__",
 		       PyString_FromStringAndSize(rev+11,strlen(rev+11)-2));
@@ -661,6 +661,9 @@ initcPickleCache()
 
 /******************************************************************************
  $Log: cPickleCache.c,v $
+ Revision 1.15  1998/07/27 13:09:03  jim
+ Changed _p___reinit__ to _p_deactivate.
+
  Revision 1.14  1998/02/05 14:43:10  jim
  Fixed bug in ibcremental gc method.
 
