@@ -233,6 +233,9 @@ class CacheErrors(unittest.TestCase):
 
         o = StubObject()
         # o._p_oid == None
+        self.assertRaises(TypeError, add, key, o)
+
+        o._p_oid = p64(3)
         self.assertRaises(ValueError, add, key, o)
 
         o._p_oid = key

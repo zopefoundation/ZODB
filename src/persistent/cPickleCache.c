@@ -88,7 +88,7 @@ process must skip such objects, rather than deactivating them.
 static char cPickleCache_doc_string[] =
 "Defines the PickleCache used by ZODB Connection objects.\n"
 "\n"
-"$Id: cPickleCache.c,v 1.61 2002/04/17 17:18:37 htrd Exp $\n";
+"$Id: cPickleCache.c,v 1.62 2002/04/18 09:16:24 htrd Exp $\n";
 
 #define ASSIGN(V,E) {PyObject *__e; __e=(E); Py_XDECREF(V); (V)=__e;}
 #define UNLESS(E) if(!(E))
@@ -786,7 +786,7 @@ static int
 cc_add_item(ccobject *self, PyObject *key, PyObject *v)
 {
     int result;
-    PyObject *oid, *object_again;
+    PyObject *oid, *object_again, *jar;
     cPersistentObject *p;
 
     if (PyExtensionClass_Check(v)) {
@@ -810,8 +810,15 @@ cc_add_item(ccobject *self, PyObject *key, PyObject *v)
     oid = PyObject_GetAttr(v, py__p_oid);
     if (oid == NULL)
 	return -1;
-    /* XXX key and oid should both be PyString objects.
-       May be helpful to check this. */
+    if (!PyString_Check(oid)) {
+        PyErr_Format(PyExc_TypeError,
+                     "Cached object oid must be a string, not a %s",
+		     oid->ob_type->tp_name);
+	return -1;
+    }
+    /*  we know they are both strings.
+     *  now check if they are the same string.
+     */
     result = PyObject_Compare(key, oid);
     if (PyErr_Occurred()) {
 	Py_DECREF(oid);
@@ -819,11 +826,20 @@ cc_add_item(ccobject *self, PyObject *key, PyObject *v)
     } 
     Py_DECREF(oid);
     if (result) {
-	PyErr_SetString(PyExc_ValueError, "cache key does not match oid");
+	PyErr_SetString(PyExc_ValueError, "Cache key does not match oid");
 	return -1;
     }
 
-    /* XXX check that object has valid _p_jar? */
+    /* useful sanity check, but not strictly an invariant of this class */
+    jar = PyObject_GetAttr(v, py__p_jar);
+    if (jar == NULL)
+        return -1;
+    Py_DECREF(jar);
+    if (jar==Py_None) {
+        PyErr_SetString(PyExc_ValueError,
+                        "Cached object jar missing");
+	return -1;
+    }
 
     object_again = object_from_oid(self, key);
     if (object_again) {
