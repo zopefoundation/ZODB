@@ -2,27 +2,25 @@
 #
 # Copyright (c) 2001, 2002 Zope Corporation and Contributors.
 # All Rights Reserved.
-# 
+#
 # This software is subject to the provisions of the Zope Public License,
 # Version 2.0 (ZPL).  A copy of the ZPL should accompany this distribution.
 # THIS SOFTWARE IS PROVIDED "AS IS" AND ANY AND ALL EXPRESS OR IMPLIED
 # WARRANTIES ARE DISCLAIMED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 # WARRANTIES OF TITLE, MERCHANTABILITY, AGAINST INFRINGEMENT, AND FITNESS
 # FOR A PARTICULAR PURPOSE
-# 
+#
 ##############################################################################
 
-__version__ = '$Id: testBTreesUnicode.py,v 1.6 2002/02/11 23:40:40 gvanrossum Exp $'
+__version__ = '$Id: testBTreesUnicode.py,v 1.7 2002/06/08 19:40:13 tim_one Exp $'
 
 import unittest,types
 from BTrees.OOBTree import OOBTree
 
-
-# When a OOBtree contains unicode strings as keys,
+# When an OOBtree contains unicode strings as keys,
 # it is neccessary accessing non-unicode strings are
 # either ascii strings or encoded as unicoded using the
 # corresponding encoding
-
 
 encoding = 'ISO-8859-1'
 
@@ -30,48 +28,45 @@ class TestBTreesUnicode(unittest.TestCase):
     """ test unicode"""
 
     def setUp(self):
-        """ setup an OOBTree with some unicode strings """
+        """setup an OOBTree with some unicode strings"""
 
-        self.s = unicode('dreit\xe4gigen','latin1')
+        self.s = unicode('dreit\xe4gigen', 'latin1')
 
-        self.data = [('alien', 284708388), 
-                ('k\xf6nnten', 284708389),
-                ('fox', 284708387), 
-                ('future', 284708388), 
-                ('quick', 284708387), 
-                ('zerst\xf6rt', 284708389), 
-                (unicode('dreit\xe4gigen','latin1'), 284708391)
-                ]
+        self.data = [('alien', 1),
+                     ('k\xf6nnten', 2),
+                     ('fox', 3),
+                     ('future', 4),
+                     ('quick', 5),
+                     ('zerst\xf6rt', 6),
+                     (unicode('dreit\xe4gigen','latin1'), 7),
+                    ]
 
         self.tree = OOBTree()
-        for k,v in self.data:
-            if isinstance(k,types.StringType):
-                self.tree[unicode(k,'latin1')]=v
-            else:
-                self.tree[k]=v
-
-
-
-    def test1(self):
-        """ check every item of the tree """
-
         for k, v in self.data:
-            if isinstance(k,types.StringType):
-                key = unicode(k,encoding)
-            else:
-                key = k
+            if isinstance(k, types.StringType):
+                k = unicode(k, 'latin1')
+            self.tree[k] = v
 
-            if self.tree[key]!=v:
-                print "fehler"
+    def testAllKeys(self):
+        # check every item of the tree
+        for k, v in self.data:
+            if isinstance(k, types.StringType):
+                k = unicode(k, encoding)
+            self.assert_(self.tree.has_key(k))
+            self.assertEqual(self.tree[k], v)
 
+    def testUnicodeKeys(self):
+        # try to access unicode keys in tree
+        k, v = self.data[-1]
+        self.assertEqual(k, self.s)
+        self.assertEqual(self.tree[k], v)
+        self.assertEqual(self.tree[self.s], v)
 
-    def test2(self):
-        """ try to access unicode keys in tree"""
-
-        assert self.data[-1][0]== self.s
-        assert self.tree[self.data[-1][0]]== self.data[-1][1]
-        assert self.tree[self.s]== self.data[-1][1],''
-
+    def testAsciiKeys(self):
+        # try to access some "plain ASCII" keys in the tree
+        for k, v in self.data[0], self.data[2]:
+            self.assert_(isinstance(k, types.StringType))
+            self.assertEqual(self.tree[k], v)
 
 def test_suite():
     return unittest.makeSuite(TestBTreesUnicode)
@@ -81,4 +76,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
