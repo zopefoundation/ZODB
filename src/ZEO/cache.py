@@ -13,13 +13,13 @@
 ##############################################################################
 """Disk-based client cache for ZEO.
 
-ClientCache exposes an API used by the ZEO client storage.  FileCache
-stores objects one disk using a 2-tuple of oid and tid as key.
+ClientCache exposes an API used by the ZEO client storage.  FileCache stores
+objects on disk using a 2-tuple of oid and tid as key.
 
-The upper cache's API is similar to a storage API with methods like
-load(), store(), and invalidate().  It manages in-memory data
-structures that allow it to map this richer API onto the simple
-key-based API of the lower-level cache.
+The upper cache's API is similar to a storage API with methods like load(),
+store(), and invalidate().  It manages in-memory data structures that allow
+it to map this richer API onto the simple key-based API of the lower-level
+cache.
 """
 
 import bisect
@@ -55,8 +55,8 @@ from ZODB.utils import z64, u64
 # <p>
 # When the client is connected to the server, it receives
 # invalidations every time an object is modified.  Whe the client is
-# disconnected, it must perform cache verification to make sure its
-# cached data is synchronized with the storage's current state.
+# disconnected then reconnect, it must perform cache verification to make
+# sure its cached data is synchronized with the storage's current state.
 # <p>
 # quick verification
 # full verification
@@ -422,18 +422,49 @@ class ClientCache:
 # in the header used by the cache's storage format.
 
 class Object(object):
-    __slots__ = (# pair, object id, txn id -- something usable as a dict key
-                 # the second part of the part is equal to start_tid below
+    __slots__ = (# pair (object id, txn id) -- something usable as a dict key;
+                 # the second part of the pair is equal to start_tid
                  "key",
 
-                 "start_tid", # string, id of txn that wrote the data
-                 "end_tid", # string, id of txn that wrote next revision
-                            # or None
-                 "version", # string, name of version
-                 "data", # string, the actual data record for the object
+                 # string, tid of txn that wrote the data
+                 "start_tid",
 
-                 "size", # total size of serialized object
+                 # string, tid of txn that wrote next revision, or None
+                 # if the data is current; if not None, end_tid is strictly
+                 # greater than start_tid
+                 "end_tid",
+
+                 # string, name of version
+                 "version",
+
+                 # string, the actual data record for the object
+                 "data",
+
+                 # total size of serialized object; this includes the
+                 # data, version, and all overhead (header) bytes.
+                 "size",
                 )
+
+    # A serialized Object on disk looks like:
+    #
+    #         offset                # bytes   value
+    #         ------                -------   -----
+    #              0                      8   end_tid; string
+    #              8                      2   len(version); 2-byte signed int
+    #             10                      4   len(data); 4-byte signed int
+    #             14           len(version)   version; string
+    # 14+len(version)             len(data)   the object pickle; string
+    # 14+len(version)+
+    #       len(data)                     8   oid; string
+
+    # The serialization format uses an end tid of "\0" * 8 (z64), the least
+    # 8-byte string, to represent None.  It isn't possible for an end_tid
+    # to be 0, because it must always be strictly greater than the start_tid.
+
+    fmt = ">8shi"  # end_tid, len(self.version), len(self.data)
+    FIXED_HEADER_SIZE = struct.calcsize(fmt)
+    assert FIXED_HEADER_SIZE == 14
+    TOTAL_FIXED_SIZE = FIXED_HEADER_SIZE + 8  # +8 for the oid at the end
 
     def __init__(self, key, version, data, start_tid, end_tid):
         self.key = key
@@ -441,60 +472,68 @@ class Object(object):
         self.data = data
         self.start_tid = start_tid
         self.end_tid = end_tid
-        # The size of a the serialized object on disk, include the
-        # 14-byte header, the length of data and version, and a
+        # The size of a the serialized object on disk, including the
+        # 14-byte header, the lengths of data and version, and a
         # copy of the 8-byte oid.
         if data is not None:
-            self.size = 22 + len(data) + len(version)
+            self.size = self.TOTAL_FIXED_SIZE + len(data) + len(version)
 
-    # The serialization format uses an end tid of "\0" * 8, the least
-    # 8-byte string, to represent None.  It isn't possible for an
-    # end_tid to be 0, because it must always be strictly greater
-    # than the start_tid.
-
-    fmt = ">8shi"
+    def get_header(self):
+        # Return just the fixed-size serialization header.
+        return struct.pack(self.fmt,
+                           self.end_tid or z64,
+                           len(self.version),
+                           len(self.data))
 
     def serialize(self, f):
-        # Write standard form of Object to file, f.
-        self.serialize_header(f)
-        f.write(self.data)
-        f.write(self.key[0])
+        # Write standard form of Object to file f.
+        f.writelines([self.get_header(),
+                      self.version,
+                      self.data,
+                      self.key[0]])
 
     def serialize_header(self, f):
-        s = struct.pack(self.fmt, self.end_tid or "\0" * 8,
-                        len(self.version), len(self.data))
-        f.write(s)
-        f.write(self.version)
+        # Write the fixed-sized serialization header, + the version.
+        # Why is the version part of this?
+        f.writelines([self.get_header(), self.version])
 
+    # fromFile is a class constructor, unserializing an Object from the
+    # current position in file f.  Exclusive access to f for the duration
+    # is assumed.  The key is a (start_tid, oid) pair, and the oid must
+    # match the serialized oid.  If header_only is true, .data is left
+    # None in the Object returned.
     def fromFile(cls, f, key, header_only=False):
-        s = f.read(struct.calcsize(cls.fmt))
+        s = f.read(cls.FIXED_HEADER_SIZE)
         if not s:
             return None
         oid, start_tid = key
+
         end_tid, vlen, dlen = struct.unpack(cls.fmt, s)
         if end_tid == z64:
             end_tid = None
+
         version = f.read(vlen)
         if vlen != len(version):
             raise ValueError("corrupted record, version")
+
         if header_only:
             data = None
+            f.seek(dlen, 1)
         else:
             data = f.read(dlen)
             if dlen != len(data):
                 raise ValueError("corrupted record, data")
-            s = f.read(8)
-            if s != oid:
-                raise ValueError("corrupted record, oid")
+
+        s = f.read(8)
+        if s != oid:
+            raise ValueError("corrupted record, oid")
+
         return cls((oid, start_tid), version, data, start_tid, end_tid)
 
     fromFile = classmethod(fromFile)
 
-def sync(f):
-    f.flush()
-    if hasattr(os, 'fsync'):
-        os.fsync(f.fileno())
 
+# Entry just associates a key with a file offset.  It's used by FileCache.
 class Entry(object):
     __slots__ = (# object key -- something usable as a dict key.
                  'key',
@@ -513,9 +552,6 @@ class Entry(object):
         self.offset = offset
 
 
-magic = "ZEC3"
-
-OBJECT_HEADER_SIZE = 1 + 4 + 16
 
 ##
 # FileCache stores a cache in a single on-disk file.
@@ -525,9 +561,12 @@ OBJECT_HEADER_SIZE = 1 + 4 + 16
 # The file begins with a 12-byte header.  The first four bytes are the
 # file's magic number - ZEC3 - indicating zeo cache version 3.  The
 # next eight bytes are the last transaction id.
-#
-# The file is a contiguous sequence of blocks.  All blocks begin with
-# a one-byte status indicator:
+
+magic = "ZEC3"
+ZEC3_HEADER_SIZE = 12
+
+# After the header, the file contains a contiguous sequence of blocks.  All
+# blocks begin with a one-byte status indicator:
 #
 # 'a'
 #       Allocated.  The block holds an object; the next 4 bytes are >I
@@ -539,10 +578,6 @@ OBJECT_HEADER_SIZE = 1 + 4 + 16
 #
 # '1', '2', '3', '4'
 #       The block is free, and consists of 1, 2, 3 or 4 bytes total.
-#
-# 'Z'
-#       File header.  The file starts with a magic number, currently
-#       'ZEC3' and an 8-byte transaction id.
 #
 # "Total" includes the status byte, and size bytes.  There are no
 # empty (size 0) blocks.
@@ -556,6 +591,8 @@ OBJECT_HEADER_SIZE = 1 + 4 + 16
 #     16 bytes oid + tid, string.
 #     size-OBJECT_HEADER_SIZE bytes, the object pickle.
 
+OBJECT_HEADER_SIZE = 1 + 4 + 16
+
 # The cache's currentofs goes around the file, circularly, forever.
 # It's always the starting offset of some block.
 #
@@ -564,10 +601,14 @@ OBJECT_HEADER_SIZE = 1 + 4 + 16
 # blocks needed to make enough room for the new object are evicted,
 # starting at currentofs.  Exception:  if currentofs is close enough
 # to the end of the file that the new object can't fit in one
-# contiguous chunk, currentofs is reset to 0 first.
+# contiguous chunk, currentofs is reset to ZEC3_HEADER_SIZE first.
 
-# Do all possible to ensure that the bytes we wrote are really on
+# Do all possible to ensure that the bytes we wrote to file f are really on
 # disk.
+def sync(f):
+    f.flush()
+    if hasattr(os, 'fsync'):
+        os.fsync(f.fileno())
 
 class FileCache(object):
 
@@ -598,13 +639,13 @@ class FileCache(object):
         # Always the offset into the file of the start of a block.
         # New and relocated objects are always written starting at
         # currentofs.
-        self.currentofs = 12
+        self.currentofs = ZEC3_HEADER_SIZE
 
         self.fpath = fpath
         if not reuse or not fpath or not os.path.exists(fpath):
             self.new = True
             if fpath:
-                self.f = file(fpath, 'wb+')
+                self.f = open(fpath, 'wb+')
             else:
                 self.f = tempfile.TemporaryFile()
             # Make sure the OS really saves enough bytes for the file.
@@ -616,9 +657,11 @@ class FileCache(object):
             self.f.write(magic)
             self.f.write(z64)
             # and one free block.
-            self.f.write('f' + struct.pack(">I", self.maxsize - 12))
+            self.f.write('f' + struct.pack(">I", self.maxsize -
+                                                 ZEC3_HEADER_SIZE))
             self.sync()
-            self.filemap[12] = self.maxsize - 12, None
+            self.filemap[ZEC3_HEADER_SIZE] = (self.maxsize - ZEC3_HEADER_SIZE,
+                                              None)
         else:
             self.new = False
             self.f = None
@@ -635,7 +678,7 @@ class FileCache(object):
         if self.new:
             return
         fsize = os.path.getsize(self.fpath)
-        self.f = file(self.fpath, 'rb+')
+        self.f = open(self.fpath, 'rb+')
         _magic = self.f.read(4)
         if _magic != magic:
             raise ValueError("unexpected magic number: %r" % _magic)
@@ -643,7 +686,7 @@ class FileCache(object):
         # Remember the largest free block.  That seems a
         # decent place to start currentofs.
         max_free_size = max_free_offset = 0
-        ofs = 12
+        ofs = ZEC3_HEADER_SIZE
         while ofs < fsize:
             self.f.seek(ofs)
             ent = None
@@ -717,7 +760,7 @@ class FileCache(object):
     def _makeroom(self, nbytes):
         assert 0 < nbytes <= self.maxsize
         if self.currentofs + nbytes > self.maxsize:
-            self.currentofs = 12
+            self.currentofs = ZEC3_HEADER_SIZE
         ofs = self.currentofs
         while nbytes > 0:
             size, e = self.filemap.pop(ofs)
@@ -780,7 +823,7 @@ class FileCache(object):
         self._writeobj(object, available)
 
     def _verify_filemap(self, display=False):
-        a = 12
+        a = ZEC3_HEADER_SIZE
         f = self.f
         while a < self.maxsize:
             f.seek(a)
@@ -859,7 +902,6 @@ class FileCache(object):
     # This method should be called when the object header is modified.
 
     def update(self, obj):
-
         e = self.key2entry[obj.key]
         self.f.seek(e.offset + OBJECT_HEADER_SIZE)
         obj.serialize_header(self.f)
@@ -869,6 +911,7 @@ class FileCache(object):
             raise ValueError("new last tid (%s) must be greater than "
                              "previous one (%s)" % (u64(tid),
                                                     u64(self.tid)))
+        assert isinstance(tid, str) and len(tid) == 8
         self.tid = tid
         self.f.seek(4)
         self.f.write(tid)
