@@ -97,7 +97,7 @@ with '\0\0\0\0'.
 If var is not writable, then temporary files are used for
 file 0 and file 1.
 
-$Id: ClientCache.py,v 1.33 2002/09/04 18:06:44 jeremy Exp $
+$Id: ClientCache.py,v 1.34 2002/09/04 18:09:14 jeremy Exp $
 """
 
 import os
@@ -311,7 +311,7 @@ class ClientCache:
             v = vheader[:-4]
             if version != v:
                 if dlen:
-                    seek(p+27)
+                    seek(ap+27)
                     data = read(dlen)
                     self._trace(0x2C, oid, version, h[19:], dlen)
                     return data, h[19:]
