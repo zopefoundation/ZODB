@@ -15,16 +15,14 @@
 static char TimeStamp_module_documentation[] = 
 "Defines 64-bit TimeStamp objects used as ZODB serial numbers.\n"
 "\n"
-"\n$Id: TimeStamp.c,v 1.16 2002/10/07 17:54:27 gvanrossum Exp $\n";
+"\n$Id: TimeStamp.c,v 1.17 2002/11/13 16:32:03 jeremy Exp $\n";
 
-#include <stdlib.h>
-#include <time.h>
 #ifdef USE_EXTENSION_CLASS
 #include "ExtensionClass.h"
 #else
 #include "Python.h"
 #endif
-
+#include <time.h>
 
 /* ----------------------------------------------------- */
 
