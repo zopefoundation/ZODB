@@ -73,7 +73,7 @@ class StorageServer:
         return self.rpc.call('commitVersion', src, dest, id)
 
     def history(self, oid, version, length=None):
-        if length is not None:
+        if length is None:
             return self.rpc.call('history', oid, version)
         else:
             return self.rpc.call('history', oid, version, length)
