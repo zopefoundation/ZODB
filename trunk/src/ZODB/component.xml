@@ -2,11 +2,11 @@
 
   <!-- XXX needs descriptions for everything -->
 
-  <abstracttype name="storage"/>
-  <abstracttype name="database"/>
+  <abstracttype name="ZODB.storage"/>
+  <abstracttype name="ZODB.database"/>
 
   <sectiontype name="filestorage" datatype=".FileStorage"
-               implements="storage">
+               implements="ZODB.storage">
     <key name="path" required="yes">
       <description>
         Path name to the main storage file.  The names for
@@ -38,7 +38,7 @@
   </sectiontype>
 
   <sectiontype name="mappingstorage" datatype=".MappingStorage"
-               implements="storage">
+               implements="ZODB.storage">
     <key name="name" default="Mapping Storage"/>
   </sectiontype>
 
@@ -46,7 +46,7 @@
        The extension relationship seems a little odd.
     -->
   <sectiontype name="fullstorage" datatype=".BDBFullStorage"
-               implements="storage">
+               implements="ZODB.storage">
     <key name="name" required="yes" />
     <key name="interval" datatype="time-interval" default="2m" />
     <key name="kbyte" datatype="integer" default="0" />
@@ -60,10 +60,10 @@
   </sectiontype>
 
   <sectiontype name="minimalstorage" datatype=".BDBMinimalStorage"
-               implements="storage" extends="fullstorage"/>
+               implements="ZODB.storage" extends="fullstorage"/>
 
   <sectiontype name="zeoclient" datatype=".ZEOClient"
-               implements="storage">
+               implements="ZODB.storage">
     <multikey name="server" datatype="socket-address" required="yes"/>
     <key name="storage" default="1"/>
     <key name="cache-size" datatype="integer" default="20000000"/>
@@ -78,16 +78,16 @@
   </sectiontype>
 
   <sectiontype name="demostorage" datatype=".DemoStorage"
-               implements="storage">
+               implements="ZODB.storage">
     <key name="name" default="Demo Storage"/>
-    <section type="storage" name="*" attribute="base"/>
+    <section type="ZODB.storage" name="*" attribute="base"/>
     <key name="quota" datatype="integer"/>
   </sectiontype>
 
 
   <sectiontype name="zodb" datatype=".ZODBDatabase"
-               implements="database">
-    <section type="storage" name="*" attribute="storage"/>
+               implements="ZODB.database">
+    <section type="ZODB.storage" name="*" attribute="storage"/>
     <key name="cache-size" datatype="integer" default="5000"/>
     <key name="pool-size" datatype="integer" default="7"/>
     <key name="version-pool-size" datatype="integer" default="3"/>
