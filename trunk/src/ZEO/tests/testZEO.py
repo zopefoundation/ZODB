@@ -172,6 +172,7 @@ class GenericTests(ZEOTestBase,
     def tearDown(self):
         """Try to cause the tests to halt"""
         self.running = 0
+        self._storage.status()
         self._storage.close()
         self._server.close()
         os.waitpid(self._pid, 0)
@@ -218,6 +219,7 @@ class GenericTests(ZEOTestBase,
         oid = self._storage.new_oid()
         self._storage.store(oid, None, '', '', t)
         self._storage.tpc_vote(t)
+        self._storage.status()
         self._storage.tpc_finish(t)
 
         for store, trans in self._storages:
@@ -237,7 +239,7 @@ class GenericTests(ZEOTestBase,
     def _get_timestamp(self):
         t = time.time()
         t = apply(TimeStamp,(time.gmtime(t)[:5]+(t%60,)))
-        return 't'
+        return `t`
 
 class ZEOFileStorageTests(GenericTests):
     __super_setUp = GenericTests.setUp

@@ -14,7 +14,7 @@
 """Simple rpc mechanisms
 """
 
-__version__ = "$Revision: 1.22 $"[11:-2]
+__version__ = "$Revision: 1.23 $"[11:-2]
 
 from cPickle import loads
 import cPickle
@@ -61,13 +61,13 @@ class asyncRPC(SizedMessageAsyncConnection):
         self.__call_la=l.acquire
         self.__call_lr=l.release
 
-    def connect(self, tryonce=1, log_type='client'):
+    def connect(self, tryonce=1):
         t=self._tmin
         connection = self._connection
         debug=self._debug
         while self.__closed == 0:
-            if log_type: LOG(log_type, INFO,
-                             'Trying to connect to server: %s' % `connection`)
+            LOG("client", INFO,
+                'Trying to connect to server: %s' % `connection`)
             try:
                 if type(connection) is type(''):
                     s=socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
@@ -75,15 +75,15 @@ class asyncRPC(SizedMessageAsyncConnection):
                     s=socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 s.connect(connection)    
             except Exception, err:
-                if debug:
-                    LOG(debug, DEBUG, "Failed to connect to server: %s" % err)
+                if debug is not None:
+                    debug.blather("Failed to connect to server: %s" % err)
                 if tryonce: return 0
                 time.sleep(t)
                 t=t*2
                 if t > self._tmax: t=self._tmax
             else:
-                if debug:
-                    LOG(debug, DEBUG, "Connected to server")
+                if debug is not None:
+                    debug.blather("Connected to server")
                     
                 # Make sure the result lock is set, se we don't
                 # get an old result (e.g. the exception that
@@ -199,12 +199,12 @@ class asyncRPC(SizedMessageAsyncConnection):
         self._outOfBand=f
 
     def message_input(self, m):
-        if self._debug:
+        if self._debug is not None:
             if len(m) > 60:
                 md = repr(m[:60]) + ' ...'
             else:
                 md = repr(m)
-            LOG(self._debug, TRACE, 'message_input %s' % md)
+            self._debug.trace('message_input %s' % md)
 
         c=m[:1]
         if c in 'RE':

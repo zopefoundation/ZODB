@@ -15,7 +15,7 @@
 """Start the server storage.
 """
 
-__version__ = "$Revision: 1.30 $"[11:-2]
+__version__ = "$Revision: 1.31 $"[11:-2]
 
 import sys, os, getopt, string
 
@@ -75,11 +75,9 @@ def main(argv):
                            os.path.join(var, 'ZEO_SERVER.pid')
                            )
 
-    opts, args = getopt.getopt(args, 'p:Ddh:U:sS:u:')
+    fs = os.path.join(var, 'Data.fs')
 
-    fs=os.path.join(var, 'Data.fs')
-
-    usage="""%s [options] [filename]
+    usage = """%s [options] [filename]
 
     where options are:
 
@@ -120,6 +118,13 @@ def main(argv):
 
     if no file name is specified, then %s is used.
     """ % (me, fs)
+
+    try:
+        opts, args = getopt.getopt(args, 'p:Ddh:U:sS:u:')
+    except getopt.error, err:
+        print err
+        print usage
+        sys.exit(1)
 
     port=None
     debug=detailed=0
@@ -217,15 +222,15 @@ def main(argv):
             import signal
 
             signal.signal(signal.SIGTERM,
-                          lambda sig, frame, s=storages: shutdown(s)
-                          )
+                          lambda sig, frame, s=storages: shutdown(s))
             signal.signal(signal.SIGINT,
-                          lambda sig, frame, s=storages: shutdown(s, 0)
-                          )
-            try: signal.signal(signal.SIGHUP, rotate_logs_handler)
-            except: pass
-
-        except: pass
+                          lambda sig, frame, s=storages: shutdown(s, 0))
+            try:
+                signal.signal(signal.SIGHUP, rotate_logs_handler)
+            except:
+                pass
+        except:
+            pass
 
         items=storages.items()
         items.sort()
@@ -236,13 +241,16 @@ def main(argv):
 
         ZEO.StorageServer.StorageServer(unix, storages)
 
-        try: ppid, pid = os.getppid(), os.getpid()
-        except: pass # getpid not supported
-        else: open(zeo_pid,'w').write("%s %s" % (ppid, pid))
+        try:
+            ppid, pid = os.getppid(), os.getpid()
+        except:
+            pass # getpid not supported
+        else:
+            open(zeo_pid,'w').write("%s %s" % (ppid, pid))
 
     except:
         # Log startup exception and tell zdaemon not to restart us.
-        info=sys.exc_info()
+        info = sys.exc_info()
         try:
             import zLOG
             zLOG.LOG("z2", zLOG.PANIC, "Startup exception",
@@ -280,21 +288,29 @@ def shutdown(storages, die=1):
     # unnecessary, since we now use so_reuseaddr.
     for ignored in 1,2:
         for socket in asyncore.socket_map.values():
-            try: socket.close()
-            except: pass
+            try:
+                socket.close()
+            except:
+                pass
 
     for storage in storages.values():
-        try: storage.close()
-        except: pass
+        try:
+            storage.close()
+        except:
+            pass
 
     try:
         from zLOG import LOG, INFO
         LOG('ZEO Server', INFO,
             "Shutting down (%s)" % (die and "shutdown" or "restart")
             )
-    except: pass
+    except:
+        pass
     
-    if die: sys.exit(0)
-    else: sys.exit(1)
+    if die:
+        sys.exit(0)
+    else:
+        sys.exit(1)
 
-if __name__=='__main__': main(sys.argv)
+if __name__ == '__main__':
+    main(sys.argv)
