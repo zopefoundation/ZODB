@@ -484,7 +484,9 @@ class ConnectionTests(StorageTestBase.StorageTestBase):
         except Disconnected:
             pass
         else:
+            self._storage.close()
             self.fail("Server did not disconnect after bogus message")
+        self._storage.close()
 
         self._storage = self.openClientStorage()
         self._dostore()
