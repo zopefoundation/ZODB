@@ -11,7 +11,7 @@
 # FOR A PARTICULAR PURPOSE
 # 
 ##############################################################################
-__version__='$Revision: 1.7 $'[11:-2]
+__version__='$Revision: 1.8 $'[11:-2]
 
 import os,  sys, time
 
@@ -87,8 +87,8 @@ class stupid_log_write:
         if error:
             try:
                 lines = format_exception(error[0], error[1], error[2],
-                                         trailer="\n", limit=100)
-                print >> _log_dest, lines
+                                         limit=100)
+                print >> _log_dest, ''.join(lines)
             except:
                 print >> _log_dest, "%s: %s" % error[:2]
         _log_dest.flush()
