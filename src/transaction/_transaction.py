@@ -98,6 +98,18 @@ Once a subtransaction has been committed, the top-level transaction
 commit will start with a commit_sub() call instead of a tpc_begin()
 call.
 
+Before-commit hook
+---------------
+
+Sometimes, applications want to execute some code when a transaction is
+committed. For example, one might want to delay object indexing until a
+transaction commits, rather than indexing every time an object is
+changed. Or someone might want to check invariants only after a set of
+operations. A pre-commit hook is available for such use cases, just use
+beforeCommitHook() passing it a callable and arguments. The callable
+will be called with its arguments at the start of the commit (but not
+for substransaction commits).
+
 Error handling
 --------------
 
@@ -207,6 +219,9 @@ class Transaction(object):
         # raised, incorporating this traceback.
         self._failure_traceback = None
 
+        # Holds hooks added by beforeCommitHook.
+        self._before_commit = []
+
     # Raise TransactionFailedError, due to commit()/join()/register()
     # getting called when the current transaction has already suffered
     # a commit failure.
@@ -282,6 +297,9 @@ class Transaction(object):
         if self.status is Status.COMMITFAILED:
             self._prior_commit_failed() # doesn't return
 
+        if not subtransaction:
+            self._callBeforeCommitHooks()
+
         if not subtransaction and self._sub and self._resources:
             # This commit is for a top-level transaction that has
             # previously committed subtransactions.  Do one last
@@ -316,6 +334,16 @@ class Transaction(object):
                 self._manager.free(self)
             self._synchronizers.map(lambda s: s.afterCompletion(self))
             self.log.debug("commit")
+
+    def beforeCommitHook(self, hook, *args, **kw):
+        self._before_commit.append((hook, args, kw))
+
+    def _callBeforeCommitHooks(self):
+        # Call all hooks registered, allowing further registrations
+        # during processing.
+        while self._before_commit:
+            hook, args, kw = self._before_commit.pop(0)
+            hook(*args, **kw)
 
     def _commitResources(self, subtransaction):
         # Execute the two-phase commit protocol.

@@ -634,6 +634,84 @@ def test_join():
 
     """
 
+def test_beforeCommitHook():
+    """Test the beforeCommitHook
+
+    Lets define a hook to call, and a way to see that it was called.
+
+      >>> log = []
+      >>> def reset_log():
+      ...     log[:] = []
+
+      >>> def hook(arg=''):
+      ...     log.append('hook'+arg)
+
+    Now register the hook with a transaction.
+
+      >>> from transaction import manager
+      >>> t = manager.begin()
+      >>> t.beforeCommitHook(hook, '1')
+
+    When transaction commit starts, the hook is called, with its
+    arguments.
+
+      >>> t.commit()
+      >>> log
+      ['hook1']
+      >>> reset_log()
+
+    The hook is called before the commit does anything, so even if the
+    commit fails the hook will have been called. To provoke failures in
+    commit, we'll add failing resource manager to the transaction.
+
+      >>> class CommitFailure(Exception):
+      ...     pass
+      >>> class FailingDataManager:
+      ...     def tpc_begin(self, txn, sub=False):
+      ...         raise CommitFailure
+      ...     def abort(self, txn):
+      ...         pass
+
+      >>> t = manager.begin()
+      >>> t.join(FailingDataManager())
+
+      >>> t.beforeCommitHook(hook, '2')
+      >>> t.commit()
+      Traceback (most recent call last):
+      ...
+      CommitFailure
+      >>> log
+      ['hook2']
+      >>> reset_log()
+
+    If several hooks are defined, they are called in order.
+
+      >>> t = manager.begin()
+      >>> t.beforeCommitHook(hook, '4')
+      >>> t.beforeCommitHook(hook, '5')
+      >>> t.commit()
+      >>> log
+      ['hook4', 'hook5']
+      >>> reset_log()
+
+    While executing, a hook can itself add more hooks, and they will all
+    be called before the real commit starts.
+
+      >>> def recurse(txn, arg=0):
+      ...     log.append('rec'+str(arg))
+      ...     if arg != 0:
+      ...         txn.beforeCommitHook(hook, '-')
+      ...         txn.beforeCommitHook(recurse, txn, arg-1)
+
+      >>> t = manager.begin()
+      >>> t.beforeCommitHook(recurse, t, 3)
+      >>> t.commit()
+      >>> log
+      ['rec3', 'hook-', 'rec2', 'hook-', 'rec1', 'hook-', 'rec0']
+      >>> reset_log()
+
+    """
+
 def test_suite():
     from doctest import DocTestSuite
     return unittest.TestSuite((

@@ -245,6 +245,23 @@ class ITransaction(zope.interface.Interface):
         # Unsure:  is this allowed to cause an exception here, during
         # the two-phase commit, or can it toss data silently?
 
+    def beforeCommitHook(hook, *args, **kw):
+        """Register a hook to call before the transaction is committed.
+
+        The provided hook will be called after the transaction's commit
+        method has been called, but before the commit process has been
+        started. The hook will be passed the given positional and
+        keyword arguments.
+
+        Multiple hooks can be registered and will be called in order.
+        This method can also be called from executing hooks; so
+        executing hooks can register more hooks. (Applications should
+        take care to avoid creating infinite loops by recursively
+        registering hooks.)
+
+        If the transaction aborts, hooks are not called and are
+        discarded.
+        """
 
 class IRollback(zope.interface.Interface):
 
