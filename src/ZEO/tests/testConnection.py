@@ -38,10 +38,9 @@ class FileStorageConfig:
 
 class BerkeleyStorageConfig:
     def getConfig(self, path, create, read_only):
-        # Full always creates and doesn't have a read_only flag
         return """\
         <Storage>
-            type Full
+            type BDBFullStorage
             name %s
             read_only %s
         </Storage>""" % (path, read_only)
@@ -77,7 +76,7 @@ class BDBReconnectionTests(
 
 test_classes = [FileStorageConnectionTests, FileStorageReconnectionTests]
 try:
-    from bsddb3Storage.Full import Full
+    from BDBStorage.BDBFullStorage import BDBFullStorage
 except ImportError:
     pass
 else:
