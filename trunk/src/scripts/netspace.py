@@ -1,4 +1,5 @@
-#!python
+#!/usr/bin/env python2.3
+
 """Report on the net size of objects counting subobjects.
 
 usage: netspace.py [-P | -v] data.fs

@@ -1,4 +1,5 @@
-#!python
+#!/usr/bin/env python2.3
+
 ##############################################################################
 #
 # Copyright (c) 2003 Zope Corporation and Contributors.
@@ -88,7 +89,7 @@ Usage: loadmail2 [options]
 
        Specify the mailbox for getting input data.
 
-$Id: zodbload.py,v 1.4 2003/11/19 15:36:31 jeremy Exp $
+$Id: zodbload.py,v 1.5 2004/03/18 13:27:49 yuppie Exp $
 """
 
 import mailbox

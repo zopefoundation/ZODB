@@ -1,4 +1,5 @@
-#!python
+#!/usr/bin/env python2.3
+
 """Connect to a ZEO server and ask it to pack.
 
 Usage: zeopack.py [options]
