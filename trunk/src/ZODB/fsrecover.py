@@ -11,8 +11,6 @@
 # FOR A PARTICULAR PURPOSE
 #
 ##############################################################################
-
-
 """Simple script for repairing damaged FileStorage files.
 
 Usage: %s [-f] input output
@@ -94,64 +92,92 @@ class ErrorFound(Exception): pass
 def error(mess, *args):
     raise ErrorFound(mess % args)
 
-def read_transaction_header(file, pos, file_size):
+def read_txn_header(f, pos, file_size, outp, ltid):
     # Read the transaction record
-    file.seek(pos)
-    h = file.read(23)
+    f.seek(pos)
+    h = f.read(23)
     if len(h) < 23:
         raise EOFError
 
     tid, stl, status, ul, dl, el = unpack(">8s8scHHH",h)
     if el < 0: el=t32-el
 
-    tl=u64(stl)
+    tl = u64(stl)
 
-    if status=='c': raise EOFError
-
-    if pos+(tl+8) > file_size:
+    if pos + (tl + 8) > file_size:
         error("bad transaction length at %s", pos)
 
-    if status not in ' up':
-        error('invalid status, %s, at %s', status, pos)
+    if tl < (23 + ul + dl + el):
+        error("invalid transaction length, %s, at %s", tl, pos)
 
-    if tl < (23+ul+dl+el):
-        error('invalid transaction length, %s, at %s', tl, pos)
+    if ltid and tid < ltid:
+        error("time-stamp reducation %s < %s, at %s", u64(tid), u64(ltid), pos)
 
-    tpos=pos
-    tend=tpos+tl
+    if status == "c":
+        truncate(f, pos, file_size, output)
+        raise EOFError
 
-    if status=='u':
+    if status not in " up":
+        error("invalid status, %r, at %s", status, pos)
+
+    tpos = pos
+    tend = tpos + tl
+
+    if status == "u":
         # Undone transaction, skip it
-        file.seek(tend)
-        h = file.read(8)
+        f.seek(tend)
+        h = f.read(8)
         if h != stl:
-            error('inconsistent transaction length at %s', pos)
+            error("inconsistent transaction length at %s", pos)
         pos = tend + 8
-        return pos, None
+        return pos, None, tid
 
     pos = tpos+(23+ul+dl+el)
-    user = file.read(ul)
-    description = file.read(dl)
+    user = f.read(ul)
+    description = f.read(dl)
     if el:
-        try: e=loads(file.read(el))
+        try: e=loads(f.read(el))
         except: e={}
     else: e={}
 
     result = RecordIterator(tid, status, user, description, e, pos, tend,
-                            file, tpos)
-    pos=tend
+                            f, tpos)
+    pos = tend
 
     # Read the (intentionally redundant) transaction length
-    file.seek(pos)
-    h = file.read(8)
+    f.seek(pos)
+    h = f.read(8)
     if h != stl:
         error("redundant transaction length check failed at %s", pos)
     pos += 8
 
-    return pos, result
+    return pos, result, tid
 
-def scan(file, pos):
-    """Return a potential transaction location following pos in file.
+def truncate(f, pos, file_size, outp):
+    """Copy data from pos to end of f to a .trNNN file."""
+
+    i = 0
+    while 1:
+        trname = outp + ".tr%d" % i
+        if os.path.exists(trname):
+            i += 1
+    tr = open(trname, "wb")
+    copy(f, tr, file_size - pos)
+    f.seek(pos)
+    tr.close()
+
+def copy(src, dst, n):
+    while n:
+        buf = src.read(8096)
+        if not buf:
+            break
+        if len(buf) > n:
+            buf = buf[:n]
+        dst.write(buf)
+        n -= len(buf)
+
+def scan(f, pos):
+    """Return a potential transaction location following pos in f.
 
     This routine scans forward from pos looking for the last data
     record in a transaction.  A period '.' always occurs at the end of
@@ -163,30 +189,30 @@ def scan(file, pos):
     actually a transaction header.
     """
     while 1:
-        file.seek(pos)
-        data = file.read(8096)
+        f.seek(pos)
+        data = f.read(8096)
         if not data:
             return 0
 
         s = 0
         while 1:
-            l = data.find('.', s)
+            l = data.find(".", s)
             if l < 0:
                 pos += len(data)
                 break
             # If we are less than 8 bytes from the end of the
             # string, we need to read more data.
-            if l > len(data) - 8:
+            s = l + 1
+            if s > len(data) - 8:
                 pos += l
                 break
-            s = l + 1
             tl = u64(data[s:s+8])
             if tl < pos:
                 return pos + s + 8
 
 def iprogress(i):
     if i % 2:
-        print '.',
+        print ".",
     else:
         print (i/2) % 10,
     sys.stdout.flush()
@@ -197,7 +223,7 @@ def progress(p):
 
 def main():
     try:
-        opts, (inp, outp) = getopt.getopt(sys.argv[1:], 'fv:pP:')
+        opts, (inp, outp) = getopt.getopt(sys.argv[1:], "fv:pP:")
     except getopt.error:
         die()
         print __doc__ % argv[0]
@@ -205,58 +231,63 @@ def main():
     force = partial = verbose = 0
     pack = None
     for opt, v in opts:
-        if opt == '-v':
+        if opt == "-v":
             verbose = int(v)
-        elif opt == '-p':
+        elif opt == "-p":
             partial = 1
-        elif opt == '-f':
+        elif opt == "-f":
             force = 1
-        elif opt == '-P':
+        elif opt == "-P":
             pack = time.time() - float(v)
 
     recover(inp, outp, verbose, partial, force, pack)
 
 def recover(inp, outp, verbose=0, partial=0, force=0, pack=0):
-    print 'Recovering', inp, 'into', outp
+    print "Recovering", inp, "into", outp
 
     if os.path.exists(outp) and not force:
         die("%s exists" % outp)
 
-    file = open(inp, "rb")
-    if file.read(4) != ZODB.FileStorage.packed_version:
+    f = open(inp, "rb")
+    if f.read(4) != ZODB.FileStorage.packed_version:
         die("input is not a file storage")
 
-    file.seek(0,2)
-    file_size = file.tell()
+    f.seek(0,2)
+    file_size = f.tell()
 
     ofs = ZODB.FileStorage.FileStorage(outp, create=1)
     _ts = None
     ok = 1
     prog1 = 0
-    preindex = {}
     undone = 0
 
     pos = 4
+    ltid = None
     while pos:
         try:
-            npos, transaction = read_transaction_header(file, pos, file_size)
+            npos, txn, tid = read_txn_header(f, pos, file_size, outp, ltid)
         except EOFError:
             break
-        except:
-            print "\n%s: %s\n" % sys.exc_info()[:2]
+        except (KeyboardInterrupt, SystemExit):
+            raise
+        except Exception, err:
+            print "error reading txn header:", err
             if not verbose:
                 progress(prog1)
-            pos = scan(file, pos)
+            pos = scan(f, pos)
+            if verbose > 1:
+                print "looking for valid txn header at", pos
             continue
+        ltid = tid
 
-        if transaction is None:
+        if txn is None:
             undone = undone + npos - pos
             pos = npos
             continue
         else:
             pos = npos
 
-        tid = transaction.tid
+        tid = txn.tid
 
         if _ts is None:
             _ts = TimeStamp(tid)
@@ -264,58 +295,59 @@ def recover(inp, outp, verbose=0, partial=0, force=0, pack=0):
             t = TimeStamp(tid)
             if t <= _ts:
                 if ok:
-                    print ('Time stamps out of order %s, %s' % (_ts, t))
+                    print ("Time stamps out of order %s, %s" % (_ts, t))
                 ok = 0
                 _ts = t.laterThan(_ts)
                 tid = `_ts`
             else:
                 _ts = t
                 if not ok:
-                    print ('Time stamps back in order %s' % (t))
+                    print ("Time stamps back in order %s" % (t))
                     ok = 1
 
-        if verbose:
-            print 'begin',
-            if verbose > 1:
-                print
-            sys.stdout.flush()
-
-        ofs.tpc_begin(transaction, tid, transaction.status)
+        ofs.tpc_begin(txn, tid, txn.status)
 
         if verbose:
-            print 'begin', pos, _ts,
+            print "begin", pos, _ts,
             if verbose > 1:
                 print
             sys.stdout.flush()
 
         nrec = 0
         try:
-            for r in transaction:
-                oid = r.oid
+            for r in txn:
                 if verbose > 1:
-                    print u64(oid), r.version, len(r.data)
-                pre = preindex.get(oid)
-                s = ofs.store(oid, pre, r.data, r.version, transaction)
-                preindex[oid] = s
+                    if r.data is None:
+                        l = "bp"
+                    else:
+                        l = len(r.data)
+                        
+                    print "%7d %s %s" % (u64(r.oid), l, r.version)
+                s = ofs.restore(r.oid, r.serial, r.data, r.version,
+                                r.data_txn, txn)
                 nrec += 1
-        except:
+        except (KeyboardInterrupt, SystemExit):
+            raise
+        except Exception, err:
             if partial and nrec:
-                ofs._status = 'p'
-                ofs.tpc_vote(transaction)
-                ofs.tpc_finish(transaction)
+                ofs._status = "p"
+                ofs.tpc_vote(txn)
+                ofs.tpc_finish(txn)
                 if verbose:
-                    print 'partial'
+                    print "partial"
             else:
-                ofs.tpc_abort(transaction)
-            print "\n%s: %s\n" % sys.exc_info()[:2]
+                ofs.tpc_abort(txn)
+            print "error copying transaction:", err
             if not verbose:
                 progress(prog1)
-            pos = scan(file, pos)
+            pos = scan(f, pos)
+            if verbose > 1:
+                print "looking for valid txn header at", pos
         else:
-            ofs.tpc_vote(transaction)
-            ofs.tpc_finish(transaction)
+            ofs.tpc_vote(txn)
+            ofs.tpc_finish(txn)
             if verbose:
-                print 'finish'
+                print "finish"
                 sys.stdout.flush()
 
         if not verbose:
@@ -338,7 +370,6 @@ def recover(inp, outp, verbose=0, partial=0, force=0, pack=0):
 
     ofs.close()
 
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
 
