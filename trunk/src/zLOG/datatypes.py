@@ -16,6 +16,9 @@
 
 import sys
 
+import zLOG
+
+from zLOG import EventLogger
 from zLOG.factory import Factory
 
 # log-related datatypes
@@ -238,6 +241,18 @@ class EventLogFactory(Factory):
             if handler_level < lowest:
                 lowest = factory.getLevel()
         return lowest
+
+    def initialize(self):
+        logger = self()
+        for handler in logger.handlers:
+            if hasattr(handler, "reopen"):
+                handler.reopen()
+        EventLogger.event_logger.logger = self()
+
+    def startup(self):
+        zLOG.set_initializer(self.initialize)
+        zLOG.initialize()
+
 
 def importable_name(name):
     try:
