@@ -48,19 +48,24 @@ class TStats:
     def __init__(self):
         self.id = TStats.counter
         TStats.counter += 1
+
+    fields = ("time", "vote", "done", "user", "path")
+    fmt = "%-24s %5s %5s %-15s %s"
+    hdr = fmt % fields
     
     def report(self):
         """Print a report about the transaction"""
-        print time.ctime(self.begin),
+        t = time.ctime(self.begin)
         if hasattr(self, "vote"):
-            print self.vote - self.begin,
+            d_vote = self.vote - self.begin
         else:
-            print "*",
+            d_vote = "*"
         if hasattr(self, "finish"):
-            print self.finish - self.begin,
+            d_finish = self.finish - self.begin
         else:
-            print "*",
-        print self.user, self.url
+            d_finish =  "*"
+        print self.fmt % (time.ctime(self.begin), d_vote, d_finish,
+                          self.user, self.url)
 
 class TransactionParser:
 
@@ -124,5 +129,6 @@ if __name__ == "__main__":
             print "line", i
             raise
     print "Transaction: %d" % len(p.txns)
+    print TStats.hdr
     for txn in p.get_txns():
         txn.report()
