@@ -1,0 +1,95 @@
+##############################################################################
+#
+# Copyright (c) 2005 Zope Corporation and Contributors.
+# All Rights Reserved.
+#
+# This software is subject to the provisions of the Zope Public License,
+# Version 2.1 (ZPL).  A copy of the ZPL should accompany this distribution.
+# THIS SOFTWARE IS PROVIDED "AS IS" AND ANY AND ALL EXPRESS OR IMPLIED
+# WARRANTIES ARE DISCLAIMED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+# WARRANTIES OF TITLE, MERCHANTABILITY, AGAINST INFRINGEMENT, AND FITNESS
+# FOR A PARTICULAR PURPOSE.
+#
+##############################################################################
+
+Transaction support for Blobs
+=============================
+
+We need a database with a blob supporting storage:
+
+    >>> from ZODB.MappingStorage import MappingStorage
+    >>> from ZODB.Blobs.BlobStorage import BlobStorage
+    >>> from ZODB.DB import DB
+    >>> from tempfile import mkdtemp
+    >>> base_storage = MappingStorage("test")
+    >>> blob_dir = mkdtemp()
+    >>> blob_storage = BlobStorage(blob_dir, base_storage)
+    >>> database = DB(blob_storage)
+    
+Putting a Blob into a Connection works like any other Persistent object:
+
+    >>> connection = database.open()
+    >>> root = connection.root()
+    >>> from ZODB.Blobs.Blob import Blob
+    >>> blob = Blob()
+    >>> blob.open('w').write('abc')
+    >>> root['myblob'] = blob
+    >>> import transaction
+    >>> transaction.commit()
+
+Opening a blob gives us a filehandle.  Getting data out of the
+resulting filehandle is accomplished via the filehandle's read method:
+
+    >>> connection2 = database.open()
+    >>> root = connection2.root()
+    >>> blob2 = root['myblob']
+    >>> blob2._get_refcounts()
+    (0, 0)
+    >>>
+    >>> b1 = blob2.open("r")
+    >>> b1.read()
+    'abc'
+    >>> # we reach into the implementation here, dont try this at home
+    >>> b1.blob._get_refcounts()[0]
+    1
+
+Let's make another filehandle for read only to blob2, this should bump
+up its refcount by one, and each file handle has a reference to the
+(same) underlying blob:
+
+    >>> b2 = blob2.open("r")
+    >>> b2.blob._get_refcounts()
+    (2, 0)
+    >>> b1.blob._get_refcounts()
+    (2, 0)
+
+Let's close the first filehandle we got from the blob, this should decrease
+its refcount by one:
+
+    >>> b1.close()
+    >>> b1.blob._get_refcounts()
+    (1, 0)
+    >>> b1.blob._get_refcounts()
+    (1, 0)
+
+Let's abort this transaction, and ensure that the filehandles that we
+opened are now closed and that the filehandle refcounts on the blob
+object are cleared.
+
+    >>> transaction.abort()
+    >>> b1.blob._get_refcounts()
+    (0, 0)
+    >>> b2.blob._get_refcounts()
+    (0, 0)
+    >>> b2.read()
+    Traceback (most recent call last):
+        ...
+    ValueError: I/O operation on closed file
+
+While we are testing this, we don't need the storage directory and databases
+anymore:
+
+    >>> import shutil
+    >>> shutil.rmtree(blob_dir)
+    >>> transaction.abort()
+    >>> database.close()
