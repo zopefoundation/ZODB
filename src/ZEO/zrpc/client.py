@@ -188,6 +188,9 @@ class ConnectionManager:
 # to the errno value(s) expected if the connect succeeds *or* if it's
 # already connected (our code can attempt redundant connects).
 if hasattr(errno, "WSAEWOULDBLOCK"):    # Windows
+    # XXX The official Winsock docs claim that WSAEALREADY should be
+    # treated as yet another "in progress" indicator, but we've never
+    # seen this.
     _CONNECT_IN_PROGRESS = (errno.WSAEWOULDBLOCK,)
     # Win98: WSAEISCONN; Win2K: WSAEINVAL
     _CONNECT_OK          = (0, errno.WSAEISCONN, errno.WSAEINVAL)
@@ -327,8 +330,6 @@ class ConnectThread(threading.Thread):
         assert not wrappers
         return 0
 
-_USING_WINSOCK = sys.platform.startswith("win")
-
 class ConnectWrapper:
     """An object that handles the connection procedure for one socket.
 
@@ -385,33 +386,9 @@ class ConnectWrapper:
                     level=zLOG.WARNING)
                 self.close()
                 return
-            if err == 0 and _USING_WINSOCK:
-                self.winsock_check_connected()
-            else:
-                self.state = "connected"
+            self.state = "connected"
         if self.state == "connected":
             self.test_connection()
-
-    def winsock_check_connected(self):
-        """Deal with winsock oddities.
-
-        XXX How much of this is superstition?
-
-        It appears that winsock isn't behaving as expected on Win2k.
-        It's possible for connect_ex() to return 0, but the connection
-        to have failed.  In particular, in situations where I expect
-        to get a Connection refused (10061), I'm seeing connect_ex()
-        return 0.  OTOH, it looks like select() is a more reliable
-        indicator on Windows.
-        """
-        # XXX Why not use 0.0 as timeout?
-        r, w, x = select.select([self.sock], [self.sock], [self.sock], 0.1)
-        if not (r or w or x):
-            self.state = "connecting"
-        elif x:
-            self.close()
-        else:
-            self.state = "connected"
 
     def test_connection(self):
         """Establish and test a connection at the zrpc level.
