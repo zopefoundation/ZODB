@@ -88,7 +88,7 @@ process must skip such objects, rather than deactivating them.
 static char cPickleCache_doc_string[] =
 "Defines the PickleCache used by ZODB Connection objects.\n"
 "\n"
-"$Id: cPickleCache.c,v 1.70 2002/12/13 21:22:20 jeremy Exp $\n";
+"$Id: cPickleCache.c,v 1.71 2003/02/11 19:16:27 bwarsaw Exp $\n";
 
 #define ASSIGN(V,E) {PyObject *__e; __e=(E); Py_XDECREF(V); (V)=__e;}
 #define UNLESS(E) if(!(E))
@@ -337,11 +337,6 @@ cc_invalidate(ccobject *self, PyObject *args)
 {
   PyObject *inv, *key, *v;
   int i = 0;
-
-  /* Older versions of ZODB used None to mean "invalidate everything,"
-     but current Connection implementations don't ever pass None.
-  */
-  assert(key != Py_None);
 
   if (PyArg_ParseTuple(args, "O!", &PyDict_Type, &inv)) {
       while (PyDict_Next(inv, &i, &key, &v))
