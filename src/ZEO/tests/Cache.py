@@ -50,7 +50,7 @@ class StorageWithCache:
         obj = zodb_unpickle(data)
         assert obj == MinPO(2), obj
 
-    def checkCommitVersionInvalidation(self):
+    def checkCommitEmptyVersionInvalidation(self):
         oid = self._storage.new_oid()
         revid = self._dostore(oid, data=MinPO(1))
         revid = self._dostore(oid, revid=revid, data=MinPO(2))
@@ -62,5 +62,20 @@ class StorageWithCache:
         self._storage.tpc_vote(t)
         self._storage.tpc_finish(t)
         data, revid = self._storage.load(oid, "")
+        obj = zodb_unpickle(data)
+        assert obj == MinPO(3), obj
+
+    def checkCommitVersionInvalidation(self):
+        oid = self._storage.new_oid()
+        revid = self._dostore(oid, data=MinPO(1))
+        revid = self._dostore(oid, revid=revid, data=MinPO(2))
+        revid = self._dostore(oid, revid=revid, data=MinPO(3), version="foo")
+        t = Transaction()
+        self._storage.tpc_begin(t)
+        self._storage.commitVersion("foo", "bar", t)
+        self._storage.load(oid, "")
+        self._storage.tpc_vote(t)
+        self._storage.tpc_finish(t)
+        data, revid = self._storage.load(oid, "bar")
         obj = zodb_unpickle(data)
         assert obj == MinPO(3), obj
