@@ -13,8 +13,8 @@
 ##############################################################################
 """Transaction management
 
-$Id: Transaction.py,v 1.38 2002/09/11 18:41:24 jeremy Exp $"""
-__version__='$Revision: 1.38 $'[11:-2]
+$Id: Transaction.py,v 1.39 2002/09/27 18:37:24 gvanrossum Exp $"""
+__version__='$Revision: 1.39 $'[11:-2]
 
 import time, sys, struct, POSException
 from struct import pack
@@ -404,5 +404,6 @@ else:
 
 del _t
 
-import __main__
-__main__.__builtins__.get_transaction=get_transaction
+import __builtin__
+__builtin__.get_transaction=get_transaction
+del __builtin__
