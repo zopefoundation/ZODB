@@ -12,7 +12,7 @@
 
  ****************************************************************************/
 
-#define BTREETEMPLATE_C "$Id: BTreeTemplate.c,v 1.67 2002/06/21 18:06:26 tim_one Exp $\n"
+#define BTREETEMPLATE_C "$Id: BTreeTemplate.c,v 1.68 2002/06/25 16:23:26 tim_one Exp $\n"
 
 /* Sanity-check a BTree.  This is a private helper for BTree_check.  Return:
  *      -1         Error.  If it's an internal inconsistency in the BTree,
@@ -265,56 +265,50 @@ BTree_split(BTree *self, int index, BTree *next)
   return 0;
 }
 
-/* Split out data among two newly created BTrees, which become
-   out children.
-*/
+
+/* Fwd decl -- BTree_grow and BTree_split_root reference each other. */
+static int BTree_grow(BTree *self, int index, int noval);
+
+/* Split the root.  This is a little special because the root isn't a child
+ * of anything else, and the root needs to retain its object identity.  So
+ * this routine moves the root's data into a new child, and splits the
+ * latter.  This leaves the root with two children.
+ *
+ * Return:
+ *      0   OK
+ *     -1   error
+ *
+ * CAUTION:  The caller must call PER_CHANGED on self.
+ */
 static int
-BTree_clone(BTree *self)
+BTree_split_root(BTree *self, int noval)
 {
-  /* We've grown really big without anybody splitting us.
-     We should split ourselves.
-   */
-  BTree *n1=0, *n2=0;
-  BTreeItem *d=0;
+    BTree *child;
+    BTreeItem *d;
 
-  /* Create two BTrees to hold ourselves after split */
-  UNLESS (n1=BTREE(PyObject_CallObject(OBJECT(self->ob_type), NULL)))
-    return -1;
-  UNLESS (n2=BTREE(PyObject_CallObject(OBJECT(self->ob_type), NULL)))
-    goto err;
+    /* Create a child BTree, and a new data vector for self. */
+    child = BTREE(PyObject_CallObject(OBJECT(self->ob_type), NULL));
+    if (!child) return -1;
 
-  /* Create a new data buffer to hold two BTrees */
-  UNLESS (d=PyMalloc(sizeof(BTreeItem)*2)) goto err;
+    d = PyMalloc(sizeof(BTreeItem) * 2);
+    if (!d) {
+        Py_DECREF(child);
+        return -1;
+    }
 
-  /* Split ourself */
-  if (BTree_split(self,-1,n2) < 0) goto err;
+    /* Move our data to new BTree. */
+    child->size = self->size;
+    child->len = self->len;
+    child->data = self->data;
+    child->firstbucket = self->firstbucket;
+    Py_INCREF(child->firstbucket);
 
-  /* Move our data to new BTree */
-  n1->size=self->size;
-  n1->len=self->len;
-  n1->data=self->data;
-  n1->firstbucket = self->firstbucket;
-  Py_XINCREF(n1->firstbucket);
-
-  /* Initialize our data to hold split data */
-  self->data = d;
-  self->len = 2;
-  self->size = 2;
-  self->data->child = SIZED(n1);
-  COPY_KEY(self->data[1].key, n2->data->key);
-
-  /* We take the unused reference from n2, so there's no reason to INCREF! */
-  /* INCREF_KEY(self->data[1].key); */
-
-  self->data[1].child = SIZED(n2);
-
-  return 0;
-
-err:
-  Py_XDECREF(n1);
-  Py_XDECREF(n2);
-  if (d) free(d);
-  return -1;
+    /* Point self to child and split the child. */
+    self->data = d;
+    self->len = 1;
+    self->size = 2;
+    self->data[0].child = SIZED(child); /* transfers reference ownership */
+    return BTree_grow(self, 0, noval);
 }
 
 /*
@@ -417,7 +411,8 @@ BTree_grow(BTree *self, int index, int noval)
 
       self->len++;
 
-      if (self->len >= MAX_BTREE_SIZE(self) * 2) return BTree_clone(self);
+      if (self->len >= MAX_BTREE_SIZE(self) * 2)    /* the root is huge */
+        return BTree_split_root(self, noval);
     }
   else
     {
