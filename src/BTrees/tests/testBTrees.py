@@ -896,13 +896,13 @@ def test_suite():
 
     TIOSet = makeSuite(TestIOSets, 'test')
     TOOSet = makeSuite(TestOOSets, 'test')
-    TOISet = makeSuite(TestIOSets, 'test')
-    TIISet = makeSuite(TestOOSets, 'test')
+    TOISet = makeSuite(TestOISets, 'test')
+    TIISet = makeSuite(TestIISets, 'test')
 
     TIOTreeSet = makeSuite(TestIOTreeSets, 'test')
     TOOTreeSet = makeSuite(TestOOTreeSets, 'test')
-    TOITreeSet = makeSuite(TestIOTreeSets, 'test')
-    TIITreeSet = makeSuite(TestOOTreeSets, 'test')
+    TOITreeSet = makeSuite(TestOITreeSets, 'test')
+    TIITreeSet = makeSuite(TestIITreeSets, 'test')
 
     TIOBucket = makeSuite(TestIOBuckets, 'test')
     TOOBucket = makeSuite(TestOOBuckets, 'test')
@@ -912,12 +912,11 @@ def test_suite():
     alltests = TestSuite((TIOSet, TOOSet, TOISet, TIISet,
                           TIOTreeSet, TOOTreeSet, TOITreeSet, TIITreeSet,
                           TIOBucket, TOOBucket, TOIBucket, TIIBucket,
-                          TOOBTree, TIOBTree, TOIBTree, TIIBTree,
+                          TIOBTree, TOOBTree, TOIBTree, TIIBTree,
                           makeSuite(TestCmpError),
                          ))
 
     return alltests
-
 
 
 ## utility functions
