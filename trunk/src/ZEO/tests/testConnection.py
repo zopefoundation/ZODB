@@ -49,7 +49,7 @@ class MappingStorageConfig:
 
 class FileStorageConnectionTests(
     FileStorageConfig,
-    ConnectionTests.ConnectionTests.
+    ConnectionTests.ConnectionTests,
     InvalidationTests.InvalidationTests
     ):
     """FileStorage-specific connection tests."""
@@ -72,7 +72,7 @@ class FileStorageTimeoutTests(
 
 class BDBConnectionTests(
     BerkeleyStorageConfig,
-    ConnectionTests.ConnectionTests
+    ConnectionTests.ConnectionTests,
     InvalidationTests.InvalidationTests
     ):
     """Berkeley storage connection tests."""
