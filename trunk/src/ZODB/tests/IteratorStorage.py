@@ -129,8 +129,12 @@ class ExtendedIteratorStorage(IteratorCompare):
         revid3a = p64((U64(revid3) + U64(revid4)) / 2)
         txniter = self._storage.iterator(revid2, revid3a)
         self.iter_verify(txniter, [revid2, revid3], 12)
-        # Specify a lower bound somewhere in between values
-        revid1a = p64((U64(revid1) + U64(revid2)) / 2)
+        # Specify a lower bound somewhere in between values.
+        # revid2 == revid1+1 is very likely on Windows.  Adding 1 before
+        # dividing ensures that "the midpoint" we compute is strictly larger
+        # than revid1.
+        revid1a = p64((U64(revid1) + 1 + U64(revid2)) / 2)
+        assert revid1 < revid1a
         txniter = self._storage.iterator(revid1a, revid3a)
         self.iter_verify(txniter, [revid2, revid3], 12)
         # Specify an empty range
@@ -139,7 +143,7 @@ class ExtendedIteratorStorage(IteratorCompare):
         # Specify a singleton range
         txniter = self._storage.iterator(revid3, revid3)
         self.iter_verify(txniter, [revid3], 13)
-        
+
 class IteratorDeepCompare:
     def compare(self, storage1, storage2):
         eq = self.assertEqual
