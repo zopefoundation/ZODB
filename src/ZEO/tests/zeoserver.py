@@ -26,9 +26,8 @@ import ThreadedAsync.LoopCallback
 
 import ZConfig.Context
 import zLOG
-import ZEO.StorageServer
+from ZEO.StorageServer import StorageServer
 from ZEO.runzeo import ZEOOptions
-from ZODB.config import storageFromURL
 
 
 def cleanup(storage):
@@ -152,6 +151,10 @@ def main():
     zo.realize(["-C", configfile])
     zeo_port = int(zo.address[1])
             
+    # XXX a hack
+    if zo.auth_protocol == "plaintext":
+        import ZEO.tests.auth_plaintext
+        
     # Open the config file and let ZConfig parse the data there.  Then remove
     # the config file, otherwise we'll leave turds.
     # The rest of the args are hostname, portnum
@@ -163,14 +166,17 @@ def main():
     mon_addr = None
     if zo.monitor_address:
         mon_addr = zo.monitor_address.address
-    server = ZEO.StorageServer.StorageServer(
+    server = StorageServer(
         zo.address,
         {"1": storage},
         read_only=zo.read_only,
         invalidation_queue_size=zo.invalidation_queue_size,
         transaction_timeout=zo.transaction_timeout,
-        monitor_address=mon_addr)
-    
+        monitor_address=mon_addr,
+        auth_protocol=zo.auth_protocol,
+        auth_filename=zo.auth_database,
+        auth_realm=zo.auth_realm)
+
     try:
         log(label, 'creating the test server, keep: %s', keep)
         t = ZEOTestServer(test_addr, server, keep)

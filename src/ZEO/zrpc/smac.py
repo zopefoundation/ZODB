@@ -11,9 +11,29 @@
 # FOR A PARTICULAR PURPOSE
 #
 ##############################################################################
-"""Sized Message Async Connections."""
+"""Sized Message Async Connections.
 
-import asyncore, struct
+This class extends the basic asyncore layer with a record-marking
+layer.  The message_output() method accepts an arbitrary sized string
+as its argument.  It sends over the wire the length of the string
+encoded using struct.pack('>i') and the string itself.  The receiver
+passes the original string to message_input().
+
+This layer also supports an optional message authentication code
+(MAC).  If a session key is present, it uses HMAC-SHA-1 to generate a
+20-byte MAC.  If a MAC is present, the high-order bit of the length
+is set to 1 and the MAC immediately follows the length.
+"""
+
+import asyncore
+import errno
+try:
+    import hmac
+except ImportError:
+    import _hmac as hmac
+import sha
+import socket
+import struct
 import threading
 from types import StringType
 
@@ -21,7 +41,6 @@ from ZEO.zrpc.log import log, short_repr
 from ZEO.zrpc.error import DisconnectedError
 import zLOG
 
-import socket, errno
 
 # Use the dictionary to make sure we get the minimum number of errno
 # entries.   We expect that EWOULDBLOCK == EAGAIN on most systems --
@@ -44,6 +63,8 @@ del tmp_dict
 # We chose 60000 as the socket limit by looking at the largest strings
 # that we could pass to send() without blocking.
 SEND_SIZE = 60000
+
+MAC_BIT = 0x80000000
 
 class SizedMessageAsyncConnection(asyncore.dispatcher):
     __super_init = asyncore.dispatcher.__init__
@@ -75,7 +96,12 @@ class SizedMessageAsyncConnection(asyncore.dispatcher):
         self.__output_lock = threading.Lock() # Protects __output
         self.__output = []
         self.__closed = 0
+        self.__hmac = None
         self.__super_init(sock, map)
+
+    def setSessionKey(self, sesskey):
+        log("set session key %r" % sesskey)
+        self.__hmac = hmac.HMAC(sesskey, digestmod=sha)
 
     def get_addr(self):
         return self.addr
@@ -124,12 +150,16 @@ class SizedMessageAsyncConnection(asyncore.dispatcher):
                 inp = "".join(inp)
 
             offset = 0
+            expect_mac = 0
             while (offset + msg_size) <= input_len:
                 msg = inp[offset:offset + msg_size]
                 offset = offset + msg_size
                 if not state:
-                    # waiting for message
                     msg_size = struct.unpack(">i", msg)[0]
+                    expect_mac = msg_size & MAC_BIT
+                    if expect_mac:
+                        msg_size ^= MAC_BIT
+                        msg_size += 20
                     state = 1
                 else:
                     msg_size = 4
@@ -144,6 +174,17 @@ class SizedMessageAsyncConnection(asyncore.dispatcher):
                     # incoming call to be handled.  During all this
                     # time, the __input_lock is held.  That's a good
                     # thing, because it serializes incoming calls.
+                    if expect_mac:
+                        mac = msg[:20]
+                        msg = msg[20:]
+                        if self.__hmac:
+                            self.__hmac.update(msg)
+                            _mac = self.__hmac.digest()
+                            if mac != _mac:
+                                raise ValueError("MAC failed: %r != %r"
+                                                 % (_mac, mac))
+                        else:
+                            log("Received MAC but no session key set")
                     self.message_input(msg)
 
             self.__state = state
@@ -214,7 +255,12 @@ class SizedMessageAsyncConnection(asyncore.dispatcher):
         self.__output_lock.acquire()
         try:
             # do two separate appends to avoid copying the message string
-            self.__output.append(struct.pack(">i", len(message)))
+            if self.__hmac:
+                self.__output.append(struct.pack(">i", len(message) | MAC_BIT))
+                self.__hmac.update(message)
+                self.__output.append(self.__hmac.digest())
+            else:
+                self.__output.append(struct.pack(">i", len(message)))
             if len(message) <= SEND_SIZE:
                 self.__output.append(message)
             else:

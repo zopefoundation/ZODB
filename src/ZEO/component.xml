@@ -3,7 +3,7 @@
   <sectiontype name="zeo">
 
     <description>
-      The content of a "ZEO" section describe operational parameters
+      The content of a ZEO section describe operational parameters
       of a ZEO server except for the storage(s) to be served.
     </description>
 
@@ -68,6 +68,28 @@
         after acquiring the storage lock, specified in seconds.  If the
         transaction takes too long, the client connection will be closed
         and the transaction aborted.
+      </description>
+    </key>
+
+    <key name="authentication-protocol" required="no">
+      <description>
+        The name of the protocol used for authentication.  The
+        only protocol provided with ZEO is "digest," but extensions
+        may provide other protocols.
+      </description>
+    </key>
+
+    <key name="authentication-database" required="no">
+      <description>
+        The path of the database containing authentication credentials.
+      </description>
+    </key>
+
+    <key name="authentication-realm" required="no">
+      <description>
+        The authentication realm of the server.  Some authentication
+        schemes use a realm to identify the logic set of usernames
+        that are accepted by this server.
       </description>
     </key>
 

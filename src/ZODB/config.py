@@ -13,7 +13,7 @@
 ##############################################################################
 """Open database and storage from a configuration.
 
-$Id: config.py,v 1.11 2003/05/23 21:31:40 jeremy Exp $"""
+$Id: config.py,v 1.12 2003/05/30 19:20:55 jeremy Exp $"""
 
 import os
 import StringIO
