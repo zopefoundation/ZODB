@@ -84,8 +84,8 @@
 ##############################################################################
 """Database objects
 
-$Id: DB.py,v 1.23 2000/08/18 15:53:25 jim Exp $"""
-__version__='$Revision: 1.23 $'[11:-2]
+$Id: DB.py,v 1.24 2000/09/16 02:38:54 jim Exp $"""
+__version__='$Revision: 1.24 $'[11:-2]
 
 import cPickle, cStringIO, sys, POSException, UndoLogCompatible
 from Connection import Connection
@@ -121,6 +121,25 @@ class DB(UndoLogCompatible.UndoLogCompatible):
         pool_size -- The size of the pool of object spaces.
 
         """
+
+        # Allocate locks:
+        l=allocate_lock()
+        self._a=l.acquire
+        self._r=l.release
+
+        # Setup connection pools and cache info
+        self._pools={},[]
+        self._temps=[]
+        self._pool_size=pool_size
+        self._cache_size=cache_size
+        self._cache_deactivate_after=cache_deactivate_after
+        self._version_pool_size=version_pool_size
+        self._version_cache_size=version_cache_size
+        self._version_cache_deactivate_after=version_cache_deactivate_after
+
+        self._miv_cache={}
+
+        # Setup storage
         self._storage=storage
         storage.registerDB(self, None)
         if not hasattr(storage,'tpc_vote'): storage.tpc_vote=lambda *args: None
@@ -137,23 +156,6 @@ class DB(UndoLogCompatible.UndoLogCompatible):
             storage.store('\0\0\0\0\0\0\0\0', None, file.getvalue(), '', t)
             storage.tpc_vote(t)
             storage.tpc_finish(t)
-
-        # Allocate locks:
-        l=allocate_lock()
-        self._a=l.acquire
-        self._r=l.release
-
-        self._pools={},[]
-        self._temps=[]
-
-        self._pool_size=pool_size
-        self._cache_size=cache_size
-        self._cache_deactivate_after=cache_deactivate_after
-        self._version_pool_size=version_pool_size
-        self._version_cache_size=version_cache_size
-        self._version_cache_deactivate_after=version_cache_deactivate_after
-
-        self._miv_cache={}
 
         # Pass through methods:
         for m in ('history',
