@@ -196,7 +196,7 @@ class StorageTestBase(unittest.TestCase):
     
     # The following methods depend on optional storage features.
 
-    def _undo(self, tid, oid):
+    def _undo(self, tid, oid=None):
         # Undo a tid that affects a single object (oid).
         # XXX This is very specialized
         t = Transaction()
@@ -205,8 +205,9 @@ class StorageTestBase(unittest.TestCase):
         oids = self._storage.transactionalUndo(tid, t)
         self._storage.tpc_vote(t)
         self._storage.tpc_finish(t)
-        self.assertEqual(len(oids), 1)
-        self.assertEqual(oids[0], oid)
+        if oid is not None:
+            self.assertEqual(len(oids), 1)
+            self.assertEqual(oids[0], oid)
         return self._storage.lastTransaction()
 
     def _commitVersion(self, src, dst):
