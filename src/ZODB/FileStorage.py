@@ -115,7 +115,7 @@
 #   may have a back pointer to a version record or to a non-version
 #   record.
 #
-__version__='$Revision: 1.85 $'[11:-2]
+__version__='$Revision: 1.86 $'[11:-2]
 
 import struct, time, os, string, base64, sys
 from struct import pack, unpack
@@ -1164,38 +1164,36 @@ class FileStorage(BaseStorage.BaseStorage,
 
     def undoLog(self, first=0, last=-20, filter=None):
         if last < 0:
-            last=first-last+1
+            last = first - last + 1
         self._lock_acquire()
         try:
-            packt = self._packt
-            if packt is None:
+            if self._packt is None:
                 raise UndoError(
                     'Undo is currently disabled for database maintenance.<p>')
-            pos=self._pos
+            pos = self._pos
             # BAW: Why 39 please?  This makes no sense (see also below).
             if pos < 39:
                 return []
             file=self._file
             seek=file.seek
             read=file.read
-            unpack=struct.unpack
-            strip=string.strip
-            encode=base64.encodestring
-            r=[]
-            append=r.append
-            i=0
+            r = []
+            i = 0
             while i < last and pos > 39:
-                seek(pos-8)
-                pos=pos-U64(read(8))-8
-                seek(pos)
-                h=read(TRANS_HDR_LEN)
-                tid, tl, status, ul, dl, el = unpack(">8s8scHHH", h)
-                if tid < packt:
+                self._file.seek(pos - 8)
+                pos = pos - U64(self._file.read(8)) - 8
+                self._file.seek(pos)
+                h = self._file.read(TRANS_HDR_LEN)
+                tid, tl, status, ul, dl, el = struct.unpack(">8s8scHHH", h)
+                if tid < self._packt:
                     break
                 if status != ' ':
                     continue
-                u=ul and read(ul) or ''
-                d=dl and read(dl) or ''
+                d = u = ''
+                if ul:
+                    u = self._file.read(ul)
+                if dl:
+                    d = self._file.read(dl)
                 e = {}
                 if el:
                     try:
@@ -1231,15 +1229,15 @@ class FileStorage(BaseStorage.BaseStorage,
                     id = tid + p64(pos)
                 else:
                     id = tid + p64(pos) + next
-                d={'id': encode(id).rstrip(),
-                   'time': TimeStamp(tid).timeTime(),
-                   'user_name': u,
-                   'description': d}
+                d = {'id': base64.encodestring(id).rstrip(),
+                     'time': TimeStamp(tid).timeTime(),
+                     'user_name': u,
+                     'description': d}
                 d.update(e)
                 if filter is None or filter(d):
                     if i >= first:
-                        append(d)
-                    i=i+1
+                        r.append(d)
+                    i += 1
             return r
         finally:
             self._lock_release()
