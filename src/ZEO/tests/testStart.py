@@ -57,6 +57,8 @@ class StartTests(unittest.TestCase):
 
     def stop_server(self):
         ppid, pid = self.getpids()
+        if ppid is None:
+            return
         self.kill(pids=[pid])
 
     def kill(self, sig=signal.SIGTERM, pids=None):
