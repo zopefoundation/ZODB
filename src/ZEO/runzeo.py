@@ -87,21 +87,10 @@ class ZEOOptionsMixin:
         self.add("monitor_address", None, "m:", "monitor=",
                  self.handle_monitor_address)
 
-    def load_logconf(self):
-        if self.configroot.logger is not None:
-            zLOG.set_initializer(self.log_initializer)
-            zLOG.initialize()
-
-    def log_initializer(self):
-        from zLOG import EventLogger
-        logger = self.configroot.logger()
-        for handler in logger.handlers:
-            if hasattr(handler, "reopen"):
-                handler.reopen()
-        EventLogger.event_logger.logger = logger
-
 
 class ZEOOptions(ZDOptions, ZEOOptionsMixin):
+
+    logsectionname = "logger"
 
     def __init__(self):
         self.schemadir = os.path.dirname(__file__)
@@ -109,11 +98,6 @@ class ZEOOptions(ZDOptions, ZEOOptionsMixin):
         self.add_zeo_options()
         self.add("storages", "storages",
                  required="no storages specified; use -f or -C")
-
-    def realize(self, *args):
-        ZDOptions.realize(self, *args)
-        if self.configroot is not None:
-            self.load_logconf()
 
 
 class ZEOServer:
