@@ -159,8 +159,8 @@ def main(args):
         s = s.Storage
         server = None
     else:
-        fs = ZODB.FileStorage.FileStorage(fs_name, create=1)
-        s, server, pid = forker.start_zeo(fs, domain=domain)
+        s, server, pid = forker.start_zeo("FileStorage",
+                                          (fs_name, 1), domain=domain)
 
     data=open(data).read()
     db=ZODB.DB(s,
