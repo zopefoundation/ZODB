@@ -296,16 +296,15 @@ class ClientStorage:
             # If there is no mainloop running, this code needs
             # to call poll() to cause asyncore to handle events.
             while 1:
-                cn = self._connection
-                if cn is None:
+                if self._ready.isSet():
+                    break
+                log2(INFO, "Wait for cache verification to finish")
+                if self._connection is None:
                     # If the connection was closed while we were
                     # waiting for it to become ready, start over.
                     return self._wait()
                 else:
-                    cn.pending(30)
-                if self._ready.isSet():
-                    break
-                log2(INFO, "Wait for cache verification to finish")
+                    self._connection.pending(30)
 
     def close(self):
         """Storage API: finalize the storage, releasing external resources."""
