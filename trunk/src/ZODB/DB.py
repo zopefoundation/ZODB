@@ -99,9 +99,9 @@ class DB(object):
           - `version_cache_deactivate_after`: ignored
         """
         # Allocate locks:
-        l=allocate_lock()
-        self._a=l.acquire
-        self._r=l.release
+        l = allocate_lock()
+        self._a = l.acquire
+        self._r = l.release
 
         # Setup connection pools and cache info
         self._pools = {},[]
@@ -122,7 +122,8 @@ class DB(object):
         # Setup storage
         self._storage=storage
         storage.registerDB(self, None)
-        if not hasattr(storage,'tpc_vote'): storage.tpc_vote=lambda *args: None
+        if not hasattr(storage,'tpc_vote'):
+            storage.tpc_vote = lambda *args: None
         try:
             storage.load('\0\0\0\0\0\0\0\0','')
         except KeyError:
@@ -153,15 +154,17 @@ class DB(object):
 
     def _cacheMean(self, attr):
         # XXX this method doesn't work
-        m=[0,0]
+        m = [0, 0]
         def f(con, m=m, attr=attr):
-            t=getattr(con._cache, attr)
-            m[0]=m[0]+t
-            m[1]=m[1]+1
+            t = getattr(con._cache, attr)
+            m[0] += t
+            m[1] += 1
 
         self._connectionMap(f)
-        if m[1]: m=m[0]/m[1]
-        else: m=None
+        if m[1]:
+            m = m[0] / m[1] # XXX should this be // ?
+        else:
+            m = None
         return m
 
     def _closeConnection(self, connection):
@@ -189,7 +192,6 @@ class DB(object):
                 # We need to break circular refs to make it really go.
                 # XXX What objects are involved in the cycle?
                 connection.__dict__.clear()
-
                 return
 
             pool.append(connection)
@@ -202,18 +204,21 @@ class DB(object):
     def _connectionMap(self, f):
         self._a()
         try:
-            pools,pooll=self._pools
+            pools, pooll = self._pools
             for pool, allocated in pooll:
-                for cc in allocated: f(cc)
+                for cc in allocated:
+                    f(cc)
 
-            temps=self._temps
+            temps = self._temps
             if temps:
-                t=[]
-                rc=sys.getrefcount
+                t = []
+                rc = sys.getrefcount
                 for cc in temps:
-                    if rc(cc) > 3: f(cc)
-                self._temps=t
-        finally: self._r()
+                    if rc(cc) > 3:
+                        f(cc)
+                self._temps = t
+        finally:
+            self._r()
 
     def abortVersion(self, version, txn=None):
         if txn is None:
@@ -233,7 +238,7 @@ class DB(object):
                 module = module and '%s.' % module or ''
                 c = "%s%s" % (module, ob.__class__.__name__)
                 if have_detail(c):
-                    detail[c] = detail[c] + 1
+                    detail[c] += 1
                 else:
                     detail[c] = 1
 
@@ -289,8 +294,9 @@ class DB(object):
     def cacheLastGCTime(self):
         m=[0]
         def f(con, m=m):
-            t=con._cache.cache_last_gc_time
-            if t > m[0]: m[0]=t
+            t = con._cache.cache_last_gc_time
+            if t > m[0]:
+                m[0] = t
 
         self._connectionMap(f)
         return m[0]
@@ -298,20 +304,23 @@ class DB(object):
     def cacheMinimize(self):
         self._connectionMap(lambda c: c._cache.minimize())
 
-    def cacheMeanAge(self): return self._cacheMean('cache_mean_age')
-    def cacheMeanDeac(self): return self._cacheMean('cache_mean_deac')
-    def cacheMeanDeal(self): return self._cacheMean('cache_mean_deal')
+    def cacheMeanAge(self):
+        return self._cacheMean('cache_mean_age')
+    def cacheMeanDeac(self):
+        return self._cacheMean('cache_mean_deac')
+    def cacheMeanDeal(self):
+        return self._cacheMean('cache_mean_deal')
 
     def cacheSize(self):
         m=[0]
         def f(con, m=m):
-            m[0] = m[0] + con._cache.cache_non_ghost_count
+            m[0] += con._cache.cache_non_ghost_count
 
         self._connectionMap(f)
         return m[0]
 
     def cacheDetailSize(self):
-        m=[]
+        m = []
         def f(con, m=m):
             m.append({'connection':repr(con),
                       'ngsize':con._cache.cache_non_ghost_count,
@@ -346,11 +355,14 @@ class DB(object):
     def lastTransaction(self):
         return self._storage.lastTransaction()
 
-    def getName(self): return self._storage.getName()
+    def getName(self):
+        return self._storage.getName()
 
-    def getPoolSize(self): return self._pool_size
+    def getPoolSize(self):
+        return self._pool_size
 
-    def getSize(self): return self._storage.getSize()
+    def getSize(self):
+        return self._storage.getSize()
 
     def getVersionCacheSize(self):
         return self._version_cache_size
@@ -367,13 +379,14 @@ class DB(object):
         connection.
         """
         if connection is not None:
-            version=connection._version
+            version = connection._version
         # Update modified in version cache
         # XXX must make this work with list or dict to backport to 2.6
         for oid in oids.keys():
-            h=hash(oid)%131
-            o=self._miv_cache.get(h, None)
-            if o is not None and o[0]==oid: del self._miv_cache[h]
+            h = hash(oid) % 131
+            o = self._miv_cache.get(h, None)
+            if o is not None and o[0]==oid:
+                del self._miv_cache[h]
 
         # Notify connections
         for pool, allocated in self._pools[1]:
@@ -385,7 +398,7 @@ class DB(object):
                     cc.invalidate(tid, oids)
 
         if self._temps:
-            t=[]
+            t = []
             for cc in self._temps:
                 if sys.getrefcount(cc) > 3:
                     if (cc is not connection and
@@ -397,13 +410,13 @@ class DB(object):
             self._temps = t
 
     def modifiedInVersion(self, oid):
-        h=hash(oid)%131
-        cache=self._miv_cache
+        h = hash(oid) % 131
+        cache = self._miv_cache
         o=cache.get(h, None)
         if o and o[0]==oid:
             return o[1]
-        v=self._storage.modifiedInVersion(oid)
-        cache[h]=oid, v
+        v = self._storage.modifiedInVersion(oid)
+        cache[h] = oid, v
         return v
 
     def objectCount(self):
@@ -463,7 +476,6 @@ class DB(object):
                 if transaction is not None:
                     transaction[id(c)] = c
                 return c
-
 
             pools, pooll = self._pools
 
@@ -526,7 +538,8 @@ class DB(object):
                             # Note that the pool size will normally be 1 here,
                             # but it could be higher due to a race condition.
                             pool_lock.release()
-                    else: return
+                    else:
+                        return
 
             elif len(pool)==1:
                 # Taking last one, lock the pool.
@@ -585,17 +598,19 @@ class DB(object):
             del allocated[:]
 
     def connectionDebugInfo(self):
-        r=[]
-        pools,pooll=self._pools
-        t=time()
+        r = []
+        pools, pooll = self._pools
+        t = time()
         for version, (pool, allocated, lock) in pools.items():
             for c in allocated:
-                o=c._opened
-                d=c._debug_info
+                o = c._opened
+                d = c._debug_info
                 if d:
-                    if len(d)==1: d=d[0]
-                else: d=''
-                d="%s (%s)" % (d, len(c._cache))
+                    if len(d)==1:
+                        d = d[0]
+                else:
+                    d=''
+                d = "%s (%s)" % (d, len(c._cache))
 
                 r.append({
                     'opened': o and ("%s (%.2fs)" % (ctime(o), t-o)),
@@ -644,21 +659,23 @@ class DB(object):
         return find_global(modulename, globalname)
 
     def setPoolSize(self, v):
-        self._pool_size=v
+        self._pool_size = v
 
     def setActivityMonitor(self, am):
         self._activity_monitor = am
 
     def setVersionCacheSize(self, v):
-        self._version_cache_size=v
+        self._version_cache_size = v
         for ver in self._pools[0].keys():
             if ver:
                 for c in self._pools[0][ver][1]:
-                    c._cache.cache_size=v
+                    c._cache.cache_size = v
 
-    def setVersionPoolSize(self, v): self._version_pool_size=v
+    def setVersionPoolSize(self, v):
+        self._version_pool_size=v
 
-    def cacheStatistics(self): return () # :(
+    def cacheStatistics(self):
+        return () # :(
 
     def undo(self, id, txn=None):
         """Undo a transaction identified by id.
@@ -742,8 +759,9 @@ class CommitVersion(ResourceManager):
         self._dest = dest
 
     def commit(self, ob, t):
-        dest=self._dest
-        tid, oids = self._db._storage.commitVersion(self._version, self._dest,
+        dest = self._dest
+        tid, oids = self._db._storage.commitVersion(self._version,
+                                                    self._dest,
                                                     t)
         oids = dict.fromkeys(oids, 1)
         self._db.invalidate(tid, oids, version=self._dest)
@@ -760,7 +778,9 @@ class AbortVersion(ResourceManager):
 
     def commit(self, ob, t):
         tid, oids = self._db._storage.abortVersion(self._version, t)
-        self._db.invalidate(tid, dict.fromkeys(oids, 1), version=self._version)
+        self._db.invalidate(tid,
+                            dict.fromkeys(oids, 1),
+                            version=self._version)
 
 class TransactionalUndo(ResourceManager):
 
