@@ -1,16 +1,168 @@
+==========================
 Running a ZEO Server HOWTO
 ==========================
 
 Introduction
 ------------
 
-ZEO stands for Zope Enterprise Objects.  It is a client-server system
-for sharing a single storage among many clients.  Normally, a ZODB
-storage can only be used by a single process.  When you use ZEO, the
-storage is opened in the ZEO server process.  Client programs connect
-to this process using a ZEO ClientStorage.  ZEO provides a consistent
-view of the database to all clients.  The ZEO client and server
-communicate using a custom RPC protocol layered on top of TCP.
+ZEO (Zope Enterprise Objects) is a client-server system for sharing a
+single storage among many clients.  Normally, a ZODB storage can only
+be used by a single process.  When you use ZEO, the storage is opened
+in the ZEO server process.  Client programs connect to this process
+using a ZEO ClientStorage.  ZEO provides a consistent view of the
+database to all clients.  The ZEO client and server communicate using
+a custom RPC protocol layered on top of TCP.
+
+There are several configuration options that affect the behavior of a
+ZEO server.  This section describes how a few of these features
+working.  Subsequent sections describe how to configure every option.
+
+Client cache
+~~~~~~~~~~~~
+
+Each ZEO client keeps an on-disk cache of recently used objects to
+avoid fetching those objects from the server each time they are
+requested.  It is usually faster to read the objects from disk than it
+is to fetch them over the network.  The cache can also provide
+read-only copies of objects during server outages.
+
+The cache may be persistent or transient. If the cache is persistent,
+then the cache files are retained for use after process restarts. A
+non-persistent cache uses temporary files that are removed when the
+client storage is closed.
+
+The client cache size is configured when the ClientStorage is created.
+The default size is 20MB, but the right size depends entirely on the
+particular database.  Setting the cache size too small can hurt
+performance, but in most cases making it too big just wastes disk
+space.  The document "Client cache tracing" describes how to collect a
+cache trace that can be used to determine a good cache size.
+
+ZEO uses invalidations for cache consistency.  Every time an object is
+modified, the server sends a message to each client informing it of
+the change.  The client will discard the object from its cache when it
+receives an invalidation.  These invalidations are often batched.
+
+Each time a client connects to a server, it must verify that its cache
+contents are still valid.  (It did not receive any invalidation
+messages while it was disconnected.)  There are several mechanisms
+used to perform cache verification.  In the worst case, the client
+sends the server a list of all objects in its cache along with their
+timestamps; the server sends back an invalidation message for each
+stale object.  The cost of verification is one drawback to making the
+cache too large.
+
+Note that every time a client crashes or disconnects, it must verify
+its cache.  Every time a server crashes, all of its clients must
+verify their caches.
+
+The cache verification process is optimized in two ways to eliminate
+costs when restarting clients and servers.  Each client keeps the
+timestamp of the last invalidation message it has seen.  When it
+connects to the server, it checks to see if any invalidation messages
+were sent after that timestamp.  If not, then the cache is up-to-date
+and no further verification occurs.  The other optimization is the
+invalidation queue, described below.
+
+Invalidation queue
+~~~~~~~~~~~~~~~~~~
+
+The ZEO server keeps a queue of recent invalidation messages in
+memory.  When a client connects to the server, it sends the timestamp
+of the most recent invalidation message it has received.  If that
+message is still in the invalidation queue, then the server sends the
+client all the missing invalidations.  This is often cheaper than
+perform full cache verification.
+
+The default size of the invalidation queue is 100.  If the
+invalidation queue is larger, it will be more likely that a client
+that reconnects will be able to verify its cache using the queue.  On
+the other hand, a large queue uses more memory on the server to store
+the message.  Invalidation messages tend to be small, perhaps a few
+hundred bytes each on average; it depends on the number of objects
+modified by a transaction.
+
+Transaction timeouts
+~~~~~~~~~~~~~~~~~~~~
+
+A ZEO server can be configured to timeout a transaction if it takes
+too long to complete.  Only a single transaction can commit at a time;
+so if one transaction takes too long, all other clients will be
+delayed waiting for it.  In the extreme, a client can hang during the
+commit process.  If the client hangs, the server will be unable to
+commit other transactions until it restarts.  A well-behaved client
+will not hang, but the server can be configured with a transaction
+timeout to guard against bugs that cause a client to hang.
+
+If any transaction exceeds the timeout threshold, the client's
+connection to the server will be closed and the transaction aborted.
+Once the transaction is aborted, the server can start processing other
+client's requests.  Most transactions should take very little time to
+commit.  The timer begins for a transaction after all the data has
+been sent to the server.  At this point, the cost of commit should be
+dominated by the cost of writing data to disk; it should be unusual
+for a commit to take longer than 1 second.  A transaction timeout of
+30 seconds should tolerate heavy load and slow communications between
+client and server, while guarding against hung servers.
+
+When a transaction times out, the client can be left in an awkward
+position.  If the timeout occurs during the second phase of the two
+phase commit, the client will log a panic message.  This should only
+cause problems if the client transaction involved multiple storages.
+If it did, it is possible that some storages committed the client
+changes and others did not.
+
+Monitor server
+~~~~~~~~~~~~~~
+
+The ZEO server updates several counters while it is running.  It can
+be configured to run a separate monitor server that reports the
+counter values and other statistics.  If a client connects to the
+socket, the server send a text report and close the socket
+immediately.  It does not read any data from the client.
+
+An example of a monitor server report is included below::
+
+    ZEO monitor server version 2.1a1
+    Fri Apr  4 16:57:42 2003
+    
+    Storage: 1
+    Server started: Fri Apr  4 16:57:37 2003
+    Clients: 0
+    Clients verifying: 0
+    Active transactions: 0
+    Commits: 0
+    Aborts: 0
+    Loads: 0
+    Stores: 0
+    Conflicts: 0
+    Conflicts resolved: 0
+
+Connection management
+~~~~~~~~~~~~~~~~~~~~~
+
+A ZEO client manages its connection to the ZEO server.  If it loses
+the connection, it starts a thread that attempts to reconnect.  While
+it is disconnected, it can satisfy some reads by using its cache.
+
+The client can be configured to wait a connection when it is created
+or to return immediately and provide data from its persistent cache.
+It usually simplifies programming to have the client wait for a
+connection on startup.
+
+When the client is disconnected, it polls periodically to see if the
+server is available.  The rate at which it polls is configurable.
+
+The client can be configured with multiple server addresses.  In this
+case, it assumes that each server has identical content and will use
+any server that is available.  It is possible to configure the client
+to accept a read-only connection to one of these servers if no
+read-write connection is available.  If it has a read-only connection,
+it will continue to poll for a read-write connection.  This feature
+supports the Zope Replication Services product,
+http://www.zope.com/Products/ZopeProducts/ZRS.  In general, it could
+be used to with a system that arranges to provide hot backups of
+servers in the case of failure.
 
 Installing software
 -------------------
@@ -31,6 +183,13 @@ then this command will install the new ZEO and ZODB:
 
 The install command should create a /home/zope/lib/python/ZEO directoy.
 
+Simple configuration
+--------------------
+
+mkzeoinst.py
+
+Or, do it step-by-step.
+
 Configuring server
 ------------------
 
@@ -45,7 +204,7 @@ PYTHONPATH.
 
 The configuration file specifies the underlying storage the server
 uses, the address it binds, and a few other optional parameters.
-An example is:
+An example is::
 
     <zeo>
     address zeo.example.com:8090
@@ -68,7 +227,7 @@ This file configures a server to use a FileStorage from
 It also starts a monitor server that lists in port 8091.  The ZEO
 server writes its log file to /var/tmp/zeo.log and uses a custom
 format for each line.  Assuming the example configuration it stored in
-zeo.config, you can run a server by typing:
+zeo.config, you can run a server by typing::
 
     python /usr/local/bin/runzeo.py -C zeo.config
 
@@ -82,7 +241,6 @@ The zeo section must list the address.  All the other keys are
 optional.
 
 address
-
         The address at which the server should listen.  This can be in
         the form 'host:port' to signify a TCP/IP connection or a
         pathname string to signify a Unix domain socket connection (at
@@ -93,7 +251,6 @@ address
         address).
 
 read-only
-
         Flag indicating whether the server should operate in read-only
         mode.  Defaults to false.  Note that even if the server is
         operating in writable mode, individual storages may still be
@@ -102,14 +259,12 @@ read-only
         that pack() is considered a read-only operation.
 
 invalidation-queue-size
-
         The storage server keeps a queue of the objects modified by the
         last N transactions, where N == invalidation_queue_size.  This
         queue is used to speed client cache verification when a client
         disconnects for a short period of time.
 
 monitor-address
-
         The address at which the monitor server should listen.  If
         specified, a monitor server is started.  The monitor server
         provides server statistics in a simple text format.  This can
@@ -122,7 +277,6 @@ monitor-address
         address).
 
 transaction-timeout
-
         The maximum amount of time to wait for a transaction to commit
         after acquiring the storage lock, specified in seconds.  If the
         transaction takes too long, the client connection will be closed
@@ -135,19 +289,19 @@ The ZEO client can also be configured using ZConfig.  The ZODB.config
 module provides several function for opening a storage based on its
 configuration.
 
-    ZODB.config.storageFromString()
-    ZODB.config.storageFromFile()
-    ZODB.config.storageFromURL()
+- ZODB.config.storageFromString()
+- ZODB.config.storageFromFile()
+- ZODB.config.storageFromURL()
 
 The ZEO client configuration requires the server address be
-specified.  Everything else is optional.  An example configuration is:
+specified.  Everything else is optional.  An example configuration is::
 
     <zeoclient>
     server zeo.example.com:8090
     </zeoclient>
 
 To use a ZEO client from Zope, write a configuration file and load it
-from custom_zodb.py:
+from custom_zodb.py::
 
     from ZODB.config import storageFromURL
     Storage = storageFromURL("/path/to/client.txt")
@@ -155,64 +309,54 @@ from custom_zodb.py:
 The other configuration options are listed below.
 
 storage
-
         The name of the storage that the client wants to use.  If the
         ZEO server serves more than one storage, the client selects
         the storage it wants to use by name.  The default name is '1',
         which is also the default name for the ZEO server.
 
 cache-size
-
         The maximum size of the client cache, in bytes.
 
 name
-
         The storage name.  If unspecified, the address of the server
         will be used as the name.
 
 client
-
         Enables persistent cache files.  The string passed here is
         used to construct the cache filenames.  If it is not
         specified, the client creates a temporary cache that will
         only be used by the current object.
 
 var
-
         The directory where persistent cache files are stored.  By
         default cache files, if they are persistent, are stored in 
         the current directory.
 
 min-disconnect-poll
-
         The minimum delay in seconds between attempts to connect to
         the server, in seconds.  Defaults to 5 seconds.
 
 max-disconnect-poll
-
         The maximum delay in seconds between attempts to connect to
         the server, in seconds.  Defaults to 300 seconds.
 
 wait
-
         A boolean indicating whether the constructor should wait
         for the client to connect to the server and verify the cache
         before returning.  The default is true.
 
 read-only
-
         A flag indicating whether this should be a read-only storage,
         defaulting to false (i.e. writing is allowed by default).
 
 read-only-fallback
-
         A flag indicating whether a read-only remote storage should be
         acceptable as a fallback when no writable storages are
         available.  Defaults to false.  At most one of read_only and
         read_only_fallback should be true.
 
 A ZEO client can also be created by calling the ClientStorage
-constructor explicitly.  For example:
+constructor explicitly.  For example::
 
     from ZEO.ClientStorage import ClientStorage
     storage = ClientStorage(("zeo.example.com", 8090))
@@ -220,23 +364,25 @@ constructor explicitly.  For example:
 Running the ZEO server as a daemon
 ----------------------------------
 
-ZEO features
-------------
+In an operational setting, you will want to run the ZEO server a
+daemon process that is restarted when it dies.  The zdaemon package
+provides two tools for running daemons: zdrun.py and zdctl.py.
+The document "Using zdctl and zdrun to manage server processes"
+explains how to use these scripts to manage daemons.
 
-Client cache configuration
---------------------------
+XXX example of how to use zdrun
 
-Setting the cache size.
-Persistent or not.
-cache trace.
+XXX mkzeoinst.py docs should probably go here
 
 Diagnosing problems
 -------------------
 
 How to use the debug logs.
+
 Common gotchas.
 
-Details
--------
-
-How does the zrpc protocol work?
+If an exception occurs on the server, the server will log a traceback
+and send an exception to the client.  The traceback on the client will
+show a ZEO protocol library as the source of the error.  If you need
+to diagnose the problem, you will have to look in the server log for
+the rest of the traceback.
