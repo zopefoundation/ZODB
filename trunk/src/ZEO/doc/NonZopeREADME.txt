@@ -1,27 +1,29 @@
 Zope Enterprize Objects
 
-  Put this package (the ZEO directory, without any wrapping directory
-  included in a distribution) in your python path.
+  Put the ZEO package in a directory on your Python path.  On a Unix
+  system, you can use the site-packages directory of your Python lib
+  directory.  The ZEO package is the directory named ZEO that contains
+  an __init__.py file.
 
   Starting (and configuring) the ZEO Server
 
-    To start the storage server, go to your Zope install directory and::
+    To start the storage server, run the start.py script contained in
+    the ZEO package.  You can run the script from the package
+    directory or copy it to a directory on your path.
+
+    Specify the port number when you run the script::
 
       python ZEO/start.py -p port_number
 
-    (Run start without arguments to see options.)
+    Or run start.py without arguments to see options.  The options are
+    documented in start.txt.
 
-    Of course, the server and the client don't have to be on the same
-    machine.
-
-    If the server and client *are* on the same machine, then you can use 
-    a Unix domain socket::
+    The server and the client don't have to be on the same machine.
+    If the server and client *are* on the same machine, then you can
+    use a Unix domain socket::
 
       python ZEO/start.py -U filename
 
-    The start script provides a number of options not documented here.
-    See doc/start.txt for more information.
-        
   Running a ZEO client
 
     In your application, create a ClientStorage, rather than, say, a
@@ -42,7 +44,7 @@ Zope Enterprize Objects
       db=ZODB.DB(Storage)
 
     There are a number of configuration options available for the
-    ClientStorage. See doc/ClientStorage.txt for details.
+    ClientStorage. See ClientStorage.txt for details.
 
     If you want a persistent client cache which retains cache contents
     across ClientStorage restarts, you need to define the environment
@@ -53,7 +55,7 @@ Zope Enterprize Objects
 
   Dependencies on other modules
 
-      - The module, ThreadedAsync must be in the python path.
+      - The module ThreadedAsync must be on the Python path.
 
       - The zdaemon module is necessary if you want to run your
         storage server as a daemon that automatically restarts itself
