@@ -93,7 +93,11 @@ class StartTests(unittest.TestCase):
             try:
                 os.kill(pid, sig)
             except os.error, err:
-                print err
+                if err[0] == errno.ESRCH:
+                    if self.pids.has_key(pid):
+                        del self.pids[pid]
+                    continue
+                raise
 
     def wait(self, flag=0, pids=None):
         if pids is None:
@@ -104,6 +108,8 @@ class StartTests(unittest.TestCase):
                 _pid, status = os.waitpid(pid, flag)
             except os.error, err:
                 if err[0] == errno.ECHILD:
+                    if self.pids.has_key(pid):
+                        del self.pids[pid]
                     continue
                 print err
             else:
