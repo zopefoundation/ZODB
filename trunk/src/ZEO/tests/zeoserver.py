@@ -20,6 +20,7 @@ import errno
 import getopt
 import random
 import socket
+import signal
 import asyncore
 import threading
 import ThreadedAsync.LoopCallback
@@ -127,14 +128,26 @@ class Suicide(threading.Thread):
         # chance that the server gives up before the clients.
         time.sleep(330)
         log("zeoserver", "suicide thread invoking shutdown")
-        from ZEO.tests.forker import shutdown_zeo_server
-        # XXX If the -k option was given to zeoserver, then the process will
-        # go away but the temp files won't get cleaned up.
-        shutdown_zeo_server(self._adminaddr)
+
+        # If the server hasn't shut down yet, the client may not be
+        # able to connect to it.  If so, try to kill the process to
+        # force it to shutdown.
+        if hasattr(os, "kill"):
+            os.kill(pid, signal.SIGTERM)
+            time.sleep(5)
+            os.kill(pid, signal.SIGKILL)
+        else:
+            from ZEO.tests.forker import shutdown_zeo_server
+            # XXX If the -k option was given to zeoserver, then the
+            # process will go away but the temp files won't get
+            # cleaned up.
+            shutdown_zeo_server(self._adminaddr)
 
 
 def main():
-    label = 'zeoserver:%d' % os.getpid()
+    global pid
+    pid = os.getpid()
+    label = 'zeoserver:%d' % pid
     log(label, 'starting')
 
     # We don't do much sanity checking of the arguments, since if we get it
