@@ -98,7 +98,6 @@ class ZEOTestServer(asyncore.dispatcher):
             self.log('closing the storage')
             self.storage.close()
             cleanup(self.storage)
-        if self.count <= 0:
             self.log('exiting')
             os._exit(0)
         self.log('continuing')
