@@ -222,7 +222,7 @@ class ConnectionTests(ZEOTestBase):
     start and stop a ZEO storage server.
     """
     
-    __super_setUp = StorageTestBase.StorageTestBase.setUp
+    __super_tearDown = StorageTestBase.StorageTestBase.tearDown
 
     ports = []
     for i in range(200):
@@ -242,7 +242,7 @@ class ConnectionTests(ZEOTestBase):
         self.shutdownServer()
         # file storage appears to create four files
         for ext in '', '.index', '.lock', '.tmp':
-            path = self.__fs_base + ext
+            path = self.file + ext
             if os.path.exists(path):
                 os.unlink(path)
         for i in 0, 1:
@@ -325,13 +325,13 @@ class UnixConnectionTests(ConnectionTests):
         getStorage() method.
         """
         self.running = 1
-        self.__fs_base = tempfile.mktemp()
+        self.file = tempfile.mktemp()
         self.addr = '', self.ports.pop()
         self._startServer()
         self.__super_setUp()
 
     def _startServer(self, create=1):
-        fs = FileStorage(self.__fs_base, create=create)
+        fs = FileStorage(self.file, create=create)
         self._pid, self._server = forker.start_zeo_server(fs, self.addr)
 
     def openClientStorage(self, cache='', cache_size=200000, wait=1):
