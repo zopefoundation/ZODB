@@ -265,6 +265,17 @@ class Connection(smac.SizedMessageAsyncConnection, object):
         # Now it's safe to register with asyncore's socket map; it was not
         # safe before message_input was replaced, or before handshake() was
         # invoked.
+        # Obscure:  in Python 2.4, the base asyncore.dispatcher class grew
+        # a ._map attribute, which is used instead of asyncore's global
+        # socket map when ._map isn't None.  Because we passed `ourmap` to
+        # the base class constructor above, in 2.4 asyncore believes we want
+        # to use `ourmap` instead of the global socket map -- but we don't.
+        # So we have to replace our ._map with the global socket map, and
+        # update the global socket map with `ourmap`.  Replacing our ._map
+        # isn't necessary before Python 2.4, but doesn't hurt then (it just
+        # gives us an unused attribute in 2.3); updating the global socket
+        # map is necessary regardless of Python version.
+        self._map = asyncore.socket_map
         asyncore.socket_map.update(ourmap)
 
     def __repr__(self):
