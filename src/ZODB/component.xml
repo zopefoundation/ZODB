@@ -19,7 +19,10 @@
     <key name="name" default="Mapping Storage"/>
   </sectiontype>
 
-  <sectiontype name="fullstorage" datatype=".BDBStorage"
+  <!-- The BDB storages probably need to be revised somewhat still.
+       The extension relationship seems a little odd.
+    -->
+  <sectiontype name="fullstorage" datatype=".BDBFullStorage"
                implements="storage">
     <key name="name" required="yes" />
     <key name="interval" datatype="time-interval" default="2m" />
@@ -33,21 +36,8 @@
     <key name="read-only" datatype="boolean" default="off"/>
   </sectiontype>
 
-  <!-- XXX Fred promises to make it so minimal storage is just an
-       extension of fullstorage -->
-  <sectiontype name="minimalstorage" datatype=".BDBStorage"
-               implements="storage">
-    <key name="name" required="yes" />
-    <key name="interval" datatype="time-interval" default="2m" />
-    <key name="kbyte" datatype="integer" default="0" />
-    <key name="min" datatype="integer" default="0" />
-    <key name="logdir" />
-    <key name="cachesize" datatype="byte-size" default="128MB" />
-    <key name="frequency" datatype="time-interval" default="0" />
-    <key name="packtime" datatype="time-interval" default="4h" />
-    <key name="classicpack" datatype="integer" default="0" />
-    <key name="read-only" datatype="boolean" default="off"/>
-  </sectiontype>
+  <sectiontype name="minimalstorage" datatype=".BDBMinimalStorage"
+               implements="storage" extends="fullstorage"/>
 
   <sectiontype name="zeoclient" datatype=".ZEOClient"
                implements="storage">
