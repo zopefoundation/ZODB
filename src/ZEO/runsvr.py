@@ -149,6 +149,7 @@ class ZEOOptions(Options):
     hostname = None                     # A subclass may set this
     hostconf = None                     # <Host> section
     zeoconf = None                      # <ZEO> section
+    logconf = None                      # <Log> section
 
     family = None                       # set by -a; AF_UNIX or AF_INET
     address = None                      # set by -a; string or (host, port)
@@ -213,9 +214,11 @@ class ZEOOptions(Options):
         if self.zeoconf is None:
             # If no <ZEO> section exists, fall back to the host (or root)
             self.zeoconf = self.hostconf
+        self.logconf = self.hostconf.getSection("Log")
 
         # Now extract options from various configuration sections
         self.load_zeoconf()
+        self.load_logconf()
         self.load_storages()
 
     def load_zeoconf(self):
@@ -236,6 +239,28 @@ class ZEOOptions(Options):
         elif path:
             self.family = socket.AF_UNIX
             self.address = path
+
+    def load_logconf(self):
+        # Get logging options from conf, unless overridden by environment
+        if not self.logconf:
+            return
+        reinit = 0
+        if os.getenv("EVENT_LOG_FILE") is None:
+            if os.getenv("STUPID_LOG_FILE") is None:
+                path = self.logconf.get("path")
+                if path is not None:
+                    os.environ["EVENT_LOG_FILE"] = path
+                    os.environ["STUPID_LOG_FILE"] = path
+                    reinit = 1
+        if os.getenv("EVENT_LOG_SEVERITY") is None:
+            if os.getenv("STUPID_LOG_SEVERITY") is None:
+                level = self.logconf.get("level")
+                if level is not None:
+                    os.environ["EVENT_LOG_SEVERITY"] = level
+                    os.environ["STUPID_LOG_SEVERITY"] = level
+                    reinit = 1
+        if reinit:
+            zLOG.initialize()
 
     def load_storages(self):
         # Get the storage specifications
