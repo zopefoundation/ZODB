@@ -293,18 +293,21 @@ class ClientStorage:
                     break
                 log2(INFO, "Wait for cache verification to finish")
         else:
-            # If there is no mainloop running, this code needs
-            # to call poll() to cause asyncore to handle events.
-            while 1:
-                if self._ready.isSet():
-                    break
-                log2(INFO, "Wait for cache verification to finish")
-                if self._connection is None:
-                    # If the connection was closed while we were
-                    # waiting for it to become ready, start over.
-                    return self._wait()
-                else:
-                    self._connection.pending(30)
+            self._wait_sync()
+
+    def _wait_sync(self):
+        # If there is no mainloop running, this code needs
+        # to call poll() to cause asyncore to handle events.
+        while 1:
+            if self._ready.isSet():
+                break
+            log2(INFO, "Wait for cache verification to finish")
+            if self._connection is None:
+                # If the connection was closed while we were
+                # waiting for it to become ready, start over.
+                return self._wait()
+            else:
+                self._connection.pending(30)
 
     def close(self):
         """Storage API: finalize the storage, releasing external resources."""
@@ -414,6 +417,9 @@ class ClientStorage:
         self._oids = []
         self._info.update(stub.get_info())
         self.verify_cache(stub)
+        if not conn.is_async():
+            log2(INFO, "Waiting for cache verification to finish")
+            self._wait_sync()
 
     def set_server_addr(self, addr):
         # Normalize server address and convert to string
