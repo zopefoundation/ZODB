@@ -21,7 +21,6 @@ import logging
 from ZODB.POSException import ExportError
 from ZODB.utils import p64, u64
 from ZODB.serialize import referencesf
-import sys
 
 logger = logging.getLogger('ZODB.ExportImport')
 
