@@ -87,7 +87,7 @@ def persistent_id(object):
     if getattr(object, '__class__', 0) is not PersistentReference:
         return None
     return object.data
-    
+
 _unresolvable = {}
 def tryToResolveConflict(self, oid, committedSerial, oldSerial, newpickle,
                          committedData=''):
@@ -107,7 +107,7 @@ def tryToResolveConflict(self, oid, committedSerial, oldSerial, newpickle,
         else:
             klass = meta
             newargs = ()
-            
+
         if klass in _unresolvable:
             return None
 
