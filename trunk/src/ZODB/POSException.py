@@ -84,8 +84,8 @@
 ##############################################################################
 '''BoboPOS-defined exceptions
 
-$Id: POSException.py,v 1.3 1999/05/18 15:55:10 jim Exp $'''
-__version__='$Revision: 1.3 $'[11:-2]
+$Id: POSException.py,v 1.4 2000/05/17 19:45:18 jim Exp $'''
+__version__='$Revision: 1.4 $'[11:-2]
 
 
 class POSError(Exception):
@@ -142,3 +142,14 @@ class Unimplemented(POSError):
 class Unsupported(POSError):
     """An feature that is unsupported bt the storage was used.
     """
+
+class InvalidObjectReference(POSError):
+    """An object contains an invalid reference to another object.
+
+    An invalid reference may be one of:
+
+    o A reference to a wrapped persistent object.
+
+    o A reference to an object in a different database connection.
+    """
+    
