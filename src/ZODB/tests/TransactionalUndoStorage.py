@@ -437,7 +437,7 @@ class TransactionalUndoStorage:
         # Now pack just the initial revision of the object.  We need the
         # second revision otherwise we won't be able to undo the third
         # revision!
-        self._storage.pack(revid1, referencesf)
+        self._storage.pack(time.time(), referencesf)
         # And now attempt to undo the last transaction
         t = Transaction()
         self._storage.tpc_begin(t)
