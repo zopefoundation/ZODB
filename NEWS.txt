@@ -28,6 +28,21 @@ make a connection.  The ZEO reconnection tests may run much faster now,
 depending on platform, and should suffer far fewer (if any) intermittent
 "timed out waiting for storage to connect" failures.
 
+Pickle (in-memory Connection) Cache
+-----------------------------------
+
+You probably never saw this exception:
+
+    ``ValueError: Can not re-register object under a different oid``
+
+It's been changed to say what it meant:
+
+    ``ValueError: A different object already has the same oid``
+
+This happens if an attempt is made to add distinct objects to the cache
+that have the same oid (object identifier).  ZODB should never do this,
+but it's possible for application code to force such an attempt.
+
 
 What's new in ZODB3 3.3.1a1?
 ============================

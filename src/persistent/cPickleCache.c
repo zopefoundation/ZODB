@@ -901,7 +901,7 @@ cc_add_item(ccobject *self, PyObject *key, PyObject *v)
     if (object_again) {
 	if (object_again != v) {
 	    PyErr_SetString(PyExc_ValueError,
-		    "Can not re-register object under a different oid");
+		    "A different object already has the same oid");
 	    return -1;
 	} else {
 	    /* re-register under the same oid - no work needed */
