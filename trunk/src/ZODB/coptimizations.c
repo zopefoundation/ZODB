@@ -14,7 +14,7 @@
 static char coptimizations_doc_string[] = 
 "C optimization for new_persistent_id().\n"
 "\n"
-"$Id: coptimizations.c,v 1.21 2002/12/12 18:52:21 jeremy Exp $\n";
+"$Id: coptimizations.c,v 1.22 2002/12/12 19:02:07 jeremy Exp $\n";
 
 #include "Python.h"
 #define DONT_USE_CPERSISTENCECAPI
@@ -152,6 +152,22 @@ set_oid(persistent_id *self, PyObject *object)
     Py_DECREF(oid);
     return NULL;
 }
+
+/* persistent_id_call()
+
+   Returns a reference to a persistent object, appending it to the the
+   persistent_id's list of objects.  If a non-persistent object is
+   found, return None.
+
+   The returned reference can be either class info, oid pair or a
+   plain old oid.  If it is a pair, the class info is the module and
+   the name of the class.  The class info can be used to create a
+   ghost without loading the class.
+
+   For unusual objects, e.g. ZClasses, return just the oid.  An object
+   is unusual if it isn't an ExtensionClass, because that means it
+   doesn't inherit from Persistence, or if it has __getinitargs__().
+*/
 
 static PyObject *
 persistent_id_call(persistent_id *self, PyObject *args, PyObject *kwargs)
