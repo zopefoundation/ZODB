@@ -19,46 +19,36 @@ This uses Vinay Sajip's PEP 282 logging module.
 
 __version__='$Revision$'[11:-2]
 
-import os, time
-try:
-    import textwrap
-except ImportError:
-    textwrap = None
+import os, sys, time
 import logging
 from BaseLogger import BaseLogger
 from LogHandlers import FileHandler, NullHandler, SysLogHandler
 from logging import StreamHandler, Formatter
 
 class EventLogger(BaseLogger):
+
     logger = logging.getLogger('event')
-    logger.addHandler(NullHandler())
-    log_format = '%(sev)s %(subsys)s %(summary)s%(detail)s'
 
     def log(self, subsystem, severity, summary, detail, error):
-        if error:
-            kw = {'exc_info':1}
-        else:
-            kw = {}
+
+        level = (zlog_to_pep282_severity_cache_get(severity) or
+                 zlog_to_pep282_severity(severity))
+
+        # Try an early exit if the logger is disabled for this level.
+        # (XXX This inlines logger.isEnabledFor(level).)
+        if (self.logger.manager.disable >= level or
+            level < self.logger.getEffectiveLevel()):
+            return
+
+        msg = "%s %s %s" % (
+            severity_string_cache_get(severity) or severity_string(severity),
+            subsystem,
+            summary)
 
         if detail:
-            detail = '\n' + detail
-        else:
-            detail = ''
+            msg = "%s\n%s" % (msg, detail)
 
-        msg = self.log_format % {
-            'sev' : severity_string(severity),
-            'subsys' : subsystem,
-            'summary': summary,
-            'detail' : detail,
-            }
-
-        if textwrap and len(msg) > 80:
-            msg = '\n'.join(textwrap.wrap(
-                msg, width=79, subsequent_indent=" "*20,
-                break_long_words=0))
-
-        severity = zlog_to_pep282_severity(severity)
-        self.logger.log(severity, msg, **kw)
+        self.logger.log(level, msg, exc_info=(error is not None))
 
 event_logger = EventLogger()
 
@@ -76,6 +66,11 @@ def severity_string(severity, mapping={
     """Convert a severity code to a string."""
     s = mapping.get(int(severity), '')
     return "%s(%s)" % (s, severity)
+
+severity_string_cache = {}
+for _sev in range(-300, 301, 100):
+    severity_string_cache[_sev] = severity_string(_sev)
+severity_string_cache_get = severity_string_cache.get
 
 def zlog_to_pep282_severity(zlog_severity):
     """
@@ -101,6 +96,11 @@ def zlog_to_pep282_severity(zlog_severity):
         return logging.INFO
     else:
         return logging.DEBUG
+
+zlog_to_pep282_severity_cache = {}
+for _sev in range(-300, 301, 100):
+    zlog_to_pep282_severity_cache[_sev] = zlog_to_pep282_severity(_sev)
+zlog_to_pep282_severity_cache_get = zlog_to_pep282_severity_cache.get
 
 def log_time():
     """Return a simple time string without spaces suitable for logging."""
