@@ -114,12 +114,12 @@
 #   may have a back pointer to a version record or to a non-version
 #   record.
 #
-__version__='$Revision: 1.78 $'[11:-2]
+__version__='$Revision: 1.79 $'[11:-2]
 
 import struct, time, os, string, base64, sys
 from struct import pack, unpack
 import POSException
-from POSException import UndoError
+from POSException import UndoError, POSKeyError
 from TimeStamp import TimeStamp
 from lock_file import lock_file
 from utils import t32, p64, U64, cp
@@ -574,7 +574,10 @@ class FileStorage(BaseStorage.BaseStorage,
             file=self._file
             seek=file.seek
             read=file.read
-            pos=_index[oid]
+            try:
+                pos=_index[oid]
+            except KeyError:
+                raise POSKeyError(oid)
             while 1:
                 seek(pos)
                 h=read(42)
@@ -583,7 +586,8 @@ class FileStorage(BaseStorage.BaseStorage,
                 if dserial == serial: break # Yeee ha!
                 # Keep looking for serial
                 pos=U64(prev)
-                if not pos: raise KeyError, serial
+                if not pos:
+                    raise POSKeyError(serial)
                 continue
 
             if vlen:
@@ -679,6 +683,80 @@ class FileStorage(BaseStorage.BaseStorage,
             return (serial == oserial and newserial
                     or ConflictResolution.ResolvedSerial)
         
+        finally:
+            self._lock_release()
+
+    def restore(self, oid, serial, data, version, transaction):
+        # A lot like store() but without all the consistency checks.  This
+        # should only be used when we /know/ the data is good, hence the
+        # method name.  While the signature looks like store() there are some
+        # differences:
+        #
+        # - serial is the serial number of /this/ revision, not of the
+        #   previous revision.  It is used instead of self._serial, which is
+        #   ignored.
+        #
+        # - Nothing is returned
+        #
+        # - data can be None, which indicates a George Bailey object (i.e. one
+        #   who's creation has been transactionally undone).
+        if self._is_read_only:
+            raise POSException.ReadOnlyError()
+        if transaction is not self._transaction:
+            raise POSException.StorageTransactionError(self, transaction)
+
+        self._lock_acquire()
+        try:
+            # Position of the non-version data
+            pnv = None
+            # We need to get some information about previous revisions of the
+            # object.  Specifically, we need the position of the non-version
+            # data if this update is in a version.  We also need the position
+            # of the previous record in this version.
+            old = self._index_get(oid, 0)
+            if old:
+                self._file.seek(old)
+                # Read the previous revision record
+                h = self._file.read(42)
+                doid,oserial,sprev,stloc,vlen,splen = unpack(">8s8s8s8sH8s", h)
+                if doid != oid:
+                    raise CorruptedDataError, h
+            # Calculate the file position in the temporary file
+            here = self._pos + self._tfile.tell() + self._thl
+            # And update the temp file index
+            self._tindex[oid] = here
+            # Write the recovery data record
+            if data is None:
+                dlen = 0
+            else:
+                dlen = len(data)
+            self._tfile.write(pack('>8s8s8s8sH8s',
+                                   oid, serial, p64(old), p64(self._pos),
+                                   len(version), p64(dlen)))
+            # We need to write some version information if this revision is
+            # happening in a version.
+            if version:
+                # If there's a previous revision in this version, write the
+                # position, otherwise write the position of the previous
+                # non-version revision.
+                if pnv:
+                    self._tfile.write(pnv)
+                else:
+                    self._tfile.write(p64(old))
+                # Link to the last record for this version
+                pv = self._tvindex.get(version, 0)
+                if not pv:
+                    self._vindex_get(version, 0)
+                self._tfile.write(p64(pv))
+                self._tvindex[version] = here
+                self._tfile.write(version)
+            # And finally, write the data
+            if data is None:
+                # Write a zero backpointer, which is indication used to
+                # represent an un-creation transaction.
+                self._tfile.write(z64)
+            else:
+                self._tfile.write(data)
         finally:
             self._lock_release()
 
@@ -942,7 +1020,7 @@ class FileStorage(BaseStorage.BaseStorage,
     def transactionalUndo(self, transaction_id, transaction):
         """Undo a transaction, given by transaction_id.
 
-        Do so by writing new data that reverses tyhe action taken by
+        Do so by writing new data that reverses the action taken by
         the transaction."""        
         # Usually, we can get by with just copying a data pointer, by
         # writing a file position rather than a pickle. Sometimes, we
@@ -1944,7 +2022,8 @@ def _loadBack(file, oid, back):
     
     while 1:
         old=U64(back)
-        if not old: raise KeyError, oid
+        if not old:
+            raise POSKeyError(oid)
         seek(old)
         h=read(42)
         doid,serial,prev,tloc,vlen,plen = unpack(">8s8s8s8sH8s", h)
@@ -1961,7 +2040,8 @@ def _loadBackPOS(file, oid, back):
     
     while 1:
         old=U64(back)
-        if not old: raise KeyError, oid
+        if not old:
+            raise POSKeyError(oid)
         seek(old)
         h=read(42)
         doid,serial,prev,tloc,vlen,plen = unpack(">8s8s8s8sH8s", h)
@@ -2014,6 +2094,8 @@ class FileIterator(Iterator):
     """Iterate over the transactions in a FileStorage file.
     """
     _ltid=z64
+
+    _file = None
     
     def __init__(self, file, start=None, stop=None):
         if isinstance(file, StringType):
@@ -2029,6 +2111,12 @@ class FileIterator(Iterator):
         if start:
             self._skip_to_start(start)
         self._stop = stop
+
+    def close(self):
+        file = self._file
+        if file is not None:
+            self._file = None
+            file.close()
 
     def _skip_to_start(self, start):
         # Scan through the transaction records doing almost no sanity
@@ -2057,6 +2145,10 @@ class FileIterator(Iterator):
                           self._file.name, pos, U64(rtl), U64(stl))
 
     def next(self, index=0):
+        if self._file is None:
+            # A closed iterator.  XXX: Is IOError the best we can do?  For
+            # now, mimic a read on a closed file.
+            raise IOError, 'iterator is closed'
         file=self._file
         seek=file.seek
         read=file.read

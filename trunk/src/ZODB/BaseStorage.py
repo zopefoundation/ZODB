@@ -14,7 +14,7 @@
 """
 # Do this portably in the face of checking out with -kv
 import string
-__version__ = string.split('$Revision: 1.17 $')[-2:][0]
+__version__ = string.split('$Revision: 1.18 $')[-2:][0]
 
 import ThreadLock, bpthread
 import time, UndoLogCompatible
@@ -227,7 +227,24 @@ class BaseStorage(UndoLogCompatible.UndoLogCompatible):
         """
         _ts=None
         ok=1
-        preindex={}; preget=preindex.get   # waaaa
+        preindex={};
+        preget=preindex.get   # waaaa
+        # restore() is a new storage API method which has an identical
+        # signature to store() except that it does not return anything.
+        # Semantically, restore() is also identical to store() except that it
+        # doesn't do the ConflictError or VersionLockError consistency
+        # checks.  The reason to use restore() over store() in this method is
+        # that store() cannot be used to copy transactions spanning a version
+        # commit or abort, or over transactional undos.
+        #
+        # We'll use restore() if it's available, otherwise we'll fall back to
+        # using store().  However, if we use store, then
+        # copyTransactionsFrom() may fail with VersionLockError or
+        # ConflictError.
+        if hasattr(self, 'restore'):
+            restoring = 1
+        else:
+            restoring = 0
         for transaction in other.iterator():
             
             tid=transaction.tid
@@ -252,9 +269,12 @@ class BaseStorage(UndoLogCompatible.UndoLogCompatible):
             for r in transaction:
                 oid=r.oid
                 if verbose: print `oid`, r.version, len(r.data)
-                pre=preget(oid, None)
-                s=self.store(oid, pre, r.data, r.version, transaction)
-                preindex[oid]=s
+                if restoring:
+                    self.restore(oid, r.serial, r.data, r.version, transaction)
+                else:
+                    pre=preget(oid, None)
+                    s=self.store(oid, pre, r.data, r.version, transaction)
+                    preindex[oid]=s
                 
             self.tpc_vote(transaction)
             self.tpc_finish(transaction)

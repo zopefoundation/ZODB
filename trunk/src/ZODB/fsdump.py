@@ -49,9 +49,12 @@ def fsdump(path, file=None, with_offset=1):
               (`trans.status`, trans.user, trans.description)
         j = 0
         for rec in trans:
-            modname, classname = get_pickle_metadata(rec.data)
-            dig = md5.new(rec.data).hexdigest()
-            fullclass = "%s.%s" % (modname, classname)
+            if rec.data is None:
+                fullclass = "undo or abort of object creation"
+            else:
+                modname, classname = get_pickle_metadata(rec.data)
+                dig = md5.new(rec.data).hexdigest()
+                fullclass = "%s.%s" % (modname, classname)
             # special case for testing purposes
             if fullclass == "ZODB.tests.MinPO.MinPO":
                 obj = zodb_unpickle(rec.data)
