@@ -18,7 +18,7 @@ import types
 import zLOG
 
 from ZEO.zrpc.error import ZRPCError
-from ZEO.zrpc.log import log
+from ZEO.zrpc.log import log, short_repr
 
 class Marshaller:
     """Marshal requests and replies to second across network"""
