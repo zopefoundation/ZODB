@@ -184,7 +184,7 @@
 #   may have a back pointer to a version record or to a non-version
 #   record.
 #
-__version__='$Revision: 1.15 $'[11:-2]
+__version__='$Revision: 1.16 $'[11:-2]
 
 import struct, time, os, bpthread, string, base64
 from struct import pack, unpack
@@ -233,9 +233,10 @@ class FileStorage(BaseStorage.BaseStorage):
 
     def __init__(self, file_name, create=0, read_only=0, stop=None):
 
+        if not os.path.exists(file_name): create = 1
+
         if read_only:
-            if create:
-                raise ValueError, "can\'t create a read-only file"
+            if create: raise ValueError, "can\'t create a read-only file"
         elif stop is not None:
             raise ValueError, "time-travel is only supported in read-only mode"
 
@@ -263,18 +264,10 @@ class FileStorage(BaseStorage.BaseStorage):
         
         if create:
             if os.path.exists(file_name): os.remove(file_name)
-            self._file=file=open(file_name,'w+b')
-            self._file.write(packed_version)
-            self._pos=4
-            self._oid='\0\0\0\0\0\0\0\0'
-            return
-
-        if os.path.exists(file_name):
-            file=open(file_name, read_only and 'rb' or 'r+b')
-        else:
-            if read_only:
-                raise ValueError, "can\'t create a read-only file"
             file=open(file_name,'w+b')
+            file.write(packed_version)
+        else:
+            file=open(file_name, read_only and 'rb' or 'r+b')
 
         self._file=file
         self._pos, self._oid, tid = read_index(
