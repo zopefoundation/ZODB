@@ -13,8 +13,8 @@
 ##############################################################################
 """Database objects
 
-$Id: DB.py,v 1.45 2002/11/18 23:17:40 jeremy Exp $"""
-__version__='$Revision: 1.45 $'[11:-2]
+$Id: DB.py,v 1.46 2002/12/03 17:40:56 jeremy Exp $"""
+__version__='$Revision: 1.46 $'[11:-2]
 
 import cPickle, cStringIO, sys, POSException, UndoLogCompatible
 from Connection import Connection
@@ -353,9 +353,6 @@ class DB(UndoLogCompatible.UndoLogCompatible):
         Note that the connection pool is managed as a stack, to increate the
         likelihood that the connection's stack will include useful objects.
         """
-        if type(version) is not StringType:
-            raise POSException.Unimplemented, 'temporary versions'
-
         self._a()
         try:
 
