@@ -140,7 +140,8 @@ class IPersistent(Interface):
           - call _p_deactivate()
           - set _p_changed to None
 
-    There is one way to invalidate an object:  delete its _p_changed
+    There are two ways to invalidate an object: call the
+    _p_invalidate() method (preferred) or delete its _p_changed
     attribute.  This cannot be ignored, and is used when semantics
     require invalidation.  Normally, an invalidated object transitions
     to the ghost state.  However, some objects cannot be ghosts.  When
@@ -224,6 +225,15 @@ class IPersistent(Interface):
         ghost state.  It may not be possible to make some persistent
         objects ghosts, and, for optimization reasons, the implementation
         may choose to keep an object in the saved state.
+        """
+
+    def _p_invalidate():
+        """Invalidate the object.
+
+        Invalidate the object.  This causes any data to be thrown
+        away, even if the object is inthe changed state.  The object
+        is moved to the ghost state; further accesses will cause
+        object data to be reloaded.
         """
 
 class IPersistentNoReadConflicts(IPersistent):
