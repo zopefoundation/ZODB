@@ -338,7 +338,7 @@ static char BTree_module_documentation[] =
 "\n"
 MASTER_ID
 BTREEITEMSTEMPLATE_C
-"$Id: BTreeModuleTemplate.c,v 1.7 2001/03/20 13:52:00 jim Exp $\n"
+"$Id: BTreeModuleTemplate.c,v 1.8 2001/03/27 16:37:42 jim Exp $\n"
 BTREETEMPLATE_C
 BUCKETTEMPLATE_C
 KEYMACROS_H
@@ -399,7 +399,7 @@ INITMODULE ()
 #endif
 
   /* Create the module and add the functions */
-  m = Py_InitModule4(MOD_NAME_PREFIX "BTree", module_methods,
+  m = Py_InitModule4("_" MOD_NAME_PREFIX "BTree", module_methods,
 		     BTree_module_documentation,
 		     (PyObject*)NULL,PYTHON_API_VERSION);
 
@@ -407,7 +407,7 @@ INITMODULE ()
   d = PyModule_GetDict(m);
 
   PyDict_SetItemString(d, "__version__",
-		       PyString_FromString("$Revision: 1.7 $"));
+		       PyString_FromString("$Revision: 1.8 $"));
 
   PyExtensionClass_Export(d,MOD_NAME_PREFIX "Bucket", BucketType);
   PyExtensionClass_Export(d,MOD_NAME_PREFIX "BTree", BTreeType);
