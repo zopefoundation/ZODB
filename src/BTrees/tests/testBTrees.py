@@ -37,8 +37,8 @@ class Base:
         return root
 
     def _closeDB(self, root):
-        root._p_jar._db.close()
-        root = None
+        if root is not None:
+            root._p_jar._db.close()
 
     def _delDB(self):
         for file in glob('fs_tmp__*'):
@@ -48,6 +48,7 @@ class Base:
         for i in 0, 10, 1000:
             t = self.t.__class__()
             self._populate(t, i)
+            root = None
             try:
                 root = self._getRoot()
                 root[i] = t
@@ -59,6 +60,7 @@ class Base:
 
             self._closeDB(root)
 
+            root = None
             try:
                 root = self._getRoot()
                 #XXX BTree stuff doesn't implement comparison
@@ -74,6 +76,7 @@ class Base:
         for i in 0, 10, 1000:
             t = self.t.__class__()
             self._populate(t, i)
+            root = None
             try:
                 root = self._getRoot()
                 root[i] = t
@@ -85,6 +88,7 @@ class Base:
 
             self._closeDB(root)
 
+            root = None
             try:
                 root = self._getRoot()
                 root[i]._p_changed = None
