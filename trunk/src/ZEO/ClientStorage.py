@@ -889,7 +889,12 @@ class ClientStorage:
         update or invalidate the cache.
         """
         # Must be called with _lock already acquired.
-        
+
+        # XXX not sure why _update_cache() would be called on
+        # a closed storage.
+        if self._cache is None:
+            return
+
         self._cache.checkSize(self._tbuf.get_size())
         try:
             self._tbuf.begin_iterate()
