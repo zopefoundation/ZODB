@@ -12,7 +12,7 @@
 #
 ##############################################################################
 """A multi-client test of the ZEO storage server"""
-# XXX This code is currently broken.
+# TODO:  This code is currently broken.
 
 import ZODB, ZODB.DB, ZODB.FileStorage, ZODB.POSException
 import persistent
@@ -148,7 +148,7 @@ def main(client_func=None):
     server.close()
     os.waitpid(server_pid, 0)
 
-    # XXX Should check that the results are consistent!
+    # TODO:  Should check that the results are consistent!
 
     print "Total time:", t2 - t0
     print "Server start time", t1 - t0

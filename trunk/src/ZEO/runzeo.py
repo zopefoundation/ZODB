@@ -52,7 +52,7 @@ def log(msg, level=logging.INFO, exc_info=False):
 
 
 def parse_address(arg):
-    # XXX Not part of the official ZConfig API
+    # Caution:  Not part of the official ZConfig API.
     obj = ZConfig.datatypes.SocketAddress(arg)
     return obj.family, obj.address
 
@@ -203,7 +203,7 @@ class ZEOServer:
             transaction_timeout=self.options.transaction_timeout,
             monitor_address=self.options.monitor_address,
             auth_protocol=self.options.auth_protocol,
-            auth_database=self.options.auth_database,  # XXX option spelling
+            auth_database=self.options.auth_database,
             auth_realm=self.options.auth_realm)
 
     def loop_forever(self):
@@ -223,9 +223,9 @@ class ZEOServer:
         sys.exit(1)
 
     def handle_sigusr2(self):
-        # XXX this used to reinitialize zLOG. How do I achieve
-        #     the same effect with Python's logging package?
-        #     Should we restart as with SIGHUP?
+        # TODO: this used to reinitialize zLOG. How do I achieve
+        # the same effect with Python's logging package?
+        # Should we restart as with SIGHUP?
         log("received SIGUSR2, but it was not handled!", level=logging.WARNING)
 
     def close_storages(self):

@@ -72,7 +72,7 @@ def find_global(module, name):
     if safe:
         return r
 
-    # XXX what's a better way to do this?  esp w/ 2.1 & 2.2
+    # TODO:  is there a better way to do this?
     if type(r) == types.ClassType and issubclass(r, Exception):
         return r
 

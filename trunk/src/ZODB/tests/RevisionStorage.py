@@ -107,7 +107,7 @@ class RevisionStorage:
         self.assertEqual(end, revs[12])
 
 
-    # XXX Is it okay to assume everyone testing against RevisionStorage
+    # Unsure:  Is it okay to assume everyone testing against RevisionStorage
     # implements undo?
 
     def checkLoadBeforeUndo(self):
@@ -172,4 +172,4 @@ class RevisionStorage:
         results = self._storage.loadBefore(oid2, revid2)
         eq(results, None)
 
-    # XXX There are other edge cases to handle, including pack.
+    # TODO:  There are other edge cases to handle, including pack.

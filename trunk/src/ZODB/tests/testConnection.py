@@ -142,10 +142,10 @@ class ConnectionDotAdd(unittest.TestCase):
 
 class UserMethodTests(unittest.TestCase):
 
-    # XXX add isn't tested here, because there are a bunch of traditional
+    # add isn't tested here, because there are a bunch of traditional
     # unit tests for it.
 
-    # XXX the version tests would require a storage that supports versions
+    # The version tests would require a storage that supports versions
     # which is a bit more work.
 
     def test_root(self):

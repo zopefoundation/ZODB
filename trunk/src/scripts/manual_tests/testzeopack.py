@@ -13,10 +13,10 @@ import threading
 import time
 import unittest
 
-# XXX The forker interface isn't clearly defined.  It's different on
+# TODO:  The forker interface isn't clearly defined.  It's different on
 # different branches of ZEO.  This will break someday.
 
-# XXX Only handle the Unix variant of the forker.  Just to give Tim
+# TODO:  Only handle the Unix variant of the forker.  Just to give Tim
 # something to do.
 
 class PackerTests(StorageTestBase):

@@ -16,7 +16,7 @@
 This server acts as a front-end for one or more real storages, like
 file storage or Berkeley storage.
 
-XXX Need some basic access control-- a declaration of the methods
+TODO:  Need some basic access control-- a declaration of the methods
 exported for invocation by the server.
 """
 
@@ -47,8 +47,8 @@ from ZODB.loglevels import BLATHER
 
 logger = logging.getLogger('ZEO.StorageServer')
 
-# XXX This used to say "ZSS", which is now implied in the logger name, can this
-#     be either set to str(os.getpid()) (if that makes sense) or removed?
+# TODO:  This used to say "ZSS", which is now implied in the logger name.
+# Can this be either set to str(os.getpid()) (if that makes sense) or removed?
 _label = "" # default label used for logging.
 
 def set_label():
@@ -298,7 +298,7 @@ class ZEOStorage:
             os = self.storage.getTid(oid)
         except KeyError:
             self.client.invalidateVerify((oid, ''))
-            # XXX It's not clear what we should do now.  The KeyError
+            # It's not clear what we should do now.  The KeyError
             # could be caused by an object uncreation, in which case
             # invalidation is right.  It could be an application bug
             # that left a dangling reference, in which case it's bad.
@@ -564,7 +564,7 @@ class ZEOStorage:
     # finishes as a transaction and finds another instance is in the
     # _waiting list.
 
-    # XXX It might be better to have a mechanism to explicitly send
+    # It might be better to have a mechanism to explicitly send
     # the finishing transaction's reply before restarting the waiting
     # transaction.  If the restart takes a long time, the previous
     # client will be blocked until it finishes.

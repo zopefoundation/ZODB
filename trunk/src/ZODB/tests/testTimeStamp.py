@@ -104,7 +104,7 @@ class TimeStampTests(unittest.TestCase):
         ts2 = ts.laterThan(ts)
         self.assert_(ts2 > ts)
 
-    # XXX should test for bogus inputs to TimeStamp constructor
+    # TODO:  should test for bogus inputs to TimeStamp constructor
 
     def checkTimeStamp(self):
         # Alternate test suite

@@ -60,7 +60,7 @@ class DBTests(unittest.TestCase):
                           self.db.setCacheDeactivateAfter, 12)
         self.assertRaises(DeprecationWarning,
                           self.db.setVersionCacheDeactivateAfter, 12)
-        # XXX There is no API call for removing the warning we just
+        # Obscure:  There is no API call for removing the warning we just
         # added, but filters appears to be a public variable.
         del warnings.filters[0]
         self.db.setCacheSize(15)

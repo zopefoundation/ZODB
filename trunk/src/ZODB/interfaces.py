@@ -21,7 +21,7 @@ import zope.interface
 class IConnection(zope.interface.Interface):
     """ZODB connection.
 
-    XXX: This interface is incomplete.
+    TODO: This interface is incomplete.
     """
 
     def add(ob):

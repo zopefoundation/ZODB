@@ -107,8 +107,8 @@ class DBMethods(CacheTestBase):
             for k, v in dict.items():
                 self.assert_(k in expected)
 
-    # XXX not really sure how to do a black box test of the cache.
-    # should the full sweep and minimize calls always remove things?
+    # TODO:  not really sure how to do a black box test of the cache.
+    # Should the full sweep and minimize calls always remove things?
 
     def checkFullSweep(self):
         old_size = self.db.cacheSize()
@@ -175,10 +175,9 @@ class DBMethods(CacheTestBase):
             self.fail("cacheMinimize still running after 30 seconds -- "
                       "almost certainly in an infinite loop")
 
-    # XXX don't have an explicit test for incrgc, because the
-    # connection and database call it internally
-
-    # XXX same for the get and invalidate methods
+    # TODO:  don't have an explicit test for incrgc, because the
+    # connection and database call it internally.
+    # Same for the get and invalidate methods.
 
     def checkLRUitems(self):
         # get a cache
@@ -264,7 +263,7 @@ class LRUCacheTests(CacheTestBase):
 
         gc.collect()
 
-        # XXX The above gc.collect call is necessary to make this test
+        # Obscure:  The above gc.collect call is necessary to make this test
         # pass.
         #
         # This test then only works because the order of computations

@@ -96,7 +96,7 @@ type VALUE_TYPE.  The macro returns an int, with value
    < 0 if X < Y
   == 0 if X == Y
    > 0 if X > Y
-XXX There is no provision for determining whether the comparison
+Bug:  There is no provision for determining whether the comparison
 attempt failed (set a Python exception).
 
 DECREF_VALUE(K)

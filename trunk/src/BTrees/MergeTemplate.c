@@ -79,9 +79,9 @@ merge_error(int p1, int p2, int p3, int reason)
  * Mapping value modification:  s2 or s3 can modify the value associated
  * with a key in s1, provided the other transaction doesn't make a
  * modification of the same key to a different value.  It's OK if s2 and s3
- * both give the same new value to the key (XXX while it's hard to be
- * precise about why, this doesn't seem consistent with that it's *not* OK
- * for both to add a new key mapping to the same value).
+ * both give the same new value to the key while it's hard to be precise about
+ * why, this doesn't seem consistent with that it's *not* OK for both to add
+ * a new key mapping to the same value).
  */
 static PyObject *
 bucket_merge(Bucket *s1, Bucket *s2, Bucket *s3)
@@ -118,7 +118,7 @@ bucket_merge(Bucket *s1, Bucket *s2, Bucket *s3)
   /* Consult zodb/btrees/interfaces.py for the meaning of the last
    * argument passed to merge_error().
    */
-  /* XXX This isn't passing on errors raised by value comparisons. */
+  /* TODO:  This isn't passing on errors raised by value comparisons. */
   while (i1.position >= 0 && i2.position >= 0 && i3.position >= 0)
     {
       TEST_KEY_SET_OR(cmp12, i1.key, i2.key) goto err;

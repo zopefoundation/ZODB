@@ -1,6 +1,6 @@
 """Verify that fstest.py can find errors.
 
-XXX To run this test script fstest.py must be on your PYTHONPATH.
+Note:  To run this test script fstest.py must be on your PYTHONPATH.
 """
 
 from cStringIO import StringIO
@@ -15,7 +15,6 @@ from fstest import FormatError, U64
 
 class TestCorruptedFS(unittest.TestCase):
 
-    # XXX path?
     f = open('test-checker.fs', 'rb')
     datafs = f.read()
     f.close()
