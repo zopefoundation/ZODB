@@ -180,7 +180,7 @@ def main():
     storage = zo.storages[0].open()
     mon_addr = None
     if zo.monitor_address:
-        mon_addr = zo.monitor_address.address
+        mon_addr = zo.monitor_address
     server = StorageServer(
         zo.address,
         {"1": storage},
