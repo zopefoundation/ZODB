@@ -83,7 +83,7 @@
   
  ****************************************************************************/
 
-#define BTREETEMPLATE_C "$Id: BTreeTemplate.c,v 1.14 2001/03/30 20:42:22 jim Exp $\n"
+#define BTREETEMPLATE_C "$Id: BTreeTemplate.c,v 1.15 2001/04/02 16:57:40 jeremy Exp $\n"
 
 /*
 ** _BTree_get
@@ -728,9 +728,9 @@ err:
 static int
 _BTree_setstate(BTree *self, PyObject *state, int noval)
 {
-  PyObject *items, *o, *firstbucket=0;
+  PyObject *items, *firstbucket=0;
   BTreeItem *d;
-  int len, l, i, r, copied=1;
+  int len, l, i, copied=1;
 
   if (_BTree_clear(self) < 0) return -1;
 
@@ -1118,7 +1118,7 @@ BTree_byValue(BTree *self, PyObject *args)
   PyObject *r=0, *o=0, *item=0, *omin;
   VALUE_TYPE min;
   VALUE_TYPE v;
-  int i, l, copied=1;
+  int copied=1;
   SetIteration it={0,0};
 
   PER_USE_OR_RETURN(self, NULL);

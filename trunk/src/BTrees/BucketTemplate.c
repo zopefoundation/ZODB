@@ -82,7 +82,7 @@
   
  ****************************************************************************/
 
-#define BUCKETTEMPLATE_C "$Id: BucketTemplate.c,v 1.12 2001/03/30 20:42:22 jim Exp $\n"
+#define BUCKETTEMPLATE_C "$Id: BucketTemplate.c,v 1.13 2001/04/02 16:57:40 jeremy Exp $\n"
 
 /*
 ** _bucket_get
@@ -336,7 +336,7 @@ static PyObject *
 Mapping_update(PyObject *self, PyObject *args)
 {
   PyObject *seq=0, *o, *t, *v, *tb, *k;
-  int i, n=0, ind;
+  int i, ind;
 
   UNLESS(PyArg_ParseTuple(args, "|O:update", &seq)) return NULL;
 
@@ -483,8 +483,6 @@ static int
 Bucket_findRangeEnd(Bucket *self, PyObject *keyarg, int low, int *offset)
 {
   int min, max, i, l, cmp, copied=1;
-  Bucket *chase;
-  Bucket *release = NULL;
   KEY_TYPE key;
 
   COPY_KEY_FROM_ARG(key, keyarg, copied);
@@ -872,8 +870,6 @@ bucket__p_deactivate(Bucket *self, PyObject *args)
 static PyObject *
 bucket_clear(Bucket *self, PyObject *args)
 {
-  int i;
-
   PER_USE_OR_RETURN(self, NULL);
 
   if (self->len)
@@ -951,7 +947,7 @@ err:
 static int
 _bucket_setstate(Bucket *self, PyObject *args)
 {
-  PyObject *k, *v, *r, *items;
+  PyObject *k, *v, *items;
   Bucket *next=0;
   int i, l, len, copied=1;
   KEY_TYPE *keys;
@@ -1175,8 +1171,6 @@ static struct PyMethodDef Bucket_methods[] = {
 static void
 Bucket_dealloc(Bucket *self)
 {
-  int i;
-
   _bucket_clear(self);
 
   PER_DEL(self);

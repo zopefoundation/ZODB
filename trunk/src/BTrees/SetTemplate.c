@@ -83,7 +83,7 @@
   
  ****************************************************************************/
 
-#define SETTEMPLATE_C "$Id: SetTemplate.c,v 1.10 2001/03/21 14:16:58 jim Exp $\n"
+#define SETTEMPLATE_C "$Id: SetTemplate.c,v 1.11 2001/04/02 16:57:40 jeremy Exp $\n"
 
 static PyObject *
 Set_insert(Bucket *self, PyObject *args)
@@ -150,7 +150,6 @@ _set_setstate(Bucket *self, PyObject *args)
   Bucket *next=0;
   int i, l, copied=1;
   KEY_TYPE *keys;
-  VALUE_TYPE *values;
 
   UNLESS (PyArg_ParseTuple(args, "O|O", &items, &next))
     return -1;
