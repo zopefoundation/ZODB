@@ -147,8 +147,6 @@ class ZODBTests(unittest.TestCase):
         self.assert_(len(conn._cache) > 0)  # Precondition
         conn._resetCache()
         self.assertEqual(len(conn._cache), 0)
-        self.assert_(conn._incrgc == conn._cache.incrgc)
-        self.assert_(conn.cacheGC == conn._cache.incrgc)
 
     def checkResetCachesAPI(self):
         # Checks the resetCaches() API.
