@@ -84,8 +84,8 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.9 1999/06/24 19:33:12 jim Exp $"""
-__version__='$Revision: 1.9 $'[11:-2]
+$Id: Connection.py,v 1.10 1999/06/24 20:05:50 jim Exp $"""
+__version__='$Revision: 1.10 $'[11:-2]
 
 from cPickleCache import PickleCache
 from POSException import ConflictError, ExportError
@@ -385,6 +385,11 @@ class Connection(ExportImport.ExportImport):
     def tpc_finish_(self):
         invalidate=self._db.invalidate
         for oid in self._invalidating: invalidate(oid, self)
+
+    def sync(self):
+        get_transaction().abort()
+        self._cache.invalidate(self._invalidated)
+        
 
 class tConnection(Connection):
 
