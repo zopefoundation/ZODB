@@ -108,7 +108,6 @@ class StorageTestBase(unittest.TestCase):
         if type(data) == types.IntType:
             data = MinPO(data)
         if not already_pickled:
-##            data = pickle.dumps(data)
             data = zodb_pickle(data)
         if version is None:
             version = ''
