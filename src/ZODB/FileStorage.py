@@ -184,7 +184,7 @@
 #   may have a back pointer to a version record or to a non-version
 #   record.
 #
-__version__='$Revision: 1.27 $'[11:-2]
+__version__='$Revision: 1.28 $'[11:-2]
 
 import struct, time, os, bpthread, string, base64, sys
 from struct import pack, unpack
@@ -196,6 +196,7 @@ from utils import t32, p64, u64, cp
 from zLOG import LOG, WARNING, ERROR, PANIC, register_subsystem
 register_subsystem('ZODB FS')
 import BaseStorage
+from cPickle import Pickler, Unpickler
 
 z64='\0'*8
 
@@ -284,8 +285,18 @@ class FileStorage(BaseStorage.BaseStorage):
             file=open(file_name, read_only and 'rb' or 'r+b')
 
         self._file=file
-        self._pos, self._oid, tid = read_index(
-            file, file_name, index, vindex, tindex, stop)
+
+        r=self._restore_index()
+        if r:
+            index, vindex, start, maxoid, ltid = r
+            self._initIndex(index, vindex, tindex, tvindex)
+            self._pos, self._oid, tid = read_index(
+                file, file_name, index, vindex, tindex, stop,
+                ltid=ltid, start=start, maxoid=maxoid,
+                )
+        else:        
+            self._pos, self._oid, tid = read_index(
+                file, file_name, index, vindex, tindex, stop)
 
         self._ts=tid=TimeStamp(tid)
         t=time.time()
@@ -316,9 +327,108 @@ class FileStorage(BaseStorage.BaseStorage):
     def abortVersion(self, src, transaction):
         return self.commitVersion(src, '', transaction, abort=1)
 
+    def _save_index(self):
+        """Write the database index to a file to support quick startup
+        """
+        
+        index_name=self.__name__+'.index'
+        tmp_name=index_name+'.index_tmp'
+
+        f=open(tmp_name,'wb')
+        p=Pickler(f,1)
+
+        info={'index': self._index, 'pos': self._pos,
+              'oid': self._oid, 'vindex': self._vindex}
+
+        p.dump(info)
+        f.flush()
+        f.close()
+        try:
+            try: os.unlink(index_name)
+            except: pass
+            os.rename(tmp_name, index_name)
+        except: pass
+
+    def _sane(self, index, pos):
+        """Sanity check saved index data by reading the last undone trans
+
+        Basically, we read the last not undone transaction and
+        check to see that the included records are consistent
+        with the index.  Any invalid record records or inconsistent
+        object positions cause zero to be returned.
+
+        """
+        if pos < 100: return 0
+        file=self._file
+        seek=file.seek
+        read=file.read
+        seek(0,2)
+        if file.tell() < pos: return 0
+        ltid=None
+
+        while 1:
+            seek(pos-8)
+            rstl=read(8)
+            tl=u64(rstl)
+            pos=pos-tl-8
+            if pos < 4: return 0
+            seek(pos)
+            tid, stl, status, ul, dl, el = unpack(">8s8scHHH", read(23))
+            if not ltid: ltid=tid
+            if stl != rstl: return 0 # inconsistent lengths
+            if status == 'u': continue # undone trans, search back
+            if status not in ' p': return 0
+            if ul > tl or dl > tl or el > tl or tl < (23+ul+dl+el): return 0
+            tend=pos+tl
+            opos=pos+23+ul+dl+el
+            if opos==tend: continue # empty trans
+
+            while opos < tend:
+                # Read the data records for this transaction    
+                seek(opos)
+                h=read(42)
+                oid,serial,sprev,stloc,vlen,splen = unpack(">8s8s8s8sH8s", h)
+                tloc=u64(stloc)
+                plen=u64(splen)
+                
+                dlen=42+(plen or 8)
+                if vlen: dlen=dlen+16+vlen
+    
+                if opos+dlen > tend or tloc != pos: return 0
+
+                if index.get(oid,0) != opos: return 0
+    
+                opos=opos+dlen
+
+            return ltid
+
+    def _restore_index(self):
+        """Load the database index from a file to support quick startup
+        """
+        file_name=self.__name__
+        index_name=file_name+'.index'
+        
+        try: f=open(index_name,'rb')
+        except: return None
+        
+        p=Unpickler(f)
+
+        info=p.load()
+        index=info.get('index', None)
+        pos=info.get('pos', None)
+        oid=info.get('oid', None)
+        vindex=info.get('vindex', None)
+        if index is None or pos is None or oid is None or vindex is None:
+            return None
+
+        tid=self._sane(index, pos)
+        if not tid: return None
+        
+        return index, vindex, pos, oid, tid
+
     def close(self):
         self._file.close()
-        # Eventuallly, we should save_index
+        self._save_index()
         
     def commitVersion(self, src, dest, transaction, abort=None):
         # We are going to commit by simply storing back pointers.
@@ -1081,6 +1191,7 @@ class FileStorage(BaseStorage.BaseStorage):
             self._file=open(name,'r+b')
             self._initIndex(index, vindex, tindex, tvindex)
             self._pos=opos
+            self._save_index()
 
         finally:
 
@@ -1090,26 +1201,30 @@ class FileStorage(BaseStorage.BaseStorage):
             self._packt=z64
             _lock_release()
 
-def read_index(file, name, index, vindex, tindex, stop='\377'*8):
-    index_get=index.get
-    vndexpos=vindex.get
-    tappend=tindex.append
+def read_index(file, name, index, vindex, tindex, stop='\377'*8,
+               ltid=z64, start=4, maxoid=z64):
     
     read=file.read
     seek=file.seek
     seek(0,2)
     file_size=file.tell()
-    seek(0)
-    if file_size:
-        if file_size < 4: raise FileStorageFormatError, file.name
-        if read(4) != packed_version:
-            raise FileStorageFormatError, name
-    else: file.write(packed_version)
 
-    pos=4
+    if file_size:
+        if file_size < start: raise FileStorageFormatError, file.name
+        seek(0)
+        if read(4) != packed_version: raise FileStorageFormatError, name
+    else:
+        file.write(packed_version)
+        return 4, maxoid, ltid
+
+    index_get=index.get
+    vndexpos=vindex.get
+    tappend=tindex.append
+
+    pos=start
+    seek(start)
     unpack=struct.unpack
     tpos=0
-    maxoid=ltid=z64
     tid='\0'*7+'\1'
 
     while 1:
