@@ -134,7 +134,7 @@ class ZEOStorage:
         # any pending transaction.  Not sure if this is the cleanest way.
         if self.transaction is not None:
             self.log("disconnected during transaction %s" % self.transaction)
-            self.tpc_abort(self.transaction.id)
+            self.abort()
         else:
             self.log("disconnected")
 
@@ -329,15 +329,13 @@ class ZEOStorage:
         strategy.tpc_abort()
         self.transaction = None
         self.strategy = None
-        # When ZEOStorage.notifyDisconnected() calls self.tpc_abort(),
-        # it is possible that self.strategy is DelayedCommitStrategy.
-        # In that case, ZEOStorage.tpc_abort() should *not* call
-        # self.handle_waiting(), otherwise there could be two
-        # ZEOStorage instances whose strategy is
-        # ImmediateCommitStrategy!
-        if isinstance(strategy, ImmediateCommitStrategy):
-            self.handle_waiting()
-        # XXX else, should we remove ourselves from storage._waiting???
+        self.handle_waiting()
+
+    def abort(self):
+        strategy = self.strategy
+        self.transaction = None
+        self.strategy = None
+        strategy.abort(self)
 
     # XXX handle new serialnos
 
@@ -459,6 +457,9 @@ class ICommitStrategy:
 
     def tpc_finish(self): pass
 
+    # What to do if a connection is closed in mid-transaction
+    def abort(self, zeo_storage): pass
+
 class ImmediateCommitStrategy:
     """The storage is available so do a normal commit."""
 
@@ -533,6 +534,10 @@ class ImmediateCommitStrategy:
         self.invalidated.extend(inv)
         return oids
 
+    def abort(self, zeo_storage):
+        self.tpc_abort()
+        zeo_storage.handle_waiting()
+
 class DelayedCommitStrategy:
     """The storage is unavailable, so log to a file."""
 
@@ -595,6 +600,15 @@ class DelayedCommitStrategy:
             new_strategy.store(oid, serial, data, version)
         meth = getattr(new_strategy, self.name)
         return meth(*self.args)
+
+    def abort(self, zeo_storage):
+        # Delete (d, zeo_storage) from the _waiting list, if found.
+        waiting = self.storage._waiting
+        for i in range(len(waiting)):
+            d, z = waiting[i]
+            if z is zeo_storage:
+                del waiting[i]
+                break
 
 def run_in_thread(method, *args):
     t = SlowMethodThread(method, args)
