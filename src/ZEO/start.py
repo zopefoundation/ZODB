@@ -263,7 +263,9 @@ def main(argv):
         except:
             pass # getpid not supported
         else:
-            open(env.zeo_pid,'w').write("%s %s\n" % (ppid, pid))
+            f = open(env.zeo_pid, 'w')
+            f.write("%s %s\n" % (ppid, pid))
+            f.close()
 
     except:
         # Log startup exception and tell zdaemon not to restart us.
@@ -279,7 +281,11 @@ def main(argv):
         sys.exit(0)
 
     try:
-        asyncore.loop()
+        try:
+            asyncore.loop()
+        finally:
+            if os.path.isfile(env.zeo_pid):
+                os.unlink(env.zeo_pid)
     except SystemExit:
         raise
     except:
