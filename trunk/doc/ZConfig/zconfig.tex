@@ -613,6 +613,22 @@ The following elements are used to describe a schema:
 \end{elementdesc}
 
 
+\begin{elementdesc}{default}{PCDATA}
+  Each \element{default} element specifies a single default value for
+  a \element{multikey}.  This element can be repeated to produce a
+  list of individual default values.  The text contained in the
+  element will be passed to the datatype conversion for the
+  \element{multikey}.
+
+  \begin{attributedesc}{key}{}
+    Key to associate with the default value.  This is only used for
+    defaults of a \element{key} or \element{multikey} with a
+    \attribute{name} of \code{+}; in that case this attribute is
+    required.
+  \end{attributedesc}
+\end{elementdesc}
+
+
 \begin{elementdesc}{section}{description?}
   A \element{section} element is used to describe a section which may
   occur at most once in the section type or top-level schema in which

@@ -10,6 +10,10 @@
   WARRANTIES OF TITLE, MERCHANTABILITY, AGAINST INFRINGEMENT, AND FITNESS
   FOR A PARTICULAR PURPOSE.
   *************************************************************************
+
+  Please note that not all documents that conform to this DTD are
+  legal ZConfig schema.  The ZConfig reference manual describes many
+  constraints that are important to understanding ZConfig schema.
   -->
 
 <!-- DTD for ZConfig schema documents. -->
@@ -61,7 +65,11 @@
           name       NMTOKEN  #REQUIRED
           prefix     NMTOKEN  #IMPLIED>
 
-<!ELEMENT key (description?, metadefault?, example?)>
+<!ELEMENT default    (#PCDATA)*>
+<!ATTLIST default
+          key        CDATA    #IMPLIED>
+
+<!ELEMENT key (description?, metadefault?, example?, default*)>
 <!ATTLIST key
           name       CDATA    #REQUIRED
           attribute  NMTOKEN  #IMPLIED
