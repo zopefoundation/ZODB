@@ -278,4 +278,3 @@ class IPersistentDataManager(Interface):
         is returned.  If non-None, the return value is the kind of
         timestamp supplied by Python's time.time().
         """
-
