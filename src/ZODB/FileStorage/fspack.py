@@ -411,14 +411,15 @@ class FileStoragePacker(FileStorageFormatter):
     # stop is the pack time, as a TimeStamp.
     # la and lr are the acquire() and release() methods of the storage's lock.
     # cla and clr similarly, for the storage's commit lock.
-    def __init__(self, path, stop, la, lr, cla, clr):
+    # current_size is the storage's _pos.  All valid data at the start
+    # lives before that offset (there may be a checkpoint transaction in
+    # progress after it).
+    def __init__(self, path, stop, la, lr, cla, clr, current_size):
         self._name = path
         self._file = open(path, "rb")
         self._stop = stop
         self.locked = 0
-        self._file.seek(0, 2)
-        self.file_end = self._file.tell()
-        self._file.seek(0)
+        self.file_end = current_size
 
         self.gc = GC(self._file, self.file_end, self._stop)
 

@@ -13,6 +13,16 @@ than the first call, data loss could occur.  The bug was fixed by
 causing the second call to raise a StorageError before performing any
 work.
 
+Fixed a rare bug in pack:  if a pack started during a small window of
+time near the end of a concurrent transaction's commit, it was possible
+for the pack attempt to raise a spurious
+
+     CorruptedError: ... transaction with checkpoint flag set
+
+exception.  This did no damage to the database, or to the transaction
+in progress, but no pack was performed then.
+
+
 ZEO
 ---
 

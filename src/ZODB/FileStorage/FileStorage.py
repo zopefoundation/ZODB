@@ -13,7 +13,7 @@
 ##############################################################################
 """Storage implementation using a log written to a single file.
 
-$Revision: 1.10 $
+$Revision: 1.11 $
 """
 
 import base64
@@ -1319,13 +1319,15 @@ class FileStorage(BaseStorage.BaseStorage,
             if self._pack_is_in_progress:
                 raise FileStorageError, 'Already packing'
             self._pack_is_in_progress = True
+            current_size = self.getSize()
         finally:
             self._lock_release()
 
         p = FileStoragePacker(self._file_name, stop,
                               self._lock_acquire, self._lock_release,
                               self._commit_lock_acquire,
-                              self._commit_lock_release)
+                              self._commit_lock_release,
+                              current_size)
         try:
             opos = p.pack()
             if opos is None:

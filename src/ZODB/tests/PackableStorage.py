@@ -260,8 +260,7 @@ class PackableStorage(PackableStorageBase):
     def checkPackNowWhileWriting(self):
         self._PackWhileWriting(pack_now=True)
 
-    # XXX Disabled because it always fails now.
-    def XXXcheckPackLotsWhileWriting(self):
+    def checkPackLotsWhileWriting(self):
         # This is like the other pack-while-writing tests, except it packs
         # repeatedly until the client thread is done.  At the time it was
         # introduced, it reliably provoked
