@@ -74,7 +74,29 @@
 This module provides a basic substitution facility similar to that
 found in the Bourne shell (\program{sh} on most \UNIX{} platforms).  
 
-XXX need to explain the syntax here
+The replacements supported by this module include:
+
+\begin{tableiii}{l|l|c}{code}{Source}{Replacement}{Notes}
+  \lineiii{\$\$}{\code{\$}}{(1)}
+  \lineiii{\$\var{name}}{The result of looking up \var{name}}{(2)}
+  \lineiii{\$\{\var{name}\}}{The result of looking up \var{name}}{}
+\end{tableiii}
+
+\noindent
+Notes:
+\begin{description}
+  \item[(1)]  This is different from the Bourne shell, which uses
+              \code{\textbackslash\$} to generate a \character{\$} in
+              the result text.  This difference avoids having as many
+              special characters in the syntax.
+
+  \item[(2)]  Any character which immediately follows \var{name} may
+              not be a valid character in a name.
+\end{description}
+
+In each case, \var{name} is a non-empty sequence of alphanumeric and
+underscore characters not starting with a digit.  If there is not
+a replacement for \var{name}, it is replaced with an empty string.
 
 For these functions, the \var{mapping} argument can be a \class{dict},
 or any type that supports the \method{get()} method of the mapping
@@ -89,13 +111,16 @@ protocol.
 
 \begin{funcdesc}{get}{mapping, name\optional{, default}}
   Return the value for \var{name} from \var{mapping}, interpolating
-  values recursively if needed.  Raises
-  \exception{InterpolationSyntaxError} if there are malformed
+  values recursively if needed.  If \var{name} cannot be found in
+  \var{mapping}, \var{default} is returned without being
+  interpolated.
+  Raises \exception{InterpolationSyntaxError} if there are malformed
   constructs in \var{s}, or \exception{InterpolationRecursionError} if
   any name expands to include a reference to itself either directly or
   indirectly.
 \end{funcdesc}
 
+The following exceptions are defined:
 
 \begin{excdesc}{InterpolationError}
   Base class for errors raised by the \module{ZConfig.Interpolation}
@@ -115,5 +140,31 @@ protocol.
   exception.  An additional attribute, \member{name}, gives the name
   for which an recursive reference was detected.
 \end{excdesc}
+
+
+\subsection{Examples}
+
+These examples show how \function{get()} and \function{interpolate()}
+differ.
+
+\begin{verbatim}
+>>> from ZConfig.Interpolation import get, interpolate
+>>> d = {'name': 'value',
+...      'top': '$middle',
+...      'middle' : 'bottom'}
+>>>
+>>> interpolate('$name', d)
+'value'
+>>> interpolate('$top', d)
+'$middle'
+>>>
+>>> get(d, 'name')
+'value'
+>>> get(d, 'top')
+'bottom'
+>>> get(d, 'missing', '$top')
+'$top'
+\end{verbatim}
+
 
 \end{document}
