@@ -82,6 +82,8 @@
   
  ****************************************************************************/
 
+#define BUCKETTEMPLATE_C "$Id: BucketTemplate.c,v 1.9 2001/03/20 13:52:00 jim Exp $\n"
+
 /*
 ** _bucket_get
 **
@@ -117,12 +119,14 @@ _bucket_get(Bucket *self, PyObject *keyarg, int has_key)
               COPY_VALUE_TO_OBJECT(r, self->values[i]);
 	    }
 	  PER_ALLOW_DEACTIVATION(self);
+          PER_ACCESSED(self);
 	  return r;
 	}
       else max=i;
     }
 
   PER_ALLOW_DEACTIVATION(self);
+  PER_ACCESSED(self);
   if (has_key) return PyInt_FromLong(0);
   PyErr_SetObject(PyExc_KeyError, keyarg);
   return NULL;
@@ -213,6 +217,7 @@ _bucket_set(Bucket *self, PyObject *keyarg, PyObject *v,
                   if (VALUE_SAME(self->values[i], value))
                     { /* short-circuit if no change */
                       PER_ALLOW_DEACTIVATION(self);
+                      PER_ACCESSED(self);
                       return 0;
                     }
 #endif
@@ -223,6 +228,7 @@ _bucket_set(Bucket *self, PyObject *keyarg, PyObject *v,
                   if (PER_CHANGED(self) < 0) goto err;
                 }
 	      PER_ALLOW_DEACTIVATION(self);
+              PER_ACCESSED(self);
 	      return 0;
 	    }
 	  else			/* There's no value so remove the item */
@@ -257,6 +263,7 @@ _bucket_set(Bucket *self, PyObject *keyarg, PyObject *v,
 
 	      if (PER_CHANGED(self) < 0) goto err;
 	      PER_ALLOW_DEACTIVATION(self);
+              PER_ACCESSED(self);
 	      return 1;
 	    }
 	}
@@ -297,10 +304,12 @@ _bucket_set(Bucket *self, PyObject *keyarg, PyObject *v,
 
   if (PER_CHANGED(self) < 0) goto err;
   PER_ALLOW_DEACTIVATION(self);
+  PER_ACCESSED(self);
   return 1;
 
 err:
   PER_ALLOW_DEACTIVATION(self);
+  PER_ACCESSED(self);
   return -1;
 }
 
@@ -420,6 +429,8 @@ bucket_split(Bucket *self, int index, Bucket *next)
   Py_INCREF(next);
   self->next = next;
 
+  PER_CHANGED(self);
+
   return 0;
 }
 
@@ -430,6 +441,7 @@ Bucket_nextBucket(Bucket *self, Bucket **r)
   *r=self->next;
   Py_XINCREF(*r);
   PER_ALLOW_DEACTIVATION(self);
+  PER_ACCESSED(self);
   return 0;
 }
 
@@ -445,9 +457,11 @@ Bucket_deleteNextBucket(Bucket *self)
       PER_CHANGED(self);
     }
   PER_ALLOW_DEACTIVATION(self);
+  PER_ACCESSED(self);
   return 0;
  err:
   PER_ALLOW_DEACTIVATION(self);
+  PER_ACCESSED(self);
   return -1;
 }
 /*
@@ -486,6 +500,7 @@ Bucket_findRangeEnd(Bucket *self, PyObject *keyarg, int low, int *offset)
       else if (cmp == 0)
         {
           PER_ALLOW_DEACTIVATION(self);
+          PER_ACCESSED(self);
           *offset=i;
           return 1;
         } 
@@ -516,6 +531,7 @@ Bucket_findRangeEnd(Bucket *self, PyObject *keyarg, int low, int *offset)
     }
 
   PER_ALLOW_DEACTIVATION(self);
+  PER_ACCESSED(self);
 
   return i;
 }
@@ -546,6 +562,7 @@ Bucket_maxminKey(Bucket *self, PyObject *args, int min)
 
   COPY_KEY_TO_OBJECT(key, self->keys[offset]);
   PER_ALLOW_DEACTIVATION(self);
+  PER_ACCESSED(self);
 
   return key;
   
@@ -554,6 +571,7 @@ Bucket_maxminKey(Bucket *self, PyObject *args, int min)
 
  err:
   PER_ALLOW_DEACTIVATION(self);
+  PER_ACCESSED(self);
   return NULL;
 }
 
@@ -638,10 +656,12 @@ bucket_keys(Bucket *self, PyObject *args)
     }
 
   PER_ALLOW_DEACTIVATION(self);
+  PER_ACCESSED(self);
   return r;
 
  err:
   PER_ALLOW_DEACTIVATION(self);
+  PER_ACCESSED(self);
   Py_XDECREF(r);
   return NULL;
 }
@@ -676,10 +696,12 @@ bucket_values(Bucket *self, PyObject *args)
     }
 
   PER_ALLOW_DEACTIVATION(self);
+  PER_ACCESSED(self);
   return r;
 
  err:
   PER_ALLOW_DEACTIVATION(self);
+  PER_ACCESSED(self);
   Py_XDECREF(r);
   return NULL;
 }
@@ -724,10 +746,12 @@ bucket_items(Bucket *self, PyObject *args)
     }
 
   PER_ALLOW_DEACTIVATION(self);
+  PER_ACCESSED(self);
   return r;
 
  err:
   PER_ALLOW_DEACTIVATION(self);
+  PER_ACCESSED(self);
   Py_XDECREF(r);
   Py_XDECREF(item);
   return NULL;
@@ -787,10 +811,12 @@ bucket_byValue(Bucket *self, PyObject *args)
   Py_DECREF(item);
 
   PER_ALLOW_DEACTIVATION(self);
+  PER_ACCESSED(self);
   return r;
 
  err:
   PER_ALLOW_DEACTIVATION(self);
+  PER_ACCESSED(self);
   Py_XDECREF(r);
   Py_XDECREF(item);
   return NULL;
@@ -856,11 +882,13 @@ bucket_clear(Bucket *self, PyObject *args)
       if (PER_CHANGED(self) < 0) goto err;
     }
   PER_ALLOW_DEACTIVATION(self);
+  PER_ACCESSED(self);
   Py_INCREF(Py_None); 
   return Py_None;
 
 err:
   PER_ALLOW_DEACTIVATION(self);
+  PER_ACCESSED(self);
   return NULL;
 }
 
@@ -909,11 +937,13 @@ bucket_getstate(Bucket *self, PyObject *args)
     ASSIGN(items, Py_BuildValue("(O)", items));
   
   PER_ALLOW_DEACTIVATION(self);
+  PER_ACCESSED(self);
 
   return items;
 
 err:
   PER_ALLOW_DEACTIVATION(self);
+  PER_ACCESSED(self);
   Py_XDECREF(items);
   return NULL;
 }
@@ -981,6 +1011,7 @@ _bucket_setstate(Bucket *self, PyObject *args)
     }
 
   PER_ALLOW_DEACTIVATION(self);
+  PER_ACCESSED(self);
 
   return 0;
 }
@@ -995,6 +1026,7 @@ bucket_setstate(Bucket *self, PyObject *args)
   PER_PREVENT_DEACTIVATION(self); 
   r=_bucket_setstate(self, args);
   PER_ALLOW_DEACTIVATION(self);
+  PER_ACCESSED(self);
 
   if (r < 0) return NULL;
   Py_INCREF(Py_None);
@@ -1160,6 +1192,7 @@ Bucket_length( Bucket *self)
   PER_USE_OR_RETURN(self, -1);
   r=self->len;
   PER_ALLOW_DEACTIVATION(self);
+  PER_ACCESSED(self);
   return r;
 }
 
@@ -1225,10 +1258,10 @@ static PyExtensionClass BucketType = {
 static int 
 nextBucket(SetIteration *i)
 {
-  UNLESS(PER_USE(BUCKET(i->set))) return -1;
-          
   if (i->position >= 0)
     {
+      UNLESS(PER_USE(BUCKET(i->set))) return -1;
+          
       if (i->position)
         {
           DECREF_KEY(i->key);
@@ -1244,10 +1277,14 @@ nextBucket(SetIteration *i)
           i->position ++;
         }
       else
-        i->position = -1;
+        {
+          i->position = -1;
+          PER_ACCESSED(BUCKET(i->set));
+        }
+
+      PER_ALLOW_DEACTIVATION(BUCKET(i->set));
     }
 
-  PER_ALLOW_DEACTIVATION(BUCKET(i->set));
           
   return 0;
 }

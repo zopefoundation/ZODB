@@ -83,6 +83,8 @@
   
  ****************************************************************************/
 
+#define SETTEMPLATE_C "$Id: SetTemplate.c,v 1.9 2001/03/20 13:52:00 jim Exp $\n"
+
 static PyObject *
 Set_insert(Bucket *self, PyObject *args)
 {
@@ -203,6 +205,7 @@ set_setstate(Bucket *self, PyObject *args)
   PER_PREVENT_DEACTIVATION(self); 
   r=_set_setstate(self, args);
   PER_ALLOW_DEACTIVATION(self);
+  PER_ACCESSED(self);
 
   if (r < 0) return NULL;
   Py_INCREF(Py_None);
@@ -271,6 +274,7 @@ set_length(Bucket *self)
   PER_USE_OR_RETURN(self, -1);
   r = self->len;
   PER_ALLOW_DEACTIVATION(self);
+  PER_ACCESSED(self);
 
   return r;
 }
@@ -289,6 +293,7 @@ set_item(Bucket *self, int index)
     IndexError(index);
 
   PER_ALLOW_DEACTIVATION(self);
+  PER_ACCESSED(self);
 
   return r;
 }
@@ -339,10 +344,11 @@ static PyExtensionClass SetType = {
 static int 
 nextSet(SetIteration *i)
 {
-  UNLESS(PER_USE(BUCKET(i->set))) return -1;
           
   if (i->position >= 0)
     {
+      UNLESS(PER_USE(BUCKET(i->set))) return -1;
+
       if (i->position)
         {
           DECREF_KEY(i->key);
@@ -355,10 +361,14 @@ nextSet(SetIteration *i)
           i->position ++;
         }
       else
-        i->position = -1;
+        {
+          i->position = -1;
+          PER_ACCESSED(BUCKET(i->set));
+        }
+
+      PER_ALLOW_DEACTIVATION(BUCKET(i->set));
     }
 
-  PER_ALLOW_DEACTIVATION(BUCKET(i->set));
           
   return 0;
 }

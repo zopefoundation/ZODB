@@ -1,3 +1,6 @@
+
+#define KEYMACROS_H "$Id: intkeymacros.h,v 1.4 2001/03/20 13:52:00 jim Exp $\n"
+
 #define KEY_TYPE int
 #define KEY_CHECK PyInt_Check
 #define TEST_KEY(K, T) (((K) < (T)) ? -1 : (((K) > (T)) ? 1: 0)) 

@@ -83,6 +83,8 @@
   
  ****************************************************************************/
 
+#define TREESETTEMPLATE_C "$Id: TreeSetTemplate.c,v 1.9 2001/03/20 13:52:00 jim Exp $\n"
+
 static PyObject *
 TreeSet_insert(BTree *self, PyObject *args)
 {
@@ -151,6 +153,7 @@ TreeSet_setstate(BTree *self, PyObject *args)
   PER_PREVENT_DEACTIVATION(self); 
   r=_BTree_setstate(self, args, 1);
   PER_ALLOW_DEACTIVATION(self);
+  PER_ACCESSED(self);
 
   if (r < 0) return NULL;
   Py_INCREF(Py_None);

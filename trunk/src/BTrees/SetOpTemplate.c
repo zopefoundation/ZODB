@@ -87,24 +87,30 @@
  Set operations
  ****************************************************************************/
 
+#define SETOPTEMPLATE_C "$Id: SetOpTemplate.c,v 1.5 2001/03/20 13:52:00 jim Exp $\n"
+
 #ifdef INTSET_H
 static int 
 nextIntSet(SetIteration *i)
-{
-  UNLESS(PER_USE(INTSET(i->set))) return -1;
-          
+{    
   if (i->position >= 0)
     {
+      UNLESS(PER_USE(INTSET(i->set))) return -1;
+
       if (i->position < INTSET(i->set)->len)
         {
           i->key = INTSET(i->set)->data[i->position];
           i->position ++;
         }
       else
-        i->position = -1;
+        {
+          i->position = -1;
+          PER_ACCESSED(INTSET(i->set));
+        }
+
+      PER_ALLOW_DEACTIVATION(INTSET(i->set));
     }
 
-  PER_ALLOW_DEACTIVATION(INTSET(i->set));
           
   return 0;
 }

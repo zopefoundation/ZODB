@@ -1,3 +1,4 @@
+#define KEYMACROS_H "$Id: objectkeymacros.h,v 1.2 2001/03/20 13:52:00 jim Exp $\n"
 #define KEY_TYPE PyObject *
 #define TEST_KEY(KEY, TARGET) PyObject_Compare((KEY),(TARGET))
 #define INCREF_KEY(k) Py_INCREF(k)
