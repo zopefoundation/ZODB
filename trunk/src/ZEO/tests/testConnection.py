@@ -59,6 +59,12 @@ class FileStorageReconnectionTests(
     ):
     """FileStorage-specific re-connection tests."""
 
+class FileStorageTimeoutTests(
+    FileStorageConfig,
+    ConnectionTests.TimeoutTests
+    ):
+    # doesn't test anything that is storage-specific
+    pass
 
 class BDBConnectionTests(
     BerkeleyStorageConfig,
@@ -74,7 +80,8 @@ class BDBReconnectionTests(
     """Berkeley storage re-connection tests."""
 
 
-test_classes = [FileStorageConnectionTests, FileStorageReconnectionTests]
+test_classes = [FileStorageConnectionTests, FileStorageReconnectionTests,
+                FileStorageTimeoutTests]
 
 import BDBStorage
 if BDBStorage.is_available:

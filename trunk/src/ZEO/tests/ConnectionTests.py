@@ -60,6 +60,7 @@ class CommonSetupTearDown(StorageTestBase):
     __super_tearDown = StorageTestBase.tearDown
     keep = 0
     invq = None
+    timeout = None
 
     def setUp(self):
         """Test setup for connection tests.
@@ -131,7 +132,7 @@ class CommonSetupTearDown(StorageTestBase):
         path = "%s.%d" % (self.file, index)
         conf = self.getConfig(path, create, read_only)
         zeoport, adminaddr, pid = forker.start_zeo_server(
-            conf, addr, ro_svr, self.keep, self.invq)
+            conf, addr, ro_svr, self.keep, self.invq, self.timeout)
         self._pids.append(pid)
         self._servers.append(adminaddr)
 
@@ -674,6 +675,29 @@ class ReconnectionTests(CommonSetupTearDown):
 
         perstorage.close()
 
+class TimeoutTests(CommonSetupTearDown):
+    timeout = 1
+
+    def checkTimeout(self):
+        storage = self.openClientStorage()
+        txn = Transaction()
+        storage.tpc_begin(txn)
+        storage.tpc_vote(txn)
+        time.sleep(2)
+        self.assertRaises(Disconnected, storage.tpc_finish, txn)
+
+    def checkTimeoutOnAbort(self):
+        storage = self.openClientStorage()
+        txn = Transaction()
+        storage.tpc_begin(txn)
+        storage.tpc_vote(txn)
+        storage.tpc_abort(txn)
+
+    def checkTimeoutOnAbortNoLock(self):
+        storage = self.openClientStorage()
+        txn = Transaction()
+        storage.tpc_begin(txn)
+        storage.tpc_abort(txn)
 
 class MSTThread(threading.Thread):
 

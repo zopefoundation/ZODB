@@ -117,8 +117,9 @@ def main():
     keep = 0
     configfile = None
     invalidation_queue_size = 100
+    transaction_timeout = None
     # Parse the arguments and let getopt.error percolate
-    opts, args = getopt.getopt(sys.argv[1:], 'rkC:Q:')
+    opts, args = getopt.getopt(sys.argv[1:], 'rkC:Q:T:')
     for opt, arg in opts:
         if opt == '-r':
             ro_svr = 1
@@ -128,6 +129,8 @@ def main():
             configfile = arg
         elif opt == '-Q':
             invalidation_queue_size = int(arg)
+        elif opt == '-T':
+            transaction_timeout = int(arg)
     # Open the config file and let ZConfig parse the data there.  Then remove
     # the config file, otherwise we'll leave turds.
     fp = open(configfile, 'r')
@@ -150,7 +153,8 @@ def main():
     log(label, 'creating the storage server')
     serv = ZEO.StorageServer.StorageServer(
         addr, {'1': storage}, ro_svr,
-        invalidation_queue_size=invalidation_queue_size)
+        invalidation_queue_size=invalidation_queue_size,
+        transaction_timeout=transaction_timeout)
     log(label, 'entering ThreadedAsync loop')
     ThreadedAsync.LoopCallback.loop()
 
