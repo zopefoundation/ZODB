@@ -49,6 +49,12 @@ BTrees
 FileStorage
 -----------
 
+- The main part of a ``Data.fs.index`` index file now uses an OOBTree
+  instead of a Python dictionary.  A consequence is that ``.index`` files
+  written by this version of ZODB cannot be read by earlier versions of
+  ZODB.  Older ``.index`` files can be read by this version of ZODB, and
+  are automatically converted to use the new scheme.
+
 - Addded a record iteration protocol to FileStorage.  You can use the
   record iterator to iterate over all current revisions of data
   pickles in the storage.
@@ -79,6 +85,14 @@ is missing -- did it ever exist?  if so, when?  who referenced it?  when
 was the last transaction that modified an object that referenced it?
 which objects did it reference?  what kind of object was it?).
 ZODB/test/testfsoids.py is a tutorial doctest.
+
+
+fsIndex
+-------
+
+Efficient, general implementations of ``minKey()`` and ``maxKey()`` methods
+were added.  ``fsIndex`` is a special hybrid kind of BTree used to implement
+FileStorage indices.  Thanks to Chris McDonough for code and tests.
 
 
 What's new in ZODB3 3.3.1a2?
