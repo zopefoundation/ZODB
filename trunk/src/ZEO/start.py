@@ -86,7 +86,7 @@
 """Start the server storage.
 """
 
-__version__ = "$Revision: 1.8 $"[11:-2]
+__version__ = "$Revision: 1.9 $"[11:-2]
 
 import sys, os, getopt, string
 
@@ -99,14 +99,17 @@ def directory(p, n=1):
         
     return d
 
-def get_storage(m, n):
+def get_storage(m, n, cache={}):
     p=sys.path
     d, m = os.path.split(m)
-    if d: p=[d]+p
-    import imp
     if m[-3:]=='.py': m=m[:-3]
-    im=imp.find_module(m,p)
-    im=imp.load_module(m, im[0], im[1], im[2])
+    im=cache.get((d,m), 0)
+    if im==0:
+        if d: p=[d]+p
+        import imp
+        im=imp.find_module(m,p)
+        im=imp.load_module(m, im[0], im[1], im[2])
+        cache[(d,m)]=im
     return getattr(im, n)
 
 
