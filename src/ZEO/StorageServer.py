@@ -235,7 +235,8 @@ class StorageServer:
 
         This is only called from the test suite, AFAICT.
         """
-        self.timeout.stop()
+        for timeout in self.timeouts.values():
+            timeout.stop()
         self.dispatcher.close()
         for storage in self.storages.values():
             storage.close()
@@ -782,13 +783,17 @@ class TimeoutThread(threading.Thread):
             self._active.wait()
             self._lock.acquire()
             try:
-                howlong = self._deadline - time.time()
+                deadline = self._deadline
+                if deadline is None:
+                    continue
+                howlong = deadline - time.time()
             finally:
                 self._lock.release()
             if howlong <= 0:
                 self.timeout()
             else:
                 time.sleep(howlong)
+        self.trigger.close()
 
     def timeout(self):
         self._lock.acquire()
