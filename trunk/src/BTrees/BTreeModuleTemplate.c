@@ -85,7 +85,7 @@
 
 static char BTree_module_documentation[] = 
 ""
-"\n$Id: BTreeModuleTemplate.c,v 1.4 2001/02/19 18:15:10 jim Exp $"
+"\n$Id: BTreeModuleTemplate.c,v 1.5 2001/03/15 13:16:22 jim Exp $"
 ;
 
 #ifdef PERSISTENT
@@ -113,7 +113,7 @@ static char BTree_module_documentation[] =
 #define PER_CHANGED(O) 0
 #endif
 
-PyObject *sort_str, *reverse_str;
+static PyObject *sort_str, *reverse_str, *items_str, *__setstate___str;
 
 static void PyVar_Assign(PyObject **v, PyObject *e) { Py_XDECREF(*v); *v=e;}
 #define ASSIGN(V,E) PyVar_Assign(&(V),(E))
@@ -128,6 +128,9 @@ static void PyVar_Assign(PyObject **v, PyObject *e) { Py_XDECREF(*v); *v=e;}
 #define MAX_BUCKET_SIZE(B) DEFAULT_MAX_BUCKET_SIZE
 
 #define SameType_Check(O1, O2) ((O1)->ob_type==(O2)->ob_type)
+
+#define ASSERT(C, S, R) if (! (C)) { \
+  PyErr_SetString(PyExc_AssertionError, (S)); return (R); }
 
 typedef struct BTreeItemStruct {
   KEY_TYPE key;
@@ -162,6 +165,9 @@ typedef struct {
   Bucket *firstbucket;
   BTreeItem *data;
 } BTree;
+
+staticforward PyExtensionClass BTreeType;
+
 
 #define BTREE(O) ((BTree*)(O))
 
@@ -267,6 +273,8 @@ PyMalloc(size_t sz)
 {
   void *r;
 
+  ASSERT(sz > 0, "non-positive size malloc", NULL);
+
   if (r=malloc(sz)) return r;
 
   PyErr_NoMemory();
@@ -278,10 +286,14 @@ PyRealloc(void *p, size_t sz)
 {
   void *r;
 
-  if (r=realloc(p,sz)) return r;
+  ASSERT(sz > 0, "non-positive size realloc", NULL);
 
-  PyErr_NoMemory();
-  return NULL;
+  if (p) r=realloc(p,sz);
+  else r=malloc(sz);
+
+  UNLESS (r) PyErr_NoMemory();
+
+  return r;
 }
 
 #include "BTreeItemsTemplate.c"
@@ -290,6 +302,7 @@ PyRealloc(void *p, size_t sz)
 #include "BTreeTemplate.c"
 #include "TreeSetTemplate.c"
 #include "SetOpTemplate.c"
+#include "MergeTemplate.c"
 
 static struct PyMethodDef module_methods[] = {
   {"difference", (PyCFunction) difference_m,	METH_VARARGS,
@@ -324,6 +337,8 @@ INITMODULE ()
 
   UNLESS (sort_str=PyString_FromString("sort")) return;
   UNLESS (reverse_str=PyString_FromString("reverse")) return;
+  UNLESS (items_str=PyString_FromString("items")) return;
+  UNLESS (__setstate___str=PyString_FromString("__setstate__")) return;
 
   UNLESS (PyExtensionClassCAPI=PyCObject_Import("ExtensionClass","CAPI"))
       return;
@@ -372,7 +387,7 @@ INITMODULE ()
   d = PyModule_GetDict(m);
 
   PyDict_SetItemString(d, "__version__",
-		       PyString_FromString("$Revision: 1.4 $"));
+		       PyString_FromString("$Revision: 1.5 $"));
 
   PyExtensionClass_Export(d,PREFIX "Bucket", BucketType);
   PyExtensionClass_Export(d,PREFIX "BTree", BTreeType);

@@ -90,8 +90,43 @@ Set_insert(Bucket *self, PyObject *args)
   int i;
 
   UNLESS (PyArg_ParseTuple(args, "O", &key)) return NULL;
-  if ( (i=_bucket_set(self, key, Py_None, 1, 1)) < 0) return NULL;
+  if ( (i=_bucket_set(self, key, Py_None, 1, 1, 0)) < 0) return NULL;
   return PyInt_FromLong(i);
+}
+
+static PyObject *
+Set_update(Bucket *self, PyObject *args)
+{
+  PyObject *seq=0, *o, *t, *v, *tb;
+  int i, n=0, ind;
+
+  UNLESS(PyArg_ParseTuple(args, "|O:update", &seq)) return NULL;
+
+  if (seq)
+    {
+      for (i=0; ; i++)
+        {
+          UNLESS (o=PySequence_GetItem(seq, i))
+            {
+              PyErr_Fetch(&t, &v, &tb);
+              if (t != PyExc_IndexError)
+                {
+                  PyErr_Restore(t, v, tb);
+                  return NULL;
+                }
+              Py_XDECREF(t);
+              Py_XDECREF(v);
+              Py_XDECREF(tb);
+              break;
+            }
+          ind=_bucket_set(self, o, Py_None, 1, 1, 0);
+          Py_DECREF(o);
+          if (ind < 0) return NULL;
+          n += ind;
+        }
+    }
+
+  return PyInt_FromLong(n);
 }
 
 static PyObject *
@@ -100,48 +135,14 @@ Set_remove(Bucket *self, PyObject *args)
   PyObject *key;
 
   UNLESS (PyArg_ParseTuple(args, "O", &key)) return NULL;
-  if (_bucket_set(self, key, NULL, 0, 1) < 0) return NULL;
+  if (_bucket_set(self, key, NULL, 0, 1, 0) < 0) return NULL;
 
   Py_INCREF(Py_None);
   return Py_None;
 }
 
-static PyObject *
-set_getstate(Bucket *self, PyObject *args)
-{
-  PyObject *r=0, *o=0, *items=0;
-  int i, l;
-
-  PER_USE_OR_RETURN(self, NULL);
-
-  l=self->len;
-
-  UNLESS (items=PyTuple_New(self->len)) goto err;
-  for (i=0; i<l; i++)
-    {
-      COPY_KEY_TO_OBJECT(o, self->keys[i]);
-      UNLESS (o) goto err;
-      PyTuple_SET_ITEM(items, i, o);
-    }
-
-  if (self->next) 
-    r=Py_BuildValue("OO", items, self->next);
-  else
-    r=Py_BuildValue("(O)", items);
-
-  PER_ALLOW_DEACTIVATION(self);
-
-  return r;
-
-err:
-  PER_ALLOW_DEACTIVATION(self);
-  Py_XDECREF(items);
-  Py_XDECREF(r);
-  return NULL;
-}
-
-static PyObject *
-set_setstate(Bucket *self, PyObject *args)
+static int
+_set_setstate(Bucket *self, PyObject *args)
 {
   PyObject *k, *items;
   Bucket *next=0;
@@ -149,14 +150,10 @@ set_setstate(Bucket *self, PyObject *args)
   KEY_TYPE *keys;
   VALUE_TYPE *values;
 
-  PER_PREVENT_DEACTIVATION(self); 
+  UNLESS (PyArg_ParseTuple(args, "O|O", &items, &next))
+    return -1;
 
-  UNLESS (PyArg_ParseTuple(args, "O", &args)) goto err;
-
-  UNLESS (PyArg_ParseTuple(args, "O|O!", &items, self->ob_type, &next))
-    goto err;
-
-  if ((l=PyTuple_Size(items)) < 0) goto err;
+  if ((l=PyTuple_Size(items)) < 0) return -1;
 
   for (i=self->len; --i >= 0; )
     {
@@ -172,7 +169,7 @@ set_setstate(Bucket *self, PyObject *args)
   
   if (l > self->size)
     {
-      UNLESS (keys=PyRealloc(self->keys, sizeof(KEY_TYPE)*l)) goto err;
+      UNLESS (keys=PyRealloc(self->keys, sizeof(KEY_TYPE)*l)) return -1;
       self->keys=keys;
       self->size=l;
     }
@@ -181,25 +178,39 @@ set_setstate(Bucket *self, PyObject *args)
     {
       k=PyTuple_GET_ITEM(items, i);
       COPY_KEY_FROM_ARG(self->keys[i], k, &copied);
-      UNLESS (copied) return NULL;
-      INCREF_KEY(k);
+      UNLESS (copied) return -1;
+      INCREF_KEY(self->keys[i]);
     }
 
   self->len=l;
 
+  if (next)
+    {
+      self->next=next;
+      Py_INCREF(next);
+    }
+
+  return 0;
+}
+
+static PyObject *
+set_setstate(Bucket *self, PyObject *args)
+{
+  int r;
+
+  UNLESS (PyArg_ParseTuple(args, "O", &args)) return NULL;
+
+  PER_PREVENT_DEACTIVATION(self); 
+  r=_set_setstate(self, args);
   PER_ALLOW_DEACTIVATION(self);
+
+  if (r < 0) return NULL;
   Py_INCREF(Py_None);
   return Py_None;
-
- perr:
-  self->len=i;
- err:
-  PER_ALLOW_DEACTIVATION(self);
-  return NULL;
 }
 
 static struct PyMethodDef Set_methods[] = {
-  {"__getstate__", (PyCFunction) set_getstate,	METH_VARARGS,
+  {"__getstate__", (PyCFunction) bucket_getstate,	METH_VARARGS,
    "__getstate__() -- Return the picklable state of the object"},
   {"__setstate__", (PyCFunction) set_setstate,	METH_VARARGS,
    "__setstate__() -- Set the state of the object"},
@@ -216,11 +227,17 @@ static struct PyMethodDef Set_methods[] = {
    "minKey([key]) -- Fine the minimum key\n\n"
    "If an argument is given, find the minimum >= the argument"},
 #ifdef PERSISTENT
+  {"_p_resolveConflict", (PyCFunction) bucket__p_resolveConflict, METH_VARARGS,
+   "_p_resolveConflict() -- Reinitialize from a newly created copy"},
   {"_p_deactivate", (PyCFunction) bucket__p_deactivate, METH_VARARGS,
    "_p_deactivate() -- Reinitialize from a newly created copy"},
 #endif
   {"insert",	(PyCFunction)Set_insert,	METH_VARARGS,
    "insert(id,[ignored]) -- Add a key to the set"},
+  {"update",	(PyCFunction)Set_update,	METH_VARARGS,
+   "update(seq) -- Add the items from the given sequence to the set"},
+  {"__init__",	(PyCFunction)Set_update,	METH_VARARGS,
+   "__init__(seq) -- Initialize with  the items from the given sequence"},
   {"remove",	(PyCFunction)Set_remove,	METH_VARARGS,
    "remove(id) -- Remove an id from the set"},
 

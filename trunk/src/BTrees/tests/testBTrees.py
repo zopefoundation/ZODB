@@ -122,56 +122,65 @@ class Base:
         os.system('rm fs_tmp__*')
                 
     def testLoadAndStore(self):
-        t = self.t
-        try:
-            root = self._getRoot()
-            root['t'] = t
-            get_transaction().commit()
-        except:
-            self._closeDB(root)
-            self._delDB()
-            raise
+        for i in 0, 10, 1000:
+            t = self.t.__class__()
+            self._populate(t, i)
+            try:
+                root = self._getRoot()
+                root[i] = t
+                get_transaction().commit()
+            except:
+                self._closeDB(root)
+                self._delDB()
+                raise
 
-        self._closeDB(root)
-
-        try:
-            root = self._getRoot()
-            #XXX BTree stuff doesn't implement comparison
-            if hasattr(t, 'items'):
-                assert list(root['t'].items()) == list(t.items())
-            else:
-                assert list(root['t'].keys()) == list(t.keys())
-        finally:
             self._closeDB(root)
-            self._delDB()
+
+            try:
+                root = self._getRoot()
+                #XXX BTree stuff doesn't implement comparison
+                if hasattr(t, 'items'):
+                    assert list(root[i].items()) == list(t.items())
+                else:
+                    assert list(root[i].keys()) == list(t.keys())
+            finally:
+                self._closeDB(root)
+                self._delDB()
             
     def testGhostUnghost(self):
-        t = self.t
-        try:
-            root = self._getRoot()
-            root['t'] = t
-            get_transaction().commit()
-        except:
-            self._closeDB(root)
-            self._delDB()
-            raise
+        for i in 0, 10, 1000:
+            t = self.t.__class__()
+            self._populate(t, i)
+            try:
+                root = self._getRoot()
+                root[i] = t
+                get_transaction().commit()
+            except:
+                self._closeDB(root)
+                self._delDB()
+                raise
 
-        self._closeDB(root)
-
-        try:
-            root = self._getRoot()
-            root['t']._p_changed = None
-            get_transaction().commit()
-            if hasattr(t,'items'):
-                assert list(root['t'].items()) == list(t.items())
-            else:
-                assert list(root['t'].keys()) == list(t.keys())
-        finally:
             self._closeDB(root)
-            self._delDB()
+
+            try:
+                root = self._getRoot()
+                root[i]._p_changed = None
+                get_transaction().commit()
+                if hasattr(t,'items'):
+                    assert list(root[i].items()) == list(t.items())
+                else:
+                    assert list(root[i].keys()) == list(t.keys())
+            finally:
+                self._closeDB(root)
+                self._delDB()
 
 class MappingBase(Base):
     """ Tests common to mappings (buckets, btrees) """
+
+    def _populate(self, t, l):
+        # Make some data
+        for i in range(l): t[i]=i
+    
     def testGetItemFails(self):
         self.assertRaises(KeyError, self._getitemfail)
 
@@ -271,8 +280,45 @@ class MappingBase(Base):
         diff = lsubtract(list(self.t.keys()), [])
         assert diff == [], diff
 
+    def testUpdate(self):
+        "mapping update"
+        d={}
+        l=[]
+        for i in range(10000):
+            k=whrandom.randint(-2000, 2000)
+            d[k]=i
+            l.append((k, i))
+            
+        items=d.items()
+        items.sort()
+
+        self.t.update(d)
+        assert list(self.t.items()) == items
+
+        self.t.clear()
+        assert list(self.t.items()) == []
+
+        self.t.update(l)
+        assert list(self.t.items()) == items
+
+    def testEmptyRangeSearches(self):
+        t=self.t
+        t.update([(1,1),(5,5),(9,9)])
+        assert list(t.keys(-6,-4))==[], list(t.keys(-6,-4))
+        assert list(t.keys(2,4))==[], list(t.keys(2,4))
+        assert list(t.keys(6,8))==[], list(t.keys(6,8))
+        assert list(t.keys(10,12))==[], list(t.keys(10,12))
+        
+
 class NormalSetTests(Base):
     """ Test common to all set types """
+
+
+    def _populate(self, t, l): 
+        # Make some data
+        t.update(range(l))
+
+
     def testInsertReturnsValue(self):
         t = self.t
         assert t.insert(5) == 1
@@ -342,6 +388,29 @@ class NormalSetTests(Base):
         assert t.minKey() == 1
         assert t.minKey(3) == 3
         assert t.minKey(9) == 10
+
+    def testUpdate(self):
+        "mapping update"
+        d={}
+        l=[]
+        for i in range(10000):
+            k=whrandom.randint(-2000, 2000)
+            d[k]=i
+            l.append(k)
+            
+        items=d.keys()
+        items.sort()
+
+        self.t.update(l)
+        assert list(self.t.keys()) == items
+
+    def testEmptyRangeSearches(self):
+        t=self.t
+        t.update([1,5,9])
+        assert list(t.keys(-6,-4))==[], list(t.keys(-6,-4))
+        assert list(t.keys(2,4))==[], list(t.keys(2,4))
+        assert list(t.keys(6,8))==[], list(t.keys(6,8))
+        assert list(t.keys(10,12))==[], list(t.keys(10,12))
 
 class ExtendedSetTests(NormalSetTests):
     def testLen(self):
