@@ -150,13 +150,11 @@ method::
 and call it to minotor the storage.
 
 """
-__version__='$Revision: 1.1 $'[11:-2]
+__version__='$Revision: 1.2 $'[11:-2]
 
 import base64, POSException, BTree, BaseStorage, time, string, utils
 from TimeStamp import TimeStamp
 from cPickle import loads
-
-class DemoStorageError: pass
 
 class DemoStorage(BaseStorage.BaseStorage):
 
