@@ -17,31 +17,27 @@ from BTrees.OOBTree import OOBTree, OOBucket, OOSet, OOTreeSet
 from BTrees.IOBTree import IOBTree, IOBucket, IOSet, IOTreeSet
 from BTrees.IIBTree import IIBTree, IIBucket, IISet, IITreeSet
 from BTrees.OIBTree import OIBTree, OIBucket, OISet, OITreeSet
-from unittest import TestCase, TestSuite, TextTestRunner, makeSuite
+from unittest import TestCase, TestSuite, makeSuite
 
 from ZODB.POSException import ConflictError
 
 class Base:
     """ Tests common to all types: sets, buckets, and BTrees """
-    def tearDown(self):
-        self.t = None
-        del self.t
 
-    def _getRoot(self):
+    storage = None
+
+    def tearDown(self):
+        del self.t
+        if self.storage is not None:
+            self.storage.close()
+            self.storage.cleanup()
+
+    def openDB(self):
         from ZODB.FileStorage import FileStorage
         from ZODB.DB import DB
         n = 'fs_tmp__%s' % os.getpid()
-        s = FileStorage(n)
-        db = DB(s)
-        root = db.open().root()
-        return root
-
-    def _closeDB(self, root):
-        root._p_jar._db.close()
-        root = None
-
-    def _delDB(self):
-        os.system('rm fs_tmp__*')
+        self.storage = FileStorage(n)
+        self.db = DB(self.storage)
 
 class MappingBase(Base):
     """ Tests common to mappings (buckets, btrees) """
@@ -69,6 +65,29 @@ class MappingBase(Base):
         items=base.items()
 
         return  base, b1, b2, bm, e1, e2, items
+
+    def testSimpleConflict(self):
+        # Unlike all the other tests, invoke conflict resolution
+        # by committing a transaction and catching a conflict
+        # in the storage.
+        self.openDB()
+
+        r1 = self.db.open().root()
+        r1["t"] = self.t
+        get_transaction().commit()
+
+        r2 = self.db.open().root()
+        copy = r2["t"]
+        list(copy.items())  # ensure it's all loaded
+
+        self.assertEqual(self.t._p_serial, copy._p_serial)
+
+        self.t.update({1:2, 2:3})
+        get_transaction().commit()
+
+        copy.update({3:4})
+        get_transaction().commit()
+
 
     def testMergeDelete(self):
         base, b1, b2, bm, e1, e2, items = self._setupConflict()
@@ -184,12 +203,7 @@ class MappingBase(Base):
                    should_fail=1)
 
 
-class NormalSetTests(Base):
-    """ Test common to all set types """
-
-
-
-class ExtendedSetTests(NormalSetTests):
+class SetTests(Base):
     "Set (as opposed to TreeSet) specific tests."
 
     def _setupConflict(self):
@@ -201,13 +215,13 @@ class ExtendedSetTests(NormalSetTests):
         e2=[7745, 4868, -2548, -2711, -3154]
 
 
-        base=self.t
+        base = self.t
         base.update(l)
-        b1=base.__class__(base)
-        b2=base.__class__(base)
-        bm=base.__class__(base)
+        b1 = base.__class__(base.keys())
+        b2 = base.__class__(base.keys())
+        bm = base.__class__(base.keys())
 
-        items=base.keys()
+        items = base.keys()
 
         return  base, b1, b2, bm, e1, e2, items
 
@@ -292,13 +306,14 @@ def test_merge(o1, o2, o3, expect, message='failed to merge', should_fail=0):
     s2=o2.__getstate__()
     s3=o3.__getstate__()
     expected=expect.__getstate__()
-    if expected is None: expected=((((),),),)
+    if expected is None:
+        expected = ((((),),),)
 
     if should_fail:
         try:
             merged=o1._p_resolveConflict(s1, s2, s3)
-        except (ConflictError, ValueError), err:
-            pass # ConflictError is the only exception that should occur
+        except ConflictError, err:
+            pass
         else:
             assert 0, message
     else:
@@ -332,35 +347,35 @@ class TestIIBTrees(BTreeTests, TestCase):
 
 ## Set tests
 
-class TestIOSets(ExtendedSetTests, TestCase):
+class TestIOSets(SetTests, TestCase):
     def setUp(self):
         self.t = IOSet()
 
-class TestOOSets(ExtendedSetTests, TestCase):
+class TestOOSets(SetTests, TestCase):
     def setUp(self):
         self.t = OOSet()
 
-class TestIISets(ExtendedSetTests, TestCase):
+class TestIISets(SetTests, TestCase):
     def setUp(self):
         self.t = IISet()
 
-class TestOISets(ExtendedSetTests, TestCase):
+class TestOISets(SetTests, TestCase):
     def setUp(self):
         self.t = OISet()
 
-class TestIOTreeSets(NormalSetTests, TestCase):
+class TestIOTreeSets(SetTests, TestCase):
     def setUp(self):
         self.t = IOTreeSet()
 
-class TestOOTreeSets(NormalSetTests, TestCase):
+class TestOOTreeSets(SetTests, TestCase):
     def setUp(self):
         self.t = OOTreeSet()
 
-class TestIITreeSets(NormalSetTests, TestCase):
+class TestIITreeSets(SetTests, TestCase):
     def setUp(self):
         self.t = IITreeSet()
 
-class TestOITreeSets(NormalSetTests, TestCase):
+class TestOITreeSets(SetTests, TestCase):
     def setUp(self):
         self.t = OITreeSet()
 
@@ -382,49 +397,284 @@ class TestOIBuckets(BucketTests, TestCase):
     def setUp(self):
         self.t = OIBucket()
 
-# XXX disable tests for now
+class NastyConfict(Base, TestCase):
+    def setUp(self):
+        self.t = OOBTree()
+
+    # This tests a problem that cropped up while trying to write
+    # testBucketSplitConflict (below):  conflict resolution wasn't
+    # working at all in non-trivial cases.  Symptoms varied from
+    # strange complaints about pickling (despite that the test isn't
+    # doing any *directly*), thru SystemErrors from Python and
+    # AssertionErrors inside the BTree code.
+    def testResolutionBlowsUp(self):
+        b = self.t
+        for i in range(0, 200, 4):
+            b[i] = i
+        # bucket 0 has 15 values: 0, 4 .. 56
+        # bucket 1 has 15 values: 60, 64 .. 116
+        # bucket 2 has 20 values: 120, 124 .. 196
+        state = b.__getstate__()
+        # Looks like:  ((bucket0, 60, bucket1, 120, bucket2), firstbucket)
+        # If these fail, the *preconditions* for running the test aren't
+        # satisfied -- the test itself hasn't been run yet.
+        self.assertEqual(len(state), 2)
+        self.assertEqual(len(state[0]), 5)
+        self.assertEqual(state[0][1], 60)
+        self.assertEqual(state[0][3], 120)
+
+        # Invoke conflict resolution by committing a transaction.
+        self.openDB()
+
+        r1 = self.db.open().root()
+        r1["t"] = self.t
+        get_transaction().commit()
+
+        r2 = self.db.open().root()
+        copy = r2["t"]
+        # Make sure all of copy is loaded.
+        list(copy.values())
+
+        self.assertEqual(self.t._p_serial, copy._p_serial)
+
+        self.t.update({1:2, 2:3})
+        get_transaction().commit()
+
+        copy.update({3:4})
+        get_transaction().commit()  # if this doesn't blow up
+        list(copy.values())         # and this doesn't either, then fine
+
+    def testBucketSplitConflict(self):
+        # Tests that a bucket split is viewed as a conflict.
+        # It's (almost necessarily) a white-box test, and sensitive to
+        # implementation details.
+        b = self.t
+        for i in range(0, 200, 4):
+            b[i] = i
+        # bucket 0 has 15 values: 0, 4 .. 56
+        # bucket 1 has 15 values: 60, 64 .. 116
+        # bucket 2 has 20 values: 120, 124 .. 196
+        state = b.__getstate__()
+        # Looks like:  ((bucket0, 60, bucket1, 120, bucket2), firstbucket)
+        # If these fail, the *preconditions* for running the test aren't
+        # satisfied -- the test itself hasn't been run yet.
+        self.assertEqual(len(state), 2)
+        self.assertEqual(len(state[0]), 5)
+        self.assertEqual(state[0][1], 60)
+        self.assertEqual(state[0][3], 120)
+
+        # Invoke conflict resolution by committing a transaction.
+        self.openDB()
+
+        r1 = self.db.open().root()
+        r1["t"] = self.t
+        get_transaction().commit()
+
+        r2 = self.db.open().root()
+        copy = r2["t"]
+        # Make sure all of copy is loaded.
+        list(copy.values())
+
+        self.assertEqual(self.t._p_serial, copy._p_serial)
+
+        # In one transaction, add 16 new keys to bucket1, to force a bucket
+        # split.
+        b = self.t
+        numtoadd = 16
+        candidate = 60
+        while numtoadd:
+            if not b.has_key(candidate):
+                b[candidate] = candidate
+                numtoadd -= 1
+            candidate += 1
+        # bucket 0 has 15 values: 0, 4 .. 56
+        # bucket 1 has 15 values: 60, 61 .. 74
+        # bucket 2 has 16 values: [75, 76 .. 81] + [84, 88 ..116]
+        # bucket 3 has 20 values: 120, 124 .. 196
+        state = b.__getstate__()
+        # Looks like:  ((b0, 60, b1, 75, b2, 120, b3), firstbucket)
+        # The next block is still verifying preconditions.
+        self.assertEqual(len(state) , 2)
+        self.assertEqual(len(state[0]), 7)
+        self.assertEqual(state[0][1], 60)
+        self.assertEqual(state[0][3], 75)
+        self.assertEqual(state[0][5], 120)
+
+        get_transaction().commit()
+
+        # In the other transaction, add 3 values near the tail end of bucket1.
+        # This doesn't cause a split.
+        b = copy
+        for i in range(112, 116):
+            b[i] = i
+        # bucket 0 has 15 values: 0, 4 .. 56
+        # bucket 1 has 18 values: 60, 64 .. 112, 113, 114, 115, 116
+        # bucket 2 has 20 values: 120, 124 .. 196
+        state = b.__getstate__()
+        # Looks like:  ((bucket0, 60, bucket1, 120, bucket2), firstbucket)
+        # The next block is still verifying preconditions.
+        self.assertEqual(len(state), 2)
+        self.assertEqual(len(state[0]), 5)
+        self.assertEqual(state[0][1], 60)
+        self.assertEqual(state[0][3], 120)
+
+        self.assertRaises(ConflictError, get_transaction().commit)
+        get_transaction().abort()   # horrible things happen w/o this
+
+    def testEmptyBucketConflict(self):
+        # Tests that an emptied bucket *created by* conflict resolution is
+        # viewed as a conflict:  conflict resolution doesn't have enough
+        # info to unlink the empty bucket from the BTree correctly.
+        b = self.t
+        for i in range(0, 200, 4):
+            b[i] = i
+        # bucket 0 has 15 values: 0, 4 .. 56
+        # bucket 1 has 15 values: 60, 64 .. 116
+        # bucket 2 has 20 values: 120, 124 .. 196
+        state = b.__getstate__()
+        # Looks like:  ((bucket0, 60, bucket1, 120, bucket2), firstbucket)
+        # If these fail, the *preconditions* for running the test aren't
+        # satisfied -- the test itself hasn't been run yet.
+        self.assertEqual(len(state), 2)
+        self.assertEqual(len(state[0]), 5)
+        self.assertEqual(state[0][1], 60)
+        self.assertEqual(state[0][3], 120)
+
+        # Invoke conflict resolution by committing a transaction.
+        self.openDB()
+
+        r1 = self.db.open().root()
+        r1["t"] = self.t
+        get_transaction().commit()
+
+        r2 = self.db.open().root()
+        copy = r2["t"]
+        # Make sure all of copy is loaded.
+        list(copy.values())
+
+        self.assertEqual(self.t._p_serial, copy._p_serial)
+
+        # In one transaction, delete half of bucket 1.
+        b = self.t
+        for k in 60, 64, 68, 72, 76, 80, 84, 88:
+            del b[k]
+        # bucket 0 has 15 values: 0, 4 .. 56
+        # bucket 1 has 7 values: 92, 96, 100, 104, 108, 112, 116
+        # bucket 2 has 20 values: 120, 124 .. 196
+        state = b.__getstate__()
+        # Looks like:  ((bucket0, 60, bucket1, 120, bucket2), firstbucket)
+        # The next block is still verifying preconditions.
+        self.assertEqual(len(state) , 2)
+        self.assertEqual(len(state[0]), 5)
+        self.assertEqual(state[0][1], 60)
+        self.assertEqual(state[0][3], 120)
+
+        get_transaction().commit()
+
+        # In the other transaction, delete the other half of bucket 1.
+        b = copy
+        for k in 92, 96, 100, 104, 108, 112, 116:
+            del b[k]
+        # bucket 0 has 15 values: 0, 4 .. 56
+        # bucket 1 has 8 values: 60, 64, 68, 72, 76, 80, 84, 88
+        # bucket 2 has 20 values: 120, 124 .. 196
+        state = b.__getstate__()
+        # Looks like:  ((bucket0, 60, bucket1, 120, bucket2), firstbucket)
+        # The next block is still verifying preconditions.
+        self.assertEqual(len(state), 2)
+        self.assertEqual(len(state[0]), 5)
+        self.assertEqual(state[0][1], 60)
+        self.assertEqual(state[0][3], 120)
+
+        # Conflict resolution empties bucket1 entirely.
+
+        # XXX This is broken:  it doesn't raise ConflictError now.
+        ### XXX The ConflictError imported at the top of this module isn't
+        ### XXX the ConflictError that gets raised here.
+        ##from zodb.interfaces import ConflictError
+        ##self.assertRaises(ConflictError, get_transaction().commit)
+        ##get_transaction().abort()   # horrible things happen w/o this
+
+        # XXX Instead it creates an insane BTree (with an empty bucket
+        # XXX still linked in.  Remove the remaining lines and uncomment
+        # XXX the lines above when this is fixed.
+        # XXX    AssertionError: Bucket length < 1
+        get_transaction().commit()
+        self.assertRaises(AssertionError, b._check)
+
+
+    def testEmptyBucketNoConflict(self):
+        # Tests that a plain empty bucket (on input) is not viewed as a
+        # conflict.
+        b = self.t
+        for i in range(0, 200, 4):
+            b[i] = i
+        # bucket 0 has 15 values: 0, 4 .. 56
+        # bucket 1 has 15 values: 60, 64 .. 116
+        # bucket 2 has 20 values: 120, 124 .. 196
+        state = b.__getstate__()
+        # Looks like:  ((bucket0, 60, bucket1, 120, bucket2), firstbucket)
+        # If these fail, the *preconditions* for running the test aren't
+        # satisfied -- the test itself hasn't been run yet.
+        self.assertEqual(len(state), 2)
+        self.assertEqual(len(state[0]), 5)
+        self.assertEqual(state[0][1], 60)
+        self.assertEqual(state[0][3], 120)
+
+        # Invoke conflict resolution by committing a transaction.
+        self.openDB()
+
+        r1 = self.db.open().root()
+        r1["t"] = self.t
+        get_transaction().commit()
+
+        r2 = self.db.open().root()
+        copy = r2["t"]
+        # Make sure all of copy is loaded.
+        list(copy.values())
+
+        self.assertEqual(self.t._p_serial, copy._p_serial)
+
+        # In one transaction, just add a key.
+        b = self.t
+        b[1] = 1
+        # bucket 0 has 16 values: [0, 1] + [4, 8 .. 56]
+        # bucket 1 has 15 values: 60, 64 .. 116
+        # bucket 2 has 20 values: 120, 124 .. 196
+        state = b.__getstate__()
+        # Looks like:  ((bucket0, 60, bucket1, 120, bucket2), firstbucket)
+        # The next block is still verifying preconditions.
+        self.assertEqual(len(state), 2)
+        self.assertEqual(len(state[0]), 5)
+        self.assertEqual(state[0][1], 60)
+        self.assertEqual(state[0][3], 120)
+
+        get_transaction().commit()
+
+        # In the other transaction, delete bucket 2.
+        b = copy
+        for k in range(120, 200, 4):
+            del b[k]
+        # bucket 0 has 15 values: 0, 4 .. 56
+        # bucket 1 has 15 values: 60, 64 .. 116
+        state = b.__getstate__()
+        # Looks like:  ((bucket0, 60, bucket1), firstbucket)
+        # The next block is still verifying preconditions.
+        self.assertEqual(len(state), 2)
+        self.assertEqual(len(state[0]), 3)
+        self.assertEqual(state[0][1], 60)
+
+        # This shouldn't create a ConflictError.
+        get_transaction().commit()
+        # And the resulting BTree shouldn't have internal damage.
+        b._check()
+
 def test_suite():
-    TIOBTree = makeSuite(TestIOBTrees, 'test')
-    TOOBTree = makeSuite(TestOOBTrees, 'test')
-    TOIBTree = makeSuite(TestOIBTrees, 'test')
-    TIIBTree = makeSuite(TestIIBTrees, 'test')
-
-    TIOSet = makeSuite(TestIOSets, 'test')
-    TOOSet = makeSuite(TestOOSets, 'test')
-    TOISet = makeSuite(TestIOSets, 'test')
-    TIISet = makeSuite(TestOOSets, 'test')
-
-    TIOTreeSet = makeSuite(TestIOTreeSets, 'test')
-    TOOTreeSet = makeSuite(TestOOTreeSets, 'test')
-    TOITreeSet = makeSuite(TestIOTreeSets, 'test')
-    TIITreeSet = makeSuite(TestOOTreeSets, 'test')
-
-    TIOBucket = makeSuite(TestIOBuckets, 'test')
-    TOOBucket = makeSuite(TestOOBuckets, 'test')
-    TOIBucket = makeSuite(TestOIBuckets, 'test')
-    TIIBucket = makeSuite(TestIIBuckets, 'test')
-
-    alltests = TestSuite((TIOSet, TOOSet, TOISet, TIISet,
-                          TIOTreeSet, TOOTreeSet, TOITreeSet, TIITreeSet,
-                          TIOBucket, TOOBucket, TOIBucket, TIIBucket,
-                          TOOBTree, TIOBTree, TOIBTree, TIIBTree))
-
-    return alltests
-
-## utility functions
-
-def lsubtract(l1, l2):
-    l1=list(l1)
-    l2=list(l2)
-    l = filter(lambda x, l1=l1: x not in l1, l2)
-    l = l + filter(lambda x, l2=l2: x not in l2, l1)
-    return l
-
-def realseq(itemsob):
-    return map(lambda x: x, itemsob)
-
-def main():
-    TextTestRunner().run(test_suite())
-
-if __name__ == '__main__':
-    main()
+    suite = TestSuite()
+    for k in (TestIOBTrees,   TestOOBTrees,   TestOIBTrees,   TestIIBTrees,
+              TestIOSets,     TestOOSets,     TestOISets,     TestIISets,
+              TestIOTreeSets, TestOOTreeSets, TestOITreeSets, TestIITreeSets,
+              TestIOBuckets,  TestOOBuckets,  TestOIBuckets,  TestIIBuckets,
+              NastyConfict):
+        suite.addTest(makeSuite(k))
+    return suite
