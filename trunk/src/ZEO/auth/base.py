@@ -59,8 +59,12 @@ class Database:
         """
         self._users = {}
         self.filename = filename
-        self.realm = realm
         self.load()
+        if self.realm and self.realm != realm:
+            raise ValueError, ("Specified realm %r differs from "
+                               "database realm %r" % (realm or '', self.realm))
+        else:
+            self.realm = realm
 
     def save(self, fd=None):
         filename = self.filename
