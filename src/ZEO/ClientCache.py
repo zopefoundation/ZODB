@@ -111,9 +111,6 @@ from ZODB.utils import U64
 import zLOG
 from ZEO.ICache import ICache
 
-def log(msg, level=zLOG.INFO):
-    zLOG.LOG("ZEC", level, msg)
-
 magic='ZEC0'
 
 class ClientCache:
@@ -122,10 +119,13 @@ class ClientCache:
 
     def __init__(self, storage='1', size=20000000, client=None, var=None):
         # Arguments:
-        # storage -- storage name (used in persistent cache file names only)
+        # storage -- storage name (used in filenames and log messages)
         # size -- size limit in bytes of both files together
         # client -- if not None, use a persistent cache file and use this name
         # var -- directory where to create persistent cache files
+
+        self._storage = storage
+        self._limit = size / 2
 
         # Allocate locks:
         L = allocate_lock()
@@ -182,10 +182,9 @@ class ClientCache:
             f[0].write(magic)
             current = 0
 
-        log("%s: storage=%r, size=%r; file[%r]=%r" %
-            (self.__class__.__name__, storage, size, current, p[current]))
+        self.log("%s: storage=%r, size=%r; file[%r]=%r" %
+                 (self.__class__.__name__, storage, size, current, p[current]))
 
-        self._limit = size / 2
         self._current = current
         self._setup_trace()
 
@@ -203,8 +202,8 @@ class ClientCache:
             f = self._f
             current = self._current
             if f[not current] is not None:
-                read_index(index, serial, f[not current], not current)
-            self._pos = read_index(index, serial, f[current], current)
+                self.read_index(serial, not current)
+            self._pos = self.read_index(serial, current)
 
             return serial.items()
         finally:
@@ -240,15 +239,15 @@ class ClientCache:
             f.seek(ap)
             h = f.read(27)
             if len(h) != 27:
-                log("invalidate: short record for oid %16x "
-                    "at position %d in cache file %d"
-                    % (U64(oid), ap, p < 0))
+                self.log("invalidate: short record for oid %16x "
+                         "at position %d in cache file %d"
+                         % (U64(oid), ap, p < 0))
                 del self._index[oid]
                 return None
             if h[:8] != oid:
-                log("invalidate: oid mismatch: expected %16x read %16x "
-                    "at position %d in cache file %d"
-                    % (U64(oid), U64(h[:8]), ap, p < 0))
+                self.log("invalidate: oid mismatch: expected %16x read %16x "
+                         "at position %d in cache file %d"
+                         % (U64(oid), U64(h[:8]), ap, p < 0))
                 del self._index[oid]
                 return None
             f.seek(ap+8) # Switch from reading to writing
@@ -281,9 +280,9 @@ class ClientCache:
             else:
                 tlen = -1
             if tlen <= 0 or vlen < 0 or dlen < 0 or vlen+dlen > tlen:
-                log("load: bad record for oid %16x "
-                    "at position %d in cache file %d"
-                    % (U64(oid), ap, p < 0))
+                self.log("load: bad record for oid %16x "
+                         "at position %d in cache file %d"
+                         % (U64(oid), ap, p < 0))
                 del self._index[oid]
                 return None
 
@@ -452,9 +451,9 @@ class ClientCache:
             else:
                 tlen = -1
             if tlen <= 0 or vlen < 0 or dlen < 0 or vlen+dlen > tlen:
-                log("modifiedInVersion: bad record for oid %16x "
-                    "at position %d in cache file %d"
-                    % (U64(oid), ap, p < 0))
+                self.log("modifiedInVersion: bad record for oid %16x "
+                         "at position %d in cache file %d"
+                         % (U64(oid), ap, p < 0))
                 del self._index[oid]
                 return None
 
@@ -481,7 +480,7 @@ class ClientCache:
                 current = not self._current
                 self._current = current
                 self._trace(0x70)
-                log("flipping cache files.  new current = %d" % current)
+                self.log("flipping cache files.  new current = %d" % current)
                 # Delete the half of the index that's no longer valid
                 index = self._index
                 for oid in index.keys():
@@ -551,19 +550,21 @@ class ClientCache:
 
     def _setup_trace(self):
         # See if cache tracing is requested through $ZEO_CACHE_TRACE.
+        # A dash and the storage name are appended to get the filename.
         # If not, or if we can't write to the trace file,
         # disable tracing by setting self._trace to a dummy function.
         self._tracefile = None
         tfn = os.environ.get("ZEO_CACHE_TRACE")
         if tfn:
+            tfn = tfn + "-" + self._storage
             try:
                 self._tracefile = open(tfn, "ab")
                 self._trace(0x00)
             except IOError, msg:
                 self._tracefile = None
-                log("cannot write tracefile %s (%s)" % (tfn, msg))
+                self.log("cannot write tracefile %s (%s)" % (tfn, msg))
             else:
-                log("opened tracefile %s" % tfn)
+                self.log("opened tracefile %s" % tfn)
         if self._tracefile is None:
             def notrace(*args):
                 pass
@@ -587,85 +588,90 @@ class ClientCache:
                         oid,
                         serial))
 
-def read_index(index, serial, f, fileindex):
-    seek = f.seek
-    read = f.read
-    pos = 4
-    count = 0
+    def read_index(self, serial, fileindex):
+        index = self._index
+        f = self._f[fileindex]
+        seek = f.seek
+        read = f.read
+        pos = 4
+        count = 0
 
-    while 1:
-        f.seek(pos)
-        h = read(27)
-        if len(h) != 27:
-            # An empty read is expected, anything else is suspect
-            if h:
-                rilog("truncated header", pos, fileindex)
-            break
-
-        if h[8] in 'vni':
-            tlen, vlen, dlen = unpack(">iHi", h[9:19])
-        else:
-            tlen = -1
-        if tlen <= 0 or vlen < 0 or dlen < 0 or vlen + dlen > tlen:
-            rilog("invalid header data", pos, fileindex)
-            break
-
-        oid = h[:8]
-
-        if h[8] == 'v' and vlen:
-            seek(dlen+vlen, 1)
-            vdlen = read(4)
-            if len(vdlen) != 4:
-                rilog("truncated record", pos, fileindex)
+        while 1:
+            f.seek(pos)
+            h = read(27)
+            if len(h) != 27:
+                # An empty read is expected, anything else is suspect
+                if h:
+                    self.rilog("truncated header", pos, fileindex)
                 break
-            vdlen = unpack(">i", vdlen)[0]
-            if vlen+dlen+43+vdlen != tlen:
-                rilog("inconsistent lengths", pos, fileindex)
-                break
-            seek(vdlen, 1)
-            vs = read(8)
-            if read(4) != h[9:13]:
-                rilog("inconsistent tlen", pos, fileindex)
-                break
-        else:
-            if h[8] in 'vn' and vlen == 0:
-                if dlen+31 != tlen:
-                    rilog("inconsistent nv lengths", pos, fileindex)
-                seek(dlen, 1)
-                if read(4) != h[9:13]:
-                    rilog("inconsistent nv tlen", pos, fileindex)
-                    break
-            vs = None
 
-        if h[8] in 'vn':
-            if fileindex:
-                index[oid] = -pos
+            if h[8] in 'vni':
+                tlen, vlen, dlen = unpack(">iHi", h[9:19])
             else:
-                index[oid] = pos
-            serial[oid] = h[-8:], vs
-        else:
-            if serial.has_key(oid):
-                # We have a record for this oid, but it was invalidated!
-                del serial[oid]
-                del index[oid]
+                tlen = -1
+            if tlen <= 0 or vlen < 0 or dlen < 0 or vlen + dlen > tlen:
+                self.rilog("invalid header data", pos, fileindex)
+                break
+
+            oid = h[:8]
+
+            if h[8] == 'v' and vlen:
+                seek(dlen+vlen, 1)
+                vdlen = read(4)
+                if len(vdlen) != 4:
+                    self.rilog("truncated record", pos, fileindex)
+                    break
+                vdlen = unpack(">i", vdlen)[0]
+                if vlen+dlen+43+vdlen != tlen:
+                    self.rilog("inconsistent lengths", pos, fileindex)
+                    break
+                seek(vdlen, 1)
+                vs = read(8)
+                if read(4) != h[9:13]:
+                    self.rilog("inconsistent tlen", pos, fileindex)
+                    break
+            else:
+                if h[8] in 'vn' and vlen == 0:
+                    if dlen+31 != tlen:
+                        self.rilog("inconsistent nv lengths", pos, fileindex)
+                    seek(dlen, 1)
+                    if read(4) != h[9:13]:
+                        self.rilog("inconsistent nv tlen", pos, fileindex)
+                        break
+                vs = None
+
+            if h[8] in 'vn':
+                if fileindex:
+                    index[oid] = -pos
+                else:
+                    index[oid] = pos
+                serial[oid] = h[-8:], vs
+            else:
+                if serial.has_key(oid):
+                    # We have a record for this oid, but it was invalidated!
+                    del serial[oid]
+                    del index[oid]
 
 
-        pos = pos + tlen
-        count += 1
+            pos = pos + tlen
+            count += 1
 
-    f.seek(pos)
-    try:
-        f.truncate()
-    except:
-        pass
+        f.seek(pos)
+        try:
+            f.truncate()
+        except:
+            pass
 
-    if count:
-        log("read_index: cache file %d has %d records and %d bytes"
-            % (fileindex, count, pos))
+        if count:
+            self.log("read_index: cache file %d has %d records and %d bytes"
+                     % (fileindex, count, pos))
 
-    return pos
+        return pos
 
-def rilog(msg, pos, fileindex):
-    # Helper to log messages from read_index
-    log("read_index: %s at position %d in cache file %d"
-        % (msg, pos, fileindex))
+    def rilog(self, msg, pos, fileindex):
+        # Helper to log messages from read_index
+        self.log("read_index: %s at position %d in cache file %d"
+                 % (msg, pos, fileindex))
+
+    def log(self, msg, level=zLOG.INFO):
+        zLOG.LOG("ZEC:%s" % self._storage, level, msg)
