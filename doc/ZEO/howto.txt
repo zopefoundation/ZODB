@@ -164,6 +164,30 @@ http://www.zope.com/Products/ZopeProducts/ZRS.  In general, it could
 be used to with a system that arranges to provide hot backups of
 servers in the case of failure.
 
+Authentication
+~~~~~~~~~~~~~~
+
+ZEO supports optional authentication of client and server using a
+password scheme similar to HTTP digest authentication (RFC 2069).  It
+is a simple challenge-response protocol that does not send passwords
+in the clear, but does not offer strong security.  The RFC discusses
+many of the limitations of this kind of protocol.  Note that this
+feature provides authentication only.  It does not provide encryption
+or confidentiality.
+
+The challenge-response also produces a session key that is used to
+generate message authentication codes for each ZEO message.  This
+should prevent session hijacking.
+
+Guard the password database as if it contained plaintext passwords.
+It stores the hash of a username and password.  This does not expose
+the plaintext password, but it is sensitive nonetheless.  An attacker
+with the hash can impersonate the real user.  This is a limitation of
+the simple digest scheme.
+
+The authentication framework allows third-party developers to provide
+new authentication modules.
+
 Installing software
 -------------------
 
@@ -282,6 +306,19 @@ transaction-timeout
         transaction takes too long, the client connection will be closed
         and the transaction aborted.
 
+authentication-protocol
+        The name of the protocol used for authentication.  The
+        only protocol provided with ZEO is "digest," but extensions
+        may provide other protocols.
+
+authentication-database
+        The path of the database containing authentication credentials.
+
+authentication-realm
+        The authentication realm of the server.  Some authentication
+        schemes use a realm to identify the logic set of usernames
+        that are accepted by this server.
+
 Configuring client
 ------------------
 
@@ -354,6 +391,10 @@ read-only-fallback
         acceptable as a fallback when no writable storages are
         available.  Defaults to false.  At most one of read_only and
         read_only_fallback should be true.
+realm
+        The authentication realm of the server.  Some authentication
+        schemes use a realm to identify the logic set of usernames
+        that are accepted by this server.
 
 A ZEO client can also be created by calling the ClientStorage
 constructor explicitly.  For example::
@@ -383,6 +424,15 @@ should first rename the log file and then send the signal to the
 server.  The server will continue writing to the renamed log file
 until it receives the signal.  After it receives the signal, the
 server will create a new file with the old name and write to it.
+
+Tools
+-----
+
+There are a few scripts that may help running a ZEO server.  The
+zeopack.py script connects to a server and packs the storage.  It can
+be run as a cron job.  The zeoup.py script attempts to connect to a
+ZEO server and verify that is is functioning.  The zeopasswd.py script
+manages a ZEO servers password database.
 
 Diagnosing problems
 -------------------
