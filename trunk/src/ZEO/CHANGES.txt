@@ -37,6 +37,10 @@ Zope Enterprise Objects (ZEO) Revision History
 
     Bugs Fixed
 
+      - Application-level conflict resolution, introduced in Zope
+        2.3.1, was not supported. This caused the ZEO cache to be
+        written incorrectly.
+
       - A possible (but unobserved) race condition that could
         lead to ZEO cache corruption was corrected.
 
