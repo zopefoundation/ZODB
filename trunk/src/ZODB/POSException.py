@@ -13,19 +13,14 @@
 ##############################################################################
 """ZODB-defined exceptions
 
-$Id: POSException.py,v 1.19 2003/01/15 23:00:05 jeremy Exp $"""
+$Id: POSException.py,v 1.20 2003/06/10 15:46:31 shane Exp $"""
 
 from types import StringType, DictType
-import ZODB.utils
-
-def _fmt_oid(oid):
-    if oid:
-        return "%016x" % ZODB.utils.u64(oid)
-    return oid
+from ZODB.utils import oid_repr, serial_repr
 
 def _fmt_undo(oid, reason):
     s = reason and (": %s" % reason) or ""
-    return "Undo error %s%s" % (_fmt_oid(oid), s)
+    return "Undo error %s%s" % (oid_repr(oid), s)
 
 class POSError(StandardError):
     """Persistent object system error."""
@@ -34,7 +29,7 @@ class POSKeyError(KeyError, POSError):
     """Key not found in database."""
 
     def __str__(self):
-        return _fmt_oid(self.args[0])
+        return oid_repr(self.args[0])
 
 class TransactionError(POSError):
     """An error occured due to normal transaction processing."""
@@ -85,12 +80,12 @@ class ConflictError(TransactionError):
     def __str__(self):
         extras = []
         if self.oid:
-            extras.append("oid %s" % _fmt_oid(self.oid))
+            extras.append("oid %s" % oid_repr(self.oid))
         if self.class_name:
             extras.append("class %s" % self.class_name)
         if self.serials:
             extras.append("serial was %s, now %s" %
-                          tuple(map(_fmt_oid, self.serials)))
+                          tuple(map(serial_repr, self.serials)))
         if extras:
             return "%s (%s)" % (self.message, ", ".join(extras))
         else:
@@ -150,8 +145,8 @@ class DanglingReferenceError(TransactionError):
         self.missing = Boid
 
     def __str__(self):
-        return "from %s to %s" % (_fmt_oid(self.referer),
-                                  _fmt_oid(self.missing))
+        return "from %s to %s" % (oid_repr(self.referer),
+                                  oid_repr(self.missing))
 
 class VersionError(POSError):
     """An error in handling versions occurred."""

@@ -13,7 +13,7 @@
 ##############################################################################
 """Handy standard storage machinery
 
-$Id: BaseStorage.py,v 1.33 2003/02/04 17:17:29 bwarsaw Exp $
+$Id: BaseStorage.py,v 1.34 2003/06/10 15:46:31 shane Exp $
 """
 import cPickle
 import ThreadLock, bpthread
@@ -303,7 +303,7 @@ class BaseStorage(UndoLogCompatible.UndoLogCompatible):
             self.tpc_begin(transaction, tid, transaction.status)
             for r in transaction:
                 oid=r.oid
-                if verbose: print `oid`, r.version, len(r.data)
+                if verbose: print oid_repr(oid), r.version, len(r.data)
                 if restoring:
                     self.restore(oid, r.serial, r.data, r.version,
                                  r.data_txn, transaction)

@@ -13,14 +13,14 @@
 ##############################################################################
 """Transaction management
 
-$Id: Transaction.py,v 1.48 2003/03/07 00:11:10 jeremy Exp $
+$Id: Transaction.py,v 1.49 2003/06/10 15:46:31 shane Exp $
 """
 
 import time, sys, struct, POSException
-from struct import pack
 from string import split, strip, join
 from zLOG import LOG, ERROR, PANIC, INFO, BLATHER, WARNING
 from POSException import ConflictError
+from utils import oid_repr
 
 # Flag indicating whether certain errors have occurred.
 hosed=0
@@ -138,7 +138,7 @@ class Transaction:
                         t, v, tb = sys.exc_info()
                     else:
                         self.log("Failed to abort object %s" %
-                                 repr(o._p_oid), error=sys.exc_info())
+                                 oid_repr(o._p_oid), error=sys.exc_info())
 
             # tpc_begin() was never called, so tpc_abort() should not be
             # called.
@@ -390,7 +390,7 @@ class Transaction:
                     j.abort(o, self)
             except:
                 # nothing to do but log the error
-                self.log("Failed to abort object %s" % repr(o._p_oid),
+                self.log("Failed to abort object %s" % oid_repr(o._p_oid),
                          error=sys.exc_info())
 
         # Abort the two-phase commit.  It's only necessary to abort the
