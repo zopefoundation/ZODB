@@ -216,7 +216,7 @@ class CommonSetupTearDown(StorageTestBase):
     def pollUp(self, timeout=30.0, storage=None):
         if storage is None:
             storage = self._storage
-        # Poll until we're connected
+        # Poll until we're connected.
         now = time.time()
         giveup = now + timeout
         while not storage.is_connected():
@@ -224,9 +224,15 @@ class CommonSetupTearDown(StorageTestBase):
             now = time.time()
             if now > giveup:
                 self.fail("timed out waiting for storage to connect")
+            # When the socket map is empty, poll() returns immediately,
+            # and this is a pure busy-loop then.  At least on some Linux
+            # flavors, that can starve the thread trying to connect,
+            # leading to grossly increased runtime (typical) or bogus
+            # "timed out" failures.  A little sleep here cures both.
+            time.sleep(0.1)
 
     def pollDown(self, timeout=30.0):
-        # Poll until we're disconnected
+        # Poll until we're disconnected.
         now = time.time()
         giveup = now + timeout
         while self._storage.is_connected():
@@ -234,6 +240,8 @@ class CommonSetupTearDown(StorageTestBase):
             now = time.time()
             if now > giveup:
                 self.fail("timed out waiting for storage to disconnect")
+            # See pollUp() for why we sleep a little here.
+            time.sleep(0.1)
 
 
 class ConnectionTests(CommonSetupTearDown):
