@@ -24,7 +24,6 @@ import asyncore
 import threading
 import ThreadedAsync.LoopCallback
 
-import ZConfig.Context
 import zLOG
 from ZEO.StorageServer import StorageServer
 from ZEO.runzeo import ZEOOptions
