@@ -84,7 +84,7 @@
 ##############################################################################
 
 def convert(old, new, threshold=200, f=None, None=None):
-    "Utility for converting old btree new new"
+    "Utility for converting old btree to new"
     n=0
     for k, v in old.items():
         if f is not None: v=f(v)

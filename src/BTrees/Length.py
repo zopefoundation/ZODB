@@ -86,7 +86,7 @@
 import Persistence
 
 class Length(Persistence.Persistent):
-    """BTree lengths aqre too expensive to compute
+    """BTree lengths are too expensive to compute
 
     Objects that use BTrees need to keep track of lengths themselves.
     This class provides an object for doing this.
