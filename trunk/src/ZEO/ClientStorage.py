@@ -20,7 +20,7 @@ ClientStorageError -- exception raised by ClientStorage
 UnrecognizedResult -- exception raised by ClientStorage
 ClientDisconnected -- exception raised by ClientStorage
 
-$Id: ClientStorage.py,v 1.69 2002/10/01 16:37:03 gvanrossum Exp $
+$Id: ClientStorage.py,v 1.70 2002/10/01 16:39:44 jeremy Exp $
 """
 
 # XXX TO DO
@@ -271,7 +271,6 @@ class ClientStorage:
 
         The storage isn't really ready to use until after this call.
         """
-        log2(INFO, "registerDB(%s, %s)" % (repr(db), repr(limit)))
         self._db = db
 
     def is_connected(self):
