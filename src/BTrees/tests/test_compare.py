@@ -41,6 +41,7 @@ class CompareTest(unittest.TestCase):
     def tearDown(self):
         self.assert_(self.bucket._p_changed != 2)
         self.assert_(self.set._p_changed != 2)
+        transaction.abort()
 
     def assertUE(self, callable, *args):
         self.assertRaises(UnicodeError, callable, *args)
