@@ -89,7 +89,7 @@ Usage: loadmail2 [options]
 
        Specify the mailbox for getting input data.
 
-$Id: zodbload.py,v 1.6 2004/04/16 15:58:10 jeremy Exp $
+$Id: zodbload.py,v 1.7 2004/04/16 16:00:56 jeremy Exp $
 """
 
 import mailbox
@@ -100,6 +100,7 @@ import re
 import sys
 import threading
 import time
+import transaction
 
 class JobProducer:
 

@@ -31,11 +31,13 @@ import socket
 import sys
 import time
 
+from persistent.mapping import PersistentMapping
+import transaction
+
 import ZODB
 from ZODB.POSException import ConflictError
 from ZODB.tests.MinPO import MinPO
 from ZEO.ClientStorage import ClientStorage
-from persistent.mapping import PersistentMapping
 
 ZEO_VERSION = 2
 
