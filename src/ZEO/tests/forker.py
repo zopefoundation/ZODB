@@ -88,7 +88,7 @@ def start_zeo_server(conf, addr=None, ro_svr=0):
         try:
             zLOG.LOG('forker', zLOG.DEBUG, 'connect %s' % i)
             s.connect(adminaddr)
-            ack = s.recv(1)
+            ack = s.recv(1024)
             zLOG.LOG('forker', zLOG.DEBUG, 'acked: %s' % ack)
             break
         except socket.error, e:
@@ -103,6 +103,9 @@ def start_zeo_server(conf, addr=None, ro_svr=0):
 def shutdown_zeo_server(adminaddr):
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     s.connect(adminaddr)
-    ack = s.recv(1)
+    try:
+        ack = s.recv(1024)
+    except socket.error, e:
+        if e[0] <> errno.ECONNRESET: raise
     zLOG.LOG('shutdownServer', zLOG.DEBUG, 'acked: %s' % ack)
     s.close()
