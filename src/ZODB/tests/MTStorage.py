@@ -211,10 +211,12 @@ class MTStorage:
     def check2ZODBThreads(self):
         db = ZODB.DB(self._storage)
         self._checkNThreads(2, ZODBClientThread, db, self)
+        db.close()
 
     def check7ZODBThreads(self):
         db = ZODB.DB(self._storage)
         self._checkNThreads(7, ZODBClientThread, db, self)
+        db.close()
 
     def check2StorageThreads(self):
         self._checkNThreads(2, StorageClientThread, self._storage, self)
