@@ -13,8 +13,8 @@
 ##############################################################################
 """Mounted database support
 
-$Id: Mount.py,v 1.14 2002/02/11 23:40:42 gvanrossum Exp $"""
-__version__='$Revision: 1.14 $'[11:-2]
+$Id: Mount.py,v 1.15 2002/05/23 20:53:22 shane Exp $"""
+__version__='$Revision: 1.15 $'[11:-2]
 
 import thread, Persistence, Acquisition
 import ExtensionClass, string, time, sys
@@ -32,15 +32,15 @@ dblock=thread.allocate_lock()
 
 def parentClassFactory(jar, module, name):
     # Use the class factory from the parent database.
-    parent_db = getattr(getattr(jar, '_mount_parent_jar', None),
-                        '_db', None)
+    parent_conn = getattr(jar, '_mount_parent_jar', None)
+    parent_db = getattr(parent_conn, '_db', None)
     if parent_db is None:
         _globals = {}
         _silly = ('__doc__',)
         return getattr(__import__(
             module, _globals, _globals, _silly), name)
     else:
-        return parent_db._classFactory(jar, module, name)
+        return parent_db._classFactory(parent_conn, module, name)
 
 
 class MountPoint(Persistence.Persistent, Acquisition.Implicit):
