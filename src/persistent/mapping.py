@@ -1,17 +1,22 @@
-# Copyright (c) 2001 Zope Corporation and Contributors.  All Rights Reserved.
+##############################################################################
 #
+# Copyright (c) 2001, 2002 Zope Corporation and Contributors.
+# All Rights Reserved.
+# 
 # This software is subject to the provisions of the Zope Public License,
-# Version 1.1 (ZPL).  A copy of the ZPL should accompany this
-# distribution.  THIS SOFTWARE IS PROVIDED "AS IS" AND ANY AND ALL
-# EXPRESS OR IMPLIED WARRANTIES ARE DISCLAIMED, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF TITLE, MERCHANTABILITY, AGAINST
-# INFRINGEMENT, AND FITNESS FOR A PARTICULAR PURPOSE.
+# Version 2.0 (ZPL).  A copy of the ZPL should accompany this distribution.
+# THIS SOFTWARE IS PROVIDED "AS IS" AND ANY AND ALL EXPRESS OR IMPLIED
+# WARRANTIES ARE DISCLAIMED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+# WARRANTIES OF TITLE, MERCHANTABILITY, AGAINST INFRINGEMENT, AND FITNESS
+# FOR A PARTICULAR PURPOSE
+# 
+##############################################################################
 
 """Python implementation of persistent base types
 
-$Id: mapping.py,v 1.17 2001/11/30 01:13:34 jeremy Exp $"""
+$Id: mapping.py,v 1.18 2002/02/11 23:40:42 gvanrossum Exp $"""
 
-__version__='$Revision: 1.17 $'[11:-2]
+__version__='$Revision: 1.18 $'[11:-2]
 
 import Persistence
 from UserDict import UserDict

@@ -1,3 +1,17 @@
+##############################################################################
+#
+# Copyright (c) 2001, 2002 Zope Corporation and Contributors.
+# All Rights Reserved.
+# 
+# This software is subject to the provisions of the Zope Public License,
+# Version 2.0 (ZPL).  A copy of the ZPL should accompany this distribution.
+# THIS SOFTWARE IS PROVIDED "AS IS" AND ANY AND ALL EXPRESS OR IMPLIED
+# WARRANTIES ARE DISCLAIMED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+# WARRANTIES OF TITLE, MERCHANTABILITY, AGAINST INFRINGEMENT, AND FITNESS
+# FOR A PARTICULAR PURPOSE
+# 
+##############################################################################
+
 """A wrapper for asyncore that provides robust exception handling.
 
 The poll() and loop() calls exported by asyncore can raise exceptions.
@@ -17,10 +31,6 @@ can safely be caught and ignored by user programs.  It's not clear if
 it would be useful to extend this module with wrappers for those
 errors.
 """
-
-# XXX The current implementation requires Python 2.0.  Not sure if
-# that's acceptable, depends on how many users want to combine ZEO 1.0
-# and Zope 2.3.
 
 import asyncore
 import errno

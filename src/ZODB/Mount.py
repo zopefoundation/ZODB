@@ -1,6 +1,7 @@
 ##############################################################################
 #
-# Copyright (c) 2001 Zope Corporation and Contributors. All Rights Reserved.
+# Copyright (c) 2001, 2002 Zope Corporation and Contributors.
+# All Rights Reserved.
 # 
 # This software is subject to the provisions of the Zope Public License,
 # Version 2.0 (ZPL).  A copy of the ZPL should accompany this distribution.
@@ -12,8 +13,8 @@
 ##############################################################################
 """Mounted database support
 
-$Id: Mount.py,v 1.13 2001/12/05 16:45:58 shane Exp $"""
-__version__='$Revision: 1.13 $'[11:-2]
+$Id: Mount.py,v 1.14 2002/02/11 23:40:42 gvanrossum Exp $"""
+__version__='$Revision: 1.14 $'[11:-2]
 
 import thread, Persistence, Acquisition
 import ExtensionClass, string, time, sys

@@ -1,6 +1,7 @@
 /*****************************************************************************
 
-  Copyright (c) 2001 Zope Corporation and Contributors. All Rights Reserved.
+  Copyright (c) 2001, 2002 Zope Corporation and Contributors.
+  All Rights Reserved.
   
   This software is subject to the provisions of the Zope Public License,
   Version 2.0 (ZPL).  A copy of the ZPL should accompany this distribution.
@@ -14,7 +15,7 @@
 static char TimeStamp_module_documentation[] = 
 "Defines 64-bit TimeStamp objects used as ZODB serial numbers.\n"
 "\n"
-"\n$Id: TimeStamp.c,v 1.13 2002/01/25 14:51:55 gvanrossum Exp $\n";
+"\n$Id: TimeStamp.c,v 1.14 2002/02/11 23:40:42 gvanrossum Exp $\n";
 
 #include <stdlib.h>
 #include <time.h>

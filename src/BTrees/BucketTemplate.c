@@ -1,6 +1,7 @@
 /*****************************************************************************
 
-  Copyright (c) 2001 Zope Corporation and Contributors. All Rights Reserved.
+  Copyright (c) 2001, 2002 Zope Corporation and Contributors.
+  All Rights Reserved.
   
   This software is subject to the provisions of the Zope Public License,
   Version 2.0 (ZPL).  A copy of the ZPL should accompany this distribution.
@@ -11,7 +12,7 @@
   
  ****************************************************************************/
 
-#define BUCKETTEMPLATE_C "$Id: BucketTemplate.c,v 1.24 2002/01/07 16:49:05 andreasjung Exp $\n"
+#define BUCKETTEMPLATE_C "$Id: BucketTemplate.c,v 1.25 2002/02/11 23:40:40 gvanrossum Exp $\n"
 
 /*
 ** _bucket_get

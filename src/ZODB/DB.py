@@ -1,6 +1,7 @@
 ##############################################################################
 #
-# Copyright (c) 2001 Zope Corporation and Contributors. All Rights Reserved.
+# Copyright (c) 2001, 2002 Zope Corporation and Contributors.
+# All Rights Reserved.
 # 
 # This software is subject to the provisions of the Zope Public License,
 # Version 2.0 (ZPL).  A copy of the ZPL should accompany this distribution.
@@ -12,8 +13,8 @@
 ##############################################################################
 """Database objects
 
-$Id: DB.py,v 1.38 2002/01/09 19:15:31 Brian Exp $"""
-__version__='$Revision: 1.38 $'[11:-2]
+$Id: DB.py,v 1.39 2002/02/11 23:40:42 gvanrossum Exp $"""
+__version__='$Revision: 1.39 $'[11:-2]
 
 import cPickle, cStringIO, sys, POSException, UndoLogCompatible
 from Connection import Connection

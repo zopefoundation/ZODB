@@ -1,6 +1,7 @@
 /*****************************************************************************
 
-  Copyright (c) 2001 Zope Corporation and Contributors. All Rights Reserved.
+  Copyright (c) 2001, 2002 Zope Corporation and Contributors.
+  All Rights Reserved.
   
   This software is subject to the provisions of the Zope Public License,
   Version 2.0 (ZPL).  A copy of the ZPL should accompany this distribution.
@@ -13,7 +14,7 @@
 static char cPickleCache_doc_string[] = 
 "Defines the PickleCache used by ZODB Connection objects.\n"
 "\n"
-"$Id: cPickleCache.c,v 1.39 2002/02/11 19:43:55 jeremy Exp $\n";
+"$Id: cPickleCache.c,v 1.40 2002/02/11 23:40:42 gvanrossum Exp $\n";
 
 /* Compute the current time in the units and range used for peristent
    objects. */

@@ -1,6 +1,7 @@
 ##############################################################################
 #
-# Copyright (c) 2001 Zope Corporation and Contributors. All Rights Reserved.
+# Copyright (c) 2001, 2002 Zope Corporation and Contributors.
+# All Rights Reserved.
 # 
 # This software is subject to the provisions of the Zope Public License,
 # Version 2.0 (ZPL).  A copy of the ZPL should accompany this distribution.
@@ -86,7 +87,7 @@ method::
 and call it to minotor the storage.
 
 """
-__version__='$Revision: 1.5 $'[11:-2]
+__version__='$Revision: 1.6 $'[11:-2]
 
 import POSException, BaseStorage, string, utils
 from TimeStamp import TimeStamp
