@@ -13,7 +13,7 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.133 2004/03/02 16:25:07 jeremy Exp $"""
+$Id: Connection.py,v 1.134 2004/03/04 16:15:55 jeremy Exp $"""
 
 import logging
 import sys
@@ -102,7 +102,7 @@ class Connection(ExportImport, object):
 
     XXX Mention the database pool.
 
-    $Id: Connection.py,v 1.133 2004/03/02 16:25:07 jeremy Exp $
+    $Id: Connection.py,v 1.134 2004/03/04 16:15:55 jeremy Exp $
     
     @group User Methods: root, get, add, close, db, sync, isReadOnly,
         cacheGC, cacheFullSweep, cacheMinimize, getVersion, modifiedInVersion
@@ -194,6 +194,10 @@ class Connection(ExportImport, object):
 
     def setLocalTransaction(self):
         """Use a transaction bound to the connection rather than the thread"""
+
+        # XXX mention that this should only be called when you open
+        # a connection or at transaction boundaries (but the lattter are
+        # hard to be sure about).
         if self._transaction is None:
             self._transaction = Transaction()
         return self._transaction
@@ -371,11 +375,14 @@ class Connection(ExportImport, object):
     # XXX we should test what happens when these methods are called
     # mid-transaction.
 
-    def cacheFullSweep(self, dt=0):
+    def cacheFullSweep(self, dt=None):
         # XXX needs doc string
         warnings.warn("cacheFullSweep is deprecated. "
                       "Use cacheMinimize instead.", DeprecationWarning)
-        self._cache.full_sweep(dt)
+        if dt is None:
+            self._cache.full_sweep()
+        else:
+            self._cache.full_sweep(dt)
 
     def cacheMinimize(self, dt=None):
         """Deactivate all unmodified objects in the cache.
