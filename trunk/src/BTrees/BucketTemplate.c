@@ -11,7 +11,7 @@
   
  ****************************************************************************/
 
-#define BUCKETTEMPLATE_C "$Id: BucketTemplate.c,v 1.22 2001/12/20 20:16:53 andreasjung Exp $\n"
+#define BUCKETTEMPLATE_C "$Id: BucketTemplate.c,v 1.23 2001/12/21 16:04:50 andreasjung Exp $\n"
 
 /*
 ** _bucket_get
@@ -681,7 +681,7 @@ bucket_items(Bucket *self, PyObject *args)
       UNLESS (o) goto err;
       PyTuple_SET_ITEM(item, 1, o);
       
-      if (PyList_SetItem(r, i, item) < 0) goto err;
+      if (PyList_SetItem(r, i-low, item) < 0) goto err;
 
       item = 0;
     }
