@@ -31,8 +31,10 @@ class VersionStorage:
         # make sure the values jive.
         data, revid = self._storage.load(oid, '')
         eq(zodb_unpickle(data), MinPO(12))
-        data, revid = self._storage.load(oid, version)
+        data, vrevid = self._storage.load(oid, version)
         eq(zodb_unpickle(data), MinPO(15))
+        s = self._storage.getSerial(oid)
+        eq(s, max(revid, vrevid))
 
     def checkVersionedLoadErrors(self):
         oid = self._storage.new_oid()
@@ -133,11 +135,20 @@ class VersionStorage:
     def checkAbortVersion(self):
         eq = self.assertEqual
         oid, version = self._setup_version()
+        
+        # XXX Not sure I can write a test for getSerial() in the
+        # presence of aborted versions, because FileStorage and
+        # Berkeley storage give a different answer. I think Berkeley
+        # is right and FS is wrong.
+        
+##        s1 = self._storage.getSerial(oid)
         # Now abort the version -- must be done in a transaction
         self._storage.tpc_begin(self._transaction)
         oids = self._storage.abortVersion(version, self._transaction)
         self._storage.tpc_vote(self._transaction)
         self._storage.tpc_finish(self._transaction)
+##        s2 = self._storage.getSerial(oid)
+##        eq(s1, s2) # or self.assert(s2 > s1) ?
         eq(len(oids), 1)
         eq(oids[0], oid)
         data, revid = self._storage.load(oid, '')
