@@ -19,10 +19,6 @@ from BTrees.IOBTree import IOBTree, IOBucket, IOSet, IOTreeSet
 from BTrees.IIBTree import IIBTree, IIBucket, IISet, IITreeSet
 from BTrees.OIBTree import OIBTree, OIBucket, OISet, OITreeSet
 
-# XXX TODO Needs more tests.
-# This file was created when multiunion was added.  The other set operations
-# don't appear to be tested anywhere yet.
-
 # Subclasses have to set up:
 #     builders - functions to build inputs, taking an optional keys arg
 #     intersection, union, difference - set to the type-correct versions
@@ -386,6 +382,12 @@ class TestWeightedII(Weighted):
 class TestWeightedOI(Weighted):
     from BTrees.OIBTree import weightedUnion, weightedIntersection
     builders = OIBucket, OIBTree, itemsToSet(OISet), itemsToSet(OITreeSet)
+
+
+# 'thing' is a bucket, btree, set or treeset.  Return true iff it's one of the
+# latter two.
+def isaset(thing):
+    return not hasattr(thing, 'values')
 
 
 def test_suite():
