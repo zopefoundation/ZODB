@@ -24,17 +24,10 @@ from the revision of the root at that time or if it is reachable from
 a backpointer after that time.
 """
 
-# This module contains code backported from ZODB4 from the
-# zodb.storage.file package.  It's been edited heavily to work with
-# ZODB3 code and storage layout.
-
 import os
-import struct
-from types import StringType
 
 from ZODB.referencesf import referencesf
-from ZODB.utils import p64, u64, z64, oid_repr
-from zLOG import LOG, BLATHER, WARNING, ERROR, PANIC
+from ZODB.utils import p64, u64, z64
 
 from ZODB.fsIndex import fsIndex
 from ZODB.FileStorage.format \
@@ -232,11 +225,19 @@ class GC(FileStorageFormatter):
 
     def buildPackIndex(self):
         pos = 4L
+        # We make the initial assumption that the database has been
+        # packed before and set unpacked to True only after seeing the
+        # first record with a status == " ".  If we get to the packtime
+        # and unpacked is still False, we need to watch for a redundant
+        # pack.
+        unpacked = False
         while pos < self.eof:
             th = self._read_txn_header(pos)
             if th.tid > self.packtime:
                 break
             self.checkTxn(th, pos)
+            if th.status != "p":
+                unpacked = True
 
             tpos = pos
             end = pos + th.tlen
@@ -259,6 +260,25 @@ class GC(FileStorageFormatter):
             pos += 8
 
         self.packpos = pos
+
+        if unpacked:
+            return
+        # check for a redundant pack.  If the first record following
+        # the newly computed packpos has status 'p', then it was
+        # packed earlier and the current pack is redudant.
+        try:
+            th = self._read_txn_header(pos)
+        except CorruptedDataError, err:
+            if err.buf != "": 
+                raise
+        if th.status == 'p':
+            # Delay import to code with circular imports.
+            # XXX put exceptions in a separate module
+            from ZODB.FileStorage.FileStorage import FileStorageError
+            print "Yow!"
+            raise FileStorageError(
+                "The database has already been packed to a later time"
+                " or no changes have been made since the last pack")
 
     def findReachableAtPacktime(self, roots):
         """Mark all objects reachable from the oids in roots as reachable."""
@@ -645,3 +665,4 @@ class FileStoragePacker(FileStorageFormatter):
         if self._lock_counter % 20 == 0:
             self._commit_lock_acquire()
         return ipos
+

@@ -29,10 +29,11 @@ import time
 
 from ZODB import DB
 from persistent import Persistent
+from persistent.mapping import PersistentMapping
 from ZODB.referencesf import referencesf
 from ZODB.tests.MinPO import MinPO
 from ZODB.tests.StorageTestBase import snooze
-from ZODB.POSException import ConflictError
+from ZODB.POSException import ConflictError, StorageError
 
 from ZODB.tests.MTStorage import TestThread
 
@@ -126,11 +127,10 @@ class PackableStorageBase:
         try:
             self._storage.load(ZERO, '')
         except KeyError:
-            from persistent import mapping
             from ZODB.Transaction import Transaction
             file = StringIO()
             p = cPickle.Pickler(file, 1)
-            p.dump((mapping.PersistentMapping, None))
+            p.dump((PersistentMapping, None))
             p.dump({'_container': {}})
             t=Transaction()
             t.description='initial database creation'
@@ -437,6 +437,50 @@ class PackableUndoStorage(PackableStorageBase):
         conn.sync()
 
         eq(root['obj'].value, 7)
+
+    def checkRedundantPack(self):
+        # It is an error to perform a pack with a packtime earlier
+        # than a previous packtime.  The storage can't do a full
+        # traversal as of the packtime, because the previous pack may
+        # have removed revisions necessary for a full traversal.
+
+        # It should be simple to test that a storage error is raised,
+        # but this test case goes to the trouble of constructing a
+        # scenario that would lose data if the earlier packtime was
+        # honored.
+
+        self._initroot()
+
+        db = DB(self._storage)
+        conn = db.open()
+        root = conn.root()
+
+        root["d"] = d = PersistentMapping()
+        get_transaction().commit()
+        snooze()
+
+        obj = d["obj"] = C()
+        obj.value = 1
+        get_transaction().commit()
+        snooze()
+        packt1 = time.time()
+        lost_oid = obj._p_oid
+
+        obj = d["anotherobj"] = C()
+        obj.value = 2
+        get_transaction().commit()
+        snooze()
+        packt2 = time.time()
+
+        db.pack(packt2)
+        # BDBStorage allows the second pack, but doesn't lose data.
+        try:
+            db.pack(packt1)
+        except StorageError:
+            pass
+        # This object would be removed by the second pack, even though
+        # it is reachable.
+        self._storage.load(lost_oid, "")
 
     def checkPackUndoLog(self):
         self._initroot()
