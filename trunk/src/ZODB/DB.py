@@ -562,23 +562,22 @@ class DB(object):
     def connectionDebugInfo(self):
         result = []
         t = time()
-        def f(c):
-            o = c._opened
-            d = c._debug_info
-            if d:
-                if len(d) == 1:
-                    d = d[0]
-            else:
-                d = ''
-            d = "%s (%s)" % (d, len(c._cache))
+        for version, pool in self._pools.items():
+            for c in pool.all_as_list():
+                o = c._opened
+                d = c._debug_info
+                if d:
+                    if len(d) == 1:
+                        d = d[0]
+                else:
+                    d = ''
+                d = "%s (%s)" % (d, len(c._cache))
 
-            result.append({
-                'opened': o and ("%s (%.2fs)" % (ctime(o), t-o)),
-                'info': d,
-                'version': version,
-                })
-
-        self._connectionMap(f)
+                result.append({
+                    'opened': o and ("%s (%.2fs)" % (ctime(o), t-o)),
+                    'info': d,
+                    'version': version,
+                    })
         return result
 
     def getActivityMonitor(self):
