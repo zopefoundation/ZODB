@@ -46,7 +46,7 @@ class Database:
     usernames to password hashes. The hashes are SHA hex digests
     produced from the password string.
     """
-
+    realm = None
     def __init__(self, filename, realm=None):
         """Creates a new Database
 
@@ -60,11 +60,12 @@ class Database:
         self._users = {}
         self.filename = filename
         self.load()
-        if self.realm and self.realm != realm:
-            raise ValueError, ("Specified realm %r differs from "
-                               "database realm %r" % (realm or '', self.realm))
-        else:
-            self.realm = realm
+        if realm:
+            if self.realm and self.realm != realm:
+                raise ValueError, ("Specified realm %r differs from database "
+                                   "realm %r" % (realm or '', self.realm))
+            else:
+                self.realm = realm
 
     def save(self, fd=None):
         filename = self.filename
