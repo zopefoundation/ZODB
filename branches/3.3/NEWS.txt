@@ -9,6 +9,12 @@ ZODB/component.xml
 type ``byte-size``.  This allows you to specify, for example,
 "``cache-size 20MB``" to get a 20 megabyte cache.
 
+transaction
+-----------
+
+The deprecation warning for ``Transaction.begin()`` was changed to
+point to the caller, instead of to ``Transaction.begin()`` itself.
+
 
 What's new in ZODB3 3.3 release candidate 1?
 ============================================
