@@ -13,7 +13,7 @@
 ##############################################################################
 """Network ZODB storage client
 
-$Id: ClientStorage.py,v 1.66 2002/09/23 19:08:14 gvanrossum Exp $
+$Id: ClientStorage.py,v 1.67 2002/09/23 20:24:54 gvanrossum Exp $
 """
 
 # XXX TO DO
@@ -187,7 +187,7 @@ class ClientStorage:
         else:
             return 1
 
-    def update(self):
+    def sync(self):
         """Handle any pending invalidation messages."""
         self._server._update()
 
