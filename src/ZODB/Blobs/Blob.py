@@ -190,8 +190,6 @@ class BlobFile(file):
     def next(self):
         data = self.read(self.streamsize)
         if not data:
-            if self.blob is not None:
-                self.blob._rc_decref(self.mode)
             raise StopIteration
         return data
 
