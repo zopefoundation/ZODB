@@ -82,6 +82,7 @@ and call it to monitor the storage.
 
 import base64, time, string
 from ZODB import POSException, BaseStorage, utils
+from ZODB.utils import z64
 from persistent.TimeStamp import TimeStamp
 from cPickle import loads
 from BTrees import OOBTree
@@ -409,7 +410,7 @@ class DemoStorage(BaseStorage.BaseStorage):
 
             # Now build an index of *only* those objects reachable
             # from the root.
-            rootl = ['\0\0\0\0\0\0\0\0']
+            rootl = [z64]
             pindex = {}
             while rootl:
                 oid = rootl.pop()
