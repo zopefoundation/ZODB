@@ -184,7 +184,7 @@
 #   may have a back pointer to a version record or to a non-version
 #   record.
 #
-__version__='$Revision: 1.30 $'[11:-2]
+__version__='$Revision: 1.31 $'[11:-2]
 
 import struct, time, os, bpthread, string, base64, sys
 from struct import pack, unpack
@@ -348,6 +348,11 @@ class FileStorage(BaseStorage.BaseStorage):
             except: pass
             os.rename(tmp_name, index_name)
         except: pass
+
+    def _clear_index(self):
+        index_name=self.__name__+'.index'
+        if os.path.exists(index_name):
+            os.unlink(index_name)
 
     def _sane(self, index, pos):
         """Sanity check saved index data by reading the last undone trans
@@ -711,6 +716,7 @@ class FileStorage(BaseStorage.BaseStorage):
     def undo(self, transaction_id):
         self._lock_acquire()
         try:
+            self._clear_index()
             transaction_id=base64.decodestring(transaction_id+'==\n')
             tid, tpos = transaction_id[:8], u64(transaction_id[8:])
             packt=self._packt
