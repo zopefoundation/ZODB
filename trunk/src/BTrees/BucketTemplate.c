@@ -12,7 +12,7 @@
 
  ****************************************************************************/
 
-#define BUCKETTEMPLATE_C "$Id: BucketTemplate.c,v 1.46 2002/06/27 00:32:54 tim_one Exp $\n"
+#define BUCKETTEMPLATE_C "$Id: BucketTemplate.c,v 1.47 2002/06/27 22:09:32 tim_one Exp $\n"
 
 /* Use BUCKET_SEARCH to find the index at which a key belongs.
  * INDEX    An int lvalue to hold the index i such that KEY belongs at
@@ -174,6 +174,94 @@ Overflow:
   PyErr_NoMemory();
   return -1;
 }
+
+/*
+ * Append a slice of the "from" bucket to self.
+ *
+ * self         Append (at least keys) to this bucket.  self must be activated
+ *              upon entry, and remains activated at exit.  If copyValues
+ *              is true, self must be empty or already have a non-NULL values
+ *              pointer.  self's access and modification times aren't updated.
+ * from         The bucket from which to take keys, and possibly values.  from
+ *              must be activated upon entry, and remains activated at exit.
+ *              If copyValues is true, from must have a non-NULL values
+ *              pointer.  self and from must not be the same.  from's access
+ *              time isn't updated.
+ * i, n         The slice from[i : i+n] is appended to self.  Must have
+ *              i >= 0, n > 0 and i+n <= from->len.
+ * copyValues   Boolean.  If true, copy values from the slice as well as keys.
+ *              In this case, from must have a non-NULL values pointer, and
+ *              self must too (unless self is empty, in which case a values
+ *              vector will be allocated for it).
+ * overallocate Boolean.  If self doesn't have enough room upon entry to hold
+ *              all the appended stuff, then if overallocate is false exactly
+ *              enough room will be allocated to hold the new stuff, else if
+ *              overallocate is true an excess will be allocated.  overallocate
+ *              may be a good idea if you expect to append more stuff to self
+ *              later; else overallocate should be false.
+ *
+ * CAUTION:  If self is empty upon entry (self->size == 0), and copyValues is
+ * false, then no space for values will get allocated.  This can be a trap if
+ * the caller intends to copy values itself.
+ *
+ * Return
+ *    -1        Error.
+ *     0        OK.
+ */
+static int
+bucket_append(Bucket *self, Bucket *from, int i, int n,
+              int copyValues, int overallocate)
+{
+    int newlen;
+
+    assert(self && from && self != from);
+    assert(i >= 0);
+    assert(n > 0);
+    assert(i+n <= from->len);
+
+    /* Make room. */
+    newlen = self->len + n;
+    if (newlen > self->size) {
+        int newsize = newlen;
+        if (overallocate)   /* boost by 25% -- pretty arbitrary */
+            newsize += newsize >> 2;
+        if (Bucket_grow(self, newsize, ! copyValues) < 0)
+            return -1;
+    }
+    assert(newlen <= self->size);
+
+    /* Copy stuff. */
+    memcpy(self->keys + self->len, from->keys + i, n * sizeof(KEY_TYPE));
+    if (copyValues) {
+        assert(self->values);
+        assert(from->values);
+        memcpy(self->values + self->len, from->values + i,
+                n * sizeof(VALUE_TYPE));
+    }
+    self->len = newlen;
+
+    /* Bump refcounts. */
+#ifdef KEY_TYPE_IS_PYOBJECT
+    {
+        int j;
+        PyObject **p = from->keys + i;
+        for (j = 0; j < n; ++j, ++p) {
+            Py_INCREF(*p);
+        }
+    }
+#endif
+#ifdef VALUE_TYPE_IS_PYOBJECT
+    if (copyValues) {
+        int j;
+        PyObject **p = from->values + i;
+        for (j = 0; j < n; ++j, ++p) {
+            Py_INCREF(*p);
+        }
+    }
+#endif
+    return 0;
+}
+
 
 /*
 ** _bucket_set: Assign a value to a key in a bucket, delete a key+value
