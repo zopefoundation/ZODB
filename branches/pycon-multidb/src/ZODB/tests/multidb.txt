@@ -16,13 +16,43 @@ Multi-database tests
 ====================
 
 Multi-database support adds the ability to tie multiple databases into a
-collection.
+collection.  The original proposal is in the fishbowl:
+
+    http://www.zope.org/Wikis/ZODB/MultiDatabases/
+
+It was implemented during the PyCon 2005 sprints, but in a simpler form,
+by Jim Fulton, Christian Theune,and Tim Peters.  Overview:
+
+No private attributes were added, and one new method was introduced.
+
+DB:
+
+- a new .database_name attribute holds the name of this database
+
+- a new .databases attribute maps from database name to DB object; all DBs
+  in a multi-database collection share the same .databases object
+
+- the DB constructor has new optional arguments with the same names
+  (database_name= and databases=).
+
+Connection:
+
+- a new .connections attribute maps from database name to a Connection for
+  the database with that name; the .connections mapping object is also
+  shared among databases in a collection
+
+- a new .get_connection(database_name) method returns a Connection for a
+  database in the collection; if a connection is already open, it's returned
+  (this is the value .connections[database_name]), else a new connection is
+  opened (and stored as .connections[database_name])
+
 
 Creating a multi-database starts with creating a named DB:
 
     >>> from ZODB.tests.test_storage import MinimalMemoryStorage
     >>> from ZODB import DB
-    >>> db = DB(MinimalMemoryStorage(), database_name='root')
+    >>> dbmap = {}
+    >>> db = DB(MinimalMemoryStorage(), database_name='root', databases=dbmap)
 
 The database name is accessible afterwards and in a newly created collection:
 
@@ -30,25 +60,29 @@ The database name is accessible afterwards and in a newly created collection:
     'root'
     >>> db.databases        # doctest: +ELLIPSIS
     {'root': <ZODB.DB.DB object at ...>}
+    >>> db.databases is dbmap
+    True
 
-Adding a new database works like this:
+Adding another database to the collection works like this:
 
     >>> db2 = DB(MinimalMemoryStorage(),
     ...     database_name='notroot',
-    ...     databases=db.databases)
+    ...     databases=dbmap)
 
 The new db2 now shares the 'databases' dictionary with db and has two entries:
 
-    >>> db2.databases is db.databases
+    >>> db2.databases is db.databases is dbmap
     True
     >>> len(db2.databases)
     2
+    >>> names = dbmap.keys(); names.sort(); print names
+    ['notroot', 'root']
 
-Trying to insert a database with a name that is already in use will not work:
+It's an error to try to insert a database with a name already in use:
 
     >>> db3 = DB(MinimalMemoryStorage(),
     ...     database_name='root',
-    ...     databases=db.databases)
+    ...     databases=dbmap)
     Traceback (most recent call last):
         ...
     ValueError: database_name 'root' already in databases
@@ -83,6 +117,8 @@ Now there are two connections in that collection:
     True
     >>> len(cn2.connections)
     2
+    >>> names = cn.connections.keys(); names.sort(); print names
+    ['notroot', 'root']
 
 So long as this database group remains open, the same Connection objects
 are returned:
@@ -106,5 +142,5 @@ an exception:
 
 Clean up:
 
-    >>> for a_db in db.databases.values():
+    >>> for a_db in dbmap.values():
     ...     a_db.close()
