@@ -18,19 +18,15 @@ import unittest
 class PrefixTest(unittest.TestCase):
 
     def test(self):
-        p1 = (Prefix("/a/b"),
-              ("/a/b", "/a/b/c", "/a/b/c/d"),
-              ("", "/a/c"))
+        p1 = Prefix("/a/b")
+        for equal in ("/a/b", "/a/b/c", "/a/b/c/d"):
+            self.assertEqual(p1, equal)
+        for notEqual in ("", "/a/c", "/a/bbb", "///"):
+            self.assertNotEqual(p1, notEqual)
 
-        p2 = (Prefix(""),
-              ("", "/def", "/a/b", "/a/b/c", "/a/b/c/d"),
-              ())
-
-        for prefix, equal, notequal in p1, p2:
-            for s in equal:
-                self.assertEqual(prefix, s)
-            for s in notequal:
-                self.assertNotEqual(prefix, s)
+        p2 = Prefix("")
+        for equal in ("", "/", "/def", "/a/b", "/a/b/c", "/a/b/c/d"):
+            self.assertEqual(p2, equal)
 
 def test_suite():
     return unittest.makeSuite(PrefixTest)
