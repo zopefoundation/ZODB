@@ -84,14 +84,17 @@
 ##############################################################################
 """Transaction management
 
-$Id: Transaction.py,v 1.13 1999/08/11 13:56:21 jim Exp $"""
-__version__='$Revision: 1.13 $'[11:-2]
+$Id: Transaction.py,v 1.14 1999/08/11 15:20:28 jim Exp $"""
+__version__='$Revision: 1.14 $'[11:-2]
 
-import time, sys, struct
+import time, sys, struct, POSException
 from struct import pack
 from string import split, strip, join
-from zLOG import LOG, ERROR
+from zLOG import LOG, ERROR, PANIC
 from POSException import ConflictError
+
+# Flag indicating whether certain errors have occurred.
+hosed=0
 
 class Transaction:
     'Simple transaction objects for single-threaded applications.'
@@ -200,6 +203,23 @@ class Transaction:
 
         t=v=tb=None
 
+        if (objects or subjars) and hosed:
+            # Something really bad happened and we don't
+            # trust the system state.
+            raise POSException.TransactionError, (
+                
+                """A serious error, which was probably a system error,
+                occurred in a previous database transaction.  This
+                application may be in an invalid state and must be
+                restarted before database updates can be allowed.
+
+                Beware though that if the error was due to a serious
+                system problem, such as a disk full condition, then
+                the application may not come up until you deal with
+                the system problem.  See your application log for
+                information on the error that lead to this problem.
+                """)
+
         try:
             try:
                 while objects:
@@ -254,6 +274,16 @@ class Transaction:
                 try:
                     j.tpc_finish(self) # This should never fail
                 except:
+                    # Bug if it does, we need to keep track of it and not allow
+                    # any more work without at least a restart!
+                    global hosed
+                    hosed=1
+                    LOG('ZODB', PANIC,
+                        "An storage error occurred in the last phase of a "
+                        "two-phase commit.  This shouldn\'t happen. "
+                        "The application may be in a hosed state, so "
+                        "we will not allow transactions to commit from "
+                        "here on", error=sys.exc_info())
                     if t is None:
                         t,v,tb=sys.exc_info()
                         
