@@ -45,7 +45,7 @@ class ZEOConfig:
         if self.invalidation_queue_size is not None:
             print >> f, "invalidation-queue-size", self.invalidation_queue_size
         if self.monitor_address is not None:
-            print >> f, "monitor-address", self.monitor_address
+            print >> f, "monitor-address %s:%s" % self.monitor_address
         if self.transaction_timeout is not None:
             print >> f, "transaction-timeout", self.transaction_timeout
         if self.authentication_protocol is not None:

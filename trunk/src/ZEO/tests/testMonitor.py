@@ -13,7 +13,7 @@
 ##############################################################################
 """Test that the monitor produce sensible results.
 
-$Id: testMonitor.py,v 1.4 2003/05/23 22:09:36 jeremy Exp $
+$Id: testMonitor.py,v 1.5 2003/05/30 17:40:30 jeremy Exp $
 """
 
 import socket
@@ -72,7 +72,7 @@ class MonitorTests(CommonSetupTearDown):
         return d
         
     def getConfig(self, path, create, read_only):
-        return """<mappingstorage/>"""
+        return """<mappingstorage 1/>"""
 
     def testMonitor(self):
         # just open a client to know that the server is up and running
