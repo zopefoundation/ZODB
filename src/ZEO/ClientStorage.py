@@ -13,7 +13,7 @@
 ##############################################################################
 """Network ZODB storage client
 
-$Id: ClientStorage.py,v 1.45 2002/08/14 20:44:28 jeremy Exp $
+$Id: ClientStorage.py,v 1.46 2002/08/16 18:15:04 bwarsaw Exp $
 """
 
 import cPickle
@@ -375,6 +375,7 @@ class ClientStorage:
             # Client may have disconnected during the tpc_begin().
             # Then notifyDisconnected() will have released the lock.
             if self._server is not disconnected_stub:
+                self.tpc_cond.acquire()
                 self._transaction = None
                 self.tpc_cond.release()
             raise
