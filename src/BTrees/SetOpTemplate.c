@@ -16,7 +16,7 @@
  Set operations
  ****************************************************************************/
 
-#define SETOPTEMPLATE_C "$Id: SetOpTemplate.c,v 1.17 2002/06/02 07:40:20 tim_one Exp $\n"
+#define SETOPTEMPLATE_C "$Id: SetOpTemplate.c,v 1.18 2002/06/03 17:21:55 tim_one Exp $\n"
 
 #ifdef INTSET_H
 static int 
@@ -207,8 +207,8 @@ set_operation(PyObject *s1, PyObject *s2,
   SetIteration i1 = {0,0,0}, i2 = {0,0,0};
   int cmp, merge=0;
 
-  if (initSetIteration(&i1, s1, w1, &merge) < 0) return NULL;
-  if (initSetIteration(&i2, s2, w2, &merge) < 0) return NULL;
+  if (initSetIteration(&i1, s1, w1, &merge) < 0) goto err;
+  if (initSetIteration(&i2, s2, w2, &merge) < 0) goto err;
 
   if (merge)
     {
@@ -247,12 +247,12 @@ set_operation(PyObject *s1, PyObject *s2,
         goto err;
     }
 
-  if (i1.next(&i1) < 0) return NULL;
-  if (i2.next(&i2) < 0) return NULL;
+  if (i1.next(&i1) < 0) goto err;
+  if (i2.next(&i2) < 0) goto err;
 
   while (i1.position >= 0 && i2.position >= 0)
     {
-      TEST_KEY_SET_OR(cmp, i1.key, i2.key) return NULL;
+      TEST_KEY_SET_OR(cmp, i1.key, i2.key) goto err;
       if(cmp < 0)
 	{
 	  if(c1)
@@ -489,20 +489,17 @@ multiunion_m(PyObject *ignored, PyObject *args)
             /* No cheap way:  iterate over set's elements one at a time. */
             int merge;  /* dummy needed for initSetIteration */
 
-            if (initSetIteration(&setiter, set, 1, &merge) < 0)
-                goto Error;
-            if (setiter.next(&setiter) < 0)
-                goto Error;
+            if (initSetIteration(&setiter, set, 1, &merge) < 0) goto Error;
+            if (setiter.next(&setiter) < 0) goto Error;
             while (setiter.position >= 0) {
                 if (result->len >= result->size && Bucket_grow(result, -1, 1) < 0)
                     goto Error;
                 COPY_KEY(result->keys[result->len], setiter.key);
                 ++result->len;
                 /* We know the key is an int, so no need to incref it. */
-                if (setiter.next(&setiter) < 0)
-                    goto Error;
+                if (setiter.next(&setiter) < 0) goto Error;
             }
-            Py_XDECREF(setiter.set);
+            Py_DECREF(setiter.set);
             setiter.set = NULL;
         }
         Py_DECREF(set);
