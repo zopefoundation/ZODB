@@ -80,7 +80,6 @@ class BaseTxnTests(unittest.TestCase):
         self.assertEqual(txn.status(), Status.ABORTED)
         self.assertRaises(IllegalStateError, txn.commit)
         self.assertRaises(IllegalStateError, txn.savepoint)
-        self.assertRaises(IllegalStateError, txn.abort)
 
     def testTrivialSavepoint(self):
         txn = self.manager.begin()
@@ -129,6 +128,14 @@ class BaseTxnTests(unittest.TestCase):
         self.assertRaises(AbortError, txn.commit)
         self.assertEqual(txn.status(), Status.FAILED)
         self.assertRaises(IllegalStateError, txn.commit)
+        txn.abort()
+
+    def testCommitFailure(self):
+        txn = self.manager.begin()
+        txn.join(TestDataManager())
+        txn.join(TestDataManager(fail="commit"))
+        self.assertRaises(TransactionError, txn.commit)
+        self.assertEqual(txn.status(), Status.ABORTED)
         txn.abort()
 
 class SimpleTxnTests(BaseTxnTests):

@@ -64,6 +64,8 @@ class Transaction:
     def abort(self):
         """Rollback to initial state."""
         assert self._manager is not None
+        if self._status == Status.ABORTED:
+            return
         if self._status not in (Status.ACTIVE, Status.PREPARED, Status.FAILED):
             raise IllegalStateError("abort", self._status)
         self._manager.abort(self)

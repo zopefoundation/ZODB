@@ -1,4 +1,5 @@
 import logging
+import sys
 
 from transaction.interfaces import *
 from transaction.txn import Transaction, Status, Set
@@ -38,14 +39,28 @@ class AbstractTransactionManager(object):
 
     def _finishCommit(self, txn):
         self.logger.debug("%s: commit", txn)
-        # finish the two-phase commit
-        for r in txn._resources:
-            r.commit(txn)
-        txn._status = Status.COMMITTED
+        try:
+            for r in txn._resources:
+                r.commit(txn)
+            txn._status = Status.COMMITTED
+        except:
+            # An error occured during the second phase of 2PC.  We can
+            # no longer guarantee the system is in a consistent state.
+            # The best we can do is abort() all the resource managers
+            # that haven't already committed and hope for the best.
+            error = sys.exc_info()
+            txn._status = Status.FAILED
+            self.abort(txn)
+            msg = ("Transaction failed during second phase of two-"
+                   "phase commmit")
+            self.logger.critical(msg, exc_info=error)
+            raise TransactionError("Transaction failed during second "
+                                   "phase of two-phase commit")
 
     def abort(self, txn):
         self.logger.debug("%s: abort", txn)
-        assert txn._status in (Status.ACTIVE, Status.PREPARED, Status.FAILED)
+        assert txn._status in (Status.ACTIVE, Status.PREPARED, Status.FAILED,
+                               Status.ABORTED)
         txn._status = Status.PREPARING
         for r in txn._resources:
             r.abort(txn)
