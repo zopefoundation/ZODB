@@ -13,7 +13,7 @@
 ##############################################################################
 """Transaction Interfaces
 
-$Id: interfaces.py,v 1.8 2004/04/19 21:19:10 tim_one Exp $
+$Id$
 """
 try:
     from zope.interface import Interface

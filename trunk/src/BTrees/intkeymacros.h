@@ -1,5 +1,5 @@
 
-#define KEYMACROS_H "$Id: intkeymacros.h,v 1.10 2002/06/27 00:32:54 tim_one Exp $\n"
+#define KEYMACROS_H "$Id$\n"
 
 #define KEY_TYPE int
 #undef KEY_TYPE_IS_PYOBJECT

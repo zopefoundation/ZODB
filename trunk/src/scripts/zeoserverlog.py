@@ -141,7 +141,7 @@ Commands:
     - wall time to verify
     - average miliseconds to verify per object.
 
-$Id: zeoserverlog.py,v 1.5 2004/03/18 13:27:49 yuppie Exp $
+$Id$
 """
 
 import datetime, sys, re, os

@@ -12,7 +12,7 @@
 
  ****************************************************************************/
 
-#define SETTEMPLATE_C "$Id: SetTemplate.c,v 1.17 2003/11/28 16:44:44 jim Exp $\n"
+#define SETTEMPLATE_C "$Id$\n"
 
 static PyObject *
 Set_insert(Bucket *self, PyObject *args)

@@ -13,7 +13,7 @@
 ##############################################################################
 """Mounted database support
 
-$Id: Mount.py,v 1.25 2004/04/23 17:26:37 gintautasm Exp $"""
+$Id$"""
 
 import string
 import time

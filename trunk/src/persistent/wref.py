@@ -13,7 +13,7 @@
 ##############################################################################
 """ZODB-based persistent weakrefs
 
-$Id: wref.py,v 1.3 2004/04/19 21:19:09 tim_one Exp $
+$Id$
 """
 
 from persistent import Persistent

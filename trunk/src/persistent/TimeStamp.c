@@ -21,7 +21,7 @@ PyObject *TimeStamp_FromString(const char *);
 static char TimeStampModule_doc[] =
 "A 64-bit TimeStamp used as a ZODB serial number.\n"
 "\n"
-"$Id: TimeStamp.c,v 1.5 2004/05/03 20:17:57 spascoe Exp $\n";
+"$Id$\n";
 
 
 typedef struct {

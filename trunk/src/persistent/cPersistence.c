@@ -14,7 +14,7 @@
 static char cPersistence_doc_string[] =
 "Defines Persistent mixin class for persistent objects.\n"
 "\n"
-"$Id: cPersistence.c,v 1.80 2004/03/13 07:42:06 jeremy Exp $\n";
+"$Id$\n";
 
 #include "cPersistence.h"
 #include "structmember.h"

@@ -13,7 +13,7 @@
 ##############################################################################
 """Basic pickling tests
 
-$Id: test_pickle.py,v 1.6 2004/04/19 21:19:10 tim_one Exp $
+$Id$
 """
 
 from persistent import Persistent

@@ -14,7 +14,7 @@
 
 """Python implementation of persistent base types
 
-$Id: mapping.py,v 1.2 2003/12/29 22:40:45 tim_one Exp $"""
+$Id$"""
 
 import Persistence
 import persistent

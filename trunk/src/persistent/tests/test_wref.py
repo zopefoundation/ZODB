@@ -13,7 +13,7 @@
 ##############################################################################
 """XXX short summary goes here.
 
-$Id: test_wref.py,v 1.2 2004/02/19 02:59:32 jeremy Exp $
+$Id$
 """
 import unittest
 from doctest import DocTestSuite

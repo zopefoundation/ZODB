@@ -13,7 +13,7 @@
 ##############################################################################
 """ZODB-defined exceptions
 
-$Id: POSException.py,v 1.24 2004/04/16 19:07:00 tim_one Exp $"""
+$Id$"""
 
 from ZODB.utils import oid_repr, serial_repr
 

@@ -1,5 +1,5 @@
 
-#define VALUEMACROS_H "$Id: objectvaluemacros.h,v 1.4 2002/06/27 00:32:54 tim_one Exp $\n"
+#define VALUEMACROS_H "$Id$\n"
 
 #define VALUE_TYPE PyObject *
 #define VALUE_TYPE_IS_PYOBJECT

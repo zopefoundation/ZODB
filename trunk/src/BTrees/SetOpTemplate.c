@@ -16,7 +16,7 @@
  Set operations
  ****************************************************************************/
 
-#define SETOPTEMPLATE_C "$Id: SetOpTemplate.c,v 1.30 2003/11/28 16:44:44 jim Exp $\n"
+#define SETOPTEMPLATE_C "$Id$\n"
 
 #ifdef KEY_CHECK
 static int

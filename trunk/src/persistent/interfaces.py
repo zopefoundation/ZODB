@@ -13,7 +13,7 @@
 ##############################################################################
 """Persistence Interfaces
 
-$Id: interfaces.py,v 1.4 2004/04/19 21:19:09 tim_one Exp $
+$Id$
 """
 try:
     from zope.interface import Interface
