@@ -20,8 +20,13 @@ to application logic.  ZODB includes features such as a plugable storage
 interface, rich transaction support, and undo.
 """
 
+# The (non-obvious!) choices for the Trove Development Status line:
+# Development Status :: 5 - Production/Stable
+# Development Status :: 4 - Beta
+# Development Status :: 3 - Alpha
+
 classifiers = """\
-Development Status :: 4 - Beta
+Development Status :: 5 - Production/Stable
 Intended Audience :: Developers
 License :: OSI Approved :: Zope Public License
 Programming Language :: Python
@@ -216,7 +221,7 @@ class MyDistribution(Distribution):
 doclines = __doc__.split("\n")
 
 setup(name="ZODB3",
-      version="3.3c1",
+      version="3.3",
       maintainer="Zope Corporation",
       maintainer_email="zodb-dev@zope.org",
       url = "http://www.zope.org/Wikis/ZODB",
