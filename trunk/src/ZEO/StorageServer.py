@@ -1,29 +1,65 @@
-######################################################################
-# Digital Creations Options License Version 0.9.0
-# -----------------------------------------------
+##############################################################################
 # 
-# Copyright (c) 1999, Digital Creations.  All rights reserved.
+# Zope Public License (ZPL) Version 1.0
+# -------------------------------------
 # 
-# This license covers Zope software delivered as "options" by Digital
-# Creations.
+# Copyright (c) Digital Creations.  All rights reserved.
 # 
-# Use in source and binary forms, with or without modification, are
-# permitted provided that the following conditions are met:
+# This license has been certified as Open Source(tm).
 # 
-# 1. Redistributions are not permitted in any form.
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
 # 
-# 2. This license permits one copy of software to be used by up to five
-#    developers in a single company. Use by more than five developers
-#    requires additional licenses.
+# 1. Redistributions in source code must retain the above copyright
+#    notice, this list of conditions, and the following disclaimer.
 # 
-# 3. Software may be used to operate any type of website, including
-#    publicly accessible ones.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions, and the following disclaimer in
+#    the documentation and/or other materials provided with the
+#    distribution.
 # 
-# 4. Software is not fully documented, and the customer acknowledges
-#    that the product can best be utilized by reading the source code.
+# 3. Digital Creations requests that attribution be given to Zope
+#    in any manner possible. Zope includes a "Powered by Zope"
+#    button that is installed by default. While it is not a license
+#    violation to remove this button, it is requested that the
+#    attribution remain. A significant investment has been put
+#    into Zope, and this effort will continue if the Zope community
+#    continues to grow. This is one way to assure that growth.
 # 
-# 5. Support for software is included for 90 days in email only. Further
-#    support can be purchased separately.
+# 4. All advertising materials and documentation mentioning
+#    features derived from or use of this software must display
+#    the following acknowledgement:
+# 
+#      "This product includes software developed by Digital Creations
+#      for use in the Z Object Publishing Environment
+#      (http://www.zope.org/)."
+# 
+#    In the event that the product being advertised includes an
+#    intact Zope distribution (with copyright and license included)
+#    then this clause is waived.
+# 
+# 5. Names associated with Zope or Digital Creations must not be used to
+#    endorse or promote products derived from this software without
+#    prior written permission from Digital Creations.
+# 
+# 6. Modified redistributions of any form whatsoever must retain
+#    the following acknowledgment:
+# 
+#      "This product includes software developed by Digital Creations
+#      for use in the Z Object Publishing Environment
+#      (http://www.zope.org/)."
+# 
+#    Intact (re-)distributions of any official Zope release do not
+#    require an external acknowledgement.
+# 
+# 7. Modifications are encouraged but must be packaged separately as
+#    patches to official Zope releases.  Distributions that do not
+#    clearly separate the patches from the original work must be clearly
+#    labeled as unofficial distributions.  Modifications which do not
+#    carry the name Zope may be packaged in any form, as long as they
+#    conform to all of the clauses above.
+# 
 # 
 # Disclaimer
 # 
@@ -39,29 +75,44 @@
 #   OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
 #   OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 #   SUCH DAMAGE.
-######################################################################
+# 
+# 
+# This software consists of contributions made by Digital Creations and
+# many individuals on behalf of Digital Creations.  Specific
+# attributions are listed in the accompanying credits file.
+# 
+##############################################################################
 
-__version__ = "$Revision: 1.7 $"[11:-2]
+__version__ = "$Revision: 1.8 $"[11:-2]
 
-import asyncore, socket, string, sys, cPickle
+import asyncore, socket, string, sys, cPickle, os
 from smac import SizedMessageAsyncConnection
 from ZODB import POSException
 from ZODB.Transaction import Transaction
 import traceback
-from zLOG import LOG, INFO, ERROR
+from zLOG import LOG, INFO, ERROR, TRACE
 from ZODB.referencesf import referencesf
 from thread import start_new_thread
+from cPickle import Unpickler
+from cStringIO import StringIO
 
 class StorageServerError(POSException.StorageError): pass
 
 def blather(*args):
-    LOG('ZEO Server', INFO, string.join(args))
+    LOG('ZEO Server', TRACE, string.join(args))
+
+
+# We create a special fast pickler! This allows us
+# to create slightly more efficient pickles and
+# to create them a tad faster.
+pickler=cPickle.Pickler()
+pickler.fast=1 # Don't use the memo
+dump=pickler.dump
 
 class StorageServer(asyncore.dispatcher):
 
     def __init__(self, connection, storages):
         
-        self.host, self.port = connection
         self.__storages=storages
 
         self.__connections={}
@@ -69,9 +120,15 @@ class StorageServer(asyncore.dispatcher):
 
 
         asyncore.dispatcher.__init__(self)
-        self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
 
-        self.bind((self.host, self.port))
+        if type(connection) is type(''):
+            self.create_socket(socket.AF_UNIX, socket.SOCK_STREAM)
+            try: os.unlink(connection)
+            except: pass
+        else:
+            self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
+
+        self.bind(connection)
 
         self.listen(5)
 
@@ -99,10 +156,12 @@ class StorageServer(asyncore.dispatcher):
             self.__connections[storage_id]=n
 
     def invalidate(self, connection, storage_id, invalidated,
-                   dumps=cPickle.dumps):
+                   dump=dump):
         for c in self.__connections[storage_id]:
             if c is connection: continue
-            c.message_output('I'+dumps(invalidated))
+            c.message_output('bN.')
+            c.message_output('I'+dump(invalidated, 1))
+            c.message_output('eN.')
 
     def writable(self): return 0
     
@@ -128,14 +187,32 @@ class StorageServer(asyncore.dispatcher):
     log=log_info
 
 storage_methods={}
-for n in ('get_info', 'abortVersion', 'commitVersion', 'history',
-          'load', 'modifiedInVersion', 'new_oid', 'pack', 'store',
-          'tpc_abort', 'tpc_begin', 'tpc_begin_sync', 'tpc_finish', 'undo',
-          'undoLog', 'undoInfo', 'versionEmpty',
-          'zeoLoad', 'zeoVerify',
-          ):
+for n in (
+    'get_info', 'abortVersion', 'commitVersion', 'history', 'load',
+    'modifiedInVersion', 'new_oid', 'new_oids', 'pack', 'store',
+    'storea', 'tpc_abort', 'tpc_begin', 'tpc_begin_sync',
+    'tpc_finish', 'undo', 'undoLog', 'undoInfo', 'versionEmpty',
+    'vote', 'zeoLoad', 'zeoVerify', 'beginZeoVerify', 'endZeoVerify',
+    ):
     storage_methods[n]=1
 storage_method=storage_methods.has_key
+
+def find_global(module, name,
+                global_dict=globals(), silly=('__doc__',)):
+    try: m=__import__(module, global_dict, global_dict, silly)
+    except:
+        raise StorageServerError, (
+            "Couldn\'t import global module %s" % module)
+
+    try: r=getattr(m, name)
+    except:
+        raise StorageServerError, (
+            "Couldn\'t find global %s in module %s" % (name, module))
+        
+    safe=getattr(r, '__no_side_effects__', 0)
+    if safe: return r
+
+    raise StorageServerError, 'Unsafe global, %s.%s' % (module, name)
 
 _noreturn=[]
 class Connection(SizedMessageAsyncConnection):
@@ -144,10 +221,12 @@ class Connection(SizedMessageAsyncConnection):
     __storage=__storage_id=None
 
     def __init__(self, server, sock, addr):
-        SizedMessageAsyncConnection.__init__(self, sock, addr)
         self.__server=server
         self.__invalidated=[]
         self.__closed=None
+        if __debug__: debug='ZEO Server'
+        else: debug=0
+        SizedMessageAsyncConnection.__init__(self, sock, addr, debug=debug)
 
     def close(self):
         t=self._transaction
@@ -159,7 +238,9 @@ class Connection(SizedMessageAsyncConnection):
         self.__closed=1
         SizedMessageAsyncConnection.close(self)
 
-    def message_input(self, message):
+    def message_input(self, message,
+                      dump=dump, Unpickler=Unpickler, StringIO=StringIO,
+                      None=None):
         if __debug__:
             m=`message`
             if len(m) > 60: m=m[:60]+' ...'
@@ -172,7 +253,12 @@ class Connection(SizedMessageAsyncConnection):
             
         rt='R'
         try:
-            args=cPickle.loads(message)
+
+            # Unpickle carefully.
+            unpickler=Unpickler(StringIO(message))
+            unpickler.find_global=find_global
+            args=unpickler.load()
+            
             name, args = args[0], args[1:]
             if __debug__:
                 m=`tuple(args)`
@@ -197,7 +283,7 @@ class Connection(SizedMessageAsyncConnection):
             if len(m) > 60: m=m[:60]+' ...'
             blather('%s: %s' % (rt, m))
             
-        r=cPickle.dumps(r,1)
+        r=dump(r,1)
         self.message_output(rt+r)
 
     def get_info(self):
@@ -218,20 +304,39 @@ class Connection(SizedMessageAsyncConnection):
         p, s = storage.load(oid,'')
         return p, s, v, pv, sv
 
+    def beginZeoVerify(self):
+        self.message_output('bN.')            
+        return _noreturn
+
     def zeoVerify(self, oid, s, sv,
-                  dumps=cPickle.dumps):
+                  dump=dump):
         try: p, os, v, pv, osv = self.zeoLoad(oid)
         except: return _noreturn
         p=pv=None # free the pickles
         if os != s:
-            self.message_output('I'+dumps(((oid, os, ''),)))            
+            self.message_output('i'+dump((oid, ''),1))            
         elif osv != sv:
-            self.message_output('I'+dumps(((oid, osv, v),)))
+            self.message_output('i'+dump((oid,  v),1))
             
         return _noreturn
 
+    def endZeoVerify(self):
+        self.message_output('eN.')
+        return _noreturn
+
+    def new_oids(self, n=100):
+        new_oid=self.__storage.new_oid
+        if n < 0: n=1
+        r=range(n)
+        for i in r: r[i]=new_oid()
+        return r
+
     def pack(self, t):
-        start_new_thread(self.__storage.pack, (t, referencesf))
+        start_new_thread(self._pack, (t,))
+
+    def _pack(self, t):
+        self.__storage.pack(t, referencesf)
+        self.message_output('S'+dump(self.get_info(), 1))
 
     def store(self, oid, serial, data, version, id):
         t=self._transaction
@@ -239,8 +344,26 @@ class Connection(SizedMessageAsyncConnection):
             raise POSException.StorageTransactionError(self, id)
         newserial=self.__storage.store(oid, serial, data, version, t)
         if serial != '\0\0\0\0\0\0\0\0':
-            self.__invalidated.append(oid, serial, version)
+            self.__invalidated.append((oid, version))
         return newserial
+
+    def storea(self, oid, serial, data, version, id,
+               dump=dump):
+        t=self._transaction
+        if t is None or id != t.id:
+            raise POSException.StorageTransactionError(self, id)
+        
+        try: newserial=self.__storage.store(oid, serial, data, version, t)
+        except POSException.ConflictError, v:
+            newserial=v
+        else:
+            if serial != '\0\0\0\0\0\0\0\0':
+                self.__invalidated.append((oid, version))
+                
+        self.message_output('s'+dump((oid,newserial), 1))
+        return _noreturn
+
+    def vote(self): pass
 
     def undo(self, transaction_id):
         oids=self.__storage.undo(transaction_id)
@@ -328,8 +451,10 @@ class Connection(SizedMessageAsyncConnection):
             if apply(f,args): break
 
         self._transaction=None
-        self.__server.invalidate(self, self.__storage_id, self.__invalidated)
-        self.__invalidated=[]
+        if self.__invalidated:
+            self.__server.invalidate(self, self.__storage_id,
+                                     self.__invalidated)
+            self.__invalidated=[]
         
 
 if __name__=='__main__':

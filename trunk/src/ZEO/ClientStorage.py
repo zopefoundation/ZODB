@@ -1,29 +1,65 @@
-######################################################################
-# Digital Creations Options License Version 0.9.0
-# -----------------------------------------------
+##############################################################################
 # 
-# Copyright (c) 1999, Digital Creations.  All rights reserved.
+# Zope Public License (ZPL) Version 1.0
+# -------------------------------------
 # 
-# This license covers Zope software delivered as "options" by Digital
-# Creations.
+# Copyright (c) Digital Creations.  All rights reserved.
 # 
-# Use in source and binary forms, with or without modification, are
-# permitted provided that the following conditions are met:
+# This license has been certified as Open Source(tm).
 # 
-# 1. Redistributions are not permitted in any form.
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
 # 
-# 2. This license permits one copy of software to be used by up to five
-#    developers in a single company. Use by more than five developers
-#    requires additional licenses.
+# 1. Redistributions in source code must retain the above copyright
+#    notice, this list of conditions, and the following disclaimer.
 # 
-# 3. Software may be used to operate any type of website, including
-#    publicly accessible ones.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions, and the following disclaimer in
+#    the documentation and/or other materials provided with the
+#    distribution.
 # 
-# 4. Software is not fully documented, and the customer acknowledges
-#    that the product can best be utilized by reading the source code.
+# 3. Digital Creations requests that attribution be given to Zope
+#    in any manner possible. Zope includes a "Powered by Zope"
+#    button that is installed by default. While it is not a license
+#    violation to remove this button, it is requested that the
+#    attribution remain. A significant investment has been put
+#    into Zope, and this effort will continue if the Zope community
+#    continues to grow. This is one way to assure that growth.
 # 
-# 5. Support for software is included for 90 days in email only. Further
-#    support can be purchased separately.
+# 4. All advertising materials and documentation mentioning
+#    features derived from or use of this software must display
+#    the following acknowledgement:
+# 
+#      "This product includes software developed by Digital Creations
+#      for use in the Z Object Publishing Environment
+#      (http://www.zope.org/)."
+# 
+#    In the event that the product being advertised includes an
+#    intact Zope distribution (with copyright and license included)
+#    then this clause is waived.
+# 
+# 5. Names associated with Zope or Digital Creations must not be used to
+#    endorse or promote products derived from this software without
+#    prior written permission from Digital Creations.
+# 
+# 6. Modified redistributions of any form whatsoever must retain
+#    the following acknowledgment:
+# 
+#      "This product includes software developed by Digital Creations
+#      for use in the Z Object Publishing Environment
+#      (http://www.zope.org/)."
+# 
+#    Intact (re-)distributions of any official Zope release do not
+#    require an external acknowledgement.
+# 
+# 7. Modifications are encouraged but must be packaged separately as
+#    patches to official Zope releases.  Distributions that do not
+#    clearly separate the patches from the original work must be clearly
+#    labeled as unofficial distributions.  Modifications which do not
+#    carry the name Zope may be packaged in any form, as long as they
+#    conform to all of the clauses above.
+# 
 # 
 # Disclaimer
 # 
@@ -39,17 +75,26 @@
 #   OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
 #   OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 #   SUCH DAMAGE.
-######################################################################
+# 
+# 
+# This software consists of contributions made by Digital Creations and
+# many individuals on behalf of Digital Creations.  Specific
+# attributions are listed in the accompanying credits file.
+# 
+##############################################################################
 """Network ZODB storage client
 """
-__version__='$Revision: 1.6 $'[11:-2]
+__version__='$Revision: 1.7 $'[11:-2]
 
-import struct, time, os, socket, cPickle, string, Sync, zrpc, ClientCache
-import tempfile
+import struct, time, os, socket, string, Sync, zrpc, ClientCache
+import tempfile, Invalidator, ExtensionClass, thread
+import ThreadedAsync
+
 now=time.time
 from struct import pack, unpack
 from ZODB import POSException, BaseStorage
 from ZODB.TimeStamp import TimeStamp
+from zLOG import LOG, PROBLEM, INFO
 
 TupleType=type(())
 
@@ -57,72 +102,128 @@ class UnrecognizedResult(POSException.StorageError):
     """A server call returned an unrecognized result
     """
 
-class ClientStorage(BaseStorage.BaseStorage):
+class ClientStorage(ExtensionClass.Base, BaseStorage.BaseStorage):
+
+    _connected=_async=0
+    __begin='tpc_begin_sync'
 
     def __init__(self, connection, async=0, storage='1', cache_size=20000000,
-                 name=''):
+                 name='', client='', debug=0, var=None):
 
         # Decide whether to use non-temporary files
-        client=os.environ.get('ZEO_CLIENT','')
-        if client: async=1
+        client=client or os.environ.get('ZEO_CLIENT','')
+
+        self._connection=connection
+        self._storage=storage
+        self._debug=debug
+
+        self._info={'length': 0, 'size': 0, 'name': 'ZEO Client',
+                    'supportsUndo':0, 'supportsVersions': 0,
+                    }
         
-        if async:
-            import asyncore
-            def loop(timeout=30.0, use_poll=0,
-                     self=self, asyncore=asyncore, loop=asyncore.loop):
-                self.becomeAsync()
-                asyncore.loop=loop
-                loop(timeout, use_poll)
-            asyncore.loop=loop
+        self._call=zrpc.asyncRPC(connection, debug=debug)
 
-        self._call=zrpc.syncRPC(connection)
-        self.__begin='tpc_begin_sync'
-
-        self._call._write(str(storage))
-        info=self._call('get_info')
-        self._len=info.get('length',0)
-        self._size=info.get('size',0)
-        name=name or ("%s %s" % (info.get('name', ''), str(connection)))
-        self._supportsUndo=info.get('supportsUndo',0)
-        self._supportsVersions=info.get('supportsVersions',0)
-
+        name = name or str(connection)
 
         self._tfile=tempfile.TemporaryFile()
-        
+        self._oids=[]
+        self._serials=[]
+        self._seriald={}
 
-        self._cache=ClientCache.ClientCache(storage, cache_size, client=client)
-        if async:
-            for oid, (s, vs) in self._cache.open():
-                self._call.queue('zeoVerify', oid, s, vs)
-        else:
-            for oid, (s, vs) in self._cache.open():
-                self._call.send('zeoVerify', oid, s, vs)
+        ClientStorage.inheritedAttribute('__init__')(self, name)
 
-        BaseStorage.BaseStorage.__init__(self, name)
+        self.__lock_acquire=self._lock_acquire
 
-    def becomeAsync(self):
-        self._call=zrpc.asyncRPC(self._call)
-        self.__begin='tpc_begin'
+        self._cache=ClientCache.ClientCache(
+            storage, cache_size, client=client, var=var)
+
+
+        ThreadedAsync.register_loop_callback(self.becomeAsync)
+
+    def _startup(self):
+
+        if not self._call.connect():
+            # If we can't connect right away, go ahead and open the cache
+            # and start a separate thread to try and reconnect.
+            LOG("ClientStorage", PROBLEM, "Failed to connect to storage")
+            self._cache.open()
+            thread.start_new_thread(self._call.connect,(0,))
+
+    def notifyConnected(self, s):
+        LOG("ClientStorage", INFO, "Connected to storage")
+        self._lock_acquire()
+        try:
+            # We let the connection keep coming up now that
+            # we have the storage lock. This way, we know no calls
+            # will be made while in the process of coming up.
+            self._call.finishConnect(s)
+
+            self._connected=1
+            self._oids=[]
+            self.__begin='tpc_begin_sync'
+            
+            self._call.message_output(str(self._storage))
+            self._info.update(self._call('get_info'))
+
+            cached=self._cache.open()
+            if cached:
+                self._call.sendMessage('beginZeoVerify')
+                for oid, (s, vs) in cached:
+                    self._call.sendMessage('zeoVerify', oid, s, vs)
+                self._call.sendMessage('endZeoVerify')
+
+        finally: self._lock_release()
+
+        if self._async:
+            import ZServer.medusa.asyncore
+            self.becomeAsync(ZServer.medusa.asyncore.socket_map)
+
+    def notifyDisconnected(self, ignored):
+        LOG("ClientStorage", PROBLEM, "Disconnected from storage")
+        self._connected=0
+        thread.start_new_thread(self._call.connect,(0,))
+
+    def becomeAsync(self, map):
+        self._lock_acquire()
+        try:
+            self._async=1
+            if self._connected:
+                import ZServer.PubCore.ZEvent
+
+                self._call.setLoop(map,
+                                   ZServer.PubCore.ZEvent.Wakeup)
+                self.__begin='tpc_begin'
+        finally: self._lock_release()
 
     def registerDB(self, db, limit):
 
-        def invalidate(code, args,
-                       dinvalidate=db.invalidate,
-                       limit=limit,
-                       release=self._commit_lock_release,
-                       cinvalidate=self._cache.invalidate
-                       ):
-            if code == 'I':
-                for oid, serial, version in args:
-                    cinvalidate(oid, version=version)
-                    dinvalidate(oid, version=version)
-            elif code == 'U':
-                release()
+        invalidator=Invalidator.Invalidator(
+            db.invalidate,
+            self._cache.invalidate)
 
-        self._call.setOutOfBand(invalidate)
-        
+        def out_of_band_hook(
+            code, args,
+            get_hook={
+                'b': (invalidator.begin, 0),
+                'i': (invalidator.invalidate, 1),
+                'e': (invalidator.end, 0),
+                'I': (invalidator.Invalidate, 1),
+                'r': (self._commit_lock_release, 0),
+                's': (self._serials.append, 1),
+                'S': (self._info.update, 1),
+                }.get):
 
-    def __len__(self): return self._len
+            hook = get_hook(code, None)
+            if hook is None: return
+            hook, flag = hook
+            if flag: hook(args)
+            else: hook()
+
+        self._call.setOutOfBand(out_of_band_hook)
+
+        self._startup()
+
+    def __len__(self): return self._info['length']
 
     def abortVersion(self, src, transaction):
         if transaction is not self._transaction:
@@ -143,9 +244,12 @@ class ClientStorage(BaseStorage.BaseStorage):
         try: return self._call('commitVersion', src, dest, self._serial)
         finally: self._lock_release()
 
-    def getName(self): return self.__name__
+    def getName(self):
+        return "%s (%s)" % (
+            self.__name__,
+            self._connected and 'connected' or 'disconnected')
 
-    def getSize(self): return self._size
+    def getSize(self): return self._info['size']
                   
     def history(self, oid, version, length=1):
         self._lock_acquire()
@@ -174,7 +278,13 @@ class ClientStorage(BaseStorage.BaseStorage):
 
     def new_oid(self, last=None):
         self._lock_acquire()
-        try: return self._call('new_oid')
+        try:
+            oids=self._oids
+            if not oids:
+                oids[:]=self._call('new_oids')
+                oids.reverse()
+                
+            return oids.pop()
         finally: self._lock_release()
         
     def pack(self, t, rf):
@@ -189,19 +299,48 @@ class ClientStorage(BaseStorage.BaseStorage):
             raise POSException.StorageTransactionError(self, transaction)
         self._lock_acquire()
         try:
-            serial=self._call('store', oid, serial,
-                              data, version, self._serial)
+            serial=self._call.sendMessage('storea', oid, serial,
+                                          data, version, self._serial)
             
             write=self._tfile.write
-            write(oid+serial+pack(">HI", len(version), len(data))+version)
+            write(oid+pack(">HI", len(version), len(data))+version)
             write(data)
+
+            if self._serials:
+                s=self._serials
+                l=len(s)
+                r=s[:l]
+                del s[:l]
+                d=self._seriald
+                for oid, s in r: d[oid]=s
+                return r
 
             return serial
         
         finally: self._lock_release()
 
-    def supportsUndo(self): return self._supportsUndo
-    def supportsVersions(self): return self._supportsVersions
+    def tpc_vote(self, transaction):
+        if transaction is not self._transaction:
+            raise POSException.StorageTransactionError(self, transaction)
+        self._lock_acquire()
+        try:
+            self._call('vote')
+
+            if self._serials:
+                s=self._serials
+                l=len(s)
+                r=s[:l]
+                del s[:l]
+                d=self._seriald
+                for oid, s in r: d[oid]=s
+                return r
+        
+        finally: self._lock_release()
+            
+        
+
+    def supportsUndo(self): return self._info['supportsUndo']
+    def supportsVersions(self): return self._info['supportsVersions']
         
     def tpc_abort(self, transaction):
         self._lock_acquire()
@@ -210,6 +349,8 @@ class ClientStorage(BaseStorage.BaseStorage):
             self._call('tpc_abort', self._serial)
             self._transaction=None
             self._tfile.seek(0)
+            self._seriald.clear()
+            del self._serials[:]
             self._commit_lock_release()
         finally: self._lock_release()
 
@@ -227,13 +368,19 @@ class ClientStorage(BaseStorage.BaseStorage):
             self._serial=id=`t`
 
             self._tfile.seek(0)
+            self._seriald.clear()
+            del self._serials[:]
 
             while 1:
                 self._lock_release()
                 self._commit_lock_acquire()
                 self._lock_acquire()
-                if self._call(self.__begin, id, user, desc, ext) is None:
-                    break
+                try: r=self._call(self.__begin, id, user, desc, ext)
+                except:
+                    self._commit_lock_release()
+                    raise
+                
+                if r is None: break
 
             self._transaction=transaction
             
@@ -250,6 +397,14 @@ class ClientStorage(BaseStorage.BaseStorage):
                        transaction.description,
                        transaction._extension)
 
+            seriald=self._seriald
+            if self._serials:
+                s=self._serials
+                l=len(s)
+                r=s[:l]
+                del s[:l]
+                for oid, s in r: seriald[oid]=s
+
             tfile=self._tfile
             seek=tfile.seek
             read=tfile.read
@@ -259,7 +414,7 @@ class ClientStorage(BaseStorage.BaseStorage):
             i=0
             while i < size:
                 oid=read(8)
-                s=read(8)
+                s=seriald[oid]
                 h=read(6)
                 vlen, dlen = unpack(">HI", h)
                 if vlen: v=read(vlen)
@@ -306,4 +461,3 @@ class ClientStorage(BaseStorage.BaseStorage):
         self._lock_acquire()
         try: return self._call('versionEmpty', max)
         finally: self._lock_release()
-

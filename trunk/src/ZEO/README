@@ -1,6 +1,14 @@
-Zope Enterprize Option, iteration 1
+Zope Enterprize Option, ZEO 0.2
 
   Put this package in your Zope lib/python.
+
+  Note -- This release of ZEO requires Zope 2.2 or a CVS checkout
+    of Zope. See 'CHANGES.txt' for details.
+
+  You also need to symbolically link (or copy) ZServer to lib/python::
+
+    cd lib/python
+    ln -s ../../ZServer .
 
   To start the storage server, go to your Zope install directory and::
 
@@ -8,17 +16,31 @@ Zope Enterprize Option, iteration 1
 
   (Run start without arguments to see options.)
 
+  Of course, the server and the client don't have to be on the same
+  machine.
+
+  If the server and client *are* on the same machine, then you can use 
+  a Unix domain socket::
+
+    lib/python/ZEO/start.py -U filename
+
   To get Zope to use the server, create a custom_zodb module,
-  custom_zodb.py, in your Zope install directory, so that uses a
+  custom_zodb.py, in your Zope install directory, so that Zope uses a
   ClientStorage::
 
     import ZEO.ClientStorage
-    Storage=ZEO.ClientStorage.ClientStorage(('',port_number), async=1)
+    Storage=ZEO.ClientStorage.ClientStorage(('',port_number))
 
   You can specify a host name (rather than '') if you want.
   The port number is, of course, the port number used to start the 
   storage server.  The async switch tells the client to switch
   itself to async mode (if and) when the asyncore main loop is called.
+
+  You can also give the name of a Unix domain socket file::
+
+
+    import ZEO.ClientStorage
+    Storage=ZEO.ClientStorage.ClientStorage(filename)
 
   If you want a persistent client cache, you need to define the
   environment variable, ZEO_CLIENT to a unique name for the
@@ -28,4 +50,46 @@ Zope Enterprize Option, iteration 1
   something like:
 
     python z2.py -P8700 ZEO_CLIENT=8700
-    python z2.py -P8800 ZEO_CLIENT=8700
+    python z2.py -P8800 ZEO_CLIENT=8800
+
+  The ClientStorage constructor provides a number of additional
+  options (arguments):
+
+    storage -- The name of the storage to connect to.  
+
+    cache_size -- The number of bytes to allow for the client cache.
+         The default is 20,000,000.
+    
+    name -- The name to use for the storage. This will be shown in
+         Zope's control panel. The default name is a representation of
+         the connection information.
+
+    debug -- If this is provided, it should be a non-empty string. It
+         indicates that client should log tracing and debugging
+         information, using zLOG.
+
+    var -- The directory in which persistent cache files should be
+         written. If this option is provided, it is unnecessary to 
+         set INSTANCE_HOME in __builtins__.
+
+  Notes for non Zope users
+
+    First, we regret the amount of dependence on Zope. We intend for
+    the dependence to decrease in the long run.
+
+    Known dependencies:
+
+      - Shared must be in the Python path. This is due to a lame
+        dependency on some Zope XML facilities used by ZODB for XML
+        export and import.
+
+      - ZServer should be in the Python path, or you should copy the
+        version of asyncore.py from ZServer (from Zope 2.2 or CVS) to
+        your Python path, or you should copy a version of a asyncore
+        from the medusa CVS tree to your Python path. A recent change
+        in asyncore is required.
+
+      - The module, ThreadedAsync must be in the python path.
+
+
+      

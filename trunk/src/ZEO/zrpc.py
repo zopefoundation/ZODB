@@ -1,29 +1,65 @@
-######################################################################
-# Digital Creations Options License Version 0.9.0
-# -----------------------------------------------
+##############################################################################
 # 
-# Copyright (c) 1999, Digital Creations.  All rights reserved.
+# Zope Public License (ZPL) Version 1.0
+# -------------------------------------
 # 
-# This license covers Zope software delivered as "options" by Digital
-# Creations.
+# Copyright (c) Digital Creations.  All rights reserved.
 # 
-# Use in source and binary forms, with or without modification, are
-# permitted provided that the following conditions are met:
+# This license has been certified as Open Source(tm).
 # 
-# 1. Redistributions are not permitted in any form.
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
 # 
-# 2. This license permits one copy of software to be used by up to five
-#    developers in a single company. Use by more than five developers
-#    requires additional licenses.
+# 1. Redistributions in source code must retain the above copyright
+#    notice, this list of conditions, and the following disclaimer.
 # 
-# 3. Software may be used to operate any type of website, including
-#    publicly accessible ones.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions, and the following disclaimer in
+#    the documentation and/or other materials provided with the
+#    distribution.
 # 
-# 4. Software is not fully documented, and the customer acknowledges
-#    that the product can best be utilized by reading the source code.
+# 3. Digital Creations requests that attribution be given to Zope
+#    in any manner possible. Zope includes a "Powered by Zope"
+#    button that is installed by default. While it is not a license
+#    violation to remove this button, it is requested that the
+#    attribution remain. A significant investment has been put
+#    into Zope, and this effort will continue if the Zope community
+#    continues to grow. This is one way to assure that growth.
 # 
-# 5. Support for software is included for 90 days in email only. Further
-#    support can be purchased separately.
+# 4. All advertising materials and documentation mentioning
+#    features derived from or use of this software must display
+#    the following acknowledgement:
+# 
+#      "This product includes software developed by Digital Creations
+#      for use in the Z Object Publishing Environment
+#      (http://www.zope.org/)."
+# 
+#    In the event that the product being advertised includes an
+#    intact Zope distribution (with copyright and license included)
+#    then this clause is waived.
+# 
+# 5. Names associated with Zope or Digital Creations must not be used to
+#    endorse or promote products derived from this software without
+#    prior written permission from Digital Creations.
+# 
+# 6. Modified redistributions of any form whatsoever must retain
+#    the following acknowledgment:
+# 
+#      "This product includes software developed by Digital Creations
+#      for use in the Z Object Publishing Environment
+#      (http://www.zope.org/)."
+# 
+#    Intact (re-)distributions of any official Zope release do not
+#    require an external acknowledgement.
+# 
+# 7. Modifications are encouraged but must be packaged separately as
+#    patches to official Zope releases.  Distributions that do not
+#    clearly separate the patches from the original work must be clearly
+#    labeled as unofficial distributions.  Modifications which do not
+#    carry the name Zope may be packaged in any form, as long as they
+#    conform to all of the clauses above.
+# 
 # 
 # Disclaimer
 # 
@@ -39,33 +75,136 @@
 #   OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
 #   OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 #   SUCH DAMAGE.
-#####################################################################
+# 
+# 
+# This software consists of contributions made by Digital Creations and
+# many individuals on behalf of Digital Creations.  Specific
+# attributions are listed in the accompanying credits file.
+# 
+##############################################################################
 """Simple rpc mechanisms
 """
 
-__version__ = "$Revision: 1.5 $"[11:-2]
+__version__ = "$Revision: 1.6 $"[11:-2]
 
-from cPickle import dumps, loads
+from cPickle import loads
 from thread import allocate_lock
 from smac import SizedMessageAsyncConnection
-import socket, string, struct
+import socket, string, struct, asyncore, sys, time, cPickle
 TupleType=type(())
+from zLOG import LOG, TRACE, DEBUG
 
-Wakeup=None
+# We create a special fast pickler! This allows us
+# to create slightly more efficient pickles and
+# to create them a tad faster.
+pickler=cPickle.Pickler()
+pickler.fast=1 # Don't use the memo
+dump=pickler.dump
 
+class asyncRPC(SizedMessageAsyncConnection):
 
-class syncRPC:
-    """Synchronous rpc"""
+    __map=0
+    def __Wakeup(*args): pass
 
-    _outOfBand=None
-
-    def __init__(self, connection, outOfBand=None):
-        host, port = connection
-        s=socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.connect(host, port)
-        self._sync__s=s
-        self._sync__q=[]
+    def __init__(self, connection, outOfBand=None, tmin=5, tmax=300, debug=0):
+        self._connection=connection
         self._outOfBand=outOfBand
+        self._tmin, self._tmax = tmin, tmax
+        self._debug=debug
+
+        l=allocate_lock() # Response lock used to wait for call results
+        self.__la=l.acquire
+        self.__lr=l.release
+        self.__r=None
+        l.acquire()
+
+    def connect(self, tryonce=1):
+        t=self._tmin
+        connection = self._connection
+        debug=self._debug
+        while 1:
+            try:
+                if type(connection) is type(''):
+                    s=socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+                else:
+                    s=socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                s.connect(connection)    
+            except:
+                if debug:
+                    LOG(debug, DEBUG, "Failed to connect to server")
+                if tryonce: return 0
+                time.sleep(t)
+                t=t*2
+                if t > self._tmax: t=self._tmax
+            else:
+                if debug:
+                    LOG(debug, DEBUG, "Connected to server")
+                    
+                # Make sure the result lock is set, se we don't
+                # get an old result (e.g. the exception that
+                # we generated on close).
+                self.__r=None
+                self.__la(0)
+                
+                self.aq_parent.notifyConnected(s)
+                return 1
+
+    def finishConnect(self, s):
+        SizedMessageAsyncConnection.__init__(self, s, {})
+
+    # we are our own socket map!
+    def keys(self): return (self._fileno,)
+    def values(self): return (self,)
+    def items(self): return ((self._fileno,self),)
+    def __len__(self): return 1
+    def __getitem__(self, key):
+        if key==self._fileno: return self
+        raise KeyError, key
+
+    def readLoop(self):
+        la=self.__la
+        while not la(0):
+            asyncore.poll(60.0, self)
+        self.__lr()
+
+    def setLoop(self, map=None, Wakeup=lambda : None):
+        if map is None: self.__map=0
+        else:
+            self.add_channel(map) # asyncore registration
+            self.__map=1
+
+        self.__Wakeup=Wakeup
+         
+    def __call__(self, *args):
+        args=dump(args,1)
+        self.message_output(args)
+
+        if self.__map: self.__Wakeup() # You dumb bastard
+        else: self.readLoop()
+
+        while 1:
+            r=self._read()
+            c=r[:1]
+            if c=='R':
+                if r=='RN.': return None # Common case!
+                return loads(r[1:])
+            if c=='E':
+                r=loads(r[1:])
+                if type(r) is TupleType: raise r[0], r[1]
+                raise r
+            oob=self._outOfBand
+            if oob is not None:
+                r=r[1:]
+                if r=='N.': r=None # Common case!
+                else: r=loads(r)
+                oob(c, r)
+            else:
+                raise UnrecognizedResult, r
+
+    def sendMessage(self, *args):
+        self.message_output(dump(args,1))
+        if self.__map: self.__Wakeup() # You dumb bastard
+        else: asyncore.poll(0.0, self)
 
     def setOutOfBand(self, f):
         """Define a call-back function for handling out-of-band communication
@@ -80,117 +219,11 @@ class syncRPC:
 
         self._outOfBand=f
 
-    def close(self): self._sync__s.close()
-        
-    def __call__(self, *args):
-        args=dumps(args,1)
-        self._write(args)
-        while 1:
-            r=self._read()
-            c=r[:1]
-            if c=='R':
-                return loads(r[1:])
-            if c=='E':
-                r=loads(r[1:])
-                if type(r) is TupleType: raise r[0], r[1]
-                raise r
-            oob=self._outOfBand
-            if oob is not None:
-                oob(c, loads(r[1:]))
-            else:
-                raise UnrecognizedResult, r
-
-    def queue(self, *args):
-        self._sync__q.append(dumps(args,1))
-
-    def send(self, *args):
-        self._write(dumps(args,1))
-
-    def _write(self, data, pack=struct.pack):
-        send=self._sync__s.send
-        h=pack(">i", len(data))
-        l=len(h)
-        while l > 0:
-            sent=send(h)
-            h=h[sent:]
-            l=l-sent
-        l=len(data)
-        while l > 0:
-            sent=send(data)
-            data=data[sent:]
-            l=l-sent
-
-    def _read(self, _st=type(''), join=string.join, unpack=struct.unpack):
-        recv=self._sync__s.recv
-
-        l=4
-
-        data=None
-        while l > 0:
-            d=recv(l)
-            if data is None: data=d
-            elif type(data) is _st: data=[data, d]
-            else: data.append(d)
-            l=l-len(d)
-        if type(data) is not _st: data=join(data,'')
-
-        l,=unpack(">i", data)
-
-        data=None
-        while l > 0:
-            d=recv(l)
-            if data is None: data=d
-            elif type(data) is _st: data=[data, d]
-            else: data.append(d)
-            l=l-len(d)
-        if type(data) is not _st: data=join(data,'')
-
-        return data
-   
-    
-class asyncRPC(SizedMessageAsyncConnection, syncRPC):
-
-    def __init__(self, connection, outOfBand=None):
-        try:
-            host, port = connection
-        except:
-            s=connection._sync__s
-            SizedMessageAsyncConnection.__init__(self, s, None)
-            self._outOfBand=connection._outOfBand
-            for m in connection._sync__q:
-                self.message_output(m)
-                
-        else:
-            s=socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            s.connect(host, port)
-            SizedMessageAsyncConnection.__init__(self, s, None)
-            self._outOfBand=outOfBand
-            
-        l=allocate_lock()
-        self.__la=l.acquire
-        self.__lr=l.release
-        self.__r=None
-        l.acquire()
-
-        global Wakeup
-        if Wakeup is None:
-            import ZServer.PubCore.ZEvent
-            Wakeup=ZServer.PubCore.ZEvent.Wakeup
-
-    def queue(self, *args):
-        self.message_output(dumps(args,1))
-        Wakeup() # You dumb bastard
-    
-    def _write(self, data):
-        self.message_output(data)
-        Wakeup() # You dumb bastard
-
     def message_input(self, m):
-        if __debug__:
+        if self._debug:
             md=`m`
             if len(m) > 60: md=md[:60]+' ...'
-            print 'message_input', md
-            
+            LOG(self._debug, TRACE, 'message_input %s' % md)
 
         c=m[:1]
         if c in 'RE':
@@ -198,11 +231,19 @@ class asyncRPC(SizedMessageAsyncConnection, syncRPC):
             self.__lr()
         else:
             oob=self._outOfBand
-            if oob is not None: oob(c, loads(m[1:]))
+            if oob is not None:
+                m=m[1:]
+                if m=='N.': m=None
+                else: m=loads(m)
+                oob(c, m)
 
     def _read(self):
         self.__la()
         return self.__r
         
-
-
+    def close(self):
+        asyncRPC.inheritedAttribute('close')(self)
+        self.aq_parent.notifyDisconnected(self)
+        self.__r='E'+dump(sys.exc_info()[:2], 1)
+        try: self.__lr()
+        except: pass

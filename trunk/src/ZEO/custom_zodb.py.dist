@@ -3,7 +3,7 @@
 # This file tells Zope to look to a ZEO Storage Server for all of its
 # database objects.
 
-__version__ = "$Revision: 1.4 $"[11:-2]
+__version__ = "$Revision: 1.5 $"[11:-2]
 
 # First we have to get the right ZEO components 
 import ZEO.ClientStorage
@@ -12,10 +12,9 @@ import ZEO.ClientStorage
 
 ZSS_HOST = ''                           # Host name where ZSS is running
 ZSS_PORT = 8800                         # Port that the ZSS is running on
-ZSS_ASYNC = 1                           # Set to 1 for async calls
 ZSS_NAME = 'ZEOStorage'                 # Name of the storage being used
 
 # Now we tell Zope where its storage is:
 Storage=ZEO.ClientStorage.ClientStorage((ZSS_HOST, ZSS_PORT),
-                                        async=ZSS_ASYNC, name=ZSS_NAME)
+                                        name=ZSS_NAME)
 

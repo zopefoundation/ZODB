@@ -1,29 +1,65 @@
-######################################################################
-# Digital Creations Options License Version 0.9.0
-# -----------------------------------------------
+##############################################################################
 # 
-# Copyright (c) 1999, Digital Creations.  All rights reserved.
+# Zope Public License (ZPL) Version 1.0
+# -------------------------------------
 # 
-# This license covers Zope software delivered as "options" by Digital
-# Creations.
+# Copyright (c) Digital Creations.  All rights reserved.
 # 
-# Use in source and binary forms, with or without modification, are
-# permitted provided that the following conditions are met:
+# This license has been certified as Open Source(tm).
 # 
-# 1. Redistributions are not permitted in any form.
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
 # 
-# 2. This license permits one copy of software to be used by up to five
-#    developers in a single company. Use by more than five developers
-#    requires additional licenses.
+# 1. Redistributions in source code must retain the above copyright
+#    notice, this list of conditions, and the following disclaimer.
 # 
-# 3. Software may be used to operate any type of website, including
-#    publicly accessible ones.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions, and the following disclaimer in
+#    the documentation and/or other materials provided with the
+#    distribution.
 # 
-# 4. Software is not fully documented, and the customer acknowledges
-#    that the product can best be utilized by reading the source code.
+# 3. Digital Creations requests that attribution be given to Zope
+#    in any manner possible. Zope includes a "Powered by Zope"
+#    button that is installed by default. While it is not a license
+#    violation to remove this button, it is requested that the
+#    attribution remain. A significant investment has been put
+#    into Zope, and this effort will continue if the Zope community
+#    continues to grow. This is one way to assure that growth.
 # 
-# 5. Support for software is included for 90 days in email only. Further
-#    support can be purchased separately.
+# 4. All advertising materials and documentation mentioning
+#    features derived from or use of this software must display
+#    the following acknowledgement:
+# 
+#      "This product includes software developed by Digital Creations
+#      for use in the Z Object Publishing Environment
+#      (http://www.zope.org/)."
+# 
+#    In the event that the product being advertised includes an
+#    intact Zope distribution (with copyright and license included)
+#    then this clause is waived.
+# 
+# 5. Names associated with Zope or Digital Creations must not be used to
+#    endorse or promote products derived from this software without
+#    prior written permission from Digital Creations.
+# 
+# 6. Modified redistributions of any form whatsoever must retain
+#    the following acknowledgment:
+# 
+#      "This product includes software developed by Digital Creations
+#      for use in the Z Object Publishing Environment
+#      (http://www.zope.org/)."
+# 
+#    Intact (re-)distributions of any official Zope release do not
+#    require an external acknowledgement.
+# 
+# 7. Modifications are encouraged but must be packaged separately as
+#    patches to official Zope releases.  Distributions that do not
+#    clearly separate the patches from the original work must be clearly
+#    labeled as unofficial distributions.  Modifications which do not
+#    carry the name Zope may be packaged in any form, as long as they
+#    conform to all of the clauses above.
+# 
 # 
 # Disclaimer
 # 
@@ -39,7 +75,13 @@
 #   OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
 #   OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 #   SUCH DAMAGE.
-######################################################################
+# 
+# 
+# This software consists of contributions made by Digital Creations and
+# many individuals on behalf of Digital Creations.  Specific
+# attributions are listed in the accompanying credits file.
+# 
+##############################################################################
 """Implement a client cache
  
 The cache is managed as two files, var/c0.zec and var/c1.zec.
@@ -102,7 +144,7 @@ file 0 and file 1.
 
 """
 
-__version__ = "$Revision: 1.4 $"[11:-2]
+__version__ = "$Revision: 1.5 $"[11:-2]
 
 import os, tempfile
 from struct import pack, unpack
@@ -111,9 +153,9 @@ magic='ZEC0'
 
 class ClientCache:
 
-    def __init__(self, storage='', size=20000000, client=None):
-        var=os.path.join(INSTANCE_HOME,'var')
+    def __init__(self, storage='', size=20000000, client=None, var=None):
         if client:
+            if var is None: var=os.path.join(INSTANCE_HOME,'var')
             self._p=p=map(lambda i, p=storage, var=var, c=client:
                           os.path.join(var,'c%s-%s-%s.zec' % (p, c, i)),
                           (0,1))
@@ -317,6 +359,12 @@ def read_index(index, serial, f, current):
             if current: index[oid]=-pos
             else: index[oid]=pos
             serial[oid]=h[-8:], vs
+        else:
+            if serial.has_key(oid):
+                # We has a record for this oid, but it was invalidated!
+                del serial[oid]
+                del index[oid]
+            
             
         pos=pos+tlen
 
