@@ -11,8 +11,8 @@ class DemoStorageTests(StorageTestBase.StorageTestBase,
                        ):
 
     def setUp(self):
-        self._storage = ZODB.DemoStorage.DemoStorage()
         StorageTestBase.StorageTestBase.setUp(self)
+        self._storage = ZODB.DemoStorage.DemoStorage()
 
 def test_suite():
     suite = unittest.makeSuite(DemoStorageTests, 'check')

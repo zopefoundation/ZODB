@@ -10,7 +10,8 @@ from ZODB.Transaction import Transaction
 from ZODB import POSException
 
 from ZODB.tests.MinPO import MinPO
-from ZODB.tests.StorageTestBase import zodb_unpickle, zodb_pickle
+from ZODB.tests.StorageTestBase \
+     import zodb_unpickle, zodb_pickle, handle_serials
 
 ZERO = '\0'*8
 
@@ -77,7 +78,7 @@ class BasicStorage:
                                        '', txn)
         r2 = self._storage.tpc_vote(txn)
         self._storage.tpc_finish(txn)
-        newrevid = self._handle_serials(oid, r1, r2)
+        newrevid = handle_serials(oid, r1, r2)
         data, revid = self._storage.load(oid, '')
         value = zodb_unpickle(data)
         eq(value, MinPO(11))
@@ -173,3 +174,14 @@ class BasicStorage:
         # And another one
         revid2 = self._dostore(oid, revid=revid1, data=p42)
         eq(revid2, self._storage.getSerial(oid))
+
+    def checkTwoArgBegin(self):
+        # XXX how standard is three-argument tpc_begin()?
+        t = Transaction()
+        tid = chr(42) * 8
+        self._storage.tpc_begin(t, tid)
+        oid = self._storage.new_oid()
+        data = zodb_pickle(MinPO(8))
+        self._storage.store(oid, None, data, '', t)
+        self._storage.tpc_vote(t)
+        self._storage.tpc_finish(t)
