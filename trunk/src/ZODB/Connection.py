@@ -84,8 +84,8 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.56 2001/05/22 23:21:22 jeremy Exp $"""
-__version__='$Revision: 1.56 $'[11:-2]
+$Id: Connection.py,v 1.57 2001/05/23 18:04:55 shane Exp $"""
+__version__='$Revision: 1.57 $'[11:-2]
 
 from cPickleCache import PickleCache
 from POSException import ConflictError, ExportError
@@ -441,7 +441,7 @@ class Connection(ExportImport.ExportImport):
             'Commiting subtransaction of size %s' % src.getSize())
         
         self._storage=tmp
-        self._tmp=_None
+        self._tmp=None
 
         tmp.tpc_begin(t)
         
