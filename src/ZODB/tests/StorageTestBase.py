@@ -1,3 +1,16 @@
+##############################################################################
+#
+# Copyright (c) 2001, 2002 Zope Corporation and Contributors.
+# All Rights Reserved.
+# 
+# This software is subject to the provisions of the Zope Public License,
+# Version 2.0 (ZPL).  A copy of the ZPL should accompany this distribution.
+# THIS SOFTWARE IS PROVIDED "AS IS" AND ANY AND ALL EXPRESS OR IMPLIED
+# WARRANTIES ARE DISCLAIMED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+# WARRANTIES OF TITLE, MERCHANTABILITY, AGAINST INFRINGEMENT, AND FITNESS
+# FOR A PARTICULAR PURPOSE.
+# 
+##############################################################################
 """Provide a mixin base class for storage tests.
 
 The StorageTestBase class provides basic setUp() and tearDown()
@@ -180,6 +193,7 @@ class StorageTestBase(unittest.TestCase):
     def _dostoreNP(self, oid=None, revid=None, data=None, version=None,
                    user=None, description=None):
         return self._dostore(oid, revid, data, version, already_pickled=1)
+    
     # The following methods depend on optional storage features.
 
     def _undo(self, tid, oid):

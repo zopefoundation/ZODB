@@ -1,3 +1,16 @@
+##############################################################################
+#
+# Copyright (c) 2001, 2002 Zope Corporation and Contributors.
+# All Rights Reserved.
+# 
+# This software is subject to the provisions of the Zope Public License,
+# Version 2.0 (ZPL).  A copy of the ZPL should accompany this distribution.
+# THIS SOFTWARE IS PROVIDED "AS IS" AND ANY AND ALL EXPRESS OR IMPLIED
+# WARRANTIES ARE DISCLAIMED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+# WARRANTIES OF TITLE, MERCHANTABILITY, AGAINST INFRINGEMENT, AND FITNESS
+# FOR A PARTICULAR PURPOSE.
+# 
+##############################################################################
 """More recovery and iterator tests."""
 
 from ZODB.Transaction import Transaction
@@ -70,7 +83,13 @@ class RecoveryStorage(IteratorDeepCompare):
 
         # now copy the records to a new storage
         self._dst.copyTransactionsFrom(self._storage)
-        
+        self.compare(self._storage, self._dst)
+
+        # The last two transactions were applied directly rather than
+        # copied.  So we can't use compare() to verify that they new
+        # transactions are applied correctly.  (The new transactions
+        # will have different timestamps for each storage.)
+
         self._abortVersion(version)
         self.assert_(self._storage.versionEmpty(version))
         self._undo(self._storage.undoInfo()[0]['id'], oid)
@@ -96,10 +115,13 @@ class RecoveryStorage(IteratorDeepCompare):
         data, revid = self._storage.load(oid, '')
         self.assertEqual(zodb_unpickle(data), MinPO(91))
 
+        # swap them back
+        self._storage = tmp
+
         # Now remove _dst and copy all the transactions a second time.
         # This time we will be able to confirm via compare().
-        self._storage = tmp
         self._dst.close()
-        self._dst = self.new_dest()
+        StorageTestBase.removefs("Dest.fs")
+        self._dst = ZODB.FileStorage.FileStorage('Dest.fs')
         self._dst.copyTransactionsFrom(self._storage)
         self.compare(self._storage, self._dst)

@@ -1,3 +1,16 @@
+##############################################################################
+#
+# Copyright (c) 2001, 2002 Zope Corporation and Contributors.
+# All Rights Reserved.
+# 
+# This software is subject to the provisions of the Zope Public License,
+# Version 2.0 (ZPL).  A copy of the ZPL should accompany this distribution.
+# THIS SOFTWARE IS PROVIDED "AS IS" AND ANY AND ALL EXPRESS OR IMPLIED
+# WARRANTIES ARE DISCLAIMED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+# WARRANTIES OF TITLE, MERCHANTABILITY, AGAINST INFRINGEMENT, AND FITNESS
+# FOR A PARTICULAR PURPOSE.
+# 
+##############################################################################
 from ZODB.POSException import ReadOnlyError
 from ZODB.Transaction import Transaction
 
@@ -30,8 +43,6 @@ class ReadOnlyStorage:
     def checkWriteMethods(self):
         self._make_readonly()
         self.assertRaises(ReadOnlyError, self._storage.new_oid)
-        self.assertRaises(ReadOnlyError, self._storage.undo,
-                          '\000' * 8)
         t = Transaction()
         self.assertRaises(ReadOnlyError, self._storage.tpc_begin, t)
 
