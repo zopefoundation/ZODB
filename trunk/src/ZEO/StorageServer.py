@@ -26,6 +26,7 @@ import os
 import sys
 import threading
 import time
+import logging
 
 import transaction
 
@@ -37,23 +38,30 @@ from ZEO.zrpc.connection import ManagedServerConnection, Delay, MTDelay
 from ZEO.zrpc.trigger import trigger
 from ZEO.Exceptions import AuthError
 
-import zLOG
 from ZODB.ConflictResolution import ResolvedSerial
 from ZODB.POSException import StorageError, StorageTransactionError
 from ZODB.POSException import TransactionError, ReadOnlyError, ConflictError
 from ZODB.serialize import referencesf
 from ZODB.utils import u64, oid_repr
+from ZODB.loglevels import BLATHER
 
-_label = "ZSS" # Default label used for logging.
+logger = logging.getLogger('ZEO.StorageServer')
+
+# XXX This used to say "ZSS", which is now implied in the logger name, can this
+#     be either set to str(os.getpid()) (if that makes sense) or removed?
+_label = "" # default label used for logging.
 
 def set_label():
     """Internal helper to reset the logging label (e.g. after fork())."""
     global _label
-    _label = "ZSS:%s" % os.getpid()
+    _label = "%s" % os.getpid()
 
-def log(message, level=zLOG.INFO, label=None, error=None):
-    """Internal helper to log a message using zLOG."""
-    zLOG.LOG(label or _label, level, message, error=error)
+def log(message, level=logging.INFO, label=None, exc_info=False):
+    """Internal helper to log a message."""
+    label = label or _label
+    if label:
+        message = "(%s) %s" % (label, message)
+    logger.log(level, message, exc_info=exc_info)
 
 class StorageServerError(StorageError):
     """Error reported when an unpickleable exception is raised."""
@@ -131,8 +139,8 @@ class ZEOStorage:
         name = self.__class__.__name__
         return "<%s %X trans=%s s_trans=%s>" % (name, id(self), tid, stid)
 
-    def log(self, msg, level=zLOG.INFO, error=None):
-        zLOG.LOG(self.log_label, level, msg, error=error)
+    def log(self, msg, level=logging.INFO, exc_info=False):
+        log(msg, level=level, label=self.log_label, exc_info=exc_info)
 
     def setup_delegation(self):
         """Delegate several methods to the storage"""
@@ -164,7 +172,8 @@ class ZEOStorage:
             raise ReadOnlyError()
         if self.transaction is None:
             caller = sys._getframe().f_back.f_code.co_name
-            self.log("no current transaction: %s()" % caller, zLOG.PROBLEM)
+            self.log("no current transaction: %s()" % caller,
+                     level=logging.WARNING)
             if exc is not None:
                 raise exc(None, tid)
             else:
@@ -173,7 +182,7 @@ class ZEOStorage:
             caller = sys._getframe().f_back.f_code.co_name
             self.log("%s(%s) invalid; current transaction = %s" %
                      (caller, repr(tid), repr(self.transaction.id)),
-                     zLOG.PROBLEM)
+                     logging.WARNING)
             if exc is not None:
                 raise exc(self.transaction.id, tid)
             else:
@@ -412,7 +421,7 @@ class ZEOStorage:
             self.locked = 0
             self.timeout.end(self)
             self.stats.lock_time = None
-            self.log("Transaction released storage lock", zLOG.BLATHER)
+            self.log("Transaction released storage lock", BLATHER)
             # _handle_waiting() can start another transaction (by
             # restarting a waiting one) so must be done last
             self._handle_waiting()
@@ -494,13 +503,11 @@ class ZEOStorage:
             if isinstance(err, ConflictError):
                 self.stats.conflicts += 1
                 self.log("conflict error oid=%s msg=%s" %
-                         (oid_repr(oid), str(err)), zLOG.BLATHER)
+                         (oid_repr(oid), str(err)), BLATHER)
             if not isinstance(err, TransactionError):
                 # Unexpected errors are logged and passed to the client
-                exc_info = sys.exc_info()
-                self.log("store error: %s, %s" % exc_info[:2],
-                         zLOG.ERROR, error=exc_info)
-                del exc_info
+                self.log("store error: %s, %s" % sys.exc_info()[:2],
+                         logging.ERROR, exc_info=True)
             # Try to pickle the exception.  If it can't be pickled,
             # the RPC response would fail, so use something else.
             pickler = cPickle.Pickler()
@@ -509,7 +516,7 @@ class ZEOStorage:
                 pickler.dump(err, 1)
             except:
                 msg = "Couldn't pickle storage exception: %s" % repr(err)
-                self.log(msg, zLOG.ERROR)
+                self.log(msg, logging.ERROR)
                 err = StorageServerError(msg)
             # The exception is reported back as newserial for this oid
             newserial = err
@@ -518,7 +525,7 @@ class ZEOStorage:
                 self.invalidated.append((oid, version))
         if newserial == ResolvedSerial:
             self.stats.conflicts_resolved += 1
-            self.log("conflict resolved oid=%s" % oid_repr(oid), zLOG.BLATHER)
+            self.log("conflict resolved oid=%s" % oid_repr(oid), BLATHER)
         self.serials.append((oid, newserial))
         return err is None
 
@@ -572,7 +579,7 @@ class ZEOStorage:
                      "Clients waiting: %d." % len(self.storage._waiting))
             return d
         else:
-            self.log("Transaction acquired storage lock.", zLOG.BLATHER)
+            self.log("Transaction acquired storage lock.", BLATHER)
             return self._restart()
 
     def _restart(self, delay=None):
@@ -582,7 +589,7 @@ class ZEOStorage:
         else:
             template = "Preparing to commit transaction: %d objects, %d bytes"
         self.log(template % (self.txnlog.stores, self.txnlog.size()),
-                 level=zLOG.BLATHER)
+                 level=BLATHER)
         self._tpc_begin(self.transaction, self.tid, self.status)
         loads, loader = self.txnlog.get_loader()
         for i in range(loads):
@@ -615,7 +622,7 @@ class ZEOStorage:
             zeo_storage._restart(delay)
         except:
             self.log("Unexpected error handling waiting transaction",
-                     level=zLOG.WARNING, error=sys.exc_info())
+                     level=logging.WARNING, exc_info=True)
             zeo_storage.connection.close()
             return 0
         else:
@@ -794,7 +801,7 @@ class StorageServer:
             zstorage = self.ZEOStorageClass(self, self.read_only)
 
         c = self.ManagedServerConnectionClass(sock, addr, zstorage, self)
-        log("new connection %s: %s" % (addr, `c`))
+        log("new connection %s: %s" % (addr, repr(c)))
         return c
 
     def register_connection(self, storage_id, conn):

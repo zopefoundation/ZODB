@@ -36,16 +36,26 @@ import os
 import sys
 import signal
 import socket
+import logging
 
 import ZConfig, ZConfig.datatypes
-import zLOG
 import ZEO
 from zdaemon.zdoptions import ZDOptions
+
+logger = logging.getLogger('ZEO.runzeo')
+_pid = str(os.getpid())
+
+def log(msg, level=logging.INFO, exc_info=False):
+    """Internal: generic logging function."""
+    message = "(%s) %s" % (_pid, msg)
+    logger.log(level, message, exc_info=exc_info)
+
 
 def parse_address(arg):
     # XXX Not part of the official ZConfig API
     obj = ZConfig.datatypes.SocketAddress(arg)
     return obj.family, obj.address
+
 
 class ZEOOptionsMixin:
 
@@ -129,7 +139,6 @@ class ZEOServer:
         if self.options.config_logger is not None:
             return
         # No log file is configured; default to stderr.
-        import logging
         logger = logging.getLogger()
         handler = logging.StreamHandler()
         handler.setLevel(logging.INFO)
@@ -160,8 +169,8 @@ class ZEOServer:
     def open_storages(self):
         self.storages = {}
         for opener in self.options.storages:
-            info("opening storage %r using %s"
-                 % (opener.name, opener.__class__.__name__))
+            log("opening storage %r using %s"
+                % (opener.name, opener.__class__.__name__))
             self.storages[opener.name] = opener.open()
 
     def setup_signals(self):
@@ -202,33 +211,31 @@ class ZEOServer:
         ThreadedAsync.LoopCallback.loop()
 
     def handle_sigterm(self):
-        info("terminated by SIGTERM")
+        log("terminated by SIGTERM")
         sys.exit(0)
 
     def handle_sigint(self):
-        info("terminated by SIGINT")
+        log("terminated by SIGINT")
         sys.exit(0)
 
     def handle_sighup(self):
-        info("restarted by SIGHUP")
+        log("restarted by SIGHUP")
         sys.exit(1)
 
     def handle_sigusr2(self):
-        # This requires a modern zLOG (from Zope 2.6 or later); older
-        # zLOG packages don't have the initialize() method
-        info("reinitializing zLOG")
-        # XXX Shouldn't this be below with _log()?
-        import zLOG
-        zLOG.initialize()
-        info("reinitialized zLOG")
+        # XXX this used to reinitialize zLOG. How do I achieve
+        #     the same effect with Python's logging package?
+        #     Should we restart as with SIGHUP?
+        log("received SIGUSR2, but it was not handled!", level=logging.WARNING)
 
     def close_storages(self):
         for name, storage in self.storages.items():
-            info("closing storage %r" % name)
+            log("closing storage %r" % name)
             try:
                 storage.close()
             except: # Keep going
-                exception("failed to close storage %r" % name)
+                log("failed to close storage %r" % name,
+                    level=logging.EXCEPTION, exc_info=True)
 
 
 # Signal names
@@ -255,43 +262,6 @@ def init_signames():
             continue
         if k_startswith("SIG") and not k_startswith("SIG_"):
             signames[sig] = name
-
-
-# Log messages with various severities.
-# This uses zLOG, but the API is a simplified version of PEP 282
-
-def critical(msg):
-    """Log a critical message."""
-    _log(msg, zLOG.PANIC)
-
-def error(msg):
-    """Log an error message."""
-    _log(msg, zLOG.ERROR)
-
-def exception(msg):
-    """Log an exception (an error message with a traceback attached)."""
-    _log(msg, zLOG.ERROR, error=sys.exc_info())
-
-def warn(msg):
-    """Log a warning message."""
-    _log(msg, zLOG.PROBLEM)
-
-def info(msg):
-    """Log an informational message."""
-    _log(msg, zLOG.INFO)
-
-def debug(msg):
-    """Log a debugging message."""
-    _log(msg, zLOG.DEBUG)
-
-# XXX It would be nice if a program that extended this one (like
-# runzrs) could change the label.
-
-_label = "RUNZEO:%d" % os.getpid()
-
-def _log(msg, severity=zLOG.INFO, error=None):
-    """Internal: generic logging function."""
-    zLOG.LOG(_label, severity, msg, "", error)
 
 
 # Main program

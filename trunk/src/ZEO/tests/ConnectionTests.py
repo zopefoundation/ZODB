@@ -19,8 +19,7 @@ import random
 import asyncore
 import tempfile
 import threading
-
-import zLOG
+import logging
 
 import ZEO.ServerStub
 from ZEO.ClientStorage import ClientStorage
@@ -37,6 +36,8 @@ from ZODB.tests.StorageTestBase \
 
 import transaction
 from transaction import Transaction
+
+logger = logging.getLogger('ZEO.tests.ConnectionTests')
 
 ZERO = '\0'*8
 
@@ -91,7 +92,7 @@ class CommonSetupTearDown(StorageTestBase):
         for i in 1, 2, ...
         """
         self.__super_setUp()
-        zLOG.LOG("testZEO", zLOG.INFO, "setUp() %s" % self.id())
+        logging.info("setUp() %s", self.id())
         self.file = tempfile.mktemp()
         self.addr = []
         self._pids = []
@@ -103,13 +104,13 @@ class CommonSetupTearDown(StorageTestBase):
 
     def tearDown(self):
         """Try to cause the tests to halt"""
-        zLOG.LOG("testZEO", zLOG.INFO, "tearDown() %s" % self.id())
+        logging.info("tearDown() %s" % self.id())
         for p in self.conf_paths:
             os.remove(p)
         if getattr(self, '_storage', None) is not None:
             self._storage.close()
             if hasattr(self._storage, 'cleanup'):
-                zLOG.LOG("testZEO", zLOG.DEBUG, "cleanup storage %s" %
+                logging.debug("cleanup storage %s" %
                          self._storage.__name__)
                 self._storage.cleanup()
         for adminaddr in self._servers:
@@ -191,9 +192,8 @@ class CommonSetupTearDown(StorageTestBase):
 
     def startServer(self, create=1, index=0, read_only=0, ro_svr=0, keep=None):
         addr = self.addr[index]
-        zLOG.LOG("testZEO", zLOG.INFO,
-                 "startServer(create=%d, index=%d, read_only=%d) @ %s" %
-                 (create, index, read_only, addr))
+        logging.info("startServer(create=%d, index=%d, read_only=%d) @ %s" %
+                     (create, index, read_only, addr))
         path = "%s.%d" % (self.file, index)
         sconf = self.getConfig(path, create, read_only)
         zconf = self.getServerConfig(addr, ro_svr)
@@ -206,8 +206,8 @@ class CommonSetupTearDown(StorageTestBase):
         self._servers.append(adminaddr)
 
     def shutdownServer(self, index=0):
-        zLOG.LOG("testZEO", zLOG.INFO, "shutdownServer(index=%d) @ %s" %
-                 (index, self._servers[index]))
+        logging.info("shutdownServer(index=%d) @ %s" %
+                     (index, self._servers[index]))
         adminaddr = self._servers[index]
         if adminaddr is not None:
             forker.shutdown_zeo_server(adminaddr)
@@ -450,11 +450,9 @@ class ConnectionTests(CommonSetupTearDown):
         oid = self._storage.new_oid()
         obj = MinPO(12)
         self._dostore(oid, data=obj)
-        zLOG.LOG("checkReconnection", zLOG.INFO,
-                 "About to shutdown server")
+        logging.info("checkReconnection(): About to shutdown server")
         self.shutdownServer()
-        zLOG.LOG("checkReconnection", zLOG.INFO,
-                 "About to restart server")
+        logging.info("checkReconnection(): About to restart server")
         self.startServer(create=0)
         oid = self._storage.new_oid()
         obj = MinPO(12)
@@ -464,13 +462,12 @@ class ConnectionTests(CommonSetupTearDown):
                 break
             except ClientDisconnected:
                 # Maybe the exception mess is better now
-                zLOG.LOG("checkReconnection", zLOG.INFO,
-                         "Error after server restart; retrying.",
-                         error=sys.exc_info())
+                logging.info("checkReconnection(): Error after"
+                             " server restart; retrying.", exc_info=True)
                 transaction.abort()
             # Give the other thread a chance to run.
             time.sleep(0.1)
-        zLOG.LOG("checkReconnection", zLOG.INFO, "finished")
+        logging.info("checkReconnection(): finished")
         self._storage.close()
 
     def checkBadMessage1(self):
@@ -832,7 +829,7 @@ class ReconnectionTests(CommonSetupTearDown):
         self.pollDown()
         self._storage.verify_result = None
         perstorage.verify_result = None
-        zLOG.LOG("testZEO", zLOG.INFO, '2ALLBEEF')
+        logging.info('2ALLBEEF')
         self.startServer(create=0, keep=0)
         self.pollUp()
         self.pollUp(storage=perstorage)
