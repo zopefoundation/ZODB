@@ -11,7 +11,7 @@
 # FOR A PARTICULAR PURPOSE
 #
 ##############################################################################
-__version__='$Revision: 1.13 $'[11:-2]
+__version__='$Revision: 1.14 $'[11:-2]
 
 import os, sys, time
 
@@ -75,24 +75,24 @@ class stupid_log_write:
     def log(self, subsystem, severity, summary, detail, error):
         if _log_dest is None or severity < _log_level:
             return
+        buf = ["------",
+               "%s %s %s %s" %
+               (log_time(), severity_string(severity), subsystem, summary)]
 
         if detail:
-            buf = ("------\n"
-                   "%s %s %s %s\n%s" % (log_time(), severity_string(severity),
-                                        subsystem, summary, detail))
-        else:
-            buf = ("------\n"
-                   "%s %s %s %s" % (log_time(), severity_string(severity),
-                                    subsystem, summary))
-        print >> _log_dest, buf
+            buf.append(str(detail))
 
         if error:
             try:
                 lines = format_exception(error[0], error[1], error[2],
                                          limit=100)
-                print >> _log_dest, ''.join(lines)
-            except:
-                print >> _log_dest, "%s: %s" % error[:2]
+                buf.append(''.join(lines))
+            except '':
+                buf.append("%s: %s" % error[:2])
+
+        buf.append("") # Cause a final \n to be appended
+
+        _log_dest.write("\n".join(buf))
         _log_dest.flush()
 
 
