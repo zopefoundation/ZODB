@@ -13,7 +13,7 @@
 ##############################################################################
 """Open database and storage from a configuration.
 
-$Id: config.py,v 1.3 2003/01/06 22:42:17 jeremy Exp $"""
+$Id: config.py,v 1.4 2003/01/07 23:25:11 fdrake Exp $"""
 
 import os
 import StringIO
@@ -91,7 +91,7 @@ class ZEOClient(StorageConfig):
         from ZEO.ClientStorage import ClientStorage
         # config.server is a multikey of socket-address values
         # where the value is a socket family, address tuple.
-        L = [addr for family, addr in self.config.server]
+        L = [server.address for server in self.config.server]
         return ClientStorage(
             L,
             storage=self.config.storage,
