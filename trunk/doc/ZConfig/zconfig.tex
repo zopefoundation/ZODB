@@ -382,12 +382,15 @@ The following datatypes are provided by the default type registry.
   non-root users.
 
 \term{socket-address}
-  An address for a socket.  The converted value is a pair containing
-  the address family (\constant{AF_INET} or \constant{AF_UNIX}) in the
-  first part and the specific address in the second part.  If the
-  family is \constant{AF_UNIX}, the specific address will be a
-  pathname; if the family is \constant{AF_INET}, the second part will
-  be the result of the \strong{inet-address} conversion.
+  An address for a socket.  The converted value is an object providing
+  two attributes.  \member{family} specifies the address family
+  (\constant{AF_INET} or \constant{AF_UNIX}), with \code{None} instead
+  of \constant{AF_UNIX} on platforms that don't support it.  The
+  \member{address} attribute will be the address that should be passed
+  to the socket's \method{bind()} method.  If the family is
+  \constant{AF_UNIX}, the specific address will be a pathname; if the
+  family is \constant{AF_INET}, the second part will be the result of
+  the \strong{inet-address} conversion.
 
 \term{string}
   Returns the input value as a string.  If the source is a Unicode
