@@ -82,7 +82,7 @@
   attributions are listed in the accompanying credits file.
   
  ****************************************************************************/
-static char *what_string = "$Id: cPersistence.c,v 1.36 2000/05/16 17:18:11 jim Exp $";
+static char *what_string = "$Id: cPersistence.c,v 1.37 2000/05/16 17:31:58 jim Exp $";
 
 #include <string.h>
 #include "cPersistence.h"
@@ -731,9 +731,7 @@ static PyExtensionClass Pertype = {
 	/* Space for future expansion */
 	0L,0L,"",
 	METHOD_CHAIN(Per_methods),
-	EXTENSIONCLASS_BASICNEW_FLAG 
-	| PERSISTENT_TYPE_FLAG 
-	| EXTENSIONCLASS_PYTHONICATTR_FLAG,
+	PERSISTENCE_FLAGS,
 };
 
 /* End of code for Persistent objects */
@@ -785,7 +783,7 @@ void
 initcPersistence()
 {
   PyObject *m, *d;
-  char *rev="$Revision: 1.36 $";
+  char *rev="$Revision: 1.37 $";
 
   TimeStamp=PyString_FromString("TimeStamp");
   if (! TimeStamp) return;
