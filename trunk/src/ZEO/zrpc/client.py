@@ -402,6 +402,8 @@ class ConnectThread(threading.Thread):
                     return -1
             assert wrap.state == "closed"
             del wrappers[wrap]
+
+            # XXX should check deadline
         
 
 class ConnectWrapper:
