@@ -16,6 +16,7 @@
 
 import cStringIO as StringIO
 import logging
+import sys
 import tempfile
 import unittest
 
@@ -102,6 +103,35 @@ class TestzLOGConfig(unittest.TestCase):
         logfile = logger.handlers[0]
         self.assertEqual(logfile.level, logging.DEBUG)
         self.assert_(isinstance(logfile, zLOG.LogHandlers.FileHandler))
+
+    def test_with_stderr(self):
+        self.check_standard_stream("stderr")
+
+    def test_with_stdout(self):
+        self.check_standard_stream("stdout")
+
+    def check_standard_stream(self, name):
+        old_stream = getattr(sys, name)
+        conf = self.get_config("""
+            <eventlog>
+              <logfile>
+                level info
+                path %s
+              </logfile>
+            </eventlog>
+            """ % name.upper())
+        self.assert_(conf.eventlog is not None)
+        # The factory has already been created; make sure it picks up
+        # the stderr we set here when we create the logger and
+        # handlers:
+        sio = StringIO.StringIO()
+        setattr(sys, name, sio)
+        try:
+            logger = conf.eventlog()
+        finally:
+            setattr(sys, name, old_stream)
+        logger.warn("woohoo!")
+        self.assert_(sio.getvalue().find("woohoo!") >= 0)
 
     def test_with_syslog(self):
         logger = self.check_simple_logger("<eventlog>\n"
