@@ -15,7 +15,7 @@
 static char cPickleCache_doc_string[] =
 "Defines the PickleCache used by ZODB Connection objects.\n"
 "\n"
-"$Id: cPickleCache.c,v 1.43 2002/04/01 23:36:34 jeremy Exp $\n";
+"$Id: cPickleCache.c,v 1.44 2002/04/01 23:45:48 jeremy Exp $\n";
 
 #define ASSIGN(V,E) {PyObject *__e; __e=(E); Py_XDECREF(V); (V)=__e;}
 #define UNLESS(E) if(!(E))
@@ -26,9 +26,7 @@ static char cPickleCache_doc_string[] =
 #include "cPersistence.h"
 #include <time.h>
 #include <stddef.h>
-
 #undef Py_FindMethod
-
 
 static PyObject *py__p_oid, *py_reload, *py__p_jar, *py__p_changed;
 
@@ -55,16 +53,13 @@ typedef struct {
     int cache_drain_resistance;
 } ccobject;
 
-staticforward PyTypeObject Cctype;
-
-
-staticforward int present_in_ring(ccobject *self,CPersistentRing *target);
-staticforward int check_ring(ccobject *self,const char *context);
-staticforward int cc_ass_sub(ccobject *self, PyObject *key, PyObject *v);
+static int present_in_ring(ccobject *self, CPersistentRing *target);
+static int check_ring(ccobject *self, const char *context);
+static int cc_ass_sub(ccobject *self, PyObject *key, PyObject *v);
 
 /* ---------------------------------------------------------------- */
 
-static PyObject *object_from_oid(ccobject *self,PyObject *key)
+static PyObject *object_from_oid(ccobject *self, PyObject *key)
 /* somewhat of a replacement for PyDict_GetItem(self->data....
    however this returns a *new* reference */
 {
@@ -537,32 +532,6 @@ static struct PyMethodDef cc_methods[] = {
   {NULL,		NULL}		/* sentinel */
 };
 
-static ccobject *
-newccobject(PyObject *jar, int cache_size, int cache_age)
-{
-  ccobject *self;
-  
-  UNLESS(self = PyObject_NEW(ccobject, &Cctype)) return NULL;
-  self->setklassstate=self->jar=NULL;
-  if((self->data=PyDict_New()))
-    {
-      self->jar=jar; 
-      Py_INCREF(jar);
-      UNLESS (self->setklassstate=PyObject_GetAttrString(jar, "setklassstate"))
-	return NULL;
-      self->cache_size=cache_size;
-      self->non_ghost_count=0;
-      self->klass_count=0;
-      self->cache_drain_resistance=0;
-      self->ring_lock=0;
-      self->ring_home.next = &self->ring_home;
-      self->ring_home.prev = &self->ring_home;
-      return self;
-    }
-  Py_DECREF(self);
-  return NULL;
-}
-
 static void
 cc_dealloc(ccobject *self)
 {
@@ -920,6 +889,32 @@ static PyTypeObject Cctype = {
   0L,0L,0L,0L,
   ""
 };
+
+static ccobject *
+newccobject(PyObject *jar, int cache_size, int cache_age)
+{
+  ccobject *self;
+  
+  UNLESS(self = PyObject_NEW(ccobject, &Cctype)) return NULL;
+  self->setklassstate=self->jar=NULL;
+  if((self->data=PyDict_New()))
+    {
+      self->jar=jar; 
+      Py_INCREF(jar);
+      UNLESS (self->setklassstate=PyObject_GetAttrString(jar, "setklassstate"))
+	return NULL;
+      self->cache_size=cache_size;
+      self->non_ghost_count=0;
+      self->klass_count=0;
+      self->cache_drain_resistance=0;
+      self->ring_lock=0;
+      self->ring_home.next = &self->ring_home;
+      self->ring_home.prev = &self->ring_home;
+      return self;
+    }
+  Py_DECREF(self);
+  return NULL;
+}
 
 static PyObject *
 cCM_new(PyObject *self, PyObject *args)
