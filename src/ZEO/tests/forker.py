@@ -91,7 +91,7 @@ def start_zeo_server(conf, addr=None, ro_svr=0, monitor=0, keep=0, invq=None,
     pid = os.spawnve(os.P_NOWAIT, sys.executable, tuple(args), d)
     adminaddr = ('localhost', port+1)
     # We need to wait until the server starts, but not forever
-    for i in range(10):
+    for i in range(20):
         time.sleep(0.25)
         try:
             zLOG.LOG('forker', zLOG.DEBUG, 'connect %s' % i)
