@@ -381,7 +381,8 @@ class ZEOStorage:
                 self._log("Blocked transaction restarted.")
 
     def _restart(self, zeo_storage, delay):
-        # call the restart() method on the appropriate server
+        # Return True if the server restarted.
+        # call the restart() method on the appropriate server.
         try:
             zeo_storage.restart(delay)
         except:
