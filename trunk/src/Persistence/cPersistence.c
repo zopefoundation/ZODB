@@ -1,6 +1,6 @@
 /***********************************************************************
 
-  $Id: cPersistence.c,v 1.23 1998/01/09 22:19:28 jim Exp $
+  $Id: cPersistence.c,v 1.24 1998/07/27 13:03:21 jim Exp $
 
   C Persistence Module
 
@@ -12,7 +12,7 @@
 
 
 *****************************************************************************/
-static char *what_string = "$Id: cPersistence.c,v 1.23 1998/01/09 22:19:28 jim Exp $";
+static char *what_string = "$Id: cPersistence.c,v 1.24 1998/07/27 13:03:21 jim Exp $";
 
 #include <time.h>
 #include "cPersistence.h"
@@ -647,7 +647,8 @@ Per_getattr(cPersistentObject *self, PyObject *oname, char *name,
 	return getattrf((PyObject *)self, oname);
       }
   if(! (*name++=='_' && *name++=='_' &&
-	(strcmp(name,"dict__")==0 || strcmp(name,"class__")==0)))
+	(strcmp(name,"dict__")==0 || strcmp(name,"class__")==0
+	 || strcmp(name, "of__")==0)))
     {
       /* Update state, if necessary */
       if(self->state==GHOST_STATE && self->jar)
@@ -858,7 +859,7 @@ void
 initcPersistence()
 {
   PyObject *m, *d;
-  char *rev="$Revision: 1.23 $";
+  char *rev="$Revision: 1.24 $";
 
   PATimeType.ob_type=&PyType_Type;
 
@@ -888,6 +889,9 @@ initcPersistence()
 /****************************************************************************
 
   $Log: cPersistence.c,v $
+  Revision 1.24  1998/07/27 13:03:21  jim
+  Added __of__ to list of attributes that don't activate object on access.
+
   Revision 1.23  1998/01/09 22:19:28  jim
   Fixed bug in deactivation logic.  The stupid thing was calling a
   constructor when deactivating.
