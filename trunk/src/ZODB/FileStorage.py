@@ -186,7 +186,7 @@
 #   may have a back pointer to a version record or to a non-version
 #   record.
 #
-__version__='$Revision: 1.71 $'[11:-2]
+__version__='$Revision: 1.72 $'[11:-2]
 
 import struct, time, os, bpthread, string, base64, sys
 from struct import pack, unpack
@@ -439,7 +439,7 @@ class FileStorage(BaseStorage.BaseStorage,
         try:
             info=p.load()
         except:
-            exc, err, tb = sys.exc_info()
+            exc, err = sys.exc_info()[:2]
             warn("Failed to load database index: %s: %s" %
                  (exc, err))
             return None
