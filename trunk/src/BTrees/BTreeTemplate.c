@@ -12,7 +12,7 @@
 
  ****************************************************************************/
 
-#define BTREETEMPLATE_C "$Id: BTreeTemplate.c,v 1.73 2003/04/10 23:36:55 tim_one Exp $\n"
+#define BTREETEMPLATE_C "$Id: BTreeTemplate.c,v 1.74 2003/04/11 16:09:58 tim_one Exp $\n"
 
 /* Sanity-check a BTree.  This is a private helper for BTree_check.  Return:
  *      -1         Error.  If it's an internal inconsistency in the BTree,
@@ -757,9 +757,22 @@ _BTree_set(BTree *self, PyObject *keyarg, PyObject *value,
 
     /* Remove the child from self->data. */
     Py_DECREF(d->child);
+#ifdef KEY_TYPE_IS_PYOBJECT
     if (min) {
         DECREF_KEY(d->key);
     }
+    else if (self->len > 1) {
+	/* We're deleting the first child of a BTree with more than one
+	 * child.  The key at d+1 is about to be shifted into slot 0,
+	 * and hence never to be referenced again (the key in slot 0 is
+	 * trash).
+	 */
+	DECREF_KEY((d+1)->key);
+    }
+    /* Else min==0 and len==1:  we're emptying the BTree entirely, and
+     * there is no key in need of decrefing.
+     */
+#endif
     --self->len;
     if (min < self->len)
         memmove(d, d+1, (self->len - min) * sizeof(BTreeItem));
