@@ -85,6 +85,10 @@ class ConflictResolvingStorage:
                           self._dostoreNP,
                           oid, revid=revid1, data=zodb_pickle(obj))
 
+    def checkZClassesArentResolved(self):
+        from ZODB.ConflictResolution import bad_class
+        dummy_class_tuple = ('*foobar', ())
+        assert bad_class(dummy_class_tuple) == 1
     
     def checkBuggyResolve1(self):
         obj = PCounter3()
