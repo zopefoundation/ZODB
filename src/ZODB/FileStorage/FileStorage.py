@@ -13,7 +13,7 @@
 ##############################################################################
 """Storage implementation using a log written to a single file.
 
-$Revision: 1.5 $
+$Revision: 1.6 $
 """
 
 import base64
@@ -116,7 +116,7 @@ class FileStorage(BaseStorage.BaseStorage,
                  quota=None):
 
         if read_only:
-            self._is_read_only = 1
+            self._is_read_only = True
             if create:
                 raise ValueError("can't create a read-only file")
         elif stop is not None:

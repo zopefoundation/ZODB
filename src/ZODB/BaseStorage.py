@@ -13,7 +13,7 @@
 ##############################################################################
 """Handy standard storage machinery
 
-$Id: BaseStorage.py,v 1.42 2004/02/19 18:51:03 jeremy Exp $
+$Id: BaseStorage.py,v 1.43 2004/02/26 22:53:23 jeremy Exp $
 """
 import cPickle
 import threading
@@ -31,7 +31,7 @@ from ZODB.utils import z64
 class BaseStorage(UndoLogCompatible):
     _transaction=None # Transaction that is being committed
     _tstatus=' '      # Transaction status, used for copying data
-    _is_read_only = 0
+    _is_read_only = False
 
     def __init__(self, name, base=None):
         self.__name__= name
