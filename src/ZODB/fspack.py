@@ -690,7 +690,7 @@ class FileStoragePacker(FileStorageFormatter):
             os.remove(self._name + ".pack")
             return None
         self._commit_lock_acquire()
-        self.locked = True
+        self.locked = 1
         self._lock_acquire()
         try:
             self._file.seek(0, 2)
