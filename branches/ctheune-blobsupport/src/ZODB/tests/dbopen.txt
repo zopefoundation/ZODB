@@ -1,0 +1,278 @@
+=====================
+Connection Management
+=====================
+
+
+Here we exercise the connection management done by the DB class.
+
+    >>> from ZODB import DB
+    >>> from ZODB.MappingStorage import MappingStorage as Storage
+
+Capturing log messages from DB is important for some of the examples:
+
+    >>> from zope.testing.loggingsupport import InstalledHandler
+    >>> handler = InstalledHandler('ZODB.DB')
+
+Create a storage, and wrap it in a DB wrapper:
+
+    >>> st = Storage()
+    >>> db = DB(st)
+
+By default, we can open 7 connections without any log messages:
+
+    >>> conns = [db.open() for dummy in range(7)]
+    >>> handler.records
+    []
+
+Open one more, and we get a warning:
+
+    >>> conns.append(db.open())
+    >>> len(handler.records)
+    1
+    >>> msg = handler.records[0]
+    >>> print msg.name, msg.levelname, msg.getMessage()
+    ZODB.DB WARNING DB.open() has 8 open connections with a pool_size of 7
+
+Open 6 more, and we get 6 more warnings:
+
+    >>> conns.extend([db.open() for dummy in range(6)])
+    >>> len(conns)
+    14
+    >>> len(handler.records)
+    7
+    >>> msg = handler.records[-1]
+    >>> print msg.name, msg.levelname, msg.getMessage()
+    ZODB.DB WARNING DB.open() has 14 open connections with a pool_size of 7
+
+Add another, so that it's more than twice the default, and the level
+rises to critical:
+
+    >>> conns.append(db.open())
+    >>> len(conns)
+    15
+    >>> len(handler.records)
+    8
+    >>> msg = handler.records[-1]
+    >>> print msg.name, msg.levelname, msg.getMessage()
+    ZODB.DB CRITICAL DB.open() has 15 open connections with a pool_size of 7
+
+While it's boring, it's important to verify that the same relationships
+hold if the default pool size is overridden.
+
+    >>> handler.clear()
+    >>> st.close()
+    >>> st = Storage()
+    >>> PS = 2 # smaller pool size
+    >>> db = DB(st, pool_size=PS)
+    >>> conns = [db.open() for dummy in range(PS)]
+    >>> handler.records
+    []
+
+A warning for opening one more:
+
+    >>> conns.append(db.open())
+    >>> len(handler.records)
+    1
+    >>> msg = handler.records[0]
+    >>> print msg.name, msg.levelname, msg.getMessage()
+    ZODB.DB WARNING DB.open() has 3 open connections with a pool_size of 2
+
+More warnings through 4 connections:
+
+    >>> conns.extend([db.open() for dummy in range(PS-1)])
+    >>> len(conns)
+    4
+    >>> len(handler.records)
+    2
+    >>> msg = handler.records[-1]
+    >>> print msg.name, msg.levelname, msg.getMessage()
+    ZODB.DB WARNING DB.open() has 4 open connections with a pool_size of 2
+
+And critical for going beyond that:
+
+    >>> conns.append(db.open())
+    >>> len(conns)
+    5
+    >>> len(handler.records)
+    3
+    >>> msg = handler.records[-1]
+    >>> print msg.name, msg.levelname, msg.getMessage()
+    ZODB.DB CRITICAL DB.open() has 5 open connections with a pool_size of 2
+
+We can change the pool size on the fly:
+
+    >>> handler.clear()
+    >>> db.setPoolSize(6)
+    >>> conns.append(db.open())
+    >>> handler.records  # no log msg -- the pool is bigger now
+    []
+    >>> conns.append(db.open()) # but one more and there's a warning again
+    >>> len(handler.records)
+    1
+    >>> msg = handler.records[0]
+    >>> print msg.name, msg.levelname, msg.getMessage()
+    ZODB.DB WARNING DB.open() has 7 open connections with a pool_size of 6
+
+Enough of that.
+
+    >>> handler.clear()
+    >>> st.close()
+
+More interesting is the stack-like nature of connection reuse.  So long as
+we keep opening new connections, and keep them alive, all connections
+returned are distinct:
+
+    >>> st = Storage()
+    >>> db = DB(st)
+    >>> c1 = db.open()
+    >>> c2 = db.open()
+    >>> c3 = db.open()
+    >>> c1 is c2 or c1 is c3 or c2 is c3
+    False
+
+Let's put some markers on the connections, so we can identify these
+specific objects later:
+
+    >>> c1.MARKER = 'c1'
+    >>> c2.MARKER = 'c2'
+    >>> c3.MARKER = 'c3'
+
+Now explicitly close c1 and c2:
+
+    >>> c1.close()
+    >>> c2.close()
+
+Reaching into the internals, we can see that db's connection pool now has
+two connections available for reuse, and knows about three connections in
+all:
+
+    >>> pool = db._pools['']
+    >>> len(pool.available)
+    2
+    >>> len(pool.all)
+    3
+
+Since we closed c2 last, it's at the top of the available stack, so will
+be reused by the next open():
+
+    >>> c1 = db.open()
+    >>> c1.MARKER
+    'c2'
+    >>> len(pool.available), len(pool.all)
+    (1, 3)
+
+    >>> c3.close()  # now the stack has c3 on top, then c1
+    >>> c2 = db.open()
+    >>> c2.MARKER
+    'c3'
+    >>> len(pool.available), len(pool.all)
+    (1, 3)
+    >>> c3 = db.open()
+    >>> c3.MARKER
+    'c1'
+    >>> len(pool.available), len(pool.all)
+    (0, 3)
+
+What about the 3 in pool.all?  We've seen that closing connections doesn't
+reduce pool.all, and it would be bad if DB kept connections alive forever.
+
+In fact pool.all is a "weak set" of connections -- it holds weak references
+to connections.  That alone doesn't keep connection objects alive.  The
+weak set allows DB's statistics methods to return info about connections
+that are still alive.
+
+
+    >>> len(db.cacheDetailSize())  # one result for each connection's cache
+    3
+
+If a connection object is abandoned (it becomes unreachable), then it
+will vanish from pool.all automatically.  However, connections are
+involved in cycles, so exactly when a connection vanishes from pool.all
+isn't predictable.  It can be forced by running gc.collect():
+
+    >>> import gc
+    >>> dummy = gc.collect()
+    >>> len(pool.all)
+    3
+    >>> c3 = None
+    >>> dummy = gc.collect()  # removes c3 from pool.all
+    >>> len(pool.all)
+    2
+
+Note that c3 is really gone; in particular it didn't get added back to
+the stack of available connections by magic:
+
+    >>> len(pool.available)
+    0
+
+Nothing in that last block should have logged any msgs:
+
+    >>> handler.records
+    []
+
+If "too many" connections are open, then closing one may kick an older
+closed one out of the available connection stack.
+
+    >>> st.close()
+    >>> st = Storage()
+    >>> db = DB(st, pool_size=3)
+    >>> conns = [db.open() for dummy in range(6)]
+    >>> len(handler.records)  # 3 warnings for the "excess" connections
+    3
+    >>> pool = db._pools['']
+    >>> len(pool.available), len(pool.all)
+    (0, 6)
+
+Let's mark them:
+
+    >>> for i, c in enumerate(conns):
+    ...     c.MARKER = i
+
+Closing connections adds them to the stack:
+
+    >>> for i in range(3):
+    ...     conns[i].close()
+    >>> len(pool.available), len(pool.all)
+    (3, 6)
+    >>> del conns[:3]  # leave the ones with MARKERs 3, 4 and 5
+
+Closing another one will purge the one with MARKER 0 from the stack
+(since it was the first added to the stack):
+
+    >>> [c.MARKER for c in pool.available]
+    [0, 1, 2]
+    >>> conns[0].close()  # MARKER 3
+    >>> len(pool.available), len(pool.all)
+    (3, 5)
+    >>> [c.MARKER for c in pool.available]
+    [1, 2, 3]
+
+Similarly for the other two:
+
+    >>> conns[1].close(); conns[2].close()
+    >>> len(pool.available), len(pool.all)
+    (3, 3)
+    >>> [c.MARKER for c in pool.available]
+    [3, 4, 5]
+
+Reducing the pool size may also purge the oldest closed connections:
+
+    >>> db.setPoolSize(2)  # gets rid of MARKER 3
+    >>> len(pool.available), len(pool.all)
+    (2, 2)
+    >>> [c.MARKER for c in pool.available]
+    [4, 5]
+
+Since MARKER 5 is still the last one added to the stack, it will be the
+first popped:
+
+    >>> c1 = db.open(); c2 = db.open()
+    >>> c1.MARKER, c2.MARKER
+    (5, 4)
+    >>> len(pool.available), len(pool.all)
+    (0, 2)
+
+Clean up.
+
+    >>> st.close()
+    >>> handler.uninstall()
