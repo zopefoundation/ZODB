@@ -83,7 +83,7 @@
 # 
 ##############################################################################
 
-__version__ = "$Revision: 1.26 $"[11:-2]
+__version__ = "$Revision: 1.27 $"[11:-2]
 
 import asyncore, socket, string, sys, os
 from smac import SizedMessageAsyncConnection
@@ -135,8 +135,8 @@ class StorageServer(asyncore.dispatcher):
             self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
             self.set_reuse_addr()
 
+        LOG('ZEO Server', INFO, 'Listening on %s' % repr(connection))
         self.bind(connection)
-
         self.listen(5)
 
     def register_connection(self, connection, storage_id):
