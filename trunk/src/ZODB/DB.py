@@ -84,8 +84,8 @@
 ##############################################################################
 """Database objects
 
-$Id: DB.py,v 1.32 2001/05/22 23:01:45 jeremy Exp $"""
-__version__='$Revision: 1.32 $'[11:-2]
+$Id: DB.py,v 1.33 2001/08/27 19:25:19 shane Exp $"""
+__version__='$Revision: 1.33 $'[11:-2]
 
 import cPickle, cStringIO, sys, POSException, UndoLogCompatible
 from Connection import Connection
@@ -237,22 +237,28 @@ class DB(UndoLogCompatible.UndoLogCompatible):
 
     def cacheExtremeDetail(self):
         detail=[]
-        def f(con, detail=detail, rc=sys.getrefcount):
+        conn_no = [0]  # A mutable reference to a counter
+        def f(con, detail=detail, rc=sys.getrefcount, conn_no=conn_no):
+            conn_no[0] = conn_no[0] + 1
+            cn = conn_no[0]
             for oid, ob in con._cache.items():
-                id=oid
+                id=''
                 if hasattr(ob,'__dict__'):
                     d=ob.__dict__
                     if d.has_key('id'):
-                        id="%s (%s)" % (oid, d['id'])
+                        id=d['id']
                     elif d.has_key('__name__'):
-                        id="%s (%s)" % (oid, d['__name__'])
+                        id=d['__name__']
     
                 detail.append({
-                    'oid': id,
+                    'conn_no': cn,
+                    'oid': oid,
+                    'id': id,
                     'klass': "%s.%s" % (ob.__class__.__module__,
                                         ob.__class__.__name__),
                     'rc': rc(ob)-4,
-                    'references': con.references(oid),
+                    'state': ob._p_changed,
+                    #'references': con.references(oid),
                     })
 
         self._connectionMap(f)
