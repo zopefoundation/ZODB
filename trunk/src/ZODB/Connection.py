@@ -13,7 +13,7 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.139 2004/03/13 07:48:11 jeremy Exp $"""
+$Id: Connection.py,v 1.140 2004/03/16 16:18:20 jeremy Exp $"""
 
 import logging
 import sys
@@ -81,6 +81,7 @@ class Connection(ExportImport, object):
     that you will need to use.
     
     Synchronization
+    ---------------
 
     A Connection instance is not thread-safe.  It is designed to
     support a thread model where each thread has its own transaction.
@@ -102,30 +103,22 @@ class Connection(ExportImport, object):
 
     XXX Mention the database pool.
 
-    The Connection plays several different roles.
+    :Groups:
+    
+      - `User Methods`: root, get, add, close, db, sync, isReadOnly,
+        cacheGC, cacheFullSweep, cacheMinimize, getVersion,
+        modifiedInVersion
+      - `Experimental Methods`: setLocalTransaction, getTransaction,
+        onCloseCallbacks
+      - `Transaction Data Manager Methods`: tpc_begin, tpc_vote,
+        tpc_finish, tpc_abort, sortKey, abort, commit, commit_sub,
+        abort_sub
+      - `Database Invalidation Methods`: invalidate, _setDB
+      - `IPersistentDataManager Methods`: setstate, register,
+        setklassstate
+      - `Other Methods`: oldstate, exchange, getDebugInfo, setDebugInfo,
+        getTransferCounts
 
-    It provides a user-visible interface for accessing objects.  These
-    methods are designed for use by application code: root(), get(),
-    add(), close(), db(), sync(), isReadOnly(), cacheGC(),
-    cacheMinimize(), getVersion(), modifiedInVersion().
-
-    The Connection also interacts with the transaction manager to
-    store changes and make changes by other clients visible.  These
-    methods participate in that collaoration: tpc_begin(), tpc_vote(),
-    tpc_finish(), tpc_abort(), sortKey(), abort(), commit(),
-    commit_sub(), abort_sub().
-
-    The Connection normally used the standard get_transaction()
-    mechanism for finding the current Transaction.  The experimental
-    setLocalTransaction() and getLocationTransaction() methods can be
-    used to provide a fixed Transaction.
-
-    The Connection also implements the IPersistentDataManager
-    interface, which provides methods for persistent objects to load
-    their state and register changes.  The methods are setstate(),
-    register(), setklassstate().
-
-    $Id: Connection.py,v 1.139 2004/03/13 07:48:11 jeremy Exp $
     """
 
     _tmp = None
@@ -239,12 +232,18 @@ class Connection(ExportImport, object):
         Applications seldom need to call this method, because objects
         are loaded transparently during attribute lookup.
 
-        get() raises KeyError if oid does not exist.  It is possible
-        that an object does not exist as of the current transaction,
-        but existed in the past.  It may even exist again in the future, if
-        the transaction that removed it is undone.
-        
-        get() raises RuntimeError if the connectio is closed.
+        :return: persistent object corresponding to `oid`
+
+        :Parameters:
+          - `oid`: an object id
+
+        :Exceptions:
+
+          - `KeyError`: if oid does not exist.  It is possible that an
+            object does not exist as of the current transaction, but
+            existed in the past.  It may even exist again in the
+            future, if the transaction that removed it is undone.
+          - `RuntimeError`:  if the connection is closed.
         """
         if self._storage is None:
             # XXX Should this be a ZODB-specific exception?
@@ -286,12 +285,14 @@ class Connection(ExportImport, object):
         must implement the IPersistent interface and must not
         already be associated with a Connection.
 
-        add() raises TypeError if obj is not a persistent object.
+        :Parameters:
+          - `obj`: a Persistent object
 
-        add() raises InvalidObjectReference if obj is already associated
-        with another connection.
-
-        add() raises RuntimeError if the connection is closed.
+        :Exceptions:
+          - `TypeError`: if obj is not a persistent object.
+          - `InvalidObjectReference`: if obj is already associated
+            with another connection.
+          - `RuntimeError`: if the connection is closed.
         """
         if self._storage is None:
             # XXX Should this be a ZODB-specific exception?
@@ -327,6 +328,9 @@ class Connection(ExportImport, object):
         was closed will be processed.
 
         If resetCaches() was called, the cache will be cleared.
+        
+        :Parameters:
+          - `odb`: that database that owns the Connection
         """
 
         # XXX Why do we go to all the trouble of setting _db and
@@ -395,8 +399,8 @@ class Connection(ExportImport, object):
         it into a ghost.  It is possible for individual objects to
         remain active.
 
-        The dt argument is provided only for backwards compatibility.
-        It is ignored.
+        :Parameters:
+          - `dt`: ignored.  It is provided only for backwards compatibility.
         """
         if dt is not None:
             warnings.warn("The dt argument to cacheMinimize is ignored.",
@@ -418,6 +422,9 @@ class Connection(ExportImport, object):
 
         The callable, f, will be called at most once, the next time
         the Connection is closed.
+
+        :Parameters:
+          - `f`: object that will be called on `close`
         """
         if self.__onCloseCallbacks is None:
             self.__onCloseCallbacks = []
@@ -593,8 +600,10 @@ class Connection(ExportImport, object):
 
         The DB calls this method, even when the Connection is closed.
 
-        tid is the storage-level id of the transaction that committed.
-        oids is a set of oids, represented as a dict with oids as keys.
+        :Parameters:
+          - `tid`: the storage-level id of the transaction that committed
+          - `oids`: oids is a set of oids, represented as a dict with oids
+            as keys. 
         """
         self._inv_lock.acquire()
         try:
@@ -768,12 +777,19 @@ class Connection(ExportImport, object):
     def oldstate(self, obj, tid):
         """Return copy of obj that was written by tid.
 
-        obj is a persistent object from this Connection.  An earlier
-        version of obj's state will be loaded using tid, the id of a
-        transaction that wrote an earlier revision.
+        XXX The returned object does not have the typical metdata
+        (_p_jar, _p_oid, _p_serial) set.  I'm not sure how references
+        to other peristent objects are handled.
 
-        oldstate() raises KeyError if tid does not exist or if tid deleted
-        a revision of obj.
+        :return: a persistent object
+        
+        :Parameters:
+          - `obj`: a persistent object from this Connection.
+          - `tid`: id of a transaction that wrote an earlier revision.
+
+        :Exceptions:
+          - `KeyError`: if tid does not exist or if tid deleted a revision
+            of obj.
         """
         assert obj._p_jar is self
         p = self._storage.loadSerial(obj._p_oid, tid)
