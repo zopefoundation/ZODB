@@ -84,8 +84,8 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.18 1999/07/16 19:52:19 jim Exp $"""
-__version__='$Revision: 1.18 $'[11:-2]
+$Id: Connection.py,v 1.19 1999/07/20 19:08:50 jim Exp $"""
+__version__='$Revision: 1.19 $'[11:-2]
 
 from cPickleCache import PickleCache
 from POSException import ConflictError, ExportError
@@ -228,7 +228,7 @@ class Connection(ExportImport.ExportImport):
 
         This just deactivates the thing.
         """
-        del object._p_changed
+        self._cache.invalidate(object._p_oid)
 
     def close(self):
         self._incrgc()
