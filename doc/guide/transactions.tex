@@ -4,12 +4,36 @@
 %   Undoing
 %   Versions
 %   Multithreaded ZODB Programs
-   
+
 
 \section{Transactions and Versioning}
 
-%\subsection{Committing and Aborting}
-% XXX There seems very little to say about commit/abort...
+\subsection{Committing and Aborting}
+
+Changes made during a transaction don't appear in the database until
+the transaction commits.  This is done by calling the \method{commit()}
+method of the current \class{Transaction} object, where the latter is
+obtained from the \method{get()} method of the current transaction
+manager.  If the default thread transaction manager is being used, then
+\code{transaction.commit()} suffices.
+
+Similarly, a transaction can be explicitly aborted (all changes within
+the transaction thrown away) by invoking the \method{abort()} method
+of the current \class{Transaction} object, or simply
+\code{transaction.abort()} if using the default thread transaction manager.
+
+Prior to ZODB 3.3, if a commit failed (meaning the \code{commit()} call
+raised an exception), the transaction was implicitly aborted and a new
+transaction was implicitly started.  This could be very surprising if the
+exception was suppressed, and especially if the failing commit was one
+in a sequence of subtransaction commits.
+
+So, starting with ZODB 3.3, if a commit fails, all further attempts to
+commit, join, or register with the transaction raise
+\exception{ZODB.POSException.TransactionFailedError}.  You must explicitly
+start a new transaction then, either by calling the \method{abort()} method
+of the current transaction, or by calling the \method{begin()} method of the
+current transaction's transaction manager.
 
 \subsection{Subtransactions}
 
@@ -29,20 +53,20 @@ performed at intervals, say, every 10,000 objects.  Those 10,000
 objects are then written to permanent storage and can be purged from
 the cache to free more space.
 
-To commit a subtransaction instead of a full transaction, 
+To commit a subtransaction instead of a full transaction,
 pass a true value to the \method{commit()}
 or \method{abort()} method of the \class{Transaction} object.
 
 \begin{verbatim}
 # Commit a subtransaction
-get_transaction().commit(1)     
+transaction.commit(True)
 
 # Abort a subtransaction
-get_transaction().abort(1)   
+transaction.abort(True)
 \end{verbatim}
 
-A new subtransaction is automatically started on committing or
-aborting the previous subtransaction.
+A new subtransaction is automatically started upon successful committing
+or aborting the previous subtransaction.
 
 
 \subsection{Undoing Changes}
@@ -57,7 +81,7 @@ storage instance.
 If a database supports undo, then the \method{undoLog(\var{start},
 \var{end}\optional{, func})} method on the \class{DB} instance returns
 the log of past transactions, returning transactions between the times
-\var{start} and \var{end}, measured in seconds from the epoch.   
+\var{start} and \var{end}, measured in seconds from the epoch.
 If present, \var{func} is a function that acts as a filter on the
 transactions to be returned; it's passed a dictionary representing
 each transaction, and only transactions for which \var{func} returns
@@ -65,7 +89,7 @@ true will be included in the list of transactions returned to the
 caller of \method{undoLog()}.  The dictionary contains keys for
 various properties of the transaction.  The most important keys are
 \samp{id}, for the transaction ID, and \samp{time}, for the time at
-which the transaction was committed.  
+which the transaction was committed.
 
 \begin{verbatim}
 >>> print storage.undoLog(0, sys.maxint)
@@ -83,7 +107,7 @@ which the transaction was committed.
 To store a description and a user name on a commit, get the current
 transaction and call the \method{note(\var{text})} method to store a
 description, and the
-\method{setUser(\var{user_name})} method to store the user name.  
+\method{setUser(\var{user_name})} method to store the user name.
 While \method{setUser()} overwrites the current user name and replaces
 it with the new value, the \method{note()} method always adds the text
 to the transaction's description, so it can be called several times to
@@ -91,8 +115,8 @@ log several different changes made in the course of a single
 transaction.
 
 \begin{verbatim}
-get_transaction().setUser('amk')
-get_transaction().note('Change ownership')
+transaction.get().setUser('amk')
+transaction.get().note('Change ownership')
 \end{verbatim}
 
 To undo a transaction, call the \method{DB.undo(\var{id})} method,
@@ -114,6 +138,11 @@ that calls undo may not see the changes to the object until it calls
 \method{Connection.sync()} or commits another transaction.
 
 \subsection{Versions}
+
+\begin{notice}[warning]
+  Versions should be avoided.  They're going to be deprecated,
+  replaced by better approaches to long-running transactions.
+\end{notice}
 
 While many subtransactions can be contained within a single regular
 transaction, it's also possible to contain many regular transactions
@@ -155,7 +184,7 @@ different version or from an unversioned connection will cause a
 from ZODB.POSException import VersionLockError
 
 try:
-    get_transaction().commit()
+    transaction.commit()
 except VersionLockError, (obj_id, version):
     print ('Cannot commit; object %s '
            'locked by version %s' % (obj_id, version))
@@ -169,5 +198,5 @@ the version having a lock on it.
 ZODB databases can be accessed from multithreaded Python programs.
 The \class{Storage} and \class{DB} instances can be shared among
 several threads, as long as individual \class{Connection} instances
-are created for each thread.  
+are created for each thread.
 

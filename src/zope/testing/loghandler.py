@@ -11,8 +11,10 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
-"""logging handler for tests that check logging output."""
+"""logging handler for tests that check logging output.
 
+$Id$
+"""
 import logging
 
 class Handler(logging.Handler):

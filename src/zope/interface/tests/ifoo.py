@@ -11,6 +11,10 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
+"""IFoo test module
+
+$Id$
+"""
 from zope.interface import Interface
 
 class IFoo(Interface):

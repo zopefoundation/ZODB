@@ -1,6 +1,7 @@
-What's new in ZODB3 3.3 ?
-=========================
-Release date: DD-MMM-YYYY
+What's new in ZODB3 3.4?
+========================
+Release date: DD-MMM-2004
+
 
 Tools
 -----
@@ -13,19 +14,78 @@ which objects did it reference?  what kind of object was it?).
 ZODB/test/testfsoids.py is a tutorial doctest.
 
 
-What's new in ZODB3 3.3 ?
-=========================
-Release date: DD-MMM-YYYY
+What's new in ZODB3 3.3.1?
+==========================
+Release date: xx-xxx-2004
+
+persistent
+----------
+
+Collector #1350:  ZODB has a default one-thread-per-connection model, and
+two threads should never do operations on a single connection
+simultaneously.  However, ZODB can't detect violations, and this happened
+in an early stage of Zope 2.8 development.  The low-level ``ghostify()``
+and ``unghostify()`` routines in ``cPerisistence.c`` were changed to give
+some help in detecting this when it happens.  In a debug build, both abort
+the process if thread interference is detected.  This is extreme, but
+impossible to overlook.  In a release build, ``unghostify()`` raises
+``SystemError`` if thread damage is detected; ``ghostify()`` ignores the
+problem in a release build (``ghostify()`` is supposed to be so simple that
+it "can't fail").
+
+What's new in ZODB3 3.3?
+========================
+Release date: 06-Oct-2004
+
+ZEO
+---
+
+The encoding of RPC calls between server and client was being done
+with protocol 0 ("text mode") pickles, which could require sending
+four times as many bytes as necessary.  Protocol 1 pickles are used
+now.  Thanks to Andreas Jung for the diagnosis and cure.
+
+ZODB/component.xml
+------------------
+
+``cache-size`` parameters were changed from type ``integer`` to
+type ``byte-size``.  This allows you to specify, for example,
+"``cache-size 20MB``" to get a 20 megabyte cache.
+
+transaction
+-----------
+
+The deprecation warning for ``Transaction.begin()`` was changed to
+point to the caller, instead of to ``Transaction.begin()`` itself.
 
 Connection
 ----------
 
-ZODB intends to raise ConnnectionStateError if an attempt is made to close
-a connection while modifications are pending (the connection is involved in
-a transaction that hasn't been ``abort()``'ed or ``commit()``'ed). It was
-missing the case where the only pending modifications were made in
-subtransactions.  This has been fixed.  If an attempt to close a connection
-with pending subtransactions is made now::
+Restored Connection's private ``_opened`` attribute.  This was still
+referenced by ``DB.connectionDebugInfo()``, and Zope 2 calls the latter.
+
+FileStorage
+-----------
+
+Collector #1517: History tab for ZPT does not work. ``FileStorage.history()``
+was reading the user, description, and extension fields out of the object
+pickle, due to starting the read at a wrong location.  Looked like
+cut-and-paste repetition of the same bug in ``FileStorage.FileIterator``
+noted in the news for 3.3c1.
+
+What's new in ZODB3 3.3 release candidate 1?
+============================================
+Release date: 14-Sep-2004
+
+Connection
+----------
+
+ZODB intends to raise ``ConnnectionStateError`` if an attempt is made to
+close a connection while modifications are pending (the connection is
+involved in a transaction that hasn't been ``abort()``'ed or
+``commit()``'ed).  It was missing the case where the only pending
+modifications were made in subtransactions.  This has been fixed.  If an
+attempt to close a connection with pending subtransactions is made now::
 
     ConnnectionStateError: Cannot close a connection with a pending subtransaction
 
@@ -33,6 +93,39 @@ is raised.
 
 transaction
 -----------
+
+- Transactions have new, backward-incompatible behavior in one respect:
+  if a ``Transaction.commit()``, ``Transaction.commit(False)``, or
+  ``Transaction.commit(True)`` raised an exception, prior behavior was that
+  the transaction effectively aborted, and a new transaction began.
+  A primary bad consequence was that, if in a sequence of subtransaction
+  commits, one of the commits failed but the exception was suppressed,
+  all changes up to and including the failing commit were lost, but
+  later subtransaction commits in the sequence got no indication that
+  something had gone wrong, nor did the final (top level) commit.  This
+  could easily lead to inconsistent data being committed, from the
+  application's point of view.
+
+  The new behavior is that a failing commit "sticks" until explicitly
+  cleared.  Now if an exception is raised by a ``commit()`` call (whether
+  subtransaction or top level) on a Transaction object ``T``:
+
+    - Pending changes are aborted, exactly as they were for a failing
+      commit before.
+
+    - But ``T`` remains the current transaction object (if ``tm`` is ``T``'s
+      transaction manger, ``tm.get()`` continues to return ``T``).
+
+    - All subsequent attempts to do ``T.commit()``, ``T.join()``, or
+      ``T.register()`` raise the new ``TransactionFailedError`` exception.
+      Note that if you try to modify a persistent object, that object's
+      resource manager (usually a ``Connection`` object) will attempt to
+      ``join()`` the failed transaction, and ``TransactionFailedError``
+      will be raised right away.
+
+  So after a transaction or subtransaction commit fails, that must be
+  explicitly cleared now, either by invoking ``abort()`` on the transaction
+  object, or by invoking ``begin()`` on its transaction manager.
 
 - Some explanations of new transaction features in the 3.3a3 news
   were incorrect, and this news file has been retroactively edited to
@@ -59,12 +152,13 @@ transaction
       >>> import transaction
       >>> txn = transaction.begin()  # start a txn using the default TM
 
-  if using the default ThreadTransactionManager (see news for 3.3a3 below).
-  In 3.3, it's intended that a single Transaction object is used for exactly
-  one transaction.  So, unlike as in 3.2, when somtimes Transaction objects
-  were reused across transactions, but sometimes weren't, when you do
-  ``Transaction.begin()`` in 3.3 a brand new transaction object is
-  created.  That's why this use is deprecated.  Code of the form:
+  if using the default ``ThreadTransactionManager`` (see news for 3.3a3
+  below). In 3.3, it's intended that a single ``Transaction`` object is
+  used for exactly one transaction.  So, unlike as in 3.2, when somtimes
+  ``Transaction`` objects were reused across transactions, but sometimes
+  weren't, when you do ``Transaction.begin()`` in 3.3 a brand new
+  transaction object is created.  That's why this use is deprecated.  Code
+  of the form:
 
       >>> txn = transaction.get()
       >>> ...
@@ -72,10 +166,8 @@ transaction
       >>> ...
       >>> txn.commit()
 
-  can't work as intended is 3.3, because ``txn`` is no longer the current
-  Transaction object the instant ``txn.begin()`` returns.
-
-
+  can't work as intended in 3.3, because ``txn`` is no longer the current
+  ``Transaction`` object the instant ``txn.begin()`` returns.
 
 BTrees
 ------
@@ -93,12 +185,12 @@ Collector #1488 (TemporaryStorage -- going backward in time).  This
 confusion was really due to that the detail on a ConflictError exception
 didn't make sense.  It called the current revision "was", and the old
 revision "now".  The detail is much more informative now.  For example,
-if the exception said:
+if the exception said::
 
     ConflictError: database conflict error (oid 0xcb22,
     serial was 0x03441422948b4399, now 0x034414228c3728d5)
 
-before, it now says:
+before, it now says::
 
     ConflictError: database conflict error (oid 0xcb22,
     serial this txn started with 0x034414228c3728d5 2002-04-14 20:50:32.863000,
@@ -114,20 +206,20 @@ the old serial).
 Tools
 -----
 
-FileStorage.FileIterator was confused about how to read a transaction's
+``FileStorage.FileIterator`` was confused about how to read a transaction's
 user and description fields, which caused several tools to display
 binary gibberish for these values.
 
-ZODB.utils.oid_repr() changed to add a leading "0x", and to strip leading
-zeroes.  This is used, e.g., in the detail of a POSKeyError exception, to
-identify the missing oid.  Before, the output was ambiguous.  For example,
-oid 17 was displayed as 0000000000000011.  As a Python integer, that's
-octal 9.  Or was it meant to be decimal 11?  Or was it meant to be hex?
-Now it displays as 0x11.
+``ZODB.utils.oid_repr()`` changed to add a leading "0x", and to strip
+leading zeroes.  This is used, e.g., in the detail of a ``POSKeyError``
+exception, to identify the missing oid.  Before, the output was ambiguous.
+For example, oid 17 was displayed as 0000000000000011.  As a Python
+integer, that's octal 9.  Or was it meant to be decimal 11?  Or was it
+meant to be hex? Now it displays as 0x11.
 
 fsrefs.py:
 
-    When run with -v, produced tracebacks for objects whose creation was
+    When run with ``-v``, produced tracebacks for objects whose creation was
     merely undone.  This was confusing.  Tracebacks are now produced only
     if there's "a real" problem loading an oid.
 
@@ -139,13 +231,13 @@ fsrefs.py:
     Now makes two passes, so that an accurate report can be given of all
     invalid references.
 
-analyze.py produced spurious "len of unsized object" messages when
+``analyze.py`` produced spurious "len of unsized object" messages when
 finding a data record for an object uncreation or version abort.  These
 no longer appear.
 
-fsdump.py's get_pickle_metadata() function (which is used by several
+``fsdump.py``'s ``get_pickle_metadata()`` function (which is used by several
 tools) was confused about what to do when the ZODB pickle started with
-a pickle GLOBAL opcode.  It actually loaded the class then, which it
+a pickle ``GLOBAL`` opcode.  It actually loaded the class then, which it
 intends never to do, leading to stray messages on stdout when the class
 wasn't available, and leading to a strange return value even when it was
 available (the repr of the type object was returned as "the module name",

@@ -147,9 +147,10 @@ Traceback (most recent call last):
  ...
 ConflictError: database conflict error (oid 0x01, class ZODB.tests.MinPO.MinPO)
 
-The failed commit aborted the current transaction, so we can try
-again.  This example will demonstrate that we can commit a transaction
-if we only modify current revisions.
+>>> tm2.get().abort()
+
+This example will demonstrate that we can commit a transaction if we only
+modify current revisions.
 
 >>> print cn2._txn_time
 None

@@ -178,7 +178,7 @@ providedBy(PyObject *ignored, PyObject *ob)
       return getObjectSpecification(NULL, ob);
     } 
 
-  
+
   /* We want to make sure we have a spec. We can't do a type check
      because we may have a proxy, so we'll just try to get the
      only attribute.
@@ -256,7 +256,7 @@ Spec_extends(PyObject *self, PyObject *other)
 
   implied = inst_attr(self, str_implied);
   if (implied == NULL)
-    return implied;
+    return NULL;
 
 #ifdef Py_True
   if (PyDict_GetItem(implied, other) != NULL)
@@ -285,7 +285,9 @@ Spec_providedBy(PyObject *self, PyObject *ob)
   PyObject *decl, *item;
 
   decl = providedBy(NULL, ob);
-  
+  if (decl == NULL)
+    return NULL;
+
   if (PyObject_TypeCheck(ob, &SpecType))
     item = Spec_extends(decl, self);
   else
@@ -522,13 +524,13 @@ init_zope_interface_coptimizations(void)
   
         
   /* Initialize types: */
-  SpecType.tp_new = PyType_GenericNew;
+  SpecType.tp_new = PyBaseObject_Type.tp_new;
   if (PyType_Ready(&SpecType) < 0)
     return;
-  OSDType.tp_new = PyType_GenericNew;
+  OSDType.tp_new = PyBaseObject_Type.tp_new;
   if (PyType_Ready(&OSDType) < 0)
     return;
-  CPBType.tp_new = PyType_GenericNew;
+  CPBType.tp_new = PyBaseObject_Type.tp_new;
   if (PyType_Ready(&CPBType) < 0)
     return;
   

@@ -17,8 +17,6 @@ See Adapter class.
 
 $Id$
 """
-__metaclass__ = type # All classes are new style when run with Python 2.2+
-
 from zope.interface import Declaration
 
 def _flatten(implements, include_None=0):

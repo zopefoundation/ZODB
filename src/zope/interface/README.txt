@@ -37,23 +37,23 @@ Interfaces are defined using Python class statements:
 In the example above, we've created an interface, `IFoo`.  We
 subclassed `zope.interface.Interface`, which is an ancestor interface for
 all interfaces, much as `object` is an ancestor of all new-style
-classes [#create]_.   The interface is not a class, It's an Interface,
-an instance of `InterfaceClass`:
+classes [#create]_.   The interface is not a class, it's an Interface,
+an instance of `InterfaceClass`::
 
   >>> type(IFoo)
   <class 'zope.interface.interface.InterfaceClass'>
   
-We can ask for the interfaces documentation:
+We can ask for the interfaces documentation::
 
   >>> IFoo.__doc__
   'Foo blah blah'
 
-and it's name:
+and it's name::
 
   >>> IFoo.__name__
   'IFoo'
 
-and even it's module:
+and even it's module::
 
   >>> IFoo.__module__
   '__main__'
@@ -80,7 +80,7 @@ The interface defined two attributes:
   methods that are not instance methods.
 
 You can access the attributes defined by an interface using mapping
-syntax:
+syntax::
 
   >>> x = IFoo['x']
   >>> type(x)
@@ -90,12 +90,17 @@ syntax:
   >>> x.__doc__
   'X blah blah'
 
-You can use `in` to determine if an interface defines a name:
+  >>> IFoo.get('x').__name__
+  'x'
+
+  >>> IFoo.get('y')
+
+You can use `in` to determine if an interface defines a name::
 
   >>> 'x' in IFoo
   True
 
-You can iterate over interfaces to get the names they define:
+You can iterate over interfaces to get the names they define::
 
   >>> names = list(IFoo)
   >>> names.sort()
@@ -103,20 +108,20 @@ You can iterate over interfaces to get the names they define:
   ['bar', 'x']
 
 Remember that interfaces aren't classes. You can't access attribute
-definitions as attributes of interfaces:
+definitions as attributes of interfaces::
 
   >>> IFoo.x
   Traceback (most recent call last):
     File "<stdin>", line 1, in ?
   AttributeError: 'InterfaceClass' object has no attribute 'x'
 
-Methods provide access to the method signature:
+Methods provide access to the method signature::
 
   >>> bar = IFoo['bar']
   >>> bar.getSignatureString()
   '(q, r=None)'
 
-XXX
+TODO
   Methods really should have a better API.  This is something that
   needs to be improved.
 
@@ -146,7 +151,7 @@ Now that we've defined these terms, we can talk about the API for
 declaring interfaces.
 
 The most common way to declare interfaces is using the implements
-function in a class statement:
+function in a class statement::
 
   >>> class Foo:
   ...     zope.interface.implements(IFoo)
@@ -164,28 +169,28 @@ function in a class statement:
 In this example, we declared that `Foo` implements `IFoo`. This means
 that instances of `Foo` provide `IFoo`.  Having made this declaration,
 there are several ways we can introspect the declarations.  First, we
-can ask an interface whether it is implemented by a class:
+can ask an interface whether it is implemented by a class::
 
   >>> IFoo.implementedBy(Foo)
   True
   
-And we can ask whether an interface is provided by an object:
+And we can ask whether an interface is provided by an object::
 
   >>> foo = Foo()
   >>> IFoo.providedBy(foo)
   True
 
-Of course, `Foo` doesn't provide `IFoo`, it implements it.
+Of course, `Foo` doesn't provide `IFoo`, it implements it::
 
   >>> IFoo.providedBy(Foo)
   False
 
-We can also ask what interfaces are implemented by an object:
+We can also ask what interfaces are implemented by an object::
 
   >>> list(zope.interface.implementedBy(Foo))
   [<InterfaceClass __main__.IFoo>]
 
-It's an error to ask for interfaces implemented by a non-class:
+It's an error to ask for interfaces implemented by a non-class::
 
   >>> IFoo.implementedBy(foo)
   Traceback (most recent call last):
@@ -197,7 +202,7 @@ It's an error to ask for interfaces implemented by a non-class:
   ...
   TypeError: ('ImplementedBy called for non-type', Foo(None))
 
-Similarly, we can ask what interfaces are provided by an object:
+Similarly, we can ask what interfaces are provided by an object::
 
   >>> list(zope.interface.providedBy(foo))
   [<InterfaceClass __main__.IFoo>]
@@ -208,7 +213,7 @@ We can declare interfaces directly provided by objects.  Suppose that
 we want to document what the `__init__` method of the `Foo` class
 does.  It's not *really* part of `IFoo`.  You wouldn't normally call
 the `__init__` method on Foo instances.  Rather, the `__init__` method
-is part of the `Foo`'s `__call__` method:
+is part of the `Foo`'s `__call__` method::
 
   >>> class IFooFactory(zope.interface.Interface):
   ...     """Create foos"""
@@ -220,11 +225,11 @@ is part of the `Foo`'s `__call__` method:
   ...         """
 
 It's the class that provides this interface, so we declare the
-interface on the class:
+interface on the class::
 
   >>> zope.interface.directlyProvides(Foo, IFooFactory)
 
-And then, we'll see that Foo provides some interfaces:
+And then, we'll see that Foo provides some interfaces::
 
   >>> list(zope.interface.providedBy(Foo))
   [<InterfaceClass __main__.IFooFactory>]
@@ -233,7 +238,7 @@ And then, we'll see that Foo provides some interfaces:
 
 Declaring class interfaces is common enough that there's a special
 declaration function for it, `classProvides`, that allows the
-declaration from within a class statement:
+declaration from within a class statement::
 
   >>> class Foo2:
   ...     zope.interface.implements(IFoo)
@@ -260,7 +265,7 @@ the package `zope.interface` provides `IInterfaceDeclaration`.
 
 Sometimes, we want to declare interfaces on instances, even though
 those instances get interfaces from their classes.  Suppose we create
-a new interface, `ISpecial`:
+a new interface, `ISpecial`::
 
   >>> class ISpecial(zope.interface.Interface):
   ...     reason = zope.interface.Attribute("Reason why we're special")
@@ -268,7 +273,7 @@ a new interface, `ISpecial`:
   ...         "Brag about being special"
 
 We can make a an existing foo instance special by providing `reason`
-and `brag` attributes:
+and `brag` attributes::
 
   >>> foo.reason = 'I just am'
   >>> def brag():
@@ -279,18 +284,18 @@ and `brag` attributes:
   >>> foo.brag()
   "I'm special!"
 
-and by declaring the interface:
+and by declaring the interface::
 
   >>> zope.interface.directlyProvides(foo, ISpecial)
 
-then the new interface is included in the provided interfaces:
+then the new interface is included in the provided interfaces::
 
   >>> ISpecial.providedBy(foo)
   True
   >>> list(zope.interface.providedBy(foo))
   [<InterfaceClass __main__.ISpecial>, <InterfaceClass __main__.IFoo>]
 
-We can find out what interfaces are directly provided by an object:
+We can find out what interfaces are directly provided by an object::
 
   >>> list(zope.interface.directlyProvidedBy(foo))
   [<InterfaceClass __main__.ISpecial>]
@@ -302,7 +307,7 @@ We can find out what interfaces are directly provided by an object:
 Inherited declarations
 ----------------------
 
-Normally, declarations are inherited:
+Normally, declarations are inherited::
 
   >>> class SpecialFoo(Foo):
   ...     zope.interface.implements(ISpecial)
@@ -317,7 +322,7 @@ Normally, declarations are inherited:
   [<InterfaceClass __main__.ISpecial>, <InterfaceClass __main__.IFoo>]
 
 Sometimes, you don't want to inherit declarations.  In that case, you
-can use `implementsOnly`, instead of `implements`:
+can use `implementsOnly`, instead of `implements`::
 
   >>> class Special(Foo):
   ...     zope.interface.implementsOnly(ISpecial)
@@ -338,7 +343,7 @@ Normally, we make implementation declarations as part of a class
 definition. Sometimes, we may want to make declarations from outside
 the class definition. For example, we might want to declare interfaces
 for classes that we didn't write.  The function `classImplements` can
-be used for this purpose:
+be used for this purpose::
 
   >>> class C:
   ...     pass
@@ -347,7 +352,7 @@ be used for this purpose:
   >>> list(zope.interface.implementedBy(C))
   [<InterfaceClass __main__.IFoo>]
 
-We can use `classImplementsOnly` to exclude inherited interfaces:
+We can use `classImplementsOnly` to exclude inherited interfaces::
 
   >>> class C(Foo):
   ...     pass
@@ -362,7 +367,7 @@ Declaration Objects
 -------------------
 
 When we declare interfaces, we create *declaration* objects.  When we
-query declarations, declaration objects are returned:
+query declarations, declaration objects are returned::
 
   >>> type(zope.interface.implementedBy(Special))
   <class 'zope.interface.declarations.Implements'>
@@ -370,7 +375,7 @@ query declarations, declaration objects are returned:
 Declaration objects and interface objects are similar in many ways. In
 fact, they share a common base class.  The important thing to realize
 about them is that they can be used where interfaces are expected in
-declarations. Here's a silly example:
+declarations. Here's a silly example::
 
   >>> class Special2(Foo):
   ...     zope.interface.implementsOnly(
@@ -383,19 +388,17 @@ declarations. Here's a silly example:
 
 The declaration here is almost the same as
 ``zope.interface.implements(ISpecial)``, except that the order of
-interfaces in the resulting declaration is different:
+interfaces in the resulting declaration is different::
 
   >>> list(zope.interface.implementedBy(Special2))
   [<InterfaceClass __main__.IFoo>, <InterfaceClass __main__.ISpecial>]
-
-
 
 
 Interface Inheritance
 =====================
 
 Interfaces can extend other interfaces. They do this simply by listing
-the other interfaces as base interfaces:
+the other interfaces as base interfaces::
 
   >>> class IBlat(zope.interface.Interface):
   ...     """Blat blah blah"""
@@ -421,7 +424,7 @@ the other interfaces as base interfaces:
   >>> names
   ['bar', 'eek', 'x', 'y']
 
-Note that `IBaz` overrides eek:
+Note that `IBaz` overrides eek::
 
   >>> IBlat['eek'].__doc__
   'eek blah blah'
@@ -432,19 +435,19 @@ We were careful to override eek in a compatible way.  When an
 extending an interface, the extending interface should be compatible
 [#compat]_ with the extended interfaces.
 
-We can ask whether one interface extends another:
+We can ask whether one interface extends another::
 
   >>> IBaz.extends(IFoo)
   True
   >>> IBlat.extends(IFoo)
   False
 
-Note that interfaces don't extend themselves:
+Note that interfaces don't extend themselves::
 
   >>> IBaz.extends(IBaz)
   False
 
-Sometimes we wish they did, but we can, instead use `isOrExtends`:
+Sometimes we wish they did, but we can, instead use `isOrExtends`::
 
   >>> IBaz.isOrExtends(IBaz)
   True
@@ -456,10 +459,83 @@ Sometimes we wish they did, but we can, instead use `isOrExtends`:
 When we iterate over an interface, we get all of the names it defines,
 including names defined by base interfaces. Sometimes, we want *just*
 the names defined by the interface directly. We bane use the `names`
-method for that:
+method for that::
 
   >>> list(IBaz.names())
   ['eek']
+
+Inheritance if attribute specifications
+---------------------------------------
+
+An interface may override attribute definitions frob base interfaces.
+If two base interfaces define the same attribute, the attribute is
+inherited from the most specific interface. For example, with:
+
+  >>> class IBase(zope.interface.Interface):
+  ...    
+  ...     def foo():
+  ...         "base foo doc"
+
+  >>> class IBase1(IBase):
+  ...     pass
+
+  >>> class IBase2(IBase):
+  ...    
+  ...     def foo():
+  ...         "base2 foo doc"
+
+  >>> class ISub(IBase1, IBase2):
+  ...     pass
+
+ISub's definition of foo is the one from IBase2, since IBase2 is more
+specific that IBase:
+
+  >>> ISub['foo'].__doc__
+  'base2 foo doc'
+
+Note that this differs from a depth-first search.
+
+Sometimes, it's useful to ask whether an interface defines an
+attribute directly.  You can use the direct method to get a directly
+defined definitions:
+
+  >>> IBase.direct('foo').__doc__
+  'base foo doc'
+
+  >>> ISub.direct('foo')
+
+Specifications
+--------------
+
+Interfaces and declarations are both special cases of specifications.
+What we described above for interface inheritence applies to both
+declarations and specifications.  Declarations actually extend the
+interfaces that they declare:
+
+  >>> class Baz:
+  ...     zope.interface.implements(IBaz)
+
+  >>> baz_implements = zope.interface.implementedBy(Baz)
+  >>> baz_implements.__bases__
+  (<InterfaceClass __main__.IBaz>,)
+
+  >>> baz_implements.extends(IFoo)
+  True
+
+  >>> baz_implements.isOrExtends(IFoo)
+  True
+  >>> baz_implements.isOrExtends(baz_implements)
+  True
+
+Specifications (interfaces and declarations) provide an `__sro__`
+that lists the specification and all of it's ancestors:
+
+  >>> baz_implements.__sro__
+  (<implementedBy __main__.Baz>, 
+   <InterfaceClass __main__.IBaz>, 
+   <InterfaceClass __main__.IFoo>, 
+   <InterfaceClass __main__.IBlat>, 
+   <InterfaceClass zope.interface.Interface>)
 
 
 Tagged Values
@@ -467,7 +543,7 @@ Tagged Values
 
 Interfaces and attribute descriptions support an extension mechanism,
 borrowed from UML, called "tagged values" that lets us store extra
-data:
+data::
 
   >>> IFoo.setTaggedValue('date-modified', '2004-04-01')
   >>> IFoo.setTaggedValue('author', 'Jim Fulton')
@@ -482,7 +558,7 @@ data:
   ['author', 'date-modified']
 
 Function attributes are converted to tagged values when method
-attribute definitions are created:
+attribute definitions are created::
 
   >>> class IBazFactory(zope.interface.Interface):
   ...     def __call__():
@@ -500,7 +576,7 @@ Interfaces can express conditions that must hold for objects that
 provide them. These conditions are expressed using one or more
 invariants.  Invariants are callable objects that will be called with
 an object that provides an interface. An invariant raises an `Invalid`
-exception if the condition doesn't hold.  Here's an example:
+exception if the condition doesn't hold.  Here's an example::
 
   >>> class RangeError(zope.interface.Invalid):
   ...     """A range has invalid limits"""
@@ -511,7 +587,7 @@ exception if the condition doesn't hold.  Here's an example:
   ...     if ob.max < ob.min:
   ...         raise RangeError(ob)
 
-Given this invariant, we can use it in an interface definition:
+Given this invariant, we can use it in an interface definition::
 
   >>> class IRange(zope.interface.Interface):
   ...     min = zope.interface.Attribute("Lower bound")
@@ -519,7 +595,7 @@ Given this invariant, we can use it in an interface definition:
   ...
   ...     zope.interface.invariant(range_invariant)
 
-Interfaces have a method for checking their invariants:
+Interfaces have a method for checking their invariants::
 
   >>> class Range(object):
   ...     zope.interface.implements(IRange)
@@ -540,7 +616,7 @@ Interfaces have a method for checking their invariants:
 If you have multiple invariants, you may not want to stop checking
 after the first error.  If you pass a list to `validateInvariants`,
 then a single `Invalid` exception will be raised with the list of
-exceptions as it's argument:
+exceptions as it's argument::
 
   >>> errors = []
   >>> IRange.validateInvariants(Range(2,1), errors)
@@ -548,7 +624,7 @@ exceptions as it's argument:
   ...
   Invalid: [RangeError(Range(2, 1))]
 
-And the list will be filled with the individual exceptions:
+And the list will be filled with the individual exceptions::
   
   >>> errors
   [RangeError(Range(2, 1))]

@@ -291,63 +291,24 @@ def withextends(with1, with2):
             break
     return False
 
-class AdapterRegistry(object):
-    """Adapter registry
-    """
 
-    # Implementation note:
-    # We are like a weakref dict ourselves. We can't use a weakref
-    # dict because we have to use spec.weakref() rather than
-    # weakref.ref(spec) to get weak refs to specs.
+class AdapterLookup(object):
+    # Adapter lookup support
+    # We have a class here because we want to provide very
+    # fast lookup support in C and making this part of the adapter
+    # registry itself would provide problems if someone wanted to
+    # persistent adapter registries, because we want C slots for fast
+    # lookup that would clash with persistence-suppplied slots.
+    # so this class acts a little bit like a lookup adapter for the adapter
+    # registry.
 
-    _surrogateClass = Surrogate
-
-    def __init__(self):
-        default = self._surrogateClass(Default, self)
-        self._default = default
-        null = self._surrogateClass(Null, self)
-        self._null = null
-        surrogates = {Default.weakref(): default, Null.weakref(): null}
+    def __init__(self, registry, surrogates, _remove):
+        self._registry = registry
+        self._surrogateClass = registry._surrogateClass
+        self._default = registry._default
+        self._null = registry._null
         self._surrogates = surrogates
-
-        def _remove(k):
-            try:
-                del surrogates[k]
-            except KeyError:
-                pass
-
         self._remove = _remove
-
-    def get(self, declaration):
-        if declaration is None:
-            return self._default
-
-        ref = declaration.weakref(self._remove)
-        surrogate = self._surrogates.get(ref)
-        if surrogate is None:
-            surrogate = self._surrogateClass(declaration, self)
-            self._surrogates[ref] = surrogate
-
-        return surrogate
-
-    def register(self, required, provided, name, value):
-        if required:
-            with = []
-            for iface in required[1:]:
-                if iface is None:
-                    iface = Interface
-                with.append(iface)
-            with = tuple(with)
-            required = self.get(required[0])
-        else:
-            with = ()
-            required = self._null
-        
-        if not isinstance(name, basestring):
-            raise TypeError("The name provided to provideAdapter "
-                            "must be a string or unicode")
-
-        required._adaptTo(provided, value, unicode(name), with)
 
     def lookup(self, required, provided, name='', default=None):
         order = len(required)
@@ -391,99 +352,58 @@ class AdapterRegistry(object):
             if not bywith:
                 continue
 
+            # Selecting multi-adapters is not just a matter of matching the
+            # required interfaces of the adapter to the ones passed. Several
+            # adapters might match, but we only want the best one. We use a
+            # ranking algorithm to determine the best match.
+
+            # `best` carries the rank and value of the best found adapter.
+            best = None
             for rwith, value in bywith:
+                # the `rank` describes how well the found adapter matches.
+                rank = []
                 for rspec, spec in zip(rwith, with):
                     if not spec.isOrExtends(rspec):
                         break # This one is no good
+                    # Determine the rank of this particular specification.
+                    rank.append(list(spec.__sro__).index(rspec))
                 else:
-                    return value
+                    # If the new rank is better than the best previously
+                    # recorded one, make the new adapter the best one found. 
+                    rank = tuple(rank)
+                    if best is None or rank < best[0]:
+                        best = rank, value
+            # If any match was found, return the best one.
+            if best:
+                return best[1]
 
         return default
 
     def lookup1(self, required, provided, name='', default=None):
-        s = self.get(required)
-        byname = s.get(provided)
-        if byname:
-            value = byname.get(name)
-        else:
-            value = None
+        return self.lookup((required,), provided, name, default)
 
-        if value is None:
-            byname = self._default.get(provided)
-            if byname:
-                value = byname.get(name, default)
-            else:
-                return default
+    def adapter_hook(self, interface, object, name='', default=None):
+        """Hook function used when calling interfaces.
 
-        return value
+        When called from Interface.__adapt__, only the interface and
+        object parameters will be passed.
 
-    def lookupAll(self, required, provided):
-        order = len(required)
-        if order == 1:
-            # Simple adapter:
-            s = self.get(required[0])
-            byname = s.get(provided)
-            if byname:
-                for item in byname.iteritems():
-                    yield item
+        If the factory produces `None`, then the default is returned. This
+        allows us to prevent adaptation (if desired) and make the factory
+        decide whether an adapter will be available.
+        """
+        factory = self.lookup1(providedBy(object), interface, name)
+        if factory is not None:
+            adapter = factory(object)
+            if adapter is not None:
+                return adapter
 
-            defbyname = self._default.get(provided)
-            if defbyname:
-                for name, value in defbyname.iteritems():
-                    if name in byname:
-                        continue
-                    yield name, value
+        return default
 
-            return
-
-        elif order == 0:
-            # null adapter
-            byname = self._null.get(provided)
-            if byname:
-                for item in byname.iteritems():
-                    yield item
-
-            return
-
-
-        # Multi adapter
-
-        with = required[1:]
-        key = provided, order
-        first = ()
-
-        for surrogate in self.get(required[0]), self._default:
-            byname = surrogate.get(key)
-            if not byname:
-                continue
-
-            for name, bywith in byname.iteritems():
-                if not bywith or name in first:
-                    continue
-
-                for rwith, value in bywith:
-                    for rspec, spec in zip(rwith, with):
-                        if not spec.isOrExtends(rspec):
-                            break # This one is no good
-                    else:
-                        # Got this far, we have a match
-                        yield name, value
-                        break
-
-            first = byname
-
-
-    def subscribe(self, required, provided, value):
-        if required:
-            required, with = self.get(required[0]), tuple(required[1:])
-        else:
-            required = self._null
-            with = ()
-
-        if provided is None:
-            provided = Null
-            
-        required._subscriptionAdaptTo(provided, value, with)
+    def queryAdapter(self, object, interface, name='', default=None):
+        # Note that we rarely call queryAdapter directly
+        # We usually end up calling adapter_hook
+        return self.adapter_hook(interface, object, name, default)
 
 
     def subscriptions(self, required, provided):
@@ -535,6 +455,160 @@ class AdapterRegistry(object):
 
         
 
+    def queryMultiAdapter(self, objects, interface, name='', default=None):
+        factory = self.lookup(map(providedBy, objects), interface, name)
+        if factory is not None:
+            return factory(*objects)
+
+        return default
+
+    def subscribers(self, objects, interface):
+        subscriptions = self.subscriptions(map(providedBy, objects), interface)
+        return [subscription(*objects) for subscription in subscriptions]
+
+    def get(self, declaration):
+        if declaration is None:
+            return self._default
+
+        ref = declaration.weakref(self._remove)
+        surrogate = self._surrogates.get(ref)
+        if surrogate is None:
+            surrogate = self._surrogateClass(declaration, self._registry)
+            self._surrogates[ref] = surrogate
+
+        return surrogate
+
+
+class AdapterRegistry(object):
+    """Adapter registry
+    """
+
+    # Implementation note:
+    # We are like a weakref dict ourselves. We can't use a weakref
+    # dict because we have to use spec.weakref() rather than
+    # weakref.ref(spec) to get weak refs to specs.
+
+    _surrogateClass = Surrogate
+
+    def __init__(self):
+        default = self._surrogateClass(Default, self)
+        self._default = default
+        null = self._surrogateClass(Null, self)
+        self._null = null
+
+        # Create separate lookup object and copy it's methods
+        surrogates = {Default.weakref(): default, Null.weakref(): null}
+        def _remove(k):
+            try:
+                del surrogates[k]
+            except KeyError:
+                pass
+        lookup = AdapterLookup(self, surrogates, _remove)
+        
+        for name in ('lookup', 'lookup1', 'queryAdapter', 'get',
+                     'adapter_hook', 'subscriptions',
+                     'queryMultiAdapter', 'subscribers',
+                     ):
+            setattr(self, name, getattr(lookup, name))
+
+    def register(self, required, provided, name, value):
+        if required:
+            with = []
+            for iface in required[1:]:
+                if iface is None:
+                    iface = Interface
+                with.append(iface)
+            with = tuple(with)
+            required = self.get(required[0])
+        else:
+            with = ()
+            required = self._null
+        
+        if not isinstance(name, basestring):
+            raise TypeError("The name provided to provideAdapter "
+                            "must be a string or unicode")
+
+        required._adaptTo(provided, value, unicode(name), with)
+
+    def lookupAll(self, required, provided):
+        order = len(required)
+        if order == 1:
+            # Simple adapter:
+            s = self.get(required[0])
+            byname = s.get(provided)
+            if byname:
+                for item in byname.iteritems():
+                    yield item
+
+            defbyname = self._default.get(provided)
+            if defbyname:
+                for name, value in defbyname.iteritems():
+                    if name in byname:
+                        continue
+                    yield name, value
+
+            return
+
+        elif order == 0:
+            # null adapter
+            byname = self._null.get(provided)
+            if byname:
+                for item in byname.iteritems():
+                    yield item
+
+            return
+
+
+        # Multi adapter
+
+        with = required[1:]
+        key = provided, order
+        first = ()
+
+        for surrogate in self.get(required[0]), self._default:
+            byname = surrogate.get(key)
+            if not byname:
+                continue
+
+            for name, bywith in byname.iteritems():
+                if not bywith or name in first:
+                    continue
+
+                # See comments on lookup() above
+                best  = None
+                for rwith, value in bywith:
+                    # the `rank` describes how well the found adapter matches.
+                    rank = []
+                    for rspec, spec in zip(rwith, with):
+                        if not spec.isOrExtends(rspec):
+                            break # This one is no good
+                        # Determine the rank of this particular specification.
+                        rank.append(list(spec.__sro__).index(rspec))
+                    else:
+                        # If the new rank is better than the best previously
+                        # recorded one, make the new adapter the best one found.
+                        rank = tuple(rank)
+                        if best is None or rank < best[0]:
+                            best = rank, value
+
+                # If any match was found, return the best one.
+                if best:
+                    yield name, best[1]
+
+            first = byname
+
+    def subscribe(self, required, provided, value):
+        if required:
+            required, with = self.get(required[0]), tuple(required[1:])
+        else:
+            required = self._null
+            with = ()
+
+        if provided is None:
+            provided = Null
+            
+        required._subscriptionAdaptTo(provided, value, with)
+
 def mextends(with, rwith):
     if len(with) == len(rwith):
         for w, r in zip(with, rwith):
@@ -557,7 +631,7 @@ def adapterImplied(adapters):
 
     for key, value in adapters.iteritems():
 
-        # XXX Backward compatability
+        # TODO: Backward compatability
         # Don't need to handle 3-tuples some day
         try:
             (subscription, with, name, target) = key

@@ -11,6 +11,10 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
+"""Dummy Module
+
+$Id$
+"""
 from zope.interface import moduleProvides
 from zope.interface.tests.ifoo import IFoo
 from zope.interface import moduleProvides

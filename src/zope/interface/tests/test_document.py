@@ -11,15 +11,13 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
-"""
+"""Documentation tests.
 
-Revision information:
 $Id$
 """
-
 from unittest import TestCase, main, makeSuite
-from zope.interface import Interface
-from zope.interface.interface import Attribute
+
+from zope.interface import Interface, Attribute
 
 class Test(TestCase):
 

@@ -18,7 +18,6 @@ classic ExtensionClass classes and instances.
 
 $Id$
 """
-
 import unittest, odd
 from zope.interface import Interface, implements, implementsOnly
 from zope.interface import directlyProvides, providedBy, directlyProvidedBy
@@ -31,14 +30,14 @@ class I31(I3): pass
 class I4(Interface): pass
 class I5(Interface): pass
 
-class Odd: __metaclass__ = odd.MetaClass
+class Odd(object): __metaclass__ = odd.MetaClass
 
 class B(Odd): __implemented__ = I2
 
 
-# XXX We are going to need more magic to make classProvides work with odd
-#     classes. This will work in the next iteration. For now, we'll use
-#     a different mechanism.
+# TODO: We are going to need more magic to make classProvides work with odd
+#       classes. This will work in the next iteration. For now, we'll use
+#       a different mechanism.
 
 # from zope.interface import classProvides
 

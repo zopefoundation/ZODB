@@ -16,12 +16,10 @@
 This module provides a function, asStructuredText, for rendering an
 interface as structured text.
 
-Revision information:
 $Id$
 """
-
-import zope.interface
 from string import maketrans
+import zope.interface
 
 def asStructuredText(I, munge=0):
     """ Output structured text format.  Note, this will wack any existing

@@ -33,6 +33,16 @@ class POSKeyError(KeyError, POSError):
 class TransactionError(POSError):
     """An error occured due to normal transaction processing."""
 
+class TransactionFailedError(POSError):
+    """Cannot perform an operation on a transaction that previously failed.
+
+    An attempt was made to commit a transaction, or to join a transaction,
+    but this transaction previously raised an exception during an attempt
+    to commit it.  The transaction must be explicitly aborted, either by
+    invoking abort() on the transaction, or begin() on its transaction
+    manager.
+    """
+
 class ConflictError(TransactionError):
     """Two transactions tried to modify the same object at once.
 

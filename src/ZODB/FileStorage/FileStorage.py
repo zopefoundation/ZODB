@@ -20,7 +20,6 @@ import base64
 from cPickle import Pickler, Unpickler, loads
 import errno
 import os
-import struct
 import sys
 import time
 import logging
@@ -454,7 +453,7 @@ class FileStorage(BaseStorage.BaseStorage,
         # middle holds bytes 16:34 of a data record:
         #    pos of transaction, len of version name, data length
         #    commit version never writes data, so data length is always 0
-        middle = struct.pack(">8sH8s", p64(self._pos), len(dest), z64)
+        middle = pack(">8sH8s", p64(self._pos), len(dest), z64)
 
         if dest:
             sd = p64(self._vindex_get(dest, 0))
@@ -697,7 +696,7 @@ class FileStorage(BaseStorage.BaseStorage,
         # XXX isn't the same, 0 is returned.  Why the discrepancy?
         self._file.seek(tpos)
         h = self._file.read(TRANS_HDR_LEN)
-        tid, tl, status, ul, dl, el = struct.unpack(TRANS_HDR, h)
+        tid, tl, status, ul, dl, el = unpack(TRANS_HDR, h)
         self._file.read(ul + dl + el)
         tend = tpos + tl + 8
         pos = self._file.tell()
@@ -1259,16 +1258,14 @@ class FileStorage(BaseStorage.BaseStorage,
                     wantver = None
 
                 th = self._read_txn_header(h.tloc)
-                user_name = self._file.read(th.ulen)
-                description = self._file.read(th.dlen)
-                if th.elen:
-                    d = loads(self._file.read(th.elen))
+                if th.ext:
+                    d = loads(th.ext)
                 else:
                     d = {}
 
                 d.update({"time": TimeStamp(h.tid).timeTime(),
-                          "user_name": user_name,
-                          "description": description,
+                          "user_name": th.user,
+                          "description": th.descr,
                           "tid": h.tid,
                           "version": h.version,
                           "size": h.plen,
@@ -1804,9 +1801,12 @@ class FileIterator(Iterator, FileStorageFormatter):
     def _skip_to_start(self, start):
         # Scan through the transaction records doing almost no sanity
         # checks.
+        file = self._file
+        read = file.read
+        seek = file.seek
         while 1:
-            self._file.seek(self._pos)
-            h = self._file.read(16)
+            seek(self._pos)
+            h = read(16)
             if len(h) < 16:
                 return
             tid, stl = unpack(">8s8s", h)
@@ -1819,13 +1819,12 @@ class FileIterator(Iterator, FileStorageFormatter):
                 self._pos = long(self._pos) + tl + 8
             if __debug__:
                 # Sanity check
-                self._file.seek(self._pos - 8, 0)
-                rtl = self._file.read(8)
+                seek(self._pos - 8, 0)
+                rtl = read(8)
                 if rtl != stl:
-                    pos = self._file.tell() - 8
+                    pos = file.tell() - 8
                     panic("%s has inconsistent transaction length at %s "
-                          "(%s != %s)",
-                          self._file.name, pos, u64(rtl), u64(stl))
+                          "(%s != %s)", file.name, pos, u64(rtl), u64(stl))
 
     def next(self, index=0):
         if self._file is None:
@@ -2010,7 +2009,7 @@ class UndoSearch:
         self.pos -= u64(self.file.read(8)) + 8
         self.file.seek(self.pos)
         h = self.file.read(TRANS_HDR_LEN)
-        tid, tl, status, ul, dl, el = struct.unpack(TRANS_HDR, h)
+        tid, tl, status, ul, dl, el = unpack(TRANS_HDR, h)
         if status == 'p':
             self.stop = 1
             return None

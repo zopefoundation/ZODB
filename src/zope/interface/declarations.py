@@ -26,7 +26,6 @@ There are three flavors of declarations:
 
 $Id$
 """
-
 import sys
 import weakref
 from zope.interface.interface import InterfaceClass, Specification
@@ -37,9 +36,6 @@ from zope.interface.advice import addClassAdvisor
 
 # Registry of class-implementation specifications 
 BuiltinImplementationSpecifications = {}
-
-
-__metaclass__ = type
 
 class Declaration(Specification):
     """Interface declarations
@@ -55,72 +51,6 @@ class Declaration(Specification):
             del self._v_attrs
         except AttributeError:
             pass
-
-    def get():
-        marker1 = object()
-        marker2 = object()
-        def get(self, name, default=None):
-            """Query for an attribute description
-
-                >>> import zope.interface
-                >>> class I1(zope.interface.Interface):
-                ...    a11 = zope.interface.Attribute('a11')
-                ...    a12 = zope.interface.Attribute('a12')
-                >>> class I2(zope.interface.Interface):
-                ...    a21 = zope.interface.Attribute('a21')
-                ...    a22 = zope.interface.Attribute('a22')
-                ...    a12 = zope.interface.Attribute('a212')
-                >>> class I11(I1):
-                ...    a11 = zope.interface.Attribute('a111')
-
-                >>> decl = Declaration(I11, I2)
-                >>> decl.get('a11') is I11.get('a11')
-                True
-                >>> decl.get('a12') is I1.get('a12')
-                True
-                >>> decl.get('a21') is I2.get('a21')
-                True
-                >>> decl.get('a22') is I2.get('a22')
-                True
-                >>> decl.get('a')
-                >>> decl.get('a', 42)
-                42
-
-            We get None even with no interfaces:
-
-                >>> decl = Declaration()
-                >>> decl.get('a11')
-                >>> decl.get('a11', 42)
-                42
-
-            We get new data if e change interface bases:
-
-                >>> decl.__bases__ = I11, I2
-                >>> decl.get('a11') is I11.get('a11')
-                True
-            """
-            try:
-                attrs = self._v_attrs
-            except AttributeError:
-                attrs = self._v_attrs = {}
-            attr = attrs.get(name, marker1)
-            if attr is marker1:
-                for iface in self:
-                    attr = iface.get(name, marker2)
-                    if attr is not marker2:
-                        break
-                else:
-                    attr = marker2
-                    
-                attrs[name] = attr
-            
-            if attr is marker2:
-                return default
-            else:
-                return attr
-        
-        return get
-    get = get()
 
     def __contains__(self, interface):
         """Test whether an interface is in the specification
@@ -354,7 +284,7 @@ def implementedByFallback(cls):
         ...
         >>> class I4(I3): pass
         ...
-        >>> class C1:
+        >>> class C1(object):
         ...   implements(I2)
         >>> class C2(C1):
         ...   implements(I3)
@@ -380,13 +310,18 @@ def implementedByFallback(cls):
 
         spec = getattr(cls, '__implemented__', None)
         if spec is None:
+            # There's no spec stred in the class. Maybe its a builtin:
+            spec = BuiltinImplementationSpecifications.get(cls)
+            if spec is not None:
+                return spec
             return _empty
+        
         if spec.__class__ == Implements:
             # we defaulted to _empty or there was a spec. Good enough.
             # Return it.
             return spec
 
-        # XXX need old style __implements__ compatibility?
+        # TODO: need old style __implements__ compatibility?
         # Hm, there's an __implemented__, but it's not a spec. Must be
         # an old-style declaration. Just compute a spec for it
         return Declaration(*_normalizeargs((spec, )))
@@ -399,7 +334,7 @@ def implementedByFallback(cls):
         if spec is not None:
             return spec
 
-    # XXX need old style __implements__ comptability?
+    # TODO: need old style __implements__ comptability?
     if spec is not None:
         # old-style __implemented__ = foo declaration
         spec = (spec, ) # tuplefy, as it might be just an int
@@ -460,9 +395,9 @@ def classImplementsOnly(cls, *interfaces):
           ...
           >>> class I4(Interface): pass
           ...
-          >>> class A:
+          >>> class A(object):
           ...   implements(I3)
-          >>> class B:
+          >>> class B(object):
           ...   implements(I4)
           >>> class C(A, B):
           ...   pass
@@ -504,9 +439,9 @@ def classImplements(cls, *interfaces):
       ...
       >>> class I5(Interface): pass
       ...
-      >>> class A:
+      >>> class A(object):
       ...   implements(I3)
-      >>> class B:
+      >>> class B(object):
       ...   implements(I4)
       >>> class C(A, B):
       ...   pass
@@ -541,7 +476,7 @@ def classImplements(cls, *interfaces):
                 seen[b] = 1
                 bases.append(b)
         
-    spec.__bases__ = bases
+    spec.__bases__ = tuple(bases)
 
 def _implements_advice(cls):
     interfaces, classImplements = cls.__dict__['__implements_advice_data__']
@@ -553,8 +488,11 @@ def _implements(name, interfaces, classImplements):
     frame = sys._getframe(2)
     locals = frame.f_locals
 
-    # Try to make sure we were called from a class def
-    if (locals is frame.f_globals) or ('__module__' not in locals):
+    # Try to make sure we were called from a class def. In 2.2.0 we can't
+    # check for __module__ since it doesn't seem to be added to the locals
+    # until later on.
+    if (locals is frame.f_globals) or (
+        ('__module__' not in locals) and sys.version_info[:3] > (2, 2, 0)):
         raise TypeError(name+" can be used only from a class definition.")
 
     if '__implements_advice_data__' in locals:
@@ -601,9 +539,9 @@ def implements(*interfaces):
         ...
         >>> class IC(Interface): pass
         ...
-        >>> class A: implements(IA1, IA2)
+        >>> class A(object): implements(IA1, IA2)
         ...
-        >>> class B: implements(IB)
+        >>> class B(object): implements(IB)
         ...
 
         >>> class C(A, B):
@@ -658,9 +596,9 @@ def implementsOnly(*interfaces):
         ...
         >>> class IC(Interface): pass
         ...
-        >>> class A: implements(IA1, IA2)
+        >>> class A(object): implements(IA1, IA2)
         ...
-        >>> class B: implements(IB)
+        >>> class B(object): implements(IB)
         ...
 
         >>> class C(A, B):
@@ -712,7 +650,7 @@ class Provides(Declaration):  # Really named ProvidesClass
           >>> class IFooFactory(Interface): pass
           ...
           
-          >>> class C:
+          >>> class C(object):
           ...   pass
 
           >>> C.__provides__ = ProvidesClass(C, IFooFactory)
@@ -761,7 +699,7 @@ def Provides(*interfaces):
       >>> collect()
       >>> before = len(InstanceDeclarations)
 
-      >>> class C:
+      >>> class C(object):
       ...    pass
 
       >>> from zope.interface import Interface
@@ -829,9 +767,9 @@ def directlyProvides(object, *interfaces):
         ...
         >>> class IC(Interface): pass
         ...
-        >>> class A: implements(IA1, IA2)
+        >>> class A(object): implements(IA1, IA2)
         ...
-        >>> class B: implements(IB)
+        >>> class B(object): implements(IB)
         ...
 
         >>> class C(A, B):
@@ -950,7 +888,7 @@ class ClassProvides(Declaration, ClassProvidesBase):
           ...     pass
           >>> class IFoo(Interface):
           ...     pass
-          >>> class C:
+          >>> class C(object):
           ...     implements(IFoo)
           ...     classProvides(IFooFactory)
           >>> [i.getName() for i in C.__provides__]
@@ -1030,7 +968,7 @@ def classProvides(*interfaces):
             ...
             >>> class IFooFactory(Interface): pass
             ...
-            >>> class C:
+            >>> class C(object):
             ...   implements(IFoo)
             ...   classProvides(IFooFactory)
             >>> [i.getName() for i in C.__providedBy__]
@@ -1045,7 +983,7 @@ def classProvides(*interfaces):
             ...
             >>> class IFooFactory(Interface): pass
             ...
-            >>> class C:
+            >>> class C(object):
             ...   implements(IFoo)
             >>> directlyProvides(C, IFooFactory)
             >>> [i.getName() for i in C.__providedBy__]
@@ -1142,9 +1080,9 @@ def ObjectSpecification(direct, cls):
         ...
         >>> class I5(Interface): pass
         ...
-        >>> class A: implements(I1)
+        >>> class A(object): implements(I1)
         ...
-        >>> class B: __implemented__ = I2
+        >>> class B(object): __implemented__ = I2
         ...
         >>> class C(A, B): implements(I31)
         ...
@@ -1195,7 +1133,7 @@ def ObjectSpecification(direct, cls):
         ...     pass
         >>> class I2(Interface):
         ...     pass
-        >>> class C:
+        >>> class C(object):
         ...     implements(I1)
         >>> c = C()
         >>> int(bool(providedBy(c)))
@@ -1203,7 +1141,7 @@ def ObjectSpecification(direct, cls):
         >>> directlyProvides(c, I2)
         >>> int(bool(providedBy(c)))
         1
-        >>> class C:
+        >>> class C(object):
         ...     pass
         >>> c = C()
         >>> int(bool(providedBy(c)))
@@ -1299,7 +1237,7 @@ class ObjectSpecificationDescriptorPy(object):
           ...
           >>> class IFooFactory(Interface): pass
           ...
-          >>> class C:
+          >>> class C(object):
           ...   implements(IFoo)
           ...   classProvides(IFooFactory)
           >>> [i.getName() for i in C.__providedBy__]
@@ -1322,8 +1260,6 @@ class ObjectSpecificationDescriptorPy(object):
         return implementedBy(cls)
 
 ObjectSpecificationDescriptor = ObjectSpecificationDescriptorPy
-
-objectSpecificationDescriptor = ObjectSpecificationDescriptor()
 
 ##############################################################################
 
@@ -1357,3 +1293,6 @@ else:
     from _zope_interface_coptimizations import implementedBy, providedBy
     from _zope_interface_coptimizations import getObjectSpecification
     from _zope_interface_coptimizations import ObjectSpecificationDescriptor
+
+objectSpecificationDescriptor = ObjectSpecificationDescriptor()
+    

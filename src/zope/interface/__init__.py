@@ -15,11 +15,9 @@
 
 This package implements the Python "scarecrow" proposal.
 
-The package exports two names, 'Interface' and 'Attribute' directly.
-Interface is used to create an interface with a class statement, as
-in:
-
-
+The package exports two objects, `Interface` and `Attribute` directly. It also
+exports several helper methods. Interface is used to create an interface with
+a class statement, as in:
 
   class IMyInterface(Interface):
     '''Interface documentation
@@ -32,41 +30,24 @@ in:
     # Note that there is no self argument
 
 To find out what you can do with interfaces, see the interface
-interface, IInterface in the IInterface module.
+interface, `IInterface` in the `interfaces` module.
 
 The package has several public modules:
 
-  XXX This docstring needs to be updated after the Grand Renaming.
+  o `declarations` provides utilities to declare interfaces on objects. It
+    also provides a wide range of helpful utilities that aid in managing
+    declared interfaces. Most of its public names are however imported here. 
 
-  o Attribute has the implementation for interface attributes
-    for people who want to build interfaces by hand.
-    (Maybe someone should cry YAGNI for this. ;)
+  o `document` has a utility for documenting an interface as structured text.
 
-  o Document has a utility for documenting an interface as structured text.
+  o `exceptions` has the interface-defined exceptions
 
-  o Exceptions has the interface-defined exceptions
+  o `interfaces` contains a list of all public interfaces for this package.
 
-  o IAttribute defines the attribute descriptor interface.
-
-  o IElement defined the base interface for IAttribute, IInterface,
-    and IMethod.
-
-  o IInterface defines the interface interface
-
-  o IMethod defined the method interface.
-
-  o Implements has various utilities for examining interface assertions.
-
-  o Method has the implementation for interface methods. See above.
-
-  o Verify has utilities for verifying (sort of) interfaces.
+  o `verify` has utilities for verifying implementations of interfaces.
 
 See the module doc strings for more information.
 
-There is also a script, pyskel.py in the package that can be used to
-create interface skeletons. Run it without arguments to get documentation.
-
-Revision information:
 $Id$
 """
 

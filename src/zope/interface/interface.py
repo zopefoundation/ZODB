@@ -89,10 +89,10 @@ class SpecificationBasePy(object):
           >>> from zope.interface import *
           >>> class I1(Interface):
           ...     pass
-          >>> class C:
+          >>> class C(object):
           ...     implements(I1)
           >>> c = C()
-          >>> class X:
+          >>> class X(object):
           ...     pass
           >>> x = X()
           >>> I1.providedBy(x)
@@ -203,7 +203,9 @@ class Specification(SpecificationBase):
     providedBy = SpecificationBase.providedBy
 
     #########################################################################
-    # XXX Backward Compat
+    # BBB 2004-07-13: Backward compatabilty.  These methods have been
+    # deprecated in favour of providedBy and implementedBy.
+
     def isImplementedByInstancesOf(self, cls):
         warnings.warn(
             "isImplementedByInstancesOf has been renamed to implementedBy",
@@ -257,6 +259,7 @@ class Specification(SpecificationBase):
         implied.clear()
 
         ancestors = ro(self)
+        self.__sro__ = tuple(ancestors)
         self.__iro__ = tuple([ancestor for ancestor in ancestors
                               if isinstance(ancestor, InterfaceClass)
                              ])
@@ -354,7 +357,27 @@ class Specification(SpecificationBase):
             return weakref.ref(self)
         else:
             return weakref.ref(self, callback)
-        
+
+
+    def get(self, name, default=None):
+        """Query for an attribute description
+        """
+        try:
+            attrs = self._v_attrs
+        except AttributeError:
+            attrs = self._v_attrs = {}
+        attr = attrs.get(name)
+        if attr is None:
+            for iface in self.__iro__:
+                attr = iface.direct(name)
+                if attr is not None:
+                    attrs[name] = attr
+                    break
+            
+        if attr is None:
+            return default
+        else:
+            return attr
 
 class InterfaceClass(Element, Specification):
     """Prototype (scarecrow) Interfaces Implementation."""
@@ -410,21 +433,23 @@ class InterfaceClass(Element, Specification):
             for key, val in tagged_data.items():
                 self.setTaggedValue(key, val)
 
-        for b in bases:
-            if not isinstance(b, InterfaceClass):
+        for base in bases:
+            if not isinstance(base, InterfaceClass):
                 raise TypeError, 'Expected base interfaces'
 
         Specification.__init__(self, bases)
 
-        for k, v in attrs.items():
-            if isinstance(v, Attribute):
-                v.interface = name
-                if not v.__name__:
-                    v.__name__ = k
-            elif isinstance(v, FunctionType):
-                attrs[k] = fromFunction(v, name, name=k)
+        # Make sure that all recorded attributes (and methods) are of type
+        # `Attribute` and `Method`
+        for name, attr in attrs.items():
+            if isinstance(attr, Attribute):
+                attr.interface = self
+                if not attr.__name__:
+                    attr.__name__ = name
+            elif isinstance(attr, FunctionType):
+                attrs[name] = fromFunction(attr, self, name=name)
             else:
-                raise InvalidInterface("Concrete attribute, %s" % k)
+                raise InvalidInterface("Concrete attribute, %s" %name)
 
         self.__attrs = attrs
 
@@ -492,7 +517,7 @@ class InterfaceClass(Element, Specification):
 
     def getDescriptionFor(self, name):
         """Return the attribute description for the given name."""
-        r = self.queryDescriptionFor(name)
+        r = self.get(name)
         if r is not None:
             return r
 
@@ -501,21 +526,13 @@ class InterfaceClass(Element, Specification):
     __getitem__ = getDescriptionFor
 
     def __contains__(self, name):
-        return self.queryDescriptionFor(name) is not None
+        return self.get(name) is not None
+
+    def direct(self, name):
+        return self.__attrs.get(name)
 
     def queryDescriptionFor(self, name, default=None):
-        """Return the attribute description for the given name."""
-        r = self.__attrs.get(name, self)
-        if r is not self:
-            return r
-        for base in self.__bases__:
-            r = base.queryDescriptionFor(name, self)
-            if r is not self:
-                return r
-
-        return default
-
-    get = queryDescriptionFor
+        return self.get(name, default)
 
     def deferred(self):
         """Return a defered class corresponding to the interface."""
@@ -615,7 +632,7 @@ class InterfaceClass(Element, Specification):
                If an object already implements the interface, then it will be
                returned::
 
-                 >>> class C:
+                 >>> class C(object):
                  ...     zope.interface.implements(I)
 
                  >>> obj = C()
@@ -624,7 +641,7 @@ class InterfaceClass(Element, Specification):
 
                If an object implements __conform__, then it will be used::
 
-                 >>> class C:
+                 >>> class C(object):
                  ...     zope.interface.implements(I)
                  ...     def __conform__(self, proto):
                  ...          return 0
@@ -706,7 +723,7 @@ class InterfaceClass(Element, Specification):
 
            unless the object given provides the interface::
 
-             >>> class C:
+             >>> class C(object):
              ...     zope.interface.implements(I)
 
              >>> obj = C()
@@ -754,22 +771,21 @@ class InterfaceClass(Element, Specification):
         # __eq__, which is really fast.
         """Make interfaces sortable
 
-        It would ne nice if:
+        TODO: It would ne nice if:
 
            More specific interfaces should sort before less specific ones.
            Otherwise, sort on name and module.
 
            But this is too complicated, and we're going to punt on it
-           for now. XXX
+           for now.
 
-        XXX For now, sort on interface and module name.
+        For now, sort on interface and module name.
 
         None is treated as a pseudo interface that implies the loosest
         contact possible, no contract. For that reason, all interfaces
         sort before None.
 
         """
-
         if o1 == o2:
             return 0
 
@@ -808,7 +824,10 @@ class Attribute(Element):
     # We can't say this yet because we don't have enough
     # infrastructure in place.
     #
-    #__implemented__ = IAttribute
+    # implements(IAttribute)
+
+    interface = None
+
 
 class Method(Attribute):
     """Method interfaces
@@ -820,9 +839,7 @@ class Method(Attribute):
     # We can't say this yet because we don't have enough
     # infrastructure in place.
     #
-    #__implemented__ = IMethod
-
-    interface=''
+    # implements(IMethod)
 
     def __call__(self, *args, **kw):
         raise BrokenImplementation(self.interface, self.__name__)
@@ -855,47 +872,55 @@ class Method(Attribute):
         return sig
 
 
-def fromFunction(func, interface='', imlevel=0, name=None):
+def fromFunction(func, interface=None, imlevel=0, name=None):
     name = name or func.__name__
-    m=Method(name, func.__doc__)
-    defaults=func.func_defaults or ()
-    c=func.func_code
-    na=c.co_argcount-imlevel
-    names=c.co_varnames[imlevel:]
-    d={}
-    nr=na-len(defaults)
+    method = Method(name, func.__doc__)
+    defaults = func.func_defaults or ()
+    code = func.func_code
+    # Number of positional arguments
+    na = code.co_argcount-imlevel
+    names = code.co_varnames[imlevel:]
+    opt = {}
+    # Number of required arguments
+    nr = na-len(defaults)
     if nr < 0:
         defaults=defaults[-nr:]
-        nr=0
+        nr = 0
 
+    # Determine the optional arguments.
     for i in range(len(defaults)):
-        d[names[i+nr]]=defaults[i]
+        opt[names[i+nr]] = defaults[i]
 
-    m.positional=names[:na]
-    m.required=names[:nr]
-    m.optional=d
+    method.positional = names[:na]
+    method.required = names[:nr]
+    method.optional = opt
 
     argno = na
-    if c.co_flags & CO_VARARGS:
-        m.varargs = names[argno]
+
+    # Determine the function's variable argument's name (i.e. *args)
+    if code.co_flags & CO_VARARGS:
+        method.varargs = names[argno]
         argno = argno + 1
     else:
-        m.varargs = None
-    if c.co_flags & CO_VARKEYWORDS:
-        m.kwargs = names[argno]
+        method.varargs = None
+
+    # Determine the function's keyword argument's name (i.e. **kw)
+    if code.co_flags & CO_VARKEYWORDS:
+        method.kwargs = names[argno]
     else:
-        m.kwargs = None
+        method.kwargs = None
 
-    m.interface=interface
+    method.interface = interface
 
-    for k, v in func.__dict__.items():
-        m.setTaggedValue(k, v)
+    for key, value in func.__dict__.items():
+        method.setTaggedValue(key, value)
 
-    return m
+    return method
 
-def fromMethod(meth, interface=''):
+
+def fromMethod(meth, interface=None, name=None):
     func = meth.im_func
-    return fromFunction(func, interface, imlevel=1)
+    return fromFunction(func, interface, imlevel=1, name=name)
 
 
 # Now we can create the interesting interfaces and wire them up:

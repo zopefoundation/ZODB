@@ -13,10 +13,8 @@
 ##############################################################################
 """Test the new API for making and checking interface declarations
 
-
 $Id$
 """
-
 import unittest
 from zope.interface import *
 from zope.testing.doctestunit import DocTestSuite
@@ -28,9 +26,9 @@ class I3(Interface): pass
 class I4(Interface): pass
 class I5(Interface): pass
 
-class A:
+class A(object):
     implements(I1)
-class B:
+class B(object):
     implements(I2)
 class C(A, B):
     implements(I3)
@@ -76,7 +74,7 @@ class Test(unittest.TestCase):
 
     def test_backward_compat(self):
 
-        class C1: __implemented__ = I1
+        class C1(object): __implemented__ = I1
         class C2(C1): __implemented__ = I2, I5
         class C3(C2): __implemented__ = I3, C2.__implemented__
 
@@ -149,7 +147,7 @@ class Test(unittest.TestCase):
 def test_signature_w_no_class_interfaces():
     """
     >>> from zope.interface import *
-    >>> class C:
+    >>> class C(object):
     ...     pass
     >>> c = C()
     >>> list(providedBy(c))
@@ -167,13 +165,13 @@ def test_classImplement_on_deeply_nested_classes():
     contrived
 
     >>> from zope.interface import *
-    >>> class B1:
+    >>> class B1(object):
     ...     pass
     >>> class B2(B1):
     ...     pass
     >>> class B3(B2):
     ...     pass
-    >>> class D:
+    >>> class D(object):
     ...     implements()
     >>> class S(B3, D):
     ...     implements()
@@ -200,7 +198,7 @@ def test_pickle_provides_specs():
 
 def test_that_we_dont_inherit_class_provides():
     """
-    >>> class X:
+    >>> class X(object):
     ...     classProvides(I1)
     >>> class Y(X):
     ...     pass
@@ -220,10 +218,10 @@ def test_that_we_dont_inherit_provides_optimizations():
     descriptors that provides a default for instances that don't have
     instance-specific declarations:
     
-    >>> class A:
+    >>> class A(object):
     ...     implements(I1)
 
-    >>> class B:
+    >>> class B(object):
     ...     implements(I2)
 
     >>> [i.__name__ for i in A().__provides__]
@@ -270,7 +268,7 @@ def test_classProvides_before_implements():
           ...     pass
           >>> class IFoo(Interface):
           ...     pass
-          >>> class C:
+          >>> class C(object):
           ...     classProvides(IFooFactory)
           ...     implements(IFoo)
           >>> [i.getName() for i in C.__provides__]
@@ -278,6 +276,81 @@ def test_classProvides_before_implements():
 
           >>> [i.getName() for i in C().__provides__]
           ['IFoo']
+    """
+
+def test_getting_spec_for_proxied_builtin_class():
+    """
+
+    In general, we should be able to get a spec
+    for a proxied class if someone has declared or
+    asked for a spec before.
+
+    We don't want to depend on proxies in this (zope.interface)
+    package, but we do want to work with proxies.  Proxies have the
+    effect that a class's __dict__ cannot be gotten. Further, for
+    built-in classes, we can't save, and thus, cannot get, any class
+    attributes.  We'll emulate this by treating a plain object as a class:
+
+      >>> cls = object()
+
+    We'll create an implements specification:
+
+      >>> import zope.interface.declarations
+      >>> impl = zope.interface.declarations.Implements(I1, I2)
+
+    Now, we'll emulate a declaration for a built-in type by putting
+    it in BuiltinImplementationSpecifications:
+
+      >>> zope.interface.declarations.BuiltinImplementationSpecifications[
+      ...   cls] = impl
+
+    Now, we should be able to get it back:
+
+      >>> implementedBy(cls) is impl
+      True
+    
+    """
+
+def test_declaration_get():
+    """
+    We can get definitions from a declaration:
+
+        >>> import zope.interface
+        >>> class I1(zope.interface.Interface):
+        ...    a11 = zope.interface.Attribute('a11')
+        ...    a12 = zope.interface.Attribute('a12')
+        >>> class I2(zope.interface.Interface):
+        ...    a21 = zope.interface.Attribute('a21')
+        ...    a22 = zope.interface.Attribute('a22')
+        ...    a12 = zope.interface.Attribute('a212')
+        >>> class I11(I1):
+        ...    a11 = zope.interface.Attribute('a111')
+
+        >>> decl = Declaration(I11, I2)
+        >>> decl.get('a11') is I11.get('a11')
+        True
+        >>> decl.get('a12') is I1.get('a12')
+        True
+        >>> decl.get('a21') is I2.get('a21')
+        True
+        >>> decl.get('a22') is I2.get('a22')
+        True
+        >>> decl.get('a')
+        >>> decl.get('a', 42)
+        42
+
+    We get None even with no interfaces:
+
+        >>> decl = Declaration()
+        >>> decl.get('a11')
+        >>> decl.get('a11', 42)
+        42
+
+    We get new data if e change interface bases:
+
+        >>> decl.__bases__ = I11, I2
+        >>> decl.get('a11') is I11.get('a11')
+        True
     """
 
 def test_suite():

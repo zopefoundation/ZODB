@@ -15,7 +15,7 @@
 
 This is used for testing support for ExtensionClass in new interfaces.
 
-  >>> class A:
+  >>> class A(object):
   ...     __metaclass__ = MetaClass
   ...     a = 1
   ...
@@ -23,7 +23,7 @@ This is used for testing support for ExtensionClass in new interfaces.
   'A'
   >>> A.__bases__
   ()
-  >>> class B:
+  >>> class B(object):
   ...     __metaclass__ = MetaClass
   ...     b = 1
   ...

@@ -11,7 +11,10 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
+"""Test Interface implementation
 
+$Id$
+"""
 import unittest
 from zope.testing.doctestunit import DocTestSuite
 from zope.interface.tests.unitfixtures import *  # hehehe
@@ -21,11 +24,11 @@ from zope.interface import Interface, directlyProvides, Attribute
 
 class InterfaceTests(unittest.TestCase):
 
-    def setUp(self):
-        pass
-
-    def tearDown(self):
-        pass
+    def testInterfaceSetOnAttributes(self):
+        self.assertEqual(FooInterface['foobar'].interface,
+                         FooInterface)
+        self.assertEqual(FooInterface['aMethod'].interface,
+                         FooInterface)
 
     def testClassImplements(self):
         self.assert_(IC.implementedBy(C))
@@ -248,6 +251,14 @@ class InterfaceTests(unittest.TestCase):
         self.assertEqual(I.__doc__, "")
         self.assertEqual(list(I), ['__doc__'])
 
+    def testIssue228(self):
+        # Test for http://collector.zope.org/Zope3-dev/228
+        class I(Interface):
+            "xxx"
+        class Bad:
+            __providedBy__ = None
+        # Old style classes don't have a '__class__' attribute
+        self.failUnlessRaises(AttributeError, I.providedBy, Bad)
 
 
 class _I1(Interface):
@@ -268,10 +279,14 @@ class _I2(_I1__):
 
 
 def test_suite():
-    from docfilesuite import DocFileSuite
+    from zope.testing import doctest
     suite = unittest.makeSuite(InterfaceTests)
-    suite.addTest(DocTestSuite("zope.interface.interface"))
-    suite.addTest(DocFileSuite('../README.txt'))
+    suite.addTest(doctest.DocTestSuite("zope.interface.interface"))
+    suite.addTest(doctest.DocFileSuite(
+        '../README.txt',
+        globs={'__name__': '__main__'},
+        optionflags=doctest.NORMALIZE_WHITESPACE,
+        ))
     return suite
 
 def main():

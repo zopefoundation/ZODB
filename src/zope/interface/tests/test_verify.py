@@ -11,14 +11,11 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
-"""
+"""Interface Verify tests
 
-Revision information:
 $Id$
 """
-
-
-from zope.interface import Interface, implements, classImplements
+from zope.interface import Interface, implements, classImplements, Attribute
 from zope.interface.verify import verifyClass, verifyObject
 from zope.interface.exceptions import DoesNotImplement, BrokenImplementation
 from zope.interface.exceptions import BrokenMethodImplementation
@@ -29,7 +26,7 @@ class Test(unittest.TestCase):
 
     def testNotImplemented(self):
 
-        class C: pass
+        class C(object): pass
 
         class I(Interface): pass
 
@@ -44,7 +41,7 @@ class Test(unittest.TestCase):
         class I(Interface):
             def f(): pass
 
-        class C:
+        class C(object):
             implements(I)
 
         self.assertRaises(BrokenImplementation, verifyClass, I, C)
@@ -62,8 +59,7 @@ class Test(unittest.TestCase):
         class I(II):
             pass
 
-        class C:
-
+        class C(object):
             implements(I)
 
         self.assertRaises(BrokenImplementation, verifyClass, I, C)
@@ -77,8 +73,7 @@ class Test(unittest.TestCase):
         class I(Interface):
             def f(a): pass
 
-        class C:
-
+        class C(object):
             def f(self, b): pass
 
             implements(I)
@@ -111,8 +106,7 @@ class Test(unittest.TestCase):
         class I(Interface):
             def f(a): pass
 
-        class C:
-
+        class C(object):
             def f(self, a, b): pass
 
             implements(I)
@@ -132,8 +126,7 @@ class Test(unittest.TestCase):
         class I(Interface):
             def f(a, *args): pass
 
-        class C:
-
+        class C(object):
             def f(self, a): pass
 
             implements(I)
@@ -149,8 +142,7 @@ class Test(unittest.TestCase):
         class I(Interface):
             def f(a, **args): pass
 
-        class C:
-
+        class C(object):
             def f(self, a): pass
 
             implements(I)
@@ -168,7 +160,33 @@ class Test(unittest.TestCase):
 
         verifyObject(IFoo, dummy)
 
+    def testMethodForAttr(self):
+        
+        class IFoo(Interface):
+             foo = Attribute("The foo Attribute")
 
+
+        class Foo:
+             implements(IFoo)
+
+             def foo(self):
+                 pass
+
+        verifyClass(IFoo, Foo)
+
+    def testNonMethodForMethod(self):
+
+        class IBar(Interface):
+             def foo():
+                 pass
+
+        class Bar:
+            implements(IBar)
+
+            foo = 1
+
+        self.assertRaises(BrokenMethodImplementation, verifyClass, IBar, Bar)
+        
 
 def test_suite():
     loader=unittest.TestLoader()

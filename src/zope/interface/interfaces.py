@@ -11,7 +11,7 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
-"""
+"""Interface Package Interfaces
 
 $Id$
 """
@@ -48,14 +48,37 @@ class IElement(Interface):
 class IAttribute(IElement):
     """Attribute descriptors"""
 
+    interface = Attribute('interface',
+                          'Stores the interface instance in which the '
+                          'attribute is located.')
+
 
 class IMethod(IAttribute):
     """Method attributes
     """
-    # XXX What the heck should methods provide? Grrrr
+
+    def getSignatureInfo():
+        """Returns the signature information.
+
+        This method returns a dictionary with the following keys:
+
+        o `positional` - All positional arguments.
+
+        o `required` - A list of all required arguments.
+
+        o `optional` - A list of all optional arguments.
+
+        o `varargs' - The name of the varargs argument.
+
+        o `kwargs` - The name of the kwargs argument.
+        """
 
     def getSignatureString():
         """Return a signature string suitable for inclusion in documentation.
+
+        This method returns the function signature string. For example, if you
+        have `func(a, b, c=1, d='f')`, then the signature string is `(a, b,
+        c=1, d='f')`.
         """
 
 class ISpecification(Interface):
@@ -93,6 +116,13 @@ class ISpecification(Interface):
 
     """)
 
+    __sro__ = Attribute("""Specification-resolution order
+
+    A tuple of the specification and all of it's ancestor
+    specifications from most specific to least specific.
+
+    (This is similar to the method-resolution order for new-style classes.)
+    """)
 
     def get(name, default=None):
         """Look up the description for a name
@@ -237,6 +267,12 @@ class IInterface(ISpecification, IElement):
         """Get the description for a name
 
         If the named attribute is not defined, a KeyError is raised.
+        """
+
+    def direct(name):
+        """Get the description for the name if it was defined by the interface
+
+        If the interface doesn't define the name, returns None.
         """
     
     def validateInvariants(obj, errors=None):

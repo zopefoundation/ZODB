@@ -11,6 +11,10 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
+"""Unit Test Fixtures
+
+$Id$
+"""
 from zope.interface import Interface, invariant
 from zope.interface.interface import Attribute
 from zope.interface.exceptions import Invalid
@@ -18,7 +22,7 @@ from zope.interface.exceptions import Invalid
 class mytest(Interface):
     pass
 
-class C:
+class C(object):
     def m1(self, a, b):
         "return 1"
         return 1
@@ -28,9 +32,6 @@ class C:
         return 2
 
 # testInstancesOfClassImplements
-
-
-
 
 #  YAGNI IC=Interface.impliedInterface(C)
 class IC(Interface):
@@ -57,7 +58,7 @@ class I4(Interface): pass
 class A(I1.deferred()):
     __implemented__=I1
 
-class B:
+class B(object):
     __implemented__=I2, I3
 
 class D(A, B): pass
@@ -83,7 +84,7 @@ class FooInterface(Interface):
     def useless(**keywords):
         """ useless code is fun! """
 
-class Foo:
+class Foo(object):
     """ A concrete class """
 
     __implemented__ = FooInterface,
@@ -108,7 +109,7 @@ class Foo:
 
 foo_instance = Foo()
 
-class Blah:
+class Blah(object):
     pass
 
 new = Interface.__class__
