@@ -84,8 +84,8 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.25 1999/09/15 16:10:33 jim Exp $"""
-__version__='$Revision: 1.25 $'[11:-2]
+$Id: Connection.py,v 1.26 1999/09/24 21:32:52 amos Exp $"""
+__version__='$Revision: 1.26 $'[11:-2]
 
 from cPickleCache import PickleCache
 from POSException import ConflictError, ExportError
@@ -236,13 +236,13 @@ class Connection(ExportImport.ExportImport):
 
     def commit(self, object, transaction):
         oid=object._p_oid
+        invalid=self._invalid
         if oid is None or object._p_jar is not self:
             oid = self.new_oid()
             object._p_jar=self
             object._p_oid=oid
 
         elif object._p_changed:
-            invalid=self._invalid
             if invalid(oid) or invalid(None): raise ConflictError, oid
             self._invalidating.append(oid)
 
