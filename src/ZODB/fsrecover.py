@@ -64,12 +64,11 @@ Important:  The ZODB package must be importable.  You may need to adjust
 
 import sys, os
 
-if __name__ == '__main__' and len(sys.argv) < 3:
-    print __doc__ % sys.argv[0]
-
-def die(mess=''):
-    if not mess: mess="%s: %s" % sys.exc_info()[:2]
-    print mess+'\n'
+def die(mess='', show_docstring=False):
+    if mess:
+        print >> sys.stderr, mess + '\n'
+    if show_docstring:
+        print >> sys.stderr, __doc__ % sys.argv[0]
     sys.exit(1)
 
 try: import ZODB
@@ -222,10 +221,13 @@ def progress(p):
 
 def main():
     try:
-        opts, (inp, outp) = getopt.getopt(sys.argv[1:], "fv:pP:")
-    except getopt.error:
-        die()
-        print __doc__ % sys.argv[0]
+        opts, args = getopt.getopt(sys.argv[1:], "fv:pP:")
+    except getopt.error, msg:
+        die(str(msg), show_docstring=True)
+
+    if len(args) != 2:
+        die("two positional arguments required", show_docstring=True)
+    inp, outp = args
 
     force = partial = verbose = 0
     pack = None
