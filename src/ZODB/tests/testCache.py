@@ -160,6 +160,12 @@ class LRUCacheTests(CacheTestBase):
             # the root, depending on precise order of access. We do
             # not bother to check this
 
+
+    # checkSize and checkDetail are bad tests. They rely on 
+    # several different types of non-deterministic behavior
+    # in noodle_new_connection. Both tests pass most of the
+    # time, but do fail intermittantly.
+    # Toby Dickenson promised to improve this
     def checkSize(self):
         self.assertEqual(self.db.cacheSize(), 0)
         self.assertEqual(self.db.cacheDetailSize(), [])
@@ -180,6 +186,7 @@ class LRUCacheTests(CacheTestBase):
             # the connection holds a reference to it
             self.assertEquals(d['size'], CACHE_SIZE + 1)
 
+    # checkDetail is a bad test. See checkSize for more details
     def checkDetail(self):
         CACHE_SIZE = 10
         self.db.setCacheSize(CACHE_SIZE)
