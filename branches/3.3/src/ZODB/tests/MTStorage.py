@@ -188,7 +188,7 @@ class ExtStorageClientThread(StorageClientThread):
         try:
             iter = self.storage.iterator()
         except AttributeError:
-            # XXX It's hard to detect that a ZEO ClientStorage
+            # It's hard to detect that a ZEO ClientStorage
             # doesn't have this method, but does have all the others.
             return
         for obj in iter:

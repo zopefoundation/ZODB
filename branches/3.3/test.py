@@ -93,7 +93,7 @@ Test harness.
     This requires that Python was built --with-pydebug.
 
 -T
-    Use the trace module from Python for code coverage.  XXX This only works
+    Use the trace module from Python for code coverage.  This only works
     if trace.py is explicitly added to PYTHONPATH.  The current utility writes
     coverage files to a directory named `coverage' that is parallel to
     `build'.  It also prints a summary to stdout.
@@ -208,8 +208,8 @@ class ImmediateTestResult(unittest._TextTestResult):
             print "The following test left garbage:"
             print test
             print gc.garbage
-            # XXX Perhaps eat the garbage here, so that the garbage isn't
-            #     printed for every subsequent test.
+            # TODO:  Perhaps eat the garbage here, so that the garbage isn't
+            # |printed for every subsequent test.
 
     def print_times(self, stream, count=None):
         results = self._testtimes.items()
@@ -244,7 +244,7 @@ class ImmediateTestResult(unittest._TextTestResult):
             if self.showAll:
                 self.stream.write(": ")
             elif self._progressWithNames:
-                # XXX will break with multibyte strings
+                # TODO:  will break with multibyte strings.
                 name = self.getShortDescription(test)
                 width = len(name)
                 if width < self._lastWidth:
@@ -641,7 +641,7 @@ def configure_logging():
     import logging.config
 
     # Get the log.ini file from the current directory instead of possibly
-    # buried in the build directory.  XXX This isn't perfect because if
+    # buried in the build directory.  This isn't perfect because if
     # log.ini specifies a log file, it'll be relative to the build directory.
     # Hmm...
     logini = os.path.abspath("log.ini")

@@ -16,7 +16,7 @@
 The stress test should run in an infinite loop and should involve
 multiple connections.
 """
-# XXX This code is currently broken.
+# TODO: This code is currently broken.
 
 import transaction
 import ZODB

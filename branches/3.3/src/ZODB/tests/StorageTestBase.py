@@ -80,7 +80,7 @@ def zodb_unpickle(data):
     klass_info = u.load()
     if isinstance(klass_info, types.TupleType):
         if isinstance(klass_info[0], type):
-            # XXX what is the second part of klass_info?
+            # Unclear:  what is the second part of klass_info?
             klass, xxx = klass_info
             assert not xxx
         else:
@@ -144,7 +144,7 @@ def import_helper(name):
 
 class StorageTestBase(unittest.TestCase):
 
-    # XXX It would be simpler if concrete tests didn't need to extend
+    # It would be simpler if concrete tests didn't need to extend
     # setUp() and tearDown().
 
     def setUp(self):
@@ -210,7 +210,7 @@ class StorageTestBase(unittest.TestCase):
 
     def _undo(self, tid, expected_oids=None, note=None):
         # Undo a tid that affects a single object (oid).
-        # XXX This is very specialized
+        # This is very specialized.
         t = transaction.Transaction()
         t.note(note or "undo")
         self._storage.tpc_begin(t)

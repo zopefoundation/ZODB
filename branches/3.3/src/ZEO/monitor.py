@@ -103,7 +103,6 @@ class StatsClient(asyncore.dispatcher):
         return len(self.buf)
 
     def readable(self):
-        # XXX what goes here?
         return 0
 
     def handle_write(self):

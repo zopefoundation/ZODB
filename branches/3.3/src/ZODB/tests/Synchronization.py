@@ -142,4 +142,4 @@ class SynchronizedStorage:
         self._storage.tpc_begin(t)
         self._storage.tpc_abort(t)
 
-    # XXX how to check undo?
+    # TODO:  how to check undo?

@@ -87,7 +87,7 @@ def get_port():
             try:
                 s.connect(('localhost', port))
             except socket.error:
-                # XXX check value of error?
+                # Perhaps we should check value of error too.
                 return port
         finally:
             s.close()
@@ -112,7 +112,7 @@ class GenericTests(
     """Combine tests from various origins in one class."""
 
     def setUp(self):
-        logger.info("setUp() %s", self.id()) # XXX is this really needed?
+        logger.info("setUp() %s", self.id())
         port = get_port()
         zconf = forker.ZEOConfig(('', port))
         zport, adminaddr, pid, path = forker.start_zeo_server(self.getConfig(),
@@ -136,7 +136,7 @@ class GenericTests(
                 os.waitpid(pid, 0)
 
     def open(self, read_only=0):
-        # XXX Needed to support ReadOnlyStorage tests.  Ought to be a
+        # Needed to support ReadOnlyStorage tests.  Ought to be a
         # cleaner way.
         addr = self._storage._addr
         self._storage.close()
@@ -200,10 +200,6 @@ class MappingStorageTests(GenericTests):
 
     def getConfig(self):
         return """<mappingstorage 1/>"""
-
-    # XXX There are still a bunch of tests that fail.  Are there
-    # still test classes in GenericTests that shouldn't be there?
-    # XXX Is the above comment still relevant?
 
 test_classes = [FileStorageTests, MappingStorageTests]
 
