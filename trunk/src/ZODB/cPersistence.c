@@ -1,6 +1,6 @@
 /***********************************************************************
 
-  $Id: cPersistence.c,v 1.21 1997/12/11 16:03:30 jim Exp $
+  $Id: cPersistence.c,v 1.22 1997/12/15 15:28:09 jim Exp $
 
   C Persistence Module
 
@@ -12,7 +12,7 @@
 
 
 *****************************************************************************/
-static char *what_string = "$Id: cPersistence.c,v 1.21 1997/12/11 16:03:30 jim Exp $";
+static char *what_string = "$Id: cPersistence.c,v 1.22 1997/12/15 15:28:09 jim Exp $";
 
 #include <time.h>
 #include "cPersistence.h"
@@ -197,25 +197,6 @@ static char Per___changed____doc__[] =
 ;
 
 static PyObject *changed_args=(PyObject*)Per___changed____doc__;
-
-static PyObject *
-Per___changed__(self, args)
-	cPersistentObject *self;
-	PyObject *args;
-{
-  PyObject *o;
-
-  if(args)
-    {
-      UNLESS(PyArg_Parse(args, "O", &o)) return NULL;
-      if(self->state != GHOST_STATE) self->state=PyObject_IsTrue(o);
-
-      Py_INCREF(Py_None);
-      return Py_None;
-    }
-  else
-    return PyInt_FromLong(self->state == CHANGED_STATE);
-}
 
 static PyObject *
 T___changed__(cPersistentObject *self, PyObject *args)
@@ -580,8 +561,9 @@ static struct PyMethodDef Per_methods[] = {
    Per___inform_abort____doc__},
   {"_p___init__",	(PyCFunction)Per__p___init__,	0,
    Per__p___init____doc__},
-  {"_p___reinit__",	(PyCFunction)Per__p___reinit__,	0,
-   "_p___reinit__(oid,jar,copy) -- Reinitialize from a newly created copy"},
+  {"_p_deactivate",	(PyCFunction)Per__p___reinit__,	0,
+   "_p_deactivate(oid[,copy]) -- Deactivate the object"},
+  {"_p___reinit__",	(PyCFunction)Per__p___reinit__,	0,""},
   {"__getstate__",	(PyCFunction)Per__getstate__,	0,
    "__getstate__() -- Return the state of the object" },
   {"__setstate__",	(PyCFunction)Per__setstate__,	0,
@@ -663,8 +645,15 @@ Per_getattr(cPersistentObject *self, PyObject *oname, char *name,
 	      }
 	    break;
 	  case 'c':
-	    if(strcmp(n,"hanged")==0) 
-	      return PyInt_FromLong(self->state == CHANGED_STATE);
+	    if(strcmp(n,"hanged")==0)
+	      {
+		if(self->state == GHOST_STATE)
+		  {
+		    Py_INCREF(Py_None);
+		    return Py_None;
+		  }
+		return PyInt_FromLong(self->state == CHANGED_STATE);
+	      }
 	    break;
 	  case 'a':
 	    if(strcmp(n,"time")==0)
@@ -758,7 +747,8 @@ _setattro(cPersistentObject *self, PyObject *oname, PyObject *v,
 	}
       if(strcmp(name+3,"changed")==0) 
 	{
-	  self->state=v && PyObject_IsTrue(v);
+	  if(v==Py_None) self->state=GHOST_STATE;
+	  else self->state= (v && PyObject_IsTrue(v));
 	  return 0;
 	}
       if(strcmp(name+3,"atime")==0) 
@@ -901,7 +891,7 @@ void
 initcPersistence()
 {
   PyObject *m, *d;
-  char *rev="$Revision: 1.21 $";
+  char *rev="$Revision: 1.22 $";
 
   PATimeType.ob_type=&PyType_Type;
 
@@ -922,12 +912,21 @@ initcPersistence()
 		       PyCObject_FromVoidPtr(cPersistenceCAPI,NULL));
 
 
-  CHECK_FOR_ERRORS("can't initialize module dt");
+#include "dcprotect.h"
+  
+  if (PyErr_Occurred())
+    Py_FatalError("can't initialize module cDocumentTemplate");
 }
 
 /****************************************************************************
 
   $Log: cPersistence.c,v $
+  Revision 1.22  1997/12/15 15:28:09  jim
+  Some cleanup.  Removed unused old routine.
+  Renamed _p___reinit__ to _p_deactivate.
+  Updated _p_changed attribute protocol. This will allow us to get rid
+  of _p_state and maybe someday __changed__().
+
   Revision 1.21  1997/12/11 16:03:30  jim
   Set EXTENSIONCLASS_BASICNEW_FLAG to support __basicnew__ protocol.
 
