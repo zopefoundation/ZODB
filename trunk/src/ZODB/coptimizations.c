@@ -190,7 +190,7 @@ persistent_id_call(persistent_id *self, PyObject *args, PyObject *kwargs)
 	      (self->new_oid=PyObject_GetAttr(self->jar, py_new_oid)))
 	    goto err;
       ASSIGN(oid, PyObject_CallObject(self->new_oid, NULL));
-      UNLESS (oid) goto err;
+      UNLESS (oid) goto null_oid;
       if (PyObject_SetAttr(object, py__p_jar, self->jar) < 0) goto err;
       if (PyObject_SetAttr(object, py__p_oid, oid) < 0) goto err;
       UNLESS (r=PyTuple_New(1)) goto err;
@@ -254,6 +254,7 @@ err:
   Py_DECREF(oid);
   oid=NULL;
 
+null_oid:
 return_oid:
   Py_XDECREF(jar);
   Py_XDECREF(klass);
@@ -305,7 +306,7 @@ void
 initcoptimizations()
 {
   PyObject *m, *d;
-  char *rev="$Revision: 1.4 $";
+  char *rev="$Revision: 1.5 $";
 
 #define make_string(S) if (! (py_ ## S=PyString_FromString(#S))) return
   make_string(_p_oid);
