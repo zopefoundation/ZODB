@@ -288,7 +288,7 @@ non-current revision to load.
 >>> cn1.getTransaction().commit()
 >>> r1["b"].value = 1
 >>> cn1.getTransaction().commit()
->>> cn1.cacheMinimize()
+>>> cn1.cacheMinimize()  # makes everything in cache a ghost
 
 >>> oid = r1["b"]._p_oid
 >>> ts.hooked[oid] = 1
@@ -324,14 +324,14 @@ activate "b" will result in a ReadConflictError.
 >>> r1["a"] = MinPO(0)
 >>> r1["b"] = MinPO(0)
 >>> cn1.getTransaction().commit()
->>> cn1.cacheMinimize()
+>>> cn1.cacheMinimize()  # makes everything in cache a ghost
 
 >>> oid = r1["b"]._p_oid
 >>> ts.hooked[oid] = 1
 
-Once the oid is hooked, an invalidation will be delivered the next
-time it is activated.  The code below activates the object, then
-confirms that the hook worked and that the old state was retrieved.
+Again, once the oid is hooked, an invalidation will be delivered the next
+time it is activated.  The code below activates the object, but unlike the
+section above, this is no older state to retrieve.
 
 >>> oid in cn1._invalidated
 False
