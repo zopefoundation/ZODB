@@ -1,5 +1,5 @@
-ZODB3 3.3 alpha 3
-=================
+ZODB3 3.3 beta 1
+================
 
 Introduction
 ------------
@@ -29,7 +29,7 @@ Compatibility
 -------------
 
 ZODB 3.3 is known to work with Python 2.3.3.  For best results, we
-recommend using Python 2.3.3.  Note that Python 2.2 and earlier are
+recommend using Python 2.3.4.  Note that Python 2.2 and earlier are
 not supported.
 
 The Zope 2.8 release should be compatible with this version of ZODB.
@@ -39,7 +39,7 @@ only be needed to run a ZEO server.
 The ZEO server in ZODB 3.3 is currently incompatible with earlier
 versions of ZODB.  If you want to test the software, you must be
 running this release for both client and server.  A backwards
-compatibility mechanism will be provide in the beta release.
+compatibility mechanism may be provided in a beta release.
 
 Prerequisites
 -------------
