@@ -1,0 +1,196 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<html>
+<head>
+<title>2.4 Writing a Persistent Class</title>
+<META NAME="description" CONTENT="2.4 Writing a Persistent Class">
+<META NAME="keywords" CONTENT="zodb">
+<META NAME="resource-type" CONTENT="document">
+<META NAME="distribution" CONTENT="global">
+<meta http-equiv="Content-Type" content="text/html; charset=">
+<link rel="STYLESHEET" href="zodb.css">
+<link rel="first" href="zodb.html">
+<link rel="contents" href="contents.html" title="Contents">
+
+<LINK REL="next" HREF="node15.html">
+<LINK REL="previous" HREF="node13.html">
+<LINK REL="up" HREF="node8.html">
+<LINK REL="next" HREF="node15.html">
+</head>
+<body>
+<DIV CLASS="navigation">
+<table align="center" width="100%" cellpadding="0" cellspacing="2">
+<tr>
+<td><A HREF="node13.html"><img src="/python/writing/icons/previous.gif"
+  border="0" height="32"
+  alt="Previous Page" width="32"></A></td>
+<td><A HREF="node8.html"><img src="/python/writing/icons/up.gif"
+  border="0" height="32"
+  alt="Up One Level" width="32"></A></td>
+<td><A HREF="node15.html"><img src="/python/writing/icons/next.gif"
+  border="0" height="32"
+  alt="Next Page" width="32"></A></td>
+<td align="center" width="100%">ZODB/ZEO Programming Guide</td>
+<td><A href="contents.html"><img src="/python/writing/icons/contents.gif"
+  border="0" height="32"
+  alt="Contents" width="32"></A></td>
+<td><img src="/python/writing/icons/blank.gif"
+  border="0" height="32"
+  alt="" width="32"></td>
+<td><img src="/python/writing/icons/blank.gif"
+  border="0" height="32"
+  alt="" width="32"></td>
+</tr></table>
+<b class="navlabel">Previous:</b> <a class="sectref" HREF="node13.html">2.3 Opening a ZODB</A>
+<b class="navlabel">Up:</b> <a class="sectref" HREF="node8.html">2 ZODB Programming</A>
+<b class="navlabel">Next:</b> <a class="sectref" HREF="node15.html">2.5 Rules for Writing</A>
+<br><hr>
+</DIV>
+<!--End of Navigation Panel-->
+
+<H2><A NAME="SECTION000340000000000000000">
+2.4 Writing a Persistent Class</A>
+</H2>
+
+<P>
+Making a Python class persistent is quite simple; it simply needs to
+subclass from the <tt class="class">Persistent</tt> class, as shown in this example:
+
+<P>
+<dl><dd><pre class="verbatim">
+import ZODB
+from Persistence import Persistent
+
+class User(Persistent):
+    pass
+</pre></dl>
+
+<P>
+The apparently unnecessary <code>import ZODB</code> statement is
+needed for the following <code>from...import</code> statement to work
+correctly, since the ZODB code does some magical tricks with
+importing.
+
+<P>
+For simplicity, in the examples the <tt class="class">User</tt> class will
+simply be used as a holder for a bunch of attributes.  Normally the
+class would define various methods that add functionality, but that
+has no impact on the ZODB's treatment of the class.
+
+<P>
+The ZODB uses persistence by reachability; starting from a set of root
+objects, all the attributes of those objects are made persistent,
+whether they're simple Python data types or class instances.  There's
+no method to explicitly store objects in a ZODB database; simply
+assign them as an attribute of an object, or store them in a mapping,
+that's already in the database.  This chain of containment must
+eventually reach back to the root object of the database.
+
+<P>
+As an example, we'll create a simple database of users that allows
+retrieving a <tt class="class">User</tt> object given the user's ID.  First, we
+retrieve the primary root object of the ZODB using the <tt class="method">root()</tt>
+method of the <tt class="class">Connection</tt> instance.  The root object behaves
+like a Python dictionary, so you can just add a new key/value pair for
+your application's root object.  We'll insert a <tt class="class">BTree</tt> object
+that will contain all the <tt class="class">User</tt> objects.  (The
+<tt class="class">BTree</tt> module is also included as part of Zope.)
+
+<P>
+<dl><dd><pre class="verbatim">
+dbroot = conn.root()
+
+# Ensure that a 'userdb' key is present 
+# in the root
+if not dbroot.has_key('userdb'):
+    import BTree
+    dbroot['userdb'] = BTree.BTree()
+
+userdb = dbroot['userdb']
+</pre></dl>
+
+<P>
+Inserting a new user is simple: create the <tt class="class">User</tt> object, fill
+it with data, insert it into the <tt class="class">BTree</tt> instance, and commit
+this transaction.
+
+<P>
+<dl><dd><pre class="verbatim"># Create new User instance
+newuser = User() 
+
+# Add whatever attributes you want to track
+newuser.id = 'amk' 
+newuser.first_name = 'Andrew' ; newuser.last_name = 'Kuchling'
+...
+
+# Add object to the BTree, keyed on the ID
+userdb[newuser.id] = newuser
+
+# Commit the change
+get_transaction().commit()
+</pre></dl>
+
+<P>
+When you import the ZODB package, it adds a new function,
+<tt class="function">get_transaction()</tt>, to Python's collection of built-in
+functions.  <tt class="function">get_transaction()</tt> returns a <tt class="class">Transaction</tt>
+object, which has two important methods: <tt class="method">commit()</tt> and
+<tt class="method">abort()</tt>.  <tt class="method">commit()</tt> writes any modified objects
+to disk, making the changes permanent, while <tt class="method">abort()</tt> rolls
+back any changes that have been made, restoring the original state of
+the objects.  If you're familiar with database transactional
+semantics, this is all what you'd expect.
+
+<P>
+Because the integration with Python is so complete, it's a lot like
+having transactional semantics for your program's variables, and you
+can experiment with transactions at the Python interpreter's prompt:
+
+<P>
+<dl><dd><pre class="verbatim">&gt;&gt;&gt; newuser
+&lt;User instance at 81b1f40&gt;
+&gt;&gt;&gt; newuser.first_name           # Print initial value
+'Andrew'         
+&gt;&gt;&gt; newuser.first_name = 'Bob'   # Change first name
+&gt;&gt;&gt; newuser.first_name           # Verify the change
+'Bob'
+&gt;&gt;&gt; get_transaction().abort()    # Abort transaction
+&gt;&gt;&gt; newuser.first_name           # The value has changed back
+'Andrew'
+</pre></dl>
+
+<P>
+
+<DIV CLASS="navigation">
+<p><hr>
+<table align="center" width="100%" cellpadding="0" cellspacing="2">
+<tr>
+<td><A HREF="node13.html"><img src="/python/writing/icons/previous.gif"
+  border="0" height="32"
+  alt="Previous Page" width="32"></A></td>
+<td><A HREF="node8.html"><img src="/python/writing/icons/up.gif"
+  border="0" height="32"
+  alt="Up One Level" width="32"></A></td>
+<td><A HREF="node15.html"><img src="/python/writing/icons/next.gif"
+  border="0" height="32"
+  alt="Next Page" width="32"></A></td>
+<td align="center" width="100%">ZODB/ZEO Programming Guide</td>
+<td><A href="contents.html"><img src="/python/writing/icons/contents.gif"
+  border="0" height="32"
+  alt="Contents" width="32"></A></td>
+<td><img src="/python/writing/icons/blank.gif"
+  border="0" height="32"
+  alt="" width="32"></td>
+<td><img src="/python/writing/icons/blank.gif"
+  border="0" height="32"
+  alt="" width="32"></td>
+</tr></table>
+<b class="navlabel">Previous:</b> <a class="sectref" HREF="node13.html">2.3 Opening a ZODB</A>
+<b class="navlabel">Up:</b> <a class="sectref" HREF="node8.html">2 ZODB Programming</A>
+<b class="navlabel">Next:</b> <a class="sectref" HREF="node15.html">2.5 Rules for Writing</A>
+<hr>
+<span class="release-info">Release 0.03, documentation updated on February 8, 2002.</span>
+</DIV>
+<!--End of Navigation Panel-->
+
+</BODY>
+</HTML>

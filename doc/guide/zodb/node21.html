@@ -1,0 +1,134 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<html>
+<head>
+<title>2.6.1 Changing Instance Attributes</title>
+<META NAME="description" CONTENT="2.6.1 Changing Instance Attributes">
+<META NAME="keywords" CONTENT="zodb">
+<META NAME="resource-type" CONTENT="document">
+<META NAME="distribution" CONTENT="global">
+<meta http-equiv="Content-Type" content="text/html; charset=">
+<link rel="STYLESHEET" href="zodb.css">
+<link rel="first" href="zodb.html">
+<link rel="contents" href="contents.html" title="Contents">
+
+<LINK REL="previous" HREF="node20.html">
+<LINK REL="up" HREF="node20.html">
+<LINK REL="next" href="zeo.html">
+</head>
+<body>
+<DIV CLASS="navigation">
+<table align="center" width="100%" cellpadding="0" cellspacing="2">
+<tr>
+<td><A HREF="node20.html"><img src="/python/writing/icons/previous.gif"
+  border="0" height="32"
+  alt="Previous Page" width="32"></A></td>
+<td><A HREF="node20.html"><img src="/python/writing/icons/up.gif"
+  border="0" height="32"
+  alt="Up One Level" width="32"></A></td>
+<td><A href="zeo.html"><img src="/python/writing/icons/next.gif"
+  border="0" height="32"
+  alt="Next Page" width="32"></A></td>
+<td align="center" width="100%">ZODB/ZEO Programming Guide</td>
+<td><A href="contents.html"><img src="/python/writing/icons/contents.gif"
+  border="0" height="32"
+  alt="Contents" width="32"></A></td>
+<td><img src="/python/writing/icons/blank.gif"
+  border="0" height="32"
+  alt="" width="32"></td>
+<td><img src="/python/writing/icons/blank.gif"
+  border="0" height="32"
+  alt="" width="32"></td>
+</tr></table>
+<b class="navlabel">Previous:</b> <a class="sectref" HREF="node20.html">2.6 Writing Persistent Classes</A>
+<b class="navlabel">Up:</b> <a class="sectref" HREF="node20.html">2.6 Writing Persistent Classes</A>
+<b class="navlabel">Next:</b> <a class="sectref" href="zeo.html">3 ZEO</A>
+<br><hr>
+</DIV>
+<!--End of Navigation Panel-->
+
+<H3><A NAME="SECTION000361000000000000000">
+2.6.1 Changing Instance Attributes</A>
+</H3>
+
+<P>
+Ideally, before making a class persistent you would get its interface
+right the first time, so that no attributes would ever need to be
+added, removed, or have their interpretation change over time.  It's a
+worthy goal, but also an impractical one unless you're gifted with
+perfect knowledge of the future.  Such unnatural foresight can't be
+required of any person, so you therefore have to be prepared to handle
+such structural changes gracefully.  In object-oriented database
+terminology, this is a schema update.  The ZODB doesn't have an actual
+schema specification, but you're changing the software's expectations
+of the data contained by an object, so you're implicitly changing the
+schema.
+
+<P>
+One way to handle such a change is to write a one-time conversion
+program that will loop over every single object in the database and
+update them to match the new schema.  This can be easy if your network
+of object references is quite structured, making it easy to find all
+the instances of the class being modified.  For example, if all
+<tt class="class">User</tt> objects can be found inside a single dictionary or
+B-tree, then it would be a simple matter to loop over every
+<tt class="class">User</tt> instance with a <tt class="keyword">for</tt> statement.
+This is more difficult if your object graph is less structured; if
+<tt class="class">User</tt> objects can be found as attributes of any number of
+different class instances, then there's no longer any easy way to find
+them all, short of writing a generalized object traversal function
+that would walk over every single object in a ZODB, checking each one
+to see if it's an instance of <tt class="class">User</tt>.  
+<A NAME="tex2html1"
+  HREF="#foot287"><SUP>1</SUP></A>Some OODBs support a feature called extents, which allow quickly
+finding all the instances of a given class, no matter where they are
+in the object graph; unfortunately the ZODB doesn't offer extents as a
+feature.
+
+<P>
+XXX Rest of section not written yet: __getstate__/__setstate__
+
+<P>
+<BR><HR><H4>Footnotes</H4>
+<DL>
+<DT><A NAME="foot287">...User.  
+</A><A NAME="foot287"
+ HREF="node21.html#tex2html1"><SUP>1</SUP></A>
+<DD>XXX is there a convenience method for walking the object graph hiding
+somewhere inside DC's code?  Should there be a utility method for
+doing this?  Should I write one and include it in this section?
+
+</DL>
+<DIV CLASS="navigation">
+<p><hr>
+<table align="center" width="100%" cellpadding="0" cellspacing="2">
+<tr>
+<td><A HREF="node20.html"><img src="/python/writing/icons/previous.gif"
+  border="0" height="32"
+  alt="Previous Page" width="32"></A></td>
+<td><A HREF="node20.html"><img src="/python/writing/icons/up.gif"
+  border="0" height="32"
+  alt="Up One Level" width="32"></A></td>
+<td><A href="zeo.html"><img src="/python/writing/icons/next.gif"
+  border="0" height="32"
+  alt="Next Page" width="32"></A></td>
+<td align="center" width="100%">ZODB/ZEO Programming Guide</td>
+<td><A href="contents.html"><img src="/python/writing/icons/contents.gif"
+  border="0" height="32"
+  alt="Contents" width="32"></A></td>
+<td><img src="/python/writing/icons/blank.gif"
+  border="0" height="32"
+  alt="" width="32"></td>
+<td><img src="/python/writing/icons/blank.gif"
+  border="0" height="32"
+  alt="" width="32"></td>
+</tr></table>
+<b class="navlabel">Previous:</b> <a class="sectref" HREF="node20.html">2.6 Writing Persistent Classes</A>
+<b class="navlabel">Up:</b> <a class="sectref" HREF="node20.html">2.6 Writing Persistent Classes</A>
+<b class="navlabel">Next:</b> <a class="sectref" href="zeo.html">3 ZEO</A>
+<hr>
+<span class="release-info">Release 0.03, documentation updated on February 8, 2002.</span>
+</DIV>
+<!--End of Navigation Panel-->
+
+</BODY>
+</HTML>

@@ -1,0 +1,145 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<html>
+<head>
+<title>5.3 B-tree Modules</title>
+<META NAME="description" CONTENT="5.3 B-tree Modules">
+<META NAME="keywords" CONTENT="zodb">
+<META NAME="resource-type" CONTENT="document">
+<META NAME="distribution" CONTENT="global">
+<meta http-equiv="Content-Type" content="text/html; charset=">
+<link rel="STYLESHEET" href="zodb.css">
+<link rel="first" href="zodb.html">
+<link rel="contents" href="contents.html" title="Contents">
+
+<LINK REL="previous" HREF="node38.html">
+<LINK REL="up" HREF="node36.html">
+<LINK REL="next" HREF="node40.html">
+</head>
+<body>
+<DIV CLASS="navigation">
+<table align="center" width="100%" cellpadding="0" cellspacing="2">
+<tr>
+<td><A HREF="node38.html"><img src="/python/writing/icons/previous.gif"
+  border="0" height="32"
+  alt="Previous Page" width="32"></A></td>
+<td><A HREF="node36.html"><img src="/python/writing/icons/up.gif"
+  border="0" height="32"
+  alt="Up One Level" width="32"></A></td>
+<td><A HREF="node40.html"><img src="/python/writing/icons/next.gif"
+  border="0" height="32"
+  alt="Next Page" width="32"></A></td>
+<td align="center" width="100%">ZODB/ZEO Programming Guide</td>
+<td><A href="contents.html"><img src="/python/writing/icons/contents.gif"
+  border="0" height="32"
+  alt="Contents" width="32"></A></td>
+<td><img src="/python/writing/icons/blank.gif"
+  border="0" height="32"
+  alt="" width="32"></td>
+<td><img src="/python/writing/icons/blank.gif"
+  border="0" height="32"
+  alt="" width="32"></td>
+</tr></table>
+<b class="navlabel">Previous:</b> <a class="sectref" HREF="node38.html">5.2 ZODB.PersistentList</A>
+<b class="navlabel">Up:</b> <a class="sectref" HREF="node36.html">5 Related Modules</A>
+<b class="navlabel">Next:</b> <a class="sectref" HREF="node40.html">A. Resources</A>
+<br><hr>
+</DIV>
+<!--End of Navigation Panel-->
+
+<H2><A NAME="SECTION000630000000000000000">
+5.3 B-tree Modules</A>
+</H2>
+
+<P>
+When programming with the ZODB, Python dictionaries aren't always what
+you need.  The most important case is where you want to store a very
+large mapping.  When a Python dictionary is accessed in a ZODB, the
+whole dictionary has to be unpickled and brought into memory.  If
+you're storing something very large, such as a 100,000-entry user
+database, unpickling such a large object will be slow.  B-trees are a
+balanced tree data structure that behave like a mapping but distribute
+keys throughout a number of tree nodes.  Nodes are then only unpickled
+and brought into memory as they're accessed, so the entire tree
+doesn't have to occupy memory (unless you really are touching every
+single key).
+
+<P>
+There are four different BTree modules provided.  One of them, the
+<tt class="module">BTree</tt> module, provides the most general data type; the keys
+and values in the B-tree can be any Python object.  Some specialized B-tree
+modules require that the keys, and perhaps even the values, to be of a
+certain type, and provide faster performance because of this limitation.
+
+<P>
+<DL COMPACT>
+<DT> <tt class="module">IOBTree</tt> </DT>
+<DD>requires the keys to be integers.
+The module name reminds you of this; the <tt class="module">IOBTree</tt> module
+maps Integers to Objects.
+
+<P>
+</DD>
+<DT> <tt class="module">OIBTree</tt> </DT>
+<DD>requires the values to be integers,
+mapping Objects to Integers.
+
+<P>
+</DD>
+<DT> <tt class="module">IIBTree</tt> </DT>
+<DD>is strictest, requiring that both keys and values must be integers.
+
+<P>
+</DD>
+</DL>
+
+<P>
+To use a B-tree, simply import the desired module and call the
+constructor, always named <tt class="function">BTree()</tt>, to get a B-tree
+instance, and then use it like any other mapping:
+
+<P>
+<dl><dd><pre class="verbatim">
+import IIBTree
+iimap = IIBTree.BTree()
+iimap[1972] = 27
+</pre></dl>
+
+<P>
+
+
+<P>
+
+<DIV CLASS="navigation">
+<p><hr>
+<table align="center" width="100%" cellpadding="0" cellspacing="2">
+<tr>
+<td><A HREF="node38.html"><img src="/python/writing/icons/previous.gif"
+  border="0" height="32"
+  alt="Previous Page" width="32"></A></td>
+<td><A HREF="node36.html"><img src="/python/writing/icons/up.gif"
+  border="0" height="32"
+  alt="Up One Level" width="32"></A></td>
+<td><A HREF="node40.html"><img src="/python/writing/icons/next.gif"
+  border="0" height="32"
+  alt="Next Page" width="32"></A></td>
+<td align="center" width="100%">ZODB/ZEO Programming Guide</td>
+<td><A href="contents.html"><img src="/python/writing/icons/contents.gif"
+  border="0" height="32"
+  alt="Contents" width="32"></A></td>
+<td><img src="/python/writing/icons/blank.gif"
+  border="0" height="32"
+  alt="" width="32"></td>
+<td><img src="/python/writing/icons/blank.gif"
+  border="0" height="32"
+  alt="" width="32"></td>
+</tr></table>
+<b class="navlabel">Previous:</b> <a class="sectref" HREF="node38.html">5.2 ZODB.PersistentList</A>
+<b class="navlabel">Up:</b> <a class="sectref" HREF="node36.html">5 Related Modules</A>
+<b class="navlabel">Next:</b> <a class="sectref" HREF="node40.html">A. Resources</A>
+<hr>
+<span class="release-info">Release 0.03, documentation updated on February 8, 2002.</span>
+</DIV>
+<!--End of Navigation Panel-->
+
+</BODY>
+</HTML>

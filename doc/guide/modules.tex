@@ -1,0 +1,90 @@
+
+% Related Modules
+%    PersistentMapping
+%    PersistentList
+%    BTree
+%    Catalog
+
+\section{Related Modules}
+
+The ZODB package includes a number of related modules that provide
+useful data types such as BTrees or full-text indexes.
+
+\subsection{\module{ZODB.PersistentMapping}}
+
+The \class{PersistentMapping} class is a wrapper for mapping objects
+that will set the dirty bit when the mapping is modified by setting or
+deleting a key.  
+
+\begin{funcdesc}{PersistentMapping}{container = \{\}}
+Create a \class{PersistentMapping} object that wraps the 
+mapping object \var{container}.  If you don't specify a
+value for \var{container}, a regular Python dictionary is used.
+\end{funcdesc}
+
+\class{PersistentMapping} objects support all the same methods as 
+Python dictionaries do.
+
+\subsection{\module{ZODB.PersistentList}}
+
+The \class{PersistentList} class is a wrapper for mutable sequence objects, 
+much as \class{PersistentMapping} is a wrapper for mappings.  
+
+\begin{funcdesc}{PersistentList}{initlist = []}
+Create a \class{PersistentList} object that wraps the 
+mutable sequence object \var{initlist}.  If you don't specify a
+value for \var{initlist}, a regular Python list is used.
+\end{funcdesc}
+
+\class{PersistentList} objects support all the same methods as 
+Python lists do.
+
+
+\subsection{B-tree Modules}
+
+%here's one: how does one implement searching? i would have expected the
+%btree objects to have ``find key nearest to this'' and ``next'' methods,
+%(like bsddb's set_location)...
+%
+%  -- erno
+
+When programming with the ZODB, Python dictionaries aren't always what
+you need.  The most important case is where you want to store a very
+large mapping.  When a Python dictionary is accessed in a ZODB, the
+whole dictionary has to be unpickled and brought into memory.  If
+you're storing something very large, such as a 100,000-entry user
+database, unpickling such a large object will be slow.  B-trees are a
+balanced tree data structure that behave like a mapping but distribute
+keys throughout a number of tree nodes.  Nodes are then only unpickled
+and brought into memory as they're accessed, so the entire tree
+doesn't have to occupy memory (unless you really are touching every
+single key).
+
+There are four different BTree modules provided.  One of them, the
+\module{BTree} module, provides the most general data type; the keys
+and values in the B-tree can be any Python object.  Some specialized B-tree
+modules require that the keys, and perhaps even the values, to be of a
+certain type, and provide faster performance because of this limitation.
+
+\begin{itemize}
+\item[ \module{IOBTree} ] requires the keys to be integers.
+The module name reminds you of this; the \module{IOBTree} module
+maps Integers to Objects.
+
+\item[ \module{OIBTree} ] requires the values to be integers,
+mapping Objects to Integers.
+
+\item[ \module{IIBTree} ] is strictest, requiring that both keys and values must be integers.
+
+\end{itemize}
+
+To use a B-tree, simply import the desired module and call the
+constructor, always named \function{BTree()}, to get a B-tree
+instance, and then use it like any other mapping:
+
+\begin{verbatim}
+import IIBTree
+iimap = IIBTree.BTree()
+iimap[1972] = 27
+\end{verbatim}
+

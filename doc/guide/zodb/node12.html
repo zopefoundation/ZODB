@@ -1,0 +1,156 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<html>
+<head>
+<title>2.2 How ZODB Works</title>
+<META NAME="description" CONTENT="2.2 How ZODB Works">
+<META NAME="keywords" CONTENT="zodb">
+<META NAME="resource-type" CONTENT="document">
+<META NAME="distribution" CONTENT="global">
+<meta http-equiv="Content-Type" content="text/html; charset=">
+<link rel="STYLESHEET" href="zodb.css">
+<link rel="first" href="zodb.html">
+<link rel="contents" href="contents.html" title="Contents">
+
+<LINK REL="next" HREF="node13.html">
+<LINK REL="previous" HREF="node9.html">
+<LINK REL="up" HREF="node8.html">
+<LINK REL="next" HREF="node13.html">
+</head>
+<body>
+<DIV CLASS="navigation">
+<table align="center" width="100%" cellpadding="0" cellspacing="2">
+<tr>
+<td><A HREF="node11.html"><img src="/python/writing/icons/previous.gif"
+  border="0" height="32"
+  alt="Previous Page" width="32"></A></td>
+<td><A HREF="node8.html"><img src="/python/writing/icons/up.gif"
+  border="0" height="32"
+  alt="Up One Level" width="32"></A></td>
+<td><A HREF="node13.html"><img src="/python/writing/icons/next.gif"
+  border="0" height="32"
+  alt="Next Page" width="32"></A></td>
+<td align="center" width="100%">ZODB/ZEO Programming Guide</td>
+<td><A href="contents.html"><img src="/python/writing/icons/contents.gif"
+  border="0" height="32"
+  alt="Contents" width="32"></A></td>
+<td><img src="/python/writing/icons/blank.gif"
+  border="0" height="32"
+  alt="" width="32"></td>
+<td><img src="/python/writing/icons/blank.gif"
+  border="0" height="32"
+  alt="" width="32"></td>
+</tr></table>
+<b class="navlabel">Previous:</b> <a class="sectref" HREF="node11.html">2.1.2 Installing the Packages</A>
+<b class="navlabel">Up:</b> <a class="sectref" HREF="node8.html">2 ZODB Programming</A>
+<b class="navlabel">Next:</b> <a class="sectref" HREF="node13.html">2.3 Opening a ZODB</A>
+<br><hr>
+</DIV>
+<!--End of Navigation Panel-->
+
+<H2><A NAME="SECTION000320000000000000000">
+2.2 How ZODB Works</A>
+</H2>
+
+<P>
+The ZODB is conceptually simple.  Python classes subclass a 
+<tt class="class">Persistent</tt> class to become ZODB-aware. 
+Instances of persistent objects are brought in from a permanent
+storage medium, such as a disk file, when the program needs them, and
+remain cached in RAM.  The ZODB traps modifications to objects, so
+that when a statement such as <code>obj.size = 1</code> is executed, the
+modified object is marked as ``dirty''.  On request, any dirty objects
+are written out to permanent storage; this is called committing a
+transaction.  Transactions can also be aborted or rolled back, which
+results in any changes being discarded, dirty objects reverting to
+their initial state before the transaction began.
+
+<P>
+The term ``transaction'' has a specific technical meaning in computer
+science.  It's extremely important that the contents of a database
+don't get corrupted by software or hardware crashes, and most database
+software offers protection against such corruption by supporting four
+useful properties, Atomicity, Consistency, Isolation, and Durability.
+In computer science jargon these four terms are collectively dubbed
+the ACID properties, forming an acronym from their names.  The
+definitions of the ACID properties are:
+
+<P>
+<DL COMPACT>
+<DT>Atomicity</DT>
+<DD>means that any changes to data made during a transaction 
+are all-or-nothing.  Either all the changes are applied, or none of
+them are.  If a program makes a bunch of modifications and then
+crashes, the database won't be partially modified, potentially leaving
+the data in an inconsistent state; instead all the changes will be
+forgotten.  That's bad, but it's better than having a
+partially-applied modification put the database into an inconsistent
+state.
+
+<P>
+</DD>
+<DT>Consistency</DT>
+<DD>means that the data cannot be placed into a
+logically invalid state; sanity checks can be written and enforced.
+Usually this is done by defining a database schema, and requiring the
+data always matches the schema.  For example, this might enforce that
+the <code>order_number</code> attribute is always an integer, and not a
+string, tuple, or other object.
+
+<P>
+</DD>
+<DT>Isolation</DT>
+<DD>means that two programs or threads running in two
+ different transactions cannot see each other's changes until they
+ commit their transactions.
+
+<P>
+</DD>
+<DT>Durability</DT>
+<DD>means that once a transaction has been committed,
+a subsequent crash will not cause any data to be lost or corrupted.
+
+<P>
+</DD>
+</DL>
+
+<P>
+The ZODB provides 3 of the ACID properties.  Only Consistency is not
+supported; the ZODB has no notion of a database schema, and therefore
+has no way of enforcing consistency with a schema.
+
+<P>
+
+<DIV CLASS="navigation">
+<p><hr>
+<table align="center" width="100%" cellpadding="0" cellspacing="2">
+<tr>
+<td><A HREF="node11.html"><img src="/python/writing/icons/previous.gif"
+  border="0" height="32"
+  alt="Previous Page" width="32"></A></td>
+<td><A HREF="node8.html"><img src="/python/writing/icons/up.gif"
+  border="0" height="32"
+  alt="Up One Level" width="32"></A></td>
+<td><A HREF="node13.html"><img src="/python/writing/icons/next.gif"
+  border="0" height="32"
+  alt="Next Page" width="32"></A></td>
+<td align="center" width="100%">ZODB/ZEO Programming Guide</td>
+<td><A href="contents.html"><img src="/python/writing/icons/contents.gif"
+  border="0" height="32"
+  alt="Contents" width="32"></A></td>
+<td><img src="/python/writing/icons/blank.gif"
+  border="0" height="32"
+  alt="" width="32"></td>
+<td><img src="/python/writing/icons/blank.gif"
+  border="0" height="32"
+  alt="" width="32"></td>
+</tr></table>
+<b class="navlabel">Previous:</b> <a class="sectref" HREF="node11.html">2.1.2 Installing the Packages</A>
+<b class="navlabel">Up:</b> <a class="sectref" HREF="node8.html">2 ZODB Programming</A>
+<b class="navlabel">Next:</b> <a class="sectref" HREF="node13.html">2.3 Opening a ZODB</A>
+<hr>
+<span class="release-info">Release 0.03, documentation updated on February 8, 2002.</span>
+</DIV>
+<!--End of Navigation Panel-->
+
+</BODY>
+</HTML>
