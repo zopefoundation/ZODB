@@ -359,8 +359,8 @@ class ZEOServer:
         self.server = StorageServer(self.options.address, self.storages)
 
     def loop_forever(self):
-        import asyncore
-        asyncore.loop()
+        import ThreadedAsync
+        ThreadedAsync.loop()
 
     def handle_sigterm(self):
         info("terminated by SIGTERM")
