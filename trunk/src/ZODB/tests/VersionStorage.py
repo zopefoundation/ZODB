@@ -2,14 +2,14 @@
 #
 # Copyright (c) 2001, 2002 Zope Corporation and Contributors.
 # All Rights Reserved.
-# 
+#
 # This software is subject to the provisions of the Zope Public License,
 # Version 2.0 (ZPL).  A copy of the ZPL should accompany this distribution.
 # THIS SOFTWARE IS PROVIDED "AS IS" AND ANY AND ALL EXPRESS OR IMPLIED
 # WARRANTIES ARE DISCLAIMED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 # WARRANTIES OF TITLE, MERCHANTABILITY, AGAINST INFRINGEMENT, AND FITNESS
 # FOR A PARTICULAR PURPOSE.
-# 
+#
 ##############################################################################
 """Run the version related tests for a storage.
 
@@ -54,7 +54,7 @@ class VersionStorage:
         # use repr() to avoid getting binary data in a traceback on error
         self.assertEqual(`revid1`, `revid3`)
         self.assertNotEqual(`revid2`, `revid3`)
-    
+
     def checkVersionedStoreAndLoad(self):
         eq = self.assertEqual
         # Store a couple of non-version revisions of the object
@@ -380,7 +380,7 @@ class VersionStorage:
         self._storage.tpc_vote(t)
         self._storage.tpc_finish(t)
         self.assertEqual(oids, [oid])
-        
+
     def checkPackVersions(self):
         db = DB(self._storage)
         cn = db.open(version="testversion")
@@ -466,5 +466,3 @@ class VersionStorage:
         txn.commit()
 
         self._storage.pack(time.time(), referencesf)
-
-
