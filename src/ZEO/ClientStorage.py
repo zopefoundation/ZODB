@@ -84,7 +84,7 @@
 ##############################################################################
 """Network ZODB storage client
 """
-__version__='$Revision: 1.32 $'[11:-2]
+__version__='$Revision: 1.33 $'[11:-2]
 
 import struct, time, os, socket, string, Sync, zrpc, ClientCache
 import tempfile, Invalidator, ExtensionClass, thread
@@ -140,6 +140,7 @@ class ClientStorage(ExtensionClass.Base, BaseStorage.BaseStorage):
 
         name = name or str(connection)
 
+        self.closed = 0
         self._tfile=tempfile.TemporaryFile()
         self._oids=[]
         self._serials=[]
@@ -221,6 +222,9 @@ class ClientStorage(ExtensionClass.Base, BaseStorage.BaseStorage):
 
             self._call.finishConnect(s)
 
+            if self.closed:
+                return
+
             self._connected=1
             self._oids=[]
 
@@ -298,8 +302,10 @@ class ClientStorage(ExtensionClass.Base, BaseStorage.BaseStorage):
     def close(self):
         self._lock_acquire()
         try:
+            LOG("ClientStorage", INFO, "close")
             self._call.closeIntensionally()
             self._cache.close()
+            self.closed = 1 
         finally: self._lock_release()
         
     def commitVersion(self, src, dest, transaction):
