@@ -91,330 +91,17 @@ except:
     sys.path.insert(0, '../..')
     import ZODB
 
-from BTrees.OOBTree import OOBTree
-from BTrees.IOBTree import IOBTree
-from BTrees.IIBTree import IIBTree
-from BTrees.OIBTree import OIBTree
-
+from BTrees.OOBTree import OOBTree, OOBucket, OOSet
+from BTrees.IOBTree import IOBTree, IOBucket, IOSet
+from BTrees.IIBTree import IIBTree, IIBucket, IISet
+from BTrees.OIBTree import OIBTree, OIBucket, OISet
 from unittest import TestCase, TestSuite, TextTestRunner, makeSuite
 
 class Base:
+    """ Tests common to all types: sets, buckets, and BTrees """
     def tearDown(self):
         self.t = None
         del self.t
-        
-    def testGetItemFails(self):
-        self.assertRaises(KeyError, self._getitemfail)
-
-    def _getitemfail(self):
-        return self.t[1]
-
-    def testGetReturnsDefault(self):
-        assert self.t.get(1) == None
-        assert self.t.get(1, 'foo') == 'foo'
-        
-    def testSetItemGetItemWorks(self):
-        self.t[1] = 1
-        a = self.t[1]
-        assert a == 1, `a`
-
-    def testReplaceWorks(self):
-        self.t[1] = 1
-        assert self.t[1] == 1, self.t[1]
-        self.t[1] = 2
-        assert self.t[1] == 2, self.t[1]
-
-    def testHasKeyWorks(self):
-        self.t[1] = 1
-        assert self.t.has_key(1)
-
-    def testValuesWorks(self):
-        for x in range(100):
-            self.t[x] = x
-        v = self.t.values()
-        i = 0
-        for x in v:
-            assert x == i, (x,i)
-            i = i + 1
-            
-    def testKeysWorks(self):
-        for x in range(100):
-            self.t[x] = x
-        v = self.t.keys()
-        i = 0
-        for x in v:
-            assert x == i, (x,i)
-            i = i + 1
-        # BTree items must lie about their lengths, so we convert to list
-        assert len(v) == 100, len(v)
-        #assert len(v) == 100, len(v)
-
-    def testItemsWorks(self):
-        for x in range(100):
-            self.t[x] = x
-        v = self.t.items()
-        i = 0
-        for x in v:
-            assert x[0] == i, (x[0], i)
-            assert x[1] == i, (x[0], i)
-            i = i + 1
-
-    def testDeleteInvalidKeyRaisesKeyError(self):
-        self.assertRaises(KeyError, self._deletefail)
-
-    def _deletefail(self):
-        del self.t[1]
-
-    def donttestDeleteNoChildrenWorks(self):
-        self.t[5] = 6
-        self.t[2] = 10
-        self.t[6] = 12
-        self.t[1] = 100
-        self.t[3] = 200
-        self.t[10] = 500
-        self.t[4] = 99
-        del self.t[4]
-        diff = lsubtract(self.t.keys(), [1,2,3,5,6,10])
-        assert diff == [], diff
-
-    def donttestDeleteOneChildWorks(self):
-        self.t[5] = 6
-        self.t[2] = 10
-        self.t[6] = 12
-        self.t[1] = 100
-        self.t[3] = 200
-        self.t[10] = 500
-        self.t[4] = 99
-        del self.t[3]
-        diff = lsubtract(self.t.keys(), [1,2,4,5,6,10])
-        assert diff == [], diff
-
-    def donttestDeleteTwoChildrenNoInorderSuccessorWorks(self):
-        self.t[5] = 6
-        self.t[2] = 10
-        self.t[6] = 12
-        self.t[1] = 100
-        self.t[3] = 200
-        self.t[10] = 500
-        self.t[4] = 99
-        del self.t[2]
-        diff = lsubtract(self.t.keys(), [1,3,4,5,6,10])
-        assert diff == [], diff
-        
-    def donttestDeleteTwoChildrenInorderSuccessorWorks(self):
-        """ 7, 3, 8, 1, 5, 10, 6, 4 -- del 3 """
-        self.t[7] = 6
-        self.t[3] = 10
-        self.t[8] = 12
-        self.t[1] = 100
-        self.t[5] = 200
-        self.t[10] = 500
-        self.t[6] = 99
-        self.t[4] = 150
-        del self.t[3]
-        diff = lsubtract(self.t.keys(), [1,4,5,6,7,8,10])
-        assert diff == [], diff
-
-    def donttestDeleteRootWorks(self):
-        """ 7, 3, 8, 1, 5, 10, 6, 4 -- del 7 """
-        self.t[7] = 6
-        self.t[3] = 10
-        self.t[8] = 12
-        self.t[1] = 100
-        self.t[5] = 200
-        self.t[10] = 500
-        self.t[6] = 99
-        self.t[4] = 150
-        del self.t[7]
-        diff = lsubtract(self.t.keys(), [1,3,4,5,6,8,10])
-        assert diff == [], diff
-
-    def testRandomNonOverlappingInserts(self):
-        added = {}
-        r = range(100)
-        for x in r:
-            k = whrandom.choice(r)
-            if not added.has_key(k):
-                self.t[k] = x
-                added[k] = 1
-        addl = added.keys()
-        addl.sort()
-        diff = lsubtract(list(self.t.keys()), addl)
-        assert diff == [], (diff, addl, list(self.t.keys()))
-
-    def testRandomOverlappingInserts(self):
-        added = {}
-        r = range(100)
-        for x in r:
-            k = whrandom.choice(r)
-            self.t[k] = x
-            added[k] = 1
-        addl = added.keys()
-        addl.sort()
-        diff = lsubtract(self.t.keys(), addl)
-        assert diff == [], diff
-
-    def testLen(self):
-        added = {}
-        r = range(1000)
-        for x in r:
-            k = whrandom.choice(r)
-            self.t[k] = x
-            added[k] = x
-        addl = added.keys()
-        assert len(self.t) == len(addl), len(self.t)
-
-    def donttestRandomDeletes(self):
-        r = range(1000)
-        added = []
-        for x in r:
-            k = whrandom.choice(r)
-            self.t[k] = x
-            added.append(k)
-        deleted = []
-        for x in r:
-            k = whrandom.choice(r)
-            if self.t.has_key(k):
-                del self.t[k]
-                deleted.append(k)
-                if self.t.has_key(k):
-                    raise "had problems deleting %s" % k
-        badones = []
-        for x in deleted:
-            if self.t.has_key(x):
-                badones.append(x)
-        assert badones == [], (badones, added, deleted)
-
-    def donttestTargetedDeletes(self):
-        r = range(1000)
-        for x in r:
-            k = whrandom.choice(r)
-            self.t[k] = x
-        for x in r:
-            try:
-                del self.t[x]
-            except KeyError:
-                pass
-        assert realseq(self.t.keys()) == [], realseq(self.t.keys())
-        # this fails 1/22/2001 by segfaulting
-        
-    def donttestPathologicalRightBranching(self):
-        r = range(1000)
-        for x in r:
-            self.t[x] = 1
-        assert realseq(self.t.keys()) == r, realseq(self.t.keys())
-        for x in r:
-            del self.t[x]
-        assert realseq(self.t.keys()) == [], realseq(self.t.keys())
-
-    def donttestPathologicalLeftBranching(self):
-        r = range(1000)
-        revr = r[:]
-        revr.reverse()
-        for x in revr:
-            self.t[x] = 1
-        assert realseq(self.t.keys()) == r, realseq(self.t.keys())
-
-        for x in revr:
-            del self.t[x]
-        assert realseq(self.t.keys()) == [], realseq(self.t.keys())
-
-    def donttestSuccessorChildParentRewriteExerciseCase(self):
-        add_order = [
-            85, 73, 165, 273, 215, 142, 233, 67, 86, 166, 235, 225, 255,
-            73, 175, 171, 285, 162, 108, 28, 283, 258, 232, 199, 260,
-            298, 275, 44, 261, 291, 4, 181, 285, 289, 216, 212, 129,
-            243, 97, 48, 48, 159, 22, 285, 92, 110, 27, 55, 202, 294,
-            113, 251, 193, 290, 55, 58, 239, 71, 4, 75, 129, 91, 111,
-            271, 101, 289, 194, 218, 77, 142, 94, 100, 115, 101, 226,
-            17, 94, 56, 18, 163, 93, 199, 286, 213, 126, 240, 245, 190,
-            195, 204, 100, 199, 161, 292, 202, 48, 165, 6, 173, 40, 218,
-            271, 228, 7, 166, 173, 138, 93, 22, 140, 41, 234, 17, 249,
-            215, 12, 292, 246, 272, 260, 140, 58, 2, 91, 246, 189, 116,
-            72, 259, 34, 120, 263, 168, 298, 118, 18, 28, 299, 192, 252,
-            112, 60, 277, 273, 286, 15, 263, 141, 241, 172, 255, 52, 89,
-            127, 119, 255, 184, 213, 44, 116, 231, 173, 298, 178, 196,
-            89, 184, 289, 98, 216, 115, 35, 132, 278, 238, 20, 241, 128,
-            179, 159, 107, 206, 194, 31, 260, 122, 56, 144, 118, 283,
-            183, 215, 214, 87, 33, 205, 183, 212, 221, 216, 296, 40,
-            108, 45, 188, 139, 38, 256, 276, 114, 270, 112, 214, 191,
-            147, 111, 299, 107, 101, 43, 84, 127, 67, 205, 251, 38, 91,
-            297, 26, 165, 187, 19, 6, 73, 4, 176, 195, 90, 71, 30, 82,
-            139, 210, 8, 41, 253, 127, 190, 102, 280, 26, 233, 32, 257,
-            194, 263, 203, 190, 111, 218, 199, 29, 81, 207, 18, 180,
-            157, 172, 192, 135, 163, 275, 74, 296, 298, 265, 105, 191,
-            282, 277, 83, 188, 144, 259, 6, 173, 81, 107, 292, 231,
-            129, 65, 161, 113, 103, 136, 255, 285, 289, 1
-            ]
-        delete_order = [
-            276, 273, 12, 275, 2, 286, 127, 83, 92, 33, 101, 195,
-            299, 191, 22, 232, 291, 226, 110, 94, 257, 233, 215, 184,
-            35, 178, 18, 74, 296, 210, 298, 81, 265, 175, 116, 261,
-            212, 277, 260, 234, 6, 129, 31, 4, 235, 249, 34, 289, 105,
-            259, 91, 93, 119, 7, 183, 240, 41, 253, 290, 136, 75, 292,
-            67, 112, 111, 256, 163, 38, 126, 139, 98, 56, 282, 60, 26,
-            55, 245, 225, 32, 52, 40, 271, 29, 252, 239, 89, 87, 205,
-            213, 180, 97, 108, 120, 218, 44, 187, 196, 251, 202, 203,
-            172, 28, 188, 77, 90, 199, 297, 282, 141, 100, 161, 216,
-            73, 19, 17, 189, 30, 258
-            ]
-        for x in add_order:
-            self.t[x] = 1
-        for x in delete_order:
-            try: del self.t[x]
-            except KeyError:
-                if self.t.has_key(x): assert 1==2,"failed to delete %s" % x
-
-    def testMaxKeyMinKey(self):
-        self.t[7] = 6
-        self.t[3] = 10
-        self.t[8] = 12
-        self.t[1] = 100
-        self.t[5] = 200
-        self.t[10] = 500
-        self.t[6] = 99
-        self.t[4] = 150
-        del self.t[7]
-        t = self.t
-        assert t.maxKey() == 10
-        assert t.maxKey(6) == 6
-        assert t.maxKey(9) == 8
-        assert t.minKey() == 1
-        assert t.minKey(3) == 3
-        assert t.minKey(9) == 10
-
-    def testClear(self):
-        r = range(100)
-        for x in r:
-            rnd = whrandom.choice(r)
-            self.t[rnd] = 0
-        self.t.clear()
-        diff = lsubtract(list(self.t.keys()), [])
-        assert diff == [], diff
-
-    def testRangeSearchAfterSequentialInsert(self):
-        r = range(100)
-        for x in r:
-            self.t[x] = 0
-        diff = lsubtract(list(self.t.keys(0, 100)), r)
-        assert diff == [], diff
-
-    def testRangeSearchAfterRandomInsert(self):
-        r = range(100)
-        a = {}
-        for x in r:
-            rnd = whrandom.choice(r)
-            self.t[rnd] = 0
-            a[rnd] = 0
-        diff = lsubtract(list(self.t.keys(0, 100)), a.keys())
-        assert diff == [], diff
-
-    def testInsertMethod(self):
-        t = self.t
-        t[0] = 1
-        assert t.insert(0, 1) == 0
-        assert t.insert(1, 1) == 1
-        assert lsubtract(list(t.keys()), [0,1]) == []
 
     def _getRoot(self):
         from ZODB.FileStorage import FileStorage
@@ -474,7 +161,416 @@ class Base:
             self._closeDB(root)
             self._delDB()
 
-class TestIOBTrees(Base, TestCase):
+class MappingBase(Base):
+    """ Tests common to mappings (buckets, btrees) """
+    def testGetItemFails(self):
+        self.assertRaises(KeyError, self._getitemfail)
+
+    def _getitemfail(self):
+        return self.t[1]
+
+    def testGetReturnsDefault(self):
+        assert self.t.get(1) == None
+        assert self.t.get(1, 'foo') == 'foo'
+        
+    def testSetItemGetItemWorks(self):
+        self.t[1] = 1
+        a = self.t[1]
+        assert a == 1, `a`
+
+    def testReplaceWorks(self):
+        self.t[1] = 1
+        assert self.t[1] == 1, self.t[1]
+        self.t[1] = 2
+        assert self.t[1] == 2, self.t[1]
+
+    def testLen(self):
+        added = {}
+        r = range(1000)
+        for x in r:
+            k = whrandom.choice(r)
+            self.t[k] = x
+            added[k] = x
+        addl = added.keys()
+        assert len(self.t) == len(addl), len(self.t)
+
+    def testHasKeyWorks(self):
+        self.t[1] = 1
+        assert self.t.has_key(1)
+
+    def testValuesWorks(self):
+        for x in range(100):
+            self.t[x] = x
+        v = self.t.values()
+        i = 0
+        for x in v:
+            assert x == i, (x,i)
+            i = i + 1
+            
+    def testKeysWorks(self):
+        for x in range(100):
+            self.t[x] = x
+        v = self.t.keys()
+        i = 0
+        for x in v:
+            assert x == i, (x,i)
+            i = i + 1
+        # BTree items must lie about their lengths, so we convert to list
+        assert len(v) == 100, len(v)
+        #assert len(v) == 100, len(v)
+
+    def testItemsWorks(self):
+        for x in range(100):
+            self.t[x] = x
+        v = self.t.items()
+        i = 0
+        for x in v:
+            assert x[0] == i, (x[0], i)
+            assert x[1] == i, (x[0], i)
+            i = i + 1
+
+    def testDeleteInvalidKeyRaisesKeyError(self):
+        self.assertRaises(KeyError, self._deletefail)
+
+    def _deletefail(self):
+        del self.t[1]
+
+    def testMaxKeyMinKey(self):
+        self.t[7] = 6
+        self.t[3] = 10
+        self.t[8] = 12
+        self.t[1] = 100
+        self.t[5] = 200
+        self.t[10] = 500
+        self.t[6] = 99
+        self.t[4] = 150
+        del self.t[7]
+        t = self.t
+        assert t.maxKey() == 10
+        assert t.maxKey(6) == 6
+        assert t.maxKey(9) == 8
+        assert t.minKey() == 1
+        assert t.minKey(3) == 3
+        assert t.minKey(9) == 10
+
+    def testClear(self):
+        r = range(100)
+        for x in r:
+            rnd = whrandom.choice(r)
+            self.t[rnd] = 0
+        self.t.clear()
+        diff = lsubtract(list(self.t.keys()), [])
+        assert diff == [], diff
+
+class SetTests(Base):
+    """ Test common to all set types """
+    def testInsertReturnsValue(self):
+        t = self.t
+        assert t.insert(5) == 1
+
+    def testDuplicateInsert(self):
+        t = self.t
+        t.insert(5)
+        assert t.insert(5) == 0
+        
+    def testInsert(self):
+        t = self.t
+        t.insert(1)
+        assert t.has_key(1)
+
+    def testBigInsert(self):
+        t = self.t
+        r = xrange(10000)
+        for x in r:
+            t.insert(x)
+        for x in r:
+            assert t.has_key(x)
+
+    def testRemoveSucceeds(self):
+        t = self.t
+        r = xrange(10000)
+        for x in r: t.insert(x)
+        for x in r: t.remove(x)
+
+    def testRemoveFails(self):
+        self.assertRaises(KeyError, self._removenonexistent)
+
+    def _removenonexistent(self):
+        self.t.remove(1)
+
+    def testHasKeyFails(self):
+        t = self.t
+        assert not t.has_key(1)
+
+    def testItems(self):
+        t = self.t
+        t.insert(1)
+        t.insert(3)
+        t.insert(5)
+        assert lsubtract(t.items(), [1,3,5]) == [], t.items()
+
+    def testKeys(self):
+        t = self.t
+        r = xrange(1000)
+        for x in r: t.insert(x)
+        diff = lsubtract(t.keys(), r)
+        assert diff == [], diff
+
+    def testClear(self):
+        t = self.t
+        r = xrange(1000)
+        for x in r: t.insert(x)
+        t.clear()
+        diff = lsubtract(t.keys(), [])
+        assert diff == [], diff
+
+    def testMaxKeyMinKey(self):
+        t = self.t
+        t.insert(1)
+        t.insert(2)
+        t.insert(3)
+        t.insert(8)
+        t.insert(5)
+        t.insert(10)
+        t.insert(6)
+        t.insert(4)
+        assert t.maxKey() == 10
+        assert t.maxKey(6) == 6
+        assert t.maxKey(9) == 8
+        assert t.minKey() == 1
+        assert t.minKey(3) == 3
+        assert t.minKey(9) == 10
+
+    def testLen(self):
+        # should sets know their length?
+        t = self.t
+        r = xrange(10000)
+        for x in r: t.insert(x)
+        assert len(t) == 1000, len(t)
+        
+class BucketTests(MappingBase):
+    """ Tests common to all buckets """
+    pass
+
+class BTreeTests(MappingBase):
+    """ Tests common to all BTrees """
+    def testDeleteNoChildrenWorks(self):
+        self.t[5] = 6
+        self.t[2] = 10
+        self.t[6] = 12
+        self.t[1] = 100
+        self.t[3] = 200
+        self.t[10] = 500
+        self.t[4] = 99
+        del self.t[4]
+        diff = lsubtract(self.t.keys(), [1,2,3,5,6,10])
+        assert diff == [], diff
+
+    def testDeleteOneChildWorks(self):
+        self.t[5] = 6
+        self.t[2] = 10
+        self.t[6] = 12
+        self.t[1] = 100
+        self.t[3] = 200
+        self.t[10] = 500
+        self.t[4] = 99
+        del self.t[3]
+        diff = lsubtract(self.t.keys(), [1,2,4,5,6,10])
+        assert diff == [], diff
+
+    def testDeleteTwoChildrenNoInorderSuccessorWorks(self):
+        self.t[5] = 6
+        self.t[2] = 10
+        self.t[6] = 12
+        self.t[1] = 100
+        self.t[3] = 200
+        self.t[10] = 500
+        self.t[4] = 99
+        del self.t[2]
+        diff = lsubtract(self.t.keys(), [1,3,4,5,6,10])
+        assert diff == [], diff
+        
+    def testDeleteTwoChildrenInorderSuccessorWorks(self):
+        """ 7, 3, 8, 1, 5, 10, 6, 4 -- del 3 """
+        self.t[7] = 6
+        self.t[3] = 10
+        self.t[8] = 12
+        self.t[1] = 100
+        self.t[5] = 200
+        self.t[10] = 500
+        self.t[6] = 99
+        self.t[4] = 150
+        del self.t[3]
+        diff = lsubtract(self.t.keys(), [1,4,5,6,7,8,10])
+        assert diff == [], diff
+
+    def testDeleteRootWorks(self):
+        """ 7, 3, 8, 1, 5, 10, 6, 4 -- del 7 """
+        self.t[7] = 6
+        self.t[3] = 10
+        self.t[8] = 12
+        self.t[1] = 100
+        self.t[5] = 200
+        self.t[10] = 500
+        self.t[6] = 99
+        self.t[4] = 150
+        del self.t[7]
+        diff = lsubtract(self.t.keys(), [1,3,4,5,6,8,10])
+        assert diff == [], diff
+
+    def testRandomNonOverlappingInserts(self):
+        added = {}
+        r = range(100)
+        for x in r:
+            k = whrandom.choice(r)
+            if not added.has_key(k):
+                self.t[k] = x
+                added[k] = 1
+        addl = added.keys()
+        addl.sort()
+        diff = lsubtract(list(self.t.keys()), addl)
+        assert diff == [], (diff, addl, list(self.t.keys()))
+
+    def testRandomOverlappingInserts(self):
+        added = {}
+        r = range(100)
+        for x in r:
+            k = whrandom.choice(r)
+            self.t[k] = x
+            added[k] = 1
+        addl = added.keys()
+        addl.sort()
+        diff = lsubtract(self.t.keys(), addl)
+        assert diff == [], diff
+
+    def testRandomDeletes(self):
+        r = range(1000)
+        added = []
+        for x in r:
+            k = whrandom.choice(r)
+            self.t[k] = x
+            added.append(k)
+        deleted = []
+        for x in r:
+            k = whrandom.choice(r)
+            if self.t.has_key(k):
+                del self.t[k]
+                deleted.append(k)
+                if self.t.has_key(k):
+                    raise "had problems deleting %s" % k
+        badones = []
+        for x in deleted:
+            if self.t.has_key(x):
+                badones.append(x)
+        assert badones == [], (badones, added, deleted)
+
+    def testTargetedDeletes(self):
+        r = range(1000)
+        for x in r:
+            k = whrandom.choice(r)
+            self.t[k] = x
+        for x in r:
+            try:
+                del self.t[x]
+            except KeyError:
+                pass
+        assert realseq(self.t.keys()) == [], realseq(self.t.keys())
+        
+    def testPathologicalRightBranching(self):
+        r = range(1000)
+        for x in r:
+            self.t[x] = 1
+        assert realseq(self.t.keys()) == r, realseq(self.t.keys())
+        for x in r:
+            del self.t[x]
+        assert realseq(self.t.keys()) == [], realseq(self.t.keys())
+
+    def testPathologicalLeftBranching(self):
+        r = range(1000)
+        revr = r[:]
+        revr.reverse()
+        for x in revr:
+            self.t[x] = 1
+        assert realseq(self.t.keys()) == r, realseq(self.t.keys())
+
+        for x in revr:
+            del self.t[x]
+        assert realseq(self.t.keys()) == [], realseq(self.t.keys())
+
+    def testSuccessorChildParentRewriteExerciseCase(self):
+        add_order = [
+            85, 73, 165, 273, 215, 142, 233, 67, 86, 166, 235, 225, 255,
+            73, 175, 171, 285, 162, 108, 28, 283, 258, 232, 199, 260,
+            298, 275, 44, 261, 291, 4, 181, 285, 289, 216, 212, 129,
+            243, 97, 48, 48, 159, 22, 285, 92, 110, 27, 55, 202, 294,
+            113, 251, 193, 290, 55, 58, 239, 71, 4, 75, 129, 91, 111,
+            271, 101, 289, 194, 218, 77, 142, 94, 100, 115, 101, 226,
+            17, 94, 56, 18, 163, 93, 199, 286, 213, 126, 240, 245, 190,
+            195, 204, 100, 199, 161, 292, 202, 48, 165, 6, 173, 40, 218,
+            271, 228, 7, 166, 173, 138, 93, 22, 140, 41, 234, 17, 249,
+            215, 12, 292, 246, 272, 260, 140, 58, 2, 91, 246, 189, 116,
+            72, 259, 34, 120, 263, 168, 298, 118, 18, 28, 299, 192, 252,
+            112, 60, 277, 273, 286, 15, 263, 141, 241, 172, 255, 52, 89,
+            127, 119, 255, 184, 213, 44, 116, 231, 173, 298, 178, 196,
+            89, 184, 289, 98, 216, 115, 35, 132, 278, 238, 20, 241, 128,
+            179, 159, 107, 206, 194, 31, 260, 122, 56, 144, 118, 283,
+            183, 215, 214, 87, 33, 205, 183, 212, 221, 216, 296, 40,
+            108, 45, 188, 139, 38, 256, 276, 114, 270, 112, 214, 191,
+            147, 111, 299, 107, 101, 43, 84, 127, 67, 205, 251, 38, 91,
+            297, 26, 165, 187, 19, 6, 73, 4, 176, 195, 90, 71, 30, 82,
+            139, 210, 8, 41, 253, 127, 190, 102, 280, 26, 233, 32, 257,
+            194, 263, 203, 190, 111, 218, 199, 29, 81, 207, 18, 180,
+            157, 172, 192, 135, 163, 275, 74, 296, 298, 265, 105, 191,
+            282, 277, 83, 188, 144, 259, 6, 173, 81, 107, 292, 231,
+            129, 65, 161, 113, 103, 136, 255, 285, 289, 1
+            ]
+        delete_order = [
+            276, 273, 12, 275, 2, 286, 127, 83, 92, 33, 101, 195,
+            299, 191, 22, 232, 291, 226, 110, 94, 257, 233, 215, 184,
+            35, 178, 18, 74, 296, 210, 298, 81, 265, 175, 116, 261,
+            212, 277, 260, 234, 6, 129, 31, 4, 235, 249, 34, 289, 105,
+            259, 91, 93, 119, 7, 183, 240, 41, 253, 290, 136, 75, 292,
+            67, 112, 111, 256, 163, 38, 126, 139, 98, 56, 282, 60, 26,
+            55, 245, 225, 32, 52, 40, 271, 29, 252, 239, 89, 87, 205,
+            213, 180, 97, 108, 120, 218, 44, 187, 196, 251, 202, 203,
+            172, 28, 188, 77, 90, 199, 297, 282, 141, 100, 161, 216,
+            73, 19, 17, 189, 30, 258
+            ]
+        for x in add_order:
+            self.t[x] = 1
+        for x in delete_order:
+            try: del self.t[x]
+            except KeyError:
+                if self.t.has_key(x): assert 1==2,"failed to delete %s" % x
+
+    def testRangeSearchAfterSequentialInsert(self):
+        r = range(100)
+        for x in r:
+            self.t[x] = 0
+        diff = lsubtract(list(self.t.keys(0, 100)), r)
+        assert diff == [], diff
+
+    def testRangeSearchAfterRandomInsert(self):
+        r = range(100)
+        a = {}
+        for x in r:
+            rnd = whrandom.choice(r)
+            self.t[rnd] = 0
+            a[rnd] = 0
+        diff = lsubtract(list(self.t.keys(0, 100)), a.keys())
+        assert diff == [], diff
+
+    def testInsertMethod(self):
+        t = self.t
+        t[0] = 1
+        assert t.insert(0, 1) == 0
+        assert t.insert(1, 1) == 1
+        assert lsubtract(list(t.keys()), [0,1]) == []
+
+
+## BTree tests
+
+class TestIOBTrees(BTreeTests, TestCase):
     def setUp(self):
         self.t = IOBTree()
 
@@ -488,11 +584,15 @@ class TestIOBTrees(Base, TestCase):
     def _floatraises(self):
         self.t[2.5] = 1
 
-class TestOOBTrees(Base, TestCase):
+class TestOOBTrees(BTreeTests, TestCase):
     def setUp(self):
         self.t = OOBTree()
 
-class TestIIBTrees(Base, TestCase):
+class TestOIBTrees(BTreeTests, TestCase):
+    def setUp(self):
+        self.t = OIBTree()
+
+class TestIIBTrees(BTreeTests, TestCase):
     def setUp(self):
         self.t = IIBTree()
 
@@ -506,9 +606,65 @@ class TestIIBTrees(Base, TestCase):
     def _floatraises(self):
         self.t[2.5] = 1
 
-class TestOIBTrees(Base, TestCase):
+## Set tests
+
+class TestIOSets(SetTests, TestCase):
     def setUp(self):
-        self.t = OIBTree()
+        self.t = IOSet()
+
+class TestOOSets(SetTests, TestCase):
+    def setUp(self):
+        self.t = OOSet()
+
+class TestIISets(SetTests, TestCase):
+    def setUp(self):
+        self.t = IISet()
+
+class TestOISets(SetTests, TestCase):
+    def setUp(self):
+        self.t = OISet()
+
+## Bucket tests
+
+class TestIOBuckets(BucketTests, TestCase):
+    def setUp(self):
+        self.t = IOBucket()
+
+class TestOOBuckets(BucketTests, TestCase):
+    def setUp(self):
+        self.t = OOBucket()
+
+class TestIIBuckets(BucketTests, TestCase):
+    def setUp(self):
+        self.t = IIBucket()
+
+class TestOIBuckets(BucketTests, TestCase):
+    def setUp(self):
+        self.t = OIBucket()
+
+def main():
+    TIOBTree = makeSuite(TestIOBTrees, 'test')
+    TOOBTree = makeSuite(TestOOBTrees, 'test')
+    TOIBTree = makeSuite(TestOIBTrees, 'test')
+    TIIBTree = makeSuite(TestIIBTrees, 'test')
+
+    TIOSet = makeSuite(TestIOSets, 'test')
+    TOOSet = makeSuite(TestOOSets, 'test')
+    TOISet = makeSuite(TestIOSets, 'test')
+    TIISet = makeSuite(TestOOSets, 'test')
+
+    TIOBucket = makeSuite(TestIOBuckets, 'test')
+    TOOBucket = makeSuite(TestOOBuckets, 'test')
+    TOIBucket = makeSuite(TestOIBuckets, 'test')
+    TIIBucket = makeSuite(TestIIBuckets, 'test')
+    
+    alltests = TestSuite((TIOSet, TOOSet, TOISet, TIISet,
+                          TIOBucket, TOOBucket, TOIBucket, TIIBucket,
+                          TOOBTree, TIOBTree, TOIBTree, TIIBTree))
+    runner = TextTestRunner()
+    runner.run(alltests)
+
+## utility functions
 
 def lsubtract(l1, l2):
     l = filter(lambda x, l1=l1: x not in l1, l2)
@@ -518,14 +674,6 @@ def lsubtract(l1, l2):
 def realseq(itemsob):
     return map(lambda x: x, itemsob)
 
-def main():
-    OOBTree = makeSuite(TestOOBTrees, 'test')
-    IOBTree = makeSuite(TestIOBTrees, 'test')
-    OIBTree = makeSuite(TestOIBTrees, 'test')
-    IIBTree = makeSuite(TestIIBTrees, 'test')
-    alltests = TestSuite((OOBTree, IOBTree, OIBTree, IIBTree))
-    runner = TextTestRunner()
-    runner.run(alltests)
-    
+
 if __name__ == '__main__': main()
 
