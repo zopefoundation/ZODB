@@ -357,8 +357,8 @@ class ConnectionTests(StorageTestBase.StorageTestBase):
         # Stores should succeed here
         self._dostore()
 
-    def checkReadOnlyFallbackReadOnly(self):
-        # Open a fallback client to a read-only server; stores fail
+    def checkReadOnlyFallbackReadOnlyStorage(self):
+        # Open a fallback client to a read-only *storage*; stores fail
 
         # We don't want the read-write server created by setUp()
         self.shutdownServer()
@@ -367,6 +367,21 @@ class ConnectionTests(StorageTestBase.StorageTestBase):
 
         # Start a read-only server
         self._startServer(create=0, index=0, read_only=1)
+        # Start a read-only-fallback client
+        self._storage = self.openClientStorage(wait=0, read_only_fallback=1)
+        # Stores should fail here
+        self.assertRaises(ReadOnlyError, self._dostore)
+
+    def checkReadOnlyFallbackReadOnlyServer(self):
+        # Open a fallback client to a read-only *server*; stores fail
+
+        # We don't want the read-write server created by setUp()
+        self.shutdownServer()
+        self._servers = []
+        self._pids = []
+
+        # Start a read-only server
+        self._startServer(create=0, index=0, ro_svr=1)
         # Start a read-only-fallback client
         self._storage = self.openClientStorage(wait=0, read_only_fallback=1)
         # Stores should fail here
@@ -604,14 +619,14 @@ class ConnectionTests(StorageTestBase.StorageTestBase):
 
 class UnixConnectionTests(ConnectionTests):
 
-    def _startServer(self, create=1, index=0, read_only=0):
+    def _startServer(self, create=1, index=0, read_only=0, ro_svr=0):
         zLOG.LOG("testZEO", zLOG.INFO,
                  "_startServer(create=%d, index=%d, read_only=%d)" %
                  (create, index, read_only))
         path = "%s.%d" % (self.file, index)
         addr = self.addr[index]
-        pid, server = forker.start_zeo_server('FileStorage',
-                                              (path, create, read_only), addr)
+        pid, server = forker.start_zeo_server(
+            'FileStorage', (path, create, read_only), addr, ro_svr)
         self._pids.append(pid)
         self._servers.append(server)
 
@@ -627,7 +642,7 @@ class UnixConnectionTests(ConnectionTests):
 
 class WindowsConnectionTests(ConnectionTests):
 
-    def _startServer(self, create=1, index=0, read_only=0):
+    def _startServer(self, create=1, index=0, read_only=0, ro_svr=0):
         zLOG.LOG("testZEO", zLOG.INFO,
                  "_startServer(create=%d, index=%d, read_only=%d)" %
                  (create, index, read_only))
@@ -635,7 +650,7 @@ class WindowsConnectionTests(ConnectionTests):
         addr = self.addr[index]
         args = (path, '='+str(create), '='+str(read_only))
         _addr, test_addr, test_pid = forker.start_zeo_server(
-            'FileStorage', args, addr)
+            'FileStorage', args, addr, ro_svr)
         self._pids.append(test_pid)
         self._servers.append(test_addr)
 

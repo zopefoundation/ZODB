@@ -50,7 +50,7 @@ def get_port():
 
 if os.name == "nt":
 
-    def start_zeo_server(storage_name, args, addr=None):
+    def start_zeo_server(storage_name, args, addr=None, ro_svr=0):
         """Start a ZEO server in a separate process.
 
         Returns the ZEO port, the test server port, and the pid.
@@ -63,7 +63,11 @@ if os.name == "nt":
         script = ZEO.tests.winserver.__file__
         if script.endswith('.pyc'):
             script = script[:-1]
-        args = (sys.executable, script, str(port), storage_name) + args
+        if ro_svr:
+            args = (sys.executable, script, "-r")
+        else:
+            args = (sys.executable, script)
+        args += (str(port), storage_name) + args
         d = os.environ.copy()
         d['PYTHONPATH'] = os.pathsep.join(sys.path)
         pid = os.spawnve(os.P_NOWAIT, sys.executable, args, d)
@@ -103,7 +107,7 @@ else:
             except os.error:
                 pass
 
-    def start_zeo_server(storage_name, args, addr):
+    def start_zeo_server(storage_name, args, addr, ro_svr=0):
         assert isinstance(args, types.TupleType)
         rd, wr = os.pipe()
         pid = os.fork()
@@ -114,11 +118,12 @@ else:
             try:
                 if PROFILE:
                     p = hotshot.Profile("stats.s.%d" % os.getpid())
-                    p.runctx("run_server(addr, rd, wr, storage_name, args)",
-                             globals(), locals())
+                    p.runctx(
+                        "run_server(addr, rd, wr, storage_name, args, ro_svr)",
+                        globals(), locals())
                     p.close()
                 else:
-                    run_server(addr, rd, wr, storage_name, args)
+                    run_server(addr, rd, wr, storage_name, args, ro_svr)
             except:
                 print "Exception in ZEO server process"
                 traceback.print_exc()
@@ -133,14 +138,14 @@ else:
         klass = getattr(mod, name)
         return klass(*args)
 
-    def run_server(addr, rd, wr, storage_name, args):
+    def run_server(addr, rd, wr, storage_name, args, ro_svr):
         # in the child, run the storage server
         global server
         os.close(wr)
         ZEOServerExit(rd)
         import ZEO.StorageServer, ZEO.zrpc.server
         storage = load_storage(storage_name, args)
-        server = ZEO.StorageServer.StorageServer(addr, {'1':storage})
+        server = ZEO.StorageServer.StorageServer(addr, {'1':storage}, ro_svr)
         ZEO.zrpc.server.loop()
         storage.close()
         if isinstance(addr, types.StringType):
