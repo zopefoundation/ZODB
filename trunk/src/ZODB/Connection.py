@@ -84,8 +84,8 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.47 2001/03/20 04:00:17 jim Exp $"""
-__version__='$Revision: 1.47 $'[11:-2]
+$Id: Connection.py,v 1.48 2001/03/28 20:55:39 jim Exp $"""
+__version__='$Revision: 1.48 $'[11:-2]
 
 from cPickleCache import PickleCache
 from POSException import ConflictError, ExportError
@@ -379,7 +379,7 @@ class Connection(ExportImport.ExportImport):
                 # Note that if s is false, then the storage defered the return
                 if _type(s) is _st:
                     # normal case
-                    if s is ResolvedSerial:
+                    if s == ResolvedSerial:
                         # resolved conflict
                         object._p_changed=None
                     else:
@@ -391,13 +391,13 @@ class Connection(ExportImport.ExportImport):
                         if _type(s) is not _st: raise s
                         o=get(oi, oi)
                         if o is not oi:
-                            if s is ResolvedSerial:
+                            if s == ResolvedSerial:
                                 o._p_changed=None
                             else:
                                 o._p_serial=s
                                 o._p_changed=0
                         elif oi == oid:
-                            if s is ResolvedSerial:
+                            if s == ResolvedSerial:
                                 object._p_changed=None
                             else:
                                 object._p_serial=s
@@ -630,7 +630,7 @@ class Connection(ExportImport.ExportImport):
                 o=get(oid, oid)
                 if o is not oid:
                     if _type(s) is not _st: raise s
-                    if s is ResolvedSerial:
+                    if s == ResolvedSerial:
                         o._p_changed=None
                     else:
                         o._p_serial=s
