@@ -148,6 +148,7 @@ def main():
             addcommas(datarecords),
             100.0 * datarecords / records,
             datasize / 1024.0 / datarecords)
+        print "Hit rate:   %.1f%% (load hits / loads)" % hitrate(bycode)
         print
         codes = bycode.keys()
         codes.sort()
@@ -157,6 +158,20 @@ def main():
                 addcommas(bycode.get(code, 0)),
                 code,
                 explain.get(code) or "*** unknown code ***")
+
+def hitrate(bycode):
+    loads = 0
+    hits = 0
+    for code in bycode.keys():
+        if code & 0x70 == 0x20:
+            n = bycode[code]
+            loads += n
+            if code in (0x2A, 0x2C, 0x2E):
+                hits += n
+    if loads:
+        return 100.0 * hits / loads
+    else:
+        return 0.0
 
 def U64(s):
     h, v = struct.unpack(">II", s)
