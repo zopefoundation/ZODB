@@ -87,8 +87,8 @@ if os.name == 'posix':
 
         def pull_trigger(self, thunk=None):
             if thunk:
+                self.lock.acquire()
                 try:
-                    self.lock.acquire()
                     self.thunks.append(thunk)
                 finally:
                     self.lock.release()
@@ -96,8 +96,8 @@ if os.name == 'posix':
 
         def handle_read(self):
             self.recv(8192)
+            self.lock.acquire()
             try:
-                self.lock.acquire()
                 for thunk in self.thunks:
                     try:
                         thunk()
@@ -170,8 +170,8 @@ else:
 
         def pull_trigger(self, thunk=None):
             if thunk:
+                self.lock.acquire()
                 try:
-                    self.lock.acquire()
                     self.thunks.append(thunk)
                 finally:
                     self.lock.release()
@@ -179,8 +179,8 @@ else:
 
         def handle_read(self):
             self.recv(8192)
+            self.lock.acquire()
             try:
-                self.lock.acquire()
                 for thunk in self.thunks:
                     try:
                         thunk()
