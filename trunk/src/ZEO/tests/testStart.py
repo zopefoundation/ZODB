@@ -190,6 +190,11 @@ class StartTests(unittest.TestCase):
                 pass
 
 def test_suite():
+
+    # shutup warnings about mktemp
+    import warnings
+    warnings.filterwarnings("ignore", "mktemp")
+
     if os.name == "posix":
         return unittest.makeSuite(StartTests)
     else:
