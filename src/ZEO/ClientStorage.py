@@ -13,14 +13,13 @@
 ##############################################################################
 """Network ZODB storage client
 
-$Id: ClientStorage.py,v 1.65 2002/09/20 17:37:34 gvanrossum Exp $
+$Id: ClientStorage.py,v 1.66 2002/09/23 19:08:14 gvanrossum Exp $
 """
 
 # XXX TO DO
 # get rid of beginVerify, set up _tfile in verify_cache
 # set self._storage = stub later, in endVerify
 # if wait is given, wait until verify is complete
-# get rid of _basic_init
 
 import cPickle
 import os
@@ -115,14 +114,34 @@ class ClientStorage:
 
         self._tbuf = TransactionBuffer()
         self._db = None
-        self._oids = []
+
         # _serials: stores (oid, serialno) as returned by server
         # _seriald: _check_serials() moves from _serials to _seriald,
         #           which maps oid to serialno
         self._serials = []
         self._seriald = {}
 
-        self._basic_init(name or str(addr))
+        self.__name__ = name or str(addr) # Standard convention for storages
+
+        # A ClientStorage only allows one thread to commit at a time.
+        # Mutual exclusion is achieved using _tpc_cond, which
+        # protects _transaction.  A thread that wants to assign to
+        # self._transaction must acquire _tpc_cond first.  A thread
+        # that decides it's done with a transaction (whether via success
+        # or failure) must set _transaction to None and do
+        # _tpc_cond.notify() before releasing _tpc_cond.
+        self._tpc_cond = threading.Condition()
+        self._transaction = None
+
+        # Prevent multiple new_oid calls from going out.  The _oids
+        # variable should only be modified while holding the
+        # _oid_lock.
+        self._oid_lock = threading.Lock()
+        self._oids = [] # Object ids retrieved from new_oids()
+
+        t = self._ts = get_timestamp()
+        self._serial = `t`
+        self._oid = '\0\0\0\0\0\0\0\0'
 
         # Decide whether to use non-temporary files
         client = client or os.environ.get('ZEO_CLIENT')
@@ -143,34 +162,6 @@ class ClientStorage:
         # side effect of verify_cache().  If not, open it now.
         if not self.is_connected():
             self._cache.open()
-
-    def _basic_init(self, name):
-        """Handle initialization activites of BaseStorage"""
-
-        self.__name__ = name # A standard convention among storages
-
-        # A ClientStorage only allows one thread to commit at a time.
-        # Mutual exclusion is achieved using _tpc_cond, which
-        # protects _transaction.  A thread that wants to assign to
-        # self._transaction must acquire _tpc_cond first.  A thread
-        # that decides it's done with a transaction (whether via success
-        # or failure) must set _transaction to None and do
-        # _tpc_cond.notify() before releasing _tpc_cond.
-        self._tpc_cond = threading.Condition()
-        self._transaction = None
-
-        # Prevent multiple new_oid calls from going out.  The _oids
-        # variable should only be modified while holding the
-        # _oid_lock.
-        self._oid_lock = threading.Lock()
-
-        commit_lock = threading.Lock()
-        self._commit_lock_acquire = commit_lock.acquire
-        self._commit_lock_release = commit_lock.release
-
-        t = self._ts = get_timestamp()
-        self._serial = `t`
-        self._oid='\0\0\0\0\0\0\0\0'
 
     def close(self):
         if self._tbuf is not None:
