@@ -116,41 +116,33 @@ class TransactionBuffer:
         finally:
             self.lock.release()
 
-    # unchecked constraints:
-    # 1. can't call store() after begin_iterate()
-    # 2. must call clear() after iteration finishes
-
-    def begin_iterate(self):
-        """Move the file pointer in advance of iteration"""
+    def __iter__(self):
         self.lock.acquire()
         try:
             if self.closed:
                 return
             self.file.flush()
             self.file.seek(0)
-            self.unpickler = cPickle.Unpickler(self.file)
+            return TBIterator(self.file, self.count)
         finally:
             self.lock.release()
+
+class TBIterator(object):
+
+    def __init__(self, f, count):
+        self.file = f
+        self.count = count
+        self.unpickler = cPickle.Unpickler(f)
+
+    def __iter__(self):
+        return self
 
     def next(self):
-        self.lock.acquire()
-        try:
-            return self._next()
-        finally:
-            self.lock.release()
-
-    def _next(self):
         """Return next tuple of data or None if EOF"""
-        if self.closed:
-            return None
         if self.count == 0:
-            del self.unpickler
-            return None
+            self.file.seek(0)
+            self.size = 0
+            raise StopIteration
         oid_ver_data = self.unpickler.load()
         self.count -= 1
         return oid_ver_data
-
-    def get_size(self):
-        """Return size of data stored in buffer (just a hint)."""
-
-        return self.size
