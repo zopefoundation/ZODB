@@ -85,7 +85,7 @@
 """Simple rpc mechanisms
 """
 
-__version__ = "$Revision: 1.16 $"[11:-2]
+__version__ = "$Revision: 1.17 $"[11:-2]
 
 from cPickle import loads
 import cPickle
@@ -117,6 +117,7 @@ class asyncRPC(SizedMessageAsyncConnection):
         self._outOfBand=outOfBand
         self._tmin, self._tmax = tmin, tmax
         self._debug=debug
+        self.__closed = 0
 
         l=allocate_lock() # Response lock used to wait for call results
         self.__la=l.acquire
@@ -132,7 +133,7 @@ class asyncRPC(SizedMessageAsyncConnection):
         t=self._tmin
         connection = self._connection
         debug=self._debug
-        while 1:
+        while self.__closed == 0:
             if log_type: LOG(log_type, INFO,
                              'Trying to connect to server: %s' % `connection`)
             try:
@@ -292,5 +293,6 @@ class asyncRPC(SizedMessageAsyncConnection):
         asyncRPC.inheritedAttribute('close')(self)
         self.aq_parent.notifyDisconnected(self)
         self.__r='E'+dump(sys.exc_info()[:2], 1)
+        self.__closed = 1
         try: self.__lr()
         except: pass
