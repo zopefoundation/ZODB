@@ -711,9 +711,8 @@ class BTreeTests(MappingBase):
         # erroneously claim that the range is empty.
         del t[firstkey]
         therange = t.keys(-1, firstkey)
-        # XXX The next two currently fail.  I'm working on a fix (tim).
-        #self.assertEqual(len(therange), firstkey)
-        #self.assertEqual(list(therange), range(firstkey))
+        self.assertEqual(len(therange), firstkey)
+        self.assertEqual(list(therange), range(firstkey))
 
     def testInsertMethod(self):
         t = self.t

@@ -12,7 +12,7 @@
 
  ****************************************************************************/
 
-#define BTREETEMPLATE_C "$Id: BTreeTemplate.c,v 1.47 2002/06/13 02:12:27 tim_one Exp $\n"
+#define BTREETEMPLATE_C "$Id: BTreeTemplate.c,v 1.48 2002/06/13 04:28:06 tim_one Exp $\n"
 
 /*
 ** _BTree_get
@@ -842,7 +842,7 @@ err:
 
 /*
  BTree_findRangeEnd -- Find one end, expressed as a bucket and
- position, for a range search. Used by BTree_rangeSearch below.
+ position, for a range search.
 
  If low, return bucket and index of the smallest item >= key,
  otherwise return bucket and index of the largest item <= key.
@@ -852,55 +852,151 @@ err:
      0      Not found; offset and bucket unchanged
      1      Correct bucket and offset stored; the caller owns a new reference
             to the bucket.
+
+ Internal:
+    We do binary searches in BTree nodes downward, at each step following
+    C(i) where K(i) <= key < K(i+1).  As always, K(i) <= C(i) < K(i+1) too.
+    (See Maintainer.txt for the meaning of that notation.)  That eventually
+    leads to a bucket where we do Bucket_findRangeEnd.  That usually works,
+    but there are two cases where it can fail to find the correct answer:
+
+    1. On a low search, we find a bucket with keys >= K(i), but that doesn't
+       imply there are keys in the bucket >= key.  For example, suppose
+       a bucket has keys in 1..100, its successor's keys are in 200..300, and
+       we're doing a low search on 150.  We'll end up in the first bucket,
+       but there are no keys >= 150 in it.  K(i+1) > key, though, and all
+       the keys in C(i+1) >= K(i+1) > key, so the first key in the next
+       bucket (if any) is the correct result.  This is easy to find by
+       following the bucket 'next' pointer.
+
+    2. On a high search, again that the keys in the bucket are >= K(i)
+       doesn't imply that any key in the bucket is <= key, but it's harder
+       for this to fail (and an earlier version of this routine didn't
+       catch it):  if K(i) itself is in the bucket, it works (then
+       K(i) <= key is *a* key in the bucket that's in the desired range).
+       But when keys get deleted from buckets, they aren't also deleted from
+       BTree nodes, so there's no guarantee that K(i) is in the bucket.
+       For example, delete the smallest key S from some bucket, and S
+       remains in the interior BTree nodes.  Do a high search for S, and
+       the BTree nodes direct the search to the bucket S used to be in,
+       but all keys remaining in that bucket are > S.  The largest key in
+       the *preceding* bucket (if any) is < K(i), though, and K(i) <= key,
+       so the largest key in the preceding bucket is < key and so is the
+       proper result.
+
+       This is harder to get at efficiently, as buckets are linked only in
+       the increasing direction.  While we're searching downward,
+       deepest_smaller is set to the  node deepest in the tree where
+       we *could* have gone to the left of C(i).  The rightmost bucket in
+       deepest_smaller's subtree is the bucket preceding the bucket we find
+       at first.  This is clumsy to get at, but efficient.
 */
 static int
 BTree_findRangeEnd(BTree *self, PyObject *keyarg, int low,
                    Bucket **bucket, int *offset) {
-  int min, i, copied = 1;
-  KEY_TYPE key;
+    Sized *deepest_smaller = NULL;      /* last possibility to move left */
+    int deepest_smaller_is_btree;       /* Boolean; if false, it's a bucket */
+    Bucket *pbucket;
+    int self_got_rebound = 0;   /* Boolean; when true, deactivate self */
+    int result = -1;            /* Until proven innocent */
+    int i;
+    KEY_TYPE key;
+    int copied = 1;
 
-  COPY_KEY_FROM_ARG(key, keyarg, copied);
-  UNLESS (copied) return -1;
+    COPY_KEY_FROM_ARG(key, keyarg, copied);
+    UNLESS (copied) return -1;
 
-  /* We don't need to: PER_USE_OR_RETURN(self, -1);
-     because the caller does. */
-  UNLESS (self->data && self->len) return 0;
+    /* We don't need to: PER_USE_OR_RETURN(self, -1);
+       because the caller does. */
+    UNLESS (self->data && self->len) return 0;
 
-  BTREE_SEARCH(min, self, key, return -1);
-  if (SameType_Check(self, self->data[min].child)) {
-      self = BTREE(self->data[min].child);
-      PER_USE_OR_RETURN(self, -1);
-      i = BTree_findRangeEnd(self, keyarg, low, bucket, offset);
-      PER_ALLOW_DEACTIVATION(self);
-      PER_ACCESSED(self);
-  }
-  else {
-      /* Because we might miss on a range search where max=len */
-      /* XXX If data[min].key used to be the smallest key in
-       * XXX data[min].child but got deleted, and we're doing a
-       * XXX high-end range search on data[min].key, we really
-       * XXX need to go to the *preceding* bucket, not the following
-       * XXX buckets.  Looks like this endcase doesn't work now.
-       */
-      for (;;) {
-          Bucket *child = BUCKET(self->data[min].child);
-	  i = Bucket_findRangeEnd(child, keyarg, low, offset);
-	  if (i > 0) {   /* found */
-	      Py_INCREF(child);
-	      *bucket = child;
-	      break;
-	  }
-	  if (i < 0)     /* error */
-	      break;
-	  /* if we missed, on low search, go to next bucket */
-          if (low && min+1 < self->len)
-              min++;
-	  else           /* not found */
-	      break;
-      }
-  }
+    /* Search downward until hitting a bucket, stored in pbucket. */
+    for (;;) {
+        Sized *pchild;
+        int pchild_is_btree;
 
-  return i;
+        BTREE_SEARCH(i, self, key, goto Done);
+        pchild = self->data[i].child;
+        pchild_is_btree = SameType_Check(self, pchild);
+        if (i) {
+            deepest_smaller = self->data[i-1].child;
+            deepest_smaller_is_btree = pchild_is_btree;
+        }
+
+        if (pchild_is_btree) {
+            if (self_got_rebound) {
+                PER_ALLOW_DEACTIVATION(self);
+                PER_ACCESSED(self);
+            }
+            self = BTREE(pchild);
+            self_got_rebound = 1;
+            PER_USE_OR_RETURN(self, -1);
+        }
+        else {
+            pbucket = BUCKET(pchild);
+            break;
+        }
+    }
+
+    /* Search the bucket for a suitable key. */
+    i = Bucket_findRangeEnd(pbucket, keyarg, low, offset);
+    if (i < 0)
+        goto Done;
+    if (i > 0) {
+        Py_INCREF(pbucket);
+        *bucket = pbucket;
+        result = 1;
+        goto Done;
+    }
+    /* This may be one of the two difficult cases detailed in the comments. */
+    if (low) {
+        Bucket *next;
+
+        UNLESS(PER_USE(pbucket)) goto Done;
+        next = pbucket->next;
+        if (next) {
+                result = 1;
+                Py_INCREF(next);
+                *bucket = next;
+                *offset = 0;
+        }
+        else
+                result = 0;
+        PER_ALLOW_DEACTIVATION(pbucket);
+        PER_ACCESSED(pbucket);
+    }
+    /* High-end search:  if it's possible to go left, do so. */
+    else if (deepest_smaller) {
+        UNLESS(PER_USE(deepest_smaller)) goto Done;
+        if (deepest_smaller_is_btree) {
+                /* We own the reference this returns. */
+                pbucket = BTree_lastBucket(BTREE(deepest_smaller));
+        }
+        else {
+                pbucket = BUCKET(deepest_smaller);
+                Py_INCREF(pbucket);
+        }
+        PER_ALLOW_DEACTIVATION(deepest_smaller);
+        PER_ACCESSED(deepest_smaller);
+        if (pbucket) {
+            UNLESS(PER_USE(pbucket)) goto Done;
+            result = 1;
+            *bucket = pbucket;  /* transfer ownership to caller */
+            *offset = pbucket->len - 1;
+            PER_ALLOW_DEACTIVATION(pbucket);
+            PER_ACCESSED(pbucket);
+        }
+        /* pbucket NULL is an error */
+    }
+    else
+        result = 0;     /* simply not found */
+
+Done:
+    if (self_got_rebound) {
+        PER_ALLOW_DEACTIVATION(self);
+        PER_ACCESSED(self);
+    }
+    return result;
 }
 
 static PyObject *
