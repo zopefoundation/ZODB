@@ -23,6 +23,10 @@ import ZODB.FileStorage
 
 from ZODB.tests.MinPO import MinPO
 
+# Return total number of connections across all pools in a db._pools.
+def nconn(pools):
+    return sum([len(pool.all) for pool in pools.values()])
+
 class DBTests(unittest.TestCase):
 
     def setUp(self):
@@ -75,22 +79,22 @@ class DBTests(unittest.TestCase):
         c12.close() # return to pool
         self.assert_(c1 is c12) # should be same
 
-        pools, pooll = self.db._pools
+        pools = self.db._pools
 
         self.assertEqual(len(pools), 3)
-        self.assertEqual(len(pooll), 3)
+        self.assertEqual(nconn(pools), 3)
 
         self.db.removeVersionPool('v1')
 
         self.assertEqual(len(pools), 2)
-        self.assertEqual(len(pooll), 2)
+        self.assertEqual(nconn(pools), 2)
 
         c12 = self.db.open('v1')
         c12.close() # return to pool
         self.assert_(c1 is not c12) # should be different
 
         self.assertEqual(len(pools), 3)
-        self.assertEqual(len(pooll), 3)
+        self.assertEqual(nconn(pools), 3)
 
     def _test_for_leak(self):
         self.dowork()
@@ -112,27 +116,27 @@ class DBTests(unittest.TestCase):
         c12 = self.db.open('v1')
         self.assert_(c1 is c12) # should be same
 
-        pools, pooll = self.db._pools
+        pools = self.db._pools
 
         self.assertEqual(len(pools), 3)
-        self.assertEqual(len(pooll), 3)
+        self.assertEqual(nconn(pools), 3)
 
         self.db.removeVersionPool('v1')
 
         self.assertEqual(len(pools), 2)
-        self.assertEqual(len(pooll), 2)
+        self.assertEqual(nconn(pools), 2)
 
         c12.close() # should leave pools alone
 
         self.assertEqual(len(pools), 2)
-        self.assertEqual(len(pooll), 2)
+        self.assertEqual(nconn(pools), 2)
 
         c12 = self.db.open('v1')
         c12.close() # return to pool
         self.assert_(c1 is not c12) # should be different
 
         self.assertEqual(len(pools), 3)
-        self.assertEqual(len(pooll), 3)
+        self.assertEqual(nconn(pools), 3)
 
 
 def test_suite():
