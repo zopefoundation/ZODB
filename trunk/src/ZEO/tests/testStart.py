@@ -154,16 +154,18 @@ class StartTests(unittest.TestCase):
         port = 9090
         logfile1 = tempfile.mktemp(suffix="log")
         logfile2 = tempfile.mktemp(suffix="log")
-        os.environ["EVENT_LOG_FILE"] = logfile1
+        os.environ["STUPID_LOG_FILE"] = logfile1
 
         try:
             outp = self.fork("-s", "-p", str(port))
             self.connect(port=port)
+            buf1 = None
             for i in range(10):
                 try:
                     buf1 = open(logfile1).read()
                 except IOError, e:
-                    if e.errno != errno.ENOENT: raise
+                    if e.errno != errno.ENOENT:
+                        raise
                     time.sleep(1)
                 else:
                     break
