@@ -35,6 +35,14 @@ investigate to find and repair the true cause).
 Tools
 -----
 
+repozo.py:  Thanks to a suggestion from Toby Dickenson, backups
+(whether incremental or full) are first written to a temp file now,
+which is fsync'ed at the end, and only after that succeeds is the
+file renamed to YYYY-MM-DD-HH-MM-SS.ext form.  In case of a system
+crash during a repozo backup, this at least makes it much less
+likely that a backup file with incomplete or incorrect data will be
+left behind.
+
 fsrefs.py:  Fleshed out the module docstring, and repaired a bug
 wherein spurious error msgs could be produced after reporting a
 problem with an unloadable object.
