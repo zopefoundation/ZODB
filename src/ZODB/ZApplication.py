@@ -16,9 +16,10 @@
 This module provides a wrapper that causes a database connection to be created
 and used when bobo publishes a bobo_application object.
 """
-__version__='$Revision: 1.13 $'[11:-2]
+__version__='$Revision: 1.14 $'[11:-2]
 
-StringType=type('')
+import transaction
+
 connection_open_hooks = []
 
 class ZApplicationWrapper:
@@ -31,7 +32,7 @@ class ZApplicationWrapper:
             root=conn.root()
             if not root.has_key(name):
                 root[name]=klass()
-                conn.getTransaction().commit()
+                transaction.commit()
             conn.close()
             self._klass=klass
 
@@ -74,7 +75,7 @@ class ZApplicationWrapper:
 
         if connection is None:
             connection=db.open()
-        elif type(connection) is StringType:
+        elif isinstance(type, basestring):
             connection=db.open(connection)
 
         return connection.root()[aname]
