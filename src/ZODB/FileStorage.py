@@ -115,7 +115,7 @@
 #   may have a back pointer to a version record or to a non-version
 #   record.
 #
-__version__='$Revision: 1.81 $'[11:-2]
+__version__='$Revision: 1.82 $'[11:-2]
 
 import struct, time, os, string, base64, sys
 from struct import pack, unpack
@@ -129,6 +129,12 @@ register_subsystem('ZODB FS')
 import BaseStorage
 from cPickle import Pickler, Unpickler, loads
 import ConflictResolution
+
+try:
+    from fsIndex import fsIndex
+except ImportError:
+    def fsIndex():
+        return {}
 
 try: from posix import fsync
 except: fsync=None
@@ -1327,7 +1333,7 @@ class FileStorage(BaseStorage.BaseStorage,
     
             rootl=[z64]
             pop=rootl.pop
-            pindex={}
+            pindex=fsIndex()
             referenced=pindex.has_key
             _load=self._load
             _loada=self._loada
@@ -1357,7 +1363,7 @@ class FileStorage(BaseStorage.BaseStorage,
     
             # Index for non-version data.  This is a temporary structure
             # to reduce I/O during packing
-            nvindex={}
+            nvindex=fsIndex()
     
             # Cache a bunch of methods
             seek=file.seek
