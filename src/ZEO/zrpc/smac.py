@@ -61,4 +61,8 @@ class smac(asyncore.dispatcher):
 
     def message_output(self, message,
                        pack=struct.pack, len=len):
+        if __debug__:
+            if len(message) > 40: m=message[:40]+' ...'
+            else: m=message
+            print 'message_output', `m`
         self.__append(pack(">i",len(message))+message)
