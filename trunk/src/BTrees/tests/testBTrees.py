@@ -687,6 +687,34 @@ class BTreeTests(MappingBase):
         diff = lsubtract(list(self.t.keys(0, 100)), a.keys())
         self.assertEqual(diff , [], diff)
 
+    def testPathologicalRangeSearch(self):
+        t = self.t
+        # Build a 2-level tree with at least two buckets.
+        for i in range(200):
+            t[i] = i
+        items, dummy = t.__getstate__()
+        self.assert_(len(items) > 2)   # at least two buckets and a key
+        # All values in the first bucket are < firstkey.  All in the
+        # second bucket are >= firstkey, and firstkey is the first key in
+        # the second bucket.
+        firstkey = items[1]
+        therange = t.keys(-1, firstkey)
+        self.assertEqual(len(therange), firstkey + 1)
+        self.assertEqual(list(therange), range(firstkey + 1))
+        # Now for the tricky part.  If we delete firstkey, the second bucket
+        # loses its smallest key, but firstkey remains in the BTree node.
+        # If we then do a high-end range search on firstkey, the BTree node
+        # directs us to look in the second bucket, but there's no longer any
+        # key <= firstkey in that bucket.  The correct answer points to the
+        # end of the *first* bucket.  The algorithm has to be smart enough
+        # to "go backwards" in the BTree then; if it doesn't, it will
+        # erroneously claim that the range is empty.
+        del t[firstkey]
+        therange = t.keys(-1, firstkey)
+        # XXX The next two currently fail.  I'm working on a fix (tim).
+        #self.assertEqual(len(therange), firstkey)
+        #self.assertEqual(list(therange), range(firstkey))
+
     def testInsertMethod(self):
         t = self.t
         t[0] = 1
