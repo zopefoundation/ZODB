@@ -13,10 +13,10 @@
 ##############################################################################
 """Open database and storage from a configuration.
 
-$Id: config.py,v 1.12 2003/05/30 19:20:55 jeremy Exp $"""
+$Id: config.py,v 1.13 2003/06/16 14:51:49 jeremy Exp $"""
 
 import os
-import StringIO
+from cStringIO import StringIO
 
 import ZConfig
 
@@ -41,7 +41,7 @@ def getStorageSchema():
     return _s_schema
 
 def databaseFromString(s):
-    return databaseFromFile(StringIO.StringIO(s))
+    return databaseFromFile(StringIO(s))
 
 def databaseFromFile(f):
     config, handle = ZConfig.loadConfigFile(getDbSchema(), f)
@@ -55,7 +55,7 @@ def databaseFromConfig(section):
     return section.open()
 
 def storageFromString(s):
-    return storageFromFile(StringIO.StringIO(s))
+    return storageFromFile(StringIO(s))
 
 def storageFromFile(f):
     config, handle = ZConfig.loadConfigFile(getStorageSchema(), f)
