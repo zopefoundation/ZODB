@@ -12,7 +12,7 @@
   
  ****************************************************************************/
 
-#define BUCKETTEMPLATE_C "$Id: BucketTemplate.c,v 1.28 2002/03/08 18:33:01 jeremy Exp $\n"
+#define BUCKETTEMPLATE_C "$Id: BucketTemplate.c,v 1.29 2002/03/27 10:14:01 htrd Exp $\n"
 
 /*
 ** _bucket_get
@@ -809,7 +809,7 @@ bucket__p_deactivate(Bucket *self, PyObject *args)
   if (self->state==cPersistent_UPTODATE_STATE && self->jar)
     {
       if (_bucket_clear(self) < 0) return NULL;
-      self->state=cPersistent_GHOST_STATE;
+      PER_GHOSTIFY(self);
     }
 
   Py_INCREF(Py_None);

@@ -12,7 +12,7 @@
   
  ****************************************************************************/
 
-#define BTREETEMPLATE_C "$Id: BTreeTemplate.c,v 1.25 2002/03/08 18:33:01 jeremy Exp $\n"
+#define BTREETEMPLATE_C "$Id: BTreeTemplate.c,v 1.26 2002/03/27 10:14:01 htrd Exp $\n"
 
 /*
 ** _BTree_get
@@ -540,7 +540,7 @@ _BTree_clear(BTree *self)
 
   if (self->firstbucket)
     {
-      ASSERT(self->firstbucket->ob_refcnt > 1, 
+      ASSERT(self->firstbucket->ob_refcnt > 0, 
              "Invalid firstbucket pointer", -1);
       Py_DECREF(self->firstbucket);
       self->firstbucket=NULL;
@@ -573,7 +573,7 @@ BTree__p_deactivate(BTree *self, PyObject *args)
   if (self->state==cPersistent_UPTODATE_STATE && self->jar)
     {
       if (_BTree_clear(self) < 0) return NULL;
-      self->state=cPersistent_GHOST_STATE;
+      PER_GHOSTIFY(self);
     }
 
   Py_INCREF(Py_None);

@@ -18,11 +18,20 @@
 #include "ExtensionClass.h"
 #include <time.h>
 
-#define cPersistent_HEAD PyObject_HEAD PyObject *jar, *oid; char serial[8]; unsigned short atime;  signed char state;  unsigned char reserved; 
+
+#define cPersistent_HEAD PyObject_HEAD PyObject *jar, *oid, *cache; CPersistentRing ring; char serial[8]; signed char state; unsigned char reserved[3];
 #define cPersistent_GHOST_STATE -1
 #define cPersistent_UPTODATE_STATE 0
 #define cPersistent_CHANGED_STATE 1
 #define cPersistent_STICKY_STATE 2
+
+struct ccobject_head_struct;
+
+typedef struct CPersistentRing_struct
+{
+    struct CPersistentRing_struct *prev;
+    struct CPersistentRing_struct *next;
+} CPersistentRing;
 
 typedef struct {
   cPersistent_HEAD
@@ -36,6 +45,9 @@ typedef struct {
   getattrofunc getattro;
   setattrofunc setattro;
   int (*changed)(cPersistentObject*);
+  void (*accessed)(cPersistentObject*);
+  void (*ghostify)(cPersistentObject*);
+  void (*deallocated)(cPersistentObject*);
   int (*setstate)(PyObject*);
   pergetattr pergetattro;
   persetattr persetattro;
@@ -59,11 +71,13 @@ static cPersistenceCAPIstruct *cPersistenceCAPI;
 
 #define PER_CHANGED(O) (cPersistenceCAPI->changed((cPersistentObject*)(O)))
 
-#define PER_ALLOW_DEACTIVATION(O) ((O)->state==cPersistent_STICKY_STATE && ((O)->state=cPersistent_UPTODATE_STATE)) 
+#define PER_GHOSTIFY(O) (cPersistenceCAPI->ghostify((cPersistentObject*)(O)))
 
-#define PER_PREVENT_DEACTIVATION(O)  ((O)->state==cPersistent_UPTODATE_STATE && ((O)->state=cPersistent_STICKY_STATE)) 
+#define PER_ALLOW_DEACTIVATION(O) ((O)->state==cPersistent_STICKY_STATE && ((O)->state=cPersistent_UPTODATE_STATE))
 
-#define PER_DEL(O) Py_XDECREF((O)->jar); Py_XDECREF((O)->oid);
+#define PER_PREVENT_DEACTIVATION(O)  ((O)->state==cPersistent_UPTODATE_STATE && ((O)->state=cPersistent_STICKY_STATE))
+
+#define PER_DEL(O) (cPersistenceCAPI->deallocated((cPersistentObject*)(O)))
 
 #define PER_USE(O) \
 (((O)->state != cPersistent_GHOST_STATE \
@@ -71,7 +85,7 @@ static cPersistenceCAPIstruct *cPersistenceCAPI;
  ? (((O)->state==cPersistent_UPTODATE_STATE) \
     ? ((O)->state=cPersistent_STICKY_STATE) : 1) : 0)
 
-#define PER_ACCESSED(O) ((O)->atime=((long)(time(NULL)/3))%65536) 
+#define PER_ACCESSED(O)  (cPersistenceCAPI->accessed((cPersistentObject*)(O)))
 
 #endif
 

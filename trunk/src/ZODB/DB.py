@@ -13,8 +13,8 @@
 ##############################################################################
 """Database objects
 
-$Id: DB.py,v 1.39 2002/02/11 23:40:42 gvanrossum Exp $"""
-__version__='$Revision: 1.39 $'[11:-2]
+$Id: DB.py,v 1.40 2002/03/27 10:14:04 htrd Exp $"""
+__version__='$Revision: 1.40 $'[11:-2]
 
 import cPickle, cStringIO, sys, POSException, UndoLogCompatible
 from Connection import Connection
@@ -177,7 +177,7 @@ class DB(UndoLogCompatible.UndoLogCompatible):
         def f(con, detail=detail, rc=sys.getrefcount, conn_no=conn_no):
             conn_no[0] = conn_no[0] + 1
             cn = conn_no[0]
-            for oid, ob in con._cache.items():
+            for oid, ob in con._cache_items():
                 id=''
                 if hasattr(ob,'__dict__'):
                     d=ob.__dict__
@@ -224,10 +224,20 @@ class DB(UndoLogCompatible.UndoLogCompatible):
     def cacheSize(self):
         m=[0]
         def f(con, m=m):
-            m[0]=m[0]+len(con._cache)
+            m[0]=m[0]+con._cache.cache_non_ghost_count
 
         self._connectionMap(f)
         return m[0]
+
+    def cacheDetailSize(self):
+        m=[]
+        def f(con, m=m):
+            m.append({'connection':repr(con),
+                      'ngsize':con._cache.cache_non_ghost_count,
+                      'size':len(con._cache)})
+        self._connectionMap(f)
+        m.sort()
+        return m
 
     def close(self): self._storage.close()
 
