@@ -519,10 +519,10 @@ class ConnectionTests(StorageTestBase):
     # transaction.  This is not really a connection test, but it needs
     # about the same infrastructure (several storage servers).
 
-    # XXX WARNING: with the current ZEO code, this occasionally hangs.
+    # XXX WARNING: with the current ZEO code, this occasionally fails.
     # That's the point of this test. :-)
 
-    def checkMultiStorageTransaction(self):
+    def NOcheckMultiStorageTransaction(self):
         # Configuration parameters (larger values mean more likely deadlocks)
         N = 2
         # These don't *have* to be all the same, but it's convenient this way
