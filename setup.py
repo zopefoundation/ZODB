@@ -122,7 +122,12 @@ winlock = Extension(name = 'ZODB.winlock',
                     sources = ['src/ZODB/winlock.c']
                     )
 
-exts += [cPersistence, cPickleCache, TimeStamp, winlock]
+cZopeInterface = Extension(
+            name = 'zope.interface._zope_interface_coptimizations',
+            sources= ['src/zope/interface/_zope_interface_coptimizations.c']
+            )
+
+exts += [cPersistence, cPickleCache, TimeStamp, winlock, cZopeInterface]
 
 # The ZODB.zodb4 code is not being packaged, because it is only
 # need to convert early versions of Zope3 databases to ZODB3.
