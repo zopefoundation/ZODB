@@ -13,7 +13,7 @@
 ##############################################################################
 """Handy standard storage machinery
 
-$Id: BaseStorage.py,v 1.44 2004/02/27 00:31:53 faassen Exp $
+$Id: BaseStorage.py,v 1.45 2004/03/11 16:41:03 jeremy Exp $
 """
 import cPickle
 import threading
@@ -28,6 +28,54 @@ from ZODB import POSException
 from ZODB.UndoLogCompatible import UndoLogCompatible
 
 class BaseStorage(UndoLogCompatible):
+    """Abstract base class that support storage implementations.
+
+    A subclass must define the following methods:
+    load()
+    close()
+    cleanup()
+    lastSerial()
+    lastTransaction()
+
+    It must override these hooks:
+    _begin()
+    _vote()
+    _abort()
+    _finish()
+    _clear_temp()
+
+    If it stores multiple revisions, it should implement
+    loadSerial()
+    loadBefore()
+    iterator()
+
+    If the subclass wants to implement undo, it should implement the
+    multiple revision methods and:
+    loadSerial()
+    undo()
+    undoInfo()
+    undoLog()
+
+    If the subclass wants to implement versions, it must implement:
+    abortVersion()
+    commitVersion()
+    modifiedInVersion()
+    versionEmpty()
+    versions()
+
+    Each storage will have two locks that are accessed via lock
+    acquire and release methods bound to the instance.  (Yuck.)
+    _lock_acquire / _lock_release (reentrant)
+    _commit_lock_acquire / _commit_lock_release
+
+    The commit lock is acquired in tpc_begin() and released in
+    tpc_abort() and tpc_finish().  It is never acquired with the other
+    lock held.
+
+    The other lock appears to protect _oid and _transaction and
+    perhaps other things.  It is always held when load() is called, so
+    presumably the load() implementation should also acquire the lock.
+    """    
     _transaction=None # Transaction that is being committed
     _tstatus=' '      # Transaction status, used for copying data
     _is_read_only = False
