@@ -41,14 +41,17 @@ def fsdump(path, file=None, with_offset=1):
     iter = FileIterator(path)
     for trans in iter:
         if with_offset:
-            print >> file, "Trans #%05d tid=%016x time=%s offset=%d" % \
-                  (i, u64(trans.tid), str(TimeStamp(trans.tid)), trans._pos)
+            print >> file, ("Trans #%05d tid=%016x time=%s offset=%d"
+                            % (i, u64(trans.tid), str(TimeStamp(trans.tid)),
+                               trans._pos))
         else:
             print >> file, "Trans #%05d tid=%016x time=%s" % \
                   (i, u64(trans.tid), str(TimeStamp(trans.tid)))
-        print >> file, "\tstatus=%s user=%s description=%s" % \
-              (`trans.status`, trans.user, trans.description)
+        print >> file, "\tsize=%d status=%s user=%s description=%s" % \
+              (trans._tend - trans._tpos, `trans.status`, trans.user,
+               trans.description)
         j = 0
+        tsize = 0
         for rec in trans:
             if rec.data is None:
                 fullclass = "undo or abort of object creation"
@@ -70,8 +73,17 @@ def fsdump(path, file=None, with_offset=1):
                 bp = "bp=%016x" % u64(rec.data_txn)
             else:
                 bp = ""
-            print >> file, "  data #%05d oid=%016x %sclass=%s %s" % \
-                  (j, u64(rec.oid), version, fullclass, bp)
+            if rec.data_txn:
+                size = 8 + len(rec.version)
+            else:
+                size = len(rec.data) + len(rec.version)
+            if rec.version:
+                size += DATA_VERSION_HDR_LEN
+            else:
+                size += DATA_HDR_LEN
+            tsize += size
+            print >> file, "  data #%05d oid=%016x %sclass=%s size=%d %s" % \
+                  (j, u64(rec.oid), version, fullclass, size, bp)
             j += 1
         print >> file
         i += 1
@@ -79,7 +91,7 @@ def fsdump(path, file=None, with_offset=1):
 
 import struct
 from ZODB.FileStorage import TRANS_HDR, TRANS_HDR_LEN
-from ZODB.FileStorage import DATA_HDR, DATA_HDR_LEN
+from ZODB.FileStorage import DATA_HDR, DATA_HDR_LEN, DATA_VERSION_HDR_LEN
 
 def fmt(p64):
     # Return a nicely formatted string for a packaged 64-bit value
