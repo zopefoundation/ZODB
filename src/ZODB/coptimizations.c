@@ -164,17 +164,6 @@ persistent_id_call(persistent_id *self, PyObject *args, PyObject *kwargs)
 		)
 	  goto not_persistent;
 
-	if (OBJECT(object->ob_type) != klass)
-	  {			/* Wrapped object, whine! */
-	    /*
-	    printf("%s != %s\n", 
-		   object->ob_type->tp_name,
-		   (((PyExtensionClass*)klass)->tp_name));
-	    */
-	    PyErr_SetString(InvalidObjectReference, 
-			    "Attempt to store a wrapped persistent object");
-	    return NULL;
-	  }
       }
     else 
       goto not_persistent;
@@ -328,7 +317,7 @@ void
 initcoptimizations()
 {
   PyObject *m, *d;
-  char *rev="$Revision: 1.8 $";
+  char *rev="$Revision: 1.9 $";
 
 #define make_string(S) if (! (py_ ## S=PyString_FromString(#S))) return
   make_string(_p_oid);
