@@ -12,7 +12,7 @@
   
  ****************************************************************************/
 
-#define MERGETEMPLATE_C "$Id: MergeTemplate.c,v 1.9 2002/02/11 23:40:40 gvanrossum Exp $\n"
+#define MERGETEMPLATE_C "$Id: MergeTemplate.c,v 1.10 2002/05/31 09:41:07 htrd Exp $\n"
 
 /****************************************************************************
  Set operations
@@ -83,8 +83,8 @@ bucket_merge(Bucket *s1, Bucket *s2, Bucket *s3)
 
   while (i1.position >= 0 && i2.position >= 0 && i3.position >= 0)
     {
-      cmp12=TEST_KEY(i1.key, i2.key);
-      cmp13=TEST_KEY(i1.key, i3.key);
+      TEST_KEY_SET_OR(cmp12, i1.key, i2.key) goto err;
+      TEST_KEY_SET_OR(cmp13, i1.key, i3.key) goto err;
       if (cmp12==0)
         {
           if (cmp13==0)
@@ -142,7 +142,7 @@ bucket_merge(Bucket *s1, Bucket *s2, Bucket *s3)
         }
       else
         {                       /* Both keys changed */
-          cmp23=TEST_KEY(i2.key, i3.key);
+          TEST_KEY_SET_OR(cmp23, i2.key, i3.key) goto err;
           if (cmp23==0)
             {                   /* dualing inserts or deletes */
               merge_error(i1.position, i2.position, i3.position, 4);
@@ -176,7 +176,7 @@ bucket_merge(Bucket *s1, Bucket *s2, Bucket *s3)
 
   while (i2.position >= 0 && i3.position >= 0)
     {                           /* New inserts */
-      cmp23=TEST_KEY(i2.key, i3.key);
+      TEST_KEY_SET_OR(cmp23, i2.key, i3.key) goto err;
       if (cmp23==0)
         {                       /* dualing inserts */
           merge_error(i1.position, i2.position, i3.position, 6);
@@ -196,7 +196,7 @@ bucket_merge(Bucket *s1, Bucket *s2, Bucket *s3)
 
   while (i1.position >= 0 && i2.position >= 0)
     {                           /* deleting i3 */
-      cmp12=TEST_KEY(i1.key, i2.key);
+      TEST_KEY_SET_OR(cmp12, i1.key, i2.key) goto err;
       if (cmp12 > 0)
         {                       /* insert i2 */
           if (merge_output(r, &i2, mapping) < 0) goto err;
@@ -216,7 +216,7 @@ bucket_merge(Bucket *s1, Bucket *s2, Bucket *s3)
 
   while (i1.position >= 0 && i3.position >= 0)
     {                           /* deleting i2 */
-      cmp13=TEST_KEY(i1.key, i3.key);
+      TEST_KEY_SET_OR(cmp13, i1.key, i3.key) goto err;
       if (cmp13 > 0)
         {                       /* insert i3 */
           if (merge_output(r, &i3, mapping) < 0) goto err;

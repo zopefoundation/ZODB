@@ -12,7 +12,7 @@
   
  ****************************************************************************/
 
-#define BTREETEMPLATE_C "$Id: BTreeTemplate.c,v 1.29 2002/05/30 21:47:39 jim Exp $\n"
+#define BTREETEMPLATE_C "$Id: BTreeTemplate.c,v 1.30 2002/05/31 09:41:07 htrd Exp $\n"
 
 /*
 ** _BTree_get
@@ -34,7 +34,7 @@ _BTree_get(BTree *self, PyObject *keyarg, int has_key)
     {
       for (min=0, max=self->len, i=max/2; max-min > 1; i=(min+max)/2)
         {
-          cmp=TEST_KEY(self->data[i].key, key);
+          TEST_KEY_SET_OR(cmp, self->data[i].key, key) return NULL;
           if (cmp < 0) min=i;
           else if (cmp == 0)
             {
@@ -360,7 +360,7 @@ _BTree_set(BTree *self, PyObject *keyarg, PyObject *value,
   for (min=0, max=self->len, i=max/2; max-min > 1; i=(max+min)/2)
     {
       d=self->data+i;
-      cmp=TEST_KEY(d->key, key);
+      TEST_KEY_SET_OR(cmp, d->key, key) return -1;
       if (cmp < 0) min=i;
       else if (cmp==0)
 	{
@@ -838,7 +838,7 @@ BTree_findRangeEnd(BTree *self, PyObject *keyarg, int low,
   
   for (min=0, max=self->len, i=max/2; max-min > 1; i=(min+max)/2)
     {
-      cmp=TEST_KEY(self->data[i].key, key);
+      TEST_KEY_SET_OR(cmp, self->data[i].key, key) return -1;
       if (cmp < 0) min=i;
       else if (cmp == 0)
 	{

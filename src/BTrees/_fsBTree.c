@@ -15,7 +15,7 @@ typedef unsigned char char6[6];
 
 /* Setup template macros */
 
-#define MASTER_ID "$Id: _fsBTree.c,v 1.2 2002/02/12 22:33:07 gvanrossum Exp $\n"
+#define MASTER_ID "$Id: _fsBTree.c,v 1.3 2002/05/31 09:41:07 htrd Exp $\n"
 
 #define PERSISTENT
 
@@ -26,10 +26,10 @@ typedef unsigned char char6[6];
                 
 /*#include "intkeymacros.h"*/
 
-#define KEYMACROS_H "$Id: _fsBTree.c,v 1.2 2002/02/12 22:33:07 gvanrossum Exp $\n"
+#define KEYMACROS_H "$Id: _fsBTree.c,v 1.3 2002/05/31 09:41:07 htrd Exp $\n"
 #define KEY_TYPE char2
 #define KEY_CHECK(K) (PyString_Check(K) && PyString_GET_SIZE(K)==2)
-#define TEST_KEY(K, T) ((*(K) < *(T) || (*(K) == *(T) && (K)[1] < (T)[1])) ? -1 : ((*(K) == *(T) && (K)[1] == (T)[1]) ? 0 : 1))
+#define TEST_KEY_SET_OR(V, K, T) if ( ( (V) = ((*(K) < *(T) || (*(K) == *(T) && (K)[1] < (T)[1])) ? -1 : ((*(K) == *(T) && (K)[1] == (T)[1]) ? 0 : 1)) ), 0 )
 #define DECREF_KEY(KEY)
 #define INCREF_KEY(k)
 #define COPY_KEY(KEY, E) (*(KEY)=*(E), (KEY)[1]=(E)[1])
@@ -40,7 +40,7 @@ typedef unsigned char char6[6];
       (STATUS)=0; } 
 
 /*#include "intvaluemacros.h"*/
-#define VALUEMACROS_H "$Id: _fsBTree.c,v 1.2 2002/02/12 22:33:07 gvanrossum Exp $\n"
+#define VALUEMACROS_H "$Id: _fsBTree.c,v 1.3 2002/05/31 09:41:07 htrd Exp $\n"
 #define VALUE_TYPE char6
 #define TEST_VALUE(K, T) strncmp(K,T,6)
 #define DECLARE_VALUE(NAME) VALUE_TYPE NAME

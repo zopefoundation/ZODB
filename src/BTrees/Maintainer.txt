@@ -30,7 +30,6 @@ DEFAULT_MAX_BTREE_SIZE
 An int giving the maximum size (number of children) of an internal
 btree node.  Someday this will be tunable on BTree instances.
 
-
 Macros for Keys
 
 KEY_TYPE
@@ -42,12 +41,17 @@ Tests whether the PyObject* K can be converted to the (C) key type
 non-zero for true).  When it returns false, its caller should probably
 set a TypeError exception.
 
-TEST_KEY(K, T)
+TEST_KEY_SET_OR(V, K, T) 
 Like Python's cmp().  Compares K(ey) to T(arget), where K & T are C
-data values of type KEY_TYPE).  Return an int
+data values of type KEY_TYPE).
    < 0 if K < T
   == 0 if K == T
    > 0 if K > T
+The value is assigned to V. This macro acts like an 'if',
+where the following statement is executed only if a Python exception
+has been raised because the values could not be compared.
+
+
 
 DECREF_KEY(K)
 K is a value of KEY_TYPE.  If KEY_TYPE is a flavor of PyObject*, write

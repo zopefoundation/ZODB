@@ -12,7 +12,7 @@
   
  ****************************************************************************/
 
-#define BUCKETTEMPLATE_C "$Id: BucketTemplate.c,v 1.29 2002/03/27 10:14:01 htrd Exp $\n"
+#define BUCKETTEMPLATE_C "$Id: BucketTemplate.c,v 1.30 2002/05/31 09:41:07 htrd Exp $\n"
 
 /*
 ** _bucket_get
@@ -41,7 +41,7 @@ _bucket_get(Bucket *self, PyObject *keyarg, int has_key)
 
   for (min=0, max=self->len, i=max/2, l=max; i != l; l=i, i=(min+max)/2)
     {
-      cmp=TEST_KEY(self->keys[i], key);
+      TEST_KEY_SET_OR(cmp, self->keys[i], key) return NULL;
       if (PyErr_Occurred()) goto err;
 
       if (cmp < 0) min=i;
@@ -137,7 +137,8 @@ _bucket_set(Bucket *self, PyObject *keyarg, PyObject *v,
 
   for (min=0, max=l=self->len, i=max/2; i != l; l=i, i=(min+max)/2)
     {
-      if ((cmp=TEST_KEY(self->keys[i], key)) < 0) min=i;
+      TEST_KEY_SET_OR(cmp, self->keys[i], key) return -1;
+      if (cmp < 0) min=i;
       else if (cmp==0)
 	{
 	  if (v)			/* Assign value to key */
@@ -441,7 +442,7 @@ Bucket_findRangeEnd(Bucket *self, PyObject *keyarg, int low, int *offset)
 
   for (min=0, max=self->len, i=max/2, l=max; i != l; l=i, i=(min+max)/2) 
     {
-      cmp=TEST_KEY(self->keys[i], key);
+      TEST_KEY_SET_OR(cmp, self->keys[i], key) return -1;
       if (cmp < 0)
 	min=i;
       else if (cmp == 0)
