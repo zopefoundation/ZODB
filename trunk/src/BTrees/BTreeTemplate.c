@@ -12,7 +12,7 @@
   
  ****************************************************************************/
 
-#define BTREETEMPLATE_C "$Id: BTreeTemplate.c,v 1.21 2002/02/11 23:40:40 gvanrossum Exp $\n"
+#define BTREETEMPLATE_C "$Id: BTreeTemplate.c,v 1.22 2002/02/20 23:59:51 jeremy Exp $\n"
 
 /*
 ** _BTree_get
@@ -481,7 +481,7 @@ _BTree_set(BTree *self, PyObject *keyarg, PyObject *value,
       || (bchanged                                     /* The bucket changed */
           && self->len == 1                            /* We have only one   */
           && ! SameType_Check(self, self->data->value) /* It's our child     */
-          && BUCKET(self->data->value)->oid == NULL    /* It's in our record */
+          && BUCKET(self->data->value)->po_oid == NULL /* It's in our record */
           )
       ) 
     if (PER_CHANGED(self) < 0) 
@@ -570,10 +570,10 @@ _BTree_clear(BTree *self)
 static PyObject *
 BTree__p_deactivate(BTree *self, PyObject *args)
 {
-  if (self->state==cPersistent_UPTODATE_STATE && self->jar)
+  if (self->po_state == UPTODATE && self->po_dm)
     {
       if (_BTree_clear(self) < 0) return NULL;
-      self->state=cPersistent_GHOST_STATE;
+      self->po_state = GHOST;
     }
 
   Py_INCREF(Py_None);
@@ -619,7 +619,7 @@ BTree_getstate(BTree *self, PyObject *args)
       if (self->len == 1 
           && self->data->value->ob_type != self->ob_type
 #ifdef PERSISTENT
-          && BUCKET(self->data->value)->oid == NULL
+          && BUCKET(self->data->value)->po_oid == NULL
 #endif
           )
         {
@@ -731,9 +731,9 @@ _BTree_setstate(BTree *self, PyObject *state, int noval)
         {
           if (! firstbucket) firstbucket=self->data->value;
 
-          UNLESS (ExtensionClassSubclassInstance_Check(
-                    firstbucket, 
-                    noval ? &SetType : &BucketType))
+	  /* XXX what is this? */
+	  if (!PyObject_IsInstance(firstbucket, (PyObject *)
+				   (noval ? &SetType : &BucketType)))
             {
               PyErr_SetString(PyExc_TypeError, 
                               "No firstbucket in non-empty BTree");
@@ -788,7 +788,7 @@ BTree__p_resolveConflict(BTree *self, PyObject *args)
     UNLESS (s[i]==Py_None || PyTuple_Check(s[i]))
       return merge_error(-100, -100, -100, -100);
 
-  if (ExtensionClassSubclassInstance_Check(self, &BTreeType))
+  if (PyObject_IsInstance((PyObject *)self, (PyObject *)&BTreeType))
       r = _bucket__p_resolveConflict(OBJECT(&BucketType), s);
   else
       r = _bucket__p_resolveConflict(OBJECT(&SetType), s);
@@ -1238,11 +1238,7 @@ static void
 BTree_dealloc(BTree *self)
 {
   _BTree_clear(self);
-
-  PER_DEL(self);
-
-  Py_DECREF(self->ob_type);
-  PyMem_DEL(self);
+  PyPersist_TYPE->tp_dealloc((PyObject *)self);
 }
 
 static int
@@ -1301,35 +1297,46 @@ static PyNumberMethods BTree_as_number_for_nonzero = {
   0,0,0,0,0,0,0,0,0,0,
   (inquiry)BTree_nonzero};
 
-static PyExtensionClass BTreeType = {
-  PyObject_HEAD_INIT(NULL)
-  0,				/*ob_size*/
-  MOD_NAME_PREFIX "BTree",			/*tp_name*/
-  sizeof(BTree),		/*tp_basicsize*/
-  0,				/*tp_itemsize*/
-  /************* methods ********************/
-  (destructor) BTree_dealloc,/*tp_dealloc*/
-  (printfunc)0,			/*tp_print*/
-  (getattrfunc)0,		/*obsolete tp_getattr*/
-  (setattrfunc)0,		/*obsolete tp_setattr*/
-  (cmpfunc)0,			/*tp_compare*/
-  (reprfunc)0,			/*tp_repr*/
-  &BTree_as_number_for_nonzero,	/*tp_as_number*/
-  0,				/*tp_as_sequence*/
-  &BTree_as_mapping,	/*tp_as_mapping*/
-  (hashfunc)0,			/*tp_hash*/
-  (ternaryfunc)0,		/*tp_call*/
-  (reprfunc)0,			/*tp_str*/
-  (getattrofunc)0,
-  0,				/*tp_setattro*/
-  
-  /* Space for future expansion */
-  0L,0L,
-  "Mapping type implemented as sorted list of items", 
-  METHOD_CHAIN(BTree_methods),
-  EXTENSIONCLASS_BASICNEW_FLAG 
-#ifdef PERSISTENT
-  | PERSISTENT_TYPE_FLAG 
-#endif
-  | EXTENSIONCLASS_NOINSTDICT_FLAG,
+static PyTypeObject BTreeType = {
+    PyObject_HEAD_INIT(NULL) /* PyPersist_Type */
+    0,					/* ob_size */
+    "Persistence.BTrees.OOBTree." MOD_NAME_PREFIX "BTree",		/* tp_name */
+    sizeof(BTree),			/* tp_basicsize */
+    0,					/* tp_itemsize */
+    (destructor)BTree_dealloc,		/* tp_dealloc */
+    0,					/* tp_print */
+    0,					/* tp_getattr */
+    0,					/* tp_setattr */
+    0,					/* tp_compare */
+    0,					/* tp_repr */
+    &BTree_as_number_for_nonzero,	/* tp_as_number */
+    0,					/* tp_as_sequence */
+    &BTree_as_mapping,			/* tp_as_mapping */
+    0,					/* tp_hash */
+    0,					/* tp_call */
+    0,					/* tp_str */
+    0,					/* tp_getattro */
+    0,					/* tp_setattro */
+    0,					/* tp_as_buffer */
+/* XXX need to define traverse and clear functions */
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC |
+	    Py_TPFLAGS_BASETYPE, 	/* tp_flags */
+    0,					/* tp_doc */
+    0,	/* tp_traverse */
+    0,		/* tp_clear */
+    0,					/* tp_richcompare */
+    0,					/* tp_weaklistoffset */
+    0,					/* tp_iter */
+    0,					/* tp_iternext */
+    BTree_methods,			/* tp_methods */
+    0,					/* tp_members */
+    0,					/* tp_getset */
+    0,					/* tp_base */
+    0,					/* tp_dict */
+    0,					/* tp_descr_get */
+    0,					/* tp_descr_set */
+    0,					/* tp_dictoffset */
+    0,					/* tp_init */
+    0,					/* tp_alloc */
+    PyType_GenericNew,			/* tp_new */
 };
