@@ -47,8 +47,8 @@
 ##############################################################################
 """Database objects
 
-$Id: DB.py,v 1.1 1998/11/11 02:00:55 jim Exp $"""
-__version__='$Revision: 1.1 $'[11:-2]
+$Id: DB.py,v 1.2 1999/04/28 11:10:48 jim Exp $"""
+__version__='$Revision: 1.2 $'[11:-2]
 
 import cPickle, cStringIO, sys
 from Connection import Connection
@@ -225,6 +225,8 @@ class DB:
         self._connectionMap(f)
         return m[0]
 
+    def close(self): self._storage.close()
+
     def commitVersion(self, source, destination=''):
         raise 'Not yet implemented'
 
@@ -383,6 +385,16 @@ class DB:
         self._version_cache_deactivate_after=v
     def setVersionCacheSize(self, v): self._version_cache_size=v
     def setVersionPoolSize(self, v): self._version_pool_size=v
+                           
+    def getCacheDeactivateAfter(self): return self._cache_deactivate_after
+    def getCacheSize(self): return self._cache_size
+    def getPoolSize(self): return self._pool_size
+    def getVersionCacheDeactivateAfter(self): return
+        self._version_cache_deactivate_after
+    def getVersionCacheSize(self): return self._version_cache_size
+    def getVersionPoolSize(self): return self._version_pool_size
+
+    def cacheStatistics(self): return () # :(
 
     def versionEmpty(self, version):
         return self._storage.versionEmpty(version)

@@ -47,8 +47,8 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.1 1998/11/11 02:00:55 jim Exp $"""
-__version__='$Revision: 1.1 $'[11:-2]
+$Id: Connection.py,v 1.2 1999/04/28 11:10:48 jim Exp $"""
+__version__='$Revision: 1.2 $'[11:-2]
 
 from PickleCache import PickleCache
 from bpthread import allocate_lock
@@ -326,6 +326,19 @@ class Connection:
     def tpc_finish_(self):
         invalidate=self._db.invalidate
         for oid in self._invalidating: invalidate(oid, self)
+
+    def exportFile(self, oid, file=None):
+        pass # Not implemented yet
+
+    def importFile(self, file):
+        pass # Not implemented yet
+
+    ######################################################################
+    # BoboPOS 2 compat.
+
+    def export_file(self, o, file=None): return self.exportFile(o._p_oid, file)
+
+    import_file=importFile
 
 class tConnection(Connection):
 
