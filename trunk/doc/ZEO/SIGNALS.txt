@@ -7,26 +7,22 @@ Signals (POSIX only)
   signals which are sent to the process id written to the file
   'ZOPE_HOME/var/ZEO_SERVER.pid'::
 
-     SIGHUP -  Rotate log files.
-
-               kill -HUP `cat ZOPE_HOME/var/ZEO_SERVER.pid`
-
      SIGTERM - Close open storages and sockets, then shut down.
 
                kill -TERM `cat ZOPE_HOME/var/ZEO_SERVER.pid`
 
-     SIGINT  - Close open storages and sockets, then restart.
+     SIGHUP  - Close open storages and sockets, then restart.
 
-               kill -INT `cat ZOPE_HOME/var/ZEO_SERVER.pid`
+               kill -HUP `cat ZOPE_HOME/var/ZEO_SERVER.pid`
 
-  The pid file contains two pids: the pid of the parent process and
-  the pid of the child process, in that order.  The child process is
-  always the actual storage server process.  When using zdaemon (the
-  default), the parent is the zdaemon process.  Otherwise (when the -s
-  option is used), the parent is the shell (script) that started the
-  storage server.  (XXX The usefulness of writing both pids is
-  unclear.)
+     SIGUSR2 - Rotate log files.
+
+               kill -USR2 `cat ZOPE_HOME/var/ZEO_SERVER.pid`
+
+  When using zdaemon (the default), the pid file contains the pid of
+  the zdaemon process.  Otherwise (when the -s option is used), the
+  pid file contains the storage server's own pid.
 
   Note that zdaemon forwards signals to the child process.
   Specifically, it forwards all those signals listed above, plus
-  SIGQUIT and SIGUSR1.
+  SIGINT, SIGQUIT and SIGUSR1.
