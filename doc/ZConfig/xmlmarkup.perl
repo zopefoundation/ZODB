@@ -30,7 +30,7 @@ sub do_env_attributedesc{
     my $valuetype = next_argument();
     return ("\n<dl class='macrodesc'>"
             . "\n<dt><b><tt class='macro'>$name</tt></b>"
-            . "&nbsp;&nbsp;&nbsp;(<tt>$valuetype</tt>)"
+            . "&nbsp;&nbsp;&nbsp;($valuetype)"
             . "\n<dd>"
             . $_
             . "</dl>");
