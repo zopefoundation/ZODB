@@ -14,7 +14,7 @@
 static char coptimizations_doc_string[] = 
 "C optimization for new_persistent_id().\n"
 "\n"
-"$Id: coptimizations.c,v 1.24 2003/11/28 16:44:49 jim Exp $\n";
+"$Id: coptimizations.c,v 1.25 2003/12/11 05:16:50 jeremy Exp $\n";
 
 #include "cPersistence.h"
 
@@ -173,9 +173,39 @@ persistent_id_call(persistent_id *self, PyObject *args, PyObject *kwargs)
 	PyErr_Clear();
 	goto return_none;
     }
-
     if (oid != Py_None) {
-	PyObject *jar = PyObject_GetAttr(object, py__p_jar);
+	PyObject *jar;
+
+	if (!PyString_Check(oid)) {
+	    /* If the object is a class, then asking for _p_oid or
+	       _p_jar will return a descriptor.  There is no API to
+	       ask whether something is a descriptor; the best you
+	       can do is call anything with an __get__ a descriptor.
+
+	       The getattr check is potentially expensive so do the
+	       cheap PyString_Check() first, assuming that most oids
+	       that aren't None are real oids.  ZODB always uses
+	       strings, although some other user of Persistent could
+	       use something else.
+	    */
+	    static PyObject *__get__;
+	    PyObject *descr;
+	    if (!__get__) {
+		__get__ = PyString_InternFromString("__get__");
+		if (!__get__)
+		    goto err;
+	    }
+	    descr = PyObject_GetAttr(oid, __get__);
+	    if (descr)
+		goto return_none;
+	    /* Otherwise it's not a descriptor and it's just some
+	       weird value.  Maybe we'll get an error later.
+	    */
+
+	    /* XXX should check that this was an AttributeError */
+	    PyErr_Clear();
+	}
+	jar = PyObject_GetAttr(object, py__p_jar);
 	if (!jar)
 	    PyErr_Clear();
 	else {
