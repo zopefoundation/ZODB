@@ -333,11 +333,13 @@ class PersistentClientCacheTests(unittest.TestCase):
         data = '1234'
         serial = 'ABCDEFGH'
         cache.store(oid, data, serial, '', '', '')
+        cache.setLastTid(serial)
         cache.checkSize(10*self.cachesize) # Force a file flip
         self.assertEqual(cache._current, 1) # Check that the flip worked
         data = '123'
         serial = 'ABCDEFGZ'
         cache.store(oid, data, serial, '', '', '')
+        cache.setLastTid(serial)
         cache = self.reopenCache()
         loaded = cache.load(oid, '')
         # Check that we got the most recent data:
