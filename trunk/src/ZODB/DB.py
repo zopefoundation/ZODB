@@ -13,7 +13,7 @@
 ##############################################################################
 """Database objects
 
-$Id: DB.py,v 1.66 2004/02/27 22:02:47 jeremy Exp $"""
+$Id: DB.py,v 1.67 2004/03/01 15:45:03 jeremy Exp $"""
 
 import cPickle, cStringIO, sys
 from thread import allocate_lock
@@ -70,7 +70,7 @@ class DB(object):
                  cache_deactivate_after=None,
                  version_pool_size=3,
                  version_cache_size=100,
-                 version_cache_deactivate_after=10,
+                 version_cache_deactivate_after=None,
                  ):
         """Create an object database.
 
