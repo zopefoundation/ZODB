@@ -149,13 +149,11 @@ class StorageTestBase(unittest.TestCase):
         # Begin the transaction
         t = Transaction()
         self._storage.tpc_begin(t)
-        self._transaction = t
         # Store an object
         r1 = self._storage.store(oid, revid, data, version, t)
         # Finish the transaction
         r2 = self._storage.tpc_vote(t)
         self._storage.tpc_finish(t)
-        self._transaction = None
         return handle_serials(oid, r1, r2)
         
     def _dostoreNP(self, oid=None, revid=None, data=None, version=None):
