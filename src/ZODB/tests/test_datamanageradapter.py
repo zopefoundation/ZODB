@@ -13,11 +13,11 @@
 ##############################################################################
 """XXX short summary goes here.
 
-$Id: test_datamanageradapter.py,v 1.3 2004/03/11 15:57:57 jeremy Exp $
+$Id: test_datamanageradapter.py,v 1.4 2004/04/05 18:48:22 tim_one Exp $
 """
 import unittest
 from doctest import DocTestSuite
-from ZODB.Transaction import DataManagerAdapter
+from transaction._transaction import DataManagerAdapter
 from ZODB.tests.sampledm import DataManager
 
 def test_normal_commit():
@@ -34,7 +34,7 @@ def test_normal_commit():
 
     Now we'll commit the changes.  When the data manager joins a transaction,
     the transaction will create an adapter.
-    
+
     >>> dma = DataManagerAdapter(dm)
 
     and register it as a modified object. At commit time, the
@@ -54,7 +54,7 @@ def test_normal_commit():
 
     Then the transaction will call commit on the jar:
 
-    >>> jar.commit(dma, t1)
+    >>> jar.commit(t1)
 
     This doesn't actually do anything. :)
 
@@ -77,7 +77,7 @@ def test_normal_commit():
     >>> jar.tpc_finish(t1)
 
     and the data manager finishes the two-phase commit:
-    
+
     >>> dm.state, dm.delta
     (1, 0)
     >>> dm.prepared
@@ -98,7 +98,7 @@ def test_abort():
 
     When the data manager joins a transaction,
     the transaction will create an adapter.
-    
+
     >>> dma = DataManagerAdapter(dm)
 
     and register it as a modified object.
@@ -116,7 +116,7 @@ def test_abort():
     Then the transaction will call abort on the jar:
 
     >>> t1 = '1'
-    >>> jar.abort(dma, t1)
+    >>> jar.abort(t1)
 
     Which aborts the changes in the data manager:
 
@@ -138,7 +138,7 @@ def test_tpc_abort_phase1():
 
     Now we'll commit the changes.  When the data manager joins a transaction,
     the transaction will create an adapter.
-    
+
     >>> dma = DataManagerAdapter(dm)
 
     and register it as a modified object. At commit time, the
@@ -158,7 +158,7 @@ def test_tpc_abort_phase1():
 
     Then the transaction will call commit on the jar:
 
-    >>> jar.commit(dma, t1)
+    >>> jar.commit(t1)
 
     This doesn't actually do anything. :)
 
@@ -189,7 +189,7 @@ def test_tpc_abort_phase2():
 
     Now we'll commit the changes.  When the data manager joins a transaction,
     the transaction will create an adapter.
-    
+
     >>> dma = DataManagerAdapter(dm)
 
     and register it as a modified object. At commit time, the
@@ -209,7 +209,7 @@ def test_tpc_abort_phase2():
 
     Then the transaction will call commit on the jar:
 
-    >>> jar.commit(dma, t1)
+    >>> jar.commit(t1)
 
     This doesn't actually do anything. :)
 
@@ -254,7 +254,7 @@ def test_commit_w_subtransactions():
     Now we'll commit the changes in a subtransaction.  When the data
     manager joins a transaction, the transaction will create an
     adapter.
-    
+
     >>> dma = DataManagerAdapter(dm)
 
     and register it as a modified object. At commit time, the
@@ -274,7 +274,7 @@ def test_commit_w_subtransactions():
 
     Then the transaction will call commit on the jar:
 
-    >>> jar.commit(dma, t1)
+    >>> jar.commit(t1)
 
     This doesn't actually do anything. :)
 
@@ -304,7 +304,7 @@ def test_commit_w_subtransactions():
     >>> dm.state, dm.delta
     (0, 2)
     >>> jar.tpc_begin(t1, 1) # 1 -> subtxn
-    >>> jar.commit(dma, t1)
+    >>> jar.commit(t1)
     >>> jar.tpc_vote(t1)
     >>> jar.tpc_finish(t1)
     >>> dm.state, dm.delta
@@ -313,7 +313,7 @@ def test_commit_w_subtransactions():
     >>> dm.state, dm.delta
     (0, 3)
     >>> jar.tpc_begin(t1, 1) # 1 -> subtxn
-    >>> jar.commit(dma, t1)
+    >>> jar.commit(t1)
     >>> jar.tpc_vote(t1)
     >>> jar.tpc_finish(t1)
     >>> dm.state, dm.delta
@@ -328,13 +328,13 @@ def test_commit_w_subtransactions():
     >>> dm.inc()
     >>> dm.state, dm.delta
     (0, 5)
-    
+
     and then commit the top-level transaction.
 
     The transaction  will actually go through the steps for a subtransaction:
 
     >>> jar.tpc_begin(t1, 1) # 1 -> subtxn
-    >>> jar.commit(dma, t1)
+    >>> jar.commit(t1)
     >>> jar.tpc_vote(t1)
     >>> jar.tpc_finish(t1)
 
@@ -350,7 +350,7 @@ def test_commit_w_subtransactions():
     The transaction manager doesn's call tpc_begin, because commit_sub
     implies the start of two-phase commit. Next, it does call commit:
 
-    >>> jar.commit(dma, t1)
+    >>> jar.commit(t1)
 
     which doesn't do anything.
 
@@ -370,7 +370,7 @@ def test_commit_w_subtransactions():
     >>> jar.tpc_finish(t1)
 
     and the data manager finishes the two-phase commit:
-    
+
     >>> dm.state, dm.delta
     (5, 0)
     >>> dm.prepared
@@ -392,7 +392,7 @@ def test_commit_w_subtransactions_featuring_subtransaction_abort():
     Now we'll commit the changes in a subtransaction.  When the data
     manager joins a transaction, the transaction will create an
     adapter.
-    
+
     >>> dma = DataManagerAdapter(dm)
 
     and register it as a modified object. At commit time, the
@@ -412,7 +412,7 @@ def test_commit_w_subtransactions_featuring_subtransaction_abort():
 
     Then the transaction will call commit on the jar:
 
-    >>> jar.commit(dma, t1)
+    >>> jar.commit(t1)
 
     This doesn't actually do anything. :)
 
@@ -442,13 +442,13 @@ def test_commit_w_subtransactions_featuring_subtransaction_abort():
     >>> dm.state, dm.delta
     (0, 2)
     >>> jar.tpc_begin(t1, 1) # 1 -> subtxn
-    >>> jar.commit(dma, t1)
+    >>> jar.commit(t1)
     >>> jar.tpc_vote(t1)
     >>> jar.tpc_finish(t1)
     >>> dm.state, dm.delta
     (0, 2)
 
-    
+
     >>> dm.inc()
     >>> dm.state, dm.delta
     (0, 3)
@@ -457,19 +457,19 @@ def test_commit_w_subtransactions_featuring_subtransaction_abort():
 
     The transaction will just call abort as usual:
 
-    >>> jar.abort(dma, t1)
+    >>> jar.abort(t1)
 
     This will cause a rollback to the last savepoint:
     >>> dm.state, dm.delta
     (0, 2)
 
     Then we do more work:
-    
+
     >>> dm.inc()
     >>> dm.state, dm.delta
     (0, 3)
     >>> jar.tpc_begin(t1, 1) # 1 -> subtxn
-    >>> jar.commit(dma, t1)
+    >>> jar.commit(t1)
     >>> jar.tpc_vote(t1)
     >>> jar.tpc_finish(t1)
     >>> dm.state, dm.delta
@@ -484,13 +484,13 @@ def test_commit_w_subtransactions_featuring_subtransaction_abort():
     >>> dm.inc()
     >>> dm.state, dm.delta
     (0, 5)
-    
+
     and then commit the top-level transaction.
 
     The transaction  will actually go through the steps for a subtransaction:
 
     >>> jar.tpc_begin(t1, 1) # 1 -> subtxn
-    >>> jar.commit(dma, t1)
+    >>> jar.commit(t1)
     >>> jar.tpc_vote(t1)
     >>> jar.tpc_finish(t1)
 
@@ -506,7 +506,7 @@ def test_commit_w_subtransactions_featuring_subtransaction_abort():
     The transaction manager doesn's call tpc_begin, because commit_sub
     implies the start of two-phase commit. Next, it does call commit:
 
-    >>> jar.commit(dma, t1)
+    >>> jar.commit(t1)
 
     which doesn't do anything.
 
@@ -526,7 +526,7 @@ def test_commit_w_subtransactions_featuring_subtransaction_abort():
     >>> jar.tpc_finish(t1)
 
     and the data manager finishes the two-phase commit:
-    
+
     >>> dm.state, dm.delta
     (5, 0)
     >>> dm.prepared
@@ -548,7 +548,7 @@ def test_abort_w_subtransactions():
     Now we'll commit the changes in a subtransaction.  When the data
     manager joins a transaction, the transaction will create an
     adapter.
-    
+
     >>> dma = DataManagerAdapter(dm)
 
     and register it as a modified object. At commit time, the
@@ -568,7 +568,7 @@ def test_abort_w_subtransactions():
 
     Then the transaction will call commit on the jar:
 
-    >>> jar.commit(dma, t1)
+    >>> jar.commit(t1)
 
     This doesn't actually do anything. :)
 
@@ -598,7 +598,7 @@ def test_abort_w_subtransactions():
     >>> dm.state, dm.delta
     (0, 2)
     >>> jar.tpc_begin(t1, 1) # 1 -> subtxn
-    >>> jar.commit(dma, t1)
+    >>> jar.commit(t1)
     >>> jar.tpc_vote(t1)
     >>> jar.tpc_finish(t1)
     >>> dm.state, dm.delta
@@ -607,7 +607,7 @@ def test_abort_w_subtransactions():
     >>> dm.state, dm.delta
     (0, 3)
     >>> jar.tpc_begin(t1, 1) # 1 -> subtxn
-    >>> jar.commit(dma, t1)
+    >>> jar.commit(t1)
     >>> jar.tpc_vote(t1)
     >>> jar.tpc_finish(t1)
     >>> dm.state, dm.delta
@@ -622,18 +622,18 @@ def test_abort_w_subtransactions():
     >>> dm.inc()
     >>> dm.state, dm.delta
     (0, 5)
-    
+
     and then abort the top-level transaction.
 
     The transaction first call abort on the jar:
 
-    >>> jar.abort(dma, t1)
+    >>> jar.abort(t1)
 
     This will have the effect of aborting the subtrancation:
 
     >>> dm.state, dm.delta
     (0, 3)
-    
+
     Then the transaction will call abort_sub:
 
     >>> jar.abort_sub(t1)
@@ -660,7 +660,7 @@ def test_tpc_abort_w_subtransactions_featuring_subtransaction_abort():
     Now we'll commit the changes in a subtransaction.  When the data
     manager joins a transaction, the transaction will create an
     adapter.
-    
+
     >>> dma = DataManagerAdapter(dm)
 
     and register it as a modified object. At commit time, the
@@ -680,7 +680,7 @@ def test_tpc_abort_w_subtransactions_featuring_subtransaction_abort():
 
     Then the transaction will call commit on the jar:
 
-    >>> jar.commit(dma, t1)
+    >>> jar.commit(t1)
 
     This doesn't actually do anything. :)
 
@@ -710,13 +710,13 @@ def test_tpc_abort_w_subtransactions_featuring_subtransaction_abort():
     >>> dm.state, dm.delta
     (0, 2)
     >>> jar.tpc_begin(t1, 1) # 1 -> subtxn
-    >>> jar.commit(dma, t1)
+    >>> jar.commit(t1)
     >>> jar.tpc_vote(t1)
     >>> jar.tpc_finish(t1)
     >>> dm.state, dm.delta
     (0, 2)
 
-    
+
     >>> dm.inc()
     >>> dm.state, dm.delta
     (0, 3)
@@ -725,19 +725,19 @@ def test_tpc_abort_w_subtransactions_featuring_subtransaction_abort():
 
     The transaction will just call abort as usual:
 
-    >>> jar.abort(dma, t1)
+    >>> jar.abort(t1)
 
     This will cause a rollback to the last savepoint:
     >>> dm.state, dm.delta
     (0, 2)
 
     Then we do more work:
-    
+
     >>> dm.inc()
     >>> dm.state, dm.delta
     (0, 3)
     >>> jar.tpc_begin(t1, 1) # 1 -> subtxn
-    >>> jar.commit(dma, t1)
+    >>> jar.commit(t1)
     >>> jar.tpc_vote(t1)
     >>> jar.tpc_finish(t1)
     >>> dm.state, dm.delta
@@ -752,13 +752,13 @@ def test_tpc_abort_w_subtransactions_featuring_subtransaction_abort():
     >>> dm.inc()
     >>> dm.state, dm.delta
     (0, 5)
-    
+
     and then commit the top-level transaction.
 
     The transaction  will actually go through the steps for a subtransaction:
 
     >>> jar.tpc_begin(t1, 1) # 1 -> subtxn
-    >>> jar.commit(dma, t1)
+    >>> jar.commit(t1)
     >>> jar.tpc_vote(t1)
     >>> jar.tpc_finish(t1)
 
@@ -774,7 +774,7 @@ def test_tpc_abort_w_subtransactions_featuring_subtransaction_abort():
     The transaction manager doesn's call tpc_begin, because commit_sub
     implies the start of two-phase commit. Next, it does call commit:
 
-    >>> jar.commit(dma, t1)
+    >>> jar.commit(t1)
 
     which doesn't do anything.
 
@@ -795,7 +795,7 @@ def test_tpc_abort_w_subtransactions_featuring_subtransaction_abort():
     >>> jar.tpc_abort(t1)
 
     An the changes are undone:
-    
+
     >>> dm.state, dm.delta
     (0, 0)
     >>> dm.prepared
