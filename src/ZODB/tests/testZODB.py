@@ -143,15 +143,12 @@ class ZODBTests(unittest.TestCase):
         # ought to be linked to it rather than the old cache.
         self.populate()
         conn = self._db.open()
-        try:
-            conn.root()
-            self.assert_(len(conn._cache) > 0)  # Precondition
-            conn._resetCache()
-            self.assertEqual(len(conn._cache), 0)
-            self.assert_(conn._incrgc == conn._cache.incrgc)
-            self.assert_(conn.cacheGC == conn._cache.incrgc)
-        finally:
-            conn.close()
+        conn.root()
+        self.assert_(len(conn._cache) > 0)  # Precondition
+        conn._resetCache()
+        self.assertEqual(len(conn._cache), 0)
+        self.assert_(conn._incrgc == conn._cache.incrgc)
+        self.assert_(conn.cacheGC == conn._cache.incrgc)
 
     def checkLocalTransactions(self):
         # Test of transactions that apply to only the connection,
