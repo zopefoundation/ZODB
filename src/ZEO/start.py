@@ -13,7 +13,7 @@
 ##############################################################################
 """Start the server storage.
 
-$Id: start.py,v 1.41 2002/08/23 14:26:47 jeremy Exp $
+$Id: start.py,v 1.42 2002/08/27 18:43:12 bwarsaw Exp $
 """
 from __future__ import nested_scopes
 
@@ -151,7 +151,7 @@ def main(argv):
 
             module_path -- This is the path to a Python module
                that defines the storage object(s) to be served.
-               The module path should ommit the prefix (e.g. '.py').
+               The module path should omit the prefix (e.g. '.py').
 
             attr_name -- This is the name to which the storage object
               is assigned in the module.
