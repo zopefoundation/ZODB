@@ -20,7 +20,7 @@ platform-dependent scaffolding.
 # System imports
 import unittest
 # Import the actual test class
-from ZEO.tests import ConnectionTests
+from ZEO.tests import ConnectionTests, InvalidationTests
 
 
 class FileStorageConfig:
@@ -49,7 +49,8 @@ class MappingStorageConfig:
 
 class FileStorageConnectionTests(
     FileStorageConfig,
-    ConnectionTests.ConnectionTests
+    ConnectionTests.ConnectionTests.
+    InvalidationTests.InvalidationTests
     ):
     """FileStorage-specific connection tests."""
     level = 2
@@ -72,6 +73,7 @@ class FileStorageTimeoutTests(
 class BDBConnectionTests(
     BerkeleyStorageConfig,
     ConnectionTests.ConnectionTests
+    InvalidationTests.InvalidationTests
     ):
     """Berkeley storage connection tests."""
     level = 2

@@ -20,6 +20,7 @@ from BTrees.check import check, display
 from BTrees.OOBTree import OOBTree
 
 from ZEO.tests.TestThread import TestThread
+from ZEO.tests.ConnectionTests import CommonSetupTearDown
 
 from ZODB.DB import DB
 from ZODB.POSException \
@@ -150,7 +151,7 @@ class VersionStressThread(TestThread):
             cn.close()
         return 0
 
-class InvalidationTests:
+class InvalidationTests(CommonSetupTearDown):
 
     level = 2
     DELAY = 15
