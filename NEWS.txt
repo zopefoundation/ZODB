@@ -52,9 +52,14 @@ Test suite
 
 Collector #1397: testTimeStamp fails on FreeBSD
 
-The *BSD distributions are unique in that their mktime() implementation
-usually ignores the input tm_isdst value.  Test checkFullTimeStamp()
-was sensitive to this platform quirk.
+    The *BSD distributions are unique in that their mktime()
+    implementation usually ignores the input tm_isdst value.  Test
+    checkFullTimeStamp() was sensitive to this platform quirk.
+
+Reworked the way some of the ZEO tests use threads, so that unittest is
+more likely to notice the real cause of a failure (which usually occurs in
+a thread), and less likely to latch on to spurious problems resulting from
+the real failure.
 
 
 What's new in ZODB3 3.3 beta 1
