@@ -149,7 +149,7 @@ Also, the object ids time stamps are big-endian, so comparisons
 are meaningful.
 
 """
-__version__='$Revision: 1.9 $'[11:-2]
+__version__='$Revision: 1.10 $'[11:-2]
 
 import struct, time, os, bpthread, string, base64
 now=time.time
@@ -159,18 +159,20 @@ import POSException
 from TimeStamp import TimeStamp
 from lock_file import lock_file
 from utils import t32, p64, u64, cp
+from zLOG import LOG, WARNING, ERROR, PANIC, register_subsystem
+register_subsystem('ZODB FS')
 
 z64='\0'*8
 
-def warn(log, message, *data):
-    log("%s  warn: %s\n" % (packed_version, (message % data)))
+def warn(message, *data):
+    LOG('ZODB FS',WARNING, "%s  warn: %s\n" % (packed_version, (message % data)))
 
-def error(log, message, *data):
-    log("%s ERROR: %s\n" % (packed_version, (message % data)))
+def error(message, *data):
+    LOG('ZODB FS',ERROR,"%s ERROR: %s\n" % (packed_version, (message % data)))
 
-def panic(log, message, *data):
+def panic(message, *data):
     message=message%data
-    log("%s ERROR: %s\n" % (packed_version, message))
+    LOG('ZODB FS',PANIC,"%s ERROR: %s\n" % (packed_version, message))
     raise CorruptedTransactionError, message
         
 
@@ -197,8 +199,7 @@ class FileStorage:
     _transaction=None
     _serial=z64
 
-    def __init__(self, file_name, create=0, log=lambda s: None, read_only=0,
-                 stop=None):
+    def __init__(self, file_name, create=0, read_only=0, stop=None):
 
         if read_only:
             if create:
@@ -258,13 +259,12 @@ class FileStorage:
 
         self._file=file
         self._pos, self._oid, tid = read_index(
-            file, file_name, index, vindex, tindex, stop, log)
+            file, file_name, index, vindex, tindex, stop)
 
         self._ts=tid=TimeStamp(tid)
         t=time.time()
         t=apply(TimeStamp,(time.gmtime(t)[:5]+(t%60,)))
-        if tid > t:
-            warn(log, "%s Database records in the future", file_name);
+        if tid > t: warn("%s Database records in the future", file_name);
             
 
     def __len__(self): return len(self._index)
@@ -685,8 +685,7 @@ class FileStorage:
         return self._vindex.keys()
 
 
-def read_index(file, name, index, vindex, tindex, stop='\377'*8,
-               log=lambda s: None):
+def read_index(file, name, index, vindex, tindex, stop='\377'*8):
     indexpos=index.get
     vndexpos=vindex.get
     tappend=tindex.append
@@ -713,7 +712,7 @@ def read_index(file, name, index, vindex, tindex, stop='\377'*8,
         h=read(23)
         if not h: break
         if len(h) != 23:
-            warn(log, '%s truncated at %s', name, pos)
+            warn('%s truncated at %s', name, pos)
             seek(pos)
             file.truncate()
             break
@@ -722,7 +721,7 @@ def read_index(file, name, index, vindex, tindex, stop='\377'*8,
         if el < 0: el=t32-el
 
         if tid <= ltid:
-            warn(log, "%s time-stamp reduction at %s", name, pos)
+            warn("%s time-stamp reduction at %s", name, pos)
         ltid=tid
 
         tl=u64(stl)
@@ -730,7 +729,7 @@ def read_index(file, name, index, vindex, tindex, stop='\377'*8,
         if tl+pos+8 > file_size:
             # Hm, the data were truncated.  They may also be corrupted,
             # in which case, we don't want to totally lose the data.
-            warn(log, "%s truncated, possibly due to damaged records at %s",
+            warn("%s truncated, possibly due to damaged records at %s",
                  name, pos)
             try:
                 i=0
@@ -744,7 +743,7 @@ def read_index(file, name, index, vindex, tindex, stop='\377'*8,
                         o.close()
                         break
             except:
-                error(log, "couldn\'t write truncated data for %s", name)
+                error("couldn\'t write truncated data for %s", name)
                 raise POSException.StorageSystemError, (
                     "Couldn't save truncated data")
             
@@ -753,10 +752,10 @@ def read_index(file, name, index, vindex, tindex, stop='\377'*8,
             break
 
         if status not in ' up':
-            warn(log,'%s has invalid status, %s, at %s', name, status, pos)
+            warn('%s has invalid status, %s, at %s', name, status, pos)
 
         if ul > tl or dl > tl or el > tl:
-            panic(log,'%s has invalid transaction header at %s', name, pos)
+            panic('%s has invalid transaction header at %s', name, pos)
 
         if tid >= stop: break
 
@@ -769,7 +768,7 @@ def read_index(file, name, index, vindex, tindex, stop='\377'*8,
             seek(pos)
             h=read(8)
             if h != stl:
-                panic(log, '%s has inconsistent transaction length at %s',
+                panic('%s has inconsistent transaction length at %s',
                       name, pos)
             pos=pos+8
             continue
@@ -795,27 +794,27 @@ def read_index(file, name, index, vindex, tindex, stop='\377'*8,
                 version=read(vlen)
                 # Jim says: "It's just not worth the bother."
                 #if vndexpos(version, 0) != pv:
-                #    panic(log,"%s incorrect previous version pointer at %s",
+                #    panic("%s incorrect previous version pointer at %s",
                 #          name, pos)
                 vindex[version]=pos
 
             if pos+dlen > tend or tloc != tpos:
-                panic(log,"%s data record exceeds transaction record at %s",
+                panic("%s data record exceeds transaction record at %s",
                       name, pos)
             if indexpos(oid,0) != prev:
-                panic(log,"%s incorrect previous pointer at %s",
+                panic("%s incorrect previous pointer at %s",
                       name, pos)
 
             pos=pos+dlen
 
         if pos != tend:
-            panic(log,"%s data records don't add up at %s",name,tpos)
+            panic("%s data records don't add up at %s",name,tpos)
 
         # Read the (intentionally redundant) transaction length
         seek(pos)
         h=read(8)
         if h != stl:
-            panic(log, "%s redundant transaction length check failed at %s",
+            panic("%s redundant transaction length check failed at %s",
                   name, pos)
         pos=pos+8
         
@@ -840,10 +839,10 @@ def _loadBack(file, oid, back):
         seek(old)
         h=read(42)
         doid,serial,prev,tloc,vlen,plen = unpack(">8s8s8s8sH8s", h)
-        if doid != oid:
-            panic(lambda x: None,
-                  "%s version record back pointer points to "
-                  "invalid record as %s", name, back)
+        #if doid != oid:
+        #    panic(lambda x: None,
+        #          "%s version record back pointer points to "
+        #          "invalid record as %s", name, back)
 
         if vlen: seek(vlen+16,1)
         if plen != z64: return read(u64(plen)), serial
