@@ -16,19 +16,10 @@
 $Id$
 """
 
-try:
-    from zope.interface import Interface, Attribute
-except ImportError:
-    class Interface:
-        pass
+import zope.interface
+from zope.interface import Attribute
 
-    class Attribute:
-        def __init__(self, __name__, __doc__):
-            self.__name__ = __name__
-            self.__doc__ = __doc__
-
-
-class IDataManager(Interface):
+class IDataManager(zope.interface.Interface):
     """Objects that manage transactional storage.
 
     These object's may manage data for other objects, or they may manage
@@ -145,7 +136,7 @@ class IDataManager(Interface):
         """
 
 
-class ITransaction(Interface):
+class ITransaction(zope.interface.Interface):
     """Object representing a running transaction.
 
     Objects with this interface may represent different transactions
@@ -224,3 +215,26 @@ class ITransaction(Interface):
         """
         # XXX is this this allowed to cause an exception here, during
         # the two-phase commit, or can it toss data silently?
+
+class IConnection(zope.interface.Interface):
+    """ZODB connection.
+
+    XXX: This interface is incomplete.
+    """
+
+    def add(ob):
+        """Add a new object 'obj' to the database and assign it an oid.
+
+        A persistent object is normally added to the database and
+        assigned an oid when it becomes reachable to an object already in
+        the database.  In some cases, it is useful to create a new
+        object and use its oid (_p_oid) in a single transaction.
+
+        This method assigns a new oid regardless of whether the object
+        is reachable.
+
+        The object is added when the transaction commits.  The object
+        must implement the IPersistent interface and must not
+        already be associated with a Connection.
+        """
+
