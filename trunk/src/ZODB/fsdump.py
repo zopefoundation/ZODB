@@ -64,8 +64,14 @@ def fsdump(path, file=None, with_offset=1):
                 version = "version=%s " % rec.version
             else:
                 version = ''
-            print >> file, "  data #%05d oid=%016x %sclass=%s" % \
-                  (j, U64(rec.oid), version, fullclass)
+            if rec.data_txn:
+                # XXX It would be nice to print the transaction number
+                # (i) but it would be too expensive to keep track of.
+                bp = "bp=%016x" % U64(rec.data_txn)
+            else:
+                bp = ""
+            print >> file, "  data #%05d oid=%016x %sclass=%s %s" % \
+                  (j, U64(rec.oid), version, fullclass, bp)
             j += 1
         print >> file
         i += 1
