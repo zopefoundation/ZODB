@@ -27,9 +27,10 @@ except ImportError:
 
 import time
 
-from ZODB import DB
 from persistent import Persistent
 from persistent.mapping import PersistentMapping
+import transaction
+from ZODB import DB
 from ZODB.serialize import referencesf
 from ZODB.tests.MinPO import MinPO
 from ZODB.tests.StorageTestBase import snooze
@@ -164,7 +165,7 @@ class PackableStorage(PackableStorageBase):
 
         for i in range(10):
             root[i] = MinPO(i)
-        get_transaction().commit()
+        transaction.commit()
 
         snooze()
         packt = time.time()
@@ -173,7 +174,7 @@ class PackableStorage(PackableStorageBase):
         for dummy in choices:
             for i in choices:
                 root[i].value = MinPO(i)
-                get_transaction().commit()
+                transaction.commit()
 
         # How many client threads should we run, and how long should we
         # wait for them to finish?  Hard to say.  Running 4 threads and
@@ -274,7 +275,7 @@ class PackableStorage(PackableStorageBase):
         choices = range(10)
         for i in choices:
             root[i] = MinPO(i)
-        get_transaction().commit()
+        transaction.commit()
 
         snooze()
         packt = time.time()
@@ -282,7 +283,7 @@ class PackableStorage(PackableStorageBase):
         for dummy in choices:
            for i in choices:
                root[i].value = MinPO(i)
-               get_transaction().commit()
+               transaction.commit()
 
         NUM_LOOP_TRIP = 100
         timer = ElapsedTimer(time.time())
@@ -500,7 +501,7 @@ class PackableUndoStorage(PackableStorageBase):
         conn = db.open()
         root = conn.root()
 
-        txn = get_transaction()
+        txn = transaction.get()
         txn.note('root')
         txn.commit()
 
@@ -512,12 +513,12 @@ class PackableUndoStorage(PackableStorageBase):
         obj.value = 7
 
         root['obj'] = obj
-        txn = get_transaction()
+        txn = transaction.get()
         txn.note('root -> o1')
         txn.commit()
 
         del root['obj']
-        txn = get_transaction()
+        txn = transaction.get()
         txn.note('root -x-> o1')
         txn.commit()
 
@@ -526,7 +527,7 @@ class PackableUndoStorage(PackableStorageBase):
         log = self._storage.undoLog()
         tid = log[0]['id']
         db.undo(tid)
-        txn = get_transaction()
+        txn = transaction.get()
         txn.note('undo root -x-> o1')
         txn.commit()
 
@@ -552,19 +553,19 @@ class PackableUndoStorage(PackableStorageBase):
         root = conn.root()
 
         root["d"] = d = PersistentMapping()
-        get_transaction().commit()
+        transaction.commit()
         snooze()
 
         obj = d["obj"] = C()
         obj.value = 1
-        get_transaction().commit()
+        transaction.commit()
         snooze()
         packt1 = time.time()
         lost_oid = obj._p_oid
 
         obj = d["anotherobj"] = C()
         obj.value = 2
-        get_transaction().commit()
+        transaction.commit()
         snooze()
         packt2 = time.time()
 
@@ -682,13 +683,13 @@ class ClientThread(TestThread):
                 alist.extend([self.millis(), index])
                 self.root[index].value = MinPO(j)
                 assign_worked = True
-                get_transaction().commit()
+                transaction.commit()
                 alist.append(self.millis())
                 alist.append('OK')
             except ConflictError:
                 alist.append(self.millis())
                 alist.append('Conflict')
-                get_transaction().abort()
+                transaction.abort()
             alist.append(assign_worked)
 
 class ElapsedTimer:

@@ -45,10 +45,11 @@ import asyncore
 import sys, os, getopt, time
 ##sys.path.insert(0, os.getcwd())
 
-import ZODB
 import persistent
-from ZEO.tests import forker
+import transaction
+import ZODB
 from ZODB.POSException import ConflictError
+from ZEO.tests import forker
 
 class P(persistent.Persistent):
     pass
@@ -84,7 +85,7 @@ def work(db, results, nrep, compress, data, detailed, minimize, threadno=None):
             jar = db.open()
             while 1:
                 try:
-                    get_transaction().begin()
+                    transaction.begin()
                     rt = jar.root()
                     key = 's%s' % r
                     if rt.has_key(key):
@@ -98,7 +99,7 @@ def work(db, results, nrep, compress, data, detailed, minimize, threadno=None):
                         else:
                             v.d = data
                         setattr(p, str(i), v)
-                    get_transaction().commit()
+                    transaction.commit()
                 except ConflictError:
                     conflicts = conflicts + 1
                 else:

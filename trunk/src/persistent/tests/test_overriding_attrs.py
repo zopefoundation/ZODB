@@ -16,14 +16,11 @@
 This module tests and documents, through example, overriding attribute
 access methods.
 
-$Id: test_overriding_attrs.py,v 1.5 2004/03/04 22:41:59 jim Exp $
+$Id: test_overriding_attrs.py,v 1.6 2004/04/16 15:58:10 jeremy Exp $
 """
 
 from persistent import Persistent
-try:
-    from transaction import get_transaction
-except ImportError:
-    pass # else assume ZODB will install it as a builtin
+import transaction
 from ZODB.tests.util import DB
 
 class SampleOverridingGetattr(Persistent):
@@ -58,7 +55,7 @@ class SampleOverridingGetattr(Persistent):
         >>> db = DB()
         >>> conn = db.open()
         >>> conn.root()['o'] = o
-        >>> get_transaction().commit()
+        >>> transaction.commit()
         >>> o._p_deactivate()
         >>> o._p_changed
 
@@ -124,7 +121,7 @@ class SampleOverridingGetattributeSetattrAndDelattr(Persistent):
         >>> db = DB()
         >>> conn = db.open()
         >>> conn.root()['o'] = o
-        >>> get_transaction().commit()
+        >>> transaction.commit()
         >>> o._p_deactivate()
         >>> o._p_changed
 
@@ -229,7 +226,7 @@ class SampleOverridingGetattributeSetattrAndDelattr(Persistent):
         >>> db = DB()
         >>> conn = db.open()
         >>> conn.root()['o'] = o
-        >>> get_transaction().commit()
+        >>> transaction.commit()
         >>> o._p_deactivate()
         >>> o._p_changed
 
@@ -247,7 +244,7 @@ class SampleOverridingGetattributeSetattrAndDelattr(Persistent):
 
         Now, if commit:
         
-        >>> get_transaction().commit()
+        >>> transaction.commit()
         >>> o._p_changed
         0
 
@@ -329,7 +326,7 @@ class SampleOverridingGetattributeSetattrAndDelattr(Persistent):
         >>> db = DB()
         >>> conn = db.open()
         >>> conn.root()['o'] = o
-        >>> get_transaction().commit()
+        >>> transaction.commit()
         >>> o._p_deactivate()
         >>> o._p_changed
 
@@ -352,7 +349,7 @@ class SampleOverridingGetattributeSetattrAndDelattr(Persistent):
 
         Now, if commit:
         
-        >>> get_transaction().commit()
+        >>> transaction.commit()
         >>> o._p_changed
         0
 

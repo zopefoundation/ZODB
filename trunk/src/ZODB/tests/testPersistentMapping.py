@@ -22,9 +22,10 @@ old code, developers will have a hard time testing the new code.
 
 import unittest
 
+import transaction
+from transaction import Transaction
 import ZODB
 from ZODB.MappingStorage import MappingStorage
-from transaction import Transaction
 import cPickle
 import cStringIO
 import sys
@@ -59,7 +60,7 @@ class PMTests(unittest.TestCase):
         r[1] = 1
         r[2] = 2
         r[3] = r
-        get_transaction().commit()
+        transaction.commit()
         # MappingStorage stores serialno + pickle in its _index.
         root_pickle = s._index['\000' * 8][8:]
 

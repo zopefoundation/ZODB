@@ -66,7 +66,7 @@ def check_server(addr, storage, write):
                 monitor = root['monitor'] = PersistentMapping()
             obj = monitor['zeoup'] = monitor.get('zeoup', MinPO(0))
             obj.value += 1
-            get_transaction().commit()
+            transaction.commit()
         except ConflictError:
             pass
         cn.close()

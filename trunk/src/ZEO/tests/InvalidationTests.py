@@ -39,7 +39,7 @@ from ZODB.POSException \
 # of obscure timing-related bugs in cache consistency logic, revealed
 # by failure of the BTree to pass internal consistency checks at the end,
 # and/or by failure of the BTree to contain all the keys the threads
-# thought they added (i.e., the keys for which get_transaction().commit()
+# thought they added (i.e., the keys for which transaction.commit()
 # did not raise any exception).
 
 class FailableThread(TestThread):
@@ -151,19 +151,19 @@ class StressThread(FailableThread):
                 tree = cn.root()["tree"]
                 break
             except (ConflictError, KeyError):
-                get_transaction().abort()
+                transaction.abort()
                 cn.sync()
         key = self.startnum
         while not self.stop.isSet():
             try:
                 tree[key] = self.threadnum
-                get_transaction().note("add key %s" % key)
-                get_transaction().commit()
+                transaction.get().note("add key %s" % key)
+                transaction.commit()
                 self.commitdict[self] = 1
                 if self.sleep:
                     time.sleep(self.sleep)
             except (ReadConflictError, ConflictError), msg:
-                get_transaction().abort()
+                transaction.abort()
                 # sync() is necessary here to process invalidations
                 # if we get a read conflict.  In the read conflict case,
                 # no objects were modified so cn never got registered
@@ -209,7 +209,7 @@ class LargeUpdatesThread(FailableThread):
                 break
             except (ConflictError, KeyError):
                 # print "%d getting tree abort" % self.threadnum
-                get_transaction().abort()
+                transaction.abort()
                 cn.sync()
 
         keys_added = {} # set of keys we commit
@@ -231,20 +231,20 @@ class LargeUpdatesThread(FailableThread):
                     tree[key] = self.threadnum
                 except (ReadConflictError, ConflictError), msg:
                     # print "%d setting key %s" % (self.threadnum, msg)
-                    get_transaction().abort()
+                    transaction.abort()
                     cn.sync()
                     break
             else:
                 # print "%d set #%d" % (self.threadnum, len(keys))
-                get_transaction().note("keys %s" % ", ".join(map(str, keys)))
+                transaction.get().note("keys %s" % ", ".join(map(str, keys)))
                 try:
-                    get_transaction().commit()
+                    transaction.commit()
                     self.commitdict[self] = 1
                     if self.sleep:
                         time.sleep(self.sleep)
                 except ConflictError, msg:
                     # print "%d commit %s" % (self.threadnum, msg)
-                    get_transaction().abort()
+                    transaction.abort()
                     cn.sync()
                     continue
                 for k in keys:
@@ -304,17 +304,17 @@ class VersionStressThread(FailableThread):
                 tree = cn.root()["tree"]
                 break
             except (ConflictError, KeyError):
-                get_transaction().abort()
+                transaction.abort()
                 cn.sync()
         while not self.stop.isSet():
             try:
                 tree[key] = self.threadnum
-                get_transaction().commit()
+                transaction.commit()
                 if self.sleep:
                     time.sleep(self.sleep)
                 break
             except (VersionLockError, ReadConflictError, ConflictError), msg:
-                get_transaction().abort()
+                transaction.abort()
                 # sync() is necessary here to process invalidations
                 # if we get a read conflict.  In the read conflict case,
                 # no objects were modified so cn never got registered
@@ -327,16 +327,16 @@ class VersionStressThread(FailableThread):
                 try:
                     if commit:
                         self.db.commitVersion(version)
-                        get_transaction().note("commit version %s" % version)
+                        transaction.get().note("commit version %s" % version)
                     else:
                         self.db.abortVersion(version)
-                        get_transaction().note("abort version %s" % version)
-                    get_transaction().commit()
+                        transaction.get().note("abort version %s" % version)
+                    transaction.commit()
                     if self.sleep:
                         time.sleep(self.sleep)
                     return commit
                 except ConflictError, msg:
-                    get_transaction().abort()
+                    transaction.abort()
                     cn.sync()
         finally:
             cn.close()
@@ -368,7 +368,7 @@ class InvalidationTests:
                 tree._check()
             except ReadConflictError:
                 if retries:
-                    get_transaction().abort()
+                    transaction.abort()
                     cn.sync()
                 else:
                     raise
@@ -427,7 +427,7 @@ class InvalidationTests:
 
         cn = db1.open()
         tree = cn.root()["tree"] = OOBTree()
-        get_transaction().commit()
+        transaction.commit()
         # DM: allow time for invalidations to come in and process them
         time.sleep(0.1)
 
@@ -453,7 +453,7 @@ class InvalidationTests:
 
         cn = db1.open()
         tree = cn.root()["tree"] = OOBTree()
-        get_transaction().commit()
+        transaction.commit()
         cn.close()
 
         # Run two threads that update the BTree
@@ -482,7 +482,7 @@ class InvalidationTests:
 
         cn = db1.open()
         tree = cn.root()["tree"] = OOBTree()
-        get_transaction().commit()
+        transaction.commit()
         cn.close()
 
         # Run two threads that update the BTree
@@ -507,7 +507,7 @@ class InvalidationTests:
 
         cn = db1.open()
         tree = cn.root()["tree"] = OOBTree()
-        get_transaction().commit()
+        transaction.commit()
         cn.close()
 
         # Run three threads that update the BTree.
@@ -543,7 +543,7 @@ class InvalidationTests:
 
         cn = db1.open()
         tree = cn.root()["tree"] = OOBTree()
-        get_transaction().commit()
+        transaction.commit()
         cn.close()
 
         # Run three threads that update the BTree.
@@ -582,7 +582,7 @@ class InvalidationTests:
         tree = cn.root()["tree"] = OOBTree()
         for i in range(0, 3000, 2):
             tree[i] = 0
-        get_transaction().commit()
+        transaction.commit()
         cn.close()
 
         # Run three threads that update the BTree.
@@ -608,7 +608,7 @@ class InvalidationTests:
         losers = [k for k, v in tree.items() if v == 0]
         for k in losers:
             del tree[k]
-        get_transaction().commit()
+        transaction.commit()
 
         self._check_threads(tree, t1, t2, t3)
 

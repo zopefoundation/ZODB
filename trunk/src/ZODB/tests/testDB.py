@@ -16,6 +16,8 @@ import time
 import unittest
 import warnings
 
+import transaction
+
 import ZODB
 import ZODB.FileStorage
 
@@ -38,10 +40,10 @@ class DBTests(unittest.TestCase):
         c = self.db.open(version)
         r = c.root()
         o = r[time.time()] = MinPO(0)
-        get_transaction().commit()
+        transaction.commit()
         for i in range(25):
             o.value = MinPO(i)
-            get_transaction().commit()
+            transaction.commit()
             o = o.value
         c.close()
 

@@ -16,7 +16,7 @@
 from ZODB.POSException import ReadConflictError, ConflictError
 
 def _commit(note):
-    t = get_transaction()
+    t = transaction.get()
     if note:
         t.note(note)
     t.commit()
@@ -42,14 +42,14 @@ def transact(f, note=None, retries=5):
             try:
                 r = f(*args, **kwargs)
             except ReadConflictError, msg:
-                get_transaction().abort()
+                transaction.abort()
                 if not n:
                     raise
                 continue
             try:
                 _commit(note)
             except ConflictError, msg:
-                get_transaction().abort()
+                transaction.abort()
                 if not n:
                     raise
                 continue
