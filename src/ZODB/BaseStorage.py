@@ -25,6 +25,7 @@ import POSException
 from persistent.TimeStamp import TimeStamp
 
 from ZODB import POSException, utils
+from ZODB.utils import z64
 from ZODB.UndoLogCompatible import UndoLogCompatible
 
 log = logging.getLogger("ZODB.BaseStorage")
@@ -98,7 +99,7 @@ class BaseStorage(UndoLogCompatible):
         t=self._ts=apply(TimeStamp,(time.gmtime(t)[:5]+(t%60,)))
         self._tid = `t`
         if base is None:
-            self._oid='\0\0\0\0\0\0\0\0'
+            self._oid=z64
         else:
             self._oid=base._oid
 
