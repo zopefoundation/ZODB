@@ -22,6 +22,8 @@ from unittest import TestCase, TestSuite, TextTestRunner, makeSuite
 
 from glob import glob
 
+from ZODB.tests.StorageTestBase import removefs
+
 class Base:
     """ Tests common to all types: sets, buckets, and BTrees """
     def tearDown(self):
@@ -31,8 +33,8 @@ class Base:
     def _getRoot(self):
         from ZODB.FileStorage import FileStorage
         from ZODB.DB import DB
-        n = 'fs_tmp__%s' % os.getpid()
-        s = FileStorage(n)
+        self._fsname = 'fs_tmp__%s' % os.getpid()
+        s = FileStorage(self._fsname)
         db = DB(s)
         root = db.open().root()
         return root
@@ -42,8 +44,7 @@ class Base:
             root._p_jar._db.close()
 
     def _delDB(self):
-        for file in glob('fs_tmp__*'):
-            os.remove(file)
+        removefs(self._fsname)
 
     def testLoadAndStore(self):
         for i in 0, 10, 1000:

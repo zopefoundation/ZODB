@@ -6,6 +6,8 @@ method _dostore() which performs a complete store transaction for a
 single object revision.
 """
 
+import errno
+import os
 import pickle
 import string
 import sys
@@ -105,6 +107,16 @@ def import_helper(name):
     mod = __import__(name)
     return sys.modules[name]
 
+def removefs(base):
+    """Remove all files created by FileStorage with path base."""
+    for ext in '', '.old', '.tmp', '.lock', '.index', '.pack':
+        path = base + ext
+        try:
+            os.remove(path)
+        except os.error, err:
+            if err[0] != errno.ENOENT:
+                raise
+        
 
 class StorageTestBase(unittest.TestCase):
 

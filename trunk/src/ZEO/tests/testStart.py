@@ -22,6 +22,7 @@ import unittest
 import ZEO.start
 from ZEO.ClientStorage import ClientStorage
 from ZEO.util import Environment
+from ZODB.tests.StorageTestBase import removefs
 
 class StartTests(unittest.TestCase):
 
@@ -38,12 +39,7 @@ class StartTests(unittest.TestCase):
             self.stop_server()
             self.shutdown()
         finally:
-            for ext in "", ".index", ".tmp", ".lock", ".old":
-                f = "Data.fs" + ext
-                try:
-                    os.remove(f)
-                except os.error:
-                    pass
+            removefs("Data.fs")
             try:
                 os.remove(self.env.zeo_pid)
             except os.error:

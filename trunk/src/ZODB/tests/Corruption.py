@@ -7,7 +7,7 @@ import tempfile
 import unittest
 
 import ZODB, ZODB.FileStorage
-from StorageTestBase import StorageTestBase
+from StorageTestBase import StorageTestBase, removefs
 
 class FileStorageCorruptTests(StorageTestBase):
 
@@ -17,10 +17,7 @@ class FileStorageCorruptTests(StorageTestBase):
 
     def tearDown(self):
         self._storage.close()
-        for ext in '', '.old', '.tmp', '.lock', '.index':
-            path = self.path + ext
-            if os.path.exists(path):
-                os.remove(path)
+        removefs(self.path)
 
     def _do_stores(self):
         oids = []
