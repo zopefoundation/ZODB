@@ -257,31 +257,3 @@ def importable_name(name):
     except ImportError:
         raise ValueError, (
             'The object named by "%s" could not be imported' %  name )
-
-def warning_subclass(val):
-    ob = importable_name(val) # will fail in course
-    try:
-        if not issubclass(ob, Warning):
-            raise ValueError, (
-                'warning category "%s" must be a Warning subclass' % val)
-    except TypeError:
-            raise ValueError, (
-                'warning category "%s" must be a Warning subclass' % val)
-        
-    return ob
-
-def warn_action(val):
-    OK = ("error", "ignore", "always", "default", "module", "once")
-    if val not in OK:
-        raise ValueError, "warning action %s not one of %s" % (val, OK)
-    return val
-
-def warning_filter_handler(section):
-    import warnings
-    # add the warning filter
-    warnings.filterwarnings(section.action, section.message, section.category,
-                            section.module, section.lineno, 1)
-    return section
-
-
-
