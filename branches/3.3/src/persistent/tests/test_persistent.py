@@ -37,7 +37,7 @@ except AttributeError:
         # that failed.
 
         path = os.path.join(persistent.tests.__path__[0], path)
-        
+
         source = open(path).read()
         if globs is None:
             globs = sys._getframe(1).f_globals
