@@ -53,7 +53,7 @@ def log(message, level=zLOG.INFO, label="ZEO Server:%s" % os.getpid(),
 def slog(storage, msg, level=zLOG.INFO, error=None, pid=os.getpid()):
     name = getattr(storage, '__name__', None)
     if name is None:
-        name = str(self.storage)
+        name = str(storage)
     zLOG.LOG("ZEO Server:%s:%s" % (pid, name), level, msg, error=error)
 
 class StorageServerError(StorageError):
