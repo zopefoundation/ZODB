@@ -1,5 +1,5 @@
 ##############################################################################
-#
+# 
 # Copyright (c) 2001 Zope Corporation and Contributors. All Rights Reserved.
 # 
 # This software is subject to the provisions of the Zope Public License,
@@ -13,54 +13,79 @@
 __doc__='''Python implementation of persistent base types
 
 
-$Id: mapping.py,v 1.14 2001/11/28 15:51:20 matt Exp $'''
-__version__='$Revision: 1.14 $'[11:-2]
+$Id: mapping.py,v 1.15 2001/11/28 22:20:11 chrism Exp $'''
+__version__='$Revision: 1.15 $'[11:-2]
 
 import Persistence
 import types
-from UserDict import UserDict
 
 _marker=[]
-
-class PersistentMapping(UserDict, Persistence.Persistent):
+class PersistentMapping(Persistence.Persistent):
     """A persistent wrapper for mapping objects.
 
-    This class allows wrapping of mapping objects so that object
-    changes are registered.  As a side effect, mapping objects may be
-    subclassed.
+    This class allows wrapping of mapping objects so that
+    object changes are registered.  As a side effect,
+    mapping objects may be subclassed.
     """
 
-    __super_delitem = UserDict.__delitem__
-    __super_setitem = UserDict.__setitem__
-    __super_clear = UserDict.clear
-    __super_update = UserDict.update
-    __super_setdefault = UserDict.setdefault
-    __super_popitem = UserDict.popitem
+    def __init__(self,container=None):
+        if container is None: container={}
+        self._container=container
 
     def __delitem__(self, key):
-        self.__super_delitem(key)
-        self._p_changed = 1
+        del self._container[key]
+        try: del self._v_keys
+        except: pass
+        self.__changed__(1)
+
+    def __getitem__(self, key):
+        return self._container[key]
+
+    def __len__(self):     return len(self._container)
 
     def __setitem__(self, key, v):
-        self.__super_setitem(key, v)
-        self._p_changed = 1
+        self._container[key]=v
+        try: del self._v_keys
+        except: pass
+        self.__changed__(1)
 
     def clear(self):
-        self.__super_clear()
-        self._p_changed = 1
+        self._container.clear()
+        self._p_changed=1
+        if hasattr(self,'_v_keys'): del self._v_keys
+
+    def copy(self): return self.__class__(self._container.copy())
+
+    def get(self, key, default=_marker):
+        if default is _marker:
+            return self._container.get(key)
+        else:
+            return self._container.get(key, default)
+
+    def has_key(self,key): return self._container.has_key(key)
+
+    def items(self):
+        return map(lambda k, d=self: (k,d[k]), self.keys())
+
+    def keys(self):
+        try: return list(self._v_keys) # return a copy (Collector 2283)
+        except: pass
+        keys=self._v_keys=filter(
+            lambda k: not isinstance(k,types.StringType) or k[:1]!='_',
+            self._container.keys())
+        keys.sort()
+        return list(keys)
 
     def update(self, b):
-        self.__super_update(b)
-        self._p_changed = 1
+        a=self._container
+        for k, v in b.items(): a[k] = v
+        try: del self._v_keys
+        except: pass
+        self._p_changed=1
 
-    def setdefault(self, key, failobj=None):
-        # We could inline all of UserDict's implementation into the
-        # method here, but I'd rather not depend at all on the
-        # implementation in UserDict (simple as it is).
-        if not self.has_key(key):
-            self._p_changed = 1
-        return self.__super_setdefault(key, failobj)
+    def values(self):
+        return map(lambda k, d=self: d[k], self.keys())
 
-    def popitem(self):
-        self._p_changed = 1
-        return self.__super_popitem()
+    def __cmp__(self,other):
+        return cmp(self._container, other._container)
+
