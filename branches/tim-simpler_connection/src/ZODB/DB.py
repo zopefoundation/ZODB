@@ -29,6 +29,9 @@ import transaction
 
 logger = logging.getLogger('ZODB.DB')
 
+# A unique marker for detecting use of deprecated arguments.
+_deprecated = object()
+
 class DB(object):
     """The Object Database
     -------------------
@@ -89,10 +92,11 @@ class DB(object):
 
         :Parameters:
           - `storage`: the storage used by the database, e.g. FileStorage
-          - `pool_size`: maximum number of open connections
+          - `pool_size`: expected maximum number of open connections
           - `cache_size`: target size of Connection object cache
           - `cache_deactivate_after`: ignored
-          - `version_pool_size`: maximum number of connections (per version)
+          - `version_pool_size`: expected maximum number of connections (per
+            version)
           - `version_cache_size`: target size of Connection object cache for
             version connections
           - `version_cache_deactivate_after`: ignored
@@ -398,8 +402,10 @@ class DB(object):
     def objectCount(self):
         return len(self._storage)
 
-    def open(self, version='', transaction=None, temporary=0, force=None,
-             waitflag=1, mvcc=True, txn_mgr=None, synch=True):
+    def open(self, version='',
+             transaction=_deprecated, temporary=_deprecated,
+             force=_deprecated, waitflag=_deprecated,
+             mvcc=True, txn_mgr=None, synch=True):
         """Return a database Connection for use by application code.
 
         The optional `version` argument can be used to specify that a
@@ -417,42 +423,31 @@ class DB(object):
         :Parameters:
           - `version`: the "version" that all changes will be made
              in, defaults to no version.
-          - `transaction`: XXX
           - `mvcc`: boolean indicating whether MVCC is enabled
           - `txn_mgr`: transaction manager to use.  None means
              used the default transaction manager.
           - `synch`: boolean indicating whether Connection should
              register for afterCompletion() calls.
-          - `temporary`: XXX
-          - `force`: XXX
-          - `waitflag`: XXX
-
         """
+
+        if temporary is not _deprecated:
+            warnings.warn("DB.open() temporary= has no effect",
+                          DeprecationWarning)
+
+        if force is not _deprecated:
+            warnings.warn("DB.open() force= has no effect",
+                          DeprecationWarning)
+
+        if waitflag is not _deprecated:
+            warnings.warn("DB.open() waitflag= has no effect",
+                          DeprecationWarning)
+
+        if transaction is not _deprecated:
+            warnings.warn("DB.open() transaction= has no effect",
+                          DeprecationWarning)
+
         self._a()
         try:
-
-            if transaction is not None:
-                connections = transaction._connections
-                if connections:
-                    if connections.has_key(version) and not temporary:
-                        return connections[version]
-                else:
-                    transaction._connections = connections = {}
-                transaction = transaction._connections
-
-            if temporary:
-                # This is a temporary connection.
-                # We won't bother with the pools.  This will be
-                # a one-use connection.
-                c = self.klass(version=version,
-                               cache_size=self._version_cache_size,
-                               mvcc=mvcc, txn_mgr=txn_mgr, synch=synch)
-                c._setDB(self)
-                self._temps.append(c)
-                if transaction is not None:
-                    transaction[id(c)] = c
-                return c
-
             pools, pooll = self._pools
 
             # pools is a mapping object:
@@ -492,13 +487,13 @@ class DB(object):
             if not pool:
                 c = None
                 if version:
-                    if self._version_pool_size > len(allocated) or force:
+                    if self._version_pool_size > len(allocated):
                         c = self.klass(version=version,
                                        cache_size=self._version_cache_size,
                                        mvcc=mvcc, txn_mgr=txn_mgr)
                         allocated.append(c)
                         pool.append(c)
-                elif self._pool_size > len(allocated) or force:
+                elif self._pool_size > len(allocated):
                     c = self.klass(version=version,
                                    cache_size=self._cache_size,
                                    mvcc=mvcc, txn_mgr=txn_mgr, synch=synch)
@@ -506,16 +501,13 @@ class DB(object):
                     pool.append(c)
 
                 if c is None:
-                    if waitflag:
-                        self._r()
-                        pool_lock.acquire()
-                        self._a()
-                        if len(pool) > 1:
-                            # Note that the pool size will normally be 1 here,
-                            # but it could be higher due to a race condition.
-                            pool_lock.release()
-                    else:
-                        return
+                    self._r()
+                    pool_lock.acquire()
+                    self._a()
+                    if len(pool) > 1:
+                        # Note that the pool size will normally be 1 here,
+                        # but it could be higher due to a race condition.
+                        pool_lock.release()
 
             elif len(pool)==1:
                 # Taking last one, lock the pool.
@@ -552,8 +544,6 @@ class DB(object):
                 for cc in pool:
                     cc.cacheGC()
 
-            if transaction is not None:
-                transaction[version] = c
             return c
 
         finally:
