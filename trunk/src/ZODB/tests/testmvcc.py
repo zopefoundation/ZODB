@@ -276,9 +276,9 @@ non-current revision to load.
 >>> oid = r1["b"]._p_oid
 >>> ts.hooked[oid] = 1
 
-This test isn't quite rght yet, because it gets a ReadConflictError
-instead of getting a non-current revision.  Stil, it demonstrates that
-the basic mechanism for sending an invalidation during a load works.
+Once the oid is hooked, an invalidation will be delivered the next
+time it is activated.  The code below activates the object, then
+confirms that the hook worked and that the old state was retrieved.
 
 >>> oid in cn1._invalidated
 False
@@ -289,12 +289,45 @@ False
 True
 >>> ts.count
 1
+>>> r1["b"].value
+0
 
-_p_independent() still has the desired effect.
+No earlier revision available
+-----------------------------
 
-Error cases:
-- storage doesn't have an earlier revision
-- MVCC returns current revision
+We'll reuse the code from the example above, except that there will
+only be a single revision of "b."  As a result, the attempt to
+activate "b" will result in a ReadConflictError.
+
+>>> ts = TestStorage()
+>>> db = DB(ts)
+>>> cn1 = db.open()
+>>> txn1 = cn1.setLocalTransaction()
+>>> r1 = cn1.root()
+>>> r1["a"] = MinPO(0)
+>>> r1["b"] = MinPO(0)
+>>> cn1.getTransaction().commit()
+>>> cn1.cacheMinimize()
+
+>>> oid = r1["b"]._p_oid
+>>> ts.hooked[oid] = 1
+
+Once the oid is hooked, an invalidation will be delivered the next
+time it is activated.  The code below activates the object, then
+confirms that the hook worked and that the old state was retrieved.
+
+>>> oid in cn1._invalidated
+False
+>>> r1["b"]._p_state
+-1
+>>> r1["b"]._p_activate()
+Traceback (most recent call last):
+ ...
+ReadConflictError: database read conflict error (oid 0000000000000002, class ZODB.tests.MinPO.MinPO)
+>>> oid in cn1._invalidated
+True
+>>> ts.count
+1
 
 Cleanup
 -------
