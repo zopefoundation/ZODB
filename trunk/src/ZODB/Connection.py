@@ -84,8 +84,8 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.44 2001/01/18 18:21:19 jim Exp $"""
-__version__='$Revision: 1.44 $'[11:-2]
+$Id: Connection.py,v 1.45 2001/02/09 14:11:49 jim Exp $"""
+__version__='$Revision: 1.45 $'[11:-2]
 
 from cPickleCache import PickleCache
 from POSException import ConflictError, ExportError
@@ -487,7 +487,7 @@ class Connection(ExportImport.ExportImport):
             # notifications between the time we check and the time we
             # read.
             invalid=self._invalid
-            if invalid(oid) or invalid(None): raise ConflictError, oid
+            if invalid(oid) or invalid(None): raise ConflictError, `oid`
 
             file=StringIO(p)
             unpickler=Unpickler(file)
