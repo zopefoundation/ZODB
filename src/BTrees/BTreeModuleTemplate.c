@@ -183,14 +183,13 @@ staticforward PyExtensionClass BTreeType;
 /* SetIteration structs are used in the internal set iteration protocol.
  * When you want to iterate over a set or bucket or BTree (even an
  * individual key!),
- * 1. Declare a new iterator and a "merge" int:
+ * 1. Declare a new iterator:
  *        SetIteration si = {0,0,0};
- *        int merge = 0;
  *    Using "{0,0,0}" or "{0,0}" appear most common.  Only one {0} is
  *    necssary.  At least one must be given so that finiSetIteration() works
  *    correctly even if you don't get around to calling initSetIteration().
  * 2. Initialize it via
- *        initSetIteration(&si, PyObject *s, int weight, &merge)
+ *        initSetIteration(&si, PyObject *s, useValues)
  *    It's an error if that returns an int < 0.  In case of error on the
  *    init call, calling finiSetIteration(&si) is optional.  But if the
  *    init call succeeds, you must eventually call finiSetIteration(),
@@ -200,8 +199,7 @@ staticforward PyExtensionClass BTreeType;
  *    If the set isn't empty, this sets si.position to an int >= 0,
  *    si.key to the element's key (of type KEY_TYPE), and maybe si.value to
  *    the element's value (of type VALUE_TYPE).  si.value is defined
- *    iff merge was set to true by the initSetIteration() call, which is
- *    equivalent to whether si.usesValue is true.
+ *    iff si.usesValue is true.
  * 4. Process all the elements:
  *        while (si.position >= 0) {
  *            do something with si.key and/or si.value;
@@ -219,7 +217,6 @@ typedef struct SetIteration_s
   PyObject *set;    /* the set, bucket, BTree, ..., being iterated */
   int position;     /* initialized to 0; set to -1 by next() when done */
   int usesValue;    /* true iff 'set' has values & we iterate them */
-  int hasValue;     /* true iff 'set' has values (as well as keys) */
   KEY_TYPE key;     /* next() sets to next key */
   VALUE_TYPE value; /* next() may set to next value */
   int (*next)(struct SetIteration_s*);  /* function to get next key+value */
@@ -376,7 +373,7 @@ static char BTree_module_documentation[] =
 "\n"
 MASTER_ID
 BTREEITEMSTEMPLATE_C
-"$Id: BTreeModuleTemplate.c,v 1.36 2002/06/20 02:40:01 tim_one Exp $\n"
+"$Id: BTreeModuleTemplate.c,v 1.37 2002/06/25 22:02:27 tim_one Exp $\n"
 BTREETEMPLATE_C
 BUCKETTEMPLATE_C
 KEYMACROS_H

@@ -12,7 +12,7 @@
 
  ****************************************************************************/
 
-#define MERGETEMPLATE_C "$Id: MergeTemplate.c,v 1.14 2002/06/08 04:41:44 tim_one Exp $\n"
+#define MERGETEMPLATE_C "$Id: MergeTemplate.c,v 1.15 2002/06/25 22:02:27 tim_one Exp $\n"
 
 /****************************************************************************
  Set operations
@@ -58,12 +58,13 @@ bucket_merge(Bucket *s1, Bucket *s2, Bucket *s3)
   Bucket *r=0;
   PyObject *s;
   SetIteration i1 = {0,0,0}, i2 = {0,0,0}, i3 = {0,0,0};
-  int cmp12, cmp13, cmp23, mapping=0, set;
+  int cmp12, cmp13, cmp23, mapping, set;
 
-  if (initSetIteration(&i1, OBJECT(s1), 0, &mapping) < 0) goto err;
-  if (initSetIteration(&i2, OBJECT(s2), 0, &mapping) < 0) goto err;
-  if (initSetIteration(&i3, OBJECT(s3), 0, &mapping) < 0) goto err;
+  if (initSetIteration(&i1, OBJECT(s1), 1) < 0) goto err;
+  if (initSetIteration(&i2, OBJECT(s2), 1) < 0) goto err;
+  if (initSetIteration(&i3, OBJECT(s3), 1) < 0) goto err;
 
+  mapping = i1.usesValue | i2.usesValue | i3.usesValue;
   set = ! mapping;
 
   if (mapping)
