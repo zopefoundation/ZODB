@@ -19,7 +19,16 @@
 \begin{abstract}
 \noindent
 This document describes the syntax and API used in configuration files
-for components of a Zope installation written by Zope Corporation.
+for components of a Zope installation written by Zope Corporation.  This
+configuration mechanism is itself configured using a schema specification
+written in XML.
+
+\begin{notice}[warning]
+  ZConfig have changed a great deal since this document was initially
+  written, and parts of this have not yet been updated, though
+  portions have been.  Please be patient as the documentation catches
+  up.
+\end{notice}
 \end{abstract}
 
 \tableofcontents
@@ -48,9 +57,9 @@ Like the \ulink{\module{ConfigParser}}
 format, this format supports key-value pairs arranged in sections.
 Unlike the \module{ConfigParser} format, sections are typed and can be
 organized hierarchically, and support delegation of value lookup to
-other sections.  Additional files may be imported or included at the
-top level if needed.  Though both formats are substantially
-line-oriented, this format is more flexible.
+other sections.  Additional files may be included if needed.  Though
+both formats are substantially line-oriented, this format is more
+flexible.
 
 The intent of supporting nested section is to allow setting up the
 configurations for loosely-associated components in a container.  For
@@ -59,7 +68,7 @@ section from that host's section of a shared configuration file.  Each
 section may use the delegation syntax to share a base configuration
 with other components of the same type.
 
-The top level of a configuration file consists of a series of imports,
+The top level of a configuration file consists of a series of
 inclusions, key-value pairs, and sections.
 
 Comments can be added on lines by themselves.  A comment has a
@@ -70,21 +79,15 @@ of the line:
 # This is a comment
 \end{verbatim}
 
-An import is expressed like this:
-
-\begin{verbatim}
-%import defaults.conf
-\end{verbatim}
-
-while an inclusion is expressed like this:
+An inclusion is expressed like this:
 
 \begin{verbatim}
 %include defaults.conf
 \end{verbatim}
 
-The resource to be imported or included can be a relative or absolute
-URL, resolved relative to the URL of the resource the import is
-located in.
+The resource to be included can be specified by a relative or absolute
+URL, resolved relative to the URL of the resource the
+\keyword{\%include} directive is located in.
 
 
 A key-value pair is expressed like this:
@@ -203,11 +206,11 @@ pairs.
 Names must be defined before they are used, and may not be
 re-defined.  All names are associated with the source text in which
 they are defined, so distinct sources which are referenced using
-\keyword{\%import} or \keyword{\%include} are not affected by
+\keyword{\%include} are not affected by
 definitions created by the resource being parsed.
 
 References to defined names from configuration values use the syntax
-described for the \refmodule{ZConfig.Substitution} module.
+described for the \refmodule{ZConfig.substitution} module.
 Configuration values which include a \character{\$} as part of the
 actual value will need to use \code{\$\$} to get a single
 \character{\$} in the result.
@@ -224,25 +227,183 @@ key $name
 \end{verbatim} %$ <-- bow to font-lock
 
 
+\section{Standard \module{ZConfig} Datatypes\label{standard-datatypes}}
+
+There are a number of data types which can be identified using the
+\code{datatype} attribute on \code{key}, \code{multikey},
+\code{schema}, \code{section}, and \code{multisection} elements.
+Applications may extend the set of datatypes by calling the
+\method{register()} method of the data type regsitry being used or by
+using Python dotted-names to refer to conversion routines defined in
+code.
+
+The following datatypes are provided by the default type registry.
+
+\begin{definitions}
+\term{basic-key}
+  The default data type for a key in a ZConfig configuration file.
+  The result of conversion is always lower-case, and matches the
+  regular expression \regexp{[a-z][-._a-z0-9]*}.
+
+\term{boolean}
+  Convert a human-friendly string to a boolean value.  The names
+  \code{yes}, \code{on}, and \code{true} convert to \constant{True},
+  while \code{no}, \code{off}, and \code{false} convert to
+  \constant{False}.  Comparisons are case-insensitive.  All other
+  input strings are disallowed.
+
+\term{byte-size}
+  A specification of a size, with byte multiplier suffixes (for
+  example, \samp{128MB}).  Suffixes are case insensitive and may be
+  ``KB'', ``MB'', or ``GB''.
+
+\term{constructor}
+  Parse value in the form \samp{fn('1', '2', kw1='a', kw2='b')} into a
+  3-tuple where the first element is the string \code{'fn'}, the 2nd
+  element is the list \code{['1','2']}, and the 3rd element is the
+  dictionary \code{\{'kw1': 'a', 'kw2': 'b'\}}.  This is useful when
+  representing a Python-style constructor as a value.  Python syntax
+  rules are enforced, but only constants are allowed as positional and
+  keyword arguments.  The 3-tuple is returned.
+
+\term{existing-dirpath}
+  Validates that the directory portion of a pathname exists.  For
+  example, if the value provided is \file{/foo/bar}, \file{/foo} must
+  be an existing directory.  No conversion is performed.
+
+\term{existing-directory}
+  Validates that a directory by the given name exists on 
+  the local filesystem.  No conversion is performed. 
+
+\term{existing-file}
+  Validates that a file by the given name exists.  No conversion 
+  is performed. 
+
+\term{existing-path}
+  Validates that a path (file, directory, or symlink) by the
+  given name exists on the local filesystem.  No conversion
+  is performed.
+
+\term{float}
+  A Python float.  \code{Inf}, \code{-Inf}, and \code{NaN} are not
+  allowed.
+
+\term{identifier}
+  Any valid Python identifier.
+
+\term{inet-address}
+  An internet address expressed as a \code{(\var{hostname},
+  \var{port})} pair.  If only the port is specified, an empty string
+  will be returned for \var{hostname}.  If the port is omitted,
+  \code{None} will be returned for \var{port}.
+
+\term{integer}
+  Convert a value to an integer.  This will be a Python \class{int} if
+  the value is in the range allowed by \class{int}, otherwise a Python
+  \class{long} is returned.
+
+\term{ipaddr-or-hostname}
+  Validates a valid IP address or hostname.  If the first 
+  character is a digit, the value is assumed to be an IP 
+  address.  If the first character is not a digit, the value 
+  is assumed to be a hostname.  No conversion is performed. 
+
+\term{key-value}
+  Parse a value in the form \code{'A B'} into the list \code{['A',
+  'B']}.  Returns the list.
+
+\term{locale}
+  Any valid locale specifier accepted by the available
+  \function{locale.setlocale()} function.  Be aware that only the
+  \code{'C'} locale is supported on some platforms.
+
+\term{logging-level}
+  A logging level usable by the \module{logging} package.  Valid
+  values are the names \code{critical}, \code{fatal}, \code{error},
+  \code{warn}, \code{info}, \code{debug}, and \code{all}, as well as
+  integers in the range [0..50].  Converted values are always
+  expressed as integers.
+
+\term{null}
+  No conversion is performed; the value passed in is the value
+  returned.  This is the default data type for section values.
+
+\term{port-number}
+  Returns a valid port number as an integer.  Validity does not imply
+  that any particular use may be made of the port, however.  For
+  example, port number lower than 1024 generally cannot be bound by
+  non-root users.
+
+\term{socket-address}
+  An address for a socket.  The converted value is a pair containing
+  the address family (\constant{AF_INET} or \constant{AF_UNIX}) in the
+  first part and the specific address in the second part.  If the
+  family is \constant{AF_UNIX}, the specific address will be a
+  pathname; if the family is \constant{AF_INET}, the second part will
+  be the result of the \strong{inet-address} conversion.
+
+\term{string}
+  Returns the input value as a string.  If the source is a Unicode
+  string, this implies that it will be checked to be simple 7-bit
+  \ASCII.  This is the default data type for key values in
+  configuration files.
+
+\term{time-interval}
+  A specification of a time interval, with multiplier suffixes,
+  e.g. 12h.  Suffixes are case insensitive and may be ``s'' (seconds),
+  ``m'' (minutes), ``h'' (hours), or ``d'' (days).
+
+\end{definitions}
+
+
 \section{\module{ZConfig} --- Basic configuration support}
 
 \declaremodule{}{ZConfig}
 \modulesynopsis{Configuration package.}
 
-The main \module{ZConfig} package exports two convenience functions:
+The main \module{ZConfig} package exports these convenience functions:
 
-\begin{funcdesc}{load}{url}
+\begin{funcdesc}{loadConfig}{schema, url}
   Load and return a configuration from a URL or pathname given by
   \var{url}.  \var{url} may be a URL, absolute pathname, or relative
-  pathname.  Fragment identifiers are not supported.
+  pathname.  Fragment identifiers are not supported.  \var{schema} is
+  a referennce to a schema loaded by \function{loadSchema()} or
+  \function{loadSchemaFile()}.
+  The return value is a tuple containing the configuration object and
+  a composite handler that, when called with a name-to-handler
+  mapping, calls all the handlers for the configuration.
+  % XXX need to talk about handlers and the schema definitions still!
 \end{funcdesc}
 
-\begin{funcdesc}{loadfile}{file\optional{, url}}
-  Load and return a configuration from an opened file object.
-  If \var{url} is omitted, one will be computed based on the
+\begin{funcdesc}{loadConfigFile}{schema, file\optional{, url}}
+  Load and return a configuration from an opened file object.  If
+  \var{url} is omitted, one will be computed based on the
   \member{name} attribute of \var{file}, if it exists.  If no URL can
-  be determined, all \keyword{\%include} statements in the configuration
-  must use absolute URLs.
+  be determined, all \keyword{\%include} statements in the
+  configuration must use absolute URLs.  \var{schema} is a referennce
+  to a schema loaded by \function{loadSchema()} or
+  \function{loadSchemaFile()}.
+  The return value is a tuple containing the configuration object and
+  a composite handler that, when called with a name-to-handler
+  mapping, calls all the handlers for the configuration.
+  % XXX need to talk about handlers and the schema definitions still!
+\end{funcdesc}
+
+\begin{funcdesc}{loadSchema}{url}
+  Load a schema definition from the URL \var{url}.  The resulting
+  schema object can be passed to \function{loadConfig()} or
+  \function{loadConfigFile()}.  The schema object may be used as many
+  times as needed.
+\end{funcdesc}
+
+\begin{funcdesc}{loadSchemaFile}{file\optional{, url}}
+  Load a schema definition from the open file object \var{file}.  If
+  \var{url} is given and not \code{None}, it should be the URL of
+  resource represented by \var{file}.  If \var{url} is ommitted or
+  \code{None}, a URL may be computed from the \member{name} attrigbute
+  of \var{file}, if present.  The resulting schema object can
+  be passed to \function{loadConfig()} or \function{loadConfigFile()}.
+  The schema object may be used as many times as needed.
 \end{funcdesc}
 
 The following exceptions are defined by this package:
@@ -273,6 +434,14 @@ The following exceptions are defined by this package:
   ambiguity.
 \end{excdesc}
 
+\begin{excdesc}{SchemaError}
+  Raised when a schema contains an error.  This exception type
+  provides the attributes \member{url}, \member{lineno}, and
+  \member{colno}, which provide the source URL, the line number, and
+  the column number at which the error was detected.  These attributes
+  may be \code{None} in some cases.
+\end{excdesc}
+
 \begin{excdesc}{SubstitutionReplacementError}
   Raised when the source text contains references to names which are
   not defined in \var{mapping}.  The attributes \member{source} and
@@ -293,7 +462,7 @@ The following exceptions are defined by this package:
 The \module{ZConfig} package uses the idea of an \dfn{application
 context} to consolidate the connections between the different
 components of the package.  Most applications should not need to worry
-about the application context at all; the \function{load()} function
+about the application context at all; the \function{loadURL()} function
 in the \module{ZConfig} module uses the default context implementation
 to glue everything together.
 
@@ -331,21 +500,6 @@ should be called only once:
 
 The following methods are defined to be individually overridable by
 subclasses; this should suffice for most context specialization.
-
-\begin{methoddesc}{createImportedSection}{parent, url}
-  Create a new section that represents a section loaded using
-  \keyword{\%import}.  The returned section should be conform to the
-  interface of the \class{ImportingConfiguration} class (see the
-  \refmodule{ZConfig.Config} module's documentation for more
-  information on this interface).  \var{parent} is the section that
-  contains the \keyword{\%import} statement, and \var{url} is the
-  resource that will be loaded into the new section.  This method
-  should not cause the \method{addImport()} of \var{parent} to be
-  called, nor should it cause the resource to actually be loaded.
-  Since the new section represents the top level of an external
-  resource, it's \member{type} and \member{name} attributes should be
-  \code{None}.
-\end{methoddesc}
 
 \begin{methoddesc}{createNestedSection}{parent, type, name, delegatename}
   Create a new section that represents a child of the section given by
@@ -394,17 +548,16 @@ subclasses; this should suffice for most context specialization.
 \end{methoddesc}
 
 The following methods are provided to make it easy for parsers to
-support common semantics for the \keyword{\%import} and
-\keyword{\%include} statements, if those are defined for the syntax
-implemented by the alternate parser.
-
-\begin{methoddesc}{importConfiguration}{parent, url}
-\end{methoddesc}
+support common semantics for the \keyword{\%include} statement, if
+taht is defined for the syntax implemented by the alternate parser.
 
 \begin{methoddesc}{includeConfiguration}{parent, url}
 \end{methoddesc}
 
-\begin{methoddesc}{nestSection}{parent, type, name, delegatename}
+\begin{methoddesc}{startSection}{parent, type, name, delegatename}
+\end{methoddesc}
+
+\begin{methoddesc}{endSection}{parent, type, name, delegatename, section}
 \end{methoddesc}
 
 
@@ -414,11 +567,8 @@ implemented by the alternate parser.
 \modulesynopsis{Standard section objects.}
 
 
-The \module{ZConfig.Config} module provides implementations of the
-standard key-value section.  There are two implementations: the basic
-implementation used for ``internal'' sections, and a subclass that
-provides additional support for the \keyword{\%import} statement (used
-for the top level of a configuration and for imported resources).
+The \module{ZConfig.Config} module provides an implementation of the
+standard key-value section.
 
 \begin{classdesc}{Configuration}{type, name, url}
   A typed section with an optional name.  The type is given by the
@@ -426,13 +576,6 @@ for the top level of a configuration and for imported resources).
   given by \var{url}.  Both \var{type} and \var{url} must be strings.
   The optional name of the section is given by \var{name}; if there is
   no name, \var{name} should be \code{None}.
-\end{classdesc}
-
-\begin{classdesc}{ImportingConfiguration}{type, name, url}
-  A subclass of \class{Configuration} which supports the context
-  needed to support the \keyword{\%import} directive.  This class
-  differs from the base class in that it offers an additional method
-  and changes the lookup semantics of the \method{get()} method.
 \end{classdesc}
 
 \class{Configuration} objects provide the following attributes and
@@ -582,20 +725,191 @@ section before it is called on the containing section.
   default implementation does nothing.
 \end{methoddesc}
 
-The \class{ImportingConfiguration} subclass offers an additional
-method, normally not needed by applications, but possibly useful for
-alternate configuration parsers.  Objects returned by the
-context object's \method{createToplevelSection()} method need to
-support this interface.
 
-\begin{methoddesc}[ImportingConfiguration]{addImport}{section}
-  Add a configuration generated from an import.
+\section{\module{ZConfig.datatypes} --- Default data type registry}
+
+\declaremodule{}{ZConfig.datatypes}
+\modulesynopsis{Default implementation of a data type registry}
+
+The \module{ZConfig.datatypes} module provides the implementation of
+the default data type registry and all the standard data types
+supported by \module{ZConfig}.  A number of convenience classes are
+also provided to assist in the creation of additional datatypes.
+
+A \dfn{datatype registry} is an object that provides conversion
+functions for data types.  The interface for a registry is fairly
+simple.
+
+A \dfn{conversion function} is any callable object that accepts a
+single argument and returns a suitable value, or raises an exception
+if the input value is not acceptable.  \exception{ValueError} is the
+preferred exception for disallowed inputs, but any other exception
+will be properly propogated.
+
+\begin{classdesc}{Registry}{\optional{stock}}
+  Implementation of a simple type registry.  If given, \var{stock}
+  should be a mapping which defines the ``built-in'' data types for
+  the registry; if omitted or \code{None}, the standard set of data
+  types is used (see section~\ref{standard-datatypes}, ``Standard
+  \module{ZConfig} Datatypes'').
+\end{classdesc}
+
+\class{Registry} objects have the following methods:
+
+\begin{methoddesc}{get}{name}
+  Return the type conversion routine for \var{name}.  If the
+  conversion function cannot be found, an (unspecified) exception is
+  raised.  If the name is not provided in the stock set of data types
+  by this registry and has not otherwise been registered, this method
+  uses the \method{search()} method to load the conversion function.
+  This is the only method the \module{ZConfig.schema} module requires.
+\end{methoddesc}
+
+\begin{methoddesc}{register}{name, conversion}
+  Registery the data type name \var{name} to use the conversion
+  function \var{conversion}.  If \var{name} is already registered or
+  provided as a stock data type, \exception{ValueError} is raised
+  (this includes the case when \var{name} was found using the
+  \method{search()} method).
+\end{methoddesc}
+
+\begin{methoddesc}{search}{name}
+  This is a helper method for the default implementation of the
+  \method{get()} method.  If \var{name} is a Python dotted-name, this
+  method loads the value for the name by dynamically importing the
+  containing module and extracting the value of the name.  The name
+  must refer to a usable conversion function.
 \end{methoddesc}
 
 
-\section{\module{ZConfig.Substitution} --- String substitution}
+The following classes are provided to define conversion functions:
 
-\declaremodule{}{ZConfig.Substitution}
+\begin{classdesc}{MemoizedConversion}{conversion}
+  Simple memoization for potentially expensive conversions.  This
+  conversion helper caches each successful conversion for re-use at a
+  later time; failed conversions are not cached in any way, since it
+  is difficult to raise a meaningful excpetion providing information
+  about the specific failure.
+\end{classdesc}
+
+\begin{classdesc}{RangeCheckedConversion}{conversion\optional{,
+                                          min\optional{, max}}}
+  Helper that performs range checks on the result of another
+  conversion.  Values passed to instances of this conversion are
+  converted using \var{conversion} and then range checked.  \var{min}
+  and \var{max}, if given and not \code{None}, are the inclusive
+  endpoints of the allowed range.  Values returned by \var{conversion}
+  which lay outside the range described by \var{min} and \var{max}
+  cause \exception{ValueError} to be raised.
+\end{classdesc}
+
+\begin{classdesc}{RegularExpressionConversion}{regex}
+  Conversion that checks that the input matches the regular expression
+  \var{regex}.  If it matches, returns the input, otherwise raises
+  \exception{ValueError}.
+\end{classdesc}
+
+
+\section{\module{ZConfig.loader} --- Resource loading support}
+
+\declaremodule{}{ZConfig.loader}
+\modulesynopsis{Support classes for resource loading}
+
+This module provides some helper classes used by the primary APIs
+exported by the \module{ZConfig} package.  These classes may be useful
+for some applications, especially applications that want to use a
+non-default data type registry.
+
+\begin{classdesc}{Resource}{file, url}
+  Object that allows an open file object and a URL to be bound
+  together to ease handling.  Instances have the attributes
+  \member{file} and \member{url} which store the constructor
+  arguments.  These objects also have a \method{close()} method which
+  will call \method{close()} on \var{file}, then set the \member{file}
+  attribute to \code{None} and the \member{closed} to \code{True}.
+\end{classdesc}
+
+\begin{classdesc}{BaseLoader}{}
+  Base class for loader objects.  This should not be instantiated
+  directly, as the \method{loadResource()} method must be overridden
+  for the instance to be used via the public API.
+\end{classdesc}
+
+\begin{classdesc}{ConfigLoader}{schema}
+  Loader for configuration files.  Each configuration file must
+  conform to the schema \var{schema}.  The \method{load*()} methods
+  return a tuple consisting of the configuration object and a
+  composite handler.
+\end{classdesc}
+
+\begin{classdesc}{SchemaLoader}{\optional{registry}}
+  Loader that loads schema instances.  All schema loaded by a
+  \class{SchemaLoader} will use the same data type registry.  If
+  \var{registry} is provided and not \code{None}, it will be used,
+  otherwise an instance of \class{ZConfig.datatypes.Registry} will be
+  used.
+\end{classdesc}
+
+
+\subsection{Loader Objects}
+
+Loader objects provide a general public interface, an inteface which
+subclasses must implement, and some utility methods.
+
+The following methods provide the public interface:
+
+\begin{methoddesc}[loader]{loadURL}{url}
+  Open and load a resource specified by the URL \var{url}.
+  This method uses the \method{loadResource()} method to perform the
+  actual load, and returns whatever that method returns.
+\end{methoddesc}
+
+\begin{methoddesc}[loader]{loadFile}{file\optional{, url}}
+  Load from an open file object, \var{file}.  If given and not
+  \code{None}, \var{url} should be the URL of the resource represented
+  by \var{file}.  If omitted or \code{None}, the \member{name}
+  attribute of \var{file} is used to compute a \code{file:} URL, if
+  present.
+  This method uses the \method{loadResource()} method to perform the
+  actual load, and returns whatever that method returns.
+\end{methoddesc}
+
+The following method must be overridden by subclasses:
+
+\begin{methoddesc}[loader]{loadResource}{resource}
+  Subclasses of \class{BaseLoader} must implement this method to
+  actually load the resource and return the appropriate
+  application-level object.
+\end{methoddesc}
+
+The following methods can be used as utilities:
+
+\begin{methoddesc}[loader]{normalizeURL}{url-or-path}
+  Return a URL for \var{url-or-path}.  If \var{url-or-path} refers to
+  an existing file, the corresponding \code{file:} URL is returned.
+  Otherwise \var{url-or-path} is checked for sanity: if it
+  does not have a schema, \exception{ValueError} is raised, and if it
+  does have a fragment identifier, \exception{ConfigurationError} is
+  raised.
+\end{methoddesc}
+
+\begin{methoddesc}[loader]{openResource}{url}
+  Returns a resource object that represents the URL \var{url}.  The
+  URL is opened using the \function{urllib2.urlopen()} function, and
+  the returned resource object is created using
+  \method{createResource()}.
+\end{methoddesc}
+
+\begin{methoddesc}[loader]{createResource}{file, url}
+  Returns a resource object for an open file and URL, given as
+  \var{file} and \var{url}, respectively.  This may be overridden by a
+  subclass if an alternate resource implementation is desired.
+\end{methoddesc}
+
+
+\section{\module{ZConfig.substitution} --- String substitution}
+
+\declaremodule{}{ZConfig.substitution}
 \modulesynopsis{Shell-style string substitution helper.}
 
 This module provides a basic substitution facility similar to that
@@ -648,7 +962,7 @@ This module provides these functions:
 \subsection{Examples}
 
 \begin{verbatim}
->>> from ZConfig.Substitution import substitute
+>>> from ZConfig.substitution import substitute
 >>> d = {'name': 'value',
 ...      'top': '$middle',
 ...      'middle' : 'bottom'}
