@@ -19,6 +19,33 @@ Usage: stats.py [-v] [-S] tracefile
 -S: don't print statistics (implies -v)
 """
 
+"""File format:
+
+Each record is 24 bytes, with the following layout.  Numbers are
+big-endian integers.
+
+Offset  Size  Contents
+
+0       4     timestamp (seconds since 1/1/1970)
+4       3     data size, in 256-byte increments, rounded up
+7       1     code (see below)
+8       8     object id
+8       8     serial number
+
+The code at offset 7 packs three fields:
+
+Mask    bits  Contents
+
+0x80    1     set if there was a non-empty version string
+0x7e    6     function and outcome code
+0x01    1     current cache file (0 or 1)
+
+The function and outcome codes are documented in detail at the end of
+this file in the 'explain' dictionary.  Note that the keys there (and
+also the arguments to _trace() in ClientStorage.py) are 'code & 0x7e',
+i.e. the low bit is always zero.
+"""
+
 import sys
 import time
 import getopt
