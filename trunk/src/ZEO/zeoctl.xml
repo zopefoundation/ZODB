@@ -12,7 +12,7 @@
   <!-- Use the ZEO server information structure. -->
   <import package="ZEO"/>
 
-  <import package="zLOG"/>
+  <import package="ZConfig.components.logger"/>
 
   <!-- runner control -->
   <import package="zdaemon"/>
