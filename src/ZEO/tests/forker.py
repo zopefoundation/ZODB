@@ -51,7 +51,7 @@ def get_port():
     raise RuntimeError, "Can't find port"
 
 
-def start_zeo_server(conf, addr=None, ro_svr=0, keep=0, invq=None,
+def start_zeo_server(conf, addr=None, ro_svr=0, monitor=0, keep=0, invq=None,
                      timeout=None):
     """Start a ZEO server in a separate process.
 
@@ -82,6 +82,9 @@ def start_zeo_server(conf, addr=None, ro_svr=0, keep=0, invq=None,
         args += ['-Q', str(invq)]
     if timeout:
         args += ['-T', str(timeout)]
+    if monitor:
+        # XXX Is it safe to reuse the port?
+        args += ['-m', '42000']
     args.append(str(port))
     d = os.environ.copy()
     d['PYTHONPATH'] = os.pathsep.join(sys.path)
