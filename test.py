@@ -657,7 +657,6 @@ def configure_logging():
         # spawned processes.  We haven't thought of a better way to do
         # it than using environment variables.
         os.environ["LOGINI"] = logini
-        logging.config.fileConfig(logini)
 
 
 def process_args(argv=None):
