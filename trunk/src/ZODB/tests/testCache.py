@@ -21,6 +21,7 @@ objects in memory under the assumption that they may be used again.
 import gc
 import time
 import unittest
+import threading
 
 from persistent.cPickleCache import PickleCache
 from persistent.mapping import PersistentMapping
@@ -70,6 +71,20 @@ class CacheTestBase(unittest.TestCase):
             o.value += 1
         transaction.commit()
 
+
+
+# CantGetRidOfMe is used by checkMinimizeTerminates.
+class CantGetRidOfMe(MinPO):
+    def __init__(self, value):
+        MinPO.__init__(self, value)
+        self.an_attribute = 42
+
+    def __del__(self):
+        # Referencing an attribute of self causes self to be
+        # loaded into the cache again, which also resurrects
+        # self.
+        self.an_attribute
+
 class DBMethods(CacheTestBase):
 
     __super_setUp = CacheTestBase.setUp
@@ -104,6 +119,49 @@ class DBMethods(CacheTestBase):
         self.db.cacheMinimize()
         new_size = self.db.cacheSize()
         self.assert_(new_size < old_size, "%s < %s" % (old_size, new_size))
+
+    def checkMinimizeTerminates(self):
+        # This is tricky.  cPickleCache had a case where it could get into
+        # an infinite loop, but we don't want the test suite to hang
+        # if this bug reappears.  So this test spawns a thread to run the
+        # dangerous operation, and the main thread complains if the worker
+        # thread hasn't finished in 30 seconds (arbitrary, but way more
+        # than enough).  In that case, the worker thread will continue
+        # running forever (until killed externally), but at least the
+        # test suite will move on.
+        #
+        # The bug was triggered by having a persistent object whose __del__
+        # method references an attribute of the object.  An attempt to
+        # ghostify such an object will clear the attribute, and if the
+        # cache also releases the last Python reference to the object then
+        # (due to ghostifying it), the __del__ method gets invoked.
+        # Referencing the attribute loads the object again, and also
+        # puts it back into the cPickleCache.  If the cache implementation
+        # isn't looking out for this, it can get into an infinite loop
+        # then, endlessly trying to ghostify an object that in turn keeps
+        # unghostifying itself again.
+        class Worker(threading.Thread):
+
+            def __init__(self, testcase):
+                threading.Thread.__init__(self)
+                self.testcase = testcase
+
+            def run(self):
+                conn = self.testcase.conns[0]
+                r = conn.root()
+                d = r[1]
+                for i in range(len(d)):
+                    d[i] = CantGetRidOfMe(i)
+                get_transaction().commit()
+
+                self.testcase.db.cacheMinimize()
+
+        w = Worker(self)
+        w.start()
+        w.join(30)
+        if w.isAlive():
+            self.fail("cacheMinimize still running after 30 seconds -- "
+                      "almost certainly in an infinite loop")
 
     # XXX don't have an explicit test for incrgc, because the
     # connection and database call it internally

@@ -99,7 +99,12 @@ static char cPickleCache_doc_string[] =
 #include <stddef.h>
 #undef Py_FindMethod
 
-static PyObject *py__p_oid, *py_reload, *py__p_jar, *py__p_changed;
+/* Python string objects to speed lookups; set by module init. */
+static PyObject *py__p_changed;
+static PyObject *py__p_deactivate;
+static PyObject *py__p_jar;
+static PyObject *py__p_oid;
+
 static cPersistenceCAPIstruct *capi;
 
 /* This object is the pickle cache.  The CACHE_HEAD macro guarantees
@@ -141,84 +146,102 @@ static int cc_ass_sub(ccobject *self, PyObject *key, PyObject *v);
 #define OBJECT_FROM_RING(SELF, HERE) \
     ((cPersistentObject *)(((char *)here) - offsetof(cPersistentObject, ring)))
 
+/* Insert self into the ring, following after. */
+static void
+insert_after(CPersistentRing *self, CPersistentRing *after)
+{
+    assert(self != NULL);
+    assert(after != NULL);
+    self->r_prev = after;
+    self->r_next = after->r_next;
+    after->r_next->r_prev = self;
+    after->r_next = self;
+}
+
+/* Remove self from the ring. */
+static void
+unlink_from_ring(CPersistentRing *self)
+{
+    assert(self != NULL);
+    self->r_prev->r_next = self->r_next;
+    self->r_next->r_prev = self->r_prev;
+}
+
 static int
 scan_gc_items(ccobject *self, int target)
 {
     /* This function must only be called with the ring lock held,
-       because it places a non-object placeholder in the ring.
+       because it places non-object placeholders in the ring.
     */
-
     cPersistentObject *object;
-    CPersistentRing placeholder;
-    CPersistentRing *here = self->ring_home.r_next;
-    static PyObject *_p_deactivate;
+    CPersistentRing *here;
+    CPersistentRing before_original_home;
+    int result = -1;   /* guilty until proved innocent */
 
-    if (!_p_deactivate) {
-	_p_deactivate = PyString_InternFromString("_p_deactivate");
-	if (!_p_deactivate)
-	    return -1;
-    }
-
-    /* Scan through the ring until we either find the ring_home (i.e. start
-     * of the ring, or we've ghosted enough objects to reach the target
-     * size.
+    /* Scan the ring, from least to most recently used, deactivating
+     * up-to-date objects, until we either find the ring_home again or
+     * or we've ghosted enough objects to reach the target size.
+     * Tricky:  __getattr__ and __del__ methods can do anything, and in
+     * particular if we ghostify an object with a __del__ method, that method
+     * can load the object again, putting it back into the MRU part of the
+     * ring.  Waiting to find ring_home again can thus cause an infinite
+     * loop (Collector #1208).  So before_original_home records the MRU
+     * position we start with, and we stop the scan when we reach that.
      */
-    while (1) {
-	/* back to the home position. stop looking */
-        if (here == &self->ring_home)
-            return 0;
+    insert_after(&before_original_home, self->ring_home.r_prev);
+    here = self->ring_home.r_next;   /* least recently used object */
+    while (here != &before_original_home && self->non_ghost_count > target) {
+	assert(self->ring_lock);
+	assert(here != &self->ring_home);
 
         /* At this point we know that the ring only contains nodes
-	   from persistent objects, plus our own home node. We know
+	   from persistent objects, plus our own home node.  We know
 	   this because the ring lock is held.  We can safely assume
 	   the current ring node is a persistent object now we know it
 	   is not the home */
         object = OBJECT_FROM_RING(self, here);
-        if (!object)
-	    return -1;
 
-	/* we are small enough */
-        if (self->non_ghost_count <= target)
-            return 0;
-        else if (object->state == cPersistent_UPTODATE_STATE) {
-	    PyObject *meth, *error;
+        if (object->state == cPersistent_UPTODATE_STATE) {
+            CPersistentRing placeholder;
+            PyObject *method;
+            PyObject *temp;
+            int error_occurred = 0;
             /* deactivate it. This is the main memory saver. */
 
-            /* Add a placeholder; a dummy node in the ring.  We need
+            /* Add a placeholder, a dummy node in the ring.  We need
 	       to do this to mark our position in the ring.  It is
-	       possible that the PyObject_SetAttr() call below will
-	       invoke an __setattr__() hook in Python.  If it does,
-	       another thread might run; if that thread accesses a
-	       persistent object and moves it to the head of the ring,
-	       it might cause the gc scan to start working from the
-	       head of the list.
+	       possible that the PyObject_GetAttr() call below will
+	       invoke a __getattr__() hook in Python.  Also possible
+	       that deactivation will lead to a __del__ method call.
+	       So another thread might run, and mutate the ring as a side
+	       effect of object accesses.  There's no predicting then where
+	       in the ring here->next will point after that.  The
+	       placeholder won't move as a side effect of calling Python
+	       code.
 	    */
-
-            placeholder.r_next = here->r_next;
-            placeholder.r_prev = here;
-            here->r_next->r_prev = &placeholder;
-            here->r_next = &placeholder;
-
-	    /* Call _p_deactivate(), which may be overridden. */
-	    meth = PyObject_GetAttr((PyObject *)object, _p_deactivate);
-	    if (!meth)
-		return -1;
-	    error = PyObject_CallObject(meth, NULL);
-	    Py_DECREF(meth);
-
-            /* unlink the placeholder */
-            placeholder.r_next->r_prev = placeholder.r_prev;
-            placeholder.r_prev->r_next = placeholder.r_next;
+            insert_after(&placeholder, here);
+	    method = PyObject_GetAttr((PyObject *)object, py__p_deactivate);
+	    if (method == NULL)
+	        error_occurred = 1;
+	    else {
+ 		temp = PyObject_CallObject(method, NULL);
+                Py_DECREF(method);
+	        if (temp == NULL)
+	            error_occurred = 1;
+	    }
 
             here = placeholder.r_next;
-
-            if (!error)
-                return -1; /* problem */
-	    Py_DECREF(error);
+            unlink_from_ring(&placeholder);
+            if (error_occurred)
+                goto Done;
         }
         else
             here = here->r_next;
     }
+    result = 0;
+ Done:
+    unlink_from_ring(&before_original_home);
+    return result;
 }
 
 static PyObject *
@@ -247,7 +270,7 @@ lockgc(ccobject *self, int target_size)
 static PyObject *
 cc_incrgc(ccobject *self, PyObject *args)
 {
-    int obsolete_arg = -999; 
+    int obsolete_arg = -999;
     int starting_size = self->non_ghost_count;
     int target_size = self->cache_size;
 
@@ -328,7 +351,7 @@ _invalidate(ccobject *self, PyObject *key)
     if (!v)
 	return;
     if (PyType_Check(v)) {
-        /* This looks wrong, but it isn't. We use strong references to types 
+        /* This looks wrong, but it isn't. We use strong references to types
            because they don't have the ring members.
 
            XXX the result is that we *never* remove classes unless
@@ -462,7 +485,7 @@ cc_debug_info(ccobject *self)
     if (l == NULL)
 	return NULL;
 
-    while (PyDict_Next(self->data, &p, &k, &v)) 
+    while (PyDict_Next(self->data, &p, &k, &v))
       {
         if (v->ob_refcnt <= 0)
           v = Py_BuildValue("Oi", k, v->ob_refcnt);
@@ -470,7 +493,7 @@ cc_debug_info(ccobject *self)
         else if (! PyType_Check(v) &&
                  (v->ob_type->tp_basicsize >= sizeof(cPersistentObject))
                  )
-          v = Py_BuildValue("Oisi", 
+          v = Py_BuildValue("Oisi",
                             k, v->ob_refcnt, v->ob_type->tp_name,
                             ((cPersistentObject*)v)->state);
         else
@@ -1082,10 +1105,18 @@ initcPickleCache(void)
 	return;
     capi->percachedel = (percachedelfunc)cc_oid_unreferenced;
 
-    py_reload = PyString_InternFromString("reload");
-    py__p_jar = PyString_InternFromString("_p_jar");
     py__p_changed = PyString_InternFromString("_p_changed");
+    if (!py__p_changed)
+        return;
+    py__p_deactivate = PyString_InternFromString("_p_deactivate");
+    if (!py__p_deactivate)
+        return;
+    py__p_jar = PyString_InternFromString("_p_jar");
+    if (!py__p_jar)
+        return;
     py__p_oid = PyString_InternFromString("_p_oid");
+    if (!py__p_oid)
+        return;
 
     if (PyModule_AddStringConstant(m, "cache_variant", "stiff/c") < 0)
 	return;
