@@ -140,9 +140,9 @@ Zope Enterprize Objects, ZEO 0.2
     I simply need to include three -S options::
 
       python lib/python/ZEO/start.py -U /xxx/var/zeo.sock \
-        -S system=/stores/oracle:system                 \
-        -S scott=/stores/oracle:scott                   \
-        -S 1=/stores/fs:Storage
+        -Ssystem=/stores/oracle:system                 \
+        -Sscott=/stores/oracle:scott                   \
+        -S1=/stores/fs:Storage
 
     In this case, we made the storage and attribute name the
     same. To connect to the 'system' or 'scott' storage, we
