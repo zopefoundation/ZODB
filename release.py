@@ -40,14 +40,14 @@ def main(args):
     version, date = args
     zeoversion = compute_zeoversion(version)
 
-    replace("src/setup.py", 'version="\S+"', 'version="%s"' % version)
-    replace("src/README.txt", "'\d+\.\d+[a-z]?\d*'", "'%s'" % version)
+    replace("setup.py", 'version="\S+"', 'version="%s"' % version)
+    replace("README.txt", "'\d+\.\d+[a-z]?\d*'", "'%s'" % version)
     replace("src/ZODB/__init__.py",
             "__version__ = '\S+'", "__version__ = '%s'" % version)
     replace("src/ZEO/__init__.py",
             'version = "\S+"', 'version = "%s"' % zeoversion)
     write_zeoversion("src/ZEO/version.txt", zeoversion)
-    replace("src/NEWS.txt",
+    replace("NEWS.txt",
             "Release date: XX-\S+-\S+", "Release date: %s" % date)
 
 if __name__ == "__main__":
