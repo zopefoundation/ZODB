@@ -84,8 +84,8 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.37 2000/07/12 17:37:23 shane Exp $"""
-__version__='$Revision: 1.37 $'[11:-2]
+$Id: Connection.py,v 1.38 2000/09/07 21:53:47 jim Exp $"""
+__version__='$Revision: 1.38 $'[11:-2]
 
 from cPickleCache import PickleCache
 from POSException import ConflictError, ExportError
@@ -437,8 +437,8 @@ class Connection(ExportImport.ExportImport):
     def setstate(self,object):
         try:
             oid=object._p_oid
-            invalid=self._invalid
-            if invalid(oid) or invalid(None): raise ConflictError, oid
+            #invalid=self._invalid
+            #if invalid(oid) or invalid(None): raise ConflictError, oid
             p, serial = self._storage.load(oid, self._version)
             file=StringIO(p)
             unpickler=Unpickler(file)
