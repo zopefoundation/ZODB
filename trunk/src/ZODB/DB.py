@@ -84,8 +84,8 @@
 ##############################################################################
 """Database objects
 
-$Id: DB.py,v 1.26 2000/10/11 22:16:52 jim Exp $"""
-__version__='$Revision: 1.26 $'[11:-2]
+$Id: DB.py,v 1.27 2001/04/12 19:53:04 jim Exp $"""
+__version__='$Revision: 1.27 $'[11:-2]
 
 import cPickle, cStringIO, sys, POSException, UndoLogCompatible
 from Connection import Connection
@@ -165,10 +165,11 @@ class DB(UndoLogCompatible.UndoLogCompatible):
 
         if hasattr(storage, 'undoInfo'):
             self.undoInfo=storage.undoInfo
+            
 
     def _cacheMean(self, attr):
         m=[0,0]
-        def f(con, m=m):
+        def f(con, m=m, attr=attr):
             t=getattr(con._cache,attr)
             m[0]=m[0]+t
             m[1]=m[1]+1
@@ -568,8 +569,20 @@ class DB(UndoLogCompatible.UndoLogCompatible):
     def cacheStatistics(self): return () # :(
 
     def undo(self, id):
-        for oid in self._storage.undo(id):
-            self.invalidate(oid)
+        storage=self._storage
+        try: supportsTransactionalUndo = storage.supportsTransactionalUndo
+        except AttributeError:
+            supportsTransactionalUndo=0
+        else:
+            supportsTransactionalUndo=supportsTransactionalUndo()
+
+        if supportsTransactionalUndo:
+            # new style undo
+            TransactionalUndo(self, id)
+        else:
+            # fall back to old undo
+            for oid in storage.undo(id):
+                self.invalidate(oid)
 
     def versionEmpty(self, version):
         return self._storage.versionEmpty(version)
@@ -611,5 +624,23 @@ class AbortVersion(CommitVersion):
     def commit(self, reallyme, t):
         db=self._db
         version=self._version
-        for oid in db._storage.abortVersion(version, t):
+        oids = db._storage.abortVersion(version, t)
+        for oid in oids:
             db.invalidate(oid, version=version)
+
+
+class TransactionalUndo(CommitVersion):
+    """An object that will see to transactional undo
+
+    in cooperation with a transaction manager.
+    """
+    
+    # I'm lazy. I'm reusing __init__ and abort and reusing the
+    # version attr for the transavtion id. There's such a strong
+    # similarity of rythm, that I think it's justified.
+
+    def commit(self, reallyme, t):
+        db=self._db
+        oids=db._storage.transactionalUndo(self._version, t)
+        for oid in oids:
+            db.invalidate(oid)
