@@ -145,6 +145,11 @@ def fap():
         p.fast=1
     except:
         raise ImportError, 'Cannot import an up-to-date cPickle'
+    p=cPickle.Unpickler(cStringIO.StringIO())
+    try:
+        p.find_global=1
+    except:
+        raise ImportError, 'Cannot import an up-to-date cPickle'
 
 
 def package_home():
