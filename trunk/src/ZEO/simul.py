@@ -108,21 +108,21 @@ def main():
     struct_unpack = struct.unpack
     while 1:
         # Read a record and decode it
-        r = f_read(8)
-        if len(r) < 8:
+        r = f_read(10)
+        if len(r) < 10:
             break
-        offset += 8
-        ts, code = struct_unpack(">ii", r)
+        offset += 10
+        ts, code, lenoid = struct_unpack(">iiH", r)
         if ts == 0:
             # Must be a misaligned record caused by a crash
             ##print "Skipping 8 bytes at offset", offset-8
             continue
-        r = f_read(16)
-        if len(r) < 16:
+        r = f_read(8 + lenoid)
+        if len(r) < 8 + lenoid:
             break
-        offset += 16
+        offset += 8 + lenoid
         records += 1
-        oid, serial = struct_unpack(">8s8s", r)
+        serial, oid = struct_unpack(">8s%ds" % lenoid, r)
         # Decode the code
         dlen, version, code, current = (code & 0x7fffff00,
                                         code & 0x80,
