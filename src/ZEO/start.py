@@ -19,7 +19,7 @@ import sys, os, getopt
 import types
 import errno
 import socket
-import ThreadedAsync
+import ThreadedAsync.LoopCallback
 
 def directory(p, n=1):
     d = p
@@ -134,7 +134,7 @@ def main(argv):
 
        -p port -- port to listen on
 
-       -h adddress -- host address to listen on
+       -h address -- host address to listen on
 
        -s -- Don't use zdeamon
 
@@ -292,7 +292,7 @@ def main(argv):
 
     try:
         try:
-            ThreadedAsync.loop()
+            ThreadedAsync.LoopCallback.loop()
         finally:
             if os.path.isfile(env.zeo_pid):
                 os.unlink(env.zeo_pid)
