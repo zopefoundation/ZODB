@@ -82,7 +82,7 @@
   
  ****************************************************************************/
 
-#define BUCKETTEMPLATE_C "$Id: BucketTemplate.c,v 1.17 2001/06/20 19:47:00 matt Exp $\n"
+#define BUCKETTEMPLATE_C "$Id: BucketTemplate.c,v 1.18 2001/09/01 18:18:18 andreasjung Exp $\n"
 
 /*
 ** _bucket_get
@@ -686,7 +686,7 @@ bucket_values(Bucket *self, PyObject *args)
 
   for (i=low; i <= high; i++)
     {
-      COPY_KEY_TO_OBJECT(v, self->keys[i]);
+      COPY_VALUE_TO_OBJECT(v, self->values[i]);
       UNLESS (v) goto err;
       if (PyList_SetItem(r, i, v) < 0) goto err;
     }
