@@ -11,32 +11,9 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
-"""Test behavior of Connection plus cPickleCache.
-
-Methods involved:
-get()
-add()
-cacheFullSweep()
-cacheMinimize()
-invalidate()
-
-Other:
-resetCache()
-
-cache internal issues:
-cache gets full
-when incrgc is called
-gc
-
-Need to cover various transaction boundaries:
-commit
-abort
-sub-transaction commit / abort
--- can provide our own txn implementation
-"""
+"""Test behavior of Connection plus cPickleCache."""
 
 import doctest
-import unittest
 
 from persistent import Persistent
 from ZODB.config import databaseFromString
@@ -62,11 +39,18 @@ class RegularObject(Persistent):
         self.__class__.invalidations += 1
         super(RegularObject, self)._p_invalidate()
 
-class CacheTests(unittest.TestCase):
+    def init(cls):
+        cls.deactivations = 0
+        cls.invalidations = 0
+
+    init = classmethod(init)
+
+class CacheTests:
 
     def test_cache(self):
         r"""Test basic cache methods.
-        
+
+        >>> RegularObject.init()
         >>> db = databaseFromString("<zodb>\n"
         ...                         "cache-size 4\n"
         ...                         "<mappingstorage/>\n"
@@ -168,6 +152,43 @@ class CacheTests(unittest.TestCase):
         >>> [o._p_state for o in L]
         [0, 0, 0, 0, 0]
         """
+
+    def test_cache_on_abort(self):
+        r"""Test that the cache handles transaction abort correctly.
+
+        >>> RegularObject.init()
+        >>> db = databaseFromString("<zodb>\n"
+        ...                         "cache-size 4\n"
+        ...                         "<mappingstorage/>\n"
+        ...                         "</zodb>")
+        >>> cn = db.open()
+        >>> r = cn.root()
+        >>> L = []
+        >>> for i in range(5):
+        ...     o = RegularObject()
+        ...     L.append(o)
+        ...     r[i] = o
+        >>> get_transaction().commit()
+        >>> RegularObject.deactivations
+        1
+
+        Modify three of the objects and verify that they are
+        deactivated when the transaction aborts.
+        
+        >>> for i in range(0, 5, 2):
+        ...     L[i].attr = i
+        >>> [L[i]._p_state for i in range(0, 5, 2)]
+        [1, 1, 1]
+        >>> cn._cache.ringlen()
+        5
+
+        >>> get_transaction().abort()
+        >>> cn._cache.ringlen()
+        2
+        >>> RegularObject.deactivations
+        4
+        """
+
 
 def test_suite():
     return doctest.DocTestSuite()
