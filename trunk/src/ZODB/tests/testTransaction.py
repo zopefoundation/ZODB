@@ -36,7 +36,7 @@ TODO
     add in tests for objects which are modified multiple times,
     for example an object that gets modified in multiple sub txns.
 
-$Id: testTransaction.py,v 1.21 2004/04/02 19:31:32 tim_one Exp $
+$Id: testTransaction.py,v 1.22 2004/04/02 19:48:22 tim_one Exp $
 """
 
 import unittest
@@ -385,6 +385,9 @@ class TransactionTests(unittest.TestCase):
         self.sub1.modify(nojar=1)
 
         try:
+            # XXX Transaction._cleanup() prints a stray "error tpc_abort"
+            # XXX (the string value of the TestTxnException instance raised)
+            # XXX to stdout.
             get_transaction().commit()
         except TestTxnException:
             pass

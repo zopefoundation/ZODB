@@ -324,11 +324,13 @@ class Transaction(object):
                 try:
                     rm.abort_sub(self)
                 except Exception, err:
+                    # XXX Just printing the error doesn't seem good enough.
                     print err
             else:
                 try:
                     rm.tpc_abort(self)
                 except Exception, err:
+                    # XXX Just printing the error doesn't seem good enough.
                     print err
 
     def _getResourceManagers(self, subtransaction):
@@ -498,7 +500,7 @@ class MultiObjectResourceAdapterSub(MultiObjectResourceAdapter):
         self.manager.tpc_finish(txn)
         if self.sub:
             self.objects = []
-            
+
 
 def rm_cmp(rm1, rm2):
     return cmp(rm1.sortKey(), rm2.sortKey())
@@ -534,7 +536,7 @@ class DataManagerAdapter(object):
     def __init__(self, datamanager):
         self._datamanager = datamanager
         self._rollback = None
-        
+
     # XXX I'm not sure why commit() doesn't do anything
 
     def commit(self, transaction):
@@ -558,7 +560,7 @@ class DataManagerAdapter(object):
         # Nothing to do wrt data, be we begin 2pc for the top-level
         # trans
         self._sub = False
-        
+
     def tpc_begin(self, transaction, subtransaction=False):
         self._sub = subtransaction
 
