@@ -84,8 +84,8 @@
 ##############################################################################
 """Database objects
 
-$Id: DB.py,v 1.7 1999/06/16 19:15:39 jim Exp $"""
-__version__='$Revision: 1.7 $'[11:-2]
+$Id: DB.py,v 1.8 1999/06/29 18:27:55 jim Exp $"""
+__version__='$Revision: 1.8 $'[11:-2]
 
 import cPickle, cStringIO, sys, POSException
 from Connection import Connection
@@ -374,7 +374,6 @@ class DB:
                 # We won't bother with the pools.  This will be
                 # a one-use connection.
                 c=Connection(
-                    storage=self._storage,
                     version=version,
                     cache_size=self._version_cache_size,
                     cache_deactivate_after=
@@ -400,7 +399,6 @@ class DB:
                 if version:
                     if self._version_pool_size > len(allocated) or force:
                         c=Connection(
-                            storage=self._storage,
                             version=version,
                             cache_size=self._version_cache_size,
                             cache_deactivate_after=
@@ -409,7 +407,6 @@ class DB:
                         pool.append(c)
                 elif self._pool_size > len(allocated) or force:
                     c=Connection(
-                        storage=self._storage,
                         version=version,
                         cache_size=self._cache_size,
                         cache_deactivate_after=
