@@ -11,22 +11,27 @@
 # FOR A PARTICULAR PURPOSE.
 # 
 ##############################################################################
+import os
 import time
 import unittest
 
 import ZODB
-import ZODB.MappingStorage
+import ZODB.FileStorage
 
 from ZODB.tests.MinPO import MinPO
 
 class DBTests(unittest.TestCase):
 
     def setUp(self):
-        store = ZODB.MappingStorage.MappingStorage()
+        self.__path = os.path.abspath('test.fs')
+        store = ZODB.FileStorage.FileStorage(self.__path)
         self.db = ZODB.DB(store)
 
     def tearDown(self):
         self.db.close()
+        for s in ('', '.index', '.lock', '.tmp'):
+            if os.path.exists(self.__path+s):
+                os.remove(self.__path+s)
 
     def dowork(self, version=''):
         c = self.db.open(version)
@@ -37,7 +42,6 @@ class DBTests(unittest.TestCase):
             o.value = MinPO(i)
             get_transaction().commit()
             o = o.value
-        print r.items()
         c.close()
 
     # make sure the basic methods are callable
@@ -48,6 +52,79 @@ class DBTests(unittest.TestCase):
         self.db.setCacheSize(15)
         self.db.setVersionCacheDeactivateAfter(12) # deprecated
         self.db.setVersionCacheSize(15)
+
+    def test_removeVersionPool(self):
+        # Test that we can remove a version pool
+
+        # This is white box because we check some internal data structures
+        
+        self.dowork()
+        self.dowork('v2')
+        c1 = self.db.open('v1')
+        c1.close() # return to pool
+        c12 = self.db.open('v1')
+        c12.close() # return to pool
+        self.assert_(c1 is c12) # should be same 
+
+        pools, pooll = self.db._pools
+
+        self.assertEqual(len(pools), 3)
+        self.assertEqual(len(pooll), 3)
+
+        self.db.removeVersionPool('v1')
+
+        self.assertEqual(len(pools), 2)
+        self.assertEqual(len(pooll), 2)
+
+        c12 = self.db.open('v1')
+        c12.close() # return to pool
+        self.assert_(c1 is not c12) # should be different 
+
+        self.assertEqual(len(pools), 3)
+        self.assertEqual(len(pooll), 3)
+
+    def _test_for_leak(self):
+        self.dowork()
+        self.dowork('v2')
+        while 1:
+            c1 = self.db.open('v1')
+            self.db.removeVersionPool('v1')
+            c1.close() # return to pool
+
+    def test_removeVersionPool_while_connection_open(self):
+        # Test that we can remove a version pool
+
+        # This is white box because we check some internal data structures
+        
+        self.dowork()
+        self.dowork('v2')
+        c1 = self.db.open('v1')
+        c1.close() # return to pool
+        c12 = self.db.open('v1')
+        self.assert_(c1 is c12) # should be same 
+
+        pools, pooll = self.db._pools
+
+        self.assertEqual(len(pools), 3)
+        self.assertEqual(len(pooll), 3)
+
+        self.db.removeVersionPool('v1')
+
+        self.assertEqual(len(pools), 2)
+        self.assertEqual(len(pooll), 2)
+
+        c12.close() # should leave pools alone
+
+        self.assertEqual(len(pools), 2)
+        self.assertEqual(len(pooll), 2)
+
+        c12 = self.db.open('v1')
+        c12.close() # return to pool
+        self.assert_(c1 is not c12) # should be different 
+
+        self.assertEqual(len(pools), 3)
+        self.assertEqual(len(pooll), 3)
+
 
 def test_suite():
     return unittest.makeSuite(DBTests)
