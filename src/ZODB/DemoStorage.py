@@ -79,7 +79,7 @@ method::
 and call it to monitor the storage.
 
 """
-__version__='$Revision: 1.13 $'[11:-2]
+__version__='$Revision: 1.14 $'[11:-2]
 
 import base64, time, string
 from ZODB import POSException, BaseStorage, utils
@@ -134,21 +134,20 @@ class DemoStorage(BaseStorage.BaseStorage):
 
         self._lock_acquire()
         try:
-            v=self._vindex.get(src, None)
-            if not v: return
+            v = self._vindex.get(src, None)
+            if not v:
+                return
 
-            newserial = self._serial
-            tindex=self._tindex
-            oids=[]
+            oids = []
             for r in v.values():
                 oid, serial, pre, (version, nv), p = r
                 if nv:
                     oids.append(oid)
                     oid, serial, pre, vdata, p = nv
-                    tindex.append([oid, newserial, r, None, p])
+                    self._tindex.append([oid, serial, r, None, p])
                 else:
                     # effectively, delete the thing
-                    tindex.append([oid, None, r, None, None])
+                    self._tindex.append([oid, None, r, None, None])
 
             return oids
 
@@ -271,38 +270,38 @@ class DemoStorage(BaseStorage.BaseStorage):
     def supportsVersions(self): return 1
 
     def _clear_temp(self):
-        self._tindex=[]
-        self._tsize=self._size+160
+        self._tindex = []
+        self._tsize = self._size + 160
 
     def _begin(self, tid, u, d, e):
-        self._tsize=self._size+120+len(u)+len(d)+len(e)
+        self._tsize = self._size + 120 + len(u) + len(d) + len(e)
 
     def _finish(self, tid, user, desc, ext):
+        self._size = self._tsize
 
-        index=self._index
-        tindex=self._tindex
-        vindex=self._vindex
-
-        self._size=self._tsize
-
-        self._data[tid]=None, user, desc, ext, tuple(tindex)
-        for r in tindex:
+        self._data[tid] = None, user, desc, ext, tuple(self._tindex)
+        for r in self._tindex:
             oid, serial, pre, vdata, p = r
-            old=index.get(oid, None)
+            old = self._index.get(oid)
+            # If the object had version data, remove the version data.
             if old is not None:
-                oldvdata=old[3]
+                oldvdata = old[3]
                 if oldvdata:
-                    v=vindex[oldvdata[0]]
+                    v = self._vindex[oldvdata[0]]
                     del v[oid]
-                    if not v: del vindex[oldvdata[0]]
+                    if not v:
+                        # If the version info is now empty, remove it.
+                        del self._vindex[oldvdata[0]]
 
-            index[oid]=r
+            self._index[oid] = r
 
+            # If there is version data, then udpate self._vindex, too.
             if vdata:
-                version=vdata[0]
-                v=vindex.get(version, None)
-                if v is None: v=vindex[version]={}
-                v[oid]=r
+                version = vdata[0]
+                v = self._vindex.get(version)
+                if v is None:
+                    v = self._vindex[version] = {}
+                v[oid] = r
 
     def undo(self, transaction_id):
         self._lock_acquire()
