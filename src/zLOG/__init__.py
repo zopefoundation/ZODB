@@ -86,7 +86,7 @@ There is a default event logging facility that:
     can be overridden with the environment variable EVENT_LOG_SEVERITY
 
 """
-__version__='$Revision: 1.14 $'[11:-2]
+__version__='$Revision: 1.15 $'[11:-2]
 
 from EventLogger import log_write, log_time, severity_string, \
      initialize_from_environment
@@ -135,7 +135,6 @@ def LOG(subsystem, severity, summary, detail='', error=None, reraise=None):
                  error is reraised.
 
     """
-    _call_initialize
     if _call_initialize:
         initialize()
     log_write(subsystem, severity, summary, detail, error)
