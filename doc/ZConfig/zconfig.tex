@@ -954,7 +954,7 @@ except NameError:
 mydir = os.path.dirname(os.path.abspath(myfile))
 
 schema = ZConfig.loadSchema(os.path.join(mydir, 'schema.xml'))
-conf = ZConfig.loadConfig(schema, sys.argv[1])
+conf, handler = ZConfig.loadConfig(schema, sys.argv[1])
 \end{verbatim}
 
 If the schema file contained this schema:
