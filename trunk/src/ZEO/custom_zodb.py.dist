@@ -3,8 +3,7 @@
 # This file tells Zope to look to a ZEO Storage Server for all of its
 # database objects.
 
-
-__version__ = "$Id: custom_zodb.py.dist,v 1.1 1999/11/16 15:48:51 petrilli Exp $"[11:-2]
+__version__ = "$Release: $"[11:-2]
 
 # First we have to get the right ZEO components 
 import ZEO.ClientStorage
