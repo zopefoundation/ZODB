@@ -168,15 +168,6 @@ class FileStorageTests(
 
         self.failUnless(self._storage._records_before_save > 20)
 
-    # There are a bunch of tests that the current pack() implementation
-    # does not past.  We need to fix pack(), but don't want tests to
-    # fail until then.
-
-    def checkPackVersionsInPast(self):
-        pass
-
-    def checkPackAfterUndoDeletion(self):
-        pass
 
 class FileStorageRecoveryTest(
     StorageTestBase.StorageTestBase,
