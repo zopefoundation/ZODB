@@ -968,6 +968,30 @@ class TestIITreeSets(NormalSetTests, TestCase):
         for i in 0, 2, 4, 6, 8, 9, 10, 12:
             self.assertEqual(t.has_key(i), 0)
 
+    def _checkRanges(self, tree, keys):
+        self.assertEqual(len(tree), len(keys))
+        self.assertEqual(list(tree.keys()), keys)
+        for k in keys:
+            self.assert_(tree.has_key(k))
+        if keys:
+            lokey = min(keys)
+            hikey = max(keys)
+            self.assertEqual(lokey, tree.minKey())
+            self.assertEqual(hikey, tree.maxKey())
+        else:
+            lokey = hikey = 42
+
+        # Try all range searches.
+        for lo in range(lokey - 1, hikey + 2):
+            for hi in range(lo - 1, hikey + 2):
+                want = [k for k in keys if lo <= k <= hi]
+                got = list(tree.keys(lo, hi))
+                self.assertEqual(want, got)
+
+    def testRanges(self):
+        t = self._build_degenerate_tree()
+        self._checkRanges(t, [1, 3, 5, 7, 11])
+
 class TestOITreeSets(NormalSetTests, TestCase):
     def setUp(self):
         self.t = OITreeSet()

@@ -12,7 +12,7 @@
 
  ****************************************************************************/
 
-#define BTREETEMPLATE_C "$Id: BTreeTemplate.c,v 1.52 2002/06/13 20:08:39 tim_one Exp $\n"
+#define BTREETEMPLATE_C "$Id: BTreeTemplate.c,v 1.53 2002/06/13 22:33:51 tim_one Exp $\n"
 
 /*
 ** _BTree_get
@@ -1123,23 +1123,6 @@ BTree_rangeSearch(BTree *self, PyObject *args, char type)
 
   UNLESS (self->data && self->len) goto empty;
 
-  /* If f and l were both passed in, ensure f <= l. */
-  if (f && f != Py_None && l && l != Py_None)
-    {
-      int cmp;
-      KEY_TYPE first;
-      KEY_TYPE last;
-      int copied = 1;
-
-      COPY_KEY_FROM_ARG(first, f, copied);
-      UNLESS (copied) goto err;
-      COPY_KEY_FROM_ARG(last, l, copied);
-      UNLESS (copied) goto err;
-
-      TEST_KEY_SET_OR(cmp, first, last) goto err;
-      if (cmp > 0) goto empty;
-    }
-
   /* Find the low range */
 
   if (f && f != Py_None)
@@ -1183,18 +1166,62 @@ BTree_rangeSearch(BTree *self, PyObject *args, char type)
       PER_ACCESSED(highbucket);
     }
 
+  /* It's still possible that the range is empty, even if f < l.  For
+   * example, if f=3 and l=4, and 3 and 4 aren't in the BTree, but 2 and
+   * 5 are, then the low position points to the 5 now and the high position
+   * points to the 2 now.  They're not necessarily even in the same bucket,
+   * so there's no trick we can play with pointer compares to get out
+   * cheap in general.
+   */
+  if (lowbucket == highbucket && lowoffset > highoffset)
+    goto empty_and_decref_buckets;      /* definitely empty */
+
+  /* The buckets differ, or they're the same and the offsets show a non-
+   * empty range.
+   */
+  if (f && f != Py_None             /* both args user-supplied */
+      && l && l != Py_None
+      && lowbucket != highbucket)   /* and different buckets */
+    {
+      KEY_TYPE first;
+      KEY_TYPE last;
+      int cmp;
+
+      /* Have to check the hard way:  see how the endpoints compare. */
+      UNLESS (PER_USE(lowbucket)) goto err_and_decref_buckets;
+      COPY_KEY(first, lowbucket->keys[lowoffset]);
+      PER_ALLOW_DEACTIVATION(lowbucket);
+      PER_ACCESSED(lowbucket);
+
+      UNLESS (PER_USE(highbucket)) goto err_and_decref_buckets;
+      COPY_KEY(last, highbucket->keys[highoffset]);
+      PER_ALLOW_DEACTIVATION(highbucket);
+      PER_ACCESSED(highbucket);
+
+      TEST_KEY_SET_OR(cmp, first, last) goto err_and_decref_buckets;
+      if (cmp > 0) goto empty_and_decref_buckets;
+    }
+
   PER_ALLOW_DEACTIVATION(self);
   PER_ACCESSED(self);
 
-  f=newBTreeItems(type, lowbucket, lowoffset, highbucket, highoffset);
+  f = newBTreeItems(type, lowbucket, lowoffset, highbucket, highoffset);
   Py_DECREF(lowbucket);
   Py_DECREF(highbucket);
   return f;
+
+ err_and_decref_buckets:
+  Py_DECREF(lowbucket);
+  Py_DECREF(highbucket);
 
  err:
   PER_ALLOW_DEACTIVATION(self);
   PER_ACCESSED(self);
   return NULL;
+
+ empty_and_decref_buckets:
+  Py_DECREF(lowbucket);
+  Py_DECREF(highbucket);
 
  empty:
   PER_ALLOW_DEACTIVATION(self);
