@@ -12,7 +12,7 @@
 
  ****************************************************************************/
 
-#define BUCKETTEMPLATE_C "$Id: BucketTemplate.c,v 1.43 2002/06/18 15:58:22 tim_one Exp $\n"
+#define BUCKETTEMPLATE_C "$Id: BucketTemplate.c,v 1.44 2002/06/20 02:40:01 tim_one Exp $\n"
 
 /* Use BUCKET_SEARCH to find the index at which a key belongs.
  * INDEX    An int lvalue to hold the index i such that KEY belongs at
@@ -474,26 +474,41 @@ Bucket_nextBucket(Bucket *self, Bucket **r)
   return 0;
 }
 
+/* Set self->next to self->next->next, i.e. unlink self's successor from
+ * the chain.
+ *
+ * Return:
+ *     -1       error
+ *      0       OK
+ */
 static int
 Bucket_deleteNextBucket(Bucket *self)
 {
-  int result = -1;      /* until proven innocent */
+    int result = -1;    /* until proven innocent */
+    Bucket *successor;
 
-  PER_USE_OR_RETURN(self, -1);
-  if (self->next)
-    {
-      Bucket *n;
-      if (Bucket_nextBucket(self->next, &n) < 0) goto Done;
-      ASSIGNB(self->next, n);
-      if (PER_CHANGED(self) < 0)
-        goto Done;
+    PER_USE_OR_RETURN(self, -1);
+    successor = self->next;
+    if (successor) {
+        Bucket *next;
+        /* Before:  self -> successor -> next
+         * After:   self --------------> next
+         */
+        UNLESS (PER_USE(successor)) goto Done;
+        next = successor->next;
+        PER_UNUSE(successor);
+
+        Py_XINCREF(next);       /* it may be NULL, of course */
+        self->next = next;
+        Py_DECREF(successor);
+	if (PER_CHANGED(self) < 0)
+	    goto Done;
     }
-  result = 0;
+    result = 0;
 
 Done:
-  PER_ALLOW_DEACTIVATION(self);
-  PER_ACCESSED(self);
-  return result;
+    PER_UNUSE(self);
+    return result;
 }
 
 /*

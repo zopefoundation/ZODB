@@ -42,6 +42,17 @@
 #define PER_CHANGED(O) 0
 #endif
 
+/* So sue me.  This pair gets used all over the place, so much so that it
+ * interferes with understanding non-persistence parts of algorithms.
+ * PER_UNUSE can be used after a successul PER_USE or PER_USE_OR_RETURN.
+ * It allows the object to become ghostified, and tells the persistence
+ * machinery that the object's fields were used recently.
+ */
+#define PER_UNUSE(OBJ) do {             \
+    PER_ALLOW_DEACTIVATION(OBJ);        \
+    PER_ACCESSED(OBJ);                  \
+} while (0)
+
 static PyObject *sort_str, *reverse_str, *items_str, *__setstate___str;
 static PyObject *ConflictError = NULL;
 
@@ -111,10 +122,6 @@ typedef struct Bucket_s {
 } Bucket;
 
 #define BUCKET(O) ((Bucket*)(O))
-
-static void PyVar_AssignB(Bucket **v, Bucket *e) { Py_XDECREF(*v); *v=e;}
-#define ASSIGNB(V,E) PyVar_AssignB(&(V),(E))
-#define ASSIGNBC(V,E) (Py_INCREF((E)), PyVar_AssignB(&(V),(E)))
 
 /* A BTree is complicated.  See Maintainer.txt.
  */
@@ -369,7 +376,7 @@ static char BTree_module_documentation[] =
 "\n"
 MASTER_ID
 BTREEITEMSTEMPLATE_C
-"$Id: BTreeModuleTemplate.c,v 1.35 2002/06/18 15:58:22 tim_one Exp $\n"
+"$Id: BTreeModuleTemplate.c,v 1.36 2002/06/20 02:40:01 tim_one Exp $\n"
 BTREETEMPLATE_C
 BUCKETTEMPLATE_C
 KEYMACROS_H

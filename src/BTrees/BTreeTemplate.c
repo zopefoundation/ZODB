@@ -12,7 +12,7 @@
 
  ****************************************************************************/
 
-#define BTREETEMPLATE_C "$Id: BTreeTemplate.c,v 1.64 2002/06/19 23:44:20 tim_one Exp $\n"
+#define BTREETEMPLATE_C "$Id: BTreeTemplate.c,v 1.65 2002/06/20 02:40:01 tim_one Exp $\n"
 
 /* Sanity-check a BTree.  This is a private helper for BTree_check.  Return:
  *      -1         Error.  If it's an internal inconsistency in the BTree,
@@ -1608,38 +1608,43 @@ BTree_dealloc(BTree *self)
   PyObject_Del(self);
 }
 
+/*
+ * Return the number of elements in a BTree.  nonzero is a Boolean, and
+ * when true requests just a non-empty/empty result.  Testing for emptiness
+ * is efficient (constant-time).  Getting the true length takes time
+ * proportional to the number of leaves (buckets).
+ *
+ * Return:
+ *     When nonzero true:
+ *          -1  error
+ *           0  empty
+ *           1  not empty
+ *     When nonzero false (possibly expensive!):
+ *          -1  error
+ *        >= 0  number of elements.
+ */
 static int
 BTree_length_or_nonzero(BTree *self, int nonzero)
 {
-  int c=0;
-  Bucket *b, *n;
+    int result;
+    Bucket *b;
+    Bucket *next;
 
-  PER_USE_OR_RETURN(self, -1);
-  b = self->firstbucket;
-  Py_XINCREF(b);
-  PER_ALLOW_DEACTIVATION(self);
-  PER_ACCESSED(self);
+    PER_USE_OR_RETURN(self, -1);
+    b = self->firstbucket;
+    PER_UNUSE(self);
+    if (nonzero)
+        return b != NULL;
 
-  while (b != NULL)
-    {
-      PER_USE_OR_RETURN(b, -1);
-      c += b->len;
-      if (nonzero && c)
-        {
-          /* Short-circuit if all we care about is nonempty */
-          PER_ALLOW_DEACTIVATION(b);
-          PER_ACCESSED(b);
-          Py_DECREF(b);
-          return 1;
-        }
-      n = b->next;
-      Py_XINCREF(n);
-      PER_ALLOW_DEACTIVATION(b);
-      PER_ACCESSED(b);
-      ASSIGNB(b, n);
+    result = 0;
+    while (b) {
+        PER_USE_OR_RETURN(b, -1);
+        result += b->len;
+        next = b->next;
+        PER_UNUSE(b);
+        b = next;
     }
-
-  return c;
+    return result;
 }
 
 static int
