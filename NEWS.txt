@@ -1,3 +1,34 @@
+What's new in ZODB3 3.3.1a2?
+============================
+Release date: DD-MMM-2005
+
+ZEO
+---
+
+Repaired subtle race conditions in establishing ZEO connections, both client-
+and server-side.  These account for intermittent cases where ZEO failed
+to make a connection (or reconnection), accompanied by a log message showing
+an error caught in ``asyncore`` and having a traceback ending with:
+
+    ``UnpicklingError: invalid load key, 'Z'.``
+
+or:
+
+    ``ZRPCError: bad handshake '(K\x00K\x00U\x0fgetAuthProtocol)t.'``
+
+or:
+
+    ``error: (9, 'Bad file descriptor')``
+
+or an ``AttributeError``.
+
+These were exacerbated when running the test suite, because of an unintended
+busy loop in the test scaffolding, which could starve the thread trying to
+make a connection.  The ZEO reconnection tests may run much faster now,
+depending on platform, and should suffer far fewer (if any) intermittent
+"timed out waiting for storage to connect" failures.
+
+
 What's new in ZODB3 3.3.1a1?
 ============================
 Release date: 11-Jan-2005
