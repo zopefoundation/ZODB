@@ -29,11 +29,13 @@ This module rebinds loop() in the asyncore module; i.e. once this
 module is imported, any client of the asyncore module will get
 ThreadedAsync.loop() when it calls asyncore.loop().
 """
-__version__ = '$Revision: 1.5 $'[11:-2]
+__version__ = '$Revision: 1.6 $'[11:-2]
 
 import asyncore
 import select
 import thread
+import time
+from errno import EINTR
 
 _loop_lock = thread.allocate_lock()
 _looping = None
@@ -79,6 +81,52 @@ def _stop_loop():
     finally:
         _loop_lock.release()
 
+def poll(timeout=0.0, map=None):
+    """A copy of asyncore.poll() with a bug fixed (see comment).
+
+    (asyncore.poll2() and .poll3() don't have this bug.)
+    """
+    if map is None:
+        map = asyncore.socket_map
+    if map:
+        r = []; w = []; e = []
+        for fd, obj in map.items():
+            if obj.readable():
+                r.append(fd)
+            if obj.writable():
+                w.append(fd)
+        if [] == r == w == e:
+            time.sleep(timeout)
+        else:
+            try:
+                r, w, e = select.select(r, w, e, timeout)
+            except select.error, err:
+                if err[0] != EINTR:
+                    raise
+                else:
+                    # This part is missing in asyncore before Python 2.3
+                    return
+
+        for fd in r:
+            obj = map.get(fd)
+            if obj is not None:
+                try:
+                    obj.handle_read_event()
+                except asyncore.ExitNow:
+                    raise asyncore.ExitNow
+                except:
+                    obj.handle_error()
+
+        for fd in w:
+            obj = map.get(fd)
+            if obj is not None:
+                try:
+                    obj.handle_write_event()
+                except asyncore.ExitNow:
+                    raise asyncore.ExitNow
+                except:
+                    obj.handle_error()
+
 def loop(timeout=30.0, use_poll=0, map=None):
     """Invoke asyncore mainloop
 
@@ -92,7 +140,7 @@ def loop(timeout=30.0, use_poll=0, map=None):
         else:
             poll_fun = asyncore.poll2
     else:
-        poll_fun = asyncore.poll
+        poll_fun = poll
 
     if map is None:
         map = asyncore.socket_map
