@@ -1,22 +1,38 @@
 #! /usr/bin/env python
 """Report on the number of currently waiting clients in the ZEO queue.
 
-Usage: zeoqueue.py [options] logfile
+Usage: %(PROGRAM)s [options] logfile
 
 Options:
     -h / --help
         Print this help text and exit.
 
-    -v
+    -v / --verbose
         Verbose output
+
+    -f file
+    --file file
+        Use the specified file to store the incremental state as a pickle.  If
+        not given, %(STATEFILE)s is used.
+
+    -r / --reset
+        Reset the state of the tool.  This blows away any existing state
+        pickle file and then exits -- it does not parse the file.  Use this
+        when you rotate log files so that the next run will parse from the
+        beginning of the file.
 """
 
+import os
 import re
 import sys
 import time
+import errno
 import getopt
+import cPickle as pickle
 
 COMMASPACE = ', '
+STATEFILE = 'zeoqueue.pck'
+PROGRAM = sys.argv[0]
 
 try:
     True, False
@@ -52,7 +68,7 @@ ccre = re.compile(r"""
      .*)         # rest of line
     """, re.VERBOSE)
 
-wcre = re.compile(r"""Clients waiting: (?P<num>\d+)""")
+wcre = re.compile(r'Clients waiting: (?P<num>\d+)')
 
 
 
@@ -122,6 +138,8 @@ class Status:
     """
 
     def __init__(self):
+        self.lineno = 0
+        self.pos = 0
         self.reset()
 
     def reset(self):
@@ -142,6 +160,19 @@ class Status:
         # If we haven't seen a restart, assume that seeing a finished
         # transaction is good enough.
         return self.commit is not None
+
+    def process_file(self, fp):
+        if self.pos:
+            if VERBOSE:
+                print 'seeking to file position', self.pos
+            fp.seek(self.pos)
+        while True:
+            line = fp.readline()
+            if not line:
+                break
+            self.lineno += 1
+            self.process(line)
+        self.pos = fp.tell()
 
     def process(self, line):
         if line.find("calling") != -1:
@@ -278,7 +309,7 @@ class Status:
 
 
 def usage(code, msg=''):
-    print >> sys.stderr, __doc__
+    print >> sys.stderr, __doc__ % globals()
     if msg:
         print >> sys.stderr, msg
     sys.exit(code)
@@ -286,18 +317,40 @@ def usage(code, msg=''):
 
 def main():
     global VERBOSE
-    VERBOSE = 0
 
+    VERBOSE = 0
+    file = STATEFILE
+    reset = False
+    # -0 is a secret option used for testing purposes only
+    seek = True
     try:
-        opts, args = getopt.getopt(sys.argv[1:], 'vh', ['help'])
+        opts, args = getopt.getopt(sys.argv[1:], 'vhf:r0',
+                                   ['help', 'verbose', 'file=', 'reset'])
     except getopt.error, msg:
         usage(1, msg)
 
     for opt, arg in opts:
         if opt in ('-h', '--help'):
             usage(0)
-        elif opt == '-v':
+        elif opt in ('-v', '--verbose'):
             VERBOSE += 1
+        elif opt in ('-f', '--file'):
+            file = arg
+        elif opt in ('-r', '--reset'):
+            reset = True
+        elif opt == '-0':
+            seek = False
+
+    if reset:
+        # Blow away the existing state file and exit
+        try:
+            os.unlink(file)
+            if VERBOSE:
+                print 'removing pickle state file', file
+        except OSError, e:
+            if e.errno <> errno.ENOENT:
+                raise
+        return
 
     if not args:
         usage(1, 'logfile is required')
@@ -305,14 +358,42 @@ def main():
         usage(1, 'too many arguments: %s' % COMMASPACE.join(args))
 
     path = args[0]
-    f = open(path, "rb")
-    s = Status()
-    while True:
-        line = f.readline()
-        if not line:
-            break
-        s.process(line)
-    s.report()
+
+    # Get the previous status object from the pickle file, if it is available
+    # and if the --reset flag wasn't given.
+    status = None
+    try:
+        statefp = open(file, 'rb')
+        try:
+            status = pickle.load(statefp)
+            if VERBOSE:
+                print 'reading status from file', file
+        finally:
+            statefp.close()
+    except IOError, e:
+        if e.errno <> errno.ENOENT:
+            raise
+    if status is None:
+        status = Status()
+        if VERBOSE:
+            print 'using new status'
+
+    if not seek:
+        status.pos = 0
+
+    fp = open(path, 'rb')
+    try:
+        status.process_file(fp)
+    finally:
+        fp.close()
+    # Save state
+    statefp = open(file, 'wb')
+    pickle.dump(status, statefp, 1)
+    statefp.close()
+    # Print the report and return the number of blocked clients in the exit
+    # status code.
+    status.report()
+    sys.exit(status.n_blocked)
 
 
 if __name__ == "__main__":
