@@ -120,14 +120,14 @@ class RecoverTest(unittest.TestCase):
         L = self.storage.undoLog()
         r = L[3]
         tid = base64.decodestring(r["id"] + "\n")
-        pos1 = self.storage._txn_find(tid, False)
+        pos1 = self.storage._txn_find(tid, 0)
 
         r = L[8]
         tid = base64.decodestring(r["id"] + "\n")
-        pos2 = self.storage._txn_find(tid, False)
-        
+        pos2 = self.storage._txn_find(tid, 0)
+
         self.storage.close()
-        
+
         # Overwrite the entire header.
         f = open(self.path, "a+b")
         f.seek(pos1 - 50)
