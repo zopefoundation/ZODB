@@ -632,17 +632,17 @@ into concrete schema for applications.  Components cannot add
 additional keys or sections in the application schema.
 
 A schema \dfn{component} is allowed to define new abstract and
-section types.  It is not allowed to extend application types or
-include additional types in application-provided abstract types.
+section types.
 Components are identified using a dotted-name, similar to a Python
 module name.  For example, one component may be \code{zodb.storage}.
 
 Schema components are stored alongside application code since they
 directly reference datatype code.  Schema components are provided by
-Python packages; packages which contain a file named
-\file{component.xml} can be ``imported''.  The \file{component.xml}
-file defines the types provided by that component; it must have a
-\element{component} element as the document element.
+Python packages.  The component definition is normally stored in the
+file \file{component.xml}; an alternate filename may be specified
+using the \attribute{file} attribute of the \element{import} element.
+The component defines the types provided by that component; it must
+have a \element{component} element as the document element.
 
 The following element is used as the document element for schema
 components.  Note that schema components do not allow keys and
