@@ -63,7 +63,7 @@ else:
 def cp(f1, f2, l):
     read = f1.read
     write = f2.write
-    n =8192
+    n = 8192
     
     while l > 0:
         if n > l:
