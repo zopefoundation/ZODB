@@ -281,25 +281,46 @@ The following elements are used to describe a schema:
                             multikey)*}
   Document element for a \module{ZConfig} schema.
 
+  \begin{attributedesc}{extends}{\datatype{space-separated-url-references}}
+  A list of URLs of base schemas from which this section type will inherit key,
+  section, and section type declarations.  If omitted, this schema
+  is defined using only the keys, sections, and section types contained within
+  the \element{schema} element.
+  \end{attributedesc}
+
   \begin{attributedesc}{datatype}{\datatype{basic-key}
                                   or \datatype{dotted-name}}
     The data type converter which will be applied to the value of this
     section.  If the value is a \datatype{dotted-name} that begins
     with a period, the value of \attribute{prefix} will be pre-pended,
-    if set.
+    if set.  If any base schemas are listed in the \attribute{extends}
+    attribute, the default value for this attribute comes from the base
+    schemas.  If the base schemas all use the same \attribute{datatype}, then
+    that data type will be the default value for the extending schema.  If
+    there are no base schemas, the default value is \datatype{null}, which
+    means that the \module{ZConfig} section object will be used unconverted.
+    If the base schemas have different \attribute{datatype} definitions, you
+    must explicitly define the \attribute{datatype} in the extending schema.
   \end{attributedesc}
 
   \begin{attributedesc}{handler}{\datatype{basic-key}}
   \end{attributedesc}
 
-  \begin{attributedesc}{keytype}{\datatype{basic-key}}
+  \begin{attributedesc}{keytype}{\datatype{basic-key}
+                                  or \datatype{dotted-name}}
     The data type converter which will be applied to keys found in
     this section.  This can be used to constrain key values in
     different ways; two data types which may be especially useful are
     the \datatype{identifier} and \datatype{ipaddr-or-hostname}
     types.  If the value is a \datatype{dotted-name} that begins
     with a period, the value of \attribute{prefix} will be pre-pended,
-    if set.  The default value is \datatype{basic-key}.
+    if set.  If any base schemas are listed in the \attribute{extends}
+    attribute, the default value for this attribute comes from the base
+    schemas.  If the base schemas all use the same \attribute{keytype}, then
+    that key type will be the default value for the extending schema.  If there
+    are no base schemas, the default value is \datatype{basic-key}.  If the
+    base schemas have different \attribute{keytype} definitions, you must
+    explicitly define the \attribute{keytype} in the extending schema.
   \end{attributedesc}
 
   \begin{attributedesc}{prefix}{\datatype{dotted-name}}
@@ -365,7 +386,7 @@ The following elements are used to describe a schema:
     acquires all key and section declarations.  This type does
     \emph{not} automatically implement any abstract section type
     implemented by the named section type.  If omitted, this section
-    is defined with only the keys are sections contained within the
+    is defined with only the keys and sections contained within the
     \element{sectiontype} element.
   \end{attributedesc}
 
