@@ -15,7 +15,7 @@ r"""
 Multi-database tests
 ====================
 
-Multi-database support adds the ability to tie multiple database into a
+Multi-database support adds the ability to tie multiple databases into a
 collection.
 
 Creating a multi-database starts with creating a named DB:
@@ -52,6 +52,11 @@ Trying to insert a database with a name that is already in use will not work:
 Traceback (most recent call last):
     ...
 ValueError: database_name 'root' already in databases
+
+Because that failed, db.databases wasn't changed:
+
+>>> len(db.databases)  # still 2
+2
 
 You can (still) get a connection to a database this way:
 
