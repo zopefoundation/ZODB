@@ -286,7 +286,7 @@ class IIMerge(IMerge):
     """
 
     def weightedUnion(c1, c2, weight1=1, weight2=1):
-        """Compute the weighted Union of c1 and c2.
+        """Compute the weighted union of c1 and c2.
 
         If c1 and c2 are None, the output is (0, None).
 
@@ -294,18 +294,28 @@ class IIMerge(IMerge):
 
         If c1 is not None and c2 is None, the output is (weight1, c1).
 
-        If c1 and c2 are not None and not both sets, the output is 1
-        and a Bucket such that the output values are::
+        Else, and hereafter, c1 is not None and c2 is not None.
+
+        If c1 and c2 are both sets, the output is the sum of the weights
+        and the (unweighted) union of the sets.
+
+        Else the output is 1 and a Bucket whose keys are the union of c1 and
+        c2's keys, and whose values are::
 
           v1*weight1 + v2*weight2
 
           where:
 
-            v1 is 0 if the key was not in c1. Otherwise, v1 is 1, if
-            c1 is a set, or the value from c1.
+            v1 is 0        if the key is not in c1
+                  1        if the key is in c1 and c1 is a set
+                  c1[key]  if the key is in c1 and c1 is a mapping
 
-            v2 is 0 if the key was not in c2. Otherwise, v2 is 2, if
-            c2 is a set, or the value from c2.
+            v2 is 0        if the key is not in c2
+                  1        if the key is in c2 and c2 is a set
+                  c2[key]  if the key is in c2 and c2 is a mapping
+
+        XXX All of the above is wrong if either weight is negative.  I think
+        XXX that's a bug in the implementation and will fix it.
 
         Note that c1 and c2 must be collections.
 
@@ -320,21 +330,26 @@ class IIMerge(IMerge):
 
         If c1 is not None and c2 is None, the output is (weight1, c1).
 
+        Else, and hereafter, c1 is not None and c2 is not None.
+
         If c1 and c2 are both sets, the output is the sum of the weights
         and the (unweighted) intersection of the sets.
 
-        If c1 and c2 are not None and not both sets, the output is 1
-        and a Bucket such that the output values are::
+        Else the output is 1 and a Bucket whose keys are the intersection of
+        c1 and c2's keys, and whose values are::
 
           v1*weight1 + v2*weight2
 
           where:
 
-            v1 is 0 if the key was not in c1. Otherwise, v1 is 1, if
-            c1 is a set, or the value from c1.
+            v1 is 1        if c1 is a set
+                  c1[key]  if c1 is a mapping
 
-            v2 is 0 if the key was not in c2. Otherwise, v2 is 2, if
-            c2 is a set, or the value from c2.
+            v2 is 1        if c2 is a set
+                  c1[key]  if c2 is a mapping
+
+        XXX All of the above is wrong if either weight is negative.  I think
+        XXX that's a bug in the implementation and will fix it.
 
         Note that c1 and c2 must be collections.
         """
