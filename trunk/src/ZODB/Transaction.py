@@ -84,8 +84,8 @@
 ##############################################################################
 """Transaction management
 
-$Id: Transaction.py,v 1.15 1999/08/11 17:44:28 jim Exp $"""
-__version__='$Revision: 1.15 $'[11:-2]
+$Id: Transaction.py,v 1.16 1999/10/18 17:14:31 jim Exp $"""
+__version__='$Revision: 1.16 $'[11:-2]
 
 import time, sys, struct, POSException
 from struct import pack
@@ -223,7 +223,7 @@ class Transaction:
         try:
             try:
                 while objects:
-                    o=objects[-1]
+                    o=objects.pop()
                     j=getattr(o, '_p_jar', o)
                     if j is None: continue
                     i=id(j)
@@ -235,7 +235,6 @@ class Transaction:
                         else:
                             j.tpc_begin(self)
                     j.commit(o,self)
-                    del objects[-1]
 
                 # Commit work done in subtransactions
                 while subjars:
