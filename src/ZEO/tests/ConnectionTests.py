@@ -202,6 +202,7 @@ class ConnectionTests(CommonSetupTearDown):
                 self._dostore()
                 break
             except Disconnected:
+                self._storage.sync()
                 time.sleep(0.5)
 
     def checkReadOnlyClient(self):
@@ -345,13 +346,15 @@ class ConnectionTests(CommonSetupTearDown):
             try:
                 self._dostore(oid, data=obj)
                 break
-            except (Disconnected, select.error,
-                    threading.ThreadError, socket.error):
+            except Disconnected:
+                # Maybe the exception mess is better now
+##            except (Disconnected, select.error,
+##                    threading.ThreadError, socket.error):
                 zLOG.LOG("checkReconnection", zLOG.INFO,
                          "Error after server restart; retrying.",
                          error=sys.exc_info())
                 get_transaction().abort()
-                time.sleep(0.1) # XXX how long to sleep
+                self._storage.sync()
             # XXX This is a bloody pain.  We're placing a heavy burden
             # on users to catch a plethora of exceptions in order to
             # write robust code.  Need to think about implementing
@@ -564,9 +567,8 @@ class ReconnectionTests(CommonSetupTearDown):
             try:
                 self._dostore()
                 break
-            except (Disconnected, ReadOnlyError,
-                    select.error, threading.ThreadError, socket.error):
-                time.sleep(0.1)
+            except (Disconnected, ReadOnlyError):
+                self._storage.sync()
         else:
             self.fail("Couldn't store after starting a read-write server")
 
