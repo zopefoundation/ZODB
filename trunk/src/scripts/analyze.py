@@ -76,21 +76,13 @@ def analyze(path):
     fs = FileStorage(path, read_only=1)
     fsi = fs.iterator()
     report = Report()
-    while 1:
-        try:
-            transaction = fsi.next()
-        except IndexError:
-            break
-        analyze_trans(report, transaction)
+    for txn in fsi:
+        analyze_trans(report, txn)
     return report
 
 def analyze_trans(report, txn):
     report.TIDS += 1
-    while 1:
-        try:
-            rec = txn.next()
-        except IndexError:
-            break
+    for rec in txn:
         analyze_rec(report, rec)
 
 def get_type(record):
@@ -113,10 +105,13 @@ def get_type(record):
 def analyze_rec(report, record):
     oid = record.oid
     report.OIDS += 1
+    if record.data is None:
+        # No pickle -- aborted version or undo of object creation.
+        return
     try:
         size = len(record.data) # Ignores various overhead
         report.DBYTES += size
-        if not report.OIDMAP.has_key(oid):
+        if oid not in report.OIDMAP:
             type = get_type(record)
             report.OIDMAP[oid] = type
             report.USEDMAP[oid] = size
