@@ -1,5 +1,4 @@
 #define KEY_TYPE int
-#define KET_PARSE "i"
 #define TEST_KEY(KEY, TARGET) ( (KEY) - (TARGET) )
 #define DECREF_KEY(KEY)
 #define INCREF_KEY(k)

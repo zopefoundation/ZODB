@@ -87,147 +87,6 @@
  Set operations
  ****************************************************************************/
 
-typedef struct SetIteration_s 
-{
-  PyObject *set;
-  int position;
-  int hasValue;
-  KEY_TYPE key;
-  VALUE_TYPE value;
-  int (*next)(struct SetIteration_s*);
-} SetIteration;
-
-static int 
-nextBucket(SetIteration *i)
-{
-  UNLESS(PER_USE(BUCKET(i->set))) return -1;
-          
-  if (i->position >= 0)
-    {
-      if (i->position)
-        {
-          DECREF_KEY(i->key);
-          DECREF_VALUE(i->value);
-        }
-
-      if (i->position < BUCKET(i->set)->len)
-        {
-          COPY_KEY(i->key, BUCKET(i->set)->keys[i->position]);
-          INCREF_KEY(i->key);
-          COPY_VALUE(i->value, BUCKET(i->set)->values[i->position]);
-          INCREF_VALUE(i->value);
-          i->position ++;
-        }
-      else
-        i->position = -1;
-    }
-
-  PER_ALLOW_DEACTIVATION(BUCKET(i->set));
-          
-  return 0;
-}
-
-static int 
-nextSet(SetIteration *i)
-{
-  UNLESS(PER_USE(BUCKET(i->set))) return -1;
-          
-  if (i->position >= 0)
-    {
-      if (i->position)
-        {
-          DECREF_KEY(i->key);
-        }
-
-      if (i->position < BUCKET(i->set)->len)
-        {
-          COPY_KEY(i->key, BUCKET(i->set)->keys[i->position]);
-          INCREF_KEY(i->key);
-          i->position ++;
-        }
-      else
-        i->position = -1;
-    }
-
-  PER_ALLOW_DEACTIVATION(BUCKET(i->set));
-          
-  return 0;
-}
-
-static int 
-nextBTreeItems(SetIteration *i)
-{
-  if (i->position >= 0)
-    {
-      if (i->position)
-        {
-          DECREF_KEY(i->key);
-          DECREF_VALUE(i->value);
-        }
-      
-      if (BTreeItems_seek(ITEMS(i->set), i->position) >= 0)
-        {
-          Bucket *currentbucket;
-
-          currentbucket = BUCKET(ITEMS(i->set)->currentbucket);
-
-          UNLESS(PER_USE(currentbucket)) return -1;
-
-          COPY_KEY(i->key, currentbucket->keys[ITEMS(i->set)->currentoffset]);
-          INCREF_KEY(i->key);
-
-          COPY_VALUE(i->value, 
-                     currentbucket->values[ITEMS(i->set)->currentoffset]);
-          COPY_VALUE(i->value, 
-                   BUCKET(ITEMS(i->set)->currentbucket)
-                   ->values[ITEMS(i->set)->currentoffset]);
-          INCREF_VALUE(i->value);
-
-          i->position ++;
-
-          PER_ALLOW_DEACTIVATION(currentbucket);
-        }
-      else
-        {
-          i->position = -1;
-          PyErr_Clear();
-        }
-    }
-}
-
-static int 
-nextTreeSetItems(SetIteration *i)
-{
-  if (i->position >= 0)
-    {
-      if (i->position)
-        {
-          DECREF_KEY(i->key);
-        }
-      
-      if (BTreeItems_seek(ITEMS(i->set), i->position) >= 0)
-        {
-          Bucket *currentbucket;
-
-          currentbucket = BUCKET(ITEMS(i->set)->currentbucket);
-
-          UNLESS(PER_USE(currentbucket)) return -1;
-
-          COPY_KEY(i->key, currentbucket->keys[ITEMS(i->set)->currentoffset]);
-          INCREF_KEY(i->key);
-
-          i->position ++;
-
-          PER_ALLOW_DEACTIVATION(currentbucket);
-        }
-      else
-        {
-          i->position = -1;
-          PyErr_Clear();
-        }
-    }
-}
-
 static int
 initSetIteration(SetIteration *i, PyObject *s, int w, int *merge)
 {
@@ -238,8 +97,14 @@ initSetIteration(SetIteration *i, PyObject *s, int w, int *merge)
       i->set = s;
       Py_INCREF(s);
 
-      if (w > 0) *merge=1;
-      i->next=nextBucket;
+      if (w >= 0) 
+        {
+          *merge=1;
+          i->next=nextBucket;
+        }
+      else
+        i->next=nextSet;
+
       i->hasValue=1;
     }
   else if (ExtensionClassSubclassInstance_Check(s, &BTreeType))
@@ -247,8 +112,13 @@ initSetIteration(SetIteration *i, PyObject *s, int w, int *merge)
       i->set=BTree_rangeSearch(BTREE(s), NULL, 'i');
       UNLESS(i->set) return -1;
 
-      if (w > 0) *merge=1;
-      i->next=nextBTreeItems;
+      if (w >= 0) 
+        {
+          *merge=1;
+          i->next=nextBTreeItems;
+        }
+      else
+        i->next=nextTreeSetItems;
       i->hasValue=1;
     }
   else if (ExtensionClassSubclassInstance_Check(s, &SetType))
@@ -256,7 +126,6 @@ initSetIteration(SetIteration *i, PyObject *s, int w, int *merge)
       i->set = s;
       Py_INCREF(s);
 
-      if (w > 1) *merge=1;
       i->next=nextSet;
       i->hasValue=0;
     }
@@ -265,7 +134,6 @@ initSetIteration(SetIteration *i, PyObject *s, int w, int *merge)
       i->set=BTree_rangeSearch(BTREE(s), NULL, 'k');
       UNLESS(i->set) return -1;
 
-      if (w > 1) *merge=1;
       i->next=nextTreeSetItems;
       i->hasValue=0;
     }
@@ -311,27 +179,6 @@ set_operation(PyObject *s1, PyObject *s2,
   Bucket *r=0;
   SetIteration i1 = {0,0,0}, i2 = {0,0,0};
   int cmp, merge=0;
-
-  if (s1==Py_None)
-    {
-      if (c12 || c2)
-        {
-          Py_INCREF(s2);
-          return s2;
-        }
-      Py_INCREF(s1);
-      return s1;
-    }
-  else if (s2==Py_None)
-    {
-      if (c12 || c1)
-        {
-          Py_INCREF(s1);
-          return s1;
-        }
-      Py_INCREF(s2);
-      return s2;
-    }
 
   if (initSetIteration(&i1, s1, w1, &merge) < 0) return NULL;
   if (initSetIteration(&i2, s2, w2, &merge) < 0) return NULL;
@@ -451,34 +298,105 @@ err:
 }
 
 static PyObject *
+difference_m(PyObject *ignored, PyObject *args)
+{
+  PyObject *o1, *o2;
+
+  UNLESS(PyArg_ParseTuple(args, "OO", &o1, &o2)) return NULL;
+
+
+  if (o1==Py_None || o2==Py_None) 
+    {
+      Py_INCREF(o1);
+      return Py_None;
+    }
+  
+  return set_operation(o1, o2, 1, -1, 1, 0, 0);
+}         
+
+static PyObject *
 union_m(PyObject *ignored, PyObject *args)
 {
   PyObject *o1, *o2;
-  int w1=1, w2=1;
 
-  UNLESS(PyArg_ParseTuple(args, "OO|ii", &o1, &o2, &w1, &w2)) return NULL;
+  UNLESS(PyArg_ParseTuple(args, "OO", &o1, &o2)) return NULL;
+
+  if (o1==Py_None)
+    {
+      Py_INCREF(o2);
+      return o2;
+    }
+  else if (o2==Py_None)
+    {
+      Py_INCREF(o1);
+      return o1;
+    }
   
-  return set_operation(o1, o2, w1, w2, 1, 1, 1);
+  return set_operation(o1, o2, -1, -1, 1, 1, 1);
 }         
 
 static PyObject *
 intersection_m(PyObject *ignored, PyObject *args)
 {
   PyObject *o1, *o2;
-  int w1=1, w2=1;
 
-  UNLESS(PyArg_ParseTuple(args, "OO|ii", &o1, &o2, &w1, &w2)) return NULL;
+  UNLESS(PyArg_ParseTuple(args, "OO", &o1, &o2)) return NULL;
+
+  if (o1==Py_None)
+    {
+      Py_INCREF(o2);
+      return o2;
+    }
+  else if (o2==Py_None)
+    {
+      Py_INCREF(o1);
+      return o1;
+    }
   
-  return set_operation(o1, o2, w1, w2, 0, 1, 0);
+  return set_operation(o1, o2, -1, -1, 0, 1, 0);
 }         
 
+#ifdef MERGE
+
 static PyObject *
-difference_m(PyObject *ignored, PyObject *args)
+wunion_m(PyObject *ignored, PyObject *args)
 {
   PyObject *o1, *o2;
   int w1=1, w2=1;
 
   UNLESS(PyArg_ParseTuple(args, "OO|ii", &o1, &o2, &w1, &w2)) return NULL;
+
+  if (o1==Py_None)
+    return Py_BuildValue("iO", (o2==Py_None ? 0 : w2), o2);
+  else if (o2==Py_None)
+    return Py_BuildValue("iO", w1, o1);
   
-  return set_operation(o1, o2, w1, w2, 1, 0, 0);
+  o1=set_operation(o1, o2, w1, w2, 1, 1, 1);
+  if (o1) ASSIGN(o1, Py_BuildValue("iO", 1, o1));
+
+  return o1;
 }         
+
+static PyObject *
+wintersection_m(PyObject *ignored, PyObject *args)
+{
+  PyObject *o1, *o2;
+  int w1=1, w2=1;
+
+  UNLESS(PyArg_ParseTuple(args, "OO|ii", &o1, &o2, &w1, &w2)) return NULL;
+
+  if (o1==Py_None)
+    return Py_BuildValue("iO", (o2==Py_None ? 0 : w2), o2);
+  else if (o2==Py_None)
+    return Py_BuildValue("iO", w1, o1);
+  
+  o1=set_operation(o1, o2, w1, w2, 0, 1, 0);
+  if (o1) 
+    ASSIGN(o1, Py_BuildValue("iO", 
+            ((o1->ob_type == (PyTypeObject*)(&SetType)) ? w2+w1 : 1),
+                             o1));
+
+  return o1;
+}         
+
+#endif

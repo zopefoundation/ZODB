@@ -663,6 +663,69 @@ bucket_items(Bucket *self, PyObject *args)
   return NULL;
 }
 
+static PyObject *
+bucket_byValue(Bucket *self, PyObject *args)
+{
+  PyObject *r=0, *o=0, *item=0, *omin;
+  VALUE_TYPE min;
+  VALUE_TYPE v;
+  int i, l, copied=1;
+
+  PER_USE_OR_RETURN(self, NULL);
+
+  UNLESS (PyArg_ParseTuple(args, "O", &omin)) return NULL;
+  COPY_VALUE_FROM_ARG(min, omin, &copied);
+  UNLESS(copied) return NULL;
+
+  for (i=0, l=0; i < self->len; i++) 
+    if (TEST_VALUE(self->values[i], min) >= 0) 
+      l++;
+    
+  UNLESS (r=PyList_New(l)) goto err;
+
+  for (i=0, l=0; i < self->len; i++)
+    {
+      if (TEST_VALUE(self->values[i], min) < 0) continue;
+      
+      UNLESS (item = PyTuple_New(2)) goto err;
+
+      COPY_KEY_TO_OBJECT(o, self->keys[i]);
+      UNLESS (o) goto err;
+      PyTuple_SET_ITEM(item, 1, o);
+
+      COPY_VALUE(v, self->values[i]);
+      NORMALIZE_VALUE(v, min);
+      COPY_VALUE_TO_OBJECT(o, v);
+      DECREF_VALUE(v);
+      UNLESS (o) goto err;
+      PyTuple_SET_ITEM(item, 0, o);
+      
+      if (PyList_SetItem(r, l, item) < 0) goto err;
+      l++;
+
+      item = 0;
+    }
+
+  item=PyObject_GetAttr(r,sort_str);
+  UNLESS (item) goto err;
+  ASSIGN(item, PyObject_CallObject(item, NULL));
+  UNLESS (item) goto err;
+  ASSIGN(item, PyObject_GetAttr(r, reverse_str));
+  UNLESS (item) goto err;
+  ASSIGN(item, PyObject_CallObject(item, NULL));
+  UNLESS (item) goto err;
+  Py_DECREF(item);
+
+  PER_ALLOW_DEACTIVATION(self);
+  return r;
+
+ err:
+  PER_ALLOW_DEACTIVATION(self);
+  Py_XDECREF(r);
+  Py_XDECREF(item);
+  return NULL;
+}
+
 /*
 ** bucket__p_deactivate
 **
@@ -894,7 +957,7 @@ static struct PyMethodDef Bucket_methods[] = {
   {"__setstate__", (PyCFunction) bucket_setstate,	METH_VARARGS,
    "__setstate__() -- Set the state of the object"},
   {"keys",	(PyCFunction) bucket_keys,	METH_VARARGS,
-     "keys() -- Return the keys"},
+     "keys([min, max]) -- Return the keys"},
   {"has_key",	(PyCFunction) bucket_has_key,	METH_VARARGS,
      "has_key(key) -- Test whether the bucket contains the given key"},
   {"clear",	(PyCFunction) bucket_clear,	METH_VARARGS,
@@ -906,9 +969,13 @@ static struct PyMethodDef Bucket_methods[] = {
    "minKey([key]) -- Fine the minimum key\n\n"
    "If an argument is given, find the minimum >= the argument"},
   {"values",	(PyCFunction) bucket_values,	METH_VARARGS,
-     "values() -- Return the values"},
+     "values([min, max]) -- Return the values"},
   {"items",	(PyCFunction) bucket_items,	METH_VARARGS,
-     "items() -- Return the items"},
+     "items([min, max])) -- Return the items"},
+  {"byValue",	(PyCFunction) bucket_byValue,	METH_VARARGS,
+   "byValue(min) -- "
+   "Return value-keys with values >= min and reverse sorted by values"
+  },
   {"get",	(PyCFunction) bucket_getm,	METH_VARARGS,
    "get(key[,default]) -- Look up a value\n\n"
    "Return the default (or None) if the key is not found."
@@ -1001,3 +1068,34 @@ static PyExtensionClass BucketType = {
   EXTENSIONCLASS_BASICNEW_FLAG | PERSISTENT_TYPE_FLAG 
   | EXTENSIONCLASS_NOINSTDICT_FLAG,
 };
+
+
+static int 
+nextBucket(SetIteration *i)
+{
+  UNLESS(PER_USE(BUCKET(i->set))) return -1;
+          
+  if (i->position >= 0)
+    {
+      if (i->position)
+        {
+          DECREF_KEY(i->key);
+          DECREF_VALUE(i->value);
+        }
+
+      if (i->position < BUCKET(i->set)->len)
+        {
+          COPY_KEY(i->key, BUCKET(i->set)->keys[i->position]);
+          INCREF_KEY(i->key);
+          COPY_VALUE(i->value, BUCKET(i->set)->values[i->position]);
+          INCREF_VALUE(i->value);
+          i->position ++;
+        }
+      else
+        i->position = -1;
+    }
+
+  PER_ALLOW_DEACTIVATION(BUCKET(i->set));
+          
+  return 0;
+}

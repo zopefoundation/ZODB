@@ -1,4 +1,5 @@
 #define VALUE_TYPE int
+#define TEST_VALUE(VALUE, TARGET) ( (VALUE) - (TARGET) )
 #define DECLARE_VALUE(NAME) VALUE_TYPE NAME
 #define VALUE_PARSE "i"
 #define DECREF_VALUE(k)
@@ -10,6 +11,8 @@
       PyErr_SetString(PyExc_TypeError, "expected integer value"); \
       *(STATUS)=0; } 
   
+#define NORMALIZE_VALUE(V, MIN) ((MIN) > 0) ? ((V)/=(MIN)) : 0
+
 #define MERGE_DEFAULT 1
 #define MERGE(O1, w1, O2, w2) ((O1)*(w1)+(O2)*(w2))
 #define MERGE_WEIGHT(O, w) ((O)*(w))

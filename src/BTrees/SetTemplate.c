@@ -314,3 +314,30 @@ static PyExtensionClass SetType = {
   EXTENSIONCLASS_BASICNEW_FLAG | PERSISTENT_TYPE_FLAG 
   | EXTENSIONCLASS_NOINSTDICT_FLAG,
 };
+
+static int 
+nextSet(SetIteration *i)
+{
+  UNLESS(PER_USE(BUCKET(i->set))) return -1;
+          
+  if (i->position >= 0)
+    {
+      if (i->position)
+        {
+          DECREF_KEY(i->key);
+        }
+
+      if (i->position < BUCKET(i->set)->len)
+        {
+          COPY_KEY(i->key, BUCKET(i->set)->keys[i->position]);
+          INCREF_KEY(i->key);
+          i->position ++;
+        }
+      else
+        i->position = -1;
+    }
+
+  PER_ALLOW_DEACTIVATION(BUCKET(i->set));
+          
+  return 0;
+}
