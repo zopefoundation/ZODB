@@ -8,7 +8,12 @@
   <sectiontype name="filestorage" datatype=".FileStorage"
                implements="storage">
     <key name="path" required="yes"/>
-    <key name="create" datatype="boolean" default="false"/>
+    <key name="create" datatype="boolean" default="false">
+      <description>
+        Flag that indicates whether the storage should be truncated if
+        it already exists.
+      </description>
+    </key>
     <key name="read-only" datatype="boolean" default="false"/>
     <key name="stop"/>
     <key name="quota" datatype="integer"/>
