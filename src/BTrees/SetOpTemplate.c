@@ -16,7 +16,7 @@
  Set operations
  ****************************************************************************/
 
-#define SETOPTEMPLATE_C "$Id: SetOpTemplate.c,v 1.28 2002/06/27 22:09:32 tim_one Exp $\n"
+#define SETOPTEMPLATE_C "$Id: SetOpTemplate.c,v 1.29 2002/06/27 22:24:16 tim_one Exp $\n"
 
 #ifdef INTSET_H
 static int
@@ -508,10 +508,11 @@ multiunion_m(PyObject *ignored, PyObject *args)
             set->ob_type == (PyTypeObject*)&BucketType)
         {
             Bucket *b = BUCKET(set);
-            int status;
+            int status = 0;
 
             UNLESS (PER_USE(b)) goto Error;
-            status = bucket_append(result, b, 0, b->len, 0, i < n-1);
+            if (b->len)
+                status = bucket_append(result, b, 0, b->len, 0, i < n-1);
             PER_UNUSE(b);
             if (status < 0) goto Error;
         }
