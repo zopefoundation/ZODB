@@ -647,6 +647,8 @@ class StubDatabase:
         self._storage = StubStorage()
 
     classFactory = None
+    database_name = 'stubdatabase'
+    databases = {'stubdatabase': database_name}
 
     def invalidate(self, transaction, dict_with_oid_keys, connection):
         pass
