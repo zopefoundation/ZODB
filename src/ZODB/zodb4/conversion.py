@@ -14,7 +14,7 @@
 """Nitty-gritty conversion of a ZODB 4 FileStorage to a ZODB 3 FileStorage."""
 
 import sys
-from cPickle import dumps, Pickler, Unpickler
+from cPickle import Pickler, Unpickler
 from cStringIO import StringIO
 
 from ZODB.FileStorage import FileStorage

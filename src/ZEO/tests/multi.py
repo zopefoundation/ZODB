@@ -19,7 +19,6 @@ import persistent
 import persistent.mapping
 from ZEO.tests import forker
 
-import asyncore
 import os
 import tempfile
 import time

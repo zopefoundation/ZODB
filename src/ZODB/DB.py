@@ -13,10 +13,10 @@
 ##############################################################################
 """Database objects
 
-$Id: DB.py,v 1.63 2004/02/25 12:31:56 jim Exp $"""
-__version__='$Revision: 1.63 $'[11:-2]
+$Id: DB.py,v 1.64 2004/02/27 00:31:53 faassen Exp $"""
+__version__='$Revision: 1.64 $'[11:-2]
 
-import cPickle, cStringIO, sys, POSException, UndoLogCompatible
+import cPickle, cStringIO, sys, UndoLogCompatible
 from Connection import Connection
 from thread import allocate_lock
 from Transaction import Transaction, get_transaction
@@ -24,8 +24,6 @@ from serialize import referencesf
 from time import time, ctime
 from zLOG import LOG, ERROR
 from ZODB.broken import find_global
-
-from types import StringType
 
 def list2dict(L):
     d = {}

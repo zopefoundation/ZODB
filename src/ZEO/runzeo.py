@@ -34,7 +34,6 @@ Unless -C is specified, -a and -f are required.
 
 import os
 import sys
-import getopt
 import signal
 import socket
 

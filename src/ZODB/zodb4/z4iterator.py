@@ -18,7 +18,7 @@ from struct import unpack
 
 from ZODB.zodb4.z4interfaces import ZERO
 from ZODB.zodb4.z4utils import u64, splitrefs
-from ZODB.zodb4.z4format import FileStorageFormatter, DataHeader, TxnHeader
+from ZODB.zodb4.z4format import FileStorageFormatter
 from ZODB.zodb4.z4format import TRANS_HDR, TRANS_HDR_LEN, DATA_HDR
 from ZODB.zodb4.z4format import DATA_HDR_LEN, DATA_VERSION_HDR_LEN
 

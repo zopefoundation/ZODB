@@ -13,7 +13,7 @@
 ##############################################################################
 """Handy standard storage machinery
 
-$Id: BaseStorage.py,v 1.43 2004/02/26 22:53:23 jeremy Exp $
+$Id: BaseStorage.py,v 1.44 2004/02/27 00:31:53 faassen Exp $
 """
 import cPickle
 import threading
@@ -26,7 +26,6 @@ from persistent.TimeStamp import TimeStamp
 import zLOG
 from ZODB import POSException
 from ZODB.UndoLogCompatible import UndoLogCompatible
-from ZODB.utils import z64
 
 class BaseStorage(UndoLogCompatible):
     _transaction=None # Transaction that is being committed

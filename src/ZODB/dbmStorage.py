@@ -18,9 +18,7 @@ don't support versions or Undo.  This may be useful when implementing
 objects like hit counters that don't need or want to participate
 in undo or versions.
 """
-__version__='$Revision: 1.4 $'[11:-2]
-
-import base64, POSException, time, string, utils
+__version__='$Revision: 1.5 $'[11:-2]
 
 from MappingStorage import MappingStorage
 from BaseStorage import BaseStorage

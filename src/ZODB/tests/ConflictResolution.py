@@ -19,11 +19,6 @@ from persistent import Persistent
 
 from ZODB.tests.StorageTestBase import zodb_unpickle, zodb_pickle
 
-import sys
-import types
-from cPickle import Pickler, Unpickler
-from cStringIO import StringIO
-
 class PCounter(Persistent):
 
     _value = 0

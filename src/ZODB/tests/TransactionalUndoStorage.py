@@ -21,7 +21,7 @@ import types
 from ZODB import POSException
 from ZODB.Transaction import Transaction
 from ZODB.serialize import referencesf
-from ZODB.utils import u64, p64
+from ZODB.utils import p64
 from ZODB import DB
 
 from persistent import Persistent

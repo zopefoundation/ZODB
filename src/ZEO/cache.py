@@ -29,8 +29,6 @@ import struct
 import tempfile
 import time
 
-from sets import Set
-
 from ZODB.utils import z64, u64
 
 ##

@@ -17,7 +17,6 @@ import os
 import random
 import stat
 import tempfile
-import unittest
 
 import ZODB, ZODB.FileStorage
 from StorageTestBase import StorageTestBase

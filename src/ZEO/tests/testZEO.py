@@ -15,8 +15,6 @@
 
 # System imports
 import os
-import sys
-import time
 import random
 import socket
 import asyncore

@@ -3,7 +3,6 @@
 import os
 
 import ZEO
-import zLOG
 import zdaemon.zdctl
 
 

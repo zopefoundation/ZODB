@@ -42,12 +42,11 @@ Options:
 """
 
 import asyncore
-import sys, os, getopt, string, time
+import sys, os, getopt, time
 ##sys.path.insert(0, os.getcwd())
 
-import ZODB, ZODB.FileStorage
+import ZODB
 import persistent
-import ZEO.ClientStorage, ZEO.StorageServer
 from ZEO.tests import forker
 from ZODB.POSException import ConflictError
 

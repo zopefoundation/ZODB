@@ -18,7 +18,6 @@ import os
 import sys
 import tempfile
 import unittest
-from StringIO import StringIO
 
 import ZODB.config
 

@@ -13,7 +13,7 @@
 ##############################################################################
 """Storage implementation using a log written to a single file.
 
-$Revision: 1.6 $
+$Revision: 1.7 $
 """
 
 import base64
@@ -38,8 +38,7 @@ from ZODB.utils import p64, u64, cp, z64
 from ZODB.FileStorage.fspack import FileStoragePacker
 from ZODB.FileStorage.format \
      import FileStorageFormatter, DataHeader, TxnHeader, DATA_HDR, \
-     DATA_HDR_LEN, TRANS_HDR, TRANS_HDR_LEN, CorruptedDataError, \
-     DATA_VERSION_HDR_LEN
+     DATA_HDR_LEN, TRANS_HDR, TRANS_HDR_LEN, CorruptedDataError
 
 try:
     from ZODB.fsIndex import fsIndex

@@ -25,7 +25,6 @@ import gc
 
 import ZODB
 import ZODB.MappingStorage
-from ZODB.POSException import ConflictError
 from persistent.cPickleCache import PickleCache
 from persistent.mapping import PersistentMapping
 from ZODB.tests.MinPO import MinPO

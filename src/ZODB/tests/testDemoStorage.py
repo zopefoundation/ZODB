@@ -12,7 +12,7 @@
 #
 ##############################################################################
 import ZODB.DemoStorage
-import os, unittest
+import unittest
 
 from ZODB.tests import StorageTestBase, BasicStorage, \
      VersionStorage, Synchronization

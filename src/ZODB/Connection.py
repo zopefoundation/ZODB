@@ -13,7 +13,7 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.126 2004/02/26 22:57:09 jeremy Exp $"""
+$Id: Connection.py,v 1.127 2004/02/27 00:31:53 faassen Exp $"""
 
 import logging
 import sys
@@ -24,7 +24,6 @@ from time import time
 from utils import u64
 
 from persistent import PickleCache
-from zLOG import LOG, ERROR, BLATHER, WARNING
 
 from ZODB.ConflictResolution import ResolvedSerial
 from ZODB.ExportImport import ExportImport
@@ -115,7 +114,7 @@ class Connection(ExportImport, object):
     @group Other Methods: oldstate, exchange, getDebugInfo, setDebugInfo,
         getTransferCounts
 
-    $Id: Connection.py,v 1.126 2004/02/26 22:57:09 jeremy Exp $
+    $Id: Connection.py,v 1.127 2004/02/27 00:31:53 faassen Exp $
     """
 
     _tmp = None

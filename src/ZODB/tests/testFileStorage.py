@@ -12,13 +12,9 @@
 #
 ##############################################################################
 import ZODB.FileStorage
-import sys, os, unittest
-import errno
-import filecmp
-import StringIO
+import os, unittest
 from ZODB.Transaction import Transaction
 from ZODB import POSException
-from ZODB.fsrecover import recover
 
 from ZODB.tests import StorageTestBase, BasicStorage, \
      TransactionalUndoStorage, VersionStorage, \
@@ -26,7 +22,7 @@ from ZODB.tests import StorageTestBase, BasicStorage, \
      Synchronization, ConflictResolution, HistoryStorage, \
      IteratorStorage, Corruption, RevisionStorage, PersistentStorage, \
      MTStorage, ReadOnlyStorage, RecoveryStorage
-from ZODB.tests.StorageTestBase import MinPO, zodb_unpickle, zodb_pickle
+from ZODB.tests.StorageTestBase import MinPO, zodb_pickle
 
 class BaseFileStorageTests(StorageTestBase.StorageTestBase):
 

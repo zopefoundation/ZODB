@@ -11,7 +11,6 @@
 # FOR A PARTICULAR PURPOSE
 #
 ##############################################################################
-import random
 from unittest import TestCase, TestSuite, TextTestRunner, makeSuite
 
 from BTrees.OOBTree import OOBTree, OOBucket, OOSet, OOTreeSet

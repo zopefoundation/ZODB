@@ -19,7 +19,7 @@ This uses Vinay Sajip's PEP 282 logging module.
 
 __version__='$Revision$'[11:-2]
 
-import os, sys, time
+import os, time
 import logging
 from BaseLogger import BaseLogger
 from ZConfig.components.logger import loghandler

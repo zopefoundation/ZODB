@@ -14,11 +14,7 @@
 
 # originally zodb.utils
 
-from persistent.TimeStamp import TimeStamp
 import struct
-import time
-
-from sets import Set
 
 def p64(v):
     """Pack an integer or long into a 8-byte string"""

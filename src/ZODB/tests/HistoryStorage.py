@@ -19,9 +19,6 @@ all these tests.
 
 from ZODB.Transaction import Transaction
 from ZODB.tests.MinPO import MinPO
-from ZODB.tests.StorageTestBase import zodb_unpickle
-
-
 
 class HistoryStorage:
     def checkSimpleHistory(self):

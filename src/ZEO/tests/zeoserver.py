@@ -18,7 +18,6 @@ import sys
 import time
 import errno
 import getopt
-import random
 import socket
 import signal
 import asyncore

@@ -13,14 +13,14 @@
 ##############################################################################
 """Mounted database support
 
-$Id: Mount.py,v 1.21 2003/11/28 16:44:49 jim Exp $"""
-__version__='$Revision: 1.21 $'[11:-2]
+$Id: Mount.py,v 1.22 2004/02/27 00:31:53 faassen Exp $"""
+__version__='$Revision: 1.22 $'[11:-2]
 
 import thread, persistent, Acquisition
 from Acquisition import aq_base
 import string, time, sys
 from POSException import MountedStorageError
-from zLOG import LOG, ERROR, INFO, WARNING
+from zLOG import LOG, INFO, WARNING
 
 # dbs is a holder for all DB objects, needed to overcome
 # threading issues.  It maps connection params to a DB object

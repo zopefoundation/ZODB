@@ -13,9 +13,8 @@
 ##############################################################################
 """ZODB-defined exceptions
 
-$Id: POSException.py,v 1.22 2003/11/28 16:44:49 jim Exp $"""
+$Id: POSException.py,v 1.23 2004/02/27 00:31:53 faassen Exp $"""
 
-from types import StringType, DictType
 from ZODB.utils import oid_repr, serial_repr
 
 def _fmt_undo(oid, reason):

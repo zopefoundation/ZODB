@@ -74,17 +74,13 @@ Positional arguments:
         pairs.  E.g. "name=full;frequency=3600"
 """
 
-import os
 import re
 import sys
 import time
-import errno
 import getopt
 import marshal
 import profile
-import traceback
 
-import ZODB
 from ZODB import utils
 from ZODB import StorageTypes
 from ZODB.TimeStamp import TimeStamp

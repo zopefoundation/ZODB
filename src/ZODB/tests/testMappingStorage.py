@@ -12,7 +12,7 @@
 #
 ##############################################################################
 import ZODB.MappingStorage
-import os, unittest
+import unittest
 
 from ZODB.tests import StorageTestBase
 from ZODB.tests \

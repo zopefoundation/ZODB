@@ -14,7 +14,7 @@
 ##############################################################################
 """Tool to dump the last few transactions from a FileStorage."""
 
-from ZODB.fstools import prev_txn, TxnHeader
+from ZODB.fstools import prev_txn
 
 import binascii
 import getopt

@@ -11,7 +11,7 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
-import unittest, sys
+import unittest
 from ZODB.fsIndex import fsIndex
 from ZODB.utils import p64
 
