@@ -13,7 +13,7 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.73 2002/09/07 16:22:16 jeremy Exp $"""
+$Id: Connection.py,v 1.74 2002/09/07 16:40:59 jeremy Exp $"""
 
 from cPickleCache import PickleCache, MUCH_RING_CHECKING
 from POSException import ConflictError, ReadConflictError
@@ -285,8 +285,7 @@ class Connection(ExportImport.ExportImport):
             self._creating.append(oid)
 
         elif object._p_changed:
-            if ((invalid(oid) and not hasattr(object, '_p_resolveConflict'))
-                or invalid(None)):
+            if invalid(oid) and not hasattr(object, '_p_resolveConflict'):
                 raise ConflictError(object=object)
             self._invalidating.append(oid)
 
@@ -348,12 +347,7 @@ class Connection(ExportImport.ExportImport):
                 self._creating.append(oid)
             else:
                 #XXX We should never get here
-                if (
-                    (invalid(oid) and
-                     not hasattr(object, '_p_resolveConflict'))
-                    or
-                    invalid(None)
-                    ):
+                if invalid(oid) and not hasattr(object, '_p_resolveConflict'):
                     raise ConflictError(object=object)
                 self._invalidating.append(oid)
 
@@ -514,8 +508,7 @@ class Connection(ExportImport.ExportImport):
             # storage to make sure that we don't miss an invaildation
             # notifications between the time we check and the time we
             # read.
-            invalid = self._invalid
-            if invalid(oid) or invalid(None):
+            if self._invalid(oid):
                 if not hasattr(object.__class__, '_p_independent'):
                     get_transaction().register(self)
                     raise ReadConflictError(object=object)
@@ -605,8 +598,6 @@ class Connection(ExportImport.ExportImport):
         self._invalidate_creating()
 
     def tpc_begin(self, transaction, sub=None):
-        if self._invalid(None): # Some nitwit invalidated everything!
-            raise ConflictError("transaction already invalidated")
         self._invalidating = []
         self._creating = []
 
