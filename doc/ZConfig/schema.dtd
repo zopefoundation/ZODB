@@ -2,7 +2,7 @@
 
 <!ELEMENT schema (description?, metadefault?, example?,
                   import*,
-                  (sectiontype | sectiongroup)*,
+                  (sectiontype | abstracttype)*,
                   (section | key | multisection | multikey)*)>
 <!ATTLIST schema
           prefix     NMTOKEN  #IMPLIED
@@ -10,21 +10,36 @@
           keytype    NMTOKEN  #IMPLIED
           datatype   NMTOKEN  #IMPLIED>
 
-<!ELEMENT component (description?, (sectiontype | sectiongroup)*)>
+<!ELEMENT component (description?, (sectiontype | abstracttype)*)>
 <!ATTLIST component
           prefix     NMTOKEN  #IMPLIED>
 
-<!ELEMENT extension (description?, (sectiontype | sectiongroup)*)>
+<!ELEMENT extension (description?, (sectiontype | abstracttype)*)>
 <!ATTLIST extension
           prefix     NMTOKEN  #IMPLIED>
 
 <!ELEMENT import EMPTY>
 <!ATTLIST import
-          src        CDATA    #REQUIRED>
+          package    NMTOKEN  #IMPLIED
+          src        CDATA    #IMPLIED>
 
 <!ELEMENT description (#PCDATA)*>
 <!ELEMENT metadefault (#PCDATA)*>
 <!ELEMENT example     (#PCDATA)*>
+
+<!ELEMENT sectiontype (description?, (section | key)*)>
+<!ATTLIST sectiontype
+          name       NMTOKEN  #REQUIRED
+          prefix     NMTOKEN  #IMPLIED
+          keytype    NMTOKEN  #IMPLIED
+          datatype   NMTOKEN  #IMPLIED
+          implements NMTOKEN  #IMPLIED
+          extends    NMTOKEN  #IMPLIED>
+
+<!ELEMENT abstracttype (description?)>
+<!ATTLIST abstracttype
+          name       NMTOKEN  #REQUIRED
+          prefix     NMTOKEN  #IMPLIED>
 
 <!ELEMENT key (description?, metadefault?, example?)>
 <!ATTLIST key
@@ -42,20 +57,6 @@
           datatype   NMTOKEN  #IMPLIED
           handler    NMTOKEN  #IMPLIED
           required   (yes|no) "no">
-
-<!ELEMENT sectiontype (description?, (section | key)*)>
-<!ATTLIST sectiontype
-          type       NMTOKEN  #REQUIRED
-          prefix     NMTOKEN  #IMPLIED
-          keytype    NMTOKEN  #IMPLIED
-          datatype   NMTOKEN  #IMPLIED
-          group      NMTOKEN  #IMPLIED
-          extends    NMTOKEN  #IMPLIED>
-
-<!ELEMENT sectiongroup (description?, sectiontype+)>
-<!ATTLIST sectiongroup
-          type       NMTOKEN  #REQUIRED
-          prefix     NMTOKEN  #IMPLIED>
 
 <!ELEMENT section (description?)>
 <!ATTLIST section
