@@ -3,6 +3,17 @@ What's new in ZODB3 3.5a0?
 Release date: DD-MMM-YYYY
 
 
+What's new in ZODB3 3.4xx?
+==========================
+Release date: MM-DDD-2005
+
+Tests
+-----
+
+The various flavors of the ``check2ZODBThreads`` and ``check7ZODBThreads``
+tests are much less likely to suffer sproadic failures now.
+
+
 What's new in ZODB3 3.4a2?
 ==========================
 Release date: 03-Apr-2005
@@ -135,6 +146,17 @@ fsIndex
 Efficient, general implementations of ``minKey()`` and ``maxKey()`` methods
 were added.  ``fsIndex`` is a special hybrid kind of BTree used to implement
 FileStorage indices.  Thanks to Chris McDonough for code and tests.
+
+
+What's new in ZODB3 3.3.1?
+==========================
+Release date: DD-MMM-2005
+
+Tests
+-----
+
+The various flavors of the ``check2ZODBThreads`` and ``check7ZODBThreads``
+tests are much less likely to suffer sproadic failures now.
 
 
 What's new in ZODB3 3.3.1c1?
