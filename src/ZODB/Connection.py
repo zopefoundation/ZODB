@@ -84,8 +84,8 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.53 2001/05/17 18:35:10 shane Exp $"""
-__version__='$Revision: 1.53 $'[11:-2]
+$Id: Connection.py,v 1.54 2001/05/21 22:45:38 jeremy Exp $"""
+__version__='$Revision: 1.54 $'[11:-2]
 
 from cPickleCache import PickleCache
 from POSException import ConflictError, ExportError
@@ -683,18 +683,19 @@ class Connection(ExportImport.ExportImport):
     def tpc_finish(self, transaction):
 
         # It's important that the storage call the function we pass
-        # (self.tpc_finish_) while it still has it's lock.  We don't
-        # want another thread to be able to read any updated data
-        # until we've had a chance to send an invalidation message to
-        # all of the other connections!
+        # (self._invalidate_invalidating) while it still has it's
+        # lock.  We don't want another thread to be able to read any
+        # updated data until we've had a chance to send an
+        # invalidation message to all of the other connections!
 
         if self._tmp is not None:
             # Commiting a subtransaction!
             # There is no need to invalidate anything.
-            self._storage.tpc_finish(transaction, self._invalidate_sub)
+            self._storage.tpc_finish(transaction)
             self._storage._creating[:0]=self._creating
             del self._creating[:]
         else:
+            self._db.begin_invalidation()
             self._storage.tpc_finish(transaction,
                                      self._invalidate_invalidating)
 
@@ -703,13 +704,9 @@ class Connection(ExportImport.ExportImport):
 
     def _invalidate_invalidating(self):
         invalidate=self._db.invalidate
-        for oid in self._invalidating: invalidate(oid, self)
-
-    def _invalidate_sub(self):
-        # There's no point in invalidating any objects in a subtransaction
-        #
-        # Because we may ultimately abort the containing transaction.
-        pass
+        for oid in self._invalidating:
+            invalidate(oid, self)
+        self._db.finish_invalidation()
 
     def sync(self):
         get_transaction().abort()
