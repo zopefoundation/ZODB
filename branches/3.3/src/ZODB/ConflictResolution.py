@@ -11,7 +11,7 @@
 # FOR A PARTICULAR PURPOSE
 #
 ##############################################################################
-import sys
+
 import logging
 from cStringIO import StringIO
 from cPickle import Unpickler, Pickler
