@@ -18,6 +18,103 @@ $Id$
 
 import zope.interface
 
+class IResourceManager(zope.interface.Interface):
+    """Objects that manage resources transactionally.
+
+    These objects may manage data for other objects, or they may manage
+    non-object storages, such as relational databases.
+
+    IDataManagerOriginal is the interface currently provided by ZODB
+    database connections, but the intent is to move to the newer
+    IDataManager.
+    """
+
+    # Two-phase commit protocol.  These methods are called by the
+    # ITransaction object associated with the transaction being
+    # committed.
+
+    def tpc_begin(transaction):
+        """Begin two-phase commit, to save data changes.
+
+        An implementation should do as much work as possible without
+        making changes permanent.  Changes should be made permanent
+        when tpc_finish is called (or aborted if tpc_abort is called).
+        The work can be divided between tpc_begin() and tpc_vote(), and
+        the intent is that tpc_vote() be as fast as possible (to minimize
+        the period of uncertainty).
+
+        transaction is the ITransaction instance associated with the
+        transaction being committed.
+        """
+
+    def tpc_vote(transaction):
+        """Verify that a resource manager can commit the transaction.
+
+        This is the last chance for a resource manager to vote 'no'.  A
+        resource manager votes 'no' by raising an exception.
+
+        transaction is the ITransaction instance associated with the
+        transaction being committed.
+        """
+
+    def tpc_finish(transaction):
+        """Indicate confirmation that the transaction is done.
+
+        transaction is the ITransaction instance associated with the
+        transaction being committed.
+
+        This should never fail. If this raises an exception, the
+        database is not expected to maintain consistency; it's a
+        serious error.
+        """
+
+    def tpc_abort(transaction):
+        """Abort a transaction.
+
+        transaction is the ITransaction instance associated with the
+        transaction being committed.
+
+        All changes made by the current transaction are aborted.  Note
+        that this includes all changes stored in any savepoints that may
+        be associated with the current transaction.
+
+        tpc_abort() can be called at any time, either in or out of the
+        two-phase commit.
+
+        This should never fail.
+        """
+
+    # The savepoint/rollback API.
+
+    def savepoint(transaction):
+        """Save partial transaction changes.
+
+        There are two purposes:
+
+        1) To allow discarding partial changes without discarding all
+           dhanges.
+
+        2) To checkpoint changes to disk that would otherwise live in
+           memory for the duration of the transaction.
+
+        Returns an object implementing ISavePoint2 that can be used
+        to discard changes made since the savepoint was captured.
+
+        An implementation that doesn't support savepoints should implement
+        this method by returning a savepoint object that raises an
+        exception when its rollback method is called.  The savepoint method
+        shouldn't raise an error.  This way, transactions that create
+        savepoints can proceed as long as an attempt is never made to roll
+        back a savepoint.
+        """
+
+    def discard(transaction):
+        """Discard changes within the transaction since the last savepoint.
+
+        That means changes made since the last savepoint if one exists, or
+        since the start of the transaction.
+        """
+
 class IDataManagerOriginal(zope.interface.Interface):
     """Objects that manage transactional storage.
 
@@ -296,6 +393,35 @@ class ITransaction(zope.interface.Interface):
         """
         # XXX is this this allowed to cause an exception here, during
         # the two-phase commit, or can it toss data silently?
+
+class ISavePoint(zope.interface.Interface):
+    """ISavePoint objects represent partial transaction changes.
+
+    Sequences of savepoint objects are associated with transactions,
+    and with IResourceManagers.
+    """
+
+    def rollback():
+        """Discard changes made after this savepoint.
+
+        This includes discarding (call the discard method on) all
+        subsequent savepoints.
+        """
+
+    def discard():
+        """Discard changes saved by this savepoint.
+
+        That means changes made since the immediately preceding
+        savepoint if one exists, or since the start of the transaction,
+        until this savepoint.
+
+        Once a savepoint has been discarded, it's an error to attempt
+        to rollback or discard it again.
+        """
+
+    next_savepoint = zope.interface.Attribute(
+        """The next savepoint (later in time), or None if self is the
+           most recent savepoint.""")
 
 class IRollback(zope.interface.Interface):
 
