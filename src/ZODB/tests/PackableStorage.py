@@ -414,6 +414,8 @@ class PackableStorage(PackableStorageBase):
             self.assert_(not t.isAlive())
 
         # iterator over the storage to make sure it's sane
+        if not hasattr(self._storage, "iterator"):
+            return
         iter = self._storage.iterator()
         for txn in iter:
             for data in txn:
