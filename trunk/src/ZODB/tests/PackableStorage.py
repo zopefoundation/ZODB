@@ -248,17 +248,66 @@ class PackableStorage(PackableStorageBase):
         if not hasattr(self._storage, "iterator"):
             return
 
-        iter = self._storage.iterator()
-        for txn in iter:
+        it = self._storage.iterator()
+        for txn in it:
             for data in txn:
                 pass
-        iter.close()
+        it.close()
 
     def checkPackWhileWriting(self):
         self._PackWhileWriting(pack_now=False)
 
     def checkPackNowWhileWriting(self):
         self._PackWhileWriting(pack_now=True)
+
+    # XXX Disabled because it always fails now.
+    def XXXcheckPackLotsWhileWriting(self):
+        # This is like the other pack-while-writing tests, except it packs
+        # repeatedly until the client thread is done.  At the time it was
+        # introduced, it reliably provoked
+        #     CorruptedError:  ... transaction with checkpoint flag set
+        # in the ZEO flavor of the FileStorage tests.
+
+        db = DB(self._storage)
+        conn = db.open()
+        root = conn.root()
+
+        choices = range(10)
+        for i in choices:
+            root[i] = MinPO(i)
+        get_transaction().commit()
+
+        snooze()
+        packt = time.time()
+
+        for dummy in choices:
+           for i in choices:
+               root[i].value = MinPO(i)
+               get_transaction().commit()
+
+        NUM_LOOP_TRIP = 100
+        timer = ElapsedTimer(time.time())
+        threads = [ClientThread(db, choices, NUM_LOOP_TRIP, timer, i)
+                   for i in range(1)]
+        for t in threads:
+            t.start()
+
+        while True in [t.isAlive() for t in threads]:
+            db.pack(packt)
+            snooze()
+            packt = time.time()
+
+        for t in threads:
+            t.join()
+
+        # Iterate over the storage to make sure it's sane.
+        if not hasattr(self._storage, "iterator"):
+            return
+        it = self._storage.iterator()
+        for txn in it:
+            for data in txn:
+                pass
+        it.close()
 
 class PackableUndoStorage(PackableStorageBase):
 
