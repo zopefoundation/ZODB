@@ -98,6 +98,13 @@ but these work again too:
 - ``from ZODB.PersistentList import PersistentList``
 - ``from ZODB.PersistentMapping import PersistentMapping``
 
+BTrees
+------
+
+The BTrees interface file neglected to document the optional
+``excludemin`` and ``excludemax`` arguments to the ``keys()``, ``values()``
+and ``items()`` methods.  Appropriate changes were merged in from the
+ZODB4 BTrees interface file.
 
 fsIndex
 -------
