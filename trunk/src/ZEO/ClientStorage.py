@@ -13,7 +13,7 @@
 ##############################################################################
 """Network ZODB storage client
 """
-__version__='$Revision: 1.41 $'[11:-2]
+__version__='$Revision: 1.42 $'[11:-2]
 
 import cPickle
 import os
@@ -65,7 +65,7 @@ disconnected_stub = DisconnectedServerStub()
 class ClientStorage:
 
     def __init__(self, addr, storage='1', cache_size=20000000,
-                 name='', client='', var=None,
+                 name='', client=None, var=None,
                  min_disconnect_poll=5, max_disconnect_poll=300,
                  wait=0, read_only=0):
 
@@ -88,7 +88,7 @@ class ClientStorage:
         self._basic_init(name or str(addr))
 
         # Decide whether to use non-temporary files
-        client = client or os.environ.get('ZEO_CLIENT', '')
+        client = client or os.environ.get('ZEO_CLIENT')
         self._cache = ClientCache.ClientCache(storage, cache_size,
                                               client=client, var=var)
         self._cache.open() # XXX open now? or later?
