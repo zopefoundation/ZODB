@@ -128,13 +128,12 @@ class ZEOServer:
     def setup_default_logging(self):
         if self.options.config_logger is not None:
             return
-        if os.getenv("EVENT_LOG_FILE") is not None:
-            return
-        if os.getenv("STUPID_LOG_FILE") is not None:
-            return
-        # No log file is configured; default to stderr.  The logging
-        # level can still be controlled by {STUPID,EVENT}_LOG_SEVERITY.
-        os.environ["EVENT_LOG_FILE"] = ""
+        # No log file is configured; default to stderr.
+        import logging
+        logger = logging.getLogger()
+        handler = logging.StreamHandler()
+        handler.setLevel(logging.INFO)
+        logger.addHandler(handler)
 
     def check_socket(self):
         if self.can_connect(self.options.family, self.options.address):
