@@ -63,7 +63,7 @@ class StupidLogTest(unittest.TestCase):
         if severity:
             os.environ['%s_LOG_SEVERITY' % self.prefix] = str(severity)
         self._severity = severity
-        zLOG.MinimalLogger._log.initialize()
+        zLOG.initialize()
 
     def verifyEntry(self, f, time=None, subsys=None, severity=None,
                     summary=None, detail=None, error=None):
@@ -110,7 +110,6 @@ class StupidLogTest(unittest.TestCase):
     def checkBasics(self):
         self.setLog()
         zLOG.LOG("basic", zLOG.INFO, "summary")
-
         f = self.getLogFile()
         self.verifyEntry(f, subsys="basic", summary="summary")
 
