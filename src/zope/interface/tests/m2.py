@@ -11,5 +11,7 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
-#
-# This file is necessary to make this directory a package.
+"""Test module that doesn't declare an interface
+
+$Id$
+"""

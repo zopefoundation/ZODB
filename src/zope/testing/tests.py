@@ -11,5 +11,19 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
-#
-# This file is necessary to make this directory a package.
+"""Tests for the testing framework.
+
+$Id$
+"""
+import unittest
+from zope.testing.doctestunit import DocTestSuite
+
+
+def test_suite():
+    return unittest.TestSuite((
+        DocTestSuite('zope.testing.loggingsupport'),
+        ))
+
+if __name__ == '__main__':
+    unittest.main(defaultTest='test_suite')
+

@@ -1,6 +1,6 @@
 ##############################################################################
 #
-# Copyright (c) 2004 Zope Corporation and Contributors.
+# Copyright (c) 2001, 2002 Zope Corporation and Contributors.
 # All Rights Reserved.
 #
 # This software is subject to the provisions of the Zope Public License,
@@ -11,5 +11,15 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
-#
-# This file is necessary to make this directory a package.
+"""Dummy Module
+
+$Id$
+"""
+from zope.interface import moduleProvides
+from zope.interface.tests.ifoo import IFoo
+from zope.interface import moduleProvides
+
+moduleProvides(IFoo)
+
+def bar(baz):
+    pass
