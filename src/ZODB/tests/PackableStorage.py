@@ -381,6 +381,65 @@ class PackableStorage(PackableStorageBase):
 
         eq(root['obj'].value, 7)
 
+    def checkPackUndoLog(self):
+        self._initroot()
+        eq = self.assertEqual
+        raises = self.assertRaises
+        # Create a `persistent' object
+        obj = self._newobj()
+        oid = obj.getoid()
+        obj.value = 1
+        # Commit two different revisions
+        revid1 = self._dostoreNP(oid, data=pickle.dumps(obj))
+        obj.value = 2
+        now = packtime = time.time()
+        while packtime <= now:
+            packtime = time.time()
+        revid2 = self._dostoreNP(oid, revid=revid1, data=pickle.dumps(obj))
+        # Now pack the first transaction
+        self.assertEqual(3,len(self._storage.undoLog()))
+        self._storage.pack(packtime, referencesf)
+        # The undo log contains only the most resent transaction
+        self.assertEqual(1,len(self._storage.undoLog()))
+
+    def dont_checkPackUndoLogUndoable(self):
+        # A disabled test. I wanted to test that the content of the undo log was consistent,
+        # but every storage appears to include something slightly different. If the result of
+        # this method is only used to fill a GUI then this difference doesnt matter.
+        # Perhaps re-enable this test once we agree what should be asserted.
+        self._initroot()
+        # Create two `persistent' object
+        obj1 = self._newobj()
+        oid1 = obj1.getoid()
+        obj1.value = 1
+        obj2 = self._newobj()
+        oid2 = obj2.getoid()
+        obj2.value = 2
+        # Commit the first revision of each of them
+        revid11 = self._dostoreNP(oid1, data=pickle.dumps(obj1), description="1-1")
+        revid22 = self._dostoreNP(oid2, data=pickle.dumps(obj2), description="2-2")
+        # remember the time. everything above here will be packed away
+        now = packtime = time.time()
+        while packtime <= now:
+            packtime = time.time()
+        # Commit two revisions of the first object
+        obj1.value = 3
+        revid13 = self._dostoreNP(oid1, revid=revid11, data=pickle.dumps(obj1), description="1-3")
+        obj1.value = 4
+        revid14 = self._dostoreNP(oid1, revid=revid13, data=pickle.dumps(obj1), description="1-4")
+        # Commit one revision of the second object
+        obj2.value = 5
+        revid25 = self._dostoreNP(oid2, revid=revid22, data=pickle.dumps(obj2), description="2-5")
+        # Now pack
+        self.assertEqual(6,len(self._storage.undoLog()))
+        print '\ninitial undoLog was'
+        for r in self._storage.undoLog(): print r
+        self._storage.pack(packtime, referencesf)
+        # The undo log contains only two undoable transaction.
+        print '\nafter packing undoLog was'
+        for r in self._storage.undoLog(): print r
+        # what can we assert about that?
+
     def checkPackWhileWriting(self):
         # A storage should allow some reading and writing during
         # a pack.  This test attempts to exercise locking code

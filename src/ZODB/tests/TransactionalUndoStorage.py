@@ -2,14 +2,14 @@
 #
 # Copyright (c) 2001, 2002 Zope Corporation and Contributors.
 # All Rights Reserved.
-# 
+#
 # This software is subject to the provisions of the Zope Public License,
 # Version 2.0 (ZPL).  A copy of the ZPL should accompany this distribution.
 # THIS SOFTWARE IS PROVIDED "AS IS" AND ANY AND ALL EXPRESS OR IMPLIED
 # WARRANTIES ARE DISCLAIMED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 # WARRANTIES OF TITLE, MERCHANTABILITY, AGAINST INFRINGEMENT, AND FITNESS
 # FOR A PARTICULAR PURPOSE.
-# 
+#
 ##############################################################################
 """Check transactionalUndo().
 
@@ -141,7 +141,6 @@ class TransactionalUndoStorage:
         oids = self._storage.transactionalUndo(tid, t)
         self._storage.tpc_vote(t)
         self._storage.tpc_finish(t)
-
         eq(len(oids), 1)
         eq(oids[0], oid)
         # This should fail since we've undone the object's creation
@@ -160,6 +159,23 @@ class TransactionalUndoStorage:
         data, revid = self._storage.load(oid, '')
         eq(zodb_unpickle(data), MinPO(23))
         self._iterate()
+
+    def checkCreationUndoneGetSerial(self):
+        # create an object
+        oid = self._storage.new_oid()
+        revid = self._dostore(oid, data=MinPO(23))
+        # undo its creation
+        info = self._storage.undoInfo()
+        tid = info[0]['id']
+        t = Transaction()
+        t.note('undo1')
+        self._storage.tpc_begin(t)
+        oids = self._storage.transactionalUndo(tid, t)
+        self._storage.tpc_vote(t)
+        self._storage.tpc_finish(t)
+        # Check that calling getSerial on an uncreated object raises a KeyError
+        # The current version of FileStorage fails this test
+        self.assertRaises(KeyError, self._storage.getSerial, oid)
 
     def checkUndoCreationBranch1(self):
         eq = self.assertEqual
@@ -753,3 +769,25 @@ class TransactionalUndoStorage:
             eq(L1, L2)
 
         self.assertRaises(IndexError, iter.__getitem__, offset)
+
+    def checkUndoLogMetadata(self):
+        # test that the metadata is correct in the undo log
+        t = get_transaction()
+        t.note('t1')
+        t.setExtendedInfo('k2','this is transaction metadata')
+        t.setUser('u3',path='p3')
+        db = DB(self._storage)
+        conn = db.open()
+        root = conn.root()
+        o1 = C()
+        root['obj'] = o1
+        txn = get_transaction()
+        txn.commit()
+        l = self._storage.undoLog()
+        self.assertEqual(len(l),2)
+        d = l[0]
+        self.assertEqual(d['description'],'t1')
+        self.assertEqual(d['k2'],'this is transaction metadata')
+        self.assertEqual(d['user_name'],'p3 u3')
+
+        
