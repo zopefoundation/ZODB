@@ -15,8 +15,11 @@ Options:
 
     -d days -- pack objects more than days old
 
+    -1 -- Connect to a ZEO 1 server
+
     -W -- wait for server to come up.  Normally the script tries to
-       connect for 10 seconds, then exits with an error.
+       connect for 10 seconds, then exits with an error.  The -W
+       option is only supported with ZEO 1.
 
 You must specify either -p and -h or -U.
 """
@@ -43,7 +46,7 @@ def connect(storage):
             return
     raise RuntimeError, "Unable to connect to ZEO server"
 
-def pack(addr, storage, days, wait):
+def pack1(addr, storage, days, wait):
     cs = ClientStorage(addr, storage=storage, wait_for_server_on_startup=wait)
     if wait:
         # _startup() is an artifact of the way ZEO 1.0 works.  The
@@ -54,6 +57,11 @@ def pack(addr, storage, days, wait):
     else:
         connect(cs)
     cs.invalidator = None
+    cs.pack(wait=1, days=days)
+    cs.close()
+
+def pack2(addr, storage, days, wait):
+    cs = ClientStorage(addr, storage=storage, wait=1)
     cs.pack(wait=1, days=days)
     cs.close()
 
@@ -69,8 +77,9 @@ def main():
     storage = '1'
     days = 0
     wait = 0
+    zeoversion = 2
     try:
-        opts, args = getopt.getopt(sys.argv[1:], 'p:h:U:S:d:W')
+        opts, args = getopt.getopt(sys.argv[1:], 'p:h:U:S:d:W1')
         for o, a in opts:
             if o == '-p':
                 port = int(a)
@@ -84,6 +93,8 @@ def main():
                 days = int(a)
             elif o == '-W':
                 wait = 1
+            elif o == '-1':
+                zeoversion = 1
     except Exception, err:
         print err
         usage()
@@ -96,8 +107,11 @@ def main():
         if port is None:
             usage()
         addr = host, port
-        
-    pack(addr, storage, days, wait)
+
+    if zeoversion == 1:
+        pack1(addr, storage, days, wait)
+    else:
+        pack(addr, storage, days)
 
 if __name__ == "__main__":
     try:
