@@ -115,7 +115,7 @@
 #   may have a back pointer to a version record or to a non-version
 #   record.
 #
-__version__='$Revision: 1.92 $'[11:-2]
+__version__='$Revision: 1.93 $'[11:-2]
 
 import struct, time, os, string, base64, sys
 from struct import pack, unpack
@@ -1039,30 +1039,9 @@ class FileStorage(BaseStorage.BaseStorage,
         raise UndoError('Some data were modified by a later transaction')
 
     # undoLog() returns a description dict that includes an id entry.
-    # The id is opaque to the client, but encodes information that
-    # uniquely identifies a transaction in the storage.  The id is a
-    # base64 encoded string, where the components of the string are:
-    #     - the transaction id
-    #     - the packed file position of the transaction record
-    #     - the oid of an object modified by the transaction
-
-    # The file position is sufficient in most cases, but doesn't work
-    # if the id is used after a pack and may not work if used with
-    # replicated storages.  If the file position is incorrect, the oid
-    # can be used for a relatively efficient search for the
-    # transaction record.  FileStorage keeps an index mapping oids to
-    # file positions, but do notes have a transaction id to file
-    # offset index.  The oid index maps to the most recent revision of
-    # the object.  Transactional undo must follow back pointers until
-    # it finds the correct transaction record,
-
-    # This approach fails if the transaction record has no data
-    # records.  It's not clear if that is possible, but it may be for
-    # commitVersion and abortVersion.
-
-    # The file offset also supports non-transactional undo, which
-    # won't work after a pack and isn't supported by replicated
-    # storages.
+    # The id is opaque to the client, but contains the transaction id.
+    # The transactionalUndo() implementation does a simple linear
+    # search through the file (from the end) to find the transaction.
 
     def undoLog(self, first=0, last=-20, filter=None):
         if last < 0:
@@ -1082,11 +1061,9 @@ class FileStorage(BaseStorage.BaseStorage,
                 self._file.seek(pos)
                 h = self._file.read(TRANS_HDR_LEN)
                 tid, tl, status, ul, dl, el = struct.unpack(">8s8scHHH", h)
-                if tid < self._packt:
+                if tid < self._packt or status == 'p':
                     break
-                if status == 'p':
-                    break
-                elif status != ' ':
+                if status != ' ':
                     continue
                 d = u = ''
                 if ul:
@@ -1099,14 +1076,7 @@ class FileStorage(BaseStorage.BaseStorage,
                         e = loads(read(el))
                     except:
                         pass
-                next = self._file.read(8)
-                # next is either the redundant txn length - 8, or an oid
-                if next == tl:
-                    # There were no objects in this txn
-                    id = tid + p64(pos)
-                else:
-                    id = tid + p64(pos) + next
-                d = {'id': base64.encodestring(id).rstrip(),
+                d = {'id': base64.encodestring(tid).rstrip(),
                      'time': TimeStamp(tid).timeTime(),
                      'user_name': u,
                      'description': d}
@@ -1144,57 +1114,28 @@ class FileStorage(BaseStorage.BaseStorage,
 
     def _txn_undo(self, transaction_id):
         # Find the right transaction to undo and call _txn_undo_write().
-        transaction_id = base64.decodestring(transaction_id + '\n')
-        tid = transaction_id[:8]
-        tpos = U64(transaction_id[8:16])
-        if not self._check_txn_pos(tpos, tid):
-            # If the pos and tid don't match, we must use the oid to
-            # find the transaction record.  Find the file position for
-            # the current revision of this object, and search back for
-            # the beginning of its transaction record
-            oid = transaction_id[16:]
-            if oid == '' or not self._index.has_key(oid):
-                # XXX Is this the right error message?
-                raise UndoError('Undoing a non-object affecting transaction')
-            pos = self._index[oid]
-            while 1:
-                self._file.seek(pos)
-                h = self._file.read(DATA_HDR_LEN)
-                doid, serial, prev, tpos, vlen, plen = \
-                      unpack('>8s8s8s8sH8s', h)
-                tpos = U64(tpos)
-                self._file.seek(tpos)
-                # Read transaction id to see if we've got a match
-                thistid = self._file.read(8)
-                if thistid == tid:
-                    break # Yeee ha!
-                # Keep looking
-                pos = U64(prev)
-                if not pos:
-                    # We never found the right transaction
-                    raise UndoError('Invalid undo transaction id')
+        tid = base64.decodestring(transaction_id + '\n')
+        assert len(tid) == 8
+        tpos = self._txn_find(tid)
         tindex = self._txn_undo_write(tpos, tid)
         self._tindex.update(tindex)
         return tindex.keys()            
 
-    def _check_txn_pos(self, pos, tid):
-        "Return true if pos is location of the transaction record for tid."
-        self._file.seek(pos)
-        this_tid = self._file.read(8)
-        if this_tid != tid:
-            return 0
-        # be extra cautious: Check the record length makes sense, to
-        # guard against a random file location that happens to have
-        # the right 8-byte pattern.
-        stlen = self._file.read(8)
-        tlen = U64(stlen)
-        self._file.seek(tlen, 1)
-        redundant_stlen = self._file.read(8)
-        if len(redundant_stlen) != 8:
-            return 0
-        if redundant_stlen != stlen:
-            return 0
-        return 1
+    def _txn_find(self, tid):
+        pos = self._pos
+        # XXX Why 39?  Only because undoLog() uses it as a boundary.
+        while pos > 39:
+            self._file.seek(pos - 8)
+            pos = pos - U64(self._file.read(8)) - 8
+            self._file.seek(pos)
+            h = self._file.read(TRANS_HDR_LEN)
+            _tid = h[:8]
+            if _tid == tid:
+                return pos
+            status = h[16] # get the c in 8s8sc
+            if status == 'p' or _tid < self._packt:
+                break
+        raise UndoError("Invalid transaction id")
 
     def _txn_undo_write(self, tpos, tid):
         # a helper function to write the data records for transactional undo
