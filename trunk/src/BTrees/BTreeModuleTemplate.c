@@ -341,7 +341,7 @@ static char BTree_module_documentation[] =
 "\n"
 MASTER_ID
 BTREEITEMSTEMPLATE_C
-"$Id: BTreeModuleTemplate.c,v 1.12 2001/06/20 14:48:51 matt Exp $\n"
+"$Id: BTreeModuleTemplate.c,v 1.13 2001/06/20 19:32:55 matt Exp $\n"
 BTREETEMPLATE_C
 BUCKETTEMPLATE_C
 KEYMACROS_H
@@ -395,19 +395,19 @@ INITMODULE (void)
   	c = PyObject_GetAttrString(m,"ConflictError");
   	if (c != NULL) 
   		ConflictError = c;
-  	else 
-		ConflictError = PyExc_ValueError;
 	Py_DECREF(m);	
-  } else ConflictError = PyExc_ValueError;
+  } 
 
+  if (ConflictError == NULL) {
+  	Py_INCREF(PyExc_ValueError);
+	ConflictError=PyExc_ValueError;
+  }
 
 #else
   BTreeType.tp_getattro=PyExtensionClassCAPI->getattro;
   BucketType.tp_getattro=PyExtensionClassCAPI->getattro;
   SetType.tp_getattro=PyExtensionClassCAPI->getattro;
   TreeSetType.tp_getattro=PyExtensionClassCAPI->getattro;
-
-  ConflictError = PyExc_ValueError;	/* MergeTemplate checks anyway */
 #endif
 
   BTreeItemsType.ob_type=&PyType_Type;
@@ -427,7 +427,7 @@ INITMODULE (void)
   d = PyModule_GetDict(m);
 
   PyDict_SetItemString(d, "__version__",
-		       PyString_FromString("$Revision: 1.12 $"));
+		       PyString_FromString("$Revision: 1.13 $"));
 
   PyExtensionClass_Export(d,MOD_NAME_PREFIX "Bucket", BucketType);
   PyExtensionClass_Export(d,MOD_NAME_PREFIX "BTree", BTreeType);
