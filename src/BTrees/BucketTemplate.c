@@ -12,7 +12,7 @@
 
  ****************************************************************************/
 
-#define BUCKETTEMPLATE_C "$Id: BucketTemplate.c,v 1.39 2002/06/11 02:59:05 tim_one Exp $\n"
+#define BUCKETTEMPLATE_C "$Id: BucketTemplate.c,v 1.40 2002/06/12 20:19:58 tim_one Exp $\n"
 
 /* Use BUCKET_SEARCH to find the index at which a key belongs.
  * INDEX    An int lvalue to hold the index i such that KEY belongs at
@@ -900,6 +900,29 @@ err:
   return NULL;
 }
 
+/*
+ * Return:
+ *
+ * For a set bucket (self->values is NULL), a one-tuple or two-tuple.  The
+ * first element is a tuple of keys, of length self->len.  The second element
+ * is the next bucket, present if and only if next is non-NULL:
+ *
+ *     (
+ *          (keys[0], keys[1], ..., keys[len-1]),
+ *          <self->next iff non-NULL>
+ *     )
+ *
+ * For a mapping bucket (self->values is not NULL), a one-tuple or two-tuple.
+ * The first element is a tuple interleaving keys and values, of length
+ * 2 * self->len.  The second element is the next bucket, present iff next is
+ * non-NULL:
+ *
+ *     (
+ *          (keys[0], values[0], keys[1], values[1], ...,
+ *                               keys[len-1], values[len-1]),
+ *          <self->next iff non-NULL>
+ *     )
+ */
 static PyObject *
 bucket_getstate(Bucket *self, PyObject *args)
 {
