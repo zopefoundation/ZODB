@@ -178,6 +178,7 @@ class Connection(ExportImport, object):
         self._log = logging.getLogger("ZODB.Connection")
         self._storage = None
         self._debug_info = ()
+        self._opened = None # time.time() when DB.open() opened us
 
         self._version = version
         self._cache = cache = PickleCache(self, cache_size)
@@ -434,6 +435,7 @@ class Connection(ExportImport, object):
         self._storage = odb._storage
         self._sortKey = odb._storage.sortKey
         self.new_oid = odb._storage.new_oid
+        self._opened = time()
         if synch is not None:
             self._synch = synch
         if mvcc is not None:
@@ -569,6 +571,7 @@ class Connection(ExportImport, object):
             self.__onCloseCallbacks = None
         self._storage = self._tmp = self.new_oid = None
         self._debug_info = ()
+        self._opened = None
         # Return the connection to the pool.
         if self._db is not None:
             if self._synch:
