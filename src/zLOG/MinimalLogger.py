@@ -10,9 +10,9 @@
 # FOR A PARTICULAR PURPOSE
 # 
 ##############################################################################
-__version__='$Revision: 1.4 $'[11:-2]
+__version__='$Revision: 1.5 $'[11:-2]
 
-import os, string, sys, time
+import os,  sys, time
 
 from FormatException import format_exception
 
