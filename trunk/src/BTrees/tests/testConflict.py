@@ -2,14 +2,14 @@
 #
 # Copyright (c) 2001, 2002 Zope Corporation and Contributors.
 # All Rights Reserved.
-# 
+#
 # This software is subject to the provisions of the Zope Public License,
 # Version 2.0 (ZPL).  A copy of the ZPL should accompany this distribution.
 # THIS SOFTWARE IS PROVIDED "AS IS" AND ANY AND ALL EXPRESS OR IMPLIED
 # WARRANTIES ARE DISCLAIMED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 # WARRANTIES OF TITLE, MERCHANTABILITY, AGAINST INFRINGEMENT, AND FITNESS
 # FOR A PARTICULAR PURPOSE
-# 
+#
 ##############################################################################
 import os
 
@@ -50,7 +50,7 @@ class MappingBase(Base):
         del self.t[1]
 
     def _setupConflict(self):
-        
+
         l=[ -5124, -7377, 2274, 8801, -9901, 7327, 1565, 17, -679,
             3686, -3607, 14, 6419, -5637, 6040, -4556, -8622, 3847, 7191,
             -4067]
@@ -59,7 +59,7 @@ class MappingBase(Base):
         e1=[(-1704, 0), (5420, 1), (-239, 2), (4024, 3), (-6984, 4)]
         e2=[(7745, 0), (4868, 1), (-2548, 2), (-2711, 3), (-3154, 4)]
 
-        
+
         base=self.t
         base.update([(i, i*i) for i in l[:20]])
         b1=base.__class__(base)
@@ -126,7 +126,7 @@ class MappingBase(Base):
         b2[items[0][0]]=-9
         test_merge(base, b1, b2, bm, 'merge conflicting update and delete',
                    should_fail=1)
-        
+
     def testMergeInserts(self):
         base, b1, b2, bm, e1, e2, items = self._setupConflict()
 
@@ -140,7 +140,7 @@ class MappingBase(Base):
         bm[99999]=99999
         bm[e1[2][0]]=e1[2][1]
         test_merge(base, b1, b2, bm, 'merge insert')
-        
+
     def testMergeInsertsFromEmpty(self):
         base, b1, b2, bm, e1, e2, items = self._setupConflict()
 
@@ -155,7 +155,7 @@ class MappingBase(Base):
         bm.update(e2)
 
         test_merge(base, b1, b2, bm, 'merge insert from empty')
-        
+
     def testMergeEmptyAndFill(self):
         base, b1, b2, bm, e1, e2, items = self._setupConflict()
 
@@ -165,7 +165,7 @@ class MappingBase(Base):
         bm.update(e2)
 
         test_merge(base, b1, b2, bm, 'merge insert from empty')
-        
+
     def testMergeEmpty(self):
         base, b1, b2, bm, e1, e2, items = self._setupConflict()
 
@@ -182,7 +182,7 @@ class MappingBase(Base):
         b2[e1[0][0]]=e1[0][1]
         test_merge(base, b1, b2, bm, 'merge conflicting inserts',
                    should_fail=1)
-        
+
 
 class NormalSetTests(Base):
     """ Test common to all set types """
@@ -192,7 +192,7 @@ class NormalSetTests(Base):
 class ExtendedSetTests(NormalSetTests):
     "Set (as opposed to TreeSet) specific tests."
 
-    def _setupConflict(self):        
+    def _setupConflict(self):
         l=[ -5124, -7377, 2274, 8801, -9901, 7327, 1565, 17, -679,
             3686, -3607, 14, 6419, -5637, 6040, -4556, -8622, 3847, 7191,
             -4067]
@@ -200,7 +200,7 @@ class ExtendedSetTests(NormalSetTests):
         e1=[-1704, 5420, -239, 4024, -6984]
         e2=[7745, 4868, -2548, -2711, -3154]
 
-        
+
         base=self.t
         base.update(l)
         b1=base.__class__(base)
@@ -229,7 +229,7 @@ class ExtendedSetTests(NormalSetTests):
         b2.remove(items[0])
         test_merge(base, b1, b2, bm, 'merge conflicting delete',
                    should_fail=1)
-        
+
     def testMergeInserts(self):
         base, b1, b2, bm, e1, e2, items = self._setupConflict()
 
@@ -243,7 +243,7 @@ class ExtendedSetTests(NormalSetTests):
         bm.insert(99999)
         bm.insert(e1[2])
         test_merge(base, b1, b2, bm, 'merge insert')
-        
+
     def testMergeInsertsFromEmpty(self):
         base, b1, b2, bm, e1, e2, items = self._setupConflict()
 
@@ -258,7 +258,7 @@ class ExtendedSetTests(NormalSetTests):
         bm.update(e2)
 
         test_merge(base, b1, b2, bm, 'merge insert from empty')
-        
+
     def testMergeEmptyAndFill(self):
         base, b1, b2, bm, e1, e2, items = self._setupConflict()
 
@@ -268,7 +268,7 @@ class ExtendedSetTests(NormalSetTests):
         bm.update(e2)
 
         test_merge(base, b1, b2, bm, 'merge insert from empty')
-        
+
     def testMergeEmpty(self):
         base, b1, b2, bm, e1, e2, items = self._setupConflict()
 
@@ -285,7 +285,7 @@ class ExtendedSetTests(NormalSetTests):
         b2.insert(e1[0])
         test_merge(base, b1, b2, bm, 'merge conflicting inserts',
                    should_fail=1)
-        
+
 
 def test_merge(o1, o2, o3, expect, message='failed to merge', should_fail=0):
     s1=o1.__getstate__()
@@ -304,10 +304,10 @@ def test_merge(o1, o2, o3, expect, message='failed to merge', should_fail=0):
     else:
         merged=o1._p_resolveConflict(s1, s2, s3)
         assert merged==expected, message
-        
+
 class BucketTests(MappingBase):
     """ Tests common to all buckets """
-    
+
 
 class BTreeTests(MappingBase):
     """ Tests common to all BTrees """
@@ -351,7 +351,7 @@ class TestOISets(ExtendedSetTests, TestCase):
 class TestIOTreeSets(NormalSetTests, TestCase):
     def setUp(self):
         self.t = IOTreeSet()
-        
+
 class TestOOTreeSets(NormalSetTests, TestCase):
     def setUp(self):
         self.t = OOTreeSet()
@@ -363,7 +363,7 @@ class TestIITreeSets(NormalSetTests, TestCase):
 class TestOITreeSets(NormalSetTests, TestCase):
     def setUp(self):
         self.t = OITreeSet()
-        
+
 ## Bucket tests
 
 class TestIOBuckets(BucketTests, TestCase):
@@ -403,7 +403,7 @@ def test_suite():
     TOOBucket = makeSuite(TestOOBuckets, 'test')
     TOIBucket = makeSuite(TestOIBuckets, 'test')
     TIIBucket = makeSuite(TestIIBuckets, 'test')
-    
+
     alltests = TestSuite((TIOSet, TOOSet, TOISet, TIISet,
                           TIOTreeSet, TOOTreeSet, TOITreeSet, TIITreeSet,
                           TIOBucket, TOOBucket, TOIBucket, TIIBucket,
@@ -414,11 +414,11 @@ def test_suite():
 ## utility functions
 
 def lsubtract(l1, l2):
-   l1=list(l1)
-   l2=list(l2)
-   l = filter(lambda x, l1=l1: x not in l1, l2)
-   l = l + filter(lambda x, l2=l2: x not in l2, l1)
-   return l
+    l1=list(l1)
+    l2=list(l2)
+    l = filter(lambda x, l1=l1: x not in l1, l2)
+    l = l + filter(lambda x, l2=l2: x not in l2, l1)
+    return l
 
 def realseq(itemsob):
     return map(lambda x: x, itemsob)
@@ -428,4 +428,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
