@@ -15,7 +15,7 @@
 static char TimeStamp_module_documentation[] = 
 "Defines 64-bit TimeStamp objects used as ZODB serial numbers.\n"
 "\n"
-"\n$Id: TimeStamp.c,v 1.17 2002/11/13 16:32:03 jeremy Exp $\n";
+"\n$Id: TimeStamp.c,v 1.18 2003/06/19 21:50:13 tim_one Exp $\n";
 
 #ifdef USE_EXTENSION_CLASS
 #include "ExtensionClass.h"
@@ -222,7 +222,7 @@ static PyObject *
 TimeStamp_laterThan(TimeStamp *self, PyObject *args)
 {
   TimeStamp *o=NULL;
-  unsigned char *s;
+  unsigned char s[8];
   PyObject *a;
   int i;
   
@@ -236,9 +236,7 @@ TimeStamp_laterThan(TimeStamp *self, PyObject *args)
 
   self=o;
 
-  UNLESS(a=PyString_FromStringAndSize((char *) self->data, 8)) return NULL;
-  s=(unsigned char *)PyString_AsString(a);
-  
+  memcpy(s, self->data, 8);
   for (i=7; i > 3; i--) 
     {
       if (s[i] == 255) 
@@ -246,7 +244,8 @@ TimeStamp_laterThan(TimeStamp *self, PyObject *args)
       else
 	{
 	  s[i]++;
-	  return PyObject_CallFunction(OBJECT(self->ob_type), "O", a);
+	  return PyObject_CallFunction(OBJECT(self->ob_type), "N", 
+	             PyString_FromStringAndSize(s, 8));
 	}
     }
 
