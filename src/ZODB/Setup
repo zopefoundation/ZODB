@@ -1,7 +1,4 @@
 *shared*
 cPersistence cPersistence.c    -I../../Components/ExtensionClass
 cPickleCache cPickleCache.c    -I../../Components/ExtensionClass
-
-#cPickleJar   cPickleJar.c      -I../../Components/ExtensionClass
-#iTree        iTree.c           -I../../Components/ExtensionClass
-
+TimeStamp TimeStamp.c -DUSE_EXTENSION_CLASS
