@@ -272,7 +272,7 @@ class GC(FileStorageFormatter):
             if err.buf != "": 
                 raise
         if th.status == 'p':
-            # Delay import to code with circular imports.
+            # Delay import to cope with circular imports.
             # XXX put exceptions in a separate module
             from ZODB.FileStorage.FileStorage import FileStorageError
             raise FileStorageError(
