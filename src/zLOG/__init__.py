@@ -86,10 +86,10 @@ There is a default event logging facility that:
     can be overridden with the environment variable EVENT_LOG_SEVERITY
 
 """
-__version__='$Revision: 1.13 $'[11:-2]
+__version__='$Revision: 1.14 $'[11:-2]
 
 from EventLogger import log_write, log_time, severity_string, \
-     initialize_from_environment as initialize
+     initialize_from_environment
 from traceback import format_exception
 
 # Standard severities
@@ -101,6 +101,14 @@ PROBLEM =  100
 WARNING =  100
 ERROR   =  200
 PANIC   =  300
+
+# Flag indicating whether LOG() should call initialize()
+_call_initialize = 1
+
+def initialize():
+    global _call_initialize
+    _call_initialize = 0
+    initialize_from_environment()
 
 def LOG(subsystem, severity, summary, detail='', error=None, reraise=None):
     """Log some information
@@ -127,6 +135,9 @@ def LOG(subsystem, severity, summary, detail='', error=None, reraise=None):
                  error is reraised.
 
     """
+    _call_initialize
+    if _call_initialize:
+        initialize()
     log_write(subsystem, severity, summary, detail, error)
     if reraise and error:
         raise error[0], error[1], error[2]
