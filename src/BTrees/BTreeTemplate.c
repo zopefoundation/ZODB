@@ -12,7 +12,7 @@
 
  ****************************************************************************/
 
-#define BTREETEMPLATE_C "$Id: BTreeTemplate.c,v 1.44 2002/06/11 18:52:16 tim_one Exp $\n"
+#define BTREETEMPLATE_C "$Id: BTreeTemplate.c,v 1.45 2002/06/11 20:26:10 tim_one Exp $\n"
 
 /*
 ** _BTree_get
@@ -809,12 +809,16 @@ err:
  If low, return bucket and index of the smallest item >= key,
  otherwise return bucket and index of the largest item <= key.
 
- Return: 0 -- Not found, 1 -- found, -1 -- error.
+ Return:
+    -1      Error; offset and bucket unchanged
+     0      Not found; offset and bucket unchanged
+     1      Correct bucket and offset stored; the caller owns a new reference
+            to the bucket.
 */
 static int
 BTree_findRangeEnd(BTree *self, PyObject *keyarg, int low,
                    Bucket **bucket, int *offset) {
-  int min, i, copied=1;
+  int min, i, copied = 1;
   KEY_TYPE key;
 
   COPY_KEY_FROM_ARG(key, keyarg, copied);
@@ -825,31 +829,38 @@ BTree_findRangeEnd(BTree *self, PyObject *keyarg, int low,
   UNLESS (self->data && self->len) return 0;
 
   BTREE_SEARCH(min, self, key, return -1);
-  if (SameType_Check(self, self->data[min].child))
-    {
-      self=BTREE(self->data[min].child);
+  if (SameType_Check(self, self->data[min].child)) {
+      self = BTREE(self->data[min].child);
       PER_USE_OR_RETURN(self, -1);
       i = BTree_findRangeEnd(self, keyarg, low, bucket, offset);
       PER_ALLOW_DEACTIVATION(self);
       PER_ACCESSED(self);
-    }
-  else
-    {
-      i = 0;
+  }
+  else {
       /* Because we might miss on a range search where max=len */
-      while(i == 0) {
-         *bucket = BUCKET(self->data[min].child);
-	 i=Bucket_findRangeEnd(*bucket, keyarg, low, offset);
-	 if (i)
-	   {
-	     Py_INCREF(*bucket);
-	     break;
-           }
-	 /* if we missed, on low search, go to next bucket */
-         else if (low && i == 0 && min+1 < self->len) min++;
-	 else break;
+      /* XXX If data[min].key used to be the smallest key in
+       * XXX data[min].child but got deleted, and we're doing a
+       * XXX high-end range search on data[min].key, we really
+       * XXX need to go to the *preceding* bucket, not the following
+       * XXX buckets.  Looks like this endcase doesn't work now.
+       */
+      for (;;) {
+          Bucket *child = BUCKET(self->data[min].child);
+	  i = Bucket_findRangeEnd(child, keyarg, low, offset);
+	  if (i > 0) {   /* found */
+	      Py_INCREF(child);
+	      *bucket = child;
+	      break;
+	  }
+	  if (i < 0)     /* error */
+	      break;
+	  /* if we missed, on low search, go to next bucket */
+          if (low && min+1 < self->len)
+              min++;
+	  else           /* not found */
+	      break;
       }
-    }
+  }
 
   return i;
 }
