@@ -54,7 +54,7 @@ class StorageServer(asyncore.dispatcher):
         for c in self.__connections[storage_id]:
             if c is connection: continue
             c.message_output('I'+dumps(invalidated))
-    
+
     def writable(self): return 0
     
     def handle_read(self): pass
@@ -75,8 +75,9 @@ storage_methods={}
 for n in ('get_info', 'abortVersion', 'commitVersion', 'history',
           'load', 'modifiedInVersion', 'new_oid', 'pack', 'store',
           'tpc_abort', 'tpc_begin', 'tpc_begin_sync', 'tpc_finish', 'undo',
-          'undoLog',
-          'versionEmpty'):
+          'undoLog', 'versionEmpty',
+          'zeoLoad', 'zeoVerify',
+          ):
     storage_methods[n]=1
 storage_method=storage_methods.has_key
 
@@ -152,6 +153,27 @@ class Connection(smac):
             'supportsUndo': storage.supportsUndo(),
             'supportsVersions': storage.supportsVersions(),
             }
+
+    def zeoLoad(self, oid):
+        storage=self.__storage
+        v=storage.modifiedInVersion(oid)
+        if v: pv, sv = storage.load(oid, v)
+        else: pv=sv=None
+        p, s = storage.load(oid,'')
+        return p, s, v, pv, sv
+
+    def zeoVerify(self, oid, s, sv,
+                  dumps=cPickle.dumps):
+        try: p, os, v, pv, osv = self.zeoLoad(oid)
+        except: return _noreturn
+        p=pv=None # free the pickles
+        if os != s:
+            self.message_output('I'+dumps(((oid, os, ''),)))            
+        elif osv != sv:
+            self.message_output('I'+dumps(((oid, osv, v),)))
+            
+        return _noreturn
+        
 
     def store(self, oid, serial, data, version, id):
         t=self._transaction
