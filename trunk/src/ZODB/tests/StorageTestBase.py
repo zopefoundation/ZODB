@@ -55,4 +55,4 @@ class StorageTestBase(unittest.TestCase):
         return newrevid
         
     def _dostoreNP(self, oid=None, revid=None, data=None, version=None):
-        self._dostore(oid, revid, data, version, already_pickled=1)
+        return self._dostore(oid, revid, data, version, already_pickled=1)
