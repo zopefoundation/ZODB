@@ -260,40 +260,38 @@ IndexError(int i)
   return NULL;
 }
 
+/* Returns a new reference to the bucket before current, in the bucket
+ * chain starting at first.
+ * Returns NULL on error.  IndexError(i) may or may not be set then (XXX I
+ * don't know what the intent is, that's just what it does; should be redone).
+ */
 static Bucket *
 PreviousBucket(Bucket *current, Bucket *first, int i)
 {
   if (! first) return NULL;
-  if (first==current)
+  if (first == current)
     {
       IndexError(i);
       return NULL;
     }
 
-  Py_INCREF(first);
   while (1)
     {
-      PER_USE_OR_RETURN(first,NULL);
-      if (first->next==current)
+      Bucket *next;
+      PER_USE_OR_RETURN(first, NULL);
+      next = first->next;
+      PER_ALLOW_DEACTIVATION(first);
+      PER_ACCESSED(first);
+
+      if (next == current)
         {
-          PER_ALLOW_DEACTIVATION(first);
-          PER_ACCESSED(first);
+          Py_INCREF(first);
           return first;
         }
-      else if (first->next)
-        {
-          Bucket *next = first->next;
-          Py_INCREF(next);
-          PER_ALLOW_DEACTIVATION(first);
-          PER_ACCESSED(first);
-          Py_DECREF(first);
-          first=next;
-        }
+      else if (next)
+        first=next;
       else
         {
-          PER_ALLOW_DEACTIVATION(first);
-          PER_ACCESSED(first);
-          Py_DECREF(first);
           IndexError(i);
           return NULL;
         }
@@ -411,7 +409,7 @@ static char BTree_module_documentation[] =
 "\n"
 MASTER_ID
 BTREEITEMSTEMPLATE_C
-"$Id: BTreeModuleTemplate.c,v 1.31 2002/06/10 04:57:43 tim_one Exp $\n"
+"$Id: BTreeModuleTemplate.c,v 1.32 2002/06/17 19:21:39 tim_one Exp $\n"
 BTREETEMPLATE_C
 BUCKETTEMPLATE_C
 KEYMACROS_H
