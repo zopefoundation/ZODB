@@ -82,7 +82,7 @@
   attributions are listed in the accompanying credits file.
   
  ****************************************************************************/
-static char *what_string = "$Id: cPickleCache.c,v 1.29 1999/09/23 16:44:15 jim Exp $";
+static char *what_string = "$Id: cPickleCache.c,v 1.30 1999/10/07 23:55:12 jim Exp $";
 
 #define ASSIGN(V,E) {PyObject *__e; __e=(E); Py_XDECREF(V); (V)=__e;}
 #define UNLESS(E) if(!(E))
@@ -338,7 +338,13 @@ cc_reallyfull_sweep(ccobject *self, PyObject *args)
 static PyObject *
 cc_incrgc(ccobject *self, PyObject *args)
 {
-  if(maybegc(self,NULL) < 0) return NULL;
+  int n=1;
+
+  UNLESS (PyArg_ParseTuple(args, "|i",&n)) return NULL;
+
+  for (; --n >= 0;)
+    if(maybegc(self,NULL) < 0) return NULL;
+
   Py_INCREF(Py_None);
   return Py_None;
 }
@@ -436,8 +442,6 @@ cc_get(ccobject *self, PyObject *args)
 	  return NULL;
 	}
     }
-
-  if (maybegc(self,r) < 0) return NULL;
 
   Py_INCREF(r);
   return r;
@@ -592,7 +596,6 @@ cc_subscript(ccobject *self, PyObject *key)
     PyErr_SetObject(PyExc_KeyError, key);
     return NULL;
   }
-  if (maybegc(self,r) < 0) return NULL;
 
   Py_INCREF(r);
   return r;
@@ -672,7 +675,7 @@ void
 initcPickleCache()
 {
   PyObject *m, *d;
-  char *rev="$Revision: 1.29 $";
+  char *rev="$Revision: 1.30 $";
 
   Cctype.ob_type=&PyType_Type;
 
