@@ -186,7 +186,7 @@
 #   may have a back pointer to a version record or to a non-version
 #   record.
 #
-__version__='$Revision: 1.66 $'[11:-2]
+__version__='$Revision: 1.67 $'[11:-2]
 
 import struct, time, os, bpthread, string, base64, sys
 from struct import pack, unpack
@@ -799,7 +799,9 @@ class FileStorage(BaseStorage.BaseStorage,
             self._vindex.update(self._tvindex)
 
     def _abort(self):
-        if self._nextpos: self._file.truncate(self._nextpos)
+        if self._nextpos:
+            self._file.truncate(self._pos)
+            self._nextpos=0
 
     def undo(self, transaction_id):
         self._lock_acquire()
