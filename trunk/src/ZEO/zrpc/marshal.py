@@ -13,7 +13,6 @@
 ##############################################################################
 import cPickle
 from cStringIO import StringIO
-import struct
 import types
 
 import zLOG
@@ -31,13 +30,6 @@ class Marshaller:
     pickler.fast = 1
     pickle = pickler.dump
 
-    errors = (cPickle.UnpickleableError,
-              cPickle.UnpicklingError,
-              cPickle.PickleError,
-              cPickle.PicklingError)
-
-    VERSION = 1
-
     def encode(self, msgid, flags, name, args):
         """Returns an encoded message"""
         return self.pickle((msgid, flags, name, args), 1)
@@ -49,7 +41,7 @@ class Marshaller:
 
         try:
             return unpickler.load() # msgid, flags, name, args
-        except (self.errors, IndexError), err_msg:
+        except:
             log("can't decode message: %s" % repr(msg), level=zLOG.ERROR)
             raise
 
