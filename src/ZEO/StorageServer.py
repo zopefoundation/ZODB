@@ -97,8 +97,8 @@ class StorageServer:
         msg = ", ".join(
             ["%s:%s" % (name, storage.isReadOnly() and "RO" or "RW")
              for name, storage in storages.items()])
-        log("StorageServer created %s with storages: %s" %
-            (read_only and "RO" or "RW", msg))
+        log("%s created %s with storages: %s" %
+            (self.__class__.__name__, read_only and "RO" or "RW", msg))
         for s in storages.values():
             s._waiting = []
         self.read_only = read_only

@@ -99,7 +99,7 @@ with '\0\0\0\0'.
 If var is not writable, then temporary files are used for
 file 0 and file 1.
 
-$Id: ClientCache.py,v 1.37 2002/09/18 21:22:58 gvanrossum Exp $
+$Id: ClientCache.py,v 1.38 2002/10/01 21:12:12 gvanrossum Exp $
 """
 
 import os
@@ -184,8 +184,8 @@ class ClientCache:
             f[0].write(magic)
             current = 0
 
-        log("ClientCache: storage=%r, size=%r; file[%r]=%r" %
-            (storage, size, current, p[current]))
+        log("%s: storage=%r, size=%r; file[%r]=%r" %
+            (self.__class__.__name__, storage, size, current, p[current]))
 
         self._limit = size / 2
         self._current = current
