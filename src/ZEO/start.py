@@ -2,18 +2,18 @@
 #
 # Copyright (c) 2001, 2002 Zope Corporation and Contributors.
 # All Rights Reserved.
-# 
+#
 # This software is subject to the provisions of the Zope Public License,
 # Version 2.0 (ZPL).  A copy of the ZPL should accompany this distribution.
 # THIS SOFTWARE IS PROVIDED "AS IS" AND ANY AND ALL EXPRESS OR IMPLIED
 # WARRANTIES ARE DISCLAIMED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 # WARRANTIES OF TITLE, MERCHANTABILITY, AGAINST INFRINGEMENT, AND FITNESS
 # FOR A PARTICULAR PURPOSE
-# 
+#
 ##############################################################################
 """Start the server storage.
 
-$Id: start.py,v 1.42 2002/08/27 18:43:12 bwarsaw Exp $
+$Id: start.py,v 1.43 2002/08/29 16:31:17 gvanrossum Exp $
 """
 from __future__ import nested_scopes
 
@@ -217,7 +217,7 @@ def main(argv):
         os.environ['STUPID_LOG_SEVERITY'] = '-300'
 
     set_uid(UID)
-    
+
     if Z:
         try:
             import posix
@@ -230,7 +230,7 @@ def main(argv):
     try:
 
         import ZEO.StorageServer, asyncore
-        
+
         storages = {}
         for o, v in opts:
             if o == '-S':
@@ -259,14 +259,14 @@ def main(argv):
             unix = host, port
 
         ZEO.StorageServer.StorageServer(unix, storages)
-        
+
         try:
             ppid, pid = os.getppid(), os.getpid()
         except:
             pass # getpid not supported
         else:
             open(env.zeo_pid,'w').write("%s %s" % (ppid, pid))
-            
+
     except:
         # Log startup exception and tell zdaemon not to restart us.
         info = sys.exc_info()
@@ -277,9 +277,9 @@ def main(argv):
 
         import traceback
         traceback.print_exception(*info)
-            
+
         sys.exit(0)
-        
+
     try:
         asyncore.loop()
     except SystemExit:

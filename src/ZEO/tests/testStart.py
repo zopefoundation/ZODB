@@ -2,14 +2,14 @@
 #
 # Copyright (c) 2001, 2002 Zope Corporation and Contributors.
 # All Rights Reserved.
-# 
+#
 # This software is subject to the provisions of the Zope Public License,
 # Version 2.0 (ZPL).  A copy of the ZPL should accompany this distribution.
 # THIS SOFTWARE IS PROVIDED "AS IS" AND ANY AND ALL EXPRESS OR IMPLIED
 # WARRANTIES ARE DISCLAIMED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 # WARRANTIES OF TITLE, MERCHANTABILITY, AGAINST INFRINGEMENT, AND FITNESS
 # FOR A PARTICULAR PURPOSE
-# 
+#
 ##############################################################################
 
 import os
@@ -29,7 +29,7 @@ try:
 except ImportError:
     # for compatibility with Zope 2.5 &c.
     import errno
-    
+
     def removefs(base):
         """Remove all files created by FileStorage with path base."""
         for ext in '', '.old', '.tmp', '.lock', '.index', '.pack':
@@ -144,7 +144,7 @@ class StartTests(unittest.TestCase):
     def testNoPort(self):
         outp = self.system("-s")
         self.assert_(outp.find("No port specified") != -1)
-        
+
     def testStart(self):
         port = 9090
         outp = self.fork("-s", "-p", str(port))
@@ -187,11 +187,10 @@ class StartTests(unittest.TestCase):
                 os.unlink(logfile2)
             except os.error:
                 pass
-        
+
 def test_suite():
     if os.name == "posix":
         return unittest.makeSuite(StartTests)
     else:
         # Don't even bother with these tests on Windows
         return None
-

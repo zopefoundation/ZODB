@@ -40,4 +40,3 @@ class TestThread(threading.Thread):
         self.join(timeout)
         if self.isAlive():
             self._testcase.fail("Thread did not finish: %s" % self)
-

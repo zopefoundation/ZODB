@@ -2,14 +2,14 @@
 #
 # Copyright (c) 2001, 2002 Zope Corporation and Contributors.
 # All Rights Reserved.
-# 
+#
 # This software is subject to the provisions of the Zope Public License,
 # Version 2.0 (ZPL).  A copy of the ZPL should accompany this distribution.
 # THIS SOFTWARE IS PROVIDED "AS IS" AND ANY AND ALL EXPRESS OR IMPLIED
 # WARRANTIES ARE DISCLAIMED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 # WARRANTIES OF TITLE, MERCHANTABILITY, AGAINST INFRINGEMENT, AND FITNESS
 # FOR A PARTICULAR PURPOSE
-# 
+#
 ##############################################################################
 """Test suite for ZEO based on ZODB.tests"""
 
@@ -36,7 +36,7 @@ try:
 except ImportError:
     # for compatibility with Zope 2.5 &c.
     import errno
-    
+
     def removefs(base):
         """Remove all files created by FileStorage with path base."""
         for ext in '', '.old', '.tmp', '.lock', '.index', '.pack':
@@ -114,11 +114,11 @@ class GenericTests(StorageTestBase.StorageTestBase,
         for pid in self._pids:
             os.waitpid(pid, 0)
         self.delStorage()
-    
+
     def open(self, read_only=0):
         # XXX Needed to support ReadOnlyStorage tests.  Ought to be a
         # cleaner way.
-    
+
         addr = self._storage._addr
         self._storage.close()
         self._storage = ZEO.ClientStorage.ClientStorage(addr,
@@ -390,7 +390,7 @@ class ConnectionTests(StorageTestBase.StorageTestBase):
         zLOG.LOG("checkReconnection", zLOG.INFO, "finished")
 
 class UnixConnectionTests(ConnectionTests):
-    
+
     def _startServer(self, create=1, index=0):
         path = "%s.%d" % (self.file, index)
         addr = self.addr[index]
@@ -409,7 +409,7 @@ class UnixConnectionTests(ConnectionTests):
                 pass
 
 class WindowsConnectionTests(ConnectionTests):
-    
+
     def _startServer(self, create=1, index=0):
         path = "%s.%d" % (self.file, index)
         addr = self.addr[index]
