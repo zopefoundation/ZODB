@@ -22,6 +22,29 @@ class ConflictError(TransactionError):
     This transaction should be resubmitted.
     """
 
+class IllegalStateError(TransactionError):
+    """An operation was invoked that wasn't valid in the current
+    transaction state.
+    """
+
+    def __init__(self, verb, state):
+        self._verb = verb
+        self._state = state
+
+    def __str__(self):
+        return "Can't %s transaction in %s state" % (self._verb,
+                                                     self._state)
+
+class AbortError(TransactionError):
+    """Transaction commit failed and the application must abort."""
+
+    def __init__(self, datamgr):
+        self.datamgr = datamgr
+
+    def __str__(self):
+        str = self.__class__.__doc__ + " Failed data manager: %s"
+        return str % self.datamgr
+
 class RollbackError(TransactionError):
     """An error occurred rolling back a savepoint."""
 
