@@ -73,7 +73,7 @@ zeo_conf_template = """\
   default-to-interactive true
   # user zope
   python %(python)s
-  zdrun %(zope_home)s/zdaemon/zdrun.py
+  zdrun %(zodb3_home)s/zdaemon/zdrun.py
 
   # This logfile should match the one in the %(package)s.conf file.
   # It is used by zdctl's logtail command, zdrun/zdctl doesn't write it.
@@ -94,14 +94,14 @@ zeoctl_template = """\
 # description: start a %(PACKAGE)s server
 
 PYTHON="%(python)s"
-ZOPE_HOME="%(zope_home)s"
+ZODB3_HOME="%(zodb3_home)s"
 
 CONFIG_FILE="%(instance_home)s/etc/%(package)s.conf"
 
-PYTHONPATH="$ZOPE_HOME"
+PYTHONPATH="$ZODB3_HOME"
 export PYTHONPATH
 
-ZEOCTL="$ZOPE_HOME/ZEO/zeoctl.py"
+ZEOCTL="$ZODB3_HOME/ZEO/zeoctl.py"
 
 exec "$PYTHON" "$ZEOCTL" -C "$CONFIG_FILE" ${1+"$@"}
 """
@@ -111,14 +111,14 @@ runzeo_template = """\
 # %(PACKAGE)s instance start script
 
 PYTHON="%(python)s"
-ZOPE_HOME="%(zope_home)s"
+ZODB3_HOME="%(zodb3_home)s"
 
 CONFIG_FILE="%(instance_home)s/etc/%(package)s.conf"
 
-PYTHONPATH="$ZOPE_HOME"
+PYTHONPATH="$ZODB3_HOME"
 export PYTHONPATH
 
-RUNZEO="$ZOPE_HOME/ZEO/runzeo.py"
+RUNZEO="$ZODB3_HOME/ZEO/runzeo.py"
 
 exec "$PYTHON" "$RUNZEO" -C "$CONFIG_FILE" ${1+"$@"}
 """
@@ -149,8 +149,8 @@ class ZEOInstanceBuilder:
             instance_home = os.path.abspath(instance_home)
 
         for entry in sys.path:
-            if os.path.exists(os.path.join(entry, 'Zope')):
-                zope_home = entry
+            if os.path.exists(os.path.join(entry, 'ZODB')):
+                zodb3_home = entry
                 break
         else:
             print "Can't find the Zope home (not in sys.path)"
@@ -162,14 +162,14 @@ class ZEOInstanceBuilder:
             port = 9999
         checkport(port)
 
-        params = self.get_params(zope_home, instance_home, port)
+        params = self.get_params(zodb3_home, instance_home, port)
         self.create(instance_home, params)
 
-    def get_params(self, zope_home, instance_home, port):
+    def get_params(self, zodb3_home, instance_home, port):
         return {
             "package": "zeo",
             "PACKAGE": "ZEO",
-            "zope_home": zope_home,
+            "zodb3_home": zodb3_home,
             "instance_home": instance_home,
             "port": port,
             "python": sys.executable,
