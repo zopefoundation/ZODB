@@ -13,7 +13,7 @@
 ##############################################################################
 """ZODB-defined exceptions
 
-$Id: POSException.py,v 1.18 2003/01/03 22:08:22 jeremy Exp $"""
+$Id: POSException.py,v 1.19 2003/01/15 23:00:05 jeremy Exp $"""
 
 from types import StringType, DictType
 import ZODB.utils
@@ -53,9 +53,9 @@ class ConflictError(TransactionError):
         a human-readable explanation of the error
       serials : (string, string)
         a pair of 8-byte packed strings; these are the serial numbers
-        (old and new) of the object in conflict.  (Serial numbers are
-        closely related [equal?] to transaction IDs; a ConflictError may
-        be triggered by a serial number mismatch.)
+        related to conflict.  The first is the revision of object that
+        is in conflict, the second is the revision of that the current
+        transaction read when it started.
 
     The caller should pass either object or oid as a keyword argument,
     but not both of them.  If object is passed, it should be a
