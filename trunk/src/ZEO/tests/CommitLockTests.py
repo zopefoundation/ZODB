@@ -185,7 +185,7 @@ class CommitLockTests:
         # The rpc mgr addr attribute is a list.  Each element in the
         # list is a socket domain (AF_INET, AF_UNIX, etc.) and an
         # address.
-        addr = self._storage._rpc_mgr.addr[0][1]
+        addr = self._storage._addr
         new = ZEO.ClientStorage.ClientStorage(addr, wait=1)
         new.registerDB(DummyDB(), None)
         return new
