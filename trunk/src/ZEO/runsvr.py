@@ -20,12 +20,12 @@ Usage: %s [-a ADDRESS] [-d DIRECTORY]
 Options:
 -a/--address ADDRESS -- server address of the form PORT, HOST:PORT, or PATH
                         (a PATH must contain at least one "/")
+-d/--directory DIRECTORY -- home directory (default $INSTANCE_HOME or `pwd`)
 -f/--filename FILENAME -- filename for FileStorage
 -s/--storage STORAGE -- storage specification of the form
                         NAME=MODULE[:ATTRIBUTE]
                         (multiple -s options are supported)
 -u/--user USER -- username or uid of user to setuid()
--z/--directory DIRECTORY -- home directory (default $INSTANCE_HOME or `pwd`)
 
 -a is required; either -f must be used or -s must be used.
 """
