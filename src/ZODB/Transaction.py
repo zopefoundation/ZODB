@@ -84,8 +84,8 @@
 ##############################################################################
 """Transaction management
 
-$Id: Transaction.py,v 1.21 2000/05/28 02:22:53 chrism Exp $"""
-__version__='$Revision: 1.21 $'[11:-2]
+$Id: Transaction.py,v 1.22 2000/05/30 19:03:27 jim Exp $"""
+__version__='$Revision: 1.22 $'[11:-2]
 
 import time, sys, struct, POSException
 from struct import pack
@@ -166,9 +166,8 @@ class Transaction:
 
         finally:
             tb=None
-            if subtransaction:
-                del self._objects[:] # make sure it's empty (shouldn't need)
-            elif freeme:
+            del self._objects[:] # Clear registered
+            if not subtransaction and freeme:
                 if self._id is not None: free_transaction()
             else: self._init()
 
@@ -197,7 +196,7 @@ class Transaction:
                 if objects:
                     # Do an implicit sub-transaction commit:
                     self.commit(1)
-                    objects=()
+                    objects=[]
                 subjars=subj.values()
                 self._sub=None
 
@@ -221,9 +220,24 @@ class Transaction:
                 """)
 
         try:
+
+            # It's important that:
+            #
+            # - Every object in self._objects is either committed
+            #   or aborted.
+            #
+            # - For each object that is committed
+            #   we call tpc_begin on it's jar at least once
+            #
+            # - For every jar for which we've called tpc_begin on,
+            #   we either call tpc_abort or tpc_finish. It is OK
+            #   to call these multiple times, as the storage is
+            #   required to ignore these calls if tpc_begin has not
+            #   been called.
+            
+            ncommitted=0
             try:
-                while objects:
-                    o=objects.pop()
+                for o in objects:
                     j=getattr(o, '_p_jar', o)
                     if j is None: continue
                     i=id(j)
@@ -235,6 +249,7 @@ class Transaction:
                         else:
                             j.tpc_begin(self)
                     j.commit(o,self)
+                    ncommitted=ncommitted+1
 
                 # Commit work done in subtransactions
                 while subjars:
@@ -258,7 +273,7 @@ class Transaction:
                 # have to clean up.
 
                 # First, we have to abort any uncommitted objects.
-                for o in objects:
+                for o in objects[ncommitted:]:
                     try:
                         j=getattr(o, '_p_jar', o)
                         if j is not None: j.abort(o, self)
@@ -297,9 +312,8 @@ class Transaction:
 
         finally:
             tb=None
-            if subtransaction:
-                del self._objects[:] # make sure it's empty (shouldn't need)
-            elif self._id is not None: free_transaction()
+            del objects[:] # clear registered
+            if not subtransaction and self._id is not None: free_transaction()
 
     def register(self,object):
         'Register the given object for transaction control.'
@@ -334,10 +348,10 @@ except:
 
 else:
     _t={}
-    def get_transaction(_id=thread.get_ident, _t=_t):
+    def get_transaction(_id=thread.get_ident, _t=_t, get=_t.get, None=None):
         id=_id()
-        try: t=_t[id]
-        except KeyError: _t[id]=t=Transaction(id)
+        t=get(id, None)
+        if t is None: _t[id]=t=Transaction(id)
         return t
 
     def free_transaction(_id=thread.get_ident, _t=_t):
