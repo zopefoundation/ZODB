@@ -13,7 +13,7 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.84 2003/01/21 21:02:28 bwarsaw Exp $"""
+$Id: Connection.py,v 1.85 2003/02/06 20:31:17 shane Exp $"""
 
 from cPickleCache import PickleCache
 from POSException import ConflictError, ReadConflictError
@@ -393,7 +393,11 @@ class Connection(ExportImport.ExportImport):
             seek(0)
             clear_memo()
             dump((klass,args))
-            dump(state)
+            try:
+                dump(state)
+            except:
+                import pdb; pdb.set_trace()
+                raise
             p=file(1)
             s=dbstore(oid,serial,p,version,transaction)
             self._store_count = self._store_count + 1
