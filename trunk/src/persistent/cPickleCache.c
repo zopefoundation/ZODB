@@ -1,4 +1,4 @@
-/*****************************************************************************
+ /*****************************************************************************
 
   Copyright (c) 2001, 2002 Zope Corporation and Contributors.
   All Rights Reserved.
@@ -90,7 +90,7 @@ process must skip such objects, rather than deactivating them.
 static char cPickleCache_doc_string[] =
 "Defines the PickleCache used by ZODB Connection objects.\n"
 "\n"
-"$Id: cPickleCache.c,v 1.89 2004/02/19 18:13:35 jeremy Exp $\n";
+"$Id: cPickleCache.c,v 1.90 2004/03/02 15:37:38 jeremy Exp $\n";
 
 #define DONT_USE_CPERSISTENCECAPI
 #include "cPersistence.h"
@@ -142,16 +142,22 @@ static int cc_ass_sub(ccobject *self, PyObject *key, PyObject *v);
     ((cPersistentObject *)(((char *)here) - offsetof(cPersistentObject, ring)))
 
 static int
-scan_gc_items(ccobject *self,int target)
+scan_gc_items(ccobject *self, int target)
 {
     /* This function must only be called with the ring lock held,
        because it places a non-object placeholder in the ring.
     */
 
     cPersistentObject *object;
-    int error;
     CPersistentRing placeholder;
     CPersistentRing *here = self->ring_home.r_next;
+    static PyObject *_p_deactivate;
+
+    if (!_p_deactivate) {
+	_p_deactivate = PyString_InternFromString("_p_deactivate");
+	if (!_p_deactivate)
+	    return -1;
+    }
 
     /* Scan through the ring until we either find the ring_home (i.e. start
      * of the ring, or we've ghosted enough objects to reach the target
@@ -175,6 +181,7 @@ scan_gc_items(ccobject *self,int target)
         if (self->non_ghost_count <= target)
             return 0;
         else if (object->state == cPersistent_UPTODATE_STATE) {
+	    PyObject *meth, *error;
             /* deactivate it. This is the main memory saver. */
 
             /* Add a placeholder; a dummy node in the ring.  We need
@@ -192,9 +199,12 @@ scan_gc_items(ccobject *self,int target)
             here->r_next->r_prev = &placeholder;
             here->r_next = &placeholder;
 
-            /* In Python, "obj._p_changed = None" spells, ghostify */
-            error = PyObject_SetAttr((PyObject *)object, py__p_changed,
-				     Py_None);
+	    /* Call _p_deactivate(), which may be overridden. */
+	    meth = PyObject_GetAttr((PyObject *)object, _p_deactivate);
+	    if (!meth)
+		return -1;
+	    error = PyObject_CallObject(meth, NULL);
+	    Py_DECREF(meth);
 
             /* unlink the placeholder */
             placeholder.r_next->r_prev = placeholder.r_prev;
@@ -202,8 +212,9 @@ scan_gc_items(ccobject *self,int target)
 
             here = placeholder.r_next;
 
-            if (error)
+            if (!error)
                 return -1; /* problem */
+	    Py_DECREF(error);
         }
         else
             here = here->r_next;
