@@ -11,7 +11,7 @@
 # FOR A PARTICULAR PURPOSE
 #
 ##############################################################################
-"""ZODB undo support for Zope.
+"""ZODB undo support for Zope2.
 
 This package is used to support the Prefix object that Zope uses for
 undo.  It is a separate package only to aid configuration management.
