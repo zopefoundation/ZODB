@@ -88,7 +88,7 @@ process must skip such objects, rather than deactivating them.
 static char cPickleCache_doc_string[] =
 "Defines the PickleCache used by ZODB Connection objects.\n"
 "\n"
-"$Id: cPickleCache.c,v 1.64 2002/04/18 09:32:13 htrd Exp $\n";
+"$Id: cPickleCache.c,v 1.65 2002/05/02 14:03:07 fdrake Exp $\n";
 
 #define ASSIGN(V,E) {PyObject *__e; __e=(E); Py_XDECREF(V); (V)=__e;}
 #define UNLESS(E) if(!(E))
@@ -972,6 +972,7 @@ cc_ass_sub(ccobject *self, PyObject *key, PyObject *v)
 	return cc_del_item(self, key);
 }
 
+#ifdef MUCH_RING_CHECKING
 static int 
 _ring_corrupt(ccobject *self, const char *context)
 {
@@ -1037,6 +1038,7 @@ _ring_corrupt(ccobject *self, const char *context)
 
     return 0;
 }
+#endif /* MUCH_RING_CHECKING */
 
 static int 
 ring_corrupt(ccobject *self, const char *context)
