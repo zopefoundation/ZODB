@@ -82,7 +82,7 @@
   attributions are listed in the accompanying credits file.
   
  ****************************************************************************/
-static char *what_string = "$Id: cPickleCache.c,v 1.25 1999/06/29 21:52:58 jim Exp $";
+static char *what_string = "$Id: cPickleCache.c,v 1.26 1999/07/06 19:24:22 jim Exp $";
 
 #define ASSIGN(V,E) {PyObject *__e; __e=(E); Py_XDECREF(V); (V)=__e;}
 #define UNLESS(E) if(!(E))
@@ -100,6 +100,7 @@ typedef struct {
   PyObject_HEAD
   PyObject *data;
   PyObject *jar;
+  PyObject *setklassstate;
   int position;
   int cache_size;
   int cache_age;
@@ -346,9 +347,21 @@ _invalidate(ccobject *self, PyObject *key)
 
   if ((v=PyDict_GetItem(self->data, key)))
     {
-      if ((! PyExtensionClass_Check(v)) &&
-	  PyObject_DelAttr(v,py__p_changed) < 0
-	  )
+      if (PyExtensionClass_Check(v))
+	if(v->ob_refcnt <= 1)
+	  {
+	    self->sum_deal++;
+	    if (PyDict_DelItem(self->data, key) < 0) 
+	      PyErr_Clear();
+	  }
+	else
+	  {
+	    v=PyObject_CallFunction(self->setklassstate,
+				    "O", v);
+	    if (v) Py_DECREF(v);
+	    else PyErr_Clear();
+	  }
+      else if (PyObject_DelAttr(v,py__p_changed) < 0)
 	PyErr_Clear();
     }
   else PyErr_Clear();
@@ -457,10 +470,13 @@ newccobject(PyObject *jar, int cache_size, int cache_age)
   ccobject *self;
   
   UNLESS(self = PyObject_NEW(ccobject, &Cctype)) return NULL;
+  self->setklassstate=self->jar=NULL;
   if(self->data=PyDict_New())
     {
       self->jar=jar; 
       Py_INCREF(jar);
+      UNLESS (self->setklassstate=PyObject_GetAttrString(jar, "setklassstate"))
+	return NULL;
       self->position=0;
       self->cache_size=cache_size;
       self->cache_age=cache_age < 1 ? 1 : cache_age;
@@ -486,6 +502,7 @@ cc_dealloc(ccobject *self)
 {
   Py_XDECREF(self->data);
   Py_XDECREF(self->jar);
+  Py_XDECREF(self->setklassstate);
   PyMem_DEL(self);
 }
 
@@ -652,7 +669,7 @@ void
 initcPickleCache()
 {
   PyObject *m, *d;
-  char *rev="$Revision: 1.25 $";
+  char *rev="$Revision: 1.26 $";
 
   Cctype.ob_type=&PyType_Type;
 
