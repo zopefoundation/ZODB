@@ -84,7 +84,7 @@
 ##############################################################################
 """Network ZODB storage client
 """
-__version__='$Revision: 1.26 $'[11:-2]
+__version__='$Revision: 1.27 $'[11:-2]
 
 import struct, time, os, socket, string, Sync, zrpc, ClientCache
 import tempfile, Invalidator, ExtensionClass, thread
@@ -95,6 +95,9 @@ from struct import pack, unpack
 from ZODB import POSException, BaseStorage
 from ZODB.TimeStamp import TimeStamp
 from zLOG import LOG, PROBLEM, INFO
+
+try: from ZODB.ConflictResolution import ResolvedSerial
+except: ResolvedSerial='rs'
 
 TupleType=type(())
 
@@ -517,7 +520,10 @@ class ClientStorage(ExtensionClass.Base, BaseStorage.BaseStorage):
                         "Unexpected end of file in client storage "
                         "temporary file."
                         )
-                update(oid, s, v, p)
+                if s==ResolvedSerial:
+                    cache.invalidate(oid, v)
+                else:
+                    update(oid, s, v, p)
                 i=i+14+vlen+dlen
 
             seek(0)
