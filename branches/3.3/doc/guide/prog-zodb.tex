@@ -239,14 +239,24 @@ transaction.commit()
 \end{verbatim}
 
 The \module{transaction} module defines a few top-level functions for
-working with transactions.  \method{commit()} writes any modified
-objects to disk, making the changes permanent.  \method{abort()} rolls
+working with transactions.  \function{commit()} writes any modified
+objects to disk, making the changes permanent.  \function{abort()} rolls
 back any changes that have been made, restoring the original state of
 the objects.  If you're familiar with database transactional
-semantics, this is all what you'd expect.  \method{get()} returns a
+semantics, this is all what you'd expect.  \function{get()} returns a
 \class{Transaction} object that has additional methods like
-\method{status()}, to check the current state of the transaction, and
 \method{note()}, to add a note to the transaction metadata.
+
+More precisely, the \module{transaction} module exposes an instance of
+the \class{ThreadTransactionManager} transaction manager class as
+\code{transaction.manager}, and the \module{transaction} functions
+\function{get()} and \function{begin()} redirect to the same-named
+methods of \code{transaction.manager}.  The \function{commit()} and
+\function{abort()} functions apply the methods of the same names to
+the \class{Transaction} object returned by \code{transaction.manager.get()}.
+This is for convenience.  It's also possible to create your own transaction
+manager instances, and to tell \code{DB.open()} to use your transaction
+manager instead.
 
 Because the integration with Python is so complete, it's a lot like
 having transactional semantics for your program's variables, and you
