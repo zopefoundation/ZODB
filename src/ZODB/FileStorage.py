@@ -184,7 +184,7 @@
 #   may have a back pointer to a version record or to a non-version
 #   record.
 #
-__version__='$Revision: 1.28 $'[11:-2]
+__version__='$Revision: 1.29 $'[11:-2]
 
 import struct, time, os, bpthread, string, base64, sys
 from struct import pack, unpack
@@ -1323,8 +1323,10 @@ def read_index(file, name, index, vindex, tindex, stop='\377'*8,
                 panic("%s data record exceeds transaction record at %s",
                       name, pos)
             if index_get(oid,0) != prev:
-                panic("%s incorrect previous pointer at %s",
-                      name, pos)
+                if prev:
+                    panic("%s incorrect previous pointer at %s", name, pos)
+                else:
+                    warn("%s incorrect previous pointer at %s", name, pos)
 
             pos=pos+dlen
 
