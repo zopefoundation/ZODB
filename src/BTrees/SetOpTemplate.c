@@ -16,7 +16,7 @@
  Set operations
  ****************************************************************************/
 
-#define SETOPTEMPLATE_C "$Id: SetOpTemplate.c,v 1.10 2002/02/11 23:40:40 gvanrossum Exp $\n"
+#define SETOPTEMPLATE_C "$Id: SetOpTemplate.c,v 1.11 2002/02/20 23:59:51 jeremy Exp $\n"
 
 #ifdef INTSET_H
 static int 
@@ -67,7 +67,7 @@ initSetIteration(SetIteration *i, PyObject *s, int w, int *merge)
 {
   i->position=0;
 
-  if (ExtensionClassSubclassInstance_Check(s, &BucketType))
+  if (PyObject_IsInstance(s, (PyObject *)&BucketType))
     {
       i->set = s;
       Py_INCREF(s);
@@ -82,7 +82,7 @@ initSetIteration(SetIteration *i, PyObject *s, int w, int *merge)
 
       i->hasValue=1;
     }
-  else if (ExtensionClassSubclassInstance_Check(s, &SetType))
+  else if (PyObject_IsInstance(s, (PyObject *)&SetType))
     {
       i->set = s;
       Py_INCREF(s);
@@ -90,7 +90,7 @@ initSetIteration(SetIteration *i, PyObject *s, int w, int *merge)
       i->next=nextSet;
       i->hasValue=0;
     }
-  else if (ExtensionClassSubclassInstance_Check(s, &BTreeType))
+  else if (PyObject_IsInstance(s, (PyObject *)&BTreeType))
     {
       i->set=BTree_rangeSearch(BTREE(s), NULL, 'i');
       UNLESS(i->set) return -1;
@@ -104,7 +104,7 @@ initSetIteration(SetIteration *i, PyObject *s, int w, int *merge)
         i->next=nextTreeSetItems;
       i->hasValue=1;
     }
-  else if (ExtensionClassSubclassInstance_Check(s, &TreeSetType))
+  else if (PyObject_IsInstance(s, (PyObject *)&TreeSetType))
     {
       i->set=BTree_rangeSearch(BTREE(s), NULL, 'k');
       UNLESS(i->set) return -1;

@@ -12,7 +12,7 @@
   
  ****************************************************************************/
 
-#define SETTEMPLATE_C "$Id: SetTemplate.c,v 1.13 2002/02/11 23:40:40 gvanrossum Exp $\n"
+#define SETTEMPLATE_C "$Id: SetTemplate.c,v 1.14 2002/02/20 23:59:51 jeremy Exp $\n"
 
 static PyObject *
 Set_insert(Bucket *self, PyObject *args)
@@ -236,37 +236,48 @@ static PySequenceMethods set_as_sequence = {
 	(intintobjargproc)0,	/*sq_ass_slice*/
 };
 
-static PyExtensionClass SetType = {
-  PyObject_HEAD_INIT(NULL)
-  0,				/*ob_size*/
-  MOD_NAME_PREFIX "Set",			/*tp_name*/
-  sizeof(Bucket),		/*tp_basicsize*/
-  0,				/*tp_itemsize*/
-  /*********** methods ***********************/
-  (destructor) Bucket_dealloc,	/*tp_dealloc*/
-  (printfunc)0,			/*tp_print*/
-  (getattrfunc)0,		/*obsolete tp_getattr*/
-  (setattrfunc)0,		/*obsolete tp_setattr*/
-  (cmpfunc)0,			/*tp_compare*/
-  (reprfunc) set_repr,		/*tp_repr*/
-  0,				/*tp_as_number*/
-  &set_as_sequence,		/*tp_as_sequence*/
-  0,		                /*tp_as_mapping*/
-  (hashfunc)0,			/*tp_hash*/
-  (ternaryfunc)0,		/*tp_call*/
-  (reprfunc)0,			/*tp_str*/
-  (getattrofunc)0,		/*tp_getattro*/
-  0,				/*tp_setattro*/
-  
-  /* Space for future expansion */
-  0L,0L,
-  "Set implemented as sorted keys", 
-  METHOD_CHAIN(Set_methods),
-  EXTENSIONCLASS_BASICNEW_FLAG 
-#ifdef PERSISTENT
-  | PERSISTENT_TYPE_FLAG 
-#endif
-  | EXTENSIONCLASS_NOINSTDICT_FLAG,
+static PyTypeObject SetType = {
+    PyObject_HEAD_INIT(NULL) /* PyPersist_Type */
+    0,					/* ob_size */
+    MOD_NAME_PREFIX "Set",		/* tp_name */
+    sizeof(Bucket),			/* tp_basicsize */
+    0,					/* tp_itemsize */
+    (destructor)bucket_dealloc,		/* tp_dealloc */
+    0,					/* tp_print */
+    0,					/* tp_getattr */
+    0,					/* tp_setattr */
+    0,					/* tp_compare */
+    (reprfunc)set_repr,			/* tp_repr */
+    0,					/* tp_as_number */
+    &set_as_sequence,			/* tp_as_sequence */
+    0,					/* tp_as_mapping */
+    0,					/* tp_hash */
+    0,					/* tp_call */
+    0,					/* tp_str */
+    0,					/* tp_getattro */
+    0,					/* tp_setattro */
+    0,					/* tp_as_buffer */
+/* XXX need to define traverse and clear functions */
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC |
+	    Py_TPFLAGS_BASETYPE, 	/* tp_flags */
+    0,					/* tp_doc */
+    0,	/* tp_traverse */
+    0,		/* tp_clear */
+    0,					/* tp_richcompare */
+    0,					/* tp_weaklistoffset */
+    0,					/* tp_iter */
+    0,					/* tp_iternext */
+    Set_methods,			/* tp_methods */
+    0,					/* tp_members */
+    0,					/* tp_getset */
+    0,					/* tp_base */
+    0,					/* tp_dict */
+    0,					/* tp_descr_get */
+    0,					/* tp_descr_set */
+    0,					/* tp_dictoffset */
+    0,					/* tp_init */
+    0,					/* tp_alloc */
+    PyType_GenericNew,			/* tp_new */
 };
 
 static int 

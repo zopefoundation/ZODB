@@ -1,5 +1,5 @@
 
-#define MASTER_ID "$Id: _IOBTree.c,v 1.3 2001/04/02 16:31:05 jeremy Exp $\n"
+#define MASTER_ID "$Id: _IOBTree.c,v 1.4 2002/02/20 23:59:51 jeremy Exp $\n"
 
 #define PERSISTENT
 
@@ -10,7 +10,6 @@
                                 
 #include "intkeymacros.h"
 #include "objectvaluemacros.h"
-#include "cPersistence.h"
 #ifndef EXCLUDE_INTSET_SUPPORT
 #include "BTree/intSet.h"
 #endif
