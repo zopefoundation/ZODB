@@ -7,22 +7,38 @@ version should be a string like "3.2c1"
 date should be a string like "23-Sep-2003"
 
 The following files are updated:
-    - setup.py gets a version number
+    - setup.py
+    - NEWS.txt
+    - doc/guide/zodb.tex
+    - src/ZEO/__init__.py
+    - src/ZEO/version.txt
+    - src/ZODB/__init__.py
 """
 
 import fileinput
 import os
 import re
 
-def fixpath(path):
-    parts = path.split("/")
-    return os.sep.join(parts)
-
+# In file filename, replace the first occurrence of regexp pat with
+# string repl.
 def replace(filename, pat, repl):
-    parts = filename.split("/")
-    filename = os.sep.join(parts)
+    foundone = False
     for line in fileinput.input([filename], inplace=True, backup="~"):
-        print re.sub(pat, repl, line),
+        if foundone:
+            print line,
+        else:
+            new = re.sub(pat, repl, line)
+            if new != line:
+                foundone = True
+                print "In %r, replaced:" % filename
+                print "   ", line
+                print "by:"
+                print "   ", new
+            print new,
+
+    if not foundone:
+        print "*" * 60, "Oops!"
+        print "    Failed to find %r in %r" % (pat, filename)
 
 def compute_zeoversion(version):
     # ZEO version's trail ZODB versions by one full revision.
@@ -32,7 +48,7 @@ def compute_zeoversion(version):
     return "%s.%s" % (major, rest)
 
 def write_zeoversion(path, version):
-    f = open(fixpath(path), "wb")
+    f = file(path, "w")
     print >> f, version
     f.close()
 
@@ -40,16 +56,19 @@ def main(args):
     version, date = args
     zeoversion = compute_zeoversion(version)
 
-    replace("setup.py", 'version="\S+"', 'version="%s"' % version)
+    replace("setup.py",
+            r'version="\S+"',
+            'version="%s"' % version)
     replace("src/ZODB/__init__.py",
-            '__version__ = "\S+"',
+            r'__version__ = "\S+"',
             '__version__ = "%s"' % version)
     replace("src/ZEO/__init__.py",
-            'version = "\S+"',
+            r'version = "\S+"',
             'version = "%s"' % zeoversion)
     write_zeoversion("src/ZEO/version.txt", zeoversion)
     replace("NEWS.txt",
-            "Release date: XX-\S+-\S+", "Release date: %s" % date)
+            r"^Release date: .*",
+            "Release date: %s" % date)
 
 if __name__ == "__main__":
     import sys
