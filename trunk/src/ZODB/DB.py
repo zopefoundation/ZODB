@@ -84,8 +84,8 @@
 ##############################################################################
 """Database objects
 
-$Id: DB.py,v 1.4 1999/05/10 23:15:55 jim Exp $"""
-__version__='$Revision: 1.4 $'[11:-2]
+$Id: DB.py,v 1.5 1999/05/12 15:55:43 jim Exp $"""
+__version__='$Revision: 1.5 $'[11:-2]
 
 import cPickle, cStringIO, sys
 from Connection import Connection
@@ -148,7 +148,8 @@ class DB:
         # Pass through methods:
         for m in ('history', 'modifiedInVersion',
                   'supportsUndo', 'supportsVersions',
-                  'undo', 'undoLog', 'versionEmpty'):
+                  'undo', 'undoLog',
+                  'versionEmpty', 'versions'):
             setattr(self, m, getattr(storage, m))
         
 
@@ -163,6 +164,11 @@ class DB:
         if m[1]: m=m[0]/m[1]
         else: m=None
         return m
+
+    def _classFactory(self, connection, location, name,
+                      _silly=('__doc__',), _globals={}):
+        return getattr(__import__(location, _globals, _globals, _silly),
+                       name)
             
     def _closeConnection(self, connection):
         """Return a connection to the pool"""
@@ -269,10 +275,21 @@ class DB:
 
     def exportFile(self, oid, file=None):
         raise 'Not yet implemented'
+                           
+    def getCacheDeactivateAfter(self): return self._cache_deactivate_after
+    def getCacheSize(self): return self._cache_size
 
     def getName(self): return self._storage.getName()
 
+    def getPoolSize(self): return self._pool_size
+
     def getSize(self): return self._storage.getSize()
+
+    def getVersionCacheDeactivateAfter(self):
+        return self._version_cache_deactivate_after
+    def getVersionCacheSize(self): return self._version_cache_size
+
+    def getVersionPoolSize(self): return self._version_pool_size
 
     def importFile(self, file):
         raise 'Not yet implemented'
@@ -369,7 +386,7 @@ class DB:
             if not pool:
                 c=None
                 if version:
-                    if self._version_pool_size < len(allocated) or force:
+                    if self._version_pool_size > len(allocated) or force:
                         c=Connection(
                             storage=self._storage,
                             version=version,
@@ -417,19 +434,15 @@ class DB:
                            
     def setCacheDeactivateAfter(self, v): self._cache_deactivate_after=v
     def setCacheSize(self, v): self._cache_size=v
+
+    def setClassFactory(self, factory):
+        self._classFactory=factory
+
     def setPoolSize(self, v): self._pool_size=v
     def setVersionCacheDeactivateAfter(self, v):
         self._version_cache_deactivate_after=v
     def setVersionCacheSize(self, v): self._version_cache_size=v
     def setVersionPoolSize(self, v): self._version_pool_size=v
-                           
-    def getCacheDeactivateAfter(self): return self._cache_deactivate_after
-    def getCacheSize(self): return self._cache_size
-    def getPoolSize(self): return self._pool_size
-    def getVersionCacheDeactivateAfter(self):
-        return self._version_cache_deactivate_after
-    def getVersionCacheSize(self): return self._version_cache_size
-    def getVersionPoolSize(self): return self._version_pool_size
 
     def cacheStatistics(self): return () # :(
 

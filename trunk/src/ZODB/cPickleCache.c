@@ -82,7 +82,7 @@
   attributions are listed in the accompanying credits file.
   
  ****************************************************************************/
-static char *what_string = "$Id: cPickleCache.c,v 1.18 1999/05/10 23:15:57 jim Exp $";
+static char *what_string = "$Id: cPickleCache.c,v 1.19 1999/05/12 15:55:44 jim Exp $";
 
 #define ASSIGN(V,E) {PyObject *__e; __e=(E); Py_XDECREF(V); (V)=__e;}
 #define UNLESS(E) if(!(E))
@@ -492,16 +492,19 @@ cc_subscript(ccobject *self, PyObject *key)
   return r;
 }
 
-static PyExtensionClass *Persistent=0;
-
 static int
 cc_ass_sub(ccobject *self, PyObject *key, PyObject *v)
 {
   if(v) 
     {
-      if (PyExtensionClass_Check(v) ||
-	  (PyExtensionInstance_Check(v) &&
-	   ExtensionClassSubclassInstance_Check(v, Persistent)
+      if (PyExtensionClass_Check(v) 
+	  ||
+	  (PyExtensionInstance_Check(v) 
+	   &&
+	   (((PyExtensionClass*)(v->ob_type))->class_flags 
+	    & PERSISTENT_TYPE_FLAG)
+	   &&
+	   (v->ob_type->tp_basicsize >= sizeof(cPersistentObject))
 	   )
 	  )	  
 	return PyDict_SetItem(self->data, key, v);
@@ -563,19 +566,11 @@ void
 initcPickleCache()
 {
   PyObject *m, *d;
-  char *rev="$Revision: 1.18 $";
+  char *rev="$Revision: 1.19 $";
 
   Cctype.ob_type=&PyType_Type;
 
   UNLESS(ExtensionClassImported) return;
-
-  /* Get the Persistent base class */
-  UNLESS(m=PyString_FromString(cPersistanceModuleName)) return;
-  ASSIGN(m, PyImport_Import(m));
-  UNLESS(m) return;
-  ASSIGN(m, PyObject_GetAttrString(m, "Persistent"));
-  UNLESS(m) return;
-  Persistent=(PyExtensionClass *)m;
 
   m = Py_InitModule4("cPickleCache", cCM_methods, "",
 		     (PyObject*)NULL,PYTHON_API_VERSION);

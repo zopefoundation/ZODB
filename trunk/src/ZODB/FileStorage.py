@@ -151,7 +151,7 @@ Also, the object ids time stamps are big-endian, so comparisons
 are meaningful.
 
 """
-__version__='$Revision: 1.4 $'[11:-2]
+__version__='$Revision: 1.5 $'[11:-2]
 
 import struct, time, os, bpthread
 now=time.time
@@ -159,6 +159,7 @@ from struct import pack, unpack
 from cPickle import dumps
 import POSException
 from TimeStamp import TimeStamp
+from lock_file import lock_file
 
 t32 = 1L << 32
 
@@ -199,7 +200,7 @@ def error(log, message, *data):
 def panic(log, message, *data):
     message=message%data
     log("%s ERROR: %s\n" % (packed_version, message))
-    raise CorruptedTransactionRecordError, message
+    raise CorruptedTransactionError, message
         
 
 class FileStorageError: pass
@@ -238,11 +239,12 @@ class FileStorage:
         
         self.__name__=file_name
         self._tfile=open(file_name+'.tmp','w+b')
-        index, vindex, tindex = self._newIndexes()
+        index, vindex, tindex, tvindex = self._newIndexes()
 
         self._index=index
         self._vindex=vindex
         self._tindex=tindex
+        self._tvindex=tvindex
         self._indexpos=index.get
         self._vindexpos=vindex.get
         self._tappend=tindex.append
@@ -268,6 +270,7 @@ class FileStorage:
 
         if os.path.exists(file_name):
             file=open(file_name, read_only and 'rb' or 'r+b')
+            if not read_only: lock_file(file)
         else:
             if read_only:
                 raise ValueError, "can\'t create a read-only file"
@@ -286,7 +289,7 @@ class FileStorage:
 
     def __len__(self): return len(self._index)
 
-    def _newIndexes(self): return {}, {}, []
+    def _newIndexes(self): return {}, {}, [], {}
 
     def abortVersion(self, version, transaction):
         if transaction is not self._transaction:
@@ -395,12 +398,12 @@ class FileStorage:
                     (read(8) # skip past version link
                      and version != read(vlen))
                     ):
-                    return _loadBack(file, oid, u64(pnv))
+                    return _loadBack(file, oid, pnv)
 
             # If we get here, then either this was not a version record,
             # or we've already read past the version data!
             if plen != z64: return read(u64(plen)), serial
-            return _loadBack(file, oid, u64(pnv))
+            return _loadBack(file, oid, pnv)
         finally: self._r()
                     
     def modifiedInVersion(self, oid):
@@ -408,13 +411,14 @@ class FileStorage:
         try:
             pos=self._index[oid]
             file=self._file
-            file.seek(pos)
+            seek=file.seek
+            seek(pos)
             doid,serial,prev,tloc,vlen = unpack(">8s8s8s8sH", file.read(34))
             if doid != oid:
                 raise CorruptedDataError, h
             if vlen:
-                seek(16,1)
-                return read(vlen)
+                seek(24,1) # skip plen, pnv, and pv
+                return file.read(vlen)
             return ''
         finally: self._r()
 
@@ -449,10 +453,10 @@ class FileStorage:
             if old:
                 file=self._file
                 file.seek(old)
-                h=file.read(42)
+                read=file.read
+                h=read(42)
                 doid,oserial,sprev,stloc,vlen,splen = unpack(">8s8s8s8sH8s", h)
                 if doid != oid: raise CorruptedDataError, h
-                if serial != oserial: raise POSException.ConflictError
                 if vlen:
                     pnv=read(8) # non-version data pointer
                     if (len(version) != vlen or
@@ -461,10 +465,13 @@ class FileStorage:
                         ):
                         raise POSException.VersionLockError, oid
 
+                if serial != oserial: raise POSException.ConflictError
+
             tfile=self._tfile
             write=tfile.write
-            self._tappend(oid, tfile.tell())
             pos=self._pos
+            here=tfile.tell()+pos+self._thl
+            self._tappend(oid, here)
             serial=self._serial
             write(pack(">8s8s8s8sH8s",
                        oid,serial,p64(old),p64(pos),
@@ -475,10 +482,12 @@ class FileStorage:
                 if pnv: write(pnv)
                 else:   write(p64(old))
                 # Link to last record for this version:
-                vindex=self._vindex
-                write(p64(vindex[version]))
-                vindex[version]=pos
+                tvindex=self._tvindex
+                pv=tvindex.get(version, 0) or self._vindexpos(version, 0)
+                write(p64(pv))
+                tvindex[version]=here
                 write(version)
+
             write(data)
 
             return serial
@@ -505,12 +514,30 @@ class FileStorage:
             self._ca()
             self._a()
             self._transaction=transaction
-            del self._tindex[:] # Just to be sure!
+            del self._tindex[:]   # Just to be sure!
+            self._tvindex.clear() #      ''
             self._tfile.seek(0)
+
             t=time.time()
             t=apply(TimeStamp,(time.gmtime(t)[:5]+(t%60,)))
             self._ts=t=t.laterThan(self._ts)
             self._serial=`t`
+
+            user=transaction.user
+            desc=transaction.description
+            ext=transaction._extension
+            if ext: ext=dumps(ext,1)
+            else: ext=""
+
+            # Ugh, we have to record the transaction header length
+            # so that we can get version pointers right.
+            self._thl=33+len(user)+len(desc)+len(ext)
+
+            # And we have to save the data used to compute the
+            # header length. It's unlikely that this stuff would
+            # change, but if it did, it would be a disaster.
+            self._ude=user, desc, ext
+            
         finally: self._r()
 
     def tpc_finish(self, transaction, f=None):
@@ -524,13 +551,10 @@ class FileStorage:
             dlen=tfile.tell()
             tfile.seek(0)
             id=self._serial
-            user=transaction.user
-            desc=transaction.description
-            ext=transaction._extension
-            if ext: ext=dumps(ext,1)
-            else: ext=""
-            
-            tlen=33+len(user)+len(desc)+len(ext)
+            user, desc, ext = self._ude
+            self._ude=None
+                        
+            tlen=self._thl
             pos=self._pos
             file.seek(pos)
             stpos=p64(self._tpos)
@@ -551,11 +575,15 @@ class FileStorage:
             self._tpos=pos
             self._pos=pos+tl+8
 
+            tindex=self._tindex
             index=self._index
-            dpos=pos+tlen
-            for oid, pos in self._tindex: index[oid]=pos+dpos
+            for oid, pos in tindex: index[oid]=pos
+            del tindex[:]
+            
+            tvindex=self._tvindex
+            self._vindex.update(tvindex)
+            tvindex.clear()
 
-            del self._tindex[:]
             self._transaction=None
             self._cr()
         finally: self._r()
@@ -570,6 +598,10 @@ class FileStorage:
 
     def versionEmpty(self, version):
         return not self._vindex.has_key(version)
+
+    def versions(self, max=None):
+        if max: return self._vindex.keys()[:max]
+        return self._vindex.keys()
 
 
 def read_index(file, name, index, vindex, tindex, stop='\377'*8,
@@ -677,7 +709,7 @@ def read_index(file, name, index, vindex, tindex, stop='\377'*8,
             tappend((oid,pos))
             
             if vlen:
-                dlen=vlen+16
+                dlen=dlen+16
                 seek(8,1)
                 pv=u64(read(8))
                 version=read(vlen)
@@ -716,16 +748,19 @@ def read_index(file, name, index, vindex, tindex, stop='\377'*8,
 
 
 def _loadBack(file, oid, back):
+    seek=file.seek
+    read=file.read
+    
     while 1:
-        old=unpack(">i",back)[0]
+        old=u64(back)
         if not old: raise KeyError, oid
-        file.seek(old)
-        h=file.read(42)
+        seek(old)
+        h=read(42)
         doid,serial,prev,tloc,vlen,plen = unpack(">8s8s8s8sH8s", h)
         if doid != oid or vlen:
             panic(lambda x: None,
                   "%s version record back pointer points to "
                   "invalid record as %s", name, back)
 
-        if plen: return read(plen), serial
-        back=read(4) # We got a back pointer!
+        if plen: return read(u64(plen)), serial
+        back=read(8) # We got a back pointer!

@@ -84,8 +84,8 @@
 ##############################################################################
 """Transaction management
 
-$Id: Transaction.py,v 1.5 1999/05/10 23:15:56 jim Exp $"""
-__version__='$Revision: 1.5 $'[11:-2]
+$Id: Transaction.py,v 1.6 1999/05/12 15:55:44 jim Exp $"""
+__version__='$Revision: 1.6 $'[11:-2]
 
 import time, sys, struct
 from struct import pack
@@ -130,7 +130,7 @@ class Transaction:
 
         This aborts any transaction in progres.
         '''
-        if self._objects: self._abort(0)
+        if self._objects: self.abort(0)
         self.__init__()
         if info:
             info=split(info,'\t')

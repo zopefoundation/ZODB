@@ -82,7 +82,7 @@
   attributions are listed in the accompanying credits file.
   
  ****************************************************************************/
-static char *what_string = "$Id: cPersistence.c,v 1.27 1999/05/10 23:15:56 jim Exp $";
+static char *what_string = "$Id: cPersistence.c,v 1.28 1999/05/12 15:55:44 jim Exp $";
 
 #include <string.h>
 #include "cPersistence.h"
@@ -484,6 +484,8 @@ Per_getattr(cPersistentObject *self, PyObject *oname, char *name,
 	  case 's':
 	    if(strcmp(n,"erial")==0)
 	      return PyString_FromStringAndSize(self->serial, 8);
+	    if(strcmp(n,"elf")==0) 
+	      return orNothing(OBJECT(self));
 	    break;
 	  case 'm':
 	    if(strcmp(n,"time")==0)
@@ -581,6 +583,7 @@ _setattro(cPersistentObject *self, PyObject *oname, PyObject *v,
 	  if (! v || v==Py_None)
 	    {
 	      if (Per__p_deactivate(self, NULL)) Py_DECREF(Py_None);
+	      self->state=cPersistent_GHOST_STATE;
 	      return 0;
 	    }
 	  if (PyObject_IsTrue(v)) return changed(self);
@@ -635,7 +638,7 @@ static PyExtensionClass Pertype = {
 	/* Space for future expansion */
 	0L,0L,"",
 	METHOD_CHAIN(Per_methods),
-	EXTENSIONCLASS_BASICNEW_FLAG,
+	EXTENSIONCLASS_BASICNEW_FLAG | PERSISTENT_TYPE_FLAG,
 };
 
 /* End of code for Persistent objects */
@@ -687,7 +690,7 @@ void
 initcPersistence()
 {
   PyObject *m, *d;
-  char *rev="$Revision: 1.27 $";
+  char *rev="$Revision: 1.28 $";
 
   TimeStamp=PyString_FromString("TimeStamp");
   if (! TimeStamp) return;
