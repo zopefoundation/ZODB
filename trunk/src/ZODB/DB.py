@@ -84,15 +84,15 @@
 ##############################################################################
 """Database objects
 
-$Id: DB.py,v 1.14 1999/08/25 17:36:02 jim Exp $"""
-__version__='$Revision: 1.14 $'[11:-2]
+$Id: DB.py,v 1.15 1999/08/26 20:24:12 jim Exp $"""
+__version__='$Revision: 1.15 $'[11:-2]
 
 import cPickle, cStringIO, sys, POSException
 from Connection import Connection
 from bpthread import allocate_lock
 from Transaction import Transaction
 from referencesf import referencesf
-from time import ctime
+from time import time, ctime
 
 StringType=type('')
 
@@ -493,10 +493,12 @@ class DB:
     def connectionDebugInfo(self):
         r=[]
         pools,pooll=self._pools
+        t=time()
         for version, (pool, allocated, lock) in pools.items():
             for c in allocated:
+                o=c._opened
                 r.append({
-                    'opened': c._opened and ctime(c._opened),
+                    'opened': o and ("%s (%.2fs)" % (ctime(o), t-o)),
                     'info': c._debug_info,
                     'version': version,
                     })
