@@ -124,16 +124,6 @@ class ConnectionDotAdd(unittest.TestCase):
                 "subobject was not stored")
         self.assert_(self.datamgr._added_during_commit is None)
 
-    def checkErrorDuringCommit(self):
-        # We need to check that _added_during_commit still gets set to None
-        # when there is an error during commit()/
-        obj = ErrorOnGetstateObject()
-        
-        self.datamgr.tpc_begin(self.transaction)
-        self.assertRaises(ErrorOnGetstateException,
-                self.datamgr.commit, obj, self.transaction)
-        self.assert_(self.datamgr._added_during_commit is None)
-
     def checkUnusedAddWorks(self):
         # When an object is added, but not committed, it shouldn't be stored,
         # but also it should be an error.

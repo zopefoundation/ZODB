@@ -250,7 +250,7 @@ class CacheErrors(unittest.TestCase):
         self.cache = PickleCache(self.jar)
 
     def checkGetBogusKey(self):
-        self.assertRaises(KeyError, self.cache.get, p64(0))
+        self.assertEqual(self.cache.get(p64(0)), None)
         try:
             self.cache[12]
         except KeyError:
