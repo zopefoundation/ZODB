@@ -323,7 +323,7 @@ class ConnectThread(threading.Thread):
                 return 0
             # Select connecting wrappers
             connecting = [wrap
-                          for  wrap in wrappers.keys()
+                          for wrap in wrappers.keys()
                           if wrap.state == "connecting"]
             if not connecting:
                 break
@@ -335,6 +335,7 @@ class ConnectThread(threading.Thread):
                 continue
             # Exceptable wrappers are in trouble; close these suckers
             for wrap in x:
+                log("CT: closing troubled socket %s" % str(wrap.addr))
                 del wrappers[wrap]
                 wrap.close()
             # Writable sockets are connected
