@@ -2,6 +2,14 @@ What's new in ZODB3 3.3?
 ========================
 Release date: 17-Sep-2004
 
+ZEO
+---
+
+The encoding of RPC calls between server and client was being done
+with protocol 0 ("text mode") pickles, which could require sending
+four times as many bytes as necessary.  Protocol 1 pickles are used
+now.  Thanks to Andreas Jung for the diagnosis and cure.
+
 ZODB/component.xml
 ------------------
 
