@@ -15,4 +15,6 @@
 from zope.testing.doctestunit import DocFileSuite
 
 def test_suite():
-    return DocFileSuite("dbopen.txt")
+    return DocFileSuite("dbopen.txt",
+                        "multidb.txt",
+                        )
