@@ -1,10 +1,10 @@
 # Rules to convert the documentation to a single PDF file.
 #
-# PostScript and HTML output are also supported, though PDF is the
-# default.
+# PostScript, HTML, and plain text output are also supported, though
+# PDF is the default.
 #
 # See the README.txt file for information on the mkhowto program used
-# to generate the PDF and PostScript versions of the documentation.
+# to generate the formatted versions of the documentation.
 
 .PHONY:	default all html pdf ps text
 
