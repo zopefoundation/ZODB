@@ -180,3 +180,36 @@ class StorageTestBase(unittest.TestCase):
     def _dostoreNP(self, oid=None, revid=None, data=None, version=None,
                    user=None, description=None):
         return self._dostore(oid, revid, data, version, already_pickled=1)
+
+    # The following methods depend on optional storage features.
+
+    def _undo(self, tid, oid):
+        # Undo a tid that affects a single object (oid).
+        # XXX This is very specialized
+        t = Transaction()
+        t.note("undo")
+        self._storage.tpc_begin(t)
+        oids = self._storage.transactionalUndo(tid, t)
+        self._storage.tpc_vote(t)
+        self._storage.tpc_finish(t)
+        self.assertEqual(len(oids), 1)
+        self.assertEqual(oids[0], oid)
+        return self._storage.lastTransaction()
+
+    def _commitVersion(self, src, dst):
+        t = Transaction()
+        t.note("commit %r to %r" % (src, dst))
+        self._storage.tpc_begin(t)
+        oids = self._storage.commitVersion(src, dst, t)
+        self._storage.tpc_vote(t)
+        self._storage.tpc_finish(t)
+        return oids
+
+    def _abortVersion(self, ver):
+        t = Transaction()
+        t.note("abort %r" % ver)
+        self._storage.tpc_begin(t)
+        oids = self._storage.abortVersion(ver, t)
+        self._storage.tpc_vote(t)
+        self._storage.tpc_finish(t)
+        return oids
