@@ -144,7 +144,7 @@ file 0 and file 1.
 
 """
 
-__version__ = "$Revision: 1.5 $"[11:-2]
+__version__ = "$Revision: 1.6 $"[11:-2]
 
 import os, tempfile
 from struct import pack, unpack
@@ -155,11 +155,16 @@ class ClientCache:
 
     def __init__(self, storage='', size=20000000, client=None, var=None):
         if client:
+            # Create a persistent cache
             if var is None: var=os.path.join(INSTANCE_HOME,'var')
+            # Get the list of cache file names
             self._p=p=map(lambda i, p=storage, var=var, c=client:
                           os.path.join(var,'c%s-%s-%s.zec' % (p, c, i)),
                           (0,1))
+            # get the list of cache files
             self._f=f=[None, None]
+
+            # initialize cache serial numbers
             s=['\0\0\0\0\0\0\0\0', '\0\0\0\0\0\0\0\0']
             for i in 0,1:
                 if os.path.exists(p[i]):
@@ -169,18 +174,22 @@ class ClientCache:
                         if fi.tell() > 30:
                             fi.seek(22)
                             s[i]=fi.read(8)
-                    if s[i]!='\0\0\0\0\0\0\0\0': f[i]=fi
+                    # If we found a non-zero serial, then use the file
+                    if s[i] != '\0\0\0\0\0\0\0\0': f[i]=fi
                     fi=None
-
+            
+            # Whoever has the larger serial is the current
             if s[1] > s[0]: current=1
             elif s[0] > s[1]: current=0
             else:
                 if f[0] is None:
+                    # We started, open the first cache file
                     f[0]=open(p[0], 'w+b')
                     f[0].write(magic)
                 current=0
                 f[1]=None
         else:
+            # Create a temporary cache
             self._p=p=map(
                 lambda i, p=storage:
                 tempfile.mktemp('.zec'),
@@ -212,7 +221,12 @@ class ClientCache:
         f.seek(ap)
         h=f.read(8)
         if h != oid: return
-        f.write(version and 'n' or 'i')
+        f.seek(8,1) # Dang, we shouldn't have to do this. Bad Solaris & NT
+        if version:
+            f.write('n')
+        else:
+            del self._index[oid]
+            f.write('i')
 
     def load(self, oid, version):
         p=self._get(oid, None)
@@ -292,6 +306,17 @@ class ClientCache:
         seek(dlen, 1)
         return read(vlen)
 
+    def checkSize(self, size):
+        # Make sure we aren't going to exceed the target size.
+        # If we are, then flip the cache.
+        if self._pos+size > self._limit:
+            current=not current
+            self._current=current
+            self._f[current]=open(self._p[current],'w+b')
+            self._f[current].write(magic)
+            self._pos=pos=4
+        
+
     def store(self, oid, p, s, version, pv, sv):
         tlen=31+len(p)
         if version:
@@ -302,13 +327,6 @@ class ClientCache:
         
         pos=self._pos
         current=self._current
-        if pos+tlen > self._limit:
-            current=not current
-            self._current=current
-            self._f[current]=open(self._p[current],'w+b')
-            self._f[current].write(magic)
-            self._pos=pos=4
-
         f=self._f[current]
         f.seek(pos)
         stlen=pack(">I",tlen)
