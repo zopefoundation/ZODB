@@ -84,7 +84,7 @@ class ZODBConfigTest(ConfigTestBase):
         cfg = """
         <zodb>
           <zeoclient>
-            server /no/path/var/test/foo
+            server localhost:9
             wait false
           </zeoclient>
         </zodb>
