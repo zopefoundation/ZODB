@@ -660,6 +660,35 @@ class NastyConfict(Base, TestCase):
         # And the resulting BTree shouldn't have internal damage.
         b._check()
 
+    # The snaky control flow in _bucket__p_resolveConflict ended up trying
+    # to decref a NULL pointer if conflict resolution was fed 3 empty
+    # buckets.  http://collector.zope.org/Zope/553
+    def testThreeEmptyBucketsNoSegfault(self):
+        self.openDB()
+
+        r1 = self.db.open().root()
+        self.assertEqual(len(self.t), 0)
+        r1["t"] = b = self.t  # an empty tree
+        transaction.commit()
+
+        r2 = self.db.open(synch=False).root()
+        copy = r2["t"]
+        # Make sure all of copy is loaded.
+        list(copy.values())
+
+        # In one transaction, add and delete a key.
+        b[2] = 2
+        del b[2]
+        transaction.commit()
+
+        # In the other transaction, also add and delete a key.
+        b = copy
+        b[1] = 1
+        del b[1]
+        # If the commit() segfaults, the C code is still wrong for this case.
+        self.assertRaises(ConflictError, transaction.commit)
+        transaction.abort()
+
     def testCantResolveBTreeConflict(self):
         # Test that a conflict involving two different changes to
         # an internal BTree node is unresolvable.  An internal node
