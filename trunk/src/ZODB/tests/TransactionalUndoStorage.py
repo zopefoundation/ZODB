@@ -429,9 +429,14 @@ class TransactionalUndoStorage:
         # Add a few object revisions
         oid = self._storage.new_oid()
         revid1 = self._dostore(oid, data=MinPO(51))
-        # Save now for packing away revid1
-        packtime = time.time()
-        time.sleep(1)
+        # For the pack(), we need a timestamp greater than revid1's timestamp.
+        # The semantics of pack()'s `t' argument is that all non-current
+        # revisions with an earlier timestamp will be packed away.  If they
+        # were equal (because the Windows clock resolution is too coarse),
+        # then we won't pack away the first revision.
+        now = packtime = time.time()
+        while packtime <= now:
+            packtime = time.time()
         revid2 = self._dostore(oid, revid=revid1, data=MinPO(52))
         revid3 = self._dostore(oid, revid=revid2, data=MinPO(53))
         # Now get the undo log
@@ -444,12 +449,7 @@ class TransactionalUndoStorage:
         self._storage.pack(packtime, referencesf)
         # Make some basic assertions about the undo information now
         info2 = self._storage.undoInfo()
-        leninfo2 = len(info2)
-        eq(leninfo2, 2, "length of self._storage.undoInfo() was %s, it was expected to be %s" % (
-                        leninfo2,
-                        2
-                        )
-           )
+        eq(len(info2), 2)
         # And now attempt to undo the last transaction
         t = Transaction()
         self._storage.tpc_begin(t)
