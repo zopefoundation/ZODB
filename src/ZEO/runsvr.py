@@ -14,12 +14,12 @@
 ##############################################################################
 """Start the ZEO storage server.
 
-Usage: %s [-a ADDRESS] [-C URL] [-f FILENAME] [-h]
+Usage: %s [-C URL] [-a ADDRESS] [-f FILENAME] [-h]
 
 Options:
+-C/--configuration URL -- configuration file or URL
 -a/--address ADDRESS -- server address of the form PORT, HOST:PORT, or PATH
                         (a PATH must contain at least one "/")
--C/--configuration URL -- configuration file or URL
 -f/--filename FILENAME -- filename for FileStorage
 -h/--help -- print this usage message and exit
 
