@@ -48,7 +48,9 @@ class StartTests(unittest.TestCase):
         if startfile[-1] == 'c':
             startfile = startfile[:-1]
         self.env = Environment(startfile)
-        self.cmd = '%s %s' % (sys.executable, startfile)
+        # Put quotes around the arguments for (e.g.) Mac OS X,
+        # where the path names may include spaces.
+        self.cmd = '"%s" "%s"' % (sys.executable, startfile)
         self.pids = {}
 
     def tearDown(self):
