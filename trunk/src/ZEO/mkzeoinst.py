@@ -160,7 +160,6 @@ class ZEOInstanceBuilder:
             port = int(args[1])
         else:
             port = 9999
-        checkport(port)
 
         params = self.get_params(zodb3_home, instance_home, port)
         self.create(instance_home, params)
@@ -185,16 +184,6 @@ class ZEOInstanceBuilder:
         makexfile(zeoctl_template, home, "bin", "zeoctl", **params)
         makexfile(runzeo_template, home, "bin", "runzeo", **params)
 
-
-def checkport(port):
-    import socket
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    try:
-        s.bind(("", port))
-    except socket.error:
-        print "A process is already listening on port %d" % port
-        sys.exit(2)
-    s.close()
 
 def which(program):
     strpath = os.getenv("PATH")
