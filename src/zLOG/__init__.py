@@ -86,10 +86,10 @@ There is a default event logging facility that:
     can be overridden with the environment variable EVENT_LOG_SEVERITY
 
 """
-__version__='$Revision: 1.11 $'[11:-2]
+__version__='$Revision: 1.12 $'[11:-2]
 
 from MinimalLogger import log_write, log_time, severity_string, \
-     _set_log_dest, initialize, initialize_with_config
+     _set_log_dest, initialize
 from traceback import format_exception
 
 # Standard severities
@@ -101,30 +101,6 @@ PROBLEM =  100
 WARNING =  100
 ERROR   =  200
 PANIC   =  300
-
-_severity_names = {"trace":   -300,
-                   "debug":   -200,
-                   "blather": -100,
-                   "info":       0,
-                   "problem":  100,
-                   "warning":  100,
-                   "error":    200,
-                   "panic":    300,
-                   }
-
-def severity(value):
-    """Return the severity level associated with a value.
-
-    The value may be an integer, the repr of an integer, or the name
-    of a well-known severity value (case-insensitive).
-    """
-    try:
-        return int(value)
-    except ValueError:
-        try:
-            return _severity_names[value.lower()]
-        except KeyError:
-            raise ValueError("unknown severity value: " + repr(value))
 
 def LOG(subsystem, severity, summary, detail='', error=None, reraise=None):
     """Log some information
