@@ -12,7 +12,7 @@
 
  ****************************************************************************/
 
-#define MERGETEMPLATE_C "$Id: MergeTemplate.c,v 1.16 2003/01/17 17:20:49 tim_one Exp $\n"
+#define MERGETEMPLATE_C "$Id: MergeTemplate.c,v 1.17 2003/11/28 16:44:44 jim Exp $\n"
 
 /****************************************************************************
  Set operations
@@ -21,18 +21,22 @@
 static int
 merge_output(Bucket *r, SetIteration *i, int mapping)
 {
-  if(r->len >= r->size && Bucket_grow(r, -1, ! mapping) < 0) return -1;
-  COPY_KEY(r->keys[r->len], i->key);
-  INCREF_KEY(r->keys[r->len]);
-  if (mapping)
-    {
-      COPY_VALUE(r->values[r->len], i->value);
-      INCREF_VALUE(r->values[r->len]);
+    if (r->len >= r->size && Bucket_grow(r, -1, !mapping) < 0)
+	return -1;
+    COPY_KEY(r->keys[r->len], i->key);
+    INCREF_KEY(r->keys[r->len]);
+    if (mapping) {
+	COPY_VALUE(r->values[r->len], i->value);
+	INCREF_VALUE(r->values[r->len]);
     }
-  r->len++;
-  return 0;
+    r->len++;
+    return 0;
 }
 
+/* The "reason" argument is a little integer giving "a reason" for the
+ * error.  In the Zope3 codebase, these are mapped to explanatory strings
+ * via zodb/btrees/interfaces.py.
+ */
 static PyObject *
 merge_error(int p1, int p2, int p3, int reason)
 {
@@ -40,7 +44,7 @@ merge_error(int p1, int p2, int p3, int reason)
 
   UNLESS (r=Py_BuildValue("iiii", p1, p2, p3, reason)) r=Py_None;
   if (ConflictError == NULL) {
-  	ConflictError=PyExc_ValueError;
+  	ConflictError = PyExc_ValueError;
 	Py_INCREF(ConflictError);
   }
   PyErr_SetObject(ConflictError, r);
@@ -52,6 +56,33 @@ merge_error(int p1, int p2, int p3, int reason)
   return NULL;
 }
 
+/* It's hard to explain "the rules" for bucket_merge, in large part because
+ * any automatic conflict-resolution scheme is going to be incorrect for
+ * some endcases of *some* app.  The scheme here is pretty conservative,
+ * and should be OK for most apps.  It's easier to explain what the code
+ * allows than what it forbids:
+ *
+ * Leaving things alone:  it's OK if both s2 and s3 leave a piece of s1
+ * alone (don't delete the key, and don't change the value).
+ *
+ * Key deletion:  a transaction (s2 or s3) can delete a key (from s1), but
+ * only if the other transaction (of s2 and s3) doesn't delete the same key.
+ * However, it's not OK for s2 and s3 to, between them, end up deleting all
+ * the keys.  This is a higher-level constraint, due to that the caller of
+ * bucket_merge() doesn't have enough info to unlink the resulting empty
+ * bucket from its BTree correctly.
+ *
+ * Key insertion:  s2 or s3 can add a new key, provided the other transaction
+ * doesn't insert the same key.  It's not OK even if they insert the same
+ * <key, value> pair.
+ *
+ * Mapping value modification:  s2 or s3 can modify the value associated
+ * with a key in s1, provided the other transaction doesn't make a
+ * modification of the same key to a different value.  It's OK if s2 and s3
+ * both give the same new value to the key (XXX while it's hard to be
+ * precise about why, this doesn't seem consistent with that it's *not* OK
+ * for both to add a new key mapping to the same value).
+ */
 static PyObject *
 bucket_merge(Bucket *s1, Bucket *s2, Bucket *s3)
 {
@@ -60,28 +91,34 @@ bucket_merge(Bucket *s1, Bucket *s2, Bucket *s3)
   SetIteration i1 = {0,0,0}, i2 = {0,0,0}, i3 = {0,0,0};
   int cmp12, cmp13, cmp23, mapping, set;
 
-  if (initSetIteration(&i1, OBJECT(s1), 1) < 0) goto err;
-  if (initSetIteration(&i2, OBJECT(s2), 1) < 0) goto err;
-  if (initSetIteration(&i3, OBJECT(s3), 1) < 0) goto err;
+  if (initSetIteration(&i1, OBJECT(s1), 1) < 0)
+      goto err;
+  if (initSetIteration(&i2, OBJECT(s2), 1) < 0)
+      goto err;
+  if (initSetIteration(&i3, OBJECT(s3), 1) < 0)
+      goto err;
 
   mapping = i1.usesValue | i2.usesValue | i3.usesValue;
-  set = ! mapping;
+  set = !mapping;
 
   if (mapping)
-    {
-      UNLESS(r=BUCKET(PyObject_CallObject(OBJECT(&BucketType), NULL)))
-        goto err;
-    }
+      r = (Bucket *)PyObject_CallObject((PyObject *)&BucketType, NULL);
   else
-    {
-      UNLESS(r=BUCKET(PyObject_CallObject(OBJECT(&SetType), NULL)))
-        goto err;
-    }
+      r = (Bucket *)PyObject_CallObject((PyObject *)&SetType, NULL);
+  if (r == NULL)
+      goto err;
 
-  if (i1.next(&i1) < 0) goto err;
-  if (i2.next(&i2) < 0) goto err;
-  if (i3.next(&i3) < 0) goto err;
+  if (i1.next(&i1) < 0)
+      goto err;
+  if (i2.next(&i2) < 0)
+      goto err;
+  if (i3.next(&i3) < 0)
+      goto err;
 
+  /* Consult zodb/btrees/interfaces.py for the meaning of the last
+   * argument passed to merge_error().
+   */
+  /* XXX This isn't passing on errors raised by value comparisons. */
   while (i1.position >= 0 && i2.position >= 0 && i3.position >= 0)
     {
       TEST_KEY_SET_OR(cmp12, i1.key, i2.key) goto err;
@@ -91,15 +128,15 @@ bucket_merge(Bucket *s1, Bucket *s2, Bucket *s3)
           if (cmp13==0)
             {
               if (set || (TEST_VALUE(i1.value, i2.value) == 0))
-                {               /* change in i3 or all same */
+                {               /* change in i3 value or all same */
                   if (merge_output(r, &i3, mapping) < 0) goto err;
                 }
               else if (set || (TEST_VALUE(i1.value, i3.value) == 0))
-                {               /* change in i2 */
+                {               /* change in i2 value */
                   if (merge_output(r, &i2, mapping) < 0) goto err;
                 }
               else
-                {               /* conflicting changes in i2 and i3 */
+                {               /* conflicting value changes in i2 and i3 */
                   merge_error(i1.position, i2.position, i3.position, 1);
                   goto err;
                 }
@@ -113,7 +150,7 @@ bucket_merge(Bucket *s1, Bucket *s2, Bucket *s3)
               if (i3.next(&i3) < 0) goto err;
             }
           else if (set || (TEST_VALUE(i1.value, i2.value) == 0))
-            {                   /* delete i3 */
+            {                   /* deleted in i3 */
               if (i1.next(&i1) < 0) goto err;
               if (i2.next(&i2) < 0) goto err;
             }
@@ -131,7 +168,7 @@ bucket_merge(Bucket *s1, Bucket *s2, Bucket *s3)
               if (i2.next(&i2) < 0) goto err;
             }
           else if (set || (TEST_VALUE(i1.value, i3.value) == 0))
-            {                   /* delete i2 */
+            {                   /* deleted in i2 */
               if (i1.next(&i1) < 0) goto err;
               if (i3.next(&i3) < 0) goto err;
             }
@@ -145,7 +182,7 @@ bucket_merge(Bucket *s1, Bucket *s2, Bucket *s3)
         {                       /* Both keys changed */
           TEST_KEY_SET_OR(cmp23, i2.key, i3.key) goto err;
           if (cmp23==0)
-            {                   /* dualing inserts or deletes */
+            {                   /* dueling inserts or deletes */
               merge_error(i1.position, i2.position, i3.position, 4);
               goto err;
             }
@@ -168,8 +205,8 @@ bucket_merge(Bucket *s1, Bucket *s2, Bucket *s3)
               if (i3.next(&i3) < 0) goto err;
             }
           else
-            {                   /* Dueling deletes */
-              merge_error(i1.position, i2.position, i3.position, 5);
+            {                   /* 1<2 and 1<3:  both deleted 1.key */
+	      merge_error(i1.position, i2.position, i3.position, 5);
               goto err;
             }
         }
@@ -179,7 +216,7 @@ bucket_merge(Bucket *s1, Bucket *s2, Bucket *s3)
     {                           /* New inserts */
       TEST_KEY_SET_OR(cmp23, i2.key, i3.key) goto err;
       if (cmp23==0)
-        {                       /* dualing inserts */
+        {                       /* dueling inserts */
           merge_error(i1.position, i2.position, i3.position, 6);
           goto err;
         }
@@ -196,7 +233,7 @@ bucket_merge(Bucket *s1, Bucket *s2, Bucket *s3)
     }
 
   while (i1.position >= 0 && i2.position >= 0)
-    {                           /* deleting i3 */
+    {                           /* remainder of i1 deleted in i3 */
       TEST_KEY_SET_OR(cmp12, i1.key, i2.key) goto err;
       if (cmp12 > 0)
         {                       /* insert i2 */
@@ -209,14 +246,14 @@ bucket_merge(Bucket *s1, Bucket *s2, Bucket *s3)
           if (i2.next(&i2) < 0) goto err;
         }
       else
-        {                       /* Dualing deletes or delete and change */
+        {                       /* Dueling deletes or delete and change */
           merge_error(i1.position, i2.position, i3.position, 7);
           goto err;
         }
     }
 
   while (i1.position >= 0 && i3.position >= 0)
-    {                           /* deleting i2 */
+    {                           /* remainder of i1 deleted in i2 */
       TEST_KEY_SET_OR(cmp13, i1.key, i3.key) goto err;
       if (cmp13 > 0)
         {                       /* insert i3 */
@@ -229,7 +266,7 @@ bucket_merge(Bucket *s1, Bucket *s2, Bucket *s3)
           if (i3.next(&i3) < 0) goto err;
         }
       else
-        {                       /* Dualing deletes or delete and change */
+        {                       /* Dueling deletes or delete and change */
           merge_error(i1.position, i2.position, i3.position, 8);
           goto err;
         }
@@ -248,7 +285,7 @@ bucket_merge(Bucket *s1, Bucket *s2, Bucket *s3)
     }
 
   while (i3.position >= 0)
-    {                           /* Inserting i2 at end */
+    {                           /* Inserting i3 at end */
       if (merge_output(r, &i3, mapping) < 0) goto err;
       if (i3.next(&i3) < 0) goto err;
     }
@@ -271,7 +308,7 @@ bucket_merge(Bucket *s1, Bucket *s2, Bucket *s3)
       Py_INCREF(s1->next);
       r->next = s1->next;
     }
-  s=bucket_getstate(r, NULL);
+  s = bucket_getstate(r);
   Py_DECREF(r);
 
   return s;

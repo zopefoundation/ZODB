@@ -24,13 +24,13 @@ import unittest
 
 import ZODB
 import ZODB.MappingStorage
-from ZODB.cPickleCache import PickleCache
 from ZODB.POSException import ConflictError
-from ZODB.PersistentMapping import PersistentMapping
+from persistent.cPickleCache import PickleCache
+from persistent.mapping import PersistentMapping
 from ZODB.tests.MinPO import MinPO
 from ZODB.utils import p64
 
-from Persistence import Persistent
+from persistent import Persistent
 
 class CacheTestBase(unittest.TestCase):
 

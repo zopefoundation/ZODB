@@ -4,7 +4,7 @@ import threading
 import time
 
 import ZODB
-from PersistentMapping import PersistentMapping
+from persistent.mapping import PersistentMapping
 
 from ZODB.tests.StorageTestBase \
      import StorageTestBase, zodb_pickle, zodb_unpickle, handle_serials

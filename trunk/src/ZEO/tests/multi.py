@@ -15,8 +15,8 @@
 # XXX This code is currently broken.
 
 import ZODB, ZODB.DB, ZODB.FileStorage, ZODB.POSException
-import Persistence
-import PersistentMapping
+import persistent
+import persistent.mapping
 from ZEO.tests import forker
 
 import asyncore
@@ -32,7 +32,7 @@ CONFLICT_DELAY = 0.1
 CONNECT_DELAY = 0.1
 CLIENT_CACHE = '' # use temporary cache
 
-class Record(Persistence.Persistent):
+class Record(persistent.Persistent):
     def __init__(self, client=None, value=None):
         self.client = client
         self.value = None
@@ -41,7 +41,7 @@ class Record(Persistence.Persistent):
     def set_next(self, next):
         self.next = next
 
-class Stats(Persistence.Persistent):
+class Stats(persistent.Persistent):
     def __init__(self):
         self.begin = time.time()
         self.end = None
@@ -57,7 +57,7 @@ def init_storage():
 
     db = ZODB.DB(fs)
     root = db.open().root()
-    root["multi"] = PersistentMapping.PersistentMapping()
+    root["multi"] = persistent.mapping.PersistentMapping()
     get_transaction().commit()
 
     return fs

@@ -15,10 +15,10 @@ import unittest
 
 import ZODB
 import ZODB.FileStorage
-from ZODB.PersistentMapping import PersistentMapping
 from ZODB.POSException import ReadConflictError, ConflictError
 from ZODB.tests.StorageTestBase import removefs
-from Persistence import Persistent
+from persistent import Persistent
+from persistent.mapping import PersistentMapping
 
 class P(Persistent):
     pass

@@ -13,8 +13,8 @@
 ##############################################################################
 """Database objects
 
-$Id: DB.py,v 1.56 2003/11/18 13:17:16 tseaver Exp $"""
-__version__='$Revision: 1.56 $'[11:-2]
+$Id: DB.py,v 1.57 2003/11/28 16:44:49 jim Exp $"""
+__version__='$Revision: 1.57 $'[11:-2]
 
 import cPickle, cStringIO, sys, POSException, UndoLogCompatible
 from Connection import Connection
@@ -84,8 +84,8 @@ class DB(UndoLogCompatible.UndoLogCompatible, object):
             storage.load('\0\0\0\0\0\0\0\0','')
         except KeyError:
             # Create the database's root in the storage if it doesn't exist
-            import PersistentMapping
-            root = PersistentMapping.PersistentMapping()
+            from persistent.mapping import PersistentMapping
+            root = PersistentMapping()
             # Manually create a pickle for the root to put in the storage.
             # The pickle must be in the special ZODB format.
             file = cStringIO.StringIO()
@@ -267,9 +267,6 @@ class DB(UndoLogCompatible.UndoLogCompatible, object):
 
     def close(self):
         self._storage.close()
-        for x, allocated in self._pools[1]:
-            for c in allocated:
-                c._breakcr()
 
     def commitVersion(self, source, destination='', transaction=None):
         if transaction is None:

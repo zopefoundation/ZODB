@@ -14,8 +14,3 @@
 
 # hack to overcome dynamic-linking headache.
 from _IIBTree import *
-
-# We don't really want _ names in pickles, so update all of the __module__
-# references.
-for obj in IIBucket, IIBTree, IISet, IITreeSet:
-    obj.__module__ = __name__

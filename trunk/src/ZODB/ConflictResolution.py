@@ -89,14 +89,15 @@ def tryToResolveConflict(self, oid, committedSerial, oldSerial, newpickle,
         file = StringIO(newpickle)
         unpickler = Unpickler(file)
         unpickler.persistent_load = prfactory.persistent_load
-        class_tuple = unpickler.load()[0]
+        meta = unpickler.load()
+        class_tuple = meta[0]
         if bad_class(class_tuple):
             return None
         newstate = unpickler.load()
         klass = load_class(class_tuple)
         if klass is None:
             return None
-        inst = klass.__basicnew__()
+        inst = klass.__new__(klass)
 
         try:
             resolve = inst._p_resolveConflict
@@ -112,7 +113,7 @@ def tryToResolveConflict(self, oid, committedSerial, oldSerial, newpickle,
         file = StringIO()
         pickler = Pickler(file,1)
         pickler.persistent_id = persistent_id
-        pickler.dump(class_tuple)
+        pickler.dump(meta)
         pickler.dump(resolved)
         return file.getvalue(1)
     except ConflictError:

@@ -79,11 +79,11 @@ method::
 and call it to monitor the storage.
 
 """
-__version__='$Revision: 1.21 $'[11:-2]
+__version__='$Revision: 1.22 $'[11:-2]
 
 import base64, time, string
 from ZODB import POSException, BaseStorage, utils
-from TimeStamp import TimeStamp
+from persistent.TimeStamp import TimeStamp
 from cPickle import loads
 from BTrees import OOBTree
 
@@ -164,12 +164,13 @@ class DemoStorage(BaseStorage.BaseStorage):
 
         self._lock_acquire()
         try:
-            v=self._vindex.get(src, None)
-            if v is None: return
+            v = self._vindex.get(src)
+            if v is None:
+                return
 
             newserial = self._serial
-            tindex=self._tindex
-            oids=[]
+            tindex = self._tindex
+            oids = []
             for r in v.values():
                 oid, serial, pre, vdata, p = r
                 assert vdata is not None
@@ -180,10 +181,10 @@ class DemoStorage(BaseStorage.BaseStorage):
                     new_vdata = None
                 tindex.append([oid, newserial, r, new_vdata, p])
 
-
             return oids
 
-        finally: self._lock_release()
+        finally:
+            self._lock_release()
 
     def load(self, oid, version):
         self._lock_acquire()
@@ -249,7 +250,8 @@ class DemoStorage(BaseStorage.BaseStorage):
                     nv=old
 
                 if serial != oserial:
-                    raise POSException.ConflictError(serials=(oserial, serial))
+                    raise POSException.ConflictError(
+                        oid=oid, serials=(oserial, serial), data=data)
 
             serial=self._serial
             r=[oid, serial, old, version and (version, nv) or None, data]

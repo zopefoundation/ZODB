@@ -15,7 +15,7 @@
 
 from ZODB.Transaction import Transaction
 from ZODB.POSException import ConflictError, UndoError
-from Persistence import Persistent
+from persistent import Persistent
 
 from ZODB.tests.StorageTestBase import zodb_unpickle, zodb_pickle
 
@@ -94,9 +94,12 @@ class ConflictResolvingStorage:
         # pickle is to commit two different transactions relative to
         # revid1 that add two to _value.
         revid2 = self._dostoreNP(oid, revid=revid1, data=zodb_pickle(obj))
-        self.assertRaises(ConflictError,
-                          self._dostoreNP,
-                          oid, revid=revid1, data=zodb_pickle(obj))
+        try:
+            self._dostoreNP(oid, revid=revid1, data=zodb_pickle(obj))
+        except ConflictError, err:
+            self.assert_("PCounter2" in str(err))
+        else:
+            self.fail("Expected ConflictError")
 
     def checkZClassesArentResolved(self):
         from ZODB.ConflictResolution import bad_class

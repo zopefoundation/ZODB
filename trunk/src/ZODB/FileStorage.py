@@ -115,7 +115,7 @@
 #   may have a back pointer to a version record or to a non-version
 #   record.
 #
-__version__='$Revision: 1.139 $'[11:-2]
+__version__='$Revision: 1.140 $'[11:-2]
 
 import base64
 from cPickle import Pickler, Unpickler, loads
@@ -130,9 +130,9 @@ from struct import pack, unpack
 # Not all platforms have fsync
 fsync = getattr(os, "fsync", None)
 
+from persistent.TimeStamp import TimeStamp
 from ZODB import BaseStorage, ConflictResolution, POSException
 from ZODB.POSException import UndoError, POSKeyError, MultipleUndoErrors
-from ZODB.TimeStamp import TimeStamp
 from ZODB.lock_file import LockFile
 from ZODB.utils import p64, u64, cp, z64
 from ZODB.fspack import FileStoragePacker
@@ -773,11 +773,13 @@ class FileStorage(BaseStorage.BaseStorage,
                     oserial = cached_serial
 
                 if serial != oserial:
-                    data = self.tryToResolveConflict(oid, oserial, serial,
+                    rdata = self.tryToResolveConflict(oid, oserial, serial,
                                                      data)
-                    if data is None:
-                        raise POSException.ConflictError(oid=oid,
-                                                serials=(oserial, serial))
+                    if rdata is None:
+                        raise POSException.ConflictError(
+                            oid=oid, serials=(oserial, serial), data=data)
+                    else:
+                        data = rdata
             else:
                 oserial=serial
 
@@ -2227,7 +2229,6 @@ class RecordIterator(Iterator, BaseStorage.TransactionRecord):
             self._file.seek(pos)
             h = self._file.read(DATA_HDR_LEN)
             oid, serial, sprev, stloc, vlen, splen = unpack(DATA_HDR, h)
-            prev = u64(sprev)
             tloc = u64(stloc)
             plen = u64(splen)
             dlen = DATA_HDR_LEN + (plen or 8)
@@ -2235,7 +2236,6 @@ class RecordIterator(Iterator, BaseStorage.TransactionRecord):
             if vlen:
                 dlen += (16 + vlen)
                 tmp = self._file.read(16)
-                pv = u64(tmp[8:16])
                 version = self._file.read(vlen)
             else:
                 version = ''

@@ -13,7 +13,7 @@
 ##############################################################################
 """Transaction management
 
-$Id: Transaction.py,v 1.54 2003/10/05 14:25:11 jens Exp $
+$Id: Transaction.py,v 1.55 2003/11/28 16:44:49 jim Exp $
 """
 import sys
 from thread import get_ident as _get_ident
@@ -251,23 +251,27 @@ class Transaction:
                 else:
                     self._finish_many(jars)
             except:
-                # Ugh, we got an got an error during commit, so we
-                # have to clean up.  First save the original exception
-                # in case the cleanup process causes another
-                # exception.
-                error = sys.exc_info()
-                try:
-                    self._commit_error(objects, ncommitted, jars, subjars)
-                except:
-                    LOG('ZODB', ERROR,
-                        "A storage error occured during transaction "
-                        "abort.  This shouldn't happen.",
-                        error=sys.exc_info())
-                raise error[0], error[1], error[2]
+                self._cleanup(objects, ncommitted, jars, subjars)
         finally:
             del objects[:] # clear registered
             if not subtransaction and self._id is not None:
                 free_transaction()
+
+    def _cleanup(self, objects, ncommitted, jars, subjars):
+        # Ugh, we got an got an error during commit, so we
+        # have to clean up.  First save the original exception
+        # in case the cleanup process causes another
+        # exception.
+        error = sys.exc_info()
+        try:
+            self._commit_error(objects, ncommitted, jars, subjars)
+        except:
+            LOG("ZODB", ERROR,
+                "A storage error occured during transaction "
+                "abort.  This shouldn't happen.",
+                error=sys.exc_info())
+        raise error[0], error[1], error[2]
+        
 
     def _get_jars(self, objects, subtransaction):
         # Returns a list of jars for this transaction.

@@ -23,9 +23,10 @@ import StringIO
 
 import ZODB
 from ZODB.FileStorage import FileStorage
-from ZODB.PersistentMapping import PersistentMapping
 from ZODB.fsrecover import recover
 from ZODB.tests.StorageTestBase import removefs
+
+from persistent.mapping import PersistentMapping
 
 from ZODB.fsdump import Dumper
 

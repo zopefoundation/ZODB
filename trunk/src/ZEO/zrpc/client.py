@@ -85,6 +85,7 @@ class ConnectionManager(object):
     def close(self):
         """Prevent ConnectionManager from opening new connections"""
         self.closed = 1
+        ThreadedAsync.remove_loop_callback(self.set_async)
         self.cond.acquire()
         try:
             t = self.thread

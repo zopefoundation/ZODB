@@ -21,12 +21,12 @@ It is meant to illustrate the simplest possible storage.
 The Mapping storage uses a single data structure to map object ids to data.
 """
 
-__version__='$Revision: 1.9 $'[11:-2]
+__version__='$Revision: 1.10 $'[11:-2]
 
 from ZODB import utils
 from ZODB import BaseStorage
 from ZODB import POSException
-from ZODB.TimeStamp import TimeStamp
+from persistent.TimeStamp import TimeStamp
 
 
 class MappingStorage(BaseStorage.BaseStorage):
@@ -71,7 +71,9 @@ class MappingStorage(BaseStorage.BaseStorage):
                 old = self._index[oid]
                 oserial = old[:8]
                 if serial != oserial:
-                    raise POSException.ConflictError(serials=(oserial, serial))
+                    raise POSException.ConflictError(oid=oid,
+                                                     serials=(oserial, serial),
+                                                     data=data)
 
             serial = self._serial
             self._tindex.append((oid, serial+data))

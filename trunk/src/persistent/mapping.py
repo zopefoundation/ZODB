@@ -14,14 +14,14 @@
 
 """Python implementation of persistent base types
 
-$Id: PersistentMapping.py,v 1.20 2002/08/14 22:07:09 mj Exp $"""
+$Id: mapping.py,v 1.22 2003/11/28 16:44:55 jim Exp $"""
 
-__version__='$Revision: 1.20 $'[11:-2]
+__version__='$Revision: 1.22 $'[11:-2]
 
-import Persistence
+import persistent
 from UserDict import UserDict
 
-class PersistentMapping(UserDict, Persistence.Persistent):
+class PersistentMapping(UserDict, persistent.Persistent):
     """A persistent wrapper for mapping objects.
 
     This class allows wrapping of mapping objects so that object

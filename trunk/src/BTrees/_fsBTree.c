@@ -10,10 +10,9 @@
 typedef unsigned char char2[2];
 typedef unsigned char char6[6];
 
-
 /* Setup template macros */
 
-#define MASTER_ID "$Id: _fsBTree.c,v 1.7 2003/09/03 17:14:25 kiko Exp $\n"
+#define MASTER_ID "$Id: _fsBTree.c,v 1.8 2003/11/28 16:44:44 jim Exp $\n"
 
 #define PERSISTENT
 
@@ -21,10 +20,10 @@ typedef unsigned char char6[6];
 #define INITMODULE init_fsBTree
 #define DEFAULT_MAX_BUCKET_SIZE 500
 #define DEFAULT_MAX_BTREE_SIZE 500
-                
+
 /*#include "intkeymacros.h"*/
 
-#define KEYMACROS_H "$Id: _fsBTree.c,v 1.7 2003/09/03 17:14:25 kiko Exp $\n"
+#define KEYMACROS_H "$Id: _fsBTree.c,v 1.8 2003/11/28 16:44:44 jim Exp $\n"
 #define KEY_TYPE char2
 #undef KEY_TYPE_IS_PYOBJECT
 #define KEY_CHECK(K) (PyString_Check(K) && PyString_GET_SIZE(K)==2)
@@ -36,14 +35,13 @@ typedef unsigned char char6[6];
 #define COPY_KEY_FROM_ARG(TARGET, ARG, STATUS) \
   if (KEY_CHECK(ARG)) memcpy(TARGET, PyString_AS_STRING(ARG), 2); else { \
       PyErr_SetString(PyExc_TypeError, "expected two-character string key"); \
-      (STATUS)=0; } 
+      (STATUS)=0; }
 
 /*#include "intvaluemacros.h"*/
-#define VALUEMACROS_H "$Id: _fsBTree.c,v 1.7 2003/09/03 17:14:25 kiko Exp $\n"
+#define VALUEMACROS_H "$Id: _fsBTree.c,v 1.8 2003/11/28 16:44:44 jim Exp $\n"
 #define VALUE_TYPE char6
 #undef VALUE_TYPE_IS_PYOBJECT
 #define TEST_VALUE(K, T) memcmp(K,T,6)
-#define DECLARE_VALUE(NAME) VALUE_TYPE NAME
 #define DECREF_VALUE(k)
 #define INCREF_VALUE(k)
 #define COPY_VALUE(V, E) (memcpy(V, E, 6))
@@ -52,7 +50,7 @@ typedef unsigned char char6[6];
   if ((PyString_Check(ARG) && PyString_GET_SIZE(ARG)==6)) \
       memcpy(TARGET, PyString_AS_STRING(ARG), 6); else { \
       PyErr_SetString(PyExc_TypeError, "expected six-character string key"); \
-      (STATUS)=0; } 
-  
+      (STATUS)=0; }
+
 #define NORMALIZE_VALUE(V, MIN)
 #include "BTreeModuleTemplate.c"

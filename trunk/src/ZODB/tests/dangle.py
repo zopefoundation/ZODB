@@ -21,7 +21,7 @@ import time
 from ZODB.FileStorage import FileStorage
 from ZODB import DB
 
-from Persistence import Persistent
+from persistent import Persistent
 
 class P(Persistent):
     pass

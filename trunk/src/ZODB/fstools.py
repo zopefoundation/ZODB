@@ -24,7 +24,7 @@ import struct
 from ZODB.FileStorage import TRANS_HDR, DATA_HDR, TRANS_HDR_LEN, \
      DATA_HDR_LEN, DATA_VERSION_HDR_LEN
 from ZODB.utils import p64, u64
-from ZODB.TimeStamp import TimeStamp
+from persistent.TimeStamp import TimeStamp
 
 class TxnHeader:
     """Object representing a transaction record header.

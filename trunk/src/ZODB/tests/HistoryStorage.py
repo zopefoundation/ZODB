@@ -132,7 +132,7 @@ class HistoryStorage:
         # Now commit the version
         t = Transaction()
         self._storage.tpc_begin(t)
-        oids = self._storage.commitVersion(version, '', t)
+        self._storage.commitVersion(version, '', t)
         self._storage.tpc_vote(t)
         self._storage.tpc_finish(t)
         # After consultation with Jim, we agreed that the semantics of
@@ -192,7 +192,7 @@ class HistoryStorage:
         # Now commit the version
         t = Transaction()
         self._storage.tpc_begin(t)
-        oids = self._storage.abortVersion(version, t)
+        self._storage.abortVersion(version, t)
         self._storage.tpc_vote(t)
         self._storage.tpc_finish(t)
         # After consultation with Jim, we agreed that the semantics of

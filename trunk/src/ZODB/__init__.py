@@ -12,36 +12,14 @@
 #
 ##############################################################################
 
-__version__ = '3.3a0'
+__version__ = "3.3a1"
 
 import sys
-import cPersistence, Persistence
-from zLOG import register_subsystem
 
-# This is lame. Don't look. :(
-sys.modules['cPersistence'] = cPersistence
-
-Persistent = cPersistence.Persistent
-
-# Install Persistent and PersistentMapping in Persistence
-if not hasattr(Persistence, 'Persistent'):
-    Persistence.Persistent = Persistent
-    Persistent.__module__ = 'Persistence'
-    Persistence.Overridable = cPersistence.Overridable
-    Persistence.Overridable.__module__ = 'Persistence'
-    if not hasattr(Persistence, 'PersistentMapping'):
-        import PersistentMapping
-        sys.modules['PersistentMapping'] = PersistentMapping
-        sys.modules['BoboPOS'] = sys.modules['ZODB']
-        sys.modules['BoboPOS.PersistentMapping'] = PersistentMapping
-        PersistentMapping = PersistentMapping.PersistentMapping
-        from PersistentMapping import PersistentMapping
-        Persistence.PersistentMapping = PersistentMapping
-        PersistentMapping.__module__ = 'Persistence'
-        del PersistentMapping
-
-del cPersistence
-
+from persistent import TimeStamp
 from DB import DB
-
 import Transaction
+
+# Backward compat for old imports. I don't think TimeStamp should
+# really be in persistent anyway
+sys.modules['ZODB.TimeStamp'] = sys.modules['persistent.TimeStamp']

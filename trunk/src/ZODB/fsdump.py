@@ -25,9 +25,9 @@ data that is useful when debugging the storage implementation.
 from ZODB.FileStorage import TRANS_HDR, TRANS_HDR_LEN
 from ZODB.FileStorage import DATA_HDR, DATA_HDR_LEN, DATA_VERSION_HDR_LEN
 from ZODB.FileStorage import FileIterator
-from ZODB.TimeStamp import TimeStamp
 from ZODB.utils import u64
 from ZODB.tests.StorageTestBase import zodb_unpickle
+from persistent.TimeStamp import TimeStamp
 
 from cPickle import Unpickler
 from cStringIO import StringIO

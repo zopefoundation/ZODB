@@ -34,7 +34,7 @@ import ZODB
 from ZODB.POSException import ConflictError
 from ZODB.tests.MinPO import MinPO
 from ZEO.ClientStorage import ClientStorage
-from ZODB.PersistentMapping import PersistentMapping
+from persistent.mapping import PersistentMapping
 
 ZEO_VERSION = 2
 

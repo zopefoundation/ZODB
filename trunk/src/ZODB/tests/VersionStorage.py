@@ -165,7 +165,7 @@ class VersionStorage:
         oid = self._storage.new_oid()
         revid = self._dostore(oid, data=MinPO(49))
         revid = self._dostore(oid, revid=revid, data=MinPO(50))
-        nvrevid = revid = self._dostore(oid, revid=revid, data=MinPO(51))
+        revid = self._dostore(oid, revid=revid, data=MinPO(51))
         # Now do some stores in a version
         revid = self._dostore(oid, revid=revid, data=MinPO(52),
                               version=version)
@@ -240,7 +240,6 @@ class VersionStorage:
             self._storage.tpc_abort(t)
 
     def checkNewSerialOnCommitVersionToVersion(self):
-        eq = self.assertEqual
         oid, version = self._setup_version()
         data, vserial = self._storage.load(oid, version)
         data, nserial = self._storage.load(oid, '')
@@ -492,7 +491,6 @@ class VersionStorage:
 
         self._storage.pack(time.time(), referencesf)
         cn.sync()
-        cn._cache.clear()
 
         # make sure all the non-version data is there
         for name, obj in root.items():

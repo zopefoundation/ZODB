@@ -1,6 +1,6 @@
 /* Setup template macros */
 
-#define MASTER_ID "$Id: _IIBTree.c,v 1.7 2002/06/25 02:00:55 tim_one Exp $\n"
+#define MASTER_ID "$Id: _IIBTree.c,v 1.8 2003/11/28 16:44:44 jim Exp $\n"
 
 #define PERSISTENT
 
@@ -11,8 +11,4 @@
 
 #include "intkeymacros.h"
 #include "intvaluemacros.h"
-#include "cPersistence.h"
-#ifndef EXCLUDE_INTSET_SUPPORT
-#include "BTree/intSet.h"
-#endif
 #include "BTreeModuleTemplate.c"

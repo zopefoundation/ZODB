@@ -14,17 +14,9 @@
 static char coptimizations_doc_string[] = 
 "C optimization for new_persistent_id().\n"
 "\n"
-"$Id: coptimizations.c,v 1.23 2002/12/13 21:56:05 jeremy Exp $\n";
+"$Id: coptimizations.c,v 1.24 2003/11/28 16:44:49 jim Exp $\n";
 
-#include "Python.h"
-#define DONT_USE_CPERSISTENCECAPI
 #include "cPersistence.h"
-
-static void PyVar_Assign(PyObject **v, PyObject *e) { Py_XDECREF(*v); *v=e;}
-#define ASSIGN(V,E) PyVar_Assign(&(V),(E))
-#define UNLESS(E) if(!(E))
-#define UNLESS_ASSIGN(V,E) ASSIGN(V,E); UNLESS(V)
-#define OBJECT(O) ((PyObject*)(O))
 
 static PyObject *py__p_oid, *py__p_jar, *py___getinitargs__, *py___module__;
 static PyObject *py_new_oid, *py___class__, *py___name__;
@@ -32,8 +24,8 @@ static PyObject *py_new_oid, *py___class__, *py___name__;
 static PyObject *InvalidObjectReference;
 
 typedef struct {
-  PyObject_HEAD
-  PyObject *jar, *stack, *new_oid;
+    PyObject_HEAD
+    PyObject *jar, *stack, *new_oid;
 } persistent_id;
 
 static PyTypeObject persistent_idType;
@@ -74,25 +66,15 @@ get_class(PyObject *object, PyObject **out_class)
 {
     PyObject *class = NULL;
 
-    if (!PyExtensionClass_Check(object)) {
-	if (PyExtensionInstance_Check(object)) {
-	    class = PyObject_GetAttr(object, py___class__);
-	    if (!class) {
-		PyErr_Clear();
-		return 0;
-	    }
-	    /* The __class__ must be an extension class. */
-	    if (!(((PyExtensionClass*)class)->class_flags 
-		  & PERSISTENT_TYPE_FLAG)) {
-		Py_DECREF(class);
-		return 0;
-	    }
-	}
-	else
-	    /* Most objects will exit via this path.  They are neither
-	       extension classes nor instances of them.
-	    */
+    if (!PyType_Check(object)) {
+	if (!PER_TypeCheck(object)) 
 	    return 0;
+
+	class = PyObject_GetAttr(object, py___class__);
+	if (!class) {
+	    PyErr_Clear();
+	    return 0;
+	}
     }
     *out_class = class;
     return 1;
@@ -217,8 +199,7 @@ persistent_id_call(persistent_id *self, PyObject *args, PyObject *kwargs)
 	    goto err;
     }
 
-    if (PyExtensionClass_Check(object)
-	|| PyObject_HasAttr(klass, py___getinitargs__))
+    if (PyType_Check(object) || PyObject_HasAttr(klass, py___getinitargs__))
 	goto return_oid;
 
     t2 = get_class_tuple(klass, oid);
@@ -257,29 +238,28 @@ persistent_id_call(persistent_id *self, PyObject *args, PyObject *kwargs)
 
 static PyTypeObject persistent_idType = {
     PyObject_HEAD_INIT(NULL)
-    0,				/*ob_size*/
+    0,					/*ob_size*/
     "persistent_id",			/*tp_name*/
     sizeof(persistent_id),		/*tp_basicsize*/
-    0,				/*tp_itemsize*/
-    /* methods */
+    0,					/*tp_itemsize*/
     (destructor)persistent_id_dealloc,	/*tp_dealloc*/
-    (printfunc)0,	/*tp_print*/
-    (getattrfunc)0,		/*obsolete tp_getattr*/
-    (setattrfunc)0,		/*obsolete tp_setattr*/
-    (cmpfunc)0,	/*tp_compare*/
-    (reprfunc)0,		/*tp_repr*/
-    0,		/*tp_as_number*/
-    0,		/*tp_as_sequence*/
-    0,		/*tp_as_mapping*/
-    (hashfunc)0,		/*tp_hash*/
+    0,					/*tp_print*/
+    0,					/*tp_getattr*/
+    0,					/*tp_setattr*/
+    0,					/*tp_compare*/
+    0,					/*tp_repr*/
+    0,					/*tp_as_number*/
+    0,					/*tp_as_sequence*/
+    0,					/*tp_as_mapping*/
+    0,					/*tp_hash*/
     (ternaryfunc)persistent_id_call,	/*tp_call*/
-    (reprfunc)0,		/*tp_str*/
-    (getattrofunc)0,	/*tp_getattro*/
-    (setattrofunc)0,	/*tp_setattro*/
-    
-    /* Space for future expansion */
-    0L,0L,
+    0,					/*tp_str*/
+    0,					/*tp_getattro*/
+    0,					/*tp_setattro*/
+    0,					/* tp_as_buffer */
+    Py_TPFLAGS_DEFAULT,			/* tp_flags */
     "C implementation of the persistent_id function defined in Connection.py"
+    					/* tp_doc */
 };
 
 /* End of code for persistent_id objects */
@@ -297,7 +277,7 @@ static struct PyMethodDef Module_Level__methods[] = {
 void
 initcoptimizations(void)
 {
-    PyObject *m, *d;
+    PyObject *m;
 
 #define make_string(S) if (! (py_ ## S=PyString_FromString(#S))) return
     make_string(_p_oid);
@@ -309,20 +289,23 @@ initcoptimizations(void)
     make_string(new_oid);
 			
     /* Get InvalidObjectReference error */
-    UNLESS (m=PyString_FromString("ZODB.POSException")) return;
-    ASSIGN(m, PyImport_Import(m));
-    UNLESS (m) return;
-    ASSIGN(m, PyObject_GetAttrString(m, "InvalidObjectReference"));
-    UNLESS (m) return;
-    InvalidObjectReference=m;
+    m = PyImport_ImportModule("ZODB.POSException");
+    if (!m)
+	return;
+    InvalidObjectReference = PyObject_GetAttrString(m, 
+						    "InvalidObjectReference");
+    Py_DECREF(m);
+    if (!InvalidObjectReference)
+	return;
 
-    if (!ExtensionClassImported) 
+    cPersistenceCAPI = PyCObject_Import("persistent.cPersistence", "CAPI");
+    if (!cPersistenceCAPI)
 	return;
 
     m = Py_InitModule3("coptimizations", Module_Level__methods,
 		       coptimizations_doc_string);
-    d = PyModule_GetDict(m);
 
     persistent_idType.ob_type = &PyType_Type;
-    PyDict_SetItemString(d,"persistent_idType", OBJECT(&persistent_idType));
+    Py_INCREF((PyObject *)&persistent_idType);
+    PyModule_AddObject(m, "persistent_idType", (PyObject *)&persistent_idType);
 }

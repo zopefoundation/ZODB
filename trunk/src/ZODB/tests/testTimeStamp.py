@@ -16,7 +16,7 @@
 import time
 import unittest
 
-from ZODB.TimeStamp import TimeStamp
+from persistent.TimeStamp import TimeStamp
 
 EPSILON = 0.000001
 
@@ -106,7 +106,6 @@ class TimeStampTests(unittest.TestCase):
         self.assertEquals(t.hour(), 10)
         self.assertEquals(t.minute(), 48)
         self.assertEquals(round(t.second()), 5)
-        self.assertEquals(t.second(), t.seconds()) # Alias
         self.assertEquals(t.timeTime(), 1011782885)
         t1 = TimeStamp(2002, 1, 23, 10, 48, 10)
         self.assertEquals(str(t1), '2002-01-23 10:48:10.000000')

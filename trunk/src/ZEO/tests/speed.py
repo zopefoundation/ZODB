@@ -46,12 +46,12 @@ import sys, os, getopt, string, time
 ##sys.path.insert(0, os.getcwd())
 
 import ZODB, ZODB.FileStorage
-import Persistence
+import persistent
 import ZEO.ClientStorage, ZEO.StorageServer
 from ZEO.tests import forker
 from ZODB.POSException import ConflictError
 
-class P(Persistence.Persistent):
+class P(persistent.Persistent):
     pass
 
 fs_name = "zeo-speed.fs"

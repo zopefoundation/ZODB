@@ -12,9 +12,9 @@
 #
 ##############################################################################
 
-__version__ = '$Id: testBTreesUnicode.py,v 1.7 2002/06/08 19:40:13 tim_one Exp $'
+__version__ = '$Id: testBTreesUnicode.py,v 1.8 2003/11/28 16:44:45 jim Exp $'
 
-import unittest,types
+import unittest
 from BTrees.OOBTree import OOBTree
 
 # When an OOBtree contains unicode strings as keys,
@@ -43,14 +43,14 @@ class TestBTreesUnicode(unittest.TestCase):
 
         self.tree = OOBTree()
         for k, v in self.data:
-            if isinstance(k, types.StringType):
+            if isinstance(k, str):
                 k = unicode(k, 'latin1')
             self.tree[k] = v
 
     def testAllKeys(self):
         # check every item of the tree
         for k, v in self.data:
-            if isinstance(k, types.StringType):
+            if isinstance(k, str):
                 k = unicode(k, encoding)
             self.assert_(self.tree.has_key(k))
             self.assertEqual(self.tree[k], v)
@@ -65,7 +65,7 @@ class TestBTreesUnicode(unittest.TestCase):
     def testAsciiKeys(self):
         # try to access some "plain ASCII" keys in the tree
         for k, v in self.data[0], self.data[2]:
-            self.assert_(isinstance(k, types.StringType))
+            self.assert_(isinstance(k, str))
             self.assertEqual(self.tree[k], v)
 
 def test_suite():

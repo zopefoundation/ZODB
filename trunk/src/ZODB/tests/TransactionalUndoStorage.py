@@ -24,7 +24,7 @@ from ZODB.referencesf import referencesf
 from ZODB.utils import u64, p64
 from ZODB import DB
 
-from Persistence import Persistent
+from persistent import Persistent
 from ZODB.tests.MinPO import MinPO
 from ZODB.tests.StorageTestBase import zodb_pickle, zodb_unpickle
 
@@ -98,6 +98,15 @@ class TransactionalUndoStorage:
             for rec in txn:
                 pass
 
+    def undo(self, tid, note):
+        t = Transaction()
+        t.note(note)
+        self._storage.tpc_begin(t)
+        oids = self._storage.transactionalUndo(tid, t)
+        self._storage.tpc_vote(t)
+        self._storage.tpc_finish(t)
+        return oids
+
     def checkSimpleTransactionalUndo(self):
         eq = self.assertEqual
         oid = self._storage.new_oid()
@@ -108,12 +117,7 @@ class TransactionalUndoStorage:
         info = self._storage.undoInfo()
         tid = info[0]['id']
         # Now start an undo transaction
-        t = Transaction()
-        t.note('undo1')
-        self._storage.tpc_begin(t)
-        oids = self._storage.transactionalUndo(tid, t)
-        self._storage.tpc_vote(t)
-        self._storage.tpc_finish(t)
+        oids = self.undo(tid, "undo1")
         eq(len(oids), 1)
         eq(oids[0], oid)
         data, revid = self._storage.load(oid, '')
@@ -121,12 +125,7 @@ class TransactionalUndoStorage:
         # Do another one
         info = self._storage.undoInfo()
         tid = info[2]['id']
-        t = Transaction()
-        t.note('undo2')
-        self._storage.tpc_begin(t)
-        oids = self._storage.transactionalUndo(tid, t)
-        self._storage.tpc_vote(t)
-        self._storage.tpc_finish(t)
+        oids = self.undo(tid, "undo2")
         eq(len(oids), 1)
         eq(oids[0], oid)
         data, revid = self._storage.load(oid, '')
@@ -134,12 +133,7 @@ class TransactionalUndoStorage:
         # Try to undo the first record
         info = self._storage.undoInfo()
         tid = info[4]['id']
-        t = Transaction()
-        t.note('undo3')
-        self._storage.tpc_begin(t)
-        oids = self._storage.transactionalUndo(tid, t)
-        self._storage.tpc_vote(t)
-        self._storage.tpc_finish(t)
+        oids = self.undo(tid, "undo3")
         eq(len(oids), 1)
         eq(oids[0], oid)
         # This should fail since we've undone the object's creation
@@ -148,11 +142,7 @@ class TransactionalUndoStorage:
         # And now let's try to redo the object's creation
         info = self._storage.undoInfo()
         tid = info[0]['id']
-        t = Transaction()
-        self._storage.tpc_begin(t)
-        oids = self._storage.transactionalUndo(tid, t)
-        self._storage.tpc_vote(t)
-        self._storage.tpc_finish(t)
+        oids = self.undo(tid, "undo4")
         eq(len(oids), 1)
         eq(oids[0], oid)
         data, revid = self._storage.load(oid, '')
@@ -162,14 +152,14 @@ class TransactionalUndoStorage:
     def checkCreationUndoneGetSerial(self):
         # create an object
         oid = self._storage.new_oid()
-        revid = self._dostore(oid, data=MinPO(23))
+        self._dostore(oid, data=MinPO(23))
         # undo its creation
         info = self._storage.undoInfo()
         tid = info[0]['id']
         t = Transaction()
         t.note('undo1')
         self._storage.tpc_begin(t)
-        oids = self._storage.transactionalUndo(tid, t)
+        self._storage.transactionalUndo(tid, t)
         self._storage.tpc_vote(t)
         self._storage.tpc_finish(t)
         # Check that calling getSerial on an uncreated object raises a KeyError
@@ -501,7 +491,7 @@ class TransactionalUndoStorage:
         packtime = time.time()
         snooze()                # time.time() now distinct from packtime
         revid2 = self._dostore(oid, revid=revid1, data=MinPO(52))
-        revid3 = self._dostore(oid, revid=revid2, data=MinPO(53))
+        self._dostore(oid, revid=revid2, data=MinPO(53))
         # Now get the undo log
         info = self._storage.undoInfo()
         eq(len(info), 3)
@@ -669,7 +659,10 @@ class TransactionalUndoStorage:
         for t in packtimes:
             self._storage.pack(t, referencesf)
             cn.sync()
-            cn._cache.clear()
+
+            # XXX Is _cache supposed to have a clear() method, or not?
+            # cn._cache.clear()
+
             # The last undo set the value to 3 and pack should
             # never change that.
             self.assertEqual(rt["test"].value, 3)

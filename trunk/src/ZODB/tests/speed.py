@@ -39,9 +39,9 @@ import sys, os, getopt, string, time
 sys.path.insert(0, os.getcwd())
 
 import ZODB, ZODB.FileStorage
-import Persistence
+import persistent
 
-class P(Persistence.Persistent): pass
+class P(persistent.Persistent): pass
 
 def main(args):
 

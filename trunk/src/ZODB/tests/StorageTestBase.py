@@ -21,7 +21,6 @@ single object revision.
 
 import errno
 import os
-import pickle
 import string
 import sys
 import time
@@ -46,11 +45,18 @@ def snooze():
     while now == time.time():
         time.sleep(0.1)
 
+def _persistent_id(obj):
+    oid = getattr(obj, "_p_oid", None)
+    if getattr(oid, "__get__", None) is not None:
+        return None
+    else:
+        return oid
+
 def zodb_pickle(obj):
     """Create a pickle in the format expected by ZODB."""
     f = StringIO()
     p = Pickler(f, 1)
-    p.persistent_id = lambda obj: getattr(obj, '_p_oid', None)
+    p.persistent_id = _persistent_id
     klass = obj.__class__
     assert not hasattr(obj, '__getinitargs__'), "not ready for constructors"
     args = None
@@ -131,7 +137,7 @@ def handle_serials(oid, *args):
     return handle_all_serials(oid, *args)[oid]
 
 def import_helper(name):
-    mod = __import__(name)
+    __import__(name)
     return sys.modules[name]
 
 def removefs(base):

@@ -114,7 +114,7 @@ class BasicStorage:
     def checkConflicts(self):
         oid = self._storage.new_oid()
         revid1 = self._dostore(oid, data=MinPO(11))
-        revid2 = self._dostore(oid, revid=revid1, data=MinPO(12))
+        self._dostore(oid, revid=revid1, data=MinPO(12))
         self.assertRaises(POSException.ConflictError,
                           self._dostore,
                           oid, revid=revid1, data=MinPO(13))

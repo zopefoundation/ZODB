@@ -12,7 +12,7 @@
 #
 ##############################################################################
 
-import PersistentMapping
+import persistent.mapping
 
 class fixer:
     def __of__(self, parent):
@@ -27,7 +27,7 @@ class hack: pass
 hack=hack()
 
 def __basicnew__():
-    r=PersistentMapping.PersistentMapping()
+    r=persistent.mapping.PersistentMapping()
     r.__setstate__=fixer
     return r
 

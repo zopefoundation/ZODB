@@ -83,7 +83,7 @@ except ImportError:
 import getopt, ZODB.FileStorage, struct, time
 from struct import unpack
 from ZODB.utils import t32, p64, u64
-from ZODB.TimeStamp import TimeStamp
+from persistent.TimeStamp import TimeStamp
 from cPickle import loads
 from ZODB.FileStorage import RecordIterator
 
@@ -323,8 +323,8 @@ def recover(inp, outp, verbose=0, partial=0, force=0, pack=0):
                         l = len(r.data)
 
                     print "%7d %s %s" % (u64(r.oid), l, r.version)
-                s = ofs.restore(r.oid, r.serial, r.data, r.version,
-                                r.data_txn, txn)
+                ofs.restore(r.oid, r.serial, r.data, r.version, r.data_txn,
+                            txn)
                 nrec += 1
         except (KeyboardInterrupt, SystemExit):
             raise
