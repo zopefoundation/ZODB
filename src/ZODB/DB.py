@@ -84,8 +84,8 @@
 ##############################################################################
 """Database objects
 
-$Id: DB.py,v 1.27 2001/04/12 19:53:04 jim Exp $"""
-__version__='$Revision: 1.27 $'[11:-2]
+$Id: DB.py,v 1.28 2001/04/19 16:06:25 jeremy Exp $"""
+__version__='$Revision: 1.28 $'[11:-2]
 
 import cPickle, cStringIO, sys, POSException, UndoLogCompatible
 from Connection import Connection
@@ -168,9 +168,10 @@ class DB(UndoLogCompatible.UndoLogCompatible):
             
 
     def _cacheMean(self, attr):
+        # XXX this method doesn't work
         m=[0,0]
         def f(con, m=m, attr=attr):
-            t=getattr(con._cache,attr)
+            t=getattr(con._cache, attr)
             m[0]=m[0]+t
             m[1]=m[1]+1
 
