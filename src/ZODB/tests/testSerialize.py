@@ -118,4 +118,7 @@ class SerializerTestCase(unittest.TestCase):
 
 
 def test_suite():
-    return unittest.makeSuite(SerializerTestCase)
+    import doctest
+    suite = unittest.makeSuite(SerializerTestCase)
+    suite.addTest(doctest.DocTestSuite("ZODB.serialize"))
+    return suite
