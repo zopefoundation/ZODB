@@ -196,7 +196,7 @@ class ZEOServer:
             transaction_timeout=self.options.transaction_timeout,
             monitor_address=self.options.monitor_address,
             auth_protocol=self.options.auth_protocol,
-            auth_database=self.options.auth_database,
+            auth_filename=self.options.auth_database,  # XXX option spelling
             auth_realm=self.options.auth_realm)
 
     def loop_forever(self):
