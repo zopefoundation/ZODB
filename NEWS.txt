@@ -1,0 +1,1373 @@
+What's new in ZODB3 3.3 beta 1
+==============================
+Release date: dd-mmm-2004
+
+FileStorage
+-----------
+
+Fixed a serious bug in the new pack implementation.  If pack was
+called on the storage and passed a time earlier than a previous pack
+time, data could be lost.  In other words, if there are any two pack
+calls, where the time argument passed to the second call was earlier
+than the first call, data loss could occur.  The bug was fixed by
+causing the second call to raise a StorageError before performing any
+work.
+
+ZEO
+---
+
+Fixed a bug that prevented the -m / --monitor argument from working.
+
+zdaemon
+-------
+
+Added a -m / --mask option that controls the umask of the subprocess.
+
+Miscellaneous
+-------------
+
+A reference-counting bug was fixed, in the logic calling a modified
+persistent object's data manager's register() method.  The primary symptom
+was rare assertion failures in Python's cyclic garbage collection.
+
+The Connection class's onCommitAction() method was removed.
+
+
+What's new in ZODB3 3.3 alpha 2
+===============================
+Release date: 06-Jan-2004
+
+This release contains a major overhaul of the persistence machinery,
+including some user-visible changes.  The Persistent base class is now
+a new-style class instead of an ExtensionClass.  The change enables
+the use of features like properties with persistent object classes.
+The Persistent base class is now contained in the persistent package.
+
+The Persistence package is included for backwards compatibility.  The
+Persistence package is used by Zope to provide special
+ExtensionClass-compatibility features like a non-C3 MRO and an __of__
+method.  ExtensionClass is not included with this release of ZODB3.
+If you use the Persistence package, it will print a warning and import
+Persistent from persistent.
+
+In short, the new persistent package is recommended for non-Zope
+applications.  The following dotted class names are now preferred over
+earlier names:
+
+- persistent.Persistent
+- persistent.list.PersistentList
+- persistent.mapping.PersistentMapping
+- persistent.TimeStamp
+
+The in-memory, per-connection object cache (pickle cache) was changed
+to participate in garbage collection.  This should reduce the number
+of memory leaks, although we are still tracking a few problems.  [XXX
+might say more here]
+
+Multi-version concurrency control
+---------------------------------
+
+ZODB now supports multi-version concurrency control (MVCC) for
+storages that support multiple revisions.  FileStorage and
+BDBFullStorage both support MVCC.  In short, MVCC means that read
+conflicts should almost never occur.  When an object is modified in
+one transaction, other concurrent transactions read old revisions of
+the object to preserve consistency.  In earlier versions of ZODB, any
+access of the modified object would raise a ReadConflictError.
+
+The ZODB internals changed significantly to accommodate MVCC.  There
+are relatively few user visible changes, aside from the lack of read
+conflicts.  It is possible to disable the MVCC feature using the mvcc
+keyword argument to the DB open() method, ex.: db.open(mvcc=False).
+
+ZEO
+---
+
+Changed the ZEO server and control process to work with a single
+configuration file; this is now the default way to configure these
+processes.  (It's still possible to use separate configuration files.)
+The ZEO configuration file can now include a "runner" section used by
+the control process and ignored by the ZEO server process itself.  If
+present, the control process can use the same configuration file.
+
+Fixed a performance problem in the logging code for the ZEO protocol.
+The logging code could call repr() on arbitrarily long lists, even
+though it only logged the first 60 bytes; worse, it called repr() even
+if logging was currently disabled.  Fixed to call repr() on individual
+elements until the limit is reached.
+
+Fixed a bug in zrpc (when using authentication) where the MAC header
+wasn't being read for large messages, generating errors while unpickling
+commands sent over the wire. Also fixed the zeopasswd.py script, added
+testcases and provided a more complete commandline interface.
+
+Fixed a misuse of the _map variable in zrpc Connectio objects, which
+are also asyncore.dispatcher objects.  This allows ZEO to work with
+CVS Python (2.4). _map is used to indicate whether the dispatcher
+users the default socket_map or a custom socket_map.  A recent change
+to asyncore caused it to use _map in its add_channel() and
+del_channel() methods, which presumes to be a bug fix (may get ported
+to 2.3).  That causes our dubious use of _map to be a problem, because
+we also put the Connections in the global socket_map.  The new
+asyncore won't remove it from the global socket map, because it has a
+custom _map.
+
+The prefix used for log messages from runzeo.py was changed from
+RUNSVR to RUNZEO.
+
+Miscellaneous
+-------------
+
+ReadConflictError objects now have an ignore() method.  Normally, a
+transaction that causes a read conflict can't be committed.  If the
+exception is caught and its ignore() method called, the transaction
+can be committed.  Application code may need this in advanced
+applications.
+
+
+What's new in ZODB3 3.3 alpha 1
+===============================
+Release date: 17-Jul-2003
+
+New features of Persistence
+---------------------------
+
+The Persistent base class is a regular Python type implemented in C.
+It should be possible to create new-style classes that inherit from
+Persistent, and, thus, use all the new Python features introduced in
+Python 2.2 and 2.3.
+
+The __changed__() method on Persistent objects is no longer supported.
+
+New features in BTrees
+----------------------
+
+BTree, Bucket, TreeSet and Set objects are now iterable objects, playing
+nicely with the iteration protocol introduced in Python 2.2, and can
+be used in any context that accepts an iterable object.  As for Python
+dicts, the iterator constructed for BTrees and Buckets iterates
+over the keys.
+
+>>> from BTrees.OOBTree import OOBTree
+>>> b = OOBTree({"one": 1, "two": 2, "three": 3, "four": 4})
+>>> for key in b: # iterates over the keys
+...    print key
+four
+one
+three
+two
+>>> list(enumerate(b))
+[(0, 'four'), (1, 'one'), (2, 'three'), (3, 'two')]
+>>> i = iter(b)
+>>> i.next()
+'four'
+>>> i.next()
+'one'
+>>> i.next()
+'three'
+>>> i.next()
+'two'
+>>>
+
+As for Python dicts in 2.2, BTree and Bucket objects have new
+.iterkeys(), .iteritems(), and .itervalues() methods.  TreeSet and Set
+objects have a new .iterkeys() method.  Unlike as for Python dicts,
+these new methods accept optional min and max arguments to effect
+range searches.  While Bucket.keys() produces a list, Bucket.iterkeys()
+produces an iterator, and similarly for Bucket values() versus
+itervalues(), Bucket items() versus iteritems(), and Set keys() versus
+iterkeys().  The iter{keys,values,items} methods of BTrees and the
+iterkeys() method of Treesets also produce iterators, while their
+keys() (etc) methods continue to produce BTreeItems objects (a form of
+"lazy" iterator that predates Python 2.2's iteration protocol).
+
+>>> sum(b.itervalues())
+10
+>>> zip(b.itervalues(), b.iterkeys())
+[(4, 'four'), (1, 'one'), (3, 'three'), (2, 'two')]
+>>>
+
+BTree, Bucket, TreeSet and Set objects also implement the __contains__
+method new in Python 2.2, which means that testing for key membership
+can be done directly now via the "in" and "not in" operators:
+
+>>> "won" in b
+False
+>>> "won" not in b
+True
+>>> "one" in b
+True
+>>>
+
+All old and new range-search methods now accept keyword arguments,
+and new optional excludemin and excludemax keyword arguments.  The
+new keyword arguments allow doing a range search that's exclusive
+at one or both ends (doesn't include min, and/or doesn't include
+max).
+
+>>> list(b.keys())
+['four', 'one', 'three', 'two']
+>>> list(b.keys(max='three'))
+['four', 'one', 'three']
+>>> list(b.keys(max='three', excludemax=True))
+['four', 'one']
+>>>
+
+Other improvements
+------------------
+
+The exceptions generated by write conflicts now contain the name of
+the conflicted object's class.  This feature requires support for the
+storage.  All the standard storages support it.
+
+What's new in ZODB3 3.2
+========================
+Release date: 08-Oct-2003
+
+Nothing has changed since release candidate 1.
+
+What's new in ZODB3 3.2 release candidate 1
+===========================================
+Release date: 01-Oct-2003
+
+Added a summary to the Doc directory.  There are several new documents
+in the 3.2 release, including "Using zdctl and zdrun to manage server
+processes" and "Running a ZEO Server HOWTO."
+
+Fixed ZEO's protocol negotiation mechanism so that a client ZODB 3.1
+can talk to a ZODB 3.2 server.
+
+Fixed a memory leak in the ZEO server.  The server was leaking a few
+KB of memory per connection.
+
+Fixed a memory leak in the ZODB object cache (cPickleCache).  The
+cache did not release two references to its Connection, causing a
+large cycle of objects to leak when a database was closed.
+
+Fixed a bug in the ZEO code that caused it to leak socket objects on
+Windows.  Specifically, fix the trigger mechanism so that both sockets
+created for a trigger are closed.
+
+Fixed a bug in the ZEO storage server that caused it to leave temp
+files behind.  The CommitLog class contains a temp file, but it was
+not closing the file.
+
+Changed the order of setuid() and setgid() calls in zdrun, so that
+setgid() is called first.
+
+Added a timeout to the ZEO test suite that prevents hangs.  The test
+suite creates ZEO servers with randomly assigned ports.  If the port
+happens to be in use, the test suite would hang because the ZEO client
+would never stop trying to connect.  The fix will cause the test to
+fail after a minute, but should prevent the test runner from hanging.
+
+The logging package was updated to include the latest version of the
+logging package from Python CVS.  Note that this package is only
+installed for Python 2.2.  In later versions of Python, it is
+available in the Python standard library.
+
+The ZEO1 directory was removed from the source distribution.  ZEO1 is
+not supported, and we never intended to include it in the release.
+
+What's new in ZODB3 3.2 beta 3
+==============================
+Release date: 23-Sep-2003
+
+Note: The changes listed for this release include changes also made in
+ZODB 3.1.x releases and ported to the 3.2 release.
+
+This version of ZODB 3.2 is not compatible with Python 2.1.  Early
+versions were explicitly designed to be compatible with Zope 2.6.
+That plan has been dropped, because Zope 2.7 is already in beta
+release.
+
+Several of the classes in ZEO and ZODB now inherit from object, making
+them new-style classes.  The primary motivation for the change was to
+make it easier to debug memory leaks.  We don't expect any behavior to
+change as a result.
+
+A new feature to allow removal of connection pools for versions was
+ported from Zope 2.6.  This feature is needed by Zope to avoid denial
+of service attacks that allow a client to create an arbitrary number
+of version pools.
+
+Fixed several critical ZEO bugs.
+
+- If several client transactions were blocked waiting for the storage
+  and one of the blocked clients disconnected, the server would
+  attempt to restart one of the other waiting clients.  Since the
+  disconnected client did not have the storage lock, this could lead
+  to deadlock.  It could also cause the assertion "self._client is
+  None" to fail.
+
+- If a storage server fails or times out between the vote and the
+  finish, the ZEO cache could get populated with objects that didn't
+  make it to the storage server.
+
+- If a client loses its connection to the server near the end of a
+  transaction, it is now guaranteed to get a ClientDisconnected error
+  even if it reconnects before the transaction finishes.  This is
+  necessary because the server will always abort the transaction.
+  In some cases, the client would never see an error for the aborted
+  transaction.
+
+- In tpc_finish(), reordered the calls so that the server's tpc_finish()
+  is called (and must succeed) before we update the ZEO client cache.
+
+- The storage name is now prepended to the sort key, to ensure a
+  unique global sort order if storages are named uniquely.  This
+  can prevent deadlock in some unusual cases.
+
+Fixed several serious flaws in the implementation of the ZEO
+authentication protocol.
+
+- The smac layer would accept a message without a MAC even after the
+  session key was established.
+
+- The client never initialized its session key, so it never checked
+  incoming messages or created MACs for outgoing messags.
+
+- The smac layer used a single HMAC instance for sending and receiving
+  messages.  This approach could only work if client and server were
+  guaranteed to process all messages in the same total order, which
+  could only happen in simple scenarios like unit tests.
+
+Fixed a bug in ExtensionClass when comparing ExtensionClass instances.
+The code could raise RuntimeWarning under Python 2.3, and produce
+incorrect results on 64-bit platforms.
+
+Fixed bug in BDBStorage that could lead to DBRunRecoveryErrors when a
+transaction was aborted after performing operations like commit
+version or undo that create new references to existing pickles.
+
+Fixed a bug in Connection.py that caused it to fail with an
+AttributeError if close() was called after the database was closed.
+
+The test suite leaves fewer log files behind, although it still leaves
+a lot of junk.  The test.py script puts each tests temp files in a
+separate directory, so it is easier to see which tests are causing
+problems.  Unfortunately, it is still to tedious to figure out why the
+identified tests are leaving files behind.
+
+This release contains the latest and greatest version of the
+BDBStorage.  This storage has still not seen testing in a production
+environment, but it represents the current best design and most recent
+code culled from various branches where development has occurred.
+
+The Tools directory contains a number of small improvements, a few new
+tools, and README.txt that catalogs the tools.  Many of the tools are
+installed by setup.py; those scripts will now have a #! line set
+automatically on Unix.
+
+Fixed bugs in Tools/repozo.py, including a timing-dependent one that
+could cause the following invocation of repozo to do a full backup when
+an incremental backup would have sufficed.
+
+A pair of new scripts from Jim Fulton can be used to synthesize
+workloads and measure ZEO performance:  see zodbload.py and
+zeoserverlog.py in the Tools directory.  Note that these require
+Zope.
+
+Tools/checkbtrees.py was strengthened in two ways:
+
+- In addition to running the _check() method on each BTree B found,
+  BTrees.check.check(B) is also run.  The check() function was written
+  after checkbtrees.py, and identifies kinds of damage B._check()
+  cannot find.
+
+- Cycles in the object graph no longer lead to unbounded output.
+  Note that preventing this requires remembering the oid of each
+  persistent object found, which increases the memory needed by the
+  script.
+
+What's new in ZODB3 3.2 beta 2
+==============================
+Release date: 16-Jun-2003
+
+Fixed critical race conditions in ZEO's cache consistency code that
+could cause invalidations to be lost or stale data to be written to
+the cache.  These bugs can lead to data loss or data corruption.
+These bugs are relatively unlikely to be provoked in sites with few
+conflicts, but the possibility of failure existed any time an object
+was loaded and stored concurrently.
+
+Fixed a bug in conflict resolution that failed to ghostify an object
+if it was involved in a conflict.  (This code may be redundant, but it
+has been fixed regardless.)
+
+The ZEO server was fixed so that it does not perform any I/O until all
+of a transactions' invalidations are queued.  If it performs I/O in the
+middle of sending invalidations, it would be possible to overlap a
+load from a client with the invalidation being sent to it.
+
+The ZEO cache now handles invalidations atomically.  This is the same
+sort of bug that is described in the 3.1.2b1 section below, but it
+affects the ZEO cache.
+
+Fixed several serious bugs in fsrecover that caused it to fail
+catastrophically in certain cases because it thought it had found a
+checkpoint (status "c") record when it was in the middle of the file.
+
+Two new features snuck into this beta release.
+
+The ZODB.transact module provides a helper function that converts a
+regular function or method into a transactional one.
+
+The ZEO client cache now supports Adaptable Persistence (APE).  The
+cache used to expect that all OIDs were eight bytes long.
+
+What's new in ZODB3 3.2 beta 1
+==============================
+Release date: 30-May-2003
+
+ZODB
+----
+
+Invalidations are now processed atomically.  Each transaction will see
+all the changes caused by an earlier transaction or none of them.
+Before this patch, it was possible for a transaction to see invalid
+data because it saw only a subset of the invalidations.  This is the
+most likely cause of reported BTrees corruption, where keys were
+stored in the wrong bucket.  When a BTree bucket splits, the bucket
+and the bucket's parent are both modified.  If a transaction sees the
+invalidation for the bucket but not the parent, the BTree in memory
+will be internally inconsistent and keys can be put in the wrong
+bucket.  The atomic invalidation fix prevents this problem.
+
+A number of minor reference count fixes in the object cache were
+fixed.  That's the cPickleCache.c file.
+
+It was possible for a transaction that failed in tpc_finish() to lose
+the traceback that caused the failure.  The transaction code was fixed
+to report the original error as well as any errors that occur while
+trying to recover from the original error.
+
+The "other" argument to copyTransactionsFrom() only needs to have an
+.iterator() method.  For convenience, change FileStorage's and
+BDBFullStorage's iterator to have this method, which just returns
+self.
+
+Mount points are now visible from mounted objects.
+
+Fixed memory leak involving database connections and caches.  When a
+connection or database was closed, the cache and database leaked,
+because of a circular reference involving the cache.  Fixed the cache
+to explicitly clear out its contents when its connection is closed.
+
+The ZODB cache has fewer methods.  It used to expose methods that
+could mutate the dictionary, which allowed users to violate internal
+invariants.
+
+ZConfig
+-------
+
+It is now possible to configure ZODB databases and storages and ZEO
+servers using ZConfig.
+
+ZEO & zdaemon
+-------------
+
+ZEO now supports authenticated client connections.  The default
+authentication protocol uses a hash-based challenge-response protocol
+to prove identity and establish a session key for message
+authentication.  The architecture is pluggable to allow third-parties
+to developer better authentication protocols.
+
+There is a new HOWTO for running a ZEO server.  The draft in this
+release is incomplete, but provides more guidance than previous
+releases.  See the file Doc/ZEO/howto.txt.
+
+
+The ZEO storage server's transaction timeout feature was refactored
+and made slightly more rebust.
+
+A new ZEO utility script, ZEO/mkzeoinst.py, was added.  This creates a
+standard directory structure and writes a configuration file with
+mostly default values, and a bootstrap script that can be used to
+manage and monitor the server using zdctl.py (see below).
+
+Much work was done to improve zdaemon's zdctl.py and zdrun.py scripts.
+(In the alpha 1 release, zdrun.py was called zdaemon.py, but
+installing it in <prefix>/bin caused much breakage due to the name
+conflict with the zdaemon package.)  Together with the new
+mkzeoinst.py script, this makes controlling a ZEO server a breeze.
+
+A ZEO client will not read from its cache during cache verification.
+This fix was necessary to prevent the client from reading inconsistent
+data.
+
+The isReadOnly() method of a ZEO client was fixed to return the false
+when the client is connected to a read-only fallback server.
+
+The sync() method of ClientStorage and the pending() method of a zrpc
+connection now do both input and output.
+
+The short_repr() function used to generate log messages was fixed so
+that it does not blow up creating a repr of very long tuples.
+
+Storages
+--------
+
+FileStorage has a new pack() implementation that fixes several
+reported problems that could lead to data loss.
+
+Two small bugs were fixed in DemoStorage.  undoLog() did not handle
+its arguments correctly and pack() could accidentally delete objects
+created in versions.
+
+Fixed trivial bug in fsrecover that prevented it from working at all.
+
+FileStorage will use fsync() on Windows starting with Python 2.2.3.
+
+FileStorage's commit version was fixed.  It used to stop after the
+first object, leaving all the other objects in the version.
+
+BTrees
+------
+
+Trying to store an object of a non-integer type into an IIBTree
+or OIBTree could leave the bucket in a variety of insane states.  For
+example, trying
+
+    b[obj] = "I'm a string, not an integer"
+
+where b is an OIBTree.  This manifested as a refcount leak in the test
+suite, but could have been much worse (most likely in real life is that
+a seemingly arbitrary existing key would "go missing").
+
+When deleting the first child of a BTree node with more than one
+child, a reference to the second child leaked.  This could cause
+the entire bucket chain to leak (not be collected as garbage
+despite not being referenced anymore).
+
+Other minor BTree leak scenarios were also fixed.
+
+Tools
+-----
+
+New tool zeoqueue.py for parsing ZEO log files, looking for blocked
+transactions.
+
+New tool repozo.py (originally by Anthony Baxter) for performing
+incremental backups of Data.fs files.
+
+The fsrecover.py script now does a better job of recovering from
+errors the occur in the middle of a transaction record.  Fixed several
+bugs that caused partial or total failures in earlier versions.
+
+
+What's new in ZODB3 3.2 alpha 1
+===============================
+Release date: 17-Jan-2003
+
+Most of the changes in this release are performance and stability
+improvements to ZEO.  A major packaging change is that there won't be
+a separate ZEO release.  The new ZConfig is a noteworthy addtion (see
+below).
+
+ZODB
+----
+
+An experimental new transaction API was added.  The Connection class
+has a new method, setLocalTransaction().  ZODB applications can call
+this method to bind transactions to connections rather than threads.
+This is especially useful for GUI applications, which often have only
+one thread but multiple independent activities within that thread
+(generally one per window).  Thanks to Christian Reis for championing
+this feature.
+
+Applications that take advantage of this feature should not use the
+get_transaction() function.  Until now, ZODB itself sometimes assumed
+get_transaction() was the only way to get the transaction.  Minor
+corrections have been added.  The ZODB test suite, on the other hand,
+can continue to use get_transaction(), since it is free to assume that
+transactions are bound to threads.
+
+ZEO
+---
+
+There is a new recommended script for starting a storage server.  We
+recommend using ZEO/runzeo.py instead of ZEO/start.py.  The start.py
+script is still available in this release, but it will no longer be
+maintained and will eventually be removed.
+
+There is a new zdaemon implementation.  This version is a separate
+script that runs an arbitrary daemon.  To run the ZEO server as a
+daemon, you would run "zdrun.py runzeo.py".  There is also a simple
+shell, zdctl.py, that can be used to manage a daemon.  Try
+"zdctl.py -p runzeo.py".
+
+There is a new version of the ZEO protocol in this release and a first
+stab at protocol negotiation.  (It's a first stab because the protocol
+checking supporting in ZODB 3.1 was too primitive to support anything
+better.)  A ZODB 3.2 ZEO client can talk to an old server, but a ZODB
+3.2 server can't talk to an old client.  It's safe to upgrade all the
+clients first and upgrade the server last.  The ZEO client cache
+format changed, so you'll need to delete persistent caches before
+restarting clients.
+
+The ZEO cache verification protocol was revised to require many fewer
+messages in cases where a client or server restarts quickly.
+
+The performance of full cache verification has improved dramatically.
+XXX Get measurements from Jim -- somewhere in 2x-5x recall.  The
+implementation was fixed to use the very-fast getSerial() method on
+the storage instead of the comparatively slow load().
+
+The ZEO server has an optional timeout feature that will abort a
+connection that does not commit within a certain amount of time.  The
+timeout works by closing the socket the client is using, causing both
+client and server to abort the transaction and continue.  This is a
+drastic step, but can be useful to prevent a hung client or other bug
+from blocking a server indefinitely.
+
+A bug was fixed in the ZEO protocol that allowed clients to read stale
+cache data while cache verification was being performed.  The fixed
+version prevents the client from using the storage until after
+verification completes.
+
+The ZEO server has an experimental monitoring interface that reports
+usage statistics for the storage server including number of connected
+clients and number of transactions active and committed.  It can be
+enabled by passing the -m flag to runsvr.py.
+
+The ZEO ClientStorage no longer supports the environment variables
+CLIENT_HOME, INSTANCE_HOME, or ZEO_CLIENT.
+
+The ZEO1 package is still included with this release, but there is no
+longer an option to install it.
+
+BTrees
+------
+
+The BTrees package now has a check module that inspects a BTree to
+check internal invariants.  Bugs in older versions of the code code
+leave a BTree in an inconsistent state.  Calling BTrees.check.check()
+on a BTree object should verify its consistency.  (See the NEWS
+section for 3.1 beta 1 below to for the old BTrees bugs.)
+
+Fixed a rare conflict resolution problem in the BTrees that could
+cause an segfault when the conflict resolution resulted in any
+empty bucket.
+
+Installation
+------------
+
+The distutils setup now installs several Python scripts.  The
+runzeo.py and zdrun.py scripts mentioned above and several fsXXX.py
+scripts from the Tools directory.
+
+The test.py script does not run all the ZEO tests by default, because
+the ZEO tests take a long time to run.  Use --all to run all the
+tests.  Otherwise a subset of the tests, mostly using MappingStorage,
+are run.
+
+Storages
+--------
+
+There are two new storages based on Sleepycat's BerkeleyDB in the
+BDBStorage package.  Barry will have to write more here, because I
+don't know how different they are from the old bsddb3Storage
+storages.  See Doc/BDBStorage.txt for more information.
+
+It now takes less time to open an existing FileStorage.  The
+FileStorage uses a BTree-based index that is faster to pickle and
+unpickle.  It also saves the index periodically so that subsequent
+opens will go fast even if the storage was not closed cleanly.
+
+Misc
+----
+
+The new ZConfig package, which will be used by Zope and ZODB, is
+included.  ZConfig provides a configuration syntax, similar to
+Apache's syntax.  The package can be used to configure the ZEO server
+and ZODB databases.  See the module ZODB.config for functions to open
+the database from configuration.  See ZConfig/doc for more info.
+
+The zLOG package now uses the logging package by Vinay Sajip, which
+will be included in Python 2.3.
+
+The Sync extension was removed from ExtensionClass, because it was not
+used by ZODB.
+
+What's new in ZODB3 3.1.4?
+==========================
+Release date: 11-Sep-2003
+
+A new feature to allow removal of connection pools for versions was
+ported from Zope 2.6.  This feature is needed by Zope to avoid denial
+of service attacks that allow a client to create an arbitrary number
+of version pools.
+
+A pair of new scripts from Jim Fulton can be used to synthesize
+workloads and measure ZEO performance:  see zodbload.py and
+zeoserverlog.py in the Tools directory.  Note that these require
+Zope.
+
+Tools/checkbtrees.py was strengthened in two ways:
+
+- In addition to running the _check() method on each BTree B found,
+  BTrees.check.check(B) is also run.  The check() function was written
+  after checkbtrees.py, and identifies kinds of damage B._check()
+  cannot find.
+
+- Cycles in the object graph no longer lead to unbounded output.
+  Note that preventing this requires remembering the oid of each
+  persistent object found, which increases the memory needed by the
+  script.
+
+What's new in ZODB3 3.1.3?
+==========================
+Release date: 18-Aug-2003
+
+Fixed several critical ZEO bugs.
+
+- If a storage server fails or times out between the vote and the
+  finish, the ZEO cache could get populated with objects that didn't
+  make it to the storage server.
+
+- If a client loses its connection to the server near the end of a
+  transaction, it is now guaranteed to get a ClientDisconnected error
+  even if it reconnects before the transaction finishes.  This is
+  necessary because the server will always abort the transaction.
+  In some cases, the client would never see an error for the aborted
+  transaction.
+
+- In tpc_finish(), reordered the calls so that the server's tpc_finish()
+  is called (and must succeed) before we update the ZEO client cache.
+
+- The storage name is now prepended to the sort key, to ensure a
+  unique global sort order if storages are named uniquely.  This
+  can prevent deadlock in some unusual cases.
+
+A variety of fixes and improvements to Berkeley storage (aka BDBStorage)
+were back-ported from ZODB 4.  This release now contains the most
+current version of the Berkeley storage code.  Many tests have been
+back-ported, but not all.
+
+Modified the Windows tests to wait longer at the end of ZEO tests for
+the server to shut down.  Before Python 2.3, there is no waitpid() on
+Windows, and, thus, no way to know if the server has shut down.  The
+change makes the Windows ZEO tests much less likely to fail or hang,
+at the cost of increasing the time needed to run the tests.
+
+Fixed a bug in ExtensionClass when comparing ExtensionClass instances.
+The code could raise RuntimeWarning under Python 2.3, and produce
+incorrect results on 64-bit platforms.
+
+Fixed bugs in Tools/repozo.py, including a timing-dependent one that
+could cause the following invocation of repozo to do a full backup when
+an incremental backup would have sufficed.
+
+Added Tools/README.txt that explains what each of the scripts in the
+Tools directory does.
+
+There were many small changes and improvements to the test suite.
+
+What's new in ZODB3 3.1.2 final?
+================================
+
+Fixed bug in FileStorage pack that caused it to fail if it encountered
+an old undo record (status "u").
+
+Fixed several bugs in FileStorage pack that could cause OverflowErrors
+for storages > 2 GB.
+
+Fixed memory leak in TimeStamp.laterThan() that only occurred when it
+had to create a new TimeStamp.
+
+Fixed two BTree bugs that were fixed on the head a while ago:
+
+   - bug in fsBTree that would cause byValue searches to end early.
+     (fsBTrees are never used this way, but it was still a bug.)
+
+   -  bug that lead to segfault if BTree was mutated via deletion
+      while it was being iterated over.
+
+What's new in ZODB3 3.1.2 beta 2?
+=================================
+
+Fixed critical race conditions in ZEO's cache consistency code that
+could cause invalidations to be lost or stale data to be written to
+the cache.  These bugs can lead to data loss or data corruption.
+These bugs are relatively unlikely to be provoked in sites with few
+conflicts, but the possibility of failure existed any time an object
+was loaded and stored concurrently.
+
+Fixed a bug in conflict resolution that failed to ghostify an object
+if it was involved in a conflict.  (This code may be redundant, but it
+has been fixed regardless.)
+
+The ZEO server was fixed so that it does not perform any I/O until all
+of a transactions' invalidations are queued.  If it performs I/O in the
+middle of sending invalidations, it would be possible to overlap a
+load from a client with the invalidation being sent to it.
+
+The ZEO cache now handles invalidations atomically.  This is the same
+sort of bug that is described in the 3.1.2b1 section below, but it
+affects the ZEO cache.
+
+Fixed several serious bugs in fsrecover that caused it to fail
+catastrophically in certain cases because it thought it had found a
+checkpoint (status "c") record when it was in the middle of the file.
+
+What's new in ZODB3 3.1.2 beta 1?
+=================================
+
+ZODB
+----
+
+Invalidations are now processed atomically.  Each transaction will see
+all the changes caused by an earlier transaction or none of them.
+Before this patch, it was possible for a transaction to see invalid
+data because it saw only a subset of the invalidations.  This is the
+most likely cause of reported BTrees corruption, where keys were
+stored in the wrong bucket.  When a BTree bucket splits, the bucket
+and the bucket's parent are both modified.  If a transaction sees the
+invalidation for the bucket but not the parent, the BTree in memory
+will be internally inconsistent and keys can be put in the wrong
+bucket.  The atomic invalidation fix prevents this problem.
+
+A number of minor reference count fixes in the object cache were
+fixed.  That's the cPickleCache.c file.
+
+It was possible for a transaction that failed in tpc_finish() to lose
+the traceback that caused the failure.  The transaction code was fixed
+to report the original error as well as any errors that occur while
+trying to recover from the original error.
+
+ZEO
+---
+
+A ZEO client will not read from its cache during cache verification.
+This fix was necessary to prevent the client from reading inconsistent
+data.
+
+The isReadOnly() method of a ZEO client was fixed to return the false
+when the client is connected to a read-only fallback server.
+
+The sync() method of ClientStorage and the pending() method of a zrpc
+connection now do both input and output.
+
+The short_repr() function used to generate log messages was fixed so
+that it does not blow up creating a repr of very long tuples.
+
+Storages
+--------
+
+FileStorage has a new pack() implementation that fixes several
+reported problems that could lead to data loss.
+
+Two small bugs were fixed in DemoStorage.  undoLog() did not handle
+its arguments correctly and pack() could accidentally delete objects
+created in versions.
+
+Fixed trivial bug in fsrecover that prevented it from working at all.
+
+FileStorage will use fsync() on Windows starting with Python 2.2.3.
+
+FileStorage's commit version was fixed.  It used to stop after the
+first object, leaving all the other objects in the version.
+
+BTrees
+------
+
+Trying to store an object of a non-integer type into an IIBTree
+or OIBTree could leave the bucket in a variety of insane states.  For
+example, trying
+
+    b[obj] = "I'm a string, not an integer"
+
+where b is an OIBTree.  This manifested as a refcount leak in the test
+suite, but could have been much worse (most likely in real life is that
+a seemingly arbitrary existing key would "go missing").
+
+When deleting the first child of a BTree node with more than one
+child, a reference to the second child leaked.  This could cause
+the entire bucket chain to leak (not be collected as garbage
+despite not being referenced anymore).
+
+Other minor BTree leak scenarios were also fixed.
+
+Other
+-----
+
+Comparing a Missing.Value object to a C type that provide its own
+comparison operation could lead to a segfault when the Missing.Value
+was on the right-hand side of the comparison operator.  The Missing
+class was fixed so that its coercion and comparison operations are
+safe.
+
+Tools
+-----
+
+Four tools are now installed by setup.py: fsdump.py, fstest.py,
+repozo.py, and zeopack.py.
+
+What's new in ZODB3 3.1.1 final?
+================================
+Release date: 11-Feb-2003
+
+Tools
+-----
+
+Updated repozo.py tool
+
+What's new in ZODB3 3.1.1 beta 2?
+=================================
+Release date: 03-Feb-2003
+
+The Transaction "hosed" feature is disabled in this release.  If a
+transaction fails during the tpc_finish() it is not possible, in
+general, to know whether the storage is in a consistent state.  For
+example, a ZEO server may commit the data and then fail before sending
+confirmation of the commit to the client.  If multiple storages are
+involved in a transaction, the problem is exacerbated: One storage may
+commit the data while another fails to commit.  In previous versions
+of ZODB, the database would set a global "hosed" flag that prevented
+any other transaction from committing until an administrator could
+check the status of the various failed storages and ensure that the
+database is in a consistent state.  This approach favors data
+consistency over availability.  The new approach is to log a panic but
+continue.  In practice, availability seems to be more important than
+consistency.  The failure mode is exceedingly rare in either case.
+
+The BTrees-based fsIndex for FileStorage is enabled.  This version of
+the index is faster to load and store via pickle and uses less memory
+to store keys.  We had intended to enable this feature in an earlier
+release, but failed to actually do it; thus, it's getting enabled as a
+bug fix now.
+
+Two rare bugs were fixed in BTrees conflict resolution.  The most
+probable symptom of the bug would have been a segfault.  The bugs
+were found via synthetic stress tests rather than bug reports.
+
+A value-based consistency checker for BTrees was added.  See the
+module BTrees.check for the checker and other utilities for working
+with BTrees.
+
+A new script called repozo.py was added.  This script, originally
+written by Anthony Baxter, provides an incremental backup scheme for
+FileStorage based storages.
+
+zeopack.py has been fixed to use a read-only connection.
+
+Various small autopack-related race conditions have been fixed in the
+Berkeley storage implementations.  There have been some table changes
+to the Berkeley storages so any storage you created in 3.1.1b1 may not
+work.  Part of these changes was to add a storage version number to
+the schema so these types of incompatible changes can be avoided in
+the future.
+
+Removed the chance of bogus warnings in the FileStorage iterator.
+
+ZEO
+---
+
+The ZEO version number was bumped to 2.0.2 on account of the following
+minor feature additions.
+
+The performance of full cache verification has improved dramatically.
+XXX Get measurements from Jim -- somewhere in 2x-5x recall.  The
+implementation was fixed to use the very-fast getSerial() method on
+the storage instead of the comparatively slow load().
+
+The ZEO server has an optional timeout feature that will abort a
+connection that does not commit within a certain amount of time.  The
+timeout works by closing the socket the client is using, causing both
+client and server to abort the transaction and continue.  This is a
+drastic step, but can be useful to prevent a hung client or other bug
+from blocking a server indefinitely.
+
+If a client was disconnected during a transaction, the tpc_abort()
+call did not properly reset the internal state about the transaction.
+The bug caused the next transaction to fail in its tpc_finish().
+Also, any ClientDisconnected exceptions raised during tpc_abort() are
+ignored.
+
+ZEO logging has been improved by adding more logging for important
+events, and changing the logging level for existing messages to a more
+appropriate level (usually lower).
+
+What's new in ZODB3 3.1.1 beta 1?
+=================================
+Release date: 10-Dev-2002
+
+It was possible for earlier versions of ZODB to deadlock when using
+multiple storages.  If multiple transactions committed concurrently
+and both transactions involved two or more shared storages, deadlock
+was possible.  This problem has been fixed by introducing a sortKey()
+method to the transaction and storage APIs that is used to define an
+ordering on transaction participants.  This solution will prevent
+deadlocks provided that all transaction participants that use locks
+define a valid sortKey() method.  A warning is raised if a participant
+does not define sortKey().  For backwards compatibility, BaseStorage
+provides a sortKey() that uses __name__.
+
+Added code to ThreadedAsync/LoopCallback.py to work around a bug in
+asyncore.py: a handled signal can cause unwanted reads to happen.
+
+A bug in FileStorage related to object uncreation was fixed.  If an
+a transaction that created an object was undone, FileStorage could
+write a bogus data record header that could lead to strange errors if
+the object was loaded.  An attempt to load an uncreated object now
+raises KeyError, as expected.
+
+The restore() implementation in FileStorage wrote incorrect
+backpointers for a few corner cases involving versions and undo.  It
+also failed if the backpointer pointed to a record that was before the
+pack time.  These specific bugs have been fixed and new test cases
+were added to cover them.
+
+A bug was fixed in conflict resolution that raised a NameError when a
+class involved in a conflict could not be loaded.  The bug did not
+affect correctness, but prevent ZODB from caching the fact that the
+class was unloadable.  A related bug prevented spurious
+AttributeErrors when a class could not be loaded.  It was also fixed.
+
+The script Tools/zeopack.py was fixed to work with ZEO 2.  It was
+untested and had two silly bugs.
+
+Some C extensions included standard header files before including
+Python.h, which is not allowed.  They now include Python.h first,
+which eliminates compiler warnings in certain configurations.
+
+The BerkeleyDB based storages have been merged from the trunk,
+providing a much more robust version of the storages.  They are not
+backwards compatible with the old storages, but the decision was made
+to update them in this micro release because the old storages did not
+work for all practical purposes.  For details, see Doc/BDBStorage.txt.
+
+What's new in ZODB3 3.1 final?
+===============================
+Release date: 28-Oct-2002
+
+If an error occurs during conflict resolution, the store will silently
+catch the error, log it, and continue as if the conflict was
+unresolvable.  ZODB used to behave this way, and the change to catch
+only ConflictError was causing problems in deployed systems.  There
+are a lot of legitimate errors that should be caught, but it's too
+close to the final release to make the substantial changes needed to
+correct this.
+
+What's new in ZODB3 3.1 beta 3?
+===============================
+Release date: 21-Oct-2002
+
+A small extension was made to the iterator protocol.  The Record
+objects, which are returned by the per-transaction iterators, contain
+a new `data_txn` attribute.  It is None, unless the data contained in
+the record is a logical copy of an earlier transaction's data.  For
+example, when transactional undo modifies an object, it creates a
+logical copy of the earlier transaction's data.  Note that this
+provide a stronger statement about consistency than whether the data
+in two records is the same; it's possible for two different updates to
+an object to coincidentally have the same data.
+
+The restore() method was extended to take the data_txn attribute
+mentioned above as an argument.  FileStorage uses the new argument to
+write a backpointer if possible.
+
+A few bugs were fixed.
+
+The setattr slot of the cPersistence C API was being initialized to
+NULL.  The proper initialization was restored, preventing crashes in
+some applications with C extensions that used persistence.
+
+The return value of TimeStamp's __cmp__ method was clipped to return
+only 1, 0, -1.
+
+The restore() method was fixed to write a valid backpointer if the
+update being restored is in a version.
+
+Several bugs and improvements were made to zdaemon, which can be used
+to run the ZEO server.  The parent now forwards signals to the child
+as intended.  Pidfile handling was improved and the trailing newline
+was omitted.
+
+What's new in ZODB3 3.1 beta 2?
+===============================
+Release date: 4-Oct-2002
+
+A few bugs have been fixed, some that were found with the help of
+Neal Norwitz's PyChecker.
+
+The zeoup.py tool has been fixed to allow connecting to a read-only
+storage, when the --nowrite option is given.
+
+Casey Duncan fixed a few bugs in the recent changes to undoLog().
+
+The fstest.py script no longer checks that each object modified in a
+transaction has a serial number that matches the transaction id.
+This invariant is no longer maintained; several new features in the
+3.1 release depend on it.
+
+The ZopeUndo package was added.  If ZODB3 is being used to run a ZEO
+server that will be used with Zope, it is usually best if the server
+and the Zope client don't share any software.  The Zope undo
+framework, however, requires that a Prefix object be passed between
+client and server.  To support this use, ZopeUndo was created to hold
+the Prefix object.
+
+Many bugs were fixed in ZEO, and a couple of features added.  See
+`ZEO-NEWS.txt` for details.
+
+The ZODB guide included in the Doc directory has been updated.  It is
+still incomplete, but most of the references to old ZODB packages have
+been removed.  There is a new section that briefly explains how to use
+BTrees.
+
+The zeoup.py tool connects using a read-only connection when --nowrite
+is specifified.  This feature is useful for checking on read-only ZEO
+servers.
+
+What's new in ZODB3 3.1 beta 1?
+===============================
+Release date: 12-Sep-2002
+
+We've changed the name and version number of the project, but it's
+still the same old ZODB.  There have been a lot of changes since the
+last release.
+
+New ZODB cache
+--------------
+
+Toby Dickenson implemented a new Connection cache for ZODB.  The cache
+is responsible for pointer swizzling (translating between oids and
+Python objects) and for keeping recently used objects in memory.  The
+new cache is a big improvement over the old cache.  It strictly honors
+its size limit, where size is specified in number of objects, and it
+evicts objects in least recently used (LRU) order.
+
+Users should take care when setting the cache size, which has a
+default value of 400 objects.  The old version of the cache often held
+many more objects than its specified size.  An application may not
+perform as well with a small cache size, because the cache no longer
+exceeds the limit.
+
+Storages
+--------
+
+The index used by FileStorage was reimplemented using a custom BTrees
+object.  The index maps oids to file offsets, and is kept in memory at
+all times.  The new index uses about 1/4 the memory of the old,
+dictionary-based index.  See the module ZODB.fsIndex for details.
+
+A security flaw was corrected in transactionalUndo().  The transaction
+ids returned by undoLog() and used for transactionalUndo() contained a
+file offset.  An attacker could construct a pickle with a bogus
+transaction record in its binary data, deduce the position of the
+pickle in the file from the undo log, then submit an undo with a bogus
+file position that caused the pickle to get written as a regular data
+record.  The implementation was fixed so that file offsets are not
+included in the transaction ids.
+
+Several storages now have an explicit read-only mode.  For example,
+passing the keyword argument read_only=1 to FileStorage will make it
+read-only.  If a write operation is performed on a read-only storage,
+a ReadOnlyError will be raised.
+
+The storage API was extended with new methods that support the Zope
+Replication Service (ZRS), a proprietary Zope Corp product.  We expect
+these methods to be generally useful.  The methods are:
+
+    - restore(oid, serialno, data, version, transaction)
+
+      Perform a store without doing consistency checks.  A client can
+      use this method to provide a new current revision of an object.
+      The ``serialno`` argument is the new serialno to use for the
+      object, not the serialno of the previous revision.
+
+    - lastTransaction()
+
+      Returns the transaction id of the last committed transaction.
+
+    - lastSerial(oid)
+
+      Return the current serialno for ``oid`` or None.
+
+    - iterator(start=None, stop=None)
+
+      The iterator method isn't new, but the optional ``start`` and
+      ``stop`` arguments are.  These arguments can be used to specify
+      the range of the iterator -- an inclusive range [start, stop].
+
+FileStorage is now more cautious about creating a new file when it
+believes a file does not exist.  This change is a workaround for bug
+in Python versions upto and including 2.1.3.  If the interpreter was
+builtin without large file support but the platform had it,
+os.path.exists() would return false for large files.  The fix is to
+try to open the file first, and decide whether to create a new file
+based on errno.
+
+The undoLog() and undoInfo() methods of FileStorage can run
+concurrently with other methods.  The internal storage lock is
+released periodically to give other threads a chance to run.  This
+should increase responsiveness of ZEO clients when used with ZEO 2.
+
+New serial numbers are assigned consistently for abortVersion() and
+commitVersion().  When a version is committed, the non-version data
+gets a new serial number.  When a version is aborted, the serial
+number for non-version data does not change.  This means that the
+abortVersion() transaction record has the unique property that its
+transaction id is not the serial number of the data records.
+
+
+Berkeley Storages
+-----------------
+
+Berkeley storage constructors now take an optional `config` argument,
+which is an instance whose attributes can be used to configure such
+BerkeleyDB policies as an automatic checkpointing interval, lock table
+sizing, and the log directory.  See bsddb3Storage/BerkeleyBase.py for
+details.
+
+A getSize() method has been added to all Berkeley storages.
+
+Berkeley storages open their environments with the DB_THREAD flag.
+
+Some performance optimizations have been implemented in Full storage,
+including the addition of a helper C extension when used with Python
+2.2.  More performance improvements will be added for the ZODB 3.1
+final release.
+
+A new experimental Autopack storage was added which keeps only a
+certain amount of old revision information.  The concepts in this
+storage will be folded into Full and Autopack will likely go away in
+ZODB 3.1 final.  ZODB 3.1 final will also have much improved Minimal
+and Full storages, which eliminate Berkeley lock exhaustion problems,
+reduce memory use, and improve performance.
+
+It is recommended that you use BerkeleyDB 4.0.14 and PyBSDDB 3.4.0
+with the Berkeley storages.  See bsddb3Storage/README.txt for details.
+
+
+BTrees
+------
+
+BTrees no longer ignore exceptions raised when two keys are compared.
+
+Tim Peters fixed several endcase bugs in the BTrees code.  Most
+importantly, after a mix of inserts and deletes in a BTree or TreeSet, it
+was possible (but unlikely) for the internal state of the object to become
+inconsistent.  Symptoms then varied; most often this manifested as a
+mysterious failure to find a key that you knew was present, or that
+tree.keys() would yield an object that disgreed with the tree about
+how many keys there were.
+
+If you suspect such a problem, BTrees and TreeSets now support a ._check()
+method, which does a thorough job of examining the internal tree pointers
+for consistency.  It raises AssertionError if it finds any problems, else
+returns None.  If ._check() raises an exception, the object is damaged,
+and rebuilding the object is the best solution.  All known ways for a
+BTree or TreeSet object to become internally inconsistent have been
+repaired.
+
+Other fixes include:
+
+- Many fixes for range search endcases, including the "range search bug:"
+  If the smallest key S in a bucket in a BTree was deleted, doing a range
+  search on the BTree with S on the high end could claim that the range
+  was empty even when it wasn't.
+
+- Zope Collector #419:  repaired off-by-1 errors and IndexErrors when
+  slicing BTree-based data structures.  For example,
+  an_IIBTree.items()[0:0] had length 1 (should be empty) if the tree
+  wasn't empty.
+
+- The BTree module functions weightedIntersection() and weightedUnion()
+  now treat negative weights as documented.  It's hard to explain what
+  their effects were before this fix, as the sign bits were getting
+  confused with an internal distinction between whether the result
+  should be a set or a mapping.
+
+ZEO
+----
+
+For news about ZEO2, see the file ZEO-NEWS.txt.
+
+This version of ZODB ships with two different versions of ZEO.  It
+includes ZEO 2.0 beta 1, the recommended new version.  (ZEO 2 will
+reach final release before ZODB3.)  The ZEO 2.0 protocol is not
+compatible with ZEO 1.0, so we have also included ZEO 1.0 to support
+people already using ZEO 1.0.
+
+Other features
+--------------
+
+When a ConflictError is raised, the exception object now has a
+sensible structure, thanks to a patch from Greg Ward.  The exception
+now uses the following standard attributes: oid, class_name, message,
+serials.  See the ZODB.POSException.ConflictError doc string for
+details.
+
+It is now easier to customize the registration of persistent objects
+with a transaction.  The low-level persistence mechanism in
+cPersistence.c registers with the object's jar instead of with the
+current transaction.  The jar (Connection) then registers with the
+transaction.  This redirection would allow specialized Connections to
+change the default policy on how the transaction manager is selected
+without hacking the Transaction module.
+
+Empty transactions can be committed without interacting with the
+storage.  It is possible for registration to occur unintentionally and
+for a persistent object to compensate by making itself as unchanged.
+When this happens, it's possible to commit a transaction with no
+modified objects.  The change allows such transactions to finish even
+on a read-only storage.
+
+Two new tools were added to the Tools directory.  The ``analyze.py``
+script, based on a tool by Matt Kromer, prints a summary of space
+usage in a FileStorage Data.fs.  The ``checkbtrees.py`` script scans a
+FileStorage Data.fs.  When it finds a BTrees object, it loads the
+object and calls the ``_check`` method.  It prints warning messages
+for any corrupt BTrees objects found.
+
+Documentation
+-------------
+
+The user's guide included with this release is still woefully out of date.
+
+Other bugs fixed
+----------------
+
+If an exception occurs inside an _p_deactivate() method, a traceback
+is printed on stderr.  Previous versions of ZODB silently cleared the
+exception.
+
+ExtensionClass and ZODB now work correctly with a Python debug build.
+
+All C code has been fixed to use a consistent set of functions from
+the Python memory API.  This allows ZODB to be used in conjunction
+with pymalloc, the default allocator in Python 2.3.
+
+zdaemon, which can be used to run a ZEO server, more clearly reports
+the exit status of its child processes.
+
+The ZEO server will reinitialize zLOG when it receives a SIGHUP.  This
+allows log file rotation without restarting the server.
+
+What's new in StandaloneZODB 1.0 final?
+=======================================
+Release date: 08-Feb-2002
+
+All copyright notices have been updated to reflect the fact that the
+ZPL 2.0 covers this release.
+
+Added a cleanroom PersistentList.py implementation, which multiply
+inherits from UserDict and Persistent.
+
+Some improvements in setup.py and test.py for sites that don't have
+the Berkeley libraries installed.
+
+A new program, zeoup.py was added which simply verifies that a ZEO
+server is reachable.  Also, a new program zeopack.py was added which
+connects to a ZEO server and packs it.
+
+
+What's new in StandaloneZODB 1.0 c1?
+====================================
+Release Date: 25-Jan-2002
+
+This was the first public release of the StandaloneZODB from Zope
+Corporation.   Everything's new! :)
