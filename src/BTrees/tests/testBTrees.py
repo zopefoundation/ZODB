@@ -82,14 +82,7 @@
 # attributions are listed in the accompanying credits file.
 # 
 ##############################################################################
-import sys, os, time, whrandom
-
-try:
-    sys.path.insert(0, '.')
-    import ZODB
-except:
-    sys.path.insert(0, '../..')
-    import ZODB
+import sys, os, time, random
 
 from BTrees.OOBTree import OOBTree, OOBucket, OOSet, OOTreeSet
 from BTrees.IOBTree import IOBTree, IOBucket, IOSet, IOTreeSet
@@ -208,7 +201,7 @@ class MappingBase(Base):
         added = {}
         r = range(1000)
         for x in r:
-            k = whrandom.choice(r)
+            k = random.choice(r)
             self.t[k] = x
             added[k] = x
         addl = added.keys()
@@ -276,7 +269,7 @@ class MappingBase(Base):
     def testClear(self):
         r = range(100)
         for x in r:
-            rnd = whrandom.choice(r)
+            rnd = random.choice(r)
             self.t[rnd] = 0
         self.t.clear()
         diff = lsubtract(list(self.t.keys()), [])
@@ -287,7 +280,7 @@ class MappingBase(Base):
         d={}
         l=[]
         for i in range(10000):
-            k=whrandom.randint(-2000, 2000)
+            k=random.randrange(-2000, 2001)
             d[k]=i
             l.append((k, i))
             
@@ -396,7 +389,7 @@ class NormalSetTests(Base):
         d={}
         l=[]
         for i in range(10000):
-            k=whrandom.randint(-2000, 2000)
+            k=random.randrange(-2000, 2001)
             d[k]=i
             l.append(k)
             
@@ -502,7 +495,7 @@ class BTreeTests(MappingBase):
         added = {}
         r = range(100)
         for x in r:
-            k = whrandom.choice(r)
+            k = random.choice(r)
             if not added.has_key(k):
                 self.t[k] = x
                 added[k] = 1
@@ -515,7 +508,7 @@ class BTreeTests(MappingBase):
         added = {}
         r = range(100)
         for x in r:
-            k = whrandom.choice(r)
+            k = random.choice(r)
             self.t[k] = x
             added[k] = 1
         addl = added.keys()
@@ -527,12 +520,12 @@ class BTreeTests(MappingBase):
         r = range(1000)
         added = []
         for x in r:
-            k = whrandom.choice(r)
+            k = random.choice(r)
             self.t[k] = x
             added.append(k)
         deleted = []
         for x in r:
-            k = whrandom.choice(r)
+            k = random.choice(r)
             if self.t.has_key(k):
                 del self.t[k]
                 deleted.append(k)
@@ -547,7 +540,7 @@ class BTreeTests(MappingBase):
     def testTargetedDeletes(self):
         r = range(1000)
         for x in r:
-            k = whrandom.choice(r)
+            k = random.choice(r)
             self.t[k] = x
         for x in r:
             try:
@@ -634,7 +627,7 @@ class BTreeTests(MappingBase):
         r = range(100)
         a = {}
         for x in r:
-            rnd = whrandom.choice(r)
+            rnd = random.choice(r)
             self.t[rnd] = 0
             a[rnd] = 0
         diff = lsubtract(list(self.t.keys(0, 100)), a.keys())

@@ -82,14 +82,7 @@
 # attributions are listed in the accompanying credits file.
 # 
 ##############################################################################
-import sys, os, time, whrandom
-
-try:
-    sys.path.insert(0, '.')
-    import ZODB
-except:
-    sys.path.insert(0, '../..')
-    import ZODB
+import sys, os, time, random
 
 from BTrees.OOBTree import OOBTree, OOBucket, OOSet, OOTreeSet
 from BTrees.IOBTree import IOBTree, IOBucket, IOSet, IOTreeSet
@@ -129,18 +122,18 @@ class MappingBase(Base):
         base=self.t
         d={}
         for i in range(20):
-            d[whrandom.randint(-10000, 10000)]=i*100000
+            d[random.randrange(-10000, 10001)]=i*100000
 
         e1={}
         while len(e1) < 5:
-            k=whrandom.randint(-10000, 10000)
+            k=random.randrange(-10000, 10001)
             if not d.has_key(k):
                 e1[k]=len(e1)
         e1=e1.items()
 
         e2={}
         while len(e2) < 5:
-            k=whrandom.randint(-10000, 10000)
+            k=random.randrange(-10000, 10001)
             if not d.has_key(k) and not e2.has_key(k):
                 e2[k]=len(e2)
         e2=e2.items()
@@ -280,18 +273,18 @@ class ExtendedSetTests(NormalSetTests):
         base=self.t
         d={}
         for i in range(20):
-            d[whrandom.randint(-10000, 10000)]=i*100000
+            d[random.randrange(-10000, 10001)]=i*100000
 
         e1={}
         while len(e1) < 5:
-            k=whrandom.randint(-10000, 10000)
+            k=random.randrange(-10000, 10001)
             if not d.has_key(k):
                 e1[k]=len(e1)
         e1=e1.keys()
 
         e2={}
         while len(e2) < 5:
-            k=whrandom.randint(-10000, 10000)
+            k=random.randrange(-10000, 10001)
             if not d.has_key(k) and not e2.has_key(k):
                 e2[k]=len(e2)
         e2=e2.keys()
