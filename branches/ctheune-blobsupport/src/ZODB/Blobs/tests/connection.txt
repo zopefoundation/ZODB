@@ -49,7 +49,7 @@ Getting stuff out of there works similar:
     >>> connection2 = database.open()
     >>> root = connection2.root()
     >>> blob2 = root['myblob']
-    >>> IBlob.isImplementedBy(blob2)
+    >>> IBlob.providedBy(blob2)
     True
     >>> blob2.open("r").read()
     "I'm a happy Blob."
