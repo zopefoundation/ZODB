@@ -115,7 +115,7 @@
 #   may have a back pointer to a version record or to a non-version
 #   record.
 #
-__version__='$Revision: 1.82 $'[11:-2]
+__version__='$Revision: 1.83 $'[11:-2]
 
 import struct, time, os, string, base64, sys
 from struct import pack, unpack
@@ -578,18 +578,19 @@ class FileStorage(BaseStorage.BaseStorage,
 
     def load(self, oid, version, _stuff=None):
         self._lock_acquire()
-        try: return self._load(oid, version, self._index, self._file)
-        finally: self._lock_release()
+        try:
+            return self._load(oid, version, self._index, self._file)
+        finally:
+            self._lock_release()
 
     def loadSerial(self, oid, serial):
         self._lock_acquire()
         try:
-            _index=self._index
             file=self._file
             seek=file.seek
             read=file.read
             try:
-                pos=_index[oid]
+                pos = self._index[oid]
             except KeyError:
                 raise POSKeyError(oid)
             while 1:
@@ -619,7 +620,10 @@ class FileStorage(BaseStorage.BaseStorage,
     def modifiedInVersion(self, oid):
         self._lock_acquire()
         try:
-            pos=self._index[oid]
+            try:
+                pos = self._index[oid]
+            except KeyError:
+                raise POSKeyError(oid)
             file=self._file
             seek=file.seek
             seek(pos)
