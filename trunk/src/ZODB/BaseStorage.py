@@ -15,7 +15,7 @@
 """
 # Do this portably in the face of checking out with -kv
 import string
-__version__ = string.split('$Revision: 1.28 $')[-2:][0]
+__version__ = string.split('$Revision: 1.29 $')[-2:][0]
 
 import cPickle
 import ThreadLock, bpthread
@@ -250,7 +250,7 @@ class BaseStorage(UndoLogCompatible.UndoLogCompatible):
         Dictionary values should be None; this will be a handy place
         for extra marshalling information, should we need it
         """
-	return {}
+        return {}
 
     def copyTransactionsFrom(self, other, verbose=0):
         """Copy transactions from another storage.
