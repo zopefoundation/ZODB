@@ -31,8 +31,8 @@ del mapping, list, sys
 
 from DB import DB
 
-from transaction import get as get_transaction
-# TODO Issue deprecation warning if this variant is used?
+# TODO:  get_transaction() scheduled to go away in ZODB 3.6.
+from transaction import get_transaction
 __builtin__.get_transaction = get_transaction
 
 del __builtin__

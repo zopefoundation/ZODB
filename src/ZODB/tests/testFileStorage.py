@@ -153,7 +153,7 @@ class FileStorageTests(
 
         # Replace the OOBTree with a dictionary and commit it.
         self._storage._index._data = data_dict
-        get_transaction().commit()
+        transaction.commit()
 
         # Save the index.
         self._storage.close()
@@ -198,7 +198,7 @@ class FileStorageTests(
         db = DB(self._storage)
         conn = db.open()
         conn.root()['xyz'] = 1
-        get_transaction().commit()
+        transaction.commit()
         true_max_oid = self._storage._oid
 
         # Save away the index, and poke in a bad 'oid' value by hand.
@@ -288,7 +288,7 @@ class FileStorageTests(
         db = DB(self._storage)
         conn = db.open()
         conn.root()['xyz'] = 1
-        get_transaction().commit()
+        transaction.commit()
 
         # Ensure it's all on disk.
         db.close()
@@ -330,7 +330,7 @@ class FileStorageTests(
         conn = db.open()
         conn.root()['abc'] = MinPO('abc')
         conn.root()['xyz'] = MinPO('xyz')
-        get_transaction().commit()
+        transaction.commit()
 
         # Ensure it's all on disk.
         db.close()

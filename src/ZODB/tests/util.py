@@ -21,10 +21,6 @@ import persistent
 import transaction
 from ZODB.MappingStorage import MappingStorage
 from ZODB.DB import DB as _DB
-try:
-    from transaction import get_transaction
-except ImportError:
-    pass # else assume ZODB will install it as a builtin
 
 def DB(name='Test'):
     return _DB(MappingStorage(name))
