@@ -84,8 +84,8 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.21 1999/08/11 14:35:59 jim Exp $"""
-__version__='$Revision: 1.21 $'[11:-2]
+$Id: Connection.py,v 1.22 1999/08/13 21:49:07 klm Exp $"""
+__version__='$Revision: 1.22 $'[11:-2]
 
 from cPickleCache import PickleCache
 from POSException import ConflictError, ExportError
@@ -479,7 +479,7 @@ class Connection(ExportImport.ExportImport):
         new._p_jar=self
         new._p_changed=1
         get_transaction().register(new)
-        self.cache[oid]=new
+        self._cache[oid]=new
         
 class tConnection(Connection):
 
