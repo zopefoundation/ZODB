@@ -15,7 +15,7 @@
 static char cPickleCache_doc_string[] =
 "Defines the PickleCache used by ZODB Connection objects.\n"
 "\n"
-"$Id: cPickleCache.c,v 1.46 2002/04/02 11:11:45 htrd Exp $\n";
+"$Id: cPickleCache.c,v 1.47 2002/04/02 14:35:36 gvanrossum Exp $\n";
 
 #define ASSIGN(V,E) {PyObject *__e; __e=(E); Py_XDECREF(V); (V)=__e;}
 #define UNLESS(E) if(!(E))
@@ -657,6 +657,8 @@ cc_add_item(ccobject *self, PyObject *key, PyObject *v)
 {
     int result;
     PyExtensionClass *class;
+    PyObject *oid, *object_again;
+    cPersistentObject *p;
 
     if (!PyExtensionInstance_Check(v)) {
 	PyErr_SetString(PyExc_ValueError, 
@@ -673,9 +675,7 @@ cc_add_item(ccobject *self, PyObject *key, PyObject *v)
     }
 
     /* XXX Why not self->oid? */
-    PyObject *oid = PyObject_GetAttr(v, py__p_oid);
-    PyObject *object_again;
-    cPersistentObject *p;
+    oid = PyObject_GetAttr(v, py__p_oid);
 
     if (oid == NULL)
 	return -1;
