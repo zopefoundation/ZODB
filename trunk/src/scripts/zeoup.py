@@ -19,6 +19,8 @@ Options:
 
     --nowrite -- Do not update the zeoup counter.
 
+    -1 -- Connect to a ZEO 1.0 server.
+
 You must specify either -p and -h or -U.
 """
 
@@ -30,16 +32,19 @@ import ZODB
 from ZODB.POSException import ConflictError
 from ZEO.ClientStorage import ClientStorage
 
+ZEO_VERSION = 2
+
 def check_server(addr, storage, write):
-    cs = ClientStorage(addr, storage=storage, debug=1,
-                       wait_for_server_on_startup=0)
+    if ZEO_VERSION == 2:
+        cs = ClientStorage(addr, storage=storage, debug=1, wait=1)
+    else:
+        cs = ClientStorage(addr, storage=storage, debug=1,
+                           wait_for_server_on_startup=1)
     # _startup() is an artifact of the way ZEO 1.0 works.  The
     # ClientStorage doesn't get fully initialized until registerDB()
     # is called.  The only thing we care about, though, is that
     # registerDB() calls _startup().
 
-    # XXX Is connecting a DB with wait_for_server_on_startup=0 a
-    # sufficient test for upness?
     db = ZODB.DB(cs)
     cn = db.open()
     root = cn.root()
@@ -64,7 +69,7 @@ def main():
     write = 1
     storage = '1'
     try:
-        opts, args = getopt.getopt(sys.argv[1:], 'p:h:U:S:',
+        opts, args = getopt.getopt(sys.argv[1:], 'p:h:U:S:1',
                                    ['nowrite'])
         for o, a in opts:
             if o == '-p':
@@ -77,6 +82,8 @@ def main():
                 storage = a
             elif o == '--nowrite':
                 write = 0
+            elif o == '-1':
+                ZEO_VERSION = 1
     except Exception, err:
         print err
         usage()
