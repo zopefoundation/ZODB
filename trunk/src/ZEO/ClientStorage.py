@@ -84,7 +84,7 @@
 ##############################################################################
 """Network ZODB storage client
 """
-__version__='$Revision: 1.30 $'[11:-2]
+__version__='$Revision: 1.31 $'[11:-2]
 
 import struct, time, os, socket, string, Sync, zrpc, ClientCache
 import tempfile, Invalidator, ExtensionClass, thread
@@ -429,6 +429,8 @@ class ClientStorage(ExtensionClass.Base, BaseStorage.BaseStorage):
 
     def supportsUndo(self): return self._info['supportsUndo']
     def supportsVersions(self): return self._info['supportsVersions']
+    def supportsTransactionalUndo(self):
+        return self._info['supportsTransactionalUndo']
         
     def tpc_abort(self, transaction):
         self._lock_acquire()
@@ -545,6 +547,18 @@ class ClientStorage(ExtensionClass.Base, BaseStorage.BaseStorage):
 
             self._transaction=None
             self._commit_lock_release()
+        finally: self._lock_release()
+
+    def transactionalUndo(self, trans_id, trans):
+        self._lock_acquire()
+        try:
+            if trans is not self._transaction:
+                raise POSException.StorageTransactionError(self, transaction)
+            oids = self._call('transactionalUndo', trans_id, self._serial)
+            for oid in oids:
+                # write invalidation records with no version
+                self._tfile.write("i%s\000\000" % oid)
+            return oids
         finally: self._lock_release()
 
     def undo(self, transaction_id):

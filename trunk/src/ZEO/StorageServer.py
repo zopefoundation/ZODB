@@ -83,7 +83,7 @@
 # 
 ##############################################################################
 
-__version__ = "$Revision: 1.25 $"[11:-2]
+__version__ = "$Revision: 1.26 $"[11:-2]
 
 import asyncore, socket, string, sys, os
 from smac import SizedMessageAsyncConnection
@@ -201,6 +201,7 @@ for n in (
     'modifiedInVersion', 'new_oid', 'new_oids', 'pack', 'store',
     'storea', 'tpc_abort', 'tpc_begin', 'tpc_begin_sync',
     'tpc_finish', 'undo', 'undoLog', 'undoInfo', 'versionEmpty', 'versions',
+    'transactionalUndo',
     'vote', 'zeoLoad', 'zeoVerify', 'beginZeoVerify', 'endZeoVerify',
     ):
     storage_methods[n]=1
@@ -320,6 +321,7 @@ class ZEOConnection(SizedMessageAsyncConnection):
             'name': storage.getName(),
             'supportsUndo': storage.supportsUndo(),
             'supportsVersions': storage.supportsVersions(),
+            'supportsTransactionalUndo': storage.supportsTransactionalUndo(),
             }
 
     def get_size_info(self):
@@ -451,6 +453,12 @@ class ZEOConnection(SizedMessageAsyncConnection):
         if t is None or id != t.id:
             raise POSException.StorageTransactionError(self, id)
         return self.__storage.tpc_vote(t)
+
+    def transactionalUndo(self, trans_id, id):
+        t=self._transaction
+        if t is None or id != t.id:
+            raise POSException.StorageTransactionError(self, id)
+        return self.__storage.transactionalUndo(trans_id, self._transaction)
         
     def undo(self, transaction_id):
         oids=self.__storage.undo(transaction_id)
