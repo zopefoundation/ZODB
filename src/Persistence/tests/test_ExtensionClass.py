@@ -13,7 +13,7 @@
 ##############################################################################
 """Test ExtensionClass support in Persistence.Persistent
 
-$Id: test_ExtensionClass.py,v 1.5 2004/02/20 17:17:13 jeremy Exp $
+$Id: test_ExtensionClass.py,v 1.6 2004/02/20 17:19:43 jeremy Exp $
 """
 
 from doctest import DocTestSuite
@@ -24,7 +24,7 @@ from Persistence import Persistent
 try:
     # The _Persistence module is only compiled in a Zope checkout,
     # where ExtensionClass is available.
-    import Persistent._Persistence
+    import Persistence._Persistence
 except ImportError:
     pass
 else:
