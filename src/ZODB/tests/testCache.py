@@ -93,22 +93,14 @@ class DBMethods(CacheTestBase):
     # XXX not really sure how to do a black box test of the cache.
     # should the full sweep and minimize calls always remove things?
 
-    # The sleep(3) call is based on the implementation of the cache.
-    # It's measures time in units of three seconds, so something used
-    # within the last three seconds looks like something that is
-    # currently being used.  Three seconds old is the youngest
-    # something can be and still be collected.
-
     def checkFullSweep(self):
         old_size = self.db.cacheSize()
-        time.sleep(3)
         self.db.cacheFullSweep()
         new_size = self.db.cacheSize()
         self.assert_(new_size < old_size, "%s < %s" % (old_size, new_size))
 
     def checkMinimize(self):
         old_size = self.db.cacheSize()
-        time.sleep(3)
         self.db.cacheMinimize()
         new_size = self.db.cacheSize()
         self.assert_(new_size < old_size, "%s < %s" % (old_size, new_size))
