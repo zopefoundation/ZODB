@@ -10,7 +10,7 @@
 
 static char intSet_module_documentation[] = 
 ""
-"\n$Id: intSet.c,v 1.2 1997/09/08 18:41:59 jim Exp $"
+"\n$Id: intSet.c,v 1.3 1997/10/01 02:45:58 jim Exp $"
 ;
 
 #include <limits.h>
@@ -135,8 +135,8 @@ intSet_modify(intSet *self, INTSET_DATA_TYPE ikey, int add)
 	    {
 	      data+=i;
 	      self->len--;
-	      if(i < (self->len)) memmove(data, data+1,
-					  (self->len-i)*sizeof(INTSET_DATA_TYPE));
+	      if(i < (self->len))
+		memmove(data, data+1, (self->len-i)*sizeof(INTSET_DATA_TYPE));
 	      if(PER_CHANGED(self) < 0) return PER_INT_RETURN(self, -1);
 	    }
 
@@ -527,7 +527,7 @@ void
 initintSet()
 {
   PyObject *m, *d;
-  char *rev="$Revision: 1.2 $";
+  char *rev="$Revision: 1.3 $";
 
   UNLESS(ExtensionClassImported) return;
 
@@ -566,6 +566,9 @@ initintSet()
   Revision Log:
 
   $Log: intSet.c,v $
+  Revision 1.3  1997/10/01 02:45:58  jim
+  Minor reformat.
+
   Revision 1.2  1997/09/08 18:41:59  jim
   Added logic to save data in binary form.
 
