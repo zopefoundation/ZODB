@@ -452,9 +452,10 @@ class Connection(ExportImport, object):
         self._cache = cache = PickleCache(self, cache_size)
 
     def abort(self, transaction):
-        """Abort the object in the transaction.
+        """Abort modifications to registered objects.
 
-        This just deactivates the thing.
+        This tells the cache to invalidate changed objects.  _p_jar
+        and _p_oid are deleted from new objects.
         """
 
         for obj in self._registered_objects:
@@ -632,6 +633,7 @@ class Connection(ExportImport, object):
                 self._cache[oid] = obj
             except:
                 # Dang, I bet it's wrapped:
+                # XXX Deprecate, then remove, this.
                 if hasattr(obj, 'aq_base'):
                     self._cache[oid] = obj.aq_base
                 else:

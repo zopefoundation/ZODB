@@ -1,0 +1,91 @@
+Participants
+    DB:  ZODB.DB.DB
+    C:  ZODB.Connection.Connection
+    S:  ZODB.FileStorage.FileStorage
+    T:  transaction.interfaces.ITransaction
+    TM:  transaction.interfaces.ITransactionManager
+    o1, o2, ...:  pre-existing persistent objects
+
+Scenario
+    """Simple fetch, modify, commit."""
+
+    DB.open()
+        create C
+        TM.registerSynch(C)
+    TM.begin()
+        create T
+    C.get(1) # fetches o1
+    C.get(2) # fetches o2
+    C.get(3) # fetches o3
+    o1.modify() # anything that modifies o1
+        C.register(o1)
+            T.join(C)
+    o2.modify()
+        C.register(o2)
+            # T.join(C) does not happen again
+    o1.modify()
+        # C.register(o1) doesn't happen again, because o1 was already
+        # in the changed state.
+    T.commit()
+        C.beforeCompletion(T)
+        C.tpc_begin(T, False)
+            S.tpc_begin(T)
+        C.commit(T)
+            S.store(1, ..., T)
+            S.store(2, ..., T)
+            # o3 is not stored, because it wasn't modified
+        C.tpc_vote(T)
+            S.tpc_vote(T)
+        C.tpc_finish(T)
+            S.tpc_finish(T, f) # f is a callback function, which arranges
+                               # to call DB.invalidate (next)
+                DB.invalidate(tid, {1: 1, 2: 1}, C)
+                    C2.invalidate(tid, {1: 1, 2: 1}) # for all connections
+                                                     # C2 to DB, where C2
+                                                     # is not C
+        TM.free(T)
+        C.afterCompletion(T)
+            C._flush_invalidations()
+            # Processes invalidations that may have come in from other
+            # transactions.
+
+
+Participants
+    DB:  ZODB.DB.DB
+    C:  ZODB.Connection.Connection
+    S:  ZODB.FileStorage.FileStorage
+    T:  transaction.interfaces.ITransaction
+    TM:  transaction.interfaces.ITransactionManager
+    o1, o2, ...:  pre-existing persistent objects
+
+Scenario
+    """Simple fetch, modify, abort."""
+
+    DB.open()
+        create C
+        TM.registerSynch(C)
+    TM.begin()
+        create T
+    C.get(1) # fetches o1
+    C.get(2) # fetches o2
+    C.get(3) # fetches o3
+    o1.modify() # anything that modifies o1
+        C.register(o1)
+            T.join(C)
+    o2.modify()
+        C.register(o2)
+            # T.join(C) does not happen again
+    o1.modify()
+        # C.register(o1) doesn't happen again, because o1 was already
+        # in the changed state.
+    T.abort()
+        C.beforeCompletion(T)
+        C.abort(T)
+            C._cache.invalidate(1)  # toss changes to o1
+            C._cache.invalidate(2)  # toss changes to o2
+            # o3 wasn't modified, and its cache entry isn't invalidated.
+        TM.free(T)
+        C.afterCompletion(T)
+            C._flush_invalidations()
+            # Processes invalidations that may have come in from other
+            # transactions.
