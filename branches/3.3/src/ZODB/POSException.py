@@ -187,6 +187,9 @@ class BTreesConflictError(ConflictError):
 
             # 11; conflicting changes in an internal BTree node
             'Conflicting changes in an internal BTree node',
+
+            # 12; i2 or i3 was empty
+            'Empty bucket in a transaction',
             ]
 
     def __init__(self, p1, p2, p3, reason):

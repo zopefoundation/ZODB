@@ -70,7 +70,9 @@ merge_error(int p1, int p2, int p3, int reason)
  * However, it's not OK for s2 and s3 to, between them, end up deleting all
  * the keys.  This is a higher-level constraint, due to that the caller of
  * bucket_merge() doesn't have enough info to unlink the resulting empty
- * bucket from its BTree correctly.
+ * bucket from its BTree correctly.  It's also not OK if s2 or s3 are empty,
+ * because the transaction that emptied the bucket unlinked the bucket from
+ * the tree, and nothing we do here can get it linked back in again.
  *
  * Key insertion:  s2 or s3 can add a new key, provided the other transaction
  * doesn't insert the same key.  It's not OK even if they insert the same
@@ -90,6 +92,13 @@ bucket_merge(Bucket *s1, Bucket *s2, Bucket *s3)
   PyObject *s;
   SetIteration i1 = {0,0,0}, i2 = {0,0,0}, i3 = {0,0,0};
   int cmp12, cmp13, cmp23, mapping, set;
+
+  /* If either "after" bucket is empty, punt. */
+  if (s2->len == 0 || s3->len == 0)
+    {
+      merge_error(-1, -1, -1, 12);
+      goto err;
+    }
 
   if (initSetIteration(&i1, OBJECT(s1), 1) < 0)
       goto err;
