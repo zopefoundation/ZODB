@@ -16,7 +16,6 @@ The components you get with the ZODB3 release are as follows:
 - Standard storages such as FileStorage
 - The persistent BTrees modules
 - ZEO
-- Experimental Berkeley storages
 - ZConfig -- a Zope configuration language
 - documentation
 
@@ -49,10 +48,6 @@ You must have Python installed.  If you've installed Python from RPM,
 be sure that you've installed the development RPMs too, since ZODB3
 builds Python extensions.  If you have the source release of ZODB3,
 you will need a C compiler.
-
-If you intend to use the experimental Berkeley storages, you will need
-to install the Berkeley database software.  It is recommended that you
-use at least Berkeley 4.1.25.
 
 The ZConfig package requires an XML parser with SAX support.  The
 pyexpat module should be sufficient; note that pyexpat requires expat
