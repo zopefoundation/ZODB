@@ -177,6 +177,14 @@ def parseargs():
     return options
 
 
+# afile is a Python file object, or created by gzip.open().  The latter
+# doesn't have a fileno() method, so to fsync it we need to reach into
+# its underlying file object.
+def fsync(afile):
+    afile.flush()
+    fileobject = getattr(afile, 'fileobj', afile)
+    os.fsync(fileobject.fileno())
+
 # Read bytes (no more than n, or to EOF if n is None) in chunks from the
 # current position in file fp.  Pass each chunk as an argument to func().
 # Return the total number of bytes read == the total number of bytes
@@ -211,21 +219,28 @@ def checksum(fp, n):
 
 def copyfile(options, dst, start, n):
     # Copy bytes from file src, to file dst, starting at offset start, for n
-    # length of bytes
+    # length of bytes.  For robustness, we first write, flush and fsync
+    # to a temp file, then rename the temp file at the end.
     sum = md5.new()
     ifp = open(options.file, 'rb')
     ifp.seek(start)
+    tempname = os.path.join(os.path.dirname(dst), 'tmp.tmp')
     if options.gzip:
-        ofp = gzip.open(dst, 'wb')
+        ofp = gzip.open(tempname, 'wb')
     else:
-        ofp = open(dst, 'wb')
+        ofp = open(tempname, 'wb')
+
     def func(data):
         sum.update(data)
         ofp.write(data)
+
     ndone = dofile(func, ifp, n)
-    ofp.close()
-    ifp.close()
     assert ndone == n
+
+    ifp.close()
+    fsync(ofp)
+    ofp.close()
+    os.rename(tempname, dst)
     return sum.hexdigest()
 
 
@@ -353,6 +368,8 @@ def do_full_backup(options):
     datfile = os.path.splitext(dest)[0] + '.dat'
     fp = open(datfile, 'w')
     print >> fp, dest, 0, pos, sum
+    fp.flush()
+    os.fsync(fp.fileno())
     fp.close()
 
 
@@ -381,6 +398,8 @@ def do_incremental_backup(options, reposz, repofiles):
     # This .dat file better exist.  Let the exception percolate if not.
     fp = open(datfile, 'a')
     print >> fp, dest, reposz, pos, sum
+    fp.flush()
+    os.fsync(fp.fileno())
     fp.close()
 
 
