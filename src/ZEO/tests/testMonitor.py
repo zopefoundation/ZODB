@@ -13,7 +13,7 @@
 ##############################################################################
 """Test that the monitor produce sensible results.
 
-$Id: testMonitor.py,v 1.1 2003/01/09 23:57:43 jeremy Exp $
+$Id: testMonitor.py,v 1.2 2003/01/13 21:43:24 tim_one Exp $
 """
 
 import socket
@@ -28,7 +28,7 @@ class MonitorTests(CommonSetupTearDown):
 
     def get_monitor_output(self):
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.connect(('', 42000))
+        s.connect(('localhost', 42000))
         L = []
         while 1:
             buf = s.recv(8192)
