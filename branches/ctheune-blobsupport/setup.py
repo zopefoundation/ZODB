@@ -135,7 +135,8 @@ exts += [cPersistence, cPickleCache, TimeStamp, winlock, cZopeInterface]
 
 packages = ["BTrees", "BTrees.tests",
             "ZEO", "ZEO.auth", "ZEO.zrpc", "ZEO.tests",
-            "ZODB", "ZODB.FileStorage", "ZODB.tests",
+            "ZODB", "ZODB.FileStorage", "ZODB.Blobs",
+            "ZODB.tests",
             "Persistence", "Persistence.tests",
             "persistent", "persistent.tests",
             "transaction", "transaction.tests",

@@ -635,6 +635,7 @@ class Connection(ExportImport, object):
                     raise ConflictError(object=obj)
                 self._modified.append(oid)
             p = writer.serialize(obj)  # This calls __getstate__ of obj
+
             s = self._storage.store(oid, serial, p, self._version, transaction)
             self._store_count += 1
             # Put the object in the cache before handling the

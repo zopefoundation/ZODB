@@ -86,20 +86,27 @@ def u64(v):
 
 U64 = u64
 
-def cp(f1, f2, l):
+def cp(f1, f2, length):
+    """Copy all data from one file to another.
+    
+    It copies the data from the current position of the input file (f1)
+    appending it to the current position of the output file (f2). 
+    
+    It copies at most 'length' bytes. If 'length' isn't given, it copies
+    until the end of the input file.
+    """
     read = f1.read
     write = f2.write
     n = 8192
 
-    while l > 0:
-        if n > l:
-            n = l
-        d = read(n)
-        if not d:
+    while length > 0:
+        if n > length:
+            n = length
+        data = read(n)
+        if not data:
             break
-        write(d)
-        l = l - len(d)
-
+        write(data)
+        length -= len(data)
 
 def newTimeStamp(old=None,
                  TimeStamp=TimeStamp,
