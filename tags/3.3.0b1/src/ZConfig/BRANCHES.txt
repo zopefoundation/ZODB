@@ -1,0 +1,16 @@
+Branches defined specifically for the ZConfig package are listed
+below.  The canonical version of this list is on the HEAD of the
+ZConfig package.
+
+zconfig-brace-syntax
+    NOT ACTIVE
+    An example of an alternate syntax for ZConfig.  This syntax was
+    developed while trying the package initially, but was rejected.
+    It is saved on a branch to avoid losing historical information.
+
+zconfig-schema-devel-branch
+    NOT ACTIVE
+    Development branch for schema support in ZConfig.  The branch is
+    based on the ZConfig trunk, but the development is strongly based
+    on the work Chris McDonough started in the chrism-install-branch
+    for Zope 2.  This was merged into the trunk on 3-Jan-2002.

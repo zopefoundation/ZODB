@@ -1,0 +1,15 @@
+<component prefix="ZConfig.components.logger.logger">
+
+  <import package="ZConfig.components.logger" file="abstract.xml"/>
+  <import package="ZConfig.components.logger" file="base-logger.xml"/>
+
+  <sectiontype name="eventlog"
+               datatype=".EventLogFactory"
+               extends="ZConfig.logger.base-logger"
+               implements="ZConfig.logger.log">
+    <description>
+      Configuration for the root logger.
+    </description>
+  </sectiontype>
+
+</component>
