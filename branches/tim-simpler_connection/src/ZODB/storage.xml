@@ -1,0 +1,4 @@
+<schema>
+<import package="ZODB"/>
+<section type="ZODB.storage" name="*" attribute="storage"/>
+</schema>

@@ -1,0 +1,12 @@
+<schema>
+  <sectiontype name="loghandler">
+    <key name="constructor" datatype="constructor" required="yes"/>
+    <key name="formatter" datatype="constructor"
+         default="logging.Formatter()"/>
+  </sectiontype>
+
+  <sectiontype name="logger">
+     <key name="level" datatype="integer" default="info"/>
+     <multisection type="loghandler" attribute="handlers" name="*"/>
+  </sectiontype>
+</schema>
