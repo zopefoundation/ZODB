@@ -14,9 +14,9 @@
 
 __metaclass__ = type
 
-from transaction.interfaces import *
 from threading import Lock
-import logging
+
+from transaction.interfaces import *
 from zope.interface import implements
 
 try:
