@@ -9,7 +9,7 @@
       abstract section type.
     </description>
     <key name="dateformat" default="%Y-%m-%dT%H:%M:%S"/>
-    <key name="level" default="info" datatype=".logging_level"/>
+    <key name="level" default="notset" datatype=".logging_level"/>
   </sectiontype>
 
   <sectiontype name="logfile" datatype=".FileHandlerFactory"
@@ -54,7 +54,7 @@
 
 
   <sectiontype name="eventlog" datatype=".EventLogFactory">
-     <key name="level" datatype=".logging_level" default="all"/>
+     <key name="level" datatype=".logging_level" default="info"/>
      <multisection type="loghandler" attribute="handlers" name="*"/>
   </sectiontype>
 

@@ -172,7 +172,7 @@ class TestzLOGConfig(unittest.TestCase):
         # XXX The "url" attribute of the handler is misnamed; it
         # really means just the selector portion of the URL.
         self.assertEqual(handler.url, "/log/")
-        self.assertEqual(handler.level, logging.INFO)
+        self.assertEqual(handler.level, logging.NOTSET)
         self.assertEqual(handler.method, "GET")
         self.assert_(isinstance(handler, zLOG.LogHandlers.HTTPHandler))
 
@@ -191,7 +191,7 @@ class TestzLOGConfig(unittest.TestCase):
         self.assertEqual(handler.fromaddr, "zlog-user@example.com")
         self.assertEqual(handler.level, logging.FATAL)
 
-    def check_simple_logger(self, text, level=logging.NOTSET):
+    def check_simple_logger(self, text, level=logging.INFO):
         conf = self.get_config(text)
         self.assert_(conf.eventlog is not None)
         self.assertEqual(conf.eventlog.level, level)

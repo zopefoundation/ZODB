@@ -25,6 +25,12 @@ from BaseLogger import BaseLogger
 from LogHandlers import FileHandler, NullHandler, SysLogHandler
 from logging import StreamHandler, Formatter
 
+# Custom logging levels
+CUSTOM_BLATHER = 15 # Mapping for zLOG.BLATHER
+CUSTOM_TRACE = 5 # Mapping for zLOG.TRACE
+logging.addLevelName("BLATHER", CUSTOM_BLATHER)
+logging.addLevelName("TRACE", CUSTOM_TRACE)
+
 class EventLogger(BaseLogger):
 
     # Get our logger object:
@@ -82,23 +88,30 @@ def zlog_to_pep282_severity(zlog_severity):
 
     zLOG severity                      PEP282 severity
     -------------                      ---------------
-    PANIC (300)                        critical (50)
-    ERROR (200), PROBLEM (100)         error (40)
-    INFO (0)                           warn (30)
-    BLATHER (-100)                     info (20)
-    DEBUG (-200), TRACE (-300)         debug (10)
+    PANIC (300)                        FATAL, CRITICAL (50)
+    ERROR (200)                        ERROR (40)
+    WARNING, PROBLEM (100)             WARN (30)
+    INFO (0)                           INFO (20)
+    BLATHER (-100)                     BLATHER (15) [*]
+    DEBUG (-200)                       DEBUG (10)
+    TRACE (-300)                       TRACE (5) [*]
+
+    [*] BLATHER and TRACE are custom logging levels.
     """
     sev = zlog_severity
     if sev >= 300:
-        return logging.CRITICAL
-    if sev >= 100:
+        return logging.FATAL
+    if sev >= 200:
         return logging.ERROR
-    if sev >= 0:
+    if sev >= 100:
         return logging.WARN
-    if sev >= -100:
+    if sev >= 0:
         return logging.INFO
-    else:
+    if sev >= -100:
+        return CUSTOM_BLATHER
+    if sev >= -200:
         return logging.DEBUG
+    return CUSTOM_TRACE
 
 zlog_to_pep282_severity_cache = {}
 for _sev in range(-300, 301, 100):
@@ -158,7 +171,8 @@ formatters = {
 def initialize_from_environment():
     """ Reinitialize the event logger from the environment """
     # clear the current handlers from the event logger
-    event_logger.logger.handlers = []
+    for h in event_logger.logger.handlers[:]:
+        event_logger.logger.removeHandler(h)
 
     handlers = []
 
