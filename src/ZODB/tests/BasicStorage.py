@@ -139,3 +139,16 @@ class BasicStorage:
         for oid, revid in [(oid1, revid1), (oid, revid)]:
             data, _revid = self._storage.load(oid, '')
             self.assertEqual(revid, _revid)
+
+    def checkStoreTwoObjects(self):
+        noteq = self.assertNotEqual
+        p31, p32, p51, p52 = map(MinPO, (31, 32, 51, 52))
+        oid1 = self._storage.new_oid()
+        oid2 = self._storage.new_oid()
+        noteq(oid1, oid2)
+        revid1 = self._dostore(oid1, data=p31)
+        revid2 = self._dostore(oid2, data=p51)
+        noteq(revid1, revid2)
+        revid3 = self._dostore(oid1, revid=revid1, data=p32)
+        revid4 = self._dostore(oid2, revid=revid2, data=p52)
+        noteq(revid3, revid4)
