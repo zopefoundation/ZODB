@@ -271,16 +271,52 @@ least one dot, and a conversion function will be sought using the
 schema.
 
 
-\subsection{Schema Element Reference \label{schema-ref}}
+\subsection{Schema Elements \label{elements}}
 
 XXX need to discuss notation
 
 The following elements are used to describe a schema:
 
+\begin{elementdesc}{schema}{description?, metadefault?, example?,
+                            import*,
+                            (sectiontype | abstracttype)*,
+                            (section | key | multisection |
+                            multikey)*}
+  Document element for a \module{ZConfig} schema.
+
+  \begin{attributedesc}{datatype}{\datatype{basic-key}
+                                  or \datatype{dotted-name}}
+    The data type converter which will be applied to the value of this
+    section.
+  \end{attributedesc}
+
+  \begin{attributedesc}{handler}{\strong{basic-key}}
+  \end{attributedesc}
+
+  \begin{attributedesc}{keytype}{\strong{basic-key}}
+  \end{attributedesc}
+
+  \begin{attributedesc}{prefix}{\strong{dotted-name}}
+  \end{attributedesc}
+\end{elementdesc}
+
 \begin{elementdesc}{description}{PCDATA}
   Descriptive text explaining the purpose the container of the
   \element{description} element.  Most other elements can contain
   a \element{description} element as their first child.
+
+  \begin{attributedesc}{format}{NMTOKEN}
+    Optional attribute that can be added to indicate what conventions
+    are used to mark up the contained text.  This is intended to serve
+    as a hint for documentation extraction tools.  Suggested values
+    are:
+
+    \begin{tableii}{l|l}{code}{Value}{Content Format}
+      \lineii{plain}{\mimetype{text/plain}; blank lines separate paragraphs}
+      \lineii{rest}{reStructuredText}
+      \lineii{stx}{Classic Structured Text}
+    \end{tableii}
+  \end{attributedesc}
 \end{elementdesc}
 
 \begin{elementdesc}{example}{PCDATA}
@@ -326,18 +362,34 @@ The following elements are used to describe a schema:
     directly in a schema or other section type.
   \end{attributedesc}
 
+  \begin{attributedesc}{keytype}{\strong{basic-key}}
+  \end{attributedesc}
+
   \begin{attributedesc}{name}{\datatype{basic-key}}
     The name of the section type; required.
+  \end{attributedesc}
+
+  \begin{attributedesc}{prefix}{\strong{dotted-name}}
   \end{attributedesc}
 \end{elementdesc}
 
 \begin{elementdesc}{import}{EMPTY}
   Import a schema component.
+  Exactly one of the two possible attributes must be specified.
 
   \begin{attributedesc}{package}{\datatype{dotted-name}}
+    Python-package style name that identies a directory found on
+    \code{sys.path} containing a schema component in a file named
+    \file{component.xml}.  Dots in the value are converted to
+    directory separators.
   \end{attributedesc}
 
   \begin{attributedesc}{src}{\datatype{url-reference}}
+    URL to a separate schema which can provide useful types.  The
+    referenced resource must contain a schema, not a schema
+    component.  Section types defined or imported by the referenced
+    schema are added to the schema containing the \element{import};
+    top-level keys and sections are ignored.
   \end{attributedesc}
 \end{elementdesc}
 
@@ -565,6 +617,26 @@ the types provided by that component; it must have a
 component are stored in immediate subdirectories; a file
 \file{extension.xml} provides the extension types.  Extensions must
 have an \element{extension} element as the document element.
+
+
+\subsection{Schema Component Elements \label{component-elements}}
+
+The following elements are used as the document elements of schema
+components and schema component extensions.
+
+\begin{elementdesc}{component}{description?, (abstracttype | sectiontype)*}
+  The top-level element for schema components.
+
+  \begin{attributedesc}{prefix}{\strong{dotted-name}}
+  \end{attributedesc}
+\end{elementdesc}
+
+\begin{elementdesc}{extensions}{description?, (abstracttype | sectiontype)*}
+  The top-level element for schema component extensions.
+
+  \begin{attributedesc}{prefix}{\strong{dotted-name}}
+  \end{attributedesc}
+\end{elementdesc}
 
 
 \section{Standard \module{ZConfig} Datatypes\label{standard-datatypes}}
