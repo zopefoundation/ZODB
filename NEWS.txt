@@ -1,3 +1,16 @@
+What's new in ZODB3 3.3 beta 1
+==============================
+Release date: DD-MMM-2004
+
+ZODB
+----
+
+fsrecover.py couldn't work, because it referenced attributes that no
+longer existed after the MVCC changes.  Repaired that, and added new
+tests to ensure it continues working.
+
+
+
 What's new in ZODB3 3.3 alpha 3
 ===============================
 Release date: 16-Apr-2004
