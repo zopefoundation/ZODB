@@ -1,0 +1,262 @@
+<component>
+
+  <!-- Note on logging configuration:
+
+       This schema component expects to use a section type named
+       "eventlog"; this type needs to be provided by some other
+       component that the top-level schema needs to import.
+
+       The import is not performed here to allow applications to
+       load the type from different components.
+    -->
+
+  <sectiontype name="runner">
+
+    <description>
+      This section describes the options for zdctl.py and zdrun.py.
+      The only required option is "program".  Many other options have
+      no default value specified in the schema; in some cases, the
+      program calculates a dynamic default, in others, the feature
+      associated with the option is disabled.
+
+      For those options that also have corresponding command-line
+      options, the command line option (short and long form) are given
+      here too.
+    </description>
+
+    <section name="*" type="ZConfig.logger.log"
+             attribute="eventlog"
+             required="no">
+      <description>
+        Log configuration for zdctl.py and zdrun.py.  These
+        applications will normally use the eventlog section at the top
+        level of the configuration, but will use this eventlog section
+        if it exists.
+
+        (This is done so that the combined schema for the runner and
+        the controlled application will write to the same logs by
+        default, but a separation of logs can be achieved if desired.)
+      </description>
+    </section>
+
+    <key name="program" datatype="string-list"
+         required="yes">
+      <description>
+        Command-line option: -p or --program (zdctl.py only).
+
+        This option gives the command used to start the subprocess
+        managed by zdrun.py.  This is currently a simple list of
+        whitespace-delimited words. The first word is the program
+        file, subsequent words are its command line arguments.  If the
+        program file contains no slashes, it is searched using $PATH.
+        (XXX There is no way to to include whitespace in the program
+        file or an argument, and under certain circumstances other
+        shell metacharacters are also a problem, e.g. the "foreground"
+        command of zdctl.py.)
+
+        NOTE: zdrun.py doesn't use this option; it uses its positional
+        arguments.  Rather, zdctl.py uses this option to determine the
+        positional argument with which to invoke zdrun.py.  (XXX This
+        could be better.)
+      </description>
+    </key>
+
+    <key name="python" datatype="existing-path"
+         required="no">
+      <description>
+        Path to the Python interpreter.  Used by zdctl.py to start the
+        zdrun.py process.  Defaults to sys.executable.
+      </description>
+    </key>
+
+    <key name="zdrun" datatype="existing-path"
+         required="no">
+      <description>
+        Path to the zdrun.py script.  Used by zdctl.py to start the
+        zdrun.py process.  Defaults to a file named "zdrun.py" in the
+        same directory as zdctl.py.
+      </description>
+    </key>
+
+    <key name="socket-name" datatype="existing-dirpath"
+         required="no"
+         default="zdsock">
+      <description>
+        Command-line option: -s or --socket-name.
+
+        The pathname of the Unix domain socket used for communication
+        between zdctl.py and zdrun.py.  The default is relative to the
+        current directory in which zdctl.py and zdrun.py are started.
+        You want to specify an absolute pathname here.
+      </description>
+    </key>
+
+    <key name="daemon" datatype="boolean"
+         required="no"
+         default="false">
+      <description>
+        Command-line option: -d or --daemon.
+
+        If this option is true, zdrun.py runs in the background as a
+        true daemon.  It forks a child process which becomes the
+        subprocess manager, while the parent exits (making the shell
+        that started it believe it is done).  The child process also
+        does the following:
+
+        - if the directory option is set, change into that directory
+
+        - redirect stdin, stdout and stderr to /dev/null
+
+        - call setsid() so it becomes a session leader
+
+        - call umask() with specified value
+      </description>
+    </key>
+
+    <key name="directory" datatype="existing-directory"
+         required="no">
+      <description>
+        Command-line option: -z or --directory.
+
+        If the daemon option is true, this option can specify a
+        directory into which zdrun.py changes as part of the
+        "daemonizing".  If the daemon option is false, this option is
+        ignored.
+      </description>
+    </key>
+
+    <key name="backoff-limit" datatype="integer"
+         required="no"
+         default="10">
+      <description>
+        Command-line option: -b or --backoff-limit.
+
+        When the subprocess crashes, zdrun.py inserts a one-second
+        delay before it restarts it.  When the subprocess crashes
+        again right away, the delay is incremented by one second, and
+        so on.  What happens when the delay has reached the value of
+        backoff-limit (in seconds), depends on the value of the
+        forever option.  If forever is false, zdrun.py gives up at
+        this point, and exits.  An always-crashing subprocess will
+        have been restarted exactly backoff-limit times in this case.
+        If forever is true, zdrun.py continues to attempt to restart
+        the process, keeping the delay at backoff-limit seconds.
+
+        If the subprocess stays up for more than backoff-limit
+        seconds, the delay is reset to 1 second.
+      </description>
+    </key>
+
+    <key name="forever" datatype="boolean"
+         required="no"
+         default="false">
+      <description>
+        Command-line option: -f or --forever.
+
+        If this option is true, zdrun.py will keep restarting a
+        crashing subprocess forever.  If it is false, it will give up
+        after backoff-limit crashes in a row.  See the description of
+        backoff-limit for details.
+      </description>
+    </key>
+
+    <key name="exit-codes" datatype="zdaemon.zdoptions.list_of_ints"
+         required="no"
+         default="0,2">
+      <description>
+        Command-line option: -x or --exit-codes.
+
+        If the subprocess exits with an exit status that is equal to
+        one of the integers in this list, zdrun.py will not restart
+        it.  The default list requires some explanation.  Exit status
+        0 is considered a willful successful exit; the ZEO and Zope
+        server processes use this exit status when they want to stop
+        without being restarted.  (Including in response to a
+        SIGTERM.)  Exit status 2 is typically issued for command line
+        syntax errors; in this case, restarting the program will not
+        help!
+
+        NOTE: this mechanism overrides the backoff-limit and forever
+        options; i.e. even if forever is true, a subprocess exit
+        status code in this list makes zdrun.py give up.  To disable
+        this, change the value to an empty list.
+      </description>
+    </key>
+
+    <key name="user" datatype="string"
+         required="no">
+      <description>
+        Command-line option: -u or --user.
+
+        When zdrun.py is started by root, this option specifies the
+        user as who the the zdrun.py process (and hence the daemon
+        subprocess) will run.  This can be a user name or a numeric
+        user id.  Both the user and the group are set from the
+        corresponding password entry, using setuid() and setgid().
+        This is done before zdrun.py does anything else besides
+        parsing its command line arguments.
+
+        NOTE: when zdrun.py is not started by root, specifying this
+        option is an error.  (XXX This may be a mistake.)
+
+        XXX The zdrun.py event log file may be opened *before*
+        setuid() is called.  Is this good or bad?
+      </description>
+    </key>
+
+    <key name="umask" datatype="zdaemon.zdoptions.octal_type"
+         required="no"
+         default="022">
+      <description>
+        Command-line option: -m or --umask.
+
+        When daemon mode is used, this option specifies the octal umask
+        of the subprocess.
+      </description>
+    </key>
+
+    <key name="hang-around" datatype="boolean"
+         required="no"
+         default="false">
+      <description>
+        If this option is true, the zdrun.py process will remain even
+        when the daemon subprocess is stopped.  In this case, zdctl.py
+        will restart zdrun.py as necessary.  If this option is false,
+        zdrun.py will exit when the daemon subprocess is stopped
+        (unless zdrun.py intends to restart it).
+      </description>
+    </key>
+
+    <key name="default-to-interactive" datatype="boolean"
+         required="no"
+         default="true">
+      <description>
+        If this option is true, zdctl.py enters interactive mode
+        when it is invoked without a positional command argument.  If
+        it is false, you must use the -i or --interactive command line
+        option to zdctl.py to enter interactive mode.
+      </description>
+    </key>
+
+    <key name="logfile" datatype="existing-dirpath"
+         required="no">
+      <description>
+        This option specifies a log file that is the default target of
+        the "logtail" zdctl.py command.
+
+        NOTE: This is NOT the log file to which zdrun.py writes its
+        logging messages!  That log file is specified by the
+        &lt;eventlog&gt; section.
+      </description>
+    </key>
+
+    <key name="prompt" datatype="string"
+         required="no" default="zdctl>">
+       <description>
+         The prompt shown by the controller program.
+       </description>
+    </key>
+
+  </sectiontype>
+
+</component>
