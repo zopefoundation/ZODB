@@ -20,8 +20,8 @@
 \title{ZConfig Package Reference}
 
 %\date{\today}
-\release{1.0}
-\setshortversion{1.0}
+\release{2.0}
+\setshortversion{2.0}
 
 \author{Zope Corporation}
 \authoraddress{
@@ -56,8 +56,8 @@ Corporation.  Any software written in Python is free to use the
 ensure compatibility.  This software is covered by the Zope Public
 License, version 2.0.
 
-The \module{ZConfig} package has been tested with Python 2.1 and 2.2.
-Python 2.0 is not supported.
+The \module{ZConfig} package has been tested with Python 2.1, 2.2, and
+2.3.  Python 2.0 is not supported.
 \module{ZConfig} only relies on the Python standard library.
 
 Configurations which use \module{ZConfig} are described using
@@ -78,7 +78,6 @@ Like the \ulink{\module{ConfigParser}}
 format, this format supports key-value pairs arranged in sections.
 Unlike the \module{ConfigParser} format, sections are typed and can be
 organized hierarchically.
-% XXX and support delegation of value lookup to other sections.
 Additional files may be included if needed.  Schema components not
 specified in the application schema can be imported from the
 configuration file.  Though both formats are substantially
@@ -88,8 +87,6 @@ The intent of supporting nested section is to allow setting up the
 configurations for loosely-associated components in a container.  For
 example, each process running on a host might get its configuration
 section from that host's section of a shared configuration file.
-% XXX Each section may use the delegation syntax to share a base
-% configuration with other components of the same type.
 
 The top level of a configuration file consists of a series of
 inclusions, key-value pairs, and sections.
@@ -142,10 +139,9 @@ denote optional parts):
 \begin{alltt}
 <\var{section-type} \optional{\var{name}} >
 \end{alltt}
-% <\var{section-type} \optional{\var{name}} \optional{(\var{basename})} >
 
-\var{section-type} and \var{name} % and \var{basename}
-all have the same syntactic constraints as key names.
+\var{section-type} and \var{name} all have the same syntactic
+constraints as key names.
 
 The terminator looks like this:
 
@@ -170,40 +166,12 @@ of one or more key-value pairs and sections.  For example:
 (The indentation is used here for clarity, but is not required for
 syntactic correctness.)
 
-% If the \var{basename} component is given for a section header
-% (regardless of the presence of the name component), that section
-% acquires additional values from another section having \var{basename}
-% as its \var{name} and an application-supported type.  For example, an
-% application that supports the types \code{host} and \code{hostclass}
-% might use configuration like this:
-
-% \begin{verbatim}
-% <hostclass secondary>
-%     server-type secondary
-%     port 1234
-% </hostclass>
-
-% <host grendel (secondary)>
-%     port 2345
-% </host>
-% \end{verbatim}
-
-% In this application, sections of type \code{host} would be allowed to
-% acquire configuration data only from the \code{hostclass} type, so the
-% section named \code{grendel} would only be allowed to acquire
-% configuration data from a section with type \code{hostclass} and name
-% \code{secondary}.  The \code{hostclass} section named \code{secondary}
-% could in turn acquire additional key-value pairs from some other
-% section, based on the allowed type relationships of the
-% \code{hostclass} type.
-
 The header for empty sections is similar to that of non-empty
 sections, but there is no terminator:
 
 \begin{alltt}
 <\var{section-type} \optional{\var{name}} />
 \end{alltt}
-% <\var{section-type} \optional{\var{name}} \optional{(\var{basename})} />
 
 
 \subsection{Extending the Configuration Schema}
@@ -1366,7 +1334,5 @@ The following is the XML Document Type Definition for \module{ZConfig}
 schema:
 
 \verbatiminput{schema.dtd}
-
-%\input{oldapi}
 
 \end{document}
