@@ -30,6 +30,7 @@ a backpointer after that time.
 
 import os
 import struct
+from types import StringType
 
 from ZODB.referencesf import referencesf
 from ZODB.utils import p64, u64, z64
@@ -84,7 +85,7 @@ class FileStorageFormatter:
         s = self._file.read(DATA_HDR_LEN)
         if len(s) != DATA_HDR_LEN:
             raise CorruptedDataError(oid, s, pos)
-        h = DataHeader.fromString(s)
+        h = DataHeaderFromString(s)
         if oid is not None and oid != h.oid:
             raise CorruptedDataError(oid, s, pos)
         if h.vlen:
@@ -103,7 +104,7 @@ class FileStorageFormatter:
         s = self._file.read(TRANS_HDR_LEN)
         if len(s) != TRANS_HDR_LEN:
             raise CorruptedDataError(tid, s, pos)
-        h = TxnHeader.fromString(s)
+        h = TxnHeaderFromString(s)
         if tid is not None and tid != h.tid:
             raise CorruptedDataError(tid, s, pos)
         h.user = self._file.read(h.ulen)
@@ -115,8 +116,8 @@ class FileStorageFormatter:
         # shared implementation used by various _loadBack methods
         #
         # If the backpointer ultimately resolves to 0:
-        # If fail is True, raise KeyError for zero backpointer.
-        # If fail is False, return the empty data from the record
+        # If fail is 1, raise KeyError for zero backpointer.
+        # If fail is 0, return the empty data from the record
         # with no backpointer.
         while 1:
             if not back:
@@ -129,7 +130,7 @@ class FileStorageFormatter:
                 return None, h.serial, back, h.tloc
             back = h.back
 
-    def _loadBackTxn(self, oid, back, fail=True):
+    def _loadBackTxn(self, oid, back, fail=1):
         """Return data, serial, and txn id for backpointer."""
         data, serial, old, tloc = self._loadBack_impl(oid, back, fail)
         self._file.seek(tloc)
@@ -177,7 +178,10 @@ class FileStorageFormatter:
                 self.fail(pos, "invalid back pointer: %d", dh.prev)
             if dh.plen:
                 self.fail(pos, "data record has back pointer and data")
-            
+
+def DataHeaderFromString(s):            
+    return DataHeader(*struct.unpack(DATA_HDR, s))
+
 class DataHeader:
     """Header for a data record."""
 
@@ -192,22 +196,17 @@ class DataHeader:
     def __init__(self, oid, serial, prev, tloc, vlen, plen):
         self.oid = oid
         self.serial = serial
-        if isinstance(prev, str):
+        if isinstance(prev, StringType):
             prev = u64(prev)
-        if isinstance(tloc, str):
+        if isinstance(tloc, StringType):
             tloc = u64(tloc)
         self.prev = prev
         self.tloc = tloc
 
         self.vlen = vlen
-        if isinstance(plen, str):
+        if isinstance(plen, StringType):
             plen = u64(plen)
         self.plen = plen
-
-    def fromString(cls, s):
-        return cls(*struct.unpack(DATA_HDR, s))
-
-    fromString = classmethod(fromString)
 
     def asString(self):
         s = struct.pack(DATA_HDR, self.oid, self.serial, p64(self.prev),
@@ -236,6 +235,9 @@ class DataHeader:
             rlen += 16 + self.vlen
         return rlen
 
+def TxnHeaderFromString(s):
+    return TxnHeader(*struct.unpack(TRANS_HDR, s))
+
 class TxnHeader:
     """Header for a transaction record."""
 
@@ -249,11 +251,6 @@ class TxnHeader:
         self.ulen = ulen
         self.dlen = dlen
         self.elen = elen
-
-    def fromString(cls, s):
-        return cls(*struct.unpack(TRANS_HDR, s))
-
-    fromString = classmethod(fromString)
 
     def asString(self):
         s = struct.pack(TRANS_HDR, self.tid, p64(self.tlen), self.status,
@@ -435,13 +432,13 @@ class GC(FileStorageFormatter):
         self.ltid = z64
 
     def isReachable(self, oid, pos):
-        """Return True if revision of `oid` at `pos` is reachable."""
+        """Return 1 if revision of `oid` at `pos` is reachable."""
 
         rpos = self.reachable.get(oid)
         if rpos is None:
-            return False
+            return 0
         if rpos == pos:
-            return True
+            return 1
         return pos in self.reach_ex.get(oid, [])
 
     def findReachable(self):
@@ -613,7 +610,7 @@ class FileStoragePacker(FileStorageFormatter):
         self._file = open(path, "rb")
         self._stop = stop
         self._packt = None
-        self.locked = False
+        self.locked = 0
         self._file.seek(0, 2)
         self.file_end = self._file.tell()
         self._file.seek(0)
@@ -723,7 +720,7 @@ class FileStoragePacker(FileStorageFormatter):
         """
         if back == 0:
             return None
-        data, serial, tid = self._loadBackTxn(oid, back, False)
+        data, serial, tid = self._loadBackTxn(oid, back, 0)
         return data
 
     def copyDataRecords(self, pos, th):
@@ -734,7 +731,7 @@ class FileStoragePacker(FileStorageFormatter):
         
         If any data records are copied, also write txn header (th).
         """
-        copy = False
+        copy = 0
         new_tpos = 0
         tend = pos + th.tlen
         pos += th.headerlen()
@@ -754,7 +751,7 @@ class FileStoragePacker(FileStorageFormatter):
                 new_tpos = self._tfile.tell()
                 self._tfile.write(s)
                 new_pos = new_tpos + len(s)
-                copy = True
+                copy = 1
 
             if h.plen:
                 data = self._file.read(h.plen)
