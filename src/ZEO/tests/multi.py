@@ -12,6 +12,7 @@
 #
 ##############################################################################
 """A multi-client test of the ZEO storage server"""
+# XXX This code is currently broken.
 
 import ZODB, ZODB.DB, ZODB.FileStorage, ZODB.POSException
 import Persistence
