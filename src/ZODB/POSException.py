@@ -12,8 +12,8 @@
 ##############################################################################
 """BoboPOS-defined exceptions
 
-$Id: POSException.py,v 1.9 2002/01/17 17:34:33 jeremy Exp $"""
-__version__ = '$Revision: 1.9 $'.split()[-2:][0]
+$Id: POSException.py,v 1.10 2002/01/25 02:15:07 gvanrossum Exp $"""
+__version__ = '$Revision: 1.10 $'.split()[-2:][0]
 
 from string import join
 from types import StringType, DictType
@@ -22,6 +22,13 @@ from ZODB import utils
 class POSError(Exception):
     """Persistent object system error
     """
+
+class POSKeyError(KeyError, POSError):
+    """Key not found in database
+    """
+
+    def __str__(self):
+        return "%016x" % utils.U64(self.args[0])
 
 class TransactionError(POSError):
     """An error occured due to normal transaction processing

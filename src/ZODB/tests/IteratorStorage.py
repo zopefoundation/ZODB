@@ -38,6 +38,13 @@ class IteratorStorage(IteratorCompare):
         txniter = self._storage.iterator()
         self.iter_verify(txniter, [revid1, revid2, revid3], 11)
 
+    def checkClose(self):
+        self._oid = oid = self._storage.new_oid()
+        revid1 = self._dostore(oid, data=MinPO(11))
+        txniter = self._storage.iterator()
+        txniter.close()
+        self.assertRaises(IOError, txniter.__getitem__, 0)
+
     def checkVersionIterator(self):
         if not self._storage.supportsVersions():
             return
@@ -60,53 +67,41 @@ class IteratorStorage(IteratorCompare):
         self._storage.tpc_vote(t)
         self._storage.tpc_finish(t)
 
-        # XXX extend these checks.  right now, just iterating with CVS
-        # FS or Berkeley will fail here, but once fixed we should
-        # check that the right data is returned.
         txniter = self._storage.iterator()
         for trans in txniter:
             for data in trans:
                 pass
 
-    def checkTransactionalUndoIterator(self):
+    def checkUndoZombieNonVersion(self):
         if not hasattr(self._storage, 'supportsTransactionalUndo'):
             return
         if not self._storage.supportsTransactionalUndo():
             return
 
         oid = self._storage.new_oid()
-        revid = self._dostore(oid, data=MinPO(23))
-        revid = self._dostore(oid, revid=revid, data=MinPO(24))
-        revid = self._dostore(oid, revid=revid, data=MinPO(25))
-
-        self.undoTrans(0)
-        self.undoTrans(2)
-        self.undoTrans(4)
-
-        # XXX extend these checks.  right now, just iterating with CVS
-        # FS or Berkeley will fail here, but once fixed we should
-        # check that the right data is returned.
-        txniter = self._storage.iterator()
-        for trans in txniter:
-            for data in trans:
-                pass
-
-        # The last transaction performed an undo of the transaction
-        # that created object oid.  (As Barry points out, the object
-        # is now in the George Bailey state.)  Assert that the final
-        # data record contains None in the data attribute.
-        self.assertEqual(data.oid, oid)
-        self.assertEqual(data.data, None)
-
-    def undoTrans(self, i):
+        revid = self._dostore(oid, data=MinPO(94))
+        # Get the undo information
         info = self._storage.undoInfo()
-        tid = info[i]['id']
+        tid = info[0]['id']
+        # Undo the creation of the object, rendering it a zombie
         t = Transaction()
         self._storage.tpc_begin(t)
         oids = self._storage.transactionalUndo(tid, t)
         self._storage.tpc_vote(t)
         self._storage.tpc_finish(t)
-        
+        # Now attempt to iterator over the storage
+        iter = self._storage.iterator()
+        for txn in iter:
+            for rec in txn:
+                pass
+
+        # The last transaction performed an undo of the transaction that
+        # created object oid.  (As Barry points out, the object is now in the
+        # George Bailey state.)  Assert that the final data record contains
+        # None in the data attribute.
+        self.assertEqual(rec.oid, oid)
+        self.assertEqual(rec.data, None)
+
 
 class ExtendedIteratorStorage(IteratorCompare):
 
@@ -145,3 +140,27 @@ class ExtendedIteratorStorage(IteratorCompare):
         txniter = self._storage.iterator(revid3, revid3)
         self.iter_verify(txniter, [revid3], 13)
         
+class IteratorDeepCompare:
+    def compare(self, storage1, storage2):
+        eq = self.assertEqual
+        iter1 = storage1.iterator()
+        iter2 = storage2.iterator()
+        for txn1, txn2 in zip(iter1, iter2):
+            eq(txn1.tid,         txn2.tid)
+            eq(txn1.status,      txn2.status)
+            eq(txn1.user,        txn2.user)
+            eq(txn1.description, txn2.description)
+            eq(txn1._extension,  txn2._extension)
+            for rec1, rec2 in zip(txn1, txn2):
+                eq(rec1.oid,     rec2.oid)
+                eq(rec1.serial,  rec2.serial)
+                eq(rec1.version, rec2.version)
+                eq(rec1.data,    rec2.data)
+            # Make sure there are no more records left in rec1 and rec2,
+            # meaning they were the same length.
+            self.assertRaises(IndexError, txn1.next)
+            self.assertRaises(IndexError, txn2.next)
+        # Make sure ther are no more records left in txn1 and txn2, meaning
+        # they were the same length
+        self.assertRaises(IndexError, iter1.next)
+        self.assertRaises(IndexError, iter2.next)
