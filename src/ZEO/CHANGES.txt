@@ -18,7 +18,7 @@ Zope Enterprise Objects (ZEO) Revision History
 
       - Client scripts can now be written to pack a remote storage and
         wait for the pack results.  This is handy when packing as part
-        of chron jobs.
+        of cron jobs.
 
     Bugs Fixed
 
@@ -43,6 +43,9 @@ Zope Enterprise Objects (ZEO) Revision History
         while the client storage was disconnected from the server, 
         no further write transactions would be allowed, even after 
 	reconnection, and the site would eventually hang.
+
+      - A forgotten argument made starting a ClientStorage after
+        the main loop has started unreliable.
 
   Planned for (future) ZEO releases
 
