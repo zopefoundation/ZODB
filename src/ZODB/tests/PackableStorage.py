@@ -392,9 +392,9 @@ class PackableStorage(PackableStorageBase):
         # Commit two different revisions
         revid1 = self._dostoreNP(oid, data=pickle.dumps(obj))
         obj.value = 2
-        now = packtime = time.time()
-        while packtime <= now:
-            packtime = time.time()
+        snooze()
+        packtime = time.time()
+        snooze()
         revid2 = self._dostoreNP(oid, revid=revid1, data=pickle.dumps(obj))
         # Now pack the first transaction
         self.assertEqual(3,len(self._storage.undoLog()))
