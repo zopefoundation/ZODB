@@ -13,44 +13,43 @@
 ##############################################################################
 """Simple script for repairing damaged FileStorage files.
 
-Usage: %s [-f] input output
+Usage: %s [-f] [-v level] [-p] [-P seconds] input output
 
-Recover data from a FileStorage data file, skipping over damaged
-data. Any damaged data will be lost. This could lead to useless output
-of critical data were lost.
+Recover data from a FileStorage data file, skipping over damaged data.  Any
+damaged data will be lost.  This could lead to useless output if critical
+data is lost.
 
 Options:
 
     -f
-       Force output to output file even if it exists
+       Overwrite output file even if it exists.
 
     -v level
 
        Set the verbosity level:
 
-         0 -- Show progress indicator (default)
+         0 -- show progress indicator (default)
 
-         1 -- Show transaction times and sizes
+         1 -- show transaction times and sizes
 
-         2 -- Show transaction times and sizes, and
-              show object (record) ids, versions, and sizes.
+         2 -- show transaction times and sizes, and show object (record)
+              ids, versions, and sizes
 
     -p
 
-       Copy partial transactions. If a data record in the middle of a
-       transaction is bad, the data up to the bad data are packed. The
-       output record is marked as packed. If this option is not used,
-       transaction with any bad data are skipped.
+       Copy partial transactions.  If a data record in the middle of a
+       transaction is bad, the data up to the bad data are packed.  The
+       output record is marked as packed.  If this option is not used,
+       transactions with any bad data are skipped.
 
     -P t
 
-       Pack data to t seconds in the past. Note that is the "-p"
-       option is used, then t should be 0.
+       Pack data to t seconds in the past.  Note that if the "-p" option is
+       used, then t should be 0.
 
 
-Important note: The ZODB package must be imporatble.  You may need
-                to adjust PYTHONPATH accordingly.
-
+Important:  The ZODB package must be importable.  You may need to adjust
+            PYTHONPATH accordingly.
 """
 
 # Algorithm:
