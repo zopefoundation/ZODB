@@ -44,7 +44,7 @@ if os.name == "nt":
         args = (sys.executable, script, str(port), storage_name) + args
         d = os.environ.copy()
         d['PYTHONPATH'] = os.pathsep.join(sys.path)
-        pid = os.spawnve(os.P_NOWAIT, sys.executable, args, os.environ)
+        pid = os.spawnve(os.P_NOWAIT, sys.executable, args, d)
         return ('localhost', port), ('localhost', port + 1), pid
 
 else:
