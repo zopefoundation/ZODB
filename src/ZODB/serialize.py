@@ -269,7 +269,7 @@ class BaseObjectWriter:
             # It's possible that __getnewargs__ is degenerate and
             # returns (), but we don't want to have to deghostify
             # the object to find out.
-            return oid 
+            return oid
 
         return oid, klass
 
@@ -527,7 +527,7 @@ def referencesf(p, rootl=None):
     #   tuples, so that we wrap oids that are lists or tuples in
     #   tuples.
     #
-    # - oids may *not* be False.  I'm not sure why. 
+    # - oids may *not* be False.  I'm not sure why.
 
     out = []
     for v in rootl:

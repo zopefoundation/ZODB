@@ -13,7 +13,7 @@
 ##############################################################################
 """Test ExtensionClass support in Persistence.Persistent
 
-$Id: test_ExtensionClass.py,v 1.6 2004/02/20 17:19:43 jeremy Exp $
+$Id: test_ExtensionClass.py,v 1.7 2004/04/19 21:19:03 tim_one Exp $
 """
 
 from doctest import DocTestSuite
@@ -505,4 +505,3 @@ def test_pickling_w_slots_w_empty_dict():
 
 def test_suite():
     return DocTestSuite()
-

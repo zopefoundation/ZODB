@@ -25,7 +25,7 @@ register_loop_callback() to register interest.  When the mainloop
 thread calls loop(), each registered callback will be called with the
 socket map as its first argument.
 """
-__version__ = '$Revision: 1.13 $'[11:-2]
+__version__ = '$Revision: 1.14 $'[11:-2]
 
 import asyncore
 import select
@@ -168,7 +168,7 @@ def loop(timeout=30.0, use_poll=0, map=None):
     while map and exit_status is None:
         poll_fun(timeout, map)
     _stop_loop()
-    
+
 
 # This module used to do something evil -- it rebound asyncore.loop to the
 # above loop() function.  What was evil about this is that if you added some

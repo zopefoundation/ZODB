@@ -26,7 +26,7 @@ the public APIs of the database.
 The IDatabase, IConnection, and ITransactionAttrs interfaces describe
 private APIs used by the implementation.
 
-$Id: z4interfaces.py,v 1.2 2004/02/20 19:01:07 jeremy Exp $
+$Id: z4interfaces.py,v 1.3 2004/04/19 21:19:09 tim_one Exp $
 """
 
 from ZODB.zodb4 import z4utils
@@ -238,7 +238,7 @@ class POSKeyError(KeyError, POSError):
 ##    Attributes:
 ##    obj is the invalid object
 ##    jar is the manager that attempted to store it.
-    
+
 ##    obj._p_jar != jar
 ##    """
 
@@ -248,7 +248,7 @@ class POSKeyError(KeyError, POSError):
 
 ##    def __str__(self):
 ##        return "Invalid reference to object %s." % _fmt_oid(self.obj._p_jar)
-    
+
 ##class IAppDatabase(Interface):
 ##    """Interface exported by database to applications.
 

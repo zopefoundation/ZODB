@@ -91,4 +91,3 @@ class ThreadTransactionManager(object):
         tid = thread.get_ident()
         L = self._synchs.get(tid)
         L.remove(synch)
-

@@ -178,7 +178,7 @@ class LRUCacheTests(CacheTestBase):
         CONNS = 3
         for i in range(CONNS):
             self.noodle_new_connection()
-        
+
         self.assertEquals(self.db.cacheSize(), CACHE_SIZE * CONNS)
         details = self.db.cacheDetailSize()
         self.assertEquals(len(details), CONNS)
@@ -189,7 +189,7 @@ class LRUCacheTests(CacheTestBase):
             # The (poorly named) cache size is a target for non-ghosts.
             # The cache *usually* contains non-ghosts, so that the
             # size normally exceeds the target size.
-            
+
             #self.assertEquals(d['size'], CACHE_SIZE)
 
     def checkDetail(self):
@@ -211,7 +211,7 @@ class LRUCacheTests(CacheTestBase):
         # deactivated before the MinPO objects.
         #
         # - Without the gc call, the cache will contain ghost MinPOs
-        #   and the check of the MinPO count below will fail. That's 
+        #   and the check of the MinPO count below will fail. That's
         #   because the counts returned by cacheDetail include ghosts.
         #
         # - If the mapping object containing the MinPOs isn't
@@ -219,7 +219,7 @@ class LRUCacheTests(CacheTestBase):
         #   the test will fail anyway.
         #
         # This test really needs to be thought through and documented
-        # better. 
+        # better.
 
 
         for klass, count in self.db.cacheDetail():

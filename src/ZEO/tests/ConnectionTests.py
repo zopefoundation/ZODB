@@ -613,7 +613,7 @@ class InvqTests(CommonSetupTearDown):
         self.assertEqual(perstorage.verify_result, "quick verification")
         self.assertEqual(perstorage._server._last_invals,
                          (revid, [(oid, '')]))
-                         
+
         self.assertEqual(perstorage.load(oid, ''),
                          self._storage.load(oid, ''))
         perstorage.close()

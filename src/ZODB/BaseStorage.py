@@ -13,7 +13,7 @@
 ##############################################################################
 """Handy standard storage machinery
 
-$Id: BaseStorage.py,v 1.48 2004/04/17 22:19:30 gintautasm Exp $
+$Id: BaseStorage.py,v 1.49 2004/04/19 21:19:05 tim_one Exp $
 """
 import cPickle
 import threading
@@ -77,7 +77,7 @@ class BaseStorage(UndoLogCompatible):
     The other lock appears to protect _oid and _transaction and
     perhaps other things.  It is always held when load() is called, so
     presumably the load() implementation should also acquire the lock.
-    """    
+    """
     _transaction=None # Transaction that is being committed
     _tstatus=' '      # Transaction status, used for copying data
     _is_read_only = False
@@ -400,7 +400,7 @@ class BaseStorage(UndoLogCompatible):
             self.tpc_begin(transaction, tid, transaction.status)
             for r in transaction:
                 oid=r.oid
-                if verbose: 
+                if verbose:
                     print utils.oid_repr(oid), r.version, len(r.data)
                 if restoring:
                     self.restore(oid, r.tid, r.data, r.version,

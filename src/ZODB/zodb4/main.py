@@ -55,7 +55,7 @@ class ConversionApp:
         self.parse_args(args)
 
     def run(self):
-        
+
         # Load server-independent site config
         from zope.configuration import xmlconfig
         context = xmlconfig.file('site.zcml', execute=True)

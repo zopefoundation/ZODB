@@ -13,7 +13,7 @@
 ##############################################################################
 """Transaction Interfaces
 
-$Id: interfaces.py,v 1.7 2004/02/24 13:52:05 srichter Exp $
+$Id: interfaces.py,v 1.8 2004/04/19 21:19:10 tim_one Exp $
 """
 try:
     from zope.interface import Interface
@@ -38,7 +38,7 @@ class IDataManager(Interface):
       two-phase commit.
 
     - The savepoint api may need some more thought.
-    
+
     """
 
     def prepare(transaction):
@@ -54,7 +54,7 @@ class IDataManager(Interface):
         The transaction must match that used for preceeding
         savepoints, if any.
         """
-        
+
         # This is equivalent to zodb3's tpc_begin, commit, and
         # tpc_vote combined.
 
@@ -77,7 +77,7 @@ class IDataManager(Interface):
 
         The prepare method must be called, with the same transaction,
         before calling commit.
-        
+
         """
 
         # This is equivalent to zodb3's tpc_finish
@@ -87,7 +87,7 @@ class IDataManager(Interface):
 
         Should return an object implementing IRollback that can be used
         to rollback to the savepoint.
-        
+
         Note that (unlike zodb3) this doesn't use a 2-phase commit
         protocol.  If this call fails, or if a rollback call on the
         result fails, the (containing) transaction should be

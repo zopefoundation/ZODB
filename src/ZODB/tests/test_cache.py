@@ -73,7 +73,7 @@ class CacheTests:
         After committing a transaction and calling cacheGC(), there
         should be cache-size (4) objects in the cache.  One of the
         RegularObjects was deactivated.
-        
+
         >>> cn._cache.ringlen()
         4
         >>> RegularObject.deactivations
@@ -81,7 +81,7 @@ class CacheTests:
 
         If we explicitly activate the objects again, the ringlen
         should go back up to 5.
-        
+
         >>> for o in L:
         ...     o._p_activate()
         >>> cn._cache.ringlen()
@@ -92,7 +92,7 @@ class CacheTests:
         4
         >>> RegularObject.deactivations
         2
-        
+
         >>> cn.cacheMinimize()
         >>> cn._cache.ringlen()
         0
@@ -102,10 +102,10 @@ class CacheTests:
         If we activate all the objects again and mark one as modified,
         then the one object should not be deactivated even by a
         minimize.
-        
+
         >>> for o in L:
         ...     o._p_activate()
-        >>> o.attr = 1  
+        >>> o.attr = 1
         >>> cn._cache.ringlen()
         5
         >>> cn.cacheMinimize()
@@ -113,7 +113,7 @@ class CacheTests:
         1
         >>> RegularObject.deactivations
         10
-        
+
         """
 
     def test_cache_gc_recalcitrant(self):
@@ -181,7 +181,7 @@ class CacheTests:
 
         Modify three of the objects and verify that they are
         deactivated when the transaction aborts.
-        
+
         >>> for i in range(0, 5, 2):
         ...     L[i].attr = i
         >>> [L[i]._p_state for i in range(0, 5, 2)]

@@ -13,7 +13,7 @@
 ##############################################################################
 """Sample objects for use in tests
 
-$Id: sampledm.py,v 1.2 2004/02/19 02:59:10 jeremy Exp $
+$Id: sampledm.py,v 1.3 2004/04/19 21:19:07 tim_one Exp $
 """
 
 class DataManager(object):
@@ -78,7 +78,7 @@ class DataManager(object):
        >>> dm.commit(t1)
 
        Our changes are"permanent".  The state reflects the changes and the
-       delta has been reset to 0. 
+       delta has been reset to 0.
 
        >>> dm.state
        1
@@ -139,7 +139,7 @@ class DataManager(object):
         TypeError: ('Transaction missmatch', '2', '1')
 
         >>> dm.prepare(t1)
-        
+
         """
         if self.prepared:
             raise TypeError('Already prepared')
@@ -183,7 +183,7 @@ class DataManager(object):
 
         If savepoints are used, abort must be passed the same
         transaction:
-        
+
         >>> dm.inc()
         >>> r = dm.savepoint(t1)
         >>> t2 = '2'
@@ -208,15 +208,15 @@ class DataManager(object):
 
         Of course, the transactions passed to prepare and abort must
         match:
-        
+
         >>> dm.prepare(t1)
         >>> dm.abort(t2)
         Traceback (most recent call last):
         ...
         TypeError: ('Transaction missmatch', '2', '1')
-        
+
         >>> dm.abort(t1)
-        
+
 
         """
         self._checkTransaction(transaction)
@@ -262,7 +262,7 @@ class DataManager(object):
 
         If course, the transactions given to prepare and commit must
         be the same:
-        
+
         >>> dm.inc()
         >>> t3 = '3'
         >>> dm.prepare(t3)
@@ -270,7 +270,7 @@ class DataManager(object):
         Traceback (most recent call last):
         ...
         TypeError: ('Transaction missmatch', '2', '3')
-        
+
         """
         if not self.prepared:
             raise TypeError('Not prepared to commit')

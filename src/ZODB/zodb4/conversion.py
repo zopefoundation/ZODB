@@ -83,7 +83,7 @@ class DataRecordConvertingTxn(object):
 
                 skipped += 1
                 continue
-                
+
             sio = StringIO()
             p = Pickler(sio, 1)
             p.persistent_id = get_persistent_id
@@ -118,7 +118,7 @@ them on zope3-dev.
 
 In any case, keep your original data file in case you decide to rerun
 the conversion.
- 
+
 """
 
 

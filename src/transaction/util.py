@@ -13,7 +13,7 @@
 ##############################################################################
 """Utility classes or functions
 
-$Id: util.py,v 1.2 2004/02/20 16:56:56 fdrake Exp $
+$Id: util.py,v 1.3 2004/04/19 21:19:10 tim_one Exp $
 """
 
 from transaction.interfaces import IRollback
@@ -37,7 +37,7 @@ class NoSavepointSupportRollback:
     NotImplementedError: """ \
            """DataManager data managers do not support """ \
            """savepoints (aka subtransactions
-    
+
     """
 
     implements(IRollback)

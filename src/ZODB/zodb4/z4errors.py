@@ -60,4 +60,3 @@ class CorruptedDataError(CorruptedError):
 
 class FileStorageQuotaError(FileStorageError, StorageSystemError):
     """File storage quota exceeded."""
-

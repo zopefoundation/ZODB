@@ -55,4 +55,3 @@ class WarningsHook:
 
     def clear(self):
         self.warnings = []
-

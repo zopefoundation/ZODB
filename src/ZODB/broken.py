@@ -13,7 +13,7 @@
 ##############################################################################
 """Broken object support
 
-$Id: broken.py,v 1.3 2004/03/04 22:41:52 jim Exp $
+$Id: broken.py,v 1.4 2004/04/19 21:19:05 tim_one Exp $
 """
 
 import sys
@@ -115,7 +115,7 @@ class Broken(object):
 
     def __setstate__(self, state):
         self.__dict__['__Broken_state__'] = state
-        
+
     def __repr__(self):
         return "<broken %s.%s instance>" % (
             self.__class__.__module__, self.__class__.__name__)
@@ -233,7 +233,7 @@ def rebuild(modulename, globalname, *args):
        """
     class_ = find_global(modulename, globalname)
     return class_.__new__(class_, *args)
-        
+
 class BrokenModified(TypeError):
     """Attempt to modify a broken object
     """
@@ -256,7 +256,7 @@ class PersistentBroken(Broken, persistent.Persistent):
 
           >>> persistentBroken(Atall) is PAtall
           True
-          
+
          )
 
         Persistent broken classes work a lot like broken classes::
@@ -315,7 +315,7 @@ class PersistentBroken(Broken, persistent.Persistent):
             persistent.Persistent.__setattr__(self, name, value)
         else:
             raise BrokenModified("Can't change broken objects")
-        
+
     def __repr__(self):
         return "<persistent broken %s.%s instance %r>" % (
             self.__class__.__module__, self.__class__.__name__,
