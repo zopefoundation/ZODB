@@ -17,8 +17,6 @@
 import unittest
 from persistent import Persistent
 
-__metaclass__ = type
-
 class ConnectionDotAdd(unittest.TestCase):
 
     def setUp(self):
@@ -145,7 +143,6 @@ class ConnectionDotAdd(unittest.TestCase):
 class StubObject(Persistent):
     pass
 
-
 class StubTransaction:
     pass
 
@@ -265,5 +262,4 @@ class StubDatabase:
 
 
 def test_suite():
-    s = unittest.makeSuite(ConnectionDotAdd, 'check')
-    return s
+    return unittest.makeSuite(ConnectionDotAdd, 'check')
