@@ -21,7 +21,7 @@ It is meant to illustrate the simplest possible storage.
 The Mapping storage uses a single data structure to map object ids to data.
 """
 
-__version__='$Revision: 1.10 $'[11:-2]
+__version__='$Revision: 1.11 $'[11:-2]
 
 from ZODB import utils
 from ZODB import BaseStorage
@@ -58,6 +58,16 @@ class MappingStorage(BaseStorage.BaseStorage):
         finally:
             self._lock_release()
 
+    def loadEx(self, oid, version):
+        self._lock_acquire()
+        try:
+            # Since this storage doesn't support versions, tid and
+            # serial will always be the same.
+            p = self._index[oid]
+            return p[8:], p[:8], "" # pickle, serial, tid
+        finally:
+            self._lock_release()
+
     def store(self, oid, serial, data, version, transaction):
         if transaction is not self._transaction:
             raise POSException.StorageTransactionError(self, transaction)
@@ -75,11 +85,10 @@ class MappingStorage(BaseStorage.BaseStorage):
                                                      serials=(oserial, serial),
                                                      data=data)
 
-            serial = self._serial
-            self._tindex.append((oid, serial+data))
+            self._tindex.append((oid, self._tid + data))
         finally:
             self._lock_release()
-        return serial
+        return self._tid
 
     def _clear_temp(self):
         self._tindex = []
@@ -87,7 +96,7 @@ class MappingStorage(BaseStorage.BaseStorage):
     def _finish(self, tid, user, desc, ext):
         for oid, p in self._tindex:
             self._index[oid] = p
-        self._ltid = self._serial
+        self._ltid = self._tid
 
     def lastTransaction(self):
         return self._ltid
@@ -95,6 +104,8 @@ class MappingStorage(BaseStorage.BaseStorage):
     def pack(self, t, referencesf):
         self._lock_acquire()
         try:
+            if not self._index:
+                return
             # Build an index of *only* those objects reachable from the root.
             rootl = ['\0\0\0\0\0\0\0\0']
             pindex = {}

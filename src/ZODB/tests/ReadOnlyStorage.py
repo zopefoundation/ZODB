@@ -11,7 +11,7 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
-from ZODB.POSException import ReadOnlyError
+from ZODB.POSException import ReadOnlyError, Unsupported
 from ZODB.Transaction import Transaction
 
 class ReadOnlyStorage:
@@ -37,8 +37,12 @@ class ReadOnlyStorage:
             data, revid = self._storage.load(oid, '')
             self.assertEqual(revid, self.oids[oid])
             self.assert_(not self._storage.modifiedInVersion(oid))
-            _data = self._storage.loadSerial(oid, revid)
-            self.assertEqual(data, _data)
+            # Storages without revisions may not have loadSerial().
+            try:
+                _data = self._storage.loadSerial(oid, revid)
+                self.assertEqual(data, _data)
+            except Unsupported:
+                pass
 
     def checkWriteMethods(self):
         self._make_readonly()

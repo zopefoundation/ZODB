@@ -35,6 +35,10 @@ class DemoStorageTests(StorageTestBase.StorageTestBase,
         # have this limit, so we inhibit this test here.
         pass
 
+    def checkAbortVersionNonCurrent(self):
+        # XXX Need to implement a real loadBefore for DemoStorage?
+        pass
+
 
 def test_suite():
     suite = unittest.makeSuite(DemoStorageTests, 'check')

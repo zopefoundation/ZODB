@@ -27,8 +27,13 @@ class ConfigTestBase(unittest.TestCase):
     def _opendb(self, s):
         return ZODB.config.databaseFromString(s)
 
+    def tearDown(self):
+        if getattr(self, "storage", None) is not None:
+            self.storage.cleanup()
+
     def _test(self, s):
         db = self._opendb(s)
+        self.storage = db._storage
         # Do something with the database to make sure it works
         cn = db.open()
         rt = cn.root()
@@ -56,7 +61,6 @@ class ZODBConfigTest(ConfigTestBase):
             """)
 
     def test_file_config1(self):
-        import ZODB.FileStorage
         path = tempfile.mktemp()
         self._test(
             """
@@ -66,10 +70,8 @@ class ZODBConfigTest(ConfigTestBase):
               </filestorage>
             </zodb>
             """ % path)
-        ZODB.FileStorage.cleanup(path)
 
     def test_file_config2(self):
-        import ZODB.FileStorage
         path = tempfile.mktemp()
         cfg = """
         <zodb>
@@ -81,7 +83,6 @@ class ZODBConfigTest(ConfigTestBase):
         </zodb>
         """ % path
         self.assertRaises(ReadOnlyError, self._test, cfg)
-        ZODB.FileStorage.cleanup(path)
 
     def test_zeo_config(self):
         # We're looking for a port that doesn't exist so a connection attempt
@@ -118,9 +119,6 @@ class BDBConfigTest(ConfigTestBase):
         except OSError, e:
             if e.errno <> errno.EEXIST:
                 raise
-
-    def tearDown(self):
-        shutil.rmtree(self._path)
 
     def test_bdbfull_simple(self):
         cfg = """

@@ -16,10 +16,6 @@
 Any storage that supports versions should be able to pass all these tests.
 """
 
-# XXX we should clean this code up to get rid of the #JF# comments.
-# They were introduced when Jim reviewed the original version of the
-# code.  Barry and Jeremy didn't understand versions then.
-
 import time
 
 from ZODB import POSException
@@ -48,26 +44,33 @@ class VersionStorage:
         revid1 = self._dostore(oid, data=MinPO(12))
         revid2 = self._dostore(oid, revid=revid1, data=MinPO(13),
                                version="version")
+        data, tid, ver = self._storage.loadEx(oid, "version")
+        self.assertEqual(revid2, tid)
+        self.assertEqual(zodb_unpickle(data), MinPO(13))
         oids = self._abortVersion("version")
         self.assertEqual([oid], oids)
         data, revid3 = self._storage.load(oid, "")
         # use repr() to avoid getting binary data in a traceback on error
-        self.assertEqual(`revid1`, `revid3`)
-        self.assertNotEqual(`revid2`, `revid3`)
+        self.assertNotEqual(revid1, revid3)
+        self.assertNotEqual(revid2, revid3)
+        data, tid, ver = self._storage.loadEx(oid, "")
+        self.assertEqual(revid3, tid)
+        self.assertEqual(zodb_unpickle(data), MinPO(12))
+        self.assertEqual(tid, self._storage.lastTransaction())
 
     def checkVersionedStoreAndLoad(self):
         eq = self.assertEqual
         # Store a couple of non-version revisions of the object
         oid = self._storage.new_oid()
         revid = self._dostore(oid, data=MinPO(11))
-        revid = self._dostore(oid, revid=revid, data=MinPO(12))
+        revid1 = self._dostore(oid, revid=revid, data=MinPO(12))
         # And now store some new revisions in a version
         version = 'test-version'
-        revid = self._dostore(oid, revid=revid, data=MinPO(13),
+        revid = self._dostore(oid, revid=revid1, data=MinPO(13),
                               version=version)
         revid = self._dostore(oid, revid=revid, data=MinPO(14),
                               version=version)
-        revid = self._dostore(oid, revid=revid, data=MinPO(15),
+        revid2 = self._dostore(oid, revid=revid, data=MinPO(15),
                               version=version)
         # Now read back the object in both the non-version and version and
         # make sure the values jive.
@@ -78,6 +81,20 @@ class VersionStorage:
         if hasattr(self._storage, 'getSerial'):
             s = self._storage.getSerial(oid)
             eq(s, max(revid, vrevid))
+        data, tid, ver = self._storage.loadEx(oid, version)
+        eq(zodb_unpickle(data), MinPO(15))
+        eq(tid, revid2)
+        data, tid, ver = self._storage.loadEx(oid, "other version")
+        eq(zodb_unpickle(data), MinPO(12))
+        eq(tid, revid2)
+        # loadSerial returns non-version data
+        try:
+            data = self._storage.loadSerial(oid, revid)
+            eq(zodb_unpickle(data), MinPO(12))
+            data = self._storage.loadSerial(oid, revid2)
+            eq(zodb_unpickle(data), MinPO(12))
+        except POSException.Unsupported:
+            pass
 
     def checkVersionedLoadErrors(self):
         oid = self._storage.new_oid()
@@ -89,11 +106,6 @@ class VersionStorage:
         self.assertRaises(KeyError,
                           self._storage.load,
                           self._storage.new_oid(), '')
-        # Try to load a bogus version string
-        #JF# Nope, fall back to non-version
-        #JF# self.assertRaises(KeyError,
-        #JF#                   self._storage.load,
-        #JF#                   oid, 'bogus')
         data, revid = self._storage.load(oid, 'bogus')
         self.assertEqual(zodb_unpickle(data), MinPO(11))
 
@@ -112,9 +124,6 @@ class VersionStorage:
     def checkVersionEmpty(self):
         # Before we store anything, these versions ought to be empty
         version = 'test-version'
-        #JF# The empty string is not a valid version. I think that this should
-        #JF# be an error. Let's punt for now.
-        #JF# assert self._storage.versionEmpty('')
         self.failUnless(self._storage.versionEmpty(version))
         # Now store some objects
         oid = self._storage.new_oid()
@@ -125,10 +134,6 @@ class VersionStorage:
         revid = self._dostore(oid, revid=revid, data=MinPO(14),
                               version=version)
         # The blank version should not be empty
-        #JF# The empty string is not a valid version. I think that this should
-        #JF# be an error. Let's punt for now.
-        #JF# assert not self._storage.versionEmpty('')
-
         # Neither should 'test-version'
         self.failUnless(not self._storage.versionEmpty(version))
         # But this non-existant version should be empty
@@ -190,19 +195,28 @@ class VersionStorage:
         data, revid = self._storage.load(oid, '')
         eq(zodb_unpickle(data), MinPO(51))
 
+    def checkAbortVersionNonCurrent(self):
+        # Make sure the non-current serial number is correctly
+        # after a version is aborted.
+        oid, version = self._setup_version()
+        self._abortVersion(version)
+        data, tid, ver = self._storage.loadEx(oid, "")
+        # write a new revision of oid so that the aborted-version txn
+        # is not current
+        self._dostore(oid, revid=tid, data=MinPO(17))
+        ltid = self._storage.lastTransaction()
+        
+        ncdata, ncstart, end = self._storage.loadBefore(oid, ltid)
+
+        self.assertEqual(data, ncdata)
+        self.assertEqual(tid, ncstart)
+
     def checkAbortVersionErrors(self):
         eq = self.assertEqual
         oid, version = self._setup_version()
         # Now abort a bogus version
         t = Transaction()
         self._storage.tpc_begin(t)
-
-        #JF# The spec is silent on what happens if you abort or commit
-        #JF# a non-existent version. FileStorage consideres this a noop.
-        #JF# We can change the spec, but until we do ....
-        #JF# self.assertRaises(POSException.VersionError,
-        #JF#                   self._storage.abortVersion,
-        #JF#                   'bogus', t)
 
         # And try to abort the empty version
         if (hasattr(self._storage, 'supportsTransactionalUndo')
@@ -213,7 +227,7 @@ class VersionStorage:
                               '', t)
 
         # But now we really try to abort the version
-        oids = self._storage.abortVersion(version, t)
+        tid, oids = self._storage.abortVersion(version, t)
         self._storage.tpc_vote(t)
         self._storage.tpc_finish(t)
         eq(len(oids), 1)
@@ -241,17 +255,17 @@ class VersionStorage:
 
     def checkNewSerialOnCommitVersionToVersion(self):
         oid, version = self._setup_version()
-        data, vserial = self._storage.load(oid, version)
-        data, nserial = self._storage.load(oid, '')
+        data, vtid = self._storage.load(oid, version)
+        data, ntid = self._storage.load(oid, '')
 
         version2 = 'test version 2'
         self._commitVersion(version, version2)
-        data, serial = self._storage.load(oid, version2)
+        data, tid = self._storage.load(oid, version2)
 
-        self.failUnless(serial != vserial and serial != nserial,
-                        "New serial, %r, should be different from the old "
-                        "version, %r, and non-version, %r, serials."
-                        % (serial, vserial, nserial))
+        self.failUnless(tid != vtid and tid != ntid,
+                        "New tid, %r, should be different from the old "
+                        "version, %r, and non-version, %r, tids."
+                        % (tid, vtid, ntid))
 
     def checkModifyAfterAbortVersion(self):
         eq = self.assertEqual
@@ -332,13 +346,8 @@ class VersionStorage:
         data, revid = self._storage.load(oid1, '')
         eq(zodb_unpickle(data), MinPO(51))
 
-        #JF# Ditto
-        #JF# self.assertRaises(POSException.VersionError,
-        #JF#                   self._storage.load, oid1, version1)
         data, revid = self._storage.load(oid1, '')
         eq(zodb_unpickle(data), MinPO(51))
-        #JF# self.assertRaises(POSException.VersionError,
-        #JF#                   self._storage.load, oid1, version2)
         data, revid = self._storage.load(oid1, '')
         eq(zodb_unpickle(data), MinPO(51))
 
@@ -359,7 +368,6 @@ class VersionStorage:
         data, revid = self._storage.load(oid2, version2)
         eq(zodb_unpickle(data), MinPO(54))
 
-        #JF# To do a test like you want, you have to add the data in a version
         oid = self._storage.new_oid()
         revid = self._dostore(oid, revid=revid, data=MinPO(54), version='one')
         self.assertRaises(KeyError,
@@ -375,7 +383,7 @@ class VersionStorage:
         # Now abort the version and the creation
         t = Transaction()
         self._storage.tpc_begin(t)
-        oids = self._storage.abortVersion('one', t)
+        tid, oids = self._storage.abortVersion('one', t)
         self._storage.tpc_vote(t)
         self._storage.tpc_finish(t)
         self.assertEqual(oids, [oid])

@@ -71,7 +71,7 @@ class WorkerThread(TestThread):
         #     self.storage.tpc_vote(self.trans)
 
         rpc = self.storage._server.rpc
-        msgid = rpc._deferred_call('vote', self.storage._serial)
+        msgid = rpc._deferred_call('vote', id(self.trans))
         self.ready.set()
         rpc._deferred_wait(msgid)
         self.storage._check_serials()
@@ -102,105 +102,6 @@ class CommitLockTests:
         oid = self._storage.new_oid()
         self._storage.store(oid, ZERO, zodb_pickle(MinPO(1)), '', txn)
         return oid, txn
-
-    def checkCommitLockVoteFinish(self):
-        oid, txn = self._start_txn()
-        self._storage.tpc_vote(txn)
-
-        self._begin_threads()
-
-        self._storage.tpc_finish(txn)
-        self._storage.load(oid, '')
-
-        self._finish_threads()
-
-        self._dostore()
-        self._cleanup()
-
-    def checkCommitLockVoteAbort(self):
-        oid, txn = self._start_txn()
-        self._storage.tpc_vote(txn)
-
-        self._begin_threads()
-
-        self._storage.tpc_abort(txn)
-
-        self._finish_threads()
-
-        self._dostore()
-        self._cleanup()
-
-    def checkCommitLockVoteClose(self):
-        oid, txn = self._start_txn()
-        self._storage.tpc_vote(txn)
-
-        self._begin_threads()
-
-        self._storage.close()
-
-        self._finish_threads()
-        self._cleanup()
-
-    def _get_trans_id(self):
-        self._dostore()
-        L = self._storage.undoInfo()
-        return L[0]['id']
-
-    def _begin_undo(self, trans_id):
-        rpc = self._storage._server.rpc
-        return rpc._deferred_call('transactionalUndo', trans_id,
-                                  self._storage._serial)
-
-    def _finish_undo(self, msgid):
-        return self._storage._server.rpc._deferred_wait(msgid)
-
-    def checkCommitLockUndoFinish(self):
-        trans_id = self._get_trans_id()
-        oid, txn = self._start_txn()
-        msgid = self._begin_undo(trans_id)
-
-        self._begin_threads()
-
-        self._finish_undo(msgid)
-        self._storage.tpc_vote(txn)
-        self._storage.tpc_finish(txn)
-        self._storage.load(oid, '')
-
-        self._finish_threads()
-
-        self._dostore()
-        self._cleanup()
-
-    def checkCommitLockUndoAbort(self):
-        trans_id = self._get_trans_id()
-        oid, txn = self._start_txn()
-        msgid = self._begin_undo(trans_id)
-
-        self._begin_threads()
-
-        self._finish_undo(msgid)
-        self._storage.tpc_vote(txn)
-        self._storage.tpc_abort(txn)
-
-        self._finish_threads()
-
-        self._dostore()
-        self._cleanup()
-
-    def checkCommitLockUndoClose(self):
-        trans_id = self._get_trans_id()
-        oid, txn = self._start_txn()
-        msgid = self._begin_undo(trans_id)
-
-        self._begin_threads()
-
-        self._finish_undo(msgid)
-        self._storage.tpc_vote(txn)
-        self._storage.close()
-
-        self._finish_threads()
-
-        self._cleanup()
 
     def _begin_threads(self):
         # Start a second transaction on a different connection without
@@ -244,3 +145,105 @@ class CommitLockTests:
         t = time.time()
         t = TimeStamp(*time.gmtime(t)[:5]+(t%60,))
         return `t`
+
+class CommitLockVoteTests(CommitLockTests):
+
+    def checkCommitLockVoteFinish(self):
+        oid, txn = self._start_txn()
+        self._storage.tpc_vote(txn)
+
+        self._begin_threads()
+
+        self._storage.tpc_finish(txn)
+        self._storage.load(oid, '')
+
+        self._finish_threads()
+
+        self._dostore()
+        self._cleanup()
+
+    def checkCommitLockVoteAbort(self):
+        oid, txn = self._start_txn()
+        self._storage.tpc_vote(txn)
+
+        self._begin_threads()
+
+        self._storage.tpc_abort(txn)
+
+        self._finish_threads()
+
+        self._dostore()
+        self._cleanup()
+
+    def checkCommitLockVoteClose(self):
+        oid, txn = self._start_txn()
+        self._storage.tpc_vote(txn)
+
+        self._begin_threads()
+
+        self._storage.close()
+
+        self._finish_threads()
+        self._cleanup()
+
+class CommitLockUndoTests(CommitLockTests):
+
+    def _get_trans_id(self):
+        self._dostore()
+        L = self._storage.undoInfo()
+        return L[0]['id']
+
+    def _begin_undo(self, trans_id, txn):
+        rpc = self._storage._server.rpc
+        return rpc._deferred_call('transactionalUndo', trans_id, id(txn))
+
+    def _finish_undo(self, msgid):
+        return self._storage._server.rpc._deferred_wait(msgid)
+
+    def checkCommitLockUndoFinish(self):
+        trans_id = self._get_trans_id()
+        oid, txn = self._start_txn()
+        msgid = self._begin_undo(trans_id, txn)
+
+        self._begin_threads()
+
+        self._finish_undo(msgid)
+        self._storage.tpc_vote(txn)
+        self._storage.tpc_finish(txn)
+        self._storage.load(oid, '')
+
+        self._finish_threads()
+
+        self._dostore()
+        self._cleanup()
+
+    def checkCommitLockUndoAbort(self):
+        trans_id = self._get_trans_id()
+        oid, txn = self._start_txn()
+        msgid = self._begin_undo(trans_id, txn)
+
+        self._begin_threads()
+
+        self._finish_undo(msgid)
+        self._storage.tpc_vote(txn)
+        self._storage.tpc_abort(txn)
+
+        self._finish_threads()
+
+        self._dostore()
+        self._cleanup()
+
+    def checkCommitLockUndoClose(self):
+        trans_id = self._get_trans_id()
+        oid, txn = self._start_txn()
+        msgid = self._begin_undo(trans_id, txn)
+
+        self._begin_threads()
+
+        self._finish_undo(msgid)
+        self._storage.tpc_vote(txn)
+        self._storage.close()
+
+        self._finish_threads()
+
+        self._cleanup()

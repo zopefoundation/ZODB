@@ -26,26 +26,9 @@ from ZODB.tests import StorageTestBase, BasicStorage, \
      Synchronization, ConflictResolution, HistoryStorage, \
      IteratorStorage, Corruption, RevisionStorage, PersistentStorage, \
      MTStorage, ReadOnlyStorage, RecoveryStorage
-from ZODB.tests.StorageTestBase import MinPO, zodb_unpickle
+from ZODB.tests.StorageTestBase import MinPO, zodb_unpickle, zodb_pickle
 
-class FileStorageTests(
-    StorageTestBase.StorageTestBase,
-    BasicStorage.BasicStorage,
-    TransactionalUndoStorage.TransactionalUndoStorage,
-    RevisionStorage.RevisionStorage,
-    VersionStorage.VersionStorage,
-    TransactionalUndoVersionStorage.TransactionalUndoVersionStorage,
-    PackableStorage.PackableStorage,
-    Synchronization.SynchronizedStorage,
-    ConflictResolution.ConflictResolvingStorage,
-    ConflictResolution.ConflictResolvingTransUndoStorage,
-    HistoryStorage.HistoryStorage,
-    IteratorStorage.IteratorStorage,
-    IteratorStorage.ExtendedIteratorStorage,
-    PersistentStorage.PersistentStorage,
-    MTStorage.MTStorage,
-    ReadOnlyStorage.ReadOnlyStorage
-    ):
+class BaseFileStorageTests(StorageTestBase.StorageTestBase):
 
     def open(self, **kwargs):
         self._storage = ZODB.FileStorage.FileStorage('FileStorageTests.fs',
@@ -56,7 +39,27 @@ class FileStorageTests(
 
     def tearDown(self):
         self._storage.close()
-        StorageTestBase.removefs("FileStorageTests.fs")
+        self._storage.cleanup()
+
+class FileStorageTests(
+    BaseFileStorageTests,
+    BasicStorage.BasicStorage,
+    TransactionalUndoStorage.TransactionalUndoStorage,
+    RevisionStorage.RevisionStorage,
+    VersionStorage.VersionStorage,
+    TransactionalUndoVersionStorage.TransactionalUndoVersionStorage,
+    PackableStorage.PackableStorage,
+    PackableStorage.PackableUndoStorage,
+    Synchronization.SynchronizedStorage,
+    ConflictResolution.ConflictResolvingStorage,
+    ConflictResolution.ConflictResolvingTransUndoStorage,
+    HistoryStorage.HistoryStorage,
+    IteratorStorage.IteratorStorage,
+    IteratorStorage.ExtendedIteratorStorage,
+    PersistentStorage.PersistentStorage,
+    MTStorage.MTStorage,
+    ReadOnlyStorage.ReadOnlyStorage
+    ):
 
     def checkLongMetadata(self):
         s = "X" * 75000
@@ -175,28 +178,43 @@ class FileStorageRecoveryTest(
     ):
 
     def setUp(self):
-        StorageTestBase.removefs("Source.fs")
-        StorageTestBase.removefs("Dest.fs")
-        self._storage = ZODB.FileStorage.FileStorage('Source.fs')
-        self._dst = ZODB.FileStorage.FileStorage('Dest.fs')
+        self._storage = ZODB.FileStorage.FileStorage("Source.fs", create=True)
+        self._dst = ZODB.FileStorage.FileStorage("Dest.fs", create=True)
 
     def tearDown(self):
         self._storage.close()
         self._dst.close()
-        StorageTestBase.removefs("Source.fs")
-        StorageTestBase.removefs("Dest.fs")
+        self._storage.cleanup()
+        self._dst.cleanup()
 
     def new_dest(self):
-        StorageTestBase.removefs('Dest.fs')
         return ZODB.FileStorage.FileStorage('Dest.fs')
+
+class SlowFileStorageTest(BaseFileStorageTests):
+
+    level = 2
+
+    def check10Kstores(self):
+        # The _get_cached_serial() method has a special case
+        # every 8000 calls.  Make sure it gets minimal coverage.
+        oids = [[self._storage.new_oid(), None] for i in range(100)]
+        for i in range(100):
+            t = Transaction()
+            self._storage.tpc_begin(t)
+            for j in range(100):
+                o = MinPO(j)
+                oid, revid = oids[j]
+                serial = self._storage.store(oid, revid, zodb_pickle(o), "", t)
+                oids[j][1] = serial
+            self._storage.tpc_vote(t)
+            self._storage.tpc_finish(t)
 
 
 def test_suite():
-    suite = unittest.makeSuite(FileStorageTests, 'check')
-    suite2 = unittest.makeSuite(Corruption.FileStorageCorruptTests, 'check')
-    suite3 = unittest.makeSuite(FileStorageRecoveryTest, 'check')
-    suite.addTest(suite2)
-    suite.addTest(suite3)
+    suite = unittest.TestSuite()
+    for klass in [FileStorageTests, Corruption.FileStorageCorruptTests,
+                  FileStorageRecoveryTest, SlowFileStorageTest]:
+        suite.addTest(unittest.makeSuite(klass, "check"))
     return suite
 
 if __name__=='__main__':

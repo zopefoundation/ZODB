@@ -101,20 +101,12 @@ class GenericTests(
     StorageTestBase.StorageTestBase,
     # ZODB test mixin classes (in the same order as imported)
     BasicStorage.BasicStorage,
-    VersionStorage.VersionStorage,
-    TransactionalUndoStorage.TransactionalUndoStorage,
-    TransactionalUndoVersionStorage.TransactionalUndoVersionStorage,
     PackableStorage.PackableStorage,
     Synchronization.SynchronizedStorage,
-    ConflictResolution.ConflictResolvingStorage,
-    ConflictResolution.ConflictResolvingTransUndoStorage,
-    RevisionStorage.RevisionStorage,
     MTStorage.MTStorage,
     ReadOnlyStorage.ReadOnlyStorage,
     # ZEO test mixin classes (in the same order as imported)
-    Cache.StorageWithCache,
-    Cache.TransUndoStorageWithCache,
-    CommitLockTests.CommitLockTests,
+    CommitLockTests.CommitLockVoteTests,
     ThreadTests.ThreadTests,
     # Locally defined (see above)
     MiscZEOTests
@@ -167,8 +159,22 @@ class GenericTests(
         key = '%s:%s' % (self._storage._storage, self._storage._server_addr)
         self.assertEqual(self._storage.sortKey(), key)
 
+class FullGenericTests(
+    GenericTests,
+    Cache.StorageWithCache,
+    Cache.TransUndoStorageWithCache,
+    CommitLockTests.CommitLockUndoTests,
+    ConflictResolution.ConflictResolvingStorage,
+    ConflictResolution.ConflictResolvingTransUndoStorage,
+    PackableStorage.PackableUndoStorage,
+    RevisionStorage.RevisionStorage,
+    TransactionalUndoStorage.TransactionalUndoStorage,
+    TransactionalUndoVersionStorage.TransactionalUndoVersionStorage,
+    VersionStorage.VersionStorage,
+    ):
+    """Extend GenericTests with tests that MappingStorage can't pass."""
 
-class FileStorageTests(GenericTests):
+class FileStorageTests(FullGenericTests):
     """Test ZEO backed by a FileStorage."""
     level = 2
 
@@ -180,7 +186,7 @@ class FileStorageTests(GenericTests):
         </filestorage>
         """ % filename
 
-class BDBTests(FileStorageTests):
+class BDBTests(FullGenericTests):
     """ZEO backed by a Berkeley full storage."""
     level = 2
 
@@ -192,67 +198,14 @@ class BDBTests(FileStorageTests):
         </fullstorage>
         """ % self._envdir
 
-class MappingStorageTests(FileStorageTests):
+class MappingStorageTests(GenericTests):
     """ZEO backed by a Mapping storage."""
 
     def getConfig(self):
         return """<mappingstorage 1/>"""
 
-    # Tests which MappingStorage can't possibly pass, because it doesn't
-    # support versions or undo.
-    def checkVersions(self): pass
-    def checkVersionedStoreAndLoad(self): pass
-    def checkVersionedLoadErrors(self): pass
-    def checkVersionLock(self): pass
-    def checkVersionEmpty(self): pass
-    def checkUndoUnresolvable(self): pass
-    def checkUndoInvalidation(self): pass
-    def checkUndoInVersion(self): pass
-    def checkUndoCreationBranch2(self): pass
-    def checkUndoCreationBranch1(self): pass
-    def checkUndoConflictResolution(self): pass
-    def checkUndoCommitVersion(self): pass
-    def checkUndoAbortVersion(self): pass
-    def checkPackUndoLog(self): pass
-    def checkUndoLogMetadata(self): pass
-    def checkTwoObjectUndoAtOnce(self): pass
-    def checkTwoObjectUndoAgain(self): pass
-    def checkTwoObjectUndo(self): pass
-    def checkTransactionalUndoAfterPackWithObjectUnlinkFromRoot(self): pass
-    def checkTransactionalUndoAfterPack(self): pass
-    def checkSimpleTransactionalUndo(self): pass
-    def checkReadMethods(self): pass
-    def checkPackAfterUndoDeletion(self): pass
-    def checkPackAfterUndoManyTimes(self): pass
-    def checkPackVersions(self): pass
-    def checkPackUnlinkedFromRoot(self): pass
-    def checkPackOnlyOneObject(self): pass
-    def checkPackJustOldRevisions(self): pass
-    def checkPackEmptyStorage(self): pass
-    def checkPackAllRevisions(self): pass
-    def checkPackVersionsInPast(self): pass
-    def checkPackVersionReachable(self): pass
-    def checkNotUndoable(self): pass
-    def checkNewSerialOnCommitVersionToVersion(self): pass
-    def checkModifyAfterAbortVersion(self): pass
-    def checkLoadSerial(self): pass
-    def checkCreateObjectInVersionWithAbort(self): pass
-    def checkCommitVersionSerialno(self): pass
-    def checkCommitVersionInvalidation(self): pass
-    def checkCommitToOtherVersion(self): pass
-    def checkCommitToNonVersion(self): pass
-    def checkCommitLockUndoFinish(self): pass
-    def checkCommitLockUndoClose(self): pass
-    def checkCommitLockUndoAbort(self): pass
-    def checkCommitEmptyVersionInvalidation(self): pass
-    def checkCreationUndoneGetSerial(self): pass
-    def checkAbortVersionSerialno(self): pass
-    def checkAbortVersionInvalidation(self): pass
-    def checkAbortVersionErrors(self): pass
-    def checkAbortVersion(self): pass
-    def checkAbortOneVersionCommitTheOther(self): pass
-    def checkResolve(self): pass
-    def check4ExtStorageThread(self): pass
+    # XXX There are still a bunch of tests that fail.  Are there
+    # still test classes in GenericTests that shouldn't be there?
 
 test_classes = [FileStorageTests, MappingStorageTests]
 

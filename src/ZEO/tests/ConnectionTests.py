@@ -109,7 +109,7 @@ class CommonSetupTearDown(StorageTestBase):
                 os.waitpid(pid, 0)
         for c in self.caches:
             for i in 0, 1:
-                path = "c1-%s-%d.zec" % (c, i)
+                path = "%s-%s.zec" % (c, "1")
                 # On Windows before 2.3, we don't have a way to wait for
                 # the spawned server(s) to close, and they inherited
                 # file descriptors for our open files.  So long as those
@@ -584,6 +584,9 @@ class InvqTests(CommonSetupTearDown):
         revid = self._dostore(oid)
         revid = self._dostore(oid, revid)
 
+        # sync() is needed to prevent invalidation for oid from arriving
+        # in the middle of the load() call.
+        perstorage.sync()
         perstorage.load(oid, '')
         perstorage.close()
 
@@ -853,7 +856,7 @@ class TimeoutTests(CommonSetupTearDown):
         unless = self.failUnless
         self._storage = storage = self.openClientStorage()
         # Assert that the zeo cache is empty
-        unless(not storage._cache._index)
+        unless(not list(storage._cache.contents()))
         # Create the object
         oid = storage.new_oid()
         obj = MinPO(7)
@@ -872,7 +875,7 @@ class TimeoutTests(CommonSetupTearDown):
         # We expect finish to fail
         raises(ClientDisconnected, storage.tpc_finish, t)
         # The cache should still be empty
-        unless(not storage._cache._index)
+        unless(not list(storage._cache.contents()))
         # Load should fail since the object should not be in either the cache
         # or the server.
         raises(KeyError, storage.load, oid, '')
@@ -883,7 +886,7 @@ class TimeoutTests(CommonSetupTearDown):
         unless = self.failUnless
         self._storage = storage = self.openClientStorage()
         # Assert that the zeo cache is empty
-        unless(not storage._cache._index)
+        unless(not list(storage._cache.contents()))
         # Create the object
         oid = storage.new_oid()
         obj = MinPO(7)

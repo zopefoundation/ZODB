@@ -14,7 +14,7 @@
 
 """
 Revision information:
-$Id: testTransaction.py,v 1.16 2003/11/28 16:44:54 jim Exp $
+$Id: testTransaction.py,v 1.17 2003/12/24 16:01:58 jeremy Exp $
 """
 
 """

@@ -40,15 +40,6 @@ class TransactionalUndoVersionStorage:
                 pass # not expected
         return self._dostore(*args, **kwargs)
 
-    def _undo(self, tid, oid):
-        t = Transaction()
-        self._storage.tpc_begin(t)
-        oids = self._storage.transactionalUndo(tid, t)
-        self._storage.tpc_vote(t)
-        self._storage.tpc_finish(t)
-        self.assertEqual(len(oids), 1)
-        self.assertEqual(oids[0], oid)
-
     def checkUndoInVersion(self):
         eq = self.assertEqual
         unless = self.failUnless
@@ -68,21 +59,17 @@ class TransactionalUndoVersionStorage:
                                 version=version)
 
         info = self._storage.undoInfo()
-        self._undo(info[0]['id'], oid)
+        self._undo(info[0]['id'], [oid])
 
         data, revid = self._storage.load(oid, '')
-        eq(revid, revid_a)
+##        eq(revid, revid_a)
         eq(zodb_unpickle(data), MinPO(91))
         data, revid = self._storage.load(oid, version)
         unless(revid > revid_b and revid > revid_c)
         eq(zodb_unpickle(data), MinPO(92))
 
         # Now commit the version...
-        t = Transaction()
-        self._storage.tpc_begin(t)
-        oids = self._storage.commitVersion(version, '', t)
-        self._storage.tpc_vote(t)
-        self._storage.tpc_finish(t)
+        oids = self._commitVersion(version, "")
         eq(len(oids), 1)
         eq(oids[0], oid)
 
@@ -90,7 +77,7 @@ class TransactionalUndoVersionStorage:
 
         # ...and undo the commit
         info = self._storage.undoInfo()
-        self._undo(info[0]['id'], oid)
+        self._undo(info[0]['id'], [oid])
 
         check_objects(91, 92)
 
@@ -102,7 +89,7 @@ class TransactionalUndoVersionStorage:
 
         # Now undo the abort
         info=self._storage.undoInfo()
-        self._undo(info[0]['id'], oid)
+        self._undo(info[0]['id'], [oid])
 
         check_objects(91, 92)
 
@@ -143,15 +130,23 @@ class TransactionalUndoVersionStorage:
 
         self._storage.pack(pt, referencesf)
 
-        t = Transaction()
-        t.description = 'undo commit version'
-        self._storage.tpc_begin(t)
-        self._storage.transactionalUndo(t_id, t)
-        self._storage.tpc_vote(t)
-        self._storage.tpc_finish(t)
+        self._undo(t_id, note="undo commit version")
 
         self.assertEqual(load_value(oid1), 0)
         self.assertEqual(load_value(oid1, version), 2)
+
+        data, tid, ver = self._storage.loadEx(oid1, "")
+        # After undoing the version commit, the non-version data
+        # once again becomes the non-version data from 'create1'.
+        self.assertEqual(tid, self._storage.lastTransaction())
+        self.assertEqual(ver, "")
+
+        # The current version data comes from an undo record, which
+        # means that it gets data via the backpointer but tid from the
+        # current txn.
+        data, tid, ver = self._storage.loadEx(oid1, version)
+        self.assertEqual(ver, version)
+        self.assertEqual(tid, self._storage.lastTransaction())
 
     def checkUndoAbortVersion(self):
         def load_value(oid, version=''):
@@ -175,12 +170,7 @@ class TransactionalUndoVersionStorage:
                         version=version, description='version2')
         self._x_dostore(description='create2')
 
-        t = Transaction()
-        t.description = 'abort version'
-        self._storage.tpc_begin(t)
-        self._storage.abortVersion(version, t)
-        self._storage.tpc_vote(t)
-        self._storage.tpc_finish(t)
+        self._abortVersion(version)
 
         info = self._storage.undoInfo()
         t_id = info[0]['id']
@@ -189,12 +179,7 @@ class TransactionalUndoVersionStorage:
         # after abort, we should see non-version data
         self.assertEqual(load_value(oid1, version), 0)
 
-        t = Transaction()
-        t.description = 'undo abort version'
-        self._storage.tpc_begin(t)
-        self._storage.transactionalUndo(t_id, t)
-        self._storage.tpc_vote(t)
-        self._storage.tpc_finish(t)
+        self._undo(t_id, note="undo abort version")
 
         self.assertEqual(load_value(oid1), 0)
         # t undo will re-create the version
@@ -205,12 +190,7 @@ class TransactionalUndoVersionStorage:
 
         self._storage.pack(pt, referencesf)
 
-        t = Transaction()
-        t.description = 'undo undo'
-        self._storage.tpc_begin(t)
-        self._storage.transactionalUndo(t_id, t)
-        self._storage.tpc_vote(t)
-        self._storage.tpc_finish(t)
+        self._undo(t_id, note="undo undo")
 
         # undo of undo will put as back where we started
         self.assertEqual(load_value(oid1), 0)

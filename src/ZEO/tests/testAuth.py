@@ -28,7 +28,6 @@ from ZEO.StorageServer import StorageServer
 from ZEO.tests.ConnectionTests import CommonSetupTearDown
 
 from ZODB.FileStorage import FileStorage
-from ZODB.tests.StorageTestBase import removefs
 
 class AuthTest(CommonSetupTearDown):
     __super_getServerConfig = CommonSetupTearDown.getServerConfig

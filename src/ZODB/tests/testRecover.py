@@ -24,11 +24,8 @@ import StringIO
 import ZODB
 from ZODB.FileStorage import FileStorage
 from ZODB.fsrecover import recover
-from ZODB.tests.StorageTestBase import removefs
 
 from persistent.mapping import PersistentMapping
-
-from ZODB.fsdump import Dumper
 
 class RecoverTest(unittest.TestCase):
 
@@ -47,8 +44,10 @@ class RecoverTest(unittest.TestCase):
         self.storage.close()
         if self.recovered is not None:
             self.recovered.close()
-        removefs(self.path)
-        removefs(self.dest)
+        self.storage.cleanup()
+        temp = FileStorage(self.dest)
+        temp.close()
+        temp.cleanup()
 
     def populate(self):
         db = ZODB.DB(self.storage)

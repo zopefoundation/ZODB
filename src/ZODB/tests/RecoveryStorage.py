@@ -54,7 +54,7 @@ class RecoveryStorage(IteratorDeepCompare):
         # Now abort the version and the creation
         t = Transaction()
         self._storage.tpc_begin(t)
-        oids = self._storage.abortVersion('one', t)
+        tid, oids = self._storage.abortVersion('one', t)
         self._storage.tpc_vote(t)
         self._storage.tpc_finish(t)
         self.assertEqual(oids, [oid])
@@ -80,9 +80,9 @@ class RecoveryStorage(IteratorDeepCompare):
                                 data=MinPO(92))
         revid_c = self._dostore(oid, revid=revid_b, version=version,
                                 data=MinPO(93))
-        self._undo(self._storage.undoInfo()[0]['id'], oid)
+        self._undo(self._storage.undoInfo()[0]['id'], [oid])
         self._commitVersion(version, '')
-        self._undo(self._storage.undoInfo()[0]['id'], oid)
+        self._undo(self._storage.undoInfo()[0]['id'], [oid])
 
         # now copy the records to a new storage
         self._dst.copyTransactionsFrom(self._storage)
@@ -95,7 +95,7 @@ class RecoveryStorage(IteratorDeepCompare):
 
         self._abortVersion(version)
         self.assert_(self._storage.versionEmpty(version))
-        self._undo(self._storage.undoInfo()[0]['id'], oid)
+        self._undo(self._storage.undoInfo()[0]['id'], [oid])
         self.assert_(not self._storage.versionEmpty(version))
 
         # check the data is what we expect it to be
@@ -109,7 +109,7 @@ class RecoveryStorage(IteratorDeepCompare):
         self._storage = self._dst
         self._abortVersion(version)
         self.assert_(self._storage.versionEmpty(version))
-        self._undo(self._storage.undoInfo()[0]['id'], oid)
+        self._undo(self._storage.undoInfo()[0]['id'], [oid])
         self.assert_(not self._storage.versionEmpty(version))
 
         # check the data is what we expect it to be
@@ -149,7 +149,7 @@ class RecoveryStorage(IteratorDeepCompare):
         final = list(it)[-1]
         self._dst.tpc_begin(final, final.tid, final.status)
         for r in final:
-            self._dst.restore(r.oid, r.serial, r.data, r.version, r.data_txn,
+            self._dst.restore(r.oid, r.tid, r.data, r.version, r.data_txn,
                               final)
         it.close()
         self._dst.tpc_vote(final)

@@ -39,7 +39,23 @@ from ZODB.POSException \
 # thought they added (i.e., the keys for which get_transaction().commit()
 # did not raise any exception).
 
-class StressThread(TestThread):
+class FailableThread(TestThread):
+
+    # mixin class
+    # subclass must provide
+    # - self.stop attribute (an event)
+    # - self._testrun() method
+
+    def testrun(self):
+        try:
+            self._testrun()
+        except:
+            # Report the failure here to all the other threads, so
+            # that they stop quickly.
+            self.stop.set()
+            raise
+
+class StressThread(FailableThread):
 
     # Append integers startnum, startnum + step, startnum + 2*step, ...
     # to 'tree' until Event stop is set.  If sleep is given, sleep
@@ -57,7 +73,7 @@ class StressThread(TestThread):
         self.added_keys = []
         self.commitdict = commitdict
 
-    def testrun(self):
+    def _testrun(self):
         cn = self.db.open()
         while not self.stop.isSet():
             try:
@@ -87,7 +103,7 @@ class StressThread(TestThread):
             key += self.step
         cn.close()
 
-class LargeUpdatesThread(TestThread):
+class LargeUpdatesThread(FailableThread):
 
     # A thread that performs a lot of updates.  It attempts to modify
     # more than 25 objects so that it can test code that runs vote
@@ -106,6 +122,15 @@ class LargeUpdatesThread(TestThread):
         self.commitdict = commitdict
 
     def testrun(self):
+        try:
+            self._testrun()
+        except:
+            # Report the failure here to all the other threads, so
+            # that they stop quickly.
+            self.stop.set()
+            raise
+
+    def _testrun(self):
         cn = self.db.open()
         while not self.stop.isSet():
             try:
@@ -162,7 +187,7 @@ class LargeUpdatesThread(TestThread):
         self.added_keys = keys_added.keys()
         cn.close()
 
-class VersionStressThread(TestThread):
+class VersionStressThread(FailableThread):
 
     def __init__(self, testcase, db, stop, threadnum, commitdict, startnum,
                  step=2, sleep=None):
@@ -177,6 +202,15 @@ class VersionStressThread(TestThread):
         self.commitdict = commitdict
 
     def testrun(self):
+        try:
+            self._testrun()
+        except:
+            # Report the failure here to all the other threads, so
+            # that they stop quickly.
+            self.stop.set()
+            raise
+
+    def _testrun(self):
         commit = 0
         key = self.startnum
         while not self.stop.isSet():
@@ -302,7 +336,10 @@ class InvalidationTests:
         delay = self.MINTIME
         start = time.time()
         while time.time() - start <= self.MAXTIME:
-            time.sleep(delay)
+            stop.wait(delay)
+            if stop.isSet():
+                # Some thread failed.  Stop right now.
+                break
             delay = 2.0
             if len(commitdict) >= len(threads):
                 break
@@ -406,6 +443,7 @@ class InvalidationTests:
         t1 = VersionStressThread(self, db1, stop, 1, cd, 1, 3)
         t2 = VersionStressThread(self, db2, stop, 2, cd, 2, 3, 0.01)
         t3 = VersionStressThread(self, db2, stop, 3, cd, 3, 3, 0.01)
+##        t1 = VersionStressThread(self, db2, stop, 3, cd, 1, 3, 0.01)
         self.go(stop, cd, t1, t2, t3)
 
         cn.sync()

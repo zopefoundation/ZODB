@@ -14,12 +14,16 @@
 import ZODB.MappingStorage
 import os, unittest
 
-from ZODB.tests import StorageTestBase, BasicStorage, Synchronization
+from ZODB.tests import StorageTestBase
+from ZODB.tests \
+     import BasicStorage, MTStorage, Synchronization, PackableStorage
 
 class MappingStorageTests(StorageTestBase.StorageTestBase,
-                       BasicStorage.BasicStorage,
-                       Synchronization.SynchronizedStorage,
-                       ):
+                          BasicStorage.BasicStorage,
+                          MTStorage.MTStorage,
+                          PackableStorage.PackableStorage,
+                          Synchronization.SynchronizedStorage,
+                          ):
 
     def setUp(self):
         self._storage = ZODB.MappingStorage.MappingStorage()
