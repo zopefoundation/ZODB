@@ -47,7 +47,6 @@ class DataCopier(FileStorageFormatter):
 
     _file -- file with earlier destination data
     _tfile -- destination file for copied data
-    _packt -- p64() representation of latest pack time
     _pos -- file pos of destination transaction
     _tindex -- maps oid to data record file pos
     _tvindex -- maps version name to data record file pos
@@ -416,7 +415,6 @@ class FileStoragePacker(FileStorageFormatter):
         self._name = path
         self._file = open(path, "rb")
         self._stop = stop
-        self._packt = None
         self.locked = 0
         self._file.seek(0, 2)
         self.file_end = self._file.tell()
