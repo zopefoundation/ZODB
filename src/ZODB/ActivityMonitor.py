@@ -13,7 +13,7 @@
 ##############################################################################
 """ZODB transfer activity monitoring
 
-$Id: ActivityMonitor.py,v 1.5 2003/12/30 20:17:41 jeremy Exp $"""
+$Id$"""
 
 import time
 
