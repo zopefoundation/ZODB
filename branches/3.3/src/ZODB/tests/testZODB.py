@@ -286,6 +286,10 @@ class ZODBTests(unittest.TestCase):
         # transaction.
         if shouldFail:
             self.assertRaises(ReadConflictError, lambda: obj.child1)
+            # And since ReadConflictError was raised, attempting to commit
+            # the transaction should re-raise it.  checkNotIndependent()
+            # failed this part of the test for a long time.
+            self.assertRaises(ReadConflictError, tm2.get().commit)
         else:
             # make sure that accessing the object succeeds
             obj.child1
