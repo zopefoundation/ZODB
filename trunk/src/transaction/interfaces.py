@@ -11,7 +11,10 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
+"""Transaction Interfaces
 
+$Id: interfaces.py,v 1.7 2004/02/24 13:52:05 srichter Exp $
+"""
 try:
     from zope.interface import Interface
 except ImportError:
