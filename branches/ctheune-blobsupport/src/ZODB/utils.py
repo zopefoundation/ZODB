@@ -16,7 +16,7 @@ import sys
 import time
 import struct
 from struct import pack, unpack
-from binascii import hexlify
+from binascii import hexlify, unhexlify
 import cPickle as pickle
 from cStringIO import StringIO
 import weakref
@@ -88,7 +88,7 @@ def u64(v):
 
 U64 = u64
 
-def cp(f1, f2, length):
+def cp(f1, f2, length=None):
     """Copy all data from one file to another.
     
     It copies the data from the current position of the input file (f1)
@@ -101,6 +101,12 @@ def cp(f1, f2, length):
     write = f2.write
     n = 8192
 
+    if length is None:
+        old_pos = f1.tell()
+        f1.seek(0,2)
+        length = f1.tell()
+        f1.seek(old_pos)
+    
     while length > 0:
         if n > length:
             n = length
@@ -132,6 +138,13 @@ def oid_repr(oid):
         return '0x' + as_hex
     else:
         return repr(oid)
+
+def repr_to_oid(repr):
+    if repr.startswith("0x"):
+        repr = repr[2:]
+    as_bin = unhexlify(repr)
+    as_bin = "\x00"*(8-len(as_bin)) + as_bin
+    return as_bin
 
 serial_repr = oid_repr
 tid_repr = serial_repr
@@ -314,3 +327,20 @@ def mktemp():
     handle, filename = mkstemp()
     os.close(handle)
     return filename
+
+def best_rename(sourcename, targetname):
+    try:
+        os.rename(sourcename, targetname)
+    except OSError:
+        # XXX This creates a race condition for un-locked return above
+        source = open(sourcename, "rb")
+        target = open(targetname, "wb")
+        while True:
+            chunk = source.read(4096)
+            if not chunk:
+                break
+            target.write(chunk)
+        source.close()
+        target.close()
+        os.unlink(sourcename)
+

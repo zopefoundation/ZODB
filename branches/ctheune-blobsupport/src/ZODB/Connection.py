@@ -350,6 +350,7 @@ class Connection(ExportImport, object):
                 s = self._storage.storeBlob(oid, serial, p,
                                             obj._p_blob_uncommitted,
                                             self._version, transaction)
+                obj._p_invalidate()
             else:
                 s = self._storage.store(oid, serial, p, self._version,
                                         transaction)
@@ -371,12 +372,6 @@ class Connection(ExportImport, object):
 
             self._handle_serial(s, oid)
             
-            if IBlob.providedBy(obj):
-                # We need to update internals of the blobs here
-                obj._p_blob_uncommitted = None
-                obj._p_blob_data = \
-                        self._storage.loadBlob(oid, obj._p_serial, 
-                                               self._version )
 
     def commit_sub(self, t):
         """Commit all changes made in subtransactions and begin 2-phase commit
@@ -687,6 +682,7 @@ class Connection(ExportImport, object):
 
         # Blob support
         if IBlob.providedBy(obj):
+            obj._p_blob_uncommitted = None
             obj._p_blob_data = \
                     self._storage.loadBlob(oid, serial, self._version)
 

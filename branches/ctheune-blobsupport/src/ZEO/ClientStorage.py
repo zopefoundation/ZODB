@@ -27,6 +27,7 @@ import time
 import types
 import logging
 
+from zope.interface import implements
 from ZEO import ServerStub
 from ZEO.cache import ClientCache
 from ZEO.TransactionBuffer import TransactionBuffer
@@ -34,8 +35,11 @@ from ZEO.Exceptions import ClientStorageError, ClientDisconnected, AuthError
 from ZEO.auth import get_module
 from ZEO.zrpc.client import ConnectionManager
 
+from ZODB.Blobs.BlobStorage import BLOB_SUFFIX, BLOB_DIRTY
 from ZODB import POSException
+from ZODB import utils
 from ZODB.loglevels import BLATHER
+from ZODB.Blobs.interfaces import IBlobStorage
 from persistent.TimeStamp import TimeStamp
 
 logger = logging.getLogger('ZEO.ClientStorage')
@@ -93,6 +97,7 @@ class ClientStorage(object):
     tpc_begin().
     """
 
+    implements(IBlobStorage)
     # Classes we instantiate.  A subclass might override.
 
     TransactionBufferClass = TransactionBuffer
@@ -106,7 +111,7 @@ class ClientStorage(object):
                  wait_for_server_on_startup=None, # deprecated alias for wait
                  wait=None, wait_timeout=None,
                  read_only=0, read_only_fallback=0,
-                 username='', password='', realm=None):
+                 username='', password='', realm=None, blob_dir="/tmp"):
         """ClientStorage constructor.
 
         This is typically invoked from a custom_zodb.py file.
@@ -302,6 +307,8 @@ class ClientStorage(object):
         # must prevent access to the cache while _update_cache
         # is executing.
         self._lock = threading.Lock()
+
+        self.blob_dir = blob_dir
 
         # Decide whether to use non-temporary files
         if client is not None:
@@ -884,6 +891,58 @@ class ClientStorage(object):
         self._server.storea(oid, serial, data, version, id(txn))
         self._tbuf.store(oid, version, data)
         return self._check_serials()
+
+    def storeBlob(self, oid, serial, data, blobfilename, version, txn):
+        serials = self.store(oid, serial, data, version, txn)
+        blobfile = open(blobfilename, "rb")
+        while True:
+            chunk = blobfile.read(4096)
+            if not chunk:
+                self._server.storeBlobEnd(oid, serial, data, version, id(txn))
+                break
+            self._server.storeBlob(oid, serial, chunk, version, id(txn))
+        return serials
+
+    def _getDirtyFilename(self, oid, serial):
+        """Generate an intermediate filename for two-phase commit.
+        """
+        return self._getCleanFilename(oid, serial) + "." + BLOB_DIRTY
+
+    def _getBlobPath(self, oid):
+        return self.blob_dir
+
+    def _getCleanFilename(self, oid, tid):
+        return os.path.join(self._getBlobPath(oid),
+                            "%s-%s%s" % (utils.oid_repr(oid),
+                                         utils.tid_repr(tid), 
+                                         BLOB_SUFFIX,)
+                            )
+    def loadBlob(self, oid, serial, version):
+        blob_filename = self._getCleanFilename(oid, serial)
+        if os.path.exists(blob_filename):    # XXX see race condition below
+            return blob_filename
+
+        self._load_lock.acquire()
+        try:
+            if self._server is None:
+                raise ClientDisconnected()
+
+            tempfilename = self._getDirtyFilename(oid, serial)
+            tempfile = open(tempfilename, "wb")
+            
+            offset = 0
+            while True:
+                chunk = self._server.loadBlob(oid, serial, version, offset)
+                if not chunk:
+                    break
+                offset += len(chunk)
+                tempfile.write(chunk)
+
+            tempfile.close()
+            utils.best_rename(tempfilename, blob_filename)
+            return blob_filename
+        finally:
+            self._load_lock.release()
 
     def tpc_vote(self, txn):
         """Storage API: vote on a transaction."""
