@@ -27,15 +27,11 @@ class Dispatcher(asyncore.dispatcher):
     """A server that accepts incoming RPC connections"""
     __super_init = asyncore.dispatcher.__init__
 
-    reuse_addr = 1
-
-    def __init__(self, addr, factory=Connection, reuse_addr=None):
+    def __init__(self, addr, factory=Connection):
         self.__super_init()
         self.addr = addr
         self.factory = factory
         self.clients = []
-        if reuse_addr is not None:
-            self.reuse_addr = reuse_addr
         self._open_socket()
 
     def _open_socket(self):

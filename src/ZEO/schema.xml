@@ -58,6 +58,14 @@
     </description>
   </key>
 
+  <key name="monitor-address" datatype="socket-address" required="no">
+    <description>
+      The address at which the monitor server should listen.  If
+      specified, a monitor server is started.  The monitor server
+      provides server statistics in a simple text format.
+    </description>
+  </key>
+
   <multisection name="+" type="storage"
                 attribute="storages"
                 required="yes">
