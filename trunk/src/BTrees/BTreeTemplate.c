@@ -12,7 +12,7 @@
 
  ****************************************************************************/
 
-#define BTREETEMPLATE_C "$Id: BTreeTemplate.c,v 1.45 2002/06/11 20:26:10 tim_one Exp $\n"
+#define BTREETEMPLATE_C "$Id: BTreeTemplate.c,v 1.46 2002/06/12 20:51:46 tim_one Exp $\n"
 
 /*
 ** _BTree_get
@@ -592,6 +592,33 @@ err:
   return NULL;
 }
 
+/*
+ * Return:
+ *
+ * For an empty BTree (self->len == 0), None.
+ *
+ * For a BTree with one child (self->len == 1), and that child is a bucket,
+ * and that bucket has a NULL oid, a one-tuple containing a one-tuple
+ * containing the bucket's state:
+ *
+ *     (
+ *         (
+ *              child[0].__getstate__(),
+ *         ),
+ *     )
+ *
+ * Else a two-tuple.  The first element is a tuple interleaving the BTree's
+ * keys and direct children, of size 2*self->len - 1 (key[0] is unused and
+ * is not saved).  The second element is the firstbucket:
+ *
+ *     (
+ *          (child[0], key[1], child[1], key[2], child[2], ...,
+ *                                       key[len-1], child[len-1]),
+ *          self->firstbucket
+ *     )
+ *
+ * In the above, key[i] means self->data[i].key, and similarly for child[i].
+ */
 static PyObject *
 BTree_getstate(BTree *self, PyObject *args)
 {
@@ -611,7 +638,7 @@ BTree_getstate(BTree *self, PyObject *args)
 #endif
           )
         {
-          /* We have just one bucket. Save it's data directly. */
+          /* We have just one bucket. Save its data directly. */
           UNLESS(o=bucket_getstate(BUCKET(self->data->child), NULL)) goto err;
           PyTuple_SET_ITEM(r,0,o);
           ASSIGN(r, Py_BuildValue("(O)", r));
