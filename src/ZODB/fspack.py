@@ -42,10 +42,6 @@ except ImportError:
     def fsIndex():
         return {}
 
-# XXX errors
-##from zodb.storage.file.errors import CorruptedError
-##from zodb.storage.file.errors import CorruptedError, FileStorageFormatError
-
 class CorruptedError(Exception):
     pass
 
