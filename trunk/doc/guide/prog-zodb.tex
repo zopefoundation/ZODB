@@ -13,7 +13,7 @@ ZODB is packaged using the standard distutils tools.
 
 \subsubsection{Requirements}
 
-You will need Python 2.2 or higher.  Since the code is packaged using
+You will need Python 2.3 or higher.  Since the code is packaged using
 distutils, it is simply a matter of untarring or unzipping the release
 package, and then running \code{python setup.py install}.
 
@@ -34,12 +34,12 @@ the ZODB Wiki at \url{http://www.zope.org/Wikis/ZODB}.
 \subsection{How ZODB Works}
 
 The ZODB is conceptually simple.  Python classes subclass a 
-\class{Persistent} class to become ZODB-aware. 
+\class{persistent.Persistent} class to become ZODB-aware. 
 Instances of persistent objects are brought in from a permanent
 storage medium, such as a disk file, when the program needs them, and
 remain cached in RAM.  The ZODB traps modifications to objects, so
 that when a statement such as \code{obj.size = 1} is executed, the
-modified object is marked as ``dirty''.  On request, any dirty objects
+modified object is marked as ``dirty.''  On request, any dirty objects
 are written out to permanent storage; this is called committing a
 transaction.  Transactions can also be aborted or rolled back, which
 results in any changes being discarded, dirty objects reverting to
@@ -97,7 +97,7 @@ implement the \class{Storage} interface.
  storing and retrieving objects from some form of long-term storage.
  A few different types of Storage have been written, such as
  \class{FileStorage}, which uses regular disk files, and
- \class{bsddb3Storage}, which uses Sleepycat Software's BerkeleyDB
+ \class{BDBFullStorage}, which uses Sleepycat Software's BerkeleyDB
  database.  You could write a new Storage that stored objects in a
  relational database, for example, if that would
  better suit your application.  Two example storages,
@@ -134,27 +134,54 @@ changing the first line that opens a \class{Storage}; the above example uses a
 \class{FileStorage}.  In section~\ref{zeo}, ``How ZEO Works'',
 you'll see how ZEO uses this flexibility to good effect.
 
+\subsection{Using a ZODB Configuration File}
+
+ZODB also supports configuration files written in the ZConfig format.
+A configuration file can be used to separate the configuration logic
+from the application logic.  The storages classes and the \class{DB}
+class support a variety of keyword arguments; all these options can be
+specified in a config file.
+
+The configuration file is simple.  The example in the previous section
+could use the following example:
+
+\begin{verbatim}
+<zodb>
+  <filestorage>
+  path /tmp/test-filestorage.fs
+  </filestorage>
+</zodb>
+\end{verbatim}
+
+The \module{ZODB.config} module includes several functions for opening
+database and storages from configuration files.
+
+\begin{verbatim}
+import ZODB.config
+
+db = ZODB.config.databaseFromURL('/tmp/test.conf')
+conn = db.open()
+\end{verbatim}
+
+The ZConfig documentation, included in the ZODB3 release, explains
+the format in detail.  Each configuration file is described by a
+schema, by convention stored in a \file{component.xml} file.  ZODB,
+ZEO, zLOG, and zdaemon all have schemas.
+
 \subsection{Writing a Persistent Class}
 
 Making a Python class persistent is quite simple; it simply needs to
 subclass from the \class{Persistent} class, as shown in this example:
 
 \begin{verbatim}
-import ZODB
-from Persistence import Persistent
+from persistent import Persistent
 
 class User(Persistent):
     pass
 \end{verbatim}
 
-The apparently unnecessary \code{import ZODB} statement is
-needed for the following \code{from...import} statement to work
-correctly, since the ZODB code does some magical tricks with
-importing.
-
-The \class{Persistent} base class is an \module{ExtensionClass}
-class.  As a result, it not compatible with new-style classes or types
-in Python 2.2 and up.
+The \class{Persistent} base class is a new-style class implemented in
+C.
 
 For simplicity, in the examples the \class{User} class will
 simply be used as a holder for a bunch of attributes.  Normally the
@@ -246,25 +273,27 @@ in practice it isn't too painful to work around them.
 The summary of rules is as follows:
 
 \begin{itemize}
+
 \item If you modify a mutable object that's the value of an object's
 attribute, the ZODB can't catch that, and won't mark the object as
-dirty.  
-The solution is to either set the dirty bit yourself when you modify
-mutable objects, or use a wrapper for Python's lists and dictionaries
-(\class{PersistentList}, 
+dirty.  The solution is to either set the dirty bit yourself when you
+modify mutable objects, or use a wrapper for Python's lists and
+dictionaries (\class{PersistentList},
 \class{PersistentMapping})
 that will set the dirty bit properly.
 
-\item Certain of Python's special methods don't work when they're
-defined on ExtensionClasses.  The most important ones are the
-\method{__cmp__} method, and the reversed versions of binary
-arithmetic operations: \method{__radd__}, \method{__rsub__}, and so
-forth.
-
 \item Recent versions of the ZODB allow writing a class with 
-\method{__setattr__} , \method{__getattr__}, or \method{__delattr__} methods.  (Older versions didn't support this at all.)
-If you write such a \method{__setattr__} or \method{__delattr__} method, 
-its code has to set the dirty bit manually, 
+\method{__setattr__} , \method{__getattr__}, or \method{__delattr__}
+methods.  (Older versions didn't support this at all.)  If you write
+such a \method{__setattr__} or \method{__delattr__} method, its code
+has to set the dirty bit manually.
+
+\item A persistent class should not have an \method{__del__} method.
+The database moves objects freely between memory and storage.  If an
+object has not been used in a while, it may be released and its
+contents loaded from storage the next time it is used.  Since the
+Python interpreter is unaware of persistence, it would call the
+\method{__del__} each time the object was freed.
 
 \end{itemize}
 
@@ -296,12 +325,8 @@ its dirty bit to true.  This is done by setting the
 
 \begin{verbatim}
 userobj.friends.append(otherUser)
-userobj._p_changed = 1
+userobj._p_changed = True
 \end{verbatim}
-
-An obsolete way of doing this that's still supported is calling the
-\method{__changed__()} method instead, but setting \member{_p_changed} 
-is the preferred way.
 
 You can hide the implementation detail of having to mark objects as
 dirty by designing your class's API to not use direct attribute
@@ -328,45 +353,10 @@ and may make it into a future upstream release of Zope.
 % you set an object's _p_changed = None).  The __p_deactivate__ method should
 % not be used (it's also obsolete). 
 
-\subsubsection{Some Special Methods Don't Work}
-
-Don't bother defining certain special methods on
-ExtensionClasses, because they won't work.  Most notably, the
-\method{__cmp__} method on an ExtensionClass will never be called.
-Neither will the reversed versions of binary arithmetic operations,
-such as \method{__radd__} and \method{__rsub__}.
-
-This is a moderately annoying limitation.  It means that the
-\class{PersistentList} class can't implement comparisons with regular
-sequence objects, and therefore statements such as 
-\verb|if perslist==[]| don't do what you expect; instead of performing the correct
-comparison, they return some arbitrary fixed result, so the \code{if}
-statement will always be true or always be false.  There is no good
-solution to this problem at the moment, so all you can do is design
-class interfaces that don't need to overload
-\method{__cmp__} or the \method{__r*__} methods.
-
-This limitation is mostly Python's fault.  As of Python 2.1, the most
-recent version at this writing, the code which handles comparing two
-Python objects contains a hard-wired check for objects that are class
-instances, which means that \code{type(obj) == types.InstanceType}.
-The code inside the Python interpreter looks like this:
-
-\begin{verbatim}
-/* Code to compare objects v and w */
-if (PyInstance_Check(v) || PyInstance_Check(w))
-        return PyInstance_DoBinOp(v, w, "__cmp__", "__rcmp__", do_cmp);
-/* Do usual Python comparison of v,w */
-c = PyObject_Compare(v, w);
-\end{verbatim}
-
-While ExtensionClasses try to behave as much like regular Python
-instances as possible, they are still not instances, and
-\function{type()} doesn't return the \code{InstanceType} object, so 
-no attempt is ever made to call \method{__cmp__}.  Perhaps Python 2.2
-will repair this.
-
 \subsubsection{\method{__getattr__}, \method{__delattr__}, and \method{__setattr__}}
+
+% XXX This section could be out-of-date.  I've got to remember how we
+% decided to do this before the beta release.
 
 Recent versions of ZODB allow writing persistent classes that have
 \method{__getattr__}, \method{__delattr__}, or \method{__setattr__}
