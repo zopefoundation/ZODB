@@ -12,7 +12,7 @@
 
  ****************************************************************************/
 
-#define BTREETEMPLATE_C "$Id: BTreeTemplate.c,v 1.55 2002/06/17 16:42:29 tim_one Exp $\n"
+#define BTREETEMPLATE_C "$Id: BTreeTemplate.c,v 1.56 2002/06/17 18:26:39 tim_one Exp $\n"
 
 /*
 ** _BTree_get
@@ -183,28 +183,30 @@ static int
 BTree_grow(BTree *self, int index, int noval)
 {
   int i;
-  Sized *v, *e=0;
+  Sized *v, *e = 0;
   BTreeItem *d;
 
   if (self->len == self->size)
     {
       if (self->size)
         {
-          UNLESS (d=PyRealloc(self->data, sizeof(BTreeItem)*self->size*2))
+          d = PyRealloc(self->data, sizeof(BTreeItem)*self->size*2);
+          if (d == NULL)
             return -1;
-          self->data=d;
+          self->data = d;
           self->size *= 2;
         }
       else
         {
-          UNLESS (d=PyMalloc(sizeof(BTreeItem)*2))
+          d = PyMalloc(sizeof(BTreeItem)*2);
+          if (d == NULL)
             return -1;
-          self->data=d;
+          self->data = d;
           self->size = 2;
         }
     }
 
-  d=self->data+index;
+  d = self->data + index;
   if (self->len)
     {
       v = d->child;
@@ -221,11 +223,11 @@ BTree_grow(BTree *self, int index, int noval)
       /* Now split between the original (v) and the new (e) at the midpoint*/
       if (SameType_Check(self, v))
         {
-          i=BTree_split(BTREE(v), -1,   BTREE(e));
+          i = BTree_split(BTREE(v), -1,   BTREE(e));
         }
       else
         {
-          i=bucket_split(BUCKET(v), -1, BUCKET(e));
+          i = bucket_split(BUCKET(v), -1, BUCKET(e));
         }
       PER_ALLOW_DEACTIVATION(v);
 
@@ -254,7 +256,7 @@ BTree_grow(BTree *self, int index, int noval)
           COPY_KEY(d->key, BUCKET(e)->keys[0]);
           INCREF_KEY(d->key);
         }
-      d->child=e;
+      d->child = e;
 
       self->len++;
 
@@ -272,7 +274,7 @@ BTree_grow(BTree *self, int index, int noval)
           d->child = SIZED(PyObject_CallObject(OBJECT(&BucketType), NULL));
           UNLESS (d->child) return -1;
         }
-      self->len=1;
+      self->len = 1;
       Py_INCREF(d->child);
       self->firstbucket = BUCKET(d->child);
     }
