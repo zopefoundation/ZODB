@@ -45,9 +45,13 @@ pickler = cPickle.Pickler()
 pickler.fast = 1 # Don't use the memo
 dump = pickler.dump
 
-def log(message, level=zLOG.INFO, label="StorageServer:%s" % os.getpid(),
-        error=None):
-    zLOG.LOG(label, level, message, error=error)
+_label = "ZSS"
+def set_label():
+    global _label
+    _label = "ZSS:%s" % os.getpid()
+    
+def log(message, level=zLOG.INFO, label=None, error=None):
+    zLOG.LOG(label or _label, level, message, error=error)
 
 class StorageServerError(StorageError):
     pass
@@ -68,6 +72,7 @@ class StorageServer:
         self.connections = {}
         self.dispatcher = Dispatcher(addr, factory=self.new_connection,
                                      reuse_addr=1)
+        set_label()
 
     def new_connection(self, sock, addr):
         c = ManagedServerConnection(sock, addr, ZEOStorage(self), self)
@@ -144,11 +149,11 @@ class ZEOStorage:
         name = self.__class__.__name__
         return "<%s %X trans=%s s_trans=%s>" % (name, id(self), tid, stid)
 
-    def _log(self, msg, level=zLOG.INFO, error=None, pid=os.getpid()):
+    def _log(self, msg, level=zLOG.INFO, error=None):
         name = getattr(self.__storage, '__name__', None)
         if name is None:
             name = str(self.__storage)
-        zLOG.LOG("ZEOStorage:%s:%s" % (pid, name), level, msg, error=error)
+        zLOG.LOG("%s:%s" % (_label, name), level, msg, error=error)
 
     def setup_delegation(self):
         """Delegate several methods to the storage"""
@@ -261,7 +266,6 @@ class ZEOStorage:
     def new_oids(self, n=100):
         """Return a sequence of n new oids, where n defaults to 100"""
         if n <= 0:
-            # Always return at least one
             n = 1
         return [self.__storage.new_oid() for i in range(n)]
 
