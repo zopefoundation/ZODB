@@ -138,7 +138,7 @@ class ConnectionDotAdd(unittest.TestCase):
 
 class UserMethodTests(unittest.TestCase):
 
-    # XXX add isn't tested here, because there are is bunch of traditional
+    # XXX add isn't tested here, because there are a bunch of traditional
     # unit tests for it.
 
     # XXX the version tests would require a storage that supports versions
