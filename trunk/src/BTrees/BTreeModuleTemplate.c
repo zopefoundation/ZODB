@@ -2,14 +2,14 @@
 
   Copyright (c) 2001, 2002 Zope Corporation and Contributors.
   All Rights Reserved.
-  
+
   This software is subject to the provisions of the Zope Public License,
   Version 2.0 (ZPL).  A copy of the ZPL should accompany this distribution.
   THIS SOFTWARE IS PROVIDED "AS IS" AND ANY AND ALL EXPRESS OR IMPLIED
   WARRANTIES ARE DISCLAIMED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
   WARRANTIES OF TITLE, MERCHANTABILITY, AGAINST INFRINGEMENT, AND FITNESS
   FOR A PARTICULAR PURPOSE
-  
+
  ****************************************************************************/
 
 #ifdef PERSISTENT
@@ -17,7 +17,7 @@
 
 /***************************************************************
    The following are macros that ought to be in cPersistence.h */
-#ifndef PER_USE 
+#ifndef PER_USE
 
 #define PER_USE(O) \
 (((O)->state != cPersistent_GHOST_STATE \
@@ -25,7 +25,7 @@
  ? (((O)->state==cPersistent_UPTODATE_STATE) \
     ? ((O)->state=cPersistent_STICKY_STATE) : 1) : 0)
 
-#define PER_ACCESSED(O) ((O)->atime=((long)(time(NULL)/3))%65536) 
+#define PER_ACCESSED(O) ((O)->atime=((long)(time(NULL)/3))%65536)
 
 
 #endif
@@ -41,7 +41,6 @@
 #define PER_ACCESSED(O) 1
 #define PER_CHANGED(O) 0
 #endif
-
 
 static PyObject *sort_str, *reverse_str, *items_str, *__setstate___str;
 static PyObject *ConflictError = NULL;
@@ -63,47 +62,92 @@ static void PyVar_Assign(PyObject **v, PyObject *e) { Py_XDECREF(*v); *v=e;}
 #define ASSERT(C, S, R) if (! (C)) { \
   PyErr_SetString(PyExc_AssertionError, (S)); return (R); }
 
-typedef struct BTreeItemStruct {
-  KEY_TYPE key;
-  PyObject *value;
-} BTreeItem;
-
-typedef struct Bucket_s {
+/* Various kinds of BTree and Bucket structs are instances of
+ * "sized containers", and have a common initial layout:
+ *     The stuff needed for all Python objects, or all Persistent objects.
+ *     int size:  The maximum number of things that could be contained
+ *                without growing the container.
+ *     int len:   The number of things currently contained.
+ *
+ * Invariant:  0 <= len <= size.
+ *
+ * A sized container typically goes on to declare one or more pointers
+ * to contiguous arrays with 'size' elements each, the initial 'len' of
+ * which are currently in use.
+ */
 #ifdef PERSISTENT
-  cPersistent_HEAD
+#define sizedcontainer_HEAD         \
+    cPersistent_HEAD                \
+    int size;                       \
+    int len;
 #else
-  PyObject_HEAD
+#define sizedcontainer_HEAD         \
+    PyObject_HEAD                   \
+    int size;                       \
+    int len;
 #endif
-  int size, len;
-  struct Bucket_s *next;
-  KEY_TYPE *keys;
-  VALUE_TYPE *values;
+
+/* Nothing is actually of type Sized, but (pointers to) BTree nodes and
+ * Buckets can be cast to Sized* in contexts that only need to examine
+ * the members common to all sized containers.
+ */
+typedef struct Sized_s {
+    sizedcontainer_HEAD
+} Sized;
+
+#define SIZED(O) ((Sized*)(O))
+
+/* A Bucket wraps contiguous vectors of keys and values.  Keys are unique,
+ * and stored in sorted order.  The 'values' pointer may be NULL if the
+ * Bucket is used to implement a set.  Buckets serving as leafs of BTrees
+ * are chained together via 'next', so that the entire BTree contents
+ * can be traversed in sorted order quickly and easily.
+ */
+typedef struct Bucket_s {
+  sizedcontainer_HEAD
+  struct Bucket_s *next;    /* the bucket with the next-larger keys */
+  KEY_TYPE *keys;           /* 'len' keys, in increasing order */
+  VALUE_TYPE *values;       /* 'len' corresponding values; NULL if a set */
 } Bucket;
 
 #define BUCKET(O) ((Bucket*)(O))
-#define SIZED(O) ((Bucket*)(O))
 
 static void PyVar_AssignB(Bucket **v, Bucket *e) { Py_XDECREF(*v); *v=e;}
 #define ASSIGNB(V,E) PyVar_AssignB(&(V),(E))
 #define ASSIGNBC(V,E) (Py_INCREF((E)), PyVar_AssignB(&(V),(E)))
 
-typedef struct {
-#ifdef PERSISTENT
-  cPersistent_HEAD
-#else
-  PyObject_HEAD
-#endif
-  int size, len;
+/* A BTree is complicated.  See Maintainer.txt.
+ */
+
+typedef struct BTreeItem_s {
+  KEY_TYPE key;
+  PyObject *value;
+} BTreeItem;
+
+typedef struct BTree_s {
+  sizedcontainer_HEAD
+
+  /* firstbucket points to the bucket containing the smallest key in
+   * the BTree.  This is found by traversing leftmost child pointers
+   * (data[0].value) until reaching a Bucket.
+   */
   Bucket *firstbucket;
+
+  /* The BTree points to 'len' children, via the oddly named "value" fields
+   * of the data array.  There are len-1 keys in the 'key' fields, stored
+   * in increasing order.  data[0].key is unused.  For i in 0 .. len-1,
+   * all keys reachable from data[i].value are >= data[i].key and <
+   * data[i+1].key, at the endpoints pretending that data[0].key is minus
+   * infinity and data[len].key is positive infinity.
+   */
   BTreeItem *data;
 } BTree;
 
 staticforward PyExtensionClass BTreeType;
 
-
 #define BTREE(O) ((BTree*)(O))
 
-typedef struct SetIteration_s 
+typedef struct SetIteration_s
 {
   PyObject *set;
   int position;
@@ -115,7 +159,7 @@ typedef struct SetIteration_s
 
 static PyObject *
 IndexError(int i)
-{                              
+{
   PyObject *v;
 
   v=PyInt_FromLong(i);
@@ -142,7 +186,7 @@ PreviousBucket(Bucket *current, Bucket *first, int i)
   while (1)
     {
       PER_USE_OR_RETURN(first,NULL);
-      if (first->next==current) 
+      if (first->next==current)
         {
           PER_ALLOW_DEACTIVATION(first);
           PER_ACCESSED(first);
@@ -168,7 +212,7 @@ PreviousBucket(Bucket *current, Bucket *first, int i)
     }
 }
 
-static int 
+static int
 firstBucketOffset(Bucket **bucket, int *offset)
 {
   Bucket *b;
@@ -187,7 +231,7 @@ firstBucketOffset(Bucket **bucket, int *offset)
   return 1;
 }
 
-static int 
+static int
 lastBucketOffset(Bucket **bucket, int *offset, Bucket *firstbucket, int i)
 {
   Bucket *b;
@@ -275,11 +319,11 @@ static struct PyMethodDef module_methods[] = {
   {NULL,		NULL}		/* sentinel */
 };
 
-static char BTree_module_documentation[] = 
+static char BTree_module_documentation[] =
 "\n"
 MASTER_ID
 BTREEITEMSTEMPLATE_C
-"$Id: BTreeModuleTemplate.c,v 1.22 2002/05/30 21:00:30 tim_one Exp $\n"
+"$Id: BTreeModuleTemplate.c,v 1.23 2002/05/31 16:28:03 tim_one Exp $\n"
 BTREETEMPLATE_C
 BUCKETTEMPLATE_C
 KEYMACROS_H
@@ -291,7 +335,7 @@ VALUEMACROS_H
 BTREEITEMSTEMPLATE_C
 ;
 
-void 
+void
 INITMODULE (void)
 {
   PyObject *m, *d, *c;
@@ -331,10 +375,10 @@ INITMODULE (void)
 
   if (m != NULL) {
   	c = PyObject_GetAttrString(m, "BTreesConflictError");
-  	if (c != NULL) 
+  	if (c != NULL)
   		ConflictError = c;
-	Py_DECREF(m);	
-  } 
+	Py_DECREF(m);
+  }
 
   if (ConflictError == NULL) {
   	Py_INCREF(PyExc_ValueError);
@@ -353,7 +397,7 @@ INITMODULE (void)
 #ifdef INTSET_H
   UNLESS(d = PyImport_ImportModule("intSet")) return;
   UNLESS(intSetType = PyObject_GetAttrString (d, "intSet")) return;
-  Py_DECREF (d); 
+  Py_DECREF (d);
 #endif
 
   /* Create the module and add the functions */
