@@ -30,7 +30,7 @@ class TestThread(threading.Thread):
     def run(self):
         try:
             self.testrun()
-        except Exception, err:
+        except Exception:
             s = StringIO()
             traceback.print_exc(file=s)
             self._testcase.fail("Exception in thread %s:\n%s\n" %
