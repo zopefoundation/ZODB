@@ -81,7 +81,9 @@ class TestZEOOptions(TestOptions):
     output_args = []
 
     configdata = """
-        address 5555
+        <zeo>
+          address 5555
+        </zeo>
         <filestorage fs>
           path Data.fs
         </filestorage>
