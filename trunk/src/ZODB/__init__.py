@@ -114,4 +114,3 @@ del cPersistence
 from DB import DB
 
 import Transaction
-del Transaction
