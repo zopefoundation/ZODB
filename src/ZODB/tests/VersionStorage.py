@@ -12,8 +12,48 @@ from ZODB.Transaction import Transaction
 from ZODB.tests.MinPO import MinPO
 from ZODB.tests.StorageTestBase import zodb_unpickle
 
-
 class VersionStorage:
+
+    def _commitVersion(self, src, dst):
+        t = Transaction()
+        self._storage.tpc_begin(t)
+        oids = self._storage.commitVersion(src, dst, t)
+        self._storage.tpc_vote(t)
+        self._storage.tpc_finish(t)
+        return oids
+
+    def _abortVersion(self, ver):
+        t = Transaction()
+        self._storage.tpc_begin(t)
+        oids = self._storage.abortVersion(ver, t)
+        self._storage.tpc_vote(t)
+        self._storage.tpc_finish(t)
+        return oids
+
+    def checkCommitVersionSerialno(self):
+        oid = self._storage.new_oid()
+        revid1 = self._dostore(oid, data=MinPO(12))
+        revid2 = self._dostore(oid, revid=revid1, data=MinPO(13),
+                               version="version")
+        oids = self._commitVersion("version", "")
+        self.assertEqual([oid], oids)
+        data, revid3 = self._storage.load(oid, "")
+        # use repr() to avoid getting binary data in a traceback on error
+        self.assertNotEqual(`revid1`, `revid3`)
+        self.assertNotEqual(`revid2`, `revid3`)
+
+    def checkAbortVersionSerialno(self):
+        oid = self._storage.new_oid()
+        revid1 = self._dostore(oid, data=MinPO(12))
+        revid2 = self._dostore(oid, revid=revid1, data=MinPO(13),
+                               version="version")
+        oids = self._abortVersion("version")
+        self.assertEqual([oid], oids)
+        data, revid3 = self._storage.load(oid, "")
+        # use repr() to avoid getting binary data in a traceback on error
+        self.assertEqual(`revid1`, `revid3`)
+        self.assertNotEqual(`revid2`, `revid3`)
+    
     def checkVersionedStoreAndLoad(self):
         eq = self.assertEqual
         # Store a couple of non-version revisions of the object
@@ -143,15 +183,7 @@ class VersionStorage:
         # Berkeley storage give a different answer. I think Berkeley
         # is right and FS is wrong.
 
-##        s1 = self._storage.getSerial(oid)
-        # Now abort the version -- must be done in a transaction
-        t = Transaction()
-        self._storage.tpc_begin(t)
-        oids = self._storage.abortVersion(version, t)
-        self._storage.tpc_vote(t)
-        self._storage.tpc_finish(t)
-##        s2 = self._storage.getSerial(oid)
-##        eq(s1, s2) # or self.assert(s2 > s1) ?
+        oids = self._abortVersion(version)
         eq(len(oids), 1)
         eq(oids[0], oid)
         data, revid = self._storage.load(oid, '')
@@ -213,14 +245,7 @@ class VersionStorage:
         data, vserial = self._storage.load(oid, version)
         data, nserial = self._storage.load(oid, '')
 
-        # Now abort the version
-        t = Transaction()
-        self._storage.tpc_begin(t)
-        oids = self._storage.abortVersion(version, t)
-        self._storage.tpc_vote(t)
-        self._storage.tpc_finish(t)
-        
-        # Now check the new serial
+        self._abortVersion(version)
         data, serial = self._storage.load(oid, version)
 
         self.failUnless(serial != vserial and serial != nserial,
@@ -234,14 +259,7 @@ class VersionStorage:
         data, vserial = self._storage.load(oid, version)
         data, nserial = self._storage.load(oid, '')
 
-        # Now commit the version
-        t = Transaction()
-        self._storage.tpc_begin(t)
-        oids = self._storage.commitVersion(version, '', t)
-        self._storage.tpc_vote(t)
-        self._storage.tpc_finish(t)
-        
-        # Now check the new serial
+        self._commitVersion(version, '')
         data, serial = self._storage.load(oid, '')
 
         self.failUnless(serial != vserial and serial != nserial,
@@ -255,15 +273,8 @@ class VersionStorage:
         data, vserial = self._storage.load(oid, version)
         data, nserial = self._storage.load(oid, '')
 
-        # Now commit the version
-        t = Transaction()
-        self._storage.tpc_begin(t)
         version2 = 'test version 2'
-        oids = self._storage.commitVersion(version, version2, t)
-        self._storage.tpc_vote(t)
-        self._storage.tpc_finish(t)
-        
-        # Now check the new serial
+        self._commitVersion(version, version2)
         data, serial = self._storage.load(oid, version2)
 
         self.failUnless(serial != vserial and serial != nserial,
@@ -274,13 +285,7 @@ class VersionStorage:
     def checkModifyAfterAbortVersion(self):
         eq = self.assertEqual
         oid, version = self._setup_version()
-        # Now abort the version
-        t = Transaction()
-        self._storage.tpc_begin(t)
-        oids = self._storage.abortVersion(version, t)
-        self._storage.tpc_vote(t)
-        self._storage.tpc_finish(t)
-        # Load the object's current state (which gets us the revid)
+        self._abortVersion(version)
         data, revid = self._storage.load(oid, '')
         # And modify it a few times
         revid = self._dostore(oid, revid=revid, data=MinPO(52))
@@ -297,12 +302,7 @@ class VersionStorage:
         eq(zodb_unpickle(data), MinPO(54))
         data, revid = self._storage.load(oid, '')
         eq(zodb_unpickle(data), MinPO(51))
-        # Try committing this version to the empty version
-        t = Transaction()
-        self._storage.tpc_begin(t)
-        oids = self._storage.commitVersion(version, '', t)
-        self._storage.tpc_vote(t)
-        self._storage.tpc_finish(t)
+        self._commitVersion(version, '')
         data, revid = self._storage.load(oid, '')
         eq(zodb_unpickle(data), MinPO(54))
 
@@ -325,12 +325,7 @@ class VersionStorage:
         eq(zodb_unpickle(data), MinPO(51))
 
         # Okay, now let's commit object1 to version2
-        t = Transaction()
-        self._storage.tpc_begin(t)
-        oids = self._storage.commitVersion(version1, version2,
-                                           t)
-        self._storage.tpc_vote(t)
-        self._storage.tpc_finish(t)
+        oids = self._commitVersion(version1, version2)
         eq(len(oids), 1)
         eq(oids[0], oid1)
         data, revid = self._storage.load(oid1, version2)
@@ -360,12 +355,7 @@ class VersionStorage:
         data, revid2 = self._storage.load(oid1, version2)
         eq(zodb_unpickle(data), MinPO(51))
 
-        # First, let's abort version1
-        t = Transaction()
-        self._storage.tpc_begin(t)
-        oids = self._storage.abortVersion(version1, t)
-        self._storage.tpc_vote(t)
-        self._storage.tpc_finish(t)
+        oids = self._abortVersion(version1)
         eq(len(oids), 1)
         eq(oids[0], oid1)
         data, revid = self._storage.load(oid1, '')
@@ -386,11 +376,7 @@ class VersionStorage:
         data, revid = self._storage.load(oid2, version2)
         eq(zodb_unpickle(data), MinPO(54))
         # Okay, now let's commit version2 back to the trunk
-        t = Transaction()
-        self._storage.tpc_begin(t)
-        oids = self._storage.commitVersion(version2, '', t)
-        self._storage.tpc_vote(t)
-        self._storage.tpc_finish(t)
+        oids = self._commitVersion(version2, '')
         eq(len(oids), 1)
         eq(oids[0], oid2)
         data, revid = self._storage.load(oid1, '')
