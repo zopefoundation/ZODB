@@ -88,7 +88,7 @@ process must skip such objects, rather than deactivating them.
 static char cPickleCache_doc_string[] =
 "Defines the PickleCache used by ZODB Connection objects.\n"
 "\n"
-"$Id: cPickleCache.c,v 1.71 2003/02/11 19:16:27 bwarsaw Exp $\n";
+"$Id: cPickleCache.c,v 1.72 2003/03/31 22:39:33 jeremy Exp $\n";
 
 #define ASSIGN(V,E) {PyObject *__e; __e=(E); Py_XDECREF(V); (V)=__e;}
 #define UNLESS(E) if(!(E))
@@ -146,18 +146,6 @@ typedef struct {
 static int cc_ass_sub(ccobject *self, PyObject *key, PyObject *v);
 
 /* ---------------------------------------------------------------- */
-
-/* somewhat of a replacement for PyDict_GetItem(self->data....
-   however this returns a *new* reference */
-static PyObject *
-object_from_oid(ccobject *self, PyObject *key)
-{
-    PyObject *v = PyDict_GetItem(self->data, key);
-    if (!v) 
-	return NULL;
-    Py_INCREF(v);
-    return v;
-}
 
 #define OBJECT_FROM_RING(SELF, HERE, CTX) \
     ((cPersistentObject *)(((char *)here) - offsetof(cPersistentObject, ring)))
@@ -308,7 +296,7 @@ cc_minimize(ccobject *self, PyObject *args)
 static void
 _invalidate(ccobject *self, PyObject *key)
 {
-    PyObject *v = object_from_oid(self, key);
+    PyObject *v = PyDict_GetItem(self->data, key);
 
     if (!v)
 	return;
@@ -329,7 +317,6 @@ _invalidate(ccobject *self, PyObject *key)
 	if (PyObject_DelAttr(v, py__p_changed) < 0)
 	    PyErr_Clear();
     }
-    Py_XDECREF(v);
 }
 
 static PyObject *
@@ -374,21 +361,21 @@ cc_invalidate(ccobject *self, PyObject *args)
 static PyObject *
 cc_get(ccobject *self, PyObject *args)
 {
-    PyObject *r, *key, *d = NULL;
+    PyObject *r, *key, *def = NULL;
 
-    if (!PyArg_ParseTuple(args, "O|O:get", &key, &d)) 
+    if (!PyArg_ParseTuple(args, "O|O:get", &key, &def)) 
 	return NULL;
 
-    r = (PyObject *)object_from_oid(self, key);
+    r = PyDict_GetItem(self->data, key);
     if (!r) {
-	if (d) {
-	    r = d;
-	    Py_INCREF(r);
-	} else {
+	if (def)
+	    r = def;
+	else {
 	    PyErr_SetObject(PyExc_KeyError, key);
 	    return NULL;
 	}
     }
+    Py_INCREF(r);
 
     return r;
 }
@@ -501,6 +488,13 @@ cc_oid_unreferenced(ccobject *self, PyObject *oid)
        interpreter has untracked the reference.  Track it again.
      */
     _Py_NewReference(v);
+
+    /* Don't increment total refcount as a result of the 
+       shenanigans played in this function.  The _Py_NewReference()
+       call above and the Py_INCREF() below both create artificial
+       references to v.
+    */
+    _Py_RefTotal -= 2;
     /* XXX it may be a problem that v->ob_type is still NULL? 
        I don't understand what this comment means.  --jeremy */
     assert(v->ob_type);
@@ -517,6 +511,7 @@ cc_oid_unreferenced(ccobject *self, PyObject *oid)
     /* XXX Should we call _Py_ForgetReference() on error exit? */
     if (PyDict_DelItem(self->data, oid) < 0)
 	return -1;
+    Py_DECREF((ccobject *)((cPersistentObject *)v)->cache);
 
     if (v->ob_refcnt != 1) {
         PyErr_SetString(PyExc_ValueError,
@@ -664,11 +659,12 @@ cc_subscript(ccobject *self, PyObject *key)
 {
     PyObject *r;
 
-    r = (PyObject *)object_from_oid(self, key);
+    r = PyDict_GetItem(self->data, key);
     if (r == NULL) {
 	PyErr_SetObject(PyExc_KeyError, key);
 	return NULL;
     }
+    Py_INCREF(r);
 
     return r;
 }
@@ -686,8 +682,8 @@ cc_add_item(ccobject *self, PyObject *key, PyObject *v)
     else if( PyExtensionInstance_Check(v) &&
              (((PyExtensionClass*)(v->ob_type))->class_flags & PERSISTENT_TYPE_FLAG) &&
              (v->ob_type->tp_basicsize >= sizeof(cPersistentObject)) ) {
-        /* Its and instance of a persistent class, (ie Python classeses that
-        derive from Persistence.Persistent, BTrees, etc). Thats ok. */
+        /* Its an instance of a persistent class, (ie Python classes that
+	   derive from Persistence.Persistent, BTrees, etc). Thats ok. */
     }
     else {
 	PyErr_SetString(PyExc_TypeError, 
@@ -725,7 +721,7 @@ cc_add_item(ccobject *self, PyObject *key, PyObject *v)
     jar = PyObject_GetAttr(v, py__p_jar);
     if (jar == NULL)
         return -1;
-    if (jar==Py_None) {
+    if (jar == Py_None) {
         Py_DECREF(jar);
         PyErr_SetString(PyExc_ValueError,
                         "Cached object jar missing");
@@ -733,16 +729,14 @@ cc_add_item(ccobject *self, PyObject *key, PyObject *v)
     }
     Py_DECREF(jar);
 
-    object_again = object_from_oid(self, key);
+    object_again = PyDict_GetItem(self->data, key);
     if (object_again) {
 	if (object_again != v) {
-	    Py_DECREF(object_again);
 	    PyErr_SetString(PyExc_ValueError,
 		    "Can not re-register object under a different oid");
 	    return -1;
 	} else {
 	    /* re-register under the same oid - no work needed */
-	    Py_DECREF(object_again);
 	    return 0;
 	}
     }
@@ -799,7 +793,7 @@ cc_del_item(ccobject *self, PyObject *key)
     cPersistentObject *p;
 
     /* unlink this item from the ring */
-    v = (PyObject *)object_from_oid(self, key);
+    v = PyDict_GetItem(self->data, key);
     if (v == NULL)
 	return -1;
 
@@ -825,8 +819,6 @@ cc_del_item(ccobject *self, PyObject *key)
 	Py_DECREF((PyObject *)p->cache);
 	p->cache = NULL;
     }
-
-    Py_DECREF(v);
 
     if (PyDict_DelItem(self->data, key) < 0) {
 	PyErr_SetString(PyExc_RuntimeError,
