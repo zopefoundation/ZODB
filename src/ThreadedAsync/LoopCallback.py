@@ -25,7 +25,7 @@ register_loop_callback() to register interest.  When the mainloop
 thread calls loop(), each registered callback will be called with the
 socket map as its first argument.
 """
-__version__ = '$Revision: 1.7 $'[11:-2]
+__version__ = '$Revision: 1.8 $'[11:-2]
 
 import asyncore
 import select
@@ -157,12 +157,15 @@ def loop(timeout=30.0, use_poll=0, map=None):
 # break 3rd party code.  So we'll issue a warning and let it continue -- for
 # now.
 
-def deprecated_loop(*args, **kws):
-    import warnings
-    warnings.warn("""\
-ThreadedAsync.loop() called through sneaky asyncore.loop() rebinding.
-You should change your code to call ThreadedAsync.loop() explicitly.""",
-                  DeprecationWarning)
-    loop(*args, **kws)
+##def deprecated_loop(*args, **kws):
+##    import warnings
+##    warnings.warn("""\
+##ThreadedAsync.loop() called through sneaky asyncore.loop() rebinding.
+##You should change your code to call ThreadedAsync.loop() explicitly.""",
+##                  DeprecationWarning)
+##    loop(*args, **kws)
 
-asyncore.loop = deprecated_loop
+##asyncore.loop = deprecated_loop
+
+# XXX Remove this once we've updated ZODB4 since they share this package
+asyncore.loop = loop
