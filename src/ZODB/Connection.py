@@ -257,8 +257,13 @@ class Connection(ExportImport, object):
 
     def get_connection(self, database_name):
         """Return a Connection for the named database."""
-        # XXX implement this
-        return
+        connection = self.connections.get(database_name)
+        if connection is None:
+            new_con = self._db.databases[database_name].open()
+            self.connections.update(new_con.connections)
+            new_con.connections = self.connections
+            connection = new_con
+        return connection
 
     def getTransaction(self):
         """Get the current transaction for this connection.
@@ -452,6 +457,9 @@ class Connection(ExportImport, object):
             self._txn_mgr.registerSynch(self)
         self._reader = ConnectionObjectReader(self, self._cache,
                                               self._db.classFactory)
+
+        # Multi-database support
+        self.connections = {self._db.database_name: self}
 
     def _resetCache(self):
         """Creates a new cache, discarding the old one.
