@@ -184,7 +184,7 @@
 #   may have a back pointer to a version record or to a non-version
 #   record.
 #
-__version__='$Revision: 1.29 $'[11:-2]
+__version__='$Revision: 1.30 $'[11:-2]
 
 import struct, time, os, bpthread, string, base64, sys
 from struct import pack, unpack
@@ -428,6 +428,8 @@ class FileStorage(BaseStorage.BaseStorage):
 
     def close(self):
         self._file.close()
+        self._lock_file.close()
+        self._tfile.close()
         self._save_index()
         
     def commitVersion(self, src, dest, transaction, abort=None):
