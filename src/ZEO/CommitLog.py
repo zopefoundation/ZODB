@@ -31,11 +31,6 @@ class CommitLog:
         self.stores = 0
         self.read = 0
 
-    def tpc_begin(self, t, tid, status):
-        self.t = t
-        self.tid = tid
-        self.status = status
-
     def store(self, oid, serial, data, version):
         self.pickler.dump((oid, serial, data, version))
         self.stores += 1
