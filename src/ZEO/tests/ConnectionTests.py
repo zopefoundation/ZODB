@@ -728,6 +728,7 @@ class ReconnectionTests(CommonSetupTearDown):
         self.assertEqual(self._storage.verify_result, "no verification")
         self.assertEqual(perstorage.verify_result, "no verification")
         perstorage.close()
+        self._storage.close()
 
     def checkQuickVerificationWith2Clients(self):
         perstorage = self.openClientStorage(cache="test")
