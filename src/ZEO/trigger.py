@@ -128,57 +128,57 @@ else:
             w.setsockopt(socket.IPPROTO_TCP, 1, 1)
 
             # tricky: get a pair of connected sockets
-            host='127.0.0.1'
-            port=19999
+            host = '127.0.0.1'
+            port = 19999
             while 1:
                 try:
-                    self.address=(host, port)
+                    self.address = host, port
                     a.bind(self.address)
                     break
                 except:
                     if port <= 19950:
                         raise 'Bind Error', 'Cannot bind trigger!'
-                    port=port - 1
+                    port -= 1
 
-            a.listen (1)
-            w.setblocking (0)
+            a.listen(1)
+            w.setblocking(0)
             try:
-                w.connect (self.address)
+                w.connect(self.address)
             except:
                 pass
             r, addr = a.accept()
             a.close()
-            w.setblocking (1)
+            w.setblocking(1)
             self.trigger = w
 
-            asyncore.dispatcher.__init__ (self, r)
+            asyncore.dispatcher.__init__(self, r)
             self.lock = thread.allocate_lock()
             self.thunks = []
             self._trigger_connected = 0
 
-        def __repr__ (self):
+        def __repr__(self):
             return '<select-trigger (loopback) at %x>' % id(self)
 
-        def readable (self):
+        def readable(self):
             return 1
 
-        def writable (self):
+        def writable(self):
             return 0
 
-        def handle_connect (self):
+        def handle_connect(self):
             pass
 
-        def pull_trigger (self, thunk=None):
+        def pull_trigger(self, thunk=None):
             if thunk:
                 try:
                     self.lock.acquire()
-                    self.thunks.append (thunk)
+                    self.thunks.append(thunk)
                 finally:
                     self.lock.release()
-            self.trigger.send ('x')
+            self.trigger.send('x')
 
-        def handle_read (self):
-            self.recv (8192)
+        def handle_read(self):
+            self.recv(8192)
             try:
                 self.lock.acquire()
                 for thunk in self.thunks:
