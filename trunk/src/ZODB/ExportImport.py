@@ -89,7 +89,47 @@ from utils import p64, u64
 from referencesf import referencesf
 from cStringIO import StringIO
 from cPickle import Pickler, Unpickler
+import Shared.DC.xml.ppml
+ppml=Shared.DC.xml.ppml
 TupleType=type(())
+
+def save_record(self, tag, data):
+    file=self.file
+    write=file.write
+    pos=file.tell()
+    file.seek(pos)
+    a=data[1]
+    if a.has_key('id'): oid=a['id']
+    oid=ppml.p64(string.atoi(oid))
+    v=''
+    for x in data[2:]:
+        v=v+x
+    l=ppml.p64(len(v))
+    v=oid+l+v
+    return v
+
+class zopedata:
+    def __init__(self, parser, tag, attrs):
+        self.file=parser.file
+        write=self.file.write
+        write('ZEXP')
+
+    def append(self, data):
+        file=self.file
+        write=file.write
+        pos=file.tell()
+        file.seek(pos)
+        write(data)
+
+def start_zopedata(self, tag, data):
+    return zopedata(self, tag, data)
+
+def save_zopedata(self, tag, data):
+    file=self.file
+    write=file.write
+    pos=file.tell()
+    file.seek(pos)
+    write(export_end_marker)
 
 class ExportImport:
 
@@ -120,6 +160,43 @@ class ExportImport:
         write(export_end_marker)
         return file
 
+    def XMLrecord(self, oid, len, p):
+        q=ppml.ToXMLUnpickler
+        f=StringIO(p)
+        u=q(f)
+        id=ppml.u64(oid)
+        u.idprefix=str(id)+'.'
+        p=u.load().__str__(4)
+        if f.tell() < len:
+            p=p+u.load().__str__(4)
+        String='  <record id="%s">\n%s  </record>\n' % (id, p)
+        return String
+    
+    def exportXML(self, oid, file=None):
+
+        if file is None: file=TemporaryFile()
+        elif type(file) is StringType: file=open(file,'w+b')
+        write=file.write
+        write('<?xml version="1.0"?>\012<ZopeData>\012')
+        version=self._version
+        ref=referencesf
+        oids=[oid]
+        done_oids={}
+        done=done_oids.has_key
+        load=self._storage.load
+        while oids:
+            oid=oids[0]
+            del oids[0]
+            if done(oid): continue
+            done_oids[oid]=1
+            try: p, serial = load(oid, version)
+            except: pass # Ick, a broken reference
+            else:
+                ref(p, oids)
+                write(self.XMLrecord(oid,len(p),p))
+        write('</ZopeData>\n')
+        return file
+
     def importFile(self, file, clue=''):
         # This is tricky, because we need to work in a transaction!
 
@@ -128,7 +205,16 @@ class ExportImport:
             file=open(file,'rb')
         else:
             try: file_name=file.name
-            except: file_name='(unknown)'
+            except: file_name='(unknown)'    
+        read=file.read
+        
+        if read(4) == '<?xm':
+            file.seek(0)
+            return self.importXML(file, clue)
+        else:
+            file.seek(0)
+            if file.read(4) != 'ZEXP':
+                raise POSException.ExportError, 'Invalid export header'
 
         t=get_transaction().sub()
 
@@ -137,11 +223,6 @@ class ExportImport:
 
         storage=self._storage
         new_oid=storage.new_oid
-        
-        read=file.read
-        if read(4) != 'ZEXP':
-            raise POSException.ExportError, 'Invalid export header'
-
         oids={}
         wrote_oid=oids.has_key
         new_oid=storage.new_oid
@@ -210,6 +291,31 @@ class ExportImport:
         else:
             storage.tpc_finish(t)
             if return_oid is not None: return self[return_oid]
+
+
+
+    def importXML(self, file, clue=''):
+        import Shared.DC.xml.pyexpat.pyexpat
+        pyexpat=Shared.DC.xml.pyexpat.pyexpat
+        if type(file) is StringType:
+            file=open(file)
+        outfile=TemporaryFile()
+        data=file.read()
+        F=ppml.xmlPickler()
+        F.end_handlers['record'] = save_record
+        F.end_handlers['ZopeData'] = save_zopedata
+        F.start_handlers['ZopeData'] = start_zopedata
+        F.binary=1
+        F.file=outfile
+        p=pyexpat.ParserCreate()
+        p.CharacterDataHandler=F.handle_data
+        p.StartElementHandler=F.unknown_starttag
+        p.EndElementHandler=F.unknown_endtag
+        r=p.Parse(data)
+        outfile.seek(0)
+        return self.importFile(outfile,clue)
+        
+        
             
 
     ######################################################################
