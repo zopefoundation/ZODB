@@ -900,7 +900,8 @@ class ClientStorage:
             finally:
                 self._lock.release()
 
-            self._server.tpc_finish(self._serial)
+            tid = self._server.tpc_finish(self._serial)
+            self._cache.setLastTid(tid)
 
             r = self._check_serials()
             assert r is None or len(r) == 0, "unhandled serialnos: %s" % r
