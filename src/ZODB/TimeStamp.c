@@ -14,7 +14,7 @@
 static char TimeStamp_module_documentation[] = 
 "Defines 64-bit TimeStamp objects used as ZODB serial numbers.\n"
 "\n"
-"\n$Id: TimeStamp.c,v 1.11 2002/01/23 16:30:05 gvanrossum Exp $\n";
+"\n$Id: TimeStamp.c,v 1.12 2002/01/24 20:19:06 gvanrossum Exp $\n";
 
 #include <stdlib.h>
 #include <time.h>
@@ -121,7 +121,7 @@ TimeStamp___init__(TimeStamp *self, PyObject *args)
       PyErr_Clear();
       if (PyArg_ParseTuple(args, "iii|iid", &y, &mo, &d, &h, &m, &sec))
 	{
-	  s=self->data;
+	  s=(char *)self->data;
 	  v=((((y-1900)*12+mo-1)*31+d-1)*24+h)*60+m;
 	  s[0]=v/16777216;
 	  s[1]=(v%16777216)/65536;
@@ -237,7 +237,7 @@ TimeStamp_laterThan(TimeStamp *self, PyObject *args)
 
   self=o;
 
-  UNLESS(a=PyString_FromStringAndSize(self->data, 8)) return NULL;
+  UNLESS(a=PyString_FromStringAndSize((char *) self->data, 8)) return NULL;
   s=(unsigned char *)PyString_AsString(a);
   
   for (i=7; i > 3; i--) 
@@ -323,7 +323,7 @@ TimeStamp_dealloc(TimeStamp *self)
 static PyObject *
 TimeStamp_repr(TimeStamp *self)
 {
-  return PyString_FromStringAndSize(self->data, 8);
+  return PyString_FromStringAndSize((char *)self->data, 8);
 }
 
 static PyObject *
@@ -412,7 +412,7 @@ void
 initTimeStamp(void)
 {
   PyObject *m, *d, *s;
-  char *rev="$Revision: 1.11 $";
+  char *rev="$Revision: 1.12 $";
 
   if (TimeStamp_init_gmoff() < 0) return;
   if (! ExtensionClassImported) return;
