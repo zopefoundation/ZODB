@@ -83,7 +83,7 @@
 # 
 ##############################################################################
 
-__version__ = "$Revision: 1.9 $"[11:-2]
+__version__ = "$Revision: 1.10 $"[11:-2]
 
 import asyncore, socket, string, sys, cPickle, os
 from smac import SizedMessageAsyncConnection
@@ -159,9 +159,7 @@ class StorageServer(asyncore.dispatcher):
                    dump=dump):
         for c in self.__connections[storage_id]:
             if c is connection: continue
-            c.message_output('bN.')
             c.message_output('I'+dump(invalidated, 1))
-            c.message_output('eN.')
 
     def writable(self): return 0
     
