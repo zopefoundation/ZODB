@@ -314,17 +314,17 @@ class ZEOStorage:
         if invalidated:
             self.server.invalidate(self, self.__storage_id,
                                    invalidated, self.get_size_info())
-        if not self._handle_waiting():
-            self._transaction = None
-            self.strategy = None
+        self._transaction = None
+        self.strategy = None
+        self._handle_waiting()
 
     def tpc_abort(self, id):
         if not self._check_tid(id):
             return
         self.strategy.tpc_abort()
-        if not self._handle_waiting():
-            self._transaction = None
-            self.strategy = None
+        self._transaction = None
+        self.strategy = None
+        self._handle_waiting()
 
     # XXX handle new serialnos
 
@@ -363,7 +363,7 @@ class ZEOStorage:
             d = Delay()
             self.__storage._waiting.append((d, self))
             self._log("Transaction blocked waiting for storage. "
-                      "%d clients waiting." % len(self.__storage._waiting))
+                      "Clients waiting: %d." % len(self.__storage._waiting))
             return d
         else:
             self.restart()
@@ -372,13 +372,13 @@ class ZEOStorage:
         while self.__storage._waiting:
             delay, zeo_storage = self.__storage._waiting.pop(0)
             if self._restart(zeo_storage, delay):
-                break
-            if self.__storage._waiting:
-                n = len(self.__storage._waiting)
-                self._log("Blocked transaction restarted.  "
-                          "%d clients waiting." % n)
-            else:
-                self._log("Blocked transaction restarted.")
+                if self.__storage._waiting:
+                    n = len(self.__storage._waiting)
+                    self._log("Blocked transaction restarted.  "
+                              "Clients waiting: %d" % n)
+                else:
+                    self._log("Blocked transaction restarted.")
+                return
 
     def _restart(self, zeo_storage, delay):
         # Return True if the server restarted.
