@@ -84,7 +84,7 @@ except ImportError:
 
 import getopt, ZODB.FileStorage, struct, time
 from struct import unpack
-from ZODB.utils import t32, p64, U64
+from ZODB.utils import t32, p64, u64
 from ZODB.TimeStamp import TimeStamp
 from cPickle import loads
 from ZODB.FileStorage import RecordIterator
@@ -150,25 +150,37 @@ def read_transaction_header(file, pos, file_size):
 
     return pos, result
 
-def scan(file, pos, file_size):
-    seek=file.seek
-    read=file.read
-    while 1:
-        seek(pos)
-        data=read(8096)
-        if not data: return 0
+def scan(file, pos):
+    """Return a potential transaction location following pos in file.
 
-        s=0
+    This routine scans forward from pos looking for the last data
+    record in a transaction.  A period '.' always occurs at the end of
+    a pickle, and an 8-byte transaction length follows the last
+    pickle.  If a period is followed by a plausible 8-byte transaction
+    length, assume that we have found the end of a transaction.
+
+    The caller should try to verify that the returned location is
+    actually a transaction header.
+    """
+    while 1:
+        file.seek(pos)
+        data = file.read(8096)
+        if not data:
+            return 0
+
+        s = 0
         while 1:
-            l=data.find('.', s)
+            l = data.find('.', s)
             if l < 0:
-                pos=pos+8096
+                pos += len(data)
                 break
-            if l > 8080:
-                pos = pos + l
+            # If we are less than 8 bytes from the end of the
+            # string, we need to read more data.
+            if l > len(data) - 8:
+                pos += l
                 break
-            s=l+1
-            tl=U64(data[s:s+8])
+            s = l + 1
+            tl = u64(data[s:s+8])
             if tl < pos:
                 return pos + s + 8
 
@@ -234,7 +246,7 @@ def recover(inp, outp, verbose=0, partial=0, force=0, pack=0):
             print "\n%s: %s\n" % sys.exc_info()[:2]
             if not verbose:
                 progress(prog1)
-            pos = scan(file, pos, file_size)
+            pos = scan(file, pos)
             continue
 
         if transaction is None:
@@ -298,7 +310,7 @@ def recover(inp, outp, verbose=0, partial=0, force=0, pack=0):
             print "\n%s: %s\n" % sys.exc_info()[:2]
             if not verbose:
                 progress(prog1)
-            pos = scan(file, pos, file_size)
+            pos = scan(file, pos)
         else:
             ofs.tpc_vote(transaction)
             ofs.tpc_finish(transaction)
