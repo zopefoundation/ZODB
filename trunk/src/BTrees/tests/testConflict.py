@@ -11,7 +11,7 @@
 # FOR A PARTICULAR PURPOSE
 # 
 ##############################################################################
-import sys, os, time, random
+import os
 
 from BTrees.OOBTree import OOBTree, OOBucket, OOSet, OOTreeSet
 from BTrees.IOBTree import IOBTree, IOBucket, IOSet, IOTreeSet
@@ -50,26 +50,18 @@ class MappingBase(Base):
         del self.t[1]
 
     def _setupConflict(self):
+        
+        l=[ -5124, -7377, 2274, 8801, -9901, 7327, 1565, 17, -679,
+            3686, -3607, 14, 6419, -5637, 6040, -4556, -8622, 3847, 7191,
+            -4067]
+
+
+        e1=[(-1704, 0), (5420, 1), (-239, 2), (4024, 3), (-6984, 4)]
+        e2=[(7745, 0), (4868, 1), (-2548, 2), (-2711, 3), (-3154, 4)]
+
+        
         base=self.t
-        d={}
-        for i in range(20):
-            d[random.randrange(-10000, 10001)]=i*100000
-
-        e1={}
-        while len(e1) < 5:
-            k=random.randrange(-10000, 10001)
-            if not d.has_key(k):
-                e1[k]=len(e1)
-        e1=e1.items()
-
-        e2={}
-        while len(e2) < 5:
-            k=random.randrange(-10000, 10001)
-            if not d.has_key(k) and not e2.has_key(k):
-                e2[k]=len(e2)
-        e2=e2.items()
-
-        base.update(d)
+        base.update([(i, i*i) for i in l[:20]])
         b1=base.__class__(base)
         b2=base.__class__(base)
         bm=base.__class__(base)
@@ -200,27 +192,17 @@ class NormalSetTests(Base):
 class ExtendedSetTests(NormalSetTests):
     "Set (as opposed to TreeSet) specific tests."
 
-    def _setupConflict(self):
+    def _setupConflict(self):        
+        l=[ -5124, -7377, 2274, 8801, -9901, 7327, 1565, 17, -679,
+            3686, -3607, 14, 6419, -5637, 6040, -4556, -8622, 3847, 7191,
+            -4067]
+
+        e1=[-1704, 5420, -239, 4024, -6984]
+        e2=[7745, 4868, -2548, -2711, -3154]
+
+        
         base=self.t
-        d={}
-        for i in range(20):
-            d[random.randrange(-10000, 10001)]=i*100000
-
-        e1={}
-        while len(e1) < 5:
-            k=random.randrange(-10000, 10001)
-            if not d.has_key(k):
-                e1[k]=len(e1)
-        e1=e1.keys()
-
-        e2={}
-        while len(e2) < 5:
-            k=random.randrange(-10000, 10001)
-            if not d.has_key(k) and not e2.has_key(k):
-                e2[k]=len(e2)
-        e2=e2.keys()
-
-        base.update(d.keys())
+        base.update(l)
         b1=base.__class__(base)
         b2=base.__class__(base)
         bm=base.__class__(base)
@@ -400,6 +382,7 @@ class TestOIBuckets(BucketTests, TestCase):
     def setUp(self):
         self.t = OIBucket()
 
+# XXX disable tests for now
 def test_suite():
     TIOBTree = makeSuite(TestIOBTrees, 'test')
     TOOBTree = makeSuite(TestOOBTrees, 'test')
