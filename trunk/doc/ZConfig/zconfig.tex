@@ -349,8 +349,18 @@ for the top level of a configuration and for imported resources).
   and changes the lookup semantics of the \method{get()} method.
 \end{classdesc}
 
-\class{Configuration} objects provide the following methods to
-retrieve values from the section:
+\class{Configuration} objects provide the following attributes and
+methods to retrieve information from the section:
+
+\begin{memberdesc}[Configuration]{container}
+  The containing section of this section, or \code{None}.
+\end{memberdesc}
+
+\begin{memberdesc}[Configuration]{delegate}
+  The \class{Configuration} object to which lookups are delegated when
+  they cannot be satisfied directly.  If there is no such section,
+  this will be \code{None}.
+\end{memberdesc}
 
 \begin{methoddesc}[Configuration]{get}{key\optional{, default}}
   Returns the value for \var{key} as a string; a value from the
@@ -409,6 +419,18 @@ retrieve values from the section:
   Return a list of keys from this section, including any available
   from the delegate section.
 \end{methoddesc}
+
+\begin{memberdesc}[Configuration]{name}
+  The name of this section, or \code{None}.
+\end{memberdesc}
+
+\begin{memberdesc}[Configuration]{type}
+  The type of this section as a string.
+\end{memberdesc}
+
+\begin{memberdesc}[Configuration]{url}
+  The URL of the source this section was loaded from.
+\end{memberdesc}
 
 
 The following methods are used to modify the values defined in a
