@@ -573,9 +573,7 @@ class ConnectionTests(CommonSetupTearDown):
         self.assert_(c1._invalidated.has_key(r1._p_oid))
 
         # force the invalidations to be applied...
-        c1.setLocalTransaction()
-        c1.getTransaction().register(c1)
-        c1.getTransaction().abort()
+        c1.sync()
         r1.keys() # unghostify
         self.assertEqual(r1._p_serial, r2._p_serial)
 
