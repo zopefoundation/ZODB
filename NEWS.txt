@@ -2,6 +2,14 @@ What's new in ZODB3 3.4?
 ========================
 Release date: DD-MMM-2004
 
+DB
+--
+
+- The following optional arguments to ``DB.open()`` are deprecated:
+  ``transaction``, ``waitflag``, ``force`` and ``temporary``.  If one
+  is specified, its value is ignored, and ``DeprecationWarning`` is
+  raised.  In a future release, these optional arguments will be
+  removed.
 
 Tools
 -----
