@@ -1259,16 +1259,14 @@ class FileStorage(BaseStorage.BaseStorage,
                     wantver = None
 
                 th = self._read_txn_header(h.tloc)
-                user_name = self._file.read(th.ulen)
-                description = self._file.read(th.dlen)
-                if th.elen:
-                    d = loads(self._file.read(th.elen))
+                if th.ext:
+                    d = loads(th.ext)
                 else:
                     d = {}
 
                 d.update({"time": TimeStamp(h.tid).timeTime(),
-                          "user_name": user_name,
-                          "description": description,
+                          "user_name": th.user,
+                          "description": th.descr,
                           "tid": h.tid,
                           "version": h.version,
                           "size": h.plen,
