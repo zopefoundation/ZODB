@@ -148,7 +148,7 @@ class Test(unittest.TestCase):
         # An empty index should complain.
         self.assertRaises(ValueError, index.minKey)
 
-        # Now build up a tree with random values, and check maxKey at each
+        # Now build up a tree with random values, and check minKey at each
         # step.
         correct_min = "\xff" * 8   # bigger than anything we'll add
         for i in range(1000):
