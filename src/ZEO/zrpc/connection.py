@@ -18,7 +18,7 @@ import threading
 import types
 
 import ThreadedAsync
-from ZEO import smac # XXX put smac in zrpc?
+from ZEO.zrpc import smac
 from ZEO.zrpc.error import ZRPCError, DisconnectedError, DecodingError
 from ZEO.zrpc.log import log, short_repr
 from ZEO.zrpc.marshal import Marshaller

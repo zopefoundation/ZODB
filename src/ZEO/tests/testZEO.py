@@ -49,7 +49,7 @@ except ImportError:
 
 
 from ZEO.tests import forker, Cache, CommitLockTests, ThreadTests
-from ZEO.smac import Disconnected
+from ZEO.zrpc.smac import Disconnected
 
 from ZODB.tests import StorageTestBase, BasicStorage, VersionStorage, \
      TransactionalUndoStorage, TransactionalUndoVersionStorage, \
