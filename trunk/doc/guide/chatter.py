@@ -1,11 +1,13 @@
 
 import sys, time, os, random
 
+import transaction
+from persistent import Persistent
+
 from ZEO import ClientStorage
 import ZODB
 from ZODB.POSException import ConflictError
-from Persistence import Persistent
-import BTree
+from BTrees import OOBTree
 
 class ChatSession(Persistent):
 
@@ -28,7 +30,7 @@ class ChatSession(Persistent):
         self.name = name
 
         # Internal attribute: _messages holds all the chat messages.
-        self._messages = BTree.BTree()
+        self._messages = OOBTree.OOBTree()
 
 
     def new_messages(self):
@@ -58,7 +60,7 @@ class ChatSession(Persistent):
             try:
                 now = time.time()
                 self._messages[ now ] = message
-                get_transaction().commit()
+                transaction.commit()
             except ConflictError:
                 # Conflict occurred; this process should pause and
                 # wait for a little bit, then try again.
@@ -80,8 +82,8 @@ def get_chat_session(conn, channelname):
     root = conn.root()
     if not root.has_key('chat_sessions'):
         print 'Creating chat_sessions B-tree'
-        root['chat_sessions'] = BTree.BTree()
-        get_transaction().commit()
+        root['chat_sessions'] = OOBTree.OOBTree()
+        transaction.commit()
 
     sessions = root['chat_sessions']
 
@@ -90,7 +92,7 @@ def get_chat_session(conn, channelname):
     if not sessions.has_key( channelname ):
         print 'Creating new session:', channelname
         sessions[ channelname ] = ChatSession(channelname)
-        get_transaction().commit()
+        transaction.commit()
 
     session = sessions[ channelname ]
     return session
