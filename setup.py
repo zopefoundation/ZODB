@@ -247,11 +247,11 @@ class MyDistribution(Distribution):
 doclines = __doc__.split("\n")
 
 setup(name="ZODB3",
-      version="3.4a1",
+      version="3.5a0",
       maintainer="Zope Corporation",
       maintainer_email="zodb-dev@zope.org",
       url = "http://www.zope.org/Wikis/ZODB",
-      download_url = "http://www.zope.org/Products/ZODB3.3",
+      download_url = "http://www.zope.org/Products/ZODB3.5",
       packages = packages,
       package_dir = {'': 'src'},
       ext_modules = exts,
