@@ -72,7 +72,7 @@
   </sectiontype>
 
 
-  <sectiontype name="zodb"
+  <sectiontype name="zodb" datatype=".ZODBDatabase"
                implements="database">
     <section type="storage" name="*" attribute="storage"/>
     <key name="cache-size" datatype="integer" default="5000"/>
