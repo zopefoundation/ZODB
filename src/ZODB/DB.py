@@ -610,7 +610,7 @@ class DB(object):
 
         There are two optional arguments that can be used to set the
         pack time: t, pack time in seconds since the epcoh, and days,
-        the number of days to substract from t or from the current
+        the number of days to subtract from t or from the current
         time if t is not specified.
         """
         if t is None:
