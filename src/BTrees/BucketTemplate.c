@@ -82,7 +82,7 @@
   
  ****************************************************************************/
 
-#define BUCKETTEMPLATE_C "$Id: BucketTemplate.c,v 1.15 2001/06/20 14:48:51 matt Exp $\n"
+#define BUCKETTEMPLATE_C "$Id: BucketTemplate.c,v 1.16 2001/06/20 19:32:55 matt Exp $\n"
 
 /*
 ** _bucket_get
@@ -1137,6 +1137,8 @@ bucket__p_resolveConflict(Bucket *self, PyObject *args)
 	Py_XDECREF(error);
 	PyErr_Restore(ConflictError, value, traceback);
   }
+
+  return result;
 }
 #endif
 

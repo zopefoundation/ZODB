@@ -83,7 +83,7 @@
   
  ****************************************************************************/
 
-#define MERGETEMPLATE_C "$Id: MergeTemplate.c,v 1.6 2001/06/20 14:48:51 matt Exp $\n"
+#define MERGETEMPLATE_C "$Id: MergeTemplate.c,v 1.7 2001/06/20 19:32:55 matt Exp $\n"
 
 /****************************************************************************
  Set operations
@@ -110,7 +110,10 @@ merge_error(int p1, int p2, int p3, int reason)
   PyObject *r;
 
   UNLESS (r=Py_BuildValue("iiii", p1, p2, p3, reason)) r=Py_None;
-  if (ConflictError == NULL) ConflictError=PyExc_ValueError;
+  if (ConflictError == NULL) {
+  	ConflictError=PyExc_ValueError;
+	Py_INCREF(ConflictError);
+  }
   PyErr_SetObject(ConflictError, r);
   if (r != Py_None) 
     {
