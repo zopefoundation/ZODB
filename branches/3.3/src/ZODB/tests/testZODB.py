@@ -359,6 +359,49 @@ class ZODBTests(unittest.TestCase):
         self.obj = DecoyIndependent()
         self.readConflict()
 
+    def checkReadConflictErrorClearedDuringAbort(self):
+        # When a transaction is aborted, the "memory" of which
+        # objects were the cause of a ReadConflictError during
+        # that transaction should be cleared.
+        root = self._db.open(mvcc=False).root()
+        data = PersistentMapping({'d': 1})
+        root["data"] = data
+        transaction.commit()
+
+        # Provoke a ReadConflictError.
+        tm2 = transaction.TransactionManager()
+        cn2 = self._db.open(mvcc=False, txn_mgr=tm2)
+        r2 = cn2.root()
+        data2 = r2["data"]
+
+        data['d'] = 2
+        transaction.commit()
+
+        try:
+            data2['d'] = 3
+        except ReadConflictError:
+            pass
+        else:
+            self.fail("No conflict occurred")
+
+        # Explicitly abort cn2's transaction.
+        tm2.get().abort()
+
+        # cn2 should retain no memory of the read conflict after an abort(),
+        # but 3.2.3 had a bug wherein it did.
+        data_conflicts = data._p_jar._conflicts
+        data2_conflicts = data2._p_jar._conflicts
+        self.failIf(data_conflicts)
+        self.failIf(data2_conflicts)  # this used to fail
+
+        # And because of that, we still couldn't commit a change to data2['d']
+        # in the new transaction.
+        cn2.sync()  # process the invalidation for data2['d']
+        data2['d'] = 3
+        tm2.get().commit()  # 3.2.3 used to raise ReadConflictError
+
+        cn2.close()
+
     def checkTxnBeginImpliesAbort(self):
         # begin() should do an abort() first, if needed.
         cn = self._db.open()
