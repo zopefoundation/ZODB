@@ -14,8 +14,7 @@
 ##############################################################################
 """Start the ZEO storage server.
 
-Usage: %s [-a ADDRESS] [-d DIRECTORY]
-          [-f FILENAME] [-s STORAGE] [-u USER]
+Usage: %s [-a ADDRESS] [-d DIRECTORY] [-f FILENAME] [-s STORAGE]
 
 Options:
 -a/--address ADDRESS -- server address of the form PORT, HOST:PORT, or PATH
@@ -25,7 +24,6 @@ Options:
 -s/--storage STORAGE -- storage specification of the form
                         NAME=MODULE[:ATTRIBUTE]
                         (multiple -s options are supported)
--u/--user USER -- username or uid of user to setuid()
 
 -a is required; either -f must be used or -s must be used.
 """
@@ -140,19 +138,17 @@ class ZEOOptions(Options):
 
     family = None
     address = None
-    user = None
     storages = None
     filename = None
     directory = None
 
-    _short_options = "a:d:f:hs:u:"
+    _short_options = "a:d:f:hs:"
     _long_options = [
         "--address=",
         "--directory=",
         "--filename=",
         "--help",
         "--storage=",
-        "--user=",
         ]
 
     def handle_option(self, opt, arg):
@@ -189,8 +185,6 @@ class ZEOOptions(Options):
                 module = rest
                 attr = name
             self.storages[name] = module, attr
-        elif opt in ("-u", "--user"):
-            self.user = arg
         else:
             # Pass it to the base class, for --help/-h
             Options.handle_option(self, opt, arg)
@@ -218,7 +212,6 @@ class Server:
     def main(self):
         self.check_socket()
         self.clear_socket()
-        self.set_uid()
         self.change_dir()
         self.open_storages()
         self.setup_signals()
@@ -247,32 +240,6 @@ class Server:
                 os.unlink(self.opts.address)
             except os.error:
                 pass
-
-    def set_uid(self):
-        if self.opts.user is None:
-            return
-        if os.name != "posix":
-            self.opts.usage("-u/-user only supported on Unix")
-        if os.geteuid() != 0:
-            self.opts.usage("only root can use -u/--user")
-        # XXX Is it important not to die if the following fails?
-        import pwd
-        try:
-            uid = int(self.opts.user)
-        except: # int() can raise all sorts of errors
-            try:
-                pwrec = pwd.getpwnam(self.opts.user)
-            except KeyError:
-                self.opts.usage("username %r not found" % self.opts.user)
-            uid = pwrec[2]
-        else:
-            try:
-                pwrec = pwd.getpwuid(uid)
-            except KeyError:
-                self.opts.usage("uid %r not found" % self.opts.user)
-        gid = pwrec[3]
-        os.setgid(gid)
-        os.setuid(uid)
 
     def change_dir(self):
         if self.opts.directory:
