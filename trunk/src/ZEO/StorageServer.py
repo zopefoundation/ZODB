@@ -83,7 +83,7 @@
 # 
 ##############################################################################
 
-__version__ = "$Revision: 1.22 $"[11:-2]
+__version__ = "$Revision: 1.23 $"[11:-2]
 
 import asyncore, socket, string, sys, os
 from smac import SizedMessageAsyncConnection
@@ -492,7 +492,7 @@ class ZEOConnection(SizedMessageAsyncConnection):
         if storage._transaction is not None:
             try: waiting=storage.__waiting
             except: waiting=storage.__waiting=[]
-            waiting.append(self.unlock, ())
+            waiting.append((self.unlock, ()))
             return 1 # Return a flag indicating a lock condition.
             
         self._transaction=t=Transaction()
@@ -512,7 +512,7 @@ class ZEOConnection(SizedMessageAsyncConnection):
         else:
             try: waiting=storage.__waiting
             except: waiting=storage.__waiting=[]
-            waiting.append(self.try_again_sync, (id, user, description, ext))
+            waiting.append((self.try_again_sync, (id, user, description, ext)))
 
         return _noreturn
         
