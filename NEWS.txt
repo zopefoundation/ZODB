@@ -1,6 +1,9 @@
-What's new in ZODB3 3.3
-=======================
-Release date: DD-MMM-2004
+What's new in ZODB3 3.3c1
+=========================
+Release date: 11-Aug-2004
+
+This is release candidate 1 for ZODB 3.3.  With luck, 3.3 final will be
+the same, except for version numbers.
 
 Transaction Managers
 --------------------
@@ -52,7 +55,7 @@ Test suite
 
 Collector #1397: testTimeStamp fails on FreeBSD
 
-    The *BSD distributions are unique in that their mktime()
+    The BSD distributions are unique in that their mktime()
     implementation usually ignores the input tm_isdst value.  Test
     checkFullTimeStamp() was sensitive to this platform quirk.
 
