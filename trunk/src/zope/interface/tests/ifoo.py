@@ -1,6 +1,6 @@
 ##############################################################################
 #
-# Copyright (c) 2004 Zope Corporation and Contributors.
+# Copyright (c) 2001, 2002 Zope Corporation and Contributors.
 # All Rights Reserved.
 #
 # This software is subject to the provisions of the Zope Public License,
@@ -11,5 +11,18 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
-#
-# This file is necessary to make this directory a package.
+"""IFoo test module
+
+$Id$
+"""
+from zope.interface import Interface
+
+class IFoo(Interface):
+    """
+        Dummy interface for unit tests.
+    """
+
+    def bar(baz):
+        """
+            Just a note.
+        """

@@ -1,6 +1,6 @@
 ##############################################################################
 #
-# Copyright (c) 2004 Zope Corporation and Contributors.
+# Copyright (c) 2003 Zope Corporation and Contributors.
 # All Rights Reserved.
 #
 # This software is subject to the provisions of the Zope Public License,
@@ -11,5 +11,13 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
-#
-# This file is necessary to make this directory a package.
+"""Extension to use doctest tests as unit tests
+
+This module provides a DocTestSuite contructor for converting doctest
+tests to unit tests.
+
+$Id$
+"""
+
+from doctest import DocFileSuite, DocTestSuite
+from doctest import debug_src, debug

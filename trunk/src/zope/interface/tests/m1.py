@@ -11,5 +11,13 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
-#
-# This file is necessary to make this directory a package.
+"""Test module that declares an interface
+
+$Id$
+"""
+from zope.interface import Interface, moduleProvides
+
+class I1(Interface): pass
+class I2(Interface): pass
+
+moduleProvides(I1, I2)

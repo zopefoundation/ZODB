@@ -1,6 +1,6 @@
 ##############################################################################
 #
-# Copyright (c) 2004 Zope Corporation and Contributors.
+# Copyright (c) 2001, 2002 Zope Corporation and Contributors.
 # All Rights Reserved.
 #
 # This software is subject to the provisions of the Zope Public License,
@@ -11,5 +11,20 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
-#
-# This file is necessary to make this directory a package.
+"""Set up testing environment
+
+$Id$
+"""
+import os
+
+def patchTracebackModule():
+    """Use the ExceptionFormatter to show more info in tracebacks.
+    """
+    from zope.exceptions.exceptionformatter import format_exception
+    import traceback
+    traceback.format_exception = format_exception
+
+# Don't use the new exception formatter by default, since it
+# doesn't show filenames.
+if os.environ.get('NEW_ZOPE_EXCEPTION_FORMATTER', 0):
+    patchTracebackModule()
