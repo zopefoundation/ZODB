@@ -581,7 +581,7 @@ class DB(object):
         def get_info(c):
             # `result`, `time` and `version` are lexically inherited.
             o = c._opened
-            d = c._debug_info
+            d = c.getDebugInfo()
             if d:
                 if len(d) == 1:
                     d = d[0]

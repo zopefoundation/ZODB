@@ -257,11 +257,25 @@ class IPersistentDataManager(Interface):
     def setstate(object):
         """Load the state for the given object.
 
-        The object should be in the ghost state.
-        The object's state will be set and the object will end up
-        in the saved state.
+        The object should be in the ghost state. The object's state will be
+        set and the object will end up in the saved state.
 
         The object must provide the IPersistent interface.
+        """
+
+    def oldstate(obj, tid):
+        """Return copy of 'obj' that was written by transaction 'tid'.
+
+        The returned object does not have the typical metadata (_p_jar, _p_oid,
+        _p_serial) set. I'm not sure how references to other peristent objects
+        are handled.
+
+        Parameters
+        obj: a persistent object from this Connection.
+        tid: id of a transaction that wrote an earlier revision.
+
+        Raises KeyError if tid does not exist or if tid deleted a revision of 
+            obj. 
         """
 
     def register(object):
@@ -269,6 +283,9 @@ class IPersistentDataManager(Interface):
 
         This method must be called when the object transitions to
         the changed state.
+
+        A subclass could override this method to customize the default
+        policy of one transaction manager for each thread.
         """
 
     def mtime(object):
