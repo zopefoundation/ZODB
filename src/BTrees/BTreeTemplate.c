@@ -12,7 +12,7 @@
   
  ****************************************************************************/
 
-#define BTREETEMPLATE_C "$Id: BTreeTemplate.c,v 1.23 2002/02/21 21:41:17 jeremy Exp $\n"
+#define BTREETEMPLATE_C "$Id: BTreeTemplate.c,v 1.24 2002/02/28 20:12:00 jeremy Exp $\n"
 
 /*
 ** _BTree_get
@@ -695,7 +695,7 @@ _BTree_setstate(BTree *self, PyObject *state, int noval)
             {
               COPY_KEY_FROM_ARG(d->key, PyTuple_GET_ITEM(items,l), copied);
               l++;
-              UNLESS (&copied) return -1;
+              UNLESS (copied) return -1;
               INCREF_KEY(d->key);
             }
           d->value=PyTuple_GET_ITEM(items,l);
