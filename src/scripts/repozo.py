@@ -27,7 +27,8 @@ Where:
     -r dir
     --repository=dir
         Repository directory containing the backup files.  This argument
-        is required.  The directory must already exist.
+        is required.  The directory must already exist.  You should not
+        edit the files in this directory, or add your own files to it.
 
 Options for -B/--backup:
     -f file
@@ -52,7 +53,7 @@ Options for -B/--backup:
 Options for -R/--recover:
     -D str
     --date=str
-        Recover state as of this date.  str is in the format
+        Recover state as of this date.  Specify UTC (not local) time.
             yyyy-mm-dd[-hh[-mm[-ss]]]
         By default, current time is used.
 
