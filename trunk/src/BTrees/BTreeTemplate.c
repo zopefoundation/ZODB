@@ -12,7 +12,7 @@
 
  ****************************************************************************/
 
-#define BTREETEMPLATE_C "$Id: BTreeTemplate.c,v 1.48 2002/06/13 04:28:06 tim_one Exp $\n"
+#define BTREETEMPLATE_C "$Id: BTreeTemplate.c,v 1.49 2002/06/13 04:49:01 tim_one Exp $\n"
 
 /*
 ** _BTree_get
@@ -967,26 +967,24 @@ BTree_findRangeEnd(BTree *self, PyObject *keyarg, int low,
     }
     /* High-end search:  if it's possible to go left, do so. */
     else if (deepest_smaller) {
-        UNLESS(PER_USE(deepest_smaller)) goto Done;
         if (deepest_smaller_is_btree) {
-                /* We own the reference this returns. */
-                pbucket = BTree_lastBucket(BTREE(deepest_smaller));
+            UNLESS(PER_USE(deepest_smaller)) goto Done;
+            /* We own the reference this returns. */
+            pbucket = BTree_lastBucket(BTREE(deepest_smaller));
+            PER_ALLOW_DEACTIVATION(deepest_smaller);
+            PER_ACCESSED(deepest_smaller);
+            if (pbucket == NULL) goto Done;   /* error */
         }
         else {
-                pbucket = BUCKET(deepest_smaller);
-                Py_INCREF(pbucket);
+            pbucket = BUCKET(deepest_smaller);
+            Py_INCREF(pbucket);
         }
-        PER_ALLOW_DEACTIVATION(deepest_smaller);
-        PER_ACCESSED(deepest_smaller);
-        if (pbucket) {
-            UNLESS(PER_USE(pbucket)) goto Done;
-            result = 1;
-            *bucket = pbucket;  /* transfer ownership to caller */
-            *offset = pbucket->len - 1;
-            PER_ALLOW_DEACTIVATION(pbucket);
-            PER_ACCESSED(pbucket);
-        }
-        /* pbucket NULL is an error */
+        UNLESS(PER_USE(pbucket)) goto Done;
+        result = 1;
+        *bucket = pbucket;  /* transfer ownership to caller */
+        *offset = pbucket->len - 1;
+        PER_ALLOW_DEACTIVATION(pbucket);
+        PER_ACCESSED(pbucket);
     }
     else
         result = 0;     /* simply not found */
