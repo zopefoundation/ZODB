@@ -1,3 +1,4 @@
+from __future__ import nested_scopes
 # Some simple tests for zeopack.py
 # For this to work, zeopack.py must by on your PATH.
 
@@ -9,6 +10,8 @@ import ZODB
 import os
 import socket
 import tempfile
+import threading
+import time
 import unittest
 
 # XXX The forker interface isn't clearly defined.  It's different on
@@ -47,7 +50,8 @@ class PackerTests(StorageTestBase):
         try:
             os.waitpid(self.pid, 0)
         except os.error, err:
-            print err
+            ##print "waitpid failed", err
+            pass
         for ext in '', '.old', '.lock', '.index', '.tmp':
             path = self.path + ext
             try:
@@ -86,6 +90,19 @@ class PackerTests(StorageTestBase):
     def testNoServer(self):
         status = os.system("zeopack.py -p 19")
         assert status != 0
+
+    def testWaitForServer(self):
+        self.set_inet_addr()
+        def delayed_start():
+            time.sleep(11)
+            self.start()
+        t = threading.Thread(target=delayed_start)
+        t.start()
+        status = os.system("zeopack.py -h %s -p %s -W" % (self.host,
+                                                          self.port))
+        t.join()
+        assert status == 0
+        assert os.path.exists(self.path + ".old")
 
 class UpTest(unittest.TestCase):
     
