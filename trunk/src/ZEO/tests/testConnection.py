@@ -42,8 +42,17 @@ class UnixConnectionTests(ConnectionTests):
                  (create, index, read_only))
         path = "%s.%d" % (self.file, index)
         addr = self.addr[index]
-        pid, server = forker.start_zeo_server(
-            'FileStorage', (path, create, read_only), addr, ro_svr)
+        conf = """\
+        <Storage>
+            type FileStorage
+            file_name %s
+            create %s
+            read_only %s
+        </Storage>""" % (path,
+                         create and 'yes' or 'no',
+                         read_only and 'yes' or 'no')
+
+        pid, server = forker.start_zeo_server(conf, addr, ro_svr)
         self._pids.append(pid)
         self._servers.append(server)
 
