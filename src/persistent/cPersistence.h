@@ -81,6 +81,8 @@ typedef struct {
     percachedelfunc percachedel;
 } cPersistenceCAPIstruct;
 
+#define cPersistenceType cPersistenceCAPI->pertype
+
 #ifndef DONT_USE_CPERSISTENCECAPI
 static cPersistenceCAPIstruct *cPersistenceCAPI;
 #endif
@@ -95,10 +97,26 @@ static cPersistenceCAPIstruct *cPersistenceCAPI;
 
 #define PER_GHOSTIFY(O) (cPersistenceCAPI->ghostify((cPersistentObject*)(O)))
 
+/* If the object is sticky, make it non-sticky, so that it can be ghostified.
+   The value is not meaningful
+ */
 #define PER_ALLOW_DEACTIVATION(O) ((O)->state==cPersistent_STICKY_STATE && ((O)->state=cPersistent_UPTODATE_STATE))
 
 #define PER_PREVENT_DEACTIVATION(O)  ((O)->state==cPersistent_UPTODATE_STATE && ((O)->state=cPersistent_STICKY_STATE))
 
+/* 
+   Make a persistent object usable from C by:
+
+   - Making sure it is not a ghost
+
+   - Making it sticky.
+
+   IMPORTANT: If you call this and don't call PER_ALLOW_DEACTIVATION, 
+              your object will not be ghostified.
+
+   PER_USE returns a 1 on success and 0 failure, where failure means
+   error.
+ */
 #define PER_USE(O) \
 (((O)->state != cPersistent_GHOST_STATE \
   || (cPersistenceCAPI->setstate((PyObject*)(O)) >= 0)) \

@@ -15,7 +15,7 @@ import pickle
 import time
 import unittest
 
-from persistent import Persistent
+from persistent import Persistent, GHOST, UPTODATE, CHANGED, STICKY
 from persistent.cPickleCache import PickleCache
 from persistent.TimeStamp import TimeStamp
 from ZODB.utils import p64
@@ -111,7 +111,7 @@ class PersistenceTest(unittest.TestCase):
             obj._p_jar = 12
         self.assertRaises(ValueError, setoid)
 
-    def testChanged(self):
+    def testChangedAndState(self):
         obj = P()
         self.jar.add(obj)
 
@@ -122,24 +122,29 @@ class PersistenceTest(unittest.TestCase):
 
         obj.x = 1
         self.assertEqual(obj._p_changed, 1)
+        self.assertEqual(obj._p_state, CHANGED)
         self.assert_(obj in self.jar.registered)
 
         obj._p_changed = 0
         self.assertEqual(obj._p_changed, 0)
+        self.assertEqual(obj._p_state, UPTODATE)
         self.jar.registered.clear()
 
         obj._p_changed = 1
         self.assertEqual(obj._p_changed, 1)
+        self.assertEqual(obj._p_state, CHANGED)
         self.assert_(obj in self.jar.registered)
 
         # setting obj._p_changed to None ghostifies if the
         # object is in the up-to-date state, but not otherwise.
         obj._p_changed = None
         self.assertEqual(obj._p_changed, 1)
+        self.assertEqual(obj._p_state, CHANGED)
         obj._p_changed = 0
         # Now it's a ghost.
         obj._p_changed = None
         self.assertEqual(obj._p_changed, None)
+        self.assertEqual(obj._p_state, GHOST)
 
         obj = P()
         self.jar.add(obj)
@@ -148,6 +153,34 @@ class PersistenceTest(unittest.TestCase):
         # you delete the _p_changed attribute.
         del obj._p_changed
         self.assertEqual(obj._p_changed, None)
+        self.assertEqual(obj._p_state, GHOST)
+
+    def testStateReadonly(self):
+        # make sure we can't write to _p_state; we don't want yet
+        # another way to change state!
+        obj = P()
+        def setstate(value):
+            obj._p_state = value
+        self.assertRaises(TypeError, setstate, GHOST)
+        self.assertRaises(TypeError, setstate, UPTODATE)
+        self.assertRaises(TypeError, setstate, CHANGED)
+        self.assertRaises(TypeError, setstate, STICKY)
+
+    def testInvalidate(self):
+        obj = P()
+        self.jar.add(obj)
+
+        self.assertEqual(obj._p_changed, 0)
+        self.assertEqual(obj._p_state, UPTODATE)
+        obj._p_invalidate()
+        self.assertEqual(obj._p_changed, None)
+        self.assertEqual(obj._p_state, GHOST)
+
+        obj._p_activate()
+        obj.x = 1
+        obj._p_invalidate()
+        self.assertEqual(obj._p_changed, None)
+        self.assertEqual(obj._p_state, GHOST)
 
     def testSerial(self):
         noserial = "\000" * 8
@@ -196,6 +229,7 @@ class PersistenceTest(unittest.TestCase):
         # The getattr hook modified the object, so it should now be
         # in the changed state.
         self.assertEqual(obj._p_changed, 1)
+        self.assertEqual(obj._p_state, CHANGED)
         self.assertEqual(obj.curly, 2)
         self.assertEqual(obj.moe, 3)
 
@@ -213,6 +247,7 @@ class PersistenceTest(unittest.TestCase):
         # The getattr hook modified the object, so it should now be
         # in the changed state.
         self.assertEqual(obj._p_changed, 1)
+        self.assertEqual(obj._p_state, CHANGED)
         self.assertEqual(obj.curly, 2)
         self.assertEqual(obj.moe, 3)
 

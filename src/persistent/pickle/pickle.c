@@ -87,7 +87,7 @@ pickle_copy_dict(PyObject *state)
 {
   PyObject *copy, *key, *value;
   char *ckey;
-  int pos = 0, nr;
+  int pos = 0;
 
   copy = PyDict_New();
   if (copy == NULL)
@@ -96,11 +96,8 @@ pickle_copy_dict(PyObject *state)
   if (state == NULL)
     return copy;
 
-  while ((nr = PyDict_Next(state, &pos, &key, &value))) 
+  while (PyDict_Next(state, &pos, &key, &value))
     {
-      if (nr < 0)
-        goto err;
-
       if (key && PyString_Check(key))
         {
           ckey = PyString_AS_STRING(key);
@@ -111,9 +108,7 @@ pickle_copy_dict(PyObject *state)
             continue;
         }
 
-      if (key != NULL && value != NULL &&
-          (PyObject_SetItem(copy, key, value) < 0)
-          )
+      if (PyObject_SetItem(copy, key, value) < 0)
         goto err;
     }
   
@@ -184,6 +179,7 @@ pickle___getstate__(PyObject *self)
                 continue;
             }
 
+	  /* XXX will this go through our getattr hook? */
           value = PyObject_GetAttr(self, name);
           if (value == NULL)
             PyErr_Clear();
@@ -191,7 +187,7 @@ pickle___getstate__(PyObject *self)
             {
               int err = PyDict_SetItem(slots, name, value);
               Py_DECREF(value);
-              if (err)
+              if (err < 0)
                 goto end;
               n++;
             }
@@ -222,9 +218,7 @@ pickle_setattrs_from_dict(PyObject *self, PyObject *dict)
   
   while (PyDict_Next(dict, &pos, &key, &value)) 
     {
-      if (key != NULL && value != NULL &&
-          (PyObject_SetAttr(self, key, value) < 0)
-          )
+      if (PyObject_SetAttr(self, key, value) < 0)
         return -1;
     }
   return 0;
