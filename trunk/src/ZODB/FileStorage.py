@@ -109,6 +109,8 @@
 #   -   user name
 #   
 #   -   description
+#
+#   -   extension attributes
 # 
 #   * A sequence of data records
 #   
@@ -184,7 +186,7 @@
 #   may have a back pointer to a version record or to a non-version
 #   record.
 #
-__version__='$Revision: 1.65 $'[11:-2]
+__version__='$Revision: 1.66 $'[11:-2]
 
 import struct, time, os, bpthread, string, base64, sys
 from struct import pack, unpack
@@ -400,7 +402,7 @@ class FileStorage(BaseStorage.BaseStorage,
             if stl != rstl: return 0 # inconsistent lengths
             if status == 'u': continue # undone trans, search back
             if status not in ' p': return 0
-            if ul > tl or dl > tl or el > tl or tl < (23+ul+dl+el): return 0
+            if tl < (23+ul+dl+el): return 0
             tend=pos+tl
             opos=pos+(23+ul+dl+el)
             if opos==tend: continue # empty trans
@@ -1808,7 +1810,7 @@ def read_index(file, name, index, vindex, tindex, stop='\377'*8,
         if status not in ' up':
             warn('%s has invalid status, %s, at %s', name, status, pos)
 
-        if ul > tl or dl > tl or el > tl or tl < (23+ul+dl+el):
+        if tl < (23+ul+dl+el):
             # We're in trouble. Find out if this is bad data in the
             # middle of the file, or just a turd that Win 9x dropped
             # at the end when the system crashed.
@@ -2025,7 +2027,7 @@ class FileIterator(Iterator):
             if status not in ' up':
                 warn('%s has invalid status, %s, at %s', name, status, pos)
 
-            if ul > tl or dl > tl or el > tl or tl < (23+ul+dl+el):
+            if tl < (23+ul+dl+el):
                 # We're in trouble. Find out if this is bad data in
                 # the middle of the file, or just a turd that Win 9x
                 # dropped at the end when the system crashed.  Skip to
