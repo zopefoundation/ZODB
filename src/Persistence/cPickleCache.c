@@ -1,8 +1,9 @@
 /*
 
-  $Id: cPickleCache.c,v 1.11 1997/12/10 22:20:43 jim Exp $
+  $Id: cPickleCache.c,v 1.12 1997/12/15 15:25:09 jim Exp $
 
   C implementation of a pickle jar cache.
+
 
      Copyright 
 
@@ -11,12 +12,13 @@
        rights reserved.
 
 ***************************************************************************/
-static char *what_string = "$Id: cPickleCache.c,v 1.11 1997/12/10 22:20:43 jim Exp $";
+static char *what_string = "$Id: cPickleCache.c,v 1.12 1997/12/15 15:25:09 jim Exp $";
 
 #define ASSIGN(V,E) {PyObject *__e; __e=(E); Py_XDECREF(V); (V)=__e;}
 #define UNLESS(E) if(!(E))
 #define UNLESS_ASSIGN(V,E) ASSIGN(V,E) UNLESS(V)
 #define Py_ASSIGN(P,E) if(!PyObject_AssignExpression(&(P),(E))) return NULL
+#define OBJECT(O) ((PyObject*)O)
 
 #include "cPersistence.h"
 #include <time.h>
@@ -71,7 +73,6 @@ static PyObject *PATimeType=NULL;
 static int 
 gc_item(ccobject *self, PyObject *key, PyObject *v, time_t now, time_t dt)
 {
-  PyObject *atime;
   time_t t;
 
   if(v && key)
@@ -317,7 +318,7 @@ cc_report(ccobject *self, PyObject *args)
     {
        if(v->ob_type==(PyTypeObject*)PATimeType
 	  && (
-	      (t && ((PATimeobject*)v)->object->ob_type == t)
+	      (t && OBJECT(((PATimeobject*)v)->object->ob_type) == t)
 	      || ! t))
 	 printf("%d\t%p\t%s\t%ld\t%d\t%ld\n",
 		(((PATimeobject*)v)->object->oid),
@@ -326,7 +327,7 @@ cc_report(ccobject *self, PyObject *args)
 		(long)(((PATimeobject*)v)->object->ob_refcnt),
 		(((PATimeobject*)v)->object->state),
 		(long)(((PATimeobject*)v)->object->atime) );
-       else if((t && ((PATimeobject*)v)->object->ob_type == t)
+       else if((t && OBJECT(((PATimeobject*)v)->object->ob_type) == t)
 	       || ! t)
 	 printf("%d\t%p\t%s\t%ld\t%d\n",
 		(((cPersistentObject*)v)->oid),
@@ -612,7 +613,7 @@ void
 initcPickleCache()
 {
   PyObject *m, *d;
-  char *rev="$Revision: 1.11 $";
+  char *rev="$Revision: 1.12 $";
 
   Cctype.ob_type=&PyType_Type;
 
@@ -635,11 +636,16 @@ initcPickleCache()
 		       PyString_FromStringAndSize(rev+11,strlen(rev+11)-2));
 
   
+#include "dcprotect.h"
+  
   if (PyErr_Occurred()) Py_FatalError("can't initialize module cCache");
 }
 
 /******************************************************************************
  $Log: cPickleCache.c,v $
+ Revision 1.12  1997/12/15 15:25:09  jim
+ Cleaned up to avoid VC++ warnings.
+
  Revision 1.11  1997/12/10 22:20:43  jim
  Added has_key method.
 
