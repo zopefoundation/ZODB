@@ -46,14 +46,6 @@ class BasicStorage:
             self._storage.store,
             0, 0, 0, 0, Transaction())
 
-        #JF# The following will fail two ways. UnitTest doesn't
-        #JF# help us here:
-        #JF# self.assertRaises(
-        #JF#     POSException.StorageTransactionError,
-        #JF#     self._storage.abortVersion,
-        #JF#     0, Transaction())
-
-        #JF# but we can do it another way:
         try:
             self._storage.abortVersion('dummy', Transaction())
         except (POSException.StorageTransactionError,
@@ -62,11 +54,6 @@ class BasicStorage:
         else:
             assert 0, "Should have failed, invalid transaction."
 
-        #JF# ditto
-        #JF# self.assertRaises(
-        #JF#     POSException.StorageTransactionError,
-        #JF#     self._storage.commitVersion,
-        #JF#     0, 1, Transaction())
         try:
             self._storage.commitVersion('dummy', 'dummer', Transaction())
         except (POSException.StorageTransactionError,
