@@ -84,10 +84,10 @@
 ##############################################################################
 """Mounted database support
 
-$Id: Mount.py,v 1.6 2000/09/21 21:34:31 shane Exp $"""
-__version__='$Revision: 1.6 $'[11:-2]
+$Id: Mount.py,v 1.7 2000/11/07 13:03:32 jim Exp $"""
+__version__='$Revision: 1.7 $'[11:-2]
 
-import Globals, thread, Persistence, Acquisition
+import thread, Persistence, Acquisition
 import ExtensionClass, string, time, sys
 from POSException import MountedStorageError
 from zLOG import LOG, ERROR, INFO, WARNING
