@@ -10,6 +10,7 @@ uses of specified oids in the entire database (e.g., suppose oid 0x345620
 is missing -- did it ever exist?  if so, when?  who referenced it?  when
 was the last transaction that modified an object that referenced it?
 which objects did it reference?  what kind of object was it?).
+ZODB/test/testfsoids.py is a tutorial doctest.
 
 
 What's new in ZODB3 3.3 ?

@@ -34,6 +34,8 @@ by transaction, from oldest to newest.
 
 This will not alter the FileStorage, but running against a live FileStorage
 is not recommended (spurious error messages may result).
+
+See testfsoids.py for a tutorial doctest.
 """
 
 import sys
