@@ -176,7 +176,7 @@ class BasicStorage:
         eq(revid2, self._storage.getSerial(oid))
 
     def checkTwoArgBegin(self):
-        # XXX how standard is three-argument tpc_begin()?
+        # Unsure: how standard is three-argument tpc_begin()?
         t = transaction.Transaction()
         tid = '\0\0\0\0\0psu'
         self._storage.tpc_begin(t, tid)

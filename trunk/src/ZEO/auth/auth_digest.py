@@ -30,8 +30,9 @@ security requirements are quite different as a result.  The HTTP
 protocol uses a nonce as a challenge.  The ZEO protocol requires a
 separate session key that is used for message authentication.  We
 generate a second nonce for this purpose; the hash of nonce and
-user/realm/password is used as the session key.  XXX I'm not sure if
-this is a sound approach; SRP would be preferred.
+user/realm/password is used as the session key.
+
+TODO: I'm not sure if this is a sound approach; SRP would be preferred.
 """
 
 import os

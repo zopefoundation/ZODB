@@ -262,7 +262,7 @@ class ClientStorage(object):
         # _seriald: _check_serials() moves from _serials to _seriald,
         #           which maps oid to serialno
 
-        # XXX If serial number matches transaction id, then there is
+        # TODO:  If serial number matches transaction id, then there is
         # no need to have all this extra infrastructure for handling
         # serial numbers.  The vote call can just return the tid.
         # If there is a conflict error, we can't have a special method
@@ -310,7 +310,7 @@ class ClientStorage(object):
         else:
             cache_path = None
         self._cache = self.ClientCacheClass(cache_path, size=cache_size)
-        # XXX When should it be opened?
+        # TODO:  maybe there's a better time to open the cache?  Unclear.
         self._cache.open()
 
         self._rpc_mgr = self.ConnectionManagerClass(addr, self,
@@ -459,7 +459,7 @@ class ClientStorage(object):
         exception raised by register() is passed through.
         """
         log2("Testing connection %r" % conn)
-        # XXX Check the protocol version here?
+        # TODO:  Should we check the protocol version here?
         self._conn_is_read_only = 0
         stub = self.StorageServerStubClass(conn)
 
@@ -496,7 +496,7 @@ class ClientStorage(object):
             # this method before it was stopped.
             return
 
-        # XXX would like to report whether we get a read-only connection
+        # TODO:  report whether we get a read-only connection.
         if self._connection is not None:
             reconnect = 1
         else:
@@ -597,8 +597,8 @@ class ClientStorage(object):
         self._pickler = cPickle.Pickler(self._tfile, 1)
         self._pickler.fast = 1 # Don't use the memo
 
-        # XXX should batch these operations for efficiency
-        # XXX need to acquire lock...
+        # TODO:  should batch these operations for efficiency; would need
+        # to acquire lock ...
         for oid, tid, version in self._cache.contents():
             server.verify(oid, version, tid)
         self._pending_server = server
@@ -627,7 +627,7 @@ class ClientStorage(object):
 
     def __len__(self):
         """Return the size of the storage."""
-        # XXX Where is this used?
+        # TODO:  Is this method used?
         return self._info['length']
 
     def getName(self):
@@ -700,7 +700,7 @@ class ClientStorage(object):
         # versions of ZODB, you'd get a conflict error if you tried to
         # commit a transaction with the cached data.
 
-        # XXX If we could guarantee that ZODB gave the right answer,
+        # If we could guarantee that ZODB gave the right answer,
         # we could just invalidate the version data.
         for oid in oids:
             self._tbuf.invalidate(oid, '')
@@ -798,7 +798,7 @@ class ClientStorage(object):
             # doesn't use the _load_lock, so it is possble to overlap
             # this load with an invalidation for the same object.
 
-            # XXX If we call again, we're guaranteed to get the
+            # If we call again, we're guaranteed to get the
             # post-invalidation data.  But if the data is still
             # current, we'll still get end == None.
 
@@ -857,8 +857,8 @@ class ClientStorage(object):
         days -- a number of days to subtract from the pack time;
             defaults to zero.
         """
-        # XXX Is it okay that read-only connections allow pack()?
-        # rf argument ignored; server will provide it's own implementation
+        # TODO: Is it okay that read-only connections allow pack()?
+        # rf argument ignored; server will provide its own implementation
         if t is None:
             t = time.time()
         t = t - (days * 86400)
@@ -866,7 +866,7 @@ class ClientStorage(object):
 
     def _check_serials(self):
         """Internal helper to move data from _serials to _seriald."""
-        # XXX serials are always going to be the same, the only
+        # serials are always going to be the same, the only
         # question is whether an exception has been raised.
         if self._serials:
             l = len(self._serials)
@@ -939,7 +939,7 @@ class ClientStorage(object):
         if txn is not self._transaction:
             return
         try:
-            # XXX Are there any transactions that should prevent an
+            # Caution:  Are there any exceptions that should prevent an
             # abort from occurring?  It seems wrong to swallow them
             # all, yet you want to be sure that other abort logic is
             # executed regardless.
@@ -991,8 +991,7 @@ class ClientStorage(object):
         """
         # Must be called with _lock already acquired.
 
-        # XXX not sure why _update_cache() would be called on
-        # a closed storage.
+        # Not sure why _update_cache() would be called on a closed storage.
         if self._cache is None:
             return
 
@@ -1063,7 +1062,8 @@ class ClientStorage(object):
         # Invalidation as result of verify_cache().
         # Queue an invalidate for the end the verification procedure.
         if self._pickler is None:
-            # XXX This should never happen
+            # This should never happen.  TODO:  assert it doesn't, or log
+            # if it does.
             return
         self._pickler.dump(args)
 

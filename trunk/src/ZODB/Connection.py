@@ -95,16 +95,16 @@ class Connection(ExportImport, object):
     The Connection manages movement of objects in and out of object
     storage.
 
-    XXX We should document an intended API for using a Connection via
+    TODO:  We should document an intended API for using a Connection via
     multiple threads.
 
-    XXX We should explain that the Connection has a cache and that
+    TODO:  We should explain that the Connection has a cache and that
     multiple calls to get() will return a reference to the same
     object, provided that one of the earlier objects is still
     referenced.  Object identity is preserved within a connection, but
     not across connections.
 
-    XXX Mention the database pool.
+    TODO:  Mention the database pool.
 
     A database connection always presents a consistent view of the
     objects in the database, although it may not always present the
@@ -186,8 +186,7 @@ class Connection(ExportImport, object):
             # Caches for versions end up empty if the version
             # is not used for a while. Non-version caches
             # keep their content indefinitely.
-
-            # XXX Why do we want version caches to behave this way?
+            # Unclear:  Why do we want version caches to behave this way?
 
             self._cache.cache_drain_resistance = 100
         self._committed = []
@@ -221,12 +220,11 @@ class Connection(ExportImport, object):
         # from a single transaction should be applied atomically, so
         # the lock must be held when reading _invalidated.
 
-        # XXX It sucks that we have to hold the lock to read
-        # _invalidated.  Normally, _invalidated is written by calling
-        # dict.update, which will execute atomically by virtue of the
-        # GIL.  But some storage might generate oids where hash or
-        # compare invokes Python code.  In that case, the GIL can't
-        # save us.
+        # It sucks that we have to hold the lock to read _invalidated. 
+        # Normally, _invalidated is written by calling dict.update, which
+        # will execute atomically by virtue of the GIL.  But some storage
+        # might generate oids where hash or compare invokes Python code.  In
+        # that case, the GIL can't save us.
         self._inv_lock = threading.Lock()
         self._invalidated = d = {}
         self._invalid = d.has_key
@@ -329,7 +327,6 @@ class Connection(ExportImport, object):
           - `ConnectionStateError`:  if the connection is closed.
         """
         if self._storage is None:
-            # XXX Should this be a ZODB-specific exception?
             raise ConnectionStateError("The database connection is closed")
 
         obj = self._cache.get(oid, None)
@@ -424,7 +421,7 @@ class Connection(ExportImport, object):
              register for afterCompletion() calls.
         """
 
-        # XXX Why do we go to all the trouble of setting _db and
+        # TODO:  Why do we go to all the trouble of setting _db and
         # other attributes on open and clearing them on close?
         # A Connection is only ever associated with a single DB
         # and Storage.
@@ -478,14 +475,13 @@ class Connection(ExportImport, object):
 
         self._tpc_cleanup()
 
-    # XXX should there be a way to call incrgc directly?
-    # perhaps "full sweep" should do that?
+    # Should there be a way to call incrgc directly?
+    # Perhaps "full sweep" should do that?
 
-    # XXX we should test what happens when these methods are called
+    # TODO: we should test what happens when these methods are called
     # mid-transaction.
 
     def cacheFullSweep(self, dt=None):
-        # XXX needs doc string
         deprecated36("cacheFullSweep is deprecated. "
                      "Use cacheMinimize instead.")
         if dt is None:
@@ -581,7 +577,8 @@ class Connection(ExportImport, object):
 
     def commit(self, transaction):
         if self._import:
-            # XXX eh?
+            # TODO:  This code seems important for Zope, but needs docs
+            # to explain why.
             self._importDuringCommit(transaction, *self._import)
             self._import = None
 
@@ -647,7 +644,7 @@ class Connection(ExportImport, object):
                 self._cache[oid] = obj
             except:
                 # Dang, I bet it's wrapped:
-                # XXX Deprecate, then remove, this.
+                # TODO:  Deprecate, then remove, this.
                 if hasattr(obj, 'aq_base'):
                     self._cache[oid] = obj.aq_base
                 else:
@@ -776,7 +773,7 @@ class Connection(ExportImport, object):
             # directly.  That is no longer allowed, but we need to
             # provide support for old code that still does it.
 
-            # XXX The actual complaint here is that an object without
+            # The actual complaint here is that an object without
             # an oid is being registered.  I can't think of any way to
             # achieve that without assignment to _p_jar.  If there is
             # a way, this will be a very confusing warning.
@@ -922,7 +919,7 @@ class Connection(ExportImport, object):
     def oldstate(self, obj, tid):
         """Return copy of obj that was written by tid.
 
-        XXX The returned object does not have the typical metadata
+        The returned object does not have the typical metadata
         (_p_jar, _p_oid, _p_serial) set.  I'm not sure how references
         to other peristent objects are handled.
 

@@ -94,7 +94,7 @@ class Broken(object):
 
     __Broken_state__ = __Broken_initargs__ = None
 
-    __name__ = 'bob XXX'
+    __name__ = 'broken object'
 
     def __new__(class_, *args):
         result = object.__new__(class_)

@@ -47,8 +47,8 @@ def fsdump(path, file=None, with_offset=1):
                 version = ""
 
             if rec.data_txn:
-                # XXX It would be nice to print the transaction number
-                # (i) but it would be too expensive to keep track of.
+                # It would be nice to print the transaction number
+                # (i) but it would be expensive to keep track of.
                 bp = " bp=%016x" % u64(rec.data_txn)
             else:
                 bp = ""
@@ -64,7 +64,7 @@ def fmt(p64):
 class Dumper:
     """A very verbose dumper for debuggin FileStorage problems."""
 
-    # XXX Should revise this class to use FileStorageFormatter.
+    # TODO:  Should revise this class to use FileStorageFormatter.
 
     def __init__(self, path, dest=None):
         self.file = open(path, "rb")

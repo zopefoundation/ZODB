@@ -193,12 +193,11 @@ def check_drec(path, file, pos, tpos, tid):
                           (path, pos, tloc, tpos))
 
     pos = pos + dlen
-    # XXX is the following code necessary?
     if plen:
         file.seek(plen, 1)
     else:
         file.seek(8, 1)
-        # XXX _loadBack() ?
+        # _loadBack() ?
 
     return pos, oid
 
