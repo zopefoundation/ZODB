@@ -16,6 +16,7 @@
 from ZODB.Transaction import Transaction
 from ZODB.tests.IteratorStorage import IteratorDeepCompare
 from ZODB.tests.StorageTestBase import MinPO, zodb_unpickle, removefs
+from ZODB.FileStorage import FileStorage
 
 
 class RecoveryStorage(IteratorDeepCompare):
@@ -122,6 +123,6 @@ class RecoveryStorage(IteratorDeepCompare):
         # This time we will be able to confirm via compare().
         self._dst.close()
         removefs("Dest.fs")
-        self._dst = ZODB.FileStorage.FileStorage('Dest.fs')
+        self._dst = FileStorage('Dest.fs')
         self._dst.copyTransactionsFrom(self._storage)
         self.compare(self._storage, self._dst)
