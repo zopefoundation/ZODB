@@ -61,6 +61,9 @@ class TmpStore:
         serial = h[:8]
         return self._file.read(size), serial
 
+    def sortKey(self):
+        return self._storage.sortKey()
+
     # TODO: clarify difference between self._storage & self._db._storage
 
     def modifiedInVersion(self, oid):

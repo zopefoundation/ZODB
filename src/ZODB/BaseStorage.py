@@ -252,6 +252,12 @@ class BaseStorage(UndoLogCompatible):
         pass
 
     def tpc_finish(self, transaction, f=None):
+        # It's important that the storage calls the function we pass
+        # while it still has its lock.  We don't want another thread
+        # to be able to read any updated data until we've had a chance
+        # to send an invalidation message to all of the other
+        # connections!
+
         self._lock_acquire()
         try:
             if transaction is not self._transaction:
