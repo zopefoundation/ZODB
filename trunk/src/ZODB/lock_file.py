@@ -14,6 +14,7 @@
 
 import os
 import errno
+import logging
 
 try:
     import fcntl
@@ -45,6 +46,7 @@ else:
         # File is automatically unlocked on close
         pass
 
+log = logging.getLogger("LockFile")
 
 
 # This is a better interface to use than the lockfile.lock_file() interface.
@@ -59,7 +61,11 @@ class LockFile:
             if e.errno <> errno.ENOENT: raise
             self._fp = open(path, 'w+')
         # Acquire the lock and piss on the hydrant
-        lock_file(self._fp)
+        try:
+            lock_file(self._fp)
+        except:
+            log.exception("Error locking file %s" % path)
+            raise
         print >> self._fp, os.getpid()
         self._fp.flush()
 
