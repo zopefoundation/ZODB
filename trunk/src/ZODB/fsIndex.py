@@ -93,6 +93,15 @@ class fsIndex:
         v=self.get(key, self)
         return v is not self
 
+    def __contains__(self, key):
+        tree = self._data.get(key[:6])
+        if tree is None:
+            return 0
+        v = tree.get(key[6:], None)
+        if v is None:
+            return 0
+        return 1
+
     def clear(self):
         self._data.clear()
 
