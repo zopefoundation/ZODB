@@ -84,8 +84,8 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.34 2000/05/24 20:53:34 shane Exp $"""
-__version__='$Revision: 1.34 $'[11:-2]
+$Id: Connection.py,v 1.35 2000/07/01 20:35:03 jim Exp $"""
+__version__='$Revision: 1.35 $'[11:-2]
 
 from cPickleCache import PickleCache
 from POSException import ConflictError, ExportError
@@ -361,6 +361,9 @@ class Connection(ExportImport.ExportImport):
                         if o is not oi:
                             o._p_serial=s
                             o._p_changed=0
+                        elif oi == oid:
+                            object._p_serial=s
+                            object._p_changed=0
 
             try: cache[oid]=object
             except:
