@@ -12,7 +12,7 @@
 
  ****************************************************************************/
 
-#define BUCKETTEMPLATE_C "$Id: BucketTemplate.c,v 1.53 2003/04/16 16:01:10 tim_one Exp $\n"
+#define BUCKETTEMPLATE_C "$Id: BucketTemplate.c,v 1.54 2003/05/12 00:36:17 tim_one Exp $\n"
 
 /* Use BUCKET_SEARCH to find the index at which a key belongs.
  * INDEX    An int lvalue to hold the index i such that KEY belongs at
@@ -461,7 +461,7 @@ static PyObject *
 Mapping_update(PyObject *self, PyObject *args)
 {
   PyObject *seq=0, *o, *t, *v, *tb, *k, *items = NULL;
-  int i, ind;
+  int i;
 
   UNLESS(PyArg_ParseTuple(args, "|O:update", &seq)) return NULL;
 
@@ -497,16 +497,22 @@ Mapping_update(PyObject *self, PyObject *args)
 	  Py_XDECREF(tb);
 	  break;
 	}
-      ind = PyArg_ParseTuple(o, "OO;items must be 2-item tuples", &k, &v);
-      if (ind)
-	ind = PyObject_SetItem(self, k, v);
-      else
-	ind = -1;
-      Py_DECREF(o);
-      if (ind < 0) {
-        PyErr_SetString(PyExc_TypeError,"Sequence must contain 2-item tuples");
-        goto err;
+
+      if (!PyTuple_Check(o) || PyTuple_GET_SIZE(o) != 2)
+        {
+	  Py_DECREF(o);
+	  PyErr_SetString(PyExc_TypeError,
+			  "Sequence must contain 2-item tuples");
+	  goto err;
         }
+      k = PyTuple_GET_ITEM(o, 0);
+      v = PyTuple_GET_ITEM(o, 1);
+      if (PyObject_SetItem(self, k, v) < 0)
+        {
+          Py_DECREF(o);
+	  goto err;
+        }
+      Py_DECREF(o);
     }
 
   Py_XDECREF(items);
