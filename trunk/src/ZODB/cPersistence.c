@@ -14,7 +14,7 @@
 static char cPersistence_doc_string[] = 
 "Defines Persistent mixin class for persistent objects.\n"
 "\n"
-"$Id: cPersistence.c,v 1.70 2003/05/13 22:58:37 jeremy Exp $\n";
+"$Id: cPersistence.c,v 1.71 2003/05/23 21:32:38 jeremy Exp $\n";
 
 #include "cPersistence.h"
 
@@ -671,8 +671,10 @@ _setattro(cPersistentObject *self, PyObject *oname, PyObject *v,
 	      Py_DECREF(meth);
 	      return 0;
 	    }
-	  if (PyObject_IsTrue(v)) return changed(self);
-	  if (self->state >= 0) self->state=cPersistent_UPTODATE_STATE;
+	  if (PyObject_IsTrue(v)) 
+	      return changed(self);
+	  if (self->state >= 0) 
+	      self->state=cPersistent_UPTODATE_STATE;
 	  return 0;
 	}
     }
