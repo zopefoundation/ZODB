@@ -85,8 +85,8 @@
 __doc__='''Python implementation of persistent base types
 
 
-$Id: mapping.py,v 1.10 2001/06/05 18:49:58 chrism Exp $'''
-__version__='$Revision: 1.10 $'[11:-2]
+$Id: mapping.py,v 1.11 2001/08/16 17:25:41 jim Exp $'''
+__version__='$Revision: 1.11 $'[11:-2]
 
 import Persistence
 import types
@@ -157,4 +157,7 @@ class PersistentMapping(Persistence.Persistent):
 
     def values(self):
         return map(lambda k, d=self: d[k], self.keys())
+
+    def __cmp__(self,other):
+        return cmp(self._container, other._container)
 
