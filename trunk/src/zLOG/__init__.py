@@ -14,6 +14,12 @@
 
 """General logging facility
 
+Note:
+  This module exists only for backward compatibility.  Any new code
+  for Zope 2.8 and newer should use the logging module from Python's
+  standard library directly.  zLOG is only an API shim to map existing
+  use of zLOG onto the standard logging API.
+
 This module attempts to provide a simple programming API for logging
 with a pluggable API for defining where log messages should go.
 
@@ -47,11 +53,8 @@ The module defines several standard severities:
 
   PANIC=300    -- We're dead!
 
-Also, logging facilities will normally ignore negative severities.
-
 To plug in a log handler, simply replace the log_write function
 with a callable object that takes 5 arguments:
-
 
       subsystem -- The subsystem generating the message (e.g. ZODB)
 
@@ -69,18 +72,9 @@ with a callable object that takes 5 arguments:
                traceback.  If provided, then a summary of the error
                is added to the detail.
 
-There is a default event logging facility that:
-
-  - swallows logging information by default,
-
-  - outputs to sys.stderr if the environment variable
-    EVENT_LOG_FILE is set to an empty string, and
-
-  - outputs to file if the environment variable
-    EVENT_LOG_FILE is set to a file name.
-
-  - Ignores errors that have a severity < 0 by default. This
-    can be overridden with the environment variable EVENT_LOG_SEVERITY
+The default logging facility uses Python's logging module as a
+back-end; configuration of the logging module must be handled
+somewhere else.
 
 """
 from EventLogger import log_write, log_time, severity_string
