@@ -1,5 +1,21 @@
 Zope Enterprise Objects (ZEO) Revision History
 
+  ZEO 1.0 beta 1
+
+    New Features
+
+     - Improved release organization.
+
+    Bugs fixed
+
+     - Normal shutdown was reported as a panic.
+
+     - The signal exception handler was disabled.
+
+     - Errors arising from incompatable versions of cPickle were
+       uclear.
+
+
   ZEO 0.5.0
 
     New Features
