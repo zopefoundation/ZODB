@@ -184,7 +184,7 @@
 #   may have a back pointer to a version record or to a non-version
 #   record.
 #
-__version__='$Revision: 1.53 $'[11:-2]
+__version__='$Revision: 1.54 $'[11:-2]
 
 import struct, time, os, bpthread, string, base64, sys
 from struct import pack, unpack
@@ -202,6 +202,8 @@ import ConflictResolution
 
 try: from posix import fsync
 except: fsync=None
+
+StringType=type('')
 
 z64='\0'*8
 
@@ -449,6 +451,11 @@ class FileStorage(BaseStorage.BaseStorage,
         
     def commitVersion(self, src, dest, transaction, abort=None):
         # We are going to commit by simply storing back pointers.
+
+        if (not src or
+            type(src) is not StringType or type(dest) is not StringType
+            ):
+            raise POSException.VersionCommitError('Invalid source version')
 
         if dest and abort:
             raise 'VersionCommitError', (
@@ -1074,6 +1081,13 @@ class FileStorage(BaseStorage.BaseStorage,
         finally: self._lock_release()
 
     def versionEmpty(self, version):
+        if not version:
+            # The interface is silent on this case. I think that this should
+            # be an error, but Barry thinks this should return 1 if we have
+            # any non-version data. This would be excruciatingly painful to
+            # test, so I must be right. ;)
+            raise POSException.VersionError(
+                'The version must be an non-empty string')
         self._lock_acquire()
         try:
             index=self._index
