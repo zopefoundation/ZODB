@@ -19,7 +19,11 @@ import unittest
 
 class PackerTests(StorageTestBase):
 
+    def setUp(self):
+        self.started = 0
+
     def start(self):
+        self.started =1 
         self.path = tempfile.mktemp(suffix=".fs")
         self._storage = FileStorage(self.path)
         self.db = ZODB.DB(self._storage)
@@ -31,6 +35,8 @@ class PackerTests(StorageTestBase):
             self._dostore()
 
     def tearDown(self):
+        if not self.started:
+            return
         self.db.close()
         self._storage.close()
         self.exit.close()
@@ -76,6 +82,10 @@ class PackerTests(StorageTestBase):
         status = os.system("zeopack.py -U %s" % self.addr)
         assert status == 0
         assert os.path.exists(self.path + ".old")
+
+    def testNoServer(self):
+        status = os.system("zeopack.py -p 19")
+        assert status != 0
 
 class UpTest(unittest.TestCase):
     
