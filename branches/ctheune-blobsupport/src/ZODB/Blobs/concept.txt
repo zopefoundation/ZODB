@@ -1,5 +1,6 @@
 
-Goal: Handle BLOBs (within the Zope context) better.
+Goal: Handle storage and retrieval of binary large objects efficiently,
+      transactionally, and transparently.
 
 Measure:
 
@@ -13,10 +14,13 @@ Measure:
     
 Comments:
 
-    -   Cache: BLOBs could be cached in a seperate "BLOB" space, e.g. in single files
-    -   Be storage independent?
+    - Cache: BLOBs could be cached in a seperate "BLOB" space, e.g. in
+      single files
 
-    -   Memory efficiency: Storge.load() currently holds all data of an object in a string.
+    - Be storage independent?
+
+    - Memory efficiency: Storge.load() currently holds all data of an
+      object in a string.
 
 Steps:
 
@@ -36,30 +40,40 @@ Steps:
 
     - complicated aspects
 
-
-        - temporary files holding blob data could server as a separated cache for blob data
+        - temporary files holding blob data could server as a
+          separated cache for blob data
 
         - storage / zodb api change
         
-        - 
-
 Restrictions:
 
-    -   a particular BLOB instance can't be open for read _and_ write at the same time 
+    - a particular BLOB instance can't be open for read _and_ write at
+      the same time
 
         -   Allowed: N readers, no writers; 1 writer, no readers
 
         -   Reason: 
 
-
+    - a writable filehandle opened via a BLOB's 'open' method has a
+      lifetime tied to the transaction in which the 'open' method was
+      called.  We do this in order to prevent changes to blob data
+      from "bleeding over" between transactions.
 
 - Data has been committed? -> File(name) for commited data available
+
 - .open("r") on fresh loaded blob returns committed data
+
 - first .open("w") -> new empty file for uncommitted data
-- .open("a") or .open("r+"), we copy existing data into file for uncommitted data
-- if uncommitted data exists, subsequent .open("*") will use the uncommitted data
-- if opened for writing, the object is marked as changed (optimiziation possible)
+
+- .open("a") or .open("r+"), we copy existing data into file for
+  uncommitted data
+
+- if uncommitted data exists, subsequent .open("*") will use the
+  uncommitted data
+
+- if opened for writing, the object is marked as changed
+  (optimiziation possible)
 
 - connections want to recognize blobs on transaction boundaries
 
-- 
+
