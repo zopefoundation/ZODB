@@ -115,7 +115,7 @@
 #   may have a back pointer to a version record or to a non-version
 #   record.
 #
-__version__='$Revision: 1.128 $'[11:-2]
+__version__='$Revision: 1.129 $'[11:-2]
 
 import base64
 from cPickle import Pickler, Unpickler, loads
@@ -567,9 +567,6 @@ class FileStorage(BaseStorage.BaseStorage,
                 here += heredelta
 
                 current_oids[oid] = 1
-                # Once we've found the data we are looking for,
-                # we can stop chasing backpointers.
-                break
 
             else:
                 # Hm.  This is a non-current record.  Is there a
@@ -1495,7 +1492,7 @@ class FileStorage(BaseStorage.BaseStorage,
                         referencesf(p, rootl)
 
                     pindex[oid]=index[oid]
-                except:
+                except KeyError:
                     pindex[oid]=0
                     error('Bad reference to %s', `(oid,v)`)
                     # XXX This try/except frequently masks bugs in the
