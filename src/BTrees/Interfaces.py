@@ -83,7 +83,7 @@
 # 
 ##############################################################################
 
-import OOBTree, Interface
+import OOBTree, Interface, Interface.Standard
 
 class ICollection(Interface.Base):
 
@@ -97,15 +97,7 @@ class ICollection(Interface.Base):
         false otherwise.
         """
 
-class ISized(ICollection):
-
-    def __len__():
-        """Return the number of items in the set"""
-
-class IReadSequence(Interface.Base):
-
-    def __getitem__(index):
-        """Return an item for a given index."""
+class IReadSequence(Interface.Standard.Sequence):
 
     def __getslice__(index1, index2):
         """Return a subsequence from the original sequence
@@ -162,7 +154,7 @@ class ISetMutable(IKeyed):
     def update(seq):
         """Add the items from the given sequence to the set"""
 
-class IKeySequence(IKeyed, ISized):
+class IKeySequence(IKeyed, Interface.Standard.Sized):
 
     def __getitem__(index):
         """Return the key in the given index position
@@ -178,31 +170,7 @@ class ITreeSet(IKeyed, ISetMutable):
     pass
     
 
-class IDictionaryIsh(IKeyed, ISized):
-
-    def __getitem__(key):
-        """Get the value for the given key
-
-        Raise a key error if the key if not in the collection.
-        """
-
-    def get(key, default=None):
-        """Get the value for the given key
-
-        Raise a key error if the key if not in the collection and no
-        default is specified.
-
-        Return the default if specified and the key is not in the
-        collection.
-        """
-
-    def __setitem__(key, value):
-        """Set the value for the given key"""
-
-    def __delitem__(key):
-        """delete the value for the given key
-
-        Raise a key error if the key if not in the collection."""
+class IDictionaryIsh(IKeyed, Interface.Standard.MinimalDictionary):
 
     def update(collection):
         """Add the items from the given collection object to the collection
@@ -273,7 +241,7 @@ class IBTree(IDictionaryIsh):
               key=generate_key()
         """
 
-class IMerge(Interfaces.Base):
+class IMerge(Interface.Base):
     """Object with methods for merging sets, buckets, and trees.
 
     These methods are supplied in modules that define collection
@@ -398,10 +366,7 @@ class IIMerge(IMerge):
 #
 ################################################################
 
-    
-Interface.assertTypeImplements(OOBTree.OOSet, ISet)
-Interface.assertTypeImplements(OOBTree.OOTreeSet, ITreeSet)
-Interface.assertTypeImplements(OOBTree.OOBucket, IDictionaryIsh)
-Interface.assertTypeImplements(OOBTree.OOBTree, IBTree)
-
-
+OOBTree.OOSet.__implements__=ISet
+OOBTree.OOTreeSet.__implements__=ITreeSet
+OOBTree.OOBucket.__implements__=IDictionaryIsh
+OOBTree.OOBTree.__implements__=IBTree
