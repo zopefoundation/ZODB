@@ -387,6 +387,11 @@ class ClientStorage:
         This is called by ConnectionManager after it has decided which
         connection should be used.
         """
+        if self._cache is None:
+            # the storage was closed, but the connect thread called
+            # this method before it was stopped.
+            return
+
         # XXX would like to report whether we get a read-only connection
         if self._connection is not None:
             reconnect = 1
