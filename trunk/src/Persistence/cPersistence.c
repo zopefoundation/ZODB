@@ -14,7 +14,7 @@
 static char cPersistence_doc_string[] = 
 "Defines Persistent mixin class for persistent objects.\n"
 "\n"
-"$Id: cPersistence.c,v 1.63 2002/09/30 16:02:32 gvanrossum Exp $\n";
+"$Id: cPersistence.c,v 1.64 2002/10/01 15:06:17 jeremy Exp $\n";
 
 #include "cPersistence.h"
 
@@ -853,7 +853,8 @@ initcPersistence(void)
       Py_DECREF(s);
       return;
   }
-  TimeStamp = PyObject_GetAttr(m, s);
+  TimeStamp = PyObject_GetAttrString(m, "TimeStamp");
+  assert(TimeStamp);
   Py_DECREF(m);
   Py_DECREF(s);
 
