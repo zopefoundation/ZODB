@@ -128,6 +128,7 @@ class GenericTests(
 
 class FileStorageTests(GenericTests):
     """Test ZEO backed by a FileStorage."""
+    level = 2
 
     def setUp(self):
         zLOG.LOG("testZEO", zLOG.INFO, "setUp() %s" % self.id())
@@ -158,9 +159,9 @@ class FileStorageTests(GenericTests):
         </Storage>
         """ % filename
 
-
 class BDBTests(FileStorageTests):
     """ZEO backed by a Berkeley full storage."""
+    level = 2
 
     def getStorage(self):
         self._envdir = tempfile.mktemp()
@@ -172,9 +173,23 @@ class BDBTests(FileStorageTests):
         </Storage>
         """ % self._envdir
 
+class MappingStorageTests(FileStorageTests):
+    """ZEO backed by a Mapping storage."""
+
+    def getStorage(self):
+        self._envdir = tempfile.mktemp()
+        # Return a 1-tuple
+        return """\
+        <Storage>
+            type MappingStorage
+            name %s
+        </Storage>
+        """ % self._envdir
 
 
-test_classes = [FileStorageTests]
+
+
+test_classes = [FileStorageTests, MappingStorageTests]
 
 import BDBStorage
 if BDBStorage.is_available:
