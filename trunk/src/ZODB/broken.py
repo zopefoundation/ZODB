@@ -13,7 +13,7 @@
 ##############################################################################
 """Broken object support
 
-$Id: broken.py,v 1.2 2004/02/27 21:40:20 jeremy Exp $
+$Id: broken.py,v 1.3 2004/03/04 22:41:52 jim Exp $
 """
 
 import sys
@@ -87,6 +87,9 @@ class Broken(object):
          >>> a2.__Broken_state__
          {'x': 1}
 
+       Cleanup::
+
+         >>> broken_cache.clear()
        """
 
     __Broken_state__ = __Broken_initargs__ = None
@@ -120,7 +123,10 @@ class Broken(object):
     def __setattr__(self, name, value):
         raise BrokenModified("Can't change broken objects")
 
-def find_global(modulename, globalname, Broken=Broken):
+def find_global(modulename, globalname,
+                # These are *not* optimizations. Callers can override these.
+                Broken=Broken, type=type,
+                ):
     """Find a global object, returning a broken class if it can't be found.
 
        This function looks up global variable in modules::
@@ -167,6 +173,9 @@ def find_global(modulename, globalname, Broken=Broken):
          >>> find_global('ZODB.not.there', 'atall') is broken
          True
 
+       Cleanup::
+
+         >>> broken_cache.clear()
        """
     try:
         __import__(modulename)
@@ -216,6 +225,10 @@ def rebuild(modulename, globalname, *args):
          atall 1 2
 
          >>> del sys.modules['ZODB.notthere']
+
+       Cleanup::
+
+         >>> broken_cache.clear()
 
        """
     class_ = find_global(modulename, globalname)
@@ -279,6 +292,10 @@ class PersistentBroken(Broken, persistent.Persistent):
           >>> a.__setstate__({'y': 2})
           >>> a.__getstate__()
           {'y': 2}
+
+       Cleanup::
+
+         >>> broken_cache.clear()
 
         """
 
