@@ -84,9 +84,12 @@
 ##############################################################################
 '''BoboPOS-defined exceptions
 
-$Id: POSException.py,v 1.6 2001/02/08 22:25:59 chrism Exp $'''
-__version__='$Revision: 1.6 $'[11:-2]
+$Id: POSException.py,v 1.7 2001/04/12 20:47:00 jim Exp $'''
+__version__='$Revision: 1.7 $'[11:-2]
 
+from string import join
+StringType=type('')
+DictType=type({})
 
 class POSError(Exception):
     """Persistent object system error
@@ -117,6 +120,26 @@ class VersionLockError(VersionError, TransactionError):
 class UndoError(POSError):
     """An attempt was made to undo a non-undoable transaction.
     """
+    def __init__(self, *reason):
+        if len(reason) == 1: reason=reason[0]
+        self.__reason=reason
+
+    def __repr__(self):
+        reason=self.__reason
+        if type(reason) is not DictType:
+            if reason: return str(reason)
+            return "non-undoable transaction"
+        r=[]
+        for oid, reason in reason.items():
+            if reason:
+                r.append("Couldn't undo change to %s because %s"
+                         % (`oid`, reason))
+            else:
+                r.append("Couldn't undo change to %s" % (`oid`))
+
+        return join(r,'\n')
+
+    __str__=__repr__
 
 class StorageError(POSError):
     pass
