@@ -17,7 +17,7 @@ import tempfile
 import unittest
 from StringIO import StringIO
 
-import ZConfig
+import ZConfig.Context
 
 from ZODB import StorageConfig
 
@@ -46,6 +46,11 @@ class StorageTestCase(unittest.TestCase):
         except os.error:
             pass
 
+    def loadConfigText(self, text):
+        context = ZConfig.Context.Context()
+        io = StringIO(text)
+        return context.loadFile(io)
+
     def testFileStorage(self):
         from ZODB.FileStorage import FileStorage
         sample = """
@@ -55,8 +60,7 @@ class StorageTestCase(unittest.TestCase):
         create     yes
         </Storage>
         """ % self.tmpfn
-        io = StringIO(sample)
-        rootconf = ZConfig.loadfile(io)
+        rootconf = self.loadConfigText(sample)
         storageconf = rootconf.getSection("Storage")
         cls, args = StorageConfig.getStorageInfo(storageconf)
         self.assertEqual(cls, FileStorage)
@@ -73,8 +77,7 @@ class StorageTestCase(unittest.TestCase):
         wait       no
         </Storage>
         """
-        io = StringIO(sample)
-        rootconf = ZConfig.loadfile(io)
+        rootconf = self.loadConfigText(sample)
         storageconf = rootconf.getSection("Storage")
         cls, args = StorageConfig.getStorageInfo(storageconf)
         self.assertEqual(cls, ClientStorage)
@@ -89,8 +92,7 @@ class StorageTestCase(unittest.TestCase):
         type       DemoStorage
         </Storage>
         """
-        io = StringIO(sample)
-        rootconf = ZConfig.loadfile(io)
+        rootconf = self.loadConfigText(sample)
         storageconf = rootconf.getSection("Storage")
         cls, args = StorageConfig.getStorageInfo(storageconf)
         self.assertEqual(cls, DemoStorage)
@@ -106,8 +108,7 @@ class StorageTestCase(unittest.TestCase):
         type       ZODB.DemoStorage.DemoStorage
         </Storage>
         """
-        io = StringIO(sample)
-        rootconf = ZConfig.loadfile(io)
+        rootconf = self.loadConfigText(sample)
         storageconf = rootconf.getSection("Storage")
         cls, args = StorageConfig.getStorageInfo(storageconf)
         self.assertEqual(cls, DemoStorage)
@@ -128,8 +129,7 @@ class StorageTestCase(unittest.TestCase):
         </Storage>
         """ % self.tmpfn
         os.mkdir(self.tmpfn)
-        io = StringIO(sample)
-        rootconf = ZConfig.loadfile(io)
+        rootconf = self.loadConfigText(sample)
         storageconf = rootconf.getSection("Storage")
         cls, args = StorageConfig.getStorageInfo(storageconf)
         self.assertEqual(cls, BDBFullStorage)
@@ -155,8 +155,7 @@ class StorageTestCase(unittest.TestCase):
         </Storage>
         """ % self.tmpfn
         os.mkdir(self.tmpfn)
-        io = StringIO(sample)
-        rootconf = ZConfig.loadfile(io)
+        rootconf = self.loadConfigText(sample)
         storageconf = rootconf.getSection("Storage")
         cls, args = StorageConfig.getStorageInfo(storageconf)
         self.assertEqual(cls, BDBMinimalStorage)
