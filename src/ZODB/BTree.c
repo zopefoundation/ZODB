@@ -11,7 +11,7 @@
 
 static char BTree_module_documentation[] = 
 ""
-"\n$Id: BTree.c,v 1.9 1997/11/13 20:38:35 jim Exp $"
+"\n$Id: BTree.c,v 1.10 1997/11/13 20:45:51 jim Exp $"
 ;
 
 #define PERSISTENT
@@ -944,7 +944,7 @@ _BTree_set(BTree *self, PyObject *key, PyObject *value)
   iv=PyInt_AsLong(value);
 #endif
 
-  PER_USE_OR_RETURN(self, NULL);
+  PER_USE_OR_RETURN(self, -1);
 
   UNLESS(self->data) if(BTree_init(self) < 0) goto err;
 
@@ -1594,7 +1594,7 @@ static int
 Bucket_length( Bucket *self)
 {
   int r;
-  PER_USE_OR_RETURN(self, NULL);
+  PER_USE_OR_RETURN(self, -1);
   r=self->len;
   PER_ALLOW_DEACTIVATION(self);
   return r;
@@ -1610,7 +1610,7 @@ static int
 BTree_length( BTree *self)
 {
   int r;
-  PER_USE_OR_RETURN(self, NULL);
+  PER_USE_OR_RETURN(self, -1);
   r=self->count;
   PER_ALLOW_DEACTIVATION(self);
   return r;
@@ -1720,7 +1720,7 @@ initBTree()
 #endif
 {
   PyObject *m, *d;
-  char *rev="$Revision: 1.9 $";
+  char *rev="$Revision: 1.10 $";
 
   UNLESS(PyExtensionClassCAPI=PyCObject_Import("ExtensionClass","CAPI"))
       return;
@@ -1782,6 +1782,9 @@ initBTree()
 Revision Log:
 
   $Log: BTree.c,v $
+  Revision 1.10  1997/11/13 20:45:51  jim
+  Fixed some bad return values.
+
   Revision 1.9  1997/11/13 20:38:35  jim
   added dcprotect
 

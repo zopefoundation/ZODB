@@ -10,7 +10,7 @@
 
 static char intSet_module_documentation[] = 
 ""
-"\n$Id: intSet.c,v 1.4 1997/11/13 20:38:39 jim Exp $"
+"\n$Id: intSet.c,v 1.5 1997/11/13 20:47:13 jim Exp $"
 ;
 
 #include <limits.h>
@@ -122,7 +122,7 @@ intSet_modify(intSet *self, INTSET_DATA_TYPE ikey, int add)
   int min, max, i, l;
   INTSET_DATA_TYPE *data, k;
   
-  PER_USE_OR_RETURN(self, NULL);
+  PER_USE_OR_RETURN(self, -1);
 
   data=self->data;
 
@@ -527,7 +527,7 @@ void
 initintSet()
 {
   PyObject *m, *d;
-  char *rev="$Revision: 1.4 $";
+  char *rev="$Revision: 1.5 $";
 
   UNLESS(ExtensionClassImported) return;
 
@@ -568,6 +568,9 @@ initintSet()
   Revision Log:
 
   $Log: intSet.c,v $
+  Revision 1.5  1997/11/13 20:47:13  jim
+  Fixed some bad return values.
+
   Revision 1.4  1997/11/13 20:38:39  jim
   added dcprotect
 
