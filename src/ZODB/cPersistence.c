@@ -14,7 +14,7 @@
 static char cPersistence_doc_string[] = 
 "Defines Persistent mixin class for persistent objects.\n"
 "\n"
-"$Id: cPersistence.c,v 1.64 2002/10/01 15:06:17 jeremy Exp $\n";
+"$Id: cPersistence.c,v 1.65 2002/10/16 16:12:48 jeremy Exp $\n";
 
 #include "cPersistence.h"
 
@@ -837,7 +837,10 @@ truecPersistenceCAPI = {
   deallocated,
   (intfunctionwithpythonarg)Per_setstate,
   (pergetattr)Per_getattr,
-  NULL
+  (persetattr)_setattro,
+  NULL /* The percachedel slot is initialized in cPickleCache.c when
+          the module is loaded.  It uses a function in a different
+          shared library. */
 };
 
 void
