@@ -2,48 +2,6 @@ What's new in ZODB3 3.3 ?
 =========================
 Release date: DD-MMM-YYYY
 
-Connection
-----------
-
-ZODB intends to raise ConnnectionStateError if an attempt is made to
-close a connection while modifications are pending (the connection is
-involved in a transaction that hasn't been abort()'ed or commit()'ed).
-It was missing the case where the only pending modifications were made
-in subtransactions.  This has been fixed.  If an attempt to close a
-connection with pending subtransactions is made now,
-
-    ConnnectionStateError: Cannot close a connection with a pending subtransaction
-
-is raised.
-
-transaction
------------
-
-Growing pains:  ZODB 3.1 and 3.2 had a bug wherein Transaction.begin()
-didn't abort the current transaction if the only pending changes were in a
-subtransaction.  In ZODB 3.3, it's intended that transaction managers be
-used instead of invoking methods directly on Transaction objects, and
-calling begin() on a transaction manager didn't have this old bug.  However,
-Transaction.begin() still exists in 3.3, and it had a worse bug:  it never
-aborted the transaction (not even if changes were pending outside of
-subtransactions).  Transaction.begin() has been changed to abort the
-transaction, although it's still strongly recommended to invoke begin() on
-the relevant transaction manager instead.  For example,
-
-    import transaction
-    transaction.begin()
-
-if using the default ThreadTransactionManager (see news for 3.3a3 below).
-
-BTrees
-------
-
-The BTrees __init__.py file is now just a comment.  It had been trying
-to set up support for (long gone) "int sets", and to import an old
-version of Zope's Interface package, which doesn't even ship with ZODB.
-The latter in particular created problems, at least clashing with
-PythonCAD's Interface package.
-
 Tools
 -----
 
@@ -58,6 +16,100 @@ ZODB/test/testfsoids.py is a tutorial doctest.
 What's new in ZODB3 3.3 ?
 =========================
 Release date: DD-MMM-YYYY
+
+Connection
+----------
+
+ZODB intends to raise ConnnectionStateError if an attempt is made to close
+a connection while modifications are pending (the connection is involved in
+a transaction that hasn't been ``abort()``'ed or ``commit()``'ed). It was
+missing the case where the only pending modifications were made in
+subtransactions.  This has been fixed.  If an attempt to close a connection
+with pending subtransactions is made now::
+
+    ConnnectionStateError: Cannot close a connection with a pending subtransaction
+
+is raised.
+
+transaction
+-----------
+
+- Some explanations of new transaction features in the 3.3a3 news
+  were incorrect, and this news file has been retroactively edited to
+  repair that.  See news for 3.3a3 below.
+
+- If ReadConflictError was raised by an attempt to load an object with a
+  ``_p_independent()`` method that returned false, attempting to commit the
+  transaction failed to (re)raise ReadConflictError for that object.  Note
+  that ZODB intends to prevent committing a transaction in which a
+  ReadConflictError occurred; this was an obscure case it missed.
+
+- Growing pains:  ZODB 3.2 had a bug wherein ``Transaction.begin()`` didn't
+  abort the current transaction if the only pending changes were in a
+  subtransaction.  In ZODB 3.3, it's intended that a transaction manager be
+  used to effect ``begin()`` (instead of invoking ``Transaction.begin()``),
+  and calling ``begin()`` on a transaction manager didn't have this old
+  bug.  However, ``Transaction.begin()`` still exists in 3.3, and it had a
+  worse bug:  it never aborted the transaction (not even if changes were
+  pending outside of subtransactions). ``Transaction.begin()`` has been
+  changed to abort the transaction. ``Transaction.begin()`` is also
+  deprecated.  Don't use it.  Use ``begin()`` on the relevant transaction
+  manager instead.  For example,
+
+      >>> import transaction
+      >>> txn = transaction.begin()  # start a txn using the default TM
+
+  if using the default ThreadTransactionManager (see news for 3.3a3 below).
+  In 3.3, it's intended that a single Transaction object is used for exactly
+  one transaction.  So, unlike as in 3.2, when somtimes Transaction objects
+  were reused across transactions, but sometimes weren't, when you do
+  ``Transaction.begin()`` in 3.3 a brand new transaction object is
+  created.  That's why this use is deprecated.  Code of the form:
+
+      >>> txn = transaction.get()
+      >>> ...
+      >>> txn.begin()
+      >>> ...
+      >>> txn.commit()
+
+  can't work as intended is 3.3, because ``txn`` is no longer the current
+  Transaction object the instant ``txn.begin()`` returns.
+
+
+
+BTrees
+------
+
+The BTrees __init__.py file is now just a comment.  It had been trying
+to set up support for (long gone) "int sets", and to import an old
+version of Zope's Interface package, which doesn't even ship with ZODB.
+The latter in particular created problems, at least clashing with
+PythonCAD's Interface package.
+
+POSException
+------------
+
+Collector #1488 (TemporaryStorage -- going backward in time).  This
+confusion was really due to that the detail on a ConflictError exception
+didn't make sense.  It called the current revision "was", and the old
+revision "now".  The detail is much more informative now.  For example,
+if the exception said:
+
+    ConflictError: database conflict error (oid 0xcb22,
+    serial was 0x03441422948b4399, now 0x034414228c3728d5)
+
+before, it now says:
+
+    ConflictError: database conflict error (oid 0xcb22,
+    serial this txn started with 0x034414228c3728d5 2002-04-14 20:50:32.863000,
+    serial currently committed 0x03441422948b4399 2002-04-14 20:50:34.815000)
+
+ConflictError
+-------------
+
+The undocumented ``get_old_serial()`` and ``get_new_serial()`` methods
+were swapped (the first returned the new serial, and the second returned
+the old serial).
 
 Tools
 -----
@@ -239,9 +291,9 @@ There is a new transaction package, which provides new interfaces for
 application code and for the interaction between transactions and
 resource managers.
 
-The top-level transaction package has functions commit(), abort(),
-get(), and begin().  They should be used instead of the magic
-get_transaction() builtin, which will be deprecated.  For example:
+The top-level transaction package has functions ``commit()``, ``abort()``,
+``get()``, and ``begin()``.  They should be used instead of the magic
+``get_transaction()`` builtin, which will be deprecated.  For example:
 
     >>> get_transaction().commit()
 
@@ -250,38 +302,38 @@ should now be written as
     >>> import transaction
     >>> transaction.commit()
 
-The new API provides explicit transaction manager objects.  The
-transaction manager (TM) is responsible for associating resource
-managers with a "current" transaction.  It is available as
-`transaction.manager`.  The default TM, implemented by
-ThreadedTransactionManager, assigns each thread its own current
-transaction.  The TransactionManager class assigns all threads to the
-same transaction.
+The new API provides explicit transaction manager objects.  A transaction
+manager (TM) is responsible for associating resource managers with a
+"current" transaction.  The default TM, implemented by class
+``ThreadedTransactionManager``, assigns each thread its own current
+transaction.  This default TM is available as ``transaction.manager``.  The
+``TransactionManager`` class assigns all threads to the same transaction,
+and is an explicit replacement for the ``Connection.setLocalTransaction()``
+method:
 
-A transaction manager instance can be passed as the txn_mgr argument
-to DB.open().  If you do, the connection will use the specified
-transaction manager instead of the default transaction manager.  You
-will need to call commit() and abort() on the transaction manager
-explicitly.  For example:
+A transaction manager instance can be passed as the txn_mgr argument to
+``DB.open()``.  If you do, the connection will use the specified
+transaction manager instead of the default TM.  The current transaction is
+obtained by calling ``get()`` on a TM. For example:
 
     >>> tm = transaction.TransactionManager()
     >>> cn = db.open(txn_mgr=tm)
     [...]
-    >>> tm.commit()
+    >>> tm.get().commit()
 
-The setLocalTransaction() and getTransaction() methods of Connection
-are deprecated.  Use an explicit TM passed via txn_mgr instead.  The
-setLocalTransaction() manager functions still works, but it returns a
-TM instead of a Transaction.
+The ``setLocalTransaction()`` and ``getTransaction()`` methods of
+Connection are deprecated.  Use an explicit TM passed via ``txn_mgr=`` to
+``DB.open()`` instead.  The ``setLocalTransaction()`` method still works,
+but it returns a TM instead of a Transaction.
 
-The TM creates Transaction objects, which are used for exactly one
-transaction.  They have a status() method that returns their current
-state.
+A TM creates Transaction objects, which are used for exactly one
+transaction.  Transaction objects still have ``commit()``, ``abort()``,
+``note()``, ``setUser()``, and ``setExtendedInfo()`` methods.
 
-Resource managers, e.g. Connection or RDB adapter, should use join()
-instead of register().  An object that calls join() manages its own
-resources.  An object that calls register() expects the TM to manage
-the objects.
+Resource managers, e.g. Connection or RDB adapter, should use a
+Transaction's ``join()`` method instead of its ``register()`` method.  An
+object that calls ``join()`` manages its own resources.  An object that
+calls ``register()`` expects the TM to manage the objects.
 
 Data managers written against the ZODB 4 transaction API are now
 supported in ZODB 3.
