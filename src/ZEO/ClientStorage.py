@@ -903,25 +903,32 @@ class ClientStorage:
             return
         self._pickler.dump(args)
 
+    def _process_invalidations(self, invs):
+        # Invalidations are sent by the ZEO server as a sequence of
+        # oid, version pairs.  The DB's invalidate() method expects a
+        # dictionary of oids.
+        
+        # versions maps version names to dictionary of invalidations
+        versions = {}
+        for oid, version in invs:
+            d = versions.setdefault(version, {})
+            self._cache.invalidate(oid, version=version)
+            d[oid] = 1
+        if self._db is not None:
+            for v, d in versions.items():
+                self._db.invalidate(d, version=v)
+
     def endVerify(self):
         """Server callback to signal end of cache validation."""
         if self._pickler is None:
             return
-        self._pickler.dump((0,0))
+        # write end-of-data marker
+        self._pickler.dump((None, None))
         self._pickler = None
         self._tfile.seek(0)
-        unpick = cPickle.Unpickler(self._tfile)
         f = self._tfile
         self._tfile = None
-
-        while 1:
-            oid, version = unpick.load()
-            log2(INFO, "verify invalidate %r" % oid)
-            if not oid:
-                break
-            self._cache.invalidate(oid, version=version)
-            if self._db is not None:
-                self._db.invalidate(oid, version=version)
+        self._process_invalidations(InvalidationLogIterator(f))
         f.close()
 
         log2(INFO, "endVerify finishing")
@@ -939,11 +946,7 @@ class ClientStorage:
             for t in args:
                 self.self._pickler.dump(t)
             return
-        db = self._db
-        for oid, version in args:
-            self._cache.invalidate(oid, version=version)
-            if db is not None:
-                db.invalidate(oid, version=version)
+        self._process_invalidations(args)
 
     # The following are for compatibility with protocol version 2.0.0
 
@@ -954,4 +957,18 @@ class ClientStorage:
     end = endVerify
     Invalidate = invalidateTrans
 
+class InvalidationLogIterator:
+    """Helper class for reading invalidations in endVerify."""
+    # XXX will require extra work to backport to Python 2.1
 
+    def __init__(self, fileobj):
+        self._unpickler = cPickle.Unpickler(fileobj)
+
+    def __iter__(self):
+        return self
+
+    def next(self):
+        oid, version = self._unpickler.load()
+        if oid is None:
+            raise StopIteration
+        return oid, version
