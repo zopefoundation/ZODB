@@ -12,7 +12,7 @@
   
  ****************************************************************************/
 
-#define BTREETEMPLATE_C "$Id: BTreeTemplate.c,v 1.27 2002/05/28 22:15:25 jim Exp $\n"
+#define BTREETEMPLATE_C "$Id: BTreeTemplate.c,v 1.28 2002/05/30 18:29:59 jeremy Exp $\n"
 
 /*
 ** _BTree_get
@@ -382,7 +382,7 @@ _BTree_set(BTree *self, PyObject *keyarg, PyObject *value,
   if (grew < 0) goto err;
 
   /* grew >0 if we changed the length of the BTree.
-     If we got smaller and a a bucket got deleted, then
+     If we got smaller and a bucket got deleted, then
      grew might be >1 to indicate that we need to adjust previous
      bucket pointers, if we can.
   */
