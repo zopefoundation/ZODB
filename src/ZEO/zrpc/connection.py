@@ -306,6 +306,7 @@ class Connection(smac.SizedMessageAsyncConnection):
         assert r_msgid == msgid, "%s != %s: %s" % (r_msgid, msgid, r_args)
 
         if (isinstance(r_args, types.TupleType)
+            and type(r_args[0]) == types.ClassType
             and issubclass(r_args[0], Exception)):
             inst = r_args[1]
             raise inst # error raised by server
