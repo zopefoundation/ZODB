@@ -27,7 +27,7 @@ Where:
     -r dir
     --repository=dir
         Repository directory containing the backup files.  This argument
-        is required.
+        is required.  The directory must already exist.
 
 Options for -B/--backup:
     -f file
@@ -74,12 +74,6 @@ from ZODB.FileStorage import FileStorage
 
 program = sys.argv[0]
 
-try:
-    True, False
-except NameError:
-    True = 1
-    False = 0
-
 BACKUP = 1
 RECOVER = 2
 
@@ -88,7 +82,6 @@ READCHUNK = 16 * 1024
 VERBOSE = False
 
 
-
 def usage(code, msg=''):
     outfp = sys.stderr
     if code == 0:
@@ -107,7 +100,6 @@ def log(msg, *args):
         print >> sys.stderr, msg % args
 
 
-
 def parseargs():
     global VERBOSE
     try:
@@ -184,7 +176,6 @@ def parseargs():
     return options
 
 
-
 # Read bytes (no more than n, or to EOF if n is None) in chunks from the
 # current position in file fp.  Pass each chunk as an argument to func().
 # Return the total number of bytes read == the total number of bytes
@@ -272,24 +263,27 @@ def gen_filename(options, ext=None):
     return '%04d-%02d-%02d-%02d-%02d-%02d%s' % t
 
 
+# Return a list of files needed to reproduce state at time options.date.
+# This is a list, in chronological order, of the .fs[z] and .deltafs[z]
+# files, from the time of the most recent full backup preceding
+# options.date, up to options.date.
 def find_files(options):
     def rootcmp(x, y):
         # This already compares in reverse order
         return cmp(os.path.splitext(y)[0], os.path.splitext(x)[0])
-    # Return a list of files needed to reproduce state at time `when'
     when = options.date
     if not when:
         when = gen_filename(options, '')
-    log('looking for files b/w last full backup and %s...', when)
+    log('looking for files between last full backup and %s...', when)
     all = os.listdir(options.repository)
     all.sort(rootcmp)
-    # Find the last full backup before date, then include all the incrementals
-    # between when and that full backup.
+    # Find the last full backup before date, then include all the
+    # incrementals between that full backup and "when".
     needed = []
-    for file in all:
-        root, ext = os.path.splitext(file)
-        if root <= when:
-            needed.append(file)
+    for fname in all:
+        root, ext = os.path.splitext(fname)
+        if root <= when and ext in ('.fs', '.fsz', '.deltafs', '.deltafsz'):
+            needed.append(fname)
         if ext in ('.fs', '.fsz'):
             break
     # Make the file names relative to the repository directory
@@ -335,7 +329,6 @@ def scandat(repofiles):
     return fn, startpos, endpos, sum
 
 
-
 def do_full_backup(options):
     # Find the file position of the last completed transaction.
     fs = FileStorage(options.file, read_only=True)
@@ -471,7 +464,6 @@ def do_backup(options):
     do_full_backup(options)
 
 
-
 def do_recover(options):
     # Find the first full backup at or before the specified date
     repofiles = find_files(options)
@@ -493,7 +485,6 @@ def do_recover(options):
     log('Recovered %s bytes, md5: %s', reposz, reposum)
 
 
-
 def main():
     options = parseargs()
     if options.mode == BACKUP:

@@ -5,12 +5,21 @@ Release date: DD-MMM-2004
 ZODB
 ----
 
+Collector #1330:  repozo.py -R can create corrupt .fs.
+When looking for the backup files needed to recreate a Data.fs file,
+repozo could (unintentionally) include its meta .dat files in the list,
+or random files of any kind created by the user in the backup directory.
+These would then get copied verbatim into the reconstructed file, filling
+parts with junk.  Repaired by filtering the file list to include only
+files with the data extensions repozo.py creates (.fs, .fsz, .deltafs,
+and .deltafsz).  Thanks to James Henderson for the diagnosis.
+
 fsrecover.py couldn't work, because it referenced attributes that no
 longer existed after the MVCC changes.  Repaired that, and added new
 tests to ensure it continues working.
 
 Collector #1309:  The reference counts reported by DB.cacheExtremeDetails()
-for ghosts were one too small.
+for ghosts were one too small.  Thanks to Dieter Maurer for the diagnosis.
 
 Collector #1208:  Infinite loop in cPickleCache.
 If a persistent object had a __del__ method (probably not a good idea
@@ -21,7 +30,8 @@ method, the latter would load the object into cache again to
 satsify the attribute reference, the cache would again decide that
 the object should be ghostified, and so on.  The infinite loop no longer
 occurs, but note that objects of this kind still aren't sensible (they're
-effectively immortal).
+effectively immortal).  Thanks to Toby Dickenson for suggesting a nice
+cure.
 
 
 What's new in ZODB3 3.3 alpha 3
