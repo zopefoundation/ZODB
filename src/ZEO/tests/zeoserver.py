@@ -22,14 +22,15 @@ import socket
 import asyncore
 import ThreadedAsync.LoopCallback
 
-import ZConfig
+import ZConfig.Context
 import zLOG
 from ZODB import StorageConfig
 import ZEO.StorageServer
 
 
 def load_storage(fp):
-    rootconf = ZConfig.loadfile(fp)
+    context = ZConfig.Context.Context()
+    rootconf = context.loadFile(fp)
     storageconf = rootconf.getSection('Storage')
     return StorageConfig.createStorage(storageconf)
 
