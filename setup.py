@@ -119,12 +119,7 @@ winlock = Extension(name = 'ZODB.winlock',
 
 exts += [cPersistence, cPickleCache, TimeStamp, coptimizations, winlock]
 
-bsddbhelper = Extension(name = 'BDBStorage._helper',
-                        sources = ['src/BDBStorage/_helper.c'])
-exts += [bsddbhelper]
-
-packages = ["BDBStorage", "BDBStorage.tests",
-            "BTrees", "BTrees.tests",
+packages = ["BTrees", "BTrees.tests",
             "ZEO", "ZEO.auth", "ZEO.zrpc", "ZEO.tests",
             "ZODB", "ZODB.FileStorage", "ZODB.tests",
             "Persistence", "Persistence.tests",
