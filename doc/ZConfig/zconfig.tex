@@ -630,22 +630,12 @@ include additional types in application-provided abstract types.
 Components are identified using a dotted-name, similar to a Python
 module name.  For example, one component may be \code{zodb.storage}.
 
-%A schema component \dfn{extension} is allowed to define new abstract
-%and section types, extend types provided by the component it extends,
-%and include new section types in abstract types provided by the
-%component.  The expected usage is that extensions will provide one or
-%more concrete types that implement abstract types defined by the
-%component.
-
 Schema components are stored alongside application code since they
 directly reference datatype code.  Schema components are provided by
 Python packages; packages which contain a file named
 \file{component.xml} can be ``imported''.  The \file{component.xml}
 file defines the types provided by that component; it must have a
 \element{component} element as the document element.
-%Extensions to a component are stored in immediate subdirectories; a
-%file \file{extension.xml} provides the extension types.  Extensions
-%must have an \element{extension} element as the document element.
 
 The following element is used as the document element for schema
 components.  Note that schema components do not allow keys and
@@ -663,18 +653,6 @@ provide type definitions.
     attribute.
   \end{attributedesc}
 \end{elementdesc}
-
-%\begin{elementdesc}{extension}{description?, (abstracttype | sectiontype)*}
-%  The top-level element for schema component extensions.
-
-%  \begin{attributedesc}{prefix}{\datatype{dotted-name}}
-%    Prefix to be pre-pended in front of partial dotted-names that
-%    start with a period.  The value of this attribute is used in all
-%    contexts within the \element{extension} element if it hasn't been
-%    overridden by an inner element with a \attribute{prefix}
-%    attribute.
-%  \end{attributedesc}
-%\end{elementdesc}
 
 
 \section{Standard \module{ZConfig} Datatypes\label{standard-datatypes}}
