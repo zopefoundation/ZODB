@@ -99,7 +99,7 @@ with '\0\0\0\0'.
 If var is not writable, then temporary files are used for
 file 0 and file 1.
 
-$Id: ClientCache.py,v 1.36 2002/09/13 20:59:28 gvanrossum Exp $
+$Id: ClientCache.py,v 1.37 2002/09/18 21:22:58 gvanrossum Exp $
 """
 
 import os
@@ -303,6 +303,8 @@ class ClientCache:
                 if dlen:
                     data = read(dlen)
                     self._trace(0x2A, oid, version, h[19:], dlen)
+                    if (p < 0) != self._current:
+                        self._copytocurrent(ap, tlen, dlen, vlen, h, data)
                     return data, h[19:]
                 else:
                     self._trace(0x26, oid, version)
@@ -317,6 +319,9 @@ class ClientCache:
                     seek(ap+27)
                     data = read(dlen)
                     self._trace(0x2C, oid, version, h[19:], dlen)
+                    if (p < 0) != self._current:
+                        self._copytocurrent(ap, tlen, dlen, vlen, h,
+                                            data, vheader)
                     return data, h[19:]
                 else:
                     self._trace(0x28, oid, version)
@@ -326,9 +331,70 @@ class ClientCache:
             vdata = read(vdlen)
             vserial = read(8)
             self._trace(0x2E, oid, version, vserial, vdlen)
+            if (p < 0) != self._current:
+                self._copytocurrent(ap, tlen, dlen, vlen, h,
+                                    None, vheader, vdata, vserial)
             return vdata, vserial
         finally:
             self._release()
+
+    def _copytocurrent(self, pos, tlen, dlen, vlen, header,
+                       data=None, vheader=None, vdata=None, vserial=None):
+        """Copy a cache hit from the non-current file to the current file.
+
+        Arguments are the file position in the non-current file,
+        record length, data length, version string length, header, and
+        optionally parts of the record that have already been read.
+        """
+        if self._pos + tlen > self._limit:
+            return # Don't let this cause a cache flip
+        assert len(header) == 27
+        if header[8] == 'n':
+            # Rewrite the header to drop the version data.
+            # This shortens the record.
+            tlen = 31 + dlen
+            vlen = 0
+            # (oid:8, status:1, tlen:4, vlen:2, dlen:4, serial:8)
+            header = header[:9] + pack(">IHI", tlen, vlen, dlen) + header[-8:]
+        else:
+            assert header[8] == 'v'
+        f = self._f[not self._current]
+        if data is None:
+            f.seek(pos+27)
+            data = f.read(dlen)
+            if len(data) != dlen:
+                return
+        l = [header, data]
+        if vlen:
+            assert vheader is not None
+            l.append(vheader)
+            assert (vdata is None) == (vserial is None)
+            if vdata is None:
+                vdlen = unpack(">I", vheader[-4:])[0]
+                f.seek(pos+27+dlen+vlen+4)
+                vdata = f.read(vdlen)
+                if len(vdata) != vdlen:
+                    return
+                vserial = f.read(8)
+                if len(vserial) != 8:
+                    return
+            l.append(vdata)
+            l.append(vserial)
+        else:
+            assert None is vheader is vdata is vserial
+        l.append(header[9:13]) # copy of tlen
+        g = self._f[self._current]
+        g.seek(self._pos)
+        g.writelines(l)
+        assert g.tell() == self._pos + tlen
+        oid = header[:8]
+        if self._current:
+            self._index[oid] = - self._pos
+        else:
+            self._index[oid] = self._pos
+        self._pos += tlen
+        self._trace(0x6A, header[:8], vlen and vheader[:-4] or '',
+                    vlen and vserial or header[-8:], dlen)
 
     def update(self, oid, serial, version, data):
         self._acquire()
@@ -476,7 +542,7 @@ class ClientCache:
         l.append(stlen)
         f = self._f[self._current]
         f.seek(self._pos)
-        f.write("".join(l))
+        f.writelines(l) # write all list elements
 
         if self._current:
             self._index[oid] = - self._pos

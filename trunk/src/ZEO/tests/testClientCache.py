@@ -164,6 +164,103 @@ class ClientCacheTests(unittest.TestCase):
         self.assertNotEqual(cache._index.get(oid2), None)
         self.assertEqual(cache._index.get(oid), None)
 
+    def testCopyToCurrent(self):
+        # - write some objects to cache file 0
+        # - force a flip
+        # - write some objects to cache file 1
+        # - load some objects that are in cache file 0
+        # - load the same objects, making sure they are now in file 1
+        # - write some more objects
+        # - force another flip
+        # - load the same objects again
+        # - make sure they are now in file 0 again
+
+        cache = self.cache
+
+        # Create some objects
+        oid1 = 'abcdefgh'
+        data1 = '1234' * 100
+        serial1 = 'ABCDEFGH'
+        oid2 = 'bcdefghi'
+        data2 = '2345' * 200
+        serial2 = 'BCDEFGHI'
+        version2 = 'myversion'
+        nonversion = 'nada'
+        vdata2 = '5432' * 250
+        vserial2 = 'IHGFEDCB'
+        oid3 = 'cdefghij'
+        data3 = '3456' * 300
+        serial3 = 'CDEFGHIJ'
+
+        # Store them in the cache
+        cache.store(oid1, data1, serial1, '', '', '')
+        cache.store(oid2, data2, serial2, version2, vdata2, vserial2)
+        cache.store(oid3, data3, serial3, '', '', '')
+
+        # Verify that they are in file 0
+        self.assert_(None is not cache._index.get(oid1) > 0)
+        self.assert_(None is not cache._index.get(oid2) > 0)
+        self.assert_(None is not cache._index.get(oid3) > 0)
+
+        # Load them and verify that the loads return correct data
+        self.assertEqual(cache.load(oid1, ''), (data1, serial1))
+        self.assertEqual(cache.load(oid2, ''), (data2, serial2))
+        self.assertEqual(cache.load(oid2, nonversion), (data2, serial2))
+        self.assertEqual(cache.load(oid2, version2), (vdata2, vserial2))
+        self.assertEqual(cache.load(oid3, ''), (data3, serial3))
+
+        # Verify that they are still in file 0
+        self.assert_(None is not cache._index.get(oid1) > 0)
+        self.assert_(None is not cache._index.get(oid2) > 0)
+        self.assert_(None is not cache._index.get(oid3) > 0)
+
+        # Cause a cache flip
+        cache.checkSize(10*self.cachesize)
+
+        # Load o1, o2, o4 again and verify that the loads return correct data
+        self.assertEqual(cache.load(oid1, ''), (data1, serial1))
+        self.assertEqual(cache.load(oid2, version2), (vdata2, vserial2))
+        self.assertEqual(cache.load(oid2, nonversion), (data2, serial2))
+        self.assertEqual(cache.load(oid2, ''), (data2, serial2))
+
+        # Verify that o1, o2, 04 are now in file 1, o3 still in file 0
+        self.assert_(None is not cache._index.get(oid1) < 0)
+        self.assert_(None is not cache._index.get(oid2) < 0)
+        self.assert_(None is not cache._index.get(oid3) > 0)
+
+        # Cause another cache flip
+        cache.checkSize(10*self.cachesize)
+
+        # Load o1 and o2 again and verify that the loads return correct data
+        self.assertEqual(cache.load(oid1, ''), (data1, serial1))
+        self.assertEqual(cache.load(oid2, nonversion), (data2, serial2))
+        self.assertEqual(cache.load(oid2, version2), (vdata2, vserial2))
+        self.assertEqual(cache.load(oid2, ''), (data2, serial2))
+
+        # Verify that o1 and o2 are now back in file 0, o3 is lost
+        self.assert_(None is not cache._index.get(oid1) > 0)
+        self.assert_(None is not cache._index.get(oid2) > 0)
+        self.assert_(None is cache._index.get(oid3))
+
+        # Invalidate version data for o2
+        cache.invalidate(oid2, nonversion)
+        self.assertEqual(cache.load(oid2, ''), (data2, serial2))
+        self.assertEqual(cache.load(oid2, nonversion), None)
+        self.assertEqual(cache.load(oid2, version2), None)
+
+        # Cause another cache flip
+        cache.checkSize(10*self.cachesize)
+
+        # Load o1 and o2 again and verify that the loads return correct data
+        self.assertEqual(cache.load(oid1, ''), (data1, serial1))
+        self.assertEqual(cache.load(oid2, version2), None)
+        self.assertEqual(cache.load(oid2, nonversion), None)
+        self.assertEqual(cache.load(oid2, ''), (data2, serial2))
+
+        # Verify that o1 and o2 are now in file 1
+        self.assert_(None is not cache._index.get(oid1) < 0)
+        self.assert_(None is not cache._index.get(oid2) < 0)
+
 class PersistentClientCacheTests(unittest.TestCase):
 
     def setUp(self):

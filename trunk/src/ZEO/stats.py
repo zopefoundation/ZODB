@@ -364,6 +364,8 @@ explain = {
     0x5A: "store (non-version data present)",
     0x5C: "store (only version data present)",
 
+    0x6A: "_copytocurrent",
+
     0x70: "checkSize (cache flip)",
     }
 
