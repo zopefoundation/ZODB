@@ -221,10 +221,25 @@ class WeakSet(object):
     def remove(self, obj):
         del self.data[id(obj)]
 
-    # Return a list of all the objects in the collection.
-    # Because a weak dict is used internally, iteration
-    # is dicey (the underlying dict may change size during
-    # iteration, due to gc or activity from other threads).
-    # as_list() attempts to be safe.
-    def as_list(self):
-        return self.data.values()
+    # Return a list of weakrefs to all the objects in the collection.
+    # Because a weak dict is used internally, iteration is dicey (the
+    # underlying dict may change size during iteration, due to gc or
+    # activity from other threads).  as_weakef_list() is safe.
+    #
+    # Something like this should really be a method of Python's weak dicts.
+    # If we invoke self.data.values() instead, we get back a list of live
+    # objects instead of weakrefs.  If gc occurs while this list is alive,
+    # all the objects move to an older generation (because they're strongly
+    # referenced by the list!).  They can't get collected then, until a
+    # less frequent collection of the older generation.  Before then, if we
+    # invoke self.data.values() again, they're still alive, and if gc occurs
+    # while that list is alive they're all moved to yet an older generation.
+    # And so on.  Stress tests showed that it was easy to get into a state
+    # where a WeakSet grows without bounds, despite that almost all its
+    # elements are actually trash.  By returning a list of weakrefs instead,
+    # we avoid that, although the decision to use weakrefs is now# very
+    # visible to our clients.
+    def as_weakref_list(self):
+        # We're cheating by breaking into the internals of Python's
+        # WeakValueDictionary here (accessing its .data attribute).
+        return self.data.data.values()
