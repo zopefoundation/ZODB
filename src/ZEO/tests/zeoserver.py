@@ -160,13 +160,16 @@ def main():
     addr = ('localhost', zeo_port)
     log(label, 'creating the storage server')
     storage = zo.storages[0].open()
+    mon_addr = None
+    if zo.monitor_address:
+        mon_addr = zo.monitor_address.address
     server = ZEO.StorageServer.StorageServer(
         zo.address,
         {"1": storage},
         read_only=zo.read_only,
         invalidation_queue_size=zo.invalidation_queue_size,
         transaction_timeout=zo.transaction_timeout,
-        monitor_address=zo.monitor_address)
+        monitor_address=mon_addr)
     
     try:
         log(label, 'creating the test server, keep: %s', keep)
