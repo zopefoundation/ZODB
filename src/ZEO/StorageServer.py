@@ -83,7 +83,7 @@
 # 
 ##############################################################################
 
-__version__ = "$Revision: 1.10 $"[11:-2]
+__version__ = "$Revision: 1.11 $"[11:-2]
 
 import asyncore, socket, string, sys, cPickle, os
 from smac import SizedMessageAsyncConnection
@@ -114,6 +114,7 @@ class StorageServer(asyncore.dispatcher):
     def __init__(self, connection, storages):
         
         self.__storages=storages
+        for n, s in storages.items(): init_storage(s)
 
         self.__connections={}
         self.__get_connections=self.__connections.get
@@ -362,8 +363,12 @@ class Connection(SizedMessageAsyncConnection):
         self.message_output('s'+dump((oid,newserial), 1))
         return _noreturn
 
-    def vote(self): pass
-
+    def vote(self, id): 
+        t=self._transaction
+        if t is None or id != t.id:
+            raise POSException.StorageTransactionError(self, id)
+        return self.__storage.tpc_vote(t)
+        
     def undo(self, transaction_id):
         oids=self.__storage.undo(transaction_id)
         self.__server.invalidate(
@@ -454,7 +459,9 @@ class Connection(SizedMessageAsyncConnection):
             self.__server.invalidate(self, self.__storage_id,
                                      self.__invalidated)
             self.__invalidated=[]
-        
+
+def init_storage(storage):
+    if not hasattr(storage,'tpc_vote'): storage.tpc_vote=lambda *args: None
 
 if __name__=='__main__':
     import ZODB.FileStorage
