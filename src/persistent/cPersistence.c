@@ -1,6 +1,6 @@
 /*
 
-  $Id: cPersistence.c,v 1.16 1997/06/30 15:26:35 jim Exp $
+  $Id: cPersistence.c,v 1.17 1997/07/16 20:18:32 jim Exp $
 
   C Persistence Module
 
@@ -56,7 +56,7 @@
 
 
 *****************************************************************************/
-static char *what_string = "$Id: cPersistence.c,v 1.16 1997/06/30 15:26:35 jim Exp $";
+static char *what_string = "$Id: cPersistence.c,v 1.17 1997/07/16 20:18:32 jim Exp $";
 
 #include <time.h>
 #include "cPersistence.h"
@@ -406,7 +406,6 @@ Per__p___init__(self, args)
 static PyObject *
 Per__p___reinit__(cPersistentObject *self, PyObject *args)
 {
-  int oid;
   PyObject *init=0, *copy, *dict;
 
 #ifdef DEBUG_LOG
@@ -936,7 +935,7 @@ void
 initcPersistence()
 {
   PyObject *m, *d;
-  char *rev="$Revision: 1.16 $";
+  char *rev="$Revision: 1.17 $";
 
   PATimeType.ob_type=&PyType_Type;
 
@@ -963,6 +962,9 @@ initcPersistence()
 /****************************************************************************
 
   $Log: cPersistence.c,v $
+  Revision 1.17  1997/07/16 20:18:32  jim
+  *** empty log message ***
+
   Revision 1.16  1997/06/30 15:26:35  jim
   Changed so getting an object's __class__ does not cause it's
   activation.
