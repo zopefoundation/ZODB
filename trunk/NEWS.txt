@@ -11,6 +11,11 @@ iteration to return each item twice.
 ZODB
 ----
 
+Methods removed from the database (ZODB.DB.DB) class:  cacheStatistics(),
+cacheMeanAge(), cacheMeanDeac(), and cacheMeanDeal().  These were
+undocumented, untested, and unused.  The first always returned an empty
+tuple, and the rest always returned None.
+
 When trying to do recovery to a time earlier than that of the most recent
 full backup, repozo.py failed to find the appropriate files, erroneously
 claiming "No files in repository before <specified time>".  This has
