@@ -23,6 +23,7 @@ Options:
 -f/--filename FILENAME -- filename for FileStorage
 -h/--help -- print this usage message and exit
 -m/--monitor ADDRESS -- address of monitor server
+-r/--record -- path of file to record low-level network activity
 
 Unless -C is specified, -a and -f are required.
 """
@@ -176,18 +177,20 @@ class ZEOOptions(Options):
     transaction_timeout = None
     invalidation_queue_size = None
     monitor_address = None
+    record = None
 
     family = None                       # set by -a; AF_UNIX or AF_INET
     address = None                      # set by -a; string or (host, port)
     storages = None                     # set by -f
 
-    _short_options = "a:C:f:hm:"
+    _short_options = "a:C:f:hm:r:"
     _long_options = [
         "address=",
         "configuration=",
         "filename=",
         "help",
         "monitor=",
+        "record=",
         ]
 
     def handle_option(self, opt, arg):
@@ -225,6 +228,8 @@ class ZEOOptions(Options):
             key = str(1 + len(self.storages))
             conf = FSConfig(key, arg)
             self.storages[key] = FileStorage(conf)
+        elif opt in ("-r", "--record"):
+            self.record = arg
         else:
             # Pass it to the base class, for --help/-h
             Options.handle_option(self, opt, arg)
