@@ -14,7 +14,9 @@
 """Test suite for the ZEO.ClientCache module.
 
 At times, we do 'white box' testing, i.e. we know about the internals
-of the ClientCache object."""
+of the ClientCache object.
+"""
+from __future__ import nested_scopes
 
 import os
 import time
