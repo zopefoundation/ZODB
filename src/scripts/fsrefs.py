@@ -32,6 +32,8 @@ import cStringIO
 import traceback
 import types
 
+VERBOSE = 0
+
 def get_refs(pickle):
     refs = []
     f = cStringIO.StringIO(pickle)
@@ -67,7 +69,8 @@ def main(path):
             data, serial = fs.load(oid, "")
         except:
             print "oid %s failed to load" % hex(u64(oid))
-            traceback.print_exc()
+            if VERBOSE:
+                traceback.print_exc()
             noload[oid] = 1
 
             # XXX If we get here after we've already loaded objects
@@ -93,4 +96,12 @@ def main(path):
 
 if __name__ == "__main__":
     import sys
-    main(sys.argv[1])
+    import getopt
+
+    opts, args = getopt.getopt(sys.argv[1:], "v")
+    for k, v in opts:
+        if k == "-v":
+            VERBOSE += 1
+
+    path, = args
+    main(path)
