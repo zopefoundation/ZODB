@@ -27,8 +27,27 @@ from ZODB.POSException \
      import ReadConflictError, ConflictError, VersionLockError
 import zLOG
 
+# The tests here let several threads have a go at one or more database
+# instances simultaneously.  Each thread appends a disjoint (from the
+# other threads) sequence of increasing integers to an OOBTree, one at
+# at time (per thread).  This provokes lots of conflicts, and BTrees
+# work hard at conflict resolution too.  An OOBTree is used because
+# that flavor has the smallest maximum bucket size, and so splits buckets
+# more often than other BTree flavors.
+#
+# When these tests were first written, they provoked an amazing number
+# of obscure timing-related bugs in cache consistency logic, revealed
+# by failure of the BTree to pass internal consistency checks at the end,
+# and/or by failure of the BTree to contain all the keys the threads
+# thought they added (i.e., the keys for which get_transaction().commit()
+# did not raise any exception).
+
 class StressThread(TestThread):
 
+    # Append integers startnum, startnum + step, startnum + 2*step, ...
+    # to 'tree' until Event stop is set.  If sleep is given, sleep
+    # that long after each append.  At the end, instance var .added_keys
+    # is a list of the ints the thread believes it added successfully.
     def __init__(self, testcase, db, stop, threadnum, startnum,
                  step=2, sleep=None):
         TestThread.__init__(self, testcase)
@@ -66,11 +85,11 @@ class StressThread(TestThread):
                 cn.sync()
             else:
                 self.added_keys.append(key)
-                key += self.step
+            key += self.step
         cn.close()
 
 class VersionStressThread(TestThread):
-    
+
     def __init__(self, testcase, db, stop, threadnum, startnum,
                  step=2, sleep=None):
         TestThread.__init__(self, testcase)
@@ -103,7 +122,7 @@ class VersionStressThread(TestThread):
         # of VersionLockErrors, based on empirical observation.
         # It looks like the threads don't switch enough without
         # the sleeps.
-        
+
         cn = self.db.open(version)
         while not self.stop.isSet():
             try:
@@ -154,10 +173,10 @@ class VersionStressThread(TestThread):
 class InvalidationTests(CommonSetupTearDown):
 
     level = 2
-    DELAY = 15
+    DELAY = 15  # number of seconds the main thread lets the workers run
 
     def _check_tree(self, cn, tree):
-        # Make sure the BTree is sane and that all the updates persisted
+        # Make sure the BTree is sane and that all the updates persisted.
         retries = 3
         while retries:
             retries -= 1
@@ -177,11 +196,15 @@ class InvalidationTests(CommonSetupTearDown):
     def _check_threads(self, tree, *threads):
         # Make sure the thread's view of the world is consistent with
         # the actual database state.
+        all_keys = []
         for t in threads:
             # If the test didn't add any keys, it didn't do what we expected.
             self.assert_(t.added_keys)
             for key in t.added_keys:
                 self.assert_(tree.has_key(key), key)
+            all_keys.extend(t.added_keys)
+        all_keys.sort()
+        self.assertEqual(all_keys, list(tree.keys()))
 
     def go(self, stop, *threads):
         # Run the threads
@@ -191,7 +214,7 @@ class InvalidationTests(CommonSetupTearDown):
         stop.set()
         for t in threads:
             t.cleanup()
-    
+
     def checkConcurrentUpdates2Storages(self):
         self._storage = storage1 = self.openClientStorage()
         storage2 = self.openClientStorage(cache="2")
@@ -251,7 +274,7 @@ class InvalidationTests(CommonSetupTearDown):
         # Two of the threads share a single storage so that it
         # is possible for both threads to read the same object
         # at the same time.
-        
+
         t1 = StressThread(self, db1, stop, 1, 1, 3)
         t2 = StressThread(self, db2, stop, 2, 2, 3, 0.001)
         t3 = StressThread(self, db2, stop, 3, 3, 3, 0.001)
@@ -279,7 +302,7 @@ class InvalidationTests(CommonSetupTearDown):
         # Two of the threads share a single storage so that it
         # is possible for both threads to read the same object
         # at the same time.
-        
+
         t1 = VersionStressThread(self, db1, stop, 1, 1, 3)
         t2 = VersionStressThread(self, db2, stop, 2, 2, 3, 0.001)
         t3 = VersionStressThread(self, db2, stop, 3, 3, 3, 0.001)
