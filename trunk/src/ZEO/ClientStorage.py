@@ -13,7 +13,7 @@
 ##############################################################################
 """Network ZODB storage client
 
-$Id: ClientStorage.py,v 1.61 2002/09/18 21:17:48 gvanrossum Exp $
+$Id: ClientStorage.py,v 1.62 2002/09/19 03:51:22 gvanrossum Exp $
 """
 
 # XXX TO DO
@@ -199,7 +199,7 @@ class ClientStorage:
             stub.register(str(self._storage), self._is_read_only)
             return (stub, 1)
         except POSException.ReadOnlyError:
-            if not self._read_only_fallback or self.is_connected():
+            if not self._read_only_fallback:
                 raise
             log2(INFO, "Got ReadOnlyError; trying again with read_only=1")
             stub.register(str(self._storage), read_only=1)

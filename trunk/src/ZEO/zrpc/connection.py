@@ -470,4 +470,4 @@ class ManagedConnection(Connection):
 
     def close(self):
         self.__super_close()
-        self.__mgr.notify_closed()
+        self.__mgr.notify_closed(self)
