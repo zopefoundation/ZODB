@@ -1082,7 +1082,7 @@ The types defined in this component implement the
 \section{Using Components to Extend Schema}
 
 % XXX This section needs a lot of work, but should get people started
-% who really want to add new pieces ZConfig-configured applications.
+% who really want to add new pieces to ZConfig-configured applications.
 
 It is possible to use schema components and the \keyword{\%import}
 construct to extend the set of section types available for a specific
@@ -1251,7 +1251,6 @@ The main \module{ZConfig} package exports these convenience functions:
   The return value is a tuple containing the configuration object and
   a composite handler that, when called with a name-to-handler
   mapping, calls all the handlers for the configuration.
-  % XXX need to talk about handlers and the schema definitions still!
 
   The optional \var{overrides} argument represents information derived
   from command-line arguments.  If given, it must be either a sequence
@@ -1281,7 +1280,6 @@ The main \module{ZConfig} package exports these convenience functions:
   mapping, calls all the handlers for the configuration.
   The \var{overrides} argument is the same as for the
   \function{loadConfig()} function.
-  % XXX need to talk about handlers and the schema definitions still!
 \end{funcdesc}
 
 \begin{funcdesc}{loadSchema}{url}
