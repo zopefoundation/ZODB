@@ -13,7 +13,7 @@
 ##############################################################################
 """Transaction management
 
-$Id: Transaction.py,v 1.43 2002/12/02 22:21:53 jeremy Exp $
+$Id: Transaction.py,v 1.44 2002/12/02 22:22:38 jeremy Exp $
 """
 
 import time, sys, struct, POSException
@@ -92,7 +92,8 @@ class Transaction:
             return "Transaction thread=%s user=%s" % (self._id, `self.user`)
 
     def __del__(self):
-        if self._objects: self.abort(freeme=0)
+        if self._objects:
+            self.abort(freeme=0)
 
     def abort(self, subtransaction=0, freeme=1):
         """Abort the transaction.
