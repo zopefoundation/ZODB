@@ -597,11 +597,13 @@ parser.  Most applications will not need to use this module directly.
 
 This module provides a single function:
 
-\begin{funcdesc}{Parse}{file, context, section, url}
-  Parse text from the open file object \var{file}.  The application
-  context is given as \var{context}, the section object that values
-  and sections should be added to is given as \var{section}, and the
-  URL of the resource being parsed is given in \var{url}.
+\begin{funcdesc}{Parse}{resource, context, section}
+  Parse text from the resource represented by \var{resource}; this is
+  an object that conforms to the same interface as the \var{resource}
+  parameter of the \class{Context} object's \method{parse()} method.
+  The application context is given as \var{context}, and the section
+  object that values and sections should be added to is given as
+  \var{section}.
 \end{funcdesc}
 
 
@@ -635,16 +637,11 @@ Notes:
 
 In each case, \var{name} is a non-empty sequence of alphanumeric and
 underscore characters not starting with a digit.  If there is not a
-replacement for \var{name}, these functions search up the containment
-chain for a suitable replacement.  The containment chain is found by
-looking for an attribute \member{container} on the \var{mapping}
-object; the value of that attribute should be another mapping or
-\code{None}.  If this search does not yield a value, an empty string
-is used.
+replacement for \var{name}, an empty string is used.
 Note that the lookup is expected to be case-insensitive; this module
 will always use a lower-case version of the name to perform the query.
 
-This module these functions:
+This module provides these functions:
 
 \begin{funcdesc}{substitute}{s, mapping}
   Substitute values from \var{mapping} into \var{s}.  \var{mapping}
@@ -671,11 +668,8 @@ The following exception is defined:
 
 \subsection{Examples}
 
-These examples show how \function{get()} and \function{substitute()}
-differ.
-
 \begin{verbatim}
->>> from ZConfig.Substitution import get, substitute
+>>> from ZConfig.Substitution import substitute
 >>> d = {'name': 'value',
 ...      'top': '$middle',
 ...      'middle' : 'bottom'}
@@ -684,13 +678,6 @@ differ.
 'value'
 >>> substitute('$top', d)
 '$middle'
->>>
->>> get(d, 'name')
-'value'
->>> get(d, 'top')
-'bottom'
->>> get(d, 'missing', '$top')
-'$top'
 \end{verbatim}
 
 
