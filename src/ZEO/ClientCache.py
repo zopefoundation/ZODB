@@ -31,9 +31,6 @@ argument (default '1'), <client> is the client argument, and <digit> is
 0 or 1.  Temporary cache files are unnamed files in the standard
 temporary directory as determined by the tempfile module.
 
-The ClientStorage overrides the client name default to the value of
-the environment variable ZEO_CLIENT, if it exists.
-
 Each cache file has a 12-byte header followed by a sequence of
 records.  The header format is as follows:
 
