@@ -11,7 +11,7 @@
   
  ****************************************************************************/
 
-#define BUCKETTEMPLATE_C "$Id: BucketTemplate.c,v 1.21 2001/11/28 15:50:54 matt Exp $\n"
+#define BUCKETTEMPLATE_C "$Id: BucketTemplate.c,v 1.22 2001/12/20 20:16:53 andreasjung Exp $\n"
 
 /*
 ** _bucket_get
@@ -593,7 +593,7 @@ bucket_keys(Bucket *self, PyObject *args)
   for (i=low; i <= high; i++)
     {
       COPY_KEY_TO_OBJECT(key, self->keys[i]);
-      if (PyList_SetItem(r, i, key) < 0) goto err;
+      if (PyList_SetItem(r, i-low , key) < 0) goto err;
     }
 
   PER_ALLOW_DEACTIVATION(self);
@@ -633,7 +633,7 @@ bucket_values(Bucket *self, PyObject *args)
     {
       COPY_VALUE_TO_OBJECT(v, self->values[i]);
       UNLESS (v) goto err;
-      if (PyList_SetItem(r, i, v) < 0) goto err;
+      if (PyList_SetItem(r, i-low, v) < 0) goto err;
     }
 
   PER_ALLOW_DEACTIVATION(self);
