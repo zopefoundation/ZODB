@@ -11,12 +11,7 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
-import doctest
-import os
-import sys
-import unittest
 
-import persistent.tests
 from persistent import Persistent
 
 from zope.testing.doctestunit import DocFileSuite
