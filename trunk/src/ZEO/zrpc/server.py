@@ -41,6 +41,7 @@ class Dispatcher(asyncore.dispatcher):
             self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
         else:
             self.create_socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        self.setsockopt(socket.IPPROTO_TCP, 1, 1) # TCP_NODELAY
         self.set_reuse_addr()
         log("listening on %s" % str(self.addr))
         self.bind(self.addr)
