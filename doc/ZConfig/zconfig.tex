@@ -930,6 +930,13 @@ The following data types are provided by the default type registry.
   and may be \samp{s} (seconds), \samp{m} (minutes), \samp{h} (hours),
   or \samp{d} (days).
 
+\term{\datatype{timedelta}}
+  Similar to the \datatype{time-interval}, this data type returns a Python
+  datetime.timedelta object instead of a float.  The set of suffixes
+  recognized by \datatype{timedelta} are: \samp{w} (weeks), \samp{d} (days),
+  \samp{h} (hours), \samp{m} (minutes), \samp{s} (seconds).  Values may be
+  floats, for example: \code{4w 2.5d 7h 12m 0.001s}.
+
 \end{definitions}
 
 
