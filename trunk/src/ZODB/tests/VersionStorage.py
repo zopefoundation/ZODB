@@ -466,3 +466,65 @@ class VersionStorage:
         txn.commit()
 
         self._storage.pack(time.time(), referencesf)
+
+    def checkPackVersionReachable(self):
+        db = DB(self._storage)
+        cn = db.open()
+        root = cn.root()
+
+        names = "a", "b", "c"
+
+        for name in names:
+            root[name] = MinPO(name)
+            get_transaction().commit()
+
+        for name in names:
+            cn2 = db.open(version=name)
+            rt2 = cn2.root()
+            obj = rt2[name]
+            obj.value = MinPO("version")
+            get_transaction().commit()
+            cn2.close()
+
+        root["d"] = MinPO("d")
+        get_transaction().commit()
+
+        self._storage.pack(time.time(), referencesf)
+        cn.sync()
+        cn._cache.clear()
+        
+        # make sure all the non-version data is there
+        for name, obj in root.items():
+            self.assertEqual(name, obj.value)
+
+        # make sure all the version-data is there,
+        # and create a new revision in the version
+        for name in names:
+            cn2 = db.open(version=name)
+            rt2 = cn2.root()
+            obj = rt2[name].value
+            self.assertEqual(obj.value, "version")
+            obj.value = "still version"
+            get_transaction().commit()
+            cn2.close()
+
+        db.abortVersion("b")
+        txn = get_transaction()
+        txn.note("abort version b")
+        txn.commit()
+
+        t = time.time()
+        snooze()
+        
+        L = db.undoInfo()
+        db.undo(L[0]["id"])
+        txn = get_transaction()
+        txn.note("undo abort")
+        txn.commit()
+        
+        self._storage.pack(t, referencesf)
+
+        cn2 = db.open(version="b")
+        rt2 = cn2.root()
+        self.assertEqual(rt2["b"].value.value, "still version")
+            
