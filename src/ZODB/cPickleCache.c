@@ -82,7 +82,10 @@
   attributions are listed in the accompanying credits file.
   
  ****************************************************************************/
-static char *what_string = "$Id: cPickleCache.c,v 1.31 1999/10/13 12:35:19 jim Exp $";
+static char cPickleCache_doc_string[] = 
+"Defines the PickleCache used by ZODB Connection objects.\n"
+"\n"
+"$Id: cPickleCache.c,v 1.32 2001/03/28 00:35:09 jeremy Exp $\n";
 
 #define ASSIGN(V,E) {PyObject *__e; __e=(E); Py_XDECREF(V); (V)=__e;}
 #define UNLESS(E) if(!(E))
@@ -478,7 +481,7 @@ newccobject(PyObject *jar, int cache_size, int cache_age)
   
   UNLESS(self = PyObject_NEW(ccobject, &Cctype)) return NULL;
   self->setklassstate=self->jar=NULL;
-  if(self->data=PyDict_New())
+  if((self->data=PyDict_New()))
     {
       self->jar=jar; 
       Py_INCREF(jar);
@@ -542,14 +545,13 @@ cc_getattr(ccobject *self, char *name)
 	  return self->data;
 	}
     }
-  if(
-     *name=='h' && strcmp(name, "has_key")==0 ||
-     *name=='i' && strcmp(name, "items")==0 ||
-     *name=='k' && strcmp(name, "keys")==0
+  if((*name=='h' && strcmp(name, "has_key")==0) ||
+     (*name=='i' && strcmp(name, "items")==0) ||
+     (*name=='k' && strcmp(name, "keys")==0)
      )
     return PyObject_GetAttrString(self->data, name);
 
-  if(r=Py_FindMethod(cc_methods, (PyObject *)self, name))
+  if((r=Py_FindMethod(cc_methods, (PyObject *)self, name)))
     return r;
   PyErr_Clear();
   return PyObject_GetAttrString(self->data, name);
@@ -662,7 +664,8 @@ cCM_new(PyObject *self, PyObject *args)
   int cache_size=100, cache_age=1000;
   PyObject *jar;
 
-  UNLESS(PyArg_ParseTuple(args, "O|ii", &jar, &cache_size, &cache_age)) return NULL;
+  UNLESS(PyArg_ParseTuple(args, "O|ii", &jar, &cache_size, &cache_age))
+      return NULL;
   return (PyObject*)newccobject(jar, cache_size,cache_age);
 }
 
@@ -672,17 +675,17 @@ static struct PyMethodDef cCM_methods[] = {
 };
 
 void
-initcPickleCache()
+initcPickleCache(void)
 {
   PyObject *m, *d;
-  char *rev="$Revision: 1.31 $";
+  char *rev="$Revision: 1.32 $";
 
   Cctype.ob_type=&PyType_Type;
 
   UNLESS(ExtensionClassImported) return;
 
-  m = Py_InitModule4("cPickleCache", cCM_methods, "",
-		     (PyObject*)NULL,PYTHON_API_VERSION);
+  m = Py_InitModule4("cPickleCache", cCM_methods, cPickleCache_doc_string,
+		     (PyObject*)NULL, PYTHON_API_VERSION);
 
   d = PyModule_GetDict(m);
 
@@ -692,6 +695,4 @@ initcPickleCache()
 
   PyDict_SetItemString(d,"__version__",
 		       PyString_FromStringAndSize(rev+11,strlen(rev+11)-2));
-  
-  if (PyErr_Occurred()) Py_FatalError("can't initialize module cCache");
 }
