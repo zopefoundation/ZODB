@@ -26,6 +26,11 @@ class RecalcitrantObject(Persistent):
     def _p_deactivate(self):
         self.__class__.deactivations += 1
 
+    def init(cls):
+        cls.deactivations = 0
+
+    init = classmethod(init)
+
 class RegularObject(Persistent):
 
     deactivations = 0
@@ -120,6 +125,7 @@ class CacheTests:
         also return when it's looked at each item, regardless of whether
         it became a ghost.
 
+        >>> RecalcitrantObject.init()
         >>> db = databaseFromString("<zodb>\n"
         ...                         "cache-size 4\n"
         ...                         "<mappingstorage/>\n"
@@ -138,7 +144,7 @@ class CacheTests:
         The Connection calls cacheGC() after it commits a transaction.
         Since the cache will now have more objects that it's target size,
         it will call _p_deactivate() on each RecalcitrantObject.
-        
+
         >>> RecalcitrantObject.deactivations
         5
         >>> [o._p_state for o in L]
