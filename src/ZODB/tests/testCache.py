@@ -135,9 +135,9 @@ class LRUCacheTests(CacheTestBase):
             for i in range(dataset_size):
                 l[(t,i)] = r[i] = MinPO(i)
             get_transaction().commit()
-            # commit() will register the objects, placing them in the cache.
-            # at the end of commit, the cache will be reduced down to CACHE_SIZE
-            # items
+            # commit() will register the objects, placing them in the
+            # cache.  at the end of commit, the cache will be reduced
+            # down to CACHE_SIZE items
             if len(l)>CACHE_SIZE:
                 self.assertEqual(c._cache.ringlen(), CACHE_SIZE)
         for i in range(dataset_size):
@@ -156,12 +156,6 @@ class LRUCacheTests(CacheTestBase):
             # the root, depending on precise order of access. We do
             # not bother to check this
 
-
-    # checkSize and checkDetail are bad tests. They rely on 
-    # several different types of non-deterministic behavior
-    # in noodle_new_connection. Both tests pass most of the
-    # time, but do fail intermittantly.
-    # Toby Dickenson promised to improve this
     def checkSize(self):
         self.assertEqual(self.db.cacheSize(), 0)
         self.assertEqual(self.db.cacheDetailSize(), [])
@@ -182,7 +176,6 @@ class LRUCacheTests(CacheTestBase):
             # the connection holds a reference to it
             self.assertEquals(d['size'], CACHE_SIZE + 1)
 
-    # checkDetail is a bad test. See checkSize for more details
     def checkDetail(self):
         CACHE_SIZE = 10
         self.db.setCacheSize(CACHE_SIZE)
