@@ -700,9 +700,10 @@ class FileStorage(BaseStorage.BaseStorage,
         # Else oid's data record contains the data, and the file offset of
         # oid's data record is returned.  This data record should contain
         # a pickle identical to the 'data' argument.
-        # XXX If the length of the stored data doesn't match len(data),
-        # XXX an exception is raised.  If the lengths match but the data
-        # XXX isn't the same, 0 is returned.  Why the discrepancy?
+
+        # Unclear:  If the length of the stored data doesn't match len(data),
+        # an exception is raised.  If the lengths match but the data isn't
+        # the same, 0 is returned.  Why the discrepancy?
         self._file.seek(tpos)
         h = self._file.read(TRANS_HDR_LEN)
         tid, tl, status, ul, dl, el = unpack(TRANS_HDR, h)
@@ -820,7 +821,7 @@ class FileStorage(BaseStorage.BaseStorage,
         if h.version:
             return h.pnv
         if h.back:
-            # XXX Not sure the following is always true:
+            # TODO:  Not sure the following is always true:
             # The previous record is not for this version, yet we
             # have a backpointer to it.  The current record must
             # be an undo of an abort or commit, so the backpointer
@@ -1175,8 +1176,8 @@ class FileStorage(BaseStorage.BaseStorage,
                     new.setVersion(v, snv, vprev)
                     self._tvindex[v] = here
 
-                # XXX This seek shouldn't be necessary, but some other
-                # bit of code is messig with the file pointer.
+                # TODO:  This seek shouldn't be necessary, but some other
+                # bit of code is messing with the file pointer.
                 assert self._tfile.tell() == here - base, (here, base,
                                                            self._tfile.tell())
                 self._tfile.write(new.asString())
@@ -1857,7 +1858,7 @@ class FileIterator(Iterator, FileStorageFormatter):
 
     def next(self, index=0):
         if self._file is None:
-            # A closed iterator.  XXX: Is IOError the best we can do?  For
+            # A closed iterator.  Is IOError the best we can do?  For
             # now, mimic a read on a closed file.
             raise IOError, 'iterator is closed'
 
@@ -1988,8 +1989,8 @@ class RecordIterator(Iterator, BaseStorage.TransactionRecord,
                     data = None
                 else:
                     data, tid = self._loadBackTxn(h.oid, h.back, False)
-                    # XXX looks like this only goes one link back, should
-                    # it go to the original data like BDBFullStorage?
+                    # Caution:  :ooks like this only goes one link back.
+                    # Should it go to the original data like BDBFullStorage?
                     prev_txn = self.getTxnFromData(h.oid, h.back)
 
             r = Record(h.oid, h.tid, h.version, data, prev_txn, pos)

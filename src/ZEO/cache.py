@@ -211,7 +211,7 @@ class ClientCache:
             self._trace(0x24, oid, tid)
             return
         lo, hi = L[i-1]
-        # XXX lo should always be less than tid
+        # lo should always be less than tid
         if not lo < tid <= hi:
             self._trace(0x24, oid, tid)
             return None
@@ -361,12 +361,13 @@ class ClientCache:
         del self.current[oid]   # because we no longer have current data
 
         # Update the end_tid half of oid's validity range on disk.
-        # XXX Want to fetch object without marking it as accessed
+        # TODO: Want to fetch object without marking it as accessed.
         o = self.fc.access((oid, cur_tid))
         assert o is not None
         assert o.end_tid is None  # i.e., o was current
         if o is None:
-            # XXX is this possible? (doubt it; added an assert just above)
+            # TODO:  Since we asserted o is not None above, this block
+            # should be removing; waiting on time to prove it can't happen.
             return
         o.end_tid = tid
         self.fc.update(o)   # record the new end_tid on disk
@@ -377,7 +378,7 @@ class ClientCache:
     ##
     # Return the number of object revisions in the cache.
     #
-    # XXX just return len(self.cache)?
+    # Or maybe better to just return len(self.cache)?  Needs clearer use case.
     def __len__(self):
         n = len(self.current) + len(self.version)
         if self.noncurrent:
@@ -389,7 +390,7 @@ class ClientCache:
     # cache.  This generator is used by cache verification.
 
     def contents(self):
-        # XXX May need to materialize list instead of iterating,
+        # May need to materialize list instead of iterating;
         # depends on whether the caller may change the cache.
         for o in self.fc:
             oid, tid = o.key
@@ -993,7 +994,7 @@ class FileCache(object):
         # header to update the in-memory data structures held by
         # ClientCache.
 
-        # XXX Or we could just keep the header in memory at all times.
+        # We could instead just keep the header in memory at all times.
 
         e = self.key2entry.pop(key, None)
         if e is None:

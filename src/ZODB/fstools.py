@@ -14,8 +14,8 @@
 
 """Tools for using FileStorage data files.
 
-XXX This module needs tests.
-XXX This file needs to be kept in sync with FileStorage.py.
+TODO:  This module needs tests.
+Caution:  This file needs to be kept in sync with FileStorage.py.
 """
 
 import cPickle

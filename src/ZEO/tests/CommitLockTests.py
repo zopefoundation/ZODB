@@ -132,7 +132,7 @@ class CommitLockTests:
 
     def _duplicate_client(self):
         "Open another ClientStorage to the same server."
-        # XXX argh it's hard to find the actual address
+        # It's hard to find the actual address.
         # The rpc mgr addr attribute is a list.  Each element in the
         # list is a socket domain (AF_INET, AF_UNIX, etc.) and an
         # address.

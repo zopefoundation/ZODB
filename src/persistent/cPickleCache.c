@@ -303,7 +303,7 @@ cc_full_sweep(ccobject *self, PyObject *args)
 {
     int dt = -999;
 
-    /* XXX This should be deprecated */
+    /* TODO:  This should be deprecated;  */
 
     if (!PyArg_ParseTuple(args, "|i:full_sweep", &dt))
 	return NULL;
@@ -354,7 +354,7 @@ _invalidate(ccobject *self, PyObject *key)
         /* This looks wrong, but it isn't. We use strong references to types
            because they don't have the ring members.
 
-           XXX the result is that we *never* remove classes unless
+           The result is that we *never* remove classes unless
            they are modified.
 
          */
@@ -412,7 +412,7 @@ cc_invalidate(ccobject *self, PyObject *inv)
 	      _invalidate(self, key);
 	      Py_DECREF(key);
 	  }
-	  /* XXX Do we really want to modify the input? */
+	  /* Dubious:  modifying the input may be an unexpected side effect. */
 	  PySequence_DelSlice(inv, 0, l);
       }
   }
@@ -603,7 +603,7 @@ cc_oid_unreferenced(ccobject *self, PyObject *oid)
     */
     Py_INCREF(v);
 
-    /* XXX Should we call _Py_ForgetReference() on error exit? */
+    /* TODO:  Should we call _Py_ForgetReference() on error exit? */
     if (PyDict_DelItem(self->data, oid) < 0)
 	return;
     Py_DECREF((ccobject *)((cPersistentObject *)v)->cache);
@@ -851,7 +851,7 @@ cc_add_item(ccobject *self, PyObject *key, PyObject *v)
 	   classes that derive from persistent.Persistent, BTrees,
 	   etc), report an error.
 
-	   XXX Need a better test.
+	   TODO:  checking sizeof() seems a poor test.
 	*/
 	PyErr_SetString(PyExc_TypeError,
 			"Cache values must be persistent objects.");

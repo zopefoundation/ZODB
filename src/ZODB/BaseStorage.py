@@ -309,7 +309,7 @@ class BaseStorage(UndoLogCompatible):
     def loadBefore(self, oid, tid):
         """Return most recent revision of oid before tid committed."""
 
-        # XXX Is it okay for loadBefore() to return current data?
+        # Unsure: Is it okay for loadBefore() to return current data?
         # There doesn't seem to be a good reason to forbid it, even
         # though the typical use of this method will never find
         # current data.  But maybe we should call it loadByTid()?
@@ -329,7 +329,7 @@ class BaseStorage(UndoLogCompatible):
 
             # Note: history() returns the most recent record first.
 
-            # XXX The filter argument to history() only appears to be
+            # TODO: The filter argument to history() only appears to be
             # supported by FileStorage.  Perhaps it shouldn't be used.
             L = self.history(oid, "", n, lambda d: not d["version"])
             if not L:

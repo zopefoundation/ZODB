@@ -323,7 +323,7 @@ class DemoStorage(BaseStorage.BaseStorage):
             last = first - last + 1
         self._lock_acquire()
         try:
-            # XXX Shouldn't this be sorted?
+            # Unsure:  shouldn we sort this?
             transactions = self._data.items()
             pos = len(transactions)
             r = []
@@ -404,7 +404,7 @@ class DemoStorage(BaseStorage.BaseStorage):
             index, vindex = self._build_indexes(stop)
 
 
-            # XXX This packing algorithm is flawed. It ignores
+            # TODO:  This packing algorithm is flawed. It ignores
             # references from non-current records after the pack
             # time.
 

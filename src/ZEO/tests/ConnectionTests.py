@@ -261,8 +261,7 @@ class ConnectionTests(CommonSetupTearDown):
         self._storage.close()
 
     def checkMultipleServers(self):
-        # XXX crude test at first -- just start two servers and do a
-        # commit at each one.
+        # Crude test-- just start two servers and do a commit at each one.
 
         self._newAddr()
         self._storage = self.openClientStorage('test', 100000)
@@ -334,7 +333,7 @@ class ConnectionTests(CommonSetupTearDown):
         self.assertRaises(ReadOnlyError, self._dostore)
         self._storage.close()
 
-    # XXX Compare checkReconnectXXX() here to checkReconnection()
+    # TODO:  Compare checkReconnectXXX() here to checkReconnection()
     # further down.  Is the code here hopelessly naive, or is
     # checkReconnection() overwrought?
 
@@ -535,13 +534,6 @@ class ConnectionTests(CommonSetupTearDown):
     def checkReconnection(self):
         # Check that the client reconnects when a server restarts.
 
-        # XXX Seem to get occasional errors that look like this:
-        # File ZEO/zrpc2.py, line 217, in handle_request
-        # File ZEO/StorageServer.py, line 325, in storea
-        # File ZEO/StorageServer.py, line 209, in _check_tid
-        # StorageTransactionError: (None, <tid>)
-        # could system reconnect and continue old transaction?
-
         self._storage = self.openClientStorage()
         oid = self._storage.new_oid()
         obj = MinPO(12)
@@ -609,7 +601,7 @@ class ConnectionTests(CommonSetupTearDown):
     # transaction.  This is not really a connection test, but it needs
     # about the same infrastructure (several storage servers).
 
-    # XXX WARNING: with the current ZEO code, this occasionally fails.
+    # TODO: with the current ZEO code, this occasionally fails.
     # That's the point of this test. :-)
 
     def NOcheckMultiStorageTransaction(self):
