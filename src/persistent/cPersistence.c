@@ -82,7 +82,10 @@
   attributions are listed in the accompanying credits file.
   
  ****************************************************************************/
-static char *what_string = "$Id: cPersistence.c,v 1.41 2001/03/27 23:00:40 jim Exp $";
+static char cPersistence_doc_string[] = 
+"Defines Persistent mixin class for persistent objects.\n"
+"\n"
+"$Id: cPersistence.c,v 1.42 2001/03/28 00:34:34 jeremy Exp $\n";
 
 #include <string.h>
 #include "cPersistence.h"
@@ -91,6 +94,8 @@ static char *what_string = "$Id: cPersistence.c,v 1.41 2001/03/27 23:00:40 jim E
 #define UNLESS(E) if(!(E))
 #define UNLESS_ASSIGN(V,E) ASSIGN(V,E) UNLESS(V)
 #define OBJECT(V) ((PyObject*)(V))
+
+static cPersistenceCAPIstruct *cPersistenceCAPI;
 
 static PyObject *py_keys, *py_setstate, *py___dict__, *py_timeTime;
 static PyObject *py__p_changed, *py__p_deactivate;
@@ -118,7 +123,7 @@ call_debug(char *event, cPersistentObject *self)
 #endif
 
 static void
-init_strings()
+init_strings(void)
 {
 #define INIT_STRING(S) py_ ## S = PyString_FromString(#S)
   INIT_STRING(keys);
@@ -136,7 +141,8 @@ init_strings()
 static PyObject *
 callmethod(PyObject *self, PyObject *name)
 {
-  if(self=PyObject_GetAttr(self,name))
+  self=PyObject_GetAttr(self,name);
+  if(self)
     ASSIGN(self,PyObject_CallObject(self,NULL));
   return self;
 }
@@ -149,39 +155,6 @@ callmethod1(PyObject *self, PyObject *name, PyObject *arg)
       PyTuple_SET_ITEM(name, 0, arg);
       ASSIGN(self,PyObject_CallObject(self,name));
       PyTuple_SET_ITEM(name, 0, NULL);
-      Py_DECREF(name);
-    }
-  return self;
-}
-
-static PyObject *
-callmethod2(PyObject *self, PyObject *name, PyObject *arg, PyObject *arg2)
-{
-  if((self=PyObject_GetAttr(self,name)) && (name=PyTuple_New(2)))
-    {
-      PyTuple_SET_ITEM(name, 0, arg);
-      PyTuple_SET_ITEM(name, 1, arg2);
-      ASSIGN(self,PyObject_CallObject(self,name));
-      PyTuple_SET_ITEM(name, 0, NULL);
-      PyTuple_SET_ITEM(name, 1, NULL);
-      Py_DECREF(name);
-    }
-  return self;
-}
-
-static PyObject *
-callmethod3(PyObject *self, PyObject *name,
-	    PyObject *arg, PyObject *arg2, PyObject *arg3)
-{
-  if((self=PyObject_GetAttr(self,name)) && (name=PyTuple_New(3)))
-    {
-      PyTuple_SET_ITEM(name, 0, arg);
-      PyTuple_SET_ITEM(name, 1, arg2);
-      PyTuple_SET_ITEM(name, 2, arg3);
-      ASSIGN(self,PyObject_CallObject(self,name));
-      PyTuple_SET_ITEM(name, 0, NULL);
-      PyTuple_SET_ITEM(name, 1, NULL);
-      PyTuple_SET_ITEM(name, 2, NULL);
       Py_DECREF(name);
     }
   return self;
@@ -203,43 +176,9 @@ if(self->state < 0 && self->jar)                                 \
 }
 
 
-static PyObject *
-#ifdef HAVE_STDARG_PROTOTYPES
-/* VARARGS 2 */
-PyString_BuildFormat(char *stringformat, char *format, ...)
-#else
-/* VARARGS */
-PyString_BuildFormat(va_alist) va_dcl
-#endif
-{
-  va_list va;
-  PyObject *args=0, *retval=0, *v=0;
-#ifdef HAVE_STDARG_PROTOTYPES
-  va_start(va, format);
-#else
-  PyObject *ErrType;
-  char *stringformat, *format;
-  va_start(va);
-  ErrType = va_arg(va, PyObject *);
-  stringformat   = va_arg(va, char *);
-  format   = va_arg(va, char *);
-#endif
-  
-  args = Py_VaBuildValue(format, va);
-  va_end(va);
-  if(! args) return NULL;
-  if(!(retval=PyString_FromString(stringformat))) return NULL;
-
-  v=PyString_Format(retval, args);
-  Py_DECREF(retval);
-  Py_DECREF(args);
-  return v;
-}
-
 /****************************************************************************/
 
 staticforward PyExtensionClass Pertype;
-staticforward PyExtensionClass TPertype;
 
 static int
 changed(cPersistentObject *self)
@@ -299,7 +238,7 @@ Per___changed__(cPersistentObject *self, PyObject *args)
 static PyObject *
 Per__p_deactivate(cPersistentObject *self, PyObject *args)
 {
-  PyObject *init=0, *dict;
+  PyObject *dict;
 
 #ifdef DEBUG_LOG
   if (idebug_log < 0) call_debug("reinit",self);
@@ -331,9 +270,7 @@ Per_setstate(cPersistentObject *self)
 }
 
 static PyObject *
-Per__getstate__(self,args)
-     cPersistentObject *self;
-     PyObject *args;
+Per__getstate__(cPersistentObject *self, PyObject *args)
 {
   PyObject *__dict__, *d=0;
 
@@ -377,9 +314,7 @@ err:
 }  
 
 static PyObject *
-Per__setstate__(self,args)
-     cPersistentObject *self;
-     PyObject *args;
+Per__setstate__(cPersistentObject *self, PyObject *args)
 {
   PyObject *__dict__, *v, *keys=0, *key=0, *e=0;
   int l, i;
@@ -445,8 +380,7 @@ static struct PyMethodDef Per_methods[] = {
 /* ---------- */
 
 static void
-Per_dealloc(self)
-	cPersistentObject *self;
+Per_dealloc(cPersistentObject *self)
 {
 #ifdef DEBUG_LOG
   if(idebug_log < 0) call_debug("del",self);
@@ -570,14 +504,6 @@ Per_getattro(cPersistentObject *self, PyObject *name)
   return r;  
 }
 
-static int 
-bad_delattr()
-{
-  PyErr_SetString(PyExc_AttributeError,
-		  "delete undeletable attribute");
-  return -1;
-}
-
 static int
 _setattro(cPersistentObject *self, PyObject *oname, PyObject *v,
 	     int (*setattrf)(PyObject *, PyObject*, PyObject*))
@@ -632,8 +558,8 @@ _setattro(cPersistentObject *self, PyObject *oname, PyObject *v,
 	  if (v==Py_None)
 	    {
 	      v=PyObject_GetAttr(OBJECT(self), py__p_deactivate);
-	      if (v) ASSIGN(v, PyObject_CallObject(v, NULL));
-	      if (v) Py_DECREF(v);
+	      if (v) { ASSIGN(v, PyObject_CallObject(v, NULL)); }
+	      if (v) { Py_DECREF(v); }
 	      self->state=cPersistent_GHOST_STATE;
 	      return 0;
 	    }
@@ -811,24 +737,30 @@ truecPersistenceCAPI = {
 };
 
 void
-initcPersistence()
+initcPersistence(void)
 {
-  PyObject *m, *d;
-  char *rev="$Revision: 1.41 $";
+  PyObject *m, *d, *s;
+  char *rev="$Revision: 1.42 $";
 
-  TimeStamp=PyString_FromString("TimeStamp");
-  if (! TimeStamp) return;
-  ASSIGN(TimeStamp, PyImport_Import(TimeStamp));
-  if (! TimeStamp) return;
-  ASSIGN(TimeStamp, PyObject_GetAttrString(TimeStamp, "TimeStamp"));
-  if (! TimeStamp) return;
-  
-  m = Py_InitModule4("cPersistence", cP_methods,
-		     "",
-		     (PyObject*)NULL,PYTHON_API_VERSION);
+  s = PyString_FromString("TimeStamp");
+  if (s == NULL)
+      return;
+  m = PyImport_Import(s);
+  if (m == NULL) {
+      Py_DECREF(s);
+      return;
+  }
+  TimeStamp = PyObject_GetAttr(m, s);
+  Py_DECREF(m);
+  if (TimeStamp == NULL) {
+      Py_DECREF(s);
+  }
+
+  m = Py_InitModule4("cPersistence", cP_methods, cPersistence_doc_string,
+		     (PyObject*)NULL, PYTHON_API_VERSION);
 
   init_strings();
-
+  
   d = PyModule_GetDict(m);
   PyDict_SetItemString(d,"__version__",
 		       PyString_FromStringAndSize(rev+11,strlen(rev+11)-2));
@@ -838,7 +770,4 @@ initcPersistence()
   cPersistenceCAPI=&truecPersistenceCAPI;
   PyDict_SetItemString(d, "CAPI",
 		       PyCObject_FromVoidPtr(cPersistenceCAPI,NULL));
-
-  if (PyErr_Occurred())
-    Py_FatalError("can't initialize module cDocumentTemplate");
 }
