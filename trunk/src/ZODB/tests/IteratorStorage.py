@@ -1,5 +1,8 @@
-# Run tests against the iterator() interface for storages.  Any storage that
-# supports the iterator() method should be able to pass all these tests.
+"""Run tests against the iterator() interface for storages.
+
+Any storage that supports the iterator() method should be able to pass
+all these tests.
+"""
 
 from ZODB.tests.MinPO import MinPO
 from ZODB.tests.StorageTestBase import zodb_unpickle

@@ -1,4 +1,4 @@
-# Run some tests relevant for storages that support pack()
+"""Run some tests relevant for storages that support pack()."""
 
 try:
     import cPickle
@@ -17,7 +17,6 @@ from ZODB.referencesf import referencesf
 
 
 ZERO = '\0'*8
-
 
 
 # This class is for the root object.  It must not contain a getoid() method
