@@ -28,7 +28,7 @@ struct ccobject_head_struct;
 typedef struct ccobject_head_struct PerCache;
 
 #define cPersistent_HEAD \
-    PyObject_HEAD; \
+    PyObject_HEAD \
     PyObject *jar; \
     PyObject *oid; \
     PerCache *cache; \
