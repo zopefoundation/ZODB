@@ -13,7 +13,7 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.144 2004/04/06 21:47:12 tim_one Exp $"""
+$Id: Connection.py,v 1.145 2004/04/08 18:12:25 tim_one Exp $"""
 
 import logging
 import sys
@@ -466,7 +466,9 @@ class Connection(ExportImport, object):
         # Return the connection to the pool.
         if self._db is not None:
             self._db._closeConnection(self)
-            self._db = None
+            # _closeConnection() set self._db to None.  However, we can't
+            # assert that here, because self may have been reused (by
+            # another thread) by the time we get back here.
 
     def commit(self, obj, transaction):
         if obj is self:
