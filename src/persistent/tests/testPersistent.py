@@ -251,7 +251,7 @@ class PersistenceTest(unittest.TestCase):
         self.assertEqual(obj.curly, 2)
         self.assertEqual(obj.moe, 3)
 
-    # XXX Need to decide how __setattr__ and __delattr__ should work,
+    # TODO:  Need to decide how __setattr__ and __delattr__ should work,
     # then write tests.
 
 

@@ -32,7 +32,7 @@ class ReadOnlyStorage:
     def checkReadMethods(self):
         self._create_data()
         self._make_readonly()
-        # XXX not going to bother checking all read methods
+        # Note that this doesn't check _all_ read methods.
         for oid in self.oids.keys():
             data, revid = self._storage.load(oid, '')
             self.assertEqual(revid, self.oids[oid])

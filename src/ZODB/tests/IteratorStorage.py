@@ -127,12 +127,14 @@ class IteratorStorage(IteratorCompare):
         self.assertEqual(count, 1)
 
     def checkIterationIntraTransaction(self):
-        # XXX try this test with logging enabled.  If you see something like
+        # TODO:  Try this test with logging enabled.  If you see something
+        # like
         #
         # ZODB FS FS21 warn: FileStorageTests.fs truncated, possibly due to
         # damaged records at 4
         #
         # Then the code in FileIterator.next() hasn't yet been fixed.
+        # Should automate that check.
         oid = self._storage.new_oid()
         t = Transaction()
         data = zodb_pickle(MinPO(0))

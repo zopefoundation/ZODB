@@ -245,7 +245,7 @@ class IPersistentNoReadConflicts(IPersistent):
         conflicts for this object.
         """
 
-# XXX TODO:  document conflict resolution.
+# TODO:  document conflict resolution.
 
 class IPersistentDataManager(Interface):
     """Provide services for managing persistent state.

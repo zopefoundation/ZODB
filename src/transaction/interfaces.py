@@ -347,7 +347,7 @@ class ITransaction(zope.interface.Interface):
         "The name of the user on whose behalf the transaction is being\n"
         "performed.  The format of the user name is defined by the\n"
         "application.")
-    # XXX required to be a string?
+    # Unsure: required to be a string?
 
     description = zope.interface.Attribute(
         "description",
@@ -392,7 +392,7 @@ class ITransaction(zope.interface.Interface):
         end of the description following two newline characters.
         Surrounding whitespace is stripped from text.
         """
-        # XXX does impl do the right thing with ''?  Not clear what
+        # Unsure:  does impl do the right thing with ''?  Not clear what
         # the "right thing" is.
 
     def setUser(user_name, path="/"):
@@ -411,7 +411,7 @@ class ITransaction(zope.interface.Interface):
         Storage implementations may limit the amount of extension data
         which can be stored.
         """
-        # XXX is this this allowed to cause an exception here, during
+        # Unsure:  is this allowed to cause an exception here, during
         # the two-phase commit, or can it toss data silently?
 
 class ISavePoint(zope.interface.Interface):

@@ -292,7 +292,7 @@ class InvalidObjectReference(POSError):
 
     o A reference to an object in a different database connection.
 
-    XXX The exception ought to have a member that is the invalid object.
+    TODO:  The exception ought to have a member that is the invalid object.
     """
 
 class ConnectionStateError(POSError):

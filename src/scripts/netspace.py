@@ -20,10 +20,10 @@ def find_paths(root, maxdist):
     from the root, looking for persistent objects.  Return a dict
     mapping oids to traversal paths.
 
-    XXX Assumes that the keys of the root are not themselves
+    TODO:  Assumes that the keys of the root are not themselves
     persistent objects.
 
-    XXX Doesn't traverse containers.
+    TODO:  Doesn't traverse containers.
     """
     paths = {}
 

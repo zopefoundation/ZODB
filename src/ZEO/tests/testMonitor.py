@@ -74,8 +74,8 @@ class MonitorTests(CommonSetupTearDown):
         return """<mappingstorage 1/>"""
 
     def testMonitor(self):
-        # just open a client to know that the server is up and running
-        # XXX should put this in setUp
+        # Just open a client to know that the server is up and running
+        # TODO: should put this in setUp.
         self.storage = self.openClientStorage()
         s = self.get_monitor_output()
         self.storage.close()

@@ -123,7 +123,7 @@ class CacheTests(unittest.TestCase):
         self.cache.store(n, "", n, None, data[51])
         self.assert_(len(self.cache) < 51)
 
-        # XXX Need to make sure eviction of non-current data
+        # TODO:  Need to make sure eviction of non-current data
         # and of version data are handled correctly.
 
     def testSerialization(self):

@@ -473,9 +473,6 @@ def do_backup(options):
         # then perhaps the file was packed at some point (or a
         # non-transactional undo was performed, but this is deprecated).  Only
         # do a full backup if forced to.
-        #
-        # XXX For ZODB4, this needs to take into account the storage metadata
-        # header that FileStorage has grown at the front of the file.
         if reposum == srcsum_backedup:
             log('doing incremental, starting at: %s', reposz)
             do_incremental_backup(options, reposz, repofiles)
