@@ -184,7 +184,7 @@
 #   may have a back pointer to a version record or to a non-version
 #   record.
 #
-__version__='$Revision: 1.49 $'[11:-2]
+__version__='$Revision: 1.50 $'[11:-2]
 
 import struct, time, os, bpthread, string, base64, sys
 from struct import pack, unpack
@@ -812,7 +812,7 @@ class FileStorage(BaseStorage.BaseStorage):
                 raise POSException.UndoError, 'Invalid undo transaction id'
             if h[16] == 'u': return
             if h[16] != ' ':
-                raise POSException.UndoError, 'Undoable transaction'
+                raise POSException.UndoError, 'non-undoable transaction'
             tl=U64(h[8:16])
             ul,dl,el=unpack(">HHH", h[17:23])
             tend=tpos+tl
@@ -828,10 +828,10 @@ class FileStorage(BaseStorage.BaseStorage):
                 dlen=42+(plen or 8)
                 if vlen: dlen=dlen+(16+vlen)
                 if index_get(oid,0) != pos:
-                    raise POSException.UndoError, 'Undoable transaction'
+                    raise POSException.UndoError, 'non-undoable transaction'
                 pos=pos+dlen
                 if pos > tend:
-                    raise POSException.UndoError, 'Undoable transaction'
+                    raise POSException.UndoError, 'non-undoable transaction'
                 t[oid]=prev
 
             seek(tpos+16)
