@@ -116,9 +116,13 @@ else:
 
     # win32-safe version
 
+    HOST = '127.0.0.1'
+    MINPORT = 19950
+    NPORTS = 50
+
     class trigger(asyncore.dispatcher):
 
-        address = ('127.9.9.9', 19999)
+        portoffset = 0
 
         def __init__(self):
             a = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -128,22 +132,23 @@ else:
             w.setsockopt(socket.IPPROTO_TCP, 1, 1)
 
             # tricky: get a pair of connected sockets
-            host = '127.0.0.1'
-            port = 19999
-            while 1:
+            for i in range(NPORTS):
+                trigger.portoffset = (trigger.portoffset + 1) % NPORTS
+                port = MINPORT + trigger.portoffset
+                address = (HOST, port)
                 try:
-                    self.address = host, port
-                    a.bind(self.address)
+                    a.bind(address)
+                except socket.error:
+                    continue
+                else:
                     break
-                except:
-                    if port <= 19950:
-                        raise 'Bind Error', 'Cannot bind trigger!'
-                    port -= 1
+            else:
+                raise RuntimeError, 'Cannot bind trigger!'
 
             a.listen(1)
             w.setblocking(0)
             try:
-                w.connect(self.address)
+                w.connect(address)
             except:
                 pass
             r, addr = a.accept()
