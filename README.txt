@@ -1,16 +1,16 @@
-ZODB3 3.3
-=========
+ZODB 3.4
+========
 
 Introduction
 ------------
 
-The ZODB3 package provides a set of tools for using the Zope Object
+The ZODB package provides a set of tools for using the Zope Object
 Database (ZODB) in Python programs separately from Zope.  The tools
 you get are identical to the ones provided in Zope, because they come
 from the same source repository.  They have been packaged for use in
 non-Zope stand-alone Python applications.
 
-The components you get with the ZODB3 release are as follows:
+The components you get with the ZODB release are as follows:
 
 - Core ZODB, including the persistence machinery
 - Standard storages such as FileStorage
@@ -28,13 +28,14 @@ ZoneAlarm.  Many particularly slow tests are skipped unless you pass
 Compatibility
 -------------
 
-ZODB 3.3 is requires Python 2.3.4 or later.
+ZODB 3.4 requires Python 2.3.4 or later.  For best results, we recommend
+Python 2.3.5.
 
 The Zope 2.8 and X3 releases should be compatible with this version of ZODB.
 Note that Zope 2.7 and higher includes ZEO, so this package should only be
 needed to run a ZEO server.
 
-The ZEO server in ZODB 3.3 is currently incompatible with earlier
+The ZEO server in ZODB 3.4 is currently incompatible with earlier
 versions of ZODB.  If you want to test the software, you must be
 running this release for both client and server.  A backwards
 compatibility mechanism will be provided in a later release.
@@ -43,14 +44,14 @@ Prerequisites
 -------------
 
 You must have Python installed.  If you've installed Python from RPM,
-be sure that you've installed the development RPMs too, since ZODB3
-builds Python extensions.  If you have the source release of ZODB3,
+be sure that you've installed the development RPMs too, since ZODB
+builds Python extensions.  If you have the source release of ZODB,
 you will need a C compiler.
 
 Installation
 ------------
 
-ZODB3 is released as a distutils package.  To build it, run the setup
+ZODB is released as a distutils package.  To build it, run the setup
 script::
 
     % python setup.py build
@@ -62,7 +63,7 @@ To test the build, run the test script::
 For more verbose test output, append one or two '-v' arguments to this
 command.
 
-If all the tests succeeded, you can install ZODB3 using the setup
+If all the tests succeeded, you can install ZODB using the setup
 script::
 
     % python setup.py install
@@ -72,7 +73,7 @@ This should now make all of ZODB accessible to your Python programs.
 Testing
 -------
 
-ZODB3 comes with a large test suite that can be run from the source
+ZODB comes with a large test suite that can be run from the source
 directory before ZODB is installed.  The simplest way to run the tests
 is::
 
@@ -128,12 +129,12 @@ Why not call the current release StandaloneZODB?  The name
 StandaloneZODB is a bit of a mouthful.  The standalone part of the
 name suggests that the Zope version is the real version and that this
 is an afterthought, which isn't the case.  So we're calling this
-release "ZODB3".
+release "ZODB".
 
 To make matters worse, we worked on a ZODB4 package for a while and
 made a couple of alpha releases.  We've now abandoned that effort,
 because we didn't have the resources to pursue while also maintaining
-ZODB3.
+ZODB(3).
 
 License
 -------
