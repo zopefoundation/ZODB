@@ -111,7 +111,8 @@ class ClientStorage(object):
                  wait_for_server_on_startup=None, # deprecated alias for wait
                  wait=None, wait_timeout=None,
                  read_only=0, read_only_fallback=0,
-                 username='', password='', realm=None, blob_dir="/tmp"):
+                 username='', password='', realm=None,
+                 blob_dir=tempfile.gettempdir()):
         """ClientStorage constructor.
 
         This is typically invoked from a custom_zodb.py file.
@@ -181,6 +182,11 @@ class ClientStorage(object):
 
         password -- string with plaintext password to be used
             when authenticated.
+
+        realm -- not documented.
+
+        blob_dir -- directory path for blob data.  'blob data' is data that
+            is retrieved via the loadBlob API.
 
         Note that the authentication protocol is defined by the server
         and is detected by the ClientStorage upon connecting (see
@@ -909,11 +915,8 @@ class ClientStorage(object):
         """
         return self._getCleanFilename(oid, serial) + "." + BLOB_DIRTY
 
-    def _getBlobPath(self, oid):
-        return self.blob_dir
-
     def _getCleanFilename(self, oid, tid):
-        return os.path.join(self._getBlobPath(oid),
+        return os.path.join(self.blob_dir,
                             "%s-%s%s" % (utils.oid_repr(oid),
                                          utils.tid_repr(tid), 
                                          BLOB_SUFFIX,)
