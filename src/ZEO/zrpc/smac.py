@@ -12,9 +12,9 @@
 # 
 ##############################################################################
 """Sized message async connections
-"""
 
-__version__ = "$Revision: 1.19 $"[11:-2]
+$Id: smac.py,v 1.20 2002/08/28 18:24:50 gvanrossum Exp $
+"""
 
 import asyncore, struct
 from Exceptions import Disconnected
