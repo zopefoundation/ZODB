@@ -158,6 +158,7 @@ class ZEOStorage:
         self.history = self.__storage.history
         self.load = self.__storage.load
         self.loadSerial = self.__storage.loadSerial
+        self.modifiedInVersion = self.__storage.modifiedInVersion
 
     def _check_tid(self, tid, exc=None):
         caller = sys._getframe().f_back.f_code.co_name
@@ -245,9 +246,6 @@ class ZEOStorage:
     def endZeoVerify(self):
         self.client.endVerify()
 
-    def modifiedInVersion(self, oid):
-        return self.__storage.modifiedInVersion(oid)
-
     def pack(self, t, wait=None):
         if wait is not None:
             wait = MTDelay()
@@ -286,7 +284,7 @@ class ZEOStorage:
         oids = self.__storage.undo(transaction_id)
         if oids:
             self.server.invalidate(self, self.__storage_id,
-                                   map(lambda oid: (oid, None, ''), oids))
+                                   map(lambda oid: (oid, ''), oids))
             return oids
         return ()
 
@@ -299,6 +297,7 @@ class ZEOStorage:
                 raise StorageTransactionError("Multiple simultaneous tpc_begin"
                                               " requests from one client.")
 
+        # (This doesn't require a lock because we're using asyncore)
         if self.__storage._transaction is None:
             self.strategy = ImmediateCommitStrategy(self.__storage,
                                                     self.client)
@@ -404,6 +403,7 @@ class ZEOStorage:
 
     def restart(self, delay=None):
         old_strategy = self.strategy
+        assert isinstance(old_strategy, DelayedCommitStrategy)
         self.strategy = ImmediateCommitStrategy(self.__storage,
                                                 self.client)
         resp = old_strategy.restart(self.strategy)
@@ -485,7 +485,7 @@ class ImmediateCommitStrategy:
         except TransactionError, err:
             # Storage errors are passed to the client
             newserial = err
-        except:
+        except Exception:
             # Unexpected storage errors are logged and passed to the client
             exc_info = sys.exc_info()
             slog(self.storage, "store error: %s, %s" % exc_info[:2],
@@ -535,7 +535,6 @@ class DelayedCommitStrategy:
         self.storage = storage
         self.block = block
         self.log = CommitLog()
-        self.invalidated = []
 
         # Store information about the call that blocks
         self.name = None
@@ -553,6 +552,11 @@ class DelayedCommitStrategy:
         pass # just forget about this strategy
 
     def tpc_finish(self):
+        # There has to be a tpc_vote() call before tpc_finish() is
+        # called, and tpc_vote() always blocks, so a proper
+        # tpc_finish() call will always be sent to the immediate
+        # commit strategy object.  So, if we get here, it means no
+        # call to tpc_vote() was made, which is a bug in the caller.
         raise RuntimeError, "Logic error.  This method must not be called."
 
     def tpc_vote(self):
@@ -577,6 +581,7 @@ class DelayedCommitStrategy:
 
     def restart(self, new_strategy):
         # called by the storage when the storage is available
+        assert isinstance(new_strategy, ImmediateCommitStrategy)
         new_strategy.tpc_begin(self.txn, self.tid, self.status)
         loads, loader = self.log.get_loader()
         for i in range(loads):
