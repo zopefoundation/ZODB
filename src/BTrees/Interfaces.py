@@ -291,9 +291,17 @@ class IIMerge(IMerge):
         passed as one of the collections.
         """
 
-        
-    
-        
+###############################################################
+# IMPORTANT NOTE
+#
+# Getting the length of a BTree, TreeSet, or output of keys,
+# values, or items of same is expensive. If you need to get the
+# length, you need to maintain this separately.
+#
+# Eventually, I need to express this through the interfaces.
+#
+################################################################
+
     
 Interface.assertTypeImplements(OOBTree.OOSet, ISet)
 Interface.assertTypeImplements(OOBTree.OOTreeSet, ITreeSet)
