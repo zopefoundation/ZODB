@@ -82,7 +82,7 @@
   attributions are listed in the accompanying credits file.
   
  ****************************************************************************/
-static char *what_string = "$Id: cPersistence.c,v 1.35 1999/10/18 10:36:50 jim Exp $";
+static char *what_string = "$Id: cPersistence.c,v 1.36 2000/05/16 17:18:11 jim Exp $";
 
 #include <string.h>
 #include "cPersistence.h"
@@ -94,6 +94,7 @@ static char *what_string = "$Id: cPersistence.c,v 1.35 1999/10/18 10:36:50 jim E
 
 static PyObject *py_keys, *py_setstate, *py___dict__, *py_timeTime;
 static PyObject *py__p_changed, *py__p_deactivate;
+static PyObject *py___getattr__, *py___setattr__, *py___delattr__;
 
 static PyObject *TimeStamp;
 
@@ -126,6 +127,9 @@ init_strings()
   INIT_STRING(__dict__);
   INIT_STRING(_p_changed);
   INIT_STRING(_p_deactivate);
+  INIT_STRING(__getattr__);
+  INIT_STRING(__setattr__);
+  INIT_STRING(__delattr__);
 #undef INIT_STRING
 }
 
@@ -544,10 +548,27 @@ static PyObject*
 Per_getattro(cPersistentObject *self, PyObject *name)
 {
   char *s=NULL;
+  PyObject *r;
 
   if (PyString_Check(name))
     UNLESS(s=PyString_AsString(name)) return NULL;
-  return Per_getattr(self, name, s, PyExtensionClassCAPI->getattro);
+
+  r = Per_getattr(self, name, s, PyExtensionClassCAPI->getattro);
+  if (! r && 
+      (((PyExtensionClass*)(self->ob_type))->class_flags 
+       & EXTENSIONCLASS_USERGETATTR_FLAG)
+      )
+    {
+      PyErr_Clear();
+      r=PyObject_GetAttr(OBJECT(self), py___getattr__);
+      if (r) 
+	{
+	  ASSIGN(r, PyObject_CallFunction(r, "O", name));
+	}
+      else PyErr_SetObject(PyExc_AttributeError, name);
+    }
+ 
+  return r;  
 }
 
 static int 
@@ -634,13 +655,56 @@ _setattro(cPersistentObject *self, PyObject *oname, PyObject *v,
 	if(changed(self) < 0) return -1;
     }
 
-  return setattrf((PyObject*)self,oname,v);
+  if (setattrf)
+    return setattrf((PyObject*)self,oname,v);
+  
+  return 1;			/* Ready for user setattr */
 }
 
 static int
 Per_setattro(cPersistentObject *self, PyObject *oname, PyObject *v)
 {
-  return _setattro(self,oname, v, PyExtensionClassCAPI->setattro);
+  int r;
+  PyObject *m;
+
+  if (v && (((PyExtensionClass*)self->ob_type)->class_flags 
+	    & EXTENSIONCLASS_USERSETATTR_FLAG)
+      )
+    {
+      r=_setattro(self,oname, v, NULL);
+      if (r < 1) return r;
+
+      m=PyObject_GetAttr(OBJECT(self), py___setattr__);
+      if (m) 
+	{
+	  ASSIGN(m, PyObject_CallFunction(m, "OO", oname, v));
+	}
+      else PyErr_SetObject(PyExc_AttributeError, oname);
+    }
+  else if (!v && (((PyExtensionClass*)self->ob_type)->class_flags 
+		  & EXTENSIONCLASS_USERDELATTR_FLAG)
+	   )
+    {
+      r=_setattro(self,oname, v, NULL);
+      if (r < 1) return r;
+
+      m=PyObject_GetAttr(OBJECT(self), py___delattr__);
+      if (m) 
+      {
+	ASSIGN(m, PyObject_CallFunction(m, "O", oname));
+      }
+      else PyErr_SetObject(PyExc_AttributeError, oname);
+    }
+  else
+    return _setattro(self,oname, v, PyExtensionClassCAPI->setattro);
+
+  if (m) 
+    {
+      Py_DECREF(m);
+      return 0;
+    }
+  
+  return -1;
 }
 
 static PyExtensionClass Pertype = {
@@ -667,7 +731,9 @@ static PyExtensionClass Pertype = {
 	/* Space for future expansion */
 	0L,0L,"",
 	METHOD_CHAIN(Per_methods),
-	EXTENSIONCLASS_BASICNEW_FLAG | PERSISTENT_TYPE_FLAG,
+	EXTENSIONCLASS_BASICNEW_FLAG 
+	| PERSISTENT_TYPE_FLAG 
+	| EXTENSIONCLASS_PYTHONICATTR_FLAG,
 };
 
 /* End of code for Persistent objects */
@@ -719,7 +785,7 @@ void
 initcPersistence()
 {
   PyObject *m, *d;
-  char *rev="$Revision: 1.35 $";
+  char *rev="$Revision: 1.36 $";
 
   TimeStamp=PyString_FromString("TimeStamp");
   if (! TimeStamp) return;
