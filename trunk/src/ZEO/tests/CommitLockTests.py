@@ -21,7 +21,7 @@ from ZODB.TimeStamp import TimeStamp
 from ZODB.tests.StorageTestBase import zodb_pickle, MinPO
 
 import ZEO.ClientStorage
-from ZEO.Exceptions import Disconnected
+from ZEO.Exceptions import ClientDisconnected
 from ZEO.tests.TestThread import TestThread
 
 ZERO = '\0'*8
@@ -56,7 +56,7 @@ class WorkerThread(TestThread):
                 self.storage.tpc_finish(self.trans)
             else:
                 self.storage.tpc_abort(self.trans)
-        except Disconnected:
+        except ClientDisconnected:
             pass
 
     def myvote(self):

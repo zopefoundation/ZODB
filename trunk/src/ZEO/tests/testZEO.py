@@ -39,7 +39,6 @@ from ZODB.tests import StorageTestBase, BasicStorage, VersionStorage, \
 
 # ZEO imports
 from ZEO.ClientStorage import ClientStorage
-from ZEO.Exceptions import Disconnected
 
 # ZEO test support
 from ZEO.tests import forker, Cache

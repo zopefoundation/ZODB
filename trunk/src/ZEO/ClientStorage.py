@@ -16,14 +16,7 @@
 Public contents of this module:
 
 ClientStorage -- the main class, implementing the Storage API
-ClientStorageError -- exception raised by ClientStorage
-UnrecognizedResult -- exception raised by ClientStorage
-ClientDisconnected -- exception raised by ClientStorage
 """
-
-# XXX TO DO
-# set self._storage = stub later, in endVerify
-# if wait is given, wait until verify is complete
 
 import cPickle
 import os
@@ -35,7 +28,8 @@ import types
 
 from ZEO import ClientCache, ServerStub
 from ZEO.TransactionBuffer import TransactionBuffer
-from ZEO.Exceptions import Disconnected
+from ZEO.Exceptions \
+     import ClientStorageError, UnrecognizedResult, ClientDisconnected
 from ZEO.zrpc.client import ConnectionManager
 
 from ZODB import POSException
@@ -49,15 +43,6 @@ try:
     from ZODB.ConflictResolution import ResolvedSerial
 except ImportError:
     ResolvedSerial = 'rs'
-
-class ClientStorageError(POSException.StorageError):
-    """An error occured in the ZEO Client Storage."""
-
-class UnrecognizedResult(ClientStorageError):
-    """A server call returned an unrecognized result."""
-
-class ClientDisconnected(ClientStorageError, Disconnected):
-    """The database storage is disconnected from the storage."""
 
 def tid2time(tid):
     return str(TimeStamp(tid))
@@ -303,7 +288,7 @@ class ClientStorage:
                 self._ready.wait(30)
                 if self._ready.isSet():
                     break
-                log2(INFO, "Waiting to connect to server")
+                log2(INFO, "Wait for cache verification to finish")
         else:
             # If there is no mainloop running, this code needs
             # to call poll() to cause asyncore to handle events.
@@ -317,7 +302,7 @@ class ClientStorage:
                     cn.pending(30)
                 if self._ready.isSet():
                     break
-                log2(INFO, "Waiting to connect to server")
+                log2(INFO, "Wait for cache verification to finish")
 
     def close(self):
         """Storage API: finalize the storage, releasing external resources."""

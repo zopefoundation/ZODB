@@ -13,6 +13,14 @@
 ##############################################################################
 """Exceptions for ZEO."""
 
-class Disconnected(Exception):
-    """Exception raised when a ZEO client is disconnected from the
-    ZEO server."""
+from ZODB.POSException import StorageError
+
+class ClientStorageError(StorageError):
+    """An error occured in the ZEO Client Storage."""
+
+class UnrecognizedResult(ClientStorageError):
+    """A server call returned an unrecognized result."""
+
+class ClientDisconnected(ClientStorageError):
+    """The database storage is disconnected from the storage."""
+
