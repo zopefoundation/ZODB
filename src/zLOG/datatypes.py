@@ -1,6 +1,6 @@
 ##############################################################################
 #
-# Copyright (c) 2002, 2003 Zope Corporation and Contributors.
+# Copyright (c) 2002 Zope Corporation and Contributors.
 # All Rights Reserved.
 #
 # This software is subject to the provisions of the Zope Public License,
@@ -75,24 +75,32 @@ def ctrl_char_insert(value):
         value = value.replace(pattern, replacement)
     return value
 
-def file_handler(section):
-    path = section.path
 
-    def callback(inst,
-                 format=section.format,
-                 dateformat=section.dateformat,
-                 level=section.level):
+class HandlerFactory(Factory):
+    def __init__(self, section):
+        Factory.__init__(self)
+        self.section = section
+
+    def create_logger(self):
+        raise NotImplementedError("subclasses must override create_logger()")
+
+    def create(self):
         import logging
-        inst.setFormatter(logging.Formatter(format, dateformat))
-        inst.setLevel(level)
+        logger = self.create_logger()
+        logger.setFormatter(logging.Formatter(self.section.format,
+                                              self.section.dateformat))
+        logger.setLevel(self.section.level)
+        return logger
 
-    # XXX should pick up sys.{stderr,stdout} when the factory is invoked
-    if path == "STDERR":
-        return Factory('zLOG.LogHandlers.StreamHandler', callback, sys.stderr)
-    elif path == "STDOUT":
-        return Factory('zLOG.LogHandlers.StreamHandler', callback, sys.stdout)
-    else:
-        return Factory('zLOG.LogHandlers.FileHandler', callback, path)
+class FileHandlerFactory(HandlerFactory):
+    def create_logger(self):
+        from zLOG.LogHandlers import StreamHandler, FileHandler
+        path = self.section.path
+        if path == "STDERR":
+            return StreamHandler(sys.stderr)
+        if path == "STDOUT":
+            return StreamHandler(sys.stdout)
+        return FileHandler(path)
 
 _syslog_facilities = {
     "auth": 1,
@@ -125,30 +133,16 @@ def syslog_facility(value):
         raise ValueError("Syslog facility must be one of " + ", ".join(L))
     return value
 
-def syslog_handler(section):
-    def callback(inst,
-                 format=section.format,
-                 dateformat=section.dateformat,
-                 level=section.level):
-        import logging
-        inst.setFormatter(logging.Formatter(format, dateformat))
-        inst.setLevel(level)
+class SyslogHandlerFactory(HandlerFactory):
+    def create_logger(self):
+        from zLOG.LogHandlers import SysLogHandler
+        return SysLogHandler(self.section.address.address,
+                             self.section.facility)
 
-    return Factory('zLOG.LogHandlers.SysLogHandler', callback,
-                   section.address.address,
-                   section.facility)
-
-def nteventlog_handler(section):
-    def callback(inst,
-                 format=section.format,
-                 dateformat=section.dateformat,
-                 level=section.level):
-        import logging
-        inst.setFormatter(logging.Formatter(format, dateformat))
-        inst.setLevel(level)
-
-    return Factory('zLOG.LogHandlers.NTEventLogHandler', callback,
-                   section.appname)
+class Win32EventLogFactory(HandlerFactory):
+    def create_logger(self):
+        from zLOG.LogHandlers import Win32EventLogHandler
+        return Win32EventLogHandler(self.section.appname)
 
 def http_handler_url(value):
     import urlparse
@@ -178,45 +172,25 @@ def get_or_post(value):
                          + repr(value))
     return value
 
-def http_handler(section):
-    def callback(inst,
-                 format=section.format,
-                 dateformat=section.dateformat,
-                 level=section.level):
-        import logging
-        inst.setFormatter(logging.Formatter(format, dateformat))
-        inst.setLevel(level)
+class HTTPHandlerFactory(HandlerFactory):
+    def create_logger(self):
+        from zLOG.LogHandlers import HTTPHandler
+        host, selector = self.section.url
+        return HTTPHandler(host, selector, self.section.method)
 
-    host, selector = section.url
-    return Factory('zLOG.LogHandlers.HTTPHandler',
-                   callback, host, selector, section.method)
-
-def smtp_handler(section):
-    def callback(inst,
-                 format=section.format,
-                 dateformat=section.dateformat,
-                 level=section.level):
-        import logging
-        inst.setFormatter(logging.Formatter(format, dateformat))
-        inst.setLevel(level)
-
-    host, port = section.smtp_server
-    if not port:
-        mailhost = host
-    else:
-        mailhost = host, port
-
-    return Factory('zLOG.LogHandlers.SMTPHandler',
-                   callback,
-                   mailhost,
-                   section.fromaddr,
-                   section.toaddrs,
-                   section.subject)
+class SMTPHandlerFactory(HandlerFactory):
+    def create_logger(self):
+        from zLOG.LogHandlers import SMTPHandler
+        host, port = self.section.smtp_server
+        if not port:
+            mailhost = host
+        else:
+            mailhost = host, port
+        return SMTPHandler(mailhost, self.section.fromaddr,
+                           self.section.toaddrs, self.section.subject)
 
 
-_marker = []
-
-class EventLogFactory:
+class EventLogFactory(Factory):
     """
     A wrapper used to create loggers while delaying actual logger
     instance construction.  We need to do this because we may
@@ -226,24 +200,22 @@ class EventLogFactory:
     logger object.
     """
     def __init__(self, section):
+        Factory.__init__(self)
         self.level = section.level
         self.handler_factories = section.handlers
-        self.resolved = _marker
 
-    def __call__(self):
-        if self.resolved is _marker:
-            # set the logger up
-            import logging
-            logger = logging.getLogger("event")
-            logger.handlers = []
-            logger.propagate = 0
-            logger.setLevel(self.level)
-            if self.handler_factories:
-                for handler_factory in self.handler_factories:
-                    handler = handler_factory()
-                    logger.addHandler(handler)
-            else:
-                from zLOG.LogHandlers import NullHandler
-                logger.addHandler(NullHandler())
-            self.resolved = logger
-        return self.resolved
+    def create(self):
+        # set the logger up
+        import logging
+        logger = logging.getLogger("event")
+        logger.handlers = []
+        logger.propagate = 0
+        logger.setLevel(self.level)
+        if self.handler_factories:
+            for handler_factory in self.handler_factories:
+                handler = handler_factory()
+                logger.addHandler(handler)
+        else:
+            from zLOG.LogHandlers import NullHandler
+            logger.addHandler(NullHandler())
+        return logger

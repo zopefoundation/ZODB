@@ -16,7 +16,8 @@ import sys
 
 from logging import Handler, StreamHandler
 from logging.handlers import SysLogHandler
-from logging.handlers import HTTPHandler, SMTPHandler, NTEventLogHandler
+from logging.handlers import HTTPHandler, SMTPHandler
+from logging.handlers import NTEventLogHandler as Win32EventLogHandler
 
 class FileHandler(StreamHandler):
     """
