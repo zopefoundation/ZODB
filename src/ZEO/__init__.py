@@ -21,5 +21,5 @@ ZEO is now part of ZODB; ZODB's home on the web is
 
 """
 
-# The next line must use double quotes, so replace.py recognizes it.
-version = "2.3a3"
+# The next line must use double quotes, so release.py recognizes it.
+version = "2.3b1"

@@ -1,6 +1,6 @@
 What's new in ZODB3 3.3 beta 1
 ==============================
-Release date: DD-MMM-2004
+Release date: 03-Jun-2004
 
 BTrees
 ------
