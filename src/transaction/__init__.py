@@ -11,6 +11,10 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ############################################################################
+"""Exported transaction functions.
+
+$Id$
+"""
 
 from transaction._transaction import Transaction
 from transaction._manager import TransactionManager, ThreadTransactionManager
@@ -29,5 +33,5 @@ def commit(sub=False):
 def abort(sub=False):
     manager.get().abort(sub)
 
-# XXX Issue deprecation warning if this variant is used?
+# TODO: Issue deprecation warning if this variant is used?
 get_transaction = get

@@ -203,7 +203,7 @@ class TransactionTests(unittest.TestCase):
         assert self.nosub1._p_jar.ctpc_finish == 0
         assert self.nosub1._p_jar.cabort == 1
 
-    # XXX
+    # XXX:
     def BUGtestNSJSubTransactionCommitAbort(self):
         """
         this reveals a bug in transaction.py
