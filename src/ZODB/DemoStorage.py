@@ -150,7 +150,7 @@ method::
 and call it to minotor the storage.
 
 """
-__version__='$Revision: 1.2 $'[11:-2]
+__version__='$Revision: 1.3 $'[11:-2]
 
 import base64, POSException, BTree, BaseStorage, time, string, utils
 from TimeStamp import TimeStamp
@@ -158,16 +158,18 @@ from cPickle import loads
 
 class DemoStorage(BaseStorage.BaseStorage):
 
-    def __init__(self, name='Demo Storage', base=None):
+    def __init__(self, name='Demo Storage', base=None, quota=None):
 
         BaseStorage.BaseStorage.__init__(self, name, base)
 
         # We use a BTree because the items are sorted!
         self._data=BTree.BTree()
         self._index={}
-        self._tindex=[]
         self._vindex={}
         self._base=base
+        self._size=0
+        self._quota=quota
+        self._clear_temp()
         if base is not None and base.versions():
             raise POSException.StorageError, (
                 "Demo base storage has version data")
@@ -190,6 +192,7 @@ class DemoStorage(BaseStorage.BaseStorage):
         for v in self._vindex.values():
             s=s+32+16*len(v)
 
+        self._size=s
         return s
 
     def abortVersion(self, src, transaction):
@@ -297,6 +300,17 @@ class DemoStorage(BaseStorage.BaseStorage):
             serial=self._serial
             r=[oid, serial, old, version and (version,nv) or None, data]
             self._tindex.append(r)
+
+            s=self._tsize
+            s=s+72+(data and (16+len(data)) or 4)
+            if version: s=s+32+len(version)
+
+            if s > self._quota:
+                raise POSException.StorageError, (
+                    '''<b>Quota Exceeded</b><br>
+                    The maximum quota for this demonstration storage
+                    has been exceeded.<br>Have a nice day.''')
+
         finally: self._lock_release()
         return serial
 
@@ -305,12 +319,19 @@ class DemoStorage(BaseStorage.BaseStorage):
 
     def _clear_temp(self):
         self._tindex=[]
+        self._tsize=self._size+160
 
+    def _begin(self, tid, u, d, e):
+        self._tsize=self._size+120+len(u)+len(d)+len(e)
+    
     def _finish(self, tid, user, desc, ext):
 
         index=self._index
         tindex=self._tindex
         vindex=self._vindex
+
+        self._size=self._tsize
+
         self._data[tid]=None, user, desc, ext, tuple(tindex)
         for r in tindex:
             oid, serial, pre, vdata, p = r
@@ -547,6 +568,7 @@ class DemoStorage(BaseStorage.BaseStorage):
             self._index, self._vindex = self._build_indexes()
 
         finally: self._lock_release()
+        self.getSize()
 
     def _splat(self):
         """Spit out a string showing state.
