@@ -82,7 +82,7 @@
   attributions are listed in the accompanying credits file.
   
  ****************************************************************************/
-static char *what_string = "$Id: cPickleCache.c,v 1.30 1999/10/07 23:55:12 jim Exp $";
+static char *what_string = "$Id: cPickleCache.c,v 1.31 1999/10/13 12:35:19 jim Exp $";
 
 #define ASSIGN(V,E) {PyObject *__e; __e=(E); Py_XDECREF(V); (V)=__e;}
 #define UNLESS(E) if(!(E))
@@ -210,10 +210,10 @@ update_stats(ccobject *self, time_t now)
 }
 
 static int
-fullgc(ccobject *self, int idt)
+fullgc(ccobject *self, int dt)
 {
   PyObject *key, *v;
-  int i, dt;
+  int i;
   long now;
 
   if (self->cache_size < 1) return 0;
@@ -675,7 +675,7 @@ void
 initcPickleCache()
 {
   PyObject *m, *d;
-  char *rev="$Revision: 1.30 $";
+  char *rev="$Revision: 1.31 $";
 
   Cctype.ob_type=&PyType_Type;
 
