@@ -1111,6 +1111,81 @@ The types defined in this component implement the
 
 
 
+The configuration objects provided by both the logger and handler
+types are factories for the finished loggers and handlers.  These
+factories should be called with no arguments to retrieve the logger or
+log handler objects.  Calling the factories repeatedly will cause the
+same objects to be returned each time, so it's safe to simply call
+them to retrieve the objects.
+
+The factories for the logger objects, whether the \datatype{eventlog}
+or \datatype{logger} section type is used, provide a \method{reopen()}
+method which may be called to close any log files and re-open them.
+This is useful when using a \UNIX{} signal to effect log file
+rotation: the signal handler can call this method, and not have to
+worry about what handlers have been registered for the logger.
+
+Building an application that uses the logging components is fairly
+straightforward.  The schema needs to import the relevant components
+and declare their use:
+
+\begin{verbatim}
+<schema>
+  <import package="ZConfig.components.logger" file="eventlog.xml"/>
+  <import package="ZConfig.components.logger" file="handlers.xml"/>
+
+  <section type="eventlog" name="*" attribute="eventlog"
+           required="yes"/>
+</schema>
+\end{verbatim}
+
+In the application, the schema and configuration file should be loaded
+normally.  Once the configuration object is available, the logger
+factory should be called to configure Python's \module{logging} package:
+
+\begin{verbatim}
+import os
+import ZConfig
+
+def run(configfile):
+    schemafile = os.path.join(os.path.dirname(__file__), "schema.xml")
+    schema = ZConfig.loadSchema(schemafile)
+    config, handlers = ZConfig.loadConfig(schema, configfile)
+
+    # configure the logging package:
+    config.eventlog()
+
+    # now do interesting things
+\end{verbatim}
+
+An example configuration file for this application may look like this:
+
+\begin{verbatim}
+<eventlog>
+  level  info
+
+  <logfile>
+    path        /var/log/myapp
+    format      %(asctime)s %(levelname)s %(name)s %(message)s
+    # locale-specific date/time representation
+    dateformat  %c
+  </logfile>
+
+  <syslog>
+    level    error
+    address  syslog.example.net:514
+    format   %(levelname)s %(name)s %(message)s
+  </syslog>
+</eventlog>
+\end{verbatim}
+
+Refer to the \module{logging} package documentation for the names
+available in the message format strings (the \code{format} key in the
+log handlers).  The date format strings (the \code{dateformat} key in
+the log handlers) are the same as those accepted by the
+\function{time.strftime()} function.
+
+
 \begin{seealso}
   \seepep{282}{A Logging System}
          {The proposal which described the logging feature for
