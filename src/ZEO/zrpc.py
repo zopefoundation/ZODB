@@ -85,7 +85,7 @@
 """Simple rpc mechanisms
 """
 
-__version__ = "$Revision: 1.11 $"[11:-2]
+__version__ = "$Revision: 1.12 $"[11:-2]
 
 from ZODB.cPickle import loads
 from ZODB import cPickle
@@ -152,7 +152,7 @@ class asyncRPC(SizedMessageAsyncConnection):
                 return 1
 
     def finishConnect(self, s):
-        SizedMessageAsyncConnection.__init__(self, s, {})
+        SizedMessageAsyncConnection.__init__(self, s, s.getpeername(), {})
 
     # we are our own socket map!
     def keys(self): return (self._fileno,)
