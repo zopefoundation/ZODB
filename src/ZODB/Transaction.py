@@ -13,17 +13,16 @@
 ##############################################################################
 """Transaction management
 
-$Id: Transaction.py,v 1.50 2003/10/02 18:17:19 jeremy Exp $
+$Id: Transaction.py,v 1.51 2003/10/02 20:17:36 jeremy Exp $
 """
+import sys
 
-import time, sys, struct, POSException
-from string import split, strip, join
 from zLOG import LOG, ERROR, PANIC, INFO, BLATHER, WARNING
-from POSException import ConflictError
-from utils import oid_repr
+from ZODB.POSException import ConflictError, TransactionError
+from ZODB.utils import oid_repr
 
 # Flag indicating whether certain errors have occurred.
-hosed=0
+hosed = 0
 
 # There is an order imposed on all jars, based on the storages they
 # serve, that must be consistent across all applications using the
@@ -101,7 +100,7 @@ class Transaction:
         entered two-phase commit yet, so no tpc_ messages are sent.
         """
         if subtransaction and (self._non_st_objects is not None):
-            raise POSException.TransactionError, (
+            raise TransactionError(
                 """Attempted to abort a sub-transaction, but a participating
                 data manager doesn't support partial abort.
                 """)
@@ -169,9 +168,9 @@ class Transaction:
         if self._objects:
             self.abort(subtransaction, 0)
         if info:
-            info=split(info,'\t')
-            self.user=strip(info[0])
-            self.description=strip(join(info[1:],'\t'))
+            L = info.split("\t")
+            self.user = L[0].strip()
+            self.description = "\t".join(L[1:]).strip()
 
     def commit(self, subtransaction=None):
         """Finalize the transaction."""
@@ -206,7 +205,7 @@ class Transaction:
         if (objects or subjars) and hosed:
             # Something really bad happened and we don't
             # trust the system state.
-            raise POSException.TransactionError, hosed_msg
+            raise TransactionError(hosed_msg)
 
         # It's important that:
         #
@@ -426,18 +425,17 @@ class Transaction:
 
     def note(self, text):
         if self.description:
-            self.description = "%s\n\n%s" % (self.description, strip(text))
+            self.description = "%s\n\n%s" % (self.description, test.strip())
         else:
-            self.description = strip(text)
+            self.description = text.strip()
 
     def setUser(self, user_name, path='/'):
-        self.user="%s %s" % (path, user_name)
+        self.user = "%s %s" % (path, user_name)
 
     def setExtendedInfo(self, name, value):
-        ext=self._extension
-        if ext is None:
-            ext=self._extension={}
-        ext[name]=value
+        if self._extension is None:
+            self._extension = {}
+        self._extension[name] = value
 
 hosed_msg = \
 """A serious error, which was probably a system error,
