@@ -14,9 +14,9 @@ class FileStorageCorruptTests(StorageTestBase):
     __super_tearDown = StorageTestBase.tearDown
 
     def setUp(self):
+        self.__super_setUp()
         self.path = tempfile.mktemp()
         self._storage = ZODB.FileStorage.FileStorage(self.path, create=1)
-        self.__super_setUp()
 
     def tearDown(self):
         self.__super_tearDown()

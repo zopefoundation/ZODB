@@ -60,8 +60,8 @@ class SubtransTests:
         obj.root = self.root
         meth = getattr(obj, meth_name)
         meth(1)
-        get_transaction().commit()
-
+        get_transaction().commit() 
+                            
     checkSubSingleCommit = lambda self:\
                            self.wrap_test(BasicTests, "checkSingleCommit")
 

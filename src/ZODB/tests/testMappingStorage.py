@@ -9,8 +9,8 @@ class MappingStorageTests(StorageTestBase.StorageTestBase,
                        ):
 
     def setUp(self):
-        self._storage = ZODB.MappingStorage.MappingStorage()
         StorageTestBase.StorageTestBase.setUp(self)
+        self._storage = ZODB.MappingStorage.MappingStorage()
 
 def test_suite():
     suite = unittest.makeSuite(MappingStorageTests, 'check')
