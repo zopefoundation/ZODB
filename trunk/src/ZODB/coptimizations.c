@@ -14,7 +14,7 @@
 static char coptimizations_doc_string[] = 
 "C optimization for new_persistent_id().\n"
 "\n"
-"$Id: coptimizations.c,v 1.18 2002/09/16 23:50:39 jeremy Exp $\n";
+"$Id: coptimizations.c,v 1.19 2002/09/17 03:42:58 jeremy Exp $\n";
 
 #include "Python.h"
 #define DONT_USE_CPERSISTENCECAPI
@@ -72,7 +72,7 @@ persistent_id_dealloc(persistent_id *self)
 static PyObject *
 get_class(PyObject *object)
 {
-    PyObject *class;
+    PyObject *class = NULL;
 
     if (!PyExtensionClass_Check(object)) {
 	if (PyExtensionInstance_Check(object)) {
