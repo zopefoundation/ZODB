@@ -20,7 +20,7 @@ Given an "instance home directory" <home> and some configuration
 options (all of which have default values), create the following:
 
 <home>/etc/zeo.conf     -- ZEO config file
-<home>/etc/runner.conf  -- zdctl config file
+<home>/etc/runner.conf  -- zdctl+zdrun config file
 <home>/var/             -- Directory for data files: Data.fs etc.
 <home>/log/             -- Directory for log files: zeo.log and runner.log
 <home>/bin/zeoctl       -- start/stop script (a shim for zdctl.py)
@@ -79,6 +79,9 @@ runner_conf_template = """# runner configuration file
   # user zope
   python %(python)s
   zdrun %(zdrun)s
+  # This logfile should match the one in the %(package)s.conf file.
+  # It is used by zdctl's logtail command, zdrun/zdctl doesn't write it.
+  logfile %(home)s/log/%(package)s.log
 </runner>
 
 <eventlog>
