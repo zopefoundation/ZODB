@@ -15,11 +15,11 @@
 
 import asyncore, struct
 import threading
-from ZEO.Exceptions import Disconnected
-import zLOG
 from types import StringType
 
 from ZEO.zrpc.log import log, short_repr
+from ZEO.zrpc.error import DisconnectedError
+import zLOG
 
 import socket, errno
 
@@ -209,10 +209,8 @@ class SizedMessageAsyncConnection(asyncore.dispatcher):
                     level=zLOG.TRACE)
 
         if self.__closed:
-            raise Disconnected, (
-                "This action is temporarily unavailable."
-                "<p>"
-                )
+            raise DisconnectedError(
+                "This action is temporarily unavailable.<p>")
         self.__output_lock.acquire()
         try:
             # do two separate appends to avoid copying the message string

@@ -19,7 +19,7 @@ from ZODB.Transaction import Transaction
 from ZODB.tests.StorageTestBase import zodb_pickle, MinPO
 
 import ZEO.ClientStorage
-from ZEO.Exceptions import Disconnected
+from ZEO.Exceptions import ClientDisconnected
 
 ZERO = '\0'*8
 
@@ -86,7 +86,7 @@ class AbortsAfterBeginFailsThread(BasicThread):
             self.gotValueError = 1
         try:
             self.storage.tpc_abort(self.trans)
-        except Disconnected:
+        except ClientDisconnected:
             self.gotDisconnected = 1
 
 

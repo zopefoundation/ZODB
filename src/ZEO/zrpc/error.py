@@ -12,10 +12,16 @@
 #
 ##############################################################################
 from ZODB import POSException
-from ZEO.Exceptions import Disconnected
+from ZEO.Exceptions import ClientDisconnected
 
 class ZRPCError(POSException.StorageError):
     pass
 
-class DisconnectedError(ZRPCError, Disconnected):
-    """The database storage is disconnected from the storage server."""
+class DisconnectedError(ZRPCError, ClientDisconnected):
+    """The database storage is disconnected from the storage server.
+
+    The error occurred because a problem in the low-level RPC connection,
+    or because the connection was closed.
+    """
+
+    # This subclass is raised when zrpc catches the error.

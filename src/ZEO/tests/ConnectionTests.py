@@ -27,7 +27,7 @@ import time
 import zLOG
 
 from ZEO.ClientStorage import ClientStorage
-from ZEO.Exceptions import Disconnected
+from ZEO.Exceptions import ClientDisconnected
 from ZEO.zrpc.marshal import Marshaller
 from ZEO.tests import forker
 
@@ -200,7 +200,7 @@ class ConnectionTests(CommonSetupTearDown):
             try:
                 self._dostore()
                 break
-            except Disconnected:
+            except ClientDisconnected:
                 self._storage.sync()
                 time.sleep(0.5)
 
@@ -264,7 +264,7 @@ class ConnectionTests(CommonSetupTearDown):
         # Poll until the client disconnects
         self.pollDown()
         # Stores should fail now
-        self.assertRaises(Disconnected, self._dostore)
+        self.assertRaises(ClientDisconnected, self._dostore)
 
         # Restart the server
         self.startServer(create=0)
@@ -274,12 +274,13 @@ class ConnectionTests(CommonSetupTearDown):
         self._dostore()
 
     def checkDisconnectionError(self):
-        # Make sure we get a Disconnected when we try to read an
+        # Make sure we get a ClientDisconnected when we try to read an
         # object when we're not connected to a storage server and the
         # object is not in the cache.
         self.shutdownServer()
         self._storage = self.openClientStorage('test', 1000, wait=0)
-        self.assertRaises(Disconnected, self._storage.load, 'fredwash', '')
+        self.assertRaises(ClientDisconnected,
+                          self._storage.load, 'fredwash', '')
 
     def checkBasicPersistence(self):
         # Verify cached data persists across client storage instances.
@@ -345,10 +346,8 @@ class ConnectionTests(CommonSetupTearDown):
             try:
                 self._dostore(oid, data=obj)
                 break
-            except Disconnected:
+            except ClientDisconnected:
                 # Maybe the exception mess is better now
-##            except (Disconnected, select.error,
-##                    threading.ThreadError, socket.error):
                 zLOG.LOG("checkReconnection", zLOG.INFO,
                          "Error after server restart; retrying.",
                          error=sys.exc_info())
@@ -389,7 +388,7 @@ class ConnectionTests(CommonSetupTearDown):
 
         try:
             self._dostore()
-        except Disconnected:
+        except ClientDisconnected:
             pass
         else:
             self._storage.close()
@@ -504,7 +503,7 @@ class ReconnectionTests(CommonSetupTearDown):
         # Poll until the client disconnects
         self.pollDown()
         # Stores should fail now
-        self.assertRaises(Disconnected, self._dostore)
+        self.assertRaises(ClientDisconnected, self._dostore)
 
         # Restart the server
         self.startServer(create=0, read_only=1)
@@ -533,7 +532,7 @@ class ReconnectionTests(CommonSetupTearDown):
         # Poll until the client disconnects
         self.pollDown()
         # Stores should fail now
-        self.assertRaises(Disconnected, self._dostore)
+        self.assertRaises(ClientDisconnected, self._dostore)
 
         # Restart the server, this time read-write
         self.startServer(create=0)
@@ -566,7 +565,7 @@ class ReconnectionTests(CommonSetupTearDown):
             try:
                 self._dostore()
                 break
-            except (Disconnected, ReadOnlyError):
+            except (ClientDisconnected, ReadOnlyError):
                 # If the client isn't connected at all, sync() returns
                 # quickly and the test fails because it doesn't wait
                 # long enough for the client.
@@ -691,7 +690,7 @@ class TimeoutTests(CommonSetupTearDown):
         storage.tpc_begin(txn)
         storage.tpc_vote(txn)
         time.sleep(2)
-        self.assertRaises(Disconnected, storage.tpc_finish, txn)
+        self.assertRaises(ClientDisconnected, storage.tpc_finish, txn)
 
     def checkTimeoutOnAbort(self):
         storage = self.openClientStorage()
