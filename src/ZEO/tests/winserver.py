@@ -57,7 +57,10 @@ def main(port, storage_name, args):
     test_port = zeo_port + 1
     t = ZEOTestServer(('', test_port), storage)
     serv = ZEO.StorageServer.StorageServer(('', zeo_port), {'1': storage})
-    asyncore.loop()
+    import zLOG
+    while asyncore.socket_map:
+        zLOG.LOG("winserver", zLOG.BLATHER, "map: %r" % asyncore.socket_map)
+	asyncore.poll(30.0)
 
 if __name__ == "__main__":
     import sys
