@@ -14,7 +14,7 @@
 static char cPersistence_doc_string[] = 
 "Defines Persistent mixin class for persistent objects.\n"
 "\n"
-"$Id: cPersistence.c,v 1.60 2002/06/14 15:29:30 jeremy Exp $\n";
+"$Id: cPersistence.c,v 1.61 2002/06/14 15:34:30 jeremy Exp $\n";
 
 #include "cPersistence.h"
 
@@ -232,7 +232,7 @@ changed(cPersistentObject *self)
 	    return -1;
 	}
 	PyTuple_SET_ITEM(arg, 0, (PyObject *)self);
-	result = PyObject_Call(meth, arg, NULL);
+	result = PyEval_CallObject(meth, arg);
 	PyTuple_SET_ITEM(arg, 0, NULL);
 	Py_DECREF(arg);
 	Py_DECREF(meth);
