@@ -14,7 +14,7 @@
 ##############################################################################
 """Cache simulation.
 
-Usage: simul.py -s size tracefile
+Usage: simul.py [-s size] tracefile
 
 -s size: cache size in MB (default 20 MB)
 """
