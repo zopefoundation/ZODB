@@ -13,7 +13,7 @@
 ##############################################################################
 """Sized message async connections
 
-$Id: smac.py,v 1.21 2002/08/29 16:31:17 gvanrossum Exp $
+$Id: smac.py,v 1.22 2002/08/29 22:39:51 jeremy Exp $
 """
 
 import asyncore, struct
@@ -40,6 +40,10 @@ tmp_dict = {errno.EAGAIN: 0,
             }
 expected_socket_write_errors = tuple(tmp_dict.keys())
 del tmp_dict
+
+# We chose 60000 as the socket limit by looking at the largest strings
+# that we could pass to send() without blocking.
+SEND_SIZE = 60000
 
 class SizedMessageAsyncConnection(asyncore.dispatcher):
     __super_init = asyncore.dispatcher.__init__
@@ -145,14 +149,10 @@ class SizedMessageAsyncConnection(asyncore.dispatcher):
             # delayed acks.  If we send a very large string, only a
             # portion of it will actually be delivered at a time.
 
-            # We chose 60000 as the socket limit by looking at the
-            # largest strings that we could pass to send() without
-            # blocking.
-
             l = 0
             for i in range(len(output)):
                 l += len(output[i])
-                if l > 60000:
+                if l > SEND_SIZE:
                     break
 
             i += 1
@@ -167,8 +167,6 @@ class SizedMessageAsyncConnection(asyncore.dispatcher):
                     break # we couldn't write anything
                 raise
             if n < len(v):
-                # XXX It's unfortunate that we end up making many
-                # slices of a large string.
                 output.insert(0, v[n:])
                 break # we can't write any more
 
@@ -191,7 +189,12 @@ class SizedMessageAsyncConnection(asyncore.dispatcher):
                 )
         # do two separate appends to avoid copying the message string
         self.__output.append(struct.pack(">i", len(message)))
-        self.__output.append(message)
+        if len(message) <= SEND_SIZE:
+            self.__output.append(message)
+        else:
+            for i in range(0, len(message), SEND_SIZE):
+                self.__output.append(message[i:i+SEND_SIZE])
+            
 
     def close(self):
         if self.__closed is None:
