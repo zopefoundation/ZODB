@@ -134,7 +134,8 @@ class Base:
 
         try:
             root = self._getRoot()
-            assert root['t'] == t
+            #XXX BTree stuff doesn't implement comparison
+            assert list(root['t'].items()) == list(t.items())
         finally:
             self._closeDB(root)
             self._delDB()
@@ -156,7 +157,7 @@ class Base:
             root = self._getRoot()
             root['t']._p_changed = None
             get_transaction().commit()
-            assert root['t'] == t
+            assert list(root['t'].items()) == list(t.items())
         finally:
             self._closeDB(root)
             self._delDB()
@@ -346,7 +347,7 @@ class SetTests(Base):
         t = self.t
         r = xrange(10000)
         for x in r: t.insert(x)
-        assert len(t) == 1000, len(t)
+        assert len(t) == 10000, len(t)
         
 class BucketTests(MappingBase):
     """ Tests common to all buckets """
