@@ -2,3 +2,8 @@
 cPersistence cPersistence.c    -I../../Components/ExtensionClass
 cPickleCache cPickleCache.c    -I../../Components/ExtensionClass
 TimeStamp TimeStamp.c   -I../../Components/ExtensionClass -DUSE_EXTENSION_CLASS
+
+
+# This is an auxilary file that provides file locking on windows.
+# It is essentially null on any other platform.
+winlock winlock.c
