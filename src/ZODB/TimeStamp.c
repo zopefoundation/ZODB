@@ -85,7 +85,7 @@
 
 static char TimeStamp_module_documentation[] = 
 ""
-"\n$Id: TimeStamp.c,v 1.3 1999/05/18 22:26:49 jim Exp $"
+"\n$Id: TimeStamp.c,v 1.4 1999/06/10 20:46:44 jim Exp $"
 ;
 
 #include <stdlib.h>
@@ -388,6 +388,9 @@ newTimeStamp(PyObject *ignored, PyObject *args)
 static void
 TimeStamp_dealloc(TimeStamp *self)
 {
+#ifdef USE_EXTENSION_CLASS
+  Py_DECREF(self->ob_type);
+#endif  
   PyMem_DEL(self);
 }
 
@@ -483,7 +486,7 @@ void
 initTimeStamp()
 {
   PyObject *m, *d;
-  char *rev="$Revision: 1.3 $";
+  char *rev="$Revision: 1.4 $";
 
   if (TimeStamp_init_gmoff() < 0) return;
   if (! ExtensionClassImported) return;
