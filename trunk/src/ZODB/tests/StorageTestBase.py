@@ -124,7 +124,7 @@ class StorageTestBase(unittest.TestCase):
         self._close()
 
     def _dostore(self, oid=None, revid=None, data=None, version=None,
-                 already_pickled=0):
+                 already_pickled=0, user=None, description=None):
         """Do a complete storage transaction.  The defaults are:
         
          - oid=None, ask the storage for a new oid
@@ -148,6 +148,10 @@ class StorageTestBase(unittest.TestCase):
             version = ''
         # Begin the transaction
         t = Transaction()
+        if user is not None:
+            t.user = user
+        if description is not None:
+            t.description = description
         self._storage.tpc_begin(t)
         # Store an object
         r1 = self._storage.store(oid, revid, data, version, t)
@@ -156,5 +160,6 @@ class StorageTestBase(unittest.TestCase):
         self._storage.tpc_finish(t)
         return handle_serials(oid, r1, r2)
         
-    def _dostoreNP(self, oid=None, revid=None, data=None, version=None):
+    def _dostoreNP(self, oid=None, revid=None, data=None, version=None,
+                   user=None, description=None):
         return self._dostore(oid, revid, data, version, already_pickled=1)
