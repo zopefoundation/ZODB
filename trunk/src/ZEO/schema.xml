@@ -5,7 +5,7 @@
   </description>
 
   <!-- Use the storage types defined by ZODB. -->
-  <import src="../ZODB/config.xml"/>
+  <import package="zodb"/>
 
   <key name="address" datatype="socket-address"
        required="yes">
