@@ -88,7 +88,7 @@ process must skip such objects, rather than deactivating them.
 static char cPickleCache_doc_string[] =
 "Defines the PickleCache used by ZODB Connection objects.\n"
 "\n"
-"$Id: cPickleCache.c,v 1.65 2002/05/02 14:03:07 fdrake Exp $\n";
+"$Id: cPickleCache.c,v 1.66 2002/06/10 22:35:08 jeremy Exp $\n";
 
 #define ASSIGN(V,E) {PyObject *__e; __e=(E); Py_XDECREF(V); (V)=__e;}
 #define UNLESS(E) if(!(E))
@@ -427,9 +427,9 @@ cc_invalidate(ccobject *self, PyObject *args)
   PyObject *inv, *key, *v;
   int i;
 
-  /* XXX The code supports invalidation of all objects, but I don't
-     think it's possible for a Connection object to pass None.  If
-     this is correct, the code could be simplied.
+  /* XXX The code supports invalidation of all objects, but it's
+     impossible for a Connection object to pass None.  The code could be
+     simplied.
   */
 
   if (PyArg_ParseTuple(args, "O!", &PyDict_Type, &inv)) {
@@ -604,22 +604,26 @@ cc_oid_unreferenced(ccobject *self, PyObject *oid)
     */
 
 #ifdef Py_TRACE_REFS
-#error "this code path has not been tested - Toby Dickenson"
-    /* not tested, but it should still work. I would appreciate
-       reports of success */
+    /* This is called from the deallocation function after the
+       interpreter has untracked the reference.  Track it again.
+     */
     _Py_NewReference(v);
-    /* it may be a problem that v->ob_type is still NULL? */
+    /* XXX it may be a problem that v->ob_type is still NULL? 
+       I don't understand what this comment means.  --jeremy */
+    assert(v->ob_type);
 #else
     Py_INCREF(v);
 #endif
+    assert(v->ob_refcnt == 1);
     /* Incremement the refcount again, because delitem is going to
        DECREF it.  If it's refcount reached zero again, we'd call back to
        the dealloc function that called us.
     */
     Py_INCREF(v);
 
-    /* XXX what if this fails? */
-    PyDict_DelItem(self->data, oid);
+    /* XXX Should we call _Py_ForgetReference() on error exit? */
+    if (PyDict_DelItem(self->data, oid) < 0)
+	return -1;
 
     if (v->ob_refcnt != 1) {
         PyErr_SetString(PyExc_ValueError,
@@ -627,12 +631,12 @@ cc_oid_unreferenced(ccobject *self, PyObject *oid)
         return -1;
     }
 
-    /* undo the temporary resurrection */
-#ifdef Py_TRACE_REFS
+    /* Undo the temporary resurrection.
+       Don't DECREF the object, because this function is called from
+       the object's dealloc function. If the refcnt reaches zero, it
+       will all be invoked recursively.
+     */
     _Py_ForgetReference(v);
-#else
-    v->ob_refcnt = 0;
-#endif
 
     return 0;
 }
