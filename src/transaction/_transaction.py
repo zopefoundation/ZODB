@@ -305,6 +305,7 @@ class Transaction(object):
             # to revert the changes in each of the resource managers.
             # For top-level transactions, it must be freed from the
             # txn manager.
+            t, v, tb = sys.exc_info()
             try:
                 self._cleanup(L)
             finally:
@@ -312,7 +313,7 @@ class Transaction(object):
                     self.status = Status.FAILED
                     if self._manager:
                         self._manager.free(self)
-            raise
+            raise t, v, tb
 
     def _cleanup(self, L):
         # Called when an exception occurs during tpc_vote or tpc_finish.
@@ -323,15 +324,15 @@ class Transaction(object):
             if id(rm) in self._sub:
                 try:
                     rm.abort_sub(self)
-                except Exception, err:
-                    # XXX Just printing the error doesn't seem good enough.
-                    print err
+                except Exception:
+                    self.log.error("Error in abort_sub() on manager %s",
+                                   rm, exc_info=sys.exc_info())
             else:
                 try:
                     rm.tpc_abort(self)
-                except Exception, err:
-                    # XXX Just printing the error doesn't seem good enough.
-                    print err
+                except Exception:
+                    self.log.error("Error in tpc_abort() on manager %s",
+                                   rm, exc_info=sys.exc_info())
 
     def _getResourceManagers(self, subtransaction):
         L = []
