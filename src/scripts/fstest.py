@@ -107,7 +107,8 @@ def check_trec(path, file, pos, ltid, file_size):
     tmeta_len = TREC_HDR_LEN + ul + dl + el
 
     if tid <= ltid:
-        raise FormatError("%s time-stamp reduction at %s" % (path, pos))
+        raise FormatError("%s time-stamp reduction at %s: %s <= %s" %
+                          (path, pos, hexify(tid), hexify(ltid)))
     ltid = tid
 
     tl = U64(stl) # transaction record length - 8
