@@ -1,7 +1,17 @@
 Zope Enterprise Objects
 
-  Put this package (the ZEO directory, without any wrapping directory
-  included in a distribution) in your Zope lib/python.
+  Installation
+
+    ZEO 1.0 requires Zope 2.2 or higher.
+
+    Put this package (the ZEO directory, without any wrapping directory
+    included in a distribution) in your Zope lib/python.
+
+    If you are using Python 1.5.2, the lib/python/ZODB directory must
+    contain a cPickle.so (Unix) or cPickle.pyd (Windows) file.  In
+    many cases, the Zope installation process will not place this file
+    in the right location.  You may need to copy it from lib/python to
+    lib/python/ZODB.
 
   Starting (and configuring) the ZEO Server
 
