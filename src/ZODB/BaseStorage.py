@@ -84,7 +84,7 @@
 ##############################################################################
 """Handy standard storage machinery
 """
-__version__='$Revision: 1.9 $'[11:-2]
+__version__='$Revision: 1.10 $'[11:-2]
 
 import time, bpthread, UndoLogCompatible
 from POSException import UndoError
@@ -154,10 +154,15 @@ class BaseStorage(UndoLogCompatible.UndoLogCompatible):
         self._lock_acquire()
         try:
             if transaction is not self._transaction: return
+            self._abort()
             self._clear_temp()
             self._transaction=None
             self._commit_lock_release()
         finally: self._lock_release()
+
+    def _abort(self):
+        """Subclasses should rededine this to supply abort actions"""
+        pass
 
     def tpc_begin(self, transaction, tid=None, status=' '):
         self._lock_acquire()
@@ -192,6 +197,8 @@ class BaseStorage(UndoLogCompatible.UndoLogCompatible):
         finally: self._lock_release()
 
     def _begin(self, tid, u, d, e):
+        """Subclasses should rededine this to supply
+        transaction start actions"""
         pass
 
     def tpc_vote(self, transaction): pass
@@ -212,6 +219,7 @@ class BaseStorage(UndoLogCompatible.UndoLogCompatible):
             self._lock_release()
 
     def _finish(self, tid, u, d, e):
+        """Subclasses should rededine this to supply commit actions"""
         pass
 
     def undo(self, transaction_id):
