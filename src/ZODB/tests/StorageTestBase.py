@@ -37,8 +37,12 @@ ZERO = '\0'*8
 
 def zodb_pickle(obj):
     """Create a pickle in the format expected by ZODB."""
+    def persistent_id(obj):
+        return getattr(obj, '_p_oid', None)
+
     f = StringIO()
     p = Pickler(f, 1)
+    p.persistent_id = persistent_id
     klass = obj.__class__
     assert not hasattr(obj, '__getinitargs__'), "not ready for constructors"
     args = None
