@@ -13,7 +13,7 @@
 ##############################################################################
 """Open database and storage from a configuration.
 
-$Id: config.py,v 1.9 2003/01/16 17:50:36 fdrake Exp $"""
+$Id: config.py,v 1.10 2003/01/28 23:15:56 fdrake Exp $"""
 
 import os
 import StringIO
@@ -102,7 +102,6 @@ class FileStorage(BaseConfig):
         return FileStorage(self.config.path,
                            create=self.config.create,
                            read_only=self.config.read_only,
-                           stop=self.config.stop,
                            quota=self.config.quota)
 
 class ZEOClient(BaseConfig):
