@@ -1,5 +1,5 @@
 ##############################################################################
-#
+# 
 # Copyright (c) 2001 Zope Corporation and Contributors. All Rights Reserved.
 # 
 # This software is subject to the provisions of the Zope Public License,
@@ -12,8 +12,8 @@
 ##############################################################################
 """Database objects
 
-$Id: DB.py,v 1.36 2001/11/28 15:51:18 matt Exp $"""
-__version__='$Revision: 1.36 $'[11:-2]
+$Id: DB.py,v 1.37 2002/01/09 18:54:20 Brian Exp $"""
+__version__='$Revision: 1.37 $'[11:-2]
 
 import cPickle, cStringIO, sys, POSException, UndoLogCompatible
 from Connection import Connection
@@ -72,20 +72,15 @@ class DB(UndoLogCompatible.UndoLogCompatible):
         self._storage=storage
         storage.registerDB(self, None)
         if not hasattr(storage,'tpc_vote'): storage.tpc_vote=lambda *args: None
-        try:
-            storage.load('\0\0\0\0\0\0\0\0','')
-        except KeyError:
-            # Create the database's root in the storage if it doesn't exist
+        try: storage.load('\0\0\0\0\0\0\0\0','')
+        except:
             import PersistentMapping
-            root = PersistentMapping.PersistentMapping()
-            # Manually create a pickle for the root to put in the storage.
-            # The pickle must be in the special ZODB format.
-            file = cStringIO.StringIO()
-            p = cPickle.Pickler(file, 1)
-            p.dump((root.__class__, None))
-            p.dump(root.__getstate__())
-            t = Transaction()
-            t.description = 'initial database creation'
+            file=cStringIO.StringIO()
+            p=cPickle.Pickler(file,1)
+            p.dump((PersistentMapping.PersistentMapping,None))
+            p.dump({'_container': {}})
+            t=Transaction()
+            t.description='initial database creation'
             storage.tpc_begin(t)
             storage.store('\0\0\0\0\0\0\0\0', None, file.getvalue(), '', t)
             storage.tpc_vote(t)
@@ -159,7 +154,9 @@ class DB(UndoLogCompatible.UndoLogCompatible):
         detail={}
         def f(con,detail=detail,have_detail=detail.has_key):
             for oid, ob in con._cache.items():
-                c="%s.%s" % (ob.__class__.__module__, ob.__class__.__name__)
+                module = getattr(ob.__class__, '__module__', '')
+                module = module and '%s.' % module or ''
+                c="%s%s" % (module, ob.__class__.__name__)
                 if have_detail(c): detail[c]=detail[c]+1
                 else: detail[c]=1
         
@@ -182,13 +179,15 @@ class DB(UndoLogCompatible.UndoLogCompatible):
                         id=d['id']
                     elif d.has_key('__name__'):
                         id=d['__name__']
-    
+
+                module = getattr(ob.__class__, '__module__', '')
+                module = module and '%s.' % module or ''
+
                 detail.append({
                     'conn_no': cn,
                     'oid': oid,
                     'id': id,
-                    'klass': "%s.%s" % (ob.__class__.__module__,
-                                        ob.__class__.__name__),
+                    'klass': "%s%s" % (module, ob.__class__.__name__),
                     'rc': rc(ob)-4,
                     'state': ob._p_changed,
                     #'references': con.references(oid),
