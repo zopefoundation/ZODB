@@ -14,7 +14,7 @@
 ##############################################################################
 """Cache simulation.
 
-Usage: simul.py [-bflyz] [-s size] tracefile
+Usage: simul.py [-bflyz] [-X] [-s size] tracefile
 
 Use one of -b, -f, -l, -y or -z select the cache simulator:
 -b: buddy system allocator
@@ -25,6 +25,8 @@ Use one of -b, -f, -l, -y or -z select the cache simulator:
 
 Options:
 -s size: cache size in MB (default 20 MB)
+-X: enable heuristic checking for misaligned records: oids > 2**32
+    will be rejected; this requires the tracefile to be seekable
 
 Note: the buddy system allocator rounds the cache size up to a power of 2
 """
@@ -43,8 +45,9 @@ def main():
     MB = 1000*1000
     cachelimit = 20*MB
     simclass = ZEOCacheSimulation
+    heuristic = 0
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "bflyzs:")
+        opts, args = getopt.getopt(sys.argv[1:], "bflyzs:X")
     except getopt.error, msg:
         usage(msg)
         return 2
@@ -61,6 +64,8 @@ def main():
             simclass = ZEOCacheSimulation
         if o == '-s':
             cachelimit = int(float(a)*MB)
+        if o == '-X':
+            heuristic = 1
     if len(args) != 1:
         usage("exactly one file argument required")
         return 2
@@ -112,12 +117,18 @@ def main():
             # Must be a misaligned record caused by a crash
             ##print "Skipping 8 bytes at offset", offset-8
             continue
-        r = f_read(16)
-        if len(r) < 16:
+        oid = f_read(8)
+        if len(oid) < 8:
             break
-        offset += 16
+        if heuristic and oid[:4] != '\0\0\0\0':
+            f.seek(-8, 1)
+            continue
+        offset += 8
+        serial = f_read(8)
+        if len(serial) < 8:
+            break
+        offset += 8
         records += 1
-        oid, serial = struct_unpack(">8s8s", r)
         # Decode the code
         dlen, version, code, current = (code & 0x7fffff00,
                                         code & 0x80,
