@@ -346,7 +346,7 @@ class IIMerge(IMerge):
                   c1[key]  if c1 is a mapping
 
             v2 is 1        if c2 is a set
-                  c1[key]  if c2 is a mapping
+                  c2[key]  if c2 is a mapping
 
         XXX All of the above is wrong if either weight is negative.  I think
         XXX that's a bug in the implementation and will fix it.
