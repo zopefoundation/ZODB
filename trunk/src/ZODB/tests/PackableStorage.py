@@ -152,7 +152,7 @@ class PackableStorage(PackableStorageBase):
         self._initroot()
         self._storage.pack(time.time() - 10000, referencesf)
 
-    def _PackWhileWriting(self, pack_now=0):
+    def _PackWhileWriting(self, pack_now):
         # A storage should allow some reading and writing during
         # a pack.  This test attempts to exercise locking code
         # in the storage to test that it is safe.  It generates
@@ -186,9 +186,29 @@ class PackableStorage(PackableStorageBase):
 
         for t in threads:
             t.join(30)
-        for t in threads:
-            t.join(1)
-            self.assert_(not t.isAlive())
+        liveness = [t.isAlive() for t in threads]
+        if True in liveness:
+            # They should have finished by now.
+            print 'Liveness:', liveness
+            # Display how far each thread got, one column per thread.
+            i = 0
+            fmt = "(%2s %10s)"
+            while True:
+                found_one = False
+                columns = []
+                for t in threads:
+                    if i < len(t.outcomes):
+                        found_one = True
+                        result = tuple(t.outcomes[i])
+                    else:
+                        result = ('--', '--')
+                    columns.append(fmt % result)
+                if found_one:
+                    print ' '.join(columns)
+                    i += 1
+                else:
+                    break
+            self.fail('a thread is still alive')
 
         # Iterate over the storage to make sure it's sane, but not every
         # storage supports iterators.
@@ -202,10 +222,10 @@ class PackableStorage(PackableStorageBase):
         iter.close()
 
     def checkPackWhileWriting(self):
-        self._PackWhileWriting(pack_now=0)
+        self._PackWhileWriting(pack_now=False)
 
     def checkPackNowWhileWriting(self):
-        self._PackWhileWriting(pack_now=1)
+        self._PackWhileWriting(pack_now=True)
 
 class PackableUndoStorage(PackableStorageBase):
 
@@ -550,19 +570,27 @@ class PackableUndoStorage(PackableStorageBase):
         # what can we assert about that?
 
 
+# A number of these threads are kicked off by _PackWhileWriting().  Their
+# purpose is to abuse the database passed to the constructor with lots of
+# random write activity while the main thread is packing it.
 class ClientThread(TestThread):
 
     def __init__(self, db, choices):
         TestThread.__init__(self)
         self.root = db.open().root()
         self.choices = choices
+        # list of pairs, (root index written to, 'OK' or 'Conflict')
+        self.outcomes = []
 
     def runtest(self):
         from random import choice
 
         for j in range(50):
             try:
-                self.root[choice(self.choices)].value = MinPO(j)
+                index = choice(self.choices)
+                self.root[index].value = MinPO(j)
                 get_transaction().commit()
+                self.outcomes.append((index, 'OK'))
             except ConflictError:
                 get_transaction().abort()
+                self.outcomes.append((index, 'Conflict'))
