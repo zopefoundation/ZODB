@@ -88,7 +88,7 @@ process must skip such objects, rather than deactivating them.
 static char cPickleCache_doc_string[] =
 "Defines the PickleCache used by ZODB Connection objects.\n"
 "\n"
-"$Id: cPickleCache.c,v 1.67 2002/06/10 22:49:41 jeremy Exp $\n";
+"$Id: cPickleCache.c,v 1.68 2002/06/11 02:34:22 jeremy Exp $\n";
 
 #define ASSIGN(V,E) {PyObject *__e; __e=(E); Py_XDECREF(V); (V)=__e;}
 #define UNLESS(E) if(!(E))
@@ -102,14 +102,6 @@ static char cPickleCache_doc_string[] =
 #undef Py_FindMethod
 
 static PyObject *py__p_oid, *py_reload, *py__p_jar, *py__p_changed;
-
-/* define this for extra debugging checks, and lousy performance.
-   Not really necessary in production code... disable this before
-   release, providing noone has been reporting and RuntimeErrors
-   that it uses to report problems.
-*/
-
-/* #define MUCH_RING_CHECKING 1 */
 
 /* Do we want 'engine noise'.... abstract debugging output useful for
    visualizing cache behavior */
@@ -151,10 +143,6 @@ typedef struct {
 
 } ccobject;
 
-#ifdef MUCH_RING_CHECKING
-static int present_in_ring(ccobject *self, CPersistentRing *target);
-#endif
-static int ring_corrupt(ccobject *self, const char *context);
 static int cc_ass_sub(ccobject *self, PyObject *key, PyObject *v);
 
 /* ---------------------------------------------------------------- */
@@ -170,6 +158,22 @@ object_from_oid(ccobject *self, PyObject *key)
     Py_INCREF(v);
     return v;
 }
+
+/* define this for extra debugging checks, and lousy performance.
+   Not really necessary in production code... disable this before
+   release, providing noone has been reporting and RuntimeErrors
+   that it uses to report problems.
+*/
+
+/* #define MUCH_RING_CHECKING */
+
+#ifdef MUCH_RING_CHECKING
+static int present_in_ring(ccobject *self, CPersistentRing *target);
+static int ring_corrupt(ccobject *self, const char *context);
+
+#define IS_RING_CORRUPT(OBJ, CTX) ring_corrupt((OBJ), (CTX))
+#define OBJECT_FROM_RING(SELF, HERE, CTX) \
+    object_from_ring((SELF), (HERE), (CTX))
 
 static cPersistentObject *
 object_from_ring(ccobject *self, CPersistentRing *here, const char *context)
@@ -187,7 +191,6 @@ object_from_ring(ccobject *self, CPersistentRing *here, const char *context)
      */
     object = (PyObject *)(((char *)here) - offsetof(cPersistentObject, ring));
 
-#ifdef MUCH_RING_CHECKING
     if (!PyExtensionInstance_Check(object)) {
         PyErr_Format(PyExc_RuntimeError,
 	     "Unexpectedly encountered non-ExtensionClass object in %s",
@@ -210,9 +213,18 @@ object_from_ring(ccobject *self, CPersistentRing *here, const char *context)
 		     "Unexpectedly encountered broken ring in %s", context);
         return NULL;
     }
-#endif
     return (cPersistentObject *)object;
 }
+
+#else /* MUCH_RING_CHECKING */
+
+#define IS_RING_CORRUPT(OBJ, CTX) 0
+
+#define OBJECT_FROM_RING(SELF, HERE, CTX) \
+    ((cPersistentObject *)(((char *)here) - offsetof(cPersistentObject, ring)))
+
+#endif
+
 
 static int
 scan_gc_items(ccobject *self,int target)
@@ -237,7 +249,7 @@ scan_gc_items(ccobject *self,int target)
      * size.
      */
     while (1) {
-        if (ring_corrupt(self, "mid-gc")) 
+        if (IS_RING_CORRUPT(self, "mid-gc")) 
 	    return -1;
 
 #ifdef MUCH_RING_CHECKING
@@ -273,7 +285,7 @@ scan_gc_items(ccobject *self,int target)
 	   this because the ring lock is held.  We can safely assume
 	   the current ring node is a persistent object now we know it
 	   is not the home */
-        object = object_from_ring(self, here, "scan_gc_items");
+        object = OBJECT_FROM_RING(self, here, "scan_gc_items");
         if (!object) 
 	    return -1;
 
@@ -333,7 +345,7 @@ lockgc(ccobject *self, int target_size)
         return Py_None;
     }
 
-    if (ring_corrupt(self, "pre-gc")) 
+    if (IS_RING_CORRUPT(self, "pre-gc")) 
 	return NULL;
     ENGINE_NOISE("<");
     self->ring_lock = 1;
@@ -343,7 +355,7 @@ lockgc(ccobject *self, int target_size)
     }
     self->ring_lock = 0;
     ENGINE_NOISE(">\n");
-    if (ring_corrupt(self, "post-gc")) 
+    if (IS_RING_CORRUPT(self, "post-gc")) 
 	return NULL;
 
     Py_INCREF(Py_None);
@@ -537,7 +549,7 @@ cc_lru_items(ccobject *self, PyObject *args)
         return NULL;
     }
 
-    if (ring_corrupt(self, "pre-cc_items")) 
+    if (IS_RING_CORRUPT(self, "pre-cc_items")) 
 	return NULL;
 
     l = PyList_New(0);
@@ -547,7 +559,7 @@ cc_lru_items(ccobject *self, PyObject *args)
     here = self->ring_home.next;
     while (here != &self->ring_home) {
         PyObject *v;
-        cPersistentObject *object = object_from_ring(self, here, "cc_items");
+        cPersistentObject *object = OBJECT_FROM_RING(self, here, "cc_items");
 
         if (object == NULL) {
             Py_DECREF(l);
@@ -689,7 +701,7 @@ cc_getattr(ccobject *self, char *name)
 {
   PyObject *r;
 
-  if (ring_corrupt(self, "getattr")) 
+  if (IS_RING_CORRUPT(self, "getattr")) 
       return NULL;
 
   if(*name=='c')
@@ -764,7 +776,7 @@ cc_subscript(ccobject *self, PyObject *key)
 {
     PyObject *r;
 
-    if (ring_corrupt(self, "__getitem__")) 
+    if (IS_RING_CORRUPT(self, "__getitem__")) 
 	return NULL;
 
     r = (PyObject *)object_from_oid(self, key);
@@ -872,7 +884,7 @@ cc_add_item(ccobject *self, PyObject *key, PyObject *v)
 	*/
     }
     
-    if (ring_corrupt(self, "pre-setitem")) 
+    if (IS_RING_CORRUPT(self, "pre-setitem")) 
 	return -1;
     if (PyDict_SetItem(self->data, key, v) < 0) 
 	return -1;
@@ -894,7 +906,7 @@ cc_add_item(ccobject *self, PyObject *key, PyObject *v)
 	Py_DECREF(v);
     }
     
-    if (ring_corrupt(self, "post-setitem")) 
+    if (IS_RING_CORRUPT(self, "post-setitem")) 
 	return -1;
     else
 	return 0;
@@ -907,7 +919,7 @@ cc_del_item(ccobject *self, PyObject *key)
     cPersistentObject *p;
 
     /* unlink this item from the ring */
-    if (ring_corrupt(self, "pre-delitem")) 
+    if (IS_RING_CORRUPT(self, "pre-delitem")) 
 	return -1;
 
     v = (PyObject *)object_from_oid(self, key);
@@ -945,7 +957,7 @@ cc_del_item(ccobject *self, PyObject *key)
 	return -1;
     }
 
-    if (ring_corrupt(self, "post-delitem")) 
+    if (IS_RING_CORRUPT(self, "post-delitem")) 
 	return -1;
 
     return 0;
@@ -1004,7 +1016,7 @@ _ring_corrupt(ccobject *self, const char *context)
             /* If the ring is unlocked, then it must not contain
 	     * objects other than persistent instances (and the home) */ 
             if (here != &self->ring_home) {
-                cPersistentObject *object = object_from_ring(self, here, 
+                cPersistentObject *object = OBJECT_FROM_RING(self, here, 
 							     context);
                 if (!object) 
 		    return 12;
@@ -1032,12 +1044,10 @@ _ring_corrupt(ccobject *self, const char *context)
 
     return 0;
 }
-#endif /* MUCH_RING_CHECKING */
 
 static int 
 ring_corrupt(ccobject *self, const char *context)
 {
-#ifdef MUCH_RING_CHECKING
     int code = _ring_corrupt(self, context);
     if (code) {
 	if (!PyErr_Occurred())
@@ -1046,11 +1056,9 @@ ring_corrupt(ccobject *self, const char *context)
 			 code, context, PyDict_Size(self->data));
         return code;
     }
-#endif
     return 0;
 }
 
-#ifdef MUCH_RING_CHECKING
 static int
 present_in_ring(ccobject *self,CPersistentRing *target)
 {
@@ -1063,7 +1071,7 @@ present_in_ring(ccobject *self,CPersistentRing *target)
         here = here->next;
     }
 }
-#endif
+#endif /* MUCH_RING_CHECKING */
 
 static PyMappingMethods cc_as_mapping = {
   (inquiry)cc_length,		/*mp_length*/
