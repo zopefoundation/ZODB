@@ -3,11 +3,10 @@
 
 Usage: zeoup.py [options]
 
-The test will connect to a ZEO server, load the root object, and
-attempt to update the zeoup counter in the root.  It will report
-success if it updates to counter or if it gets a ConflictError.  A
-ConflictError is considered a success, because the client was able to
-start a transaction. 
+The test will connect to a ZEO server, load the root object, and attempt to
+update the zeoup counter in the root.  It will report success if it updates
+the counter or if it gets a ConflictError.  A ConflictError is considered a
+success, because the client was able to start a transaction.
 
 Options:
 
@@ -35,13 +34,15 @@ import ZODB
 from ZODB.POSException import ConflictError
 from ZODB.tests.MinPO import MinPO
 from ZEO.ClientStorage import ClientStorage
+from ZODB.PersistentMapping import PersistentMapping
 
 ZEO_VERSION = 2
 
 def check_server(addr, storage, write):
     t0 = time.time()
     if ZEO_VERSION == 2:
-        cs = ClientStorage(addr, storage=storage, wait=1,
+        # XXX should do retries w/ exponential backoff
+        cs = ClientStorage(addr, storage=storage, wait=0,
                            read_only=(not write))
     else:
         cs = ClientStorage(addr, storage=storage, debug=1,
@@ -56,7 +57,13 @@ def check_server(addr, storage, write):
         cn = db.open()
         root = cn.root()
         try:
-            obj = root['zeoup'] = root.get('zeoup', MinPO(0))
+            # We store the data in a special `monitor' dict under the root,
+            # where other tools may also store such heartbeat and bookkeeping
+            # type data.
+            monitor = root.get('monitor')
+            if monitor is None:
+                monitor = root['monitor'] = PersistentMapping()
+            obj = monitor['zeoup'] = monitor.get('zeoup', MinPO(0))
             obj.value += 1
             get_transaction().commit()
         except ConflictError:
