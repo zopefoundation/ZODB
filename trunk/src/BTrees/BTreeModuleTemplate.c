@@ -85,7 +85,7 @@
 
 static char BTree_module_documentation[] = 
 ""
-"\n$Id: BTreeModuleTemplate.c,v 1.3 2001/02/19 17:36:04 jim Exp $"
+"\n$Id: BTreeModuleTemplate.c,v 1.4 2001/02/19 18:15:10 jim Exp $"
 ;
 
 #ifdef PERSISTENT
@@ -357,6 +357,12 @@ INITMODULE ()
 
   BTreeItemsType.ob_type=&PyType_Type;
 
+#ifdef INTSET_H
+  UNLESS(d = PyImport_ImportModule("intSet")) return;
+  UNLESS(intSetType = PyObject_GetAttrString (d, "intSet")) return;
+  Py_DECREF (d); 
+#endif
+
   /* Create the module and add the functions */
   m = Py_InitModule4(PREFIX "BTree", module_methods,
 		     BTree_module_documentation,
@@ -366,7 +372,7 @@ INITMODULE ()
   d = PyModule_GetDict(m);
 
   PyDict_SetItemString(d, "__version__",
-		       PyString_FromString("$Revision: 1.3 $"));
+		       PyString_FromString("$Revision: 1.4 $"));
 
   PyExtensionClass_Export(d,PREFIX "Bucket", BucketType);
   PyExtensionClass_Export(d,PREFIX "BTree", BTreeType);

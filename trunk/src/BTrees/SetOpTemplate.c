@@ -87,6 +87,29 @@
  Set operations
  ****************************************************************************/
 
+#ifdef INTSET_H
+static int 
+nextIntSet(SetIteration *i)
+{
+  UNLESS(PER_USE(INTSET(i->set))) return -1;
+          
+  if (i->position >= 0)
+    {
+      if (i->position < INTSET(i->set)->len)
+        {
+          i->key = INTSET(i->set)->data[i->position];
+          i->position ++;
+        }
+      else
+        i->position = -1;
+    }
+
+  PER_ALLOW_DEACTIVATION(INTSET(i->set));
+          
+  return 0;
+}
+#endif
+
 static int
 initSetIteration(SetIteration *i, PyObject *s, int w, int *merge)
 {
@@ -107,6 +130,14 @@ initSetIteration(SetIteration *i, PyObject *s, int w, int *merge)
 
       i->hasValue=1;
     }
+  else if (ExtensionClassSubclassInstance_Check(s, &SetType))
+    {
+      i->set = s;
+      Py_INCREF(s);
+
+      i->next=nextSet;
+      i->hasValue=0;
+    }
   else if (ExtensionClassSubclassInstance_Check(s, &BTreeType))
     {
       i->set=BTree_rangeSearch(BTREE(s), NULL, 'i');
@@ -121,14 +152,6 @@ initSetIteration(SetIteration *i, PyObject *s, int w, int *merge)
         i->next=nextTreeSetItems;
       i->hasValue=1;
     }
-  else if (ExtensionClassSubclassInstance_Check(s, &SetType))
-    {
-      i->set = s;
-      Py_INCREF(s);
-
-      i->next=nextSet;
-      i->hasValue=0;
-    }
   else if (ExtensionClassSubclassInstance_Check(s, &TreeSetType))
     {
       i->set=BTree_rangeSearch(BTREE(s), NULL, 'k');
@@ -137,6 +160,16 @@ initSetIteration(SetIteration *i, PyObject *s, int w, int *merge)
       i->next=nextTreeSetItems;
       i->hasValue=0;
     }
+#ifdef INTSET_H
+  else if (s->ob_type==(PyTypeObject*)intSetType)
+    {
+      i->set = s;
+      Py_INCREF(s);
+
+      i->next=nextIntSet;
+      i->hasValue=0;
+    }
+#endif
   else
     {
       PyErr_SetString(PyExc_TypeError, "invalid argument");
