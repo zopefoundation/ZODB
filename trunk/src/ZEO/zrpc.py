@@ -20,6 +20,7 @@ class sync:
         s=socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.connect(host, port)
         self._sync__s=s
+        self._sync__q=[]
         self._outOfBand=outOfBand
 
     def setOutOfBand(self, f): self._outOfBand=f
@@ -43,6 +44,12 @@ class sync:
                 oob(c, loads(r[1:]))
             else:
                 raise UnrecognizedResult, r
+
+    def queue(self, *args):
+        self._sync__q.append(dumps(args,1))
+
+    def send(self, *args):
+        self._write(dumps(args,1))
 
     def _write(self, data, pack=struct.pack):
         send=self._sync__s.send
@@ -93,10 +100,15 @@ class async(smac, sync):
             host, port = connection
         except:
             s=connection._sync__s
+            smac.__init__(self, s, None)
             self._outOfBand=connection._outOfBand
+            for m in connection._sync__q:
+                self.message_output(m)
+                
         else:
             s=socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             s.connect(host, port)
+            smac.__init__(self, s, None)
             self._outOfBand=outOfBand
             
         l=allocate_lock()
@@ -104,13 +116,15 @@ class async(smac, sync):
         self.__lr=l.release
         self.__r=None
         l.acquire()
-        smac.__init__(self, s, None)
 
         global Wakeup
         if Wakeup is None:
             import ZServer.PubCore.ZEvent
             Wakeup=ZServer.PubCore.ZEvent.Wakeup
 
+    def queue(self, *args):
+        self.message_output(dumps(args,1))
+        Wakeup() # You dumb bastard
     
     def _write(self, data):
         self.message_output(data)

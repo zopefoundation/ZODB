@@ -47,9 +47,10 @@
 ##############################################################################
 """Network ZODB storage client
 """
-__version__='$Revision: 1.2 $'[11:-2]
+__version__='$Revision: 1.3 $'[11:-2]
 
-import struct, time, os, socket, cPickle, string, Sync, zrpc
+import struct, time, os, socket, cPickle, string, Sync, zrpc, ClientCache
+import tempfile
 now=time.time
 from struct import pack, unpack
 from ZODB import POSException, BaseStorage
@@ -63,8 +64,12 @@ class UnrecognizedResult(POSException.StorageError):
 
 class ClientStorage(BaseStorage.BaseStorage):
 
-    def __init__(self, connection, async=0):
+    def __init__(self, connection, async=0, storage='1', cache_size=20000000):
 
+        # Decide whether to use non-temporary files
+        client=os.environ.get('ZEO_CLIENT','')
+        if client: async=1
+        
         if async:
             import asyncore
             def loop(timeout=30.0, use_poll=0,
@@ -77,17 +82,27 @@ class ClientStorage(BaseStorage.BaseStorage):
         self._call=zrpc.sync(connection)
         self.__begin='tpc_begin_sync'
 
-        self._call._write('1')
+        self._call._write(str(storage))
         info=self._call('get_info')
         self._len=info.get('length',0)
         self._size=info.get('size',0)
-        self.__name__=info.get('name', str(connection))
+        name="%s %s" % (info.get('name', ''), str(connection))
         self._supportsUndo=info.get('supportsUndo',0)
         self._supportsVersions=info.get('supportsVersions',0)
 
-        BaseStorage.BaseStorage.__init__(self,
-                                         info.get('name', str(connection)),
-                                         )
+
+        self._tfile=tempfile.TemporaryFile()
+        
+
+        self._cache=ClientCache.ClientCache(storage, cache_size, client=client)
+        if async:
+            for oid, (s, vs) in self._cache.open():
+                self._call.queue('zeoVerify', oid, s, vs)
+        else:
+            for oid, (s, vs) in self._cache.open():
+                self._call.send('zeoVerify', oid, s, vs)
+
+        BaseStorage.BaseStorage.__init__(self, name)
 
     def becomeAsync(self):
         self._call=zrpc.async(self._call)
@@ -96,13 +111,15 @@ class ClientStorage(BaseStorage.BaseStorage):
     def registerDB(self, db, limit):
 
         def invalidate(code, args,
-                       invalidate=db.invalidate,
+                       dinvalidate=db.invalidate,
                        limit=limit,
                        release=self._commit_lock_release,
+                       cinvalidate=self._cache.invalidate
                        ):
             if code == 'I':
                 for oid, serial, version in args:
-                    invalidate(oid, version=version)
+                    cinvalidate(oid, version=version)
+                    dinvalidate(oid, version=version)
             elif code == 'U':
                 release()
 
@@ -141,12 +158,22 @@ class ClientStorage(BaseStorage.BaseStorage):
 
     def load(self, oid, version, _stuff=None):
         self._lock_acquire()
-        try: return self._call('load', oid, version)
+        try:
+            p = self._cache.load(oid, version)
+            if p is not None: return p
+            p, s, v, pv, sv = self._call('zeoLoad', oid)
+            self._cache.store(oid, p, s, v, pv, sv)
+            if not v or not version or version != v:
+                return p, s
+            return pv, sv
         finally: self._lock_release()
                     
     def modifiedInVersion(self, oid):
         self._lock_acquire()
-        try: return self._call('modifiedInVersion', oid)
+        try:
+            v=self._cache.modifiedInVersion(oid)
+            if v is not None: return v
+            return self._call('modifiedInVersion', oid)
         finally: self._lock_release()
 
     def new_oid(self, last=None):
@@ -165,8 +192,16 @@ class ClientStorage(BaseStorage.BaseStorage):
         if transaction is not self._transaction:
             raise POSException.StorageTransactionError(self, transaction)
         self._lock_acquire()
-        try: return self._call('store', oid, serial,
-                               data, version, self._serial)
+        try:
+            serial=self._call('store', oid, serial,
+                              data, version, self._serial)
+            
+            write=self._tfile.write
+            write(oid+serial+pack(">HI", len(version), len(data))+version)
+            write(data)
+
+            return serial
+        
         finally: self._lock_release()
 
     def supportsUndo(self): return self._supportsUndo
@@ -178,6 +213,7 @@ class ClientStorage(BaseStorage.BaseStorage):
             if transaction is not self._transaction: return
             self._call('tpc_abort', self._serial)
             self._transaction=None
+            self._tfile.seek(0)
             self._commit_lock_release()
         finally: self._lock_release()
 
@@ -193,6 +229,8 @@ class ClientStorage(BaseStorage.BaseStorage):
             t=apply(TimeStamp,(time.gmtime(t)[:5]+(t%60,)))
             self._ts=t=t.laterThan(self._ts)
             self._serial=id=`t`
+
+            self._tfile.seek(0)
 
             while 1:
                 self._lock_release()
@@ -215,6 +253,26 @@ class ClientStorage(BaseStorage.BaseStorage):
                        transaction.user,
                        transaction.description,
                        transaction._extension)
+
+            tfile=self._tfile
+            seek=tfile.seek
+            read=tfile.read
+            cache=self._cache
+            size=tfile.tell()
+            seek(0)
+            i=0
+            while i < size:
+                oid=read(8)
+                s=read(8)
+                h=read(6)
+                vlen, dlen = unpack(">HI", h)
+                if vlen: v=read(vlen)
+                else: v=''
+                p=read(dlen)
+                cache.update(oid, s, v, p)
+                i=i+22+vlen+dlen
+
+            seek(0)
 
             self._transaction=None
             self._commit_lock_release()

@@ -18,3 +18,13 @@ Zope Enterprize Option, iteration 1
   The port number is, of course, the port number used to start the 
   storage server.  The async switch tells the client to switch
   itself to async mode (if and) when the asyncore main loop is called.
+
+  If you want a persistent client cache, you need to define the
+  environment variable, ZEO_CLIENT to a unique name for the
+  client. This is needed so that unique cache name files can be
+  computed. Otherwise, the client cache is stored in temporary files.
+  For example, to start two Zope processes with unique caches, use
+  something like:
+
+    python z2.py -P8700 ZEO_CLIENT=8700
+    python z2.py -P8800 ZEO_CLIENT=8800
