@@ -37,7 +37,7 @@ from ZODB.POSException \
      import ConflictError, ReadConflictError, InvalidObjectReference, \
             ConnectionStateError
 from ZODB.TmpStore import TmpStore
-from ZODB.serialize import ObjectWriter, ConnectionObjectReader, myhasattr
+from ZODB.serialize import ObjectWriter, ObjectReader, myhasattr
 from ZODB.utils import u64, oid_repr, z64, positive_id, \
         DEPRECATED_ARGUMENT, deprecated36
 
@@ -791,8 +791,7 @@ class Connection(ExportImport, object):
             self._flush_invalidations()
         if self._synch:
             self._txn_mgr.registerSynch(self)
-        self._reader = ConnectionObjectReader(self, self._cache,
-                                              self._db.classFactory)
+        self._reader = ObjectReader(self, self._cache, self._db.classFactory)
 
         # Multi-database support
         self.connections = {self._db.database_name: self}

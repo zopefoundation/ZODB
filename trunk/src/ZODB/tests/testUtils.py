@@ -46,11 +46,11 @@ class TestUtils(unittest.TestCase):
         self.assertEquals(U64("\000\000\000\001\000\000\000\000"), 1L<<32)
 
     def checkPersistentIdHandlesDescriptor(self):
-        from ZODB.serialize import BaseObjectWriter
+        from ZODB.serialize import ObjectWriter
         class P(Persistent):
             pass
 
-        writer = BaseObjectWriter(None)
+        writer = ObjectWriter(None)
         self.assertEqual(writer.persistent_id(P), None)
 
     # It's hard to know where to put this test.  We're checking that the
@@ -59,13 +59,13 @@ class TestUtils(unittest.TestCase):
     # the pickle (and so also trying to import application module and
     # class objects, which isn't a good idea on a ZEO server when avoidable).
     def checkConflictErrorDoesntImport(self):
-        from ZODB.serialize import BaseObjectWriter
+        from ZODB.serialize import ObjectWriter
         from ZODB.POSException import ConflictError
         from ZODB.tests.MinPO import MinPO
         import cPickle as pickle
 
         obj = MinPO()
-        data = BaseObjectWriter().serialize(obj)
+        data = ObjectWriter().serialize(obj)
 
         # The pickle contains a GLOBAL ('c') opcode resolving to MinPO's
         # module and class.
