@@ -56,6 +56,10 @@ class CacheTests:
     def test_cache(self):
         r"""Test basic cache methods.
 
+        Let's start with a clean transaction
+
+        >>> transaction.abort()
+
         >>> RegularObject.init()
         >>> db = databaseFromString("<zodb>\n"
         ...                         "cache-size 4\n"
@@ -113,6 +117,10 @@ class CacheTests:
         1
         >>> RegularObject.deactivations
         10
+
+        Clean up
+
+        >>> transaction.abort()
 
         """
 
