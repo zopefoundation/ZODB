@@ -13,7 +13,7 @@
 ##############################################################################
 """Start the server storage.
 
-$Id: start.py,v 1.43 2002/08/29 16:31:17 gvanrossum Exp $
+$Id: start.py,v 1.44 2002/09/13 20:57:37 gvanrossum Exp $
 """
 from __future__ import nested_scopes
 
@@ -52,8 +52,8 @@ def set_uid(arg):
     try:
         import pwd
     except ImportError:
-        LOG('ZEO Server', INFO, ("Can't set uid to %s."
-                                 "pwd module is not available." % uid))
+        LOG('ZEO/start.py', INFO, ("Can't set uid to %s."
+                                "pwd module is not available." % uid))
         return
     try:
         gid = None
@@ -75,7 +75,7 @@ def set_uid(arg):
         except OSError:
             pass
     except KeyError:
-        LOG('ZEO Server', ERROR, ("can't find uid %s" % arg))
+        LOG('ZEO/start.py', ERROR, ("can't find uid %s" % arg))
 
 def setup_signals(storages):
     try:
@@ -253,7 +253,7 @@ def main(argv):
         items = storages.items()
         items.sort()
         for kv in items:
-            LOG('ZEO Server', INFO, 'Serving %s:\t%s' % kv)
+            LOG('ZEO/start.py', INFO, 'Serving %s:\t%s' % kv)
 
         if not unix:
             unix = host, port
@@ -271,7 +271,7 @@ def main(argv):
         # Log startup exception and tell zdaemon not to restart us.
         info = sys.exc_info()
         try:
-            LOG("z2", PANIC, "Startup exception", error=info)
+            LOG("ZEO/start.py", PANIC, "Startup exception", error=info)
         except:
             pass
 
@@ -287,7 +287,7 @@ def main(argv):
     except:
         info = sys.exc_info()
         try:
-            LOG("ZEO Server", PANIC, "Unexpected error", error=info)
+            LOG("ZEO/start.py", PANIC, "Unexpected error", error=info)
         except:
             pass
         import traceback
@@ -315,7 +315,7 @@ def rotate_logs_handler(signum, frame):
     signal.signal(signal.SIGHUP, rotate_logs_handler)
 
 def shutdown(storages, die=1):
-    LOG("ZEO Server", INFO, "Received signal")
+    LOG("ZEO/start.py", INFO, "Received signal")
     import asyncore
 
     # Do this twice, in case we got some more connections
@@ -336,7 +336,7 @@ def shutdown(storages, die=1):
 
     try:
         s = die and "shutdown" or "restart"
-        LOG('ZEO Server', INFO, "Shutting down (%s)" % s)
+        LOG('ZEO/start.py', INFO, "Shutting down (%s)" % s)
     except:
         pass
 
