@@ -115,7 +115,7 @@
 #   may have a back pointer to a version record or to a non-version
 #   record.
 #
-__version__='$Revision: 1.121 $'[11:-2]
+__version__='$Revision: 1.122 $'[11:-2]
 
 import base64
 from cPickle import Pickler, Unpickler, loads
@@ -990,7 +990,7 @@ class FileStorage(BaseStorage.BaseStorage,
         h=read(DATA_HDR_LEN)
         roid,serial,sprev,stloc,vlen,splen = unpack(DATA_HDR, h)
         if roid != oid:
-            raise UndoError(oid, 'Invalid undo transaction id')
+            raise UndoError('Invalid undo transaction id', oid)
         if vlen:
             read(16) # skip nv pointer and version previous pointer
             version=read(vlen)
@@ -1054,7 +1054,7 @@ class FileStorage(BaseStorage.BaseStorage,
                 oid, ipos, tpos)
             # Versions of undone record and current record *must* match!
             if cver != version:
-                raise UndoError(oid, 'Current and undone versions differ')
+                raise UndoError('Current and undone versions differ', oid)
 
             if cdataptr != pos:
                 # We aren't sure if we are talking about the same data
@@ -1073,10 +1073,10 @@ class FileStorage(BaseStorage.BaseStorage,
                             # We bail if:
                             # - We don't have a previous record, which should
                             #   be impossible.
-                            raise UndoError(oid, "no previous record")
+                            raise UndoError("no previous record", oid)
                 except KeyError:
                     # LoadBack gave us a key error. Bail.
-                    raise UndoError(oid, "_loadBack() failed")
+                    raise UndoError("_loadBack() failed", oid)
 
         # Return the data that should be written in the undo record.
         if not pre:
@@ -1094,13 +1094,13 @@ class FileStorage(BaseStorage.BaseStorage,
             bdata = _loadBack(self._file, oid, p64(pre))[0]
         except KeyError:
             # couldn't find oid; what's the real explanation for this?
-            raise UndoError(oid, "_loadBack() failed for %s")
+            raise UndoError("_loadBack() failed for %s", oid)
         data=self.tryToResolveConflict(oid, cserial, serial, bdata, cdata)
 
         if data:
             return data, 0, version, snv, ipos
 
-        raise UndoError(oid, "Some data were modified by a later transaction")
+        raise UndoError("Some data were modified by a later transaction", oid)
 
     # undoLog() returns a description dict that includes an id entry.
     # The id is opaque to the client, but contains the transaction id.
@@ -1179,7 +1179,7 @@ class FileStorage(BaseStorage.BaseStorage,
                 # check the status field of the transaction header
                 if h[16] == 'p' or _tid < self._packt:
                     break
-        raise UndoError(None, "Invalid transaction id")
+        raise UndoError("Invalid transaction id")
 
     def _txn_undo_write(self, tpos):
         # a helper function to write the data records for transactional undo
@@ -1192,7 +1192,7 @@ class FileStorage(BaseStorage.BaseStorage,
         if h[16] == 'u':
             return
         if h[16] != ' ':
-            raise UndoError(None, 'non-undoable transaction')
+            raise UndoError('non-undoable transaction')
         tl = u64(h[8:16])
         ul, dl, el = struct.unpack(">HHH", h[17:TRANS_HDR_LEN])
         tend = tpos + tl
@@ -1245,7 +1245,7 @@ class FileStorage(BaseStorage.BaseStorage,
 
             pos += dlen
             if pos > tend:
-                raise UndoError(None, "non-undoable transaction")
+                raise UndoError("non-undoable transaction")
 
         if failures:
             raise MultipleUndoErrors(failures.items())
@@ -1771,6 +1771,11 @@ class FileStorage(BaseStorage.BaseStorage,
             h = h + self._file.read(26) # get rest of header
             raise CorruptedDataError(h)
         return h[8:]
+
+    def cleanup(self):
+        """Remove all files created by this storage."""
+        cleanup(self._file_name)
+
 
 def shift_transactions_forward(index, vindex, tindex, file, pos, opos):
     """Copy transactions forward in the data file
@@ -2472,3 +2477,13 @@ class UndoSearch:
              'description': d}
         d.update(e)
         return d
+
+
+def cleanup(filename):
+    """Remove all FileStorage related files."""
+    for ext in '', '.old', '.tmp', '.lock', '.index', '.pack':
+        try:
+            os.remove(filename + ext)
+        except OSError, e:
+            if e.errno != errno.ENOENT:
+                raise
