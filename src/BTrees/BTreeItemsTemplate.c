@@ -12,7 +12,7 @@
 
  ****************************************************************************/
 
-#define BTREEITEMSTEMPLATE_C "$Id: BTreeItemsTemplate.c,v 1.11 2002/06/09 19:27:48 tim_one Exp $\n"
+#define BTREEITEMSTEMPLATE_C "$Id: BTreeItemsTemplate.c,v 1.12 2002/06/09 22:22:50 tim_one Exp $\n"
 
 typedef struct {
   PyObject_HEAD
@@ -514,8 +514,14 @@ nextBTreeItems(SetIteration *i)
           Bucket *currentbucket;
 
           currentbucket = BUCKET(ITEMS(i->set)->currentbucket);
-
-          UNLESS(PER_USE(currentbucket)) return -1;
+          UNLESS(PER_USE(currentbucket))
+            {
+              /* Mark iteration terminated, so that finiSetIteration doesn't
+               * try to redundantly decref the key and value
+               */
+              i->position = -1;
+              return -1;
+            }
 
           COPY_KEY(i->key, currentbucket->keys[ITEMS(i->set)->currentoffset]);
           INCREF_KEY(i->key);
@@ -555,8 +561,14 @@ nextTreeSetItems(SetIteration *i)
           Bucket *currentbucket;
 
           currentbucket = BUCKET(ITEMS(i->set)->currentbucket);
-
-          UNLESS(PER_USE(currentbucket)) return -1;
+          UNLESS(PER_USE(currentbucket))
+            {
+              /* Mark iteration terminated, so that finiSetIteration doesn't
+               * try to redundantly decref the key and value
+               */
+              i->position = -1;
+              return -1;
+            }
 
           COPY_KEY(i->key, currentbucket->keys[ITEMS(i->set)->currentoffset]);
           INCREF_KEY(i->key);
