@@ -4,6 +4,7 @@ Acknowledgments
 This file lists people who have contribute code, bug fixes, ideas, and
 other support for ZODB.  Alas it is probably not complete.
 
+Steve Alexander
 Anthony Baxter
 John Belmonte
 Johan Dahlin
@@ -11,7 +12,9 @@ Toby Dickenson
 Fred L. Drake, Jr.
 Casey Duncan
 Jon Dyte
+Martijn Faassen
 Jim Fulton
+Marius Gedminas
 Florent Guillaume
 Shane Hathaway
 Nicholas Henke
@@ -23,6 +26,7 @@ Brian Lloyd
 Ken Manheimer
 Dieter Maurer
 Chris McDonough
+Gintautas Miliauskas
 Tim Peters
 Chris Petrilli
 Christian Reis
@@ -31,6 +35,7 @@ Neil Schemenauer
 Tres Seaver
 Sidnei da Silva
 Evan Simpson
+Kapil Thangavelu
 Jens Vagelpohl
 Greg Ward
 Barry Warsaw
