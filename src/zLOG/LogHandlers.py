@@ -10,7 +10,9 @@
 # FOR A PARTICULAR PURPOSE
 #
 ##############################################################################
-""" Handlers which can plug into a PEP 282 logger """
+"""Handlers which can plug into a PEP 282 logger."""
+
+import sys
 
 from logging import Handler, StreamHandler
 from logging.handlers import SysLogHandler
