@@ -10,6 +10,7 @@ import Synchronization
 import ConflictResolution
 import HistoryStorage
 import IteratorStorage
+import Corruption
 
 class FileStorageTests(
     StorageTestBase.StorageTestBase,
@@ -37,7 +38,11 @@ class FileStorageTests(
                 os.remove(path)
 
 def test_suite():
-    return unittest.makeSuite(FileStorageTests, 'check')
+    suite = unittest.makeSuite(FileStorageTests, 'check')
+    suite2 = unittest.makeSuite(Corruption.FileStorageCorruptTests, 'check')
+    suite.addTest(suite2)
+##    suite._tests.extend(suite2._tests)
+    return suite
 
 def main():
     alltests=test_suite()
