@@ -68,9 +68,9 @@ class ZEOTestServer(asyncore.dispatcher):
     """
     __super_init = asyncore.dispatcher.__init__
 
-    def __init__(self, addr, storage, keep):
+    def __init__(self, addr, server, keep):
         self.__super_init()
-        self._storage = storage
+        self._server = server
         self._keep = keep
         # Count down to zero, the number of connects
         self._count = 1
@@ -96,13 +96,14 @@ class ZEOTestServer(asyncore.dispatcher):
     def handle_accept(self):
         sock, addr = self.accept()
         self.log('in handle_accept()')
-        # When we're done with everything, close the storage.  Do not write
-        # the ack character until the storage is finished closing.
+        # When we're done with everything, close the server.  Do not write
+        # the ack character until the server is finished closing.
         if self._count <= 0:
-            self.log('closing the storage')
-            self._storage.close()
+            self.log('closing the server')
+            self._server.close_server()
             if not self._keep:
-                cleanup(self._storage)
+                for storage in self._server.storages.values():
+                    cleanup(storage)
             self.log('exiting')
             os._exit(0)
         self.log('continuing')
@@ -157,21 +158,21 @@ def main():
     zeo_port = int(args[0])
     test_port = zeo_port + 1
     test_addr = ('', test_port)
-    try:
-        log(label, 'creating the test server, ro: %s, keep: %s', ro_svr, keep)
-        t = ZEOTestServer(test_addr, storage, keep)
-    except socket.error, e:
-        if e[0] <> errno.EADDRINUSE: raise
-        log(label, 'addr in use, closing and exiting')
-        storage.close()
-        cleanup(storage)
-        sys.exit(2)
     addr = ('', zeo_port)
     log(label, 'creating the storage server')
     serv = ZEO.StorageServer.StorageServer(
         addr, {'1': storage}, ro_svr,
         invalidation_queue_size=invalidation_queue_size,
         transaction_timeout=transaction_timeout)
+    try:
+        log(label, 'creating the test server, ro: %s, keep: %s', ro_svr, keep)
+        t = ZEOTestServer(test_addr, serv, keep)
+    except socket.error, e:
+        if e[0] <> errno.EADDRINUSE: raise
+        log(label, 'addr in use, closing and exiting')
+        storage.close()
+        cleanup(storage)
+        sys.exit(2)
     # Create daemon suicide thread
     d = Suicide(test_addr)
     d.setDaemon(1)
