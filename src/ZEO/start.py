@@ -13,7 +13,7 @@
 ##############################################################################
 """Start the server storage.
 
-$Id: start.py,v 1.44 2002/09/13 20:57:37 gvanrossum Exp $
+$Id: start.py,v 1.45 2002/09/23 01:52:50 gvanrossum Exp $
 """
 from __future__ import nested_scopes
 
@@ -53,7 +53,7 @@ def set_uid(arg):
         import pwd
     except ImportError:
         LOG('ZEO/start.py', INFO, ("Can't set uid to %s."
-                                "pwd module is not available." % uid))
+                                "pwd module is not available." % arg))
         return
     try:
         gid = None
