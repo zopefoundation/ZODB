@@ -20,12 +20,13 @@ usage: fsrefs.py [-v] data.fs
 
 fsrefs.py checks object sanity by trying to load the current revision of
 every object O in the database, and also verifies that every object
-directly reachable from each such O exists in the database.  Note that
-application code implementing objects (or at least defining their classes)
-must be available, an d on PYTHONPATH, for fsrefs to work, because objects
-are actually loaded. On a ZEO server, all the application code typically
-isn't present, so it may be difficult to run fsrefs usefully on a ZEO
-server.
+directly reachable from each such O exists in the database.
+
+It's hard to explain exactly what it does because it relies on undocumented
+features in Python's cPickle module:  many of the crucial steps of loading
+an object are taken, but application objects aren't actually created.  This
+saves a lot of time, and allows fsrefs to be run even if the code
+implementing the object classes isn't available.
 
 A read-only connection to the specified FileStorage is made, but it is not
 recommended to run fsrefs against a live FileStorage.  Because a live
@@ -36,10 +37,7 @@ is running; spurious error messages may result.
 fsrefs doesn't normally produce any output.  If an object fails to load, the
 oid of the object is given in a message saying so, and if -v was specified
 then the traceback corresponding to the load failure is also displayed
-(this is the only effect of the -v flag, and is usually very helpful; -v is
-recommended for normal use).  Note that, as mentioned above, a common
-problem is to get a "failed to load" message simply because the module
-containing the class of the object isn't on PYTHONPATH.
+(this is the only effect of the -v flag).
 
 Two other kinds of errors are also detected, one strongly related to
 "failed to load", when an object O loads OK, and directly refers to a
@@ -56,6 +54,10 @@ persistent object P but there's a problem with P:
    seen by fsrefs before P, an "O refers to the unloadable P" message will
    not be produced; a message saying that P can't be loaded will be
    produced when fsrefs later tries to load P, though.
+
+fsrefs also (indirectly) checks that the .index file is sane, because
+fsrefs uses the index to get its idea of what constitutes "all the objects
+in the database".
 
 Note these limitations:  because fsrefs only looks at the current revision
 of objects, it does not attempt to load objects in versions, or non-current
