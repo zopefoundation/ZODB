@@ -64,6 +64,17 @@ ZEO client cache
   is carried over from a time when gigabyte disks were expensive and rare;
   20MB is also too small on most modern machines.
 
+- Fixed a nasty bug in cache verification.  A persistent ZEO cache uses a
+  disk file, and, when active, has some in-memory data structures too to
+  speed operation.  Invalidations processed as part of startup cache
+  verification were reflected in the in-memory data structures, but not
+  correctly in the disk file.  So if an object revision was invalidated as
+  part of verification, the object wasn't loaded again before the connection
+  was closed, and the object revision remained in the cache file until the
+  connection was closed, then the next time the cache file was opened it
+  could believe that the stale object revision in the file was actually
+  current.
+
 - Fixed a bug wherein an object removed from the client cache didn't
   properly mark the file slice it occupied as being available for reuse.
 
