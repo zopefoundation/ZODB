@@ -92,7 +92,7 @@ from ZODB.POSException import ConflictError
 
 bad_classes={}
 def bad_class(class_tuple):
-    if bad_classes.has_key(class_tuple) or class_tuple[0][1] == '*':
+    if bad_classes.has_key(class_tuple) or class_tuple[0][0] == '*':
         # if we've seen the class before or if it's a ZClass, we know that
         # we can't resolve the conflict
         return 1
