@@ -232,7 +232,7 @@ class Connection(smac.SizedMessageAsyncConnection):
             # there are several cases where this happens during the
             # normal course of action, shouldn't this be logged at the
             # INFO level?
-            log("%s() raised exception: %s" % (name, msg), zLOG.ERROR,
+            log("%s() raised exception: %s" % (name, msg), zLOG.INFO,
                 error=error)
             error = error[:2]
             return self.return_error(msgid, flags, *error)
