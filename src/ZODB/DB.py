@@ -37,7 +37,7 @@ _deprecated = object()
 class _ConnectionPool(object):
     """Manage a pool of connections.
 
-    CAUTION:  All methods should be called under the protection of a lock.
+    CAUTION:  Methods should be called under the protection of a lock.
     This class does no locking of its own.
 
     There's no limit on the number of connections this can keep track of,
@@ -56,7 +56,8 @@ class _ConnectionPool(object):
     reference to it thereafter.  It's not necessary to inform the pool
     if the connection goes away.  A connection handed out by pop() counts
     against pool_size only so long as it exists, and provided it isn't
-    repush()'ed.
+    repush()'ed.  A weak reference is retained so that DB methods like
+    connectionDebugInfo() can still gather statistics.
     """
 
     def __init__(self, pool_size):
@@ -64,16 +65,21 @@ class _ConnectionPool(object):
         self.pool_size = pool_size
 
         # A weak set of all connections we've seen.  A connection vanishes
-        # from this set if get() hands it out, it's not reregistered via
+        # from this set if pop() hands it out, it's not reregistered via
         # repush(), and it becomes unreachable.
         self.all = WeakSet()
 
         # A stack of connections available to hand out.  This is a subset
         # of self.all.  push() and repush() add to this, and may remove
         # the oldest available connections if the pool is too large.
-        # get() pops this stack.
+        # pop() pops this stack.
+        # In Python 2.4, a collections.deque would make more sense than
+        # a list (we push only "on the right", but may pop from both ends).
         self.available = []
 
+    # Change our belief about the expected maximum # of live connections.
+    # If the pool_size is smaller than the current value, this may discard
+    # the oldest available connections.
     def set_pool_size(self, pool_size):
         self.pool_size = pool_size + 1  # _reduce_size shoots for < pool_size
         self._reduce_size()
@@ -102,25 +108,24 @@ class _ConnectionPool(object):
         self.available.append(c)
 
     # Throw away the oldest available connections until we're under our
-    # target size.  It may not be possible be achieve this.
+    # target size.  It may not be possible to achieve this.
     def _reduce_size(self):
         while self.available and len(self.all) >= self.pool_size:
             c = self.available.pop(0)
             self.all.remove(c)
 
-    # The number of available connections.
-    def num_available(self):
-        return len(self.available)
-
-    # Pop an available connection and return it.  A caller must ensurue
-    # that num_available() > 0 before calling pop(), and if it's not,
-    # create a connection and register it via push() first.
+    # Pop an available connection and return it, or return None if none are
+    # available.  In the latter case, the caller should create a new
+    # connection, register it via push(), and call pop() again.  The
+    # caller is responsible for serializing this sequence.
     def pop(self):
-        # Leave it in self.all, so we can still get at it for statistics
-        # while it's alive.
-        c = self.available.pop()
-        assert c in self.all
-        return c
+        result = None
+        if self.available:
+            result = self.available.pop()
+            # Leave it in self.all, so we can still get at it for statistics
+            # while it's alive.
+            assert result in self.all
+        return result
 
     # Return a list of all connections we currently know about.
     def all_as_list(self):
@@ -249,6 +254,7 @@ class DB(object):
         if hasattr(storage, 'undoInfo'):
             self.undoInfo = storage.undoInfo
 
+    # This is called by Connection.close().
     def _closeConnection(self, connection):
         """Return a connection to the pool.
 
@@ -280,11 +286,11 @@ class DB(object):
         finally:
             self._r()
 
-    # Call f(c) for all connections in all pools in all versions.
+    # Call f(c) for all connections c in all pools in all versions.
     def _connectionMap(self, f):
         self._a()
         try:
-            for pool in self._pools.itervalues():
+            for pool in self._pools.values():
                 for c in pool.all_as_list():
                     f(c)
         finally:
@@ -362,7 +368,7 @@ class DB(object):
         self._connectionMap(lambda c: c._cache.full_sweep())
 
     def cacheLastGCTime(self):
-        m=[0]
+        m = [0]
         def f(con, m=m):
             t = con._cache.cache_last_gc_time
             if t > m[0]:
@@ -375,7 +381,7 @@ class DB(object):
         self._connectionMap(lambda c: c._cache.minimize())
 
     def cacheSize(self):
-        m=[0]
+        m = [0]
         def f(con, m=m):
             m[0] += con._cache.cache_non_ghost_count
 
@@ -522,7 +528,8 @@ class DB(object):
                 self._pools[version] = pool = _ConnectionPool(size)
 
             # result <- a connection
-            if pool.num_available() == 0:
+            result = pool.pop()
+            if result is None:
                 if version:
                     cache = self._version_cache_size
                 else:
@@ -530,7 +537,8 @@ class DB(object):
                 c = self.klass(version=version, cache_size=cache,
                                mvcc=mvcc, txn_mgr=txn_mgr)
                 pool.push(c)
-            result = pool.pop()
+                result = pool.pop()
+            assert result is not None
 
             # Tell the connection it belongs to self.
             result._setDB(self, mvcc=mvcc, txn_mgr=txn_mgr, synch=synch)
