@@ -3,15 +3,6 @@
 package main;
 
 
-# sub ltx_next_argument{
-#     my $param;
-#     $param = missing_braces()
-#       unless ((s/$next_pair_pr_rx/$param=$2;''/eo)
-# 	      ||(s/$next_pair_rx/$param=$2;''/eo));
-#     return $param;
-# }
-
-
 sub do_cmd_element{
     local($_) = @_;
     my $name = next_argument();
