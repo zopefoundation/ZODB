@@ -313,15 +313,18 @@ def rotate_logs():
     init = getattr(zLOG, 'initialize', None)
     if init is not None:
         init()
-        return
-    # This will work if the minimal logger is in use, but not if some
-    # other logger is active.  MinimalLogger exists only in Zopes
-    # pre-2.7.
-    try:
-        import zLOG.MinimalLogger
-        zLOG.MinimalLogger._log.initialize()
-    except ImportError:
-        pass
+    else:
+        # This will work if the minimal logger is in use, but not if some
+        # other logger is active.  MinimalLogger exists only in Zopes
+        # pre-2.7.
+        try:
+            import zLOG.MinimalLogger
+            zLOG.MinimalLogger._log.initialize()
+        except ImportError:
+            zLOG.LOG("ZEO/start.py", zLOG.WARNING,
+                     "Caught USR2, could not rotate logs")
+            return
+    zLOG.LOG("ZEO/start.py", zLOG.INFO, "Caught USR2, logs rotated")
 
 def rotate_logs_handler(signum, frame):
     rotate_logs()
