@@ -44,7 +44,6 @@ class EventLogFactory(logger.EventLogFactory):
         for handler in logger.handlers:
             if hasattr(handler, "reopen"):
                 handler.reopen()
-        EventLogger.event_logger.logger = self()
 
     def startup(self):
         zLOG.set_initializer(self.initialize)
