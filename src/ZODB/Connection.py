@@ -13,8 +13,8 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.66 2002/04/15 18:42:50 jeremy Exp $"""
-__version__='$Revision: 1.66 $'[11:-2]
+$Id: Connection.py,v 1.67 2002/06/10 20:20:44 shane Exp $"""
+__version__='$Revision: 1.67 $'[11:-2]
 
 from cPickleCache import PickleCache, MUCH_RING_CHECKING
 from POSException import ConflictError, ReadConflictError
@@ -83,6 +83,8 @@ class Connection(ExportImport.ExportImport):
         self._invalid=d.has_key
         self._committed=[]
         self._code_timestamp = global_code_timestamp
+        self._load_count = 0   # Number of objects unghosted
+        self._store_count = 0  # Number of objects stored
 
     def _cache_items(self):
         # find all items on the lru list
@@ -383,6 +385,7 @@ class Connection(ExportImport.ExportImport):
             dump(state)
             p=file(1)
             s=dbstore(oid,serial,p,version,transaction)
+            self._store_count = self._store_count + 1
             # Put the object in the cache before handling the
             # response, just in case the response contains the
             # serial number for a newly created object
@@ -486,6 +489,7 @@ class Connection(ExportImport.ExportImport):
 
         try:
             p, serial = self._storage.load(oid, self._version)
+            self._load_count = self._load_count + 1
 
             # XXX this is quite conservative!
             # We need, however, to avoid reading data from a transaction
@@ -691,6 +695,17 @@ class Connection(ExportImport.ExportImport):
 
     def getDebugInfo(self): return self._debug_info
     def setDebugInfo(self, *args): self._debug_info=self._debug_info+args
+
+    def getTransferCounts(self, clear=0):
+        """Returns the number of objects loaded and stored.
+
+        Set the clear argument to reset the counters.
+        """
+        res = (self._load_count, self._store_count)
+        if clear:
+            self._load_count = 0
+            self._store_count = 0
+        return res
 
 
     ######################################################################
