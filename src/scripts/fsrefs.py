@@ -23,6 +23,7 @@ for storages that use versions.
 """
 
 from ZODB.FileStorage import FileStorage
+from ZODB.TimeStamp import TimeStamp
 from ZODB.utils import u64
 from ZODB.fsdump import get_pickle_metadata
 
@@ -45,7 +46,9 @@ def report(oid, data, serial, fs, missing):
         plural = "s"
     else:
         plural = ""
+    ts = TimeStamp(serial)
     print "oid %s %s.%s" % (hex(u64(oid)), from_mod, from_class)
+    print "last updated: %s, tid=%s" % (ts, hex(u64(serial)))
     print "refers to unknown object%s:" % plural
     for oid, info in missing:
         if isinstance(info, types.TupleType):
@@ -53,6 +56,7 @@ def report(oid, data, serial, fs, missing):
         else:
             description = str(info)
         print "\toid %s: %s" % (hex(u64(oid)), description)
+    print
 
 def main(path):
     fs = FileStorage(path, read_only=1)
