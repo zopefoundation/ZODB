@@ -16,7 +16,7 @@
  Set operations
  ****************************************************************************/
 
-#define SETOPTEMPLATE_C "$Id: SetOpTemplate.c,v 1.27 2002/06/25 22:46:42 tim_one Exp $\n"
+#define SETOPTEMPLATE_C "$Id: SetOpTemplate.c,v 1.28 2002/06/27 22:09:32 tim_one Exp $\n"
 
 #ifdef INTSET_H
 static int
@@ -505,30 +505,15 @@ multiunion_m(PyObject *ignored, PyObject *args)
 
         /* If set is a bucket, do a straight resize + memcpy. */
         if (set->ob_type == (PyTypeObject*)&SetType ||
-            set->ob_type == (PyTypeObject*)&BucketType) {
-            Sized *theset = SIZED(set);
-            int setsize;
-            int size_desired;
+            set->ob_type == (PyTypeObject*)&BucketType)
+        {
+            Bucket *b = BUCKET(set);
+            int status;
 
-            UNLESS (PER_USE(theset)) goto Error;
-            setsize = theset->len;
-            size_desired = result->len + setsize;
-            /* If there are more to come, overallocate by 25% (arbitrary). */
-            if (i < n-1)
-                size_desired += size_desired >> 2;
-            if (size_desired && size_desired > result->size) {
-                if (Bucket_grow(result, size_desired, 1) < 0) {
-                    PER_ALLOW_DEACTIVATION(theset);
-                    PER_ACCESSED(theset);
-                    goto Error;
-                }
-            }
-            memcpy(result->keys + result->len,
-                   BUCKET(theset)->keys,
-                   setsize * sizeof(KEY_TYPE));
-            result->len += setsize;
-            PER_ALLOW_DEACTIVATION(theset);
-            PER_ACCESSED(theset);
+            UNLESS (PER_USE(b)) goto Error;
+            status = bucket_append(result, b, 0, b->len, 0, i < n-1);
+            PER_UNUSE(b);
+            if (status < 0) goto Error;
         }
         else {
             /* No cheap way:  iterate over set's elements one at a time. */
