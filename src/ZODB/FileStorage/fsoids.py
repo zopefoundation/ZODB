@@ -14,7 +14,7 @@
 
 import ZODB.FileStorage
 from ZODB.utils import get_pickle_metadata
-from ZODB.utils import U64, p64, oid_repr, tid_repr, get_refs
+from ZODB.utils import p64, oid_repr, tid_repr, get_refs
 from ZODB.TimeStamp import TimeStamp
 
 # Extract module.class string from pickle.
@@ -125,6 +125,8 @@ class Tracer(object):
     def run(self):
         """Find all occurrences of the registered oids in the database."""
 
+        # Maps oid of a reference to its module.class name.
+        self._ref2name = {}
         for txn in ZODB.FileStorage.FileIterator(self.path):
             self._check_trec(txn)
 
@@ -133,43 +135,66 @@ class Tracer(object):
         # txn has members tid, status, user, description,
         # _extension, _pos, _tend, _file, _tpos
         self._produced_msg = False
+        # Map and list for save data records for current transaction.
+        self._records_map = {}
+        self._records = []
         for drec in txn:
+            self._save_references(drec)
+        for drec in self._records:
             self._check_drec(drec)
         if self._produced_msg:
             # Copy txn info for later output.
             self.tid2info[txn.tid] = (txn.status, txn.user, txn.description,
                                       txn._tpos)
 
+    def _save_references(self, drec):
+        # drec has members oid, tid, version, data, data_txn
+        tid, oid, pick, pos = drec.tid, drec.oid, drec.data, drec.pos
+        if pick:
+            if oid in self.oids:
+                klass = get_class(pick)
+                self._msg(oid, tid, "new revision", klass, "at", pos)
+                self.oids[oid] += 1
+                self.oid2name[oid] = self._ref2name[oid] = klass
+            self._records_map[oid] = drec
+            self._records.append(drec)
+        elif oid in self.oids:
+            # Or maybe it's a version abort.
+            self._msg(oid, tid, "creation undo at", pos)
+
     # Process next data record.  If a message is produced, self._produced_msg
     # will be set True.
     def _check_drec(self, drec):
         # drec has members oid, tid, version, data, data_txn
         tid, oid, pick, pos = drec.tid, drec.oid, drec.data, drec.pos
+        ref2name = self._ref2name
+        ref2name_get = ref2name.get
+        records_map_get = self._records_map.get
         if pick:
-            oidclass = None
-            if oid in self.oids:
-                oidclass = get_class(pick)
-                self._msg(oid, tid, "new revision", oidclass,
-                          "at", drec.pos)
-                self.oids[oid] += 1
-                self.oid2name[oid] = oidclass
-
+            oid_in_oids = oid in self.oids
             for ref, klass in get_refs(pick):
-                if klass is None:
-                    klass = '<unknown>'
-                elif isinstance(klass, tuple):
-                    klass = "%s.%s" % klass
-
                 if ref in self.oids:
+                    oidclass = ref2name_get(oid, None)
                     if oidclass is None:
-                        oidclass = get_class(pick)
+                        ref2name[oid] = oidclass = get_class(pick)
                     self._msg(ref, tid, "referenced by", oid_repr(oid),
                               oidclass, "at", pos)
 
-                if oid in self.oids:
+                if oid_in_oids:
+                    if klass is None:
+                        klass = ref2name_get(ref, None)
+                        if klass is None:
+                            r = records_map_get(ref, None)
+                            # For save memory we only save references
+                            # seen in one transaction with interesting
+                            # objects changes. So in some circumstances
+                            # we may still got "<unknown>" class name.
+                            if r is None:
+                                klass = "<unknown>"
+                            else:
+                                ref2name[ref] = klass = get_class(r.data)
+                    elif isinstance(klass, tuple):
+                        ref2name[ref] = klass = "%s.%s" % klass
+
                     self._msg(oid, tid, "references", oid_repr(ref), klass,
                               "at", pos)
-
-        elif oid in self.oids:
-            # Or maybe it's a version abort.
-            self._msg(oid, tid, "creation undo at", pos)

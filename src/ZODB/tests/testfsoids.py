@@ -94,7 +94,7 @@ oid 0x00 persistent.mapping.PersistentMapping 2 revisions
         tid user=''
         tid description='added an OOBTree'
         new revision persistent.mapping.PersistentMapping at 207
-        references 0x01 <unknown> at 207
+        references 0x01 BTrees._OOBTree.OOBTree at 207
 oid 0x01 BTrees._OOBTree.OOBTree 1 revision
     tid 0x... offset=168 ...
         tid user=''
@@ -103,18 +103,6 @@ oid 0x01 BTrees._OOBTree.OOBTree 1 revision
         referenced by 0x00 persistent.mapping.PersistentMapping at 207
 
 So there are two revisions of oid 0 now, and the second references oid 1.
-It's peculiar that the class shows as <unknown> in:
-
-        references 0x01 <unknown> at 207
-
-The code that does this takes long tours through undocumented code in
-cPickle.c (using cPickle features that aren't in pickle.py, and aren't even
-documented as existing).  Whatever the reason, ZODB/util.py's get_refs()
-function returns (oid_0x01, None) for the reference to oid 1, instead of the
-usual (oid, (module_name, class_name)) form.  Before I wrote this test,
-I never saw a case of that before!  "references" lines usually identify
-the class of the object.  Anyway, the correct class is given in the new
-output for oid 1.
 
 One more, storing a reference in the BTree back to the root object:
 
@@ -123,7 +111,7 @@ One more, storing a reference in the BTree back to the root object:
 >>> txn.get().note('circling back to the root')
 >>> txn.get().commit()
 >>> t = Tracer(path)
->>> t.register_oids(*range(3))
+>>> t.register_oids(0, 1, 2)
 >>> t.run(); t.report() #doctest: +ELLIPSIS
 oid 0x00 persistent.mapping.PersistentMapping 2 revisions
     tid 0x... offset=4 ...
@@ -134,7 +122,7 @@ oid 0x00 persistent.mapping.PersistentMapping 2 revisions
         tid user=''
         tid description='added an OOBTree'
         new revision persistent.mapping.PersistentMapping at 207
-        references 0x01 <unknown> at 207
+        references 0x01 BTrees._OOBTree.OOBTree at 207
     tid 0x... offset=443 ...
         tid user=''
         tid description='circling back to the root'
@@ -149,7 +137,7 @@ oid 0x01 BTrees._OOBTree.OOBTree 2 revisions
         tid user=''
         tid description='circling back to the root'
         new revision BTrees._OOBTree.OOBTree at 491
-        references 0x00 <unknown> at 491
+        references 0x00 persistent.mapping.PersistentMapping at 491
 oid 0x02 <unknown> 0 revisions
     this oid was not defined (no data record for it found)
 
