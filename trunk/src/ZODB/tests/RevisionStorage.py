@@ -14,7 +14,9 @@
 """Check loadSerial() on storages that support historical revisions."""
 
 from ZODB.tests.MinPO import MinPO
-from ZODB.tests.StorageTestBase import zodb_unpickle, zodb_pickle, snooze
+from ZODB.tests.StorageTestBase import \
+     zodb_unpickle, zodb_pickle, snooze, handle_serials
+from ZODB.Transaction import Transaction
 from ZODB.utils import p64, u64
 
 ZERO = '\0'*8
@@ -134,5 +136,39 @@ class RevisionStorage:
                 self.assertEqual(revs[i+1][1], t[2])
             else:
                 self.assertEqual(None, t[2])
+
+    def checkLoadBeforeConsecutiveTids(self):
+        eq = self.assertEqual
+        oid = self._storage.new_oid()
+        def helper(tid, revid, x):
+            data = zodb_pickle(MinPO(x))
+            t = Transaction()
+            try:
+                self._storage.tpc_begin(t, p64(tid))
+                r1 = self._storage.store(oid, revid, data, '', t)
+                # Finish the transaction
+                r2 = self._storage.tpc_vote(t)
+                newrevid = handle_serials(oid, r1, r2)
+                self._storage.tpc_finish(t)
+            except:
+                self._storage.tpc_abort(t)
+                raise
+            return newrevid
+        revid1 = helper(1, None, 1)
+        revid2 = helper(2, revid1, 2)
+        revid3 = helper(3, revid2, 3)
+        data, start_tid, end_tid = self._storage.loadBefore(oid, p64(2))
+        eq(zodb_unpickle(data), MinPO(1))
+        eq(u64(start_tid), 1)
+        eq(u64(end_tid), 2)
+
+    def checkLoadBeforeCreation(self):
+        eq = self.assertEqual
+        oid1 = self._storage.new_oid()
+        oid2 = self._storage.new_oid()
+        revid1 = self._dostore(oid1)
+        revid2 = self._dostore(oid2)
+        results = self._storage.loadBefore(oid2, revid2)
+        eq(results, None)
 
     # XXX There are other edge cases to handle, including pack.
