@@ -13,7 +13,7 @@
 ##############################################################################
 """Open database and storage from a configuration.
 
-$Id: config.py,v 1.8 2003/01/13 16:28:29 fdrake Exp $"""
+$Id: config.py,v 1.9 2003/01/16 17:50:36 fdrake Exp $"""
 
 import os
 import StringIO
@@ -129,16 +129,22 @@ class BDBStorage(BaseConfig):
 
     def open(self):
         from BDBStorage.BerkeleyBase import BerkeleyConfig
-        from BDBStorage.BDBFullStorage import BDBFullStorage
-        from BDBStorage.BDBMinimalStorage import BDBMinimalStorage
-        # Figure out which class we want
-        sectiontype = self.config.getSectionType()
-        storageclass = {'fullstorage': BDBFullStorage,
-                        'minimalstorage': BDBMinimalStorage,
-                        }[sectiontype]
+        storageclass = self.get_storageclass()
         bconf = BerkeleyConfig()
         for name in dir(BerkeleyConfig):
             if name.startswith('_'):
                 continue
             setattr(bconf, name, getattr(self.config, name))
         return storageclass(self.config.name, config=bconf)
+
+class BDBMinimalStorage(BDBStorage):
+
+    def get_storageclass(self):
+        import BDBStorage.BDBMinimalStorage
+        return BDBStorage.BDBMinimalStorage.BDBMinimalStorage
+
+class BDBFullStorage(BDBStorage):
+
+    def get_storageclass(self):
+        import BDBStorage.BDBFullStorage
+        return BDBStorage.BDBFullStorage.BDBFullStorage
