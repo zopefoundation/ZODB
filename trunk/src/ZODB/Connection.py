@@ -84,8 +84,8 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.33 2000/05/20 15:54:28 jim Exp $"""
-__version__='$Revision: 1.33 $'[11:-2]
+$Id: Connection.py,v 1.34 2000/05/24 20:53:34 shane Exp $"""
+__version__='$Revision: 1.34 $'[11:-2]
 
 from cPickleCache import PickleCache
 from POSException import ConflictError, ExportError
@@ -114,6 +114,9 @@ class Connection(ExportImport.ExportImport):
     _tmp=None
     _debug_info=()
     _opened=None
+
+    # Experimental. Other connections can register to be closed
+    # when we close by putting something here.
 
     def __init__(self, version='', cache_size=400,
                  cache_deactivate_after=60):
@@ -232,12 +235,24 @@ class Connection(ExportImport.ExportImport):
     def cacheFullSweep(self, dt=0): self._cache.full_sweep(dt)
     def cacheMinimize(self, dt=0): self._cache.minimize(dt)
 
+    __onCloseCallbacks=()
+    def onCloseCallback(self, f):
+        self.__onCloseCallbacks=self.__onCloseCallbacks+(f,)
+
     def close(self):
         self._incrgc() # This is a good time to do some GC
         db=self._db
         self._db=self._storage=self._tmp=self.new_oid=self._opened=None
         self._debug_info=()
         db._closeConnection(self)
+
+        # Call the close callback
+        for f in self.__onCloseCallbacks:
+            try: f()
+            except:
+                f=getattr(f, 'im_self', f)
+                LOG('ZODB',ERROR, 'Close callback failed for %s' % f)
+        self.__onCloseCallbacks=()
 
     def commit(self, object, transaction, _type=type, _st=type('')):
         oid=object._p_oid
