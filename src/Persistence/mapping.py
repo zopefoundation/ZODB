@@ -16,8 +16,6 @@
 
 $Id: mapping.py,v 1.2 2003/12/29 22:40:45 tim_one Exp $"""
 
-__version__='$Revision: 1.2 $'[11:-2]
-
 import Persistence
 import persistent
 from persistent.mapping import PersistentMapping

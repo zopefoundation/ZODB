@@ -25,7 +25,6 @@ register_loop_callback() to register interest.  When the mainloop
 thread calls loop(), each registered callback will be called with the
 socket map as its first argument.
 """
-__version__ = '$Revision: 1.14 $'[11:-2]
 
 import asyncore
 import select

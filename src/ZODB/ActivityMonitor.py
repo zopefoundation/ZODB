@@ -14,7 +14,6 @@
 """ZODB transfer activity monitoring
 
 $Id: ActivityMonitor.py,v 1.5 2003/12/30 20:17:41 jeremy Exp $"""
-__version__='$Revision: 1.5 $'[11:-2]
 
 import time
 

@@ -21,8 +21,6 @@ It is meant to illustrate the simplest possible storage.
 The Mapping storage uses a single data structure to map object ids to data.
 """
 
-__version__='$Revision: 1.14 $'[11:-2]
-
 from ZODB import utils
 from ZODB import BaseStorage
 from ZODB import POSException
