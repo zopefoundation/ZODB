@@ -13,8 +13,9 @@
 ##############################################################################
 """Start the server storage.
 
-$Id: start.py,v 1.35 2002/07/16 18:30:03 jeremy Exp $
+$Id: start.py,v 1.36 2002/07/25 16:47:02 jeremy Exp $
 """
+from __future__ import nested_scopes
 
 import sys, os, getopt
 import types
@@ -23,7 +24,7 @@ def directory(p, n=1):
     d = p
     while n:
         d = os.path.split(d)[0]
-        if not d or d=='.':
+        if not d or d == '.':
             d = os.getcwd()
         n -= 1
     return d
@@ -43,9 +44,64 @@ def get_storage(m, n, cache={}):
         cache[(d, m)] = im
     return getattr(im, n)
 
+def set_uid(uid):
+    """Try to set uid and gid based on -u argument.
+
+    This will only work if this script is run by root.
+    """
+    try:
+        import pwd
+    except ImportError:
+        LOG('ZEO Server', INFO, ("Can't set uid to %s."
+                                 "pwd module is not available." % uid))
+        return
+    try:
+        gid = None
+        try:
+            UID = int(UID)
+        except: # conversion could raise all sorts of errors
+            uid = pwd.getpwnam(UID)[2]
+            gid = pwd.getpwnam(UID)[3]
+        else:
+            uid = pwd.getpwuid(UID)[2]
+            gid = pwd.getpwuid(UID)[3]
+        if gid is not None:
+            try:
+                os.setgid(gid)
+            except OSError:
+                pass
+        try:
+            os.setuid(uid)
+        except OSError:
+            pass
+    except KeyError:
+        LOG('ZEO Server', ERROR, ("can't find UID %s" % UID))
+
+def setup_signals(storages):
+    try:
+        import signal
+    except ImportError:
+        return
+
+    try:
+        xfsz = signal.SIFXFSZ
+    except AttributeError:
+        pass
+    else:
+        signal.signal(xfsz, signal.SIG_IGN)
+    signal.signal(signal.SIGTERM, lambda sig, frame: shutdown(storages))
+    signal.signal(signal.SIGINT, lambda sig, frame: shutdown(storages, 0))
+    try:
+        signal.signal(signal.SIGHUP, rotate_logs_handler)
+    except:
+        pass
+
 def main(argv):
     me = argv[0]
     sys.path.insert(0, directory(me, 2))
+
+    global LOG, INFO, ERROR
+    from zLOG import LOG, INFO, ERROR, PANIC
 
     # XXX hack for profiling support
     global unix, storages, zeo_pid, asyncore
@@ -137,21 +193,21 @@ def main(argv):
     prof = None
     detailed = 0
     for o, v in opts:
-        if o=='-p':
+        if o =='-p':
             port = int(v)
-        elif o=='-h':
+        elif o =='-h':
             host = v
-        elif o=='-U':
+        elif o =='-U':
             unix = v
-        elif o=='-u':
+        elif o =='-u':
             UID = v
-        elif o=='-D':
+        elif o =='-D':
             debug = 1
-        elif o=='-d':
+        elif o =='-d':
             detailed = 1
-        elif o=='-s':
+        elif o =='-s':
             Z = 0
-        elif o=='-P':
+        elif o =='-P':
             prof = v
 
     if prof:
@@ -165,7 +221,7 @@ def main(argv):
     if args:
         if len(args) > 1:
             print usage
-            print 'Unrecognizd arguments: ', string.join(args[1:])
+            print 'Unrecognizd arguments: ', " ".join(args[1:])
             sys.exit(1)
         fs = args[0]
 
@@ -175,41 +231,8 @@ def main(argv):
     if detailed:
         os.environ['STUPID_LOG_SEVERITY'] = '-300'
 
-    from zLOG import LOG, INFO, ERROR
-
-    # Try to set uid to "-u" -provided uid.
-    # Try to set gid to  "-u" user's primary group.
-    # This will only work if this script is run by root.
-    try:
-        import pwd
-        try:
-            try:
-                UID = int(UID)
-            except:
-                pass
-            gid = None
-            if isinstance(UID, types.StringType):
-                uid = pwd.getpwnam(UID)[2]
-                gid = pwd.getpwnam(UID)[3]
-            elif isinstance(UID, types.IntType):
-                uid = pwd.getpwuid(UID)[2]
-                gid = pwd.getpwuid(UID)[3]
-            else:
-                raise KeyError
-            try:
-                if gid is not None:
-                    try:
-                        os.setgid(gid)
-                    except OSError:
-                        pass
-                os.setuid(uid)
-            except OSError:
-                pass
-        except KeyError:
-            LOG('ZEO Server', ERROR, ("can't find UID %s" % UID))
-    except:
-        pass
-
+    set_uid(uid)
+    
     if Z:
         try:
             import posix
@@ -223,13 +246,13 @@ def main(argv):
 
         import ZEO.StorageServer, asyncore
         
-        storages={}
+        storages = {}
         for o, v in opts:
-            if o=='-S':
-                n, m = string.split(v,'=')
-                if string.find(m,':'):
+            if o == '-S':
+                n, m = v.split("=", 1)
+                if m.find(":") >= 0:
                     # we got an attribute name
-                    m, a = string.split(m,':')
+                    m, a = m.split(':')
                 else:
                     # attribute name must be same as storage name
                     a=n
@@ -240,23 +263,7 @@ def main(argv):
             storages['1']=ZODB.FileStorage.FileStorage(fs)
 
         # Try to set up a signal handler
-        try:
-            import signal
-
-            try:
-                signal.signal(signal.SIFXFSZ, signal.SIG_IGN)
-            except AttributeError:
-                pass
-            signal.signal(signal.SIGTERM,
-                          lambda sig, frame, s=storages: shutdown(s))
-            signal.signal(signal.SIGINT,
-                          lambda sig, frame, s=storages: shutdown(s, 0))
-            try:
-                signal.signal(signal.SIGHUP, rotate_logs_handler)
-            except:
-                pass
-        except:
-            pass
+        setup_signals(storages)
 
         items = storages.items()
         items.sort()
@@ -279,8 +286,7 @@ def main(argv):
         # Log startup exception and tell zdaemon not to restart us.
         info = sys.exc_info()
         try:
-            import zLOG
-            zLOG.LOG("z2", zLOG.PANIC, "Startup exception", error=info)
+            LOG("z2", PANIC, "Startup exception", error=info)
         except:
             pass
 
@@ -288,8 +294,20 @@ def main(argv):
         traceback.print_exception(*info)
             
         sys.exit(0)
-
-    asyncore.loop()
+        
+    try:
+        asyncore.loop()
+    except SystemExit:
+        raise
+    except:
+        info = sys.exc_info()
+        try:
+            LOG("ZEO Server", PANIC, "Unexpected error", error=info)
+        except:
+            pass
+        import traceback
+        traceback.print_exception(*info)
+        sys.exit(1)
 
 def rotate_logs():
     import zLOG
