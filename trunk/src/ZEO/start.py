@@ -86,12 +86,9 @@
 """Start the server storage.
 """
 
-__version__ = "$Revision: 1.27 $"[11:-2]
+__version__ = "$Revision: 1.28 $"[11:-2]
 
 import sys, os, getopt, string
-
-import StorageServer
-import asyncore
 
 def directory(p, n=1):
     d=p
@@ -118,10 +115,8 @@ def get_storage(m, n, cache={}):
 
 def main(argv):
     me=argv[0]
+    sys.path[:]==filter(None, sys.path)
     sys.path.insert(0, directory(me, 2))
-
-    # XXX hack for profiling support
-    global unix, storages, zeo_pid, asyncore
 
     args=[]
     last=''
@@ -135,13 +130,25 @@ def main(argv):
         args.append(a)
         last=a
 
-    INSTANCE_HOME=os.environ.get('INSTANCE_HOME', directory(me, 4))
+    if os.environ.has_key('INSTANCE_HOME'):
+        INSTANCE_HOME=os.environ['INSTANCE_HOME']
+    elif os.path.isdir(os.path.join(directory(me, 4),'var')):
+        INSTANCE_HOME=directory(me, 4)
+    else:
+        INSTANCE_HOME=os.getcwd()
+
+    if os.path.isdir(os.path.join(INSTANCE_HOME, 'var')):
+        var=os.path.join(INSTANCE_HOME, 'var')
+    else:
+        var=INSTANCE_HOME
 
     zeo_pid=os.environ.get('ZEO_SERVER_PID',
-                           os.path.join(INSTANCE_HOME, 'var', 'ZEO_SERVER.pid')
+                           os.path.join(var, 'ZEO_SERVER.pid')
                            )
 
-    fs=os.path.join(INSTANCE_HOME, 'var', 'Data.fs')
+    opts, args = getopt.getopt(args, 'p:Ddh:U:sS:u:')
+
+    fs=os.path.join(var, 'Data.fs')
 
     usage="""%s [options] [filename]
 
@@ -149,14 +156,17 @@ def main(argv):
 
        -D -- Run in debug mode
 
+       -d -- Generate detailed debug logging without running
+             in the foreground.
+
        -U -- Unix-domain socket file to listen on
     
        -u username or uid number
 
          The username to run the ZEO server as. You may want to run
          the ZEO server as 'nobody' or some other user with limited
-         resouces. The only works under Unix, and if ZServer is
-         started by root.
+         resouces. The only works under Unix, and if the storage
+         server is started by root.
 
        -p port -- port to listen on
 
@@ -179,42 +189,23 @@ def main(argv):
             attr_name -- This is the name to which the storage object
               is assigned in the module.
 
-       -P file -- Run under profile and dump output to file.  Implies the
-          -s flag.
-
     if no file name is specified, then %s is used.
     """ % (me, fs)
 
-    try:
-        opts, args = getopt.getopt(args, 'p:Dh:U:sS:u:P:')
-    except getopt.error, msg:
-        print usage
-        print msg
-        sys.exit(1)
-    
     port=None
-    debug=0
+    debug=detailed=0
     host=''
     unix=None
     Z=1
     UID='nobody'
-    prof = None
     for o, v in opts:
         if o=='-p': port=string.atoi(v)
         elif o=='-h': host=v
         elif o=='-U': unix=v
         elif o=='-u': UID=v
         elif o=='-D': debug=1
+        elif o=='-d': detailed=1
         elif o=='-s': Z=0
-        elif o=='-P': prof = v
-
-    if prof:
-        Z = 0
-
-    try:
-        from ZServer.medusa import asyncore
-        sys.modules['asyncore']=asyncore
-    except: pass
 
     if port is None and unix is None:
         print usage
@@ -228,8 +219,9 @@ def main(argv):
             sys.exit(1)
         fs=args[0]
 
-    __builtins__.__debug__=debug
     if debug: os.environ['Z_DEBUG_MODE']='1'
+
+    if detailed: os.environ['STUPID_LOG_SEVERITY']='-99999'
 
     from zLOG import LOG, INFO, ERROR
 
@@ -271,54 +263,71 @@ def main(argv):
             import zdaemon
             zdaemon.run(sys.argv, '')
 
-    storages={}
-    for o, v in opts:
-        if o=='-S':
-            n, m = string.split(v,'=')
-            if string.find(m,':'):
-                # we got an attribute name
-                m, a = string.split(m,':')
-            else:
-                # attribute name must be same as storage name
-                a=n
-            storages[n]=get_storage(m,a)
-
-    if not storages:
-        import ZODB.FileStorage
-        storages['1']=ZODB.FileStorage.FileStorage(fs)
-
-    # Try to set up a signal handler
     try:
-        import signal
 
-        signal.signal(signal.SIGTERM,
-                      lambda sig, frame, s=storages: shutdown(s)
-                      )
-        signal.signal(signal.SIGINT,
-                      lambda sig, frame, s=storages: shutdown(s, 0)
-                      )
-        signal.signal(signal.SIGHUP, rotate_logs_handler)
+        import ZEO.StorageServer, asyncore
 
-    finally: pass
+        storages={}
+        for o, v in opts:
+            if o=='-S':
+                n, m = string.split(v,'=')
+                if string.find(m,':'):
+                    # we got an attribute name
+                    m, a = string.split(m,':')
+                else:
+                    # attribute name must be same as storage name
+                    a=n
+                storages[n]=get_storage(m,a)
 
-    items=storages.items()
-    items.sort()
-    for kv in items:
-        LOG('ZEO Server', INFO, 'Serving %s:\t%s' % kv)
+        if not storages:
+            import ZODB.FileStorage
+            storages['1']=ZODB.FileStorage.FileStorage(fs)
 
-    if not unix: unix=host, port
+        # Try to set up a signal handler
+        try:
+            import signal
 
-    if prof:
-        cmds = \
-        "StorageServer.StorageServer(unix, storages);" \
-        'open(zeo_pid,"w").write("%s %s" % (os.getppid(), os.getpid()));' \
-        "asyncore.loop()"
-        import profile
-        profile.run(cmds, prof)
-    else:
-        StorageServer.StorageServer(unix, storages)
-        open(zeo_pid,'w').write("%s %s" % (os.getppid(), os.getpid()))
-        asyncore.loop()
+            signal.signal(signal.SIGTERM,
+                          lambda sig, frame, s=storages: shutdown(s)
+                          )
+            signal.signal(signal.SIGINT,
+                          lambda sig, frame, s=storages: shutdown(s, 0)
+                          )
+            try: signal.signal(signal.SIGHUP, rotate_logs_handler)
+            except: pass
+
+        except: pass
+
+        items=storages.items()
+        items.sort()
+        for kv in items:
+            LOG('ZEO Server', INFO, 'Serving %s:\t%s' % kv)
+
+        if not unix: unix=host, port
+
+        ZEO.StorageServer.StorageServer(unix, storages)
+
+        try: ppid, pid = os.getppid(), os.getpid()
+        except: pass # getpid not supported
+        else: open(zeo_pid,'w').write("%s %s" % (ppid, pid))
+
+    except:
+        # Log startup exception and tell zdaemon not to restart us.
+        info=sys.exc_info()
+        try:
+            import zLOG
+            zLOG.LOG("z2", zLOG.PANIC, "Startup exception",
+                     error=info)
+        except:
+            pass
+
+        import traceback
+        apply(traceback.print_exception, info)
+            
+        sys.exit(0)
+
+    asyncore.loop()
+
 
 def rotate_logs():
     import zLOG
@@ -326,7 +335,10 @@ def rotate_logs():
         zLOG.log_write.reinitialize()
     else:
         # Hm, lets at least try to take care of the stupid logger:
-        zLOG._stupid_dest=None
+        if hasattr(zLOG, '_set_stupid_dest'):
+            zLOG._set_stupid_dest(None)
+        else:
+            zLOG._stupid_dest = None
 
 def rotate_logs_handler(signum, frame):
     rotate_logs()
@@ -347,7 +359,7 @@ def shutdown(storages, die=1):
 
     for storage in storages.values():
         try: storage.close()
-        finally: pass
+        except: pass
 
     try:
         from zLOG import LOG, INFO
