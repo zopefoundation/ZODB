@@ -21,7 +21,7 @@ import unittest
 import ZODB.config
 import ZODB.tests
 from ZODB.POSException import ReadOnlyError
-from ZEO.ClientStorage import ClientDisconnected
+
 
 class ConfigTestBase(unittest.TestCase):
     def _opendb(self, s):
@@ -84,22 +84,6 @@ class ZODBConfigTest(ConfigTestBase):
         """ % path
         self.assertRaises(ReadOnlyError, self._test, cfg)
 
-    def test_zeo_config(self):
-        # We're looking for a port that doesn't exist so a connection attempt
-        # will fail.  Instead of elaborate logic to loop over a port
-        # calculation, we'll just pick a simple "random", likely to not-exist
-        # port number and add an elaborate comment explaining this instead.
-        # Go ahead, grep for 9.
-        cfg = """
-        <zodb>
-          <zeoclient>
-            server localhost:56897
-            wait false
-          </zeoclient>
-        </zodb>
-        """
-        self.assertRaises(ClientDisconnected, self._test, cfg)
-
     def test_demo_config(self):
         cfg = """
         <zodb unused-name>
@@ -110,6 +94,27 @@ class ZODBConfigTest(ConfigTestBase):
         </zodb>
         """
         self._test(cfg)
+
+
+class ZEOConfigTest(ConfigTestBase):
+    def test_zeo_config(self):
+        # We're looking for a port that doesn't exist so a
+        # connection attempt will fail.  Instead of elaborate
+        # logic to loop over a port calculation, we'll just pick a
+        # simple "random", likely to not-exist port number and add
+        # an elaborate comment explaining this instead.  Go ahead,
+        # grep for 9.
+        from ZEO.ClientStorage import ClientDisconnected
+        cfg = """
+        <zodb>
+          <zeoclient>
+            server localhost:56897
+            wait false
+          </zeoclient>
+        </zodb>
+        """
+        self.assertRaises(ClientDisconnected, self._test, cfg)
+
 
 class BDBConfigTest(ConfigTestBase):
     def setUp(self):
@@ -144,10 +149,21 @@ class BDBConfigTest(ConfigTestBase):
 def test_suite():
     suite = unittest.TestSuite()
     suite.addTest(unittest.makeSuite(ZODBConfigTest))
-    # Only run the Berkeley tests if they are available
-    import BDBStorage
-    if BDBStorage.is_available:
-        suite.addTest(unittest.makeSuite(BDBConfigTest))
+    # Only run the ZEO test if ZEO is available
+    try:
+        import ZEO
+    except ImportError:
+        pass
+    else:
+        suite.addTest(unittest.makeSuite(ZEOConfigTest))
+    # Only run the Berkeley tests if bsddb is available
+    try:
+        import BDBStorage
+    except ImportError:
+        pass
+    else:
+        if BDBStorage.is_available:
+            suite.addTest(unittest.makeSuite(BDBConfigTest))
     return suite
 
 
