@@ -35,15 +35,8 @@ class StupidLogTest(unittest.TestCase):
     STUPID_LOG_FILE and STUPID_LOG_SEVERITY.
     """
     prefix = 'STUPID'
-    def setUp(self):
-        self.path = tempfile.mktemp()
-        self._severity = 0
 
-    def tearDown(self):
-        try:
-            os.remove(self.path)
-        except os.error:
-            pass
+    def wipeEnvironment(self):
         if os.environ.has_key('STUPID_LOG_FILE'):
             del os.environ['STUPID_LOG_FILE']
         if os.environ.has_key('EVENT_LOG_FILE'):
@@ -52,6 +45,18 @@ class StupidLogTest(unittest.TestCase):
             del os.environ['STUPID_LOG_SEVERITY']
         if os.environ.has_key('EVENT_LOG_SEVERITY'):
             del os.environ['EVENT_LOG_SEVERITY']
+
+    def setUp(self):
+        self.wipeEnvironment()
+        self.path = tempfile.mktemp()
+        self._severity = 0
+
+    def tearDown(self):
+        try:
+            os.remove(self.path)
+        except os.error:
+            pass
+        self.wipeEnvironment()
 
     def setLog(self, severity=0):
         os.environ['%s_LOG_FILE' % self.prefix] = self.path
