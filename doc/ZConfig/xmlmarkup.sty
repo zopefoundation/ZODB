@@ -1,0 +1,27 @@
+% Created by Fred L. Drake, Jr. <fdrake@acm.org>, as part of the
+% Python Documentation Project.
+%
+% Define some simple markup for the LaTeX command documentation:
+
+\ProvidesPackage{xmlmarkup}
+\RequirePackage{python}      % fulllineitems environment
+
+\newcommand{\element}[1]{\code{#1}}
+\newcommand{\attribute}[1]{\code{#1}}
+
+% \begin{elementdesc}{type}{content-model}
+\newenvironment{elementdesc}[2]{
+  \begin{fulllineitems}
+    \item[\code{\textless{\bfseries #1}\textgreater}]
+    \code{#2}
+    \item[\code{\textless/{\bfseries #1}\textgreater}]
+    \index{#1 element@\py@idxcode{#1} element}
+    \index{elements!#1@\py@idxcode{#1}}
+}{\end{fulllineitems}}
+
+% \begin{attributedesc}{name}{content-type}
+\newenvironment{attributedesc}[2]{
+  \begin{fulllineitems}
+    \item[\code{\bfseries#1}{\quad(\code{#2})}]
+    \index{#1@\py@idxcode{#1}}
+}{\end{fulllineitems}}
