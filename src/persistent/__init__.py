@@ -11,7 +11,10 @@
 # FOR A PARTICULAR PURPOSE
 #
 ##############################################################################
-"""Provide access to Persistent and PersistentMapping."""
+"""Provide access to Persistent and PersistentMapping.
+
+$Id: __init__.py,v 1.8 2004/02/24 13:54:05 srichter Exp $
+"""
 
 from cPersistence import Persistent, GHOST, UPTODATE, CHANGED, STICKY
 from cPickleCache import PickleCache

@@ -11,7 +11,10 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
+"""Persistence Interfaces
 
+$Id: interfaces.py,v 1.3 2004/02/24 13:54:05 srichter Exp $
+"""
 try:
     from zope.interface import Interface
     from zope.interface import Attribute
