@@ -84,8 +84,8 @@
 ##############################################################################
 """Transaction management
 
-$Id: Transaction.py,v 1.14 1999/08/11 15:20:28 jim Exp $"""
-__version__='$Revision: 1.14 $'[11:-2]
+$Id: Transaction.py,v 1.15 1999/08/11 17:44:28 jim Exp $"""
+__version__='$Revision: 1.15 $'[11:-2]
 
 import time, sys, struct, POSException
 from struct import pack
@@ -152,7 +152,7 @@ class Transaction:
             for o in self._objects:
                 try:
                     j=getattr(o, '_p_jar', o)
-                    j.abort(o, self)
+                    if j is not None: j.abort(o, self)
                 except:
                     if t is None:
                         t,v,tb=sys.exc_info()
@@ -225,6 +225,7 @@ class Transaction:
                 while objects:
                     o=objects[-1]
                     j=getattr(o, '_p_jar', o)
+                    if j is None: continue
                     i=id(j)
                     if not jars.has_key(i):
                         jars[i]=j
@@ -255,7 +256,7 @@ class Transaction:
                 for o in objects:
                     try:
                         j=getattr(o, '_p_jar', o)
-                        j.abort(o, self)
+                        if j is not None: j.abort(o, self)
                     except: pass
 
                 # Then, we unwind TPC for the jars that began it.
