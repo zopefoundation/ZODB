@@ -144,6 +144,8 @@ class BasicStorage:
         noteq(revid3, revid4)
 
     def checkGetSerial(self):
+        if not hasattr(self._storage, 'getSerial'):
+            return
         eq = self.assertEqual
         p41, p42 = map(MinPO, (41, 42))
         oid = self._storage.new_oid()
