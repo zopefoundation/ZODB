@@ -13,7 +13,7 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.75 2002/09/07 17:22:09 jeremy Exp $"""
+$Id: Connection.py,v 1.76 2002/09/16 23:50:39 jeremy Exp $"""
 
 from cPickleCache import PickleCache, MUCH_RING_CHECKING
 from POSException import ConflictError, ReadConflictError
@@ -350,7 +350,7 @@ class Connection(ExportImport.ExportImport):
         file=StringIO()
         seek=file.seek
         pickler=Pickler(file,1)
-        pickler.persistent_id=new_persistent_id(self, stack.append)
+        pickler.persistent_id=new_persistent_id(self, stack)
         dbstore=self._storage.store
         file=file.getvalue
         cache=self._cache
