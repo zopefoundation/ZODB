@@ -20,7 +20,7 @@ The Demo storage serves two purposes:
 
   - Provide a volatile storage that is useful for giving demonstrations.
 
-The demo strorage can have a "base" storage that is used in a
+The demo storage can have a "base" storage that is used in a
 read-only fashion. The base storage must not not to contain version
 data.
 
@@ -79,7 +79,7 @@ method::
 and call it to monitor the storage.
 
 """
-__version__='$Revision: 1.24 $'[11:-2]
+__version__='$Revision: 1.25 $'[11:-2]
 
 import base64, time, string
 from ZODB import POSException, BaseStorage, utils
@@ -402,6 +402,11 @@ class DemoStorage(BaseStorage.BaseStorage):
 
             # Build indexes up to the pack time:
             index, vindex = self._build_indexes(stop)
+
+
+            # XXX This packing algorithm is flawed. It ignores
+            # references from non-current records after the pack
+            # time.
 
             # Now build an index of *only* those objects reachable
             # from the root.

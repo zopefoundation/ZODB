@@ -19,25 +19,39 @@ from pickle import PicklingError
 from ZODB.POSException import ConflictError
 import zLOG
 
-bad_classes = {}
-
-def bad_class(class_tuple):
-    if bad_classes.has_key(class_tuple) or class_tuple[0][0] == '*':
-        # if we've seen the class before or if it's a ZClass, we know that
-        # we can't resolve the conflict
-        return 1
-
 ResolvedSerial = 'rs'
 
-def _classFactory(location, name,
-                  _silly=('__doc__',), _globals={}):
-    return getattr(__import__(location, _globals, _globals, _silly),
-                   name)
+class BadClassName(Exception):
+    pass
+
+_class_cache = {}
+_class_cache_get = _class_cache.get
+def find_global(*args):
+    cls = _class_cache_get(args, 0)
+    if cls == 0:
+        # Not cached. Try to import
+        try:
+            module = __import__(args[0], {}, {}, ['cluck'])
+        except ImportError:
+            cls = 1
+        else:
+            cls = getattr(module, args[1], 1)
+        _class_cache[args] = cls
+
+        if cls == 1:
+            zLOG.LOG("Conflict Resolution", zLOG.BLATHER,
+                     "Unable to load class", error=sys.exc_info())
+
+    if cls == 1:
+        # Not importable
+        raise BadClassName(*args)
+    return cls
 
 def state(self, oid, serial, prfactory, p=''):
     p = p or self.loadSerial(oid, serial)
     file = StringIO(p)
     unpickler = Unpickler(file)
+    unpickler.find_global = find_global
     unpickler.persistent_load = prfactory.persistent_load
     unpickler.load() # skip the class tuple
     return unpickler.load()
@@ -70,17 +84,8 @@ def persistent_id(object):
     if getattr(object, '__class__', 0) is not PersistentReference:
         return None
     return object.data
-
-def load_class(class_tuple):
-    try:
-        klass = _classFactory(class_tuple[0], class_tuple[1])
-    except (ImportError, AttributeError):
-        zLOG.LOG("Conflict Resolution", zLOG.BLATHER,
-                 "Unable to load class", error=sys.exc_info())
-        bad_classes[class_tuple] = 1
-        return None
-    return klass
-
+    
+_unresolvable = {}
 def tryToResolveConflict(self, oid, committedSerial, oldSerial, newpickle,
                          committedData=''):
     # class_tuple, old, committed, newstate = ('',''), 0, 0, 0
@@ -88,21 +93,28 @@ def tryToResolveConflict(self, oid, committedSerial, oldSerial, newpickle,
         prfactory = PersistentReferenceFactory()
         file = StringIO(newpickle)
         unpickler = Unpickler(file)
+        unpickler.find_global = find_global
         unpickler.persistent_load = prfactory.persistent_load
         meta = unpickler.load()
-        class_tuple = meta[0]
-        if bad_class(class_tuple):
+        if isinstance(meta, tuple):
+            klass = meta[0]
+            newargs = meta[1] or ()
+            if isinstance(klass, tuple):
+                klass = find_global(*klass)
+        else:
+            klass = meta
+            newargs = ()
+            
+        if klass in _unresolvable:
             return None
+
         newstate = unpickler.load()
-        klass = load_class(class_tuple)
-        if klass is None:
-            return None
-        inst = klass.__new__(klass)
+        inst = klass.__new__(klass, *newargs)
 
         try:
             resolve = inst._p_resolveConflict
         except AttributeError:
-            bad_classes[class_tuple] = 1
+            _unresolvable[klass] = 1
             return None
 
         old = state(self, oid, oldSerial, prfactory)
@@ -116,7 +128,7 @@ def tryToResolveConflict(self, oid, committedSerial, oldSerial, newpickle,
         pickler.dump(meta)
         pickler.dump(resolved)
         return file.getvalue(1)
-    except ConflictError:
+    except (ConflictError, BadClassName):
         return None
     except:
         # If anything else went wrong, catch it here and avoid passing an

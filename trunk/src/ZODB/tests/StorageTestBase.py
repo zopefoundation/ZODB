@@ -79,19 +79,24 @@ def zodb_unpickle(data):
     u.persistent_load = persistent_load
     klass_info = u.load()
     if isinstance(klass_info, types.TupleType):
-        if isinstance(klass_info[0], types.TupleType):
-            modname, klassname = klass_info[0]
+        if isinstance(klass_info[0], type):
+            # XXX what is the second part of klass_info?
+            klass, xxx = klass_info
+            assert not xxx
         else:
-            modname, klassname = klass_info
-        if modname == "__main__":
-            ns = globals()
-        else:
-            mod = import_helper(modname)
-            ns = mod.__dict__
-        try:
-            klass = ns[klassname]
-        except KeyError:
-            print >> sys.stderr, "can't find %s in %r" % (klassname, ns)
+            if isinstance(klass_info[0], tuple):
+                modname, klassname = klass_info[0]
+            else:
+                modname, klassname = klass_info
+            if modname == "__main__":
+                ns = globals()
+            else:
+                mod = import_helper(modname)
+                ns = mod.__dict__
+            try:
+                klass = ns[klassname]
+            except KeyError:
+                print >> sys.stderr, "can't find %s in %r" % (klassname, ns)
         inst = klass()
     else:
         raise ValueError, "expected class info: %s" % repr(klass_info)
