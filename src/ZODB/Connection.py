@@ -13,7 +13,7 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.135 2004/03/04 19:48:03 jeremy Exp $"""
+$Id: Connection.py,v 1.136 2004/03/04 22:41:50 jim Exp $"""
 
 import logging
 import sys
@@ -125,7 +125,7 @@ class Connection(ExportImport, object):
     their state and register changes.  The methods are setstate(),
     register(), setklassstate().
 
-    $Id: Connection.py,v 1.135 2004/03/04 19:48:03 jeremy Exp $
+    $Id: Connection.py,v 1.136 2004/03/04 22:41:50 jim Exp $
     """
 
     _tmp = None
@@ -348,7 +348,7 @@ class Connection(ExportImport, object):
         else:
             self._flush_invalidations()
         self._reader = ConnectionObjectReader(self, self._cache,
-                                              self._db._classFactory)
+                                              self._db.classFactory)
         self._opened = time()
 
     def _resetCache(self):
