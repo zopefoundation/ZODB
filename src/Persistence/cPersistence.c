@@ -1,6 +1,6 @@
 /*
 
-  $Id: cPersistence.c,v 1.6 1997/03/20 20:58:25 jim Exp $
+  $Id: cPersistence.c,v 1.7 1997/03/25 20:43:21 jim Exp $
 
   C Persistence Module
 
@@ -56,7 +56,7 @@
 
 
 *****************************************************************************/
-static char *what_string = "$Id: cPersistence.c,v 1.6 1997/03/20 20:58:25 jim Exp $";
+static char *what_string = "$Id: cPersistence.c,v 1.7 1997/03/25 20:43:21 jim Exp $";
 
 #include <time.h>
 #include "cPersistence.h"
@@ -218,6 +218,64 @@ Per___changed__(self, args)
     return PyInt_FromLong(self->state == CHANGED_STATE);
 }
 
+static PyObject *
+T___changed__(cPersistentObject *self, PyObject *args)
+{
+  static PyObject *builtins=0, *get_transaction=0, *py_register=0;
+  PyObject *o, *T;
+
+  if(PyArg_Parse(args, "O", &o))
+    {
+      int t;
+
+      t=PyObject_IsTrue(o);
+
+      if(t && self->state != cPersistent_CHANGED_STATE && self->jar)
+	{
+	  UNLESS(get_transaction)
+	    {
+	      UNLESS(builtins)
+		{
+		  UNLESS(T=PyImport_ImportModule("__main__")) return NULL;
+		  ASSIGN(T,PyObject_GetAttrString(T,"__builtins__"));
+		  UNLESS(T) return NULL;
+		  UNLESS(py_register=PyString_FromString("register")) goto err;
+		  builtins=T;
+		}
+	      UNLESS(get_transaction=PyObject_GetAttrString(builtins,
+							    "get_transaction"))
+		PyErr_Clear();
+	    }
+	  if(get_transaction)
+	    {    
+	      UNLESS(T=PyObject_CallObject(get_transaction,NULL)) return NULL;
+	      UNLESS_ASSIGN(T,PyObject_GetAttr(T,py_register)) return NULL;
+
+	      UNLESS(o=PyTuple_New(1)) goto err;
+	      Py_INCREF(self);
+	      PyTuple_SET_ITEM(o,0,(PyObject*)self);
+	      ASSIGN(o,PyObject_CallObject(T,o));
+	      Py_DECREF(T);
+	      UNLESS(o) return NULL;
+	      Py_DECREF(o);
+	    }
+	}
+      if(self->state != cPersistent_GHOST_STATE) self->state=t;
+
+      Py_INCREF(Py_None);
+      return Py_None;
+    }
+  else
+    {
+      PyErr_Clear();
+      UNLESS(PyArg_Parse(args, "")) return NULL;
+      return PyInt_FromLong(self->state==cPersistent_CHANGED_STATE);
+    }
+err:
+  Py_DECREF(T);
+  return NULL;
+}
+
 static char Per___save____doc__[] = 
 "__save__() -- Update the object in a persistent database."
 ;
@@ -297,13 +355,7 @@ Per__p___reinit__(cPersistentObject *self, PyObject *args)
   if((self->oid==oid || PyObject_Compare(self->oid, oid)==0)
      && self->state==cPersistent_UPTODATE_STATE)
     {
-      UNLESS(args=PyObject_GetAttr(copy,py___dict__))
-	{
-	  printf("Could not get __dict__ of a %s,\n", self->ob_type->tp_name);
-	  PyObject_Print(self,stdout,0);
-	  printf("\n\n");
-	  return NULL;
-	}
+      UNLESS(args=PyObject_GetAttr(copy,py___dict__)) return NULL;
       ASSIGN(INSTANCE_DICT(self),args);
       self->state=GHOST_STATE;
     }
@@ -425,7 +477,7 @@ err:
 
 
 static struct PyMethodDef Per_methods[] = {
-  {"__changed__",	(PyCFunction)Per___changed__,	0,	Per___changed____doc__},
+  {"__changed__",	(PyCFunction)T___changed__,	0,	Per___changed____doc__},
   {"__save__",	(PyCFunction)Per___save__,	0,	Per___save____doc__},
   {"__inform_commit__",	(PyCFunction)Per___save__,	0,	Per___inform_commit____doc__},
   {"__inform_abort__",	(PyCFunction)Per___inform_abort__,	0,	Per___inform_abort____doc__},
@@ -448,8 +500,6 @@ Per_dealloc(self)
 {
   Py_XDECREF(self->oid);
   Py_XDECREF(self->jar);
-
-  Py_XDECREF(self->rtime);
   Py_XDECREF(self->atime);
   PyMem_DEL(self);
 }
@@ -533,17 +583,6 @@ Per_getattr(cPersistentObject *self, PyObject *oname, char *name)
 		return Py_None;
 	      }
 	    break;
-	  case 'r':
-	    if(strcmp(n,"ead_time")==0) 
-	      {
-		if(self->rtime)
-		  {
-		    Py_INCREF(self->rtime);
-		    return self->rtime;
-		  }
-		else
-		  return PyFloat_FromDouble(0.0);
-	      }
 	  }
       }
   if(! (*name++=='_' && *name++=='_' && strcmp(name,"dict__")==0))
@@ -613,12 +652,6 @@ Per_setattro(cPersistentObject *self, PyObject *oname, PyObject *v)
       if(strcmp(name+3,"changed")==0) 
 	{
 	  self->state=PyObject_IsTrue(v);
-	  return 0;
-	}
-      if(strcmp(name+3,"read_time")==0) 
-	{
-	  ASSIGN(self->rtime, v);
-	  Py_INCREF(self->rtime);
 	  return 0;
 	}
     }
@@ -727,7 +760,7 @@ void
 initcPersistence()
 {
   PyObject *m, *d;
-  char *rev="$Revision: 1.6 $";
+  char *rev="$Revision: 1.7 $";
 
   PATimeType.ob_type=&PyType_Type;
 
@@ -754,6 +787,9 @@ initcPersistence()
 /****************************************************************************
 
   $Log: cPersistence.c,v $
+  Revision 1.7  1997/03/25 20:43:21  jim
+  Changed to make all persistent objects transactional.
+
   Revision 1.6  1997/03/20 20:58:25  jim
   Fixed bug in reinit.
 

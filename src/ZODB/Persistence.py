@@ -4,7 +4,7 @@
 __doc__='''Python implementation of persistent base types
 
 
-$Id: Persistence.py,v 1.4 1997/03/14 16:19:55 jim Exp $'''
+$Id: Persistence.py,v 1.5 1997/03/25 20:42:42 jim Exp $'''
 #     Copyright 
 #
 #       Copyright 1996 Digital Creations, L.C., 910 Princess Anne
@@ -60,6 +60,9 @@ $Id: Persistence.py,v 1.4 1997/03/14 16:19:55 jim Exp $'''
 #   (540) 371-6909
 #
 # $Log: Persistence.py,v $
+# Revision 1.5  1997/03/25 20:42:42  jim
+# Changed to make all persistent objects transactional.
+#
 # Revision 1.4  1997/03/14 16:19:55  jim
 # Changed so no longer save on del.
 # Added check in __save__ so that we don't save if we have decided that
@@ -76,7 +79,7 @@ $Id: Persistence.py,v 1.4 1997/03/14 16:19:55 jim Exp $'''
 #
 #
 # 
-__version__='$Revision: 1.4 $'[11:-2]
+__version__='$Revision: 1.5 $'[11:-2]
 
 class Persistent:
     """\
@@ -210,7 +213,32 @@ class Persistent:
 	else:
 	    return self._p_changed
 
-try: from cPersistence import Persistent
+    # The following was copied from the SingleThreadedTransaction module:
+    #
+    # Base class for all transactional objects
+    # Transactional objects, like persistent objects track
+    # changes in state.  Unlike persistent objects, transactional
+    # objects work in conjunction with a transaction manager to manage
+    # saving state and recovering from errors.
+    #
+
+    def __changed__(self,v=None):
+	if v and not self._p_changed and self._p_jar is not None:
+	    try: get_transaction().register(self)
+	    except: pass
+	return Persistence.Persistent.__changed__(self,v)
+
+    def __inform_commit__(self,transaction,start_time):
+	self.__save__()
+
+    def __inform_abort__(self,transaction,start_time):
+	try: self._p_jar.oops(self,start_time)
+	except: pass
+
+
+try:
+    import cPersistence
+    from cPersistence import Persistent
 except: pass
 	
 class PersistentMapping(Persistent):
