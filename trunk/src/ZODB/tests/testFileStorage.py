@@ -4,11 +4,14 @@ sys.path.insert(0, '.')
 import ZODB.FileStorage
 import os, unittest
 import StorageTestBase, BasicStorage, TransactionalUndoStorage
+import VersionStorage, TransactionalUndoVersionStorage
 
 class FileStorageTests(
     StorageTestBase.StorageTestBase,
     BasicStorage.BasicStorage,
     TransactionalUndoStorage.TransactionalUndoStorage,
+    VersionStorage.VersionStorage,
+    TransactionalUndoVersionStorage.TransactionalUndoVersionStorage,
     ):
 
     def setUp(self):
