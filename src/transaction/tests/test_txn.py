@@ -19,6 +19,9 @@ from transaction.interfaces import *
 from transaction.manager import TransactionManager, ThreadedTransactionManager
 from transaction.txn import Status
 
+from zope.testing.loghandler import Handler
+from logging import CRITICAL
+
 class TestDataManager:
 
     def __init__(self, fail=None, vote=True):
@@ -49,9 +52,11 @@ class BaseTxnTests(unittest.TestCase):
 
     def setUp(self):
         self.manager = self.ManagerFactory()
+        self.handler = Handler(self)
+        self.handler.add("txn")
 
     def tearDown(self):
-        pass
+        self.handler.close()
 
     def testBegin(self):
         txn = self.manager.begin()
@@ -137,6 +142,9 @@ class BaseTxnTests(unittest.TestCase):
         self.assertRaises(TransactionError, txn.commit)
         self.assertEqual(txn.status(), Status.ABORTED)
         txn.abort()
+        self.handler.assertLogsMessage("Transaction failed during second "
+                                       "phase of two-phase commit",
+                                       level=CRITICAL)
 
 class SimpleTxnTests(BaseTxnTests):
 
