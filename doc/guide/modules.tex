@@ -13,29 +13,29 @@ useful data types such as BTrees.
 
 The \class{PersistentMapping} class is a wrapper for mapping objects
 that will set the dirty bit when the mapping is modified by setting or
-deleting a key.  
+deleting a key.
 
 \begin{funcdesc}{PersistentMapping}{container = \{\}}
-Create a \class{PersistentMapping} object that wraps the 
+Create a \class{PersistentMapping} object that wraps the
 mapping object \var{container}.  If you don't specify a
 value for \var{container}, a regular Python dictionary is used.
 \end{funcdesc}
 
-\class{PersistentMapping} objects support all the same methods as 
+\class{PersistentMapping} objects support all the same methods as
 Python dictionaries do.
 
 \subsection{\module{ZODB.PersistentList}}
 
-The \class{PersistentList} class is a wrapper for mutable sequence objects, 
-much as \class{PersistentMapping} is a wrapper for mappings.  
+The \class{PersistentList} class is a wrapper for mutable sequence objects,
+much as \class{PersistentMapping} is a wrapper for mappings.
 
 \begin{funcdesc}{PersistentList}{initlist = []}
-Create a \class{PersistentList} object that wraps the 
+Create a \class{PersistentList} object that wraps the
 mutable sequence object \var{initlist}.  If you don't specify a
 value for \var{initlist}, a regular Python list is used.
 \end{funcdesc}
 
-\class{PersistentList} objects support all the same methods as 
+\class{PersistentList} objects support all the same methods as
 Python lists do.
 
 
