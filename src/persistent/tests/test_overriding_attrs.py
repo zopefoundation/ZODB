@@ -16,7 +16,7 @@
 This module tests and documents, through example, overriding attribute
 access methods.
 
-$Id: test_overriding_attrs.py,v 1.4 2004/03/02 22:17:43 jeremy Exp $
+$Id: test_overriding_attrs.py,v 1.5 2004/03/04 22:41:59 jim Exp $
 """
 
 from persistent import Persistent
@@ -44,7 +44,7 @@ class SampleOverridingGetattr(Persistent):
 
         >>> o = SampleOverridingGetattr()
         >>> o._p_changed
-        0
+        False
         >>> o._p_oid
         >>> o._p_jar
         >>> o.spam
