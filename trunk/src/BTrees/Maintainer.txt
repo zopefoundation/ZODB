@@ -1,89 +1,133 @@
 This document provides information for developers who maintain or
 extend BTrees.
 
+Macros
+======
 BTrees are defined using a "template", roughly akin to a a C++
-template. To create a new family of BTrees, create a source file that
-defined macros used to handle differences in key and value types:
-
-  MASTER_ID provides a string to hold an RCS/CVS Id key to be included
-  in compiled binaries.
-
-  MOD_NAME_PREFIX provides the prefix used for the module. This gets
-  used to generate type names and the internal module name string.
-
-  DEFAULT_MAX_BUCKET_SIZE The maximum bucket size. Someday this will
-  be tunable on BTree instances.
-
-  DEFAULT_MAX_BTREE_SIZE The maximum btree size (number of
-  children). Someday this will be tunable on BTree instances.
-
-  KEY_TYPE The C type declaration for the key data (e.g. "int",
-  "PyObject *").
-
-  KEY_CHECK(K) Macro that tests whether a Python Object, K, can be
-  converted to the (C) key type (KEY_TYPE). This macro should return a
-  bollean. An exception will generally be raised if this returns false.
-
-  TEST_KEY(K, T) Compares (ala Python cmp) K & T, where K & T are C
-  data values (of type KEY_TYPE). Returns -1 for K < T, 0 for K == T,
-  or -1 if K > T.
-
-  DECREF_KEY(K) DECREFs the key of KEY_TYPE is PyObject* or is a no
-  op.
-
-  INCREF_KEY(K)  DECREFs the key of KEY_TYPE is PyObject* or is a no
-  op.
-  
-  COPY_KEY(K, E) Copy a key's value from E to K.  Note that this
-  doesn't INCREF when KEY_TYPE is PyObject*.
-
-  COPY_KEY_TO_OBJECT(O, K) Sets the PyObject* O to a PyObject*
-  representation of K. Note that this is a new reference, so we INCREF
-  when KEY_TYPE is PyObject*.
-
-  COPY_KEY_FROM_ARG(TARGET, ARG, STATUS) Copy an rgument to the target
-  without creating a new reference to ARG. If this can't be done, set
-  a Python error and set status to 0. If there is no error, status is
-  unchanged. 
+template.  To create a new family of BTrees, create a source file that
+defines macros used to handle differences in key and value types:
 
 
+Configuration Macros
 
-  VALUE_TYPE The C type declaration for the value data (e.g. "int",
-  "PyObject *").
+MASTER_ID
+A string to hold an RCS/CVS Id key to be included in compiled binaries.
 
-  TEST_VALUE(K, T) Compares (ala Python cmp) K & T, where K & T are C
-  data values (of type VALUE_TYPE). Returns -1 for K < T, 0 for K == T,
-  or -1 if K > T.
+MOD_NAME_PREFIX
+A string (like "IO" or "OO") that provides the prefix used for the
+module.  This gets used to generate type names and the internal module
+name string.
 
-  DECREF_VALUE(K) DECREFs the value of VALUE_TYPE is PyObject* or is a no
-  op.
+DEFAULT_MAX_BUCKET_SIZE
+An int giving the maximum bucket size (number of key/value pairs).
+When a bucket gets larger than this due to an insertion *into a BTREE*,
+it splits.  Inserting into a bucket directly doesn't split, and
+functions that produce a bucket output (e.g., union()) also have no
+bound on how large a bucket may get.  Someday this will be tunable
+on BTree instances.
 
-  INCREF_VALUE(K)  DECREFs the value of VALUE_TYPE is PyObject* or is a no
-  op.
-  
-  COPY_VALUE(K, E) Copy a value's value from E to K.  Note that this
-  doesn't INCREF when VALUE_TYPE is PyObject*.
+DEFAULT_MAX_BTREE_SIZE
+An int giving the maximum size (number of children) of an internal
+btree node.  Someday this will be tunable on BTree instances.
 
-  COPY_VALUE_TO_OBJECT(O, K) Sets the PyObject* O to a PyObject*
-  representation of K. Note that this is a new reference, so we INCREF
-  when VALUE_TYPE is PyObject*.
 
-  COPY_VALUE_FROM_ARG(TARGET, ARG, STATUS) Copy an rgument to the target
-  without creating a new reference to ARG. If this can't be done, set
-  a Python error and set status to 0. If there is no error, status is
-  unchanged. 
+Macros for Keys
 
-  NORMALIZE_VALUE(V, MIN) Normalize the value, V, using the parameter
-  MIN. This almost vertainly a YAGNI. It is a no op for most
-  types. For integers, V is replaced by V/MIN only if MIN > 0.
+KEY_TYPE
+The C type declaration for keys (e.g., int or PyObject*).
 
-  MERGE_DEFAULT is a macro that should be set to the default value for
-  sets when sets are are merged with mappings via weighed union or
-  intersection.  
-  
-  MERGE(O1, w1, O2, w2) This macro performs a weighted merge of two
-  values, O1 and O2 using weights w1 and w2. Note that weighted unions
-  and intersections are not enabled if this macro is undefined.
+KEY_CHECK(K)
+Tests whether the PyObject* K can be converted to the (C) key type
+(KEY_TYPE).  The macro should return a boolean (zero for false,
+non-zero for true).  When it returns false, its caller should probably
+set a TypeError exception.
 
-  MERGE_WEIGHT(O, w) Computes a weighted value for O. This is used for
-  "filling out" weighted unions.
+TEST_KEY(K, T)
+Like Python's cmp().  Compares K(ey) to T(arget), where K & T are C
+data values of type KEY_TYPE).  Return an int
+   < 0 if K < T
+  == 0 if K == T
+   > 0 if K > T
+
+DECREF_KEY(K)
+K is a value of KEY_TYPE.  If KEY_TYPE is a flavor of PyObject*, write
+this to do Py_DECREF(K).  Else (e.g., KEY_TYPE is int) make it a nop.
+
+INCREF_KEY(K)
+K is a value of KEY_TYPE.  If KEY_TYPE is a flavor of PyObject*, write
+this to do Py_INCREF(K).  Else (e.g., KEY_TYPE is int) make it a nop.
+
+COPY_KEY(K, E)
+Like K=E.  Copy a key from E to K, both of KEY_TYPE.  Note that this
+doesn't decref K or incref E when KEY_TYPE is a PyObject*; the caller
+is responsible for keeping refcounts straight.
+
+COPY_KEY_TO_OBJECT(O, K)
+Roughly like O=K.  O is a PyObject*, and the macro must build a Python
+object form of K, assign it to O, and ensure that O owns the reference
+to its new value.  It may do this by creating a new Python object based
+on K (e.g., PyInt_FromLong(K) when KEY_TYPE is int), or simply by doing
+Py_INCREF(K) if KEY_TYPE is a PyObject*.
+
+COPY_KEY_FROM_ARG(TARGET, ARG, STATUS)
+Copy an argument to the target without creating a new reference to ARG.
+ARG is a PyObject*, and TARGET is of type KEY_TYPE.  If this can't be
+done (for example, KEY_CHECK(ARG) returns false), set a Python error
+and set status to 0.  If there is no error, leave status alone.
+
+
+Macros for Values
+
+VALUE_TYPE
+The C type declaration for values (e.g., int or PyObject*).
+
+TEST_VALUE(K, T)
+Like TEST_KEY, except applied to values of VALUE_TYPE.
+
+DECREF_VALUE(K)
+Like DECREF_KEY, except applied to values of VALUE_TYPE.
+
+INCREF_VALUE(K)
+Like INCREF_KEY, except applied to values of VALUE_TYPE.
+
+COPY_VALUE(K, E)
+Like COPY_KEY, except applied to values of VALUE_TYPE.
+
+COPY_VALUE_TO_OBJECT(O, K)
+Like COPY_KEY_TO_OBJECT, except applied to values of VALUE_TYPE.
+
+COPY_VALUE_FROM_ARG(TARGET, ARG, STATUS)
+Like COPY_KEY_FROM_ARG, except applied to values of VALUE_TYPE.
+
+NORMALIZE_VALUE(V, MIN)
+Normalize the value, V, using the parameter MIN.  This is almost
+certainly a YAGNI.  It is a no op for most types. For integers, V is
+replaced by V/MIN only if MIN > 0.
+
+
+Macros for Set Operations
+
+MERGE_DEFAULT
+A value of VALUE_TYPE specifying the value to associate with set
+elements when sets are merged with mappings via weighed union or
+weighted intersection.
+
+MERGE(O1, w1, O2, w2)
+Performs a weighted merge of two values, O1 and O2, using weights w1
+and w2.  The result must be of VALUE_TYPE.  Note that weighted unions
+and weighted intersections are not enabled if this macro is left
+undefined.
+
+MERGE_WEIGHT(O, w)
+Computes a weighted value for O.  The result must be of VALUE_TYPE.
+This is used for "filling out" weighted unions, i.e. to compute a
+weighted value for keys that appear in only one of the input
+mappings.  If left undefined, MERGE_WEIGHT defaults to
+
+    #define MERGE_WEIGHT(O, w) (O)
+
+MULTI_INT_UNION
+The value doesn't matter.  If defined, SetOpTemplate.c compiles
+code for a multiunion() function (compute a union of many input sets
+at high speed).  This currently makes sense only for II sets, so
+only _IIBTree.c defines it.
