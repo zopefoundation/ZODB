@@ -12,7 +12,7 @@
 
  ****************************************************************************/
 
-#define BTREETEMPLATE_C "$Id: BTreeTemplate.c,v 1.49 2002/06/13 04:49:01 tim_one Exp $\n"
+#define BTREETEMPLATE_C "$Id: BTreeTemplate.c,v 1.50 2002/06/13 05:27:53 tim_one Exp $\n"
 
 /*
 ** _BTree_get
@@ -1021,7 +1021,11 @@ BTree_maxminKey(BTree *self, PyObject *args, int min)
         }
       PER_ALLOW_DEACTIVATION(self);
       PER_ACCESSED(self);
-      PER_USE_OR_RETURN(bucket, NULL);
+      UNLESS (PER_USE(bucket))
+        {
+          Py_DECREF(bucket);
+          return NULL;
+        }
     }
   else if (min)
     {
@@ -1029,7 +1033,11 @@ BTree_maxminKey(BTree *self, PyObject *args, int min)
       Py_INCREF(bucket);
       PER_ALLOW_DEACTIVATION(self);
       PER_ACCESSED(self);
-      PER_USE_OR_RETURN(bucket, NULL);
+      UNLESS (PER_USE(bucket))
+        {
+          Py_DECREF(bucket);
+          return NULL;
+        }
       offset = 0;
       if (offset >= bucket->len)
         {
@@ -1045,7 +1053,11 @@ BTree_maxminKey(BTree *self, PyObject *args, int min)
       bucket = BTree_lastBucket(self);
       PER_ALLOW_DEACTIVATION(self);
       PER_ACCESSED(self);
-      PER_USE_OR_RETURN(bucket, NULL);
+      UNLESS (PER_USE(bucket))
+        {
+          Py_DECREF(bucket);
+          return NULL;
+        }
       if (bucket->len)
         offset = bucket->len - 1;
       else
@@ -1146,7 +1158,11 @@ BTree_rangeSearch(BTree *self, PyObject *args, char type)
   else
     {
       highbucket = BTree_lastBucket(self);
-      UNLESS (PER_USE(highbucket)) goto err;
+      UNLESS (PER_USE(highbucket))
+        {
+          Py_DECREF(lowbucket);
+          goto err;
+        }
       highoffset = highbucket->len - 1;
       PER_ALLOW_DEACTIVATION(highbucket);
       PER_ACCESSED(highbucket);
