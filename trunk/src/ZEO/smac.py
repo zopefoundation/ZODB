@@ -85,7 +85,7 @@
 """Sized message async connections
 """
 
-__version__ = "$Revision: 1.9 $"[11:-2]
+__version__ = "$Revision: 1.10 $"[11:-2]
 
 import asyncore, string, struct, zLOG, sys, Acquisition
 from zLOG import LOG, TRACE, ERROR, INFO
@@ -181,10 +181,7 @@ class SizedMessageAsyncConnection(Acquisition.Explicit, asyncore.dispatcher):
 
         append=self.__append
         if append is None:
-            raise Disconnected, (
-                "This action is temporarily unavailable."
-                "<p>"
-                )
+            raise Disconnected("This action is temporarily unavailable.<p>")
         
         append(pack(">i",len(message))+message)
 
