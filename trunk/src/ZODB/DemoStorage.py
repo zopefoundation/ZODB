@@ -79,7 +79,7 @@ method::
 and call it to monitor the storage.
 
 """
-__version__='$Revision: 1.10 $'[11:-2]
+__version__='$Revision: 1.11 $'[11:-2]
 
 import base64, time, string
 from ZODB import POSException, BaseStorage, utils
@@ -354,33 +354,34 @@ class DemoStorage(BaseStorage.BaseStorage):
         finally: self._lock_release()
 
     def undoLog(self, first, last, filter=None):
+        # I think this is wrong given the handling of first and last
+        # in FileStorage.
         self._lock_acquire()
         try:
-            transactions=self._data.items()
-            pos=len(transactions)
-            encode=base64.encodestring
-            r=[]
-            append=r.append
-            i=0
+            transactions = self._data.items()
+            pos = len(transactions)
+            r = []
+            i = 0
             while i < last and pos:
-                pos=pos-1
+                pos = pos - 1
                 if i < first:
-                    i = i+1
+                    i = i + 1
                     continue
                 tid, (p, u, d, e, t) = transactions[pos]
-                if p: continue
-                d={'id': encode(tid)[:-1],
-                   'time': TimeStamp(tid).timeTime(),
-                   'user_name': u, 'description': d}
+                if p:
+                    continue
+                d = {'id': base64.encodestring(tid)[:-1],
+                     'time': TimeStamp(tid).timeTime(),
+                     'user_name': u, 'description': d}
                 if e:
                     d.update(loads(e))
 
                 if filter is None or filter(d):
-                    append(d)
-                    i=i+1
-                
+                    r.append(d)
+                    i = i + 1
             return r
-        finally: self._lock_release()
+        finally:
+            self._lock_release()
 
     def versionEmpty(self, version):
         return not self._vindex.get(version, None)
