@@ -85,13 +85,15 @@ class StorageTestBase(unittest.TestCase):
 
     def _dostore(self, oid=None, revid=None, data=None, version=None,
                  already_pickled=0):
-        # Do a complete storage transaction.  The defaults are:
-        # - oid=None, ask the storage for a new oid
-        # - revid=None, use a revid of ZERO
-        # - data=None, pickle up some arbitrary data (the integer 7)
-        # - version=None, use the empty string version
-        #
-        # Returns the object's new revision id
+        """Do a complete storage transaction.  The defaults are:
+        
+         - oid=None, ask the storage for a new oid
+         - revid=None, use a revid of ZERO
+         - data=None, pickle up some arbitrary data (the integer 7)
+         - version=None, use the empty string version
+        
+        Returns the object's new revision id.
+        """
         if oid is None:
             oid = self._storage.new_oid()
         if revid is None:
