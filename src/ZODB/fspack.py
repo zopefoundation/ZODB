@@ -412,8 +412,8 @@ class GC(FileStorageFormatter):
         self.packtime = packtime
         # packpos: position of first txn header after pack time
         self.packpos = None
-        self.oid2curpos = {} # maps oid to current data record position
-        self.oid2verpos = {} # maps oid to current version data
+        self.oid2curpos = fsIndex() # maps oid to current data record position
+        self.oid2verpos = fsIndex() # maps oid to current version data
 
         # The set of reachable revisions of each object.
         #
@@ -445,6 +445,10 @@ class GC(FileStorageFormatter):
         self.buildPackIndex()
         self.findReachableAtPacktime([z64])
         self.findReachableFromFuture()
+        # These mappings are no longer needed and may consume a lot
+        # of space.
+        del self.oid2verpos 
+        del self.oid2curpos
 
     def buildPackIndex(self):
         pos = 4
