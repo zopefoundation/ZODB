@@ -541,6 +541,12 @@ class Connection(ExportImport, object):
             raise ConnectionStateError("Cannot close a connection joined to "
                                        "a transaction")
 
+        if self._tmp is not None:
+            # There are no direct modifications pending, but a subtransaction
+            # is pending.
+            raise ConnectionStateError("Cannot close a connection with a "
+                                       "pending subtransaction")
+
         if self._cache is not None:
             self._cache.incrgc() # This is a good time to do some GC
 
