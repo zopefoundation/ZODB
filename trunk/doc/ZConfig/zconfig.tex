@@ -180,16 +180,46 @@ sections:
 
 \subsection{Textual Substitution in Values}
 
-XXX Explain \keyword{\%define} and \$-substitution here.
+\module{ZConfig} provides a limited way to re-use portions of a value
+using simple string substitution.  To use this facility, define named
+bits of replacement text using the \keyword{\%define} directive, and
+reference these texts from values.
 
-In this example, the value for the \code{key} will evaluate to
+The syntax for \keyword{\%define} is:
+
+\begin{alltt}
+%define \var{name} \optional{\var{value}}
+\end{alltt}
+
+The value of \var{name} must be a sequence of letters, digits, and
+underscores, and may not start with a digit.  If \var{value} is
+omitted, it will be the empty string.  If given, there must be
+whitespace between \var{name} and \var{value}; \var{value} will not
+include any whitespace on either side, just like values from key-value
+pairs.
+
+Names must be defined before they are used, and may not be
+re-defined.  All names are associated with the source text in which
+they are defined, so distinct sources which are referenced using
+\keyword{\%import} or \keyword{\%include} are not affected by
+definitions created by the resource being parsed.
+
+References to defined names from configuration values use the syntax
+described for the \refmodule{ZConfig.Substitution} module.
+Configuration values which include a \character{\$} as part of the
+actual value will need to use \code{\$\$} to get a single
+\character{\$} in the result.
+
+The values of defined names are not processed in any way, and may not
+contain references to named definitions.
+
+For example, the value for the \code{key} will evaluate to
 \code{value}:
 
 \begin{verbatim}
 %define name value
-
 key $name
-\end{verbatim} %$
+\end{verbatim} %$ <-- bow to font-lock
 
 
 \section{\module{ZConfig} --- Basic configuration support}
