@@ -15,10 +15,12 @@
 
 import doctest
 import unittest
+import warnings
 
 from persistent import Persistent
 from ZODB.config import databaseFromString
 from ZODB.utils import p64, u64
+from ZODB.tests.warnhook import WarningsHook
 
 class ConnectionDotAdd(unittest.TestCase):
 
@@ -324,15 +326,63 @@ class UserMethodTests(unittest.TestCase):
         >>> db = databaseFromString("<zodb>\n<mappingstorage/>\n</zodb>")
         >>> cn = db.open()
         >>> r = cn.root()
-        >>> r._p_activate()
-        >>> cn.cacheFullSweep()
-        >>> r._p_state
-        0
         >>> cn.cacheMinimize()
         >>> r._p_state
         -1
-        >>> cn.cacheFullSweep(12)
+
+        The next couple of tests are involved because they have to
+        cater to backwards compatibility issues.  The cacheMinimize()
+        method used to take an argument, but now ignores it.
+        cacheFullSweep() used to do something different than
+        cacheMinimize(), but it doesn't anymore.  We want to verify
+        that these methods do something, but all cause deprecation
+        warnings.  To do that, we need a warnings hook.
+
+        >>> hook = WarningsHook()
+        >>> hook.install()
+
+        >>> r._p_activate()
         >>> cn.cacheMinimize(12)
+        >>> r._p_state
+        -1
+        >>> len(hook.warnings)
+        1
+        >>> message, category, filename, lineno = hook.warnings[0]
+        >>> message
+        'The dt argument to cacheMinimize is ignored.'
+        >>> category.__name__
+        'DeprecationWarning'
+        >>> hook.clear()
+
+        cacheFullSweep() is a doozy.  It generates two deprecation
+        warnings, one from the Connection and one from the
+        cPickleCache.  Maybe we should drop the cPickleCache warning,
+        but it's there for now.  When passed an argument, it acts like
+        cacheGC().  When t isn't passed an argument it acts like
+        cacheMinimize().
+        
+        >>> r._p_activate()
+        >>> cn.cacheFullSweep(12)
+        >>> r._p_state
+        0
+        >>> len(hook.warnings)
+        2
+        >>> message, category, filename, lineno = hook.warnings[0]
+        >>> message
+        'cacheFullSweep is deprecated. Use cacheMinimize instead.'
+        >>> category.__name__
+        'DeprecationWarning'
+        >>> message, category, filename, lineno = hook.warnings[1]
+        >>> message
+        'No argument expected'
+        >>> category.__name__
+        'DeprecationWarning'
+
+        We have to uninstall the hook so that other warnings don't get
+        lost.
+        
+        >>> hook.uninstall()
+    
         """
 
 class InvalidationTests(unittest.TestCase):
