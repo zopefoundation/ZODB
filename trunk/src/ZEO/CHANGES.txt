@@ -1,5 +1,22 @@
 Zope Enterprise Objects (ZEO) Revision History
 
+  ZEO 0.2.1
+
+    Bugs fixed
+
+      - ZEO clients didn't work properly (effectively at all) on
+        Solaris or Windows NT.
+
+      - An error in the handling of the distributed transaction lock
+        could cause a client to stop writing and eventually hang if
+        two clients tried to commit a transaction at the same time.
+
+      - Extra (harmless) messages were sent from the server 
+        when invalidating objects during a commit.
+
+      - New protocols (especially 'loadSerial'), used for looking at 
+        DTML historical versions, were not implemented.
+
   ZEO 0.2 
 
     This release is expected to be close to beta quality. Initially, the
