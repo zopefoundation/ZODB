@@ -80,6 +80,79 @@ Zope Enterprize Objects, ZEO 0.2
          written. If this option is provided, it is unnecessary to 
          set INSTANCE_HOME in __builtins__.
 
+  Serving custom storages or multiple storages with the storage server
+
+    The Storage server can host multiple storages and can
+    host any kind of storage. Each storage has a unique storage
+    name.  By default, the ZEO start.py script serves a 
+    standard FileStorage with the name '1'.
+
+    You can control what storages are served by creating a Python
+    file containing definitions for the storages and using the '-S'
+    option to the start.py script to indicate the storage
+    to be served. The form of the -S option is::
+
+       -S storage_name=module_path:attribute_name
+
+    Where:
+
+	storage_name -- is the storage name used in the ZEO protocol.
+	   This is the name that you give as the optional
+	   'storage' keyword argument to the ClientStorage constructor.
+
+	module_path -- This is the path to a Python module
+	   that defines the storage object(s) to be served.
+	   The module path should ommit the prefix (e.g. '.py').
+
+	attribute_name -- This is the name to which the storage object
+	  is assigned in the module.
+
+
+    Consider the following example. I want to serve a FileStorage
+    in read-only mode, which I define in the module file 
+    /stores/fs.py::
+
+      import ZODB.FileStorage
+      Storage=FileStorage('/stores/fs1.fs', read_only=1)
+
+    I then start start.py with the argument::
+
+      python lib/python/ZEO/start.py -U /xxx/var/zeo.sock \
+        -S 1=/stores/fs:Storage
+
+    This option says to serve storage '1'. Storage '1' is
+    found in attribute 'Storage' from the module
+    '/stores/fs'.
+
+    Now consider a more complicated example. I want to serve the storage
+    from the previous example. I also want to serve two Oracle
+    storages that are defined in the file '/stores/oracle.py'::
+
+      import DCOracle, DCOracleStorage
+      system=DCOracleStorage.DCOracleStorage(
+        lambda : DCOracle.Connect('system/manager@spamservice')
+        )
+      scott=DCOracleStorage.DCOracleStorage(
+        lambda : DCOracle.Connect('scott/tiger@spamservice')
+        )
+
+    I simply need to include three -S options::
+
+      python lib/python/ZEO/start.py -U /xxx/var/zeo.sock \
+        -S system=/stores/oracle:system                 \
+        -S scott=/stores/oracle:scott                   \
+        -S 1=/stores/fs:Storage
+
+    In this case, we made the storage and attribute name the
+    same. To connect to the 'system' or 'scott' storage, we
+    need to specify the storage in the ClientStorage constructor, as
+    in::
+
+      import ZEO.ClientStorage
+      Storage=ZEO.ClientStorage.ClientStorage(
+          '/xxx/var/zeo.sock', storage='scott')
+   
+
   Zope product installation
 
     Normally, Zope updates the Zope database during startup to reflect
