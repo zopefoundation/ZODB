@@ -84,8 +84,8 @@
 ##############################################################################
 """Database objects
 
-$Id: DB.py,v 1.17 1999/09/23 16:40:01 jim Exp $"""
-__version__='$Revision: 1.17 $'[11:-2]
+$Id: DB.py,v 1.18 1999/10/07 19:48:18 jim Exp $"""
+__version__='$Revision: 1.18 $'[11:-2]
 
 import cPickle, cStringIO, sys, POSException
 from Connection import Connection
@@ -538,7 +538,7 @@ class DB:
     def setVersionCacheSize(self, v):
         self._version_cache_size=v
         for ver in self._pools[0].keys():
-            if v:
+            if ver:
                 for c in self._pools[0][ver][1]:
                     c._cache.cache_size=v
         
