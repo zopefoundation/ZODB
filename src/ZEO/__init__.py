@@ -15,9 +15,9 @@
 
 See the file README.txt in this directory for an overview.
 
-ZEO's home on the web is
+ZEO is now part of ZODB; ZODB's home on the web is 
 
-    http://www.zope.org/Products/ZEO/
+    http://www.zope.org/Wikis/ZODB
 
 """
 
