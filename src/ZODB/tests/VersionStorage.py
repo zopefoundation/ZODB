@@ -205,9 +205,7 @@ class VersionStorage:
         # is not current
         self._dostore(oid, revid=tid, data=MinPO(17))
         ltid = self._storage.lastTransaction()
-
         ncdata, ncstart, end = self._storage.loadBefore(oid, ltid)
-
         self.assertEqual(data, ncdata)
         self.assertEqual(tid, ncstart)
 
@@ -534,3 +532,14 @@ class VersionStorage:
         cn2 = db.open(version="b")
         rt2 = cn2.root()
         self.assertEqual(rt2["b"].value.value, "still version")
+
+    def checkLoadBeforeVersion(self):
+        eq = self.assertEqual
+        oid = self._storage.new_oid()
+        revid1 = self._dostore(oid, data=1)
+        revid2 = self._dostore(oid, data=2, revid=revid1, version="kobe")
+        revid3 = self._dostore(oid, data=3, revid=revid2, version="kobe")
+        data, start_tid, end_tid = self._storage.loadBefore(oid, revid3)
+        eq(zodb_unpickle(data), MinPO(1))
+        eq(start_tid, revid1)
+        eq(end_tid, None)
