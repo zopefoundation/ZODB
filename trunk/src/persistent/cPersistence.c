@@ -1,6 +1,6 @@
 /*
 
-  $Id: cPersistence.c,v 1.11 1997/04/22 02:46:50 jim Exp $
+  $Id: cPersistence.c,v 1.12 1997/04/24 12:48:48 jim Exp $
 
   C Persistence Module
 
@@ -56,7 +56,7 @@
 
 
 *****************************************************************************/
-static char *what_string = "$Id: cPersistence.c,v 1.11 1997/04/22 02:46:50 jim Exp $";
+static char *what_string = "$Id: cPersistence.c,v 1.12 1997/04/24 12:48:48 jim Exp $";
 
 #include <time.h>
 #include "cPersistence.h"
@@ -67,6 +67,22 @@ static char *what_string = "$Id: cPersistence.c,v 1.11 1997/04/22 02:46:50 jim E
 
 static PyObject *py_store, *py_oops, *py_keys, *py_setstate, *py___changed__,
   *py___dict__, *py_mtime, *py_onearg, *py___getinitargs__, *py___init__;
+
+static PyObject *debug_log=0;
+static int idebug_log=0;
+
+static void *
+call_debug(char *event, cPersistentObject *self)
+{
+  PyObject *r;
+
+  /*
+  printf("%s %p\n",event,self->ob_type->tp_name);
+  */
+  r=PyObject_CallFunction(debug_log,"s(sii)",event,
+			  self->ob_type->tp_name, self->oid, self->state);
+  Py_XDECREF(r);
+}
 
 static void
 init_strings()
@@ -374,6 +390,7 @@ Per__p___init__(self, args)
   PyObject *jar;
 
   UNLESS(PyArg_Parse(args, "(iO)", &oid, &jar)) return NULL;
+  if(idebug_log < 0) call_debug("init",self);
   Py_INCREF(jar);
   self->oid=oid;
   ASSIGN(self->jar, jar);
@@ -386,21 +403,22 @@ static PyObject *
 Per__p___reinit__(cPersistentObject *self, PyObject *args)
 {
   int oid;
-  PyObject *jar=0, *copy, *dict;
+  PyObject *init=0, *copy, *dict;
 
+  if(idebug_log < 0) call_debug("reinit",self);
   if(PyArg_Parse(args,""))
     {
-      /*
       if(0
+      /*
 	 || strcmp(self->ob_type->tp_name,"Classified")==0
+      */
 	 )
 	{
 	  Py_INCREF(Py_None);
 	  return Py_None;
 	}
-      */
       if(self->state==cPersistent_UPTODATE_STATE)
-	if(jar=PyObject_GetAttr((PyObject*)self,py___init__))
+	if(init=PyObject_GetAttr((PyObject*)self,py___init__))
 	  {
 
 	    if(copy=PyObject_GetAttr((PyObject*)self,py___getinitargs__))
@@ -413,19 +431,34 @@ Per__p___reinit__(cPersistentObject *self, PyObject *args)
 		    UNLESS(copy) goto err;
 		  }
 	      }
-	    else copy=NULL;
+	    else
+	      {
+		copy=NULL;
+		PyErr_Clear();
+	      }
 	    
-	    if((dict=INSTANCE_DICT(self))) PyDict_Clear(dict);
+	    if(INSTANCE_DICT(self))
+	      {
+		UNLESS(dict=PyDict_New()) goto err;
+		Py_DECREF(INSTANCE_DICT(self));
+		INSTANCE_DICT(self)=dict;
+	      }
 
-	    ASSIGN(copy,PyObject_CallObject(jar,copy));
+	    dict=self->jar;
+	    self->jar=NULL;	/* Grasping at straws :-( */
+	    ASSIGN(copy,PyObject_CallObject(init,copy));
 	    self->state=cPersistent_GHOST_STATE;
+	    self->jar=dict;
 	    UNLESS(copy) goto err;
 	    Py_DECREF(copy);
-	    Py_DECREF(jar);
+	    Py_DECREF(init);
 	  }
-	else if((dict=INSTANCE_DICT(self)))
+	else if(INSTANCE_DICT(self))
 	  {
-	    PyDict_Clear(dict);
+	    PyErr_Clear();
+	    UNLESS(dict=PyDict_New()) return NULL;
+	    Py_DECREF(INSTANCE_DICT(self));
+	    INSTANCE_DICT(self)=dict;
 	    self->state=cPersistent_GHOST_STATE;
 	  }
     }
@@ -444,7 +477,7 @@ Per__p___reinit__(cPersistentObject *self, PyObject *args)
   Py_INCREF(Py_None);
   return Py_None;
 err:
-  Py_XDECREF(jar);
+  Py_XDECREF(init);
   return NULL;
 }
 
@@ -476,6 +509,7 @@ Per__getstate__(self,args)
 
   UNLESS(PyArg_Parse(args, "")) return NULL;
 
+  if(idebug_log < 0) call_debug("get",self);
   /* Update state, if necessary */
   if(self->state==GHOST_STATE && self->jar)
     {
@@ -531,6 +565,7 @@ Per__setstate__(self,args)
   /*printf("%s(%d) ", self->ob_type->tp_name,self->oid);*/
 
   UNLESS(PyArg_Parse(args, "O", &v)) return NULL;
+  if(idebug_log < 0) call_debug("set",self);
   self->state=UPTODATE_STATE;
   if(v!=Py_None)
     {
@@ -590,6 +625,7 @@ static void
 Per_dealloc(self)
 	cPersistentObject *self;
 {
+  if(idebug_log < 0) call_debug("del",self);
   Py_XDECREF(self->jar);
   /*Py_XDECREF(self->atime);*/
   PyMem_DEL(self);
@@ -831,9 +867,24 @@ static PyExtensionClass Pertype = {
 
 /* List of methods defined in the module */
 
+static PyObject *
+set_debug_log(PyObject *ignored, PyObject *args)
+{
+  Py_INCREF(args);
+  ASSIGN(debug_log, args);
+  if(debug_log) idebug_log=-1;
+  else idebug_log=0;
+  Py_INCREF(Py_None);
+  return Py_None;
+}
+
 static struct PyMethodDef cP_methods[] = {
-	
-	{NULL,		NULL}		/* sentinel */
+  {"set_debug_log", (PyCFunction)set_debug_log, 0,
+   "set_debug_log(callable) -- Provide a function to log events\n"
+   "\n"
+   "The function will be called with an event name and a persistent object.\n"
+  },
+  {NULL,		NULL}		/* sentinel */
 };
 
 
@@ -854,7 +905,7 @@ void
 initcPersistence()
 {
   PyObject *m, *d;
-  char *rev="$Revision: 1.11 $";
+  char *rev="$Revision: 1.12 $";
 
   PATimeType.ob_type=&PyType_Type;
 
@@ -881,6 +932,9 @@ initcPersistence()
 /****************************************************************************
 
   $Log: cPersistence.c,v $
+  Revision 1.12  1997/04/24 12:48:48  jim
+  Fixed bug in reinit
+
   Revision 1.11  1997/04/22 02:46:50  jim
   Took out debugging info.
 
