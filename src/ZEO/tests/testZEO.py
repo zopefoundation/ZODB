@@ -279,15 +279,25 @@ class ConnectionTests(StorageTestBase.StorageTestBase):
                     pass
         self.__super_tearDown()
 
-    def pollUp(self):
+    def pollUp(self, timeout=30.0):
         # Poll until we're connected
+        now = time.time()
+        giveup = now + timeout
         while not self._storage.is_connected():
             asyncore.poll(0.1)
+            now = time.time()
+            if now > giveup:
+                self.fail("timed out waiting for storage to connect")
 
-    def pollDown(self):
+    def pollDown(self, timeout=30.0):
         # Poll until we're disconnected
+        now = time.time()
+        giveup = now + timeout
         while self._storage.is_connected():
             asyncore.poll(0.1)
+            now = time.time()
+            if now > giveup:
+                self.fail("timed out waiting for storage to disconnect")
 
     def checkMultipleAddresses(self):
         for i in range(4):
