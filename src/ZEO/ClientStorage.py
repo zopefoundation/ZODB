@@ -13,7 +13,7 @@
 ##############################################################################
 """Network ZODB storage client
 
-$Id: ClientStorage.py,v 1.63 2002/09/19 19:15:48 gvanrossum Exp $
+$Id: ClientStorage.py,v 1.64 2002/09/20 13:35:07 gvanrossum Exp $
 """
 
 # XXX TO DO
@@ -72,15 +72,35 @@ disconnected_stub = DisconnectedServerStub()
 class ClientStorage:
 
     def __init__(self, addr, storage='1', cache_size=20000000,
-                 name='', client=None, var=None,
+                 name='', client=None, debug=0, var=None,
                  min_disconnect_poll=5, max_disconnect_poll=300,
-                 wait=0, read_only=0, read_only_fallback=0):
+                 wait_for_server_on_startup=None, # deprecated alias for wait
+                 wait=None, # defaults to 1
+                 read_only=0, read_only_fallback=0):
 
         log2(INFO, "ClientStorage (pid=%d) created %s/%s for storage: %r" %
              (os.getpid(),
               read_only and "RO" or "RW",
               read_only_fallback and "fallback" or "normal",
               storage))
+
+        if debug:
+            log2(INFO, "ClientStorage(): debug argument is no longer used")
+
+        # wait defaults to True, but wait_for_server_on_startup overrides
+        # if not None
+        if wait_for_server_on_startup is not None:
+            if wait is not None and wait != wait_for_server_on_startup:
+                log2(PROBLEM,
+                     "ClientStorage(): conflicting values for wait and "
+                     "wait_for_server_on_startup; wait prevails")
+            else:
+                log2(INFO,
+                     "ClientStorage(): wait_for_server_on_startup "
+                     "is deprecated; please use wait instead")
+                wait = wait_for_server_on_startup
+        elif wait is None:
+            wait = 1
 
         self._addr = addr # For tests
         self._server = disconnected_stub
