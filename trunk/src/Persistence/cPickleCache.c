@@ -1,6 +1,6 @@
 /*
 
-  $Id: cPickleCache.c,v 1.4 1997/04/11 19:13:21 jim Exp $
+  $Id: cPickleCache.c,v 1.5 1997/04/15 19:03:29 jim Exp $
 
   C implementation of a pickle jar cache.
 
@@ -56,7 +56,7 @@
       (540) 371-6909
 
 ***************************************************************************/
-static char *what_string = "$Id: cPickleCache.c,v 1.4 1997/04/11 19:13:21 jim Exp $";
+static char *what_string = "$Id: cPickleCache.c,v 1.5 1997/04/15 19:03:29 jim Exp $";
 
 #define ASSIGN(V,E) {PyObject *__e; __e=(E); Py_XDECREF(V); (V)=__e;}
 #define UNLESS(E) if(!(E))
@@ -352,8 +352,8 @@ cc_ass_sub(ccobject *self, PyObject *key, PyObject *v)
 	PyErr_Clear();
 
       UNLESS(-1 != PyDict_SetItem(self->data,key,t)) return -1;
-      return maybegc(self, t);
       Py_DECREF(t);
+      return maybegc(self, t);
     }
   else
     {
@@ -436,7 +436,7 @@ void
 initcPickleCache()
 {
   PyObject *m, *d;
-  char *rev="$Revision: 1.4 $";
+  char *rev="$Revision: 1.5 $";
 
   Cctype.ob_type=&PyType_Type;
 
@@ -464,6 +464,9 @@ initcPickleCache()
 
 /******************************************************************************
  $Log: cPickleCache.c,v $
+ Revision 1.5  1997/04/15 19:03:29  jim
+ Fixed leak introduced in last revision. :-(
+
  Revision 1.4  1997/04/11 19:13:21  jim
  Added code to be more conservative about GCing.
  Fixed setattr bugs.
