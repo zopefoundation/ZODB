@@ -1435,6 +1435,8 @@ The following methods can be used as utilities:
   does not have a schema, \exception{ValueError} is raised, and if it
   does have a fragment identifier, \exception{ConfigurationError} is
   raised.
+  This uses \method{isPath()} to determine whether \var{url-or-path}
+  is a URL of a filesystem path.
 \end{methoddesc}
 
 \begin{methoddesc}[loader]{openResource}{url}
