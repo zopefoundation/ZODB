@@ -12,42 +12,29 @@
 # 
 ##############################################################################
 
-__version__ = "$Revision: 1.35 $"[11:-2]
+__version__ = "$Revision: 1.36 $"[11:-2]
 
 import asyncore, socket, string, sys, os
-from smac import SizedMessageAsyncConnection
-from ZODB import POSException
 import cPickle
 from cPickle import Unpickler
-from ZODB.POSException import TransactionError, UndoError, VersionCommitError
-from ZODB.Transaction import Transaction
-import traceback
-from zLOG import LOG, INFO, ERROR, TRACE, BLATHER
-from ZODB.referencesf import referencesf
-from thread import start_new_thread
 from cStringIO import StringIO
-from ZEO import trigger
-from ZEO import asyncwrap
-from ZEO.smac import Disconnected
+from thread import start_new_thread
+import time
 from types import StringType
 
-class StorageServerError(POSException.StorageError): pass
+from ZODB import POSException
+from ZODB.POSException import TransactionError, UndoError, VersionCommitError
+from ZODB.Transaction import Transaction
+from ZODB.referencesf import referencesf
+from ZODB.utils import U64
 
-max_blather=120
-def blather(*args):
-    accum = []
-    total_len = 0
-    for arg in args:
-        if not isinstance(arg, StringType):
-            arg = str(arg)
-        accum.append(arg)
-        total_len = total_len + len(arg)
-        if total_len >= max_blather:
-            break
-    m = string.join(accum)
-    if len(m) > max_blather: m = m[:max_blather] + ' ...'
-    LOG('ZEO Server', TRACE, m)
+from ZEO import trigger
+from ZEO import asyncwrap
+from ZEO.smac import Disconnected, SizedMessageAsyncConnection
+from ZEO.logger import zLogger, format_msg
 
+class StorageServerError(POSException.StorageError):
+    pass
 
 # We create a special fast pickler! This allows us
 # to create slightly more efficient pickles and
@@ -55,6 +42,8 @@ def blather(*args):
 pickler=cPickle.Pickler()
 pickler.fast=1 # Don't use the memo
 dump=pickler.dump
+
+log = zLogger("ZEO Server")
 
 class StorageServer(asyncore.dispatcher):
 
@@ -80,14 +69,14 @@ class StorageServer(asyncore.dispatcher):
             self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
             self.set_reuse_addr()
 
-        LOG('ZEO Server', INFO, 'Listening on %s' % repr(connection))
+        log.info('Listening on %s' % repr(connection))
         self.bind(connection)
         self.listen(5)
 
     def register_connection(self, connection, storage_id):
         storage=self.__storages.get(storage_id, None)
         if storage is None:
-            LOG('ZEO Server', ERROR, "Unknown storage_id: %s" % storage_id)
+            log.error("Unknown storage_id: %s" % storage_id)
             connection.close()
             return None, None
         
@@ -126,18 +115,29 @@ class StorageServer(asyncore.dispatcher):
     
     def handle_accept(self):
         try:
-            sock, addr = self.accept()
-        except socket.error:
-            sys.stderr.write('warning: accept failed\n')
+            r = self.accept()
+            if r is None:
+                return
+            sock, addr = r
+        except socket.error, err:
+            log.warning("accept() failed: %s" % err)
         else:
             ZEOConnection(self, sock, addr)
 
-    def log_info(self, message, type='info'):
-        if type=='error': type=ERROR
-        else: type=INFO
-        LOG('ZEO Server', type, message)
+    def status(self):
+        """Log status information about connections and storages"""
 
-    log=log_info
+        lines = []
+        for storage_id, connections in self.__connections.items():
+            s = "Storage %s has %d connections" % (storage_id,
+                                                   len(connections))
+            lines.append(s)
+            for c in connections:
+                lines.append("%s readable=%s writeable=%s" % (
+                   c, c.readable(), c.writable()))
+                lines.append("\t" + c.stats())
+        log.info(string.join(lines, "\n"))
+        return _noreturn
 
 storage_methods={}
 for n in (
@@ -148,6 +148,7 @@ for n in (
     'tpc_finish', 'undo', 'undoLog', 'undoInfo', 'versionEmpty', 'versions',
     'transactionalUndo',
     'vote', 'zeoLoad', 'zeoVerify', 'beginZeoVerify', 'endZeoVerify',
+    'status'
     ):
     storage_methods[n]=1
 storage_method=storage_methods.has_key
@@ -159,7 +160,8 @@ def find_global(module, name,
         raise StorageServerError, (
             "Couldn\'t import global module %s" % module)
 
-    try: r=getattr(m, name)
+    try:
+        r=getattr(m, name)
     except:
         raise StorageServerError, (
             "Couldn\'t find global %s in module %s" % (name, module))
@@ -177,12 +179,52 @@ class ZEOConnection(SizedMessageAsyncConnection):
 
     def __init__(self, server, sock, addr):
         self.__server=server
+        self.status = server.status
         self.__invalidated=[]
         self.__closed=None
-        if __debug__: debug='ZEO Server'
-        else: debug=0
+        if __debug__:
+            debug = log
+        else:
+            debug = None
+
+        if __debug__:
+            # store some detailed statistics about method calls
+            self._last_method = None
+            self._t_begin = None
+            self._t_end = None
+            self._ncalls = 0
+            
         SizedMessageAsyncConnection.__init__(self, sock, addr, debug=debug)
-        LOG('ZEO Server', INFO, 'Connect %s %s' % (id(self), `addr`))
+        self.logaddr = repr(addr) # form of addr suitable for logging
+        log.info('Connect %s %s' % (id(self), self.logaddr))
+
+    def stats(self):
+        # This method is called via the status() command.  The stats
+        # are of limited use for the current command, because the
+        # actual invocation of status() will clobber the previous
+        # method's statistics.
+        #
+        # When there are multiple connections active, a new connection
+        # can always get detailed statistics about other connections.
+        if __debug__:
+            if self._last_method == "status":
+                return "method=status begin=%s end=... ncalls=%d" % (
+                    self._t_begin, self._ncalls)
+            if self._t_end is not None and self._t_begin is not None:
+                delta = self._t_end - self._t_begin
+            else:
+                delta = -1
+            return "method=%s begin=%s end=%s delta=%.3f ncalls=%d" % (
+                self._last_method, self._t_begin, self._t_end, delta,
+                self._ncalls)
+        else:
+            return ""
+
+    def __repr__(self):
+        return "<ZEOConnection %s%s" % (`self.addr`,
+                         # sort of messy way to add tag 'closed' to
+                         # connections that are closed
+                         (self.__closed is None and '>' or ' closed>'))
 
     def close(self):
         t=self._transaction
@@ -196,19 +238,26 @@ class ZEOConnection(SizedMessageAsyncConnection):
         self.__server.unregister_connection(self, self.__storage_id)
         self.__closed=1
         SizedMessageAsyncConnection.close(self)
-        LOG('ZEO Server', INFO, 'Close %s' % id(self))
+        log.info('Close %s' % id(self))
 
     def message_input(self, message,
                       dump=dump, Unpickler=Unpickler, StringIO=StringIO,
                       None=None):
         if __debug__:
-            if len(message) > max_blather:
-                tmp = `message[:max_blather]`
+
+            self._t_begin = time.time()
+            self._t_end = None
+            
+            if len(message) > 120: # XXX need constant from logger
+                tmp = `message[:120]`
             else:
                 tmp = `message`
-            blather('message_input', id(self), tmp)
+            log.trace("message_input %s" % tmp)
 
         if self.__storage is None:
+            if __debug__:
+                log.blather("register connection to %s from %s" % (message,
+                                                                self.logaddr))
             # This is the first communication from the client
             self.__storage, self.__storage_id = (
                 self.__server.register_connection(self, message))
@@ -226,27 +275,42 @@ class ZEOConnection(SizedMessageAsyncConnection):
             
             name, args = args[0], args[1:]
             if __debug__:
-                apply(blather,
-                      ("call", id(self), ":", name,) + args)
+                self._last_method = name
+                self._ncalls = self._ncalls + 1
+                log.debug("call %s%s from %s" % (name, format_msg(args),
+                                                 self.logaddr))
                 
             if not storage_method(name):
+                log.warning("Invalid method name: %s" % name)
+                if __debug__:
+                    self._t_end = time.time()
                 raise 'Invalid Method Name', name
             if hasattr(self, name):
                 r=apply(getattr(self, name), args)
             else:
                 r=apply(getattr(self.__storage, name), args)
-            if r is _noreturn: return
-        except (UndoError, VersionCommitError):
-            # These are normal usage errors. No need to leg them
+            if r is _noreturn:
+                if __debug__:
+                    log.debug("no return to %s" % self.logaddr)
+                    self._t_end = time.time()
+                return
+        except (UndoError, VersionCommitError), err:
+            if __debug__:
+                log.debug("return error %s to %s" % (err, self.logaddr))
+                self._t_end = time.time()
+            # These are normal usage errors. No need to log them.
             self.return_error(sys.exc_info()[0], sys.exc_info()[1])
             return
         except:
-            LOG('ZEO Server', ERROR, 'error', error=sys.exc_info())
+            if __debug__:
+                self._t_end = time.time()
+            log.error("error", error=sys.exc_info())
             self.return_error(sys.exc_info()[0], sys.exc_info()[1])
             return
 
         if __debug__:
-            blather("%s R: %s" % (id(self), `r`))
+            log.debug("return %s to %s" % (format_msg(r), self.logaddr))
+            self._t_end = time.time()
             
         r=dump(r,1)            
         self.message_output('R'+r)
@@ -256,7 +320,7 @@ class ZEOConnection(SizedMessageAsyncConnection):
             err_value = err_type, err_value
 
         if __debug__:
-            blather("%s E: %s" % (id(self), `err_value`))
+            log.trace("%s E: %s" % (id(self), `err_value`))
                     
         try: r=dump(err_value, 1)
         except:
@@ -292,6 +356,8 @@ class ZEOConnection(SizedMessageAsyncConnection):
             }
 
     def zeoLoad(self, oid):
+        if __debug__:
+            log.blather("zeoLoad(%s) %s" % (U64(oid), self.logaddr))
         storage=self.__storage
         v=storage.modifiedInVersion(oid)
         if v: pv, sv = storage.load(oid, v)
@@ -308,6 +374,8 @@ class ZEOConnection(SizedMessageAsyncConnection):
             
 
     def beginZeoVerify(self):
+        if __debug__:
+            log.blather("beginZeoVerify() %s" % self.logaddr)
         self.message_output('bN.')            
         return _noreturn
 
@@ -324,6 +392,8 @@ class ZEOConnection(SizedMessageAsyncConnection):
         return _noreturn
 
     def endZeoVerify(self):
+        if __debug__:
+            log.blather("endZeoVerify() %s" % self.logaddr)
         self.message_output('eN.')
         return _noreturn
 
@@ -340,11 +410,11 @@ class ZEOConnection(SizedMessageAsyncConnection):
 
     def _pack(self, t, wait=0):
         try:
-            LOG('ZEO Server', BLATHER, 'pack begin')
+            log.blather('pack begin')
             self.__storage.pack(t, referencesf)
-            LOG('ZEO Server', BLATHER, 'pack end')
+            log.blather('pack end')
         except:
-            LOG('ZEO Server', ERROR,
+            log.error(
                 'Pack failed for %s' % self.__storage_id,
                 error=sys.exc_info())
             if wait:
@@ -381,6 +451,9 @@ class ZEOConnection(SizedMessageAsyncConnection):
 
     def storea(self, oid, serial, data, version, id,
                dump=dump):
+        if __debug__:
+            log.blather("storea(%s, [%d], %s) %s" % (U64(oid), len(data),
+                                                   U64(id), self.logaddr))
         try:
             t=self._transaction
             if t is None or id != t.id:
@@ -396,7 +469,7 @@ class ZEOConnection(SizedMessageAsyncConnection):
             # all errors need to be serialized to prevent unexpected
             # returns, which would screw up the return handling.
             # IOW, Anything that ends up here is evil enough to be logged.
-            LOG('ZEO Server', ERROR, 'store error', error=sys.exc_info())
+            log.error('store error', error=sys.exc_info())
             newserial=sys.exc_info()[1]
         else:
             if serial != '\0\0\0\0\0\0\0\0':
@@ -420,12 +493,17 @@ class ZEOConnection(SizedMessageAsyncConnection):
         return self.__storage.tpc_vote(t)
 
     def transactionalUndo(self, trans_id, id):
+        if __debug__:
+            log.blather("transactionalUndo(%s, %s) %s" % (trans_id,
+                                                        U64(id), self.logaddr))
         t=self._transaction
         if t is None or id != t.id:
             raise POSException.StorageTransactionError(self, id)
         return self.__storage.transactionalUndo(trans_id, self._transaction)
         
     def undo(self, transaction_id):
+        if __debug__:
+            log.blather("undo(%s) %s" % (transaction_id, self.logaddr))
         oids=self.__storage.undo(transaction_id)
         if oids:
             self.__server.invalidate(
@@ -457,11 +535,15 @@ class ZEOConnection(SizedMessageAsyncConnection):
 
     def commitlock_suspend(self, resume, args, onerror):
         self.__storage._waiting.append((resume, args, onerror))
+        log.blather("suspend %s.  %d queued clients" % (resume.im_self,
+                                            len(self.__storage._waiting)))
 
     def commitlock_resume(self):
         waiting = self.__storage._waiting
         while waiting:
             resume, args, onerror = waiting.pop(0)
+            log.blather("resuming queued client %s, %d still queued" % (
+                resume.im_self, len(waiting)))
             try:
                 if apply(resume, args):
                     break
@@ -471,12 +553,18 @@ class ZEOConnection(SizedMessageAsyncConnection):
                 # disconnect will have generated its own log event.
                 onerror()
             except:
-                LOG('ZEO Server', ERROR,
+                log.error(
                     "Unexpected error handling queued tpc_begin()",
                     error=sys.exc_info())
                 onerror()
 
     def tpc_abort(self, id):
+        if __debug__:
+            try:
+                log.blather("tpc_abort(%s) %s" % (U64(id), self.logaddr))
+            except:
+                print repr(id)
+                raise
         t = self._transaction
         if t is None or id != t.id:
             return
@@ -492,6 +580,10 @@ class ZEOConnection(SizedMessageAsyncConnection):
         self.message_output('UN.')
 
     def tpc_begin(self, id, user, description, ext):
+        if __debug__:
+            log.blather("tpc_begin(%s, %s, %s) %s" % (U64(id), `user`,
+                                                      `description`,
+                                                      self.logaddr))
         t = self._transaction
         if t is not None:
             if id == t.id:
@@ -505,7 +597,8 @@ class ZEOConnection(SizedMessageAsyncConnection):
         if storage._transaction is not None:
             self.commitlock_suspend(self.unlock, (), self.close)
             return 1 # Return a flag indicating a lock condition.
-            
+
+        assert id != 't'
         self._transaction=t=Transaction()
         t.id=id
         t.user=user
@@ -542,6 +635,8 @@ class ZEOConnection(SizedMessageAsyncConnection):
         return 1
 
     def tpc_finish(self, id, user, description, ext):
+        if __debug__:
+            log.blather("tpc_finish(%s) %s" % (U64(id), self.logaddr))
         t = self._transaction
         if id != t.id:
             return
@@ -564,7 +659,7 @@ def init_storage(storage):
 if __name__=='__main__':
     import ZODB.FileStorage
     name, port = sys.argv[1:3]
-    blather(name, port)
+    log.trace(format_msg(name, port))
     try:
         port='', int(port)
     except:

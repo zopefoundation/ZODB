@@ -14,11 +14,11 @@
 """Sized message async connections
 """
 
-__version__ = "$Revision: 1.15 $"[11:-2]
+__version__ = "$Revision: 1.16 $"[11:-2]
 
 import asyncore, string, struct, zLOG, sys, Acquisition
 import socket, errno
-from zLOG import LOG, TRACE, ERROR, INFO
+from logger import zLogger
 
 # Use the dictionary to make sure we get the minimum number of errno
 # entries.   We expect that EWOULDBLOCK == EAGAIN on most systems --
@@ -48,10 +48,10 @@ class SizedMessageAsyncConnection(Acquisition.Explicit, asyncore.dispatcher):
         SizedMessageAsyncConnection.inheritedAttribute(
             '__init__')(self, sock, map)
         self.addr=addr
-        if debug is not None:
-            self._debug=debug
-        elif not hasattr(self, '_debug'):
-            self._debug=__debug__ and 'smac'
+        if debug is None and __debug__:
+            self._debug = zLogger("smac")
+        else:
+            self._debug = debug
         self.__state=None
         self.__inp=None
         self.__inpl=0
@@ -132,23 +132,18 @@ class SizedMessageAsyncConnection(Acquisition.Explicit, asyncore.dispatcher):
 
     def message_output(self, message,
                        pack=struct.pack, len=len):
-        if self._debug:
-            if len(message) > 40: m=message[:40]+' ...'
-            else: m=message
-            LOG(self._debug, TRACE, 'message_output %s' % `m`)
+        if self._debug is not None:
+            if len(message) > 40:
+                m = message[:40]+' ...'
+            else:
+                m = message
+            self._debug.trace('message_output %s' % `m`)
 
         append=self.__append
         if append is None:
             raise Disconnected("This action is temporarily unavailable.<p>")
         
         append(pack(">i",len(message))+message)
-
-    def log_info(self, message, type='info'):
-        if type=='error': type=ERROR
-        else: type=INFO
-        LOG('ZEO', type, message)
-
-    log=log_info
 
     def close(self):
         if self.__append is not None:

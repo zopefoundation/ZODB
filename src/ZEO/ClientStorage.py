@@ -13,22 +13,27 @@
 ##############################################################################
 """Network ZODB storage client
 """
-__version__='$Revision: 1.39 $'[11:-2]
+__version__='$Revision: 1.40 $'[11:-2]
 
-import struct, time, os, socket, string, Sync, zrpc, ClientCache
-import tempfile, Invalidator, ExtensionClass, thread
-import ThreadedAsync
-
-now=time.time
+import struct, time, os, socket, string
+import tempfile, thread
 from struct import pack, unpack
+from types import TupleType
+
+import Invalidator, ExtensionClass
+import ThreadedAsync, Sync, zrpc, ClientCache
+
 from ZODB import POSException, BaseStorage
 from ZODB.TimeStamp import TimeStamp
-from zLOG import LOG, PROBLEM, INFO
 
-try: from ZODB.ConflictResolution import ResolvedSerial
-except: ResolvedSerial='rs'
+from ZEO.logger import zLogger
 
-TupleType=type(())
+log = zLogger("ZEO Client")
+
+try:
+    from ZODB.ConflictResolution import ResolvedSerial
+except:
+    ResolvedSerial='rs'
 
 class ClientStorageError(POSException.StorageError):
     """An error occured in the ZEO Client Storage"""
@@ -62,8 +67,12 @@ class ClientStorage(ExtensionClass.Base, BaseStorage.BaseStorage):
         self._info={'length': 0, 'size': 0, 'name': 'ZEO Client',
                     'supportsUndo':0, 'supportsVersions': 0,
                     }
-        
-        self._call=zrpc.asyncRPC(connection, debug=debug,
+
+        if debug:
+            debug_log = log
+        else:
+            debug_log = None
+        self._call=zrpc.asyncRPC(connection, debug=debug_log,
                                  tmin=min_disconnect_poll,
                                  tmax=max_disconnect_poll)
 
@@ -132,7 +141,7 @@ class ClientStorage(ExtensionClass.Base, BaseStorage.BaseStorage):
             # If we can't connect right away, go ahead and open the cache
             # and start a separate thread to try and reconnect.
 
-            LOG("ClientStorage", PROBLEM, "Failed to connect to storage")
+            log.problem("Failed to connect to storage")
             self._cache.open()
             thread.start_new_thread(self._call.connect,(0,))
 
@@ -140,7 +149,7 @@ class ClientStorage(ExtensionClass.Base, BaseStorage.BaseStorage):
             # notifyConnected
 
     def notifyConnected(self, s):
-        LOG("ClientStorage", INFO, "Connected to storage")
+        log.info("Connected to storage")
         self._lock_acquire()
         try:
             
@@ -197,7 +206,7 @@ class ClientStorage(ExtensionClass.Base, BaseStorage.BaseStorage):
     ### responsible for starting the thread that makes the connection.
 
     def notifyDisconnected(self, ignored):
-        LOG("ClientStorage", PROBLEM, "Disconnected from storage")
+        log.problem("Disconnected from storage")
         self._connected=0
         self._transaction=None
         thread.start_new_thread(self._call.connect,(0,))
@@ -233,7 +242,7 @@ class ClientStorage(ExtensionClass.Base, BaseStorage.BaseStorage):
     def close(self):
         self._lock_acquire()
         try:
-            LOG("ClientStorage", INFO, "close")
+            log.info("close")
             self._call.closeIntensionally()
             try:
                 self._tfile.close()
@@ -549,6 +558,9 @@ class ClientStorage(ExtensionClass.Base, BaseStorage.BaseStorage):
         finally: self._lock_release()
 
     def sync(self): self._call.sync()
+
+    def status(self):
+        self._call.sendMessage('status')
 
 def getWakeup(_w=[]):
     if _w: return _w[0]

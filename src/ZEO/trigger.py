@@ -15,10 +15,8 @@
 # This module is a simplified version of the select_trigger module
 # from Sam Rushing's Medusa server.
 
-
 import asyncore
-#import asynchat
-
+import errno
 import os
 import socket
 import string
@@ -26,7 +24,7 @@ import thread
     
 if os.name == 'posix':
 
-    class trigger (asyncore.file_dispatcher):
+    class trigger(asyncore.file_dispatcher):
 
         "Wake up a call to select() running in the main thread"
 
@@ -58,10 +56,10 @@ if os.name == 'posix':
         # new data onto a channel's outgoing data queue at the same time that
         # the main thread is trying to remove some]
 
-        def __init__ (self):
+        def __init__(self):
             r, w = self._fds = os.pipe()
             self.trigger = w
-            asyncore.file_dispatcher.__init__ (self, r)
+            asyncore.file_dispatcher.__init__(self, r)
             self.lock = thread.allocate_lock()
             self.thunks = []
 
@@ -69,30 +67,35 @@ if os.name == 'posix':
             os.close(self._fds[0])
             os.close(self._fds[1])
 
-        def __repr__ (self):
-            return '<select-trigger (pipe) at %x>' % id(self)
+        def __repr__(self):
+            return '<select-trigger(pipe) at %x>' % id(self)
 
-        def readable (self):
+        def readable(self):
             return 1
 
-        def writable (self):
+        def writable(self):
             return 0
 
-        def handle_connect (self):
+        def handle_connect(self):
             pass
 
-        def pull_trigger (self, thunk=None):
+        def pull_trigger(self, thunk=None):
             # print 'PULL_TRIGGER: ', len(self.thunks)
             if thunk:
                 try:
                     self.lock.acquire()
-                    self.thunks.append (thunk)
+                    self.thunks.append(thunk)
                 finally:
                     self.lock.release()
-            os.write (self.trigger, 'x')
+            os.write(self.trigger, 'x')
 
-        def handle_read (self):
-            self.recv (8192)
+        def handle_read(self):
+            try:
+                self.recv(8192)
+            except os.error, err:
+                if err[0] == errno.EAGAIN: # resource temporarily unavailable
+                    return
+                raise
             try:
                 self.lock.acquire()
                 for thunk in self.thunks:
@@ -101,7 +104,7 @@ if os.name == 'posix':
                     except:
                         nil, t, v, tbinfo = asyncore.compact_traceback()
                         print ('exception in trigger thunk:'
-                               ' (%s:%s %s)' % (t, v, tbinfo))
+                               '(%s:%s %s)' % (t, v, tbinfo))
                 self.thunks = []
             finally:
                 self.lock.release()
@@ -113,13 +116,13 @@ else:
 
     # win32-safe version
 
-    class trigger (asyncore.dispatcher):
+    class trigger(asyncore.dispatcher):
 
         address = ('127.9.9.9', 19999)
 
-        def __init__ (self):
-            a = socket.socket (socket.AF_INET, socket.SOCK_STREAM)
-            w = socket.socket (socket.AF_INET, socket.SOCK_STREAM)
+        def __init__(self):
+            a = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            w = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
             # set TCP_NODELAY to true to avoid buffering
             w.setsockopt(socket.IPPROTO_TCP, 1, 1)
@@ -137,45 +140,50 @@ else:
                         raise 'Bind Error', 'Cannot bind trigger!'
                     port=port - 1
             
-            a.listen (1)
-            w.setblocking (0)
+            a.listen(1)
+            w.setblocking(0)
             try:
-                w.connect (self.address)
+                w.connect(self.address)
             except:
                 pass
             r, addr = a.accept()
             a.close()
-            w.setblocking (1)
+            w.setblocking(1)
             self.trigger = w
 
-            asyncore.dispatcher.__init__ (self, r)
+            asyncore.dispatcher.__init__(self, r)
             self.lock = thread.allocate_lock()
             self.thunks = []
             self._trigger_connected = 0
 
-        def __repr__ (self):
+        def __repr__(self):
             return '<select-trigger (loopback) at %x>' % id(self)
 
-        def readable (self):
+        def readable(self):
             return 1
 
-        def writable (self):
+        def writable(self):
             return 0
 
-        def handle_connect (self):
+        def handle_connect(self):
             pass
 
-        def pull_trigger (self, thunk=None):
+        def pull_trigger(self, thunk=None):
             if thunk:
                 try:
                     self.lock.acquire()
-                    self.thunks.append (thunk)
+                    self.thunks.append(thunk)
                 finally:
                     self.lock.release()
-            self.trigger.send ('x')
+            self.trigger.send('x')
 
-        def handle_read (self):
-            self.recv (8192)
+        def handle_read(self):
+            try:
+                self.recv(8192)
+            except os.error, err:
+                if err[0] == errno.EAGAIN: # resource temporarily unavailable
+                    return
+                raise
             try:
                 self.lock.acquire()
                 for thunk in self.thunks:
