@@ -13,7 +13,7 @@
 ##############################################################################
 """Start the server storage.
 
-$Id: start.py,v 1.36 2002/07/25 16:47:02 jeremy Exp $
+$Id: start.py,v 1.37 2002/07/25 23:08:33 jeremy Exp $
 """
 from __future__ import nested_scopes
 
@@ -44,7 +44,7 @@ def get_storage(m, n, cache={}):
         cache[(d, m)] = im
     return getattr(im, n)
 
-def set_uid(uid):
+def set_uid(arg):
     """Try to set uid and gid based on -u argument.
 
     This will only work if this script is run by root.
@@ -58,13 +58,13 @@ def set_uid(uid):
     try:
         gid = None
         try:
-            UID = int(UID)
+            arg = int(arg)
         except: # conversion could raise all sorts of errors
-            uid = pwd.getpwnam(UID)[2]
-            gid = pwd.getpwnam(UID)[3]
+            uid = pwd.getpwnam(arg)[2]
+            gid = pwd.getpwnam(arg)[3]
         else:
-            uid = pwd.getpwuid(UID)[2]
-            gid = pwd.getpwuid(UID)[3]
+            uid = pwd.getpwuid(arg)[2]
+            gid = pwd.getpwuid(arg)[3]
         if gid is not None:
             try:
                 os.setgid(gid)
@@ -75,7 +75,7 @@ def set_uid(uid):
         except OSError:
             pass
     except KeyError:
-        LOG('ZEO Server', ERROR, ("can't find UID %s" % UID))
+        LOG('ZEO Server', ERROR, ("can't find uid %s" % arg))
 
 def setup_signals(storages):
     try:
@@ -231,7 +231,7 @@ def main(argv):
     if detailed:
         os.environ['STUPID_LOG_SEVERITY'] = '-300'
 
-    set_uid(uid)
+    set_uid(UID)
     
     if Z:
         try:
