@@ -90,7 +90,7 @@ process must skip such objects, rather than deactivating them.
 static char cPickleCache_doc_string[] =
 "Defines the PickleCache used by ZODB Connection objects.\n"
 "\n"
-"$Id: cPickleCache.c,v 1.82 2003/04/23 20:05:51 jeremy Exp $\n";
+"$Id: cPickleCache.c,v 1.83 2003/05/01 17:08:39 jeremy Exp $\n";
 
 #define ASSIGN(V,E) {PyObject *__e; __e=(E); Py_XDECREF(V); (V)=__e;}
 #define UNLESS(E) if(!(E))
@@ -536,8 +536,6 @@ cc_oid_unreferenced(ccobject *self, PyObject *oid)
        call above creates artificial references to v.
     */
     _Py_RefTotal--;
-    /* XXX it may be a problem that v->ob_type is still NULL? 
-       I don't understand what this comment means.  --jeremy */
     assert(v->ob_type);
 #else
     Py_INCREF(v);
