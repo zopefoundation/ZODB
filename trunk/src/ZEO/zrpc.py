@@ -85,7 +85,7 @@
 """Simple rpc mechanisms
 """
 
-__version__ = "$Revision: 1.14 $"[11:-2]
+__version__ = "$Revision: 1.15 $"[11:-2]
 
 from cPickle import loads
 import cPickle
@@ -140,9 +140,9 @@ class asyncRPC(SizedMessageAsyncConnection):
                 else:
                     s=socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 s.connect(connection)    
-            except:
+            except Exception, err:
                 if debug:
-                    LOG(debug, DEBUG, "Failed to connect to server")
+                    LOG(debug, DEBUG, "Failed to connect to server: %s" % err)
                 if tryonce: return 0
                 time.sleep(t)
                 t=t*2
