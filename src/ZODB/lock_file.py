@@ -12,25 +12,24 @@
 #
 ##############################################################################
 
-import POSException
+from ZODB.POSException import StorageSystemError
 
-# Try to create a function that creates Unix file locks.  On windows
-# this will fail.
+# Try to create a function that creates Unix file locks.
 try:
     import fcntl
 
     lock_file_FLAG = fcntl.LOCK_EX | fcntl.LOCK_NB
 
-    def lock_file(file, error=POSException.StorageSystemError):
+    def lock_file(file):
         try:
-            un=file.fileno()
+            un = file.fileno()
         except:
             return # don't care if not a real file
 
         try:
-            fcntl.flock(un,lock_file_FLAG)
+            fcntl.flock(un, lock_file_FLAG)
         except:
-            raise error, (
+            raise StorageSystemError, (
                 "Could not lock the database file.  There must be\n"
                 "another process that has opened the file.\n"
                 "<p>")
@@ -39,19 +38,21 @@ except:
     # Try windows-specific code:
     try:
         from winlock import LockFile
-        def lock_file(file, error=POSException.StorageSystemError):
+        def lock_file(file):
             try:
                 un=file.fileno()
             except:
                 return # don't care if not a real file
 
             try:
-                LockFile(un,0,0,1,0) # just lock the first byte, who cares
+                LockFile(un, 0, 0, 1, 0) # just lock the first byte, who cares
             except:
-                raise error, (
+                raise StorageSystemError, (
                     "Could not lock the database file.  There must be\n"
                     "another process that has opened the file.\n"
                     "<p>")
     except:
-        def lock_file(file, error=None):
-            pass
+        import zLOG
+        def lock_file(file):
+            zLOG.LOG("FS", zLOG.INFO,
+                     "No file-locking support on this platform")
