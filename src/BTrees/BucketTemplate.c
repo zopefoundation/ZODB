@@ -12,7 +12,7 @@
   
  ****************************************************************************/
 
-#define BUCKETTEMPLATE_C "$Id: BucketTemplate.c,v 1.31 2002/05/31 14:58:29 tim_one Exp $\n"
+#define BUCKETTEMPLATE_C "$Id: BucketTemplate.c,v 1.32 2002/06/05 19:26:55 tim_one Exp $\n"
 
 /*
 ** _bucket_get
@@ -41,7 +41,7 @@ _bucket_get(Bucket *self, PyObject *keyarg, int has_key)
 
   for (min=0, max=self->len, i=max/2, l=max; i != l; l=i, i=(min+max)/2)
     {
-      TEST_KEY_SET_OR(cmp, self->keys[i], key) return NULL;
+      TEST_KEY_SET_OR(cmp, self->keys[i], key) goto err;
       if (PyErr_Occurred()) goto err;
 
       if (cmp < 0) min=i;
@@ -63,8 +63,11 @@ _bucket_get(Bucket *self, PyObject *keyarg, int has_key)
   PER_ACCESSED(self);
   if (has_key) return PyInt_FromLong(0);
   PyErr_SetObject(PyExc_KeyError, keyarg);
+  return NULL;
 
 err:
+  PER_ALLOW_DEACTIVATION(self);
+  PER_ACCESSED(self);
   return NULL;
 }
 
@@ -161,7 +164,7 @@ _bucket_set(Bucket *self, PyObject *keyarg, PyObject *v,
 
   for (min=0, max=l=self->len, i=max/2; i != l; l=i, i=(min+max)/2)
     {
-      TEST_KEY_SET_OR(cmp, self->keys[i], key) return -1;
+      TEST_KEY_SET_OR(cmp, self->keys[i], key) goto err;
       if (cmp < 0) min=i;
       else if (cmp==0)
 	{
@@ -466,7 +469,7 @@ Bucket_findRangeEnd(Bucket *self, PyObject *keyarg, int low, int *offset)
 
   for (min=0, max=self->len, i=max/2, l=max; i != l; l=i, i=(min+max)/2) 
     {
-      TEST_KEY_SET_OR(cmp, self->keys[i], key) return -1;
+      TEST_KEY_SET_OR(cmp, self->keys[i], key) goto err;
       if (cmp < 0)
 	min=i;
       else if (cmp == 0)
@@ -504,8 +507,12 @@ Bucket_findRangeEnd(Bucket *self, PyObject *keyarg, int low, int *offset)
 
   PER_ALLOW_DEACTIVATION(self);
   PER_ACCESSED(self);
-
   return i;
+
+err:
+  PER_ALLOW_DEACTIVATION(self);
+  PER_ACCESSED(self);
+  return -1;
 }
 
 static PyObject *
