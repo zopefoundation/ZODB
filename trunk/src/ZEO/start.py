@@ -81,18 +81,14 @@ def setup_signals(storages):
     except ImportError:
         return
 
-    try:
-        xfsz = signal.SIFXFSZ
-    except AttributeError:
-        pass
-    else:
-        signal.signal(xfsz, signal.SIG_IGN)
-    signal.signal(signal.SIGTERM, lambda sig, frame: shutdown(storages))
-    signal.signal(signal.SIGHUP, lambda sig, frame: shutdown(storages, 0))
-    try:
+    if hasattr(signal, 'SIGXFSZ'):
+        signal.signal(signal.SIGXFSZ, signal.SIG_IGN)
+    if hasattr(signal, 'SIGTERM'):
+        signal.signal(signal.SIGTERM, lambda sig, frame: shutdown(storages))
+    if hasattr(signal, 'SIGHUP'):
+        signal.signal(signal.SIGHUP, lambda sig, frame: shutdown(storages, 0))
+    if hasattr(signal, 'SIGUSR2'):
         signal.signal(signal.SIGUSR2, rotate_logs_handler)
-    except:
-        pass
 
 def main(argv):
     me = argv[0]
@@ -315,9 +311,6 @@ def rotate_logs():
 
 def rotate_logs_handler(signum, frame):
     rotate_logs()
-
-    import signal
-    signal.signal(signal.SIGHUP, rotate_logs_handler)
 
 def shutdown(storages, die=1):
     LOG("ZEO/start.py", INFO, "Received signal")
