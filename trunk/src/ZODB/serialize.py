@@ -227,9 +227,9 @@ class BaseObjectWriter:
         if not (oid is None or isinstance(oid, str)):
             # Deserves a closer look:
 
-            # Make sure it's not a descr
+            # Make sure it's not a descriptor
             if hasattr(oid, '__get__'):
-                # The oid is a decriptor.  That means obj is a non-persistent
+                # The oid is a descriptor.  That means obj is a non-persistent
                 # class whose instances are persistent, so ...
                 # Not persistent, pickle normally
                 return None
