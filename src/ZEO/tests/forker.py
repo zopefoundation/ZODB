@@ -85,6 +85,7 @@ def start_zeo(storage, cache=None, cleanup=None, domain="AF_INET",
     pid, exit = start_zeo_server(storage, addr)
     s = ZEO.ClientStorage.ClientStorage(addr, storage_id,
                                         debug=1, client=cache,
-                                        cache_size=cache_size)
+                                        cache_size=cache_size,
+                                        min_disconnect_poll=0.5)
     return s, exit, pid
 
