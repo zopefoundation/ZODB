@@ -68,6 +68,13 @@ before, it now says:
     serial this txn started with 0x034414228c3728d5 2002-04-14 20:50:32.863000,
     serial currently committed 0x03441422948b4399 2002-04-14 20:50:34.815000)
 
+ConflictError
+-------------
+
+The undocumented ``get_old_serial()`` and ``get_new_serial()`` methods
+were swapped (the first returned the new serial, and the second returned
+the old serial).
+
 Tools
 -----
 
