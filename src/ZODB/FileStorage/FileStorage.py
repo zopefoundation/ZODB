@@ -13,7 +13,7 @@
 ##############################################################################
 """Storage implementation using a log written to a single file.
 
-$Revision: 1.7 $
+$Revision: 1.8 $
 """
 
 import base64
@@ -107,6 +107,8 @@ class FileStorage(BaseStorage.BaseStorage,
                   FileStorageFormatter):
 
     # default pack time is 0
+    # XXX It's unclear what this is for.  Looks like the only values it
+    # XXX can ever have are z64 and None.
     _packt = z64
 
     _records_before_save = 10000
@@ -1128,6 +1130,8 @@ class FileStorage(BaseStorage.BaseStorage,
                 return pos
             if stop_at_pack:
                 # check the status field of the transaction header
+                # XXX Looks like self._packt is either z64 or None, so unclear
+                # XXX what the _tid < self._packt is trying to say.
                 if h[16] == 'p' or _tid < self._packt:
                     break
         raise UndoError("Invalid transaction id")
