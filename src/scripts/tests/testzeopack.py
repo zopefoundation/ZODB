@@ -26,7 +26,7 @@ class PackerTests(StorageTestBase):
         self.started = 0
 
     def start(self):
-        self.started =1 
+        self.started =1
         self.path = tempfile.mktemp(suffix=".fs")
         self._storage = FileStorage(self.path)
         self.db = ZODB.DB(self._storage)
@@ -105,7 +105,7 @@ class PackerTests(StorageTestBase):
         assert os.path.exists(self.path + ".old")
 
 class UpTest(unittest.TestCase):
-    
+
     def testUp(self):
         status = os.system("zeoup.py -p 19")
         # There is no ZEO server on port 19, so we should see non-zero

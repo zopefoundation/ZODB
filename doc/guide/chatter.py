@@ -16,8 +16,8 @@ class ChatSession(Persistent):
     add_message(message) -- add a message to the channel
     new_messages()       -- return new messages since the last call to
                             this method
-    
-    
+
+
     """
 
     def __init__(self, name):
@@ -27,15 +27,15 @@ class ChatSession(Persistent):
 
         self.name = name
 
-        # Internal attribute: _messages holds all the chat messages.        
+        # Internal attribute: _messages holds all the chat messages.
         self._messages = BTree.BTree()
-        
+
 
     def new_messages(self):
         "Return new messages."
 
         # self._v_last_time is the time of the most recent message
-        # returned to the user of this class. 
+        # returned to the user of this class.
         if not hasattr(self, '_v_last_time'):
             self._v_last_time = 0
 
@@ -48,7 +48,7 @@ class ChatSession(Persistent):
                 self._v_last_time = T2
 
         return new
-    
+
     def add_message(self, message):
         """Add a message to the channel.
         message -- text of the message to be added
@@ -82,7 +82,7 @@ def get_chat_session(conn, channelname):
         print 'Creating chat_sessions B-tree'
         root['chat_sessions'] = BTree.BTree()
         get_transaction().commit()
-        
+
     sessions = root['chat_sessions']
 
     # Get a session object corresponding to the channel name, creating
@@ -94,7 +94,7 @@ def get_chat_session(conn, channelname):
 
     session = sessions[ channelname ]
     return session
-    
+
 
 if __name__ == '__main__':
     if len(sys.argv) != 2:
@@ -119,6 +119,5 @@ if __name__ == '__main__':
             print msg
 
         # Wait for a few seconds
-        pause = random.randint( 1, 4 ) 
+        pause = random.randint( 1, 4 )
         time.sleep( pause )
-        

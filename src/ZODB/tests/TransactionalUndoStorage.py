@@ -42,7 +42,7 @@ def snooze():
     now = time.time()
     while now == time.time():
         time.sleep(0.1)
-        
+
 def listeq(L1, L2):
     """Return True if L1.sort() == L2.sort()"""
     c1 = L1[:]
@@ -608,11 +608,11 @@ class TransactionalUndoStorage:
         txn.commit()
 
         set_pack_time()
-        
+
         root._p_deactivate()
         cn.sync()
         self.assert_(listeq(root.keys(), ["key0", "key2"]))
-        
+
         L = db.undoInfo()
         db.undo(L[0]["id"])
         txn = get_transaction()
@@ -624,7 +624,7 @@ class TransactionalUndoStorage:
         root._p_deactivate()
         cn.sync()
         self.assert_(listeq(root.keys(), ["key0", "key1", "key2"]))
-        
+
         for t in pack_times:
             self._storage.pack(t, referencesf)
 
@@ -663,7 +663,7 @@ class TransactionalUndoStorage:
 
             self.assertEqual(rt["test"].value, i % 2 and 3 or 1)
             self.assertEqual(rt["test2"].value, 2)
-            
+
             packtimes.append(time.time())
             snooze()
 
@@ -723,7 +723,7 @@ class TransactionalUndoStorage:
                 s.transactionalUndo(tid, t)
             s.tpc_vote(t)
             s.tpc_finish(t)
-        
+
         for i in range(BATCHES):
             undo(i)
 
@@ -740,14 +740,14 @@ class TransactionalUndoStorage:
         for i in range(BATCHES):
             txn = iter[offset]
             offset += 1
-            
+
             tid = p64(i + 1)
             eq(txn.tid, tid)
 
             L1 = [(rec.oid, rec.serial, rec.data_txn) for rec in txn]
             L2 = [(oid, revid, None) for _tid, oid, revid in orig
                   if _tid == tid]
-            
+
             eq(L1, L2)
 
         for i in range(BATCHES * OBJECTS):
@@ -789,5 +789,3 @@ class TransactionalUndoStorage:
         self.assertEqual(d['description'],'t1')
         self.assertEqual(d['k2'],'this is transaction metadata')
         self.assertEqual(d['user_name'],'p3 u3')
-
-        

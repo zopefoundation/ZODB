@@ -88,7 +88,7 @@ Usage: loadmail2 [options]
 
        Specify the mailbox for getting input data.
 
-$Id: zodbload.py,v 1.2 2003/09/15 16:29:19 jeremy Exp $
+$Id: zodbload.py,v 1.3 2003/10/02 18:17:26 jeremy Exp $
 """
 
 import mailbox

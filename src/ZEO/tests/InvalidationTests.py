@@ -347,8 +347,8 @@ class InvalidationTests:
 
         # Run two threads that update the BTree
         cd = {}
-        t1 = self.StressThread(self, db1, stop, 1, cd, 1, sleep=0.001)
-        t2 = self.StressThread(self, db1, stop, 2, cd, 2, sleep=0.001)
+        t1 = self.StressThread(self, db1, stop, 1, cd, 1, sleep=0.01)
+        t2 = self.StressThread(self, db1, stop, 2, cd, 2, sleep=0.01)
         self.go(stop, cd, t1, t2)
 
         cn.sync()
@@ -375,8 +375,8 @@ class InvalidationTests:
 
         cd = {}
         t1 = self.StressThread(self, db1, stop, 1, cd, 1, 3)
-        t2 = self.StressThread(self, db2, stop, 2, cd, 2, 3, 0.001)
-        t3 = self.StressThread(self, db2, stop, 3, cd, 3, 3, 0.001)
+        t2 = self.StressThread(self, db2, stop, 2, cd, 2, 3, 0.01)
+        t3 = self.StressThread(self, db2, stop, 3, cd, 3, 3, 0.01)
         self.go(stop, cd, t1, t2, t3)
 
         cn.sync()
@@ -404,8 +404,8 @@ class InvalidationTests:
 
         cd = {}
         t1 = VersionStressThread(self, db1, stop, 1, cd, 1, 3)
-        t2 = VersionStressThread(self, db2, stop, 2, cd, 2, 3, 0.001)
-        t3 = VersionStressThread(self, db2, stop, 3, cd, 3, 3, 0.001)
+        t2 = VersionStressThread(self, db2, stop, 2, cd, 2, 3, 0.01)
+        t3 = VersionStressThread(self, db2, stop, 3, cd, 3, 3, 0.01)
         self.go(stop, cd, t1, t2, t3)
 
         cn.sync()
@@ -435,9 +435,9 @@ class InvalidationTests:
         # at the same time.
 
         cd = {}
-        t1 = LargeUpdatesThread(self, db1, stop, 1, cd, 1, 3, 0.001)
-        t2 = LargeUpdatesThread(self, db2, stop, 2, cd, 2, 3, 0.001)
-        t3 = LargeUpdatesThread(self, db2, stop, 3, cd, 3, 3, 0.001)
+        t1 = LargeUpdatesThread(self, db1, stop, 1, cd, 1, 3, 0.02)
+        t2 = LargeUpdatesThread(self, db2, stop, 2, cd, 2, 3, 0.01)
+        t3 = LargeUpdatesThread(self, db2, stop, 3, cd, 3, 3, 0.01)
         self.go(stop, cd, t1, t2, t3)
 
         cn.sync()

@@ -2,14 +2,14 @@
 #
 # Copyright (c) 2001, 2002 Zope Corporation and Contributors.
 # All Rights Reserved.
-# 
+#
 # This software is subject to the provisions of the Zope Public License,
 # Version 2.0 (ZPL).  A copy of the ZPL should accompany this distribution.
 # THIS SOFTWARE IS PROVIDED "AS IS" AND ANY AND ALL EXPRESS OR IMPLIED
 # WARRANTIES ARE DISCLAIMED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 # WARRANTIES OF TITLE, MERCHANTABILITY, AGAINST INFRINGEMENT, AND FITNESS
 # FOR A PARTICULAR PURPOSE.
-# 
+#
 ##############################################################################
 """Run some tests relevant for storages that support pack()."""
 
@@ -472,13 +472,13 @@ class PackableStorage(PackableStorageBase):
         obj2 = self._newobj()
         oid2 = obj2.getoid()
         obj2.value = 2
-        
+
         # Commit the first revision of each of them
         revid11 = self._dostoreNP(oid1, data=pickle.dumps(obj1),
                                   description="1-1")
         revid22 = self._dostoreNP(oid2, data=pickle.dumps(obj2),
                                   description="2-2")
-        
+
         # remember the time. everything above here will be packed away
         snooze()
         packtime = time.time()
@@ -509,7 +509,7 @@ class ClientThread(threading.Thread):
     def __init__(self, db):
         threading.Thread.__init__(self)
         self.root = db.open().root()
-        
+
     def run(self):
         for j in range(50):
             try:

@@ -18,8 +18,11 @@ import tempfile
 import time
 import unittest
 
+import zLOG
+
 from ThreadedAsync import LoopCallback
 from ZEO.ClientStorage import ClientStorage
+from ZEO.Exceptions import ClientDisconnected
 from ZEO.StorageServer import StorageServer
 from ZEO.tests.ConnectionTests import CommonSetupTearDown
 
@@ -30,7 +33,7 @@ class AuthTest(CommonSetupTearDown):
     __super_getServerConfig = CommonSetupTearDown.getServerConfig
     __super_setUp = CommonSetupTearDown.setUp
     __super_tearDown = CommonSetupTearDown.tearDown
-    
+
     realm = None
 
     def setUp(self):
@@ -74,7 +77,9 @@ class AuthTest(CommonSetupTearDown):
         self.assert_(self._storage._connection)
         self._storage._connection.poll()
         self.assert_(self._storage.is_connected())
-    
+        # Make a call to make sure the mechanism is working
+        self._storage.versions()
+
     def testNOK(self):
         self._storage = self.openClientStorage(wait=0, username="foo",
                                               password="noogie",
@@ -82,6 +87,20 @@ class AuthTest(CommonSetupTearDown):
         self.wait()
         # If the test established a connection, then it failed.
         self.failIf(self._storage._connection)
+
+    def testUnauthenticatedMessage(self):
+        # Test that an unauthenticated message is rejected by the server
+        # if it was sent after the connection was authenticated.
+        # Sleep for 0.2 seconds to give the server some time to start up
+        # seems to be needed before and after creating the storage
+        self._storage = self.openClientStorage(wait=0, username="foo",
+                                              password="bar", realm=self.realm)
+        self.wait()
+        self._storage.versions()
+        # Manually clear the state of the hmac connection
+        self._storage._connection._SizedMessageAsyncConnection__hmac_send = None
+        # Once the client stops using the hmac, it should be disconnected.
+        self.assertRaises(ClientDisconnected, self._storage.versions)
 
 class PlainTextAuth(AuthTest):
     import ZEO.tests.auth_plaintext
@@ -108,4 +127,3 @@ def test_suite():
 
 if __name__ == "__main__":
     unittest.main(defaultTest='test_suite')
-

@@ -96,4 +96,3 @@ def oid_repr(oid):
         return repr(oid)
 
 serial_repr = oid_repr
-

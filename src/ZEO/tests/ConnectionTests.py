@@ -170,7 +170,7 @@ class CommonSetupTearDown(StorageTestBase):
         if ro_svr:
             zconf.read_only = 1
         if self.monitor:
-             zconf.monitor_address = ("", 42000)
+            zconf.monitor_address = ("", 42000)
         if self.invq:
             zconf.invalidation_queue_size = self.invq
         if self.timeout:

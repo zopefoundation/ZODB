@@ -13,7 +13,7 @@
 ##############################################################################
 """ZODB-defined exceptions
 
-$Id: POSException.py,v 1.20 2003/06/10 15:46:31 shane Exp $"""
+$Id: POSException.py,v 1.21 2003/10/02 18:17:19 jeremy Exp $"""
 
 from types import StringType, DictType
 from ZODB.utils import oid_repr, serial_repr
@@ -173,7 +173,7 @@ class UndoError(POSError):
 
 class MultipleUndoErrors(UndoError):
     """Several undo errors occured during a single transaction."""
-    
+
     def __init__(self, errs):
         # provide a reason and oid for clients that only look at that
         UndoError.__init__(self, *errs[0])

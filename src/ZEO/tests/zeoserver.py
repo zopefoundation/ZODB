@@ -122,8 +122,11 @@ class Suicide(threading.Thread):
         self._adminaddr = addr
 
     def run(self):
-        # If this process doesn't exit in 300 seconds, commit suicide
-        time.sleep(300)
+        # If this process doesn't exit in 330 seconds, commit suicide.
+        # The client threads in the ConcurrentUpdate tests will run for
+        # as long as 300 seconds.  Set this timeout to 330 to minimize
+        # chance that the server gives up before the clients.
+        time.sleep(330)
         log("zeoserver", "suicide thread invoking shutdown")
         from ZEO.tests.forker import shutdown_zeo_server
         # XXX If the -k option was given to zeoserver, then the process will
@@ -134,7 +137,7 @@ class Suicide(threading.Thread):
 def main():
     label = 'zeoserver:%d' % os.getpid()
     log(label, 'starting')
-    
+
     # We don't do much sanity checking of the arguments, since if we get it
     # wrong, it's a bug in the test suite.
     keep = 0
@@ -150,11 +153,11 @@ def main():
     zo = ZEOOptions()
     zo.realize(["-C", configfile])
     zeo_port = int(zo.address[1])
-            
+
     # XXX a hack
     if zo.auth_protocol == "plaintext":
         import ZEO.tests.auth_plaintext
-        
+
     # Open the config file and let ZConfig parse the data there.  Then remove
     # the config file, otherwise we'll leave turds.
     # The rest of the args are hostname, portnum
@@ -186,7 +189,7 @@ def main():
         storage.close()
         cleanup(storage)
         sys.exit(2)
-        
+
     t.register_socket(server.dispatcher)
     # Create daemon suicide thread
     d = Suicide(test_addr)

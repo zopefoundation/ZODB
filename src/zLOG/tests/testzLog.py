@@ -17,6 +17,7 @@ import sys
 import tempfile
 import unittest
 import zLOG
+import logging
 
 severity_string = {
     -300: 'TRACE',
@@ -50,13 +51,24 @@ class StupidLogTest(unittest.TestCase):
         self.wipeEnvironment()
         self.path = tempfile.mktemp()
         self._severity = 0
+        # Windows cannot remove a file that's open.  The logging code
+        # keeps the log file open, and I can't find an advertised API
+        # to tell the logger to close a log file.  So here we cheat:
+        # tearDown() will close and remove all the handlers that pop
+        # into existence after setUp() runs.  This breaks into internals,
+        # but I couldn't find a sane way to do it.
+        self.handlers = logging._handlers.keys()  # capture current handlers
 
     def tearDown(self):
-        try:
-            os.remove(self.path)
-        except os.error:
-            pass
+        # Close and remove all the handlers that came into existence
+        # since setUp ran.
+        for h in logging._handlers.keys():
+            if h not in self.handlers:
+                h.close()
+                del logging._handlers[h]
+        os.remove(self.path)
         self.wipeEnvironment()
+        zLOG.initialize()
 
     def setLog(self, severity=0):
         os.environ['%s_LOG_FILE' % self.prefix] = self.path
@@ -111,14 +123,20 @@ class StupidLogTest(unittest.TestCase):
         self.setLog()
         zLOG.LOG("basic", zLOG.INFO, "summary")
         f = self.getLogFile()
-        self.verifyEntry(f, subsys="basic", summary="summary")
+        try:
+            self.verifyEntry(f, subsys="basic", summary="summary")
+        finally:
+            f.close()
 
     def checkDetail(self):
         self.setLog()
         zLOG.LOG("basic", zLOG.INFO, "xxx", "this is a detail")
 
         f = self.getLogFile()
-        self.verifyEntry(f, subsys="basic", detail="detail")
+        try:
+            self.verifyEntry(f, subsys="basic", detail="detail")
+        finally:
+            f.close()
 
     def checkError(self):
         self.setLog()
@@ -131,9 +149,13 @@ class StupidLogTest(unittest.TestCase):
         zLOG.LOG("basic", zLOG.ERROR, "raised exception", error=err)
 
         f = self.getLogFile()
-        self.verifyEntry(f, subsys="basic", summary="summary")
-        self.verifyEntry(f, subsys="basic", severity=zLOG.ERROR,
-                         error=err)
+        try:
+            self.verifyEntry(f, subsys="basic", summary="summary")
+            self.verifyEntry(f, subsys="basic", severity=zLOG.ERROR,
+                             error=err)
+        finally:
+            f.close()
+
 
 class EventLogTest(StupidLogTest):
     """ Test alternate envvars EVENT_LOG_FILE and EVENT_LOG_SEVERITY """

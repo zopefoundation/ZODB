@@ -28,7 +28,7 @@ DATA = 3
 ERROR = 4
 
 class DebugManagedServerConnection(ManagedServerConnection):
-    
+
     def __init__(self, sock, addr, obj, mgr):
         # mgr is the DebugServer instance
         self.mgr = mgr
@@ -67,7 +67,7 @@ class DebugServer(StorageServer):
 
     ZEOStorageClass = DebugZEOStorage
     ManagedServerConnectionClass = DebugManagerConnection
-    
+
     def __init__(self, *args, **kwargs):
         StorageServer.__init__(*args, **kwargs)
         self._setup_record(kwargs["record"])

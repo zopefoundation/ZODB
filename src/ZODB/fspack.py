@@ -192,7 +192,7 @@ class FileStorageFormatter:
             if dh.plen:
                 self.fail(pos, "data record has back pointer and data")
 
-def DataHeaderFromString(s):            
+def DataHeaderFromString(s):
     return DataHeader(*struct.unpack(DATA_HDR, s))
 
 class DataHeader:
@@ -338,7 +338,7 @@ class DataCopier(FileStorageFormatter):
                 return pos
             pos += h.recordlen()
         return 0
-    
+
     def _restore_pnv(self, oid, prev, version, bp):
         # Find a valid pnv (previous non-version) pointer for this version.
 
@@ -415,7 +415,7 @@ class DataCopier(FileStorageFormatter):
                 self._tfile.write(z64)
         else:
             self._tfile.write(data)
-            
+
 class GC(FileStorageFormatter):
 
     def __init__(self, file, eof, packtime):
@@ -437,7 +437,7 @@ class GC(FileStorageFormatter):
         # second is a dictionary mapping objects to lists of
         # positions; it is used to handle the same number of objects
         # for which we must keep multiple revisions.
-        
+
         self.reachable = fsIndex()
         self.reach_ex = {}
 
@@ -460,7 +460,7 @@ class GC(FileStorageFormatter):
         self.findReachableFromFuture()
         # These mappings are no longer needed and may consume a lot
         # of space.
-        del self.oid2verpos 
+        del self.oid2verpos
         del self.oid2curpos
 
     def buildPackIndex(self):
@@ -528,7 +528,7 @@ class GC(FileStorageFormatter):
         # non-current revision could refer to objects that were
         # otherwise unreachable at the packtime.
         extra_roots = []
-        
+
         pos = self.packpos
         while pos < self.eof:
             th = self._read_txn_header(pos)
@@ -558,7 +558,7 @@ class GC(FileStorageFormatter):
                             extra_roots.append(dh.pnv)
                     else:
                         self.reachable[dh.oid] = dh.back
-                        
+
                 pos += dh.recordlen()
 
             tlen = self._read_num(pos)
@@ -631,7 +631,7 @@ class FileStoragePacker(FileStorageFormatter):
         self._file.seek(0, 2)
         self.file_end = self._file.tell()
         self._file.seek(0)
-        
+
         self.gc = GC(self._file, self.file_end, self._stop)
 
         # The packer needs to acquire the parent's commit lock
@@ -672,7 +672,7 @@ class FileStoragePacker(FileStorageFormatter):
         # Txn and data records contain pointers to previous records.
         # Because these pointers are stored as file offsets, they
         # must be updated when we copy data.
-        
+
         # XXX Need to add sanity checking to pack
 
         self.gc.findReachable()
@@ -730,7 +730,7 @@ class FileStoragePacker(FileStorageFormatter):
                 self._tfile.seek(new_pos - 8)
                 self._tfile.write(p64(tlen))
 
-            
+
             tlen = self._read_num(pos)
             if tlen != th.tlen:
                 self.fail(pos, "redundant transaction length does not "
@@ -757,7 +757,7 @@ class FileStoragePacker(FileStorageFormatter):
 
         Returns position of txn header in output file and position
         of next record in the input file.
-        
+
         If any data records are copied, also write txn header (th).
         """
         copy = 0
@@ -878,4 +878,3 @@ class FileStoragePacker(FileStorageFormatter):
         if self._lock_counter % 20 == 0:
             self._commit_lock_acquire()
         return ipos
-

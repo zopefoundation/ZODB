@@ -2,14 +2,14 @@
 #
 # Copyright (c) 2001, 2002 Zope Corporation and Contributors.
 # All Rights Reserved.
-# 
+#
 # This software is subject to the provisions of the Zope Public License,
 # Version 2.0 (ZPL).  A copy of the ZPL should accompany this distribution.
 # THIS SOFTWARE IS PROVIDED "AS IS" AND ANY AND ALL EXPRESS OR IMPLIED
 # WARRANTIES ARE DISCLAIMED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 # WARRANTIES OF TITLE, MERCHANTABILITY, AGAINST INFRINGEMENT, AND FITNESS
 # FOR A PARTICULAR PURPOSE.
-# 
+#
 ##############################################################################
 import os
 import time
@@ -57,14 +57,14 @@ class DBTests(unittest.TestCase):
         # Test that we can remove a version pool
 
         # This is white box because we check some internal data structures
-        
+
         self.dowork()
         self.dowork('v2')
         c1 = self.db.open('v1')
         c1.close() # return to pool
         c12 = self.db.open('v1')
         c12.close() # return to pool
-        self.assert_(c1 is c12) # should be same 
+        self.assert_(c1 is c12) # should be same
 
         pools, pooll = self.db._pools
 
@@ -78,7 +78,7 @@ class DBTests(unittest.TestCase):
 
         c12 = self.db.open('v1')
         c12.close() # return to pool
-        self.assert_(c1 is not c12) # should be different 
+        self.assert_(c1 is not c12) # should be different
 
         self.assertEqual(len(pools), 3)
         self.assertEqual(len(pooll), 3)
@@ -95,13 +95,13 @@ class DBTests(unittest.TestCase):
         # Test that we can remove a version pool
 
         # This is white box because we check some internal data structures
-        
+
         self.dowork()
         self.dowork('v2')
         c1 = self.db.open('v1')
         c1.close() # return to pool
         c12 = self.db.open('v1')
-        self.assert_(c1 is c12) # should be same 
+        self.assert_(c1 is c12) # should be same
 
         pools, pooll = self.db._pools
 
@@ -120,7 +120,7 @@ class DBTests(unittest.TestCase):
 
         c12 = self.db.open('v1')
         c12.close() # return to pool
-        self.assert_(c1 is not c12) # should be different 
+        self.assert_(c1 is not c12) # should be different
 
         self.assertEqual(len(pools), 3)
         self.assertEqual(len(pooll), 3)

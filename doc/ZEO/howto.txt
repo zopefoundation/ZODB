@@ -207,13 +207,6 @@ then this command will install the new ZEO and ZODB:
 
 The install command should create a /home/zope/lib/python/ZEO directoy.
 
-Simple configuration
---------------------
-
-mkzeoinst.py
-
-Or, do it step-by-step.
-
 Configuring server
 ------------------
 
@@ -407,13 +400,9 @@ Running the ZEO server as a daemon
 
 In an operational setting, you will want to run the ZEO server a
 daemon process that is restarted when it dies.  The zdaemon package
-provides two tools for running daemons: zdrun.py and zdctl.py.
-The document "Using zdctl and zdrun to manage server processes"
-explains how to use these scripts to manage daemons.
-
-XXX example of how to use zdrun
-
-XXX mkzeoinst.py docs should probably go here
+provides two tools for running daemons: zdrun.py and zdctl.py.  The
+document "Using zdctl and zdrun to manage server processes"
+(Doc/zdctl.txt) explains how to use these scripts to manage daemons.
 
 Rotating log files
 ~~~~~~~~~~~~~~~~~~
@@ -436,10 +425,6 @@ manages a ZEO servers password database.
 
 Diagnosing problems
 -------------------
-
-How to use the debug logs.
-
-Common gotchas.
 
 If an exception occurs on the server, the server will log a traceback
 and send an exception to the client.  The traceback on the client will

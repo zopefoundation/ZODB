@@ -132,7 +132,8 @@ class GenericTests(
         self._servers = [adminaddr]
         self._conf_path = path
         self._storage = ClientStorage(zport, '1', cache_size=20000000,
-                                      min_disconnect_poll=0.5, wait=1)
+                                      min_disconnect_poll=0.5, wait=1,
+                                      wait_timeout=60)
         self._storage.registerDB(DummyDB(), None)
 
     def tearDown(self):

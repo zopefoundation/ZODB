@@ -56,6 +56,7 @@ class ZODBConfigTest(ConfigTestBase):
             """)
 
     def test_file_config1(self):
+        import ZODB.FileStorage
         path = tempfile.mktemp()
         self._test(
             """
@@ -65,9 +66,10 @@ class ZODBConfigTest(ConfigTestBase):
               </filestorage>
             </zodb>
             """ % path)
-        os.unlink(path)
+        ZODB.FileStorage.cleanup(path)
 
     def test_file_config2(self):
+        import ZODB.FileStorage
         path = tempfile.mktemp()
         cfg = """
         <zodb>
@@ -79,6 +81,7 @@ class ZODBConfigTest(ConfigTestBase):
         </zodb>
         """ % path
         self.assertRaises(ReadOnlyError, self._test, cfg)
+        ZODB.FileStorage.cleanup(path)
 
     def test_zeo_config(self):
         # We're looking for a port that doesn't exist so a connection attempt

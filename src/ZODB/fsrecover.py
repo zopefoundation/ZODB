@@ -227,7 +227,7 @@ def main():
     except getopt.error:
         die()
         print __doc__ % argv[0]
-        
+
     force = partial = verbose = 0
     pack = None
     for opt, v in opts:
@@ -321,7 +321,7 @@ def recover(inp, outp, verbose=0, partial=0, force=0, pack=0):
                         l = "bp"
                     else:
                         l = len(r.data)
-                        
+
                     print "%7d %s %s" % (u64(r.oid), l, r.version)
                 s = ofs.restore(r.oid, r.serial, r.data, r.version,
                                 r.data_txn, txn)
@@ -372,4 +372,3 @@ def recover(inp, outp, verbose=0, partial=0, force=0, pack=0):
 
 if __name__ == "__main__":
     main()
-

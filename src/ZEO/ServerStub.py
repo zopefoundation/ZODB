@@ -32,9 +32,13 @@ class StorageServer:
         zrpc.connection.Connection class.
         """
         self.rpc = rpc
-        if self.rpc.peer_protocol_version == 'Z200':
+        # Wait until we know what version the other side is using.
+        while rpc.peer_protocol_version is None:
+            rpc.pending()
+        if rpc.peer_protocol_version == 'Z200':
             self.lastTransaction = lambda: None
             self.getInvalidations = lambda tid: None
+            self.getAuthProtocol = lambda: None
 
     def extensionMethod(self, name):
         return ExtensionMethodWrapper(self.rpc, name).call
@@ -47,7 +51,7 @@ class StorageServer:
 
     def getAuthProtocol(self):
         return self.rpc.call('getAuthProtocol')
-    
+
     def lastTransaction(self):
         # Not in protocol version 2.0.0; see __init__()
         return self.rpc.call('lastTransaction')
@@ -150,6 +154,6 @@ class ExtensionMethodWrapper:
     def __init__(self, rpc, name):
         self.rpc = rpc
         self.name = name
-        
+
     def call(self, *a, **kwa):
         return self.rpc.call(self.name, *a, **kwa)

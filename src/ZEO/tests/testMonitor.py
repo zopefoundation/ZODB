@@ -13,7 +13,7 @@
 ##############################################################################
 """Test that the monitor produce sensible results.
 
-$Id: testMonitor.py,v 1.6 2003/05/30 19:20:56 jeremy Exp $
+$Id: testMonitor.py,v 1.7 2003/10/02 18:17:21 jeremy Exp $
 """
 
 import socket
@@ -70,7 +70,7 @@ class MonitorTests(CommonSetupTearDown):
             s.parse("\n".join(sect[1:]))
 
         return d
-        
+
     def getConfig(self, path, create, read_only):
         return """<mappingstorage 1/>"""
 

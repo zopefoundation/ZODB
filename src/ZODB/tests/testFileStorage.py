@@ -2,14 +2,14 @@
 #
 # Copyright (c) 2001, 2002 Zope Corporation and Contributors.
 # All Rights Reserved.
-# 
+#
 # This software is subject to the provisions of the Zope Public License,
 # Version 2.0 (ZPL).  A copy of the ZPL should accompany this distribution.
 # THIS SOFTWARE IS PROVIDED "AS IS" AND ANY AND ALL EXPRESS OR IMPLIED
 # WARRANTIES ARE DISCLAIMED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 # WARRANTIES OF TITLE, MERCHANTABILITY, AGAINST INFRINGEMENT, AND FITNESS
 # FOR A PARTICULAR PURPOSE.
-# 
+#
 ##############################################################################
 from __future__ import nested_scopes
 
@@ -92,21 +92,21 @@ class FileStorageTests(
 
 
         from ZODB.fsIndex import fsIndex
-        
+
         # Hack FileStorage to create dictionary indexes
         self._storage = OldFileStorage('FileStorageTests.fs')
 
         self.assertEqual(type(self._storage._index), type({}))
         for i in range(10):
             self._dostore()
-            
+
         # Should save the index
         self._storage.close()
 
         self._storage = ZODB.FileStorage.FileStorage(
             'FileStorageTests.fs', read_only=1)
         self.assertEqual(type(self._storage._index), type({}))
-    
+
     def check_conversion_to_fsIndex(self):
 
         self.tearDown()
@@ -117,16 +117,16 @@ class FileStorageTests(
 
 
         from ZODB.fsIndex import fsIndex
-        
+
         # Hack FileStorage to create dictionary indexes
         self._storage = OldFileStorage('FileStorageTests.fs')
 
         self.assertEqual(type(self._storage._index), type({}))
         for i in range(10):
             self._dostore()
-            
+
         oldindex = self._storage._index.copy()
-            
+
         # Should save the index
         self._storage.close()
 
@@ -151,7 +151,7 @@ class FileStorageTests(
 
 
     # This would make the unit tests too slow
-    # check_save_after_load_that_worked_hard(self)        
+    # check_save_after_load_that_worked_hard(self)
 
     def check_periodic_save_index(self):
 

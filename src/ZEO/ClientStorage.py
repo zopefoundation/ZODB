@@ -99,7 +99,7 @@ class ClientStorage(object):
                  name='', client=None, debug=0, var=None,
                  min_disconnect_poll=5, max_disconnect_poll=300,
                  wait_for_server_on_startup=None, # deprecated alias for wait
-                 wait=None, # defaults to 1
+                 wait=None, wait_timeout=None,
                  read_only=0, read_only_fallback=0,
                  username='', password='', realm=None):
         """ClientStorage constructor.
@@ -151,6 +151,9 @@ class ClientStorage(object):
 
         wait -- A flag indicating whether to wait until a connection
             with a server is made, defaulting to true.
+
+        wait_timeout -- Maximum time to wait for a connection before
+            giving up.  Only meaningful if wait is True.
 
         read_only -- A flag indicating whether this should be a
             read-only storage, defaulting to false (i.e. writing is
@@ -302,7 +305,7 @@ class ClientStorage(object):
                                                     tmax=max_disconnect_poll)
 
         if wait:
-            self._wait()
+            self._wait(wait_timeout)
         else:
             # attempt_connect() will make an attempt that doesn't block
             # "too long," for a very vague notion of too long.  If that
@@ -313,7 +316,9 @@ class ClientStorage(object):
             if not self._ready.isSet():
                 self._cache.open()
 
-    def _wait(self):
+    def _wait(self, timeout=None):
+        if timeout is not None:
+            deadline = time.time() + timeout
         # Wait for a connection to be established.
         self._rpc_mgr.connect(sync=1)
         # When a synchronous connect() call returns, there is
@@ -325,6 +330,9 @@ class ClientStorage(object):
             while 1:
                 self._ready.wait(30)
                 if self._ready.isSet():
+                    break
+                if timeout and time.time() > deadline:
+                    log2(PROBLEM, "Timed out waiting for connection")
                     break
                 log2(INFO, "Waiting for cache verification to finish")
         else:
@@ -434,8 +442,10 @@ class ClientStorage(object):
         auth = stub.getAuthProtocol()
         log2(INFO, "Server authentication protocol %r" % auth)
         if auth:
-            if self.doAuth(auth, stub):
+            skey = self.doAuth(auth, stub)
+            if skey:
                 log2(INFO, "Client authentication successful")
+                conn.setSessionKey(skey)
             else:
                 log2(ERROR, "Authentication failed")
                 raise AuthError, "Authentication failed"

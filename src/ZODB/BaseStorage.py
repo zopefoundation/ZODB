@@ -13,7 +13,7 @@
 ##############################################################################
 """Handy standard storage machinery
 
-$Id: BaseStorage.py,v 1.35 2003/09/15 16:29:15 jeremy Exp $
+$Id: BaseStorage.py,v 1.36 2003/10/02 18:17:19 jeremy Exp $
 """
 import cPickle
 import time

@@ -33,7 +33,7 @@ class Base:
     """ Tests common to all types: sets, buckets, and BTrees """
 
     db = None
-    
+
     def tearDown(self):
         self.t = None
         del self.t

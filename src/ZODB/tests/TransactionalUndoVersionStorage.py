@@ -2,14 +2,14 @@
 #
 # Copyright (c) 2001, 2002 Zope Corporation and Contributors.
 # All Rights Reserved.
-# 
+#
 # This software is subject to the provisions of the Zope Public License,
 # Version 2.0 (ZPL).  A copy of the ZPL should accompany this distribution.
 # THIS SOFTWARE IS PROVIDED "AS IS" AND ANY AND ALL EXPRESS OR IMPLIED
 # WARRANTIES ARE DISCLAIMED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 # WARRANTIES OF TITLE, MERCHANTABILITY, AGAINST INFRINGEMENT, AND FITNESS
 # FOR A PARTICULAR PURPOSE.
-# 
+#
 ##############################################################################
 from __future__ import nested_scopes
 
@@ -60,7 +60,7 @@ class TransactionalUndoVersionStorage:
             self.assertEqual(zodb_unpickle(data), MinPO(versiondata))
             data, revid = self._storage.load(oid, '')
             self.assertEqual(zodb_unpickle(data), MinPO(nonversiondata))
-        
+
         oid = self._storage.new_oid()
         version = 'one'
         revid_a = self._dostore(oid, data=MinPO(91))
@@ -68,17 +68,17 @@ class TransactionalUndoVersionStorage:
                                 version=version)
         revid_c = self._dostore(oid, revid=revid_b, data=MinPO(93),
                                 version=version)
-        
+
         info = self._storage.undoInfo()
         self._undo(info[0]['id'], oid)
-        
+
         data, revid = self._storage.load(oid, '')
         eq(revid, revid_a)
         eq(zodb_unpickle(data), MinPO(91))
         data, revid = self._storage.load(oid, version)
         unless(revid > revid_b and revid > revid_c)
         eq(zodb_unpickle(data), MinPO(92))
-        
+
         # Now commit the version...
         t = Transaction()
         self._storage.tpc_begin(t)
@@ -89,7 +89,7 @@ class TransactionalUndoVersionStorage:
         eq(oids[0], oid)
 
         check_objects(92, 92)
-        
+
         # ...and undo the commit
         info = self._storage.undoInfo()
         self._undo(info[0]['id'], oid)
@@ -101,11 +101,11 @@ class TransactionalUndoVersionStorage:
         assert oids[0] == oid
 
         check_objects(91, 91)
-        
+
         # Now undo the abort
         info=self._storage.undoInfo()
         self._undo(info[0]['id'], oid)
-        
+
         check_objects(91, 92)
 
     def checkUndoCommitVersion(self):

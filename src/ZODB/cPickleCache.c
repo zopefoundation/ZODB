@@ -90,7 +90,7 @@ process must skip such objects, rather than deactivating them.
 static char cPickleCache_doc_string[] =
 "Defines the PickleCache used by ZODB Connection objects.\n"
 "\n"
-"$Id: cPickleCache.c,v 1.85 2003/05/30 19:20:55 jeremy Exp $\n";
+"$Id: cPickleCache.c,v 1.86 2003/10/02 18:17:19 jeremy Exp $\n";
 
 #define ASSIGN(V,E) {PyObject *__e; __e=(E); Py_XDECREF(V); (V)=__e;}
 #define UNLESS(E) if(!(E))
@@ -499,6 +499,17 @@ cc_clear(ccobject *self, PyObject *args)
 	Py_DECREF(o);
     }
     self->ring_lock = 0;
+
+    /* Free two references to the Connection, which can't be discovered
+       via garbage collection.
+    */
+
+    Py_XDECREF(self->setklassstate);
+    self->setklassstate = NULL;
+
+    Py_XDECREF(self->jar);
+    self->jar = NULL;
+
     Py_INCREF(Py_None);
     return Py_None;
 }

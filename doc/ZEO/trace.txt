@@ -1,5 +1,5 @@
-Client Cache Tracing
-====================
+ZEO Client Cache Tracing
+========================
 
 An important question for ZEO users is: how large should the ZEO
 client cache be?  ZEO 2 (as of ZEO 2.0b2) has a new feature that lets

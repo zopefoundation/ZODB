@@ -34,7 +34,7 @@ def transact(f, note=None, retries=5):
     """
 
     # XXX deal with ZEO disconnected errors?
-    
+
     def g(*args, **kwargs):
         n = retries
         while n:

@@ -13,7 +13,7 @@
 ##############################################################################
 """Transaction management
 
-$Id: Transaction.py,v 1.49 2003/06/10 15:46:31 shane Exp $
+$Id: Transaction.py,v 1.50 2003/10/02 18:17:19 jeremy Exp $
 """
 
 import time, sys, struct, POSException
@@ -43,7 +43,7 @@ def jar_cmp(j1, j2):
     except:
         LOG("TM", WARNING, "jar missing sortKey() method: %s" % j2)
         k2 = id(j2)
-        
+
     return cmp(k1, k2)
 
 class Transaction:
@@ -271,12 +271,12 @@ class Transaction:
 
     def _get_jars(self, objects, subtransaction):
         # Returns a list of jars for this transaction.
-        
+
         # Find all the jars and sort them in a globally consistent order.
         # objects is a list of persistent objects and jars.
         # If this is a subtransaction and a jar is not subtransaction aware,
         # it's object gets delayed until the parent transaction commits.
-        
+
         d = {}
         for o in objects:
             jar = getattr(o, '_p_jar', o)
@@ -298,7 +298,7 @@ class Transaction:
                     if self._non_st_objects is None:
                         self._non_st_objects = []
                     self._non_st_objects.append(o)
-                
+
         jars = d.values()
         jars.sort(jar_cmp)
 
@@ -406,7 +406,7 @@ class Transaction:
 
         # After the tpc_abort(), call abort_sub() on all the
         # subtrans-aware jars to *really* abort the subtransaction.
-        
+
         # Example: For Connection(), the tpc_abort() will abort the
         # subtransaction TmpStore() and abort_sub() will remove the
         # TmpStore.
