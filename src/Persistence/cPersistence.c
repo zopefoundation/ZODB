@@ -1,6 +1,6 @@
 /*
 
-  $Id: cPersistence.c,v 1.1 1997/02/14 20:24:55 jim Exp $
+  $Id: cPersistence.c,v 1.2 1997/02/21 20:49:09 jim Exp $
 
   C Persistence Module
 
@@ -58,12 +58,18 @@
   Full description
 
   $Log: cPersistence.c,v $
+  Revision 1.2  1997/02/21 20:49:09  jim
+  Added logic to treat attributes starting with _v_ as volatile.
+  Changes in these attributes to not make the object thing it's been
+  saved and these attributes are not saved by the default __getstate__
+  method.
+
   Revision 1.1  1997/02/14 20:24:55  jim
   *** empty log message ***
 
 
 */
-static char *what_string = "$Id: cPersistence.c,v 1.1 1997/02/14 20:24:55 jim Exp $";
+static char *what_string = "$Id: cPersistence.c,v 1.2 1997/02/21 20:49:09 jim Exp $";
 
 #include <time.h>
 #include "Python.h"
@@ -249,7 +255,7 @@ Per__getstate__(self,args)
      Perobject *self;
      PyObject *args;
 {
-  PyObject *__dict__;
+  PyObject *__dict__, *d=0;
 
   UNLESS(PyArg_Parse(args, "")) return NULL;
 
@@ -269,14 +275,32 @@ Per__getstate__(self,args)
 
   UNLESS(__dict__=PyObject_GetAttr((PyObject*)self,py___dict__))
     return NULL;
-  
-  if(! PyObject_IsTrue(__dict__))
+
+  if(PyDict_Check(__dict__))
     {
-      Py_DECREF(__dict__);
-      __dict__=Py_None;
-      Py_INCREF(__dict__);
-    }
+      PyObject *k, *v;
+      int pos;
+      char *ck;
+      
+      for(pos=0; PyDict_Next(__dict__, &pos, &k, &v); )
+	{
+	  if(PyString_Check(k) && (ck=PyString_AsString(k)) &&
+	     (*ck=='_' && ck[1]=='v' && ck[2]=='_'))
+	    {
+	      UNLESS(d=PyDict_New()) goto err;
+	      for(pos=0; PyDict_Next(__dict__, &pos, &k, &v); )
+		UNLESS(PyString_Check(k) && (ck=PyString_AsString(k)) &&
+		       (*ck=='_' && ck[1]=='v' && ck[2]=='_'))
+		  if(PyDict_SetItem(d,k,v) < 0) goto err;
+	      Py_DECREF(__dict__);
+	      return d;
+	    }
+	} 
+    }    
   return __dict__;
+err:
+  Py_DECREF(__dict__);
+  Py_XDECREF(d);
 }  
 
 static PyObject *
@@ -438,9 +462,10 @@ Per_getattro(Perobject *self, PyObject *name)
 static int
 Per_setattro(Perobject *self, PyObject *oname, PyObject *v)
 {
-  char *name;
+  char *name="";
 
-  UNLESS(oname && (name=PyString_AsString(oname))) return -1;
+  UNLESS(oname) return -1;
+  if(PyString_Check(oname)) UNLESS(name=PyString_AsString(oname)) return -1;
 	
   if(*name=='_' && name[1]=='p' && name[2]=='_')
     {
@@ -488,7 +513,8 @@ Per_setattro(Perobject *self, PyObject *oname, PyObject *v)
       /* Record access times */
       self->atime=time(NULL);
 
-      if(self->state != CHANGED_STATE && self->jar)
+      if(! (*name=='_' && name[1]=='v' && name[2]=='_')
+	 && self->state != CHANGED_STATE && self->jar)
 	{
 	  UNLESS(r=callmethod1((PyObject*)self,py___changed__,py_one))
 	    return -1;
