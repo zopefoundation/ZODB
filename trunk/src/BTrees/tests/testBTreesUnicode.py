@@ -1,6 +1,5 @@
-import os,sys,unittest
+import unittest
 from BTrees.OOBTree import OOBTree
-
 
 class TestBTreesUnicode(unittest.TestCase):
     """ test unicode"""
@@ -19,24 +18,23 @@ class TestBTreesUnicode(unittest.TestCase):
                 (unicode('dreit\xe4gigen','latin1'), 284708391)]
 
         self.tree = OOBTree()
-        for k,v in self.data:   self.tree[k]=v
+        for k,v in self.data:
+            self.tree[k]=v
 
 
     def test1(self):
         """ check every item of the tree """
 
-        for k,v in self.data:
-            assert self.tree[k]==v
+        for k, v in self.data:
+            self.assertEqual(self.tree[k], v)
 
     def test2(self):
         """ try to access unicode keys in tree"""
 
-        assert self.data[-1][0]==self.s
-        assert self.tree[self.data[-1][0]] == self.data[-1][1] 
-        assert self.tree[self.s] == self.data[-1][1] 
-
+        self.assertEqual(self.data[-1][0], self.s)
+        self.assertEqual(self.tree[self.data[-1][0]], self.data[-1][1])
+        self.assertEqual(self.tree[self.s], self.data[-1][1])
 
 
 def test_suite():
-    return unittest.makeSuite(TestBTreesUnicode,'test')
-
+    return unittest.makeSuite(TestBTreesUnicode, 'test')
