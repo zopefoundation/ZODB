@@ -99,16 +99,16 @@ class IConnection(Interface):
     Groups of methods:
 
         User Methods:
-            root, get, add, close, db, sync, isReadOnly, cacheGC, cacheFullSweep, 
+            root, get, add, close, db, sync, isReadOnly, cacheGC, cacheFullSweep,
             cacheMinimize, getVersion, modifiedInVersion
 
-        Experimental Methods: 
+        Experimental Methods:
             onCloseCallbacks
 
         Database Invalidation Methods:
             invalidate
 
-        Other Methods: exchange, getDebugInfo, setDebugInfo, 
+        Other Methods: exchange, getDebugInfo, setDebugInfo,
             getTransferCounts
     """
 
@@ -121,14 +121,14 @@ class IConnection(Interface):
         instance that it is connected to.
 
         Parameters:
-        version: the "version" that all changes will be made in, defaults 
+        version: the "version" that all changes will be made in, defaults
             to no version.
-        cache_size: the target size of the in-memory object cache, measured 
+        cache_size: the target size of the in-memory object cache, measured
             in objects.
         mvcc: boolean indicating whether MVCC is enabled
-        txn_mgr: transaction manager to use. None means used the default 
+        txn_mgr: transaction manager to use. None means used the default
             transaction manager.
-        synch: boolean indicating whether Connection should register for 
+        synch: boolean indicating whether Connection should register for
             afterCompletion() calls.
         """
 
@@ -172,8 +172,8 @@ class IConnection(Interface):
         Parameters:
         oid: an object id
 
-        Raises KeyError if oid does not exist.  
-        
+        Raises KeyError if oid does not exist.
+
             It is possible that an object does not exist as of the current
             transaction, but existed in the past.  It may even exist again in
             the future, if the transaction that removed it is undone.
@@ -281,15 +281,15 @@ class IConnection(Interface):
         This includes aborting the current transaction, getting a fresh and
         consistent view of the data (synchronizing with the storage if possible)
         and call cacheGC() for this connection.
-        
+
         This method was especially useful in ZODB 3.2 to better support
-        read-only connections that were affected by a couple of problems.  
+        read-only connections that were affected by a couple of problems.
         """
 
     # Debug information
 
     def getDebugInfo():
-        """Returns a tuple with different items for debugging the connection. 
+        """Returns a tuple with different items for debugging the connection.
 
         Debug information can be added to a connection by using setDebugInfo.
         """
@@ -353,88 +353,88 @@ class IStorage(Interface):
     """
 
     def load(oid, version):
-        """XXX"""
+        """TODO"""
 
     def close():
-        """XXX"""
-        
+        """TODO"""
+
     def cleanup():
-        """XXX"""
-        
+        """TODO"""
+
     def lastSerial():
-        """XXX"""
-        
+        """TODO"""
+
     def lastTransaction():
-        """XXX"""
+        """TODO"""
 
     def lastTid(oid):
         """Return last serialno committed for object oid."""
 
     def loadSerial(oid, serial):
-        """XXX"""
-        
+        """TODO"""
+
     def loadBefore(oid, tid):
-        """XXX"""
-        
+        """TODO"""
+
     def iterator(start=None, stop=None):
-        """XXX"""
-    
+        """TODO"""
+
     def sortKey():
-        """XXX"""
+        """TODO"""
 
     def getName():
-        """XXX"""
-        
+        """TODO"""
+
     def getSize():
-        """XXX"""
+        """TODO"""
 
     def history(oid, version, length=1, filter=None):
-        """XXX"""
-    
+        """TODO"""
+
     def new_oid(last=None):
-        """XXX"""
-        
+        """TODO"""
+
     def set_max_oid(possible_new_max_oid):
-        """XXX"""
+        """TODO"""
 
     def registerDB(db, limit):
-        """XXX"""
-    
+        """TODO"""
+
     def isReadOnly():
-        """XXX"""
-    
+        """TODO"""
+
     def supportsUndo():
-        """XXX"""
-    
+        """TODO"""
+
     def supportsVersions():
-        """XXX"""
+        """TODO"""
 
     def tpc_abort(transaction):
-        """XXX"""
-        
+        """TODO"""
+
     def tpc_begin(transaction):
-        """XXX"""
+        """TODO"""
 
     def tpc_vote(transaction):
-        """XXX"""
+        """TODO"""
 
     def tpc_finish(transaction, f=None):
-        """XXX"""
+        """TODO"""
 
     def getSerial(oid):
-        """XXX"""
-    
+        """TODO"""
+
     def loadSerial(oid, serial):
-        """XXX"""
+        """TODO"""
 
     def loadBefore(oid, tid):
-        """XXX"""
+        """TODO"""
 
     def getExtensionMethods():
-        """XXX"""
+        """TODO"""
 
     def copyTransactionsFrom():
-        """XXX"""
+        """TODO"""
 
     def store(oid, oldserial, data, version, transaction):
         """
@@ -445,31 +445,31 @@ class IStorage(Interface):
 class IUndoableStorage(IStorage):
 
     def undo(transaction_id, txn):
-        """XXX"""
-    
+        """TODO"""
+
     def undoInfo():
-        """XXX"""
-    
+        """TODO"""
+
     def undoLog(first, last, filter=None):
-        """XXX"""
-    
+        """TODO"""
+
     def pack(t, referencesf):
-        """XXX"""
+        """TODO"""
 
 class IVersioningStorage(IStorage):
 
     def abortVersion(src, transaction):
-        """XXX"""
-    
+        """TODO"""
+
     def commitVersion(src, dest, transaction):
-        """XXX"""
-    
+        """TODO"""
+
     def modifiedInVersion(oid):
-        """XXX"""
-    
+        """TODO"""
+
     def versionEmpty(version):
-        """XXX"""
-    
+        """TODO"""
+
     def versions(max=None):
-        """XXX"""
+        """TODO"""
 
