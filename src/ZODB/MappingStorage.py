@@ -158,9 +158,9 @@ method::
 and call it to minotor the storage.
 
 """
-__version__='$Revision: 1.2 $'[11:-2]
+__version__='$Revision: 1.3 $'[11:-2]
 
-import base64, POSException, BTree, BaseStorage, time, string, utils
+import POSException, BaseStorage, string, utils
 from TimeStamp import TimeStamp
 
 class MappingStorage(BaseStorage.BaseStorage):
@@ -171,6 +171,11 @@ class MappingStorage(BaseStorage.BaseStorage):
 
         self._index={}
         self._tindex=[]
+
+        # Note:
+        # If you subclass this and use a persistent mapping facility
+        # (e.g. a dbm file), you will need to get the maximum key and
+        # save it as self._oid.  See dbmStorage.
 
     def __len__(self):
         return len(self._index)
@@ -200,8 +205,8 @@ class MappingStorage(BaseStorage.BaseStorage):
 
         self._lock_acquire()
         try:
-            old=self._index.get(oid, None)
-            if old is not None:
+            if self._index.has_key(oid):
+                old=self._index[oid]
                 oserial=old[:8]
                 if serial != oserial: raise POSException.ConflictError
                 
