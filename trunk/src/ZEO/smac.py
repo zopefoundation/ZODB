@@ -43,7 +43,7 @@
 """Sized message async connections
 """
 
-__version__ = "$Id: smac.py,v 1.4 1999/11/16 15:42:00 petrilli Exp $"[11:-2]
+__version__ = "$Revision: 1.5 $"[11:-2]
 
 import asyncore, string, struct, zLOG
 from zLOG import LOG, INFO, ERROR
