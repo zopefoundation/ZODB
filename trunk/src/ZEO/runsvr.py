@@ -14,12 +14,11 @@
 ##############################################################################
 """Start the ZEO storage server.
 
-Usage: %s [-a ADDRESS] [-d DIRECTORY] [-f FILENAME] [-s STORAGE]
+Usage: %s [-a ADDRESS] [-f FILENAME] [-s STORAGE]
 
 Options:
 -a/--address ADDRESS -- server address of the form PORT, HOST:PORT, or PATH
                         (a PATH must contain at least one "/")
--d/--directory DIRECTORY -- home directory (default $INSTANCE_HOME or `pwd`)
 -f/--filename FILENAME -- filename for FileStorage
 -s/--storage STORAGE -- storage specification of the form
                         NAME=MODULE[:ATTRIBUTE]
@@ -39,11 +38,6 @@ import sys
 import getopt
 import signal
 import socket
-
-if __name__ == "__main__":
-    # Add the parent of the script directory to the module search path
-    from os.path import dirname, abspath, normpath
-    sys.path.append(dirname(dirname(normpath(abspath(sys.argv[0])))))
 
 import zLOG
 
@@ -140,12 +134,10 @@ class ZEOOptions(Options):
     address = None
     storages = None
     filename = None
-    directory = None
 
-    _short_options = "a:d:f:hs:"
+    _short_options = "a:f:hs:"
     _long_options = [
         "--address=",
-        "--directory=",
         "--filename=",
         "--help",
         "--storage=",
@@ -169,8 +161,6 @@ class ZEOOptions(Options):
                 except: # int() can raise all sorts of errors
                     self.usage("invalid port number: %r" % port)
                 self.address = (host, port)
-        elif opt in ("-d", "--directory"):
-            self.directory = arg
         elif opt in ("-f", "--filename"):
             self.filename = arg
         elif opt in ("-s", "--storage"):
@@ -212,7 +202,6 @@ class ZEOServer:
     def main(self):
         self.check_socket()
         self.clear_socket()
-        self.change_dir()
         self.open_storages()
         self.setup_signals()
         try:
@@ -240,13 +229,6 @@ class ZEOServer:
                 os.unlink(self.opts.address)
             except os.error:
                 pass
-
-    def change_dir(self):
-        if self.opts.directory:
-            try:
-                os.chdir(self.opts.directory)
-            except os.error:
-                self.opts.usage("can't chdir into %r" % self.opts.directory)
 
     def open_storages(self):
         if self.opts.storages:
