@@ -44,7 +44,9 @@ Each record has the following form:
 
   offset in record: name -- description
 
-  0: oid -- 8-byte object id
+  0: oidlen -- 2-byte unsigned object id length
+
+  2: reserved (6 bytes)
 
   8: status -- 1-byte status 'v': valid, 'n': non-version valid, 'i': invalid
                ('n' means only the non-version data in the record is valid)
@@ -57,23 +59,25 @@ Each record has the following form:
 
   19: serial -- 8-byte non-version serial (timestamp)
 
-  27: data -- non-version data
+  27: oid -- object id
 
-  27+dlen: version -- Version string (if vlen > 0)
+  27+oidlen: data -- non-version data
 
-  27+dlen+vlen: vdlen -- 4-byte length of version data (if vlen > 0)
+  27+oidlen+dlen: version -- Version string (if vlen > 0)
 
-  31+dlen+vlen: vdata -- version data (if vlen > 0)
+  27+oidlen+dlen+vlen: vdlen -- 4-byte length of version data (if vlen > 0)
 
-  31+dlen+vlen+vdlen: vserial -- 8-byte version serial (timestamp)
+  31+oidlen+dlen+vlen: vdata -- version data (if vlen > 0)
+
+  31+oidlen+dlen+vlen+vdlen: vserial -- 8-byte version serial (timestamp)
                                  (if vlen > 0)
 
-  27+dlen (if vlen == 0) **or**
-  39+dlen+vlen+vdlen: tlen -- 4-byte (unsigned) record length (for
-                              redundancy and backward traversal)
+  27+oidlen+dlen (if vlen == 0) **or**
+  39+oidlen+dlen+vlen+vdlen: tlen -- 4-byte (unsigned) record length (for
+                                     redundancy and backward traversal)
 
-  31+dlen (if vlen == 0) **or**
-  43+dlen+vlen+vdlen: -- total record length (equal to tlen)
+  31+oidlen+dlen (if vlen == 0) **or**
+  43+oidlen+dlen+vlen+vdlen: -- total record length (equal to tlen)
 
 There is a cache size limit.
 
@@ -111,12 +115,12 @@ import tempfile
 from struct import pack, unpack
 from thread import allocate_lock
 
-from ZODB.utils import U64
+from ZODB.utils import oid_repr
 
 import zLOG
 from ZEO.ICache import ICache
 
-magic = 'ZEC1'
+magic = 'ZEC2'
 headersize = 12
 
 MB = 1024**2
@@ -293,15 +297,17 @@ class ClientCache:
             f.seek(ap)
             h = f.read(27)
             if len(h) != 27:
-                self.log("invalidate: short record for oid %16x "
+                self.log("invalidate: short record for oid %s "
                          "at position %d in cache file %d"
-                         % (U64(oid), ap, p < 0))
+                         % (oid_repr(oid), ap, p < 0))
                 del self._index[oid]
                 return None
-            if h[:8] != oid:
-                self.log("invalidate: oid mismatch: expected %16x read %16x "
+            oidlen = unpack(">H", h[:2])[0]
+            rec_oid = f.read(oidlen)
+            if rec_oid != oid:
+                self.log("invalidate: oid mismatch: expected %s read %s "
                          "at position %d in cache file %d"
-                         % (U64(oid), U64(h[:8]), ap, p < 0))
+                         % (oid_repr(oid), oid_repr(rec_oid), ap, p < 0))
                 del self._index[oid]
                 return None
             f.seek(ap+8) # Switch from reading to writing
@@ -329,14 +335,16 @@ class ClientCache:
             read = f.read
             seek(ap)
             h = read(27)
-            if len(h)==27 and h[8] in 'nv' and h[:8]==oid:
+            oidlen = unpack(">H", h[:2])[0]
+            rec_oid = read(oidlen)
+            if len(h)==27 and h[8] in 'nv' and rec_oid == oid:
                 tlen, vlen, dlen = unpack(">iHi", h[9:19])
             else:
                 tlen = -1
             if tlen <= 0 or vlen < 0 or dlen < 0 or vlen+dlen > tlen:
-                self.log("load: bad record for oid %16x "
+                self.log("load: bad record for oid %s "
                          "at position %d in cache file %d"
-                         % (U64(oid), ap, p < 0))
+                         % (oid_repr(oid), ap, p < 0))
                 del self._index[oid]
                 return None
 
@@ -355,7 +363,8 @@ class ClientCache:
                     data = read(dlen)
                     self._trace(0x2A, oid, version, h[19:], dlen)
                     if (p < 0) != self._current:
-                        self._copytocurrent(ap, tlen, dlen, vlen, h, data)
+                        self._copytocurrent(ap, oidlen, tlen, dlen, vlen, h,
+                                            oid, data)
                     return data, h[19:]
                 else:
                     self._trace(0x26, oid, version)
@@ -367,12 +376,12 @@ class ClientCache:
             v = vheader[:-4]
             if version != v:
                 if dlen:
-                    seek(ap+27)
+                    seek(ap+27+oidlen)
                     data = read(dlen)
                     self._trace(0x2C, oid, version, h[19:], dlen)
                     if (p < 0) != self._current:
-                        self._copytocurrent(ap, tlen, dlen, vlen, h,
-                                            data, vheader)
+                        self._copytocurrent(ap, oidlen, tlen, dlen, vlen, h,
+                                            oid, data, vheader)
                     return data, h[19:]
                 else:
                     self._trace(0x28, oid, version)
@@ -383,13 +392,13 @@ class ClientCache:
             vserial = read(8)
             self._trace(0x2E, oid, version, vserial, vdlen)
             if (p < 0) != self._current:
-                self._copytocurrent(ap, tlen, dlen, vlen, h,
-                                    None, vheader, vdata, vserial)
+                self._copytocurrent(ap, oidlen, tlen, dlen, vlen, h,
+                                    oid, None, vheader, vdata, vserial)
             return vdata, vserial
         finally:
             self._release()
 
-    def _copytocurrent(self, pos, tlen, dlen, vlen, header,
+    def _copytocurrent(self, pos, oidlen, tlen, dlen, vlen, header, oid,
                        data=None, vheader=None, vdata=None, vserial=None):
         """Copy a cache hit from the non-current file to the current file.
 
@@ -403,26 +412,27 @@ class ClientCache:
         if header[8] == 'n':
             # Rewrite the header to drop the version data.
             # This shortens the record.
-            tlen = 31 + dlen
+            tlen = 31 + oidlen + dlen
             vlen = 0
-            # (oid:8, status:1, tlen:4, vlen:2, dlen:4, serial:8)
+            # (oidlen:2, reserved:6, status:1, tlen:4,
+            #  vlen:2, dlen:4, serial:8)
             header = header[:9] + pack(">IHI", tlen, vlen, dlen) + header[-8:]
         else:
             assert header[8] == 'v'
         f = self._f[not self._current]
         if data is None:
-            f.seek(pos+27)
+            f.seek(pos+27+oidlen)
             data = f.read(dlen)
             if len(data) != dlen:
                 return
-        l = [header, data]
+        l = [header, oid, data]
         if vlen:
             assert vheader is not None
             l.append(vheader)
             assert (vdata is None) == (vserial is None)
             if vdata is None:
                 vdlen = unpack(">I", vheader[-4:])[0]
-                f.seek(pos+27+dlen+vlen+4)
+                f.seek(pos+27+oidlen+dlen+vlen+4)
                 vdata = f.read(vdlen)
                 if len(vdata) != vdlen:
                     return
@@ -438,13 +448,12 @@ class ClientCache:
         g.seek(self._pos)
         g.writelines(l)
         assert g.tell() == self._pos + tlen
-        oid = header[:8]
         if self._current:
             self._index[oid] = - self._pos
         else:
             self._index[oid] = self._pos
         self._pos += tlen
-        self._trace(0x6A, header[:8], vlen and vheader[:-4] or '',
+        self._trace(0x6A, oid, vlen and vheader[:-4] or '',
                     vlen and vserial or header[-8:], dlen)
 
     def update(self, oid, serial, version, data):
@@ -462,7 +471,9 @@ class ClientCache:
                 read = f.read
                 seek(ap)
                 h = read(27)
-                if len(h)==27 and h[8] in 'nv' and h[:8]==oid:
+                oidlen = unpack(">H", h[:2])[0]
+                rec_oid = read(oidlen)
+                if len(h) == 27 and h[8] in 'nv' and rec_oid == oid:
                     tlen, vlen, dlen = unpack(">iHi", h[9:19])
                 else:
                     return self._store(oid, '', '', version, data, serial)
@@ -500,14 +511,16 @@ class ClientCache:
             read = f.read
             seek(ap)
             h = read(27)
-            if len(h)==27 and h[8] in 'nv' and h[:8]==oid:
+            oidlen = unpack(">H", h[:2])[0]
+            rec_oid = read(oidlen)
+            if len(h) == 27 and h[8] in 'nv' and rec_oid == oid:
                 tlen, vlen, dlen = unpack(">iHi", h[9:19])
             else:
                 tlen = -1
             if tlen <= 0 or vlen < 0 or dlen < 0 or vlen+dlen > tlen:
-                self.log("modifiedInVersion: bad record for oid %16x "
+                self.log("modifiedInVersion: bad record for oid %s "
                          "at position %d in cache file %d"
-                         % (U64(oid), ap, p < 0))
+                         % (oid_repr(oid), ap, p < 0))
                 del self._index[oid]
                 return None
 
@@ -579,7 +592,7 @@ class ClientCache:
         if not s:
             p = ''
             s = '\0\0\0\0\0\0\0\0'
-        tlen = 31 + len(p)
+        tlen = 31 + len(oid) + len(p)
         if version:
             tlen = tlen + len(version) + 12 + len(pv)
             vlen = len(version)
@@ -588,7 +601,11 @@ class ClientCache:
 
         stlen = pack(">I", tlen)
         # accumulate various data to write into a list
-        l = [oid, 'v', stlen, pack(">HI", vlen, len(p)), s]
+        assert len(oid) < 2**16
+        assert vlen < 2**16
+        assert tlen < 2L**32
+        l = [pack(">H6x", len(oid)), 'v', stlen,
+             pack(">HI", vlen, len(p)), s, oid]
         if p:
             l.append(p)
         if version:
@@ -641,11 +658,11 @@ class ClientCache:
         if version:
             code |= 0x80
         self._tracefile.write(
-            struct_pack(">ii8s8s",
+            struct_pack(">iiH8s",
                         time_time(),
                         (dlen+255) & 0x7fffff00 | code | self._current,
-                        oid,
-                        serial))
+                        len(oid),
+                        serial) + oid)
 
     def read_index(self, serial, fileindex):
         index = self._index
@@ -672,7 +689,8 @@ class ClientCache:
                 self.rilog("invalid header data", pos, fileindex)
                 break
 
-            oid = h[:8]
+            oidlen = unpack(">H", h[:2])[0]
+            oid = read(oidlen)
 
             if h[8] == 'v' and vlen:
                 seek(dlen+vlen, 1)
@@ -681,7 +699,7 @@ class ClientCache:
                     self.rilog("truncated record", pos, fileindex)
                     break
                 vdlen = unpack(">i", vdlen)[0]
-                if vlen+dlen+43+vdlen != tlen:
+                if vlen + oidlen + dlen + 43 + vdlen != tlen:
                     self.rilog("inconsistent lengths", pos, fileindex)
                     break
                 seek(vdlen, 1)
@@ -691,7 +709,7 @@ class ClientCache:
                     break
             else:
                 if h[8] in 'vn' and vlen == 0:
-                    if dlen+31 != tlen:
+                    if oidlen + dlen + 31 != tlen:
                         self.rilog("inconsistent nv lengths", pos, fileindex)
                     seek(dlen, 1)
                     if read(4) != h[9:13]:

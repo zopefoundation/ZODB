@@ -27,6 +27,10 @@ from ZEO.ClientCache import ClientCache
 
 class ClientCacheTests(unittest.TestCase):
 
+    _oid  = 'abcdefgh'
+    _oid2 = 'bcdefghi'
+    _oid3 = 'cdefghij'
+
     def setUp(self):
         unittest.TestCase.setUp(self)
         self.cachesize = 10*1000*1000
@@ -42,7 +46,7 @@ class ClientCacheTests(unittest.TestCase):
 
     def testStoreLoad(self):
         cache = self.cache
-        oid = 'abcdefgh'
+        oid = self._oid
         data = '1234'*100
         serial = 'ABCDEFGH'
         cache.store(oid, data, serial, '', '', '')
@@ -51,7 +55,7 @@ class ClientCacheTests(unittest.TestCase):
 
     def testMissingLoad(self):
         cache = self.cache
-        oid = 'abcdefgh'
+        oid = self._oid
         data = '1234'*100
         serial = 'ABCDEFGH'
         cache.store(oid, data, serial, '', '', '')
@@ -60,7 +64,7 @@ class ClientCacheTests(unittest.TestCase):
 
     def testInvalidate(self):
         cache = self.cache
-        oid = 'abcdefgh'
+        oid = self._oid
         data = '1234'*100
         serial = 'ABCDEFGH'
         cache.store(oid, data, serial, '', '', '')
@@ -72,7 +76,7 @@ class ClientCacheTests(unittest.TestCase):
 
     def testVersion(self):
         cache = self.cache
-        oid = 'abcdefgh'
+        oid = self._oid
         data = '1234'*100
         serial = 'ABCDEFGH'
         vname = 'myversion'
@@ -86,7 +90,7 @@ class ClientCacheTests(unittest.TestCase):
 
     def testVersionOnly(self):
         cache = self.cache
-        oid = 'abcdefgh'
+        oid = self._oid
         data = ''
         serial = ''
         vname = 'myversion'
@@ -100,7 +104,7 @@ class ClientCacheTests(unittest.TestCase):
 
     def testInvalidateNonVersion(self):
         cache = self.cache
-        oid = 'abcdefgh'
+        oid = self._oid
         data = '1234'*100
         serial = 'ABCDEFGH'
         vname = 'myversion'
@@ -122,7 +126,7 @@ class ClientCacheTests(unittest.TestCase):
         # Invalidating a version should not invalidate the non-version data.
         # (This tests for the same bug as testInvalidatePersists below.)
         cache = self.cache
-        oid = 'abcdefgh'
+        oid = self._oid
         data = '1234'*100
         serial = 'ABCDEFGH'
         cache.store(oid, data, serial, '', '', '')
@@ -139,7 +143,7 @@ class ClientCacheTests(unittest.TestCase):
             results.append((oid, serial, vserial))
         cache.verify(verifier)
         self.assertEqual(results, [])
-        oid = 'abcdefgh'
+        oid = self._oid
         data = '1234'*100
         serial = 'ABCDEFGH'
         cache.store(oid, data, serial, '', '', '')
@@ -151,12 +155,12 @@ class ClientCacheTests(unittest.TestCase):
         # Make sure that cache._index[oid] is erased for oids that are
         # stored in the cache file that's rewritten after a flip.
         cache = self.cache
-        oid = 'abcdefgh'
+        oid = self._oid
         data = '1234'*100
         serial = 'ABCDEFGH'
         cache.store(oid, data, serial, '', '', '')
         cache.checkSize(10*self.cachesize) # Force a file flip
-        oid2 = 'abcdefgz'
+        oid2 = self._oid2
         data2 = '1234'*10
         serial2 = 'ABCDEFGZ'
         cache.store(oid2, data2, serial2, '', '', '')
@@ -178,17 +182,17 @@ class ClientCacheTests(unittest.TestCase):
         cache = self.cache
 
         # Create some objects
-        oid1 = 'abcdefgh'
+        oid1 = self._oid
         data1 = '1234' * 100
         serial1 = 'ABCDEFGH'
-        oid2 = 'bcdefghi'
+        oid2 = self._oid2
         data2 = '2345' * 200
         serial2 = 'BCDEFGHI'
         version2 = 'myversion'
         nonversion = 'nada'
         vdata2 = '5432' * 250
         vserial2 = 'IHGFEDCB'
-        oid3 = 'cdefghij'
+        oid3 = self._oid3
         data3 = '3456' * 300
         serial3 = 'CDEFGHIJ'
 
@@ -276,6 +280,8 @@ class ClientCacheTests(unittest.TestCase):
 
 class PersistentClientCacheTests(unittest.TestCase):
 
+    _oid = 'abcdefgh'
+
     def setUp(self):
         unittest.TestCase.setUp(self)
         self.vardir = os.getcwd() # Don't use /tmp, it's a security risk
@@ -323,13 +329,12 @@ class PersistentClientCacheTests(unittest.TestCase):
         # 'current' file when a persistent cache was opened.
         cache = self.cache
         self.assertEqual(cache._current, 0) # Check that file 0 is current
-        oid = 'abcdefgh'
+        oid = self._oid
         data = '1234'
         serial = 'ABCDEFGH'
         cache.store(oid, data, serial, '', '', '')
         cache.checkSize(10*self.cachesize) # Force a file flip
         self.assertEqual(cache._current, 1) # Check that the flip worked
-        oid = 'abcdefgh'
         data = '123'
         serial = 'ABCDEFGZ'
         cache.store(oid, data, serial, '', '', '')
@@ -348,7 +353,7 @@ class PersistentClientCacheTests(unittest.TestCase):
         cache = self.cache
         magicsize = (ord('i') + 1) << 16
         cache = self.cache
-        oid = 'abcdefgh'
+        oid = self._oid
         data = '!'*magicsize
         serial = 'ABCDEFGH'
         cache.store(oid, data, serial, '', '', '')
@@ -367,7 +372,7 @@ class PersistentClientCacheTests(unittest.TestCase):
         ltid = 'pqrstuvw'
         cache.setLastTid(ltid)
         self.assertEqual(cache.getLastTid(), ltid)
-        oid = 'abcdefgh'
+        oid = self._oid
         data = '1234'
         serial = 'ABCDEFGH'
         cache.store(oid, data, serial, '', '', '')
@@ -381,10 +386,23 @@ class PersistentClientCacheTests(unittest.TestCase):
         cache.checkSize(10*self.cachesize) # Force a file flip
         self.failUnless(cache.getLastTid() is None)
 
+
+class ClientCacheLongOIDTests(ClientCacheTests):
+    _oid  = 'abcdefghijklmnop' * 2
+    _oid2 = 'bcdefghijklmnopq' * 2
+    _oid3 = 'cdefghijklmnopqr' * 2
+
+
+class PersistentClientCacheLongOIDTests(PersistentClientCacheTests):
+    _oid = 'abcdefghijklmnop' * 2
+
+
 def test_suite():
     suite = unittest.TestSuite()
     suite.addTest(unittest.makeSuite(ClientCacheTests))
+    suite.addTest(unittest.makeSuite(ClientCacheLongOIDTests))
     suite.addTest(unittest.makeSuite(PersistentClientCacheTests))
+    suite.addTest(unittest.makeSuite(PersistentClientCacheLongOIDTests))
     return suite
 
 if __name__ == '__main__':

@@ -35,8 +35,9 @@ Offset  Size  Contents
 0       4     timestamp (seconds since 1/1/1970)
 4       3     data size, in 256-byte increments, rounded up
 7       1     code (see below)
-8       8     object id
-16      8     serial number
+8       2     object id length
+10      8     serial number
+18  variable  object id
 
 The code at offset 7 packs three fields:
 
@@ -56,6 +57,7 @@ import sys
 import time
 import getopt
 import struct
+from types import StringType
 
 def usage(msg):
     print >>sys.stderr, msg
@@ -155,12 +157,16 @@ def main():
                 if not quiet:
                     print "Skipping 8 bytes at offset", offset-8
                 continue
-            r = f_read(16)
-            if len(r) < 16:
+            r = f_read(10)
+            if len(r) < 10:
                 break
-            offset += 16
+            offset += 10
             records += 1
-            oid, serial = struct_unpack(">8s8s", r)
+            oidlen, serial = struct_unpack(">H8s", r)
+            oid = f_read(oidlen)
+            if len(oid) != oidlen:
+                break
+            offset += oidlen
             if t0 is None:
                 t0 = ts
                 thisinterval = t0 / interval
@@ -197,11 +203,11 @@ def main():
                     bysizew[dlen] = d = bysizew.get(dlen) or {}
                     d[oid] = d.get(oid, 0) + 1
             if verbose:
-                print "%s %d %02x %016x %016x %1s %s" % (
+                print "%s %d %02x %s %016x %1s %s" % (
                     time.ctime(ts)[4:-5],
                     current,
                     code,
-                    U64(oid),
+                    oid_repr(oid),
                     U64(serial),
                     version,
                     dlen and str(dlen) or "")
@@ -345,6 +351,12 @@ def histogram(d):
 def U64(s):
     h, v = struct.unpack(">II", s)
     return (long(h) << 32) + v
+
+def oid_repr(oid):
+    if isinstance(oid, StringType) and len(oid) == 8:
+        return '%16x' % U64(oid)
+    else:
+        return repr(oid)
 
 def addcommas(n):
     sign, s = '', str(n)
