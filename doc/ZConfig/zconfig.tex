@@ -37,6 +37,7 @@ ensure compatibility.  This software is covered by the Zope Public
 License, version 2.0.
 
 The \module{ZConfig} package has been tested with Python 2.1 and 2.2.
+Python 2.0 is not supported.
 It only relies on the Python standard library.
 
 
@@ -187,7 +188,7 @@ The main \module{ZConfig} package exports a single function:
 \begin{funcdesc}{load}{url}
   Load and return a configuration from a URL or pathname given by
   \var{url}.  \var{url} may be a URL, absolute pathname, or relative
-  pathname.
+  pathname.  Fragment identifiers are not supported.
 \end{funcdesc}
 
 
@@ -223,6 +224,7 @@ once:
 \begin{methoddesc}{load}{url}
   Load and return a configuration object from a resource.  The
   resource is identified by a URL or path given as \var{url}.
+  Fragment identifiers are not supported.
 \end{methoddesc}
 
 The following methods are defined to be individually overridable by
