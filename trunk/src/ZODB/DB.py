@@ -84,8 +84,8 @@
 ##############################################################################
 """Database objects
 
-$Id: DB.py,v 1.6 1999/05/18 15:55:09 jim Exp $"""
-__version__='$Revision: 1.6 $'[11:-2]
+$Id: DB.py,v 1.7 1999/06/16 19:15:39 jim Exp $"""
+__version__='$Revision: 1.7 $'[11:-2]
 
 import cPickle, cStringIO, sys, POSException
 from Connection import Connection
@@ -187,7 +187,7 @@ class DB:
                 pool_lock.release()
         finally: self._r()
         
-    def _connectionMap(f):
+    def _connectionMap(self, f):
         self._a()
         try:
             pools,pooll=self._pools
