@@ -13,7 +13,7 @@
 ##############################################################################
 """Sized message async connections
 
-$Id: smac.py,v 1.32 2002/09/29 07:51:37 gvanrossum Exp $
+$Id: smac.py,v 1.33 2002/10/02 19:54:02 gvanrossum Exp $
 """
 
 import asyncore, struct
@@ -56,7 +56,7 @@ class SizedMessageAsyncConnection(asyncore.dispatcher):
 
     socket = None # to outwit Sam's getattr
 
-    READ_SIZE = 8096
+    READ_SIZE = 8192
 
     def __init__(self, sock, addr, map=None, debug=None):
         self.addr = addr
@@ -93,7 +93,7 @@ class SizedMessageAsyncConnection(asyncore.dispatcher):
         try:
             # Use a single __inp buffer and integer indexes to make this fast.
             try:
-                d = self.recv(8096)
+                d = self.recv(8192)
             except socket.error, err:
                 if err[0] in expected_socket_read_errors:
                     return
