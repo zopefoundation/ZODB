@@ -1,5 +1,7 @@
-# Check transactionalUndo().  Any storage that supports transactionalUndo()
-# must pass these tests.
+"""Check transactionalUndo().
+
+Any storage that supports transactionalUndo() must pass these tests.
+"""
 
 import types
 from ZODB import POSException

@@ -1,7 +1,10 @@
-# This class must be one of the mixin base class for your storage test.  It
-# provides basic setUp() and tearDown() semantics (which you can override),
-# and it also provides a helper method _dostore() which performs a complete
-# store transaction for a single object revision.
+"""Provide a mixin base class for storage tests.
+
+The StorageTestBase class provides basic setUp() and tearDown()
+semantics (which you can override), and it also provides a helper
+method _dostore() which performs a complete store transaction for a
+single object revision.
+"""
 
 import pickle
 import string
@@ -18,6 +21,7 @@ from ZODB.tests.MinPO import MinPO
 ZERO = '\0'*8
 
 def zodb_pickle(obj):
+    """Create a pickle in the format expected by ZODB."""
     f = StringIO()
     p = Pickler(f, 1)
     klass = obj.__class__
@@ -35,6 +39,7 @@ def zodb_pickle(obj):
     return f.getvalue(1)
 
 def zodb_unpickle(data):
+    """Unpickle an object stored using the format expected by ZODB."""
     f = StringIO(data)
     u = Unpickler(f)
     klass_info = u.load()

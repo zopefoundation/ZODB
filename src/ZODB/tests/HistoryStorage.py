@@ -1,5 +1,8 @@
-# Run the history() related tests for a storage.  Any storage that supports
-# the history() method should be able to pass all these tests.
+"""Run the history() related tests for a storage.
+
+Any storage that supports the history() method should be able to pass
+all these tests.
+"""
 
 from ZODB.tests.MinPO import MinPO
 from ZODB.tests.StorageTestBase import zodb_unpickle
