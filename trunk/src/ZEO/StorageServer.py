@@ -127,8 +127,7 @@ class ZEOStorage:
         # When this storage closes, we must ensure that it aborts
         # any pending transaction.  Not sure if this is the clearest way.
         if self._transaction is not None:
-            self.__storage.tpc_abort(self._transaction)
-            self._transaction = None
+            self.tpc_abort(self._transaction.id)
         self._conn.close()
 
     def notifyConnected(self, conn):
