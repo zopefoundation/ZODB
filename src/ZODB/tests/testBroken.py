@@ -13,7 +13,7 @@
 ##############################################################################
 """Test broken-object suppport
 
-$Id: testBroken.py,v 1.2 2004/02/25 13:06:12 jim Exp $
+$Id: testBroken.py,v 1.3 2004/03/04 22:41:53 jim Exp $
 """
 
 import sys
@@ -71,8 +71,15 @@ def test_integration():
     >>> a3.__Broken_state__
     {'x': 1}
     
+    Let's clean up:
 
     >>> db.close()
+    >>> del sys.modules['ZODB.not']
+
+    Cleanup:
+
+    >>> import ZODB.broken
+    >>> ZODB.broken.broken_cache.clear()
     """
 
 def test_suite():
