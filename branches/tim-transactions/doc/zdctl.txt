@@ -1,0 +1,335 @@
+Using zdctl and zdrun to manage server processes
+================================================
+
+
+Summary
+-------
+
+Starting with Zope 2.7 and ZODB 3.2, Zope has a new way to configure
+and control server processes.  This file documents the new approach to
+server process management; the new approach to configuration is
+documented elsewhere, although some examples will be given here.  We
+use the ZEO server as a running example, although this isn't a
+complete manual for configuring or running ZEO.
+
+This documentation applies to Unix/Linux systems; zdctl and zdrun do
+not work on Windows.
+
+
+Prerequisites
+-------------
+
+This document assumes that you have installed the ZODB3 software
+(version 3.2 or higher) using a variation on the following command,
+given from the root directory of the ZODB3 distribution::
+
+  $ python setup.py install
+
+This installs the packages ZConfig, ZEO, zdaemon, zLOG, ZODB and
+various other needed packages and extension modules in the Python
+interpreter's site-packages directory, and installs scripts including
+zdctl.py, zdrun.py, runzeo.py and mkzeoinst.py in /usr/local/bin
+(actually the bin directory from which the python interpreter was
+loaded).
+
+When you receive ZODB as a part of Zope (version 2.7 or higher), the
+installation instructions will explain how to reach a similar state.
+
+
+Introduction
+------------
+
+The most basic way to run a ZEO server is using the following
+command::
+
+  $ runzeo.py -a 9999 -f Data.fs
+
+Here 9999 is the ZEO port (you can pick your own unused TCP port
+number in the range 1024 through 65535, inclusive); Data.fs is the
+storage file.  Again, you can pick any filename you want; the
+ZODB.FileStorage module code creates this file and various other files
+with additional extensions, like Data.fs.index, Data.fs.lock, and
+Data.fs.tmp.
+
+If something's wrong, for example if you picked a bad port number or
+filename, you'll get an error message or an exception right away and
+runzeo.py will exit with a non-zero exit status.  The exit status is 2
+for command line syntax errors, 1 for other errors.
+
+If all's well, runzeo.py will emit a few logging messages to stderr
+and start serving, until you hit ^C.  For example::
+
+  $ runzeo.py -a 9999 -f Data.fs
+  ------
+  2003-01-24T11:49:27 INFO(0) RUNSVR opening storage '1' using FileStorage
+  ------
+  2003-01-24T11:49:27 INFO(0) ZSS:23531 StorageServer created RW with
+  storages: 1:RW:Data.fs
+  ------
+  2003-01-24T11:49:27 INFO(0) zrpc:23531 listening on ('', 9999)
+
+At this point you can hit ^C to stop it; runzeo.py will catch the
+interrupt signal, emit a few more log messages and exit::
+
+  ^C
+  ------
+  2003-01-24T12:11:15 INFO(0) RUNSVR terminated by SIGINT
+  ------
+  2003-01-24T12:11:15 INFO(0) RUNSVR closing storage '1'
+  $ 
+
+This may be fine for testing, but a bad idea for running a ZEO server
+in a production environment.  In production, you want the ZEO server
+to be run as a daemon process, you want the log output to go to a
+file, you want the ZEO server to be started when the system is
+rebooted, and (usually) you want the ZEO server to be automatically
+restarted when it crashes.  You should also have a log rotation policy
+in place so that your disk doesn't fill up with log messages.
+
+The zdctl/zdrun combo can take care of running a server as a daemon
+process and restarting it when it crashes.  It can also be used to
+start it when the system is rebooted.  Sending log output to a file is
+done by adjusting the ZEO server configuration.  There are many fine
+existing tools to rotate log files, so we don't provide this
+functionality; zdctl has a command to send the server process a
+SIGUSR2 signal to tell it to reopen its log file after log rotation
+has taken place (the ZEO server has a signal handler that catches
+SIGUSR2 for this purpose).
+
+In addition, zdctl lets a system administrator or developer control
+the server process.  This is useful to deal with typical problems like
+restarting a hanging server or adjusting a server's configuration.
+
+The zdctl program can be used in two ways: in one-shot mode it
+executes a single command (such as "start", "stop" or "restart"); in
+interactive mode it acts much like a typical Unix shell or the Python
+interpreter, printing a prompt to standard output and reading commands
+from standard input.  It currently cannot be used to read commands
+from a file; if you need to script it, you can use a shell script
+containing repeated one-shot invocations.
+
+zdctl can be configured using command line options or a configuration
+file.  In practice, you'll want to use a configuration file; but first
+we'll show some examples using command line options only.  Here's a
+one-shot zdctl command to start the ZEO server::
+
+  $ zdctl.py -p "runzeo.py -a 9999 -f Data.fs" start
+
+The -p option specifies the server program; it is the runzeo
+invocation that we showed before.  The start argument tells it to
+start the process.  What actually happens is that zdctl starts zdrun,
+and zdrun now manages the ZEO server process.  The zdctl process exits
+once zdrun has started the ZEO server process; the zdrun process stays
+around, and when the ZEO server process crashes it will restart it.
+
+To check that the ZEO server is now running, use the zdctl status
+command::
+
+  $ zdctl.py -p "runzeo.py -a 9999 -f Data.fs" status
+
+This prints a one-line message telling you that the program is
+running.  To stop the ZEO server, use the zdctl stop command::
+
+  $ zdctl.py -p "runzeo.py -a 9999 -f Data.fs" stop
+
+To check that is no longer running, use the zdctl status command
+again.
+
+
+Daemon mode
+-----------
+
+If you are playing along on your computer, you cannot have missed that
+some log output has been spewing to your terminal window.  While this
+may give you a warm and fuzzy feeling that something is actually
+happening, after a whiile it can get quite annoying (especially if
+clients are actually connecting to the server).  This can be avoided
+by using the -d flag, which enables "daemon mode"::
+
+  $ zdctl.py -d -p "runzeo.py -a 9999 -f Data.fs" start
+
+Daemon mode does several subtle things; see for example section 13.3
+of "Advanced Programming in the UNIX Environment" by Richard Stevens
+for a good explanation of daemon mode.  For now, the most important
+effect is that the standard input, output and error streams are
+redirected to /dev/null, and that the process is "detached" from your
+controlling tty, which implies that it won't receive a SIGHUP signal
+when you log out.
+
+
+Using a configuration file
+--------------------------
+
+I hope you are using a Unix shell with command line history, otherwise
+entering the examples above would have been quite a pain.  But a
+better way to control zdctl and zdrun's many options without having to
+type them over and over again is to use a configuration file.  Here's
+a small configuration file; place this in the file "zeoctl.conf" (the
+name is just a convention; you can call it "foo" if you prefer)::
+
+  # Sample zdctl/zdrun configuration
+  <runner>
+    program       runzeo.py -a 9999 -f Data.fs
+    daemon	  true
+    directory     /tmp/zeohome
+    socket-name   /tmp/zeohome/zdsock
+  </runner>
+
+The "program" and "daemon" lines correspond to the -p and -d command
+line options discussed above.  The "directory" line is new.  It
+specifies a directory into which zdrun (but not zdctl!) chdirs.  This
+directory should exist; zdctl won't create it for you.  The Data.fs
+filename passed to runzeo.py is interpreted relative to this
+directory.  Finally, the "socket-name" line names the Unix domain
+socket that is used for communication between zdctl and zdrun.  It
+defaults to zdsock in the current directory, a default you definitely
+want to override for production usage.
+
+To invoke zdctl with a configuration file, use its -C option to name
+the configuration file, for example::
+
+  $ zdctl.py -C zeoctl.conf start
+
+  $ zdctl.py -C zeoctl.conf status
+
+  $ zdctl.py -C zeoctl.conf stop
+
+
+Interactive mode
+----------------
+
+Using a configuration file makes it a little easier to repeatedly
+start, stop and request status of a particular server, but it still
+requires typing the configuration file name on each command.
+Fortunately, zdctl.py can be used as an interactive "shell" which lets
+you execute repeated commands for the same server.  Simply invoke
+zdctl.py without the final argument ("start", "status" or "stop" in
+the above examples)::
+
+  $ zdctl.py -C zeoctl.conf
+  program: runzeo.py -a 9999 -f Data.fs
+  daemon manager not running
+  zdctl> 
+
+The first two lines of output are status messages (and could be
+different in your case); the final line is the interactive command
+prompt.  At this prompt, you can type commands::
+
+  zdctl> help
+
+  Documented commands (type help <topic>):
+  ========================================
+  EOF             fg              foreground      help            kill
+  logreopen       logtail         quit            reload          restart
+  shell           show            start           status          stop
+  wait            
+
+  zdctl> help start
+  start -- Start the daemon process.
+	   If it is already running, do nothing.
+  zdctl> start
+  daemon process started, pid=31580
+  zdctl> status
+  program running; pid=31580
+  zdctl> stop
+  daemon process stopped
+  zdctl> quit
+  daemon manager not running
+  $ 
+
+In short, the commands you can type at the interactive prompt are the
+same commands (with optional arguments) that you can use as positional
+arguments on the zdctl.py command line.
+
+The interactive shell has some additional features:
+
+- Line editing and command line history using the standard GNU
+  readline module.
+
+- A blank line repeats the last command (especially useful for status).
+
+- Command and argument completion using the TAB key.
+
+One final note: some people don't like it that an invocation without
+arguments enters interactive mode.  If this describes you, there's an
+easy way to disable this feature: add a line saying
+
+  default-to-interactive false
+
+to the zeoctl.conf file.  You can still enter interactive mode by
+using the -i option.
+
+
+Using mkzeoinst.py
+------------------
+
+If you still think that all of the above is a lot of typing, you're
+right.  Fortunately, there's a simple utility that help you creating
+and configuring a ZEO server instance.  mkzeoinst.py requires one
+argument, the ZEO server's "home directory".  After that, you can
+optionally specify a service port number; the port defaults to 9999.
+
+mkzeoinst.py creates the server home directory (and its ancestor
+directories if necessary), and then creates the following directory
+substructure:
+
+  bin/ - directory for scripts (zeoctl)
+  etc/ - directory for configuration files (zeo.conf, zeoctl.conf)
+  log/ - directory for log files (zeo.log, zeoctl.log)
+  var/ - directory for data files (Data.fs and friends)
+
+If the server home directory or any of its subdirectories already
+exist, mkzeoinst.py will note this and assume you are rebuilding an
+existing instance.  (In fact, it prints a message for each directory
+it creates but is silent about existing directories.)
+
+It then creates the following files:
+
+  bin/zeoctl      - executable shell script to run zdctl.py
+  etc/zeo.conf    - configuration file for ZEO
+  etc/zeoctl.conf - configuration file for zdrun.py and zdctl.py
+
+If any of the files it wants to create already exists and is
+non-empty, it does not write the file.  (An empty file will be
+overwritten though.)  If the existing contents differ from what it
+would have written if the file didn't exist, it prints a warning
+message; otherwise the skipping is silent.
+
+Other errors (e.g. permission errors creating or reading files or
+directories) cause mkzeoinst.py to bail with an error message; it does
+not clean up the work already done.
+
+The created files contain absolute path references to all of the
+programs, files, directories used.  They also contain default values
+for most configuration settings that one might normally want to
+configure.  Most configured settings are the same as the defaults;
+however, daemon mode is on while the regular default is off.  Log
+files are configured to go into the log directory.  If configures
+separate log files for zdrun.py/zdctl.py (log/zeoctl.log) and for the
+ZEO server itself (log/zeo.log).  Once created, the files are yours;
+feel free to edit them to suit your taste.
+
+The bin/zeoctl script should be invoked with the positional arguments
+(e,g, "start", "stop" or "status") that you would pass to zdctl.py;
+the script hardcodes the configuration file so you don't have to pass
+that.  It can also be invoked without arguments to enter interactive
+mode.
+
+One final detail: if you want the ZEO server to be started
+automatically when the machine is rebooted, and you're lucky enough to
+be using a recent Red Hat (or similar) system, you can copy the
+bin/zeoctl script into the /etc/rc.d/init.d/ directory and use
+chkconfig(8) to create the correct symlinks to it; the bin/zeoctl
+script already has the appropriate magical comments for chkconfig.
+
+
+zdctl reference
+---------------
+
+XXX TBD
+
+
+zdrun reference
+---------------
+
+XXX TBD
