@@ -135,71 +135,88 @@ def main():
     byinterval = {}
     thisinterval = None
     h0 = he = None
-    while 1:
-        r = f.read(24)
-        if len(r) < 24:
-            break
-        records += 1
-        ts, code, oid, serial = struct.unpack(">ii8s8s", r)
-        if t0 is None:
-            t0 = ts
-            thisinterval = t0 / interval
-            h0 = he = ts
-        te = ts
-        if ts / interval != thisinterval:
-            if not quiet:
-                dumpbyinterval(byinterval, h0, he)
-            byinterval = {}
-            thisinterval = ts / interval
-            h0 = ts
-        he = ts
-        dlen, code = code & 0x7fffff00, code & 0xff
-        if dlen:
-            datarecords += 1
-            datasize += dlen
-        version = '-'
-        if code & 0x80:
-            version = 'V'
-            versions += 1
-        current = code & 1
-        if current:
-            file1 += 1
-        else:
-            file0 += 1
-        code = code & 0x7e
-        bycode[code] = bycode.get(code, 0) + 1
-        byinterval[code] = byinterval.get(code, 0) + 1
-        if dlen:
-            if code & 0x70 == 0x20: # All loads
-                bysize[dlen] = d = bysize.get(dlen) or {}
-                d[oid] = d.get(oid, 0) + 1
-            elif code == 0x3A: # Update
-                bysizew[dlen] = d = bysizew.get(dlen) or {}
-                d[oid] = d.get(oid, 0) + 1
-        if verbose:
-            print "%s %d %02x %016x %016x %1s %s" % (
-                time.ctime(ts)[4:-5],
-                current,
-                code,
-                U64(oid),
-                U64(serial),
-                version,
-                dlen and str(dlen) or "")
-        if code & 0x70 == 0x20:
-            oids[oid] = oids.get(oid, 0) + 1
-            total_loads += 1
-        if code in (0x00, 0x70):
-            if not quiet:
-                dumpbyinterval(byinterval, h0, he)
-            byinterval = {}
-            thisinterval = ts / interval
-            h0 = he = ts
-            if not quiet:
-                print time.ctime(ts)[4:-5],
-                if code == 0x00:
-                    print '='*20, "Restart", '='*20
-                else:
-                    print '-'*20, "Flip->%d" % current, '-'*20
+    offset = 0
+    f_read = f.read
+    struct_unpack = struct.unpack
+    try:
+        while 1:
+            r = f_read(8)
+            if len(r) < 8:
+                break
+            offset += 8
+            ts, code = struct_unpack(">ii", r)
+            if ts == 0:
+                # Must be a misaligned record caused by a crash
+                if not quiet:
+                    print "Skipping 8 bytes at offset", offset-8
+                continue
+            r = f_read(16)
+            if len(r) < 16:
+                break
+            offset += 16
+            records += 1
+            oid, serial = struct_unpack(">8s8s", r)
+            if t0 is None:
+                t0 = ts
+                thisinterval = t0 / interval
+                h0 = he = ts
+            te = ts
+            if ts / interval != thisinterval:
+                if not quiet:
+                    dumpbyinterval(byinterval, h0, he)
+                byinterval = {}
+                thisinterval = ts / interval
+                h0 = ts
+            he = ts
+            dlen, code = code & 0x7fffff00, code & 0xff
+            if dlen:
+                datarecords += 1
+                datasize += dlen
+            version = '-'
+            if code & 0x80:
+                version = 'V'
+                versions += 1
+            current = code & 1
+            if current:
+                file1 += 1
+            else:
+                file0 += 1
+            code = code & 0x7e
+            bycode[code] = bycode.get(code, 0) + 1
+            byinterval[code] = byinterval.get(code, 0) + 1
+            if dlen:
+                if code & 0x70 == 0x20: # All loads
+                    bysize[dlen] = d = bysize.get(dlen) or {}
+                    d[oid] = d.get(oid, 0) + 1
+                elif code == 0x3A: # Update
+                    bysizew[dlen] = d = bysizew.get(dlen) or {}
+                    d[oid] = d.get(oid, 0) + 1
+            if verbose:
+                print "%s %d %02x %016x %016x %1s %s" % (
+                    time.ctime(ts)[4:-5],
+                    current,
+                    code,
+                    U64(oid),
+                    U64(serial),
+                    version,
+                    dlen and str(dlen) or "")
+            if code & 0x70 == 0x20:
+                oids[oid] = oids.get(oid, 0) + 1
+                total_loads += 1
+            if code in (0x00, 0x70):
+                if not quiet:
+                    dumpbyinterval(byinterval, h0, he)
+                byinterval = {}
+                thisinterval = ts / interval
+                h0 = he = ts
+                if not quiet:
+                    print time.ctime(ts)[4:-5],
+                    if code == 0x00:
+                        print '='*20, "Restart", '='*20
+                    else:
+                        print '-'*20, "Flip->%d" % current, '-'*20
+    except KeyboardInterrupt:
+        print "\nInterrupted.  Stats so far:\n"
 
     f.close()
     rte = time.time()
