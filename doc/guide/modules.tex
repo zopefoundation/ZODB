@@ -1,8 +1,8 @@
-
 % Related Modules
 %    PersistentMapping
 %    PersistentList
 %    BTrees
+%       Total Ordering and Persistence
 
 \section{Related Modules}
 
@@ -149,3 +149,168 @@ If the keys are integers, then the module also defines
 also defines \function{weightedIntersection()} and
 \function{weighterUnion()}.  The function doc strings describe each
 function briefly.
+
+\subsubsection{Total Ordering and Persistence}
+
+The BTree-based data structures differ from Python dicts in several
+fundamental ways.  One of the most important is that while dicts
+require that keys support hash codes and equality comparison,
+the btree-based structures don't use hash codes and require a total
+ordering on keys.
+
+Total ordering means three things:
+
+\begin{enumerate}
+\item  Reflexive.  For each \var{x}, \code{\var{x} == \var{x}} is true.
+
+\item  Trichotomy.  For each \var{x} and \var{y}, exactly one of
+       \code{\var{x} < \var{y}}, \code{\var{x} == \var{y}}, and
+       \code{\var{x} > \var{y}} is true.
+
+\item  Transitivity.  Whenever \code{\var{x} <= \var{y}} and
+       \code{\var{y} <= \var{z}}, it's also true that
+       \code{\var{x} <= \var{z}}.
+end{enumerate}
+
+The default comparison functions for most objects that come with Python
+satisfy these rules, with some crucial cautions explained later.  Complex
+numbers are an example of an object whose default comparison function
+does not satisfy these rules:  complex numbers only support \code{==}
+and \code{!=} comparisons, and raise an exception if you try to compare
+them in any other way.  They don't satisfy the trichotomy rule, and must
+not be used as keys in btree-based data structures (although note that
+complex numbers can be used as keys in Python dicts, which do not require
+a total ordering).
+
+Examples of objects that are wholly safe to use as keys in btree-based
+structures include ints, longs, floats, 8-bit strings, Unicode strings,
+and tuples composed (possibly recursively) of objects of wholly safe
+types.
+
+It's important to realize that even if two types satisfy the
+rules on their own, mixing objects of those types may not.  For example,
+8-bit strings and Unicode strings both supply total orderings, but mixing
+the two loses trichotomy; e.g., \code{'x' < chr(255)} and
+\code{u'x' == 'x'}, but trying to compare \code{chr(255)} to
+\code{u'x'} raises an exception.  Partly for this reason (another is
+given later), it can be dangerous to use keys with multiple types in
+a single btree-based structure.  Don't try to do that, and you don't
+have to worry about it.
+
+Another potential problem is mutability:  when a key is inserted in a
+btree-based structure, it must retain the same order relative to the
+other keys over time.  This is easy to run afoul of if you use mutable
+objects as keys.  For example, lists supply a total ordering, and then
+
+\begin{verbatim}
+>>> L1, L2, L3 = [1], [2], [3]
+>>> from BTrees.OOBTree import OOSet
+>>> s = OOSet((L2, L3, L1))  # this is fine, so far
+>>> list(s.keys())           # note that the lists are in sorted order
+[[1], [2], [3]]
+>>> s.has_key([3])           # and [3] is in the set
+1
+>>> L2[0] = 5                # horrible -- the set is insane now
+>>> s.has_key([3])           # for example, it's insane this way
+0
+>>> s
+OOSet([[1], [5], [3]])
+>>>
+\end{verbatim}
+
+Key lookup relies on that the keys remain in sorted order (an efficient
+form of binary search is used).  By mutating key L2 after inserting it,
+we destroyed the invariant that the OOSet is sorted.  As a result, all
+future operations on this set are unpredictable.
+
+A subtler variant of this problem arises due to persistence:  by default,
+Python does several kinds of comparison by comparing the memory
+addresses of two objects.  Because Python never moves an object in memory,
+this does supply a usable (albeit arbitrary) total ordering across the
+life of a program run (an object's memory address doesn't change).  But
+if objects compared in this way are used as keys of a btree-based
+structure that's stored in a database, when the objects are loaded from
+the database again they will almost certainly wind up at different
+memory addresses.  There's no guarantee then that if key K1 had a memory
+address smaller than the memory address of key K2 at the time K1 and
+K2 were inserted in a BTree, K1's address will also be smaller than
+K2's when that BTree is loaded from a database later.  The result will
+be an insane BTree, where various operations do and don't work as
+expected, seemingly at random.
+
+Now each of the types identified above as "wholly safe to use" never
+compares two instances of that type by memory address, so there's
+nothing to worry about here if you use keys of those types.  The most
+common mistake is to use keys that are instances of a user-defined class
+that doesn't supply its own \method{__cmp__()} method.  Python compares
+such instances by memory address.  This is fine if such instances are
+used as keys in temporary btree-based structures used only in a single
+program run.  It can be disastrous if that btree-based structure is
+stored to a database, though.
+
+\begin{verbatim}
+>>> class C:
+...     pass
+...
+>>> a, b = C(), C()
+>>> print a < b   # this may print 0 if you try it
+1
+>>> del a, b
+>>> a, b = C(), C()
+>>> print a < b   # and this may print 0 or 1
+0
+>>>
+\end{verbatim}
+
+That example illustrates that comparison of instances of classes that
+don't define \method{__cmp__()} yields arbitrary results (but consistent
+results within a single program run).
+
+Another problem occurs with instances of classes that do define
+\method{__cmp__()}, but define it incorrectly.  It's possible but
+rare for a custom \method\{__cmp__()} implementation to violate one
+of the three required formal properties directly.  It's more common for
+it to fall back" to address-based comparison by mistake.
+For example,
+
+\begin{verbatim}
+class Mine:
+    def __cmp__(self, other):
+        if other.__class__ is Mine:
+            return cmp(self.data, other.data)
+        else:
+            return cmp(self.data, other)
+\end{verbatim}
+
+It's quite possible there that the \keyword{else} clause allows
+a result to be computed based on memory address.  The bug won't show
+up until a btree-based structure uses objects of class \class{Mine} as
+keys, and also objects of other types as keys, and the structure is
+loaded from a database, and a sequence of comparisons happens to execute
+the \keyword{else} clause in a case where the relative order of object
+memory addresses happened to change.
+
+This is as difficult to track down as it sounds, so best to stay far
+away from the possibility.
+
+You'll stay out of trouble by follwing these rules, violating them
+only with great care:
+
+\begin{enumerate}
+\item  Use objects of simple immutable types as keys in
+       btree-based data structures.
+
+\item  Within a single btree-based data structure, use objects of
+       a single type as keys.  Don't use multiple key types in a
+       single structure.
+
+\item  If you want to use class instances as keys, and there's
+       any possibility that the structure may be stored in a
+       database, it's crucial that the class define a
+       \method{__cmp__()} method, and that the method is
+       carefully implemented.
+
+       Any part of a comparison implementation that relies (explicitly
+       or implicitly) on an address-based comparison result will
+       eventually cause serious failure.
+end{enumerate}
