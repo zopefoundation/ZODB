@@ -69,12 +69,12 @@ It is instructive to watch what happens to the internal data structures
 as changes are made.  For example, in Zope, you can create an external
 method::
 
-  import Zope
+  import Zope2
 
   def info(RESPONSE):
       RESPONSE['Content-type']= 'text/plain'
 
-      return Zope.DB._storage._splat()
+      return Zope2.DB._storage._splat()
 
 and call it to monitor the storage.
 

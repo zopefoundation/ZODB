@@ -197,10 +197,10 @@ def setup(lib_python):
         os.remove(os.path.join(lib_python, '..', '..', 'var', 'Data.fs'))
     except:
         pass
-    import Zope
+    import Zope2
     import Products
     import AccessControl.SecurityManagement
-    app=Zope.app()
+    app=Zope2.app()
 
     Products.ZCatalog.ZCatalog.manage_addZCatalog(app, 'cat', '')
 
@@ -279,16 +279,16 @@ def run1(tid, db, factory, job, args):
         factory.__name__, r)
 
 def run(jobs, tid=''):
-    import Zope
+    import Zope2
     while 1:
         factory, job, args, repeatp = jobs.next()
-        run1(tid, Zope.DB, factory, job, args)
+        run1(tid, Zope2.DB, factory, job, args)
         if repeatp:
             while 1:
                 i = random.randint(0,100)
                 if i > repeatp:
                     break
-                run1(tid, Zope.DB, factory, job, args)
+                run1(tid, Zope2.DB, factory, job, args)
 
 
 def index(connection, messages, catalog):
@@ -733,8 +733,8 @@ def main(args=None):
     if options.has_key('setup'):
         setup(lib_python)
     else:
-        import Zope
-        Zope.startup()
+        import Zope2
+        Zope2.startup()
 
     #from ThreadedAsync.LoopCallback import loop
     #threading.Thread(target=loop, args=(), name='asyncore').start()
