@@ -145,3 +145,25 @@ class ThreadTests:
         self.assertEqual(thread1.gotValueError, 1)
         self.assertEqual(thread2.gotValueError, 1)
         self.assertEqual(thread2.gotDisconnected, 1)
+
+    # Run a bunch of threads doing small and large stores in parallel
+    def checkMTStores(self):
+        threads = []
+        for i in range(5):
+            t = threading.Thread(target=self.mtstorehelper)
+            threads.append(t)
+            t.start()
+        for t in threads:
+            t.join(30)
+        for i in threads:
+            self.failUnless(not t.isAlive())
+
+    # Helper for checkMTStores
+    def mtstorehelper(self):
+        name = threading.currentThread().getName()
+        objs = []
+        for i in range(10):
+            objs.append(MinPO("X" * 200000))
+            objs.append(MinPO("X"))
+        for obj in objs:
+            self._dostore(data=obj)
