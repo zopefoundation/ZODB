@@ -20,6 +20,7 @@ We need a database with a blob supporting storage:
     >>> from ZODB.MappingStorage import MappingStorage
     >>> from ZODB.Blobs.BlobStorage import BlobStorage
     >>> from ZODB.DB import DB
+    >>> import transaction
     >>> from tempfile import mkdtemp
     >>> base_storage = MappingStorage("test")
     >>> blob_dir = mkdtemp()
@@ -28,48 +29,47 @@ We need a database with a blob supporting storage:
     
 Putting a Blob into a Connection works like any other Persistent object:
 
-    >>> connection = database.open()
-    >>> root = connection.root()
+    >>> connection1 = database.open()
+    >>> root1 = connection1.root()
     >>> from ZODB.Blobs.Blob import Blob
-    >>> blob = Blob()
-    >>> blob.open('w').write('abc')
-    >>> root['myblob'] = blob
-    >>> import transaction
+    >>> blob1 = Blob()
+    >>> blob1.open('w').write('this is blob 1')
+    >>> root1['blob1'] = blob1
     >>> transaction.commit()
 
 Opening a blob gives us a filehandle.  Getting data out of the
 resulting filehandle is accomplished via the filehandle's read method:
 
     >>> connection2 = database.open()
-    >>> root = connection2.root()
-    >>> blob2 = root['myblob']
-    >>> blob2._p_blob_refcounts()
+    >>> root2 = connection2.root()
+    >>> blob1a = root2['blob1']
+    >>> blob1a._p_blob_refcounts()
     (0, 0)
     >>>
-    >>> b1 = blob2.open("r")
-    >>> b1.read()
-    'abc'
-    >>> # we reach into the implementation here, dont try this at home
-    >>> b1.blob._p_blob_refcounts()[0]
-    1
+    >>> blob1afh1 = blob1a.open("r")
+    >>> blob1afh1.read()
+    'this is blob 1'
+    >>> # The filehandle keeps a reference to its blob object
+    >>> blob1afh1.blob._p_blob_refcounts()
+    (1, 0)
 
-Let's make another filehandle for read only to blob2, this should bump
+Let's make another filehandle for read only to blob1a, this should bump
 up its refcount by one, and each file handle has a reference to the
 (same) underlying blob:
 
-    >>> b2 = blob2.open("r")
-    >>> b2.blob._p_blob_refcounts()
+    >>> blob1afh2 = blob1a.open("r")
+    >>> blob1afh2.blob._p_blob_refcounts()
     (2, 0)
-    >>> b1.blob._p_blob_refcounts()
+    >>> blob1afh1.blob._p_blob_refcounts()
     (2, 0)
+    >>> blob1afh2.blob is blob1afh1.blob
+    True
 
 Let's close the first filehandle we got from the blob, this should decrease
 its refcount by one:
 
-    >>> b1.close()
-    >>> b1.blob._p_blob_refcounts()
-    (1, 0)
-    >>> b1.blob._p_blob_refcounts()
+    >>> blob1afh1.close()
+    >>> blob1a._p_blob_refcounts()
     (1, 0)
 
 Let's abort this transaction, and ensure that the filehandles that we
@@ -77,22 +77,70 @@ opened are now closed and that the filehandle refcounts on the blob
 object are cleared.
 
     >>> transaction.abort()
-    >>> b1.blob._p_blob_refcounts()
+    >>> blob1afh1.blob._p_blob_refcounts()
     (0, 0)
-    >>> b2.blob._p_blob_refcounts()
+    >>> blob1afh2.blob._p_blob_refcounts()
     (0, 0)
-    >>> b2.read()
+    >>> blob1a._p_blob_refcounts()
+    (0, 0)
+    >>> blob1afh2.read()
     Traceback (most recent call last):
         ...
     ValueError: I/O operation on closed file
 
-If we open a blob for writing, its write refcount should be nonzero:
+If we open a blob for append, its write refcount should be nonzero.
+Additionally, writing any number of bytes to the blobfile should
+result in the blob being marked "dirty" in the connection (we just
+aborted above, so the object should be "clean" when we start):
 
+    >>> bool(blob1a._p_changed)
+    False
+    >>> blob1afh3 = blob1a.open('a')
+    >>> blob1afh3.write('woot!')
+    >>> blob1a._p_blob_refcounts()
+    (0, 1)
+    >>> bool(blob1a._p_changed)
+    True
+
+We can open more than one blob object during the course of a single
+transaction:
+
+    >>> blob2 = Blob()
+    >>> blob2.open('w').write('this is blob 3')
+    >>> root2['blob2'] = blob2
+    >>> transaction.commit()
     >>> blob2._p_blob_refcounts()
     (0, 0)
-    >>> b2 = blob2.open('a')
-    >>> blob2._p_blob_refcounts()
-    (0, 1)
+
+Since we committed the current transaction above, the aggregate
+changes we've made to blob, blob1a (these refer to the same object) and
+blob2 (a different object) should be evident:
+
+    >>> blob1.open('r').read()
+    'this is blob 1woot!'
+    >>> blob1a.open('r').read()
+    'this is blob 1woot!'
+    >>> blob2.open('r').read()
+    'this is blob 3'
+
+Attempting to change a blob simultaneously from two different
+connections should result in a write conflict error (this test is
+broken currently because I need to figure out how to commit the
+changes made in each connection independently):
+
+    >>> transaction.abort()
+    >>> blob1c1 = root1['blob1']
+    >>> blob1c2 = root2['blob1']
+    >>> blob1c1fh1 = blob1c1.open('a')
+    >>> blob1c2fh1 = blob1c2.open('a')
+    >>> blob1c1fh1.write('this is from connection 1')
+    >>> blob1c2fh1.write('this is from connection 2')
+    >>> transaction.commit()
+    Traceback (most recent call last):
+        ...
+    ConflictError
+
+If we modify the same blob in two different connections
 
 While we are testing this, we don't need the storage directory and databases
 anymore:
