@@ -85,13 +85,13 @@
 """Simple rpc mechanisms
 """
 
-__version__ = "$Revision: 1.10 $"[11:-2]
+__version__ = "$Revision: 1.11 $"[11:-2]
 
 from ZODB.cPickle import loads
 from ZODB import cPickle
 from thread import allocate_lock
 from smac import SizedMessageAsyncConnection
-import socket, string, struct, asyncore, sys, time
+import socket, string, struct, asyncore, sys, time, select
 TupleType=type(())
 from zLOG import LOG, TRACE, DEBUG, INFO
 
@@ -163,6 +163,17 @@ class asyncRPC(SizedMessageAsyncConnection):
         if key==self._fileno: return self
         raise KeyError, key
 
+    def sync(self):
+        if self.__map: return # in async mode
+
+        # Ick, I have to do my own select loop, which sucks
+        while 1:
+            try: r, w, e = select.select([self._fileno],[],[],0.0)
+            except select.error, v:
+                if v[0] != EINTR: raise
+            if r: asyncore.poll(0.0, self)
+            else: break
+
     def readLoop(self):
         la=self.__la
         while not la(0):
@@ -176,6 +187,7 @@ class asyncRPC(SizedMessageAsyncConnection):
             self.__map=1
 
         self.__Wakeup=Wakeup
+
          
     def __call__(self, *args):
         args=dump(args,1)
