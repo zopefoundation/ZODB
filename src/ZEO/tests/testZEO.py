@@ -2,6 +2,7 @@
 
 import asyncore
 import os
+import random
 import tempfile
 import time
 import types
@@ -12,12 +13,14 @@ import ThreadedAsync, ZEO.trigger
 from ZODB.FileStorage import FileStorage
 
 from ZEO.tests import forker, Cache
+from ZEO.smac import Disconnected
 
 # Sorry Jim...
 from ZODB.tests import StorageTestBase, BasicStorage, VersionStorage, \
      TransactionalUndoStorage, TransactionalUndoVersionStorage, \
      PackableStorage, Synchronization, ConflictResolution
 from ZODB.tests.MinPO import MinPO
+from ZODB.tests.StorageTestBase import zodb_unpickle
 
 
 ZERO = '\0'*8
@@ -93,10 +96,6 @@ class ZEOTestBase(StorageTestBase.StorageTestBase):
                     raise serial
                 d[oid] = serial
         return d
-
-    def checkLargeUpdate(self):
-        obj = MinPO("X" * (10 * 128 * 1024))
-        self._dostore(data=obj)
         
 class GenericTests(ZEOTestBase,
                    Cache.StorageWithCache,
@@ -142,6 +141,10 @@ class GenericTests(ZEOTestBase,
         os.waitpid(self._pid, 0)
         self.__super_tearDown()
 
+    def checkLargeUpdate(self):
+        obj = MinPO("X" * (10 * 128 * 1024))
+        self._dostore(data=obj)
+
 class ZEOFileStorageTests(GenericTests):
     __super_setUp = GenericTests.setUp
     
@@ -153,11 +156,117 @@ class ZEOFileStorageTests(GenericTests):
         return FileStorage(self.__fs_base, create=1)
 
     def delStorage(self):
-        # file storage appears to create three files
+        # file storage appears to create four files
         for ext in '', '.index', '.lock', '.tmp':
             path = self.__fs_base + ext
             os.unlink(path)
-        
+
+class PersistentCacheTests(ZEOTestBase):
+    __super_setUp = StorageTestBase.StorageTestBase.setUp
+    __super_tearDown = StorageTestBase.StorageTestBase.tearDown
+
+    def setUp(self):
+        """Start a ZEO server using a Unix domain socket
+
+        The ZEO server uses the storage object returned by the
+        getStorage() method.
+        """
+        self.running = 1
+        self.__fs_base = tempfile.mktemp()
+        fs = FileStorage(self.__fs_base, create=1)
+        self.addr = '', random.randrange(2000, 3000)
+        pid, exit = forker.start_zeo_server(fs, self.addr)
+        self._pid = pid
+        self._server = exit
+        self.__super_setUp()
+
+    def openClientStorage(self, cache, cache_size, wait):
+        base = ZEO.ClientStorage.ClientStorage(self.addr,
+                                               client=cache,
+                                               cache_size=cache_size,
+                                               wait_for_server_on_startup=wait)
+        storage = PackWaitWrapper(base)
+        storage.registerDB(DummyDB(), None)
+        return storage
+
+    def shutdownServer(self):
+        if self.running:
+            self.running = 0
+            self._server.close()
+            os.waitpid(self._pid, 0)
+
+    def tearDown(self):
+        """Try to cause the tests to halt"""
+        self.shutdownServer()
+        # file storage appears to create four files
+        for ext in '', '.index', '.lock', '.tmp':
+            path = self.__fs_base + ext
+            if os.path.exists(path):
+                os.unlink(path)
+        for i in 0, 1:
+            path = "c1-test-%d.zec" % i
+            if os.path.exists(path):
+                os.unlink(path)
+        self.__super_tearDown()
+
+    def checkBasicPersistence(self):
+        """Verify cached data persists across client storage instances.
+
+        To verify that the cache is being used, the test closes the
+        server and then starts a new client with the server down.
+        """
+        self._storage = self.openClientStorage('test', 100000, 1)
+        oid = self._storage.new_oid()
+        obj = MinPO(12)
+        revid1 = self._dostore(oid, data=obj)
+        self._storage.close()
+        self.shutdownServer()
+        self._storage = self.openClientStorage('test', 100000, 0)
+        data, revid2 = self._storage.load(oid, '')
+        assert zodb_unpickle(data) == MinPO(12)
+        assert revid1 == revid2
+        self._storage.close()
+
+    def checkRollover(self):
+        """Check that the cache works when the files are swapped.
+
+        In this case, only one object fits in a cache file.  When the
+        cache files swap, the first object is effectively uncached.
+        """
+        self._storage = self.openClientStorage('test', 1000, 1)
+        oid1 = self._storage.new_oid()
+        obj1 = MinPO("1" * 500)
+        revid1 = self._dostore(oid1, data=obj1)
+        oid2 = self._storage.new_oid()
+        obj2 = MinPO("2" * 500)
+        revid2 = self._dostore(oid2, data=obj2)
+        self._storage.close()
+        self.shutdownServer()
+        self._storage = self.openClientStorage('test', 1000, 0)
+        self._storage.load(oid2, '')
+        self.assertRaises(Disconnected, self._storage.load, oid1, '')
+
+def get_methods(klass):
+    l = [klass]
+    meth = {}
+    while l:
+        klass = l.pop(0)
+        for base in klass.__bases__:
+            l.append(base)
+        for k, v in klass.__dict__.items():
+            if callable(v):
+                meth[k] = 1
+    return meth.keys()
+
+def makeTestSuite(testname=''):
+    suite = unittest.TestSuite()
+    name = 'check' + testname
+    for klass in ZEOFileStorageTests, PersistentCacheTests:
+        for meth in get_methods(klass):
+            if meth.startswith(name):
+                suite.addTest(klass(meth))
+    return suite
+
 def main():
     import sys, getopt
 
@@ -172,7 +281,7 @@ def main():
         print >> sys.stderr, "Did not expect arguments.  Got %s" % args
         return 0
     
-    tests = unittest.makeSuite(ZEOFileStorageTests, 'check' + name_of_test)
+    tests = makeTestSuite(name_of_test)
     runner = unittest.TextTestRunner()
     runner.run(tests)
 
