@@ -184,7 +184,7 @@
 #   may have a back pointer to a version record or to a non-version
 #   record.
 #
-__version__='$Revision: 1.14 $'[11:-2]
+__version__='$Revision: 1.15 $'[11:-2]
 
 import struct, time, os, bpthread, string, base64
 from struct import pack, unpack
@@ -231,7 +231,7 @@ packed_version='FS21'
 class FileStorage(BaseStorage.BaseStorage):
     _packt=z64
 
-    def __init__(self, file_name, create=0, read_only=0, stop=None, base=None):
+    def __init__(self, file_name, create=0, read_only=0, stop=None):
 
         if read_only:
             if create:
@@ -259,8 +259,6 @@ class FileStorage(BaseStorage.BaseStorage):
 
         self._initIndex(index, vindex, tindex, tvindex)
         
-        self._base=base
-
         # Now open the file
         
         if create:
@@ -451,12 +449,7 @@ class FileStorage(BaseStorage.BaseStorage):
 
     def load(self, oid, version, _stuff=None):
         self._lock_acquire()
-        try:
-            try: return self._load(oid, version, self._index, self._file)
-            except:
-                if self._base is not None:
-                    return self._base.load(oid, version)
-                raise
+        try: return self._load(oid, version, self._index, self._file)
         finally: self._lock_release()
                     
     def modifiedInVersion(self, oid):
@@ -704,7 +697,9 @@ class FileStorage(BaseStorage.BaseStorage):
     def versions(self, max=None):
         r=[]
         a=r.append
-        for version in self._vindex.keys()[:max]:
+        keys=self._vindex.keys()
+        if max is not None: keys=keys[:max]
+        for version in keys:
             if self.versionEmpty(version): continue
             a(version)
             if max and len(r) >= max: return r
