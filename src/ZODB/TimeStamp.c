@@ -15,7 +15,7 @@
 static char TimeStamp_module_documentation[] = 
 "Defines 64-bit TimeStamp objects used as ZODB serial numbers.\n"
 "\n"
-"\n$Id: TimeStamp.c,v 1.15 2002/03/08 18:36:13 jeremy Exp $\n";
+"\n$Id: TimeStamp.c,v 1.16 2002/10/07 17:54:27 gvanrossum Exp $\n";
 
 #include <stdlib.h>
 #include <time.h>
@@ -344,7 +344,10 @@ TimeStamp_str(TimeStamp *self)
 static int
 TimeStamp_compare(TimeStamp *v, TimeStamp *w)
 {
-  return memcmp(v->data, w->data, 8);
+  int cmp = memcmp(v->data, w->data, 8);
+  if (cmp < 0) return -1;
+  if (cmp > 0) return 1;
+  return 0;
 }
 
 static long
