@@ -13,7 +13,7 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.82 2003/01/15 21:29:26 jeremy Exp $"""
+$Id: Connection.py,v 1.83 2003/01/17 17:23:14 shane Exp $"""
 
 from cPickleCache import PickleCache
 from POSException import ConflictError, ReadConflictError
@@ -22,6 +22,7 @@ import ExportImport, TmpStore
 from zLOG import LOG, ERROR, BLATHER, WARNING
 from coptimizations import new_persistent_id
 from ConflictResolution import ResolvedSerial
+from Transaction import Transaction, get_transaction
 
 from cPickle import Unpickler, Pickler
 from cStringIO import StringIO
@@ -55,6 +56,7 @@ class Connection(ExportImport.ExportImport):
     _debug_info=()
     _opened=None
     _code_timestamp = 0
+    _transaction = None
 
     # Experimental. Other connections can register to be closed
     # when we close by putting something here.
@@ -79,6 +81,19 @@ class Connection(ExportImport.ExportImport):
         self._code_timestamp = global_code_timestamp
         self._load_count = 0   # Number of objects unghosted
         self._store_count = 0  # Number of objects stored
+
+    def getTransaction(self):
+        t = self._transaction
+        if t is None:
+            # Fall back to thread-bound transactions
+            t = get_transaction()
+        return t
+
+    def setLocalTransaction(self):
+        """Use a transaction bound to the connection rather than the thread"""
+        if self._transaction is None:
+            self._transaction = Transaction()
+        return self._transaction
 
     def _cache_items(self):
         # find all items on the lru list
@@ -269,7 +284,7 @@ class Connection(ExportImport.ExportImport):
         if self.__onCommitActions is None:
             self.__onCommitActions = []
         self.__onCommitActions.append((method_name, args, kw))
-        get_transaction().register(self)
+        self.getTransaction().register(self)
 
     def commit(self, object, transaction):
         if object is self:
@@ -484,7 +499,7 @@ class Connection(ExportImport.ExportImport):
         assert object._p_jar is self
         # XXX Figure out why this assert causes test failures
         # assert object._p_oid is not None
-        get_transaction().register(object)
+        self.getTransaction().register(object)
 
     def root(self):
         return self['\0\0\0\0\0\0\0\0']
@@ -516,7 +531,7 @@ class Connection(ExportImport.ExportImport):
             # XXX Need unit tests for _p_independent.
             if self._invalid(oid):
                 if not hasattr(object.__class__, '_p_independent'):
-                    get_transaction().register(self)
+                    self.getTransaction().register(self)
                     raise ReadConflictError(object=object)
                 invalid = 1
             else:
@@ -544,7 +559,7 @@ class Connection(ExportImport.ExportImport):
                     except KeyError:
                         pass
                 else:
-                    get_transaction().register(self)
+                    self.getTransaction().register(self)
                     raise ConflictError(object=object)
 
         except ConflictError:
@@ -695,7 +710,7 @@ class Connection(ExportImport.ExportImport):
         self._db.finish_invalidation()
 
     def sync(self):
-        get_transaction().abort()
+        self.getTransaction().abort()
         sync=getattr(self._storage, 'sync', 0)
         if sync != 0: sync()
         self._cache.invalidate(self._invalidated)
@@ -726,7 +741,7 @@ class Connection(ExportImport.ExportImport):
         new._p_oid=oid
         new._p_jar=self
         new._p_changed=1
-        get_transaction().register(new)
+        self.getTransaction().register(new)
         self._cache[oid]=new
 
 class tConnection(Connection):

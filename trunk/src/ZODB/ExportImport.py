@@ -76,7 +76,7 @@ class ExportImport:
                 return customImporters[magic](self, file, clue)
             raise POSException.ExportError, 'Invalid export header'
 
-        t = get_transaction()
+        t = self.getTransaction()
         if clue: t.note(clue)
 
         return_oid_list = []

@@ -111,9 +111,13 @@ class ZODBTests(unittest.TestCase, ExportImportTests):
         # Make sure the changes to make empty transactions a no-op
         # still allow things like abortVersion().  This should work
         # because abortVersion() calls tpc_begin() itself.
-        r = self._db.open("version").root()
-        r[1] = 1
-        get_transaction().commit()
+        conn = self._db.open("version")
+        try:
+            r = conn.root()
+            r[1] = 1
+            get_transaction().commit()
+        finally:
+            conn.close()
         self._db.abortVersion("version")
         get_transaction().commit()
 
@@ -130,25 +134,49 @@ class ZODBTests(unittest.TestCase, ExportImportTests):
             self.assert_(conn.cacheGC == conn._cache.incrgc)
         finally:
             conn.close()
-        
+
+    def checkLocalTransactions(self):
+        # Test of transactions that apply to only the connection,
+        # not the thread.
+        conn1 = self._db.open()
+        conn2 = self._db.open()
+        try:
+            conn1.setLocalTransaction()
+            conn2.setLocalTransaction()
+            r1 = conn1.root()
+            r2 = conn2.root()
+            if r1.has_key('item'):
+                del r1['item']
+                conn1.getTransaction().commit()
+            r1.get('item')
+            r2.get('item')
+            r1['item'] = 1
+            conn1.getTransaction().commit()
+            self.assertEqual(r1['item'], 1)
+            # r2 has not seen a transaction boundary,
+            # so it should be unchanged.
+            self.assertEqual(r2.get('item'), None)
+            conn2.sync()
+            # Now r2 is updated.
+            self.assertEqual(r2['item'], 1)
+
+            # Now, for good measure, send an update in the other direction.
+            r2['item'] = 2
+            conn2.getTransaction().commit()
+            self.assertEqual(r1['item'], 1)
+            self.assertEqual(r2['item'], 2)
+            conn1.sync()
+            conn2.sync()
+            self.assertEqual(r1['item'], 2)
+            self.assertEqual(r2['item'], 2)
+        finally:
+            conn1.close()
+            conn2.close()
+
 
 def test_suite():
     return unittest.makeSuite(ZODBTests, 'check')
 
-def main():
-    alltests=test_suite()
-    runner = unittest.TextTestRunner()
-    runner.run(alltests)
-
-def debug():
-    test_suite().debug()
-
-def pdebug():
-    import pdb
-    pdb.run('debug()')
-
 if __name__=='__main__':
-    if len(sys.argv) > 1:
-        globals()[sys.argv[1]]()
-    else:
-        main()
+    unittest.main(defaultTest='test_suite')
+

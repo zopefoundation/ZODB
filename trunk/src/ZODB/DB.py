@@ -13,13 +13,13 @@
 ##############################################################################
 """Database objects
 
-$Id: DB.py,v 1.46 2002/12/03 17:40:56 jeremy Exp $"""
-__version__='$Revision: 1.46 $'[11:-2]
+$Id: DB.py,v 1.47 2003/01/17 17:23:14 shane Exp $"""
+__version__='$Revision: 1.47 $'[11:-2]
 
 import cPickle, cStringIO, sys, POSException, UndoLogCompatible
 from Connection import Connection
 from bpthread import allocate_lock
-from Transaction import Transaction
+from Transaction import Transaction, get_transaction
 from referencesf import referencesf
 from time import time, ctime
 from zLOG import LOG, ERROR
@@ -153,8 +153,10 @@ class DB(UndoLogCompatible.UndoLogCompatible):
                 self._temps=t
         finally: self._r()
 
-    def abortVersion(self, version):
-        AbortVersion(self, version)
+    def abortVersion(self, version, transaction=None):
+        if transaction is None:
+            transaction = get_transaction()
+        transaction.register(AbortVersion(self, version))
 
     def cacheDetail(self):
         """Return information on objects in the various caches
@@ -248,8 +250,10 @@ class DB(UndoLogCompatible.UndoLogCompatible):
     def close(self):
         self._storage.close()
 
-    def commitVersion(self, source, destination=''):
-        CommitVersion(self, source, destination)
+    def commitVersion(self, source, destination='', transaction=None):
+        if transaction is None:
+            transaction = get_transaction()
+        transaction.register(CommitVersion(self, source, destination))
 
     def exportFile(self, oid, file=None):
         raise 'Not yet implemented'
@@ -542,7 +546,7 @@ class DB(UndoLogCompatible.UndoLogCompatible):
 
     def cacheStatistics(self): return () # :(
 
-    def undo(self, id):
+    def undo(self, id, transaction=None):
         storage=self._storage
         try: supportsTransactionalUndo = storage.supportsTransactionalUndo
         except AttributeError:
@@ -552,7 +556,9 @@ class DB(UndoLogCompatible.UndoLogCompatible):
 
         if supportsTransactionalUndo:
             # new style undo
-            TransactionalUndo(self, id)
+            if transaction is None:
+                transaction = get_transaction()
+            transaction.register(TransactionalUndo(self, id))
         else:
             # fall back to old undo
             for oid in storage.undo(id):
@@ -576,7 +582,6 @@ class CommitVersion:
         self.tpc_vote=s.tpc_vote
         self.tpc_finish=s.tpc_finish
         self._sortKey=s.sortKey
-        get_transaction().register(self)
 
     def sortKey(self):
         return "%s:%s" % (self._sortKey(), id(self))
@@ -613,9 +618,9 @@ class TransactionalUndo(CommitVersion):
     in cooperation with a transaction manager.
     """
 
-    # I'm lazy. I'm reusing __init__ and abort and reusing the
-    # version attr for the transavtion id. There's such a strong
-    # similarity of rythm, that I think it's justified.
+    # I (Jim) am lazy.  I'm reusing __init__ and abort and reusing the
+    # version attr for the transaction id.  There's such a strong
+    # similarity of rhythm that I think it's justified.
 
     def commit(self, reallyme, t):
         db=self._db
