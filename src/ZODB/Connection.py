@@ -84,8 +84,8 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.38 2000/09/07 21:53:47 jim Exp $"""
-__version__='$Revision: 1.38 $'[11:-2]
+$Id: Connection.py,v 1.39 2000/09/21 21:34:31 shane Exp $"""
+__version__='$Revision: 1.39 $'[11:-2]
 
 from cPickleCache import PickleCache
 from POSException import ConflictError, ExportError
@@ -242,11 +242,8 @@ class Connection(ExportImport.ExportImport):
     def close(self):
         self._incrgc() # This is a good time to do some GC
         db=self._db
-        self._db=self._storage=self._tmp=self.new_oid=self._opened=None
-        self._debug_info=()
-        db._closeConnection(self)
 
-        # Call the close callback
+        # Call the close callbacks.
         for f in self.__onCloseCallbacks:
             try: f()
             except:
@@ -254,7 +251,11 @@ class Connection(ExportImport.ExportImport):
                 LOG('ZODB',ERROR, 'Close callback failed for %s' % f,
                     error=sys.exc_info())
         self.__onCloseCallbacks=()
-
+        self._db=self._storage=self._tmp=self.new_oid=self._opened=None
+        self._debug_info=()
+        # Return the connection to the pool.
+        db._closeConnection(self)
+                        
     def commit(self, object, transaction, _type=type, _st=type('')):
         oid=object._p_oid
         invalid=self._invalid
