@@ -1,5 +1,9 @@
 Zope Enterprize Objects
 
+  ZEO 1.0 requires Python 2.0 when used without Zope.  It depends on
+  versions of asyncore and cPickle that were first released with
+  Python 2.0.
+
   Put the ZEO package in a directory on your Python path.  On a Unix
   system, you can use the site-packages directory of your Python lib
   directory.  The ZEO package is the directory named ZEO that contains
