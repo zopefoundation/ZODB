@@ -1,6 +1,6 @@
 /*
 
-  $Id: cPersistence.h,v 1.7 1997/07/18 14:15:39 jim Exp $
+  $Id: cPersistence.h,v 1.8 1997/12/10 22:19:24 jim Exp $
 
   Definitions to facilitate making cPersistent subclasses in C.
 
@@ -56,6 +56,9 @@
 
 
   $Log: cPersistence.h,v $
+  Revision 1.8  1997/12/10 22:19:24  jim
+  Added PER_USE macro.
+
   Revision 1.7  1997/07/18 14:15:39  jim
   Added PER_DEL so that subclasses can handle deallocation correctly.
 
@@ -122,8 +125,11 @@ typedef struct {
 
 static cPersistenceCAPIstruct *cPersistenceCAPI;
 
+
 #define PER_USE_OR_RETURN(O,R) \
   if(cPersistenceCAPI->setstate((PyObject*)(O)) < 0) return (R)
+
+#define PER_USE(O) (cPersistenceCAPI->setstate((PyObject*)(O)))
 
 #define PER_CHANGED(O) (cPersistenceCAPI->changed((PyObject*)(O)))
 
