@@ -1,34 +1,32 @@
 """Library for forking storage server and connecting client storage"""
 
 import asyncore
-import atexit
 import os
 import profile
 import random
-import socket
 import sys
-import threading
-import time
 import types
-import ThreadedAsync
 import ZEO.ClientStorage, ZEO.StorageServer
 
 PROFILE = 0
 
 if os.name == "nt":
 
-    def start_zeo_server(storage_name, args):
+    def start_zeo_server(storage_name, args, port=None):
         """Start a ZEO server in a separate process.
 
         Returns the ZEO port, the test server port, and the pid.
         """
         import ZEO.tests.winserver
-        port = random.randrange(20000, 30000)
+        if port is None:
+            port = random.randrange(20000, 30000)
         script = ZEO.tests.winserver.__file__
         if script.endswith('.pyc'):
             script = script[:-1]
         args = (sys.executable, script, str(port), storage_name) + args
-        pid = os.spawnv(os.P_NOWAIT, sys.executable, args)
+        d = os.environ.copy()
+        d['PYTHONPATH'] = os.pathsep.join(sys.path)
+        pid = os.spawnve(os.P_NOWAIT, sys.executable, args, os.environ)
         return ('localhost', port), ('localhost', port + 1), pid
 
 else:

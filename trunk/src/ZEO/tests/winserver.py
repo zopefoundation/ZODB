@@ -17,8 +17,9 @@ class ZEOTestServer(asyncore.dispatcher):
     """
     __super_init = asyncore.dispatcher.__init__
 
-    def __init__(self, addr):
+    def __init__(self, addr, storage):
         self.__super_init()
+        self.storage = storage
         if type(addr) == types.StringType:
             self.create_socket(socket.AF_UNIX, socket.SOCK_STREAM)
         else:
@@ -28,6 +29,7 @@ class ZEOTestServer(asyncore.dispatcher):
 
     def handle_accept(self):
         sock, addr = self.accept()
+        self.storage.close()
         os._exit(0)
 
 def load_storage_class(name):
@@ -40,12 +42,11 @@ def main(port, storage_name, args):
     storage = klass(*args)
     zeo_port = int(port)
     test_port = zeo_port + 1
-    t = ZEOTestServer(('', test_port))
-##    t = threading.Thread(target=ZEOTestServer, args=(('', test_port),))
-##    t.start()
+    t = ZEOTestServer(('', test_port), storage)
     serv = ZEO.StorageServer.StorageServer(('', zeo_port), {'1': storage})
     asyncore.loop()
 
 if __name__ == "__main__":
     import sys
+
     main(sys.argv[1], sys.argv[2], sys.argv[3:])

@@ -25,7 +25,6 @@ from ZODB.tests import StorageTestBase, BasicStorage, VersionStorage, \
 from ZODB.tests.MinPO import MinPO
 from ZODB.tests.StorageTestBase import zodb_unpickle
 
-
 ZERO = '\0'*8
 
 class DummyDB:
@@ -223,44 +222,18 @@ class ConnectionTests(ZEOTestBase):
     start and stop a ZEO storage server.
     """
     
-    __super_setUp = StorageTestBase.StorageTestBase.setUp
-    __super_tearDown = StorageTestBase.StorageTestBase.tearDown
-
     ports = range(29000, 30000, 10) # enough for 100 tests
     random.shuffle(ports)
 
-    def setUp(self):
-        """Start a ZEO server using a Unix domain socket
-
-        The ZEO server uses the storage object returned by the
-        getStorage() method.
-        """
-        self.running = 1
-        self.__fs_base = tempfile.mktemp()
-        self.addr = '', random.randrange(2000, 3000)
-        pid, exit = self._startServer()
-        self._pid = pid
-        self._server = exit
-        self.__super_setUp()
-
-    def _startServer(self, create=1):
-        fs = FileStorage(self.__fs_base, create=create)
-        return forker.start_zeo_server(fs, self.addr)
+    __super_tearDown = StorageTestBase.StorageTestBase.tearDown
 
     def openClientStorage(self, cache='', cache_size=200000, wait=1):
-        base = ZEO.ClientStorage.ClientStorage(self.addr,
-                                               client=cache,
-                                               cache_size=cache_size,
-                                               wait_for_server_on_startup=wait)
-        storage = PackWaitWrapper(base)
-        storage.registerDB(DummyDB(), None)
-        return storage
+        # defined by subclasses
+        pass
 
     def shutdownServer(self):
-        if self.running:
-            self.running = 0
-            self._server.close()
-            os.waitpid(self._pid, 0)
+        # defined by subclasses
+        pass
 
     def tearDown(self):
         """Try to cause the tests to halt"""
@@ -323,7 +296,7 @@ class ConnectionTests(ZEOTestBase):
         revid1 = self._dostore(oid, data=obj)
         self.shutdownServer()
         self.running = 1
-        self._pid, self._server = self._startServer(create=0)
+        self._startServer(create=0)
         oid = self._storage.new_oid()
         obj = MinPO(12)
         while 1:
@@ -335,6 +308,81 @@ class ConnectionTests(ZEOTestBase):
             else:
                 break
 
+class UnixConnectionTests(ConnectionTests):
+    __super_setUp = StorageTestBase.StorageTestBase.setUp
+
+    def setUp(self):
+        """Start a ZEO server using a Unix domain socket
+
+        The ZEO server uses the storage object returned by the
+        getStorage() method.
+        """
+        self.running = 1
+        self.__fs_base = tempfile.mktemp()
+        self.addr = '', self.ports.pop()
+        self._startServer()
+        self.__super_setUp()
+
+    def _startServer(self, create=1):
+        fs = FileStorage(self.__fs_base, create=create)
+        self._pid, self._server = forker.start_zeo_server(fs, self.addr)
+
+    def openClientStorage(self, cache='', cache_size=200000, wait=1):
+        base = ZEO.ClientStorage.ClientStorage(self.addr,
+                                               client=cache,
+                                               cache_size=cache_size,
+                                               wait_for_server_on_startup=wait)
+        storage = PackWaitWrapper(base)
+        storage.registerDB(DummyDB(), None)
+        return storage
+
+    def shutdownServer(self):
+        if self.running:
+            self.running = 0
+            self._server.close()
+            os.waitpid(self._pid, 0)
+
+class WindowsConnectionTests(ConnectionTests):
+    __super_setUp = StorageTestBase.StorageTestBase.setUp
+
+    def setUp(self):
+        self.file = tempfile.mktemp()
+        self._startServer()
+        self.__super_setUp()
+
+    def _startServer(self, create=1):
+        if create == 0:
+            port = self.addr[1]
+        else:
+            port = None
+        self.addr, self.test_a, pid = forker.start_zeo_server('FileStorage',
+                                                              (self.file,
+                                                               str(create)),
+                                                              port)
+        self.running = 1
+
+    def openClientStorage(self, cache='', cache_size=200000, wait=1):
+        base = ZEO.ClientStorage.ClientStorage(self.addr,
+                                               client=cache,
+                                               cache_size=cache_size,
+                                               debug=1,
+                                               wait_for_server_on_startup=wait)
+        storage = PackWaitWrapper(base)
+        storage.registerDB(DummyDB(), None)
+        return storage
+
+    def shutdownServer(self):
+        if self.running:
+            self.running = 0
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            s.connect(self.test_a)
+            s.close()
+            time.sleep(1.0)
+
+    def tearDown(self):
+        self.shutdownServer()
+        
+    
 def get_methods(klass):
     l = [klass]
     meth = {}
@@ -348,9 +396,9 @@ def get_methods(klass):
     return meth.keys()
 
 if os.name == "posix":
-    test_classes = ZEOFileStorageTests, ConnectionTests
+    test_classes = ZEOFileStorageTests, UnixConnectionTests
 elif os.name == "nt":
-    test_classes = WindowsZEOFileStorageTests
+    test_classes = WindowsZEOFileStorageTests, WindowsConnectionTests
 else:
     raise RuntimeError, "unsupported os: %s" % os.name
 
@@ -364,7 +412,13 @@ def makeTestSuite(testname=''):
     return suite
 
 def test_suite():
-    return unittest.makeSuite(WindowsZEOFileStorageTests, 'check')
+    t = unittest.TestLoader()
+    t.testMethodPrefix = 'check'
+    tests = []
+    for klass in test_classes:
+        s = t.loadTestsFromTestCase(klass)
+        tests.extend(s._tests)
+    return unittest.TestSuite(tests)
 
 def main():
     import sys, getopt
@@ -385,4 +439,5 @@ def main():
     runner.run(tests)
 
 if __name__ == "__main__":
+    print sys.path
     main()
