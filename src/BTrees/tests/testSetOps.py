@@ -69,6 +69,19 @@ class TestMultiUnion(TestCase):
         self.assertEqual(len(output), N*4)
         self.assertEqual(list(output), range(-N, 3*N))
 
+    def testFunkyKeyIteration(self):
+        # The internal set iteration protocol allows "iterating over" a
+        # a single key as if it were a set.
+        N = 100
+        slow = IISet()
+        for i in range(N):
+            slow = union(slow, IISet([i]))
+        fast = multiunion(range(N))  # acts like N distinct singleton sets
+        self.assertEqual(len(slow), N)
+        self.assertEqual(len(fast), N)
+        self.assertEqual(list(slow.keys()), list(fast.keys()))
+        self.assertEqual(list(fast.keys()), range(N))
+
 def test_suite():
     return makeSuite(TestMultiUnion, 'test')
 

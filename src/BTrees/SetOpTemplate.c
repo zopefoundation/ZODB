@@ -16,7 +16,7 @@
  Set operations
  ****************************************************************************/
 
-#define SETOPTEMPLATE_C "$Id: SetOpTemplate.c,v 1.18 2002/06/03 17:21:55 tim_one Exp $\n"
+#define SETOPTEMPLATE_C "$Id: SetOpTemplate.c,v 1.19 2002/06/03 17:45:08 tim_one Exp $\n"
 
 #ifdef INTSET_H
 static int 
@@ -49,18 +49,7 @@ nextIntSet(SetIteration *i)
 static int 
 nextKeyAsSet(SetIteration *i)
 {
-  /* XXX Looks like this block could be replaced by
-   * XXX   i->position = i->position == 0 ? 1 : -1;
-   */
-  if (i->position >= 0)
-    {
-      if (i->position < 1)
-        {
-          i->position ++;
-        }
-      else
-        i->position = -1;
-    }
+  i->position = i->position == 0 ? 1 : -1; 
   return 0;
 }
 #endif
