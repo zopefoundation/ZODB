@@ -266,26 +266,31 @@ class Test(unittest.TestCase):
         self.assert_(P.__dictoffset__ < P.__weakrefoffset__)
         self.assert_(P.__basicsize__ > Persistent.__basicsize__)
 
-    def testDeactivateErrors(self):
-        p = self.klass()
-        p._p_oid = '\0\0\0\0\0\0hi'
-        dm = DM()
-        p._p_jar = dm
+# XXX Can anyone defend/explain the test below? The tests classes defined here
+# don't define __call__, so this weird test will always pass, but to what
+# end? What the heck is the point.  If a klass is given that happens
+# to define __call__, the test *may* mysteriously fail. Who cares?
 
-        def typeerr(*args, **kwargs):
-            self.assertRaises(TypeError, p, *args, **kwargs)
+##     def testDeactivateErrors(self):
+##         p = self.klass()
+##         p._p_oid = '\0\0\0\0\0\0hi'
+##         dm = DM()
+##         p._p_jar = dm
 
-        typeerr(1)
-        typeerr(1, 2)
-        typeerr(spam=1)
-        typeerr(spam=1, force=1)
+##         def typeerr(*args, **kwargs):
+##             self.assertRaises(TypeError, p, *args, **kwargs)
 
-        p._p_changed = True
-        class Err(object):
-            def __nonzero__(self):
-                raise RuntimeError
+##         typeerr(1)
+##         typeerr(1, 2)
+##         typeerr(spam=1)
+##         typeerr(spam=1, force=1)
 
-        typeerr(force=Err())
+##         p._p_changed = True
+##         class Err(object):
+##             def __nonzero__(self):
+##                 raise RuntimeError
+
+##         typeerr(force=Err())
 
 class P(Persistent):
     def __init__(self):
