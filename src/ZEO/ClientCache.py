@@ -97,7 +97,7 @@ with '\0\0\0\0'.
 If var is not writable, then temporary files are used for
 file 0 and file 1.
 
-$Id: ClientCache.py,v 1.31 2002/08/30 18:13:43 gvanrossum Exp $
+$Id: ClientCache.py,v 1.32 2002/08/30 20:02:42 gvanrossum Exp $
 """
 
 import os
@@ -492,8 +492,11 @@ class ClientCache:
             try:
                 self._tracefile = open(tfn, "ab")
                 self._trace(0x00)
-            except IOError:
+            except IOError, msg:
                 self._tracefile = None
+                log("cannot write tracefile %s (%s)" % (tfn, msg))
+            else:
+                log("opened tracefile %s" % tfn)
         if self._tracefile is None:
             def notrace(*args):
                 pass
