@@ -625,6 +625,10 @@ class ClientStorage:
         """
         return self._server.history(oid, version, length)
 
+    def getSerial(self, oid):
+        """Storage API: return current serial number for oid."""
+        return self._server.getSerial(oid)
+
     def loadSerial(self, oid, serial):
         """Storage API: load a historical revision of an object."""
         return self._server.loadSerial(oid, serial)

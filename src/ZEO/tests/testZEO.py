@@ -239,6 +239,7 @@ class MappingStorageTests(FileStorageTests):
     def checkCommitLockUndoClose(self): pass
     def checkCommitLockUndoAbort(self): pass
     def checkCommitEmptyVersionInvalidation(self): pass
+    def checkCreationUndoneGetSerial(self): pass
     def checkAbortVersionSerialno(self): pass
     def checkAbortVersionInvalidation(self): pass
     def checkAbortVersionErrors(self): pass
@@ -262,10 +263,10 @@ def test_suite():
 
     suite = unittest.TestSuite()
     for klass in test_classes:
-        sub = unittest.makeSuite(klass, 'check')
+        sub = unittest.makeSuite(klass, "check")
         suite.addTest(sub)
     return suite
 
 
 if __name__ == "__main__":
-    unittest.main(defaultTest='test_suite')
+    unittest.main(defaultTest="test_suite")
