@@ -212,7 +212,7 @@ class MappingBase(Base):
             self.t[i] = i
         L.sort()
         vals = self.t.values()
-        for i in range(-1, -4, -1):
+        for i in range(-1, -5, -1):
             self.assertEqual(vals[i], L[i])
         self.assertRaises(IndexError, lambda: vals[-5])
 
@@ -241,7 +241,7 @@ class MappingBase(Base):
             self.t[i] = i
         L.sort()
         keys = self.t.keys()
-        for i in range(-1, -4, -1):
+        for i in range(-1, -5, -1):
             self.assertEqual(keys[i], L[i])
         self.assertRaises(IndexError, lambda: keys[-5])
 
@@ -273,7 +273,7 @@ class MappingBase(Base):
             self.t[i] = i
         L.sort()
         items = self.t.items()
-        for i in range(-1, -4, -1):
+        for i in range(-1, -5, -1):
             self.assertEqual(items[i], (L[i], L[i]))
         self.assertRaises(IndexError, lambda: items[-5])
 
