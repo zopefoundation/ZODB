@@ -118,6 +118,13 @@ class PackableStorage(PackableStorageBase):
             self._storage.store(ZERO, None, file.getvalue(), '', t)
             self._storage.tpc_vote(t)
             self._storage.tpc_finish(t)
+
+    def checkPackEmptyStorage(self):
+        self._storage.pack(time.time(), referencesf)
+
+    def checkPackTomorrow(self):
+        self._initroot()
+        self._storage.pack(time.time() + 10000, referencesf)
             
     def checkPackAllRevisions(self):
         self._initroot()
@@ -146,7 +153,9 @@ class PackableStorage(PackableStorageBase):
         pobj = pickle.loads(data)
         eq(pobj.getoid(), oid)
         eq(pobj.value, 3)
-        # Now pack all transactions
+        # Now pack all transactions; need to sleep a second to make
+        # sure that the pack time is greater than the last commit time.
+        time.sleep(1)
         self._storage.pack(time.time(), referencesf)
         # All revisions of the object should be gone, since there is no
         # reference from the root object to this object.
@@ -197,6 +206,7 @@ class PackableStorage(PackableStorageBase):
         eq(pobj.value, 3)
         # Now pack just revisions 1 and 2.  The object's current revision
         # should stay alive because it's pointed to by the root.
+        time.sleep(1)
         self._storage.pack(time.time(), referencesf)
         # Make sure the revisions are gone, but that object zero and revision
         # 3 are still there and correct
@@ -273,6 +283,7 @@ class PackableStorage(PackableStorageBase):
         # Now pack just revisions 1 and 2 of object1.  Object1's current
         # revision should stay alive because it's pointed to by the root, as
         # should Object2's current revision.
+        time.sleep(1)
         self._storage.pack(time.time(), referencesf)
         # Make sure the revisions are gone, but that object zero, object2, and
         # revision 3 of object1 are still there and correct.
