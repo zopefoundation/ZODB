@@ -84,6 +84,8 @@
 ##############################################################################
 import sys, ExtensionClass, TimeStamp, cPersistence, Persistence
 import cStringIO, cPickle
+from zLOG import register_subsystem
+register_subsystem('ZODB')
 
 # This is lame. Don't look. :(
 sys.modules['cPersistence']=cPersistence
