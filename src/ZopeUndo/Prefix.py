@@ -20,20 +20,27 @@ for running a ZEO server that handles Zope undo.
 """
 
 class Prefix:
-    """A Prefix() is equal to any string it as a prefix of.
+    """A Prefix() is equal to any path it is a prefix of.
 
-    This class can be compared to a string (or arbitrary sequence).
-    The comparison will return True if the prefix value is a prefix of
-    the string being compared.
 
-    Two prefixes can not be compared.
+    This class can be compared to a string.
+    The comparison will return True if all path elements of the
+    Prefix are found at the beginning of the string being compared.
+
+    Two Prefixes can not be compared.
     """
 
     __no_side_effects__ = 1
 
     def __init__(self, path):
-        self.value = len(path), path
+        path_list = path.split('/')
+        self.length = len(path_list)
+        self.path = path_list
 
     def __cmp__(self, o):
-        l, v = self.value
-        return cmp(o[:l], v)
+        other_path = o.split('/')
+        return cmp(other_path[:self.length], self.path)
+
+    def __repr__(self):
+        # makes failing tests easier to read
+        return "Prefix('%s')" % '/'.join(self.path)
