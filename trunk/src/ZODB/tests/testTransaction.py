@@ -14,7 +14,7 @@
 
 """
 Revision information:
-$Id: testTransaction.py,v 1.10 2002/08/14 22:07:09 mj Exp $
+$Id: testTransaction.py,v 1.11 2002/08/15 15:50:45 jeremy Exp $
 """
 
 """
@@ -486,46 +486,18 @@ class TransactionTests(unittest.TestCase):
         # recover from such an error if it occurs during the very first
         # tpc_finish() call of the second phase.
 
-        objects = self.sub1, self.sub2, self.sub3, self.nosub1
+        for obj in self.sub1, self.sub2:
+            j = HoserJar(errors='tpc_finish')
+            j.reset()
+            obj._p_jar = j
+            obj.modify(nojar=1)
 
-        for i in range(10):
-            L = list(objects)
-            random.shuffle(L)
-            obj = L.pop()
-            obj.modify()
-            obj2 = L.pop()
-            obj2._p_jar = SubTransactionJar(errors='tpc_finish')
-            obj2.modify(nojar=1)
+        try:
+            get_transaction().commit()
+        except TestTxnException:
+            pass
 
-            try:
-                get_transaction().commit()
-            except TestTxnException:
-                pass
-
-            # figure out all the jars that may be involved
-            jars = {}
-            for obj in objects:
-                jar = obj._p_jar
-                if jar is not None:
-                    jars[jar] = 1
-            jars = jars.keys()
-            succeed = 0
-            fail = 0
-            for jar in jars:
-                if jar.ctpc_finish:
-                    succeed += 1
-                elif jar.ctpc_abort:
-                    fail += 1
-
-            if Transaction.hosed:
-                self.assert_(fail > 0 and succeed > 0)
-                break
-            else:
-                self.assert_(fail and not succeed),
-                get_transaction().abort()
-                self.setUp()
-        else:
-            self.fail("Couldn't provoke hosed state.")
+        self.assert_(Transaction.hosed)
 
         self.sub2.modify()
 
@@ -557,6 +529,8 @@ class TestTxnException(Exception):
 class BasicJar:
 
     def __init__(self, errors=(), tracing=0):
+        if not isinstance(errors, TupleType):
+            errors = errors,
         self.errors = errors
         self.tracing = tracing
         self.cabort = 0
@@ -568,12 +542,14 @@ class BasicJar:
         self.cabort_sub = 0
         self.ccommit_sub = 0
 
+    def __repr__(self):
+        return "<jar %X %s>" % (id(self), self.errors)
+
     def check(self, method):
         if self.tracing:
             print '%s calling method %s'%(str(self.tracing),method)
 
-        if ((type(self.errors) is TupleType and method in self.errors)
-            or method == self.errors):
+        if method in self.errors:
             raise TestTxnException("error %s" % method)
 
     ## basic jar txn interface
@@ -612,7 +588,30 @@ class SubTransactionJar(BasicJar):
         self.check('commit_sub')
         self.ccommit_sub = 1
 
-class NoSubTransactionJar(BasicJar): pass
+class NoSubTransactionJar(BasicJar):
+    pass
+
+class HoserJar(BasicJar):
+
+    # The HoserJars coordinate their actions via the class variable
+    # committed.  The check() method will only raise its exception
+    # if committed > 0.  
+
+    committed = 0
+
+    def reset(self):
+        # Calling reset() on any instance will reset the class variable.
+        HoserJar.committed = 0
+
+    def check(self, method):
+        if HoserJar.committed > 0:
+            BasicJar.check(self, method)
+
+    def tpc_finish(self, *args):
+        self.check('tpc_finish')
+        self.ctpc_finish += 1
+        HoserJar.committed += 1
+        
 
 def test_suite():
 
