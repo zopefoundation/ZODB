@@ -12,7 +12,7 @@
   
  ****************************************************************************/
 
-#define BTREETEMPLATE_C "$Id: BTreeTemplate.c,v 1.34 2002/05/31 20:42:37 tim_one Exp $\n"
+#define BTREETEMPLATE_C "$Id: BTreeTemplate.c,v 1.35 2002/05/31 20:59:10 tim_one Exp $\n"
 
 /*
 ** _BTree_get
@@ -338,7 +338,7 @@ static int
 _BTree_set(BTree *self, PyObject *keyarg, PyObject *value, 
            int unique, int noval)
 {
-  int i, min, max, cmp, grew, copied=1, changed=0, bchanged=0;
+  int min, grew, copied=1, changed=0, bchanged=0;
   BTreeItem *d;
   KEY_TYPE key;
 
@@ -360,21 +360,8 @@ _BTree_set(BTree *self, PyObject *keyarg, PyObject *value,
         }
     }
 
-  /* Binary search to find insertion point */
-  for (min=0, max=self->len, i=max/2; max-min > 1; i=(max+min)/2)
-    {
-      d=self->data+i;
-      TEST_KEY_SET_OR(cmp, d->key, key) return -1;
-      if (cmp < 0) min=i;
-      else if (cmp==0)
-	{
-	  min=i;
-	  break;
-	}
-      else max=i;
-    }
-
-  d=self->data+min;
+  BTREE_SEARCH(min, self, key, goto err);
+  d = self->data + min;
   if (SameType_Check(self, d->child))
     grew= _BTree_set( BTREE(d->child), keyarg, value, unique, noval);
   else
@@ -830,7 +817,7 @@ err:
 static int
 BTree_findRangeEnd(BTree *self, PyObject *keyarg, int low, 
                    Bucket **bucket, int *offset) {
-  int min, max, i=0, cmp, copied=1;
+  int min, i, copied=1;
   KEY_TYPE key;
 
   COPY_KEY_FROM_ARG(key, keyarg, copied);
@@ -838,21 +825,9 @@ BTree_findRangeEnd(BTree *self, PyObject *keyarg, int low,
 
   /* We don't need to: PER_USE_OR_RETURN(self, -1);
      because the caller does. */
-  
   UNLESS (self->data && self->len) return 0;
-  
-  for (min=0, max=self->len, i=max/2; max-min > 1; i=(min+max)/2)
-    {
-      TEST_KEY_SET_OR(cmp, self->data[i].key, key) return -1;
-      if (cmp < 0) min=i;
-      else if (cmp == 0)
-	{
-	  min=i;
-	  break;
-	}
-      else max=i;
-    }
 
+  BTREE_SEARCH(min, self, key, return -1);
   if (SameType_Check(self, self->data[min].child)) 
     {
       self=BTREE(self->data[min].child);
