@@ -286,18 +286,13 @@ class PackableStorage(PackableStorageBase):
 
         NUM_LOOP_TRIP = 100
         timer = ElapsedTimer(time.time())
-        threads = [ClientThread(db, choices, NUM_LOOP_TRIP, timer, i)
-                   for i in range(1)]
-        for t in threads:
-            t.start()
-
-        while True in [t.isAlive() for t in threads]:
+        thread = ClientThread(db, choices, NUM_LOOP_TRIP, timer, 0)
+        thread.start()
+        while thread.isAlive():
             db.pack(packt)
             snooze()
             packt = time.time()
-
-        for t in threads:
-            t.join()
+        thread.join()
 
         # Iterate over the storage to make sure it's sane.
         if not hasattr(self._storage, "iterator"):
