@@ -84,8 +84,8 @@
 ##############################################################################
 """Database objects
 
-$Id: DB.py,v 1.21 2000/08/07 19:03:55 jim Exp $"""
-__version__='$Revision: 1.21 $'[11:-2]
+$Id: DB.py,v 1.22 2000/08/08 17:47:29 jim Exp $"""
+__version__='$Revision: 1.22 $'[11:-2]
 
 import cPickle, cStringIO, sys, POSException, UndoLogCompatible
 from Connection import Connection
@@ -123,6 +123,7 @@ class DB(UndoLogCompatible.UndoLogCompatible):
         """
         self._storage=storage
         storage.registerDB(self, None)
+        if not hasattr(storage,'tpc_vote'): storage.tpc_vote=lambda *args: None
         try: storage.load('\0\0\0\0\0\0\0\0','')
         except:
             import PersistentMapping
@@ -134,8 +135,7 @@ class DB(UndoLogCompatible.UndoLogCompatible):
             t.description='initial database creation'
             storage.tpc_begin(t)
             storage.store('\0\0\0\0\0\0\0\0', None, file.getvalue(), '', t)
-            if hasattr(storage, 'tpc_vote'): # whimper
-                storage.tpc_vote(t)
+            storage.tpc_vote(t)
             storage.tpc_finish(t)
 
         # Allocate locks:
@@ -578,6 +578,7 @@ class CommitVersion:
         self._dest=dest
         self.tpc_abort=s.tpc_abort
         self.tpc_begin=s.tpc_begin
+        self.tpc_vote=s.tpc_vote
         self.tpc_finish=s.tpc_finish
         get_transaction().register(self)
 
