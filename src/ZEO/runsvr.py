@@ -43,8 +43,6 @@ import zLOG
 import ZConfig
 import ZConfig.Common
 
-import ZODB.StorageConfig
-
 
 class Options:
 
@@ -273,6 +271,7 @@ class ZEOOptions(Options):
             return
         storagesections = self.zeoconf.getChildSections("Storage")
         self.storages = {}
+        import ZODB.StorageConfig
         for section in storagesections:
             name = section.name
             if not name:
