@@ -439,9 +439,11 @@ The following methods are used in retrieving and managing sections:
   section.
 \end{methoddesc}
 
-\begin{methoddesc}[Configuration]{getChildSections}{}
+\begin{methoddesc}[Configuration]{getChildSections}{\optional{type}}
   Returns a sequence of all child sections, in the order in which they
-  were added.
+  were added.  If \var{type} is omitted or \code{None}, all sections
+  are returned; otherwise only sections of the specified type are
+  included.  The delegate is never consulted by this method.
 \end{methoddesc}
 
 \begin{methoddesc}[Configuration]{getSection}{type\optional{, name}}
