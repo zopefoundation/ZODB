@@ -115,7 +115,7 @@
 #   may have a back pointer to a version record or to a non-version
 #   record.
 #
-__version__='$Revision: 1.86 $'[11:-2]
+__version__='$Revision: 1.87 $'[11:-2]
 
 import struct, time, os, string, base64, sys
 from struct import pack, unpack
@@ -1035,6 +1035,86 @@ class FileStorage(BaseStorage.BaseStorage,
 
         raise UndoError('Some data were modified by a later transaction')
 
+    def undoLog(self, first=0, last=-20, filter=None):
+        if last < 0:
+            last = first - last + 1
+        self._lock_acquire()
+        try:
+            if self._packt is None:
+                raise UndoError(
+                    'Undo is currently disabled for database maintenance.<p>')
+            pos = self._pos
+            # BAW: Why 39 please?  This makes no sense (see also below).
+            if pos < 39:
+                return []
+            file=self._file
+            seek=file.seek
+            read=file.read
+            r = []
+            i = 0
+            while i < last and pos > 39:
+                self._file.seek(pos - 8)
+                pos = pos - U64(self._file.read(8)) - 8
+                self._file.seek(pos)
+                h = self._file.read(TRANS_HDR_LEN)
+                tid, tl, status, ul, dl, el = struct.unpack(">8s8scHHH", h)
+                if tid < self._packt:
+                    break
+                if status != ' ':
+                    continue
+                d = u = ''
+                if ul:
+                    u = self._file.read(ul)
+                if dl:
+                    d = self._file.read(dl)
+                e = {}
+                if el:
+                    try:
+                        e = loads(read(el))
+                    except:
+                        pass
+                # We now need an encoded id that isn't dependent on file
+                # position, because it will break after a pack, and in the
+                # face of replication, while the transaction and data records
+                # may be identical (as viewed from the storage interface),
+                # file positions may be meaningless across replicas.
+                #
+                # We'd love to just give the tid, but FS makes it expensive to
+                # go from tid to transaction record. :(  However, if the txn
+                # has data records, then we can encode the oid of one of the
+                # objects affected by the txn.  Then we can use the index to
+                # find the current revision of the object, follow a
+                # back-pointer to find its most-current txn, and then follow
+                # the txns back until we find a match.  Seems like the best we
+                # can do w/o a persistent tid->filepos mapping.
+                #
+                # Note: if the txn has no data records, we're screwed.  Punt
+                # on that for now.
+                #
+                # Note that we're still encoding the transaction position
+                # in the transaction ID in order to support non-transactional
+                # undo.  This can be removed as soon as non-transactional
+                # undo is removed.
+                next = read(8)
+                # next is either the redundant txn length - 8, or an oid
+                if next == tl:
+                    # There were no objects in this txn
+                    id = tid + p64(pos)
+                else:
+                    id = tid + p64(pos) + next
+                d = {'id': base64.encodestring(id).rstrip(),
+                     'time': TimeStamp(tid).timeTime(),
+                     'user_name': u,
+                     'description': d}
+                d.update(e)
+                if filter is None or filter(d):
+                    if i >= first:
+                        r.append(d)
+                    i += 1
+            return r
+        finally:
+            self._lock_release()
+
     def transactionalUndo(self, transaction_id, transaction):
         """Undo a transaction, given by transaction_id.
 
@@ -1161,86 +1241,6 @@ class FileStorage(BaseStorage.BaseStorage,
             return tindex.keys()            
 
         finally: self._lock_release()
-
-    def undoLog(self, first=0, last=-20, filter=None):
-        if last < 0:
-            last = first - last + 1
-        self._lock_acquire()
-        try:
-            if self._packt is None:
-                raise UndoError(
-                    'Undo is currently disabled for database maintenance.<p>')
-            pos = self._pos
-            # BAW: Why 39 please?  This makes no sense (see also below).
-            if pos < 39:
-                return []
-            file=self._file
-            seek=file.seek
-            read=file.read
-            r = []
-            i = 0
-            while i < last and pos > 39:
-                self._file.seek(pos - 8)
-                pos = pos - U64(self._file.read(8)) - 8
-                self._file.seek(pos)
-                h = self._file.read(TRANS_HDR_LEN)
-                tid, tl, status, ul, dl, el = struct.unpack(">8s8scHHH", h)
-                if tid < self._packt:
-                    break
-                if status != ' ':
-                    continue
-                d = u = ''
-                if ul:
-                    u = self._file.read(ul)
-                if dl:
-                    d = self._file.read(dl)
-                e = {}
-                if el:
-                    try:
-                        e = loads(read(el))
-                    except:
-                        pass
-                # We now need an encoded id that isn't dependent on file
-                # position, because it will break after a pack, and in the
-                # face of replication, while the transaction and data records
-                # may be identical (as viewed from the storage interface),
-                # file positions may be meaningless across replicas.
-                #
-                # We'd love to just give the tid, but FS makes it expensive to
-                # go from tid to transaction record. :(  However, if the txn
-                # has data records, then we can encode the oid of one of the
-                # objects affected by the txn.  Then we can use the index to
-                # find the current revision of the object, follow a
-                # back-pointer to find its most-current txn, and then follow
-                # the txns back until we find a match.  Seems like the best we
-                # can do w/o a persistent tid->filepos mapping.
-                #
-                # Note: if the txn has no data records, we're screwed.  Punt
-                # on that for now.
-                #
-                # Note that we're still encoding the transaction position
-                # in the transaction ID in order to support non-transactional
-                # undo.  This can be removed as soon as non-transactional
-                # undo is removed.
-                next = read(8)
-                # next is either the redundant txn length - 8, or an oid
-                if next == tl:
-                    # There were no objects in this txn
-                    id = tid + p64(pos)
-                else:
-                    id = tid + p64(pos) + next
-                d = {'id': base64.encodestring(id).rstrip(),
-                     'time': TimeStamp(tid).timeTime(),
-                     'user_name': u,
-                     'description': d}
-                d.update(e)
-                if filter is None or filter(d):
-                    if i >= first:
-                        r.append(d)
-                    i += 1
-            return r
-        finally:
-            self._lock_release()
 
     def versionEmpty(self, version):
         if not version:
