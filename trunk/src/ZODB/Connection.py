@@ -84,15 +84,15 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.8 1999/06/11 18:24:02 jim Exp $"""
-__version__='$Revision: 1.8 $'[11:-2]
+$Id: Connection.py,v 1.9 1999/06/24 19:33:12 jim Exp $"""
+__version__='$Revision: 1.9 $'[11:-2]
 
 from cPickleCache import PickleCache
 from POSException import ConflictError, ExportError
 from cStringIO import StringIO
 from cPickle import Unpickler, Pickler
 from ExtensionClass import Base
-import Transaction, string, ExportImport 
+import Transaction, string, ExportImport, sys, traceback
 
 ExtensionKlass=Base.__class__
 
@@ -352,8 +352,13 @@ class Connection(ExportImport.ExportImport):
         file=StringIO(p)
         unpickler=Unpickler(file)
         unpickler.persistent_load=self._persistent_load
-        unpickler.load()
-        state = unpickler.load()
+        try:
+            unpickler.load()
+            state = unpickler.load()
+        except:
+            t, v =sys.exc_info()[:2]
+            raise
+            
         if hasattr(object, '__setstate__'):
             object.__setstate__(state)
         else:
