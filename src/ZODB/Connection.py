@@ -84,8 +84,8 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.30 2000/04/20 15:30:48 chrism Exp $"""
-__version__='$Revision: 1.30 $'[11:-2]
+$Id: Connection.py,v 1.31 2000/05/05 19:53:58 jim Exp $"""
+__version__='$Revision: 1.31 $'[11:-2]
 
 from cPickleCache import PickleCache
 from POSException import ConflictError, ExportError
@@ -239,7 +239,7 @@ class Connection(ExportImport.ExportImport):
         self._debug_info=()
         db._closeConnection(self)
 
-    def commit(self, object, transaction):
+    def commit(self, object, transaction, _type=type, _st=type('')):
         oid=object._p_oid
         invalid=self._invalid
         if oid is None or object._p_jar is not self:
@@ -292,8 +292,10 @@ class Connection(ExportImport.ExportImport):
         dbstore=self._storage.store
         file=file.getvalue
         cache=self._cache
+        get=cache.get
         dump=pickler.dump
         clear_memo=pickler.clear_memo
+
 
         version=self._version
         
@@ -329,20 +331,34 @@ class Connection(ExportImport.ExportImport):
             dump((klass,args))
             dump(state)
             p=file(1)
-            object._p_serial=dbstore(oid,serial,p,version,transaction)
-            object._p_changed=0
+            s=dbstore(oid,serial,p,version,transaction)
+            if s:
+                # Note that if s is false, then the storage defered the return
+                if _type(s) is _st:
+                    # normal case
+                    object._p_serial=s
+                    object._p_changed=0
+                else:
+                    # defered returns
+                    for oi, s in s:
+                        o=get(oi, oi)
+                        if o is not oi:
+                            o._p_serial=s
+                            o._p_changed=0
+
             try: cache[oid]=object
             except:
                 # Dang, I bet its wrapped:
                 if hasattr(object, 'aq_base'):
                     cache[oid]=object.aq_base
 
-    def commit_sub(self, t):
+    def commit_sub(self, t,
+                   _type=type, _st=type(''), _None=None):
         tmp=self._tmp
-        if tmp is None: return
+        if tmp is _None: return
         src=self._storage
         self._storage=tmp
-        self._tmp=None
+        self._tmp=_None
 
         tmp.tpc_begin(t)
         
@@ -357,8 +373,15 @@ class Connection(ExportImport.ExportImport):
         for oid in oids:
             data, serial = load(oid, src)
             s=store(oid, serial, data, dest, t)
-            o=get(oid, None)
-            if o is not None: o._p_serial=s
+            if s:
+                if _type(s) is _st:
+                    o=get(oid, _None)
+                    if o is not _None: o._p_serial=s
+                else:
+                    for oid, s in s:
+                        o=get(oid, _None)
+                        if o is not _None: o._p_serial=s
+                        
 
     def abort_sub(self, t):
         tmp=self._tmp
@@ -467,6 +490,19 @@ class Connection(ExportImport.ExportImport):
                 _tmp.registerDB(self._db, 0)
 
         self._storage.tpc_begin(transaction)
+
+    def tpc_vote(self, transaction):
+        try: vote=self._storage.tpc_vote
+        except: return
+        s=vote(transaction)
+        if s:
+            get=self._cache.get
+            for oid, s in s:
+                o=get(oid, oid)
+                if o is not oid:
+                    o._p_serial=s
+                    o._p_changed=0
+        
 
     def tpc_finish(self, transaction):
         self._storage.tpc_finish(transaction, self.tpc_finish_)
