@@ -205,6 +205,39 @@ class FileStorageTests(
 
         self.failUnless(self._storage._records_before_save > 20)
 
+    def checkStoreBumpsOid(self):
+        # If .store() is handed an oid bigger than the storage knows
+        # about already, it's crucial that the storage bump its notion
+        # of the largest oid in use.
+        t = transaction.Transaction()
+        self._storage.tpc_begin(t)
+        giant_oid = '\xee' * 8
+        # Store an object.
+        # oid, serial, data, version, transaction
+        r1 = self._storage.store(giant_oid, '\0'*8, 'data', '', t)
+        # Finish the transaction.
+        r2 = self._storage.tpc_vote(t)
+        self._storage.tpc_finish(t)
+        # Before ZODB 3.2.6, this failed, with ._oid == z64.
+        self.assertEqual(self._storage._oid, giant_oid)
+
+    def checkRestoreBumpsOid(self):
+        # As above, if .restore() is handed an oid bigger than the storage
+        # knows about already, it's crucial that the storage bump its notion
+        # of the largest oid in use.  Because copyTransactionsFrom(), and
+        # ZRS recovery, use the .restore() method, this is plain critical.
+        t = transaction.Transaction()
+        self._storage.tpc_begin(t)
+        giant_oid = '\xee' * 8
+        # Store an object.
+        # oid, serial, data, version, prev_txn, transaction
+        r1 = self._storage.restore(giant_oid, '\0'*8, 'data', '', None, t)
+        # Finish the transaction.
+        r2 = self._storage.tpc_vote(t)
+        self._storage.tpc_finish(t)
+        # Before ZODB 3.2.6, this failed, with ._oid == z64.
+        self.assertEqual(self._storage._oid, giant_oid)
+
     def checkCorruptionInPack(self):
         # This sets up a corrupt .fs file, with a redundant transaction
         # length mismatch.  The implementation of pack in many releases of
