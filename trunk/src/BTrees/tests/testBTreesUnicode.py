@@ -1,5 +1,4 @@
 import os,sys,unittest
-execfile(os.path.join(sys.path[0],'framework.py'))
 from BTrees.OOBTree import OOBTree
 
 
@@ -40,6 +39,4 @@ class TestBTreesUnicode(unittest.TestCase):
 
 def test_suite():
     return unittest.makeSuite(TestBTreesUnicode,'test')
-
-framework()
 
