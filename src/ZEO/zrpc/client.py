@@ -243,7 +243,8 @@ class ConnectThread(threading.Thread):
     exception, in which case the connection is abandoned.
 
     The thread will continue to run, attempting connections, until a
-    preferred connection is seen or until all sockets have been tried.
+    preferred connection is seen and successfully handed over to the
+    manager and client.
 
     As soon as testConnection() finds a preferred connection, or after
     all sockets have been tried and at least one fallback connection
