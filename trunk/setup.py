@@ -152,7 +152,12 @@ packages = ["BTrees", "BTrees.tests",
             "transaction", "transaction.tests",
             "ThreadedAsync",
             "zdaemon", "zdaemon.tests",
-            "zope", "zope.interface", "zope.testing", "zope.proxy",
+
+            "zope",
+            "zope.interface", "zope.interface.tests",
+            "zope.proxy", "zope.proxy.tests",
+            "zope.testing",
+
             "ZopeUndo", "ZopeUndo.tests",
             "ZConfig", "ZConfig.tests",
             "ZConfig.components",
@@ -197,6 +202,7 @@ def copy_other_files(cmd, outputbase):
         "ZODB/tests",
         "zdaemon",
         "zdaemon/tests",
+        "zope/interface", "zope/interface/tests",
         ]:
         dir = convert_path(dir)
         inputdir = os.path.join("src", dir)
