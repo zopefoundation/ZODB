@@ -12,8 +12,8 @@
 #
 ##############################################################################
 
-# The next line must use double quotes, so replace.py recognizes it.
-__version__ = "3.3a3"
+# The next line must use double quotes, so release.py recognizes it.
+__version__ = "3.3b1"
 
 import sys
 import __builtin__

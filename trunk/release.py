@@ -35,10 +35,9 @@ def replace(filename, pat, repl):
                 new = re.sub(pat, repl, line)
                 print new,
 
-                print >> e, "In %r, replaced:" % filename
-                print >> e, "   ", line
-                print >> e, "by:"
-                print >> e, "   ", new
+                print >> e, "In %s, replaced:" % filename
+                print >> e, "   ", repr(line)
+                print >> e, "   ", repr(new)
 
             else:
                 print line,
@@ -77,8 +76,8 @@ def main(args):
             r"^Release date: .*",
             "Release date: %s" % date)
     replace("doc/guide/zodb.tex",
-            r"\\release{\S+}",
-            r"\release{%s}" % version)
+            r"release{\S+}",
+            "release{%s}" % version)
 if __name__ == "__main__":
     import sys
     main(sys.argv[1:])
