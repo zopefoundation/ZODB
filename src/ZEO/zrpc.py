@@ -85,7 +85,7 @@
 """Simple rpc mechanisms
 """
 
-__version__ = "$Revision: 1.7 $"[11:-2]
+__version__ = "$Revision: 1.8 $"[11:-2]
 
 from cPickle import loads
 from thread import allocate_lock
@@ -228,7 +228,12 @@ class asyncRPC(SizedMessageAsyncConnection):
         c=m[:1]
         if c in 'RE':
             self.__r=m
-            self.__lr()
+            try: self.__lr()
+            except:
+                # Eek, this should never happen. We're messed up.
+                # we'd better close the connection.
+                self.close()
+                raise
         else:
             oob=self._outOfBand
             if oob is not None:
