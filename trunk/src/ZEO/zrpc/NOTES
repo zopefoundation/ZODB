@@ -1,0 +1,79 @@
+The Connection object should be extended to support more flexible
+handling for outstanding calls.  In particular, it should be possible
+to have multiple calls with return values outstanding.
+
+The mechanism described here is based on the promises mechanism in
+Argus, which was influenced by futures in Multilisp.
+
+    Promises: Linguistic Support for Efficient Asynchronous Procedure
+    Calls in Distributed Systems.  Barbara Liskov and Liuba Shrira.
+    Proc. of Conf. on Programming Language Design and Implementation
+    (PLDI), June 1988.
+
+We want to support two different kinds of calls:
+
+  - send : invoke a method that returns no value
+  - call : invoke a method that returns a value
+
+On the client, a call immediately returns a promise.  A promise is an
+object that can be used to claim the return value when it becomes
+available. 
+
+  - ready(): returns true if the return value is ready or an exception
+             occurred
+  - claim(): returns the call's return value or raises an exception,
+             blocking if necessary
+
+The server side of a zrpc connection can be implemented using
+asyncore.  In that case, a method call blocks other RPC activity until
+it returns.  If a call needs to return a value, but can't return
+immediately, it returns a delay object (ZEO.zrpc.server.Delay).  
+
+When the zrpc connection receives a Delay object, it does not
+immediately return to the caller.  Instead, it returns when the
+reply() method is called.  A Delay has two methods:
+
+  - set_sender()
+  - reply(obj): returns obj to the sender
+
+-----------------------------------------
+
+Open issues:
+
+Delayed exception
+
+There is currently no mechanism to raise an exception from a delayed
+pcall. 
+
+Synchronization
+
+The following item is part of Argus, but the motivation isn't entirely
+clear.
+
+    For any two calls, C1 and C2, C1 always starts on the server
+    first.  For the promises, C2 is ready() iff C1 is also ready().
+    The promises can be claimed in any order.
+
+A related notion:
+
+    The connection should also support a synch() method that returns
+    only when all outstanding calls have completed.  If any of these
+    calls raised an exception, the synch() call raises an exception.
+
+XXX synch() sounds potentially useful, but it's not clear if it would
+be useful for ZEO.  In ZEO a single connection object handles multiple
+threads, each thread is going to make independent calls.  When a
+particular tpc_begin() returns and a thread commits its transaction,
+it makes more calls.  These calls will before any of the other
+tpc_begin() calls.
+
+I think the Argus approach would be to use separate handlers for each
+thread (not sure Argus had threads), so that a single thread could
+rely on ordering guarantees.
+
+Multithreaded server
+
+There are lots of issues to work out here.
+
+Delays may not be necessary if the connecftion handler runs in a
+different thread than the object the handles the calls.  
