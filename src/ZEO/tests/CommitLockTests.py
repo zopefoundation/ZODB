@@ -13,6 +13,7 @@
 ##############################################################################
 """Tests of the distributed commit lock."""
 
+import threading
 import time
 
 from ZODB.Transaction import Transaction
@@ -38,6 +39,7 @@ class WorkerThread(TestThread):
         self.storage = storage
         self.trans = trans
         self.method = method
+        self.ready = threading.Event()
         TestThread.__init__(self, testcase)
 
     def testrun(self):
@@ -49,6 +51,7 @@ class WorkerThread(TestThread):
             oid = self.storage.new_oid()
             p = zodb_pickle(MinPO("c"))
             self.storage.store(oid, ZERO, p, '', self.trans)
+            self.ready.set()
             self.storage.tpc_vote(self.trans)
             if self.method == "tpc_finish":
                 self.storage.tpc_finish(self.trans)
@@ -106,6 +109,21 @@ class CommitLockTests:
         # check the commit lock when a client attemps a transaction,
         # but fails/exits before finishing the commit.
 
+        # The general flow of these tests is to start a transaction by
+        # calling tpc_begin().  Then begin one or more other
+        # connections that also want to commit.  This causes the
+        # commit lock code to be exercised.  Once the other
+        # connections are started, the first transaction completes.
+        # Either by commit or abort, depending on whether method_name
+        # is "tpc_finish."
+
+        # The tests are parameterized by method_name, dosetup(), and
+        # dowork().  The dosetup() function is called with a
+        # connectioned client storage, transaction, and timestamp.
+        # Any work it does occurs after the first transaction has
+        # started, but before it finishes.  The dowork() function
+        # executes after the first transaction has completed.
+
         # Start on transaction normally.
         t = Transaction()
         self._storage.tpc_begin(t)
@@ -155,6 +173,7 @@ class CommitLockTests:
         t = WorkerThread(self, storage, trans)
         self._threads.append(t)
         t.start()
+        t.ready.wait()
 
     def _dowork2(self, method_name):
         for t in self._threads:
