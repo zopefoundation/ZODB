@@ -76,6 +76,15 @@ class ZODBConfigTest(ConfigTestBase):
         """
         self.assertRaises(ClientDisconnected, self._test, cfg)
 
+    def test_demo_config(self):
+        cfg = """
+        <demostorage>
+            name foo
+            <mappingstorage/>
+        </demostorage>
+        """
+        self._test(cfg)
+
 class BDBConfigTest(ConfigTestBase):
     def setUp(self):
         self._path = tempfile.mktemp()

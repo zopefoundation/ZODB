@@ -56,8 +56,7 @@
       <key name="read_only_fallback" datatype="boolean" default="off"/>
     </sectiontype>
 
-    <sectiontype type="demostorage">
-      <!--datatype="ZODB.config.DemoStorage"-->
+    <sectiontype type="demostorage" datatype="ZODB.config.DemoStorage">
       <key name="name" default="Demo Storage"/>
       <section type="storage" name="*" attribute="base"/>
       <key name="quota" datatype="integer"/>
