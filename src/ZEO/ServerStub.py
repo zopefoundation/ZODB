@@ -33,6 +33,9 @@ class StorageServer:
         """
         self.rpc = rpc
 
+    def extensionMethod(self, name):
+        return ExtensionMethodWrapper(self.rpc, name).call
+
     def _update(self):
         """Handle pending incoming messages.
 
@@ -137,3 +140,10 @@ class StorageServer:
             return self.rpc.call('versions')
         else:
             return self.rpc.call('versions', max)
+
+class ExtensionMethodWrapper:
+    def __init__(self, rpc, name):
+        self.rpc = rpc
+        self.name = name
+    def call(self, *a, **kwa):
+        return apply(self.rpc.call, (self.name,)+a, kwa)

@@ -249,6 +249,18 @@ class ZEOStorage:
         self.load = self.storage.load
         self.loadSerial = self.storage.loadSerial
         self.modifiedInVersion = self.storage.modifiedInVersion
+        try:
+            fn = self.storage.getExtensionMethods
+        except AttributeError:
+            # We must be running with a ZODB which
+            # predates adding getExtensionMethods to
+            # BaseStorage. Eventually this try/except
+            # can be removed
+            pass
+        else:
+            for name in fn().keys():
+                if not hasattr(self,name):
+                    setattr(self, name, getattr(self.storage, name))
 
     def check_tid(self, tid, exc=None):
         if self.read_only:
@@ -300,12 +312,21 @@ class ZEOStorage:
                 'supportsVersions': self.storage.supportsVersions(),
                 'supportsTransactionalUndo':
                 self.storage.supportsTransactionalUndo(),
+                'extensionMethods': self.getExtensionMethods(),
                 }
 
     def get_size_info(self):
         return {'length': len(self.storage),
                 'size': self.storage.getSize(),
                 }
+
+    def getExtensionMethods(self):
+        try:
+            e = self.storage.getExtensionMethods
+        except AttributeError:
+            return {}
+        else:
+            return e()
 
     def zeoLoad(self, oid):
         v = self.storage.modifiedInVersion(oid)
