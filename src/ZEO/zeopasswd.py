@@ -46,9 +46,8 @@ def usage(msg):
 
 def options(args):
     """Password-specific options loaded from regular ZEO config file."""
-
     try:
-        options, args = getopt.getopt(args, "dr:p:f:C:", ["configure=", 
+        opts, args = getopt.getopt(args, "dr:p:f:C:", ["configure=", 
                                                           "protocol=", 
                                                           "filename=",
                                                           "realm"])
@@ -59,7 +58,7 @@ def options(args):
     auth_protocol = None
     auth_db = "" 
     auth_realm = None
-    for k, v in options:
+    for k, v in opts:
         if k == '-C' or k == '--configure':
             schemafile = os.path.join(os.path.dirname(ZEO.__file__),
                                                      "schema.xml")
