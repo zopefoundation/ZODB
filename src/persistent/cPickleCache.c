@@ -90,7 +90,7 @@ process must skip such objects, rather than deactivating them.
 static char cPickleCache_doc_string[] =
 "Defines the PickleCache used by ZODB Connection objects.\n"
 "\n"
-"$Id: cPickleCache.c,v 1.91 2004/03/02 22:13:54 jeremy Exp $\n";
+"$Id: cPickleCache.c,v 1.92 2004/03/13 07:48:12 jeremy Exp $\n";
 
 #define DONT_USE_CPERSISTENCECAPI
 #include "cPersistence.h"
@@ -408,12 +408,10 @@ cc_get(ccobject *self, PyObject *args)
 
     r = PyDict_GetItem(self->data, key);
     if (!r) {
-	if (d) {
+	if (d)
 	    r = d;
-	} else {
-	    PyErr_SetObject(PyExc_KeyError, key);
-	    return NULL;
-	}
+	else
+	    r = Py_None;
     }
     Py_INCREF(r);
     return r;
