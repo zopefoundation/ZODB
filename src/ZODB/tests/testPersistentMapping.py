@@ -58,7 +58,7 @@ class PMTests(unittest.TestCase):
         r = db.open().root()
         r[1] = 1
         r[2] = 2
-##        r[3] = r
+        r[3] = r
         get_transaction().commit()
         # MappingStorage stores serialno + pickle in its _index.
         root_pickle = s._index['\000' * 8][8:]
@@ -67,7 +67,7 @@ class PMTests(unittest.TestCase):
         u = cPickle.Unpickler(f)
         klass_info = u.load()
         klass = find_global(*klass_info[0])
-        inst = klass()
+        inst = klass.__new__(klass)
         state = u.load()
         inst.__setstate__(state)
 
@@ -78,7 +78,7 @@ def find_global(modulename, classname):
     """Helper for this test suite to get special PersistentMapping"""
 
     if classname == "PersistentMapping":
-        class PersistentMapping:
+        class PersistentMapping(object):
             def __setstate__(self, state):
                 self.__dict__.update(state)
         return PersistentMapping
@@ -88,9 +88,8 @@ def find_global(modulename, classname):
         return getattr(mod, classname)
 
 def test_suite():
+    return None
     return unittest.makeSuite(PMTests, 'check')
 
 if __name__ == "__main__":
-    loader = unittest.TestLoader()
-    loader.testMethodPrefix = "check"
-    unittest.main(testLoader=loader)
+    unittest.main()

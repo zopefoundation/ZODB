@@ -348,6 +348,38 @@ class IIMerge(IMerge):
         Note that c1 and c2 must be collections.
         """
 
+class IMergeIntegerKey(IMerge):
+    """IMerge-able objects with integer keys.
+
+    Concretely, this means the types in IOBTree and IIBTree.
+    """
+
+    def multiunion(seq):
+        """Return union of (zero or more) integer sets, as an integer set.
+
+        seq is a sequence of objects each convertible to an integer set.
+        These objects are convertible to an integer set:
+
+        + An integer, which is added to the union.
+
+        + A Set or TreeSet from the same module (for example, an
+          IIBTree.TreeSet for IIBTree.multiunion()).  The elements of the
+          set are added to the union.
+
+        + A Bucket or BTree from the same module (for example, an
+          IOBTree.IOBTree for IOBTree.multiunion()).  The keys of the
+          mapping are added to the union.
+
+        The union is returned as a Set from the same module (for example,
+        IIBTree.multiunion() returns an IIBTree.IISet).
+
+        The point to this method is that it can run much faster than
+        doing a sequence of two-input union() calls.  Under the covers,
+        all the integers in all the inputs are sorted via a single
+        linear-time radix sort, then duplicates are removed in a second
+        linear-time pass.
+        """
+
 ###############################################################
 # IMPORTANT NOTE
 #
@@ -359,7 +391,10 @@ class IIMerge(IMerge):
 #
 ################################################################
 
-OOBTree.OOSet.__implements__=ISet
-OOBTree.OOTreeSet.__implements__=ITreeSet
-OOBTree.OOBucket.__implements__=IDictionaryIsh
-OOBTree.OOBTree.__implements__=IBTree
+# XXX Need to use the new declaration syntax once it is available
+# for Zope 2.
+
+## OOBTree.OOSet.__implements__=ISet
+## OOBTree.OOTreeSet.__implements__=ITreeSet
+## OOBTree.OOBucket.__implements__=IDictionaryIsh
+## OOBTree.OOBTree.__implements__=IBTree

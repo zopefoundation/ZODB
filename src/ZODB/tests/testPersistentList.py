@@ -15,7 +15,7 @@
 """
 
 import unittest
-from ZODB.PersistentList import PersistentList
+from persistent.list import PersistentList
 
 l0 = []
 l1 = [0]

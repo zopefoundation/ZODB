@@ -14,14 +14,14 @@
 
 """Python implementation of persistent list.
 
-$Id: PersistentList.py,v 1.3 2002/08/14 22:07:09 mj Exp $"""
+$Id: list.py,v 1.5 2003/11/28 16:44:55 jim Exp $"""
 
-__version__='$Revision: 1.3 $'[11:-2]
+__version__='$Revision: 1.5 $'[11:-2]
 
-import Persistence
+import persistent
 from UserList import UserList
 
-class PersistentList(UserList, Persistence.Persistent):
+class PersistentList(UserList, persistent.Persistent):
     __super_setitem = UserList.__setitem__
     __super_delitem = UserList.__delitem__
     __super_setslice = UserList.__setslice__

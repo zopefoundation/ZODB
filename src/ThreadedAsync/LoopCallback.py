@@ -25,7 +25,7 @@ register_loop_callback() to register interest.  When the mainloop
 thread calls loop(), each registered callback will be called with the
 socket map as its first argument.
 """
-__version__ = '$Revision: 1.10 $'[11:-2]
+__version__ = '$Revision: 1.11 $'[11:-2]
 
 import asyncore
 import select
@@ -36,6 +36,16 @@ from errno import EINTR
 _loop_lock = thread.allocate_lock()
 _looping = None
 _loop_callbacks = []
+
+def remove_loop_callback(callback):
+    """Remove a callback function registered earlier.
+
+    This is useful if loop() was never called.
+    """
+    for i in range(len(_loop_callbacks)):
+        if _loop_callbacks[i][0] == callback:
+            del _loop_callbacks[i]
+            return
 
 def register_loop_callback(callback, args=(), kw=None):
     """Register callback function to be called when mainloop starts

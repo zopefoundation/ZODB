@@ -16,34 +16,7 @@
  Set operations
  ****************************************************************************/
 
-#define SETOPTEMPLATE_C "$Id: SetOpTemplate.c,v 1.29 2002/06/27 22:24:16 tim_one Exp $\n"
-
-#ifdef INTSET_H
-static int
-nextIntSet(SetIteration *i)
-{
-  if (i->position >= 0)
-    {
-      UNLESS(PER_USE(INTSET(i->set))) return -1;
-
-      if (i->position < INTSET(i->set)->len)
-        {
-          i->key = INTSET(i->set)->data[i->position];
-          i->position ++;
-        }
-      else
-        {
-          i->position = -1;
-          PER_ACCESSED(INTSET(i->set));
-        }
-
-      PER_ALLOW_DEACTIVATION(INTSET(i->set));
-    }
-
-
-  return 0;
-}
-#endif
+#define SETOPTEMPLATE_C "$Id: SetOpTemplate.c,v 1.30 2003/11/28 16:44:44 jim Exp $\n"
 
 #ifdef KEY_CHECK
 static int
@@ -103,7 +76,7 @@ initSetIteration(SetIteration *i, PyObject *s, int useValues)
   i->position = -1;     /* set to 0 only on normal return */
   i->usesValue = 0;     /* assume it's a set or that values aren't iterated */
 
-  if (ExtensionClassSubclassInstance_Check(s, &BucketType))
+  if (PyObject_IsInstance(s, (PyObject *)&BucketType))
     {
       i->set = s;
       Py_INCREF(s);
@@ -116,15 +89,15 @@ initSetIteration(SetIteration *i, PyObject *s, int useValues)
       else
         i->next = nextSet;
     }
-  else if (ExtensionClassSubclassInstance_Check(s, &SetType))
+  else if (PyObject_IsInstance(s, (PyObject *)&SetType))
     {
       i->set = s;
       Py_INCREF(s);
       i->next = nextSet;
     }
-  else if (ExtensionClassSubclassInstance_Check(s, &BTreeType))
+  else if (PyObject_IsInstance(s, (PyObject *)&BTreeType))
     {
-      i->set = BTree_rangeSearch(BTREE(s), NULL, 'i');
+      i->set = BTree_rangeSearch(BTREE(s), NULL, NULL, 'i');
       UNLESS(i->set) return -1;
 
       if (useValues)
@@ -135,20 +108,12 @@ initSetIteration(SetIteration *i, PyObject *s, int useValues)
       else
         i->next = nextTreeSetItems;
     }
-  else if (ExtensionClassSubclassInstance_Check(s, &TreeSetType))
+  else if (PyObject_IsInstance(s, (PyObject *)&TreeSetType))
     {
-      i->set = BTree_rangeSearch(BTREE(s), NULL, 'k');
+      i->set = BTree_rangeSearch(BTREE(s), NULL, NULL, 'k');
       UNLESS(i->set) return -1;
       i->next = nextTreeSetItems;
     }
-#ifdef INTSET_H
-  else if (s->ob_type == (PyTypeObject*)intSetType)
-    {
-      i->set = s;
-      Py_INCREF(s);
-      i->next = nextIntSet;
-    }
-#endif
 #ifdef KEY_CHECK
   else if (KEY_CHECK(s))
     {
@@ -244,7 +209,7 @@ set_operation(PyObject *s1, PyObject *s2,
 #ifndef MERGE
       if (c12 && i1.usesValue && i2.usesValue) goto invalid_set_operation;
 #endif
-      if (! i1.usesValue && i2.usesValue)
+      if (! i1.usesValue&& i2.usesValue)
         {
           SetIteration t;
           int i;
@@ -339,6 +304,7 @@ set_operation(PyObject *s1, PyObject *s2,
   if(c1 && copyRemaining(r, &i1, merge, w1) < 0) goto err;
   if(c2 && copyRemaining(r, &i2, merge, w2) < 0) goto err;
 
+
   finiSetIteration(&i1);
   finiSetIteration(&i2);
 
@@ -383,7 +349,7 @@ union_m(PyObject *ignored, PyObject *args)
 
   UNLESS(PyArg_ParseTuple(args, "OO", &o1, &o2)) return NULL;
 
-  if (o1==Py_None)
+  if (o1 == Py_None)
     {
       Py_INCREF(o2);
       return o2;
@@ -552,5 +518,4 @@ Error:
     finiSetIteration(&setiter);
     return NULL;
 }
-
 #endif

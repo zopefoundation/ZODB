@@ -13,24 +13,25 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.101 2003/11/03 18:56:30 jeremy Exp $"""
+$Id: Connection.py,v 1.102 2003/11/28 16:44:49 jim Exp $"""
 
-from cPickleCache import PickleCache
-from POSException import ConflictError, ReadConflictError, TransactionError
-from ExtensionClass import Base
-import ExportImport, TmpStore
-from zLOG import LOG, ERROR, BLATHER, WARNING
-from coptimizations import new_persistent_id
-from ConflictResolution import ResolvedSerial
-from Transaction import Transaction, get_transaction
-from ZODB.utils import oid_repr
-
-from cPickle import Unpickler, Pickler
-from cStringIO import StringIO
 import sys
 import threading
 from time import time
-from types import StringType, ClassType
+
+from persistent import PickleCache
+from zLOG import LOG, ERROR, BLATHER, WARNING
+
+from ZODB.ConflictResolution import ResolvedSerial
+from ZODB.coptimizations import new_persistent_id
+from ZODB.ExportImport import ExportImport
+from ZODB.POSException \
+     import ConflictError, ReadConflictError, TransactionError
+from ZODB.TmpStore import TmpStore
+from ZODB.Transaction import Transaction, get_transaction
+from ZODB.utils import oid_repr, z64
+from ZODB.serialize \
+     import ObjectWriter, getClassMetadata, ConnectionObjectReader
 
 global_code_timestamp = 0
 
@@ -43,9 +44,7 @@ def updateCodeTimestamp():
     global global_code_timestamp
     global_code_timestamp = time()
 
-ExtensionKlass = Base.__class__
-
-class Connection(ExportImport.ExportImport, object):
+class Connection(ExportImport, object):
     """Object managers for individual object space.
 
     An object space is a version of collection of objects.  In a
@@ -129,87 +128,21 @@ class Connection(ExportImport.ExportImport, object):
             ver = ''
         return '<Connection at %08x%s>' % (id(self), ver)
 
-    def _breakcr(self):
-        # Persistent objects and the cache don't participate in GC.
-        # Explicitly remove references from the connection to its
-        # cache and to the root object, because they refer back to the
-        # connection.
-        if self._cache is not None:
-            self._cache.clear()
-        self._incrgc = None
-        self.cacheGC = None
-
-    def __getitem__(self, oid, tt=type(())):
+    def __getitem__(self, oid):
         obj = self._cache.get(oid, None)
         if obj is not None:
             return obj
 
-        __traceback_info__ = (oid)
         p, serial = self._storage.load(oid, self._version)
-        __traceback_info__ = (oid, p)
-        file=StringIO(p)
-        unpickler=Unpickler(file)
-        unpickler.persistent_load=self._persistent_load
+        obj = self._reader.getGhost(p)
 
-        object = unpickler.load()
+        obj._p_oid = oid
+        obj._p_jar = self
+        obj._p_changed = None
+        obj._p_serial = serial
 
-        klass, args = object
-
-        if type(klass) is tt:
-            module, name = klass
-            klass=self._db._classFactory(self, module, name)
-
-        if (args is None or
-            not args and not hasattr(klass,'__getinitargs__')):
-            object=klass.__basicnew__()
-        else:
-            object = klass(*args)
-            if klass is not ExtensionKlass:
-                object.__dict__.clear()
-
-        object._p_oid=oid
-        object._p_jar=self
-        object._p_changed=None
-        object._p_serial=serial
-
-        self._cache[oid] = object
-        return object
-
-    def _persistent_load(self,oid,
-                        tt=type(())):
-
-        __traceback_info__=oid
-
-        if type(oid) is tt:
-            # Quick instance reference.  We know all we need to know
-            # to create the instance wo hitting the db, so go for it!
-            oid, klass = oid
-            obj = self._cache.get(oid, None)
-            if obj is not None:
-                return obj
-
-            if type(klass) is tt:
-                module, name = klass
-                try: klass=self._db._classFactory(self, module, name)
-                except:
-                    # Eek, we couldn't get the class. Hm.
-                    # Maybe their's more current data in the
-                    # object's actual record!
-                    return self[oid]
-
-            object=klass.__basicnew__()
-            object._p_oid=oid
-            object._p_jar=self
-            object._p_changed=None
-
-            self._cache[oid] = object
-
-            return object
-
-        obj = self._cache.get(oid, None)
-        if obj is not None:
-            return obj
-        return self[oid]
+        self._cache[oid] = obj
+        return obj
 
     def sortKey(self):
         # XXX will raise an exception if the DB hasn't been set
@@ -224,28 +157,27 @@ class Connection(ExportImport.ExportImport, object):
 
         Any objects modified since the last transaction are invalidated.
         """
-        self._db=odb
-        self._storage=s=odb._storage
+        self._db = odb
+        self._reader = ConnectionObjectReader(self, self._cache,
+                                              self._db._classFactory)
+        self._storage = odb._storage
         self._sortKey = odb._storage.sortKey
-        self.new_oid=s.new_oid
+        self.new_oid = odb._storage.new_oid
         if self._code_timestamp != global_code_timestamp:
             # New code is in place.  Start a new cache.
             self._resetCache()
         else:
             self._flush_invalidations()
-        self._opened=time()
+        self._opened = time()
 
         return self
 
     def _resetCache(self):
-        '''
-        Creates a new cache, discarding the old.
-        '''
+        """Creates a new cache, discarding the old."""
         self._code_timestamp = global_code_timestamp
         self._invalidated.clear()
-        orig_cache = self._cache
-        orig_cache.clear()
-        self._cache = cache = PickleCache(self, orig_cache.cache_size)
+        cache_size = self._cache.cache_size
+        self._cache = cache = PickleCache(self, cache_size)
         self._incrgc = self.cacheGC = cache.incrgc
 
     def abort(self, object, transaction):
@@ -331,100 +263,31 @@ class Connection(ExportImport.ExportImport, object):
             # Nothing to do
             return
 
-        stack = [object]
-
-        # Create a special persistent_id that passes T and the subobject
-        # stack along:
-        #
-        # def persistent_id(object,
-        #                   self=self,
-        #                   stackup=stackup, new_oid=self.new_oid):
-        #     if (not hasattr(object, '_p_oid') or
-        #         type(object) is ClassType): return None
-        #
-        #     oid=object._p_oid
-        #
-        #     if oid is None or object._p_jar is not self:
-        #         oid = self.new_oid()
-        #         object._p_jar=self
-        #         object._p_oid=oid
-        #         stackup(object)
-        #
-        #     klass=object.__class__
-        #
-        #     if klass is ExtensionKlass: return oid
-        #
-        #     if hasattr(klass, '__getinitargs__'): return oid
-        #
-        #     module=getattr(klass,'__module__','')
-        #     if module: klass=module, klass.__name__
-        #
-        #     return oid, klass
-
-        file=StringIO()
-        seek=file.seek
-        pickler=Pickler(file,1)
-        pickler.persistent_id=new_persistent_id(self, stack)
-        dbstore=self._storage.store
-        file=file.getvalue
-        cache=self._cache
-        get=cache.get
-        dump=pickler.dump
-        clear_memo=pickler.clear_memo
-
-
-        version=self._version
-
-        while stack:
-            object=stack[-1]
-            del stack[-1]
-            oid=object._p_oid
-            serial=getattr(object, '_p_serial', '\0\0\0\0\0\0\0\0')
-            if serial == '\0\0\0\0\0\0\0\0':
+        w = ObjectWriter(object)
+        for obj in w:
+            oid = obj._p_oid
+            serial = getattr(obj, '_p_serial', z64)
+            if serial == z64:
                 # new object
                 self._creating.append(oid)
             else:
                 #XXX We should never get here
                 if invalid(oid) and not hasattr(object, '_p_resolveConflict'):
-                    raise ConflictError(object=object)
+                    raise ConflictError(object=obj)
                 self._modified.append(oid)
 
-            klass = object.__class__
-
-            if klass is ExtensionKlass:
-                # Yee Ha!
-                dict={}
-                dict.update(object.__dict__)
-                del dict['_p_jar']
-                args=object.__name__, object.__bases__, dict
-                state=None
-            else:
-                if hasattr(klass, '__getinitargs__'):
-                    args = object.__getinitargs__()
-                    len(args) # XXX Assert it's a sequence
-                else:
-                    args = None # New no-constructor protocol!
-
-                module=getattr(klass,'__module__','')
-                if module: klass=module, klass.__name__
-                __traceback_info__=klass, oid, self._version
-                state=object.__getstate__()
-
-            seek(0)
-            clear_memo()
-            dump((klass,args))
-            dump(state)
-            p=file(1)
-            s=dbstore(oid,serial,p,version,transaction)
+            p = w.serialize(obj)
+            s = self._storage.store(oid, serial, p, self._version, transaction)
             self._store_count = self._store_count + 1
             # Put the object in the cache before handling the
             # response, just in case the response contains the
             # serial number for a newly created object
-            try: cache[oid]=object
+            try:
+                self._cache[oid] = obj
             except:
                 # Dang, I bet its wrapped:
-                if hasattr(object, 'aq_base'):
-                    cache[oid]=object.aq_base
+                if hasattr(obj, 'aq_base'):
+                    self._cache[oid] = obj.aq_base
                 else:
                     raise
 
@@ -447,7 +310,6 @@ class Connection(ExportImport.ExportImport, object):
         load=src.load
         store=tmp.store
         dest=self._version
-        get=self._cache.get
         oids=src._index.keys()
 
         # Copy invalidating and creating info from temporary storage:
@@ -488,11 +350,11 @@ class Connection(ExportImport.ExportImport, object):
                 del o._p_jar
                 del o._p_oid
 
-    #XXX
+    def db(self):
+        return self._db
 
-    def db(self): return self._db
-
-    def getVersion(self): return self._version
+    def getVersion(self):
+        return self._version
 
     def isReadOnly(self):
         return self._storage.isReadOnly()
@@ -537,7 +399,7 @@ class Connection(ExportImport.ExportImport, object):
         self.getTransaction().register(object)
 
     def root(self):
-        return self['\0\0\0\0\0\0\0\0']
+        return self[z64]
 
     def setstate(self, obj):
         oid = obj._p_oid
@@ -559,7 +421,7 @@ class Connection(ExportImport.ExportImport, object):
             p, serial = self._storage.load(oid, self._version)
             self._load_count = self._load_count + 1
             invalid = self._is_invalidated(obj)
-            self._set_ghost_state(obj, p)
+            self._reader.setGhostState(obj, p)
             obj._p_serial = serial
             if invalid:
                 self._handle_independent(obj)
@@ -593,19 +455,6 @@ class Connection(ExportImport.ExportImport, object):
         finally:
             self._inv_lock.release()
 
-    def _set_ghost_state(self, obj, p):
-        file = StringIO(p)
-        unpickler = Unpickler(file)
-        unpickler.persistent_load = self._persistent_load
-        unpickler.load()
-        state = unpickler.load()
-
-        setstate = getattr(obj, "__setstate__", None)
-        if setstate is None:
-            obj.update(state)
-        else:
-            setstate(state)
-
     def _handle_independent(self, obj):
         # Helper method for setstate() handles possibly independent objects
         # Call _p_independent(), if it returns True, setstate() wins.
@@ -624,42 +473,27 @@ class Connection(ExportImport.ExportImport, object):
             self.getTransaction().register(obj)
             raise ReadConflictError(object=obj)
 
-    def oldstate(self, object, serial):
-        oid=object._p_oid
-        p = self._storage.loadSerial(oid, serial)
-        file=StringIO(p)
-        unpickler=Unpickler(file)
-        unpickler.persistent_load=self._persistent_load
-        unpickler.load()
-        return  unpickler.load()
+    def oldstate(self, obj, serial):
+        p = self._storage.loadSerial(obj._p_oid, serial)
+        return self._reader.getState(p)
 
-    def setklassstate(self, object):
+    def setklassstate(self, obj):
+        # Special case code to handle ZClasses, I think.
+        # Called the cache when an object of type type is invalidated.
         try:
-            oid=object._p_oid
-            __traceback_info__=oid
+            oid = obj._p_oid
             p, serial = self._storage.load(oid, self._version)
-            file=StringIO(p)
-            unpickler=Unpickler(file)
-            unpickler.persistent_load=self._persistent_load
 
-            copy = unpickler.load()
+            # We call getGhost(), but we actually get a non-ghost back.
+            # The object is a class, which can't actually be ghosted.
+            copy = self._reader.getGhost(p)
+            obj.__dict__.clear()
+            obj.__dict__.update(copy.__dict__)
 
-            klass, args = copy
-
-            if klass is not ExtensionKlass:
-                LOG('ZODB',ERROR,
-                    "Unexpected klass when setting class state on %s"
-                    % getattr(object,'__name__','(?)'))
-                return
-
-            copy = klass(*args)
-            object.__dict__.clear()
-            object.__dict__.update(copy.__dict__)
-
-            object._p_oid=oid
-            object._p_jar=self
-            object._p_changed=0
-            object._p_serial=serial
+            obj._p_oid = oid
+            obj._p_jar = self
+            obj._p_changed = 0
+            obj._p_serial = serial
         except:
             LOG('ZODB',ERROR, 'setklassstate failed', error=sys.exc_info())
             raise
@@ -679,7 +513,7 @@ class Connection(ExportImport.ExportImport, object):
         if sub:
             # Sub-transaction!
             if self._tmp is None:
-                _tmp = TmpStore.TmpStore(self._version)
+                _tmp = TmpStore(self._version)
                 self._tmp = self._storage
                 self._storage = _tmp
                 _tmp.registerDB(self._db, 0)
@@ -718,7 +552,7 @@ class Connection(ExportImport.ExportImport, object):
 
         if not store_return:
             return
-        if isinstance(store_return, StringType):
+        if isinstance(store_return, str):
             assert oid is not None
             self._handle_one_serial(oid, store_return, change)
         else:
@@ -726,7 +560,7 @@ class Connection(ExportImport.ExportImport, object):
                 self._handle_one_serial(oid, serial, change)
 
     def _handle_one_serial(self, oid, serial, change):
-        if not isinstance(serial, StringType):
+        if not isinstance(serial, str):
             raise serial
         obj = self._cache.get(oid, None)
         if obj is None:
@@ -795,8 +629,3 @@ class Connection(ExportImport.ExportImport, object):
         new._p_changed=1
         self.getTransaction().register(new)
         self._cache[oid]=new
-
-class tConnection(Connection):
-
-    def close(self):
-        self._breakcr()

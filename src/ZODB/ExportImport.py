@@ -60,15 +60,11 @@ class ExportImport:
     def importFile(self, file, clue='', customImporters=None):
         # This is tricky, because we need to work in a transaction!
 
-        if type(file) is StringType:
-            file_name=file
-            file=open(file,'rb')
-        else:
-            try: file_name=file.name
-            except: file_name='(unknown)'
-        read=file.read
+        if isinstance(file, StringType):
+            file = open(file,'rb')
+        read = file.read
 
-        magic=read(4)
+        magic = read(4)
 
         if magic != 'ZEXP':
             if customImporters and customImporters.has_key(magic):
@@ -77,7 +73,8 @@ class ExportImport:
             raise POSException.ExportError, 'Invalid export header'
 
         t = self.getTransaction()
-        if clue: t.note(clue)
+        if clue:
+            t.note(clue)
 
         return_oid_list = []
         self.onCommitAction('_importDuringCommit', file, return_oid_list)
@@ -151,7 +148,6 @@ class ExportImport:
             pickler.dump(unpickler.load())
             pickler.dump(unpickler.load())
             p=newp.getvalue()
-            plen=len(p)
 
             store(oid, None, p, version, transaction)
 

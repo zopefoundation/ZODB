@@ -29,7 +29,7 @@ import threading
 import time
 
 from ZODB import DB
-from Persistence import Persistent
+from persistent import Persistent
 from ZODB.referencesf import referencesf
 from ZODB.tests.MinPO import MinPO
 from ZODB.tests.StorageTestBase import snooze
@@ -128,11 +128,11 @@ class PackableStorage(PackableStorageBase):
         try:
             self._storage.load(ZERO, '')
         except KeyError:
-            import PersistentMapping
+            from persistent import mapping
             from ZODB.Transaction import Transaction
             file = StringIO()
             p = cPickle.Pickler(file, 1)
-            p.dump((PersistentMapping.PersistentMapping, None))
+            p.dump((mapping.PersistentMapping, None))
             p.dump({'_container': {}})
             t=Transaction()
             t.description='initial database creation'
@@ -438,8 +438,6 @@ class PackableStorage(PackableStorageBase):
 
     def checkPackUndoLog(self):
         self._initroot()
-        eq = self.assertEqual
-        raises = self.assertRaises
         # Create a `persistent' object
         obj = self._newobj()
         oid = obj.getoid()
@@ -450,9 +448,9 @@ class PackableStorage(PackableStorageBase):
         snooze()
         packtime = time.time()
         snooze()
-        revid2 = self._dostoreNP(oid, revid=revid1, data=pickle.dumps(obj))
+        self._dostoreNP(oid, revid=revid1, data=pickle.dumps(obj))
         # Now pack the first transaction
-        self.assertEqual(3,len(self._storage.undoLog()))
+        self.assertEqual(3, len(self._storage.undoLog()))
         self._storage.pack(packtime, referencesf)
         # The undo log contains only the most resent transaction
         self.assertEqual(1,len(self._storage.undoLog()))
@@ -489,12 +487,12 @@ class PackableStorage(PackableStorageBase):
         revid13 = self._dostoreNP(oid1, revid=revid11,
                                   data=pickle.dumps(obj1), description="1-3")
         obj1.value = 4
-        revid14 = self._dostoreNP(oid1, revid=revid13,
-                                  data=pickle.dumps(obj1), description="1-4")
+        self._dostoreNP(oid1, revid=revid13,
+                        data=pickle.dumps(obj1), description="1-4")
         # Commit one revision of the second object
         obj2.value = 5
-        revid25 = self._dostoreNP(oid2, revid=revid22,
-                                  data=pickle.dumps(obj2), description="2-5")
+        self._dostoreNP(oid2, revid=revid22,
+                        data=pickle.dumps(obj2), description="2-5")
         # Now pack
         self.assertEqual(6,len(self._storage.undoLog()))
         print '\ninitial undoLog was'

@@ -16,7 +16,7 @@
 This class extends the basic asyncore layer with a record-marking
 layer.  The message_output() method accepts an arbitrary sized string
 as its argument.  It sends over the wire the length of the string
-encoded using struct.pack('>i') and the string itself.  The receiver
+encoded using struct.pack('>I') and the string itself.  The receiver
 passes the original string to message_input().
 
 This layer also supports an optional message authentication code

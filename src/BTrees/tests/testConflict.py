@@ -12,24 +12,25 @@
 #
 ##############################################################################
 import os
+from unittest import TestCase, TestSuite, makeSuite
 
 from BTrees.OOBTree import OOBTree, OOBucket, OOSet, OOTreeSet
 from BTrees.IOBTree import IOBTree, IOBucket, IOSet, IOTreeSet
 from BTrees.IIBTree import IIBTree, IIBucket, IISet, IITreeSet
 from BTrees.OIBTree import OIBTree, OIBucket, OISet, OITreeSet
-from unittest import TestCase, TestSuite, makeSuite
 
 from ZODB.POSException import ConflictError
 
 class Base:
     """ Tests common to all types: sets, buckets, and BTrees """
 
-    db = None
+    storage = None
 
     def tearDown(self):
+        get_transaction().abort()
         del self.t
-        if self.db is not None:
-            self.db.close()
+        if self.storage is not None:
+            self.storage.close()
             self.storage.cleanup()
 
     def openDB(self):
@@ -78,7 +79,7 @@ class MappingBase(Base):
 
         r2 = self.db.open().root()
         copy = r2["t"]
-        list(copy.items())  # ensure it's all loaded
+        list(copy)    # unghostify
 
         self.assertEqual(self.t._p_serial, copy._p_serial)
 
@@ -202,7 +203,6 @@ class MappingBase(Base):
         test_merge(base, b1, b2, bm, 'merge conflicting inserts',
                    should_fail=1)
 
-
 class SetTests(Base):
     "Set (as opposed to TreeSet) specific tests."
 
@@ -215,13 +215,13 @@ class SetTests(Base):
         e2=[7745, 4868, -2548, -2711, -3154]
 
 
-        base = self.t
+        base=self.t
         base.update(l)
-        b1 = base.__class__(base.keys())
-        b2 = base.__class__(base.keys())
-        bm = base.__class__(base.keys())
+        b1=base.__class__(base)
+        b2=base.__class__(base)
+        bm=base.__class__(base)
 
-        items = base.keys()
+        items=base.keys()
 
         return  base, b1, b2, bm, e1, e2, items
 
@@ -302,27 +302,26 @@ class SetTests(Base):
 
 
 def test_merge(o1, o2, o3, expect, message='failed to merge', should_fail=0):
-    s1=o1.__getstate__()
-    s2=o2.__getstate__()
-    s3=o3.__getstate__()
-    expected=expect.__getstate__()
+    s1 = o1.__getstate__()
+    s2 = o2.__getstate__()
+    s3 = o3.__getstate__()
+    expected = expect.__getstate__()
     if expected is None:
         expected = ((((),),),)
 
     if should_fail:
         try:
-            merged=o1._p_resolveConflict(s1, s2, s3)
+            merged = o1._p_resolveConflict(s1, s2, s3)
         except ConflictError, err:
             pass
         else:
             assert 0, message
     else:
-        merged=o1._p_resolveConflict(s1, s2, s3)
-        assert merged==expected, message
+        merged = o1._p_resolveConflict(s1, s2, s3)
+        assert merged == expected, message
 
 class BucketTests(MappingBase):
     """ Tests common to all buckets """
-
 
 class BTreeTests(MappingBase):
     """ Tests common to all BTrees """
@@ -593,6 +592,7 @@ class NastyConfict(Base, TestCase):
         self.assertRaises(ConflictError, get_transaction().commit)
         get_transaction().abort()   # horrible things happen w/o this
 
+
     def testEmptyBucketNoConflict(self):
         # Tests that a plain empty bucket (on input) is not viewed as a
         # conflict.
@@ -659,6 +659,60 @@ class NastyConfict(Base, TestCase):
         # And the resulting BTree shouldn't have internal damage.
         b._check()
 
+    def testCantResolveBTreeConflict(self):
+        # Test that a conflict involving two different changes to
+        # an internal BTree node is unresolvable.  An internal node
+        # only changes when there are enough additions or deletions
+        # to a child bucket that the bucket is split or removed.
+        # It's (almost necessarily) a white-box test, and sensitive to
+        # implementation details.
+        b = self.t
+        for i in range(0, 200, 4):
+            b[i] = i
+        # bucket 0 has 15 values: 0, 4 .. 56
+        # bucket 1 has 15 values: 60, 64 .. 116
+        # bucket 2 has 20 values: 120, 124 .. 196
+        state = b.__getstate__()
+        # Looks like:  ((bucket0, 60, bucket1, 120, bucket2), firstbucket)
+        # If these fail, the *preconditions* for running the test aren't
+        # satisfied -- the test itself hasn't been run yet.
+        self.assertEqual(len(state), 2)
+        self.assertEqual(len(state[0]), 5)
+        self.assertEqual(state[0][1], 60)
+        self.assertEqual(state[0][3], 120)
+
+        # Set up database connections to provoke conflict.
+        self.openDB()
+        r1 = self.db.open().root()
+        r1["t"] = self.t
+        get_transaction().commit()
+
+        r2 = self.db.open().root()
+        copy = r2["t"]
+        # Make sure all of copy is loaded.
+        list(copy.values())
+
+        self.assertEqual(self.t._p_serial, copy._p_serial)
+
+        # Now one transaction should add enough keys to cause a split,
+        # and another should remove all the keys in one bucket.
+
+        for k in range(200, 300, 4):
+            self.t[k] = k
+        get_transaction().commit()
+
+        for k in range(0, 60, 4):
+            del copy[k]
+
+        try:
+            get_transaction().commit()
+        except ConflictError, detail:
+            self.assert_(str(detail).startswith('database conflict error'))
+            get_transaction().abort()
+        else:
+            self.fail("expected ConflictError")
+
+
 def test_suite():
     suite = TestSuite()
     for k in (TestIOBTrees,   TestOOBTrees,   TestOIBTrees,   TestIIBTrees,
@@ -668,3 +722,4 @@ def test_suite():
               NastyConfict):
         suite.addTest(makeSuite(k))
     return suite
+

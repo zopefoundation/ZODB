@@ -123,9 +123,9 @@ class TransactionalUndoVersionStorage:
         version = 'version'
         revid1 = self._x_dostore(oid1, data=MinPO(0), description='create1')
         revid2 = self._x_dostore(oid1, data=MinPO(1), revid=revid1,
-                               version=version, description='version1')
-        revid3 = self._x_dostore(oid1, data=MinPO(2), revid=revid2,
-                               version=version, description='version2')
+                                 version=version, description='version1')
+        self._x_dostore(oid1, data=MinPO(2), revid=revid2,
+                        version=version, description='version2')
         self._x_dostore(description='create2')
 
         t = Transaction()
@@ -170,9 +170,9 @@ class TransactionalUndoVersionStorage:
         version = 'version'
         revid1 = self._x_dostore(oid1, data=MinPO(0), description='create1')
         revid2 = self._x_dostore(oid1, data=MinPO(1), revid=revid1,
-                               version=version, description='version1')
-        revid3 = self._x_dostore(oid1, data=MinPO(2), revid=revid2,
-                               version=version, description='version2')
+                                 version=version, description='version1')
+        self._x_dostore(oid1, data=MinPO(2), revid=revid2,
+                        version=version, description='version2')
         self._x_dostore(description='create2')
 
         t = Transaction()

@@ -13,10 +13,15 @@
 ##############################################################################
 """Handy standard storage machinery
 
-$Id: BaseStorage.py,v 1.36 2003/10/02 18:17:19 jeremy Exp $
+$Id: BaseStorage.py,v 1.37 2003/11/28 16:44:49 jim Exp $
 """
 import cPickle
+import threading
 import time
+
+import UndoLogCompatible
+import POSException
+from persistent.TimeStamp import TimeStamp
 
 import ThreadLock
 import zLOG
@@ -38,12 +43,12 @@ class BaseStorage(UndoLogCompatible):
                  "create storage %s" % self.__name__)
 
         # Allocate locks:
-        l=ThreadLock.allocate_lock()
-        self._lock_acquire=l.acquire
-        self._lock_release=l.release
-        l=bpthread.allocate_lock()
-        self._commit_lock_acquire=l.acquire
-        self._commit_lock_release=l.release
+        l = threading.RLock()
+        self._lock_acquire = l.acquire
+        self._lock_release = l.release
+        l = threading.Lock()
+        self._commit_lock_acquire = l.acquire
+        self._commit_lock_release = l.release
 
         t=time.time()
         t=self._ts=apply(TimeStamp,(time.gmtime(t)[:5]+(t%60,)))

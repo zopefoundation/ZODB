@@ -13,7 +13,7 @@
 ##############################################################################
 """A minimal persistent object to use for tests"""
 
-from Persistence import Persistent
+from persistent import Persistent
 
 class MinPO(Persistent):
     def __init__(self, value=None):

@@ -34,7 +34,7 @@ from ZEO.auth import get_module
 from ZEO.zrpc.client import ConnectionManager
 
 from ZODB import POSException
-from ZODB.TimeStamp import TimeStamp
+from persistent.TimeStamp import TimeStamp
 from zLOG import LOG, PROBLEM, INFO, BLATHER, ERROR
 
 def log2(type, msg, subsys="ZCS:%d" % os.getpid()):

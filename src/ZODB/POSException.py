@@ -13,7 +13,7 @@
 ##############################################################################
 """ZODB-defined exceptions
 
-$Id: POSException.py,v 1.21 2003/10/02 18:17:19 jeremy Exp $"""
+$Id: POSException.py,v 1.22 2003/11/28 16:44:49 jim Exp $"""
 
 from types import StringType, DictType
 from ZODB.utils import oid_repr, serial_repr
@@ -51,13 +51,17 @@ class ConflictError(TransactionError):
         related to conflict.  The first is the revision of object that
         is in conflict, the second is the revision of that the current
         transaction read when it started.
+      data : string
+        The database record that failed to commit, used to put the
+        class name in the error message.
 
     The caller should pass either object or oid as a keyword argument,
     but not both of them.  If object is passed, it should be a
     persistent object with an _p_oid attribute.
     """
 
-    def __init__(self, message=None, object=None, oid=None, serials=None):
+    def __init__(self, message=None, object=None, oid=None, serials=None,
+                 data=None):
         if message is None:
             self.message = "database conflict error"
         else:
@@ -74,6 +78,14 @@ class ConflictError(TransactionError):
         if oid is not None:
             assert self.oid is None
             self.oid = oid
+
+        if data is not None:
+            # avoid circular import chain
+            from ZODB.serialize import SimpleObjectReader
+            self.class_name = SimpleObjectReader().getClassName(data)
+##        else:
+##            if message != "data read conflict error":
+##                raise RuntimeError
 
         self.serials = serials
 
@@ -119,13 +131,66 @@ class ReadConflictError(ConflictError):
                                serials=serials)
 
 class BTreesConflictError(ConflictError):
-    """A special subclass for BTrees conflict errors.
+    """A special subclass for BTrees conflict errors."""
 
-    These return an undocumented four-tuple.
-    """
-    def __init__(self, *btree_args):
-        ConflictError.__init__(self, message="BTrees conflict error")
-        self.btree = btree_args
+    msgs = [# 0; i2 or i3 bucket split; positions are all -1
+            'Conflicting bucket split',
+
+            # 1; keys the same, but i2 and i3 values differ, and both values
+            # differ from i1's value
+            'Conflicting changes',
+
+            # 2; i1's value changed in i2, but key+value deleted in i3
+            'Conflicting delete and change',
+
+            # 3; i1's value changed in i3, but key+value deleted in i2
+            'Conflicting delete and change',
+
+            # 4; i1 and i2 both added the same key, or both deleted the
+            # same key
+            'Conflicting inserts or deletes',
+
+            # 5;  i2 and i3 both deleted the same key
+            'Conflicting deletes',
+
+            # 6; i2 and i3 both added the same key
+            'Conflicting inserts',
+
+            # 7; i2 and i3 both deleted the same key, or i2 changed the value
+            # associated with a key and i3 deleted that key
+            'Conflicting deletes, or delete and change',
+
+            # 8; i2 and i3 both deleted the same key, or i3 changed the value
+            # associated with a key and i2 deleted that key
+            'Conflicting deletes, or delete and change',
+
+            # 9; i2 and i3 both deleted the same key
+            'Conflicting deletes',
+
+            # 10; i2 and i3 deleted all the keys, and didn't insert any,
+            # leaving an empty bucket; conflict resolution doesn't have
+            # enough info to unlink an empty bucket from its containing
+            # BTree correctly
+            'Empty bucket from deleting all keys',
+
+            # 11; conflicting changes in an internal BTree node
+            'Conflicting changes in an internal BTree node',
+            ]
+
+    def __init__(self, p1, p2, p3, reason):
+        self.p1 = p1
+        self.p2 = p2
+        self.p3 = p3
+        self.reason = reason
+
+    def __repr__(self):
+        return "BTreesConflictError(%d, %d, %d, %d)" % (self.p1,
+                                                        self.p2,
+                                                        self.p3,
+                                                        self.reason)
+    def __str__(self):
+        return "BTrees conflict error at %d/%d/%d: %s" % (
+            self.p1, self.p2, self.p3, self.msgs[self.reason])
 
 class DanglingReferenceError(TransactionError):
     """An object has a persistent reference to a missing object.

@@ -17,7 +17,7 @@ import threading
 import time
 
 from ZODB.Transaction import Transaction
-from ZODB.TimeStamp import TimeStamp
+from persistent.TimeStamp import TimeStamp
 from ZODB.tests.StorageTestBase import zodb_pickle, MinPO
 
 import ZEO.ClientStorage

@@ -177,7 +177,6 @@ class FileStorageFormatter:
                       "txnlen (%d) < headerlen(%d)", th.tlen, th.headerlen())
 
     def checkData(self, th, tpos, dh, pos):
-        tend = tpos + th.tlen
         if dh.tloc != tpos:
             self.fail(pos, "data record does not point to transaction header"
                       ": %d != %d", dh.tloc, tpos)
@@ -345,7 +344,6 @@ class DataCopier(FileStorageFormatter):
         if not prev:
             return None
 
-        pnv = None
         h = self._read_data_header(prev, oid)
         # If the previous record is for a version, it must have
         # a valid pnv.
@@ -712,7 +710,6 @@ class FileStoragePacker(FileStorageFormatter):
         return pos
 
     def copyToPacktime(self):
-        offset = 0L  # the amount of space freed by packing
         pos = self._metadata_size
         new_pos = pos
 
@@ -778,7 +775,6 @@ class FileStoragePacker(FileStorageFormatter):
                 s = th.asString()
                 new_tpos = self._tfile.tell()
                 self._tfile.write(s)
-                new_pos = new_tpos + len(s)
                 copy = 1
 
             if h.plen:
@@ -790,7 +786,6 @@ class FileStoragePacker(FileStorageFormatter):
                 data = self.fetchBackpointer(h.oid, h.back)
 
             self.writePackedDataRecord(h, data, new_tpos)
-            new_pos = self._tfile.tell()
 
         return new_tpos, pos
 

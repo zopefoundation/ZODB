@@ -14,8 +14,3 @@
 
 # hack to overcome dynamic-linking headache.
 from _IOBTree import *
-
-# We don't really want _ names in pickles, so update all of the __module__
-# references.
-for obj in IOBucket, IOBTree, IOSet, IOTreeSet:
-    obj.__module__ = __name__

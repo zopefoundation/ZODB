@@ -12,34 +12,20 @@
 
  ****************************************************************************/
 
+#include "Python.h"
+/* include structmember.h for offsetof */
+#include "structmember.h"
+
 #ifdef PERSISTENT
 #include "cPersistence.h"
-
-/***************************************************************
-   The following are macros that ought to be in cPersistence.h */
-#ifndef PER_USE
-
-#define PER_USE(O) \
-(((O)->state != cPersistent_GHOST_STATE \
-  || (cPersistenceCAPI->setstate((PyObject*)(O)) >= 0)) \
- ? (((O)->state==cPersistent_UPTODATE_STATE) \
-    ? ((O)->state=cPersistent_STICKY_STATE) : 1) : 0)
-
-#define PER_ACCESSED(O) ((O)->atime=((long)(time(NULL)/3))%65536)
-
-
-#endif
-/***************************************************************/
-
+//#include "persistence/persistenceAPI.h"
 #else
-#include "ExtensionClass.h"
 #define PER_USE_OR_RETURN(self, NULL)
 #define PER_ALLOW_DEACTIVATION(self)
 #define PER_PREVENT_DEACTIVATION(self)
 #define PER_DEL(self)
 #define PER_USE(O) 1
 #define PER_ACCESSED(O) 1
-#define PER_CHANGED(O) 0
 #endif
 
 /* So sue me.  This pair gets used all over the place, so much so that it
@@ -53,15 +39,23 @@
     PER_ACCESSED(OBJ);                  \
 } while (0)
 
-static PyObject *sort_str, *reverse_str, *items_str, *__setstate___str;
+/*
+  The tp_name slots of the various BTree types contain the fully
+  qualified names of the types, e.g. zodb.btrees.OOBTree.OOBTree.
+  The full name is usd to support pickling and because it is not
+  possible to modify the __module__ slot of a type dynamically.  (This
+  may be a bug in Python 2.2).
+*/
+
+#define MODULE_NAME "BTrees._" MOD_NAME_PREFIX "BTree."
+
+static PyObject *sort_str, *reverse_str, *__setstate___str,
+    *_bucket_type_str;
 static PyObject *ConflictError = NULL;
 
 static void PyVar_Assign(PyObject **v, PyObject *e) { Py_XDECREF(*v); *v=e;}
 #define ASSIGN(V,E) PyVar_Assign(&(V),(E))
-#define ASSIGNC(V,E) (Py_INCREF((E)), PyVar_Assign(&(V),(E)))
 #define UNLESS(E) if (!(E))
-#define UNLESS_ASSIGN(V,E) ASSIGN(V,E); UNLESS(V)
-#define LIST(O) ((PyListObject*)(O))
 #define OBJECT(O) ((PyObject*)(O))
 
 #define MIN_BUCKET_ALLOC 16
@@ -150,7 +144,8 @@ typedef struct BTree_s {
   BTreeItem *data;
 } BTree;
 
-staticforward PyExtensionClass BTreeType;
+static PyTypeObject BTreeType;
+static PyTypeObject BucketType;
 
 #define BTREE(O) ((BTree*)(O))
 
@@ -252,16 +247,16 @@ finiSetIteration(SetIteration *i)
 static PyObject *
 IndexError(int i)
 {
-  PyObject *v;
+    PyObject *v;
 
-  v=PyInt_FromLong(i);
-  UNLESS (v) {
-    v=Py_None;
-    Py_INCREF(v);
-  }
-  PyErr_SetObject(PyExc_IndexError, v);
-  Py_DECREF(v);
-  return NULL;
+    v = PyInt_FromLong(i);
+    if (!v) {
+	v = Py_None;
+	Py_INCREF(v);
+    }
+    PyErr_SetObject(PyExc_IndexError, v);
+    Py_DECREF(v);
+    return NULL;
 }
 
 /* Search for the bucket immediately preceding *current, in the bucket chain
@@ -286,8 +281,7 @@ PreviousBucket(Bucket **current, Bucket *first)
         trailing = first;
 	PER_USE_OR_RETURN(first, -1);
         first = first->next;
-        PER_ALLOW_DEACTIVATION(trailing);
-	PER_ACCESSED(trailing);
+	PER_UNUSE(trailing);
 
 	if (first == *current) {
 	    *current = trailing;
@@ -300,32 +294,44 @@ PreviousBucket(Bucket **current, Bucket *first)
 }
 
 static void *
-PyMalloc(size_t sz)
+BTree_Malloc(size_t sz)
 {
-  void *r;
+    void *r;
 
-  ASSERT(sz > 0, "non-positive size malloc", NULL);
+    ASSERT(sz > 0, "non-positive size malloc", NULL);
 
-  if ((r = malloc(sz))) return r;
+    r = malloc(sz);
+    if (r)
+	return r;
 
-  PyErr_NoMemory();
-  return NULL;
+    PyErr_NoMemory();
+    return NULL;
 }
 
 static void *
-PyRealloc(void *p, size_t sz)
+BTree_Realloc(void *p, size_t sz)
 {
-  void *r;
+    void *r;
 
-  ASSERT(sz > 0, "non-positive size realloc", NULL);
+    ASSERT(sz > 0, "non-positive size realloc", NULL);
 
-  if (p) r = realloc(p,sz);
-  else r = malloc(sz);
+    if (p)
+	r = realloc(p, sz);
+    else
+	r = malloc(sz);
 
-  UNLESS (r) PyErr_NoMemory();
+    UNLESS (r)
+	PyErr_NoMemory();
 
-  return r;
+    return r;
 }
+
+/* Shared keyword-argument list for BTree/Bucket
+ * (iter)?(keys|values|items)
+ */
+static char *search_keywords[] = {"min", "max",
+				  "excludemin", "excludemax",
+				  0};
 
 #include "BTreeItemsTemplate.c"
 #include "BucketTemplate.c"
@@ -373,7 +379,7 @@ static char BTree_module_documentation[] =
 "\n"
 MASTER_ID
 BTREEITEMSTEMPLATE_C
-"$Id: BTreeModuleTemplate.c,v 1.37 2002/06/25 22:02:27 tim_one Exp $\n"
+"$Id: BTreeModuleTemplate.c,v 1.38 2003/11/28 16:44:44 jim Exp $\n"
 BTREETEMPLATE_C
 BUCKETTEMPLATE_C
 KEYMACROS_H
@@ -385,81 +391,99 @@ VALUEMACROS_H
 BTREEITEMSTEMPLATE_C
 ;
 
+int
+init_persist_type(PyTypeObject *type)
+{
+    type->ob_type = &PyType_Type;
+    type->tp_base = cPersistenceCAPI->pertype;
+
+    if (PyType_Ready(type) < 0)
+	return 0;
+
+    return 1;
+}
+
 void
 INITMODULE (void)
 {
-  PyObject *m, *d, *c;
+    PyObject *m, *d, *c;
 
-  UNLESS (sort_str=PyString_FromString("sort")) return;
-  UNLESS (reverse_str=PyString_FromString("reverse")) return;
-  UNLESS (items_str=PyString_FromString("items")) return;
-  UNLESS (__setstate___str=PyString_FromString("__setstate__")) return;
+    sort_str = PyString_InternFromString("sort");
+    if (!sort_str)
+	return;
+    reverse_str = PyString_InternFromString("reverse");
+    if (!reverse_str)
+	return;
+    __setstate___str = PyString_InternFromString("__setstate__");
+    if (!__setstate___str)
+	return;
+    _bucket_type_str = PyString_InternFromString("_bucket_type");
+    if (!_bucket_type_str)
+	return;
 
-  UNLESS (PyExtensionClassCAPI=PyCObject_Import("ExtensionClass","CAPI"))
-      return;
-
-#ifdef PERSISTENT
-  if ((cPersistenceCAPI=PyCObject_Import("cPersistence","CAPI")))
-    {
-	BucketType.methods.link=cPersistenceCAPI->methods;
-	BucketType.tp_getattro=cPersistenceCAPI->getattro;
-	BucketType.tp_setattro=cPersistenceCAPI->setattro;
-
-	SetType.methods.link=cPersistenceCAPI->methods;
-	SetType.tp_getattro=cPersistenceCAPI->getattro;
-	SetType.tp_setattro=cPersistenceCAPI->setattro;
-
-	BTreeType.methods.link=cPersistenceCAPI->methods;
-	BTreeType.tp_getattro=cPersistenceCAPI->getattro;
-	BTreeType.tp_setattro=cPersistenceCAPI->setattro;
-
-	TreeSetType.methods.link=cPersistenceCAPI->methods;
-	TreeSetType.tp_getattro=cPersistenceCAPI->getattro;
-	TreeSetType.tp_setattro=cPersistenceCAPI->setattro;
-    }
-  else return;
-
-  /* Grab the ConflictError class */
-
-  m = PyImport_ImportModule("ZODB.POSException");
-
-  if (m != NULL) {
+    /* Grab the ConflictError class */
+    m = PyImport_ImportModule("ZODB.POSException");
+    if (m != NULL) {
   	c = PyObject_GetAttrString(m, "BTreesConflictError");
   	if (c != NULL)
-  		ConflictError = c;
+	    ConflictError = c;
 	Py_DECREF(m);
-  }
+    }
 
-  if (ConflictError == NULL) {
+    if (ConflictError == NULL) {
   	Py_INCREF(PyExc_ValueError);
 	ConflictError=PyExc_ValueError;
-  }
+    }
 
-#else
-  BTreeType.tp_getattro=PyExtensionClassCAPI->getattro;
-  BucketType.tp_getattro=PyExtensionClassCAPI->getattro;
-  SetType.tp_getattro=PyExtensionClassCAPI->getattro;
-  TreeSetType.tp_getattro=PyExtensionClassCAPI->getattro;
-#endif
+    /* Initialize the PyPersist_C_API and the type objects. */
+    cPersistenceCAPI = PyCObject_Import("persistent.cPersistence", "CAPI");
+    if (cPersistenceCAPI == NULL)
+	return;
 
-  BTreeItemsType.ob_type=&PyType_Type;
+    BTreeItemsType.ob_type = &PyType_Type;
+    BTreeIter_Type.ob_type = &PyType_Type;
+    BTreeIter_Type.tp_getattro = PyObject_GenericGetAttr;
+    BucketType.tp_new = PyType_GenericNew;
+    SetType.tp_new = PyType_GenericNew;
+    BTreeType.tp_new = PyType_GenericNew;
+    TreeSetType.tp_new = PyType_GenericNew;
+    if (!init_persist_type(&BucketType))
+	return;
+    if (!init_persist_type(&BTreeType))
+	return;
+    if (!init_persist_type(&SetType))
+	return;
+    if (!init_persist_type(&TreeSetType))
+	return;
 
-#ifdef INTSET_H
-  UNLESS(d = PyImport_ImportModule("intSet")) return;
-  UNLESS(intSetType = PyObject_GetAttrString (d, "intSet")) return;
-  Py_DECREF (d);
-#endif
+    if (PyDict_SetItem(BTreeType.tp_dict, _bucket_type_str,
+		       (PyObject *)&BucketType) < 0) {
+	fprintf(stderr, "btree failed\n");
+	return;
+    }
+    if (PyDict_SetItem(TreeSetType.tp_dict, _bucket_type_str,
+		       (PyObject *)&SetType) < 0) {
+	fprintf(stderr, "bucket failed\n");
+	return;
+    }
 
-  /* Create the module and add the functions */
-  m = Py_InitModule4("_" MOD_NAME_PREFIX "BTree", module_methods,
-		     BTree_module_documentation,
-		     (PyObject*)NULL,PYTHON_API_VERSION);
+    /* Create the module and add the functions */
+    m = Py_InitModule4("_" MOD_NAME_PREFIX "BTree",
+		       module_methods, BTree_module_documentation,
+		       (PyObject *)NULL, PYTHON_API_VERSION);
 
-  /* Add some symbolic constants to the module */
-  d = PyModule_GetDict(m);
-
-  PyExtensionClass_Export(d,MOD_NAME_PREFIX "Bucket", BucketType);
-  PyExtensionClass_Export(d,MOD_NAME_PREFIX "BTree", BTreeType);
-  PyExtensionClass_Export(d,MOD_NAME_PREFIX "Set", SetType);
-  PyExtensionClass_Export(d,MOD_NAME_PREFIX "TreeSet", TreeSetType);
+    /* Add some symbolic constants to the module */
+    d = PyModule_GetDict(m);
+    if (PyDict_SetItemString(d, MOD_NAME_PREFIX "Bucket",
+			     (PyObject *)&BucketType) < 0)
+	return;
+    if (PyDict_SetItemString(d, MOD_NAME_PREFIX "BTree",
+			     (PyObject *)&BTreeType) < 0)
+	return;
+    if (PyDict_SetItemString(d, MOD_NAME_PREFIX "Set",
+			     (PyObject *)&SetType) < 0)
+	return;
+    if (PyDict_SetItemString(d, MOD_NAME_PREFIX "TreeSet",
+			     (PyObject *)&TreeSetType) < 0)
+	return;
 }

@@ -262,10 +262,6 @@ if BDBStorage.is_available:
 
 
 def test_suite():
-    # shutup warnings about mktemp
-    import warnings
-    warnings.filterwarnings("ignore", "mktemp")
-
     suite = unittest.TestSuite()
     for klass in test_classes:
         sub = unittest.makeSuite(klass, "check")

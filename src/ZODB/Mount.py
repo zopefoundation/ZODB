@@ -13,12 +13,12 @@
 ##############################################################################
 """Mounted database support
 
-$Id: Mount.py,v 1.20 2003/11/18 13:17:16 tseaver Exp $"""
-__version__='$Revision: 1.20 $'[11:-2]
+$Id: Mount.py,v 1.21 2003/11/28 16:44:49 jim Exp $"""
+__version__='$Revision: 1.21 $'[11:-2]
 
-import thread, Persistence, Acquisition
+import thread, persistent, Acquisition
 from Acquisition import aq_base
-import ExtensionClass, string, time, sys
+import string, time, sys
 from POSException import MountedStorageError
 from zLOG import LOG, ERROR, INFO, WARNING
 
@@ -44,7 +44,7 @@ def parentClassFactory(jar, module, name):
         return parent_db._classFactory(parent_conn, module, name)
 
 
-class MountPoint(Persistence.Persistent, Acquisition.Implicit):
+class MountPoint(persistent.Persistent, Acquisition.Implicit):
     '''The base class for a Zope object which, when traversed,
     accesses a different database.
     '''

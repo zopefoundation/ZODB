@@ -13,7 +13,8 @@
 ##############################################################################
 
 import sys
-import TimeStamp, time
+import time
+from persistent.TimeStamp import TimeStamp
 
 from struct import pack, unpack
 from types import StringType
@@ -80,7 +81,7 @@ def cp(f1, f2, l):
 
 
 def newTimeStamp(old=None,
-                 TimeStamp=TimeStamp.TimeStamp,
+                 TimeStamp=TimeStamp,
                  time=time.time, gmtime=time.gmtime):
     t = time()
     ts = TimeStamp(gmtime(t)[:5]+(t%60,))

@@ -32,8 +32,8 @@ class SetResult(TestCase):
 
     # Slow but obviously correct Python implementations of basic ops.
     def _union(self, x, y):
-        result = list(x.keys())
-        for e in y.keys():
+        result = list(x)
+        for e in y:
             if e not in result:
                 result.append(e)
         result.sort()
@@ -41,15 +41,14 @@ class SetResult(TestCase):
 
     def _intersection(self, x, y):
         result = []
-        ykeys = y.keys()
-        for e in x.keys():
-            if e in ykeys:
+        for e in x:
+            if e in y:
                 result.append(e)
         return result
 
     def _difference(self, x, y):
-        result = list(x.keys())
-        for e in y.keys():
+        result = list(x)
+        for e in y:
             if e in result:
                 result.remove(e)
         # Difference preserves LHS values.
@@ -108,7 +107,7 @@ class SetResult(TestCase):
 
                 C = self.difference(E, A)
                 self.assertEqual(hasattr(C, "values"), hasattr(E, "values"))
-                self.assertEqual(list(C.keys()), [])
+                self.assertEqual(list(C), [])
 
     def testUnion(self):
         inputs = self.As + self.Bs
@@ -161,10 +160,8 @@ class SetResult(TestCase):
                     for B in Bs:
                         got = op(A, B)
                         want = simulator(Akeys, Bkeys)
-                        self.assertEqual(list(got.keys()), want,
-                                         (A, B,
-                                          Akeys, Bkeys,
-                                          list(got.keys()), want))
+                        self.assertEqual(list(got), want,
+                                         (A, B, Akeys, Bkeys, list(got), want))
 
 # Given a mapping builder (IIBTree, OOBucket, etc), return a function
 # that builds an object of that type given only a list of keys.
@@ -252,8 +249,8 @@ class MultiUnion(TestCase):
         fast = self.multiunion(range(N))  # acts like N distinct singleton sets
         self.assertEqual(len(slow), N)
         self.assertEqual(len(fast), N)
-        self.assertEqual(list(slow.keys()), list(fast.keys()))
-        self.assertEqual(list(fast.keys()), range(N))
+        self.assertEqual(list(slow), list(fast))
+        self.assertEqual(list(fast), range(N))
 
 class TestIIMultiUnion(MultiUnion):
     from BTrees.IIBTree import multiunion, union
@@ -303,7 +300,6 @@ class TestImports(TestCase):
             pass
         else:
             self.fail("OOBTree shouldn't have weightedIntersection")
-
 
     def testMultiunion(self):
         from BTrees.IIBTree import multiunion
@@ -379,7 +375,7 @@ class Weighted(TestCase):
     # If obj is a set, return a bucket with values all 1; else return obj.
     def _normalize(self, obj):
         if isaset(obj):
-            obj = self.mkbucket(zip(obj.keys(), [1] * len(obj)))
+            obj = self.mkbucket(zip(obj, [1] * len(obj)))
         return obj
 
     # Python simulation of weightedUnion.
@@ -455,11 +451,6 @@ def itemsToSet(setbuilder):
         return setbuilder([key for key, value in items])
     return result
 
-# 'thing' is a bucket, btree, set or treeset.  Return true iff it's one of the
-# latter two.
-def isaset(thing):
-    return not hasattr(thing, 'values')
-
 class TestWeightedII(Weighted):
     from BTrees.IIBTree import weightedUnion, weightedIntersection
     from BTrees.IIBTree import union, intersection
@@ -471,6 +462,12 @@ class TestWeightedOI(Weighted):
     from BTrees.OIBTree import union, intersection
     from BTrees.OIBTree import OIBucket as mkbucket
     builders = OIBucket, OIBTree, itemsToSet(OISet), itemsToSet(OITreeSet)
+
+
+# 'thing' is a bucket, btree, set or treeset.  Return true iff it's one of the
+# latter two.
+def isaset(thing):
+    return not hasattr(thing, 'values')
 
 
 def test_suite():
