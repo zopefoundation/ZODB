@@ -74,7 +74,8 @@ class StorageServer:
                                      reuse_addr=1)
 
     def new_connection(self, sock, addr):
-        c = ManagedServerConnection(sock, addr, ZEOStorage(self), self)
+        z = ZEOStorage(self, self.read_only)
+        c = ManagedServerConnection(sock, addr, z, self)
         log("new connection %s: %s" % (addr, `c`))
         return c
 
@@ -117,12 +118,13 @@ class StorageServer:
 class ZEOStorage:
     """Proxy to underlying storage for a single remote client."""
 
-    def __init__(self, server):
+    def __init__(self, server, read_only=0):
         self.server = server
         self.client = None
         self.storage = None
         self.storage_id = "uninitialized"
         self.transaction = None
+        self.read_only = read_only
 
     def notifyConnected(self, conn):
         self.client = ClientStub.ClientStorage(conn)
@@ -162,6 +164,8 @@ class ZEOStorage:
         self.modifiedInVersion = self.storage.modifiedInVersion
 
     def check_tid(self, tid, exc=None):
+        if self.read_only:
+            raise ReadOnlyError()
         caller = sys._getframe().f_back.f_code.co_name
         if self.transaction is None:
             self.log("no current transaction: %s()" % caller, zLOG.PROBLEM)
@@ -193,9 +197,10 @@ class ZEOStorage:
             self.log("unknown storage_id: %s" % storage_id)
             raise ValueError, "unknown storage: %s" % storage_id
 
-        if not read_only and (self.server.read_only or storage.isReadOnly()):
+        if not read_only and (self.read_only or storage.isReadOnly()):
             raise ReadOnlyError()
 
+        self.read_only = self.read_only or read_only
         self.storage_id = storage_id
         self.storage = storage
         self.setup_delegation()
@@ -250,6 +255,7 @@ class ZEOStorage:
         self.client.endVerify()
 
     def pack(self, time, wait=1):
+        # Yes, you can pack a read-only server or storage!
         if wait:
             return run_in_thread(self.pack_impl, time)
         else:
@@ -268,11 +274,15 @@ class ZEOStorage:
 
     def new_oids(self, n=100):
         """Return a sequence of n new oids, where n defaults to 100"""
+        if self.read_only:
+            raise ReadOnlyError()
         if n <= 0:
             n = 1
         return [self.storage.new_oid() for i in range(n)]
 
     def undo(self, transaction_id):
+        if self.read_only:
+            raise ReadOnlyError()
         oids = self.storage.undo(transaction_id)
         if oids:
             self.server.invalidate(self, self.storage_id,
@@ -289,6 +299,8 @@ class ZEOStorage:
         return run_in_thread(self.storage.undoLog, first, last)
 
     def tpc_begin(self, id, user, description, ext, tid, status):
+        if self.read_only:
+            raise ReadOnlyError()
         if self.transaction is not None:
             if self.transaction.id == id:
                 self.log("duplicate tpc_begin(%s)" % repr(id))
