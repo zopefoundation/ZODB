@@ -11,7 +11,7 @@
 # FOR A PARTICULAR PURPOSE
 # 
 ##############################################################################
-__version__='$Revision: 1.10 $'[11:-2]
+__version__='$Revision: 1.11 $'[11:-2]
 
 import os, sys, time
 
@@ -99,4 +99,3 @@ class stupid_log_write:
 _log = stupid_log_write()
 log_write = _log.log
 initialize = _log.initialize
-rotate = _log.rotate
