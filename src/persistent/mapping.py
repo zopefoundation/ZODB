@@ -85,8 +85,8 @@
 __doc__='''Python implementation of persistent base types
 
 
-$Id: mapping.py,v 1.8 2000/04/21 20:06:34 jim Exp $'''
-__version__='$Revision: 1.8 $'[11:-2]
+$Id: mapping.py,v 1.9 2001/06/05 18:45:33 chrism Exp $'''
+__version__='$Revision: 1.9 $'[11:-2]
 
 import Persistence
 import types
@@ -140,7 +140,7 @@ class PersistentMapping(Persistence.Persistent):
         return map(lambda k, d=self: (k,d[k]), self.keys())
 
     def keys(self):
-        try: return self._v_keys
+        try: return list(self._v_keys) # return a copy (Collector 2283)
         except: pass
         keys=self._v_keys=filter(
             lambda k: not isinstance(k,types.StringType) or k[:1]!='_',
@@ -151,6 +151,8 @@ class PersistentMapping(Persistence.Persistent):
     def update(self, b):
         a=self._container
         for k, v in b.items(): a[k] = v
+        try: del self._v_keys
+        except: pass
         self._p_changed=1
 
     def values(self):
