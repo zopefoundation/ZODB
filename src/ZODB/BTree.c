@@ -11,7 +11,7 @@
 
 static char BTree_module_documentation[] = 
 ""
-"\n$Id: BTree.c,v 1.11 1997/12/12 23:43:05 jim Exp $"
+"\n$Id: BTree.c,v 1.12 1997/12/31 17:18:04 jim Exp $"
 ;
 
 #define PERSISTENT
@@ -643,13 +643,16 @@ _bucket_set(Bucket *self, PyObject *key, PyObject *v)
 #endif
 
 #ifdef INTVAL
-  UNLESS(!v || PyInt_Check(v))
+  if(v)
     {
-      PyErr_SetString(PyExc_TypeError,
-		      "Bucket __getitem__ expected integer key");
-      return -1;
+      UNLESS(PyInt_Check(v))
+	{
+	  PyErr_SetString(PyExc_TypeError,
+			  "Bucket __getitem__ expected integer key");
+	  return -1;
+	}
+      iv=PyInt_AsLong(v);
     }
-  iv=PyInt_AsLong(v);
 #endif
 
   PER_USE_OR_RETURN(self, -1);
@@ -920,9 +923,6 @@ _BTree_set(BTree *self, PyObject *key, PyObject *value)
 #ifdef INTKEY
   int ikey;
 #endif
-#ifdef INTVAL
-  int iv;
-#endif
 
 #ifdef INTKEY
   UNLESS(PyInt_Check(key))
@@ -932,16 +932,6 @@ _BTree_set(BTree *self, PyObject *key, PyObject *value)
       return -1;
     }
   ikey=PyInt_AsLong(key);
-#endif
-
-#ifdef INTVAL
-  UNLESS(!value || PyInt_Check(value))
-    {
-      PyErr_SetString(PyExc_TypeError,
-		      "Bucket __getitem__ expected integer key");
-      return -1;
-    }
-  iv=PyInt_AsLong(value);
 #endif
 
   PER_USE_OR_RETURN(self, -1);
@@ -981,7 +971,7 @@ _BTree_set(BTree *self, PyObject *key, PyObject *value)
 	{
 	  d->count--;
 	  self->count--;
-	  if(! d->count)
+	  if(! d->count && self->len > 1)
 	    {
 	      self->len--;
 	      Py_DECREF(d->value);
@@ -1722,7 +1712,7 @@ initBTree()
 #endif
 {
   PyObject *m, *d;
-  char *rev="$Revision: 1.11 $";
+  char *rev="$Revision: 1.12 $";
 
   UNLESS(PyExtensionClassCAPI=PyCObject_Import("ExtensionClass","CAPI"))
       return;
@@ -1784,6 +1774,9 @@ initBTree()
 Revision Log:
 
   $Log: BTree.c,v $
+  Revision 1.12  1997/12/31 17:18:04  jim
+  Fixed bugs related to deleting items.
+
   Revision 1.11  1997/12/12 23:43:05  jim
   Added basicnew support.
 
