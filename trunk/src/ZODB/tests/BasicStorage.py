@@ -177,7 +177,7 @@ class BasicStorage:
     def checkTwoArgBegin(self):
         # XXX how standard is three-argument tpc_begin()?
         t = Transaction()
-        tid = chr(42) * 8
+        tid = '\0\0\0\0\0psu'
         self._storage.tpc_begin(t, tid)
         oid = self._storage.new_oid()
         data = zodb_pickle(MinPO(8))
