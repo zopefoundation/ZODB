@@ -84,8 +84,8 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.14 1999/07/07 10:58:47 jim Exp $"""
-__version__='$Revision: 1.14 $'[11:-2]
+$Id: Connection.py,v 1.15 1999/07/07 19:52:28 jim Exp $"""
+__version__='$Revision: 1.15 $'[11:-2]
 
 from cPickleCache import PickleCache
 from POSException import ConflictError, ExportError
@@ -402,31 +402,35 @@ class Connection(ExportImport.ExportImport):
 
     def setklassstate(self, object,
                       tt=type(()), ct=type(HelperClass)):
-        oid=object._p_oid
-        __traceback_info__=oid
-        p, serial = self._storage.load(oid, self._version)
-        file=StringIO(p)
-        unpickler=Unpickler(file)
-        unpickler.persistent_load=self._persistent_load
-
-        copy = unpickler.load()
-
-        klass, args = copy
-
-        if klass is not ExtensionKlass:
-            LOG('ZODB',ERROR,
-                "Unexpected klass when setting class state on %s"
-                % getattr(object,'__name__','(?)'))
-            return
-        
-        copy=apply(klass,args)
-        object.__dict__.clear()
-        object.__dict__.update(copy.__dict__)
-
-        object._p_oid=oid
-        object._p_jar=self
-        object._p_changed=None
-        object._p_serial=serial
+        try:
+            oid=object._p_oid
+            __traceback_info__=oid
+            p, serial = self._storage.load(oid, self._version)
+            file=StringIO(p)
+            unpickler=Unpickler(file)
+            unpickler.persistent_load=self._persistent_load
+    
+            copy = unpickler.load()
+    
+            klass, args = copy
+    
+            if klass is not ExtensionKlass:
+                LOG('ZODB',ERROR,
+                    "Unexpected klass when setting class state on %s"
+                    % getattr(object,'__name__','(?)'))
+                return
+            
+            copy=apply(klass,args)
+            object.__dict__.clear()
+            object.__dict__.update(copy.__dict__)
+    
+            object._p_oid=oid
+            object._p_jar=self
+            object._p_changed=0
+            object._p_serial=serial
+        except:
+            LOG('ZODB',ERROR, 'setklassstate failed', error=sys.exc_info)
+            raise
 
     def tpc_abort(self, transaction):
         self._storage.tpc_abort(transaction)
