@@ -8,7 +8,7 @@ from ZODB.Transaction import Transaction
 from ZODB import POSException
 
 from ZODB.tests.MinPO import MinPO
-from ZODB.tests.StorageTestBase import zodb_unpickle
+from ZODB.tests.StorageTestBase import zodb_unpickle, zodb_pickle
 
 ZERO = '\0'*8
 
@@ -100,7 +100,6 @@ class BasicStorage:
             data = self._storage.loadSerial(oid, revid)
             assert zodb_unpickle(data) == value
     
-
     def checkConflicts(self):
         oid = self._storage.new_oid()
         revid1 = self._dostore(oid, data=MinPO(11))
@@ -108,3 +107,15 @@ class BasicStorage:
         self.assertRaises(POSException.ConflictError,
                           self._dostore,
                           oid, revid=revid1, data=MinPO(13))
+
+    def checkWriteAfterAbort(self):
+        oid = self._storage.new_oid()
+        self._storage.tpc_begin(self._transaction)
+        revid = self._storage.store(oid, ZERO, zodb_pickle(MinPO(5)),
+                                    '', self._transaction)
+        # Now abort this transaction
+        self._storage.tpc_abort(self._transaction)
+        # Now start all over again
+        self._transaction = Transaction()
+        oid = self._storage.new_oid()
+        revid = self._dostore(oid=oid, data=MinPO(6))
