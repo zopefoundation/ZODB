@@ -646,7 +646,8 @@ The following datatypes are provided by the default type registry.
   Validates a valid IP address or hostname.  If the first 
   character is a digit, the value is assumed to be an IP 
   address.  If the first character is not a digit, the value 
-  is assumed to be a hostname.  No conversion is performed. 
+  is assumed to be a hostname.  Hostnames are converted to lower
+  case.
 
 \term{\datatype{key-value}}
   Parse a value in the form \code{'A B'} into the list \code{['A',
