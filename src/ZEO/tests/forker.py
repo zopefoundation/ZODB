@@ -18,6 +18,7 @@ import sys
 import time
 import errno
 import socket
+import logging
 import StringIO
 import tempfile
 
@@ -55,10 +56,54 @@ class ZEOConfig:
             print >> f, "authentication-realm", self.authentication_realm
         print >> f, "</zeo>"
 
+        logger = logging.getLogger()
+        print >> f
+        print >> f, "<eventlog>"
+        print >> f, "level", logger.level
+        for handler in logger.handlers:
+            if isinstance(handler, logging.FileHandler):
+                path = handler.baseFilename
+            elif isinstance(handler, logging.StreamHandler):
+                stream = handler.stream
+                if stream.name == "<stdout>":
+                    path = "STDOUT"
+                elif stream.name == "<stderr>":
+                    path = "STDERR"
+                else:
+                    # just drop it on the floor; unlikely an issue when testing
+                    continue
+            else:
+                # just drop it on the floor; unlikely an issue when testing
+                continue
+            # This doesn't convert the level values to names, so the
+            # generated configuration isn't as nice as it could be,
+            # but it doesn't really need to be.
+            print >> f, "<logfile>"
+            print >> f, "level", handler.level
+            print >> f, "path ", path
+            if handler.formatter:
+                formatter = handler.formatter
+                if formatter._fmt:
+                    print >> f, "format", encode_format(formatter._fmt)
+                if formatter.datefmt:
+                    print >> f, "dateformat", encode_format(formatter.datefmt)
+            print >> f, "</logfile>"
+        print >> f, "</eventlog>"
+
     def __str__(self):
         f = StringIO.StringIO()
         self.dump(f)
         return f.getvalue()
+
+
+def encode_format(fmt):
+    # The list of replacements mirrors
+    # ZConfig.components.logger.handlers._control_char_rewrites
+    for xform in (("\n", r"\n"), ("\t", r"\t"), ("\b", r"\b"),
+                  ("\f", r"\f"), ("\r", r"\r")):
+        fmt = fmt.replace(*xform)
+    return fmt
+
 
 def start_zeo_server(storage_conf, zeo_conf, port, keep=0):
     """Start a ZEO server in a separate process.
