@@ -61,10 +61,12 @@ class Connection(smac.SizedMessageAsyncConnection):
     """Dispatcher for RPC on object on both sides of socket.
 
     The connection supports synchronous calls, which expect a return,
-    and asynchronous calls that do not.
+    and asynchronous calls, which do not.
 
     It uses the Marshaller class to handle encoding and decoding of
-    method calls are arguments.
+    method calls are arguments.  Marshaller uses pickle to encode
+    arbitrary Python objects.  The code here doesn't ever see the wire
+    format.
 
     A Connection is designed for use in a multithreaded application,
     where a synchronous call must block until a response is ready.
@@ -74,6 +76,32 @@ class Connection(smac.SizedMessageAsyncConnection):
     A socket connection between a client and a server allows either
     side to invoke methods on the other side.  The processes on each
     end of the socket use a Connection object to manage communication.
+
+    The Connection deals with decoded RPC messages.  They are
+    represented as four-tuples containing: msgid, flags, method name,
+    and a tuple of method arguments.
+
+    The msgid starts at zero and is incremented by one each time a
+    method call message is sent.  Each side of the connection has a
+    separate msgid state.
+
+    When one side of the connection (the client) calls a method, it
+    sends a message with a new msgid.  The other side (the server),
+    replies with a message that has the same msgid, the string
+    ".reply" (the global variable REPLY) as the method name, and the
+    actual return value in the args position.  Note that each side of
+    the Connection can initiate a call, in which case it will be the
+    client for that particular call.
+
+    The protocol also supports asynchronous calls.  The client does
+    not wait for a return value for an asynchronous call.  The only
+    defined flag is ASYNC.  If a method call message has the ASYNC
+    flag set, the server will raise an exception.
+
+    If a method call raises an exception, the exception is propagated
+    back to the client via the REPLY message.  The client side will
+    raise any exception it receives instead of returning the value to
+    the caller.
     """
 
     __super_init = smac.SizedMessageAsyncConnection.__init__
@@ -132,7 +160,7 @@ class Connection(smac.SizedMessageAsyncConnection):
         # protocol to evolve over time, and let servers handle clients
         # using multiple versions of the protocol.
 
-        # The mechanism replace the message_input() method for the
+        # The mechanism replaces the message_input() method for the
         # first message received.
 
         # The client sends the protocol version it is using.
