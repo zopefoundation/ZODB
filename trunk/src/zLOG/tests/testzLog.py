@@ -8,7 +8,7 @@
 # THIS SOFTWARE IS PROVIDED "AS IS" AND ANY AND ALL EXPRESS OR IMPLIED
 # WARRANTIES ARE DISCLAIMED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 # WARRANTIES OF TITLE, MERCHANTABILITY, AGAINST INFRINGEMENT, AND FITNESS
-# FOR A PARTICULAR PURPOSE
+# FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
 
@@ -16,6 +16,10 @@ import os
 import sys
 import tempfile
 import unittest
+
+from cStringIO import StringIO
+
+import ZConfig
 import zLOG
 
 severity_string = {
@@ -60,7 +64,7 @@ class StupidLogTest(unittest.TestCase):
 
     def setLog(self, severity=0):
         os.environ['%s_LOG_FILE' % self.prefix] = self.path
-        if severity:
+        if severity is not None:
             os.environ['%s_LOG_SEVERITY' % self.prefix] = str(severity)
         self._severity = severity
         zLOG.MinimalLogger._log.initialize()
@@ -107,12 +111,18 @@ class StupidLogTest(unittest.TestCase):
     def getLogFile(self):
         return open(self.path, 'rb')
 
-    def checkBasics(self):
-        self.setLog()
+    def checkBasics(self, severity=None):
+        self.setLog(severity=severity)
         zLOG.LOG("basic", zLOG.INFO, "summary")
 
         f = self.getLogFile()
         self.verifyEntry(f, subsys="basic", summary="summary")
+
+    def checkBasicsNumericSeverity(self):
+        self.checkBasics(severity=0)
+
+    def checkBasicsNamedSeverity(self):
+        self.checkBasics(severity='info')
 
     def checkDetail(self):
         self.setLog()
@@ -140,9 +150,24 @@ class EventLogTest(StupidLogTest):
     """ Test alternate envvars EVENT_LOG_FILE and EVENT_LOG_SEVERITY """
     prefix = 'EVENT'
 
+class ConfigLogTest(StupidLogTest):
+    """ Test using a ZConfig section to control logging. """
+
+    def setLog(self, severity=None):
+        self._severity = severity
+        text = "<Log>\n path %s \n" % self.path
+        if severity is not None:
+            text += "  level %s \n" % severity
+        text += "</Log>"
+        sio = StringIO(text)
+        conf = ZConfig.loadfile(sio)
+        zLOG.MinimalLogger._log.initialize_with_config(conf)
+
+
 def test_suite():
     suite = unittest.makeSuite(StupidLogTest, 'check')
     suite.addTest(unittest.makeSuite(EventLogTest, 'check'))
+    suite.addTest(unittest.makeSuite(ConfigLogTest, 'check'))
     return suite
 
 if __name__ == "__main__":
