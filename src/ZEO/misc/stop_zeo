@@ -1,0 +1,3 @@
+#!/bin/sh
+reldir=`dirname $0`
+kill `cat $reldir/var/ZEO_SERVER.pid`
