@@ -15,7 +15,7 @@
 
 $Id$"""
 
-from ZODB.utils import oid_repr, serial_repr
+from ZODB.utils import oid_repr, readable_tid_repr
 
 def _fmt_undo(oid, reason):
     s = reason and (": %s" % reason) or ""
@@ -48,8 +48,8 @@ class ConflictError(TransactionError):
       serials : (string, string)
         a pair of 8-byte packed strings; these are the serial numbers
         related to conflict.  The first is the revision of object that
-        is in conflict, the second is the revision of that the current
-        transaction read when it started.
+        is in conflict, the currently committed serial.  The second is
+        the revision the current transaction read when it started.
       data : string
         The database record that failed to commit, used to put the
         class name in the error message.
@@ -95,8 +95,11 @@ class ConflictError(TransactionError):
         if self.class_name:
             extras.append("class %s" % self.class_name)
         if self.serials:
-            extras.append("serial was %s, now %s" %
-                          tuple(map(serial_repr, self.serials)))
+            current, old = self.serials
+            extras.append("serial this txn started with %s" %
+                          readable_tid_repr(old))
+            extras.append("serial currently committed %s" %
+                          readable_tid_repr(current))
         if extras:
             return "%s (%s)" % (self.message, ", ".join(extras))
         else:
