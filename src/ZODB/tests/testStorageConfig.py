@@ -65,7 +65,7 @@ class StorageTestCase(unittest.TestCase):
         storageconf = rootconf.getSection("Storage")
         cls, args = StorageConfig.getStorageInfo(storageconf)
         self.assertEqual(cls, ClientStorage)
-        self.assertEqual(args, {"addr": [self.tmpfn], "wait": 0})
+        self.assertEqual(args, {"addr": [("www.python.org", 9001)], "wait": 0})
         self.storage = StorageConfig.createStorage(storageconf)
         self.assert_(isinstance(self.storage, ClientStorage))
 
