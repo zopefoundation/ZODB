@@ -16,10 +16,10 @@
 ClientCache exposes an API used by the ZEO client storage.  FileCache stores
 objects on disk using a 2-tuple of oid and tid as key.
 
-The upper cache's API is similar to a storage API with methods like load(),
+ClientCaches API is similar to a storage API with methods like load(),
 store(), and invalidate().  It manages in-memory data structures that allow
 it to map this richer API onto the simple key-based API of the lower-level
-cache.
+FileCache.
 """
 
 import bisect
@@ -54,8 +54,8 @@ from ZODB.utils import z64, u64
 # <h3>Cache verification</h3>
 # <p>
 # When the client is connected to the server, it receives
-# invalidations every time an object is modified.  Whe the client is
-# disconnected then reconnect, it must perform cache verification to make
+# invalidations every time an object is modified.  When the client is
+# disconnected then reconnects, it must perform cache verification to make
 # sure its cached data is synchronized with the storage's current state.
 # <p>
 # quick verification
@@ -67,8 +67,8 @@ class ClientCache:
 
     ##
     # Do we put the constructor here?
-    # @param path path of persistent snapshot of cache state
-    # @param size maximum size of object data, in bytes
+    # @param path path of persistent snapshot of cache state (a file path)
+    # @param size size of cache file, in bytes
 
     def __init__(self, path=None, size=None, trace=False):
         self.path = path
@@ -79,10 +79,6 @@ class ClientCache:
             self._setup_trace()
         else:
             self._trace = self._notrace
-
-        # Last transaction seen by the cache, either via setLastTid()
-        # or by invalidate().
-        self.tid = None
 
         # The cache stores objects in a dict mapping (oid, tid) pairs
         # to Object() records (see below).  The tid is the transaction
@@ -95,17 +91,19 @@ class ClientCache:
         # records.  The in-memory form can be reconstructed from these
         # records.
 
-        # Maps oid to current tid.  Used to find compute key for objects.
+        # Maps oid to current tid.  Used to compute key for objects.
         self.current = {}
+
         # Maps oid to list of (start_tid, end_tid) pairs in sorted order.
         # Used to find matching key for load of non-current data.
         self.noncurrent = {}
-        # Map oid to version, tid pair.  If there is no entry, the object
+
+        # Map oid to (version, tid) pair.  If there is no entry, the object
         # is not modified in a version.
         self.version = {}
 
-        # A double-linked list is used to manage the cache.  It makes
-        # decisions about which objects to keep and which to evict.
+        # A FileCache instance does all the low-level work of storing
+        # and retrieving objects to/from the cache file.
         self.fc = FileCache(size or 10**6, self.path, self)
 
     def open(self):
@@ -139,7 +137,7 @@ class ClientCache:
     ##
     # Return the last transaction seen by the cache.
     # @return a transaction id
-    # @defreturn string
+    # @defreturn string, or None if no transaction is yet known
 
     def getLastTid(self):
         if self.fc.tid == z64:
@@ -151,7 +149,7 @@ class ClientCache:
     # Return the current data record for oid and version.
     # @param oid object id
     # @param version a version string
-    # @return data record, serial number, tid or None if the object is not
+    # @return (data record, serial number, tid), or None if the object is not
     #         in the cache
     # @defreturn 3-tuple: (string, string, string)
 
@@ -207,7 +205,7 @@ class ClientCache:
         return o.data, o.start_tid, o.end_tid
 
     ##
-    # Return the version an object is modified in or None for an
+    # Return the version an object is modified in, or None for an
     # object that is not modified in a version.
     # @param oid object id
     # @return name of version in which the object is modified
@@ -225,7 +223,7 @@ class ClientCache:
     # @param oid object id
     # @param version name of version that oid was modified in.  The cache
     #                only stores current version data, so end_tid should
-    #                be None.
+    #                be None if version is not the empty string.
     # @param start_tid the id of the transaction that wrote this revision
     # @param end_tid the id of the transaction that created the next
     #                revision of oid.  If end_tid is None, the data is
@@ -235,11 +233,11 @@ class ClientCache:
 
     def store(self, oid, version, start_tid, end_tid, data):
         # It's hard for the client to avoid storing the same object
-        # more than once.  One case is whether the client requests
+        # more than once.  One case is when the client requests
         # version data that doesn't exist.  It checks the cache for
         # the requested version, doesn't find it, then asks the server
         # for that data.  The server returns the non-version data,
-        # which may already by in the cache.
+        # which may already be in the cache.
         if (oid, start_tid) in self.fc:
             return
         o = Object((oid, start_tid), version, data, start_tid, end_tid)
@@ -287,14 +285,13 @@ class ClientCache:
             self._trace(0x1A, oid, version, tid)
             dllversion, dlltid = self.version[oid]
             assert not version or version == dllversion, (version, dllversion)
-            # remove() will call unlink() to delete from self.version
             self.fc.remove((oid, dlltid))
             # And continue on, we must also remove any non-version data
             # from the cache.  This is a bit of a failure of the current
             # cache consistency approach as the new tid of the version
             # data gets confused with the old tid of the non-version data.
             # I could sort this out, but it seems simpler to punt and
-            # have the cache invalidation too much for versions.
+            # have the cache invalidate too much for versions.
 
         if oid not in self.current:
             self._trace(0x10, oid, version, tid)
@@ -323,7 +320,7 @@ class ClientCache:
         return n
 
     ##
-    # Generates over, version, serial triples for all objects in the
+    # Generates (oid, serial, version) triples for all objects in the
     # cache.  This generator is used by cache verification.
 
     def contents(self):
@@ -346,14 +343,14 @@ class ClientCache:
             print oid_repr(oid), oid_repr(tid), repr(version)
         print "dll contents"
         L = list(self.fc)
-        L.sort(lambda x,y:cmp(x.key, y.key))
+        L.sort(lambda x, y: cmp(x.key, y.key))
         for x in L:
             end_tid = x.end_tid or z64
             print oid_repr(x.key[0]), oid_repr(x.key[1]), oid_repr(end_tid)
         print
 
     def _evicted(self, o):
-        # Called by Object o to signal its eviction
+        # Called by the FileCache to signal that Object o has been evicted.
         oid, tid = o.key
         if o.end_tid is None:
             if o.version:
@@ -361,7 +358,7 @@ class ClientCache:
             else:
                 del self.current[oid]
         else:
-            # XXX Although we use bisect to keep the list sorted,
+            # Although we use bisect to keep the list sorted,
             # we never expect the list to be very long.  So the
             # brute force approach should normally be fine.
             L = self.noncurrent[oid]
@@ -457,7 +454,7 @@ class Object(object):
     # 14+len(version)+
     #       len(data)                  8   oid; string
 
-    # The serialization format uses an end tid of "\0" * 8 (z64), the least
+    # The serialization format uses an end tid of "\0"*8 (z64), the least
     # 8-byte string, to represent None.  It isn't possible for an end_tid
     # to be 0, because it must always be strictly greater than the start_tid.
 
@@ -685,7 +682,8 @@ class FileCache(object):
             self.f = None
 
         # Statistics:  _n_adds, _n_added_bytes,
-        #              _n_evicts, _n_evicted_bytes
+        #              _n_evicts, _n_evicted_bytes,
+        #              _n_accesses
         self.clearStats()
 
     ##
@@ -741,13 +739,11 @@ class FileCache(object):
     def clearStats(self):
         self._n_adds = self._n_added_bytes = 0
         self._n_evicts = self._n_evicted_bytes = 0
-        self._n_removes = self._n_removed_bytes = 0
         self._n_accesses = 0
 
     def getStats(self):
         return (self._n_adds, self._n_added_bytes,
                 self._n_evicts, self._n_evicted_bytes,
-                self._n_removes, self._n_removed_bytes,
                 self._n_accesses
                )
 
@@ -933,7 +929,7 @@ class FileCache(object):
         obj.serialize_header(self.f)
 
     ##
-    # Update our idea of the most recent tid.  This is stored in the 
+    # Update our idea of the most recent tid.  This is stored in the
     # instance, and also written out near the start of the cache file.  The
     # new tid must be strictly greater than our current idea of the most
     # recent tid.

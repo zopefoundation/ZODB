@@ -143,7 +143,7 @@ class CacheTests(unittest.TestCase):
         # Verify that internals of both objects are the same.
         # Could also test that external API produces the same results.
         eq = self.assertEqual
-        eq(copy.tid, self.cache.tid)
+        eq(copy.getLastTid(), self.cache.getLastTid())
         eq(len(copy), len(self.cache))
         eq(copy.version, self.cache.version)
         eq(copy.current, self.cache.current)
