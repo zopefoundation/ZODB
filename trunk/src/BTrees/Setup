@@ -1,6 +1,0 @@
-*shared*
-_OOBTree _OOBTree.c  -I../../Components/ExtensionClass/src -I../ZODB
-_OIBTree _OIBTree.c  -I../../Components/ExtensionClass/src -I../ZODB
-_IIBTree _IIBTree.c  -I../../Components/ExtensionClass/src -I../ZODB -I../../Components
-_IOBTree _IOBTree.c  -I../../Components/ExtensionClass/src -I../ZODB -I../../Components
-_fsBTree _fsBTree.c  -I../../Components/ExtensionClass/src -I../ZODB -I../../Components
