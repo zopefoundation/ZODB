@@ -83,6 +83,8 @@
 # 
 ##############################################################################
 import sys, os, time, random
+import os, sys
+execfile(os.path.join(sys.path[0], 'framework.py'))
 
 from BTrees.OOBTree import OOBTree, OOBucket, OOSet, OOTreeSet
 from BTrees.IOBTree import IOBTree, IOBucket, IOSet, IOTreeSet
@@ -91,7 +93,6 @@ from BTrees.OIBTree import OIBTree, OIBucket, OISet, OITreeSet
 from unittest import TestCase, TestSuite, TextTestRunner, makeSuite
 
 from glob import glob
-import os
 
 class Base:
     """ Tests common to all types: sets, buckets, and BTrees """
@@ -808,15 +809,6 @@ def test_suite():
 
     return alltests
 
-def main():
-    alltests=test_suite()
-    runner = TextTestRunner(verbosity=2)
-    runner.run(alltests)
-
-def debug():
-   test_suite().debug()
-    
-
 ## utility functions
 
 def lsubtract(l1, l2):
@@ -829,9 +821,4 @@ def lsubtract(l1, l2):
 def realseq(itemsob):
     return map(lambda x: x, itemsob)
 
-if __name__=='__main__':
-   if len(sys.argv) > 1:
-      globals()[sys.argv[1]]()
-   else:
-      main()
-
+framework()
