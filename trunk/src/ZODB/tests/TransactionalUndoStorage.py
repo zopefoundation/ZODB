@@ -8,6 +8,7 @@ import types
 from ZODB import POSException
 from ZODB.Transaction import Transaction
 from ZODB.referencesf import referencesf
+from ZODB.utils import u64
 
 from ZODB.tests.MinPO import MinPO
 from ZODB.tests.StorageTestBase import zodb_pickle, zodb_unpickle
@@ -429,15 +430,24 @@ class TransactionalUndoStorage:
         # Add a few object revisions
         oid = self._storage.new_oid()
         revid1 = self._dostore(oid, data=MinPO(51))
+        # Save now for packing away revid1
+        packtime = time.time()
+        time.sleep(1)
         revid2 = self._dostore(oid, revid=revid1, data=MinPO(52))
         revid3 = self._dostore(oid, revid=revid2, data=MinPO(53))
         # Now get the undo log
         info = self._storage.undoInfo()
+        eq(len(info), 3)
         tid = info[0]['id']
         # Now pack just the initial revision of the object.  We need the
         # second revision otherwise we won't be able to undo the third
         # revision!
-        self._storage.pack(time.time(), referencesf)
+        self._storage.pack(packtime, referencesf)
+        # Make some basic assertions about the undo information now
+        info2 = self._storage.undoInfo()
+        eq(len(info2), 2)
+        eq(info2[0], info[0])
+        eq(info2[1], info[1])
         # And now attempt to undo the last transaction
         t = Transaction()
         self._storage.tpc_begin(t)
