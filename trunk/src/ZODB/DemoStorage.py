@@ -150,7 +150,7 @@ method::
 and call it to minotor the storage.
 
 """
-__version__='$Revision: 1.3 $'[11:-2]
+__version__='$Revision: 1.4 $'[11:-2]
 
 import base64, POSException, BTree, BaseStorage, time, string, utils
 from TimeStamp import TimeStamp
@@ -413,7 +413,9 @@ class DemoStorage(BaseStorage.BaseStorage):
             i=0
             while i < last and pos:
                 pos=pos-1
-                if i < first: continue
+                if i < first:
+                    i = i+1
+                    continue
                 tid, (p, u, d, e, t) = transactions[pos]
                 if p: continue
                 d={'id': encode(tid)[:-1],
