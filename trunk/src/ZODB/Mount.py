@@ -84,8 +84,8 @@
 ##############################################################################
 """Mounted database support
 
-$Id: Mount.py,v 1.4 2000/06/12 14:45:19 shane Exp $"""
-__version__='$Revision: 1.4 $'[11:-2]
+$Id: Mount.py,v 1.5 2000/08/03 19:56:35 shane Exp $"""
+__version__='$Revision: 1.5 $'[11:-2]
 
 import Globals, thread, Persistence, Acquisition
 import ExtensionClass, string, time, sys
@@ -197,7 +197,7 @@ class MountPoint(Persistence.Persistent, Acquisition.Implicit):
         return "%s %s" % (self.__class__.__name__, self._path)
 
     def _close(self):
-        # The onCloseCallback implementation.
+        # The onCloseCallback handler.
         # Closes a single connection to the database
         # and possibly the database itself.
         t = self._v_data
@@ -207,10 +207,12 @@ class MountPoint(Persistence.Persistent, Acquisition.Implicit):
                 # This mount point has been deleted.
                 del data._v__object_deleted__
                 self._v_close_db = 1
-            conn = data._p_jar
-            try: del conn._mount_parent_jar
-            except KeyError: pass
-            conn.close()
+            if data is not None:
+                conn = data._p_jar
+                if conn is not None:
+                    try: del conn._mount_parent_jar
+                    except: pass
+                    conn.close()
             self._v_data = None
         if self._v_close_db:
             # Stop using this database. Close it if no other
@@ -282,7 +284,7 @@ class MountPoint(Persistence.Persistent, Acquisition.Implicit):
             except:
                 self._v_close_db = 1
                 self._logConnectException()
-                # Wrap around self.
+                # Broken database. Wrap around self.
                 return Acquisition.ImplicitAcquisitionWrapper(self, parent)
         else:
             data = t[0]
@@ -327,5 +329,3 @@ class MountPoint(Persistence.Persistent, Acquisition.Implicit):
         f=StringIO()
         traceback.print_tb(exc[2], 100, f)
         self._v_connect_error = (exc[0], exc[1], f.getvalue())
-
-
