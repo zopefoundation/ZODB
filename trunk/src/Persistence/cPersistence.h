@@ -118,6 +118,12 @@ static cPersistenceCAPIstruct *cPersistenceCAPI;
 
 #define PERSISTENT_TYPE_FLAG EXTENSIONCLASS_USER_FLAG8
 
+/* ExtensionClass class flags for persistent base classes should
+   include PERSISTENCE_FLAGS. 
+*/
+#define PERSISTENCE_FLAGS EXTENSIONCLASS_BASICNEW_FLAG | PERSISTENT_TYPE_FLAG \
+  | EXTENSIONCLASS_PYTHONICATTR_FLAG
+
 #define PER_USE_OR_RETURN(O,R) {if((O)->state==cPersistent_GHOST_STATE && cPersistenceCAPI->setstate((PyObject*)(O)) < 0) return (R); else if ((O)->state==cPersistent_UPTODATE_STATE) (O)->state=cPersistent_STICKY_STATE;}
 
 #define PER_CHANGED(O) (cPersistenceCAPI->changed((cPersistentObject*)(O)))
