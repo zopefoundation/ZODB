@@ -68,7 +68,7 @@ def main():
     if path is not None:
         for line in open(path):
             as_int = int(line, 0)
-            c.register_oid(as_int)
+            c.register_oids(as_int)
     if not c.oids:
         raise ValueError("no oids specified")
     c.run()

@@ -35,7 +35,7 @@ class Tracer(object):
     """Trace all occurrences of a set of oids in a FileStorage.
 
     Create passing a path to an existing FileStorage.
-    Call register_oid() one or more times to specify which oids to
+    Call register_oids(oid, ...) one or more times to specify which oids to
     investigate.
     Call run() to do the analysis.  This isn't swift -- it has to read
     every byte in the database, in order to find all references.
@@ -62,21 +62,22 @@ class Tracer(object):
         # in this mapping.
         self.oid2name = {}
 
-    def register_oid(self, oid):
+    def register_oids(self, *oids):
         """
-        Declare that an oid is "interesting".
+        Declare that oids (0 or more) are "interesting".
 
-        The oid can be given as a native 8-byte string, or as an
+        An oid can be given as a native 8-byte string, or as an
         integer.
 
         Info will be gathered about all appearances of this oid in the
         entire database, including references.
         """
-        if isinstance(oid, str):
-            assert len(oid) == 8
-        else:
-            oid = p64(oid)
-        self.oids[oid] = 0
+        for oid in oids:
+            if isinstance(oid, str):
+                assert len(oid) == 8
+            else:
+                oid = p64(oid)
+            self.oids[oid] = 0  # 0 revisions seen so far
 
     def _msg(self, oid, tid, *args):
         args = map(str, args)
