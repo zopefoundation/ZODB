@@ -88,9 +88,9 @@ import POSException
 # Try to create a function that creates Unix file locks.  On windows
 # this will fail.
 try:
-    import fcntl, FCNTL
+    import fcntl
 
-    lock_file_FLAG=FCNTL.LOCK_EX|FCNTL.LOCK_NB
+    lock_file_FLAG = fcntl.LOCK_EX | fcntl.LOCK_NB
 
     def lock_file(file, error=POSException.StorageSystemError):
         try: un=file.fileno()
