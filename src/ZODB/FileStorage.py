@@ -115,7 +115,7 @@
 #   may have a back pointer to a version record or to a non-version
 #   record.
 #
-__version__='$Revision: 1.112 $'[11:-2]
+__version__='$Revision: 1.113 $'[11:-2]
 
 import base64
 from cPickle import Pickler, Unpickler, loads
@@ -862,9 +862,6 @@ class FileStorage(BaseStorage.BaseStorage,
         finally:
             self._lock_release()
 
-    def supportsUndo(self):
-        return 1
-
     def supportsVersions(self):
         return 1
 
@@ -957,56 +954,6 @@ class FileStorage(BaseStorage.BaseStorage,
         if self._nextpos:
             self._file.truncate(self._pos)
             self._nextpos=0
-
-    def undo(self, transaction_id):
-        if self._is_read_only:
-            raise POSException.ReadOnlyError()
-        self._lock_acquire()
-        try:
-            self._clear_index()
-            transaction_id=base64.decodestring(transaction_id + '\n')
-            tid, tpos = transaction_id[:8], U64(transaction_id[8:])
-            packt=self._packt
-            if packt is None or packt > tid:
-                raise UndoError, (
-                    'Undo is currently disabled for database maintenance.<p>')
-
-            file=self._file
-            seek=file.seek
-            read=file.read
-            index_get=self._index_get
-            unpack=struct.unpack
-            seek(tpos)
-            h=read(TRANS_HDR_LEN)
-            if len(h) != TRANS_HDR_LEN or h[:8] != tid:
-                raise UndoError('Invalid undo transaction id')
-            if h[16] == 'u': return
-            if h[16] != ' ': raise UndoError
-            tl=U64(h[8:16])
-            ul,dl,el=unpack(">HHH", h[17:TRANS_HDR_LEN])
-            tend=tpos+tl
-            pos=tpos+(TRANS_HDR_LEN+ul+dl+el)
-            t={}
-            while pos < tend:
-                # Read the data records for this transaction
-                seek(pos)
-                h=read(DATA_HDR_LEN)
-                oid,serial,sprev,stloc,vlen,splen = unpack(DATA_HDR, h)
-                plen=U64(splen)
-                prev=U64(sprev)
-                dlen=DATA_HDR_LEN+(plen or 8)
-                if vlen: dlen=dlen+(16+vlen)
-                if index_get(oid, 0) != pos: raise UndoError
-                pos=pos+dlen
-                if pos > tend: raise UndoError
-                t[oid]=prev
-
-            seek(tpos+16)
-            file.write('u')
-            file.flush()
-            self._index.update(t)
-            return t.keys()
-        finally: self._lock_release()
 
     def supportsTransactionalUndo(self):
         return 1
