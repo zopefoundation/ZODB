@@ -245,7 +245,7 @@ class Connection(smac.SizedMessageAsyncConnection):
             raise ZRPCError(msg)
         if __debug__:
             self.log("calling %s%s" % (name, short_repr(args)),
-                     level=zLOG.BLATHER)
+                     level=zLOG.DEBUG)
 
         meth = getattr(self.obj, name)
         try:
@@ -428,7 +428,7 @@ class Connection(smac.SizedMessageAsyncConnection):
                     del self.replies[msgid]
                     if __debug__:
                         self.log("wait(%d): reply=%s" %
-                                 (msgid, short_repr(reply)), level=zLOG.DEBUG)
+                                 (msgid, short_repr(reply)), level=zLOG.TRACE)
                     return reply
                 if self.is_async():
                     self.replies_cond.wait(10.0)
