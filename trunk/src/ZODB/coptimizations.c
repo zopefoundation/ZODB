@@ -92,7 +92,7 @@ static void PyVar_Assign(PyObject **v, PyObject *e) { Py_XDECREF(*v); *v=e;}
 #define OBJECT(O) ((PyObject*)(O))
 
 static PyObject *py__p_oid, *py__p_jar, *py___getinitargs__, *py___module__;
-static PyObject *py_new_oid, *py___class__;
+static PyObject *py_new_oid, *py___class__, *py___name__;
 
 
 typedef struct {
@@ -131,7 +131,7 @@ persistent_id_dealloc(persistent_id *self)
 static PyObject *
 persistent_id_call(persistent_id *self, PyObject *args, PyObject *kwargs)
 {
-  PyObject *object, *oid, *jar=NULL, *r=NULL, *klass;
+  PyObject *object, *oid, *jar=NULL, *r=NULL, *klass=NULL;
 
   /*
   def persistent_id(object, self=self,stackup=stackup):
@@ -201,15 +201,13 @@ persistent_id_call(persistent_id *self, PyObject *args, PyObject *kwargs)
       Py_DECREF(r);
     }
 
-  Py_XDECREF(jar);
-
   /*
       klass=object.__class__
 
       if klass is ExtensionKlass: return oid
   */
   
-  if (PyExtensionClass_Check(object)) return oid;
+  if (PyExtensionClass_Check(object)) goto return_oid;
 
   /*
       if hasattr(klass, '__getinitargs__'): return oid
@@ -218,41 +216,34 @@ persistent_id_call(persistent_id *self, PyObject *args, PyObject *kwargs)
   if ((r=PyObject_GetAttr(klass, py___getinitargs__)))
     {
       Py_DECREF(r);
-      return oid;
+      goto return_oid;
     }
   PyErr_Clear();
 
   /*
       module=getattr(klass,'__module__','')
       if module: klass=module, klass.__name__
+      else: return oid # degenerate 1.x ZClass case
   */
-  if ((jar=PyObject_GetAttr(klass, py___module__)))
-    {
-      UNLESS (r=PyTuple_New(2)) goto err;
-      PyTuple_SET_ITEM(r, 0, jar);
-      Py_INCREF(klass);
-      PyTuple_SET_ITEM(r, 1, klass);
-      klass=r;
-    }
-  else 
-    {
-      PyErr_Clear();
-      Py_INCREF(klass);
-    }
+  UNLESS (jar=PyObject_GetAttr(klass, py___module__)) goto err;
+
+  UNLESS (PyObject_IsTrue(jar)) goto return_oid;
+
+  ASSIGN(klass, PyObject_GetAttr(klass, py___name__));
+  UNLESS (klass) goto err;
+
+  UNLESS (r=PyTuple_New(2)) goto err;
+  PyTuple_SET_ITEM(r, 0, jar);
+  PyTuple_SET_ITEM(r, 1, klass);
+  klass=r;
+  jar=NULL;
 
   /*      
       return oid, klass
   */
-  if ((r=PyTuple_New(2)))
-    {
-      PyTuple_SET_ITEM(r, 0, oid);
-      PyTuple_SET_ITEM(r, 1, klass);
-    }
-  else
-    {
-      Py_DECREF(oid);
-      Py_DECREF(klass);
-    }
+  UNLESS (r=PyTuple_New(2)) goto err;
+  PyTuple_SET_ITEM(r, 0, oid);
+  PyTuple_SET_ITEM(r, 1, klass);
   return r;
 
 not_persistent:
@@ -261,8 +252,12 @@ not_persistent:
 
 err:
   Py_DECREF(oid);
+  oid=NULL;
+
+return_oid:
   Py_XDECREF(jar);
-  return NULL;
+  Py_XDECREF(klass);
+  return oid;
 }
 
 
@@ -310,7 +305,7 @@ void
 initcoptimizations()
 {
   PyObject *m, *d;
-  char *rev="$Revision: 1.3 $";
+  char *rev="$Revision: 1.4 $";
 
 #define make_string(S) if (! (py_ ## S=PyString_FromString(#S))) return
   make_string(_p_oid);
@@ -318,6 +313,7 @@ initcoptimizations()
   make_string(__getinitargs__);
   make_string(__module__);
   make_string(__class__);
+  make_string(__name__);
   make_string(new_oid);
 
   UNLESS (ExtensionClassImported) return;
