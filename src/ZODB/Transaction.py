@@ -84,8 +84,8 @@
 ##############################################################################
 """Transaction management
 
-$Id: Transaction.py,v 1.28 2001/03/29 17:43:19 jeremy Exp $"""
-__version__='$Revision: 1.28 $'[11:-2]
+$Id: Transaction.py,v 1.29 2001/06/04 12:28:46 andreas Exp $"""
+__version__='$Revision: 1.29 $'[11:-2]
 
 import time, sys, struct, POSException
 from struct import pack
@@ -132,7 +132,7 @@ class Transaction:
         r._extension=self._extension
         return r
         
-    def __str__(self): return "%.3f\t%s" % (self._id, self.user)
+    def __str__(self): return "%.3f\t%s" % (self._id or 0, self.user)
 
     def __del__(self):
         if self._objects: self.abort(freeme=0)
