@@ -15,10 +15,9 @@
 
 from ZODB.Transaction import Transaction
 from ZODB.tests.IteratorStorage import IteratorDeepCompare
-from ZODB.tests.StorageTestBase import MinPO, zodb_unpickle, removefs
+from ZODB.tests.StorageTestBase import MinPO, zodb_unpickle
 from ZODB import DB
 from ZODB.referencesf import referencesf
-from ZODB.FileStorage import FileStorage
 
 import time
 
@@ -125,8 +124,8 @@ class RecoveryStorage(IteratorDeepCompare):
         # Now remove _dst and copy all the transactions a second time.
         # This time we will be able to confirm via compare().
         self._dst.close()
-        removefs("Dest.fs")
-        self._dst = FileStorage('Dest.fs')
+        self._dst.cleanup()
+        self._dst = self.new_dest()
         self._dst.copyTransactionsFrom(self._storage)
         self.compare(self._storage, self._dst)
         
@@ -134,9 +133,9 @@ class RecoveryStorage(IteratorDeepCompare):
         db = DB(self._storage)
         c = db.open()
         r = c.root()
-        obj1 = r["obj1"] = MinPO(1)
+        obj = r["obj1"] = MinPO(1)
         get_transaction().commit()
-        obj1 = r["obj2"] = MinPO(1)
+        obj = r["obj2"] = MinPO(1)
         get_transaction().commit()
 
         self._dst.copyTransactionsFrom(self._storage)
@@ -150,6 +149,6 @@ class RecoveryStorage(IteratorDeepCompare):
         self._dst.tpc_begin(final, final.tid, final.status)
         for r in final:
             self._dst.restore(r.oid, r.serial, r.data, r.version, r.data_txn,
-                         final)
+                              final)
         self._dst.tpc_vote(final)
         self._dst.tpc_finish(final)
