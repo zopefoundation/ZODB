@@ -27,6 +27,28 @@ struct ccobject_head_struct;
 
 typedef struct ccobject_head_struct PerCache;
 
+/* How big is a persistent object?
+
+   12  PyGC_Head is two pointers and an int
+    8  PyObject_HEAD is an int and a pointer
+ 
+   12  jar, oid, cache pointers
+    8  ring struct
+    8  serialno
+    4  state + extra
+
+  (52) so far
+
+    4  dict ptr
+    4  weaklist ptr
+  -------------------------
+   64  only need 62, but obmalloc rounds up to multiple of eight
+
+  Even a ghost requires 64 bytes.  It's possible to make a persistent
+  instance with slots and no dict, which changes the storage needed.
+
+*/
+
 #define cPersistent_HEAD \
     PyObject_HEAD \
     PyObject *jar; \
