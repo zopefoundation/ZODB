@@ -44,12 +44,6 @@ class EventLogger(BaseLogger):
         level = (zlog_to_pep282_severity_cache_get(severity) or
                  zlog_to_pep282_severity(severity))
 
-        # Try an early exit if the logger is disabled for this level.
-        # (XXX This inlines logger.isEnabledFor(level).)
-        if (self.logger.manager.disable >= level or
-            level < self.logger.getEffectiveLevel()):
-            return
-
         msg = "%s %s %s" % (
             severity_string_cache_get(severity) or severity_string(severity),
             subsystem,
