@@ -84,8 +84,8 @@
 ##############################################################################
 """Database objects
 
-$Id: DB.py,v 1.8 1999/06/29 18:27:55 jim Exp $"""
-__version__='$Revision: 1.8 $'[11:-2]
+$Id: DB.py,v 1.9 1999/07/01 13:26:37 brian Exp $"""
+__version__='$Revision: 1.9 $'[11:-2]
 
 import cPickle, cStringIO, sys, POSException
 from Connection import Connection
@@ -362,7 +362,7 @@ class DB:
             if transaction is not None:
                 connections=transaction._connections
                 if connections:
-                    if connection.has_key(version) and not temporary:
+                    if connections.has_key(version) and not temporary:
                         return connections[version]
                 else:
                     transaction._connections=connections={}
