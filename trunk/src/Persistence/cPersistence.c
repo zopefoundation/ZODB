@@ -14,20 +14,17 @@
 static char cPersistence_doc_string[] = 
 "Defines Persistent mixin class for persistent objects.\n"
 "\n"
-"$Id: cPersistence.c,v 1.51 2002/03/27 10:14:04 htrd Exp $\n";
+"$Id: cPersistence.c,v 1.52 2002/04/01 23:36:33 jeremy Exp $\n";
 
-#include <string.h>
 #include "cPersistence.h"
 
-/* the layout of this struct is the same as the start of ccobject in cPickleCache.c */
 struct ccobject_head_struct {
-  PyObject_HEAD
-  CPersistentRing ring_home;
-  int non_ghost_count;
+    CACHE_HEAD
 };
 
-#define HOME(O)             ((!((O)->cache))?(NULL): (&(((struct ccobject_head_struct *)((O)->cache))->ring_home)) )
-#define NON_GHOST_COUNT(O)  ((!((O)->cache))?(NULL): (&(((struct ccobject_head_struct *)((O)->cache))->non_ghost_count)) )
+#define HOME(O) (((O)->cache == NULL) ? NULL : &(O)->cache->ring_home)
+#define NON_GHOST_COUNT(O) \
+    (((O)->cache == NULL) ? NULL : &(O)->cache->non_ghost_count)
 
 #define ASSIGN(V,E) {PyObject *__e; __e=(E); Py_XDECREF(V); (V)=__e;}
 #define UNLESS(E) if(!(E))
@@ -142,16 +139,7 @@ if(self->state < 0 && self->jar)                                 \
   Py_DECREF(r);							 \
 }
 
-#define KEEP_THIS_ONE_AROUND_FOR_A_WHILE(self) \
- if(HOME(self) && self->state>=0) {            \
- self->ring.prev->next = self->ring.next;      \
- self->ring.next->prev = self->ring.prev;      \
- self->ring.next = HOME(self);           \
- self->ring.prev = HOME(self)->prev;       \
- HOME(self)->prev->next = &self->ring;    \
- HOME(self)->prev = &self->ring; }
-
-
+#define KEEP_THIS_ONE_AROUND_FOR_A_WHILE(self) accessed(self)
 
 /****************************************************************************/
 
@@ -160,7 +148,14 @@ staticforward PyExtensionClass Pertype;
 static void
 accessed(cPersistentObject *self)
 {
-    KEEP_THIS_ONE_AROUND_FOR_A_WHILE(self);
+    if (HOME(self) && self->state >= 0) {
+	self->ring.prev->next = self->ring.next;
+	self->ring.next->prev = self->ring.prev;
+	self->ring.next = HOME(self);
+	self->ring.prev = HOME(self)->prev;
+	HOME(self)->prev->next = &self->ring;
+	HOME(self)->prev = &self->ring; 
+    }
 }
 
 static void
@@ -187,12 +182,18 @@ ghostify(cPersistentObject *self)
 static void
 deallocated(cPersistentObject *self)
 {
-    if(self->state>=0) ghostify(self);
-    if(self->cache)
-    {
-        PyObject *v=PyObject_CallMethod(self->cache,"_oid_unreferenced","O",self->oid);
-        if(!v) PyErr_Clear(); /* and explode later */
-        Py_XDECREF(v);
+    if (self->state >= 0) 
+	ghostify(self);
+    if (self->cache) {
+        PyObject *v;
+
+	v = PyObject_CallMethod((PyObject *)self->cache, 
+				"_oid_unreferenced", "O", self->oid);
+	/* XXX What does the comment below mean? */
+        if (v == NULL)
+	    PyErr_Clear(); /* and explode later */
+	else
+	    Py_DECREF(v);
     }
     Py_XDECREF(self->jar);
     Py_XDECREF(self->oid);
@@ -467,7 +468,7 @@ Per_getattr(cPersistentObject *self, PyObject *oname, char *name,
 	      {
 		UPDATE_STATE_IF_NECESSARY(self, NULL);
 
-		KEEP_THIS_ONE_AROUND_FOR_A_WHILE(self);
+		accessed(self);
 
 		if (self->serial[7]=='\0' && self->serial[6]=='\0' &&
 		    self->serial[5]=='\0' && self->serial[4]=='\0' &&
@@ -499,7 +500,7 @@ Per_getattr(cPersistentObject *self, PyObject *oname, char *name,
     {
       UPDATE_STATE_IF_NECESSARY(self, NULL);
 
-      KEEP_THIS_ONE_AROUND_FOR_A_WHILE(self);
+      accessed(self);
     }
 
   return getattrf((PyObject *)self, oname);
@@ -615,7 +616,7 @@ _setattro(cPersistentObject *self, PyObject *oname, PyObject *v,
     {
       UPDATE_STATE_IF_NECESSARY(self, -1);
       
-      KEEP_THIS_ONE_AROUND_FOR_A_WHILE(self);
+      accessed(self);
 
       if((! (*name=='_' && name[1]=='v' && name[2]=='_'))
 	 && (self->state != cPersistent_CHANGED_STATE && self->jar)
