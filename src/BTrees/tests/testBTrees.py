@@ -2,14 +2,14 @@
 #
 # Copyright (c) 2001, 2002 Zope Corporation and Contributors.
 # All Rights Reserved.
-# 
+#
 # This software is subject to the provisions of the Zope Public License,
 # Version 2.0 (ZPL).  A copy of the ZPL should accompany this distribution.
 # THIS SOFTWARE IS PROVIDED "AS IS" AND ANY AND ALL EXPRESS OR IMPLIED
 # WARRANTIES ARE DISCLAIMED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 # WARRANTIES OF TITLE, MERCHANTABILITY, AGAINST INFRINGEMENT, AND FITNESS
 # FOR A PARTICULAR PURPOSE
-# 
+#
 ##############################################################################
 import sys, os, time, random
 import os, sys
@@ -44,7 +44,7 @@ class Base:
     def _delDB(self):
         for file in glob('fs_tmp__*'):
             os.remove(file)
-        
+
     def testLoadAndStore(self):
         for i in 0, 10, 1000:
             t = self.t.__class__()
@@ -72,7 +72,7 @@ class Base:
             finally:
                 self._closeDB(root)
                 self._delDB()
-            
+
     def testGhostUnghost(self):
         for i in 0, 10, 1000:
             t = self.t.__class__()
@@ -108,7 +108,7 @@ class MappingBase(Base):
     def _populate(self, t, l):
         # Make some data
         for i in range(l): t[i]=i
-    
+
     def testGetItemFails(self):
         self.assertRaises(KeyError, self._getitemfail)
 
@@ -118,7 +118,7 @@ class MappingBase(Base):
     def testGetReturnsDefault(self):
         self.assertEqual(self.t.get(1) , None)
         self.assertEqual(self.t.get(1, 'foo') , 'foo')
-        
+
     def testSetItemGetItemWorks(self):
         self.t[1] = 1
         a = self.t[1]
@@ -154,14 +154,14 @@ class MappingBase(Base):
     def testValuesWorks1(self):
 
         for x in range(100):
-            self.t[99-x] = x 
+            self.t[99-x] = x
 
         for x in range(40):
             lst = list(self.t.values(0+x,99-x))
             lst.sort()
             self.assertEqual(lst,range(0+x,99-x+1))
 
-            
+
     def testKeysWorks(self):
         for x in range(100):
             self.t[x] = x
@@ -229,7 +229,7 @@ class MappingBase(Base):
             k=random.randrange(-2000, 2001)
             d[k]=i
             l.append((k, i))
-            
+
         items=d.items()
         items.sort()
 
@@ -249,13 +249,13 @@ class MappingBase(Base):
         self.assertEqual(list(t.keys(2,4)),[], list(t.keys(2,4)))
         self.assertEqual(list(t.keys(6,8)),[], list(t.keys(6,8)))
         self.assertEqual(list(t.keys(10,12)),[], list(t.keys(10,12)))
-        
+
 
 class NormalSetTests(Base):
     """ Test common to all set types """
 
 
-    def _populate(self, t, l): 
+    def _populate(self, t, l):
         # Make some data
         t.update(range(l))
 
@@ -268,7 +268,7 @@ class NormalSetTests(Base):
         t = self.t
         t.insert(5)
         self.assertEqual(t.insert(5) , 0)
-        
+
     def testInsert(self):
         t = self.t
         t.insert(1)
@@ -337,7 +337,7 @@ class NormalSetTests(Base):
             k=random.randrange(-2000, 2001)
             d[k]=i
             l.append(k)
-            
+
         items=d.keys()
         items.sort()
 
@@ -365,7 +365,7 @@ class ExtendedSetTests(NormalSetTests):
         for x in r: t.insert(x)
         for x in r:
             self.assertEqual(t[x] , x)
-        
+
 class BucketTests(MappingBase):
     """ Tests common to all buckets """
     pass
@@ -407,7 +407,7 @@ class BTreeTests(MappingBase):
         del self.t[2]
         diff = lsubtract(self.t.keys(), [1,3,4,5,6,10])
         self.assertEqual(diff , [], diff)
-        
+
     def testDeleteTwoChildrenInorderSuccessorWorks(self):
         """ 7, 3, 8, 1, 5, 10, 6, 4 -- del 3 """
         self.t[7] = 6
@@ -493,7 +493,7 @@ class BTreeTests(MappingBase):
             except KeyError:
                 pass
         self.assertEqual(realseq(self.t.keys()) , [], realseq(self.t.keys()))
-        
+
     def testPathologicalRightBranching(self):
         r = range(1000)
         for x in r:
@@ -704,7 +704,7 @@ class TestOISets(ExtendedSetTests, TestCase):
 class TestIOTreeSets(NormalSetTests, TestCase):
     def setUp(self):
         self.t = IOTreeSet()
-        
+
 class TestOOTreeSets(NormalSetTests, TestCase):
     def setUp(self):
         self.t = OOTreeSet()
@@ -716,7 +716,7 @@ class TestIITreeSets(NormalSetTests, TestCase):
 class TestOITreeSets(NormalSetTests, TestCase):
     def setUp(self):
         self.t = OITreeSet()
-        
+
 ## Bucket tests
 
 class TestIOBuckets(BucketTests, TestCase):
