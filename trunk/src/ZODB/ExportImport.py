@@ -57,7 +57,7 @@ class ExportImport:
 
         if isinstance(f, str):
             f = open(f,'rb')
-            
+
         magic = f.read(4)
         if magic != 'ZEXP':
             if customImporters and customImporters.has_key(magic):
@@ -65,13 +65,13 @@ class ExportImport:
                 return customImporters[magic](self, f, clue)
             raise ExportError("Invalid export header")
 
-        t = self.getTransaction()
+        t = self._txn_mgr.get()
         if clue:
             t.note(clue)
 
         return_oid_list = []
         self._import = f, return_oid_list
-        self.getTransaction().register(self)
+        self._register()
         t.commit(1)
         # Return the root imported object.
         if return_oid_list:

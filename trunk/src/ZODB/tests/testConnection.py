@@ -21,6 +21,7 @@ from persistent import Persistent
 from ZODB.config import databaseFromString
 from ZODB.utils import p64, u64
 from ZODB.tests.warnhook import WarningsHook
+import transaction
 
 class ConnectionDotAdd(unittest.TestCase):
 
@@ -30,6 +31,9 @@ class ConnectionDotAdd(unittest.TestCase):
         self.db = StubDatabase()
         self.datamgr._setDB(self.db)
         self.transaction = StubTransaction()
+
+    def tearDown(self):
+        transaction.abort()
 
     def check_add(self):
         from ZODB.POSException import InvalidObjectReference
@@ -61,7 +65,7 @@ class ConnectionDotAdd(unittest.TestCase):
         obj = StubObject()
         self.datamgr.add(obj)
         oid = obj._p_oid
-        self.datamgr.abort(obj, self.transaction)
+        self.datamgr.abort(self.transaction)
         self.assert_(obj._p_oid is None)
         self.assert_(obj._p_jar is None)
         self.assertRaises(KeyError, self.datamgr.get, oid)
@@ -85,9 +89,8 @@ class ConnectionDotAdd(unittest.TestCase):
         obj = StubObject()
         self.datamgr.add(obj)
         oid = obj._p_oid
-
         self.datamgr.tpc_begin(self.transaction)
-        self.datamgr.commit(obj, self.transaction)
+        self.datamgr.commit(self.transaction)
         # Let's pretend something bad happened here.
         self.datamgr.tpc_abort(self.transaction)
         self.assert_(obj._p_oid is None)
@@ -99,9 +102,8 @@ class ConnectionDotAdd(unittest.TestCase):
         obj = StubObject()
         self.datamgr.add(obj)
         oid = obj._p_oid
-
         self.datamgr.tpc_begin(self.transaction)
-        self.datamgr.commit(obj, self.transaction)
+        self.datamgr.commit(self.transaction)
         self.datamgr.tpc_finish(self.transaction)
         self.assert_(obj._p_oid is oid)
         self.assert_(obj._p_jar is self.datamgr)
@@ -115,9 +117,9 @@ class ConnectionDotAdd(unittest.TestCase):
     def checkModifyOnGetstate(self):
         subobj = StubObject()
         obj = ModifyOnGetStateObject(subobj)
-
+        self.datamgr.add(obj)
         self.datamgr.tpc_begin(self.transaction)
-        self.datamgr.commit(obj, self.transaction)
+        self.datamgr.commit(self.transaction)
         self.datamgr.tpc_finish(self.transaction)
         storage = self.db._storage
         self.assert_(obj._p_oid in storage._stored, "object was not stored")
@@ -175,7 +177,7 @@ class UserMethodTests(unittest.TestCase):
 
         The object is a ghost.
 
-        >>> obj._p_state 
+        >>> obj._p_state
         -1
 
         And multiple calls with the same oid, return the same object.
@@ -451,7 +453,7 @@ class StubTransaction:
 
 class ErrorOnGetstateException(Exception):
     pass
-    
+
 class ErrorOnGetstateObject(Persistent):
 
     def __getstate__(self):
@@ -563,7 +565,6 @@ class StubDatabase:
 
     def invalidate(self, transaction, dict_with_oid_keys, connection):
         pass
-
 
 def test_suite():
     s = unittest.makeSuite(ConnectionDotAdd, 'check')
