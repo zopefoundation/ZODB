@@ -174,7 +174,11 @@ class ConnectionManager:
             finally:
                 self.thread_lock.release()
 
-    def notify_closed(self):
+    def notify_closed(self, conn):
+        if conn is not self.connection:
+            # Closing a non-current connection
+            log("CM.notify_closed() non-current", level=zLOG.BLATHER)
+            return
         log("CM.notify_closed()")
         self.connected = 0
         self.connection = None
@@ -425,7 +429,7 @@ class ConnectWrapper:
         if self.mgr.connected:
             assert self.preferred
             log("CW: reconnecting client to preferred stub")
-            self.mgr.notify_closed()
+            self.mgr.connection.close()
         try:
             self.client.notifyConnected(self.stub)
         except:
