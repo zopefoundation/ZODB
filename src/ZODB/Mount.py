@@ -84,8 +84,8 @@
 ##############################################################################
 """Mounted database support
 
-$Id: Mount.py,v 1.2 2000/05/24 20:53:34 shane Exp $"""
-__version__='$Revision: 1.2 $'[11:-2]
+$Id: Mount.py,v 1.3 2000/06/09 14:38:01 shane Exp $"""
+__version__='$Revision: 1.3 $'[11:-2]
 
 import Globals, thread, Persistence, Acquisition
 import ExtensionClass, string, time, sys
@@ -232,8 +232,9 @@ class MountPoint(Persistence.Persistent, Acquisition.Implicit):
             id = data.id
             if callable(id):
                 id = id()
-            LOG('ZODB', INFO, 'Mounted database %s at %s/%s' % \
-                (self._params, parent.getPhysicalPath(), id))
+            p = string.join(parent.getPhysicalPath() + (id,), '/')
+            LOG('ZODB', INFO, 'Mounted database %s at %s' % \
+                (self._params, p))
         return data
 
     def __of__(self, parent):
