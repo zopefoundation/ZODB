@@ -195,11 +195,12 @@ First get the database back in an initial state.
 
 >>> r1["b"].value
 0
->>> cn1.sync()
->>> r1["b"]._p_state
+>>> cn1.sync()  # cn2 modified 'b', so cn1 should get a ghost for b
+>>> r1["b"]._p_state  # -1 means GHOST
 -1
 
-Closing the connection and commit a transaction should have the same effect.
+Closing the connection, committing a transaction, and aborting a transaction,
+should all have the same effect on non-current objects in cache.
 
 >>> def testit():
 ...     cn1.sync()
@@ -211,6 +212,10 @@ Closing the connection and commit a transaction should have the same effect.
 ...     cn2.getTransaction().commit()
 
 >>> testit()
+>>> r1["b"]._p_state  # 0 means UPTODATE, although note it's an older revision
+0
+>>> r1["b"].value
+0
 >>> r1["a"].value = 1
 >>> cn1.getTransaction().commit()
 >>> r1["b"]._p_state
@@ -225,20 +230,20 @@ reused by the next open() call (along with its object cache).
 >>> cn3 = db.open()
 >>> cn1 is cn3
 True
->>> cn1 = cn3
 >>> r1 = cn1.root()
 
-It's not just that every object is a ghost.  The root was in the
-cache, so our first reference to it doesn't return a ghost.
+Although "b" is a ghost in cn1 at this point (because closing a connection
+has the same effect on non-current objects in the connection's cache as
+committing a transaction), not every object is a ghost.  The root was in
+the cache and was current, so our first reference to it doesn't return
+a ghost.
 
->>> r1._p_state
+>>> r1._p_state # UPTODATE
 0
->>> r1["b"]._p_state
+>>> r1["b"]._p_state # GHOST
 -1
 
->>> cn1._transaction = None
-
-(See the Cleanup section below.)
+>>> cn1._transaction = None # See the Cleanup section below
 
 Late invalidation
 -----------------
