@@ -19,8 +19,6 @@ ClientStorage -- the main class, implementing the Storage API
 ClientStorageError -- exception raised by ClientStorage
 UnrecognizedResult -- exception raised by ClientStorage
 ClientDisconnected -- exception raised by ClientStorage
-
-$Id: ClientStorage.py,v 1.75 2002/10/05 00:35:25 gvanrossum Exp $
 """
 
 # XXX TO DO
