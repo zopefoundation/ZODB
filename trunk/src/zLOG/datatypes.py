@@ -17,38 +17,16 @@
 import zLOG
 
 from zLOG import EventLogger
-from ZConfig.components.logger.factory import Factory
+from ZConfig.components.logger import logger
 
 
-class EventLogFactory(Factory):
+class EventLogFactory(logger.EventLogFactory):
+    """Factory used to create a logger to use with zLOG.
+
+    This adds the getLowestHandlerLevel() method to make it suitable
+    for Zope and replaces the startup() method to ensure zLOG is
+    properly initialized.
     """
-    A wrapper used to create loggers while delaying actual logger
-    instance construction.  We need to do this because we may
-    want to reference a logger before actually instantiating it (for example,
-    to allow the app time to set an effective user).
-    An instance of this wrapper is a callable which, when called, returns a
-    logger object.
-    """
-    def __init__(self, section):
-        Factory.__init__(self)
-        self.level = section.level
-        self.handler_factories = section.handlers
-
-    def create(self):
-        # set the logger up
-        import logging
-        logger = logging.getLogger("event")
-        logger.handlers = []
-        logger.propagate = 0
-        logger.setLevel(self.level)
-        if self.handler_factories:
-            for handler_factory in self.handler_factories:
-                handler = handler_factory()
-                logger.addHandler(handler)
-        else:
-            from ZConfig.components.logger.loghandler import NullHandler
-            logger.addHandler(NullHandler())
-        return logger
 
     def getLowestHandlerLevel(self):
         """ Return the lowest log level provided by any of our handlers
