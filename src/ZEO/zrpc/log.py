@@ -30,7 +30,7 @@ def log(message, level=zLOG.BLATHER, label=None, error=None):
         label = "%s:%s" % (label, threading.currentThread().getName())
     zLOG.LOG(label, level, message, error=error)
 
-REPR_LIMIT = 40
+REPR_LIMIT = 60
 
 def short_repr(obj):
     "Return an object repr limited to REPR_LIMIT bytes."
