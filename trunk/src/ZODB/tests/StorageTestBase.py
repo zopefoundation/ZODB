@@ -24,6 +24,7 @@ import os
 import pickle
 import string
 import sys
+import time
 import types
 import unittest
 from cPickle import Pickler, Unpickler
@@ -34,6 +35,15 @@ from ZODB.Transaction import Transaction
 from ZODB.tests.MinPO import MinPO
 
 ZERO = '\0'*8
+
+def snooze():
+    # In Windows, it's possible that two successive time.time() calls return
+    # the same value.  Tim guarantees that time never runs backwards.  You
+    # usually want to call this before you pack a storage, or must make other
+    # guarantees about increasing timestamps.
+    now = time.time()
+    while now == time.time():
+        time.sleep(0.1)
 
 def zodb_pickle(obj):
     """Create a pickle in the format expected by ZODB."""
