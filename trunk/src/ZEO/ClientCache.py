@@ -1,3 +1,4 @@
+######################################################################
 # Digital Creations Options License Version 0.9.0
 # -----------------------------------------------
 # 
@@ -38,7 +39,7 @@
 #   OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
 #   OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 #   SUCH DAMAGE.
-
+######################################################################
 """Implement a client cache
  
 The cache is managed as two files, var/c0.zec and var/c1.zec.
@@ -101,7 +102,7 @@ file 0 and file 1.
 
 """
 
-__version__ = "$Id: ClientCache.py,v 1.2 1999/11/16 15:27:51 petrilli Exp $"[11:-2]
+__version__ = "$Id: ClientCache.py,v 1.3 1999/11/16 15:29:50 petrilli Exp $"[11:-2]
 
 import os, tempfile
 from struct import pack, unpack
