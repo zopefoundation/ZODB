@@ -132,10 +132,7 @@ class _ConnectionPool(object):
 
     # For every live connection c, invoke f(c).
     def map(self, f):
-        for wr in self.all.as_weakref_list():
-            c = wr()
-            if c is not None:
-                f(c)
+        self.all.map(f)
 
 class DB(object):
     """The Object Database

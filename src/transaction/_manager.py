@@ -43,12 +43,12 @@ class TransactionManager(object):
     def begin(self):
         if self._txn is not None:
             self._txn.abort()
-        self._txn = Transaction(self._synchs.as_weakref_list(), self)
+        self._txn = Transaction(self._synchs, self)
         return self._txn
 
     def get(self):
         if self._txn is None:
-            self._txn = Transaction(self._synchs.as_weakref_list(), self)
+            self._txn = Transaction(self._synchs, self)
         return self._txn
 
     def free(self, txn):
@@ -71,8 +71,8 @@ class ThreadTransactionManager(object):
         # _threads maps thread ids to transactions
         self._txns = {}
         # _synchs maps a thread id to a WeakSet of registered synchronizers.
-        # The set elements are passed to the Transaction constructor,
-        # because the latter needs to call the synchronizers when it commits.
+        # The WeakSet is passed to the Transaction constructor, because the
+        # latter needs to call the synchronizers when it commits.
         self._synchs = {}
 
     def begin(self):
@@ -81,8 +81,6 @@ class ThreadTransactionManager(object):
         if txn is not None:
             txn.abort()
         synchs = self._synchs.get(tid)
-        if synchs is not None:
-            synchs = synchs.as_weakref_list()
         txn = self._txns[tid] = Transaction(synchs, self)
         return txn
 
@@ -91,8 +89,6 @@ class ThreadTransactionManager(object):
         txn = self._txns.get(tid)
         if txn is None:
             synchs = self._synchs.get(tid)
-            if synchs is not None:
-                synchs = synchs.as_weakref_list()
             txn = self._txns[tid] = Transaction(synchs, self)
         return txn
 

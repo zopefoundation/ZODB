@@ -138,7 +138,6 @@ import sys
 import thread
 import warnings
 import traceback
-import weakref
 from cStringIO import StringIO
 
 # Sigh.  In the maze of __init__.py's, ZODB.__init__.py takes 'get'
@@ -173,8 +172,15 @@ class Transaction(object):
         self.status = Status.ACTIVE
         # List of resource managers, e.g. MultiObjectResourceAdapters.
         self._resources = []
-        self._synchronizers = synchronizers or []
+
+        # Weak set of synchronizer objects to call.
+        if synchronizers is None:
+            from ZODB.utils import WeakSet
+            synchronizers = WeakSet()
+        self._synchronizers = synchronizers
+
         self._manager = manager
+
         # _adapters: Connection/_p_jar -> MultiObjectResourceAdapter[Sub]
         self._adapters = {}
         self._voted = {} # id(Connection) -> boolean, True if voted
@@ -203,14 +209,6 @@ class Transaction(object):
         # If another attempt is made to commit, TransactionFailedError is
         # raised, incorporating this traceback.
         self._failure_traceback = None
-
-    # Invoke f(synch) for each synch in self._synchronizers.
-    def _synch_map(self, f):
-        for wr in self._synchronizers:
-            assert isinstance(wr, weakref.ref)
-            synch = wr()
-            if synch is not None:
-                f(synch)
 
     # Raise TransactionFailedError, due to commit()/join()/register()
     # getting called when the current transaction has already suffered
@@ -295,7 +293,7 @@ class Transaction(object):
             self.commit(True)
 
         if not subtransaction:
-            self._synch_map(lambda s: s.beforeCompletion(self))
+            self._synchronizers.map(lambda s: s.beforeCompletion(self))
             self.status = Status.COMMITTING
 
         try:
@@ -319,7 +317,7 @@ class Transaction(object):
             self.status = Status.COMMITTED
             if self._manager:
                 self._manager.free(self)
-            self._synch_map(lambda s: s.afterCompletion(self))
+            self._synchronizers.map(lambda s: s.afterCompletion(self))
             self.log.debug("commit")
 
     def _commitResources(self, subtransaction):
@@ -367,7 +365,7 @@ class Transaction(object):
                 self._cleanup(L)
             finally:
                 if not subtransaction:
-                    self._synch_map(lambda s: s.afterCompletion(self))
+                    self._synchronizers.map(lambda s: s.afterCompletion(self))
             raise t, v, tb
 
     def _cleanup(self, L):
@@ -433,7 +431,7 @@ class Transaction(object):
 
     def abort(self, subtransaction=False):
         if not subtransaction:
-            self._synch_map(lambda s: s.beforeCompletion(self))
+            self._synchronizers.map(lambda s: s.beforeCompletion(self))
 
         if subtransaction and self._nonsub:
             from ZODB.POSException import TransactionError
@@ -463,7 +461,7 @@ class Transaction(object):
         if not subtransaction:
             if self._manager:
                 self._manager.free(self)
-            self._synch_map(lambda s: s.afterCompletion(self))
+            self._synchronizers.map(lambda s: s.afterCompletion(self))
             self.log.debug("abort")
 
         if tb is not None:

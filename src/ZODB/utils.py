@@ -221,6 +221,14 @@ class WeakSet(object):
     def remove(self, obj):
         del self.data[id(obj)]
 
+    # f is a one-argument function.  Execute f(elt) for each elt in the
+    # set.  f's return value is ignored.
+    def map(self, f):
+        for wr in self.as_weakref_list():
+            elt = wr()
+            if elt is not None:
+                f(elt)
+
     # Return a list of weakrefs to all the objects in the collection.
     # Because a weak dict is used internally, iteration is dicey (the
     # underlying dict may change size during iteration, due to gc or
