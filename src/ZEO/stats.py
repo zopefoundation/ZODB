@@ -93,11 +93,28 @@ def main():
     filename = args[0]
 
     # Open file
-    try:
-        f = open(filename, "rb")
-    except IOError, msg:
-        print "can't open %s: %s" % (filename, msg)
-        return 1
+    if filename.endswith(".gz"):
+        # Open gzipped file
+        try:
+            import gzip
+        except ImportError:
+            print >>sys.stderr,  "can't read gzipped files (no module gzip)"
+            return 1
+        try:
+            f = gzip.open(filename, "rb")
+        except IOError, msg:
+            print >>sys.stderr,  "can't open %s: %s" % (filename, msg)
+            return 1
+    elif filename == '-':
+        # Read from stdin
+        f = sys.stdin
+    else:
+        # Open regular file
+        try:
+            f = open(filename, "rb")
+        except IOError, msg:
+            print >>sys.stderr,  "can't open %s: %s" % (filename, msg)
+            return 1
 
     # Read file, gathering statistics, and printing each record if verbose
     rt0 = time.time()
@@ -172,7 +189,6 @@ def main():
                 else:
                     print '-'*20, "Flip->%d" % current, '-'*20
 
-    bytes = f.tell()
     f.close()
     rte = time.time()
     if not quiet:
@@ -187,7 +203,7 @@ def main():
     if dostats:
         print
         print "Read %s records (%s bytes) in %.1f seconds" % (
-            addcommas(records), addcommas(bytes), rte-rt0)
+            addcommas(records), addcommas(records*24), rte-rt0)
         print "Version:    %s records" % addcommas(versions)
         print "First time: %s" % time.ctime(t0)
         print "Last time:  %s" % time.ctime(te)
