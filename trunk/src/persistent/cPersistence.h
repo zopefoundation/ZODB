@@ -1,6 +1,6 @@
 /*
 
-  $Id: cPersistence.h,v 1.8 1997/12/10 22:19:24 jim Exp $
+  $Id: cPersistence.h,v 1.9 1997/12/15 15:55:16 jim Exp $
 
   Definitions to facilitate making cPersistent subclasses in C.
 
@@ -56,6 +56,10 @@
 
 
   $Log: cPersistence.h,v $
+  Revision 1.9  1997/12/15 15:55:16  jim
+  Changed persistent object header layout.  This will require recompile
+  of all C Persistent objects.
+
   Revision 1.8  1997/12/10 22:19:24  jim
   Added PER_USE macro.
 
@@ -93,8 +97,8 @@
 #define cPersistent_HEAD   PyObject_HEAD \
   PyObject *jar; \
   int oid; \
-  int state; \
   time_t atime; \
+  signed char state; \
 
 
 #define cPersistent_GHOST_STATE -1
