@@ -19,70 +19,80 @@ import time
 import errno
 import random
 import socket
+import StringIO
 import tempfile
 
 import zLOG
 
-def get_port():
-    """Return a port that is not in use.
+class ZEOConfig:
+    """Class to generate ZEO configuration file. """
 
-    Checks if a port is in use by trying to connect to it.  Assumes it
-    is not in use if connect raises an exception.
+    def __init__(self, addr):
+        self.address = addr
+        self.read_only = None
+        self.invalidation_queue_size = None
+        self.monitor_address = None
+        self.transaction_timeout = None
+        self.authentication_protocol = None
+        self.authentication_database = None
+        self.authentication_realm = None
 
-    Raises RuntimeError after 10 tries.
-    """
-    for i in range(10):
-        port = random.randrange(20000, 30000)
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        try:
-            try:
-                s.connect(('localhost', port))
-            except socket.error:
-                # XXX check value of error?
-                return port
-        finally:
-            s.close()
-    raise RuntimeError, "Can't find port"
+    def dump(self, f):
+        print >> f, "<zeo>"
+        print >> f, "address %s:%s" % self.address
+        if self.read_only is not None:
+            print >> f, "read-only", self.read_only and "true" or "false"
+        if self.invalidation_queue_size is not None:
+            print >> f, "invalidation-queue-size", self.invalidation_queue_size
+        if self.monitor_address is not None:
+            print >> f, "monitor-address", self.monitor_address
+        if self.transaction_timeout is not None:
+            print >> f, "transaction-timeout", self.transaction_timeout
+        if self.authentication_protocol is not None:
+            print >> f, "authentication-protocol", self.authentication_protocol
+        if self.authentication_database is not None:
+            print >> f, "authentication-database", self.authentication_database
+        if self.authentication_realm is not None:
+            print >> f, "authentication-realm", self.authentication_realm
+        print >> f, "</zeo>"
 
-def start_zeo_server(conf, addr=None, ro_svr=0, monitor=0, keep=0, invq=None,
-                     timeout=None):
+    def __str__(self):
+        f = StringIO.StringIO()
+        self.dump(f)
+        return f.getvalue()
+
+def start_zeo_server(storage_conf, zeo_conf, port, keep=0):
     """Start a ZEO server in a separate process.
 
-    Returns the ZEO port, the test server port, and the pid.
+    Takes two positional arguments a string containing the storage conf
+    and a ZEOConfig object.
+
+    Returns the ZEO port, the test server port, the pid, and the path
+    to the config file.
     """
+    
     # Store the config info in a temp file.
-    tmpfile = tempfile.mktemp()
+    tmpfile = tempfile.mktemp(".conf")
     fp = open(tmpfile, 'w')
-    fp.write(conf)
+    zeo_conf.dump(fp)
+    fp.write(storage_conf)
     fp.close()
-    # Create the server
+    
+    # Find the zeoserver script
     import ZEO.tests.zeoserver
-    if addr is None:
-        port = get_port()
-    else:
-        port = addr[1]
     script = ZEO.tests.zeoserver.__file__
     if script.endswith('.pyc'):
         script = script[:-1]
+        
     # Create a list of arguments, which we'll tuplify below
     qa = _quote_arg
     args = [qa(sys.executable), qa(script), '-C', qa(tmpfile)]
-    if ro_svr:
-        args.append('-r')
     if keep:
-        args.append('-k')
-    if invq:
-        args += ['-Q', str(invq)]
-    if timeout:
-        args += ['-T', str(timeout)]
-    if monitor:
-        # XXX Is it safe to reuse the port?
-        args += ['-m', '42000']
-    args.append(str(port))
+        args.append("-k")
     d = os.environ.copy()
     d['PYTHONPATH'] = os.pathsep.join(sys.path)
     pid = os.spawnve(os.P_NOWAIT, sys.executable, tuple(args), d)
-    adminaddr = ('localhost', port+1)
+    adminaddr = ('localhost', port + 1)
     # We need to wait until the server starts, but not forever
     for i in range(20):
         time.sleep(0.25)
@@ -101,7 +111,7 @@ def start_zeo_server(conf, addr=None, ro_svr=0, monitor=0, keep=0, invq=None,
     else:
         zLOG.LOG('forker', zLOG.DEBUG, 'boo hoo')
         raise
-    return ('localhost', port), adminaddr, pid
+    return ('localhost', port), adminaddr, pid, tmpfile
 
 
 if sys.platform[:3].lower() == "win":

@@ -27,6 +27,7 @@ import ThreadedAsync.LoopCallback
 import ZConfig.Context
 import zLOG
 import ZEO.StorageServer
+from ZEO.runzeo import ZEOOptions
 from ZODB.config import storageFromURL
 
 
@@ -134,54 +135,49 @@ class Suicide(threading.Thread):
 def main():
     label = 'zeoserver:%d' % os.getpid()
     log(label, 'starting')
+    
     # We don't do much sanity checking of the arguments, since if we get it
     # wrong, it's a bug in the test suite.
-    ro_svr = 0
     keep = 0
     configfile = None
-    invalidation_queue_size = 100
-    transaction_timeout = None
-    monitor_address = None
     # Parse the arguments and let getopt.error percolate
-    opts, args = getopt.getopt(sys.argv[1:], 'rkC:Q:T:m:')
+    opts, args = getopt.getopt(sys.argv[1:], 'kC:')
     for opt, arg in opts:
-        if opt == '-r':
-            ro_svr = 1
-        elif opt == '-k':
+        if opt == '-k':
             keep = 1
         elif opt == '-C':
             configfile = arg
-        elif opt == '-Q':
-            invalidation_queue_size = int(arg)
-        elif opt == '-T':
-            transaction_timeout = int(arg)
-        elif opt == "-m":
-            monitor_address = '', int(arg)
+
+    zo = ZEOOptions()
+    zo.realize(["-C", configfile])
+    zeo_port = int(zo.address[1])
+            
     # Open the config file and let ZConfig parse the data there.  Then remove
     # the config file, otherwise we'll leave turds.
-    storage = storageFromURL(configfile)
-    os.remove(configfile)
     # The rest of the args are hostname, portnum
-    zeo_port = int(args[0])
     test_port = zeo_port + 1
     test_addr = ('localhost', test_port)
     addr = ('localhost', zeo_port)
     log(label, 'creating the storage server')
-    serv = ZEO.StorageServer.StorageServer(
-        addr, {'1': storage}, ro_svr,
-        invalidation_queue_size=invalidation_queue_size,
-        transaction_timeout=transaction_timeout,
-        monitor_address=monitor_address)
+    server = ZEO.StorageServer.StorageServer(
+        zo.address,
+        {"1": zo.storages[0].open()},
+        read_only=zo.read_only,
+        invalidation_queue_size=zo.invalidation_queue_size,
+        transaction_timeout=zo.transaction_timeout,
+        monitor_address=zo.monitor_address)
+    
     try:
-        log(label, 'creating the test server, ro: %s, keep: %s', ro_svr, keep)
-        t = ZEOTestServer(test_addr, serv, keep)
+        log(label, 'creating the test server, keep: %s', keep)
+        t = ZEOTestServer(test_addr, server, keep)
     except socket.error, e:
         if e[0] <> errno.EADDRINUSE: raise
         log(label, 'addr in use, closing and exiting')
         storage.close()
         cleanup(storage)
         sys.exit(2)
-    t.register_socket(serv.dispatcher)
+        
+    t.register_socket(server.dispatcher)
     # Create daemon suicide thread
     d = Suicide(test_addr)
     d.setDaemon(1)
