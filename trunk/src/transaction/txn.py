@@ -17,6 +17,7 @@ __metaclass__ = type
 from transaction.interfaces import *
 from threading import Lock
 import logging
+from zope.interface import implements
 
 try:
     from sets import Set
@@ -43,7 +44,7 @@ class Status:
 
 class Transaction:
 
-    __implements__ = ITransaction
+    implements(ITransaction)
 
     def __init__(self, manager=None, parent=None):
         self._manager = manager

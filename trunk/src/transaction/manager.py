@@ -14,6 +14,8 @@
 import logging
 import sys
 
+from zope.interface import implements
+
 from transaction.interfaces import *
 from transaction.txn import Transaction, Status, Set
 
@@ -81,7 +83,7 @@ class AbstractTransactionManager(object):
 
 class TransactionManager(AbstractTransactionManager):
 
-    __implements__ = ITransactionManager
+    implements(ITransactionManager)
 
     def __init__(self):
         self.logger = logging.getLogger("txn")
@@ -124,7 +126,7 @@ class TransactionManager(AbstractTransactionManager):
 
 class Rollback(object):
 
-    __implements__ = IRollback
+    implements(IRollback)
 
     def __init__(self, txn, resources):
         self._txn = txn
@@ -151,7 +153,7 @@ class ThreadedTransactionManager(AbstractTransactionManager):
     # does need a lock to prevent two different threads from resuming
     # the same transaction.
 
-    __implements__ = ITransactionManager
+    implements(ITransactionManager)
 
     def __init__(self):
         self.logger = logging.getLogger("txn")
