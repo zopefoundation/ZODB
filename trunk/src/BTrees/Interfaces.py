@@ -12,9 +12,10 @@
 # 
 ##############################################################################
 
-import OOBTree, Interface, Interface.Standard
+import OOBTree, Interface
+from Interface import Interface
 
-class ICollection(Interface.Base):
+class ICollection(Interface):
 
     def clear():
         """Remove all of the items from the collection"""
@@ -26,7 +27,14 @@ class ICollection(Interface.Base):
         false otherwise.
         """
 
-class IReadSequence(Interface.Standard.Sequence):
+
+class IReadSequence(Interface):
+
+    def __getitem__(index):
+        """Return a value at the givem index
+
+        An IndexError is raised if the index cannot be found.
+        """
 
     def __getslice__(index1, index2):
         """Return a subsequence from the original sequence
@@ -83,7 +91,13 @@ class ISetMutable(IKeyed):
     def update(seq):
         """Add the items from the given sequence to the set"""
 
-class IKeySequence(IKeyed, Interface.Standard.Sized):
+class ISized(Interface):
+    "anything supporting __len"
+
+    def __len__():
+        """Return the number of items in the container"""
+
+class IKeySequence(IKeyed, ISized):
 
     def __getitem__(index):
         """Return the key in the given index position
@@ -97,9 +111,52 @@ class ISet(IKeySequence, ISetMutable):
 
 class ITreeSet(IKeyed, ISetMutable):
     pass
-    
 
-class IDictionaryIsh(IKeyed, Interface.Standard.MinimalDictionary):
+class IMinimalDictionary(ISized):
+        
+    def has_key(key):
+        """Check whether the object has an item with the given key"""
+
+
+    def get(key, default):
+        """Get the value for the given key
+
+        Return the default if the key is not in the  collection.
+        """
+
+    def __setitem__(key, value):
+        """Set the value for the given key"""
+
+    def __delitem__(key):
+        """delete the value for the given key
+
+        Raise a key error if the key if not in the collection."""
+
+    def values():
+        """Return a IReadSequence containing the values in the collection
+
+        The type of the IReadSequence is not specified. It could be a
+        list or a tuple or some other type.
+        """
+
+    def keys():
+        """Return an Sequence containing the keys in the collection
+
+        The type of the IReadSequence is not specified. It could be a
+        list or a tuple or some other type.
+        """
+
+    def items():
+        """Return a IReadSequence containing the items in the collection
+
+        An item is a key-value tuple.
+
+        The type of the IReadSequence is not specified. It could be a
+        list or a tuple or some other type.
+        """
+
+
+class IDictionaryIsh(IKeyed, IMinimalDictionary):
 
     def update(collection):
         """Add the items from the given collection object to the collection
@@ -170,7 +227,7 @@ class IBTree(IDictionaryIsh):
               key=generate_key()
         """
 
-class IMerge(Interface.Base):
+class IMerge(Interface):
     """Object with methods for merging sets, buckets, and trees.
 
     These methods are supplied in modules that define collection
