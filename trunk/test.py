@@ -42,7 +42,7 @@ Test harness.
     Unfortunately, the debug harness doesn't print the name of the
     test, so Use With Care.
 
---dir directory 
+--dir directory
     Option to limit where tests are searched for. This is
     important when you *really* want to limit the code that gets run.
     For example, if refactoring interfaces, you don't want to see the way
@@ -260,7 +260,7 @@ class ImmediateTestResult(unittest._TextTestResult):
             if not os.path.exists(self._new_dir):
                 os.mkdir(self._new_dir)
             tempfile.tempdir = self._new_dir
-            
+
         self.__super_startTest(test)
         self._testtimes[test] = time.time()
 
@@ -655,6 +655,8 @@ def main(module_filter, test_filter, libdir):
 
 def process_args(argv=None):
     import getopt
+    import warnings
+
     global module_filter
     global test_filter
     global VERBOSE
@@ -675,6 +677,20 @@ def process_args(argv=None):
     global keepStaleBytecode
     global functional
     global test_dir
+
+    # Persistence/__init__.py generates a long warning message about the
+    # the failure of
+    #     from _Persistence import Persistent
+    # for the benefit of people expecting that to work from previous (pre 3.3)
+    # ZODB3 releases.  We don't need to see that msg every time we run the
+    # test suite, though, and it's positively unhelpful to see it in this
+    # context.
+    # NOTE:  "(?s)" enables re.SINGLELINE, so that the ".*" can suck up
+    #        newlines.
+    warnings.filterwarnings("ignore",
+        message="(?s)Couldn't import the ExtensionClass-based base class.*"
+                "There are two possibilities:",
+        category=UserWarning)
 
     if argv is None:
         argv = sys.argv
