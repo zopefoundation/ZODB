@@ -13,7 +13,7 @@
 ##############################################################################
 """Database objects
 
-$Id: DB.py,v 1.68 2004/03/02 15:36:40 jeremy Exp $"""
+$Id: DB.py,v 1.69 2004/03/04 19:48:04 jeremy Exp $"""
 
 import cPickle, cStringIO, sys
 from thread import allocate_lock
@@ -29,38 +29,27 @@ from zLOG import LOG, ERROR
 class DB(object):
     """The Object Database
 
-    The C{DB} class coordinates the activities of multiple database
-    L{Connection} instances.  Most of the work is done by the
-    C{Connections} created via the L{open} method.
+    The DB class coordinates the activities of multiple database
+    Connection instances.  Most of the work is done by the
+    Connections created via the open method.
 
-    The C{DB} instance manages a pool of connections.  If a connection
-    is closed, it is returned to the pool and its object cache is
+    The DB instance manages a pool of connections.  If a connection is
+    closed, it is returned to the pool and its object cache is
     preserved.  A subsequent call to open() will reuse the connection.
     There is a limit to the pool size; if all its connections are in
     use, calls to open() will block until one of the open connections
     is closed.
 
-    @cvar klass: Class used by L{open} to create database connections
-    @type klass: L{Connection} or a subclass
+    The class variable 'klass' is used by open() to create database
+    connections.  It is set to Connection, but a subclass could override
+    it to provide a different connection implementation.
 
-    @group User Methods: __init__, open, close, undo, pack, setClassFactory
-    @group Inspection Methods: getName, getSize, objectCount,
-        getActivityMonitor, setActivityMonitor
-    @group Connection Pool Methods: getPoolSize, getVersionPoolSize,
-        removeVersionPool, setPoolSize, setVersionPoolSize
-    @group Transaction Methods: invalidate
-    @group Other Methods: lastTransaction, connectionDebugInfo
-    @group Version Methods: modifiedInVersion, abortVersion, commitVersion,
-        versionEmpty
-    @group Cache Inspection Methods: cacheDetail, cacheExtremeDetail,
-        cacheFullSweep, cacheLastGCTime, cacheMinimize, cacheMeanAge,
-        cacheMeanDeac, cacheMeanDeal, cacheSize, cacheDetailSize,
-        getCacheSize, getVersionCacheSize, setCacheSize, setVersionCacheSize,
-        cacheStatistics
-    @group Deprecated Methods: getCacheDeactivateAfter,
-        setCacheDeactivateAfter,
-        getVersionCacheDeactivateAfter, setVersionCacheDeactivateAfter
+    The database provides a few methods intended for application code
+    -- open, close, undo, pack, setClassFactory -- and a large
+    collection of methods for inspecting the database and its connections'
+    caches.
     """
+    
     klass = Connection  # Class to use for connections
     _activity_monitor = None
 
@@ -74,18 +63,17 @@ class DB(object):
                  ):
         """Create an object database.
 
-        @param storage: storage for the database, e.g. C{FileStorage}
-        @param pool_size: maximum number of open connections
-        @type pool_size: C{int}
-        @param cache_size: target size of L{Connection} object cache
-        @type cache_size: C{int}
-        @param cache_deactivate_after: ignored
-        @param version_pool_size: maximum number of connections (per version)
-        @type version_pool_size: C{int}
-        @param version_cache_size: target size of L{Connection} object
-            cache for version connectios
-        @type version_cache_size: C{int}
-        @param version_cache_deactivate_after: ignored
+        The constructor requires one argument, the storage used by the
+        database, e.g. FileStorage.
+
+        There are several other optional arguments:
+        pool_size: maximum number of open connections
+        cache_size: target size of Connection object cache
+        cache_deactivate_after: ignored
+        version_pool_size: maximum number of connections (per version)
+        version_cache_size: target size of Connection object cache for
+            version connections
+        version_cache_deactivate_after: ignored
         """
         # Allocate locks:
         l=allocate_lock()
@@ -209,7 +197,8 @@ class DB(object):
     def cacheDetail(self):
         """Return information on objects in the various caches
 
-        Organized by class."""
+        Organized by class.
+        """
 
         detail = {}
         def f(con, detail=detail, have_detail=detail.has_key):
@@ -386,7 +375,7 @@ class DB(object):
 
     def open(self, version='', transaction=None, temporary=0, force=None,
              waitflag=1, mvcc=True):
-        """Return a database L{Connection}
+        """Return a database Connection for use by application code.
 
         The optional version argument can be used to specify that a
         version connection is desired.
@@ -396,8 +385,9 @@ class DB(object):
         terminated.  In addition, connections per transaction are
         reused, if possible.
 
-        Note that the connection pool is managed as a stack, to increate the
-        likelihood that the connection's stack will include useful objects.
+        Note that the connection pool is managed as a stack, to
+        increate the likelihood that the connection's stack will
+        include useful objects.
         """
         self._a()
         try:
@@ -562,14 +552,16 @@ class DB(object):
         The cost of this operation varies by storage, but it is
         usually an expensive operation.
 
-        @param t: pack time in seconds since the epoch
-        @type t: C{float}
-        @param days: days to subtract from C{t} to compute pack time
-        @type days: C{int}
+        There are two optional arguments that can be used to set the
+        pack time: t, pack time in seconds since the epcoh, and days,
+        the number of days to substract from t or from the current
+        time if t is not specified.
         """
-        if t is None: t=time()
-        t=t-(days*86400)
-        try: self._storage.pack(t,referencesf)
+        if t is None:
+            t = time()
+        t -= days * 86400
+        try:
+            self._storage.pack(t, referencesf)
         except:
             LOG("ZODB", ERROR, "packing", error=sys.exc_info())
             raise
@@ -588,14 +580,11 @@ class DB(object):
         The database stores objects, but uses Python's standard import
         to load the code for those objects.  The class factory is used
         by the database serialization layer to find the classes.  It
-        uses L{ZODB.broken.find_global<find_global>} by default.
+        uses ZODB.broken.find_global by default.
 
         This method can be used to override the default class loading
-        code.  See L{ZODB.broken.find_global<find_global>} for details
-        about the contract of C{factory}.
-        
-        @param factory: A class factory for unpickling
-        @type factory: C{function}
+        code.  See ZODB.broken.find_global for details
+        about the contract of factory.
         """
         self._classFactory = factory
 
@@ -617,21 +606,20 @@ class DB(object):
     def cacheStatistics(self): return () # :(
 
     def undo(self, id, transaction=None):
-        """Undo a transaction identified by C{id}.
+        """Undo a transaction identified by id.
 
         A transaction can be undone if all of the objects involved in
         the transaction were not modified subsequently, if any
         modifications can be resolved by conflict resolution, or if
         subsequent changes resulted in the same object state.
 
-        The value of C{id} should be generated by calling C{undoLog}
-        or C{undoInfo}.  The value of C{id} is not the same as a
-        transaction id used by other methods; it is unique to C{undo}.
+        The value of id should be generated by calling undoLog()
+        or undoInfo().  The value of id is not the same as a
+        transaction id used by other methods; it is unique to undo().
 
-        @param id: a storage-specific transaction identifier
-        @type id: C{string}
-        @param transaction: a transaction context to use
-        @type transaction: C{Transaction}        
+        In addition, a user can pass the optional argument,
+        transaction, which identifies a transaction context to use for
+        the undo().
         """
         if transaction is None:
             transaction = get_transaction()
