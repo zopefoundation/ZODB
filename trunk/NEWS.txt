@@ -2,6 +2,16 @@ What's new in ZODB3 3.3 beta 1
 ==============================
 Release date: 03-Jun-2004
 
+3.3b1 is the first ZODB release built using the new zpkg tools:
+
+    http://zope.org/Members/fdrake/zpkgtools/
+
+This appears to have worked very well.  The structure of the tarball
+release differs from previous releases because of it, and the set of
+installed files includes some that were not installed in previous
+releases.  That shouldn't create problems, so let us know if it does!
+We'll fine-tune this for the next release.
+
 BTrees
 ------
 
