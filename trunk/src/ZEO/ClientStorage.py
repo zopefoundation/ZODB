@@ -960,7 +960,6 @@ class ClientStorage(object):
             self._lock.acquire()  # for atomic processing of invalidations
             try:
                 self._update_cache(tid)
-                self._cache.setLastTid(tid)
                 if f is not None:
                     f(tid)
             finally:
