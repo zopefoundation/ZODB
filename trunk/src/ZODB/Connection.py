@@ -13,7 +13,7 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.137 2004/03/12 06:11:36 jeremy Exp $"""
+$Id: Connection.py,v 1.138 2004/03/12 06:37:23 jeremy Exp $"""
 
 import logging
 import sys
@@ -125,7 +125,7 @@ class Connection(ExportImport, object):
     their state and register changes.  The methods are setstate(),
     register(), setklassstate().
 
-    $Id: Connection.py,v 1.137 2004/03/12 06:11:36 jeremy Exp $
+    $Id: Connection.py,v 1.138 2004/03/12 06:37:23 jeremy Exp $
     """
 
     _tmp = None
@@ -771,9 +771,7 @@ class Connection(ExportImport, object):
         # been modified at txn_time.
 
         assert start < self._txn_time, (u64(start), u64(self._txn_time))
-        assert end is None or self._txn_time <= end, \
-               (u64(self._txn_time), u64(end))
-        assert end is not None
+        assert self._txn_time <= end, (u64(self._txn_time), u64(end))
         self._reader.setGhostState(obj, data)
         obj._p_serial = start
         return True
