@@ -100,6 +100,7 @@ class TmpStore:
         self._bver=base_version
         self._tindex=[]
         self._db=None
+        self._creating=[]
 
     def __del__(self): self.close()
 
