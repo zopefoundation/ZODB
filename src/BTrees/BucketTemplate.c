@@ -12,7 +12,7 @@
 
  ****************************************************************************/
 
-#define BUCKETTEMPLATE_C "$Id: BucketTemplate.c,v 1.40 2002/06/12 20:19:58 tim_one Exp $\n"
+#define BUCKETTEMPLATE_C "$Id: BucketTemplate.c,v 1.41 2002/06/13 19:19:41 tim_one Exp $\n"
 
 /* Use BUCKET_SEARCH to find the index at which a key belongs.
  * INDEX    An int lvalue to hold the index i such that KEY belongs at
@@ -624,13 +624,15 @@ Bucket_rangeSearch(Bucket *self, PyObject *args, int *low, int *high)
           goto empty;
         }
     }
-  else *high=self->len - 1;
+  else *high = self->len - 1;
 
-  return 0;
+  /* If f < l to begin with, it's quite possible that low > high now. */
+  if (*low <= *high)
+    return 0;
 
  empty:
-  *low=0;
-  *high=-1;
+  *low = 0;
+  *high = -1;
   return 0;
 }
 
