@@ -101,7 +101,7 @@ class SizedMessageAsyncConnection(asyncore.dispatcher):
         # previous MAC; the state of the MAC generator depends on the
         # history of operations it has performed.  So the MACs must be
         # generated in the same order they are verified.
-        
+
         # Each side is guaranteed to receive messages in the order
         # they are sent, but there is no ordering constraint between
         # message sends and receives.  If the two sides are A and B
@@ -116,7 +116,7 @@ class SizedMessageAsyncConnection(asyncore.dispatcher):
         # could not be verified.
         self.__hmac_send = None
         self.__hmac_recv = None
-        
+
         self.__super_init(sock, map)
 
     def setSessionKey(self, sesskey):

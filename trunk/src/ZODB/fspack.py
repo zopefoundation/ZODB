@@ -648,7 +648,7 @@ class FileStoragePacker(FileStorageFormatter):
         # tindex: oid -> pos, for current txn
         # tvindex: version -> pos of XXX, for current txn
         # oid2serial: not used by the packer
-        
+
         self.index = fsIndex()
         self.vindex = {}
         self.tindex = {}

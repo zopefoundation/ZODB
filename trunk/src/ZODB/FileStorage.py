@@ -115,7 +115,7 @@
 #   may have a back pointer to a version record or to a non-version
 #   record.
 #
-__version__='$Revision: 1.138 $'[11:-2]
+__version__='$Revision: 1.139 $'[11:-2]
 
 import base64
 from cPickle import Pickler, Unpickler, loads
@@ -1531,7 +1531,7 @@ class FileStorage(BaseStorage.BaseStorage,
         """
         if self._is_read_only:
             raise POSException.ReadOnlyError()
-        
+
         stop=`TimeStamp(*time.gmtime(t)[:5]+(t%60,))`
         if stop==z64: raise FileStorageError, 'Invalid pack time'
 
