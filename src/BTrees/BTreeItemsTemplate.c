@@ -12,7 +12,7 @@
   
  ****************************************************************************/
 
-#define BTREEITEMSTEMPLATE_C "$Id: BTreeItemsTemplate.c,v 1.8 2002/02/11 23:40:40 gvanrossum Exp $\n"
+#define BTREEITEMSTEMPLATE_C "$Id: BTreeItemsTemplate.c,v 1.9 2002/03/08 18:33:01 jeremy Exp $\n"
 
 typedef struct {
   PyObject_HEAD
@@ -38,7 +38,7 @@ BTreeItems_dealloc(BTreeItems *self)
   Py_XDECREF(self->firstbucket);
   Py_XDECREF(self->lastbucket);
   Py_XDECREF(self->currentbucket);
-  PyMem_DEL(self);
+  PyObject_DEL(self);
 }
 
 static int 

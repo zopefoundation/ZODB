@@ -12,7 +12,7 @@
   
  ****************************************************************************/
 
-#define BUCKETTEMPLATE_C "$Id: BucketTemplate.c,v 1.27 2002/02/21 21:41:17 jeremy Exp $\n"
+#define BUCKETTEMPLATE_C "$Id: BucketTemplate.c,v 1.28 2002/03/08 18:33:01 jeremy Exp $\n"
 
 /*
 ** _bucket_get
@@ -1137,7 +1137,7 @@ Bucket_dealloc(Bucket *self)
   PER_DEL(self);
 
   Py_DECREF(self->ob_type);
-  PyMem_DEL(self);
+  PyObject_Del(self);
 }
 
 /* Code to access Bucket objects as mappings */

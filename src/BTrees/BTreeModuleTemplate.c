@@ -211,7 +211,7 @@ PyMalloc(size_t sz)
 
   ASSERT(sz > 0, "non-positive size malloc", NULL);
 
-  if ((r=malloc(sz))) return r;
+  if ((r=PyMem_Malloc(sz))) return r;
 
   PyErr_NoMemory();
   return NULL;
@@ -224,8 +224,8 @@ PyRealloc(void *p, size_t sz)
 
   ASSERT(sz > 0, "non-positive size realloc", NULL);
 
-  if (p) r=realloc(p,sz);
-  else r=malloc(sz);
+  if (p) r=PyMem_Realloc(p,sz);
+  else r=PyMem_Malloc(sz);
 
   UNLESS (r) PyErr_NoMemory();
 
@@ -270,7 +270,7 @@ static char BTree_module_documentation[] =
 "\n"
 MASTER_ID
 BTREEITEMSTEMPLATE_C
-"$Id: BTreeModuleTemplate.c,v 1.20 2002/02/21 21:41:17 jeremy Exp $\n"
+"$Id: BTreeModuleTemplate.c,v 1.21 2002/03/08 18:33:01 jeremy Exp $\n"
 BTREETEMPLATE_C
 BUCKETTEMPLATE_C
 KEYMACROS_H

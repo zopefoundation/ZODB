@@ -12,7 +12,7 @@
   
  ****************************************************************************/
 
-#define BTREETEMPLATE_C "$Id: BTreeTemplate.c,v 1.24 2002/02/28 20:12:00 jeremy Exp $\n"
+#define BTREETEMPLATE_C "$Id: BTreeTemplate.c,v 1.25 2002/03/08 18:33:01 jeremy Exp $\n"
 
 /*
 ** _BTree_get
@@ -1242,7 +1242,7 @@ BTree_dealloc(BTree *self)
   PER_DEL(self);
 
   Py_DECREF(self->ob_type);
-  PyMem_DEL(self);
+  PyObject_Del(self);
 }
 
 static int
