@@ -26,11 +26,11 @@ class Blob(Persistent):
     _p_blob_uncommitted = None
     _p_blob_data = None
 
-    def open(self, mode):
+    def open(self, mode="r"):
         """Returns a file(-like) object for handling the blob data."""
         result = None
 
-        if mode == "r":
+        if (mode.startswith("r") or mode=="U"):
             if self._current_filename() is None:
                 raise BlobError, "Blob does not exist."
 
@@ -38,9 +38,9 @@ class Blob(Persistent):
                 raise BlobError, "Already opened for writing."
 
             self._p_blob_readers += 1
-            result = BlobFile(self._current_filename(), "rb", self)
+            result = BlobFile(self._current_filename(), mode, self)
 
-        if mode == "w":
+        if mode.startswith("w"):
             if self._p_blob_readers != 0:
                 raise BlobError, "Already opened for reading."
 
@@ -48,9 +48,9 @@ class Blob(Persistent):
                 self._p_blob_uncommitted = utils.mktemp()
 
             self._p_blob_writers += 1
-            result = BlobFile(self._p_blob_uncommitted, "wb", self)
+            result = BlobFile(self._p_blob_uncommitted, mode, self)
 
-        if mode =="a":
+        if mode.startswith("a"):
             if self._current_filename() is None:
                 raise BlobError, "Blob does not exist."
 
@@ -60,12 +60,12 @@ class Blob(Persistent):
             if self._p_blob_uncommitted is None:
                 # Create a new working copy
                 self._p_blob_uncommitted = utils.mktmp()
-                uncommitted = BlobFile(self._p_blob_uncommitted, "wb", self)
+                uncommitted = BlobFile(self._p_blob_uncommitted, mode, self)
                 utils.cp(file(self._p_blob_data), uncommitted)
                 uncommitted.seek(0)
             else:
                 # Re-use existing working copy
-                uncommitted = BlobFile(self._p_blob_uncommitted, "ab", self)
+                uncommitted = BlobFile(self._p_blob_uncommitted, mode, self)
             
             self._p_blob_writers +=1
             result = uncommitted
