@@ -13,8 +13,14 @@
 ##############################################################################
 """Network ZODB storage client
 
-$Id: ClientStorage.py,v 1.52 2002/08/28 16:37:09 gvanrossum Exp $
+$Id: ClientStorage.py,v 1.53 2002/08/28 18:59:06 gvanrossum Exp $
 """
+
+# XXX TO DO
+# get rid of beginVerify, set up _tfile in verify_cache
+# set self._storage = stub later, in endVerify
+# if wait is given, wait until verify is complete
+# get rid of _basic_init
 
 import cPickle
 import os
