@@ -955,8 +955,11 @@ class ClientStorage(object):
                 raise ClientDisconnected(
                        'Calling tpc_finish() on a disconnected transaction')
 
+            # The calls to tpc_finish() and _update_cache() should
+            # never run currently with another thread, because the
+            # tpc_cond condition variable prevents more than one
+            # thread from calling tpc_finish() at a time.
             tid = self._server.tpc_finish(id(txn))
-
             self._lock.acquire()  # for atomic processing of invalidations
             try:
                 self._update_cache(tid)
