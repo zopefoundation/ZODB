@@ -122,6 +122,8 @@ class ConflictResolvingStorage:
                           self._dostoreNP,
                           oid, revid=revid1, data=zodb_pickle(obj))
 
+class ConflictResolvingTransUndoStorage:
+
     def checkUndoConflictResolution(self):
         # This test is based on checkNotUndoable in the
         # TransactionalUndoStorage test suite.  Except here, conflict
