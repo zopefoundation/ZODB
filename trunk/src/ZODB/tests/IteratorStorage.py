@@ -75,11 +75,13 @@ class IteratorStorage(IteratorCompare):
             return
 
         oid = self._storage.new_oid()
-        revid = self._dostore(oid)
-        self._dostore(oid, revid)
+        revid = self._dostore(oid, data=MinPO(23))
+        revid = self._dostore(oid, revid=revid, data=MinPO(24))
+        revid = self._dostore(oid, revid=revid, data=MinPO(25))
 
-        self.undoLastTrans()
-        self.undoLastTrans()
+        self.undoTrans(0)
+        self.undoTrans(2)
+        self.undoTrans(4)
 
         # XXX extend these checks.  right now, just iterating with CVS
         # FS or Berkeley will fail here, but once fixed we should
@@ -89,9 +91,16 @@ class IteratorStorage(IteratorCompare):
             for data in trans:
                 pass
 
-    def undoLastTrans(self):
+        # The last transaction performed an undo of the transaction
+        # that created object oid.  (As Barry points out, the object
+        # is now in the George Bailey state.)  Assert that the final
+        # data record contains None in the data attribute.
+        self.assertEqual(data.oid, oid)
+        self.assertEqual(data.data, None)
+
+    def undoTrans(self, i):
         info = self._storage.undoInfo()
-        tid = info[0]['id']
+        tid = info[i]['id']
         t = Transaction()
         self._storage.tpc_begin(t)
         oids = self._storage.transactionalUndo(tid, t)
