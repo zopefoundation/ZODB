@@ -14,12 +14,13 @@
 ##############################################################################
 """Cache simulation.
 
-Usage: simul.py [-bflz] [-s size] tracefile
+Usage: simul.py [-bflyz] [-s size] tracefile
 
-Use one of -b, -f, -l or -z select the cache simulator:
+Use one of -b, -f, -l, -y or -z select the cache simulator:
 -b: buddy system allocator
 -f: simple free list allocator 
 -l: idealized LRU (no allocator)
+-y: variation on the existing ZEO cache that copies to current file
 -z: existing ZEO cache (default)
 
 Options:
@@ -43,7 +44,7 @@ def main():
     cachelimit = 20*MB
     simclass = ZEOCacheSimulation
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "bflzs:")
+        opts, args = getopt.getopt(sys.argv[1:], "bflyzs:")
     except getopt.error, msg:
         usage(msg)
         return 2
@@ -54,6 +55,8 @@ def main():
             simclass = SimpleCacheSimulation
         if o == '-l':
             simclass = LRUCacheSimulation
+        if o == '-y':
+            simclass = AltZEOCacheSimulation
         if o == '-z':
             simclass = ZEOCacheSimulation
         if o == '-s':
@@ -281,6 +284,32 @@ class ZEOCacheSimulation(Simulation):
             self.invals += 1
             self.total_invals += 1
             del self.fileoids[1 - self.current][oid]
+
+class AltZEOCacheSimulation(ZEOCacheSimulation):
+
+    """A variation of the ZEO cache that copies to the current file.
+
+    When a hit is found in the non-current cache file, it is copied to
+    the current cache file.  Exception: when the copy would cause a
+    cache flip, we don't copy (this is part laziness, part concern
+    over causing extraneous flips).
+    """
+
+    def load(self, oid, size):
+        if self.fileoids[self.current].get(oid):
+            self.hits += 1
+            self.total_hits += 1
+        elif self.fileoids[1 - self.current].get(oid):
+            self.hits += 1
+            self.total_hits += 1
+            # Simulate a write, unless it would cause a flip
+            size = size + 31 - 127
+            if self.filesize[self.current] + size <= self.cachelimit / 2:
+                self.filesize[self.current] += size
+                self.fileoids[self.current][oid] = 1
+                del self.fileoids[1 - self.current][oid]
+        else:
+            self.write(oid, size)
 
 class LRUCacheSimulation(Simulation):
 
