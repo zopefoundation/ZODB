@@ -81,4 +81,40 @@ Now we can read it:
     >>> myblob.open("r").read()
     'Hi, Blob!\nBlob is fine.'
 
+We can read lines out of the blob too:
 
+    >>> f5 = myblob.open("r")
+    >>> f5.readline()
+    'Hi, Blob!\n'
+    >>> f5.readline()
+    'Blob is fine.'
+    >>> f5.close()
+
+We can seek to certain positions in a blob and read portions of it:
+
+    >>> f6 = myblob.open('r')
+    >>> f6.seek(4)
+    >>> int(f6.tell())
+    4
+    >>> f6.read(5)
+    'Blob!'
+    >>> f6.close()
+
+We can use the object returned by a blob open call as an iterable:
+
+    >>> f7 = myblob.open('r')
+    >>> for line in f7:
+    ...     print line
+    Hi, Blob!
+    Blob is fine.
+    >>> f7.close()
+
+We can truncate a blob:
+
+    >>> f8 = myblob.open('a')
+    >>> f8.truncate(0)
+    >>> f8.close()
+    >>> f8 = myblob.open('r')
+    >>> f8.read()
+    ''
+    >>> f8.close()
