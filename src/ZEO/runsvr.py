@@ -39,7 +39,7 @@ import signal
 import socket
 
 import zLOG
-import ZConfig
+import ZConfig.Context
 
 
 class Options:
@@ -121,8 +121,9 @@ class Options:
     def load_configuration(self):
         if self.rootconf or not self.configuration:
             return
+        c = ZConfig.Context.Context()
         try:
-            self.rootconf = ZConfig.load(self.configuration)
+            self.rootconf = c.loadURL(self.configuration)
         except ZConfig.ConfigurationError, errobj:
             self.usage(str(errobj))
 
