@@ -14,7 +14,7 @@
 static char cPersistence_doc_string[] = 
 "Defines Persistent mixin class for persistent objects.\n"
 "\n"
-"$Id: cPersistence.c,v 1.61 2002/06/14 15:34:30 jeremy Exp $\n";
+"$Id: cPersistence.c,v 1.62 2002/06/18 21:37:56 jeremy Exp $\n";
 
 #include "cPersistence.h"
 
@@ -624,6 +624,7 @@ _setattro(cPersistentObject *self, PyObject *oname, PyObject *v,
 	  return 0;
       }
       else if (strcmp(name+3, "changed") == 0) {
+	  int deactivate = 0;
 	  if (!v)
 	    {
 	      /* delatter is used to invalidate the object
@@ -631,13 +632,37 @@ _setattro(cPersistentObject *self, PyObject *oname, PyObject *v,
 	       */
 	      if (self->state != cPersistent_GHOST_STATE)
 		self->state = cPersistent_UPTODATE_STATE;
-	      v=Py_None;
+	      deactivate = 1;
 	    }
-	  if (v==Py_None)
+	  else if (v == Py_None)
+	      deactivate = 1;
+	  if (deactivate)
 	    {
-	      v=PyObject_GetAttr(OBJECT(self), py__p_deactivate);
-	      if (v) { ASSIGN(v, PyObject_CallObject(v, NULL)); }
-	      if (v) { Py_DECREF(v); }
+	      PyObject *res;
+	      PyObject *meth = PyObject_GetAttr(OBJECT(self), 
+						py__p_deactivate);
+	      if (meth == NULL)
+		  return -1;
+	      res = PyObject_CallObject(meth, NULL);
+	      if (res) {
+		  Py_DECREF(res);
+	      } 
+	      else {
+		  /* an error occured in _p_deactivate().  
+
+		  It's not clear what we should do here.  The code is
+		  obviously ignoring the exception, but it shouldn't
+		  return 0 for a getattr and set an exception.  The
+		  simplest change is to clear the exception, but that
+		  simply masks the error. 
+
+		  XXX We'll print an error to stderr just like
+		  exceptions in __del__().  It would probably be
+		  better to log it but that would be painful from C.
+		  */
+		  PyErr_WriteUnraisable(meth);
+	      }
+	      Py_DECREF(meth);
 	      return 0;
 	    }
 	  if (PyObject_IsTrue(v)) return changed(self);
