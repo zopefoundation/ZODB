@@ -86,7 +86,7 @@
 """Start the server storage.
 """
 
-__version__ = "$Revision: 1.24 $"[11:-2]
+__version__ = "$Revision: 1.25 $"[11:-2]
 
 import sys, os, getopt, string
 
@@ -335,7 +335,10 @@ def rotate_logs():
         zLOG.log_write.reinitialize()
     else:
         # Hm, lets at least try to take care of the stupid logger:
-        zLOG._stupid_dest=None
+        if hasattr(zLOG, '_set_stupid_dest'):
+            zLOG._set_stupid_dest(None)
+        else:
+            zLOG._stupid_dest = None
 
 def rotate_logs_handler(signum, frame):
     rotate_logs()
