@@ -82,7 +82,7 @@
   
  ****************************************************************************/
 
-#define BUCKETTEMPLATE_C "$Id: BucketTemplate.c,v 1.13 2001/04/02 16:57:40 jeremy Exp $\n"
+#define BUCKETTEMPLATE_C "$Id: BucketTemplate.c,v 1.14 2001/04/03 15:02:17 jim Exp $\n"
 
 /*
 ** _bucket_get
@@ -566,8 +566,6 @@ Bucket_maxminKey(Bucket *self, PyObject *args, int min)
   
  empty:
   PyErr_SetString(PyExc_ValueError, "empty bucket");
-
- err:
   PER_ALLOW_DEACTIVATION(self);
   PER_ACCESSED(self);
   return NULL;
@@ -834,7 +832,10 @@ _bucket_clear(Bucket *self)
   for (i=self->len; --i >= 0; )
     {
       DECREF_KEY(self->keys[i]);
-      if (self->values) DECREF_VALUE(self->values[i]);
+      if (self->values) 
+        {
+          DECREF_VALUE(self->values[i]);
+        }
     }
   self->len=0;
   if (self->values) 
@@ -1072,12 +1073,12 @@ _bucket__p_resolveConflict(PyObject *ob_type, PyObject *s[3])
   
   for (i=0; i < 3; i++)
     {
-      if (b[i]=(Bucket*)PyObject_CallObject(OBJECT(ob_type), NULL))
+      if ((b[i]=(Bucket*)PyObject_CallObject(OBJECT(ob_type), NULL)))
         {
-          if (s[i] == Py_None)  /* None is equivalent to empty, for BTrees */
+          if ((s[i] == Py_None))  /* None is equivalent to empty, for BTrees */
             continue;
           ASSIGN(r, PyObject_GetAttr(OBJECT(b[i]), __setstate___str));
-          if (a=PyTuple_New(1))
+          if ((a=PyTuple_New(1)))
             {
               if (r)
                 {

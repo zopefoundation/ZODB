@@ -340,7 +340,7 @@ static char BTree_module_documentation[] =
 "\n"
 MASTER_ID
 BTREEITEMSTEMPLATE_C
-"$Id: BTreeModuleTemplate.c,v 1.10 2001/04/02 16:56:09 jeremy Exp $\n"
+"$Id: BTreeModuleTemplate.c,v 1.11 2001/04/03 15:02:17 jim Exp $\n"
 BTREETEMPLATE_C
 BUCKETTEMPLATE_C
 KEYMACROS_H
@@ -366,7 +366,7 @@ INITMODULE (void)
       return;
 
 #ifdef PERSISTENT
-  if (cPersistenceCAPI=PyCObject_Import("cPersistence","CAPI"))
+  if ((cPersistenceCAPI=PyCObject_Import("cPersistence","CAPI")))
     {
 	BucketType.methods.link=cPersistenceCAPI->methods;
 	BucketType.tp_getattro=cPersistenceCAPI->getattro;
@@ -409,7 +409,7 @@ INITMODULE (void)
   d = PyModule_GetDict(m);
 
   PyDict_SetItemString(d, "__version__",
-		       PyString_FromString("$Revision: 1.10 $"));
+		       PyString_FromString("$Revision: 1.11 $"));
 
   PyExtensionClass_Export(d,MOD_NAME_PREFIX "Bucket", BucketType);
   PyExtensionClass_Export(d,MOD_NAME_PREFIX "BTree", BTreeType);
