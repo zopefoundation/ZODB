@@ -24,7 +24,7 @@
 #     2. We limit the data size to 48 bits. This should allow databases
 #        as large as 256 terabytes.
 #
-# Mostof the space is consumed by items in the mappings from 2-byte
+# Most of the space is consumed by items in the mappings from 2-byte
 # suffix to 6-byte data. This should reduce the overall memory usage to
 # 8-16 bytes per OID.
 #
@@ -125,3 +125,32 @@ class fsIndex(object):
 
     def values(self):
         return list(self.itervalues())
+
+    def maxKey(self):
+        # This is less general than the BTree method of the same name:  we
+        # only care about the largest key in the entire tree.  By
+        # construction, that's the largest oid in use in the associated
+        # FileStorage.
+
+        keys = self._data.keys()
+        if not keys:
+            # This is the same exception a BTree maxKey() raises when the
+            # tree is empty.
+            raise ValueError("empty tree")
+
+        # We expect that keys is small, since each fsBTree in _data.values()
+        # can hold as many as 2**16 = 64K entries.  So this max() should go
+        # fast too.  Regardless, there's no faster way to find the largest
+        # prefix.
+        biggest_prefix = max(keys)
+        tree = self._data[biggest_prefix]
+
+        # Obscure:  what if tree is actually empty?  We're relying here on
+        # that this class doesn't implement __delitem__:  once a key gets
+        # into an fsIndex, the only way it can go away is by invoking
+        # clear().  Therefore nothing in _data.values() is ever empty.
+        #
+        # Note that because `tree` is an fsBTree, its maxKey() method is very
+        # efficient.
+        assert tree
+        return biggest_prefix + tree.maxKey()
