@@ -319,6 +319,9 @@ class ClientStorage(object):
     def _wait(self, timeout=None):
         if timeout is not None:
             deadline = time.time() + timeout
+            log2(BLATHER, "Setting deadline to %f" % deadline)
+        else:
+            deadline = None
         # Wait for a connection to be established.
         self._rpc_mgr.connect(sync=1)
         # When a synchronous connect() call returns, there is
@@ -336,19 +339,22 @@ class ClientStorage(object):
                     break
                 log2(INFO, "Waiting for cache verification to finish")
         else:
-            self._wait_sync()
+            self._wait_sync(deadline)
 
-    def _wait_sync(self):
+    def _wait_sync(self, deadline=None):
         # If there is no mainloop running, this code needs
         # to call poll() to cause asyncore to handle events.
         while 1:
             if self._ready.isSet():
                 break
+            if deadline and time.time() > deadline:
+                log2(PROBLEM, "Timed out waiting for connection")
+                break
             log2(INFO, "Waiting for cache verification to finish")
             if self._connection is None:
                 # If the connection was closed while we were
                 # waiting for it to become ready, start over.
-                return self._wait()
+                return self._wait(deadline - time.time())
             else:
                 self._connection.pending(30)
 
