@@ -113,47 +113,59 @@ exec %(zdctl)s -C "$INSTANCE/etc/%(package)sctl.conf" ${1+"$@"}
 """
 
 def main():
-    try:
-        opts, args = getopt.getopt(sys.argv[1:], "h", ["help"])
-    except getopt.error, msg:
-        print msg
-        sys.exit(2)
-    program = os.path.basename(sys.argv[0])
-    if opts:
-        # There's only the help options, so just dump some help:
-        msg = __doc__ % {"program": program}
-        print msg
-        sys.exit()
-    if len(args) not in [1, 2]:
-        print "Usage: %s home [port]" % program
-        sys.exit(2)
-    home = args[0]
-    if not os.path.isabs(home):
-        home = os.path.abspath(home)
-    if args[1:]:
-        port = int(args[1])
-    else:
-        port = 9999
-    checkport(port)
-    params = {
-        "package": "zeo",
-        "PACKAGE": "ZEO",
-        "home": home,
-        "port": port,
-        "python": sys.executable,
-        "server": which("runzeo.py"),
-        "zdrun": which("zdrun.py"),
-        "zdctl": which("zdctl.py"),
-        }
-    makedir(home)
-    makedir(home, "etc")
-    makedir(home, "var")
-    makedir(home, "log")
-    makedir(home, "bin")
-    makefile(zeo_conf_template, home, "etc", "zeo.conf", **params)
-    makefile(runner_conf_template, home, "etc", "zeoctl.conf", **params)
-    makexfile(zdctl_template, home, "bin", "zeoctl", **params)
+    ZEOInstanceBuilder().run()
     print "All done."
+
+
+class ZEOInstanceBuilder:
+    def run(self):
+        try:
+            opts, args = getopt.getopt(sys.argv[1:], "h", ["help"])
+        except getopt.error, msg:
+            print msg
+            sys.exit(2)
+        program = os.path.basename(sys.argv[0])
+        if opts:
+            # There's only the help options, so just dump some help:
+            msg = __doc__ % {"program": program}
+            print msg
+            sys.exit()
+        if len(args) not in [1, 2]:
+            print "Usage: %s home [port]" % program
+            sys.exit(2)
+        home = args[0]
+        if not os.path.isabs(home):
+            home = os.path.abspath(home)
+        if args[1:]:
+            port = int(args[1])
+        else:
+            port = 9999
+        checkport(port)
+        params = self.get_params(home, port)
+        self.create(home, params)
+
+    def get_params(self, home, port):
+        return {
+            "package": "zeo",
+            "PACKAGE": "ZEO",
+            "home": home,
+            "port": port,
+            "python": sys.executable,
+            "server": which("runzeo.py"),
+            "zdrun": which("zdrun.py"),
+            "zdctl": which("zdctl.py"),
+            }
+
+    def create(self, home, params):
+        makedir(home)
+        makedir(home, "etc")
+        makedir(home, "var")
+        makedir(home, "log")
+        makedir(home, "bin")
+        makefile(zeo_conf_template, home, "etc", "zeo.conf", **params)
+        makefile(runner_conf_template, home, "etc", "zeoctl.conf", **params)
+        makexfile(zdctl_template, home, "bin", "zeoctl", **params)
+
 
 def checkport(port):
     import socket
