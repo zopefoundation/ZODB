@@ -115,7 +115,7 @@
 #   may have a back pointer to a version record or to a non-version
 #   record.
 #
-__version__='$Revision: 1.98 $'[11:-2]
+__version__='$Revision: 1.99 $'[11:-2]
 
 import base64
 from cPickle import Pickler, Unpickler, loads
@@ -1088,43 +1088,16 @@ class FileStorage(BaseStorage.BaseStorage,
             if self._packt is None:
                 raise UndoError(
                     'Undo is currently disabled for database maintenance.<p>')
-            pos = self._pos
-            r = []
-            i = 0
-            # BAW: Why 39 please?  This makes no sense (see also below).
-            while i < last and pos > 39:
-                self._file.seek(pos - 8)
-                pos = pos - U64(self._file.read(8)) - 8
-                self._file.seek(pos)
-                h = self._file.read(TRANS_HDR_LEN)
-                tid, tl, status, ul, dl, el = struct.unpack(">8s8scHHH", h)
-                if tid < self._packt or status == 'p':
-                    break
-                if status != ' ':
-                    continue
-                d = u = ''
-                if ul:
-                    u = self._file.read(ul)
-                if dl:
-                    d = self._file.read(dl)
-                e = {}
-                if el:
-                    try:
-                        e = loads(read(el))
-                    except:
-                        pass
-                d = {'id': base64.encodestring(tid).rstrip(),
-                     'time': TimeStamp(tid).timeTime(),
-                     'user_name': u,
-                     'description': d}
-                d.update(e)
-                if filter is None or filter(d):
-                    if i >= first:
-                        r.append(d)
-                    i += 1
-            return r
+            us = UndoSearch(self._file, self._pos, self._packt,
+                            first, last, filter)
+            while not us.finished():
+                us.search()
+            return us.results
         finally:
             self._lock_release()
+
+    def undoFindNext(self, pos, result, first, i, filter):
+        pass
 
     def transactionalUndo(self, transaction_id, transaction):
         """Undo a transaction, given by transaction_id.
@@ -2413,3 +2386,59 @@ class Record(BaseStorage.DataRecord):
     """
     def __init__(self, *args):
         self.oid, self.serial, self.version, self.data = args
+
+class UndoSearch:
+
+    def __init__(self, file, pos, packt, first, last, filter=None):
+        self.file = file
+        self.pos = pos
+        self.packt = packt
+        self.first = first
+        self.last = last
+        self.filter = filter
+        self.i = 0
+        self.results = []
+        self.stop = 0
+
+    def finished(self):
+        """Return True if UndoSearch has found enough records."""
+        # BAW: Why 39 please?  This makes no sense (see also below).
+        return self.i >= self.last or self.pos < 39 or self.stop
+
+    def search(self):
+        """Search for another record."""
+        dict = self._readnext()
+        if self.filter is None or self.filter(d):
+            if self.i >= self.first:
+                self.results.append(dict)
+            self.i += 1
+
+    def _readnext(self):
+        """Read the next record from the storage."""
+        self.file.seek(self.pos - 8)
+        self.pos -= U64(self.file.read(8)) + 8
+        self.file.seek(self.pos)
+        h = self.file.read(TRANS_HDR_LEN)
+        tid, tl, status, ul, dl, el = struct.unpack(">8s8scHHH", h)
+        if tid < self.packt or status == 'p':
+            self.stop = 1
+            return None
+        if status != ' ':
+            return None
+        d = u = ''
+        if ul:
+            u = self.file.read(ul)
+        if dl:
+            d = self.file.read(dl)
+        e = {}
+        if el:
+            try:
+                e = loads(self.file.read(el))
+            except:
+                pass
+        d = {'id': base64.encodestring(tid).rstrip(),
+             'time': TimeStamp(tid).timeTime(),
+             'user_name': u,
+             'description': d}
+        d.update(e)
+        return d
