@@ -12,7 +12,7 @@
 
  ****************************************************************************/
 
-#define BTREETEMPLATE_C "$Id: BTreeTemplate.c,v 1.61 2002/06/17 23:55:48 tim_one Exp $\n"
+#define BTREETEMPLATE_C "$Id: BTreeTemplate.c,v 1.62 2002/06/18 22:56:01 tim_one Exp $\n"
 
 /*
 ** _BTree_get
@@ -777,15 +777,18 @@ _BTree_setstate(BTree *self, PyObject *state, int noval)
 
       if ((len=PyTuple_Size(items)) < 0) return -1;
       len=(len+1)/2;
+      assert(len > 0);
 
+      assert(self->size == 0); /* XXX we called _BTree_clear() above! */
+      assert(self->data == NULL); /* ditto */
       if (len > self->size)
         {
-          UNLESS (d=PyRealloc(self->data, sizeof(BTreeItem)*len)) return -1;
-          self->data=d;
-          self->size=len;
+          UNLESS (d = PyRealloc(self->data, sizeof(BTreeItem)*len)) return -1;
+          self->data = d;
+          self->size = len;
         }
 
-      for (i=0, d=self->data, l=0; i < len; i++, d++)
+      for (i = 0, d = self->data, l = 0; i < len; i++, d++)
         {
           if (i)
             {
@@ -823,6 +826,7 @@ _BTree_setstate(BTree *self, PyObject *state, int noval)
           l++;
         }
 
+      assert(len > 0);
       if (len)
         {
           if (! firstbucket)
@@ -839,9 +843,10 @@ _BTree_setstate(BTree *self, PyObject *state, int noval)
 
           self->firstbucket = BUCKET(firstbucket);
           Py_INCREF(firstbucket);
+          assert(firstbucket->ob_refcnt > 1);
         }
 
-      self->len=len;
+      self->len = len;
     }
 
   return 0;
