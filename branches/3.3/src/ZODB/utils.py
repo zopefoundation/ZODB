@@ -76,7 +76,7 @@ def oid_repr(oid):
         return repr(oid)
 
 serial_repr = oid_repr
-tid_repr = oid_repr
+tid_repr = serial_repr
 
 # For example, produce
 #     '0x03441422948b4399 2002-04-14 20:50:34.815000'
