@@ -82,7 +82,7 @@
   attributions are listed in the accompanying credits file.
   
  ****************************************************************************/
-static char *what_string = "$Id: cPickleCache.c,v 1.23 1999/06/13 12:27:38 jim Exp $";
+static char *what_string = "$Id: cPickleCache.c,v 1.24 1999/06/29 18:27:05 jim Exp $";
 
 #define ASSIGN(V,E) {PyObject *__e; __e=(E); Py_XDECREF(V); (V)=__e;}
 #define UNLESS(E) if(!(E))
@@ -399,6 +399,26 @@ cc_invalidate(ccobject *self, PyObject *args)
   return Py_None;
 }
   
+  
+static PyObject *
+cc_get(ccobject *self, PyObject *args)
+{
+  PyObject *r, *key, *d=0;
+
+  UNLESS (PyArg_ParseTuple(args,"O|O", &key, &d)) return NULL;
+
+  UNLESS (r=PyDict_GetItem(self->data, key)) r=d;
+  UNLESS (d) 
+  {
+    PyErr_SetObject(PyExc_KeyError, key);
+    return NULL;
+  }
+  if (maybegc(self,r) < 0) return NULL;
+
+  Py_INCREF(r);
+  return r;
+}
+
 
 static struct PyMethodDef cc_methods[] = {
   {"full_sweep", (PyCFunction)cc_full_sweep, METH_VARARGS,
@@ -418,6 +438,8 @@ static struct PyMethodDef cc_methods[] = {
    "incrgc() -- Perform incremental garbage collection"},
   {"invalidate", (PyCFunction)cc_invalidate, METH_VARARGS,
    "invalidate(oids) -- invalidate one, many, or all ids"},
+  {"get", (PyCFunction)cc_get, METH_VARARGS,
+   "get(key [, default]) -- get an item, or a default"},
   {NULL,		NULL}		/* sentinel */
 };
 
@@ -622,7 +644,7 @@ void
 initcPickleCache()
 {
   PyObject *m, *d;
-  char *rev="$Revision: 1.23 $";
+  char *rev="$Revision: 1.24 $";
 
   Cctype.ob_type=&PyType_Type;
 
