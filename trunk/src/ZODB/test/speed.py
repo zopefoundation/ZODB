@@ -30,7 +30,7 @@ class P(Persistence.Persistent): pass
 
 def main(args):
 
-    opts, args = getopt.getopt(args, 'zd:n:Ds:M')
+    opts, args = getopt.getopt(args, 'zd:n:Ds:L')
     z=s=None
     data=sys.argv[0]
     nrep=5
