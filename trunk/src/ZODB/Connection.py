@@ -13,7 +13,7 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.134 2004/03/04 16:15:55 jeremy Exp $"""
+$Id: Connection.py,v 1.135 2004/03/04 19:48:03 jeremy Exp $"""
 
 import logging
 import sys
@@ -102,20 +102,30 @@ class Connection(ExportImport, object):
 
     XXX Mention the database pool.
 
-    $Id: Connection.py,v 1.134 2004/03/04 16:15:55 jeremy Exp $
-    
-    @group User Methods: root, get, add, close, db, sync, isReadOnly,
-        cacheGC, cacheFullSweep, cacheMinimize, getVersion, modifiedInVersion
-    @group Experimental Methods: setLocalTransaction, getTransaction,
-        onCloseCallbacks
-    @group Transaction Data Manager Methods: tpc_begin, tpc_vote,
-        tpc_finish, tpc_abort, sortKey, abort, commit, commit_sub,
-        abort_sub
-    @group Database Invalidation Methods: invalidate, _setDB
-    @group IPersistentDataManager Methods: setstate, register,
-        setklassstate
-    @group Other Methods: oldstate, exchange, getDebugInfo, setDebugInfo,
-        getTransferCounts
+    The Connection plays several different roles.
+
+    It provides a user-visible interface for accessing objects.  These
+    methods are designed for use by application code: root(), get(),
+    add(), close(), db(), sync(), isReadOnly(), cacheGC(),
+    cacheMinimize(), getVersion(), modifiedInVersion().
+
+    The Connection also interacts with the transaction manager to
+    store changes and make changes by other clients visible.  These
+    methods participate in that collaoration: tpc_begin(), tpc_vote(),
+    tpc_finish(), tpc_abort(), sortKey(), abort(), commit(),
+    commit_sub(), abort_sub().
+
+    The Connection normally used the standard get_transaction()
+    mechanism for finding the current Transaction.  The experimental
+    setLocalTransaction() and getLocationTransaction() methods can be
+    used to provide a fixed Transaction.
+
+    The Connection also implements the IPersistentDataManager
+    interface, which provides methods for persistent objects to load
+    their state and register changes.  The methods are setstate(),
+    register(), setklassstate().
+
+    $Id: Connection.py,v 1.135 2004/03/04 19:48:03 jeremy Exp $
     """
 
     _tmp = None
@@ -221,7 +231,7 @@ class Connection(ExportImport, object):
         return '<Connection at %08x%s>' % (id(self), ver)
 
     def get(self, oid):
-        """Return the persistent object with oid C{oid}.
+        """Return the persistent object with oid 'oid'.
 
         If the object was not in the cache and the object's class is
         ghostable, then a ghost will be returned.  If the object is
@@ -231,10 +241,12 @@ class Connection(ExportImport, object):
         Applications seldom need to call this method, because objects
         are loaded transparently during attribute lookup.
 
-        @return: persistent object
-        @rtype: L{IPersistent}
-        @raise KeyError: If C{oid} does not exist.
-        @raise RuntimeError: If the connection is closed.
+        get() raises KeyError if oid does not exist.  It is possible
+        that an object does not exist as of the current transaction,
+        but existed in the past.  It may even exist again in the future, if
+        the transaction that removed it is undone.
+        
+        get() raises RuntimeError if the connectio is closed.
         """
         if self._storage is None:
             # XXX Should this be a ZODB-specific exception?
@@ -262,26 +274,26 @@ class Connection(ExportImport, object):
     __getitem__ = get
 
     def add(self, obj):
-        """Add a new object C{obj} to the database and assign it an oid.
+        """Add a new object 'obj' to the database and assign it an oid.
 
         A persistent object is normally added to the database and
         assigned an oid when it becomes reachable an object already in
         the database.  In some cases, it is useful to create a new
-        object and uses its oid (C{_p_oid}) in a single transaction.
+        object and uses its oid (_p_oid) in a single transaction.
 
         This method assigns a new oid regardless of whether the object
         is reachable.
 
         The object is added when the transaction commits.  The object
-        must implement the L{IPersistent} interface and must not
-        already be associated with a L{Connection}.
+        must implement the IPersistent interface and must not
+        already be associated with a Connection.
 
-        @param obj: the object to add
-        @type obj: L{IPersistent}
-        @raise TypeError: If C{obj} is not a persistent object.
-        @raise InvalidObjectReference: If C{obj} is already associated
-            with another connection.
-        @raise RuntimeError: If the connection is closed.
+        add() raises TypeError if obj is not a persistent object.
+
+        add() raises InvalidObjectReference if obj is already associated
+        with another connection.
+
+        add() raises RuntimeError if the connection is closed.
         """
         if self._storage is None:
             # XXX Should this be a ZODB-specific exception?
@@ -312,16 +324,13 @@ class Connection(ExportImport, object):
         return "%s:%s" % (storage_key, id(self))
 
     def _setDB(self, odb):
-        """Register C{odb}, the L{DB} that this Connection uses.
+        """Register odb, the DB that this Connection uses.
 
-        This method is called by the L{DB} every time a C{Connection}
-        is opened.  Any invalidations received while the C{Connection}
+        This method is called by the DB every time a Connection
+        is opened.  Any invalidations received while the Connection
         was closed will be processed.
 
-        If L{resetCaches} was caused, the cache will be cleared.
-
-        @param odb: the database that owns the C{Connection}
-        @type L{DB}
+        If resetCaches() was called, the cache will be cleared.
         """
 
         # XXX Why do we go to all the trouble of setting _db and
@@ -391,8 +400,8 @@ class Connection(ExportImport, object):
         it into a ghost.  It is possible for individual objects to
         remain active.
 
-        @param dt: The dt argument is provided only for backwards
-            compatibility.  It is ignored.
+        The dt argument is provided only for backwards compatibility.
+        It is ignored.
         """
         if dt is not None:
             warnings.warn("The dt argument to cacheMinimize is ignored.",
@@ -410,9 +419,9 @@ class Connection(ExportImport, object):
     __onCloseCallbacks = None
 
     def onCloseCallback(self, f):
-        """Register a callable C{f} to be called by L{close}.
+        """Register a callable, f, to be called by close().
 
-        The callable C{f} will be called at most once, the next time
+        The callable, f, will be called at most once, the next time
         the Connection is closed.
         """
         if self.__onCloseCallbacks is None:
@@ -420,15 +429,15 @@ class Connection(ExportImport, object):
         self.__onCloseCallbacks.append(f)
 
     def close(self):
-        """Close the C{Connection}.
+        """Close the Connection.
 
-        A closed C{Connection} should not be used by client code.  It
+        A closed Connection should not be used by client code.  It
         can't load or store objects.  Objects in the cache are not
-        freed, because C{Connections} are re-used and the cache are
+        freed, because Connections are re-used and the cache are
         expected to be useful to the next client.
 
         When the Connection is closed, all callbacks registered by
-        L{onCloseCallback} are invoked and the cache is scanned for
+        onCloseCallback() are invoked and the cache is scanned for
         old objects.
         """
         if self._cache is not None:
@@ -605,20 +614,17 @@ class Connection(ExportImport, object):
         return self._storage.isReadOnly()
 
     def invalidate(self, tid, oids):
-        """Notify the Connection that C{tid} Invalidated C{oids}.
+        """Notify the Connection that transaction 'tid' invalidated oids.
 
         When the next transaction boundary is reached, objects will be
         invalidated.  If any of the invalidated objects is accessed by
         the current transaction, the revision written before C{tid}
         will be used.
 
-        The L{DB} calls this method, even when the C{Connection} is
-        closed.
+        The DB calls this method, even when the Connection is closed.
 
-        @param tid: id of transaction that committed
-        @type tid: C{string}
-        @param oids: set of oids
-        @type oids: C{dict} with oids as keys
+        tid is the storage-level id of the transaction that committed.
+        oids is a set of oids, represented as a dict with oids as keys.
         """
         self._inv_lock.acquire()
         try:
@@ -649,10 +655,12 @@ class Connection(ExportImport, object):
             return self._version
 
     def register(self, obj):
-        """Register C{obj} with the current transaction manager.
+        """Register obj with the current transaction manager.
 
         A subclass could override this method to customize the default
         policy of one transaction manager for each thread.
+
+        obj must be an object loaded from this Connection.
         """
         assert obj._p_jar is self
         if obj._p_oid is None:
@@ -669,10 +677,9 @@ class Connection(ExportImport, object):
         self.getTransaction().register(obj)
 
     def root(self):
-        """Get the database root object.
+        """Return the database root object.
 
-        @return: the database root object
-        @rtype: C{persistent.dict.PersistentDict}
+        The root is a PersistentDict.
         """
         return self.get(z64)
 
@@ -799,15 +806,14 @@ class Connection(ExportImport, object):
             raise ReadConflictError(object=obj)
 
     def oldstate(self, obj, tid):
-        """Return copy of C{obj} that was written by C{tid}.
+        """Return copy of obj that was written by tid.
 
-        @param obj: the persistent object to retrieve an old revision of
-        @type obj: L{IPersistent}
-        @param tid: id of transaction that wrote revision
-        @type tid: C{string}
+        obj is a persistent object from this Connection.  An earlier
+        version of obj's state will be loaded using tid, the id of a
+        transaction that wrote an earlier revision.
 
-        @raise KeyError: If C{tid} does not exist or if C{tid} deleted
-            a revision of C{obj}
+        oldstate() raises KeyError if tid does not exist or if tid deleted
+        a revision of obj.
         """
         assert obj._p_jar is self
         p = self._storage.loadSerial(obj._p_oid, tid)
