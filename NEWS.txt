@@ -1,6 +1,6 @@
 What's new in ZODB3 3.3?
 ========================
-Release date: 17-Sep-2004
+Release date: 06-Oct-2004
 
 ZEO
 ---
