@@ -228,12 +228,15 @@ class ConnectionTests(CommonSetupTearDown):
         # If we can still store after shutting down one of the
         # servers, we must be reconnecting to the other server.
 
+        did_a_store = 0
         for i in range(10):
             try:
                 self._dostore()
+                did_a_store = 1
                 break
             except ClientDisconnected:
                 time.sleep(0.5)
+        self.assert_(did_a_store)
         self._storage.close()
 
     def checkReadOnlyClient(self):
