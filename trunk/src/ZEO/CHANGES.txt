@@ -1,5 +1,21 @@
 Zope Enterprise Objects (ZEO) Revision History
 
+  ZEO 0.4.1
+
+    Bugs fixed
+
+      - Improperly handled server exeptions could cause clients to
+        lock up.
+
+      - Misshandling of client transaction meta data could cause
+        server errors because transaction ids were mangled.
+
+      - The storage server didn't close sockets on shutdown. This
+        could sometimes make it necessary to wait before restarting
+        the server to avoid "address already in use" messages.
+
+      - The storage server did not log shutdown.
+
   ZEO 0.4
 
     Bugs fixed
