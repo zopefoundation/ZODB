@@ -83,3 +83,10 @@
 # 
 ##############################################################################
 
+# if we are using an old version of Python, our asyncore is likely to
+# be out of date.  If ZServer is sitting around, we can get a current
+# version of ayncore from it. In any case, if we are going to be used
+# with Zope, it's important to use the version from Zope.
+try: import ZServer
+except: pass
+
