@@ -36,7 +36,7 @@ ZEO_VERSION = 2
 
 def check_server(addr, storage, write):
     if ZEO_VERSION == 2:
-        cs = ClientStorage(addr, storage=storage, debug=1, wait=1)
+        cs = ClientStorage(addr, storage=storage, wait=1, read_only=1)
     else:
         cs = ClientStorage(addr, storage=storage, debug=1,
                            wait_for_server_on_startup=1)
