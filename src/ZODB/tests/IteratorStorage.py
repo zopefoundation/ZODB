@@ -115,6 +115,16 @@ class IteratorStorage(IteratorCompare):
         self.assertEqual(rec.oid, oid)
         self.assertEqual(rec.data, None)
 
+    def checkTransactionExtensionFromIterator(self):
+        oid = self._storage.new_oid()
+        revid = self._dostore(oid, data=MinPO(1))
+        iter = self._storage.iterator()
+        count = 0
+        for txn in iter:
+            self.assertEqual(txn._extension, {})
+            count +=1
+        self.assertEqual(count, 1)
+
 
 class ExtendedIteratorStorage(IteratorCompare):
 
