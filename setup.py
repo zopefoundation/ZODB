@@ -43,8 +43,8 @@ from distutils.command.install_lib import install_lib
 from distutils.command.build_py import build_py
 from distutils.util import convert_path
 
-if sys.version_info < (2, 3):
-    print "ZODB 3.3 requires Python 2.3 or higher"
+if sys.version_info < (2, 3, 4):
+    print "ZODB 3.3 requires Python 2.3.4 or higher"
     sys.exit(0)
 
 # Include directories for C extensions
