@@ -43,7 +43,8 @@ def main(args):
             global zlib
             import zlib
             z=compress
-        elif o=='-M': minimize=1
+        elif o=='-M':
+            minimize=1
         elif o=='-D':
             global debug
             os.environ['STUPID_LOG_FILE']=''
