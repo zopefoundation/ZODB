@@ -14,12 +14,12 @@
 ##############################################################################
 """Trace file statistics analyzer.
 
-Usage: stats.py [-h] [-i interval] [-q] [-v] [-S] tracefile
+Usage: stats.py [-h] [-i interval] [-q] [-S] [-v] tracefile
 -h: print histogram
 -i: summarizing interval in minutes (default 15; max 60)
--q: quiet; don't print sommaries
+-q: quiet; don't print summaries
+-S: don't print statistics
 -v: verbose; print each record
--S: don't print statistics (turns off -q)
 """
 
 """File format:
@@ -66,11 +66,13 @@ def main():
     print_histogram = 0
     interval = 900 # Every 15 minutes
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "hi:qvSh")
+        opts, args = getopt.getopt(sys.argv[1:], "hi:qSv")
     except getopt.error, msg:
         usage(msg)
         return 2
     for o, a in opts:
+        if o == '-h':
+            print_histogram = 1
         if o == "-i":
             interval = int(60 * float(a))
             if interval <= 0:
@@ -80,14 +82,10 @@ def main():
         if o == "-q":
             quiet = 1
             verbose = 0
-        if o == "-v":
-            verbose = 1
         if o == "-S":
             dostats = 0
+        if o == "-v":
             verbose = 1
-            quiet = 0
-        if o == '-h':
-            print_histogram = 1
     if len(args) != 1:
         usage("exactly one file argument required")
         return 2
@@ -225,25 +223,27 @@ def main():
                 addcommas(bycode.get(code, 0)),
                 code,
                 explain.get(code) or "*** unknown code ***")
-        if print_histogram:
-            print
-            print "Histogram of object load frequency"
-            total = len(oids)
-            s = addcommas(total)
-            print "Unique oids: %s" % addcommas(total)
-            print "Total loads: %s" % addcommas(total_loads)
-            width = max(len(s), len("objects"))
-            fmt = "%5d %" + str(width) + "s %3d%% %5.1f%% %4d%%"
-            hdr = "%5s %" + str(width) + "s %4s %6s %5s"
-            print hdr % ("loads", "objects", "%obj", "%load", "%cum")
-            cum = 0.0
-            for binsize, count in histogram(oids):
-                obj_percent = 100 * count / total
-                load_percent = 1000 * count * binsize / total_loads
-                load_percent /= 10.
-                cum += load_percent
-                print fmt % (binsize, addcommas(count),
-                             obj_percent, load_percent, cum)
+
+    # Print histogram
+    if print_histogram:
+        print
+        print "Histogram of object load frequency"
+        total = len(oids)
+        s = addcommas(total)
+        print "Unique oids: %s" % addcommas(total)
+        print "Total loads: %s" % addcommas(total_loads)
+        width = max(len(s), len("objects"))
+        fmt = "%5d %" + str(width) + "s %3d%% %5.1f%% %4d%%"
+        hdr = "%5s %" + str(width) + "s %4s %6s %5s"
+        print hdr % ("loads", "objects", "%obj", "%load", "%cum")
+        cum = 0.0
+        for binsize, count in histogram(oids):
+            obj_percent = 100 * count / total
+            load_percent = 1000 * count * binsize / total_loads
+            load_percent /= 10.
+            cum += load_percent
+            print fmt % (binsize, addcommas(count),
+                         obj_percent, load_percent, cum)
 
 def dumpbyinterval(byinterval, h0, he):
     loads = 0
