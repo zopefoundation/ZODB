@@ -141,6 +141,7 @@ packages = ["BTrees", "BTrees.tests",
             ]
 
 scripts = ["src/scripts/fsdump.py",
+           "src/scripts/fsoids.py",
            "src/scripts/fsrefs.py",
            "src/scripts/fstail.py",
            "src/scripts/fstest.py",

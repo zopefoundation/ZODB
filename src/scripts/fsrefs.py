@@ -63,47 +63,16 @@ revisions of objects; therefore fsrefs cannot find problems in versions or
 in non-current revisions.
 """
 
-import cPickle
-import cStringIO
 import traceback
 import types
 
 from ZODB.FileStorage import FileStorage
 from ZODB.TimeStamp import TimeStamp
-from ZODB.utils import u64, oid_repr
+from ZODB.utils import u64, oid_repr, get_refs
 from ZODB.FileStorage.fsdump import get_pickle_metadata
 from ZODB.POSException import POSKeyError
 
 VERBOSE = 0
-
-# So full of undocumented magic it's hard to fathom.
-# The existence of cPickle.noload() isn't documented, and what it
-# does isn't documented either.  In general it unpickles, but doesn't
-# actually build any objects of user-defined classes.  Despite that
-# persistent_load is documented to be a callable, there's an
-# undocumented gimmick where if it's actually a list, for a PERSID or
-# BINPERSID opcode cPickle just appends "the persistent id" to that list.
-# Also despite that "a persistent id" is documented to be a string,
-# ZODB persistent ids are actually (often? always?) tuples, most often
-# of the form
-#     (oid, (module_name, class_name))
-# So the effect of the following is to dig into the object pickle, and
-# return a list of the persistent ids found (which are usually nested
-# tuples), without actually loading any modules or classes.
-# Note that pickle.py doesn't support any of this, it's undocumented code
-# only in cPickle.c.
-def get_refs(pickle):
-    # The pickle is in two parts.  First there's the class of the object,
-    # needed to build a ghost,  See get_pickle_metadata for how complicated
-    # this can get.  The second part is the state of the object.  We want
-    # to find all the persistent references within both parts (although I
-    # expect they can only appear in the second part).
-    f = cStringIO.StringIO(pickle)
-    u = cPickle.Unpickler(f)
-    u.persistent_load = refs = []
-    u.noload() # class info
-    u.noload() # instance state info
-    return refs
 
 # There's a problem with oid.  'data' is its pickle, and 'serial' its
 # serial number.  'missing' is a list of (oid, class, reason) triples,
