@@ -13,7 +13,7 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.97 2003/06/13 17:03:39 jeremy Exp $"""
+$Id: Connection.py,v 1.98 2003/06/13 21:53:08 jeremy Exp $"""
 
 from __future__ import nested_scopes
 
@@ -25,6 +25,7 @@ from zLOG import LOG, ERROR, BLATHER, WARNING
 from coptimizations import new_persistent_id
 from ConflictResolution import ResolvedSerial
 from Transaction import Transaction, get_transaction
+from ZODB.utils import oid_repr
 
 from cPickle import Unpickler, Pickler
 from cStringIO import StringIO
@@ -547,7 +548,7 @@ class Connection(ExportImport.ExportImport):
 
         if self._storage is None:
             msg = ("Shouldn't load state for %s "
-                   "when the connection is closed" % `oid`)
+                   "when the connection is closed" % oid_repr(oid))
             LOG('ZODB', ERROR, msg)
             raise RuntimeError(msg)
 
@@ -569,7 +570,8 @@ class Connection(ExportImport.ExportImport):
         except ConflictError:
             raise
         except:
-            LOG('ZODB',ERROR, "Couldn't load state for %s" % `oid`,
+            LOG('ZODB', ERROR,
+                "Couldn't load state for %s" % oid_repr(oid),
                 error=sys.exc_info())
             raise
 
