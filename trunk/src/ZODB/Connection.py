@@ -13,7 +13,7 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.127 2004/02/27 00:31:53 faassen Exp $"""
+$Id: Connection.py,v 1.128 2004/02/27 14:46:19 jeremy Exp $"""
 
 import logging
 import sys
@@ -24,6 +24,7 @@ from time import time
 from utils import u64
 
 from persistent import PickleCache
+from persistent.interfaces import IPersistent
 
 from ZODB.ConflictResolution import ResolvedSerial
 from ZODB.ExportImport import ExportImport
@@ -101,6 +102,8 @@ class Connection(ExportImport, object):
 
     XXX Mention the database pool.
 
+    $Id: Connection.py,v 1.128 2004/02/27 14:46:19 jeremy Exp $
+    
     @group User Methods: root, get, add, close, db, sync, isReadOnly,
         cacheFullSweep, cacheMinimize, getVersion, modifiedInVersion
     @group Experimental Methods: setLocalTransaction, getTransaction,
@@ -113,8 +116,6 @@ class Connection(ExportImport, object):
         setklassstate
     @group Other Methods: oldstate, exchange, getDebugInfo, setDebugInfo,
         getTransferCounts
-
-    $Id: Connection.py,v 1.127 2004/02/27 00:31:53 faassen Exp $
     """
 
     _tmp = None
@@ -269,7 +270,7 @@ class Connection(ExportImport, object):
         is reachable.
 
         The object is added when the transaction commits.  The object
-        must implement the L{IPersisent} interface and must not
+        must implement the L{IPersistent} interface and must not
         already be associated with a L{Connection}.
 
         @param obj: the object to add
@@ -308,10 +309,23 @@ class Connection(ExportImport, object):
         return "%s:%s" % (storage_key, id(self))
 
     def _setDB(self, odb):
-        """Begin a new transaction.
+        """Register C{odb}, the L{DB} that this Connection uses.
 
-        Any objects modified since the last transaction are invalidated.
+        This method is called by the L{DB} every time a C{Connection}
+        is opened.  Any invalidations received while the C{Connection}
+        was closed will be processed.
+
+        If L{resetCaches} was caused, the cache will be cleared.
+
+        @param odb: the database that owns the C{Connection}
+        @type L{DB}
         """
+
+        # XXX Why do we go to all the trouble of setting _db and
+        # other attributes on open and clearing them on close?
+        # A Connection is only ever associated with a single DB
+        # and Storage.
+        
         self._db = odb
         self._storage = odb._storage
         self._sortKey = odb._storage.sortKey
@@ -324,8 +338,6 @@ class Connection(ExportImport, object):
         self._reader = ConnectionObjectReader(self, self._cache,
                                               self._db._classFactory)
         self._opened = time()
-
-        return self
 
     def _resetCache(self):
         """Creates a new cache, discarding the old.
@@ -395,7 +407,7 @@ class Connection(ExportImport, object):
         expected to be useful to the next client.
 
         When the Connection is closed, all callbacks registered by
-        L{onCloseCallbacks} are invoked and the cache is scanned for
+        L{onCloseCallback} are invoked and the cache is scanned for
         old objects.
         """
         if self._incrgc is not None:
@@ -572,11 +584,20 @@ class Connection(ExportImport, object):
         return self._storage.isReadOnly()
 
     def invalidate(self, tid, oids):
-        """Invalidate a set of oids.
+        """Notify the Connection that C{tid} Invalidated C{oids}.
 
-        This marks the oid as invalid, but doesn't actually invalidate
-        it.  The object data will be actually invalidated at certain
-        transaction boundaries.
+        When the next transaction boundary is reached, objects will be
+        invalidated.  If any of the invalidated objects is accessed by
+        the current transaction, the revision written before C{tid}
+        will be used.
+
+        The L{DB} calls this method, even when the C{Connection} is
+        closed.
+
+        @param tid: id of transaction that committed
+        @type tid: C{string}
+        @param oids: set of oids
+        @type oids: C{dict} with oids as keys
         """
         self._inv_lock.acquire()
         try:
@@ -606,14 +627,14 @@ class Connection(ExportImport, object):
         except KeyError:
             return self._version
 
-    def register(self, object):
-        """Register an object with the appropriate transaction manager.
+    def register(self, obj):
+        """Register C{obj} with the current transaction manager.
 
         A subclass could override this method to customize the default
         policy of one transaction manager for each thread.
         """
-        assert object._p_jar is self
-        if object._p_oid is not None:
+        assert obj._p_jar is self
+        if obj._p_oid is not None:
             # There is some old Zope code that assigns _p_jar
             # directly.  That is no longer allowed, but we need to
             # provide support for old code that still does it.
@@ -624,7 +645,7 @@ class Connection(ExportImport, object):
             # a way, this will be a very confusing warning.
             warnings.warn("Assigning to _p_jar is deprecated",
                           PendingDeprecationWarning)
-        self.getTransaction().register(object)
+        self.getTransaction().register(obj)
 
     def root(self):
         """Get the database root object.
