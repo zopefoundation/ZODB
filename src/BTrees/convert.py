@@ -21,8 +21,8 @@ def convert(old, new, threshold=200, f=None):
         n=n+1
         if n > threshold:
             get_transaction().commit(1)
-            old._p_jar.cacheMinimize(3)
+            old._p_jar.cacheMinimize()
             n=0
 
     get_transaction().commit(1)
-    old._p_jar.cacheMinimize(3)
+    old._p_jar.cacheMinimize()
