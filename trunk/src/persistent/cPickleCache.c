@@ -14,7 +14,7 @@
 static char cPickleCache_doc_string[] = 
 "Defines the PickleCache used by ZODB Connection objects.\n"
 "\n"
-"$Id: cPickleCache.c,v 1.40 2002/02/11 23:40:42 gvanrossum Exp $\n";
+"$Id: cPickleCache.c,v 1.41 2002/03/08 18:36:14 jeremy Exp $\n";
 
 /* Compute the current time in the units and range used for peristent
    objects. */
@@ -497,7 +497,7 @@ cc_dealloc(ccobject *self)
     Py_XDECREF(self->data);
     Py_XDECREF(self->jar);
     Py_XDECREF(self->setklassstate);
-    PyMem_DEL(self);
+    PyObject_DEL(self);
 }
 
 static PyObject *

@@ -14,7 +14,7 @@
 static char cPersistence_doc_string[] = 
 "Defines Persistent mixin class for persistent objects.\n"
 "\n"
-"$Id: cPersistence.c,v 1.49 2002/02/11 23:40:42 gvanrossum Exp $\n";
+"$Id: cPersistence.c,v 1.50 2002/03/08 18:36:13 jeremy Exp $\n";
 
 #include <string.h>
 #include "cPersistence.h"
@@ -336,7 +336,7 @@ Per_dealloc(cPersistentObject *self)
   Py_XDECREF(self->jar);
   Py_XDECREF(self->oid);
   Py_DECREF(self->ob_type);
-  PyMem_DEL(self);
+  PyObject_DEL(self);
 }
 
 static PyObject *

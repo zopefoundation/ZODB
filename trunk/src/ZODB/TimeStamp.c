@@ -15,7 +15,7 @@
 static char TimeStamp_module_documentation[] = 
 "Defines 64-bit TimeStamp objects used as ZODB serial numbers.\n"
 "\n"
-"\n$Id: TimeStamp.c,v 1.14 2002/02/11 23:40:42 gvanrossum Exp $\n";
+"\n$Id: TimeStamp.c,v 1.15 2002/03/08 18:36:13 jeremy Exp $\n";
 
 #include <stdlib.h>
 #include <time.h>
@@ -318,7 +318,7 @@ TimeStamp_dealloc(TimeStamp *self)
 #ifdef USE_EXTENSION_CLASS
   Py_DECREF(self->ob_type);
 #endif  
-  PyMem_DEL(self);
+  PyObject_DEL(self);
 }
 
 static PyObject *
