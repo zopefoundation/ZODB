@@ -281,7 +281,7 @@ def send_action(action, sockname):
         sock.close()
         return response
     except socket.error, msg:
-        if msg[1] == 'AF_UNIX path too long':
+        if str(msg) == 'AF_UNIX path too long':
             # MacOS has apparent small limits on the length of a UNIX
             # domain socket filename, we want to make MacOS users aware
             # of the actual problem
