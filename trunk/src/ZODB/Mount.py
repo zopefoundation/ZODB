@@ -84,8 +84,8 @@
 ##############################################################################
 """Mounted database support
 
-$Id: Mount.py,v 1.5 2000/08/03 19:56:35 shane Exp $"""
-__version__='$Revision: 1.5 $'[11:-2]
+$Id: Mount.py,v 1.6 2000/09/21 21:34:31 shane Exp $"""
+__version__='$Revision: 1.6 $'[11:-2]
 
 import Globals, thread, Persistence, Acquisition
 import ExtensionClass, string, time, sys
@@ -202,6 +202,7 @@ class MountPoint(Persistence.Persistent, Acquisition.Implicit):
         # and possibly the database itself.
         t = self._v_data
         if t is not None:
+            self._v_data = None
             data = t[0]
             if getattr(data, '_v__object_deleted__', 0):
                 # This mount point has been deleted.
@@ -212,8 +213,8 @@ class MountPoint(Persistence.Persistent, Acquisition.Implicit):
                 if conn is not None:
                     try: del conn._mount_parent_jar
                     except: pass
-                    conn.close()
-            self._v_data = None
+                    if conn._db is not None:
+                        conn.close()
         if self._v_close_db:
             # Stop using this database. Close it if no other
             # MountPoint is using it.
