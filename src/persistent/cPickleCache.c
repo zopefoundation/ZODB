@@ -90,7 +90,7 @@ process must skip such objects, rather than deactivating them.
 static char cPickleCache_doc_string[] =
 "Defines the PickleCache used by ZODB Connection objects.\n"
 "\n"
-"$Id: cPickleCache.c,v 1.90 2004/03/02 15:37:38 jeremy Exp $\n";
+"$Id: cPickleCache.c,v 1.91 2004/03/02 22:13:54 jeremy Exp $\n";
 
 #define DONT_USE_CPERSISTENCECAPI
 #include "cPersistence.h"
@@ -311,7 +311,19 @@ cc_minimize(ccobject *self, PyObject *args)
 static void
 _invalidate(ccobject *self, PyObject *key)
 {
+    static PyObject *_p_invalidate;
     PyObject *v = PyDict_GetItem(self->data, key);
+
+    if (!_p_invalidate) {
+	_p_invalidate = PyString_InternFromString("_p_invalidate");
+	if (!_p_invalidate) {
+	    /* It doesn't make any sense to ignore this error, but
+	       the caller ignores all errors.
+	    */
+	    PyErr_Clear();
+	    return;
+	}
+    }
 
     if (!v)
 	return;
@@ -336,7 +348,16 @@ _invalidate(ccobject *self, PyObject *key)
 		PyErr_Clear();
 	}
     } else {
-	if (PyObject_DelAttr(v, py__p_changed) < 0)
+	PyObject *meth, *err;
+
+	meth = PyObject_GetAttr(v, _p_invalidate);
+	if (!meth) {
+	    PyErr_Clear();
+	    return;
+	}
+	err = PyObject_CallObject(meth, NULL);
+	Py_DECREF(meth);
+	if (!err)
 	    PyErr_Clear();
     }
 }
