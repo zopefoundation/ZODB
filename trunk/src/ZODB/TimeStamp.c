@@ -85,7 +85,7 @@
 
 static char TimeStamp_module_documentation[] = 
 ""
-"\n$Id: TimeStamp.c,v 1.4 1999/06/10 20:46:44 jim Exp $"
+"\n$Id: TimeStamp.c,v 1.5 1999/07/13 21:12:54 jim Exp $"
 ;
 
 #include <stdlib.h>
@@ -202,7 +202,7 @@ TimeStamp___init__(TimeStamp *self, PyObject *args)
 	  s[2]=(v%65536)/256;
 	  s[3]=v%256;
 	  sec /= sconv;
-	  v=sec;
+	  v=(unsigned int)sec;
 	  s[4]=v/16777216;
 	  s[5]=(v%16777216)/65536;
 	  s[6]=(v%65536)/256;
@@ -486,7 +486,7 @@ void
 initTimeStamp()
 {
   PyObject *m, *d;
-  char *rev="$Revision: 1.4 $";
+  char *rev="$Revision: 1.5 $";
 
   if (TimeStamp_init_gmoff() < 0) return;
   if (! ExtensionClassImported) return;
