@@ -22,7 +22,7 @@ import socket
 import ThreadedAsync.LoopCallback
 
 def directory(p, n=1):
-    d = p
+    d = os.path.abspath(p)
     while n:
         d = os.path.split(d)[0]
         if not d or d == '.':
