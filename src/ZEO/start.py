@@ -86,7 +86,7 @@
 """Start the server storage.
 """
 
-__version__ = "$Revision: 1.22 $"[11:-2]
+__version__ = "$Revision: 1.23 $"[11:-2]
 
 import sys, os, getopt, string
 
@@ -311,7 +311,6 @@ def main(argv):
         except: pass # getpid not supported
         else: open(zeo_pid,'w').write("%s %s" % (ppid, pid))
 
-        asyncore.loop()
     except:
         # Log startup exception and tell zdaemon not to restart us.
         info=sys.exc_info()
@@ -326,6 +325,9 @@ def main(argv):
             apply(traceback.print_exception, info2)
             
         sys.exit(0)
+
+    asyncore.loop()
+
 
 def rotate_logs():
     import zLOG
