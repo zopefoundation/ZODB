@@ -102,7 +102,59 @@ class TransactionalUndoStorage(BasicStorage.BasicStorage):
         data, revid2 = self._storage.load(oid2, '')
         assert pickle.loads(data) == 51
 
-    def _checkTwoObjectUndoAgain(self):
+    def checkTwoObjectUndoAtOnce(self):
+        # Convenience
+        p30, p31, p32, p50, p51, p52 = map(pickle.dumps,
+                                           (30, 31, 32, 50, 51, 52))
+        oid1 = self._storage.new_oid()
+        oid2 = self._storage.new_oid()
+        revid1 = revid2 = ZERO
+        # Store two objects in the same transaction
+        self._storage.tpc_begin(self._transaction)
+        revid1 = self._storage.store(oid1, revid1, p30, '', self._transaction)
+        revid2 = self._storage.store(oid2, revid2, p50, '', self._transaction)
+        # Finish the transaction
+        self._storage.tpc_vote(self._transaction)
+        self._storage.tpc_finish(self._transaction)
+        assert revid1 == revid2
+        # Update those same two objects
+        self._storage.tpc_begin(self._transaction)
+        revid1 = self._storage.store(oid1, revid1, p31, '', self._transaction)
+        revid2 = self._storage.store(oid2, revid2, p51, '', self._transaction)
+        # Finish the transaction
+        self._storage.tpc_vote(self._transaction)
+        self._storage.tpc_finish(self._transaction)
+        # Update those same two objects
+        self._storage.tpc_begin(self._transaction)
+        revid1 = self._storage.store(oid1, revid1, p32, '', self._transaction)
+        revid2 = self._storage.store(oid2, revid2, p52, '', self._transaction)
+        # Finish the transaction
+        self._storage.tpc_vote(self._transaction)
+        self._storage.tpc_finish(self._transaction)
+        assert revid1 == revid2
+        # Make sure the objects have the current value
+        data, revid1 = self._storage.load(oid1, '')
+        assert pickle.loads(data) == 32
+        data, revid2 = self._storage.load(oid2, '')
+        assert pickle.loads(data) == 52
+        # Now attempt to undo the transaction containing two objects
+        info =self._storage.undoInfo()
+        tid = info[0]['id']
+        tid1 = info[1]['id']
+        self._storage.tpc_begin(self._transaction)
+        oids = self._storage.transactionalUndo(tid, self._transaction)
+        oids1 = self._storage.transactionalUndo(tid1, self._transaction)
+        self._storage.tpc_vote(self._transaction)
+        self._storage.tpc_finish(self._transaction)
+        assert len(oids) == 2
+        assert len(oids1) == 2
+        assert oid1 in oids and oid2 in oids
+        data, revid1 = self._storage.load(oid1, '')
+        assert pickle.loads(data) == 30
+        data, revid2 = self._storage.load(oid2, '')
+        assert pickle.loads(data) == 50
+
+    def checkTwoObjectUndoAgain(self):
         p32, p33, p52, p53 = map(pickle.dumps, (32, 33, 52, 53))
         # Like the above, but the first revision of the objects are stored in
         # different transactions.
