@@ -84,8 +84,8 @@
 ##############################################################################
 """Database objects
 
-$Id: DB.py,v 1.25 2000/10/05 20:17:46 jim Exp $"""
-__version__='$Revision: 1.25 $'[11:-2]
+$Id: DB.py,v 1.26 2000/10/11 22:16:52 jim Exp $"""
+__version__='$Revision: 1.26 $'[11:-2]
 
 import cPickle, cStringIO, sys, POSException, UndoLogCompatible
 from Connection import Connection
@@ -93,7 +93,7 @@ from bpthread import allocate_lock
 from Transaction import Transaction
 from referencesf import referencesf
 from time import time, ctime
-
+from zLOG import LOG, ERROR
 
 StringType=type('')
 
@@ -529,7 +529,10 @@ class DB(UndoLogCompatible.UndoLogCompatible):
     def pack(self, t=None, days=0):
         if t is None: t=time()
         t=t-(days*86400)
-        self._storage.pack(t,referencesf)
+        try: self._storage.pack(t,referencesf)
+        except:
+            LOG("ZODB", ERROR, "packing", error=sys.exc_info())
+            raise
                            
     def setCacheDeactivateAfter(self, v):
         self._cache_deactivate_after=v
