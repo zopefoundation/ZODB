@@ -184,7 +184,7 @@
 #   may have a back pointer to a version record or to a non-version
 #   record.
 #
-__version__='$Revision: 1.31 $'[11:-2]
+__version__='$Revision: 1.32 $'[11:-2]
 
 import struct, time, os, bpthread, string, base64, sys
 from struct import pack, unpack
@@ -759,6 +759,7 @@ class FileStorage(BaseStorage.BaseStorage):
 
             seek(tpos+16)
             file.write('u')
+            file.flush()
             index=self._index
             for oid, pos in t.items(): index[oid]=pos
             return t.keys()            
@@ -1209,8 +1210,171 @@ class FileStorage(BaseStorage.BaseStorage):
             self._packt=z64
             _lock_release()
 
+def shift_transactions_forward(index, vindex, tindex, file, pos, opos):
+    """Copy transactions forward in the data file
+
+    This might be done as part of a recovery effort
+    """
+
+    # Cache a bunch of methods
+    seek=file.seek
+    read=file.read
+    write=file.write
+
+    tappend=tindex.append
+    index_get=index.get
+    vindex_get=vindex.get
+
+    # Initialize, 
+    pv=z64
+    p1=opos
+    p2=pos
+    offset=p2-p1
+    packpos=opos
+
+    # Copy the data in two stages.  In the packing stage,
+    # we skip records that are non-current or that are for
+    # unreferenced objects. We also skip undone transactions.
+    #
+    # After the packing stage, we copy everything but undone
+    # transactions, however, we have to update various back pointers.
+    # We have to have the storage lock in the second phase to keep
+    # data from being changed while we're copying.
+    pnv=None
+    while 1:
+
+        # Read the transaction record
+        seek(pos)
+        h=read(23)
+        if len(h) < 23: break
+        tid, stl, status, ul, dl, el = unpack(">8s8scHHH",h)
+        if status=='c': break # Oops. we found a checkpoint flag.            
+        if el < 0: el=t32-el
+        tl=u64(stl)
+        tpos=pos
+        tend=tpos+tl
+
+        otpos=opos # start pos of output trans
+
+        thl=ul+dl+el
+        h2=read(thl)
+        if len(h2) != thl: raise 'Pack Error', opos
+
+        # write out the transaction record
+        seek(opos)
+        write(h)
+        write(h2)
+
+        thl=23+thl
+        pos=tpos+thl
+        opos=otpos+thl
+
+        while pos < tend:
+            # Read the data records for this transaction
+            seek(pos)
+            h=read(42)
+            oid,serial,sprev,stloc,vlen,splen = unpack(">8s8s8s8sH8s", h)
+            plen=u64(splen)
+            dlen=42+(plen or 8)
+
+            if vlen:
+                dlen=dlen+16+vlen
+                pnv=u64(read(8))
+                # skip position of previous version record
+                seek(8,1)
+                version=read(vlen)
+                pv=p64(vindex_get(version, 0))
+                if status != 'u': vindex[version]=opos
+
+            tappend((oid,opos))
+
+            if plen: p=read(plen)
+            else:
+                p=read(8)
+                p=u64(p)
+                if p >= p2: p=p-offset
+                elif p >= p1:
+                    # Ick, we're in trouble. Let's bail
+                    # to the index and hope for the best
+                    p=index_get(oid,0)
+                p=p64(p)
+
+            # WRITE
+            seek(opos)
+            sprev=p64(index_get(oid,0))
+            write(pack(">8s8s8s8sH8s",
+                       oid,serial,sprev,p64(otpos),vlen,splen))
+            if vlen:
+                if not pnv: write(z64)
+                else:
+                    if pnv >= p2: pnv=pnv-offset
+                    elif pnv >= p1:
+                        pnv=index_get(oid,0)
+                        
+                    write(p64(pnv))
+                write(pv)
+                write(version)
+
+            write(p)
+            
+            opos=opos+dlen
+            pos=pos+dlen
+
+        # skip the (intentionally redundant) transaction length
+        pos=pos+8
+
+        if status != 'u': 
+            for oid, p in tindex:
+                index[oid]=p # Record the position
+
+        del tindex[:]
+
+        write(stl)
+        opos=opos+8
+
+    return opos
+
+def search_back(file, pos):
+    seek=file.seek
+    read=file.read
+    seek(0,2)
+    s=p=file.tell()
+    while p > pos:
+        seek(p-8)
+        l=u64(read(8))
+        if l <= 0: break
+        p=p-l-8
+
+    return p, s
+
+def recover(file_name):
+    file=open(file_name, 'r+b')
+    index={}
+    vindex={}
+    tindex=[]
+    
+    pos, oid, tid = read_index(
+        file, file_name, index, vindex, tindex, recover=1)
+    if oid is not None:
+        print "Nothing to recover"
+        return
+
+    opos=pos
+    pos, sz = search_back(file, pos)
+    if pos < sz:
+        npos = shift_transactions_forward(
+            index, vindex, tindex, file, pos, opos,
+            )
+
+    file.truncate(npos)
+
+    print "Recovered file, lost %s, ended up with %s bytes" % (
+        pos-opos, npos)
+
+    
+
 def read_index(file, name, index, vindex, tindex, stop='\377'*8,
-               ltid=z64, start=4, maxoid=z64):
+               ltid=z64, start=4, maxoid=z64, recover=0):
     
     read=file.read
     seek=file.seek
@@ -1285,6 +1449,7 @@ def read_index(file, name, index, vindex, tindex, stop='\377'*8,
                 _truncate(file, name, pos)
                 break
             else:
+                if recover: return tpos, None, None
                 panic('%s has invalid transaction header at %s', name, pos)
 
         if tid >= stop: break
@@ -1297,6 +1462,7 @@ def read_index(file, name, index, vindex, tindex, stop='\377'*8,
             seek(tend)
             h=read(8)
             if h != stl:
+                if recover: return tpos, None, None
                 panic('%s has inconsistent transaction length at %s',
                       name, pos)
             pos=tend+8
@@ -1328,10 +1494,13 @@ def read_index(file, name, index, vindex, tindex, stop='\377'*8,
                 vindex[version]=pos
 
             if pos+dlen > tend or tloc != tpos:
+                if recover: return tpos, None, None
                 panic("%s data record exceeds transaction record at %s",
                       name, pos)
+                
             if index_get(oid,0) != prev:
                 if prev:
+                    if recover: return tpos, None, None
                     panic("%s incorrect previous pointer at %s", name, pos)
                 else:
                     warn("%s incorrect previous pointer at %s", name, pos)
@@ -1339,12 +1508,14 @@ def read_index(file, name, index, vindex, tindex, stop='\377'*8,
             pos=pos+dlen
 
         if pos != tend:
+            if recover: return tpos, None, None
             panic("%s data records don't add up at %s",name,tpos)
 
         # Read the (intentionally redundant) transaction length
         seek(pos)
         h=read(8)
         if h != stl:
+            if recover: return tpos, None, None
             panic("%s redundant transaction length check failed at %s",
                   name, pos)
         pos=pos+8
