@@ -83,6 +83,22 @@ This happens if an attempt is made to add distinct objects to the cache
 that have the same oid (object identifier).  ZODB should never do this,
 but it's possible for application code to force such an attempt.
 
+PersistentMapping and PersistentList
+------------------------------------
+
+Backward compatibility code has been added so that the sanest of the
+ZODB 3.2 dotted paths for ``PersistentMapping`` and ``PersistentList``
+resolve.  These are still preferred:
+
+- ``from persistent.list import PersistentList``
+- ``from persistent.mapping import PersistentMapping``
+
+but these work again too:
+
+- ``from ZODB.PersistentList import PersistentList``
+- ``from ZODB.PersistentMapping import PersistentMapping``
+
+
 fsIndex
 -------
 
