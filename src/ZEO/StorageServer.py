@@ -29,7 +29,7 @@ import threading
 from ZEO import ClientStub
 from ZEO.CommitLog import CommitLog
 from ZEO.zrpc.server import Dispatcher
-from ZEO.zrpc.connection import ManagedServerConnection, Delay
+from ZEO.zrpc.connection import ManagedServerConnection, Delay, MTDelay
 
 import zLOG
 from ZODB.POSException import StorageError, StorageTransactionError, \
@@ -238,25 +238,30 @@ class ZEOStorage:
     def modifiedInVersion(self, oid):
         return self.__storage.modifiedInVersion(oid)
 
-    def pack(self, t, wait=0):
+    def pack(self, t, wait=None):
+        if wait is not None:
+            wait = MTDelay()
         t = threading.Thread(target=self._pack, args=(t, wait))
         t.start()
+        if wait is not None:
+            return wait
 
-    def _pack(self, t, wait=0):
+    def _pack(self, t, delay):
         try:
             self.__storage.pack(t, referencesf)
         except:
             self._log('Pack failed for %s' % self.__storage_id,
                       zLOG.ERROR,
                       error=sys.exc_info())
-            if wait:
+            if delay is not None:
                 raise
         else:
-            # XXX Why doesn't we broadcast on wait?
-            if not wait:
+            if delay is None:
                 # Broadcast new size statistics
                 self.server.invalidate(0, self.__storage_id, (),
                                        self.get_size_info())
+            else:
+                delay.reply(None)
 
     def new_oids(self, n=100):
         """Return a sequence of n new oids, where n defaults to 100"""
