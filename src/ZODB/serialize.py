@@ -84,6 +84,7 @@ old class.
 
 import cPickle
 import cStringIO
+import logging
 
 from persistent import Persistent
 from persistent.wref import WeakRefMarker, WeakRef
@@ -378,8 +379,13 @@ class BaseObjectReader:
 
     def getState(self, pickle):
         unpickler = self._get_unpickler(pickle)
-        unpickler.load() # skip the class metadata
-        return unpickler.load()
+        try:
+            unpickler.load() # skip the class metadata
+            return unpickler.load()
+        except EOFError, msg:
+            log = logging.getLogger("zodb.serialize")
+            log.exception("Unpickling error: %r", pickle)
+            raise
 
     def setGhostState(self, obj, pickle):
         state = self.getState(pickle)
