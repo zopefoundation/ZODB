@@ -157,27 +157,34 @@ scripts = ["src/scripts/fsdump.py",
            ]
 
 def copy_other_files(cmd, outputbase):
-    for inputdir in [
-        "src/ZConfig/components/basic",
-        "src/ZConfig/components/logger",
-        "src/ZConfig/tests/input",
-        "src/ZConfig/tests/library",
-        "src/ZConfig/tests/library/thing",
-        "src/ZConfig/tests/library/thing/extras",
-        "src/ZConfig/tests/library/widget",
-        "src/ZEO",
-        "src/ZODB",
-        "src/zdaemon",
-        "src/zdaemon/tests",
-        "src/zLOG",
+    # A delicate dance to copy files with certain extensions
+    # into a package just like .py files.
+    extensions = ["*.conf", "*.xml", "*.txt", "*.sh"]
+    for dir in [
+        "ZConfig/components/basic",
+        "ZConfig/components/logger",
+        "ZConfig/tests/input",
+        "ZConfig/tests/library",
+        "ZConfig/tests/library/thing",
+        "ZConfig/tests/library/thing/extras",
+        "ZConfig/tests/library/widget",
+        "ZEO",
+        "ZODB",
+        "zdaemon",
+        "zdaemon/tests",
+        "zLOG",
         ]:
-        inputdir = convert_path(inputdir)
-        outputdir = os.path.join(outputbase, inputdir)
+        dir = convert_path(dir)
+        inputdir = os.path.join("src", dir)
+        outputdir = os.path.join(outputbase, dir)
         if not os.path.exists(outputdir):
             dir_util.mkpath(outputdir)
-        for pattern in ("*.conf", "*.xml", "*.txt", "*.sh"):
+        for pattern in extensions:
             for fn in glob.glob(os.path.join(inputdir, pattern)):
-                cmd.copy_file(fn, os.path.join(outputbase, fn))
+                # glob is going to give us a path include "src",
+                # which must be stripped to get the destination dir
+                dest = os.path.join(outputbase, fn[4:])
+                cmd.copy_file(fn, dest)
 
 class MyLibInstaller(install_lib):
     """Custom library installer, used to put hosttab in the right place."""
