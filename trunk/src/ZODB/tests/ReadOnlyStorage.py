@@ -46,10 +46,12 @@ class ReadOnlyStorage:
         t = Transaction()
         self.assertRaises(ReadOnlyError, self._storage.tpc_begin, t)
 
-        self.assertRaises(ReadOnlyError, self._storage.abortVersion,
-                          '', t)
-        self.assertRaises(ReadOnlyError, self._storage.commitVersion,
-                          '', '', t)
+        if self._storage.supportsVersions():
+            self.assertRaises(ReadOnlyError, self._storage.abortVersion,
+                              '', t)
+            self.assertRaises(ReadOnlyError, self._storage.commitVersion,
+                              '', '', t)
+
         self.assertRaises(ReadOnlyError, self._storage.store,
                           '\000' * 8, None, '', '', t)
 

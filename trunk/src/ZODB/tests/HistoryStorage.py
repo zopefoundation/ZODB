@@ -72,6 +72,8 @@ class HistoryStorage:
         eq(d['version'], '')
 
     def checkVersionHistory(self):
+        if not self._storage.supportsVersions():
+            return
         eq = self.assertEqual
         # Store a couple of non-version revisions
         oid = self._storage.new_oid()
@@ -110,6 +112,8 @@ class HistoryStorage:
         eq(d['version'], '')
 
     def checkHistoryAfterVersionCommit(self):
+        if not self._storage.supportsVersions():
+            return
         eq = self.assertEqual
         # Store a couple of non-version revisions
         oid = self._storage.new_oid()
@@ -168,6 +172,8 @@ class HistoryStorage:
         eq(d['version'], '')
 
     def checkHistoryAfterVersionAbort(self):
+        if not self._storage.supportsVersions():
+            return
         eq = self.assertEqual
         # Store a couple of non-version revisions
         oid = self._storage.new_oid()
