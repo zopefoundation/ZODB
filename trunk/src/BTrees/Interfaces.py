@@ -12,8 +12,7 @@
 #
 ##############################################################################
 
-import OOBTree, Interface
-from Interface import Interface
+from zope.interface import Interface
 
 class ICollection(Interface):
 
@@ -390,11 +389,3 @@ class IMergeIntegerKey(IMerge):
 # Eventually, I need to express this through the interfaces.
 #
 ################################################################
-
-# XXX Need to use the new declaration syntax once it is available
-# for Zope 2.
-
-## OOBTree.OOSet.__implements__=ISet
-## OOBTree.OOTreeSet.__implements__=ITreeSet
-## OOBTree.OOBucket.__implements__=IDictionaryIsh
-## OOBTree.OOBTree.__implements__=IBTree
