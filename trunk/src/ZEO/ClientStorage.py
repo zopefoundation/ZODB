@@ -353,21 +353,29 @@ class ClientStorage(object):
             self._wait_sync(deadline)
 
     def _wait_sync(self, deadline=None):
-        # If there is no mainloop running, this code needs
-        # to call poll() to cause asyncore to handle events.
-        while 1:
-            if self._ready.isSet():
-                break
-            if deadline and time.time() > deadline:
+        # Log no more than one "waiting" message per LOG_THROTTLE seconds.
+        LOG_THROTTLE = 300 # 5 minutes
+        next_log_time = time.time()
+
+        while not self._ready.isSet():
+            now = time.time()
+            if deadline and now > deadline:
                 log2("Timed out waiting for connection", level=logging.WARNING)
                 break
-            log2("Waiting for cache verification to finish")
+            if now >= next_log_time:
+                log2("Waiting for cache verification to finish")
+                next_log_time = now + LOG_THROTTLE
             if self._connection is None:
                 # If the connection was closed while we were
                 # waiting for it to become ready, start over.
-                return self._wait(deadline - time.time())
-            else:
-                self._connection.pending(30)
+                if deadline is None:
+                    timeout = None
+                else:
+                    timeout = deadline - now
+                return self._wait(timeout)
+            # No mainloop ia running, so we need to call something fancy to
+            # handle asyncore events.
+            self._connection.pending(30)
 
     def close(self):
         """Storage API: finalize the storage, releasing external resources."""
