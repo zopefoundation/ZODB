@@ -1,6 +1,6 @@
 /*
 
-  $Id: cPersistence.c,v 1.9 1997/04/03 17:34:14 jim Exp $
+  $Id: cPersistence.c,v 1.10 1997/04/22 02:40:03 jim Exp $
 
   C Persistence Module
 
@@ -56,7 +56,7 @@
 
 
 *****************************************************************************/
-static char *what_string = "$Id: cPersistence.c,v 1.9 1997/04/03 17:34:14 jim Exp $";
+static char *what_string = "$Id: cPersistence.c,v 1.10 1997/04/22 02:40:03 jim Exp $";
 
 #include <time.h>
 #include "cPersistence.h"
@@ -175,12 +175,17 @@ PyString_BuildFormat(va_alist) va_dcl
 /****************************************************************************/
 
 static void
-PATime_dealloc(PATimeobject *self){  PyMem_DEL(self);}
+PATime_dealloc(PATimeobject *self)
+{
+
+  /*printf("D");*/
+  Py_DECREF(self->object);
+  PyMem_DEL(self);}
 
 static PyObject *
 PATime_repr(PATimeobject *self)
 {
-  return PyString_BuildFormat("<access time: %d>","i",self->value);
+  return PyString_BuildFormat("<access time: %d>","i",self->object->atime);
 }
 
 static PyTypeObject 
@@ -365,12 +370,12 @@ Per__p___init__(self, args)
      cPersistentObject *self;
      PyObject *args;
 {
-  PyObject *oid, *jar;
+  int oid;
+  PyObject *jar;
 
-  UNLESS(PyArg_Parse(args, "(OO)", &oid, &jar)) return NULL;
-  Py_INCREF(oid);
+  UNLESS(PyArg_Parse(args, "(iO)", &oid, &jar)) return NULL;
   Py_INCREF(jar);
-  ASSIGN(self->oid, oid);
+  self->oid=oid;
   ASSIGN(self->jar, jar);
   self->state=GHOST_STATE;
   Py_INCREF(Py_None);
@@ -380,10 +385,20 @@ Per__p___init__(self, args)
 static PyObject *
 Per__p___reinit__(cPersistentObject *self, PyObject *args)
 {
-  PyObject *oid, *jar=0, *copy;
+  int oid;
+  PyObject *jar=0, *copy, *dict;
 
   if(PyArg_Parse(args,""))
     {
+      /*
+      if(0
+	 || strcmp(self->ob_type->tp_name,"Classified")==0
+	 )
+	{
+	  Py_INCREF(Py_None);
+	  return Py_None;
+	}
+      */
       if(self->state==cPersistent_UPTODATE_STATE)
 	if(jar=PyObject_GetAttr((PyObject*)self,py___init__))
 	  {
@@ -400,7 +415,7 @@ Per__p___reinit__(cPersistentObject *self, PyObject *args)
 	      }
 	    else copy=NULL;
 	    
-	    if((oid=INSTANCE_DICT(self))) PyDict_Clear(oid);
+	    if((dict=INSTANCE_DICT(self))) PyDict_Clear(dict);
 
 	    ASSIGN(copy,PyObject_CallObject(jar,copy));
 	    self->state=cPersistent_GHOST_STATE;
@@ -408,9 +423,9 @@ Per__p___reinit__(cPersistentObject *self, PyObject *args)
 	    Py_DECREF(copy);
 	    Py_DECREF(jar);
 	  }
-	else if((oid=INSTANCE_DICT(self)))
+	else if((dict=INSTANCE_DICT(self)))
 	  {
-	    PyDict_Clear(oid);
+	    PyDict_Clear(dict);
 	    self->state=cPersistent_GHOST_STATE;
 	  }
     }
@@ -418,14 +433,8 @@ Per__p___reinit__(cPersistentObject *self, PyObject *args)
     {
       PyErr_Clear();
 
-      UNLESS(PyArg_Parse(args, "(OOO)", &oid, &jar, &copy)) return NULL;
-      UNLESS(self->oid)
-	{
-	  Py_INCREF(oid);
-	  ASSIGN(self->oid, oid);
-	}
-      if((self->oid==oid || PyObject_Compare(self->oid, oid)==0)
-	 && self->state==cPersistent_UPTODATE_STATE)
+      UNLESS(PyArg_Parse(args, "O", &copy)) return NULL;
+      if(self->state==cPersistent_UPTODATE_STATE)
 	{
 	  UNLESS(args=PyObject_GetAttr(copy,py___dict__)) return NULL;
 	  ASSIGN(INSTANCE_DICT(self),args);
@@ -434,7 +443,7 @@ Per__p___reinit__(cPersistentObject *self, PyObject *args)
     }
   Py_INCREF(Py_None);
   return Py_None;
-  err:
+err:
   Py_XDECREF(jar);
   return NULL;
 }
@@ -519,6 +528,8 @@ Per__setstate__(self,args)
   PyObject *__dict__, *v, *keys=0, *key=0, *e=0;
   int l, i;
 
+  printf("%s(%d) ", self->ob_type->tp_name,self->oid);
+
   UNLESS(PyArg_Parse(args, "O", &v)) return NULL;
   self->state=UPTODATE_STATE;
   if(v!=Py_None)
@@ -579,29 +590,27 @@ static void
 Per_dealloc(self)
 	cPersistentObject *self;
 {
-  Py_XDECREF(self->oid);
   Py_XDECREF(self->jar);
-  Py_XDECREF(self->atime);
+  /*Py_XDECREF(self->atime);*/
   PyMem_DEL(self);
 }
 
 static void
 Per_set_atime(cPersistentObject *self)
 {
-  /* Record access times */
-  UNLESS(self->atime)
-    UNLESS(self->atime=PyObject_NEW(PATimeobject,
-				    &PATimeType))
-    return;
-  self->atime->value=time(NULL);
+  if(self->atime == (time_t)1) return;
+  self->atime = time(NULL);
 }
 
 static PyObject *
 Per_atime(cPersistentObject *self)
 {
-  UNLESS(self->atime) Per_set_atime(self);
-  Py_XINCREF(self->atime);
-  return (PyObject*)self->atime;
+  PATimeobject *r;
+
+  UNLESS(r=PyObject_NEW(PATimeobject,&PATimeType)) return NULL;
+  Py_INCREF(self);
+  r->object=self;
+  return (PyObject*)r;
 }
 
 static PyObject *
@@ -619,8 +628,7 @@ Per_getattr(cPersistentObject *self, PyObject *oname, char *name)
 	      {
 		if(self->oid)
 		  {
-		    Py_INCREF(self->oid);
-		    return self->oid;
+		    return PyInt_FromLong(self->oid);
 		  }
 		else
 		  {
@@ -720,8 +728,8 @@ Per_setattro(cPersistentObject *self, PyObject *oname, PyObject *v)
     {
       if(name[3]=='o' && name[4]=='i' && name[5]=='d' && ! name[6])
 	{
-	  ASSIGN(self->oid, v);
-	  Py_INCREF(self->oid);
+	  if(PyInt_Check(v)) self->oid=PyInt_AsLong(v);
+	  else self->oid=0;
 	  return 0;
 	}
       if(name[3]=='j' && name[4]=='a' && name[5]=='r' && ! name[6])
@@ -733,6 +741,11 @@ Per_setattro(cPersistentObject *self, PyObject *oname, PyObject *v)
       if(strcmp(name+3,"changed")==0) 
 	{
 	  self->state=PyObject_IsTrue(v);
+	  return 0;
+	}
+      if(strcmp(name+3,"atime")==0) 
+	{
+	  self->atime=(time_t)1;
 	  return 0;
 	}
     }
@@ -841,7 +854,7 @@ void
 initcPersistence()
 {
   PyObject *m, *d;
-  char *rev="$Revision: 1.9 $";
+  char *rev="$Revision: 1.10 $";
 
   PATimeType.ob_type=&PyType_Type;
 
@@ -868,6 +881,9 @@ initcPersistence()
 /****************************************************************************
 
   $Log: cPersistence.c,v $
+  Revision 1.10  1997/04/22 02:40:03  jim
+  Changed object header layout and added sticky feature.
+
   Revision 1.9  1997/04/03 17:34:14  jim
   Changed to pass transaction to jar store method during commit.
 
