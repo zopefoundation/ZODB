@@ -40,6 +40,30 @@ BTrees
   scores in an ``IIBTree``, and Zope3 has moved to ``IFBTrees``
   for these purposes in its search code.
 
+FileStorage
+-----------
+
+- Add a record iteration protocol to FileStorage.  You can use the
+  record iterator to iterate over all current revisions of data
+  pickles in the storage.
+
+  In order to support calling via ZEO, we don't implement this as an
+  1actual iterator.  An example of using the record iterator protocol
+  is as follows:
+
+  storage = FileStorage('anexisting.fs')
+  next_oid = None
+  while 1:
+      oid, tid, data, next_oid = storage.record_iternext(next_oid)
+      # do something with oid, tid and data
+      if next_oid is None:
+          break
+
+  The behavior of the iteration protocol is now to iterate over all
+  current records in the database in ascending oid order, although
+  this is not a promise to do so in the future.
+
+
 Tools
 -----
 
