@@ -73,7 +73,7 @@ file 0 and file 1.
 
 """
 
-__version__ = "$Revision: 1.23 $"[11:-2]
+__version__ = "$Revision: 1.24 $"[11:-2]
 
 import os
 import sys
@@ -100,7 +100,7 @@ class ClientCache:
         self._acquire = L.acquire
         self._release = L.release
 
-        if client:
+        if client is not None:
             # Create a persistent cache
             if var is None:
                 try:
