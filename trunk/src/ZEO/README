@@ -72,6 +72,21 @@ Zope Enterprize Option, ZEO 0.2
          written. If this option is provided, it is unnecessary to 
          set INSTANCE_HOME in __builtins__.
 
+  Zope product installation
+
+    Normally, Zope updates the Zope database during startup to reflect
+    product changes or new products found. It makes no sense for
+    multiple ZEO clients to do the same installation. Further, if
+    different clients have different software installed, the correct
+    state of the database is ambiguous.
+
+    Starting in Zope 2.2, Zope will not modify the Zope database
+    during product installation if the environment variable ZEO_CLIENT
+    is set. For this reason, Zope must be started without the
+    ZEO_CLIENT variable set to install new disk-based products. Of
+    course, the disk-based products should be consistent accross ZEO
+    Client installations.
+
   Notes for non Zope users
 
     First, we regret the amount of dependence on Zope. We intend for
