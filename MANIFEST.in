@@ -1,6 +1,6 @@
 include MANIFEST MANIFEST.in
 include *.txt
-include test.py
+include test.py log.ini
 recursive-include src *.h *.c *.xml *.txt *.sh *.conf *.bat
 include src/ZConfig/scripts/zconfig
 graft doc
