@@ -130,7 +130,7 @@ class CacheTests(unittest.TestCase):
         self.cache.store(n2, "version", n2, None, "version data for n2")
         self.cache.store(n3, "", n3, n4, "non-current data for n3")
         self.cache.store(n3, "", n4, n5, "more non-current data for n3")
-        
+
         path = tempfile.mktemp()
         # Copy data from self.cache into path, reaching into the cache
         # guts to make the copy.

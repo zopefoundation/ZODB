@@ -13,7 +13,7 @@
 ##############################################################################
 """Persistence and ExtensionClass combined
 
-$Id: __init__.py,v 1.7 2003/12/15 07:30:27 jim Exp $
+$Id: __init__.py,v 1.8 2003/12/29 22:40:45 tim_one Exp $
 """
 
 from persistent import PickleCache
@@ -53,4 +53,3 @@ import sys
 sys.modules['BoboPOS'] = sys.modules['Persistence']
 sys.modules['BoboPOS.PersistentMapping'] = sys.modules['Persistence.mapping']
 del sys
-

@@ -13,7 +13,7 @@
 ##############################################################################
 """Storage implementation using a log written to a single file.
 
-$Revision: 1.2 $
+$Revision: 1.3 $
 """
 
 import base64
@@ -607,12 +607,12 @@ class FileStorage(BaseStorage.BaseStorage,
 
             if h.tid < tid:
                 break
-            
+
             pos = h.prev
             end_tid = h.tid
             if not pos:
                 return None
-            
+
         if h.back:
             data, _, _, _ = self._loadBack_impl(oid, h.back)
             return data, h.tid, end_tid

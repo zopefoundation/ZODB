@@ -13,7 +13,7 @@
 ##############################################################################
 """Basic pickling tests
 
-$Id: test_pickle.py,v 1.2 2003/11/28 16:44:56 jim Exp $
+$Id: test_pickle.py,v 1.3 2003/12/29 22:40:50 tim_one Exp $
 """
 
 from persistent import Persistent
@@ -55,7 +55,7 @@ def test_basic_pickling():
 
     >>> print_dict(x.__getstate__())
     {'__name__': 'x', 'aaa': 1, 'bbb': 'foo'}
-    
+
     >>> f, (c,), state = x.__reduce__()
     >>> f.__name__
     '__newobj__'
@@ -63,10 +63,10 @@ def test_basic_pickling():
     'copy_reg'
     >>> c.__name__
     'Simple'
-    
+
     >>> print_dict(state)
     {'__name__': 'x', 'aaa': 1, 'bbb': 'foo'}
-    
+
     >>> pickle.loads(pickle.dumps(x)) == x
     1
     >>> pickle.loads(pickle.dumps(x, 0)) == x
@@ -116,7 +116,7 @@ def test_pickling_w_overrides():
     'Custom'
     >>> ax, ay, a
     ('x', 'y', 99)
-    
+
     >>> pickle.loads(pickle.dumps(x)) == x
     1
     >>> pickle.loads(pickle.dumps(x, 0)) == x
@@ -125,7 +125,7 @@ def test_pickling_w_overrides():
     1
     >>> pickle.loads(pickle.dumps(x, 2)) == x
     1
-    
+
     """
 
 class Slotted(Persistent):
@@ -141,7 +141,7 @@ class SubSlotted(Slotted):
         Slotted.__init__(self, s1, s2)
         self.s3 = s3
 
-        
+
     def __cmp__(self, other):
         return cmpattrs(self, other, '__class__', 's1', 's2', 's3', 's4')
 
@@ -157,7 +157,7 @@ def test_pickling_w_slots_only():
     >>> d
     >>> print_dict(s)
     {'s1': 'x', 's2': 'y', 's3': 'z'}
-    
+
     >>> pickle.loads(pickle.dumps(x)) == x
     1
     >>> pickle.loads(pickle.dumps(x, 0)) == x
@@ -168,12 +168,12 @@ def test_pickling_w_slots_only():
     1
 
     >>> x.s4 = 'spam'
-    
+
     >>> d, s = x.__getstate__()
     >>> d
     >>> print_dict(s)
     {'s1': 'x', 's2': 'y', 's3': 'z', 's4': 'spam'}
-    
+
     >>> pickle.loads(pickle.dumps(x)) == x
     1
     >>> pickle.loads(pickle.dumps(x, 0)) == x
@@ -192,7 +192,7 @@ class SubSubSlotted(SubSlotted):
         self.__dict__.update(kw)
         self._v_favorite_color = 'blue'
         self._p_foo = 'bar'
-        
+
     def __cmp__(self, other):
         return cmpattrs(self, other,
                         '__class__', 's1', 's2', 's3', 's4',
@@ -210,7 +210,7 @@ def test_pickling_w_slots():
     {'aaa': 1, 'bbb': 'foo'}
     >>> print_dict(s)
     {'s1': 'x', 's2': 'y', 's3': 'z'}
-    
+
     >>> pickle.loads(pickle.dumps(x)) == x
     1
     >>> pickle.loads(pickle.dumps(x, 0)) == x
@@ -221,7 +221,7 @@ def test_pickling_w_slots():
     1
 
     >>> x.s4 = 'spam'
-    
+
     >>> d, s = x.__getstate__()
     >>> print_dict(d)
     {'aaa': 1, 'bbb': 'foo'}
@@ -251,7 +251,7 @@ def test_pickling_w_slots_w_empty_dict():
     {}
     >>> print_dict(s)
     {'s1': 'x', 's2': 'y', 's3': 'z'}
-    
+
     >>> pickle.loads(pickle.dumps(x)) == x
     1
     >>> pickle.loads(pickle.dumps(x, 0)) == x
@@ -262,7 +262,7 @@ def test_pickling_w_slots_w_empty_dict():
     1
 
     >>> x.s4 = 'spam'
-    
+
     >>> d, s = x.__getstate__()
     >>> print_dict(d)
     {}
@@ -289,6 +289,3 @@ def test_suite():
         ))
 
 if __name__ == '__main__': unittest.main()
-
-
-

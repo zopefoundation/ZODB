@@ -13,7 +13,7 @@
 ##############################################################################
 """Transaction management
 
-$Id: Transaction.py,v 1.55 2003/11/28 16:44:49 jim Exp $
+$Id: Transaction.py,v 1.56 2003/12/29 22:40:48 tim_one Exp $
 """
 import sys
 from thread import get_ident as _get_ident
@@ -271,7 +271,7 @@ class Transaction:
                 "abort.  This shouldn't happen.",
                 error=sys.exc_info())
         raise error[0], error[1], error[2]
-        
+
 
     def _get_jars(self, objects, subtransaction):
         # Returns a list of jars for this transaction.

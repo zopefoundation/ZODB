@@ -29,7 +29,7 @@ def session_key(username, realm, password):
     return sha.new("%s:%s:%s" % (username, realm, password)).hexdigest()
 
 class StorageClass(ZEOStorage):
-    
+
     def auth(self, username, password):
         try:
             dbpw = self.database.get_password(username)
