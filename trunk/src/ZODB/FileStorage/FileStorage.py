@@ -23,7 +23,7 @@ import os
 import sys
 import time
 import logging
-from types import StringType, DictType
+from types import StringType
 from struct import pack, unpack
 
 # Not all platforms have fsync
@@ -371,13 +371,12 @@ class FileStorage(BaseStorage.BaseStorage,
             return None
         pos = long(pos)
 
-        if (
-            isinstance(index, DictType) or
-            (isinstance(index, fsIndex) and isinstance(index._data, DictType))
-             ):
+        if (isinstance(index, dict) or
+                (isinstance(index, fsIndex) and
+                 isinstance(index._data, dict))):
             # Convert dictionary indexes to fsIndexes *or* convert fsIndexes
-            # which have a DictType `_data` attribute to a new fsIndex (newer
-            # fsIndexes have an OOBTree as `_data`)
+            # which have a dict `_data` attribute to a new fsIndex (newer
+            # fsIndexes have an OOBTree as `_data`).
             newindex = fsIndex()
             newindex.update(index)
             index = newindex
