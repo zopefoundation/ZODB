@@ -13,7 +13,7 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.115 2004/01/14 14:33:43 jeremy Exp $"""
+$Id: Connection.py,v 1.116 2004/01/14 18:42:13 jeremy Exp $"""
 
 import logging
 import sys
@@ -118,6 +118,12 @@ class Connection(ExportImport, object):
         # loadBefore() only returns non-version data.
         self._mvcc = mvcc and not version
         self._txn_time = None
+
+        # To support importFile(), implemented in the ExportImport base
+        # class, we need to run _importDuringCommit() from our commit()
+        # method.  If _import is not None, it is a two-tuple of arguments
+        # to pass to _importDuringCommit().
+        self._import = None
 
     def getTransaction(self):
         t = self._transaction
@@ -249,20 +255,12 @@ class Connection(ExportImport, object):
         # Return the connection to the pool.
         self._db._closeConnection(self)
 
-    __onCommitActions = None
-
-    def onCommitAction(self, method_name, *args, **kw):
-        if self.__onCommitActions is None:
-            self.__onCommitActions = []
-        self.__onCommitActions.append((method_name, args, kw))
-        self.getTransaction().register(self)
-
     def commit(self, object, transaction):
         if object is self:
             # We registered ourself.  Execute a commit action, if any.
-            if self.__onCommitActions is not None:
-                method_name, args, kw = self.__onCommitActions.pop(0)
-                getattr(self, method_name)(transaction, *args, **kw)
+            if self._import:
+                self._importDuringCommit(transaction, *self._import)
+                self._import = None
             return
 
         oid = object._p_oid
@@ -582,8 +580,8 @@ class Connection(ExportImport, object):
             raise
 
     def tpc_abort(self, transaction):
-        if self.__onCommitActions is not None:
-            del self.__onCommitActions
+        if self._import:
+            self._import = None
         self._storage.tpc_abort(transaction)
         self._cache.invalidate(self._modified)
         self._flush_invalidations()
@@ -604,8 +602,6 @@ class Connection(ExportImport, object):
         self._storage.tpc_begin(transaction)
 
     def tpc_vote(self, transaction):
-        if self.__onCommitActions is not None:
-            del self.__onCommitActions
         try:
             vote = self._storage.tpc_vote
         except AttributeError:
