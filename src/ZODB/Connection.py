@@ -13,12 +13,13 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.123 2004/02/25 11:30:16 jim Exp $"""
+$Id: Connection.py,v 1.124 2004/02/25 19:09:14 jeremy Exp $"""
 
 import logging
 import sys
 import threading
 import itertools
+import warnings
 from time import time
 from utils import u64
 
@@ -84,10 +85,13 @@ class Connection(ExportImport, object):
     connection or the transaction the connection is registered with,
     the application should provide locking.
 
+    The Connection manages movement of objects in and out of object
+    storage.
+
     XXX We should document an intended API for using a Connection via
     multiple threads.
 
-    $Id: Connection.py,v 1.123 2004/02/25 11:30:16 jim Exp $
+    $Id: Connection.py,v 1.124 2004/02/25 19:09:14 jeremy Exp $
     """
 
     _tmp = None
@@ -210,6 +214,7 @@ class Connection(ExportImport, object):
             raise TypeError("Only first-class persistent objects may be"
                             " added to a Connection.", obj)
         elif obj._p_jar is None:
+            assert obj._p_oid is None
             oid = obj._p_oid = self._storage.new_oid()
             obj._p_jar = self
             self._added[oid] = obj
@@ -496,8 +501,17 @@ class Connection(ExportImport, object):
         policy of one transaction manager for each thread.
         """
         assert object._p_jar is self
-        # XXX Figure out why this assert causes test failures
-        #assert object._p_oid is not None
+        if object._p_oid is not None:
+            # There is some old Zope code that assigns _p_jar
+            # directly.  That is no longer allowed, but we need to
+            # provide support for old code that still does it.
+            
+            # XXX The actual complaint here is that an object without
+            # an oid is being registered.  I can't think of any way to
+            # achieve that without assignment to _p_jar.  If there is
+            # a way, this will be a very confusing warning.
+            warnings.warn("Assigning to _p_jar is deprecated",
+                          PendingDeprecationWarning)
         self.getTransaction().register(object)
 
     def root(self):
