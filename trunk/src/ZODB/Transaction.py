@@ -13,7 +13,7 @@
 ##############################################################################
 """Transaction management
 
-$Id: Transaction.py,v 1.51 2003/10/02 20:17:36 jeremy Exp $
+$Id: Transaction.py,v 1.52 2003/10/02 22:11:28 jeremy Exp $
 """
 import sys
 
@@ -459,24 +459,24 @@ try:
 except:
     _t = Transaction(None)
 
-    def get_transaction(_t=_t):
+    def get_transaction():
         return _t
 
-    def free_transaction(_t=_t):
+    def free_transaction():
         _t.__init__()
 
 else:
     _t = {}
 
-    def get_transaction(_id=thread.get_ident, _t=_t, get=_t.get):
-        id = _id()
-        t = get(id, None)
+    def get_transaction():
+        id = thread.get_ident()
+        t = _t.get(id, None)
         if t is None:
             _t[id] = t = Transaction(id)
         return t
 
-    def free_transaction(_id=thread.get_ident, _t=_t):
-        id = _id()
+    def free_transaction():
+        id = thread.get_ident()
         try:
             del _t[id]
         except KeyError:
