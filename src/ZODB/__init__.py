@@ -96,6 +96,9 @@ if not hasattr(Persistence, 'Persistent'):
     Persistence.Persistent=Persistent
     Persistent.__module__='Persistence'
     if not hasattr(Persistence, 'PersistentMapping'):
+        import PersistentMapping
+        sys.modules['PersistentMapping']=PersistentMapping
+        PersistentMapping=PersistentMapping.PersistentMapping
         from PersistentMapping import PersistentMapping
         Persistence.PersistentMapping=PersistentMapping
         PersistentMapping.__module__='Persistence'
