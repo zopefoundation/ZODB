@@ -139,7 +139,7 @@ class Connection(smac.SizedMessageAsyncConnection, object):
     def __init__(self, sock, addr, obj=None):
         self.obj = None
         self.marshal = Marshaller()
-        self.closed = 0
+        self.closed = False
         self.msgid = 0
         self.peer_protocol_version = None # Set in recv_handshake()
         if isinstance(addr, types.TupleType):
@@ -153,10 +153,13 @@ class Connection(smac.SizedMessageAsyncConnection, object):
         # separate thread.  If thr_async is true, then the asyncore
         # trigger (self.trigger) is used to notify that thread of
         # activity on the current thread.
-        self.thr_async = 0
+        self.thr_async = False
         self.trigger = None
         self._prepare_async()
-        self._map = {self._fileno: self}
+        # The singleton dict is used in synchronous mode when a method
+        # needs to call into asyncore to try to force some I/O to occur.
+        # The singleton dict is a socket map containing only this object.
+        self._singleton = {self._fileno: self}
         # msgid_lock guards access to msgid
         self.msgid_lock = threading.Lock()
         # replies_cond is used to block when a synchronous call is
@@ -166,7 +169,7 @@ class Connection(smac.SizedMessageAsyncConnection, object):
         # waiting_for_reply is used internally to indicate whether
         # a call is in progress.  setting a session key is deferred
         # until after the call returns.
-        self.waiting_for_reply = 0
+        self.waiting_for_reply = False
         self.delay_sesskey = None
         self.register_object(obj)
         self.handshake()
@@ -182,8 +185,8 @@ class Connection(smac.SizedMessageAsyncConnection, object):
     def close(self):
         if self.closed:
             return
-        self._map.clear()
-        self.closed = 1
+        self._singleton.clear()
+        self.closed = True
         self.close_trigger()
         self.__super_close()
 
@@ -259,11 +262,11 @@ class Connection(smac.SizedMessageAsyncConnection, object):
 
         meth = getattr(self.obj, name)
         try:
-            self.waiting_for_reply = 1
+            self.waiting_for_reply = True
             try:
                 ret = meth(*args)
             finally:
-                self.waiting_for_reply = 0
+                self.waiting_for_reply = False
         except (SystemExit, KeyboardInterrupt):
             raise
         except Exception, msg:
@@ -383,7 +386,7 @@ class Connection(smac.SizedMessageAsyncConnection, object):
         if self.closed:
             raise DisconnectedError()
         msgid = self.send_call(method, args, 0)
-        asyncore.poll(0.01, self._map)
+        asyncore.poll(0.01, self._singleton)
         return msgid
 
     def _deferred_wait(self, msgid):
@@ -413,14 +416,14 @@ class Connection(smac.SizedMessageAsyncConnection, object):
     # handle IO, possibly in async mode
 
     def _prepare_async(self):
-        self.thr_async = 0
+        self.thr_async = False
         ThreadedAsync.register_loop_callback(self.set_async)
         # XXX If we are not in async mode, this will cause dead
         # Connections to be leaked.
 
     def set_async(self, map):
         self.trigger = trigger()
-        self.thr_async = 1
+        self.thr_async = True
 
     def is_async(self):
         # Overridden by ManagedConnection
@@ -471,7 +474,7 @@ class Connection(smac.SizedMessageAsyncConnection, object):
                             if __debug__:
                                 self.log("wait(%d): asyncore.poll(%s)" %
                                          (msgid, delay), level=zLOG.TRACE)
-                            asyncore.poll(delay, self._map)
+                            asyncore.poll(delay, self._singleton)
                             if delay < 1.0:
                                 delay += delay
                         except select.error, err:
@@ -497,7 +500,7 @@ class Connection(smac.SizedMessageAsyncConnection, object):
         if self.is_async():
             self._pull_trigger()
         else:
-            asyncore.poll(0.0, self._map)
+            asyncore.poll(0.0, self._singleton)
 
     def pending(self, timeout=0):
         """Invoke mainloop until any pending messages are handled."""
@@ -652,7 +655,7 @@ class ManagedConnection(Connection):
         if not self.thr_async and self.mgr.thr_async:
             assert self.mgr.trigger is not None, \
                    "manager (%s) has no trigger" % self.mgr
-            self.thr_async = 1
+            self.thr_async = True
             self.trigger = self.mgr.trigger
             return 1
         return 0
