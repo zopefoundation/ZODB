@@ -13,31 +13,29 @@
 ##############################################################################
 """BoboPOS-defined exceptions
 
-$Id: POSException.py,v 1.12 2002/08/14 22:07:09 mj Exp $"""
-__version__ = '$Revision: 1.12 $'.split()[-2:][0]
+$Id: POSException.py,v 1.13 2002/08/22 14:56:31 bwarsaw Exp $"""
+__version__ = '$Revision: 1.13 $'.split()[-2:][0]
 
 from string import join
 from types import StringType, DictType
 from ZODB import utils
 
 class POSError(Exception):
-    """Persistent object system error
-    """
+    """Persistent object system error."""
 
 class POSKeyError(KeyError, POSError):
-    """Key not found in database
-    """
+    """Key not found in database."""
 
     def __str__(self):
         return "%016x" % utils.U64(self.args[0])
 
 class TransactionError(POSError):
-    """An error occured due to normal transaction processing
-    """
+    """An error occured due to normal transaction processing."""
 
 class ConflictError(TransactionError):
-    """Two transactions tried to modify the same object at once.  This
-    transaction should be resubmitted.
+    """Two transactions tried to modify the same object at once.
+
+    This transaction should be resubmitted.
 
     Instance attributes:
       oid : string
@@ -108,9 +106,10 @@ class ConflictError(TransactionError):
 
 
 class ReadConflictError(ConflictError):
-    """A conflict detected at read time -- attempt to read an object
-    that has changed in another transaction (eg. another thread
-    or process).
+    """A conflict was detected at read time.
+
+    An attempt was made to read an object that has changed in another
+    transaction (eg. another thread or process).
     """
     def __init__(self, message=None, object=None, serials=None):
         if message is None:
@@ -119,27 +118,29 @@ class ReadConflictError(ConflictError):
                                serials=serials)
 
 class BTreesConflictError(ConflictError):
-    """A special subclass for BTrees conflict errors, which return
-    an undocumented four-tuple."""
+    """A special subclass for BTrees conflict errors.
+
+    These return an undocumented four-tuple.
+    """
     def __init__(self, *btree_args):
         ConflictError.__init__(self, message="BTrees conflict error")
         self.btree = btree_args
 
 class VersionError(POSError):
-    """An error in handling versions occurred
-    """
+    """An error in handling versions occurred."""
 
 class VersionCommitError(VersionError):
-    """An invalid combination of versions was used in a version commit
-    """
+    """An invalid combination of versions was used in a version commit."""
 
 class VersionLockError(VersionError, TransactionError):
-    """An attempt was made to modify an object that has
-    been modified in an unsaved version"""
+    """Modification to an object modified in an unsaved version.
+
+    An attempt was made to modify an object that has been modified in an
+    unsaved version.
+    """
 
 class UndoError(POSError):
-    """An attempt was made to undo a non-undoable transaction.
-    """
+    """An attempt was made to undo a non-undoable transaction."""
     def __init__(self, *reason):
         if len(reason) == 1: reason=reason[0]
         self.__reason=reason
@@ -162,37 +163,31 @@ class UndoError(POSError):
     __str__=__repr__
 
 class StorageError(POSError):
-    pass
+    """Base class for storage based exceptions."""
 
 class StorageTransactionError(StorageError):
-    """An operation was invoked for an invalid transaction or state
-    """
+    """An operation was invoked for an invalid transaction or state."""
 
 class StorageSystemError(StorageError):
-    """Panic! Internal storage error!
-    """
+    """Panic! Internal storage error!"""
 
 class MountedStorageError(StorageError):
-    """Unable to access mounted storage.
-    """
+    """Unable to access mounted storage."""
 
 class ReadOnlyError(StorageError):
-    """Unable to modify objects in a read-only storage.
-    """
+    """Unable to modify objects in a read-only storage."""
+
+class TransactionTooLargeError(StorageTransactionError):
+    """The transaction exhausted some finite storage resource."""
 
 class ExportError(POSError):
-    """An export file doesn't have the right format.
-    """
-    pass
+    """An export file doesn't have the right format."""
 
 class Unimplemented(POSError):
-    """An unimplemented feature was used
-    """
-    pass
+    """An unimplemented feature was used."""
 
 class Unsupported(POSError):
-    """An feature that is unsupported bt the storage was used.
-    """
+    """An feature that is unsupported bt the storage was used."""
 
 class InvalidObjectReference(POSError):
     """An object contains an invalid reference to another object.
