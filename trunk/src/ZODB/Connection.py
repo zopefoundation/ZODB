@@ -13,7 +13,7 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.79 2002/11/18 23:17:40 jeremy Exp $"""
+$Id: Connection.py,v 1.80 2002/12/03 18:36:29 jeremy Exp $"""
 
 from cPickleCache import PickleCache
 from POSException import ConflictError, ReadConflictError
@@ -40,7 +40,7 @@ def updateCodeTimestamp():
     global global_code_timestamp
     global_code_timestamp = time()
 
-ExtensionKlass=Base.__class__
+ExtensionKlass = Base.__class__
 
 class Connection(ExportImport.ExportImport):
     """Object managers for individual object space.

@@ -92,7 +92,7 @@ def tryToResolveConflict(self, oid, committedSerial, oldSerial, newpickle,
         unpickler.persistent_load = prfactory.persistent_load
         class_tuple = unpickler.load()[0]
         if bad_class(class_tuple):
-            return 0
+            return None
         newstate = unpickler.load()
         klass = load_class(class_tuple)
         inst = klass.__basicnew__()
@@ -101,7 +101,7 @@ def tryToResolveConflict(self, oid, committedSerial, oldSerial, newpickle,
             resolve = inst._p_resolveConflict
         except AttributeError:
             bad_classes[class_tuple] = 1
-            return 0
+            return None
 
         old = state(self, oid, oldSerial, prfactory)
         committed = state(self, oid, committedSerial, prfactory, committedData)
@@ -115,7 +115,7 @@ def tryToResolveConflict(self, oid, committedSerial, oldSerial, newpickle,
         pickler.dump(resolved)
         return file.getvalue(1)
     except ConflictError:
-        return 0
+        return None
     except:
         # If anything else went wrong, catch it here and avoid passing an
         # arbitrary exception back to the client.  The error here will mask
@@ -124,7 +124,7 @@ def tryToResolveConflict(self, oid, committedSerial, oldSerial, newpickle,
         # the error so that any problems can be fixed.
         zLOG.LOG("Conflict Resolution", zLOG.ERROR,
                  "Unexpected error", error=sys.exc_info())
-        return 0
+        return None
 
 class ConflictResolvingStorage:
     "Mix-in class that provides conflict resolution handling for storages"
