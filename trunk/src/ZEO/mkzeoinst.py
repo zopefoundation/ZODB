@@ -68,6 +68,13 @@ runner_conf_template = """# runner configuration file
   program %(runzeo)s -C %(home)s/etc/zeo.conf
   socket-name %(home)s/etc/zeo.zdsock
 </runner>
+
+<eventlog>
+  level info
+  <logfile>
+    path %(home)s/log/runner.log
+  </logfile>
+</eventlog>
 """
 
 zeoctl_template = """#!/bin/sh
