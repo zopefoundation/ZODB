@@ -473,18 +473,14 @@ class ConnectionTests(StorageTestBase.StorageTestBase):
         # Poll until the client disconnects
         self.pollDown()
         # Stores should fail now
-        self.assert_(not self._storage.is_connected())
-
-        # XXX From here on the test doesn't work yet
-        zLOG.LOG("testZEO", zLOG.INFO, "WHY DOES THIS HANG???")
         self.assertRaises(Disconnected, self._dostore)
 
-##        # Restart the server, this time read-write
-##        self._startServer(create=0)
-##        # Poll until the client sconnects
-##        self.pollUp()
-##        # Stores should now succeed
-##        self._dostore()
+        # Restart the server, this time read-write
+        self._startServer(create=0)
+        # Poll until the client sconnects
+        self.pollUp()
+        # Stores should now succeed
+        self._dostore()
 
     def NOcheckReadOnlyFallbackMultiple(self):
         # XXX This test doesn't work yet
