@@ -339,8 +339,8 @@ class Weighted(TestCase):
         self.emptys = [make([]) for make in self.builders]
 
         weights = []
-        for w1 in 0, 1, 7:  # -3, -1, 0, 1, 7:  XXX negative weights buggy
-            for w2 in 0, 1, 7:  # -3, -1, 0, 1, 7:  XXX negative weights buggy
+        for w1 in -3, -1, 0, 1, 7:
+            for w2 in -3, -1, 0, 1, 7:
                 weights.append((w1, w2))
         self.weights = weights
 

@@ -16,7 +16,7 @@
  Set operations
  ****************************************************************************/
 
-#define SETOPTEMPLATE_C "$Id: SetOpTemplate.c,v 1.26 2002/06/25 22:02:27 tim_one Exp $\n"
+#define SETOPTEMPLATE_C "$Id: SetOpTemplate.c,v 1.27 2002/06/25 22:46:42 tim_one Exp $\n"
 
 #ifdef INTSET_H
 static int
@@ -198,8 +198,36 @@ copyRemaining(Bucket *r, SetIteration *i, int merge, int w)
   return 0;
 }
 
+/* This is the workhorse for all set merge operations:  the weighted and
+ * unweighted flavors of union and intersection, and set difference.  The
+ * algorithm is conceptually simple but the code is complicated due to all
+ * the options.
+ *
+ * s1, s2
+ *     The input collections to be merged.
+ *
+ * usevalues1, usevalues2
+ *     Booleans.  In the output, should values from s1 (or s2) be used?  This
+ *     only makes sense when an operation intends to support mapping outputs;
+ *     these should both be false for operations that want pure set outputs.
+ *
+ * w1, w2
+ *     If usevalues1(2) are true, these are the weights to apply to the
+ *     input values.
+ *
+ * c1
+ *     Boolean.  Should keys that appear in c1 but not c2 appear in the output?
+ * c12
+ *     Boolean.  Should keys that appear in both inputs appear in the output?
+ * c2
+ *     Boolean.  Should keys that appear in c2 but not c1 appear in the output?
+ *
+ * Returns NULL if error, else a Set or Bucket, depending on whether a set or
+ * mapping was requested.
+ */
 static PyObject *
 set_operation(PyObject *s1, PyObject *s2,
+              int usevalues1, int usevalues2,
               int w1, int w2,
               int c1, int c12, int c2)
 {
@@ -207,8 +235,8 @@ set_operation(PyObject *s1, PyObject *s2,
   SetIteration i1 = {0,0,0}, i2 = {0,0,0};
   int cmp, merge;
 
-  if (initSetIteration(&i1, s1, w1 >= 0) < 0) goto err;
-  if (initSetIteration(&i2, s2, w2 >= 0) < 0) goto err;
+  if (initSetIteration(&i1, s1, usevalues1) < 0) goto err;
+  if (initSetIteration(&i2, s2, usevalues2) < 0) goto err;
   merge = i1.usesValue | i2.usesValue;
 
   if (merge)
@@ -336,14 +364,16 @@ difference_m(PyObject *ignored, PyObject *args)
   UNLESS(PyArg_ParseTuple(args, "OO", &o1, &o2)) return NULL;
 
 
-  if (o1==Py_None || o2==Py_None)
+  if (o1 == Py_None || o2 == Py_None)
     {
       /* difference(None, X) -> None; difference(X, None) -> X */
       Py_INCREF(o1);
       return o1;
     }
 
-  return set_operation(o1, o2, 1, -1, 1, 0, 0);
+  return set_operation(o1, o2, 1, 0, /* preserve values from o1, ignore o2's */
+                       1, 0,         /* o1's values multiplied by 1 */
+                       1, 0, 0);     /* take only keys unique to o1 */
 }
 
 static PyObject *
@@ -358,13 +388,15 @@ union_m(PyObject *ignored, PyObject *args)
       Py_INCREF(o2);
       return o2;
     }
-  else if (o2==Py_None)
+  else if (o2 == Py_None)
     {
       Py_INCREF(o1);
       return o1;
     }
 
-  return set_operation(o1, o2, -1, -1, 1, 1, 1);
+  return set_operation(o1, o2, 0, 0,    /* ignore values in both */
+                       1, 1,            /* the weights are irrelevant */
+                       1, 1, 1);        /* take all keys */
 }
 
 static PyObject *
@@ -374,18 +406,20 @@ intersection_m(PyObject *ignored, PyObject *args)
 
   UNLESS(PyArg_ParseTuple(args, "OO", &o1, &o2)) return NULL;
 
-  if (o1==Py_None)
+  if (o1 == Py_None)
     {
       Py_INCREF(o2);
       return o2;
     }
-  else if (o2==Py_None)
+  else if (o2 == Py_None)
     {
       Py_INCREF(o1);
       return o1;
     }
 
-  return set_operation(o1, o2, -1, -1, 0, 1, 0);
+  return set_operation(o1, o2, 0, 0,    /* ignore values in both */
+                       1, 1,            /* the weights are irrelevant */
+                       0, 1, 0);        /* take only keys common to both */
 }
 
 #ifdef MERGE
@@ -394,16 +428,16 @@ static PyObject *
 wunion_m(PyObject *ignored, PyObject *args)
 {
   PyObject *o1, *o2;
-  int w1=1, w2=1;
+  int w1 = 1, w2 = 1;
 
   UNLESS(PyArg_ParseTuple(args, "OO|ii", &o1, &o2, &w1, &w2)) return NULL;
 
-  if (o1==Py_None)
-    return Py_BuildValue("iO", (o2==Py_None ? 0 : w2), o2);
-  else if (o2==Py_None)
+  if (o1 == Py_None)
+    return Py_BuildValue("iO", (o2 == Py_None ? 0 : w2), o2);
+  else if (o2 == Py_None)
     return Py_BuildValue("iO", w1, o1);
 
-  o1=set_operation(o1, o2, w1, w2, 1, 1, 1);
+  o1 = set_operation(o1, o2, 1, 1, w1, w2, 1, 1, 1);
   if (o1) ASSIGN(o1, Py_BuildValue("iO", 1, o1));
 
   return o1;
@@ -413,16 +447,16 @@ static PyObject *
 wintersection_m(PyObject *ignored, PyObject *args)
 {
   PyObject *o1, *o2;
-  int w1=1, w2=1;
+  int w1 = 1, w2 = 1;
 
   UNLESS(PyArg_ParseTuple(args, "OO|ii", &o1, &o2, &w1, &w2)) return NULL;
 
-  if (o1==Py_None)
-    return Py_BuildValue("iO", (o2==Py_None ? 0 : w2), o2);
-  else if (o2==Py_None)
+  if (o1 == Py_None)
+    return Py_BuildValue("iO", (o2 == Py_None ? 0 : w2), o2);
+  else if (o2 == Py_None)
     return Py_BuildValue("iO", w1, o1);
 
-  o1=set_operation(o1, o2, w1, w2, 0, 1, 0);
+  o1 = set_operation(o1, o2, 1, 1, w1, w2, 0, 1, 0);
   if (o1)
     ASSIGN(o1, Py_BuildValue("iO",
             ((o1->ob_type == (PyTypeObject*)(&SetType)) ? w2+w1 : 1),
