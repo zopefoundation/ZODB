@@ -13,7 +13,7 @@
 static char cPickleCache_doc_string[] = 
 "Defines the PickleCache used by ZODB Connection objects.\n"
 "\n"
-"$Id: cPickleCache.c,v 1.37 2001/11/28 15:51:20 matt Exp $\n";
+"$Id: cPickleCache.c,v 1.38 2002/01/25 14:51:55 gvanrossum Exp $\n";
 
 #define ASSIGN(V,E) {PyObject *__e; __e=(E); Py_XDECREF(V); (V)=__e;}
 #define UNLESS(E) if(!(E))
@@ -654,8 +654,7 @@ static struct PyMethodDef cCM_methods[] = {
 void
 initcPickleCache(void)
 {
-  PyObject *m, *d, *s;
-  char *rev="$Revision: 1.37 $";
+  PyObject *m, *d;
 
   Cctype.ob_type=&PyType_Type;
 
@@ -669,10 +668,6 @@ initcPickleCache(void)
   py_reload=PyString_FromString("reload");
   py__p_jar=PyString_FromString("_p_jar");
   py__p_changed=PyString_FromString("_p_changed");
-
-  s = PyString_FromStringAndSize(rev+11,strlen(rev+11)-2);
-  PyDict_SetItemString(d,"__version__", s);
-  Py_XDECREF(s);
 
   /* Check for errors */
   if (PyErr_Occurred())
