@@ -13,7 +13,7 @@
 ##############################################################################
 """Handy standard storage machinery
 
-$Id: BaseStorage.py,v 1.45 2004/03/11 16:41:03 jeremy Exp $
+$Id: BaseStorage.py,v 1.46 2004/03/21 16:38:53 sf Exp $
 """
 import cPickle
 import threading
@@ -24,7 +24,7 @@ import POSException
 from persistent.TimeStamp import TimeStamp
 
 import zLOG
-from ZODB import POSException
+from ZODB import POSException, utils
 from ZODB.UndoLogCompatible import UndoLogCompatible
 
 class BaseStorage(UndoLogCompatible):
@@ -399,7 +399,8 @@ class BaseStorage(UndoLogCompatible):
             self.tpc_begin(transaction, tid, transaction.status)
             for r in transaction:
                 oid=r.oid
-                if verbose: print oid_repr(oid), r.version, len(r.data)
+                if verbose: 
+                    print utils.oid_repr(oid), r.version, len(r.data)
                 if restoring:
                     self.restore(oid, r.tid, r.data, r.version,
                                  r.data_txn, transaction)
