@@ -95,6 +95,8 @@ def tryToResolveConflict(self, oid, committedSerial, oldSerial, newpickle,
             return None
         newstate = unpickler.load()
         klass = load_class(class_tuple)
+        if klass is None:
+            return None
         inst = klass.__basicnew__()
 
         try:
