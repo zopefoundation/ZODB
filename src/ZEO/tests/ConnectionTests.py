@@ -199,7 +199,7 @@ class CommonSetupTearDown(StorageTestBase):
                 self.fail("timed out waiting for storage to disconnect")
 
 
-class ConnectionTests(CommonSetupTearDown, InvalidationTests):
+class ConnectionTests(CommonSetupTearDown):
     """Tests that explicitly manage the server process.
 
     To test the cache or re-connection, these test cases explicit
