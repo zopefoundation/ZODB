@@ -15,6 +15,7 @@
 import os
 import errno
 import logging
+logger = logging.getLogger("ZODB.lock_file")
 
 try:
     import fcntl
@@ -23,10 +24,8 @@ except ImportError:
         from winlock import LockFile as _LockFile
         from winlock import UnlockFile as _UnlockFile
     except ImportError:
-        import zLOG
         def lock_file(file):
-            zLOG.LOG('ZODB', zLOG.INFO,
-                     'No file-locking support on this platform')
+            logger.info('No file-locking support on this platform')
 
     # Windows
     def lock_file(file):
@@ -46,9 +45,8 @@ else:
         # File is automatically unlocked on close
         pass
 
-log = logging.getLogger("LockFile")
 
-
+
 # This is a better interface to use than the lockfile.lock_file() interface.
 # Creating the instance acquires the lock.  The file remains open.  Calling
 # close both closes and unlocks the lock file.
@@ -64,7 +62,7 @@ class LockFile:
         try:
             lock_file(self._fp)
         except:
-            log.exception("Error locking file %s" % path)
+            logger.exception("Error locking file %s", path)
             raise
         print >> self._fp, os.getpid()
         self._fp.flush()
