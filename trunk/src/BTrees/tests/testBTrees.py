@@ -95,12 +95,10 @@ from BTrees.OOBTree import OOBTree, OOBucket, OOSet, OOTreeSet
 from BTrees.IOBTree import IOBTree, IOBucket, IOSet, IOTreeSet
 from BTrees.IIBTree import IIBTree, IIBucket, IISet, IITreeSet
 from BTrees.OIBTree import OIBTree, OIBucket, OISet, OITreeSet
-from unittest import TestCase, TestSuite, VerboseTextTestRunner, makeSuite
+from unittest import TestCase, TestSuite, TextTestRunner, makeSuite
 
 from glob import glob
 import os
-
-TextTestRunner = VerboseTextTestRunner
 
 class Base:
     """ Tests common to all types: sets, buckets, and BTrees """
@@ -819,7 +817,7 @@ def test_suite():
 
 def main():
     alltests=test_suite()
-    runner = TextTestRunner()
+    runner = TextTestRunner(verbosity=2)
     runner.run(alltests)
 
 def debug():
