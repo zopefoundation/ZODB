@@ -109,6 +109,8 @@ def fap(where=''):
         # Try a little harder to import ZServer
         import os, imp
 
+        asyncore = None
+
         for location in where, '.', os.path.join('..','..'):
             if whiff(location):
                 sys.path.append(location)
@@ -117,6 +119,9 @@ def fap(where=''):
                 except:
                     import asyncore
                 break
+
+        if asyncore is None:
+            import asyncore
 
     if sys.version[:1] < '2' and asyncore.loop.func_code.co_argcount < 3:
         raise ImportError, 'Cannot import an up-to-date asyncore'
