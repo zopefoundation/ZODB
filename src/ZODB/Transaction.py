@@ -13,8 +13,8 @@
 ##############################################################################
 """Transaction management
 
-$Id: Transaction.py,v 1.40 2002/11/18 23:17:40 jeremy Exp $"""
-__version__='$Revision: 1.40 $'[11:-2]
+$Id: Transaction.py,v 1.41 2002/12/02 22:16:58 jeremy Exp $"""
+__version__='$Revision: 1.41 $'[11:-2]
 
 import time, sys, struct, POSException
 from struct import pack
@@ -96,12 +96,11 @@ class Transaction:
         if self._objects: self.abort(freeme=0)
 
     def abort(self, subtransaction=0, freeme=1):
-        '''Abort the transaction.
+        """Abort the transaction.
 
         This is called from the application.  This means that we haven\'t
         entered two-phase commit yet, so no tpc_ messages are sent.
-        '''
-
+        """
         if subtransaction and (self._non_st_objects is not None):
             raise POSException.TransactionError, (
                 """Attempted to abort a sub-transaction, but a participating
