@@ -63,9 +63,9 @@ class Base:
                 root = self._getRoot()
                 #XXX BTree stuff doesn't implement comparison
                 if hasattr(t, 'items'):
-                    assert list(root[i].items()) == list(t.items())
+                    self.assertEqual(list(root[i].items()) , list(t.items()))
                 else:
-                    assert list(root[i].keys()) == list(t.keys())
+                    self.assertEqual(list(root[i].keys()) , list(t.keys()))
             finally:
                 self._closeDB(root)
                 self._delDB()
@@ -90,9 +90,9 @@ class Base:
                 root[i]._p_changed = None
                 get_transaction().commit()
                 if hasattr(t,'items'):
-                    assert list(root[i].items()) == list(t.items())
+                    self.assertEqual(list(root[i].items()) , list(t.items()))
                 else:
-                    assert list(root[i].keys()) == list(t.keys())
+                    self.assertEqual(list(root[i].keys()) , list(t.keys()))
             finally:
                 self._closeDB(root)
                 self._delDB()
@@ -111,19 +111,19 @@ class MappingBase(Base):
         return self.t[1]
 
     def testGetReturnsDefault(self):
-        assert self.t.get(1) == None
-        assert self.t.get(1, 'foo') == 'foo'
+        self.assertEqual(self.t.get(1) , None)
+        self.assertEqual(self.t.get(1, 'foo') , 'foo')
         
     def testSetItemGetItemWorks(self):
         self.t[1] = 1
         a = self.t[1]
-        assert a == 1, `a`
+        self.assertEqual(a , 1, `a`)
 
     def testReplaceWorks(self):
         self.t[1] = 1
-        assert self.t[1] == 1, self.t[1]
+        self.assertEqual(self.t[1] , 1, self.t[1])
         self.t[1] = 2
-        assert self.t[1] == 2, self.t[1]
+        self.assertEqual(self.t[1] , 2, self.t[1])
 
     def testLen(self):
         added = {}
@@ -133,19 +133,28 @@ class MappingBase(Base):
             self.t[k] = x
             added[k] = x
         addl = added.keys()
-        assert len(self.t) == len(addl), len(self.t)
+        self.assertEqual(len(self.t) , len(addl), len(self.t))
 
     def testHasKeyWorks(self):
         self.t[1] = 1
-        assert self.t.has_key(1)
+        self.assert_(self.t.has_key(1))
 
     def testValuesWorks(self):
         for x in range(100):
             self.t[x] = x*x
         v = self.t.values()
         for i in range(100):
-            assert v[i]==i*i , (i*i,i)
+            self.assertEqual(v[i],i*i , (i*i,i))
 
+    def testValuesWorks1(self):
+
+        for x in range(100):
+            self.t[99-x] = x 
+
+        for x in range(40):
+            lst = list(self.t.values(0+x,99-x))
+            lst.sort()
+            self.assertEqual(lst,range(0+x,99-x+1))
 
             
     def testKeysWorks(self):
@@ -162,8 +171,8 @@ class MappingBase(Base):
             self.assertEqual(list(lst),range(0+x,99-x+1))
 
         # BTree items must lie about their lengths, so we convert to list
-        assert len(v) == 100, len(v)
-        #assert len(v) == 100, len(v)
+        self.assertEqual(len(v) , 100, len(v))
+        #self.assertEqual(len(v) , 100, len(v))
 
     def testItemsWorks(self):
         for x in range(100):
@@ -171,8 +180,8 @@ class MappingBase(Base):
         v = self.t.items()
         i = 0
         for x in v:
-            assert x[0] == i, (x[0], i)
-            assert x[1] == i, (x[0], i)
+            self.assertEqual(x[0] , i, (x[0], i))
+            self.assertEqual(x[1] , i, (x[0], i))
             i = i + 1
 
     def testDeleteInvalidKeyRaisesKeyError(self):
@@ -192,12 +201,12 @@ class MappingBase(Base):
         self.t[4] = 150
         del self.t[7]
         t = self.t
-        assert t.maxKey() == 10
-        assert t.maxKey(6) == 6
-        assert t.maxKey(9) == 8
-        assert t.minKey() == 1
-        assert t.minKey(3) == 3
-        assert t.minKey(9) == 10
+        self.assertEqual(t.maxKey() , 10)
+        self.assertEqual(t.maxKey(6) , 6)
+        self.assertEqual(t.maxKey(9) , 8)
+        self.assertEqual(t.minKey() , 1)
+        self.assertEqual(t.minKey(3) , 3)
+        self.assertEqual(t.minKey(9) , 10)
 
     def testClear(self):
         r = range(100)
@@ -206,7 +215,7 @@ class MappingBase(Base):
             self.t[rnd] = 0
         self.t.clear()
         diff = lsubtract(list(self.t.keys()), [])
-        assert diff == [], diff
+        self.assertEqual(diff , [], diff)
 
     def testUpdate(self):
         "mapping update"
@@ -221,21 +230,21 @@ class MappingBase(Base):
         items.sort()
 
         self.t.update(d)
-        assert list(self.t.items()) == items
+        self.assertEqual(list(self.t.items()) , items)
 
         self.t.clear()
-        assert list(self.t.items()) == []
+        self.assertEqual(list(self.t.items()) , [])
 
         self.t.update(l)
-        assert list(self.t.items()) == items
+        self.assertEqual(list(self.t.items()) , items)
 
     def testEmptyRangeSearches(self):
         t=self.t
         t.update([(1,1),(5,5),(9,9)])
-        assert list(t.keys(-6,-4))==[], list(t.keys(-6,-4))
-        assert list(t.keys(2,4))==[], list(t.keys(2,4))
-        assert list(t.keys(6,8))==[], list(t.keys(6,8))
-        assert list(t.keys(10,12))==[], list(t.keys(10,12))
+        self.assertEqual(list(t.keys(-6,-4)),[], list(t.keys(-6,-4)))
+        self.assertEqual(list(t.keys(2,4)),[], list(t.keys(2,4)))
+        self.assertEqual(list(t.keys(6,8)),[], list(t.keys(6,8)))
+        self.assertEqual(list(t.keys(10,12)),[], list(t.keys(10,12)))
         
 
 class NormalSetTests(Base):
@@ -249,17 +258,17 @@ class NormalSetTests(Base):
 
     def testInsertReturnsValue(self):
         t = self.t
-        assert t.insert(5) == 1
+        self.assertEqual(t.insert(5) , 1)
 
     def testDuplicateInsert(self):
         t = self.t
         t.insert(5)
-        assert t.insert(5) == 0
+        self.assertEqual(t.insert(5) , 0)
         
     def testInsert(self):
         t = self.t
         t.insert(1)
-        assert t.has_key(1)
+        self.assert_(t.has_key(1))
 
     def testBigInsert(self):
         t = self.t
@@ -267,7 +276,7 @@ class NormalSetTests(Base):
         for x in r:
             t.insert(x)
         for x in r:
-            assert t.has_key(x)
+            self.assert_(t.has_key(x))
 
     def testRemoveSucceeds(self):
         t = self.t
@@ -283,14 +292,14 @@ class NormalSetTests(Base):
 
     def testHasKeyFails(self):
         t = self.t
-        assert not t.has_key(1)
+        self.assert_(not t.has_key(1))
 
     def testKeys(self):
         t = self.t
         r = xrange(1000)
         for x in r: t.insert(x)
         diff = lsubtract(t.keys(), r)
-        assert diff == [], diff
+        self.assertEqual(diff , [], diff)
 
     def testClear(self):
         t = self.t
@@ -298,7 +307,7 @@ class NormalSetTests(Base):
         for x in r: t.insert(x)
         t.clear()
         diff = lsubtract(t.keys(), [])
-        assert diff == [], diff
+        self.assertEqual(diff , [], diff)
 
     def testMaxKeyMinKey(self):
         t = self.t
@@ -310,12 +319,12 @@ class NormalSetTests(Base):
         t.insert(10)
         t.insert(6)
         t.insert(4)
-        assert t.maxKey() == 10
-        assert t.maxKey(6) == 6
-        assert t.maxKey(9) == 8
-        assert t.minKey() == 1
-        assert t.minKey(3) == 3
-        assert t.minKey(9) == 10
+        self.assertEqual(t.maxKey() , 10)
+        self.assertEqual(t.maxKey(6) , 6)
+        self.assertEqual(t.maxKey(9) , 8)
+        self.assertEqual(t.minKey() , 1)
+        self.assertEqual(t.minKey(3) , 3)
+        self.assertEqual(t.minKey(9) , 10)
 
     def testUpdate(self):
         "mapping update"
@@ -330,29 +339,29 @@ class NormalSetTests(Base):
         items.sort()
 
         self.t.update(l)
-        assert list(self.t.keys()) == items
+        self.assertEqual(list(self.t.keys()) , items)
 
     def testEmptyRangeSearches(self):
         t=self.t
         t.update([1,5,9])
-        assert list(t.keys(-6,-4))==[], list(t.keys(-6,-4))
-        assert list(t.keys(2,4))==[], list(t.keys(2,4))
-        assert list(t.keys(6,8))==[], list(t.keys(6,8))
-        assert list(t.keys(10,12))==[], list(t.keys(10,12))
+        self.assertEqual(list(t.keys(-6,-4)),[], list(t.keys(-6,-4)))
+        self.assertEqual(list(t.keys(2,4)),[], list(t.keys(2,4)))
+        self.assertEqual(list(t.keys(6,8)),[], list(t.keys(6,8)))
+        self.assertEqual(list(t.keys(10,12)),[], list(t.keys(10,12)))
 
 class ExtendedSetTests(NormalSetTests):
     def testLen(self):
         t = self.t
         r = xrange(10000)
         for x in r: t.insert(x)
-        assert len(t) == 10000, len(t)
+        self.assertEqual(len(t) , 10000, len(t))
 
     def testGetItem(self):
         t = self.t
         r = xrange(10000)
         for x in r: t.insert(x)
         for x in r:
-            assert t[x] == x
+            self.assertEqual(t[x] , x)
         
 class BucketTests(MappingBase):
     """ Tests common to all buckets """
@@ -370,7 +379,7 @@ class BTreeTests(MappingBase):
         self.t[4] = 99
         del self.t[4]
         diff = lsubtract(self.t.keys(), [1,2,3,5,6,10])
-        assert diff == [], diff
+        self.assertEqual(diff , [], diff)
 
     def testDeleteOneChildWorks(self):
         self.t[5] = 6
@@ -382,7 +391,7 @@ class BTreeTests(MappingBase):
         self.t[4] = 99
         del self.t[3]
         diff = lsubtract(self.t.keys(), [1,2,4,5,6,10])
-        assert diff == [], diff
+        self.assertEqual(diff , [], diff)
 
     def testDeleteTwoChildrenNoInorderSuccessorWorks(self):
         self.t[5] = 6
@@ -394,7 +403,7 @@ class BTreeTests(MappingBase):
         self.t[4] = 99
         del self.t[2]
         diff = lsubtract(self.t.keys(), [1,3,4,5,6,10])
-        assert diff == [], diff
+        self.assertEqual(diff , [], diff)
         
     def testDeleteTwoChildrenInorderSuccessorWorks(self):
         """ 7, 3, 8, 1, 5, 10, 6, 4 -- del 3 """
@@ -408,7 +417,7 @@ class BTreeTests(MappingBase):
         self.t[4] = 150
         del self.t[3]
         diff = lsubtract(self.t.keys(), [1,4,5,6,7,8,10])
-        assert diff == [], diff
+        self.assertEqual(diff , [], diff)
 
     def testDeleteRootWorks(self):
         """ 7, 3, 8, 1, 5, 10, 6, 4 -- del 7 """
@@ -422,7 +431,7 @@ class BTreeTests(MappingBase):
         self.t[4] = 150
         del self.t[7]
         diff = lsubtract(self.t.keys(), [1,3,4,5,6,8,10])
-        assert diff == [], diff
+        self.assertEqual(diff , [], diff)
 
     def testRandomNonOverlappingInserts(self):
         added = {}
@@ -435,7 +444,7 @@ class BTreeTests(MappingBase):
         addl = added.keys()
         addl.sort()
         diff = lsubtract(list(self.t.keys()), addl)
-        assert diff == [], (diff, addl, list(self.t.keys()))
+        self.assertEqual(diff , [], (diff, addl, list(self.t.keys())))
 
     def testRandomOverlappingInserts(self):
         added = {}
@@ -447,7 +456,7 @@ class BTreeTests(MappingBase):
         addl = added.keys()
         addl.sort()
         diff = lsubtract(self.t.keys(), addl)
-        assert diff == [], diff
+        self.assertEqual(diff , [], diff)
 
     def testRandomDeletes(self):
         r = range(1000)
@@ -468,7 +477,7 @@ class BTreeTests(MappingBase):
         for x in deleted:
             if self.t.has_key(x):
                 badones.append(x)
-        assert badones == [], (badones, added, deleted)
+        self.assertEqual(badones , [], (badones, added, deleted))
 
     def testTargetedDeletes(self):
         r = range(1000)
@@ -480,16 +489,16 @@ class BTreeTests(MappingBase):
                 del self.t[x]
             except KeyError:
                 pass
-        assert realseq(self.t.keys()) == [], realseq(self.t.keys())
+        self.assertEqual(realseq(self.t.keys()) , [], realseq(self.t.keys()))
         
     def testPathologicalRightBranching(self):
         r = range(1000)
         for x in r:
             self.t[x] = 1
-        assert realseq(self.t.keys()) == r, realseq(self.t.keys())
+        self.assertEqual(realseq(self.t.keys()) , r, realseq(self.t.keys()))
         for x in r:
             del self.t[x]
-        assert realseq(self.t.keys()) == [], realseq(self.t.keys())
+        self.assertEqual(realseq(self.t.keys()) , [], realseq(self.t.keys()))
 
     def testPathologicalLeftBranching(self):
         r = range(1000)
@@ -497,11 +506,11 @@ class BTreeTests(MappingBase):
         revr.reverse()
         for x in revr:
             self.t[x] = 1
-        assert realseq(self.t.keys()) == r, realseq(self.t.keys())
+        self.assertEqual(realseq(self.t.keys()) , r, realseq(self.t.keys()))
 
         for x in revr:
             del self.t[x]
-        assert realseq(self.t.keys()) == [], realseq(self.t.keys())
+        self.assertEqual(realseq(self.t.keys()) , [], realseq(self.t.keys()))
 
     def testSuccessorChildParentRewriteExerciseCase(self):
         add_order = [
@@ -547,14 +556,14 @@ class BTreeTests(MappingBase):
         for x in delete_order:
             try: del self.t[x]
             except KeyError:
-                if self.t.has_key(x): assert 1==2,"failed to delete %s" % x
+                if self.t.has_key(x): self.assertEqual(1,2,"failed to delete %s" % x)
 
     def testRangeSearchAfterSequentialInsert(self):
         r = range(100)
         for x in r:
             self.t[x] = 0
         diff = lsubtract(list(self.t.keys(0, 100)), r)
-        assert diff == [], diff
+        self.assertEqual(diff , [], diff)
 
     def testRangeSearchAfterRandomInsert(self):
         r = range(100)
@@ -564,14 +573,14 @@ class BTreeTests(MappingBase):
             self.t[rnd] = 0
             a[rnd] = 0
         diff = lsubtract(list(self.t.keys(0, 100)), a.keys())
-        assert diff == [], diff
+        self.assertEqual(diff , [], diff)
 
     def testInsertMethod(self):
         t = self.t
         t[0] = 1
-        assert t.insert(0, 1) == 0
-        assert t.insert(1, 1) == 1
-        assert lsubtract(list(t.keys()), [0,1]) == []
+        self.assertEqual(t.insert(0, 1) , 0)
+        self.assertEqual(t.insert(1, 1) , 1)
+        self.assertEqual(lsubtract(list(t.keys()), [0,1]) , [])
 
 ## BTree tests
 
