@@ -731,7 +731,10 @@ class StorageServer:
         self.database = None
         if auth_protocol:
             self._setup_auth(auth_protocol)
-        # A list of at most invalidation_queue_size invalidations
+        # A list of at most invalidation_queue_size invalidations.
+        # The list is kept in sorted order with the most recent
+        # invalidation at the front.  The list never has more than
+        # self.invq_bound elements.
         self.invq = []
         self.invq_bound = invalidation_queue_size
         self.connections = {}
@@ -849,8 +852,8 @@ class StorageServer:
         """
         if invalidated:
             if len(self.invq) >= self.invq_bound:
-                del self.invq[0]
-            self.invq.append((tid, invalidated))
+                self.invq.pop()
+            self.invq.insert(0, (tid, invalidated))
         for p in self.connections.get(storage_id, ()):
             if invalidated and p is not conn:
                 p.client.invalidateTransaction(tid, invalidated)
@@ -871,19 +874,18 @@ class StorageServer:
             log("invq empty")
             return None, []
 
-        earliest_tid = self.invq[0][0]
+        earliest_tid = self.invq[-1][0]
         if earliest_tid > tid:
             log("tid to old for invq %s < %s" % (u64(tid), u64(earliest_tid)))
             return None, []
 
-        # XXX this is wrong!  must check against tid or we invalidate
-        # too much.
-
         oids = {}
-        for tid, L in self.invq:
+        for _tid, L in self.invq:
+            if _tid <= tid:
+                break
             for key in L:
                 oids[key] = 1
-        latest_tid = self.invq[-1][0]
+        latest_tid = self.invq[0][0]
         return latest_tid, oids.keys()
 
     def close_server(self):
