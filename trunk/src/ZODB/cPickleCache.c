@@ -1,6 +1,6 @@
 /*
 
-  $Id: cPickleCache.c,v 1.6 1997/04/22 02:45:24 jim Exp $
+  $Id: cPickleCache.c,v 1.7 1997/05/30 14:29:47 jim Exp $
 
   C implementation of a pickle jar cache.
 
@@ -56,7 +56,7 @@
       (540) 371-6909
 
 ***************************************************************************/
-static char *what_string = "$Id: cPickleCache.c,v 1.6 1997/04/22 02:45:24 jim Exp $";
+static char *what_string = "$Id: cPickleCache.c,v 1.7 1997/05/30 14:29:47 jim Exp $";
 
 #define ASSIGN(V,E) {PyObject *__e; __e=(E); Py_XDECREF(V); (V)=__e;}
 #define UNLESS(E) if(!(E))
@@ -153,14 +153,22 @@ static int
 reallyfullgc(ccobject *self)
 {
   PyObject *key, *v;
-  int i;
+  int i, l, last;
+
+  if((last=PyDict_Size(self->data)) < 0) return -1;
 
   /* First time through should get refcounts to 1 */
   for(i=0; PyDict_Next(self->data, &i, &key, &v); )
     if(gc_item(self,key,v,0,0) < 0) return -1;
-  /* Second time through should free many objects */
-  for(i=0; PyDict_Next(self->data, &i, &key, &v); )
-    if(gc_item(self,key,v,0,0) < 0) return -1;
+
+  if((l=PyDict_Size(self->data)) < 0) return -1;
+  while(l < last)
+    {
+      for(i=0; PyDict_Next(self->data, &i, &key, &v); )
+	if(gc_item(self,key,v,0,0) < 0) return -1;
+      last=l;
+      if((l=PyDict_Size(self->data)) < 0) return -1;
+    }
 
   self->position=0;
   return 0;
@@ -182,8 +190,8 @@ maybegc(ccobject *self, PyObject *thisv)
   self->cache_size=0;
   n=s/size;
   if(n < 3) n=3;
-  dt=self->cache_age;
-  if(dt < 1) dt=1;
+  dt=self->cache_age*(0.2+0.8*size/s);
+  if(dt < 10) dt=10;
   now=time(NULL);
   
   while(--n >= 0)
@@ -458,7 +466,7 @@ void
 initcPickleCache()
 {
   PyObject *m, *d;
-  char *rev="$Revision: 1.6 $";
+  char *rev="$Revision: 1.7 $";
 
   Cctype.ob_type=&PyType_Type;
 
@@ -486,6 +494,12 @@ initcPickleCache()
 
 /******************************************************************************
  $Log: cPickleCache.c,v $
+ Revision 1.7  1997/05/30 14:29:47  jim
+ Added new algorithm for adjusting cache age based on cache size.  Not,
+ if the cache size gets really big, the cache age can drop to as low as
+ 20% of the configured cache age.  Also made the "minimize" method more
+ agressive.
+
  Revision 1.6  1997/04/22 02:45:24  jim
  Changed object header layout and added sticky feature.
 
