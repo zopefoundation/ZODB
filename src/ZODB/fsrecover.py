@@ -24,7 +24,7 @@ of critical data were lost.
 Options:
 
     -f
-       Force output to putput file even if it exists
+       Force output to output file even if it exists
 
     -v level
 
@@ -50,8 +50,8 @@ Options:
        option is used, then t should be 0.
 
 
-Important note: The ZODB package must be imporable.  You may need
-                to adjust the Python path accordingly.
+Important note: The ZODB package must be imporatble.  You may need
+                to adjust PYTHONPATH accordingly.
 
 """
 
@@ -139,13 +139,8 @@ def read_transaction_header(file, pos, file_size):
         except: e={}
     else: e={}
 
-    result=RecordIterator(
-        tid, status, user, description, e,
-        pos, (tend, file, seek, read,
-              tpos,
-              )
-        )
-
+    result = RecordIterator(tid, status, user, description, e, pos, tend,
+                            file, tpos)
     pos=tend
 
     # Read the (intentionally redundant) transaction length

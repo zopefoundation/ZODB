@@ -16,8 +16,11 @@ from __future__ import nested_scopes
 import ZODB.FileStorage
 import sys, os, unittest
 import errno
+import filecmp
+import StringIO
 from ZODB.Transaction import Transaction
 from ZODB import POSException
+from ZODB.fsrecover import recover
 
 from ZODB.tests import StorageTestBase, BasicStorage, \
      TransactionalUndoStorage, VersionStorage, \
@@ -166,6 +169,25 @@ class FileStorageTests(
             self._dostore()
 
         self.failUnless(self._storage._records_before_save > 20)
+
+    def checkfsrecover(self):
+        # an absolutely minimal test of fsrecover
+        # Verify that calling recover on a small, correct storage
+        # produces a duplicate of the original.
+        for i in range(5):
+            oid = self._storage.new_oid()
+            revid = None
+            for j in range(5):
+                revid = self._dostore(oid, revid=revid)
+        
+        temp = sys.stdout
+        sys.stdout = StringIO.StringIO()
+        try:
+            recover(["", "FileStorageTests.fs", "fsrecover.fs"])
+        finally:
+            sys.stdout = temp
+        self.assert_(filecmp.cmp("FileStorageTests.fs", "fsrecover.fs"))
+        StorageTestBase.removefs("fsrecover.fs")
 
     def checkPackVersionsInPast(self):
         # FileStorage can't cope with backpointers to objects
