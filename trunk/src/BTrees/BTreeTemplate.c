@@ -12,7 +12,7 @@
 
  ****************************************************************************/
 
-#define BTREETEMPLATE_C "$Id: BTreeTemplate.c,v 1.50 2002/06/13 05:27:53 tim_one Exp $\n"
+#define BTREETEMPLATE_C "$Id: BTreeTemplate.c,v 1.51 2002/06/13 14:06:57 tim_one Exp $\n"
 
 /*
 ** _BTree_get
@@ -1030,14 +1030,10 @@ BTree_maxminKey(BTree *self, PyObject *args, int min)
   else if (min)
     {
       bucket = self->firstbucket;
-      Py_INCREF(bucket);
       PER_ALLOW_DEACTIVATION(self);
       PER_ACCESSED(self);
-      UNLESS (PER_USE(bucket))
-        {
-          Py_DECREF(bucket);
-          return NULL;
-        }
+      UNLESS (PER_USE(bucket)) return NULL;
+      Py_INCREF(bucket);
       offset = 0;
       if (offset >= bucket->len)
         {
@@ -1158,9 +1154,11 @@ BTree_rangeSearch(BTree *self, PyObject *args, char type)
   else
     {
       highbucket = BTree_lastBucket(self);
+      assert(highbucket != NULL);  /* we know self isn't empty */
       UNLESS (PER_USE(highbucket))
         {
           Py_DECREF(lowbucket);
+          Py_DECREF(highbucket);
           goto err;
         }
       highoffset = highbucket->len - 1;
