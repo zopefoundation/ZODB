@@ -157,10 +157,10 @@ There is a default stupid logging facility that:
     can be overridden with the environment variable STUPID_LOG_SEVERITY
 
 """
-__version__='$Revision: 1.1 $'[11:-2]
+__version__='$Revision: 1.2 $'[11:-2]
 
 from MinimalLogger import log_write, log_time, severity_string, \
-     _set_stupid_dest
+     _set_log_dest
 from FormatException import format_exception
 
 # Standard severities

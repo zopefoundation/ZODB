@@ -82,9 +82,9 @@
 # attributions are listed in the accompanying credits file.
 # 
 ##############################################################################
-__version__='$Revision: 1.1 $'[11:-2]
+__version__='$Revision: 1.2 $'[11:-2]
 
-import string, sys, time
+import os, string, sys, time
 
 from FormatException import format_exception
 
@@ -110,62 +110,60 @@ def log_time():
     return ("%4.4d-%2.2d-%2.2dT%2.2d:%2.2d:%2.2d"
             % time.gmtime(time.time())[:6])
 
-def _set_stupid_dest(dest):
-    global _stupid_dest
-    _stupid_dest = dest
+def _set_log_dest(dest):
+    global _log_dest
+    _log_dest = dest
 
-_stupid_dest=None
-_stupid_severity=None
-_no_stupid_log=[]
+_log_dest = None
+_stupid_severity = None
+_no_stupid_log = []
+
 class stupid_log_write:
 
-    def reinitialize(self):
-        global _stupid_dest
-        _stupid_dest = None        
-    
-    def __call__(self, subsystem, severity, summary, detail, error):
+    def __init__(self):
+        self.initialize()
 
-        global _stupid_dest
-        if _stupid_dest is None:
-            import os
-            if os.environ.has_key('STUPID_LOG_FILE'):
-                f=os.environ['STUPID_LOG_FILE']
-                if f: _stupid_dest=open(f,'a')
-                else:
-                    _stupid_dest=sys.stderr
+    def initialize(self):
+        global _log_dest, _log_level
+
+        path = os.environ.get('STUPID_LOG_FILE', None)
+        if path is None:
+            _log_dest = None
+        else:
+            if path:
+                _log_dest = open(path, 'a')
             else:
-                _stupid_dest=_no_stupid_log
+                _log_dest = sys.stderr
 
-        if _stupid_dest is _no_stupid_log: return
+        severity = os.environ.get('STUPID_LOG_SEVERITY', None)
+        if severity:
+            _log_level = int(severity)
+        else:
+            _log_level = 0 # INFO
+    
+    def log(self, subsystem, severity, summary, detail, error):
+        if _log_dest is None or severity < _log_level:
+            return
 
-        global _stupid_severity
-        if _stupid_severity is None:
-            try: _stupid_severity=string.atoi(os.environ['STUPID_LOG_SEVERITY'])
-            except: _stupid_severity=0
-
-        if severity < _stupid_severity: return
-
-        _stupid_dest.write(
-            "------\n"
-            "%s %s %s %s\n%s"
-            %
-            (log_time(),
-             severity_string(severity),
-             subsystem,
-             summary,
-             detail,
-             )
-            )
-        _stupid_dest.flush()
+        if detail:
+            buf = ("------\n"
+                   "%s %s %s %s\n%s" % (log_time(), severity_string(severity),
+                                        subsystem, summary, detail))
+        else:
+            buf = ("------\n"
+                   "%s %s %s %s" % (log_time(), severity_string(severity),
+                                    subsystem, summary))
+        print >> _log_dest, buf
 
         if error:
             try:
-                _stupid_dest.write(format_exception(
-                    error[0], error[1], error[2],
-                    trailer='\n', limit=100))
+                lines = format_exception(error[0], error[1], error[2],
+                                         trailer="\n", limit=100)
+                print >> _log_dest, lines
             except:
-                _stupid_dest.write("%s: %s\n" % error[:2])
-        _stupid_dest.flush()
+                print >> _log_dest, "s: %s" % error[:2]
+        _log_dest.flush()
 
 
-log_write=stupid_log_write()
+_log = stupid_log_write()
+log_write = _log.log
