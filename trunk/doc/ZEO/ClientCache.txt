@@ -41,6 +41,11 @@ ZEO Client Cache
 
   and so on.
 
+  As of ZEO 2.0 beta 2, the above algorithm is augmented as follows.
+  When a cache load finds a hit in the "old" cache file, the data is
+  copied to the "current" cache file.  This appears to improve the hit
+  rate.
+
   Persistent cache files are created in the directory named in the
   'var' argument to the ClientStorage (see ClientStorage.txt) or in
   the 'var' subdirectory of the directory given by the INSTANCE_HOME
