@@ -416,6 +416,10 @@ class FileStoragePacker(FileStorageFormatter):
     # progress after it).
     def __init__(self, path, stop, la, lr, cla, clr, current_size):
         self._name = path
+        # We open our own handle on the storage so that much of pack can
+        # proceed in parallel.  It's important to close this file at every
+        # return point, else on Windows the caller won't be able to rename
+        # or remove the storage file.
         self._file = open(path, "rb")
         self._path = path
         self._stop = stop
@@ -481,6 +485,7 @@ class FileStoragePacker(FileStorageFormatter):
         if ipos == opos:
             # pack didn't free any data.  there's no point in continuing.
             self._tfile.close()
+            self._file.close()
             os.remove(self._name + ".pack")
             return None
         self._commit_lock_acquire()
@@ -499,6 +504,7 @@ class FileStoragePacker(FileStorageFormatter):
             # trailing 0 argument, and then on every platform except
             # native Windows it was observed that we could read stale
             # data from the tail end of the file.
+            self._file.close()  # else self.gc keeps the original alive & open
             self._file = open(self._path, "rb", 0)
             self._file.seek(0, 2)
             self.file_end = self._file.tell()
