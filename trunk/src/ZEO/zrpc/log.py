@@ -12,7 +12,6 @@
 #
 ##############################################################################
 import os
-import types
 import zLOG
 import threading
 

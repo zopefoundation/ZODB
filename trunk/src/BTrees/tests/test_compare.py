@@ -15,7 +15,6 @@
 
 import unittest
 
-import ZODB
 from ZODB.MappingStorage import MappingStorage
 from ZODB.DB import DB
 

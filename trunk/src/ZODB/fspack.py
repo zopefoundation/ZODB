@@ -34,7 +34,7 @@ from types import StringType
 
 from ZODB.serialize import referencesf
 from ZODB.utils import p64, u64, z64, oid_repr
-from zLOG import LOG, BLATHER, WARNING, ERROR, PANIC
+from zLOG import LOG, ERROR
 
 try:
     from ZODB.fsIndex import fsIndex

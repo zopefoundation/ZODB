@@ -12,14 +12,10 @@
 #
 ##############################################################################
 
-import os
-import errno
-import shutil
 import tempfile
 import unittest
 
 import ZODB.config
-import ZODB.tests
 from ZODB.POSException import ReadOnlyError
 
 

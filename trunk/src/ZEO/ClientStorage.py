@@ -29,8 +29,7 @@ import types
 from ZEO import ServerStub
 from ZEO.cache import ClientCache
 from ZEO.TransactionBuffer import TransactionBuffer
-from ZEO.Exceptions import ClientStorageError, UnrecognizedResult, \
-     ClientDisconnected, AuthError
+from ZEO.Exceptions import ClientStorageError, ClientDisconnected, AuthError
 from ZEO.auth import get_module
 from ZEO.zrpc.client import ConnectionManager
 

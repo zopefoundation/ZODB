@@ -13,13 +13,13 @@
 ##############################################################################
 """Transaction management
 
-$Id: Transaction.py,v 1.57 2004/02/19 02:59:06 jeremy Exp $
+$Id: Transaction.py,v 1.58 2004/02/27 00:31:53 faassen Exp $
 """
 import sys
 from thread import get_ident as _get_ident
 
 from zLOG import LOG, ERROR, PANIC, INFO, BLATHER, WARNING
-from ZODB.POSException import ConflictError, TransactionError
+from ZODB.POSException import TransactionError
 from ZODB.utils import oid_repr
 
 # Flag indicating whether certain errors have occurred.

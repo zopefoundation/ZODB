@@ -16,7 +16,7 @@
 import struct
 import time
 
-from ZEO.StorageServer import StorageServer, ZEOStorage, log
+from ZEO.StorageServer import StorageServer, log
 from ZEO.zrpc.server import ManagedServerConnection
 
 # a bunch of codes

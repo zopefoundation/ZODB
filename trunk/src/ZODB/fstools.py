@@ -23,7 +23,7 @@ import struct
 
 from ZODB.FileStorage.format import TRANS_HDR, DATA_HDR, TRANS_HDR_LEN, \
      DATA_HDR_LEN, DATA_VERSION_HDR_LEN
-from ZODB.utils import p64, u64
+from ZODB.utils import u64
 from persistent.TimeStamp import TimeStamp
 
 class TxnHeader:

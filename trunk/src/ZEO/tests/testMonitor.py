@@ -13,11 +13,10 @@
 ##############################################################################
 """Test that the monitor produce sensible results.
 
-$Id: testMonitor.py,v 1.8 2003/11/28 16:44:48 jim Exp $
+$Id: testMonitor.py,v 1.9 2004/02/27 00:31:52 faassen Exp $
 """
 
 import socket
-import time
 import unittest
 
 from ZEO.tests.ConnectionTests import CommonSetupTearDown

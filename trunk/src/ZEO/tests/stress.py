@@ -23,11 +23,9 @@ from ZEO.ClientStorage import ClientStorage
 from ZODB.MappingStorage import MappingStorage
 from ZEO.tests import forker
 from ZODB.tests import MinPO
-import zLOG
 
 import os
 import random
-import sys
 import types
 
 NUM_TRANSACTIONS_PER_CONN = 10

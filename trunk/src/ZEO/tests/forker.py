@@ -17,7 +17,6 @@ import os
 import sys
 import time
 import errno
-import random
 import socket
 import StringIO
 import tempfile

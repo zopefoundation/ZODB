@@ -18,16 +18,9 @@ import tempfile
 import time
 import unittest
 
-import zLOG
-
-from ThreadedAsync import LoopCallback
 from ZEO import zeopasswd
-from ZEO.ClientStorage import ClientStorage
 from ZEO.Exceptions import ClientDisconnected
-from ZEO.StorageServer import StorageServer
 from ZEO.tests.ConnectionTests import CommonSetupTearDown
-
-from ZODB.FileStorage import FileStorage
 
 class AuthTest(CommonSetupTearDown):
     __super_getServerConfig = CommonSetupTearDown.getServerConfig

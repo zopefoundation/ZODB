@@ -16,7 +16,6 @@ import os
 import sys
 import time
 import random
-import socket
 import asyncore
 import tempfile
 import threading
@@ -27,7 +26,6 @@ import ZEO.ServerStub
 from ZEO.ClientStorage import ClientStorage
 from ZEO.Exceptions import ClientDisconnected
 from ZEO.zrpc.marshal import Marshaller
-from ZEO.zrpc.error import DisconnectedError
 from ZEO.tests import forker
 
 from ZODB.DB import DB

@@ -5,7 +5,6 @@ An example of the log format is:
 2002-04-15T13:05:29 BLATHER(-100) ZEO Server storea(3235680, [714], 235339406490168806) ('10.0.26.30', 45514)
 """
 
-import operator
 import re
 import time
 

@@ -15,7 +15,7 @@ import asyncore
 import socket
 import types
 
-from ZEO.zrpc.connection import Connection, Delay
+from ZEO.zrpc.connection import Connection
 from ZEO.zrpc.log import log
 import zLOG
 import ThreadedAsync.LoopCallback

@@ -80,9 +80,9 @@ except ImportError:
     import ZODB
 
 
-import getopt, ZODB.FileStorage, struct, time
+import getopt, ZODB.FileStorage, time
 from struct import unpack
-from ZODB.utils import t32, p64, u64
+from ZODB.utils import t32, u64
 from persistent.TimeStamp import TimeStamp
 from cPickle import loads
 from ZODB.FileStorage import RecordIterator

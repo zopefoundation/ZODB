@@ -25,7 +25,6 @@ from ZEO.zrpc.log import short_repr, log
 from ZEO.zrpc.marshal import Marshaller
 from ZEO.zrpc.trigger import trigger
 import zLOG
-from ZODB import POSException
 
 REPLY = ".reply" # message name used for replies
 ASYNC = 1

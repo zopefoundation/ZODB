@@ -9,7 +9,6 @@ The current implementation only supports FileStorage.
 Current limitations / simplifications: Ignores revisions and versions.
 """
 
-import ZODB
 from ZODB.FileStorage import FileStorage
 from ZODB.utils import U64
 from ZODB.fsdump import get_pickle_metadata

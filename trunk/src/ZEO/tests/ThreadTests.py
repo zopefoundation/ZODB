@@ -19,7 +19,6 @@ from ZODB.Transaction import Transaction
 from ZODB.tests.StorageTestBase import zodb_pickle, MinPO
 
 import ZEO.ClientStorage
-from ZEO.Exceptions import ClientDisconnected
 
 ZERO = '\0'*8
 
