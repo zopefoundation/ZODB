@@ -83,7 +83,7 @@
 # 
 ##############################################################################
 
-__version__ = "$Revision: 1.20 $"[11:-2]
+__version__ = "$Revision: 1.21 $"[11:-2]
 
 import asyncore, socket, string, sys, os
 from smac import SizedMessageAsyncConnection
@@ -183,7 +183,7 @@ class StorageServer(asyncore.dispatcher):
         except socket.error:
             sys.stderr.write('warning: accept failed\n')
 
-        Connection(self, sock, addr)
+        ZEOConnection(self, sock, addr)
 
     def log_info(self, message, type='info'):
         if type=='error': type=ERROR
@@ -222,7 +222,7 @@ def find_global(module, name,
     raise StorageServerError, 'Unsafe global, %s.%s' % (module, name)
 
 _noreturn=[]
-class Connection(SizedMessageAsyncConnection):
+class ZEOConnection(SizedMessageAsyncConnection):
 
     _transaction=None
     __storage=__storage_id=None
