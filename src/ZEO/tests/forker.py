@@ -123,12 +123,23 @@ else:
 
 
 def shutdown_zeo_server(adminaddr):
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.connect(adminaddr)
-    try:
-        ack = s.recv(1024)
-    except socket.error, e:
-        if e[0] <> errno.ECONNRESET: raise
-        ack = 'no ack received'
-    zLOG.LOG('shutdownServer', zLOG.DEBUG, 'acked: %s' % ack)
-    s.close()
+    # Do this in a loop to guard against the possibility that the
+    # client failed to connect to the adminaddr earlier.  That really
+    # only requires two iterations, but do a third for pure
+    # superstition.
+    for i in range(3):
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        try:
+            s.connect(adminaddr)
+        except socket.error, e:
+            if e[0] == errno.ECONNREFUSED and i > 0:
+                break
+            raise
+        try:
+            ack = s.recv(1024)
+        except socket.error, e:
+            if e[0] == errno.ECONNRESET:
+                raise
+            ack = 'no ack received'
+        zLOG.LOG('shutdownServer', zLOG.DEBUG, 'acked: %s' % ack)
+        s.close()
