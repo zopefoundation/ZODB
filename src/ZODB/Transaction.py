@@ -13,7 +13,7 @@
 ##############################################################################
 """Transaction management
 
-$Id: Transaction.py,v 1.47 2003/01/27 20:30:45 bwarsaw Exp $
+$Id: Transaction.py,v 1.48 2003/03/07 00:11:10 jeremy Exp $
 """
 
 import time, sys, struct, POSException
@@ -255,6 +255,7 @@ class Transaction:
                 # have to clean up.  First save the original exception
                 # in case the cleanup process causes another
                 # exception.
+                error = sys.exc_info()
                 try:
                     self._commit_error(objects, ncommitted, jars, subjars)
                 except:
@@ -262,7 +263,7 @@ class Transaction:
                         "A storage error occured during transaction "
                         "abort.  This shouldn't happen.",
                         error=sys.exc_info())
-                raise
+                raise error[0], error[1], error[2]
         finally:
             del objects[:] # clear registered
             if not subtransaction and self._id is not None:
