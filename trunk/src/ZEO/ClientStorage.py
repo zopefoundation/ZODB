@@ -13,7 +13,7 @@
 ##############################################################################
 """Network ZODB storage client
 
-$Id: ClientStorage.py,v 1.53 2002/08/28 18:59:06 gvanrossum Exp $
+$Id: ClientStorage.py,v 1.54 2002/08/28 21:17:30 gvanrossum Exp $
 """
 
 # XXX TO DO
@@ -508,3 +508,15 @@ class ClientStorage:
                     "Invalidate(%s, %s) failed for _db: %s" % (repr(oid),
                                                                repr(version),
                                                                msg))
+
+    # Unfortunately, the ZEO 2 wire protocol uses different names for
+    # several of the callback methods invoked by the StorageServer.
+    # We can't change the wire protocol at this point because that
+    # would require synchronized updates of clients and servers and we
+    # don't want that.  So here we alias the old names to their new
+    # implementations.
+
+    begin = beginVerify
+    invalidate = invalidateVerify
+    end = endVerify
+    Invalidate = invalidateTrans
