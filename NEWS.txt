@@ -60,6 +60,17 @@ impossible to overlook.  In a release build, ``unghostify()`` raises
 problem in a release build (``ghostify()`` is supposed to be so simple that
 it "can't fail").
 
+ConflictError
+-------------
+
+New in 3.3, a ``ConflictError`` exception may attempt to insert the path to
+the object's class in its message.  However, a ZEO server may not have
+access to application class implementations, and then the attempt by the
+server to raise ``ConflictError`` could raise ``ImportError`` instead while
+trying to determine the object's class path.  This was confusing.  The code
+has been changed to obtain the class path from the object's pickle, without
+trying to import application modules or classes.
+
 Install
 -------
 
