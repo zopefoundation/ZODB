@@ -13,7 +13,7 @@
 ##############################################################################
 """Transaction management
 
-$Id: Transaction.py,v 1.46 2003/01/02 18:05:47 shane Exp $
+$Id: Transaction.py,v 1.47 2003/01/27 20:30:45 bwarsaw Exp $
 """
 
 import time, sys, struct, POSException
@@ -255,7 +255,6 @@ class Transaction:
                 # have to clean up.  First save the original exception
                 # in case the cleanup process causes another
                 # exception.
-                t, v, tb = sys.exc_info()
                 try:
                     self._commit_error(objects, ncommitted, jars, subjars)
                 except:
@@ -263,8 +262,7 @@ class Transaction:
                         "A storage error occured during transaction "
                         "abort.  This shouldn't happen.",
                         error=sys.exc_info())
-                    
-                raise t, v, tb
+                raise
         finally:
             del objects[:] # clear registered
             if not subtransaction and self._id is not None:
@@ -356,7 +354,7 @@ class Transaction:
             jar.tpc_finish(self)
         except:
             # Bug if it does, we need to keep track of it
-            LOG('ZODB', ERROR,
+            LOG('ZODB', PANIC,
                 "A storage error occurred in the last phase of a "
                 "two-phase commit.  This shouldn\'t happen. ",
                 error=sys.exc_info())
@@ -369,7 +367,9 @@ class Transaction:
                 # The database can't guarantee consistency if call fails.
                 jar.tpc_finish(self)
         except:
-            hosed = 1
+            # XXX We should consult ZConfig to decide whether we want to put
+            # the transaction manager in a hosed state or not.
+            #hosed = 1
             LOG('ZODB', PANIC,
                 "A storage error occurred in the last phase of a "
                 "two-phase commit.  This shouldn\'t happen. "
