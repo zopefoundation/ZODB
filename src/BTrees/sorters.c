@@ -12,7 +12,7 @@
 
  ****************************************************************************/
 
-/* Revision information: $Id: sorters.c,v 1.1 2002/05/30 21:00:30 tim_one Exp $ */
+/* Revision information: $Id: sorters.c,v 1.2 2002/05/31 00:21:54 tim_one Exp $ */
 
 /* The only routine here intended to be used outside the file is
    size_t sort_int4_nodups(int *p, size_t n)
@@ -496,7 +496,7 @@ static size_t
 sort_int4_nodups(int *p, size_t n)
 {
 	size_t nunique;
-	size_t *work;
+	element_type *work;
 
 	assert(sizeof(int) == sizeof(element_type));
 	assert(p);
