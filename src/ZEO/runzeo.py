@@ -99,9 +99,9 @@ class ZEOOptionsMixin:
 class ZEOOptions(ZDOptions, ZEOOptionsMixin):
 
     logsectionname = "eventlog"
+    schemadir = os.path.dirname(ZEO.__file__)
 
     def __init__(self):
-        self.schemadir = os.path.dirname(ZEO.__file__)
         ZDOptions.__init__(self)
         self.add_zeo_options()
         self.add("storages", "storages",

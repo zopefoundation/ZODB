@@ -20,11 +20,10 @@ Given an "instance home directory" <home> and some configuration
 options (all of which have default values), create the following:
 
 <home>/etc/zeo.conf     -- ZEO config file
-<home>/etc/zeoctl.conf  -- zdctl+zdrun config file
 <home>/var/             -- Directory for data files: Data.fs etc.
 <home>/log/             -- Directory for log files: zeo.log and zeoctl.log
 <home>/bin/runzeo       -- the zeo server runner
-<home>/bin/zeoctl       -- start/stop script (a shim for zdctl.py)
+<home>/bin/zeoctl       -- start/stop script (a shim for zeoctl.py)
 
 The script will not overwrite existing files; instead, it will issue a
 warning if an existing file is found that differs from the file that
@@ -39,9 +38,10 @@ import sys
 import stat
 import getopt
 
-zeo_conf_template = """# ZEO configuration file
+zeo_conf_template = """\
+# ZEO configuration file
 
-%%define INSTANCE_HOME %(instance_home)s
+%%define INSTANCE %(instance_home)s
 
 <zeo>
   address %(port)d
@@ -52,52 +52,42 @@ zeo_conf_template = """# ZEO configuration file
 </zeo>
 
 <filestorage 1>
-  path $INSTANCE_HOME/var/Data.fs
+  path $INSTANCE/var/Data.fs
 </filestorage>
 
 <eventlog>
   level info
   <logfile>
-    path $INSTANCE_HOME/log/zeo.log
+    path $INSTANCE/log/zeo.log
   </logfile>
 </eventlog>
-"""
-
-runner_conf_template = """# %(package)sctl configuration file
-
-%%define INSTANCE_HOME %(instance_home)s
 
 <runner>
-  program $INSTANCE_HOME/bin/runzeo
-  socket-name $INSTANCE_HOME/etc/%(package)s.zdsock
+  program $INSTANCE/bin/runzeo
+  socket-name $INSTANCE/etc/%(package)s.zdsock
   daemon true
   forever false
   backoff-limit 10
   exit-codes 0, 2
-  directory $INSTANCE_HOME
+  directory $INSTANCE
   default-to-interactive true
   # user zope
   python %(python)s
   zdrun %(zope_home)s/zdaemon/zdrun.py
+
   # This logfile should match the one in the %(package)s.conf file.
   # It is used by zdctl's logtail command, zdrun/zdctl doesn't write it.
-  logfile $INSTANCE_HOME/log/%(package)s.log
+  logfile $INSTANCE/log/%(package)s.log
 </runner>
-
-<eventlog>
-  level info
-  <logfile>
-    path $INSTANCE_HOME/log/%(package)sctl.log
-  </logfile>
-</eventlog>
 """
 
-zdctl_template = """#!/bin/sh
-# %(PACKAGE)s instance start script
+zeoctl_template = """\
+#!/bin/sh
+# %(PACKAGE)s instance control script
 
 # The following two lines are for chkconfig.  On Red Hat Linux (and
 # some other systems), you can copy or symlink this script into
-# /etc/rc.d/init.d/ and then run chkconfig(8), to automatically start
+# /etc/rc.d/init.d/ and then use chkconfig(8) to automatically start
 # %(PACKAGE)s at boot time.
 
 # chkconfig: 345 90 10
@@ -105,33 +95,32 @@ zdctl_template = """#!/bin/sh
 
 PYTHON="%(python)s"
 ZOPE_HOME="%(zope_home)s"
-INSTANCE_HOME="%(instance_home)s"
 
-CONFIG_FILE="$INSTANCE_HOME/etc/%(package)sctl.conf"
+CONFIG_FILE="%(instance_home)s/etc/%(package)s.conf"
 
 PYTHONPATH="$ZOPE_HOME"
 export PYTHONPATH
 
-ZDCTL="$ZOPE_HOME/zdaemon/zdctl.py"
+ZEOCTL="$ZOPE_HOME/ZEO/zeoctl.py"
 
-exec "$PYTHON" "$ZDCTL" -C "$CONFIG_FILE" ${1+"$@"}
+exec "$PYTHON" "$ZEOCTL" -C "$CONFIG_FILE" ${1+"$@"}
 """
 
-runzeo_template = """#!/bin/sh
+runzeo_template = """\
+#!/bin/sh
 # %(PACKAGE)s instance start script
 
 PYTHON="%(python)s"
 ZOPE_HOME="%(zope_home)s"
-INSTANCE_HOME="%(instance_home)s"
 
-CONFIG_FILE="$INSTANCE_HOME/etc/%(package)s.conf"
+CONFIG_FILE="%(instance_home)s/etc/%(package)s.conf"
 
 PYTHONPATH="$ZOPE_HOME"
 export PYTHONPATH
 
-ZEO_RUN="$ZOPE_HOME/ZEO/runzeo.py"
+RUNZEO="$ZOPE_HOME/ZEO/runzeo.py"
 
-exec "$PYTHON" "$ZEO_RUN" -C "$CONFIG_FILE" ${1+"$@"}
+exec "$PYTHON" "$RUNZEO" -C "$CONFIG_FILE" ${1+"$@"}
 """
 
 def main():
@@ -193,8 +182,7 @@ class ZEOInstanceBuilder:
         makedir(home, "log")
         makedir(home, "bin")
         makefile(zeo_conf_template, home, "etc", "zeo.conf", **params)
-        makefile(runner_conf_template, home, "etc", "zeoctl.conf", **params)
-        makexfile(zdctl_template, home, "bin", "zeoctl", **params)
+        makexfile(zeoctl_template, home, "bin", "zeoctl", **params)
         makexfile(runzeo_template, home, "bin", "runzeo", **params)
 
 
