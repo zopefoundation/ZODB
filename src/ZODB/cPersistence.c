@@ -82,7 +82,7 @@
   attributions are listed in the accompanying credits file.
   
  ****************************************************************************/
-static char *what_string = "$Id: cPersistence.c,v 1.38 2000/05/30 17:27:43 jim Exp $";
+static char *what_string = "$Id: cPersistence.c,v 1.39 2000/06/23 17:10:45 brian Exp $";
 
 #include <string.h>
 #include "cPersistence.h"
@@ -554,7 +554,7 @@ Per_getattro(cPersistentObject *self, PyObject *name)
     UNLESS(s=PyString_AsString(name)) return NULL;
 
   r = Per_getattr(self, name, s, PyExtensionClassCAPI->getattro);
-  if (! r && 
+  if (! r && self->state != cPersistent_GHOST_STATE &&
       (((PyExtensionClass*)(self->ob_type))->class_flags 
        & EXTENSIONCLASS_USERGETATTR_FLAG)
       )
@@ -736,6 +736,33 @@ static PyExtensionClass Pertype = {
 	PERSISTENCE_FLAGS,
 };
 
+static PyExtensionClass Overridable = {
+	PyObject_HEAD_INIT(NULL)
+	0,				/*ob_size*/
+	"Persistent",			/*tp_name*/
+	sizeof(cPersistentObject),	/*tp_basicsize*/
+	0,				/*tp_itemsize*/
+	/* methods */
+	(destructor)Per_dealloc,	/*tp_dealloc*/
+	(printfunc)0,			/*tp_print*/
+	(getattrfunc)0,			/*tp_getattr*/
+	(setattrfunc)0,	       		/*tp_setattr*/
+	(cmpfunc)0,			/*tp_compare*/
+	(reprfunc)0,			/*tp_repr*/
+	0,				/*tp_as_number*/
+	0,				/*tp_as_sequence*/
+	0,				/*tp_as_mapping*/
+	(hashfunc)0,			/*tp_hash*/
+	(ternaryfunc)0,			/*tp_call*/
+	(reprfunc)0,			/*tp_str*/
+	(getattrofunc)Per_getattro,	/*tp_getattr with object key*/
+	(setattrofunc)Per_setattro,	/*tp_setattr with object key*/
+	/* Space for future expansion */
+	0L,0L,"",
+	METHOD_CHAIN(Per_methods),
+	EXTENSIONCLASS_BASICNEW_FLAG | PERSISTENT_TYPE_FLAG
+};
+
 /* End of code for Persistent objects */
 /* -------------------------------------------------------- */
 
@@ -785,7 +812,7 @@ void
 initcPersistence()
 {
   PyObject *m, *d;
-  char *rev="$Revision: 1.38 $";
+  char *rev="$Revision: 1.39 $";
 
   TimeStamp=PyString_FromString("TimeStamp");
   if (! TimeStamp) return;
@@ -803,7 +830,8 @@ initcPersistence()
   d = PyModule_GetDict(m);
   PyDict_SetItemString(d,"__version__",
 		       PyString_FromStringAndSize(rev+11,strlen(rev+11)-2));
-  PyExtensionClass_Export(d,"Persistent",Pertype);
+  PyExtensionClass_Export(d, "Persistent",  Pertype);
+  PyExtensionClass_Export(d, "Overridable", Overridable);
 
   cPersistenceCAPI=&truecPersistenceCAPI;
   PyDict_SetItemString(d, "CAPI",
