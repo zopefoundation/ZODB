@@ -84,7 +84,7 @@
 ##############################################################################
 """Network ZODB storage client
 """
-__version__='$Revision: 1.28 $'[11:-2]
+__version__='$Revision: 1.29 $'[11:-2]
 
 import struct, time, os, socket, string, Sync, zrpc, ClientCache
 import tempfile, Invalidator, ExtensionClass, thread
@@ -402,10 +402,10 @@ class ClientStorage(ExtensionClass.Base, BaseStorage.BaseStorage):
         finally: self._lock_release()
 
     def tpc_vote(self, transaction):
-        if transaction is not self._transaction:
-            raise POSException.StorageTransactionError(self, transaction)
         self._lock_acquire()
         try:
+            if transaction is not self._transaction:
+                return
             self._call('vote', self._serial)
 
             if self._serials:
