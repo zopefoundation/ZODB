@@ -84,8 +84,8 @@
 ##############################################################################
 """Database objects
 
-$Id: DB.py,v 1.30 2001/05/21 22:45:38 jeremy Exp $"""
-__version__='$Revision: 1.30 $'[11:-2]
+$Id: DB.py,v 1.31 2001/05/22 23:00:39 jeremy Exp $"""
+__version__='$Revision: 1.31 $'[11:-2]
 
 import cPickle, cStringIO, sys, POSException, UndoLogCompatible
 from Connection import Connection
@@ -357,13 +357,6 @@ class DB(UndoLogCompatible.UndoLogCompatible):
                     t.append(cc)
                 else: cc.close()
             self._temps=t
-
-    def invalidateMany(self, oids=None, version=''):
-        # XXX Callers of this method need to call begin_invalidation()
-        # and finish_invalidation() to get the right locking 
-        if oids is None: self.invalidate(None, version=version)
-        else:
-            for oid in oids: self.invalidate(oid, version=version)
 
     def modifiedInVersion(self, oid):
         h=hash(oid)%131
