@@ -13,7 +13,7 @@
 ##############################################################################
 """Transaction management
 
-$Id: Transaction.py,v 1.42 2002/12/02 22:21:16 jeremy Exp $
+$Id: Transaction.py,v 1.43 2002/12/02 22:21:53 jeremy Exp $
 """
 
 import time, sys, struct, POSException
@@ -97,7 +97,7 @@ class Transaction:
     def abort(self, subtransaction=0, freeme=1):
         """Abort the transaction.
 
-        This is called from the application.  This means that we haven\'t
+        This is called from the application.  This means that we haven't
         entered two-phase commit yet, so no tpc_ messages are sent.
         """
         if subtransaction and (self._non_st_objects is not None):
