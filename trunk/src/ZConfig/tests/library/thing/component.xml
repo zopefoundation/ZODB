@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="us-ascii"?>
+<component>
+  <abstracttype name='thing'/>
+  <sectiontype name='thing-a' implements='thing'>
+    <key name='thing-a-key' default='thing-a-default'/>
+  </sectiontype>
+  <sectiontype name='thing-b' implements='thing'>
+    <key name='thing-b-key' default='thing-b-default'/>
+  </sectiontype>
+</component>

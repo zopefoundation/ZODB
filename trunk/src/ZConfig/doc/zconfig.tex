@@ -1,0 +1,1856 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+% Copyright (c) 2002, 2003 Zope Corporation and Contributors.
+% All Rights Reserved.
+%
+% This software is subject to the provisions of the Zope Public License,
+% Version 2.0 (ZPL).  A copy of the ZPL should accompany this distribution.
+% THIS SOFTWARE IS PROVIDED "AS IS" AND ANY AND ALL EXPRESS OR IMPLIED
+% WARRANTIES ARE DISCLAIMED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+% WARRANTIES OF TITLE, MERCHANTABILITY, AGAINST INFRINGEMENT, AND FITNESS
+% FOR A PARTICULAR PURPOSE.
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\documentclass{howto}
+\usepackage{xmlmarkup}
+
+\newcommand{\datatype}[1]{\strong{#1}}
+
+\title{ZConfig Package Reference}
+
+%\date{27 October 2003}
+\release{2.2}
+\setshortversion{2.2}
+
+\author{Zope Corporation}
+\authoraddress{
+    Lafayette Technology Center\\
+    513 Prince Edward Street\\
+    Fredericksburg, VA 22401\\
+    \url{http://www.zope.com/}
+}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+\noindent
+This document describes the syntax and API used in configuration files
+for components of a Zope installation written by Zope Corporation.  This
+configuration mechanism is itself configured using a schema specification
+written in XML.
+\end{abstract}
+
+\tableofcontents
+
+
+\section{Introduction \label{intro}}
+
+Zope uses a common syntax and API for configuration files designed for
+software components written by Zope Corporation.  Third-party software
+which is also part of a Zope installation may use a different syntax,
+though any software is welcome to use the syntax used by Zope
+Corporation.  Any software written in Python is free to use the
+\module{ZConfig} software to load such configuration files in order to
+ensure compatibility.  This software is covered by the Zope Public
+License, version 2.0.
+
+The \module{ZConfig} package has been tested with Python 2.3.  Older
+versions of Python are not supported.
+\module{ZConfig} only relies on the Python standard library.
+
+Configurations which use \module{ZConfig} are described using
+\dfn{schema}.  A schema is a specification for the allowed structure
+and content of the configuration.  \module{ZConfig} schema are written
+using a small XML-based language.  The schema language allows the
+schema author to specify the names of the keys allowed at the top
+level and within sections, to define the types of sections which may
+be used (and where), the types of each values, whether a key or
+section must be specified or is optional, default values for keys, and
+whether a value can be given only once or repeatedly.
+
+
+\section{Configuration Syntax \label{syntax}}
+
+Like the \ulink{\module{ConfigParser}}
+{http://docs.python.org/lib/module-ConfigParser.html}
+format, this format supports key-value pairs arranged in sections.
+Unlike the \module{ConfigParser} format, sections are typed and can be
+organized hierarchically.
+Additional files may be included if needed.  Schema components not
+specified in the application schema can be imported from the
+configuration file.  Though both formats are substantially
+line-oriented, this format is more flexible.
+
+The intent of supporting nested section is to allow setting up the
+configurations for loosely-associated components in a container.  For
+example, each process running on a host might get its configuration
+section from that host's section of a shared configuration file.
+
+The top level of a configuration file consists of a series of
+inclusions, key-value pairs, and sections.
+
+Comments can be added on lines by themselves.  A comment has a
+\character{\#} as the first non-space character and extends to the end
+of the line:
+
+\begin{verbatim}
+# This is a comment
+\end{verbatim}
+
+An inclusion is expressed like this:
+
+\begin{verbatim}
+%include defaults.conf
+\end{verbatim}
+
+The resource to be included can be specified by a relative or absolute
+URL, resolved relative to the URL of the resource the
+\keyword{\%include} directive is located in.
+
+
+A key-value pair is expressed like this:
+
+\begin{verbatim}
+key value
+\end{verbatim}
+
+The key may include any non-white characters except for parentheses.
+The value contains all the characters between the key and the end of
+the line, with surrounding whitespace removed.
+
+Since comments must be on lines by themselves, the \character{\#}
+character can be part of a value:
+
+\begin{verbatim}
+key value # still part of the value
+\end{verbatim}
+
+Sections may be either empty or non-empty.  An empty section may be
+used to provide an alias for another section.
+
+A non-empty section starts with a header, contains configuration
+data on subsequent lines, and ends with a terminator.
+
+The header for a non-empty section has this form (square brackets
+denote optional parts):
+
+\begin{alltt}
+<\var{section-type} \optional{\var{name}} >
+\end{alltt}
+
+\var{section-type} and \var{name} all have the same syntactic
+constraints as key names.
+
+The terminator looks like this:
+
+\begin{alltt}
+</\var{section-type}>
+\end{alltt}
+
+The configuration data in a non-empty section consists of a sequence
+of one or more key-value pairs and sections.  For example:
+
+\begin{verbatim}
+<my-section>
+    key-1 value-1
+    key-2 value-2
+
+    <another-section>
+        key-3 value-3
+    </another-section>
+</my-section>
+\end{verbatim}
+
+(The indentation is used here for clarity, but is not required for
+syntactic correctness.)
+
+The header for empty sections is similar to that of non-empty
+sections, but there is no terminator:
+
+\begin{alltt}
+<\var{section-type} \optional{\var{name}} />
+\end{alltt}
+
+
+\subsection{Extending the Configuration Schema}
+
+As we'll see in section~\ref{writing-schema}, ``Writing Configuration
+Schema,'' what can be written in a configuration is controlled by
+schemas which can be built from \emph{components}.  These components
+can also be used to extend the set of implementations of objects the
+application can handle.  What this means when writing a configuration
+is that third-party implementations of application object types can be
+used wherever those application types are used in the configuration,
+if there's a \module{ZConfig} component available for that
+implementation.
+
+The configuration file can use an \keyword{\%import} directive to load
+a named component:
+
+\begin{verbatim}
+%import Products.Ape
+\end{verbatim}
+
+The text to the right of the \keyword{\%import} keyword must be the
+name of a Python package; the \module{ZConfig} component provided by
+that package will be loaded and incorporated into the schema being
+used to load the configuration file.  After the import, section types
+defined in the component may be used in the configuration.
+
+More detail is needed for this to really make sense.
+
+A schema may define section types which are \emph{abstract}; these
+cannot be used directly in a configuration, but multiple concrete
+section types can be defined which \emph{implement} the abstract
+types.  Wherever the application allows an abstract type to be used,
+any concrete type which implements that abstract type can be used in
+an actual configuration.
+
+The \keyword{\%import} directive allows loading schema components
+which provide alternate concrete section types which implement the
+abstract types defined by the application.  This allows third-party
+implementations of abstract types to be used in place of or in
+addition to implementations provided with the application.
+
+Consider an example application application which supports logging in
+the same way Zope 2 does.  There are some parameters which configure
+the general behavior of the logging mechanism, and an arbitrary number
+of \emph{log handlers} may be specified to control how the log
+messages are handled.  Several log handlers are provided by the
+application.  Here is an example logging configuration:
+
+\begin{verbatim}
+<eventlog>
+  level verbose
+
+  <logfile>
+    path /var/log/myapp/events.log
+  </logfile>
+</eventlog>
+\end{verbatim}
+
+A third-party component may provide a log handler to send
+high-priority alerts the system administrator's text pager or
+SMS-capable phone.  All that's needed is to install the implementation
+so it can be imported by Python, and modify the configuration:
+
+\begin{verbatim}
+%import my.pager.loghandler
+
+<eventlog>
+  level verbose
+
+  <logfile>
+    path /var/log/myapp/events.log
+  </logfile>
+
+  <pager>
+    number   1-800-555-1234
+    message  Something broke!
+  </pager>
+</eventlog>
+\end{verbatim}
+
+
+\subsection{Textual Substitution in Values}
+
+\module{ZConfig} provides a limited way to re-use portions of a value
+using simple string substitution.  To use this facility, define named
+bits of replacement text using the \keyword{\%define} directive, and
+reference these texts from values.
+
+The syntax for \keyword{\%define} is:
+
+\begin{alltt}
+%define \var{name} \optional{\var{value}}
+\end{alltt}
+
+The value of \var{name} must be a sequence of letters, digits, and
+underscores, and may not start with a digit; the namespace for these
+names is separate from the other namespaces used with
+\module{ZConfig}, and is case-insensitive.  If \var{value} is
+omitted, it will be the empty string.  If given, there must be
+whitespace between \var{name} and \var{value}; \var{value} will not
+include any whitespace on either side, just like values from key-value
+pairs.
+
+Names must be defined before they are used, and may not be
+re-defined.  All resources being parsed as part of a configuration
+share a single namespace for defined names.  This means that resources
+which may be included more than once should not define any names.
+
+References to defined names from configuration values use the syntax
+described for the \refmodule{ZConfig.substitution} module.
+Configuration values which include a \character{\$} as part of the
+actual value will need to use \code{\$\$} to get a single
+\character{\$} in the result.
+
+The values of defined names are processed in the same way as
+configuration values, and may contain references to named
+definitions.
+
+For example, the value for \code{key} will evaluate to \code{value}:
+
+\begin{verbatim}
+%define name value
+key $name
+\end{verbatim} %$ <-- bow to font-lock
+
+
+\section{Writing Configuration Schema \label{writing-schema}}
+
+\module{ZConfig} schema are written as XML documents.
+
+Data types are searched in a special namespace defined by the data
+type registry.  The default registry has slightly magical semantics:
+If the value can be matched to a standard data type when interpreted
+as a \datatype{basic-key}, the standard data type will be used.  If
+that fails, the value must be a \datatype{dotted-name} containing at
+least one dot, and a conversion function will be sought using the
+\method{search()} method of the data type registry used to load the
+schema.
+
+
+\subsection{Schema Elements \label{elements}}
+
+For each element, the content model is shown, followed by a
+description of how the element is used, and then a list of the
+available attributes.  For each attribute, the type of the value is
+given as either the name of a \module{ZConfig} datatype or an XML
+attribute value type.  Familiarity with XML's Document Type Definition
+language is helpful.
+
+The following elements are used to describe a schema:
+
+\begin{elementdesc}{schema}{description?, metadefault?, example?,
+                            import*,
+                            (sectiontype | abstracttype)*,
+                            (section | key | multisection |
+                            multikey)*}
+  Document element for a \module{ZConfig} schema.
+
+  \begin{attributedesc}{extends}{\datatype{space-separated-url-references}}
+  A list of URLs of base schemas from which this section type will inherit key,
+  section, and section type declarations.  If omitted, this schema
+  is defined using only the keys, sections, and section types contained within
+  the \element{schema} element.
+  \end{attributedesc}
+
+  \begin{attributedesc}{datatype}{\datatype{basic-key}
+                                  or \datatype{dotted-name}}
+    The data type converter which will be applied to the value of this
+    section.  If the value is a \datatype{dotted-name} that begins
+    with a period, the value of \attribute{prefix} will be pre-pended,
+    if set.  If any base schemas are listed in the \attribute{extends}
+    attribute, the default value for this attribute comes from the base
+    schemas.  If the base schemas all use the same \attribute{datatype}, then
+    that data type will be the default value for the extending schema.  If
+    there are no base schemas, the default value is \datatype{null}, which
+    means that the \module{ZConfig} section object will be used unconverted.
+    If the base schemas have different \attribute{datatype} definitions, you
+    must explicitly define the \attribute{datatype} in the extending schema.
+  \end{attributedesc}
+
+  \begin{attributedesc}{handler}{\datatype{basic-key}}
+  \end{attributedesc}
+
+  \begin{attributedesc}{keytype}{\datatype{basic-key}
+                                  or \datatype{dotted-name}}
+    The data type converter which will be applied to keys found in
+    this section.  This can be used to constrain key values in
+    different ways; two data types which may be especially useful are
+    the \datatype{identifier} and \datatype{ipaddr-or-hostname}
+    types.  If the value is a \datatype{dotted-name} that begins
+    with a period, the value of \attribute{prefix} will be pre-pended,
+    if set.  If any base schemas are listed in the \attribute{extends}
+    attribute, the default value for this attribute comes from the base
+    schemas.  If the base schemas all use the same \attribute{keytype}, then
+    that key type will be the default value for the extending schema.  If there
+    are no base schemas, the default value is \datatype{basic-key}.  If the
+    base schemas have different \attribute{keytype} definitions, you must
+    explicitly define the \attribute{keytype} in the extending schema.
+  \end{attributedesc}
+
+  \begin{attributedesc}{prefix}{\datatype{dotted-name}}
+    Prefix to be pre-pended in front of partial dotted-names that
+    start with a period.  The value of this attribute is used in all
+    contexts with the \element{schema} element if it hasn't been
+    overridden by an inner element with a \attribute{prefix}
+    attribute.
+  \end{attributedesc}
+\end{elementdesc}
+
+\begin{elementdesc}{description}{PCDATA}
+  Descriptive text explaining the purpose the container of the
+  \element{description} element.  Most other elements can contain
+  a \element{description} element as their first child.
+  At most one \element{description} element may appear in a given
+  context.
+
+  \begin{attributedesc}{format}{NMTOKEN}
+    Optional attribute that can be added to indicate what conventions
+    are used to mark up the contained text.  This is intended to serve
+    as a hint for documentation extraction tools.  Suggested values
+    are:
+
+    \begin{tableii}{l|l}{code}{Value}{Content Format}
+      \lineii{plain}{\mimetype{text/plain}; blank lines separate paragraphs}
+      \lineii{rest}{reStructuredText}
+      \lineii{stx}{Classic Structured Text}
+    \end{tableii}
+  \end{attributedesc}
+\end{elementdesc}
+
+\begin{elementdesc}{example}{PCDATA}
+  An example value.  This serves only as documentation.
+\end{elementdesc}
+
+\begin{elementdesc}{metadefault}{PCDATA}
+  A description of the default value, for human readers.  This may
+  include information about how a computed value is determined when
+  the schema does not specify a default value.
+\end{elementdesc}
+
+\begin{elementdesc}{abstracttype}{description?}
+  Define an abstract section type.
+
+  \begin{attributedesc}{name}{\datatype{basic-key}}
+    The name of the abstract section type; required.
+  \end{attributedesc}
+\end{elementdesc}
+
+\begin{elementdesc}{sectiontype}{description?, (section | key |
+                                  multisection | multikey)*}
+  Define a concrete section type.
+
+  \begin{attributedesc}{datatype}{\datatype{basic-key}
+                                  or \datatype{dotted-name}}
+    The data type converter which will be applied to the value of this
+    section.  If the value is a \datatype{dotted-name} that begins
+    with a period, the value of \attribute{prefix} will be pre-pended,
+    if set.  If \attribute{datatype} is omitted and
+    \attribute{extends} is used, the \attribute{datatype} from the
+    section type identified by the \attribute{extends} attribute is
+    used.
+  \end{attributedesc}
+
+  \begin{attributedesc}{extends}{\datatype{basic-key}}
+    The name of a concrete section type from which this section type
+    acquires all key and section declarations.  This type does
+    \emph{not} automatically implement any abstract section type
+    implemented by the named section type.  If omitted, this section
+    is defined with only the keys and sections contained within the
+    \element{sectiontype} element.  The new section type is called a
+    \emph{derived} section type, and the type named by this attribute
+    is called the \emph{base} type.  Values for the
+    \attribute{datatype} and \attribute{keytype} attributes are
+    acquired from the base type if not specified.
+  \end{attributedesc}
+
+  \begin{attributedesc}{implements}{\datatype{basic-key}}
+    The name of an abstract section type which this concrete section
+    type implements.  If omitted, this section type does not implement
+    any abstract type, and can only be used if it is specified
+    directly in a schema or other section type.
+  \end{attributedesc}
+
+  \begin{attributedesc}{keytype}{\datatype{basic-key}}
+    The data type converter which will be applied to keys found in
+    this section.  This can be used to constrain key values in
+    different ways; two data types which may be especially useful are
+    the \datatype{identifier} and \datatype{ipaddr-or-hostname}
+    types.  If the value is a \datatype{dotted-name} that begins
+    with a period, the value of \attribute{prefix} will be pre-pended,
+    if set.  The default value is \datatype{basic-key}.  If
+    \attribute{keytype} is omitted and \attribute{extends} is used,
+    the \attribute{keytype} from the section type identified by the
+    \attribute{extends} attribute is used.
+  \end{attributedesc}
+
+  \begin{attributedesc}{name}{\datatype{basic-key}}
+    The name of the section type; required.
+  \end{attributedesc}
+
+  \begin{attributedesc}{prefix}{\datatype{dotted-name}}
+    Prefix to be pre-pended in front of partial dotted-names that
+    start with a period.  The value of this attribute is used in all
+    contexts in the \element{sectiontype} element.  If omitted, the
+    prefix specified by a containing context is used if specified.
+  \end{attributedesc}
+\end{elementdesc}
+
+\begin{elementdesc}{import}{EMPTY}
+  Import a schema component.  Exactly one of the attributes
+  \attribute{package} and \attribute{src} must be specified.
+
+  \begin{attributedesc}{file}{file name without directory information}
+    Name of the component file within a package; if not specified,
+    \file{component.xml} is used.  This may only be given when
+    \attribute{package} is used.  (The \file{component.xml} file is
+    always used when importing via \keyword{\%import} from a
+    configuration file.)
+  \end{attributedesc}
+
+  \begin{attributedesc}{package}{\datatype{dotted-suffix}}
+    Name of a Python package that contains the schema component being
+    imported.  The component will be loaded from the file identified
+    by the \attribute{file} attribute, or \file{component.xml} if
+    \attribute{file} is not specified.  If the package name given
+    starts with a dot (\character{.}), the name used will be the
+    current prefix and the value of this attribute concatenated.
+  \end{attributedesc}
+
+  \begin{attributedesc}{src}{\datatype{url-reference}}
+    URL to a separate schema which can provide useful types.  The
+    referenced resource must contain a schema, not a schema
+    component.  Section types defined or imported by the referenced
+    schema are added to the schema containing the \element{import};
+    top-level keys and sections are ignored.
+  \end{attributedesc}
+\end{elementdesc}
+
+\begin{elementdesc}{key}{description?, example?, metadefault?, default*}
+  A \element{key} element is used to describe a key-value pair which
+  may occur at most once in the section type or top-level schema in
+  which it is listed.
+
+  \begin{attributedesc}{attribute}{\datatype{identifier}}
+    The name of the Python attribute which this key should be the
+    value of on a \class{SectionValue} instance.  This must be unique
+    within the immediate contents of a section type or schema.  If
+    this attribute is not specified, an attribute name will be
+    computed by converting hyphens in the key name to underscores.
+  \end{attributedesc}
+
+  \begin{attributedesc}{datatype}{\datatype{basic-key}
+                                  or \datatype{dotted-name}}
+    The data type converter which will be applied to the value of this
+    key.  If the value is a \datatype{dotted-name} that begins
+    with a period, the value of \attribute{prefix} will be pre-pended,
+    if set.
+  \end{attributedesc}
+
+  \begin{attributedesc}{default}{\datatype{string}}
+    If the key-value pair is optional and this attribute is specified,
+    the value of this attribute will be converted using the appropriate
+    data type converter and returned to the application as the
+    configured value.  This attribute may not be specified if the
+    \attribute{required} attribute is \code{yes}.
+  \end{attributedesc}
+
+  \begin{attributedesc}{handler}{\datatype{basic-key}}
+  \end{attributedesc}
+
+  \begin{attributedesc}{name}{\datatype{basic-key}}
+    The name of the key, as it must be given in a configuration
+    instance, or `\code{*}'.  If the value is `\code{*}', any name not
+    already specified as a key may be used, and the configuration
+    value for the key will be a dictionary mapping from the key name
+    to the value.  In this case, the \attribute{attribute} attribute
+    must be specified, and the data type for the key will be applied
+    to each key which is found.
+  \end{attributedesc}
+
+  \begin{attributedesc}{required}{\code{yes|no}}
+    Specifies whether the configuration instance is required to
+    provide the key.  If the value is \code{yes}, the
+    \attribute{default} attribute may not be specified and an error
+    will be reported if the configuration instance does not specify a
+    value for the key.  If the value is \code{no} (the default) and
+    the configuration instance does not specify a value, the value
+    reported to the application will be that specified by the
+    \attribute{default} attribute, if given, or \code{None}.
+  \end{attributedesc}
+\end{elementdesc}
+
+
+\begin{elementdesc}{multikey}{description?, example?, metadefault?, default*}
+  A \element{multikey} element is used to describe a key-value pair
+  which may occur any number of times in the section type or top-level
+  schema in which it is listed.
+
+  \begin{attributedesc}{attribute}{\datatype{identifier}}
+    The name of the Python attribute which this key should be the
+    value of on a \class{SectionValue} instance.  This must be unique
+    within the immediate contents of a section type or schema.  If
+    this attribute is not specified, an attribute name will be
+    computed by converting hyphens in the key name to underscores.
+  \end{attributedesc}
+
+  \begin{attributedesc}{datatype}{\datatype{basic-key}
+                                  or \datatype{dotted-name}}
+    The data type converter which will be applied to the value of this
+    key.  If the value is a \datatype{dotted-name} that begins
+    with a period, the value of \attribute{prefix} will be pre-pended,
+    if set.
+  \end{attributedesc}
+
+  \begin{attributedesc}{handler}{\datatype{basic-key}}
+  \end{attributedesc}
+
+  \begin{attributedesc}{name}{\datatype{basic-key}}
+    The name of the key, as it must be given in a configuration
+    instance, or `\code{+}'.  If the value is `\code{+}', any name not
+    already specified as a key may be used, and the configuration
+    value for the key will be a dictionary mapping from the key name
+    to the value.  In this case, the \attribute{attribute} attribute
+    must be specified, and the data type for the key will be applied
+    to each key which is found.
+  \end{attributedesc}
+
+  \begin{attributedesc}{required}{\code{yes|no}}
+    Specifies whether the configuration instance is required to
+    provide the key.  If the value is \code{yes}, no \element{default}
+    elements may be specified and an error will be reported if the
+    configuration instance does not specify at least one value for the
+    key.  If the value is \code{no} (the default) and the
+    configuration instance does not specify a value, the value
+    reported to the application will be a list containing one element
+    for each \element{default} element specified as a child of the
+    \element{multikey}.  Each value will be individually converted
+    according to the \attribute{datatype} attribute.
+  \end{attributedesc}
+\end{elementdesc}
+
+
+\begin{elementdesc}{default}{PCDATA}
+  Each \element{default} element specifies a single default value for
+  a \element{multikey}.  This element can be repeated to produce a
+  list of individual default values.  The text contained in the
+  element will be passed to the datatype conversion for the
+  \element{multikey}.
+
+  \begin{attributedesc}{key}{key type of the containing sectiontype}
+    Key to associate with the default value.  This is only used for
+    defaults of a \element{key} or \element{multikey} with a
+    \attribute{name} of \code{+}; in that case this attribute is
+    required.  It is an error to use the \attribute{key} attribute
+    with a \element{default} element for a \element{multikey} with a
+    name other than \code{+}.
+
+    \begin{notice}[warning]
+      The datatype of this attribute is that of the section type
+      \emph{containing} the actual keys, not necessarily that of the
+      section type which defines the key.  If a derived section
+      overrides the key type of the base section type, the actual
+      key type used is that of the derived section.
+
+      This can lead to confusing errors in schemas, though the
+      \refmodule{ZConfig} package checks for this when the schema is
+      loaded.  This situation is particularly likely when a derived
+      section type uses a key type which collapses multiple default
+      keys which were not collapsed by the base section type.
+
+      Consider this example schema:
+
+\begin{verbatim}
+<schema>
+  <sectiontype name="base" keytype="identifier">
+    <key name="+" attribute="mapping">
+      <default key="foo">some value</default>
+      <default key="FOO">some value</default>
+    </key>
+  </sectiontype>
+
+  <sectiontype name="derived" keytype="basic-key"
+               extends="base"/>
+
+  <section type="derived" name="*" attribute="section"/>
+</schema>
+\end{verbatim}
+
+      When this schema is loaded, a set of defaults for the
+      \datatype{derived} section type is computed.  Since
+      \datatype{basic-key} is case-insensitive (everything is
+      converted to lower case), \samp{foo} and \samp{Foo} are both
+      converted to \samp{foo}, which clashes since \element{key} only
+      allows one value for each key.
+    \end{notice}
+  \end{attributedesc}
+\end{elementdesc}
+
+
+\begin{elementdesc}{section}{description?}
+  A \element{section} element is used to describe a section which may
+  occur at most once in the section type or top-level schema in which
+  it is listed.
+
+  \begin{attributedesc}{attribute}{\datatype{identifier}}
+    The name of the Python attribute which this section should be the
+    value of on a \class{SectionValue} instance.  This must be unique
+    within the immediate contents of a section type or schema.  If
+    this attribute is not specified, an attribute name will be
+    computed by converting hyphens in the section name to underscores,
+    in which case the \attribute{name} attribute may not be \code{*}
+    or \code{+}.
+  \end{attributedesc}
+
+  \begin{attributedesc}{handler}{\datatype{basic-key}}
+  \end{attributedesc}
+
+  \begin{attributedesc}{name}{\datatype{basic-key}}
+    The name of the section, as it must be given in a configuration
+    instance, \code{*}, or \code{+}.  If the value is \code{*}, any
+    name not already specified as a key may be used.  If the value is
+    \code{*} or \code{+}, the \attribute{attribute} attribute must be
+    specified.  If the value is \code{*}, any name is allowed, or the
+    name may be omitted.  If the value is \code{+}, any name is
+    allowed, but some name must be provided.
+  \end{attributedesc}
+
+  \begin{attributedesc}{required}{\code{yes|no}}
+    Specifies whether the configuration instance is required to
+    provide the section.  If the value is \code{yes}, an error will be
+    reported if the configuration instance does not include the
+    section.  If the value is \code{no} (the default) and the
+    configuration instance does not include the section, the value
+    reported to the application will be \code{None}.
+  \end{attributedesc}
+
+  \begin{attributedesc}{type}{\datatype{basic-key}}
+    The section type which matching sections must implement.  If the
+    value names an abstract section type, matching sections in the
+    configuration file must be of a type which specifies that it
+    implements the named abstract type.  If the name identifies a
+    concrete type, the section type must match exactly.
+  \end{attributedesc}
+\end{elementdesc}
+
+
+\begin{elementdesc}{multisection}{description?}
+  A \element{multisection} element is used to describe a section which
+  may occur any number of times in the section type or top-level
+  schema in which it is listed.
+
+  \begin{attributedesc}{attribute}{\datatype{identifier}}
+    The name of the Python attribute which matching sections should be
+    the value of on a \class{SectionValue} instance.  This is required
+    and must be unique within the immediate contents of a section type
+    or schema.  The \class{SectionValue} instance will contain a list
+    of matching sections.
+  \end{attributedesc}
+
+  \begin{attributedesc}{handler}{\datatype{basic-key}}
+  \end{attributedesc}
+
+  \begin{attributedesc}{name}{\datatype{basic-key}}
+    For a \element{multisection}, any name not already specified as a
+    key may be used.  If the value is \code{*} or \code{+}, the
+    \attribute{attribute} attribute must be specified.  If the value
+    is \code{*}, any name is allowed, or the name may be omitted.  If
+    the value is \code{+}, any name is allowed, but some name must be
+    provided.  No other value for the \attribute{name} attribute is
+    allowed for a \element{multisection}.
+  \end{attributedesc}
+
+  \begin{attributedesc}{required}{\code{yes|no}}
+    Specifies whether the configuration instance is required to
+    provide at least one matching section.  If the value is
+    \code{yes}, an error will be reported if the configuration
+    instance does not include the section.  If the value is \code{no}
+    (the default) and the configuration instance does not include the
+    section, the value reported to the application will be
+    \code{None}.
+  \end{attributedesc}
+
+  \begin{attributedesc}{type}{\datatype{basic-key}}
+    The section type which matching sections must implement.  If the
+    value names an abstract section type, matching sections in the
+    configuration file must be of types which specify that they
+    implement the named abstract type.  If the name identifies a
+    concrete type, the section type must match exactly.
+  \end{attributedesc}
+\end{elementdesc}
+
+
+\subsection{Schema Components \label{schema-components}}
+
+XXX need more explanation
+
+\module{ZConfig} supports schema components that can be
+provided by disparate components, and allows them to be knit together
+into concrete schema for applications.  Components cannot add
+additional keys or sections in the application schema.
+
+A schema \dfn{component} is allowed to define new abstract and
+section types.
+Components are identified using a dotted-name, similar to a Python
+module name.  For example, one component may be \code{zodb.storage}.
+
+Schema components are stored alongside application code since they
+directly reference datatype code.  Schema components are provided by
+Python packages.  The component definition is normally stored in the
+file \file{component.xml}; an alternate filename may be specified
+using the \attribute{file} attribute of the \element{import} element.
+Components imported using the \keyword{\%import} keyword from a
+configuration file must be named \file{component.xml}.
+The component defines the types provided by that component; it must
+have a \element{component} element as the document element.
+
+The following element is used as the document element for schema
+components.  Note that schema components do not allow keys and
+sections to be added to the top-level of a schema; they serve only to
+provide type definitions.
+
+\begin{elementdesc}{component}{description?, (abstracttype | sectiontype)*}
+  The top-level element for schema components.
+
+  \begin{attributedesc}{prefix}{\datatype{dotted-name}}
+    Prefix to be pre-pended in front of partial dotted-names that
+    start with a period.  The value of this attribute is used in all
+    contexts within the \element{component} element if it hasn't been
+    overridden by an inner element with a \attribute{prefix}
+    attribute.
+  \end{attributedesc}
+\end{elementdesc}
+
+
+\section{Standard \module{ZConfig} Datatypes\label{standard-datatypes}}
+
+There are a number of data types which can be identified using the
+\attribute{datatype} attribute on \element{key},
+\element{sectiontype}, and \element{schema} elements.
+Applications may extend the set of datatypes by calling the
+\method{register()} method of the data type registry being used or by
+using Python dotted-names to refer to conversion routines defined in
+code.
+
+The following data types are provided by the default type registry.
+
+\begin{definitions}
+\term{\datatype{basic-key}}
+  The default data type for a key in a ZConfig configuration file.
+  The result of conversion is always lower-case, and matches the
+  regular expression \regexp{[a-z][-._a-z0-9]*}.
+
+\term{\datatype{boolean}}
+  Convert a human-friendly string to a boolean value.  The names
+  \code{yes}, \code{on}, and \code{true} convert to \constant{True},
+  while \code{no}, \code{off}, and \code{false} convert to
+  \constant{False}.  Comparisons are case-insensitive.  All other
+  input strings are disallowed.
+
+\term{\datatype{byte-size}}
+  A specification of a size, with byte multiplier suffixes (for
+  example, \samp{128MB}).  Suffixes are case insensitive and may be
+  \samp{KB}, \samp{MB}, or \samp{GB}
+
+\term{\datatype{dotted-name}}
+  A string consisting of one or more \datatype{identifier} values
+  separated by periods (\character{.}).
+
+\term{\datatype{dotted-suffix}}
+  A string consisting of one or more \datatype{identifier} values
+  separated by periods (\character{.}), possibly prefixed by a
+  period.  This can be used to indicate a dotted name that may be
+  specified relative to some base dotted name.
+
+\term{\datatype{existing-dirpath}}
+  Validates that the directory portion of a pathname exists.  For
+  example, if the value provided is \file{/foo/bar}, \file{/foo} must
+  be an existing directory.  No conversion is performed.
+
+\term{\datatype{existing-directory}}
+  Validates that a directory by the given name exists on 
+  the local filesystem.  No conversion is performed. 
+
+\term{\datatype{existing-file}}
+  Validates that a file by the given name exists.  No conversion 
+  is performed. 
+
+\term{\datatype{existing-path}}
+  Validates that a path (file, directory, or symlink) by the
+  given name exists on the local filesystem.  No conversion
+  is performed.
+
+\term{\datatype{float}}
+  A Python float.  \code{Inf}, \code{-Inf}, and \code{NaN} are not
+  allowed.
+
+\term{\datatype{identifier}}
+  Any valid Python identifier.
+
+\term{\datatype{inet-address}}
+  An Internet address expressed as a \code{(\var{hostname},
+  \var{port})} pair.  If only the port is specified, the default host
+  will be returned for \var{hostname}.  The default host is
+  \code{localhost} on Windows and the empty string on all other
+  platforms.  If the port is omitted, \code{None} will be returned for
+  \var{port}.
+
+\term{\datatype{integer}}
+  Convert a value to an integer.  This will be a Python \class{int} if
+  the value is in the range allowed by \class{int}, otherwise a Python
+  \class{long} is returned.
+
+\term{\datatype{ipaddr-or-hostname}}
+  Validates a valid IP address or hostname.  If the first 
+  character is a digit, the value is assumed to be an IP 
+  address.  If the first character is not a digit, the value 
+  is assumed to be a hostname.  Hostnames are converted to lower
+  case.
+
+\term{\datatype{locale}}
+  Any valid locale specifier accepted by the available
+  \function{locale.setlocale()} function.  Be aware that only the
+  \code{'C'} locale is supported on some platforms.
+
+\term{\datatype{null}}
+  No conversion is performed; the value passed in is the value
+  returned.  This is the default data type for section values.
+
+\term{\datatype{port-number}}
+  Returns a valid port number as an integer.  Validity does not imply
+  that any particular use may be made of the port, however.  For
+  example, port number lower than 1024 generally cannot be bound by
+  non-root users.
+
+\term{\datatype{socket-address}}
+  An address for a socket.  The converted value is an object providing
+  two attributes.  \member{family} specifies the address family
+  (\constant{AF_INET} or \constant{AF_UNIX}), with \code{None} instead
+  of \constant{AF_UNIX} on platforms that don't support it.  The
+  \member{address} attribute will be the address that should be passed
+  to the socket's \method{bind()} method.  If the family is
+  \constant{AF_UNIX}, the specific address will be a pathname; if the
+  family is \constant{AF_INET}, the second part will be the result of
+  the \datatype{inet-address} conversion.
+
+\term{\datatype{string}}
+  Returns the input value as a string.  If the source is a Unicode
+  string, this implies that it will be checked to be simple 7-bit
+  \ASCII.  This is the default data type for values in
+  configuration files.
+
+\term{\datatype{time-interval}}
+  A specification of a time interval in seconds, with multiplier
+  suffixes (for example, \code{12h}).  Suffixes are case insensitive
+  and may be \samp{s} (seconds), \samp{m} (minutes), \samp{h} (hours),
+  or \samp{d} (days).
+
+\term{\datatype{timedelta}}
+  Similar to the \datatype{time-interval}, this data type returns a Python
+  datetime.timedelta object instead of a float.  The set of suffixes
+  recognized by \datatype{timedelta} are: \samp{w} (weeks), \samp{d} (days),
+  \samp{h} (hours), \samp{m} (minutes), \samp{s} (seconds).  Values may be
+  floats, for example: \code{4w 2.5d 7h 12m 0.001s}.
+
+\end{definitions}
+
+
+\section{Standard \module{ZConfig} Schema Components
+         \label{standard-components}}
+
+\module{ZConfig} provides a few convenient schema components as part
+of the package.  These may be used directly or can server as examples
+for creating new components.
+
+
+\subsection{\module{ZConfig.components.basic}}
+
+The \module{ZConfig.components.basic} package provides small
+components that can be helpful in composing application-specific
+components and schema.  There is no large functionality represented by
+this package.  The default component provided by this package simply
+imports all of the smaller components.  This can be imported using
+
+\begin{verbatim}
+<import package="ZConfig.components.basic"/>
+\end{verbatim}
+
+Each of the smaller components is documented directly; importing these
+selectively can reduce the time it takes to load a schema slightly,
+and allows replacing the other basic components with alternate
+components (by using different imports that define the same type
+names) if desired.
+
+
+\subsubsection{The Mapping Section Type \label{basic-mapping}}
+
+There is a basic section type that behaves like a simple Python
+mapping; this can be imported directly using
+
+\begin{verbatim}
+<import package="ZConfig.components.basic" file="mapping.xml"/>
+\end{verbatim}
+
+This defines a single section type, \datatype{ZConfig.basic.mapping}.
+When this is used, the section value is a Python dictionary mapping
+keys to string values.
+
+This type is intended to be used by extending it in simple ways.  The
+simplest is to create a new section type name that makes more sense
+for the application:
+
+\begin{verbatim}
+<import package="ZConfig.components.basic" file="mapping.xml"/>
+
+<sectiontype name="my-mapping"
+             extends="ZConfig.basic.mapping"
+             />
+
+<section name="*"
+         type="my-mapping"
+         attribute="map"
+         />
+\end{verbatim}
+
+This allows a configuration to contain a mapping from
+\datatype{basic-key} names to string values like this:
+
+\begin{verbatim}
+<my-mapping>
+  This that
+  and the other
+</my-mapping>
+\end{verbatim}
+
+The value of the configuration object's \member{map} attribute would
+then be the dictionary
+
+\begin{verbatim}
+{'this': 'that',
+ 'and': 'the other',
+ }
+\end{verbatim}
+
+(Recall that the \datatype{basic-key} data type converts everything to
+lower case.)
+
+Perhaps a more interesting application of
+\datatype{ZConfig.basic.mapping} is using the derived type to override
+the \attribute{keytype}.  If we have the conversion function:
+
+\begin{verbatim}
+def email_address(value):
+    userid, hostname = value.split("@", 1)
+    hostname = hostname.lower()  # normalize what we know we can
+    return "%s@%s" % (userid, hostname)
+\end{verbatim}
+
+then we can use this as the key type for a derived mapping type:
+
+\begin{verbatim}
+<import package="ZConfig.components.basic" file="mapping.xml"/>
+
+<sectiontype name="email-users"
+             extends="ZConfig.basic.mapping"
+             keytype="mypkg.datatypes.email_address"
+             />
+
+<section name="*"
+         type="email-users"
+         attribute="email_users"
+         />
+\end{verbatim}
+
+
+\subsection{\module{ZConfig.components.logger}}
+
+The \module{ZConfig.components.logger} package provides configuration
+support for the \ulink{\module{logging} package}
+{http://docs.python.org/lib/module-logging.html} in
+Python's standard library.  This component can be imported using
+
+\begin{verbatim}
+<import package="ZConfig.components.logger"/>
+\end{verbatim}
+
+This component defines two abstract types and several concrete section
+types.  These can be imported as a unit, as above, or as four smaller
+components usable in creating alternate logging packages.
+
+The first of the four smaller components contains the abstract types,
+and can be imported using
+
+\begin{verbatim}
+<import package="ZConfig.components.logger" file="abstract.xml"/>
+\end{verbatim}
+
+The two abstract types imported by this are:
+
+\begin{definitions}
+
+\term{\datatype{ZConfig.logger.log}}
+  Logger objects are represented by this abstract type.
+
+\term{\datatype{ZConfig.logger.handler}}
+  Each logger object can have one or more ``handlers'' associated with
+  them.  These handlers are responsible for writing logging events to
+  some form of output stream using appropriate formatting.  The output
+  stream may be a file on a disk, a socket communicating with a server
+  on another system, or a series of \code{syslog} messages.  Section
+  types which implement this type represent these handlers.
+
+\end{definitions}
+
+
+The second and third of the smaller components provides section types
+that act as factories for \class{logging.Logger} objects.  These can be
+imported using
+
+\begin{verbatim}
+<import package="ZConfig.components.logger" file="eventlog.xml"/>
+<import package="ZConfig.components.logger" file="logger.xml"/>
+\end{verbatim}
+
+The types defined in these components implement the
+\datatype{ZConfig.logger.log} abstract type.  The \file{eventlog.xml}
+component defines an \datatype{eventlog} type which represents the
+root logger from the the \module{logging} package (the return value of
+\function{logging.getLogger()}), while the \file{logger.xml} component
+defines a \datatype{logger} section type which represents a named
+logger (as returned by \function{logging.getLogger(\var{name})}).
+
+
+The third of the smaller components provides section types that are
+factories for \class{logging.Handler} objects.  This can be imported
+using
+
+\begin{verbatim}
+<import package="ZConfig.components.logger" file="handlers.xml"/>
+\end{verbatim}
+
+The types defined in this component implement the
+\datatype{ZConfig.logger.handler} abstract type.
+
+
+
+The configuration objects provided by both the logger and handler
+types are factories for the finished loggers and handlers.  These
+factories should be called with no arguments to retrieve the logger or
+log handler objects.  Calling the factories repeatedly will cause the
+same objects to be returned each time, so it's safe to simply call
+them to retrieve the objects.
+
+The factories for the logger objects, whether the \datatype{eventlog}
+or \datatype{logger} section type is used, provide a \method{reopen()}
+method which may be called to close any log files and re-open them.
+This is useful when using a \UNIX{} signal to effect log file
+rotation: the signal handler can call this method, and not have to
+worry about what handlers have been registered for the logger.
+
+Building an application that uses the logging components is fairly
+straightforward.  The schema needs to import the relevant components
+and declare their use:
+
+\begin{verbatim}
+<schema>
+  <import package="ZConfig.components.logger" file="eventlog.xml"/>
+  <import package="ZConfig.components.logger" file="handlers.xml"/>
+
+  <section type="eventlog" name="*" attribute="eventlog"
+           required="yes"/>
+</schema>
+\end{verbatim}
+
+In the application, the schema and configuration file should be loaded
+normally.  Once the configuration object is available, the logger
+factory should be called to configure Python's \module{logging} package:
+
+\begin{verbatim}
+import os
+import ZConfig
+
+def run(configfile):
+    schemafile = os.path.join(os.path.dirname(__file__), "schema.xml")
+    schema = ZConfig.loadSchema(schemafile)
+    config, handlers = ZConfig.loadConfig(schema, configfile)
+
+    # configure the logging package:
+    config.eventlog()
+
+    # now do interesting things
+\end{verbatim}
+
+An example configuration file for this application may look like this:
+
+\begin{verbatim}
+<eventlog>
+  level  info
+
+  <logfile>
+    path        /var/log/myapp
+    format      %(asctime)s %(levelname)s %(name)s %(message)s
+    # locale-specific date/time representation
+    dateformat  %c
+  </logfile>
+
+  <syslog>
+    level    error
+    address  syslog.example.net:514
+    format   %(levelname)s %(name)s %(message)s
+  </syslog>
+</eventlog>
+\end{verbatim}
+
+Refer to the \module{logging} package documentation for the names
+available in the message format strings (the \code{format} key in the
+log handlers).  The date format strings (the \code{dateformat} key in
+the log handlers) are the same as those accepted by the
+\function{time.strftime()} function.
+
+
+\begin{seealso}
+  \seepep{282}{A Logging System}
+         {The proposal which described the logging feature for
+          inclusion in the Python standard library.}
+  \seelink{http://docs.python.org/lib/module-logging.html}
+          {\module{logging} --- Logging facility for Python}
+          {Python's \module{logging} package documentation, from the
+           \citetitle[http://docs.python.org/lib/lib.html]
+           {Python Library Reference}.}
+  \seelink{http://www.red-dove.com/python_logging.html}
+          {Original Python \module{logging} package}
+          {This is the original source for the \module{logging}
+           package.  This is mostly of historical interest.}
+\end{seealso}
+
+
+\section{Using Components to Extend Schema}
+
+% XXX This section needs a lot of work, but should get people started
+% who really want to add new pieces to ZConfig-configured applications.
+
+It is possible to use schema components and the \keyword{\%import}
+construct to extend the set of section types available for a specific
+configuration file, and allow the new components to be used in place
+of standard components.
+
+The key to making this work is the use of abstract section types.
+Wherever the original schema accepts an abstract type, it is possible
+to load new implementations of the abstract type and use those instead
+of, or in addition to, the implementations loaded by the original
+schema.
+
+Abstract types are generally used to represent interfaces.  Sometimes
+these are interfaces for factory objects, and sometimes not, but
+there's an interface that the new component needs to implement.  What
+interface is required should be documented in the
+\element{description} element in the \element{abstracttype} element;
+this may be by reference to an interface specified in a Python module
+or described in some other bit of documentation.
+
+The following things need to be created to make the new component
+usable from the configuration file:
+
+\begin{enumerate}
+  \item An implementation of the required interface.
+
+  \item A schema component that defines a section type that contains
+        the information needed to construct the component.
+
+  \item A ``datatype'' function that converts configuration data to an
+        instance of the component.
+\end{enumerate}
+
+For simplicity, let's assume that the implementation is defined by a
+Python class.
+
+The example component we build here will be in the \module{noise}
+package, but any package will do.  Components loadable using
+\keyword{\%import} must be contained in the \file{component.xml} file;
+alternate filenames may not be selected by the \keyword{\%import}
+construct.
+
+Create a ZConfig component that provides a section type to support
+your component.  The new section type must declare that it implements
+the appropriate abstract type; it should probably look something like
+this:
+
+\begin{verbatim}
+<component prefix="noise.server">
+  <import package="ZServer"/>
+
+  <sectiontype name="noise-generator"
+               implements="ZServer.server"
+               datatype=".NoiseServerFactory">
+
+    <!-- specific configuration data should be described here -->
+
+    <key name="port"
+         datatype="port-number"
+         required="yes">
+      <description>
+        Port number to listen on.
+      </description>
+    </key>
+
+    <key name="color"
+         datatype=".noise_color"
+         default="white">
+      <description>
+        Silly way to specify a noise generation algorithm.
+      </description>
+    </key>
+
+  </sectiontype>
+</component>
+\end{verbatim}
+
+This example uses one of the standard ZConfig datatypes,
+\datatype{port-number}, and requires two additional types to be
+provided by the \module{noise.server} module:
+\class{NoiseServerFactory} and \function{noise_color()}.
+
+The \function{noise_color()} function is a datatype conversion for a
+key, so it accepts a string and returns the value that should be used:
+
+\begin{verbatim}
+_noise_colors = {
+    # color -> r,g,b
+    'white': (255, 255, 255),
+    'pink':  (255, 182, 193),
+    }
+
+def noise_color(string):
+    if string in _noise_colors:
+        return _noise_colors[string]
+    else:
+        raise ValueError('unknown noise color: %r' % string)
+\end{verbatim}
+
+\class{NoiseServerFactory} is a little different, as it's the datatype
+function for a section rather than a key.  The parameter isn't a
+string, but a section value object with two attributes, \member{port}
+and \member{color}.
+
+Since the \datatype{ZServer.server} abstract type requires that the
+component returned is a factory object, the datatype function can be
+implemented at the constructor for the class of the factory object.
+(If the datatype function could select different implementation
+classes based on the configuration values, it makes more sense to use
+a simple function that returns the appropriate implementation.)
+
+A class that implements this datatype might look like this:
+
+\begin{verbatim}
+from ZServer.datatypes import ServerFactory
+from noise.generator import WhiteNoiseGenerator, PinkNoiseGenerator
+
+class NoiseServerFactory(ServerFactory):
+
+    def __init__(self, section):
+        # host and ip will be initialized by ServerFactory.prepare()
+        self.host = None
+        self.ip = None
+        self.port = section.port
+        self.color = section.color
+
+    def create(self):
+        if self.color == 'white':
+            generator = WhiteNoiseGenerator()
+        else:
+            generator = PinkNoiseGenerator()
+        return NoiseServer(self.ip, self.port, generator)
+\end{verbatim}
+
+You'll need to arrange for the package containing this component is
+available on Python's \code{sys.path} before the configuration file is
+loaded; this is mostly easily done by manipulating the
+\envvar{PYTHONPATH} environment variable.
+
+Your configuration file can now include the following to load and use
+your new component:
+
+\begin{verbatim}
+%import noise
+
+<noise-generator>
+  port 1234
+  color white
+</noise-generator>
+\end{verbatim}
+
+
+\section{\module{ZConfig} --- Basic configuration support}
+
+\declaremodule{}{ZConfig}
+\modulesynopsis{Configuration package.}
+
+The main \module{ZConfig} package exports these convenience functions:
+
+\begin{funcdesc}{loadConfig}{schema, url\optional{, overrides}}
+  Load and return a configuration from a URL or pathname given by
+  \var{url}.  \var{url} may be a URL, absolute pathname, or relative
+  pathname.  Fragment identifiers are not supported.  \var{schema} is
+  a reference to a schema loaded by \function{loadSchema()} or
+  \function{loadSchemaFile()}.
+  The return value is a tuple containing the configuration object and
+  a composite handler that, when called with a name-to-handler
+  mapping, calls all the handlers for the configuration.
+
+  The optional \var{overrides} argument represents information derived
+  from command-line arguments.  If given, it must be either a sequence
+  of value specifiers, or \code{None}.  A \dfn{value specifier} is a
+  string of the form \code{\var{optionpath}=\var{value}}.  The
+  \var{optionpath} specifies the ``full path'' to the configuration
+  setting: it can contain a sequence of names, separated by
+  \character{/} characters. Each name before the last names a section
+  from the configuration file, and the last name corresponds to a key
+  within the section identified by the leading section names.  If
+  \var{optionpath} contains only one name, it identifies a key in the
+  top-level schema.  \var{value} is a string that will be treated
+  just like a value in the configuration file.
+\end{funcdesc}
+
+\begin{funcdesc}{loadConfigFile}{schema, file\optional{,
+                                 url\optional{, overrides}}}
+  Load and return a configuration from an opened file object.  If
+  \var{url} is omitted, one will be computed based on the
+  \member{name} attribute of \var{file}, if it exists.  If no URL can
+  be determined, all \keyword{\%include} statements in the
+  configuration must use absolute URLs.  \var{schema} is a reference
+  to a schema loaded by \function{loadSchema()} or
+  \function{loadSchemaFile()}.
+  The return value is a tuple containing the configuration object and
+  a composite handler that, when called with a name-to-handler
+  mapping, calls all the handlers for the configuration.
+  The \var{overrides} argument is the same as for the
+  \function{loadConfig()} function.
+\end{funcdesc}
+
+\begin{funcdesc}{loadSchema}{url}
+  Load a schema definition from the URL \var{url}.
+  \var{url} may be a URL, absolute pathname, or relative pathname.
+  Fragment identifiers are not supported.
+  The resulting
+  schema object can be passed to \function{loadConfig()} or
+  \function{loadConfigFile()}.  The schema object may be used as many
+  times as needed.
+\end{funcdesc}
+
+\begin{funcdesc}{loadSchemaFile}{file\optional{, url}}
+  Load a schema definition from the open file object \var{file}.  If
+  \var{url} is given and not \code{None}, it should be the URL of
+  resource represented by \var{file}.  If \var{url} is omitted or
+  \code{None}, a URL may be computed from the \member{name} attribute
+  of \var{file}, if present.  The resulting schema object can
+  be passed to \function{loadConfig()} or \function{loadConfigFile()}.
+  The schema object may be used as many times as needed.
+\end{funcdesc}
+
+The following exceptions are defined by this package:
+
+\begin{excdesc}{ConfigurationError}
+  Base class for exceptions specific to the \module{ZConfig} package.
+  All instances provide a \member{message} attribute that describes
+  the specific error, and a \member{url} attribute that gives the URL
+  of the resource the error was located in, or \constant{None}.
+\end{excdesc}
+
+\begin{excdesc}{ConfigurationSyntaxError}
+  Exception raised when a configuration source does not conform to the
+  allowed syntax.  In addition to the \member{message} and
+  \member{url} attributes, exceptions of this type offer the
+  \member{lineno} attribute, which provides the line number at which
+  the error was detected.
+\end{excdesc}
+
+\begin{excdesc}{DataConversionError}
+  Raised when a data type conversion fails with
+  \exception{ValueError}.  This exception is a subclass of both
+  \exception{ConfigurationError} and \exception{ValueError}.  The
+  \function{str()} of the exception provides the explanation from the
+  original \exception{ValueError}, and the line number and URL of the
+  value which provoked the error.  The following additional attributes
+  are provided:
+
+  \begin{tableii}{l|l}{member}{Attribute}{Value}
+    \lineii{colno}
+           {column number at which the value starts, or \code{None}}
+    \lineii{exception}
+           {the original \exception{ValueError} instance}
+    \lineii{lineno}
+           {line number on which the value starts}
+    \lineii{message}
+           {\function{str()} returned by the original \exception{ValueError}}
+    \lineii{value}
+           {original value passed to the conversion function}
+    \lineii{url}
+           {URL of the resource providing the value text}
+  \end{tableii}
+\end{excdesc}
+
+\begin{excdesc}{SchemaError}
+  Raised when a schema contains an error.  This exception type
+  provides the attributes \member{url}, \member{lineno}, and
+  \member{colno}, which provide the source URL, the line number, and
+  the column number at which the error was detected.  These attributes
+  may be \code{None} in some cases.
+\end{excdesc}
+
+\begin{excdesc}{SchemaResourceError}
+  Raised when there's an error locating a resource required by the
+  schema.  This is derived from \exception{SchemaError}.  Instances of
+  this exception class add the attributes \member{filename},
+  \member{package}, and \member{path}, which hold the filename
+  searched for within the package being loaded, the name of the
+  package, and the \code{__path__} attribute of the package itself (or
+  \constant{None} if it isn't a package or could not be imported).
+\end{excdesc}
+
+\begin{excdesc}{SubstitutionReplacementError}
+  Raised when the source text contains references to names which are
+  not defined in \var{mapping}.  The attributes \member{source} and
+  \member{name} provide the complete source text and the name
+  (converted to lower case) for which no replacement is defined.
+\end{excdesc}
+
+\begin{excdesc}{SubstitutionSyntaxError}
+  Raised when the source text contains syntactical errors.
+\end{excdesc}
+
+
+\subsection{Basic Usage}
+
+The simplest use of \refmodule{ZConfig} is to load a configuration
+based on a schema stored in a file.  This example loads a
+configuration file specified on the command line using a schema in the
+same directory as the script:
+
+\begin{verbatim}
+import os
+import sys
+import ZConfig
+
+try:
+    myfile = __file__
+except NameError:
+    myfile = os.path.realpath(sys.argv[0])
+
+mydir = os.path.dirname(myfile)
+
+schema = ZConfig.loadSchema(os.path.join(mydir, 'schema.xml'))
+conf, handler = ZConfig.loadConfig(schema, sys.argv[1])
+\end{verbatim}
+
+If the schema file contained this schema:
+
+\begin{verbatim}
+<schema>
+  <key name='server' required='yes'/>
+  <key name='attempts' datatype='integer' default='5'/>
+</schema>
+\end{verbatim}
+
+and the file specified on the command line contained this text:
+
+\begin{verbatim}
+# sample configuration
+
+server www.example.com
+\end{verbatim}
+
+then the configuration object \code{conf} loaded above would have two
+attributes:
+
+\begin{tableii}{l|l}{member}{Attribute}{Value}
+  \lineii{server}{\code{'www.example.com'}}
+  \lineii{attempts}{\code{5}}
+\end{tableii}
+
+
+\section{\module{ZConfig.datatypes} --- Default data type registry}
+
+\declaremodule{}{ZConfig.datatypes}
+\modulesynopsis{Default implementation of a data type registry}
+
+The \module{ZConfig.datatypes} module provides the implementation of
+the default data type registry and all the standard data types
+supported by \module{ZConfig}.  A number of convenience classes are
+also provided to assist in the creation of additional data types.
+
+A \dfn{datatype registry} is an object that provides conversion
+functions for data types.  The interface for a registry is fairly
+simple.
+
+A \dfn{conversion function} is any callable object that accepts a
+single argument and returns a suitable value, or raises an exception
+if the input value is not acceptable.  \exception{ValueError} is the
+preferred exception for disallowed inputs, but any other exception
+will be properly propagated.
+
+\begin{classdesc}{Registry}{\optional{stock}}
+  Implementation of a simple type registry.  If given, \var{stock}
+  should be a mapping which defines the ``built-in'' data types for
+  the registry; if omitted or \code{None}, the standard set of data
+  types is used (see section~\ref{standard-datatypes}, ``Standard
+  \module{ZConfig} Datatypes'').
+\end{classdesc}
+
+\class{Registry} objects have the following methods:
+
+\begin{methoddesc}{get}{name}
+  Return the type conversion routine for \var{name}.  If the
+  conversion function cannot be found, an (unspecified) exception is
+  raised.  If the name is not provided in the stock set of data types
+  by this registry and has not otherwise been registered, this method
+  uses the \method{search()} method to load the conversion function.
+  This is the only method the rest of \module{ZConfig} requires.
+\end{methoddesc}
+
+\begin{methoddesc}{register}{name, conversion}
+  Register the data type name \var{name} to use the conversion
+  function \var{conversion}.  If \var{name} is already registered or
+  provided as a stock data type, \exception{ValueError} is raised
+  (this includes the case when \var{name} was found using the
+  \method{search()} method).
+\end{methoddesc}
+
+\begin{methoddesc}{search}{name}
+  This is a helper method for the default implementation of the
+  \method{get()} method.  If \var{name} is a Python dotted-name, this
+  method loads the value for the name by dynamically importing the
+  containing module and extracting the value of the name.  The name
+  must refer to a usable conversion function.
+\end{methoddesc}
+
+
+The following classes are provided to define conversion functions:
+
+\begin{classdesc}{MemoizedConversion}{conversion}
+  Simple memoization for potentially expensive conversions.  This
+  conversion helper caches each successful conversion for re-use at a
+  later time; failed conversions are not cached in any way, since it
+  is difficult to raise a meaningful exception providing information
+  about the specific failure.
+\end{classdesc}
+
+\begin{classdesc}{RangeCheckedConversion}{conversion\optional{,
+                                          min\optional{, max}}}
+  Helper that performs range checks on the result of another
+  conversion.  Values passed to instances of this conversion are
+  converted using \var{conversion} and then range checked.  \var{min}
+  and \var{max}, if given and not \code{None}, are the inclusive
+  endpoints of the allowed range.  Values returned by \var{conversion}
+  which lay outside the range described by \var{min} and \var{max}
+  cause \exception{ValueError} to be raised.
+\end{classdesc}
+
+\begin{classdesc}{RegularExpressionConversion}{regex}
+  Conversion that checks that the input matches the regular expression
+  \var{regex}.  If it matches, returns the input, otherwise raises
+  \exception{ValueError}.
+\end{classdesc}
+
+
+\section{\module{ZConfig.loader} --- Resource loading support}
+
+\declaremodule{}{ZConfig.loader}
+\modulesynopsis{Support classes for resource loading}
+
+This module provides some helper classes used by the primary APIs
+exported by the \module{ZConfig} package.  These classes may be useful
+for some applications, especially applications that want to use a
+non-default data type registry.
+
+\begin{classdesc}{Resource}{file, url\optional{, fragment}}
+  Object that allows an open file object and a URL to be bound
+  together to ease handling.  Instances have the attributes
+  \member{file}, \member{url}, and \member{fragment} which store the
+  constructor arguments.  These objects also have a \method{close()}
+  method which will call \method{close()} on \var{file}, then set the
+  \member{file} attribute to \code{None} and the \member{closed} to
+  \constant{True}.
+\end{classdesc}
+
+\begin{classdesc}{BaseLoader}{}
+  Base class for loader objects.  This should not be instantiated
+  directly, as the \method{loadResource()} method must be overridden
+  for the instance to be used via the public API.
+\end{classdesc}
+
+\begin{classdesc}{ConfigLoader}{schema}
+  Loader for configuration files.  Each configuration file must
+  conform to the schema \var{schema}.  The \method{load*()} methods
+  return a tuple consisting of the configuration object and a
+  composite handler.
+\end{classdesc}
+
+\begin{classdesc}{SchemaLoader}{\optional{registry}}
+  Loader that loads schema instances.  All schema loaded by a
+  \class{SchemaLoader} will use the same data type registry.  If
+  \var{registry} is provided and not \code{None}, it will be used,
+  otherwise an instance of \class{ZConfig.datatypes.Registry} will be
+  used.
+\end{classdesc}
+
+
+\subsection{Loader Objects}
+
+Loader objects provide a general public interface, an interface which
+subclasses must implement, and some utility methods.
+
+The following methods provide the public interface:
+
+\begin{methoddesc}[loader]{loadURL}{url}
+  Open and load a resource specified by the URL \var{url}.
+  This method uses the \method{loadResource()} method to perform the
+  actual load, and returns whatever that method returns.
+\end{methoddesc}
+
+\begin{methoddesc}[loader]{loadFile}{file\optional{, url}}
+  Load from an open file object, \var{file}.  If given and not
+  \code{None}, \var{url} should be the URL of the resource represented
+  by \var{file}.  If omitted or \code{None}, the \member{name}
+  attribute of \var{file} is used to compute a \code{file:} URL, if
+  present.
+  This method uses the \method{loadResource()} method to perform the
+  actual load, and returns whatever that method returns.
+\end{methoddesc}
+
+The following method must be overridden by subclasses:
+
+\begin{methoddesc}[loader]{loadResource}{resource}
+  Subclasses of \class{BaseLoader} must implement this method to
+  actually load the resource and return the appropriate
+  application-level object.
+\end{methoddesc}
+
+The following methods can be used as utilities:
+
+\begin{methoddesc}[loader]{isPath}{s}
+  Return true if \var{s} should be considered a filesystem path rather
+  than a URL.
+\end{methoddesc}
+
+\begin{methoddesc}[loader]{normalizeURL}{url-or-path}
+  Return a URL for \var{url-or-path}.  If \var{url-or-path} refers to
+  an existing file, the corresponding \code{file:} URL is returned.
+  Otherwise \var{url-or-path} is checked for sanity: if it
+  does not have a schema, \exception{ValueError} is raised, and if it
+  does have a fragment identifier, \exception{ConfigurationError} is
+  raised.
+  This uses \method{isPath()} to determine whether \var{url-or-path}
+  is a URL of a filesystem path.
+\end{methoddesc}
+
+\begin{methoddesc}[loader]{openResource}{url}
+  Returns a resource object that represents the URL \var{url}.  The
+  URL is opened using the \function{urllib2.urlopen()} function, and
+  the returned resource object is created using
+  \method{createResource()}.  If the URL cannot be opened,
+  \exception{ConfigurationError} is raised.
+\end{methoddesc}
+
+\begin{methoddesc}[loader]{createResource}{file, url}
+  Returns a resource object for an open file and URL, given as
+  \var{file} and \var{url}, respectively.  This may be overridden by a
+  subclass if an alternate resource implementation is desired.
+\end{methoddesc}
+
+
+\section{\module{ZConfig.cmdline} --- Command-line override support}
+
+\declaremodule{}{ZConfig.cmdline}
+\modulesynopsis{Support for command-line overrides for configuration
+                settings.}
+
+This module exports an extended version of the \class{ConfigLoader}
+class from the \refmodule{ZConfig.loader} module.  This provides
+support for overriding specific settings from the configuration file
+from the command line, without requiring the application to provide
+specific options for everything the configuration file can include.
+
+\begin{classdesc}{ExtendedConfigLoader}{schema}
+  Construct a \class{ConfigLoader} subclass that adds support for
+  command-line overrides.
+\end{classdesc}
+
+The following additional method is provided, and is the only way to
+provide position information to associate with command-line
+parameters:
+
+\begin{methoddesc}{addOption}{spec\optional{, pos}}
+  Add a single value to the list of overridden values.  The \var{spec}
+  argument is a value specified, as described for the
+  \function{\refmodule{ZConfig}.loadConfig()} function.  A source
+  position for the specifier may be given as \var{pos}.  If \var{pos}
+  is specified and not \code{None}, it must be a sequence of three
+  values.  The first is the URL of the source (or some other
+  identifying string).  The second and third are the line number and
+  column of the setting.  These position information is only used to
+  construct a \exception{DataConversionError} when data conversion
+  fails.
+\end{methoddesc}
+
+
+\section{\module{ZConfig.substitution} --- String substitution}
+
+\declaremodule{}{ZConfig.substitution}
+\modulesynopsis{Shell-style string substitution helper.}
+
+This module provides a basic substitution facility similar to that
+found in the Bourne shell (\program{sh} on most \UNIX{} platforms).  
+
+The replacements supported by this module include:
+
+\begin{tableiii}{l|l|c}{code}{Source}{Replacement}{Notes}
+  \lineiii{\$\$}{\code{\$}}{(1)}
+  \lineiii{\$\var{name}}{The result of looking up \var{name}}{(2)}
+  \lineiii{\$\{\var{name}\}}{The result of looking up \var{name}}{}
+\end{tableiii}
+
+\noindent
+Notes:
+\begin{description}
+  \item[(1)]  This is different from the Bourne shell, which uses
+              \code{\textbackslash\$} to generate a \character{\$} in
+              the result text.  This difference avoids having as many
+              special characters in the syntax.
+
+  \item[(2)]  Any character which immediately follows \var{name} may
+              not be a valid character in a name.
+\end{description}
+
+In each case, \var{name} is a non-empty sequence of alphanumeric and
+underscore characters not starting with a digit.  If there is not a
+replacement for \var{name}, the exception
+\exception{SubstitutionReplacementError} is raised.
+Note that the lookup is expected to be case-insensitive; this module
+will always use a lower-case version of the name to perform the query.
+
+This module provides these functions:
+
+\begin{funcdesc}{substitute}{s, mapping}
+  Substitute values from \var{mapping} into \var{s}.  \var{mapping}
+  can be a \class{dict} or any type that supports the \method{get()}
+  method of the mapping protocol.  Replacement
+  values are copied into the result without further interpretation.
+  Raises \exception{SubstitutionSyntaxError} if there are malformed
+  constructs in \var{s}.
+\end{funcdesc}
+
+\begin{funcdesc}{isname}{s}
+  Returns \constant{True} if \var{s} is a valid name for a substitution
+  text, otherwise returns \constant{False}.
+\end{funcdesc}
+
+
+\subsection{Examples}
+
+\begin{verbatim}
+>>> from ZConfig.substitution import substitute
+>>> d = {'name': 'value',
+...      'top': '$middle',
+...      'middle' : 'bottom'}
+>>>
+>>> substitute('$name', d)
+'value'
+>>> substitute('$top', d)
+'$middle'
+\end{verbatim}
+
+
+\appendix
+\section{Schema Document Type Definition \label{schema-dtd}}
+
+The following is the XML Document Type Definition for \module{ZConfig}
+schema:
+
+\verbatiminput{schema.dtd}
+
+\end{document}
