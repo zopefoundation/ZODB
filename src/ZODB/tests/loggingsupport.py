@@ -57,14 +57,14 @@ Let's clear the handler:
   []
 
 And then log something:
-  
+
   >>> logging.getLogger('foo.bar').info('blah')
 
 and, sure enough, we still have no output:
-  
+
   >>> handler.records
   []
-  
+
 $Id$
 """
 
@@ -112,11 +112,10 @@ class Handler(logging.Handler):
               )
               for record in self.records]
               )
-        
+
 
 class InstalledHandler(Handler):
 
     def __init__(self, *names):
         Handler.__init__(self, *names)
         self.install()
-    

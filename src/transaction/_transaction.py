@@ -630,4 +630,3 @@ class DataManagerAdapter(object):
 
     def sortKey(self):
         return self._datamanager.sortKey()
-
