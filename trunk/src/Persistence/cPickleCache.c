@@ -82,7 +82,7 @@
   attributions are listed in the accompanying credits file.
   
  ****************************************************************************/
-static char *what_string = "$Id: cPickleCache.c,v 1.19 1999/05/12 15:55:44 jim Exp $";
+static char *what_string = "$Id: cPickleCache.c,v 1.20 1999/05/14 19:22:38 jim Exp $";
 
 #define ASSIGN(V,E) {PyObject *__e; __e=(E); Py_XDECREF(V); (V)=__e;}
 #define UNLESS(E) if(!(E))
@@ -94,7 +94,7 @@ static char *what_string = "$Id: cPickleCache.c,v 1.19 1999/05/12 15:55:44 jim E
 
 #undef Py_FindMethod
 
-static PyObject *py_reload, *py__p_jar, *py__p_deactivate;
+static PyObject *py_reload, *py__p_jar, *py__p_changed;
 
 typedef struct {
   PyObject_HEAD
@@ -164,14 +164,8 @@ gc_item(ccobject *self, PyObject *key, PyObject *v, long now, int dt)
 		 state.
 	      */
 	      self->sum_deac++;
-	      if(key=PyObject_GetAttr(v,py__p_deactivate))
-		{
-		  ASSIGN(key,PyObject_CallObject(key,NULL));
-		  UNLESS(key) return -1;
-		  Py_DECREF(key);
-		  return 0;
-		}
-	      PyErr_Clear();
+	      if (PyObject_SetAttr(v,py__p_changed,Py_None) < 0)
+		PyErr_Clear();
 	    }
 	}
     }
@@ -346,6 +340,67 @@ cc_incrgc(ccobject *self, PyObject *args)
   return Py_None;
 }
 
+static void 
+_invalidate(ccobject *self, PyObject *key)
+{
+  PyObject *v;
+
+  if ((v=PyDict_GetItem(self->data, key)))
+    {
+      if ((! PyExtensionClass_Check(v)) &&
+	  PyObject_DelAttr(v,py__p_changed) < 0
+	  )
+	PyErr_Clear();
+    }
+  else PyErr_Clear();
+}
+
+static PyObject *
+cc_invalidate(ccobject *self, PyObject *args)
+{
+  PyObject *inv, *key, *v;
+  int i, l;
+  
+  if (PyArg_ParseTuple(args, "O!", PyDict_Type, &inv)) {
+    for (i=0; PyDict_Next(inv, &i, &key, &v); ) 
+      if (key==Py_None)
+	{ /* Eek some nitwit invalidated everything! */
+	  for (i=0; PyDict_Next(self->data, &i, &key, &v); )
+	    _invalidate(self, key);
+	  break;
+	}
+      else
+	_invalidate(self, key);
+    PyDict_Clear(inv);
+  }
+  else {
+    PyErr_Clear();
+    UNLESS (PyArg_ParseTuple(args, "O", &inv)) return NULL;
+    if (PyString_Check(inv))
+      _invalidate(self, key);
+    else if (inv==Py_None)	/* All */
+      for (i=0; PyDict_Next(self->data, &i, &key, &v); )
+	_invalidate(self, key);
+    else {
+      int l;
+
+      PyErr_Clear();
+      if ((l=PyObject_Length(inv)) < 0) return NULL;
+      for(i=l; --i >= 0; )
+	{
+	  UNLESS (key=PySequence_GetItem(inv, i)) return NULL;
+	  _invalidate(self, key);
+	  Py_DECREF(key);
+	}
+      PySequence_DelSlice(inv, 0, l);
+    }
+  }
+
+  Py_INCREF(Py_None);
+  return Py_None;
+}
+  
+
 static struct PyMethodDef cc_methods[] = {
   {"full_sweep", (PyCFunction)cc_full_sweep, METH_VARARGS,
    "full_sweep([age]) -- Perform a full sweep of the cache\n\n"
@@ -362,6 +417,8 @@ static struct PyMethodDef cc_methods[] = {
    },
   {"incrgc", (PyCFunction)cc_incrgc, METH_VARARGS,
    "incrgc() -- Perform incremental garbage collection"},
+  {"invalidate", (PyCFunction)cc_invalidate, METH_VARARGS,
+   "invalidate(oids) -- invalidate one, many, or all ids"},
   {NULL,		NULL}		/* sentinel */
 };
 
@@ -566,7 +623,7 @@ void
 initcPickleCache()
 {
   PyObject *m, *d;
-  char *rev="$Revision: 1.19 $";
+  char *rev="$Revision: 1.20 $";
 
   Cctype.ob_type=&PyType_Type;
 
@@ -579,7 +636,7 @@ initcPickleCache()
 
   py_reload=PyString_FromString("reload");
   py__p_jar=PyString_FromString("_p_jar");
-  py__p_deactivate=PyString_FromString("_p_deactivate");
+  py__p_changed=PyString_FromString("_p_changed");
 
   PyDict_SetItemString(d,"__version__",
 		       PyString_FromStringAndSize(rev+11,strlen(rev+11)-2));
