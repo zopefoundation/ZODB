@@ -42,7 +42,8 @@ import zLOG
 
 import ZConfig
 import ZConfig.Common
-import ZConfig.Storage
+
+import ZODB.StorageConfig
 
 
 class Options:
@@ -279,7 +280,7 @@ class ZEOOptions(Options):
             if self.storages.has_key(name):
                 # (Actually, the parser doesn't allow this)
                 self.usage("duplicate storage name %r" % name)
-            self.storages[name] = ZConfig.Storage.getStorageInfo(section)
+            self.storages[name] = ZODB.StorageConfig.getStorageInfo(section)
 
 
 class ZEOServer:
