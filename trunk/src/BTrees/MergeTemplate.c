@@ -2,17 +2,17 @@
 
   Copyright (c) 2001, 2002 Zope Corporation and Contributors.
   All Rights Reserved.
-  
+
   This software is subject to the provisions of the Zope Public License,
   Version 2.0 (ZPL).  A copy of the ZPL should accompany this distribution.
   THIS SOFTWARE IS PROVIDED "AS IS" AND ANY AND ALL EXPRESS OR IMPLIED
   WARRANTIES ARE DISCLAIMED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
   WARRANTIES OF TITLE, MERCHANTABILITY, AGAINST INFRINGEMENT, AND FITNESS
   FOR A PARTICULAR PURPOSE
-  
+
  ****************************************************************************/
 
-#define MERGETEMPLATE_C "$Id: MergeTemplate.c,v 1.13 2002/06/03 17:21:55 tim_one Exp $\n"
+#define MERGETEMPLATE_C "$Id: MergeTemplate.c,v 1.14 2002/06/08 04:41:44 tim_one Exp $\n"
 
 /****************************************************************************
  Set operations
@@ -44,7 +44,7 @@ merge_error(int p1, int p2, int p3, int reason)
 	Py_INCREF(ConflictError);
   }
   PyErr_SetObject(ConflictError, r);
-  if (r != Py_None) 
+  if (r != Py_None)
     {
       Py_DECREF(r);
     }
@@ -251,10 +251,10 @@ bucket_merge(Bucket *s1, Bucket *s2, Bucket *s3)
       if (merge_output(r, &i3, mapping) < 0) goto err;
       if (i3.next(&i3) < 0) goto err;
     }
-  
-  Py_DECREF(i1.set);
-  Py_DECREF(i2.set);
-  Py_DECREF(i3.set);
+
+  finiSetIteration(&i1);
+  finiSetIteration(&i2);
+  finiSetIteration(&i3);
 
   if (s1->next)
     {
@@ -267,9 +267,9 @@ bucket_merge(Bucket *s1, Bucket *s2, Bucket *s3)
   return s;
 
  err:
-  Py_XDECREF(i1.set);
-  Py_XDECREF(i2.set);
-  Py_XDECREF(i3.set);
+  finiSetIteration(&i1);
+  finiSetIteration(&i2);
+  finiSetIteration(&i3);
   Py_XDECREF(r);
   return NULL;
 }

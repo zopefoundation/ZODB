@@ -16,7 +16,7 @@
  Set operations
  ****************************************************************************/
 
-#define SETOPTEMPLATE_C "$Id: SetOpTemplate.c,v 1.23 2002/06/08 02:37:58 tim_one Exp $\n"
+#define SETOPTEMPLATE_C "$Id: SetOpTemplate.c,v 1.24 2002/06/08 04:41:44 tim_one Exp $\n"
 
 #ifdef INTSET_H
 static int
@@ -49,8 +49,15 @@ nextIntSet(SetIteration *i)
 static int
 nextKeyAsSet(SetIteration *i)
 {
-  i->position = i->position == 0 ? 1 : -1;
-  return 0;
+    if (i->position >= 0) {
+        if (i->position) {
+            DECREF_KEY(i->key);
+            i->position = -1;
+        }
+        else
+            i->position = 1;
+    }
+    return 0;
 }
 #endif
 
@@ -67,90 +74,100 @@ nextKeyAsSet(SetIteration *i)
  *
  * Return
  *      0 on success; -1 and an exception set if error.
- *      merge is set to 1 if s has values and w >= 0, else merge is left
+ *      *merge is set to 1 if s has values and w >= 0, else merge is left
  *          alone.
+ *      i.usesValue is also set to 1 if s has values and w >= 0, else
+ *          .usesValue is set to 0.
  *      i.set gets a new reference to s, or to some other object used to
- *          iterate over s.  The caller must Py_XDECREF i.set when it's
- *          done with i, and regardless of whether the call to
- *          initSetIteration succeeds or fails (a failing call may or not
- *          set i.set to NULL).
+ *          iterate over s.
  *      i.position is set to 0.
  *      i.hasValue is set to true if s has values, and to false otherwise.
- *          Note that this is done independent of w's value.
+ *          Note that this is done independent of w's value, and when w < 0
+ *          may differ from i.usesValue.
  *      i.next is set to an appropriate iteration function.
  *      i.key and i.value are left alone.
+ *
+ * Internal
+ *      i.position < 0 means iteration terminated.
+ *      i.position = 0 means iteration hasn't yet begun (next() hasn't
+ *          been called yet).
+ *      In all other cases, i.key, and possibly i.value, own references.
+ *          These must be cleaned up, either by next() routines, or by
+ *          finiSetIteration.
+ *      next() routines must ensure the above.  They should return without
+ *          doing anything when i.position < 0.
+ *      It's the responsibility of {init, fini}setIteration to clean up
+ *          the reference in i.set, and to ensure that no stale references
+ *          live in i.key or i.value if iteration terminates abnormally.
+ *          A SetIteration struct has been cleaned up iff i.set is NULL.
  */
 static int
 initSetIteration(SetIteration *i, PyObject *s, int w, int *merge)
 {
-  i->position = 0;
+  i->set = NULL;
+  i->position = -1;     /* set to 0 only on normal return */
+  i->hasValue = 0;      /* assume it's a set */
+  i->usesValue = 0;     /* assume it's a set or that values aren't iterated */
 
   if (ExtensionClassSubclassInstance_Check(s, &BucketType))
     {
       i->set = s;
       Py_INCREF(s);
+      i->hasValue = 1;
 
       if (w >= 0)
         {
-          *merge = 1;
+          i->usesValue = 1;
           i->next = nextBucket;
         }
       else
         i->next = nextSet;
-
-      i->hasValue = 1;
     }
   else if (ExtensionClassSubclassInstance_Check(s, &SetType))
     {
       i->set = s;
       Py_INCREF(s);
-
       i->next = nextSet;
-      i->hasValue = 0;
     }
   else if (ExtensionClassSubclassInstance_Check(s, &BTreeType))
     {
       i->set = BTree_rangeSearch(BTREE(s), NULL, 'i');
       UNLESS(i->set) return -1;
+      i->hasValue = 1;
 
       if (w >= 0)
         {
-          *merge = 1;
+          i->usesValue = 1;
           i->next = nextBTreeItems;
         }
       else
         i->next = nextTreeSetItems;
-      i->hasValue = 1;
     }
   else if (ExtensionClassSubclassInstance_Check(s, &TreeSetType))
     {
       i->set = BTree_rangeSearch(BTREE(s), NULL, 'k');
       UNLESS(i->set) return -1;
-
       i->next = nextTreeSetItems;
-      i->hasValue = 0;
     }
 #ifdef INTSET_H
   else if (s->ob_type == (PyTypeObject*)intSetType)
     {
       i->set = s;
       Py_INCREF(s);
-
       i->next = nextIntSet;
-      i->hasValue = 0;
     }
 #endif
 #ifdef KEY_CHECK
   else if (KEY_CHECK(s))
     {
       int copied = 1;
-
-      i->set = s;
-      Py_INCREF(s);
-      i->next=nextKeyAsSet;
-      i->hasValue = 0;
       COPY_KEY_FROM_ARG(i->key, s, copied);
       UNLESS (copied) return -1;
+
+      INCREF_KEY(i->key);
+      i->set = s;
+      Py_INCREF(s);
+      i->next = nextKeyAsSet;
     }
 #endif
   else
@@ -158,6 +175,9 @@ initSetIteration(SetIteration *i, PyObject *s, int w, int *merge)
       PyErr_SetString(PyExc_TypeError, "invalid argument");
       return -1;
     }
+
+  *merge |= i->usesValue;
+  i->position = 0;
 
   return 0;
 }
@@ -299,8 +319,8 @@ set_operation(PyObject *s1, PyObject *s2,
   if(c1 && copyRemaining(r, &i1, merge, w1) < 0) goto err;
   if(c2 && copyRemaining(r, &i2, merge, w2) < 0) goto err;
 
-  Py_DECREF(i1.set);
-  Py_DECREF(i2.set);
+  finiSetIteration(&i1);
+  finiSetIteration(&i2);
 
   return OBJECT(r);
 
@@ -310,8 +330,8 @@ invalid_set_operation:
 #endif
 
 err:
-  Py_XDECREF(i1.set);
-  Py_XDECREF(i2.set);
+  finiSetIteration(&i1);
+  finiSetIteration(&i2);
   Py_XDECREF(r);
   return NULL;
 }
@@ -434,7 +454,7 @@ multiunion_m(PyObject *ignored, PyObject *args)
     int n;                  /* length of input sequence */
     PyObject *set = NULL;   /* an element of the input sequence */
     Bucket *result;         /* result set */
-    SetIteration setiter = {0, 0, 0};
+    SetIteration setiter = {0};
     int i;
 
     UNLESS(PyArg_ParseTuple(args, "O", &seq))
@@ -497,8 +517,7 @@ multiunion_m(PyObject *ignored, PyObject *args)
                 /* We know the key is an int, so no need to incref it. */
                 if (setiter.next(&setiter) < 0) goto Error;
             }
-            Py_DECREF(setiter.set);
-            setiter.set = NULL;
+            finiSetIteration(&setiter);
         }
         Py_DECREF(set);
         set = NULL;
@@ -519,7 +538,7 @@ multiunion_m(PyObject *ignored, PyObject *args)
 Error:
     Py_DECREF(result);
     Py_XDECREF(set);
-    Py_XDECREF(setiter.set);
+    finiSetIteration(&setiter);
     return NULL;
 }
 
