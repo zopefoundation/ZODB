@@ -128,7 +128,18 @@ cZopeInterface = Extension(
             sources= ['src/zope/interface/_zope_interface_coptimizations.c']
             )
 
-exts += [cPersistence, cPickleCache, TimeStamp, winlock, cZopeInterface]
+cZopeProxy = Extension(
+            name = 'zope.proxy._zope_proxy_proxy',
+            sources= ['src/zope/proxy/_zope_proxy_proxy.c']
+            )
+
+exts += [cPersistence,
+         cPickleCache,
+         TimeStamp,
+         winlock,
+         cZopeInterface,
+         cZopeProxy,
+        ]
 
 # The ZODB.zodb4 code is not being packaged, because it is only
 # need to convert early versions of Zope3 databases to ZODB3.
@@ -141,7 +152,7 @@ packages = ["BTrees", "BTrees.tests",
             "transaction", "transaction.tests",
             "ThreadedAsync",
             "zdaemon", "zdaemon.tests",
-            "zope", "zope.interface", "zope.testing",
+            "zope", "zope.interface", "zope.testing", "zope.proxy",
             "ZopeUndo", "ZopeUndo.tests",
             "ZConfig", "ZConfig.tests",
             "ZConfig.components",
