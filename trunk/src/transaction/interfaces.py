@@ -75,3 +75,43 @@ class ITransaction(Interface):
 
     def status():
         """Return status of the current transaction."""
+
+    def suspend():
+        """Suspend the current transaction.
+
+        If a transaction is suspended, the transaction manager no
+        longer treats it as active.  The resume() method must be
+        called before the transaction can be used.
+        """
+
+    def resume():
+        """Resume the current transaction.
+
+        If another transaction is active, it must be suspended before
+        resume() is called.
+        """
+
+class ITransactionManager(Interface):
+    """Coordinates application use of transactional resources."""
+
+    def get():
+        """Return the curren transaction.
+
+        Calls new() to start a new transaction if one does not exist.
+        """
+
+    def begin():
+        """Return a new transaction.
+
+        If a transaction is currently active for the calling thread,
+        it is aborted.
+        """
+
+    def commit(txn):
+        """Commit txn."""
+
+    def abort(txn):
+        """Abort txn."""
+
+    def savepoint(txn):
+        """Return rollback object that can restore txn to current state."""
