@@ -534,6 +534,8 @@ class ZEOStorage:
                 d, z = waiting[i]
                 if z is self:
                     del waiting[i]
+                    self.log("Closed connection removed from waiting list."
+                             " Clients waiting: %d." % len(waiting))
                     break
 
         if self.transaction:
@@ -658,6 +660,7 @@ class ZEOStorage:
                      "Clients waiting: %d." % len(self.storage._waiting))
             return d
         else:
+            self.log("Transaction acquired storage lock.", zLOG.BLATHER)
             return self._restart()
 
     def _restart(self, delay=None):
