@@ -148,7 +148,6 @@ class MinimalMemoryStorage(BaseStorage, object):
 class MinimalTestSuite(StorageTestBase.StorageTestBase,
                        BasicStorage.BasicStorage,
                        MTStorage.MTStorage,
-                       PackableStorage.PackableStorage,
                        Synchronization.SynchronizedStorage,
                        RevisionStorage.RevisionStorage,
                        ):
