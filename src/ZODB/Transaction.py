@@ -84,8 +84,8 @@
 ##############################################################################
 """Transaction management
 
-$Id: Transaction.py,v 1.8 1999/06/29 18:28:38 jim Exp $"""
-__version__='$Revision: 1.8 $'[11:-2]
+$Id: Transaction.py,v 1.9 1999/06/29 19:25:25 jim Exp $"""
+__version__='$Revision: 1.9 $'[11:-2]
 
 import time, sys, struct
 from struct import pack
@@ -124,7 +124,7 @@ class Transaction:
         
     def __str__(self): return "%.3f\t%s" % (self._id, self.user)
 
-    def abort(self, sub=0, freeme=1):
+    def abort(self, subtransaction=0, freeme=1):
         '''Abort the transaction.
 
         This is called from the application.  This means that we haven\'t
@@ -134,7 +134,7 @@ class Transaction:
         subj=self._sub
         subjars=()
 
-        if not sub:
+        if not subtransaction:
             if subj is not None:
                 # Abort of top-level transaction after commiting
                 # subtransactions.
@@ -160,31 +160,31 @@ class Transaction:
 
         finally:
             tb=None
-            if sub:
+            if subtransaction:
                 del self._objects[:] # make sure it's empty (shouldn't need)
             elif freeme:
                 if self._id is not None: free_transaction()
             else: self._init()
 
-    def begin(self, sub=None, info=None):
+    def begin(self, subtransaction=None, info=None):
         '''Begin a new transaction.
 
         This aborts any transaction in progres.
         '''
-        if self._objects: self.abort(sub, 0)
+        if self._objects: self.abort(subtransaction, 0)
         if info:
             info=split(info,'\t')
             self.user=strip(info[0])
             self.description=strip(join(info[1:],'\t'))
 
-    def commit(self, sub=None):
+    def commit(self, subtransaction=None):
         'Finalize the transaction'
 
         objects=self._objects
         jars={}
         subj=self._sub
         subjars=()
-        if sub:
+        if subtransaction:
             if subj is None: self._sub=subj={}
         else:
             if subj is not None:
@@ -209,8 +209,8 @@ class Transaction:
                     i=id(j)
                     if not jars.has_key(i):
                         jars[i]=j
-                        if sub: subj[i]=j
-                        j.tpc_begin(self, sub)
+                        if subtransaction: subj[i]=j
+                        j.tpc_begin(self, subtransaction)
                     j.commit(o,self)
                     del objects[-1]
 
@@ -259,7 +259,7 @@ class Transaction:
 
         finally:
             tb=None
-            if sub:
+            if subtransaction:
                 del self._objects[:] # make sure it's empty (shouldn't need)
             elif self._id is not None: free_transaction()
 
