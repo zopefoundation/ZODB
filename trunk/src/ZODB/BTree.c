@@ -11,7 +11,7 @@
 
 static char BTree_module_documentation[] = 
 ""
-"\n$Id: BTree.c,v 1.10 1997/11/13 20:45:51 jim Exp $"
+"\n$Id: BTree.c,v 1.11 1997/12/12 23:43:05 jim Exp $"
 ;
 
 #define PERSISTENT
@@ -1666,6 +1666,7 @@ static PyExtensionClass BucketType = {
   0L,0L,
   "Mapping type implemented as sorted list of items", 
   METHOD_CHAIN(Bucket_methods),
+  EXTENSIONCLASS_BASICNEW_FLAG,
 };
 
 static PyExtensionClass BTreeType = {
@@ -1694,6 +1695,7 @@ static PyExtensionClass BTreeType = {
   0L,0L,
   "Mapping type implemented as sorted list of items", 
   METHOD_CHAIN(BTree_methods),
+  EXTENSIONCLASS_BASICNEW_FLAG,
 };
 
 static struct PyMethodDef module_methods[] = {
@@ -1720,7 +1722,7 @@ initBTree()
 #endif
 {
   PyObject *m, *d;
-  char *rev="$Revision: 1.10 $";
+  char *rev="$Revision: 1.11 $";
 
   UNLESS(PyExtensionClassCAPI=PyCObject_Import("ExtensionClass","CAPI"))
       return;
@@ -1782,6 +1784,9 @@ initBTree()
 Revision Log:
 
   $Log: BTree.c,v $
+  Revision 1.11  1997/12/12 23:43:05  jim
+  Added basicnew support.
+
   Revision 1.10  1997/11/13 20:45:51  jim
   Fixed some bad return values.
 
