@@ -20,7 +20,7 @@ usage: fstest.py [-v] data.fs
 
 The fstest tool will scan all the data in a FileStorage and report an
 error if it finds any corrupt transaction data.  The tool will print a
-message when the first error is detected an exit.
+message when the first error is detected, then exit.
 
 The tool accepts one or more -v arguments.  If a single -v is used, it
 will print a line of text for each transaction record it encounters.
