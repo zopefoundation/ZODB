@@ -1,6 +1,6 @@
 /*
 
-  $Id: cPickleCache.c,v 1.13 1998/02/05 14:34:40 jim Exp $
+  $Id: cPickleCache.c,v 1.14 1998/02/05 14:43:10 jim Exp $
 
   C implementation of a pickle jar cache.
 
@@ -12,7 +12,7 @@
        rights reserved.
 
 ***************************************************************************/
-static char *what_string = "$Id: cPickleCache.c,v 1.13 1998/02/05 14:34:40 jim Exp $";
+static char *what_string = "$Id: cPickleCache.c,v 1.14 1998/02/05 14:43:10 jim Exp $";
 
 #define ASSIGN(V,E) {PyObject *__e; __e=(E); Py_XDECREF(V); (V)=__e;}
 #define UNLESS(E) if(!(E))
@@ -344,6 +344,14 @@ cc_report(ccobject *self, PyObject *args)
   return Py_None;
 }
 
+static PyObject *
+cc_incrgc(ccobject *self, PyObject *args)
+{
+  if(maybegc(self,NULL) < 0) return NULL;
+  Py_INCREF(Py_None);
+  return Py_None;
+}
+
 static struct PyMethodDef cc_methods[] = {
   {"full_sweep",	(PyCFunction)cc_full_sweep,	1,
    "full_sweep([age]) -- Perform a full sweep of the cache\n\n"
@@ -362,7 +370,7 @@ static struct PyMethodDef cc_methods[] = {
   {"items",	(PyCFunction)ccitems,	1,
    "items() -- Return the cache items."
    },
-  {"incrgc", (PyCFunction)maybegc,	1,
+  {"incrgc", (PyCFunction)cc_incrgc,	1,
    "incrgc() -- Perform incremental garbage collection"},
   {NULL,		NULL}		/* sentinel */
 };
@@ -623,7 +631,7 @@ void
 initcPickleCache()
 {
   PyObject *m, *d;
-  char *rev="$Revision: 1.13 $";
+  char *rev="$Revision: 1.14 $";
 
   Cctype.ob_type=&PyType_Type;
 
@@ -653,6 +661,9 @@ initcPickleCache()
 
 /******************************************************************************
  $Log: cPickleCache.c,v $
+ Revision 1.14  1998/02/05 14:43:10  jim
+ Fixed bug in ibcremental gc method.
+
  Revision 1.13  1998/02/05 14:34:40  jim
  Added getattr option to get cache data.
 
