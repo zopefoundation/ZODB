@@ -76,22 +76,38 @@ class RecoverTest(unittest.TestCase):
 
     ITERATIONS = 5
 
-    def recover(self, source, dest):
-        orig = sys.stdout
+    # Run recovery, from self.path to self.dest.  Return whatever
+    # recovery printed to stdout, as a string.
+    def recover(self):
+        orig_stdout = sys.stdout
+        faux_stdout = StringIO.StringIO()
         try:
-            sys.stdout = StringIO.StringIO()
+            sys.stdout = faux_stdout
             try:
                 recover(self.path, self.dest,
                         verbose=0, partial=1, force=0, pack=1)
             except SystemExit:
                 raise RuntimeError, "recover tried to exit"
         finally:
-            sys.stdout = orig
+            sys.stdout = orig_stdout
+        return faux_stdout.getvalue()
+
+    # Caution:  because recovery is robust against many kinds of damage,
+    # it's almost impossible for a call to self.recover() to raise an
+    # exception.  As a result, these tests may pass even if fsrecover.py
+    # is broken badly.  testNoDamage() tries to ensure that at least
+    # recovery doesn't produce any error msgs if the input .fs is in
+    # fact not damaged.
+    def testNoDamage(self):
+        output = self.recover()
+        self.assert_('error' not in output, output)
+        self.assert_('0 bytes removed during recovery' in output, output)
 
     def testOneBlock(self):
         for i in range(self.ITERATIONS):
             self.damage(1, 1024)
-            self.recover(self.path, self.dest)
+            output = self.recover()
+            self.assert_('error' in output)
             self.recovered = FileStorage(self.dest)
             self.recovered.close()
             os.remove(self.path)
@@ -100,7 +116,8 @@ class RecoverTest(unittest.TestCase):
     def testFourBlocks(self):
         for i in range(self.ITERATIONS):
             self.damage(4, 512)
-            self.recover(self.path, self.dest)
+            output = self.recover()
+            self.assert_('error' in output)
             self.recovered = FileStorage(self.dest)
             self.recovered.close()
             os.remove(self.path)
@@ -109,7 +126,8 @@ class RecoverTest(unittest.TestCase):
     def testBigBlock(self):
         for i in range(self.ITERATIONS):
             self.damage(1, 32 * 1024)
-            self.recover(self.path, self.dest)
+            output = self.recover()
+            self.assert_('error' in output)
             self.recovered = FileStorage(self.dest)
             self.recovered.close()
             os.remove(self.path)
@@ -134,7 +152,8 @@ class RecoverTest(unittest.TestCase):
         f.seek(pos1 - 50)
         f.write("\0" * 100)
         f.close()
-        self.recover(self.path, self.dest)
+        output = self.recover()
+        self.assert_('error' in output)
         self.recovered = FileStorage(self.dest)
         self.recovered.close()
         os.remove(self.path)
@@ -145,7 +164,8 @@ class RecoverTest(unittest.TestCase):
         f.seek(pos2 + 10)
         f.write("\0" * 100)
         f.close()
-        self.recover(self.path, self.dest)
+        output = self.recover()
+        self.assert_('error' in output)
         self.recovered = FileStorage(self.dest)
         self.recovered.close()
 
