@@ -1,6 +1,6 @@
 /*
 
-  $Id: cPersistence.c,v 1.8 1997/03/28 20:24:52 jim Exp $
+  $Id: cPersistence.c,v 1.9 1997/04/03 17:34:14 jim Exp $
 
   C Persistence Module
 
@@ -56,7 +56,7 @@
 
 
 *****************************************************************************/
-static char *what_string = "$Id: cPersistence.c,v 1.8 1997/03/28 20:24:52 jim Exp $";
+static char *what_string = "$Id: cPersistence.c,v 1.9 1997/04/03 17:34:14 jim Exp $";
 
 #include <time.h>
 #include "cPersistence.h"
@@ -116,6 +116,24 @@ callmethod2(PyObject *self, PyObject *name, PyObject *arg, PyObject *arg2)
       ASSIGN(self,PyObject_CallObject(self,name));
       PyTuple_SET_ITEM(name, 0, NULL);
       PyTuple_SET_ITEM(name, 1, NULL);
+      Py_DECREF(name);
+    }
+  return self;
+}
+
+static PyObject *
+callmethod3(PyObject *self, PyObject *name,
+	    PyObject *arg, PyObject *arg2, PyObject *arg3)
+{
+  if((self=PyObject_GetAttr(self,name)) && (name=PyTuple_New(3)))
+    {
+      PyTuple_SET_ITEM(name, 0, arg);
+      PyTuple_SET_ITEM(name, 1, arg2);
+      PyTuple_SET_ITEM(name, 2, arg3);
+      ASSIGN(self,PyObject_CallObject(self,name));
+      PyTuple_SET_ITEM(name, 0, NULL);
+      PyTuple_SET_ITEM(name, 1, NULL);
+      PyTuple_SET_ITEM(name, 2, NULL);
       Py_DECREF(name);
     }
   return self;
@@ -298,6 +316,22 @@ static char Per___inform_commit____doc__[] =
 "__inform_commit__(transaction,start_time) -- Commit object changes"
 ;
 
+static PyObject *
+Per___inform_commit__(self, args)
+	cPersistentObject *self;
+	PyObject *args;
+{
+  PyObject *T=0, *t=0;
+  
+  UNLESS(PyArg_ParseTuple(args, "OO", &T, &t)) return NULL;
+
+  if(self->oid && self->jar && self->state == CHANGED_STATE)
+    return callmethod2(self->jar,py_store,(PyObject*)self,T);
+  Py_INCREF(Py_None);
+  return Py_None;
+}
+
+
 static char Per___inform_abort____doc__[] = 
 "__inform_abort__(transaction,start_time) -- Abort object changes"
 ;
@@ -307,12 +341,12 @@ Per___inform_abort__(self, args)
 	cPersistentObject *self;
 	PyObject *args;
 {
-  PyObject *transaction, *start_time;
+  PyObject *T, *t;
 
-  UNLESS(PyArg_Parse(args, "(OO)", &transaction, &start_time)) return NULL;
+  UNLESS(PyArg_ParseTuple(args, "OO", &T, &t)) return NULL;
   if(self->oid && self->jar && self->state != GHOST_STATE)
     {
-      args=callmethod2(self->jar,py_oops,(PyObject*)self,start_time);
+      args=callmethod3(self->jar,py_oops,(PyObject*)self,t,T);
       if(args)
 	Py_DECREF(args);
       else
@@ -519,11 +553,16 @@ err:
 
 
 static struct PyMethodDef Per_methods[] = {
-  {"__changed__",	(PyCFunction)T___changed__,	0,	Per___changed____doc__},
-  {"__save__",	(PyCFunction)Per___save__,	0,	Per___save____doc__},
-  {"__inform_commit__",	(PyCFunction)Per___save__,	0,	Per___inform_commit____doc__},
-  {"__inform_abort__",	(PyCFunction)Per___inform_abort__,	0,	Per___inform_abort____doc__},
-  {"_p___init__",	(PyCFunction)Per__p___init__,	0,	Per__p___init____doc__},
+  {"__changed__",	(PyCFunction)T___changed__,	0,
+   Per___changed____doc__},
+  {"__save__",	(PyCFunction)Per___save__,	1,
+   Per___save____doc__},
+  {"__inform_commit__",	(PyCFunction)Per___inform_commit__,	1,
+   Per___inform_commit____doc__},
+  {"__inform_abort__",	(PyCFunction)Per___inform_abort__,	1,
+   Per___inform_abort____doc__},
+  {"_p___init__",	(PyCFunction)Per__p___init__,	0,
+   Per__p___init____doc__},
   {"_p___reinit__",	(PyCFunction)Per__p___reinit__,	0,
    "_p___reinit__(oid,jar,copy) -- Reinitialize from a newly created copy"},
   {"__getstate__",	(PyCFunction)Per__getstate__,	0,
@@ -802,7 +841,7 @@ void
 initcPersistence()
 {
   PyObject *m, *d;
-  char *rev="$Revision: 1.8 $";
+  char *rev="$Revision: 1.9 $";
 
   PATimeType.ob_type=&PyType_Type;
 
@@ -829,6 +868,9 @@ initcPersistence()
 /****************************************************************************
 
   $Log: cPersistence.c,v $
+  Revision 1.9  1997/04/03 17:34:14  jim
+  Changed to pass transaction to jar store method during commit.
+
   Revision 1.8  1997/03/28 20:24:52  jim
   Added login to really minimice cache size and to
   make cache attributes changeable.
