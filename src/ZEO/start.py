@@ -86,7 +86,7 @@
 """Start the server storage.
 """
 
-__version__ = "$Revision: 1.5 $"[11:-2]
+__version__ = "$Revision: 1.6 $"[11:-2]
 
 import sys, os, getopt, string
 
@@ -98,7 +98,15 @@ def directory(p, n=1):
         n=n-1
         
     return d
-    
+
+def get_storage(m, n):
+    p=sys.path
+    d, m = os.path.split(m)
+    if d: p=[d]+p
+    import imp
+    im=imp.find_module(m,p)
+    im=imp.load_module(m, im[0], im[1], im[2])
+    return getattr(im, n)
 
 def main(argv):
     me=argv[0]
@@ -107,7 +115,7 @@ def main(argv):
 
     args=[]
     for a in argv[1:]:
-        if string.find(a, '=') > 0:
+        if a[:1] != '-' and string.find(a, '=') > 0:
             a=string.split(a,'=')
             os.environ[a[0]]=string.join(a[1:],'=')
             continue
@@ -119,7 +127,7 @@ def main(argv):
                            os.path.join(INSTANCE_HOME, 'var', 'ZEO_SERVER.pid')
                            )
 
-    opts, args = getopt.getopt(args, 'p:Dh:U:Z:')
+    opts, args = getopt.getopt(args, 'p:Dh:U:sS:')
     
     fs=os.path.join(INSTANCE_HOME, 'var', 'Data.fs')
 
@@ -131,11 +139,16 @@ def main(argv):
 
        -U -- Unix-domain socket file to listen on
 
-       -p -- port to listen on
+       -p port -- port to listen on
 
-       -h -- host address to listen on
+       -h adddress -- host address to listen on
 
        -s -- Don't use zdeamon
+
+       -S name=module -- A storage specification The name is the
+          storage name used in the ZEO protocol and the module is a
+          module that defines an attribute with the given name that
+          provides the storage.
 
     if no file name is specified, then %s is used.
     """ % (me, fs)
@@ -144,6 +157,8 @@ def main(argv):
     debug=0
     host=''
     unix=None
+    storages=None
+    prefix=''
     Z=1
     for o, v in opts:
         if o=='-p': port=string.atoi(v)
@@ -151,7 +166,10 @@ def main(argv):
         elif o=='-U': unix=v
         elif o=='-D': debug=1
         elif o=='-s': Z=0
-
+        elif o=='-S':
+            if storages is None: storages={}
+            n, m = string.split(v,'=')
+            storages[n]=get_storage(m,n)
 
     try:
         from ZServer.medusa import asyncore
@@ -182,15 +200,13 @@ def main(argv):
 
     import ZEO.StorageServer, ZODB.FileStorage, asyncore, zLOG
 
-    zLOG.LOG('ZEO Server', zLOG.INFO, 'Serving %s' % fs)
+    if not storages: storages={'1': ZODB.FileStorage.FileStorage(fs)}
+
+    zLOG.LOG('ZEO Server', zLOG.INFO, 'Serving %s' % storages)
 
     if not unix: unix=host, port
-    ZEO.StorageServer.StorageServer(
-        unix,
-        {
-            '1': ZODB.FileStorage.FileStorage(fs)
-            },
-        )
+
+    ZEO.StorageServer.StorageServer(unix, storages)
 
     open(zeo_pid,'w').write("%s %s" % (os.getppid(), os.getpid()))
     
