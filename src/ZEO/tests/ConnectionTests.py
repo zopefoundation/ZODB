@@ -11,21 +11,23 @@
 # FOR A PARTICULAR PURPOSE
 #
 ##############################################################################
-import asyncore
+
 import os
+import sys
+import time
 import random
 import select
 import socket
-import sys
+import asyncore
 import tempfile
 import threading
-import time
 
 import zLOG
 
 from ZEO.ClientStorage import ClientStorage
 from ZEO.Exceptions import Disconnected
 from ZEO.zrpc.marshal import Marshaller
+from ZEO.tests import forker
 
 from ZODB.Transaction import get_transaction, Transaction
 from ZODB.POSException import ReadOnlyError
@@ -34,18 +36,17 @@ from ZODB.tests.MinPO import MinPO
 from ZODB.tests.StorageTestBase import zodb_pickle, zodb_unpickle
 from ZODB.tests.StorageTestBase import handle_all_serials, ZERO
 
+
 class DummyDB:
-    def invalidate(self, *args):
+    def invalidate(self, *args, **kws):
         pass
+
 
 class ConnectionTests(StorageTestBase):
     """Tests that explicitly manage the server process.
 
     To test the cache or re-connection, these test cases explicit
     start and stop a ZEO storage server.
-
-    This must be subclassed; the subclass must provide implementations
-    of startServer() and shutdownServer().
     """
 
     __super_setUp = StorageTestBase.setUp
@@ -67,15 +68,34 @@ class ConnectionTests(StorageTestBase):
         self._newAddr()
         self.startServer()
 
-    # startServer(), shutdownServer() are defined in OS-specific subclasses
+    def tearDown(self):
+        """Try to cause the tests to halt"""
+        zLOG.LOG("testZEO", zLOG.INFO, "tearDown() %s" % self.id())
+        if getattr(self, '_storage', None) is not None:
+            self._storage.close()
+            if hasattr(self._storage, 'cleanup'):
+                self._storage.cleanup()
+        for adminaddr in self._servers:
+            if adminaddr is not None:
+                forker.shutdown_zeo_server(adminaddr)
+        for i in 0, 1:
+            path = "c1-test-%d.zec" % i
+            if os.path.exists(path):
+                try:
+                    os.unlink(path)
+                except os.error:
+                    pass
+        self.__super_tearDown()
 
     def _newAddr(self):
         self.addr.append(self._getAddr())
 
     def _getAddr(self):
-        # On windows, port+1 is also used (see winserver.py), so only
-        # draw even port numbers
+        # port+1 is also used, so only draw even port numbers
         return 'localhost', random.randrange(25000, 30000, 2)
+
+    def getConfig(self):
+        raise NotImplementedError
 
     def openClientStorage(self, cache='', cache_size=200000, wait=1,
                           read_only=0, read_only_fallback=0,
@@ -92,36 +112,24 @@ class ConnectionTests(StorageTestBase):
         storage.registerDB(DummyDB(), None)
         return storage
 
-    def shutdownServer(self, index=0):
-        raise NotImplementedError
-
     def startServer(self, create=1, index=0, read_only=0, ro_svr=0):
-        raise NotImplementedError
+        addr = self.addr[index]
+        zLOG.LOG("testZEO", zLOG.INFO,
+                 "startServer(create=%d, index=%d, read_only=%d) @ %s" %
+                 (create, index, read_only, addr))
+        path = "%s.%d" % (self.file, index)
+        conf = self.getConfig(path, create, read_only)
+        zeoport, adminaddr, pid = forker.start_zeo_server(conf, addr, ro_svr)
+        self._pids.append(pid)
+        self._servers.append(adminaddr)
 
-    def tearDown(self):
-        """Try to cause the tests to halt"""
-        zLOG.LOG("testZEO", zLOG.INFO, "tearDown() %s" % self.id())
-        if getattr(self, '_storage', None) is not None:
-            self._storage.close()
-        for i in range(len(self._servers)):
-            self.shutdownServer(i)
-        # file storage appears to create four files
-        for i in range(len(self.addr)):
-            for ext in '', '.index', '.lock', '.tmp':
-                path = "%s.%s%s" % (self.file, i, ext)
-                if os.path.exists(path):
-                    try:
-                        os.unlink(path)
-                    except os.error:
-                        pass
-        for i in 0, 1:
-            path = "c1-test-%d.zec" % i
-            if os.path.exists(path):
-                try:
-                    os.unlink(path)
-                except os.error:
-                    pass
-        self.__super_tearDown()
+    def shutdownServer(self, index=0):
+        zLOG.LOG("testZEO", zLOG.INFO, "shutdownServer(index=%d) @ %s" %
+                 (index, self._servers[index]))
+        adminaddr = self._servers[index]
+        if adminaddr is not None:
+            forker.shutdown_zeo_server(adminaddr)
+            self._servers[index] = None
 
     def pollUp(self, timeout=30.0):
         # Poll until we're connected
@@ -146,7 +154,7 @@ class ConnectionTests(StorageTestBase):
     def checkMultipleAddresses(self):
         for i in range(4):
             self._newAddr()
-        self._storage = self.openClientStorage('test', 100000, wait=1)
+        self._storage = self.openClientStorage('test', 100000)
         oid = self._storage.new_oid()
         obj = MinPO(12)
         self._dostore(oid, data=obj)
@@ -157,7 +165,7 @@ class ConnectionTests(StorageTestBase):
         # commit at each one.
 
         self._newAddr()
-        self._storage = self.openClientStorage('test', 100000, wait=1)
+        self._storage = self.openClientStorage('test', 100000)
         self._dostore()
 
         self.shutdownServer(index=0)
@@ -230,7 +238,7 @@ class ConnectionTests(StorageTestBase):
         # Start a read-only server
         self.startServer(create=0, index=0, read_only=1)
         # Start a read-only-fallback client
-        self._storage = self.openClientStorage(wait=1, read_only_fallback=1)
+        self._storage = self.openClientStorage(read_only_fallback=1)
         # Stores should fail here
         self.assertRaises(ReadOnlyError, self._dostore)
 
@@ -245,7 +253,7 @@ class ConnectionTests(StorageTestBase):
         # Start a read-only server
         self.startServer(create=0, index=0, ro_svr=1)
         # Start a read-only-fallback client
-        self._storage = self.openClientStorage(wait=1, read_only_fallback=1)
+        self._storage = self.openClientStorage(read_only_fallback=1)
         # Stores should fail here
         self.assertRaises(ReadOnlyError, self._dostore)
 
@@ -257,7 +265,7 @@ class ConnectionTests(StorageTestBase):
         # A read-write client reconnects to a read-write server
 
         # Start a client
-        self._storage = self.openClientStorage(wait=1)
+        self._storage = self.openClientStorage()
         # Stores should succeed here
         self._dostore()
 
@@ -282,7 +290,7 @@ class ConnectionTests(StorageTestBase):
         # read-only server
 
         # Start a client
-        self._storage = self.openClientStorage(wait=1, read_only=1)
+        self._storage = self.openClientStorage(read_only=1)
         # Stores should fail here
         self.assertRaises(ReadOnlyError, self._dostore)
 
@@ -307,7 +315,7 @@ class ConnectionTests(StorageTestBase):
         # read-only server
 
         # Start a client in fallback mode
-        self._storage = self.openClientStorage(wait=1, read_only_fallback=1)
+        self._storage = self.openClientStorage(read_only_fallback=1)
         # Stores should succeed here
         self._dostore()
 
@@ -339,7 +347,7 @@ class ConnectionTests(StorageTestBase):
         # Start a read-only server
         self.startServer(create=0, read_only=1)
         # Start a client in fallback mode
-        self._storage = self.openClientStorage(wait=1, read_only_fallback=1)
+        self._storage = self.openClientStorage(read_only_fallback=1)
         # Stores should fail here
         self.assertRaises(ReadOnlyError, self._dostore)
 
@@ -374,7 +382,7 @@ class ConnectionTests(StorageTestBase):
         # Start a read-only server
         self.startServer(create=0, index=0, read_only=1)
         # Start a client in fallback mode
-        self._storage = self.openClientStorage(wait=1, read_only_fallback=1)
+        self._storage = self.openClientStorage(read_only_fallback=1)
         # Stores should fail here
         self.assertRaises(ReadOnlyError, self._dostore)
 
@@ -406,7 +414,7 @@ class ConnectionTests(StorageTestBase):
         # server and then starts a new client with the server down.
         # When the server is down, a load() gets the data from its cache.
 
-        self._storage = self.openClientStorage('test', 100000, wait=1)
+        self._storage = self.openClientStorage('test', 100000)
         oid = self._storage.new_oid()
         obj = MinPO(12)
         revid1 = self._dostore(oid, data=obj)
@@ -424,7 +432,7 @@ class ConnectionTests(StorageTestBase):
         # In this case, only one object fits in a cache file.  When the
         # cache files swap, the first object is effectively uncached.
 
-        self._storage = self.openClientStorage('test', 1000, wait=1)
+        self._storage = self.openClientStorage('test', 1000)
         oid1 = self._storage.new_oid()
         obj1 = MinPO("1" * 500)
         self._dostore(oid1, data=obj1)
