@@ -264,7 +264,7 @@ class UserMethodTests(unittest.TestCase):
         >>> transaction.commit()
         >>> cn.close()
 
-        Opening, making a change, committing, and aborting is fine.
+        Opening, making a change, and aborting is fine.
         >>> cn = db.open()
         >>> cn.root()['a'] = 1
         >>> transaction.abort()
@@ -272,7 +272,7 @@ class UserMethodTests(unittest.TestCase):
 
         But trying to close with a change pending complains.
         >>> cn = db.open()
-        >>> cn.root()['a'] = 1
+        >>> cn.root()['a'] = 10
         >>> cn.close()
         Traceback (most recent call last):
           ...
@@ -281,7 +281,41 @@ class UserMethodTests(unittest.TestCase):
         This leaves the connection as it was, so we can still commit
         the change.
         >>> transaction.commit()
+        >>> cn2 = db.open()
+        >>> cn2.root()['a']
+        10
+        >>> cn.close(); cn2.close()
+
+        Bug:  We weren't catching the case where the only changes pending
+        were in a subtransaction.
+        >>> cn = db.open()
+        >>> cn.root()['a'] = 100
+        >>> transaction.commit(True)
+        >>> cn.close()  # this was succeeding
+        Traceback (most recent call last):
+          ...
+        ConnectionStateError: Cannot close a connection with a pending subtransaction
+
+        Again this leaves the connection as it was.
+        >>> transaction.commit()
+        >>> cn2 = db.open()
+        >>> cn2.root()['a']
+        100
+        >>> cn.close(); cn2.close()
+
+        Make sure we can still close a connection after aborting a pending
+        subtransaction.
+        >>> cn = db.open()
+        >>> cn.root()['a'] = 1000
+        >>> transaction.commit(True)
+        >>> cn.root()['a']
+        1000
+        >>> transaction.abort()
+        >>> cn.root()['a']
+        100
         >>> cn.close()
+
+        >>> db.close()
         """
 
     def test_onCloseCallbacks(self):
