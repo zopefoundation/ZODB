@@ -184,7 +184,7 @@
 #   may have a back pointer to a version record or to a non-version
 #   record.
 #
-__version__='$Revision: 1.12 $'[11:-2]
+__version__='$Revision: 1.13 $'[11:-2]
 
 import struct, time, os, bpthread, string, base64
 from struct import pack, unpack
@@ -552,9 +552,12 @@ class FileStorage(BaseStorage.BaseStorage):
         file.seek(pos)
         tl=tlen+dlen
         stl=p64(tl)
+        # Note that we use a status of 'c', for checkpoint.
+        # If this flag isn't cleared, anything after this is
+        # suspect.
         write(pack(
             ">8s" "8s" "c"  "H"        "H"        "H"
-             ,id, stl, ' ', len(user), len(desc), len(ext),
+             ,id, stl, 'c', len(user), len(desc), len(ext),
             ))
         if user: write(user)
         if desc: write(desc)
@@ -563,7 +566,12 @@ class FileStorage(BaseStorage.BaseStorage):
         cp(tfile, file, dlen)
 
         write(stl)
+
+        # OK, not clear the checkpoint flag
+        file.seek(pos+16)
+        write(' ')        
         file.flush()
+        
         self._pos=pos+tl+8
 
         index=self._index
@@ -823,6 +831,9 @@ class FileStorage(BaseStorage.BaseStorage):
                 h=read(23)
                 if len(h) < 23: break
                 tid, stl, status, ul, dl, el = unpack(">8s8scHHH",h)
+                if status=='c':
+                    # Oops. we found a checkpoint flag.
+                    break
                 if el < 0: el=t32-el
                 tl=u64(stl)
                 tpos=pos
@@ -1087,8 +1098,9 @@ def read_index(file, name, index, vindex, tindex, stop='\377'*8):
 
         tl=u64(stl)
 
-        if tl+pos+8 > file_size:
-            # Hm, the data were truncated.  They may also be corrupted,
+        if tl+pos+8 > file_size or status=='c':
+            # Hm, the data were truncated or the checkpoint flag wasn't
+            # cleared.  They may also be corrupted,
             # in which case, we don't want to totally lose the data.
             warn("%s truncated, possibly due to damaged records at %s",
                  name, pos)
