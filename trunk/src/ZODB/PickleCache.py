@@ -3,7 +3,7 @@
 
 __doc__='''PickleJar Object Cache
 
-$Id: PickleCache.py,v 1.2 1998/03/23 15:50:27 jim Exp $'''
+$Id: PickleCache.py,v 1.3 1998/06/05 22:20:30 jim Exp $'''
 #     Copyright 
 #
 #       Copyright 1996 Digital Creations, L.C., 910 Princess Anne
@@ -54,7 +54,7 @@ $Id: PickleCache.py,v 1.2 1998/03/23 15:50:27 jim Exp $'''
 #
 #   (540) 371-6909
 # 
-__version__='$Revision: 1.2 $'[11:-2]
+__version__='$Revision: 1.3 $'[11:-2]
 	
 from sys import getrefcount
 
@@ -94,18 +94,34 @@ class PickleCache:
 
     def __delitem__(self, key): del self.data[key]
 
+    def __len__(self): return len(self.data)
+
     def values(self): return self.data.values()
 
     def full_sweep(self):
         cache=self.data
         for id in cache.keys():
             if getrefcount(cache[id]) <= 2: del cache[id]
-    
-    minimize=full_sweep
+
+    def minimize(self):
+        cache=self.data
+        keys=cache.keys()
+        rc=getrefcount
+        last=None
+        l=len(cache)
+        while l != last:
+            for id in keys():
+                if rc(cache[id]) <= 2: del cache[id]
+                cache[id]._p_deactivate()
+            l=len(cache)
 
 ############################################################################
 #
 # $Log: PickleCache.py,v $
+# Revision 1.3  1998/06/05 22:20:30  jim
+# Added __len__ and added a functional minimize method that
+# tries to minimize the size of the cache.
+#
 # Revision 1.2  1998/03/23 15:50:27  jim
 # Added import of getrefcound from sys.
 #
