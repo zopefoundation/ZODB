@@ -269,9 +269,69 @@ class TestIOMultiUnion(MultiUnion):
     from BTrees.IOBTree import IOSet as mkset, IOTreeSet as mktreeset
     from BTrees.IOBTree import IOBucket as mkbucket, IOBTree as mkbtree
 
+# Check that various special module functions are and aren't imported from
+# the expected BTree modules.
+class TestImports(TestCase):
+    def testWeightedUnion(self):
+        from BTrees.IIBTree import weightedUnion
+        from BTrees.OIBTree import weightedUnion
+
+        try:
+            from BTrees.IOBTree import weightedUnion
+        except ImportError:
+            pass
+        else:
+            self.fail("IOBTree shouldn't have weightedUnion")
+
+        try:
+            from BTrees.OOBTree import weightedUnion
+        except ImportError:
+            pass
+        else:
+            self.fail("OOBTree shouldn't have weightedUnion")
+
+    def testWeightedIntersection(self):
+        from BTrees.IIBTree import weightedIntersection
+        from BTrees.OIBTree import weightedIntersection
+
+        try:
+            from BTrees.IOBTree import weightedIntersection
+        except ImportError:
+            pass
+        else:
+            self.fail("IOBTree shouldn't have weightedIntersection")
+
+        try:
+            from BTrees.OOBTree import weightedIntersection
+        except ImportError:
+            pass
+        else:
+            self.fail("OOBTree shouldn't have weightedIntersection")
+
+
+    def testMultiunion(self):
+        from BTrees.IIBTree import multiunion
+        from BTrees.IOBTree import multiunion
+
+        try:
+            from BTrees.OIBTree import multiunion
+        except ImportError:
+            pass
+        else:
+            self.fail("OIBTree shouldn't have multiunion")
+
+        try:
+            from BTrees.OOBTree import multiunion
+        except ImportError:
+            pass
+        else:
+            self.fail("OOBTree shouldn't have multiunion")
+
+
 def test_suite():
     s = TestSuite()
     for klass in (TestIIMultiUnion, TestIOMultiUnion,
+                  TestImports,
                   PureII, PureIO, PureOI, PureOO):
         s.addTest(makeSuite(klass))
     return s
