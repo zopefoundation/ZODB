@@ -172,6 +172,16 @@ More or less random bits of helpful info.
   an IIBTree has larger values than an OOBTree:  pickles store ints
   more efficiently than they can store arbitrary Python objects.
 
++ In a non-empty BTree, every bucket node contains at least one key,
+  and every BTree node contains at least one child.  An empty BTree
+  consists solely of a BTree node with len==0 and firstbucket==NULL.
+
++ Although a BTree can become unbalanced under a mix of inserts and
+  deletes (meaning both that there's nothing stronger that can be
+  said about buckets than that they're not empty, and that buckets
+  can appear at different depths), a BTree node always has children
+  of the same kind:  they're all buckets, or they're all BTree nodes.
+
 
 The BTREE_SEARCH Macro
 ======================
