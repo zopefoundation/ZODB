@@ -220,7 +220,7 @@ class Connection(ExportImport, object):
         # from a single transaction should be applied atomically, so
         # the lock must be held when reading _invalidated.
 
-        # It sucks that we have to hold the lock to read _invalidated. 
+        # It sucks that we have to hold the lock to read _invalidated.
         # Normally, _invalidated is written by calling dict.update, which
         # will execute atomically by virtue of the GIL.  But some storage
         # might generate oids where hash or compare invokes Python code.  In
@@ -252,6 +252,13 @@ class Connection(ExportImport, object):
         # method.  If _import is not None, it is a two-tuple of arguments
         # to pass to _importDuringCommit().
         self._import = None
+
+        self.connections = None
+
+    def get_connection(self, database_name):
+        """Return a Connection for the named database."""
+        # XXX implement this
+        return
 
     def getTransaction(self):
         """Get the current transaction for this connection.
