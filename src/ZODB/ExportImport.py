@@ -142,22 +142,35 @@ class ExportImport:
                 return customImporters[magic](self, file, clue)
             raise POSException.ExportError, 'Invalid export header'
 
-        t=get_transaction().sub()
-
-        t.note('import into %s from %s' % (self.db().getName(), file_name))
+        t = get_transaction()
         if clue: t.note(clue)
 
-        storage=self._storage
-        new_oid=storage.new_oid
-        oids={}
-        wrote_oid=oids.has_key
-        new_oid=storage.new_oid
-        store=storage.store
+        return_oid_list = []
+        self.onCommitAction('_importDuringCommit', file, return_oid_list)
+        t.commit(1)
+        # Return the root imported object.
+        if return_oid_list:
+            return self[return_oid_list[0]]
+        else:
+            return None
+
+    def _importDuringCommit(self, transaction, file, return_oid_list):
+        '''
+        Invoked by the transaction manager mid commit.
+        Appends one item, the OID of the first object created,
+        to return_oid_list.
+        '''
+        oids = {}
+        storage = self._storage
+        new_oid = storage.new_oid
+        store = storage.store
+        read = file.read
 
         def persistent_load(ooid,
                             Ghost=Ghost, StringType=StringType,
                             atoi=string.atoi, TupleType=type(()),
-                            oids=oids, wrote_oid=wrote_oid, new_oid=new_oid):
+                            oids=oids, wrote_oid=oids.has_key,
+                            new_oid=storage.new_oid):
         
             "Remap a persistent id to a new ID and create a ghost for it."
 
@@ -174,50 +187,41 @@ class ExportImport:
             Ghost.oid=oid
             return Ghost
 
-        version=self._version
-        return_oid=None
+        version = self._version
 
-        storage.tpc_begin(t)
-        try:
-            while 1:
-                h=read(16)
-                if h==export_end_marker: break
-                if len(h) != 16:
-                    raise POSException.ExportError, 'Truncated export file'
-                l=u64(h[8:16])
-                p=read(l)
-                if len(p) != l:
-                    raise POSException.ExportError, 'Truncated export file'
+        while 1:
+            h=read(16)
+            if h==export_end_marker: break
+            if len(h) != 16:
+                raise POSException.ExportError, 'Truncated export file'
+            l=u64(h[8:16])
+            p=read(l)
+            if len(p) != l:
+                raise POSException.ExportError, 'Truncated export file'
 
-                ooid=h[:8]
-                if oids:
-                    oid=oids[ooid]
-                    if type(oid) is TupleType: oid=oid[0]
-                else:
-                    oids[ooid]=return_oid=oid=new_oid()
+            ooid=h[:8]
+            if oids:
+                oid=oids[ooid]
+                if type(oid) is TupleType: oid=oid[0]
+            else:
+                oids[ooid] = oid = storage.new_oid()
+                return_oid_list.append(oid)
 
-                pfile=StringIO(p)
-                unpickler=Unpickler(pfile)
-                unpickler.persistent_load=persistent_load
+            pfile=StringIO(p)
+            unpickler=Unpickler(pfile)
+            unpickler.persistent_load=persistent_load
 
-                newp=StringIO()
-                pickler=Pickler(newp,1)
-                pickler.persistent_id=persistent_id
+            newp=StringIO()
+            pickler=Pickler(newp,1)
+            pickler.persistent_id=persistent_id
 
-                pickler.dump(unpickler.load())
-                pickler.dump(unpickler.load())
-                p=newp.getvalue()
-                plen=len(p)
+            pickler.dump(unpickler.load())
+            pickler.dump(unpickler.load())
+            p=newp.getvalue()
+            plen=len(p)
 
-                store(oid, None, p, version, t)
-                
-        except:
-            storage.tpc_abort(t)
-            raise
-        else:
-            storage.tpc_vote(t)
-            storage.tpc_finish(t)
-            if return_oid is not None: return self[return_oid]
+            store(oid, None, p, version, transaction)
+
 
 StringType=type('')
 
@@ -233,6 +237,6 @@ export_end_marker='\377'*16
 class Ghost: pass
 
 def persistent_id(object, Ghost=Ghost):
-    if hasattr(object, '__class__') and object.__class__ is Ghost:
+    if getattr(object, '__class__', None) is Ghost:
         return object.oid
-    
+
