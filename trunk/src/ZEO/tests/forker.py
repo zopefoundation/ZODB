@@ -72,7 +72,7 @@ def start_zeo_server(conf, addr=None, ro_svr=0, keep=0):
     if script.endswith('.pyc'):
         script = script[:-1]
     # Create a list of arguments, which we'll tuplify below
-    args = [sys.executable, script, '-C', tmpfile]
+    args = ['"%s"' % sys.executable, '"%s"' % script, '-C', '"%s"' % tmpfile]
     if ro_svr:
         args.append('-r')
     if keep:
