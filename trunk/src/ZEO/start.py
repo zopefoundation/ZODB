@@ -86,7 +86,7 @@
 """Start the server storage.
 """
 
-__version__ = "$Revision: 1.21 $"[11:-2]
+__version__ = "$Revision: 1.22 $"[11:-2]
 
 import sys, os, getopt, string
 
@@ -294,9 +294,9 @@ def main(argv):
                           lambda sig, frame, s=storages: shutdown(s, 0)
                           )
             try: signal.signal(signal.SIGHUP, rotate_logs_handler)
-            finally: pass
+            except: pass
 
-        finally: pass
+        except: pass
 
         items=storages.items()
         items.sort()
