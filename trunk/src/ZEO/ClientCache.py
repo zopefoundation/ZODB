@@ -73,7 +73,7 @@ file 0 and file 1.
 
 """
 
-__version__ = "$Revision: 1.24 $"[11:-2]
+__version__ = "$Revision: 1.25 $"[11:-2]
 
 import os
 import sys
@@ -112,9 +112,8 @@ class ClientCache:
                         var = os.getcwd()
 
             # Get the list of cache file names
-            self._p = p = map(lambda i, p=storage, var=var, c=client:
-                                os.path.join(var, 'c%s-%s-%s.zec' % (p, c, i)),
-                              (0, 1))
+            fmt = os.path.join(var, "c%s-%s-%%s.zec" % (storage, client))
+            self._p = p = [fmt % 0, fmt % 1]
             # get the list of cache files
             self._f = f = [None, None]
 
