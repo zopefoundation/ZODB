@@ -75,7 +75,11 @@ def fsdump(path, file=None, with_offset=1):
             if rec.data_txn:
                 size = 8 + len(rec.version)
             else:
-                size = len(rec.data) + len(rec.version)
+                if rec.data is None:
+                    # XXX why is rec.data None and rec.data_txn False?
+                    size = len(rec.version)
+                else:
+                    size = len(rec.data) + len(rec.version)
             if rec.version:
                 size += DATA_VERSION_HDR_LEN
             else:
