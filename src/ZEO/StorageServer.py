@@ -83,7 +83,7 @@
 # 
 ##############################################################################
 
-__version__ = "$Revision: 1.12 $"[11:-2]
+__version__ = "$Revision: 1.13 $"[11:-2]
 
 import asyncore, socket, string, sys, cPickle, os
 from smac import SizedMessageAsyncConnection
@@ -99,7 +99,7 @@ from cStringIO import StringIO
 class StorageServerError(POSException.StorageError): pass
 
 def blather(*args):
-    LOG('ZEO Server', TRACE, string.join(args))
+    LOG('ZEO Server', TRACE, string.join(map(str,args)))
 
 
 # We create a special fast pickler! This allows us
@@ -227,16 +227,21 @@ class Connection(SizedMessageAsyncConnection):
         if __debug__: debug='ZEO Server'
         else: debug=0
         SizedMessageAsyncConnection.__init__(self, sock, addr, debug=debug)
+        LOG('ZEO Server', INFO, 'Connect %s %s' % (id(self), `addr`))
 
     def close(self):
         t=self._transaction
         if (t is not None and self.__storage is not None and
             self.__storage._transaction is t):
             self.tpc_abort(t.id)
+        else:           
+            self._transaction=None
+            self.__invalidated=[]
 
         self.__server.unregister_connection(self, self.__storage_id)
         self.__closed=1
         SizedMessageAsyncConnection.close(self)
+        LOG('ZEO Server', INFO, 'Close %s' % id(self))
 
     def message_input(self, message,
                       dump=dump, Unpickler=Unpickler, StringIO=StringIO,
@@ -244,7 +249,7 @@ class Connection(SizedMessageAsyncConnection):
         if __debug__:
             m=`message`
             if len(m) > 60: m=m[:60]+' ...'
-            blather('message_input', m)
+            blather('message_input', m, id(self))
 
         if self.__storage is None:
             self.__storage, self.__storage_id = (
@@ -263,7 +268,7 @@ class Connection(SizedMessageAsyncConnection):
             if __debug__:
                 m=`tuple(args)`
                 if len(m) > 90: m=m[:90]+' ...'
-                blather('call: %s%s' % (name, m))
+                blather('call: %s%s' % (name, m), id(self))
                 
             if not storage_method(name):
                 raise 'Invalid Method Name', name
@@ -281,7 +286,7 @@ class Connection(SizedMessageAsyncConnection):
         if __debug__:
             m=`r`
             if len(m) > 60: m=m[:60]+' ...'
-            blather('%s: %s' % (rt, m))
+            blather('%s: %s' % (rt, m), id(self))
             
         try: r=dump(r,1)
         except:
@@ -431,7 +436,13 @@ class Connection(SizedMessageAsyncConnection):
 
     def tpc_begin(self, id, user, description, ext):
         t=self._transaction
-        if t is not None and id == t.id: return
+        if t is not None:
+            if id == t.id: return
+            else:
+                raise StorageServerError(
+                    "Multiple simultaneous tpc_begin requests from the same "
+                    "client."
+                    )
         storage=self.__storage
         if storage._transaction is not None:
             try: waiting=storage.__waiting
