@@ -13,7 +13,17 @@ class TransUndoStorageWithCache:
         revid = self._dostore(oid, revid=revid, data=MinPO(25))
 
         info = self._storage.undoInfo()
+        if not info:
+            # XXX perhaps we have an old storage implementation that
+            # does do the negative nonsense
+            info = self._storage.undoInfo(0, 20)
         tid = info[0]['id']
+
+        # We may need to bail at this point if the storage doesn't
+        # support transactional undo
+        if not self._storage.supportsTransactionalUndo():
+            return
+
         # Now start an undo transaction
         self._transaction.note('undo1')
         self._storage.tpc_begin(self._transaction)

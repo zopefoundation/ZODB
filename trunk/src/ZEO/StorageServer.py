@@ -83,7 +83,7 @@
 # 
 ##############################################################################
 
-__version__ = "$Revision: 1.29 $"[11:-2]
+__version__ = "$Revision: 1.30 $"[11:-2]
 
 import asyncore, socket, string, sys, os
 from smac import SizedMessageAsyncConnection
@@ -104,8 +104,17 @@ class StorageServerError(POSException.StorageError): pass
 
 max_blather=120
 def blather(*args):
-    m=string.join(map(str,args))
-    if len(m) > max_blather: m=m[:max_blather]+' ...'
+    accum = []
+    total_len = 0
+    for arg in args:
+        if not isinstance(arg, StringType):
+            arg = str(arg)
+        accum.append(arg)
+        total_len = total_len + len(arg)
+        if total_len >= max_blather:
+            break
+    m = string.join(accum)
+    if len(m) > max_blather: m = m[:max_blather] + ' ...'
     LOG('ZEO Server', TRACE, m)
 
 
@@ -121,11 +130,13 @@ class StorageServer(asyncore.dispatcher):
     def __init__(self, connection, storages):
         
         self.__storages=storages
-        for n, s in storages.items(): init_storage(s)
+        for n, s in storages.items():
+            init_storage(s)
 
         self.__connections={}
         self.__get_connections=self.__connections.get
 
+        self._pack_trigger = trigger.trigger()
         asyncore.dispatcher.__init__(self)
 
         if type(connection) is type(''):
@@ -258,7 +269,12 @@ class ZEOConnection(SizedMessageAsyncConnection):
     def message_input(self, message,
                       dump=dump, Unpickler=Unpickler, StringIO=StringIO,
                       None=None):
-        if __debug__: blather('message_input', id(self), `message`)
+        if __debug__:
+            if len(message) > max_blather:
+                tmp = `message[:max_blather]`
+            else:
+                tmp = `message`
+            blather('message_input', id(self), tmp)
 
         if self.__storage is None:
             # This is the first communication from the client
@@ -276,7 +292,9 @@ class ZEOConnection(SizedMessageAsyncConnection):
             args=unpickler.load()
             
             name, args = args[0], args[1:]
-            if __debug__: blather('call %s: %s%s' % (id(self), name, `args`))
+            if __debug__:
+                apply(blather,
+                      ("call", id(self), ":", name,) + args)
                 
             if not storage_method(name):
                 raise 'Invalid Method Name', name
@@ -294,7 +312,8 @@ class ZEOConnection(SizedMessageAsyncConnection):
             self.return_error(sys.exc_info()[0], sys.exc_info()[1])
             return
 
-        if __debug__: blather("%s R: %s" % (id(self), `r`))
+        if __debug__:
+            blather("%s R: %s" % (id(self), `r`))
             
         r=dump(r,1)            
         self.message_output('R'+r)
@@ -303,7 +322,8 @@ class ZEOConnection(SizedMessageAsyncConnection):
         if type(err_value) is not type(self):
             err_value = err_type, err_value
 
-        if __debug__: blather("%s E: %s" % (id(self), `err_value`))
+        if __debug__:
+            blather("%s E: %s" % (id(self), `err_value`))
                     
         try: r=dump(err_value, 1)
         except:
@@ -396,11 +416,12 @@ class ZEOConnection(SizedMessageAsyncConnection):
                 error=sys.exc_info())
             if wait:
                 self.return_error(sys.exc_info()[0], sys.exc_info()[1])
-                self._pack_trigger.pull_trigger()
+                self.__server._pack_trigger.pull_trigger()
         else:
             if wait:
                 self.message_output('RN.')
-                self._pack_trigger.pull_trigger()
+                self.__server._pack_trigger.pull_trigger()
+
             else:
                 # Broadcast new size statistics
                 self.__server.invalidate(0, self.__storage_id, (),
@@ -582,6 +603,8 @@ if __name__=='__main__':
         port='', int(port)
     except:
         pass
-    
-    StorageServer(port, ZODB.FileStorage.FileStorage(name))
+
+    d = {'1': ZODB.FileStorage.FileStorage(name)}
+    StorageServer(port, d)
     asyncwrap.loop()
+

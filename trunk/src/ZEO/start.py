@@ -86,7 +86,7 @@
 """Start the server storage.
 """
 
-__version__ = "$Revision: 1.25 $"[11:-2]
+__version__ = "$Revision: 1.26 $"[11:-2]
 
 import sys, os, getopt, string
 
@@ -359,7 +359,7 @@ def shutdown(storages, die=1):
 
     for storage in storages.values():
         try: storage.close()
-        finally: pass
+        except: pass
 
     try:
         from zLOG import LOG, INFO

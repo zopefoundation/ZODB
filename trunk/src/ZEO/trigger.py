@@ -130,11 +130,15 @@ if os.name == 'posix':
         # the main thread is trying to remove some]
 
         def __init__ (self):
-            r, w = os.pipe()
+            r, w = self._fds = os.pipe()
             self.trigger = w
             asyncore.file_dispatcher.__init__ (self, r)
             self.lock = thread.allocate_lock()
             self.thunks = []
+
+        def __del__(self):
+            os.close(self._fds[0])
+            os.close(self._fds[1])
 
         def __repr__ (self):
             return '<select-trigger (pipe) at %x>' % id(self)

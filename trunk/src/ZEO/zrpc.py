@@ -85,7 +85,7 @@
 """Simple rpc mechanisms
 """
 
-__version__ = "$Revision: 1.19 $"[11:-2]
+__version__ = "$Revision: 1.20 $"[11:-2]
 
 from cPickle import loads
 import cPickle
@@ -166,8 +166,10 @@ class asyncRPC(SizedMessageAsyncConnection):
                 return 1
 
     def finishConnect(self, s):
-        if self.__haveMainLoop: map=None # use the main loop map
-        else: map = {} # provide a dummy map
+        if self.__haveMainLoop:
+            map = None # use the main loop map
+        else:
+            map = {} # provide a dummy map
         SizedMessageAsyncConnection.__init__(self, s, '', map)
 
     # we are our own socket map!
@@ -221,12 +223,21 @@ class asyncRPC(SizedMessageAsyncConnection):
                 if c=='R':
                     if r=='RN.': return None # Common case!
                     return loads(r[1:])
+                
+                # If c == 'E', an error occured on the server.  In
+                # this case, the return value is a pickled exception.
+                # Unpickle it and raise it on the client side.  The
+                # traceback for this exception ends at this method,
+                # but the real error occurred somewhere in the server
+                # code.  To diagnose the error, look for the real
+                # traceback in the server's zLOG output.
                 if c=='E':
                     try: r=loads(r[1:])
                     except:
                         raise UnUnPickleableError(r[1:])
-                    if type(r) is TupleType: raise r[0], r[1]
-                    raise r
+                    if type(r) is TupleType:
+                        raise r[0], r[1] # see server log for real traceback
+                    raise r 
                 oob=self._outOfBand
                 if oob is not None:
                     r=r[1:]
@@ -260,8 +271,10 @@ class asyncRPC(SizedMessageAsyncConnection):
 
     def message_input(self, m):
         if self._debug:
-            md=`m`
-            if len(m) > 60: md=md[:60]+' ...'
+            if len(m) > 60:
+                md = repr(m[:60]) + ' ...'
+            else:
+                md = repr(m)
             LOG(self._debug, TRACE, 'message_input %s' % md)
 
         c=m[:1]
@@ -292,6 +305,7 @@ class asyncRPC(SizedMessageAsyncConnection):
             self.__Wakeup(lambda self=self: self.close()) 
         else:
             self.close()
+            self._outOfBand = None
             self.__closed = 1
         
     def close(self):
@@ -299,6 +313,8 @@ class asyncRPC(SizedMessageAsyncConnection):
         self.aq_parent.notifyDisconnected(self)
         # causes read call to raise last exception, which should be
         # the socket error that caused asyncore to close the socket.
-        self.__r='E'+dump(sys.exc_info()[:2], 1)
-        try: self.__lr()
-        except: pass
+        self.__r = 'E' + dump(sys.exc_info()[:2], 1)
+        try:
+            self.__lr()
+        except:
+            pass

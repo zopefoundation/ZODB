@@ -23,10 +23,13 @@ def get_port():
         port = random.randrange(20000, 30000)
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:
-            s.connect(('localhost', port))
-        except socket.error:
-            # XXX check value of error?
-            return port
+            try:
+                s.connect(('localhost', port))
+            except socket.error:
+                # XXX check value of error?
+                return port
+        finally:
+            s.close()
     raise RuntimeError, "Can't find port"
 
 if os.name == "nt":
@@ -37,14 +40,15 @@ if os.name == "nt":
         Returns the ZEO port, the test server port, and the pid.
         """
         import ZEO.tests.winserver
-        port = get_port()
+        if port is None:
+            port = get_port()
         script = ZEO.tests.winserver.__file__
         if script.endswith('.pyc'):
             script = script[:-1]
         args = (sys.executable, script, str(port), storage_name) + args
         d = os.environ.copy()
         d['PYTHONPATH'] = os.pathsep.join(sys.path)
-        pid = os.spawnve(os.P_NOWAIT, sys.executable, args, d)
+        pid = os.spawnve(os.P_NOWAIT, sys.executable, args, os.environ)
         return ('localhost', port), ('localhost', port + 1), pid
 
 else:
@@ -74,6 +78,7 @@ else:
 
         def close(self):
             os.write(self.pipe, "done")
+            os.close(self.pipe)
 
     def start_zeo_server(storage, addr):
         rd, wr = os.pipe()
@@ -97,6 +102,7 @@ else:
         ZEOServerExit(rd)
         serv = ZEO.StorageServer.StorageServer(addr, {'1':storage})
         asyncore.loop()
+        os.close(rd)
         storage.close()
         if isinstance(addr, types.StringType):
             os.unlink(addr)

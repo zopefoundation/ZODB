@@ -98,6 +98,10 @@ class Invalidator:
         self.dinvalidate=dinvalidate
         self.cinvalidate=cinvalidate
 
+    def close(self):
+        self.dinvalidate = None
+        self.cinvalidate = None
+
     def begin(self):
         self._tfile=tempfile.TemporaryFile()
         pickler=cPickle.Pickler(self._tfile, 1)
