@@ -1,7 +1,9 @@
 LICENSE.txt
+MANIFEST
 MANIFEST.in
 NEWS.txt
 README.txt
+log.ini
 setup.py
 test.py
 doc/ACKS
