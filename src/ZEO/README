@@ -91,5 +91,6 @@ Zope Enterprize Option, ZEO 0.2
 
       - The module, ThreadedAsync must be in the python path.
 
-
-      
+      - The version of cPickle from Zope, or from the python.org CVS
+        tree must be used. It has a hook to provide control over which
+        "global objects" (e.g. classes) may be pickled.
