@@ -66,17 +66,17 @@ Like the \ulink{\module{ConfigParser}}
 {http://www.python.org/doc/current/lib/module-ConfigParser.html}
 format, this format supports key-value pairs arranged in sections.
 Unlike the \module{ConfigParser} format, sections are typed and can be
-organized hierarchically, and support delegation of value lookup to
-other sections.  Additional files may be included if needed.  Though
-both formats are substantially line-oriented, this format is more
-flexible.
+organized hierarchically.
+% XXX and support delegation of value lookup to other sections.
+Additional files may be included if needed.  Though both formats are
+substantially line-oriented, this format is more flexible.
 
 The intent of supporting nested section is to allow setting up the
 configurations for loosely-associated components in a container.  For
 example, each process running on a host might get its configuration
-section from that host's section of a shared configuration file.  Each
-section may use the delegation syntax to share a base configuration
-with other components of the same type.
+section from that host's section of a shared configuration file.
+% XXX Each section may use the delegation syntax to share a base
+% configuration with other components of the same type.
 
 The top level of a configuration file consists of a series of
 inclusions, key-value pairs, and sections.
@@ -127,11 +127,12 @@ The header for a non-empty section has this form (square brackets
 denote optional parts):
 
 \begin{alltt}
-<\var{section-type} \optional{\var{name}} \optional{(\var{basename})} >
+<\var{section-type} \optional{\var{name}} >
 \end{alltt}
+% <\var{section-type} \optional{\var{name}} \optional{(\var{basename})} >
 
-\var{section-type}, \var{name}, and \var{basename} all have the same
-syntactic constraints as key names.
+\var{section-type} and \var{name} % and \var{basename}
+all have the same syntactic constraints as key names.
 
 The terminator looks like this:
 
@@ -156,39 +157,40 @@ of one or more key-value pairs and sections.  For example:
 (The indentation is used here for clarity, but is not required for
 syntactic correctness.)
 
-If the \var{basename} component is given for a section header
-(regardless of the presence of the name component), that section
-acquires additional values from another section having \var{basename}
-as its \var{name} and an application-supported type.  For example, an
-application that supports the types \code{host} and \code{hostclass}
-might use configuration like this:
+% If the \var{basename} component is given for a section header
+% (regardless of the presence of the name component), that section
+% acquires additional values from another section having \var{basename}
+% as its \var{name} and an application-supported type.  For example, an
+% application that supports the types \code{host} and \code{hostclass}
+% might use configuration like this:
 
-\begin{verbatim}
-<hostclass secondary>
-    server-type secondary
-    port 1234
-</hostclass>
+% \begin{verbatim}
+% <hostclass secondary>
+%     server-type secondary
+%     port 1234
+% </hostclass>
 
-<host grendel (secondary)>
-    port 2345
-</host>
-\end{verbatim}
+% <host grendel (secondary)>
+%     port 2345
+% </host>
+% \end{verbatim}
 
-In this application, sections of type \code{host} would be allowed to
-acquire configuration data only from the \code{hostclass} type, so the
-section named \code{grendel} would only be allowed to to acquire
-configuration data from a section with type \code{hostclass} and name
-\code{secondary}.  The \code{hostclass} section named \code{secondary}
-could in turn acquire additional key-value pairs from some other
-section, based on the allowed type relationships of the
-\code{hostclass} type.
+% In this application, sections of type \code{host} would be allowed to
+% acquire configuration data only from the \code{hostclass} type, so the
+% section named \code{grendel} would only be allowed to to acquire
+% configuration data from a section with type \code{hostclass} and name
+% \code{secondary}.  The \code{hostclass} section named \code{secondary}
+% could in turn acquire additional key-value pairs from some other
+% section, based on the allowed type relationships of the
+% \code{hostclass} type.
 
 The header for empty sections is similar to that of non-empty
-sections:
+sections, but there is no terminator:
 
 \begin{alltt}
-<\var{section-type} \optional{\var{name}} \optional{(\var{basename})} />
+<\var{section-type} \optional{\var{name}} />
 \end{alltt}
+% <\var{section-type} \optional{\var{name}} \optional{(\var{basename})} />
 
 
 \subsection{Textual Substitution in Values}
@@ -580,6 +582,258 @@ attributes:
 \end{tableii}
 
 
+\section{\module{ZConfig.datatypes} --- Default data type registry}
+
+\declaremodule{}{ZConfig.datatypes}
+\modulesynopsis{Default implementation of a data type registry}
+
+The \module{ZConfig.datatypes} module provides the implementation of
+the default data type registry and all the standard data types
+supported by \module{ZConfig}.  A number of convenience classes are
+also provided to assist in the creation of additional datatypes.
+
+A \dfn{datatype registry} is an object that provides conversion
+functions for data types.  The interface for a registry is fairly
+simple.
+
+A \dfn{conversion function} is any callable object that accepts a
+single argument and returns a suitable value, or raises an exception
+if the input value is not acceptable.  \exception{ValueError} is the
+preferred exception for disallowed inputs, but any other exception
+will be properly propogated.
+
+\begin{classdesc}{Registry}{\optional{stock}}
+  Implementation of a simple type registry.  If given, \var{stock}
+  should be a mapping which defines the ``built-in'' data types for
+  the registry; if omitted or \code{None}, the standard set of data
+  types is used (see section~\ref{standard-datatypes}, ``Standard
+  \module{ZConfig} Datatypes'').
+\end{classdesc}
+
+\class{Registry} objects have the following methods:
+
+\begin{methoddesc}{get}{name}
+  Return the type conversion routine for \var{name}.  If the
+  conversion function cannot be found, an (unspecified) exception is
+  raised.  If the name is not provided in the stock set of data types
+  by this registry and has not otherwise been registered, this method
+  uses the \method{search()} method to load the conversion function.
+  This is the only method the rest of \module{ZConfig} requires.
+\end{methoddesc}
+
+\begin{methoddesc}{register}{name, conversion}
+  Registery the data type name \var{name} to use the conversion
+  function \var{conversion}.  If \var{name} is already registered or
+  provided as a stock data type, \exception{ValueError} is raised
+  (this includes the case when \var{name} was found using the
+  \method{search()} method).
+\end{methoddesc}
+
+\begin{methoddesc}{search}{name}
+  This is a helper method for the default implementation of the
+  \method{get()} method.  If \var{name} is a Python dotted-name, this
+  method loads the value for the name by dynamically importing the
+  containing module and extracting the value of the name.  The name
+  must refer to a usable conversion function.
+\end{methoddesc}
+
+
+The following classes are provided to define conversion functions:
+
+\begin{classdesc}{MemoizedConversion}{conversion}
+  Simple memoization for potentially expensive conversions.  This
+  conversion helper caches each successful conversion for re-use at a
+  later time; failed conversions are not cached in any way, since it
+  is difficult to raise a meaningful excpetion providing information
+  about the specific failure.
+\end{classdesc}
+
+\begin{classdesc}{RangeCheckedConversion}{conversion\optional{,
+                                          min\optional{, max}}}
+  Helper that performs range checks on the result of another
+  conversion.  Values passed to instances of this conversion are
+  converted using \var{conversion} and then range checked.  \var{min}
+  and \var{max}, if given and not \code{None}, are the inclusive
+  endpoints of the allowed range.  Values returned by \var{conversion}
+  which lay outside the range described by \var{min} and \var{max}
+  cause \exception{ValueError} to be raised.
+\end{classdesc}
+
+\begin{classdesc}{RegularExpressionConversion}{regex}
+  Conversion that checks that the input matches the regular expression
+  \var{regex}.  If it matches, returns the input, otherwise raises
+  \exception{ValueError}.
+\end{classdesc}
+
+
+\section{\module{ZConfig.loader} --- Resource loading support}
+
+\declaremodule{}{ZConfig.loader}
+\modulesynopsis{Support classes for resource loading}
+
+This module provides some helper classes used by the primary APIs
+exported by the \module{ZConfig} package.  These classes may be useful
+for some applications, especially applications that want to use a
+non-default data type registry.
+
+\begin{classdesc}{Resource}{file, url\optional{, fragment}}
+  Object that allows an open file object and a URL to be bound
+  together to ease handling.  Instances have the attributes
+  \member{file}, \member{url}, and \member{fragment} which store the
+  constructor arguments.  These objects also have a \method{close()}
+  method which will call \method{close()} on \var{file}, then set the
+  \member{file} attribute to \code{None} and the \member{closed} to
+  \code{True}.
+\end{classdesc}
+
+\begin{classdesc}{BaseLoader}{}
+  Base class for loader objects.  This should not be instantiated
+  directly, as the \method{loadResource()} method must be overridden
+  for the instance to be used via the public API.
+\end{classdesc}
+
+\begin{classdesc}{ConfigLoader}{schema}
+  Loader for configuration files.  Each configuration file must
+  conform to the schema \var{schema}.  The \method{load*()} methods
+  return a tuple consisting of the configuration object and a
+  composite handler.
+\end{classdesc}
+
+\begin{classdesc}{SchemaLoader}{\optional{registry}}
+  Loader that loads schema instances.  All schema loaded by a
+  \class{SchemaLoader} will use the same data type registry.  If
+  \var{registry} is provided and not \code{None}, it will be used,
+  otherwise an instance of \class{ZConfig.datatypes.Registry} will be
+  used.
+\end{classdesc}
+
+
+\subsection{Loader Objects}
+
+Loader objects provide a general public interface, an inteface which
+subclasses must implement, and some utility methods.
+
+The following methods provide the public interface:
+
+\begin{methoddesc}[loader]{loadURL}{url}
+  Open and load a resource specified by the URL \var{url}.
+  This method uses the \method{loadResource()} method to perform the
+  actual load, and returns whatever that method returns.
+\end{methoddesc}
+
+\begin{methoddesc}[loader]{loadFile}{file\optional{, url}}
+  Load from an open file object, \var{file}.  If given and not
+  \code{None}, \var{url} should be the URL of the resource represented
+  by \var{file}.  If omitted or \code{None}, the \member{name}
+  attribute of \var{file} is used to compute a \code{file:} URL, if
+  present.
+  This method uses the \method{loadResource()} method to perform the
+  actual load, and returns whatever that method returns.
+\end{methoddesc}
+
+The following method must be overridden by subclasses:
+
+\begin{methoddesc}[loader]{loadResource}{resource}
+  Subclasses of \class{BaseLoader} must implement this method to
+  actually load the resource and return the appropriate
+  application-level object.
+\end{methoddesc}
+
+The following methods can be used as utilities:
+
+\begin{methoddesc}[loader]{normalizeURL}{url-or-path}
+  Return a URL for \var{url-or-path}.  If \var{url-or-path} refers to
+  an existing file, the corresponding \code{file:} URL is returned.
+  Otherwise \var{url-or-path} is checked for sanity: if it
+  does not have a schema, \exception{ValueError} is raised, and if it
+  does have a fragment identifier, \exception{ConfigurationError} is
+  raised.
+\end{methoddesc}
+
+\begin{methoddesc}[loader]{openResource}{url}
+  Returns a resource object that represents the URL \var{url}.  The
+  URL is opened using the \function{urllib2.urlopen()} function, and
+  the returned resource object is created using
+  \method{createResource()}.
+\end{methoddesc}
+
+\begin{methoddesc}[loader]{createResource}{file, url}
+  Returns a resource object for an open file and URL, given as
+  \var{file} and \var{url}, respectively.  This may be overridden by a
+  subclass if an alternate resource implementation is desired.
+\end{methoddesc}
+
+
+\section{\module{ZConfig.substitution} --- String substitution}
+
+\declaremodule{}{ZConfig.substitution}
+\modulesynopsis{Shell-style string substitution helper.}
+
+This module provides a basic substitution facility similar to that
+found in the Bourne shell (\program{sh} on most \UNIX{} platforms).  
+
+The replacements supported by this module include:
+
+\begin{tableiii}{l|l|c}{code}{Source}{Replacement}{Notes}
+  \lineiii{\$\$}{\code{\$}}{(1)}
+  \lineiii{\$\var{name}}{The result of looking up \var{name}}{(2)}
+  \lineiii{\$\{\var{name}\}}{The result of looking up \var{name}}{}
+\end{tableiii}
+
+\noindent
+Notes:
+\begin{description}
+  \item[(1)]  This is different from the Bourne shell, which uses
+              \code{\textbackslash\$} to generate a \character{\$} in
+              the result text.  This difference avoids having as many
+              special characters in the syntax.
+
+  \item[(2)]  Any character which immediately follows \var{name} may
+              not be a valid character in a name.
+\end{description}
+
+In each case, \var{name} is a non-empty sequence of alphanumeric and
+underscore characters not starting with a digit.  If there is not a
+replacement for \var{name}, the exception
+\exception{SubstitutionReplacementError} is raised.
+Note that the lookup is expected to be case-insensitive; this module
+will always use a lower-case version of the name to perform the query.
+
+This module provides these functions:
+
+\begin{funcdesc}{substitute}{s, mapping}
+  Substitute values from \var{mapping} into \var{s}.  \var{mapping}
+  can be a \class{dict} or any type that supports the \method{get()}
+  method of the mapping protocol.  Replacement
+  values are copied into the result without further interpretation.
+  Raises \exception{SubstitutionSyntaxError} if there are malformed
+  constructs in \var{s}.
+\end{funcdesc}
+
+\begin{funcdesc}{isname}{s}
+  Returns \code{True} if \var{s} is a valid name for a substitution
+  text, otherwise returns \code{False}.
+\end{funcdesc}
+
+
+\subsection{Examples}
+
+\begin{verbatim}
+>>> from ZConfig.substitution import substitute
+>>> d = {'name': 'value',
+...      'top': '$middle',
+...      'middle' : 'bottom'}
+>>>
+>>> substitute('$name', d)
+'value'
+>>> substitute('$top', d)
+'$middle'
+\end{verbatim}
+
+
+% The modules described here have been left in the package while
+% everything is updated to use the schema-based configurations.
+
 \section{\module{ZConfig.Context} --- Application context}
 
 \declaremodule{}{ZConfig.Context}
@@ -866,255 +1120,6 @@ section before it is called on the containing section.
   for delegates before being called on the delegating section.)  The
   default implementation does nothing.
 \end{methoddesc}
-
-
-\section{\module{ZConfig.datatypes} --- Default data type registry}
-
-\declaremodule{}{ZConfig.datatypes}
-\modulesynopsis{Default implementation of a data type registry}
-
-The \module{ZConfig.datatypes} module provides the implementation of
-the default data type registry and all the standard data types
-supported by \module{ZConfig}.  A number of convenience classes are
-also provided to assist in the creation of additional datatypes.
-
-A \dfn{datatype registry} is an object that provides conversion
-functions for data types.  The interface for a registry is fairly
-simple.
-
-A \dfn{conversion function} is any callable object that accepts a
-single argument and returns a suitable value, or raises an exception
-if the input value is not acceptable.  \exception{ValueError} is the
-preferred exception for disallowed inputs, but any other exception
-will be properly propogated.
-
-\begin{classdesc}{Registry}{\optional{stock}}
-  Implementation of a simple type registry.  If given, \var{stock}
-  should be a mapping which defines the ``built-in'' data types for
-  the registry; if omitted or \code{None}, the standard set of data
-  types is used (see section~\ref{standard-datatypes}, ``Standard
-  \module{ZConfig} Datatypes'').
-\end{classdesc}
-
-\class{Registry} objects have the following methods:
-
-\begin{methoddesc}{get}{name}
-  Return the type conversion routine for \var{name}.  If the
-  conversion function cannot be found, an (unspecified) exception is
-  raised.  If the name is not provided in the stock set of data types
-  by this registry and has not otherwise been registered, this method
-  uses the \method{search()} method to load the conversion function.
-  This is the only method the rest of \module{ZConfig} requires.
-\end{methoddesc}
-
-\begin{methoddesc}{register}{name, conversion}
-  Registery the data type name \var{name} to use the conversion
-  function \var{conversion}.  If \var{name} is already registered or
-  provided as a stock data type, \exception{ValueError} is raised
-  (this includes the case when \var{name} was found using the
-  \method{search()} method).
-\end{methoddesc}
-
-\begin{methoddesc}{search}{name}
-  This is a helper method for the default implementation of the
-  \method{get()} method.  If \var{name} is a Python dotted-name, this
-  method loads the value for the name by dynamically importing the
-  containing module and extracting the value of the name.  The name
-  must refer to a usable conversion function.
-\end{methoddesc}
-
-
-The following classes are provided to define conversion functions:
-
-\begin{classdesc}{MemoizedConversion}{conversion}
-  Simple memoization for potentially expensive conversions.  This
-  conversion helper caches each successful conversion for re-use at a
-  later time; failed conversions are not cached in any way, since it
-  is difficult to raise a meaningful excpetion providing information
-  about the specific failure.
-\end{classdesc}
-
-\begin{classdesc}{RangeCheckedConversion}{conversion\optional{,
-                                          min\optional{, max}}}
-  Helper that performs range checks on the result of another
-  conversion.  Values passed to instances of this conversion are
-  converted using \var{conversion} and then range checked.  \var{min}
-  and \var{max}, if given and not \code{None}, are the inclusive
-  endpoints of the allowed range.  Values returned by \var{conversion}
-  which lay outside the range described by \var{min} and \var{max}
-  cause \exception{ValueError} to be raised.
-\end{classdesc}
-
-\begin{classdesc}{RegularExpressionConversion}{regex}
-  Conversion that checks that the input matches the regular expression
-  \var{regex}.  If it matches, returns the input, otherwise raises
-  \exception{ValueError}.
-\end{classdesc}
-
-
-\section{\module{ZConfig.loader} --- Resource loading support}
-
-\declaremodule{}{ZConfig.loader}
-\modulesynopsis{Support classes for resource loading}
-
-This module provides some helper classes used by the primary APIs
-exported by the \module{ZConfig} package.  These classes may be useful
-for some applications, especially applications that want to use a
-non-default data type registry.
-
-\begin{classdesc}{Resource}{file, url\optional{, fragment}}
-  Object that allows an open file object and a URL to be bound
-  together to ease handling.  Instances have the attributes
-  \member{file}, \member{url}, and \member{fragment} which store the
-  constructor arguments.  These objects also have a \method{close()}
-  method which will call \method{close()} on \var{file}, then set the
-  \member{file} attribute to \code{None} and the \member{closed} to
-  \code{True}.
-\end{classdesc}
-
-\begin{classdesc}{BaseLoader}{}
-  Base class for loader objects.  This should not be instantiated
-  directly, as the \method{loadResource()} method must be overridden
-  for the instance to be used via the public API.
-\end{classdesc}
-
-\begin{classdesc}{ConfigLoader}{schema}
-  Loader for configuration files.  Each configuration file must
-  conform to the schema \var{schema}.  The \method{load*()} methods
-  return a tuple consisting of the configuration object and a
-  composite handler.
-\end{classdesc}
-
-\begin{classdesc}{SchemaLoader}{\optional{registry}}
-  Loader that loads schema instances.  All schema loaded by a
-  \class{SchemaLoader} will use the same data type registry.  If
-  \var{registry} is provided and not \code{None}, it will be used,
-  otherwise an instance of \class{ZConfig.datatypes.Registry} will be
-  used.
-\end{classdesc}
-
-
-\subsection{Loader Objects}
-
-Loader objects provide a general public interface, an inteface which
-subclasses must implement, and some utility methods.
-
-The following methods provide the public interface:
-
-\begin{methoddesc}[loader]{loadURL}{url}
-  Open and load a resource specified by the URL \var{url}.
-  This method uses the \method{loadResource()} method to perform the
-  actual load, and returns whatever that method returns.
-\end{methoddesc}
-
-\begin{methoddesc}[loader]{loadFile}{file\optional{, url}}
-  Load from an open file object, \var{file}.  If given and not
-  \code{None}, \var{url} should be the URL of the resource represented
-  by \var{file}.  If omitted or \code{None}, the \member{name}
-  attribute of \var{file} is used to compute a \code{file:} URL, if
-  present.
-  This method uses the \method{loadResource()} method to perform the
-  actual load, and returns whatever that method returns.
-\end{methoddesc}
-
-The following method must be overridden by subclasses:
-
-\begin{methoddesc}[loader]{loadResource}{resource}
-  Subclasses of \class{BaseLoader} must implement this method to
-  actually load the resource and return the appropriate
-  application-level object.
-\end{methoddesc}
-
-The following methods can be used as utilities:
-
-\begin{methoddesc}[loader]{normalizeURL}{url-or-path}
-  Return a URL for \var{url-or-path}.  If \var{url-or-path} refers to
-  an existing file, the corresponding \code{file:} URL is returned.
-  Otherwise \var{url-or-path} is checked for sanity: if it
-  does not have a schema, \exception{ValueError} is raised, and if it
-  does have a fragment identifier, \exception{ConfigurationError} is
-  raised.
-\end{methoddesc}
-
-\begin{methoddesc}[loader]{openResource}{url}
-  Returns a resource object that represents the URL \var{url}.  The
-  URL is opened using the \function{urllib2.urlopen()} function, and
-  the returned resource object is created using
-  \method{createResource()}.
-\end{methoddesc}
-
-\begin{methoddesc}[loader]{createResource}{file, url}
-  Returns a resource object for an open file and URL, given as
-  \var{file} and \var{url}, respectively.  This may be overridden by a
-  subclass if an alternate resource implementation is desired.
-\end{methoddesc}
-
-
-\section{\module{ZConfig.substitution} --- String substitution}
-
-\declaremodule{}{ZConfig.substitution}
-\modulesynopsis{Shell-style string substitution helper.}
-
-This module provides a basic substitution facility similar to that
-found in the Bourne shell (\program{sh} on most \UNIX{} platforms).  
-
-The replacements supported by this module include:
-
-\begin{tableiii}{l|l|c}{code}{Source}{Replacement}{Notes}
-  \lineiii{\$\$}{\code{\$}}{(1)}
-  \lineiii{\$\var{name}}{The result of looking up \var{name}}{(2)}
-  \lineiii{\$\{\var{name}\}}{The result of looking up \var{name}}{}
-\end{tableiii}
-
-\noindent
-Notes:
-\begin{description}
-  \item[(1)]  This is different from the Bourne shell, which uses
-              \code{\textbackslash\$} to generate a \character{\$} in
-              the result text.  This difference avoids having as many
-              special characters in the syntax.
-
-  \item[(2)]  Any character which immediately follows \var{name} may
-              not be a valid character in a name.
-\end{description}
-
-In each case, \var{name} is a non-empty sequence of alphanumeric and
-underscore characters not starting with a digit.  If there is not a
-replacement for \var{name}, the exception
-\exception{SubstitutionReplacementError} is raised.
-Note that the lookup is expected to be case-insensitive; this module
-will always use a lower-case version of the name to perform the query.
-
-This module provides these functions:
-
-\begin{funcdesc}{substitute}{s, mapping}
-  Substitute values from \var{mapping} into \var{s}.  \var{mapping}
-  can be a \class{dict} or any type that supports the \method{get()}
-  method of the mapping protocol.  Replacement
-  values are copied into the result without further interpretation.
-  Raises \exception{SubstitutionSyntaxError} if there are malformed
-  constructs in \var{s}.
-\end{funcdesc}
-
-\begin{funcdesc}{isname}{s}
-  Returns \code{True} if \var{s} is a valid name for a substitution
-  text, otherwise returns \code{False}.
-\end{funcdesc}
-
-
-\subsection{Examples}
-
-\begin{verbatim}
->>> from ZConfig.substitution import substitute
->>> d = {'name': 'value',
-...      'top': '$middle',
-...      'middle' : 'bottom'}
->>>
->>> substitute('$name', d)
-'value'
->>> substitute('$top', d)
-'$middle'
-\end{verbatim}
 
 
 \end{document}
