@@ -14,13 +14,15 @@
 ##############################################################################
 """Trace file statistics analyzer.
 
-Usage: stats.py [-h] [-i interval] [-q] [-s] [-S] [-v] tracefile
+Usage: stats.py [-h] [-i interval] [-q] [-s] [-S] [-v] [-X] tracefile
 -h: print histogram of object load frequencies
 -i: summarizing interval in minutes (default 15; max 60)
 -q: quiet; don't print summaries
 -s: print histogram of object sizes
 -S: don't print statistics
 -v: verbose; print each record
+-X: enable heuristic checking for misaligned records: oids > 2**32
+    will be rejected; this requires the tracefile to be seekable
 """
 
 """File format:
@@ -67,8 +69,9 @@ def main():
     print_size_histogram = 0
     print_histogram = 0
     interval = 900 # Every 15 minutes
+    heuristic = 0
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "hi:qsSv")
+        opts, args = getopt.getopt(sys.argv[1:], "hi:qsSvX")
     except getopt.error, msg:
         usage(msg)
         return 2
@@ -90,6 +93,8 @@ def main():
             dostats = 0
         if o == "-v":
             verbose = 1
+        if o == '-X':
+            heuristic = 1
     if len(args) != 1:
         usage("exactly one file argument required")
         return 2
@@ -148,14 +153,24 @@ def main():
             if ts == 0:
                 # Must be a misaligned record caused by a crash
                 if not quiet:
-                    print "Skipping 8 bytes at offset", offset-8
+                    print "Skipping 8 bytes at offset", offset-8,
+                    print repr(r)
                 continue
-            r = f_read(16)
-            if len(r) < 16:
+            oid = f_read(8)
+            if len(oid) < 8:
                 break
-            offset += 16
+            if heuristic and oid[:4] != '\0\0\0\0':
+                # Heuristic for severe data corruption
+                print "Seeking back over bad oid at offset", offset,
+                print repr(r)
+                f.seek(-8, 1)
+                continue
+            offset += 8
+            serial = f_read(8)
+            if len(serial) < 8:
+                break
+            offset += 8
             records += 1
-            oid, serial = struct_unpack(">8s8s", r)
             if t0 is None:
                 t0 = ts
                 thisinterval = t0 / interval
