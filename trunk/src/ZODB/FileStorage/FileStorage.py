@@ -13,7 +13,7 @@
 ##############################################################################
 """Storage implementation using a log written to a single file.
 
-$Revision: 1.14 $
+$Revision: 1.15 $
 """
 
 import base64
@@ -406,19 +406,14 @@ class FileStorage(BaseStorage.BaseStorage,
         if result is not None:
             self._oid2tid_nhits += 1
 
-        # Log a msg every ~8000 tries, and prevent overflow.
+        # Log a msg every ~8000 tries.
         if self._oid2tid_nlookups & 0x1fff == 0:
-            if self._oid2tid_nlookups >> 30:
-                # In older Pythons, we may overflow if we keep it an int.
-                self._oid2tid_nlookups = long(self._oid2tid_nlookups)
-                self._oid2tid_nhits = long(self._oid2tid_nhits)
             logger.log(BLATHER,
                     "_oid2tid size %s lookups %s hits %s rate %.1f%%",
                     len(self._oid2tid),
                     self._oid2tid_nlookups,
                     self._oid2tid_nhits,
-                    100.0 * self._oid2tid_nhits /
-                            self._oid2tid_nlookups)
+                    100.0 * self._oid2tid_nhits / self._oid2tid_nlookups)
 
         return result
 
