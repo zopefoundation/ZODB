@@ -1,6 +1,6 @@
 /*
 
-  $Id: cPersistence.c,v 1.15 1997/06/06 19:04:40 jim Exp $
+  $Id: cPersistence.c,v 1.16 1997/06/30 15:26:35 jim Exp $
 
   C Persistence Module
 
@@ -56,7 +56,7 @@
 
 
 *****************************************************************************/
-static char *what_string = "$Id: cPersistence.c,v 1.15 1997/06/06 19:04:40 jim Exp $";
+static char *what_string = "$Id: cPersistence.c,v 1.16 1997/06/30 15:26:35 jim Exp $";
 
 #include <time.h>
 #include "cPersistence.h"
@@ -724,8 +724,11 @@ Per_getattr(cPersistentObject *self, PyObject *oname, char *name,
 	      }
 	    break;
 	  }
+
+	return getattrf((PyObject *)self, oname);
       }
-  if(! (*name++=='_' && *name++=='_' && strcmp(name,"dict__")==0))
+  if(! (*name++=='_' && *name++=='_' &&
+	(strcmp(name,"dict__")==0 || strcmp(name,"class__")==0)))
     {
       /* Update state, if necessary */
       if(self->state==GHOST_STATE && self->jar)
@@ -933,7 +936,7 @@ void
 initcPersistence()
 {
   PyObject *m, *d;
-  char *rev="$Revision: 1.15 $";
+  char *rev="$Revision: 1.16 $";
 
   PATimeType.ob_type=&PyType_Type;
 
@@ -960,6 +963,10 @@ initcPersistence()
 /****************************************************************************
 
   $Log: cPersistence.c,v $
+  Revision 1.16  1997/06/30 15:26:35  jim
+  Changed so getting an object's __class__ does not cause it's
+  activation.
+
   Revision 1.15  1997/06/06 19:04:40  jim
   Modified so that C API setstate makes object temporarily
   undeactivatable.
