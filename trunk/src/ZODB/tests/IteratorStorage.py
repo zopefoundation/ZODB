@@ -20,8 +20,8 @@ all these tests.
 from ZODB.tests.MinPO import MinPO
 from ZODB.tests.StorageTestBase import zodb_pickle, zodb_unpickle
 from ZODB.utils import U64, p64
-from ZODB.Transaction import Transaction
 
+from transaction import Transaction
 
 class IteratorCompare:
 

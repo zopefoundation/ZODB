@@ -13,7 +13,7 @@
 ##############################################################################
 """More recovery and iterator tests."""
 
-from ZODB.Transaction import Transaction
+from transaction import Transaction
 from ZODB.tests.IteratorStorage import IteratorDeepCompare
 from ZODB.tests.StorageTestBase import MinPO, zodb_unpickle, snooze
 from ZODB import DB

@@ -16,6 +16,8 @@ import threading
 import time
 from random import Random
 
+import transaction
+
 from BTrees.check import check, display
 from BTrees.OOBTree import OOBTree
 
@@ -70,8 +72,7 @@ class StressTask:
         self.step = step
         self.sleep = sleep
         self.added_keys = []
-        self.cn = self.db.open()
-        self.cn.setLocalTransaction()
+        self.cn = self.db.open(txn_mgr=transaction.TransactionManager())
         self.cn.sync()
 
     def doStep(self):

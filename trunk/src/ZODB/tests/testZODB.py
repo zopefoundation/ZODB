@@ -16,8 +16,10 @@ import unittest
 import ZODB
 import ZODB.FileStorage
 from ZODB.POSException import ReadConflictError, ConflictError
+
 from persistent import Persistent
 from persistent.mapping import PersistentMapping
+import transaction
 
 class P(Persistent):
     pass
@@ -54,72 +56,76 @@ class ZODBTests(unittest.TestCase):
         self._db.close()
         self._storage.cleanup()
 
-    def checkExportImport(self, abort_it=0, dup_name='test_duplicate'):
+    def checkExportImport(self, abort_it=False):
         self.populate()
-        get_transaction().begin()
-        get_transaction().note('duplication')
-        # Duplicate the 'test' object.
         conn = self._db.open()
         try:
-            root = conn.root()
-            ob = root['test']
-            assert len(ob) > 10, 'Insufficient test data'
-            try:
-                import tempfile
-                f = tempfile.TemporaryFile()
-                ob._p_jar.exportFile(ob._p_oid, f)
-                assert f.tell() > 0, 'Did not export correctly'
-                f.seek(0)
-                new_ob = ob._p_jar.importFile(f)
-                root[dup_name] = new_ob
-                f.close()
-                if abort_it:
-                    get_transaction().abort()
-                else:
-                    get_transaction().commit()
-            except:
-                get_transaction().abort()
-                raise
+            self.duplicate(conn, abort_it)
         finally:
             conn.close()
-        get_transaction().begin()
-        # Verify the duplicate.
         conn = self._db.open()
         try:
-            root = conn.root()
-            ob = root['test']
-            try:
-                ob2 = root[dup_name]
-            except KeyError:
-                if abort_it:
-                    # Passed the test.
-                    return
-                else:
-                    raise
-            else:
-                if abort_it:
-                    assert 0, 'Did not abort duplication'
-            l1 = list(ob.items())
-            l1.sort()
-            l2 = list(ob2.items())
-            l2.sort()
-            l1 = map(lambda (k, v): (k, v[0]), l1)
-            l2 = map(lambda (k, v): (k, v[0]), l2)
-            assert l1 == l2, 'Duplicate did not match'
-            assert ob._p_oid != ob2._p_oid, 'Did not duplicate'
-            assert ob._p_jar == ob2._p_jar, 'Not same connection'
-            oids = {}
-            for v in ob.values():
-                oids[v._p_oid] = 1
-            for v in ob2.values():
-                assert not oids.has_key(v._p_oid), (
-                    'Did not fully separate duplicate from original')
-            get_transaction().commit()
+            self.verify(conn, abort_it)
         finally:
             conn.close()
 
+    def duplicate(self, conn, abort_it):
+        get_transaction().begin()
+        get_transaction().note('duplication')
+        root = conn.root()
+        ob = root['test']
+        assert len(ob) > 10, 'Insufficient test data'
+        try:
+            import tempfile
+            f = tempfile.TemporaryFile()
+            ob._p_jar.exportFile(ob._p_oid, f)
+            assert f.tell() > 0, 'Did not export correctly'
+            f.seek(0)
+            new_ob = ob._p_jar.importFile(f)
+            self.assertEqual(new_ob, ob)
+            root['dup'] = new_ob
+            f.close()
+            if abort_it:
+                get_transaction().abort()
+            else:
+                get_transaction().commit()
+        except:
+            get_transaction().abort()
+            raise
+
+    def verify(self, conn, abort_it):
+        get_transaction().begin()
+        root = conn.root()
+        ob = root['test']
+        try:
+            ob2 = root['dup']
+        except KeyError:
+            if abort_it:
+                # Passed the test.
+                return
+            else:
+                raise
+        else:
+            self.failUnless(not abort_it, 'Did not abort duplication')
+        l1 = list(ob.items())
+        l1.sort()
+        l2 = list(ob2.items())
+        l2.sort()
+        l1 = map(lambda (k, v): (k, v[0]), l1)
+        l2 = map(lambda (k, v): (k, v[0]), l2)
+        self.assertEqual(l1, l2)
+        self.assert_(ob._p_oid != ob2._p_oid)
+        self.assertEqual(ob._p_jar, ob2._p_jar)
+        oids = {}
+        for v in ob.values():
+            oids[v._p_oid] = 1
+        for v in ob2.values():
+            assert not oids.has_key(v._p_oid), (
+                'Did not fully separate duplicate from original')
+        get_transaction().commit()
+
     def checkExportImportAborted(self):
-        self.checkExportImport(abort_it=1, dup_name='test_duplicate_aborted')
+        self.checkExportImport(abort_it=True)
 
     def checkVersionOnly(self):
         # Make sure the changes to make empty transactions a no-op
@@ -159,6 +165,44 @@ class ZODBTests(unittest.TestCase):
         self.assert_(len(conn._cache) > 0)  # Still not flushed
         conn._setDB(self._db)  # simulate the connection being reopened
         self.assertEqual(len(conn._cache), 0)
+
+    def checkExplicitTransactionManager(self):
+        # Test of transactions that apply to only the connection,
+        # not the thread.
+        tm1 = transaction.TransactionManager()
+        conn1 = self._db.open(txn_mgr=tm1)
+        tm2 = transaction.TransactionManager()
+        conn2 = self._db.open(txn_mgr=tm2)
+        try:
+            r1 = conn1.root()
+            r2 = conn2.root()
+            if r1.has_key('item'):
+                del r1['item']
+                tm1.get().commit()
+            r1.get('item')
+            r2.get('item')
+            r1['item'] = 1
+            tm1.get().commit()
+            self.assertEqual(r1['item'], 1)
+            # r2 has not seen a transaction boundary,
+            # so it should be unchanged.
+            self.assertEqual(r2.get('item'), None)
+            conn2.sync()
+            # Now r2 is updated.
+            self.assertEqual(r2['item'], 1)
+
+            # Now, for good measure, send an update in the other direction.
+            r2['item'] = 2
+            tm2.get().commit()
+            self.assertEqual(r1['item'], 1)
+            self.assertEqual(r2['item'], 2)
+            conn1.sync()
+            conn2.sync()
+            self.assertEqual(r1['item'], 2)
+            self.assertEqual(r2['item'], 2)
+        finally:
+            conn1.close()
+            conn2.close()
 
     def checkLocalTransactions(self):
         # Test of transactions that apply to only the connection,

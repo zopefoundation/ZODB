@@ -62,7 +62,7 @@ tested?  Is it a general restriction?
 
 """
 
-from ZODB.Transaction import Transaction
+from transaction import Transaction
 from ZODB.POSException import StorageTransactionError
 
 VERSION = "testversion"

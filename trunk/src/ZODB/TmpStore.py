@@ -22,8 +22,9 @@ class TmpStore:
 
     _bver = ''
 
-    def __init__(self, base_version):
+    def __init__(self, base_version, storage):
         self._transaction = None
+        self._storage = storage
         if base_version:
             self._bver = base_version
         self._file = tempfile.TemporaryFile()
@@ -34,14 +35,13 @@ class TmpStore:
         self._index = {}
         # _tindex: map oid to pos for new updates
         self._tindex = {}
-        self._db = None
         self._creating = []
 
     def close(self):
         self._file.close()
 
     def getName(self):
-        return self._db.getName()
+        return self._storage.getName()
 
     def getSize(self):
         return self._pos
@@ -66,14 +66,13 @@ class TmpStore:
     def modifiedInVersion(self, oid):
         if self._index.has_key(oid):
             return self._bver
-        return self._db._storage.modifiedInVersion(oid)
+        return self._storage.modifiedInVersion(oid)
 
     def new_oid(self):
-        return self._db._storage.new_oid()
+        return self._storage.new_oid()
 
     def registerDB(self, db, limit):
-        self._db = db
-        self._storage = db._storage
+        pass
 
     def store(self, oid, serial, data, version, transaction):
         if transaction is not self._transaction:

@@ -11,9 +11,9 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
-import ZODB.FileStorage
 import os, unittest
-from ZODB.Transaction import Transaction
+import transaction
+import ZODB.FileStorage
 from ZODB import POSException
 
 from ZODB.tests import StorageTestBase, BasicStorage, \
@@ -195,7 +195,7 @@ class SlowFileStorageTest(BaseFileStorageTests):
         # every 8000 calls.  Make sure it gets minimal coverage.
         oids = [[self._storage.new_oid(), None] for i in range(100)]
         for i in range(100):
-            t = Transaction()
+            t = transaction.Transaction()
             self._storage.tpc_begin(t)
             for j in range(100):
                 o = MinPO(j)

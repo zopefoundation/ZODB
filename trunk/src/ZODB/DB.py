@@ -13,7 +13,7 @@
 ##############################################################################
 """Database objects
 
-$Id: DB.py,v 1.71 2004/03/16 16:28:19 jeremy Exp $"""
+$Id: DB.py,v 1.72 2004/04/01 03:56:58 jeremy Exp $"""
 
 import cPickle, cStringIO, sys
 from thread import allocate_lock
@@ -23,8 +23,9 @@ import warnings
 from ZODB.broken import find_global
 from ZODB.Connection import Connection
 from ZODB.serialize import referencesf
-from ZODB.Transaction import Transaction, get_transaction
 from zLOG import LOG, ERROR
+
+import transaction
 
 class DB(object):
     """The Object Database
@@ -132,7 +133,7 @@ class DB(object):
             p = cPickle.Pickler(file, 1)
             p.dump((root.__class__, None))
             p.dump(root.__getstate__())
-            t = Transaction()
+            t = transaction.Transaction()
             t.description = 'initial database creation'
             storage.tpc_begin(t)
             storage.store('\0\0\0\0\0\0\0\0', None, file.getvalue(), '', t)
@@ -140,13 +141,12 @@ class DB(object):
             storage.tpc_finish(t)
 
         # Pass through methods:
-        for m in ('history',
-                  'supportsUndo', 'supportsVersions', 'undoLog',
-                  'versionEmpty', 'versions'):
+        for m in ['history', 'supportsUndo', 'supportsVersions', 'undoLog',
+                  'versionEmpty', 'versions']:
             setattr(self, m, getattr(storage, m))
 
         if hasattr(storage, 'undoInfo'):
-            self.undoInfo=storage.undoInfo
+            self.undoInfo = storage.undoInfo
 
 
     def _cacheMean(self, attr):
@@ -206,10 +206,10 @@ class DB(object):
                 self._temps=t
         finally: self._r()
 
-    def abortVersion(self, version, transaction=None):
-        if transaction is None:
-            transaction = get_transaction()
-        transaction.register(AbortVersion(self, version))
+    def abortVersion(self, version, txn=None):
+        if txn is None:
+            txn = transaction.get()
+        txn.register(AbortVersion(self, version))
 
     def cacheDetail(self):
         """Return information on objects in the various caches
@@ -316,10 +316,10 @@ class DB(object):
         """
         self._storage.close()
 
-    def commitVersion(self, source, destination='', transaction=None):
-        if transaction is None:
-            transaction = get_transaction()
-        transaction.register(CommitVersion(self, source, destination))
+    def commitVersion(self, source, destination='', txn=None):
+        if txn is None:
+            txn = transaction.get()
+        txn.register(CommitVersion(self, source, destination))
 
     def getCacheSize(self):
         return self._cache_size
@@ -391,7 +391,7 @@ class DB(object):
         return len(self._storage)
 
     def open(self, version='', transaction=None, temporary=0, force=None,
-             waitflag=1, mvcc=True):
+             waitflag=1, mvcc=True, txn_mgr=None):
         """Return a database Connection for use by application code.
 
         The optional version argument can be used to specify that a
@@ -424,7 +424,7 @@ class DB(object):
                 # a one-use connection.
                 c = self.klass(version=version,
                                cache_size=self._version_cache_size,
-                               mvcc=mvcc)
+                               mvcc=mvcc, txn_mgr=txn_mgr)
                 c._setDB(self)
                 self._temps.append(c)
                 if transaction is not None:
@@ -474,13 +474,13 @@ class DB(object):
                     if self._version_pool_size > len(allocated) or force:
                         c = self.klass(version=version,
                                        cache_size=self._version_cache_size,
-                                       mvcc=mvcc)
+                                       mvcc=mvcc, txn_mgr=txn_mgr)
                         allocated.append(c)
                         pool.append(c)
                 elif self._pool_size > len(allocated) or force:
                     c = self.klass(version=version,
                                    cache_size=self._cache_size,
-                                   mvcc=mvcc)
+                                   mvcc=mvcc, txn_mgr=txn_mgr)
                     allocated.append(c)
                     pool.append(c)
 
@@ -611,7 +611,7 @@ class DB(object):
 
     def cacheStatistics(self): return () # :(
 
-    def undo(self, id, transaction=None):
+    def undo(self, id, txn=None):
         """Undo a transaction identified by id.
 
         A transaction can be undone if all of the objects involved in
@@ -625,12 +625,12 @@ class DB(object):
 
         :Parameters:
           - `id`: a storage-specific transaction identifier
-          - `transaction`: transaction context to use for undo().
+          - `txn`: transaction context to use for undo().
             By default, uses the current transaction.
         """
-        if transaction is None:
-            transaction = get_transaction()
-        transaction.register(TransactionalUndo(self, id))
+        if txn is None:
+            txn = transaction.get()
+        txn.register(TransactionalUndo(self, id))
 
     def versionEmpty(self, version):
         return self._storage.versionEmpty(version)
@@ -663,7 +663,6 @@ class ResourceManager(object):
     def __init__(self, db):
         self._db = db
         # Delegate the actual 2PC methods to the storage
-        self.tpc_begin = self._db._storage.tpc_begin
         self.tpc_vote = self._db._storage.tpc_vote
         self.tpc_finish = self._db._storage.tpc_finish
         self.tpc_abort = self._db._storage.tpc_abort
@@ -671,13 +670,19 @@ class ResourceManager(object):
     def sortKey(self):
         return "%s:%s" % (self._db._storage.sortKey(), id(self))
 
+    def tpc_begin(self, txn, sub=False):
+        # XXX we should never be called with sub=True.
+        if sub:
+            raise ValueError, "doesn't supoprt sub-transactions"
+        self._db._storage.tpc_begin(txn)
+
     # The object registers itself with the txn manager, so the ob
     # argument to the methods below is self.
 
-    def abort(self, ob, t):
+    def abort(self, obj, txn):
         pass
 
-    def commit(self, ob, t):
+    def commit(self, obj, txn):
         pass
 
 class CommitVersion(ResourceManager):

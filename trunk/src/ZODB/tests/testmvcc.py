@@ -41,8 +41,9 @@ We will use two different connections with the experimental
 setLocalTransaction() method to make sure that the connections act
 independently, even though they'll be run from a single thread.
 
->>> cn1 = db.open()
->>> txn1 = cn1.setLocalTransaction()
+>>> import transaction
+>>> tm1 = transaction.TransactionManager()
+>>> cn1 = db.open(txn_mgr=tm1)
 
 The test will just use some MinPO objects.  The next few lines just
 setup an initial database state.
@@ -51,12 +52,12 @@ setup an initial database state.
 >>> r = cn1.root()
 >>> r["a"] = MinPO(1)
 >>> r["b"] = MinPO(1)
->>> txn1.commit()
+>>> tm1.get().commit()
 
 Now open a second connection.
 
->>> cn2 = db.open()
->>> txn2 = cn2.setLocalTransaction()
+>>> tm2 = transaction.TransactionManager()
+>>> cn2 = db.open(txn_mgr=tm2)
 
 Connection high-water mark
 --------------------------
@@ -104,7 +105,7 @@ will modify "a."  The other transaction will then modify "b" and commit.
 
 >>> r1 = cn1.root()
 >>> r1["a"].value = 2
->>> cn1.getTransaction().commit()
+>>> tm1.get().commit()
 >>> txn = db.lastTransaction()
 
 The second connection has its high-water mark set now.
@@ -141,7 +142,7 @@ It's possible to modify "a", but we get a conflict error when we
 commit the transaction.
 
 >>> r2["a"].value = 3
->>> txn2.commit()
+>>> tm2.get().commit()
 Traceback (most recent call last):
  ...
 ConflictError: database conflict error (oid 0000000000000001, class ZODB.tests.MinPO.MinPO)
@@ -155,9 +156,7 @@ None
 
 >>> r1 = cn1.root()
 >>> r1["a"].value = 3
->>> txn1 is cn1.getTransaction()
-True
->>> cn1.getTransaction().commit()
+>>> tm1.get().commit()
 >>> txn = db.lastTransaction()
 >>> cn2._txn_time == txn
 True
@@ -165,7 +164,7 @@ True
 >>> r2["b"].value = r2["a"].value + 1
 >>> r2["b"].value
 3
->>> txn2.commit()
+>>> tm2.get().commit()
 >>> print cn2._txn_time
 None
 
@@ -185,7 +184,7 @@ First get the database back in an initial state.
 >>> cn1.sync()
 >>> r1["a"].value = 0
 >>> r1["b"].value = 0
->>> cn1.getTransaction().commit()
+>>> tm1.get().commit()
 
 >>> cn2.sync()
 >>> r2["a"].value
@@ -206,7 +205,7 @@ should all have the same effect on non-current objects in cache.
 ...     cn1.sync()
 ...     r1["a"].value = 0
 ...     r1["b"].value = 0
-...     cn1.getTransaction().commit()
+...     tm1.get().commit()
 ...     cn2.sync()
 ...     r2["b"].value = 1
 ...     cn2.getTransaction().commit()
@@ -217,7 +216,7 @@ should all have the same effect on non-current objects in cache.
 >>> r1["b"].value
 0
 >>> r1["a"].value = 1
->>> cn1.getTransaction().commit()
+>>> tm1.get().commit()
 >>> r1["b"]._p_state
 -1
 
@@ -280,14 +279,13 @@ non-current revision to load.
 
 >>> ts = TestStorage()
 >>> db = DB(ts)
->>> cn1 = db.open()
->>> txn1 = cn1.setLocalTransaction()
+>>> cn1 = db.open(txn_mgr=tm1)
 >>> r1 = cn1.root()
 >>> r1["a"] = MinPO(0)
 >>> r1["b"] = MinPO(0)
->>> cn1.getTransaction().commit()
+>>> tm1.get().commit()
 >>> r1["b"].value = 1
->>> cn1.getTransaction().commit()
+>>> tm1.get().commit()
 >>> cn1.cacheMinimize()  # makes everything in cache a ghost
 
 >>> oid = r1["b"]._p_oid
@@ -318,12 +316,11 @@ activate "b" will result in a ReadConflictError.
 
 >>> ts = TestStorage()
 >>> db = DB(ts)
->>> cn1 = db.open()
->>> txn1 = cn1.setLocalTransaction()
+>>> cn1 = db.open(txn_mgr=tm1)
 >>> r1 = cn1.root()
 >>> r1["a"] = MinPO(0)
 >>> r1["b"] = MinPO(0)
->>> cn1.getTransaction().commit()
+>>> tm1.get().commit()
 >>> cn1.cacheMinimize()  # makes everything in cache a ghost
 
 >>> oid = r1["b"]._p_oid

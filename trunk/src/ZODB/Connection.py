@@ -13,7 +13,7 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.140 2004/03/16 16:18:20 jeremy Exp $"""
+$Id: Connection.py,v 1.141 2004/04/01 03:56:58 jeremy Exp $"""
 
 import logging
 import sys
@@ -26,12 +26,13 @@ from utils import u64
 from persistent import PickleCache
 from persistent.interfaces import IPersistent
 
+import transaction
+
 from ZODB.ConflictResolution import ResolvedSerial
 from ZODB.ExportImport import ExportImport
 from ZODB.POSException \
      import ConflictError, ReadConflictError, InvalidObjectReference
 from ZODB.TmpStore import TmpStore
-from ZODB.Transaction import Transaction, get_transaction
 from ZODB.utils import oid_repr, z64
 from ZODB.serialize import ObjectWriter, ConnectionObjectReader, myhasattr
 
@@ -79,7 +80,7 @@ class Connection(ExportImport, object):
 
     In many applications, root() is the only method of the Connection
     that you will need to use.
-    
+
     Synchronization
     ---------------
 
@@ -104,7 +105,7 @@ class Connection(ExportImport, object):
     XXX Mention the database pool.
 
     :Groups:
-    
+
       - `User Methods`: root, get, add, close, db, sync, isReadOnly,
         cacheGC, cacheFullSweep, cacheMinimize, getVersion,
         modifiedInVersion
@@ -123,10 +124,9 @@ class Connection(ExportImport, object):
 
     _tmp = None
     _code_timestamp = 0
-    _transaction = None
 
     def __init__(self, version='', cache_size=400,
-                 cache_deactivate_after=None, mvcc=True):
+                 cache_deactivate_after=None, mvcc=True, txn_mgr=None):
         """Create a new Connection.
 
         A Connection instance should by instantiated by the DB
@@ -153,6 +153,13 @@ class Connection(ExportImport, object):
         self._reset_counter = global_reset_counter
         self._load_count = 0   # Number of objects unghosted
         self._store_count = 0  # Number of objects stored
+        self._modified = []
+
+        # If a transaction manager is passed to the constructor, use
+        # it instead of the global transaction manager.  The instance
+        # variable will hold either a TM class or the transaction
+        # module itself, which implements the same interface.
+        self._txn_mgr = txn_mgr or transaction
 
         # _invalidated queues invalidate messages delivered from the DB
         # _inv_lock prevents one thread from modifying the set while
@@ -187,21 +194,18 @@ class Connection(ExportImport, object):
         self._import = None
 
     def getTransaction(self):
-        t = self._transaction
-        if t is None:
-            # Fall back to thread-bound transactions
-            t = get_transaction()
-        return t
+        # XXX mark this as deprecated?
+        return self._txn_mgr.get()
 
     def setLocalTransaction(self):
         """Use a transaction bound to the connection rather than the thread"""
 
-        # XXX mention that this should only be called when you open
-        # a connection or at transaction boundaries (but the lattter are
-        # hard to be sure about).
-        if self._transaction is None:
-            self._transaction = Transaction()
-        return self._transaction
+        # XXX mark this method as depcrecated?  note that it's
+        # signature changed?
+
+        if self._txn_mgr is transaction:
+            self._txn_mgr = transaction.TransactionManager()
+        return self._txn_mgr
 
     def _cache_items(self):
         # find all items on the lru list
@@ -248,7 +252,7 @@ class Connection(ExportImport, object):
         if self._storage is None:
             # XXX Should this be a ZODB-specific exception?
             raise RuntimeError("The database connection is closed")
-        
+
         obj = self._cache.get(oid, None)
         if obj is not None:
             return obj
@@ -297,7 +301,7 @@ class Connection(ExportImport, object):
         if self._storage is None:
             # XXX Should this be a ZODB-specific exception?
             raise RuntimeError("The database connection is closed")
-        
+
         marker = object()
         oid = getattr(obj, "_p_oid", marker)
         if oid is marker:
@@ -307,10 +311,13 @@ class Connection(ExportImport, object):
             assert obj._p_oid is None
             oid = obj._p_oid = self._storage.new_oid()
             obj._p_jar = self
-            self._added[oid] = obj
             if self._added_during_commit is not None:
                 self._added_during_commit.append(obj)
-            self.getTransaction().register(obj)
+            self._txn_mgr.get().register(obj)
+            # Add to _added after calling register(), so that _added
+            # can be used as a test for whether the object has been
+            # registered with the transaction.
+            self._added[oid] = obj
         elif obj._p_jar is not self:
             raise InvalidObjectReference(obj, obj._p_jar)
 
@@ -328,7 +335,7 @@ class Connection(ExportImport, object):
         was closed will be processed.
 
         If resetCaches() was called, the cache will be cleared.
-        
+
         :Parameters:
           - `odb`: that database that owns the Connection
         """
@@ -337,7 +344,7 @@ class Connection(ExportImport, object):
         # other attributes on open and clearing them on close?
         # A Connection is only ever associated with a single DB
         # and Storage.
-        
+
         self._db = odb
         self._storage = odb._storage
         self._sortKey = odb._storage.sortKey
@@ -409,7 +416,7 @@ class Connection(ExportImport, object):
 
     def cacheGC(self):
         """Reduce cache size to target size.
-        
+
         Call _p_deactivate() on cached objects until the cache size
         falls under the target size.
         """
@@ -453,7 +460,7 @@ class Connection(ExportImport, object):
                 except: # except what?
                     f = getattr(f, 'im_self', f)
                     self._log.error("Close callback failed for %s", f,
-                                    sys.exc_info())
+                                    exc_info=sys.exc_info())
             self.__onCloseCallbacks = None
         self._storage = self._tmp = self.new_oid = None
         self._debug_info = ()
@@ -472,7 +479,6 @@ class Connection(ExportImport, object):
 
         oid = obj._p_oid
         if oid in self._conflicts:
-            self.getTransaction().register(obj)
             raise ReadConflictError(object=obj)
 
         if oid is None or obj._p_jar is not self:
@@ -537,7 +543,7 @@ class Connection(ExportImport, object):
         src = self._storage
         self._storage = self._tmp
         self._tmp = None
-        
+
         self._log.debug("Commiting subtransaction of size %s", src.getSize())
         oids = src._index.keys()
         self._storage.tpc_begin(t)
@@ -603,7 +609,7 @@ class Connection(ExportImport, object):
         :Parameters:
           - `tid`: the storage-level id of the transaction that committed
           - `oids`: oids is a set of oids, represented as a dict with oids
-            as keys. 
+            as keys.
         """
         self._inv_lock.acquire()
         try:
@@ -643,14 +649,17 @@ class Connection(ExportImport, object):
             # There is some old Zope code that assigns _p_jar
             # directly.  That is no longer allowed, but we need to
             # provide support for old code that still does it.
-            
+
             # XXX The actual complaint here is that an object without
             # an oid is being registered.  I can't think of any way to
             # achieve that without assignment to _p_jar.  If there is
             # a way, this will be a very confusing warning.
             warnings.warn("Assigning to _p_jar is deprecated",
                           DeprecationWarning)
-        self.getTransaction().register(obj)
+        elif obj._p_oid in self._added:
+            # It was registered before it was added to _added.
+            return
+        self._txn_mgr.get().register(obj)
 
     def root(self):
         """Return the database root object.
@@ -729,7 +738,7 @@ class Connection(ExportImport, object):
         """Load non-current state for obj or raise ReadConflictError."""
 
         if not (self._mvcc and self._setstate_noncurrent(obj)):
-            self.getTransaction().register(obj)
+            self._txn_mgr.get().register(obj)
             self._conflicts[obj._p_oid] = True
             raise ReadConflictError(object=obj)
 
@@ -771,7 +780,7 @@ class Connection(ExportImport, object):
             finally:
                 self._inv_lock.release()
         else:
-            self.getTransaction().register(obj)
+            self._txn_mgr.get().register(obj)
             raise ReadConflictError(object=obj)
 
     def oldstate(self, obj, tid):
@@ -782,7 +791,7 @@ class Connection(ExportImport, object):
         to other peristent objects are handled.
 
         :return: a persistent object
-        
+
         :Parameters:
           - `obj`: a persistent object from this Connection.
           - `tid`: id of a transaction that wrote an earlier revision.
@@ -829,19 +838,16 @@ class Connection(ExportImport, object):
             del obj._p_oid
             del obj._p_jar
 
-    def tpc_begin(self, transaction, sub=None):
+    def tpc_begin(self, transaction, sub=False):
         self._modified = []
-        
+
         # _creating is a list of oids of new objects, which is used to
         # remove them from the cache if a transaction aborts.
         self._creating = []
-        if sub:
+        if sub and self._tmp is None:
             # Sub-transaction!
-            if self._tmp is None:
-                _tmp = TmpStore(self._version)
-                self._tmp = self._storage
-                self._storage = _tmp
-                _tmp.registerDB(self._db, 0)
+            self._tmp = self._storage
+            self._storage = TmpStore(self._version, self._storage)
 
         self._storage.tpc_begin(transaction)
 
@@ -920,7 +926,7 @@ class Connection(ExportImport, object):
         self._flush_invalidations()
 
     def sync(self):
-        self.getTransaction().abort()
+        self._txn_mgr.get().abort()
         sync = getattr(self._storage, 'sync', 0)
         if sync:
             sync()
@@ -949,5 +955,5 @@ class Connection(ExportImport, object):
         new._p_oid = oid
         new._p_jar = self
         new._p_changed = 1
-        self.getTransaction().register(new)
+        self._txn_mgr.get().register(new)
         self._cache[oid] = new

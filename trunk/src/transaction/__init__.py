@@ -12,5 +12,22 @@
 #
 ############################################################################
 
-from ZODB.Transaction import get_transaction
+from transaction._transaction import Transaction
+from transaction._manager import TransactionManager, ThreadTransactionManager
 
+manager = ThreadTransactionManager()
+
+def get():
+    return manager.get()
+
+def begin():
+    return manager.begin()
+
+def commit():
+    manager.get().commit()
+
+def abort():
+    manager.get().abort()
+
+# XXX Issue deprecation warning if this variant is used?
+get_transaction = get

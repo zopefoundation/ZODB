@@ -483,8 +483,6 @@ class StubStorage:
     appended to self._finished.
     """
 
-    sortKey = 'StubStorage sortKey'
-
     # internal
     _oid = 1
     _transaction = None
@@ -501,6 +499,9 @@ class StubStorage:
         oid = str(self._oid)
         self._oid += 1
         return oid
+
+    def sortKey(self):
+        return 'StubStorage sortKey'
 
     def tpc_begin(self, transaction):
         if transaction is None:

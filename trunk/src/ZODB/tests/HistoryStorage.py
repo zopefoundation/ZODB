@@ -17,8 +17,8 @@ Any storage that supports the history() method should be able to pass
 all these tests.
 """
 
-from ZODB.Transaction import Transaction
 from ZODB.tests.MinPO import MinPO
+from transaction import Transaction
 
 class HistoryStorage:
     def checkSimpleHistory(self):
