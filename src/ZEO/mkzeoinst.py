@@ -108,6 +108,8 @@ def main():
         print "Usage: mkzeoinst.py home [port]"
         sys.exit(2)
     home = sys.argv[1]
+    if not os.path.isabs(home):
+        home = os.path.abspath(home)
     if sys.argv[2:]:
         port = int(sys.argv[2])
     else:
