@@ -229,18 +229,17 @@ def main():
         print
         print "Histogram of object load frequency"
         total = len(oids)
-        s = addcommas(total)
         print "Unique oids: %s" % addcommas(total)
         print "Total loads: %s" % addcommas(total_loads)
+        s = addcommas(total)
         width = max(len(s), len("objects"))
-        fmt = "%5d %" + str(width) + "s %3d%% %5.1f%% %4d%%"
-        hdr = "%5s %" + str(width) + "s %4s %6s %5s"
+        fmt = "%5d %" + str(width) + "s %5.1f%% %5.1f%% %5.1f%%"
+        hdr = "%5s %" + str(width) + "s %6s %6s %6s"
         print hdr % ("loads", "objects", "%obj", "%load", "%cum")
         cum = 0.0
         for binsize, count in histogram(oids):
-            obj_percent = 100 * count / total
-            load_percent = 1000 * count * binsize / total_loads
-            load_percent /= 10.
+            obj_percent = 100.0 * count / total
+            load_percent = 100.0 * count * binsize / total_loads
             cum += load_percent
             print fmt % (binsize, addcommas(count),
                          obj_percent, load_percent, cum)
