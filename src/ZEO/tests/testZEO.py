@@ -142,8 +142,10 @@ class FileStorageTests(GenericTests):
         self._storage.close()
         for server in self._servers:
             forker.shutdown_zeo_server(server)
-        for pid in self._pids:
-            os.waitpid(pid, 0)
+        if hasattr(os, 'waitpid'):
+            # Not in Windows Python until 2.3
+            for pid in self._pids:
+                os.waitpid(pid, 0)
 
     def getConfig(self):
         filename = self.__fs_base = tempfile.mktemp()
