@@ -13,7 +13,7 @@
 ##############################################################################
 """Basic pickling tests
 
-$Id: test_pickle.py,v 1.5 2004/02/19 18:13:34 jeremy Exp $
+$Id: test_pickle.py,v 1.6 2004/04/19 21:19:10 tim_one Exp $
 """
 
 from persistent import Persistent
@@ -70,7 +70,7 @@ def test_basic_pickling():
     1
     >>> pickle.loads(pickle.dumps(x, 1)) == x
     1
-    
+
     XXX disable until Python 2.3.4 >>> pickle.loads(pickle.dumps(x, 2)) == x
     1
 
@@ -160,7 +160,7 @@ def test_pickling_w_slots_only():
     1
     >>> pickle.loads(pickle.dumps(x, 1)) == x
     1
-    
+
     XXX disable until Python 2.3.4 >>> pickle.loads(pickle.dumps(x, 2)) == x
     1
 

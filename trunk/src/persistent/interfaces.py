@@ -13,7 +13,7 @@
 ##############################################################################
 """Persistence Interfaces
 
-$Id: interfaces.py,v 1.3 2004/02/24 13:54:05 srichter Exp $
+$Id: interfaces.py,v 1.4 2004/04/19 21:19:09 tim_one Exp $
 """
 try:
     from zope.interface import Interface
@@ -286,7 +286,7 @@ class ICache(Interface):
     unreferenced objects in memory.  We assume that there is a good
     chance the object will be used again soon, so keeping it memory
     avoids the cost of recreating the object.
-    
+
     An ICache implementation is intended for use by an
     IPersistentDataManager.
     """
@@ -307,7 +307,7 @@ class ICache(Interface):
         """Make all of the objects in oids ghosts.
 
         `oids` is an iterable object that yields oids.
-        
+
         The cache must attempt to change each object to a ghost by
         calling _p_deactivate().
 
@@ -330,7 +330,7 @@ class ICache(Interface):
 
     def statistics():
         """Return dictionary of statistics about cache size.
-        
+
         Contains at least the following keys:
         active -- number of active objects
         ghosts -- number of ghost objects

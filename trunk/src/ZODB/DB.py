@@ -13,7 +13,7 @@
 ##############################################################################
 """Database objects
 
-$Id: DB.py,v 1.76 2004/04/17 23:04:52 gintautasm Exp $"""
+$Id: DB.py,v 1.77 2004/04/19 21:19:05 tim_one Exp $"""
 
 import cPickle, cStringIO, sys
 from thread import allocate_lock
@@ -427,7 +427,7 @@ class DB(object):
              used the default transaction manager.
           - `synch`: boolean indicating whether Connection should
              register for afterCompletion() calls.
-        
+
         """
         self._a()
         try:

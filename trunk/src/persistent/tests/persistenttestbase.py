@@ -351,7 +351,7 @@ class PersistentTest(Test):
 
         # verify that the inc is reflected:
         self.assertEqual(p2.x, p.x)
-        
+
         # This assertion would be invalid.  Interfaces
         # are compared by identity and copying doesn't
         # preserve identity. We would get false negatives due
@@ -370,4 +370,3 @@ class PersistentTest(Test):
 class BasePersistentTest(Test):
     klass = B
     has_dict = 0
-

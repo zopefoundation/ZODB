@@ -13,7 +13,7 @@
 ##############################################################################
 """Test broken-object suppport
 
-$Id: testBroken.py,v 1.4 2004/04/16 15:58:11 jeremy Exp $
+$Id: testBroken.py,v 1.5 2004/04/19 21:19:07 tim_one Exp $
 """
 
 import sys
@@ -29,7 +29,7 @@ def test_integration():
     >>> db = DB()
 
     We'll create a fake module with a class:
-    
+
     >>> class NotThere:
     ...     Atall = type('Atall', (persistent.Persistent, ),
     ...                  {'__module__': 'ZODB.not.there'})
@@ -70,7 +70,7 @@ def test_integration():
 
     >>> a3.__Broken_state__
     {'x': 1}
-    
+
     Let's clean up:
 
     >>> db.close()

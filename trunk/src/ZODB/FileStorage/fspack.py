@@ -687,4 +687,3 @@ class FileStoragePacker(FileStorageFormatter):
         if self._lock_counter % 20 == 0:
             self._commit_lock_acquire()
         return ipos
-

@@ -13,7 +13,7 @@
 ##############################################################################
 """ZODB-based persistent weakrefs
 
-$Id: wref.py,v 1.2 2004/02/19 02:59:30 jeremy Exp $
+$Id: wref.py,v 1.3 2004/04/19 21:19:09 tim_one Exp $
 """
 
 from persistent import Persistent
@@ -46,7 +46,7 @@ class WeakRef(object):
 
     >>> WeakRef(ob) == ref
     True
-    
+
     >>> ob2 = persistent.list.PersistentList([1])
     >>> WeakRef(ob2) == ref
     False
@@ -54,7 +54,7 @@ class WeakRef(object):
     Lets save the reference and the referenced object in a database:
 
     >>> db = ZODB.tests.util.DB()
-    
+
     >>> conn1 = db.open()
     >>> conn1.root()['ob'] = ob
     >>> conn1.root()['ref'] = ref
@@ -83,9 +83,9 @@ class WeakRef(object):
     KeyError: 'ob'
 
     Trying to dereference the reference returns None:
-    
+
     >>> conn3.root()['ref']()
-    
+
     Trying to get a hash, raises a type error:
 
     >>> hash(conn3.root()['ref'])
@@ -94,7 +94,7 @@ class WeakRef(object):
     TypeError: Weakly-referenced object has gone away
 
     Always explicitly close databases: :)
-    
+
     >>> db.close()
 
     """
@@ -133,8 +133,8 @@ class WeakRef(object):
             raise TypeError('Weakly-referenced object has gone away')
 
         return self == other
-    
-            
+
+
 class PersistentWeakKeyDictionary(Persistent):
     """Persistent weak key dictionary
 
@@ -170,9 +170,9 @@ class PersistentWeakKeyDictionary(Persistent):
     [True, True, True, False]
 
     We can add the dict and the referenced objects to a database:
-    
+
     >>> db = ZODB.tests.util.DB()
-    
+
     >>> conn1 = db.open()
     >>> conn1.root()['p1'] = p1
     >>> conn1.root()['d'] = d
@@ -217,7 +217,7 @@ class PersistentWeakKeyDictionary(Persistent):
 
     Now if we access the dictionary in a new connection, it no longer
     has p2:
-    
+
     >>> conn3 = db.open()
     >>> d = conn3.root()['d']
     >>> l = [(str(k), d[k], d.get(k)) for k in d]
@@ -227,17 +227,17 @@ class PersistentWeakKeyDictionary(Persistent):
 
     It's worth nothing that that the versions of the dictionary in
     conn1 and conn2 still have p2, because p2 is still in the caches
-    for those connections. 
+    for those connections.
 
     Always explicitly close databases: :)
-    
+
     >>> db.close()
 
     """
     # XXX it is expensive trying to load dead objects from the database.
     #     It would be helpful if the data manager/connection cached these.
 
-    
+
     def __init__(self, adict=None, **kwargs):
         self.data = {}
         if adict is not None:
@@ -259,13 +259,13 @@ class PersistentWeakKeyDictionary(Persistent):
             if k() is not None
             ])
         Persistent.__setstate__(self, state)
-        
+
     def __setitem__(self, key, value):
         self.data[WeakRef(key)] = value
-        
+
     def __getitem__(self, key):
         return self.data[WeakRef(key)]
-        
+
     def __delitem__(self, key):
         del self.data[WeakRef(key)]
 
@@ -286,7 +286,7 @@ class PersistentWeakKeyDictionary(Persistent):
 
     def __contains__(self, key):
         return WeakRef(key) in self.data
-    
+
     def __iter__(self):
         for k in self.data:
             yield k()
@@ -297,6 +297,5 @@ class PersistentWeakKeyDictionary(Persistent):
         else:
             for k, v in adict.items():
                 self.data[WeakRef(k)] = v
-        
+
     # XXX Someone else can fill out the rest of the methods, with tests. :)
-    

@@ -281,9 +281,9 @@ class PackableStorage(PackableStorageBase):
         packt = time.time()
 
         for dummy in choices:
-           for i in choices:
-               root[i].value = MinPO(i)
-               transaction.commit()
+            for i in choices:
+                root[i].value = MinPO(i)
+                transaction.commit()
 
         NUM_LOOP_TRIP = 100
         timer = ElapsedTimer(time.time())

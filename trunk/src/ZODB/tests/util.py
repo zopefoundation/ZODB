@@ -13,7 +13,7 @@
 ##############################################################################
 """Conventience function for creating test databases
 
-$Id: util.py,v 1.4 2004/04/16 15:58:11 jeremy Exp $
+$Id: util.py,v 1.5 2004/04/19 21:19:07 tim_one Exp $
 """
 
 import time
@@ -36,7 +36,7 @@ def pack(db):
     db.pack(time.time()+1)
 
 class P(persistent.Persistent):
-    
+
     def __init__(self, name):
         self.name = name
 

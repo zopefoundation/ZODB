@@ -13,7 +13,7 @@
 ##############################################################################
 """Interfaces for ZODB.
 
-$Id: interfaces.py,v 1.3 2004/02/24 13:51:03 srichter Exp $
+$Id: interfaces.py,v 1.4 2004/04/19 21:19:05 tim_one Exp $
 """
 
 try:
@@ -88,7 +88,7 @@ class IDataManager(Interface):
         flag set to false.
 
         """
-        
+
 
     def tpc_abort(transaction):
         """Abort a transaction.
