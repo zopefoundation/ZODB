@@ -14,9 +14,9 @@
 
 """Python implementation of persistent base types
 
-$Id: PersistentMapping.py,v 1.22 2003/11/28 16:44:46 jim Exp $"""
+$Id: mapping.py,v 1.1 2003/12/15 06:56:46 jim Exp $"""
 
-__version__='$Revision: 1.22 $'[11:-2]
+__version__='$Revision: 1.1 $'[11:-2]
 
 import Persistence
 import persistent
@@ -31,3 +31,9 @@ if Persistence.Persistent is not persistent.Persistent:
         Unless you actually want ExtensionClass semantics, use
         persistent.mapping.PersistentMapping instead.
         """
+            
+        def __setstate__(self, state):
+            if 'data' not in state:
+                state['data'] = state['_container']
+                del state['_container']
+            self.__dict__.update(state)
