@@ -812,6 +812,37 @@ class NastyConfict(Base, TestCase):
         else:
             self.fail("expected ConflictError")
 
+        # Same thing, except commit the transactions in the opposite order.
+        b = OOBTree()
+        for i in range(0, 200, 4):
+            b[i] = i
+
+        r1 = self.db.open().root()
+        r1["t"] = b
+        transaction.commit()
+
+        r2 = self.db.open(synch=False).root()
+        copy = r2["t"]
+        # Make sure all of copy is loaded.
+        list(copy.values())
+
+        self.assertEqual(b._p_serial, copy._p_serial)
+
+        # Now one transaction empties the first bucket, and another adds a
+        # key to the first bucket.
+        b[1] = 1
+        transaction.commit()
+
+        for k in range(0, 60, 4):
+            del copy[k]
+        try:
+            transaction.commit()
+        except ConflictError, detail:
+            self.assert_(str(detail).startswith('database conflict error'))
+            transaction.abort()
+        else:
+            self.fail("expected ConflictError")
+
 
 def test_suite():
     suite = TestSuite()

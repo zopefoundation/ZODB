@@ -93,6 +93,13 @@ bucket_merge(Bucket *s1, Bucket *s2, Bucket *s3)
   SetIteration i1 = {0,0,0}, i2 = {0,0,0}, i3 = {0,0,0};
   int cmp12, cmp13, cmp23, mapping, set;
 
+  /* If either "after" bucket is empty, punt. */
+  if (s2->len == 0 || s3->len == 0)
+    {
+      merge_error(-1, -1, -1, 12);
+      goto err;
+    }
+
   if (initSetIteration(&i1, OBJECT(s1), 1) < 0)
       goto err;
   if (initSetIteration(&i2, OBJECT(s2), 1) < 0)
@@ -116,13 +123,6 @@ bucket_merge(Bucket *s1, Bucket *s2, Bucket *s3)
       goto err;
   if (i3.next(&i3) < 0)
       goto err;
-
-  /* If either "after" bucket was empty, punt. */
-  if (i2.position < 0 || i3.position < 0)
-    {
-      merge_error(i1.position, i2.position, i3.position, 12);
-      goto err;
-    }
 
   /* Consult zodb/btrees/interfaces.py for the meaning of the last
    * argument passed to merge_error().
