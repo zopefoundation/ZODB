@@ -12,7 +12,41 @@
 
  ****************************************************************************/
 
-#define BUCKETTEMPLATE_C "$Id: BucketTemplate.c,v 1.35 2002/06/08 16:16:32 tim_one Exp $\n"
+#define BUCKETTEMPLATE_C "$Id: BucketTemplate.c,v 1.36 2002/06/08 19:46:18 tim_one Exp $\n"
+
+/* Use BUCKET_SEARCH to find the index at which a key belongs.
+ * INDEX    An int lvalue to hold the index i such that KEY belongs at
+ *          SELF->keys[i].  Note that this will equal SELF->len if KEY
+ *          is larger than the bucket's largest key.  Else it's the
+ *          smallest i such that SELF->keys[i] >= KEY.
+ * ABSENT   An int lvalue to hold a Boolean result, true (!= 0) if the
+ *          key is absent, false (== 0) if the key is at INDEX.
+ * SELF     A pointer to a Bucket node.
+ * KEY      The key you're looking for, of type KEY_TYPE.
+ * ONERROR  What to do if key comparison raises an exception; for example,
+ *          perhaps 'return NULL'.
+ *
+ * See Maintainer.txt for discussion:  this is optimized in subtle ways.
+ * It's recommended that you call this at the start of a routine, waiting
+ * to check for self->len == 0 after (if an empty bucket is special in
+ * context; INDEX becomes 0 and ABSENT becomes true if this macro is run
+ * with an empty SELF, and that may be all the invoker needs to know).
+ */
+#define BUCKET_SEARCH(INDEX, ABSENT, SELF, KEY, ONERROR) {  \
+    int _lo = 0;                                            \
+    int _hi = (SELF)->len;                                  \
+    int _i;                                                 \
+    int _cmp = 1;                                           \
+    for (_i = _hi >> 1; _lo < _hi; _i = (_lo + _hi) >> 1) { \
+        TEST_KEY_SET_OR(_cmp, (SELF)->keys[_i], (KEY))      \
+            ONERROR;                                        \
+        if      (_cmp < 0)  _lo = _i + 1;                   \
+        else if (_cmp == 0) break;                          \
+        else                _hi = _i;                       \
+    }                                                       \
+    (INDEX) = _i;                                           \
+    (ABSENT) = _cmp;                                        \
+}
 
 /*
 ** _bucket_get
@@ -41,45 +75,31 @@
 static PyObject *
 _bucket_get(Bucket *self, PyObject *keyarg, int has_key)
 {
-  int min, max, i, l, cmp, copied=1;
-  PyObject *r;
-  KEY_TYPE key;
+    int i, cmp;
+    KEY_TYPE key;
+    PyObject *r = NULL;
+    int copied = 1;
 
-  COPY_KEY_FROM_ARG(key, keyarg, copied);
-  UNLESS (copied) return NULL;
+    COPY_KEY_FROM_ARG(key, keyarg, copied);
+    UNLESS (copied) return NULL;
 
-  PER_USE_OR_RETURN(self, NULL);
+    PER_USE_OR_RETURN(self, NULL);
 
-  for (min=0, max=self->len, i=max/2, l=max; i != l; l=i, i=(min+max)/2)
-    {
-      TEST_KEY_SET_OR(cmp, self->keys[i], key) goto err;
-      if (PyErr_Occurred()) goto err;
-
-      if (cmp < 0) min=i;
-      else if (cmp == 0)
-	{
-	  if (has_key) r=PyInt_FromLong(has_key);
-	  else
-	    {
-              COPY_VALUE_TO_OBJECT(r, self->values[i]);
-	    }
-	  PER_ALLOW_DEACTIVATION(self);
-          PER_ACCESSED(self);
-	  return r;
-	}
-      else max=i;
+    BUCKET_SEARCH(i, cmp, self, key, goto Done);
+    if (has_key)
+    	r = PyInt_FromLong(cmp ? 0 : has_key);
+    else {
+        if (cmp == 0) {
+            COPY_VALUE_TO_OBJECT(r, self->values[i]);
+        }
+        else
+            PyErr_SetObject(PyExc_KeyError, keyarg);
     }
 
+Done:
   PER_ALLOW_DEACTIVATION(self);
   PER_ACCESSED(self);
-  if (has_key) return PyInt_FromLong(0);
-  PyErr_SetObject(PyExc_KeyError, keyarg);
-  return NULL;
-
-err:
-  PER_ALLOW_DEACTIVATION(self);
-  PER_ACCESSED(self);
-  return NULL;
+  return r;
 }
 
 static PyObject *
