@@ -142,7 +142,7 @@ DATA_VERSION_HDR_LEN = 62
 assert struct.calcsize(TRANS_HDR) == TRANS_HDR_LEN
 assert struct.calcsize(DATA_HDR) == DATA_HDR_LEN
 
-logger = logging.getLogger("zodb.storage.file")
+logger = logging.getLogger("ZODB.zodb4.z4format")
 
 def panic(message, *data):
     logger.critical(message, *data)

@@ -392,7 +392,7 @@ class BaseObjectReader:
             unpickler.load() # skip the class metadata
             return unpickler.load()
         except EOFError, msg:
-            log = logging.getLogger("zodb.serialize")
+            log = logging.getLogger("ZODB.serialize")
             log.exception("Unpickling error: %r", pickle)
             raise
 

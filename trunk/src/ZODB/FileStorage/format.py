@@ -160,7 +160,7 @@ DATA_VERSION_HDR_LEN = 58
 assert struct.calcsize(TRANS_HDR) == TRANS_HDR_LEN
 assert struct.calcsize(DATA_HDR) == DATA_HDR_LEN
 
-logger = logging.getLogger('zodb.FileStorage.format')
+logger = logging.getLogger('ZODB.FileStorage.format')
 
 class FileStorageFormatter(object):
     """Mixin class that can read and write the low-level format."""
