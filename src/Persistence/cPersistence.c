@@ -82,7 +82,7 @@
   attributions are listed in the accompanying credits file.
   
  ****************************************************************************/
-static char *what_string = "$Id: cPersistence.c,v 1.40 2001/02/15 16:18:22 jim Exp $";
+static char *what_string = "$Id: cPersistence.c,v 1.41 2001/03/27 23:00:40 jim Exp $";
 
 #include <string.h>
 #include "cPersistence.h"
@@ -730,7 +730,8 @@ static PyExtensionClass Pertype = {
 	(getattrofunc)Per_getattro,	/*tp_getattr with object key*/
 	(setattrofunc)Per_setattro,	/*tp_setattr with object key*/
 	/* Space for future expansion */
-	0L,0L,"",
+	0L,0L,
+        "Base class for objects that are stored in their own database records",
 	METHOD_CHAIN(Per_methods),
 	PERSISTENCE_FLAGS,
 };
@@ -738,7 +739,7 @@ static PyExtensionClass Pertype = {
 static PyExtensionClass Overridable = {
 	PyObject_HEAD_INIT(NULL)
 	0,				/*ob_size*/
-	"Persistent",			/*tp_name*/
+	"Overridable",			/*tp_name*/
 	sizeof(cPersistentObject),	/*tp_basicsize*/
 	0,				/*tp_itemsize*/
 	/* methods */
@@ -757,7 +758,9 @@ static PyExtensionClass Overridable = {
 	(getattrofunc)Per_getattro,	/*tp_getattr with object key*/
 	(setattrofunc)Per_setattro,	/*tp_setattr with object key*/
 	/* Space for future expansion */
-	0L,0L,"",
+	0L,0L,
+        "Hacked base class used in Zope's App.Uninstalled.BrokenClass\n\n"
+        "Not sure if this is still needed",
 	METHOD_CHAIN(Per_methods),
 	EXTENSIONCLASS_BASICNEW_FLAG | PERSISTENT_TYPE_FLAG
 };
@@ -811,7 +814,7 @@ void
 initcPersistence()
 {
   PyObject *m, *d;
-  char *rev="$Revision: 1.40 $";
+  char *rev="$Revision: 1.41 $";
 
   TimeStamp=PyString_FromString("TimeStamp");
   if (! TimeStamp) return;
