@@ -163,6 +163,9 @@ class GenericTests(ZEOTestBase,
         obj = MinPO("X" * (10 * 128 * 1024))
         self._dostore(data=obj)
 
+    def checkTwoArgBegin(self):
+        pass # ZEO 1 doesn't support two-arg begin
+
 class ZEOFileStorageTests(GenericTests):
     __super_setUp = GenericTests.setUp
     
