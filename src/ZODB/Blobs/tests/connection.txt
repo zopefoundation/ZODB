@@ -15,8 +15,7 @@
 Connection support for Blobs tests
 ==================================
 
-Connections handle Blobs specially. To demonstrate that, we first
-need a Blob with some data:
+Connections handle Blobs specially. To demonstrate that, we first need a Blob with some data:
 
     >>> from ZODB.Blobs.interfaces import IBlob
     >>> from ZODB.Blobs.Blob import Blob
