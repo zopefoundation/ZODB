@@ -354,8 +354,6 @@ class Transaction(object):
         except:
             # If an error occurs committing a transaction, we try
             # to revert the changes in each of the resource managers.
-            # For top-level transactions, it must be freed from the
-            # txn manager.
             t, v, tb = sys.exc_info()
             try:
                 self._cleanup(L)
