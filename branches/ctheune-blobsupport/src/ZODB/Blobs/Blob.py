@@ -62,7 +62,7 @@ class Blob(Persistent):
 
             if self._p_blob_uncommitted is None:
                 # Create a new working copy
-                self._p_blob_uncommitted = utils.mktmp()
+                self._p_blob_uncommitted = utils.mktemp()
                 uncommitted = BlobFile(self._p_blob_uncommitted, mode, self)
                 # NOTE: _p_blob data appears by virtue of Connection._setstate
                 utils.cp(file(self._p_blob_data), uncommitted)
