@@ -20,6 +20,26 @@ from zLOG.factory import Factory
 
 # log-related datatypes
 
+_logging_levels = {
+    "critical": 50,
+    "fatal": 50,
+    "error": 40,
+    "warn": 30,
+    "info": 20,
+    "debug": 10,
+    "all": 0,
+    }
+
+def logging_level(value):
+    s = str(value).lower()
+    if _logging_levels.has_key(s):
+        return _logging_levels[s]
+    else:
+        v = int(s)
+        if v < 0 or v > 50:
+            raise ValueError("log level not in range: " + `v`)
+        return v
+
 _log_format_variables = {
     'name': '',
     'levelno': '3',

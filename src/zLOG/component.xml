@@ -8,7 +8,7 @@
     <key name="format" default="------\n%(asctime)s %(message)s"
          datatype=".log_format"/>
     <key name="dateformat" default="%Y-%m-%dT%H:%M:%S"/>
-    <key name="level" default="info" datatype="logging-level"/>
+    <key name="level" default="info" datatype=".logging_level"/>
   </sectiontype>
 
   <sectiontype name="syslog-handler" datatype=".syslog_handler"
@@ -18,7 +18,7 @@
     <key name="format" default="%(message)s"
          datatype=".log_format"/>
     <key name="dateformat" default="%Y-%m-%dT%H:%M:%S"/>
-    <key name="level" default="info" datatype="logging-level"/>
+    <key name="level" default="info" datatype=".logging_level"/>
   </sectiontype>
 
 <!--
@@ -28,7 +28,7 @@
     <key name="format" default="%(message)s"
          datatype=".log_format"/>
     <key name="dateformat" default="%Y-%m-%dT%H:%M:%S"/>
-    <key name="level" default="info" datatype="logging-level"/>
+    <key name="level" default="info" datatype=".logging_level"/>
   </sectiontype>
 
   <sectiontype name="http_handler" datatype=".http_handler"
@@ -38,7 +38,7 @@
     <key name="format" default="%(asctime)s %(message)s"
          datatype=".log_format"/>
     <key name="dateformat" default="%Y-%m-%dT%H:%M:%S"/>
-    <key name="level" default="info" datatype="logging-level"/>
+    <key name="level" default="info" datatype=".logging_level"/>
   </sectiontype>
 
   <sectiontype name="smtp_handler" datatype=".smtp_handler"
@@ -50,7 +50,7 @@
     <key name="format" default="%(asctime)s %(message)s"
          datatype=".log_format"/>
     <key name="dateformat" default="%Y-%m-%dT%H:%M:%S"/>
-    <key name="level" default="info" datatype="logging-level"/>
+    <key name="level" default="info" datatype=".logging_level"/>
   </sectiontype>
 
   <sectiontype name="null_handler" datatype=".null_handler"
@@ -61,12 +61,12 @@
     <key name="constructor" datatype="constructor" required="yes"/>
     <key name="formatter" datatype="constructor"
          default="logging.Formatter()"/>
-    <key name="level" default="info" datatype="logging-level"/>
+    <key name="level" default="info" datatype=".logging_level"/>
   </sectiontype>
 -->
 
   <sectiontype name="logger" datatype=".logger">
-     <key name="level" datatype="logging-level" default="info"/>
+     <key name="level" datatype=".logging_level" default="info"/>
      <multisection type="loghandler" attribute="handlers" name="*"/>
   </sectiontype>
 
