@@ -48,12 +48,12 @@
 __doc__='''Python implementation of persistent base types
 
 
-$Id: PersistentMapping.py,v 1.3 1998/11/11 02:00:56 jim Exp $'''
-__version__='$Revision: 1.3 $'[11:-2]
+$Id: PersistentMapping.py,v 1.4 1999/05/07 01:03:03 jim Exp $'''
+__version__='$Revision: 1.4 $'[11:-2]
 
 import Persistence
 
-class PM(Persistence.Persistent):
+class PersistentMapping(Persistence.Persistent):
     """A persistent wrapper for mapping objects.
 
     This class allows wrapping of mapping objects so that
@@ -113,4 +113,3 @@ class PM(Persistence.Persistent):
     def values(self):
         return map(lambda k, d=self: d[k], self.keys())
 
-PersistentMapping=PM

@@ -1,13 +1,7 @@
 *shared*
-cPersistence cPersistence.c -I../ExtensionClass -I../python
-cPickleCache cPickleCache.c -I../ExtensionClass -I../python
-cPickleJar ./cPickleJar.c -I../ExtensionClass
-iTree ./iTree.c -I../ExtensionClass
+cPersistence cPersistence.c    -I../../Components/ExtensionClass
+cPickleCache cPickleCache.c    -I../../Components/ExtensionClass
 
-intSet ./intSet.c -I/projects/_/ExtensionClass -I/projects/_/cPersistence -I/projects/_/python
-BTree ./BTree.c -I/projects/_/ExtensionClass -I/projects/_/cPersistence -I/projects/_/python
-IIBTree ./IIBTree.c -I/projects/_/ExtensionClass -I/projects/_/cPersistence -I/projects/_/python
-IOBTree ./IOBTree.c -I/projects/_/ExtensionClass -I/projects/_/cPersistence -I/projects/_/python
-OIBTree ./OIBTree.c -I/projects/_/ExtensionClass -I/projects/_/cPersistence -I/projects/_/python
-
+#cPickleJar   cPickleJar.c      -I../../Components/ExtensionClass
+#iTree        iTree.c           -I../../Components/ExtensionClass
 

@@ -45,7 +45,26 @@
 #   (540) 371-6909
 #
 ##############################################################################
-from DB import DB
-from Persistence import Persistent
-from POSException import *
+import sys, ExtensionClass, TimeStamp, cPersistence, Persistence
 
+
+# This is lame. Don't look. :(
+sys.modules['cPersistence']=cPersistence
+
+Persistent=cPersistence.Persistent
+del cPersistence
+
+# Install Persistent and PersistentMapping in Persistence
+if not hasattr(Persistence, 'Persistent'):
+    Persistence.Persistent=Persistent
+    Persistent.__module__='Persistence'
+    if not hasattr(Persistence, 'PersistentMapping'):
+        from PersistentMapping import PersistentMapping
+        Persistence.PersistentMapping=PersistentMapping
+        PersistentMapping.__module__='Persistence'
+        del PersistentMapping
+
+from DB import DB
+
+import Transaction
+del Transaction

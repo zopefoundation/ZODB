@@ -1,6 +1,6 @@
 /***********************************************************************
 
-  $Id: cPersistence.c,v 1.25 1998/11/11 02:00:56 jim Exp $
+  $Id: cPersistence.c,v 1.26 1999/05/07 01:03:03 jim Exp $
 
   C Persistence Module
 
@@ -12,16 +12,19 @@
 
 
 *****************************************************************************/
-static char *what_string = "$Id: cPersistence.c,v 1.25 1998/11/11 02:00:56 jim Exp $";
+static char *what_string = "$Id: cPersistence.c,v 1.26 1999/05/07 01:03:03 jim Exp $";
 
-#include <time.h>
+#include <string.h>
 #include "cPersistence.h"
 
 #define ASSIGN(V,E) {PyObject *__e; __e=(E); Py_XDECREF(V); (V)=__e;}
 #define UNLESS(E) if(!(E))
 #define UNLESS_ASSIGN(V,E) ASSIGN(V,E) UNLESS(V)
+#define OBJECT(V) ((PyObject*)(V))
 
-static PyObject *py_keys, *py_setstate, *py___dict__;
+static PyObject *py_keys, *py_setstate, *py___dict__, *py_timeTime;
+
+static PyObject *TimeStamp;
 
 #ifdef DEBUG_LOG
 static PyObject *debug_log=0;
@@ -35,8 +38,8 @@ call_debug(char *event, cPersistentObject *self)
   /*
   printf("%s %p\n",event,self->ob_type->tp_name);
   */
-  r=PyObject_CallFunction(debug_log,"s(ss#i)",event,
-			  self->ob_type->tp_name, self->oid, 8,
+  r=PyObject_CallFunction(debug_log,"s(sOi)",event,
+			  self->ob_type->tp_name, self->oid,
 			  self->state);
   Py_XDECREF(r);
 }
@@ -48,6 +51,7 @@ init_strings()
 #define INIT_STRING(S) py_ ## S = PyString_FromString(#S)
   INIT_STRING(keys);
   INIT_STRING(setstate);
+  INIT_STRING(timeTime);
   INIT_STRING(__dict__);
 #undef INIT_STRING
 }
@@ -201,14 +205,16 @@ static PyObject *
 Per___changed__(cPersistentObject *self, PyObject *args)
 {
   PyObject *v=0;
+
   if (args && ! PyArg_ParseTuple(args, "|O",&v)) return NULL;
-  if (v && ! PyObject_IsTrue(v))
+  if (! v) return PyObject_GetAttrString(OBJECT(self), "_p_changed");
+
+  if (PyObject_IsTrue(v)) 
     {
-      PyErr_SetString(PyExc_TypeError,
-			 "Only true arguments are allowed.");
-      return NULL;
+      if (changed(self) < 0) return NULL;
     }
-  if (changed(self) < 0) return NULL;
+  else if (self->state >= 0) self->state=cPersistent_UPTODATE_STATE;
+
   Py_INCREF(Py_None);
   return Py_None;
 }
@@ -369,34 +375,29 @@ Per_dealloc(self)
 }
 
 static PyObject *
+orNothing(PyObject *v)
+{
+  if (! v) v=Py_None;
+  Py_INCREF(v);
+  return v;
+}
+
+static PyObject *
 Per_getattr(cPersistentObject *self, PyObject *oname, char *name,
 	 PyObject *(*getattrf)(PyObject *, PyObject*))
 {
   char *n=name;
 
-  if(*n++=='_')
+  if(n && *n++=='_')
     if(*n++=='p' && *n++=='_')
       {
 	switch(*n++)
 	  {
 	  case 'o':
-	    if(*n++=='i' && *n++=='d' && ! *n)
-	      return PyString_FromStringAndSize(self->oid, 8);
+	    if(*n++=='i' && *n++=='d' && ! *n) return orNothing(self->oid);
 	    break;
 	  case 'j':
-	    if(*n++=='a' && *n++=='r' && ! *n)
-	      {
-		if(self->jar)
-		  {
-		    Py_INCREF(self->jar);
-		    return self->jar;
-		  }
-		else
-		  {
-		    Py_INCREF(Py_None);
-		    return Py_None;
-		  }
-	      }
+	    if(*n++=='a' && *n++=='r' && ! *n) return orNothing(self->jar);
 	    break;
 	  case 'c':
 	    if(strcmp(n,"hanged")==0)
@@ -410,11 +411,32 @@ Per_getattr(cPersistentObject *self, PyObject *oname, char *name,
 				      cPersistent_CHANGED_STATE);
 	      }
 	    break;
+	  case 's':
+	    if(strcmp(n,"erial")==0)
+	      return PyString_FromStringAndSize(self->serial, 8);
+	    break;
+	  case 'm':
+	    if(strcmp(n,"time")==0)
+	      {
+		UPDATE_STATE_IF_NECESSARY(self, NULL);
+
+		self->atime=((long)(time(NULL)/3))%65536;
+		
+		oname=PyString_FromStringAndSize(self->serial, 8);
+		if (! oname) return oname;
+		ASSIGN(oname, PyObject_CallFunction(TimeStamp, "O", oname));
+		if (! oname) return oname;
+		ASSIGN(oname, PyObject_GetAttr(oname, py_timeTime));
+		if (! oname) return oname;
+		ASSIGN(oname, PyObject_CallObject(oname, NULL));
+		return oname;
+	      }
+	    break;
 	  }
 
 	return getattrf((PyObject *)self, oname);
       }
-  if(! (*name++=='_' && *name++=='_' &&
+  if(! (name && *name++=='_' && *name++=='_' &&
 	(strcmp(name,"dict__")==0 || strcmp(name,"class__")==0
 	 || strcmp(name, "of__")==0)))
     {
@@ -429,10 +451,11 @@ Per_getattr(cPersistentObject *self, PyObject *oname, char *name,
 static PyObject*
 Per_getattro(cPersistentObject *self, PyObject *name)
 {
-  char *s;
+  char *s=NULL;
 
-  UNLESS(s=PyString_AsString(name)) return NULL;
-  return Per_getattr(self,name,s, PyExtensionClassCAPI->getattro);
+  if (PyString_Check(name))
+    UNLESS(s=PyString_AsString(name)) return NULL;
+  return Per_getattr(self, name, s, PyExtensionClassCAPI->getattro);
 }
 
 static int 
@@ -456,27 +479,36 @@ _setattro(cPersistentObject *self, PyObject *oname, PyObject *v,
     {
       if(name[3]=='o' && name[4]=='i' && name[5]=='d' && ! name[6])
 	{
-	  if (! v) return bad_delattr();
-	  if (PyString_Check(v) && PyString_GET_SIZE(v)==8)
-	    memcpy(self->oid, PyString_AS_STRING(v), 8);
-	  else
-	    {
-	      PyErr_SetString(PyExc_AttributeError,
-			      "_p_oid must be an 8-character string");
-	      return -1;
-	    }
+	  Py_XINCREF(v);
+	  ASSIGN(self->oid, v);
 	  return 0;
 	}
       if(name[3]=='j' && name[4]=='a' && name[5]=='r' && ! name[6])
 	{
+	  Py_XINCREF(v);
 	  ASSIGN(self->jar, v);
-	  Py_XINCREF(self->jar);
 	  return 0;
 	}
-      if(strcmp(name+3,"changed")==0) 
+      if(name[3]=='s' && strcmp(name+4,"erial")==0)
 	{
-	  if (! v) return bad_delattr();
-	  if (v==Py_None)
+	  if (v)
+	    {
+	      if (PyString_Check(v) && PyString_Size(v)==8)
+		memcpy(self->serial, PyString_AS_STRING(v), 8);
+	      else
+		{
+		  PyErr_SetString(PyExc_ValueError,
+				  "_p_serial must be an 8-character string");
+		  return -1;
+		}
+	    }
+	  else
+	    memset(self->serial, 0, 8);
+	  return 0;
+	}
+      if(name[3]=='c' && strcmp(name+4,"hanged")==0) 
+	{
+	  if (! v || v==Py_None)
 	    {
 	      if (Per__p_deactivate(self, NULL)) Py_DECREF(Py_None);
 	      return 0;
@@ -585,8 +617,15 @@ void
 initcPersistence()
 {
   PyObject *m, *d;
-  char *rev="$Revision: 1.25 $";
+  char *rev="$Revision: 1.26 $";
 
+  TimeStamp=PyString_FromString("TimeStamp");
+  if (! TimeStamp) return;
+  ASSIGN(TimeStamp, PyImport_Import(TimeStamp));
+  if (! TimeStamp) return;
+  ASSIGN(TimeStamp, PyObject_GetAttrString(TimeStamp, "TimeStamp"));
+  if (! TimeStamp) return;
+  
   m = Py_InitModule4("cPersistence", cP_methods,
 		     "",
 		     (PyObject*)NULL,PYTHON_API_VERSION);

@@ -47,29 +47,26 @@
 ##############################################################################
 """Transaction management
 
-$Id: Transaction.py,v 1.3 1998/11/11 02:00:56 jim Exp $"""
-__version__='$Revision: 1.3 $'[11:-2]
+$Id: Transaction.py,v 1.4 1999/05/07 01:03:03 jim Exp $"""
+__version__='$Revision: 1.4 $'[11:-2]
 
 import time, sys, struct
 from struct import pack
 from string import split, strip, join
 
-ConflictError=""
+from POSException import ConflictError
 
 class Transaction:
     'Simple transaction objects for single-threaded applications.'
     user=''
     description=''
     _connections=None
+    _extension=None
 
     def __init__(self,
                  time=time.time, pack=struct.pack, gmtime=time.gmtime):
         self._objects=[]
         self._append=self._objects.append
-        self.time=now=time()
-        y,mo,d,h,m=gmtime(now)[:5]
-        s=int((now%60)*1000000)
-        self.id=pack("<II", (((y*12+mo)*31+d)*24+h)*60+m, s)
         self._note=self._user=self._description=''
         if self._connections:
             for c in self._connections.values(): c.close()
@@ -136,15 +133,20 @@ class Transaction:
         'Register the given object for transaction control.'
         self._append(object)
 
-    def remark(self, text):
+    def note(self, text):
         if self.description:
             self.description = "%s\n\n%s" % (self.description, strip(text))
         else: 
             self.description = strip(text)
-        
+    
     def setUser(self, user_name, path='/'):
         self.user="%s %s" % (path, user_name)
-        
+
+    def setExtendedInfo(self, name, value):
+        ext=self._extension
+        if ext is None:
+            ext=self._extension={}
+        ext[name]=value
 
 
 ############################################################################
@@ -175,9 +177,4 @@ del _t
 
 import __main__ 
 __main__.__builtins__.get_transaction=get_transaction
-
-def time2id(now, gmtime=time.gmtime, pack=struct.pack):
-    y,m,d,h,m=gmtime(now)[:5]
-    s=int((now%60)*1000000)
-    return pack("<II", ((y*12+m)*31+d)*24, s)
     
