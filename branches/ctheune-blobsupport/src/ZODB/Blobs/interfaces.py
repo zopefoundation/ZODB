@@ -25,6 +25,8 @@ class IBlobStorage(Interface):
         serial.
 
         Returns a filename or None if no Blob data is connected with this OID. 
+
+        Raises POSKeyError if the blobfile cannot be found.
         """
 
     def getBlobDirectory():

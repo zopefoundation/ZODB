@@ -901,6 +901,7 @@ class ClientStorage(object):
                 self._server.storeBlobEnd(oid, serial, data, version, id(txn))
                 break
             self._server.storeBlob(oid, serial, chunk, version, id(txn))
+        os.unlink(blobfilename)
         return serials
 
     def _getDirtyFilename(self, oid, serial):
@@ -917,6 +918,7 @@ class ClientStorage(object):
                                          utils.tid_repr(tid), 
                                          BLOB_SUFFIX,)
                             )
+
     def loadBlob(self, oid, serial, version):
         blob_filename = self._getCleanFilename(oid, serial)
         if os.path.exists(blob_filename):    # XXX see race condition below

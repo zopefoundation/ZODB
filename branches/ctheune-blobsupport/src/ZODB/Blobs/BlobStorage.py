@@ -109,7 +109,10 @@ class BlobStorage(ProxyBase):
     def loadBlob(self, oid, serial, version):
         """Return the filename where the blob file can be found.
         """
-        return self._getCleanFilename(oid, serial)
+        filename = self._getCleanFilename(oid, serial)
+        if not os.path.exists(filename):
+            raise POSKeyError, "Not an existing blob."
+        return filename
 
     def _getNewestBlobSerial(self, oid):
         blob_path = self._getBlobPath(oid)

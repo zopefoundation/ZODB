@@ -1,12 +1,11 @@
 
 - Support database import/export
 
-- Support ZEO
+- Support selection of text/binary mode for opening blobs
 
-- Support selection of text/binary mode for blobs
+- Generic wrapper configuration for BlobStorage
 
-    -   implement loadBlob and storeBlob
+Tests
+-----
 
-    -   loadBlob needs to handle the BLOB_CACHE_DIRECTORY
-
-    -   storeBlob needs to hand the actual file data off to the server
+- Importing backward compatible ZEXP files (no \0BLOBSTART) used
