@@ -84,8 +84,8 @@
 ##############################################################################
 """Transaction management
 
-$Id: Transaction.py,v 1.19 2000/05/09 19:03:53 jim Exp $"""
-__version__='$Revision: 1.19 $'[11:-2]
+$Id: Transaction.py,v 1.20 2000/05/12 23:57:31 jim Exp $"""
+__version__='$Revision: 1.20 $'[11:-2]
 
 import time, sys, struct, POSException
 from struct import pack
@@ -248,7 +248,9 @@ class Transaction:
 
                 for jar in jars.values():
                     if not subtransaction:
-                        jar.tpc_vote(self) # last chance to bail
+                        try: jar=jar.tpc_vote
+                        except: pass
+                        else: jar(self) # last chance to bail
                 
             except:
                 t,v,tb=sys.exc_info()
