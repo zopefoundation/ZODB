@@ -14,7 +14,7 @@
 """Sized message async connections
 """
 
-__version__ = "$Revision: 1.17 $"[11:-2]
+__version__ = "$Revision: 1.18 $"[11:-2]
 
 import asyncore, struct
 from Exceptions import Disconnected
@@ -138,6 +138,9 @@ class SizedMessageAsyncConnection(asyncore.dispatcher):
         output = self.__output
         while output:
             v = output[0]
+            while len(output)>1 and len(v)<16384:
+                del output[0]
+                v += output[0]
             try:
                 n=self.send(v)
             except socket.error, err:
