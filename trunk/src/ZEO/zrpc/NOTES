@@ -1,3 +1,5 @@
+[XXX These notes reflect a design that was never implemented]
+
 The Connection object should be extended to support more flexible
 handling for outstanding calls.  In particular, it should be possible
 to have multiple calls with return values outstanding.
