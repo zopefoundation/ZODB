@@ -11,7 +11,7 @@
 
 static char BTree_module_documentation[] = 
 ""
-"\n$Id: BTree.c,v 1.14 1998/02/05 17:46:17 jim Exp $"
+"\n$Id: BTree.c,v 1.15 1998/02/18 22:19:50 jim Exp $"
 ;
 
 #define PERSISTENT
@@ -1746,7 +1746,7 @@ initBTree()
 #endif
 {
   PyObject *m, *d;
-  char *rev="$Revision: 1.14 $";
+  char *rev="$Revision: 1.15 $";
 
   UNLESS(PyExtensionClassCAPI=PyCObject_Import("ExtensionClass","CAPI"))
       return;
@@ -1754,21 +1754,13 @@ initBTree()
 #ifdef PERSISTENT
   if(cPersistenceCAPI=PyCObject_Import("cPersistence","CAPI"))
     {
-	static PyMethodChain mb, mn;
-
-	mb.methods=BucketType.methods.methods;
-	BucketType.methods.methods=cPersistenceCAPI->methods->methods;
-	BucketType.methods.link=&mb;
+	BucketType.methods.link=cPersistenceCAPI->methods;
 	BucketType.tp_getattro=cPersistenceCAPI->getattro;
 	BucketType.tp_setattro=cPersistenceCAPI->setattro;
 
-
-	mn.methods=BTreeType.methods.methods;
-	BTreeType.methods.methods=cPersistenceCAPI->methods->methods;
-	BTreeType.methods.link=&mn;
+	BTreeType.methods.link=cPersistenceCAPI->methods;
 	BTreeType.tp_getattro=cPersistenceCAPI->getattro;
 	BTreeType.tp_setattro=cPersistenceCAPI->setattro;
-
     }
   else return;
 #else
@@ -1808,6 +1800,9 @@ initBTree()
 Revision Log:
 
   $Log: BTree.c,v $
+  Revision 1.15  1998/02/18 22:19:50  jim
+  Fixed C inheritence problem. Waaaaaaa.
+
   Revision 1.14  1998/02/05 17:46:17  jim
   Added get methods.
 

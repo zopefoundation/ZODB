@@ -10,7 +10,7 @@
 
 static char intSet_module_documentation[] = 
 ""
-"\n$Id: intSet.c,v 1.6 1997/12/12 23:48:07 jim Exp $"
+"\n$Id: intSet.c,v 1.7 1998/02/18 22:19:39 jim Exp $"
 ;
 
 #include <limits.h>
@@ -528,16 +528,13 @@ void
 initintSet()
 {
   PyObject *m, *d;
-  char *rev="$Revision: 1.6 $";
+  char *rev="$Revision: 1.7 $";
 
   UNLESS(ExtensionClassImported) return;
 
   if(cPersistenceCAPI=PyCObject_Import("cPersistence","CAPI"))
     {
-      static PyMethodChain m;
-      m.methods=intSetType.methods.methods;
-      intSetType.methods.methods=cPersistenceCAPI->methods->methods;
-      intSetType.methods.link=&m;
+      intSetType.methods.link=cPersistenceCAPI->methods;
       intSetType.tp_getattro=cPersistenceCAPI->getattro;
       intSetType.tp_setattro=cPersistenceCAPI->setattro;
     }
@@ -569,6 +566,9 @@ initintSet()
   Revision Log:
 
   $Log: intSet.c,v $
+  Revision 1.7  1998/02/18 22:19:39  jim
+  Fixed C inheritence problem. Waaaaaaa.
+
   Revision 1.6  1997/12/12 23:48:07  jim
   Added basicnew support.
 
