@@ -12,17 +12,41 @@
 
  ****************************************************************************/
 
-#define BTREEITEMSTEMPLATE_C "$Id: BTreeItemsTemplate.c,v 1.12 2002/06/09 22:22:50 tim_one Exp $\n"
+#define BTREEITEMSTEMPLATE_C "$Id: BTreeItemsTemplate.c,v 1.13 2002/06/10 14:44:55 tim_one Exp $\n"
 
+/* A BTreeItems struct is returned from calling .items(), .keys() or
+ * .values() on a BTree-based data structure, and is also the result of
+ * taking slices of those.  It represents a contiguous slice of a BTree.
+ *
+ * The start of the slice is in firstbucket, at offset first.  The end of
+ * the slice is in lastbucket, at offset last.  Both endpoints are inclusive.
+ * It should be possible to get from firstbucket to lastbucket via following
+ * bucket 'next' pointers zero or more times.  firstbucket, first, lastbucket,
+ * and last are readonly after initialization.  An empty slice is represented
+ * by [XXX (firstbucket == NULL) or (firstbucket == lastbucket and
+ * first > last) XXX].
+ *
+ * 'kind' determines whether this slice represents 'k'eys alone, 'v'alues
+ * alone, or 'i'items (key+value pairs).  'kind' is also readonly after
+ * initialization.
+ *
+ * [XXX currentoffset and currentbucket appear to be used to return function
+ *  results XXX]
+ *
+ * [XXX pseudoindex may be the index corresponding to the position identified
+ *  by the currentbucket+currenoffset pair.  Seems to be a kind of search
+ *  finger. XXX]
+ */
 typedef struct {
   PyObject_HEAD
-  Bucket *firstbucket;		/* First bucket known		*/
-  Bucket *currentbucket;	/* Current bucket position	*/
-  Bucket *lastbucket;		/* Last bucket position		*/
-  int currentoffset;		/* Start count of current bucket*/
-  int pseudoindex;		/* It's an indicator		*/
-  int first, last;
-  char kind;
+  Bucket *firstbucket;		/* First bucket		        */
+  Bucket *currentbucket;	/* Current bucket	        */
+  Bucket *lastbucket;		/* Last bucket		        */
+  int currentoffset;		/* Offset in currentbucket      */
+  int pseudoindex;		/* It's an indicator (what?)    */
+  int first;                    /* Start offset in firstbucket  */
+  int last;                     /* End offset in lastbucket     */
+  char kind;                    /* 'k', 'v', 'i'                */
 } BTreeItems;
 
 #define ITEMS(O)((BTreeItems*)(O))
