@@ -184,7 +184,7 @@
 #   may have a back pointer to a version record or to a non-version
 #   record.
 #
-__version__='$Revision: 1.58 $'[11:-2]
+__version__='$Revision: 1.59 $'[11:-2]
 
 import struct, time, os, bpthread, string, base64, sys
 from struct import pack, unpack
@@ -513,9 +513,7 @@ class FileStorage(BaseStorage.BaseStorage,
                     write(abort and pnv or spos) # data backpointer to src data
                     here=here+heredelta
 
-                    if h[16:24] != pnv:
-                        # This is not the first current record, so mark it
-                        current_oids[oid]=1
+                    current_oids[oid]=1
 
                 else:
                     # Hm.  This is a non-current record.  Is there a
