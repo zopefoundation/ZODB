@@ -85,12 +85,16 @@
 static char cPickleCache_doc_string[] = 
 "Defines the PickleCache used by ZODB Connection objects.\n"
 "\n"
-"$Id: cPickleCache.c,v 1.33 2001/03/28 14:36:30 jim Exp $\n";
+"$Id: cPickleCache.c,v 1.34 2001/11/06 17:52:38 jeremy Exp $\n";
 
 #define ASSIGN(V,E) {PyObject *__e; __e=(E); Py_XDECREF(V); (V)=__e;}
 #define UNLESS(E) if(!(E))
 #define UNLESS_ASSIGN(V,E) ASSIGN(V,E) UNLESS(V)
 #define OBJECT(O) ((PyObject*)O)
+
+/* Compute the current time in the units and range used for peristent
+   objects. */
+#define PER_TIME() ((long)(time(NULL) / 3)) % 65536
 
 #define DONT_USE_CPERSISTENCECAPI
 #include "cPersistence.h"
@@ -142,24 +146,27 @@ staticforward PyTypeObject Cctype;
 static int 
 gc_item(ccobject *self, PyObject *key, PyObject *v, long now, int dt)
 {
-
   if (v && key)
     {
       self->n++;
       if(v->ob_refcnt <= 1)
 	{
 	  self->sum_deal++;
+	  /* XXX The fact that this works will iterating over
+	     self->data with PyDict_Next() is an accident of the
+	     current Python dictionary implementation. */
 	  return PyDict_DelItem(self->data, key);
 	}
 
-      if (dt && 
+      if (dt >= 0 && 
 	  (! PyExtensionClass_Check(v)) &&
-	  ((cPersistentObject*)v)->jar==self->jar /* I'm paranoid */ &&
-	  ((cPersistentObject*)v)->state==cPersistent_UPTODATE_STATE
+	  ((cPersistentObject*)v)->jar == self->jar /* I'm paranoid */ &&
+	  ((cPersistentObject*)v)->state == cPersistent_UPTODATE_STATE
 	  )
 	{
 	  now -= ((cPersistentObject*)v)->atime;
-	  if (now < 0) now += 65536;
+	  if (now < 0) 
+	      now += 65536;
 	  self->na++;
 	  self->sum_age += now;
 	  if (now > dt)
@@ -169,7 +176,7 @@ gc_item(ccobject *self, PyObject *key, PyObject *v, long now, int dt)
 		 state.
 	      */
 	      self->sum_deac++;
-	      if (PyObject_SetAttr(v,py__p_changed,Py_None) < 0)
+	      if (PyObject_SetAttr(v, py__p_changed, Py_None) < 0)
 		PyErr_Clear();
 	    }
 	}
@@ -220,15 +227,18 @@ fullgc(ccobject *self, int dt)
   int i;
   long now;
 
-  if (self->cache_size < 1) return 0;
-  if ((i=PyDict_Size(self->data)) < 1) return 0;
+  if (self->cache_size < 1) 
+      return 0;
+  if ((i=PyDict_Size(self->data)) < 1) 
+      return 0;
 
-  now=((long)(time(NULL)/3))%65536;
-  if (dt < 0) dt=0;
-  else dt /= 3;
+  now = PER_TIME();
+  if (dt > 0)
+      dt /= 3; 
 
   for(i=0; PyDict_Next(self->data, &i, &key, &v); )
-    if(gc_item(self,key,v,now,dt) < 0) return -1;
+    if (gc_item(self, key, v, now, dt) < 0) 
+	return -1;
   self->position=0;
 
   if(now-self->last_check > 1) update_stats(self, now);
@@ -243,24 +253,35 @@ reallyfullgc(ccobject *self, int dt)
   int i, l, last;
   time_t now;
 
-  if (self->cache_size < 1) return 0;
-  if((last=PyDict_Size(self->data)) < 0) return -1;
+  if (self->cache_size < 1) 
+      return 0;
+  last = PyDict_Size(self->data);
+  if (last < 0)
+      return -1;
 
-  now=((long)(time(NULL)/3))%65536;
-  if (dt < 0) dt=0;
-  else dt /= 3;
+  now = PER_TIME();
+  if (dt > 0)
+      dt /= 3;
 
   /* First time through should get refcounts to 1 */
   for(i=0; PyDict_Next(self->data, &i, &key, &v); )
-    if(gc_item(self,key,v,now,dt) < 0) return -1;
+      if (gc_item(self, key, v, now, dt) < 0) 
+	  return -1;
 
-  if((l=PyDict_Size(self->data)) < 0) return -1;
-  while(l < last)
+  l = PyDict_Size(self->data);
+
+  if (l < 0)
+      return -1;
+
+  while (l < last)
     {
-      for(i=0; PyDict_Next(self->data, &i, &key, &v); )
-	if(gc_item(self,key,v,now,dt) < 0) return -1;
-      last=l;
-      if((l=PyDict_Size(self->data)) < 0) return -1;
+      for (i=0; PyDict_Next(self->data, &i, &key, &v); )
+	  if (gc_item(self, key, v, now, dt) < 0) 
+	      return -1;
+      last = l;
+      l = PyDict_Size(self->data);
+      if (l < 0)
+	  return -1;
     }
 
   if(now-self->last_check > 1) update_stats(self, now);
@@ -280,7 +301,7 @@ maybegc(ccobject *self, PyObject *thisv)
   s=PyDict_Size(self->data);
   if (s < 1) return s;
 
-  now=((long)(time(NULL)/3))%65536;
+  now = PER_TIME();
 
   size=self->cache_size;
   self->cache_size=0;
@@ -322,9 +343,15 @@ maybegc(ccobject *self, PyObject *thisv)
 static PyObject *
 cc_full_sweep(ccobject *self, PyObject *args)
 {
-  int dt=0;
-  UNLESS(PyArg_ParseTuple(args, "|i", &dt)) return NULL;
-  UNLESS(-1 != fullgc(self,dt)) return NULL;
+  int dt = self->cache_age;
+  UNLESS(PyArg_ParseTuple(args, "|i:full_sweep", &dt)) return NULL;
+  if (dt < -1) 
+    {
+      PyErr_SetString(PyExc_ValueError, "age must be >= -1");
+      return NULL;
+    }
+  if (fullgc(self, dt) == -1)
+      return NULL;
   Py_INCREF(Py_None);
   return Py_None;
 }
@@ -332,9 +359,15 @@ cc_full_sweep(ccobject *self, PyObject *args)
 static PyObject *
 cc_reallyfull_sweep(ccobject *self, PyObject *args)
 {
-  int dt=0;
-  UNLESS(PyArg_ParseTuple(args, "|i", &dt)) return NULL;
-  UNLESS(-1 != reallyfullgc(self,dt)) return NULL;
+  int dt = self->cache_age;
+  UNLESS(PyArg_ParseTuple(args, "|i:minimize", &dt)) return NULL;
+  if (dt < -1) 
+    {
+      PyErr_SetString(PyExc_ValueError, "age must be >= -1");
+      return NULL;
+    }
+  if (reallyfullgc(self, dt) == -1)
+      return NULL;
   Py_INCREF(Py_None);
   return Py_None;
 }
@@ -344,7 +377,7 @@ cc_incrgc(ccobject *self, PyObject *args)
 {
   int n=1;
 
-  UNLESS (PyArg_ParseTuple(args, "|i",&n)) return NULL;
+  UNLESS (PyArg_ParseTuple(args, "|i:incrgr",&n)) return NULL;
 
   for (; --n >= 0;)
     if(maybegc(self,NULL) < 0) return NULL;
@@ -369,15 +402,29 @@ _invalidate(ccobject *self, PyObject *key)
 	  }
 	else
 	  {
-	    v=PyObject_CallFunction(self->setklassstate,
-				    "O", v);
+	    PyObject *t = PyTuple_New(1);
+	    if (t)
+	      {
+		PyTuple_SET_ITEM(t, 0, v);
+		v = PyObject_Call(self->setklassstate, t, NULL);
+		PyTuple_SET_ITEM(t, 0, NULL);
+		Py_DECREF(t);
+	      }
+	    else 
+	      {
+		v = t;
+	      }
 	    if (v) Py_DECREF(v);
 	    else PyErr_Clear();
 	  }
       else if (PyObject_DelAttr(v,py__p_changed) < 0)
 	PyErr_Clear();
     }
-  else PyErr_Clear();
+  else 
+    {
+      if (PyErr_Occurred())
+	PyErr_Clear();
+    }
 }
 
 static PyObject *
@@ -400,7 +447,7 @@ cc_invalidate(ccobject *self, PyObject *args)
   }
   else {
     PyErr_Clear();
-    UNLESS (PyArg_ParseTuple(args, "O", &inv)) return NULL;
+    UNLESS (PyArg_ParseTuple(args, "O:invalidate", &inv)) return NULL;
     if (PyString_Check(inv))
       _invalidate(self, inv);
     else if (inv==Py_None)	/* All */
@@ -431,13 +478,14 @@ cc_get(ccobject *self, PyObject *args)
 {
   PyObject *r, *key, *d=0;
 
-  UNLESS (PyArg_ParseTuple(args,"O|O", &key, &d)) return NULL;
+  UNLESS (PyArg_ParseTuple(args, "O|O:get", &key, &d)) return NULL;
 
   UNLESS (r=PyDict_GetItem(self->data, key))
     {
       if (d) 
 	{
-	  PyErr_Clear();
+	  if (PyErr_Occurred())
+	    PyErr_Clear();
 	  r=d;
 	}
       else
@@ -679,7 +727,7 @@ void
 initcPickleCache(void)
 {
   PyObject *m, *d;
-  char *rev="$Revision: 1.33 $";
+  char *rev="$Revision: 1.34 $";
 
   Cctype.ob_type=&PyType_Type;
 
