@@ -34,6 +34,23 @@ ZERO = '\0'*8
 class C(Persistent):
     pass
 
+def snooze():
+    # In Windows, it's possible that two successive time.time() calls return
+    # the same value.  Tim guarantees that time never runs backwards.  You
+    # usually want to call this before you pack a storage, or must make other
+    # guarantees about increasing timestamps.
+    now = time.time()
+    while now == time.time():
+        time.sleep(0.1)
+        
+def listeq(L1, L2):
+    """Return True if L1.sort() == L2.sort()"""
+    c1 = L1[:]
+    c2 = L2[:]
+    c1.sort()
+    c2.sort()
+    return c1 == c2
+
 class TransactionalUndoStorage:
 
     def _transaction_begin(self):
@@ -555,6 +572,187 @@ class TransactionalUndoStorage:
         eq(o1.obj, o2)
         eq(o1.obj.obj, o3)
         self._iterate()
+
+    def checkPackAfterUndoDeletion(self):
+        db = DB(self._storage)
+        cn = db.open()
+        root = cn.root()
+
+        pack_times = []
+        def set_pack_time():
+            snooze()
+            pack_times.append(time.time())
+
+        root["key0"] = MinPO(0)
+        root["key1"] = MinPO(1)
+        root["key2"] = MinPO(2)
+        txn = get_transaction()
+        txn.note("create 3 keys")
+        txn.commit()
+
+        set_pack_time()
+
+        del root["key1"]
+        txn = get_transaction()
+        txn.note("delete 1 key")
+        txn.commit()
+
+        set_pack_time()
+        
+        root._p_deactivate()
+        cn.sync()
+        self.assert_(listeq(root.keys(), ["key0", "key2"]))
+        
+        L = db.undoInfo()
+        db.undo(L[0]["id"])
+        txn = get_transaction()
+        txn.note("undo deletion")
+        txn.commit()
+
+        set_pack_time()
+
+        root._p_deactivate()
+        cn.sync()
+        self.assert_(listeq(root.keys(), ["key0", "key1", "key2"]))
+        
+        for t in pack_times:
+            self._storage.pack(t, referencesf)
+
+            root._p_deactivate()
+            cn.sync()
+            self.assert_(listeq(root.keys(), ["key0", "key1", "key2"]))
+            for i in range(3):
+                obj = root["key%d" % i]
+                self.assertEqual(obj.value, i)
+            root.items()
+
+    def checkPackAfterUndoManyTimes(self):
+        db = DB(self._storage)
+        cn = db.open()
+        rt = cn.root()
+
+        rt["test"] = MinPO(1)
+        get_transaction().commit()
+        rt["test2"] = MinPO(2)
+        get_transaction().commit()
+        rt["test"] = MinPO(3)
+        txn = get_transaction()
+        txn.note("root of undo")
+        txn.commit()
+
+        packtimes = []
+        for i in range(10):
+            L = db.undoInfo()
+            db.undo(L[0]["id"])
+            txn = get_transaction()
+            txn.note("undo %d" % i)
+            txn.commit()
+            rt._p_deactivate()
+            cn.sync()
+
+            self.assertEqual(rt["test"].value, i % 2 and 3 or 1)
+            self.assertEqual(rt["test2"].value, 2)
+            
+            packtimes.append(time.time())
+            snooze()
+
+        for t in packtimes:
+            self._storage.pack(t, referencesf)
+            cn.sync()
+            cn._cache.clear()
+            # The last undo set the value to 3 and pack should
+            # never change that.
+            self.assertEqual(rt["test"].value, 3)
+            self.assertEqual(rt["test2"].value, 2)
+
+    def testTransactionalUndoIterator(self):
+        # check that data_txn set in iterator makes sense
+        if not hasattr(self._storage, "iterator"):
+            return
+
+        s = self._storage
+
+        BATCHES = 4
+        OBJECTS = 4
+
+        orig = []
+        for i in range(BATCHES):
+            t = Transaction()
+            tid = p64(i + 1)
+            s.tpcBegin(t, tid)
+            for j in range(OBJECTS):
+                oid = s.newObjectId()
+                obj = MinPO(i * OBJECTS + j)
+                data, refs = zodb_pickle(obj)
+                revid = s.store(oid, None, data, refs, '', t)
+                orig.append((tid, oid, revid))
+            s.tpcVote(t)
+            s.tpcFinish(t)
+
+        i = 0
+        for tid, oid, revid in orig:
+            self._dostore(oid, revid=revid, data=MinPO(revid),
+                          description="update %s" % i)
+
+        # Undo the OBJECTS transactions that modified objects created
+        # in the ith original transaction.
+
+        def undo(i):
+            info = s.undoInfo()
+            t = Transaction()
+            s.tpcBegin(t)
+            base = i * OBJECTS + i
+            for j in range(OBJECTS):
+                tid = info[base + j]['id']
+                s.undo(tid, t)
+            s.tpcVote(t)
+            s.tpcFinish(t)
+
+        for i in range(BATCHES):
+            undo(i)
+
+        # There are now (2 + OBJECTS) * BATCHES transactions:
+        #     BATCHES original transactions, followed by
+        #     OBJECTS * BATCHES modifications, followed by
+        #     BATCHES undos
+
+        fsiter = iter(s.iterator())
+        offset = 0
+
+        eq = self.assertEqual
+
+        for i in range(BATCHES):
+            txn = fsiter.next()
+            offset += 1
+
+            tid = p64(i + 1)
+            eq(txn.tid, tid)
+
+            L1 = [(rec.oid, rec.serial, rec.data_txn) for rec in txn]
+            L2 = [(oid, revid, None) for _tid, oid, revid in orig
+                  if _tid == tid]
+
+            eq(L1, L2)
+
+        for i in range(BATCHES * OBJECTS):
+            txn = fsiter.next()
+            offset += 1
+            eq(len([rec for rec in txn if rec.data_txn is None]), 1)
+
+        for i in range(BATCHES):
+            txn = fsiter.next()
+            offset += 1
+
+            # The undos are performed in reverse order.
+            otid = p64(BATCHES - i)
+            L1 = [(rec.oid, rec.data_txn) for rec in txn]
+            L2 = [(oid, otid) for _tid, oid, revid in orig
+                  if _tid == otid]
+            L1.sort()
+            L2.sort()
+            eq(L1, L2)
+
+        self.assertRaises(StopIteration, fsiter.next)
 
     def checkTransactionalUndoIterator(self):
         # check that data_txn set in iterator makes sense
