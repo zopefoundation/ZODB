@@ -110,7 +110,8 @@ class CommonSetupTearDown(StorageTestBase):
         for c in self.caches:
             for i in 0, 1:
                 for ext in "", ".trace":
-                    path = "%s-%s.zec%s" % (c, "1", ext)
+                    base = "%s-%s.zec%s" % (c, "1", ext)
+                    path = os.path.join(tempfile.tempdir, base)
                     # On Windows before 2.3, we don't have a way to wait for
                     # the spawned server(s) to close, and they inherited
                     # file descriptors for our open files.  So long as those
@@ -152,6 +153,7 @@ class CommonSetupTearDown(StorageTestBase):
         self.caches.append(cache)
         storage = TestClientStorage(self.addr,
                                     client=cache,
+                                    var=tempfile.tempdir,
                                     cache_size=cache_size,
                                     wait=wait,
                                     min_disconnect_poll=0.1,
