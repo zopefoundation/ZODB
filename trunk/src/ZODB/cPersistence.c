@@ -82,7 +82,7 @@
   attributions are listed in the accompanying credits file.
   
  ****************************************************************************/
-static char *what_string = "$Id: cPersistence.c,v 1.30 1999/06/10 19:55:29 jim Exp $";
+static char *what_string = "$Id: cPersistence.c,v 1.31 1999/06/29 18:26:48 jim Exp $";
 
 #include <string.h>
 #include "cPersistence.h"
@@ -495,9 +495,19 @@ Per_getattr(cPersistentObject *self, PyObject *oname, char *name,
 		UPDATE_STATE_IF_NECESSARY(self, NULL);
 
 		self->atime=((long)(time(NULL)/3))%65536;
+
+		if (self->serial[7]=='\0' && self->serial[6]=='\0' &&
+		    self->serial[5]=='\0' && self->serial[4]=='\0' &&
+		    self->serial[3]=='\0' && self->serial[2]=='\0' &&
+		    self->serial[1]=='\0' && self->serial[0]=='\0')
+		  {
+		    Py_INCREF(Py_None);
+		    return Py_None;
+		  }
 		
 		oname=PyString_FromStringAndSize(self->serial, 8);
 		if (! oname) return oname;
+
 		ASSIGN(oname, PyObject_CallFunction(TimeStamp, "O", oname));
 		if (! oname) return oname;
 		ASSIGN(oname, PyObject_GetAttr(oname, py_timeTime));
@@ -701,7 +711,7 @@ void
 initcPersistence()
 {
   PyObject *m, *d;
-  char *rev="$Revision: 1.30 $";
+  char *rev="$Revision: 1.31 $";
 
   TimeStamp=PyString_FromString("TimeStamp");
   if (! TimeStamp) return;
