@@ -160,7 +160,8 @@ def main():
                 explain.get(code) or "*** unknown code ***")
 
 def U64(s):
-    return struct.unpack(">Q", s)[0]
+    h, v = unpack(">II", s)
+    return (long(h) << 32) + v
 
 def addcommas(n):
     sign, s = '', str(n)
