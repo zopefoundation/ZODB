@@ -13,7 +13,7 @@
 ##############################################################################
 """Network ZODB storage client
 
-$Id: ClientStorage.py,v 1.49 2002/08/16 22:48:35 jeremy Exp $
+$Id: ClientStorage.py,v 1.50 2002/08/16 22:49:40 jeremy Exp $
 """
 
 import cPickle
@@ -322,20 +322,6 @@ class ClientStorage:
         self._server.vote(self._serial)
         return self._check_serials()
 
-    def tpc_abort(self, transaction):
-        if transaction is not self._transaction:
-            return
-        try:
-            self._server.tpc_abort(self._serial)
-            self._tbuf.clear()
-            self._seriald.clear()
-            del self._serials[:]
-        finally:
-            self.tpc_cond.acquire()
-            self._transaction = None
-            self.tpc_cond.notify()
-            self.tpc_cond.release()
-
     def tpc_begin(self, transaction, tid=None, status=' '):
         self.tpc_cond.acquire()
         while self._transaction is not None:
@@ -374,6 +360,20 @@ class ClientStorage:
         self._serial = id
         self._seriald.clear()
         del self._serials[:]
+
+    def tpc_abort(self, transaction):
+        if transaction is not self._transaction:
+            return
+        try:
+            self._server.tpc_abort(self._serial)
+            self._tbuf.clear()
+            self._seriald.clear()
+            del self._serials[:]
+        finally:
+            self.tpc_cond.acquire()
+            self._transaction = None
+            self.tpc_cond.notify()
+            self.tpc_cond.release()
 
     def tpc_finish(self, transaction, f=None):
         if transaction is not self._transaction:
