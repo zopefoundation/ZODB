@@ -13,13 +13,14 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.105 2003/12/24 16:02:00 jeremy Exp $"""
+$Id: Connection.py,v 1.106 2003/12/27 13:54:04 sidnei Exp $"""
 
 import logging
 import sys
 import threading
 from time import time
 from types import ClassType
+from utils import U64
 
 _marker = object()
 
@@ -45,7 +46,7 @@ global_reset_counter = 0
 
 def resetCaches():
     """Causes all connection caches to be reset as connections are reopened.
-    
+
     Zope's refresh feature uses this.  When you reload Python modules,
     instances of classes continue to use the old class definitions.
     To use the new code immediately, the refresh feature asks ZODB to
