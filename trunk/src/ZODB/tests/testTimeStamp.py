@@ -1,3 +1,16 @@
+##############################################################################
+#
+# Copyright (c) 2001, 2002 Zope Corporation and Contributors.
+# All Rights Reserved.
+# 
+# This software is subject to the provisions of the Zope Public License,
+# Version 2.0 (ZPL).  A copy of the ZPL should accompany this distribution.
+# THIS SOFTWARE IS PROVIDED "AS IS" AND ANY AND ALL EXPRESS OR IMPLIED
+# WARRANTIES ARE DISCLAIMED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+# WARRANTIES OF TITLE, MERCHANTABILITY, AGAINST INFRINGEMENT, AND FITNESS
+# FOR A PARTICULAR PURPOSE.
+# 
+##############################################################################
 """Test the TimeStamp utility type"""
 
 import time
@@ -28,7 +41,7 @@ class TimeStampTests(unittest.TestCase):
         self.assertEquals(dy, t[2])
 
     def checkFullTimeStamp(self):
-        t = time.gmtime(time.time())
+        t = time.gmtime()
         ts = TimeStamp(*t[:6])
 
         # XXX floating point comparison
@@ -43,7 +56,7 @@ class TimeStampTests(unittest.TestCase):
         self.assert_(abs(ts.second() - t[5]) < EPSILON)
 
     def checkRawTimestamp(self):
-        t = time.gmtime(time.time())
+        t = time.gmtime()
         ts1 = TimeStamp(*t[:6])
         ts2 = TimeStamp(`ts1`)
 
@@ -57,7 +70,7 @@ class TimeStampTests(unittest.TestCase):
         self.assert_(abs(ts1.second() - ts2.second()) < EPSILON)
 
     def checkDictKey(self):
-        t = time.gmtime(time.time())
+        t = time.gmtime()
         ts1 = TimeStamp(*t[:6])
         ts2 = TimeStamp(2000, *t[1:6])
 
@@ -74,8 +87,7 @@ class TimeStampTests(unittest.TestCase):
         self.assert_(ts2 <= ts1)
 
     def checkLaterThan(self):
-        # XXX what does laterThan() do?
-        t = time.gmtime(time.time())
+        t = time.gmtime()
         ts = TimeStamp(*t[:6])
         ts2 = ts.laterThan(ts)
         self.assert_(ts2 > ts)
