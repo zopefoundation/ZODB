@@ -50,7 +50,12 @@ def load_storage_class(name):
     mod = getattr(package, name)
     return getattr(mod, name)
 
-def main(port, storage_name, rawargs):
+def main(args):
+    ro_svr = 0
+    if args[0] == "-r":
+        ro_svr = 1
+        del args[0]
+    port, storage_name, rawargs = args
     klass = load_storage_class(storage_name)
     args = []
     for arg in rawargs:
@@ -61,7 +66,8 @@ def main(port, storage_name, rawargs):
     zeo_port = int(port)
     test_port = zeo_port + 1
     t = ZEOTestServer(('', test_port), storage)
-    serv = ZEO.StorageServer.StorageServer(('', zeo_port), {'1': storage})
+    addr = [('', zeo_port)]
+    serv = ZEO.StorageServer.StorageServer(addr, {'1': storage}, ro_svr)
     import zLOG
     label = "winserver:%d" % os.getpid()
     while asyncore.socket_map:
@@ -70,5 +76,4 @@ def main(port, storage_name, rawargs):
 
 if __name__ == "__main__":
     import sys
-
-    main(sys.argv[1], sys.argv[2], sys.argv[3:])
+    main(sys.argv[1:])
