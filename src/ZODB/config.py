@@ -13,7 +13,7 @@
 ##############################################################################
 """Open database and storage from a configuration.
 
-$Id: config.py,v 1.7 2003/01/10 06:44:50 fdrake Exp $"""
+$Id: config.py,v 1.8 2003/01/13 16:28:29 fdrake Exp $"""
 
 import os
 import StringIO
@@ -43,19 +43,15 @@ def databaseFromURL(url):
     return databaseFromConfig(config.database)
 
 def databaseFromConfig(section):
-    return ZODB.DB(section.storage.open(),
-                   pool_size=section.pool_size,
-                   cache_size=section.cache_size,
-                   version_pool_size=section.version_pool_size,
-                   version_cache_size=section.version_cache_size)
+    return section.open()
 
-class StorageConfig:
 
-    """Object representing a configured storage.
+class BaseConfig:
+    """Object representing a configured storage or database.
 
     Methods:
 
-    open() -- open and return the storage object
+    open() -- open and return the configured object
 
     Attributes:
 
@@ -71,13 +67,23 @@ class StorageConfig:
         """Open and return the storage object."""
         raise NotImplementedError
 
-class MappingStorage(StorageConfig):
+class ZODBDatabase(BaseConfig):
+
+    def open(self):
+        section = self.config
+        return ZODB.DB(section.storage.open(),
+                       pool_size=section.pool_size,
+                       cache_size=section.cache_size,
+                       version_pool_size=section.version_pool_size,
+                       version_cache_size=section.version_cache_size)
+
+class MappingStorage(BaseConfig):
 
     def open(self):
         from ZODB.MappingStorage import MappingStorage
         return MappingStorage(self.config.name)
 
-class DemoStorage(StorageConfig):
+class DemoStorage(BaseConfig):
 
     def open(self):
         from ZODB.DemoStorage import DemoStorage
@@ -89,7 +95,7 @@ class DemoStorage(StorageConfig):
                            base=base,
                            quota=self.config.quota)
 
-class FileStorage(StorageConfig):
+class FileStorage(BaseConfig):
 
     def open(self):
         from ZODB.FileStorage import FileStorage
@@ -99,7 +105,7 @@ class FileStorage(StorageConfig):
                            stop=self.config.stop,
                            quota=self.config.quota)
 
-class ZEOClient(StorageConfig):
+class ZEOClient(BaseConfig):
 
     def open(self):
         from ZEO.ClientStorage import ClientStorage
@@ -119,7 +125,7 @@ class ZEOClient(StorageConfig):
             read_only=self.config.read_only,
             read_only_fallback=self.config.read_only_fallback)
 
-class BDBStorage(StorageConfig):
+class BDBStorage(BaseConfig):
 
     def open(self):
         from BDBStorage.BerkeleyBase import BerkeleyConfig
