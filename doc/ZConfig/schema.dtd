@@ -83,8 +83,7 @@
           attribute  NMTOKEN  #IMPLIED
           type       NMTOKEN  #REQUIRED
           handler    NMTOKEN  #IMPLIED
-          minOccurs  NMTOKEN  #IMPLIED
-          maxOccurs  NMTOKEN  #IMPLIED>
+          required   (yes|no) "no">
 
 <!ELEMENT multisection (description?)>
 <!ATTLIST multisection
