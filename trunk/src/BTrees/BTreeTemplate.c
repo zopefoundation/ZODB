@@ -12,7 +12,7 @@
 
  ****************************************************************************/
 
-#define BTREETEMPLATE_C "$Id: BTreeTemplate.c,v 1.38 2002/06/10 19:53:47 tim_one Exp $\n"
+#define BTREETEMPLATE_C "$Id: BTreeTemplate.c,v 1.39 2002/06/10 20:38:06 tim_one Exp $\n"
 
 /*
 ** _BTree_get
@@ -338,156 +338,142 @@ static int
 _BTree_set(BTree *self, PyObject *keyarg, PyObject *value,
            int unique, int noval)
 {
-  int min, grew, copied=1, changed=0, bchanged=0;
-  BTreeItem *d;
-  KEY_TYPE key;
+    int min, grew, copied=1, changed=0, bchanged=0;
+    BTreeItem *d;
+    KEY_TYPE key;
 
-  COPY_KEY_FROM_ARG(key, keyarg, copied);
-  UNLESS (copied) return -1;
+    COPY_KEY_FROM_ARG(key, keyarg, copied);
+    UNLESS (copied) return -1;
 
-  PER_USE_OR_RETURN(self, -1);
+    PER_USE_OR_RETURN(self, -1);
 
-  UNLESS (self->len)
-    {
-      if (value)
-        {
-          if (BTree_grow(self, 0, noval) < 0) return -1;
-        }
-      else
-        {
-          PyErr_SetObject(PyExc_KeyError, keyarg);
-          return -1;
-        }
+    if (!self->len) {
+	if (value) {
+	    if (BTree_grow(self, 0, noval) < 0)
+		return -1;
+	}
+	else {
+	    PyErr_SetObject(PyExc_KeyError, keyarg);
+	    return -1;
+	}
     }
 
-  BTREE_SEARCH(min, self, key, goto err);
-  d = self->data + min;
-  if (SameType_Check(self, d->child))
-    grew= _BTree_set( BTREE(d->child), keyarg, value, unique, noval);
-  else
-    grew=_bucket_set(BUCKET(d->child), keyarg, value, unique, noval,
-                     &bchanged);
-  if (grew < 0) goto err;
+    BTREE_SEARCH(min, self, key, goto err);
+    d = self->data + min;
+    if (SameType_Check(self, d->child))
+	grew = _BTree_set((BTree *)d->child, keyarg, value, unique, noval);
+    else
+	grew = _bucket_set((Bucket *)d->child, keyarg, value, unique, noval,
+			   &bchanged);
+    if (grew < 0)
+	goto err;
 
-  if (grew)
-    {
-      bchanged=1;               /* A bucket changed size */
-      if (value)			/* got bigger */
-	{
-          if (SameType_Check(self, d->child))
-            {
-              if (BTREE(d->child)->len > MAX_BTREE_SIZE(d->child))
-                {
-                  if (BTree_grow(self, min, noval) < 0) goto err;
-                  changed=1;
+    if (grew) {
+	bchanged = 1;               /* A bucket changed size */
+	if (value) {			/* got bigger */
+	    if (SameType_Check(self, d->child)) {
+		if (BTREE(d->child)->len > MAX_BTREE_SIZE(d->child)) {
+		    if (BTree_grow(self, min, noval) < 0)
+			goto err;
+		    changed = 1;
                 }
             }
-          else
-            {
-              if (BUCKET(d->child)->len > MAX_BUCKET_SIZE(d->child))
-                {
-                  if (BTree_grow(self, min, noval) < 0) goto err;
-                  changed=1;
+            else {
+		if (BUCKET(d->child)->len > MAX_BUCKET_SIZE(d->child)) {
+		    if (BTree_grow(self, min, noval) < 0)
+			goto err;
+		    changed = 1;
                 }
             }
 	}
-      else			/* got smaller */
-	{
-          if (min && grew > 1)
-            { /* Somebody below us deleted their first bucket and */
-              /* and an intermediate tree couldn't handle it.     */
-              if (BTree_deleteNextBucket(BTREE(d[-1].child)) < 0)
-                goto err;
-              grew=1; /* Reset flag, since we handled it */
+	else {		/* got smaller */
+	    if (min && grew > 1) {
+                /* Somebody below us deleted their first bucket and */
+		/* and an intermediate tree couldn't handle it.     */
+		if (BTree_deleteNextBucket(BTREE(d[-1].child)) < 0)
+		    goto err;
+		grew = 1; /* Reset flag, since we handled it */
             }
 
-          if (BUCKET(d->child)->len == 0)
-            {                   /* Got empty */
-
-              if (! SameType_Check(self, d->child))
-                {  /* We are about to delete a bucket. */
-                  if (min)
-                    {  /*If it's not our first bucket, we can tell the
-                         previous bucket to adjust it's reference to
-                         it. */
-                      if (Bucket_deleteNextBucket(BUCKET(d[-1].child)) < 0)
-                        goto err;
+	    if (BUCKET(d->child)->len == 0) {       /* Got empty */
+		if (!SameType_Check(self, d->child)) {
+                    /* We are about to delete a bucket. */
+		    if (min) {
+			/* If it's not our first bucket, we can tell the
+			   previous bucket to adjust it's reference to
+			   it. */
+			if (Bucket_deleteNextBucket(BUCKET(d[-1].child)) < 0)
+			    goto err;
                     }
-                  else
-                    { /* If it's the first bucket, we can't adjust the
-                         reference to it ourselves, so we'll just
-                         increment the grew flag to indicate to a
-                         parent node that it's last bucket should
-                         adjust its reference. If there is no parent,
-                         then there's nothing to do. */
-                      grew++;
+                    else {
+			/* If it's the first bucket, we can't adjust the
+			   reference to it ourselves, so we'll just
+			   increment the grew flag to indicate to a
+			   parent node that it's last bucket should
+			   adjust its reference. If there is no parent,
+			   then there's nothing to do. */
+			grew++;
                     }
                 }
-              self->len--;
-              Py_DECREF(d->child);
-              if (min)
-                {
-                  DECREF_KEY(d->key);
+		self->len--;
+		Py_DECREF(d->child);
+		if (min) {
+		    DECREF_KEY(d->key);
                 }
-              if (min < self->len)
-                memmove(d, d+1, (self->len-min)*sizeof(BTreeItem));
+		if (min < self->len)
+		    memmove(d, d+1, (self->len-min)*sizeof(BTreeItem));
 
-              if (! min)
-                {
-                  if (self->len)
-                    { /* We just deleted our first child, so we need to
-                         adjust our first bucket. */
-                      if (SameType_Check(self, self->data->child))
-                        {
-                          UNLESS (PER_USE(BTREE(self->data->child))) goto err;
-                          ASSIGNB(self->firstbucket,
-                                  BTREE(self->data->child)->firstbucket);
-                          Py_XINCREF(self->firstbucket);
-                          PER_ALLOW_DEACTIVATION(BTREE(self->data->child));
-                          PER_ACCESSED(BTREE(self->data->child));
+		if (!min) {
+		    if (self->len) {
+			/* We just deleted our first child, so we need to
+			   adjust our first bucket. */
+			if (SameType_Check(self, self->data->child)) {
+			    UNLESS (PER_USE(BTREE(self->data->child)))
+				goto err;
+			    ASSIGNB(self->firstbucket,
+				    BTREE(self->data->child)->firstbucket);
+			    Py_XINCREF(self->firstbucket);
+                            PER_ALLOW_DEACTIVATION(BTREE(self->data->child));
+                            PER_ACCESSED(BTREE(self->data->child));
                         }
-                      else
-                        {
-                          ASSIGNB(self->firstbucket,
-                                  BUCKET(self->data->child));
-                          Py_INCREF(self->firstbucket);
+                        else {
+			    ASSIGNB(self->firstbucket,
+				    BUCKET(self->data->child));
+			    Py_INCREF(self->firstbucket);
                         }
-                      /* We can toss our first key now */
-                      DECREF_KEY(self->data->key);
+			/* We can toss our first key now */
+			DECREF_KEY(self->data->key);
                     }
-                  else
-                    {
-                      Py_XDECREF(self->firstbucket);
-                      self->firstbucket = 0;
+                    else {
+			Py_XDECREF(self->firstbucket);
+			self->firstbucket = 0;
                     }
                 }
-
-              changed=1;
+		changed=1;
             }
         }
     }
 
 #ifdef PERSISTENT
-  if (changed
-      || (bchanged                                     /* The bucket changed */
-          && self->len == 1                            /* We have only one   */
-          && ! SameType_Check(self, self->data->child) /* It's our child     */
-          && BUCKET(self->data->child)->oid == NULL    /* It's in our record */
-          )
-      )
-    if (PER_CHANGED(self) < 0)
-      goto err;
+    if (changed
+	|| (bchanged                                    /* The bucket changed */
+	    && self->len == 1                            /* We have only one */
+	    && ! SameType_Check(self, self->data->child) /* It's our child */
+            && BUCKET(self->data->child)->oid == NULL      /* It's in our record*/
+	    )
+	)
+	if (PER_CHANGED(self) < 0)
+	    goto err;
 #endif
 
+    PER_ALLOW_DEACTIVATION(self);
+    PER_ACCESSED(self);
+    return grew;
 
-  PER_ALLOW_DEACTIVATION(self);
-  PER_ACCESSED(self);
-  return grew;
-
-err:
-  PER_ALLOW_DEACTIVATION(self);
-  PER_ACCESSED(self);
-  return -1;
+ err:
+    PER_ALLOW_DEACTIVATION(self);
+    PER_ACCESSED(self);
+    return -1;
 }
 
 /*
