@@ -266,9 +266,7 @@ class ClientStorage:
 
     def close(self):
         """Storage API: finalize the storage, releasing external resources."""
-        if self._tbuf is not None:
-            self._tbuf.close()
-            self._tbuf = None
+        self._tbuf.close()
         if self._cache is not None:
             self._cache.close()
             self._cache = None
