@@ -88,7 +88,7 @@ process must skip such objects, rather than deactivating them.
 static char cPickleCache_doc_string[] =
 "Defines the PickleCache used by ZODB Connection objects.\n"
 "\n"
-"$Id: cPickleCache.c,v 1.78 2003/04/01 18:44:25 jeremy Exp $\n";
+"$Id: cPickleCache.c,v 1.79 2003/04/01 18:49:43 jeremy Exp $\n";
 
 #define ASSIGN(V,E) {PyObject *__e; __e=(E); Py_XDECREF(V); (V)=__e;}
 #define UNLESS(E) if(!(E))
@@ -648,7 +648,6 @@ cc_setattr(ccobject *self, char *name, PyObject *value)
 static int
 cc_length(ccobject *self)
 {
-    fprintf(stderr, "non_ghost_count = %d\n", self->non_ghost_count);
     return PyObject_Length(self->data);
 }
   
