@@ -1,6 +1,6 @@
-What's new in ZODB3 3.3 ?
-=========================
-Release date: DD-MMM-YYYY
+What's new in ZODB3 3.3 release candidate 1?
+============================================
+Release date: 14-Sep-2004
 
 Tools
 -----
@@ -20,12 +20,12 @@ Release date: DD-MMM-YYYY
 Connection
 ----------
 
-ZODB intends to raise ConnnectionStateError if an attempt is made to close
-a connection while modifications are pending (the connection is involved in
-a transaction that hasn't been ``abort()``'ed or ``commit()``'ed).  It was
-missing the case where the only pending modifications were made in
-subtransactions.  This has been fixed.  If an attempt to close a connection
-with pending subtransactions is made now::
+ZODB intends to raise ``ConnnectionStateError`` if an attempt is made to
+close a connection while modifications are pending (the connection is
+involved in a transaction that hasn't been ``abort()``'ed or
+``commit()``'ed).  It was missing the case where the only pending
+modifications were made in subtransactions.  This has been fixed.  If an
+attempt to close a connection with pending subtransactions is made now::
 
     ConnnectionStateError: Cannot close a connection with a pending subtransaction
 
@@ -106,7 +106,7 @@ transaction
       >>> ...
       >>> txn.commit()
 
-  can't work as intended ib 3.3, because ``txn`` is no longer the current
+  can't work as intended in 3.3, because ``txn`` is no longer the current
   ``Transaction`` object the instant ``txn.begin()`` returns.
 
 BTrees
@@ -125,12 +125,12 @@ Collector #1488 (TemporaryStorage -- going backward in time).  This
 confusion was really due to that the detail on a ConflictError exception
 didn't make sense.  It called the current revision "was", and the old
 revision "now".  The detail is much more informative now.  For example,
-if the exception said:
+if the exception said::
 
     ConflictError: database conflict error (oid 0xcb22,
     serial was 0x03441422948b4399, now 0x034414228c3728d5)
 
-before, it now says:
+before, it now says::
 
     ConflictError: database conflict error (oid 0xcb22,
     serial this txn started with 0x034414228c3728d5 2002-04-14 20:50:32.863000,
@@ -146,20 +146,20 @@ the old serial).
 Tools
 -----
 
-FileStorage.FileIterator was confused about how to read a transaction's
+``FileStorage.FileIterator`` was confused about how to read a transaction's
 user and description fields, which caused several tools to display
 binary gibberish for these values.
 
-ZODB.utils.oid_repr() changed to add a leading "0x", and to strip leading
-zeroes.  This is used, e.g., in the detail of a POSKeyError exception, to
-identify the missing oid.  Before, the output was ambiguous.  For example,
-oid 17 was displayed as 0000000000000011.  As a Python integer, that's
-octal 9.  Or was it meant to be decimal 11?  Or was it meant to be hex?
-Now it displays as 0x11.
+``ZODB.utils.oid_repr()`` changed to add a leading "0x", and to strip
+leading zeroes.  This is used, e.g., in the detail of a ``POSKeyError``
+exception, to identify the missing oid.  Before, the output was ambiguous.
+For example, oid 17 was displayed as 0000000000000011.  As a Python
+integer, that's octal 9.  Or was it meant to be decimal 11?  Or was it
+meant to be hex? Now it displays as 0x11.
 
 fsrefs.py:
 
-    When run with -v, produced tracebacks for objects whose creation was
+    When run with ``-v``, produced tracebacks for objects whose creation was
     merely undone.  This was confusing.  Tracebacks are now produced only
     if there's "a real" problem loading an oid.
 
@@ -171,13 +171,13 @@ fsrefs.py:
     Now makes two passes, so that an accurate report can be given of all
     invalid references.
 
-analyze.py produced spurious "len of unsized object" messages when
+``analyze.py`` produced spurious "len of unsized object" messages when
 finding a data record for an object uncreation or version abort.  These
 no longer appear.
 
-fsdump.py's get_pickle_metadata() function (which is used by several
+``fsdump.py``'s ``get_pickle_metadata()`` function (which is used by several
 tools) was confused about what to do when the ZODB pickle started with
-a pickle GLOBAL opcode.  It actually loaded the class then, which it
+a pickle ``GLOBAL`` opcode.  It actually loaded the class then, which it
 intends never to do, leading to stray messages on stdout when the class
 wasn't available, and leading to a strange return value even when it was
 available (the repr of the type object was returned as "the module name",
