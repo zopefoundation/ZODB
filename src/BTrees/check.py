@@ -39,7 +39,7 @@ from BTrees.OIBTree import OIBTree, OIBucket, OISet, OITreeSet
 from BTrees.IOBTree import IOBTree, IOBucket, IOSet, IOTreeSet
 from BTrees.IIBTree import IIBTree, IIBucket, IISet, IITreeSet
 
-from ZODB.utils import positive_id
+from ZODB.utils import positive_id, oid_repr
 
 TYPE_UNKNOWN, TYPE_BTREE, TYPE_BUCKET = range(3)
 
@@ -200,7 +200,11 @@ def crack_bucket(b, is_mapping):
     return keys, values
 
 def type_and_adr(obj):
-    return "%s (0x%x)" % (type(obj).__name__, positive_id(obj))
+    if hasattr(obj, '_p_oid'):
+        oid = oid_repr(obj._p_oid)
+    else:
+        oid = 'None'
+    return "%s (0x%x oid=%s)" % (type(obj).__name__, positive_id(obj), oid)
 
 # Walker implements a depth-first search of a BTree (or TreeSet or Set or
 # Bucket).  Subclasses must implement the visit_btree() and visit_bucket()
