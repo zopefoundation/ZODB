@@ -149,7 +149,7 @@ persistent_id_call(persistent_id *self, PyObject *args, PyObject *kwargs)
      Yee ha! 
      (Also get klass along the way.)
   */
-  if (! PyExtensionClass_Check(object))
+  if (! PyExtensionClass_Check(object)) {
     if (PyExtensionInstance_Check(object))
       {
 	UNLESS (klass=PyObject_GetAttr(object, py___class__)) 
@@ -165,7 +165,7 @@ persistent_id_call(persistent_id *self, PyObject *args, PyObject *kwargs)
 	  goto not_persistent;
 
       }
-    else 
+    } else 
       goto not_persistent;
 
   UNLESS (oid=PyObject_GetAttr(object, py__p_oid)) 
@@ -314,10 +314,10 @@ static struct PyMethodDef Module_Level__methods[] = {
 };
 
 void
-initcoptimizations()
+initcoptimizations(void)
 {
   PyObject *m, *d;
-  char *rev="$Revision: 1.9 $";
+  char *rev="$Revision: 1.10 $";
 
 #define make_string(S) if (! (py_ ## S=PyString_FromString(#S))) return
   make_string(_p_oid);
