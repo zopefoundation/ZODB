@@ -27,6 +27,9 @@ from ZODB.serialize import referencesf
 from ZODB.utils import WeakSet
 from ZODB.utils import DEPRECATED_ARGUMENT, deprecated36
 
+from zope.interface import implements
+from ZODB.interfaces import IDatabase
+
 import transaction
 
 logger = logging.getLogger('ZODB.DB')
@@ -178,6 +181,7 @@ class DB(object):
         setCacheDeactivateAfter,
         getVersionCacheDeactivateAfter, setVersionCacheDeactivateAfter
     """
+    implements(IDatabase)
 
     klass = Connection  # Class to use for connections
     _activity_monitor = None
@@ -188,6 +192,8 @@ class DB(object):
                  cache_deactivate_after=DEPRECATED_ARGUMENT,
                  version_pool_size=3,
                  version_cache_size=100,
+                 database_name='unnamed',
+                 databases=None,
                  version_cache_deactivate_after=DEPRECATED_ARGUMENT,
                  ):
         """Create an object database.
@@ -247,6 +253,16 @@ class DB(object):
             storage.store(z64, None, file.getvalue(), '', t)
             storage.tpc_vote(t)
             storage.tpc_finish(t)
+
+        # Multi-database setup.
+        if databases is None:
+            databases = {}
+        self.databases = databases
+        self.database_name = database_name
+        if database_name in databases:
+            raise ValueError("database_name %r already in databases" %
+                             database_name)
+        databases[database_name] = self
 
         # Pass through methods:
         for m in ['history', 'supportsUndo', 'supportsVersions', 'undoLog',
