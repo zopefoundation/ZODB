@@ -269,7 +269,7 @@ static char BTree_module_documentation[] =
 "\n"
 MASTER_ID
 BTREEITEMSTEMPLATE_C
-"$Id: BTreeModuleTemplate.c,v 1.15 2001/11/28 15:50:54 matt Exp $\n"
+"$Id: BTreeModuleTemplate.c,v 1.16 2002/01/17 18:00:48 jeremy Exp $\n"
 BTREETEMPLATE_C
 BUCKETTEMPLATE_C
 KEYMACROS_H
@@ -320,7 +320,7 @@ INITMODULE (void)
   m = PyImport_ImportModule("ZODB.POSException");
 
   if (m != NULL) {
-  	c = PyObject_GetAttrString(m,"ConflictError");
+  	c = PyObject_GetAttrString(m, "BTreesConflictError");
   	if (c != NULL) 
   		ConflictError = c;
 	Py_DECREF(m);	
@@ -354,7 +354,7 @@ INITMODULE (void)
   /* Add some symbolic constants to the module */
   d = PyModule_GetDict(m);
 
-  s = PyString_FromString("$Revision: 1.15 $");
+  s = PyString_FromString("$Revision: 1.16 $");
   PyDict_SetItemString(d, "__version__", s);
   Py_XDECREF(s);
 
@@ -362,8 +362,4 @@ INITMODULE (void)
   PyExtensionClass_Export(d,MOD_NAME_PREFIX "BTree", BTreeType);
   PyExtensionClass_Export(d,MOD_NAME_PREFIX "Set", SetType);
   PyExtensionClass_Export(d,MOD_NAME_PREFIX "TreeSet", TreeSetType);
- 
-  /* Check for errors */
-  if (PyErr_Occurred())
-    Py_FatalError("can't initialize module " MOD_NAME_PREFIX "BTree");
 }
