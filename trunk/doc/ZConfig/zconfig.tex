@@ -1,4 +1,5 @@
 \documentclass{howto}
+\usepackage{xmlmarkup}
 
 \title{ZConfig Package Reference}
 
@@ -230,8 +231,7 @@ The values of defined names are processed in the same way as
 configuration values, and may contain references to named
 definitions.
 
-For example, the value for the \code{key} will evaluate to
-\code{value}:
+For example, the value for \code{key} will evaluate to \code{value}:
 
 \begin{verbatim}
 %define name value
@@ -242,6 +242,61 @@ key $name
 \section{Writing Configuration Schema \label{writing-schema}}
 
 XXX to be written
+
+\module{ZConfig} schema are written as XML documents.  The following
+elements are 
+
+\begin{elementdesc}{key}{description?, example?, metadefault?}
+  A \element{key} element is used to describe a key-value pair which
+  may occur at most once in the section type or top-level schema in
+  which it is listed.
+
+  \begin{attributedesc}{attribute}{NMTOKEN}
+    The name of the Python attribute which this key should be the
+    value of on a \class{SectionValue} instance.  This must be unique
+    within the immediate contents of a section type or schema.  If
+    this attribute is not specified, an attribute name will be
+    computed by converting hyphens in the key name to underscores.
+  \end{attributedesc}
+
+  \begin{attributedesc}{datatype}{NMTOKEN}
+    The data type converter which will be applied to the value of this
+    key.
+  \end{attributedesc}
+
+  \begin{attributedesc}{default}{CDATA}
+    If the key-value pair is optional and this attribute is specified,
+    the value of this attribute will be converted using the appropiate
+    data type converter and returned to the application as the
+    configured value.  This attribute may not be specified if the
+    \attribute{required} attribute is \code{yes}.
+  \end{attributedesc}
+
+  \begin{attributedesc}{handler}{NMTOKEN}
+  \end{attributedesc}
+
+  \begin{attributedesc}{name}{MNTOKEN}
+    The name of the key, as it must be given in a configuration
+    instance, or `\code{*}'.  If the value is `\code{*}', any name not
+    already specified as a key may be used, and the configuration
+    value for the key will be a dictionary mapping from the key name
+    to the value.  In this case, the \attribute{attribute} attribute
+    must be specified, and the data type for the key will be applied
+    to each key which is found.
+  \end{attributedesc}
+
+  \begin{attributedesc}{required}{yes|no}
+    Specifies whether the configuration instance is required to
+    provide the key.  If the value is \code{yes}, the
+    \attribute{default} attribute may not be specified and an error
+    will be reported if the configuration instance does not specify a
+    value for the key.  If the value is \code{no} (the default) and
+    the configuration instance does not specify a value, the value
+    reported the the application will be that specified by the
+    \attribute{default} attribute, if given, or \code{None}.
+  \end{attributedesc}
+\end{elementdesc}
+
 
 
 \section{Schema Components \label{schema-components}}
@@ -270,18 +325,18 @@ component.
 A library of schema components is stored as a directory tree, where
 each component is located in a directory within the tree.  That
 directory must contain a file named \file{component.xml} which defines
-the types provided by that component; it must have a \code{component}
-element as the document element.  Extensions to a component are stored
-in immediate subdirectories; a file \file{extension.xml} provides the
-extension types.  Extensions must have an \code{extension} element as
-the document element.
+the types provided by that component; it must have a
+\element{component} element as the document element.  Extensions to a
+component are stored in immediate subdirectories; a file
+\file{extension.xml} provides the extension types.  Extensions must
+have an \element{extension} element as the document element.
 
 
 \section{Standard \module{ZConfig} Datatypes\label{standard-datatypes}}
 
 There are a number of data types which can be identified using the
-\code{datatype} attribute on \code{key}, \code{multikey},
-\code{schema}, \code{section}, and \code{multisection} elements.
+\attribute{datatype} attribute on \element{key},
+\element{sectiontype}, and \element{schema} elements.
 Applications may extend the set of datatypes by calling the
 \method{register()} method of the data type regsitry being used or by
 using Python dotted-names to refer to conversion routines defined in
@@ -310,7 +365,7 @@ The following datatypes are provided by the default type registry.
 \term{constructor}
   Parse value in the form \samp{fn('1', '2', kw1='a', kw2='b')} into a
   3-tuple where the first element is the string \code{'fn'}, the 2nd
-  element is the list \code{['1','2']}, and the 3rd element is the
+  element is the list \code{['1', '2']}, and the 3rd element is the
   dictionary \code{\{'kw1': 'a', 'kw2': 'b'\}}.  This is useful when
   representing a Python-style constructor as a value.  Python syntax
   rules are enforced, but only constants are allowed as positional and
@@ -683,7 +738,7 @@ non-default data type registry.
   constructor arguments.  These objects also have a \method{close()}
   method which will call \method{close()} on \var{file}, then set the
   \member{file} attribute to \code{None} and the \member{closed} to
-  \code{True}.
+  \constant{True}.
 \end{classdesc}
 
 \begin{classdesc}{BaseLoader}{}
@@ -811,8 +866,8 @@ This module provides these functions:
 \end{funcdesc}
 
 \begin{funcdesc}{isname}{s}
-  Returns \code{True} if \var{s} is a valid name for a substitution
-  text, otherwise returns \code{False}.
+  Returns \constant{True} if \var{s} is a valid name for a substitution
+  text, otherwise returns \constant{False}.
 \end{funcdesc}
 
 
@@ -829,6 +884,15 @@ This module provides these functions:
 >>> substitute('$top', d)
 '$middle'
 \end{verbatim}
+
+
+\appendix
+\section{Schema Document Type Definition \label{schema-dtd}}
+
+The following is the XML Document Type Definition for \module{ZConfig}
+schema:
+
+\verbatiminput{schema.dtd}
 
 
 % The modules described here have been left in the package while
@@ -1029,8 +1093,8 @@ methods to retrieve information from the section:
 \end{methoddesc}
 
 \begin{methoddesc}[Configuration]{has_key}{key}
-  Return \code{True} if \var{key} has an associated value, otherwise
-  returns \code{False}.
+  Return \constant{True} if \var{key} has an associated value, otherwise
+  returns \constant{False}.
 \end{methoddesc}
 
 \begin{methoddesc}[Configuration]{items}{}
