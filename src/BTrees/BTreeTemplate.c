@@ -12,7 +12,7 @@
 
  ****************************************************************************/
 
-#define BTREETEMPLATE_C "$Id: BTreeTemplate.c,v 1.66 2002/06/21 05:43:56 tim_one Exp $\n"
+#define BTREETEMPLATE_C "$Id: BTreeTemplate.c,v 1.67 2002/06/21 18:06:26 tim_one Exp $\n"
 
 /* Sanity-check a BTree.  This is a private helper for BTree_check.  Return:
  *      -1         Error.  If it's an internal inconsistency in the BTree,
@@ -179,38 +179,44 @@ BTree_check(BTree *self, PyObject *args)
 static PyObject *
 _BTree_get(BTree *self, PyObject *keyarg, int has_key)
 {
-  KEY_TYPE key;
-  int min;              /* index of child to search */
-  PyObject *r = NULL;   /* result object */
-  int copied = 1;
+    KEY_TYPE key;
+    PyObject *result = NULL;    /* guilty until proved innocent */
+    int copied = 1;
 
-  COPY_KEY_FROM_ARG(key, keyarg, copied);
-  UNLESS (copied) return NULL;
+    COPY_KEY_FROM_ARG(key, keyarg, copied);
+    UNLESS (copied) return NULL;
 
-  PER_USE_OR_RETURN(self, NULL);
-
-  BTREE_SEARCH(min, self, key, goto Error);
-  if (self->len)
-    {
-      if (SameType_Check(self, self->data[min].child))
-        r = _BTree_get(BTREE(self->data[min].child), keyarg,
-                        has_key ? has_key + 1: 0);
-      else
-        r = _bucket_get(BUCKET(self->data[min].child), keyarg,
-                        has_key ? has_key + 1: 0);
+    PER_USE_OR_RETURN(self, NULL);
+    if (self->len == 0) {
+        /* empty BTree */
+        if (has_key)
+            result = PyInt_FromLong(0);
+        else
+            PyErr_SetObject(PyExc_KeyError, keyarg);
     }
-  else
-    {  /* No data */
-      if (has_key)
-        r = PyInt_FromLong(0);
-      else
-        PyErr_SetObject(PyExc_KeyError, keyarg);
+    else {
+        for (;;) {
+            int i;
+            Sized *child;
+
+            BTREE_SEARCH(i, self, key, goto Done);
+            child = self->data[i].child;
+            has_key += has_key != 0;    /* bump depth counter, maybe */
+            if (SameType_Check(self, child)) {
+                PER_UNUSE(self);
+                self = BTREE(child);
+                PER_USE_OR_RETURN(self, NULL);
+            }
+            else {
+                result = _bucket_get(BUCKET(child), keyarg, has_key);
+                break;
+            }
+        }
     }
 
-Error:
-  PER_ALLOW_DEACTIVATION(self);
-  PER_ACCESSED(self);
-  return r;
+Done:
+    PER_UNUSE(self);
+    return result;
 }
 
 static PyObject *
