@@ -16,7 +16,7 @@
  Set operations
  ****************************************************************************/
 
-#define SETOPTEMPLATE_C "$Id: SetOpTemplate.c,v 1.16 2002/06/01 00:49:19 tim_one Exp $\n"
+#define SETOPTEMPLATE_C "$Id: SetOpTemplate.c,v 1.17 2002/06/02 07:40:20 tim_one Exp $\n"
 
 #ifdef INTSET_H
 static int 
@@ -49,6 +49,9 @@ nextIntSet(SetIteration *i)
 static int 
 nextKeyAsSet(SetIteration *i)
 {
+  /* XXX Looks like this block could be replaced by
+   * XXX   i->position = i->position == 0 ? 1 : -1;
+   */
   if (i->position >= 0)
     {
       if (i->position < 1)
@@ -62,10 +65,36 @@ nextKeyAsSet(SetIteration *i)
 }
 #endif
 
+/* initSetIteration
+ *
+ * Start the set iteration protocol.  See the comments at struct SetIteration.
+ *
+ * Arguments
+ *      i       The address of a SetIteration control struct.
+ *      s       The address of the set, bucket, BTree, ..., to be iterated.
+ *      w       If w < 0, ignore values when iterating.
+ *      merge   Is set to 1 if s has values (as well as keys) and w >= 0.
+ *              The value on input is ignored.
+ *
+ * Return
+ *      0 on success; -1 and an exception set if error.
+ *      merge is set to 1 if s has values and w >= 0, else merge is left
+ *          alone.
+ *      i.set gets a new reference to s, or to some other object used to
+ *          iterate over s.  The caller must Py_XDECREF i.set when it's
+ *          done with i, and regardless of whether the call to
+ *          initSetIteration succeeds or fails (a failing call may or not
+ *          set i.set to NULL).
+ *      i.position is set to 0.
+ *      i.hasValue is set to true if s has values, and to false otherwise.
+ *          Note that this is done independent of w's value.
+ *      i.next is set to an appropriate iteration function.
+ *      i.key and i.value are left alone.
+ */
 static int
 initSetIteration(SetIteration *i, PyObject *s, int w, int *merge)
 {
-  i->position=0;
+  i->position = 0;
 
   if (ExtensionClassSubclassInstance_Check(s, &BucketType))
     {
@@ -416,6 +445,7 @@ multiunion_m(PyObject *ignored, PyObject *args)
     int n;                  /* length of input sequence */
     PyObject *set = NULL;   /* an element of the input sequence */
     Bucket *result;         /* result set */
+    SetIteration setiter = {0, 0, 0};
     int i;
 
     UNLESS(PyArg_ParseTuple(args, "O", &seq))
@@ -440,6 +470,7 @@ multiunion_m(PyObject *ignored, PyObject *args)
         /* If set is a bucket, do a straight resize + memcpy. */
         if (set->ob_type == (PyTypeObject*)&SetType ||
             set->ob_type == (PyTypeObject*)&BucketType) {
+
             const int setsize = SIZED(set)->len;
             int size_desired = result->len + setsize;
             /* If there are more to come, overallocate by 25% (arbitrary). */
@@ -456,9 +487,8 @@ multiunion_m(PyObject *ignored, PyObject *args)
         }
         else {
             /* No cheap way:  iterate over set's elements one at a time. */
-            SetIteration setiter = {0, 0, 0};
             int merge;  /* dummy needed for initSetIteration */
-            
+
             if (initSetIteration(&setiter, set, 1, &merge) < 0)
                 goto Error;
             if (setiter.next(&setiter) < 0)
@@ -472,6 +502,8 @@ multiunion_m(PyObject *ignored, PyObject *args)
                 if (setiter.next(&setiter) < 0)
                     goto Error;
             }
+            Py_XDECREF(setiter.set);
+            setiter.set = NULL;
         }
         Py_DECREF(set);
         set = NULL;
@@ -492,6 +524,7 @@ multiunion_m(PyObject *ignored, PyObject *args)
 Error:
     Py_DECREF(result);
     Py_XDECREF(set);
+    Py_XDECREF(setiter.set);
     return NULL;
 }
 
