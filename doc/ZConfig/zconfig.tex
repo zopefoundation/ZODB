@@ -979,6 +979,89 @@ then we can use this as the key type for a derived mapping type:
 \end{verbatim}
 
 
+\subsection{\module{ZConfig.components.logger}}
+
+The \module{ZConfig.components.logger} package provides configuration
+support for the \ulink{\module{logging} package}
+{http://www.python.org/doc/current/lib/module-logging.html} in
+Python's standard library.  This component can be imported using
+
+\begin{verbatim}
+<import package="ZConfig.components.logger"/>
+\end{verbatim}
+
+This component defines two abstract types and several concrete section
+types.  These can be imported as a unit, as above, or as three smaller
+components usable in creating alternate logging packages.  The
+configuration component for Zope's \module{zLOG} package, starting
+with Zope 2.8, is an example of using this component in this way.
+
+The first of the three type groups contains the abstract types, and
+can be imported using
+
+\begin{verbatim}
+<import package="ZConfig.components.logger" file="abstract.xml"/>
+\end{verbatim}
+
+The two abstract types imported by this are:
+
+\begin{definitions}
+
+\term{\datatype{ZConfig.logger.log}}
+  Logger objects are represented by this abstract type.
+
+\term{\datatype{ZConfig.logger.handler}}
+  Each logger object can have one or more ``handlers'' associated with
+  them.  These handlers are responsible for writing logging events to
+  some form of output stream using appropriate formatting.  The output
+  stream may be a file on a disk, a socket communicating with a server
+  on another system, or a series of \code{syslog} messages.  Section
+  types which implement this type represent these handlers.
+
+\end{definitions}
+
+
+The second type group provides section types that act as factories for
+\class{logging.Logger} objects.  This can be imported using
+
+\begin{verbatim}
+<import package="ZConfig.components.logger" file="loggers.xml"/>
+\end{verbatim}
+
+The types defined in this component implement the
+\datatype{ZConfig.logger.log} abstract type.
+
+
+The third type group provides section types that are factories for
+\class{logging.Handler} objects.  This can be imported using
+
+\begin{verbatim}
+<import package="ZConfig.components.logger" file="handlers.xml"/>
+\end{verbatim}
+
+The types defined in this component implement the
+\datatype{ZConfig.logger.handler} abstract type.
+
+
+
+\begin{seealso}
+  \seepep{282}{A Logging System}
+         {The proposal which described the logging feature for
+          inclusion in the Python standard library.}
+  \seelink{http://www.python.org/doc/current/lib/module-logging.html}
+          {Python's \module{logging} package documentation}
+          {}
+  \seelink{http://www.red-dove.com/python_logging.html}
+          {Original Python \module{logging} package}
+          {This is the original source for the \module{logging}
+           package.  The version of the package available from this
+           site is suitable for use with Python 2.1.x and 2.2.x, which
+           do not include the \module{logging} package in the standard
+           library.}
+\end{seealso}
+
+
+
 \section{\module{ZConfig} --- Basic configuration support}
 
 \declaremodule{}{ZConfig}
