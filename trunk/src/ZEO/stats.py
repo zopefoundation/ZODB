@@ -203,7 +203,7 @@ def main():
         print
         print "Read %s records (%s bytes) in %.1f seconds" % (
             addcommas(records), addcommas(records*24), rte-rt0)
-        print "Version:    %s records" % addcommas(versions)
+        print "Versions:   %s records used a version" % addcommas(versions)
         print "First time: %s" % time.ctime(t0)
         print "Last time:  %s" % time.ctime(te)
         print "Duration:   %s seconds" % addcommas(te-t0)
