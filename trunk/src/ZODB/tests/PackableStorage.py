@@ -398,12 +398,13 @@ class PackableStorage(PackableStorageBase):
         snooze()
         packt = time.time()
 
-        for j in range(10):
-            for i in range(10):
+        choices = range(10)
+        for dummy in choices:
+            for i in choices:
                 root[i].value = MinPO(i)
                 get_transaction().commit()
 
-        threads = [ClientThread(db) for i in range(4)]
+        threads = [ClientThread(db, choices) for i in range(4)]
         for t in threads:
             t.start()
 
@@ -504,16 +505,20 @@ class PackableStorage(PackableStorageBase):
         for r in self._storage.undoLog(): print r
         # what can we assert about that?
 
+
 class ClientThread(threading.Thread):
 
-    def __init__(self, db):
+    def __init__(self, db, choices):
         threading.Thread.__init__(self)
         self.root = db.open().root()
+        self.choices = choices
 
     def run(self):
+        from random import choice
+
         for j in range(50):
             try:
-                self.root[j % 10].value = MinPO(j)
+                self.root[choice(self.choices)].value = MinPO(j)
                 get_transaction().commit()
             except ConflictError:
                 get_transaction().abort()
