@@ -44,10 +44,7 @@ class FileStorageTests(
 
     def tearDown(self):
         self._storage.close()
-        for ext in '', '.old', '.tmp', '.lock', '.index':
-            path = 'FileStorageTests.fs' + ext
-            if os.path.exists(path):
-                os.remove(path)
+        StorageTestBase.removefs("FileStorageTests.fs")
 
     def checkLongMetadata(self):
         s = "X" * 75000
@@ -76,13 +73,8 @@ class FileStorageRecoveryTest(
     def tearDown(self):
         self._storage.close()
         self._dst.close()
-        for ext in '', '.old', '.tmp', '.lock', '.index':
-            for fs in 'Source', 'Dest':
-                path = fs + '.fs' + ext
-                try:
-                    os.remove(path)
-                except OSError, e:
-                    if e.errno <> errno.ENOENT: raise
+        StorageTestBase.removefs("Source.fs")
+        StorageTestBase.removefs("Dest.fs")
 
     def checkSimpleRecovery(self):
         oid = self._storage.new_oid()

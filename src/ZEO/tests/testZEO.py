@@ -29,7 +29,7 @@ import ZEO.ClientStorage, ZEO.StorageServer
 import ThreadedAsync, ZEO.trigger
 from ZODB.FileStorage import FileStorage
 from ZODB.Transaction import Transaction
-from ZODB.tests.StorageTestBase import zodb_pickle, MinPO
+from ZODB.tests.StorageTestBase import zodb_pickle, MinPO, removefs
 import zLOG
 
 from ZEO.tests import forker, Cache, CommitLockTests, ThreadTests
@@ -149,13 +149,7 @@ class ZEOFileStorageTests(GenericTests):
         return 'FileStorage', (self.__fs_base, '1')
 
     def delStorage(self):
-        # file storage appears to create four files
-        for ext in '', '.index', '.lock', '.tmp', '.old':
-            path = self.__fs_base + ext
-            try:
-                os.remove(path)
-            except os.error:
-                pass
+        removefs(self.__fs_base)
 
 class WindowsGenericTests(GenericTests):
     """Subclass to support server creation on Windows.
@@ -192,13 +186,7 @@ class WindowsZEOFileStorageTests(WindowsGenericTests):
         return 'FileStorage', (self.__fs_base, '1') # create=1
 
     def delStorage(self):
-        # file storage appears to create four files
-        for ext in '', '.index', '.lock', '.tmp':
-            path = self.__fs_base + ext
-            try:
-                os.remove(path)
-            except os.error:
-                pass
+        removefs(self.__fs_base)
 
 class ConnectionTests(StorageTestBase.StorageTestBase):
     """Tests that explicitly manage the server process.

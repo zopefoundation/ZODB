@@ -3,6 +3,7 @@ import sys, os
 import ZODB
 import ZODB.FileStorage
 from ZODB.PersistentMapping import PersistentMapping
+from ZODB.tests.StorageTestBase import removefs
 import unittest
 
 class ExportImportTests:
@@ -76,8 +77,6 @@ class ExportImportTests:
 class ZODBTests(unittest.TestCase, ExportImportTests):
 
     def setUp(self):
-        try: os.remove('ZODBTests.fs')
-        except: pass
         self._storage = ZODB.FileStorage.FileStorage(
             'ZODBTests.fs', create=1)
         self._db = ZODB.DB(self._storage)
@@ -93,7 +92,7 @@ class ZODBTests(unittest.TestCase, ExportImportTests):
 
     def tearDown(self):
         self._storage.close()
-        os.remove('ZODBTests.fs')
+        removefs("ZODBTests.fs")
 
 def test_suite():
     return unittest.makeSuite(ZODBTests, 'check')
