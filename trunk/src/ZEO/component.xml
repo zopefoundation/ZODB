@@ -8,50 +8,66 @@
     </description>
 
     <key name="address" datatype="socket-address"
-	 required="yes">
+         required="yes">
       <description>
-	The address at which the server should listen.  This can be in
-	the form 'host:port' to signify a TCP/IP connection or a
-	pathname string to signify a Unix domain socket connection (at
-	least one '/' is required).  A hostname may be a DNS name or a
-	dotted IP address.  If the hostname is omitted, the platform's
-	default behavior is used when binding the listening socket (''
-	is passed to socket.bind() as the hostname portion of the
-	address).
+        The address at which the server should listen.  This can be in
+        the form 'host:port' to signify a TCP/IP connection or a
+        pathname string to signify a Unix domain socket connection (at
+        least one '/' is required).  A hostname may be a DNS name or a
+        dotted IP address.  If the hostname is omitted, the platform's
+        default behavior is used when binding the listening socket (''
+        is passed to socket.bind() as the hostname portion of the
+        address).
       </description>
     </key>
 
     <key name="read-only" datatype="boolean"
-	 required="no"
-	 default="false">
+         required="no"
+         default="false">
       <description>
-	Flag indicating whether the server should operate in read-only
-	mode.  Defaults to false.  Note that even if the server is
-	operating in writable mode, individual storages may still be
-	read-only.  But if the server is in read-only mode, no write
-	operations are allowed, even if the storages are writable.  Note
-	that pack() is considered a read-only operation.
+        Flag indicating whether the server should operate in read-only
+        mode.  Defaults to false.  Note that even if the server is
+        operating in writable mode, individual storages may still be
+        read-only.  But if the server is in read-only mode, no write
+        operations are allowed, even if the storages are writable.  Note
+        that pack() is considered a read-only operation.
       </description>
     </key>
 
     <key name="invalidation-queue-size" datatype="integer"
-	 required="no"
-	 default="100">
+         required="no"
+         default="100">
       <description>
-	The storage server keeps a queue of the objects modified by the
-	last N transactions, where N == invalidation_queue_size.  This
-	queue is used to speed client cache verification when a client
-	disconnects for a short period of time.
+        The storage server keeps a queue of the objects modified by the
+        last N transactions, where N == invalidation_queue_size.  This
+        queue is used to speed client cache verification when a client
+        disconnects for a short period of time.
+      </description>
+    </key>
+
+    <key name="monitor-address" datatype="socket-address"
+         required="no">
+      <description>
+        The address at which the monitor server should listen.  If
+        specified, a monitor server is started.  The monitor server
+        provides server statistics in a simple text format.  This can
+        be in the form 'host:port' to signify a TCP/IP connection or a
+        pathname string to signify a Unix domain socket connection (at
+        least one '/' is required).  A hostname may be a DNS name or a
+        dotted IP address.  If the hostname is omitted, the platform's
+        default behavior is used when binding the listening socket (''
+        is passed to socket.bind() as the hostname portion of the
+        address).
       </description>
     </key>
 
     <key name="transaction-timeout" datatype="integer"
-	 required="no">
+         required="no">
       <description>
-	The maximum amount of time to wait for a transaction to commit
-	after acquiring the storage lock, specified in seconds.  If the
-	transaction takes too long, the client connection will be closed
-	and the transaction aborted.
+        The maximum amount of time to wait for a transaction to commit
+        after acquiring the storage lock, specified in seconds.  If the
+        transaction takes too long, the client connection will be closed
+        and the transaction aborted.
       </description>
     </key>
 
