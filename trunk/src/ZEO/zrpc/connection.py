@@ -43,6 +43,19 @@ class Delay:
     def reply(self, obj):
         self.send_reply(self.msgid, obj)
 
+class MTDelay(Delay):
+
+    def __init__(self):
+        self.ready = threading.Event()
+
+    def set_sender(self, msgid, send_reply):
+        Delay.set_sender(self, msgid, send_reply)
+        self.ready.set()
+
+    def reply(self, obj):
+        self.ready.wait()
+        Delay.reply(self, obj)
+
 class Connection(smac.SizedMessageAsyncConnection):
     """Dispatcher for RPC on object on both sides of socket.
 
@@ -206,6 +219,7 @@ class Connection(smac.SizedMessageAsyncConnection):
     def send_reply(self, msgid, ret):
         msg = self.marshal.encode(msgid, 0, REPLY, ret)
         self.message_output(msg)
+        self._do_async_poll()
 
     def return_error(self, msgid, flags, err_type, err_value):
         if flags is None:
