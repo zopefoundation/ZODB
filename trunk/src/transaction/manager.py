@@ -52,10 +52,9 @@ class AbstractTransactionManager(object):
             txn._status = Status.FAILED
             self.abort(txn)
             msg = ("Transaction failed during second phase of two-"
-                   "phase commmit")
+                   "phase commit")
             self.logger.critical(msg, exc_info=error)
-            raise TransactionError("Transaction failed during second "
-                                   "phase of two-phase commit")
+            raise TransactionError(msg)
 
     def abort(self, txn):
         self.logger.debug("%s: abort", txn)
