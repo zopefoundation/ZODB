@@ -11,7 +11,7 @@
   
  ****************************************************************************/
 
-#define BUCKETTEMPLATE_C "$Id: BucketTemplate.c,v 1.23 2001/12/21 16:04:50 andreasjung Exp $\n"
+#define BUCKETTEMPLATE_C "$Id: BucketTemplate.c,v 1.24 2002/01/07 16:49:05 andreasjung Exp $\n"
 
 /*
 ** _bucket_get
@@ -321,7 +321,10 @@ Mapping_update(PyObject *self, PyObject *args)
       else
 	ind = -1;
       Py_DECREF(o);
-      if (ind < 0) goto err;
+      if (ind < 0) {
+        PyErr_SetString(PyExc_TypeError,"Sequence must contain 2-item tuples");
+        goto err;
+        }
     }
 
   Py_XDECREF(items);
