@@ -31,7 +31,7 @@ import time
 
 from ZODB.utils import z64, u64
 
-logger = logging.getLogger("zeo.cache")
+logger = logging.getLogger("ZEO.cache")
 
 ##
 # A disk-based cache for ZEO clients.
