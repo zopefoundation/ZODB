@@ -13,8 +13,8 @@
 ##############################################################################
 """Mounted database support
 
-$Id: Mount.py,v 1.16 2002/08/14 22:07:09 mj Exp $"""
-__version__='$Revision: 1.16 $'[11:-2]
+$Id: Mount.py,v 1.17 2003/02/05 16:49:02 shane Exp $"""
+__version__='$Revision: 1.17 $'[11:-2]
 
 import thread, Persistence, Acquisition
 import ExtensionClass, string, time, sys
@@ -154,6 +154,7 @@ class MountPoint(Persistence.Persistent, Acquisition.Implicit):
         data = getattr(obj, 'aq_base', obj)
         # Store the data object in a tuple to hide from acquisition.
         self._v_data = (data,)
+        data._v_mount_point_ = self
         return data
 
     def _getOrOpenObject(self, parent):
