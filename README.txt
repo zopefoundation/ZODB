@@ -31,14 +31,36 @@ Compatibility
 ZODB 3.4 requires Python 2.3.4 or later.  For best results, we recommend
 Python 2.3.5.
 
-The Zope 2.8 and X3 releases should be compatible with this version of ZODB.
-Note that Zope 2.7 and higher includes ZEO, so this package should only be
-needed to run a ZEO server.
+The Zope 2.8 release, and Zope3 releases, should be compatible with this
+version of ZODB.  Note that Zope 2.7 and higher includes ZEO, so this package
+should only be needed to run a ZEO server.
 
-The ZEO server in ZODB 3.4 is currently incompatible with earlier
-versions of ZODB.  If you want to test the software, you must be
-running this release for both client and server.  A backwards
-compatibility mechanism will be provided in a later release.
+ZEO servers and clients are wholly compatible among 3.3, 3.3.1 and 3.4: a ZEO
+client from any of those versions can talk with a ZEO server from any.
+
+Trying to mix ZEO clients and servers from 3.3 or later from ZODB releases
+before 3.3 is much harder.   ZODB 3.3 introduced multiversion concurrency
+control (MVCC), and earlier ZEO servers do not support MVCC:  a 3.3+ ZEO
+client cannot talk with an older ZEO server as a result.
+
+In the other direction, a 3.3+ ZEO server can talk with older ZEO clients,
+but because the names of some basic classes have changed, if any 3.3+ clients
+commit modifications to the database it's likely that the database will
+contain instances of classes that don't exist in (can't be loaded by) older
+ZEO clients.  For example, the database root object was an instance of
+``ZODB.PersistentMapping.PersistentMapping`` before ZODB 3.3, but is an
+instance of ``persistent.mapping.PersistentMapping`` in ZODB 3.3.  A 3.3.1+
+client can still load a ``ZODB.PersistentMapping.PersistentMapping`` object,
+but this is just an alias for ``persistent.mapping.PersistentMapping``, and
+an object of the latter type will be stored if a 3.3 client commits a change
+to the root object.  An older ZEO client cannot load the root object so
+changed.
+
+This limits migration possibilities:  a 3.3+ ZEO server can be used with
+older (pre-3.3) ZEO clients and serve an older database, so long as no 3.3+
+ZEO clients commit changes to the database.  The most practical upgrade path
+is to bring up both servers and clients using 3.3+, not trying to mix pre-3.3
+and post-3.3 ZEO clients and servers.
 
 Prerequisites
 -------------
