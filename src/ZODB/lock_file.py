@@ -12,47 +12,63 @@
 #
 ##############################################################################
 
-from ZODB.POSException import StorageSystemError
+import os
+import errno
 
-# Try to create a function that creates Unix file locks.
 try:
     import fcntl
-
-    lock_file_FLAG = fcntl.LOCK_EX | fcntl.LOCK_NB
-
-    def lock_file(file):
-        try:
-            un = file.fileno()
-        except:
-            return # don't care if not a real file
-
-        try:
-            fcntl.flock(un, lock_file_FLAG)
-        except:
-            raise StorageSystemError, (
-                "Could not lock the database file.  There must be\n"
-                "another process that has opened the file.\n"
-                "<p>")
-
-except:
-    # Try windows-specific code:
+except ImportError:
     try:
-        from winlock import LockFile
-        def lock_file(file):
-            try:
-                un=file.fileno()
-            except:
-                return # don't care if not a real file
-
-            try:
-                LockFile(un, 0, 0, 1, 0) # just lock the first byte, who cares
-            except:
-                raise StorageSystemError, (
-                    "Could not lock the database file.  There must be\n"
-                    "another process that has opened the file.\n"
-                    "<p>")
-    except:
+        from winlock import LockFile as _LockFile
+        from winlock import UnlockFile as _UnlockFile
+    except ImportError:
         import zLOG
         def lock_file(file):
-            zLOG.LOG("FS", zLOG.INFO,
-                     "No file-locking support on this platform")
+            zLOG.LOG('ZODB', zLOG.INFO,
+                     'No file-locking support on this platform')
+
+    # Windows
+    def lock_file(file):
+        # Lock just the first byte
+        _LockFile(file.fileno(), 0, 0, 1, 0)
+
+    def unlock_file(file):
+        _UnlockFile(file.fileno(), 0, 0, 1, 0)
+else:
+    # Unix
+    _flags = fcntl.LOCK_EX | fcntl.LOCK_NB
+
+    def lock_file(file):
+        fcntl.flock(file.fileno(), _flags)
+
+    def unlock_file(file):
+        # File is automatically unlocked on close
+        pass
+
+
+
+# This is a better interface to use than the lockfile.lock_file() interface.
+# Creating the instance acquires the lock.  The file remains open.  Calling
+# close both closes and unlocks the lock file.
+class LockFile:
+    def __init__(self, path):
+        self._path = path
+        try:
+            self._fp = open(path, 'r+')
+        except IOError, e:
+            if e.errno <> errno.ENOENT: raise
+            self._fp = open(path, 'w+')
+        # Acquire the lock and piss on the hydrant
+        lock_file(self._fp)
+        print >> self._fp, os.getpid()
+        self._fp.flush()
+
+    def close(self):
+        if self._fp is not None:
+            unlock_file(self._fp)
+            self._fp.close()
+            os.unlink(self._path)
+            self._fp = None
+
+    def __del__(self):
+        self.close()
