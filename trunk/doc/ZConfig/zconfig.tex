@@ -252,17 +252,20 @@ knit together into concrete schema for applications.  Neither
 components nor extensions can add additional keys or sections in the
 application schema.
 
-A schema \dfn{component} is allowed to define new section groups and
+A schema \dfn{component} is allowed to define new abstract and
 section types.  It is not allowed to extend application types or
-include additional types in application-provided section groups.
+include additional types in application-provided abstract types.
 Components are identified using a dotted-name, similar to a Python
 module name.  For example, one component may be \code{zodb.storage}.
 There is no relationship between the schema component namespace and
 the Python module namespace.
 
-A schema component \dfn{extension} is allowed to define new section
-types, extend types provided by the component it extends, and include
-new concrete types in section groups provided by the component.
+A schema component \dfn{extension} is allowed to define new abstract
+and section types, extend types provided by the component it extends,
+and include new section types in abstract types provided by the
+component.  The expected usage is that extensions will provide one or
+more concrete types that implement abstract types defined by the
+component.
 
 A library of schema components is stored as a directory tree, where
 each component is located in a directory within the tree.  That
