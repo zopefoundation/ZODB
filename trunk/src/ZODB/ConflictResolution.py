@@ -13,11 +13,8 @@
 ##############################################################################
 from cStringIO import StringIO
 from cPickle import Unpickler, Pickler
-import sys
 
 from ZODB.POSException import ConflictError
-
-#import traceback
 
 bad_classes = {}
 
