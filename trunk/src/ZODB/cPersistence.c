@@ -1,6 +1,6 @@
 /*
 
-  $Id: cPersistence.c,v 1.17 1997/07/16 20:18:32 jim Exp $
+  $Id: cPersistence.c,v 1.18 1997/07/18 14:14:02 jim Exp $
 
   C Persistence Module
 
@@ -56,7 +56,7 @@
 
 
 *****************************************************************************/
-static char *what_string = "$Id: cPersistence.c,v 1.17 1997/07/16 20:18:32 jim Exp $";
+static char *what_string = "$Id: cPersistence.c,v 1.18 1997/07/18 14:14:02 jim Exp $";
 
 #include <time.h>
 #include "cPersistence.h"
@@ -782,19 +782,19 @@ _setattro(cPersistentObject *self, PyObject *oname, PyObject *v,
     {
       if(name[3]=='o' && name[4]=='i' && name[5]=='d' && ! name[6])
 	{
-	  if(PyInt_Check(v)) self->oid=PyInt_AsLong(v);
+	  if(v && PyInt_Check(v)) self->oid=PyInt_AsLong(v);
 	  else self->oid=0;
 	  return 0;
 	}
       if(name[3]=='j' && name[4]=='a' && name[5]=='r' && ! name[6])
 	{
 	  ASSIGN(self->jar, v);
-	  Py_INCREF(self->jar);
+	  Py_XINCREF(self->jar);
 	  return 0;
 	}
       if(strcmp(name+3,"changed")==0) 
 	{
-	  self->state=PyObject_IsTrue(v);
+	  self->state=v && PyObject_IsTrue(v);
 	  return 0;
 	}
       if(strcmp(name+3,"atime")==0) 
@@ -802,6 +802,7 @@ _setattro(cPersistentObject *self, PyObject *oname, PyObject *v,
 	  self->atime=(time_t)1;
 	  return 0;
 	}
+      
     }
   else
     {
@@ -935,7 +936,7 @@ void
 initcPersistence()
 {
   PyObject *m, *d;
-  char *rev="$Revision: 1.17 $";
+  char *rev="$Revision: 1.18 $";
 
   PATimeType.ob_type=&PyType_Type;
 
@@ -962,6 +963,9 @@ initcPersistence()
 /****************************************************************************
 
   $Log: cPersistence.c,v $
+  Revision 1.18  1997/07/18 14:14:02  jim
+  Fixed bug in handling delete of certain special attributes.
+
   Revision 1.17  1997/07/16 20:18:32  jim
   *** empty log message ***
 
