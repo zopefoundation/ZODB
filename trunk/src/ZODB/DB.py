@@ -13,8 +13,8 @@
 ##############################################################################
 """Database objects
 
-$Id: DB.py,v 1.62 2004/02/19 19:10:59 jeremy Exp $"""
-__version__='$Revision: 1.62 $'[11:-2]
+$Id: DB.py,v 1.63 2004/02/25 12:31:56 jim Exp $"""
+__version__='$Revision: 1.63 $'[11:-2]
 
 import cPickle, cStringIO, sys, POSException, UndoLogCompatible
 from Connection import Connection
@@ -23,6 +23,7 @@ from Transaction import Transaction, get_transaction
 from serialize import referencesf
 from time import time, ctime
 from zLOG import LOG, ERROR
+from ZODB.broken import find_global
 
 from types import StringType
 
@@ -122,10 +123,8 @@ class DB(UndoLogCompatible.UndoLogCompatible, object):
         else: m=None
         return m
 
-    def _classFactory(self, connection, location, name,
-                      _silly=('__doc__',), _globals={}):
-        return getattr(__import__(location, _globals, _globals, _silly),
-                       name)
+    def _classFactory(self, connection, modulename, globalname):
+        return find_global(modulename, globalname)
 
     def _closeConnection(self, connection):
         """Return a connection to the pool"""
