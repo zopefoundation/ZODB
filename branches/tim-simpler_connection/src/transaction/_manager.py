@@ -18,7 +18,6 @@ are associated with the right transaction.
 """
 
 import thread
-import weakref
 
 from transaction._transaction import Transaction
 
@@ -28,48 +27,16 @@ from transaction._transaction import Transaction
 # practice not to explicitly close Connection objects, and keeping
 # a Connection alive keeps a potentially huge number of other objects
 # alive (e.g., the cache, and everything reachable from it too).
+# Therefore we use "weak sets" internally.
 #
-# Therefore we use "weak sets" internally.  The implementation here
-# implements just enough of Python's sets.Set interface for our needs.
-
-class WeakSet(object):
-    """A set of objects that doesn't keep its elements alive.
-
-    The objects in the set must be weakly referencable.
-    The objects need not be hashable, and need not support comparison.
-    Two objects are considered to be the same iff their id()s are equal.
-
-    When the only references to an object are weak references (including
-    those from WeakSets), the object can be garbage-collected, and
-    will vanish from any WeakSets it may be a member of at that time.
-    """
-
-    def __init__(self):
-        # Map id(obj) to obj.  By using ids as keys, we avoid requiring
-        # that the elements be hashable or comparable.
-        self.data = weakref.WeakValueDictionary()
-
-    # Same as a Set, add obj to the collection.
-    def add(self, obj):
-        self.data[id(obj)] = obj
-
-    # Same as a Set, remove obj from the collection, and raise
-    # KeyError if obj not in the collection.
-    def remove(self, obj):
-        del self.data[id(obj)]
-
-    # Return a list of all the objects in the collection.
-    # Because a weak dict is used internally, iteration
-    # is dicey (the underlying dict may change size during
-    # iteration, due to gc or activity from other threads).
-    # as_list() attempts to be safe.
-    def as_list(self):
-        return self.data.values()
-
+# Obscure:  because of the __init__.py maze, we can't import WeakSet
+# at top level here.
 
 class TransactionManager(object):
 
     def __init__(self):
+        from ZODB.utils import WeakSet
+
         self._txn = None
         self._synchs = WeakSet()
 
@@ -135,6 +102,8 @@ class ThreadTransactionManager(object):
         del self._txns[tid]
 
     def registerSynch(self, synch):
+        from ZODB.utils import WeakSet
+
         tid = thread.get_ident()
         ws = self._synchs.get(tid)
         if ws is None:
