@@ -83,11 +83,6 @@
   
  ****************************************************************************/
 
-static char BTree_module_documentation[] = 
-""
-"\n$Id: BTreeModuleTemplate.c,v 1.6 2001/03/15 17:33:07 brian Exp $"
-;
-
 #ifdef PERSISTENT
 #include "cPersistence.h"
 
@@ -101,8 +96,12 @@ static char BTree_module_documentation[] =
  ? (((O)->state==cPersistent_UPTODATE_STATE) \
     ? ((O)->state=cPersistent_STICKY_STATE) : 1) : 0)
 
+#define PER_ACCESSED(O) ((O)->atime=((long)(time(NULL)/3))%65536) 
+
+
 #endif
 /***************************************************************/
+
 #else
 #include "ExtensionClass.h"
 #define PER_USE_OR_RETURN(self, NULL)
@@ -110,8 +109,10 @@ static char BTree_module_documentation[] =
 #define PER_PREVENT_DEACTIVATION(self)
 #define PER_DEL(self)
 #define PER_USE(O) 1
+#define PER_ACCESSED(O) 1
 #define PER_CHANGED(O) 0
 #endif
+
 
 static PyObject *sort_str, *reverse_str, *items_str, *__setstate___str;
 
@@ -213,6 +214,7 @@ PreviousBucket(Bucket *current, Bucket *first, int i)
       if (first->next==current) 
         {
           PER_ALLOW_DEACTIVATION(first);
+          PER_ACCESSED(first);
           return first;
         }
       else if (first->next)
@@ -220,12 +222,14 @@ PreviousBucket(Bucket *current, Bucket *first, int i)
           Bucket *next = first->next;
           Py_INCREF(next);
           PER_ALLOW_DEACTIVATION(first);
+          PER_ACCESSED(first);
           Py_DECREF(first);
           first=next;
         }
       else
         {
           PER_ALLOW_DEACTIVATION(first);
+          PER_ACCESSED(first);
           Py_DECREF(first);
           IndexError(i);
           return NULL;
@@ -330,6 +334,22 @@ static struct PyMethodDef module_methods[] = {
   {NULL,		NULL}		/* sentinel */
 };
 
+static char BTree_module_documentation[] = 
+"\n"
+MASTER_ID
+BTREEITEMSTEMPLATE_C
+"$Id: BTreeModuleTemplate.c,v 1.7 2001/03/20 13:52:00 jim Exp $\n"
+BTREETEMPLATE_C
+BUCKETTEMPLATE_C
+KEYMACROS_H
+MERGETEMPLATE_C
+SETOPTEMPLATE_C
+SETTEMPLATE_C
+TREESETTEMPLATE_C
+VALUEMACROS_H
+BTREEITEMSTEMPLATE_C
+;
+
 void 
 INITMODULE ()
 {
@@ -387,7 +407,7 @@ INITMODULE ()
   d = PyModule_GetDict(m);
 
   PyDict_SetItemString(d, "__version__",
-		       PyString_FromString("$Revision: 1.6 $"));
+		       PyString_FromString("$Revision: 1.7 $"));
 
   PyExtensionClass_Export(d,MOD_NAME_PREFIX "Bucket", BucketType);
   PyExtensionClass_Export(d,MOD_NAME_PREFIX "BTree", BTreeType);

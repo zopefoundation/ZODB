@@ -83,6 +83,8 @@
   
  ****************************************************************************/
 
+#define BTREEITEMSTEMPLATE_C "$Id: BTreeItemsTemplate.c,v 1.6 2001/03/20 13:52:00 jim Exp $\n"
+
 typedef struct {
   PyObject_HEAD
   Bucket *firstbucket;			/* First bucket known		*/
@@ -141,11 +143,13 @@ BTreeItems_length_or_nonzero(BTreeItems *self, int nonzero)
 
       Py_INCREF(next);
       PER_ALLOW_DEACTIVATION(b);
+      PER_ACCESSED(b);
       Py_DECREF(b);
       b=next;
       PER_USE_OR_RETURN(b, -1);
     }
   PER_ALLOW_DEACTIVATION(b);
+  PER_ACCESSED(b);
   Py_DECREF(b);
 
   return r >= 0 ? r : 0;
@@ -255,6 +259,7 @@ BTreeItems_seek(BTreeItems *self, int i)
                 if (b==NULL) goto no_match;
               
                 PER_ALLOW_DEACTIVATION(currentbucket);
+                PER_ACCESSED(currentbucket);
                 ASSIGNB(currentbucket, b);
                 UNLESS (PER_USE(currentbucket)) goto err;
 
@@ -294,6 +299,7 @@ BTreeItems_seek(BTreeItems *self, int i)
                     pseudoindex += (currentbucket->len - currentoffset);
                     Py_INCREF(b);
                     PER_ALLOW_DEACTIVATION(currentbucket);
+                    PER_ACCESSED(currentbucket);
                     ASSIGNB(currentbucket, b);
                     UNLESS (PER_USE(currentbucket)) goto err;
                     currentoffset = 0;

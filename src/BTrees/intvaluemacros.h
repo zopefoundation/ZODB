@@ -1,3 +1,6 @@
+
+#define VALUEMACROS_H "$Id: intvaluemacros.h,v 1.5 2001/03/20 13:52:00 jim Exp $\n"
+
 #define VALUE_TYPE int
 #define TEST_VALUE(K, T) (((K) < (T)) ? -1 : (((K) > (T)) ? 1: 0)) 
 #define VALUE_SAME(VALUE, TARGET) ( (VALUE) == (TARGET) )

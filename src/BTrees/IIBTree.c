@@ -1,5 +1,7 @@
 /* Setup template macros */
 
+#define MASTER_ID "$Id: IIBTree.c,v 1.8 2001/03/20 13:52:00 jim Exp $\n"
+
 #define PERSISTENT
 
 #define MOD_NAME_PREFIX "II"
