@@ -1,5 +1,5 @@
-ZODB3 3.3
-=========
+ZODB3 3.3.1
+===========
 
 Introduction
 ------------
@@ -28,13 +28,13 @@ ZoneAlarm.  Many particularly slow tests are skipped unless you pass
 Compatibility
 -------------
 
-ZODB 3.3 requires Python 2.3.4 or later.
+ZODB 3.3.1 requires Python 2.3.4 or later.
 
 The Zope 2.8 and X3 releases should be compatible with this version of ZODB.
 Note that Zope 2.7 and higher includes ZEO, so this package should only be
 needed to run a ZEO server.
 
-The ZEO server in ZODB 3.3 is currently incompatible with earlier
+The ZEO server in ZODB 3.3.1 is currently incompatible with earlier
 versions of ZODB.  If you want to test the software, you must be
 running this release for both client and server.  A backwards
 compatibility mechanism will be provided in a later release.
