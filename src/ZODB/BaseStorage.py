@@ -84,7 +84,7 @@
 ##############################################################################
 """Handy standard storage machinery
 """
-__version__='$Revision: 1.7 $'[11:-2]
+__version__='$Revision: 1.8 $'[11:-2]
 
 import time, bpthread, UndoLogCompatible
 from POSException import UndoError
@@ -158,7 +158,7 @@ class BaseStorage(UndoLogCompatible.UndoLogCompatible):
             self._commit_lock_release()
         finally: self._lock_release()
 
-    def tpc_begin(self, transaction):
+    def tpc_begin(self, transaction, tid=None):
         self._lock_acquire()
         try:
             if self._transaction is transaction: return
@@ -175,10 +175,14 @@ class BaseStorage(UndoLogCompatible.UndoLogCompatible):
             else: ext=""
             self._ude=user, desc, ext
 
-            t=time.time()
-            t=apply(TimeStamp,(time.gmtime(t)[:5]+(t%60,)))
-            self._ts=t=t.laterThan(self._ts)
-            self._serial=`t`
+            if tid is None:
+                t=time.time()
+                t=apply(TimeStamp,(time.gmtime(t)[:5]+(t%60,)))
+                self._ts=t=t.laterThan(self._ts)
+                self._serial=`t`
+            else:
+                self._ts=TimeStamp(tid)
+                self._serial=tid
 
             self._begin(self._serial, user, desc, ext)
             
