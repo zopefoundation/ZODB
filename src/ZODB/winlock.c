@@ -82,7 +82,10 @@
   attributions are listed in the accompanying credits file.
   
  ****************************************************************************/
-static char *what_string = "$Id: winlock.c,v 1.4 1999/03/10 00:15:00 klm Exp $";
+static char winlock_doc_string[] = 
+"Lock files on Windows."
+"\n"
+"$Id: winlock.c,v 1.5 2001/03/28 00:36:32 jeremy Exp $\n";
 
 #include "Python.h"
 
@@ -134,22 +137,22 @@ static struct PyMethodDef methods[] = {
 #define DL_EXPORT(RTYPE) RTYPE
 #endif
 DL_EXPORT(void)
-initwinlock() {
+initwinlock(void) {
   PyObject *m, *d;
-  char *rev="$Revision: 1.4 $";
+  char *rev="$Revision: 1.5 $";
 
-  if (! (Error=PyString_FromString("winlock.error"))) return;
+  if (!(Error=PyString_FromString("winlock.error"))) 
+      return;
 
   /* Create the module and add the functions */
-  m = Py_InitModule4("winlock", methods,
-		     "lock files on windows",
-		     (PyObject*)NULL,PYTHON_API_VERSION);
+  m = Py_InitModule4("winlock", methods, winlock_doc_string, (PyObject*)NULL,
+		     PYTHON_API_VERSION);
 
   d = PyModule_GetDict(m);
   PyDict_SetItemString(d, "error", Error);
+  /* XXX below could blow up in PyDict_SetItem() */
   PyDict_SetItemString(d,"__version__",
 		       PyString_FromStringAndSize(rev+11,strlen(rev+11)-2));
-  if (PyErr_Occurred()) Py_FatalError("can't initialize module winlock");
 }
 
 
