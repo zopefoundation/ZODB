@@ -48,6 +48,14 @@ It only relies on the Python standard library.
 \declaremodule{}{ZConfig}
 \modulesynopsis{Configuration package}
 
+The main \module{ZConfig} package exports a single function:
+
+\begin{funcdesc}{load}{url}
+  Load and return a configuration from a URL or pathname given by
+  \var{url}.  \var{url} may be a URL, absolute pathname, or relative
+  pathname.
+\end{funcdesc}
+
 
 \section{\module{ZConfig.Context} --- Application context}
 
@@ -66,11 +74,46 @@ It only relies on the Python standard library.
 \declaremodule{}{ZConfig.Common}
 \modulesynopsis{Exceptions}
 
+\begin{excdesc}{ConfigurationError}
+  Base class for exceptions specific to the \module{ZConfig} package.
+  All instances provide a \member{message} attribute that describes
+  the specific error.
+\end{excdesc}
+
+\begin{excdesc}{ConfigurationSyntaxError}
+  Exception raised when a configuration source does not conform to the
+  allowed syntax.  In addition to the \member{message} attribute,
+  exceptions of this type offer the \member{url} and \member{lineno}
+  attributes, which provide the URL and line number at which the error
+  was detected.
+\end{excdesc}
+
+\begin{excdesc}{ConfigurationTypeError}
+\end{excdesc}
+
+\begin{excdesc}{ConfigurationMissingSectionError}
+\end{excdesc}
+
+\begin{excdesc}{ConfigurationConflictingSectionError}
+\end{excdesc}
+
 
 \section{\module{ZConfig.ApacheStyle} --- Apache-style parser}
 
 \declaremodule{}{ZConfig.ApacheStyle}
 \modulesynopsis{Parser for Apache-style configurations}
+
+The \module{ZConfig.ApacheStyle} module implements the configuration
+parser.  Most applications will not need to use this module directly.
+
+This module provides a single function:
+
+\begin{funcdesc}{Parse}{file, context, section, url}
+  Parse text from the open file object \var{file}.  The application
+  context is given as \var{context}, the section object that values
+  and sections should be added to is given as \var{section}, and the
+  URL of the resource being parsed is given in \var{url}.
+\end{funcdesc}
 
 
 \section{\module{ZConfig.Interpolation} --- String interpolation}
