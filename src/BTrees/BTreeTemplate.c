@@ -12,7 +12,7 @@
 
  ****************************************************************************/
 
-#define BTREETEMPLATE_C "$Id: BTreeTemplate.c,v 1.54 2002/06/14 14:39:07 jeremy Exp $\n"
+#define BTREETEMPLATE_C "$Id: BTreeTemplate.c,v 1.55 2002/06/17 16:42:29 tim_one Exp $\n"
 
 /*
 ** _BTree_get
@@ -346,50 +346,73 @@ BTree_deleteNextBucket(BTree *self)
   If noval is non-zero, then don't set a value (the tree
   is a set).
 
-  Return 1 on successful change, 0 is no change, -1 on error.
+  Return:
+    -1  error
+     0  successful, and number of entries didn't change
+    >0  successful, and number of entries did change
+
+  Internal
+     There are two distinct return values > 0:
+
+     1  Successful, number of entries changed, but firstbucket did not go away.
+
+     2  Successful, number of entires changed, firstbucket did go away.
+        This can only happen on a delete (value == NULL).  The caller may
+        need to change its own firstbucket pointer, and in any case *someone*
+        needs to adjust the 'next' pointer of the bucket immediately preceding
+        the bucket that went away (it needs to point to the bucket immediately
+        following the bucket that went away).
 */
 static int
 _BTree_set(BTree *self, PyObject *keyarg, PyObject *value,
            int unique, int noval)
 {
-    int min, grew, copied=1, changed=0, bchanged=0;
-    int childlength;
-    BTreeItem *d;
+    int changed = 0;    /* did I mutate? */
+    int bchanged = 0;   /* do I have a direct bucket child that mutated? */
+    int min;            /* index of child I searched */
+    BTreeItem *d;       /* self->data[min] */
+    int childlength;    /* len(self->data[min].child) */
+    int status;         /* our return value; and return value from callee */
+
     KEY_TYPE key;
+    int copied = 1;
 
     COPY_KEY_FROM_ARG(key, keyarg, copied);
     UNLESS (copied) return -1;
 
     PER_USE_OR_RETURN(self, -1);
 
-    if (!self->len) {
+    if (! self->len) {
+        /* We're empty.  Make room. */
 	if (value) {
 	    if (BTree_grow(self, 0, noval) < 0)
-		goto err;
+		goto Error;
 	}
 	else {
+	    /* Can't delete a key from an empty BTree. */
 	    PyErr_SetObject(PyExc_KeyError, keyarg);
-	    goto err;
+	    goto Error;
 	}
     }
 
-    BTREE_SEARCH(min, self, key, goto err);
+    /* Find the right child to search, and hand the work off to it. */
+    BTREE_SEARCH(min, self, key, goto Error);
     d = self->data + min;
+
     if (SameType_Check(self, d->child))
-	grew = _BTree_set((BTree *)d->child, keyarg, value, unique, noval);
+	status = _BTree_set(BTREE(d->child), keyarg, value, unique, noval);
     else
-	grew = _bucket_set((Bucket *)d->child, keyarg, value, unique, noval,
-			   &bchanged);
-    if (grew < 0)
-	goto err;
-    if (grew == 0)
-        goto Done;
+	status = _bucket_set(BUCKET(d->child), keyarg,
+	                     value, unique, noval, &bchanged);
+    if (status == 0) goto Done;
+    if (status < 0) goto Error;
+    assert(status == 1 || status == 2);
 
-    /* A bucket changed size. */
-    bchanged = 1;
-
-    UNLESS(PER_USE(d->child))
-        goto err;
+    /* The child changed size.  Get its new size.  Note that since the tree
+     * rooted at the child changed size, so did the tree rooted at self:
+     * our status must be >= 1 too.
+     */
+    UNLESS(PER_USE(d->child)) goto Error;
     childlength = d->child->len;
     PER_ALLOW_DEACTIVATION(d->child);
     PER_ACCESSED(d->child);
@@ -398,104 +421,124 @@ _BTree_set(BTree *self, PyObject *keyarg, PyObject *value,
         /* A bucket got bigger -- if it's "too big", split it. */
         int toobig;
 
+        assert(status == 1);    /* can be 2 only on deletes */
         if (SameType_Check(self, d->child))
             toobig = childlength > MAX_BTREE_SIZE(d->child);
         else
             toobig = childlength > MAX_BUCKET_SIZE(d->child);
 
         if (toobig) {
-            if (BTree_grow(self, min, noval) < 0)
-                goto err;
-            changed = 1;
+            if (BTree_grow(self, min, noval) < 0) goto Error;
+            changed = 1;        /* BTree_grow mutated self */
         }
-        goto Done;
+        goto Done;      /* and status still == 1 */
     }
 
-    /* A bucket got smaller. */
-    if (min && grew > 1) {
-        /* Somebody below us deleted their first bucket and */
-        /* an intermediate tree couldn't handle it. */
-        if (BTree_deleteNextBucket(BTREE(d[-1].child)) < 0)
-            goto err;
-        grew = 1; /* Reset flag, since we handled it */
-    }
-    if (childlength > 0)
-        goto Done;
-
-    /* The child became empty. */
-    if (!SameType_Check(self, d->child)) {
-        /* We are about to delete a bucket. */
+    /* A bucket got smaller.  This is much harder, and despite that we
+     * don't try to rebalance the tree.
+     */
+    if (status == 2) {  /*  this is the last reference to child status */
+        /* Two problems to solve:  May have to adjust our own firstbucket,
+         * and the bucket that went away needs to get unlinked.
+         */
         if (min) {
-            /* If it's not our first bucket, we can tell the
-               previous bucket to adjust it's reference to it. */
-            if (Bucket_deleteNextBucket(BUCKET(d[-1].child)) < 0)
-                goto err;
+            /* This wasn't our firstbucket, so no need to adjust ours (note
+             * that it can't be the firstbucket of any node above us either).
+             * Tell "the tree to the left" to do the unlinking.
+             */
+            if (BTree_deleteNextBucket(BTREE(d[-1].child)) < 0) goto Error;
+            status = 1;     /* we solved the child's firstbucket problem */
         }
         else {
-            /* If it's the first bucket, we can't adjust the
-               reference to it ourselves, so we'll just
-               increment the grew flag to indicate to a
-               parent node that it's last bucket should
-               adjust its reference. If there is no parent,
-               then there's nothing to do. */
-            grew++;
+            /* This was our firstbucket.  Update to new firstbucket value. */
+            Bucket *nextbucket;
+            UNLESS(PER_USE(d->child)) goto Error;
+            nextbucket = BTREE(d->child)->firstbucket;
+            PER_ALLOW_DEACTIVATION(d->child);
+            PER_ACCESSED(d->child);
+
+            Py_XINCREF(nextbucket);
+            Py_DECREF(self->firstbucket);
+            self->firstbucket = nextbucket;
+            changed = 1;
+
+            /* The caller has to do the unlinking -- we can't.  Also, since
+             * it was our firstbucket, it may also be theirs.
+             */
+            assert(status == 2);
         }
     }
-    self->len--;
+
+    /* If the child isn't empty, we're done!  We did all that was possible for
+     * us to do with the firstbucket problems the child gave us, and since the
+     * child isn't empty don't create any new firstbucket problems of our own.
+     */
+    if (childlength) goto Done;
+
+    /* The child became empty:  we need to remove it from self->data.
+     * But first, if we're a bottom-level node, we've got more bucket-fiddling
+     * to set up.
+     */
+    if (!SameType_Check(self, d->child)) {
+        /* We're about to delete a bucket. */
+        if (min) {
+            /* It's not our first bucket, so we can tell the previous
+             * bucket to adjust its reference to it.  It can't be anyone
+             * else's first bucket either, so the caller needn't do anything.
+             */
+            if (Bucket_deleteNextBucket(BUCKET(d[-1].child)) < 0) goto Error;
+            /* status should be 1, and already is:  if it were 2, the
+             * block above would have set it to 1 in its min != 0 branch.
+             */
+            assert(status == 1);
+        }
+        else {
+            Bucket *nextbucket;
+            /* It's our first bucket.  We can't unlink it directly. */
+            /* 'changed' will be set true by the deletion code following. */
+            UNLESS(PER_USE(d->child)) goto Error;
+            nextbucket = BUCKET(d->child)->next;
+            PER_ALLOW_DEACTIVATION(d->child);
+            PER_ACCESSED(d->child);
+
+            Py_XINCREF(nextbucket);
+            Py_DECREF(self->firstbucket);
+            self->firstbucket = nextbucket;
+
+            status = 2; /* we're giving our caller a new firstbucket problem */
+         }
+    }
+
+    /* Remove the child from self->data. */
     Py_DECREF(d->child);
     if (min) {
         DECREF_KEY(d->key);
     }
+    --self->len;
     if (min < self->len)
-        memmove(d, d+1, (self->len-min)*sizeof(BTreeItem));
-    if (!min) {
-        if (self->len) {
-            /* We just deleted our first child, so we need to
-               adjust our first bucket. */
-            if (SameType_Check(self, self->data->child)) {
-                UNLESS (PER_USE(BTREE(self->data->child)))
-                    goto err;
-                ASSIGNB(self->firstbucket,
-                        BTREE(self->data->child)->firstbucket);
-                Py_XINCREF(self->firstbucket);
-                PER_ALLOW_DEACTIVATION(BTREE(self->data->child));
-                PER_ACCESSED(BTREE(self->data->child));
-            }
-            else {
-                ASSIGNB(self->firstbucket, BUCKET(self->data->child));
-                Py_INCREF(self->firstbucket);
-            }
-            /* We can toss our first key now */
-            DECREF_KEY(self->data->key);
-        }
-        else {
-            Py_XDECREF(self->firstbucket);
-            self->firstbucket = 0;
-        }
-    }
+        memmove(d, d+1, (self->len - min) * sizeof(BTreeItem));
     changed = 1;
 
 Done:
 #ifdef PERSISTENT
     if (changed
-	|| (bchanged                                    /* The bucket changed */
-	    && self->len == 1                            /* We have only one */
-	    && ! SameType_Check(self, self->data->child) /* It's our child */
-            && BUCKET(self->data->child)->oid == NULL      /* It's in our record*/
-	    )
-	)
-	if (PER_CHANGED(self) < 0)
-	    goto err;
+	|| (bchanged                   /* our kid was a bucket & it mutated */
+	    && self->len == 1          /* and we have only one child */
+            && self->data[0].child->oid == NULL /* and it's in our record */
+	   )
+	) {
+        if (PER_CHANGED(self) < 0) goto Error;
+    }
 #endif
 
+_return:
     PER_ALLOW_DEACTIVATION(self);
     PER_ACCESSED(self);
-    return grew;
+    return status;
 
-err:
-    PER_ALLOW_DEACTIVATION(self);
-    PER_ACCESSED(self);
-    return -1;
+Error:
+    status = -1;
+    goto _return;
 }
 
 /*
