@@ -13,7 +13,7 @@
 ##############################################################################
 """ZODB-defined exceptions
 
-$Id: POSException.py,v 1.23 2004/02/27 00:31:53 faassen Exp $"""
+$Id: POSException.py,v 1.24 2004/04/16 19:07:00 tim_one Exp $"""
 
 from ZODB.utils import oid_repr, serial_repr
 
@@ -268,7 +268,7 @@ class ExportError(POSError):
     """An export file doesn't have the right format."""
 
 class Unsupported(POSError):
-    """An feature that is unsupported bt the storage was used."""
+    """A feature was used that is not supported by the storage."""
 
 class InvalidObjectReference(POSError):
     """An object contains an invalid reference to another object.
@@ -280,4 +280,14 @@ class InvalidObjectReference(POSError):
     o A reference to an object in a different database connection.
 
     XXX The exception ought to have a member that is the invalid object.
+    """
+
+class ConnectionStateError(POSError):
+    """A Connection isn't in the required state for an operation.
+
+    o An operation such as a load is attempted on a closed connection.
+
+    o An attempt to close a connection is made while the connection is
+      still joined to a transaction (for example, a transaction is in
+      progress, with uncommitted modifications in the connection).
     """

@@ -13,7 +13,7 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.150 2004/04/16 14:19:11 jeremy Exp $"""
+$Id: Connection.py,v 1.151 2004/04/16 19:07:00 tim_one Exp $"""
 
 import logging
 import sys
@@ -31,7 +31,8 @@ import transaction
 from ZODB.ConflictResolution import ResolvedSerial
 from ZODB.ExportImport import ExportImport
 from ZODB.POSException \
-     import ConflictError, ReadConflictError, InvalidObjectReference
+     import ConflictError, ReadConflictError, InvalidObjectReference, \
+            ConnectionStateError
 from ZODB.TmpStore import TmpStore
 from ZODB.utils import oid_repr, z64, positive_id
 from ZODB.serialize import ObjectWriter, ConnectionObjectReader, myhasattr
@@ -316,11 +317,11 @@ class Connection(ExportImport, object):
             object does not exist as of the current transaction, but
             existed in the past.  It may even exist again in the
             future, if the transaction that removed it is undone.
-          - `RuntimeError`:  if the connection is closed.
+          - `ConnectionStateError`:  if the connection is closed.
         """
         if self._storage is None:
             # XXX Should this be a ZODB-specific exception?
-            raise RuntimeError("The database connection is closed")
+            raise ConnectionStateError("The database connection is closed")
 
         obj = self._cache.get(oid, None)
         if obj is not None:
@@ -365,11 +366,10 @@ class Connection(ExportImport, object):
           - `TypeError`: if obj is not a persistent object.
           - `InvalidObjectReference`: if obj is already associated
             with another connection.
-          - `RuntimeError`: if the connection is closed.
+          - `ConnectionStateError`: if the connection is closed.
         """
         if self._storage is None:
-            # XXX Should this be a ZODB-specific exception?
-            raise RuntimeError("The database connection is closed")
+            raise ConnectionStateError("The database connection is closed")
 
         marker = object()
         oid = getattr(obj, "_p_oid", marker)
@@ -532,6 +532,12 @@ class Connection(ExportImport, object):
         onCloseCallback() are invoked and the cache is scanned for
         old objects.
         """
+
+        if not self._needs_to_join:
+            # We're currently joined to a transaction.
+            raise ConnectionStateError("Cannot close a connection joined to "
+                                       "a transaction")
+
         if self._cache is not None:
             self._cache.incrgc() # This is a good time to do some GC
 
@@ -671,14 +677,12 @@ class Connection(ExportImport, object):
 
     def getVersion(self):
         if self._storage is None:
-            # XXX Should this be a ZODB-specific exception?
-            raise RuntimeError("The database connection is closed")
+            raise ConnectionStateError("The database connection is closed")
         return self._version
 
     def isReadOnly(self):
         if self._storage is None:
-            # XXX Should this be a ZODB-specific exception?
-            raise RuntimeError("The database connection is closed")
+            raise ConnectionStateError("The database connection is closed")
         return self._storage.isReadOnly()
 
     def invalidate(self, tid, oids):
@@ -776,7 +780,7 @@ class Connection(ExportImport, object):
             msg = ("Shouldn't load state for %s "
                    "when the connection is closed" % oid_repr(oid))
             self._log.error(msg)
-            raise RuntimeError(msg)
+            raise ConnectionStateError(msg)
 
         try:
             self._setstate(obj)

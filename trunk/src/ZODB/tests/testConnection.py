@@ -236,12 +236,48 @@ class UserMethodTests(unittest.TestCase):
         >>> cn.get(p64(0))
         Traceback (most recent call last):
           ...
-        RuntimeError: The database connection is closed
+        ConnectionStateError: The database connection is closed
         >>> p = Persistent()
         >>> cn.add(p)
         Traceback (most recent call last):
           ...
-        RuntimeError: The database connection is closed
+        ConnectionStateError: The database connection is closed
+        """
+
+    def test_close_with_pending_changes(self):
+        r"""doctest to ensure close() w/ pending changes complains
+
+        >>> import transaction
+
+        Just opening and closing is fine.
+        >>> db = databaseFromString("<zodb>\n<mappingstorage/>\n</zodb>")
+        >>> cn = db.open()
+        >>> cn.close()
+
+        Opening, making a change, committing, and closing is fine.
+        >>> cn = db.open()
+        >>> cn.root()['a'] = 1
+        >>> transaction.commit()
+        >>> cn.close()
+
+        Opening, making a change, committing, and aborting is fine.
+        >>> cn = db.open()
+        >>> cn.root()['a'] = 1
+        >>> transaction.abort()
+        >>> cn.close()
+
+        But trying to close with a change pending complains.
+        >>> cn = db.open()
+        >>> cn.root()['a'] = 1
+        >>> cn.close()
+        Traceback (most recent call last):
+          ...
+        ConnectionStateError: Cannot close a connection joined to a transaction
+
+        This leaves the connection as it was, so we can still commit
+        the change.
+        >>> transaction.commit()
+        >>> cn.close()
         """
 
     def test_onCloseCallbacks(self):
@@ -298,7 +334,7 @@ class UserMethodTests(unittest.TestCase):
         >>> cn.isReadOnly()
         Traceback (most recent call last):
           ...
-        RuntimeError: The database connection is closed
+        ConnectionStateError: The database connection is closed
 
         An expedient way to create a read-only storage:
 
