@@ -82,7 +82,7 @@
   
  ****************************************************************************/
 
-#define BUCKETTEMPLATE_C "$Id: BucketTemplate.c,v 1.19 2001/10/19 18:55:09 andreasjung Exp $\n"
+#define BUCKETTEMPLATE_C "$Id: BucketTemplate.c,v 1.20 2001/10/31 19:19:38 jeremy Exp $\n"
 
 /*
 ** _bucket_get
@@ -338,59 +338,69 @@ bucket_setitem(Bucket *self, PyObject *key, PyObject *v)
   return 0;
 }
 
+/**
+ ** Mapping_update()
+ **
+ ** Accepts a sequence of 2-tuples or any object with an items()
+ ** method that returns a sequence of 2-tuples.
+ **
+ */
+
 static PyObject *
 Mapping_update(PyObject *self, PyObject *args)
 {
-  PyObject *seq=0, *o, *t, *v, *tb, *k;
+  PyObject *seq=0, *o, *t, *v, *tb, *k, *items = NULL;
   int i, ind;
 
   UNLESS(PyArg_ParseTuple(args, "|O:update", &seq)) return NULL;
 
-  if (seq)
+  if (!seq)
     {
-
-      if (PySequence_Check(seq))
-        {
-          Py_INCREF(seq);
-        }
-      else
-        {
-          seq=PyObject_GetAttr(seq, items_str);
-          UNLESS(seq) return NULL;
-          ASSIGN(seq, PyObject_CallObject(seq, NULL));
-          UNLESS(seq) return NULL;
-        }
-
-      for (i=0; ; i++)
-        {
-          UNLESS (o=PySequence_GetItem(seq, i))
-            {
-              PyErr_Fetch(&t, &v, &tb);
-              if (t != PyExc_IndexError)
-                {
-                  PyErr_Restore(t, v, tb);
-                  goto err;
-                }
-              Py_XDECREF(t);
-              Py_XDECREF(v);
-              Py_XDECREF(tb);
-              break;
-            }
-          ind=PyArg_ParseTuple(o, "OO;items must be 2-item tuples", &k, &v);
-          if (ind)
-            ind = PyObject_SetItem(self, k, v);
-          else
-            ind=-1;
-          Py_DECREF(o);
-          if (ind < 0) goto err;
-        }
+      Py_INCREF(Py_None);
+      return Py_None;
+    }
+    
+  if (!PySequence_Check(seq))
+    {
+      items = PyObject_GetAttr(seq, items_str);
+      UNLESS(items) return NULL;
+      ASSIGN(items, PyObject_CallObject(items, NULL));
+      UNLESS(items) return NULL;
+      /* items is DECREFed on exit, seq is not */
+      seq = items;
     }
 
+  for (i=0; ; i++)
+    {
+      o = PySequence_GetItem(seq, i);
+      UNLESS (o)
+	{
+	  PyErr_Fetch(&t, &v, &tb);
+	  if (t != PyExc_IndexError)
+	    {
+	      PyErr_Restore(t, v, tb);
+	      goto err;
+	    }
+	  Py_XDECREF(t);
+	  Py_XDECREF(v);
+	  Py_XDECREF(tb);
+	  break;
+	}
+      ind = PyArg_ParseTuple(o, "OO;items must be 2-item tuples", &k, &v);
+      if (ind)
+	ind = PyObject_SetItem(self, k, v);
+      else
+	ind = -1;
+      Py_DECREF(o);
+      if (ind < 0) goto err;
+    }
+
+  Py_XDECREF(items);
   Py_INCREF(Py_None);
   return Py_None;
 
  err:
-  Py_DECREF(seq);
+  Py_XDECREF(items);
   return NULL;
 }
 
