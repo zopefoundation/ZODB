@@ -4,6 +4,7 @@ Any storage that supports the history() method should be able to pass
 all these tests.
 """
 
+from ZODB.Transaction import Transaction
 from ZODB.tests.MinPO import MinPO
 from ZODB.tests.StorageTestBase import zodb_unpickle
 
@@ -111,10 +112,11 @@ class HistoryStorage:
         revid6 = self._dostore(oid, revid=revid5, data=MinPO(16),
                                version=version)
         # Now commit the version
-        self._storage.tpc_begin(self._transaction)
-        oids = self._storage.commitVersion(version, '', self._transaction)
-        self._storage.tpc_vote(self._transaction)
-        self._storage.tpc_finish(self._transaction)
+        t = Transaction()
+        self._storage.tpc_begin(t)
+        oids = self._storage.commitVersion(version, '', t)
+        self._storage.tpc_vote(t)
+        self._storage.tpc_finish(t)
         # After consultation with Jim, we agreed that the semantics of
         # revision id's after a version commit is that the committed object
         # gets a new serial number (a.k.a. revision id).  Note that
@@ -168,10 +170,11 @@ class HistoryStorage:
         revid6 = self._dostore(oid, revid=revid5, data=MinPO(16),
                                version=version)
         # Now commit the version
-        self._storage.tpc_begin(self._transaction)
-        oids = self._storage.abortVersion(version, self._transaction)
-        self._storage.tpc_vote(self._transaction)
-        self._storage.tpc_finish(self._transaction)
+        t = Transaction()
+        self._storage.tpc_begin(t)
+        oids = self._storage.abortVersion(version, t)
+        self._storage.tpc_vote(t)
+        self._storage.tpc_finish(t)
         # After consultation with Jim, we agreed that the semantics of
         # revision id's after a version commit is that the committed object
         # gets a new serial number (a.k.a. revision id).  Note that
