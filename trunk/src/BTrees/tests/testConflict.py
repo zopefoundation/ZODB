@@ -17,6 +17,7 @@ from unittest import TestCase, TestSuite, makeSuite
 from BTrees.OOBTree import OOBTree, OOBucket, OOSet, OOTreeSet
 from BTrees.IOBTree import IOBTree, IOBucket, IOSet, IOTreeSet
 from BTrees.IIBTree import IIBTree, IIBucket, IISet, IITreeSet
+from BTrees.IFBTree import IFBTree, IFBucket, IFSet, IFTreeSet
 from BTrees.OIBTree import OIBTree, OIBucket, OISet, OITreeSet
 
 import transaction
@@ -345,6 +346,10 @@ class TestIIBTrees(BTreeTests, TestCase):
     def setUp(self):
         self.t = IIBTree()
 
+class TestIFBTrees(BTreeTests, TestCase):
+    def setUp(self):
+        self.t = IFBTree()
+
 ## Set tests
 
 class TestIOSets(SetTests, TestCase):
@@ -358,6 +363,10 @@ class TestOOSets(SetTests, TestCase):
 class TestIISets(SetTests, TestCase):
     def setUp(self):
         self.t = IISet()
+
+class TestIFSets(SetTests, TestCase):
+    def setUp(self):
+        self.t = IFSet()
 
 class TestOISets(SetTests, TestCase):
     def setUp(self):
@@ -374,6 +383,10 @@ class TestOOTreeSets(SetTests, TestCase):
 class TestIITreeSets(SetTests, TestCase):
     def setUp(self):
         self.t = IITreeSet()
+
+class TestIFTreeSets(SetTests, TestCase):
+    def setUp(self):
+        self.t = IFTreeSet()
 
 class TestOITreeSets(SetTests, TestCase):
     def setUp(self):
@@ -392,6 +405,10 @@ class TestOOBuckets(BucketTests, TestCase):
 class TestIIBuckets(BucketTests, TestCase):
     def setUp(self):
         self.t = IIBucket()
+
+class TestIFBuckets(BucketTests, TestCase):
+    def setUp(self):
+        self.t = IFBucket()
 
 class TestOIBuckets(BucketTests, TestCase):
     def setUp(self):
@@ -745,10 +762,12 @@ class NastyConfict(Base, TestCase):
 
 def test_suite():
     suite = TestSuite()
-    for k in (TestIOBTrees,   TestOOBTrees,   TestOIBTrees,   TestIIBTrees,
-              TestIOSets,     TestOOSets,     TestOISets,     TestIISets,
-              TestIOTreeSets, TestOOTreeSets, TestOITreeSets, TestIITreeSets,
-              TestIOBuckets,  TestOOBuckets,  TestOIBuckets,  TestIIBuckets,
-              NastyConfict):
+    for k in (
+        TestIIBTrees, TestIISets, TestIITreeSets, TestIIBuckets,
+        TestIFBTrees, TestIFSets, TestIFTreeSets, TestIFBuckets,
+        TestIOBTrees, TestIOSets, TestIOTreeSets, TestIOBuckets,
+        TestOOBTrees, TestOOSets, TestOOTreeSets, TestOOBuckets,
+        TestOIBTrees, TestOISets, TestOITreeSets, TestOIBuckets,
+        NastyConfict):
         suite.addTest(makeSuite(k))
     return suite

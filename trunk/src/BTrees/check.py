@@ -38,6 +38,7 @@ from BTrees.OOBTree import OOBTree, OOBucket, OOSet, OOTreeSet
 from BTrees.OIBTree import OIBTree, OIBucket, OISet, OITreeSet
 from BTrees.IOBTree import IOBTree, IOBucket, IOSet, IOTreeSet
 from BTrees.IIBTree import IIBTree, IIBucket, IISet, IITreeSet
+from BTrees.IFBTree import IFBTree, IFBucket, IFSet, IFTreeSet
 
 from ZODB.utils import positive_id, oid_repr
 
@@ -45,21 +46,25 @@ TYPE_UNKNOWN, TYPE_BTREE, TYPE_BUCKET = range(3)
 
 _type2kind = {IOBTree: (TYPE_BTREE, True),
               IIBTree: (TYPE_BTREE, True),
+              IFBTree: (TYPE_BTREE, True),
               OIBTree: (TYPE_BTREE, True),
               OOBTree: (TYPE_BTREE, True),
 
               IOBucket: (TYPE_BUCKET, True),
               IIBucket: (TYPE_BUCKET, True),
+              IFBucket: (TYPE_BUCKET, True),
               OIBucket: (TYPE_BUCKET, True),
               OOBucket: (TYPE_BUCKET, True),
 
               IOTreeSet: (TYPE_BTREE, False),
               IITreeSet: (TYPE_BTREE, False),
+              IFTreeSet: (TYPE_BTREE, False),
               OITreeSet: (TYPE_BTREE, False),
               OOTreeSet: (TYPE_BTREE, False),
 
               IOSet: (TYPE_BUCKET, False),
               IISet: (TYPE_BUCKET, False),
+              IFSet: (TYPE_BUCKET, False),
               OISet: (TYPE_BUCKET, False),
               OOSet: (TYPE_BUCKET, False),
              }
@@ -117,6 +122,9 @@ _btree2bucket = {IOBTree: IOBucket,
 
                  IIBTree: IIBucket,
                  IITreeSet: IISet,
+
+                 IFBTree: IFBucket,
+                 IFTreeSet: IFSet,
 
                  OIBTree: OIBucket,
                  OITreeSet: OISet,
