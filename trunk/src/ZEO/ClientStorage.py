@@ -1,6 +1,6 @@
 ##############################################################################
 #
-# Copyright (c) 2001, 2002 Zope Corporation and Contributors.
+# Copyright (c) 2001, 2002, 2003 Zope Corporation and Contributors.
 # All Rights Reserved.
 #
 # This software is subject to the provisions of the Zope Public License,
@@ -29,7 +29,8 @@ import types
 from ZEO import ClientCache, ServerStub
 from ZEO.TransactionBuffer import TransactionBuffer
 from ZEO.Exceptions \
-     import ClientStorageError, UnrecognizedResult, ClientDisconnected
+     import ClientStorageError, UnrecognizedResult, ClientDisconnected, \
+            AuthError
 from ZEO.zrpc.client import ConnectionManager
 
 from ZODB import POSException
@@ -99,7 +100,8 @@ class ClientStorage:
                  min_disconnect_poll=5, max_disconnect_poll=300,
                  wait_for_server_on_startup=None, # deprecated alias for wait
                  wait=None, # defaults to 1
-                 read_only=0, read_only_fallback=0):
+                 read_only=0, read_only_fallback=0,
+                 username='', password=''):
 
         """ClientStorage constructor.
 
@@ -159,6 +161,17 @@ class ClientStorage:
             writable storages are available.  Defaults to false.  At
             most one of read_only and read_only_fallback should be
             true.
+
+        username -- string with username to be used when authenticating.
+            These only need to be provided if you are connecting to an
+            authenticated server storage.
+ 
+        password -- string with plaintext password to be used
+            when authenticated.
+
+        Note that the authentication scheme is defined by the server and is
+        detected by the ClientStorage upon connecting (see testConnection()
+        and doAuth() for details).
         """
 
         log2(INFO, "%s (pid=%d) created %s/%s for storage: %r" %
@@ -217,6 +230,8 @@ class ClientStorage:
         self._conn_is_read_only = 0
         self._storage = storage
         self._read_only_fallback = read_only_fallback
+        self._username = username
+        self._password = password
         # _server_addr is used by sortKey()
         self._server_addr = None
         self._tfile = None
@@ -347,6 +362,34 @@ class ClientStorage:
         if cn is not None:
             cn.pending()
 
+    def doAuth(self, protocol, stub):
+        if self._username == '' and self._password == '':
+            raise AuthError, "empty username or password"
+
+        # import the auth module
+        
+        # XXX: Should we validate the client module that is being specified
+        # by the server? A malicious server could cause any auth_*.py file
+        # to be loaded according to Python import semantics.
+        fullname = 'ZEO.auth.auth_' + protocol
+        try:
+            module = __import__(fullname, globals(), locals(), protocol)
+        except ImportError:
+            log("%s: no such an auth protocol: %s" %
+                (self.__class__.__name__, protocol))
+
+        # And setup ZEOStorageClass
+        Client = getattr(module, 'Client', None)
+        if not Client:
+            log("%s: %s is not a valid auth protocol, must have a " + \
+                "Client class" % (self.__class__.__name__, protocol))
+            raise AuthError, "invalid protocol"
+        
+        c = Client(stub)
+        
+        # Initiate authentication, return boolean specifying whether OK or not
+        return c.start(self._username, self._password)
+        
     def testConnection(self, conn):
         """Internal: test the given connection.
 
@@ -372,6 +415,12 @@ class ClientStorage:
         # XXX Check the protocol version here?
         self._conn_is_read_only = 0
         stub = self.StorageServerStubClass(conn)
+
+        # XXX: Verify return value
+        auth = stub.getAuthProtocol()
+        if auth and not self.doAuth(auth, stub):
+            raise AuthError, "Authentication failed"
+        
         try:
             stub.register(str(self._storage), self._is_read_only)
             return 1
