@@ -1,4 +1,4 @@
-Zope Enterprize Objects
+Zope Enterprise Objects
 
   Put this package (the ZEO directory, without any wrapping directory
   included in a distribution) in your Zope lib/python.
