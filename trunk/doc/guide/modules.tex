@@ -49,17 +49,18 @@ you're storing something very large, such as a 100,000-entry user
 database, unpickling such a large object will be slow.  BTrees are a
 balanced tree data structure that behave like a mapping but distribute
 keys throughout a number of tree nodes.  The nodes are stored in
-sorted order.  Nodes are then only unpickled and brought into memory
-as they're accessed, so the entire tree doesn't have to occupy memory
-(unless you really are touching every single key).
+sorted order (this has important consequences -- see below).  Nodes are
+then only unpickled and brought into memory as they're accessed, so the
+entire tree doesn't have to occupy memory (unless you really are
+touching every single key).
 
 The BTrees package provides a large collection of related data
 structures.  There are variants of the data structures specialized to
 handle integer values, which are faster and use less memory.  There
 are four modules that handle the different variants.  The first two
 letters of the module name specify the types of the keys and values in
-mappings -- O for any object and I for integer.  The
-\module{BTrees.IOBTree} module provides a mapping that accepts integer
+mappings -- O for any object and I for integer.  For example, the
+\module{BTrees.IOBTree} module provides a mapping with integer
 keys and arbitrary objects as values.
 
 The four data structures provide by each module are a btree, a bucket,
@@ -72,27 +73,41 @@ a mapping with no keys, e.g. \function{keys()} but not
 building blocks for btrees and tree sets, respectively.  A bucket or
 set can be used when you are sure that it will have few elements.  If
 the data structure will grow large, you should use a btree or tree
-set.
+set.  Like Python lists, buckets and sets are allocated in one
+contiguous piece, and insertions and deletions can take time
+proportional to the number of existing elements.  Btrees and tree sets
+are multi-level tree structures with much better (logarithmic) worst-case
+time bounds.
 
 The four modules are named \module{OOBTree}, \module{IOBTree},
 \module{OIBTree}, and \module{IIBTree}.  The two letter prefixes are
 repeated in the data types names.  The \module{BTrees.OOBTree} module
 defines the following types: \class{OOBTree}, \class{OOBucket},
-\class{OOSet}, and \class{OOTreeSet}.
+\class{OOSet}, and \class{OOTreeSet}.  Similarly, the other three modules
+each define their own variants of those four types.
 
 The \function{keys()}, \function{values()}, and \function{items()}
-methods do not materialize a list with all of the data.  Instead, they
-return lazy sequences that fetch data from the BTree as needed.  They
-also support optional arguments to specify the minium and maximum
-values to return.
+methods on btree and tree set types do not materialize a list with all
+of the data.  Instead, they return lazy sequences that fetch data
+from the BTree as needed.  They also support optional arguments to
+specify the minimum and maximum values to return, often called "range
+searching".  Because all these types are stored in sorted order, range
+searching is very efficient.
+
+The \function{keys()}, \function{values()}, and \function{items()}
+methods on bucket and set types do return lists with all the data.
+Starting in ZODB4, there are also \function{iterkeys()},
+\function{itervalues()}, and \function{iteritems()} methods that
+return iterators (in the Python 2.2 sense).
 
 A BTree object supports all the methods you would expect of a mapping
 with a few extensions that exploit the fact that the keys are sorted.
 The example below demonstrates how some of the methods work.  The
-extra methods re \function{minKey()} and \function{maxKey()}, which
+extra methods are \function{minKey()} and \function{maxKey()}, which
 find the minimum and maximum key value subject to an optional bound
-argument, and \function{byValue()}, which returns value, key pairs
-in reversed sorted order subject to an optional minimum bound argument.
+argument, and \function{byValue()}, which should probably be ignored
+(it's hard to explain exactly what it does, and as a result it's
+almost never used -- best to consider it deprecated).
 
 \begin{verbatim}
 >>> from BTrees.OOBTree import OOBTree
@@ -102,22 +117,29 @@ in reversed sorted order subject to an optional minimum bound argument.
 4
 >>> t[2]
 'green'
->>> t.keys()
-<OOBTreeItems object at 0x40269098>
->>> [k for k in t.keys()] # use a listcomp to get a printable sequence
+>>> s = t.keys() # this is a "lazy" sequence object
+>>> s
+<OOBTreeItems object at 0x0088AD20>
+>>> len(s)  # it acts like a Python list
+4
+>>> s[-2]
+3
+>>> list(s) # materialize the full list
 [1, 2, 3, 4]
->>> [k for k in t.values()]
+>>> list(t.values())
 ['red', 'green', 'blue', 'spades']
->>> [k for k in t.values(1, 2)]
+>>> list(t.values(1, 2))
 ['red', 'green']
->>> [k for k in t.values(2)]
+>>> list(t.values(2))
 ['green', 'blue', 'spades']
->>> t.byValue("glue") # all values > "glue"
-[('spades', 4), ('red', 1), ('green', 2)]
->>> t.minKey(1.5)
+>>> t.minKey()     # smallest key
+1
+>>> t.minKey(1.5)  # smallest key >= 1.5
 2
 \end{verbatim}
 
+% XXX I'm not sure all of the following is actually correct.  The
+% XXX set functions have complicated behavior.
 Each of the modules also defines some functions that operate on
 BTrees -- \function{difference()}, \function{union()}, and
 \function{difference()}.  The \function{difference()} function returns
@@ -127,4 +149,3 @@ If the keys are integers, then the module also defines
 also defines \function{weightedIntersection()} and
 \function{weighterUnion()}.  The function doc strings describe each
 function briefly.
-
