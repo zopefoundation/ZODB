@@ -14,10 +14,11 @@
 static char cPersistence_doc_string[] = 
 "Defines Persistent mixin class for persistent objects.\n"
 "\n"
-"$Id: cPersistence.c,v 1.54 2002/04/02 11:11:45 htrd Exp $\n";
+"$Id: cPersistence.c,v 1.55 2002/04/02 22:17:24 bwarsaw Exp $\n";
 
 #include "cPersistence.h"
 
+/* XXX What is this structure used for? */
 struct ccobject_head_struct {
     CACHE_HEAD
 };
@@ -114,30 +115,41 @@ callmethod1(PyObject *self, PyObject *name, PyObject *arg)
   return self;
 }
 
-#define UPDATE_STATE_IF_NECESSARY(self, ER)                      \
-if(self->state < 0 && self->jar)                                 \
-{								 \
-  PyObject *r;							 \
-      								 \
-  int *count = NON_GHOST_COUNT(self);                            \
-  if(count)                                                      \
-  {                                                              \
-      (*count)++;                                                \
-      self->ring.next = HOME(self);                              \
-      self->ring.prev = HOME(self)->prev;                        \
-      HOME(self)->prev->next = &self->ring;                      \
-      HOME(self)->prev = &self->ring;                            \
-      Py_INCREF(self);                                           \
-  }                                                              \
-  self->state=cPersistent_CHANGED_STATE; 	                 \
-  UNLESS(r=callmethod1(self->jar,py_setstate,(PyObject*)self))   \
-    {                                                            \
-      ghostify(self);                                            \
-      return ER;                                                 \
-    }								 \
-  self->state=cPersistent_UPTODATE_STATE;			 \
-  Py_DECREF(r);							 \
+
+static void ghostify(cPersistentObject*);
+
+/* Load the state of the object, unghostifying it.  Upon success, return 1.
+ * If an error occurred, re-ghostify the object and return 0.
+ */
+static int
+unghostify(cPersistentObject *self)
+{
+    if (self->state < 0 && self->jar) {
+        PyObject *r;
+
+        /* XXX Is it ever possibly to not have a cache? */
+        if (self->cache) {
+            /* Create a node in the ring for this unghostified object. */
+            self->cache->non_ghost_count++;
+            self->ring.next = &self->cache->ring_home;
+            self->ring.prev = (&(self)->cache->ring_home)->prev;
+            HOME(self)->prev->next = &self->ring;
+            HOME(self)->prev = &self->ring;
+            Py_INCREF(self);
+        }
+        self->state = cPersistent_CHANGED_STATE;
+        /* Call the object's __setstate__() */
+        r = callmethod1(self->jar, py_setstate, (PyObject*)self);
+        if (r == NULL) {
+            ghostify(self);
+            return 0;
+        }
+        self->state = cPersistent_UPTODATE_STATE;
+        Py_DECREF(r);
+    }
+    return 1;
 }
+
 
 #define KEEP_THIS_ONE_AROUND_FOR_A_WHILE(self) accessed(self)
 
@@ -161,22 +173,31 @@ accessed(cPersistentObject *self)
 static void
 ghostify(cPersistentObject *self)
 {
-    int *count;
-    count = NON_GHOST_COUNT(self);
-    if(count && (self->state>=0))
-    {
-        (*count)--;
-        self->ring.next->prev = self->ring.prev;
-        self->ring.prev->next = self->ring.next;
-        self->ring.prev = NULL;
-        self->ring.next = NULL;
+    /* are we already a ghost? */
+    if (self->state == cPersistent_GHOST_STATE)
+        return;
+    /* XXX is it ever possible to not have a cache? */
+    if (self->cache == NULL) {
         self->state = cPersistent_GHOST_STATE;
-        Py_DECREF(self);
+        return;
     }
-    else
-    {
-        self->state = cPersistent_GHOST_STATE;
-    }
+    /* if we're ghostifying an object, we better have some non-ghosts */
+    assert(self->cache->non_ghost_count > 0);
+
+    self->cache->non_ghost_count--;
+    self->ring.next->prev = self->ring.prev;
+    self->ring.prev->next = self->ring.next;
+    self->ring.prev = NULL;
+    self->ring.next = NULL;
+    self->state = cPersistent_GHOST_STATE;
+
+    /* We remove the reference to the just ghosted object that the ring
+     * holds.  Note that the dictionary of oids->objects has an uncounted
+     * reference, so if the ring's reference was the only one, this frees
+     * the ghost object.  Note further that the object's dealloc knows to
+     * inform the dictionary that it is going away.
+     */
+    Py_DECREF(self);
 }
 
 static void
@@ -293,53 +314,59 @@ Per__p_deactivate(cPersistentObject *self, PyObject *args)
 static int
 Per_setstate(cPersistentObject *self)
 {
-  UPDATE_STATE_IF_NECESSARY(self, -1);
-  self->state=cPersistent_STICKY_STATE;
-  return 0;
+    if (!unghostify(self))
+        return -1;
+    self->state = cPersistent_STICKY_STATE;
+    return 0;
 }
 
 static PyObject *
 Per__getstate__(cPersistentObject *self, PyObject *args)
 {
-  PyObject *__dict__, *d=0;
+    PyObject *__dict__, *d=0;
 
-  if (!checknoargs(args)) return NULL;
+    if (!checknoargs(args))
+        return NULL;
 
 #ifdef DEBUG_LOG
-  if(idebug_log < 0) call_debug("get",self);
+    if (idebug_log < 0)
+        call_debug("get",self);
 #endif
 
-  UPDATE_STATE_IF_NECESSARY(self, NULL);
+    if (!unghostify(self))
+        return NULL;
 
-  if(HasInstDict(self) && (__dict__=INSTANCE_DICT(self)))
-    {
-      PyObject *k, *v;
-      int pos;
-      char *ck;
+    if (HasInstDict(self) && (__dict__=INSTANCE_DICT(self))) {
+        PyObject *k, *v;
+        int pos;
+        char *ck;
 	  
-      for(pos=0; PyDict_Next(__dict__, &pos, &k, &v); )
-	{
-	  if(PyString_Check(k) && (ck=PyString_AS_STRING(k)) &&
-	     (*ck=='_' && ck[1]=='v' && ck[2]=='_'))
+        for(pos=0; PyDict_Next(__dict__, &pos, &k, &v); ) {
+            if(PyString_Check(k) && (ck=PyString_AS_STRING(k)) &&
+               (*ck=='_' && ck[1]=='v' && ck[2]=='_'))
 	    {
-	      UNLESS(d=PyDict_New()) goto err;
-	      for(pos=0; PyDict_Next(__dict__, &pos, &k, &v); )
-		UNLESS(PyString_Check(k) && (ck=PyString_AS_STRING(k)) &&
-		       (*ck=='_' && ck[1]=='v' && ck[2]=='_'))
-		  if(PyDict_SetItem(d,k,v) < 0) goto err;
-	      return d;
+                if ((d=PyDict_New()) == NULL)
+                    goto err;
+                
+                for (pos=0; PyDict_Next(__dict__, &pos, &k, &v); )
+                    UNLESS(PyString_Check(k) && (ck=PyString_AS_STRING(k)) &&
+                           (*ck=='_' && ck[1]=='v' && ck[2]=='_'))
+                    {
+                        if (PyDict_SetItem(d,k,v) < 0)
+                            goto err;
+                    }
+                return d;
 	    }
 	}
     }
-  else
-    __dict__=Py_None;
+    else
+        __dict__ = Py_None;
 
-  Py_INCREF(__dict__);
-  return __dict__;
-
-err:
-  Py_XDECREF(d);
-  return NULL;
+    Py_INCREF(__dict__);
+    return __dict__;
+  err:
+    Py_XDECREF(d);
+    return NULL;
 }  
 
 static PyObject *
@@ -466,7 +493,8 @@ Per_getattr(cPersistentObject *self, PyObject *oname, char *name,
 	  case 'm':
 	    if(strcmp(n,"time")==0)
 	      {
-		UPDATE_STATE_IF_NECESSARY(self, NULL);
+                  if (!unghostify(self))
+                      return NULL;
 
 		accessed(self);
 
@@ -498,7 +526,8 @@ Per_getattr(cPersistentObject *self, PyObject *oname, char *name,
 	(strcmp(name,"dict__")==0 || strcmp(name,"class__")==0
 	 || strcmp(name, "of__")==0)))
     {
-      UPDATE_STATE_IF_NECESSARY(self, NULL);
+        if (!unghostify(self))
+            return NULL;
 
       accessed(self);
     }
@@ -614,7 +643,8 @@ _setattro(cPersistentObject *self, PyObject *oname, PyObject *v,
     }
   else
     {
-      UPDATE_STATE_IF_NECESSARY(self, -1);
+        if (!unghostify(self))
+            return -1;
       
       accessed(self);
 
