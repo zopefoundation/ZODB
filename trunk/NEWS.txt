@@ -1,11 +1,7 @@
-What's new in ZODB3 3.3?
+What's new in ZODB3 3.4?
 ========================
-Release date: DD-Sep-2004
+Release date: DD-MMM-2004
 
-
-What's new in ZODB3 3.3 release candidate 1?
-============================================
-Release date: 14-Sep-2004
 
 Tools
 -----
@@ -18,9 +14,14 @@ which objects did it reference?  what kind of object was it?).
 ZODB/test/testfsoids.py is a tutorial doctest.
 
 
-What's new in ZODB3 3.3 ?
-=========================
-Release date: DD-MMM-YYYY
+What's new in ZODB3 3.3?
+========================
+Release date: DD-Sep-2004
+
+
+What's new in ZODB3 3.3 release candidate 1?
+============================================
+Release date: 14-Sep-2004
 
 Connection
 ----------
