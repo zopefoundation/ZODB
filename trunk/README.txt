@@ -1,4 +1,4 @@
-ZODB3 3.3 alpha 2
+ZODB3 3.3 alpha 3
 =================
 
 Introduction
