@@ -1,3 +1,6 @@
+
+#define PERSISTENT
+
 #define PREFIX "IO"
 #define DEFAULT_MAX_BUCKET_SIZE 32
 #define INITMODULE initIOBTree

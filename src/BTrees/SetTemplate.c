@@ -215,9 +215,10 @@ static struct PyMethodDef Set_methods[] = {
   {"minKey", (PyCFunction) Bucket_minKey,	METH_VARARGS,
    "minKey([key]) -- Fine the minimum key\n\n"
    "If an argument is given, find the minimum >= the argument"},
+#ifdef PERSISTENT
   {"_p_deactivate", (PyCFunction) bucket__p_deactivate, METH_VARARGS,
    "_p_deactivate() -- Reinitialize from a newly created copy"},
-
+#endif
   {"insert",	(PyCFunction)Set_insert,	METH_VARARGS,
    "insert(id,[ignored]) -- Add a key to the set"},
   {"remove",	(PyCFunction)Set_remove,	METH_VARARGS,
@@ -311,7 +312,10 @@ static PyExtensionClass SetType = {
   0L,0L,
   "Set implemented as sorted keys", 
   METHOD_CHAIN(Set_methods),
-  EXTENSIONCLASS_BASICNEW_FLAG | PERSISTENT_TYPE_FLAG 
+  EXTENSIONCLASS_BASICNEW_FLAG 
+#ifdef PERSISTENT
+  | PERSISTENT_TYPE_FLAG 
+#endif
   | EXTENSIONCLASS_NOINSTDICT_FLAG,
 };
 

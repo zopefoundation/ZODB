@@ -555,17 +555,7 @@ _BTree_clear(BTree *self)
   return 0;
 }
 
-/*
-** BTree__p_deactivate
-**
-** Persistance machinery support to turn the object into a ghost
-**
-** Arguments:	self	The BTree
-**		args	(unused)
-**
-** Returns:	None 	on success
-**		NULL	on failure
-*/
+#ifdef PERSISTENT
 static PyObject *
 BTree__p_deactivate(BTree *self, PyObject *args)
 {
@@ -578,6 +568,7 @@ BTree__p_deactivate(BTree *self, PyObject *args)
   Py_INCREF(Py_None);
   return Py_None;
 }
+#endif
 
 /*
 ** BTree_clear
@@ -1111,8 +1102,10 @@ static struct PyMethodDef BTree_methods[] = {
    "insert(key, value) -- Add an item if the key is not already used.\n\n"
    "Return 1 if the item was added, or 0 otherwise"
   },
+#ifdef PERSISTENT
   {"_p_deactivate", (PyCFunction) BTree__p_deactivate,	METH_VARARGS,
    "_p_deactivate() -- Reinitialize from a newly created copy"},
+#endif
   {NULL,		NULL}		/* sentinel */
 };
 
@@ -1215,6 +1208,9 @@ static PyExtensionClass BTreeType = {
   0L,0L,
   "Mapping type implemented as sorted list of items", 
   METHOD_CHAIN(BTree_methods),
-  EXTENSIONCLASS_BASICNEW_FLAG | PERSISTENT_TYPE_FLAG 
+  EXTENSIONCLASS_BASICNEW_FLAG 
+#ifdef PERSISTENT
+  | PERSISTENT_TYPE_FLAG 
+#endif
   | EXTENSIONCLASS_NOINSTDICT_FLAG,
 };
