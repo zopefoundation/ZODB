@@ -52,7 +52,6 @@ class DummyDB:
     def invalidate(self, *args, **kwargs):
         pass
 
-
 class CommonSetupTearDown(StorageTestBase):
     """Common boilerplate"""
 
@@ -568,6 +567,10 @@ class ReconnectionTests(CommonSetupTearDown):
                 self._dostore()
                 break
             except (Disconnected, ReadOnlyError):
+                # If the client isn't connected at all, sync() returns
+                # quickly and the test fails because it doesn't wait
+                # long enough for the client.
+                time.sleep(0.1)
                 self._storage.sync()
         else:
             self.fail("Couldn't store after starting a read-write server")
