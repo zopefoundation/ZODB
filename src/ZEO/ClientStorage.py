@@ -84,7 +84,7 @@
 ##############################################################################
 """Network ZODB storage client
 """
-__version__='$Revision: 1.20 $'[11:-2]
+__version__='$Revision: 1.21 $'[11:-2]
 
 import struct, time, os, socket, string, Sync, zrpc, ClientCache
 import tempfile, Invalidator, ExtensionClass, thread
@@ -498,6 +498,7 @@ class ClientStorage(ExtensionClass.Base, BaseStorage.BaseStorage):
             seek=tfile.seek
             read=tfile.read
             cache=self._cache
+            update=cache.update
             size=tfile.tell()
             cache.checkSize(size)
             seek(0)
@@ -515,7 +516,7 @@ class ClientStorage(ExtensionClass.Base, BaseStorage.BaseStorage):
                         "Unexpected end of file in client storage "
                         "temporary file."
                         )
-                cache.update(oid, s, v, p)
+                update(oid, s, v, p)
                 i=i+14+vlen+dlen
 
             seek(0)
