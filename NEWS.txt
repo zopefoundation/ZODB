@@ -5,7 +5,8 @@ Release date: DD-MMM-2004
 Storages
 --------
 
-Collector #1327 FileStorage init confused by time travel.
+Collector #1327: FileStorage init confused by time travel
+
 If the system clock "went backwards" a long time between the times a
 FileStorage was closed and reopened, new transaction ids could be
 smaller than transaction ids already in the storage, violating a
@@ -15,6 +16,15 @@ when a FileStorage is opened, a new message saying so is logged at
 warning level; if time appears to have run backwards at least 30
 minutes, the message is logged at critical level (and you should
 investigate to find and repair the true cause).
+
+Test suite
+----------
+
+Collector #1397: testTimeStamp fails on FreeBSD
+
+The *BSD distributions are unique in that their mktime() implementation
+usually ignores the input tm_isdst value.  Test checkFullTimeStamp()
+was sensitive to this platform quirk.
 
 
 What's new in ZODB3 3.3 beta 1
