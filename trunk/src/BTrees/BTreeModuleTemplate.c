@@ -253,6 +253,7 @@ firstBucketOffset(Bucket **bucket, int *offset)
       UNLESS (PER_USE(*bucket)) return -1;
       *offset = 0;
     }
+  return 1;
 }
 
 static int 
@@ -270,6 +271,7 @@ lastBucketOffset(Bucket **bucket, int *offset, Bucket *firstbucket, int i)
       UNLESS (PER_USE(*bucket)) return -1;
       *offset = (*bucket)->len - 1;
     }
+  return 1;
 }
 
 static void *
@@ -279,7 +281,7 @@ PyMalloc(size_t sz)
 
   ASSERT(sz > 0, "non-positive size malloc", NULL);
 
-  if (r=malloc(sz)) return r;
+  if ((r=malloc(sz))) return r;
 
   PyErr_NoMemory();
   return NULL;
@@ -338,7 +340,7 @@ static char BTree_module_documentation[] =
 "\n"
 MASTER_ID
 BTREEITEMSTEMPLATE_C
-"$Id: BTreeModuleTemplate.c,v 1.8 2001/03/27 16:37:42 jim Exp $\n"
+"$Id: BTreeModuleTemplate.c,v 1.9 2001/04/01 20:25:24 jim Exp $\n"
 BTREETEMPLATE_C
 BUCKETTEMPLATE_C
 KEYMACROS_H
@@ -407,7 +409,7 @@ INITMODULE ()
   d = PyModule_GetDict(m);
 
   PyDict_SetItemString(d, "__version__",
-		       PyString_FromString("$Revision: 1.8 $"));
+		       PyString_FromString("$Revision: 1.9 $"));
 
   PyExtensionClass_Export(d,MOD_NAME_PREFIX "Bucket", BucketType);
   PyExtensionClass_Export(d,MOD_NAME_PREFIX "BTree", BTreeType);
