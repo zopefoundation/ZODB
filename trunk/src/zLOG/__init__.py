@@ -68,10 +68,6 @@ with a callable object that takes 5 arguments:
                traceback.  If provided, then a summary of the error
                is added to the detail.
 
-The callable object can provide a reinitialize method that may be
-called with no arguments to reopen the log files (if any) as part of a
-log-rotation facility.
-
 There is a default event logging facility that:
 
   - swallows logging information by default,
@@ -86,7 +82,7 @@ There is a default event logging facility that:
     can be overridden with the environment variable EVENT_LOG_SEVERITY
 
 """
-__version__='$Revision: 1.15 $'[11:-2]
+__version__='$Revision: 1.16 $'[11:-2]
 
 from EventLogger import log_write, log_time, severity_string, \
      initialize_from_environment
@@ -105,10 +101,26 @@ PANIC   =  300
 # Flag indicating whether LOG() should call initialize()
 _call_initialize = 1
 
+# Function called to (re-)initialize the logger we're using
+_initializer = initialize_from_environment
+
 def initialize():
     global _call_initialize
     _call_initialize = 0
-    initialize_from_environment()
+    _initializer()
+
+def set_initializer(func):
+    """Set the function used to re-initialize the logs.
+
+    This should be called when initialize_from_environment() is not
+    appropiate.
+
+    This does not ensure that the new function gets called; the caller
+    should do that separately.
+    """
+    global _initializer
+    _initializer = func
+
 
 def LOG(subsystem, severity, summary, detail='', error=None, reraise=None):
     """Log some information
