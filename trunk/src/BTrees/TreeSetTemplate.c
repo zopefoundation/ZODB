@@ -191,6 +191,10 @@ static struct PyMethodDef TreeSet_methods[] = {
   {NULL,		NULL}		/* sentinel */
 };
 
+static PyMappingMethods TreeSet_as_mapping = {
+  (inquiry)BTree_length,		/*mp_length*/
+};
+
 static PyExtensionClass TreeSetType = {
   PyObject_HEAD_INIT(NULL)
   0,				/*ob_size*/
@@ -206,7 +210,7 @@ static PyExtensionClass TreeSetType = {
   (reprfunc)0,			/*tp_repr*/
   &BTree_as_number_for_nonzero,	/*tp_as_number*/
   0,				/*tp_as_sequence*/
-  0,				/*tp_as_mapping*/
+  &TreeSet_as_mapping,		/*tp_as_mapping*/
   (hashfunc)0,			/*tp_hash*/
   (ternaryfunc)0,		/*tp_call*/
   (reprfunc)0,			/*tp_str*/
