@@ -74,6 +74,7 @@ class CacheTestBase(unittest.TestCase):
 
 
 # CantGetRidOfMe is used by checkMinimizeTerminates.
+make_trouble = True
 class CantGetRidOfMe(MinPO):
     def __init__(self, value):
         MinPO.__init__(self, value)
@@ -83,7 +84,8 @@ class CantGetRidOfMe(MinPO):
         # Referencing an attribute of self causes self to be
         # loaded into the cache again, which also resurrects
         # self.
-        self.an_attribute
+        if make_trouble:
+            self.an_attribute
 
 class DBMethods(CacheTestBase):
 
@@ -147,6 +149,10 @@ class DBMethods(CacheTestBase):
                 self.testcase = testcase
 
             def run(self):
+                global make_trouble
+                # Make CantGetRidOfMe.__del__ dangerous.
+                make_trouble = True
+
                 conn = self.testcase.conns[0]
                 r = conn.root()
                 d = r[1]
@@ -154,6 +160,12 @@ class DBMethods(CacheTestBase):
                     d[i] = CantGetRidOfMe(i)
                 get_transaction().commit()
 
+                self.testcase.db.cacheMinimize()
+
+                # Defang the nasty objects.  Else, because they're
+                # immortal now, they hang around and create trouble
+                # for subsequent tests.
+                make_trouble = False
                 self.testcase.db.cacheMinimize()
 
         w = Worker(self)
