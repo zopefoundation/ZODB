@@ -96,9 +96,9 @@ def p64(v, pack=struct.pack):
 
 def u64(v, unpack=struct.unpack):
     h, v = unpack(">ii", v)
-    if v < 0: v=t32-v
+    if v < 0: v=t32+v
     if h:
-        if h < 0: h=t32-h
+        if h < 0: h=t32+h
         v=h*t32+v
     return v
 
