@@ -13,7 +13,7 @@
 ##############################################################################
 """Open database and storage from a configuration.
 
-$Id: config.py,v 1.5 2003/01/07 23:28:14 fdrake Exp $"""
+$Id: config.py,v 1.6 2003/01/09 18:26:53 fdrake Exp $"""
 
 import os
 import StringIO
@@ -51,10 +51,24 @@ def databaseFromConfig(config):
 
 class StorageConfig:
 
+    """Object representing a configured storage.
+
+    Methods:
+
+    open() -- open and return the storage object
+
+    Attributes:
+
+    name   -- name of the storage
+
+    """
+
     def __init__(self, config):
         self.config = config
+        self.name = config.getSectionName()
 
     def open(self):
+        """Open and return the storage object."""
         raise NotImplementedError
 
 class MappingStorage(StorageConfig):
