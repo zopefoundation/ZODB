@@ -326,6 +326,8 @@ class TestImports(TestCase):
 # Subclasses must set up (as class variables):
 #     weightedUnion, weightedIntersection
 #     builders -- sequence of constructors, taking items
+#     union, intersection -- the module routines of those names
+#     mkbucket -- the module bucket builder
 class Weighted(TestCase):
 
     def setUp(self):
@@ -335,6 +337,12 @@ class Weighted(TestCase):
         self.As = [make(self.Aitems) for make in self.builders]
         self.Bs = [make(self.Bitems) for make in self.builders]
         self.emptys = [make([]) for make in self.builders]
+
+        weights = []
+        for w1 in 0, 1, 7:  # -3, -1, 0, 1, 7:  XXX negative weights buggy
+            for w2 in 0, 1, 7:  # -3, -1, 0, 1, 7:  XXX negative weights buggy
+                weights.append((w1, w2))
+        self.weights = weights
 
     def testBothNone(self):
         for op in self.weightedUnion, self.weightedIntersection:
@@ -368,6 +376,78 @@ class Weighted(TestCase):
                 self.assert_(C is A)
                 self.assertEqual(w, 42)
 
+    # If obj is a set, return a bucket with values all 1; else return obj.
+    def _normalize(self, obj):
+        if isaset(obj):
+            obj = self.mkbucket(zip(obj.keys(), [1] * len(obj)))
+        return obj
+
+    # Python simulation of weightedUnion.
+    def _wunion(self, A, B, w1=1, w2=1):
+        if isaset(A) and isaset(B):
+            return 1, self.union(A, B).keys()
+        A = self._normalize(A)
+        B = self._normalize(B)
+        result = []
+        for key in self.union(A, B):
+            v1 = A.get(key, 0)
+            v2 = B.get(key, 0)
+            result.append((key, v1*w1 + v2*w2))
+        return 1, result
+
+    def testUnion(self):
+        inputs = self.As + self.Bs + self.emptys
+        for A in inputs:
+            for B in inputs:
+                want_w, want_s = self._wunion(A, B)
+                got_w, got_s = self.weightedUnion(A, B)
+                self.assertEqual(got_w, want_w)
+                if isaset(got_s):
+                    self.assertEqual(got_s.keys(), want_s)
+                else:
+                    self.assertEqual(got_s.items(), want_s)
+
+                for w1, w2 in self.weights:
+                    want_w, want_s = self._wunion(A, B, w1, w2)
+                    got_w, got_s = self.weightedUnion(A, B, w1, w2)
+                    self.assertEqual(got_w, want_w)
+                    if isaset(got_s):
+                        self.assertEqual(got_s.keys(), want_s)
+                    else:
+                        self.assertEqual(got_s.items(), want_s)
+
+    # Python simulation weightedIntersection.
+    def _wintersection(self, A, B, w1=1, w2=1):
+        if isaset(A) and isaset(B):
+            return w1 + w2, self.intersection(A, B).keys()
+        A = self._normalize(A)
+        B = self._normalize(B)
+        result = []
+        for key in self.intersection(A, B):
+            result.append((key, A[key]*w1 + B[key]*w2))
+        return 1, result
+
+    def testIntersection(self):
+        inputs = self.As + self.Bs + self.emptys
+        for A in inputs:
+            for B in inputs:
+                want_w, want_s = self._wintersection(A, B)
+                got_w, got_s = self.weightedIntersection(A, B)
+                self.assertEqual(got_w, want_w)
+                if isaset(got_s):
+                    self.assertEqual(got_s.keys(), want_s)
+                else:
+                    self.assertEqual(got_s.items(), want_s)
+
+                for w1, w2 in self.weights:
+                    want_w, want_s = self._wintersection(A, B, w1, w2)
+                    got_w, got_s = self.weightedIntersection(A, B, w1, w2)
+                    self.assertEqual(got_w, want_w)
+                    if isaset(got_s):
+                        self.assertEqual(got_s.keys(), want_s)
+                    else:
+                        self.assertEqual(got_s.items(), want_s)
+
 # Given a set builder (like OITreeSet or OISet), return a function that
 # takes a list of (key, value) pairs and builds a set out of the keys.
 def itemsToSet(setbuilder):
@@ -375,19 +455,22 @@ def itemsToSet(setbuilder):
         return setbuilder([key for key, value in items])
     return result
 
-class TestWeightedII(Weighted):
-    from BTrees.IIBTree import weightedUnion, weightedIntersection
-    builders = IIBucket, IIBTree, itemsToSet(IISet), itemsToSet(IITreeSet)
-
-class TestWeightedOI(Weighted):
-    from BTrees.OIBTree import weightedUnion, weightedIntersection
-    builders = OIBucket, OIBTree, itemsToSet(OISet), itemsToSet(OITreeSet)
-
-
 # 'thing' is a bucket, btree, set or treeset.  Return true iff it's one of the
 # latter two.
 def isaset(thing):
     return not hasattr(thing, 'values')
+
+class TestWeightedII(Weighted):
+    from BTrees.IIBTree import weightedUnion, weightedIntersection
+    from BTrees.IIBTree import union, intersection
+    from BTrees.IIBTree import IIBucket as mkbucket
+    builders = IIBucket, IIBTree, itemsToSet(IISet), itemsToSet(IITreeSet)
+
+class TestWeightedOI(Weighted):
+    from BTrees.OIBTree import weightedUnion, weightedIntersection
+    from BTrees.OIBTree import union, intersection
+    from BTrees.OIBTree import OIBucket as mkbucket
+    builders = OIBucket, OIBTree, itemsToSet(OISet), itemsToSet(OITreeSet)
 
 
 def test_suite():
