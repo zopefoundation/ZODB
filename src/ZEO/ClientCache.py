@@ -144,7 +144,7 @@ file 0 and file 1.
 
 """
 
-__version__ = "$Revision: 1.16 $"[11:-2]
+__version__ = "$Revision: 1.17 $"[11:-2]
 
 import os, tempfile
 from struct import pack, unpack
@@ -215,7 +215,10 @@ class ClientCache:
         self._current=current
 
     def close(self):
-        self._f[self._current].close()
+        try:
+            self._f[self._current].close()
+        except OSError:
+            pass
 
     def open(self):
         self._acquire()
