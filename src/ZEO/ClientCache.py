@@ -32,30 +32,35 @@ None.
 Each cache file has a 4-byte magic number followed by a sequence of
 records of the form:
 
-  oid -- 8-byte object id
+  offset in record: name -- description
 
-  status -- 1-byte status 'v': valid, 'n': non-version valid, 'i': invalid
+  0: oid -- 8-byte object id
 
-  tlen -- 4-byte (unsigned) record length
+  8: status -- 1-byte status 'v': valid, 'n': non-version valid, 'i': invalid
 
-  vlen -- 2-bute (unsigned) version length
+  9: tlen -- 4-byte (unsigned) record length
 
-  dlen -- 4-byte length of non-version data
+  13: vlen -- 2-byte (unsigned) version length
 
-  serial -- 8-byte non-version serial (timestamp)
+  15: dlen -- 4-byte length of non-version data
 
-  data -- non-version data
+  19: serial -- 8-byte non-version serial (timestamp)
 
-  version -- Version string (if vlen > 0)
+  27: data -- non-version data
 
-  vdlen -- 4-byte length of version data (if vlen > 0)
+  27+dlen: version -- Version string (if vlen > 0)
 
-  vdata -- version data (if vlen > 0)
+  27+dlen+vlen: vdlen -- 4-byte length of version data (if vlen > 0)
 
-  vserial -- 8-byte version serial (timestamp) (if vlen > 0)
+  31+dlen+vlen: vdata -- version data (if vlen > 0)
 
-  tlen -- 4-byte (unsigned) record length (for redundancy and backward
-          traversal)
+  31+dlen+vlen+vdlen: vserial -- 8-byte version serial (timestamp)
+                                 (if vlen > 0)
+
+  39+dlen+vlen+vdlen: tlen -- 4-byte (unsigned) record length (for
+                              redundancy and backward traversal)
+
+  43+dlen+vlen+vdlen: -- total record length (equal to tlen)
 
 There is a cache size limit.
 
@@ -88,7 +93,7 @@ file 0 and file 1.
 
 """
 
-__version__ = "$Revision: 1.27 $"[11:-2]
+__version__ = "$Revision: 1.28 $"[11:-2]
 
 import os
 import sys
@@ -347,6 +352,11 @@ class ClientCache:
             if self._pos + size > self._limit:
                 current = not self._current
                 self._current = current
+                # Delete the half of the index that's no longer valid
+                index = self._index
+                for oid in index.keys():
+                    if (index[oid] < 0) == current:
+                        del index[oid]
                 if self._p[current] is not None:
                     # Persistent cache file:
                     # Note that due to permission madness, waaa,
