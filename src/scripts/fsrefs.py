@@ -16,10 +16,51 @@
 
 """Check FileStorage for dangling references.
 
-usage: fsrefs.py data.fs
+usage: fsrefs.py [-v] data.fs
 
-This script ignores versions, which might produce incorrect results
-for storages that use versions.
+fsrefs.py checks object sanity by trying to load the current revision of
+every object O in the database, and also verifies that every object
+directly reachable from each such O exists in the database.  Note that
+application code implementing objects (or at least defining their classes)
+must be available, an d on PYTHONPATH, for fsrefs to work, because objects
+are actually loaded. On a ZEO server, all the application code typically
+isn't present, so it may be difficult to run fsrefs usefully on a ZEO
+server.
+
+A read-only connection to the specified FileStorage is made, but it is not
+recommended to run fsrefs against a live FileStorage.  Because a live
+FileStorage is mutating while fsrefs runs, it's not possible for fsrefs to
+get a wholly consistent view of the database across the entire time fsrefs
+is running; spurious error messages may result.
+
+fsrefs doesn't normally produce any output.  If an object fails to load, the
+oid of the object is given in a message saying so, and if -v was specified
+then the traceback corresponding to the load failure is also displayed
+(this is the only effect of the -v flag, and is usually very helpful; -v is
+recommended for normal use).  Note that, as mentioned above, a common
+problem is to get a "failed to load" message simply because the module
+containing the class of the object isn't on PYTHONPATH.
+
+Two other kinds of errors are also detected, one strongly related to
+"failed to load", when an object O loads OK, and directly refers to a
+persistent object P but there's a problem with P:
+
+ - If P doesn't exist in the database, a message saying so is displayed.
+   The unsatisifiable reference to P is often called a "dangling
+   reference"; P is called "missing" in the error output.
+
+ - If it was earlier determined that P could not be loaded (but does exist
+   in the database), a message saying that O refers to an object that can't
+   be loaded is displayed.  Note that fsrefs only makes one pass over the
+   database, so if an object O refers to an unloadable object P, and O is
+   seen by fsrefs before P, an "O refers to the unloadable P" message will
+   not be produced; a message saying that P can't be loaded will be
+   produced when fsrefs later tries to load P, though.
+
+Note these limitations:  because fsrefs only looks at the current revision
+of objects, it does not attempt to load objects in versions, or non-current
+revisions of objects; therefore fsrefs cannot find problems in versions or
+in non-current revisions.
 """
 
 from ZODB.FileStorage import FileStorage
@@ -73,10 +114,12 @@ def main(path):
                 traceback.print_exc()
             noload[oid] = 1
 
-            # XXX If we get here after we've already loaded objects
-            # that refer to this one, we won't get error reports from
-            # them.  We could fix this by making two passes over the
-            # storage, but that seems like overkill.
+            # If we get here after we've already loaded objects
+            # that refer to this one, we will not have gotten error reports
+            # from the latter about the current object being unloadable.
+            # We could fix this by making two passes over the storage, but
+            # that seems like overkill.
+            continue
 
         refs = get_refs(data)
         missing = [] # contains 3-tuples of oid, klass-metadata, reason
