@@ -2,8 +2,42 @@ Tests for persistent.Persistent
 ===============================
 
 This document is an extended doc test that covers the basics of the
-Persistent base class.  It depends on a few base classes defined in
-test_persistent.py.
+Persistent base class.  The test expects a class named 'P' to be
+provided in its globals.  The P class implements the Persistent
+interface.
+
+Test framework
+--------------
+
+The class P needs to behave like ExampleP.  (Note that the code below
+is *not* part of the tests.)
+
+class ExampleP(Persistent):
+    def __init__(self):
+        self.x = 0
+    def inc(self):
+        self.x += 1
+
+The tests use stub data managers.  A data manager is responsible for
+loading and storing the state of a persistent object.  It's stored in
+the _p_jar attribute of a persistent object.
+
+>>> class DM:
+...     def __init__(self):
+...         self.called = 0
+...     def register(self, ob):
+...         self.called += 1
+...     def setstate(self, ob):
+...         ob.__setstate__({'x': 42})
+
+>>> class BrokenDM(DM):
+...     def register(self,ob):
+...         self.called += 1
+...         raise NotImplementedError
+...     def setstate(self,ob):
+...         raise NotImplementedError
+
+>>> from persistent import Persistent
 
 Test Persistent without Data Manager
 ------------------------------------
@@ -56,7 +90,7 @@ a simple testing stub.
     
 >>> p = P()
 >>> dm = DM()
->>> p._p_oid = oid
+>>> p._p_oid = "00000012"
 >>> p._p_jar = dm
 >>> p._p_changed
 0
@@ -127,8 +161,11 @@ The next several tests cover the __getstate__() and __setstate__()
 implementations.
 
 >>> p = P()
->>> p.__getstate__()
-{'x': 0}
+>>> state = p.__getstate__()
+>>> isinstance(state, dict)
+True
+>>> state['x']
+0
 >>> p._p_state
 0
 
@@ -255,8 +292,8 @@ have different locations.
 >>> p = P()
 >>> p.inc()
 >>> p.inc()
->>> p.__dict__
-{'x': 2}
+>>> 'x' in p.__dict__
+True
 >>> p._p_jar
 
 
@@ -360,8 +397,8 @@ If the most-derived class does not specify
 >>> p_shouldHaveDict.__dictoffset__ > 0
 True
 >>> x = p_shouldHaveDict()
->>> x.__dict__
-{}
+>>> isinstance(x.__dict__, dict)
+True
 
 
 Pickling
@@ -381,11 +418,31 @@ True
 >>> p2.x == p.x
 True
 
-The P2 class has a custom __getstate__ and __setstate__.
+We should also test that pickle works with custom getstate and
+setstate.  Perhaps even reduce.  The problem is that pickling depends
+on finding the class in a particular module, and classes defined here
+won't appear in any module.  We could require each user of the tests
+to define a base class, but that might be tedious.
 
->>> p = P2()
->>> p2 = pickle.loads(pickle.dumps(p))
->>> p2.__class__ is P2
-True
->>> p2.__dict__
-{'v': 42}
+Interfaces
+----------
+
+Some versions of Zope and ZODB have the zope.interfaces package
+available.  If it is available, then persistent will be associated
+with several interfaces.  It's hard to write a doctest test that runs
+the tests only if zope.interface is available, so this test looks a
+little unusual.  One problem is that the assert statements won't do
+anything if you run with -O.
+
+>>> try:
+...     import zope.interface
+... except ImportError:
+...     pass
+... else:
+...     from persistent.interfaces import IPersistent
+...     assert IPersistent.isImplementedByInstancesOf(Persistent)
+...     p = Persistent()
+...     assert IPersistent.isImplementedBy(p)
+...     assert IPersistent.isImplementedByInstancesOf(P)
+...     p = P()
+...     assert IPersistent.isImplementedBy(p)
