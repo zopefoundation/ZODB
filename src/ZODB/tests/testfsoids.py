@@ -38,9 +38,9 @@ Create an empty FileStorage.
 There's not a lot interesting in an empty DB!
 
 >>> t = Tracer(path)
->>> t.register_oid(0x123456)
->>> t.register_oid(1)
->>> t.register_oid(0)
+>>> t.register_oids(0x123456)
+>>> t.register_oids(1)
+>>> t.register_oids(0)
 >>> t.run()
 >>> t.report()
 oid 0x00 <unknown> 0 revisions
@@ -57,7 +57,7 @@ Create a root object and try again:
 
 >>> db = ZODB.DB(st) # yes, that creates a root object!
 >>> t = Tracer(path)
->>> t.register_oid(0); t.register_oid(1)
+>>> t.register_oids(0, 1)
 >>> t.run(); t.report() #doctest: +ELLIPSIS
 oid 0x00 persistent.mapping.PersistentMapping 1 revision
     tid 0x... offset=4 ...
@@ -83,7 +83,7 @@ Let's add a BTree and try again:
 >>> txn.get().note('added an OOBTree')
 >>> txn.get().commit()
 >>> t = Tracer(path)
->>> t.register_oid(0); t.register_oid(1)
+>>> t.register_oids(0, 1)
 >>> t.run(); t.report() #doctest: +ELLIPSIS
 oid 0x00 persistent.mapping.PersistentMapping 2 revisions
     tid 0x... offset=4 ...
@@ -123,7 +123,7 @@ One more, storing a reference in the BTree back to the root object:
 >>> txn.get().note('circling back to the root')
 >>> txn.get().commit()
 >>> t = Tracer(path)
->>> t.register_oid(0); t.register_oid(1); t.register_oid(2)
+>>> t.register_oids(*range(3))
 >>> t.run(); t.report() #doctest: +ELLIPSIS
 oid 0x00 persistent.mapping.PersistentMapping 2 revisions
     tid 0x... offset=4 ...
