@@ -84,8 +84,8 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.57 2001/05/23 18:04:55 shane Exp $"""
-__version__='$Revision: 1.57 $'[11:-2]
+$Id: Connection.py,v 1.58 2001/06/04 12:34:57 andreas Exp $"""
+__version__='$Revision: 1.58 $'[11:-2]
 
 from cPickleCache import PickleCache
 from POSException import ConflictError, ExportError
@@ -607,7 +607,7 @@ class Connection(ExportImport.ExportImport):
             raise
 
     def tpc_abort(self, transaction):
-        if self.__onCommitAction is not None:
+        if self.__onCommitActions is not None:
             del self.__onCommitActions
         self._storage.tpc_abort(transaction)
         cache=self._cache
