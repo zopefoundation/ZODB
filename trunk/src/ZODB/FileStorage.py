@@ -2,98 +2,98 @@
 #
 # Copyright (c) 2001, 2002 Zope Corporation and Contributors.
 # All Rights Reserved.
-# 
+#
 # This software is subject to the provisions of the Zope Public License,
 # Version 2.0 (ZPL).  A copy of the ZPL should accompany this distribution.
 # THIS SOFTWARE IS PROVIDED "AS IS" AND ANY AND ALL EXPRESS OR IMPLIED
 # WARRANTIES ARE DISCLAIMED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 # WARRANTIES OF TITLE, MERCHANTABILITY, AGAINST INFRINGEMENT, AND FITNESS
 # FOR A PARTICULAR PURPOSE
-# 
+#
 ##############################################################################
-# 
+#
 #  File-based ZODB storage
-# 
+#
 # Files are arranged as follows.
-# 
+#
 #   - The first 4 bytes are a file identifier.
-#   
+#
 #   - The rest of the file consists of a sequence of transaction
 #     "records".
-# 
+#
 # A transaction record consists of:
-# 
+#
 #   - 8-byte transaction id, which is also a time stamp.
-#   
+#
 #   - 8-byte transaction record length - 8.
-#   
+#
 #   - 1-byte status code
-#   
+#
 #   - 2-byte length of user name
-#   
-#   - 2-byte length of description 
-#   
-#   - 2-byte length of extension attributes 
-#   
+#
+#   - 2-byte length of description
+#
+#   - 2-byte length of extension attributes
+#
 #   -   user name
-#   
+#
 #   -   description
 #
 #   -   extension attributes
-# 
+#
 #   * A sequence of data records
-#   
+#
 #   - 8-byte redundant transaction length -8
-# 
+#
 # A data record consists of
-# 
+#
 #   - 8-byte oid.
-# 
+#
 #   - 8-byte serial, which is a type stamp that matches the
 #     transaction timestamp.
-# 
+#
 #   - 8-byte previous-record file-position.
-# 
+#
 #   - 8-byte beginning of transaction record file position.
-# 
+#
 #   - 2-byte version length
-# 
+#
 #   - 8-byte data length
-# 
+#
 #   ? 8-byte position of non-version data
 #     (if version length > 0)
-# 
+#
 #   ? 8-byte position of previous record in this version
 #     (if version length > 0)
-# 
-#   ?   version string 
+#
+#   ?   version string
 #     (if version length > 0)
-# 
+#
 #   ?   data
 #     (data length > 0)
-# 
+#
 #   ? 8-byte position of data record containing data
 #     (data length == 0)
-# 
+#
 # Note that the lengths and positions are all big-endian.
 # Also, the object ids time stamps are big-endian, so comparisons
 # are meaningful.
-# 
+#
 # Version handling
-# 
+#
 #   There isn't a separate store for versions.  Each record has a
 #   version field, indicating what version it is in.  The records in a
 #   version form a linked list.  Each record that has a non-empty
 #   version string has a pointer to the previous record in the version.
 #   Version back pointers are retained *even* when versions are
 #   committed or aborted or when transactions are undone.
-# 
+#
 #   There is a notion of "current" version records, which are the
 #   records in a version that are the current records for their
 #   respective objects.  When a version is comitted, the current records
 #   are committed to the destination version.  When a version is
 #   aborted, the current records are aborted.
-# 
+#
 #   When committing or aborting, we search backward through the linked
 #   list until we find a record for an object that does not have a
 #   current record in the version.  If we find a record for which the
@@ -101,7 +101,7 @@
 #   forget that the corresponding object had a current record in the
 #   version. This strategy allows us to avoid searching backward through
 #   previously committed or aborted version records.
-# 
+#
 #   Of course, we ignore records in undone transactions when committing
 #   or aborting.
 #
@@ -115,7 +115,7 @@
 #   may have a back pointer to a version record or to a non-version
 #   record.
 #
-__version__='$Revision: 1.94 $'[11:-2]
+__version__='$Revision: 1.95 $'[11:-2]
 
 import base64
 from cPickle import Pickler, Unpickler, loads
@@ -235,7 +235,7 @@ class FileStorage(BaseStorage.BaseStorage,
 
         index, vindex, tindex, tvindex = self._newIndexes()
         self._initIndex(index, vindex, tindex, tvindex)
-        
+
         # Now open the file
 
         self._file = None
@@ -256,7 +256,7 @@ class FileStorage(BaseStorage.BaseStorage,
                     raise
                 else:
                     create = 1
-                    
+
         if self._file is None and create:
             if os.path.exists(file_name):
                 os.remove(file_name)
@@ -304,14 +304,14 @@ class FileStorage(BaseStorage.BaseStorage,
     def _newIndexes(self):
         # hook to use something other than builtin dict
         return {}, {}, {}, {}
-        
+
     def abortVersion(self, src, transaction):
         return self.commitVersion(src, '', transaction, abort=1)
 
     def _save_index(self):
         """Write the database index to a file to support quick startup
         """
-        
+
         index_name=self.__name__+'.index'
         tmp_name=index_name+'.index_tmp'
 
@@ -348,7 +348,7 @@ class FileStorage(BaseStorage.BaseStorage,
         with the index.  Any invalid record records or inconsistent
         object positions cause zero to be returned.
         """
-        
+
         if pos < 100: return 0
         file=self._file
         seek=file.seek
@@ -376,20 +376,20 @@ class FileStorage(BaseStorage.BaseStorage,
             if opos==tend: continue # empty trans
 
             while opos < tend:
-                # Read the data records for this transaction    
+                # Read the data records for this transaction
                 seek(opos)
                 h=read(DATA_HDR_LEN)
                 oid,serial,sprev,stloc,vlen,splen = unpack(">8s8s8s8sH8s", h)
                 tloc=U64(stloc)
                 plen=U64(splen)
-                
+
                 dlen=DATA_HDR_LEN+(plen or 8)
                 if vlen: dlen=dlen+(16+vlen)
-    
+
                 if opos+dlen > tend or tloc != pos: return 0
 
                 if index.get(oid, 0) != opos: return 0
-    
+
                 opos=opos+dlen
 
             return ltid
@@ -399,10 +399,10 @@ class FileStorage(BaseStorage.BaseStorage,
         """
         file_name=self.__name__
         index_name=file_name+'.index'
-        
+
         try: f=open(index_name,'rb')
         except: return None
-        
+
         p=Unpickler(f)
 
         try:
@@ -422,7 +422,7 @@ class FileStorage(BaseStorage.BaseStorage,
 
         tid=self._sane(index, pos)
         if not tid: return None
-        
+
         return index, vindex, pos, oid, tid
 
     def close(self):
@@ -436,7 +436,7 @@ class FileStorage(BaseStorage.BaseStorage,
         except:
             # XXX should log the error, though
             pass # We don't care if this fails.
-        
+
     def commitVersion(self, src, dest, transaction, abort=None):
         # We are going to commit by simply storing back pointers.
         if self._is_read_only:
@@ -452,10 +452,10 @@ class FileStorage(BaseStorage.BaseStorage,
         if dest and abort:
             raise POSException.VersionCommitError(
                 "Internal error, can't abort to a version")
-        
+
         if transaction is not self._transaction:
             raise POSException.StorageTransactionError(self, transaction)
-        
+
         self._lock_acquire()
         try:
             return self._commitVersion(src, dest, transaction, abort)
@@ -572,7 +572,7 @@ class FileStorage(BaseStorage.BaseStorage,
             return h[8:16]
         finally:
             self._lock_release()
-        
+
 
     def _load(self, oid, version, _index, file):
         try:
@@ -640,7 +640,7 @@ class FileStorage(BaseStorage.BaseStorage,
             pnv=read(8)
             return _loadBack(file, oid, pnv)[0]
         finally: self._lock_release()
-                    
+
     def modifiedInVersion(self, oid):
         self._lock_acquire()
         try:
@@ -692,7 +692,7 @@ class FileStorage(BaseStorage.BaseStorage,
                                                 serials=(oserial, serial))
             else:
                 oserial=serial
-                    
+
             tfile=self._tfile
             write=tfile.write
             pos=self._pos
@@ -724,7 +724,7 @@ class FileStorage(BaseStorage.BaseStorage,
 
             return (serial == oserial and newserial
                     or ConflictResolution.ResolvedSerial)
-        
+
         finally:
             self._lock_release()
 
@@ -806,7 +806,7 @@ class FileStorage(BaseStorage.BaseStorage,
 
     def supportsUndo(self):
         return 1
-    
+
     def supportsVersions(self):
         return 1
 
@@ -876,7 +876,7 @@ class FileStorage(BaseStorage.BaseStorage,
             self._nextpos = self._pos + (tl + 8)
         finally:
             self._lock_release()
- 
+
     def _finish(self, tid, u, d, e):
         nextpos=self._nextpos
         if nextpos:
@@ -884,7 +884,7 @@ class FileStorage(BaseStorage.BaseStorage,
 
             # Clear the checkpoint flag
             file.seek(self._pos+16)
-            file.write(self._tstatus)        
+            file.write(self._tstatus)
             file.flush()
 
             if fsync is not None: fsync(file.fileno())
@@ -920,7 +920,7 @@ class FileStorage(BaseStorage.BaseStorage,
             unpack=struct.unpack
             seek(tpos)
             h=read(TRANS_HDR_LEN)
-            if len(h) != TRANS_HDR_LEN or h[:8] != tid: 
+            if len(h) != TRANS_HDR_LEN or h[:8] != tid:
                 raise UndoError('Invalid undo transaction id')
             if h[16] == 'u': return
             if h[16] != ' ': raise UndoError
@@ -947,7 +947,7 @@ class FileStorage(BaseStorage.BaseStorage,
             file.write('u')
             file.flush()
             self._index.update(t)
-            return t.keys()            
+            return t.keys()
         finally: self._lock_release()
 
     def supportsTransactionalUndo(self):
@@ -984,7 +984,7 @@ class FileStorage(BaseStorage.BaseStorage,
         if tpos: file.seek(tpos) # Restore temp file to end
 
         return serial, pos, data, version
-        
+
     def _getVersion(self, oid, pos):
         self._file.seek(pos)
         read=self._file.read
@@ -995,7 +995,7 @@ class FileStorage(BaseStorage.BaseStorage,
             return read(vlen), h[:8]
         else:
             return '',''
-        
+
     def _getSerial(self, oid, pos):
         self._file.seek(pos+8)
         return self._file.read(8)
@@ -1008,9 +1008,9 @@ class FileStorage(BaseStorage.BaseStorage,
         position.  If the pickle is true, then the data pointer must
         be 0, but the pickle can be empty *and* the pointer 0.
         """
-        
+
         copy=1 # Can we just copy a data pointer
-        tpos=self._tindex.get(oid, 0)        
+        tpos=self._tindex.get(oid, 0)
         ipos=self._index.get(oid, 0)
         tipos=tpos or ipos
         if tipos != pos:
@@ -1055,7 +1055,7 @@ class FileStorage(BaseStorage.BaseStorage,
         except KeyError:
             # couldn't find oid; what's the real explanation for this?
             raise UndoError("_loadBack() failed for %s" % repr(oid))
-        data=self.tryToResolveConflict(oid, cserial, serial, bdata, cdata)  
+        data=self.tryToResolveConflict(oid, cserial, serial, bdata, cdata)
 
         if data:
             return data, 0, version, snv, ipos
@@ -1129,7 +1129,7 @@ class FileStorage(BaseStorage.BaseStorage,
             raise POSException.ReadOnlyError()
         if transaction is not self._transaction:
             raise POSException.StorageTransactionError(self, transaction)
-        
+
         self._lock_acquire()
         try:
             return self._txn_undo(transaction_id)
@@ -1143,7 +1143,7 @@ class FileStorage(BaseStorage.BaseStorage,
         tpos = self._txn_find(tid)
         tindex = self._txn_undo_write(tpos, tid)
         self._tindex.update(tindex)
-        return tindex.keys()            
+        return tindex.keys()
 
     def _txn_find(self, tid):
         pos = self._pos
@@ -1187,7 +1187,7 @@ class FileStorage(BaseStorage.BaseStorage,
             oid, serial, sprev, stloc, vlen, splen = \
                  struct.unpack(">8s8s8s8sH8s", h)
             if failed(oid):
-                del failures[oid] # second chance! 
+                del failures[oid] # second chance!
             plen = U64(splen)
             prev = U64(sprev)
             if vlen:
@@ -1205,7 +1205,7 @@ class FileStorage(BaseStorage.BaseStorage,
                 # Don't fail right away. We may be redeemed later!
                 failures[oid] = v
             else:
-                plen = len(p)                
+                plen = len(p)
                 self._tfile.write(pack(">8s8s8s8sH8s",
                                        oid, self._serial, p64(ipos),
                                        ostloc, len(v), p64(plen)))
@@ -1232,7 +1232,7 @@ class FileStorage(BaseStorage.BaseStorage,
             raise UndoError(failures)
 
         return tindex
-        
+
 
     def versionEmpty(self, version):
         if not version:
@@ -1345,10 +1345,10 @@ class FileStorage(BaseStorage.BaseStorage,
 
     def pack(self, t, referencesf):
         """Copy data from the current database file to a packed file
-    
+
         Non-current records from transactions with time-stamp strings less
         than packtss are ommitted. As are all undone records.
-    
+
         Also, data back pointers that point before packtss are resolved and
         the associated data are copied, since the old records are not copied.
         """
@@ -1356,7 +1356,7 @@ class FileStorage(BaseStorage.BaseStorage,
         if self._is_read_only:
             raise POSException.ReadOnlyError()
         # Ugh, this seems long
-        
+
         packing=1 # are we in the packing phase (or the copy phase)
         locked=0
         _lock_acquire=self._lock_acquire
@@ -1395,7 +1395,7 @@ class FileStorage(BaseStorage.BaseStorage,
                 raise FileStorageError, (
                     'The database has already been packed to a later time\n'
                     'or no changes have been made since the last pack')
-    
+
             rootl=[z64]
             pop=rootl.pop
             pindex=fsIndex()
@@ -1412,35 +1412,35 @@ class FileStorage(BaseStorage.BaseStorage,
                     if nv:
                         p, serial = _load(oid, '', index, file)
                         referencesf(p, rootl)
-    
+
                     pindex[oid]=index[oid]
                 except:
                     pindex[oid]=0
                     error('Bad reference to %s', `(oid,v)`)
-    
+
             spackpos=p64(packpos)
-    
+
             ##################################################################
             # Step 2, copy data and compute new index based on new positions.
             index, vindex, tindex, tvindex = self._newIndexes()
-    
+
             ofile=open(name+'.pack', 'w+b')
-    
+
             # Index for non-version data.  This is a temporary structure
             # to reduce I/O during packing
             nvindex=fsIndex()
-    
+
             # Cache a bunch of methods
             seek=file.seek
             read=file.read
             oseek=ofile.seek
             write=ofile.write
-    
+
             index_get=index.get
             vindex_get=vindex.get
             pindex_get=pindex.get
-    
-            # Initialize, 
+
+            # Initialize,
             pv=z64
             offset=0L  # the amount of space freed by packing
             pos=opos=4L
@@ -1470,7 +1470,7 @@ class FileStorage(BaseStorage.BaseStorage,
                         file.close()
                         os.remove(name+'.pack')
                         return
-                    
+
                     packing=0
                     _commit_lock_acquire()
                     _lock_acquire()
@@ -1499,7 +1499,7 @@ class FileStorage(BaseStorage.BaseStorage,
                         tl=tl+8
                         write(read(tl-TRANS_HDR_LEN))
                         opos=opos+tl
-                        
+
                     # Undone transaction, skip it
                     pos=tend+8
                     continue
@@ -1546,13 +1546,13 @@ class FileStorage(BaseStorage.BaseStorage,
                         if packing:
                             ppos=pindex_get(oid, 0)
                             if ppos != pos:
-                                
+
                                 if not ppos:
                                     # This object is no longer referenced
                                     # so skip it.
                                     pos=pos+dlen
                                     continue
-                                
+
                                 # This is not the most current record
                                 # But maybe it's the most current committed
                                 # record.
@@ -1584,7 +1584,7 @@ class FileStorage(BaseStorage.BaseStorage,
                             nvindex[oid]=opos
 
                     tindex[oid]=opos
-                    
+
                     opos=opos+dlen
                     pos=pos+dlen
 
@@ -1626,7 +1626,7 @@ class FileStorage(BaseStorage.BaseStorage,
                                 # Just adjust for the offset
                                 p=p-offset
                             p=p64(p)
-                            
+
                     sprev=p64(index_get(oid, 0))
                     write(pack(">8s8s8s8sH8s",
                                oid,serial,sprev,p64(otpos),vlen,splen))
@@ -1642,7 +1642,7 @@ class FileStorage(BaseStorage.BaseStorage,
                                 # we just need to adjust the pointer
                                 # with the offset
                                 pnv=pnv-offset
-                                
+
                             write(p64(pnv))
                         write(pv)
                         write(version)
@@ -1772,7 +1772,7 @@ def shift_transactions_forward(index, vindex, tindex, file, pos, opos):
     index_get=index.get
     vindex_get=vindex.get
 
-    # Initialize, 
+    # Initialize,
     pv=z64
     p1=opos
     p2=pos
@@ -1795,7 +1795,7 @@ def shift_transactions_forward(index, vindex, tindex, file, pos, opos):
         h=read(TRANS_HDR_LEN)
         if len(h) < TRANS_HDR_LEN: break
         tid, stl, status, ul, dl, el = unpack(">8s8scHHH",h)
-        if status=='c': break # Oops. we found a checkpoint flag.            
+        if status=='c': break # Oops. we found a checkpoint flag.
         tl=U64(stl)
         tpos=pos
         tend=tpos+tl
@@ -1856,13 +1856,13 @@ def shift_transactions_forward(index, vindex, tindex, file, pos, opos):
                     if pnv >= p2: pnv=pnv-offset
                     elif pnv >= p1:
                         pnv=index_get(oid, 0)
-                        
+
                     write(p64(pnv))
                 write(pv)
                 write(version)
 
             write(p)
-            
+
             opos=opos+dlen
             pos=pos+dlen
 
@@ -1897,7 +1897,7 @@ def recover(file_name):
     index={}
     vindex={}
     tindex={}
-    
+
     pos, oid, tid = read_index(
         file, file_name, index, vindex, tindex, recover=1)
     if oid is not None:
@@ -1916,7 +1916,7 @@ def recover(file_name):
     print "Recovered file, lost %s, ended up with %s bytes" % (
         pos-opos, npos)
 
-    
+
 
 def read_index(file, name, index, vindex, tindex, stop='\377'*8,
                ltid=z64, start=4L, maxoid=z64, recover=0, read_only=0):
@@ -1939,9 +1939,9 @@ def read_index(file, name, index, vindex, tindex, stop='\377'*8,
     The file position returned is the position just after the last
     valid transaction record.  The oid returned is the maximum object
     id in the data.  The transaction id is the tid of the last
-    transaction. 
+    transaction.
     """
-    
+
     read = file.read
     seek = file.seek
     seek(0, 2)
@@ -2023,7 +2023,7 @@ def read_index(file, name, index, vindex, tindex, stop='\377'*8,
 
         tpos=pos
         tend=tpos+tl
-        
+
         if status=='u':
             # Undone transaction, skip it
             seek(tend)
@@ -2045,10 +2045,10 @@ def read_index(file, name, index, vindex, tindex, stop='\377'*8,
             prev=U64(sprev)
             tloc=U64(stloc)
             plen=U64(splen)
-            
+
             dlen=DATA_HDR_LEN+(plen or 8)
             tindex[oid]=pos
-            
+
             if vlen:
                 dlen=dlen+(16+vlen)
                 seek(8,1)
@@ -2064,7 +2064,7 @@ def read_index(file, name, index, vindex, tindex, stop='\377'*8,
                 if recover: return tpos, None, None
                 panic("%s data record exceeds transaction record at %s",
                       name, pos)
-                
+
             if index_get(oid, 0) != prev:
                 if prev:
                     if recover: return tpos, None, None
@@ -2099,7 +2099,7 @@ def read_index(file, name, index, vindex, tindex, stop='\377'*8,
 def _loadBack(file, oid, back):
 ##    seek=file.seek
 ##    read=file.read
-    
+
     while 1:
         old = U64(back)
         if not old:
@@ -2119,7 +2119,7 @@ def _loadBackPOS(file, oid, back):
     the record at the given position (back)."""
     seek=file.seek
     read=file.read
-    
+
     while 1:
         old=U64(back)
         if not old:
@@ -2152,7 +2152,7 @@ def _truncate(file, name, pos):
         error("couldn\'t write truncated data for %s", name)
         raise POSException.StorageSystemError, (
             "Couldn't save truncated data")
-            
+
     seek(pos)
     file.truncate()
 
@@ -2177,7 +2177,7 @@ class FileIterator(Iterator):
     """
     _ltid = z64
     _file = None
-    
+
     def __init__(self, file, start=None, stop=None):
         if isinstance(file, StringType):
             file = open(file, 'rb')
@@ -2201,7 +2201,7 @@ class FileIterator(Iterator):
 
     def _skip_to_start(self, start):
         # Scan through the transaction records doing almost no sanity
-        # checks. 
+        # checks.
         while 1:
             self._file.seek(self._pos)
             h = self._file.read(16)
@@ -2335,7 +2335,7 @@ class FileIterator(Iterator):
             return result
 
         raise IndexError, index
-    
+
 class RecordIterator(Iterator, BaseStorage.TransactionRecord):
     """Iterate over the transactions in a FileStorage file.
     """
@@ -2391,11 +2391,11 @@ class RecordIterator(Iterator, BaseStorage.TransactionRecord):
                     p = None
                 else:
                     p = _loadBack(file, oid, p)[0]
-                
+
             r = Record(oid, serial, version, p)
-            
+
             return r
-        
+
         raise IndexError, index
 
 class Record(BaseStorage.DataRecord):

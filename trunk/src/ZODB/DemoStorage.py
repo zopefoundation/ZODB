@@ -2,14 +2,14 @@
 #
 # Copyright (c) 2001, 2002 Zope Corporation and Contributors.
 # All Rights Reserved.
-# 
+#
 # This software is subject to the provisions of the Zope Public License,
 # Version 2.0 (ZPL).  A copy of the ZPL should accompany this distribution.
 # THIS SOFTWARE IS PROVIDED "AS IS" AND ANY AND ALL EXPRESS OR IMPLIED
 # WARRANTIES ARE DISCLAIMED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 # WARRANTIES OF TITLE, MERCHANTABILITY, AGAINST INFRINGEMENT, AND FITNESS
 # FOR A PARTICULAR PURPOSE
-# 
+#
 ##############################################################################
 """Demo ZODB storage
 
@@ -45,7 +45,7 @@ There are three main data structures:
 
 A record is a tuple:
 
-  oid, serial, pre, vdata, p, 
+  oid, serial, pre, vdata, p,
 
 where:
 
@@ -79,7 +79,7 @@ method::
 and call it to monitor the storage.
 
 """
-__version__='$Revision: 1.11 $'[11:-2]
+__version__='$Revision: 1.12 $'[11:-2]
 
 import base64, time, string
 from ZODB import POSException, BaseStorage, utils
@@ -109,7 +109,7 @@ class DemoStorage(BaseStorage.BaseStorage):
     def __len__(self):
         base=self._base
         return (base and len(base) or 0) + len(self._index)
-        
+
     def getSize(self):
         s=100
         for tid, (p, u, d, e, t) in self._data.items():
@@ -131,12 +131,12 @@ class DemoStorage(BaseStorage.BaseStorage):
             raise POSException.StorageTransactionError(self, transaction)
         if not src:
             raise POSException.VersionCommitError("Invalid version")
-        
+
         self._lock_acquire()
         try:
             v=self._vindex.get(src, None)
             if not v: return
-            
+
             tindex=self._tindex
             oids=[]
             for r in v.values():
@@ -147,16 +147,16 @@ class DemoStorage(BaseStorage.BaseStorage):
                     tindex.append([oid, serial, r, None, p])
                 else:
                     # effectively, delete the thing
-                    tindex.append([oid, None, r, None, None]) 
+                    tindex.append([oid, None, r, None, None])
 
             return oids
 
         finally: self._lock_release()
-        
+
     def commitVersion(self, src, dest, transaction):
         if transaction is not self._transaction:
             raise POSException.StorageTransactionError(self, transaction)
-        
+
         if not src:
             raise POSException.VersionCommitError("Invalid source version")
         if src == dest:
@@ -167,7 +167,7 @@ class DemoStorage(BaseStorage.BaseStorage):
         try:
             v=self._vindex.get(src, None)
             if v is None: return
-            
+
             tindex=self._tindex
             oids=[]
             for r in v.values():
@@ -179,7 +179,7 @@ class DemoStorage(BaseStorage.BaseStorage):
                 else:
                     new_vdata = None
                 tindex.append([oid, serial, r, new_vdata, p])
-                
+
 
             return oids
 
@@ -205,10 +205,10 @@ class DemoStorage(BaseStorage.BaseStorage):
 
             if p is None:
                 raise KeyError, oid
-            
+
             return p, serial
         finally: self._lock_release()
-                    
+
     def modifiedInVersion(self, oid):
         self._lock_acquire()
         try:
@@ -232,22 +232,22 @@ class DemoStorage(BaseStorage.BaseStorage):
                 except: pass
                 else:
                     old= oid, oserial, None, None, p
-            
+
             nv=None
             if old:
                 oid, oserial, pre, vdata, p = old
-                
+
                 if vdata:
                     if vdata[0] != version:
                         raise POSException.VersionLockError, oid
-                    
+
                     nv=vdata[1]
                 else:
                     nv=old
 
                 if serial != oserial:
                     raise POSException.ConflictError(serials=(oserial, serial))
-                
+
             serial=self._serial
             r=[oid, serial, old, version and (version, nv) or None, data]
             self._tindex.append(r)
@@ -274,7 +274,7 @@ class DemoStorage(BaseStorage.BaseStorage):
 
     def _begin(self, tid, u, d, e):
         self._tsize=self._size+120+len(u)+len(d)+len(e)
-    
+
     def _finish(self, tid, user, desc, ext):
 
         index=self._index
@@ -293,9 +293,9 @@ class DemoStorage(BaseStorage.BaseStorage):
                     v=vindex[oldvdata[0]]
                     del v[oid]
                     if not v: del vindex[oldvdata[0]]
-                        
+
             index[oid]=r
-            
+
             if vdata:
                 version=vdata[0]
                 v=vindex.get(version, None)
@@ -321,7 +321,7 @@ class DemoStorage(BaseStorage.BaseStorage):
             for r in t:
                 oid, serial, pre, vdata, p = r
                 if pre:
-                    
+
                     index[oid] = pre
                     oids.append(oid)
 
@@ -338,7 +338,7 @@ class DemoStorage(BaseStorage.BaseStorage):
                         v=vindex.get(version, None)
                         if v is None: v=vindex[version]={}
                         v[oid]=pre
-                        
+
                 else:
                     del index[oid]
                     if vdata:
@@ -413,7 +413,7 @@ class DemoStorage(BaseStorage.BaseStorage):
                         v=vindex[oldvdata[0]]
                         del v[oid]
                         if not v: del vindex[oldvdata[0]]
-                        
+
                 index[oid]=r
 
                 if vdata:
@@ -428,16 +428,16 @@ class DemoStorage(BaseStorage.BaseStorage):
         # Packing is hard, at least when undo is supported.
         # Even for a simple storage like this one, packing
         # is pretty complex.
-        
+
         self._lock_acquire()
         try:
 
             stop=`apply(TimeStamp, time.gmtime(t)[:5]+(t%60,))`
             _data=self._data
-    
+
             # Build indexes up to the pack time:
             index, vindex = self._build_indexes(stop)
-    
+
             # Now build an index of *only* those objects reachable
             # from the root.
             rootl=['\0\0\0\0\0\0\0\0']
@@ -447,7 +447,7 @@ class DemoStorage(BaseStorage.BaseStorage):
             while rootl:
                 oid=pop()
                 if referenced(oid): continue
-    
+
                 # Scan non-version pickle for references
                 r=index.get(oid, None)
                 if r is None:
@@ -463,7 +463,7 @@ class DemoStorage(BaseStorage.BaseStorage):
                         if nv:
                             oid, serial, pre, vdata, p = nv
                             referencesf(p, rootl)
-                
+
             # Now we're ready to do the actual packing.
             # We'll simply edit the transaction data in place.
             # We'll defer deleting transactions till the end
@@ -484,7 +484,7 @@ class DemoStorage(BaseStorage.BaseStorage):
                         if vdata:
                             # Version record are current *only* if they
                             # are indexed
-                            continue 
+                            continue
                         else:
                             # OK, this isn't a version record, so it may be the
                             # non-version record for the indexed record.
@@ -500,16 +500,16 @@ class DemoStorage(BaseStorage.BaseStorage):
                                 # record for it.
                                 continue
                     o.append(r)
-                    
+
                 if o:
                     if len(o) != len(t):
                         _data[tid]=1, u, d, e, tuple(o) # Reset data
                 else:
                     deleted.append(tid)
-    
+
             # Now delete empty transactions
             for tid in deleted: del _data[tid]
-    
+
             # Now reset previous pointers for "current" records:
             for r in pindex.values():
                 r[2]=None # Previous record
@@ -517,7 +517,7 @@ class DemoStorage(BaseStorage.BaseStorage):
                     r[3][1][2]=None
 
             pindex=None
-    
+
             # Finally, rebuild indexes from transaction data:
             self._index, self._vindex = self._build_indexes()
 
@@ -559,6 +559,6 @@ class DemoStorage(BaseStorage.BaseStorage):
             for oid, r in vitems:
                 if r: r=id(r)
                 o.append('    %s: %s' % (utils.u64(oid), r))
-                
-        
+
+
         return string.join(o,'\n')

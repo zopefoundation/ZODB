@@ -2,19 +2,19 @@
 #
 # Copyright (c) 2001, 2002 Zope Corporation and Contributors.
 # All Rights Reserved.
-# 
+#
 # This software is subject to the provisions of the Zope Public License,
 # Version 2.0 (ZPL).  A copy of the ZPL should accompany this distribution.
 # THIS SOFTWARE IS PROVIDED "AS IS" AND ANY AND ALL EXPRESS OR IMPLIED
 # WARRANTIES ARE DISCLAIMED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 # WARRANTIES OF TITLE, MERCHANTABILITY, AGAINST INFRINGEMENT, AND FITNESS
 # FOR A PARTICULAR PURPOSE
-# 
+#
 ##############################################################################
 """Transaction management
 
-$Id: Transaction.py,v 1.36 2002/04/12 19:59:55 jeremy Exp $"""
-__version__='$Revision: 1.36 $'[11:-2]
+$Id: Transaction.py,v 1.37 2002/08/14 22:07:09 mj Exp $"""
+__version__='$Revision: 1.37 $'[11:-2]
 
 import time, sys, struct, POSException
 from struct import pack
@@ -39,7 +39,7 @@ class Transaction:
     # commits and aborts to ensure that they are correctly committed
     # or aborted in the "outside" transaction.
     _non_st_objects=None
-    
+
     def __init__(self, id=None):
         self._id=id
         self._objects=[]
@@ -60,7 +60,7 @@ class Transaction:
         r.description=self.description
         r._extension=self._extension
         return r
-        
+
     def __str__(self):
         if self._id is None:
             return "Transaction user=%s" % `self.user`
@@ -117,7 +117,7 @@ class Transaction:
             while subjars:
                 j = subjars.pop()
                 j.abort_sub(self) # This should never fail
-        
+
             if t is not None:
                 raise t, v, tb
 
@@ -207,7 +207,7 @@ class Transaction:
                             vote(self) # last chance to bail
 
                 # Try to finish one jar, since we may be able to
-                # recover if the first one fails.  
+                # recover if the first one fails.
                 self._finish_one(jarsv)
                 # Once a single jar has finished, it's a fatal (hosed)
                 # error if another jar fails.
@@ -234,7 +234,7 @@ class Transaction:
                 i = id(j)
                 if not jars.has_key(i):
                     jars[i] = j
-                    
+
                     if subtransaction:
                         # If a jar does not support subtransactions,
                         # we need to save it away to be committed in
@@ -285,7 +285,7 @@ class Transaction:
             while jarsv:
                 jarsv[-1].tpc_finish(self) # This should never fail
                 jarsv.pop() # It didn't, so it's taken care of.
-        except:                        
+        except:
             # Bug if it does, we need to yell FIRE!
             # Someone finished, so don't allow any more
             # work without at least a restart!
@@ -298,12 +298,12 @@ class Transaction:
                 "until the site/storage is reset by a restart. ",
                 error=sys.exc_info())
             raise
-            
+
     def _commit_error(self, (t, v, tb),
                       objects, ncommitted, jarsv, subjars):
         # handle an exception raised during commit
         # takes sys.exc_info() as argument
-        
+
         # First, we have to abort any uncommitted objects.
         for o in objects[ncommitted:]:
             try:
@@ -317,11 +317,11 @@ class Transaction:
         for j in jarsv:
             try:
                 j.tpc_abort(self) # This should never fail
-            except:     
+            except:
                 LOG('ZODB', ERROR,
                     "A storage error occured during object abort. This "
                     "shouldn't happen. ", error=sys.exc_info())
-                
+
         # Ugh, we need to abort work done in sub-transactions.
         while subjars:
             j = subjars.pop()
@@ -342,9 +342,9 @@ class Transaction:
     def note(self, text):
         if self.description:
             self.description = "%s\n\n%s" % (self.description, strip(text))
-        else: 
+        else:
             self.description = strip(text)
-    
+
     def setUser(self, user_name, path='/'):
         self.user="%s %s" % (path, user_name)
 
@@ -366,7 +366,7 @@ the application may not come up until you deal with
 the system problem.  See your application log for
 information on the error that lead to this problem.
 """
-          
+
 
 
 ############################################################################
@@ -377,16 +377,16 @@ try:
 
 except:
     _t = Transaction(None)
-    
+
     def get_transaction(_t=_t):
         return _t
-    
+
     def free_transaction(_t=_t):
         _t.__init__()
 
 else:
     _t = {}
-    
+
     def get_transaction(_id=thread.get_ident, _t=_t, get=_t.get):
         id = _id()
         t = get(id, None)
@@ -405,6 +405,5 @@ else:
 
 del _t
 
-import __main__ 
+import __main__
 __main__.__builtins__.get_transaction=get_transaction
-    

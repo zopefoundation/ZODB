@@ -2,14 +2,14 @@
 #
 # Copyright (c) 2001, 2002 Zope Corporation and Contributors.
 # All Rights Reserved.
-# 
+#
 # This software is subject to the provisions of the Zope Public License,
 # Version 2.0 (ZPL).  A copy of the ZPL should accompany this distribution.
 # THIS SOFTWARE IS PROVIDED "AS IS" AND ANY AND ALL EXPRESS OR IMPLIED
 # WARRANTIES ARE DISCLAIMED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 # WARRANTIES OF TITLE, MERCHANTABILITY, AGAINST INFRINGEMENT, AND FITNESS
 # FOR A PARTICULAR PURPOSE
-# 
+#
 ##############################################################################
 """Very Simple Mapping ZODB storage
 
@@ -53,7 +53,7 @@ There are three main data structures:
 
 A record is a tuple:
 
-  oid, serial, pre, vdata, p, 
+  oid, serial, pre, vdata, p,
 
 where:
 
@@ -87,7 +87,7 @@ method::
 and call it to minotor the storage.
 
 """
-__version__='$Revision: 1.6 $'[11:-2]
+__version__='$Revision: 1.7 $'[11:-2]
 
 import POSException, BaseStorage, string, utils
 from TimeStamp import TimeStamp
@@ -108,14 +108,14 @@ class MappingStorage(BaseStorage.BaseStorage):
 
     def __len__(self):
         return len(self._index)
-        
+
     def getSize(self):
         s=32
         index=self._index
         for oid in index.keys():
             p=index[oid]
             s=s+56+len(p)
-            
+
         return s
 
     def load(self, oid, version):
@@ -139,7 +139,7 @@ class MappingStorage(BaseStorage.BaseStorage):
                 oserial=old[:8]
                 if serial != oserial:
                     raise POSException.ConflictError(serials=(oserial, serial))
-                
+
             serial=self._serial
             self._tindex.append((oid,serial+data))
         finally: self._lock_release()
@@ -155,9 +155,9 @@ class MappingStorage(BaseStorage.BaseStorage):
         for oid, p in self._tindex: index[oid]=p
 
     def pack(self, t, referencesf):
-        
+
         self._lock_acquire()
-        try:    
+        try:
             # Build an index of *only* those objects reachable
             # from the root.
             index=self._index
@@ -168,7 +168,7 @@ class MappingStorage(BaseStorage.BaseStorage):
             while rootl:
                 oid=pop()
                 if referenced(oid): continue
-    
+
                 # Scan non-version pickle for references
                 r=index[oid]
                 pindex[oid]=r
@@ -178,7 +178,7 @@ class MappingStorage(BaseStorage.BaseStorage):
             # Now delete any unreferenced entries:
             for oid in index.keys():
                 if not referenced(oid): del index[oid]
-    
+
         finally: self._lock_release()
 
     def _splat(self):
@@ -193,5 +193,5 @@ class MappingStorage(BaseStorage.BaseStorage):
             r=index[oid]
             o.append('  %s: %s, %s' %
                      (utils.u64(oid),TimeStamp(r[:8]),`r[8:]`))
-            
+
         return string.join(o,'\n')

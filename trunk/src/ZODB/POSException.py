@@ -2,19 +2,19 @@
 #
 # Copyright (c) 2001, 2002 Zope Corporation and Contributors.
 # All Rights Reserved.
-# 
+#
 # This software is subject to the provisions of the Zope Public License,
 # Version 2.0 (ZPL).  A copy of the ZPL should accompany this distribution.
 # THIS SOFTWARE IS PROVIDED "AS IS" AND ANY AND ALL EXPRESS OR IMPLIED
 # WARRANTIES ARE DISCLAIMED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 # WARRANTIES OF TITLE, MERCHANTABILITY, AGAINST INFRINGEMENT, AND FITNESS
 # FOR A PARTICULAR PURPOSE
-# 
+#
 ##############################################################################
 """BoboPOS-defined exceptions
 
-$Id: POSException.py,v 1.11 2002/02/11 23:40:42 gvanrossum Exp $"""
-__version__ = '$Revision: 1.11 $'.split()[-2:][0]
+$Id: POSException.py,v 1.12 2002/08/14 22:07:09 mj Exp $"""
+__version__ = '$Revision: 1.12 $'.split()[-2:][0]
 
 from string import join
 from types import StringType, DictType
@@ -193,7 +193,7 @@ class Unimplemented(POSError):
 class Unsupported(POSError):
     """An feature that is unsupported bt the storage was used.
     """
-    
+
 class InvalidObjectReference(POSError):
     """An object contains an invalid reference to another object.
 

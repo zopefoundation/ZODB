@@ -2,20 +2,20 @@
 #
 # Copyright (c) 2001, 2002 Zope Corporation and Contributors.
 # All Rights Reserved.
-# 
+#
 # This software is subject to the provisions of the Zope Public License,
 # Version 2.0 (ZPL).  A copy of the ZPL should accompany this distribution.
 # THIS SOFTWARE IS PROVIDED "AS IS" AND ANY AND ALL EXPRESS OR IMPLIED
 # WARRANTIES ARE DISCLAIMED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 # WARRANTIES OF TITLE, MERCHANTABILITY, AGAINST INFRINGEMENT, AND FITNESS
 # FOR A PARTICULAR PURPOSE
-# 
+#
 ##############################################################################
 """Thread abstraction module
 
 With this, we can run with or wothout threads.
 
-$Id: bpthread.py,v 1.4 2002/02/11 23:40:42 gvanrossum Exp $"""
+$Id: bpthread.py,v 1.5 2002/08/14 22:07:09 mj Exp $"""
 
 try:
     from thread import *

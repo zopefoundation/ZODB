@@ -2,14 +2,14 @@
 #
 # Copyright (c) 2001, 2002 Zope Corporation and Contributors.
 # All Rights Reserved.
-# 
+#
 # This software is subject to the provisions of the Zope Public License,
 # Version 2.0 (ZPL).  A copy of the ZPL should accompany this distribution.
 # THIS SOFTWARE IS PROVIDED "AS IS" AND ANY AND ALL EXPRESS OR IMPLIED
 # WARRANTIES ARE DISCLAIMED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 # WARRANTIES OF TITLE, MERCHANTABILITY, AGAINST INFRINGEMENT, AND FITNESS
 # FOR A PARTICULAR PURPOSE
-# 
+#
 ##############################################################################
 
 """Support for database export and import.
@@ -60,7 +60,7 @@ class ExportImport:
             file=open(file,'rb')
         else:
             try: file_name=file.name
-            except: file_name='(unknown)'    
+            except: file_name='(unknown)'
         read=file.read
 
         magic=read(4)
@@ -100,7 +100,7 @@ class ExportImport:
                             atoi=string.atoi, TupleType=type(()),
                             oids=oids, wrote_oid=oids.has_key,
                             new_oid=storage.new_oid):
-        
+
             "Remap a persistent id to a new ID and create a ghost for it."
 
             if type(ooid) is TupleType: ooid, klass = ooid
@@ -168,4 +168,3 @@ class Ghost: pass
 def persistent_id(object, Ghost=Ghost):
     if getattr(object, '__class__', None) is Ghost:
         return object.oid
-

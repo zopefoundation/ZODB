@@ -72,7 +72,7 @@ class ExportImportTests:
 
     def checkDuplicateAborted(self):
         self.checkDuplicate(abort_it=1, dup_name='test_duplicate_aborted')
-    
+
 
 class ZODBTests(unittest.TestCase, ExportImportTests):
 
@@ -103,14 +103,14 @@ def main():
     runner.run(alltests)
 
 def debug():
-   test_suite().debug()
+    test_suite().debug()
 
 def pdebug():
     import pdb
     pdb.run('debug()')
 
 if __name__=='__main__':
-   if len(sys.argv) > 1:
-      globals()[sys.argv[1]]()
-   else:
-      main()
+    if len(sys.argv) > 1:
+        globals()[sys.argv[1]]()
+    else:
+        main()

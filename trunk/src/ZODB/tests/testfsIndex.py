@@ -1,4 +1,3 @@
-
 import unittest, sys
 from ZODB.fsIndex import fsIndex
 from ZODB.utils import p64
@@ -14,7 +13,7 @@ class Test(unittest.TestCase):
 
         for i in range(0,200):
             self.assertEqual((i,index[p64(i*1000)]), (i,(i*1000L+1)))
-            
+
         self.assertEqual(len(index), 200)
 
         key=p64(2000)
@@ -38,12 +37,12 @@ class Test(unittest.TestCase):
 
         for i in range(400,600):
             d[p64(i*1000)]=(i*1000L+1)
-        
+
         index.update(d)
 
         for i in range(100, 500):
             d[p64(i*1000)]=(i*1000L+2)
-            
+
         index.update(d)
 
         self.assertEqual(index.get(p64(2000)), 2001)

@@ -2,18 +2,18 @@
 #
 # Copyright (c) 2001, 2002 Zope Corporation and Contributors.
 # All Rights Reserved.
-# 
+#
 # This software is subject to the provisions of the Zope Public License,
 # Version 2.0 (ZPL).  A copy of the ZPL should accompany this distribution.
 # THIS SOFTWARE IS PROVIDED "AS IS" AND ANY AND ALL EXPRESS OR IMPLIED
 # WARRANTIES ARE DISCLAIMED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 # WARRANTIES OF TITLE, MERCHANTABILITY, AGAINST INFRINGEMENT, AND FITNESS
 # FOR A PARTICULAR PURPOSE
-# 
+#
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.71 2002/06/14 20:25:06 jeremy Exp $"""
+$Id: Connection.py,v 1.72 2002/08/14 22:07:09 mj Exp $"""
 
 from cPickleCache import PickleCache, MUCH_RING_CHECKING
 from POSException import ConflictError, ReadConflictError
@@ -116,7 +116,7 @@ class Connection(ExportImport.ExportImport):
     def __getitem__(self, oid, tt=type(())):
         obj = self._cache.get(oid, None)
         if obj is not None:
-          return obj
+            return obj
 
         __traceback_info__ = (oid)
         p, serial = self._storage.load(oid, self._version)
@@ -136,7 +136,7 @@ class Connection(ExportImport.ExportImport):
         if type(klass) is tt:
             module, name = klass
             klass=self._db._classFactory(self, module, name)
-        
+
         if (args is None or
             not args and not hasattr(klass,'__getinitargs__')):
             object=klass.__basicnew__()
@@ -152,7 +152,7 @@ class Connection(ExportImport.ExportImport):
 
         self._cache[oid] = object
         if oid=='\0\0\0\0\0\0\0\0':
-          self._root_=object # keep a ref
+            self._root_=object # keep a ref
         return object
 
     def _persistent_load(self,oid,
@@ -176,12 +176,12 @@ class Connection(ExportImport.ExportImport):
                     # Maybe their's more current data in the
                     # object's actual record!
                     return self[oid]
-            
+
             object=klass.__basicnew__()
             object._p_oid=oid
             object._p_jar=self
             object._p_changed=None
-            
+
             self._cache[oid] = object
 
             return object
@@ -230,13 +230,13 @@ class Connection(ExportImport.ExportImport):
 
     def cacheFullSweep(self, dt=0):
         self._cache.full_sweep(dt)
-        
+
     def cacheMinimize(self, dt=0):
         # dt is ignored
         self._cache.minimize()
 
     __onCloseCallbacks = None
-    
+
     def onCloseCallback(self, f):
         if self.__onCloseCallbacks is None:
             self.__onCloseCallbacks = []
@@ -259,9 +259,9 @@ class Connection(ExportImport.ExportImport):
         self._debug_info=()
         # Return the connection to the pool.
         db._closeConnection(self)
-                        
+
     __onCommitActions = None
-    
+
     def onCommitAction(self, method_name, *args, **kw):
         if self.__onCommitActions is None:
             self.__onCommitActions = []
@@ -307,26 +307,26 @@ class Connection(ExportImport.ExportImport):
         #                   stackup=stackup, new_oid=self.new_oid):
         #     if (not hasattr(object, '_p_oid') or
         #         type(object) is ClassType): return None
-        # 
+        #
         #     oid=object._p_oid
-        # 
+        #
         #     if oid is None or object._p_jar is not self:
         #         oid = self.new_oid()
         #         object._p_jar=self
         #         object._p_oid=oid
         #         stackup(object)
-        # 
+        #
         #     klass=object.__class__
-        # 
+        #
         #     if klass is ExtensionKlass: return oid
-        #     
+        #
         #     if hasattr(klass, '__getinitargs__'): return oid
-        # 
+        #
         #     module=getattr(klass,'__module__','')
         #     if module: klass=module, klass.__name__
-        #     
+        #
         #     return oid, klass
-        
+
         file=StringIO()
         seek=file.seek
         pickler=Pickler(file,1)
@@ -340,7 +340,7 @@ class Connection(ExportImport.ExportImport):
 
 
         version=self._version
-        
+
         while stack:
             object=stack[-1]
             del stack[-1]
@@ -359,9 +359,9 @@ class Connection(ExportImport.ExportImport):
                     ):
                     raise ConflictError(object=object)
                 self._invalidating.append(oid)
-                
+
             klass = object.__class__
-        
+
             if klass is ExtensionKlass:
                 # Yee Ha!
                 dict={}
@@ -375,12 +375,12 @@ class Connection(ExportImport.ExportImport):
                     len(args) # XXX Assert it's a sequence
                 else:
                     args = None # New no-constructor protocol!
-        
+
                 module=getattr(klass,'__module__','')
                 if module: klass=module, klass.__name__
                 __traceback_info__=klass, oid, self._version
                 state=object.__getstate__()
-        
+
             seek(0)
             clear_memo()
             dump((klass,args))
@@ -409,12 +409,12 @@ class Connection(ExportImport.ExportImport):
 
         LOG('ZODB', BLATHER,
             'Commiting subtransaction of size %s' % src.getSize())
-        
+
         self._storage=tmp
         self._tmp=None
 
         tmp.tpc_begin(t)
-        
+
         load=src.load
         store=tmp.store
         dest=self._version
@@ -426,7 +426,7 @@ class Connection(ExportImport.ExportImport):
         invalidating[len(invalidating):]=oids
         creating=self._creating
         creating[len(creating):]=src._creating
-        
+
         for oid in oids:
             data, serial = load(oid, src)
             s=store(oid, serial, data, dest, t)
@@ -464,7 +464,7 @@ class Connection(ExportImport.ExportImport):
     def db(self): return self._db
 
     def getVersion(self): return self._version
-        
+
     def invalidate(self, oid):
         """Invalidate a particular oid
 
@@ -575,21 +575,21 @@ class Connection(ExportImport.ExportImport):
             file=StringIO(p)
             unpickler=Unpickler(file)
             unpickler.persistent_load=self._persistent_load
-    
+
             copy = unpickler.load()
-    
+
             klass, args = copy
-    
+
             if klass is not ExtensionKlass:
                 LOG('ZODB',ERROR,
                     "Unexpected klass when setting class state on %s"
                     % getattr(object,'__name__','(?)'))
                 return
-            
+
             copy=apply(klass,args)
             object.__dict__.clear()
             object.__dict__.update(copy.__dict__)
-    
+
             object._p_oid=oid
             object._p_jar=self
             object._p_changed=0
@@ -647,7 +647,7 @@ class Connection(ExportImport.ExportImport):
         # update the _p_changed flag, because the subtransaction
         # tpc_vote() calls already did this.  The change=1 argument
         # exists to allow commit_sub() to avoid setting the flag
-        # again. 
+        # again.
         if not store_return:
             return
         if isinstance(store_return, StringType):
@@ -712,7 +712,7 @@ class Connection(ExportImport.ExportImport):
 
     def getDebugInfo(self):
         return self._debug_info
-    
+
     def setDebugInfo(self, *args):
         self._debug_info = self._debug_info + args
 
@@ -737,9 +737,8 @@ class Connection(ExportImport.ExportImport):
         new._p_changed=1
         get_transaction().register(new)
         self._cache[oid]=new
-        
+
 class tConnection(Connection):
 
     def close(self):
         self._breakcr()
-

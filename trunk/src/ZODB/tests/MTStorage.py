@@ -173,7 +173,7 @@ class MTStorage:
             t.join(10)
         for t in threads:
             self.failIf(t.isAlive())
-    
+
     def check2ZODBThreads(self):
         db = ZODB.DB(self._storage)
         self._checkNThreads(2, ZODBClientThread, db, self)
@@ -184,10 +184,9 @@ class MTStorage:
 
     def check2StorageThreads(self):
         self._checkNThreads(2, StorageClientThread, self._storage, self)
-    
+
     def check7StorageThreads(self):
         self._checkNThreads(7, StorageClientThread, self._storage, self)
 
     def check4ExtStorageThread(self):
         self._checkNThreads(4, ExtStorageClientThread, self._storage, self)
-        

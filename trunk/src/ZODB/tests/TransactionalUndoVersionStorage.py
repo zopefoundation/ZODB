@@ -11,7 +11,7 @@ from ZODB.Transaction import Transaction
 from ZODB.tests.MinPO import MinPO
 from ZODB.tests.StorageTestBase import zodb_unpickle
 
-
+
 class TransactionalUndoVersionStorage:
 
     def _x_dostore(self, *args, **kwargs):
@@ -28,7 +28,7 @@ class TransactionalUndoVersionStorage:
             except KeyError:
                 pass # not expected
         return self._dostore(*args, **kwargs)
-    
+
     def checkUndoInVersion(self):
         oid = self._storage.new_oid()
         version = 'one'
@@ -129,7 +129,7 @@ class TransactionalUndoVersionStorage:
             revid = self._x_dostore(oid, revid, description='packable%d' % i)
         pt = time.time()
         time.sleep(1)
-        
+
         oid1 = self._storage.new_oid()
         version = 'version'
         revid1 = self._x_dostore(oid1, data=MinPO(0), description='create1')
@@ -176,7 +176,7 @@ class TransactionalUndoVersionStorage:
             revid = self._x_dostore(oid, revid, description='packable%d' % i)
         pt = time.time()
         time.sleep(1)
-        
+
         oid1 = self._storage.new_oid()
         version = 'version'
         revid1 = self._x_dostore(oid1, data=MinPO(0), description='create1')
@@ -227,4 +227,3 @@ class TransactionalUndoVersionStorage:
         self.assertEqual(load_value(oid1), 0)
         # after abort, we should see non-version data
         self.assertEqual(load_value(oid1, version), 0)
-

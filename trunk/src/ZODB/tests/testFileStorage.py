@@ -124,7 +124,7 @@ class FileStorageRecoveryTest(
             self.assertRaises(IndexError, lambda i:trans[i], 1)
             self.assertEqual(data.oid, oid)
             self.assertEqual(data.data, None)
-                
+
 
 def test_suite():
     suite = unittest.makeSuite(FileStorageTests, 'check')
@@ -140,14 +140,14 @@ def main():
     runner.run(alltests)
 
 def debug():
-   test_suite().debug()
+    test_suite().debug()
 
 def pdebug():
     import pdb
     pdb.run('debug()')
 
 if __name__=='__main__':
-   if len(sys.argv) > 1:
-      globals()[sys.argv[1]]()
-   else:
-      main()
+    if len(sys.argv) > 1:
+        globals()[sys.argv[1]]()
+    else:
+        main()

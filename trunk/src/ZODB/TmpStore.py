@@ -2,14 +2,14 @@
 #
 # Copyright (c) 2001, 2002 Zope Corporation and Contributors.
 # All Rights Reserved.
-# 
+#
 # This software is subject to the provisions of the Zope Public License,
 # Version 2.0 (ZPL).  A copy of the ZPL should accompany this distribution.
 # THIS SOFTWARE IS PROVIDED "AS IS" AND ANY AND ALL EXPRESS OR IMPLIED
 # WARRANTIES ARE DISCLAIMED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 # WARRANTIES OF TITLE, MERCHANTABILITY, AGAINST INFRINGEMENT, AND FITNESS
 # FOR A PARTICULAR PURPOSE
-# 
+#
 ##############################################################################
 
 import POSException
@@ -53,7 +53,7 @@ class TmpStore:
         if h[:8] != oid:
             raise POSException.StorageSystemError, 'Bad temporary storage'
         return file.read(u64(h[16:])), h[8:16]
-        
+
     def modifiedInVersion(self, oid):
         if self._index.has_key(oid): return 1
         return self._db._storage.modifiedInVersion(oid)
@@ -78,7 +78,7 @@ class TmpStore:
         self._tindex.append((oid,pos))
         self._pos=pos+l+24
         return serial
-        
+
     def tpc_abort(self, transaction):
         if transaction is not self._transaction: return
         del self._tindex[:]
@@ -103,6 +103,6 @@ class TmpStore:
         self._tpos=self._pos
 
     def undoLog(self, first, last, filter=None): return ()
-    
+
     def versionEmpty(self, version):
         if version is self: return len(self._index)

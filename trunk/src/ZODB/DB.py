@@ -2,19 +2,19 @@
 #
 # Copyright (c) 2001, 2002 Zope Corporation and Contributors.
 # All Rights Reserved.
-# 
+#
 # This software is subject to the provisions of the Zope Public License,
 # Version 2.0 (ZPL).  A copy of the ZPL should accompany this distribution.
 # THIS SOFTWARE IS PROVIDED "AS IS" AND ANY AND ALL EXPRESS OR IMPLIED
 # WARRANTIES ARE DISCLAIMED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 # WARRANTIES OF TITLE, MERCHANTABILITY, AGAINST INFRINGEMENT, AND FITNESS
 # FOR A PARTICULAR PURPOSE
-# 
+#
 ##############################################################################
 """Database objects
 
-$Id: DB.py,v 1.42 2002/06/10 20:20:44 shane Exp $"""
-__version__='$Revision: 1.42 $'[11:-2]
+$Id: DB.py,v 1.43 2002/08/14 22:07:09 mj Exp $"""
+__version__='$Revision: 1.43 $'[11:-2]
 
 import cPickle, cStringIO, sys, POSException, UndoLogCompatible
 from Connection import Connection
@@ -101,7 +101,7 @@ class DB(UndoLogCompatible.UndoLogCompatible):
 
         if hasattr(storage, 'undoInfo'):
             self.undoInfo=storage.undoInfo
-            
+
 
     def _cacheMean(self, attr):
         # XXX this method doesn't work
@@ -120,7 +120,7 @@ class DB(UndoLogCompatible.UndoLogCompatible):
                       _silly=('__doc__',), _globals={}):
         return getattr(__import__(location, _globals, _globals, _silly),
                        name)
-            
+
     def _closeConnection(self, connection):
         """Return a connection to the pool"""
         self._a()
@@ -136,7 +136,7 @@ class DB(UndoLogCompatible.UndoLogCompatible):
                 # Pool now usable again, unlock it.
                 pool_lock.release()
         finally: self._r()
-        
+
     def _connectionMap(self, f):
         self._a()
         try:
@@ -171,7 +171,7 @@ class DB(UndoLogCompatible.UndoLogCompatible):
                     detail[c] = detail[c] + 1
                 else:
                     detail[c] = 1
-        
+
         self._connectionMap(f)
         detail = detail.items()
         detail.sort()
@@ -194,7 +194,7 @@ class DB(UndoLogCompatible.UndoLogCompatible):
 
                 module = getattr(ob.__class__, '__module__', '')
                 module = module and '%s.' % module or ''
-    
+
                 detail.append({
                     'conn_no': cn,
                     'oid': oid,
@@ -252,10 +252,10 @@ class DB(UndoLogCompatible.UndoLogCompatible):
 
     def exportFile(self, oid, file=None):
         raise 'Not yet implemented'
-                           
+
     def getCacheDeactivateAfter(self):
         return self._cache_deactivate_after
-    
+
     def getCacheSize(self):
         return self._cache_size
 
@@ -267,7 +267,7 @@ class DB(UndoLogCompatible.UndoLogCompatible):
 
     def getVersionCacheDeactivateAfter(self):
         return self._version_cache_deactivate_after
-    
+
     def getVersionCacheSize(self):
         return self._version_cache_size
 
@@ -336,7 +336,7 @@ class DB(UndoLogCompatible.UndoLogCompatible):
 
     def objectCount(self):
         return len(self._storage)
-        
+
     def open(self, version='', transaction=None, temporary=0, force=None,
              waitflag=1):
         """Return a object space (AKA connection) to work in
@@ -354,7 +354,7 @@ class DB(UndoLogCompatible.UndoLogCompatible):
         """
         if type(version) is not StringType:
             raise POSException.Unimplemented, 'temporary versions'
-        
+
         self._a()
         try:
 
@@ -366,7 +366,7 @@ class DB(UndoLogCompatible.UndoLogCompatible):
                 else:
                     transaction._connections=connections={}
                 transaction=transaction._connections
-                    
+
 
             if temporary:
                 # This is a temporary connection.
@@ -407,7 +407,7 @@ class DB(UndoLogCompatible.UndoLogCompatible):
             # the last connection from the pool and just after adding
             # a connection to an empty pool.
 
-            
+
             if pools.has_key(version):
                 pool, allocated, pool_lock = pools[version]
             else:
@@ -432,7 +432,7 @@ class DB(UndoLogCompatible.UndoLogCompatible):
                         cache_size=self._cache_size)
                     allocated.append(c)
                     pool.append(c)
-                    
+
                 if c is None:
                     if waitflag:
                         self._r()
@@ -482,17 +482,17 @@ class DB(UndoLogCompatible.UndoLogCompatible):
                     if len(d)==1: d=d[0]
                 else: d=''
                 d="%s (%s)" % (d, len(c._cache))
-                
+
                 r.append({
                     'opened': o and ("%s (%.2fs)" % (ctime(o), t-o)),
                     'info': d,
                     'version': version,
                     })
         return r
-        
+
     def getActivityMonitor(self):
         return self._activity_monitor
-    
+
     def pack(self, t=None, days=0):
         if t is None: t=time()
         t=t-(days*86400)
@@ -500,7 +500,7 @@ class DB(UndoLogCompatible.UndoLogCompatible):
         except:
             LOG("ZODB", ERROR, "packing", error=sys.exc_info())
             raise
-                           
+
     def setCacheDeactivateAfter(self, v):
         self._cache_deactivate_after = v
         d = self._pools[0]
@@ -539,7 +539,7 @@ class DB(UndoLogCompatible.UndoLogCompatible):
             if ver:
                 for c in self._pools[0][ver][1]:
                     c._cache.cache_size=v
-        
+
     def setVersionPoolSize(self, v): self._version_pool_size=v
 
     def cacheStatistics(self): return () # :(
@@ -590,7 +590,7 @@ class CommitVersion:
             # the code above just invalidated the dest version.
             # now we need to invalidate the source!
             for oid in oids: db.invalidate(oid, version=self._version)
-    
+
 class AbortVersion(CommitVersion):
     """An object that will see to version abortion
 
@@ -610,7 +610,7 @@ class TransactionalUndo(CommitVersion):
 
     in cooperation with a transaction manager.
     """
-    
+
     # I'm lazy. I'm reusing __init__ and abort and reusing the
     # version attr for the transavtion id. There's such a strong
     # similarity of rythm, that I think it's justified.

@@ -38,4 +38,3 @@ class DBTests(unittest.TestCase):
 
 def test_suite():
     return unittest.makeSuite(DBTests)
-

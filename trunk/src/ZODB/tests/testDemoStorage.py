@@ -24,4 +24,3 @@ if __name__ == "__main__":
     loader = unittest.TestLoader()
     loader.testMethodPrefix = "check"
     unittest.main(testLoader=loader)
-    

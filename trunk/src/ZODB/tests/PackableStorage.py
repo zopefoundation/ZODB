@@ -18,7 +18,7 @@ from ZODB.referencesf import referencesf
 
 ZERO = '\0'*8
 
-
+
 # This class is for the root object.  It must not contain a getoid() method
 # (really, attribute).  The persistent pickling machinery -- in the dumps()
 # function below -- will pickle Root objects as normal, but any attributes
@@ -64,7 +64,7 @@ def dumps(obj):
     return s.getvalue()
 
 
-
+
 class PackableStorageBase:
     # We keep a cache of object ids to instances so that the unpickler can
     # easily return any persistent object.
@@ -100,7 +100,7 @@ class PackableStorageBase:
         return loads
 
 
-
+
 class PackableStorage(PackableStorageBase):
     def _initroot(self):
         try:
@@ -125,11 +125,11 @@ class PackableStorage(PackableStorageBase):
     def checkPackTomorrow(self):
         self._initroot()
         self._storage.pack(time.time() + 10000, referencesf)
-            
+
     def checkPackYesterday(self):
         self._initroot()
         self._storage.pack(time.time() - 10000, referencesf)
-            
+
     def checkPackAllRevisions(self):
         self._initroot()
         eq = self.assertEqual
