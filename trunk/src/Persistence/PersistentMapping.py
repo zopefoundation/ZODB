@@ -85,8 +85,8 @@
 __doc__='''Python implementation of persistent base types
 
 
-$Id: PersistentMapping.py,v 1.12 2001/11/27 21:38:06 jeremy Exp $'''
-__version__='$Revision: 1.12 $'[11:-2]
+$Id: PersistentMapping.py,v 1.13 2001/11/27 21:55:17 jeremy Exp $'''
+__version__='$Revision: 1.13 $'[11:-2]
 
 import Persistence
 import types
@@ -111,11 +111,11 @@ class PersistentMapping(UserDict, Persistence.Persistent):
 
     def __delitem__(self, key):
         self.__super_delitem(key)
-        self.__changed__(1)
+        self._p_changed = 1
 
     def __setitem__(self, key, v):
         self.__super_setitem(key, v)
-        self.__changed__(1)
+        self._p_changed = 1
 
     def clear(self):
         self.__super_clear()
