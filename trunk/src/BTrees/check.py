@@ -34,16 +34,10 @@ that doesn't exist in the actual BTree).
 
 from types import TupleType
 
-try:
-    from zodb.btrees.OOBTree import OOBTree, OOBucket, OOSet, OOTreeSet
-    from zodb.btrees.OIBTree import OIBTree, OIBucket, OISet, OITreeSet
-    from zodb.btrees.IOBTree import IOBTree, IOBucket, IOSet, IOTreeSet
-    from zodb.btrees.IIBTree import IIBTree, IIBucket, IISet, IITreeSet
-except ImportError:
-    from BTrees.OOBTree import OOBTree, OOBucket, OOSet, OOTreeSet
-    from BTrees.OIBTree import OIBTree, OIBucket, OISet, OITreeSet
-    from BTrees.IOBTree import IOBTree, IOBucket, IOSet, IOTreeSet
-    from BTrees.IIBTree import IIBTree, IIBucket, IISet, IITreeSet
+from BTrees.OOBTree import OOBTree, OOBucket, OOSet, OOTreeSet
+from BTrees.OIBTree import OIBTree, OIBucket, OISet, OITreeSet
+from BTrees.IOBTree import IOBTree, IOBucket, IOSet, IOTreeSet
+from BTrees.IIBTree import IIBTree, IIBucket, IISet, IITreeSet
 
 TYPE_UNKNOWN, TYPE_BTREE, TYPE_BUCKET = range(3)
 
