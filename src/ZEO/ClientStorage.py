@@ -13,7 +13,7 @@
 ##############################################################################
 """Network ZODB storage client
 
-$Id: ClientStorage.py,v 1.59 2002/09/13 21:08:48 gvanrossum Exp $
+$Id: ClientStorage.py,v 1.60 2002/09/17 17:06:29 gvanrossum Exp $
 """
 
 # XXX TO DO
@@ -329,12 +329,13 @@ class ClientStorage:
             raise POSException.ReadOnlyError()
         # avoid multiple oid requests to server at the same time
         self._oid_lock.acquire()
-        if not self._oids:
-            self._oids = self._server.new_oids()
-            self._oids.reverse()
-        oid = self._oids.pop()
-        self._oid_lock.release()
-        return oid
+        try:
+            if not self._oids:
+                self._oids = self._server.new_oids()
+                self._oids.reverse()
+            return self._oids.pop()
+        finally:
+            self._oid_lock.release()
 
     def pack(self, t=None, rf=None, wait=0, days=0):
         # XXX Is it okay that read-only connections allow pack()?
