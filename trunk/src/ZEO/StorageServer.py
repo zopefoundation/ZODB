@@ -120,13 +120,11 @@ class ZEOStorage:
     def __init__(self, server):
         self.server = server
         self.client = None
-        self.conn = None # the connection associated with client
         self.storage = None
         self.storage_id = "uninitialized"
         self.transaction = None
 
     def notifyConnected(self, conn):
-        self.conn = conn
         self.client = ClientStub.ClientStorage(conn)
 
     def notifyDisconnected(self):
@@ -187,6 +185,9 @@ class ZEOStorage:
         This method must be the first one called by the client.
         """
         self.log("register(%r, %s)" % (storage_id, read_only))
+        if self.storage is not None:
+            log("duplicate register() call")
+            raise ValueError, "duplicate register() call"
         storage = self.server.storages.get(storage_id)
         if storage is None:
             self.log("unknown storage_id: %s" % storage_id)
