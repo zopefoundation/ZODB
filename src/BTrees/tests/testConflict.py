@@ -90,6 +90,8 @@ from BTrees.IIBTree import IIBTree, IIBucket, IISet, IITreeSet
 from BTrees.OIBTree import OIBTree, OIBucket, OISet, OITreeSet
 from unittest import TestCase, TestSuite, TextTestRunner, makeSuite
 
+from ZODB.POSException import ConflictError
+
 class Base:
     """ Tests common to all types: sets, buckets, and BTrees """
     def tearDown(self):
@@ -382,17 +384,18 @@ def test_merge(o1, o2, o3, expect, message='failed to merge', should_fail=0):
     if expected is None: expected=((((),),),)
 
     if should_fail:
-        try: merged=o1._p_resolveConflict(s1, s2, s3)
-        except: pass # cool
-        else: assert 0, message
+        try:
+            merged=o1._p_resolveConflict(s1, s2, s3)
+        except (ConflictError, ValueError), err:
+            pass # ConflictError is the only exception that should occur
+        else:
+            assert 0, message
     else:
         merged=o1._p_resolveConflict(s1, s2, s3)
         assert merged==expected, message
         
 class BucketTests(MappingBase):
     """ Tests common to all buckets """
-        
-
     
 
 class BTreeTests(MappingBase):
