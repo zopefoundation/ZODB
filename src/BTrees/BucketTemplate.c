@@ -12,7 +12,7 @@
 
  ****************************************************************************/
 
-#define BUCKETTEMPLATE_C "$Id: BucketTemplate.c,v 1.37 2002/06/09 02:50:14 tim_one Exp $\n"
+#define BUCKETTEMPLATE_C "$Id: BucketTemplate.c,v 1.38 2002/06/09 05:56:25 tim_one Exp $\n"
 
 /* Use BUCKET_SEARCH to find the index at which a key belongs.
  * INDEX    An int lvalue to hold the index i such that KEY belongs at
@@ -475,78 +475,71 @@ Bucket_deleteNextBucket(Bucket *self)
   PER_ACCESSED(self);
   return -1;
 }
+
 /*
  Bucket_findRangeEnd -- Find the index of a range endpoint
  (possibly) contained in a bucket.
 
- Arguments:	self		The bucket
-		key		the key to match against
-		low             end flag
-                offset          The output offset
+ Arguments:     self        The bucket
+                keyarg      The key to match against
+                low         Boolean; true for low end of range, false for high
+                offset      The output offset
 
+ If low true, *offset <- index of the smallest item >= key,
+ if low false the index of the largest item <= key.  In either case, if there
+ is no such index, *offset is left alone and 0 is returned.
 
- If low, return bucket and index of the smallest item >= key,
- otherwise return bucket and index of the largest item <= key.
+ Return:
+      0     No suitable index exists; *offset has not been changed
+      1     The correct index was stored into *offset
+     -1     Error
 
- Return: 0 -- Not found, 1 -- found, -1 -- error.
-*/
+ Example:  Suppose the keys are [2, 4].  Searching for 2 sets *offset to 0 and
+ returns 1 regardless of low.  Searching for 4 sets *offset to 1 and returns
+ 1 regardless of low.
+ Searching for 1:
+     If low true, sets *offset to 0, returns 1.
+     If low false, returns 0.
+ Searching for 3:
+     If low true, sets *offset to 1, returns 1.
+     If low false, sets *offset to 0, returns 1.
+ Searching for 5:
+     If low true, returns 0.
+     If low false, sets *offset to 1, returns 1.
+ */
 static int
 Bucket_findRangeEnd(Bucket *self, PyObject *keyarg, int low, int *offset)
 {
-  int min, max, i, l, cmp, copied=1;
-  KEY_TYPE key;
+    int i, cmp;
+    int result = -1;    /* until proven innocent */
+    KEY_TYPE key;
+    int copied = 1;
 
-  COPY_KEY_FROM_ARG(key, keyarg, copied);
-  UNLESS (copied) return -1;
+    COPY_KEY_FROM_ARG(key, keyarg, copied);
+    UNLESS (copied) return -1;
 
-  PER_USE_OR_RETURN(self, -1);
+    PER_USE_OR_RETURN(self, -1);
 
-  for (min=0, max=self->len, i=max/2, l=max; i != l; l=i, i=(min+max)/2)
-    {
-      TEST_KEY_SET_OR(cmp, self->keys[i], key) goto err;
-      if (cmp < 0)
-	min=i;
-      else if (cmp == 0)
-        {
-          PER_ALLOW_DEACTIVATION(self);
-          PER_ACCESSED(self);
-          *offset=i;
-          return 1;
-        }
-      else
-        max=i;
-  }
+    BUCKET_SEARCH(i, cmp, self, key, goto Done);
+    if (cmp == 0)   /* exact match at index i */
+        result = 1;
 
-  /* OK, no matches, pick max or min, depending on whether
-     we want an upper or low end.
-  */
-  if (low)
-    {
-      if (max == self->len) i=0;
-      else
-        {
-          i=1;
-          *offset=max;
-        }
-    }
-  else
-    {
-      if (max == 0) i=0;
-      else
-        {
-          i=1;
-          *offset=min;
-        }
+    /* Else keys[i-1] < key < keys[i], picturing infinities at OOB indices */
+    else if (low)   /* i has the smallest item > key, unless i is OOB */
+        result = i < self->len;
+
+    else {          /* i-1 has the largest item < key, unless i-1 is 0OB */
+        --i;
+        result = i >= 0;
     }
 
-  PER_ALLOW_DEACTIVATION(self);
-  PER_ACCESSED(self);
-  return i;
+    if (result)
+        *offset = i;
 
-err:
-  PER_ALLOW_DEACTIVATION(self);
-  PER_ACCESSED(self);
-  return -1;
+Done:
+    PER_ALLOW_DEACTIVATION(self);
+    PER_ACCESSED(self);
+    return result;
 }
 
 static PyObject *
