@@ -84,8 +84,8 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.17 1999/07/14 15:14:03 jim Exp $"""
-__version__='$Revision: 1.17 $'[11:-2]
+$Id: Connection.py,v 1.18 1999/07/16 19:52:19 jim Exp $"""
+__version__='$Revision: 1.18 $'[11:-2]
 
 from cPickleCache import PickleCache
 from POSException import ConflictError, ExportError
@@ -314,7 +314,7 @@ class Connection(ExportImport.ExportImport):
                 clear_memo()
                 dump((klass,args))
                 dump(state)
-                p=file()
+                p=file(1)
                 object._p_serial=dbstore(oid,serial,p,version,transaction)
                 object._p_changed=0
                 try: cache[oid]=object
