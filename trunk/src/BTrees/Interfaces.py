@@ -296,8 +296,8 @@ class IIMerge(IMerge):
 
         Else, and hereafter, c1 is not None and c2 is not None.
 
-        If c1 and c2 are both sets, the output is the sum of the weights
-        and the (unweighted) union of the sets.
+        If c1 and c2 are both sets, the output is 1 and the (unweighted)
+        union of the sets.
 
         Else the output is 1 and a Bucket whose keys are the union of c1 and
         c2's keys, and whose values are::
