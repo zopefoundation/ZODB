@@ -19,6 +19,7 @@ import logging
 import unittest
 
 import ZConfig
+import zLOG.datatypes
 import zLOG.LogHandlers
 import zLOG.tests
 
@@ -44,6 +45,19 @@ class TestzLOGConfig(unittest.TestCase):
                                                StringIO.StringIO(text))
         self.assert_(not handler)
         return conf
+
+    def test_logging_level(self):
+        # Make sure the expected names are supported; it's not clear
+        # how to check the values in a meaningful way.
+        convert = zLOG.datatypes.logging_level
+        convert("all")
+        convert("debug")
+        convert("info")
+        convert("warn")
+        convert("error")
+        convert("fatal")
+        convert("critical")
+        self.assertRaises(ValueError, convert, "hopefully-not-a-valid-value")
 
     def test_config_without_logger(self):
         conf = self.get_config("")
