@@ -189,7 +189,16 @@ persistent_id_call(persistent_id *self, PyObject *args, PyObject *kwargs)
       if oid is None or object._p_jar is not self:
    */
   if (oid != Py_None)
-    UNLESS (jar=PyObject_GetAttr(object, py__p_jar)) PyErr_Clear();
+    {
+      UNLESS (jar=PyObject_GetAttr(object, py__p_jar)) PyErr_Clear();
+      if (jar && jar != Py_None && jar != self->jar)
+	{
+	  PyErr_SetString(InvalidObjectReference, 
+			  "Attempt to store an object from a foreign "
+			  "database connection");
+	  return NULL;
+	}
+    }
 
   if (oid == Py_None || jar != self->jar)
     {
@@ -319,7 +328,7 @@ void
 initcoptimizations()
 {
   PyObject *m, *d;
-  char *rev="$Revision: 1.7 $";
+  char *rev="$Revision: 1.8 $";
 
 #define make_string(S) if (! (py_ ## S=PyString_FromString(#S))) return
   make_string(_p_oid);

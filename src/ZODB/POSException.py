@@ -84,8 +84,8 @@
 ##############################################################################
 '''BoboPOS-defined exceptions
 
-$Id: POSException.py,v 1.4 2000/05/17 19:45:18 jim Exp $'''
-__version__='$Revision: 1.4 $'[11:-2]
+$Id: POSException.py,v 1.5 2000/05/24 20:53:34 shane Exp $'''
+__version__='$Revision: 1.5 $'[11:-2]
 
 
 class POSError(Exception):
@@ -129,6 +129,10 @@ class StorageSystemError(StorageError):
     """Panic! Internal storage error!
     """
 
+class MountedStorageError(StorageError):
+    """Unable to access mounted storage.
+    """
+
 class ExportError(POSError):
     """An export file doesn't have the right format.
     """
@@ -142,7 +146,7 @@ class Unimplemented(POSError):
 class Unsupported(POSError):
     """An feature that is unsupported bt the storage was used.
     """
-
+    
 class InvalidObjectReference(POSError):
     """An object contains an invalid reference to another object.
 
@@ -152,4 +156,3 @@ class InvalidObjectReference(POSError):
 
     o A reference to an object in a different database connection.
     """
-    
