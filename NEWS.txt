@@ -1,6 +1,8 @@
 What's new in ZODB3 3.3?
 ========================
-Release date: DD-Sep-2004
+Release date: 17-Sep-2004
+
+Nothing changed since the 3.3c1 release, except for adding a new test.
 
 
 What's new in ZODB3 3.3 release candidate 1?
