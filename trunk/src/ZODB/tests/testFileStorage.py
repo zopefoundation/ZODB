@@ -5,6 +5,7 @@ import ZODB.FileStorage
 import os, unittest
 import StorageTestBase, BasicStorage, TransactionalUndoStorage
 import VersionStorage, TransactionalUndoVersionStorage
+import PackableStorage
 
 class FileStorageTests(
     StorageTestBase.StorageTestBase,
@@ -12,6 +13,7 @@ class FileStorageTests(
     TransactionalUndoStorage.TransactionalUndoStorage,
     VersionStorage.VersionStorage,
     TransactionalUndoVersionStorage.TransactionalUndoVersionStorage,
+    PackableStorage.PackableStorage,
     ):
 
     def setUp(self):
