@@ -72,6 +72,21 @@ class StartTests(unittest.TestCase):
 
     def stop_server(self):
         self.kill(pids=self.getpids())
+        # XXX Wait for the pidfile to disappear; not really clean.
+        # Needed since we're not actually waiting for the ZEO server
+        # process to exit (it's a grandchild, not a child).  It we
+        # don't wait, there's a race condition between one test and
+        # the next -- if the ZEO server isn't done shutting down, the
+        # database may still be locked when the next test starts.
+        i = 100
+        while 1:
+            if self.getpids():
+                break
+            time.sleep(0.1)
+            i -= 1
+        else:
+            print >>sys.stderr, "ZEO server pidfile did not disappear"
+            print >>sys.stderr, self.env.zeo_pid
 
     def kill(self, sig=signal.SIGTERM, pids=None):
         if pids is None:
