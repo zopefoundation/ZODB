@@ -1,0 +1,7 @@
+<component>
+  <description>
+  </description>
+
+  <abstracttype name="ZConfig.logger.handler"/>
+  <abstracttype name="ZConfig.logger.log"/>
+</component>

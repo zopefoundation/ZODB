@@ -1,0 +1,34 @@
+<component>
+
+  <sectiontype name="ZConfig.basic.mapping"
+               datatype="ZConfig.components.basic.mapping.mapping">
+    <description>
+      Section that provides a simple mapping implementation.  An
+      application should derive a more specific section type for use
+      in configuration files:
+
+        &lt;import package="ZConfig.components.basic"
+                     file="mapping.xml"
+                     /&gt;
+
+        &lt;sectiontype name="mapping"
+                     extends="ZConfig.basic.mapping"
+                     /&gt;
+
+      If a non-standard keytype is needed, it can be overridden as
+      well:
+
+        &lt;sectiontype name="system-map"
+                     extends="ZConfig.basic.mapping"
+                     keytype="mypkg.datatypes.system_name"
+                     /&gt;
+
+    </description>
+
+    <key name="+"
+         attribute="mapping"
+         required="no"
+         />
+  </sectiontype>
+
+</component>
