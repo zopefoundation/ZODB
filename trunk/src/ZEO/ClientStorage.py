@@ -398,6 +398,18 @@ class ClientStorage:
         """Storage API: an approximate size of the database, in bytes."""
         return self._info['size']
 
+    def getExtensionMethods(self):
+        """getExtensionMethods
+
+        This returns a dictionary whose keys are names of extra methods
+        provided by this storage. Storage proxies (such as ZEO) should
+        call this method to determine the extra methods that they need
+        to proxy in addition to the standard storage methods.
+        Dictionary values should be None; this will be a handy place
+        for extra marshalling information, should we need it
+        """
+        return self._info['extensionMethods']
+
     def supportsUndo(self):
         """Storage API: return whether we support undo."""
         return self._info['supportsUndo']
@@ -464,6 +476,12 @@ class ClientStorage:
         the Storage API.
         """
         return self._server.history(oid, version, length)
+
+    def __getattr__(self, name):
+        if self.getExtensionMethods().has_key(name):
+            return self._server.extensionMethod(name)
+        else:
+            raise AttributeError(name)
 
     def loadSerial(self, oid, serial):
         """Storage API: load a historical revision of an object."""
@@ -792,3 +810,5 @@ class ClientStorage:
     invalidate = invalidateVerify
     end = endVerify
     Invalidate = invalidateTrans
+
+
