@@ -55,6 +55,12 @@ What's new in ZODB3 3.3.1?
 ==========================
 Release date: xx-xxx-2004
 
+ZEO client cache
+----------------
+
+- Fixed a bug wherein an object removed from the client cache didn't
+  properly mark the file slice it occupied as being available for reuse.
+
 persistent
 ----------
 
