@@ -186,7 +186,7 @@
 #   may have a back pointer to a version record or to a non-version
 #   record.
 #
-__version__='$Revision: 1.72 $'[11:-2]
+__version__='$Revision: 1.73 $'[11:-2]
 
 import struct, time, os, bpthread, string, base64, sys
 from struct import pack, unpack
@@ -574,6 +574,31 @@ class FileStorage(BaseStorage.BaseStorage,
 
         if plen != z64: return read(U64(plen)), version, nv
         return _loadBack(file, oid, read(8))[0], version, nv
+
+    def getSerial(self, oid):
+        self._lock_acquire()
+        try:
+            pos = self._index[oid]
+            self._file.seek(pos)
+            h = self._file.read(34)
+            _oid = h[:8]
+            if _oid != oid:
+                raise CorruptedData, h
+            vlen = unpack(">H", h[-2:])[0]
+            if vlen:
+                # If there is a version, find out its name and let
+                # _load() do all the work.  This is less efficient
+                # than possible, because _load() will load the pickle
+                # data.  Being more efficient is too complicated.
+                self._file.seek(24, 1) # skip plen, pnv, and pv
+                version = self._file.read(vlen)
+                pickledata, serial = self._load(oid, version,
+                                                self._index, self._file)
+                return serial
+            return h[8:16]
+        finally:
+            self._lock_release()
+        
 
     def _load(self, oid, version, _index, file):
         pos=_index[oid]
