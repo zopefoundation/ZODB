@@ -84,11 +84,13 @@
 ##############################################################################
 """Handy standard storage machinery
 """
-__version__='$Revision: 1.11 $'[11:-2]
+# Do this portably in the face of checking out with -kv
+import string
+__version__ = string.split('$Revision: 1.12 $')[-2:][0]
 
 import ThreadLock, bpthread
 import time, UndoLogCompatible
-from POSException import UndoError
+import POSException
 from TimeStamp import TimeStamp
 z64='\0'*8
 
@@ -120,9 +122,12 @@ class BaseStorage(UndoLogCompatible.UndoLogCompatible):
             raise POSException.StorageTransactionError(self, transaction)
         return []
 
-    def close(self): pass
+    def commitVersion(self, src, dest, transaction):
+        if transaction is not self._transaction:
+            raise POSException.StorageTransactionError(self, transaction)
+        return []
 
-    commitVersion=abortVersion
+    def close(self): pass
 
     def getName(self): return self.__name__
     def getSize(self): return len(self)*300 # WAG!
@@ -224,7 +229,7 @@ class BaseStorage(UndoLogCompatible.UndoLogCompatible):
         pass
 
     def undo(self, transaction_id):
-        raise UndoError, 'non-undoable transaction'
+        raise POSException.UndoError, 'non-undoable transaction'
 
     def undoLog(self, first, last, filter=None): return ()
 
