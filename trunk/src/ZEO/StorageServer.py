@@ -83,7 +83,7 @@
 # 
 ##############################################################################
 
-__version__ = "$Revision: 1.15 $"[11:-2]
+__version__ = "$Revision: 1.16 $"[11:-2]
 
 import asyncore, socket, string, sys, cPickle, os
 from smac import SizedMessageAsyncConnection
@@ -430,9 +430,12 @@ class Connection(SizedMessageAsyncConnection):
         
     def undo(self, transaction_id):
         oids=self.__storage.undo(transaction_id)
-        self.__server.invalidate(
-            self, self.__storage_id, map(lambda oid: (oid,None,''), oids))
-        return oids
+        if oids:
+            self.__server.invalidate(
+                self, self.__storage_id, map(lambda oid: (oid,None,''), oids)
+                )
+            return oids
+        return ()
 
     def tpc_abort(self, id):
         t=self._transaction
