@@ -10,7 +10,7 @@
 
 static char intSet_module_documentation[] = 
 ""
-"\n$Id: intSet.c,v 1.7 1998/02/18 22:19:39 jim Exp $"
+"\n$Id: intSet.c,v 1.8 1998/03/24 15:15:33 jim Exp $"
 ;
 
 #include <limits.h>
@@ -376,8 +376,15 @@ intSet_difference(intSet *self, PyObject *args)
 static PyObject *
 intSet__p___reinit__(intSet *self, PyObject *args)
 {
-  /* Note that this implementation is broken, in that it doesn't
-     account for subclass needs. */
+  PyObject *dict;
+
+  if(self->state==cPersistent_UPTODATE_STATE 
+     && HasInstDict(self) && (dict=INSTANCE_DICT(self)))
+    {
+      PyDict_Clear(dict);
+      self->state=GHOST_STATE;
+    }
+
   Py_INCREF(Py_None);
   return Py_None;
 }
@@ -406,6 +413,8 @@ static struct PyMethodDef intSet_methods[] = {
    "__setstate__() -- set the persistent state"},  	 
   {"_p___reinit__",	(PyCFunction)intSet__p___reinit__, METH_VARARGS,
    "_p___reinit__(oid,jar,copy) -- Reinitialize from a newly created copy"},
+  {"_p_deactivate",	(PyCFunction)intSet__p___reinit__, METH_VARARGS,
+   "_p_deactivate(oid,jar,copy) -- Reinitialize from a newly created copy"},
   {NULL,		NULL}		/* sentinel */
 };
 
@@ -528,7 +537,7 @@ void
 initintSet()
 {
   PyObject *m, *d;
-  char *rev="$Revision: 1.7 $";
+  char *rev="$Revision: 1.8 $";
 
   UNLESS(ExtensionClassImported) return;
 
@@ -566,6 +575,9 @@ initintSet()
   Revision Log:
 
   $Log: intSet.c,v $
+  Revision 1.8  1998/03/24 15:15:33  jim
+  Brought reinit/deactivate machinery up to date.
+
   Revision 1.7  1998/02/18 22:19:39  jim
   Fixed C inheritence problem. Waaaaaaa.
 
