@@ -13,7 +13,7 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.107 2003/12/31 16:27:29 jeremy Exp $"""
+$Id: Connection.py,v 1.108 2004/01/02 19:57:12 jeremy Exp $"""
 
 import logging
 import sys
@@ -672,8 +672,9 @@ class Connection(ExportImport, object):
 
     def sync(self):
         self.getTransaction().abort()
-        sync=getattr(self._storage, 'sync', 0)
-        if sync != 0: sync()
+        sync = getattr(self._storage, 'sync', 0)
+        if sync:
+            sync()
         self._flush_invalidations()
 
     def getDebugInfo(self):
@@ -693,13 +694,11 @@ class Connection(ExportImport, object):
             self._store_count = 0
         return res
 
-
-    ######################################################################
-    # Just plain weird. Don't try this at home kids.
     def exchange(self, old, new):
-        oid=old._p_oid
-        new._p_oid=oid
-        new._p_jar=self
-        new._p_changed=1
+        # called by a ZClasses method that isn't executed by the test suite
+        oid = old._p_oid
+        new._p_oid = oid
+        new._p_jar = self
+        new._p_changed = 1
         self.getTransaction().register(new)
-        self._cache[oid]=new
+        self._cache[oid] = new
