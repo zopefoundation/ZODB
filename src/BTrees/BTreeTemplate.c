@@ -83,7 +83,7 @@
   
  ****************************************************************************/
 
-#define BTREETEMPLATE_C "$Id: BTreeTemplate.c,v 1.18 2001/08/13 19:03:10 andreasjung Exp $\n"
+#define BTREETEMPLATE_C "$Id: BTreeTemplate.c,v 1.19 2001/09/12 20:47:17 matt Exp $\n"
 
 /*
 ** _BTree_get
@@ -929,9 +929,20 @@ BTree_findRangeEnd(BTree *self, PyObject *keyarg, int low,
     }
   else
     {
-      *bucket = BUCKET(self->data[min].value);
-      if ((i=Bucket_findRangeEnd(*bucket, keyarg, low, offset)))
-        Py_INCREF(*bucket);
+      i = 0;
+      /* Because we might miss on a range search where max=len */
+      while(i == 0) {
+         *bucket = BUCKET(self->data[min].value);
+	 i=Bucket_findRangeEnd(*bucket, keyarg, low, offset);
+	 if (i)
+	   {
+	     Py_INCREF(*bucket);
+	     break;
+           }
+	 /* if we missed, on low search, go to next bucket */
+         else if (low && i == 0 && min+1 < self->len) min++;
+	 else break;
+      }
     }
 
   return i;
