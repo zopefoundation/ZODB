@@ -84,8 +84,8 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.45 2001/02/09 14:11:49 jim Exp $"""
-__version__='$Revision: 1.45 $'[11:-2]
+$Id: Connection.py,v 1.46 2001/03/15 13:16:26 jim Exp $"""
+__version__='$Revision: 1.46 $'[11:-2]
 
 from cPickleCache import PickleCache
 from POSException import ConflictError, ExportError
@@ -94,8 +94,9 @@ from cPickle import Unpickler, Pickler
 from ExtensionClass import Base
 from time import time
 import Transaction, string, ExportImport, sys, traceback, TmpStore
-from zLOG import LOG, ERROR
+from zLOG import LOG, ERROR, BLATHER
 from coptimizations import new_persistent_id
+from ConflictResolution import ResolvedSerial
 
 ExtensionKlass=Base.__class__
 
@@ -230,7 +231,10 @@ class Connection(ExportImport.ExportImport):
 
         This just deactivates the thing.
         """
-        self._cache.invalidate(object._p_oid)
+        if object is self:
+            self._cache.invalidate(self._invalidated)
+        else:
+            self._cache.invalidate(object._p_oid)
 
     def cacheFullSweep(self, dt=0): self._cache.full_sweep(dt)
     def cacheMinimize(self, dt=0): self._cache.minimize(dt)
@@ -257,6 +261,8 @@ class Connection(ExportImport.ExportImport):
         db._closeConnection(self)
                         
     def commit(self, object, transaction, _type=type, _st=type('')):
+        if object is self:
+            return # we registered ourself  
         oid=object._p_oid
         invalid=self._invalid
         if oid is None or object._p_jar is not self:
@@ -267,7 +273,12 @@ class Connection(ExportImport.ExportImport):
             self._creating.append(oid)
 
         elif object._p_changed:
-            if invalid(oid) or invalid(None): raise ConflictError, `oid`
+            if (
+                (invalid(oid) and not hasattr(object, '_p_resolveConflict'))
+                or
+                invalid(None)
+                ):
+                raise ConflictError, `oid`
             self._invalidating.append(oid)
 
         else:
@@ -328,7 +339,13 @@ class Connection(ExportImport.ExportImport):
                 self._creating.append(oid)
             else:
                 #XXX We should never get here
-                if invalid(oid) or invalid(None): raise ConflictError, `oid`
+                if (
+                    (invalid(oid) and
+                     not hasattr(object, '_p_resolveConflict'))
+                    or
+                    invalid(None)
+                    ):
+                    raise ConflictError, `oid`
                 self._invalidating.append(oid)
                 
             klass = object.__class__
@@ -362,8 +379,12 @@ class Connection(ExportImport.ExportImport):
                 # Note that if s is false, then the storage defered the return
                 if _type(s) is _st:
                     # normal case
-                    object._p_serial=s
-                    object._p_changed=0
+                    if s is ResolvedSerial:
+                        # resolved conflict
+                        object._p_changed=None
+                    else:
+                        object._p_serial=s
+                        object._p_changed=0
                 else:
                     # defered returns
                     for oi, s in s:
@@ -389,6 +410,10 @@ class Connection(ExportImport.ExportImport):
         tmp=self._tmp
         if tmp is _None: return
         src=self._storage
+
+        LOG('ZODB', BLATHER,
+            'Commiting subtransaction of size %s' % src.getSize())
+        
         self._storage=tmp
         self._tmp=_None
 
@@ -487,7 +512,13 @@ class Connection(ExportImport.ExportImport):
             # notifications between the time we check and the time we
             # read.
             invalid=self._invalid
-            if invalid(oid) or invalid(None): raise ConflictError, `oid`
+            if invalid(oid) or invalid(None):
+                if not hasattr(object.__class__, '_p_independent'):
+                    get_transaction().register(self)
+                    raise ConflictError(`oid`, `object.__class__`)
+                invalid=1
+            else:
+                invalid=0
 
             file=StringIO(p)
             unpickler=Unpickler(file)
@@ -502,6 +533,14 @@ class Connection(ExportImport.ExportImport):
                 for k,v in state.items(): d[k]=v
 
             object._p_serial=serial
+
+            if invalid:
+                if object._p_independent():
+                    try: del self._invalidated[oid]
+                    except KeyError: pass
+                else:
+                    get_transaction().register(self)
+                    raise ConflictError(`oid`, `object.__class__`)
 
         except:
             t, v =sys.exc_info()[:2]

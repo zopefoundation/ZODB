@@ -111,7 +111,7 @@ _bucket_get(Bucket *self, PyObject *keyarg, int has_key)
       if (cmp < 0) min=i;
       else if (cmp == 0)
 	{
-	  if (has_key) r=PyInt_FromLong(1);
+	  if (has_key) r=PyInt_FromLong(has_key);
 	  else
 	    {
               COPY_VALUE_TO_OBJECT(r, self->values[i]);
@@ -184,7 +184,8 @@ Bucket_grow(Bucket *self, int noval)
 **		 1	on success with a new value (growth)
 */
 static int
-_bucket_set(Bucket *self, PyObject *keyarg, PyObject *v, int unique, int noval)
+_bucket_set(Bucket *self, PyObject *keyarg, PyObject *v, 
+            int unique, int noval, int *changed)
 {
   int min, max, i, l, cmp, copied=1;
   KEY_TYPE key;
@@ -203,11 +204,21 @@ _bucket_set(Bucket *self, PyObject *keyarg, PyObject *v, int unique, int noval)
 	    {
               if (! unique && ! noval && self->values)
                 {
-                  DECREF_VALUE(self->values[i]);
+                  VALUE_TYPE value;
 
-                  COPY_VALUE_FROM_ARG(self->values[i], v, &copied);
+                  COPY_VALUE_FROM_ARG(value, v, &copied);
                   UNLESS(copied) return -1;
 
+#ifdef VALUE_SAME
+                  if (VALUE_SAME(self->values[i], value))
+                    { /* short-circuit if no change */
+                      PER_ALLOW_DEACTIVATION(self);
+                      return 0;
+                    }
+#endif
+                  if (changed) *changed=1;
+                  DECREF_VALUE(self->values[i]);
+                  COPY_VALUE(self->values[i], value);
                   INCREF_VALUE(self->values[i]);
                   if (PER_CHANGED(self) < 0) goto err;
                 }
@@ -308,9 +319,66 @@ err:
 static int
 bucket_setitem(Bucket *self, PyObject *key, PyObject *v)
 {
-  if (_bucket_set(self, key, v, 0, 0) < 0) return -1;
+  if (_bucket_set(self, key, v, 0, 0, 0) < 0) return -1;
   return 0;
 }
+
+static PyObject *
+Mapping_update(PyObject *self, PyObject *args)
+{
+  PyObject *seq=0, *o, *t, *v, *tb, *k;
+  int i, n=0, ind;
+
+  UNLESS(PyArg_ParseTuple(args, "|O:update", &seq)) return NULL;
+
+  if (seq)
+    {
+
+      if (PySequence_Check(seq))
+        {
+          Py_INCREF(seq);
+        }
+      else
+        {
+          seq=PyObject_GetAttr(seq, items_str);
+          UNLESS(seq) return NULL;
+          ASSIGN(seq, PyObject_CallObject(seq, NULL));
+          UNLESS(seq) return NULL;
+        }
+
+      for (i=0; ; i++)
+        {
+          UNLESS (o=PySequence_GetItem(seq, i))
+            {
+              PyErr_Fetch(&t, &v, &tb);
+              if (t != PyExc_IndexError)
+                {
+                  PyErr_Restore(t, v, tb);
+                  goto err;
+                }
+              Py_XDECREF(t);
+              Py_XDECREF(v);
+              Py_XDECREF(tb);
+              break;
+            }
+          ind=PyArg_ParseTuple(o, "OO;items must be 2-item tuples", &k, &v);
+          if (ind)
+            ind = PyObject_SetItem(self, k, v);
+          else
+            ind=-1;
+          Py_DECREF(o);
+          if (ind < 0) goto err;
+        }
+    }
+
+  Py_INCREF(Py_None);
+  return Py_None;
+
+ err:
+  Py_DECREF(seq);
+  return NULL;
+}
+
 
 /*
 ** bucket_split
@@ -328,6 +396,8 @@ static int
 bucket_split(Bucket *self, int index, Bucket *next)
 {
   int next_size;
+
+  ASSERT(self->len > 1, "split of empty bucket", -1);
 
   if (index < 0 || index >= self->len) index=self->len/2;
 
@@ -726,21 +796,45 @@ bucket_byValue(Bucket *self, PyObject *args)
   return NULL;
 }
 
+static int
+_bucket_clear(Bucket *self)
+{
+  int i;
+
+  if (self->next) 
+    {
+      Py_DECREF(self->next);
+      self->next=0;
+    }
+
+  for (i=self->len; --i >= 0; )
+    {
+      DECREF_KEY(self->keys[i]);
+      if (self->values) DECREF_VALUE(self->values[i]);
+    }
+  self->len=0;
+  if (self->values) 
+    {
+      free(self->values);
+      self->values=0;
+    }
+  if (self->keys)
+    {
+      free(self->keys);
+      self->keys=0;
+    }
+  self->size=0;
+
+  return 0;
+}
+
 #ifdef PERSISTENT
 static PyObject *
 bucket__p_deactivate(Bucket *self, PyObject *args)
 {
-  if (self->state==cPersistent_UPTODATE_STATE)
+  if (self->state==cPersistent_UPTODATE_STATE && self->jar)
     {
-      int i;
-
-      for (i=self->len; --i >= 0; )
-	{
-	  DECREF_KEY(self->keys[i]);
-	  if (self->values) DECREF_VALUE(self->values[i]);
-	}
-      Py_XDECREF(self->next);
-      self->len=0;
+      if (_bucket_clear(self) < 0) return NULL;
       self->state=cPersistent_GHOST_STATE;
     }
 
@@ -756,13 +850,11 @@ bucket_clear(Bucket *self, PyObject *args)
 
   PER_USE_OR_RETURN(self, NULL);
 
-  for (i=self->len; --i >= 0; )
+  if (self->len)
     {
-      DECREF_KEY(self->keys[i]);
-      if (self->values) DECREF_VALUE(self->values[i]);
+      if (_bucket_clear(self) < 0) return NULL;
+      if (PER_CHANGED(self) < 0) goto err;
     }
-  self->len=0;
-  if (PER_CHANGED(self) < 0) goto err;
   PER_ALLOW_DEACTIVATION(self);
   Py_INCREF(Py_None); 
   return Py_None;
@@ -778,22 +870,37 @@ bucket_getstate(Bucket *self, PyObject *args)
   PyObject *o=0, *items=0;
   int i, len, l;
 
+  if (args && ! PyArg_ParseTuple(args, "")) return NULL;
+
   PER_USE_OR_RETURN(self, NULL);
 
   len=self->len;
 
-  UNLESS (items=PyTuple_New(len*2)) goto err;
-  for (i=0, l=0; i < len; i++)
-    {
-      COPY_KEY_TO_OBJECT(o, self->keys[i]);
-      UNLESS (o) goto err;
-      PyTuple_SET_ITEM(items, l, o);
-      l++;
-      
-      COPY_VALUE_TO_OBJECT(o, self->values[i]);
-      UNLESS (o) goto err;
-      PyTuple_SET_ITEM(items, l, o);
-      l++;
+  if (self->values)
+    {                           /* Bucket */
+      UNLESS (items=PyTuple_New(len*2)) goto err;
+      for (i=0, l=0; i < len; i++)
+        {
+          COPY_KEY_TO_OBJECT(o, self->keys[i]);
+          UNLESS (o) goto err;
+          PyTuple_SET_ITEM(items, l, o);
+          l++;
+          
+          COPY_VALUE_TO_OBJECT(o, self->values[i]);
+          UNLESS (o) goto err;
+          PyTuple_SET_ITEM(items, l, o);
+          l++;
+        }
+    }
+  else
+    {                           /* Set */
+      UNLESS (items=PyTuple_New(len)) goto err;
+      for (i=0; i < len; i++)
+        {
+          COPY_KEY_TO_OBJECT(o, self->keys[i]);
+          UNLESS (o) goto err;
+          PyTuple_SET_ITEM(items, i, o);
+        }
     }
 
   if (self->next) 
@@ -811,19 +918,8 @@ err:
   return NULL;
 }
 
-/*
-** bucket_setstate
-**
-** bulk set of all items in bucket
-**
-** Arguments:	self	The Bucket
-**		args	The object pointng to the two lists of tuples
-**
-** Returns:	None	on success
-**		NULL	on error
-*/
-static PyObject *
-bucket_setstate(Bucket *self, PyObject *args)
+static int
+_bucket_setstate(Bucket *self, PyObject *args)
 {
   PyObject *k, *v, *r, *items;
   Bucket *next=0;
@@ -831,14 +927,11 @@ bucket_setstate(Bucket *self, PyObject *args)
   KEY_TYPE *keys;
   VALUE_TYPE *values;
 
-  PER_PREVENT_DEACTIVATION(self); 
+  UNLESS (PyArg_ParseTuple(args, "O|O", &items, &next))
+    return -1;
 
-  UNLESS (PyArg_ParseTuple(args, "O", &args)) goto err;
-
-  UNLESS (PyArg_ParseTuple(args, "O|O!", &items, self->ob_type, &next))
-    goto err;
-
-  if ((len=PyTuple_Size(items)) < 0) goto err;
+  if ((len=PyTuple_Size(items)) < 0) return -1;
+  len /= 2;
 
   for (i=self->len; --i >= 0; )
     {
@@ -855,8 +948,10 @@ bucket_setstate(Bucket *self, PyObject *args)
   
   if (len > self->size)
     {
-      UNLESS (keys=PyRealloc(self->keys, sizeof(KEY_TYPE)*len)) goto err;
-      UNLESS (values=PyRealloc(self->values, sizeof(KEY_TYPE)*len)) goto err;
+      UNLESS (keys=PyRealloc(self->keys, sizeof(KEY_TYPE)*len)) 
+        return -1;
+      UNLESS (values=PyRealloc(self->values, sizeof(KEY_TYPE)*len))
+        return -1;
       self->keys=keys;
       self->values=values;
       self->size=len;
@@ -870,24 +965,40 @@ bucket_setstate(Bucket *self, PyObject *args)
       l++;
 
       COPY_KEY_FROM_ARG(self->keys[i], k, &copied);
-      UNLESS (copied) return NULL;
+      UNLESS (copied) return -1;
       COPY_VALUE_FROM_ARG(self->values[i], v, &copied);
-      UNLESS (copied) return NULL;
-      INCREF_KEY(k);
-      INCREF_VALUE(v);
+      UNLESS (copied) return -1;
+      INCREF_KEY(self->keys[i]);
+      INCREF_VALUE(self->values[i]);
     }
 
-  self->len=l;
+  self->len=len;
+
+  if (next)
+    {
+      self->next=next;
+      Py_INCREF(next);
+    }
 
   PER_ALLOW_DEACTIVATION(self);
+
+  return 0;
+}
+
+static PyObject *
+bucket_setstate(Bucket *self, PyObject *args)
+{
+  int r;
+
+  UNLESS (PyArg_ParseTuple(args, "O", &args)) return NULL;
+
+  PER_PREVENT_DEACTIVATION(self); 
+  r=_bucket_setstate(self, args);
+  PER_ALLOW_DEACTIVATION(self);
+
+  if (r < 0) return NULL;
   Py_INCREF(Py_None);
   return Py_None;
-
- perr:
-  self->len=i;
- err:
-  PER_ALLOW_DEACTIVATION(self);
-  return NULL;
 }
 
 /*
@@ -919,6 +1030,73 @@ bucket_getm(Bucket *self, PyObject *args)
   return d;
 }
 
+#ifdef PERSISTENT
+static PyObject *merge_error(int p1, int p2, int p3, int reason);
+static PyObject *bucket_merge(Bucket *s1, Bucket *s2, Bucket *s3);
+
+static PyObject *
+_bucket__p_resolveConflict(PyObject *ob_type, PyObject *s[3])
+{
+  PyObject *r=0, *a;
+  Bucket *b[3];
+  int i;
+  
+  for (i=0; i < 3; i++)
+    {
+      if (b[i]=(Bucket*)PyObject_CallObject(OBJECT(ob_type), NULL))
+        {
+          if (s[i] == Py_None)  /* None is equivalent to empty, for BTrees */
+            continue;
+          ASSIGN(r, PyObject_GetAttr(OBJECT(b[i]), __setstate___str));
+          if (a=PyTuple_New(1))
+            {
+              if (r)
+                {
+                  PyTuple_SET_ITEM(a, 0, s[i]);
+                  Py_INCREF(s[i]);
+                  ASSIGN(r, PyObject_CallObject(r, a));
+                }
+              Py_DECREF(a);
+              if (r) continue;
+            }
+        }
+      Py_XDECREF(r);
+      while (--i >= 0)
+        {
+          Py_DECREF(b[i]);
+        }
+      return NULL;
+    }
+  Py_DECREF(r);
+  r=NULL;
+
+  if (b[0]->next != b[1]->next || b[0]->next != b[2]->next)
+    {
+      merge_error(-1, -1, -1, -1);
+      goto err;
+    }
+
+  r=bucket_merge(b[0], b[1], b[2]);
+
+ err:
+  Py_DECREF(b[0]);
+  Py_DECREF(b[1]);
+  Py_DECREF(b[2]);
+
+  return r;
+}
+
+static PyObject *
+bucket__p_resolveConflict(Bucket *self, PyObject *args)
+{
+  PyObject *s[3];
+
+  UNLESS(PyArg_ParseTuple(args, "OOO", &s[0], &s[1], &s[2])) return NULL;
+
+  return _bucket__p_resolveConflict(OBJECT(self->ob_type), s);
+}
+#endif
+
 static struct PyMethodDef Bucket_methods[] = {
   {"__getstate__", (PyCFunction) bucket_getstate,	METH_VARARGS,
    "__getstate__() -- Return the picklable state of the object"},
@@ -930,6 +1108,10 @@ static struct PyMethodDef Bucket_methods[] = {
      "has_key(key) -- Test whether the bucket contains the given key"},
   {"clear",	(PyCFunction) bucket_clear,	METH_VARARGS,
    "clear() -- Remove all of the items from the bucket"},
+  {"update",	(PyCFunction) Mapping_update,	METH_VARARGS,
+   "update(collection) -- Add the items from the given collection"},
+  {"__init__",	(PyCFunction) Mapping_update,	METH_VARARGS,
+   "__init__(collection) -- Initialize with items from the given collection"},
   {"maxKey", (PyCFunction) Bucket_maxKey,	METH_VARARGS,
    "maxKey([key]) -- Fine the maximum key\n\n"
    "If an argument is given, find the maximum <= the argument"},
@@ -949,6 +1131,8 @@ static struct PyMethodDef Bucket_methods[] = {
    "Return the default (or None) if the key is not found."
   },
 #ifdef PERSISTENT
+  {"_p_resolveConflict", (PyCFunction) bucket__p_resolveConflict, METH_VARARGS,
+   "_p_resolveConflict() -- Reinitialize from a newly created copy"},
   {"_p_deactivate", (PyCFunction) bucket__p_deactivate, METH_VARARGS,
    "_p_deactivate() -- Reinitialize from a newly created copy"},
 #endif
@@ -960,13 +1144,8 @@ Bucket_dealloc(Bucket *self)
 {
   int i;
 
-  for (i=self->len; --i >= 0; )
-    {
-      DECREF_KEY(self->keys[i]);
-      if (self->values) DECREF_VALUE(self->values[i]);
-    }
-  free(self->keys);
-  free(self->values);
+  _bucket_clear(self);
+
   PER_DEL(self);
 
   Py_DECREF(self->ob_type);

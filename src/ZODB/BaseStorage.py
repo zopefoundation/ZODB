@@ -84,9 +84,10 @@
 ##############################################################################
 """Handy standard storage machinery
 """
-__version__='$Revision: 1.10 $'[11:-2]
+__version__='$Revision: 1.11 $'[11:-2]
 
-import time, bpthread, UndoLogCompatible
+import ThreadLock, bpthread
+import time, UndoLogCompatible
 from POSException import UndoError
 from TimeStamp import TimeStamp
 z64='\0'*8
@@ -101,7 +102,7 @@ class BaseStorage(UndoLogCompatible.UndoLogCompatible):
         self.__name__=name
 
         # Allocate locks:
-        l=bpthread.allocate_lock()
+        l=ThreadLock.allocate_lock()
         self._lock_acquire=l.acquire
         self._lock_release=l.release
         l=bpthread.allocate_lock()

@@ -114,9 +114,11 @@ _BTree_get(BTree *self, PyObject *keyarg, int has_key)
         }
       
       if (SameType_Check(self, self->data[min].value)) 
-        r=_BTree_get( BTREE(self->data[min].value), keyarg, has_key);
+        r=_BTree_get( BTREE(self->data[min].value), keyarg, 
+                      has_key ? has_key + 1: 0);
       else
-        r=_bucket_get(BUCKET(self->data[min].value), keyarg, has_key);
+        r=_bucket_get(BUCKET(self->data[min].value), keyarg, 
+                      has_key ? has_key + 1: 0);
     }
   else
     {  /* No data */
@@ -140,27 +142,23 @@ BTree_get(BTree *self, PyObject *key)
 }
 
 /*
-** BTree_split
-**
-** Splits a BTree at a given index
-**
-** Arguments:	self	The original BTree
-**		index	The index to split at (if out of bounds use midpoint)
-**		next	The BTree to split into
-**
-** Returns:	 0	on success
-**		-1	on failure
+  Copy data from the current BTree to the newly created BTree, next. 
+  Reset length to reflect the fact that we've given up some data. 
 */
 static int
 BTree_split(BTree *self, int index, BTree *next)
 {
+  int next_size;
+  ASSERT(self->len > 1, "split of empty tree", -1);
+
   if (index < 0 || index >= self->len) index=self->len/2;
   
-  UNLESS (next->data=PyMalloc(sizeof(BTreeItem)*(self->len-index)))
-    return -1;
-  next->len=self->len-index;
-  next->size=next->len;
-  memcpy(next->data, self->data+index, sizeof(BTreeItem)*next->size);
+  next_size=self->len-index;
+  ASSERT(next_size > 0, "split creates empty tree", -1);
+  
+  UNLESS (next->data=PyMalloc(sizeof(BTreeItem)*next_size)) return -1;
+  memcpy(next->data, self->data+index, sizeof(BTreeItem)*next_size);
+  next->size=next->len=next_size;
   
   self->len = index;
 
@@ -168,28 +166,20 @@ BTree_split(BTree *self, int index, BTree *next)
     {
       PER_USE_OR_RETURN(BTREE(next->data->value), -1);
       next->firstbucket = BTREE(next->data->value)->firstbucket;
-      Py_INCREF(self->firstbucket);
+      Py_XINCREF(next->firstbucket);
       PER_ALLOW_DEACTIVATION(BTREE(next->data->value));
     }
   else
     {
       next->firstbucket = BUCKET(next->data->value);
-      Py_INCREF(next->firstbucket);
+      Py_XINCREF(next->firstbucket);
     }
   
   return 0;
 }
 
-/*
-** BTree_clone
-**
-** Split a BTree node into two children, leaving the original node the
-** parent.
-**
-** Arguments:	self	The BTree
-**
-** Returns:	 0	on success
-**		-1	on failure
+/* Split out data among two newly created BTrees, which become
+   out children. 
 */
 static int
 BTree_clone(BTree *self)
@@ -217,7 +207,7 @@ BTree_clone(BTree *self)
   n1->len=self->len;
   n1->data=self->data;
   n1->firstbucket = self->firstbucket;
-  Py_INCREF(n1->firstbucket);
+  Py_XINCREF(n1->firstbucket);
   
   /* Initialize our data to hold split data */
   self->data=d;
@@ -225,7 +215,10 @@ BTree_clone(BTree *self)
   self->size=2;
   self->data->value=OBJECT(n1);
   COPY_KEY(self->data[1].key, n2->data->key);
-  INCREF_KEY(self->data[1].key);
+
+  /* We take the unused reference from n2, so there's no reason to INCREF! */
+  /* INCREF_KEY(self->data[1].key); */
+
   self->data[1].value=OBJECT(n2);
 
   return 0;
@@ -233,7 +226,7 @@ BTree_clone(BTree *self)
 err:
   Py_XDECREF(n1);
   Py_XDECREF(n2);
-  free(d);
+  if (d) free(d);
   return -1;
 }
 
@@ -249,7 +242,7 @@ err:
 **		-1	on failure
 */
 static int 
-BTree_grow(BTree *self, int index)
+BTree_grow(BTree *self, int index, int noval)
 {
   int i;
   PyObject *v, *e=0;
@@ -309,12 +302,17 @@ BTree_grow(BTree *self, int index)
       if (SameType_Check(self, v))
         {
           COPY_KEY(d->key, BTREE(e)->data->key);
+
+          /* We take the unused reference from e, so there's no
+             reason to INCREF! 
+          */
+          /* INCREF_KEY(self->data[1].key); */
         }
       else
         {
           COPY_KEY(d->key, BUCKET(e)->keys[0]);
+          INCREF_KEY(d->key);
         }
-      INCREF_KEY(d->key);
       d->value=e;
 
       self->len++;
@@ -323,8 +321,16 @@ BTree_grow(BTree *self, int index)
     }
   else
     {
-      UNLESS (d->value=PyObject_CallObject(OBJECT(&BucketType), NULL))
-        return -1;
+      if (noval)
+        {
+          UNLESS (d->value=PyObject_CallObject(OBJECT(&SetType), NULL))
+            return -1;
+        }
+      else
+        {
+          UNLESS (d->value=PyObject_CallObject(OBJECT(&BucketType), NULL))
+            return -1;
+        }
       self->len=1;
       Py_INCREF(d->value);
       self->firstbucket = BUCKET(d->value);
@@ -376,24 +382,21 @@ BTree_deleteNextBucket(BTree *self)
 }
 
 /*
-** _BTree_set
-**
-** inserts a key/value pair into the tree
-**
-** Arguments:	self	The BTree
-**		key	The key of the item to insert
-**		value	The object to insert
-**              unique  We are inserting a unique key
-**
-** Returns:	-1	on failure
-**		 0	on successful replacement
-**		 1 	on successful insert with growth
+  Set (value != 0) or delete (value=0) a tree item.  
+
+  If unique is non-zero, then only change if the key is
+  new.
+
+  If noval is non-zero, then don't set a value (the tree
+  is a set).
+
+  Return 1 on successful change, 0 is no change, -1 on error.
 */
 static int
 _BTree_set(BTree *self, PyObject *keyarg, PyObject *value, 
            int unique, int noval)
 {
-  int i, min, max, cmp, grew, copied=1;
+  int i, min, max, cmp, grew, copied=1, changed=0, bchanged=0;
   BTreeItem *d;
   KEY_TYPE key;
 
@@ -406,7 +409,7 @@ _BTree_set(BTree *self, PyObject *keyarg, PyObject *value,
     {
       if (value) 
         {
-          if (BTree_grow(self, 0) < 0) return -1;
+          if (BTree_grow(self, 0, noval) < 0) return -1;
         }
       else 
         {
@@ -433,73 +436,113 @@ _BTree_set(BTree *self, PyObject *keyarg, PyObject *value,
   if (SameType_Check(self, d->value))
     grew= _BTree_set( BTREE(d->value), keyarg, value, unique, noval);
   else
-    grew=_bucket_set(BUCKET(d->value), keyarg, value, unique, noval);
+    grew=_bucket_set(BUCKET(d->value), keyarg, value, unique, noval, 
+                     &bchanged);
   if (grew < 0) goto err;
 
   if (grew)
     {
+      bchanged=1;               /* A bucket changed size */
       if (value)			/* got bigger */
 	{
           if (SameType_Check(self, d->value))
             {
-              if ( BTREE(d->value)->len > MAX_BTREE_SIZE(d->value) 
-                   && BTree_grow(self,min) < 0) 
-                goto err;
+              if (BTREE(d->value)->len > MAX_BTREE_SIZE(d->value))
+                {
+                  if (BTree_grow(self, min, noval) < 0) goto err;
+                  changed=1;
+                }
             }          
           else
             {
-              if ( BUCKET(d->value)->len > MAX_BUCKET_SIZE(d->value) 
-                   && BTree_grow(self,min) < 0) 
-                goto err;
+              if (BUCKET(d->value)->len > MAX_BUCKET_SIZE(d->value))
+                {
+                  if (BTree_grow(self, min, noval) < 0) goto err;
+                  changed=1;
+                }
             }          
 	}
       else			/* got smaller */
 	{
+          if (min && grew > 1)
+            { /* Somebody below us deleted their first bucket and */
+              /* and an intermediate tree couldn't handle it.     */
+              if (BTree_deleteNextBucket(BTREE(d[-1].value)) < 0)
+                goto err;
+              grew=1; /* Reset flag, since we handled it */
+            }
+          
           if (BUCKET(d->value)->len == 0)
-            {
-              if (min)
-                {
-                  /* Not the first subtree, we can delete it because
-                     we have the previous subtree handy. 
-                  */
-                  if (SameType_Check(self, d->value))
-                    {
-                      if (0 && BTree_deleteNextBucket(BTREE(d[-1].value)) < 0)
-                        goto err;
-                    }
-                  else
-                    {
+            {                   /* Got empty */
+              
+              if (! SameType_Check(self, d->value))
+                {  /* We are about to delete a bucket. */ 
+                  if (min)
+                    {  /*If it's not our first bucket, we can tell the
+                         previous bucket to adjust it's reference to
+                         it. */
                       if (Bucket_deleteNextBucket(BUCKET(d[-1].value)) < 0)
                         goto err;
                     }
-                  self->len--;
-                  Py_DECREF(d->value);
-                  DECREF_KEY(d->key);
-                  if (min < self->len)
-                    memmove(d, d+1, (self->len-min)*sizeof(BTreeItem));
+                  else
+                    { /* If it's the first bucket, we can't adjust the
+                         reference to it ourselves, so we'll just
+                         increment the grew flag to indicate to a
+                         parent node that it's last bucket should
+                         adjust its reference. If there is no parent,
+                         then there's nothing to do. */
+                      grew++;
+                    }
                 }
+              self->len--;
+              Py_DECREF(d->value);
+              if (min) DECREF_KEY(d->key);
+              if (min < self->len)
+                memmove(d, d+1, (self->len-min)*sizeof(BTreeItem));
 
-              if (self->len==1 && BUCKET(self->data->value)->len == 0)
-                {
-                  /* Our last subtree is empty, woo hoo, we can delete it! */
-                  Py_DECREF(self->data->value);
-
-                  /* Ah hah! I bet you are wondering why we don't
-                     decref the first key.  We don't decref it because
-                     we don't initialize it in the first place. So
-                     there! 
-                  
-                  DECREF_KEY(self->data->key);
-                  */
-                  self->len=0;
-                  Py_DECREF(self->firstbucket);
-                  self->firstbucket=NULL;
-                }
+              if (! min) 
+                if (self->len)
+                  { /* We just deleted our first child, so we need to
+                       adjust our first bucket. */
+                    if (SameType_Check(self, self->data->value))
+                      {
+                        UNLESS (PER_USE(BTREE(self->data->value))) goto err;
+                        ASSIGNB(self->firstbucket, 
+                                BTREE(self->data->value)->firstbucket);
+                        Py_XINCREF(self->firstbucket);
+                        PER_ALLOW_DEACTIVATION(BTREE(self->data->value));
+                      }
+                    else
+                      {
+                        ASSIGNB(self->firstbucket, BUCKET(self->data->value));
+                        Py_INCREF(self->firstbucket);
+                      }
+                    /* We can toss our first key now */
+                    DECREF_KEY(self->data->key);
+                  }
+                else 
+                  {
+                    Py_XDECREF(self->firstbucket);
+                    self->firstbucket = 0;
+                  }
+              changed=1;
             }
         }
-      if (PER_CHANGED(self) < 0) goto err;
     }
 
+#ifdef PERSISTENT
+  if (changed 
+      || (bchanged                                     /* The bucket changed */
+          && self->len == 1                            /* We have only one   */
+          && ! SameType_Check(self, self->data->value) /* It's our child     */
+          && BUCKET(self->data->value)->oid == NULL    /* It's in our record */
+          )
+      ) 
+    if (PER_CHANGED(self) < 0) 
+      goto err;
+#endif
+          
+  
   PER_ALLOW_DEACTIVATION(self);
   return grew;
 
@@ -540,18 +583,35 @@ BTree_setitem(BTree *self, PyObject *key, PyObject *v)
 static int
 _BTree_clear(BTree *self)
 {
-  int i;
+  int i, l;
 
-  for (i=self->len; --i >= 0; )
+  /* The order in which we dealocate, from "top to bottom" is critical
+     to prevent memory memory errors when the deallocation stack
+     becomes huge when dealocating use linked lists of buckets.
+  */
+
+  if (self->firstbucket)
+    {
+      ASSERT(self->firstbucket->ob_refcnt > 1, 
+             "Invalid firstbucket pointer", -1);
+      Py_DECREF(self->firstbucket);
+      self->firstbucket=NULL;
+    }
+
+  for (l=self->len, i=0; i < l; i++)
     {
       if (i) DECREF_KEY(self->data[i].key);
       Py_DECREF(self->data[i].value);
     }
-
-  Py_XDECREF(self->firstbucket);
-  self->firstbucket=NULL;
   self->len=0;
 
+  if (self->data)
+    {
+      free(self->data);
+      self->data=0;
+      self->size=0;
+    }
+  
   return 0;
 }
 
@@ -559,7 +619,7 @@ _BTree_clear(BTree *self)
 static PyObject *
 BTree__p_deactivate(BTree *self, PyObject *args)
 {
-  if (self->state==cPersistent_UPTODATE_STATE)
+  if (self->state==cPersistent_UPTODATE_STATE && self->jar)
     {
       if (_BTree_clear(self) < 0) return NULL;
       self->state=cPersistent_GHOST_STATE;
@@ -570,17 +630,6 @@ BTree__p_deactivate(BTree *self, PyObject *args)
 }
 #endif
 
-/*
-** BTree_clear
-**
-** Wrapper for _BTree_clear
-**
-** Arguments:	self	the BTree
-**		args	(unused)
-**
-** Returns:	None	on success
-**		NULL	on failure
-*/
 static PyObject *
 BTree_clear(BTree *self, PyObject *args)
 {
@@ -602,12 +651,6 @@ err:
   return NULL;
 }
 
-/*
-** BTree_getstate
-**
-** Get a tuple of all objects in a BTree
-**
-*/
 static PyObject *
 BTree_getstate(BTree *self, PyObject *args)
 {
@@ -619,20 +662,37 @@ BTree_getstate(BTree *self, PyObject *args)
   if (self->len)
     {
       UNLESS (r=PyTuple_New(self->len*2-1)) goto err;
-      for (i=self->len, l=0; --i >= 0; )
+
+      if (self->len == 1 
+          && self->data->value->ob_type != self->ob_type
+#ifdef PERSISTENT
+          && BUCKET(self->data->value)->oid == NULL
+#endif
+          )
         {
-          if (i)
+          /* We have just one bucket. Save it's data directly. */
+          UNLESS(o=bucket_getstate(BUCKET(self->data->value), NULL)) goto err;
+          PyTuple_SET_ITEM(r,0,o);
+          ASSIGN(r, Py_BuildValue("(O)", r));
+        }
+      else
+        {
+          for (i=0, l=0; i < self->len; i++)
             {
-              COPY_KEY_TO_OBJECT(o, self->data[i].key);
+              if (i)
+                {
+                  COPY_KEY_TO_OBJECT(o, self->data[i].key);
+                  PyTuple_SET_ITEM(r,l,o);
+                  l++;
+                }
+              o=self->data[i].value;
+              Py_INCREF(o);
               PyTuple_SET_ITEM(r,l,o);
               l++;
             }
-          o=self->data[i].value;
-          Py_INCREF(o);
-          PyTuple_SET_ITEM(r,l,o);
-          l++;
+          ASSIGN(r, Py_BuildValue("OO", r, self->firstbucket));
         }
-      ASSIGN(r, Py_BuildValue("OO", r, self->firstbucket));
+
     }
   else
     {
@@ -649,41 +709,27 @@ err:
   return NULL;
 }
 
-/*
-** BTree_setstate
-**
-** Bulk set all objects in a BTree from a tuple
-*/
-static PyObject *
-BTree_setstate(BTree *self, PyObject *args)
+static int
+_BTree_setstate(BTree *self, PyObject *state, int noval)
 {
-  PyObject *state, *k, *v=0, *items;
+  PyObject *items, *o, *firstbucket=0;
   BTreeItem *d;
-  Bucket *firstbucket;
   int len, l, i, r, copied=1;
 
-  if (!PyArg_ParseTuple(args,"O",&state)) return NULL;
-
- 
-  PER_PREVENT_DEACTIVATION(self); 
-
-  if (_BTree_clear(self) < 0) goto err;
+  if (_BTree_clear(self) < 0) return -1;
 
   if (state != Py_None)
     {
 
       if (!PyArg_ParseTuple(state,"O|O",&items, &firstbucket))
-        goto err;
+        return -1;
 
-      if ((len=PyTuple_Size(items)) < 0) goto err;
+      if ((len=PyTuple_Size(items)) < 0) return -1;
       len=(len+1)/2;
-
-      self->firstbucket = firstbucket;
-      Py_INCREF(firstbucket);
 
       if (len > self->size)
         {
-          UNLESS (d=PyRealloc(self->data, sizeof(BTreeItem)*len)) goto err;
+          UNLESS (d=PyRealloc(self->data, sizeof(BTreeItem)*len)) return -1;
           self->data=d;
           self->size=len;
         }
@@ -692,28 +738,108 @@ BTree_setstate(BTree *self, PyObject *args)
         {          
           if (i) 
             {
-              COPY_KEY_FROM_ARG(d->key, PyTuple_GET_ITEM(state,l), &copied);
+              COPY_KEY_FROM_ARG(d->key, PyTuple_GET_ITEM(items,l), &copied);
               l++;
-              UNLESS (&copied) return NULL;
+              UNLESS (&copied) return -1;
               INCREF_KEY(d->key);
             }
-          d->value=PyTuple_GET_ITEM(state,l);
+          d->value=PyTuple_GET_ITEM(items,l);
+          if (PyTuple_Check(d->value))
+            {
+              if (noval)
+                {
+                  UNLESS (d->value=PyObject_CallObject(OBJECT(&SetType), 
+                                                       NULL))
+                    return -1;
+                  if (_set_setstate(BUCKET(d->value), 
+                                    PyTuple_GET_ITEM(items,l))
+                      < 0) return -1;
+                }
+              else
+                {
+                  UNLESS (d->value=PyObject_CallObject(OBJECT(&BucketType), 
+                                                       NULL))
+                    return -1;
+                  if (_bucket_setstate(BUCKET(d->value), 
+                                       PyTuple_GET_ITEM(items,l))
+                      < 0) return -1;
+                }
+            }
+          else
+            {
+              Py_INCREF(d->value);
+            }
           l++;
-          Py_INCREF(d->value);
         }
-      self->len=l;
+
+      if (len)
+        {
+          if (! firstbucket) firstbucket=self->data->value;
+
+          UNLESS (ExtensionClassSubclassInstance_Check(
+                    firstbucket, 
+                    noval ? &SetType : &BucketType))
+            {
+              PyErr_SetString(PyExc_TypeError, 
+                              "No firstbucket in non-empty BTree");
+              return -1;
+            }
+
+          self->firstbucket = BUCKET(firstbucket);
+          Py_INCREF(firstbucket);
+        }
+
+      self->len=len;
     }
 
-  PER_ALLOW_DEACTIVATION(self);
-
-  Py_INCREF(Py_None);
-  return Py_None;
-
-err:
-  PER_ALLOW_DEACTIVATION(self);
-  return NULL;
+  return 0;
 }
 
+static PyObject *
+BTree_setstate(BTree *self, PyObject *args)
+{
+  int r;
+
+  if (!PyArg_ParseTuple(args,"O",&args)) return NULL;
+ 
+  PER_PREVENT_DEACTIVATION(self); 
+  r=_BTree_setstate(self, args, 0);
+  PER_ALLOW_DEACTIVATION(self);
+
+  if (r < 0) return NULL;
+  Py_INCREF(Py_None);
+  return Py_None;
+}
+
+#ifdef PERSISTENT
+static PyObject *
+BTree__p_resolveConflict(BTree *self, PyObject *args)
+{
+  PyObject *s[3], *r;
+  int i;
+
+  UNLESS (PyArg_ParseTuple(args, "OOO", s, s+1, s+2)) return NULL;
+
+                                /* for each state, detuplefy it twice */
+  for (i=0; i < 3; i++)
+    UNLESS (s[i]==Py_None || PyArg_ParseTuple(s[i], "O", s+i)) return NULL;
+  for (i=0; i < 3; i++)
+    UNLESS (s[i]==Py_None || PyArg_ParseTuple(s[i], "O", s+i)) return NULL;
+
+  for (i=0; i < 3; i++)         /* Now make sure detupled thing is a tuple */
+    UNLESS (s[i]==Py_None || PyTuple_Check(s[i]))
+      return merge_error(-100, -100, -100, -100);
+
+  if (ExtensionClassSubclassInstance_Check(self, &BTreeType))
+      r = _bucket__p_resolveConflict(OBJECT(&BucketType), s);
+  else
+      r = _bucket__p_resolveConflict(OBJECT(&SetType), s);
+
+  if (r) ASSIGN(r, Py_BuildValue("((O))", r));
+
+  return r;
+}
+#endif
 
 /*
  BTree_findRangeEnd -- Find one end, expressed as a bucket and
@@ -910,7 +1036,9 @@ BTree_rangeSearch(BTree *self, PyObject *args, char type)
   else 
     {
       highbucket = BTree_lastBucket(self);
+      UNLESS (PER_USE(highbucket)) goto err;
       highoffset = highbucket->len - 1; 
+      PER_ALLOW_DEACTIVATION(highbucket);      
     }
   
   PER_ALLOW_DEACTIVATION(self);
@@ -1046,7 +1174,8 @@ BTree_has_key(BTree *self, PyObject *args)
 {
   PyObject *key;
 
-  UNLESS (PyArg_ParseTuple(args,"O",&key)) return NULL;  return _BTree_get(self, key, 1);
+  UNLESS (PyArg_ParseTuple(args,"O",&key)) return NULL;  
+  return _BTree_get(self, key, 1);
 }
 
 static PyObject *
@@ -1095,7 +1224,13 @@ static struct PyMethodDef BTree_methods[] = {
    "insert(key, value) -- Add an item if the key is not already used.\n\n"
    "Return 1 if the item was added, or 0 otherwise"
   },
+  {"update",	(PyCFunction) Mapping_update,	METH_VARARGS,
+   "update(collection) -- Add the items from the given collection"},
+  {"__init__",	(PyCFunction) Mapping_update,	METH_VARARGS,
+   "__init__(collection) -- Initialize with items from the given collection"},
 #ifdef PERSISTENT
+  {"_p_resolveConflict", (PyCFunction) BTree__p_resolveConflict, METH_VARARGS,
+   "_p_resolveConflict() -- Reinitialize from a newly created copy"},
   {"_p_deactivate", (PyCFunction) BTree__p_deactivate,	METH_VARARGS,
    "_p_deactivate() -- Reinitialize from a newly created copy"},
 #endif
@@ -1105,16 +1240,7 @@ static struct PyMethodDef BTree_methods[] = {
 static void
 BTree_dealloc(BTree *self)
 {
-  int i;
-
-  for (i=self->len; --i >= 0; )
-    {
-      if (i) DECREF_KEY(self->data[i].key);
-      Py_DECREF(self->data[i].value);
-    }
-  if (self->data) free(self->data);
-
-  Py_XDECREF(self->firstbucket);
+  _BTree_clear(self);
 
   PER_DEL(self);
 

@@ -1,5 +1,6 @@
 #define VALUE_TYPE int
-#define TEST_VALUE(VALUE, TARGET) ( (VALUE) - (TARGET) )
+#define TEST_VALUE(K, T) (((K) < (T)) ? -1 : (((K) > (T)) ? 1: 0)) 
+#define VALUE_SAME(VALUE, TARGET) ( (VALUE) == (TARGET) )
 #define DECLARE_VALUE(NAME) VALUE_TYPE NAME
 #define VALUE_PARSE "i"
 #define DECREF_VALUE(k)

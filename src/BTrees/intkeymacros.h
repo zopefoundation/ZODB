@@ -1,5 +1,6 @@
 #define KEY_TYPE int
-#define TEST_KEY(KEY, TARGET) ( (KEY) - (TARGET) )
+#define KEY_CHECK PyInt_Check
+#define TEST_KEY(K, T) (((K) < (T)) ? -1 : (((K) > (T)) ? 1: 0)) 
 #define DECREF_KEY(KEY)
 #define INCREF_KEY(k)
 #define COPY_KEY(KEY, E) (KEY=(E))

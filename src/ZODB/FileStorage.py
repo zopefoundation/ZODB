@@ -184,7 +184,7 @@
 #   may have a back pointer to a version record or to a non-version
 #   record.
 #
-__version__='$Revision: 1.50 $'[11:-2]
+__version__='$Revision: 1.51 $'[11:-2]
 
 import struct, time, os, bpthread, string, base64, sys
 from struct import pack, unpack
@@ -197,6 +197,7 @@ from zLOG import LOG, WARNING, ERROR, PANIC, register_subsystem
 register_subsystem('ZODB FS')
 import BaseStorage
 from cPickle import Pickler, Unpickler
+import ConflictResolution
 
 try: from posix import fsync
 except: fsync=None
@@ -240,7 +241,8 @@ class FileStorageQuotaError(FileStorageError,
 
 packed_version='FS21'
 
-class FileStorage(BaseStorage.BaseStorage):
+class FileStorage(BaseStorage.BaseStorage,
+                  ConflictResolution.ConflictResolvingStorage):
     _packt=z64
 
     def __init__(self, file_name, create=0, read_only=0, stop=None,
@@ -663,18 +665,23 @@ class FileStorage(BaseStorage.BaseStorage):
                         raise POSException.VersionLockError, (
                             `oid`, locked_version)
 
-                if serial != oserial: raise POSException.ConflictError, (
-                    serial, oserial)
-
+                if serial != oserial:
+                    data=self.tryToResolveConflict(oid, oserial, serial, data)
+                    if not data:
+                        raise POSException.ConflictError, (
+                            serial, oserial)
+            else:
+                oserial=serial
+                    
             tfile=self._tfile
             write=tfile.write
             pos=self._pos
             here=pos+(tfile.tell()+self._thl)
             self._tappend((oid, here))
-            serial=self._serial
+            newserial=self._serial
             write(pack(">8s8s8s8sH8s",
-                       oid,serial,p64(old),p64(pos),
-                       len(version),p64(len(data))
+                       oid, newserial, p64(old), p64(pos),
+                       len(version), p64(len(data))
                        )
                   )
             if version:
@@ -695,7 +702,8 @@ class FileStorage(BaseStorage.BaseStorage):
                 raise FileStorageQuotaError, (
                     'The storage quota has been exceeded.')
 
-            return serial
+            return (serial == oserial and newserial
+                    or ConflictResolution.ResolvedSerial)
         
         finally:
             self._lock_release()

@@ -110,6 +110,23 @@ nextIntSet(SetIteration *i)
 }
 #endif
 
+#ifdef KEY_CHECK
+static int 
+nextKeyAsSet(SetIteration *i)
+{
+  if (i->position >= 0)
+    {
+      if (i->position < 1)
+        {
+          i->position ++;
+        }
+      else
+        i->position = -1;
+    }
+  return 0;
+}
+#endif
+
 static int
 initSetIteration(SetIteration *i, PyObject *s, int w, int *merge)
 {
@@ -168,6 +185,19 @@ initSetIteration(SetIteration *i, PyObject *s, int w, int *merge)
 
       i->next=nextIntSet;
       i->hasValue=0;
+    }
+#endif
+#ifdef KEY_CHECK
+  else if (KEY_CHECK(s))
+    {
+      int copied=1;
+
+      i->set = s;
+      Py_INCREF(s);
+      i->next=nextKeyAsSet;
+      i->hasValue=0;
+      COPY_KEY_FROM_ARG(i->key, s, &copied);
+      UNLESS (copied) return -1;
     }
 #endif
   else
@@ -300,7 +330,7 @@ set_operation(PyObject *s1, PyObject *s2,
 	{
 	  if(c2)
 	    {
-	      if(r->len >= r->size && Bucket_grow(r,1) < 0) goto err;
+	      if(r->len >= r->size && Bucket_grow(r, ! merge) < 0) goto err;
               COPY_KEY(r->keys[r->len], i2.key);
               INCREF_KEY(r->keys[r->len]);
               if (merge)
