@@ -3,13 +3,20 @@
 
 __metaclass__ = type
 
-from transaction.interfaces import ITransaction, TransactionError
+from transaction.interfaces import *
 from threading import Lock
 
-class Set(dict):
+try:
+    from sets import Set
+except ImportError:
 
-    def add(self, k):
-        self[k] = 1
+    class Set(dict):
+
+        def add(self, k):
+            self[k] = 1
+
+        def remove(self, k):
+            del self[k]
 
 class Status:
 
@@ -50,24 +57,29 @@ class Transaction:
     def commit(self):
         """Commit a transaction."""
         assert self._manager is not None
+        if self._status != Status.ACTIVE:
+            raise IllegalStateError("commit", self._status)
         self._manager.commit(self)
 
     def abort(self):
         """Rollback to initial state."""
         assert self._manager is not None
+        if self._status not in (Status.ACTIVE, Status.PREPARED, Status.FAILED):
+            raise IllegalStateError("abort", self._status)
         self._manager.abort(self)
 
     def savepoint(self):
         """Save current progress and return a savepoint."""
         assert self._manager is not None
+        if self._status != Status.ACTIVE:
+            raise IllegalStateError("create savepoint", self._status)
         return self._manager.savepoint(self)
 
     def join(self, resource):
         """resource is participating in the transaction."""
         assert self._manager is not None
         if self._status != Status.ACTIVE:
-            raise TransactionError("Can't join transaction. Status=%s" %
-                                   self._status)
+            raise IllegalStateError("join", self._status)
         self._resources.add(resource)
 
     def status(self):
@@ -78,7 +90,7 @@ class Transaction:
         self._lock.acquire()
         try:
             if self._status == Status.SUSPENDED:
-                raise TransactionError("Already suspended")
+                raise IllegalStateError("suspend", self._status)
             self._manager.suspend(self)
             self._suspend = self._status
             self._status = Status.SUSPENDED
