@@ -14,7 +14,7 @@
 static char coptimizations_doc_string[] = 
 "C optimization for new_persistent_id().\n"
 "\n"
-"$Id: coptimizations.c,v 1.16 2002/02/11 23:40:42 gvanrossum Exp $\n";
+"$Id: coptimizations.c,v 1.17 2002/03/08 18:36:14 jeremy Exp $\n";
 
 #include "Python.h"
 #define DONT_USE_CPERSISTENCECAPI
@@ -61,7 +61,7 @@ persistent_id_dealloc(persistent_id *self)
   Py_DECREF(self->jar);
   Py_DECREF(self->stackup);
   Py_XDECREF(self->new_oid);
-  PyMem_DEL(self);
+  PyObject_DEL(self);
 }
 
 static PyObject *
