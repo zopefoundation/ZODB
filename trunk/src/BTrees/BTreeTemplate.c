@@ -12,7 +12,7 @@
 
  ****************************************************************************/
 
-#define BTREETEMPLATE_C "$Id: BTreeTemplate.c,v 1.40 2002/06/11 00:19:19 tim_one Exp $\n"
+#define BTREETEMPLATE_C "$Id: BTreeTemplate.c,v 1.41 2002/06/11 02:14:36 tim_one Exp $\n"
 
 /*
 ** _BTree_get
@@ -350,11 +350,11 @@ _BTree_set(BTree *self, PyObject *keyarg, PyObject *value,
     if (!self->len) {
 	if (value) {
 	    if (BTree_grow(self, 0, noval) < 0)
-		return -1;
+		goto err;
 	}
 	else {
 	    PyErr_SetObject(PyExc_KeyError, keyarg);
-	    return -1;
+	    goto err;
 	}
     }
 
