@@ -34,6 +34,15 @@ analyze.py produced spurious "len of unsized object" messages when
 finding a data record for an object uncreation or version abort.  These
 no longer appear.
 
+fsdump.py's get_pickle_metadata() function (which is used by several
+tools) was confused about what to do when the ZODB pickle started with
+a pickle GLOBAL opcode.  It actually loaded the class then, which it
+intends never to do, leading to stray messages on stdout when the class
+wasn't available, and leading to a strange return value even when it was
+available (the repr of the type object was returned as "the module name",
+and an empty string was returned as "the class name").  This has been
+repaired.
+
 
 What's new in ZODB3 3.3 beta 2
 ==============================

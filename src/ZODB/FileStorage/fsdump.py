@@ -1,3 +1,8 @@
+from cPickle import Unpickler
+from cStringIO import StringIO
+import md5
+import struct
+
 from ZODB.FileStorage import FileIterator
 from ZODB.FileStorage.format \
      import TRANS_HDR, TRANS_HDR_LEN, DATA_HDR, DATA_HDR_LEN
@@ -5,23 +10,27 @@ from ZODB.TimeStamp import TimeStamp
 from ZODB.utils import u64
 from ZODB.tests.StorageTestBase import zodb_unpickle
 
-from cPickle import Unpickler
-from cStringIO import StringIO
-import md5
-import struct
-import types
-
 def get_pickle_metadata(data):
     # ZODB's data records contain two pickles.  The first is the class
     # of the object, the second is the object.  We're only trying to
     # pick apart the first here, to extract the module and class names.
-    if data.startswith('(c'):   # pickle MARK GLOBAL sequence
+    if data.startswith('(c'):   # pickle MARK GLOBAL opcode sequence
+        global_prefix = 2
+    elif data.startswith('c'):  # pickle GLOBAL opcode
+        global_prefix = 1
+    else:
+        global_prefix = 0
+
+    if global_prefix:
         # Don't actually unpickle a class, because it will attempt to
         # load the class.  Just break open the pickle and get the
-        # module and class from it.
+        # module and class from it.  The module and the class names are
+        # given by newline-terminated strings following the GLOBAL opcode.
         modname, classname, rest = data.split('\n', 2)
-        modname = modname[2:]   # strip leading '(c'
+        modname = modname[global_prefix:]   # strip GLOBAL opcode
         return modname, classname
+
+    # Else there are a bunch of other possible formats.
     f = StringIO(data)
     u = Unpickler(f)
     try:
@@ -29,8 +38,8 @@ def get_pickle_metadata(data):
     except Exception, err:
         print "Error", err
         return '', ''
-    if isinstance(class_info, types.TupleType):
-        if isinstance(class_info[0], types.TupleType):
+    if isinstance(class_info, tuple):
+        if isinstance(class_info[0], tuple):
             modname, classname = class_info[0]
         else:
             modname, classname = class_info
