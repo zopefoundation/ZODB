@@ -1,5 +1,12 @@
 Zope Enterprise Objects (ZEO) Revision History
 
+  ZEO 1.0.0
+
+    Bugs Fixed
+
+      - A forgotten argument made it unreliable to start a ClientStorage
+        after the main loop has started.
+
   ZEO 1.0.0 beta 1
 
     New Features
@@ -43,9 +50,6 @@ Zope Enterprise Objects (ZEO) Revision History
         while the client storage was disconnected from the server, 
         no further write transactions would be allowed, even after 
 	reconnection, and the site would eventually hang.
-
-      - A forgotten argument made starting a ClientStorage after
-        the main loop has started unreliable.
 
   Planned for (future) ZEO releases
 
