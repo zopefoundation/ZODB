@@ -54,9 +54,7 @@ class EventLogTest(unittest.TestCase):
         zLOG.initialize()
 
     def setLog(self, severity=0):
-        os.environ['%s_LOG_FILE' % self.prefix] = self.path
-        if severity:
-            os.environ['%s_LOG_SEVERITY' % self.prefix] = str(severity)
+        # XXX Need to write new logging initialization code here!
         self._severity = severity
         zLOG.initialize()
 
