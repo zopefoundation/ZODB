@@ -88,7 +88,7 @@ process must skip such objects, rather than deactivating them.
 static char cPickleCache_doc_string[] =
 "Defines the PickleCache used by ZODB Connection objects.\n"
 "\n"
-"$Id: cPickleCache.c,v 1.53 2002/04/03 17:53:27 jeremy Exp $\n";
+"$Id: cPickleCache.c,v 1.54 2002/04/04 22:02:32 bwarsaw Exp $\n";
 
 #define ASSIGN(V,E) {PyObject *__e; __e=(E); Py_XDECREF(V); (V)=__e;}
 #define UNLESS(E) if(!(E))
@@ -936,9 +936,10 @@ static int
 cc_ass_sub(ccobject *self, PyObject *key, PyObject *v)
 {
     if (!PyString_Check(key)) {
-	PyErr_Format("cPickleCache key must be a string, not a %s",
+	PyErr_Format(PyExc_TypeError,
+                     "cPickleCache key must be a string, not a %s",
 		     key->ob_type->tp_name);
-	return NULL;
+	return -1;
     }
     if (v)
 	return cc_add_item(self, key, v);
