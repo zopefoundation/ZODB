@@ -235,6 +235,16 @@ class IDataManagerOriginal(zope.interface.Interface):
 
         """
 
+    def sortKey():
+        """
+        Return a key to use for ordering registered DataManagers
+
+        ZODB uses a global sort order to prevent deadlock when it commits
+        transactions involving multiple resource managers.  The resource
+        manager must define a sortKey() method that provides a global ordering
+        for resource managers.
+        """
+
 class IDataManager(zope.interface.Interface):
     """Data management interface for storing objects transactionally.
 
@@ -312,6 +322,16 @@ class IDataManager(zope.interface.Interface):
         way, transactions that create savepoints can proceed as long
         as an attempt is never made to roll back a savepoint.
 
+        """
+
+    def sortKey():
+        """
+        Return a key to use for ordering registered DataManagers
+
+        ZODB uses a global sort order to prevent deadlock when it commits
+        transactions involving multiple resource managers.  The resource
+        manager must define a sortKey() method that provides a global ordering
+        for resource managers.
         """
 
 class ITransaction(zope.interface.Interface):
