@@ -7,16 +7,34 @@
 
   <sectiontype name="filestorage" datatype=".FileStorage"
                implements="storage">
-    <key name="path" required="yes"/>
+    <key name="path" required="yes">
+      <description>
+        Path name to the main storage file.  The names for
+        supplemental files, including index and lock files, will be
+        computed from this.
+      </description>
+    </key>
     <key name="create" datatype="boolean" default="false">
       <description>
         Flag that indicates whether the storage should be truncated if
         it already exists.
       </description>
     </key>
-    <key name="read-only" datatype="boolean" default="false"/>
-    <key name="stop"/>
-    <key name="quota" datatype="integer"/>
+    <key name="read-only" datatype="boolean" default="false">
+      <description>
+        If true, only reads may be executed against the storage.  Note
+        that the "pack" operation is not considered a write operation
+        and is still allowed on a read-only filestorage.
+      </description>
+    </key>
+    <key name="quota" datatype="byte-size">
+      <description>
+        Maximum allowed size of the storage file.  Operations which
+        would cause the size of the storage to exceed the quota will
+        result in a ZODB.FileStorage.FileStorageQuotaError being
+        raised.
+      </description>
+    </key>
   </sectiontype>
 
   <sectiontype name="mappingstorage" datatype=".MappingStorage"
