@@ -9,6 +9,8 @@ fsrecover.py couldn't work, because it referenced attributes that no
 longer existed after the MVCC changes.  Repaired that, and added new
 tests to ensure it continues working.
 
+Collector #1309:  The reference counts reported by DB.cacheExtremeDetails()
+for ghosts were one too small.
 
 
 What's new in ZODB3 3.3 alpha 3
