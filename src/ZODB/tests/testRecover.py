@@ -55,8 +55,7 @@ class RecoverTest(unittest.TestCase):
         cn = db.open()
         rt = cn.root()
 
-        # create a whole bunch of objects,
-        # looks like a Data.fs > 1MB
+        # Create a bunch of objects; the Data.fs is about 100KB.
         for i in range(50):
             d = rt[i] = PersistentMapping()
             transaction.commit()
@@ -85,7 +84,7 @@ class RecoverTest(unittest.TestCase):
             sys.stdout = faux_stdout
             try:
                 recover(self.path, self.dest,
-                        verbose=0, partial=1, force=0, pack=1)
+                        verbose=0, partial=True, force=False, pack=1)
             except SystemExit:
                 raise RuntimeError, "recover tried to exit"
         finally:
@@ -102,6 +101,18 @@ class RecoverTest(unittest.TestCase):
         output = self.recover()
         self.assert_('error' not in output, output)
         self.assert_('\n0 bytes removed during recovery' in output, output)
+
+        # Verify that the recovered database is identical to the original.
+        before = file(self.path, 'rb')
+        before_guts = before.read()
+        before.close()
+
+        after = file(self.dest, 'rb')
+        after_guts = after.read()
+        after.close()
+
+        self.assertEqual(before_guts, after_guts,
+                         "recovery changed a non-damaged .fs file")
 
     def testOneBlock(self):
         for i in range(self.ITERATIONS):
