@@ -421,7 +421,7 @@ class ClientStorage:
             try:
                 canonical, aliases, addrs = socket.gethostbyaddr(host)
             except socket.error, err:
-                log2(BLATHER, "Error resoving host: %s (%s)" % (host, err))
+                log2(BLATHER, "Error resolving host: %s (%s)" % (host, err))
                 canonical = host
             self._server_addr = str((canonical, addr[1]))
 
