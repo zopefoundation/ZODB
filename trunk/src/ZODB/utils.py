@@ -14,10 +14,11 @@
 
 import sys
 import time
-from persistent.TimeStamp import TimeStamp
-
 from struct import pack, unpack
 from types import StringType
+from binascii import hexlify
+
+from persistent.TimeStamp import TimeStamp
 
 z64 = '\0'*8
 t32 = 1L << 32
@@ -64,7 +65,14 @@ def newTimeStamp(old=None,
 
 def oid_repr(oid):
     if isinstance(oid, StringType) and len(oid) == 8:
-        return '%016x' % U64(oid)
+        # Convert to hex and strip leading zeroes.
+        as_hex = hexlify(oid).lstrip('0')
+        # Ensure two characters per input byte.
+        if len(as_hex) & 1:
+            as_hex = '0' + as_hex
+        elif as_hex == '':
+            as_hex = '00'
+        return '0x' + as_hex
     else:
         return repr(oid)
 
