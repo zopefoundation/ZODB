@@ -12,7 +12,7 @@
   
  ****************************************************************************/
 
-#define BTREETEMPLATE_C "$Id: BTreeTemplate.c,v 1.32 2002/05/31 17:56:59 tim_one Exp $\n"
+#define BTREETEMPLATE_C "$Id: BTreeTemplate.c,v 1.33 2002/05/31 20:01:16 tim_one Exp $\n"
 
 /*
 ** _BTree_get
@@ -21,8 +21,8 @@
 static PyObject *
 _BTree_get(BTree *self, PyObject *keyarg, int has_key)
 {
-  int min, max, i, cmp, copied=1;
-  PyObject *r;
+  int min, copied=1;
+  PyObject *r = NULL;
   KEY_TYPE key;
   
   COPY_KEY_FROM_ARG(key, keyarg, copied);
@@ -30,38 +30,25 @@ _BTree_get(BTree *self, PyObject *keyarg, int has_key)
 
   PER_USE_OR_RETURN(self, NULL);
 
+  BTREE_SEARCH(min, self, key, goto Error);
   if (self->len)
     {
-      for (min=0, max=self->len, i=max/2; max-min > 1; i=(min+max)/2)
-        {
-          TEST_KEY_SET_OR(cmp, self->data[i].key, key) return NULL;
-          if (cmp < 0) min=i;
-          else if (cmp == 0)
-            {
-              min=i;
-              break;
-            }
-          else max=i;
-        }
-      
       if (SameType_Check(self, self->data[min].child)) 
-        r=_BTree_get( BTREE(self->data[min].child), keyarg, 
-                      has_key ? has_key + 1: 0);
+        r = _BTree_get( BTREE(self->data[min].child), keyarg, 
+                        has_key ? has_key + 1: 0);
       else
-        r=_bucket_get(BUCKET(self->data[min].child), keyarg, 
-                      has_key ? has_key + 1: 0);
+        r = _bucket_get(BUCKET(self->data[min].child), keyarg, 
+                        has_key ? has_key + 1: 0);
     }
   else
     {  /* No data */
       UNLESS (has_key) 
-        {
-          PyErr_SetObject(PyExc_KeyError, keyarg);
-          r=NULL;
-        }
+        PyErr_SetObject(PyExc_KeyError, keyarg);
       else
-        r=PyInt_FromLong(0);
+        r = PyInt_FromLong(0);
     }
 
+Error:
   PER_ALLOW_DEACTIVATION(self);
   PER_ACCESSED(self);
   return r;

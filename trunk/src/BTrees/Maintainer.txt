@@ -171,3 +171,92 @@ More or less random bits of helpful info.
   mostly to "even out" pickle sizes in storage.  That's why, e.g.,
   an IIBTree has larger values than an OOBTree:  pickles store ints
   more efficiently than they can store arbitrary Python objects.
+
+
+The BTREE_SEARCH Macro
+======================
+For notational ease, consider a fixed BTree node x, and let
+
+    K(i) mean x->data.key[i]
+    C(i) mean all the keys reachable from x->data.child[i]
+
+For each i in 0 to x->len-1 inclusive,
+
+    K(i) <= C(i) < K(i+1)
+
+is a BTree node invariant, where we pretend that K(0) holds a key
+smaller than any possible key, and K(x->len) holds a key larger
+than any possible key.  (Note that K(x->len) doesn't actually exist,
+and K(0) is never used although space for it exists in non-empty
+BTree nodes.)
+
+When searching for a key k, then, the child pointer we want to follow
+is the one at index i such that K(i) <= k < K(i+1).  There can be
+only one such i, since the keys are strictly increasing.  And there is
+at *least* one such i provided the tree isn't empty.  For the moment,
+assume the tree isn't empty (we'll get back to that later).
+
+The macro's chief loop invariant is
+
+    K(lo) < k < K(hi)
+
+This holds trivially at the start, since lo is set to 0 ahd hi to
+x->len, and we pretend K(0) is minus infinity and K(len) is plus
+infinity.  Inside the loop, if K(i) < k we set lo to i, and if
+K(i) > k we set hi to i.  These obviously preserve the invariant.
+If K(i) == k, the loop breaks and sets the result to i, and since
+K(i) == k in that case i is obviously the correct result.
+
+What if the key isn't present?  lo and hi move toward each other,
+narrowing the range, until eventually lo+1 == hi.  At that point,
+i = (lo+hi)/2 = (lo+lo+1)/2 = lo + 1/2 = lo, so that:
+
+1. The loop's "i > lo" test is false, so the loop ends then.
+
+and
+
+2. The invariant still holds, so K(i) < k < K(i+1), and i is again
+   the correct answer.
+
+Can we get out of the loop too early?  No:  if hi = lo + d for some d
+greater than 1, then i = (lo+lo+d)/2 = lo + d/2, and d/2 is at least 1
+since d is at least 2:  i is strictly greater than lo then, and the
+loop continues.
+
+Can lo==hi?  Yes, but only if the node is empty.  Then i, lo and hi
+all start out as 0, and the loop exits immediately.  If the loop
+isn't empty, then lo and hi start out with different values.  Whenever
+lo and hi have different values, lo <= (lo + hi)/2 < hi, so i and lo
+are strictly smaller than hi, so setting either lo or hi to i leaves
+the new lo strictly smaller than the new hi.
+
+Can the loop fail to terminate?  No:  by the above, when lo < hi-1,
+lo < i=(lo+hi)/2 < hi, so setting either lo or hi to i leaves the
+new lo and hi strictly closer to each other than were the old lo and
+hi.
+
+Optimization points:
+
++ Division by 2 is done via shift rather via "/2".  These are
+  signed ints, and almost all C compilers treat signed int division
+  as truncating, and shifting is not the same as truncation for
+  signed int division.  The compiler has no way to know these values
+  aren't negative, so has to generate longer-winded code for "/2".
+  But we know these values aren't negative, and exploit it.
+
++ The order of _cmp comparisons matters.  We're in an interior
+  BTree node, and are looking at only a tiny fraction of all the
+  keys that exist.  So finding the key exactly in this node is
+  unlikely, and checking _cmp == 0 is a waste of time to the same
+  extent.  It doesn't matter whether we check for _cmp < 0 or
+  _cmp > 0 first, so long as we do both before worrying about
+  equality.
+
++ At the start of a routine, it's better to run this macro even
+  if x->len is 0 (check for that afterwards).  We just called a
+  function and so probably drained the pipeline.  If the first thing
+  we do then is read up self->len and check it against 0, we just
+  sit there waiting for the data to get read up, and then another
+  immediate test-and-branch, and for a very unlikely case (BTree
+  nodes are rarely empty).  It's better to get into the loop right
+  away so the normal case makes progress ASAP.

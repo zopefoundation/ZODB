@@ -147,6 +147,32 @@ staticforward PyExtensionClass BTreeType;
 
 #define BTREE(O) ((BTree*)(O))
 
+/* Use BTREE_SEARCH to find which child pointer to follow.
+ * RESULT   An int lvalue to hold the index i such that SELF->data[i].child
+ *          is the correct node to search next.
+ * SELF     A pointer to a BTree node.
+ * KEY      The key you're looking for, of type KEY_TYPE.
+ * ONERROR  What to do if key comparison raises an exception; for example,
+ *          perhaps 'return NULL'.
+ *
+ * See Maintainer.txt for discussion:  this is optimized in subtle ways.
+ * It's recommended that you call this at the start of a routine, waiting
+ * to check for self->len == 0 after.
+ */
+#define BTREE_SEARCH(RESULT, SELF, KEY, ONERROR) {          \
+    int _lo = 0;                                            \
+    int _hi = (SELF)->len;                                  \
+    int _i, _cmp;                                           \
+    for (_i = _hi >> 1; _i > _lo; _i = (_lo + _hi) >> 1) {  \
+        TEST_KEY_SET_OR(_cmp, (SELF)->data[_i].key, (KEY))  \
+            ONERROR;                                        \
+        if      (_cmp < 0) _lo = _i;                        \
+        else if (_cmp > 0) _hi = _i;                        \
+        else   /* equal */ break;                           \
+    }                                                       \
+    (RESULT) = _i;                                          \
+}
+
 typedef struct SetIteration_s
 {
   PyObject *set;
@@ -323,7 +349,7 @@ static char BTree_module_documentation[] =
 "\n"
 MASTER_ID
 BTREEITEMSTEMPLATE_C
-"$Id: BTreeModuleTemplate.c,v 1.26 2002/05/31 17:56:59 tim_one Exp $\n"
+"$Id: BTreeModuleTemplate.c,v 1.27 2002/05/31 20:01:16 tim_one Exp $\n"
 BTREETEMPLATE_C
 BUCKETTEMPLATE_C
 KEYMACROS_H
