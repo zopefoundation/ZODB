@@ -321,10 +321,19 @@ class ZEOStorage:
     def tpc_abort(self, id):
         if not self._check_tid(id):
             return
-        self.strategy.tpc_abort()
+        strategy = self.strategy
+        strategy.tpc_abort()
         self._transaction = None
         self.strategy = None
-        self._handle_waiting()
+        # When ZEOStorage.notifyDisconnected() calls self.tpc_abort(),
+        # it is possible that self.strategy is DelayedCommitStrategy.
+        # In that case, ZEOStorage.tpc_abort() should *not* call
+        # self._handle_waiting(), otherwise there could be two
+        # ZEOStorage instances whose strategy is
+        # ImmediateCommitStrategy!
+        if isinstance(strategy, ImmediateCommitStrategy):
+            self._handle_waiting()
+        # XXX else, should we remove ourselves from storage._waiting???
 
     # XXX handle new serialnos
 
