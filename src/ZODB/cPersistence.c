@@ -1,6 +1,6 @@
 /*
 
-  $Id: cPersistence.c,v 1.18 1997/07/18 14:14:02 jim Exp $
+  $Id: cPersistence.c,v 1.19 1997/09/18 19:53:46 jim Exp $
 
   C Persistence Module
 
@@ -56,7 +56,7 @@
 
 
 *****************************************************************************/
-static char *what_string = "$Id: cPersistence.c,v 1.18 1997/07/18 14:14:02 jim Exp $";
+static char *what_string = "$Id: cPersistence.c,v 1.19 1997/09/18 19:53:46 jim Exp $";
 
 #include <time.h>
 #include "cPersistence.h"
@@ -722,6 +722,10 @@ Per_getattr(cPersistentObject *self, PyObject *oname, char *name,
 		return Py_None;
 	      }
 	    break;
+	  case 's':
+	    if(strcmp(n,"tate")==0) 
+	      return PyInt_FromLong(self->state);
+	    break;
 	  }
 
 	return getattrf((PyObject *)self, oname);
@@ -936,7 +940,7 @@ void
 initcPersistence()
 {
   PyObject *m, *d;
-  char *rev="$Revision: 1.18 $";
+  char *rev="$Revision: 1.19 $";
 
   PATimeType.ob_type=&PyType_Type;
 
@@ -963,6 +967,9 @@ initcPersistence()
 /****************************************************************************
 
   $Log: cPersistence.c,v $
+  Revision 1.19  1997/09/18 19:53:46  jim
+  Added attribute, _p_state.
+
   Revision 1.18  1997/07/18 14:14:02  jim
   Fixed bug in handling delete of certain special attributes.
 
