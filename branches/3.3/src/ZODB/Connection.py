@@ -798,7 +798,7 @@ class Connection(ExportImport, object):
     def root(self):
         """Return the database root object.
 
-        The root is a PersistentDict.
+        The root is a persistent.mapping.PersistentMapping.
         """
         return self.get(z64)
 
