@@ -140,14 +140,15 @@ class ZEOStorage:
     def _check_tid(self, tid, exc=None):
         if self.read_only:
             raise ReadOnlyError()
-        caller = sys._getframe().f_back.f_code.co_name
         if self.transaction is None:
+            caller = sys._getframe().f_back.f_code.co_name
             self.log("no current transaction: %s()" % caller, zLOG.PROBLEM)
             if exc is not None:
                 raise exc(None, tid)
             else:
                 return 0
         if self.transaction.id != tid:
+            caller = sys._getframe().f_back.f_code.co_name
             self.log("%s(%s) invalid; current transaction = %s" %
                      (caller, repr(tid), repr(self.transaction.id)),
                      zLOG.PROBLEM)
