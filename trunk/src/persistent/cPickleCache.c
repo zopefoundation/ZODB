@@ -53,10 +53,12 @@ persistent classes (such as BTrees).
 
 Regime 3: Non-Ghost Objects
 
-Non-ghost objects are stored in two data structures. Firstly, in the
-dictionary along with everything else, with a *strong* reference.
-Secondly, they are stored in a doubly-linked-list which encodes the
-order in which these objects have been most recently used.
+Non-ghost objects are stored in two data structures: the dictionary
+mapping oids to objects and a doubly-linked list that encodes the
+order in which the objects were accessed.  The dictionary reference is
+borrowed, as it is for ghosts.  The list reference is a new reference;
+the list stores recently used objects, even if they are otherwise
+unreferenced, to avoid loading the object from the database again.
 
 The doubly-link-list nodes contain next and previous pointers linking
 together the cache and all non-ghost persistent objects.
@@ -88,7 +90,7 @@ process must skip such objects, rather than deactivating them.
 static char cPickleCache_doc_string[] =
 "Defines the PickleCache used by ZODB Connection objects.\n"
 "\n"
-"$Id: cPickleCache.c,v 1.79 2003/04/01 18:49:43 jeremy Exp $\n";
+"$Id: cPickleCache.c,v 1.80 2003/04/02 16:50:49 jeremy Exp $\n";
 
 #define ASSIGN(V,E) {PyObject *__e; __e=(E); Py_XDECREF(V); (V)=__e;}
 #define UNLESS(E) if(!(E))
@@ -762,8 +764,7 @@ cc_add_item(ccobject *self, PyObject *key, PyObject *v)
     
     if (PyDict_SetItem(self->data, key, v) < 0) 
 	return -1;
-    /* Remove the reference used by the dict.  The cache should only
-       have borrowed references to objects. */
+    /* the dict should have a borrowed reference */
     Py_DECREF(v);
     
     p = (cPersistentObject *)v;
@@ -771,12 +772,14 @@ cc_add_item(ccobject *self, PyObject *key, PyObject *v)
     p->cache = (PerCache *)self;
     if (p->state >= 0) {
 	/* insert this non-ghost object into the ring just 
-	   behind the home position */
+	   behind the home position. */
 	self->non_ghost_count++;
 	p->ring.next = &self->ring_home;
 	p->ring.prev =  self->ring_home.prev;
 	self->ring_home.prev->next = &p->ring;
 	self->ring_home.prev = &p->ring;
+	/* this list should have a new reference to the object */
+	Py_INCREF(v);
     }
     return 0;
 }
@@ -802,6 +805,8 @@ cc_del_item(ccobject *self, PyObject *key)
 	    p->ring.prev->next = p->ring.next;
 	    p->ring.prev = NULL;
 	    p->ring.next = NULL;
+	    /* The DelItem below will account for the reference
+	       held by the list. */
 	} else {
 	    /* This is a ghost object, so we havent kept a reference
 	       count on it.  For it have stayed alive this long

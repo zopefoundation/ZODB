@@ -14,7 +14,7 @@
 static char cPersistence_doc_string[] = 
 "Defines Persistent mixin class for persistent objects.\n"
 "\n"
-"$Id: cPersistence.c,v 1.67 2003/04/01 17:33:23 jeremy Exp $\n";
+"$Id: cPersistence.c,v 1.68 2003/04/02 16:50:49 jeremy Exp $\n";
 
 #include "cPersistence.h"
 
@@ -131,6 +131,7 @@ unghostify(cPersistentObject *self)
             self->ring.prev = home->prev;
 	    home->prev->next = &self->ring;
 	    home->prev = &self->ring;
+	    Py_INCREF(self);
         }
         self->state = cPersistent_CHANGED_STATE;
         /* Call the object's __setstate__() */
@@ -184,6 +185,8 @@ ghostify(cPersistentObject *self)
     self->ring.prev = NULL;
     self->ring.next = NULL;
     self->state = cPersistent_GHOST_STATE;
+    /* self->ring held a reference to the object. */
+    Py_DECREF(self);
 }
 
 static void
