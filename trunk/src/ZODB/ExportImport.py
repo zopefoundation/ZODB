@@ -21,7 +21,8 @@ from utils import p64, u64
 from referencesf import referencesf
 from cStringIO import StringIO
 from cPickle import Pickler, Unpickler
-TupleType=type(())
+from types import StringType, TupleType
+import zLOG
 
 class ExportImport:
 
@@ -42,8 +43,12 @@ class ExportImport:
             del oids[0]
             if done(oid): continue
             done_oids[oid]=1
-            try: p, serial = load(oid, version)
-            except: pass # Ick, a broken reference
+            try:
+                p, serial = load(oid, version)
+            except:
+                zLOG.LOG("ZODB", zLOG.DEBUG,
+                         "broken reference for oid %s" % `oid`,
+                         err=sys.exc_info())
             else:
                 ref(p, oids)
                 write(oid)
@@ -96,8 +101,8 @@ class ExportImport:
         read = file.read
 
         def persistent_load(ooid,
-                            Ghost=Ghost, StringType=StringType,
-                            atoi=string.atoi, TupleType=type(()),
+                            Ghost=Ghost,
+                            atoi=string.atoi,
                             oids=oids, wrote_oid=oids.has_key,
                             new_oid=storage.new_oid):
 
@@ -151,8 +156,6 @@ class ExportImport:
 
             store(oid, None, p, version, transaction)
 
-
-StringType=type('')
 
 def TemporaryFile():
     # This is sneaky suicide
