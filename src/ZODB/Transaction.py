@@ -84,8 +84,8 @@
 ##############################################################################
 """Transaction management
 
-$Id: Transaction.py,v 1.27 2001/02/26 20:33:50 brian Exp $"""
-__version__='$Revision: 1.27 $'[11:-2]
+$Id: Transaction.py,v 1.28 2001/03/29 17:43:19 jeremy Exp $"""
+__version__='$Revision: 1.28 $'[11:-2]
 
 import time, sys, struct, POSException
 from struct import pack
@@ -209,6 +209,8 @@ class Transaction:
     def commit(self, subtransaction=None):
         'Finalize the transaction'
 
+        global hosed
+        
         objects=self._objects
         jars={}
         jarsv = None
@@ -338,7 +340,6 @@ class Transaction:
                     # Bug if it does, we need to yell FIRE!
                     # Someone finished, so don't allow any more
                     # work without at least a restart!
-                    global hosed
                     hosed=1
                     LOG('ZODB', PANIC,
                         "A storage error occurred in the last phase of a "
