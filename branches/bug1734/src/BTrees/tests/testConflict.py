@@ -759,6 +759,60 @@ class NastyConfict(Base, TestCase):
         else:
             self.fail("expected ConflictError")
 
+    def testConflictWithOneEmptyBucket(self):
+        # If one transaction empties a bucket, while another adds an item
+        # to the bucket, all the changes "look resolvable":  bucket conflict
+        # resolution returns a bucket containing (only) the item added by
+        # the latter transaction, but changes from the former transaction
+        # removing the bucket are uncontested:  the bucket is removed from
+        # the BTree despite that resolution thinks it's non-empty!  This
+        # was first reported by Dieter Maurer, to zodb-dev on 22 Mar 2005.
+        b = self.t
+        for i in range(0, 200, 4):
+            b[i] = i
+        # bucket 0 has 15 values: 0, 4 .. 56
+        # bucket 1 has 15 values: 60, 64 .. 116
+        # bucket 2 has 20 values: 120, 124 .. 196
+        state = b.__getstate__()
+        # Looks like:  ((bucket0, 60, bucket1, 120, bucket2), firstbucket)
+        # If these fail, the *preconditions* for running the test aren't
+        # satisfied -- the test itself hasn't been run yet.
+        self.assertEqual(len(state), 2)
+        self.assertEqual(len(state[0]), 5)
+        self.assertEqual(state[0][1], 60)
+        self.assertEqual(state[0][3], 120)
+
+        # Set up database connections to provoke conflict.
+        self.openDB()
+        r1 = self.db.open().root()
+        r1["t"] = self.t
+        transaction.commit()
+
+        r2 = self.db.open(synch=False).root()
+        copy = r2["t"]
+        # Make sure all of copy is loaded.
+        list(copy.values())
+
+        self.assertEqual(self.t._p_serial, copy._p_serial)
+
+        # Now one transaction empties the first bucket, and another adds a
+        # key to the first bucket.
+
+        for k in range(0, 60, 4):
+            del self.t[k]
+        transaction.commit()
+
+        copy[1] = 1
+
+        try:
+            transaction.commit()
+        except ConflictError, detail:
+            self.assert_(str(detail).startswith('database conflict error'))
+            transaction.abort()
+        else:
+            print list(copy.items())
+            self.fail("expected ConflictError")
+
 
 def test_suite():
     suite = TestSuite()
