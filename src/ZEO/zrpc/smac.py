@@ -85,7 +85,7 @@
 """Sized message async connections
 """
 
-__version__ = "$Revision: 1.8 $"[11:-2]
+__version__ = "$Revision: 1.9 $"[11:-2]
 
 import asyncore, string, struct, zLOG, sys, Acquisition
 from zLOG import LOG, TRACE, ERROR, INFO
@@ -114,7 +114,7 @@ class SizedMessageAsyncConnection(Acquisition.Explicit, asyncore.dispatcher):
 
     def handle_read(self,
                     join=string.join, StringType=type(''), _type=type,
-                    StringType=type(''), _None=None):
+                    _None=None):
 
         d=self.recv(8096)
         if not d: return
