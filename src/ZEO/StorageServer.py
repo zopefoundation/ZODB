@@ -679,7 +679,7 @@ class StorageServer:
 
         auth_protocol -- The name of the authentication protocol to use.
             Examples are "digest" and "srp".
-            
+
         auth_database -- The name of the password database filename.
             It should be in a format compatible with the authentication
             protocol used; for instance, "sha" and "srp" require different

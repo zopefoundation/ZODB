@@ -41,7 +41,7 @@ class StorageClass(ZEOStorage):
                                                       self.database.realm,
                                                       password))
         return self.finish_auth(dbpw == password_dig)
-            
+
 
 class PlaintextClient(Client):
     extensions = ["auth"]
