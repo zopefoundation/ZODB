@@ -140,3 +140,34 @@ The value doesn't matter.  If defined, SetOpTemplate.c compiles
 code for a multiunion() function (compute a union of many input sets
 at high speed).  This currently makes sense only for II sets, so
 only _IIBTree.c defines it.
+
+
+BTree Clues
+===========
+More or less random bits of helpful info.
+
++ In papers and textbooks, this flavor of BTree is usually called
+  a B+-Tree, where "+" is a superscript.
+
++ All keys and all values live in the bucket leaf nodes.  Keys in
+  interior (BTree) nodes merely serve to guide a search efficiently
+  toward the correct leaf.
+
++ When a key is deleted, it's physically removed from the bucket
+  it's in, but this doesn't propagate back up the tree:  since keys
+  in interior nodes only serve to guide searches, it's OK-- and
+  saves time --to leave "stale" keys in interior nodes.
+
++ No attempt is made to rebalance the tree after a deletion, unless
+  a bucket thereby becomes entirely empty.  "Classic BTrees" do
+  rebalance, keeping all buckets at least half full (provided there
+  are enough keys in the entire tree to fill half a bucket).  The
+  tradeoffs are murky.  Pathological cases in the presence of
+  deletion do exist.  Pathologies include trees tending toward only
+  one key per bucket, and buckets at differing depths (all buckets
+  are at the same depth in a classic BTree).
+
++ DEFAULT_MAX_BUCKET_SIZE and DEFAULT_MAX_BTREE_SIZE are chosen
+  mostly to "even out" pickle sizes in storage.  That's why, e.g.,
+  an IIBTree has large values than an OOBTree:  pickles store ints
+  more efficiently than they can store arbitrary Python objects.
