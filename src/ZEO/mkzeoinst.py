@@ -143,6 +143,8 @@ def which(program):
     for dir in binpath:
         path = os.path.join(dir, program)
         if os.path.isfile(path) and os.access(path, os.X_OK):
+            if not os.path.isabs(path):
+                path = os.path.abspath(path)
             return path
     raise IOError, "can't find %r on path %r" % (program, strpath)
 
