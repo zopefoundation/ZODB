@@ -13,18 +13,20 @@
 ##############################################################################
 
 import sys
-import TimeStamp, time, struct
+import TimeStamp, time
+
+from struct import pack, unpack
 
 if sys.version >= (2, 2):
 
     # Note that the distinction between ints and longs is blurred in
     # Python 2.2.  So make u64() and U64() the same.
 
-    def p64(v, pack=struct.pack):
+    def p64(v):
         """Pack an integer or long into a 8-byte string"""
         return pack(">Q", v)
 
-    def u64(v, unpack=struct.unpack):
+    def u64(v):
         """Unpack an 8-byte string into a 64-bit long integer."""
         return unpack(">Q", v)[0]
 
@@ -34,7 +36,7 @@ else:
 
     t32 = 1L << 32
 
-    def p64(v, pack=struct.pack):
+    def p64(v):
         """Pack an integer or long into a 8-byte string"""
         if v < t32:
             h = 0
@@ -42,7 +44,7 @@ else:
             h, v = divmod(v, t32)
         return pack(">II", h, v)
 
-    def u64(v, unpack=struct.unpack):
+    def u64(v):
         """Unpack an 8-byte string into a 64-bit (or long) integer."""
         h, v = unpack(">ii", v)
         if v < 0:
@@ -53,7 +55,7 @@ else:
             v = (long(h) << 32) + v
         return v
 
-    def U64(v, unpack=struct.unpack):
+    def U64(v):
         """Same as u64 but always returns a long."""
         h, v = unpack(">II", v)
         if h:
