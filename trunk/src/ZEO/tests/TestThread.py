@@ -13,30 +13,44 @@
 ##############################################################################
 """A Thread base class for use with unittest."""
 
-from cStringIO import StringIO
 import threading
-import traceback
+import sys
 
 class TestThread(threading.Thread):
-    __super_init = threading.Thread.__init__
-    __super_run = threading.Thread.run
+    """Base class for defining threads that run from unittest.
 
-    def __init__(self, testcase, group=None, target=None, name=None,
-                 args=(), kwargs={}, verbose=None):
-        self.__super_init(group, target, name, args, kwargs, verbose)
+    The subclass should define a testrun() method instead of a run()
+    method.
+
+    Call cleanup() when the test is done with the thread, instead of join().
+    If the thread exits with an uncaught exception, it's captured and
+    re-raised when cleanup() is called.  cleanup() should be called by
+    the main thread!  Trying to tell unittest that a test failed from
+    another thread creates a nightmare of timing-depending cascading
+    failures and missed errors (tracebacks that show up on the screen,
+    but don't cause unittest to believe the test failed).
+
+    cleanup() also joins the thread.  If the thread ended without raising
+    an uncaught exception, and the join doesn't succeed in the timeout
+    period, then the test is made to fail with a "Thread still alive"
+    message.
+    """
+
+    def __init__(self):
+        threading.Thread.__init__(self)
+        # In case this thread hangs, don't stop Python from exiting.
         self.setDaemon(1)
-        self._testcase = testcase
+        self._exc_info = None
 
     def run(self):
         try:
             self.testrun()
-        except Exception:
-            s = StringIO()
-            traceback.print_exc(file=s)
-            self._testcase.fail("Exception in thread %s:\n%s\n" %
-                                (self, s.getvalue()))
+        except:
+            self._exc_info = sys.exc_info()
 
     def cleanup(self, timeout=15):
         self.join(timeout)
+        if self._exc_info:
+            raise self._exc_info[0], self._exc_info[1], self._exc_info[2]
         if self.isAlive():
             self._testcase.fail("Thread did not finish: %s" % self)

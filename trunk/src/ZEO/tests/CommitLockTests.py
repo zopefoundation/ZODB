@@ -35,12 +35,12 @@ class WorkerThread(TestThread):
     # run the entire test in a thread so that the blocking call for
     # tpc_vote() doesn't hang the test suite.
 
-    def __init__(self, testcase, storage, trans, method="tpc_finish"):
+    def __init__(self, storage, trans, method="tpc_finish"):
         self.storage = storage
         self.trans = trans
         self.method = method
         self.ready = threading.Event()
-        TestThread.__init__(self, testcase)
+        TestThread.__init__(self)
 
     def testrun(self):
         try:
@@ -115,7 +115,7 @@ class CommitLockTests:
             txn = transaction.Transaction()
             tid = self._get_timestamp()
 
-            t = WorkerThread(self, storage, txn)
+            t = WorkerThread(storage, txn)
             self._threads.append(t)
             t.start()
             t.ready.wait()
