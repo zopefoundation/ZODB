@@ -11,8 +11,8 @@
 # FOR A PARTICULAR PURPOSE
 #
 ##############################################################################
-import sys, ExtensionClass, TimeStamp, cPersistence, Persistence
-import cStringIO, cPickle
+import sys
+import cPersistence, Persistence
 from zLOG import register_subsystem
 register_subsystem('ZODB')
 
