@@ -372,8 +372,10 @@ def lsubtract(l1, l2):
 def realseq(itemsob):
     return map(lambda x: x, itemsob)
 
-if __name__ == '__main__':
+def main():
     testsuite = makeSuite(TestBTrees, 'test')
     runner = TextTestRunner()
     runner.run(testsuite)
+    
+if __name__ == '__main__': main()
 
