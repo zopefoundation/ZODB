@@ -5,6 +5,12 @@ Release date: xx-xxx-2004
 ZEO client cache
 ----------------
 
+- Collector 1536:  The ``cache-size`` configuration option for ZEO clients
+  was being ignored.  Worse, the client cache size was only one megabyte,
+  much smaller than the advertised default of 20MB.  Note that the default
+  is carried over from a time when gigabyte disks were expensive and rare;
+  20MB is also too small on most modern machines.
+
 - Fixed a bug wherein an object removed from the client cache didn't
   properly mark the file slice it occupied as being available for reuse.
 
