@@ -36,13 +36,8 @@ class UnixConnectionTests(ConnectionTests):
 
     """Add Unix-specific scaffolding to the generic test suite."""
 
-    def startServer(self, create=1, index=0, read_only=0, ro_svr=0):
-        zLOG.LOG("testZEO", zLOG.INFO,
-                 "startServer(create=%d, index=%d, read_only=%d)" %
-                 (create, index, read_only))
-        path = "%s.%d" % (self.file, index)
-        addr = self.addr[index]
-        conf = """\
+    def getConfig(self, path, create, read_only):
+        return """\
         <Storage>
             type FileStorage
             file_name %s
@@ -52,6 +47,13 @@ class UnixConnectionTests(ConnectionTests):
                          create and 'yes' or 'no',
                          read_only and 'yes' or 'no')
 
+    def startServer(self, create=1, index=0, read_only=0, ro_svr=0):
+        zLOG.LOG("testZEO", zLOG.INFO,
+                 "startServer(create=%d, index=%d, read_only=%d)" %
+                 (create, index, read_only))
+        path = "%s.%d" % (self.file, index)
+        addr = self.addr[index]
+        conf = self.getConfig(path, create, read_only)
         pid, server = forker.start_zeo_server(conf, addr, ro_svr)
         self._pids.append(pid)
         self._servers.append(server)
@@ -65,6 +67,18 @@ class UnixConnectionTests(ConnectionTests):
                 self._pids[index] = None
             except os.error, err:
                 print err
+
+
+class BDBConnectionTests(UnixConnectionTests):
+    def getConfig(self, path, create, read_only):
+        # Full always creates and doesn't have a read_only flag
+        return """\
+        <Storage>
+            type Full
+            name %s
+            read_only %s
+        </Storage>""" % (path, read_only)
+
 
 class WindowsConnectionTests(ConnectionTests):
 
@@ -92,6 +106,7 @@ class WindowsConnectionTests(ConnectionTests):
             # XXX waitpid() isn't available until Python 2.3
             time.sleep(0.5)
 
+
 if os.name == "posix":
     test_classes = [UnixConnectionTests]
 elif os.name == "nt":
@@ -99,8 +114,15 @@ elif os.name == "nt":
 else:
     raise RuntimeError, "unsupported os: %s" % os.name
 
-def test_suite():
+try:
+    from bsddb3Storage.Full import Full
+except ImportError:
+    pass
+else:
+    test_classes.append(BDBConnectionTests)
 
+
+def test_suite():
     # shutup warnings about mktemp
     import warnings
     warnings.filterwarnings("ignore", "mktemp")
