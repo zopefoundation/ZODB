@@ -134,9 +134,9 @@ class ClientCacheTests(unittest.TestCase):
 
     def testVerify(self):
         cache = self.cache
+        results = []
         def verifier(oid, serial, vserial):
             results.append((oid, serial, vserial))
-        results = []
         cache.verify(verifier)
         self.assertEqual(results, [])
         oid = 'abcdefgh'
