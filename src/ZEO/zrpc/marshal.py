@@ -25,6 +25,7 @@ class Marshaller:
 
     def encode(self, msgid, flags, name, args):
         """Returns an encoded message"""
+        # (We used to have a global pickler, but that's not thread-safe. :-( )
         pickler = cPickle.Pickler()
         pickler.fast = 1
         return pickler.dump((msgid, flags, name, args), 1)
