@@ -151,7 +151,7 @@ Also, the object ids time stamps are big-endian, so comparisons
 are meaningful.
 
 """
-__version__='$Revision: 1.5 $'[11:-2]
+__version__='$Revision: 1.6 $'[11:-2]
 
 import struct, time, os, bpthread
 now=time.time
@@ -270,7 +270,7 @@ class FileStorage:
 
         if os.path.exists(file_name):
             file=open(file_name, read_only and 'rb' or 'r+b')
-            if not read_only: lock_file(file)
+            #if not read_only: lock_file(file)
         else:
             if read_only:
                 raise ValueError, "can\'t create a read-only file"
