@@ -67,6 +67,13 @@ runner_conf_template = """# runner configuration file
 <runner>
   program %(runzeo)s -C %(home)s/etc/zeo.conf
   socket-name %(home)s/etc/zeo.zdsock
+  daemon true
+  forever false
+  backoff-limit 10
+  exit-codes 0, 2
+  directory %(home)s
+  default-to-interactive true
+  # user zope
 </runner>
 
 <eventlog>
