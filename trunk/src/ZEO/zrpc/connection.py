@@ -248,7 +248,7 @@ class Connection(smac.SizedMessageAsyncConnection):
     def send_reply(self, msgid, ret):
         msg = self.marshal.encode(msgid, 0, REPLY, ret)
         self.message_output(msg)
-        self._do_async_poll()
+        self.poll()
 
     def return_error(self, msgid, flags, err_type, err_value):
         if flags is None:
@@ -266,7 +266,7 @@ class Connection(smac.SizedMessageAsyncConnection):
             err = ZRPCError("Couldn't pickle error %s" % `err_value`)
             msg = self.marshal.encode(msgid, 0, REPLY, (ZRPCError, err))
         self.message_output(msg)
-        self._do_async_poll()
+        self.poll()
 
     # The next two public methods (call and callAsync) are used by
     # clients to invoke methods on remote objects
@@ -287,12 +287,10 @@ class Connection(smac.SizedMessageAsyncConnection):
             log("send msg: %d, 0, %s, ..." % (msgid, method))
         self.message_output(self.marshal.encode(msgid, 0, method, args))
 
-        # XXX implementation of promises starts here
+        # XXX implementation of promises would start here
 
         self.__reply = None
-        # reply lock is currently held
-        self._do_async_loop()
-        # reply lock is held again...
+        self.wait() # will release reply lock before returning
         r_msgid, r_flags, r_args = self.__reply
         self.__reply_lock.acquire()
         assert r_msgid == msgid, "%s != %s: %s" % (r_msgid, msgid, r_args)
@@ -318,10 +316,7 @@ class Connection(smac.SizedMessageAsyncConnection):
         if __debug__:
             log("send msg: %d, %d, %s, ..." % (msgid, ASYNC, method))
         self.message_output(self.marshal.encode(msgid, ASYNC, method, args))
-        # XXX The message won't go out right away in this case.  It
-        # will wait for the asyncore loop to get control again.  Seems
-        # okay to comment our for now, but need to understand better.
-        self._do_async_poll()
+        self.poll()
 
     # handle IO, possibly in async mode
 
@@ -341,11 +336,10 @@ class Connection(smac.SizedMessageAsyncConnection):
         else:
             return 0
 
-    def _do_async_loop(self):
-        "Invoke asyncore mainloop and wait for reply."
+    def wait(self):
+        """Invoke asyncore mainloop and wait for reply."""
         if __debug__:
-            log("_do_async_loop() async=%d" % self.is_async(),
-                level=zLOG.DEBUG)
+            log("wait() async=%d" % self.is_async(), level=zLOG.TRACE)
         if self.is_async():
             self.trigger.pull_trigger()
             self.__reply_lock.acquire()
@@ -364,12 +358,10 @@ class Connection(smac.SizedMessageAsyncConnection):
                     raise DisconnectedError()
         self.__reply_lock.release()
 
-    def _do_async_poll(self, wait_for_reply=0):
-        "Invoke asyncore mainloop to get pending message out."
-
+    def poll(self, wait_for_reply=0):
+        """Invoke asyncore mainloop to get pending message out."""
         if __debug__:
-            log("_do_async_poll(), async=%d" % self.is_async(),
-                level=zLOG.DEBUG)
+            log("poll(), async=%d" % self.is_async(), level=zLOG.TRACE)
         if self.is_async():
             self.trigger.pull_trigger()
         else:
