@@ -539,20 +539,21 @@ class SimpleAllocator:
         self.rover = self.avail
         node = BlockNode(None, arenasize, 0)
         node.linkbefore(self.avail)
+        self.taglo = {0: node}
+        self.taghi = {arenasize: node}
         # Allocator statistics
         self.nallocs = 0
         self.nfrees = 0
         self.allocloops = 0
-        self.freeloops = 0
         self.freebytes = arenasize
         self.freeblocks = 1
         self.allocbytes = 0
         self.allocblocks = 0
 
     def report(self):
-        print ("NA=%d AL=%d NF=%d FL=%d ABy=%d ABl=%d FBy=%d FBl=%d" %
+        print ("NA=%d AL=%d NF=%d ABy=%d ABl=%d FBy=%d FBl=%d" %
                (self.nallocs, self.allocloops,
-                self.nfrees, self.freeloops,
+                self.nfrees,
                 self.allocbytes, self.allocblocks,
                 self.freebytes, self.freeblocks))
 
@@ -560,29 +561,30 @@ class SimpleAllocator:
         self.nallocs += 1
         # First fit algorithm
         rover = stop = self.rover
-        free = None
         while 1:
             self.allocloops += 1
             if rover.size >= size:
-                if rover.size == size:
-                    self.rover = rover.next
-                    rover.unlink()
-                    self.freeblocks -= 1
-                    self.allocblocks += 1
-                    self.freebytes -= size
-                    self.allocbytes += size
-                    return rover
-                free = rover
                 break
             rover = rover.next
             if rover is stop:
-                break
-        if free is None: # We ran out of space
-            return None
-        # Take space from the end of the roving pointer
-        assert free.size > size
-        node = BlockNode(None, size, free.addr + free.size - size)
-        free.size -= size
+                return None # We went round the list without finding space
+        if rover.size == size:
+            self.rover = rover.next
+            rover.unlink()
+            del self.taglo[rover.addr]
+            del self.taghi[rover.addr + size]
+            self.freeblocks -= 1
+            self.allocblocks += 1
+            self.freebytes -= size
+            self.allocbytes += size
+            return rover
+        # Take space from the beginning of the roving pointer
+        assert rover.size > size
+        node = BlockNode(None, size, rover.addr)
+        del self.taglo[rover.addr]
+        rover.size -= size
+        rover.addr += size
+        self.taglo[rover.addr] = rover
         #self.freeblocks += 0 # No change here
         self.allocblocks += 1
         self.freebytes -= size
@@ -591,32 +593,37 @@ class SimpleAllocator:
 
     def free(self, node):
         self.nfrees += 1
+        self.freeblocks += 1
+        self.allocblocks -= 1
         self.freebytes += node.size
         self.allocbytes -= node.size
-        self.allocblocks -= 1
-        x = self.avail.next
-        while x is not self.avail and x.addr < node.addr:
-            self.freeloops += 1
-            x = x.next
-        if node.addr + node.size == x.addr: # Merge with next
-            x.addr -= node.size
-            x.size += node.size
-            node = x
-        else: # Insert new node into free list
-            node.linkbefore(x)
-            self.freeblocks += 1
-        x = node.prev
-        if node.addr == x.addr + x.size and x is not self.avail:
-            # Merge with previous node in free list
-            node.unlink()
-            x.size += node.size
-            node = x
+        node.linkbefore(self.avail)
+        self.taglo[node.addr] = node
+        self.taghi[node.addr + node.size] = node
+        x = self.taghi.get(node.addr)
+        if x is not None:
+            # Merge x into node
+            x.unlink()
             self.freeblocks -= 1
+            del self.taglo[x.addr]
+            del self.taghi[x.addr + x.size]
+            del self.taglo[node.addr]
+            node.addr = x.addr
+            node.size += x.size
+            self.taglo[node.addr] = node
+        x = self.taglo.get(node.addr + node.size)
+        if x is not None:
+            # Merge x into node
+            x.unlink()
+            self.freeblocks -= 1
+            del self.taglo[x.addr]
+            del self.taghi[x.addr + x.size]
+            del self.taghi[node.addr + node.size]
+            node.size += x.size
+            self.taghi[node.addr + node.size] = node
         # It's possible that either one of the merges above invalidated
         # the rover.
         # It's simplest to simply reset the rover to the newly freed block.
-        # It also seems optimal; if I only move the rover when it's
-        # become invalid, there performance goes way down.
         self.rover = node
 
     def dump(self, msg=""):
@@ -654,6 +661,7 @@ def testallocator(factory=BuddyAllocator):
         while queue and queue[0][0] <= T:
             time, node = heapq.heappop(queue)
             assert time == T
+            ##print "free addr=%d, size=%d" % (node.addr, node.size)
             cache.free(node)
             blocks -= 1
         size = random.randint(100, 2000)
@@ -664,6 +672,7 @@ def testallocator(factory=BuddyAllocator):
             cache.dump("T=%4d: %d blocks;" % (T, blocks))
             break
         else:
+            ##print "alloc addr=%d, size=%d" % (node.addr, node.size)
             blocks += 1
             heapq.heappush(queue, (T + lifetime, node))
         T = T+1
