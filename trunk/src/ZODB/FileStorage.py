@@ -115,7 +115,7 @@
 #   may have a back pointer to a version record or to a non-version
 #   record.
 #
-__version__='$Revision: 1.133 $'[11:-2]
+__version__='$Revision: 1.134 $'[11:-2]
 
 import base64
 from cPickle import Pickler, Unpickler, loads
@@ -1101,9 +1101,17 @@ class FileStorage(BaseStorage.BaseStorage,
 
     def _getSerial(self, oid, pos):
         self._file.seek(pos)
-        h = self._file.read(16)
-        assert oid == h[:8]
-        return h[8:]
+        h = self._file.read(DATA_HDR_LEN)
+        oid2, serial, sprev, stloc, vlen, splen = unpack(DATA_HDR, h)
+        assert oid == oid2
+        if splen==z64:
+            # a back pointer
+            bp = self._file.read(8)
+            if bp == z64:
+                # If the backpointer is 0 (encoded as z64), then
+                # this transaction undoes the object creation.
+                raise KeyError(oid)
+        return serial
 
     def _transactionalUndoRecord(self, oid, pos, serial, pre, version):
         """Get the indo information for a data record
