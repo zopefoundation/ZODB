@@ -84,8 +84,8 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.29 2000/04/20 15:09:04 chrism Exp $"""
-__version__='$Revision: 1.29 $'[11:-2]
+$Id: Connection.py,v 1.30 2000/04/20 15:30:48 chrism Exp $"""
+__version__='$Revision: 1.30 $'[11:-2]
 
 from cPickleCache import PickleCache
 from POSException import ConflictError, ExportError
@@ -138,8 +138,9 @@ class Connection(ExportImport.ExportImport):
         cache=self._cache
         if cache.has_key(oid): return cache[oid]
 
-        __traceback_info__ = (oid, p)
+        __traceback_info__ = (oid)
         p, serial = self._storage.load(oid, self._version)
+        __traceback_info__ = (oid, p)
         file=StringIO(p)
         unpickler=Unpickler(file)
         unpickler.persistent_load=self._persistent_load
