@@ -84,8 +84,8 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.7 1999/05/24 21:46:21 jim Exp $"""
-__version__='$Revision: 1.7 $'[11:-2]
+$Id: Connection.py,v 1.8 1999/06/11 18:24:02 jim Exp $"""
+__version__='$Revision: 1.8 $'[11:-2]
 
 from cPickleCache import PickleCache
 from POSException import ConflictError, ExportError
@@ -160,6 +160,7 @@ class Connection(ExportImport.ExportImport):
         object._p_serial=serial
 
         cache[oid]=object
+        if oid=='\0\0\0\0\0\0\0\0': self._root_=object # keep a ref
         return object
 
     def _persistent_load(self,oid,
@@ -290,7 +291,7 @@ class Connection(ExportImport.ExportImport):
                 klass = object.__class__
 
                 if klass is ExtensionKlass:
-                    # Ye Ha!
+                    # Yee Ha!
                     dict={}
                     dict.update(object.__dict__)
                     del dict['_p_jar']
