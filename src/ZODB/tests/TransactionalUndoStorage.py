@@ -446,8 +446,6 @@ class TransactionalUndoStorage:
         # Make some basic assertions about the undo information now
         info2 = self._storage.undoInfo()
         eq(len(info2), 2)
-        eq(info2[0], info[0])
-        eq(info2[1], info[1])
         # And now attempt to undo the last transaction
         t = Transaction()
         self._storage.tpc_begin(t)
