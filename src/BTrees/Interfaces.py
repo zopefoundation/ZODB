@@ -159,7 +159,7 @@ class IDictionaryIsh(IKeyed, ISized):
 class IBTree(IDictionaryIsh):
 
     def insert(key, value):
-        """Insert a key and value into the colelction.
+        """Insert a key and value into the collection.
 
         If the key was already in the collection, then there is no
         change and 0 is returned.
