@@ -13,8 +13,8 @@
 ##############################################################################
 """Database objects
 
-$Id: DB.py,v 1.52 2003/06/24 21:47:50 jeremy Exp $"""
-__version__='$Revision: 1.52 $'[11:-2]
+$Id: DB.py,v 1.53 2003/06/24 21:50:18 jeremy Exp $"""
+__version__='$Revision: 1.53 $'[11:-2]
 
 import cPickle, cStringIO, sys, POSException, UndoLogCompatible
 from Connection import Connection
@@ -142,7 +142,8 @@ class DB(UndoLogCompatible.UndoLogCompatible):
                 # No such version. We must have deleted the pool.
                 # Just let the connection go.
 
-                # We need to break circular refs to make it really go:
+                # We need to break circular refs to make it really go.
+                # XXX What objects are involved in the cycle?
                 connection.__dict__.clear()
                 
                 return
@@ -491,11 +492,12 @@ class DB(UndoLogCompatible.UndoLogCompatible):
             del pools[version]
             pool, allocated, pool_lock = info
             pooll.remove((pool, allocated))
-            try: pool_lock.release()
-            except: pass
+            try:
+                pool_lock.release()
+            except: # XXX Do we actually expect this to fail?
+                pass
             del pool[:]
             del allocated[:]
-            6L
 
     def connectionDebugInfo(self):
         r=[]
