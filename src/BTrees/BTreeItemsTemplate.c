@@ -12,7 +12,7 @@
 
  ****************************************************************************/
 
-#define BTREEITEMSTEMPLATE_C "$Id: BTreeItemsTemplate.c,v 1.18 2003/01/31 20:13:02 tim_one Exp $\n"
+#define BTREEITEMSTEMPLATE_C "$Id: BTreeItemsTemplate.c,v 1.19 2003/03/16 21:42:29 tim_one Exp $\n"
 
 /* A BTreeItems struct is returned from calling .items(), .keys() or
  * .values() on a BTree-based data structure, and is also the result of
@@ -496,9 +496,6 @@ nextBTreeItems(SetIteration *i)
 
           COPY_VALUE(i->value,
                      currentbucket->values[ITEMS(i->set)->currentoffset]);
-          COPY_VALUE(i->value,
-                   BUCKET(ITEMS(i->set)->currentbucket)
-                   ->values[ITEMS(i->set)->currentoffset]);
           INCREF_VALUE(i->value);
 
           i->position ++;
