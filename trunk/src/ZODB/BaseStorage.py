@@ -86,7 +86,7 @@
 """
 # Do this portably in the face of checking out with -kv
 import string
-__version__ = string.split('$Revision: 1.13 $')[-2:][0]
+__version__ = string.split('$Revision: 1.14 $')[-2:][0]
 
 import ThreadLock, bpthread
 import time, UndoLogCompatible
@@ -167,7 +167,7 @@ class BaseStorage(UndoLogCompatible.UndoLogCompatible):
         finally: self._lock_release()
 
     def _abort(self):
-        """Subclasses should rededine this to supply abort actions"""
+        """Subclasses should redefine this to supply abort actions"""
         pass
 
     def tpc_begin(self, transaction, tid=None, status=' '):
@@ -203,11 +203,22 @@ class BaseStorage(UndoLogCompatible.UndoLogCompatible):
         finally: self._lock_release()
 
     def _begin(self, tid, u, d, e):
-        """Subclasses should rededine this to supply
-        transaction start actions"""
+        """Subclasses should redefine this to supply transaction start actions.
+        """
         pass
 
-    def tpc_vote(self, transaction): pass
+    def tpc_vote(self, transaction):
+        self._lock_acquire()
+        try:
+            if transaction is not self._transaction: return
+            self._vote()
+        finally:
+            self._lock_release()
+
+    def _vote(self):
+        """Subclasses should redefine this to supply transaction vote actions.
+        """
+        pass
 
     def tpc_finish(self, transaction, f=None):
         self._lock_acquire()
@@ -227,7 +238,8 @@ class BaseStorage(UndoLogCompatible.UndoLogCompatible):
             self._lock_release()
 
     def _finish(self, tid, u, d, e):
-        """Subclasses should rededine this to supply commit actions"""
+        """Subclasses should redefine this to supply transaction finish actions
+        """
         pass
 
     def undo(self, transaction_id):
