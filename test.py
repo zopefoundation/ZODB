@@ -448,7 +448,8 @@ def walk_with_symlinks(top, func, arg):
     """
     try:
         names = os.listdir(top)
-    except os.error:
+    except os.error, why:
+        print "Error listing %r: %s" % (top, why)
         return
     func(arg, top, names)
     exceptions = ('.', '..')
