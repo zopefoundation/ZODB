@@ -84,8 +84,8 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.46 2001/03/15 13:16:26 jim Exp $"""
-__version__='$Revision: 1.46 $'[11:-2]
+$Id: Connection.py,v 1.47 2001/03/20 04:00:17 jim Exp $"""
+__version__='$Revision: 1.47 $'[11:-2]
 
 from cPickleCache import PickleCache
 from POSException import ConflictError, ExportError
@@ -391,11 +391,17 @@ class Connection(ExportImport.ExportImport):
                         if _type(s) is not _st: raise s
                         o=get(oi, oi)
                         if o is not oi:
-                            o._p_serial=s
-                            o._p_changed=0
+                            if s is ResolvedSerial:
+                                o._p_changed=None
+                            else:
+                                o._p_serial=s
+                                o._p_changed=0
                         elif oi == oid:
-                            object._p_serial=s
-                            object._p_changed=0
+                            if s is ResolvedSerial:
+                                object._p_changed=None
+                            else:
+                                object._p_serial=s
+                                object._p_changed=0
 
             try: cache[oid]=object
             except:
@@ -624,8 +630,11 @@ class Connection(ExportImport.ExportImport):
                 o=get(oid, oid)
                 if o is not oid:
                     if _type(s) is not _st: raise s
-                    o._p_serial=s
-                    o._p_changed=0
+                    if s is ResolvedSerial:
+                        o._p_changed=None
+                    else:
+                        o._p_serial=s
+                        o._p_changed=0
         
 
     def tpc_finish(self, transaction):
