@@ -174,10 +174,9 @@ class IConnection(Interface):
 
         Raises KeyError if oid does not exist.  
         
-            It is possible that an
-            object does not exist as of the current transaction, but
-            existed in the past.  It may even exist again in the
-            future, if the transaction that removed it is undone.
+            It is possible that an object does not exist as of the current
+            transaction, but existed in the past.  It may even exist again in
+            the future, if the transaction that removed it is undone.
 
         Raises ConnectionStateError if the connection is closed.
         """
@@ -276,6 +275,34 @@ class IConnection(Interface):
         same Connection object each time.
         """
 
+    def sync():
+        """Manually update the view on the database.
+
+        This includes aborting the current transaction, getting a fresh and
+        consistent view of the data (synchronizing with the storage if possible)
+        and call cacheGC() for this connection.
+        
+        This method was especially useful in ZODB 3.2 to better support
+        read-only connections that were affected by a couple of problems.  
+        """
+
+    # Debug information
+
+    def getDebugInfo():
+        """Returns a tuple with different items for debugging the connection. 
+
+        Debug information can be added to a connection by using setDebugInfo.
+        """
+
+    def setDebugInfo(*items):
+        """Add the given items to the debug information of this connection."""
+
+    def getTransferCounts(clear=False):
+        """Returns the number of objects loaded and stored.
+
+        If clear is True, reset the counters.
+        """
+
 class IDatabase(Interface):
     """ZODB DB.
 
@@ -321,32 +348,5 @@ class IDatabase(Interface):
         entry.
         """)
 
-    def sync(self):
-        """Manually update the view on the database.
-
-        This includes aborting the current transaction, getting a fresh and
-        consistent view of the data (synchronizing with the storage if possible)
-        and call cacheGC() for this connection.
-        
-        This method was especially useful in ZODB 3.2 to better support
-        read-only connections that were affected by a couple of problems.  
-        """
-
-    # Debug information
-
-    def getDebugInfo():
-        """Returns a tuple with different items for debugging the connection. 
-
-        Debug information can be added to a connection by using setDebugInfo.
-        """
-
-    def setDebugInfo(*items):
-        """Add the given items to the debug information of this connection."""
-
-    def getTransferCounts(clear=False):
-        """Returns the number of objects loaded and stored.
-
-        If clear is True, reset the counters.
-        """
 
 
