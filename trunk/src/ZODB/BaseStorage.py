@@ -84,7 +84,7 @@
 ##############################################################################
 """Handy standard storage machinery
 """
-__version__='$Revision: 1.8 $'[11:-2]
+__version__='$Revision: 1.9 $'[11:-2]
 
 import time, bpthread, UndoLogCompatible
 from POSException import UndoError
@@ -92,8 +92,9 @@ from TimeStamp import TimeStamp
 z64='\0'*8
 
 class BaseStorage(UndoLogCompatible.UndoLogCompatible):
-    _transaction=None
-    _serial=z64
+    _transaction=None # Transaction that is being committed
+    _serial=z64       # Transaction serial number
+    _tstatus=' '      # Transaction status, used for copying data
 
     def __init__(self, name, base=None):
         
@@ -158,7 +159,7 @@ class BaseStorage(UndoLogCompatible.UndoLogCompatible):
             self._commit_lock_release()
         finally: self._lock_release()
 
-    def tpc_begin(self, transaction, tid=None):
+    def tpc_begin(self, transaction, tid=None, status=' '):
         self._lock_acquire()
         try:
             if self._transaction is transaction: return
@@ -183,6 +184,8 @@ class BaseStorage(UndoLogCompatible.UndoLogCompatible):
             else:
                 self._ts=TimeStamp(tid)
                 self._serial=tid
+
+            self._tstatus=status
 
             self._begin(self._serial, user, desc, ext)
             
@@ -225,3 +228,42 @@ class BaseStorage(UndoLogCompatible.UndoLogCompatible):
     def loadSerial(self, oid, serial):
         raise POSException.Unsupported, (
             "Retrieval of historical revisions is not supported")
+
+    def copyTransactionsFrom(self, other, verbose=0):
+        """Copy transactions from another storage.
+
+        This is typically used for converting data from one storage to another.
+        """
+        _ts=None
+        ok=1
+        preindex={}; preget=preindex.get   # waaaa
+        for transaction in other.iterator():
+            
+            tid=transaction.tid
+            if _ts is None:
+                _ts=TimeStamp(tid)
+            else:
+                t=TimeStamp(tid)
+                if t <= _ts:
+                    if ok: print ('Time stamps out of order %s, %s' % (_ts, t))
+                    ok=0
+                    _ts=t.laterThan(_ts)
+                    tid=`_ts`
+                else:
+                    _ts = t
+                    if not ok:
+                        print ('Time stamps back in order %s' % (t))
+                        ok=1
+
+            if verbose: print _ts
+            
+            self.tpc_begin(transaction, tid, transaction.status)
+            for r in transaction:
+                oid=r.oid
+                if verbose: print `oid`, r.version, len(r.data)
+                pre=preget(oid, None)
+                s=self.store(oid, pre, r.data, r.version, transaction)
+                preindex[oid]=s
+                
+            self.tpc_vote(transaction)
+            self.tpc_finish(transaction)
