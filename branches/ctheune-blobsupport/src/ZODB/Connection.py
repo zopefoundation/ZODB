@@ -351,6 +351,9 @@ class Connection(ExportImport, object):
                                             obj._p_blob_uncommitted,
                                             self._version, transaction)
                 obj._p_invalidate()
+                # XXX CM: do we invalidate the object here in order to
+                # ensure that that the next attribute access of its
+                # name unghostify it?
             else:
                 s = self._storage.store(oid, serial, p, self._version,
                                         transaction)
