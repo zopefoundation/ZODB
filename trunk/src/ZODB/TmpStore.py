@@ -29,7 +29,7 @@ class TmpStore:
         self._file = tempfile.TemporaryFile()
         # _pos: current file position
         # _tpos: file position at last commit point
-        self._pos = self._tpos = 0
+        self._pos = self._tpos = 0L
         # _index: map oid to pos of last committed version
         self._index = {}
         # _tindex: map oid to pos for new updates
@@ -55,11 +55,14 @@ class TmpStore:
         if pos is None:
             return self._storage.load(oid, self._bver)
         self._file.seek(pos)
-        h = self._file.read(24)
-        if h[:8] != oid:
+        h = self._file.read(8)
+        oidlen = u64(h)
+        read_oid = self._file.read(oidlen)
+        if read_oid != oid:
             raise POSException.StorageSystemError('Bad temporary storage')
-        size = u64(h[16:])
-        serial = h[8:16]
+        h = self._file.read(16)
+        size = u64(h[8:])
+        serial = h[:8]
         return self._file.read(size), serial
 
     # XXX clarify difference between self._storage & self._db._storage
@@ -83,10 +86,11 @@ class TmpStore:
         l = len(data)
         if serial is None:
             serial = z64
-        self._file.write(oid + serial + p64(l))
+        header = p64(len(oid)) + oid + serial + p64(l)
+        self._file.write(header)
         self._file.write(data)
         self._tindex[oid] = self._pos
-        self._pos += l + 24
+        self._pos += l + len(header)
         return serial
 
     def tpc_abort(self, transaction):
