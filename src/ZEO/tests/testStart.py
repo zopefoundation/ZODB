@@ -28,8 +28,6 @@ try:
     from ZODB.tests.StorageTestBase import removefs
 except ImportError:
     # for compatibility with Zope 2.5 &c.
-    import errno
-
     def removefs(base):
         """Remove all files created by FileStorage with path base."""
         for ext in '', '.old', '.tmp', '.lock', '.index', '.pack':
@@ -105,7 +103,7 @@ class StartTests(unittest.TestCase):
             try:
                 _pid, status = os.waitpid(pid, flag)
             except os.error, err:
-                if err[0] == 10:
+                if err[0] == errno.ECHILD:
                     continue
                 print err
             else:
