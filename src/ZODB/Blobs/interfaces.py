@@ -29,6 +29,3 @@ class IBlobStorage(Interface):
         Raises POSKeyError if the blobfile cannot be found.
         """
 
-    def getBlobDirectory():
-        """
-        """

@@ -32,6 +32,7 @@ class BlobStorage(ProxyBase):
     implements(IBlobStorage)
 
     __slots__ = ('base_directory', 'dirty_oids')
+    # XXX CM: what is the purpose of specifying __slots__ here?
 
     def __new__(self, base_directory, storage):
         return ProxyBase.__new__(self, storage)
@@ -42,7 +43,8 @@ class BlobStorage(ProxyBase):
         self.base_directory = base_directory
         self.dirty_oids = []
      
-    def storeBlob(self, oid, oldserial, data, blobfilename, version, transaction):
+    def storeBlob(self, oid, oldserial, data, blobfilename, version,
+                  transaction):
         """Stores data that has a BLOB attached."""
         serial = self.store(oid, oldserial, data, version, transaction)
         assert isinstance(serial, str) # XXX in theory serials could be 
@@ -55,19 +57,7 @@ class BlobStorage(ProxyBase):
                 os.makedirs(targetpath, 0700)
                               
             targetname = self._getCleanFilename(oid, serial)
-            try:
-                os.rename(blobfilename, targetname)
-            except OSError:
-                # XXX CM: I don't think this is a good idea; maybe just fail
-                # here instead of doing a brute force copy?  This is awfully
-                # expensive and people won't know it's happening without
-                # at least a warning.
-                target = file(targetname, "wb")
-                source = file(blobfilename, "rb")
-                utils.cp(blobfile, target)
-                target.close()
-                source.close()
-                os.unlink(blobfilename)
+            utils.best_rename(blobfilename, targetname)
 
             # XXX if oid already in there, something is really hosed.
             # The underlying storage should have complained anyway
