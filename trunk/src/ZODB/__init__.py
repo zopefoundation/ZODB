@@ -100,6 +100,7 @@ if not hasattr(Persistence, 'Persistent'):
     if not hasattr(Persistence, 'PersistentMapping'):
         import PersistentMapping
         sys.modules['PersistentMapping']=PersistentMapping
+        sys.modules['BoboPOS']=sys.modules['ZODB']
         sys.modules['BoboPOS.PersistentMapping']=PersistentMapping
         PersistentMapping=PersistentMapping.PersistentMapping
         from PersistentMapping import PersistentMapping
