@@ -2,8 +2,122 @@ What's new in ZODB3 3.3 alpha 3
 ===============================
 Release date: 16-Apr-2004
 
-FileStorage
+transaction
 -----------
+
+There is a new transaction package, which provides new interfaces for
+application code and for the interaction between transactions and
+resource managers.
+
+The top-level transaction package has functions commit(), abort(),
+get(), and begin().  They should be used instead of the magic
+get_transaction() builtin, which will be deprecated.  For example:
+
+    >>> get_transaction().commit()
+
+should now be written as
+
+    >>> import transaction
+    >>> transaction.get()
+
+The new API provides explicit transaction manager objects.  The
+transaction manager (TM) is responsible for associating resource
+managers with a "current" transaction.  It is available as
+`transaction.manager`.  The default TM, implemented by
+ThreadedTransactionManager, assigns each thread its own current
+transaction.  The TransactionManager class assigns all threads to the
+same transaction.  
+
+A transaction manager instance can be passed as the txn_mgr argument
+to DB.open().  If you do, the connection will use the specified
+transaction manager instead of the default transaction manager.  You
+will need to call commit() and abort() on the transaction manager
+explicitly.  For example:
+
+    >>> tm = transaction.TransactionManager()
+    >>> cn = db.open(txn_mgr=tm)
+    [...]
+    >>> tm.commit()
+
+The setLocalTransaction() and getTransaction() methods of Connection
+are deprecated.  Use an explicit TM passed via txn_mgr instead.  The
+setLocalTransaction() manager functions still works, but it returns a
+TM instead of a Transaction.
+
+The TM creates Transaction objects, which are used for exactly one
+transaction.  They have a status() method that returns their current
+state. 
+
+Resource managers, e.g. Connection or RDB adapter, should use join()
+instead of register().  An object that calls join() manages its own
+resources.  An object that calls register() expects the TM to manage
+the objects.
+
+Data managers written against the ZODB 4 transaction API are now
+supported in ZODB 3.
+
+persistent
+----------
+
+A database can now contain persistent weak references.  An object that
+is only reachable from persistent weak references will be removed by
+pack().
+
+The persistence API now distinguishes between deactivation and
+invalidation.  This change is intended to support objects that can't
+be ghosts, like persistent classes.  Deactivation occurs when a user
+calls _p_deactivate() or when the cache evicts objects because it is
+full.  Invalidation occurs when a transaction updates the object.  An
+object that can't be a ghost must load new state when it is
+invalidated, but can ignore deactivation.
+
+Persistent objects can implement a __getnewargs__() method that will
+be used to provide arguments that should be passed to __new__() when
+instances (including ghosts) are created.  An object that implements
+__getnewargs__() must be loaded from storage even to create a ghost.
+
+There is new support for writing hooks like __getattr__ and
+__getattribute__.  The new hooks require that user code call special
+persistence methods like _p_getattr() inside their hook.  See the ZODB
+programming guide for details.
+
+The format of serialized persistent references has changed; that is,
+the on-disk format for references has changed.  The old format is
+still supported, but earlier versions of ZODB will not be able to read
+the new format.
+
+ZODB
+----
+
+Closing a ZODB Connection while it is registered with a transaction,
+e.g. has pending modifications, will raise a ConnnectionStateError.
+Trying to load objects from or store objects to a closed connection
+will also raise a ConnnectionStateError.
+
+ZODB connections are synchronized on commit, even when they didn't
+modify objects.  This feature assumes that the thread that opened the
+connection is also the thread that uses it.  If not, this feature will
+cause problems.  It can be disabled by passing synch=False to open().
+
+New broken object support.
+
+New add() method on Connection.  User code should not assign the
+_p_jar attribute of a new persistent object directly; a deprecation
+warning is issued in this case.
+
+Added a get() method to Connection as a preferred synonym for
+__getitem__().
+
+Several methods and/or specific optional arguments of methods have
+been deprecated.  The cache_deactivate_after argument used by DB() and
+Connection() is deprecated.  The DB methods getCacheDeactivateAfter(),
+getVersionCacheDeactivateAfter(), setCacheDeactivateAfter(), and
+setVersionCacheDeactivateAfter() are also deprecated.
+
+The old-style undo() method was removed from the storage API, and
+transactionalUndo() was renamed to undo().
+
+The BDBStorages are no longer distributed with ZODB.
 
 Fixed a serious bug in the new pack implementation.  If pack was
 called on the storage and passed a time earlier than a previous pack
@@ -40,14 +154,66 @@ zdaemon
 
 Added a -m / --mask option that controls the umask of the subprocess.
 
+zLOG
+----
+
+The zLOG backend has been removed.  zLOG is now just a facade over the
+standard Python logging package.  Environment variables like
+STUPID_LOG_FILE are no longer honored.  To configure logging, you need
+to follow the directions in the logging package documentation.  The
+process is currently more complicated than configured zLOG.  See
+test.py for an example.
+
+ZConfig
+-------
+
+This release of ZODB contains ZConfig 2.1.
+
+More documentation has been written.
+
+Make sure keys specified as attributes of the <default> element are
+converted by the appropriate key type, and are re-checked for derived
+sections.
+
+Refactored the ZConfig.components.logger schema components so that a
+schema can import just one of the "eventlog" or "logger" sections if
+desired.  This can be helpful to avoid naming conflicts.
+
+Added a reopen() method to the logger factories.
+
+Always use an absolute pathname when opening a FileHandler.
+
+
 Miscellaneous
 -------------
+
+The layout of the ZODB source release has changed.  All the source
+code is contained in a src subdirectory.  The primary motivation for
+this change was to avoid confusion caused by installing ZODB and then
+testing it interactively from the source directory; the interpreter
+would find the uncompiled ZODB package in the source directory and
+report an import error.
 
 A reference-counting bug was fixed, in the logic calling a modified
 persistent object's data manager's register() method.  The primary symptom
 was rare assertion failures in Python's cyclic garbage collection.
 
 The Connection class's onCommitAction() method was removed.
+
+Some of the doc strings in ZODB are now written for processing by
+epydoc.
+
+Several new test suites were written using doctest instead of the
+standard unittest TestCase framework.
+
+MappingStorage now implements getTid().
+
+ThreadedAsync: Provide a way to shutdown the servers using an exit
+status.
+
+The mkzeoinstance script looks for a ZODB installation, not a Zope
+installation.  The received wisdom is that running a ZEO server
+without access to the appserver code avoids many mysterious problems.
 
 
 What's new in ZODB3 3.3 alpha 2
