@@ -12,7 +12,7 @@
 
  ****************************************************************************/
 
-#define BTREETEMPLATE_C "$Id: BTreeTemplate.c,v 1.58 2002/06/17 20:02:39 tim_one Exp $\n"
+#define BTREETEMPLATE_C "$Id: BTreeTemplate.c,v 1.59 2002/06/17 20:31:40 tim_one Exp $\n"
 
 /*
 ** _BTree_get
@@ -353,6 +353,58 @@ BTree_deleteNextBucket(BTree *self)
 }
 
 /*
+** _BTree_clear
+**
+** Clears out all of the values in the BTree (firstbucket, keys, and children);
+** leaving self an empty BTree.
+**
+** Arguments:	self	The BTree
+**
+** Returns:	 0	on success
+**		-1	on failure
+**
+** Internal:  Deallocation order is important.  The danger is that a long
+** list of buckets may get freed "at once" via decref'ing the first bucket,
+** in which case a chain of consequenct Py_DECREF calls may blow the stack.
+** Luckily, every bucket has a refcount of at least two, one due to being a
+** BTree node's child, and another either because it's not the first bucket in
+** the chain (so the preceding bucket points to it), or because firstbucket
+** points to it.  By clearing in the natural depth-first, left-to-right
+** order, the BTree->bucket child pointers prevent Py_DECREF(bucket->next)
+** calls from freeing bucket->next, and the maximum stack depth is equal
+** to the height of the tree.
+**/
+static int
+_BTree_clear(BTree *self)
+{
+    const int len = self->len;
+
+    if (self->firstbucket) {
+	ASSERT(self->firstbucket->ob_refcnt > 1,
+	       "Invalid firstbucket pointer", -1);
+	Py_DECREF(self->firstbucket);
+	self->firstbucket = NULL;
+    }
+
+    if (self->data) {
+        int i;
+        if (len > 0) { /* 0 is special because key 0 is trash */
+            Py_DECREF(self->data[0].child);
+	}
+
+        for (i = 1; i < len; i++) {
+	    DECREF_KEY(self->data[i].key);
+            Py_DECREF(self->data[i].child);
+        }
+	free(self->data);
+	self->data = NULL;
+    }
+
+    self->len = self->size = 0;
+    return 0;
+}
+
+/*
   Set (value != 0) or delete (value=0) a tree item.
 
   If unique is non-zero, then only change if the key is
@@ -371,7 +423,7 @@ BTree_deleteNextBucket(BTree *self)
 
      1  Successful, number of entries changed, but firstbucket did not go away.
 
-     2  Successful, number of entires changed, firstbucket did go away.
+     2  Successful, number of entries changed, firstbucket did go away.
         This can only happen on a delete (value == NULL).  The caller may
         need to change its own firstbucket pointer, and in any case *someone*
         needs to adjust the 'next' pointer of the bucket immediately preceding
@@ -388,6 +440,7 @@ _BTree_set(BTree *self, PyObject *keyarg, PyObject *value,
     BTreeItem *d;       /* self->data[min] */
     int childlength;    /* len(self->data[min].child) */
     int status;         /* our return value; and return value from callee */
+    int self_was_empty; /* was self empty at entry? */
 
     KEY_TYPE key;
     int copied = 1;
@@ -397,7 +450,8 @@ _BTree_set(BTree *self, PyObject *keyarg, PyObject *value,
 
     PER_USE_OR_RETURN(self, -1);
 
-    if (! self->len) {
+    self_was_empty = self->len == 0;
+    if (self_was_empty) {
         /* We're empty.  Make room. */
 	if (value) {
 	    if (BTree_grow(self, 0, noval) < 0)
@@ -552,6 +606,12 @@ _return:
     return status;
 
 Error:
+    if (self_was_empty) {
+        /* BTree_grow may have left the BTree in an invalid state.  Make
+         * sure the tree is a legitimate empty tree.
+         */
+        _BTree_clear(self);
+    }
     status = -1;
     goto _return;
 }
@@ -573,58 +633,6 @@ BTree_setitem(BTree *self, PyObject *key, PyObject *v)
 {
   if (_BTree_set(self, key, v, 0, 0) < 0) return -1;
   return 0;
-}
-
-/*
-** _BTree_clear
-**
-** Clears out all of the values in the BTree (firstbucket, keys, and children);
-** leaving self an empty BTree.
-**
-** Arguments:	self	The BTree
-**
-** Returns:	 0	on success
-**		-1	on failure
-**
-** Internal:  Deallocation order is important.  The danger is that a long
-** list of buckets may get freed "at once" via decref'ing the first bucket,
-** in which case a chain of consequenct Py_DECREF calls may blow the stack.
-** Luckily, every bucket has a refcount of at least two, one due to being a
-** BTree node's child, and another either because it's not the first bucket in
-** the chain (so the preceding bucket points to it), or because firstbucket
-** points to it.  By clearing in the natural depth-first, left-to-right
-** order, the BTree->bucket child pointers prevent Py_DECREF(bucket->next)
-** calls from freeing bucket->next, and the maximum stack depth is equal
-** to the height of the tree.
-**/
-static int
-_BTree_clear(BTree *self)
-{
-    const int len = self->len;
-
-    if (self->firstbucket) {
-	ASSERT(self->firstbucket->ob_refcnt > 1,
-	       "Invalid firstbucket pointer", -1);
-	Py_DECREF(self->firstbucket);
-	self->firstbucket = NULL;
-    }
-
-    if (self->data) {
-        int i;
-        if (len > 0) { /* 0 is special because key 0 is trash */
-            Py_DECREF(self->data[0].child);
-	}
-
-        for (i = 1; i < len; i++) {
-	    DECREF_KEY(self->data[i].key);
-            Py_DECREF(self->data[i].child);
-        }
-	free(self->data);
-	self->data = NULL;
-    }
-
-    self->len = self->size = 0;
-    return 0;
 }
 
 #ifdef PERSISTENT
