@@ -5,7 +5,7 @@ from ZODB.tests import StorageTestBase, BasicStorage, \
      TransactionalUndoStorage, VersionStorage, \
      TransactionalUndoVersionStorage, PackableStorage, \
      Synchronization, ConflictResolution, HistoryStorage, \
-     IteratorStorage, Corruption, RevisionStorage
+     IteratorStorage, Corruption, RevisionStorage, PersistentStorage
 
 class FileStorageTests(
     StorageTestBase.StorageTestBase,
@@ -18,12 +18,20 @@ class FileStorageTests(
     Synchronization.SynchronizedStorage,
     ConflictResolution.ConflictResolvingStorage,
     HistoryStorage.HistoryStorage,
-    IteratorStorage.IteratorStorage
+    IteratorStorage.IteratorStorage,
+    PersistentStorage.PersistentStorage,
     ):
 
+    def open(self, **kwargs):
+        if kwargs:
+            self._storage = apply(ZODB.FileStorage.FileStorage,
+                                  ('FileStorageTests.fs',), kwargs)
+        else:
+            self._storage = ZODB.FileStorage.FileStorage(
+                'FileStorageTests.fs', **kwargs)
+
     def setUp(self):
-        self._storage = ZODB.FileStorage.FileStorage(
-            'FileStorageTests.fs', create=1)
+        self.open(create=1)
         StorageTestBase.StorageTestBase.setUp(self)
 
     def tearDown(self):
