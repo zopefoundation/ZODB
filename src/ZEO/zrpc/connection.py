@@ -87,7 +87,9 @@ class MTDelay(Delay):
 #    own protocol version and the server protocol version, allowing it to
 #    talk to servers using later protocol versions (2.0.2 and higher) as
 #    well:  the effective protocol used will be the lower of the client
-#    and server protocol.
+#    and server protocol.  However, this changed in ZODB 3.3.1 (and
+#    should have changed in ZODB 3.3) because an older server doesn't
+#    support MVCC methods required by 3.3 clients.
 #
 # [Ugly details:  In order to treat the first received message (protocol
 #  handshake) differently than all later messages, both client and server
@@ -174,14 +176,6 @@ class Connection(smac.SizedMessageAsyncConnection, object):
     __super_close = smac.SizedMessageAsyncConnection.close
     __super_setSessionKey = smac.SizedMessageAsyncConnection.setSessionKey
 
-    # Protocol variables:
-    #
-    # oldest_protocol_version -- the oldest protocol version we support
-    # protocol_version -- the newest protocol version we support; preferred
-
-    oldest_protocol_version = "Z200"
-    protocol_version = "Z201"
-
     # Protocol history:
     #
     # Z200 -- Original ZEO 2.0 protocol
@@ -193,9 +187,54 @@ class Connection(smac.SizedMessageAsyncConnection, object):
     #             getAuthProtocol() and scheme-specific authentication methods
     #             getExtensionMethods().
     #             getInvalidations().
+    #
+    # Z303 -- named after the ZODB release 3.3
+    #         Added methods for MVCC:
+    #             loadBefore()
+    #             loadEx()
+    #         A Z303 client cannot talk to a Z201 server, because the latter
+    #         doesn't support MVCC.  A Z201 client can talk to a Z303 server,
+    #         but because (at least) the type of the root object changed
+    #         from ZODB.PersistentMapping to persistent.mapping, the older
+    #         client can't actually make progress if a Z303 client created,
+    #         or ever modified, the root.
+
+    # Protocol variables:
+    # Our preferred protocol.
+    current_protocol = "Z303"
+
+    # If we're a client, an exhaustive list of the server protocols we
+    # can accept.
+    servers_we_can_talk_to = [current_protocol]
+
+    # If we're a server, an exhaustive list of the client protocols we
+    # can accept.
+    clients_we_can_talk_to = ["Z200", "Z201", current_protocol]
+
+    # This is pretty excruciating.  Details:
+    #
+    # 3.3 server 3.2 client
+    #     server sends Z303 to client
+    #     client computes min(Z303, Z201) == Z201 as the protocol to use
+    #     client sends Z201 to server
+    #     OK, because Z201 is in the server's clients_we_can_talk_to
+    #
+    # 3.2 server 3.3 client
+    #     server sends Z201 to client
+    #     client computes min(Z303, Z201) == Z201 as the protocol to use
+    #     Z201 isn't in the client's servers_we_can_talk_to, so client
+    #         raises exception
+    #
+    # 3.3 server 3.3 client
+    #     server sends Z303 to client
+    #     client computes min(Z303, Z303) == Z303 as the protocol to use
+    #     Z303 is in the client's servers_we_can_talk_to, so client
+    #         sends Z303 to server
+    #     OK, because Z303 is in the server's clients_we_can_talk_to
 
     # Client constructor passes 'C' for tag, server constructor 'S'.  This
-    # is used in log messages.
+    # is used in log messages, and to determine whether we can speak with
+    # our peer.
     def __init__(self, sock, addr, obj, tag):
         self.obj = None
         self.marshal = Marshaller()
@@ -203,6 +242,7 @@ class Connection(smac.SizedMessageAsyncConnection, object):
         self.peer_protocol_version = None # set in recv_handshake()
 
         assert tag in "CS"
+        self.tag = tag
         self.logger = logging.getLogger('ZEO.zrpc.Connection(%c)' % tag)
         if isinstance(addr, types.TupleType):
             self.log_label = "(%s:%d) " % addr
@@ -324,7 +364,14 @@ class Connection(smac.SizedMessageAsyncConnection, object):
         # Extended by ManagedClientConnection.
         del self.message_input  # uncover normal-case message_input()
         self.peer_protocol_version = proto
-        if self.oldest_protocol_version <= proto <= self.protocol_version:
+
+        if self.tag == 'C':
+            good_protos = self.servers_we_can_talk_to
+        else:
+            assert self.tag == 'S'
+            good_protos = self.clients_we_can_talk_to
+
+        if proto in good_protos:
             self.log("received handshake %r" % proto, level=logging.INFO)
         else:
             self.log("bad handshake %s" % short_repr(proto),
@@ -673,7 +720,7 @@ class ManagedServerConnection(Connection):
 
     def handshake(self):
         # Send the server's preferred protocol to the client.
-        self.message_output(self.protocol_version)
+        self.message_output(self.current_protocol)
 
     def close(self):
         self.obj.notifyDisconnected()
@@ -729,7 +776,7 @@ class ManagedClientConnection(Connection):
     def recv_handshake(self, proto):
         # The protocol to use is the older of our and the server's preferred
         # protocols.
-        proto = min(proto, self.protocol_version)
+        proto = min(proto, self.current_protocol)
 
         # Restore the normal message_input method, and raise an exception
         # if the protocol version is too old.
@@ -752,6 +799,7 @@ class ManagedClientConnection(Connection):
 
     def close_trigger(self):
         # the manager should actually close the trigger
+        # TODO: what is that comment trying to say?  What 'manager'?
         del self.trigger
 
     def set_async(self, map):
