@@ -1406,7 +1406,7 @@ class FileStorage(BaseStorage.BaseStorage,
     def record_iternext(self, next=None):
         index = self._index
         oid = index.minKey(next)
-        
+
         try:
             next_oid = index.minKey(self.new_oid(oid))
         except ValueError: # "empty tree" error
@@ -1414,7 +1414,7 @@ class FileStorage(BaseStorage.BaseStorage,
 
         data, tid = self.load(oid, None) # ignore versions
         return oid, tid, data, next_oid
-        
+
 
 
 def shift_transactions_forward(index, vindex, tindex, file, pos, opos):
