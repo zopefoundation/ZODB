@@ -15,7 +15,7 @@
 """
 # Do this portably in the face of checking out with -kv
 import string
-__version__ = string.split('$Revision: 1.24 $')[-2:][0]
+__version__ = string.split('$Revision: 1.25 $')[-2:][0]
 
 import cPickle
 import ThreadLock, bpthread
@@ -281,7 +281,8 @@ class BaseStorage(UndoLogCompatible.UndoLogCompatible):
                 oid=r.oid
                 if verbose: print `oid`, r.version, len(r.data)
                 if restoring:
-                    self.restore(oid, r.serial, r.data, r.version, transaction)
+                    self.restore(oid, r.serial, r.data, r.version,
+                                 r.data_txn, transaction)
                 else:
                     pre=preget(oid, None)
                     s=self.store(oid, pre, r.data, r.version, transaction)
