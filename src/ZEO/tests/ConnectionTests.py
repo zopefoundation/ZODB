@@ -524,10 +524,12 @@ class ConnectionTests(StorageTestBase):
 
     def checkMultiStorageTransaction(self):
         # Configuration parameters (larger values mean more likely deadlocks)
-        self.nservers = 2
-        self.nthreads = 2
-        self.ntrans = 2
-        self.nobj = 2
+        N = 2
+        # These don't *have* to be all the same, but it's convenient this way
+        self.nservers = N
+        self.nthreads = N
+        self.ntrans = N
+        self.nobj = N
 
         # Start extra servers
         for i in range(1, self.nservers):
@@ -582,6 +584,7 @@ class MSTThread(threading.Thread):
             # Begin a transaction
             t = Transaction()
             for c in clients:
+                #print "%s.%s.%s begin\n" % (tname, c.__name, i),
                 c.tpc_begin(t)
 
             for j in range(testcase.nobj):
@@ -590,17 +593,20 @@ class MSTThread(threading.Thread):
                     oid = c.new_oid()
                     c.__oids.append(oid)
                     data = MinPO("%s.%s.t%d.o%d" % (tname, c.__name, i, j))
+                    #print data.value
                     data = zodb_pickle(data)
                     s = c.store(oid, ZERO, data, '', t)
                     c.__serials.update(handle_all_serials(oid, s))
 
             # Vote on all servers and handle serials
             for c in clients:
+                #print "%s.%s.%s vote\n" % (tname, c.__name, i),
                 s = c.tpc_vote(t)
                 c.__serials.update(handle_all_serials(None, s))
 
             # Finish on all servers
             for c in clients:
+                #print "%s.%s.%s finish\n" % (tname, c.__name, i),
                 c.tpc_finish(t)
 
             for c in clients:
