@@ -84,14 +84,14 @@
 ##############################################################################
 """Handy standard storage machinery
 """
-__version__='$Revision: 1.4 $'[11:-2]
+__version__='$Revision: 1.5 $'[11:-2]
 
-import time, bpthread
+import time, bpthread, UndoLogCompatible
 from POSException import UndoError
 from TimeStamp import TimeStamp
 z64='\0'*8
 
-class BaseStorage:
+class BaseStorage(UndoLogCompatible.UndoLogCompatible):
     _transaction=None
     _serial=z64
 
