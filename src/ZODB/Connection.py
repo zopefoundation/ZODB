@@ -13,7 +13,7 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.149 2004/04/16 01:08:12 tim_one Exp $"""
+$Id: Connection.py,v 1.150 2004/04/16 14:19:11 jeremy Exp $"""
 
 import logging
 import sys
@@ -266,7 +266,7 @@ class Connection(ExportImport, object):
         can pass a transaction manager (TM) to DB.open() to control
         which TM the Connection uses.
         """
-        warnings.warn("getTransaction() is deprecated. "
+        warnings.warn("setLocalTransaction() is deprecated. "
                       "Use the txn_mgr argument to DB.open() instead.",
                       DeprecationWarning)
         if self._txn_mgr is transaction.manager:
