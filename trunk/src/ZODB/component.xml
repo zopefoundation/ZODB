@@ -8,7 +8,7 @@
   <sectiontype name="filestorage" datatype=".FileStorage"
                implements="storage">
     <key name="path" required="yes"/>
-    <key name="create" datatype="boolean" default="true"/>
+    <key name="create" datatype="boolean" default="false"/>
     <key name="read-only" datatype="boolean" default="false"/>
     <key name="stop"/>
     <key name="quota" datatype="integer"/>
