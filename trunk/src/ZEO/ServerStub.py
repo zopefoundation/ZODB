@@ -104,6 +104,9 @@ class StorageServer:
     def load(self, oid, version):
         return self.rpc.call('load', oid, version)
 
+    def getSerial(self, oid):
+        return self.rpc.call('getSerial', oid)
+
     def loadSerial(self, oid, serial):
         return self.rpc.call('loadSerial', oid, serial)
 

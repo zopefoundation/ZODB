@@ -119,6 +119,7 @@ class ZEOStorage:
         """Delegate several methods to the storage"""
         self.versionEmpty = self.storage.versionEmpty
         self.versions = self.storage.versions
+        self.getSerial = self.storage.getSerial
         self.history = self.storage.history
         self.load = self.storage.load
         self.loadSerial = self.storage.loadSerial
