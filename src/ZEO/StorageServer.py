@@ -610,7 +610,7 @@ class StorageServer:
             speed client cache verification when a client disconnects
             for a short period of time.
 
-        transaction_timout -- The maximum amount of time to wait for
+        transaction_timeout -- The maximum amount of time to wait for
             a transaction to commit after acquiring the storage lock.
             If the transaction takes too long, the client connection
             will be closed and the transaction aborted.
@@ -813,7 +813,7 @@ class TimeoutThread(threading.Thread):
         # being released.  (Serialized by asyncore.)
         self._cond.acquire()
         try:
-            assert self._client  is not None
+            assert self._client is not None
             self._client = None
             self._deadline = None
         finally:
