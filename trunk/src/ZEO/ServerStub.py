@@ -18,6 +18,9 @@ class StorageServer:
     def __init__(self, rpc):
         self.rpc = rpc
 
+    def _update(self):
+        self.rpc.pending()
+
     def register(self, storage_name, read_only):
         self.rpc.call('register', storage_name, read_only)
 
