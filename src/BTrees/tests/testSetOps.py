@@ -48,13 +48,13 @@ class TestMultiUnion(TestCase):
             self.assertEqual([1, 3, 5], list(output))
 
     def testBigInput(self):
-        input = IISet(range(50000))
-        reversed = range(50000)
-        reversed.reverse()
-        reversed = IISet(reversed)
-        output = multiunion([input, reversed] * 5)
-        self.assertEqual(len(output), 50000)
-        self.assertEqual(list(output), range(50000))
+        N = 100000
+        input = IISet(range(N))
+        output = multiunion([input] * 10)
+        self.assertEqual(len(output), N)
+        self.assertEqual(output.minKey(), 0)
+        self.assertEqual(output.maxKey(), N-1)
+        self.assertEqual(list(output), range(N))
 
     def testLotsOfLittleOnes(self):
         from random import shuffle
