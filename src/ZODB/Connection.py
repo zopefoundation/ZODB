@@ -13,8 +13,8 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.64 2002/03/27 10:14:03 htrd Exp $"""
-__version__='$Revision: 1.64 $'[11:-2]
+$Id: Connection.py,v 1.65 2002/04/13 20:17:22 jeremy Exp $"""
+__version__='$Revision: 1.65 $'[11:-2]
 
 from cPickleCache import PickleCache, MUCH_RING_CHECKING
 from POSException import ConflictError, ReadConflictError
@@ -107,10 +107,10 @@ class Connection(ExportImport.ExportImport):
         try: del self.cacheGC
         except: pass
 
-    def __getitem__(self, oid,
-                    tt=type(())):
-        cache=self._cache
-        if cache.has_key(oid): return cache[oid]
+    def __getitem__(self, oid, tt=type(())):
+        obj = self._cache.get(oid, None)
+        if obj is not None:
+          return obj
 
         __traceback_info__ = (oid)
         p, serial = self._storage.load(oid, self._version)
@@ -144,8 +144,9 @@ class Connection(ExportImport.ExportImport):
         object._p_changed=None
         object._p_serial=serial
 
-        cache[oid]=object
-        if oid=='\0\0\0\0\0\0\0\0': self._root_=object # keep a ref
+        self._cache[oid] = object
+        if oid=='\0\0\0\0\0\0\0\0':
+          self._root_=object # keep a ref
         return object
 
     def _persistent_load(self,oid,
@@ -153,13 +154,13 @@ class Connection(ExportImport.ExportImport):
 
         __traceback_info__=oid
 
-        cache=self._cache
-
         if type(oid) is tt:
             # Quick instance reference.  We know all we need to know
             # to create the instance wo hitting the db, so go for it!
             oid, klass = oid
-            if cache.has_key(oid): return cache[oid]
+            obj = self._cache.get(oid, None)
+            if obj is not None:
+                return obj
 
             if type(klass) is tt:
                 module, name = klass
@@ -175,11 +176,13 @@ class Connection(ExportImport.ExportImport):
             object._p_jar=self
             object._p_changed=None
             
-            cache[oid]=object
+            self._cache[oid] = object
 
             return object
 
-        if cache.has_key(oid): return cache[oid]
+        obj = self._cache.get(oid, None)
+        if obj is not None:
+            return obj
         return self[oid]
 
     def _setDB(self, odb):
@@ -219,8 +222,11 @@ class Connection(ExportImport.ExportImport):
         else:
             self._cache.invalidate(object._p_oid)
 
-    def cacheFullSweep(self, dt=0): self._cache.full_sweep(dt)
-    def cacheMinimize(self, dt=0): self._cache.minimize(dt)
+    def cacheFullSweep(self, dt=0):
+        self._cache.full_sweep(dt)
+        
+    def cacheMinimize(self, dt=0):
+        self._cache.minimize(dt)
 
     __onCloseCallbacks = None
     
@@ -426,7 +432,6 @@ class Connection(ExportImport.ExportImport):
         self._tmp=None
         self._storage=tmp
 
-        
         self._cache.invalidate(src._index.keys())
         self._invalidate_creating(src._creating)
 
