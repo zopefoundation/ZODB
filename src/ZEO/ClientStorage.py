@@ -84,7 +84,7 @@
 ##############################################################################
 """Network ZODB storage client
 """
-__version__='$Revision: 1.25 $'[11:-2]
+__version__='$Revision: 1.26 $'[11:-2]
 
 import struct, time, os, socket, string, Sync, zrpc, ClientCache
 import tempfile, Invalidator, ExtensionClass, thread
@@ -558,6 +558,8 @@ class ClientStorage(ExtensionClass.Base, BaseStorage.BaseStorage):
         self._lock_acquire()
         try: return self._call('versions', max)
         finally: self._lock_release()
+
+    def sync(self): self._call.sync()
 
 def getWakeup(_w=[]):
     if _w: return _w[0]
