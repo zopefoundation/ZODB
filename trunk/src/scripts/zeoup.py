@@ -28,6 +28,9 @@ def check_server(addr, storage):
     # ClientStorage doesn't get fully initialized until registerDB()
     # is called.  The only thing we care about, though, is that
     # registerDB() calls _startup().
+
+    # XXX Is connecting a DB with wait_for_server_on_startup=0 a
+    # sufficient test for upness?
     db = ZODB.DB(cs)
     db.close()
 
