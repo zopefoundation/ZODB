@@ -100,8 +100,7 @@ Basic functionality
 -------------------
 
 The next bit of code includes a simple MVCC test.  One transaction
-will begin and modify "a."  The other transaction will then modify "b"
-and commit.
+will modify "a."  The other transaction will then modify "b" and commit.
 
 >>> r1 = cn1.root()
 >>> r1["a"].value = 2
@@ -119,10 +118,12 @@ transaction.
 >>> r2 = cn2.root()
 >>> r2["b"]._p_serial < cn2._txn_time
 True
+>>> r2["b"].value
+1
 >>> r2["b"].value = 2
 
-It is not safe, however, to read the current revision "a," because it
-was modified at the high-water mark.  If we read it, we'll get a
+It is not safe, however, to read the current revision of "a" because
+it was modified at the high-water mark.  If we read it, we'll get a
 non-current version.
 
 >>> r2["a"].value
@@ -136,7 +137,7 @@ storage.
 >>> db._storage.isCurrent(r2["a"]._p_oid, r2["a"]._p_serial)
 False
 
-It's possible to modify "a," but we get a conflict error when we
+It's possible to modify "a", but we get a conflict error when we
 commit the transaction.
 
 >>> r2["a"].value = 3
@@ -147,12 +148,15 @@ ConflictError: database conflict error (oid 0000000000000001, class ZODB.tests.M
 
 The failed commit aborted the current transaction, so we can try
 again.  This example will demonstrate that we can commit a transaction
-if we don't modify the object that isn't current.
+if we only modify current revisions.
 
->>> cn2._txn_time
+>>> print cn2._txn_time
+None
 
 >>> r1 = cn1.root()
 >>> r1["a"].value = 3
+>>> txn1 is cn1.getTransaction()
+True
 >>> cn1.getTransaction().commit()
 >>> txn = db.lastTransaction()
 >>> cn2._txn_time == txn
@@ -162,7 +166,8 @@ True
 >>> r2["b"].value
 3
 >>> txn2.commit()
->>> cn2._txn_time
+>>> print cn2._txn_time
+None
 
 Object cache
 ------------
