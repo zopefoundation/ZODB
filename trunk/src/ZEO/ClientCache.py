@@ -144,13 +144,17 @@ file 0 and file 1.
 
 """
 
-__version__ = "$Revision: 1.15 $"[11:-2]
+__version__ = "$Revision: 1.16 $"[11:-2]
 
 import os, tempfile
 from struct import pack, unpack
 from thread import allocate_lock
+import zLOG
 
 magic='ZEC0'
+
+def LOG(msg, level=zLOG.BLATHER):
+    zLOG.LOG("ZEC", level, msg)
 
 class ClientCache:
 
@@ -209,6 +213,9 @@ class ClientCache:
 
         self._limit=size/2
         self._current=current
+
+    def close(self):
+        self._f[self._current].close()
 
     def open(self):
         self._acquire()
@@ -407,19 +414,19 @@ class ClientCache:
         self._pos=pos+tlen
 
 def read_index(index, serial, f, current):
+    LOG("read_index(%s)" % f.name)
     seek=f.seek
     read=f.read
     pos=4
-    seek(0,2)
-    size=f.tell()
 
     while 1:
-        f.seek(pos)
+        seek(pos)
         h=read(27)
-        
+
         if len(h)==27 and h[8] in 'vni':
             tlen, vlen, dlen = unpack(">iHi", h[9:19])
-        else: tlen=-1
+        else:
+            break
         if tlen <= 0 or vlen < 0 or dlen < 0 or vlen+dlen > tlen:
             break
 
@@ -454,3 +461,15 @@ def read_index(index, serial, f, current):
     except: pass
     
     return pos
+
+def main(files):
+    for file in files:
+        print file
+        index = {}
+        serial = {}
+        read_index(index, serial, open(file), 0)
+        print index.keys()
+
+if __name__ == "__main__":
+    import sys
+    main(sys.argv[1:])
