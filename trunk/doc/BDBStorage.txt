@@ -1,0 +1,306 @@
+BerkeleyDB Storages for ZODB
+============================
+
+Introduction
+------------
+
+The BDBStorage package contains two types of ZODB storages based on
+Sleepycat Software's BerkeleyDB library, and the PyBSDDB3 Python
+wrapper module.  These storages save ZODB data to a number of
+BerkeleyDB tables, relying on BerkeleyDB's transaction machinery to
+provide reliability and recoverability.
+
+Note that the BerkeleyDB based storages are not "set and forget".  The
+underlying Berkeley database technology requires maintenance, careful
+system resource planning, and tuning for performance.  You should have
+a good working familiarity with BerkeleyDB in general before trying to
+use these storages in a production environment.  It's a good idea to
+read Sleepycat's own documentation, available at
+
+    http://www.sleepycat.com
+
+See also our operating notes below.
+
+
+Contents
+--------
+
+Inside the BDBStorage package, there are two storage implementations:
+
+- BDBFullStorage.py is a complete storage implementation, supporting
+  transactional undo, versions, application level conflict resolution,
+  packing, and automatic reference counting garbage collection.  You
+  must pack this storage in order to get rid of old object revisions,
+  but there is a new "autopack" strategy which packs the storage in a
+  separate thread and can eliminate the need for an explicit manual
+  pack operation.
+
+- BDBMinimalStorage.py is an implementation of an undo-less,
+  version-less storage, which implements a reference counting garbage
+  collection strategy to remove unused objects.  It is still possible
+  for garbage objects to persist in the face of object cycles,
+  but this storage too implements an autopack strategy to collect such
+  cyclic garbage.
+
+
+Compatibility
+-------------
+
+It is recommended that you use BerkeleyDB 4.1.25 and Python 2.3.3.
+BDBStorage will not work with any BerkeleyDB version before 3.3.11 so
+be careful if your Python or PyBSDDB is linking against earlier
+BerkeleyDB 3.x versions.  We have not tested with Berkeley DB 4.2.
+
+Requirements
+------------
+
+You must install Sleepycat BerkeleyDB and perhaps PyBSDDB separately.
+
+To obtain the BerkeleyDB 4.1.25, see the Sleepycat download page::
+
+    http://www.sleepycat.com/download/patchlogsdb.shtml
+
+Install BerkeleyDB.  It's generally wise to accept the default
+configure options and do a "make install" as root.  This will install
+BerkeleyDB in /usr/local/BerkeleyDB.4.1
+
+Note that because BerkeleyDB installs itself in a non-standard
+location, the dynamic linker ld.so may not be able to find it.  This
+could result in link errors during application startup.  For systems
+that support ldconfig, it is highly recommended that you add
+/usr/local/BerkeleyDB.4.1/lib to /etc/ld.so.conf and run ldconfig.
+
+If BerkeleyDB is installed, Python should find it and automatically
+build the bsddb bindings.
+
+
+Using Berkeley storage outside of Zope
+--------------------------------------
+
+ZODB applications that use the BerkeleyDB storages need to take care
+to close the database gracefully, otherwise the underlying database
+could be left in a corrupt, but recoverable, state.
+
+By default, all the BerkeleyDB storages open their databases with the
+DB_RECOVER flag, meaning if recovery is necessary (e.g. because you
+didn't explicitly close it the last time you opened it), then recover
+will be run automatically on database open.  You can also manually
+recover the database by running Berkeley's db_recover program.
+
+The upshot of this is that a database which was not gracefully closed
+can usually be recovered automatically, but this could greatly
+increase the time it takes to open the databases.  This can be
+mitigated by periodically checkpointing, since recovery only needs to
+take place from the time of the last checkpoint.  The database is
+always checkpointed when it's closed cleanly.
+
+You can configure the BerkeleyDB storages to automatically checkpoint
+the database every so often, by using the BerkeleyConfig class.  The
+"interval" setting determines how often, in terms of ZODB commits,
+that the underlying database will be checkpointed.  See the class
+docstring for BerkeleyBase.BerkeleyConfig for details.
+
+
+BerkeleyDB files
+----------------
+
+After Zope is started with one of the BerkeleyDB storages, you will
+see a number of different types of files in your BerkeleyDB
+environment directory.  There will be a number of "__db*" files, a
+number of "log.*" files, and several files which have the prefix
+``zodb_``.  The files which have the ``zodb_`` prefix are the actual
+BerkeleyDB databases which hold the storage data.  The "log.*" files
+are write-ahead logs for BerkeleyDB transactions, and they are very
+important.  The "__db*" files are working files for BerkeleyDB, and
+they are less important.  It's wise to back up all the files in this
+directory regularly.  BerkeleyDB supports "hot-backup".  Log files
+need to be archived and cleared on a regular basis (see below).
+
+You really want to store your database files on a file system with
+large file support.  See below for details.
+
+
+BerkeleyDB log files
+--------------------
+
+BerkeleyDB is a transactional database system.  In order to maintain
+transactional integrity, BerkeleyDB writes data to log files before
+the data is committed.  These log files live in the BerkeleyDB
+environment directory unless you take steps to configure your
+BerkeleyDB environment differently.  There are good reasons to put the
+log files on a different disk than the data files:
+
+- The performance win can be huge.  By separating the log and data
+  files, Berkeley can much more efficiently write data to disk.  We
+  have seen performance improvements from between 2.5 and 10 times for
+  write intensive operations.  You might also want to consider using
+  three separate disks, one for the log files, one for the data files,
+  and one for the OS swap.
+
+- The log files can be huge.  It might make disk space management
+  easier by separating the log and data files.
+
+The log file directory can be changed by setting the "logfile"
+attribute on the config object given to the various storage
+constructors.  Set this to the directory where BerkeleyDB should store
+your log files.  Note that this directory must already exist.
+
+For more information about BerkeleyDB log files, recoverability and
+why it is advantageous to put your log files and your database files
+on separate devices, see
+
+    http://www.sleepycat.com/docs/ref/transapp/reclimit.html.
+
+You can reclaim some disk space by occasionally backing up and
+removing unnecessary BerkeleyDB log files.  Here's a trick that I use::
+
+    % db_archive | xargs rm
+
+Be sure to read the db_archive manpages first!
+
+
+Tuning BerkeleyDB
+-----------------
+
+BerkeleyDB has lots of knobs you can twist to tune it for your
+application.  Getting most of these knobs at the right setting is an
+art, and will be different from system to system.  You should at least
+read the following Sleepycat pages::
+
+    http://www.sleepycat.com/docs/ref/am_conf/cachesize.html
+    http://www.sleepycat.com/docs/ref/am_misc/tune.html
+    http://www.sleepycat.com/docs/ref/transapp/tune.html
+    http://www.sleepycat.com/docs/ref/transapp/throughput.html
+
+As you read these, it will be helpful to know that the BDBStorages
+mostly use BTree access method, although there are a few Queue tables
+to support packing.
+
+One thing we can safely say is that the default BerkeleyDB cache size
+of 256KB is way too low to be useful.  The BerkeleyDB storages
+themselves default the cache size to 128MB which seems about optimal
+on a 256MB machine.  Be careful setting this too high though, as
+performance will degrade if you tell BerkeleyDB to consume more than
+the available resources.  You can change the cache size by setting the
+"cachesize" attribute on the config object to the constructor.
+
+
+Archival and maintenance
+------------------------
+
+Log file rotation for BerkeleyDB is closely related to database
+archival.
+
+BerkeleyDB never deletes "old" log files.  Eventually, if you do not
+maintain your Berkeley database by deleting "old" log files, you will
+run out of disk space.  It's necessary to maintain and archive your
+BerkeleyDB files as per the procedures outlined in
+
+    http://www.sleepycat.com/docs/ref/transapp/archival.html
+
+It is advantageous to automate this process, perhaps by creating a
+script run by "cron" that makes use of the "db_archive" executable as
+per the referenced document.  One strategy might be to perform the
+following sequence of operations::
+
+- shut down the process which is using BerkeleyDB (Zope or the ZEO
+  storage server).
+
+- back up the database files (the files prefixed with "zodb_").
+
+- back up all existing BerkeleyDB log files (the files prefixed
+  "log").
+
+- run ``db_archive -h /the/environment/directory`` against your
+  environment directory to find out which log files are no longer
+  participating in transactions (they will be printed to stdout one
+  file per line).
+
+- delete the log files that were reported by "db_archive" as no longer
+  participating in any transactions.
+
+"Hot" backup and rotation of log files is slightly different.  See the
+above-referenced link regarding archival for more information.
+
+
+Disaster recovery
+-----------------
+
+To recover from an out-of-disk-space error on the log file partition,
+or another recoverable failure which causes the storage to raise a
+fatal exception, you may need to use the BerkeleyDB "db_recover"
+executable.  For more information, see the BerkeleyDB documentation
+at::
+
+    http://www.sleepycat.com/docs/ref/transapp/recovery.html
+
+
+BerkeleyDB temporary files
+--------------------------
+
+BerkeleyDB creates temporary files in the directory referenced by the
+$TMPDIR environment variable.  If you do not have a $TMPDIR set, your
+temp files will be created somewhere else (see
+http://www.sleepycat.com/docs/api_c/env_set_tmp_dir.html for the
+tempfile decision algorithm used by BerkeleyDB).  These temporary
+files are different than BerkeleyDB "log" files, but they can also
+become quite large.  Make sure you have plenty of temp space
+available.
+
+
+Linux 2GB Limit
+---------------
+
+BerkeleyDB is effected by the 2GB single-file-size limit on 32-bit
+Linux ext2-based systems.  The Berkeley storage pickle database (by
+default named "zodb_pickle"), which holds the bulk of the data for the
+Berkeley storages is particularly susceptible to large growth.
+
+If you anticipate your database growing larger than 2GB, it's
+worthwhile to make sure your system can support files larger than 2GB.
+Start with your operating system and file system.  Most modern Linux
+distributions have large file support.
+
+Next, you need to make sure that your Python executable has large file
+support (LFS) built in.  Python 2.2.2 and beyond is automatically
+configured with LFS, but for Python 2.1.3 you will need to rebuild
+your executable according to the instructions on this page:
+
+    http://www.python.org/doc/2.1.3/lib/posix-large-files.html
+
+IMPORTANT NOTE: If any of your BerkeleyDB files reaches the 2GB limit
+before you notice the failure situation, you will most likely need to
+restore the database environment from a backup, putting the restored
+files on a filesystem which can handle large files.  This is due to
+the fact that the database file which "hit the limit" on a 2GB-limited
+filesystem will be left in an inconsistent state, and will probably be
+rendered unusable.  Be very cautious if you're dealing with large
+databases.
+
+
+For More Information
+--------------------
+
+Information about ZODB in general is kept on the ZODB Wiki at
+
+    http://www.zope.org/Wikis/ZODB
+
+Information about the BerkeleyDB storages in particular is at
+
+    http://www.zope.org/Wikis/ZODB/BerkeleyStorage
+
+The email list zodb-dev@lists.zope.org are where all the
+discussion about the Berkeley storages should take place.
+Subscribe or view the archives at
+
+    http://lists.zope.org/mailman/listinfo/zodb-dev
+
+
+
+..
+   Local Variables:
+   mode: indented-text
+   indent-tabs-mode: nil
+   sentence-end-double-space: t
+   fill-column: 70
+   End:
