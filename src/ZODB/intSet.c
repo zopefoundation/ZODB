@@ -10,7 +10,7 @@
 
 static char intSet_module_documentation[] = 
 ""
-"\n$Id: intSet.c,v 1.8 1998/03/24 15:15:33 jim Exp $"
+"\n$Id: intSet.c,v 1.9 1998/03/24 15:17:34 jim Exp $"
 ;
 
 #include <limits.h>
@@ -382,7 +382,7 @@ intSet__p___reinit__(intSet *self, PyObject *args)
      && HasInstDict(self) && (dict=INSTANCE_DICT(self)))
     {
       PyDict_Clear(dict);
-      self->state=GHOST_STATE;
+      self->state=cPersistent_GHOST_STATE;
     }
 
   Py_INCREF(Py_None);
@@ -537,7 +537,7 @@ void
 initintSet()
 {
   PyObject *m, *d;
-  char *rev="$Revision: 1.8 $";
+  char *rev="$Revision: 1.9 $";
 
   UNLESS(ExtensionClassImported) return;
 
@@ -575,6 +575,9 @@ initintSet()
   Revision Log:
 
   $Log: intSet.c,v $
+  Revision 1.9  1998/03/24 15:17:34  jim
+  *** empty log message ***
+
   Revision 1.8  1998/03/24 15:15:33  jim
   Brought reinit/deactivate machinery up to date.
 
