@@ -84,8 +84,8 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.35 2000/07/01 20:35:03 jim Exp $"""
-__version__='$Revision: 1.35 $'[11:-2]
+$Id: Connection.py,v 1.36 2000/07/06 19:36:54 jim Exp $"""
+__version__='$Revision: 1.36 $'[11:-2]
 
 from cPickleCache import PickleCache
 from POSException import ConflictError, ExportError
@@ -370,6 +370,8 @@ class Connection(ExportImport.ExportImport):
                 # Dang, I bet its wrapped:
                 if hasattr(object, 'aq_base'):
                     cache[oid]=object.aq_base
+                else:
+                    raise
 
     def commit_sub(self, t,
                    _type=type, _st=type(''), _None=None):
