@@ -84,7 +84,7 @@
 ##############################################################################
 """Handy standard storage machinery
 """
-__version__='$Revision: 1.1 $'[11:-2]
+__version__='$Revision: 1.2 $'[11:-2]
 
 import time, bpthread
 from POSException import UndoError
@@ -95,7 +95,7 @@ class BaseStorage:
     _transaction=None
     _serial=z64
 
-    def __init__(self, name):
+    def __init__(self, name, base=None):
         
         self.__name__=name
 
@@ -110,7 +110,8 @@ class BaseStorage:
         t=time.time()
         t=self._ts=apply(TimeStamp,(time.gmtime(t)[:5]+(t%60,)))
         self._serial=`t`
-        self._oid='\0\0\0\0\0\0\0\1'
+        if base is None: self._oid='\0\0\0\0\0\0\0\0'
+        else:            self._oid=base._oid
 
     def close(self): pass
 
