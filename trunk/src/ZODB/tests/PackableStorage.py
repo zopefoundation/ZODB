@@ -25,7 +25,6 @@ try:
 except ImportError:
     from StringIO import StringIO
 
-import threading
 import time
 
 from ZODB import DB
@@ -34,6 +33,8 @@ from ZODB.referencesf import referencesf
 from ZODB.tests.MinPO import MinPO
 from ZODB.tests.StorageTestBase import snooze
 from ZODB.POSException import ConflictError
+
+from ZODB.tests.MTStorage import TestThread
 
 ZERO = '\0'*8
 
@@ -505,14 +506,14 @@ class PackableUndoStorage(PackableStorageBase):
         # what can we assert about that?
 
 
-class ClientThread(threading.Thread):
+class ClientThread(TestThread):
 
     def __init__(self, db, choices):
-        threading.Thread.__init__(self)
+        TestThread.__init__(self)
         self.root = db.open().root()
         self.choices = choices
 
-    def run(self):
+    def runtest(self):
         from random import choice
 
         for j in range(50):
