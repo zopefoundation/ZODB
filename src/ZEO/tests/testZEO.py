@@ -138,6 +138,7 @@ class GenericTests(ZEOTestBase,
     def tearDown(self):
         """Try to cause the tests to halt"""
         self.running = 0
+        self._storage.close()
         self._server.close()
         os.waitpid(self._pid, 0)
         self.delStorage()
@@ -163,7 +164,13 @@ class ZEOFileStorageTests(GenericTests):
             path = self.__fs_base + ext
             os.unlink(path)
 
-class PersistentCacheTests(ZEOTestBase):
+class ConnectionTests(ZEOTestBase):
+    """Tests that explicitly manage the server process.
+
+    To test the cache or re-connection, these test cases explicit
+    start and stop a ZEO storage server.
+    """
+    
     __super_setUp = StorageTestBase.StorageTestBase.setUp
     __super_tearDown = StorageTestBase.StorageTestBase.tearDown
 
@@ -178,14 +185,17 @@ class PersistentCacheTests(ZEOTestBase):
         """
         self.running = 1
         self.__fs_base = tempfile.mktemp()
-        fs = FileStorage(self.__fs_base, create=1)
-        self.addr = '', self.ports.pop()
-        pid, exit = forker.start_zeo_server(fs, self.addr)
+        self.addr = '', random.randrange(2000, 3000)
+        pid, exit = self._startServer()
         self._pid = pid
         self._server = exit
         self.__super_setUp()
 
-    def openClientStorage(self, cache, cache_size, wait):
+    def _startServer(self, create=1):
+        fs = FileStorage(self.__fs_base, create=create)
+        return forker.start_zeo_server(fs, self.addr)
+
+    def openClientStorage(self, cache='', cache_size=200000, wait=1):
         base = ZEO.ClientStorage.ClientStorage(self.addr,
                                                client=cache,
                                                cache_size=cache_size,
@@ -251,6 +261,27 @@ class PersistentCacheTests(ZEOTestBase):
         self._storage.load(oid2, '')
         self.assertRaises(Disconnected, self._storage.load, oid1, '')
 
+    def checkReconnection(self):
+        """Check that the client reconnects when a server restarts."""
+
+        from ZEO.ClientStorage import ClientDisconnected
+        self._storage = self.openClientStorage()
+        oid = self._storage.new_oid()
+        obj = MinPO(12)
+        revid1 = self._dostore(oid, data=obj)
+        self.shutdownServer()
+        self.running = 1
+        self._pid, self._server = self._startServer(create=0)
+        oid = self._storage.new_oid()
+        obj = MinPO(12)
+        while 1:
+            try:
+                revid1 = self._dostore(oid, data=obj)
+            except ClientDisconnected:
+                time.sleep(0.1)
+            else:
+                break
+
 def get_methods(klass):
     l = [klass]
     meth = {}
@@ -266,7 +297,7 @@ def get_methods(klass):
 def makeTestSuite(testname=''):
     suite = unittest.TestSuite()
     name = 'check' + testname
-    for klass in ZEOFileStorageTests, PersistentCacheTests:
+    for klass in ZEOFileStorageTests, ConnectionTests:
         for meth in get_methods(klass):
             if meth.startswith(name):
                 suite.addTest(klass(meth))
@@ -283,7 +314,7 @@ def main():
             name_of_test = val
 
     if args:
-        print >> sys.stderr, "Did not expect arguments.  Got %s" % args
+        print "Did not expect arguments.  Got %s" % args
         return 0
     
     tests = makeTestSuite(name_of_test)
