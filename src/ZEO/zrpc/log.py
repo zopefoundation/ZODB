@@ -12,31 +12,35 @@
 #
 ##############################################################################
 import os
-import zLOG
 import threading
+import logging
+
+from ZODB.loglevels import BLATHER
 
 LOG_THREAD_ID = 0 # Set this to 1 during heavy debugging
 
-_label = "zrpc:%s" % os.getpid()
+logger = logging.getLogger('ZEO.zrpc')
+
+_label = "%s" % os.getpid()
 
 def new_label():
     global _label
-    _label = "zrpc:%s" % os.getpid()
+    _label = str(os.getpid())
 
-def log(message, level=zLOG.BLATHER, label=None, error=None):
+def log(message, level=BLATHER, label=None, exc_info=False):
     label = label or _label
     if LOG_THREAD_ID:
-        label = "%s:%s" % (label, threading.currentThread().getName())
-    zLOG.LOG(label, level, message, error=error)
+        label = label + ':' + threading.currentThread().getName()
+    logger.log(level, '(%s) %s' % (label, message), exc_info=exc_info)
 
 REPR_LIMIT = 60
 
 def short_repr(obj):
     "Return an object repr limited to REPR_LIMIT bytes."
 
-    # Some of the objects being repr'd are large strings.  It's wastes
-    # a lot of memory to repr them and then truncate, so special case
-    # them in this function.
+    # Some of the objects being repr'd are large strings. A lot of memory
+    # would be wasted to repr them and then truncate, so they are treated
+    # specially in this function.
     # Also handle short repr of a tuple containing a long string.
 
     # This strategy works well for arguments to StorageServer methods.

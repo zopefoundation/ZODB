@@ -17,7 +17,7 @@ import types
 
 from ZEO.zrpc.connection import Connection
 from ZEO.zrpc.log import log
-import zLOG
+import logging
 import ThreadedAsync.LoopCallback
 
 # Export the main asyncore loop
@@ -39,7 +39,7 @@ class Dispatcher(asyncore.dispatcher):
         else:
             self.create_socket(socket.AF_UNIX, socket.SOCK_STREAM)
         self.set_reuse_addr()
-        log("listening on %s" % str(self.addr), zLOG.INFO)
+        log("listening on %s" % str(self.addr), logging.INFO)
         self.bind(self.addr)
         self.listen(5)
 

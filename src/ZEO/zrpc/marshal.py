@@ -14,8 +14,7 @@
 import cPickle
 from cStringIO import StringIO
 import types
-
-import zLOG
+import logging
 
 from ZEO.zrpc.error import ZRPCError
 from ZEO.zrpc.log import log, short_repr
@@ -38,7 +37,8 @@ class Marshaller:
         try:
             return unpickler.load() # msgid, flags, name, args
         except:
-            log("can't decode message: %s" % short_repr(msg), level=zLOG.ERROR)
+            log("can't decode message: %s" % short_repr(msg),
+                level=logging.ERROR)
             raise
 
 _globals = globals()
