@@ -201,7 +201,32 @@ class MappingStorageTests(GenericTests):
     def getConfig(self):
         return """<mappingstorage 1/>"""
 
-test_classes = [FileStorageTests, MappingStorageTests]
+class BlobAdaptedFileStorageTests(GenericTests):
+    """ZEO backed by a BlobStorage-adapted FileStorage."""
+    def setUp(self):
+        self.blobdir = tempfile.mkdtemp()
+        super(BlobAdaptedFileStorageTests, self).setUp()
+        
+    def tearDown(self):
+        import shutil
+        shutil.rmtree(self.blobdir)
+        super(BlobAdaptedFileStorageTests, self).tearDown()
+
+    def getConfig(self):
+        return """
+        <blobstorage 1>
+          blob-dir %s
+          <filestorage 2>
+            path %s
+          </filestorage>
+        </blobstorage>
+        """ % (self.blobdir, tempfile.mktemp())
+
+    def checkStoreBlob(self):
+        pass  
+
+test_classes = [FileStorageTests, MappingStorageTests,
+                BlobAdaptedFileStorageTests]
 
 def test_suite():
     suite = unittest.TestSuite()

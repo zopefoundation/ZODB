@@ -20,6 +20,12 @@ You create a blob like this:
     >>> from ZODB.Blobs.Blob import Blob
     >>> myblob = Blob()
 
+A blob implements the IBlob interface:
+
+    >>> from ZODB.Blobs.interfaces import IBlob
+    >>> IBlob.providedBy(myblob)
+    True
+
 Opening a new Blob for reading fails:
 
     >>> myblob.open("r")
