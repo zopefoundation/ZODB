@@ -184,7 +184,8 @@ class ConnectionManager:
 # already connected (our code can attempt redundant connects).
 if hasattr(errno, "WSAEWOULDBLOCK"):    # Windows
     _CONNECT_IN_PROGRESS = (errno.WSAEWOULDBLOCK,)
-    _CONNECT_OK          = (0, errno.WSAEISCONN)
+    # Win98: WSAEISCONN; Win2K: WSAEINVAL
+    _CONNECT_OK          = (0, errno.WSAEISCONN, errno.WSAEINVAL)
 else:                                   # Unix
     _CONNECT_IN_PROGRESS = (errno.EINPROGRESS,)
     _CONNECT_OK          = (0, errno.EISCONN)
