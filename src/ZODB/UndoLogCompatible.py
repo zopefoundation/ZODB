@@ -88,11 +88,13 @@
 class UndoLogCompatible:
 
     def undoInfo(self, first, last, specification):
-        def filter(desc, spec=specification.items()):
-            get=desc.get
-            for k, v in spec:
-                if get(k, None) != v:
-                    return 0
-            return 1
-
+        if specification:
+            def filter(desc, spec=specification.items()):
+                get=desc.get
+                for k, v in spec:
+                    if get(k, None) != v:
+                        return 0
+                return 1
+        else: filter=None
+            
         return self.undoLog(first, last, filter)
