@@ -759,7 +759,7 @@ class TestIOBTrees(BTreeTests, TestCase):
     def _noneraises(self):
         self.t[None] = 1
 
-    def XXXtestEmptyFirstBucketReportedByGuido(self):
+    def testEmptyFirstBucketReportedByGuido(self):
         b = self.t
         for i in xrange(29972): # reduce to 29971 and it works
             b[i] = i
@@ -994,20 +994,18 @@ class TestIITreeSets(NormalSetTests, TestCase):
         t, keys = self._build_degenerate_tree()
         self._checkRanges(t, keys)
 
-    def XXXtestDeletes(self):
+    def testDeletes(self):
         # Delete keys in all possible orders, checking each tree along
         # the way.
 
-        # XXX This is hopeless for now:  it dies with:
-        # XXX 1. A variety of assertion failures in _checkRanges.
-        # XXX 2. Assorted "Invalid firstbucket pointer" failures at
-        # XXX    seemingly random times, coming out of the BTree destructor.
-        # XXX 3. Under Python 2.3 CVS, some baffling
-        # XXX    RuntimeWarning: tp_compare didn't return -1 or -2 for exception
-        # XXX    warnings, possibly due to memory corruption after a BTree
-        # XXX    goes insane.
-        # XXX These are probably related to "Guido's bug" (which test case
-        # SXX is also disabled for now).
+        # This is a tough test.  Previous failure modes included:
+        # 1. A variety of assertion failures in _checkRanges.
+        # 2. Assorted "Invalid firstbucket pointer" failures at
+        #    seemingly random times, coming out of the BTree destructor.
+        # 3. Under Python 2.3 CVS, some baffling
+        #      RuntimeWarning: tp_compare didn't return -1 or -2 for exception
+        #    warnings, possibly due to memory corruption after a BTree
+        #    goes insane.
 
         t, keys = self._build_degenerate_tree()
         for oneperm in permutations(keys):
@@ -1016,6 +1014,9 @@ class TestIITreeSets(NormalSetTests, TestCase):
                 t.remove(key)
                 keys.remove(key)
                 self._checkRanges(t, keys)
+            # We removed all the keys, so the tree should be empty now.
+            self.assertEqual(t.__getstate__(), None)
+
             # A damaged tree may trigger an "invalid firstbucket pointer"
             # failure at the time its destructor is invoked.  Try to force
             # that to happen now, so it doesn't look like a baffling failure

@@ -173,8 +173,11 @@ More or less random bits of helpful info.
   more efficiently than they can store arbitrary Python objects.
 
 + In a non-empty BTree, every bucket node contains at least one key,
-  and every BTree node contains at least one child.  An empty BTree
-  consists solely of a BTree node with len==0 and firstbucket==NULL.
+  and every BTree node contains at least one child and a non-NULL
+  firstbucket pointer.  However, a BTree node may not contain any keys.
+
++ An empty BTree consists solely of a BTree node with len==0 and
+  firstbucket==NULL.
 
 + Although a BTree can become unbalanced under a mix of inserts and
   deletes (meaning both that there's nothing stronger that can be
