@@ -122,16 +122,18 @@ from ZEO.ICache import ICache
 magic = 'ZEC1'
 headersize = 12
 
+MB = 1024**2
+
 class ClientCache:
 
     __implements__ = ICache
 
-    def __init__(self, storage='1', size=20000000, client=None, var=None):
+    def __init__(self, storage='1', size=20*MB, client=None, var=None):
         # Arguments:
         # storage -- storage name (used in filenames and log messages)
         # size -- size limit in bytes of both files together
         # client -- if not None, use a persistent cache file and use this name
-        # var -- directory where to create persistent cache files
+        # var -- directory where to create persistent cache files; default cwd
 
         self._storage = storage
         self._limit = size / 2
@@ -145,15 +147,8 @@ class ClientCache:
 
         if client is not None:
             # Create a persistent cache
-            # CLIENT_HOME and INSTANCE_HOME are builtins set by App.FindHomes
             if var is None:
-                try:
-                    var = CLIENT_HOME
-                except:
-                    try:
-                        var = os.path.join(INSTANCE_HOME, 'var')
-                    except:
-                        var = os.getcwd()
+                var = os.getcwd()
 
             fmt = os.path.join(var, "c%s-%s-%%s.zec" % (storage, client))
             # Initialize pairs of filenames, file objects, and serialnos.
