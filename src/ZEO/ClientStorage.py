@@ -611,7 +611,7 @@ class ClientStorage:
         self._server.vote(self._serial)
         return self._check_serials()
 
-    def tpc_begin(self, transaction, tid=None, status=' '):
+    def tpc_begin(self, txn, tid=None, status=' '):
         """Storage API: begin a transaction."""
         if self._is_read_only:
             raise POSException.ReadOnlyError()
@@ -620,11 +620,11 @@ class ClientStorage:
             # It is allowable for a client to call two tpc_begins in a
             # row with the same transaction, and the second of these
             # must be ignored.
-            if self._transaction == transaction:
+            if self._transaction == txn:
                 self._tpc_cond.release()
                 return
             self._tpc_cond.wait(30)
-        self._transaction = transaction
+        self._transaction = txn
         self._tpc_cond.release()
 
         if tid is None:
@@ -635,11 +635,8 @@ class ClientStorage:
             id = tid
 
         try:
-            r = self._server.tpc_begin(id,
-                                       transaction.user,
-                                       transaction.description,
-                                       transaction._extension,
-                                       tid, status)
+            self._server.tpc_begin(id, txn.user, txn.description,
+                                   txn._extension, tid, status)
         except:
             # Client may have disconnected during the tpc_begin().
             if self._server is not disconnected_stub:
