@@ -205,7 +205,6 @@ class ConnectionTests(CommonSetupTearDown):
                 self._dostore()
                 break
             except ClientDisconnected:
-                self._storage.sync()
                 time.sleep(0.5)
 
     def checkReadOnlyClient(self):
@@ -392,7 +391,6 @@ class ConnectionTests(CommonSetupTearDown):
                          "Error after server restart; retrying.",
                          error=sys.exc_info())
                 get_transaction().abort()
-                self._storage.sync()
             # XXX This is a bloody pain.  We're placing a heavy burden
             # on users to catch a plethora of exceptions in order to
             # write robust code.  Need to think about implementing
@@ -645,7 +643,6 @@ class ReconnectionTests(CommonSetupTearDown):
                 # quickly and the test fails because it doesn't wait
                 # long enough for the client.
                 time.sleep(0.1)
-                self._storage.sync()
         else:
             self.fail("Couldn't store after starting a read-write server")
 
