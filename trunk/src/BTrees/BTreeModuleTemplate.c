@@ -341,7 +341,7 @@ static char BTree_module_documentation[] =
 "\n"
 MASTER_ID
 BTREEITEMSTEMPLATE_C
-"$Id: BTreeModuleTemplate.c,v 1.13 2001/06/20 19:32:55 matt Exp $\n"
+"$Id: BTreeModuleTemplate.c,v 1.14 2001/11/08 16:52:01 bwarsaw Exp $\n"
 BTREETEMPLATE_C
 BUCKETTEMPLATE_C
 KEYMACROS_H
@@ -356,7 +356,7 @@ BTREEITEMSTEMPLATE_C
 void 
 INITMODULE (void)
 {
-  PyObject *m, *d, *c;
+  PyObject *m, *d, *c, *s;
 
   UNLESS (sort_str=PyString_FromString("sort")) return;
   UNLESS (reverse_str=PyString_FromString("reverse")) return;
@@ -426,8 +426,9 @@ INITMODULE (void)
   /* Add some symbolic constants to the module */
   d = PyModule_GetDict(m);
 
-  PyDict_SetItemString(d, "__version__",
-		       PyString_FromString("$Revision: 1.13 $"));
+  s = PyString_FromString("$Revision: 1.14 $");
+  PyDict_SetItemString(d, "__version__", s);
+  Py_XDECREF(s);
 
   PyExtensionClass_Export(d,MOD_NAME_PREFIX "Bucket", BucketType);
   PyExtensionClass_Export(d,MOD_NAME_PREFIX "BTree", BTreeType);
