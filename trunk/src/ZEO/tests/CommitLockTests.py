@@ -37,14 +37,17 @@ class WorkerThread(threading.Thread):
         self.trans = trans
         self.method = method
         threading.Thread.__init__(self)
+        self.setDaemon(True)
 
     def run(self):
         try:
             self.storage.tpc_begin(self.trans)
             oid = self.storage.new_oid()
-            self.storage.store(oid, ZERO, zodb_pickle(MinPO("c")), '', self.trans)
+            p = zodb_pickle(MinPO("c"))
+            self.storage.store(oid, ZERO, p, '', self.trans)
             oid = self.storage.new_oid()
-            self.storage.store(oid, ZERO, zodb_pickle(MinPO("c")), '', self.trans)
+            p = zodb_pickle(MinPO("c"))
+            self.storage.store(oid, ZERO, p, '', self.trans)
             self.storage.tpc_vote(self.trans)
             if self.method == "tpc_finish":
                 self.storage.tpc_finish(self.trans)
@@ -154,7 +157,9 @@ class CommitLockTests:
 
     def _dowork2(self, method_name):
         for t in self._threads:
-            t.join()
+            t.join(10)
+        for t in self._threads:
+            self.failIf(t.isAlive())
 
     def _duplicate_client(self):
         "Open another ClientStorage to the same server."
