@@ -13,7 +13,7 @@
 ##############################################################################
 """Database objects
 
-$Id: DB.py,v 1.67 2004/03/01 15:45:03 jeremy Exp $"""
+$Id: DB.py,v 1.68 2004/03/02 15:36:40 jeremy Exp $"""
 
 import cPickle, cStringIO, sys
 from thread import allocate_lock
@@ -507,7 +507,7 @@ class DB(object):
             c._setDB(self)
             for pool, allocated in pooll:
                 for cc in pool:
-                    cc._incrgc()
+                    cc.cacheGC()
 
             if transaction is not None:
                 transaction[version] = c
