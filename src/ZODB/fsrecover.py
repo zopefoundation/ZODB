@@ -261,7 +261,7 @@ def recover(inp, outp, verbose=0, partial=0, force=0, pack=0):
     prog1 = 0
     undone = 0
 
-    pos = 4
+    pos = 4L
     ltid = None
     while pos:
         try:
