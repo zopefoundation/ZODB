@@ -88,7 +88,7 @@ process must skip such objects, rather than deactivating them.
 static char cPickleCache_doc_string[] =
 "Defines the PickleCache used by ZODB Connection objects.\n"
 "\n"
-"$Id: cPickleCache.c,v 1.66 2002/06/10 22:35:08 jeremy Exp $\n";
+"$Id: cPickleCache.c,v 1.67 2002/06/10 22:49:41 jeremy Exp $\n";
 
 #define ASSIGN(V,E) {PyObject *__e; __e=(E); Py_XDECREF(V); (V)=__e;}
 #define UNLESS(E) if(!(E))
@@ -425,23 +425,16 @@ static PyObject *
 cc_invalidate(ccobject *self, PyObject *args)
 {
   PyObject *inv, *key, *v;
-  int i;
+  int i = 0;
 
-  /* XXX The code supports invalidation of all objects, but it's
-     impossible for a Connection object to pass None.  The code could be
-     simplied.
+  /* Older versions of ZODB used None to mean "invalidate everything,"
+     but current Connection implementations don't ever pass None.
   */
+  assert(key != Py_None);
 
   if (PyArg_ParseTuple(args, "O!", &PyDict_Type, &inv)) {
-      for (i=0; PyDict_Next(inv, &i, &key, &v); ) 
-	  if (key == Py_None) {
-	      /* Eek some nitwit invalidated everything! */
-	      for (i=0; PyDict_Next(self->data, &i, &key, &v); )
-		  _invalidate(self, key);
-	      break;
-	  }
-	  else
-	      _invalidate(self, key);
+      while (PyDict_Next(inv, &i, &key, &v))
+	  _invalidate(self, key);
       PyDict_Clear(inv);
   }
   else {
@@ -450,9 +443,6 @@ cc_invalidate(ccobject *self, PyObject *args)
 	  return NULL;
       if (PyString_Check(inv))
 	  _invalidate(self, inv);
-      else if (inv == Py_None)	/* All */
-	  for (i=0; PyDict_Next(self->data, &i, &key, &v); )
-	      _invalidate(self, key);
       else {
 	  int l;
 	  
