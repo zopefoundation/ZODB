@@ -6,16 +6,17 @@ What's ZEO?
 ===========
 
 ZEO stands for Zope Enterprise Objects.  ZEO is an add-on for Zope
-that allows a ZODB storage to live on a separate machine, which is
-accessed via a network by multiple Zope instances.  ZEO 2 has many
-improvements over ZEO 1, and is incompatible with ZEO 1; if you
-upgrade an existing ZEO 1 installation, you must upgrade the server
-and all clients simultaneous.  If you received ZEO 2 as part of the
-ZODB 3 distribution, the ZEO 1 sources are provided in a separate
+that allows a multiple processes to connect to a single ZODB storage.
+Those processes can live on different machines, but don't need to.
+ZEO 2 has many improvements over ZEO 1, and is incompatible with ZEO
+1; if you upgrade an existing ZEO 1 installation, you must upgrade the
+server and all clients simultaneous.  If you received ZEO 2 as part of
+the ZODB 3 distribution, the ZEO 1 sources are provided in a separate
 directory (ZEO1).  Some documentation for ZEO is available in the ZODB
 3 package in the Doc subdirectory.  ZEO depends on the ZODB software;
 it can be used with the version of ZODB distributed with Zope 2.5.1 or
-later.  More information about ZEO can be found on its home on the web:
+later.  More information about ZEO can be found on its home on the
+web:
 
     http://www.zope.org/Products/ZEO/
 
@@ -45,8 +46,8 @@ zrpc/                   subpackage implementing Remote Procedure Call (RPC)
 Client Cache Tracing
 ====================
 
-An important question for ZEO users is, how large should the ZEO
-client cache be.  ZEO 2 (as of ZEO 2.0b2) has a new feature that lets
+An important question for ZEO users is: how large should the ZEO
+client cache be?  ZEO 2 (as of ZEO 2.0b2) has a new feature that lets
 you collect a trace of cache activity and tools to analyze this trace,
 enabling you to make an informed decision about the cache size.
 
@@ -64,8 +65,8 @@ problems with the file, a log message is written to the standard Zope
 log file.  To start or stop tracing, the ZEO client process (typically
 a Zope application server) must be restarted.
 
-The trace file can grow pretty fast; on a moderately loaded server, we
-observed it growing by 5 MB per hour.  The file consists of binary
+The trace file can grow pretty quickly; on a moderately loaded server,
+we observed it growing by 5 MB per hour.  The file consists of binary
 records, each 24 bytes long; a detailed description of the record
 lay-out is given in stats.py.  No sensitive data is logged.
 
