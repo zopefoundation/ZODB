@@ -84,7 +84,7 @@
 ##############################################################################
 """Network ZODB storage client
 """
-__version__='$Revision: 1.15 $'[11:-2]
+__version__='$Revision: 1.16 $'[11:-2]
 
 import struct, time, os, socket, string, Sync, zrpc, ClientCache
 import tempfile, Invalidator, ExtensionClass, thread
@@ -293,7 +293,7 @@ class ClientStorage(ExtensionClass.Base, BaseStorage.BaseStorage):
             p = cache.load(oid, version)
             if p: return p
             p, s, v, pv, sv = self._call('zeoLoad', oid)
-            cache.checkSize(size)
+            cache.checkSize(0)
             cache.store(oid, p, s, v, pv, sv)
             if not v or not version or version != v:
                 if s: return p, s
