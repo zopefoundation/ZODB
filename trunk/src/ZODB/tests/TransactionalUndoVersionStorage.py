@@ -11,8 +11,6 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
-from __future__ import nested_scopes
-
 # Check interactions between transactionalUndo() and versions.  Any storage
 # that supports both transactionalUndo() and versions must pass these tests.
 

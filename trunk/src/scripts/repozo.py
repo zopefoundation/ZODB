@@ -62,8 +62,6 @@ Options for -R/--recover:
         written to stdout.
 """
 
-from __future__ import nested_scopes
-
 import os
 import sys
 import md5

@@ -13,8 +13,6 @@
 ##############################################################################
 """Start the ZEO storage server."""
 
-from __future__ import nested_scopes
-
 import sys, os, getopt
 import types
 import errno

@@ -20,8 +20,6 @@ XXX Need some basic access control-- a declaration of the methods
 exported for invocation by the server.
 """
 
-from __future__ import nested_scopes
-
 import asyncore
 import cPickle
 import os

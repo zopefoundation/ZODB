@@ -11,8 +11,6 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
-from __future__ import nested_scopes
-
 import ZODB.FileStorage
 import sys, os, unittest
 import errno
