@@ -26,6 +26,6 @@ from transaction import get as get_transaction
 # really be in persistent anyway.
 sys.modules['ZODB.TimeStamp'] = sys.modules['persistent.TimeStamp']
 
-# XXX Issue deprecation warning if this variant is used?
+# TODO Issue deprecation warning if this variant is used?
 __builtin__.get_transaction = get_transaction
 del __builtin__
