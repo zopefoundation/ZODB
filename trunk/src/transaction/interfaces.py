@@ -151,7 +151,7 @@ class IDataManager(zope.interface.Interface):
         manager must define a sortKey() method that provides a global ordering
         for resource managers.
         """
-        # XXX: Alternate version:
+        # Alternate version:
         #"""Return a consistent sort key for this connection.
         #
         #This allows ordering multiple connections that use the same storage in
