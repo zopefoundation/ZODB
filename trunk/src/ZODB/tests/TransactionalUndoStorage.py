@@ -150,6 +150,9 @@ class TransactionalUndoStorage:
         oids1 = self._storage.transactionalUndo(tid1, self._transaction)
         self._storage.tpc_vote(self._transaction)
         self._storage.tpc_finish(self._transaction)
+        # We get the finalization stuff called an extra time:
+        self._storage.tpc_vote(self._transaction)
+        self._storage.tpc_finish(self._transaction)
         assert len(oids) == 2
         assert len(oids1) == 2
         assert oid1 in oids and oid2 in oids
@@ -157,6 +160,20 @@ class TransactionalUndoStorage:
         assert pickle.loads(data) == 30
         data, revid2 = self._storage.load(oid2, '')
         assert pickle.loads(data) == 50
+
+        # Now try to undo the one we just did to undo, whew
+        info =self._storage.undoInfo()
+        tid = info[0]['id']
+        self._storage.tpc_begin(self._transaction)
+        oids = self._storage.transactionalUndo(tid, self._transaction)
+        self._storage.tpc_vote(self._transaction)
+        self._storage.tpc_finish(self._transaction)
+        assert len(oids) == 2
+        data, revid1 = self._storage.load(oid1, '')
+        assert pickle.loads(data) == 32
+        data, revid2 = self._storage.load(oid2, '')
+        assert pickle.loads(data) == 52
+
 
     def checkTwoObjectUndoAgain(self):
         p32, p33, p52, p53 = map(pickle.dumps, (32, 33, 52, 53))
@@ -212,6 +229,7 @@ class TransactionalUndoStorage:
         assert pickle.loads(data) == 33
         data, revid2 = self._storage.load(oid2, '')
         assert pickle.loads(data) == 54
+        
 
     def checkNotUndoable(self):
         # Set things up so we've got a transaction that can't be undone
