@@ -11,7 +11,7 @@
 
 static char BTree_module_documentation[] = 
 ""
-"\n$Id: BTree.c,v 1.5 1997/10/01 02:47:06 jim Exp $"
+"\n$Id: BTree.c,v 1.6 1997/10/10 18:21:45 jim Exp $"
 ;
 
 #define PERSISTENT
@@ -394,6 +394,7 @@ bucket_index(Bucket *self, PyObject *key, int less)
   PER_ALLOW_DEACTIVATION(self);
 
   if(less) return max-1;
+  if(max==min) return min;
   return min+1;
 }
 
@@ -1713,7 +1714,7 @@ initBTree()
 #endif
 {
   PyObject *m, *d;
-  char *rev="$Revision: 1.5 $";
+  char *rev="$Revision: 1.6 $";
 
   UNLESS(PyExtensionClassCAPI=PyCObject_Import("ExtensionClass","CAPI"))
       return;
@@ -1773,6 +1774,9 @@ initBTree()
 Revision Log:
 
   $Log: BTree.c,v $
+  Revision 1.6  1997/10/10 18:21:45  jim
+  Fixed bug in range queries.
+
   Revision 1.5  1997/10/01 02:47:06  jim
   Fixed bug in setstate that allocates too much memory.
 
