@@ -13,7 +13,7 @@
 ##############################################################################
 """Handy standard storage machinery
 
-$Id: BaseStorage.py,v 1.37 2003/11/28 16:44:49 jim Exp $
+$Id: BaseStorage.py,v 1.38 2003/12/23 14:37:13 jeremy Exp $
 """
 import cPickle
 import threading
@@ -23,7 +23,6 @@ import UndoLogCompatible
 import POSException
 from persistent.TimeStamp import TimeStamp
 
-import ThreadLock
 import zLOG
 from ZODB import bpthread
 from ZODB import POSException
