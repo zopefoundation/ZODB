@@ -1,3 +1,4 @@
 *shared*
 cPersistence cPersistence.c -I../ExtensionClass
 cPickleCache cPickleCache.c -I../ExtensionClass
+Record Record.c -I../ExtensionClass
