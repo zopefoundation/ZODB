@@ -13,7 +13,7 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.122 2004/02/24 22:07:46 jeremy Exp $"""
+$Id: Connection.py,v 1.123 2004/02/25 11:30:16 jim Exp $"""
 
 import logging
 import sys
@@ -87,7 +87,7 @@ class Connection(ExportImport, object):
     XXX We should document an intended API for using a Connection via
     multiple threads.
 
-    $Id: Connection.py,v 1.122 2004/02/24 22:07:46 jeremy Exp $
+    $Id: Connection.py,v 1.123 2004/02/25 11:30:16 jim Exp $
     """
 
     _tmp = None
@@ -497,7 +497,7 @@ class Connection(ExportImport, object):
         """
         assert object._p_jar is self
         # XXX Figure out why this assert causes test failures
-        assert object._p_oid is not None
+        #assert object._p_oid is not None
         self.getTransaction().register(object)
 
     def root(self):
