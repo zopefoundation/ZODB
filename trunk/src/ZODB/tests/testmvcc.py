@@ -225,6 +225,7 @@ reused by the next open() call (along with its object cache).
 
 >>> testit()
 >>> r1["a"].value = 1
+>>> tm1.get().abort()
 >>> cn1.close()
 >>> cn3 = db.open()
 >>> cn1 is cn3
