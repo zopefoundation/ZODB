@@ -16,8 +16,8 @@ import sys
 import time
 from struct import pack, unpack
 from binascii import hexlify
-import cPickle
-import cStringIO
+import cPickle as pickle
+from cStringIO import StringIO
 import weakref
 import warnings
 
@@ -39,6 +39,7 @@ __all__ = ['z64',
            'WeakSet',
            'DEPRECATED_ARGUMENT',
            'deprecated36',
+           'get_pickle_metadata',
           ]
 
 # A unique marker to give as the default value for a deprecated argument.
@@ -173,18 +174,67 @@ def positive_id(obj):
 # tuples), without actually loading any modules or classes.
 # Note that pickle.py doesn't support any of this, it's undocumented code
 # only in cPickle.c.
-def get_refs(pickle):
+def get_refs(a_pickle):
     # The pickle is in two parts.  First there's the class of the object,
     # needed to build a ghost,  See get_pickle_metadata for how complicated
     # this can get.  The second part is the state of the object.  We want
     # to find all the persistent references within both parts (although I
     # expect they can only appear in the second part).
-    f = cStringIO.StringIO(pickle)
-    u = cPickle.Unpickler(f)
+    f = StringIO(a_pickle)
+    u = pickle.Unpickler(f)
     u.persistent_load = refs = []
     u.noload() # class info
     u.noload() # instance state info
     return refs
+
+# Given a ZODB pickle, return pair of strings (module_name, class_name).
+# Do this without importing the module or class object.
+# See ZODB/serialize.py's module docstring for the only docs that exist about
+# ZODB pickle format.  If the code here gets smarter, please update those
+# docs to be at least as smart.  The code here doesn't appear to make sense
+# for what serialize.py calls formats 5 and 6.
+
+def get_pickle_metadata(data):
+    # ZODB's data records contain two pickles.  The first is the class
+    # of the object, the second is the object.  We're only trying to
+    # pick apart the first here, to extract the module and class names.
+    if data.startswith('(c'):   # pickle MARK GLOBAL opcode sequence
+        global_prefix = 2
+    elif data.startswith('c'):  # pickle GLOBAL opcode
+        global_prefix = 1
+    else:
+        global_prefix = 0
+
+    if global_prefix:
+        # Formats 1 and 2.
+        # Don't actually unpickle a class, because it will attempt to
+        # load the class.  Just break open the pickle and get the
+        # module and class from it.  The module and class names are given by
+        # newline-terminated strings following the GLOBAL opcode.
+        modname, classname, rest = data.split('\n', 2)
+        modname = modname[global_prefix:]   # strip GLOBAL opcode
+        return modname, classname
+
+    # Else there are a bunch of other possible formats.
+    f = StringIO(data)
+    u = pickle.Unpickler(f)
+    try:
+        class_info = u.load()
+    except Exception, err:
+        print "Error", err
+        return '', ''
+    if isinstance(class_info, tuple):
+        if isinstance(class_info[0], tuple):
+            # Formats 3 and 4.
+            modname, classname = class_info[0]
+        else:
+            # Formats 5 and 6 (probably) end up here.
+            modname, classname = class_info
+    else:
+        # This isn't a known format.
+        modname = repr(class_info)
+        classname = ''
+    return modname, classname
 
 # A simple implementation of weak sets, supplying just enough of Python's
 # sets.Set interface for our needs.
