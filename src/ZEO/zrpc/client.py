@@ -215,6 +215,7 @@ class ConnectThread(threading.Thread):
         self.tmax = tmax
         self.stopped = 0
         self.one_attempt = threading.Event()
+        self.fallback = None
         # A ConnectThread keeps track of whether it has finished a
         # call to attempt_connects().  This allows the
         # ConnectionManager to make an attempt to connect right away,
@@ -293,7 +294,21 @@ class ConnectThread(threading.Thread):
         if ok:
             del self.sockets[s] # don't close the newly connected socket
             self.close_sockets()
-        return ok
+            return 1
+        if self.fallback:
+            (c, stub) = self.fallback
+            self.fallback = None
+            try:
+                self.client.notifyConnected(stub)
+            except:
+                log("error in notifyConnected (%r)" % addr,
+                    level=zLOG.ERROR, error=sys.exc_info())
+                c.close()
+                return 0
+            else:
+                self.mgr.connect_done(c)
+                return 1
+        return 0
 
     def try_connect(self, s):
         """Call s.connect_ex(addr); return true iff connection succeeds.
@@ -364,13 +379,25 @@ class ConnectThread(threading.Thread):
         # okay.
         c = ManagedConnection(s, addr, self.client, self.mgr)
         try:
-            self.client.notifyConnected(c)
+            (stub, preferred) = self.client.testConnection(c)
         except:
-            log("error connecting to server: %s" % str(addr),
+            log("error in testConnection (%r)" % addr,
                 level=zLOG.ERROR, error=sys.exc_info())
             c.close()
             # Closing the ZRPC connection will eventually close the
             # socket, somewhere in asyncore.
             return 0
-        self.mgr.connect_done(c)
-        return 1
+        if preferred:
+            try:
+                self.client.notifyConnected(stub)
+            except:
+                log("error in notifyConnected (%r)" % addr,
+                    level=zLOG.ERROR, error=sys.exc_info())
+                c.close()
+                return 0
+            else:
+                self.mgr.connect_done(c)
+                return 1
+        if self.fallback is None:
+            self.fallback = (c, stub)
+        return 0

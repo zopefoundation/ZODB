@@ -13,7 +13,7 @@
 ##############################################################################
 """Network ZODB storage client
 
-$Id: ClientStorage.py,v 1.57 2002/09/11 17:36:39 jeremy Exp $
+$Id: ClientStorage.py,v 1.58 2002/09/12 04:30:19 gvanrossum Exp $
 """
 
 # XXX TO DO
@@ -74,12 +74,13 @@ class ClientStorage:
     def __init__(self, addr, storage='1', cache_size=20000000,
                  name='', client=None, var=None,
                  min_disconnect_poll=5, max_disconnect_poll=300,
-                 wait=0, read_only=0):
+                 wait=0, read_only=0, read_only_fallback=0):
 
         self._addr = addr # For tests
         self._server = disconnected_stub
         self._is_read_only = read_only
         self._storage = storage
+        self._read_only_fallback = read_only_fallback
 
         self._info = {'length': 0, 'size': 0, 'name': 'ZEO Client',
                       'supportsUndo':0, 'supportsVersions': 0,
@@ -175,21 +176,41 @@ class ClientStorage:
         """Handle any pending invalidation messages."""
         self._server._update()
 
-    def notifyConnected(self, conn):
-        log2(INFO, "Connected to storage via %s" % repr(conn))
+    def testConnection(self, conn):
+        """Return a pair (stub, preferred).
 
-        # check the protocol version here?
+        Where:
+        - stub is an RPC stub
+        - preferred is: 1 if the connection is an optimal match,
+                        0 if it is a suboptimal but acceptable match
+        It can also raise DisconnectedError or ReadOnlyError.
 
+        This is called by ConnectionManager to decide which connection
+        to use in case there are multiple, and some are read-only and
+        others are read-write.
+        """
+        log2(INFO, "Testing connection %r" % conn)
+        # XXX Check the protocol version here?
         stub = ServerStub.StorageServer(conn)
+        try:
+            stub.register(str(self._storage), self._is_read_only)
+            return (stub, 1)
+        except POSException.ReadOnlyError:
+            if not self._read_only_fallback:
+                raise
+            stub.register(str(self._storage), read_only=1)
+            return (stub, 0)
 
+    def notifyConnected(self, stub):
+        """Start using the given RPC stub.
+
+        This is called by ConnectionManager after it has decided which
+        connection should be used.
+        """
         self._oids = []
-
-        stub.register(str(self._storage), self._is_read_only)
         self._info.update(stub.get_info())
         self.verify_cache(stub)
 
-        # Don't make the server available to clients until after
-        # validating the cache
         # XXX The stub should be saved here and set in end() below.
         self._server = stub
 
