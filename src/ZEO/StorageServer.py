@@ -147,8 +147,6 @@ class ZEOStorage:
 
     def setup_delegation(self):
         """Delegate several methods to the storage"""
-        self.undoInfo = self.__storage.undoInfo
-        self.undoLog = self.__storage.undoLog
         self.versionEmpty = self.__storage.versionEmpty
         self.versions = self.__storage.versions
         self.history = self.__storage.history
@@ -269,6 +267,14 @@ class ZEOStorage:
                                    map(lambda oid: (oid, ''), oids))
             return oids
         return ()
+
+    # undoLog and undoInfo are potentially slow methods
+
+    def undoInfo(self, first, last, spec):
+        return run_in_thread(self.__storage.undoInfo, first, last, spec)
+
+    def undoLog(self, first, last):
+        return run_in_thread(self.__storage.undoLog, first, last)
 
     def tpc_begin(self, id, user, description, ext, tid, status):
         if self._transaction is not None:
