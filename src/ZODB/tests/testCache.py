@@ -22,10 +22,11 @@ import gc
 import time
 import unittest
 
-import ZODB
-import ZODB.MappingStorage
 from persistent.cPickleCache import PickleCache
 from persistent.mapping import PersistentMapping
+import transaction
+import ZODB
+import ZODB.MappingStorage
 from ZODB.tests.MinPO import MinPO
 from ZODB.utils import p64
 
@@ -60,14 +61,14 @@ class CacheTestBase(unittest.TestCase):
         d = r.get(i)
         if d is None:
             d = r[i] = PersistentMapping()
-            get_transaction().commit()
+            transaction.commit()
 
         for i in range(15):
             o = d.get(i)
             if o is None:
                 o = d[i] = MinPO(i)
             o.value += 1
-        get_transaction().commit()
+        transaction.commit()
 
 class DBMethods(CacheTestBase):
 
@@ -145,7 +146,7 @@ class LRUCacheTests(CacheTestBase):
         for t in range(5):
             for i in range(dataset_size):
                 l[(t,i)] = r[i] = MinPO(i)
-            get_transaction().commit()
+            transaction.commit()
             # commit() will register the objects, placing them in the
             # cache.  at the end of commit, the cache will be reduced
             # down to CACHE_SIZE items

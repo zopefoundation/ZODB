@@ -15,6 +15,7 @@
 import tempfile
 import unittest
 
+import transaction
 import ZODB.config
 from ZODB.POSException import ReadOnlyError
 
@@ -34,7 +35,7 @@ class ConfigTestBase(unittest.TestCase):
         cn = db.open()
         rt = cn.root()
         rt["test"] = 1
-        get_transaction().commit()
+        transaction.commit()
         db.close()
 
 

@@ -21,6 +21,7 @@ from BTrees.OIBTree import OIBTree, OIBucket, OISet, OITreeSet
 
 from BTrees.check import check
 
+import transaction
 from ZODB import DB
 from ZODB.MappingStorage import MappingStorage
 
@@ -56,7 +57,7 @@ class Base(TestCase):
             root = None
             root = self._getRoot()
             root[i] = t
-            get_transaction().commit()
+            transaction.commit()
 
             root2 = self._getRoot()
             if hasattr(t, 'items'):
@@ -73,11 +74,11 @@ class Base(TestCase):
             self._populate(t, i)
             root = self._getRoot()
             root[i] = t
-            get_transaction().commit()
+            transaction.commit()
 
             root2 = self._getRoot()
             root2[i]._p_deactivate()
-            get_transaction().commit()
+            transaction.commit()
             if hasattr(t, 'items'):
                 self.assertEqual(list(root2[i].items()) , list(t.items()))
             else:

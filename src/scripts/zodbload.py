@@ -89,7 +89,7 @@ Usage: loadmail2 [options]
 
        Specify the mailbox for getting input data.
 
-$Id: zodbload.py,v 1.5 2004/03/18 13:27:49 yuppie Exp $
+$Id: zodbload.py,v 1.6 2004/04/16 15:58:10 jeremy Exp $
 """
 
 import mailbox
@@ -217,7 +217,7 @@ def setup(lib_python):
 
     app.cat.addIndex('PrincipiaSearchSource', 'ZCTextIndex', extra)
 
-    get_transaction().commit()
+    transaction.commit()
 
     system = AccessControl.SpecialUsers.system
     AccessControl.SecurityManagement.newSecurityManager(None, system)
@@ -237,7 +237,7 @@ def do(db, f, args):
     while 1:
         connection = db.open()
         try:
-            get_transaction().begin()
+            transaction.begin()
             t=time.time()
             c=time.clock()
             try:
@@ -245,7 +245,7 @@ def do(db, f, args):
                     r = f(connection, *args)
                 except ConflictError:
                     rconflicts += 1
-                    get_transaction().abort()
+                    transaction.abort()
                     continue
             finally:
                 wcomp += time.time() - t
@@ -255,11 +255,11 @@ def do(db, f, args):
             c=time.clock()
             try:
                 try:
-                    get_transaction().commit()
+                    transaction.commit()
                     break
                 except ConflictError:
                     wconflicts += 1
-                    get_transaction().abort()
+                    transaction.abort()
                     continue
             finally:
                 wcommit += time.time() - t

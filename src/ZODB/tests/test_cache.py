@@ -16,6 +16,7 @@
 import doctest
 
 from persistent import Persistent
+import transaction
 from ZODB.config import databaseFromString
 
 class RecalcitrantObject(Persistent):
@@ -67,7 +68,7 @@ class CacheTests:
         ...     o = RegularObject()
         ...     L.append(o)
         ...     r[i] = o
-        >>> get_transaction().commit()
+        >>> transaction.commit()
 
         After committing a transaction and calling cacheGC(), there
         should be cache-size (4) objects in the cache.  One of the
@@ -137,7 +138,7 @@ class CacheTests:
         ...     o = RecalcitrantObject()
         ...     L.append(o)
         ...     r[i] = o
-        >>> get_transaction().commit()
+        >>> transaction.commit()
         >>> [o._p_state for o in L]
         [0, 0, 0, 0, 0]
 
@@ -174,7 +175,7 @@ class CacheTests:
         ...     o = RegularObject()
         ...     L.append(o)
         ...     r[i] = o
-        >>> get_transaction().commit()
+        >>> transaction.commit()
         >>> RegularObject.deactivations
         1
 
@@ -188,7 +189,7 @@ class CacheTests:
         >>> cn._cache.ringlen()
         5
 
-        >>> get_transaction().abort()
+        >>> transaction.abort()
         >>> cn._cache.ringlen()
         2
         >>> RegularObject.deactivations

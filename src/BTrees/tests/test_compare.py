@@ -15,10 +15,11 @@
 
 import unittest
 
+from BTrees.OOBTree import OOBucket as Bucket, OOSet as Set
+
+import transaction
 from ZODB.MappingStorage import MappingStorage
 from ZODB.DB import DB
-
-from BTrees.OOBTree import OOBucket as Bucket, OOSet as Set
 
 class CompareTest(unittest.TestCase):
 
@@ -35,7 +36,7 @@ class CompareTest(unittest.TestCase):
         root = self.db.open().root()
         self.bucket = root["bucket"] = Bucket()
         self.set = root["set"] = Set()
-        get_transaction().commit()
+        transaction.commit()
 
     def tearDown(self):
         self.assert_(self.bucket._p_changed != 2)

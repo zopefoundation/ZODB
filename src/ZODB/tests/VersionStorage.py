@@ -18,6 +18,7 @@ Any storage that supports versions should be able to pass all these tests.
 
 import time
 
+import transaction
 from transaction import Transaction
 
 from ZODB import POSException
@@ -394,12 +395,12 @@ class VersionStorage:
 
         obj = root["obj"] = MinPO("obj")
         root["obj2"] = MinPO("obj2")
-        txn = get_transaction()
+        txn = transaction.get()
         txn.note("create 2 objs in version")
         txn.commit()
 
         obj.value = "77"
-        txn = get_transaction()
+        txn = transaction.get()
         txn.note("modify obj in version")
         txn.commit()
 
@@ -407,7 +408,7 @@ class VersionStorage:
         # and versions for pack to chase
         info = db.undoInfo()
         db.undo(info[0]["id"])
-        txn = get_transaction()
+        txn = transaction.get()
         txn.note("undo modification")
         txn.commit()
 
@@ -415,7 +416,7 @@ class VersionStorage:
         self._storage.pack(time.time(), referencesf)
 
         db.commitVersion("testversion")
-        txn = get_transaction()
+        txn = transaction.get()
         txn.note("commit version")
         txn.commit()
 
@@ -423,7 +424,7 @@ class VersionStorage:
         root = cn.root()
         root["obj"] = "no version"
 
-        txn = get_transaction()
+        txn = transaction.get()
         txn.note("modify obj")
         txn.commit()
 
@@ -436,12 +437,12 @@ class VersionStorage:
 
         obj = root["obj"] = MinPO("obj")
         root["obj2"] = MinPO("obj2")
-        txn = get_transaction()
+        txn = transaction.get()
         txn.note("create 2 objs in version")
         txn.commit()
 
         obj.value = "77"
-        txn = get_transaction()
+        txn = transaction.get()
         txn.note("modify obj in version")
         txn.commit()
 
@@ -452,14 +453,14 @@ class VersionStorage:
         # and versions for pack to chase
         info = db.undoInfo()
         db.undo(info[0]["id"])
-        txn = get_transaction()
+        txn = transaction.get()
         txn.note("undo modification")
         txn.commit()
 
         self._storage.pack(t0, referencesf)
 
         db.commitVersion("testversion")
-        txn = get_transaction()
+        txn = transaction.get()
         txn.note("commit version")
         txn.commit()
 
@@ -467,7 +468,7 @@ class VersionStorage:
         root = cn.root()
         root["obj"] = "no version"
 
-        txn = get_transaction()
+        txn = transaction.get()
         txn.note("modify obj")
         txn.commit()
 
@@ -482,18 +483,18 @@ class VersionStorage:
 
         for name in names:
             root[name] = MinPO(name)
-            get_transaction().commit()
+            transaction.commit()
 
         for name in names:
             cn2 = db.open(version=name)
             rt2 = cn2.root()
             obj = rt2[name]
             obj.value = MinPO("version")
-            get_transaction().commit()
+            transaction.commit()
             cn2.close()
 
         root["d"] = MinPO("d")
-        get_transaction().commit()
+        transaction.commit()
         snooze()
 
         self._storage.pack(time.time(), referencesf)
@@ -511,11 +512,11 @@ class VersionStorage:
             obj = rt2[name].value
             self.assertEqual(obj.value, "version")
             obj.value = "still version"
-            get_transaction().commit()
+            transaction.commit()
             cn2.close()
 
         db.abortVersion("b")
-        txn = get_transaction()
+        txn = transaction.get()
         txn.note("abort version b")
         txn.commit()
 
@@ -524,7 +525,7 @@ class VersionStorage:
 
         L = db.undoInfo()
         db.undo(L[0]["id"])
-        txn = get_transaction()
+        txn = transaction.get()
         txn.note("undo abort")
         txn.commit()
 

@@ -40,6 +40,7 @@ sys.path.insert(0, os.getcwd())
 
 import ZODB, ZODB.FileStorage
 import persistent
+import transaction
 
 class P(persistent.Persistent): pass
 
@@ -85,7 +86,7 @@ def main(args):
         for r in 1, 10, 100, 1000:
             t=time.time()
             jar=db.open()
-            get_transaction().begin()
+            transaction.begin()
             rt=jar.root()
             key='s%s' % r
             if rt.has_key(key): p=rt[key]
@@ -96,7 +97,7 @@ def main(args):
                 v=getattr(p, str(i), P())
                 v.d=d
                 setattr(p,str(i),v)
-            get_transaction().commit()
+            transaction.commit()
             jar.close()
             t=time.time()-t
             if detailed:

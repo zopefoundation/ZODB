@@ -18,11 +18,12 @@ multiple connections.
 """
 # XXX This code is currently broken.
 
+import transaction
 import ZODB
-from ZEO.ClientStorage import ClientStorage
 from ZODB.MappingStorage import MappingStorage
-from ZEO.tests import forker
 from ZODB.tests import MinPO
+from ZEO.ClientStorage import ClientStorage
+from ZEO.tests import forker
 
 import os
 import random
@@ -59,7 +60,7 @@ def setup(cn):
             o = MinPO.MinPO(prev)
             prev = o
         root[an_object()] = o
-        get_transaction().commit()
+        transaction.commit()
     cn.close()
 
 def work(cn):
@@ -71,7 +72,7 @@ def work(cn):
     while not isinstance(obj.value, types.StringType):
         obj = obj.value
     obj.value = an_object()
-    get_transaction().commit()
+    transaction.commit()
 
 def main():
     # Yuck!  Need to cleanup forker so that the API is consistent

@@ -19,6 +19,7 @@ from BTrees.IOBTree import IOBTree, IOBucket, IOSet, IOTreeSet
 from BTrees.IIBTree import IIBTree, IIBucket, IISet, IITreeSet
 from BTrees.OIBTree import OIBTree, OIBucket, OISet, OITreeSet
 
+import transaction
 from ZODB.POSException import ConflictError
 
 class Base:
@@ -27,7 +28,7 @@ class Base:
     storage = None
 
     def tearDown(self):
-        get_transaction().abort()
+        transaction.abort()
         del self.t
         if self.storage is not None:
             self.storage.close()
@@ -75,7 +76,7 @@ class MappingBase(Base):
 
         r1 = self.db.open().root()
         r1["t"] = self.t
-        get_transaction().commit()
+        transaction.commit()
 
         r2 = self.db.open().root()
         copy = r2["t"]
@@ -84,10 +85,10 @@ class MappingBase(Base):
         self.assertEqual(self.t._p_serial, copy._p_serial)
 
         self.t.update({1:2, 2:3})
-        get_transaction().commit()
+        transaction.commit()
 
         copy.update({3:4})
-        get_transaction().commit()
+        transaction.commit()
 
 
     def testMergeDelete(self):
@@ -427,7 +428,7 @@ class NastyConfict(Base, TestCase):
 
         r1 = self.db.open().root()
         r1["t"] = self.t
-        get_transaction().commit()
+        transaction.commit()
 
         r2 = self.db.open().root()
         copy = r2["t"]
@@ -437,10 +438,10 @@ class NastyConfict(Base, TestCase):
         self.assertEqual(self.t._p_serial, copy._p_serial)
 
         self.t.update({1:2, 2:3})
-        get_transaction().commit()
+        transaction.commit()
 
         copy.update({3:4})
-        get_transaction().commit()  # if this doesn't blow up
+        transaction.commit()  # if this doesn't blow up
         list(copy.values())         # and this doesn't either, then fine
 
     def testBucketSplitConflict(self):
@@ -467,7 +468,7 @@ class NastyConfict(Base, TestCase):
 
         r1 = self.db.open().root()
         r1["t"] = self.t
-        get_transaction().commit()
+        transaction.commit()
 
         r2 = self.db.open(synch=False).root()
         copy = r2["t"]
@@ -499,7 +500,7 @@ class NastyConfict(Base, TestCase):
         self.assertEqual(state[0][3], 75)
         self.assertEqual(state[0][5], 120)
 
-        get_transaction().commit()
+        transaction.commit()
 
         # In the other transaction, add 3 values near the tail end of bucket1.
         # This doesn't cause a split.
@@ -517,8 +518,8 @@ class NastyConfict(Base, TestCase):
         self.assertEqual(state[0][1], 60)
         self.assertEqual(state[0][3], 120)
 
-        self.assertRaises(ConflictError, get_transaction().commit)
-        get_transaction().abort()   # horrible things happen w/o this
+        self.assertRaises(ConflictError, transaction.commit)
+        transaction.abort()   # horrible things happen w/o this
 
     def testEmptyBucketConflict(self):
         # Tests that an emptied bucket *created by* conflict resolution is
@@ -544,7 +545,7 @@ class NastyConfict(Base, TestCase):
 
         r1 = self.db.open().root()
         r1["t"] = self.t
-        get_transaction().commit()
+        transaction.commit()
 
         r2 = self.db.open(synch=False).root()
         copy = r2["t"]
@@ -568,7 +569,7 @@ class NastyConfict(Base, TestCase):
         self.assertEqual(state[0][1], 60)
         self.assertEqual(state[0][3], 120)
 
-        get_transaction().commit()
+        transaction.commit()
 
         # In the other transaction, delete the other half of bucket 1.
         b = copy
@@ -589,8 +590,8 @@ class NastyConfict(Base, TestCase):
         # create an "insane" BTree (a legit BTree cannot contain an empty
         # bucket -- it contains NULL pointers the BTree code doesn't
         # expect, and segfaults result).
-        self.assertRaises(ConflictError, get_transaction().commit)
-        get_transaction().abort()   # horrible things happen w/o this
+        self.assertRaises(ConflictError, transaction.commit)
+        transaction.abort()   # horrible things happen w/o this
 
 
     def testEmptyBucketNoConflict(self):
@@ -616,7 +617,7 @@ class NastyConfict(Base, TestCase):
 
         r1 = self.db.open().root()
         r1["t"] = self.t
-        get_transaction().commit()
+        transaction.commit()
 
         r2 = self.db.open().root()
         copy = r2["t"]
@@ -639,7 +640,7 @@ class NastyConfict(Base, TestCase):
         self.assertEqual(state[0][1], 60)
         self.assertEqual(state[0][3], 120)
 
-        get_transaction().commit()
+        transaction.commit()
 
         # In the other transaction, delete bucket 2.
         b = copy
@@ -655,7 +656,7 @@ class NastyConfict(Base, TestCase):
         self.assertEqual(state[0][1], 60)
 
         # This shouldn't create a ConflictError.
-        get_transaction().commit()
+        transaction.commit()
         # And the resulting BTree shouldn't have internal damage.
         b._check()
 
@@ -685,7 +686,7 @@ class NastyConfict(Base, TestCase):
         self.openDB()
         r1 = self.db.open().root()
         r1["t"] = self.t
-        get_transaction().commit()
+        transaction.commit()
 
         r2 = self.db.open(synch=False).root()
         copy = r2["t"]
@@ -699,16 +700,16 @@ class NastyConfict(Base, TestCase):
 
         for k in range(200, 300, 4):
             self.t[k] = k
-        get_transaction().commit()
+        transaction.commit()
 
         for k in range(0, 60, 4):
             del copy[k]
 
         try:
-            get_transaction().commit()
+            transaction.commit()
         except ConflictError, detail:
             self.assert_(str(detail).startswith('database conflict error'))
-            get_transaction().abort()
+            transaction.abort()
         else:
             self.fail("expected ConflictError")
 

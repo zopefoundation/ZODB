@@ -26,6 +26,7 @@ from ZODB.FileStorage import FileStorage
 from ZODB.fsrecover import recover
 
 from persistent.mapping import PersistentMapping
+import transaction
 
 class RecoverTest(unittest.TestCase):
 
@@ -58,10 +59,10 @@ class RecoverTest(unittest.TestCase):
         # looks like a Data.fs > 1MB
         for i in range(50):
             d = rt[i] = PersistentMapping()
-            get_transaction().commit()
+            transaction.commit()
             for j in range(50):
                 d[j] = "a" * j
-            get_transaction().commit()
+            transaction.commit()
 
     def damage(self, num, size):
         self.storage.close()

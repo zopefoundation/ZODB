@@ -72,7 +72,7 @@ class ZODBClientThread(TestThread):
     def commit(self, d, num):
         d[num] = time.time()
         time.sleep(self.delay)
-        get_transaction().commit()
+        transaction.commit()
         time.sleep(self.delay)
 
     def get_thread_dict(self, root):
@@ -82,16 +82,16 @@ class ZODBClientThread(TestThread):
             try:
                 m = PersistentMapping()
                 root[name] = m
-                get_transaction().commit()
+                transaction.commit()
                 break
             except ConflictError, err:
-                get_transaction().abort()
+                transaction.abort()
                 root._p_jar.sync()
         for i in range(10):
             try:
                 return root.get(name)
             except ConflictError:
-                get_transaction().abort()
+                transaction.abort()
 
 class StorageClientThread(TestThread):
 

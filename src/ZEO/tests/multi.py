@@ -17,6 +17,7 @@
 import ZODB, ZODB.DB, ZODB.FileStorage, ZODB.POSException
 import persistent
 import persistent.mapping
+import transaction
 from ZEO.tests import forker
 
 import os
@@ -57,7 +58,7 @@ def init_storage():
     db = ZODB.DB(fs)
     root = db.open().root()
     root["multi"] = persistent.mapping.PersistentMapping()
-    get_transaction().commit()
+    transaction.commit()
 
     return fs
 
@@ -95,9 +96,9 @@ def run(storage):
     while 1:
         try:
             s = root[pid] = Stats()
-            get_transaction().commit()
+            transaction.commit()
         except ZODB.POSException.ConflictError:
-            get_transaction().abort()
+            transaction.abort()
             time.sleep(CONFLICT_DELAY)
         else:
             break
@@ -111,16 +112,16 @@ def run(storage):
             r = dict[size] = Record(pid, size)
             if prev:
                 prev.set_next(r)
-            get_transaction().commit()
+            transaction.commit()
         except ZODB.POSException.ConflictError, err:
-            get_transaction().abort()
+            transaction.abort()
             time.sleep(CONFLICT_DELAY)
         else:
             i = i + 1
             if VERBOSE and (i < 5 or i % 10 == 0):
                 print "Client %s: %s of %s" % (pid, i, RECORDS_PER_CLIENT)
     s.done()
-    get_transaction().commit()
+    transaction.commit()
 
     print "Client completed:", pid
 

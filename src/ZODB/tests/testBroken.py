@@ -13,13 +13,13 @@
 ##############################################################################
 """Test broken-object suppport
 
-$Id: testBroken.py,v 1.3 2004/03/04 22:41:53 jim Exp $
+$Id: testBroken.py,v 1.4 2004/04/16 15:58:11 jeremy Exp $
 """
 
 import sys
 import unittest
 import persistent
-#from transaction import get_transaction
+import transaction
 from doctest import DocTestSuite
 from ZODB.tests.util import DB
 
@@ -46,7 +46,7 @@ def test_integration():
     >>> a.x = 1
     >>> conn1 = db.open()
     >>> conn1.root()['a'] = a
-    >>> get_transaction().commit()
+    >>> transaction.commit()
 
     >>> conn2 = db.open()
     >>> a2 = conn2.root()['a']

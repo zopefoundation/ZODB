@@ -20,6 +20,7 @@ import time
 import types
 
 from persistent import Persistent
+import transaction
 from transaction import Transaction
 
 from ZODB import POSException
@@ -468,7 +469,7 @@ class TransactionalUndoStorage:
         o2 = C()
         root['obj'] = o1
         o1.obj = o2
-        txn = get_transaction()
+        txn = transaction.get()
         txn.note('o1 -> o2')
         txn.commit()
         now = packtime = time.time()
@@ -477,12 +478,12 @@ class TransactionalUndoStorage:
 
         o3 = C()
         o2.obj = o3
-        txn = get_transaction()
+        txn = transaction.get()
         txn.note('o1 -> o2 -> o3')
         txn.commit()
 
         o1.obj = o3
-        txn = get_transaction()
+        txn = transaction.get()
         txn.note('o1 -> o3')
         txn.commit()
 
@@ -500,7 +501,7 @@ class TransactionalUndoStorage:
 
         tid = log[0]['id']
         db.undo(tid)
-        txn = get_transaction()
+        txn = transaction.get()
         txn.note('undo')
         txn.commit()
         # undo does a txn-undo, but doesn't invalidate
@@ -527,14 +528,14 @@ class TransactionalUndoStorage:
         root["key0"] = MinPO(0)
         root["key1"] = MinPO(1)
         root["key2"] = MinPO(2)
-        txn = get_transaction()
+        txn = transaction.get()
         txn.note("create 3 keys")
         txn.commit()
 
         set_pack_time()
 
         del root["key1"]
-        txn = get_transaction()
+        txn = transaction.get()
         txn.note("delete 1 key")
         txn.commit()
 
@@ -546,7 +547,7 @@ class TransactionalUndoStorage:
 
         L = db.undoInfo()
         db.undo(L[0]["id"])
-        txn = get_transaction()
+        txn = transaction.get()
         txn.note("undo deletion")
         txn.commit()
 
@@ -574,11 +575,11 @@ class TransactionalUndoStorage:
         rt = cn.root()
 
         rt["test"] = MinPO(1)
-        get_transaction().commit()
+        transaction.commit()
         rt["test2"] = MinPO(2)
-        get_transaction().commit()
+        transaction.commit()
         rt["test"] = MinPO(3)
-        txn = get_transaction()
+        txn = transaction.get()
         txn.note("root of undo")
         txn.commit()
 
@@ -586,7 +587,7 @@ class TransactionalUndoStorage:
         for i in range(10):
             L = db.undoInfo()
             db.undo(L[0]["id"])
-            txn = get_transaction()
+            txn = transaction.get()
             txn.note("undo %d" % i)
             txn.commit()
             rt._p_deactivate()
@@ -706,7 +707,7 @@ class TransactionalUndoStorage:
 
     def checkUndoLogMetadata(self):
         # test that the metadata is correct in the undo log
-        t = get_transaction()
+        t = transaction.get()
         t.note('t1')
         t.setExtendedInfo('k2','this is transaction metadata')
         t.setUser('u3',path='p3')
@@ -715,7 +716,7 @@ class TransactionalUndoStorage:
         root = conn.root()
         o1 = C()
         root['obj'] = o1
-        txn = get_transaction()
+        txn = transaction.get()
         txn.commit()
         l = self._storage.undoLog()
         self.assertEqual(len(l),2)

@@ -25,7 +25,7 @@ def main():
                 update(r1, r2)
             except ConflictError, msg:
                 print msg
-                get_transaction().abort()
+                transaction.abort()
                 c1.sync()
                 c2.sync()
         except (ClientDisconnected, DisconnectedError), err:
@@ -41,7 +41,7 @@ def update(r1, r2):
     random.shuffle(updates)
     for key, root in updates:
         root[key] = time.time()
-    get_transaction().commit()
+    transaction.commit()
     print os.getpid(), k1, k2
 
 if __name__ == "__main__":

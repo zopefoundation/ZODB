@@ -13,6 +13,7 @@
 ##############################################################################
 """More recovery and iterator tests."""
 
+import transaction
 from transaction import Transaction
 from ZODB.tests.IteratorStorage import IteratorDeepCompare
 from ZODB.tests.StorageTestBase import MinPO, zodb_unpickle, snooze
@@ -134,9 +135,9 @@ class RecoveryStorage(IteratorDeepCompare):
         c = db.open()
         r = c.root()
         obj = r["obj1"] = MinPO(1)
-        get_transaction().commit()
+        transaction.commit()
         obj = r["obj2"] = MinPO(1)
-        get_transaction().commit()
+        transaction.commit()
 
         self._dst.copyTransactionsFrom(self._storage)
         self._dst.pack(time.time(), referencesf)
@@ -161,15 +162,15 @@ class RecoveryStorage(IteratorDeepCompare):
         conn = db.open()
         root = conn.root()
         root.obj = obj1 = MinPO(1)
-        txn = get_transaction()
+        txn = transaction.get()
         txn.note('root -> obj')
         txn.commit()
         root.obj.obj = obj2 = MinPO(2)
-        txn = get_transaction()
+        txn = transaction.get()
         txn.note('root -> obj -> obj')
         txn.commit()
         del root.obj
-        txn = get_transaction()
+        txn = transaction.get()
         txn.note('root -X->')
         txn.commit()
         # Now copy the transactions to the destination

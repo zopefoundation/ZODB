@@ -55,7 +55,8 @@ class BasicStorage:
             assert 0, "Should have failed, invalid transaction."
 
         try:
-            self._storage.commitVersion('dummy', 'dummer', transaction.Transaction())
+            self._storage.commitVersion('dummy', 'dummer',
+                                        transaction.Transaction())
         except (POSException.StorageTransactionError,
                 POSException.VersionCommitError):
             pass # test passed ;)

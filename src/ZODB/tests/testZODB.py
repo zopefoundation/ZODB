@@ -43,14 +43,14 @@ class ZODBTests(unittest.TestCase):
         self._db = ZODB.DB(self._storage)
 
     def populate(self):
-        get_transaction().begin()
+        transaction.begin()
         conn = self._db.open()
         root = conn.root()
         root['test'] = pm = PersistentMapping()
         for n in range(100):
             pm[n] = PersistentMapping({0: 100 - n})
-        get_transaction().note('created test data')
-        get_transaction().commit()
+        transaction.get().note('created test data')
+        transaction.commit()
         conn.close()
 
     def tearDown(self):
@@ -71,8 +71,8 @@ class ZODBTests(unittest.TestCase):
             conn.close()
 
     def duplicate(self, conn, abort_it):
-        get_transaction().begin()
-        get_transaction().note('duplication')
+        transaction.begin()
+        transaction.get().note('duplication')
         root = conn.root()
         ob = root['test']
         assert len(ob) > 10, 'Insufficient test data'
@@ -87,15 +87,15 @@ class ZODBTests(unittest.TestCase):
             root['dup'] = new_ob
             f.close()
             if abort_it:
-                get_transaction().abort()
+                transaction.abort()
             else:
-                get_transaction().commit()
+                transaction.commit()
         except:
-            get_transaction().abort()
+            transaction.abort()
             raise
 
     def verify(self, conn, abort_it):
-        get_transaction().begin()
+        transaction.begin()
         root = conn.root()
         ob = root['test']
         try:
@@ -123,7 +123,7 @@ class ZODBTests(unittest.TestCase):
         for v in ob2.values():
             assert not oids.has_key(v._p_oid), (
                 'Did not fully separate duplicate from original')
-        get_transaction().commit()
+        transaction.commit()
 
     def checkExportImportAborted(self):
         self.checkExportImport(abort_it=True)
@@ -136,11 +136,11 @@ class ZODBTests(unittest.TestCase):
         try:
             r = conn.root()
             r[1] = 1
-            get_transaction().commit()
+            transaction.commit()
         finally:
             conn.close()
         self._db.abortVersion("version")
-        get_transaction().commit()
+        transaction.commit()
 
     def checkResetCache(self):
         # The cache size after a reset should be 0.  Note that
@@ -302,7 +302,7 @@ class ZODBTests(unittest.TestCase):
         real_data["b"] = PersistentMapping({"indexed_value": 1})
         index[1] = PersistentMapping({"b": 1})
         index[0] = PersistentMapping({"a": 1})
-        get_transaction().commit()
+        transaction.commit()
 
         # load some objects from one connection
         tm = transaction.TransactionManager()
@@ -314,7 +314,7 @@ class ZODBTests(unittest.TestCase):
         real_data["b"]["indexed_value"] = 0
         del index[1]["b"]
         index[0]["b"] = 1
-        get_transaction().commit()
+        transaction.commit()
 
         del real_data2["a"]
         try:
@@ -334,7 +334,7 @@ class ZODBTests(unittest.TestCase):
         self.assert_(not index2[1]._p_changed)
 
         self.assertRaises(ConflictError, tm.get().commit)
-        get_transaction().abort()
+        transaction.abort()
 
     def checkIndependent(self):
         self.obj = Independent()

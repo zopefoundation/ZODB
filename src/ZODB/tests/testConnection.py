@@ -18,10 +18,10 @@ import unittest
 import warnings
 
 from persistent import Persistent
+import transaction
 from ZODB.config import databaseFromString
 from ZODB.utils import p64, u64
 from ZODB.tests.warnhook import WarningsHook
-import transaction
 
 class ConnectionDotAdd(unittest.TestCase):
 
@@ -397,7 +397,7 @@ class InvalidationTests(unittest.TestCase):
         >>> p3 = Persistent()
         >>> r = cn.root()
         >>> r.update(dict(p1=p1, p2=p2, p3=p3))
-        >>> get_transaction().commit()
+        >>> transaction.commit()
 
         Transaction ids are 8-byte strings, just like oids; p64() will
         create one from an int.
