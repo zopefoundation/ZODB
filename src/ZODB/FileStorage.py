@@ -149,7 +149,7 @@ Also, the object ids time stamps are big-endian, so comparisons
 are meaningful.
 
 """
-__version__='$Revision: 1.8 $'[11:-2]
+__version__='$Revision: 1.9 $'[11:-2]
 
 import struct, time, os, bpthread, string, base64
 now=time.time
@@ -598,83 +598,83 @@ class FileStorage:
     def undo(self, transaction_id):
         self._a()
         try:
-	    file=self._file
-	    seek=file.seek
+            file=self._file
+            seek=file.seek
             read=file.read
             indexpos=self._indexpos
-	    unpack=struct.unpack
+            unpack=struct.unpack
             transaction_id=base64.decodestring(transaction_id+'==\n')
-	    tid, tpos = transaction_id[:8], u64(transaction_id[8:])
-	    seek(tpos)
-	    h=read(23)
-	    if len(h) != 23 or h[:8] != tid: 
-		raise UndoError, 'Invalid undo transaction id'
-	    if h[16] == 'u': return
-	    if h[16] != ' ': raise UndoError, 'Undoable transaction'
-	    tl=u64(h[8:16])
-	    ul,dl,el=unpack(">HHH", h[17:23])
-	    tend=tpos+tl
-	    pos=tpos+23+ul+dl+el
-	    t=[]
-	    tappend=t.append
-	    while pos < tend:
-		# Read the data records for this transaction
-		seek(pos)
-		h=read(42)
-		oid,serial,sprev,stloc,vlen,splen = unpack(">8s8s8s8sH8s", h)
-		plen=u64(splen)
-		prev=u64(sprev)
-		dlen=42+(plen or 8)
-		if vlen: dlen=dlen+16+vlen
-		if indexpos(oid,0) != pos:
+            tid, tpos = transaction_id[:8], u64(transaction_id[8:])
+            seek(tpos)
+            h=read(23)
+            if len(h) != 23 or h[:8] != tid: 
+                raise UndoError, 'Invalid undo transaction id'
+            if h[16] == 'u': return
+            if h[16] != ' ': raise UndoError, 'Undoable transaction'
+            tl=u64(h[8:16])
+            ul,dl,el=unpack(">HHH", h[17:23])
+            tend=tpos+tl
+            pos=tpos+23+ul+dl+el
+            t=[]
+            tappend=t.append
+            while pos < tend:
+                # Read the data records for this transaction
+                seek(pos)
+                h=read(42)
+                oid,serial,sprev,stloc,vlen,splen = unpack(">8s8s8s8sH8s", h)
+                plen=u64(splen)
+                prev=u64(sprev)
+                dlen=42+(plen or 8)
+                if vlen: dlen=dlen+16+vlen
+                if indexpos(oid,0) != pos:
                     raise UndoError, 'Undoable transaction'
-		pos=pos+dlen
-		if pos > tend: raise UndoError, 'Undoable transaction'
-		tappend((oid,prev))
+                pos=pos+dlen
+                if pos > tend: raise UndoError, 'Undoable transaction'
+                tappend((oid,prev))
 
-	    seek(tpos+16)
-	    file.write('u')
-	    index=self._index
-	    for oid, pos in t: index[oid]=pos
+            seek(tpos+16)
+            file.write('u')
+            index=self._index
+            for oid, pos in t: index[oid]=pos
         finally: self._r()
 
     def undoLog(self, first, last, filter=None):
         self._a()
         try:
-	    pos=self._pos
-	    if pos < 39: return []
-	    file=self._file
-	    seek=file.seek
-	    read=file.read
-	    unpack=struct.unpack
-	    strip=string.strip
-	    encode=base64.encodestring
-	    r=[]
-	    append=r.append
-	    i=0
-	    while i < last and pos > 39:
-		seek(pos-8)
-		pos=pos-u64(read(8))-8
-		if i < first: continue
-		seek(pos)
-		h=read(23)
-		tid, tl, status, ul, dl, el = unpack(">8s8scHHH", h)
+            pos=self._pos
+            if pos < 39: return []
+            file=self._file
+            seek=file.seek
+            read=file.read
+            unpack=struct.unpack
+            strip=string.strip
+            encode=base64.encodestring
+            r=[]
+            append=r.append
+            i=0
+            while i < last and pos > 39:
+                seek(pos-8)
+                pos=pos-u64(read(8))-8
+                if i < first: continue
+                seek(pos)
+                h=read(23)
+                tid, tl, status, ul, dl, el = unpack(">8s8scHHH", h)
                 if status != ' ': continue
-		u=ul and read(ul) or ''
-		d=dl and read(dl) or ''
-		d={'id': encode(tid+p64(pos))[:22],
-		   'time': TimeStamp(tid).timeTime(),
-		   'user_name': u, 'description': d}
-		if el:
-		    try: 
-			e=loads(read(el))
-			d.update(e)
-		    except: pass
+                u=ul and read(ul) or ''
+                d=dl and read(dl) or ''
+                d={'id': encode(tid+p64(pos))[:22],
+                   'time': TimeStamp(tid).timeTime(),
+                   'user_name': u, 'description': d}
+                if el:
+                    try: 
+                        e=loads(read(el))
+                        d.update(e)
+                    except: pass
                 if filter is None or filter(d):
                     append(d)
                     i=i+1
-		
-	    return r
+                
+            return r
         finally: self._r()
 
     def versionEmpty(self, version):
