@@ -115,7 +115,7 @@
 #   may have a back pointer to a version record or to a non-version
 #   record.
 #
-__version__='$Revision: 1.110 $'[11:-2]
+__version__='$Revision: 1.111 $'[11:-2]
 
 import base64
 from cPickle import Pickler, Unpickler, loads
@@ -1048,6 +1048,7 @@ class FileStorage(BaseStorage.BaseStorage,
         read=self._file.read
         h=read(DATA_HDR_LEN)
         doid,serial,sprev,stloc,vlen,splen = unpack(DATA_HDR, h)
+        assert doid == oid
         if vlen:
             h=read(16)
             return read(vlen), h[:8]
@@ -1102,7 +1103,10 @@ class FileStorage(BaseStorage.BaseStorage,
                     # LoadBack gave us a key error. Bail.
                     raise UndoError
 
-        version, snv = self._getVersion(oid, pre)
+        if pre:
+            version, snv = self._getVersion(oid, pre)
+        else:
+            version, snv = '', ''
         if copy:
             # we can just copy our previous-record pointer forward
             return '', pre, version, snv, ipos
@@ -2386,7 +2390,6 @@ class RecordIterator(Iterator, BaseStorage.TransactionRecord):
             prev = U64(sprev)
             tloc = U64(stloc)
             plen = U64(splen)
-
             dlen = DATA_HDR_LEN + (plen or 8)
 
             if vlen:
