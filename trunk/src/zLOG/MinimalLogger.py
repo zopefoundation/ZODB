@@ -11,9 +11,14 @@
 # FOR A PARTICULAR PURPOSE
 #
 ##############################################################################
-__version__='$Revision: 1.14 $'[11:-2]
+__version__='$Revision: 1.15 $'[11:-2]
 
 import os, sys, time
+
+try:
+    import textwrap
+except ImportError:
+    textwrap = None
 
 from FormatException import format_exception
 
@@ -75,9 +80,13 @@ class stupid_log_write:
     def log(self, subsystem, severity, summary, detail, error):
         if _log_dest is None or severity < _log_level:
             return
-        buf = ["------",
-               "%s %s %s %s" %
-               (log_time(), severity_string(severity), subsystem, summary)]
+        buf = ["------"]
+        line = ("%s %s %s %s" %
+                (log_time(), severity_string(severity), subsystem, summary))
+        if not textwrap or len(line) < 80:
+            buf.append(line)
+        else:
+            buf.extend(textwrap.wrap(line, subsequent_indent=" "*20))
 
         if detail:
             buf.append(str(detail))
