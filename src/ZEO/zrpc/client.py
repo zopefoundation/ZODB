@@ -283,26 +283,55 @@ class ConnectThread(threading.Thread):
     def run(self):
         delay = self.tmin
         success = 0
+        # Don't wait too long the first time.
+        # XXX make timeout configurable?
+        attempt_timeout = 5
         while not self.stopped:
-            success = self.try_connecting()
+            success = self.try_connecting(attempt_timeout)
             if not self.one_attempt.isSet():
                 self.one_attempt.set()
+                attempt_timeout = 75
             if success > 0:
                 break
             time.sleep(delay)
             delay = min(delay*2, self.tmax)
         log("CT: exiting thread: %s" % self.getName())
 
-    def try_connecting(self):
+    def try_connecting(self, timeout):
         """Try connecting to all self.addrlist addresses.
 
         Return 1 if a preferred connection was found; 0 if no
         connection was found; and -1 if a fallback connection was
         found.
+
+        If no connection is found within timeout seconds, return 0.
         """
-
         log("CT: attempting to connect on %d sockets" % len(self.addrlist))
+        deadline = time.time() + timeout
+        wrappers = self._create_wrappers()
+        for wrap in wrappers.keys():
+            if wrap.state == "notified":
+                return 1
+        try:
+            if time.time() > deadline:
+                return 0
+            r = self._connect_wrappers(wrappers, deadline)
+            if r is not None:
+                return r
+            if time.time() > deadline:
+                return 0
+            r = self._fallback_wrappers(wrappers, deadline)
+            if r is not None:
+                return r
+            # Alas, no luck.
+            assert not wrappers
+        finally:
+            for wrap in wrappers.keys():
+                wrap.close()
+            del wrappers
+        return 0
 
+    def _create_wrappers(self):
         # Create socket wrappers
         wrappers = {}  # keys are active wrappers
         for domain, addr in self.addrlist:
@@ -311,12 +340,16 @@ class ConnectThread(threading.Thread):
             if wrap.state == "notified":
                 for wrap in wrappers.keys():
                     wrap.close()
-                return 1
+                wrappers[wrap] = wrap
+                return wrappers
             if wrap.state != "closed":
                 wrappers[wrap] = wrap
+        return wrappers
 
+    def _connect_wrappers(self, wrappers, deadline):
         # Next wait until they all actually connect (or fail)
-        # XXX If a sockets never connects, nor fails, we'd wait forever!
+        # The deadline is necessary, because we'd wait forever if a
+        # sockets never connects or fails.
         while wrappers:
             if self.stopped:
                 for wrap in wrappers.keys():
@@ -328,8 +361,11 @@ class ConnectThread(threading.Thread):
                           if wrap.state == "connecting"]
             if not connecting:
                 break
+            if time.time() > deadline:
+                break
             try:
                 r, w, x = select.select([], connecting, connecting, 1.0)
+                log("CT: select() %d, %d, %d" % tuple(map(len, (r,w,x))))
             except select.error, msg:
                 log("CT: select failed; msg=%s" % str(msg),
                     level=zLOG.WARNING) # XXX Is this the right level?
@@ -350,6 +386,7 @@ class ConnectThread(threading.Thread):
                 if wrap.state == "closed":
                     del wrappers[wrap]
 
+    def _fallback_wrappers(self, wrappers, deadline):
         # If we've got wrappers left at this point, they're fallback
         # connections.  Try notifying them until one succeeds.
         for wrap in wrappers.keys():
@@ -365,10 +402,7 @@ class ConnectThread(threading.Thread):
                     return -1
             assert wrap.state == "closed"
             del wrappers[wrap]
-
-        # Alas, no luck.
-        assert not wrappers
-        return 0
+        
 
 class ConnectWrapper:
     """An object that handles the connection procedure for one socket.
