@@ -29,8 +29,23 @@ import ZEO.ClientStorage, ZEO.StorageServer
 import ThreadedAsync, ZEO.trigger
 from ZODB.FileStorage import FileStorage
 from ZODB.Transaction import Transaction
-from ZODB.tests.StorageTestBase import zodb_pickle, MinPO, removefs
+from ZODB.tests.StorageTestBase import zodb_pickle, MinPO
 import zLOG
+
+try:
+    from ZODB.tests.StorageTestBase import removefs
+except ImportError:
+    # for compatibility with Zope 2.5 &c.
+    def removefs(base):
+        """Remove all files created by FileStorage with path base."""
+        for ext in '', '.old', '.tmp', '.lock', '.index', '.pack':
+            path = base + ext
+            try:
+                os.remove(path)
+            except os.error, err:
+                if err[0] != errno.ENOENT:
+                    raise
+
 
 from ZEO.tests import forker, Cache, CommitLockTests, ThreadTests
 from ZEO.smac import Disconnected
