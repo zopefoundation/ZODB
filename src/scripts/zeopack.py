@@ -15,6 +15,9 @@ Options:
 
     -d days -- pack objects more than days old
 
+    -W -- wait for server to come up.  Normally the script tries to
+       connect for 10 seconds, then exits with an error.
+
 You must specify either -p and -h or -U.
 """
 
@@ -40,14 +43,19 @@ def connect(storage):
             return
     raise RuntimeError, "Unable to connect to ZEO server"
 
-def pack(addr, storage, days):
-    cs = ClientStorage(addr, storage=storage, wait_for_server_on_startup=1)
-    # _startup() is an artifact of the way ZEO 1.0 works.  The
-    # ClientStorage doesn't get fully initialized until registerDB()
-    # is called.  The only thing we care about, though, is that
-    # registerDB() calls _startup().
-    connect(cs)
+def pack(addr, storage, days, wait):
+    cs = ClientStorage(addr, storage=storage, wait_for_server_on_startup=wait)
+    if wait:
+        # _startup() is an artifact of the way ZEO 1.0 works.  The
+        # ClientStorage doesn't get fully initialized until registerDB()
+        # is called.  The only thing we care about, though, is that
+        # registerDB() calls _startup().
+        cs._startup()
+    else:
+        connect(cs)
+    cs.invalidator = None
     cs.pack(wait=1, days=days)
+    cs.close()
 
 def usage(exit=1):
     print __doc__
@@ -60,8 +68,9 @@ def main():
     unix = None
     storage = '1'
     days = 0
+    wait = 0
     try:
-        opts, args = getopt.getopt(sys.argv[1:], 'p:h:U:S:d:')
+        opts, args = getopt.getopt(sys.argv[1:], 'p:h:U:S:d:W')
         for o, a in opts:
             if o == '-p':
                 port = int(a)
@@ -73,6 +82,8 @@ def main():
                 storage = a
             elif o == '-d':
                 days = int(a)
+            elif o == '-W':
+                wait = 1
     except Exception, err:
         print err
         usage()
@@ -86,7 +97,7 @@ def main():
             usage()
         addr = host, port
         
-    pack(addr, storage, days)
+    pack(addr, storage, days, wait)
 
 if __name__ == "__main__":
     try:
