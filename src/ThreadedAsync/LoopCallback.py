@@ -2,14 +2,14 @@
 #
 # Copyright (c) 2001, 2002 Zope Corporation and Contributors.
 # All Rights Reserved.
-# 
+#
 # This software is subject to the provisions of the Zope Public License,
 # Version 2.0 (ZPL).  A copy of the ZPL should accompany this distribution.
 # THIS SOFTWARE IS PROVIDED "AS IS" AND ANY AND ALL EXPRESS OR IMPLIED
 # WARRANTIES ARE DISCLAIMED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 # WARRANTIES OF TITLE, MERCHANTABILITY, AGAINST INFRINGEMENT, AND FITNESS
 # FOR A PARTICULAR PURPOSE
-# 
+#
 ##############################################################################
 """Manage the asyncore mainloop in a multi-threaded app
 
@@ -29,7 +29,7 @@ This module rebinds loop() in the asyncore module; i.e. once this
 module is imported, any client of the asyncore module will get
 ThreadedAsync.loop() when it calls asyncore.loop().
 """
-__version__='$Revision: 1.3 $'[11:-2]
+__version__='$Revision: 1.4 $'[11:-2]
 
 import asyncore
 import select
@@ -106,8 +106,8 @@ def loop (timeout=30.0, use_poll=0, map=None):
 asyncore.loop=loop
 
 # What the heck did we just do?
-# 
+#
 # Well, the thing is, we want to work with other asyncore aware
 # code. In particular, we don't necessarily want to make someone
 # import this module just to start or loop.
-# 
+#
