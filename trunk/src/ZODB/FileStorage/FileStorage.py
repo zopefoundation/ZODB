@@ -632,6 +632,8 @@ class FileStorage(BaseStorage.BaseStorage,
 
         self._lock_acquire()
         try:
+            if oid > self._oid:
+                self.set_max_oid(oid)
             old = self._index_get(oid, 0)
             cached_tid = None
             pnv = None
@@ -758,6 +760,8 @@ class FileStorage(BaseStorage.BaseStorage,
 
         self._lock_acquire()
         try:
+            if oid > self._oid:
+                self.set_max_oid(oid)
             prev_pos = 0
             if prev_txn is not None:
                 prev_txn_pos = self._txn_find(prev_txn, 0)

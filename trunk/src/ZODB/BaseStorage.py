@@ -157,6 +157,17 @@ class BaseStorage(UndoLogCompatible):
             if d < 255: return last[:-1]+chr(d+1)+'\0'*(8-len(last))
             else:       return self.new_oid(last[:-1])
 
+    # Update the maximum oid in use, under protection of a lock.  The
+    # maximum-in-use attribute is changed only if possible_new_max_oid is
+    # larger than its current value.
+    def set_max_oid(self, possible_new_max_oid):
+        self._lock_acquire()
+        try:
+            if possible_new_max_oid > self._oid:
+                self._oid = possible_new_max_oid
+        finally:
+            self._lock_release()
+
     def registerDB(self, db, limit):
         pass # we don't care
 
@@ -371,10 +382,7 @@ class BaseStorage(UndoLogCompatible):
         # using store().  However, if we use store, then
         # copyTransactionsFrom() may fail with VersionLockError or
         # ConflictError.
-        if hasattr(self, 'restore'):
-            restoring = 1
-        else:
-            restoring = 0
+        restoring = hasattr(self, 'restore')
         fiter = other.iterator()
         for transaction in fiter:
             tid=transaction.tid

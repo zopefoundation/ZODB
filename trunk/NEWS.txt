@@ -85,6 +85,18 @@ depending on platform, and should suffer far fewer (if any) intermittent
 FileStorage
 -----------
 
+- The ``.store()`` and ``.restore()`` methods didn't update the storage's
+  belief about the largest oid in use when passed an oid larger than the
+  largest oid the storage already knew about.  Because ``.restore()`` in
+  particular is used  by ``copyTransactionsFrom()``, and by the first stage
+  of ZRS recovery, a large database could be created that believed the only
+  oid in use was oid 0 (the special oid reserved for the root object).  In
+  rare cases, it could go on from there assigning duplicate oids to new
+  objects, starting over from oid 1 again.  This has been repaired.  A
+  new ``set_max_oid()`` method was added to the ``BaseStorage`` class so
+  that derived storages can update the largest oid in use in a threadsafe
+  way.
+
 - A FileStorage's index file tried to maintain the index's largest oid as a
   separate piece of data, incrementally updated over the storage's lifetime.
   This scheme was more complicated than necessary, so was also more brittle
