@@ -12,6 +12,8 @@
 
  ****************************************************************************/
 
+#define RING_C "$Id: ring.c,v 1.3 2004/05/03 20:15:45 spascoe Exp $\n"
+
 /* Support routines for the doubly-linked list of cached objects.
 
 The cache stores a doubly-linked list of persistent objects, with
