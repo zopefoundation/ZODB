@@ -14,7 +14,7 @@
 
 """
 Revision information:
-$Id: testTransaction.py,v 1.17 2003/12/24 16:01:58 jeremy Exp $
+$Id: testTransaction.py,v 1.18 2004/02/19 02:59:10 jeremy Exp $
 """
 
 """
@@ -628,9 +628,39 @@ class HoserJar(BasicJar):
         HoserJar.committed += 1
 
 
-def test_suite():
+def test_join():
+    """White-box test of the join method
 
-    return unittest.makeSuite(TransactionTests)
+    The join method is provided for "backward-compatability" with ZODB 4
+    data managers.
+
+    The argument to join must be a zodb4 data manager,
+    transaction.interfaces.IDataManager.
+
+    >>> from ZODB.tests.sampledm import DataManager
+    >>> from ZODB.Transaction import DataManagerAdapter
+    >>> t = Transaction.Transaction()
+    >>> dm = DataManager()
+    >>> t.join(dm)
+
+    The end result is that a data manager adapter is one of the
+    transaction's objects:
+
+    >>> isinstance(t._objects[0], DataManagerAdapter)
+    True
+    >>> t._objects[0]._datamanager is dm
+    True
+    
+    """
+
+def test_suite():
+    from doctest import DocTestSuite
+    return unittest.TestSuite((
+        DocTestSuite(),
+        unittest.makeSuite(TransactionTests),
+        ))
+
 
 if __name__ == '__main__':
     unittest.TextTestRunner().run(test_suite())
+

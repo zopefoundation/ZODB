@@ -13,8 +13,8 @@
 ##############################################################################
 """Database objects
 
-$Id: DB.py,v 1.60 2004/02/18 01:13:00 jeremy Exp $"""
-__version__='$Revision: 1.60 $'[11:-2]
+$Id: DB.py,v 1.61 2004/02/19 02:59:06 jeremy Exp $"""
+__version__='$Revision: 1.61 $'[11:-2]
 
 import cPickle, cStringIO, sys, POSException, UndoLogCompatible
 from Connection import Connection
@@ -228,8 +228,8 @@ class DB(UndoLogCompatible.UndoLogCompatible, object):
         self._connectionMap(f)
         return detail
 
-    def cacheFullSweep(self, value):
-        self._connectionMap(lambda c, v=value: c._cache.full_sweep(v))
+    def cacheFullSweep(self):
+        self._connectionMap(lambda c: c._cache.full_sweep())
 
     def cacheLastGCTime(self):
         m=[0]
@@ -240,8 +240,8 @@ class DB(UndoLogCompatible.UndoLogCompatible, object):
         self._connectionMap(f)
         return m[0]
 
-    def cacheMinimize(self, value):
-        self._connectionMap(lambda c, v=value: c._cache.minimize(v))
+    def cacheMinimize(self):
+        self._connectionMap(lambda c: c._cache.minimize())
 
     def cacheMeanAge(self): return self._cacheMean('cache_mean_age')
     def cacheMeanDeac(self): return self._cacheMean('cache_mean_deac')

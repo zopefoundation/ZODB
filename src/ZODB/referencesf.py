@@ -15,33 +15,54 @@
 """
 import cPickle, cStringIO
 
-def referencesf(p, rootl=None,
-                Unpickler=cPickle.Unpickler,
-                StringIO=cStringIO.StringIO,
-                tt=type(()),
-                type=type):
+def referencesf(p, rootl=None,):
 
-    if rootl is None: rootl=[]
-    u=Unpickler(StringIO(p))
-    l=len(rootl)
-    u.persistent_load=rootl
+    if rootl is None:
+        rootl = []
+
+    u = cPickle.Unpickler(cStringIO.StringIO(p))
+    l = len(rootl)
+    u.persistent_load = rootl
     u.noload()
-    try: u.noload()
+    try:
+        u.noload()
     except:
         # Hm.  We failed to do second load.  Maybe there wasn't a
         # second pickle.  Let's check:
-        f=StringIO(p)
-        u=Unpickler(f)
-        u.persistent_load=[]
+        f = cStringIO.StringIO(p)
+        u = cPickle.Unpickler(f)
+        u.persistent_load = []
         u.noload()
-        if len(p) > f.tell(): raise ValueError, 'Error unpickling, %s' % p
+        if len(p) > f.tell():
+            raise ValueError, 'Error unpickling, %s' % p
 
-    # References may have class info, so we need to
-    # check for wrapped references.
-    for i in range(l, len(rootl)):
-        v=rootl[i]
-        if v:
-            if type(v) is tt: v=v[0]
-            rootl[i]=v
+
+    # References may be:
+    #
+    # - A tuple, in which case they are an oid and class.
+    #   In this case, just extract the first element, which is
+    #   the oid
+    #
+    # - A list, which is a weak reference. We skip those.
+    #
+    # - Anything else must be an oid. This means that an oid
+    #   may not be a list or a tuple. This is a bit lame.
+    #   We could avoid this lamosity by allowing single-element
+    #   tuples, so that we wrap oids that are lists or tuples in
+    #   tuples.
+    #
+    # - oids may *not* be false.  I'm not sure why. 
+
+    out = []
+    for v in rootl:
+        assert v # Let's see if we ever get empty ones
+        if type(v) is list:
+            # skip wekrefs
+            continue
+        if type(v) is tuple:
+            v = v[0]
+        out.append(v)
+
+    rootl[:] = out
 
     return rootl

@@ -1,0 +1,51 @@
+=========================
+Subtransactions in ZODB 3
+=========================
+
+ZODB 3 provides limited support for subtransactions. Subtransactions
+are nested to *one* level. There are top-level transactions and
+subtransactions.  When a transaction is committed, a flag is passed
+indicating whether it is a subtransaction or a top-level transaction.
+Consider the following exampler commit calls:
+
+- commit()
+
+  A regular top-level transaction is committed.
+
+- commit(1)
+
+  A subtransaction is committed. There is now one subtransaction of
+  the current top-level transaction.
+
+- commit(1)
+
+  A subtransaction is committed. There are now two subtransactions of
+  the current top-level transaction.
+
+- abort(1)
+
+  A subtransaction is aborted. There are still two subtransactions of
+  the current top-level transaction; work done since the last
+  commit(1) call is discarded.
+
+- commit()
+
+  We now commit a top-level transaction. The work done in the previous
+  two subtransactions *plus* work done since the last abort(1) call
+  is saved.
+
+- commit(1)
+
+  A subtransaction is committed. There is now one subtransaction of
+  the current top-level transaction.
+
+- commit(1)
+
+  A subtransaction is committed. There are now two subtransactions of
+  the current top-level transaction.
+
+- abort()
+
+  We now abort a top-level transaction. We discard the work done in
+  the previous two subtransactions *plus* work done since the last
+  commit(1) call.

@@ -102,9 +102,9 @@ class ConflictResolvingStorage:
             self.fail("Expected ConflictError")
 
     def checkZClassesArentResolved(self):
-        from ZODB.ConflictResolution import bad_class
+        from ZODB.ConflictResolution import find_global, BadClassName
         dummy_class_tuple = ('*foobar', ())
-        assert bad_class(dummy_class_tuple) == 1
+        self.assertRaises(BadClassName, find_global, '*foobar', ())
 
     def checkBuggyResolve1(self):
         obj = PCounter3()

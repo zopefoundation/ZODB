@@ -58,34 +58,35 @@ old class.
 import cPickle
 import cStringIO
 
-from ZODB.coptimizations import new_persistent_id
+from persistent import Persistent
+from persistent.wref import WeakRefMarker, WeakRef
+from ZODB.POSException import InvalidObjectReference
 
-_marker = object()
+# Might to update or redo to reflect weakrefs
+# from ZODB.coptimizations import new_persistent_id
 
-def myhasattr(obj, attr):
-    """Returns True or False or raises an exception."""
-    val = getattr(obj, attr, _marker)
-    return val is not _marker
+
+def myhasattr(obj, name, _marker=object()):
+    """Make sure we don't mask exceptions like hasattr().
+
+    We don't want exceptions other than AttributeError to be masked,
+    since that too often masks other programming errors.
+    Three-argument getattr() doesn't mask those, so we use that to
+    implement our own hasattr() replacement.
+    """
+    return getattr(obj, name, _marker) is not _marker
 
 def getClassMetadata(obj):
-    klass = obj.__class__
-    if issubclass(klass, type):
-        # Handle ZClasses.
-        d = obj.__dict__.copy()
-        del d["_p_jar"]
-        args = obj.__name__, obj.__bases__, d
-        return klass, args
+
+    # We don't use __class__ here, because obj could be a persistent proxy.
+    # We don't want to be folled by proxies.
+    klass = type(obj)
+
+    newargs = getattr(klass, "__getnewargs__", None)
+    if newargs is None:
+        return klass
     else:
-        getinitargs = getattr(klass, "__getinitargs__", None)
-        if getinitargs is None:
-            args = None
-        else:
-            args = getinitargs()
-        mod = getattr(klass, "__module__", None)
-        if mod is None:
-            return klass, args
-        else:
-            return (mod, klass.__name__), args
+        return klass, newargs(obj)
 
 class BaseObjectWriter:
     """Serializes objects for storage in the database.
@@ -93,22 +94,89 @@ class BaseObjectWriter:
     The ObjectWriter creates object pickles in the ZODB format.  It
     also detects new persistent objects reachable from the current
     object.
-
-    The client is responsible for calling the close() method to avoid
-    leaking memory.  The ObjectWriter uses a Pickler internally, and
-    Pickler objects do not participate in garbage collection.  (Note
-    that in Python 2.3 and higher, the close() method would be
-    unnecessary because Picklers participate in garbage collection.)
     """
 
     def __init__(self, jar=None):
         self._file = cStringIO.StringIO()
         self._p = cPickle.Pickler(self._file, 1)
         self._stack = []
-        self._p.persistent_id = new_persistent_id(jar, self._stack)
+        self._p.persistent_id = self.persistent_id
         if jar is not None:
             assert myhasattr(jar, "new_oid")
         self._jar = jar
+
+
+    def persistent_id(self, obj):
+
+        # Most objects are not persistent. The following cheap test
+        # identifies most of them.  For these, we return None,
+        # signalling that the object should be pickled normally.
+        if not isinstance(obj, (Persistent, type, WeakRef)):
+            # Not persistent, pickle normally
+            return None
+
+        # Any persistent object mosy have an oid:
+        try:
+            oid = obj._p_oid
+        except AttributeError:
+            # Not persistent, pickle normally
+            return None
+
+        if not (oid is None or isinstance(oid, str)):
+            # Deserves a closer look:
+
+            # Make sure it's not a descr
+            if hasattr(oid, '__get__'):
+                # The oid is a decriptor.  That means obj is a non-persistent
+                # class whose instances are persistent, so ...
+                # Not persistent, pickle normally
+                return None
+
+            if oid is WeakRefMarker:
+                # we have a weakref, see weakref.py
+
+                oid = obj.oid
+                if oid is None:
+                    obj = obj() # get the referenced object
+                    oid = obj._p_oid
+                    if oid is None:
+                        # Here we are causing the object to be saved in
+                        # the database. One could argue that we shouldn't
+                        # do this, because a wekref should not cause an object
+                        # to be added.  We'll be optimistic, though, and
+                        # assume that the object will be added eventually.
+                        
+                        oid = self._jar.new_oid()
+                        obj._p_jar = self._jar
+                        obj._p_oid = oid
+                        self._stack.append(obj)
+                return [oid]
+
+
+        # Since we have an oid, we have either a persistent instance
+        # (an instance of Persistent), or a persistent class.
+
+        # NOTE! Persistent classes don't (and can't) subclass persistent.
+
+        if oid is None:
+            oid = obj._p_oid = self._jar.new_oid()
+            obj._p_jar = self._jar
+            self._stack.append(obj)
+        elif obj._p_jar is not self._jar:
+            raise InvalidObjectReference(
+                "Attempt to store an object from a foreign "
+                "database connection"
+                )
+
+        klass = type(obj)
+        if hasattr(klass, '__getnewargs__'):
+            # We don't want to save newargs in object refs.
+            # It's possible that __getnewargs__ is degenerate and
+            # returns (), but we don't want to have to deghostify
+            # the object to find out.
+            return oid 
+
+        return oid, klass
 
     def serialize(self, obj):
         return self._dump(getClassMetadata(obj), obj.__getstate__())
@@ -168,7 +236,7 @@ class BaseObjectReader:
         return unpickler
 
     def _new_object(self, klass, args):
-        if not args and not myhasattr(klass, "__getinitargs__"):
+        if not args and not myhasattr(klass, "__getnewargs__"):
             obj = klass.__new__(klass)
         else:
             obj = klass(*args)
@@ -179,19 +247,32 @@ class BaseObjectReader:
 
     def getClassName(self, pickle):
         unpickler = self._get_unpickler(pickle)
-        klass, newargs = unpickler.load()
+        klass = unpickler.load()
         if isinstance(klass, tuple):
-            return "%s.%s" % klass
-        else:
-            return klass.__name__
+            klass, args = klass
+            if isinstance(klass, tuple):
+                # old style reference
+                return "%s.%s" % klass
+        return "%s.%s" % (klass.__module__, klass.__name__)
 
     def getGhost(self, pickle):
         unpickler = self._get_unpickler(pickle)
-        klass, args = unpickler.load()
+        klass = unpickler.load()
         if isinstance(klass, tuple):
-            klass = self._get_class(*klass)
-
-        return self._new_object(klass, args)
+            # Here we have a separate class and args.
+            # This could be an old record, so the class module ne a named
+            # refernce
+            klass, args = klass
+            if isinstance(klass, tuple):
+                # Old module_name, class_name tuple
+                klass = self._get_class(*klass)
+            if args is None:
+                return klass.__new__(klass)
+            else:
+                return klass.__new__(klass, *args)
+        else:
+            # Definately new style direct class reference
+            return klass.__new__(klass)
 
     def getState(self, pickle):
         unpickler = self._get_unpickler(pickle)
@@ -202,13 +283,6 @@ class BaseObjectReader:
         state = self.getState(pickle)
         obj.__setstate__(state)
 
-    def getObject(self, pickle):
-        unpickler = self._get_unpickler(pickle)
-        klass, args = unpickler.load()
-        obj = self._new_object(klass, args)
-        state = unpickler.load()
-        obj.__setstate__(state)
-        return obj
 
 class ExternalReference(object):
     pass
@@ -242,19 +316,18 @@ class ConnectionObjectReader(BaseObjectReader):
         if isinstance(oid, tuple):
             # Quick instance reference.  We know all we need to know
             # to create the instance w/o hitting the db, so go for it!
-            oid, klass_info = oid
+            oid, klass = oid
             obj = self._cache.get(oid, None) # XXX it's not a dict
             if obj is not None:
                 return obj
-
-            klass = self._get_class(*klass_info)
-            # XXX Why doesn't this have args?
-            obj = self._new_object(klass, None)
-            # XXX This doesn't address the last fallback that used to
-            # exist:
-##                    # Eek, we couldn't get the class. Hm.  Maybe there's
-##                    # more current data in the object's actual record!
-##                    return self._conn[oid]
+            if isinstance(klass, tuple):
+                klass = self._get_class(*klass)
+            try:
+                obj = klass.__new__(klass)
+            except TypeError:
+                # Couldn't create the instance.  Maybe there's more
+                # current data in the object's actual record!
+                return self._conn[oid]
 
             # XXX should be done by connection
             obj._p_oid = oid
@@ -267,7 +340,15 @@ class ConnectionObjectReader(BaseObjectReader):
             self._cache[oid] = obj
             return obj
 
-        obj = self._cache.get(oid)
+        elif isinstance(oid, list):
+            # see weakref.py
+            [oid] = oid
+            obj = WeakRef.__new__(WeakRef)
+            obj.oid = oid
+            obj.dm = self._conn
+            return obj
+
+        obj = self._cache.get(oid, None)
         if obj is not None:
             return obj
         return self._conn[oid]

@@ -13,7 +13,7 @@
 ##############################################################################
 """Transaction management
 
-$Id: Transaction.py,v 1.56 2003/12/29 22:40:48 tim_one Exp $
+$Id: Transaction.py,v 1.57 2004/02/19 02:59:06 jeremy Exp $
 """
 import sys
 from thread import get_ident as _get_ident
@@ -89,6 +89,9 @@ class Transaction:
             return "Transaction user=%s" % `self.user`
         else:
             return "Transaction thread=%s user=%s" % (self._id, `self.user`)
+
+    # XXX This whole freeme business is lame.
+    # As a separate task, we really need to revisit transaction management.
 
     def __del__(self):
         if self._objects:
@@ -428,6 +431,14 @@ class Transaction:
         'Register the given object for transaction control.'
         self._append(object)
 
+    def join(self, zodb4datamanager):
+        """Join a transaction.interfaces.IDataManager with the transaction
+
+        This method is provided for "backward-compatability" with ZODB 4
+        data managers.
+        """
+        self._append(DataManagerAdapter(zodb4datamanager))
+
     def note(self, text):
         if self.description:
             self.description = "%s\n\n%s" % (self.description, text.strip())
@@ -454,6 +465,69 @@ the application may not come up until you deal with
 the system problem.  See your application log for
 information on the error that lead to this problem.
 """
+
+
+
+class DataManagerAdapter(object):
+    """Adapt zodb 4-style data managers to zodb3 style
+
+    Adapt transaction.interfaces.IDataManager to
+    ZODB.interfaces.IPureDatamanager
+
+    """
+
+    # Note that it is pretty important that this does not have a _p_jar
+    # attribute. This object will be registered with a zodb3 TM, which
+    # will then try to get a _p_jar from it, using it as the default.
+    # (Objects without a _p_jar are their own data managers.)
+
+    def __init__(self, datamanager):
+        self._datamanager = datamanager
+        self._rollback = None
+
+    def commit(self, ob, transaction):
+        assert ob is self
+
+    def abort(self, ob, transaction):
+        assert ob is self
+
+        # We need to discard any changes since the last save point, or all
+        # changes
+
+        if self._rollback is None:
+            # No previous savepoint, so just abort
+            self._datamanager.abort(transaction)
+        else:
+            self._rollback()
+
+    def abort_sub(self, transaction):
+        self._datamanager.abort(transaction)
+
+    def commit_sub(self, transaction):
+        # Nothing to do wrt data, be we begin 2pc for the top-level
+        # trans
+        self._sub = False
+        
+    def tpc_begin(self, transaction, subtransaction=False):
+        self._sub = subtransaction
+
+    def tpc_abort(self, transaction):
+        if self._sub:
+            self.abort(self, transaction)
+        else:
+            self._datamanager.abort(transaction)
+
+    def tpc_finish(self, transaction):
+        if self._sub:
+            self._rollback = self._datamanager.savepoint(transaction).rollback
+        else:
+            self._datamanager.commit(transaction)
+
+    def tpc_vote(self, transaction):
+        if not self._sub:
+            self._datamanager.prepare(transaction)
+        
+
 
 ############################################################################
 # install get_transaction:

@@ -13,34 +13,26 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.117 2004/01/14 18:58:08 jeremy Exp $"""
+$Id: Connection.py,v 1.118 2004/02/19 02:59:06 jeremy Exp $"""
 
 import logging
 import sys
 import threading
+import itertools
 from time import time
-from types import ClassType
 from utils import u64
-
-_marker = object()
-
-def myhasattr(obj, attr):
-    # builtin hasattr() swallows exceptions
-    return getattr(obj, attr, _marker) is not _marker
 
 from persistent import PickleCache
 from zLOG import LOG, ERROR, BLATHER, WARNING
 
 from ZODB.ConflictResolution import ResolvedSerial
-from ZODB.coptimizations import new_persistent_id
 from ZODB.ExportImport import ExportImport
 from ZODB.POSException \
-     import ConflictError, ReadConflictError, TransactionError
+     import ConflictError, ReadConflictError, InvalidObjectReference
 from ZODB.TmpStore import TmpStore
 from ZODB.Transaction import Transaction, get_transaction
 from ZODB.utils import oid_repr, z64
-from ZODB.serialize \
-     import ObjectWriter, getClassMetadata, ConnectionObjectReader
+from ZODB.serialize import ObjectWriter, ConnectionObjectReader, myhasattr
 
 global_reset_counter = 0
 
@@ -70,6 +62,7 @@ class Connection(ExportImport, object):
     _opened = None
     _code_timestamp = 0
     _transaction = None
+    _added_during_commit = None
 
     def __init__(self, version='', cache_size=400,
                  cache_deactivate_after=60, mvcc=True):
@@ -88,6 +81,8 @@ class Connection(ExportImport, object):
 
             self._cache.cache_drain_resistance = 100
         self._incrgc = self.cacheGC = cache.incrgc
+        self._committed = []
+        self._added = {}
         self._reset_counter = global_reset_counter
         self._load_count = 0   # Number of objects unghosted
         self._store_count = 0  # Number of objects stored
@@ -160,6 +155,9 @@ class Connection(ExportImport, object):
         obj = self._cache.get(oid, None)
         if obj is not None:
             return obj
+        obj = self._added.get(oid, None)
+        if obj is not None:
+            return obj
 
         p, serial = self._storage.load(oid, self._version)
         obj = self._reader.getGhost(p)
@@ -171,6 +169,21 @@ class Connection(ExportImport, object):
 
         self._cache[oid] = obj
         return obj
+
+    def add(self, obj):
+        marker = object()
+        oid = getattr(obj, "_p_oid", marker)
+        if oid is marker:
+            raise TypeError("Only first-class persistent objects may be"
+                            " added to a Connection.", obj)
+        elif obj._p_jar is None:
+            oid = obj._p_oid = self._storage.new_oid()
+            obj._p_jar = self
+            self._added[oid] = obj
+            if self._added_during_commit is not None:
+                self._added_during_commit.append(obj)
+        elif obj._p_jar is not self:
+            raise InvalidObjectReference(obj, obj._p_jar)
 
     def sortKey(self):
         # XXX will raise an exception if the DB hasn't been set
@@ -219,8 +232,14 @@ class Connection(ExportImport, object):
         if object is self:
             self._flush_invalidations()
         else:
-            assert object._p_oid is not None
-            self._cache.invalidate(object._p_oid)
+            oid = object._p_oid
+            assert oid is not None
+            if oid in self._added:
+                del self._added[oid]
+                del object._p_jar
+                del object._p_oid
+            else:
+                self._cache.invalidate(object._p_oid)
 
     def cacheFullSweep(self, dt=0):
         self._cache.full_sweep(dt)
@@ -269,55 +288,76 @@ class Connection(ExportImport, object):
             raise ReadConflictError(object=object)
 
         invalid = self._invalid
+
+        # XXX In the case of a new object or an object added using add(),
+        #     the oid is appended to _creating.
+        #     However, this ought to be unnecessary because the _p_serial
+        #     of the object will be z64 or None, so it will be appended
+        #     to _creating about 30 lines down. The removal from _added
+        #     ought likewise to be unnecessary.
         if oid is None or object._p_jar is not self:
             # new object
             oid = self.new_oid()
             object._p_jar = self
             object._p_oid = oid
+            self._creating.append(oid) # maybe don't need this
+        elif oid in self._added:
+            # maybe don't need these
             self._creating.append(oid)
-
+            del self._added[oid]
         elif object._p_changed:
             if invalid(oid):
                 resolve = getattr(object, "_p_resolveConflict", None)
                 if resolve is None:
                     raise ConflictError(object=object)
             self._modified.append(oid)
-
         else:
             # Nothing to do
             return
 
         w = ObjectWriter(object)
-        for obj in w:
-            oid = obj._p_oid
-            serial = getattr(obj, '_p_serial', z64)
-            if serial == z64:
-                # new object
-                self._creating.append(oid)
-            else:
-                if invalid(oid) and not hasattr(object, '_p_resolveConflict'):
-                    raise ConflictError(object=obj)
-                self._modified.append(oid)
+        self._added_during_commit = []
+        try:
+            for obj in itertools.chain(w, self._added_during_commit):
+                oid = obj._p_oid
+                serial = getattr(obj, '_p_serial', z64)
 
-            p = w.serialize(obj)
-            s = self._storage.store(oid, serial, p, self._version, transaction)
-            self._store_count = self._store_count + 1
-            # Put the object in the cache before handling the
-            # response, just in case the response contains the
-            # serial number for a newly created object
-            try:
-                self._cache[oid] = obj
-            except:
-                # Dang, I bet its wrapped:
-                if hasattr(obj, 'aq_base'):
-                    self._cache[oid] = obj.aq_base
+                # XXX which one? z64 or None? Why do I have to check both?
+                if serial == z64 or serial is None:
+                    # new object
+                    self._creating.append(oid)
+                    # If this object was added, it is now in _creating, so can
+                    # be removed from _added.
+                    self._added.pop(oid, None)
                 else:
-                    raise
+                    if (invalid(oid)
+                        and not hasattr(object, '_p_resolveConflict')):
+                        raise ConflictError(object=obj)
+                    self._modified.append(oid)
+                p = w.serialize(obj)  # This calls __getstate__ of obj
+                
+                s = self._storage.store(oid, serial, p, self._version,
+                                        transaction)
+                self._store_count = self._store_count + 1
+                # Put the object in the cache before handling the
+                # response, just in case the response contains the
+                # serial number for a newly created object
+                try:
+                    self._cache[oid] = obj
+                except:
+                    # Dang, I bet its wrapped:
+                    if hasattr(obj, 'aq_base'):
+                        self._cache[oid] = obj.aq_base
+                    else:
+                        raise
 
-            self._handle_serial(s, oid)
+                self._handle_serial(s, oid)
+        finally:
+            del self._added_during_commit
+       
 
     def commit_sub(self, t):
-        """Commit all work done in subtransactions"""
+        """Commit all work done in all subtransactions for this transaction"""
         tmp=self._tmp
         if tmp is None: return
         src=self._storage
@@ -347,7 +387,7 @@ class Connection(ExportImport, object):
             self._handle_serial(s, oid, change=0)
 
     def abort_sub(self, t):
-        """Abort work done in subtransactions"""
+        """Abort work done in all subtransactions for this transaction"""
         tmp=self._tmp
         if tmp is None: return
         src=self._storage
@@ -586,6 +626,10 @@ class Connection(ExportImport, object):
         self._flush_invalidations()
         self._conflicts.clear()
         self._invalidate_creating()
+        while self._added:
+            oid, obj = self._added.popitem()
+            del obj._p_oid
+            del obj._p_jar
 
     def tpc_begin(self, transaction, sub=None):
         self._modified = []
