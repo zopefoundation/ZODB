@@ -22,6 +22,7 @@ import transaction
 from ZODB.config import databaseFromString
 from ZODB.utils import p64, u64
 from ZODB.tests.warnhook import WarningsHook
+from zope.interface.verify import verifyObject
 
 class ConnectionDotAdd(unittest.TestCase):
 
@@ -595,6 +596,15 @@ class StubStorage:
         return None
 
 
+class TestConnectionInterface(unittest.TestCase):
+
+    def test_connection_interface(self):
+        from ZODB.interfaces import IConnection
+        db = databaseFromString("<zodb>\n<mappingstorage/>\n</zodb>")
+        cn = db.open()
+        verifyObject(IConnection, cn)
+
+
 class StubDatabase:
 
     def __init__(self):
@@ -608,4 +618,5 @@ class StubDatabase:
 def test_suite():
     s = unittest.makeSuite(ConnectionDotAdd, 'check')
     s.addTest(doctest.DocTestSuite())
+    s.addTest(unittest.makeSuite(TestConnectionInterface))
     return s

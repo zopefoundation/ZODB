@@ -35,6 +35,8 @@ from ZODB.POSException \
 from ZODB.TmpStore import TmpStore
 from ZODB.utils import oid_repr, z64, positive_id
 from ZODB.serialize import ObjectWriter, ConnectionObjectReader, myhasattr
+from ZODB.interfaces import IConnection
+from zope.interface import implements
 
 global_reset_counter = 0
 
@@ -147,6 +149,7 @@ class Connection(ExportImport, object):
         getTransferCounts
 
     """
+    implements(IConnection)
 
     _tmp = None
     _code_timestamp = 0

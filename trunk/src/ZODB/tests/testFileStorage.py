@@ -227,7 +227,7 @@ def testTimeTravelOnOpen():
     >>> from ZODB.FileStorage import FileStorage
     >>> from ZODB.DB import DB
     >>> import transaction
-    >>> from ZODB.tests.loggingsupport import InstalledHandler
+    >>> from zope.testing.loggingsupport import InstalledHandler
 
     Arrange to capture log messages -- they're an important part of
     this test!
