@@ -53,8 +53,8 @@ def zodb_unpickle(data):
         try:
             klass = ns[klassname]
         except KeyError:
-            print >> sys.stderr, "can't find %s in %s" % (klassname,
-                                                          repr(ns))
+            sys.stderr.write("can't find %s in %s" % (klassname,
+                                                      repr(ns)))
         inst = klass()
     else:
         raise ValueError, "expected class info: %s" % repr(klass_info)

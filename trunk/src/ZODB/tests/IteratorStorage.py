@@ -23,4 +23,4 @@ class IteratorStorage:
                 assert rec.serial == revid
                 assert rec.version == ''
                 assert zodb_unpickle(rec.data) == MinPO(val)
-                val += 1
+                val = val + 1
