@@ -428,7 +428,10 @@ The following elements are used to describe a schema:
     The data type converter which will be applied to the value of this
     section.  If the value is a \datatype{dotted-name} that begins
     with a period, the value of \attribute{prefix} will be pre-pended,
-    if set.
+    if set.  If \attribute{datatype} is omitted and
+    \attribute{extends} is used, the \attribute{datatype} from the
+    section type identified by the \attribute{extends} attribute is
+    used.
   \end{attributedesc}
 
   \begin{attributedesc}{extends}{\datatype{basic-key}}
@@ -439,7 +442,9 @@ The following elements are used to describe a schema:
     is defined with only the keys and sections contained within the
     \element{sectiontype} element.  The new section type is called a
     \emph{derived} section type, and the type named by this attribute
-    is called the \emph{base} type.
+    is called the \emph{base} type.  The value for the
+    \attribute{datatype} attribute is acquired from the base type if
+    not specified.
   \end{attributedesc}
 
   \begin{attributedesc}{implements}{\datatype{basic-key}}
