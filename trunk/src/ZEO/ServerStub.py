@@ -24,9 +24,6 @@ class StorageServer:
     def get_info(self):
         return self.rpc.call('get_info')
 
-    def get_size_info(self):
-        return self.rpc.call('get_size_info')
-
     def beginZeoVerify(self):
         self.rpc.callAsync('beginZeoVerify')
 
