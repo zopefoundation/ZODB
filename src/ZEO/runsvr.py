@@ -212,17 +212,18 @@ class ZEOServer:
             self.clear_socket()
 
     def check_socket(self):
-        if isinstance(self.opts.address, type("")):
-            s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        else:
-            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        if self.can_connect(self.opts.family, self.opts.address):
+            self.opts.usage("address %r already in use" % self.opts.address)
+
+    def can_connect(self, family, address):
+        s = socket.socket(family, socket.SOCK_STREAM)
         try:
-            s.connect(self.opts.address)
+            s.connect(address)
         except socket.error:
-            pass
+            return 0
         else:
             s.close()
-            self.opts.usage("address %r already in use" % self.opts.address)
+            return 1
 
     def clear_socket(self):
         if isinstance(self.opts.address, type("")):
