@@ -3,6 +3,7 @@
 import asyncore
 import os
 import random
+import sys
 import tempfile
 import time
 import types
@@ -139,6 +140,7 @@ class GenericTests(ZEOTestBase,
         self.running = 0
         self._server.close()
         os.waitpid(self._pid, 0)
+        self.delStorage()
         self.__super_tearDown()
 
     def checkLargeUpdate(self):
@@ -165,6 +167,9 @@ class PersistentCacheTests(ZEOTestBase):
     __super_setUp = StorageTestBase.StorageTestBase.setUp
     __super_tearDown = StorageTestBase.StorageTestBase.tearDown
 
+    ports = range(29000, 30000, 10) # enough for 100 tests
+    random.shuffle(ports)
+
     def setUp(self):
         """Start a ZEO server using a Unix domain socket
 
@@ -174,7 +179,7 @@ class PersistentCacheTests(ZEOTestBase):
         self.running = 1
         self.__fs_base = tempfile.mktemp()
         fs = FileStorage(self.__fs_base, create=1)
-        self.addr = '', random.randrange(2000, 3000)
+        self.addr = '', self.ports.pop()
         pid, exit = forker.start_zeo_server(fs, self.addr)
         self._pid = pid
         self._server = exit
