@@ -24,12 +24,8 @@ to be notified when the mainloop starts.  A thread calls
 register_loop_callback() to register interest.  When the mainloop
 thread calls loop(), each registered callback will be called with the
 socket map as its first argument.
-
-This module rebinds loop() in the asyncore module; i.e. once this
-module is imported, any client of the asyncore module will get
-ThreadedAsync.loop() when it calls asyncore.loop().
 """
-__version__ = '$Revision: 1.6 $'[11:-2]
+__version__ = '$Revision: 1.7 $'[11:-2]
 
 import asyncore
 import select
@@ -150,11 +146,23 @@ def loop(timeout=30.0, use_poll=0, map=None):
         poll_fun(timeout, map)
     _stop_loop()
 
-# Woo hoo!
-asyncore.loop = loop
 
-# What the heck did we just do?
+# This module used to do something evil -- it rebound asyncore.loop to the
+# above loop() function.  What was evil about this is that if you added some
+# debugging to asyncore.loop, you'd spend 6 hours debugging why your debugging
+# code wasn't called!
 #
-# Well, the thing is, we want to work with other asyncore aware
-# code. In particular, we don't necessarily want to make someone
-# import this module just to start or loop.
+# Code should instead explicitly call ThreadedAsync.loop() instead of
+# asyncore.loop().  Most of ZODB has been fixed, but ripping this out may
+# break 3rd party code.  So we'll issue a warning and let it continue -- for
+# now.
+
+def deprecated_loop(*args, **kws):
+    import warnings
+    warnings.warn("""\
+ThreadedAsync.loop() called through sneaky asyncore.loop() rebinding.
+You should change your code to call ThreadedAsync.loop() explicitly.""",
+                  DeprecationWarning)
+    loop(*args, **kws)
+
+asyncore.loop = deprecated_loop
