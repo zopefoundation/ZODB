@@ -885,8 +885,8 @@ class TestIITreeSets(NormalSetTests, TestCase):
     # for 4.  The BTree nodes direct it to the 5 bucket, but the correct
     # answer is the 3 bucket, which requires going in a different direction
     # at the very top node already.  Consider a low-end range search for
-    # 10.  The BTree nodes direct it to the 11 bucket, but the correct answer
-    # is the 7 bucket.  This is also a nasty-case tree for deletions.
+    # 9.  The BTree nodes direct it to the 7 bucket, but the correct answer
+    # is the 11 bucket.  This is also a nasty-case tree for deletions.
 
     def _build_degenerate_tree(self):
         # Build the buckets and chain them together.
