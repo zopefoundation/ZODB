@@ -115,7 +115,7 @@
 #   may have a back pointer to a version record or to a non-version
 #   record.
 #
-__version__='$Revision: 1.95 $'[11:-2]
+__version__='$Revision: 1.96 $'[11:-2]
 
 import base64
 from cPickle import Pickler, Unpickler, loads
@@ -483,6 +483,7 @@ class FileStorage(BaseStorage.BaseStorage,
         current_oids = {}
         t = None
         tstatus = ' '
+        newserial = self._serial
 
         while srcpos:
             self._file.seek(srcpos)
@@ -494,7 +495,7 @@ class FileStorage(BaseStorage.BaseStorage,
                 # This is a current record!
                 self._tindex[oid] = here
                 oids.append(oid)
-                self._tfile.write(h[:16] + spos + middle)
+                self._tfile.write(oid + newserial + spos + middle)
                 if dest:
                     self._tvindex[dest] = here
                     self._tfile.write(pnv + sd + dest)

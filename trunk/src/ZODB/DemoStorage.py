@@ -79,7 +79,7 @@ method::
 and call it to monitor the storage.
 
 """
-__version__='$Revision: 1.12 $'[11:-2]
+__version__='$Revision: 1.13 $'[11:-2]
 
 import base64, time, string
 from ZODB import POSException, BaseStorage, utils
@@ -137,6 +137,7 @@ class DemoStorage(BaseStorage.BaseStorage):
             v=self._vindex.get(src, None)
             if not v: return
 
+            newserial = self._serial
             tindex=self._tindex
             oids=[]
             for r in v.values():
@@ -144,7 +145,7 @@ class DemoStorage(BaseStorage.BaseStorage):
                 if nv:
                     oids.append(oid)
                     oid, serial, pre, vdata, p = nv
-                    tindex.append([oid, serial, r, None, p])
+                    tindex.append([oid, newserial, r, None, p])
                 else:
                     # effectively, delete the thing
                     tindex.append([oid, None, r, None, None])
@@ -168,6 +169,7 @@ class DemoStorage(BaseStorage.BaseStorage):
             v=self._vindex.get(src, None)
             if v is None: return
 
+            newserial = self._serial
             tindex=self._tindex
             oids=[]
             for r in v.values():
@@ -178,7 +180,7 @@ class DemoStorage(BaseStorage.BaseStorage):
                     new_vdata = dest, vdata[1]
                 else:
                     new_vdata = None
-                tindex.append([oid, serial, r, new_vdata, p])
+                tindex.append([oid, newserial, r, new_vdata, p])
 
 
             return oids

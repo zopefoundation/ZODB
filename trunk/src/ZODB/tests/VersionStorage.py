@@ -206,6 +206,71 @@ class VersionStorage:
         finally:
             self._storage.tpc_abort(t)
 
+
+    def checkNewSerialOnAbortVersion(self):
+        eq = self.assertEqual
+        oid, version = self._setup_version()
+        data, vserial = self._storage.load(oid, version)
+        data, nserial = self._storage.load(oid, '')
+
+        # Now abort the version
+        t = Transaction()
+        self._storage.tpc_begin(t)
+        oids = self._storage.abortVersion(version, t)
+        self._storage.tpc_vote(t)
+        self._storage.tpc_finish(t)
+        
+        # Now check the new serial
+        data, serial = self._storage.load(oid, version)
+
+        self.failUnless(serial != vserial and serial != nserial,
+                        "New serial, %r, should be different from the old "
+                        "version, %r, and non-version, %r, serials."
+                        % (serial, vserial, nserial))
+
+    def checkNewSerialOnCommitVersion(self):
+        eq = self.assertEqual
+        oid, version = self._setup_version()
+        data, vserial = self._storage.load(oid, version)
+        data, nserial = self._storage.load(oid, '')
+
+        # Now commit the version
+        t = Transaction()
+        self._storage.tpc_begin(t)
+        oids = self._storage.commitVersion(version, '', t)
+        self._storage.tpc_vote(t)
+        self._storage.tpc_finish(t)
+        
+        # Now check the new serial
+        data, serial = self._storage.load(oid, '')
+
+        self.failUnless(serial != vserial and serial != nserial,
+                        "New serial, %r, should be different from the old "
+                        "version, %r, and non-version, %r, serials."
+                        % (serial, vserial, nserial))
+
+    def checkNewSerialOnCommitVersionToVersion(self):
+        eq = self.assertEqual
+        oid, version = self._setup_version()
+        data, vserial = self._storage.load(oid, version)
+        data, nserial = self._storage.load(oid, '')
+
+        # Now commit the version
+        t = Transaction()
+        self._storage.tpc_begin(t)
+        version2 = 'test version 2'
+        oids = self._storage.commitVersion(version, version2, t)
+        self._storage.tpc_vote(t)
+        self._storage.tpc_finish(t)
+        
+        # Now check the new serial
+        data, serial = self._storage.load(oid, version2)
+
+        self.failUnless(serial != vserial and serial != nserial,
+                        "New serial, %r, should be different from the old "
+                        "version, %r, and non-version, %r, serials."
+                        % (serial, vserial, nserial))
+
     def checkModifyAfterAbortVersion(self):
         eq = self.assertEqual
         oid, version = self._setup_version()
