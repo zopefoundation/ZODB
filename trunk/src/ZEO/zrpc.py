@@ -85,7 +85,7 @@
 """Simple rpc mechanisms
 """
 
-__version__ = "$Revision: 1.6 $"[11:-2]
+__version__ = "$Revision: 1.7 $"[11:-2]
 
 from cPickle import loads
 from thread import allocate_lock
@@ -240,6 +240,11 @@ class asyncRPC(SizedMessageAsyncConnection):
     def _read(self):
         self.__la()
         return self.__r
+
+    def closeIntensionally(self):
+        if self.__map:
+            self.__Wakeup(lambda self=self: self.close()) # You dumb bastard
+        else: self.close()
         
     def close(self):
         asyncRPC.inheritedAttribute('close')(self)
