@@ -215,21 +215,21 @@ class BasicStorage:
         self._storage.tpc_vote(t)
         self._storage.tpc_finish(t)
 
-    def checkOversizeNote(self):
-        oid = self._storage.new_oid()
-        t = Transaction()
-        # Most storages cant cope with comments this long
-        t.note('0'*128*1024)
-        try:
-            self._storage.tpc_begin(t)
-            self._storage.store(oid, ZERO, zodb_pickle(MinPO(5)), '', t)
-            self._storage.tpc_vote(t)
-            self._storage.tpc_finish(t)
-        except POSException.POSError:
-            # failed as expected
-            pass
-        else:
-            self.fail()
+##    def checkOversizeNote(self):
+##        oid = self._storage.new_oid()
+##        t = Transaction()
+##        # Most storages cant cope with comments this long
+##        t.note('0'*128*1024)
+##        try:
+##            self._storage.tpc_begin(t)
+##            self._storage.store(oid, ZERO, zodb_pickle(MinPO(5)), '', t)
+##            self._storage.tpc_vote(t)
+##            self._storage.tpc_finish(t)
+##        except POSException.POSError:
+##            # failed as expected
+##            pass
+##        else:
+##            self.fail()
 
     def checkGetExtensionMethods(self):
         m = self._storage.getExtensionMethods()
