@@ -469,7 +469,7 @@ class NastyConfict(Base, TestCase):
         r1["t"] = self.t
         get_transaction().commit()
 
-        r2 = self.db.open().root()
+        r2 = self.db.open(synch=False).root()
         copy = r2["t"]
         # Make sure all of copy is loaded.
         list(copy.values())
@@ -546,7 +546,7 @@ class NastyConfict(Base, TestCase):
         r1["t"] = self.t
         get_transaction().commit()
 
-        r2 = self.db.open().root()
+        r2 = self.db.open(synch=False).root()
         copy = r2["t"]
         # Make sure all of copy is loaded.
         list(copy.values())
@@ -687,7 +687,7 @@ class NastyConfict(Base, TestCase):
         r1["t"] = self.t
         get_transaction().commit()
 
-        r2 = self.db.open().root()
+        r2 = self.db.open(synch=False).root()
         copy = r2["t"]
         # Make sure all of copy is loaded.
         list(copy.values())

@@ -246,7 +246,7 @@ class Transaction(object):
 
         if not subtransaction:
             for s in self._synchronizers:
-                s.beforeCompletion()
+                s.beforeCompletion(self)
 
         if not subtransaction:
             self.status = Status.COMMITTING
@@ -260,7 +260,7 @@ class Transaction(object):
             if self._manager:
                 self._manager.free(self)
             for s in self._synchronizers:
-                s.afterCompletion()
+                s.afterCompletion(self)
             self.log.debug("commit")
 
     def _commitResources(self, subtransaction):
@@ -313,6 +313,8 @@ class Transaction(object):
                     self.status = Status.FAILED
                     if self._manager:
                         self._manager.free(self)
+                    for s in self._synchronizers:
+                        s.afterCompletion(self)
             raise t, v, tb
 
     def _cleanup(self, L):
