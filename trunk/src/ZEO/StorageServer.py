@@ -124,11 +124,10 @@ class ZEOStorage:
         # When this storage closes, we must ensure that it aborts
         # any pending transaction.  Not sure if this is the clearest way.
         if self._transaction is not None:
-            self._log("disconnected during transaction %s" % self._transaction,
-                      zLOG.BLATHER)
+            self._log("disconnected during transaction %s" % self._transaction)
             self.tpc_abort(self._transaction.id)
         else:
-            self._log("disconnected", zLOG.BLATHER)
+            self._log("disconnected")
 
     def __repr__(self):
         tid = self._transaction and repr(self._transaction.id)
