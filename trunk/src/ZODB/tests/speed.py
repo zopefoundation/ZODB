@@ -138,8 +138,6 @@ def main(args):
             global debug
             os.environ['STUPID_LOG_FILE']=''
             os.environ['STUPID_LOG_SEVERITY']='-999'
-            __builtins__.__debug__=1
-
 
     if s:
         s=__import__(s, globals(), globals(), ('__doc__',))
@@ -186,7 +184,7 @@ def main(args):
         t=results[r]/nrep
         sys.stderr.write("mean:\t%s\t%.4f\t%.4f (s/o)\n" % (r, t, t/r))
 
-
+    db.close()
             
     
 def compress(s):
