@@ -84,8 +84,8 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.54 2001/05/21 22:45:38 jeremy Exp $"""
-__version__='$Revision: 1.54 $'[11:-2]
+$Id: Connection.py,v 1.55 2001/05/22 20:57:03 jeremy Exp $"""
+__version__='$Revision: 1.55 $'[11:-2]
 
 from cPickleCache import PickleCache
 from POSException import ConflictError, ExportError
@@ -267,39 +267,44 @@ class Connection(ExportImport.ExportImport):
     def cacheFullSweep(self, dt=0): self._cache.full_sweep(dt)
     def cacheMinimize(self, dt=0): self._cache.minimize(dt)
 
-    __onCloseCallbacks=()
+    __onCloseCallbacks = None
+    
     def onCloseCallback(self, f):
-        self.__onCloseCallbacks=self.__onCloseCallbacks+(f,)
+        if self.__onCloseCallbacks is None:
+            self.__onCloseCallbacks = []
+        self.__onCloseCallbacks.append(f)
 
     def close(self):
         self._incrgc() # This is a good time to do some GC
         db=self._db
 
         # Call the close callbacks.
-        for f in self.__onCloseCallbacks:
-            try: f()
-            except:
-                f=getattr(f, 'im_self', f)
-                LOG('ZODB',ERROR, 'Close callback failed for %s' % f,
-                    error=sys.exc_info())
-        self.__onCloseCallbacks=()
+        if self.__onCloseCallbacks is not None:
+            for f in self.__onCloseCallbacks:
+                try: f()
+                except:
+                    f=getattr(f, 'im_self', f)
+                    LOG('ZODB',ERROR, 'Close callback failed for %s' % f,
+                        error=sys.exc_info())
+            self.__onCloseCallbacks = None
         self._db=self._storage=self._tmp=self.new_oid=self._opened=None
         self._debug_info=()
         # Return the connection to the pool.
         db._closeConnection(self)
                         
-    __onCommitActions=()
+    __onCommitActions = None
+    
     def onCommitAction(self, method_name, *args, **kw):
-        self.__onCommitActions = self.__onCommitActions + (
-            (method_name, args, kw),)
+        if self.__onCommitActions is None:
+            self.__onCommitActions = []
+        self.__onCommitActions.append((method_name, args, kw))
         get_transaction().register(self)
 
     def commit(self, object, transaction, _type=type, _st=type('')):
         if object is self:
             # We registered ourself.  Execute a commit action, if any.
-            if self.__onCommitActions:
-                method_name, args, kw = self.__onCommitActions[0]
-                self.__onCommitActions = self.__onCommitActions[1:]
+            if self.__onCommitActions is not None:
+                method_name, args, kw = self.__onCommitActions.pop(0)
                 apply(getattr(self, method_name), (transaction,) + args, kw)
             return
         oid=object._p_oid
@@ -605,7 +610,8 @@ class Connection(ExportImport.ExportImport):
             raise
 
     def tpc_abort(self, transaction):
-        self.__onCommitActions = ()
+        if self.__onCommitAction is not None:
+            del self.__onCommitActions
         self._storage.tpc_abort(transaction)
         cache=self._cache
         cache.invalidate(self._invalidated)
@@ -629,12 +635,14 @@ class Connection(ExportImport.ExportImport):
 
         self._storage.tpc_begin(transaction)
 
-    def tpc_vote(self, transaction,
-                 _type=type, _st=type('')):
-        self.__onCommitActions = ()
-        try: vote=self._storage.tpc_vote
-        except: return
-        s=vote(transaction)
+    def tpc_vote(self, transaction):
+        if self.__onCommitActions is not None:
+            del self.__onCommitActions
+        try:
+            vote=self._storage.tpc_vote
+        except AttributeError:
+            return
+        s = vote(transaction)
         self._handle_serial(s)
 
     def _handle_serial(self, store_return, oid=None, change=1):
