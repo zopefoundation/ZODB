@@ -95,10 +95,10 @@ zdctl_template = """#!/bin/sh
 # The following two lines are for chkconfig.  On Red Hat Linux (and
 # some other systems), you can copy or symlink this script into
 # /etc/rc.d/init.d/ and then run chkconfig(8), to automatically start
-# %(PACKAGE) at boot time.
+# %(PACKAGE)s at boot time.
 
 # chkconfig: 345 90 10
-# description: start a %(PACKAGE) server
+# description: start a %(PACKAGE)s server
 
 exec %(zdctl)s -C %(home)s/etc/runner.conf ${1+"$@"}
 """
