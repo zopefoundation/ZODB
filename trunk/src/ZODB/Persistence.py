@@ -4,7 +4,7 @@
 __doc__='''Python implementation of persistent base types
 
 
-$Id: Persistence.py,v 1.6 1997/03/28 23:04:48 jim Exp $'''
+$Id: Persistence.py,v 1.7 1997/04/03 17:33:32 jim Exp $'''
 #     Copyright 
 #
 #       Copyright 1996 Digital Creations, L.C., 910 Princess Anne
@@ -60,6 +60,9 @@ $Id: Persistence.py,v 1.6 1997/03/28 23:04:48 jim Exp $'''
 #   (540) 371-6909
 #
 # $Log: Persistence.py,v $
+# Revision 1.7  1997/04/03 17:33:32  jim
+# Changed to pass transaction to jar store method.
+#
 # Revision 1.6  1997/03/28 23:04:48  jim
 # Changed reinit to tolerate being called with no arguments.
 #
@@ -82,7 +85,7 @@ $Id: Persistence.py,v 1.6 1997/03/28 23:04:48 jim Exp $'''
 #
 #
 # 
-__version__='$Revision: 1.6 $'[11:-2]
+__version__='$Revision: 1.7 $'[11:-2]
 
 class Persistent:
     """\
@@ -232,10 +235,11 @@ class Persistent:
 	    except: pass
 	return Persistence.Persistent.__changed__(self,v)
 
-    def __inform_commit__(self,transaction,start_time):
-	self.__save__()
+    def __inform_commit__(self,T,start_time):
+	jar=self._p_jar
+	if jar and self._p_changed: jar.store(self,T)
 
-    def __inform_abort__(self,transaction,start_time):
+    def __inform_abort__(self,T,start_time):
 	try: self._p_jar.oops(self,start_time)
 	except: pass
 
