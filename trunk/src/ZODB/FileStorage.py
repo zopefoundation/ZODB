@@ -115,7 +115,7 @@
 #   may have a back pointer to a version record or to a non-version
 #   record.
 #
-__version__='$Revision: 1.103 $'[11:-2]
+__version__='$Revision: 1.104 $'[11:-2]
 
 import base64
 from cPickle import Pickler, Unpickler, loads
@@ -569,7 +569,7 @@ class FileStorage(BaseStorage.BaseStorage,
             h = self._file.read(34)
             _oid = h[:8]
             if _oid != oid:
-                raise CorruptedData, h
+                raise CorruptedDataError, h
             vlen = unpack(">H", h[-2:])[0]
             if vlen:
                 # If there is a version, find out its name and let
