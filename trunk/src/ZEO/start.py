@@ -222,8 +222,8 @@ def main(argv):
         except:
             pass
         else:
-            import zdaemon
-            zdaemon.run(sys.argv, env.zeo_pid)
+            import zdaemon.Daemon
+            zdaemon.Daemon.run(sys.argv, env.zeo_pid)
 
     try:
 
