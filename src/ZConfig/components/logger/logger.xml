@@ -1,0 +1,39 @@
+<component prefix="ZConfig.components.logger.logger">
+  <description>
+  </description>
+
+  <import package="ZConfig.components.logger" file="abstract.xml"/>
+  <import package="ZConfig.components.logger" file="base-logger.xml"/>
+  <import package="ZConfig.components.logger" file="eventlog.xml"/>
+
+  <sectiontype name="logger"
+               datatype=".LoggerFactory"
+               extends="ZConfig.logger.base-logger"
+               implements="ZConfig.logger.log">
+    <key name="propagate"
+         datatype="boolean"
+         default="true">
+      <description>
+        Indicates whether events that reach this logger should be
+        propogated toward the root of the logger hierarchy.  If true
+        (the default), events will be passed to the logger's parent
+        after being handled.  If false, events will be handled and the
+        parent will not be informed.  There is not a way to control
+        propogation by the severity of the event.
+      </description>
+    </key>
+
+    <key name="name"
+         datatype="dotted-name"
+         required="yes">
+      <description>
+        The dotted name of the logger.  This give it a location in the
+        logging hierarchy.  Most applications provide a specific set
+        of subsystem names for which logging is meaning; consult the
+        application documentation for the set of names that are
+        actually interesting for the application.
+      </description>
+    </key>
+  </sectiontype>
+
+</component>
