@@ -13,14 +13,14 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.106 2003/12/27 13:54:04 sidnei Exp $"""
+$Id: Connection.py,v 1.107 2003/12/31 16:27:29 jeremy Exp $"""
 
 import logging
 import sys
 import threading
 from time import time
 from types import ClassType
-from utils import U64
+from utils import u64
 
 _marker = object()
 
@@ -518,10 +518,13 @@ class Connection(ExportImport, object):
         # txn_time.  It must be current at txn_time, but could have
         # been modified at txn_time.
 
-        # It's possible that end is None, if, e.g., the most recent
-        # invalidation was for version data.
-        assert start < self._txn_time <= end, \
-               (U64(start), U64(self._txn_time), U64(end))
+        # It's possible that end is None.  The _txn_time is set by an
+        # invalidation for one specific object, but it used for the
+        # load time for all objects.  If an object hasn't been
+        # modified since _txn_time, it's end tid will be None.
+        assert start < self._txn_time, (u64(start), u64(self._txn_time))
+        assert end is None or self._txn_time <= end, \
+               (u64(self._txn_time), u64(end))
         self._noncurrent[obj._p_oid] = True
         self._reader.setGhostState(obj, data)
         obj._p_serial = start
