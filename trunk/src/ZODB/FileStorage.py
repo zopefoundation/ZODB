@@ -184,7 +184,7 @@
 #   may have a back pointer to a version record or to a non-version
 #   record.
 #
-__version__='$Revision: 1.32 $'[11:-2]
+__version__='$Revision: 1.33 $'[11:-2]
 
 import struct, time, os, bpthread, string, base64, sys
 from struct import pack, unpack
@@ -197,6 +197,9 @@ from zLOG import LOG, WARNING, ERROR, PANIC, register_subsystem
 register_subsystem('ZODB FS')
 import BaseStorage
 from cPickle import Pickler, Unpickler
+
+try: from posix import fsync
+except: fsync=None
 
 z64='\0'*8
 
@@ -667,10 +670,11 @@ class FileStorage(BaseStorage.BaseStorage):
         self._thl=23+len(u)+len(d)+len(e)
 
     def _finish(self, tid, u, d, e):
-        file=self._file
-        write=file.write
         tfile=self._tfile
         dlen=tfile.tell()
+        if not dlen: return # No data in this trans
+        file=self._file
+        write=file.write
         tfile.seek(0)
         id=self._serial
         user, desc, ext = self._ude
@@ -701,6 +705,10 @@ class FileStorage(BaseStorage.BaseStorage):
             file.seek(pos+16)
             write(' ')        
             file.flush()
+
+            if fsync is not None:
+                fsync(file.fileno())
+
         except:
             # Hm, an error occured writing out the data. Maybe the
             # disk is full. We don't want any turd at the end.
@@ -712,6 +720,7 @@ class FileStorage(BaseStorage.BaseStorage):
         for oid, pos in self._tindex: index[oid]=pos
 
         self._vindex.update(self._tvindex)
+
 
     def undo(self, transaction_id):
         self._lock_acquire()
