@@ -184,7 +184,7 @@
 #   may have a back pointer to a version record or to a non-version
 #   record.
 #
-__version__='$Revision: 1.42 $'[11:-2]
+__version__='$Revision: 1.43 $'[11:-2]
 
 import struct, time, os, bpthread, string, base64, sys
 from struct import pack, unpack
@@ -737,7 +737,7 @@ class FileStorage(BaseStorage.BaseStorage):
     
             # OK, not clear the checkpoint flag
             file.seek(pos+16)
-            write(' ')        
+            write(self._tstatus)        
             file.flush()
 
             if fsync is not None:
@@ -1718,7 +1718,6 @@ class FileIterator(Iterator):
         file.seek(0,2)
         self._file_size=file.tell()
         self._pos=4
-        self._index={}
 
     def next(self, index=0):
         file=self._file
@@ -1792,16 +1791,14 @@ class FileIterator(Iterator):
             pos=tpos+23+ul+dl+el
             user=read(ul)
             description=read(dl)
-            d={}
             if el:
-                try: 
-                    e=loads(read(el))
-                    d.update(e)
-                except: pass
+                try: e=loads(read(el))
+                except: e={}
+            else: e={}
+
             result=RecordIterator(
-                tid, user, description, d, 
+                tid, status, user, description, e,
                 pos, (tend, file, seek, read,
-                      self._index, self._index.get,
                       tpos,
                       )
                 )
@@ -1824,8 +1821,9 @@ class FileIterator(Iterator):
 class RecordIterator(Iterator):
     """Iterate over the transactions in a FileStorage file.
     """
-    def __init__(self, tid, user, desc, ext, pos, stuff):
+    def __init__(self, tid, status, user, desc, ext, pos, stuff):
         self.tid=tid
+        self.status=status
         self.user=user
         self.description=desc
         self._extension=ext
@@ -1835,7 +1833,7 @@ class RecordIterator(Iterator):
     def next(self, index=0):
         name=''
         pos = self._pos
-        tend, file, seek, read, _index, get, tpos = self._stuff
+        tend, file, seek, read, tpos = self._stuff
         while pos < tend:
             # Read the data records for this transaction
 
@@ -1867,8 +1865,7 @@ class RecordIterator(Iterator):
                 p=read(8)
                 p=_loadBack(file, oid, p)[0]
                 
-            r=Record(oid, get(oid, None), serial, version, p)
-            _index[oid]=serial
+            r=Record(oid, serial, version, p)
             
             return r
         
@@ -1879,4 +1876,4 @@ class Record:
     """An abstract database record
     """
     def __init__(self, *args):
-        self.oid, self.old, self.serial, self.version, self.p = args
+        self.oid, self.serial, self.version, self.data = args
