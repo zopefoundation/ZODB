@@ -53,7 +53,7 @@ Options for -R/--recover:
     -D str
     --date=str
         Recover state as of this date.  str is in the format
-            yyyy-mm-dd[-hh[-mm]]
+            yyyy-mm-dd[-hh[-mm[-ss]]]
         By default, current time is used.
 
     -o filename
@@ -262,30 +262,32 @@ def gen_filename(options, ext=None):
     t = time.gmtime()[:6] + (ext,)
     return '%04d-%02d-%02d-%02d-%02d-%02d%s' % t
 
-
 # Return a list of files needed to reproduce state at time options.date.
 # This is a list, in chronological order, of the .fs[z] and .deltafs[z]
 # files, from the time of the most recent full backup preceding
 # options.date, up to options.date.
+
+import re
+is_data_file = re.compile(r'\d{4}(?:-\d\d){5}\.(?:delta)?fsz?$').match
+del re
+
 def find_files(options):
-    def rootcmp(x, y):
-        # This already compares in reverse order
-        return cmp(os.path.splitext(y)[0], os.path.splitext(x)[0])
     when = options.date
     if not when:
         when = gen_filename(options, '')
     log('looking for files between last full backup and %s...', when)
-    all = os.listdir(options.repository)
-    all.sort(rootcmp)
+    all = filter(is_data_file, os.listdir(options.repository))
+    all.sort()
+    all.reverse()   # newest file first
     # Find the last full backup before date, then include all the
     # incrementals between that full backup and "when".
     needed = []
     for fname in all:
         root, ext = os.path.splitext(fname)
-        if root <= when and ext in ('.fs', '.fsz', '.deltafs', '.deltafsz'):
+        if root <= when:
             needed.append(fname)
-        if ext in ('.fs', '.fsz'):
-            break
+            if ext in ('.fs', '.fsz'):
+                break
     # Make the file names relative to the repository directory
     needed = [os.path.join(options.repository, f) for f in needed]
     # Restore back to chronological order
