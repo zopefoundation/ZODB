@@ -13,11 +13,11 @@
 ##############################################################################
 """Sized message async connections
 
-$Id: smac.py,v 1.23 2002/08/30 21:42:30 gvanrossum Exp $
+$Id: smac.py,v 1.24 2002/09/05 19:28:47 jeremy Exp $
 """
 
 import asyncore, struct
-from Exceptions import Disconnected
+from ZEO.Exceptions import Disconnected
 from zLOG import LOG, TRACE, ERROR, INFO, BLATHER
 from types import StringType
 
