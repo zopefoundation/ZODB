@@ -83,18 +83,25 @@ def main():
         return 1
 
     # Read file, gathering statistics, and printing each record if verbose
+    rt0 = time.time()
     bycode = {}
     records = 0
+    versions = 0
+    t0 = te = None
     while 1:
         r = f.read(24)
         if len(r) < 24:
             break
         records += 1
         ts, code, oid, serial = struct.unpack(">ii8s8s", r)
+        if t0 is None:
+            t0 = ts
+        te = ts
         dlen, code = code & 0x7fffff00, code & 0xff
         version = '-'
         if code & 0x80:
             version = 'V'
+            versions += 1
         current = code & 1
         code = code & 0x7e
         bycode[code] = bycode.get(code, 0) + 1
@@ -109,21 +116,44 @@ def main():
                 dlen and str(dlen) or "")
     bytes = f.tell()
     f.close()
+    rte = time.time()
+
+    # Error if nothing was read
+    if not records:
+        print >>sys.stderr, "No records processed"
+        return 1
 
     # Print statistics
     if dostats:
-        print "\nStatistics for %d records (%d bytes):\n" % (records, bytes)
+        print
+        print "Read %s records (%s bytes) in %.1f seconds" % (
+            addcommas(records), addcommas(bytes), rte-rt0)
+        print "Version bit set in %s records" % addcommas(versions)
+        print "First time: %s" % time.ctime(t0)
+        print "Last time:  %s" % time.ctime(te)
+        print "Duration:   %s seconds" % addcommas(te-t0)
+        print
         codes = bycode.keys()
         codes.sort()
-        print "%10s %4s %s" % ("Count", "Code", "Function (action)")
+        print "%13s %4s %s" % ("Count", "Code", "Function (action)")
         for code in codes:
-            print "%10d  %02x  %s" % (
-                bycode.get(code, 0),
+            print "%13s  %02x  %s" % (
+                addcommas(bycode.get(code, 0)),
                 code,
                 explain.get(code) or "*** unknown code ***")
 
 def U64(s):
     return struct.unpack(">Q", s)[0]
+
+def addcommas(n):
+    sign, s = '', str(n)
+    if s[0] == '-':
+        sign, s = '-', s[1:]
+    i = len(s) - 3
+    while i > 0:
+        s = s[:i] + ',' + s[i:]
+        i -= 3
+    return sign + s
 
 explain = {
     # The first hex digit shows the operation, the second the outcome.
