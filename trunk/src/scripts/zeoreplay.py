@@ -33,7 +33,7 @@ import operator
 from time import time as now
 
 from ZODB.FileStorage import FileStorage
-#from bsddb3Storage.Full import Full
+#from BDBStorage.BDBFullStorage import BDBFullStorage
 #from Standby.primary import PrimaryStorage
 #from Standby.config import RS_PORT
 from ZODB.Transaction import Transaction
@@ -281,7 +281,7 @@ def main():
 
     if replay:
         storage = FileStorage(storagefile)
-	#storage = Full(storagefile)
+	#storage = BDBFullStorage(storagefile)
         #storage = PrimaryStorage('yyz', storage, RS_PORT)
     t0 = now()
     p = ZEOParser(maxtxns, report, storage)

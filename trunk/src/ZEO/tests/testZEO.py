@@ -160,14 +160,14 @@ class FileStorageTests(GenericTests):
 
 
 class BDBTests(FileStorageTests):
-    """ZEO backed by a Berkeley Full storage."""
+    """ZEO backed by a Berkeley full storage."""
 
     def getStorage(self):
         self._envdir = tempfile.mktemp()
         # Return a 1-tuple
         return """\
         <Storage>
-            type Full
+            type BDBFullStorage
             name %s
         </Storage>
         """ % self._envdir
@@ -176,7 +176,7 @@ class BDBTests(FileStorageTests):
 
 test_classes = [FileStorageTests]
 try:
-    from bsddb3Storage.Full import Full
+    from BDBStorage.BDBFullStorage import BDBFullStorage
 except ImportError:
     pass
 else:
