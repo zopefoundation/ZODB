@@ -4,7 +4,8 @@
   <import package="ZConfig.components.logger" file="handlers.xml"/>
 
   <sectiontype name="eventlog"
-               datatype=".EventLogFactory">
+               datatype=".EventLogFactory"
+               implements="ZConfig.logger.log">
      <key name="level"
           datatype="ZConfig.components.logger.datatypes.logging_level"
           default="info"/>
