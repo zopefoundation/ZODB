@@ -80,12 +80,12 @@ class Options:
             doc += "\n"
         self.doc = doc
         try:
-            self.opts, self.args = getopt.getopt(args,
-                                                 self._short_options,
-                                                 self._long_options)
+            self.options, self.args = getopt.getopt(args,
+                                                    self._short_options,
+                                                    self._long_options)
         except getopt.error, msg:
             self.usage(str(msg))
-        for opt, arg in self.opts:
+        for opt, arg in self.options:
             self.handle_option(opt, arg)
         self.check_options()
 
@@ -194,10 +194,10 @@ class ZEOServer:
 
     OptionsClass = ZEOOptions
 
-    def __init__(self, opts=None):
-        if opts is None:
-            opts = self.OptionsClass()
-        self.opts = opts
+    def __init__(self, options=None):
+        if options is None:
+            options = self.OptionsClass()
+        self.options = options
 
     def main(self):
         self.check_socket()
@@ -212,9 +212,9 @@ class ZEOServer:
             self.clear_socket()
 
     def check_socket(self):
-        if self.can_connect(self.opts.family, self.opts.address):
-            self.opts.usage("address %s already in use" %
-                            repr(self.opts.address))
+        if self.can_connect(self.options.family, self.options.address):
+            self.options.usage("address %s already in use" %
+                               repr(self.options.address))
 
     def can_connect(self, family, address):
         s = socket.socket(family, socket.SOCK_STREAM)
@@ -227,19 +227,19 @@ class ZEOServer:
             return 1
 
     def clear_socket(self):
-        if isinstance(self.opts.address, type("")):
+        if isinstance(self.options.address, type("")):
             try:
-                os.unlink(self.opts.address)
+                os.unlink(self.options.address)
             except os.error:
                 pass
 
     def open_storages(self):
-        if self.opts.storages:
-            self.load_storages(self.opts.storages)
+        if self.options.storages:
+            self.load_storages(self.options.storages)
         else:
             from ZODB.FileStorage import FileStorage
-            info("opening storage '1': %r" % self.opts.filename)
-            storage = FileStorage(self.opts.filename)
+            info("opening storage '1': %r" % self.options.filename)
+            storage = FileStorage(self.options.filename)
             self.storages = {"1": storage}
 
     def load_storages(self, storages):
@@ -288,7 +288,7 @@ class ZEOServer:
 
     def create_server(self):
         from ZEO.StorageServer import StorageServer
-        self.server = StorageServer(self.opts.address, self.storages)
+        self.server = StorageServer(self.options.address, self.storages)
 
     def loop_forever(self):
         import asyncore
@@ -380,8 +380,8 @@ def _log(msg, severity=zLOG.INFO, error=None):
 # Main program
 
 def main(args=None):
-    opts = ZEOOptions(args)
-    s = ZEOServer(opts)
+    options = ZEOOptions(args)
+    s = ZEOServer(options)
     s.main()
 
 if __name__ == "__main__":
