@@ -82,17 +82,17 @@
   file.
   
  ****************************************************************************/
-static char *what_string = "$Id: winlock.c,v 1.2 1999/02/05 00:41:51 jim Exp $";
+static char *what_string = "$Id: winlock.c,v 1.3 1999/02/05 00:45:26 jim Exp $";
 
-#ifdef MS_WIN32
-#include <windows.h>
-#include <io.h>
-#endif
 #include "Python.h"
 
 static PyObject *Error;
 
 #ifdef MS_WIN32
+
+#include <windows.h>
+#include <io.h>
+
 static PyObject *	
 winlock(PyObject *ignored, PyObject *args)
 {
@@ -136,7 +136,7 @@ static struct PyMethodDef methods[] = {
 DL_EXPORT(void)
 initwinlock() {
   PyObject *m, *d;
-  char *rev="$Revision: 1.2 $";
+  char *rev="$Revision: 1.3 $";
 
   if (! (Error=PyString_FromString("winlock.error"))) return;
 
