@@ -32,23 +32,7 @@ class ZEOClientExit:
     def close(self):
         os.write(self.pipe, "done")
 
-def start_zeo(storage, cache=None, cleanup=None, domain="AF_INET"):
-    """Setup ZEO client-server for storage.
-
-    Returns a ClientStorage instance and a ZEOClientExit instance.
-
-    XXX Don't know if os.pipe() will work on Windows.
-    """
-
-    if domain == "AF_INET":
-        import random
-        addr = '', random.randrange(2000, 3000)
-    elif domain == "AF_UNIX":
-        import tempfile
-        addr = tempfile.mktemp()
-    else:
-        raise ValueError, "bad domain: %s" % domain
-    
+def start_zeo_server(storage, addr):
     rd, wr = os.pipe()
     pid = os.fork()
     if pid == 0:
@@ -67,6 +51,26 @@ def start_zeo(storage, cache=None, cleanup=None, domain="AF_INET"):
             os._exit(0)
     else:
         os.close(rd)
-        s = ZEO.ClientStorage.ClientStorage(addr, debug=1, client=cache)
-        return s, ZEOClientExit(wr), pid
+        return pid, ZEOClientExit(wr)
+
+def start_zeo(storage, cache=None, cleanup=None, domain="AF_INET"):
+    """Setup ZEO client-server for storage.
+
+    Returns a ClientStorage instance and a ZEOClientExit instance.
+
+    XXX Don't know if os.pipe() will work on Windows.
+    """
+
+    if domain == "AF_INET":
+        import random
+        addr = '', random.randrange(2000, 3000)
+    elif domain == "AF_UNIX":
+        import tempfile
+        addr = tempfile.mktemp()
+    else:
+        raise ValueError, "bad domain: %s" % domain
+
+    pid, exit = start_zeo_server(storage, addr)
+    s = ZEO.ClientStorage.ClientStorage(addr, debug=1, client=cache)
+    return s, exit, pid
 
