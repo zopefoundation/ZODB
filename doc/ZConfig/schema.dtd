@@ -38,6 +38,9 @@
           src        CDATA    #IMPLIED>
 
 <!ELEMENT description (#PCDATA)*>
+<!ATTLIST description
+          format     NMTOKEN  #IMPLIED>
+
 <!ELEMENT metadefault (#PCDATA)*>
 <!ELEMENT example     (#PCDATA)*>
 
