@@ -94,7 +94,10 @@ if os.name == 'posix':
             os.write(self.trigger, 'x')
 
         def handle_read(self):
-            self.recv(8192)
+            try:
+                self.recv(8192)
+            except socket.error:
+                return
             self.lock.acquire()
             try:
                 for thunk in self.thunks:
@@ -182,7 +185,10 @@ else:
             self.trigger.send('x')
 
         def handle_read(self):
-            self.recv(8192)
+            try:
+                self.recv(8192)
+            except socket.error:
+                return
             self.lock.acquire()
             try:
                 for thunk in self.thunks:
