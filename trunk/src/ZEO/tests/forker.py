@@ -93,8 +93,10 @@ def start_zeo_server(storage_conf, zeo_conf, port, keep=0):
     d['PYTHONPATH'] = os.pathsep.join(sys.path)
     pid = os.spawnve(os.P_NOWAIT, sys.executable, tuple(args), d)
     adminaddr = ('localhost', port + 1)
-    # We need to wait until the server starts, but not forever
-    for i in range(20):
+    # We need to wait until the server starts, but not forever.
+    # 30 seconds is a somewhat arbitrary upper bound.  A BDBStorage
+    # takes a long time to open -- more than 10 seconds on occasion.
+    for i in range(120):
         time.sleep(0.25)
         try:
             zLOG.LOG('forker', zLOG.DEBUG, 'connect %s' % i)
