@@ -1,6 +1,6 @@
 /*
 
-  $Id: cPersistence.c,v 1.7 1997/03/25 20:43:21 jim Exp $
+  $Id: cPersistence.c,v 1.8 1997/03/28 20:24:52 jim Exp $
 
   C Persistence Module
 
@@ -56,7 +56,7 @@
 
 
 *****************************************************************************/
-static char *what_string = "$Id: cPersistence.c,v 1.7 1997/03/25 20:43:21 jim Exp $";
+static char *what_string = "$Id: cPersistence.c,v 1.8 1997/03/28 20:24:52 jim Exp $";
 
 #include <time.h>
 #include "cPersistence.h"
@@ -66,7 +66,7 @@ static char *what_string = "$Id: cPersistence.c,v 1.7 1997/03/25 20:43:21 jim Ex
 #define UNLESS_ASSIGN(V,E) ASSIGN(V,E) UNLESS(V)
 
 static PyObject *py_store, *py_oops, *py_keys, *py_setstate, *py___changed__,
-  *py___dict__, *py_mtime, *py_onearg;
+  *py___dict__, *py_mtime, *py_onearg, *py___getinitargs__, *py___init__;
 
 static void
 init_strings()
@@ -78,6 +78,8 @@ init_strings()
   INIT_STRING(setstate);
   INIT_STRING(mtime);
   INIT_STRING(__changed__);
+  INIT_STRING(__init__);
+  INIT_STRING(__getinitargs__);
   INIT_STRING(__dict__);
   py_onearg=Py_BuildValue("(i)",1);
 #undef INIT_STRING
@@ -344,23 +346,63 @@ Per__p___init__(self, args)
 static PyObject *
 Per__p___reinit__(cPersistentObject *self, PyObject *args)
 {
-  PyObject *oid, *jar, *copy;
+  PyObject *oid, *jar=0, *copy;
 
-  UNLESS(PyArg_Parse(args, "(OOO)", &oid, &jar, &copy)) return NULL;
-  UNLESS(self->oid)
+  if(PyArg_Parse(args,""))
     {
-      Py_INCREF(oid);
-      ASSIGN(self->oid, oid);
+      if(self->state==cPersistent_UPTODATE_STATE)
+	if(jar=PyObject_GetAttr((PyObject*)self,py___init__))
+	  {
+
+	    if(copy=PyObject_GetAttr((PyObject*)self,py___getinitargs__))
+	      {
+		ASSIGN(copy,PyObject_CallObject(copy,NULL));
+		UNLESS(copy) goto err;
+		UNLESS(PyTuple_Check(copy))
+		  {
+		    ASSIGN(copy,PySequence_Tuple(copy));
+		    UNLESS(copy) goto err;
+		  }
+	      }
+	    else copy=NULL;
+	    
+	    if((oid=INSTANCE_DICT(self))) PyDict_Clear(oid);
+
+	    ASSIGN(copy,PyObject_CallObject(jar,copy));
+	    self->state=cPersistent_GHOST_STATE;
+	    UNLESS(copy) goto err;
+	    Py_DECREF(copy);
+	    Py_DECREF(jar);
+	  }
+	else if((oid=INSTANCE_DICT(self)))
+	  {
+	    PyDict_Clear(oid);
+	    self->state=cPersistent_GHOST_STATE;
+	  }
     }
-  if((self->oid==oid || PyObject_Compare(self->oid, oid)==0)
-     && self->state==cPersistent_UPTODATE_STATE)
+  else
     {
-      UNLESS(args=PyObject_GetAttr(copy,py___dict__)) return NULL;
-      ASSIGN(INSTANCE_DICT(self),args);
-      self->state=GHOST_STATE;
+      PyErr_Clear();
+
+      UNLESS(PyArg_Parse(args, "(OOO)", &oid, &jar, &copy)) return NULL;
+      UNLESS(self->oid)
+	{
+	  Py_INCREF(oid);
+	  ASSIGN(self->oid, oid);
+	}
+      if((self->oid==oid || PyObject_Compare(self->oid, oid)==0)
+	 && self->state==cPersistent_UPTODATE_STATE)
+	{
+	  UNLESS(args=PyObject_GetAttr(copy,py___dict__)) return NULL;
+	  ASSIGN(INSTANCE_DICT(self),args);
+	  self->state=GHOST_STATE;
+	}
     }
   Py_INCREF(Py_None);
   return Py_None;
+  err:
+  Py_XDECREF(jar);
+  return NULL;
 }
 
 static int
@@ -760,7 +802,7 @@ void
 initcPersistence()
 {
   PyObject *m, *d;
-  char *rev="$Revision: 1.7 $";
+  char *rev="$Revision: 1.8 $";
 
   PATimeType.ob_type=&PyType_Type;
 
@@ -787,6 +829,10 @@ initcPersistence()
 /****************************************************************************
 
   $Log: cPersistence.c,v $
+  Revision 1.8  1997/03/28 20:24:52  jim
+  Added login to really minimice cache size and to
+  make cache attributes changeable.
+
   Revision 1.7  1997/03/25 20:43:21  jim
   Changed to make all persistent objects transactional.
 
