@@ -3,6 +3,7 @@
 %    PersistentList
 %    BTrees
 %       Total Ordering and Persistence
+%       BTree Diagnostic Tools
 
 \section{Related Modules}
 
@@ -378,6 +379,25 @@ of a BTree.
 BTrees and TreeSets also have a \method{_check()} method.  This verifies
 that the (possibly many) internal pointers in a BTree or TreeSet
 are mutually consistent, and raises \exception{AssertionError} if they're
-not.  If a \method{_check()} method call fails, in may point to a bug
-in the implementation of BTrees or conflict resolution, or may point to
-database corruption.
+not.
+
+If a \function{check.check()} or \method{_check()} call fails,
+it may point to a bug in the implementation of BTrees or conflict
+resolution, or may point to database corruption.
+
+Repairing a damaged BTree is usually best done by making a copy of it.
+For example, if \var{self.data} is bound to a corrupted IOBTree,
+
+\begin{verbatim}
+    self.data = IOBTree(self.data)
+\end{verbatim}
+
+usually suffices.  If object identity needs to be preserved,
+
+\begin{verbatim}
+    acopy = IOBTree(self.data)
+    self.data.clear()
+    self.data.update(acopy)
+\end{verbatim}
+
+does the same, but leaves \var{self.data} bound to the same object.
