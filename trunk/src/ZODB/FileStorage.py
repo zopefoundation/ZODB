@@ -115,7 +115,7 @@
 #   may have a back pointer to a version record or to a non-version
 #   record.
 #
-__version__='$Revision: 1.117 $'[11:-2]
+__version__='$Revision: 1.118 $'[11:-2]
 
 import base64
 from cPickle import Pickler, Unpickler, loads
@@ -1356,9 +1356,9 @@ class FileStorage(BaseStorage.BaseStorage,
 
     def _redundant_pack(self, file, pos):
         assert pos > 8, pos
-        file.seek(pos-8)
-        p=U64(file.read(8))
-        file.seek(pos-p+8)
+        file.seek(pos - 8)
+        p = U64(file.read(8))
+        file.seek(pos - p + 8)
         return file.read(1) not in ' u'
 
     def pack(self, t, referencesf):
@@ -1410,9 +1410,7 @@ class FileStorage(BaseStorage.BaseStorage,
             if packpos == 4:
                 return
             if self._redundant_pack(file, packpos):
-                raise FileStorageError, (
-                    'The database has already been packed to a later time\n'
-                    'or no changes have been made since the last pack')
+                return
 
             rootl=[z64]
             pop=rootl.pop
