@@ -1,4 +1,4 @@
-#!python
+#!/usr/bin/env python2.3
 
 # repozo.py -- incremental and full backups of a Data.fs file.
 #

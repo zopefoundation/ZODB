@@ -1,4 +1,5 @@
-#!python
+#!/usr/bin/env python2.3
+
 """Make sure a ZEO server is running.
 
 usage: zeoup.py [options]

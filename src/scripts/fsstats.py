@@ -1,4 +1,5 @@
-#!python
+#!/usr/bin/env python2.3
+
 """Print details statistics from fsdump output."""
 
 import re

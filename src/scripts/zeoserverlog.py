@@ -1,4 +1,5 @@
-#!python
+#!/usr/bin/env python2.3
+
 ##############################################################################
 #
 # Copyright (c) 2003 Zope Corporation and Contributors.
@@ -140,7 +141,7 @@ Commands:
     - wall time to verify
     - average miliseconds to verify per object.
 
-$Id: zeoserverlog.py,v 1.4 2003/10/24 15:29:13 jeremy Exp $
+$Id: zeoserverlog.py,v 1.5 2004/03/18 13:27:49 yuppie Exp $
 """
 
 import datetime, sys, re, os

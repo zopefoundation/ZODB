@@ -1,4 +1,4 @@
-#! /usr/bin/env python
+#!/usr/bin/env python2.3
 
 """Report on the space used by objects in a storage.
 

@@ -1,4 +1,5 @@
-#!python
+#!/usr/bin/env python2.3
+
 # Based on a transaction analyzer by Matt Kromer.
 
 import pickle

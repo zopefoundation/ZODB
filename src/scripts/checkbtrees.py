@@ -1,4 +1,5 @@
-#!python
+#!/usr/bin/env python2.3
+
 """Check the consistency of BTrees in a Data.fs
 
 usage: checkbtrees.py data.fs
