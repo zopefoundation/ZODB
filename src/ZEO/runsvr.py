@@ -39,7 +39,6 @@ import signal
 import socket
 
 import zLOG
-
 import ZConfig
 
 
@@ -359,8 +358,8 @@ class ZEOServer:
         self.server = StorageServer(self.options.address, self.storages)
 
     def loop_forever(self):
-        import ThreadedAsync
-        ThreadedAsync.loop()
+        import ThreadedAsync.LoopCallback
+        ThreadedAsync.LoopCallback.loop()
 
     def handle_sigterm(self):
         info("terminated by SIGTERM")
