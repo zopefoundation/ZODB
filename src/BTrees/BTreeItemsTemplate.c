@@ -12,7 +12,7 @@
 
  ****************************************************************************/
 
-#define BTREEITEMSTEMPLATE_C "$Id: BTreeItemsTemplate.c,v 1.13 2002/06/10 14:44:55 tim_one Exp $\n"
+#define BTREEITEMSTEMPLATE_C "$Id: BTreeItemsTemplate.c,v 1.14 2002/06/17 23:39:56 tim_one Exp $\n"
 
 /* A BTreeItems struct is returned from calling .items(), .keys() or
  * .values() on a BTree-based data structure, and is also the result of
@@ -20,33 +20,37 @@
  *
  * The start of the slice is in firstbucket, at offset first.  The end of
  * the slice is in lastbucket, at offset last.  Both endpoints are inclusive.
- * It should be possible to get from firstbucket to lastbucket via following
+ * It must possible to get from firstbucket to lastbucket via following
  * bucket 'next' pointers zero or more times.  firstbucket, first, lastbucket,
  * and last are readonly after initialization.  An empty slice is represented
- * by [XXX (firstbucket == NULL) or (firstbucket == lastbucket and
- * first > last) XXX].
+ * by  firstbucket == lastbucket == currentbucket == NULL.
  *
  * 'kind' determines whether this slice represents 'k'eys alone, 'v'alues
  * alone, or 'i'items (key+value pairs).  'kind' is also readonly after
  * initialization.
  *
- * [XXX currentoffset and currentbucket appear to be used to return function
- *  results XXX]
- *
- * [XXX pseudoindex may be the index corresponding to the position identified
- *  by the currentbucket+currenoffset pair.  Seems to be a kind of search
- *  finger. XXX]
+ * The combination of currentbucket, currentoffset and pseudoindex acts as
+ * a search finger.  Offset currentoffset in bucket currentbucket is at index
+ * pseudoindex, where pseudoindex==0 corresponds to offset first in bucket
+ * firstbucket, and pseudoindex==-1 corresponds to offset last in bucket
+ * lastbucket.  The function BTreeItems_seek() can be used to set this combo
+ * correctly for any in-bounds index, and uses this combo on input to avoid
+ * needing to search from the start (or end) on each call.  Calling
+ * BTreeItems_seek() with consecutive larger positions is very efficent.
+ * Calling it with consecutive smaller positions is more efficient than if
+ * a search finger weren't being used at all, but is still quadratic time
+ * in the number of buckets in the slice.
  */
 typedef struct {
   PyObject_HEAD
-  Bucket *firstbucket;		/* First bucket		        */
-  Bucket *currentbucket;	/* Current bucket	        */
-  Bucket *lastbucket;		/* Last bucket		        */
-  int currentoffset;		/* Offset in currentbucket      */
-  int pseudoindex;		/* It's an indicator (what?)    */
-  int first;                    /* Start offset in firstbucket  */
-  int last;                     /* End offset in lastbucket     */
-  char kind;                    /* 'k', 'v', 'i'                */
+  Bucket *firstbucket;		/* First bucket		          */
+  Bucket *currentbucket;	/* Current bucket (search finger) */
+  Bucket *lastbucket;		/* Last bucket		          */
+  int currentoffset;		/* Offset in currentbucket        */
+  int pseudoindex;		/* search finger index            */
+  int first;                    /* Start offset in firstbucket    */
+  int last;                     /* End offset in lastbucket       */
+  char kind;                    /* 'k', 'v', 'i'                  */
 } BTreeItems;
 
 #define ITEMS(O)((BTreeItems*)(O))
@@ -117,189 +121,115 @@ BTreeItems_length( BTreeItems *self)
 /*
 ** BTreeItems_seek
 **
-** Find the ith position in the BTreeItems.  Pseudoindex is used to
-** determine motion relative to the current bucket.
+** Find the ith position in the BTreeItems.
 **
-** Arguments:  	self		The BTree
-**		i		the index to seek to, positive for a forward
-**				index (0..n) or negative (-m..-1) (m=n+1)
+** Arguments:  	self	The BTree
+**		i	the index to seek to, in 0 .. len(self)-1, or in
+**                      -len(self) .. -1, as for indexing a Python sequence.
 **
 **
-** Returns 0 if successful, -1 on failure to seek
+** Returns 0 if successful, -1 on failure to seek (like out-of-bounds).
+** Upon successful return, index i is at offset self->currentoffset in bucket
+** self->currentbucket.
 */
 static int
 BTreeItems_seek(BTreeItems *self, int i)
 {
-  int delta, pseudoindex, currentoffset;
-  Bucket *b, *currentbucket;
+    int delta, pseudoindex, currentoffset;
+    Bucket *b, *currentbucket;
 
-  currentbucket=self->currentbucket;
-  UNLESS(currentbucket)
-    {
-      IndexError(i);
-      return -1;
+    pseudoindex = self->pseudoindex;
+    currentoffset = self->currentoffset;
+    currentbucket = self->currentbucket;
+    if (currentbucket == NULL) goto no_match;
+
+    /* Make sure that the index and pseudoindex have the same sign. */
+    if (pseudoindex < 0 && i >= 0) {
+        /* Position to the start of the sequence. */
+        currentbucket = self->firstbucket;
+        currentoffset = self->first;
+        pseudoindex = 0;
+    }
+    else if (pseudoindex >= 0 && i < 0) {
+        /* Position to the end of the sequence. */
+        currentbucket = self->lastbucket;
+        currentoffset = self->last;
+        pseudoindex = -1;
     }
 
-  pseudoindex=self->pseudoindex;
-  Py_INCREF(currentbucket);
-  currentoffset=self->currentoffset;
-
-  /* Make sure that the index and psuedoindex have the same sign */
-  if (pseudoindex < 0 && i >=0)
-    {
-      /* Position to the start of the sequence. */
-      ASSIGNB(currentbucket, self->firstbucket);
-      Py_INCREF(currentbucket);
-      currentoffset = self->first;
-
-      UNLESS (PER_USE(currentbucket)) goto err;
-
-      /* We need to be careful that we have a valid offset! */
-      if (currentoffset >= currentbucket->len)
-        {
-          switch (firstBucketOffset(&currentbucket, &currentoffset))
-            {
-            case 0: goto no_match;
-            case -1: goto err;
-            }
-        }
-      pseudoindex = 0;
-    }
-  else if (self->pseudoindex >= 0 && i < 0)
-    {
-      /* Position to the end of the sequence. */
-      ASSIGNBC(currentbucket, self->lastbucket);
-      currentoffset = self->last;
-      UNLESS (PER_USE(currentbucket)) goto err;
-
-      /* We need to be careful that we have a valid offset! */
-      if (currentoffset >= currentbucket->len)
-        {
-          switch (lastBucketOffset(&currentbucket, &currentoffset,
-                                   self->firstbucket, i))
-            {
-            case 0: goto no_match;
-            case -1: goto err;
-            }
-        }
-      pseudoindex = -1;
-    }
-  else
-    {
-      UNLESS (PER_USE(currentbucket)) goto err;
-
-      /* We need to be careful that we have a valid offset! */
-      if (currentoffset >= currentbucket->len) goto no_match;
-    }
-
-  /* Whew, we got here so we have a valid offset! */
-
-  delta = i - pseudoindex;
-  if (delta)
-    while (delta)
-      {
-        if (delta < 0)
-          {
-            /* First, would we drop below zero? */
-            if (pseudoindex >= 0 && pseudoindex + delta < 0) goto no_match;
-
-            /* Next, do we have to backup a bucket? */
-            if (currentoffset + delta < 0)
-              {
-                if (currentbucket == self->firstbucket) goto no_match;
-
-                b=PreviousBucket(currentbucket, self->firstbucket, i);
-                if (b==NULL) goto no_match;
-
+    PER_USE_OR_RETURN(currentbucket, -1);
+    delta = i - pseudoindex;
+    while (delta > 0) {         /* move right */
+        int max;
+        /* Want to move right delta positions; the most we can move right in
+         * this bucket is currentbucket->len - currentoffset - 1 positions.
+         */
+        max = currentbucket->len - currentoffset - 1;
+        if (delta <= max) {
+            currentoffset += delta;
+            pseudoindex += delta;
+            if (currentbucket == self->lastbucket
+                && currentoffset > self->last) {
                 PER_ALLOW_DEACTIVATION(currentbucket);
                 PER_ACCESSED(currentbucket);
-                ASSIGNB(currentbucket, b);
-                UNLESS (PER_USE(currentbucket)) goto err;
-
-                delta += currentoffset;
-                pseudoindex -= currentoffset + 1;
-
-                if ((currentoffset = currentbucket->len - 1) < 0)
-                  /* We backed into an empty bucket. Fix the psuedo index */
-                  if (++pseudoindex == 0) goto no_match;
-              }
-            else
-              {	/* Local adjustment */
-                pseudoindex += delta;
-                currentoffset += delta;
-              }
-
-            if (currentbucket == self->firstbucket &&
-                currentoffset < self->first) goto no_match;
-
-          }
-        else if (delta > 0)
-          {
-
-            /* Simple backwards range check */
-            if (pseudoindex < 0 && pseudoindex + delta >= 0)
-              goto no_match;
-
-            /* Next, do we go forward a bucket? */
-            if (currentoffset + delta >= currentbucket->len)
-              {
-                while (1)
-                  {
-                    if (currentbucket == self->lastbucket) goto no_match;
-
-                    if ((b=currentbucket->next) == NULL) goto no_match;
-                    delta -= currentbucket->len - currentoffset;
-                    pseudoindex += (currentbucket->len - currentoffset);
-                    Py_INCREF(b);
-                    PER_ALLOW_DEACTIVATION(currentbucket);
-                    PER_ACCESSED(currentbucket);
-                    ASSIGNB(currentbucket, b);
-                    UNLESS (PER_USE(currentbucket)) goto err;
-                    currentoffset = 0;
-                    if (currentbucket->len) break;
-                  }
-              }
-            else
-              {	/* Local adjustment */
-                pseudoindex += delta;
-                currentoffset += delta;
-              }
-            if (currentbucket == self->lastbucket &&
-                currentoffset > self->last) goto no_match;
-
-          }
-
-        delta = i - pseudoindex;
-      }
-  else
-    {                           /* Sanity check current bucket/offset */
-      if (currentbucket == self->firstbucket &&currentoffset < self->first)
-        goto no_match;
-      if (currentbucket == self->lastbucket && currentoffset > self->last)
-        goto no_match;
+                goto no_match;
+            }
+            break;
+        }
+        /* Move to start of next bucket. */
+        b = currentbucket->next;
+        PER_ALLOW_DEACTIVATION(currentbucket);
+        PER_ACCESSED(currentbucket);
+        if (currentbucket == self->lastbucket || b == NULL) goto no_match;
+        currentbucket = b;
+        PER_USE_OR_RETURN(currentbucket, -1);
+        pseudoindex += max + 1;
+        delta -= max + 1;
+        currentoffset = 0;
     }
+    while (delta < 0) {         /* move left */
+        /* Want to move left -delta positions; the most we can move left in
+         * this bucket is currentoffset positions.
+         */
+        if ((-delta) <= currentoffset) {
+            currentoffset += delta;
+            pseudoindex += delta;
+            if (currentbucket == self->firstbucket
+                && currentoffset < self->first) {
+                PER_ALLOW_DEACTIVATION(currentbucket);
+                PER_ACCESSED(currentbucket);
+                goto no_match;
+            }
+            break;
+        }
+        /* Move to end of previous bucket. */
+        PER_ALLOW_DEACTIVATION(currentbucket);
+        PER_ACCESSED(currentbucket);
+        if (currentbucket == self->firstbucket) goto no_match;
+        b = PreviousBucket(currentbucket, self->firstbucket, i);
+        if (b == NULL) goto no_match; /* XXX this could be another error */
+        Py_DECREF(b);   /* we didn't really want it incref'ed to begin with */
+        currentbucket = b;
+        PER_USE_OR_RETURN(currentbucket, -1);
+        pseudoindex -= currentoffset + 1;
+        delta += currentoffset + 1;
+        currentoffset = currentbucket->len - 1;
+    }
+    PER_ALLOW_DEACTIVATION(currentbucket);
+    PER_ACCESSED(currentbucket);
 
-  PER_ALLOW_DEACTIVATION(currentbucket);
+    assert(pseudoindex == i);
+    Py_INCREF(currentbucket);
+    Py_DECREF(self->currentbucket);
+    self->currentbucket = currentbucket;
+    self->currentoffset = currentoffset;
+    self->pseudoindex = pseudoindex;
+    return 0;
 
-  if (currentbucket==self->currentbucket) Py_DECREF(currentbucket);
-  else ASSIGNB(self->currentbucket, currentbucket);
-
-  self->pseudoindex=pseudoindex;
-  self->currentoffset=currentoffset;
-
-  return 0;
-
- no_match:
-
-  IndexError(i);
-
-  PER_ALLOW_DEACTIVATION(currentbucket);
-
- err:
-  Py_XDECREF(currentbucket);
-  return -1;
+no_match:
+    IndexError(i);
+    return -1;
 }
-
 
 /*
 ** BTreeItems_item
@@ -419,7 +349,7 @@ BTreeItems_slice(BTreeItems *self, int ilow, int ihigh)
    */
    if (ilow == ihigh) {
        /* empty slice */
-       lowbucket = highbucket = self->currentbucket;
+       lowbucket = highbucket = NULL;
        lowoffset = 1;
        highoffset = 0;
    }
@@ -487,6 +417,12 @@ static PyTypeObject BTreeItemsType = {
   "Sequence type used to iterate over BTree items." /* Documentation string */
 };
 
+/* Returns a new BTreeItems object representing the contiguous slice from
+ * offset lowoffset in bucket lowbucket through offset highoffset in bucket
+ * highbucket, inclusive.  Pass lowbucket == NULL for an empty slice.
+ * The currentbucket is set to lowbucket, currentoffset ot lowoffset, and
+ * pseudoindex to 0.  kind is 'k', 'v' or 'i' (see BTreeItems struct docs).
+ */
 static PyObject *
 newBTreeItems(char kind,
               Bucket *lowbucket, int lowoffset,
@@ -495,12 +431,13 @@ newBTreeItems(char kind,
   BTreeItems *self;
 
   UNLESS (self = PyObject_NEW(BTreeItems, &BTreeItemsType)) return NULL;
-  self->kind=kind;
+  self->kind = kind;
 
-  self->first=lowoffset;
-  self->last=highoffset;
+  self->first = lowoffset;
+  self->last = highoffset;
 
-  if (! lowbucket || (lowbucket==highbucket && lowoffset > highoffset))
+  if (! lowbucket || ! highbucket
+      || (lowbucket == highbucket && lowoffset > highoffset))
     {
       self->firstbucket   = 0;
       self->lastbucket    = 0;

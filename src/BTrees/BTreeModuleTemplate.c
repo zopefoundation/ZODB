@@ -298,43 +298,6 @@ PreviousBucket(Bucket *current, Bucket *first, int i)
     }
 }
 
-static int
-firstBucketOffset(Bucket **bucket, int *offset)
-{
-  Bucket *b;
-
-  *offset = (*bucket)->len - 1;
-  while ((*bucket)->len < 1)
-    {
-      b=(*bucket)->next;
-      if (b==NULL) return 0;
-      Py_INCREF(b);
-      PER_ALLOW_DEACTIVATION((*bucket));
-      ASSIGNB((*bucket), b);
-      UNLESS (PER_USE(*bucket)) return -1;
-      *offset = 0;
-    }
-  return 1;
-}
-
-static int
-lastBucketOffset(Bucket **bucket, int *offset, Bucket *firstbucket, int i)
-{
-  Bucket *b;
-
-  *offset = (*bucket)->len - 1;
-  while ((*bucket)->len < 1)
-    {
-      b=PreviousBucket((*bucket), firstbucket, i);
-      if (b==NULL) return 0;
-      PER_ALLOW_DEACTIVATION((*bucket));
-      ASSIGNB((*bucket), b);
-      UNLESS (PER_USE(*bucket)) return -1;
-      *offset = (*bucket)->len - 1;
-    }
-  return 1;
-}
-
 static void *
 PyMalloc(size_t sz)
 {
@@ -409,7 +372,7 @@ static char BTree_module_documentation[] =
 "\n"
 MASTER_ID
 BTREEITEMSTEMPLATE_C
-"$Id: BTreeModuleTemplate.c,v 1.32 2002/06/17 19:21:39 tim_one Exp $\n"
+"$Id: BTreeModuleTemplate.c,v 1.33 2002/06/17 23:39:56 tim_one Exp $\n"
 BTREETEMPLATE_C
 BUCKETTEMPLATE_C
 KEYMACROS_H
