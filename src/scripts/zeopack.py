@@ -1,4 +1,4 @@
-#! /usr/bin/env python
+#!python
 """Connect to a ZEO server and ask it to pack.
 
 Usage: zeopack.py [options]
@@ -6,11 +6,11 @@ Usage: zeopack.py [options]
 Options:
 
     -p port -- port to connect to
-    
+
     -h host -- host to connect to (default is current host)
-    
+
     -U path -- Unix-domain socket to connect to
-    
+
     -S name -- storage name (default is '1')
 
     -d days -- pack objects more than days old

@@ -4,14 +4,14 @@
 #
 # Copyright (c) 2001, 2002 Zope Corporation and Contributors.
 # All Rights Reserved.
-# 
+#
 # This software is subject to the provisions of the Zope Public License,
 # Version 2.0 (ZPL).  A copy of the ZPL should accompany this distribution.
 # THIS SOFTWARE IS PROVIDED "AS IS" AND ANY AND ALL EXPRESS OR IMPLIED
 # WARRANTIES ARE DISCLAIMED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 # WARRANTIES OF TITLE, MERCHANTABILITY, AGAINST INFRINGEMENT, AND FITNESS
 # FOR A PARTICULAR PURPOSE
-# 
+#
 ##############################################################################
 
 """Simple consistency checker for FileStorage.
@@ -109,7 +109,7 @@ def check_trec(path, file, pos, ltid, file_size):
     It also leaves the file pointer set to pos.  The path argument is
     used for generating error messages.
     """
-    
+
     h = file.read(TREC_HDR_LEN)
     if not h:
         return None, None
@@ -131,7 +131,7 @@ def check_trec(path, file, pos, ltid, file_size):
         raise FormatError("%s truncated possibly because of"
                           " damaged records at %s" % (path, pos))
     if status == Status.checkpoint:
-        raise FormatError("%s checkpoint flag was not cleared at %s" 
+        raise FormatError("%s checkpoint flag was not cleared at %s"
                           % (path, pos))
     if status not in ' up':
         raise FormatError("%s has invalid status '%s' at %s" %

@@ -1,3 +1,4 @@
+#!python
 """Report on the net size of objects counting subobjects.
 
 usage: netspace.py [-P | -v] data.fs
@@ -89,7 +90,7 @@ def main(path):
         keys = filter(paths.has_key, keys)
 
     fmt = "%8s %5d %8d %s %s.%s"
-    
+
     for oid in keys:
         data, serialno = fs.load(oid, '')
         mod, klass = get_pickle_metadata(data)

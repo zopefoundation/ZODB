@@ -1,4 +1,4 @@
-#! /usr/bin/env python
+#!python
 """Report on the number of currently waiting clients in the ZEO queue.
 
 Usage: %(PROGRAM)s [options] logfile

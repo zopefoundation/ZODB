@@ -79,7 +79,7 @@ method::
 and call it to monitor the storage.
 
 """
-__version__='$Revision: 1.19 $'[11:-2]
+__version__='$Revision: 1.20 $'[11:-2]
 
 import base64, time, string
 from ZODB import POSException, BaseStorage, utils

@@ -78,7 +78,7 @@ disconnected_stub = DisconnectedServerStub()
 
 MB = 1024**2
 
-class ClientStorage:
+class ClientStorage(object):
 
     """A Storage class that is a network client to a remote storage.
 
@@ -129,6 +129,7 @@ class ClientStorage:
 
         client -- A name used to construct persistent cache filenames.
             Defaults to None, in which case the cache is not persistent.
+            See ClientCache for more info.
 
         debug -- Ignored.  This is present only for backwards
             compatibility with ZEO 1.

@@ -88,7 +88,7 @@ class FileStorageTests(
 
         class OldFileStorage(ZODB.FileStorage.FileStorage):
             def _newIndexes(self):
-                return {}, {}, {}, {}
+                return {}, {}, {}, {}, {}, {}, {}
 
 
         from ZODB.fsIndex import fsIndex
@@ -113,7 +113,7 @@ class FileStorageTests(
 
         class OldFileStorage(ZODB.FileStorage.FileStorage):
             def _newIndexes(self):
-                return {}, {}, {}, {}
+                return {}, {}, {}, {}, {}, {}, {}
 
 
         from ZODB.fsIndex import fsIndex

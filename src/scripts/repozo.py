@@ -1,64 +1,65 @@
-#!/usr/bin/env python
+#!python
 
 # repozo.py -- incremental and full backups of a Data.fs file.
 #
 # Originally written by Anthony Baxter
 # Significantly modified by Barry Warsaw
-#
-# TODO:
-#    allow gzipping of backup files.
-#    allow backup files in subdirectories.
 
 """repozo.py -- incremental and full backups of a Data.fs file.
 
 Usage: %(program)s [options]
 Where:
 
+    Exactly one of -B or -R must be specified:
+
     -B / --backup
-        backup current ZODB file
+        Backup current ZODB file.
 
     -R / --recover
-        restore a ZODB file from a backup
+        Restore a ZODB file from a backup.
 
     -v / --verbose
-        Verbose mode
+        Verbose mode.
 
     -h / --help
-        Print this text and exit
+        Print this text and exit.
 
     -r dir
     --repository=dir
-        Repository directory containing the backup files
+        Repository directory containing the backup files.  This argument
+        is required.
 
-Flags for --backup:
+Options for -B/--backup:
     -f file
     --file=file
-        Source Data.fs file
+        Source Data.fs file.  This argument is required.
 
     -F / --full
-        Force a full backup
+        Force a full backup.  By default, an incremental backup is made
+        if possible (e.g., if a pack has occurred since the last
+        incremental backup, a full backup is necessary).
 
     -Q / --quick
         Verify via md5 checksum only the last incremental written.  This
         significantly reduces the disk i/o at the (theoretical) cost of
-        inconsistency.
+        inconsistency.  This is a probabilistic way of determining whether
+        a full backup is necessary.
 
     -z / --gzip
         Compress with gzip the backup files.  Uses the default zlib
-        compression level.
+        compression level.  By default, gzip compression is not used.
 
-Flags for --recover:
+Options for -R/--recover:
     -D str
     --date=str
-        Recover state as at this date.  str is in the format
-        yyyy-mm-dd[-hh[-mm]]
+        Recover state as of this date.  str is in the format
+            yyyy-mm-dd[-hh[-mm]]
+        By default, current time is used.
 
-    -o file
-    --output=file
-        Write recovered ZODB to given file.  If not given, the file will be
+    -o filename
+    --output=filename
+        Write recovered ZODB to given file.  By default, the file is
         written to stdout.
-
-One of --backup or --recover is required.
 """
 
 from __future__ import nested_scopes
@@ -120,14 +121,14 @@ def parseargs():
         usage(1, msg)
 
     class Options:
-        mode = None
-        file = None
-        repository = None
-        full = False
-        date = None
-        output = None
-        quick = False
-        gzip = False
+        mode = None         # BACKUP or RECOVER
+        file = None         # name of input Data.fs file
+        repository = None   # name of directory holding backups
+        full = False        # True forces full backup
+        date = None         # -D argument, if any
+        output = None       # where to write recovered data; None = stdout
+        quick = False       # -Q flag state
+        gzip = False        # -z flag state
 
     options = Options()
 
@@ -158,6 +159,8 @@ def parseargs():
             options.output = arg
         elif opt in ('-z', '--gzip'):
             options.gzip = True
+        else:
+            assert False, (opt, arg)
 
     # Any other arguments are invalid
     if args:
@@ -184,20 +187,26 @@ def parseargs():
 
 
 
-# Do something with a run of bytes from a file
+# Read bytes (no more than n, or to EOF if n is None) in chunks from the
+# current position in file fp.  Pass each chunk as an argument to func().
+# Return the total number of bytes read == the total number of bytes
+# passed in all to func().  Leaves the file position just after the
+# last byte read.
 def dofile(func, fp, n=None):
-    bytesread = 0
-    stop = False
-    chunklen = READCHUNK
-    while not stop:
-        if n is not None and chunklen + bytesread > n:
-            chunklen = n - bytesread
-            stop = True
-        data = fp.read(chunklen)
+    bytesread = 0L
+    while n is None or n > 0:
+        if n is None:
+            todo = READCHUNK
+        else:
+            todo = min(READCHUNK, n)
+        data = fp.read(todo)
         if not data:
             break
         func(data)
-        bytesread += len(data)
+        nread = len(data)
+        bytesread += nread
+        if n is not None:
+            n -= nread
     return bytesread
 
 
@@ -223,9 +232,10 @@ def copyfile(options, dst, start, n):
     def func(data):
         sum.update(data)
         ofp.write(data)
-    dofile(func, ifp, n)
+    ndone = dofile(func, ifp, n)
     ofp.close()
     ifp.close()
+    assert ndone == n
     return sum.hexdigest()
 
 
@@ -296,30 +306,34 @@ def find_files(options):
         log('no files found')
     return needed
 
+# Scan the .dat file corresponding to the last full backup performed.
+# Return
+#
+#     filename, startpos, endpos, checksum
+#
+# of the last incremental.  If there is no .dat file, or the .dat file
+# is empty, return
+#
+#     None, None, None, None
 
 def scandat(repofiles):
-    # Scan the .dat file corresponding to the last full backup performed.
-    # Return the filename, startpos, endpos, and sum of the last incremental.
-    # If all is a list, then append file name and md5sums to the list.
     fullfile = repofiles[0]
     datfile = os.path.splitext(fullfile)[0] + '.dat'
-    # If the .dat file is missing, we have to do a full backup
-    fn = startpos = endpos = sum = None
+    fn = startpos = endpos = sum = None # assume .dat file missing or empty
     try:
         fp = open(datfile)
     except IOError, e:
         if e.errno <> errno.ENOENT:
             raise
     else:
-        while True:
-            line = fp.readline()
-            if not line:
-                break
-            # We only care about the last one
-            fn, startpos, endpos, sum = line.split()
+        # We only care about the last one.
+        lines = fp.readlines()
         fp.close()
-    startpos = long(startpos)
-    endpos = long(endpos)
+        if lines:
+            fn, startpos, endpos, sum = lines[-1].split()
+            startpos = long(startpos)
+            endpos = long(endpos)
+
     return fn, startpos, endpos, sum
 
 
@@ -364,7 +378,7 @@ def do_incremental_backup(options, reposz, repofiles):
         print >> sys.stderr, 'Cannot overwrite existing file:', dest
         sys.exit(2)
     log('writing incremental: %s bytes to %s',  pos-reposz, dest)
-    sum = copyfile(options, dest, reposz, pos)
+    sum = copyfile(options, dest, reposz, pos - reposz)
     # The first file in repofiles points to the last full backup.  Use this to
     # get the .dat file and append the information for this incrementatl to
     # that file.
@@ -398,14 +412,18 @@ def do_backup(options):
             return
         # Now check the md5 sum of the source file, from the last
         # incremental's start and stop positions.
-        srcfp = open(options.file)
+        srcfp = open(options.file, 'rb')
         srcfp.seek(startpos)
         srcsum = checksum(srcfp, endpos-startpos)
+        srcfp.close()
         log('last incremental file: %s', fn)
         log('last incremental checksum: %s', sum)
         log('source checksum range: [%s..%s], sum: %s',
             startpos, endpos, srcsum)
         if sum == srcsum:
+            if srcsz == endpos:
+                log('No changes, nothing to do')
+                return
             log('doing incremental, starting at: %s', endpos)
             do_incremental_backup(options, endpos, repofiles)
             return
@@ -421,7 +439,7 @@ def do_backup(options):
         # Get the md5 checksum of the source file, up to two file positions:
         # the entire size of the file, and up to the file position of the last
         # incremental backup.
-        srcfp = open(options.file)
+        srcfp = open(options.file, 'rb')
         srcsum = checksum(srcfp, srcsz)
         srcfp.seek(0)
         srcsum_backedup = checksum(srcfp, reposz)

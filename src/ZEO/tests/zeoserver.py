@@ -122,9 +122,9 @@ class Suicide(threading.Thread):
         self._adminaddr = addr
 
     def run(self):
-        # If this process doesn't exit in 100 seconds, commit suicide
-        for i in range(20):
-            time.sleep(5)
+        # If this process doesn't exit in 300 seconds, commit suicide
+        time.sleep(300)
+        log("zeoserver", "suicide thread invoking shutdown")
         from ZEO.tests.forker import shutdown_zeo_server
         # XXX If the -k option was given to zeoserver, then the process will
         # go away but the temp files won't get cleaned up.
@@ -174,7 +174,7 @@ def main():
         transaction_timeout=zo.transaction_timeout,
         monitor_address=mon_addr,
         auth_protocol=zo.auth_protocol,
-        auth_filename=zo.auth_database,
+        auth_database=zo.auth_database,
         auth_realm=zo.auth_realm)
 
     try:

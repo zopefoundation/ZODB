@@ -4,14 +4,14 @@
 #
 # Copyright (c) 2002 Zope Corporation and Contributors.
 # All Rights Reserved.
-# 
+#
 # This software is subject to the provisions of the Zope Public License,
 # Version 2.0 (ZPL).  A copy of the ZPL should accompany this distribution.
 # THIS SOFTWARE IS PROVIDED "AS IS" AND ANY AND ALL EXPRESS OR IMPLIED
 # WARRANTIES ARE DISCLAIMED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 # WARRANTIES OF TITLE, MERCHANTABILITY, AGAINST INFRINGEMENT, AND FITNESS
 # FOR A PARTICULAR PURPOSE
-# 
+#
 ##############################################################################
 
 """Check FileStorage for dangling references.
@@ -77,7 +77,7 @@ def main(path):
             # that refer to this one, we won't get error reports from
             # them.  We could fix this by making two passes over the
             # storage, but that seems like overkill.
-            
+
         refs = get_refs(data)
         missing = [] # contains 3-tuples of oid, klass-metadata, reason
         for info in refs:

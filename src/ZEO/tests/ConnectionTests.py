@@ -100,6 +100,8 @@ class CommonSetupTearDown(StorageTestBase):
         if getattr(self, '_storage', None) is not None:
             self._storage.close()
             if hasattr(self._storage, 'cleanup'):
+                zLOG.LOG("testZEO", zLOG.DEBUG, "cleanup storage %s" %
+                         self._storage.__name__)
                 self._storage.cleanup()
         for adminaddr in self._servers:
             if adminaddr is not None:
@@ -141,9 +143,14 @@ class CommonSetupTearDown(StorageTestBase):
     def getConfig(self, path, create, read_only):
         raise NotImplementedError
 
-    def openClientStorage(self, cache='', cache_size=200000, wait=1,
+    cache_id = 1
+
+    def openClientStorage(self, cache=None, cache_size=200000, wait=1,
                           read_only=0, read_only_fallback=0,
                           username=None, password=None, realm=None):
+        if cache is None:
+            cache = str(self.__class__.cache_id)
+            self.__class__.cache_id += 1
         self.caches.append(cache)
         storage = TestClientStorage(self.addr,
                                     client=cache,
@@ -566,6 +573,70 @@ class ConnectionTests(CommonSetupTearDown):
         db2.close()
         db1.close()
 
+class InvqTests(CommonSetupTearDown):
+    invq = 2
+
+    def checkQuickVerificationWith2Clients(self):
+        perstorage = self.openClientStorage(cache="test")
+        self.assertEqual(perstorage.verify_result, "full verification")
+
+        self._storage = self.openClientStorage()
+        oid = self._storage.new_oid()
+        # When we create a new storage, it should always do a full
+        # verification
+        self.assertEqual(self._storage.verify_result, "full verification")
+        # do two storages of the object to make sure an invalidation
+        # message is generated
+        revid = self._dostore(oid)
+        revid = self._dostore(oid, revid)
+
+        perstorage.load(oid, '')
+        perstorage.close()
+
+        revid = self._dostore(oid, revid)
+
+        perstorage = self.openClientStorage(cache="test")
+        self.assertEqual(perstorage.verify_result, "quick verification")
+
+        self.assertEqual(perstorage.load(oid, ''),
+                         self._storage.load(oid, ''))
+        perstorage.close()
+
+    def checkVerificationWith2ClientsInvqOverflow(self):
+        perstorage = self.openClientStorage(cache="test")
+        self.assertEqual(perstorage.verify_result, "full verification")
+
+        self._storage = self.openClientStorage()
+        oid = self._storage.new_oid()
+        # When we create a new storage, it should always do a full
+        # verification
+        self.assertEqual(self._storage.verify_result, "full verification")
+        # do two storages of the object to make sure an invalidation
+        # message is generated
+        revid = self._dostore(oid)
+        revid = self._dostore(oid, revid)
+
+        perstorage.load(oid, '')
+        perstorage.close()
+
+        # the test code sets invq bound to 2
+        for i in range(5):
+            revid = self._dostore(oid, revid)
+
+        perstorage = self.openClientStorage(cache="test")
+        self.assertEqual(perstorage.verify_result, "full verification")
+        t = time.time() + 30
+        while not perstorage.end_verify.isSet():
+            perstorage.sync()
+            if time.time() > t:
+                self.fail("timed out waiting for endVerify")
+
+        self.assertEqual(self._storage.load(oid, '')[1], revid)
+        self.assertEqual(perstorage.load(oid, ''),
+                         self._storage.load(oid, ''))
+
+        perstorage.close()
+
 class ReconnectionTests(CommonSetupTearDown):
     # The setUp() starts a server automatically.  In order for its
     # state to persist, we set the class variable keep to 1.  In
@@ -688,7 +759,7 @@ class ReconnectionTests(CommonSetupTearDown):
         self._newAddr()
 
         # Start a read-only server
-        self.startServer(create=0, index=0, read_only=1)
+        self.startServer(create=0, index=0, read_only=1, keep=0)
         # Start a client in fallback mode
         self._storage = self.openClientStorage(read_only_fallback=1)
         # Stores should fail here
@@ -755,69 +826,6 @@ class ReconnectionTests(CommonSetupTearDown):
         self.assertEqual(perstorage.verify_result, "no verification")
         perstorage.close()
         self._storage.close()
-
-    def checkQuickVerificationWith2Clients(self):
-        perstorage = self.openClientStorage(cache="test")
-        self.assertEqual(perstorage.verify_result, "full verification")
-
-        self._storage = self.openClientStorage()
-        oid = self._storage.new_oid()
-        # When we create a new storage, it should always do a full
-        # verification
-        self.assertEqual(self._storage.verify_result, "full verification")
-        # do two storages of the object to make sure an invalidation
-        # message is generated
-        revid = self._dostore(oid)
-        revid = self._dostore(oid, revid)
-
-        perstorage.load(oid, '')
-        perstorage.close()
-
-        revid = self._dostore(oid, revid)
-
-        perstorage = self.openClientStorage(cache="test")
-        self.assertEqual(perstorage.verify_result, "quick verification")
-
-        self.assertEqual(perstorage.load(oid, ''),
-                         self._storage.load(oid, ''))
-        perstorage.close()
-
-
-
-    def checkVerificationWith2ClientsInvqOverflow(self):
-        perstorage = self.openClientStorage(cache="test")
-        self.assertEqual(perstorage.verify_result, "full verification")
-
-        self._storage = self.openClientStorage()
-        oid = self._storage.new_oid()
-        # When we create a new storage, it should always do a full
-        # verification
-        self.assertEqual(self._storage.verify_result, "full verification")
-        # do two storages of the object to make sure an invalidation
-        # message is generated
-        revid = self._dostore(oid)
-        revid = self._dostore(oid, revid)
-
-        perstorage.load(oid, '')
-        perstorage.close()
-
-        # the test code sets invq bound to 2
-        for i in range(5):
-            revid = self._dostore(oid, revid)
-
-        perstorage = self.openClientStorage(cache="test")
-        self.assertEqual(perstorage.verify_result, "full verification")
-        t = time.time() + 30
-        while not perstorage.end_verify.isSet():
-            perstorage.sync()
-            if time.time() > t:
-                self.fail("timed out waiting for endVerify")
-
-        self.assertEqual(self._storage.load(oid, '')[1], revid)
-        self.assertEqual(perstorage.load(oid, ''),
-                         self._storage.load(oid, ''))
-
-        perstorage.close()
 
 class TimeoutTests(CommonSetupTearDown):
     timeout = 1

@@ -28,7 +28,7 @@ from ZEO.zrpc.log import log
 from ZEO.zrpc.trigger import trigger
 from ZEO.zrpc.connection import ManagedConnection
 
-class ConnectionManager:
+class ConnectionManager(object):
     """Keeps a connection up over time"""
 
     def __init__(self, addrs, client, tmin=1, tmax=180):

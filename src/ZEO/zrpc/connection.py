@@ -67,7 +67,7 @@ class MTDelay(Delay):
         self.ready.wait()
         Delay.error(self, exc_info)
 
-class Connection(smac.SizedMessageAsyncConnection):
+class Connection(smac.SizedMessageAsyncConnection, object):
     """Dispatcher for RPC on object on both sides of socket.
 
     The connection supports synchronous calls, which expect a return,

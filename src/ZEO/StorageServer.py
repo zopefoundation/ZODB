@@ -82,6 +82,7 @@ class ZEOStorage:
         self.read_only = read_only
         self.locked = 0
         self.verifying = 0
+        self.store_failed = 0
         self.log_label = _label
         self.authenticated = 0
         self.auth_realm = auth_realm
@@ -367,6 +368,7 @@ class ZEOStorage:
         self.txnlog = CommitLog()
         self.tid = tid
         self.status = status
+        self.store_failed = 0
         self.stats.active_txns += 1
 
     def tpc_finish(self, id):
@@ -401,9 +403,9 @@ class ZEOStorage:
             self.timeout.end(self)
             self.stats.lock_time = None
             self.log("Transaction released storage lock")
-        # _handle_waiting() can start another transaction (by
-        # restarting a waiting one) so must be done last
-        self._handle_waiting()
+            # _handle_waiting() can start another transaction (by
+            # restarting a waiting one) so must be done last
+            self._handle_waiting()
 
     def _abort(self):
         # called when a connection is closed unexpectedly
@@ -471,12 +473,14 @@ class ZEOStorage:
         self.storage.tpc_begin(txn, tid, status)
 
     def _store(self, oid, serial, data, version):
+        err = None
         try:
             newserial = self.storage.store(oid, serial, data, version,
                                            self.transaction)
         except (SystemExit, KeyboardInterrupt):
             raise
         except Exception, err:
+            self.store_failed = 1
             if isinstance(err, ConflictError):
                 self.stats.conflicts += 1
             if not isinstance(err, TransactionError):
@@ -503,9 +507,15 @@ class ZEOStorage:
         if newserial == ResolvedSerial:
             self.stats.conflicts_resolved += 1
         self.serials.append((oid, newserial))
+        return err is None
 
     def _vote(self):
         self.client.serialnos(self.serials)
+        # If a store call failed, then return to the client immediately.
+        # The serialnos() call will deliver an exception that will be
+        # handled by the client in its tpc_vote() method.
+        if self.store_failed:
+            return
         return self.storage.tpc_vote(self.transaction)
 
     def _abortVersion(self, src):
@@ -554,11 +564,18 @@ class ZEOStorage:
 
     def _restart(self, delay=None):
         # Restart when the storage lock is available.
+        if self.txnlog.stores == 1:
+            template = "Preparing to commit transaction: %d object, %d bytes"
+        else:
+            template = "Preparing to commit transaction: %d objects, %d bytes"
+        self.log(template % (self.txnlog.stores, self.txnlog.size()),
+                 level=zLOG.BLATHER)
         self._tpc_begin(self.transaction, self.tid, self.status)
         loads, loader = self.txnlog.get_loader()
         for i in range(loads):
             # load oid, serial, data, version
-            self._store(*loader.load())
+            if not self._store(*loader.load()):
+                break
         resp = self._thunk()
         if delay is not None:
             delay.reply(resp)
@@ -612,7 +629,7 @@ class StorageServer:
                  transaction_timeout=None,
                  monitor_address=None,
                  auth_protocol=None,
-                 auth_filename=None,
+                 auth_database=None,
                  auth_realm=None):
         """StorageServer constructor.
 
@@ -659,7 +676,7 @@ class StorageServer:
         auth_protocol -- The name of the authentication protocol to use.
             Examples are "digest" and "srp".
             
-        auth_filename -- The name of the password database filename.
+        auth_database -- The name of the password database filename.
             It should be in a format compatible with the authentication
             protocol used; for instance, "sha" and "srp" require different
             formats.
@@ -685,7 +702,7 @@ class StorageServer:
             s._waiting = []
         self.read_only = read_only
         self.auth_protocol = auth_protocol
-        self.auth_filename = auth_filename
+        self.auth_database = auth_database
         self.auth_realm = auth_realm
         self.database = None
         if auth_protocol:
@@ -739,7 +756,7 @@ class StorageServer:
         # storages, avoiding the need to bloat each with a new authenticator
         # Database that would contain the same info, and also avoiding any
         # possibly synchronization issues between them.
-        self.database = db_class(self.auth_filename)
+        self.database = db_class(self.auth_database)
         if self.database.realm != self.auth_realm:
             raise ValueError("password database realm %r "
                              "does not match storage realm %r"

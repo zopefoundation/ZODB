@@ -1,20 +1,35 @@
-#! /usr/bin/env python
+#!python
 """Check the consistency of BTrees in a Data.fs
 
 usage: checkbtrees.py data.fs
 
-Try to find all the BTrees in a Data.fs and call their _check() methods.
+Try to find all the BTrees in a Data.fs, call their _check() methods,
+and run them through BTrees.check.check().
 """
 
 from types import IntType
 
 import ZODB
 from ZODB.FileStorage import FileStorage
+from BTrees.check import check
 
-def add_if_persistent(L, obj, path):
+# Set of oids we've already visited.  Since the object structure is
+# a general graph, this is needed to prevent unbounded paths in the
+# presence of cycles.  It's also helpful in eliminating redundant
+# checking when a BTree is pointed to by many objects.
+oids_seen = {}
+
+# Append (obj, path) to L if and only if obj is a persistent object
+# and we haven't seen it before.
+def add_if_new_persistent(L, obj, path):
+    global oids_seen
+
     getattr(obj, '_', None) # unghostify
     if hasattr(obj, '_p_oid'):
-        L.append((obj, path))
+        oid = obj._p_oid
+        if not oids_seen.has_key(oid):
+            L.append((obj, path))
+            oids_seen[oid] = 1
 
 def get_subobjects(obj):
     getattr(obj, '_', None) # unghostify
@@ -25,7 +40,7 @@ def get_subobjects(obj):
         attrs = ()
     for pair in attrs:
         sub.append(pair)
-        
+
     # what if it is a mapping?
     try:
         items = obj.items()
@@ -54,7 +69,7 @@ def main(fname):
     cn = ZODB.DB(fs).open()
     rt = cn.root()
     todo = []
-    add_if_persistent(todo, rt, '')
+    add_if_new_persistent(todo, rt, '')
 
     found = 0
     while todo:
@@ -75,6 +90,13 @@ def main(fname):
                     print msg
                     print "*" * 60
 
+                try:
+                    check(obj)
+                except AssertionError, msg:
+                    print "*" * 60
+                    print msg
+                    print "*" * 60
+
         if found % 100 == 0:
             cn.cacheMinimize()
 
@@ -84,7 +106,7 @@ def main(fname):
                 newpath = "%s%s" % (path, k)
             else:
                 newpath = "%s.%s" % (path, k)
-            add_if_persistent(todo, v, newpath)
+            add_if_new_persistent(todo, v, newpath)
 
     print "total", len(fs._index), "found", found
 

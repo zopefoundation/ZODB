@@ -185,9 +185,7 @@ class LRUCacheTests(CacheTestBase):
         self.assertEquals(len(details), CONNS)
         for d in details:
             self.assertEquals(d['ngsize'], CACHE_SIZE)
-            # the root is also in the cache as ghost, because
-            # the connection holds a reference to it
-            self.assertEquals(d['size'], CACHE_SIZE + 1)
+            self.assertEquals(d['size'], CACHE_SIZE)
 
     def checkDetail(self):
         CACHE_SIZE = 10
