@@ -511,7 +511,7 @@ The following elements are used to describe a schema:
   \end{attributedesc}
 \end{elementdesc}
 
-\begin{elementdesc}{key}{description?, example?, metadefault?}
+\begin{elementdesc}{key}{description?, example?, metadefault?, default*}
   A \element{key} element is used to describe a key-value pair which
   may occur at most once in the section type or top-level schema in
   which it is listed.
@@ -622,11 +622,52 @@ The following elements are used to describe a schema:
   element will be passed to the datatype conversion for the
   \element{multikey}.
 
-  \begin{attributedesc}{key}{}
+  \begin{attributedesc}{key}{key type of the containing sectiontype}
     Key to associate with the default value.  This is only used for
     defaults of a \element{key} or \element{multikey} with a
     \attribute{name} of \code{+}; in that case this attribute is
-    required.
+    required.  It is an error to use the \attribute{key} attribute
+    with a \element{default} element for a \element{multikey} with a
+    name other than \code{+}.
+
+    \begin{notice}[warning]
+      The datatype of this attribute is that of the section type
+      \emph{containing} the actual keys, not necessarily that of the
+      section type which defines the key.  If a derived section
+      overrides the key type of the base section type, the actual
+      key type used is that of the derived section.
+
+      This can lead to confusing errors in schemas, though the
+      \refmodule{ZConfig} package checks for this when the schema is
+      loaded.  This situation is particularly likely when a derived
+      section type uses a key type which collapses multiple default
+      keys which were not collapsed by the base section type.
+
+      Consider this example schema:
+
+\begin{verbatim}
+<schema>
+  <sectiontype name="base" keytype="identifier">
+    <key name="+" attribute="mapping">
+      <default key="foo">some value</default>
+      <default key="FOO">some value</default>
+    </key>
+  </sectiontype>
+
+  <sectiontype name="derived" keytype="basic-key"
+               extends="base"/>
+
+  <section type="derived" name="*" attribute="section"/>
+</schema>
+\end{verbatim}
+
+      When this schema is loaded, a set of defaults for the
+      \datatype{derived} section type is computed.  Since
+      \datatype{basic-key} is case-insensitive (everything is
+      converted to lower case), \samp{foo} and \samp{Foo} are both
+      converted to \samp{foo}, which clashes since \element{key} only
+      allows one value for each key.
+    \end{notice}
   \end{attributedesc}
 \end{elementdesc}
 
