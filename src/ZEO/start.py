@@ -86,7 +86,7 @@
 """Start the server storage.
 """
 
-__version__ = "$Revision: 1.14 $"[11:-2]
+__version__ = "$Revision: 1.15 $"[11:-2]
 
 import sys, os, getopt, string
 
@@ -185,7 +185,6 @@ def main(argv):
     debug=0
     host=''
     unix=None
-    prefix=''
     Z=1
     UID='nobody'
     for o, v in opts:
