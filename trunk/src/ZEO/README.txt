@@ -59,11 +59,13 @@ Enabling Cache Tracing
 ----------------------
 
 To enable cache tracing, set the environment variable ZEO_CACHE_TRACE
-to the name of a file to which the ZEO client process can write.  If
-the file doesn't exist, the ZEO will try to create it.  If there are
-problems with the file, a log message is written to the standard Zope
-log file.  To start or stop tracing, the ZEO client process (typically
-a Zope application server) must be restarted.
+to the name of a file to which the ZEO client process can write.  ZEO
+will append a hyphen and the storage name to the filename, to
+distinguish different storages.  If the file doesn't exist, the ZEO
+will try to create it.  If there are problems with the file, a log
+message is written to the standard Zope log file.  To start or stop
+tracing, the ZEO client process (typically a Zope application server)
+must be restarted.
 
 The trace file can grow pretty quickly; on a moderately loaded server,
 we observed it growing by 5 MB per hour.  The file consists of binary
