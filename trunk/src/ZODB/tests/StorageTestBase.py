@@ -31,6 +31,7 @@ from cPickle import Pickler, Unpickler
 from cStringIO import StringIO
 
 from ZODB.Transaction import Transaction
+from ZODB.utils import u64
 
 from ZODB.tests.MinPO import MinPO
 
@@ -64,10 +65,15 @@ def zodb_pickle(obj):
     p.dump(state)
     return f.getvalue(1)
 
+def persistent_load(pid):
+    # helper for zodb_unpickle
+    return "ref to %s.%s oid=%s" % (pid[1][0], pid[1][1], u64(pid[0]))
+
 def zodb_unpickle(data):
     """Unpickle an object stored using the format expected by ZODB."""
     f = StringIO(data)
     u = Unpickler(f)
+    u.persistent_load = persistent_load
     klass_info = u.load()
     if isinstance(klass_info, types.TupleType):
         if isinstance(klass_info[0], types.TupleType):
