@@ -12,7 +12,7 @@
   
  ****************************************************************************/
 
-#define MERGETEMPLATE_C "$Id: MergeTemplate.c,v 1.12 2002/06/02 07:40:20 tim_one Exp $\n"
+#define MERGETEMPLATE_C "$Id: MergeTemplate.c,v 1.13 2002/06/03 17:21:55 tim_one Exp $\n"
 
 /****************************************************************************
  Set operations
@@ -60,12 +60,9 @@ bucket_merge(Bucket *s1, Bucket *s2, Bucket *s3)
   SetIteration i1 = {0,0,0}, i2 = {0,0,0}, i3 = {0,0,0};
   int cmp12, cmp13, cmp23, mapping=0, set;
 
-  /* XXX Looks like the various "return NULL;" exits from here on can
-   * XXX leak references saved away in i1.set, i2.set, i3.set.
-   */
-  if (initSetIteration(&i1, OBJECT(s1), 0, &mapping) < 0) return NULL;
-  if (initSetIteration(&i2, OBJECT(s2), 0, &mapping) < 0) return NULL;
-  if (initSetIteration(&i3, OBJECT(s3), 0, &mapping) < 0) return NULL;
+  if (initSetIteration(&i1, OBJECT(s1), 0, &mapping) < 0) goto err;
+  if (initSetIteration(&i2, OBJECT(s2), 0, &mapping) < 0) goto err;
+  if (initSetIteration(&i3, OBJECT(s3), 0, &mapping) < 0) goto err;
 
   set = ! mapping;
 
@@ -80,9 +77,9 @@ bucket_merge(Bucket *s1, Bucket *s2, Bucket *s3)
         goto err;
     }
 
-  if (i1.next(&i1) < 0) return NULL;
-  if (i2.next(&i2) < 0) return NULL;
-  if (i3.next(&i3) < 0) return NULL;
+  if (i1.next(&i1) < 0) goto err;
+  if (i2.next(&i2) < 0) goto err;
+  if (i3.next(&i3) < 0) goto err;
 
   while (i1.position >= 0 && i2.position >= 0 && i3.position >= 0)
     {
