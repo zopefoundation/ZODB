@@ -8,13 +8,12 @@
 # THIS SOFTWARE IS PROVIDED "AS IS" AND ANY AND ALL EXPRESS OR IMPLIED
 # WARRANTIES ARE DISCLAIMED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 # WARRANTIES OF TITLE, MERCHANTABILITY, AGAINST INFRINGEMENT, AND FITNESS
-# FOR A PARTICULAR PURPOSE
+# FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
 """Manage the asyncore mainloop in a multi-threaded app.
 
-$Id: __init__.py,v 1.5 2002/11/26 15:05:59 jeremy Exp $
+$Id: __init__.py,v 1.6 2003/02/25 15:17:09 fdrake Exp $
 """
 
 from LoopCallback import register_loop_callback, loop
-
