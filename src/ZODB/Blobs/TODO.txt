@@ -1,10 +1,4 @@
 
-- Support database import/export
-
-- Support selection of text/binary mode for opening blobs
-
-- Generic wrapper configuration for BlobStorage
-
 Tests
 -----
 
