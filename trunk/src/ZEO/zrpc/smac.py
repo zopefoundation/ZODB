@@ -95,7 +95,7 @@ class SizedMessageAsyncConnection(asyncore.dispatcher):
         # The next thing read is always of length __msg_size.
         # The state alternates between 0 and 1.
         self.__state = 0
-        self.__has_mac = True
+        self.__has_mac = 0
         self.__msg_size = 4
         self.__output_lock = threading.Lock() # Protects __output
         self.__output = []
