@@ -167,11 +167,14 @@ class Connection(smac.SizedMessageAsyncConnection):
         meth = getattr(self.obj, name)
         try:
             ret = meth(*args)
+        except (SystemExit, KeyboardInterrupt):
+            raise
         except Exception, msg:
-            error = sys.exc_info()[:2]
-            log("%s() raised exception: %s" % (name, msg),
-                zLOG.ERROR, error=sys.exc_info())
-            return self.return_error(msgid, flags, error[0], error[1])
+            error = sys.exc_info()
+            log("%s() raised exception: %s" % (name, msg), zLOG.ERROR,
+                error=error)
+            error = error[:2]
+            return self.return_error(msgid, flags, *error)
 
         if flags & ASYNC:
             if ret is not None:
@@ -186,7 +189,9 @@ class Connection(smac.SizedMessageAsyncConnection):
                 self.send_reply(msgid, ret)
 
     def handle_error(self):
-        self.log_error()
+        if sys.exc_info()[0] == SystemExit:
+            raise sys.exc_info()
+        self.log_error("Error caught in asyncore")
         self.close()
 
     def log_error(self, msg="No error message supplied"):
