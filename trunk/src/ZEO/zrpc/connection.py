@@ -231,7 +231,7 @@ class Connection(smac.SizedMessageAsyncConnection):
     def handle_reply(self, msgid, flags, args):
         if __debug__:
             self.log("recv reply: %s, %s, %s"
-                     % (msgid, flags, short_repr(args)), level=zLOG.DEBUG)
+                     % (msgid, flags, short_repr(args)), level=zLOG.TRACE)
         self.replies_cond.acquire()
         try:
             self.replies[msgid] = flags, args
