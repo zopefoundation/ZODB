@@ -212,7 +212,7 @@ class ZODBTests(unittest.TestCase):
         # error because the object state read is not necessarily
         # consistent with the objects read earlier in the transaction.
 
-        conn = self._db.open()
+        conn = self._db.open(mvcc=False)
         conn.setLocalTransaction()
         r1 = conn.root()
         r1["p"] = self.obj
@@ -220,7 +220,7 @@ class ZODBTests(unittest.TestCase):
         conn.getTransaction().commit()
 
         # start a new transaction with a new connection
-        cn2 = self._db.open()
+        cn2 = self._db.open(mvcc=False)
         # start a new transaction with the other connection
         cn2.setLocalTransaction()
         r2 = cn2.root()
@@ -245,7 +245,7 @@ class ZODBTests(unittest.TestCase):
     def checkReadConflictIgnored(self):
         # Test that an application that catches a read conflict and
         # continues can not commit the transaction later.
-        root = self._db.open().root()
+        root = self._db.open(mvcc=False).root()
         root["real_data"] = real_data = PersistentMapping()
         root["index"] = index = PersistentMapping()
 
@@ -256,7 +256,7 @@ class ZODBTests(unittest.TestCase):
         get_transaction().commit()
 
         # load some objects from one connection
-        cn2 = self._db.open()
+        cn2 = self._db.open(mvcc=False)
         cn2.setLocalTransaction()
         r2 = cn2.root()
         real_data2 = r2["real_data"]
