@@ -88,6 +88,40 @@ class StorageTestBase(unittest.TestCase):
     def tearDown(self):
         self._close()
 
+    def _handle_all_serials(self, oid, *args):
+        """Return dict of oid to serialno from store() and tpc_vote().
+
+        Raises an exception if one of the calls raised an exception.
+
+        The storage interface got complicated when ZEO was introduced.
+        Any individual store() call can return None or a sequence of
+        2-tuples where the 2-tuple is either oid, serialno or an
+        exception to be raised by the client.
+
+        The original interface just returned the serialno for the
+        object.
+        """
+        d = {}
+        for arg in args:
+            if isinstance(arg, types.StringType):
+                d[oid] = arg
+            elif arg is None:
+                pass
+            else:
+                for oid, serial in arg:
+                    if not isinstance(serial, types.StringType):
+                        raise arg
+                    d[oid] = serial
+        return d
+
+    def _handle_serials(self, oid, *args):
+        """Return the serialno for oid based on multiple return values.
+
+        A helper for function _handle_all_serials().
+        """
+        args = (oid,) + args
+        return apply(self._handle_all_serials, args)[oid]
+
     def _dostore(self, oid=None, revid=None, data=None, version=None,
                  already_pickled=0):
         """Do a complete storage transaction.  The defaults are:
@@ -114,12 +148,12 @@ class StorageTestBase(unittest.TestCase):
         # Begin the transaction
         self._storage.tpc_begin(self._transaction)
         # Store an object
-        newrevid = self._storage.store(oid, revid, data, version,
+        r1 = self._storage.store(oid, revid, data, version,
                                        self._transaction)
         # Finish the transaction
-        self._storage.tpc_vote(self._transaction)
+        r2 = self._storage.tpc_vote(self._transaction)
         self._storage.tpc_finish(self._transaction)
-        return newrevid
+        return self._handle_serials(oid, r1, r2)
         
     def _dostoreNP(self, oid=None, revid=None, data=None, version=None):
         return self._dostore(oid, revid, data, version, already_pickled=1)
