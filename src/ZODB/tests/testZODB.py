@@ -139,6 +139,9 @@ class ZODBTests(unittest.TestCase):
     def checkResetCache(self):
         # The cache size after a reset should be 0 and the GC attributes
         # ought to be linked to it rather than the old cache.
+        # Note that _resetCache is not a public API, but the
+        # resetCaches() function is, and resetCaches() causes
+        # _resetCache() to be called.
         self.populate()
         conn = self._db.open()
         conn.root()
@@ -147,6 +150,19 @@ class ZODBTests(unittest.TestCase):
         self.assertEqual(len(conn._cache), 0)
         self.assert_(conn._incrgc == conn._cache.incrgc)
         self.assert_(conn.cacheGC == conn._cache.incrgc)
+
+    def checkResetCachesAPI(self):
+        # Checks the resetCaches() API.
+        # (resetCaches used to be called updateCodeTimestamp.)
+        self.populate()
+        conn = self._db.open()
+        conn.root()
+        self.assert_(len(conn._cache) > 0)  # Precondition
+        ZODB.Connection.resetCaches()
+        conn.close()
+        self.assert_(len(conn._cache) > 0)  # Still not flushed
+        conn._setDB(self._db)  # simulate the connection being reopened
+        self.assertEqual(len(conn._cache), 0)
 
     def checkLocalTransactions(self):
         # Test of transactions that apply to only the connection,
@@ -282,3 +298,7 @@ class ZODBTests(unittest.TestCase):
 
 def test_suite():
     return unittest.makeSuite(ZODBTests, 'check')
+
+if __name__ == "__main__":
+    unittest.main(defaultTest="test_suite")
+
