@@ -22,7 +22,21 @@ import unittest
 import ZEO.start
 from ZEO.ClientStorage import ClientStorage
 from ZEO.util import Environment
-from ZODB.tests.StorageTestBase import removefs
+
+try:
+    from ZODB.tests.StorageTestBase import removefs
+except ImportError:
+    # for compatibility with Zope 2.5 &c.
+    def removefs(base):
+        """Remove all files created by FileStorage with path base."""
+        for ext in '', '.old', '.tmp', '.lock', '.index', '.pack':
+            path = base + ext
+            try:
+                os.remove(path)
+            except os.error, err:
+                if err[0] != errno.ENOENT:
+                    raise
+
 
 class StartTests(unittest.TestCase):
 
