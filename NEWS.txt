@@ -229,6 +229,12 @@ The BTrees interface file neglected to document the optional
 and ``items()`` methods.  Appropriate changes were merged in from the
 ZODB4 BTrees interface file.
 
+Tools
+-----
+
+- ``mkzeoinst.py``'s default port number changed from to 9999 to 8100, to
+  match the example in Zope's ``zope.conf``.
+
 fsIndex
 -------
 
