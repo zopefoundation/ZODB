@@ -11,7 +11,10 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
-"""Interfaces for ZODB."""
+"""Interfaces for ZODB.
+
+$Id: interfaces.py,v 1.3 2004/02/24 13:51:03 srichter Exp $
+"""
 
 try:
     from zope.interface import Interface, Attribute
@@ -140,8 +143,6 @@ class IDataManager(Interface):
         o In the first phase of two-phase commit
 
         """
-
-    
 
 
 class ITransaction(Interface):
