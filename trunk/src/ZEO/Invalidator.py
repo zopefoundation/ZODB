@@ -125,7 +125,6 @@ class Invalidator:
             dinvalidate(oid, version=version)
 
     def Invalidate(self, args):
-        if self._d is None: return
         cinvalidate=self.cinvalidate
         dinvalidate=self.dinvalidate
         for oid, version in args:
