@@ -493,7 +493,7 @@ class VersionStorage:
         self._storage.pack(time.time(), referencesf)
         cn.sync()
         cn._cache.clear()
-        
+
         # make sure all the non-version data is there
         for name, obj in root.items():
             self.assertEqual(name, obj.value)
@@ -516,16 +516,15 @@ class VersionStorage:
 
         t = time.time()
         snooze()
-        
+
         L = db.undoInfo()
         db.undo(L[0]["id"])
         txn = get_transaction()
         txn.note("undo abort")
         txn.commit()
-        
+
         self._storage.pack(t, referencesf)
 
         cn2 = db.open(version="b")
         rt2 = cn2.root()
         self.assertEqual(rt2["b"].value.value, "still version")
-            

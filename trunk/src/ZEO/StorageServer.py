@@ -43,7 +43,7 @@ from ZODB.POSException import StorageError, StorageTransactionError
 from ZODB.POSException import TransactionError, ReadOnlyError, ConflictError
 from ZODB.referencesf import referencesf
 from ZODB.Transaction import Transaction
-from ZODB.utils import u64
+from ZODB.utils import u64, oid_repr
 
 _label = "ZSS" # Default label used for logging.
 
@@ -90,7 +90,7 @@ class ZEOStorage:
         self._extensions = {}
         for func in self.extensions:
             self._extensions[func.func_name] = None
-        
+
     def finish_auth(self, authenticated):
         if not self.auth_realm:
             return 1
@@ -99,7 +99,7 @@ class ZEOStorage:
 
     def set_database(self, database):
         self.database = database
-        
+
     def notifyConnected(self, conn):
         self.connection = conn # For restart_other() below
         self.client = self.ClientStorageStubClass(conn)
@@ -189,7 +189,7 @@ class ZEOStorage:
         if not protocol or protocol == 'none':
             return None
         return protocol
-    
+
     def register(self, storage_id, read_only):
         """Select the storage that this client will use
 
@@ -398,6 +398,7 @@ class ZEOStorage:
     def _clear_transaction(self):
         # Common code at end of tpc_finish() and tpc_abort()
         self.transaction = None
+        self.txnlog.close()
         if self.locked:
             self.locked = 0
             self.timeout.end(self)
@@ -483,6 +484,8 @@ class ZEOStorage:
             self.store_failed = 1
             if isinstance(err, ConflictError):
                 self.stats.conflicts += 1
+                self.log("conflict error oid=%s msg=%s" %
+                         (oid_repr(oid), str(err)), zLOG.BLATHER)
             if not isinstance(err, TransactionError):
                 # Unexpected errors are logged and passed to the client
                 exc_info = sys.exc_info()
@@ -506,6 +509,7 @@ class ZEOStorage:
                 self.invalidated.append((oid, version))
         if newserial == ResolvedSerial:
             self.stats.conflicts_resolved += 1
+            self.log("conflict resolved oid=%s" % oid_repr(oid), zLOG.BLATHER)
         self.serials.append((oid, newserial))
         return err is None
 
@@ -680,7 +684,7 @@ class StorageServer:
             It should be in a format compatible with the authentication
             protocol used; for instance, "sha" and "srp" require different
             formats.
-            
+
             Note that to implement an authentication protocol, a server
             and client authentication mechanism must be implemented in a
             auth_* module, which should be stored inside the "auth"
@@ -728,7 +732,7 @@ class StorageServer:
             self.monitor = StatsServer(monitor_address, self.stats)
         else:
             self.monitor = None
-            
+
     def _setup_auth(self, protocol):
         # Can't be done in global scope, because of cyclic references
         from ZEO.auth import get_module
@@ -739,9 +743,9 @@ class StorageServer:
         if not module:
             log("%s: no such an auth protocol: %s" % (name, protocol))
             return
-        
+
         storage_class, client, db_class = module
-        
+
         if not storage_class or not issubclass(storage_class, ZEOStorage):
             log(("%s: %s isn't a valid protocol, must have a StorageClass" %
                  (name, protocol)))
@@ -750,7 +754,7 @@ class StorageServer:
         self.ZEOStorageClass = storage_class
 
         log("%s: using auth protocol: %s" % (name, protocol))
-        
+
         # We create a Database instance here for use with the authenticator
         # modules. Having one instance allows it to be shared between multiple
         # storages, avoiding the need to bloat each with a new authenticator
@@ -762,7 +766,7 @@ class StorageServer:
                              "does not match storage realm %r"
                              % (self.database.realm, self.auth_realm))
 
-        
+
     def new_connection(self, sock, addr):
         """Internal: factory to create a new connection.
 
@@ -776,7 +780,7 @@ class StorageServer:
             zstorage.set_database(self.database)
         else:
             zstorage = self.ZEOStorageClass(self, self.read_only)
-            
+
         c = self.ManagedServerConnectionClass(sock, addr, zstorage, self)
         log("new connection %s: %s" % (addr, `c`))
         return c
@@ -846,12 +850,12 @@ class StorageServer:
         if not self.invq:
             log("invq empty")
             return None, []
-        
+
         earliest_tid = self.invq[0][0]
         if earliest_tid > tid:
             log("tid to old for invq %s < %s" % (u64(tid), u64(earliest_tid)))
             return None, []
-        
+
         oids = {}
         for tid, L in self.invq:
             for key in L:
@@ -928,6 +932,7 @@ class TimeoutThread(threading.Thread):
         self._cond.acquire()
         try:
             assert self._client is not None
+            assert self._client is client
             self._client = None
             self._deadline = None
         finally:
@@ -953,7 +958,6 @@ class TimeoutThread(threading.Thread):
                 self._trigger.pull_trigger(lambda: client.connection.close())
             else:
                 time.sleep(howlong)
-        self.trigger.close()
 
 def run_in_thread(method, *args):
     t = SlowMethodThread(method, args)

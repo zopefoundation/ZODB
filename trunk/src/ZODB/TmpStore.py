@@ -42,7 +42,7 @@ class TmpStore:
 
     def getName(self):
         return self._db.getName()
-    
+
     def getSize(self):
         return self._pos
 

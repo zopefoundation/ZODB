@@ -2,14 +2,14 @@
 #
 # Copyright (c) 2001, 2002 Zope Corporation and Contributors.
 # All Rights Reserved.
-# 
+#
 # This software is subject to the provisions of the Zope Public License,
 # Version 2.0 (ZPL).  A copy of the ZPL should accompany this distribution.
 # THIS SOFTWARE IS PROVIDED "AS IS" AND ANY AND ALL EXPRESS OR IMPLIED
 # WARRANTIES ARE DISCLAIMED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 # WARRANTIES OF TITLE, MERCHANTABILITY, AGAINST INFRINGEMENT, AND FITNESS
 # FOR A PARTICULAR PURPOSE.
-# 
+#
 ##############################################################################
 """More recovery and iterator tests."""
 
@@ -71,7 +71,7 @@ class RecoveryStorage(IteratorDeepCompare):
             self.assertRaises(IndexError, lambda i, t=trans: t[i], 1)
             self.assertEqual(data.oid, oid)
             self.assertEqual(data.data, None)
-    
+
     def checkRecoverUndoInVersion(self):
         oid = self._storage.new_oid()
         version = "aVersion"
@@ -128,7 +128,7 @@ class RecoveryStorage(IteratorDeepCompare):
         self._dst = self.new_dest()
         self._dst.copyTransactionsFrom(self._storage)
         self.compare(self._storage, self._dst)
-        
+
     def checkRestoreAcrossPack(self):
         db = DB(self._storage)
         c = db.open()

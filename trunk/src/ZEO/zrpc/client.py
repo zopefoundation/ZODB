@@ -105,6 +105,7 @@ class ConnectionManager(object):
         if self.trigger is not None:
             self.trigger.close()
             self.trigger = None
+        ThreadedAsync.remove_loop_callback(self.set_async)
 
     def set_async(self, map):
         # This is the callback registered with ThreadedAsync.  The
@@ -406,7 +407,7 @@ class ConnectThread(threading.Thread):
             del wrappers[wrap]
 
             # XXX should check deadline
-        
+
 
 class ConnectWrapper:
     """An object that handles the connection procedure for one socket.

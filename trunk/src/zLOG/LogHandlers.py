@@ -75,8 +75,3 @@ class StartupHandler(Handler):
         for record in self.buffer:
             target.handle(record)
         self.buffer = []
-        
-        
-        
-        
-    

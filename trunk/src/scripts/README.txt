@@ -1,4 +1,4 @@
-This directory contains a collect of utilities for managing ZODB
+This directory contains a collection of utilities for managing ZODB
 databases.  Some are more useful than others.  If you install ZODB
 using distutils ("python setup.py install"), fsdump.py, fstest.py,
 repozo.py, and zeopack.py will be installed in /usr/local/bin.
@@ -7,27 +7,27 @@ Unless otherwise noted, these scripts are invoked with the name of the
 Data.fs file as their only argument.  Example: checkbtrees.py data.fs.
 
 
-analyze.py -- A transaction analyzer for FileStorage
+analyze.py -- a transaction analyzer for FileStorage
 
 Reports on the data in a FileStorage.  The report is organized by
 class.  It shows total data, as well as separate reports for current
 and historical revisions of objects.
 
 
-checkbtrees.py -- Checks BTrees in a FileStorage for corruption.
+checkbtrees.py -- checks BTrees in a FileStorage for corruption
 
-Attempts to find all the BTrees contained in a Data.fs and calls their
-_check() methods.
+Attempts to find all the BTrees contained in a Data.fs, calls their
+_check() methods, and runs them through BTrees.check.check().
 
 
-fsdump.py -- Summarize FileStorage contents, one line per revision.
+fsdump.py -- summarize FileStorage contents, one line per revision
 
 Prints a report of FileStorage contents, with one line for each
 transaction and one line for each data record in that transaction.
 Includes time stamps, file positions, and class names.
 
 
-fstest.py -- Simple consistency checker for FileStorage
+fstest.py -- simple consistency checker for FileStorage
 
 usage: fstest.py [-v] data.fs
 
@@ -46,7 +46,14 @@ possible for the damage to occur only in the part of the file that
 stores object pickles.  Those errors will go undetected.
 
 
-netspace.py -- Hackish attempt to report on size of objects
+space.py -- report space used by objects in a FileStorage
+
+usage: space.py [-v] data.fs
+
+This ignores revisions and versions.
+
+
+netspace.py -- hackish attempt to report on size of objects
 
 usage: netspace.py [-P | -v] data.fs
 
@@ -57,7 +64,7 @@ Traverses objects from the database root and attempts to calculate
 size of object, including all reachable subobjects.
 
 
-parsezeolog.py -- Parse BLATHER logs from ZEO server.
+parsezeolog.py -- parse BLATHER logs from ZEO server
 
 This script may be obsolete.  It has not been tested against the
 current log output of the ZEO server.
@@ -66,12 +73,12 @@ Reports on the time and size of transactions committed by a ZEO
 server, by inspecting log messages at BLATHER level.
 
 
-repozo.py -- Incremental backup utility for FileStorage.
+repozo.py -- incremental backup utility for FileStorage
 
 Run the script with the -h option to see usage details.
 
 
-timeout.py -- Script to test transaction timeout
+timeout.py -- script to test transaction timeout
 
 usage: timeout.py address delay [storage-name]
 
@@ -80,13 +87,13 @@ and tpc_vote(), and then sleeps forever.  This should trigger the
 transaction timeout feature of the server.
 
 
-zeopack.py -- Script to pack a ZEO server.
+zeopack.py -- pack a ZEO server
 
 The script connects to a server and calls pack() on a specific
 storage.  See the script for usage details.
 
 
-zeoreplay.py -- Experimental script to replay transactions from a ZEO log.
+zeoreplay.py -- experimental script to replay transactions from a ZEO log
 
 Like parsezeolog.py, this may be obsolete because it was written
 against an earlier version of the ZEO server.  See the script for
@@ -95,7 +102,7 @@ usage details.
 
 zeoup.py
 
-Usage: zeoup.py [options]
+usage: zeoup.py [options]
 
 The test will connect to a ZEO server, load the root object, and
 attempt to update the zeoup counter in the root.  It will report
@@ -106,13 +113,34 @@ start a transaction.
 See the script for details about the options.
 
 
-zodbload.py - exercise ZODB under a heavy synthesized Zope-like load
+zodbload.py -- exercise ZODB under a heavy synthesized Zope-like load
 
 See the module docstring for details.  Note that this script requires
 Zope.  New in ZODB3 3.1.4.
 
 
-zeoserverlog.py - analyze ZEO server log for performance statistics
+zeoserverlog.py -- analyze ZEO server log for performance statistics
 
 See the module docstring for details; there are a large number of
 options.  New in ZODB3 3.1.4.
+
+
+fsrefs.py -- check FileStorage for dangling references
+
+
+fstail.py -- display the most recent transactions in a FileStorage
+
+usage:  fstail.py [-n nxtn] data.fs
+
+The most recent ntxn transactions are displayed, to stdout.
+Optional argument -n specifies ntxn, and defaults to 10.
+
+
+migrate.py -- do a storage migration and gather statistics
+
+See the module docstring for details.
+
+
+zeoqueue.py -- report number of clients currently waiting in the ZEO queue
+
+See the module docstring for details.

@@ -14,7 +14,7 @@
 
 """
 Revision information:
-$Id: testTransaction.py,v 1.12 2003/01/27 20:29:50 bwarsaw Exp $
+$Id: testTransaction.py,v 1.13 2003/10/02 18:17:17 jeremy Exp $
 """
 
 """
@@ -599,7 +599,7 @@ class HoserJar(BasicJar):
 
     # The HoserJars coordinate their actions via the class variable
     # committed.  The check() method will only raise its exception
-    # if committed > 0.  
+    # if committed > 0.
 
     committed = 0
 
@@ -615,7 +615,7 @@ class HoserJar(BasicJar):
         self.check('tpc_finish')
         self.ctpc_finish += 1
         HoserJar.committed += 1
-        
+
 
 def test_suite():
 

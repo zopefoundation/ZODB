@@ -21,4 +21,3 @@ class BaseLogger:
         for handler in self.logger.handlers:
             if hasattr(handler, 'reopen') and callable(handler.reopen):
                 handler.reopen()
-

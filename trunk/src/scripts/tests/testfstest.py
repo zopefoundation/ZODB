@@ -160,7 +160,7 @@ class TestCorruptedFS(unittest.TestCase):
         newlen = struct.pack(">II", 0, tl - (len(data) - 24))
         self._file.write(newlen)
         self.detectsError("truncated at")
-        
+
     def testBadDataLength(self):
         self.copyTransactions(1)
         tl, data = self.getHeader()
@@ -180,4 +180,3 @@ class TestCorruptedFS(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-    

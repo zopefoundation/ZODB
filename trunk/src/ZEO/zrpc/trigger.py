@@ -167,6 +167,15 @@ else:
             self.lock = thread.allocate_lock()
             self.thunks = []
             self._trigger_connected = 0
+            self._closed = 0
+
+        def close(self):
+            if not self._closed:
+                self._closed = 1
+                self.del_channel()
+                # self.socket is a, self.trigger is w from __init__
+                self.socket.close()
+                self.trigger.close()
 
         def __repr__(self):
             return '<select-trigger (loopback) at %x>' % id(self)

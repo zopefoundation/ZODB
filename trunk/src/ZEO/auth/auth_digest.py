@@ -61,7 +61,7 @@ def hexdigest(s):
 class DigestDatabase(Database):
     def __init__(self, filename, realm=None):
         Database.__init__(self, filename, realm)
-        
+
         # Initialize a key used to build the nonce for a challenge.
         # We need one key for the lifetime of the server, so it
         # is convenient to store in on the database.
@@ -134,7 +134,7 @@ class DigestClient(Client):
             raise AuthError("expected realm %r, got realm %r"
                             % (_realm, realm))
         h_up = hexdigest("%s:%s:%s" % (username, realm, password))
-        
+
         resp_dig = hexdigest("%s:%s" % (h_up, challenge))
         result = self.stub.auth_response((username, challenge, resp_dig))
         if result:

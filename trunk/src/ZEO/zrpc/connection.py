@@ -126,11 +126,15 @@ class Connection(smac.SizedMessageAsyncConnection, object):
 
     # Protocol history:
     #
-    # Z200 -- original ZEO 2.0 protocol
+    # Z200 -- Original ZEO 2.0 protocol
     #
-    # Z201 -- added invalidateTransaction() to client;
-    #         renamed several client methods;
-    #         added lastTransaction() to server
+    # Z201 -- Added invalidateTransaction() to client.
+    #         Renamed several client methods.
+    #         Added several sever methods:
+    #             lastTransaction()
+    #             getAuthProtocol() and scheme-specific authentication methods
+    #             getExtensionMethods().
+    #             getInvalidations().
 
     def __init__(self, sock, addr, obj=None):
         self.obj = None

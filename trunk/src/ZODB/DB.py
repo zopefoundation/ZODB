@@ -13,8 +13,8 @@
 ##############################################################################
 """Database objects
 
-$Id: DB.py,v 1.54 2003/09/15 16:29:15 jeremy Exp $"""
-__version__='$Revision: 1.54 $'[11:-2]
+$Id: DB.py,v 1.55 2003/10/02 18:17:19 jeremy Exp $"""
+__version__='$Revision: 1.55 $'[11:-2]
 
 import cPickle, cStringIO, sys, POSException, UndoLogCompatible
 from Connection import Connection
@@ -145,9 +145,9 @@ class DB(UndoLogCompatible.UndoLogCompatible, object):
                 # We need to break circular refs to make it really go.
                 # XXX What objects are involved in the cycle?
                 connection.__dict__.clear()
-                
+
                 return
-                
+
             pool.append(connection)
             if len(pool)==1:
                 # Pool now usable again, unlock it.

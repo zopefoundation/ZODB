@@ -151,5 +151,3 @@ class RecoverTest(unittest.TestCase):
 
 def test_suite():
     return unittest.makeSuite(RecoverTest)
-
-

@@ -9,35 +9,27 @@
 
 \subsection{Installing ZODB}
 
-The ZODB forms part of Zope, but it's difficult and somewhat painful
-to extract the bits from Zope needed to support just the ZODB.
-Therefore I've assembled a distribution containing only the packages
-required to use the ZODB and ZEO, so you can install it and start
-programming right away.
-
-To download the distribution, go to my ZODB page at 
-\url{http://www.amk.ca/zodb/}.  
-The distribution is still experimental, so don't be surprised if the
-installation process runs into problems.  Please inform me of any
-difficulties you encounter.
+ZODB is packaged using the standard distutils tools.
 
 \subsubsection{Requirements}
 
-You will need Python 2.1 or higher.  The code is packaged using
-Distutils.  So it is simply a matter of untarring or unzipping the
-release package, and then running \code{python setup.py install}.
+You will need Python 2.2 or higher.  Since the code is packaged using
+distutils, it is simply a matter of untarring or unzipping the release
+package, and then running \code{python setup.py install}.
 
 You'll need a C compiler to build the packages, because there are
-various C extension modules.  At the moment no one is making Windows
-binaries available, so you'll need a Windows development environment
-to build ZODB.
+various C extension modules.  Binary installers are provided for
+Windows users.
 
 \subsubsection{Installing the Packages}
 
 Download the ZODB tarball containing all the packages for both ZODB
-and ZEO from \url{http://www.zope.org/Products/StandaloneZODB}.  See
+and ZEO from \url{http://www.zope.org/Products/ZODB3.2}.  See
 the \file{README.txt} file in the top level of the release directory
 for details on building, testing, and installing.
+
+You can find information about ZODB and the most current releases in
+the ZODB Wiki at \url{http://www.zope.org/Wikis/ZODB}.
 
 \subsection{How ZODB Works}
 
@@ -59,8 +51,10 @@ don't get corrupted by software or hardware crashes, and most database
 software offers protection against such corruption by supporting four
 useful properties, Atomicity, Consistency, Isolation, and Durability.
 In computer science jargon these four terms are collectively dubbed
-the ACID properties, forming an acronym from their names.  The
-definitions of the ACID properties are:
+the ACID properties, forming an acronym from their names.  
+
+The ZODB provides all of the ACID properties.  Definitions of the
+ACID properties are:
 
 \begin{itemize}
 
@@ -73,18 +67,13 @@ forgotten.  That's bad, but it's better than having a
 partially-applied modification put the database into an inconsistent
 state.
 
-\item[Consistency] means that the data cannot be placed into a
-logically invalid state; sanity checks can be written and enforced.
-Usually this is done by defining a database schema, and requiring
-the data always matches the schema.  There are two typical
-approaches to consistency.  One is to enforce rules about the types
-of objects and attribute; for example, enforce that the
-\code{order_number} attribute is always an integer, and not a
-string, tuple, or other object.  Another is to guarantee consistency
-across data structures; for example, that any object with an
-\code{order_number} attribute must also appear in the
-\code{orders_table} object.  In general, atomicity and isolation make
-it possible for applications to provide consistency.
+\item[Consistency] means that each transaction executes a valid
+transformation of the database state.  Some databases, but not ZODB,
+provide a variety of consistency checks in the database or language;
+for example, a relational database constraint columns to be of
+particular types and can enforce relations across tables.  Viewed more
+generally, atomicity and isolation make it possible for applications
+to provide consistency.
 
 \item[Isolation] means that two programs or threads running in two
  different transactions cannot see each other's changes until they
@@ -94,10 +83,6 @@ it possible for applications to provide consistency.
 a subsequent crash will not cause any data to be lost or corrupted.
 
 \end{itemize}
-
-The ZODB provides 3 of the ACID properties.  Only Consistency is not
-supported; the ZODB has no notion of a database schema, and therefore
-has no way of enforcing consistency with a schema.
 
 \subsection{Opening a ZODB}
 
@@ -132,9 +117,9 @@ implement the \class{Storage} interface.
 \end{itemize}
 
 Preparing to use a ZODB requires 3 steps: you have to open the
-\class{Storage}, then create a \class{DB} instance that uses the \class{Storage}, and then get
-a \class{Connection} from the \class{DB instance}.  All this is only a few lines of
-code:
+\class{Storage}, then create a \class{DB} instance that uses the
+\class{Storage}, and then get a \class{Connection} from the \class{DB
+instance}.  All this is only a few lines of code:
 
 \begin{verbatim}
 from ZODB import FileStorage, DB
@@ -189,7 +174,7 @@ retrieving a \class{User} object given the user's ID.  First, we
 retrieve the primary root object of the ZODB using the \method{root()}
 method of the \class{Connection} instance.  The root object behaves
 like a Python dictionary, so you can just add a new key/value pair for
-your application's root object.  We'll insert a \class{BTree} object
+your application's root object.  We'll insert an \class{OOBTree} object
 that will contain all the \class{User} objects.  (The
 \class{BTree} module is also included as part of Zope.)
 
@@ -199,8 +184,8 @@ dbroot = conn.root()
 # Ensure that a 'userdb' key is present 
 # in the root
 if not dbroot.has_key('userdb'):
-    import BTree
-    dbroot['userdb'] = BTree.BTree()
+    from BTrees.OOBTree import OOBTree
+    dbroot['userdb'] = OOBTree()
 
 userdb = dbroot['userdb']
 \end{verbatim}
@@ -426,13 +411,11 @@ different class instances, then there's no longer any easy way to find
 them all, short of writing a generalized object traversal function
 that would walk over every single object in a ZODB, checking each one
 to see if it's an instance of \class{User}.  
-\footnote{XXX is there a convenience method for walking the object graph hiding
-somewhere inside DC's code?  Should there be a utility method for
-doing this?  Should I write one and include it in this section?}
+
 Some OODBs support a feature called extents, which allow quickly
 finding all the instances of a given class, no matter where they are
 in the object graph; unfortunately the ZODB doesn't offer extents as a
 feature.
 
-XXX Rest of section not written yet: __getstate__/__setstate__
+% XXX Rest of section not written yet: __getstate__/__setstate__
 

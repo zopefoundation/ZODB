@@ -96,7 +96,6 @@ class ZODBClientThread(TestThread):
                 return root.get(name)
             except ConflictError:
                 get_transaction().abort()
-                root._p_jar.sync()
 
 class StorageClientThread(TestThread):
 

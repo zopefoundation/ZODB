@@ -13,7 +13,7 @@
 ##############################################################################
 """Monitor behavior of ZEO server and record statistics.
 
-$Id: monitor.py,v 1.3 2003/01/15 21:23:16 jeremy Exp $
+$Id: monitor.py,v 1.4 2003/10/02 18:17:22 jeremy Exp $
 """
 
 import asyncore
@@ -54,7 +54,7 @@ class StorageStats:
             elif field == "Active transactions":
                 self.active_txns = int(value)
             elif field == "Commit lock held for":
-                # This assumes 
+                # This assumes
                 self.lock_time = time.time() - int(value)
             elif field == "Commits":
                 self.commits = int(value)
@@ -112,7 +112,7 @@ class StatsClient(asyncore.dispatcher):
         n = self.socket.send(s)
         if n < len(s):
             self.buf.append(s[:n])
-            
+
         if self.closed and not self.buf:
             asyncore.dispatcher.close(self)
 

@@ -115,7 +115,7 @@
 #   may have a back pointer to a version record or to a non-version
 #   record.
 #
-__version__='$Revision: 1.137 $'[11:-2]
+__version__='$Revision: 1.138 $'[11:-2]
 
 import base64
 from cPickle import Pickler, Unpickler, loads
@@ -293,7 +293,7 @@ class FileStorage(BaseStorage.BaseStorage,
         self._records_before_save = max(self._records_before_save,
                                         len(self._index))
         self._ltid = tid
-        
+
         # self._pos should always point just past the last
         # transaction.  During 2PC, data is written after _pos.
         # invariant is restored at tpc_abort() or tpc_finish().
@@ -607,7 +607,7 @@ class FileStorage(BaseStorage.BaseStorage,
                 self._file.seek(u64(pnv))
                 h_pnv = self._file.read(DATA_VERSION_HDR_LEN)
                 newserial = h_pnv[8:16]
-            
+
             if self._index.get(oid) == srcpos:
                 # This is a current record!
                 self._tindex[oid] = here
@@ -981,7 +981,7 @@ class FileStorage(BaseStorage.BaseStorage,
             else:
                 warn("restore could not find previous non-version data "
                      "at %d or %d" % (prev, bp))
-            
+
         return pnv
 
     def supportsUndo(self):
@@ -1075,7 +1075,7 @@ class FileStorage(BaseStorage.BaseStorage,
             if fsync is not None: fsync(file.fileno())
 
             self._pos = nextpos
-            
+
             self._index.update(self._tindex)
             self._vindex.update(self._tvindex)
             self._oid2serial.update(self._toid2serial)
@@ -1084,16 +1084,16 @@ class FileStorage(BaseStorage.BaseStorage,
                     del self._oid2serial[oid]
                 except KeyError:
                     pass
-            
+
             # Update the number of records that we've written
             # +1 for the transaction record
-            self._records_written += len(self._tindex) + 1 
+            self._records_written += len(self._tindex) + 1
             if self._records_written >= self._records_before_save:
                 self._save_index()
                 self._records_written = 0
                 self._records_before_save = max(self._records_before_save,
                                                 len(self._index))
-                
+
         self._ltid = tid
 
     def _abort(self):
@@ -1538,7 +1538,7 @@ class FileStorage(BaseStorage.BaseStorage,
         # If the storage is empty, there's nothing to do.
         if not self._index:
             return
-        
+
         # Record pack time so we don't undo while packing
         self._lock_acquire()
         try:

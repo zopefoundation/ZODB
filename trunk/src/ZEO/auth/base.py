@@ -34,19 +34,19 @@ def sort(L):
     """Sort a list in-place and return it."""
     L.sort()
     return L
-    
+
 class Database:
     """Abstracts a password database.
 
     This class is used both in the authentication process (via
     get_password()) and by client scripts that manage the password
-    database file. 
+    database file.
 
     The password file is a simple, colon-separated text file mapping
     usernames to password hashes. The hashes are SHA hex digests
     produced from the password string.
     """
-    
+
     def __init__(self, filename, realm=None):
         """Creates a new Database
 
@@ -61,7 +61,7 @@ class Database:
         self.filename = filename
         self.realm = realm
         self.load()
-        
+
     def save(self, fd=None):
         filename = self.filename
 
@@ -72,7 +72,7 @@ class Database:
 
         for username in sort(self._users.keys()):
             print >> fd, "%s: %s" % (username, self._users[username])
-            
+
     def load(self):
         filename = self.filename
         if not filename:
@@ -80,7 +80,7 @@ class Database:
 
         if not os.path.exists(filename):
             return
-        
+
         fd = open(filename)
         L = fd.readlines()
 
@@ -90,7 +90,7 @@ class Database:
         if L[0].startswith("realm "):
             line = L.pop(0).strip()
             self.realm = line[len("realm "):]
-            
+
         for line in L:
             username, hash = line.strip().split(":", 1)
             self._users[username] = hash.strip()
@@ -103,10 +103,10 @@ class Database:
 
         Callers must check for LookupError, which is raised in
         the case of a non-existent user specified."""
-	if not self._users.has_key(username):
+        if not self._users.has_key(username):
             raise LookupError, "No such user: %s" % username
         return self._users[username]
-    
+
     def hash(self, s):
         return sha.new(s).hexdigest()
 
@@ -116,7 +116,7 @@ class Database:
         self._store_password(username, password)
 
     def del_user(self, username):
-	if not self._users.has_key(username):
+        if not self._users.has_key(username):
             raise LookupError, "No such user: %s" % username
         del self._users[username]
 

@@ -13,7 +13,7 @@
 ##############################################################################
 """Manage the asyncore mainloop in a multi-threaded app.
 
-$Id: __init__.py,v 1.6 2003/02/25 15:17:09 fdrake Exp $
+$Id: __init__.py,v 1.7 2003/10/02 18:17:26 jeremy Exp $
 """
 
-from LoopCallback import register_loop_callback, loop
+from LoopCallback import register_loop_callback, loop, remove_loop_callback

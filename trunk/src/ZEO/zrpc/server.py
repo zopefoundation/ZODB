@@ -31,7 +31,6 @@ class Dispatcher(asyncore.dispatcher):
         self.__super_init()
         self.addr = addr
         self.factory = factory
-        self.clients = []
         self._open_socket()
 
     def _open_socket(self):
@@ -58,4 +57,3 @@ class Dispatcher(asyncore.dispatcher):
             return
         c = self.factory(sock, addr)
         log("connect from %s: %s" % (repr(addr), c))
-        self.clients.append(c)

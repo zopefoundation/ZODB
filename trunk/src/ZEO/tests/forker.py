@@ -70,20 +70,20 @@ def start_zeo_server(storage_conf, zeo_conf, port, keep=0):
     Returns the ZEO port, the test server port, the pid, and the path
     to the config file.
     """
-    
+
     # Store the config info in a temp file.
     tmpfile = tempfile.mktemp(".conf")
     fp = open(tmpfile, 'w')
     zeo_conf.dump(fp)
     fp.write(storage_conf)
     fp.close()
-    
+
     # Find the zeoserver script
     import ZEO.tests.zeoserver
     script = ZEO.tests.zeoserver.__file__
     if script.endswith('.pyc'):
         script = script[:-1]
-        
+
     # Create a list of arguments, which we'll tuplify below
     qa = _quote_arg
     args = [qa(sys.executable), qa(script), '-C', qa(tmpfile)]

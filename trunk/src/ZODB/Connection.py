@@ -13,7 +13,7 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.99 2003/09/15 16:29:15 jeremy Exp $"""
+$Id: Connection.py,v 1.100 2003/10/02 18:17:19 jeremy Exp $"""
 
 from __future__ import nested_scopes
 
@@ -308,12 +308,12 @@ class Connection(ExportImport.ExportImport, object):
                 method_name, args, kw = self.__onCommitActions.pop(0)
                 getattr(self, method_name)(transaction, *args, **kw)
             return
-        
+
         oid = object._p_oid
         if self._conflicts.has_key(oid):
             self.getTransaction().register(object)
             raise ReadConflictError(object=object)
-        
+
         invalid = self._invalid
         if oid is None or object._p_jar is not self:
             # new object
@@ -625,7 +625,7 @@ class Connection(ExportImport.ExportImport, object):
         else:
             self.getTransaction().register(obj)
             raise ReadConflictError(object=obj)
-        
+
     def oldstate(self, object, serial):
         oid=object._p_oid
         p = self._storage.loadSerial(oid, serial)
@@ -717,7 +717,7 @@ class Connection(ExportImport.ExportImport, object):
         # the connection does not match what is written to the
         # database.  Invalidate the object here to guarantee that
         # the new state is read the next time the object is used.
-        
+
         if not store_return:
             return
         if isinstance(store_return, StringType):
@@ -757,7 +757,7 @@ class Connection(ExportImport.ExportImport, object):
             def callback():
                 d = {}
                 for oid in self._modified:
-                    d[oid] = 1 
+                    d[oid] = 1
                 self._db.invalidate(d, self)
             self._storage.tpc_finish(transaction, callback)
 

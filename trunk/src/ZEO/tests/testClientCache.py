@@ -396,7 +396,7 @@ class PersistentClientCacheTests(unittest.TestCase):
         version = "folio"
         vdata = "Mend your speech a little, lest you may mar your fortunes."
         vserial = "12346789"
-        
+
         self.cache.store(self._oid, nvdata, nvserial, version, vdata, vserial)
         self.cache.checkSize(10 * self.cachesize) # force a cache flip
 
@@ -421,7 +421,7 @@ class PersistentClientCacheTests(unittest.TestCase):
                 data, serial = self.cache.load(self._oid, xversion)
                 self.assertEqual(data, xdata)
                 self.assertEqual(serial, xserial)
-                
+
 class ClientCacheLongOIDTests(ClientCacheTests):
     _oid  = 'abcdefghijklmnop' * 2
     _oid2 = 'bcdefghijklmnopq' * 2

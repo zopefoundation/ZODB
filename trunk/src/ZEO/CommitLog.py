@@ -42,3 +42,8 @@ class CommitLog:
         self.read = 1
         self.file.seek(0)
         return self.stores, cPickle.Unpickler(self.file)
+
+    def close(self):
+        if self.file:
+            self.file.close()
+            self.file = None

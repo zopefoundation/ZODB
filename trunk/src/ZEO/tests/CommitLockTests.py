@@ -27,7 +27,7 @@ from ZEO.tests.TestThread import TestThread
 ZERO = '\0'*8
 
 class DummyDB:
-    def invalidate(self, *args):
+    def invalidate(self, *args, **kwargs):
         pass
 
 class WorkerThread(TestThread):
@@ -116,7 +116,7 @@ class CommitLockTests:
 
         self._dostore()
         self._cleanup()
-        
+
     def checkCommitLockVoteAbort(self):
         oid, txn = self._start_txn()
         self._storage.tpc_vote(txn)
@@ -129,7 +129,7 @@ class CommitLockTests:
 
         self._dostore()
         self._cleanup()
-        
+
     def checkCommitLockVoteClose(self):
         oid, txn = self._start_txn()
         self._storage.tpc_vote(txn)
@@ -153,7 +153,7 @@ class CommitLockTests:
 
     def _finish_undo(self, msgid):
         return self._storage._server.rpc._deferred_wait(msgid)
-        
+
     def checkCommitLockUndoFinish(self):
         trans_id = self._get_trans_id()
         oid, txn = self._start_txn()
@@ -170,7 +170,7 @@ class CommitLockTests:
 
         self._dostore()
         self._cleanup()
-        
+
     def checkCommitLockUndoAbort(self):
         trans_id = self._get_trans_id()
         oid, txn = self._start_txn()
@@ -186,7 +186,7 @@ class CommitLockTests:
 
         self._dostore()
         self._cleanup()
-        
+
     def checkCommitLockUndoClose(self):
         trans_id = self._get_trans_id()
         oid, txn = self._start_txn()
@@ -201,23 +201,24 @@ class CommitLockTests:
         self._finish_threads()
 
         self._cleanup()
-        
+
     def _begin_threads(self):
         # Start a second transaction on a different connection without
-        # blocking the test thread.
+        # blocking the test thread.  Returns only after each thread has
+        # set it's ready event.
         self._storages = []
         self._threads = []
-        
+
         for i in range(self.NUM_CLIENTS):
             storage = self._duplicate_client()
             txn = Transaction()
             tid = self._get_timestamp()
-            
+
             t = WorkerThread(self, storage, txn)
             self._threads.append(t)
             t.start()
             t.ready.wait()
-        
+
             # Close on the connections abnormally to test server response
             if i == 0:
                 storage.close()
