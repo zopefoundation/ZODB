@@ -9,11 +9,12 @@
 .PHONY:	default all html pdf ps
 
 default:  pdf
-all:	  html pdf ps
+all:	  html pdf ps text
 
 html:   zconfig/zconfig.html
 pdf:	zconfig.pdf
 ps:	zconfig.ps
+text:   zconfig.txt
 
 zconfig/zconfig.html:  zconfig.tex schema.dtd xmlmarkup.perl
 	mkhowto --html $<
@@ -23,6 +24,9 @@ zconfig.pdf:  zconfig.tex schema.dtd xmlmarkup.sty
 
 zconfig.ps:  zconfig.tex schema.dtd xmlmarkup.sty
 	mkhowto --postscript $<
+
+zconfig.txt: zconfig.tex schema.dtd xmlmarkup.sty
+	mkhowto --text $<
 
 clean:
 	rm -f zconfig.l2h zconfig.l2h~
