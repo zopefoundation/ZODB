@@ -104,9 +104,9 @@ newBTreeItems(char kind,
 static void
 BTreeItems_dealloc(BTreeItems *self)
 {
-  Py_DECREF(self->firstbucket);
-  Py_DECREF(self->lastbucket);
-  Py_DECREF(self->currentbucket);
+  Py_XDECREF(self->firstbucket);
+  Py_XDECREF(self->lastbucket);
+  Py_XDECREF(self->currentbucket);
   PyMem_DEL(self);
 }
 
@@ -117,6 +117,8 @@ BTreeItems_length_or_nonzero(BTreeItems *self, int nonzero)
   Bucket *b, *next;
 
   b=self->firstbucket;
+  UNLESS(b) return 0;
+
   r=self->last + 1 - self->first;
 
   if (nonzero && r > 0) 
@@ -174,8 +176,14 @@ BTreeItems_seek(BTreeItems *self, int i)
   int delta, pseudoindex, currentoffset;
   Bucket *b, *currentbucket;
 
-  pseudoindex=self->pseudoindex;
   currentbucket=self->currentbucket;
+  UNLESS(currentbucket)
+    {
+      IndexError(i);
+      return -1;
+    }
+
+  pseudoindex=self->pseudoindex;
   Py_INCREF(currentbucket);
   currentoffset=self->currentoffset;
 
@@ -466,14 +474,88 @@ newBTreeItems(char kind,
   self->kind=kind;
   self->first=lowoffset;
   self->last=highoffset;
-  Py_INCREF(lowbucket);
+  Py_XINCREF(lowbucket);
   self->firstbucket = lowbucket;
-  Py_INCREF(highbucket);
+  Py_XINCREF(highbucket);
   self->lastbucket = highbucket;
-  Py_INCREF(lowbucket);
+  Py_XINCREF(lowbucket);
   self->currentbucket = lowbucket;
   self->currentoffset = lowoffset;
   self->pseudoindex = 0;
 
   return OBJECT(self);
+}
+
+static int 
+nextBTreeItems(SetIteration *i)
+{
+  if (i->position >= 0)
+    {
+      if (i->position)
+        {
+          DECREF_KEY(i->key);
+          DECREF_VALUE(i->value);
+        }
+      
+      if (BTreeItems_seek(ITEMS(i->set), i->position) >= 0)
+        {
+          Bucket *currentbucket;
+
+          currentbucket = BUCKET(ITEMS(i->set)->currentbucket);
+
+          UNLESS(PER_USE(currentbucket)) return -1;
+
+          COPY_KEY(i->key, currentbucket->keys[ITEMS(i->set)->currentoffset]);
+          INCREF_KEY(i->key);
+
+          COPY_VALUE(i->value, 
+                     currentbucket->values[ITEMS(i->set)->currentoffset]);
+          COPY_VALUE(i->value, 
+                   BUCKET(ITEMS(i->set)->currentbucket)
+                   ->values[ITEMS(i->set)->currentoffset]);
+          INCREF_VALUE(i->value);
+
+          i->position ++;
+
+          PER_ALLOW_DEACTIVATION(currentbucket);
+        }
+      else
+        {
+          i->position = -1;
+          PyErr_Clear();
+        }
+    }
+}
+
+static int 
+nextTreeSetItems(SetIteration *i)
+{
+  if (i->position >= 0)
+    {
+      if (i->position)
+        {
+          DECREF_KEY(i->key);
+        }
+      
+      if (BTreeItems_seek(ITEMS(i->set), i->position) >= 0)
+        {
+          Bucket *currentbucket;
+
+          currentbucket = BUCKET(ITEMS(i->set)->currentbucket);
+
+          UNLESS(PER_USE(currentbucket)) return -1;
+
+          COPY_KEY(i->key, currentbucket->keys[ITEMS(i->set)->currentoffset]);
+          INCREF_KEY(i->key);
+
+          i->position ++;
+
+          PER_ALLOW_DEACTIVATION(currentbucket);
+        }
+      else
+        {
+          i->position = -1;
+          PyErr_Clear();
+        }
+    }
 }

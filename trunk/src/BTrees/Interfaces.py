@@ -147,6 +147,14 @@ class IDictionaryIsh(IKeyed, ISized):
         items having keys less than or equal to the given min.
         A max value of None is ignored.
         """
+
+    def byValue(minValue):
+        """Return a sequence of value-key pairs, sorted by value
+
+        Values < min are ommitted and other values are "normalized" by
+        the minimum value. This normalization may be a noop, but, for
+        integer values, the normalization is division.
+        """
     
 class IBTree(IDictionaryIsh):
 
@@ -168,6 +176,124 @@ class IBTree(IDictionaryIsh):
           while not t.insert(key, value):
               key=generate_key()
         """
+
+class IMerge(Interfaces.Base):
+    """Object with methods for merging sets, buckets, and trees.
+
+    These methods are supplied in modules that define collection
+    classes with particular key and value types. The operations apply
+    only to collections from the same module.  For example, the
+    IIBTree.union can only be used with IIBTree.IIBTree,
+    IIBTree.IIBucket, IIBTree.IISet, and IIBTree.IITreeSet.
+
+    The implementing module has a value type. The IOBTree and OOBTree
+    modules have object value type. The IIBTree and OIBTree modules
+    have integer value tyoes. Other modules may be defined in the
+    future that have other value types.
+
+    The individual types are classified into set (Set and TreeSet) and
+    mapping (Bucket and BTree) types.
+    """
+
+    def difference(c1, c2):
+        """Return the keys or items in c1 for which there is no key in
+        c2.
+
+        If c1 is None, then None is returned.  If c2 is none, then c1
+        is returned.
+        """
+
+    def union(c1, c2):
+        """Compute the Union of c1 and c2.
+
+        If c1 is None, then c2 is returned, otherwise, if c2 is None,
+        then c1 is returned.
+
+        The output is a Set containing keys from the input
+        collections.
+        """
+
+    def intersection(c1, c2):
+        """Compute the Union of c1 and c2.
+
+        If c1 is None, then c2 is returned, otherwise, if c2 is None,
+        then c1 is returned.
+
+        The output is a Set containing matching keys from the input
+        collections.
+        """
+
+class IIMerge(IMerge):
+    """Merge collections with integer value type.
+
+    A primary intent is to support operations with no or integer
+    values, which are used as "scores" to rate indiviual keys. That
+    is, in this context, a BTree or Bucket is viewed as a set with
+    scored keys, using integer scores.
+    """
+
+    def weightedUnion(c1, c2, weight1=1, weight2=1):
+        """Compute the weighted Union of c1 and c2.
+
+        If c1 and c2 are None, the output is 0 and None
+
+        if c1 is None and c2 is not None, the output is weight2 and
+        c2.
+
+        if c1 is not None and c2 not None, the output is weight1 and
+        c1.
+
+        If c1 and c2 are not None, the output is 1 and a Bucket
+        such that the output values are::
+
+          v1*weight1 + v2*weight2
+
+          where:
+
+            v1 is 0 if the key was not in c1. Otherwise, v1 is 1, if
+            c1 is a set, or the value from c1.
+
+            v2 is 0 if the key was not in c2. Otherwise, v2 is 2, if
+            c2 is a set, or the value from c2.
+
+        Note that c1 and c2 must be collections. None may not be
+        passed as one of the collections.
+        """
+
+    def weightedIntersection(c1, c2, weight1=1, weight2=1):
+        """Compute the weighted intersection of c1 and c2.
+
+        If c1 and c2 are None, the output is None, None.
+
+        if c1 is None and c2 is not None, the output is weight2 and
+        c2.
+
+        if c1 is not None and c2 not None, the output is weight1 and
+        c1.
+
+        If c1 and c2 are sets, the output is the sum of the weights
+        and the (unweighted) intersection of the sets.
+
+        If c1 and c2 are not None and not both sets, the output is 1
+        and a Bucket such that the output values are::
+
+          v1*weight1 + v2*weight2
+
+          where:
+
+            v1 is 0 if the key was not in c1. Otherwise, v1 is 1, if
+            c1 is a set, or the value from c1.
+
+            v2 is 0 if the key was not in c2. Otherwise, v2 is 2, if
+            c2 is a set, or the value from c2.
+
+        Note that c1 and c2 must be collections. None may not be
+        passed as one of the collections.
+        """
+
+        
+    
+        
     
 Interface.assertTypeImplements(OOBTree.OOSet, ISet)
 Interface.assertTypeImplements(OOBTree.OOTreeSet, ITreeSet)

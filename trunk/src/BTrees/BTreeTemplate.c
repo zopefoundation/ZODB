@@ -83,183 +83,6 @@
   
  ****************************************************************************/
 
-static char BTree_module_documentation[] = 
-""
-"\n$Id: BTreeTemplate.c,v 1.6 2001/02/16 20:49:11 jim Exp $"
-;
-
-#include "cPersistence.h"
-
-/***************************************************************
-   The following are macros that ought to be in cPersistence.h */
-#ifndef PER_USE 
-
-#define PER_USE(O) \
-(((O)->state != cPersistent_GHOST_STATE \
-  || (cPersistenceCAPI->setstate((PyObject*)(O)) >= 0)) \
- ? (((O)->state==cPersistent_UPTODATE_STATE) \
-    ? ((O)->state=cPersistent_STICKY_STATE) : 1) : 0)
-
-#define Ghost_Test(O) ((O)->state == cPersistent_GHOST_STATE)
-#endif
-/***************************************************************/
-
-
-static void PyVar_Assign(PyObject **v, PyObject *e) { Py_XDECREF(*v); *v=e;}
-#define ASSIGN(V,E) PyVar_Assign(&(V),(E))
-#define ASSIGNC(V,E) (Py_INCREF((E)), PyVar_Assign(&(V),(E)))
-#define UNLESS(E) if (!(E))
-#define UNLESS_ASSIGN(V,E) ASSIGN(V,E); UNLESS(V)
-#define LIST(O) ((PyListObject*)(O))
-#define OBJECT(O) ((PyObject*)(O))
-
-#define MIN_BUCKET_ALLOC 16
-#define MAX_BTREE_SIZE(B) 256
-#define MAX_BUCKET_SIZE(B) DEFAULT_MAX_BUCKET_SIZE
-
-#define SameType_Check(O1, O2) ((O1)->ob_type==(O2)->ob_type)
-
-typedef struct BTreeItemStruct {
-  KEY_TYPE key;
-  PyObject *value;
-} BTreeItem;
-
-typedef struct Bucket_s {
-  cPersistent_HEAD
-  int size, len;
-  struct Bucket_s *next;
-  KEY_TYPE *keys;
-  VALUE_TYPE *values;
-} Bucket;
-
-#define BUCKET(O) ((Bucket*)(O))
-
-static void PyVar_AssignB(Bucket **v, Bucket *e) { Py_XDECREF(*v); *v=e;}
-#define ASSIGNB(V,E) PyVar_AssignB(&(V),(E))
-#define ASSIGNBC(V,E) (Py_INCREF((E)), PyVar_AssignB(&(V),(E)))
-
-typedef struct {
-  cPersistent_HEAD
-  int size, len;
-  Bucket *firstbucket;
-  BTreeItem *data;
-} BTree;
-
-#define BTREE(O) ((BTree*)(O))
-
-static PyObject *
-IndexError(int i)
-{                              
-  PyObject *v;
-
-  v=PyInt_FromLong(i);
-  UNLESS (v) {
-    v=Py_None;
-    Py_INCREF(v);
-  }
-  PyErr_SetObject(PyExc_IndexError, v);
-  Py_DECREF(v);
-  return NULL;
-}
-
-static Bucket *
-PreviousBucket(Bucket *current, Bucket *first, int i)
-{
-  if (! first) return NULL;
-  if (first==current)
-    {
-      IndexError(i);
-      return NULL;
-    }
-
-  Py_INCREF(first);
-  while (1)
-    {
-      PER_USE_OR_RETURN(first,NULL);
-      if (first->next==current) 
-        {
-          PER_ALLOW_DEACTIVATION(first);
-          return first;
-        }
-      else if (first->next)
-        {
-          Bucket *next = first->next;
-          Py_INCREF(next);
-          PER_ALLOW_DEACTIVATION(first);
-          Py_DECREF(first);
-          first=next;
-        }
-      else
-        {
-          PER_ALLOW_DEACTIVATION(first);
-          Py_DECREF(first);
-          IndexError(i);
-          return NULL;
-        }
-    }
-}
-
-static int 
-firstBucketOffset(Bucket **bucket, int *offset)
-{
-  Bucket *b;
-
-  *offset = (*bucket)->len - 1;
-  while ((*bucket)->len < 1)
-    {
-      b=(*bucket)->next;
-      if (b==NULL) return 0;
-      Py_INCREF(b);
-      PER_ALLOW_DEACTIVATION((*bucket));
-      ASSIGNB((*bucket), b);
-      UNLESS (PER_USE(*bucket)) return -1;
-      *offset = 0;
-    }
-}
-
-static int 
-lastBucketOffset(Bucket **bucket, int *offset, Bucket *firstbucket, int i)
-{
-  Bucket *b;
-
-  *offset = (*bucket)->len - 1;
-  while ((*bucket)->len < 1)
-    {
-      b=PreviousBucket((*bucket), firstbucket, i);
-      if (b==NULL) return 0;
-      PER_ALLOW_DEACTIVATION((*bucket));
-      ASSIGNB((*bucket), b);
-      UNLESS (PER_USE(*bucket)) return -1;
-      *offset = (*bucket)->len - 1;
-    }
-}
-
-static void *
-PyMalloc(size_t sz)
-{
-  void *r;
-
-  if (r=malloc(sz)) return r;
-
-  PyErr_NoMemory();
-  return NULL;
-}
-
-static void *
-PyRealloc(void *p, size_t sz)
-{
-  void *r;
-
-  if (r=realloc(p,sz)) return r;
-
-  PyErr_NoMemory();
-  return NULL;
-}
-
-#include "BTreeItemsTemplate.c"
-#include "BucketTemplate.c"
-#include "SetTemplate.c"
-
 /*
 ** _BTree_get
 **
@@ -1119,7 +942,7 @@ BTree_rangeSearch(BTree *self, PyObject *args, char type)
 
  empty:
   PER_ALLOW_DEACTIVATION(self);
-  return PyTuple_New(0);
+  return newBTreeItems(type, 0, 0, 0, 0);
 }
 
 /*
@@ -1147,6 +970,73 @@ static PyObject *
 BTree_items(BTree *self, PyObject *args)
 {
   return BTree_rangeSearch(self,args,'i');
+}
+
+static PyObject *
+BTree_byValue(BTree *self, PyObject *args)
+{
+  PyObject *r=0, *o=0, *item=0, *omin;
+  VALUE_TYPE min;
+  VALUE_TYPE v;
+  int i, l, copied=1;
+  SetIteration it={0,0};
+
+  PER_USE_OR_RETURN(self, NULL);
+
+  UNLESS (PyArg_ParseTuple(args, "O", &omin)) return NULL;
+  COPY_VALUE_FROM_ARG(min, omin, &copied);
+  UNLESS(copied) return NULL;
+    
+  UNLESS (r=PyList_New(0)) goto err;
+
+  it.set=BTree_rangeSearch(self, NULL, 'i');
+  UNLESS(it.set) goto err;
+
+  if (nextBTreeItems(&it) < 0) goto err;
+
+  while (it.position >= 0)
+    {
+      if (TEST_VALUE(it.value, min) >= 0)
+        {      
+          UNLESS (item = PyTuple_New(2)) goto err;
+
+          COPY_KEY_TO_OBJECT(o, it.key);
+          UNLESS (o) goto err;
+          PyTuple_SET_ITEM(item, 1, o);
+
+          COPY_VALUE(v, it.value);
+          NORMALIZE_VALUE(v, min);
+          COPY_VALUE_TO_OBJECT(o, v);
+          DECREF_VALUE(v);
+          UNLESS (o) goto err;
+          PyTuple_SET_ITEM(item, 0, o);
+      
+          if (PyList_Append(r, item) < 0) goto err;
+          Py_DECREF(item);
+          item = 0;
+        }
+      if (nextBTreeItems(&it) < 0) goto err;
+    }
+
+  item=PyObject_GetAttr(r,sort_str);
+  UNLESS (item) goto err;
+  ASSIGN(item, PyObject_CallObject(item, NULL));
+  UNLESS (item) goto err;
+  ASSIGN(item, PyObject_GetAttr(r, reverse_str));
+  UNLESS (item) goto err;
+  ASSIGN(item, PyObject_CallObject(item, NULL));
+  UNLESS (item) goto err;
+  Py_DECREF(item);
+
+  PER_ALLOW_DEACTIVATION(self);
+  return r;
+
+ err:
+  PER_ALLOW_DEACTIVATION(self);
+  Py_XDECREF(r);
+  Py_XDECREF(it.set);
+  Py_XDECREF(item);
+  return NULL;
 }
 
 /*
@@ -1196,11 +1086,15 @@ static struct PyMethodDef BTree_methods[] = {
   {"has_key",	(PyCFunction) BTree_has_key,	METH_VARARGS,
      "has_key(key) -- Test whether the bucket contains the given key"},
   {"keys",	(PyCFunction) BTree_keys,	METH_VARARGS,
-     "keys() -- Return the keys"},
+     "keys([min, max]) -- Return the keys"},
   {"values",	(PyCFunction) BTree_values,	METH_VARARGS,
-     "values() -- Return the values"},
+     "values([min, max]) -- Return the values"},
   {"items",	(PyCFunction) BTree_items,	METH_VARARGS,
-     "items() -- Return the items"},
+     "items([min, max]) -- Return the items"},
+  {"byValue",	(PyCFunction) BTree_byValue,	METH_VARARGS,
+   "byValue(min) -- "
+   "Return value-keys with values >= min and reverse sorted by values"
+  },
   {"get",	(PyCFunction) BTree_getm,	METH_VARARGS,
    "get(key[,default]) -- Look up a value\n\n"
    "Return the default (or None) if the key is not found."
@@ -1324,76 +1218,3 @@ static PyExtensionClass BTreeType = {
   EXTENSIONCLASS_BASICNEW_FLAG | PERSISTENT_TYPE_FLAG 
   | EXTENSIONCLASS_NOINSTDICT_FLAG,
 };
-
-#include "TreeSetTemplate.c"
-
-#include "SetOpTemplate.c"
-
-static struct PyMethodDef module_methods[] = {
-  {"union", (PyCFunction) union_m,	METH_VARARGS,
-   "union(o1, o2 [, w1, w2]) -- compurte the union of o1 and o2\n"
-   "\nw1 and w2 are weights, which are only meaningful for integer values"
-  },
-  {"intersection", (PyCFunction) intersection_m,	METH_VARARGS,
-   "intersection(o1, o2 [, w1, w2]) -- "
-   "compurte the intersection of o1 and o2\n"
-   "\nw1 and w2 are weights, which are only meaningful for integer values"
-  },
-  {"difference", (PyCFunction) difference_m,	METH_VARARGS,
-   "difference(o1, o2 [, w1, w2]) -- "
-   "compurte the difference between o1 and o2\n"
-   "\nw1 and w2 are weights, which are only meaningful for integer values"
-  },
-  {NULL,		NULL}		/* sentinel */
-};
-
-void 
-INITMODULE ()
-{
-  PyObject *m, *d;
-
-  UNLESS (PyExtensionClassCAPI=PyCObject_Import("ExtensionClass","CAPI"))
-      return;
-
-  if (cPersistenceCAPI=PyCObject_Import("cPersistence","CAPI"))
-    {
-	BucketType.methods.link=cPersistenceCAPI->methods;
-	BucketType.tp_getattro=cPersistenceCAPI->getattro;
-	BucketType.tp_setattro=cPersistenceCAPI->setattro;
-
-	SetType.methods.link=cPersistenceCAPI->methods;
-	SetType.tp_getattro=cPersistenceCAPI->getattro;
-	SetType.tp_setattro=cPersistenceCAPI->setattro;
-
-	BTreeType.methods.link=cPersistenceCAPI->methods;
-	BTreeType.tp_getattro=cPersistenceCAPI->getattro;
-	BTreeType.tp_setattro=cPersistenceCAPI->setattro;
-
-	TreeSetType.methods.link=cPersistenceCAPI->methods;
-	TreeSetType.tp_getattro=cPersistenceCAPI->getattro;
-	TreeSetType.tp_setattro=cPersistenceCAPI->setattro;
-    }
-  else return;
-
-  BTreeItemsType.ob_type=&PyType_Type;
-
-  /* Create the module and add the functions */
-  m = Py_InitModule4(PREFIX "BTree", module_methods,
-		     BTree_module_documentation,
-		     (PyObject*)NULL,PYTHON_API_VERSION);
-
-  /* Add some symbolic constants to the module */
-  d = PyModule_GetDict(m);
-
-  PyDict_SetItemString(d, "__version__",
-		       PyString_FromString("$Revision: 1.6 $"));
-
-  PyExtensionClass_Export(d,PREFIX "Bucket", BucketType);
-  PyExtensionClass_Export(d,PREFIX "BTree", BTreeType);
-  PyExtensionClass_Export(d,PREFIX "Set", SetType);
-  PyExtensionClass_Export(d,PREFIX "TreeSet", TreeSetType);
- 
-  /* Check for errors */
-  if (PyErr_Occurred())
-    Py_FatalError("can't initialize module " PREFIX "BTree");
-}
