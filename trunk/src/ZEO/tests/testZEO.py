@@ -237,6 +237,7 @@ class MappingStorageTests(FileStorageTests):
     def checkAbortVersion(self): pass
     def checkAbortOneVersionCommitTheOther(self): pass
     def checkResolve(self): pass
+    def check4ExtStorageThread(self): pass
 
 
 test_classes = [FileStorageTests, MappingStorageTests]
