@@ -12,7 +12,7 @@
 
  ****************************************************************************/
 
-#define BUCKETTEMPLATE_C "$Id: BucketTemplate.c,v 1.36 2002/06/08 19:46:18 tim_one Exp $\n"
+#define BUCKETTEMPLATE_C "$Id: BucketTemplate.c,v 1.37 2002/06/09 02:50:14 tim_one Exp $\n"
 
 /* Use BUCKET_SEARCH to find the index at which a key belongs.
  * INDEX    An int lvalue to hold the index i such that KEY belongs at
@@ -168,144 +168,147 @@ Overflow:
 }
 
 /*
-** _bucket_set
+** _bucket_set: Assign a value to a key in a bucket, delete a key+value
+**  pair, or just insert a key.
 **
-** Assign a value into a bucket
+** Arguments
+**     self     The bucket
+**     keyarg   The key to look for
+**     v        The value to associate with key; NULL means delete the key.
+**              If NULL, it's an error (KeyError) if the key isn't present.
+**              Note that if this is a set bucket, and you want to insert
+**              a new set element, v must be non-NULL although its exact
+**              value will be ignored.  Passing Py_None is good for this.
+**     unique   Boolean; when true, don't replace the value if the key is
+**              already present.
+**     noval    Boolean; when true, operate on keys only (ignore values)
+**     changed  ignored on input
 **
-** Arguments:	self	The bucket
-**		key	The key of the object to insert
-**		v	The value of the object to insert
-**              unique  Inserting a unique key
-**
-** Returns:	-1 	on error
-**		 0	on success with a replacement
-**		 1	on success with a new value (growth)
+** Return
+**     -1       on error
+**      0       on success and the # of bucket entries didn't change
+**      1       on success and the # of bucket entries did change
+**  *changed    If non-NULL, set to 1 on any mutation of the bucket.
 */
 static int
 _bucket_set(Bucket *self, PyObject *keyarg, PyObject *v,
             int unique, int noval, int *changed)
 {
-  int min, max, i, l, cmp, copied=1;
-  KEY_TYPE key;
+    int i, cmp;
+    KEY_TYPE key;
+    int result = -1;    /* until proven innocent */
+    int copied = 1;
 
-  COPY_KEY_FROM_ARG(key, keyarg, copied);
-  UNLESS(copied) return -1;
+    COPY_KEY_FROM_ARG(key, keyarg, copied);
+    UNLESS(copied) return -1;
 
-  PER_USE_OR_RETURN(self, -1);
+    PER_USE_OR_RETURN(self, -1);
 
-  for (min=0, max=l=self->len, i=max/2; i != l; l=i, i=(min+max)/2)
-    {
-      TEST_KEY_SET_OR(cmp, self->keys[i], key) goto err;
-      if (cmp < 0) min=i;
-      else if (cmp==0)
-	{
-	  if (v)			/* Assign value to key */
-	    {
-              if (! unique && ! noval && self->values)
-                {
-                  VALUE_TYPE value;
+    BUCKET_SEARCH(i, cmp, self, key, goto Done);
+    if (cmp == 0) {
+        VALUE_TYPE value;
+        /* The key exists, at index i. */
 
-                  COPY_VALUE_FROM_ARG(value, v, copied);
-                  UNLESS(copied) return -1;
+        if (v) {
+            /* The key exists at index i, and there's a new value.
+             * If unique, we're not supposed to replace it.  If noval, or this
+             * is a set bucket (self->values is NULL), there's nothing to do.
+             */
+            if (unique || noval || self->values == NULL) {
+                result = 0;
+                goto Done;
+            }
 
+            /* The key exists at index i, and we need to replace the value. */
+            COPY_VALUE_FROM_ARG(value, v, copied);
+            UNLESS(copied) goto Done;
 #ifdef VALUE_SAME
-                  if (VALUE_SAME(self->values[i], value))
-                    { /* short-circuit if no change */
-                      PER_ALLOW_DEACTIVATION(self);
-                      PER_ACCESSED(self);
-                      return 0;
-                    }
+            /* short-circuit if no change */
+            if (VALUE_SAME(self->values[i], value)) {
+                result = 0;
+                goto Done;
+            }
 #endif
-                  if (changed) *changed=1;
-                  DECREF_VALUE(self->values[i]);
-                  COPY_VALUE(self->values[i], value);
-                  INCREF_VALUE(self->values[i]);
-                  if (PER_CHANGED(self) < 0) goto err;
-                }
-	      PER_ALLOW_DEACTIVATION(self);
-              PER_ACCESSED(self);
-	      return 0;
-	    }
-	  else			/* There's no value so remove the item */
-	    {
-	      self->len--;
+            if (changed)
+                *changed = 1;
+            DECREF_VALUE(self->values[i]);
+            COPY_VALUE(self->values[i], value);
+            INCREF_VALUE(self->values[i]);
+            if (PER_CHANGED(self) >= 0)
+                result = 0;
+            goto Done;
+        }
 
-	      DECREF_KEY(self->keys[i]);
-	      if (i < self->len)
-                memmove(self->keys+i, self->keys+i+1,
-                        sizeof(KEY_TYPE)*(self->len-i));
+        /* The key exists at index i, and should be deleted. */
+        DECREF_KEY(self->keys[i]);
+        self->len--;
+        if (i < self->len)
+            memmove(self->keys + i, self->keys + i+1,
+                    sizeof(KEY_TYPE)*(self->len - i));
 
-              if (self->values && ! noval)
-                {
-                  DECREF_VALUE(self->values[i]);
-                  if (i < self->len)
-                    memmove(self->values+i, self->values+i+1,
-                            sizeof(VALUE_TYPE)*(self->len-i));
+        if (self->values) {
+            DECREF_VALUE(self->values[i]);
+            if (i < self->len)
+                memmove(self->values + i, self->values + i+1,
+                        sizeof(VALUE_TYPE)*(self->len - i));
+        }
 
-                }
+        if (! self->len) {
+            self->size = 0;
+            free(self->keys);
+            self->keys = NULL;
+            if (self->values) {
+                free(self->values);
+                self->values = NULL;
+            }
+        }
 
-              if (! self->len)
-		{
-		  self->size=0;
-		  free(self->keys);
-		  self->keys=NULL;
-                  if (self->values)
-                    {
-                      free(self->values);
-                      self->values=NULL;
-                    }
-		}
-
-	      if (PER_CHANGED(self) < 0) goto err;
-	      PER_ALLOW_DEACTIVATION(self);
-              PER_ACCESSED(self);
-	      return 1;
-	    }
-	}
-      else max=i;
+        if (changed)
+            *changed = 1;
+        if (PER_CHANGED(self) >= 0)
+            result = 1;
+        goto Done;
     }
 
-  if (!v)
-    {
-      PyErr_SetObject(PyExc_KeyError, keyarg);
-      goto err;
+    /* The key doesn't exist, and belongs at index i. */
+    if (!v) {
+        /* Can't delete a non-existent key. */
+        PyErr_SetObject(PyExc_KeyError, keyarg);
+        goto Done;
     }
 
-  if (self->len==self->size && Bucket_grow(self, -1, noval) < 0) goto err;
+    /* The key doesn't exist and should be inserted at index i. */
+    if (self->len == self->size && Bucket_grow(self, -1, noval) < 0)
+        goto Done;
 
-  if (max != i) i++;
-
-  if (self->len > i)
-    {
-      memmove(self->keys+i+1, self->keys+i,
-              sizeof(KEY_TYPE)*(self->len-i));
-      UNLESS (noval)
-        memmove(self->values+i+1, self->values+i,
-                sizeof(VALUE_TYPE)*(self->len-i));
+    if (self->len > i) {
+        memmove(self->keys + i+1, self->keys + i,
+                sizeof(KEY_TYPE)*(self->len - i));
+        if (self->values) {
+            memmove(self->values + i+1, self->values + i,
+                    sizeof(VALUE_TYPE)*(self->len - i));
+        }
     }
 
+    COPY_KEY(self->keys[i], key);
+    INCREF_KEY(self->keys[i]);
 
-  COPY_KEY(self->keys[i], key);
-  INCREF_KEY(self->keys[i]);
-
-  UNLESS (noval)
-    {
-      COPY_VALUE_FROM_ARG(self->values[i], v, copied);
-      UNLESS(copied) return -1;
-      INCREF_VALUE(self->values[i]);
+    if (! noval) {
+        COPY_VALUE_FROM_ARG(self->values[i], v, copied);
+        UNLESS(copied) return -1;
+        INCREF_VALUE(self->values[i]);
     }
 
-  self->len++;
+    self->len++;
+    if (changed)
+        *changed = 1;
+    if (PER_CHANGED(self) >= 0)
+        result = 1;
 
-  if (PER_CHANGED(self) < 0) goto err;
-  PER_ALLOW_DEACTIVATION(self);
-  PER_ACCESSED(self);
-  return 1;
-
-err:
-  PER_ALLOW_DEACTIVATION(self);
-  PER_ACCESSED(self);
-  return -1;
+Done:
+    PER_ALLOW_DEACTIVATION(self);
+    PER_ACCESSED(self);
+    return result;
 }
 
 /*
