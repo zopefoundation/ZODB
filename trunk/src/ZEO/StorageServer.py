@@ -347,7 +347,7 @@ class ZEOStorage:
 
     def zeoVerify(self, oid, s, sv):
         try:
-            os = self.getSerial(oid)
+            os = self.storage.getSerial(oid)
         except KeyError:
             self.client.invalidateVerify((oid, ''))
             # XXX It's not clear what we should do now.  The KeyError
@@ -374,7 +374,7 @@ class ZEOStorage:
             else:
                 if s != os:
                     self.client.invalidateVerify((oid, ''))
-                
+
     def endZeoVerify(self):
         self.client.endVerify()
 
