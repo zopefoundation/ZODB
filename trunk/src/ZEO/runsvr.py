@@ -14,17 +14,16 @@
 ##############################################################################
 """Start the ZEO storage server.
 
-Usage: %s [-a ADDRESS] [-f FILENAME] [-s STORAGE]
+Usage: %s [-a ADDRESS] [-C URL] [-f FILENAME] [-h]
 
 Options:
 -a/--address ADDRESS -- server address of the form PORT, HOST:PORT, or PATH
                         (a PATH must contain at least one "/")
+-C/--configuration URL -- configuration file or URL
 -f/--filename FILENAME -- filename for FileStorage
--s/--storage STORAGE -- storage specification of the form
-                        NAME=MODULE[:ATTRIBUTE]
-                        (multiple -s options are supported)
+-h/--help -- print this usage message and exit
 
--a is required; either -f must be used or -s must be used.
+Unless -C is specified, -a and -f are required.
 """
 
 # The code here is designed to be reused by other, similar servers.
@@ -41,6 +40,10 @@ import socket
 
 import zLOG
 
+import ZConfig
+import ZConfig.Common
+import ZConfig.Storage
+
 
 class Options:
 
@@ -52,6 +55,9 @@ class Options:
     This also has a public usage() method that can be used to report
     errors related to the command line.
     """
+
+    configuration = None
+    rootconf = None
 
     args = []
 
@@ -90,8 +96,8 @@ class Options:
         self.check_options()
 
     # Default set of options.  Subclasses should override.
-    _short_options = "h"
-    _long_options = ["--help"]
+    _short_options = "C:h"
+    _long_options = ["--configuration=", "--help"]
 
     def handle_option(self, opt, arg):
         """Handle one option.  Subclasses should override.
@@ -100,15 +106,25 @@ class Options:
 
         When -h is detected, print the module docstring to stdout and exit(0).
         """
-        if opt == "-h" or opt == "--help":
+        if opt in ("-C", "--configuration"):
+            self.set_configuration(arg)
+        if opt in ("-h", "--help"):
             self.help()
+
+    def set_configuration(self, arg):
+        self.configuration = arg
 
     def check_options(self):
         """Check options.  Subclasses may override.
 
         This can be used to ensure certain options are set, etc.
         """
-        pass
+        self.load_configuration()
+
+    def load_configuration(self):
+        if self.rootconf or not self.configuration:
+            return
+        self.rootconf = ZConfig.load(self.configuration)
 
     def help(self):
         """Print a long help message (self.doc) to stdout and exit(0).
@@ -130,17 +146,20 @@ class Options:
 
 class ZEOOptions(Options):
 
-    family = None
-    address = None
-    storages = None
-    filename = None
+    hostname = None                     # A subclass may set this
+    hostconf = None                     # <Host> section
+    zeoconf = None                      # <ZEO> section
 
-    _short_options = "a:f:hs:"
+    family = None                       # set by -a; AF_UNIX or AF_INET
+    address = None                      # set by -a; string or (host, port)
+    storages = None                     # set by -f
+
+    _short_options = "a:C:f:h"
     _long_options = [
         "--address=",
+        "--configuration=",
         "--filename=",
         "--help",
-        "--storage=",
         ]
 
     def handle_option(self, opt, arg):
@@ -162,32 +181,74 @@ class ZEOOptions(Options):
                     self.usage("invalid port number: %r" % port)
                 self.address = (host, port)
         elif opt in ("-f", "--filename"):
-            self.filename = arg
-        elif opt in ("-s", "--storage"):
-            if self.storages is None:
-                self.storages = {}
-            if not "=" in arg:
-                self.usage("use -s/--storage storagename=module[:attribute]")
-            name, rest = arg.split("=", 1)
-            if ":" in rest:
-                module, attr = rest.split(":", 1)
-            else:
-                module = rest
-                attr = name
-            self.storages[name] = module, attr
+            from ZODB.FileStorage import FileStorage
+            self.storages = {"1": (FileStorage, {"file_name": arg})}
         else:
             # Pass it to the base class, for --help/-h
             Options.handle_option(self, opt, arg)
 
     def check_options(self):
-        if self.storages and self.filename:
-            self.usage("can't use both -s/--storage and -f/--filename")
-        if not self.storages and not self.filename:
-            self.usage("need one of -s/--storage or -f/--filename")
+        Options.check_options(self) # Calls load_configuration()
+        if not self.storages:
+            self.usage("no storages specified; use -f or -C")
         if self.family is None:
-            self.usage("need -a/--address [host:]port or unix path")
+            self.usage("no server address specified; use -a or -C")
         if self.args:
-            self.usage("no positional arguments supported")
+            self.usage("positional arguments are not supported")
+
+    def load_configuration(self):
+        Options.load_configuration(self) # Sets self.rootconf
+        if not self.rootconf:
+            return
+        try:
+            self.hostconf = self.rootconf.getSection("Host")
+        except ZConfig.Common.ConfigurationConflictingSectionError:
+            if not self.hostname:
+                self.hostname = socket.getfqdn()
+            self.hostconf = self.rootconf.getSection("Host", self.hostname)
+        if self.hostconf is None:
+            # If no <Host> section exists, fall back to the root
+            self.hostconf = self.rootconf
+        self.zeoconf = self.hostconf.getSection("ZEO")
+        if self.zeoconf is None:
+            # If no <ZEO> section exists, fall back to the host (or root)
+            self.zeoconf = self.hostconf
+
+        # Now extract options from various configuration sections
+        self.load_zeoconf()
+        self.load_storages()
+
+    def load_zeoconf(self):
+        # Get some option defaults from the configuration
+        if self.family:
+            # -a option overrides
+            return
+        port = self.zeoconf.getint("server-port")
+        path = self.zeoconf.get("path")
+        if port and path:
+            self.usage(
+                "Configuration contains conflicting ZEO information:\n"
+                "Exactly one of 'path' and 'server-port' may be given.")
+        if port:
+            host = self.hostconf.get("hostname", "")
+            self.family = socket.AF_INET
+            self.address = (host, port)
+        elif path:
+            self.family = socket.AF_UNIX
+            self.address = path
+
+    def load_storages(self):
+        # Get the storage specifications
+        if self.storages:
+            # -f option overrides
+            return
+        storagesections = self.zeoconf.getChildSections("Storage")
+        self.storages = {}
+        for section in storagesections:
+            name = section.name
+            if not name:
+                name = str(1 + len(self.storages))
+            self.storages[name] = ZConfig.Storage.getStorageInfo(section)
 
 
 class ZEOServer:
@@ -234,37 +295,11 @@ class ZEOServer:
                 pass
 
     def open_storages(self):
-        if self.options.storages:
-            self.load_storages(self.options.storages)
-        else:
-            from ZODB.FileStorage import FileStorage
-            info("opening storage '1': %r" % self.options.filename)
-            storage = FileStorage(self.options.filename)
-            self.storages = {"1": storage}
-
-    def load_storages(self, storages):
         self.storages = {}
-        for name, (module, attr) in storages.items():
-            info("opening storage %r (%r:%r)" % (name, module, attr))
-            self.storages[name] = self.get_storage(module, attr)
-
-    _storage_cache = {}
-
-    def get_storage(self, module, attr):
-        # XXX This may fail with ImportError or AttributeError
-        path = sys.path
-        dir, module = os.path.split(module)
-        if module.lower().endswith('.py'):
-            module = module[:-3]
-        im = self._storage_cache.get((dir, module))
-        if im is None:
-            if dir:
-                path = [dir] + path
-            import imp
-            im = imp.find_module(module, path)
-            im = imp.load_module(module, *im)
-            self._storage_cache[(dir, module)] = im
-        return getattr(im, attr)
+        for name, (cls, args) in self.options.storages.items():
+            info("open storage %r: %s.%s(**%r)" %
+                 (name, cls.__module__, cls.__name__, args))
+            self.storages[name] = cls(**args)
 
     def setup_signals(self):
         """Set up signal handlers.
