@@ -400,9 +400,6 @@ class Connection(smac.SizedMessageAsyncConnection):
             except select.error, err:
                 if err[0] == errno.EINTR:
                     continue
-                elif err[0] == 0:
-                    # Windows sez: "Error: Success." :-)
-                    break
                 else:
                     raise
             if not r:
@@ -411,7 +408,7 @@ class Connection(smac.SizedMessageAsyncConnection):
                 self.handle_read_event()
             except asyncore.ExitNow:
                 raise
-            else:
+            except:
                 self.handle_error()
 
 class ManagedServerConnection(Connection):
