@@ -49,7 +49,7 @@ class _ConnectionPool(object):
 
     When a connection is explicitly closed, tell the pool via repush().
     That adds the connection to a stack of connections available for
-    reuse, and throws away the oldest stack entries if the pool is too large.
+    reuse, and throws away the oldest stack entries if the stack is too large.
     pop() pops this stack.
 
     When a connection is obtained via pop(), the pool holds only a weak
@@ -72,7 +72,8 @@ class _ConnectionPool(object):
         # A stack of connections available to hand out.  This is a subset
         # of self.all.  push() and repush() add to this, and may remove
         # the oldest available connections if the pool is too large.
-        # pop() pops this stack.
+        # pop() pops this stack.  There are never more than pool_size entries
+        # in this stack.
         # In Python 2.4, a collections.deque would make more sense than
         # a list (we push only "on the right", but may pop from both ends).
         self.available = []
@@ -81,15 +82,16 @@ class _ConnectionPool(object):
     # If the pool_size is smaller than the current value, this may discard
     # the oldest available connections.
     def set_pool_size(self, pool_size):
-        self.pool_size = pool_size + 1  # _reduce_size shoots for < pool_size
-        self._reduce_size()
         self.pool_size = pool_size
+        self._reduce_size()
 
     # Register a new available connection.  We must not know about c already.
+    # c will be pushed onto the available stack even if we're over the
+    # pool size limit.
     def push(self, c):
         assert c not in self.all
         assert c not in self.available
-        self._reduce_size()
+        self._reduce_size(strictly_less=True)
         self.all.add(c)
         self.available.append(c)
         n, limit = len(self.all), self.pool_size
@@ -100,17 +102,21 @@ class _ConnectionPool(object):
             reporter("DB.open() has %s open connections with a pool_size "
                      "of %s", n, limit)
 
-    # Reregister an available connection formerly obtained via pop().
+    # Reregister an available connection formerly obtained via pop().  This
+    # pushes it on the stack of available connections, and may discard
+    # older available connections.
     def repush(self, c):
         assert c in self.all
         assert c not in self.available
-        self._reduce_size()
+        self._reduce_size(strictly_less=True)
         self.available.append(c)
 
     # Throw away the oldest available connections until we're under our
-    # target size.  It may not be possible to achieve this.
-    def _reduce_size(self):
-        while self.available and len(self.all) >= self.pool_size:
+    # target size (strictly_less=False) or no more than that (strictly_less=
+    # True, the default).  It may not be possible to achieve this.
+    def _reduce_size(self, strictly_less=False):
+        target = self.pool_size - bool(strictly_less)
+        while len(self.available) > target:
             c = self.available.pop(0)
             self.all.remove(c)
 
