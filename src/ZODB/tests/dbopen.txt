@@ -1,3 +1,68 @@
->>> 1
+##############################################################################
+#
+# Copyright (c) 2004 Zope Corporation and Contributors.
+# All Rights Reserved.
+#
+# This software is subject to the provisions of the Zope Public License,
+# Version 2.1 (ZPL).  A copy of the ZPL should accompany this distribution.
+# THIS SOFTWARE IS PROVIDED "AS IS" AND ANY AND ALL EXPRESS OR IMPLIED
+# WARRANTIES ARE DISCLAIMED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+# WARRANTIES OF TITLE, MERCHANTABILITY, AGAINST INFRINGEMENT, AND FITNESS
+# FOR A PARTICULAR PURPOSE
+#
+##############################################################################
+
+Here we exercise the connection management done by the DB class.
+
+>>> from ZODB import DB
+>>> from ZODB.MappingStorage import MappingStorage as Storage
+
+Capturing log messages from DB is important for part of the examples:
+
+>>> from zope.testing.loggingsupport import InstalledHandler
+>>> handler = InstalledHandler('ZODB.DB')
+
+Create a storage, and wrap it in a DB wrapper:
+
+>>> st = Storage()
+>>> db = DB(st)
+
+By default, we can open 7 connections without any log messages:
+
+>>> conns = [db.open() for dummy in range(7)]
+>>> handler.records
+[]
+
+Open one more, and we get a warning:
+
+>>> conns.append(db.open())
+>>> len(handler.records)
 1
+>>> msg = handler.records[0]
+>>> print msg.name, msg.levelname, msg.getMessage()
+ZODB.DB WARNING DB.open() has 8 open connections with a pool_size of 7
+
+Open six more, and we get 6 more warnings:
+
+>>> conns.extend([db.open() for dummy in range(6)])
+>>> len(conns)
+14
+>>> len(handler.records)
+7
+>>> msg = handler.records[-1]
+>>> print msg.name, msg.levelname, msg.getMessage()
+ZODB.DB WARNING DB.open() has 14 open connections with a pool_size of 7
+
+Add another, so that it's more than twice the default, and the level
+rises to critical:
+
+>>> conns.append(db.open())
+>>> len(conns)
+15
+>>> len(handler.records)
+8
+>>> msg = handler.records[-1]
+>>> print msg.name, msg.levelname, msg.getMessage()
+ZODB.DB CRITICAL DB.open() has 15 open connections with a pool_size of 7
+
 
