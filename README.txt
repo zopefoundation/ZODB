@@ -118,7 +118,7 @@ a version of ZODB he called ZODB 3, based on an earlier persistent
 object system called BoboPOS.  The earliest versions of ZODB 3 were
 released with Zope 2.0.
 
-Andrew Kuchling extracted ZODB from Zope 2.4.1 and packaged them for
+Andrew Kuchling extracted ZODB from Zope 2.4.1 and packaged it for
 use by standalone Python programs.  He called this version
 "StandaloneZODB".  Andrew's guide to using ZODB is included in the Doc
 directory.  This version of ZODB was hosted at
@@ -183,11 +183,10 @@ browser at the file Doc/guide/zodb/index.html
 Bugs and Patches
 ----------------
 
-You can submit bug reports and patches on Andrew's ZODB SourceForge
-project at:
+Bug reports and patches should be added to the Zope Collector, with
+topic "Database":
 
-    http://sourceforge.net/tracker/?group_id=15628
-
+    http://collector.zope.org/Zope
 
 
 ..
