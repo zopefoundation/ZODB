@@ -4,6 +4,7 @@ import ZODB.FileStorage
 import sys, os, unittest
 import errno
 from ZODB.Transaction import Transaction
+from ZODB import POSException
 
 from ZODB.tests import StorageTestBase, BasicStorage, \
      TransactionalUndoStorage, VersionStorage, \
@@ -47,6 +48,21 @@ class FileStorageTests(
             path = 'FileStorageTests.fs' + ext
             if os.path.exists(path):
                 os.remove(path)
+
+    def checkLongMetadata(self):
+        s = "X" * 75000
+        try:
+            self._dostore(user=s)
+        except POSException.StorageError:
+            pass
+        else:
+            self.fail("expect long user field to raise error")
+        try:
+            self._dostore(description=s)
+        except POSException.StorageError:
+            pass
+        else:
+            self.fail("expect long user field to raise error")
 
 class FileStorageRecoveryTest(
     StorageTestBase.StorageTestBase,
