@@ -50,7 +50,7 @@ class ConnectionDotAdd(unittest.TestCase):
         self.datamgr.add(obj)
         self.assertEqual(obj._p_oid, oid)
 
-        # Cannot add an object from a diffrerent connection.
+        # Cannot add an object from a different connection.
         obj2 = StubObject()
         obj2._p_jar = object()
         self.assertRaises(InvalidObjectReference, self.datamgr.add, obj2)
@@ -71,10 +71,11 @@ class ConnectionDotAdd(unittest.TestCase):
         self.datamgr.add(obj)
         oid = obj._p_oid
 
-        # This case simulates when an error occurred committing some other
-        # object, so tpc_abort is called, clearing everything.
+        # Simulate an error while committing some other object.
+
         self.datamgr.tpc_begin(self.transaction)
         # Let's pretend something bad happens here.
+        # Call tpc_abort, clearing everything.
         self.datamgr.tpc_abort(self.transaction)
         self.assert_(obj._p_oid is None)
         self.assert_(obj._p_jar is None)
@@ -114,7 +115,7 @@ class ConnectionDotAdd(unittest.TestCase):
     def checkModifyOnGetstate(self):
         subobj = StubObject()
         obj = ModifyOnGetStateObject(subobj)
-        
+
         self.datamgr.tpc_begin(self.transaction)
         self.datamgr.commit(obj, self.transaction)
         self.datamgr.tpc_finish(self.transaction)
@@ -135,7 +136,7 @@ class ConnectionDotAdd(unittest.TestCase):
 
 class UserMethodTests(unittest.TestCase):
 
-    # XXX add isn't tested here, because there are a bunch of traditional
+    # XXX add isn't tested here, because there are is bunch of traditional
     # unit tests for it.
 
     # XXX the version tests would require a storage that supports versions
@@ -147,7 +148,7 @@ class UserMethodTests(unittest.TestCase):
         The root() method is simple, and the tests are pretty minimal.
         Ensure that a new database has a root and that it is a
         PersistentMapping.
-        
+
         >>> db = databaseFromString("<zodb>\n<mappingstorage/>\n</zodb>")
         >>> cn = db.open()
         >>> root = cn.root()
@@ -173,12 +174,12 @@ class UserMethodTests(unittest.TestCase):
         '\x00\x00\x00\x00\x00\x00\x00\x00'
 
         The object is a ghost.
-        
+
         >>> obj._p_state 
         -1
 
         And multiple calls with the same oid, return the same object.
-        
+
         >>> obj2 = cn.get(p64(0))
         >>> obj is obj2
         True
@@ -187,7 +188,7 @@ class UserMethodTests(unittest.TestCase):
         object will be returned. The cache doesn't keep unreferenced
         ghosts alive.  (The next object returned my still have the
         same id, because Python may re-use the same memory.)
-        
+
         >>> del obj, obj2
         >>> cn._cache.get(p64(0), None)
 
@@ -217,8 +218,8 @@ class UserMethodTests(unittest.TestCase):
         r"""doctest of close() method
 
         This is a minimal test, because most of the interesting
-        effects on closing a connection involved its interaction the
-        database and transaction.
+        effects on closing a connection involve its interaction with the
+        database and the transaction.
 
         >>> db = databaseFromString("<zodb>\n<mappingstorage/>\n</zodb>")
         >>> cn = db.open()
@@ -228,9 +229,8 @@ class UserMethodTests(unittest.TestCase):
         >>> cn.close()
         >>> cn.close()
 
-        It's not possible to load or store objects once the storage is
-        closed.
-        
+        It's not possible to load or store objects once the storage is closed.
+
         >>> cn.get(p64(0))
         Traceback (most recent call last):
           ...
@@ -270,7 +270,7 @@ class UserMethodTests(unittest.TestCase):
         The implementation keeps a list of callbacks that is reset
         to a class variable (which is bound to None) after the connection
         is closed.
-        
+
         >>> cn._Connection__onCloseCallbacks
         """
 
@@ -299,7 +299,7 @@ class UserMethodTests(unittest.TestCase):
         RuntimeError: The database connection is closed
 
         An expedient way to create a read-only storage:
-        
+
         >>> db._storage._is_read_only = True
         >>> cn = db.open()
         >>> cn.isReadOnly()
@@ -348,9 +348,9 @@ class UserMethodTests(unittest.TestCase):
         warnings, one from the Connection and one from the
         cPickleCache.  Maybe we should drop the cPickleCache warning,
         but it's there for now.  When passed an argument, it acts like
-        cacheGC().  When t isn't passed an argument it acts like
+        cacheGC().  When it isn't passed an argument it acts like
         cacheMinimize().
-        
+
         >>> r._p_activate()
         >>> cn.cacheFullSweep(12)
         >>> r._p_state
@@ -368,11 +368,10 @@ class UserMethodTests(unittest.TestCase):
         >>> category.__name__
         'DeprecationWarning'
 
-        We have to uninstall the hook so that other warnings don't get
-        lost.
-        
+        We have to uninstall the hook so that other warnings don't get lost.
+
         >>> hook.uninstall()
-    
+
         """
 
 class InvalidationTests(unittest.TestCase):
@@ -408,7 +407,7 @@ class InvalidationTests(unittest.TestCase):
         True
         >>> p2._p_oid in cn._invalidated
         False
-        
+
         >>> cn.invalidate(p64(10), {p2._p_oid: 1, p64(76): 1})
         >>> cn._txn_time
         '\x00\x00\x00\x00\x00\x00\x00\x01'
@@ -419,7 +418,7 @@ class InvalidationTests(unittest.TestCase):
 
         Calling invalidate() doesn't affect the object state until
         a transaction boundary.
-        
+
         >>> p1._p_state
         0
         >>> p2._p_state
@@ -439,7 +438,7 @@ class InvalidationTests(unittest.TestCase):
         0
         >>> cn._invalidated
         {}
-        
+
         """
 
 # ---- stubs

@@ -154,7 +154,7 @@ class BaseObjectWriter:
         >>> bob._p_jar is jar
         True
 
-        If the object already has a persistent id, it is not changed:
+        If the object already has a persistent id, the id is not changed:
 
         >>> bob._p_oid = 24
         >>> oid, cls = writer.persistent_id(bob)
@@ -173,7 +173,7 @@ class BaseObjectWriter:
                """foreign database connection
 
         Constructor arguments used by __new__(), as returned by
-        __getnewargs__(), can affect memory allocation, but also may
+        __getnewargs__(), can affect memory allocation, but may also
         change over the life of the object.  This makes it useless to
         cache even the object's class.
 
@@ -210,7 +210,7 @@ class BaseObjectWriter:
             # Not persistent, pickle normally
             return None
 
-        # Any persistent object mosy have an oid:
+        # Any persistent object must have an oid:
         try:
             oid = obj._p_oid
         except AttributeError:
@@ -237,10 +237,10 @@ class BaseObjectWriter:
                     if oid is None:
                         # Here we are causing the object to be saved in
                         # the database. One could argue that we shouldn't
-                        # do this, because a wekref should not cause an object
+                        # do this, because a weakref should not cause an object
                         # to be added.  We'll be optimistic, though, and
                         # assume that the object will be added eventually.
-                        
+
                         oid = self._jar.new_oid()
                         obj._p_jar = self._jar
                         obj._p_oid = oid
@@ -275,7 +275,7 @@ class BaseObjectWriter:
 
     def serialize(self, obj):
         # We don't use __class__ here, because obj could be a persistent proxy.
-        # We don't want to be folled by proxies.
+        # We don't want to be fooled by proxies.
         klass = type(obj)
 
         newargs = getattr(obj, "__getnewargs__", None)
@@ -375,7 +375,7 @@ class BaseObjectReader:
             if args is None:
                 args = ()
         else:
-            # Definately new style direct class reference
+            # Definitely new style direct class reference
             args = ()
 
         if issubclass(klass, Broken):
@@ -527,7 +527,7 @@ def referencesf(p, rootl=None):
     #   tuples, so that we wrap oids that are lists or tuples in
     #   tuples.
     #
-    # - oids may *not* be false.  I'm not sure why. 
+    # - oids may *not* be False.  I'm not sure why. 
 
     out = []
     for v in rootl:
