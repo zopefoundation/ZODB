@@ -68,22 +68,16 @@ class SetResult(TestCase):
             C = op(None, None)
             self.assert_(C is None)
 
-        for op in self.union, self.intersection:
+        for op in self.union, self.intersection, self.difference:
             for A in self.As:
                 C = op(A, None)
                 self.assert_(C is A)
 
                 C = op(None, A)
-                self.assert_(C is A)
-
-        # XXX These difference results contradict the docs.  The implementation
-        # XXX is almost certainly wrong, but can we change it?
-        for A in self.As:
-            C = self.difference(A, None)
-            self.assert_(C is None)
-
-            C = self.difference(None, A)
-            self.assert_(C is None)
+                if op is self.difference:
+                    self.assert_(C is None)
+                else:
+                    self.assert_(C is A)
 
     def testEmptyUnion(self):
         for A in self.As:
