@@ -66,15 +66,62 @@
                implements="ZODB.storage">
     <multikey name="server" datatype="socket-address" required="yes"/>
     <key name="storage" default="1"/>
+      <description>
+        The name of the storage that the client wants to use.  If the
+        ZEO server serves more than one storage, the client selects
+        the storage it wants to use by name.  The default name is '1',
+        which is also the default name for the ZEO server.
+      </description>
     <key name="cache-size" datatype="integer" default="20000000"/>
+      <description>
+        The maximum size of the client cache, in bytes.
+      </description>
     <key name="name" default=""/>
+      <description>
+        The storage name.  If unspecified, the address of the server
+        will be used as the name.
+      </description>
     <key name="client"/>
+      <description>
+        Enables persistent cache files.  The string passed here is
+        used to construct the cache filenames.  If it is not
+        specified, the client creates a temporary cache that will
+        only be used by the current object.
+      </description>
     <key name="var"/>
+      <description>
+        The directory where persistent cache files are stored.  By
+        default cache files, if they are persistent, are stored in 
+        the current directory.
+      </description>
     <key name="min-disconnect-poll" datatype="integer" default="5"/>
+      <description>
+        The minimum delay in seconds between attempts to connect to
+        the server, in seconds.  Defaults to 5 seconds.
+      </description>
     <key name="max-disconnect-poll" datatype="integer" default="300"/>
+      <description>
+        The maximum delay in seconds between attempts to connect to
+        the server, in seconds.  Defaults to 300 seconds.
+      </description>
     <key name="wait" datatype="boolean" default="on"/>
+      <description>
+        A boolean indicating whether the constructor should wait
+        for the client to connect to the server and verify the cache
+        before returning.  The default is true.
+      </description>
     <key name="read-only" datatype="boolean" default="off"/>
+      <description>
+        A flag indicating whether this should be a read-only storage,
+        defaulting to false (i.e. writing is allowed by default).
+      </description>
     <key name="read-only-fallback" datatype="boolean" default="off"/>
+      <description>
+        A flag indicating whether a read-only remote storage should be
+        acceptable as a fallback when no writable storages are
+        available.  Defaults to false.  At most one of read_only and
+        read_only_fallback should be true.
+      </description>
   </sectiontype>
 
   <sectiontype name="demostorage" datatype=".DemoStorage"
