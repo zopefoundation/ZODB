@@ -115,7 +115,7 @@
 #   may have a back pointer to a version record or to a non-version
 #   record.
 #
-__version__='$Revision: 1.109 $'[11:-2]
+__version__='$Revision: 1.110 $'[11:-2]
 
 import base64
 from cPickle import Pickler, Unpickler, loads
@@ -742,7 +742,40 @@ class FileStorage(BaseStorage.BaseStorage,
         finally:
             self._lock_release()
 
-    def restore(self, oid, serial, data, version, transaction):
+    def _data_find(self, tpos, oid, data):
+        # Return backpointer to oid in data record for in transaction at tpos.
+        # It should contain a pickle identical to data. Returns 0 on failure.
+        # Must call with lock held.
+        self._file.seek(tpos)
+        h = self._file.read(TRANS_HDR_LEN)
+        tid, stl, status, ul, dl, el = struct.unpack(TRANS_HDR, h)
+        self._file.read(ul + dl + el)
+        tend = tpos + U64(stl) + 8
+        pos = self._file.tell()
+        while pos < tend:
+            h = self._file.read(DATA_HDR_LEN)
+            _oid, serial, sprev, stpos, vl, sdl = struct.unpack(DATA_HDR, h)
+            dl = U64(sdl)
+            reclen = DATA_HDR_LEN + vl + dl
+            if vl:
+                reclen += 16
+            if _oid == oid:
+                if vl:
+                    self._file.read(vl + 16)
+                # Make sure this looks like the right data record
+                if dl != len(data):
+                    # XXX what if this data record also has a backpointer?
+                    # I don't think that's possible, but I'm not sure.
+                    return 0
+                _data = self._file.read(dl)
+                if data != _data:
+                    return 0
+                return pos
+            pos += reclen
+            self._file.seek(pos)
+        return 0
+
+    def restore(self, oid, serial, data, version, prev_txn, transaction):
         # A lot like store() but without all the consistency checks.  This
         # should only be used when we /know/ the data is good, hence the
         # method name.  While the signature looks like store() there are some
@@ -756,6 +789,9 @@ class FileStorage(BaseStorage.BaseStorage,
         #
         # - data can be None, which indicates a George Bailey object
         #   (i.e. one who's creation has been transactionally undone).
+        #
+        # If prev_txn is not None, it should contain the same data as
+        # the argument data.  If it does, write a backpointer to it.
         if self._is_read_only:
             raise POSException.ReadOnlyError()
         if transaction is not self._transaction:
@@ -763,17 +799,25 @@ class FileStorage(BaseStorage.BaseStorage,
 
         self._lock_acquire()
         try:
+            prev_pos = 0
+            if prev_txn is not None:
+                prev_txn_pos = self._txn_find(prev_txn)
+                if prev_txn_pos:
+                    prev_pos = self._data_find(prev_txn_pos, oid, data)
             old = self._index_get(oid, 0)
             # Calculate the file position in the temporary file
             here = self._pos + self._tfile.tell() + self._thl
             # And update the temp file index
             self._tindex[oid] = here
-            # Write the recovery data record
+            if prev_pos:
+                # If there is a valid prev_pos, don't write data.
+                data = None
             if data is None:
                 dlen = 0
             else:
                 dlen = len(data)
-            self._tfile.write(pack('>8s8s8s8sH8s',
+            # Write the recovery data record
+            self._tfile.write(pack(DATA_HDR,
                                    oid, serial, p64(old), p64(self._pos),
                                    len(version), p64(dlen)))
             # We need to write some version information if this revision is
@@ -806,9 +850,13 @@ class FileStorage(BaseStorage.BaseStorage,
                 self._tfile.write(version)
             # And finally, write the data
             if data is None:
-                # Write a zero backpointer, which indicates an
-                # un-creation transaction.
-                self._tfile.write(z64)
+                if prev_pos:
+                    self._tfile.write(p64(prev_pos))
+                else:
+                    # Write a zero backpointer, which indicates an
+                    # un-creation transaction.
+                    # write a backpointer instead of data
+                    self._tfile.write(z64)
             else:
                 self._tfile.write(data)
         finally:
