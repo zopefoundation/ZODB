@@ -28,7 +28,7 @@ class Length(persistent.Persistent):
     longer works as expected, because new-style classes cache
     class-defined slot methods (like __len__) in C type slots.  Thus,
     instance-define slot fillers are ignores.
-    
+
     """
 
     def __init__(self, v=0):

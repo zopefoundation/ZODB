@@ -47,8 +47,8 @@ def usage(msg):
 def options(args):
     """Password-specific options loaded from regular ZEO config file."""
     try:
-        opts, args = getopt.getopt(args, "dr:p:f:C:", ["configure=", 
-                                                          "protocol=", 
+        opts, args = getopt.getopt(args, "dr:p:f:C:", ["configure=",
+                                                          "protocol=",
                                                           "filename=",
                                                           "realm"])
     except getopt.error, msg:
@@ -56,7 +56,7 @@ def options(args):
     config = None
     delete = 0
     auth_protocol = None
-    auth_db = "" 
+    auth_db = ""
     auth_realm = None
     for k, v in opts:
         if k == '-C' or k == '--configure':
@@ -127,4 +127,3 @@ def main(args=None, dbclass=None):
 
 if __name__ == "__main__":
     main(sys.argv[1:])
-

@@ -13,7 +13,7 @@
 ##############################################################################
 """XXX short summary goes here.
 
-$Id: test_mapping.py,v 1.1 2003/12/15 06:58:26 jim Exp $
+$Id: test_mapping.py,v 1.2 2003/12/29 22:40:46 tim_one Exp $
 """
 import unittest
 from doctest import DocTestSuite
@@ -80,7 +80,7 @@ def test_old_pickles():
     >>> items.sort()
     >>> items
     [('x', 1), ('y', 2)]
-    
+
     """
 
 def test_suite():

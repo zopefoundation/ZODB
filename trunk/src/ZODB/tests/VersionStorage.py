@@ -205,7 +205,7 @@ class VersionStorage:
         # is not current
         self._dostore(oid, revid=tid, data=MinPO(17))
         ltid = self._storage.lastTransaction()
-        
+
         ncdata, ncstart, end = self._storage.loadBefore(oid, ltid)
 
         self.assertEqual(data, ncdata)

@@ -722,4 +722,3 @@ def test_suite():
               NastyConfict):
         suite.addTest(makeSuite(k))
     return suite
-

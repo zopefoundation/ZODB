@@ -37,7 +37,7 @@ class TransBufTests(unittest.TestCase):
         tbuf.invalidate(*new_invalidate_data())
         for o in tbuf:
             pass
-            
+
     def doUpdates(self, tbuf):
         data = []
         for i in range(10):

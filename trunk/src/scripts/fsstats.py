@@ -164,7 +164,7 @@ def main(path):
 
             if tid is not None:
                 txn_objects.add(objects)
-            
+
             m = rx_txn.search(line)
             if not m:
                 continue

@@ -13,7 +13,7 @@
 ##############################################################################
 """Test ExtensionClass support in Persistence.Persistent
 
-$Id: test_ExtensionClass.py,v 1.2 2003/11/28 16:44:47 jim Exp $
+$Id: test_ExtensionClass.py,v 1.3 2003/12/29 22:40:46 tim_one Exp $
 """
 
 from Persistence import Persistent
@@ -59,7 +59,7 @@ else:
           ('bar called', 42)
 
           This is for compatability with old code. New code should use super
-          instead.   
+          instead.
 
         The base class, Base, exists mainly to support the __of__ protocol.
         The __of__ protocol is similar to __get__ except that __of__ is called
@@ -89,7 +89,7 @@ else:
         >>> class O(Base):
         ...   def __get__(*a):
         ...      return a
-        ... 
+        ...
         >>> o1 = O()
         >>> o2 = O()
         >>> C.o1 = o1
@@ -105,8 +105,8 @@ else:
     def test_mixing():
         """Test working with a classic class
 
-        >>> class Classic: 
-        ...   def x(self): 
+        >>> class Classic:
+        ...   def x(self):
         ...     return 42
 
         >>> class O(Persistent):
@@ -115,7 +115,7 @@ else:
 
         >>> class O2(Classic, O):
         ...   def __of__(*a):
-        ...      return (O2.inheritedAttribute('__of__')(*a), 
+        ...      return (O2.inheritedAttribute('__of__')(*a),
         ...              O2.inheritedAttribute('x')(a[0]))
 
         >>> class C(Persistent):
@@ -135,13 +135,13 @@ else:
 
         Test working with a new style
 
-        >>> class Modern(object): 
-        ...   def x(self): 
+        >>> class Modern(object):
+        ...   def x(self):
         ...     return 42
 
         >>> class O2(Modern, O):
         ...   def __of__(*a):
-        ...      return (O2.inheritedAttribute('__of__')(*a), 
+        ...      return (O2.inheritedAttribute('__of__')(*a),
         ...              O2.inheritedAttribute('x')(a[0]))
 
         >>> o2 = O2()
@@ -235,7 +235,7 @@ else:
 
 def test_class_creation_under_stress():
     """
-    >>> for i in range(100): 
+    >>> for i in range(100):
     ...   class B(Persistent):
     ...     print i,
     ...     if i and i%20 == 0:
@@ -286,7 +286,7 @@ def test_basic_pickling():
 
     >>> print_dict(x.__getstate__())
     {'__name__': 'x', 'aaa': 1, 'bbb': 'foo'}
-    
+
     >>> f, (c,), state = x.__reduce__()
     >>> f.__name__
     '__newobj__'
@@ -294,10 +294,10 @@ def test_basic_pickling():
     'copy_reg'
     >>> c.__name__
     'Simple'
-    
+
     >>> print_dict(state)
     {'__name__': 'x', 'aaa': 1, 'bbb': 'foo'}
-    
+
     >>> pickle.loads(pickle.dumps(x)) == x
     1
     >>> pickle.loads(pickle.dumps(x, 0)) == x
@@ -347,7 +347,7 @@ def test_pickling_w_overrides():
     'Custom'
     >>> ax, ay, a
     ('x', 'y', 99)
-    
+
     >>> pickle.loads(pickle.dumps(x)) == x
     1
     >>> pickle.loads(pickle.dumps(x, 0)) == x
@@ -356,7 +356,7 @@ def test_pickling_w_overrides():
     1
     >>> pickle.loads(pickle.dumps(x, 2)) == x
     1
-    
+
     """
 
 class Slotted(Persistent):
@@ -372,7 +372,7 @@ class SubSlotted(Slotted):
         Slotted.__init__(self, s1, s2)
         self.s3 = s3
 
-        
+
     def __cmp__(self, other):
         return cmpattrs(self, other, '__class__', 's1', 's2', 's3', 's4')
 
@@ -388,7 +388,7 @@ def test_pickling_w_slots_only():
     >>> d
     >>> print_dict(s)
     {'s1': 'x', 's2': 'y', 's3': 'z'}
-    
+
     >>> pickle.loads(pickle.dumps(x)) == x
     1
     >>> pickle.loads(pickle.dumps(x, 0)) == x
@@ -399,12 +399,12 @@ def test_pickling_w_slots_only():
     1
 
     >>> x.s4 = 'spam'
-    
+
     >>> d, s = x.__getstate__()
     >>> d
     >>> print_dict(s)
     {'s1': 'x', 's2': 'y', 's3': 'z', 's4': 'spam'}
-    
+
     >>> pickle.loads(pickle.dumps(x)) == x
     1
     >>> pickle.loads(pickle.dumps(x, 0)) == x
@@ -423,7 +423,7 @@ class SubSubSlotted(SubSlotted):
         self.__dict__.update(kw)
         self._v_favorite_color = 'blue'
         self._p_foo = 'bar'
-        
+
     def __cmp__(self, other):
         return cmpattrs(self, other,
                         '__class__', 's1', 's2', 's3', 's4',
@@ -441,7 +441,7 @@ def test_pickling_w_slots():
     {'aaa': 1, 'bbb': 'foo'}
     >>> print_dict(s)
     {'s1': 'x', 's2': 'y', 's3': 'z'}
-    
+
     >>> pickle.loads(pickle.dumps(x)) == x
     1
     >>> pickle.loads(pickle.dumps(x, 0)) == x
@@ -452,7 +452,7 @@ def test_pickling_w_slots():
     1
 
     >>> x.s4 = 'spam'
-    
+
     >>> d, s = x.__getstate__()
     >>> print_dict(d)
     {'aaa': 1, 'bbb': 'foo'}
@@ -482,7 +482,7 @@ def test_pickling_w_slots_w_empty_dict():
     {}
     >>> print_dict(s)
     {'s1': 'x', 's2': 'y', 's3': 'z'}
-    
+
     >>> pickle.loads(pickle.dumps(x)) == x
     1
     >>> pickle.loads(pickle.dumps(x, 0)) == x
@@ -493,7 +493,7 @@ def test_pickling_w_slots_w_empty_dict():
     1
 
     >>> x.s4 = 'spam'
-    
+
     >>> d, s = x.__getstate__()
     >>> print_dict(d)
     {}
@@ -520,6 +520,3 @@ def test_suite():
         ))
 
 if __name__ == '__main__': unittest.main()
-
-
-

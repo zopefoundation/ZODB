@@ -14,9 +14,9 @@
 
 """Python implementation of persistent base types
 
-$Id: mapping.py,v 1.1 2003/12/15 06:56:46 jim Exp $"""
+$Id: mapping.py,v 1.2 2003/12/29 22:40:45 tim_one Exp $"""
 
-__version__='$Revision: 1.1 $'[11:-2]
+__version__='$Revision: 1.2 $'[11:-2]
 
 import Persistence
 import persistent
@@ -25,13 +25,13 @@ from persistent.mapping import PersistentMapping
 if Persistence.Persistent is not persistent.Persistent:
     class PersistentMapping(Persistence.Persistent, PersistentMapping):
         """Legacy persistent mapping class
-        
+
         This class mixes in ExtensionClass Base if it is present.
-        
+
         Unless you actually want ExtensionClass semantics, use
         persistent.mapping.PersistentMapping instead.
         """
-            
+
         def __setstate__(self, state):
             if 'data' not in state:
                 state['data'] = state['_container']
