@@ -83,54 +83,16 @@
 # 
 ##############################################################################
 
+"""Support for database export and import.
+"""
+
 import POSException, string
 
 from utils import p64, u64
 from referencesf import referencesf
 from cStringIO import StringIO
 from cPickle import Pickler, Unpickler
-import Shared.DC.xml.ppml
-ppml=Shared.DC.xml.ppml
 TupleType=type(())
-from base64 import encodestring
-
-def save_record(self, tag, data):
-    file=self.file
-    write=file.write
-    pos=file.tell()
-    file.seek(pos)
-    a=data[1]
-    if a.has_key('id'): oid=a['id']
-    oid=ppml.p64(string.atoi(oid))
-    v=''
-    for x in data[2:]:
-        v=v+x
-    l=ppml.p64(len(v))
-    v=oid+l+v
-    return v
-
-class zopedata:
-    def __init__(self, parser, tag, attrs):
-        self.file=parser.file
-        write=self.file.write
-        write('ZEXP')
-
-    def append(self, data):
-        file=self.file
-        write=file.write
-        pos=file.tell()
-        file.seek(pos)
-        write(data)
-
-def start_zopedata(self, tag, data):
-    return zopedata(self, tag, data)
-
-def save_zopedata(self, tag, data):
-    file=self.file
-    write=file.write
-    pos=file.tell()
-    file.seek(pos)
-    write(export_end_marker)
 
 class ExportImport:
 
@@ -199,7 +161,7 @@ class ExportImport:
         write('</ZopeData>\n')
         return file
 
-    def importFile(self, file, clue=''):
+    def importFile(self, file, clue='', customImporters=None):
         # This is tricky, because we need to work in a transaction!
 
         if type(file) is StringType:
@@ -211,11 +173,11 @@ class ExportImport:
         read=file.read
 
         magic=read(4)
-        if magic == '<?xm':
-            file.seek(0)
-            return self.importXML(file, clue)
 
         if magic != 'ZEXP':
+            if customImporters and customImporters.has_key(magic):
+                file.seek(0)
+                return customImporters[magic](self, file, clue)
             raise POSException.ExportError, 'Invalid export header'
 
         t=get_transaction().sub()
@@ -293,39 +255,6 @@ class ExportImport:
         else:
             storage.tpc_finish(t)
             if return_oid is not None: return self[return_oid]
-
-
-
-    def importXML(self, file, clue=''):
-        import Shared.DC.xml.pyexpat.pyexpat
-        pyexpat=Shared.DC.xml.pyexpat.pyexpat
-        if type(file) is StringType:
-            file=open(file)
-        outfile=TemporaryFile()
-        data=file.read()
-        F=ppml.xmlPickler()
-        F.end_handlers['record'] = save_record
-        F.end_handlers['ZopeData'] = save_zopedata
-        F.start_handlers['ZopeData'] = start_zopedata
-        F.binary=1
-        F.file=outfile
-        p=pyexpat.ParserCreate()
-        p.CharacterDataHandler=F.handle_data
-        p.StartElementHandler=F.unknown_starttag
-        p.EndElementHandler=F.unknown_endtag
-        r=p.Parse(data)
-        outfile.seek(0)
-        return self.importFile(outfile,clue)
-        
-        
-            
-
-    ######################################################################
-    # BoboPOS 2 compat.
-
-    def export_file(self, o, file=None): return self.exportFile(o._p_oid, file)
-
-    import_file=importFile
 
 StringType=type('')
 
