@@ -1,10 +1,14 @@
+# Check transactionalUndo().  Any storage that supports transactionalUndo()
+# must pass these tests.
 
-import BasicStorage, pickle
+import pickle
 from ZODB import POSException
+
 ZERO = '\0'*8
 
-class TransactionalUndoStorage(BasicStorage.BasicStorage):
 
+
+class TransactionalUndoStorage:
     def checkSimpleTransactionalUndo(self):
         oid = self._storage.new_oid()
         revid = self._dostore(oid, data=23)
