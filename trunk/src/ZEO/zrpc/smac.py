@@ -84,11 +84,14 @@ class SizedMessageAsyncConnection(asyncore.dispatcher):
         self.__input_lock = threading.Lock()
         self.__inp = None # None, a single String, or a list
         self.__input_len = 0
-        # Instance variables __state and __msg_size work together:
+        # Instance variables __state, __msg_size and __has_mac work together:
         #   when __state == 0:
         #     __msg_size == 4, and the next thing read is a message size;
+        #     __has_mac is set according to the MAC_BIT in the header
         #   when __state == 1:
         #     __msg_size is variable, and the next thing read is a message.
+        #     __has_mac indicates if we're in MAC mode or not (and
+        #               therefore, if we need to check the mac header)
         # The next thing read is always of length __msg_size.
         # The state alternates between 0 and 1.
         self.__state = 0
