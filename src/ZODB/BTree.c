@@ -11,7 +11,7 @@
 
 static char BTree_module_documentation[] = 
 ""
-"\n$Id: BTree.c,v 1.12 1997/12/31 17:18:04 jim Exp $"
+"\n$Id: BTree.c,v 1.13 1998/02/04 21:11:26 jim Exp $"
 ;
 
 #define PERSISTENT
@@ -664,10 +664,10 @@ _bucket_set(Bucket *self, PyObject *key, PyObject *v)
 	{
 	  if(v)
 	    {
-	      Py_INCREF(v);
 #ifdef INTVAL
 	      self->data[i].value=iv;
 #else
+	      Py_INCREF(v);
 	      ASSIGN(self->data[i].value, v);
 #endif
 	      if(PER_CHANGED(self) < 0) goto err;
@@ -1236,6 +1236,8 @@ bucket_getstate(Bucket *self, PyObject *args)
 
   PER_ALLOW_DEACTIVATION(self);
   r=Py_BuildValue("OO",keys,values);
+  Py_DECREF(keys);
+  Py_DECREF(values);
   return r;
 
 err:
@@ -1712,7 +1714,7 @@ initBTree()
 #endif
 {
   PyObject *m, *d;
-  char *rev="$Revision: 1.12 $";
+  char *rev="$Revision: 1.13 $";
 
   UNLESS(PyExtensionClassCAPI=PyCObject_Import("ExtensionClass","CAPI"))
       return;
@@ -1774,6 +1776,9 @@ initBTree()
 Revision Log:
 
   $Log: BTree.c,v $
+  Revision 1.13  1998/02/04 21:11:26  jim
+  Fixed two leaks in bucket values.
+
   Revision 1.12  1997/12/31 17:18:04  jim
   Fixed bugs related to deleting items.
 
