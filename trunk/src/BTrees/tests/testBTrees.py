@@ -416,7 +416,64 @@ class Base:
         assert t.insert(1, 1) == 1
         assert lsubtract(list(t.keys()), [0,1]) == []
 
-                         
+    def _getRoot(self):
+        from ZODB.FileStorage import FileStorage
+        from ZODB.DB import DB
+        n = 'fs_tmp__%s' % os.getpid()
+        s = FileStorage(n)
+        db = DB(s)
+        root = db.open().root()
+        return root
+
+    def _closeDB(self, root):
+        root._p_jar._db.close()
+        root = None
+
+    def _delDB(self):
+        os.system('rm fs_tmp__*')
+                
+    def testLoadAndStore(self):
+        t = self.t
+        try:
+            root = self._getRoot()
+            root['t'] = t
+            get_transaction().commit()
+        except:
+            self._closeDB(root)
+            self._delDB()
+            raise
+
+        self._closeDB(root)
+
+        try:
+            root = self._getRoot()
+            assert root['t'] == t
+        finally:
+            self._closeDB(root)
+            self._delDB()
+            
+    def testGhostUnghost(self):
+        t = self.t
+        try:
+            root = self._getRoot()
+            root['t'] = t
+            get_transaction().commit()
+        except:
+            self._closeDB(root)
+            self._delDB()
+            raise
+
+        self._closeDB(root)
+
+        try:
+            root = self._getRoot()
+            root['t']._p_changed = None
+            get_transaction().commit()
+            assert root['t'] == t
+        finally:
+            self._closeDB(root)
+            self._delDB()
+
 class TestIOBTrees(Base, TestCase):
     def setUp(self):
         self.t = IOBTree()
