@@ -30,7 +30,7 @@ XXX insert diagram here later
 Any number of processes can create a \class{ClientStorage}
 instance, and any number of threads in each process can be using that
 instance.  \class{ClientStorage} aggressively caches objects
-locally, so in order to avoid using stale data.  The ZEO server sends
+locally, so in order to avoid using stale data the ZEO server sends
 an invalidation message to all the connected \class{ClientStorage}
 instances on every write operation.  The invalidation message contains
 the object ID for each object that's been modified, letting the
