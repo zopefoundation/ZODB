@@ -38,8 +38,10 @@
        required="no"
        default="100">
     <description>
-      XXX Jeremy needs to explain this.
-      I think I know what it is, but Jeremy really understands it.
+      The storage server keeps a queue of the objects modified by the
+      last N transactions, where N == invalidation_queue_size.  This
+      queue is used to speed client cache verification when a client
+      disconnects for a short period of time.
     </description>
   </key>
 
