@@ -282,6 +282,41 @@ class ConnectionTests(CommonSetupTearDown):
         self.assertRaises(ClientDisconnected,
                           self._storage.load, 'fredwash', '')
 
+    def checkDisconnectedAbort(self):
+        self._storage = self.openClientStorage()
+        self._dostore()
+        oids = [self._storage.new_oid() for i in range(5)]
+        txn = Transaction()
+        self._storage.tpc_begin(txn)
+        for oid in oids:
+            data = zodb_pickle(MinPO(oid))
+            self._storage.store(oid, None, data, '', txn)
+        self.shutdownServer()
+        self.assertRaises(ClientDisconnected, self._storage.tpc_vote, txn)
+        self._storage.tpc_abort(txn)
+        self.startServer(create=0)
+        self._storage._wait()
+        self._dostore()
+
+        # This test is supposed to cover the following error, although
+        # I don't have much confidence that it does.  The likely
+        # explanation for the error is that the _tbuf contained
+        # objects that weren't in the _seriald, because the client was
+        # interrupted waiting for tpc_vote() to return.  When the next
+        # transaction committed, it tried to do something with the
+        # bogus _tbuf entries.  The exaplanation is wrong/incomplete,
+        # because tpc_begin() should clear the _tbuf.
+
+        # 2003-01-15T15:44:19 ERROR(200) ZODB A storage error occurred
+        # in the last phase of a two-phase commit.  This shouldn't happen.
+
+        # Traceback (innermost last):
+        # Module ZODB.Transaction, line 359, in _finish_one
+        # Module ZODB.Connection, line 691, in tpc_finish
+        # Module ZEO.ClientStorage, line 679, in tpc_finish
+        # Module ZEO.ClientStorage, line 709, in _update_cache
+        # KeyError: ...
+
     def checkBasicPersistence(self):
         # Verify cached data persists across client storage instances.
 
