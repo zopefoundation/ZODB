@@ -106,7 +106,7 @@ class Connection(smac.SizedMessageAsyncConnection):
     defined flag is ASYNC.  If a method call message has the ASYNC
     flag set, the server will raise an exception.
 
-    If a method call raises an exception, the exception is propagated
+    If a method call raises an Exception, the exception is propagated
     back to the client via the REPLY message.  The client side will
     raise any exception it receives instead of returning the value to
     the caller.
@@ -134,11 +134,11 @@ class Connection(smac.SizedMessageAsyncConnection):
         self._prepare_async()
         self._map = {self._fileno: self}
         # __msgid_lock guards access to msgid
-        self.__msgid_lock = threading.Lock()
+        self.msgid_lock = threading.Lock()
         # __replies_cond is used to block when a synchronous call is
         # waiting for a response
-        self.__replies_cond = threading.Condition()
-        self.__replies = {}
+        self.replies_cond = threading.Condition()
+        self.replies = {}
         self.register_object(obj)
         self.handshake()
 
@@ -209,12 +209,12 @@ class Connection(smac.SizedMessageAsyncConnection):
         if __debug__:
             log("recv reply: %s, %s, %s" % (msgid, flags, short_repr(args)),
                 level=zLOG.DEBUG)
-        self.__replies_cond.acquire()
+        self.replies_cond.acquire()
         try:
-            self.__replies[msgid] = flags, args
-            self.__replies_cond.notifyAll()
+            self.replies[msgid] = flags, args
+            self.replies_cond.notifyAll()
         finally:
-            self.__replies_cond.release()
+            self.replies_cond.release()
 
     def handle_request(self, msgid, flags, name, args):
         if not self.check_method(name):
@@ -230,10 +230,6 @@ class Connection(smac.SizedMessageAsyncConnection):
             raise
         except Exception, msg:
             error = sys.exc_info()
-            # XXX Since we're just passing this on to the caller, and
-            # there are several cases where this happens during the
-            # normal course of action, shouldn't this be logged at the
-            # INFO level?
             log("%s() raised exception: %s" % (name, msg), zLOG.INFO,
                 error=error)
             error = error[:2]
@@ -294,12 +290,12 @@ class Connection(smac.SizedMessageAsyncConnection):
 
     def send_call(self, method, args, flags):
         # send a message and return its msgid
-        self.__msgid_lock.acquire()
+        self.msgid_lock.acquire()
         try:
             msgid = self.msgid
             self.msgid = self.msgid + 1
         finally:
-            self.__msgid_lock.release()
+            self.msgid_lock.release()
         if __debug__:
             log("send msg: %d, %d, %s, ..." % (msgid, flags, method),
                 zLOG.TRACE)
@@ -352,19 +348,19 @@ class Connection(smac.SizedMessageAsyncConnection):
         if self.is_async():
             self.trigger.pull_trigger()
 
-        self.__replies_cond.acquire()
+        self.replies_cond.acquire()
         try:
             while 1:
                 if self.closed:
                     raise DisconnectedError()
-                reply = self.__replies.get(msgid)
+                reply = self.replies.get(msgid)
                 if reply is not None:
-                    del self.__replies[msgid]
+                    del self.replies[msgid]
                     return reply
                 if self.is_async():
-                    self.__replies_cond.wait(10.0)
+                    self.replies_cond.wait(10.0)
                 else:
-                    self.__replies_cond.release()
+                    self.replies_cond.release()
                     try:
                         try:
                             asyncore.poll(10.0, self._map)
@@ -373,9 +369,9 @@ class Connection(smac.SizedMessageAsyncConnection):
                                 level=zLOG.BLATHER)
                             self.close()
                     finally:
-                        self.__replies_cond.acquire()
+                        self.replies_cond.acquire()
         finally:
-            self.__replies_cond.release()
+            self.replies_cond.release()
 
     def poll(self):
         """Invoke asyncore mainloop to get pending message out."""
@@ -392,28 +388,31 @@ class Connection(smac.SizedMessageAsyncConnection):
             log("pending(), async=%d" % self.is_async(), level=zLOG.TRACE)
         if self.is_async():
             return
-        # Inline the asyncore poll3 function to know whether any input
+        # Inline the asyncore poll() function to know whether any input
         # was actually read.  Repeat until no input is ready.
         # XXX This only does reads.
-        poll = select.poll()
-        poll.register(self._fileno, select.POLLIN)
-        # put dummy value in r so we enter the while loop the first time
-        r = [(self._fileno, None)]
-        while r:
+        r_in = [self._fileno]
+        w_in = []
+        x_in = []
+        while 1:
             try:
-                r = poll.poll()
+                r, w, x = select.select(r_in, w_in, x_in, 0)
             except select.error, err:
                 if err[0] == errno.EINTR:
                     continue
+                elif err[0] == 0:
+                    # Windows sez: "Error: Success." :-)
+                    break
                 else:
                     raise
-            if r:
-                try:
-                    self.handle_read_event()
-                except asyncore.ExitNow:
-                    raise
-                else:
-                    self.handle_error()
+            if not r:
+                break
+            try:
+                self.handle_read_event()
+            except asyncore.ExitNow:
+                raise
+            else:
+                self.handle_error()
 
 class ManagedServerConnection(Connection):
     """Server-side Connection subclass."""
@@ -421,13 +420,13 @@ class ManagedServerConnection(Connection):
     __super_close = Connection.close
 
     def __init__(self, sock, addr, obj, mgr):
-        self.__mgr = mgr
+        self.mgr = mgr
         self.__super_init(sock, addr, obj)
         self.obj.notifyConnected(self)
 
     def close(self):
         self.obj.notifyDisconnected()
-        self.__mgr.close_conn(self)
+        self.mgr.close_conn(self)
         self.__super_close()
 
 class ManagedConnection(Connection):
@@ -436,7 +435,7 @@ class ManagedConnection(Connection):
     __super_close = Connection.close
 
     def __init__(self, sock, addr, obj, mgr):
-        self.__mgr = mgr
+        self.mgr = mgr
         self.__super_init(sock, addr, obj)
         self.check_mgr_async()
 
@@ -454,11 +453,11 @@ class ManagedConnection(Connection):
         pass
 
     def check_mgr_async(self):
-        if not self.thr_async and self.__mgr.thr_async:
-            assert self.__mgr.trigger is not None, \
-                   "manager (%s) has no trigger" % self.__mgr
+        if not self.thr_async and self.mgr.thr_async:
+            assert self.mgr.trigger is not None, \
+                   "manager (%s) has no trigger" % self.mgr
             self.thr_async = 1
-            self.trigger = self.__mgr.trigger
+            self.trigger = self.mgr.trigger
             return 1
         return 0
 
@@ -469,5 +468,5 @@ class ManagedConnection(Connection):
         return self.check_mgr_async()
 
     def close(self):
-        self.__mgr.close_conn(self)
+        self.mgr.close_conn(self)
         self.__super_close()
