@@ -16,6 +16,8 @@
 The stress test should run in an infinite loop and should involve
 multiple connections.
 """
+# XXX This code is currently broken.
+
 from __future__ import nested_scopes
 
 import ZODB
