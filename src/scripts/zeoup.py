@@ -46,17 +46,20 @@ def check_server(addr, storage, write):
     # is called.  The only thing we care about, though, is that
     # registerDB() calls _startup().
 
-    db = ZODB.DB(cs)
-    cn = db.open()
-    root = cn.root()
     if write:
+        db = ZODB.DB(cs)
+        cn = db.open()
+        root = cn.root()
         try:
             root['zeoup'] = root.get('zeoup', 0)+ 1
             get_transaction().commit()
         except ConflictError:
             pass
-    cn.close()
-    db.close()
+        cn.close()
+        db.close()
+    else:
+        data, serial = cs.load("\0\0\0\0\0\0\0\0", "")
+        
 
 def usage(exit=1):
     print __doc__
