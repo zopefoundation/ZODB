@@ -12,18 +12,34 @@
   
  ****************************************************************************/
 
-#define BTREETEMPLATE_C "$Id: BTreeTemplate.c,v 1.33 2002/05/31 20:01:16 tim_one Exp $\n"
+#define BTREETEMPLATE_C "$Id: BTreeTemplate.c,v 1.34 2002/05/31 20:42:37 tim_one Exp $\n"
 
 /*
 ** _BTree_get
 **
+** Search a BTree.
+**
+** Arguments
+**      self        a pointer to a BTree
+**      keyarg      the key to search for, as a Python object
+**      has_key     true/false; when false, try to return the associated
+**                  value; when true, return a boolean
+** Return
+**      When has_key false:
+**          If key exists, its associated value.
+**          If key doesn't exist, NULL and KeyError is set.
+**      When has_key true:
+**          A Python int is returned in any case.
+**          If key exists, the depth of the bucket in which it was found.
+**          If key doesn't exist, 0.
 */
 static PyObject *
 _BTree_get(BTree *self, PyObject *keyarg, int has_key)
 {
-  int min, copied=1;
-  PyObject *r = NULL;
   KEY_TYPE key;
+  int min;              /* index of child to search */
+  PyObject *r = NULL;   /* result object */
+  int copied = 1;
   
   COPY_KEY_FROM_ARG(key, keyarg, copied);
   UNLESS (copied) return NULL;
@@ -34,7 +50,7 @@ _BTree_get(BTree *self, PyObject *keyarg, int has_key)
   if (self->len)
     {
       if (SameType_Check(self, self->data[min].child)) 
-        r = _BTree_get( BTREE(self->data[min].child), keyarg, 
+        r = _BTree_get(BTREE(self->data[min].child), keyarg, 
                         has_key ? has_key + 1: 0);
       else
         r = _bucket_get(BUCKET(self->data[min].child), keyarg, 
@@ -42,10 +58,10 @@ _BTree_get(BTree *self, PyObject *keyarg, int has_key)
     }
   else
     {  /* No data */
-      UNLESS (has_key) 
-        PyErr_SetObject(PyExc_KeyError, keyarg);
-      else
+      if (has_key) 
         r = PyInt_FromLong(0);
+      else
+        PyErr_SetObject(PyExc_KeyError, keyarg);
     }
 
 Error:
