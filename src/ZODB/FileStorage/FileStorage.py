@@ -13,7 +13,7 @@
 ##############################################################################
 """Storage implementation using a log written to a single file.
 
-$Revision: 1.4 $
+$Revision: 1.5 $
 """
 
 import base64
@@ -589,35 +589,40 @@ class FileStorage(BaseStorage.BaseStorage,
             self._lock_release()
 
     def loadBefore(self, oid, tid):
-        pos = self._lookup_pos(oid)
-        end_tid = None
-        while True:
-            h = self._read_data_header(pos, oid)
-            if h.version:
-                # Just follow the pnv pointer to the previous
-                # non-version data.
-                if not h.pnv:
-                    # Object was created in version.  There is no
-                    # before data to find.
+        self._lock_acquire()
+        try:
+            pos = self._lookup_pos(oid)
+            end_tid = None
+            while True:
+                h = self._read_data_header(pos, oid)
+                if h.version:
+                    # Just follow the pnv pointer to the previous
+                    # non-version data.
+                    if not h.pnv:
+                        # Object was created in version.  There is no
+                        # before data to find.
+                        return None
+                    pos = h.pnv
+                    # The end_tid for the non-version data is not affected
+                    # by versioned data records.
+                    continue
+
+                if h.tid < tid:
+                    break
+
+                pos = h.prev
+                end_tid = h.tid
+                if not pos:
                     return None
-                pos = h.pnv
-                # The end_tid for the non-version data is not affected
-                # by versioned data records.
-                continue
 
-            if h.tid < tid:
-                break
+            if h.back:
+                data, _, _, _ = self._loadBack_impl(oid, h.back)
+                return data, h.tid, end_tid
+            else:
+                return self._file.read(h.plen), h.tid, end_tid
 
-            pos = h.prev
-            end_tid = h.tid
-            if not pos:
-                return None
-
-        if h.back:
-            data, _, _, _ = self._loadBack_impl(oid, h.back)
-            return data, h.tid, end_tid
-        else:
-            return self._file.read(h.plen), h.tid, end_tid
+        finally:
+            self._lock_release()
 
     def modifiedInVersion(self, oid):
         self._lock_acquire()
