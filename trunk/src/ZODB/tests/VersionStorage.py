@@ -1,7 +1,13 @@
 # Run the version related tests for a storage.  Any storage that supports
 # versions should be able to pass all these tests.
 
-import pickle
+try:
+    import cPickle
+    pickle = cPickle
+    #import cPickle as pickle
+except ImportError:
+    import pickle
+
 from ZODB import POSException
 
 
@@ -271,7 +277,6 @@ class VersionStorage:
         assert pickle.loads(data) == 54
         data, revid = self._storage.load(oid2, '')
         assert pickle.loads(data) == 54
-
 
         #JF# To do a test like you want, you have to add the data in a version
         oid = self._storage.new_oid()
