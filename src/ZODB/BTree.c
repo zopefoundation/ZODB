@@ -11,7 +11,7 @@
 
 static char BTree_module_documentation[] = 
 ""
-"\n$Id: BTree.c,v 1.2 1997/09/10 17:24:47 jim Exp $"
+"\n$Id: BTree.c,v 1.3 1997/09/12 18:35:45 jim Exp $"
 ;
 
 #define PERSISTENT
@@ -177,16 +177,16 @@ BTreeItems_item_BTree(char kind, int i, BTree *btree)
 #ifdef INTKEY
 	  r=PyInt_FromLong((BUCKET(d->value)->data[i].key));
 #else
-	  Py_INCREF(BUCKET(d->value)->data[i].key);
 	  r=(BUCKET(d->value)->data[i].key);
+	  Py_INCREF(r);
 #endif
 	  break;
 	case 'v': 
 #ifdef INTVAL
 	  r=PyInt_FromLong((BUCKET(d->value)->data[i].value));
 #else
-	  Py_INCREF(BUCKET(d->value)->data[i].value);
 	  r=(BUCKET(d->value)->data[i].value);
+	  Py_INCREF(r);
 #endif
 	  break;
 	default:
@@ -428,8 +428,8 @@ _bucket_get(Bucket *self, PyObject *key, int has_key)
 #ifdef INTVAL
 	      r=PyInt_FromLong(self->data[i].value);
 #else
-	      Py_INCREF(self->data[i].value);
 	      r=self->data[i].value;
+	      Py_INCREF(r);
 #endif
 	    }
 	  PER_ALLOW_DEACTIVATION(self);
@@ -1453,6 +1453,9 @@ BTree_setstate(BTree *self, PyObject *args)
 			      KEY_PARSE "Oi",
 			      &(d->key), &(d->value), &(d->count)))
 	goto err;
+#ifndef INTKEY
+      Py_INCREF(d->key);
+#endif
       Py_INCREF(d->value);
       self->count+=d->count;
     }
@@ -1709,7 +1712,7 @@ initBTree()
 #endif
 {
   PyObject *m, *d;
-  char *rev="$Revision: 1.2 $";
+  char *rev="$Revision: 1.3 $";
 
   UNLESS(PyExtensionClassCAPI=PyCObject_Import("ExtensionClass","CAPI"))
       return;
@@ -1769,6 +1772,9 @@ initBTree()
 Revision Log:
 
   $Log: BTree.c,v $
+  Revision 1.3  1997/09/12 18:35:45  jim
+  Fixed bug leading to random core dumps.
+
   Revision 1.2  1997/09/10 17:24:47  jim
   *** empty log message ***
 
