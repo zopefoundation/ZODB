@@ -341,7 +341,7 @@ class Connection(smac.SizedMessageAsyncConnection):
             raise DisconnectedError()
         msgid = self.send_call(method, args, 0)
         r_flags, r_args = self.wait(msgid)
-        if (isinstance(r_args, types.TupleType)
+        if (isinstance(r_args, types.TupleType) and len(r_args) > 1
             and type(r_args[0]) == types.ClassType
             and issubclass(r_args[0], Exception)):
             inst = r_args[1]
