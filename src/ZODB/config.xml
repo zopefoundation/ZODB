@@ -2,6 +2,6 @@
 
   <import package="ZODB"/>
 
-  <section type="database" name="*" attribute="database"/>
+  <section type="ZODB.database" name="*" attribute="database"/>
 
 </schema>

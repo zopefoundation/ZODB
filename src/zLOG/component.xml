@@ -1,8 +1,8 @@
 <component prefix="zLOG.datatypes">
 
-  <abstracttype name="loghandler"/>
+  <abstracttype name="zLOG.loghandler"/>
 
-  <sectiontype name="base-log-handler">
+  <sectiontype name="zLOG.base-log-handler">
     <description>
       Base type for most log handlers.  This is cannot be used as a
       loghandler directly since it doesn't implement the loghandler
@@ -13,14 +13,14 @@
   </sectiontype>
 
   <sectiontype name="logfile" datatype=".FileHandlerFactory"
-               implements="loghandler" extends="base-log-handler">
+               implements="zLOG.loghandler" extends="zLOG.base-log-handler">
     <key name="path" required="yes"/>
     <key name="format" default="------\n%(asctime)s %(message)s"
          datatype=".log_format"/>
   </sectiontype>
 
   <sectiontype name="syslog" datatype=".SyslogHandlerFactory"
-               implements="loghandler" extends="base-log-handler">
+               implements="zLOG.loghandler" extends="zLOG.base-log-handler">
     <key name="facility" default="user" datatype=".syslog_facility"/>
     <key name="address" datatype="socket-address" default="localhost:514"/>
     <key name="format" default="%(message)s"
@@ -28,14 +28,14 @@
   </sectiontype>
 
   <sectiontype name="win32-eventlog" datatype=".Win32EventLogFactory"
-               implements="loghandler" extends="base-log-handler">
+               implements="zLOG.loghandler" extends="zLOG.base-log-handler">
     <key name="appname" default="Zope"/>
     <key name="format" default="%(message)s"
          datatype=".log_format"/>
   </sectiontype>
 
   <sectiontype name="http-logger" datatype=".HTTPHandlerFactory"
-               implements="loghandler" extends="base-log-handler">
+               implements="zLOG.loghandler" extends="zLOG.base-log-handler">
     <key name="url" default="http://localhost/" datatype=".http_handler_url"/>
     <key name="method" default="GET" datatype=".get_or_post"/>
     <key name="format" default="%(asctime)s %(message)s"
@@ -43,7 +43,7 @@
   </sectiontype>
 
   <sectiontype name="email-notifier" datatype=".SMTPHandlerFactory"
-               implements="loghandler" extends="base-log-handler">
+               implements="zLOG.loghandler" extends="zLOG.base-log-handler">
     <key name="from" required="yes" attribute="fromaddr"/>
     <multikey name="to" required="yes" attribute="toaddrs"/>
     <key name="subject" default="Message from Zope"/>
@@ -55,7 +55,7 @@
 
   <sectiontype name="eventlog" datatype=".EventLogFactory">
      <key name="level" datatype=".logging_level" default="info"/>
-     <multisection type="loghandler" attribute="handlers" name="*"/>
+     <multisection type="zLOG.loghandler" attribute="handlers" name="*"/>
   </sectiontype>
 
 </component>
