@@ -20,7 +20,6 @@ import errno
 import random
 import socket
 import tempfile
-import traceback
 
 import zLOG
 
@@ -72,7 +71,8 @@ def start_zeo_server(conf, addr=None, ro_svr=0, keep=0):
     if script.endswith('.pyc'):
         script = script[:-1]
     # Create a list of arguments, which we'll tuplify below
-    args = ['"%s"' % sys.executable, '"%s"' % script, '-C', '"%s"' % tmpfile]
+    qa = _quote_arg
+    args = [qa(sys.executable), qa(script), '-C', qa(tmpfile)]
     if ro_svr:
         args.append('-r')
     if keep:
@@ -98,6 +98,14 @@ def start_zeo_server(conf, addr=None, ro_svr=0, keep=0):
         zLOG.LOG('forker', zLOG.DEBUG, 'boo hoo')
         raise
     return ('localhost', port), adminaddr, pid
+
+
+if sys.platform[:3].lower() == "win":
+    def _quote_arg(s):
+        return '"%s"' % s
+else:
+    def _quote_arg(s):
+        return s
 
 
 def shutdown_zeo_server(adminaddr):
