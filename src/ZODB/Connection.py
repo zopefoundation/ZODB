@@ -13,7 +13,7 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.132 2004/03/02 15:43:16 jeremy Exp $"""
+$Id: Connection.py,v 1.133 2004/03/02 16:25:07 jeremy Exp $"""
 
 import logging
 import sys
@@ -102,10 +102,10 @@ class Connection(ExportImport, object):
 
     XXX Mention the database pool.
 
-    $Id: Connection.py,v 1.132 2004/03/02 15:43:16 jeremy Exp $
+    $Id: Connection.py,v 1.133 2004/03/02 16:25:07 jeremy Exp $
     
     @group User Methods: root, get, add, close, db, sync, isReadOnly,
-        cacheFullSweep, cacheMinimize, getVersion, modifiedInVersion
+        cacheGC, cacheFullSweep, cacheMinimize, getVersion, modifiedInVersion
     @group Experimental Methods: setLocalTransaction, getTransaction,
         onCloseCallbacks
     @group Transaction Data Manager Methods: tpc_begin, tpc_vote,
