@@ -48,7 +48,7 @@ class StupidLogTest(unittest.TestCase):
         # skip to the beginning of next entry
         line = f.readline()
         while line != "------\n":
-            line = file.readline()
+            line = f.readline()
             
         line = f.readline().strip()
         _time, rest = line.split(" ", 1)
