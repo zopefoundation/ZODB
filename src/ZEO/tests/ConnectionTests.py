@@ -85,15 +85,15 @@ class CommonSetupTearDown(StorageTestBase):
         self.addr = []
         self._pids = []
         self._servers = []
-        self.conf_path = None
+        self.conf_paths = []
         self._newAddr()
         self.startServer()
 
     def tearDown(self):
         """Try to cause the tests to halt"""
         zLOG.LOG("testZEO", zLOG.INFO, "tearDown() %s" % self.id())
-        if self.conf_path:
-            os.remove(self.conf_path)
+        for p in self.conf_paths:
+            os.remove(p)
         if getattr(self, '_storage', None) is not None:
             self._storage.close()
             if hasattr(self._storage, 'cleanup'):
@@ -163,7 +163,7 @@ class CommonSetupTearDown(StorageTestBase):
         zeoport, adminaddr, pid, path = forker.start_zeo_server(sconf, zconf,
                                                                 addr[1],
                                                                 self.keep)
-        self.conf_path = path
+        self.conf_paths.append(path)
         self._pids.append(pid)
         self._servers.append(adminaddr)
 
