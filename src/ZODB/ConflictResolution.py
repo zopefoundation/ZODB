@@ -142,60 +142,61 @@ def persistent_id(object,
         return None
     return object.data
 
+def tryToResolveConflict(self, oid, committedSerial, oldSerial, newpickle):
+    #class_tuple, old, committed, newstate = ('',''), 0, 0, 0
+    try:
+        file=StringIO(newpickle)
+        unpickler=Unpickler(file)
+        prfactory=PersistentReferenceFactory()
+        unpickler.persistent_load=prfactory
+        class_tuple=unpickler.load()[0]
+        if bad_class(class_tuple):
+            #sys.stderr.write(' b%s ' % class_tuple[1]); sys.stderr.flush()
+            return 0
+
+        newstate=unpickler.load()
+        klass=_classFactory(class_tuple[0], class_tuple[1])
+        klass._p_resolveConflict                    
+        inst=klass.__basicnew__()
+
+        try:
+            resolve=inst._p_resolveConflict
+        except AttributeError:
+            bad_classes[class_tuple]=1
+            #traceback.print_exc()
+            #sys.stderr.write(' b%s ' % class_tuple[1]); sys.stderr.flush()
+            return 0
+
+        old=state(self, oid, oldSerial, prfactory)
+        committed=state(self, oid, committedSerial, prfactory)
+
+        resolved=resolve(old, committed, newstate)
+
+        file=StringIO()
+        pickler=Pickler(file,1)
+        pickler.persistent_id=persistent_id
+        pickler.dump(class_tuple)
+        pickler.dump(resolved)
+        #sys.stderr.write(' r%s ' % class_tuple[1]); sys.stderr.flush()
+        return file.getvalue(1)
+    except Exception, v:
+        #print '='*70
+        #print v, v.args
+        #print '='*70
+        #print old
+        #print '='*70
+        #print committed
+        #print '='*70
+        #print newstate
+        #print '='*70
+
+        #traceback.print_exc()
+
+        #sys.stderr.write(' c%s ' % class_tuple[1]); sys.stderr.flush()
+
+        return 0
+
 class ConflictResolvingStorage:
     "Mix-in class that provides conflict resolution handling for storages"
 
-    def tryToResolveConflict(self, oid, committedSerial, oldSerial, newpickle):
-        #class_tuple, old, committed, newstate = ('',''), 0, 0, 0
-        try:
-            file=StringIO(newpickle)
-            unpickler=Unpickler(file)
-            prfactory=PersistentReferenceFactory()
-            unpickler.persistent_load=prfactory
-            class_tuple=unpickler.load()[0]
-            if bad_class(class_tuple):
-                #sys.stderr.write(' b%s ' % class_tuple[1]); sys.stderr.flush()
-                return 0
-            
-            newstate=unpickler.load()
-            klass=_classFactory(class_tuple[0], class_tuple[1])
-            klass._p_resolveConflict                    
-            inst=klass.__basicnew__()
-            
-            try:
-                resolve=inst._p_resolveConflict
-            except AttributeError:
-                bad_classes[class_tuple]=1
-                #traceback.print_exc()
-                #sys.stderr.write(' b%s ' % class_tuple[1]); sys.stderr.flush()
-                return 0
-            
-            old=state(self, oid, oldSerial, prfactory)
-            committed=state(self, oid, committedSerial, prfactory)
-
-            resolved=resolve(old, committed, newstate)
-                
-            file=StringIO()
-            pickler=Pickler(file,1)
-            pickler.persistent_id=persistent_id
-            pickler.dump(class_tuple)
-            pickler.dump(resolved)
-            #sys.stderr.write(' r%s ' % class_tuple[1]); sys.stderr.flush()
-            return file.getvalue(1)
-        except Exception, v:
-            #print '='*70
-            #print v, v.args
-            #print '='*70
-            #print old
-            #print '='*70
-            #print committed
-            #print '='*70
-            #print newstate
-            #print '='*70
-            
-            #traceback.print_exc()
-
-            #sys.stderr.write(' c%s ' % class_tuple[1]); sys.stderr.flush()
-
-            return 0
-
+    tryToResolveConflict=tryToResolveConflict
