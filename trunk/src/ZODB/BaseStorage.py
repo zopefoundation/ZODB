@@ -15,7 +15,7 @@
 """
 # Do this portably in the face of checking out with -kv
 import string
-__version__ = string.split('$Revision: 1.22 $')[-2:][0]
+__version__ = string.split('$Revision: 1.23 $')[-2:][0]
 
 import ThreadLock, bpthread
 import time, UndoLogCompatible
@@ -122,6 +122,8 @@ class BaseStorage(UndoLogCompatible.UndoLogCompatible):
         pass
 
     def tpc_begin(self, transaction, tid=None, status=' '):
+        if self._is_read_only:
+            raise POSException.ReadOnlyError()
         self._lock_acquire()
         try:
             if self._transaction is transaction:
