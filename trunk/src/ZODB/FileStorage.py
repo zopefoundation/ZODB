@@ -184,7 +184,7 @@
 #   may have a back pointer to a version record or to a non-version
 #   record.
 #
-__version__='$Revision: 1.61 $'[11:-2]
+__version__='$Revision: 1.62 $'[11:-2]
 
 import struct, time, os, bpthread, string, base64, sys
 from struct import pack, unpack
@@ -444,8 +444,8 @@ class FileStorage(BaseStorage.BaseStorage,
 
     def close(self):
         self._file.close()
-        self._lock_file.close()
-        self._tfile.close()
+        if hasattr(self,'_lock_file'):  self._lock_file.close()
+        if self._tfile:                 self._tfile.close()
         try: self._save_index()
         except: pass # We don't care if this fails.
         
