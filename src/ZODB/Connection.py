@@ -13,7 +13,7 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.153 2004/04/16 20:26:16 jeremy Exp $"""
+$Id: Connection.py,v 1.154 2004/04/19 20:24:02 tim_one Exp $"""
 
 import logging
 import sys
@@ -572,9 +572,9 @@ class Connection(ExportImport, object):
         # calls add(), the newly added objects will show up in
         # _added_during_commit.  This sounds insane, but has actually
         # happened.
-        
+
         self._added_during_commit = []
-        
+
         for obj in self._registered_objects:
             oid = obj._p_oid
             assert oid
@@ -875,6 +875,7 @@ class Connection(ExportImport, object):
         # been modified at txn_time.
 
         assert start < self._txn_time, (u64(start), u64(self._txn_time))
+        assert end is not None
         assert self._txn_time <= end, (u64(self._txn_time), u64(end))
         self._reader.setGhostState(obj, data)
         obj._p_serial = start
