@@ -184,7 +184,7 @@
 #   may have a back pointer to a version record or to a non-version
 #   record.
 #
-__version__='$Revision: 1.25 $'[11:-2]
+__version__='$Revision: 1.26 $'[11:-2]
 
 import struct, time, os, bpthread, string, base64, sys
 from struct import pack, unpack
@@ -500,7 +500,7 @@ class FileStorage(BaseStorage.BaseStorage):
                         (read(8) # skip past version link
                          and version != read(vlen))
                         ):
-                        raise POSException.VersionLockError, oid
+                        raise POSException.VersionLockError, `oid`
 
                 if serial != oserial: raise POSException.ConflictError, (
                     serial, oserial)
