@@ -11,11 +11,14 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
-"""Unit tests for the Connection class.
-"""
+"""Unit tests for the Connection class."""
 
+import doctest
 import unittest
+
 from persistent import Persistent
+from ZODB.config import databaseFromString
+from ZODB.utils import p64, u64
 
 class ConnectionDotAdd(unittest.TestCase):
 
@@ -34,7 +37,7 @@ class ConnectionDotAdd(unittest.TestCase):
         self.datamgr.add(obj)
         self.assert_(obj._p_oid is not None)
         self.assert_(obj._p_jar is self.datamgr)
-        self.assert_(self.datamgr[obj._p_oid] is obj)
+        self.assert_(self.datamgr.get(obj._p_oid) is obj)
 
         # Only first-class persistent objects may be added.
         self.assertRaises(TypeError, self.datamgr.add, object())
@@ -59,7 +62,7 @@ class ConnectionDotAdd(unittest.TestCase):
         self.datamgr.abort(obj, self.transaction)
         self.assert_(obj._p_oid is None)
         self.assert_(obj._p_jar is None)
-        self.assertRaises(KeyError, self.datamgr.__getitem__, oid)
+        self.assertRaises(KeyError, self.datamgr.get, oid)
 
     def checkResetOnTpcAbort(self):
         obj = StubObject()
@@ -73,7 +76,7 @@ class ConnectionDotAdd(unittest.TestCase):
         self.datamgr.tpc_abort(self.transaction)
         self.assert_(obj._p_oid is None)
         self.assert_(obj._p_jar is None)
-        self.assertRaises(KeyError, self.datamgr.__getitem__, oid)
+        self.assertRaises(KeyError, self.datamgr.get, oid)
 
     def checkTcpAbortAfterCommit(self):
         obj = StubObject()
@@ -86,7 +89,7 @@ class ConnectionDotAdd(unittest.TestCase):
         self.datamgr.tpc_abort(self.transaction)
         self.assert_(obj._p_oid is None)
         self.assert_(obj._p_jar is None)
-        self.assertRaises(KeyError, self.datamgr.__getitem__, oid)
+        self.assertRaises(KeyError, self.datamgr.get, oid)
         self.assertEquals(self.db._storage._stored, [oid])
 
     def checkCommit(self):
@@ -137,6 +140,200 @@ class ConnectionDotAdd(unittest.TestCase):
         self.datamgr.tpc_begin(self.transaction)
         self.datamgr.tpc_finish(self.transaction)
         self.assert_(obj._p_oid not in self.datamgr._storage._stored)
+
+class UserMethodTests(unittest.TestCase):
+
+    # XXX add isn't tested here, because there are a bunch of traditional
+    # unit tests for it.
+
+    # XXX the version tests would require a storage that supports versions
+    # which is a bit more work.
+
+    def test_root(self):
+        r"""doctest of root() method
+
+        The root() method is simple, and the tests are pretty minimal.
+        Ensure that a new database has a root and that it is a
+        PersistentMapping.
+        
+        >>> db = databaseFromString("<zodb>\n<mappingstorage/>\n</zodb>")
+        >>> cn = db.open()
+        >>> root = cn.root()
+        >>> type(root).__name__
+        'PersistentMapping'
+        >>> root._p_oid
+        '\x00\x00\x00\x00\x00\x00\x00\x00'
+        >>> root._p_jar is cn
+        True
+        >>> db.close()
+        """
+
+    def test_get(self):
+        r"""doctest of get() method
+
+        The get() method return the persistent object corresponding to
+        an oid.
+
+        >>> db = databaseFromString("<zodb>\n<mappingstorage/>\n</zodb>")
+        >>> cn = db.open()
+        >>> obj = cn.get(p64(0))
+        >>> obj._p_oid
+        '\x00\x00\x00\x00\x00\x00\x00\x00'
+
+        The object is a ghost.
+        
+        >>> obj._p_state 
+        -1
+
+        And multiple calls with the same oid, return the same object.
+        
+        >>> obj2 = cn.get(p64(0))
+        >>> obj is obj2
+        True
+
+        If all references to the object are released, then a new
+        object will be returned. The cache doesn't keep unreferenced
+        ghosts alive.  (The next object returned my still have the
+        same id, because Python may re-use the same memory.)
+        
+        >>> del obj, obj2
+        >>> cn._cache.get(p64(0), None)
+
+        If the object is unghosted, then it will stay in the cache
+        after the last reference is released.  (This is true only if
+        there is room in the cache and the object is recently used.)
+
+        >>> obj = cn.get(p64(0))
+        >>> obj._p_activate()
+        >>> y = id(obj)
+        >>> del obj
+        >>> obj = cn.get(p64(0))
+        >>> id(obj) == y
+        True
+        >>> obj._p_state
+        0
+
+        A request for an object that doesn't exist will raise a KeyError.
+
+        >>> cn.get(p64(1))
+        Traceback (most recent call last):
+          ...
+        KeyError: '\x00\x00\x00\x00\x00\x00\x00\x01'
+        """
+
+    def test_close(self):
+        r"""doctest of close() method
+
+        This is a minimal test, because most of the interesting
+        effects on closing a connection involved its interaction the
+        database and transaction.
+
+        >>> db = databaseFromString("<zodb>\n<mappingstorage/>\n</zodb>")
+        >>> cn = db.open()
+
+        It's safe to close a connection multiple times.
+        >>> cn.close()
+        >>> cn.close()
+        >>> cn.close()
+
+        It's not possible to load or store objects once the storage is
+        closed.
+        
+        >>> cn.get(p64(0))
+        Traceback (most recent call last):
+          ...
+        RuntimeError: The database connection is closed
+        >>> p = Persistent()
+        >>> cn.add(p)
+        Traceback (most recent call last):
+          ...
+        RuntimeError: The database connection is closed
+        """
+
+    def test_onCloseCallbacks(self):
+        r"""doctest of onCloseCallback() method
+
+        >>> db = databaseFromString("<zodb>\n<mappingstorage/>\n</zodb>")
+        >>> cn = db.open()
+
+        Every function registered is called, even if it raises an
+        exception.  They are only called once.
+
+        >>> L = []
+        >>> def f():
+        ...     L.append("f")
+        >>> def g():
+        ...     L.append("g")
+        ...     return 1 / 0
+        >>> cn.onCloseCallback(g)
+        >>> cn.onCloseCallback(f)
+        >>> cn.close()
+        >>> L
+        ['g', 'f']
+        >>> del L[:]
+        >>> cn.close()
+        >>> L
+        []
+
+        The implementation keeps a list of callbacks that is reset
+        to a class variable (which is bound to None) after the connection
+        is closed.
+        
+        >>> cn._Connection__onCloseCallbacks
+        """
+
+    def test_db(self):
+        r"""doctest of db() method
+
+        >>> db = databaseFromString("<zodb>\n<mappingstorage/>\n</zodb>")
+        >>> cn = db.open()
+        >>> cn.db() is db
+        True
+        >>> cn.close()
+        >>> cn.db()
+        """
+
+    def test_isReadOnly(self):
+        r"""doctest of isReadOnly() method
+
+        >>> db = databaseFromString("<zodb>\n<mappingstorage/>\n</zodb>")
+        >>> cn = db.open()
+        >>> cn.isReadOnly()
+        False
+        >>> cn.close()
+        >>> cn.isReadOnly()
+        Traceback (most recent call last):
+          ...
+        RuntimeError: The database connection is closed
+
+        An expedient way to create a read-only storage:
+        
+        >>> db._storage._is_read_only = True
+        >>> cn = db.open()
+        >>> cn.isReadOnly()
+        True
+        """
+
+    def test_cache(self):
+        r"""doctest of cacheMinimize() and cacheFullSweep() methods.
+
+        These tests are fairly minimal, just verifying that the
+        methods can be called and have some effect.  We need other
+        tests that verify the cache works as intended.
+
+        >>> db = databaseFromString("<zodb>\n<mappingstorage/>\n</zodb>")
+        >>> cn = db.open()
+        >>> r = cn.root()
+        >>> r._p_activate()
+        >>> cn.cacheFullSweep()
+        >>> r._p_state
+        0
+        >>> cn.cacheMinimize()
+        >>> r._p_state
+        -1
+        >>> cn.cacheFullSweep(12)
+        >>> cn.cacheMinimize(12)
+        """
 
 # ---- stubs
 
@@ -262,4 +459,6 @@ class StubDatabase:
 
 
 def test_suite():
-    return unittest.makeSuite(ConnectionDotAdd, 'check')
+    s = unittest.makeSuite(ConnectionDotAdd, 'check')
+    s.addTest(doctest.DocTestSuite())
+    return s

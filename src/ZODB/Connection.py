@@ -13,7 +13,7 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.124 2004/02/25 19:09:14 jeremy Exp $"""
+$Id: Connection.py,v 1.125 2004/02/26 22:55:51 jeremy Exp $"""
 
 import logging
 import sys
@@ -91,11 +91,31 @@ class Connection(ExportImport, object):
     XXX We should document an intended API for using a Connection via
     multiple threads.
 
-    $Id: Connection.py,v 1.124 2004/02/25 19:09:14 jeremy Exp $
+    XXX We should explain that the Connection has a cache and that
+    multiple calls to get() will return a reference to the same
+    object, provided that one of the earlier objects is still
+    referenced.  Object identity is preserved within a connection, but
+    not across connections.
+
+    XXX Mention the database pool.
+
+    @group User Methods: root, get, add, close, db, sync, isReadOnly,
+        cacheFullSweep, cacheMinimize, getVersion, modifiedInVersion
+    @group Experimental Methods: setLocalTransaction, getTransaction,
+        onCloseCallbacks
+    @group Transaction Data Manager Methods: tpc_begin, tpc_vote,
+        tpc_finish, tpc_abort, sortKey, abort, commit, commit_sub,
+        abort_sub
+    @group Database Invalidation Methods: invalidate, _setDB
+    @group IPersistentDataManager Methods: setstate, register,
+        setklassstate
+    @group Other Methods: oldstate, exchange, getDebugInfo, setDebugInfo,
+        getTransferCounts
+
+    $Id: Connection.py,v 1.125 2004/02/26 22:55:51 jeremy Exp $
     """
 
     _tmp = None
-    _debug_info = ()
     _opened = None
     _code_timestamp = 0
     _transaction = None
@@ -103,9 +123,15 @@ class Connection(ExportImport, object):
 
     def __init__(self, version='', cache_size=400,
                  cache_deactivate_after=60, mvcc=True):
-        """Create a new Connection"""
+        """Create a new Connection.
+
+        A Connection instance should by instantiated by the DB
+        instance that it connects to.
+        """
 
         self._log = logging.getLogger("zodb.conn")
+        self._storage = None
+        self._debug_info = ()
 
         self._version = version
         self._cache = cache = PickleCache(self, cache_size)
@@ -188,7 +214,23 @@ class Connection(ExportImport, object):
             ver = ''
         return '<Connection at %08x%s>' % (id(self), ver)
 
-    def __getitem__(self, oid):
+    def get(self, oid):
+        """Return the persistent object with oid C{oid}.
+
+        If the object was not in the cache and the object's class is
+        ghostable, then a ghost will be returned.  If the object is
+        already in the cache, a reference to the cached object will be
+        returned.
+
+        @return: persistent object
+        @rtype: L{IPersistent}
+        @raise KeyError: If C{oid} does not exist.
+        @raise RuntimeError: If the connection is closed.
+        """
+        if self._storage is None:
+            # XXX Should this be a ZODB-specific exception?
+            raise RuntimeError("The database connection is closed")
+        
         obj = self._cache.get(oid, None)
         if obj is not None:
             return obj
@@ -207,7 +249,35 @@ class Connection(ExportImport, object):
         self._cache[oid] = obj
         return obj
 
+    # deprecate this method?
+    __getitem__ = get
+
     def add(self, obj):
+        """Add a new object C{obj} to the database and assign it an oid.
+
+        A persistent object is normally added to the database and
+        assigned an oid when it becomes reachable an object already in
+        the database.  In some cases, it is useful to create a new
+        object and uses its oid (C{_p_oid}) in a single transaction.
+
+        This method assigns a new oid regardless of whether the object
+        is reachable.
+
+        The object is added when the transaction commits.  The object
+        must implement the L{IPersisent} interface and must not
+        already be associated with a L{Connection}.
+
+        @param obj: the object to add
+        @type obj: L{IPersistent}
+        @raise TypeError: If C{obj} is not a persistent object.
+        @raise InvalidObjectReference: If C{obj} is already associated
+            with another connection.
+        @raise RuntimeError: If the connection is closed.
+        """
+        if self._storage is None:
+            # XXX Should this be a ZODB-specific exception?
+            raise RuntimeError("The database connection is closed")
+        
         marker = object()
         oid = getattr(obj, "_p_oid", marker)
         if oid is marker:
@@ -220,6 +290,7 @@ class Connection(ExportImport, object):
             self._added[oid] = obj
             if self._added_during_commit is not None:
                 self._added_during_commit.append(obj)
+            self.getTransaction().register(obj)
         elif obj._p_jar is not self:
             raise InvalidObjectReference(obj, obj._p_jar)
 
@@ -279,21 +350,49 @@ class Connection(ExportImport, object):
             else:
                 self._cache.invalidate(object._p_oid)
 
+    # XXX should there be a way to call incrgc directly?
+    # perhaps "full sweep" should do that?
+
+    # XXX we should test what happens when these methods are called
+    # mid-transaction.
+
     def cacheFullSweep(self, dt=0):
+        # XXX needs doc string
+        warnings.warn("cacheFullSweep is deprecated. "
+                      "Use cacheMinimize instead.", PendingDeprecationWarning)
         self._cache.full_sweep(dt)
 
-    def cacheMinimize(self, dt=0):
-        # dt is ignored
+    def cacheMinimize(self, dt=None):
+        # XXX needs doc string
+        if dt is not None:
+            warnings.warn("The dt argument to cacheMinimize is ignored.",
+                          PendingDeprecationWarning)
         self._cache.minimize()
 
     __onCloseCallbacks = None
 
     def onCloseCallback(self, f):
+        """Register a callable C{f} to be called by L{close}.
+
+        The callable C{f} will be called at most once, the next time
+        the Connection is closed.
+        """
         if self.__onCloseCallbacks is None:
             self.__onCloseCallbacks = []
         self.__onCloseCallbacks.append(f)
 
     def close(self):
+        """Close the C{Connection}.
+
+        A closed C{Connection} should not be used by client code.  It
+        can't load or store objects.  Objects in the cache are not
+        freed, because C{Connections} are re-used and the cache are
+        expected to be useful to the next client.
+
+        When the Connection is closed, all callbacks registered by
+        L{onCloseCallbacks} are invoked and the cache is scanned for
+        old objects.
+        """
         if self._incrgc is not None:
             self._incrgc() # This is a good time to do some GC
 
@@ -310,7 +409,9 @@ class Connection(ExportImport, object):
         self._storage = self._tmp = self.new_oid = self._opened = None
         self._debug_info = ()
         # Return the connection to the pool.
-        self._db._closeConnection(self)
+        if self._db is not None:
+            self._db._closeConnection(self)
+            self._db = None
 
     def commit(self, object, transaction):
         if object is self:
@@ -454,9 +555,15 @@ class Connection(ExportImport, object):
         return self._db
 
     def getVersion(self):
+        if self._storage is None:
+            # XXX Should this be a ZODB-specific exception?
+            raise RuntimeError("The database connection is closed")
         return self._version
 
     def isReadOnly(self):
+        if self._storage is None:
+            # XXX Should this be a ZODB-specific exception?
+            raise RuntimeError("The database connection is closed")
         return self._storage.isReadOnly()
 
     def invalidate(self, tid, oids):
@@ -515,7 +622,12 @@ class Connection(ExportImport, object):
         self.getTransaction().register(object)
 
     def root(self):
-        return self[z64]
+        """Get the database root object.
+
+        @return: the database root object
+        @rtype: C{persistent.dict.PersistentDict}
+        """
+        return self.get(z64)
 
     def setstate(self, obj):
         oid = obj._p_oid
@@ -639,8 +751,19 @@ class Connection(ExportImport, object):
             self.getTransaction().register(obj)
             raise ReadConflictError(object=obj)
 
-    def oldstate(self, obj, serial):
-        p = self._storage.loadSerial(obj._p_oid, serial)
+    def oldstate(self, obj, tid):
+        """Return copy of C{obj} that was written by C{tid}.
+
+        @param obj: the persistent object to retrieve an old revision of
+        @type obj: L{IPersistent}
+        @param tid: id of transaction that wrote revision
+        @type tid: C{string}
+
+        @raise KeyError: If C{tid} does not exist or if C{tid} deleted
+            a revision of C{obj}
+        """
+        assert obj._p_jar is self
+        p = self._storage.loadSerial(obj._p_oid, tid)
         return self._reader.getState(p)
 
     def setklassstate(self, obj):
