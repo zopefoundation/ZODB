@@ -84,8 +84,8 @@
 ##############################################################################
 """Transaction management
 
-$Id: Transaction.py,v 1.30 2001/06/04 18:25:38 andreas Exp $"""
-__version__='$Revision: 1.30 $'[11:-2]
+$Id: Transaction.py,v 1.31 2001/10/22 20:08:33 jeremy Exp $"""
+__version__='$Revision: 1.31 $'[11:-2]
 
 import time, sys, struct, POSException
 from struct import pack
@@ -150,9 +150,9 @@ class Transaction:
                 data manager doesn't support partial abort.
                 """)
 
-        t=v=tb=None
-        subj=self._sub
-        subjars=()
+        t = None
+        subj = self._sub
+        subjars = ()
 
         if not subtransaction:
 
@@ -160,40 +160,43 @@ class Transaction:
             # may have been stowed away from previous subtransaction
             # commits.
             if self._non_st_objects is not None:
-                append=self._objects.append
-                for object in self._non_st_objects:
-                    append(object)
+                self._objects.extend(self._non_st_objects)
                 self._non_st_objects = None
 
             if subj is not None:
                 # Abort of top-level transaction after commiting
                 # subtransactions.
-                subjars=subj.values()
-                self._sub=None
+                subjars = subj.values()
+                self._sub = None
 
         try:
             # Abort the objects
             for o in self._objects:
                 try:
-                    j=getattr(o, '_p_jar', o)
-                    if j is not None: j.abort(o, self)
+                    j = getattr(o, '_p_jar', o)
+                    if j is not None:
+                        j.abort(o, self)
                 except:
                     if t is None:
-                        t,v,tb=sys.exc_info()
+                        t, v, tb = sys.exc_info()
 
             # Ugh, we need to abort work done in sub-transactions.
             while subjars:
-                j=subjars.pop()
+                j = subjars.pop()
                 j.abort_sub(self) # This should never fail
         
-            if t is not None: raise t,v,tb
+            if t is not None:
+                raise t, v, tb
 
         finally:
-            tb=None
+            if t is not None:
+                del tb # don't keep traceback in local variable
             del self._objects[:] # Clear registered
             if not subtransaction and freeme:
-                if self._id is not None: free_transaction()
-            else: self._init()
+                if self._id is not None:
+                    free_transaction()
+            else:
+                self._init()
 
     def begin(self, info=None, subtransaction=None):
         '''Begin a new transaction.
