@@ -11,7 +11,6 @@
 # FOR A PARTICULAR PURPOSE
 # 
 ##############################################################################
-
 """Library for forking storage server and connecting client storage"""
 
 import asyncore
@@ -62,7 +61,7 @@ if os.name == "nt":
         args = (sys.executable, script, str(port), storage_name) + args
         d = os.environ.copy()
         d['PYTHONPATH'] = os.pathsep.join(sys.path)
-        pid = os.spawnve(os.P_NOWAIT, sys.executable, args, d)
+        pid = os.spawnve(os.P_NOWAIT, sys.executable, args, os.environ)
         return ('localhost', port), ('localhost', port + 1), pid
 
 else:
@@ -98,16 +97,14 @@ else:
         rd, wr = os.pipe()
         pid = os.fork()
         if pid == 0:
-            try:
-                if PROFILE:
-                    p = profile.Profile()
-                    p.runctx("run_server(storage, addr, rd, wr)", globals(),
-                             locals())
-                    p.dump_stats("stats.s.%d" % os.getpid())
-                else:
-                    run_server(storage, addr, rd, wr)
-            finally:
-                os._exit(0)
+            if PROFILE:
+                p = profile.Profile()
+                p.runctx("run_server(storage, addr, rd, wr)", globals(),
+                         locals())
+                p.dump_stats("stats.s.%d" % os.getpid())
+            else:
+                run_server(storage, addr, rd, wr)
+            os._exit(0)
         else:
             os.close(rd)
             return pid, ZEOClientExit(wr)

@@ -14,7 +14,7 @@
 """Simple rpc mechanisms
 """
 
-__version__ = "$Revision: 1.21 $"[11:-2]
+__version__ = "$Revision: 1.22 $"[11:-2]
 
 from cPickle import loads
 import cPickle

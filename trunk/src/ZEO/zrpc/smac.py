@@ -14,7 +14,7 @@
 """Sized message async connections
 """
 
-__version__ = "$Revision: 1.14 $"[11:-2]
+__version__ = "$Revision: 1.15 $"[11:-2]
 
 import asyncore, string, struct, zLOG, sys, Acquisition
 import socket, errno
