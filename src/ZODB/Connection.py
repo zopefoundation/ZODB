@@ -24,8 +24,8 @@ from time import time
 from persistent import PickleCache
 
 # interfaces
-from persistent.interfaces import IPersistentDataManager 
-from ZODB.interfaces import IConnection 
+from persistent.interfaces import IPersistentDataManager
+from ZODB.interfaces import IConnection
 from transaction.interfaces import IDataManager
 from zope.interface import implements
 
@@ -563,7 +563,7 @@ class Connection(ExportImport, object):
     def getDebugInfo(self):
         """Returns a tuple with different items for debugging the
         connection.
-        """ 
+        """
         return self._debug_info
 
     def setDebugInfo(self, *args):
@@ -822,13 +822,12 @@ class Connection(ExportImport, object):
     def modifiedInVersion(self, oid):
         """Returns the version the object with the given oid was modified in.
 
-        If it wasn't modified in a version, the current version of this 
+        If it wasn't modified in a version, the current version of this
         connection is returned.
         """
         try:
             return self._db.modifiedInVersion(oid)
         except KeyError:
-            import pdb; pdb.set_trace() 
             return self.getVersion()
 
     def getVersion(self):
