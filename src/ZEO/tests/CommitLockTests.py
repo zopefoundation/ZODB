@@ -13,13 +13,12 @@
 ##############################################################################
 """Tests of the distributed commit lock."""
 
-import threading
-
 from ZODB.Transaction import Transaction
 from ZODB.tests.StorageTestBase import zodb_pickle, MinPO
 
 import ZEO.ClientStorage
 from ZEO.Exceptions import Disconnected
+from ZEO.tests.TestThread import TestThread
 
 ZERO = '\0'*8
 
@@ -27,19 +26,18 @@ class DummyDB:
     def invalidate(self, *args):
         pass
 
-class WorkerThread(threading.Thread):
+class WorkerThread(TestThread):
 
     # run the entire test in a thread so that the blocking call for
     # tpc_vote() doesn't hang the test suite.
 
-    def __init__(self, storage, trans, method="tpc_finish"):
+    def __init__(self, testcase, storage, trans, method="tpc_finish"):
         self.storage = storage
         self.trans = trans
         self.method = method
-        threading.Thread.__init__(self)
-        self.setDaemon(1)
+        TestThread.__init__(self, testcase)
 
-    def run(self):
+    def testrun(self):
         try:
             self.storage.tpc_begin(self.trans)
             oid = self.storage.new_oid()
@@ -151,15 +149,13 @@ class CommitLockTests:
 
     def _dosetup2(self, storage, trans, tid):
         self._threads = []
-        t = WorkerThread(storage, trans)
+        t = WorkerThread(self, storage, trans)
         self._threads.append(t)
         t.start()
 
     def _dowork2(self, method_name):
         for t in self._threads:
-            t.join(10)
-        for t in self._threads:
-            self.failIf(t.isAlive())
+            t.cleanup()
 
     def _duplicate_client(self):
         "Open another ClientStorage to the same server."
