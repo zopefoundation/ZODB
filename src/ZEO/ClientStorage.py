@@ -84,7 +84,7 @@
 ##############################################################################
 """Network ZODB storage client
 """
-__version__='$Revision: 1.33 $'[11:-2]
+__version__='$Revision: 1.34 $'[11:-2]
 
 import struct, time, os, socket, string, Sync, zrpc, ClientCache
 import tempfile, Invalidator, ExtensionClass, thread
@@ -273,8 +273,11 @@ class ClientStorage(ExtensionClass.Base, BaseStorage.BaseStorage):
         self._connected=0
         self._transaction=None
         thread.start_new_thread(self._call.connect,(0,))
-        try: self._commit_lock_release()
-        except: pass
+        if self._transaction is not None:
+            try:
+                self._commit_lock_release()
+            except:
+                pass
 
     def becomeAsync(self, map):
         self._lock_acquire()
@@ -479,6 +482,7 @@ class ClientStorage(ExtensionClass.Base, BaseStorage.BaseStorage):
                             "This action is temporarily unavailable.<p>")
                     r=self._call(self.__begin, id, user, desc, ext)
                 except:
+                    # XXX can't seem to guarantee that the lock is held here. 
                     self._commit_lock_release()
                     raise
                 
