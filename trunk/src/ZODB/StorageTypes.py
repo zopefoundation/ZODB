@@ -43,9 +43,6 @@ def convertFileStorageArgs(quota=None, stop=None, **kw):
         if kw.has_key(name):
             kw[name] = asBoolean(kw[name])
 
-    if not kw.has_key('file_name'):
-        raise RuntimeError, 'A file_name argument is required for FileStorage'
-
     return kw
 
 
