@@ -184,7 +184,7 @@
 #   may have a back pointer to a version record or to a non-version
 #   record.
 #
-__version__='$Revision: 1.24 $'[11:-2]
+__version__='$Revision: 1.25 $'[11:-2]
 
 import struct, time, os, bpthread, string, base64, sys
 from struct import pack, unpack
@@ -213,9 +213,9 @@ def panic(message, *data):
     LOG('ZODB FS',PANIC,"%s ERROR: %s\n" % (packed_version, message))
     raise CorruptedTransactionError, message
 
-class FileStorageError: pass
+class FileStorageError(POSException.StorageError): pass
 
-class FileStorageFormatError(FileStorageError, POSException.StorageError):
+class FileStorageFormatError(FileStorageError):
     """Invalid file format
 
     The format of the given file is not valid
@@ -425,13 +425,15 @@ class FileStorage(BaseStorage.BaseStorage):
         h=read(42)
         doid,serial,prev,tloc,vlen,plen = unpack(">8s8s8s8sH8s", h)
         if vlen:
-            file.seek(16,1)
+            nv = read(8) != z64
+            file.seek(8,1) # Skip previous version record pointer
             version=read(vlen)
         else:
             version=''
+            nv=0
 
-        if plen != z64: return read(u64(plen)), version
-        return _loadBack(file, oid, read(8))[0], version
+        if plen != z64: return read(u64(plen)), version, nv
+        return _loadBack(file, oid, read(8))[0], version, nv
 
     def _load(self, oid, version, _index, file):
         pos=_index[oid]
@@ -752,6 +754,7 @@ class FileStorage(BaseStorage.BaseStorage):
         name=self.__name__
         file=open(name, 'r+b')
         stop=`apply(TimeStamp, time.gmtime(t)[:5]+(t%60,))`
+        if stop==z64: raise FileStorageError, 'Invalid pack time'
 
         try:
             ##################################################################
@@ -760,8 +763,12 @@ class FileStorage(BaseStorage.BaseStorage):
 
             # Record pack time so we don't undo while packing
             _lock_acquire()
+            locked=1
+            if self._packt != z64:
+                raise FileStorageError, 'Already packing'
             self._packt=stop
             _lock_release()
+            locked=0
             
             packpos, maxoid, ltid = read_index(
                 file, name, index, vindex, tindex, stop)
@@ -777,9 +784,9 @@ class FileStorage(BaseStorage.BaseStorage):
                 oid=pop()
                 if referenced(oid): continue
                 try:
-                    p, v = _loada(oid, index, file)
+                    p, v, nv = _loada(oid, index, file)
                     referencesf(p, rootl)
-                    if v:
+                    if nv:
                         p, serial = _load(oid, '', index, file)
                         referencesf(p, rootl)
     
@@ -828,6 +835,8 @@ class FileStorage(BaseStorage.BaseStorage):
             # data from being changed while we're copying.
             pnv=None
             while 1:
+
+
 
                 # Check for end of packed records
                 if packing and pos >= packpos:
@@ -889,8 +898,6 @@ class FileStorage(BaseStorage.BaseStorage):
                     plen=u64(splen)
                     dlen=42+(plen or 8)
 
-                    # print u64(oid), pos, vlen, plen, pindex.get(oid,'?')
-
                     if vlen:
                         dlen=dlen+16+vlen
                         if packing and pindex_get(oid,0) != pos:
@@ -900,7 +907,7 @@ class FileStorage(BaseStorage.BaseStorage):
                             continue
 
                         pnv=u64(read(8))
-                        # skip pos prev ver rec
+                        # skip position of previous version record
                         seek(8,1)
                         version=read(vlen)
                         pv=p64(vindex_get(version, 0))
@@ -935,6 +942,14 @@ class FileStorage(BaseStorage.BaseStorage):
                                     # so this isn't the current record
                                     pos=pos+dlen
                                     continue
+
+                                # Ok, we've gotten this far, so we have
+                                # the current record and we're ready to
+                                # read the pickle, but we're in the wrong
+                                # place, after wandering around to figure
+                                # out is we were current. Seek back
+                                # to pickle data:
+                                seek(pos+42)
 
                             nvindex[oid]=opos
 
@@ -995,8 +1010,6 @@ class FileStorage(BaseStorage.BaseStorage):
                         write(version)
 
                     write(p)
-
-                    # print 'current', opos
 
                 # skip the (intentionally redundant) transaction length
                 pos=pos+8
@@ -1179,8 +1192,6 @@ def read_index(file, name, index, vindex, tindex, stop='\377'*8):
             
             dlen=42+(plen or 8)
             tappend((oid,pos))
-
-            # print u64(oid), pos, vlen, plen, index.get(oid,'?')
             
             if vlen:
                 dlen=dlen+16+vlen
