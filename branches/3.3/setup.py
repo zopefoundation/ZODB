@@ -21,7 +21,7 @@ interface, rich transaction support, and undo.
 """
 
 classifiers = """\
-Development Status :: 3 - Alpha
+Development Status :: 4 - Beta
 Intended Audience :: Developers
 License :: OSI Approved :: Zope Public License
 Programming Language :: Python
@@ -225,7 +225,7 @@ setup(name="ZODB3",
       package_dir = {'': 'src'},
       ext_modules = exts,
       headers = ['src/persistent/cPersistence.h'],
-      license = "http://www.zope.org/Resources/ZPL",
+      license = "ZPL 2.1",
       platforms = ["any"],
       description = doclines[0],
       classifiers = filter(None, classifiers.split("\n")),
