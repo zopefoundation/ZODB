@@ -27,6 +27,8 @@ try:
     from ZODB.tests.StorageTestBase import removefs
 except ImportError:
     # for compatibility with Zope 2.5 &c.
+    import errno
+    
     def removefs(base):
         """Remove all files created by FileStorage with path base."""
         for ext in '', '.old', '.tmp', '.lock', '.index', '.pack':
