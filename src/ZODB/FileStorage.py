@@ -186,7 +186,7 @@
 #   may have a back pointer to a version record or to a non-version
 #   record.
 #
-__version__='$Revision: 1.68 $'[11:-2]
+__version__='$Revision: 1.69 $'[11:-2]
 
 import struct, time, os, bpthread, string, base64, sys
 from struct import pack, unpack
@@ -300,7 +300,7 @@ class FileStorage(BaseStorage.BaseStorage,
         self._file=file
 
         r=self._restore_index()
-        if r:
+        if r is not None:
             index, vindex, start, maxoid, ltid = r
             self._initIndex(index, vindex, tindex, tvindex)
             self._pos, self._oid, tid = read_index(
@@ -324,7 +324,6 @@ class FileStorage(BaseStorage.BaseStorage,
                 self._ts=t
 
         self._quota=quota
-            
 
     def _initIndex(self, index, vindex, tindex, tvindex):
         self._index=index
@@ -380,8 +379,8 @@ class FileStorage(BaseStorage.BaseStorage,
         check to see that the included records are consistent
         with the index.  Any invalid record records or inconsistent
         object positions cause zero to be returned.
-
         """
+        
         if pos < 100: return 0
         file=self._file
         seek=file.seek
@@ -740,7 +739,7 @@ class FileStorage(BaseStorage.BaseStorage,
             file=self._file
             write=file.write
             tfile.seek(0)
-            id=self._serial
+            tid=self._serial
             user, desc, ext = self._ude
             luser=len(user)
             ldesc=len(desc)
@@ -764,7 +763,7 @@ class FileStorage(BaseStorage.BaseStorage,
                 # suspect.
                 write(pack(
                     ">8s" "8s" "c"  "H"        "H"        "H"
-                     ,id, stl, 'c', luser,     ldesc,     lext,
+                     ,tid, stl, 'c', luser,     ldesc,     lext,
                     ))
                 if user: write(user)
                 if desc: write(desc)
@@ -1595,8 +1594,8 @@ class FileStorage(BaseStorage.BaseStorage,
             self._packt=z64
             _lock_release()
 
-    def iterator(self): return FileIterator(self._file_name)
-        
+    def iterator(self):
+        return FileIterator(self._file_name)
 
 def shift_transactions_forward(index, vindex, tindex, file, pos, opos):
     """Copy transactions forward in the data file
@@ -1760,6 +1759,27 @@ def recover(file_name):
 
 def read_index(file, name, index, vindex, tindex, stop='\377'*8,
                ltid=z64, start=4L, maxoid=z64, recover=0, read_only=0):
+    """Scan the entire file storage and recreate the index.
+
+    Returns file position, max oid, and last transaction id.  It also
+    stores index information in the three dictionary arguments.
+
+    Arguments:
+    file -- a file object (the Data.fs)
+    name -- the name of the file (presumably file.name)
+    index -- dictionary, oid -> data record
+    vindex -- dictionary, oid -> data record for version data
+    tindex -- dictionary, oid -> data record
+       XXX tindex is cleared before return, so it will be empty
+
+    There are several default arguments that affect the scan or the
+    return values.  XXX should document them.
+
+    The file position returned is the position just after the last
+    valid transaction record.  The oid returned is the maximum object
+    id in the data.  The transaction id is the tid of the last
+    transaction. 
+    """
     
     read=file.read
     seek=file.seek
@@ -1884,7 +1904,7 @@ def read_index(file, name, index, vindex, tindex, stop='\377'*8,
                 panic("%s data record exceeds transaction record at %s",
                       name, pos)
                 
-            if index_get(oid,0) != prev:
+            if index_get(oid, 0) != prev:
                 if prev:
                     if recover: return tpos, None, None
                     error("%s incorrect previous pointer at %s", name, pos)
@@ -1905,10 +1925,10 @@ def read_index(file, name, index, vindex, tindex, stop='\377'*8,
             panic("%s redundant transaction length check failed at %s",
                   name, pos)
         pos=pos+8
-        
-        for oid, p in tindex.items():
-            maxoid=max(maxoid,oid)
-            index[oid]=p # Record the position
+
+        _maxoid = max(tindex.keys()) # in 2.2, just max(tindex)
+        maxoid = max(_maxoid, maxoid)
+        index.update(tindex)
 
         tindex.clear()
 
@@ -2053,8 +2073,6 @@ class FileIterator(Iterator):
                 else:
                     warn('%s has invalid transaction header at %s', name, pos)
                     break
-
-            # if tid >= stop: raise IndexError, index
 
             tpos=pos
             tend=tpos+tl
