@@ -20,7 +20,6 @@ import base64
 from cPickle import Pickler, Unpickler, loads
 import errno
 import os
-import struct
 import sys
 import time
 import logging
@@ -454,7 +453,7 @@ class FileStorage(BaseStorage.BaseStorage,
         # middle holds bytes 16:34 of a data record:
         #    pos of transaction, len of version name, data length
         #    commit version never writes data, so data length is always 0
-        middle = struct.pack(">8sH8s", p64(self._pos), len(dest), z64)
+        middle = pack(">8sH8s", p64(self._pos), len(dest), z64)
 
         if dest:
             sd = p64(self._vindex_get(dest, 0))
@@ -697,7 +696,7 @@ class FileStorage(BaseStorage.BaseStorage,
         # XXX isn't the same, 0 is returned.  Why the discrepancy?
         self._file.seek(tpos)
         h = self._file.read(TRANS_HDR_LEN)
-        tid, tl, status, ul, dl, el = struct.unpack(TRANS_HDR, h)
+        tid, tl, status, ul, dl, el = unpack(TRANS_HDR, h)
         self._file.read(ul + dl + el)
         tend = tpos + tl + 8
         pos = self._file.tell()
@@ -2008,7 +2007,7 @@ class UndoSearch:
         self.pos -= u64(self.file.read(8)) + 8
         self.file.seek(self.pos)
         h = self.file.read(TRANS_HDR_LEN)
-        tid, tl, status, ul, dl, el = struct.unpack(TRANS_HDR, h)
+        tid, tl, status, ul, dl, el = unpack(TRANS_HDR, h)
         if status == 'p':
             self.stop = 1
             return None
