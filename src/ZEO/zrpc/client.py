@@ -162,7 +162,7 @@ class ConnectionManager:
         self.connection = c
         self._thread = None
 
-    def notify_closed(self, conn):
+    def notify_closed(self):
         self.connected = 0
         self.connection = None
         self.client.notifyDisconnected()
