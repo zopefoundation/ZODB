@@ -13,7 +13,7 @@
 ##############################################################################
 """Monitor behavior of ZEO server and record statistics.
 
-$Id: monitor.py,v 1.2 2003/01/09 23:55:57 jeremy Exp $
+$Id: monitor.py,v 1.3 2003/01/15 21:23:16 jeremy Exp $
 """
 
 import asyncore
@@ -39,6 +39,35 @@ class StorageStats:
         self.conflicts = 0
         self.conflicts_resolved = 0
         self.start = time.ctime()
+
+    def parse(self, s):
+        # parse the dump format
+        lines = s.split("\n")
+        for line in lines:
+            field, value = line.split(":", 1)
+            if field == "Server started":
+                self.start = value
+            elif field == "Clients":
+                self.clients = int(value)
+            elif field == "Clients verifying":
+                self.verifying_clients = int(value)
+            elif field == "Active transactions":
+                self.active_txns = int(value)
+            elif field == "Commit lock held for":
+                # This assumes 
+                self.lock_time = time.time() - int(value)
+            elif field == "Commits":
+                self.commits = int(value)
+            elif field == "Aborts":
+                self.aborts = int(value)
+            elif field == "Loads":
+                self.loads = int(value)
+            elif field == "Stores":
+                self.stores = int(value)
+            elif field == "Conflicts":
+                self.conflicts = int(value)
+            elif field == "Conflicts resolved":
+                self.conflicts_resolved = int(value)
 
     def dump(self, f):
         print >> f, "Server started:", self.start
