@@ -84,19 +84,20 @@
 ##############################################################################
 """Database objects
 
-$Id: DB.py,v 1.18 1999/10/07 19:48:18 jim Exp $"""
-__version__='$Revision: 1.18 $'[11:-2]
+$Id: DB.py,v 1.19 1999/11/23 22:55:54 jim Exp $"""
+__version__='$Revision: 1.19 $'[11:-2]
 
-import cPickle, cStringIO, sys, POSException
+import cPickle, cStringIO, sys, POSException, UndoLogCompatible
 from Connection import Connection
 from bpthread import allocate_lock
 from Transaction import Transaction
 from referencesf import referencesf
 from time import time, ctime
 
+
 StringType=type('')
 
-class DB:
+class DB(UndoLogCompatible.UndoLogCompatible):
     """The Object Database
 
     The Object database coordinates access to and interaction of one
@@ -157,7 +158,9 @@ class DB:
                   'supportsUndo', 'supportsVersions', 'undoLog',
                   'versionEmpty', 'versions'):
             setattr(self, m, getattr(storage, m))
-        
+
+        if hasattr(storage, 'undoInfo'):
+            self.undoInfo=storage.undoInfo
 
     def _cacheMean(self, attr):
         m=[0,0]
