@@ -5,10 +5,10 @@ from ZODB import POSException
 from ZODB.Transaction import Transaction
 import traceback
 
-class StorageServerError(POSException.ServerError): pass
+class StorageServerError(POSException.StorageError): pass
 
 
-class Server(asyncore.dispatcher):
+class StorageServer(asyncore.dispatcher):
 
     def __init__(self, connection, storages):
         
@@ -36,6 +36,18 @@ class Server(asyncore.dispatcher):
         if connections is None:
             self.__connections[storage_id]=connections=[]
         connections.append(connection)
+        return storage, storage_id
+
+    def unregister_connection(self, connection, storage_id):
+        
+        connections=self.__get_connections(storage_id, None)
+        if connections: 
+            n=[]
+            for c in connections:
+                if c is not connection:
+                    n.append(c)
+        
+            self.__connections[storage_id]=n
 
     def invalidate(self, connection, storage_id, invalidated,
                    dumps=cPickle.dumps):
@@ -62,12 +74,13 @@ class Server(asyncore.dispatcher):
 storage_methods={}
 for n in ('get_info', 'abortVersion', 'commitVersion', 'history',
           'load', 'modifiedInVersion', 'new_oid', 'pack', 'store',
-          'tpc_abort', 'tpc_begin', 'tpc_finish', 'undo', 'undoLog',
+          'tpc_abort', 'tpc_begin', 'tpc_begin_sync', 'tpc_finish', 'undo',
+          'undoLog',
           'versionEmpty'):
     storage_methods[n]=1
 storage_method=storage_methods.has_key
 
-
+_noreturn=[]
 class Connection(smac):
 
     _transaction=None
@@ -76,14 +89,25 @@ class Connection(smac):
     def __init__(self, server, sock, addr):
         smac.__init__(self, sock, addr)
         self.__server=server
-        self.__storage=server.storage
         self.__invalidated=[]
+        self.__closed=None
 
     def close(self):
+        t=self._transaction
+        if (t is not None and self.__storage is not None and
+            self.__storage._transaction is t):
+            self.tpc_abort(t.id)
+
         self.__server.unregister_connection(self, self.__storage_id)
+        self.__closed=1
         smac.close(self)
 
     def message_input(self, message):
+        if __debug__:
+            m=`message`
+            if len(m) > 60: m=m[:60]+' ...'
+            print 'message_input', m
+
         if self.__storage is None:
             self.__storage, self.__storage_id = (
                 self.__server.register_connection(self, message))
@@ -93,18 +117,29 @@ class Connection(smac):
         try:
             args=cPickle.loads(message)
             name, args = args[0], args[1:]
+            if __debug__:
+                m=`tuple(args)`
+                if len(m) > 60: m=m[:60]+' ...'
+                print 'call: %s%s' % (name, m)
+                
             if not storage_method(name):
                 raise 'Invalid Method Name', name
             if hasattr(self, name):
                 r=apply(getattr(self, name), args)
             else:
                 r=apply(getattr(self.__storage, name), args)
+            if r is _noreturn: return
         except:
             traceback.print_exc()
             t, r = sys.exc_info()[:2]
             if type(r) is not type(self): r=t,r
             rt='E'
 
+        if __debug__:
+            m=`r`
+            if len(m) > 60: m=m[:60]+' ...'
+            print '%s: %s' % (rt, m)
+            
         r=cPickle.dumps(r,1)
         self.message_output(rt+r)
 
@@ -122,47 +157,90 @@ class Connection(smac):
         t=self._transaction
         if t is None or id != t.id:
             raise POSException.StorageTransactionError(self, id)
-        newserial=self.__storage.store(oid, data, serial, version, t)
+        newserial=self.__storage.store(oid, serial, data, version, t)
         if serial != '\0\0\0\0\0\0\0\0':
             self.__invalidated.append(oid, serial, version)
         return newserial
-
-    def unlock(self):
-        self.message_output('UN')
 
     def tpc_abort(self, id):
         t=self._transaction
         if t is None or id != t.id: return
         r=self.__storage.tpc_abort(t)
-        for c in self.__storage.__waiting: c.unlock()
+
+        storage=self.__storage
+        try: waiting=storage.__waiting
+        except: waiting=storage.__waiting=[]
+        while waiting:
+            f, args = waiting.pop(0)
+            if apply(f,args): break
+
         self._transaction=None
         self.__invalidated=[]
         
+    def unlock(self):
+        if self.__closed: return
+        self.message_output('UN.')
 
     def tpc_begin(self, id, user, description, ext):
         t=self._transaction
         if t is not None and id == t.id: return
         storage=self.__storage
         if storage._transaction is not None:
-            storage.__waiting.append(self)
-            return 1
+            try: waiting=storage.__waiting
+            except: waiting=storage.__waiting=[]
+            waiting.append(self.unlock, ())
+            return 1 # Return a flag indicating a lock condition.
             
         self._transaction=t=Transaction()
         t.id=id
         t.user=user
         t.description=description
         storage.tpc_begin(t)
-        storage.__waiting=[]
         self.__invalidated=[]
+
+    def tpc_begin_sync(self, id, user, description, ext):
+        if self.__closed: return
+        t=self._transaction
+        if t is not None and id == t.id: return
+        storage=self.__storage
+        if storage._transaction is None:
+            self.try_again_sync(id, user, description, ext)
+        else:
+            try: waiting=storage.__waiting
+            except: waiting=storage.__waiting=[]
+            waiting.append(self.try_again_sync, (id, user, description, ext))
+
+        return _noreturn
         
+    def try_again_sync(self, id, user, description, ext):
+        storage=self.__storage
+        if storage._transaction is None:
+            self._transaction=t=Transaction()
+            t.id=id
+            t.user=user
+            t.description=description
+            storage.tpc_begin(t)
+            self.__invalidated=[]
+            self.message_output('RN.')
+            
+        return 1
 
     def tpc_finish(self, id, user, description, ext):
         t=self._transaction
         if id != t.id: return
         t.user=user
         t.description=description
-        r=self.__storage.tpc_finish(t)
-        for c in self.__storage.__waiting: c.unlock()
+        t.ext=ext
+
+        storage=self.__storage
+        r=storage.tpc_finish(t)
+        
+        try: waiting=storage.__waiting
+        except: waiting=storage.__waiting=[]
+        while waiting:
+            f, args = waiting.pop(0)
+            if apply(f,args): break
+
         self._transaction=None
         self.__server.invalidate(self, self.__storage_id, self.__invalidated)
         self.__invalidated=[]
@@ -171,7 +249,8 @@ class Connection(smac):
 if __name__=='__main__':
     import ZODB.FileStorage
     name, port = sys.argv[1:3]
+    print name, port
     try: port='',string.atoi(port)
     except: pass
-    Server(port, ZODB.FileStorage.FileStorage(name))
+    StorageServer(port, ZODB.FileStorage.FileStorage(name))
     asyncore.loop()

@@ -2,9 +2,13 @@
 """
 
 from cPickle import dumps, loads
-from ThreadLock import allocate_lock
-import socket, smac, string, struct
+from thread import allocate_lock
+from smac import smac
+import socket, string, struct
 TupleType=type(())
+
+Wakeup=None
+
 
 class sync:
     """Synchronous rpc"""
@@ -15,10 +19,12 @@ class sync:
         host, port = connection
         s=socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.connect(host, port)
-        self.__s=s
+        self._sync__s=s
         self._outOfBand=outOfBand
 
     def setOutOfBand(self, f): self._outOfBand=f
+
+    def close(self): self._sync__s.close()
         
     def __call__(self, *args):
         args=dumps(args,1)
@@ -39,7 +45,7 @@ class sync:
                 raise UnrecognizedResult, r
 
     def _write(self, data, pack=struct.pack):
-        send=self.__s.send
+        send=self._sync__s.send
         h=pack(">i", len(data))
         l=len(h)
         while l > 0:
@@ -53,7 +59,7 @@ class sync:
             l=l-sent
 
     def _read(self, _st=type(''), join=string.join, unpack=struct.unpack):
-        recv=self.__s.recv
+        recv=self._sync__s.recv
 
         l=4
 
@@ -78,24 +84,45 @@ class sync:
         if type(data) is not _st: data=join(data,'')
 
         return data
+   
     
-class async(smac.smac, sync):
+class async(smac, sync):
 
     def __init__(self, connection, outOfBand=None):
-        host, port = connection
-        s=socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.connect(host, port)
-        self._outOfBand=outOfBand
+        try:
+            host, port = connection
+        except:
+            s=connection._sync__s
+            self._outOfBand=connection._outOfBand
+        else:
+            s=socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            s.connect(host, port)
+            self._outOfBand=outOfBand
+            
         l=allocate_lock()
         self.__la=l.acquire
         self.__lr=l.release
         self.__r=None
         l.acquire()
         smac.__init__(self, s, None)
+
+        global Wakeup
+        if Wakeup is None:
+            import ZServer.PubCore.ZEvent
+            Wakeup=ZServer.PubCore.ZEvent.Wakeup
+
     
-    def _write(self, data): self.message_output(data)
+    def _write(self, data):
+        self.message_output(data)
+        Wakeup() # You dumb bastard
 
     def message_input(self, m):
+        if __debug__:
+            md=`m`
+            if len(m) > 60: md=md[:60]+' ...'
+            print 'message_input', md
+            
+
         c=m[:1]
         if c in 'RE':
             self.__r=m

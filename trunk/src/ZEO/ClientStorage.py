@@ -47,12 +47,13 @@
 ##############################################################################
 """Network ZODB storage client
 """
-__version__='$Revision: 1.1 $'[11:-2]
+__version__='$Revision: 1.2 $'[11:-2]
 
 import struct, time, os, socket, cPickle, string, Sync, zrpc
 now=time.time
 from struct import pack, unpack
 from ZODB import POSException, BaseStorage
+from ZODB.TimeStamp import TimeStamp
 
 TupleType=type(())
 
@@ -64,9 +65,19 @@ class ClientStorage(BaseStorage.BaseStorage):
 
     def __init__(self, connection, async=0):
 
-        if async: self._call=zrpc.async(connection)
-        else: self._call=zrpc.sync(connection)
-        
+        if async:
+            import asyncore
+            def loop(timeout=30.0, use_poll=0,
+                     self=self, asyncore=asyncore, loop=asyncore.loop):
+                self.becomeAsync()
+                asyncore.loop=loop
+                loop(timeout, use_poll)
+            asyncore.loop=loop
+
+        self._call=zrpc.sync(connection)
+        self.__begin='tpc_begin_sync'
+
+        self._call._write('1')
         info=self._call('get_info')
         self._len=info.get('length',0)
         self._size=info.get('size',0)
@@ -77,6 +88,10 @@ class ClientStorage(BaseStorage.BaseStorage):
         BaseStorage.BaseStorage.__init__(self,
                                          info.get('name', str(connection)),
                                          )
+
+    def becomeAsync(self):
+        self._call=zrpc.async(self._call)
+        self.__begin='tpc_begin'
 
     def registerDB(self, db, limit):
 
@@ -100,7 +115,7 @@ class ClientStorage(BaseStorage.BaseStorage):
         if transaction is not self._transaction:
             raise POSException.StorageTransactionError(self, transaction)
         self._lock_acquire()
-        try: return self._call('abortVersion', src, transaction.id)
+        try: return self._call('abortVersion', src, self._serial)
         finally: self._lock_release()
 
     def close(self):
@@ -112,7 +127,7 @@ class ClientStorage(BaseStorage.BaseStorage):
         if transaction is not self._transaction:
             raise POSException.StorageTransactionError(self, transaction)
         self._lock_acquire()
-        try: return self._call('commitVersion', src, dest, transaction.id)
+        try: return self._call('commitVersion', src, dest, self._serial)
         finally: self._lock_release()
 
     def getName(self): return self.__name__
@@ -151,7 +166,7 @@ class ClientStorage(BaseStorage.BaseStorage):
             raise POSException.StorageTransactionError(self, transaction)
         self._lock_acquire()
         try: return self._call('store', oid, serial,
-                               data, version, transaction.id)
+                               data, version, self._serial)
         finally: self._lock_release()
 
     def supportsUndo(self): return self._supportsUndo
@@ -161,7 +176,7 @@ class ClientStorage(BaseStorage.BaseStorage):
         self._lock_acquire()
         try:
             if transaction is not self._transaction: return
-            self._call('tpc_abort', id)
+            self._call('tpc_abort', self._serial)
             self._transaction=None
             self._commit_lock_release()
         finally: self._lock_release()
@@ -171,32 +186,24 @@ class ClientStorage(BaseStorage.BaseStorage):
         try:
             if self._transaction is transaction: return
 
+            user=transaction.user
+            desc=transaction.description
+            ext=transaction._extension
+            t=time.time()
+            t=apply(TimeStamp,(time.gmtime(t)[:5]+(t%60,)))
+            self._ts=t=t.laterThan(self._ts)
+            self._serial=id=`t`
+
             while 1:
                 self._lock_release()
                 self._commit_lock_acquire()
                 self._lock_acquire()
-                if self._call('tpc_begin', id, user, desc, ext) is None:
+                if self._call(self.__begin, id, user, desc, ext) is None:
                     break
-            
+
             self._transaction=transaction
-            self._clear_temp()
-
-            user=transaction.user
-            desc=transaction.description
-            ext=transaction._extension
-            if ext: ext=dumps(ext,1)
-            else: ext=""
-            self._ude=user, desc, ext
-
-            t=time.time()
-            t=apply(TimeStamp,(time.gmtime(t)[:5]+(t%60,)))
-            self._ts=t=t.laterThan(self._ts)
-            self._serial=`t`
-
-            self._begin(self._serial, user, desc, ext)
             
         finally: self._lock_release()
-
 
     def tpc_finish(self, transaction, f=None):
         self._lock_acquire()
@@ -204,26 +211,18 @@ class ClientStorage(BaseStorage.BaseStorage):
             if transaction is not self._transaction: return
             if f is not None: f()
 
-            u,d,e=self._ude
-            self._finish(self._serial, u, d, e)
+            self._call('tpc_finish', self._serial,
+                       transaction.user,
+                       transaction.description,
+                       transaction._extension)
 
-            self._clear_temp()
-            self._ude=None
             self._transaction=None
             self._commit_lock_release()
         finally: self._lock_release()
 
-    def _finish(self, tid, u, d, e):
-        pass
-        
-        
-
-    def _finish(self, id, user, desc, ext):
-        return self._call('tpc_finish', id, user, desc, ext)
-        
-
     def undo(self, transaction_id):
-        return self._call('undo', transaction_id)
+        self._lock_acquire()
+        try: return self._call('undo', transaction_id)
         finally: self._lock_release()
 
     def undoLog(self, version, first, last, filter=None):
@@ -248,5 +247,4 @@ class ClientStorage(BaseStorage.BaseStorage):
         self._lock_acquire()
         try: return self._call('versionEmpty', max)
         finally: self._lock_release()
-        
 

@@ -1,0 +1,20 @@
+Zope Enterprize Option, iteration 1
+
+  Put this package in your Zope lib/python.
+
+  To start the storage server, go to your Zope install directory and::
+
+    lib/python/ZEO/start.py -p port_number
+
+  (Run start without arguments to see options.)
+
+  To get Zope to use the server, create a custom_zodb module that 
+  uses a ClientStorage::
+
+    import ZEO.ClientStorage
+    Storage=ZEO.ClientStorage.ClientStorage(('',port_number), async=1)
+
+  You can specify a host name (rather than '') if you want.
+  The port number is, of course, the port number used to start the 
+  storage server.  The async switch tells the client to switch
+  itself to async mode (if and) when the asyncore main loop is called.
