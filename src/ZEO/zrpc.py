@@ -85,15 +85,18 @@
 """Simple rpc mechanisms
 """
 
-__version__ = "$Revision: 1.18 $"[11:-2]
+__version__ = "$Revision: 1.19 $"[11:-2]
 
 from cPickle import loads
 import cPickle
 from thread import allocate_lock
 from smac import SizedMessageAsyncConnection
 import socket, string, struct, asyncore, sys, time, select
-TupleType=type(())
 from zLOG import LOG, TRACE, DEBUG, INFO
+from ZEO import asyncwrap
+
+from errno import EINTR
+TupleType=type(())
 
 # We create a special fast pickler! This allows us
 # to create slightly more efficient pickles and
@@ -184,13 +187,13 @@ class asyncRPC(SizedMessageAsyncConnection):
             try: r, w, e = select.select([self._fileno],[],[],0.0)
             except select.error, v:
                 if v[0] != EINTR: raise
-            if r: asyncore.poll(0.0, self)
+            if r: asyncwrap.poll(0.0, self)
             else: break
 
     def readLoop(self):
         la=self.__la
         while not la(0):
-            asyncore.poll(60.0, self)
+            asyncwrap.poll(60.0, self)
         self.__lr()
 
     def setLoop(self, map=None, Wakeup=lambda : None):
@@ -240,7 +243,7 @@ class asyncRPC(SizedMessageAsyncConnection):
         self.message_output(dump(args,1))
         if self.__haveMainLoop:
             self.__Wakeup() # Wake up the main loop
-        else: asyncore.poll(0.0, self)
+        else: asyncwrap.poll(0.0, self)
 
     def setOutOfBand(self, f):
         """Define a call-back function for handling out-of-band communication
