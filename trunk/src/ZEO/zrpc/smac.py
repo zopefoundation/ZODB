@@ -35,11 +35,13 @@ import sha
 import socket
 import struct
 import threading
+import logging
 from types import StringType
+
+from ZODB.loglevels import TRACE
 
 from ZEO.zrpc.log import log, short_repr
 from ZEO.zrpc.error import DisconnectedError
-import zLOG
 
 
 # Use the dictionary to make sure we get the minimum number of errno
@@ -278,7 +280,7 @@ class SizedMessageAsyncConnection(asyncore.dispatcher):
                 log("message_output %d bytes: %s hmac=%d" %
                     (len(message), short_repr(message),
                     self.__hmac_send and 1 or 0),
-                    level=zLOG.TRACE)
+                    level=TRACE)
 
         if self.__closed:
             raise DisconnectedError(

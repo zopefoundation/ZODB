@@ -17,20 +17,21 @@ import select
 import sys
 import threading
 import types
+import logging
 
 import ThreadedAsync
 from ZEO.zrpc import smac
 from ZEO.zrpc.error import ZRPCError, DisconnectedError
-from ZEO.zrpc.log import short_repr, log
 from ZEO.zrpc.marshal import Marshaller
 from ZEO.zrpc.trigger import trigger
-import zLOG
+from ZEO.zrpc.log import short_repr, log
+from ZODB.loglevels import BLATHER, TRACE
 
 REPLY = ".reply" # message name used for replies
 ASYNC = 1
 
 class Delay:
-    """Used to delay response to client for synchronous calls
+    """Used to delay response to client for synchronous calls.
 
     When a synchronous call is made and the original handler returns
     without handling the call, it returns a Delay object that prevents
@@ -46,7 +47,7 @@ class Delay:
         self.send_reply(self.msgid, obj)
 
     def error(self, exc_info):
-        log("Error raised in delayed method", zLOG.ERROR, error=exc_info)
+        log("Error raised in delayed method", logging.ERROR, exc_info=True)
         self.return_error(self.msgid, 0, *exc_info[:2])
 
 class MTDelay(Delay):
@@ -141,10 +142,11 @@ class Connection(smac.SizedMessageAsyncConnection, object):
         self.closed = False
         self.msgid = 0
         self.peer_protocol_version = None # Set in recv_handshake()
+        self.logger = logging.getLogger('ZEO.zrpc.Connection')
         if isinstance(addr, types.TupleType):
-            self.log_label = "zrpc-conn:%s:%d" % addr
+            self.log_label = "(%s:%d) " % addr
         else:
-            self.log_label = "zrpc-conn:%s" % addr
+            self.log_label = "(%s) " % addr
         self.__super_init(sock, addr)
         # A Connection either uses asyncore directly or relies on an
         # asyncore mainloop running in a separate thread.  If
@@ -178,8 +180,8 @@ class Connection(smac.SizedMessageAsyncConnection, object):
 
     __str__ = __repr__ # Defeat asyncore's dreaded __getattr__
 
-    def log(self, message, level=zLOG.BLATHER, error=None):
-        zLOG.LOG(self.log_label, level, message, error=error)
+    def log(self, message, level=BLATHER, exc_info=False):
+        self.logger.log(level, self.log_label + message, exc_info=exc_info)
 
     def close(self):
         if self.closed:
@@ -195,7 +197,7 @@ class Connection(smac.SizedMessageAsyncConnection, object):
             self.trigger.close()
 
     def register_object(self, obj):
-        """Register obj as the true object to invoke methods on"""
+        """Register obj as the true object to invoke methods on."""
         self.obj = obj
 
     def handshake(self, proto=None):
@@ -218,9 +220,10 @@ class Connection(smac.SizedMessageAsyncConnection, object):
         del self.message_input
         self.peer_protocol_version = proto
         if self.oldest_protocol_version <= proto <= self.protocol_version:
-            self.log("received handshake %r" % proto, level=zLOG.INFO)
+            self.log("received handshake %r" % proto, level=logging.INFO)
         else:
-            self.log("bad handshake %s" % short_repr(proto), level=zLOG.ERROR)
+            self.log("bad handshake %s" % short_repr(proto),
+                     level=logging.ERROR)
             raise ZRPCError("bad handshake %r" % proto)
 
     def message_input(self, message):
@@ -234,7 +237,7 @@ class Connection(smac.SizedMessageAsyncConnection, object):
         if __debug__:
             self.log("recv msg: %s, %s, %s, %s" % (msgid, flags, name,
                                                    short_repr(args)),
-                     level=zLOG.TRACE)
+                     level=TRACE)
         if name == REPLY:
             self.handle_reply(msgid, flags, args)
         else:
@@ -243,7 +246,7 @@ class Connection(smac.SizedMessageAsyncConnection, object):
     def handle_reply(self, msgid, flags, args):
         if __debug__:
             self.log("recv reply: %s, %s, %s"
-                     % (msgid, flags, short_repr(args)), level=zLOG.TRACE)
+                     % (msgid, flags, short_repr(args)), level=TRACE)
         self.replies_cond.acquire()
         try:
             self.replies[msgid] = flags, args
@@ -257,7 +260,7 @@ class Connection(smac.SizedMessageAsyncConnection, object):
             raise ZRPCError(msg)
         if __debug__:
             self.log("calling %s%s" % (name, short_repr(args)),
-                     level=zLOG.DEBUG)
+                     level=logging.DEBUG)
 
         meth = getattr(self.obj, name)
         try:
@@ -269,10 +272,9 @@ class Connection(smac.SizedMessageAsyncConnection, object):
         except (SystemExit, KeyboardInterrupt):
             raise
         except Exception, msg:
-            error = sys.exc_info()
-            self.log("%s() raised exception: %s" % (name, msg), zLOG.INFO,
-                     error=error)
-            error = error[:2]
+            self.log("%s() raised exception: %s" % (name, msg), logging.INFO,
+                     exc_info=True)
+            error = sys.exc_info()[:2]
             return self.return_error(msgid, flags, *error)
 
         if flags & ASYNC:
@@ -281,7 +283,8 @@ class Connection(smac.SizedMessageAsyncConnection, object):
                                 (name, short_repr(ret)))
         else:
             if __debug__:
-                self.log("%s returns %s" % (name, short_repr(ret)), zLOG.DEBUG)
+                self.log("%s returns %s" % (name, short_repr(ret)),
+                         logging.DEBUG)
             if isinstance(ret, Delay):
                 ret.set_sender(msgid, self.send_reply, self.return_error)
             else:
@@ -294,11 +297,9 @@ class Connection(smac.SizedMessageAsyncConnection, object):
     def handle_error(self):
         if sys.exc_info()[0] == SystemExit:
             raise sys.exc_info()
-        self.log_error("Error caught in asyncore")
+        self.log("Error caught in asyncore",
+                 level=logging.ERROR, exc_info=True)
         self.close()
-
-    def log_error(self, msg="No error message supplied"):
-        self.log(msg, zLOG.ERROR, error=sys.exc_info())
 
     def check_method(self, name):
         # XXX Is this sufficient "security" for now?
@@ -321,7 +322,8 @@ class Connection(smac.SizedMessageAsyncConnection, object):
 
     def return_error(self, msgid, flags, err_type, err_value):
         if flags & ASYNC:
-            self.log_error("Asynchronous call raised exception: %s" % self)
+            self.log("Asynchronous call raised exception: %s" % self,
+                     level=logging.ERROR, exc_info=True)
             return
         if type(err_value) is not types.InstanceType:
             err_value = err_type, err_value
@@ -357,7 +359,7 @@ class Connection(smac.SizedMessageAsyncConnection, object):
             self.msgid_lock.release()
         if __debug__:
             self.log("send msg: %d, %d, %s, ..." % (msgid, flags, method),
-                     zLOG.TRACE)
+                     level=TRACE)
         buf = self.marshal.encode(msgid, flags, method, args)
         self.message_output(buf)
         return msgid
@@ -444,7 +446,7 @@ class Connection(smac.SizedMessageAsyncConnection, object):
         """Invoke asyncore mainloop and wait for reply."""
         if __debug__:
             self.log("wait(%d), async=%d" % (msgid, self.is_async()),
-                     level=zLOG.TRACE)
+                     level=TRACE)
         if self.is_async():
             self._pull_trigger()
 
@@ -462,7 +464,7 @@ class Connection(smac.SizedMessageAsyncConnection, object):
                     del self.replies[msgid]
                     if __debug__:
                         self.log("wait(%d): reply=%s" %
-                                 (msgid, short_repr(reply)), level=zLOG.TRACE)
+                                 (msgid, short_repr(reply)), level=TRACE)
                     return reply
                 if self.is_async():
                     self.replies_cond.wait(10.0)
@@ -472,13 +474,13 @@ class Connection(smac.SizedMessageAsyncConnection, object):
                         try:
                             if __debug__:
                                 self.log("wait(%d): asyncore.poll(%s)" %
-                                         (msgid, delay), level=zLOG.TRACE)
+                                         (msgid, delay), level=TRACE)
                             asyncore.poll(delay, self._singleton)
                             if delay < 1.0:
                                 delay += delay
                         except select.error, err:
                             self.log("Closing.  asyncore.poll() raised %s."
-                                     % err, level=zLOG.BLATHER)
+                                     % err, level=BLATHER)
                             self.close()
                     finally:
                         self.replies_cond.acquire()
@@ -495,7 +497,7 @@ class Connection(smac.SizedMessageAsyncConnection, object):
     def poll(self):
         """Invoke asyncore mainloop to get pending message out."""
         if __debug__:
-            self.log("poll(), async=%d" % self.is_async(), level=zLOG.TRACE)
+            self.log("poll(), async=%d" % self.is_async(), level=TRACE)
         if self.is_async():
             self._pull_trigger()
         else:
@@ -504,7 +506,7 @@ class Connection(smac.SizedMessageAsyncConnection, object):
     def pending(self, timeout=0):
         """Invoke mainloop until any pending messages are handled."""
         if __debug__:
-            self.log("pending(), async=%d" % self.is_async(), level=zLOG.TRACE)
+            self.log("pending(), async=%d" % self.is_async(), level=TRACE)
         if self.is_async():
             return
         # Inline the asyncore poll() function to know whether any input

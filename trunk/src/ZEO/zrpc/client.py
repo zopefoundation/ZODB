@@ -18,11 +18,12 @@ import sys
 import threading
 import time
 import types
+import logging
 
 import ThreadedAsync
-import zLOG
 
 from ZODB.POSException import ReadOnlyError
+from ZODB.loglevels import BLATHER
 
 from ZEO.zrpc.log import log
 from ZEO.zrpc.trigger import trigger
@@ -99,7 +100,7 @@ class ConnectionManager(object):
             t.join(30)
             if t.isAlive():
                 log("CM.close(): self.thread.join() timed out",
-                    level=zLOG.WARNING)
+                    level=logging.WARNING)
         if conn is not None:
             # This will call close_conn() below which clears self.connection
             conn.close()
@@ -121,7 +122,7 @@ class ConnectionManager(object):
 
         # XXX need each connection started with async==0 to have a
         # callback
-        log("CM.set_async(%s)" % repr(map), level=zLOG.DEBUG)
+        log("CM.set_async(%s)" % repr(map), level=logging.DEBUG)
         if not self.closed and self.trigger is None:
             log("CM.set_async(): first call")
             self.trigger = trigger()
@@ -204,7 +205,7 @@ class ConnectionManager(object):
         try:
             if conn is not self.connection:
                 # Closing a non-current connection
-                log("CM.close_conn() non-current", level=zLOG.BLATHER)
+                log("CM.close_conn() non-current", level=BLATHER)
                 return
             log("CM.close_conn()")
             self.connection = None
@@ -298,7 +299,7 @@ class ConnectThread(threading.Thread):
             time.sleep(delay)
             if self.mgr.is_connected():
                 log("CT: still trying to replace fallback connection",
-                    level=zLOG.INFO)
+                    level=logging.INFO)
             delay = min(delay*2, self.tmax)
         log("CT: exiting thread: %s" % self.getName())
 
@@ -372,7 +373,7 @@ class ConnectThread(threading.Thread):
                 log("CT: select() %d, %d, %d" % tuple(map(len, (r,w,x))))
             except select.error, msg:
                 log("CT: select failed; msg=%s" % str(msg),
-                    level=zLOG.WARNING) # XXX Is this the right level?
+                    level=logging.WARNING) # XXX Is this the right level?
                 continue
             # Exceptable wrappers are in trouble; close these suckers
             for wrap in x:
@@ -438,7 +439,7 @@ class ConnectWrapper:
             self.sock = socket.socket(domain, socket.SOCK_STREAM)
         except socket.error, err:
             log("CW: can't create socket, domain=%s: %s" % (domain, err),
-                level=zLOG.ERROR)
+                level=logging.ERROR)
             self.close()
             return
         self.sock.setblocking(0)
@@ -451,7 +452,7 @@ class ConnectWrapper:
                 err = self.sock.connect_ex(self.addr)
             except socket.error, msg:
                 log("CW: connect_ex(%r) failed: %s" % (self.addr, msg),
-                    level=zLOG.ERROR)
+                    level=logging.ERROR)
                 self.close()
                 return
             log("CW: connect_ex(%s) returned %s" %
@@ -462,7 +463,7 @@ class ConnectWrapper:
             if err not in _CONNECT_OK:
                 log("CW: error connecting to %s: %s" %
                     (self.addr, errno.errorcode.get(err) or str(err)),
-                    level=zLOG.WARNING)
+                    level=logging.WARNING)
                 self.close()
                 return
             self.state = "connected"
@@ -487,7 +488,7 @@ class ConnectWrapper:
             return
         except:
             log("CW: error in testConnection (%s)" % repr(self.addr),
-                level=zLOG.ERROR, error=sys.exc_info())
+                level=logging.ERROR, exc_info=True)
             self.close()
             return
         if self.preferred:
@@ -506,7 +507,7 @@ class ConnectWrapper:
             self.client.notifyConnected(self.conn)
         except:
             log("CW: error in notifyConnected (%s)" % repr(self.addr),
-                level=zLOG.ERROR, error=sys.exc_info())
+                level=logging.ERROR, exc_info=True)
             self.close()
             return
         self.state = "notified"
