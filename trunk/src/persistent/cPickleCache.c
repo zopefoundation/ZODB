@@ -88,7 +88,7 @@ process must skip such objects, rather than deactivating them.
 static char cPickleCache_doc_string[] =
 "Defines the PickleCache used by ZODB Connection objects.\n"
 "\n"
-"$Id: cPickleCache.c,v 1.76 2003/04/01 16:01:54 jeremy Exp $\n";
+"$Id: cPickleCache.c,v 1.77 2003/04/01 16:17:50 jeremy Exp $\n";
 
 #define ASSIGN(V,E) {PyObject *__e; __e=(E); Py_XDECREF(V); (V)=__e;}
 #define UNLESS(E) if(!(E))
@@ -146,18 +146,6 @@ typedef struct {
 static int cc_ass_sub(ccobject *self, PyObject *key, PyObject *v);
 
 /* ---------------------------------------------------------------- */
-
-/* somewhat of a replacement for PyDict_GetItem(self->data....
-   however this returns a *new* reference */
-static PyObject *
-object_from_oid(ccobject *self, PyObject *key)
-{
-    PyObject *v = PyDict_GetItem(self->data, key);
-    if (!v) 
-	return NULL;
-    Py_INCREF(v);
-    return v;
-}
 
 #define OBJECT_FROM_RING(SELF, HERE, CTX) \
     ((cPersistentObject *)(((char *)here) - offsetof(cPersistentObject, ring)))
@@ -308,7 +296,7 @@ cc_minimize(ccobject *self, PyObject *args)
 static void
 _invalidate(ccobject *self, PyObject *key)
 {
-    PyObject *v = object_from_oid(self, key);
+    PyObject *v = PyDict_GetItem(self->data, key);
 
     if (!v)
 	return;
@@ -329,7 +317,6 @@ _invalidate(ccobject *self, PyObject *key)
 	if (PyObject_DelAttr(v, py__p_changed) < 0)
 	    PyErr_Clear();
     }
-    Py_XDECREF(v);
 }
 
 static PyObject *
@@ -379,17 +366,16 @@ cc_get(ccobject *self, PyObject *args)
     if (!PyArg_ParseTuple(args, "O|O:get", &key, &d)) 
 	return NULL;
 
-    r = (PyObject *)object_from_oid(self, key);
+    r = PyDict_GetItem(self->data, key);
     if (!r) {
 	if (d) {
 	    r = d;
-	    Py_INCREF(r);
 	} else {
 	    PyErr_SetObject(PyExc_KeyError, key);
 	    return NULL;
 	}
     }
-
+    Py_INCREF(r);
     return r;
 }
 
@@ -670,11 +656,12 @@ cc_subscript(ccobject *self, PyObject *key)
 {
     PyObject *r;
 
-    r = (PyObject *)object_from_oid(self, key);
+    r = PyDict_GetItem(self->data, key);
     if (r == NULL) {
 	PyErr_SetObject(PyExc_KeyError, key);
 	return NULL;
     }
+    Py_INCREF(r);
 
     return r;
 }
@@ -739,16 +726,14 @@ cc_add_item(ccobject *self, PyObject *key, PyObject *v)
     }
     Py_DECREF(jar);
 
-    object_again = object_from_oid(self, key);
+    object_again = PyDict_GetItem(self->data, key);
     if (object_again) {
 	if (object_again != v) {
-	    Py_DECREF(object_again);
 	    PyErr_SetString(PyExc_ValueError,
 		    "Can not re-register object under a different oid");
 	    return -1;
 	} else {
 	    /* re-register under the same oid - no work needed */
-	    Py_DECREF(object_again);
 	    return 0;
 	}
     }
@@ -805,7 +790,7 @@ cc_del_item(ccobject *self, PyObject *key)
     cPersistentObject *p;
 
     /* unlink this item from the ring */
-    v = (PyObject *)object_from_oid(self, key);
+    v = PyDict_GetItem(self->data, key);
     if (v == NULL)
 	return -1;
 
@@ -831,8 +816,6 @@ cc_del_item(ccobject *self, PyObject *key)
 	Py_DECREF((PyObject *)p->cache);
 	p->cache = NULL;
     }
-
-    Py_DECREF(v);
 
     if (PyDict_DelItem(self->data, key) < 0) {
 	PyErr_SetString(PyExc_RuntimeError,
