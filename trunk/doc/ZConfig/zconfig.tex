@@ -557,7 +557,8 @@ is used.
 
 For these functions, the \var{mapping} argument can be a \class{dict},
 or any type that supports the \method{get()} method of the mapping
-protocol.
+protocol.  The \member{container} attribute used to search the
+containment chain is optional.
 
 \begin{funcdesc}{substitute}{s, mapping}
   Substitute values from \var{mapping} into \var{s}.  Replacement
