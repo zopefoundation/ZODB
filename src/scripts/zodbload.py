@@ -88,7 +88,7 @@ Usage: loadmail2 [options]
 
        Specify the mailbox for getting input data.
 
-$Id: zodbload.py,v 1.3 2003/10/02 18:17:26 jeremy Exp $
+$Id: zodbload.py,v 1.4 2003/11/19 15:36:31 jeremy Exp $
 """
 
 import mailbox
@@ -424,7 +424,11 @@ def search(connection, terms, number):
         results = cat(PrincipiaSearchSource=term)
         n += len(results)
         for result in results:
-            did = result.getObject().getId()
+            obj = result.getObject()
+            # Apparently, there is a bug in Zope that leads obj to be None
+            # on occasion.
+            if obj is not None:
+                obj.getId()
 
     return n
 
