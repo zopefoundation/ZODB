@@ -13,13 +13,15 @@
 ##############################################################################
 """ZODB-defined exceptions
 
-$Id: POSException.py,v 1.15 2002/12/03 18:36:29 jeremy Exp $"""
+$Id: POSException.py,v 1.16 2002/12/09 19:39:45 bwarsaw Exp $"""
 
 from types import StringType, DictType
 import ZODB.utils
 
 def _fmt_oid(oid):
-    return "%016x" % ZODB.utils.u64(oid)
+    if oid:
+        return "%016x" % ZODB.utils.u64(oid)
+    return oid
 
 def _fmt_undo(oid, reason):
     s = reason and (": %s" % reason) or ""
