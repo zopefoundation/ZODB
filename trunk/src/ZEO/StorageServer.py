@@ -49,11 +49,48 @@ def log(message, level=zLOG.INFO, label=None, error=None):
     zLOG.LOG(label or _label, level, message, error=error)
 
 class StorageServerError(StorageError):
-    pass
+    """Error reported when an unpickleable exception is raised."""
 
 class StorageServer:
 
+    """The server side implementation of ZEO.
+
+    The StorageServer is the 'manager' for incoming connections.  Each
+    connection is associated with its own ZEOStorage instance (defined
+    below).  The StorageServer may handle multiple storages; each
+    ZEOStorage instance only handles a single storage.
+    """
+
     def __init__(self, addr, storages, read_only=0):
+
+        """StorageServer constructor.
+
+        This is typically invoked from the start.py script.
+
+        Arguments (the first two are required and positional):
+
+        addr -- the address at which the server should listen.  This
+            can be a tuple (host, port) to signify a TCP/IP connection
+            or a pathname string to signify a Unix domain socket
+            connection.  A hostname may be a DNS name or a dotted IP
+            address.
+
+        storages -- a dictionary giving the storage(s) to handle.  The
+            keys are the storage names, the values are the storage
+            instances, typically FileStorage or Berkeley storage
+            instances.  By convention, storage names are typically
+            strings representing small integers starting at '1'.
+
+        read_only -- an optional flag saying whether the server should
+            operate in read-only mode.  Defaults to false.  Note that
+            even if the server is operating in writable mode,
+            individual storages may still be read-only.  But if the
+            server is in read-only mode, no write operations are
+            allowed, even if the storages are writable.  Note that
+            pack() is considered a read-only operation.
+
+        """
+
         self.addr = addr
         self.storages = storages
         set_label()
@@ -70,15 +107,26 @@ class StorageServer:
                                      reuse_addr=1)
 
     def new_connection(self, sock, addr):
+        """Internal: factory to create a new connection.
+
+        This is called by the Dispatcher class in ZEO.zrpc.server
+        whenever accept() returns a socket for a new incoming
+        connection.
+        """
         z = ZEOStorage(self, self.read_only)
         c = ManagedServerConnection(sock, addr, z, self)
         log("new connection %s: %s" % (addr, `c`))
         return c
 
     def register_connection(self, storage_id, conn):
-        """Register a connection's use with a particular storage.
+        """Internal: register a connection with a particular storage.
 
-        This information is needed to handle invalidation.
+        This is called by ZEOStorage.register().
+
+        The dictionary self.connections maps each storage name to a
+        list of current connections for that storage; this information
+        is needed to handle invalidation.  This function updates this
+        dictionary.
         """
         l = self.connections.get(storage_id)
         if l is None:
@@ -86,6 +134,27 @@ class StorageServer:
         l.append(conn)
 
     def invalidate(self, conn, storage_id, invalidated=(), info=None):
+        """Internal: broadcast info and invalidations to clients.
+
+        This is called from several ZEOStorage methods.
+
+        This can do three different things:
+
+        - If the invalidated argument is non-empty, it broadcasts
+          invalidateTrans() messages to all clients of the given
+          storage except the current client (the conn argument).
+
+        - If the invalidated argument is empty and the info argument
+          is a non-empty dictionary, it broadcasts info() messages to
+          all clients of the given storage, including the current
+          client.
+
+        - If both the invalidated argument and the info argument are
+          non-empty, it broadcasts invalidateTrans() messages to all
+          clients except the current, and sends an info() message to
+          the current client.
+
+        """
         for p in self.connections.get(storage_id, ()):
             if invalidated and p is not conn:
                 p.client.invalidateTrans(invalidated)
@@ -93,7 +162,10 @@ class StorageServer:
                 p.client.info(info)
 
     def close_server(self):
-        # Close the dispatcher so that there are no new connections.
+        """Close the dispatcher so that there are no new connections.
+
+        This is only called from the test suite, AFAICT.
+        """
         self.dispatcher.close()
         for storage in self.storages.values():
             storage.close()
@@ -107,7 +179,11 @@ class StorageServer:
                 pass
 
     def close_conn(self, conn):
-        for sid, cl in self.connections.items():
+        """Internal: remove the given connection from self.connections.
+
+        This is the inverse of register_connection().
+        """
+        for cl in self.connections.values():
             if conn.obj in cl:
                 cl.remove(conn.obj)
 
