@@ -82,63 +82,43 @@
 # attributions are listed in the accompanying credits file.
 # 
 ##############################################################################
-'''BoboPOS-defined exceptions
 
-$Id: POSException.py,v 1.3 1999/05/18 15:55:10 jim Exp $'''
-__version__='$Revision: 1.3 $'[11:-2]
+import TimeStamp, time, struct
+
+t32 = 1L << 32
+
+def p64(v, pack=struct.pack):
+    if v < t32: h=0
+    else:
+        h=v/t32
+        v=v%t32
+    return pack(">II", h, v)
+
+def u64(v, unpack=struct.unpack):
+    h, v = unpack(">ii", v)
+    if v < 0: v=t32-v
+    if h:
+        if h < 0: h=t32-h
+        v=h*t32+v
+    return v
+
+def cp(f1, f2, l):
+    read=f1.read
+    write=f2.write
+    n=8192
+    
+    while l > 0:
+        if n > l: n=l
+        d=read(n)
+        write(d)
+        l = l - len(d)
 
 
-class POSError(Exception):
-    """Persistent object system error
-    """
-
-class TransactionError(POSError):
-    """An error occured due to normal transaction processing
-    """
-
-class ConflictError(TransactionError):
-    """Two transactions tried to modify the same object at once
-
-    This transaction should be resubmitted.
-    """
-
-class VersionError(POSError):
-    """An error in handling versions occurred
-    """
-
-class VersionCommitError(VersionError):
-    """An invalid combination of versions was used in a version commit
-    """
-
-class VersionLockError(VersionError, TransactionError):
-    """An attempt was made to modify an object that has
-    been modified in an unsaved version"""
-
-class UndoError(POSError):
-    """An attempt was made to undo an undoable transaction.
-    """
-
-class StorageError(POSError):
-    pass
-
-class StorageTransactionError(StorageError):
-    """An operation was invoked for an invalid transaction or state
-    """
-
-class StorageSystemError(StorageError):
-    """Panic! Internal storage error!
-    """
-
-class ExportError(POSError):
-    """An export file doesn't have the right format.
-    """
-    pass
-
-class Unimplemented(POSError):
-    """An unimplemented feature was used
-    """
-    pass
-
-class Unsupported(POSError):
-    """An feature that is unsupported bt the storage was used.
-    """
+def newTimeStamp(old=None,
+                 TimeStamp=TimeStamp.TimeStamp,
+                 time=time.time, gmtime=time.gmtime):
+    t=time()
+    ts=TimeStamp(gmtime(t)[:5]+(t%60,))
+    if old is not None: return ts.laterThan(than)
+    
+    

@@ -84,8 +84,8 @@
 ##############################################################################
 """Transaction management
 
-$Id: Transaction.py,v 1.6 1999/05/12 15:55:44 jim Exp $"""
-__version__='$Revision: 1.6 $'[11:-2]
+$Id: Transaction.py,v 1.7 1999/05/18 15:55:10 jim Exp $"""
+__version__='$Revision: 1.7 $'[11:-2]
 
 import time, sys, struct
 from struct import pack
@@ -100,30 +100,50 @@ class Transaction:
     _connections=None
     _extension=None
 
-    def __init__(self,
-                 time=time.time, pack=struct.pack, gmtime=time.gmtime):
+    def __init__(self, id=None):
+        self._id=id
         self._objects=[]
         self._append=self._objects.append
-        self._note=self._user=self._description=''
+
+    def _init(self):
+        self._objects=[]
+        self._append=self._objects.append
+        self.user=self.description=''
         if self._connections:
             for c in self._connections.values(): c.close()
             del self._connections
+
+    def sub(self):
+        r=self.__class__()
+        r.user=self.user
+        r.description=self.description
+        r._extention=self._extension
+        return r
         
-    def __str__(self): return "%.3f\t%s" % (self.time,self._note)
+    def __str__(self): return "%.3f\t%s" % (self._id, self.user)
 
     def abort(self, freeme=1):
-        'Abort the transaction.'
+        '''Abort the transaction.
+
+        This is called from the application.  This means that we haven\'t
+        entered two-phase commit yet, so no tpc_ messages are sent.
+        '''
         t=v=tb=None
         try:
+            # Abort the objects
             for o in self._objects:
                 try:
-                    if hasattr(o,'_p_jar'): o=o._p_jar
-                    if hasattr(o,'tpc_abort'): o.tpc_abort(self)
-                except: t,v,tb=sys.exc_info()
+                    j=getattr(o, '_p_jar', o)
+                    j.abort(o, self)
+                except:
+                    if t is None:
+                        t,v,tb=sys.exc_info()
+        
             if t is not None: raise t,v,tb
+
         finally:
             tb=None
-            if freeme: free_transaction()
+            if self._id is not None and freeme: free_transaction()
 
     def begin(self, info=None):
         '''Begin a new transaction.
@@ -131,40 +151,61 @@ class Transaction:
         This aborts any transaction in progres.
         '''
         if self._objects: self.abort(0)
-        self.__init__()
+        self._init()
         if info:
             info=split(info,'\t')
             self.user=strip(info[0])
-            self.description=strip(join(info,'\t'))
+            self.description=strip(join(info[1:],'\t'))
 
     def commit(self):
         'Finalize the transaction'
         
         t=v=tb=None
+        jars={}
+        objects=self._objects
         try:
             try:
-                for o in self._objects:
-                    if hasattr(o,'_p_jar'):
-                        j=o._p_jar
+                while objects:
+                    o=objects[-1]
+                    j=getattr(o, '_p_jar', o)
+                    i=id(j)
+                    if not jars.has_key(i):
+                        jars[i]=j
                         j.tpc_begin(self)
-                        j.commit(o,self)
-                    elif hasattr(o,'tpc_begin'):
-                        o.tpc_begin(self)
+                    j.commit(o,self)
+                    del objects[-1]
             except:
                 t,v,tb=sys.exc_info()
-                self.abort()
+
+                # Ugh, we got an got an error during commit, so we
+                # have to clean up.
+
+                # First, we have to abort any uncommitted objects.
+                for o in objects:
+                    try:
+                        j=getattr(o, '_p_jar', o)
+                        j.abort(o, self)
+                    except: pass
+
+                # Then, we unwind TPC for the jars that began it.
+                for j in jars.values():
+                    try: j.tpc_abort(self) # This should never fail
+                    except: pass
+
                 raise t,v,tb
 
-            for o in self._objects:
+            for j in jars.values():
                 try:
-                    if hasattr(o,'_p_jar'): o=o._p_jar
-                    if hasattr(o,'tpc_finish'): o.tpc_finish(self)
-                except: t,v,tb=sys.exc_info()
+                    j.tpc_finish(self) # This should never fail
+                except:
+                    if t is None:
+                        t,v,tb=sys.exc_info()
+                        
             if t is not None: raise t,v,tb
 
         finally:
             tb=None
-            free_transaction()
+            if self._id is not None: free_transaction()
 
     def register(self,object):
         'Register the given object for transaction control.'
@@ -191,11 +232,18 @@ class Transaction:
 
 try:
     import thread
+
+except:
+    _t=Transaction(None)
+    def get_transaction(_t=_t): return _t
+    def free_transaction(_t=_t): _t.__init__()
+
+else:
     _t={}
     def get_transaction(_id=thread.get_ident, _t=_t):
         id=_id()
         try: t=_t[id]
-        except KeyError: _t[id]=t=Transaction()
+        except KeyError: _t[id]=t=Transaction(id)
         return t
 
     def free_transaction(_id=thread.get_ident, _t=_t):
@@ -204,11 +252,6 @@ try:
         except KeyError: pass
 
     del thread
-
-except:
-    _t=Transaction()
-    def get_transaction(_t=_t): return _t
-    def free_transaction(_t=_t): _t.__init__()
 
 del _t
 
