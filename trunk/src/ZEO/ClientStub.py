@@ -11,14 +11,28 @@
 # FOR A PARTICULAR PURPOSE
 #
 ##############################################################################
-"""Stub for interface exported by ClientStorage"""
+"""RPC stubs for interface exported by ClientStorage."""
 
 class ClientStorage:
 
-    # The on-the-wire names of some of the methods don't match the
-    # Python method names.  That's because the on-the-wire protocol
-    # was fixed for ZEO 2 and we don't want to change it.  There are
-    # some aliases in ClientStorage.py to make up for this.
+    """An RPC stub class for the interface exported by ClientStorage.
+
+    This is the interface presented by ClientStorage to the
+    StorageServer; i.e. the StorageServer calls these methods and they
+    are executed in the ClientStorage.
+
+    It is currently important that all methods here are asynchronous
+    (meaning they don't have a return value and the caller doesn't
+    wait for them to complete), *and* that none of them cause any
+    calls from the client to the storage.  This is due to limitations
+    in the zrpc subpackage.
+
+    The on-the-wire names of some of the methods don't match the
+    Python method names.  That's because the on-the-wire protocol was
+    fixed for ZEO 2 and we don't want to change it.  There are some
+    aliases in ClientStorage.py to make up for this.
+
+    """
 
     def __init__(self, rpc):
         self.rpc = rpc
