@@ -13,7 +13,7 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.83 2003/01/17 17:23:14 shane Exp $"""
+$Id: Connection.py,v 1.84 2003/01/21 21:02:28 bwarsaw Exp $"""
 
 from cPickleCache import PickleCache
 from POSException import ConflictError, ReadConflictError
@@ -33,11 +33,11 @@ from types import StringType, ClassType
 global_code_timestamp = 0
 
 def updateCodeTimestamp():
-    '''
-    Called after changes are made to persistence-based classes.
-    Causes all connection caches to be re-created as the
-    connections are reopened.
-    '''
+    """Called after changes are made to persistence-based classes.
+
+    Causes all connection caches to be re-created as the connections are
+    reopened.
+    """
     global global_code_timestamp
     global_code_timestamp = time()
 
@@ -47,8 +47,7 @@ class Connection(ExportImport.ExportImport):
     """Object managers for individual object space.
 
     An object space is a version of collection of objects.  In a
-    multi-threaded application, each thread get's it's own object
-    space.
+    multi-threaded application, each thread gets its own object space.
 
     The Connection manages movement of objects in and out of object storage.
     """
