@@ -214,10 +214,9 @@ include any whitespace on either side, just like values from key-value
 pairs.
 
 Names must be defined before they are used, and may not be
-re-defined.  All names are associated with the source text in which
-they are defined, so distinct sources which are referenced using
-\keyword{\%include} are not affected by
-definitions created by the resource being parsed.
+re-defined.  All resources being parsed as part of a configuration
+share a single namespace for defined names.  This means that resources
+which may be included more than once should not define any names.
 
 References to defined names from configuration values use the syntax
 described for the \refmodule{ZConfig.substitution} module.
