@@ -25,7 +25,7 @@ register_loop_callback() to register interest.  When the mainloop
 thread calls loop(), each registered callback will be called with the
 socket map as its first argument.
 """
-__version__ = '$Revision: 1.11 $'[11:-2]
+__version__ = '$Revision: 1.12 $'[11:-2]
 
 import asyncore
 import select
@@ -62,7 +62,7 @@ def register_loop_callback(callback, args=(), kw=None):
     _loop_lock.acquire()
     try:
         if _looping is not None:
-            apply(callback, (_looping,) + args, kw or {})
+            callback(_looping, *args, **(kw or {}))
         else:
             _loop_callbacks.append((callback, args, kw))
     finally:
@@ -85,7 +85,7 @@ def _start_loop(map):
         _looping = map
         while _loop_callbacks:
             cb, args, kw = _loop_callbacks.pop()
-            apply(cb, (map,) + args, kw or {})
+            cb(map, *args, **(kw or {}))
     finally:
         _loop_lock.release()
 
