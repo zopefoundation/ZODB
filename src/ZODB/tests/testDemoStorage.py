@@ -43,6 +43,17 @@ class DemoStorageTests(StorageTestBase.StorageTestBase,
         # XXX Need to implement a real loadBefore for DemoStorage?
         pass
 
+    # the next three pack tests depend on undo
+
+    def checkPackVersionReachable(self):
+        pass
+
+    def checkPackVersions(self):
+        pass
+
+    def checkPackVersionsInPast(self):
+        pass
+
 
 def test_suite():
     suite = unittest.makeSuite(DemoStorageTests, 'check')

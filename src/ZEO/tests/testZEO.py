@@ -209,11 +209,6 @@ class MappingStorageTests(GenericTests):
 
 test_classes = [FileStorageTests, MappingStorageTests]
 
-import BDBStorage
-if BDBStorage.is_available:
-    test_classes.append(BDBTests)
-
-
 def test_suite():
     suite = unittest.TestSuite()
     for klass in test_classes:

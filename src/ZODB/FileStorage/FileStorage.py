@@ -13,7 +13,7 @@
 ##############################################################################
 """Storage implementation using a log written to a single file.
 
-$Revision: 1.3 $
+$Revision: 1.4 $
 """
 
 import base64
@@ -1076,7 +1076,7 @@ class FileStorage(BaseStorage.BaseStorage,
         finally:
             self._lock_release()
 
-    def transactionalUndo(self, transaction_id, transaction):
+    def undo(self, transaction_id, transaction):
         """Undo a transaction, given by transaction_id.
 
         Do so by writing new data that reverses the action taken by

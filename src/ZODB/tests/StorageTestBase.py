@@ -209,7 +209,7 @@ class StorageTestBase(unittest.TestCase):
         t = Transaction()
         t.note(note or "undo")
         self._storage.tpc_begin(t)
-        tid, oids = self._storage.transactionalUndo(tid, t)
+        tid, oids = self._storage.undo(tid, t)
         self._storage.tpc_vote(t)
         self._storage.tpc_finish(t)
         if expected_oids is not None:

@@ -100,7 +100,7 @@ class IteratorStorage(IteratorCompare):
         # Undo the creation of the object, rendering it a zombie
         t = Transaction()
         self._storage.tpc_begin(t)
-        oids = self._storage.transactionalUndo(tid, t)
+        oids = self._storage.undo(tid, t)
         self._storage.tpc_vote(t)
         self._storage.tpc_finish(t)
         # Now attempt to iterator over the storage

@@ -11,9 +11,9 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
-"""Check transactionalUndo().
+"""Check undo().
 
-Any storage that supports transactionalUndo() must pass these tests.
+Any storage that supports undo() must pass these tests.
 """
 
 import time
@@ -102,7 +102,7 @@ class TransactionalUndoStorage:
         t = Transaction()
         t.note(note)
         self._storage.tpc_begin(t)
-        oids = self._storage.transactionalUndo(tid, t)
+        oids = self._storage.undo(tid, t)
         self._storage.tpc_vote(t)
         self._storage.tpc_finish(t)
         return oids
@@ -150,7 +150,7 @@ class TransactionalUndoStorage:
         t = Transaction()
         t.note('undo1')
         self._storage.tpc_begin(t)
-        self._storage.transactionalUndo(tid, t)
+        self._storage.undo(tid, t)
         self._storage.tpc_vote(t)
         self._storage.tpc_finish(t)
         # Check that calling getSerial on an uncreated object raises a KeyError
@@ -279,8 +279,8 @@ class TransactionalUndoStorage:
         tid1 = info[1]['id']
         t = Transaction()
         self._storage.tpc_begin(t)
-        tid, oids = self._storage.transactionalUndo(tid, t)
-        tid, oids1 = self._storage.transactionalUndo(tid1, t)
+        tid, oids = self._storage.undo(tid, t)
+        tid, oids1 = self._storage.undo(tid1, t)
         self._storage.tpc_vote(t)
         self._storage.tpc_finish(t)
         # We get the finalization stuff called an extra time:
@@ -353,7 +353,7 @@ class TransactionalUndoStorage:
         tid = info[1]['id']
         t = Transaction()
         self._storage.tpc_begin(t)
-        tid, oids = self._storage.transactionalUndo(tid, t)
+        tid, oids = self._storage.undo(tid, t)
         self._storage.tpc_vote(t)
         self._storage.tpc_finish(t)
         eq(len(oids), 1)
@@ -379,7 +379,7 @@ class TransactionalUndoStorage:
         t = Transaction()
         self._storage.tpc_begin(t)
         self.assertRaises(POSException.UndoError,
-                          self._storage.transactionalUndo,
+                          self._storage.undo,
                           tid, t)
         self._storage.tpc_abort(t)
         # Now have more fun: object1 and object2 are in the same transaction,
@@ -418,7 +418,7 @@ class TransactionalUndoStorage:
         t = Transaction()
         self._storage.tpc_begin(t)
         self.assertRaises(POSException.UndoError,
-                          self._storage.transactionalUndo,
+                          self._storage.undo,
                           tid, t)
         self._storage.tpc_abort(t)
         self._iterate()
@@ -446,7 +446,7 @@ class TransactionalUndoStorage:
         # And now attempt to undo the last transaction
         t = Transaction()
         self._storage.tpc_begin(t)
-        tid, oids = self._storage.transactionalUndo(tid, t)
+        tid, oids = self._storage.undo(tid, t)
         self._storage.tpc_vote(t)
         self._storage.tpc_finish(t)
         eq(len(oids), 1)
@@ -652,7 +652,7 @@ class TransactionalUndoStorage:
             base = i * OBJECTS + i
             for j in range(OBJECTS):
                 tid = info[base + j]['id']
-                s.transactionalUndo(tid, t)
+                s.undo(tid, t)
             s.tpc_vote(t)
             s.tpc_finish(t)
 

@@ -222,8 +222,6 @@ class ZEOStorage:
                 'name': self.storage.getName(),
                 'supportsUndo': self.storage.supportsUndo(),
                 'supportsVersions': self.storage.supportsVersions(),
-                'supportsTransactionalUndo':
-                self.storage.supportsTransactionalUndo(),
                 'extensionMethods': self.getExtensionMethods(),
                 }
 
@@ -348,16 +346,6 @@ class ZEOStorage:
             n = 1
         return [self.storage.new_oid() for i in range(n)]
 
-    def undo(self, transaction_id):
-        if self.read_only:
-            raise ReadOnlyError()
-        oids = self.storage.undo(transaction_id)
-        if oids:
-            self.server.invalidate(self, self.storage_id, None,
-                                   map(lambda oid: (oid, ''), oids))
-            return oids
-        return ()
-
     # undoLog and undoInfo are potentially slow methods
 
     def undoInfo(self, first, last, spec):
@@ -480,12 +468,12 @@ class ZEOStorage:
         else:
             return self._wait(lambda: self._commitVersion(src, dest))
 
-    def transactionalUndo(self, trans_id, id):
+    def undo(self, trans_id, id):
         self._check_tid(id, exc=StorageTransactionError)
         if self.locked:
-            return self._transactionalUndo(trans_id)
+            return self._undo(trans_id)
         else:
-            return self._wait(lambda: self._transactionalUndo(trans_id))
+            return self._wait(lambda: self._undo(trans_id))
 
     def _tpc_begin(self, txn, tid, status):
         self.locked = 1
@@ -557,8 +545,8 @@ class ZEOStorage:
             self.invalidated.extend(inv)
         return tid, oids
 
-    def _transactionalUndo(self, trans_id):
-        tid, oids = self.storage.transactionalUndo(trans_id, self.transaction)
+    def _undo(self, trans_id):
+        tid, oids = self.storage.undo(trans_id, self.transaction)
         inv = [(oid, None) for oid in oids]
         self.invalidated.extend(inv)
         return tid, oids

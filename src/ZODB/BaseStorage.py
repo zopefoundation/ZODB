@@ -13,7 +13,7 @@
 ##############################################################################
 """Handy standard storage machinery
 
-$Id: BaseStorage.py,v 1.40 2004/01/06 21:43:04 jeremy Exp $
+$Id: BaseStorage.py,v 1.41 2004/02/18 01:13:01 jeremy Exp $
 """
 import cPickle
 import threading
@@ -120,9 +120,6 @@ class BaseStorage(UndoLogCompatible):
     def supportsUndo(self):
         return 0
 
-    def supportsTransactionalUndo(self):
-        return 0
-
     def supportsVersions(self):
         return 0
 
@@ -221,7 +218,7 @@ class BaseStorage(UndoLogCompatible):
         """
         pass
 
-    def undo(self, transaction_id):
+    def undo(self, transaction_id, txn):
         if self._is_read_only:
             raise POSException.ReadOnlyError()
         raise POSException.UndoError, 'non-undoable transaction'
