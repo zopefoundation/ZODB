@@ -110,6 +110,7 @@ def cp(f1, f2, l):
     while l > 0:
         if n > l: n=l
         d=read(n)
+        if not d: break
         write(d)
         l = l - len(d)
 
