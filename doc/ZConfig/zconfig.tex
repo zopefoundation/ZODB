@@ -637,7 +637,8 @@ Notes:
 
 In each case, \var{name} is a non-empty sequence of alphanumeric and
 underscore characters not starting with a digit.  If there is not a
-replacement for \var{name}, an empty string is used.
+replacement for \var{name}, the exception
+\exception{SubstitutionReplacementError} is raised.
 Note that the lookup is expected to be case-insensitive; this module
 will always use a lower-case version of the name to perform the query.
 
@@ -657,12 +658,23 @@ This module provides these functions:
   text, otherwise returns \code{False}.
 \end{funcdesc}
 
-The following exception is defined:
+The following exceptions are defined:
+
+\begin{excdesc}{SubstitutionError}
+  Base class for the specific exceptions raised by this module.
+  Instances provide the attribute \member{message}, which contains a
+  description of the error.
+\end{excdesc}
+
+\begin{excdesc}{SubstitutionReplacementError}
+  Raised when the source text contains references to names which are
+  not defined in \var{mapping}.  The attributes \member{source} and
+  \member{name} provide the complete source text and the name
+  (converted to lower case) for which no replacement is defined.
+\end{excdesc}
 
 \begin{excdesc}{SubstitutionSyntaxError}
-  Raised when the source text contains syntactical errors.  Instances
-  provide the attribute \member{message}, which contains a description
-  of the error.
+  Raised when the source text contains syntactical errors.
 \end{excdesc}
 
 
