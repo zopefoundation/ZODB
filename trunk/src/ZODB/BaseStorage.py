@@ -15,7 +15,7 @@
 """
 # Do this portably in the face of checking out with -kv
 import string
-__version__ = string.split('$Revision: 1.25 $')[-2:][0]
+__version__ = string.split('$Revision: 1.26 $')[-2:][0]
 
 import cPickle
 import ThreadLock, bpthread
@@ -230,6 +230,18 @@ class BaseStorage(UndoLogCompatible.UndoLogCompatible):
     def loadSerial(self, oid, serial):
         raise POSException.Unsupported, (
             "Retrieval of historical revisions is not supported")
+
+    def getExtensionMethods(self):
+         """getExtensionMethods
+
+        This returns a dictionary whose keys are names of extra methods
+        provided by this storage. Storage proxies (such as ZEO) should
+        call this method to determine the extra methods that they need
+        to proxy in addition to the standard storage methods.
+        Dictionary values should be None; this will be a handy place
+        for extra marshalling information, should we need it
+        """
+	return {}
 
     def copyTransactionsFrom(self, other, verbose=0):
         """Copy transactions from another storage.
