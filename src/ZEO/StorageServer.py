@@ -45,7 +45,7 @@ pickler = cPickle.Pickler()
 pickler.fast = 1 # Don't use the memo
 dump = pickler.dump
 
-def log(message, level=zLOG.INFO, label="ZEO Server:%s" % os.getpid(),
+def log(message, level=zLOG.INFO, label="StorageServer:%s" % os.getpid(),
         error=None):
     zLOG.LOG(label, level, message, error=error)
 
@@ -55,9 +55,13 @@ class StorageServerError(StorageError):
 class StorageServer:
 
     def __init__(self, addr, storages, read_only=0):
-        # XXX should read_only be a per-storage option? not yet...
         self.addr = addr
         self.storages = storages
+        msg = ", ".join(
+            ["%s:%s" % (name, storage.isReadOnly() and "RO" or "RW")
+             for name, storage in storages.items()])
+        log("StorageServer (pid=%d) created %s with storages: %s" %
+            (os.getpid(), read_only and "RO" or "RW", msg))
         for s in storages.values():
             s._waiting = []
         self.read_only = read_only
@@ -123,7 +127,7 @@ class ZEOStorage:
 
     def notifyDisconnected(self):
         # When this storage closes, we must ensure that it aborts
-        # any pending transaction.  Not sure if this is the clearest way.
+        # any pending transaction.  Not sure if this is the cleanest way.
         if self._transaction is not None:
             self._log("disconnected during transaction %s" % self._transaction)
             self.tpc_abort(self._transaction.id)
@@ -144,7 +148,7 @@ class ZEOStorage:
         name = getattr(self.__storage, '__name__', None)
         if name is None:
             name = str(self.__storage)
-        zLOG.LOG("ZEO Server:%s:%s" % (pid, name), level, msg, error=error)
+        zLOG.LOG("ZEOStorage:%s:%s" % (pid, name), level, msg, error=error)
 
     def setup_delegation(self):
         """Delegate several methods to the storage"""
@@ -177,7 +181,7 @@ class ZEOStorage:
 
         This method must be the first one called by the client.
         """
-        self._log("register(%s, %s)" % (storage_id, read_only))
+        self._log("register(%r, %s)" % (storage_id, read_only))
         storage = self.server.storages.get(storage_id)
         if storage is None:
             self._log("unknown storage_id: %s" % storage_id)
@@ -190,7 +194,7 @@ class ZEOStorage:
         self.__storage = storage
         self.setup_delegation()
         self.server.register_connection(storage_id, self)
-        self._log("registered storage %s: %s" % (storage_id, storage))
+        self._log("registered storage %r: %s" % (storage_id, storage))
 
     def get_info(self):
         return {'length': len(self.__storage),
