@@ -115,7 +115,7 @@
 #   may have a back pointer to a version record or to a non-version
 #   record.
 #
-__version__='$Revision: 1.124 $'[11:-2]
+__version__='$Revision: 1.125 $'[11:-2]
 
 import base64
 from cPickle import Pickler, Unpickler, loads
@@ -2359,9 +2359,16 @@ class FileIterator(Iterator):
                 warn("%s time-stamp reduction at %s", self._file.name, pos)
             self._ltid=tid
 
+            if self._stop is not None and tid > self._stop:
+                raise IndexError, index
+
+            if status == 'c':
+                # Assume we've hit the last, in-progress transaction
+                raise IndexError, index
+
             tl=u64(stl)
 
-            if pos+(tl+8) > self._file_size or status=='c':
+            if pos+(tl+8) > self._file_size:
                 # Hm, the data were truncated or the checkpoint flag wasn't
                 # cleared.  They may also be corrupted,
                 # in which case, we don't want to totally lose the data.
@@ -2395,9 +2402,6 @@ class FileIterator(Iterator):
                     warn('%s has invalid transaction header at %s',
                          self._file.name, pos)
                     break
-
-            if self._stop is not None and tid > self._stop:
-                raise IndexError, index
 
             tpos=pos
             tend=tpos+tl
