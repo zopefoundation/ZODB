@@ -39,7 +39,7 @@ def usage(msg):
 
 def main():
     # Parse options
-    MB = 1024*1024
+    MB = 1000*1000
     cachelimit = 20*MB
     simclass = ZEOCacheSimulation
     try:
@@ -386,6 +386,9 @@ class Node:
         prev.next = next.prev = self
 
 class BuddyCacheSimulation(LRUCacheSimulation):
+
+    def __init__(self, cachelimit):
+        LRUCacheSimulation.__init__(self, roundup(cachelimit))
 
     def restart(self):
         LRUCacheSimulation.restart(self)
