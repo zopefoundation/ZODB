@@ -12,7 +12,7 @@
 
  ****************************************************************************/
 
-#define BTREETEMPLATE_C "$Id: BTreeTemplate.c,v 1.42 2002/06/11 02:37:57 tim_one Exp $\n"
+#define BTREETEMPLATE_C "$Id: BTreeTemplate.c,v 1.43 2002/06/11 02:59:05 tim_one Exp $\n"
 
 /*
 ** _BTree_get
@@ -111,7 +111,8 @@ BTree_split(BTree *self, int index, BTree *next)
       Py_XINCREF(next->firstbucket);
     }
 
-  PER_CHANGED(self);
+  if (PER_CHANGED(self) < 0)
+    return -1;
   return 0;
 }
 

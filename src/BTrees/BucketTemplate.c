@@ -12,7 +12,7 @@
 
  ****************************************************************************/
 
-#define BUCKETTEMPLATE_C "$Id: BucketTemplate.c,v 1.38 2002/06/09 05:56:25 tim_one Exp $\n"
+#define BUCKETTEMPLATE_C "$Id: BucketTemplate.c,v 1.39 2002/06/11 02:59:05 tim_one Exp $\n"
 
 /* Use BUCKET_SEARCH to find the index at which a key belongs.
  * INDEX    An int lvalue to hold the index i such that KEY belongs at
@@ -440,7 +440,8 @@ bucket_split(Bucket *self, int index, Bucket *next)
   Py_INCREF(next);
   self->next = next;
 
-  PER_CHANGED(self);
+  if (PER_CHANGED(self) < 0)
+    return -1;
 
   return 0;
 }
@@ -459,21 +460,23 @@ Bucket_nextBucket(Bucket *self, Bucket **r)
 static int
 Bucket_deleteNextBucket(Bucket *self)
 {
+  int result = -1;      /* until proven innocent */
+
   PER_USE_OR_RETURN(self, -1);
   if (self->next)
     {
       Bucket *n;
-      if (Bucket_nextBucket(self->next, &n) < 0) goto err;
+      if (Bucket_nextBucket(self->next, &n) < 0) goto Done;
       ASSIGNB(self->next, n);
-      PER_CHANGED(self);
+      if (PER_CHANGED(self) < 0)
+        goto Done;
     }
+  result = 0;
+
+Done:
   PER_ALLOW_DEACTIVATION(self);
   PER_ACCESSED(self);
-  return 0;
- err:
-  PER_ALLOW_DEACTIVATION(self);
-  PER_ACCESSED(self);
-  return -1;
+  return result;
 }
 
 /*
