@@ -12,7 +12,7 @@
   
  ****************************************************************************/
 
-#define BUCKETTEMPLATE_C "$Id: BucketTemplate.c,v 1.32 2002/06/05 19:26:55 tim_one Exp $\n"
+#define BUCKETTEMPLATE_C "$Id: BucketTemplate.c,v 1.33 2002/06/06 19:30:21 jeremy Exp $\n"
 
 /*
 ** _bucket_get
@@ -1164,12 +1164,13 @@ static struct PyMethodDef Bucket_methods[] = {
 static void
 Bucket_dealloc(Bucket *self)
 {
-  _bucket_clear(self);
+    if (self->state != cPersistent_GHOST_STATE)
+	_bucket_clear(self);
 
-  PER_DEL(self);
+    PER_DEL(self);
 
-  Py_DECREF(self->ob_type);
-  PyObject_Del(self);
+    Py_DECREF(self->ob_type);
+    PyObject_Del(self);
 }
 
 /* Code to access Bucket objects as mappings */

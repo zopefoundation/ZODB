@@ -12,7 +12,7 @@
   
  ****************************************************************************/
 
-#define BTREETEMPLATE_C "$Id: BTreeTemplate.c,v 1.35 2002/05/31 20:59:10 tim_one Exp $\n"
+#define BTREETEMPLATE_C "$Id: BTreeTemplate.c,v 1.36 2002/06/06 19:30:21 jeremy Exp $\n"
 
 /*
 ** _BTree_get
@@ -1217,7 +1217,8 @@ static struct PyMethodDef BTree_methods[] = {
 static void
 BTree_dealloc(BTree *self)
 {
-  _BTree_clear(self);
+  if (self->state != cPersistent_GHOST_STATE)
+    _BTree_clear(self);
 
   PER_DEL(self);
 
