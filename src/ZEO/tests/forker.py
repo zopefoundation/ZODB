@@ -23,7 +23,6 @@ import socket
 import asyncore
 import tempfile
 import traceback
-from cStringIO import StringIO
 
 import zLOG
 
