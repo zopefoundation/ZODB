@@ -39,7 +39,8 @@ import signal
 import socket
 
 import zLOG
-import ZConfig.Context
+import ZConfig
+import ZEO
 
 
 class Options:
@@ -121,7 +122,7 @@ class Options:
     def load_configuration(self):
         if not self.configuration:
             return
-        here = os.path.dirname(sys.argv[0])
+        here = os.path.dirname(ZEO.__file__)
         schemafile = os.path.join(here, "schema.xml")
         schema = ZConfig.loadSchema(schemafile)
         try:
