@@ -180,7 +180,6 @@ class StorageTestBase(unittest.TestCase):
     def _dostoreNP(self, oid=None, revid=None, data=None, version=None,
                    user=None, description=None):
         return self._dostore(oid, revid, data, version, already_pickled=1)
-
     # The following methods depend on optional storage features.
 
     def _undo(self, tid, oid):

@@ -124,9 +124,12 @@ class CommitLockTests:
         # started, but before it finishes.  The dowork() function
         # executes after the first transaction has completed.
 
-        # Start on transaction normally.
+        # Start on transaction normally and get the lock.
         t = Transaction()
         self._storage.tpc_begin(t)
+        oid = self._storage.new_oid()
+        self._storage.store(oid, ZERO, zodb_pickle(MinPO(1)), '', t)
+        self._storage.tpc_vote(t)
 
         # Start a second transaction on a different connection without
         # blocking the test thread.
@@ -141,9 +144,6 @@ class CommitLockTests:
             else:
                 self._storages.append((storage2, t2))
 
-        oid = self._storage.new_oid()
-        self._storage.store(oid, ZERO, zodb_pickle(MinPO(1)), '', t)
-        self._storage.tpc_vote(t)
         if method_name == "tpc_finish":
             self._storage.tpc_finish(t)
             self._storage.load(oid, '')

@@ -16,6 +16,7 @@ import asyncore
 import os
 import socket
 import thread
+import errno
 
 if os.name == 'posix':
 
@@ -71,6 +72,7 @@ if os.name == 'posix':
                 self.del_channel()
                 for fd in self._fds:
                     os.close(fd)
+                self._fds = []
 
         def __repr__(self):
             return '<select-trigger (pipe) at %x>' % id(self)
@@ -83,6 +85,9 @@ if os.name == 'posix':
 
         def handle_connect(self):
             pass
+
+        def handle_close(self):
+            self.close()
 
         def pull_trigger(self, thunk=None):
             if thunk:

@@ -77,6 +77,9 @@ class SizedMessageAsyncConnection(asyncore.dispatcher):
         self.__closed = 0
         self.__super_init(sock, map)
 
+    def get_addr(self):
+        return self.addr
+
     # XXX avoid expensive getattr calls?  Can't remember exactly what
     # this comment was supposed to mean, but it has something to do
     # with the way asyncore uses getattr and uses if sock:

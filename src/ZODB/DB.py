@@ -13,8 +13,8 @@
 ##############################################################################
 """Database objects
 
-$Id: DB.py,v 1.44 2002/10/23 19:08:36 jeremy Exp $"""
-__version__='$Revision: 1.44 $'[11:-2]
+$Id: DB.py,v 1.45 2002/11/18 23:17:40 jeremy Exp $"""
+__version__='$Revision: 1.45 $'[11:-2]
 
 import cPickle, cStringIO, sys, POSException, UndoLogCompatible
 from Connection import Connection
@@ -578,7 +578,11 @@ class CommitVersion:
         self.tpc_begin=s.tpc_begin
         self.tpc_vote=s.tpc_vote
         self.tpc_finish=s.tpc_finish
+        self._sortKey=s.sortKey
         get_transaction().register(self)
+
+    def sortKey(self):
+        return "%s:%s" % (self._sortKey(), id(self))
 
     def abort(self, reallyme, t): pass
 

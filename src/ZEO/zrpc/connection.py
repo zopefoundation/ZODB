@@ -348,13 +348,22 @@ class Connection(smac.SizedMessageAsyncConnection):
         else:
             return 0
 
+    def _pull_trigger(self, tryagain=10):
+        try:
+            self.trigger.pull_trigger()
+        except OSError, e:
+            self.trigger.close()
+            self.trigger = trigger()
+            if tryagain > 0:
+                self._pull_trigger(tryagain=tryagain-1)
+
     def wait(self, msgid):
         """Invoke asyncore mainloop and wait for reply."""
         if __debug__:
             log("wait(%d), async=%d" % (msgid, self.is_async()),
                 level=zLOG.TRACE)
         if self.is_async():
-            self.trigger.pull_trigger()
+            self._pull_trigger()
 
         # Delay used when we call asyncore.poll() directly.
         # Start with a 1 msec delay, double until 1 sec.
@@ -398,7 +407,7 @@ class Connection(smac.SizedMessageAsyncConnection):
         if __debug__:
             log("poll(), async=%d" % self.is_async(), level=zLOG.TRACE)
         if self.is_async():
-            self.trigger.pull_trigger()
+            self._pull_trigger()
         else:
             asyncore.poll(0.0, self._map)
 
