@@ -58,7 +58,7 @@ If we want to, we can open it again:
     >>> f3.read()
     'Hi, Blob!'
 
-But we can't  open it for writing, while it is opened for reading:
+But we can't open it for writing, while it is opened for reading:
 
     >>> myblob.open("a")
     Traceback (most recent call last):
@@ -78,8 +78,27 @@ Now we can open it for writing again and e.g. append data:
 
 Now we can read it:
 
+    >>> f4a = myblob.open("r")
+    >>> f4a.read()
+    'Hi, Blob!\nBlob is fine.'
+    >>> f4a.close()
+
+Please, always remember closing an opened blob, otherwise you might get
+blocked later on. Therefore you should avoid using the result of open()
+without binding it to a name:
+
     >>> myblob.open("r").read()
     'Hi, Blob!\nBlob is fine.'
+    >>> f4b = myblob.open("a")
+    Traceback (most recent call last):
+        ...
+    BlobError: Already opened for reading.
+    
+To clean that up, we have to commit or abort the current transaction, so the reference
+counters for opened blob files get to a valid state again:
+
+    >>> import transaction
+    >>> transaction.commit()
 
 We can read lines out of the blob too:
 
