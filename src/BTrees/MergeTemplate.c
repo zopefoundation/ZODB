@@ -83,7 +83,7 @@
   
  ****************************************************************************/
 
-#define MERGETEMPLATE_C "$Id: MergeTemplate.c,v 1.3 2001/03/20 13:52:00 jim Exp $\n"
+#define MERGETEMPLATE_C "$Id: MergeTemplate.c,v 1.4 2001/04/02 16:57:40 jeremy Exp $\n"
 
 /****************************************************************************
  Set operations
@@ -121,7 +121,7 @@ bucket_merge(Bucket *s1, Bucket *s2, Bucket *s3)
 {
   Bucket *r=0;
   PyObject *s;
-  SetIteration i1 = {0,0,0}, i2 = {0,0,0}, i3 = {0,0,0}, it;
+  SetIteration i1 = {0,0,0}, i2 = {0,0,0}, i3 = {0,0,0};
   int cmp12, cmp13, cmp23, mapping=0, set;
 
   if (initSetIteration(&i1, OBJECT(s1), 0, &mapping) < 0) return NULL;
