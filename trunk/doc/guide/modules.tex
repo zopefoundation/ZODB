@@ -375,7 +375,7 @@ conflict resolution contain an instance of an internal
 \class{PersistentReference} stub class everywhere O references P.
 Two \class{PersistentReference} instances compare equal if and only if
 they "represent" the same persistent object; when they're not equal,
-they compare by memory address, and, as expalined before, memory-based
+they compare by memory address, and, as explained before, memory-based
 comparison must never happen in a sane persistent BTree.  Note that it
 doesn't help in this case if your \class{Persistent} subclass defines
 a sane \method{__cmp__()} method:  conflict resolution doesn't know
