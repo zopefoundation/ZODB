@@ -27,7 +27,10 @@ class FileStorageTests(
 
     def tearDown(self):
         StorageTestBase.StorageTestBase.tearDown(self)
-        os.remove('FileStorageTests.fs')
+        for ext in '', '.old', '.tmp', '.lock', '.index':
+            path = 'FileStorageTests.fs' + ext
+            if os.path.exists(path):
+                os.remove(path)
 
 def test_suite():
     return unittest.makeSuite(FileStorageTests, 'check')
