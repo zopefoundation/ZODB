@@ -12,7 +12,7 @@
 
  ****************************************************************************/
 
-#define BTREETEMPLATE_C "$Id: BTreeTemplate.c,v 1.57 2002/06/17 18:49:49 tim_one Exp $\n"
+#define BTREETEMPLATE_C "$Id: BTreeTemplate.c,v 1.58 2002/06/17 20:02:39 tim_one Exp $\n"
 
 /*
 ** _BTree_get
@@ -578,49 +578,53 @@ BTree_setitem(BTree *self, PyObject *key, PyObject *v)
 /*
 ** _BTree_clear
 **
-** Clears out all of the values in the BTree
+** Clears out all of the values in the BTree (firstbucket, keys, and children);
+** leaving self an empty BTree.
 **
 ** Arguments:	self	The BTree
 **
 ** Returns:	 0	on success
 **		-1	on failure
-*/
+**
+** Internal:  Deallocation order is important.  The danger is that a long
+** list of buckets may get freed "at once" via decref'ing the first bucket,
+** in which case a chain of consequenct Py_DECREF calls may blow the stack.
+** Luckily, every bucket has a refcount of at least two, one due to being a
+** BTree node's child, and another either because it's not the first bucket in
+** the chain (so the preceding bucket points to it), or because firstbucket
+** points to it.  By clearing in the natural depth-first, left-to-right
+** order, the BTree->bucket child pointers prevent Py_DECREF(bucket->next)
+** calls from freeing bucket->next, and the maximum stack depth is equal
+** to the height of the tree.
+**/
 static int
 _BTree_clear(BTree *self)
 {
-  int i, l;
+    const int len = self->len;
 
-  /* The order in which we dealocate, from "top to bottom" is critical
-     to prevent memory memory errors when the deallocation stack
-     becomes huge when dealocating use linked lists of buckets.
-  */
-
-  if (self->firstbucket)
-    {
-      ASSERT(self->firstbucket->ob_refcnt > 0,
-             "Invalid firstbucket pointer", -1);
-      Py_DECREF(self->firstbucket);
-      self->firstbucket=NULL;
+    if (self->firstbucket) {
+	ASSERT(self->firstbucket->ob_refcnt > 1,
+	       "Invalid firstbucket pointer", -1);
+	Py_DECREF(self->firstbucket);
+	self->firstbucket = NULL;
     }
 
-  for (l=self->len, i=0; i < l; i++)
-    {
-      if (i)
-        {
-          DECREF_KEY(self->data[i].key);
+    if (self->data) {
+        int i;
+        if (len > 0) { /* 0 is special because key 0 is trash */
+            Py_DECREF(self->data[0].child);
+	}
+
+        for (i = 1; i < len; i++) {
+	    DECREF_KEY(self->data[i].key);
+            Py_DECREF(self->data[i].child);
         }
-      Py_DECREF(self->data[i].child);
-    }
-  self->len=0;
-
-  if (self->data)
-    {
-      free(self->data);
-      self->data=0;
-      self->size=0;
+	free(self->data);
+	self->data = NULL;
     }
 
-  return 0;
+    self->len = self->size = 0;
+    return 0;
 }
 
 #ifdef PERSISTENT
