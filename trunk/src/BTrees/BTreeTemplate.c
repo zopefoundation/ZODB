@@ -12,7 +12,7 @@
 
  ****************************************************************************/
 
-#define BTREETEMPLATE_C "$Id: BTreeTemplate.c,v 1.53 2002/06/13 22:33:51 tim_one Exp $\n"
+#define BTREETEMPLATE_C "$Id: BTreeTemplate.c,v 1.54 2002/06/14 14:39:07 jeremy Exp $\n"
 
 /*
 ** _BTree_get
@@ -895,7 +895,7 @@ static int
 BTree_findRangeEnd(BTree *self, PyObject *keyarg, int low,
                    Bucket **bucket, int *offset) {
     Sized *deepest_smaller = NULL;      /* last possibility to move left */
-    int deepest_smaller_is_btree;       /* Boolean; if false, it's a bucket */
+    int deepest_smaller_is_btree = 0;   /* Boolean; if false, it's a bucket */
     Bucket *pbucket;
     int self_got_rebound = 0;   /* Boolean; when true, deactivate self */
     int result = -1;            /* Until proven innocent */
