@@ -12,7 +12,7 @@
 
  ****************************************************************************/
 
-#define BUCKETTEMPLATE_C "$Id: BucketTemplate.c,v 1.49 2002/11/19 19:07:53 tim_one Exp $\n"
+#define BUCKETTEMPLATE_C "$Id: BucketTemplate.c,v 1.50 2003/04/07 21:43:14 jeremy Exp $\n"
 
 /* Use BUCKET_SEARCH to find the index at which a key belongs.
  * INDEX    An int lvalue to hold the index i such that KEY belongs at
@@ -1248,6 +1248,7 @@ _bucket__p_resolveConflict(PyObject *ob_type, PyObject *s[3])
               if (r) continue;
             }
         }
+      /* This is not the expected path.  It's the error exit path! */
       Py_XDECREF(r);
       while (--i >= 0)
         {
