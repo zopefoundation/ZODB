@@ -46,7 +46,7 @@ def parse_address(arg):
     obj = ZConfig.datatypes.SocketAddress(arg)
     return obj.family, obj.address
 
-class ZEOOptions(ZDOptions):
+class ZEOOptionsMixin:
 
     storages = None
 
@@ -74,13 +74,9 @@ class ZEOOptions(ZDOptions):
         conf = FileStorage(FSConfig(name, arg))
         self.storages.append(conf)
 
-    def __init__(self):
-        self.schemadir = os.path.dirname(__file__)
-        ZDOptions.__init__(self)
+    def add_zeo_options(self):
         self.add(None, None, "a:", "address=", self.handle_address)
         self.add(None, None, "f:", "filename=", self.handle_filename)
-        self.add("storages", "storages",
-                 required="no storages specified; use -f or -C")
         self.add("family", "zeo.address.family")
         self.add("address", "zeo.address.address",
                  required="no server address specified; use -a or -C")
@@ -90,12 +86,6 @@ class ZEOOptions(ZDOptions):
         self.add("transaction_timeout", "zeo.transaction_timeout")
         self.add("monitor_address", None, "m:", "monitor=",
                  self.handle_monitor_address)
-
-    def realize(self, *args):
-        ZDOptions.realize(self, *args)
-        if self.args:
-            self.usage("positional arguments are not supported")
-        self.load_logconf()
 
     def load_logconf(self):
         if self.configroot.logger is not None:
@@ -109,7 +99,22 @@ class ZEOOptions(ZDOptions):
             if hasattr(handler, "reopen"):
                 handler.reopen()
         EventLogger.event_logger.logger = logger
-    
+
+
+class ZEOOptions(ZDOptions, ZEOOptionsMixin):
+
+    def __init__(self):
+        self.schemadir = os.path.dirname(__file__)
+        ZDOptions.__init__(self)
+        self.add_zeo_options()
+        self.add("storages", "storages",
+                 required="no storages specified; use -f or -C")
+
+    def realize(self, *args):
+        ZDOptions.realize(self, *args)
+        if self.configroot is not None:
+            self.load_logconf()
+
 
 class ZEOServer:
 
