@@ -374,6 +374,16 @@ XXX example of how to use zdrun
 
 XXX mkzeoinst.py docs should probably go here
 
+Rotating log files
+~~~~~~~~~~~~~~~~~~
+
+ZEO will re-initialize its logging subsystem when it receives a
+SIGUSR2 signal.  If you are using the standard event logger, you
+should first rename the log file and then send the signal to the
+server.  The server will continue writing to the renamed log file
+until it receives the signal.  After it receives the signal, the
+server will create a new file with the old name and write to it.
+
 Diagnosing problems
 -------------------
 
