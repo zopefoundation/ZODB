@@ -65,6 +65,61 @@ class TransactionalUndoStorage:
         data, revid = self._storage.load(oid, '')
         assert pickle.loads(data) == 23
 
+    def checkUndoCreationBranch1(self):
+        oid = self._storage.new_oid()
+        revid = self._dostore(oid, data=11)
+        revid = self._dostore(oid, revid=revid, data=12)
+        # Undo the last transaction
+        info = self._storage.undoInfo()
+        tid = info[0]['id']
+        self._storage.tpc_begin(self._transaction)
+        oids = self._storage.transactionalUndo(tid, self._transaction)
+        self._storage.tpc_vote(self._transaction)
+        self._storage.tpc_finish(self._transaction)
+        assert len(oids) == 1
+        assert oids[0] == oid
+        data, revid = self._storage.load(oid, '')
+        assert pickle.loads(data) == 11
+        # Now from here, we can either redo the last undo, or undo the object
+        # creation.  Let's undo the object creation.
+        info = self._storage.undoInfo()
+        tid = info[2]['id']
+        self._storage.tpc_begin(self._transaction)
+        oids = self._storage.transactionalUndo(tid, self._transaction)
+        self._storage.tpc_vote(self._transaction)
+        self._storage.tpc_finish(self._transaction)
+        assert len(oids) == 1
+        assert oids[0] == oid
+        self.assertRaises(KeyError, self._storage.load, oid, '')
+
+    def checkUndoCreationBranch2(self):
+        oid = self._storage.new_oid()
+        revid = self._dostore(oid, data=11)
+        revid = self._dostore(oid, revid=revid, data=12)
+        # Undo the last transaction
+        info = self._storage.undoInfo()
+        tid = info[0]['id']
+        self._storage.tpc_begin(self._transaction)
+        oids = self._storage.transactionalUndo(tid, self._transaction)
+        self._storage.tpc_vote(self._transaction)
+        self._storage.tpc_finish(self._transaction)
+        assert len(oids) == 1
+        assert oids[0] == oid
+        data, revid = self._storage.load(oid, '')
+        assert pickle.loads(data) == 11
+        # Now from here, we can either redo the last undo, or undo the object
+        # creation.  Let's redo the last undo
+        info = self._storage.undoInfo()
+        tid = info[0]['id']
+        self._storage.tpc_begin(self._transaction)
+        oids = self._storage.transactionalUndo(tid, self._transaction)
+        self._storage.tpc_vote(self._transaction)
+        self._storage.tpc_finish(self._transaction)
+        assert len(oids) == 1
+        assert oids[0] == oid
+        data, revid = self._storage.load(oid, '')
+        assert pickle.loads(data) == 12
+
     def checkTwoObjectUndo(self):
         # Convenience
         p31, p32, p51, p52 = map(pickle.dumps, (31, 32, 51, 52))
@@ -160,7 +215,6 @@ class TransactionalUndoStorage:
         assert pickle.loads(data) == 30
         data, revid2 = self._storage.load(oid2, '')
         assert pickle.loads(data) == 50
-
         # Now try to undo the one we just did to undo, whew
         info = self._storage.undoInfo()
         tid = info[0]['id']
@@ -169,11 +223,11 @@ class TransactionalUndoStorage:
         self._storage.tpc_vote(self._transaction)
         self._storage.tpc_finish(self._transaction)
         assert len(oids) == 2
+        assert oid1 in oids and oid2 in oids
         data, revid1 = self._storage.load(oid1, '')
         assert pickle.loads(data) == 32
         data, revid2 = self._storage.load(oid2, '')
         assert pickle.loads(data) == 52
-
 
     def checkTwoObjectUndoAgain(self):
         p32, p33, p52, p53 = map(pickle.dumps, (32, 33, 52, 53))
