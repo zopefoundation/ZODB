@@ -474,12 +474,13 @@ class PackableUndoStorage(PackableStorageBase):
         packt2 = time.time()
 
         db.pack(packt2)
-        if isinstance(self._storage, FileStorage):
-            # If FileStorage performed a redundant pack, it would
-            # remove the lost_oid.
-            self.assertRaises(StorageError, db.pack, packt1)
-        else:
+        # BDBStorage allows the second pack, but doesn't lose data.
+        try:
             db.pack(packt1)
+        except StorageError:
+            pass
+        # This object would be removed by the second pack, even though
+        # it is reachable.
         self._storage.load(lost_oid, "")
 
     def checkPackUndoLog(self):
