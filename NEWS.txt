@@ -2,7 +2,12 @@ What's new in ZODB3 3.3?
 ========================
 Release date: 17-Sep-2004
 
-Nothing changed since the 3.3c1 release, except for adding a new test.
+ZODB/component.xml
+------------------
+
+``cache-size`` parameters were changed from type ``integer`` to
+type ``byte-size``.  This allows you to specify, for example,
+"``cache-size 20MB``" to get a 20 megabyte cache.
 
 
 What's new in ZODB3 3.3 release candidate 1?

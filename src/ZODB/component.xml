@@ -73,9 +73,9 @@
         which is also the default name for the ZEO server.
       </description>
     </key>
-    <key name="cache-size" datatype="integer" default="20000000">
+    <key name="cache-size" datatype="byte-size" default="20MB">
       <description>
-        The maximum size of the client cache, in bytes.
+        The maximum size of the client cache, in bytes, KB or MB.
       </description>
     </key>
     <key name="name" default="">
@@ -152,7 +152,7 @@
   <sectiontype name="zodb" datatype=".ZODBDatabase"
                implements="ZODB.database">
     <section type="ZODB.storage" name="*" attribute="storage"/>
-    <key name="cache-size" datatype="integer" default="5000"/>
+    <key name="cache-size" datatype="byte-size" default="5000"/>
     <key name="pool-size" datatype="integer" default="7"/>
     <key name="version-pool-size" datatype="integer" default="3"/>
     <key name="version-cache-size" datatype="integer" default="100"/>
