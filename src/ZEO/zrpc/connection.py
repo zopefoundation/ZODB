@@ -290,7 +290,7 @@ class Connection(smac.SizedMessageAsyncConnection):
 
     def _call(self, method, args):
         if self.closed:
-            raise DisconnectedError("This action is temporarily unavailable")
+            raise DisconnectedError()
         msgid = self.msgid
         self.msgid = self.msgid + 1
         if __debug__:
@@ -322,7 +322,7 @@ class Connection(smac.SizedMessageAsyncConnection):
 
     def _callAsync(self, method, args):
         if self.closed:
-            raise DisconnectedError("This action is temporarily unavailable")
+            raise DisconnectedError()
         msgid = self.msgid
         self.msgid += 1
         if __debug__:
