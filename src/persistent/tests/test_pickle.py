@@ -71,7 +71,7 @@ def test_basic_pickling():
     >>> pickle.loads(pickle.dumps(x, 1)) == x
     1
 
-    XXX disable until Python 2.3.4 >>> pickle.loads(pickle.dumps(x, 2)) == x
+    >>> pickle.loads(pickle.dumps(x, 2)) == x
     1
 
     >>> x.__setstate__({'z': 1})
@@ -121,8 +121,7 @@ def test_pickling_w_overrides():
     1
     >>> pickle.loads(pickle.dumps(x, 1)) == x
     1
-
-    XXX disable until Python 2.3.4 >>> pickle.loads(pickle.dumps(x, 2)) == x
+    >>> pickle.loads(pickle.dumps(x, 2)) == x
     1
 
     """
@@ -160,8 +159,7 @@ def test_pickling_w_slots_only():
     1
     >>> pickle.loads(pickle.dumps(x, 1)) == x
     1
-
-    XXX disable until Python 2.3.4 >>> pickle.loads(pickle.dumps(x, 2)) == x
+    >>> pickle.loads(pickle.dumps(x, 2)) == x
     1
 
     >>> x.s4 = 'spam'
@@ -177,8 +175,7 @@ def test_pickling_w_slots_only():
     1
     >>> pickle.loads(pickle.dumps(x, 1)) == x
     1
-
-    XXX disable until Python 2.3.4 >>> pickle.loads(pickle.dumps(x, 2)) == x
+    >>> pickle.loads(pickle.dumps(x, 2)) == x
     1
 
     """
@@ -212,8 +209,7 @@ def test_pickling_w_slots():
     1
     >>> pickle.loads(pickle.dumps(x, 1)) == x
     1
-
-    XXX disable until Python 2.3.4     >>> pickle.loads(pickle.dumps(x, 2)) == x
+    >>> pickle.loads(pickle.dumps(x, 2)) == x
     1
 
     >>> x.s4 = 'spam'
@@ -230,8 +226,7 @@ def test_pickling_w_slots():
     1
     >>> pickle.loads(pickle.dumps(x, 1)) == x
     1
-
-    XXX disable until Python 2.3.4     >>> pickle.loads(pickle.dumps(x, 2)) == x
+    >>> pickle.loads(pickle.dumps(x, 2)) == x
     1
 
     """
@@ -252,8 +247,7 @@ def test_pickling_w_slots_w_empty_dict():
     1
     >>> pickle.loads(pickle.dumps(x, 1)) == x
     1
-
-    XXX disable until Python 2.3.4     >>> pickle.loads(pickle.dumps(x, 2)) == x
+    >>> pickle.loads(pickle.dumps(x, 2)) == x
     1
 
     >>> x.s4 = 'spam'
@@ -270,8 +264,7 @@ def test_pickling_w_slots_w_empty_dict():
     1
     >>> pickle.loads(pickle.dumps(x, 1)) == x
     1
-
-    XXX disable until Python 2.3.4     >>> pickle.loads(pickle.dumps(x, 2)) == x
+    >>> pickle.loads(pickle.dumps(x, 2)) == x
     1
 
     """

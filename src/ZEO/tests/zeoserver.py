@@ -139,7 +139,7 @@ class Suicide(threading.Thread):
             os.kill(pid, signal.SIGKILL)
         else:
             from ZEO.tests.forker import shutdown_zeo_server
-            # XXX If the -k option was given to zeoserver, then the
+            # Nott:  If the -k option was given to zeoserver, then the
             # process will go away but the temp files won't get
             # cleaned up.
             shutdown_zeo_server(self._adminaddr)
@@ -167,7 +167,6 @@ def main():
     zo.realize(["-C", configfile])
     zeo_port = int(zo.address[1])
 
-    # XXX a hack
     if zo.auth_protocol == "plaintext":
         import ZEO.tests.auth_plaintext
 
