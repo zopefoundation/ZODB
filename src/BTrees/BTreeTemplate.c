@@ -12,7 +12,7 @@
 
  ****************************************************************************/
 
-#define BTREETEMPLATE_C "$Id: BTreeTemplate.c,v 1.41 2002/06/11 02:14:36 tim_one Exp $\n"
+#define BTREETEMPLATE_C "$Id: BTreeTemplate.c,v 1.42 2002/06/11 02:37:57 tim_one Exp $\n"
 
 /*
 ** _BTree_get
@@ -211,20 +211,22 @@ BTree_grow(BTree *self, int index, int noval)
       e = SIZED(PyObject_CallObject(OBJECT(v->ob_type), NULL));
       UNLESS (e) return -1;
 
-      PER_USE_OR_RETURN(BUCKET(v), -1);
-
+      UNLESS(PER_USE(v))
+        {
+          Py_DECREF(e);
+          return -1;
+        }
 
       /* Now split between the original (v) and the new (e) at the midpoint*/
       if (SameType_Check(self, v))
         {
-          i=BTree_split(  BTREE(v), -1,   BTREE(e));
+          i=BTree_split(BTREE(v), -1,   BTREE(e));
         }
       else
         {
           i=bucket_split(BUCKET(v), -1, BUCKET(e));
         }
-
-      PER_ALLOW_DEACTIVATION(BUCKET(v));
+      PER_ALLOW_DEACTIVATION(v);
 
       if (i < 0)
         {
