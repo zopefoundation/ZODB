@@ -2,10 +2,7 @@ import ZODB.DemoStorage
 import os, unittest
 
 from ZODB.tests import StorageTestBase, BasicStorage, \
-     TransactionalUndoStorage, VersionStorage, \
-     TransactionalUndoVersionStorage, PackableStorage, \
-     Synchronization, ConflictResolution, HistoryStorage, \
-     IteratorStorage, Corruption
+     VersionStorage, Synchronization
 
 class DemoStorageTests(StorageTestBase.StorageTestBase,
                        BasicStorage.BasicStorage,
