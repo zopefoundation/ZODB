@@ -123,30 +123,42 @@ class LRUCacheTests(CacheTestBase):
     
     def checkLRU(self):
         # verify the LRU behavior of the cache
-        CACHE_SIZE = 5
+        dataset_size = 5
+        CACHE_SIZE = dataset_size*2+1
+        # a cache big enough to hold the objects added in two
+        # transactions, plus the root object
         self.db.setCacheSize(CACHE_SIZE)
         c = self.db.open()
         r = c.root()
-        l = [None] * 10
-        for i in range(10):
-            l[i] = r[i] = MinPO(i)
+        l = {}
         # the root is the only thing in the cache, because all the
         # other objects are new
         self.assertEqual(len(c._cache), 1)
-        get_transaction().commit()
-        # commit() will register the objects, placing them in the cache.
-        # at the end of commit, the cache will be reduced down to CACHE_SIZE
-        # items
-        self.assertEqual(c._cache.ringlen(), CACHE_SIZE)
-        x = c._cache.get(p64(0), None)
-        self.assertEqual(x._p_changed, None) # the root is ghosted
-        for i in range(len(l)):
-            if i < CACHE_SIZE:
-                # Changes are flushed but objects not ghostified
-                self.assertEqual(l[i]._p_changed, 0)
-            else:
-                # Objects are ghostified and evicted from the cache
-                self.assertEqual(l[i]._p_changed, None)
+        # run several transactions
+        for t in range(5):
+            for i in range(dataset_size):
+                l[(t,i)] = r[i] = MinPO(i)
+            get_transaction().commit()
+            # commit() will register the objects, placing them in the cache.
+            # at the end of commit, the cache will be reduced down to CACHE_SIZE
+            # items
+            if len(l)>CACHE_SIZE:
+                self.assertEqual(c._cache.ringlen(), CACHE_SIZE)
+        for i in range(dataset_size):
+            # Check objects added in the first two transactions.
+            # They must all be ghostified.
+            self.assertEqual(l[(0,i)]._p_changed, None)
+            self.assertEqual(l[(1,i)]._p_changed, None)
+            # Check objects added in the last two transactions.
+            # They must all still exist in memory, but have
+            # had their changes flushed
+            self.assertEqual(l[(3,i)]._p_changed, 0)
+            self.assertEqual(l[(4,i)]._p_changed, 0)
+            # Of the objects added in the middle transaction, most
+            # will have been ghostified. There is one cache slot
+            # that may be occupied by either one of those objects or
+            # the root, depending on precise order of access. We do
+            # not bother to check this
 
     def checkSize(self):
         self.assertEqual(self.db.cacheSize(), 0)
