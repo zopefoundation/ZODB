@@ -26,7 +26,6 @@ class PersistentStorage:
         self._storage.new_oid = new_oid_wrapper
 
         self._dostore()
-        self._dostore('a')
         oid = self._storage.new_oid()
         revid = self._dostore(oid)
         self._dostore(oid, revid, data=8, version='b')
