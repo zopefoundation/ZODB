@@ -20,7 +20,9 @@ import select
 import socket
 import asyncore
 import tempfile
+import thread # XXX do we really need to catch thread.error
 import threading
+import time
 
 import zLOG
 
@@ -36,9 +38,18 @@ from ZODB.tests.MinPO import MinPO
 from ZODB.tests.StorageTestBase import zodb_pickle, zodb_unpickle
 from ZODB.tests.StorageTestBase import handle_all_serials, ZERO
 
+class TestClientStorage(ClientStorage):
+
+    def verify_cache(self, stub):
+        self.end_verify = threading.Event()
+        self.verify_result = ClientStorage.verify_cache(self, stub)
+
+    def endVerify(self):
+        ClientStorage.endVerify(self)
+        self.end_verify.set()
 
 class DummyDB:
-    def invalidate(self, *args, **kws):
+    def invalidate(self, *args, **kwargs):
         pass
 
 
@@ -48,6 +59,7 @@ class CommonSetupTearDown(StorageTestBase):
     __super_setUp = StorageTestBase.setUp
     __super_tearDown = StorageTestBase.tearDown
     keep = 0
+    invq = None
 
     def setUp(self):
         """Test setup for connection tests.
@@ -99,17 +111,15 @@ class CommonSetupTearDown(StorageTestBase):
         raise NotImplementedError
 
     def openClientStorage(self, cache='', cache_size=200000, wait=1,
-                          read_only=0, read_only_fallback=0,
-                          addr=None):
-        if addr is None:
-            addr = self.addr
-        storage = ClientStorage(addr,
-                                client=cache,
-                                cache_size=cache_size,
-                                wait=wait,
-                                min_disconnect_poll=0.1,
-                                read_only=read_only,
-                                read_only_fallback=read_only_fallback)
+                          read_only=0, read_only_fallback=0):
+        base = TestClientStorage(self.addr,
+                                 client=cache,
+                                 cache_size=cache_size,
+                                 wait=wait,
+                                 min_disconnect_poll=0.1,
+                                 read_only=read_only,
+                                 read_only_fallback=read_only_fallback)
+        storage = base
         storage.registerDB(DummyDB(), None)
         return storage
 
@@ -121,7 +131,7 @@ class CommonSetupTearDown(StorageTestBase):
         path = "%s.%d" % (self.file, index)
         conf = self.getConfig(path, create, read_only)
         zeoport, adminaddr, pid = forker.start_zeo_server(
-            conf, addr, ro_svr, self.keep)
+            conf, addr, ro_svr, self.keep, self.invq)
         self._pids.append(pid)
         self._servers.append(adminaddr)
 
@@ -420,9 +430,9 @@ class ConnectionTests(CommonSetupTearDown):
             for t in threads:
                 t.closeclients()
 
-
 class ReconnectionTests(CommonSetupTearDown):
     keep = 1
+    invq = 2
 
     def checkReadOnlyStorage(self):
         # Open a read-only client to a read-only *storage*; stores fail
@@ -556,6 +566,113 @@ class ReconnectionTests(CommonSetupTearDown):
                 time.sleep(0.1)
         else:
             self.fail("Couldn't store after starting a read-write server")
+
+    def checkNoVerificationOnServerRestart(self):
+        self._storage = self.openClientStorage()
+        # When we create a new storage, it should always do a full
+        # verification
+        self.assertEqual(self._storage.verify_result, "full verification")
+        self._dostore()
+        self.shutdownServer()
+        self.pollDown()
+        self._storage.verify_result = None
+        self.startServer(create=0)
+        self.pollUp()
+        # There were no transactions committed, so no verification
+        # should be needed.
+        self.assertEqual(self._storage.verify_result, "no verification")
+        
+    def checkNoVerificationOnServerRestartWith2Clients(self):
+        perstorage = self.openClientStorage(cache="test")
+        self.assertEqual(perstorage.verify_result, "full verification")
+        
+        self._storage = self.openClientStorage()
+        oid = self._storage.new_oid()
+        # When we create a new storage, it should always do a full
+        # verification
+        self.assertEqual(self._storage.verify_result, "full verification")
+        # do two storages of the object to make sure an invalidation
+        # message is generated
+        revid = self._dostore(oid)
+        self._dostore(oid, revid)
+
+        perstorage.load(oid, '')
+
+        self.shutdownServer()
+
+        self.pollDown()
+        self._storage.verify_result = None
+        perstorage.verify_result = None
+        self.startServer(create=0)
+        self.pollUp()
+        # There were no transactions committed, so no verification
+        # should be needed.
+        self.assertEqual(self._storage.verify_result, "no verification")
+
+        perstorage.close()
+        self.assertEqual(perstorage.verify_result, "no verification")
+
+    def checkQuickVerificationWith2Clients(self):
+        perstorage = self.openClientStorage(cache="test")
+        self.assertEqual(perstorage.verify_result, "full verification")
+        
+        self._storage = self.openClientStorage()
+        oid = self._storage.new_oid()
+        # When we create a new storage, it should always do a full
+        # verification
+        self.assertEqual(self._storage.verify_result, "full verification")
+        # do two storages of the object to make sure an invalidation
+        # message is generated
+        revid = self._dostore(oid)
+        revid = self._dostore(oid, revid)
+
+        perstorage.load(oid, '')
+        perstorage.close()
+        
+        revid = self._dostore(oid, revid)
+
+        perstorage = self.openClientStorage(cache="test")
+        self.assertEqual(perstorage.verify_result, "quick verification")
+
+        self.assertEqual(perstorage.load(oid, ''),
+                         self._storage.load(oid, ''))
+
+
+
+    def checkVerificationWith2ClientsInvqOverflow(self):
+        perstorage = self.openClientStorage(cache="test")
+        self.assertEqual(perstorage.verify_result, "full verification")
+        
+        self._storage = self.openClientStorage()
+        oid = self._storage.new_oid()
+        # When we create a new storage, it should always do a full
+        # verification
+        self.assertEqual(self._storage.verify_result, "full verification")
+        # do two storages of the object to make sure an invalidation
+        # message is generated
+        revid = self._dostore(oid)
+        revid = self._dostore(oid, revid)
+
+        perstorage.load(oid, '')
+        perstorage.close()
+
+        # the test code sets invq bound to 2
+        for i in range(5):
+            revid = self._dostore(oid, revid)
+
+        perstorage = self.openClientStorage(cache="test")
+        self.assertEqual(perstorage.verify_result, "full verification")
+        t = time.time() + 30
+        while not perstorage.end_verify.isSet():
+            perstorage.sync()
+            if time.time() > t:
+                self.fail("timed out waiting for endVerify")
+
+        self.assertEqual(self._storage.load(oid, '')[1], revid)
+        self.assertEqual(perstorage.load(oid, ''),
+                         self._storage.load(oid, ''))
+
+        perstorage.close()
 
 
 class MSTThread(threading.Thread):

@@ -51,7 +51,7 @@ def get_port():
     raise RuntimeError, "Can't find port"
 
 
-def start_zeo_server(conf, addr=None, ro_svr=0, keep=0):
+def start_zeo_server(conf, addr=None, ro_svr=0, keep=0, invq=None):
     """Start a ZEO server in a separate process.
 
     Returns the ZEO port, the test server port, and the pid.
@@ -77,6 +77,8 @@ def start_zeo_server(conf, addr=None, ro_svr=0, keep=0):
         args.append('-r')
     if keep:
         args.append('-k')
+    if invq:
+        args += ['-Q', str(invq)]
     args.append(str(port))
     d = os.environ.copy()
     d['PYTHONPATH'] = os.pathsep.join(sys.path)

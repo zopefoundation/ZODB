@@ -44,16 +44,16 @@ class ClientStorage:
         self.rpc = rpc
 
     def beginVerify(self):
-        self.rpc.callAsync('begin')
+        self.rpc.callAsync('beginVerify')
 
     def invalidateVerify(self, args):
-        self.rpc.callAsync('invalidate', args)
+        self.rpc.callAsync('invalidateVerify', args)
 
     def endVerify(self):
-        self.rpc.callAsync('end')
+        self.rpc.callAsync('endVerify')
 
-    def invalidateTrans(self, args):
-        self.rpc.callAsync('Invalidate', args)
+    def invalidateTransaction(self, tid, args):
+        self.rpc.callAsync('invalidateTransaction', tid, args)
 
     def serialnos(self, arg):
         self.rpc.callAsync('serialnos', arg)

@@ -116,8 +116,9 @@ def main():
     ro_svr = 0
     keep = 0
     configfile = None
+    invalidation_queue_size = 100
     # Parse the arguments and let getopt.error percolate
-    opts, args = getopt.getopt(sys.argv[1:], 'rkC:')
+    opts, args = getopt.getopt(sys.argv[1:], 'rkC:Q:')
     for opt, arg in opts:
         if opt == '-r':
             ro_svr = 1
@@ -125,6 +126,8 @@ def main():
             keep = 1
         elif opt == '-C':
             configfile = arg
+        elif opt == '-Q':
+            invalidation_queue_size = int(arg)
     # Open the config file and let ZConfig parse the data there.  Then remove
     # the config file, otherwise we'll leave turds.
     fp = open(configfile, 'r')
@@ -145,7 +148,9 @@ def main():
         sys.exit(2)
     addr = ('', zeo_port)
     log(label, 'creating the storage server')
-    serv = ZEO.StorageServer.StorageServer(addr, {'1': storage}, ro_svr)
+    serv = ZEO.StorageServer.StorageServer(
+        addr, {'1': storage}, ro_svr,
+        invalidation_queue_size=invalidation_queue_size)
     log(label, 'entering ThreadedAsync loop')
     ThreadedAsync.LoopCallback.loop()
 

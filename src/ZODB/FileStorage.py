@@ -115,7 +115,7 @@
 #   may have a back pointer to a version record or to a non-version
 #   record.
 #
-__version__='$Revision: 1.123 $'[11:-2]
+__version__='$Revision: 1.124 $'[11:-2]
 
 import base64
 from cPickle import Pickler, Unpickler, loads
@@ -124,7 +124,7 @@ import os
 import struct
 import sys
 import time
-from types import StringType
+from types import StringType, DictType
 from struct import pack, unpack
 
 try:
@@ -137,7 +137,12 @@ from ZODB.POSException import UndoError, POSKeyError, MultipleUndoErrors
 from ZODB.TimeStamp import TimeStamp
 from ZODB.lock_file import lock_file
 from ZODB.utils import p64, u64, cp, z64
-from ZODB.fsIndex import fsIndex
+
+try:
+    from ZODB.fsIndex import fsIndex
+except ImportError:
+    def fsIndex():
+        return {}
 
 from zLOG import LOG, BLATHER, WARNING, ERROR, PANIC
 
@@ -202,6 +207,8 @@ class FileStorage(BaseStorage.BaseStorage,
                   ConflictResolution.ConflictResolvingStorage):
     # default pack time is 0
     _packt = z64
+
+    _records_before_save = 10000
 
     def __init__(self, file_name, create=0, read_only=0, stop=None,
                  quota=None):
@@ -270,7 +277,9 @@ class FileStorage(BaseStorage.BaseStorage,
 
         r = self._restore_index()
         if r is not None:
+            self._used_index = 1 # Marker for testing
             index, vindex, start, maxoid, ltid = r
+
             self._initIndex(index, vindex, tindex, tvindex)
             self._pos, self._oid, tid = read_index(
                 self._file, file_name, index, vindex, tindex, stop,
@@ -278,10 +287,15 @@ class FileStorage(BaseStorage.BaseStorage,
                 read_only=read_only,
                 )
         else:
+            self._used_index = 0 # Marker for testing
             self._pos, self._oid, tid = read_index(
                 self._file, file_name, index, vindex, tindex, stop,
                 read_only=read_only,
                 )
+            self._save_index()
+
+        self._records_before_save = max(self._records_before_save,
+                                        len(self._index))
         self._ltid = tid
         
         # self._pos should always point just past the last
@@ -314,6 +328,7 @@ class FileStorage(BaseStorage.BaseStorage,
         # hook to use something other than builtin dict
         return fsIndex(), {}, {}, {}
 
+    _saved = 0
     def _save_index(self):
         """Write the database index to a file to support quick startup."""
 
@@ -329,6 +344,7 @@ class FileStorage(BaseStorage.BaseStorage,
         p.dump(info)
         f.flush()
         f.close()
+
         try:
             try:
                 os.remove(index_name)
@@ -336,6 +352,8 @@ class FileStorage(BaseStorage.BaseStorage,
                 pass
             os.rename(tmp_name, index_name)
         except: pass
+
+        self._saved += 1
 
     def _clear_index(self):
         index_name = self.__name__ + '.index'
@@ -354,58 +372,77 @@ class FileStorage(BaseStorage.BaseStorage,
         object positions cause zero to be returned.
         """
 
-        if pos < 100: return 0
-        file=self._file
-        seek=file.seek
-        read=file.read
+        if pos < 100:
+            return 0 # insane
+        file = self._file
+        seek = file.seek
+        read = file.read
         seek(0,2)
-        if file.tell() < pos: return 0
-        ltid=None
+        if file.tell() < pos:
+            return 0 # insane
+        ltid = None
 
-        while 1:
+        max_checked = 5
+        checked = 0
+
+        while checked < max_checked:
             seek(pos-8)
-            rstl=read(8)
-            tl=u64(rstl)
-            pos=pos-tl-8
-            if pos < 4: return 0
+            rstl = read(8)
+            tl = u64(rstl)
+            pos = pos-tl-8
+            if pos < 4:
+                return 0 # insane
             seek(pos)
             s = read(TRANS_HDR_LEN)
             tid, stl, status, ul, dl, el = unpack(TRANS_HDR, s)
-            if not ltid: ltid=tid
-            if stl != rstl: return 0 # inconsistent lengths
-            if status == 'u': continue # undone trans, search back
-            if status not in ' p': return 0
-            if tl < (TRANS_HDR_LEN + ul + dl + el): return 0
-            tend=pos+tl
-            opos=pos+(TRANS_HDR_LEN + ul + dl + el)
-            if opos==tend: continue # empty trans
+            if not ltid:
+                ltid = tid
+            if stl != rstl:
+                return 0 # inconsistent lengths
+            if status == 'u':
+                continue # undone trans, search back
+            if status not in ' p':
+                return 0 # insane
+            if tl < (TRANS_HDR_LEN + ul + dl + el):
+                return 0 # insane
+            tend = pos+tl
+            opos = pos+(TRANS_HDR_LEN + ul + dl + el)
+            if opos == tend:
+                continue # empty trans
 
-            while opos < tend:
+            while opos < tend and checked < max_checked:
                 # Read the data records for this transaction
                 seek(opos)
-                h=read(DATA_HDR_LEN)
-                oid,serial,sprev,stloc,vlen,splen = unpack(DATA_HDR, h)
-                tloc=u64(stloc)
-                plen=u64(splen)
+                h = read(DATA_HDR_LEN)
+                oid, serial, sprev, stloc, vlen, splen = unpack(DATA_HDR, h)
+                tloc = u64(stloc)
+                plen = u64(splen)
 
-                dlen=DATA_HDR_LEN+(plen or 8)
-                if vlen: dlen=dlen+(16+vlen)
+                dlen = DATA_HDR_LEN+(plen or 8)
+                if vlen:
+                    dlen = dlen+(16+vlen)
 
-                if opos+dlen > tend or tloc != pos: return 0
+                if opos+dlen > tend or tloc != pos:
+                    return 0 # insane
 
-                if index.get(oid, 0) != opos: return 0
+                if index.get(oid, 0) != opos:
+                    return 0 # insane
 
-                opos=opos+dlen
+                checked += 1
+
+                opos = opos+dlen
 
             return ltid
 
     def _restore_index(self):
         """Load database index to support quick startup."""
-        try:
-            f = open("%s.index" % self.__name__, 'rb')
-        except:
-            return None
-        p = Unpickler(f)
+        file_name=self.__name__
+        index_name=file_name+'.index'
+
+        try: f=open(index_name,'rb')
+        except: return None
+
+        p=Unpickler(f)
 
         try:
             info=p.load()
@@ -421,6 +458,23 @@ class FileStorage(BaseStorage.BaseStorage,
         if index is None or pos is None or oid is None or vindex is None:
             return None
         pos = long(pos)
+
+        if isinstance(index, DictType) and not self._is_read_only:
+            # Convert to fsIndex
+            newindex = fsIndex()
+            if type(newindex) is not type(index):
+                # And we have fsIndex
+                newindex.update(index)
+
+                # Now save the index
+                f = open(index_name, 'wb')
+                p = Pickler(f, 1)
+                info['index'] = newindex
+                p.dump(info)
+                f.close()
+
+                # Now call this method again to get the new data
+                return self._restore_index()
 
         tid = self._sane(index, pos)
         if not tid:
@@ -955,6 +1009,9 @@ class FileStorage(BaseStorage.BaseStorage,
         finally:
             self._lock_release()
 
+    # Keep track of the number of records that we've written
+    _records_written = 0
+
     def _finish(self, tid, u, d, e):
         nextpos=self._nextpos
         if nextpos:
@@ -967,10 +1024,20 @@ class FileStorage(BaseStorage.BaseStorage,
 
             if fsync is not None: fsync(file.fileno())
 
-            self._pos=nextpos
-
+            self._pos = nextpos
+            
             self._index.update(self._tindex)
             self._vindex.update(self._tvindex)
+            
+            # Update the number of records that we've written
+            # +1 for the transaction record
+            self._records_written += len(self._tindex) + 1 
+            if self._records_written >= self._records_before_save:
+                self._save_index()
+                self._records_written = 0
+                self._records_before_save = max(self._records_before_save,
+                                                len(self._index))
+                
         self._ltid = tid
 
     def _abort(self):
@@ -1210,7 +1277,8 @@ class FileStorage(BaseStorage.BaseStorage,
         while pos < tend:
             self._file.seek(pos)
             h = self._file.read(DATA_HDR_LEN)
-            oid, serial, sprev, stloc, vlen, splen = struct.unpack(DATA_HDR, h)
+            oid, serial, sprev, stloc, vlen, splen = \
+                 struct.unpack(DATA_HDR, h)
             if failed(oid):
                 del failures[oid] # second chance!
             plen = u64(splen)
@@ -1966,6 +2034,7 @@ def read_index(file, name, index, vindex, tindex, stop='\377'*8,
     id in the data.  The transaction id is the tid of the last
     transaction.
     """
+
     read = file.read
     seek = file.seek
     seek(0, 2)
@@ -2001,7 +2070,7 @@ def read_index(file, name, index, vindex, tindex, stop='\377'*8,
 
         if tid <= ltid:
             warn("%s time-stamp reduction at %s", name, pos)
-        ltid=tid
+        ltid = tid
 
         tl=u64(stl)
 
@@ -2074,7 +2143,12 @@ def read_index(file, name, index, vindex, tindex, stop='\377'*8,
             if vlen:
                 dlen=dlen+(16+vlen)
                 read(16)
+                pv=u64(read(8))
                 version=read(vlen)
+                # Jim says: "It's just not worth the bother."
+                #if vndexpos(version, 0) != pv:
+                #    panic("%s incorrect previous version pointer at %s",
+                #          name, pos)
                 vindex[version]=pos
 
             if pos+dlen > tend or tloc != tpos:
@@ -2223,8 +2297,11 @@ class FileIterator(Iterator):
         self._stop = stop
 
     def __len__(self):
-        # This is a lie.  It's here only for Python 2.1 support for
-        # list()-ifying these objects.
+        # Define a bogus __len__() to make the iterator work
+        # with code like builtin list() and tuple() in Python 2.1.
+        # There's a lot of C code that expects a sequence to have
+        # an __len__() but can cope with any sort of mistake in its
+        # implementation.  So just return 0.
         return 0
 
     def close(self):
@@ -2362,7 +2439,6 @@ class FileIterator(Iterator):
 
 class RecordIterator(Iterator, BaseStorage.TransactionRecord):
     """Iterate over the transactions in a FileStorage file."""
-    
     def __init__(self, tid, status, user, desc, ext, pos, tend, file, tpos):
         self.tid = tid
         self.status = status

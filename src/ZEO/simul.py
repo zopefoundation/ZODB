@@ -117,18 +117,12 @@ def main():
             # Must be a misaligned record caused by a crash
             ##print "Skipping 8 bytes at offset", offset-8
             continue
-        oid = f_read(8)
-        if len(oid) < 8:
+        r = f_read(16)
+        if len(r) < 16:
             break
-        if heuristic and oid[:4] != '\0\0\0\0':
-            f.seek(-8, 1)
-            continue
-        offset += 8
-        serial = f_read(8)
-        if len(serial) < 8:
-            break
-        offset += 8
+        offset += 16
         records += 1
+        oid, serial = struct_unpack(">8s8s", r)
         # Decode the code
         dlen, version, code, current = (code & 0x7fffff00,
                                         code & 0x80,

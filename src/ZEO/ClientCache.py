@@ -34,8 +34,16 @@ temporary directory as determined by the tempfile module.
 The ClientStorage overrides the client name default to the value of
 the environment variable ZEO_CLIENT, if it exists.
 
-Each cache file has a 4-byte magic number followed by a sequence of
-records of the form:
+Each cache file has a 12-byte header followed by a sequence of
+records.  The header format is as follows:
+
+  offset in header: name -- description
+
+  0: magic -- 4-byte magic number, identifying this as a ZEO cache file
+
+  4: lasttid -- 8-byte last transaction id
+
+Each record has the following form:
 
   offset in record: name -- description
 
@@ -111,7 +119,8 @@ from ZODB.utils import U64
 import zLOG
 from ZEO.ICache import ICache
 
-magic='ZEC0'
+magic = 'ZEC1'
+headersize = 12
 
 class ClientCache:
 
@@ -126,6 +135,8 @@ class ClientCache:
 
         self._storage = storage
         self._limit = size / 2
+        self._client = client
+        self._ltid = None # For getLastTid()
 
         # Allocate locks:
         L = allocate_lock()
@@ -154,9 +165,9 @@ class ClientCache:
                     fi = open(p[i],'r+b')
                     if fi.read(4) == magic: # Minimal sanity
                         fi.seek(0, 2)
-                        if fi.tell() > 30:
-                            # First serial is at offset 19 + 4 for magic
-                            fi.seek(23)
+                        if fi.tell() > headersize:
+                            # Read serial at offset 19 of first record
+                            fi.seek(headersize + 19)
                             s[i] = fi.read(8)
                     # If we found a non-zero serial, then use the file
                     if s[i] != '\0\0\0\0\0\0\0\0':
@@ -172,14 +183,14 @@ class ClientCache:
                 if f[0] is None:
                     # We started, open the first cache file
                     f[0] = open(p[0], 'w+b')
-                    f[0].write(magic)
+                    f[0].write(magic + '\0' * (headersize - len(magic)))
                 current = 0
                 f[1] = None
         else:
             self._f = f = [tempfile.TemporaryFile(suffix='.zec'), None]
             # self._p file name 'None' signifies an unnamed temp file.
             self._p = p = [None, None]
-            f[0].write(magic)
+            f[0].write(magic + '\0' * (headersize - len(magic)))
             current = 0
 
         self.log("%s: storage=%r, size=%r; file[%r]=%r" %
@@ -218,6 +229,57 @@ class ClientCache:
                     f.close()
                 except OSError:
                     pass
+
+    def getLastTid(self):
+        """Get the last transaction id stored by setLastTid().
+
+        If the cache is persistent, it is read from the current
+        cache file; otherwise it's an instance variable.
+        """
+        if self._client is None:
+            return self._ltid
+        else:
+            self._acquire()
+            try:
+                return self._getLastTid()
+            finally:
+                self._release()
+
+    def _getLastTid(self):
+        f = self._f[self._current]
+        f.seek(4)
+        tid = f.read(8)
+        if len(tid) < 8 or tid == '\0\0\0\0\0\0\0\0':
+            return None
+        else:
+            return tid
+
+    def setLastTid(self, tid):
+        """Store the last transaction id.
+
+        If the cache is persistent, it is written to the current
+        cache file; otherwise it's an instance variable.
+        """
+        if self._client is None:
+            if tid == '\0\0\0\0\0\0\0\0':
+                tid = None
+            self._ltid = tid
+        else:
+            self._acquire()
+            try:
+                self._setLastTid(tid)
+            finally:
+                self._release()
+
+    def _setLastTid(self, tid):
+        if tid is None:
+            tid = '\0\0\0\0\0\0\0\0'
+        else:
+            tid = str(tid)
+            assert len(tid) == 8
+        f = self._f[self._current]
+        f.seek(4)
+        f.write(tid)
 
     def verify(self, verifyFunc):
         """Call the verifyFunc on every object in the cache.
@@ -477,6 +539,7 @@ class ClientCache:
         self._acquire()
         try:
             if self._pos + size > self._limit:
+                ltid = self._getLastTid()
                 current = not self._current
                 self._current = current
                 self._trace(0x70)
@@ -500,8 +563,12 @@ class ClientCache:
                 else:
                     # Temporary cache file:
                     self._f[current] = tempfile.TemporaryFile(suffix='.zec')
-                self._f[current].write(magic)
-                self._pos = 4
+                header = magic
+                if ltid:
+                    header += ltid
+                self._f[current].write(header +
+                                       '\0' * (headersize - len(header)))
+                self._pos = headersize
         finally:
             self._release()
 
@@ -593,7 +660,7 @@ class ClientCache:
         f = self._f[fileindex]
         seek = f.seek
         read = f.read
-        pos = 4
+        pos = headersize
         count = 0
 
         while 1:
@@ -651,7 +718,6 @@ class ClientCache:
                     # We have a record for this oid, but it was invalidated!
                     del serial[oid]
                     del index[oid]
-
 
             pos = pos + tlen
             count += 1

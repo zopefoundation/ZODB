@@ -261,6 +261,19 @@ class ClientCacheTests(unittest.TestCase):
         self.assert_(None is not cache._index.get(oid1) < 0)
         self.assert_(None is not cache._index.get(oid2) < 0)
 
+    def testLastTid(self):
+        cache = self.cache
+        self.failUnless(cache.getLastTid() is None)
+        ltid = 'pqrstuvw'
+        cache.setLastTid(ltid)
+        self.assertEqual(cache.getLastTid(), ltid)
+        cache.checkSize(10*self.cachesize) # Force a file flip
+        self.assertEqual(cache.getLastTid(), ltid)
+        cache.setLastTid(None)
+        self.failUnless(cache.getLastTid() is None)
+        cache.checkSize(10*self.cachesize) # Force a file flip
+        self.failUnless(cache.getLastTid() is None)
+
 class PersistentClientCacheTests(unittest.TestCase):
 
     def setUp(self):
@@ -347,6 +360,26 @@ class PersistentClientCacheTests(unittest.TestCase):
         if loaded != None:
             self.fail("invalidated data resurrected, size %d, was %d" %
                       (len(loaded[0]), len(data)))
+
+    def testPersistentLastTid(self):
+        cache = self.cache
+        self.failUnless(cache.getLastTid() is None)
+        ltid = 'pqrstuvw'
+        cache.setLastTid(ltid)
+        self.assertEqual(cache.getLastTid(), ltid)
+        oid = 'abcdefgh'
+        data = '1234'
+        serial = 'ABCDEFGH'
+        cache.store(oid, data, serial, '', '', '')
+        self.assertEqual(cache.getLastTid(), ltid)
+        cache.checkSize(10*self.cachesize) # Force a file flip
+        self.assertEqual(cache.getLastTid(), ltid)
+        cache = self.reopenCache()
+        self.assertEqual(cache.getLastTid(), ltid)
+        cache.setLastTid(None)
+        self.failUnless(cache.getLastTid() is None)
+        cache.checkSize(10*self.cachesize) # Force a file flip
+        self.failUnless(cache.getLastTid() is None)
 
 def test_suite():
     suite = unittest.TestSuite()

@@ -12,11 +12,9 @@
 #
 ##############################################################################
 """Handy standard storage machinery
-"""
-# Do this portably in the face of checking out with -kv
-import string
-__version__ = string.split('$Revision: 1.30 $')[-2:][0]
 
+$Id: BaseStorage.py,v 1.31 2003/01/03 22:07:43 jeremy Exp $
+"""
 import cPickle
 import ThreadLock, bpthread
 import time, UndoLogCompatible
@@ -277,8 +275,8 @@ class BaseStorage(UndoLogCompatible.UndoLogCompatible):
             restoring = 1
         else:
             restoring = 0
-        for transaction in other.iterator():
-
+        fiter = other.iterator()
+        for transaction in fiter:
             tid=transaction.tid
             if _ts is None:
                 _ts=TimeStamp(tid)
@@ -312,6 +310,8 @@ class BaseStorage(UndoLogCompatible.UndoLogCompatible):
 
             self.tpc_vote(transaction)
             self.tpc_finish(transaction)
+
+        fiter.close()
 
 class TransactionRecord:
     """Abstract base class for iterator protocol"""

@@ -32,6 +32,9 @@ class StorageServer:
         zrpc.connection.Connection class.
         """
         self.rpc = rpc
+        if self.rpc.peer_protocol_version == 'Z200':
+            self.lastTransaction = lambda: None
+            self.getInvalidations = lambda tid: None
 
     def extensionMethod(self, name):
         return ExtensionMethodWrapper(self.rpc, name).call
@@ -51,8 +54,13 @@ class StorageServer:
     def get_info(self):
         return self.rpc.call('get_info')
 
-    def beginZeoVerify(self):
-        self.rpc.callAsync('beginZeoVerify')
+    def lastTransaction(self):
+        # Not in protocol version 2.0.0; see __init__()
+        return self.rpc.call('lastTransaction')
+
+    def getInvalidations(self, tid):
+        # Not in protocol version 2.0.0; see __init__()
+        return self.rpc.call('getInvalidations', tid)
 
     def zeoVerify(self, oid, s, sv):
         self.rpc.callAsync('zeoVerify', oid, s, sv)
