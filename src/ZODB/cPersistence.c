@@ -1,6 +1,6 @@
 /*
 
-  $Id: cPersistence.c,v 1.14 1997/05/01 20:33:58 jim Exp $
+  $Id: cPersistence.c,v 1.15 1997/06/06 19:04:40 jim Exp $
 
   C Persistence Module
 
@@ -56,7 +56,7 @@
 
 
 *****************************************************************************/
-static char *what_string = "$Id: cPersistence.c,v 1.14 1997/05/01 20:33:58 jim Exp $";
+static char *what_string = "$Id: cPersistence.c,v 1.15 1997/06/06 19:04:40 jim Exp $";
 
 #include <time.h>
 #include "cPersistence.h"
@@ -475,6 +475,7 @@ static int
 Per_setstate(self)
      cPersistentObject *self;
 {
+  self->atime=(time_t)1;   /* Mark this object as sticky */
   if(self->state==GHOST_STATE && self->jar)
     {
       PyObject *r;
@@ -483,6 +484,7 @@ Per_setstate(self)
       UNLESS(r=callmethod1(self->jar,py_setstate,(PyObject*)self))
 	{
 	  self->state=GHOST_STATE;
+	  self->atime=time(NULL); /* Unmark as sticky */
 	  return -1;
 	}
       Py_DECREF(r);
@@ -931,7 +933,7 @@ void
 initcPersistence()
 {
   PyObject *m, *d;
-  char *rev="$Revision: 1.14 $";
+  char *rev="$Revision: 1.15 $";
 
   PATimeType.ob_type=&PyType_Type;
 
@@ -958,6 +960,10 @@ initcPersistence()
 /****************************************************************************
 
   $Log: cPersistence.c,v $
+  Revision 1.15  1997/06/06 19:04:40  jim
+  Modified so that C API setstate makes object temporarily
+  undeactivatable.
+
   Revision 1.14  1997/05/01 20:33:58  jim
   I made (and restored) some optimizations.  The effect is probably
   minor, but who knows.
