@@ -2,17 +2,17 @@
 
   Copyright (c) 2001, 2002 Zope Corporation and Contributors.
   All Rights Reserved.
-  
+
   This software is subject to the provisions of the Zope Public License,
   Version 2.0 (ZPL).  A copy of the ZPL should accompany this distribution.
   THIS SOFTWARE IS PROVIDED "AS IS" AND ANY AND ALL EXPRESS OR IMPLIED
   WARRANTIES ARE DISCLAIMED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
   WARRANTIES OF TITLE, MERCHANTABILITY, AGAINST INFRINGEMENT, AND FITNESS
   FOR A PARTICULAR PURPOSE
-  
+
  ****************************************************************************/
 
-#define BTREEITEMSTEMPLATE_C "$Id: BTreeItemsTemplate.c,v 1.9 2002/03/08 18:33:01 jeremy Exp $\n"
+#define BTREEITEMSTEMPLATE_C "$Id: BTreeItemsTemplate.c,v 1.10 2002/06/09 17:19:05 tim_one Exp $\n"
 
 typedef struct {
   PyObject_HEAD
@@ -28,7 +28,7 @@ typedef struct {
 #define ITEMS(O)((BTreeItems*)(O))
 
 static PyObject *
-newBTreeItems(char kind, 
+newBTreeItems(char kind,
               Bucket *lowbucket, int lowoffset,
               Bucket *highbucket, int highoffset);
 
@@ -41,7 +41,7 @@ BTreeItems_dealloc(BTreeItems *self)
   PyObject_DEL(self);
 }
 
-static int 
+static int
 BTreeItems_length_or_nonzero(BTreeItems *self, int nonzero)
 {
   int r;
@@ -52,7 +52,7 @@ BTreeItems_length_or_nonzero(BTreeItems *self, int nonzero)
 
   r=self->last + 1 - self->first;
 
-  if (nonzero && r > 0) 
+  if (nonzero && r > 0)
     /* Short-circuit if all we care about is nonempty */
     return 1;
 
@@ -60,14 +60,14 @@ BTreeItems_length_or_nonzero(BTreeItems *self, int nonzero)
 
   Py_INCREF(b);
   PER_USE_OR_RETURN(b, -1);
-  while ((next=b->next)) 
+  while ((next=b->next))
     {
       r += b->len;
-      if (nonzero && r > 0) 
+      if (nonzero && r > 0)
         /* Short-circuit if all we care about is nonempty */
         break;
 
-      if (next == self->lastbucket) 
+      if (next == self->lastbucket)
         break; /* we already counted the last bucket */
 
       Py_INCREF(next);
@@ -86,7 +86,7 @@ BTreeItems_length_or_nonzero(BTreeItems *self, int nonzero)
 
 static int
 BTreeItems_length( BTreeItems *self)
-{                              
+{
   return BTreeItems_length_or_nonzero(self, 0);
 }
 
@@ -104,7 +104,7 @@ BTreeItems_length( BTreeItems *self)
 ** Returns 0 if successful, -1 on failure to seek
 */
 static int
-BTreeItems_seek(BTreeItems *self, int i) 
+BTreeItems_seek(BTreeItems *self, int i)
 {
   int delta, pseudoindex, currentoffset;
   Bucket *b, *currentbucket;
@@ -121,8 +121,8 @@ BTreeItems_seek(BTreeItems *self, int i)
   currentoffset=self->currentoffset;
 
   /* Make sure that the index and psuedoindex have the same sign */
-  if (pseudoindex < 0 && i >=0) 
-    {                                
+  if (pseudoindex < 0 && i >=0)
+    {
       /* Position to the start of the sequence. */
       ASSIGNB(currentbucket, self->firstbucket);
       Py_INCREF(currentbucket);
@@ -140,14 +140,14 @@ BTreeItems_seek(BTreeItems *self, int i)
             }
         }
       pseudoindex = 0;
-    } 
-  else if (self->pseudoindex >= 0 && i < 0) 
+    }
+  else if (self->pseudoindex >= 0 && i < 0)
     {
       /* Position to the end of the sequence. */
       ASSIGNBC(currentbucket, self->lastbucket);
       currentoffset = self->last;
       UNLESS (PER_USE(currentbucket)) goto err;
-      
+
       /* We need to be careful that we have a valid offset! */
       if (currentoffset >= currentbucket->len)
         {
@@ -163,30 +163,30 @@ BTreeItems_seek(BTreeItems *self, int i)
   else
     {
       UNLESS (PER_USE(currentbucket)) goto err;
-      
+
       /* We need to be careful that we have a valid offset! */
       if (currentoffset >= currentbucket->len) goto no_match;
     }
-                                
+
   /* Whew, we got here so we have a valid offset! */
 
   delta = i - pseudoindex;
   if (delta)
     while (delta)
       {
-        if (delta < 0) 
+        if (delta < 0)
           {
             /* First, would we drop below zero? */
             if (pseudoindex >= 0 && pseudoindex + delta < 0) goto no_match;
-      
+
             /* Next, do we have to backup a bucket? */
-            if (currentoffset + delta < 0) 
+            if (currentoffset + delta < 0)
               {
                 if (currentbucket == self->firstbucket) goto no_match;
-              
+
                 b=PreviousBucket(currentbucket, self->firstbucket, i);
                 if (b==NULL) goto no_match;
-              
+
                 PER_ALLOW_DEACTIVATION(currentbucket);
                 PER_ACCESSED(currentbucket);
                 ASSIGNB(currentbucket, b);
@@ -199,7 +199,7 @@ BTreeItems_seek(BTreeItems *self, int i)
                   /* We backed into an empty bucket. Fix the psuedo index */
                   if (++pseudoindex == 0) goto no_match;
               }
-            else 
+            else
               {	/* Local adjustment */
                 pseudoindex += delta;
                 currentoffset += delta;
@@ -208,16 +208,16 @@ BTreeItems_seek(BTreeItems *self, int i)
             if (currentbucket == self->firstbucket &&
                 currentoffset < self->first) goto no_match;
 
-          } 
+          }
         else if (delta > 0)
           {
-          
+
             /* Simple backwards range check */
-            if (pseudoindex < 0 && pseudoindex + delta >= 0) 
+            if (pseudoindex < 0 && pseudoindex + delta >= 0)
               goto no_match;
-          
+
             /* Next, do we go forward a bucket? */
-            if (currentoffset + delta >= currentbucket->len) 
+            if (currentoffset + delta >= currentbucket->len)
               {
                 while (1)
                   {
@@ -233,7 +233,7 @@ BTreeItems_seek(BTreeItems *self, int i)
                     UNLESS (PER_USE(currentbucket)) goto err;
                     currentoffset = 0;
                     if (currentbucket->len) break;
-                  } 
+                  }
               }
             else
               {	/* Local adjustment */
@@ -242,7 +242,7 @@ BTreeItems_seek(BTreeItems *self, int i)
               }
             if (currentbucket == self->lastbucket &&
                 currentoffset > self->last) goto no_match;
-          
+
           }
 
         delta = i - pseudoindex;
@@ -262,13 +262,13 @@ BTreeItems_seek(BTreeItems *self, int i)
 
   self->pseudoindex=pseudoindex;
   self->currentoffset=currentoffset;
-  
+
   return 0;
 
  no_match:
 
   IndexError(i);
-  
+
   PER_ALLOW_DEACTIVATION(currentbucket);
 
  err:
@@ -290,21 +290,21 @@ static PyObject *
 BTreeItems_item(BTreeItems *self, int i)
 {
   PyObject *r, *k=0, *v=0;
-  
+
   if (BTreeItems_seek(self, i) < 0) return NULL;
 
   PER_USE_OR_RETURN(self->currentbucket, NULL);
 
   switch(self->kind) {
 
-  case 'v': 
+  case 'v':
     COPY_VALUE_TO_OBJECT(r, self->currentbucket->values[self->currentoffset]);
     break;
 
   case 'i':
     COPY_KEY_TO_OBJECT(k, self->currentbucket->keys[self->currentoffset]);
     UNLESS (k) return NULL;
-      
+
     COPY_VALUE_TO_OBJECT(v, self->currentbucket->values[self->currentoffset]);
     UNLESS (v) return NULL;
 
@@ -339,7 +339,7 @@ BTreeItems_item(BTreeItems *self, int i)
 **		ilow	The start index
 **		ihigh	The end index
 **
-** Returns:	BTreeItems item 
+** Returns:	BTreeItems item
 */
 static PyObject *
 BTreeItems_slice(BTreeItems *self, int ilow, int ihigh)
@@ -348,19 +348,19 @@ BTreeItems_slice(BTreeItems *self, int ilow, int ihigh)
   Bucket *highbucket;
   int lowoffset;
   int highoffset;
-  
+
 
   if (BTreeItems_seek(self, ilow) < 0) return NULL;
-  
+
   lowbucket = self->currentbucket;
   lowoffset = self->currentoffset;
-  
+
   if (BTreeItems_seek(self, ihigh) < 0) return NULL;
-  
+
   highbucket = self->currentbucket;
   highoffset = self->currentoffset;
-  
-  return newBTreeItems(self->kind, 
+
+  return newBTreeItems(self->kind,
                        lowbucket, lowoffset, highbucket, highoffset);
 }
 
@@ -405,19 +405,19 @@ static PyTypeObject BTreeItemsType = {
   (reprfunc)0,				/*tp_str*/
   0,					/*tp_getattro*/
   0,					/*tp_setattro*/
-  
+
   /* Space for future expansion */
   0L,0L,
   "Sequence type used to iterate over BTree items." /* Documentation string */
 };
 
 static PyObject *
-newBTreeItems(char kind, 
+newBTreeItems(char kind,
               Bucket *lowbucket, int lowoffset,
               Bucket *highbucket, int highoffset)
 {
   BTreeItems *self;
-	
+
   UNLESS (self = PyObject_NEW(BTreeItems, &BTreeItemsType)) return NULL;
   self->kind=kind;
 
@@ -446,7 +446,7 @@ newBTreeItems(char kind,
   return OBJECT(self);
 }
 
-static int 
+static int
 nextBTreeItems(SetIteration *i)
 {
   if (i->position >= 0)
@@ -456,7 +456,7 @@ nextBTreeItems(SetIteration *i)
           DECREF_KEY(i->key);
           DECREF_VALUE(i->value);
         }
-      
+
       if (BTreeItems_seek(ITEMS(i->set), i->position) >= 0)
         {
           Bucket *currentbucket;
@@ -468,9 +468,9 @@ nextBTreeItems(SetIteration *i)
           COPY_KEY(i->key, currentbucket->keys[ITEMS(i->set)->currentoffset]);
           INCREF_KEY(i->key);
 
-          COPY_VALUE(i->value, 
+          COPY_VALUE(i->value,
                      currentbucket->values[ITEMS(i->set)->currentoffset]);
-          COPY_VALUE(i->value, 
+          COPY_VALUE(i->value,
                    BUCKET(ITEMS(i->set)->currentbucket)
                    ->values[ITEMS(i->set)->currentoffset]);
           INCREF_VALUE(i->value);
@@ -488,7 +488,7 @@ nextBTreeItems(SetIteration *i)
   return 0;
 }
 
-static int 
+static int
 nextTreeSetItems(SetIteration *i)
 {
   if (i->position >= 0)
@@ -497,7 +497,7 @@ nextTreeSetItems(SetIteration *i)
         {
           DECREF_KEY(i->key);
         }
-      
+
       if (BTreeItems_seek(ITEMS(i->set), i->position) >= 0)
         {
           Bucket *currentbucket;
