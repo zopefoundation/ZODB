@@ -15,7 +15,7 @@
 """
 # Do this portably in the face of checking out with -kv
 import string
-__version__ = string.split('$Revision: 1.20 $')[-2:][0]
+__version__ = string.split('$Revision: 1.21 $')[-2:][0]
 
 import ThreadLock, bpthread
 import time, UndoLogCompatible
@@ -75,6 +75,7 @@ class BaseStorage(UndoLogCompatible.UndoLogCompatible):
         return ''
 
     def new_oid(self, last=None):
+        # 'last' is only for internal use, not part of the public API
         if self._is_read_only:
             raise POSException.ReadOnlyError()
         if last is None:
