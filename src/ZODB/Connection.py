@@ -13,7 +13,7 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.121 2004/02/24 21:38:38 jeremy Exp $"""
+$Id: Connection.py,v 1.122 2004/02/24 22:07:46 jeremy Exp $"""
 
 import logging
 import sys
@@ -55,10 +55,10 @@ class Connection(ExportImport, object):
     The Connection object serves as a data manager.  The root() method
     on a Connection returns the root object for the database.  This
     object and all objects reachable from it are associated with the
-    Connection that loaded them.  When the objects are modified, the
-    Connection is registered with the current transaction.
+    Connection that loaded them.  When a transaction commits, it uses
+    the Connection to store modified objects.
 
-    The typical use of ZODB is for each thread should have its own
+    The typical use of ZODB is for each thread to have its own
     Connection and that no thread should have more than one Connection
     to the same database.  A thread is associated with a Connection by
     loading objects from that Connection.  Objects loaded by one
@@ -68,6 +68,14 @@ class Connection(ExportImport, object):
     created.  By default, a Connection is not associated with a
     version; it uses non-version data.
 
+    Each Connection provides an isolated, consistent view of the
+    database, by managing independent copies of objects in the
+    database.  At transaction boundaries, these copies are updated to
+    reflect the current state of the database.
+
+    You should not instantiate this class directly; instead call the
+    open() method of a DB instance.
+    
     Synchronization
 
     A Connection instance is not thread-safe.  It is designed to
@@ -79,7 +87,7 @@ class Connection(ExportImport, object):
     XXX We should document an intended API for using a Connection via
     multiple threads.
 
-    $Id: Connection.py,v 1.121 2004/02/24 21:38:38 jeremy Exp $
+    $Id: Connection.py,v 1.122 2004/02/24 22:07:46 jeremy Exp $
     """
 
     _tmp = None
