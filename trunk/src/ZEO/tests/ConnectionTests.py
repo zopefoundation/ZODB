@@ -793,6 +793,7 @@ class TimeoutTests(CommonSetupTearDown):
         storage.tpc_vote(txn)
         time.sleep(2)
         self.assertRaises(ClientDisconnected, storage.tpc_finish, txn)
+        storage.close()
 
     def checkTimeoutOnAbort(self):
         storage = self.openClientStorage()
@@ -800,12 +801,14 @@ class TimeoutTests(CommonSetupTearDown):
         storage.tpc_begin(txn)
         storage.tpc_vote(txn)
         storage.tpc_abort(txn)
+        storage.close()
 
     def checkTimeoutOnAbortNoLock(self):
         storage = self.openClientStorage()
         txn = Transaction()
         storage.tpc_begin(txn)
         storage.tpc_abort(txn)
+        storage.close()
 
 class MSTThread(threading.Thread):
 
