@@ -72,6 +72,10 @@ class FileStorageRecoveryTest(
         StorageTestBase.removefs("Source.fs")
         StorageTestBase.removefs("Dest.fs")
 
+    def new_dest(self):
+        StorageTestBase.removefs('Dest.fs')
+        return ZODB.FileStorage.FileStorage('Dest.fs')
+
 
 def test_suite():
     suite = unittest.makeSuite(FileStorageTests, 'check')
