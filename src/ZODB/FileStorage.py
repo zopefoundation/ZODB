@@ -184,7 +184,7 @@
 #   may have a back pointer to a version record or to a non-version
 #   record.
 #
-__version__='$Revision: 1.13 $'[11:-2]
+__version__='$Revision: 1.14 $'[11:-2]
 
 import struct, time, os, bpthread, string, base64
 from struct import pack, unpack
@@ -1037,7 +1037,10 @@ class FileStorage(BaseStorage.BaseStorage):
             ofile.close()
             file.close()
             self._file.close()
-            try: os.remove(name)
+            try:
+                if os.path.exists(name+'.old'):
+                    os.remove(name+'.old')
+                os.rename(name, name+'.old')
             except:
                 # Waaa
                 self._file=open(name,'r+b')
