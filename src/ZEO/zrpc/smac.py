@@ -1,29 +1,65 @@
-######################################################################
-# Digital Creations Options License Version 0.9.0
-# -----------------------------------------------
+##############################################################################
 # 
-# Copyright (c) 1999, Digital Creations.  All rights reserved.
+# Zope Public License (ZPL) Version 1.0
+# -------------------------------------
 # 
-# This license covers Zope software delivered as "options" by Digital
-# Creations.
+# Copyright (c) Digital Creations.  All rights reserved.
 # 
-# Use in source and binary forms, with or without modification, are
-# permitted provided that the following conditions are met:
+# This license has been certified as Open Source(tm).
 # 
-# 1. Redistributions are not permitted in any form.
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
 # 
-# 2. This license permits one copy of software to be used by up to five
-#    developers in a single company. Use by more than five developers
-#    requires additional licenses.
+# 1. Redistributions in source code must retain the above copyright
+#    notice, this list of conditions, and the following disclaimer.
 # 
-# 3. Software may be used to operate any type of website, including
-#    publicly accessible ones.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions, and the following disclaimer in
+#    the documentation and/or other materials provided with the
+#    distribution.
 # 
-# 4. Software is not fully documented, and the customer acknowledges
-#    that the product can best be utilized by reading the source code.
+# 3. Digital Creations requests that attribution be given to Zope
+#    in any manner possible. Zope includes a "Powered by Zope"
+#    button that is installed by default. While it is not a license
+#    violation to remove this button, it is requested that the
+#    attribution remain. A significant investment has been put
+#    into Zope, and this effort will continue if the Zope community
+#    continues to grow. This is one way to assure that growth.
 # 
-# 5. Support for software is included for 90 days in email only. Further
-#    support can be purchased separately.
+# 4. All advertising materials and documentation mentioning
+#    features derived from or use of this software must display
+#    the following acknowledgement:
+# 
+#      "This product includes software developed by Digital Creations
+#      for use in the Z Object Publishing Environment
+#      (http://www.zope.org/)."
+# 
+#    In the event that the product being advertised includes an
+#    intact Zope distribution (with copyright and license included)
+#    then this clause is waived.
+# 
+# 5. Names associated with Zope or Digital Creations must not be used to
+#    endorse or promote products derived from this software without
+#    prior written permission from Digital Creations.
+# 
+# 6. Modified redistributions of any form whatsoever must retain
+#    the following acknowledgment:
+# 
+#      "This product includes software developed by Digital Creations
+#      for use in the Z Object Publishing Environment
+#      (http://www.zope.org/)."
+# 
+#    Intact (re-)distributions of any official Zope release do not
+#    require an external acknowledgement.
+# 
+# 7. Modifications are encouraged but must be packaged separately as
+#    patches to official Zope releases.  Distributions that do not
+#    clearly separate the patches from the original work must be clearly
+#    labeled as unofficial distributions.  Modifications which do not
+#    carry the name Zope may be packaged in any form, as long as they
+#    conform to all of the clauses above.
+# 
 # 
 # Disclaimer
 # 
@@ -39,79 +75,118 @@
 #   OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
 #   OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 #   SUCH DAMAGE.
-######################################################################
+# 
+# 
+# This software consists of contributions made by Digital Creations and
+# many individuals on behalf of Digital Creations.  Specific
+# attributions are listed in the accompanying credits file.
+# 
+##############################################################################
 """Sized message async connections
 """
 
-__version__ = "$Revision: 1.6 $"[11:-2]
+__version__ = "$Revision: 1.7 $"[11:-2]
 
-import asyncore, string, struct, zLOG
-from zLOG import LOG, INFO, ERROR
+import asyncore, string, struct, zLOG, sys, Acquisition
+from zLOG import LOG, TRACE, ERROR
 
-class SizedMessageAsyncConnection(asyncore.dispatcher):
+class SizedMessageAsyncConnection(Acquisition.Explicit, asyncore.dispatcher):
 
-    def __init__(self, sock, addr):
-        asyncore.dispatcher.__init__(self, sock)
+    __append=None # Marker indicating that we're closed
+
+    socket=None # to outwit Sam's getattr
+
+    def __init__(self, sock, addr, map=None, debug=None):
+        SizedMessageAsyncConnection.inheritedAttribute(
+            '__init__')(self, sock, map)
         self.addr=addr
+        if debug is not None:
+            self._debug=debug
+        elif not hasattr(self, '_debug'):
+            self._debug=__debug__ and 'smac'
         self.__state=None
         self.__inp=None
+        self.__inpl=0
         self.__l=4
         self.__output=output=[]
         self.__append=output.append
         self.__pop=output.pop
 
     def handle_read(self,
-                    join=string.join, StringType=type('')):
-        l=self.__l
-        d=self.recv(l)
+                    join=string.join, StringType=type(''), _type=type,
+                    StringType=type(''), _None=None):
+
+        d=self.recv(8096)
+        if not d: return
+
         inp=self.__inp
-        if inp is None:
+        if inp is _None:
             inp=d
-        elif type(inp) is StringType:
+        elif _type(inp) is StringType:
             inp=[inp,d]
         else:
             inp.append(d)
 
-        l=l-len(d)
-        if l <= 0:
-            if type(inp) is not StringType: inp=join(inp,'')
-            if self.__state is None:
-                # waiting for message
-                self.__l=struct.unpack(">i",inp)[0]
-                self.__state=1
-                self.__inp=None
+        inpl=self.__inpl+len(d)
+        l=self.__l
+            
+        while 1:
+
+            if l <= inpl:
+                # Woo hoo, we have enough data
+                if _type(inp) is not StringType: inp=join(inp,'')
+                d=inp[:l]
+                inp=inp[l:]
+                inpl=inpl-l                
+                if self.__state is _None:
+                    # waiting for message
+                    l=struct.unpack(">i",d)[0]
+                    self.__state=1
+                else:
+                    l=4
+                    self.__state=_None
+                    self.message_input(d)
             else:
-                self.__inp=None
-                self.__l=4
-                self.__state=None
-                self.message_input(inp)
-        else:
-            self.__l=l
-            self.__inp=inp
+                break # not enough data
+                
+        self.__l=l
+        self.__inp=inp
+        self.__inpl=inpl
 
     def readable(self): return 1
     def writable(self): return not not self.__output
 
     def handle_write(self):
         output=self.__output
-        if output:
+        while output:
             v=output[0]
             n=self.send(v)
             if n < len(v):
                 output[0]=v[n:]
+                break # we can't write any more
             else:
                 del output[0]
+                #break # waaa
+
 
     def handle_close(self):
         self.close()
 
     def message_output(self, message,
                        pack=struct.pack, len=len):
-        if __debug__:
+        if self._debug:
             if len(message) > 40: m=message[:40]+' ...'
             else: m=message
-            LOG('smax', INFO, 'message_output %s' % `m`)
-        self.__append(pack(">i",len(message))+message)
+            LOG(self._debug, TRACE, 'message_output %s' % `m`)
+
+        append=self.__append
+        if append is None:
+            raise Disconnected, (
+                "This action is temporarily unavailable."
+                "<p>"
+                )
+        
+        append(pack(">i",len(message))+message)
 
     def log_info(self, message, type='info'):
         if type=='error': type=ERROR
@@ -119,3 +194,13 @@ class SizedMessageAsyncConnection(asyncore.dispatcher):
         LOG('ZEO', type, message)
 
     log=log_info
+
+    def close(self):
+        if self.__append is not None:
+            self.__append=None
+            SizedMessageAsyncConnection.inheritedAttribute('close')(self)
+
+class Disconnected(Exception):
+    """The client has become disconnected from the server
+    """
+    

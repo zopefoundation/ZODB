@@ -1,0 +1,89 @@
+Zope Enterprise Option (ZEO) Revision History
+
+  ZEO 0.2 
+
+    This release is expected to be close to beta quality. Initially, the
+    primary goals of this release were to:
+
+      - Correct some consistency problems that had been observed in
+        0.1 on starup.
+
+      - Allow ZEO clients to detect, survive, and recover from
+        disconnection from the ZEO server.
+
+    Based on some feedback from some folks who tried 0.1, improving
+    write performance was made a priority.
+
+    Features
+
+      - The ZEO Client now handles server failures gracefully:
+
+        o The client with a persistent cache can generally startup
+	  even if the server is not running, assuming that it has at
+	  least a minimal number of objects in the cache.
+
+        o The client will continue to function even if the server
+          connection is interuppted.
+
+        o Server availability is detected by the client (which tries
+          to connect to the server every few minutes). A disconnected
+          client will automatically reconnect to an available server.
+
+        o When the client is disconnected, write transactions cannot
+          be performed.  Reads fail for objects that are not in the
+          cache.
+
+      - Performance enhancements
+
+        The speed of write-intensive operations have been improved
+	approximately 70%.  When using Unix domain sockets for
+	client/server communication, ZEO transactions take roughly 2-3
+	times as long as FileStorage transactions to commit.
+	(This was based on some tests. Your mileage may vary.)
+
+      - Packing support was added. Note that packing is done
+        asynchrounously. The client returns immediately from a pack
+        call. The server packs in a thread and sends updated
+        statistics to the client when packing is completed.
+
+      - Support for Unix-domain sockets was added.
+
+      - Pickles sent to the server are now checked to make sure that
+        they don't contain unapproved instance or global-variable
+        (function) pickles.
+
+    Bugs fixed
+
+      - Data could be badly inconsistent when a persistent cache
+        was started, due to a bug in the cache initialization logic.
+      
+      - The application was allowed to begin operation while the cache
+        was being verified. This could lead to harmful inconsistencies.
+
+    Changes made to Zope to support ZEO
+
+      - A number of changes were made to ZODB to support asynchronous
+        storage during transaction commit.
+
+      - Normally Zope updates the database during startup to reflect
+        product changes. This behavior is now suppressed when the
+        ZEO_CLIENT environment variable is set. It doesn't make sense
+        for many clients to update the database for the same products.
+
+      - The asyncore module was modified to add support for multiple
+        asyncore loops. This change was applied to asyncore in the
+        Zope and the (official, owned by Sam Rushing) medusa CVS
+        trees.
+
+      - A new module, ThreadedAsync.py has been added in the Zope
+        lib/python directory.  This module provides notification to
+        async objects (like ZEO clients) to let them know when the
+        asyncore main loop has started. This was needed to enable use
+        of async code before the main loop starts.
+
+  ZEO 0.1 (aka "iteration 1")
+
+    This was an initial alpha of ZEO that demonstrated basic
+    functionalities. It lacked robustness and has some performance
+    problems on writes.
+

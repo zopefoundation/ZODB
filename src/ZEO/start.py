@@ -1,29 +1,65 @@
-######################################################################
-# Digital Creations Options License Version 0.9.0
-# -----------------------------------------------
+##############################################################################
 # 
-# Copyright (c) 1999, Digital Creations.  All rights reserved.
+# Zope Public License (ZPL) Version 1.0
+# -------------------------------------
 # 
-# This license covers Zope software delivered as "options" by Digital
-# Creations.
+# Copyright (c) Digital Creations.  All rights reserved.
 # 
-# Use in source and binary forms, with or without modification, are
-# permitted provided that the following conditions are met:
+# This license has been certified as Open Source(tm).
 # 
-# 1. Redistributions are not permitted in any form.
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
 # 
-# 2. This license permits one copy of software to be used by up to five
-#    developers in a single company. Use by more than five developers
-#    requires additional licenses.
+# 1. Redistributions in source code must retain the above copyright
+#    notice, this list of conditions, and the following disclaimer.
 # 
-# 3. Software may be used to operate any type of website, including
-#    publicly accessible ones.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions, and the following disclaimer in
+#    the documentation and/or other materials provided with the
+#    distribution.
 # 
-# 4. Software is not fully documented, and the customer acknowledges
-#    that the product can best be utilized by reading the source code.
+# 3. Digital Creations requests that attribution be given to Zope
+#    in any manner possible. Zope includes a "Powered by Zope"
+#    button that is installed by default. While it is not a license
+#    violation to remove this button, it is requested that the
+#    attribution remain. A significant investment has been put
+#    into Zope, and this effort will continue if the Zope community
+#    continues to grow. This is one way to assure that growth.
 # 
-# 5. Support for software is included for 90 days in email only. Further
-#    support can be purchased separately.
+# 4. All advertising materials and documentation mentioning
+#    features derived from or use of this software must display
+#    the following acknowledgement:
+# 
+#      "This product includes software developed by Digital Creations
+#      for use in the Z Object Publishing Environment
+#      (http://www.zope.org/)."
+# 
+#    In the event that the product being advertised includes an
+#    intact Zope distribution (with copyright and license included)
+#    then this clause is waived.
+# 
+# 5. Names associated with Zope or Digital Creations must not be used to
+#    endorse or promote products derived from this software without
+#    prior written permission from Digital Creations.
+# 
+# 6. Modified redistributions of any form whatsoever must retain
+#    the following acknowledgment:
+# 
+#      "This product includes software developed by Digital Creations
+#      for use in the Z Object Publishing Environment
+#      (http://www.zope.org/)."
+# 
+#    Intact (re-)distributions of any official Zope release do not
+#    require an external acknowledgement.
+# 
+# 7. Modifications are encouraged but must be packaged separately as
+#    patches to official Zope releases.  Distributions that do not
+#    clearly separate the patches from the original work must be clearly
+#    labeled as unofficial distributions.  Modifications which do not
+#    carry the name Zope may be packaged in any form, as long as they
+#    conform to all of the clauses above.
+# 
 # 
 # Disclaimer
 # 
@@ -39,12 +75,18 @@
 #   OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
 #   OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 #   SUCH DAMAGE.
-#####################################################################
+# 
+# 
+# This software consists of contributions made by Digital Creations and
+# many individuals on behalf of Digital Creations.  Specific
+# attributions are listed in the accompanying credits file.
+# 
+##############################################################################
 
 """Start the server storage.
 """
 
-__version__ = "$Revision: 1.4 $"[11:-2]
+__version__ = "$Revision: 1.5 $"[11:-2]
 
 import sys, os, getopt, string
 
@@ -77,17 +119,23 @@ def main(argv):
                            os.path.join(INSTANCE_HOME, 'var', 'ZEO_SERVER.pid')
                            )
 
-    opts, args = getopt.getopt(args, 'p:Dh:')
+    opts, args = getopt.getopt(args, 'p:Dh:U:Z:')
     
     fs=os.path.join(INSTANCE_HOME, 'var', 'Data.fs')
 
-    usage="""%s -p port [options] [filename]
+    usage="""%s [options] [filename]
 
     where options are:
 
        -D -- Run in debug mode
 
+       -U -- Unix-domain socket file to listen on
+
+       -p -- port to listen on
+
        -h -- host address to listen on
+
+       -s -- Don't use zdeamon
 
     if no file name is specified, then %s is used.
     """ % (me, fs)
@@ -95,12 +143,22 @@ def main(argv):
     port=None
     debug=0
     host=''
+    unix=None
+    Z=1
     for o, v in opts:
         if o=='-p': port=string.atoi(v)
         elif o=='-h': host=v
+        elif o=='-U': unix=v
         elif o=='-D': debug=1
+        elif o=='-s': Z=0
 
-    if port is None:
+
+    try:
+        from ZServer.medusa import asyncore
+        sys.modules['asyncore']=asyncore
+    except: pass
+
+    if port is None and unix is None:
         print usage
         print 'No port specified.'
         sys.exit(1)
@@ -115,18 +173,20 @@ def main(argv):
     __builtins__.__debug__=debug
     if debug: os.environ['Z_DEBUG_MODE']='1'
 
-    try: import posix
-    except: pass
-    else:
-        import zdaemon
-        zdaemon.run(sys.argv, '')
+    if Z:
+        try: import posix
+        except: pass
+        else:
+            import zdaemon
+            zdaemon.run(sys.argv, '')
 
     import ZEO.StorageServer, ZODB.FileStorage, asyncore, zLOG
 
     zLOG.LOG('ZEO Server', zLOG.INFO, 'Serving %s' % fs)
 
+    if not unix: unix=host, port
     ZEO.StorageServer.StorageServer(
-        (host,port),
+        unix,
         {
             '1': ZODB.FileStorage.FileStorage(fs)
             },
