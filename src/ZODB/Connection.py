@@ -84,8 +84,8 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.12 1999/07/05 21:07:37 jim Exp $"""
-__version__='$Revision: 1.12 $'[11:-2]
+$Id: Connection.py,v 1.13 1999/07/06 19:21:44 jim Exp $"""
+__version__='$Revision: 1.13 $'[11:-2]
 
 from cPickleCache import PickleCache
 from POSException import ConflictError, ExportError
@@ -397,6 +397,36 @@ class Connection(ExportImport.ExportImport):
         else:
             d=object.__dict__
             for k,v in state.items(): d[k]=v
+        object._p_serial=serial
+
+
+    def setklassstate(self, object,
+                      tt=type(()), ct=type(HelperClass)):
+        print 'setklassstate', object
+        oid=object._p_oid
+        __traceback_info__=oid
+        p, serial = self._storage.load(oid, self._version)
+        file=StringIO(p)
+        unpickler=Unpickler(file)
+        unpickler.persistent_load=self._persistent_load
+
+        copy = unpickler.load()
+
+        klass, args = copy
+
+        if klass is not ExtensionKlass:
+            LOG('ZODB',ERROR,
+                "Unexpected klass when setting class state on %s"
+                % getattr(object,'__name__','(?)'))
+            return
+        
+        copy=apply(klass,args)
+        object.__dict__.clear()
+        object.__dict__.update(copy.__dict__)
+
+        object._p_oid=oid
+        object._p_jar=self
+        object._p_changed=None
         object._p_serial=serial
 
     def tpc_abort(self, transaction):
