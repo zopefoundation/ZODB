@@ -73,12 +73,12 @@ class DataRecordConvertingTxn(object):
             try:
                 classmeta = up.load()
                 state = up.load()
-            except ImportError, v:
+            except Exception, v:
                 v = str(v)
                 if v not in errors:
                     if not errors:
-                        sys.stderr.write("Pickling import errors:\n")
-                    sys.stderr.write('\t'+v+'\n')
+                        sys.stderr.write("Pickling errors:\n\n")
+                    sys.stderr.write('\t'+v+'\n\n')
                     errors[v] = True
 
                 skipped += 1
@@ -94,15 +94,30 @@ class DataRecordConvertingTxn(object):
 
 
 error_explanation = """
-There were import errors while copying data records.
+There were errors while copying data records.
 
-This is because modules referenced by the database couldn't be found.
-You might be able to fix this by getting the necessary modules.
-It's possible that the affected objects aren't used any more,
-in which case, it doesn't matter whether they were copied.
+If the errors were import errors, then this is because modules
+referenced by the database couldn't be found.  You might be able to
+fix this by getting the necessary modules.  It's possible that the
+affected objects aren't used any more, in which case, it doesn't
+matter whether they were copied.  (We apologise for the lame import
+errors that don't show full dotted module names.)
 
-(We apologise for the lame import errors that don't show full dotted
- module names.)
+If errors looked something like:
+
+  "('object.__new__(SomeClass) is not safe, use
+   persistent.Persistent.__new__()', <function _reconstructor at
+   0x4015ccdc>, (<class 'somemodule.SomeClass'>, <type 'object'>,
+   None))",
+
+then the error arises from data records for objects whos classes
+changed from being non-persistent to being persistent.
+
+If other errors were reported, it would be a good idea to ask about
+them on zope3-dev.
+
+In any case, keep your original data file in case you decide to rerun
+the conversion.
  
 """
 
