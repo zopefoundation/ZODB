@@ -61,7 +61,7 @@
 
 <!ELEMENT key (description?, metadefault?, example?)>
 <!ATTLIST key
-          name       PCDATA   #REQUIRED
+          name       CDATA    #REQUIRED
           attribute  NMTOKEN  #IMPLIED
           datatype   NMTOKEN  #IMPLIED
           handler    NMTOKEN  #IMPLIED
@@ -70,7 +70,7 @@
 
 <!ELEMENT multikey (description?, metadefault?, example?, default*)>
 <!ATTLIST multikey
-          name       PCDATA   #REQUIRED
+          name       CDATA    #REQUIRED
           attribute  NMTOKEN  #IMPLIED
           datatype   NMTOKEN  #IMPLIED
           handler    NMTOKEN  #IMPLIED
@@ -78,7 +78,7 @@
 
 <!ELEMENT section (description?)>
 <!ATTLIST section
-          name       PCDATA   #REQUIRED
+          name       CDATA    #REQUIRED
           attribute  NMTOKEN  #IMPLIED
           type       NMTOKEN  #REQUIRED
           handler    NMTOKEN  #IMPLIED
@@ -87,7 +87,7 @@
 
 <!ELEMENT multisection (description?)>
 <!ATTLIST multisection
-          name       PCDATA   #REQUIRED
+          name       CDATA    #REQUIRED
           attribute  NMTOKEN  #IMPLIED
           type       NMTOKEN  #REQUIRED
           handler    NMTOKEN  #IMPLIED
