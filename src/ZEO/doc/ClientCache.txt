@@ -1,0 +1,63 @@
+ZEO Client Cache
+
+  The Client cache provides a disk based cache for each ZEO client.
+  The client cache allows reads to be done from local disk rather than
+  by remote access to the storage server.
+
+  The cache may be persistent or transient. If the cache is
+  persistent, then the cache files are retained for use after process
+  restarts. A non-persistent cache uses temporary files that are
+  removed when the client storage is closed.
+
+  The client cache is managed as two files. The cache manager
+  endeavors to maintain the two files at sizes less than or equal to
+  one half the cache size.  One of the cache files is designated the
+  "current" cache file. The other cache file is designated the "old"
+  cache file, if it exists.  All writes are done to the current cache
+  files.  When transactions are committed on the client, transactions
+  are not split between cache files. Large transactions may cause
+  cache files to be larger than one half the target cache size.
+
+  The life of the cache is as follows:
+
+  - When the cache is created, the first of the two cache files is
+    created and designated the "current" cache file.
+
+  - Cache records are written to the cache file, either as
+    transactions commit locally, or as data are loaded from the
+    server.
+
+  - When the cache file size exceeds one half the cache size, the
+    second cache file is created and designated the "current" cache
+    file.  The first cache file becomes the "old" cache file.
+
+  - Cache records are written to the new current cache file, either as
+    transactions commit locally, or as data are loaded from the
+    server.
+
+  - When the current cache file size exceeds one half the cache size, the
+    first cache file is recreated and designated the "current" cache
+    file.  The second cache file becomes the "old" cache file.
+
+  and so on.
+
+  Persistent cache files are created in the directory named in the
+  'var' argument to the ClientStorage (see ClientStorage.txt) or in
+  the 'var' subdirectory of the directory given by the INSTANCE_HOME
+  builtin (created by Zope), or in the current working directory.
+  Persistent cache files have names of the form::
+
+    cstorage-client-n.zec
+
+  where:
+
+    storage -- the storage name
+
+    client -- the client name, as given by the 'ZEO_CLIENT' environment
+      variable or the 'client' argument provided when creating a client
+      storage.
+
+    n -- '0' for the first cache file and '1' for the second. 
+
+  For example, the second cache file for storage 'spam' and client 8881
+  would be named 'cspam-8881-1.zec'.
