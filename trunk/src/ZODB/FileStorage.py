@@ -115,7 +115,7 @@
 #   may have a back pointer to a version record or to a non-version
 #   record.
 #
-__version__='$Revision: 1.105 $'[11:-2]
+__version__='$Revision: 1.106 $'[11:-2]
 
 import base64
 from cPickle import Pickler, Unpickler, loads
@@ -778,6 +778,9 @@ class FileStorage(BaseStorage.BaseStorage,
                                                              h)
                 if doid != oid:
                     raise CorruptedDataError, h
+                if vlen > 0:
+                    # non-version data pointer
+                    pnv = self._file.read(8)
             # Calculate the file position in the temporary file
             here = self._pos + self._tfile.tell() + self._thl
             # And update the temp file index
