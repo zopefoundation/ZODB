@@ -40,12 +40,7 @@ from ZODB.FileStorage.format \
      import FileStorageFormatter, DataHeader, TxnHeader, DATA_HDR, \
      DATA_HDR_LEN, TRANS_HDR, TRANS_HDR_LEN, CorruptedDataError
 from ZODB.loglevels import BLATHER
-
-try:
-    from ZODB.fsIndex import fsIndex
-except ImportError:
-    def fsIndex():
-        return {}
+from ZODB.fsIndex import fsIndex
 
 t32 = 1L << 32
 
@@ -161,14 +156,13 @@ class FileStorage(BaseStorage.BaseStorage,
         r = self._restore_index()
         if r is not None:
             self._used_index = 1 # Marker for testing
-            index, vindex, start, maxoid, ltid = r
+            index, vindex, start, ltid = r
 
             self._initIndex(index, vindex, tindex, tvindex,
                             oid2tid, toid2tid, toid2tid_delete)
             self._pos, self._oid, tid = read_index(
                 self._file, file_name, index, vindex, tindex, stop,
-                ltid=ltid, start=start, maxoid=maxoid,
-                read_only=read_only,
+                ltid=ltid, start=start, read_only=read_only,
                 )
         else:
             self._used_index = 0 # Marker for testing
@@ -221,9 +215,8 @@ class FileStorage(BaseStorage.BaseStorage,
         # stores 4000 objects, and each random seek + read takes 7ms
         # (that was approximately true on Linux and Windows tests in
         # mid-2003), that's 28 seconds just to find the old tids.
-        # XXX Probably better to junk this and redefine _index as mapping
-        # XXX oid to (offset, tid) pair, via a new memory-efficient
-        # XXX BTree type.
+        # TODO:  Probably better to junk this and redefine _index as mapping
+        # oid to (offset, tid) pair, via a new memory-efficient BTree type.
         self._oid2tid = oid2tid
         # oid->tid map to transactionally add to _oid2tid.
         self._toid2tid = toid2tid
@@ -243,12 +236,18 @@ class FileStorage(BaseStorage.BaseStorage,
     def _save_index(self):
         """Write the database index to a file to support quick startup."""
 
+        if self._is_read_only:
+            return
+
         index_name = self.__name__ + '.index'
         tmp_name = index_name + '.index_tmp'
 
         f=open(tmp_name,'wb')
         p=Pickler(f,1)
 
+        # Note:  starting with ZODB 3.2.6, the 'oid' value stored is ignored
+        # by the code that reads the index.  We still write it, so that
+        # .index files can still be read by older ZODBs.
         info={'index': self._index, 'pos': self._pos,
               'oid': self._oid, 'vindex': self._vindex}
 
@@ -340,11 +339,22 @@ class FileStorage(BaseStorage.BaseStorage,
 
     def _restore_index(self):
         """Load database index to support quick startup."""
+        # Returns (index, vindex, pos, tid), or None in case of
+        # error.
+        # Starting with ZODB 3.2.6, the 'oid' value stored in the index
+        # is ignored.
+        # The index returned is always an instance of fsIndex.  If the
+        # index cached in the file is a Python dict, it's converted to
+        # fsIndex here, and, if we're not in read-only mode, the .index
+        # file is rewritten with the converted fsIndex so we don't need to
+        # convert it again the next time.
         file_name=self.__name__
         index_name=file_name+'.index'
 
-        try: f=open(index_name,'rb')
-        except: return None
+        try:
+            f = open(index_name, 'rb')
+        except:
+            return None
 
         p=Unpickler(f)
 
@@ -356,34 +366,31 @@ class FileStorage(BaseStorage.BaseStorage,
             return None
         index = info.get('index')
         pos = info.get('pos')
-        oid = info.get('oid')
         vindex = info.get('vindex')
-        if index is None or pos is None or oid is None or vindex is None:
+        if index is None or pos is None or vindex is None:
             return None
         pos = long(pos)
 
-        if isinstance(index, DictType) and not self._is_read_only:
-            # Convert to fsIndex
+        if isinstance(index, DictType):
+            # Convert to fsIndex.
             newindex = fsIndex()
-            if type(newindex) is not type(index):
-                # And we have fsIndex
-                newindex.update(index)
-
-                # Now save the index
+            newindex.update(index)
+            index = newindex
+            if not self._is_read_only:
+                # Save the converted index.
                 f = open(index_name, 'wb')
                 p = Pickler(f, 1)
-                info['index'] = newindex
+                info['index'] = index
                 p.dump(info)
                 f.close()
-
-                # Now call this method again to get the new data
+                # Now call this method again to get the new data.
                 return self._restore_index()
 
         tid = self._sane(index, pos)
         if not tid:
             return None
 
-        return index, vindex, pos, oid, tid
+        return index, vindex, pos, tid
 
     def close(self):
         self._file.close()
@@ -1548,7 +1555,7 @@ def recover(file_name):
 
 def read_index(file, name, index, vindex, tindex, stop='\377'*8,
                ltid=z64, start=4L, maxoid=z64, recover=0, read_only=0):
-    """Scan the entire file storage and recreate the index.
+    """Scan the file storage and update the index.
 
     Returns file position, max oid, and last transaction id.  It also
     stores index information in the three dictionary arguments.
@@ -1556,18 +1563,28 @@ def read_index(file, name, index, vindex, tindex, stop='\377'*8,
     Arguments:
     file -- a file object (the Data.fs)
     name -- the name of the file (presumably file.name)
-    index -- dictionary, oid -> data record
-    vindex -- dictionary, oid -> data record for version data
-    tindex -- dictionary, oid -> data record
-       XXX tindex is cleared before return, so it will be empty
+    index -- fsIndex, oid -> data record file offset
+    vindex -- dictionary, oid -> data record offset for version data
+    tindex -- dictionary, oid -> data record offset
+              tindex is cleared before return
 
     There are several default arguments that affect the scan or the
-    return values.  XXX should document them.
+    return values.  TODO:  document them.
+
+    start -- the file position at which to start scanning for oids added
+             beyond the ones the passed-in indices know about.  The .index
+             file caches the highest ._pos FileStorage knew about when the
+             the .index file was last saved, and that's the intended value
+             to pass in for start; accept the default (and pass empty
+             indices) to recreate the index from scratch
+    maxoid -- ignored (it meant something prior to ZODB 3.2.6; the argument
+              still exists just so the signature of read_index() stayed the
+              same)
 
     The file position returned is the position just after the last
     valid transaction record.  The oid returned is the maximum object
-    id in the data.  The transaction id is the tid of the last
-    transaction.
+    id in `index`, or z64 if the index is empty.  The transaction id is the
+    tid of the last transaction, or ltid if the index is empty.
     """
 
     read = file.read
@@ -1577,14 +1594,15 @@ def read_index(file, name, index, vindex, tindex, stop='\377'*8,
     fmt = TempFormatter(file)
 
     if file_size:
-        if file_size < start: raise FileStorageFormatError, file.name
+        if file_size < start:
+            raise FileStorageFormatError, file.name
         seek(0)
         if read(4) != packed_version:
             raise FileStorageFormatError, name
     else:
         if not read_only:
             file.write(packed_version)
-        return 4L, maxoid, ltid
+        return 4L, z64, ltid
 
     index_get=index.get
 
@@ -1651,18 +1669,18 @@ def read_index(file, name, index, vindex, tindex, stop='\377'*8,
         if tid >= stop:
             break
 
-        tpos=pos
-        tend=tpos+tl
+        tpos = pos
+        tend = tpos + tl
 
         if status=='u':
             # Undone transaction, skip it
             seek(tend)
-            h=u64(read(8))
+            h = u64(read(8))
             if h != tl:
                 if recover: return tpos, None, None
                 panic('%s has inconsistent transaction length at %s',
                       name, pos)
-            pos=tend+8
+            pos = tend + 8
             continue
 
         pos = tpos+ TRANS_HDR_LEN + ul + dl + el
@@ -1690,26 +1708,33 @@ def read_index(file, name, index, vindex, tindex, stop='\377'*8,
                     logger.warning("%s incorrect previous pointer at %s",
                                    name, pos)
 
-            pos=pos+dlen
+            pos += dlen
 
         if pos != tend:
-            if recover: return tpos, None, None
+            if recover:
+                return tpos, None, None
             panic("%s data records don't add up at %s",name,tpos)
 
         # Read the (intentionally redundant) transaction length
         seek(pos)
         h = u64(read(8))
         if h != tl:
-            if recover: return tpos, None, None
+            if recover:
+                return tpos, None, None
             panic("%s redundant transaction length check failed at %s",
                   name, pos)
-        pos=pos+8
+        pos += 8
 
-        if tindex: # avoid the pathological empty transaction case
-            _maxoid = max(tindex.keys()) # in 2.2, just max(tindex)
-            maxoid = max(_maxoid, maxoid)
-            index.update(tindex)
-            tindex.clear()
+        index.update(tindex)
+        tindex.clear()
+
+    # Caution:  fsIndex doesn't have an efficient __nonzero__ or __len__.
+    # That's why we do try/except instead.  fsIndex.maxKey() is fast.
+    try:
+        maxoid = index.maxKey()
+    except ValueError:
+        # The index is empty.
+        maxoid == z64
 
     return pos, maxoid, ltid
 

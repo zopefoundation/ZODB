@@ -77,66 +77,65 @@ class FileStorageTests(
 
         self.assertEqual(self._storage._index.__class__, fsIndex)
 
-    # XXX We could really use some tests for sanity checking
+    # A helper for checking that when an .index contains a dict for the
+    # index, it's converted to an fsIndex when the file is opened.
+    def convert_index_to_dict(self):
+        # Convert the index in the current .index file to a Python dict.
+        # Return the index originally found.
+        import cPickle as pickle
 
-    def check_conversion_to_fsIndex_not_if_readonly(self):
+        f = open('FileStorageTests.fs.index', 'r+b')
+        p = pickle.Unpickler(f)
+        data = p.load()
+        index = data['index']
 
-        self.tearDown()
+        newindex = dict(index)
+        data['index'] = newindex
 
-        class OldFileStorage(ZODB.FileStorage.FileStorage):
-            def _newIndexes(self):
-                return {}, {}, {}, {}, {}, {}, {}
+        f.seek(0)
+        f.truncate()
+        p = pickle.Pickler(f, 1)
+        p.dump(data)
+        f.close()
+        return index
 
-
+    def check_conversion_to_fsIndex(self, read_only=False):
         from ZODB.fsIndex import fsIndex
 
-        # Hack FileStorage to create dictionary indexes
-        self._storage = OldFileStorage('FileStorageTests.fs')
-
-        self.assertEqual(type(self._storage._index), type({}))
+        # Create some data, and remember the index.
         for i in range(10):
             self._dostore()
+        oldindex_as_dict = dict(self._storage._index)
 
-        # Should save the index
+        # Save the index.
         self._storage.close()
 
-        self._storage = ZODB.FileStorage.FileStorage(
-            'FileStorageTests.fs', read_only=1)
-        self.assertEqual(type(self._storage._index), type({}))
+        # Convert it to a dict.
+        old_index = self.convert_index_to_dict()
+        self.assert_(isinstance(old_index, fsIndex))
+        new_index = self.convert_index_to_dict()
+        self.assert_(isinstance(new_index, dict))
 
-    def check_conversion_to_fsIndex(self):
+        # Verify it's converted to fsIndex in memory upon open.
+        self.open(read_only=read_only)
+        self.assert_(isinstance(self._storage._index, fsIndex))
 
-        self.tearDown()
+        # Verify it has the right content.
+        newindex_as_dict = dict(self._storage._index)
+        self.assertEqual(oldindex_as_dict, newindex_as_dict)
 
-        class OldFileStorage(ZODB.FileStorage.FileStorage):
-            def _newIndexes(self):
-                return {}, {}, {}, {}, {}, {}, {}
-
-
-        from ZODB.fsIndex import fsIndex
-
-        # Hack FileStorage to create dictionary indexes
-        self._storage = OldFileStorage('FileStorageTests.fs')
-
-        self.assertEqual(type(self._storage._index), type({}))
-        for i in range(10):
-            self._dostore()
-
-        oldindex = self._storage._index.copy()
-
-        # Should save the index
+        # Check that the type on disk has changed iff read_only is False.
         self._storage.close()
+        current_index = self.convert_index_to_dict()
+        if read_only:
+            self.assert_(isinstance(current_index, dict))
+        else:
+            self.assert_(isinstance(current_index, fsIndex))
 
-        self._storage = ZODB.FileStorage.FileStorage('FileStorageTests.fs')
-        self.assertEqual(self._storage._index.__class__, fsIndex)
-        self.failUnless(self._storage._used_index)
-
-        index = {}
-        for k, v in self._storage._index.items():
-            index[k] = v
-
-        self.assertEqual(index, oldindex)
-
+    def check_conversion_to_fsIndex_readonly(self):
+        # Same thing, but the disk .index should continue to hold a
+        # Python dict.
+        self.check_conversion_to_fsIndex(read_only=True)
 
     def check_save_after_load_with_no_index(self):
         for i in range(10):
@@ -146,6 +145,45 @@ class FileStorageTests(
         self.open()
         self.assertEqual(self._storage._saved, 1)
 
+    def check_index_oid_ignored(self):
+        # Prior to ZODB 3.2.6, the 'oid' value stored in the .index file
+        # was believed.  But there were cases where adding larger oids
+        # didn't update the FileStorage ._oid attribute -- the restore()
+        # method in particular didn't update it, and that's about the only
+        # method copyTransactionsFrom() uses.  A database copy created that
+        # way then stored an 'oid' of z64 in the .index file.  This created
+        # torturous problems, as when that file was opened, "new" oids got
+        # generated starting over from 0 again.
+        # Now the cached 'oid' value is ignored:  verify that this is so.
+        import cPickle as pickle
+        from ZODB.utils import z64
+        from ZODB.DB import DB
+
+        # Create some data.
+        db = DB(self._storage)
+        conn = db.open()
+        conn.root()['xyz'] = 1
+        get_transaction().commit()
+        true_max_oid = self._storage._oid
+
+        # Save away the index, and poke in a bad 'oid' value by hand.
+        db.close()
+        f = open('FileStorageTests.fs.index', 'r+b')
+        p = pickle.Unpickler(f)
+        data = p.load()
+        saved_oid = data['oid']
+        self.assertEqual(true_max_oid, saved_oid)
+        data['oid'] = z64
+        f.seek(0)
+        f.truncate()
+        p = pickle.Pickler(f, 1)
+        p.dump(data)
+        f.close()
+
+        # Verify that we get the correct oid again when we reopen, despite
+        # that we stored nonsense in the .index file's 'oid'.
+        self.open()
+        self.assertEqual(self._storage._oid, true_max_oid)
 
     # This would make the unit tests too slow
     # check_save_after_load_that_worked_hard(self)
