@@ -20,7 +20,7 @@ ClientStorageError -- exception raised by ClientStorage
 UnrecognizedResult -- exception raised by ClientStorage
 ClientDisconnected -- exception raised by ClientStorage
 
-$Id: ClientStorage.py,v 1.71 2002/10/01 16:45:28 jeremy Exp $
+$Id: ClientStorage.py,v 1.72 2002/10/01 18:45:56 gvanrossum Exp $
 """
 
 # XXX TO DO
@@ -693,11 +693,16 @@ class ClientStorage:
         return self._server.undoInfo(first, last, specification)
 
     def undoLog(self, first=0, last=-20, filter=None):
-        """Storage API: return a sequence of TransactionDescription objects."""
-        if filter is not None:
-            return () # can't pass a filter to server
+        """Storage API: return a sequence of TransactionDescription objects.
 
-        return self._server.undoLog(first, last) # Eek!
+        The filter argument should be None or left unspecified, since
+        it is impossible to pass the filter function to the server to
+        be executed there.  If filter is not None, an empty sequence
+        is returned.
+        """
+        if filter is not None:
+            return []
+        return self._server.undoLog(first, last)
 
     def versionEmpty(self, version):
         """Storage API: return whether the version has no transactions."""
