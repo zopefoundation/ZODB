@@ -22,7 +22,7 @@
   <sectiontype name="syslog" datatype=".syslog_handler"
                implements="loghandler" extends="base-log-handler">
     <key name="facility" default="user" datatype=".syslog_facility"/>
-    <key name="address" datatype="socket-address" required="yes"/>
+    <key name="address" datatype="socket-address" default="localhost:514"/>
     <key name="format" default="%(message)s"
          datatype=".log_format"/>
   </sectiontype>
@@ -36,7 +36,7 @@
 
   <sectiontype name="http-logger" datatype=".http_handler"
                implements="loghandler" extends="base-log-handler">
-    <key name="url" default="localhost" datatype=".http_handler_url"/>
+    <key name="url" default="http://localhost/" datatype=".http_handler_url"/>
     <key name="method" default="GET" datatype=".get_or_post"/>
     <key name="format" default="%(asctime)s %(message)s"
          datatype=".log_format"/>
@@ -44,10 +44,10 @@
 
   <sectiontype name="email-notifier" datatype=".smtp_handler"
                implements="loghandler" extends="base-log-handler">
-    <key name="fromaddr" required="yes"/>
-    <multikey name="toaddr" required="yes" attribute="toaddrs"/>
+    <key name="from" required="yes" attribute="fromaddr"/>
+    <multikey name="to" required="yes" attribute="toaddrs"/>
     <key name="subject" default="Message from Zope"/>
-    <key name="host" default="localhost" datatype="inet-address"/>
+    <key name="smtp-server" default="localhost" datatype="inet-address"/>
     <key name="format" default="%(asctime)s %(message)s"
          datatype=".log_format"/>
   </sectiontype>
