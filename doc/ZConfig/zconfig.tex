@@ -448,6 +448,17 @@ Delegation is supported by one additional method:
   already set, raises \exception{ConfigurationError}.
 \end{methoddesc}
 
+This method is called on each section when the configuration is
+completely loaded.  This is called for all sections contained within a
+section before it is called on the containing section.
+
+\begin{methoddesc}[Configuration]{finish}{}
+  Perform any initialization for the section object that needs to
+  occur after the content of the section is loaded and delegation
+  chains have been established.  (This method may not have been called
+  for delegates before being called on the delegating section.)  The
+  default implementation does nothing.
+\end{methoddesc}
 
 The \class{ImportingConfiguration} subclass offers an additional
 method, normally not needed by applications, but possibly useful for
