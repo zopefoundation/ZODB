@@ -251,6 +251,14 @@ class MappingBase(Base):
         self.assertEqual(list(t.keys(10,12)), [], list(t.keys(10,12)))
         self.assertEqual(list(t.keys(9, 1)), [], list(t.keys(9, 1)))
 
+        # For IITreeSets, this one was returning 31 for len(keys), and
+        # list(keys) produced a list with 100 elements.
+        t.clear()
+        t.update(zip(range(300), range(300)))
+        keys = t.keys(200, 50)
+        self.assertEqual(len(keys), 0)
+        self.assertEqual(list(keys), [])
+
     def testSlicing(self):
         # Test that slicing of .keys()/.values()/.items() works exactly the
         # same way as slicing a Python list with the same contents.
@@ -429,6 +437,14 @@ class NormalSetTests(Base):
         self.assertEqual(list(t.keys(6,8)), [], list(t.keys(6,8)))
         self.assertEqual(list(t.keys(10,12)), [], list(t.keys(10,12)))
         self.assertEqual(list(t.keys(9,1)), [], list(t.keys(9,1)))
+
+        # For IITreeSets, this one was returning 31 for len(keys), and
+        # list(keys) produced a list with 100 elements.
+        t.clear()
+        t.update(range(300))
+        keys = t.keys(200, 50)
+        self.assertEqual(len(keys), 0)
+        self.assertEqual(list(keys), [])
 
     def testSlicing(self):
         # Test that slicing of .keys() works exactly the same way as slicing

@@ -12,7 +12,7 @@
 
  ****************************************************************************/
 
-#define BTREETEMPLATE_C "$Id: BTreeTemplate.c,v 1.51 2002/06/13 14:06:57 tim_one Exp $\n"
+#define BTREETEMPLATE_C "$Id: BTreeTemplate.c,v 1.52 2002/06/13 20:08:39 tim_one Exp $\n"
 
 /*
 ** _BTree_get
@@ -1122,6 +1122,23 @@ BTree_rangeSearch(BTree *self, PyObject *args, char type)
   PER_USE_OR_RETURN(self, NULL);
 
   UNLESS (self->data && self->len) goto empty;
+
+  /* If f and l were both passed in, ensure f <= l. */
+  if (f && f != Py_None && l && l != Py_None)
+    {
+      int cmp;
+      KEY_TYPE first;
+      KEY_TYPE last;
+      int copied = 1;
+
+      COPY_KEY_FROM_ARG(first, f, copied);
+      UNLESS (copied) goto err;
+      COPY_KEY_FROM_ARG(last, l, copied);
+      UNLESS (copied) goto err;
+
+      TEST_KEY_SET_OR(cmp, first, last) goto err;
+      if (cmp > 0) goto empty;
+    }
 
   /* Find the low range */
 
