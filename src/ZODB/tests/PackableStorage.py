@@ -108,8 +108,9 @@ class PackableStorage(PackableStorageBase):
             self._storage.load('\0\0\0\0\0\0\0\0','')
         except KeyError:
             import PersistentMapping
+            from ZODB.Transaction import Transaction
             file = StringIO()
-            p = Pickler(file, 1)
+            p = cPickle.Pickler(file, 1)
             p.dump((PersistentMapping.PersistentMapping, None))
             p.dump({'_container': {}})
             t=Transaction()
@@ -156,7 +157,6 @@ class PackableStorage(PackableStorageBase):
         raises(KeyError, self._storage.loadSerial, oid, revid3)
 
     def checkPackJustOldRevisions(self):
-        self._initroot()
         eq = self.assertEqual
         raises = self.assertRaises
         loads = self._makeloader()
