@@ -5,6 +5,10 @@ Release date: DD-MMM-YYYY
 Tools
 -----
 
+FileStorage.FileIterator was confused about how to read a transaction's
+user and description fields, which caused several tools to display
+binary gibberish for these values.
+
 ZODB.utils.oid_repr() changed to add a leading "0x", and to strip leading
 zeroes.  This is used, e.g., in the detail of a POSKeyError exception, to
 identify the missing oid.  Before, the output was ambiguous.  For example,
