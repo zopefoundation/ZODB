@@ -84,8 +84,8 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.48 2001/03/28 20:55:39 jim Exp $"""
-__version__='$Revision: 1.48 $'[11:-2]
+$Id: Connection.py,v 1.49 2001/04/02 14:54:54 chrism Exp $"""
+__version__='$Revision: 1.49 $'[11:-2]
 
 from cPickleCache import PickleCache
 from POSException import ConflictError, ExportError
@@ -548,8 +548,9 @@ class Connection(ExportImport.ExportImport):
                     get_transaction().register(self)
                     raise ConflictError(`oid`, `object.__class__`)
 
+        except ConflictError:
+            raise
         except:
-            t, v =sys.exc_info()[:2]
             LOG('ZODB',ERROR, "Couldn't load state for %s" % `oid`,
                 error=sys.exc_info())
             raise
