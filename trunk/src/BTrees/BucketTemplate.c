@@ -82,7 +82,7 @@
   
  ****************************************************************************/
 
-#define BUCKETTEMPLATE_C "$Id: BucketTemplate.c,v 1.10 2001/03/21 14:16:58 jim Exp $\n"
+#define BUCKETTEMPLATE_C "$Id: BucketTemplate.c,v 1.11 2001/03/30 15:50:18 brian Exp $\n"
 
 /*
 ** _bucket_get
@@ -980,7 +980,7 @@ _bucket_setstate(Bucket *self, PyObject *args)
     {
       UNLESS (keys=PyRealloc(self->keys, sizeof(KEY_TYPE)*len)) 
         return -1;
-      UNLESS (values=PyRealloc(self->values, sizeof(KEY_TYPE)*len))
+      UNLESS (values=PyRealloc(self->values, sizeof(VALUE_TYPE)*len))
         return -1;
       self->keys=keys;
       self->values=values;
