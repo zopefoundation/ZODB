@@ -84,8 +84,8 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.23 1999/08/25 17:35:45 jim Exp $"""
-__version__='$Revision: 1.23 $'[11:-2]
+$Id: Connection.py,v 1.24 1999/09/15 00:36:32 jim Exp $"""
+__version__='$Revision: 1.24 $'[11:-2]
 
 from cPickleCache import PickleCache
 from POSException import ConflictError, ExportError
@@ -95,6 +95,7 @@ from ExtensionClass import Base
 from time import time
 import Transaction, string, ExportImport, sys, traceback, TmpStore
 from zLOG import LOG, ERROR
+from coptimizations import new_persistent_id
 
 ExtensionKlass=Base.__class__
 
@@ -201,19 +202,6 @@ class Connection(ExportImport.ExportImport):
         if cache.has_key(oid): return cache[oid]
         return self[oid]
 
-    def _planToStore(self,object,stackp):
-        oid=object._p_oid
-        if oid is None or object._p_jar is not self:
-            oid = self.new_oid()
-            object._p_jar=self
-            object._p_oid=oid
-            stackp(object)
-            
-        elif object._p_changed:
-            stackp(object)
-
-        return oid
-
     def _setDB(self, odb):
         """Begin a new transaction.
 
@@ -243,92 +231,101 @@ class Connection(ExportImport.ExportImport):
 
     def commit(self, object, transaction):
         oid=object._p_oid
-        invalid=self._invalid
-        if invalid(oid) or invalid(None): raise ConflictError, oid
-        self._invalidating.append(oid)
-        plan=self._planToStore
-        stack=[]
-        stackup=stack.append
-        topoid=plan(object,stackup)
+        if oid is None or object._p_jar is not self:
+            oid = self.new_oid()
+            object._p_jar=self
+            object._p_oid=oid
+
+        elif object._p_changed:
+            invalid=self._invalid
+            if invalid(oid) or invalid(None): raise ConflictError, oid
+            self._invalidating.append(oid)
+
+        else:
+            # Nothing to do
+            return
+
+        stack=[object]
+
+        # Create a special persistent_id that passes T and the subobject
+        # stack along:
+        #
+        # def persistent_id(object,
+        #                   self=self,
+        #                   stackup=stackup, new_oid=self.new_oid):
+        #     if (not hasattr(object, '_p_oid') or
+        #         type(object) is ClassType): return None
+        # 
+        #     oid=object._p_oid
+        # 
+        #     if oid is None or object._p_jar is not self:
+        #         oid = self.new_oid()
+        #         object._p_jar=self
+        #         object._p_oid=oid
+        #         stackup(object)
+        # 
+        #     klass=object.__class__
+        # 
+        #     if klass is ExtensionKlass: return oid
+        #     
+        #     if hasattr(klass, '__getinitargs__'): return oid
+        # 
+        #     module=getattr(klass,'__module__','')
+        #     if module: klass=module, klass.__name__
+        #     
+        #     return oid, klass
+        
+        file=StringIO()
+        seek=file.seek
+        pickler=Pickler(file,1)
+        pickler.persistent_id=new_persistent_id(self, stack.append)
+        dbstore=self._storage.store
+        file=file.getvalue
+        cache=self._cache
+        dump=pickler.dump
+        clear_memo=pickler.clear_memo
+
         version=self._version
-
-        if stack:
-            # Create a special persistent_id that passes T and the subobject
-            # stack along:
-            def persistent_id(object,self=self,stackup=stackup):
-                if (not hasattr(object, '_p_oid') or
-                    type(object) is ClassType): return None
-
-                oid=object._p_oid
-
-                if oid is None or object._p_jar is not self:
-                    oid = self.new_oid()
-                    object._p_jar=self
-                    object._p_oid=oid
-                    stackup(object)
-
-                klass=object.__class__
-
-                if klass is ExtensionKlass: return oid
-                
-                if hasattr(klass, '__getinitargs__'): return oid
-
+        
+        while stack:
+            object=stack[-1]
+            del stack[-1]
+            oid=object._p_oid
+            serial=getattr(object, '_p_serial', '\0\0\0\0\0\0\0\0')
+            if invalid(oid): raise ConflictError, oid
+            klass = object.__class__
+        
+            if klass is ExtensionKlass:
+                # Yee Ha!
+                dict={}
+                dict.update(object.__dict__)
+                del dict['_p_jar']
+                args=object.__name__, object.__bases__, dict
+                state=None
+            else:
+                if hasattr(klass, '__getinitargs__'):
+                    args = object.__getinitargs__()
+                    len(args) # XXX Assert it's a sequence
+                else:
+                    args = None # New no-constructor protocol!
+        
                 module=getattr(klass,'__module__','')
                 if module: klass=module, klass.__name__
-                
-                return oid, klass
-
-            file=StringIO()
-            seek=file.seek
-            pickler=Pickler(file,1)
-            pickler.persistent_id=persistent_id
-            dbstore=self._storage.store
-            file=file.getvalue
-            cache=self._cache
-            dump=pickler.dump
-            clear_memo=pickler.clear_memo
-
-            while stack:
-                object=stack[-1]
-                del stack[-1]
-                oid=object._p_oid
-                serial=getattr(object, '_p_serial', '\0\0\0\0\0\0\0\0')
-                if invalid(oid): raise ConflictError, oid
-                klass = object.__class__
-
-                if klass is ExtensionKlass:
-                    # Yee Ha!
-                    dict={}
-                    dict.update(object.__dict__)
-                    del dict['_p_jar']
-                    args=object.__name__, object.__bases__, dict
-                    state=None
-                else:
-                    if hasattr(klass, '__getinitargs__'):
-                        args = object.__getinitargs__()
-                        len(args) # XXX Assert it's a sequence
-                    else:
-                        args = None # New no-constructor protocol!
-
-                    module=getattr(klass,'__module__','')
-                    if module: klass=module, klass.__name__
-                    __traceback_info__=klass, oid, self._version
-                    state=object.__getstate__()
-
-                seek(0)
-                clear_memo()
-                dump((klass,args))
-                dump(state)
-                p=file(1)
-                object._p_serial=dbstore(oid,serial,p,version,transaction)
-                object._p_changed=0
-                try: cache[oid]=object
-                except:
-                    # Dang, I bet its wrapped:
-                    if hasattr(object, 'aq_base'):
-                        cache[oid]=object.aq_base
-
-        return topoid
+                __traceback_info__=klass, oid, self._version
+                state=object.__getstate__()
+        
+            seek(0)
+            clear_memo()
+            dump((klass,args))
+            dump(state)
+            p=file(1)
+            object._p_serial=dbstore(oid,serial,p,version,transaction)
+            object._p_changed=0
+            try: cache[oid]=object
+            except:
+                # Dang, I bet its wrapped:
+                if hasattr(object, 'aq_base'):
+                    cache[oid]=object.aq_base
 
     def commit_sub(self, t):
         tmp=self._tmp
