@@ -13,7 +13,7 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.128 2004/02/27 14:46:19 jeremy Exp $"""
+$Id: Connection.py,v 1.129 2004/02/27 14:54:27 jeremy Exp $"""
 
 import logging
 import sys
@@ -102,7 +102,7 @@ class Connection(ExportImport, object):
 
     XXX Mention the database pool.
 
-    $Id: Connection.py,v 1.128 2004/02/27 14:46:19 jeremy Exp $
+    $Id: Connection.py,v 1.129 2004/02/27 14:54:27 jeremy Exp $
     
     @group User Methods: root, get, add, close, db, sync, isReadOnly,
         cacheFullSweep, cacheMinimize, getVersion, modifiedInVersion
@@ -119,7 +119,6 @@ class Connection(ExportImport, object):
     """
 
     _tmp = None
-    _opened = None
     _code_timestamp = 0
     _transaction = None
     _added_during_commit = None
@@ -134,6 +133,7 @@ class Connection(ExportImport, object):
 
         self._log = logging.getLogger("zodb.conn")
         self._storage = None
+        self._opened = None
         self._debug_info = ()
 
         self._version = version
