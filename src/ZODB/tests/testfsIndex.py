@@ -18,11 +18,14 @@ from ZODB.utils import p64
 
 class Test(unittest.TestCase):
 
-    def testInserts(self):
-        index=fsIndex()
+    def setUp(self):
+        self.index = fsIndex()
 
         for i in range(200):
-            index[p64(i*1000)]=(i*1000L+1)
+            self.index[p64(i * 1000)] = (i * 1000L + 1)
+
+    def testInserts(self):
+        index = self.index
 
         for i in range(0,200):
             self.assertEqual((i,index[p64(i*1000)]), (i,(i*1000L+1)))
@@ -40,7 +43,7 @@ class Test(unittest.TestCase):
         # self.failUnless(len(index._data) > 1)
 
     def testUpdate(self):
-        index=fsIndex()
+        index = self.index
         d={}
 
         for i in range(200):
@@ -62,6 +65,51 @@ class Test(unittest.TestCase):
         self.assertEqual(index.get(p64(599000)), 599001)
         self.assertEqual(index.get(p64(399000)), 399002)
         self.assertEqual(len(index), 600)
+
+    def testKeys(self):
+        keys = list(iter(self.index))
+        keys.sort()
+
+        for i, k in enumerate(keys):
+            self.assertEqual(k, p64(i * 1000))
+
+        keys = list(self.index.iterkeys())
+        keys.sort()
+
+        for i, k in enumerate(keys):
+            self.assertEqual(k, p64(i * 1000))
+
+        keys = self.index.keys()
+        keys.sort()
+
+        for i, k in enumerate(keys):
+            self.assertEqual(k, p64(i * 1000))
+
+    def testValues(self):
+        values = list(self.index.itervalues())
+        values.sort()
+
+        for i, v in enumerate(values):
+            self.assertEqual(v, (i * 1000L + 1))
+
+        values = self.index.values()
+        values.sort()
+
+        for i, v in enumerate(values):
+            self.assertEqual(v, (i * 1000L + 1))
+
+    def testItems(self):
+        items = list(self.index.iteritems())
+        items.sort()
+
+        for i, item in enumerate(items):
+            self.assertEqual(item, (p64(i * 1000), (i * 1000L + 1)))
+
+        items = self.index.items()
+        items.sort()
+
+        for i, item in enumerate(items):
+            self.assertEqual(item, (p64(i * 1000), (i * 1000L + 1)))
 
 
 def test_suite():
