@@ -53,7 +53,7 @@
 
 static char cPickleJar_module_documentation[] = 
 ""
-"\n$Id: cPickleJar.c,v 1.1 1997/05/08 19:28:05 jim Exp $"
+"\n$Id: cPickleJar.c,v 1.2 1997/09/08 18:59:55 jim Exp $"
 ;
 
 #include "ExtensionClass.h"
@@ -152,7 +152,6 @@ not_persistent:
   PyErr_Clear();
   Py_INCREF(Py_None);
   return Py_None;
-
 }  
 
 static PyObject *
@@ -229,7 +228,7 @@ pj_store(PyObject *self, PyObject *args)
   else UNLESS(T=PyString_FromString("")) goto err;
 
   UNLESS(file=PyObject_CallObject(StringIO, NULL)) goto err;
-  UNLESS(pickler=PyObject_CallFunction(Pickler,"Oi",file,0)) goto err;
+  UNLESS(pickler=PyObject_CallFunction(Pickler,"Oi",file,1)) goto err;
   if(PyObject_SetAttr(pickler, py_persistent_id, state) < 0) goto err;
   UNLESS(store=PyObject_GetAttr(self,py_db)) goto err;
   UNLESS_ASSIGN(store,PyObject_GetAttr(store,py_store)) goto err;
@@ -323,7 +322,7 @@ void
 initcPickleJar()
 {
   PyObject *m, *d;
-  char *rev="$Revision: 1.1 $";
+  char *rev="$Revision: 1.2 $";
   PURE_MIXIN_CLASS(PickleJar,"",PickleJar_methods);
 
   UNLESS(Pickler=PyImport_ImportModule("cPickle")) return;
@@ -377,6 +376,9 @@ initcPickleJar()
 Revision Log:
 
   $Log: cPickleJar.c,v $
+  Revision 1.2  1997/09/08 18:59:55  jim
+  Added binary output flag. Waaaaaaa!
+
   Revision 1.1  1997/05/08 19:28:05  jim
   *** empty log message ***
 
