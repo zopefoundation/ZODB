@@ -605,18 +605,11 @@ def main(module_filter, test_filter, libdir):
 
     # Skip this; zLOG will eventually win, and coordinating
     # initialization is a loosing battle.
-    #configure_logging()
+    configure_logging()
 
     # Initialize the path and cwd
     global pathinit
     pathinit = PathInit(build, build_inplace, libdir)
-
-    # We need to make sure zLOG takes its turn at initializing the
-    # logging package before we start calling any logging methods, so
-    # we don't find that it changes at some arbitrary time in the
-    # future.
-    import zLOG
-    zLOG.initialize()
 
     files = find_tests(module_filter)
     files.sort()
@@ -660,21 +653,6 @@ def configure_logging():
     if os.environ.has_key("LOGGING"):
         level = int(os.environ["LOGGING"])
         logging.getLogger().setLevel(level)
-
-    if os.path.exists(logini):
-        # Hack: The ZEO tests need to pass the logging config to
-        # spawned processes.  We haven't thought of a better way to do
-        # it than using environment variables.
-        os.environ["LOGINI"] = logini
-
-    # Re-write the filenames in the environment so they don't wander
-    # when specified as relative paths and we os.chdir().
-    if os.environ.has_key("STUPID_LOG_FILE"):
-        os.environ["STUPID_LOG_FILE"] = os.path.abspath(
-            os.environ["STUPID_LOG_FILE"])
-    if os.environ.has_key("EVENT_LOG_FILE"):
-        os.environ["EVENT_LOG_FILE"] = os.path.abspath(
-            os.environ["EVENT_LOG_FILE"])
 
 
 def process_args(argv=None):
