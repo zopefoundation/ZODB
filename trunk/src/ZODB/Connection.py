@@ -13,7 +13,7 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.72 2002/08/14 22:07:09 mj Exp $"""
+$Id: Connection.py,v 1.73 2002/09/07 16:22:16 jeremy Exp $"""
 
 from cPickleCache import PickleCache, MUCH_RING_CHECKING
 from POSException import ConflictError, ReadConflictError
@@ -275,21 +275,18 @@ class Connection(ExportImport.ExportImport):
                 method_name, args, kw = self.__onCommitActions.pop(0)
                 apply(getattr(self, method_name), (transaction,) + args, kw)
             return
-        oid=object._p_oid
-        invalid=self._invalid
+        oid = object._p_oid
+        invalid = self._invalid
         if oid is None or object._p_jar is not self:
             # new object
             oid = self.new_oid()
-            object._p_jar=self
-            object._p_oid=oid
+            object._p_jar = self
+            object._p_oid = oid
             self._creating.append(oid)
 
         elif object._p_changed:
-            if (
-                (invalid(oid) and not hasattr(object, '_p_resolveConflict'))
-                or
-                invalid(None)
-                ):
+            if ((invalid(oid) and not hasattr(object, '_p_resolveConflict'))
+                or invalid(None)):
                 raise ConflictError(object=object)
             self._invalidating.append(oid)
 
@@ -297,7 +294,7 @@ class Connection(ExportImport.ExportImport):
             # Nothing to do
             return
 
-        stack=[object]
+        stack = [object]
 
         # Create a special persistent_id that passes T and the subobject
         # stack along:
@@ -610,8 +607,8 @@ class Connection(ExportImport.ExportImport):
     def tpc_begin(self, transaction, sub=None):
         if self._invalid(None): # Some nitwit invalidated everything!
             raise ConflictError("transaction already invalidated")
-        self._invalidating=[]
-        self._creating=[]
+        self._invalidating = []
+        self._creating = []
 
         if sub:
             # Sub-transaction!
