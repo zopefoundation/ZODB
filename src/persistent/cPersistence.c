@@ -14,7 +14,7 @@
 static char cPersistence_doc_string[] = 
 "Defines Persistent mixin class for persistent objects.\n"
 "\n"
-"$Id: cPersistence.c,v 1.55 2002/04/02 22:17:24 bwarsaw Exp $\n";
+"$Id: cPersistence.c,v 1.56 2002/04/02 22:29:34 jeremy Exp $\n";
 
 #include "cPersistence.h"
 
@@ -129,12 +129,13 @@ unghostify(cPersistentObject *self)
 
         /* XXX Is it ever possibly to not have a cache? */
         if (self->cache) {
+	    CPersistentRing *home = &self->cache->ring_home;
             /* Create a node in the ring for this unghostified object. */
             self->cache->non_ghost_count++;
-            self->ring.next = &self->cache->ring_home;
-            self->ring.prev = (&(self)->cache->ring_home)->prev;
-            HOME(self)->prev->next = &self->ring;
-            HOME(self)->prev = &self->ring;
+            self->ring.next = home;
+            self->ring.prev = home->prev;
+	    home->prev->next = &self->ring;
+	    home->prev = &self->ring;
             Py_INCREF(self);
         }
         self->state = cPersistent_CHANGED_STATE;
@@ -149,9 +150,6 @@ unghostify(cPersistentObject *self)
     }
     return 1;
 }
-
-
-#define KEEP_THIS_ONE_AROUND_FOR_A_WHILE(self) accessed(self)
 
 /****************************************************************************/
 
