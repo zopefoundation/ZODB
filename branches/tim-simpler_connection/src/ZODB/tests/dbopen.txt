@@ -76,10 +76,10 @@ hold if the default pool size is overridden.
 >>> conns = [db.open() for dummy in range(PS)]
 >>> handler.records
 []
->>> conns.append(db.open())
 
 A warning for opening one more:
 
+>>> conns.append(db.open())
 >>> len(handler.records)
 1
 >>> msg = handler.records[0]
@@ -115,5 +115,107 @@ We can change the pool size on the fly:
 >>> conns.append(db.open)
 >>> handler.records  # no log msg -- the pool is bigger now
 []
+>>> conns.append(db.open()) # likewise
+>>> handler.records
+[]
+>>> conns.append(db.open()) # but one more and there's a warning again
+>>> len(handler.records)
+1
+>>> msg = handler.records[0]
+>>> print msg.name, msg.levelname, msg.getMessage()
+ZODB.DB WARNING DB.open() has 7 open connections with a pool_size of 6
 
+Enough of that.
+
+>>> handler.clear()
+>>> st.close()
+
+More interesting is the stack-like nature of connection reuse.  So long as
+we keep opening new connections, and keep them alive, all connections
+returned are distinct:
+
+>>> st = Storage()
+>>> db = DB(st)
+>>> c1 = db.open()
+>>> c2 = db.open()
+>>> c3 = db.open()
+>>> c1 is c2 or c1 is c3 or c2 is c3
+False
+
+Let's put some markers on the connections, so we can identify these
+specific objects later:
+
+>>> c1.MARKER = 'c1'
+>>> c2.MARKER = 'c2'
+>>> c3.MARKER = 'c3'
+
+Now explicitly close c1 and c2:
+
+>>> c1.close()
+>>> c2.close()
+
+Reaching into the internals, we can see that db's connection pool now has
+two connections available for reuse, and knows about three connections in
+all:
+
+>>> pool = db._pools['']
+>>> len(pool.available)
+2
+>>> len(pool.all)
+3
+
+Since we closed c2 last, it's at the top of the available stack, so will
+be reused by the next open():
+
+>>> c1 = db.open()
+>>> c1.MARKER
+'c2'
+>>> len(pool.available), len(pool.all)
+(1, 3)
+
+>>> c3.close()  # now the stack has c3 on top, then c1
+>>> c2 = db.open()
+>>> c2.MARKER
+'c3'
+>>> len(pool.available), len(pool.all)
+(1, 3)
+>>> c3 = db.open()
+>>> c3.MARKER
+'c1'
+>>> len(pool.available), len(pool.all)
+(0, 3)
+
+What about the 3 in pool.all?  We've seen that closing connections doesn't
+reduce pool.all, and it would be bad if DB kept connections alive forever.
+
+In fact pool.all is a "weak set" of connections -- it holds weak references
+to connections.  That alone doesn't keep connection objects alive.  The
+weak set allows DB's statistics methods to return info about connections
+that are still alive.
+
+
+>>> len(db.cacheDetailSize())
+3
+
+If a connection object is abandoned (it becomes unreachable), then it
+will vanish from pool.all automatically.  However, connections are
+involved in cycles, so exactly when a connection vanishes from pool.all
+isn't predictable.  It can be forced by running gc.collect():
+
+>>> import gc
+>>> dummy = gc.collect()
+>>> len(pool.all)
+3
+>>> c3 = None
+>>> dummy = gc.collect()
+>>> len(pool.all)
+2
+
+Note that c3 is really gone; in particular it didn't get added back to
+the stack of available connections by magic:
+
+>>> len(pool.available)
+0
+
+>>> st.close()
 >>> handler.uninstall()
