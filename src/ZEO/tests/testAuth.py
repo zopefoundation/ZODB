@@ -66,9 +66,9 @@ class AuthTest(CommonSetupTearDown):
 
     def wait(self):
         for i in range(25):
+            time.sleep(0.1)
             if self._storage.test_connection:
                 return
-            time.sleep(0.1)
         self.fail("Timed out waiting for client to authenticate")
 
     def testOK(self):

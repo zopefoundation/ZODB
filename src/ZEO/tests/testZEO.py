@@ -203,6 +203,7 @@ class MappingStorageTests(GenericTests):
 
     # XXX There are still a bunch of tests that fail.  Are there
     # still test classes in GenericTests that shouldn't be there?
+    # XXX Is the above comment still relevant?
 
 test_classes = [FileStorageTests, MappingStorageTests]
 

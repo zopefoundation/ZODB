@@ -299,6 +299,8 @@ class ConnectionTests(CommonSetupTearDown):
         # Stores should fail here
         self.assertRaises(ReadOnlyError, self._dostore)
         self._storage.close()
+        # Get rid of the 'test left new threads behind' warning
+        time.sleep(0.1)
 
     def checkReadOnlyFallbackWritable(self):
         # Open a fallback client to a read-write server; stores succeed
