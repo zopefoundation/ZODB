@@ -12,6 +12,7 @@ import unittest
 import ZEO.ClientStorage, ZEO.StorageServer
 import ThreadedAsync, ZEO.trigger
 from ZODB.FileStorage import FileStorage
+import thread
 
 from ZEO.tests import forker, Cache
 from ZEO.smac import Disconnected
@@ -277,7 +278,8 @@ class ConnectionTests(ZEOTestBase):
         while 1:
             try:
                 revid1 = self._dostore(oid, data=obj)
-            except ClientDisconnected:
+            except (ClientDisconnected, thread.error), err:
+                get_transaction().abort()
                 time.sleep(0.1)
             else:
                 break
