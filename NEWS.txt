@@ -1,6 +1,6 @@
 What's new in ZODB3 3.3 beta 1
 ==============================
-Release date: 03-Jun-2004
+Release date: 07-Jun-2004
 
 3.3b1 is the first ZODB release built using the new zpkg tools:
 
