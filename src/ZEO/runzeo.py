@@ -39,6 +39,7 @@ import socket
 
 import ZConfig, ZConfig.datatypes
 import zLOG
+import ZEO
 from zdaemon.zdoptions import ZDOptions
 
 def parse_address(arg):
@@ -93,7 +94,7 @@ class ZEOOptions(ZDOptions, ZEOOptionsMixin):
     logsectionname = "logger"
 
     def __init__(self):
-        self.schemadir = os.path.dirname(__file__)
+        self.schemadir = os.path.dirname(ZEO.__file__)
         ZDOptions.__init__(self)
         self.add_zeo_options()
         self.add("storages", "storages",
@@ -273,5 +274,4 @@ def main(args=None):
     s.main()
 
 if __name__ == "__main__":
-    __file__ = sys.argv[0]
     main()
