@@ -11,7 +11,7 @@
 
 static char BTree_module_documentation[] = 
 ""
-"\n$Id: BTree.c,v 1.6 1997/10/10 18:21:45 jim Exp $"
+"\n$Id: BTree.c,v 1.7 1997/10/30 20:58:43 jim Exp $"
 ;
 
 #define PERSISTENT
@@ -35,7 +35,7 @@ static void PyVar_Assign(PyObject **v, PyObject *e) { Py_XDECREF(*v); *v=e;}
 #define OBJECT(O) ((PyObject*)(O))
 
 #define MIN_BUCKET_ALLOC 8
-#define MAX_SIZE(N) 16
+#define MAX_SIZE(N) 32
 
 #ifdef INTKEY
 #define KEY_TYPE INTKEY
@@ -1714,7 +1714,7 @@ initBTree()
 #endif
 {
   PyObject *m, *d;
-  char *rev="$Revision: 1.6 $";
+  char *rev="$Revision: 1.7 $";
 
   UNLESS(PyExtensionClassCAPI=PyCObject_Import("ExtensionClass","CAPI"))
       return;
@@ -1774,6 +1774,9 @@ initBTree()
 Revision Log:
 
   $Log: BTree.c,v $
+  Revision 1.7  1997/10/30 20:58:43  jim
+  Upped bucket sizes.
+
   Revision 1.6  1997/10/10 18:21:45  jim
   Fixed bug in range queries.
 
