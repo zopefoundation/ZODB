@@ -84,8 +84,8 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.50 2001/04/14 23:16:44 shane Exp $"""
-__version__='$Revision: 1.50 $'[11:-2]
+$Id: Connection.py,v 1.51 2001/05/10 23:00:14 jeremy Exp $"""
+__version__='$Revision: 1.51 $'[11:-2]
 
 from cPickleCache import PickleCache
 from POSException import ConflictError, ExportError
@@ -97,6 +97,7 @@ import Transaction, string, ExportImport, sys, traceback, TmpStore
 from zLOG import LOG, ERROR, BLATHER
 from coptimizations import new_persistent_id
 from ConflictResolution import ResolvedSerial
+from types import StringType
 
 ExtensionKlass=Base.__class__
 
@@ -386,34 +387,9 @@ class Connection(ExportImport.ExportImport):
             dump(state)
             p=file(1)
             s=dbstore(oid,serial,p,version,transaction)
-            if s:
-                # Note that if s is false, then the storage defered the return
-                if _type(s) is _st:
-                    # normal case
-                    if s == ResolvedSerial:
-                        # resolved conflict
-                        object._p_changed=None
-                    else:
-                        object._p_serial=s
-                        object._p_changed=0
-                else:
-                    # defered returns
-                    for oi, s in s:
-                        if _type(s) is not _st: raise s
-                        o=get(oi, oi)
-                        if o is not oi:
-                            if s == ResolvedSerial:
-                                o._p_changed=None
-                            else:
-                                o._p_serial=s
-                                o._p_changed=0
-                        elif oi == oid:
-                            if s == ResolvedSerial:
-                                object._p_changed=None
-                            else:
-                                object._p_serial=s
-                                object._p_changed=0
-
+            # Put the object in the cache before handling the
+            # response, just in case the response contains the
+            # serial number for a newly created object
             try: cache[oid]=object
             except:
                 # Dang, I bet its wrapped:
@@ -421,6 +397,8 @@ class Connection(ExportImport.ExportImport):
                     cache[oid]=object.aq_base
                 else:
                     raise
+
+            self._handle_serial(s, oid)
 
     def commit_sub(self, t,
                    _type=type, _st=type(''), _None=None):
@@ -452,16 +430,7 @@ class Connection(ExportImport.ExportImport):
         for oid in oids:
             data, serial = load(oid, src)
             s=store(oid, serial, data, dest, t)
-            if s:
-                if _type(s) is _st:
-                    o=get(oid, _None)
-                    if o is not _None: o._p_serial=s
-                else:
-                    for oid, s in s:
-                        if _type(s) is not _st: raise s
-                        o=get(oid, _None)
-                        if o is not _None: o._p_serial=s
-                        
+            self._handle_serial(s, oid, change=0)
 
     def abort_sub(self, t):
         """Abort work done in subtransactions"""
@@ -639,18 +608,48 @@ class Connection(ExportImport.ExportImport):
         try: vote=self._storage.tpc_vote
         except: return
         s=vote(transaction)
-        if s:
-            get=self._cache.get
-            for oid, s in s:
-                o=get(oid, oid)
-                if o is not oid:
-                    if _type(s) is not _st: raise s
-                    if s == ResolvedSerial:
-                        o._p_changed=None
-                    else:
-                        o._p_serial=s
-                        o._p_changed=0
-        
+        self._handle_serial(s)
+
+    def _handle_serial(self, store_return, oid=None, change=1):
+        """Handle the returns from store() and tpc_vote() calls."""
+
+        # These calls can return different types depending on whether
+        # ZEO is used.  ZEO uses asynchronous returns that may be
+        # returned in batches by the ClientStorage.  ZEO1 can also
+        # return an exception object and expect that the Connection
+        # will raise the exception.
+
+        # When commit_sub() exceutes a store, there is no need to
+        # update the _p_changed flag, because the subtransaction
+        # tpc_voteh() calls already did this.  The change=1 argument
+        # exists to allow commit_sub() to avoid setting the flag
+        # again. 
+        if not store_return:
+            return
+        if isinstance(store_return, StringType):
+            assert oid is not None
+            serial = store_return
+            obj = self._cache.get(oid, None)
+            if serial == ResolvedSerial:
+                obj._p_changed = None
+            else:
+                if change:
+                    obj._p_changed = 0
+                obj._p_serial = serial
+        else:
+            for oid, serial in store_return:
+                if not isinstance(serial, StringType):
+                    raise serial
+                obj = self._cache.get(oid, None)
+                if obj is None:
+                    continue
+                if serial == ResolvedSerial:
+                    obj._p_changed = None
+                else:
+                    if change:
+                        obj._p_changed = 0
+                    obj._p_serial = serial
+
 
     def tpc_finish(self, transaction):
 
