@@ -45,7 +45,7 @@ that the database will contain instances of classes that don't exist in
 object was an instance of ``ZODB.PersistentMapping.PersistentMapping`` before
 ZODB 3.3, but is an instance of ``persistent.mapping.PersistentMapping`` in
 ZODB 3.3.  A 3.3.1 client can still load a
-``ZODB.PersistentMapping.PersistentMapping`` object, but is this just an alias
+``ZODB.PersistentMapping.PersistentMapping`` object, but this is just an alias
 for ``persistent.mapping.PersistentMapping``, and an object of the latter
 type will be stored if a 3.3 client commits a change to the root object.  An
 older ZEO client cannot load the root object so changed.
@@ -190,7 +190,7 @@ and view its archives at
 Note that Zope Corp mailing lists have a subscriber-only posting policy.
 
 Andrew's ZODB Programmers Guide is made available in several
-forms, including DVI and HTML.  To view it online, point your
+forms, including PDF and HTML.  To view it online, point your
 browser at the file Doc/guide/zodb/index.html
 
 
