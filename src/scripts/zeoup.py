@@ -51,7 +51,7 @@ def check_server(addr, storage, write):
         cn = db.open()
         root = cn.root()
         try:
-            root['zeoup'] = root.get('zeoup', 0)+ 1
+            root['zeoup'] = root.get('zeoup', 0) + 1
             get_transaction().commit()
         except ConflictError:
             pass
