@@ -10,8 +10,7 @@ usage: netspace.py [-P | -v] data.fs
 
 import ZODB
 from ZODB.FileStorage import FileStorage
-from ZODB.utils import U64
-from ZODB.fsdump import get_pickle_metadata
+from ZODB.utils import U64, get_pickle_metadata
 from ZODB.referencesf import referencesf
 
 def find_paths(root, maxdist):
