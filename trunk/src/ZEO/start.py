@@ -12,69 +12,68 @@
 # 
 ##############################################################################
 """Start the server storage.
+
+$Id: start.py,v 1.35 2002/07/16 18:30:03 jeremy Exp $
 """
 
-__version__ = "$Revision: 1.34 $"[11:-2]
-
-import sys, os, getopt, string
+import sys, os, getopt
+import types
 
 def directory(p, n=1):
-    d=p
+    d = p
     while n:
-        d=os.path.split(d)[0]
-        if not d or d=='.': d=os.getcwd()
-        n=n-1
-
+        d = os.path.split(d)[0]
+        if not d or d=='.':
+            d = os.getcwd()
+        n -= 1
     return d
 
 def get_storage(m, n, cache={}):
     p=sys.path
     d, m = os.path.split(m)
-    if m[-3:]=='.py': m=m[:-3]
-    im=cache.get((d,m), 0)
-    if im==0:
-        if d: p=[d]+p
+    if m.endswith('.py'):
+        m = m[:-3]
+    im = cache.get((d, m))
+    if im is None:
+        if d:
+            p = [d] + p
         import imp
-        im=imp.find_module(m,p)
-        im=imp.load_module(m, im[0], im[1], im[2])
-        cache[(d,m)]=im
+        im = imp.find_module(m, p)
+        im = imp.load_module(m, *im)
+        cache[(d, m)] = im
     return getattr(im, n)
 
-
 def main(argv):
-    me=argv[0]
+    me = argv[0]
     sys.path.insert(0, directory(me, 2))
 
     # XXX hack for profiling support
     global unix, storages, zeo_pid, asyncore
 
-    args=[]
-    last=''
+    args = []
+    last = ''
     for a in argv[1:]:
-        if (a[:1] != '-' and string.find(a, '=') > 0
-            and last != '-S' # lame, sorry
-            ):
-            a=string.split(a,'=')
-            os.environ[a[0]]=string.join(a[1:],'=')
+        if (a[:1] != '-' and a.find('=') > 0 and last != '-S'): # lame, sorry
+            a = a.split("=")
+            os.environ[a[0]] = "=".join(a[1:])
             continue
         args.append(a)
-        last=a
+        last = a
 
     if os.environ.has_key('INSTANCE_HOME'):
-        INSTANCE_HOME=os.environ['INSTANCE_HOME']
+        INSTANCE_HOME = os.environ['INSTANCE_HOME']
     elif os.path.isdir(os.path.join(directory(me, 4),'var')):
-        INSTANCE_HOME=directory(me, 4)
+        INSTANCE_HOME = directory(me, 4)
     else:
-        INSTANCE_HOME=os.getcwd()
+        INSTANCE_HOME = os.getcwd()
 
     if os.path.isdir(os.path.join(INSTANCE_HOME, 'var')):
-        var=os.path.join(INSTANCE_HOME, 'var')
+        var = os.path.join(INSTANCE_HOME, 'var')
     else:
-        var=INSTANCE_HOME
+        var = INSTANCE_HOME
 
-    zeo_pid=os.environ.get('ZEO_SERVER_PID',
-                           os.path.join(var, 'ZEO_SERVER.pid')
-                           )
+    zeo_pid = os.environ.get('ZEO_SERVER_PID',
+                             os.path.join(var, 'ZEO_SERVER.pid'))
 
     fs = os.path.join(var, 'Data.fs')
 
@@ -168,9 +167,9 @@ def main(argv):
             print usage
             print 'Unrecognizd arguments: ', string.join(args[1:])
             sys.exit(1)
-        fs=args[0]
+        fs = args[0]
 
-    __builtins__.__debug__=debug
+##    __builtins__.__debug__ = debug
     if debug:
         os.environ['Z_DEBUG_MODE'] = '1'
     if detailed:
@@ -184,13 +183,15 @@ def main(argv):
     try:
         import pwd
         try:
-            try: UID=string.atoi(UID)
-            except: pass
+            try:
+                UID = int(UID)
+            except:
+                pass
             gid = None
-            if type(UID) == type(""):
+            if isinstance(UID, types.StringType):
                 uid = pwd.getpwnam(UID)[2]
                 gid = pwd.getpwnam(UID)[3]
-            elif type(UID) == type(1):
+            elif isinstance(UID, types.IntType):
                 uid = pwd.getpwuid(UID)[2]
                 gid = pwd.getpwuid(UID)[3]
             else:
@@ -210,8 +211,10 @@ def main(argv):
         pass
 
     if Z:
-        try: import posix
-        except: pass
+        try:
+            import posix
+        except:
+            pass
         else:
             import zdaemon
             zdaemon.run(sys.argv, '')
@@ -255,12 +258,13 @@ def main(argv):
         except:
             pass
 
-        items=storages.items()
+        items = storages.items()
         items.sort()
         for kv in items:
             LOG('ZEO Server', INFO, 'Serving %s:\t%s' % kv)
 
-        if not unix: unix=host, port
+        if not unix:
+            unix = host, port
 
         ZEO.StorageServer.StorageServer(unix, storages)
         
@@ -276,13 +280,12 @@ def main(argv):
         info = sys.exc_info()
         try:
             import zLOG
-            zLOG.LOG("z2", zLOG.PANIC, "Startup exception",
-                     error=info)
+            zLOG.LOG("z2", zLOG.PANIC, "Startup exception", error=info)
         except:
             pass
 
         import traceback
-        apply(traceback.print_exception, info)
+        traceback.print_exception(*info)
             
         sys.exit(0)
 
@@ -310,21 +313,28 @@ def shutdown(storages, die=1):
     # unnecessary, since we now use so_reuseaddr.
     for ignored in 1,2:
         for socket in asyncore.socket_map.values():
-            try: socket.close()
-            except: pass
+            try:
+                socket.close()
+            except:
+                pass
 
     for storage in storages.values():
-        try: storage.close()
-        finally: pass
+        try:
+            storage.close()
+        finally:
+            pass
 
     try:
         from zLOG import LOG, INFO
-        LOG('ZEO Server', INFO,
-            "Shutting down (%s)" % (die and "shutdown" or "restart")
-            )
-    except: pass
+        s = die and "shutdown" or "restart"
+        LOG('ZEO Server', INFO, "Shutting down (%s)" % s)
+    except:
+        pass
 
-    if die: sys.exit(0)
-    else: sys.exit(1)
+    if die:
+        sys.exit(0)
+    else:
+        sys.exit(1)
 
-if __name__=='__main__': main(sys.argv)
+if __name__=='__main__':
+    main(sys.argv)
