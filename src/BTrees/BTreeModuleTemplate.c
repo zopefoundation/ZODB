@@ -85,7 +85,7 @@
 
 static char BTree_module_documentation[] = 
 ""
-"\n$Id: BTreeModuleTemplate.c,v 1.2 2001/02/19 00:38:41 jim Exp $"
+"\n$Id: BTreeModuleTemplate.c,v 1.3 2001/02/19 17:36:04 jim Exp $"
 ;
 
 #ifdef PERSISTENT
@@ -124,7 +124,7 @@ static void PyVar_Assign(PyObject **v, PyObject *e) { Py_XDECREF(*v); *v=e;}
 #define OBJECT(O) ((PyObject*)(O))
 
 #define MIN_BUCKET_ALLOC 16
-#define MAX_BTREE_SIZE(B) 256
+#define MAX_BTREE_SIZE(B) DEFAULT_MAX_BTREE_SIZE
 #define MAX_BUCKET_SIZE(B) DEFAULT_MAX_BUCKET_SIZE
 
 #define SameType_Check(O1, O2) ((O1)->ob_type==(O2)->ob_type)
@@ -366,7 +366,7 @@ INITMODULE ()
   d = PyModule_GetDict(m);
 
   PyDict_SetItemString(d, "__version__",
-		       PyString_FromString("$Revision: 1.2 $"));
+		       PyString_FromString("$Revision: 1.3 $"));
 
   PyExtensionClass_Export(d,PREFIX "Bucket", BucketType);
   PyExtensionClass_Export(d,PREFIX "BTree", BTreeType);

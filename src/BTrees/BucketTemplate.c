@@ -749,18 +749,6 @@ bucket__p_deactivate(Bucket *self, PyObject *args)
 }
 #endif
 
-/*
-** bucket_clear
-**
-** Zeros out a bucket
-**
-** Arguments:	self	The bucket
-**		args	(unused)
-**
-** Returns:	None 	on success
-**		NULL	on failure
-**
-*/  
 static PyObject *
 bucket_clear(Bucket *self, PyObject *args)
 {
@@ -784,55 +772,42 @@ err:
   return NULL;
 }
 
-/*
-** bucket_getstate
-**
-** bulk get all objects in bucket
-**
-** Arguments:	self	The Bucket
-**		args	(unused)
-**
-** Returns:	pair of tuples of keys, values
-*/
 static PyObject *
 bucket_getstate(Bucket *self, PyObject *args)
 {
-  PyObject *r=0, *o=0, *items=0;
-  int i, l;
+  PyObject *o=0, *items=0;
+  int i, len, l;
 
   PER_USE_OR_RETURN(self, NULL);
 
-  l=self->len;
+  len=self->len;
 
-  UNLESS (items=PyTuple_New(self->len)) goto err;
-  for (i=0; i<l; i++)
+  UNLESS (items=PyTuple_New(len*2)) goto err;
+  for (i=0, l=0; i < len; i++)
     {
-      UNLESS (r = PyTuple_New(2)) goto err;
-      
       COPY_KEY_TO_OBJECT(o, self->keys[i]);
       UNLESS (o) goto err;
-      PyTuple_SET_ITEM(r, 0, o);
+      PyTuple_SET_ITEM(items, l, o);
+      l++;
       
       COPY_VALUE_TO_OBJECT(o, self->values[i]);
       UNLESS (o) goto err;
-      PyTuple_SET_ITEM(r, 1, o);
-      PyTuple_SET_ITEM(items, i, r);
-      r=0;
+      PyTuple_SET_ITEM(items, l, o);
+      l++;
     }
 
   if (self->next) 
-    r=Py_BuildValue("OO", items, self->next);
+    ASSIGN(items, Py_BuildValue("OO", items, self->next));
   else
-    r=Py_BuildValue("(O)", items);
+    ASSIGN(items, Py_BuildValue("(O)", items));
   
   PER_ALLOW_DEACTIVATION(self);
 
-  return r;
+  return items;
 
 err:
   PER_ALLOW_DEACTIVATION(self);
   Py_XDECREF(items);
-  Py_XDECREF(r);
   return NULL;
 }
 
@@ -852,7 +827,7 @@ bucket_setstate(Bucket *self, PyObject *args)
 {
   PyObject *k, *v, *r, *items;
   Bucket *next=0;
-  int i, l, copied=1;
+  int i, l, len, copied=1;
   KEY_TYPE *keys;
   VALUE_TYPE *values;
 
@@ -863,7 +838,7 @@ bucket_setstate(Bucket *self, PyObject *args)
   UNLESS (PyArg_ParseTuple(args, "O|O!", &items, self->ob_type, &next))
     goto err;
 
-  if ((l=PyTuple_Size(items)) < 0) goto err;
+  if ((len=PyTuple_Size(items)) < 0) goto err;
 
   for (i=self->len; --i >= 0; )
     {
@@ -878,20 +853,22 @@ bucket_setstate(Bucket *self, PyObject *args)
       self->next=0;
     }
   
-  if (l > self->size)
+  if (len > self->size)
     {
-      UNLESS (keys=PyRealloc(self->keys, sizeof(KEY_TYPE)*l)) goto err;
-      UNLESS (values=PyRealloc(self->values, sizeof(KEY_TYPE)*l)) goto err;
+      UNLESS (keys=PyRealloc(self->keys, sizeof(KEY_TYPE)*len)) goto err;
+      UNLESS (values=PyRealloc(self->values, sizeof(KEY_TYPE)*len)) goto err;
       self->keys=keys;
       self->values=values;
-      self->size=l;
+      self->size=len;
     }
   
-  for (i=0; i<l; i++)
+  for (i=0, l=0; i<len; i++)
     {
-      r=PyTuple_GET_ITEM(items, i);
-      UNLESS(k=PyTuple_GetItem(r, 0)) goto perr;
-      UNLESS(v=PyTuple_GetItem(r, 1)) goto perr;
+      k=PyTuple_GET_ITEM(items, l);
+      l++;
+      v=PyTuple_GET_ITEM(items, l);
+      l++;
+
       COPY_KEY_FROM_ARG(self->keys[i], k, &copied);
       UNLESS (copied) return NULL;
       COPY_VALUE_FROM_ARG(self->values[i], v, &copied);

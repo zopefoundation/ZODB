@@ -611,49 +611,41 @@ err:
 static PyObject *
 BTree_getstate(BTree *self, PyObject *args)
 {
-  PyObject *r=0, *o, *item, *result;
-  int i;
+  PyObject *r=0, *o;
+  int i, l;
 
   PER_USE_OR_RETURN(self, NULL);
 
   if (self->len)
     {
-      UNLESS (r=PyTuple_New(self->len)) goto err;
-      for (i=self->len; --i >= 0; )
+      UNLESS (r=PyTuple_New(self->len*2-1)) goto err;
+      for (i=self->len, l=0; --i >= 0; )
         {
-          UNLESS (item=PyTuple_New(2)) goto err;
           if (i)
             {
               COPY_KEY_TO_OBJECT(o, self->data[i].key);
+              PyTuple_SET_ITEM(r,l,o);
+              l++;
             }
-          else
-            {
-              o=Py_None;
-              Py_INCREF(o);
-            }
-          PyTuple_SET_ITEM(item, 0, o);
           o=self->data[i].value;
           Py_INCREF(o);
-          PyTuple_SET_ITEM(item, 1, o);
-          PyTuple_SET_ITEM(r,i,item);
+          PyTuple_SET_ITEM(r,l,o);
+          l++;
         }
-      result = Py_BuildValue("OO", r, self->firstbucket);
-      Py_DECREF(r);
+      ASSIGN(r, Py_BuildValue("OO", r, self->firstbucket));
     }
   else
     {
-      result = Py_None;
-      Py_INCREF(result);
+      r = Py_None;
+      Py_INCREF(r);
     }  
-      
 
   PER_ALLOW_DEACTIVATION(self);
 
-  return result;
+  return r;
 
 err:
   PER_ALLOW_DEACTIVATION(self);
-  Py_DECREF(r);
   return NULL;
 }
 
@@ -668,7 +660,7 @@ BTree_setstate(BTree *self, PyObject *args)
   PyObject *state, *k, *v=0, *items;
   BTreeItem *d;
   Bucket *firstbucket;
-  int l, i, r, copied=1;
+  int len, l, i, r, copied=1;
 
   if (!PyArg_ParseTuple(args,"O",&state)) return NULL;
 
@@ -683,29 +675,30 @@ BTree_setstate(BTree *self, PyObject *args)
       if (!PyArg_ParseTuple(state,"O|O",&items, &firstbucket))
         goto err;
 
-      if ((l=PyTuple_Size(items)) < 0) goto err;
+      if ((len=PyTuple_Size(items)) < 0) goto err;
+      len=(len+1)/2;
 
       self->firstbucket = firstbucket;
       Py_INCREF(firstbucket);
 
-      if (l > self->size)
+      if (len > self->size)
         {
-          UNLESS (d=PyRealloc(self->data, sizeof(BTreeItem)*l)) goto err;
+          UNLESS (d=PyRealloc(self->data, sizeof(BTreeItem)*len)) goto err;
           self->data=d;
-          self->size=l;
+          self->size=len;
         }
 
-      for (i=0, d=self->data; i < l; i++, d++)
-        {
-          UNLESS (PyArg_ParseTuple(PyTuple_GET_ITEM(state,i), "OO", 
-                                   &k, &(d->value)))
-            goto err;
+      for (i=0, d=self->data, l=0; i < len; i++, d++)
+        {          
           if (i) 
             {
-              COPY_KEY_FROM_ARG(d->key, k, &copied);
+              COPY_KEY_FROM_ARG(d->key, PyTuple_GET_ITEM(state,l), &copied);
+              l++;
               UNLESS (&copied) return NULL;
               INCREF_KEY(d->key);
             }
+          d->value=PyTuple_GET_ITEM(state,l);
+          l++;
           Py_INCREF(d->value);
         }
       self->len=l;
