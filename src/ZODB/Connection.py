@@ -13,7 +13,7 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.90 2003/04/23 20:05:51 jeremy Exp $"""
+$Id: Connection.py,v 1.91 2003/04/23 20:36:02 jeremy Exp $"""
 
 from __future__ import nested_scopes
 
@@ -252,6 +252,7 @@ class Connection(ExportImport.ExportImport):
         self._code_timestamp = global_code_timestamp
         self._invalidated.clear()
         orig_cache = self._cache
+        orig_cache.clear()
         self._cache = cache = PickleCache(self, orig_cache.cache_size)
         self._incrgc = self.cacheGC = cache.incrgc
 
