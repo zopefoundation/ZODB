@@ -115,7 +115,7 @@ def main():
             file0 += 1
         code = code & 0x7e
         bycode[code] = bycode.get(code, 0) + 1
-        if verbose:
+        if verbose or code in (0x00, 0x70):
             print "%s %d %02x %016x %016x %1s %s" % (
                 time.ctime(ts)[4:-5],
                 current,
@@ -135,8 +135,7 @@ def main():
 
     # Print statistics
     if dostats:
-        if verbose:
-            print
+        print
         print "Read %s records (%s bytes) in %.1f seconds" % (
             addcommas(records), addcommas(bytes), rte-rt0)
         print "Version:    %s records" % addcommas(versions)
@@ -160,7 +159,7 @@ def main():
                 explain.get(code) or "*** unknown code ***")
 
 def U64(s):
-    h, v = unpack(">II", s)
+    h, v = struct.unpack(">II", s)
     return (long(h) << 32) + v
 
 def addcommas(n):
