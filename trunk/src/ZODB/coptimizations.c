@@ -10,6 +10,11 @@
   FOR A PARTICULAR PURPOSE
   
  ****************************************************************************/
+static char coptimizations_doc_string[] = 
+"C optimization for new_persistent_id().\n"
+"\n"
+"$Id: coptimizations.c,v 1.15 2002/01/25 14:51:55 gvanrossum Exp $\n";
+
 #include "Python.h"
 #define DONT_USE_CPERSISTENCECAPI
 #include "cPersistence.h"
@@ -246,8 +251,7 @@ static struct PyMethodDef Module_Level__methods[] = {
 void
 initcoptimizations(void)
 {
-  PyObject *m, *d, *s;
-  char *rev="$Revision: 1.14 $";
+  PyObject *m, *d;
 
 #define make_string(S) if (! (py_ ## S=PyString_FromString(#S))) return
   make_string(_p_oid);
@@ -269,16 +273,12 @@ initcoptimizations(void)
   UNLESS (ExtensionClassImported) return;
 
   m = Py_InitModule4("coptimizations", Module_Level__methods,
-		     "C optimizations",
+		     coptimizations_doc_string,
 		     (PyObject*)NULL,PYTHON_API_VERSION);
   d = PyModule_GetDict(m);
 
   persistent_idType.ob_type=&PyType_Type;
   PyDict_SetItemString(d,"persistent_idType", OBJECT(&persistent_idType));
-
-  s = PyString_FromStringAndSize(rev+11,strlen(rev+11)-2);
-  PyDict_SetItemString(d, "__version__", s);
-  Py_XDECREF(s);
 
   /* Check for errors */
   if (PyErr_Occurred())

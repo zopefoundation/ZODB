@@ -14,7 +14,7 @@
 static char TimeStamp_module_documentation[] = 
 "Defines 64-bit TimeStamp objects used as ZODB serial numbers.\n"
 "\n"
-"\n$Id: TimeStamp.c,v 1.12 2002/01/24 20:19:06 gvanrossum Exp $\n";
+"\n$Id: TimeStamp.c,v 1.13 2002/01/25 14:51:55 gvanrossum Exp $\n";
 
 #include <stdlib.h>
 #include <time.h>
@@ -412,7 +412,6 @@ void
 initTimeStamp(void)
 {
   PyObject *m, *d, *s;
-  char *rev="$Revision: 1.12 $";
 
   if (TimeStamp_init_gmoff() < 0) return;
   if (! ExtensionClassImported) return;
@@ -435,10 +434,6 @@ initTimeStamp(void)
 
   s = PyString_FromString("TimeStamp.error");
   PyDict_SetItemString(d, "error", s);
-  Py_XDECREF(s);
-
-  s = PyString_FromStringAndSize(rev + 11, strlen(rev + 11) - 2);
-  PyDict_SetItemString(d, "__version__", s);
   Py_XDECREF(s);
 
   /* Check for errors */

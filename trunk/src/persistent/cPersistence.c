@@ -13,7 +13,7 @@
 static char cPersistence_doc_string[] = 
 "Defines Persistent mixin class for persistent objects.\n"
 "\n"
-"$Id: cPersistence.c,v 1.47 2001/11/28 15:51:20 matt Exp $\n";
+"$Id: cPersistence.c,v 1.48 2002/01/25 14:51:55 gvanrossum Exp $\n";
 
 #include <string.h>
 #include "cPersistence.h"
@@ -688,7 +688,6 @@ void
 initcPersistence(void)
 {
   PyObject *m, *d, *s;
-  char *rev="$Revision: 1.47 $";
 
   s = PyString_FromString("TimeStamp");
   if (s == NULL)
@@ -709,9 +708,6 @@ initcPersistence(void)
 
   
   d = PyModule_GetDict(m);
-  s = PyString_FromStringAndSize(rev+11,strlen(rev+11)-2);
-  PyDict_SetItemString(d,"__version__", s);
-  Py_XDECREF(s);
 
   PyExtensionClass_Export(d, "Persistent",  Pertype);
   PyExtensionClass_Export(d, "Overridable", Overridable);

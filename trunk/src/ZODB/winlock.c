@@ -13,7 +13,7 @@
 static char winlock_doc_string[] = 
 "Lock files on Windows."
 "\n"
-"$Id: winlock.c,v 1.6 2001/11/28 15:51:20 matt Exp $\n";
+"$Id: winlock.c,v 1.7 2002/01/25 14:51:56 gvanrossum Exp $\n";
 
 #include "Python.h"
 
@@ -67,7 +67,6 @@ static struct PyMethodDef methods[] = {
 DL_EXPORT(void)
 initwinlock(void) {
   PyObject *m, *d;
-  char *rev="$Revision: 1.6 $";
 
   if (!(Error=PyString_FromString("winlock.error"))) 
       return;
@@ -78,9 +77,4 @@ initwinlock(void) {
 
   d = PyModule_GetDict(m);
   PyDict_SetItemString(d, "error", Error);
-  /* XXX below could blow up in PyDict_SetItem() */
-  PyDict_SetItemString(d,"__version__",
-		       PyString_FromStringAndSize(rev+11,strlen(rev+11)-2));
 }
-
-
