@@ -65,6 +65,8 @@ def getStorageInfo(section):
     klass = getattr(m, type)
 
     args = {}
+    if section.name:
+        args["name"] = section.name
     for key in section.keys():
         if key.lower() != "type":
             args[key] = section.get(key)
