@@ -242,5 +242,5 @@ class CommitLockTests:
 
     def _get_timestamp(self):
         t = time.time()
-        t = apply(TimeStamp,(time.gmtime(t)[:5]+(t%60,)))
+        t = TimeStamp(*time.gmtime(t)[:5]+(t%60,))
         return `t`
