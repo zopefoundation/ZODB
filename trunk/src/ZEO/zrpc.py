@@ -43,18 +43,18 @@
 """Simple rpc mechanisms
 """
 
-__version__ = "$Revision: 1.4 $"[11:-2]
+__version__ = "$Revision: 1.5 $"[11:-2]
 
 from cPickle import dumps, loads
 from thread import allocate_lock
-from smac import smac
+from smac import SizedMessageAsyncConnection
 import socket, string, struct
 TupleType=type(())
 
 Wakeup=None
 
 
-class sync:
+class syncRPC:
     """Synchronous rpc"""
 
     _outOfBand=None
@@ -67,7 +67,18 @@ class sync:
         self._sync__q=[]
         self._outOfBand=outOfBand
 
-    def setOutOfBand(self, f): self._outOfBand=f
+    def setOutOfBand(self, f):
+        """Define a call-back function for handling out-of-band communication
+
+        Normal communications from the server consists of call returns
+        and exception returns. The server may also send asynchronous
+        messages to the client. For the client to recieve these
+        messages, it must register an out-of-band callback
+        function. The function will be called with a single-character
+        message code and a message argument.
+        """
+
+        self._outOfBand=f
 
     def close(self): self._sync__s.close()
         
@@ -129,7 +140,7 @@ class sync:
         while l > 0:
             d=recv(l)
             if data is None: data=d
-            elif type(data) is st: data=[data, d]
+            elif type(data) is _st: data=[data, d]
             else: data.append(d)
             l=l-len(d)
         if type(data) is not _st: data=join(data,'')
@@ -137,14 +148,14 @@ class sync:
         return data
    
     
-class async(smac, sync):
+class asyncRPC(SizedMessageAsyncConnection, syncRPC):
 
     def __init__(self, connection, outOfBand=None):
         try:
             host, port = connection
         except:
             s=connection._sync__s
-            smac.__init__(self, s, None)
+            SizedMessageAsyncConnection.__init__(self, s, None)
             self._outOfBand=connection._outOfBand
             for m in connection._sync__q:
                 self.message_output(m)
@@ -152,7 +163,7 @@ class async(smac, sync):
         else:
             s=socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             s.connect(host, port)
-            smac.__init__(self, s, None)
+            SizedMessageAsyncConnection.__init__(self, s, None)
             self._outOfBand=outOfBand
             
         l=allocate_lock()
