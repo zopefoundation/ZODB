@@ -12,6 +12,8 @@
 #
 ##############################################################################
 
+import os
+
 from zope.interface import implements
 
 from ZODB.Blobs.interfaces import IBlobStorage
@@ -150,6 +152,6 @@ class TmpStore:
     def generateBlobFile(self, oid):
         if not self.blob_files.has_key(oid):
             handle, name = tempfile.mkstemp()
-            handle.close()
+            os.close(handle)
             self.blob_files[oid] = name
         return self.blob_files[oid]
