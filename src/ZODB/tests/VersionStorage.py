@@ -1,40 +1,38 @@
 # Run the version related tests for a storage.  Any storage that supports
 # versions should be able to pass all these tests.
 
-try:
-    import cPickle
-    pickle = cPickle
-    #import cPickle as pickle
-except ImportError:
-    import pickle
-
 from ZODB import POSException
-
+from ZODB.tests.MinPO import MinPO
+from ZODB.tests.StorageTestBase import zodb_unpickle
 
 
 class VersionStorage:
     def checkVersionedStoreAndLoad(self):
         # Store a couple of non-version revisions of the object
         oid = self._storage.new_oid()
-        revid = self._dostore(oid, data=11)
-        revid = self._dostore(oid, revid=revid, data=12)
+        revid = self._dostore(oid, data=MinPO(11))
+        revid = self._dostore(oid, revid=revid, data=MinPO(12))
         # And now store some new revisions in a version
         version = 'test-version'
-        revid = self._dostore(oid, revid=revid, data=13, version=version)
-        revid = self._dostore(oid, revid=revid, data=14, version=version)
-        revid = self._dostore(oid, revid=revid, data=15, version=version)
+        revid = self._dostore(oid, revid=revid, data=MinPO(13),
+                              version=version)  
+        revid = self._dostore(oid, revid=revid, data=MinPO(14),
+                              version=version)
+        revid = self._dostore(oid, revid=revid, data=MinPO(15),
+                              version=version)
         # Now read back the object in both the non-version and version and
         # make sure the values jive.
         data, revid = self._storage.load(oid, '')
-        assert pickle.loads(data) == 12
+        assert zodb_unpickle(data) == MinPO(12)
         data, revid = self._storage.load(oid, version)
-        assert pickle.loads(data) == 15
+        assert zodb_unpickle(data) == MinPO(15)
 
     def checkVersionedLoadErrors(self):
         oid = self._storage.new_oid()
         version = 'test-version'
-        revid = self._dostore(oid, data=11)
-        revid = self._dostore(oid, revid=revid, data=12, version=version)
+        revid = self._dostore(oid, data=MinPO(11))
+        revid = self._dostore(oid, revid=revid, data=MinPO(12),
+                              version=version)
         # Try to load a bogus oid
         self.assertRaises(KeyError,
                           self._storage.load,
@@ -45,17 +43,17 @@ class VersionStorage:
         #JF#                   self._storage.load,
         #JF#                   oid, 'bogus')
         data, revid = self._storage.load(oid, 'bogus')
-        assert pickle.loads(data) == 11
+        assert zodb_unpickle(data) == MinPO(11)
 
 
     def checkVersionLock(self):
         oid = self._storage.new_oid()
-        revid = self._dostore(oid, data=11)
+        revid = self._dostore(oid, data=MinPO(11))
         version = 'test-version'
-        revid = self._dostore(oid, revid=revid, data=12, version=version)
+        revid = self._dostore(oid, revid=revid, data=MinPO(12), version=version)
         self.assertRaises(POSException.VersionLockError,
                           self._dostore,
-                          oid, revid=revid, data=14,
+                          oid, revid=revid, data=MinPO(14),
                           version='another-version')
 
     def checkVersionEmpty(self):
@@ -67,10 +65,12 @@ class VersionStorage:
         assert self._storage.versionEmpty(version)
         # Now store some objects
         oid = self._storage.new_oid()
-        revid = self._dostore(oid, data=11)
-        revid = self._dostore(oid, revid=revid, data=12)
-        revid = self._dostore(oid, revid=revid, data=13, version=version)
-        revid = self._dostore(oid, revid=revid, data=14, version=version)
+        revid = self._dostore(oid, data=MinPO(11))
+        revid = self._dostore(oid, revid=revid, data=MinPO(12))
+        revid = self._dostore(oid, revid=revid, data=MinPO(13),
+                              version=version)
+        revid = self._dostore(oid, revid=revid, data=MinPO(14),
+                              version=version)
         # The blank version should not be empty
         #JF# The empty string is not a valid version. I think that this should
         #JF# be an error. Let's punt for now.
@@ -86,13 +86,16 @@ class VersionStorage:
         oid1 = self._storage.new_oid()
         oid2 = self._storage.new_oid()
         oid3 = self._storage.new_oid()
-        revid1 = self._dostore(oid1, data=11)
-        revid2 = self._dostore(oid2, data=12)
-        revid3 = self._dostore(oid3, data=13)
+        revid1 = self._dostore(oid1, data=MinPO(11))
+        revid2 = self._dostore(oid2, data=MinPO(12))
+        revid3 = self._dostore(oid3, data=MinPO(13))
         # Now create some new versions
-        revid1 = self._dostore(oid1, revid=revid1, data=14, version='one')
-        revid2 = self._dostore(oid2, revid=revid2, data=15, version='two')
-        revid3 = self._dostore(oid3, revid=revid3, data=16, version='three')
+        revid1 = self._dostore(oid1, revid=revid1, data=MinPO(14),
+                               version='one')
+        revid2 = self._dostore(oid2, revid=revid2, data=MinPO(15),
+                               version='two')
+        revid3 = self._dostore(oid3, revid=revid3, data=MinPO(16),
+                               version='three')
         # Ask for the versions
         versions = self._storage.versions()
         assert 'one' in versions
@@ -106,13 +109,16 @@ class VersionStorage:
     def _setup_version(self, version='test-version'):
         # Store some revisions in the non-version
         oid = self._storage.new_oid()
-        revid = self._dostore(oid, data=49)
-        revid = self._dostore(oid, revid=revid, data=50)
-        nvrevid = revid = self._dostore(oid, revid=revid, data=51)
+        revid = self._dostore(oid, data=MinPO(49))
+        revid = self._dostore(oid, revid=revid, data=MinPO(50))
+        nvrevid = revid = self._dostore(oid, revid=revid, data=MinPO(51))
         # Now do some stores in a version
-        revid = self._dostore(oid, revid=revid, data=52, version=version)
-        revid = self._dostore(oid, revid=revid, data=53, version=version)
-        revid = self._dostore(oid, revid=revid, data=54, version=version)
+        revid = self._dostore(oid, revid=revid, data=MinPO(52),
+                              version=version)
+        revid = self._dostore(oid, revid=revid, data=MinPO(53),
+                              version=version)
+        revid = self._dostore(oid, revid=revid, data=MinPO(54),
+                              version=version)
         return oid, version
 
     def checkAbortVersion(self):
@@ -125,7 +131,7 @@ class VersionStorage:
         assert len(oids) == 1
         assert oids[0] == oid
         data, revid = self._storage.load(oid, '')
-        assert pickle.loads(data) == 51
+        assert zodb_unpickle(data) == MinPO(51)
 
     def checkAbortVersionErrors(self):
         oid, version = self._setup_version()
@@ -150,7 +156,7 @@ class VersionStorage:
         assert len(oids) == 1
         assert oids[0] == oid
         data, revid = self._storage.load(oid, '')
-        assert pickle.loads(data) == 51
+        assert zodb_unpickle(data) == MinPO(51)
 
     def checkModifyAfterAbortVersion(self):
         oid, version = self._setup_version()
@@ -162,41 +168,41 @@ class VersionStorage:
         # Load the object's current state (which gets us the revid)
         data, revid = self._storage.load(oid, '')
         # And modify it a few times
-        revid = self._dostore(oid, revid=revid, data=52)
-        revid = self._dostore(oid, revid=revid, data=53)
-        revid = self._dostore(oid, revid=revid, data=54)
+        revid = self._dostore(oid, revid=revid, data=MinPO(52))
+        revid = self._dostore(oid, revid=revid, data=MinPO(53))
+        revid = self._dostore(oid, revid=revid, data=MinPO(54))
         data, newrevid = self._storage.load(oid, '')
         assert newrevid == revid
-        assert pickle.loads(data) == 54
+        assert zodb_unpickle(data) == MinPO(54)
 
     def checkCommitToNonVersion(self):
         oid, version = self._setup_version()
         data, revid = self._storage.load(oid, version)
-        assert pickle.loads(data) == 54
+        assert zodb_unpickle(data) == MinPO(54)
         data, revid = self._storage.load(oid, '')
-        assert pickle.loads(data) == 51
+        assert zodb_unpickle(data) == MinPO(51)
         # Try committing this version to the empty version
         self._storage.tpc_begin(self._transaction)
         oids = self._storage.commitVersion(version, '', self._transaction)
         self._storage.tpc_vote(self._transaction)
         self._storage.tpc_finish(self._transaction)
         data, revid = self._storage.load(oid, '')
-        assert pickle.loads(data) == 54
+        assert zodb_unpickle(data) == MinPO(54)
 
     def checkCommitToOtherVersion(self):
         oid1, version1 = self._setup_version('one')
         data, revid1 = self._storage.load(oid1, version1)
-        assert pickle.loads(data) == 54
+        assert zodb_unpickle(data) == MinPO(54)
         oid2, version2 = self._setup_version('two')
         data, revid2 = self._storage.load(oid2, version2)
-        assert pickle.loads(data) == 54
+        assert zodb_unpickle(data) == MinPO(54)
         # Let's make sure we can't get object1 in version2
         #JF# This won't fail because we fall back to non-version data.
         #JF# In fact, it must succed and give us 51
         #JF# self.assertRaises(POSException.VersionError,
         #JF#                   self._storage.load, oid1, version2)
         data, revid2 = self._storage.load(oid1, version2)
-        assert pickle.loads(data) == 51
+        assert zodb_unpickle(data) == MinPO(51)
         
         # Okay, now let's commit object1 to version2
         self._storage.tpc_begin(self._transaction)
@@ -207,22 +213,22 @@ class VersionStorage:
         assert len(oids) == 1
         assert oids[0] == oid1
         data, revid = self._storage.load(oid1, version2)
-        assert pickle.loads(data) == 54
+        assert zodb_unpickle(data) == MinPO(54)
         data, revid = self._storage.load(oid2, version2)
-        assert pickle.loads(data) == 54
+        assert zodb_unpickle(data) == MinPO(54)
         #JF# Ditto, sort of
         #JF# self.assertRaises(POSException.VersionError,
         #JF#                   self._storage.load, oid1, version1)
         data, revid2 = self._storage.load(oid1, version1)
-        assert pickle.loads(data) == 51
+        assert zodb_unpickle(data) == MinPO(51)
 
     def checkAbortOneVersionCommitTheOther(self):
         oid1, version1 = self._setup_version('one')
         data, revid1 = self._storage.load(oid1, version1)
-        assert pickle.loads(data) == 54
+        assert zodb_unpickle(data) == MinPO(54)
         oid2, version2 = self._setup_version('two')
         data, revid2 = self._storage.load(oid2, version2)
-        assert pickle.loads(data) == 54
+        assert zodb_unpickle(data) == MinPO(54)
         # Let's make sure we can't get object1 in version2
 
         #JF# It's not an error to load data in a different version when data
@@ -231,7 +237,7 @@ class VersionStorage:
         #JF# self.assertRaises(POSException.VersionError,
         #JF#                   self._storage.load, oid1, version2)
         data, revid2 = self._storage.load(oid1, version2)
-        assert pickle.loads(data) == 51
+        assert zodb_unpickle(data) == MinPO(51)
         
         # First, let's abort version1
         self._storage.tpc_begin(self._transaction)
@@ -241,22 +247,22 @@ class VersionStorage:
         assert len(oids) == 1
         assert oids[0] == oid1
         data, revid = self._storage.load(oid1, '')
-        assert pickle.loads(data) == 51
+        assert zodb_unpickle(data) == MinPO(51)
 
         #JF# Ditto
         #JF# self.assertRaises(POSException.VersionError,
         #JF#                   self._storage.load, oid1, version1)
         data, revid = self._storage.load(oid1, '')
-        assert pickle.loads(data) == 51
+        assert zodb_unpickle(data) == MinPO(51)
         #JF# self.assertRaises(POSException.VersionError,
         #JF#                   self._storage.load, oid1, version2)
         data, revid = self._storage.load(oid1, '')
-        assert pickle.loads(data) == 51
+        assert zodb_unpickle(data) == MinPO(51)
 
         data, revid = self._storage.load(oid2, '')
-        assert pickle.loads(data) == 51
+        assert zodb_unpickle(data) == MinPO(51)
         data, revid = self._storage.load(oid2, version2)
-        assert pickle.loads(data) == 54
+        assert zodb_unpickle(data) == MinPO(54)
         # Okay, now let's commit version2 back to the trunk
         self._storage.tpc_begin(self._transaction)
         oids = self._storage.commitVersion(version2, '', self._transaction)
@@ -269,18 +275,18 @@ class VersionStorage:
         #JF# self.assertRaises(POSException.VersionError,
         #JF#                   self._storage.load, oid1, version2)
         data, revid = self._storage.load(oid1, '')
-        assert pickle.loads(data) == 51
+        assert zodb_unpickle(data) == MinPO(51)
         #JF# self.assertRaises(POSException.VersionError,
         #JF#                   self._storage.load, oid2, version2)
         # But the trunk should be up to date now
         data, revid = self._storage.load(oid2, version2)
-        assert pickle.loads(data) == 54
+        assert zodb_unpickle(data) == MinPO(54)
         data, revid = self._storage.load(oid2, '')
-        assert pickle.loads(data) == 54
+        assert zodb_unpickle(data) == MinPO(54)
 
         #JF# To do a test like you want, you have to add the data in a version
         oid = self._storage.new_oid()
-        revid = self._dostore(oid, revid=revid, data=54, version='one')
+        revid = self._dostore(oid, revid=revid, data=MinPO(54), version='one')
         self.assertRaises(KeyError,
                           self._storage.load, oid, '')
         self.assertRaises(KeyError,

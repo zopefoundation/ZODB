@@ -4,11 +4,69 @@
 # store transaction for a single object revision.
 
 import pickle
+import string
+import sys
+import types
 import unittest
+from cPickle import Pickler, Unpickler
+from cStringIO import StringIO
+
 from ZODB.Transaction import Transaction
+
+from ZODB.tests.MinPO import MinPO
 
 ZERO = '\0'*8
 
+def zodb_pickle(obj):
+    f = StringIO()
+    p = Pickler(f, 1)
+    klass = obj.__class__
+    assert not hasattr(obj, '__getinitargs__'), "not ready for constructors"
+    args = None
+
+    mod = getattr(klass, '__module__', None)
+    if mod is not None:
+        klass = mod, klass.__name__
+
+    state = obj.__getstate__()
+
+    p.dump((klass, args))
+    p.dump(state)
+    return f.getvalue(1)
+
+def zodb_unpickle(data):
+    f = StringIO(data)
+    u = Unpickler(f)
+    klass_info = u.load()
+    if isinstance(klass_info, types.TupleType):
+        if isinstance(klass_info[0], types.TupleType):
+            modname, klassname = klass_info[0]
+            args = klass_info[1]
+        else:
+            modname, klassname = klass_info
+            args = None
+        if modname == "__main__":
+            ns = globals()
+        else:
+            mod = import_helper(modname)
+            ns = mod.__dict__
+        try:
+            klass = ns[klassname]
+        except KeyError:
+            print >> sys.stderr, "can't find %s in %s" % (klassname,
+                                                          repr(ns))
+        inst = klass()
+    else:
+        raise ValueError, "expected class info: %s" % repr(klass_info)
+    state = u.load()
+    inst.__setstate__(state)
+    return inst
+
+def import_helper(name):
+    mod = __import__(name)
+    for part in string.split(name, ".")[1:]:
+        mod = getattr(mod, part)
+    return mod
 
 
 class StorageTestBase(unittest.TestCase):
@@ -39,9 +97,12 @@ class StorageTestBase(unittest.TestCase):
         if revid is None:
             revid = ZERO
         if data is None:
-            data = 7
+            data = MinPO(7)
+        if type(data) == types.IntType:
+            data = MinPO(data)
         if not already_pickled:
-            data = pickle.dumps(data)
+##            data = pickle.dumps(data)
+            data = zodb_pickle(data)
         if version is None:
             version = ''
         # Begin the transaction
