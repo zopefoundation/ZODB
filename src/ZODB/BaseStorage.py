@@ -15,7 +15,7 @@
 """
 # Do this portably in the face of checking out with -kv
 import string
-__version__ = string.split('$Revision: 1.26 $')[-2:][0]
+__version__ = string.split('$Revision: 1.27 $')[-2:][0]
 
 import cPickle
 import ThreadLock, bpthread
@@ -232,7 +232,7 @@ class BaseStorage(UndoLogCompatible.UndoLogCompatible):
             "Retrieval of historical revisions is not supported")
 
     def getExtensionMethods(self):
-         """getExtensionMethods
+        """getExtensionMethods
 
         This returns a dictionary whose keys are names of extra methods
         provided by this storage. Storage proxies (such as ZEO) should
