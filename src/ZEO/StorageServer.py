@@ -61,18 +61,18 @@ class StorageServer:
     def __init__(self, addr, storages, read_only=0):
         self.addr = addr
         self.storages = storages
+        set_label()
         msg = ", ".join(
             ["%s:%s" % (name, storage.isReadOnly() and "RO" or "RW")
              for name, storage in storages.items()])
-        log("StorageServer (pid=%d) created %s with storages: %s" %
-            (os.getpid(), read_only and "RO" or "RW", msg))
+        log("StorageServer created %s with storages: %s" %
+            (read_only and "RO" or "RW", msg))
         for s in storages.values():
             s._waiting = []
         self.read_only = read_only
         self.connections = {}
         self.dispatcher = Dispatcher(addr, factory=self.new_connection,
                                      reuse_addr=1)
-        set_label()
 
     def new_connection(self, sock, addr):
         c = ManagedServerConnection(sock, addr, ZEOStorage(self), self)
