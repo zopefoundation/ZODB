@@ -13,7 +13,7 @@
 ##############################################################################
 """Storage implementation using a log written to a single file.
 
-$Revision: 1.9 $
+$Revision: 1.10 $
 """
 
 import base64
@@ -106,10 +106,8 @@ class FileStorage(BaseStorage.BaseStorage,
                   ConflictResolution.ConflictResolvingStorage,
                   FileStorageFormatter):
 
-    # default pack time is 0
-    # XXX It's unclear what this is for.  Looks like the only values it
-    # XXX can ever have are z64 and None.
-    _packt = z64
+    # Set True while a pack is in progress; undo is blocked for the duration.
+    _pack_is_in_progress = False
 
     _records_before_save = 10000
 
@@ -1062,11 +1060,10 @@ class FileStorage(BaseStorage.BaseStorage,
             last = first - last + 1
         self._lock_acquire()
         try:
-            if self._packt is None:
+            if self._pack_is_in_progress:
                 raise UndoError(
                     'Undo is currently disabled for database maintenance.<p>')
-            us = UndoSearch(self._file, self._pos, self._packt,
-                            first, last, filter)
+            us = UndoSearch(self._file, self._pos, first, last, filter)
             while not us.finished():
                 # Hold lock for batches of 20 searches, so default search
                 # parameters will finish without letting another thread run.
@@ -1130,9 +1127,7 @@ class FileStorage(BaseStorage.BaseStorage,
                 return pos
             if stop_at_pack:
                 # check the status field of the transaction header
-                # XXX Looks like self._packt is either z64 or None, so unclear
-                # XXX what the _tid < self._packt is trying to say.
-                if h[16] == 'p' or _tid < self._packt:
+                if h[16] == 'p':
                     break
         raise UndoError("Invalid transaction id")
 
@@ -1319,16 +1314,11 @@ class FileStorage(BaseStorage.BaseStorage,
         if not self._index:
             return
 
-        # Set _packt to None for the duration, which blocks undo for the
-        # duration.
-        # XXX That appears to be the only use for _packt; if so, could be
-        # XXX cleaner.
         self._lock_acquire()
         try:
-            if self._packt != z64:
-                # Already packing.
+            if self._pack_is_in_progress:
                 raise FileStorageError, 'Already packing'
-            self._packt = None
+            self._pack_is_in_progress = True
         finally:
             self._lock_release()
 
@@ -1366,7 +1356,7 @@ class FileStorage(BaseStorage.BaseStorage,
             if p.locked:
                 self._commit_lock_release()
             self._lock_acquire()
-            self._packt = z64
+            self._pack_is_in_progress = False
             self._lock_release()
 
     def iterator(self, start=None, stop=None):
@@ -1980,10 +1970,9 @@ class Record(BaseStorage.DataRecord):
 
 class UndoSearch:
 
-    def __init__(self, file, pos, packt, first, last, filter=None):
+    def __init__(self, file, pos, first, last, filter=None):
         self.file = file
         self.pos = pos
-        self.packt = packt
         self.first = first
         self.last = last
         self.filter = filter
@@ -2011,7 +2000,7 @@ class UndoSearch:
         self.file.seek(self.pos)
         h = self.file.read(TRANS_HDR_LEN)
         tid, tl, status, ul, dl, el = struct.unpack(TRANS_HDR, h)
-        if tid < self.packt or status == 'p':
+        if status == 'p':
             self.stop = 1
             return None
         if status != ' ':
