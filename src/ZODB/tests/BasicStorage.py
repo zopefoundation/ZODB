@@ -66,6 +66,22 @@ class BasicStorage:
             0, 1, 2, 3, Transaction())
         self._storage.tpc_abort(self._transaction)
 
+    def checkSerialIsNoneForInitialRevision(self):
+        eq = self.assertEqual
+        oid = self._storage.new_oid()
+        txn = self._transaction
+        self._storage.tpc_begin(txn)
+        # Use None for serial.  Don't use _dostore() here because that coerces
+        # serial=None to serial=ZERO.
+        newrevid = self._storage.store(oid, None, zodb_pickle(MinPO(11)),
+                                       '', txn)
+        self._storage.tpc_vote(txn)
+        self._storage.tpc_finish(txn)
+        data, revid = self._storage.load(oid, '')
+        value = zodb_unpickle(data)
+        eq(value, MinPO(11))
+        eq(revid, newrevid)
+
     def checkNonVersionStore(self, oid=None, revid=None, version=None):
         revid = ZERO
         newrevid = self._dostore(revid=revid)
