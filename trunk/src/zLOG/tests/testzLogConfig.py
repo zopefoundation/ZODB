@@ -23,7 +23,6 @@ import unittest
 import ZConfig
 import zLOG.datatypes
 import zLOG.LogHandlers
-import zLOG.tests
 
 
 class TestzLOGConfig(unittest.TestCase):
