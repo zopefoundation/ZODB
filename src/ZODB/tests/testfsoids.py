@@ -44,11 +44,11 @@ There's not a lot interesting in an empty DB!
 >>> t.run()
 >>> t.report()
 oid 0x00 <unknown> 0 revisions
-    this oid was neither defined nor referenced
+    this oid was not defined (no data record for it found)
 oid 0x01 <unknown> 0 revisions
-    this oid was neither defined nor referenced
+    this oid was not defined (no data record for it found)
 oid 0x123456 <unknown> 0 revisions
-    this oid was neither defined nor referenced
+    this oid was not defined (no data record for it found)
 
 That didn't tell us much, but does show that the specified oids are sorted
 into increasing order.
@@ -65,7 +65,7 @@ oid 0x00 persistent.mapping.PersistentMapping 1 revision
         tid description='initial database creation'
         new revision persistent.mapping.PersistentMapping at 52
 oid 0x01 <unknown> 0 revisions
-    this oid was neither defined nor referenced
+    this oid was not defined (no data record for it found)
 
 So we see oid 0 has been used in our one transaction, and that it was created
 there, and is a PersistentMapping.  4 is the file offset to the start of the
@@ -151,7 +151,7 @@ oid 0x01 BTrees._OOBTree.OOBTree 2 revisions
         new revision BTrees._OOBTree.OOBTree at 491
         references 0x00 <unknown> at 491
 oid 0x02 <unknown> 0 revisions
-    this oid was neither defined nor referenced
+    this oid was not defined (no data record for it found)
 
 Note that we didn't create any new object there (oid 2 is still unused), we
 just made oid 1 refer to oid 0.  Therefore there's a new "new revision" line
