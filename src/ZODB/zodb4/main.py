@@ -55,6 +55,11 @@ class ConversionApp:
         self.parse_args(args)
 
     def run(self):
+        
+        # Load server-independent site config
+        from zope.configuration import xmlconfig
+        context = xmlconfig.file('site.zcml', execute=True)
+
         if not os.path.exists(self.dbfile):
             self.error("input database does not exist: %s" % self.dbfile)
         base, ext = os.path.splitext(self.dbfile)
@@ -70,6 +75,9 @@ class ConversionApp:
             self.error("backup database index already exists: %s\n"
                        "please move aside and try again" % self.bakindex)
         self.convert()
+
+        # XXX the conversion script leaves an invalid index behind. Why?
+        os.remove(self.dbindex)
 
     def convert(self):
         lock = LockFile(self.bakfile + ".lock")
