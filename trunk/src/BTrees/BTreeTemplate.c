@@ -83,7 +83,7 @@
   
  ****************************************************************************/
 
-#define BTREETEMPLATE_C "$Id: BTreeTemplate.c,v 1.16 2001/04/03 15:02:17 jim Exp $\n"
+#define BTREETEMPLATE_C "$Id: BTreeTemplate.c,v 1.17 2001/06/20 14:48:51 matt Exp $\n"
 
 /*
 ** _BTree_get
@@ -862,7 +862,19 @@ BTree__p_resolveConflict(BTree *self, PyObject *args)
   else
       r = _bucket__p_resolveConflict(OBJECT(&SetType), s);
 
-  if (r) ASSIGN(r, Py_BuildValue("((O))", r));
+  if (r) {
+  	ASSIGN(r, Py_BuildValue("((O))", r));
+  } else {
+  	PyObject *error;
+	PyObject *value;
+	PyObject *traceback;
+  	/* Change any errors to ConflictErrors */
+
+	PyErr_Fetch(&error, &value, &traceback);
+	Py_INCREF(ConflictError);
+	Py_XDECREF(error);
+	PyErr_Restore(ConflictError, value, traceback);
+  }
 
   return r;
 }
