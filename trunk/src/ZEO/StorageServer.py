@@ -149,10 +149,7 @@ class ZEOStorage:
         return "<%s %X trans=%s s_trans=%s>" % (name, id(self), tid, stid)
 
     def log(self, msg, level=zLOG.INFO, error=None):
-        name = getattr(self.storage, '__name__', None)
-        if name is None:
-            name = str(self.storage)
-        zLOG.LOG("%s:%s" % (_label, name), level, msg, error=error)
+        zLOG.LOG("%s:%s" % (_label, self.storage_id), level, msg, error=error)
 
     def setup_delegation(self):
         """Delegate several methods to the storage"""
@@ -188,7 +185,6 @@ class ZEOStorage:
 
         This method must be the first one called by the client.
         """
-        self.log("register(%r, %s)" % (storage_id, read_only))
         if self.storage is not None:
             log("duplicate register() call")
             raise ValueError, "duplicate register() call"
@@ -205,7 +201,6 @@ class ZEOStorage:
         self.storage = storage
         self.setup_delegation()
         self.server.register_connection(storage_id, self)
-        self.log("registered storage %r: %s" % (storage_id, storage))
 
     def get_info(self):
         return {'length': len(self.storage),
