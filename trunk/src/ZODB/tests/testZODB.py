@@ -54,7 +54,7 @@ class ZODBTests(unittest.TestCase):
         conn.close()
 
     def tearDown(self):
-        self._storage.close()
+        self._db.close()
         removefs("ZODBTests.fs")
 
     def checkExportImport(self, abort_it=0, dup_name='test_duplicate'):
