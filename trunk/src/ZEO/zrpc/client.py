@@ -119,7 +119,7 @@ class ConnectionManager:
 
         # XXX need each connection started with async==0 to have a
         # callback
-        log("CM.set_async(%s)" % repr(map))
+        log("CM.set_async(%s)" % repr(map), level=zLOG.DEBUG)
         if not self.closed and self.trigger is None:
             log("CM.set_async(): first call")
             self.trigger = trigger()
@@ -294,6 +294,9 @@ class ConnectThread(threading.Thread):
             if success > 0:
                 break
             time.sleep(delay)
+            if self.mgr.is_connected():
+                log("CT: still trying to replace fallback connection",
+                    level=zLOG.INFO)
             delay = min(delay*2, self.tmax)
         log("CT: exiting thread: %s" % self.getName())
 

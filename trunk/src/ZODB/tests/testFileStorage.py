@@ -72,6 +72,101 @@ class FileStorageTests(
         else:
             self.fail("expect long user field to raise error")
 
+    def check_use_fsIndex(self):
+        from ZODB.fsIndex import fsIndex
+
+        self.assertEqual(self._storage._index.__class__, fsIndex)
+
+    # XXX We could really use some tests for sanity checking
+
+    def check_conversion_to_fsIndex_not_if_readonly(self):
+
+        self.tearDown()
+
+        class OldFileStorage(ZODB.FileStorage.FileStorage):
+            def _newIndexes(self):
+                return {}, {}, {}, {}
+
+
+        from ZODB.fsIndex import fsIndex
+        
+        # Hack FileStorage to create dictionary indexes
+        self._storage = OldFileStorage('FileStorageTests.fs')
+
+        self.assertEqual(type(self._storage._index), type({}))
+        for i in range(10):
+            self._dostore()
+            
+        # Should save the index
+        self._storage.close()
+
+        self._storage = ZODB.FileStorage.FileStorage(
+            'FileStorageTests.fs', read_only=1)
+        self.assertEqual(type(self._storage._index), type({}))
+    
+    def check_conversion_to_fsIndex(self):
+
+        self.tearDown()
+
+        class OldFileStorage(ZODB.FileStorage.FileStorage):
+            def _newIndexes(self):
+                return {}, {}, {}, {}
+
+
+        from ZODB.fsIndex import fsIndex
+        
+        # Hack FileStorage to create dictionary indexes
+        self._storage = OldFileStorage('FileStorageTests.fs')
+
+        self.assertEqual(type(self._storage._index), type({}))
+        for i in range(10):
+            self._dostore()
+            
+        oldindex = self._storage._index.copy()
+            
+        # Should save the index
+        self._storage.close()
+
+        self._storage = ZODB.FileStorage.FileStorage('FileStorageTests.fs')
+        self.assertEqual(self._storage._index.__class__, fsIndex)
+        self.failUnless(self._storage._used_index)
+
+        index = {}
+        for k, v in self._storage._index.items():
+            index[k] = v
+
+        self.assertEqual(index, oldindex)
+
+
+    def check_save_after_load_with_no_index(self):
+        for i in range(10):
+            self._dostore()
+        self._storage.close()
+        os.remove('FileStorageTests.fs.index')
+        self.open()
+        self.assertEqual(self._storage._saved, 1)
+
+
+    # This would make the unit tests too slow
+    # check_save_after_load_that_worked_hard(self)        
+
+    def check_periodic_save_index(self):
+
+        # Check the basic algorithm
+        oldsaved = self._storage._saved
+        self._storage._records_before_save = 10
+        for i in range(4):
+            self._dostore()
+        self.assertEqual(self._storage._saved, oldsaved)
+        self._dostore()
+        self.assertEqual(self._storage._saved, oldsaved+1)
+
+        # Now make sure the parameter changes as we get bigger
+        for i in range(20):
+            self._dostore()
+
+        self.failUnless(self._storage._records_before_save > 20)
+
 class FileStorageRecoveryTest(
     StorageTestBase.StorageTestBase,
     RecoveryStorage.RecoveryStorage,

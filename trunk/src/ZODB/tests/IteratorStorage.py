@@ -38,6 +38,7 @@ class IteratorCompare:
                 eq(zodb_unpickle(rec.data), MinPO(val))
                 val = val + 1
         eq(val, val0 + len(revids))
+        txniter.close()
 
 class IteratorStorage(IteratorCompare):
 
@@ -191,3 +192,5 @@ class IteratorDeepCompare:
         # they were the same length
         self.assertRaises(IndexError, iter1.next)
         self.assertRaises(IndexError, iter2.next)
+        iter1.close()
+        iter2.close()

@@ -153,24 +153,14 @@ def main():
             if ts == 0:
                 # Must be a misaligned record caused by a crash
                 if not quiet:
-                    print "Skipping 8 bytes at offset", offset-8,
-                    print repr(r)
+                    print "Skipping 8 bytes at offset", offset-8
                 continue
-            oid = f_read(8)
-            if len(oid) < 8:
+            r = f_read(16)
+            if len(r) < 16:
                 break
-            if heuristic and oid[:4] != '\0\0\0\0':
-                # Heuristic for severe data corruption
-                print "Seeking back over bad oid at offset", offset,
-                print repr(r)
-                f.seek(-8, 1)
-                continue
-            offset += 8
-            serial = f_read(8)
-            if len(serial) < 8:
-                break
-            offset += 8
+            offset += 16
             records += 1
+            oid, serial = struct_unpack(">8s8s", r)
             if t0 is None:
                 t0 = ts
                 thisinterval = t0 / interval

@@ -22,7 +22,6 @@ ClientDisconnected -- exception raised by ClientStorage
 """
 
 # XXX TO DO
-# get rid of beginVerify, set up _tfile in verify_cache
 # set self._storage = stub later, in endVerify
 # if wait is given, wait until verify is complete
 
@@ -59,6 +58,9 @@ class UnrecognizedResult(ClientStorageError):
 
 class ClientDisconnected(ClientStorageError, Disconnected):
     """The database storage is disconnected from the storage."""
+
+def tid2time(tid):
+    return str(TimeStamp(tid))
 
 def get_timestamp(prev_ts=None):
     """Internal helper to return a unique TimeStamp instance.
@@ -208,6 +210,8 @@ class ClientStorage:
         self._connection = None
         # _server_addr is used by sortKey()
         self._server_addr = None
+        self._tfile = None
+        self._pickler = None
 
         self._info = {'length': 0, 'size': 0, 'name': 'ZEO Client',
                       'supportsUndo':0, 'supportsVersions': 0,
@@ -337,11 +341,13 @@ class ClientStorage:
         This is called by ConnectionManager after it has decided which
         connection should be used.
         """
+        # XXX would like to report whether we get a read-only connection
         if self._connection is not None:
-            log2(INFO, "Reconnected to storage")
+            reconnect = 1
         else:
-            log2(INFO, "Connected to storage")
+            reconnect = 0
         self.set_server_addr(conn.get_addr())
+        stub = self.StorageServerStubClass(conn)
         stub = self.StorageServerStubClass(conn)
         self._oids = []
         self._info.update(stub.get_info())
@@ -352,6 +358,11 @@ class ClientStorage:
             self._connection.close()
         self._connection = conn
         self._server = stub
+
+        if reconnect:
+            log2(INFO, "Reconnected to storage: %s" % self._server_addr)
+        else:
+            log2(INFO, "Connected to storage: %s" % self._server_addr)
 
     def set_server_addr(self, addr):
         # Normalize server address and convert to string
@@ -381,12 +392,42 @@ class ClientStorage:
             return self._server_addr
 
     def verify_cache(self, server):
-        """Internal routine called to verify the cache."""
-        # XXX beginZeoVerify ends up calling back to beginVerify() below.
-        # That whole exchange is rather unnecessary.
-        server.beginZeoVerify()
+        """Internal routine called to verify the cache.
+
+        The return value (indicating which path we took) is used by
+        the test suite.
+        """
+        last_inval_tid = self._cache.getLastTid()
+        if last_inval_tid is not None:
+            ltid = server.lastTransaction()
+            if ltid == last_inval_tid:
+                log2(INFO, "No verification necessary "
+                     "(last_inval_tid up-to-date)")
+                self._cache.open()
+                return "no verification"
+
+            # log some hints about last transaction
+            log2(INFO, "last inval tid: %r %s"
+                 % (last_inval_tid, tid2time(last_inval_tid)))
+            log2(INFO, "last transaction: %r %s" %
+                 (ltid, ltid and tid2time(ltid)))
+
+            pair = server.getInvalidations(last_inval_tid)
+            if pair is not None:
+                log2(INFO, "Recovering %d invalidations" % len(pair[1]))
+                self._cache.open()
+                self.invalidateTransaction(*pair)
+                return "quick verification"
+            
+        log2(INFO, "Verifying cache")
+        # setup tempfile to hold zeoVerify results
+        self._tfile = tempfile.TemporaryFile(suffix=".inv")
+        self._pickler = cPickle.Pickler(self._tfile, 1)
+        self._pickler.fast = 1 # Don't use the memo
+
         self._cache.verify(server.zeoVerify)
         server.endZeoVerify()
+        return "full verification"
 
     ### Is there a race condition between notifyConnected and
     ### notifyDisconnected? In Particular, what if we get
@@ -402,7 +443,8 @@ class ClientStorage:
         This is called by ConnectionManager when the connection is
         closed or when certain problems with the connection occur.
         """
-        log2(PROBLEM, "Disconnected from storage")
+        log2(PROBLEM, "Disconnected from storage: %s"
+             % repr(self._server_addr))
         self._connection = None
         self._server = disconnected_stub
 
@@ -644,6 +686,7 @@ class ClientStorage:
         self._serial = id
         self._seriald.clear()
         del self._serials[:]
+        self._tbuf.clear()
 
     def end_transaction(self):
         """Internal helper to end a transaction."""
@@ -678,12 +721,13 @@ class ClientStorage:
             if f is not None:
                 f()
 
-            self._server.tpc_finish(self._serial)
+            tid = self._server.tpc_finish(self._serial)
 
             r = self._check_serials()
             assert r is None or len(r) == 0, "unhandled serialnos: %s" % r
 
             self._update_cache()
+            self._cache.setLastTid(tid)
         finally:
             self.end_transaction()
 
@@ -779,12 +823,6 @@ class ClientStorage:
         """Server callback to update the info dictionary."""
         self._info.update(dict)
 
-    def beginVerify(self):
-        """Server callback to signal start of cache validation."""
-        self._tfile = tempfile.TemporaryFile(suffix=".inv")
-        self._pickler = cPickle.Pickler(self._tfile, 1)
-        self._pickler.fast = 1 # Don't use the memo
-
     def invalidateVerify(self, args):
         """Server callback to invalidate an (oid, version) pair.
 
@@ -802,6 +840,7 @@ class ClientStorage:
         if self._pickler is None:
             return
         self._pickler.dump((0,0))
+        self._pickler = None
         self._tfile.seek(0)
         unpick = cPickle.Unpickler(self._tfile)
         f = self._tfile
@@ -815,29 +854,26 @@ class ClientStorage:
             self._db.invalidate(oid, version=version)
         f.close()
 
-    def invalidateTrans(self, args):
-        """Server callback to invalidate a list of (oid, version) pairs.
-
-        This is called as the result of a transaction.
-        """
+    def invalidateTransaction(self, tid, args):
+        """Invalidate objects modified by tid."""
+        self._cache.setLastTid(tid)
+        if self._pickler is not None:
+            self.log("Transactional invalidation during cache verification",
+                     level=zLOG.BLATHER)
+            for t in args:
+                self.self._pickler.dump(t)
+            return
+        db = self._db
         for oid, version in args:
             self._cache.invalidate(oid, version=version)
-            try:
-                self._db.invalidate(oid, version=version)
-            except AttributeError, msg:
-                log2(PROBLEM,
-                    "Invalidate(%s, %s) failed for _db: %s" % (repr(oid),
-                                                               repr(version),
-                                                               msg))
+            if db is not None:
+                db.invalidate(oid, version=version)
 
-    # Unfortunately, the ZEO 2 wire protocol uses different names for
-    # several of the callback methods invoked by the StorageServer.
-    # We can't change the wire protocol at this point because that
-    # would require synchronized updates of clients and servers and we
-    # don't want that.  So here we alias the old names to their new
-    # implementations.
+    # The following are for compatibility with protocol version 2.0.0
 
-    begin = beginVerify
+    def invalidateTrans(self, args):
+        return self.invalidateTransaction(None, args)
+
     invalidate = invalidateVerify
     end = endVerify
     Invalidate = invalidateTrans

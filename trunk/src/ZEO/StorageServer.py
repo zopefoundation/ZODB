@@ -37,6 +37,7 @@ from ZODB.POSException import StorageError, StorageTransactionError
 from ZODB.POSException import TransactionError, ReadOnlyError
 from ZODB.referencesf import referencesf
 from ZODB.Transaction import Transaction
+from ZODB.utils import u64
 
 _label = "ZSS" # Default label used for logging.
 
@@ -68,8 +69,8 @@ class StorageServer:
     ZEOStorageClass = None # patched up later
     ManagedServerConnectionClass = ManagedServerConnection
 
-    def __init__(self, addr, storages, read_only=0):
-
+    def __init__(self, addr, storages, read_only=0,
+                 invalidation_queue_size=100):
         """StorageServer constructor.
 
         This is typically invoked from the start.py script.
@@ -102,13 +103,17 @@ class StorageServer:
         self.storages = storages
         set_label()
         msg = ", ".join(
-            ["%s:%s" % (name, storage.isReadOnly() and "RO" or "RW")
+            ["%s:%s:%s" % (name, storage.isReadOnly() and "RO" or "RW",
+                           storage.getName())
              for name, storage in storages.items()])
         log("%s created %s with storages: %s" %
             (self.__class__.__name__, read_only and "RO" or "RW", msg))
         for s in storages.values():
             s._waiting = []
         self.read_only = read_only
+        # A list of at most invalidation_queue_size invalidations
+        self.invq = []
+        self.invq_bound = invalidation_queue_size
         self.connections = {}
         self.dispatcher = self.DispatcherClass(addr,
                                                factory=self.new_connection,
@@ -141,7 +146,7 @@ class StorageServer:
             l = self.connections[storage_id] = []
         l.append(conn)
 
-    def invalidate(self, conn, storage_id, invalidated=(), info=None):
+    def invalidate(self, conn, storage_id, tid, invalidated=(), info=None):
         """Internal: broadcast info and invalidations to clients.
 
         This is called from several ZEOStorage methods.
@@ -149,7 +154,7 @@ class StorageServer:
         This can do three different things:
 
         - If the invalidated argument is non-empty, it broadcasts
-          invalidateTrans() messages to all clients of the given
+          invalidateTransaction() messages to all clients of the given
           storage except the current client (the conn argument).
 
         - If the invalidated argument is empty and the info argument
@@ -158,16 +163,46 @@ class StorageServer:
           client.
 
         - If both the invalidated argument and the info argument are
-          non-empty, it broadcasts invalidateTrans() messages to all
+          non-empty, it broadcasts invalidateTransaction() messages to all
           clients except the current, and sends an info() message to
           the current client.
 
         """
+        if invalidated:
+            if len(self.invq) >= self.invq_bound:
+                del self.invq[0]
+            self.invq.append((tid, invalidated))
         for p in self.connections.get(storage_id, ()):
             if invalidated and p is not conn:
-                p.client.invalidateTrans(invalidated)
+                p.client.invalidateTransaction(tid, invalidated)
             elif info is not None:
                 p.client.info(info)
+
+    def get_invalidations(self, tid):
+        """Return a tid and list of all objects invalidation since tid.
+
+        The tid is the most recent transaction id committed by the server.
+
+        Returns None if it is unable to provide a complete list
+        of invalidations for tid.  In this case, client should
+        do full cache verification.
+        """
+
+        if not self.invq:
+            log("invq empty")
+            return None, []
+        
+        earliest_tid = self.invq[0][0]
+        if earliest_tid > tid:
+            log("tid to old for invq %s < %s" % (u64(tid), u64(earliest_tid)))
+            return None, []
+        
+        oids = {}
+        for tid, L in self.invq:
+            for key in L:
+                oids[key] = 1
+        latest_tid = self.invq[-1][0]
+        return latest_tid, oids.keys()
 
     def close_server(self):
         """Close the dispatcher so that there are no new connections.
@@ -212,10 +247,18 @@ class ZEOStorage:
         self.storage_id = "uninitialized"
         self.transaction = None
         self.read_only = read_only
+        self.log_label = _label
 
     def notifyConnected(self, conn):
         self.connection = conn # For restart_other() below
         self.client = self.ClientStorageStubClass(conn)
+        addr = conn.addr
+        if isinstance(addr, type("")):
+            label = addr
+        else:
+            host, port = addr
+            label = str(host) + ":" + str(port)
+        self.log_label = _label + "/" + label
 
     def notifyDisconnected(self):
         # When this storage closes, we must ensure that it aborts
@@ -237,7 +280,7 @@ class ZEOStorage:
         return "<%s %X trans=%s s_trans=%s>" % (name, id(self), tid, stid)
 
     def log(self, msg, level=zLOG.INFO, error=None):
-        zLOG.LOG("%s:%s" % (_label, self.storage_id), level, msg, error=error)
+        zLOG.LOG(self.log_label, level, msg, error=error)
 
     def setup_delegation(self):
         """Delegate several methods to the storage"""
@@ -259,6 +302,7 @@ class ZEOStorage:
             for name in fn().keys():
                 if not hasattr(self,name):
                     setattr(self, name, getattr(self.storage, name))
+        self.lastTransaction = self.storage.lastTransaction
 
     def check_tid(self, tid, exc=None):
         if self.read_only:
@@ -286,7 +330,7 @@ class ZEOStorage:
         This method must be the first one called by the client.
         """
         if self.storage is not None:
-            log("duplicate register() call")
+            self.log("duplicate register() call")
             raise ValueError, "duplicate register() call"
         storage = self.server.storages.get(storage_id)
         if storage is None:
@@ -342,8 +386,13 @@ class ZEOStorage:
                 raise
         return p, s, v, pv, sv
 
-    def beginZeoVerify(self):
-        self.client.beginVerify()
+    def getInvalidations(self, tid):
+        invtid, invlist = self.server.get_invalidations(tid)
+        if invtid is None:
+            return None
+        self.log("Return %d invalidations up to tid %s"
+                 % (len(invlist), u64(invtid)))
+        return invtid, invlist
 
     def zeoVerify(self, oid, s, sv):
         try:
@@ -394,7 +443,8 @@ class ZEOStorage:
         self.storage.pack(time, referencesf)
         self.log("pack(time=%s) complete" % repr(time))
         # Broadcast new size statistics
-        self.server.invalidate(0, self.storage_id, (), self.get_size_info())
+        self.server.invalidate(0, self.storage_id, None,
+                               (), self.get_size_info())
 
     def new_oids(self, n=100):
         """Return a sequence of n new oids, where n defaults to 100"""
@@ -409,7 +459,7 @@ class ZEOStorage:
             raise ReadOnlyError()
         oids = self.storage.undo(transaction_id)
         if oids:
-            self.server.invalidate(self, self.storage_id,
+            self.server.invalidate(self, self.storage_id, None,
                                    map(lambda oid: (oid, ''), oids))
             return oids
         return ()
@@ -450,12 +500,15 @@ class ZEOStorage:
         if not self.check_tid(id):
             return
         invalidated = self.strategy.tpc_finish()
+        tid = self.storage.lastTransaction()
         if invalidated:
-            self.server.invalidate(self, self.storage_id,
+            self.server.invalidate(self, self.storage_id, tid,
                                    invalidated, self.get_size_info())
         self.transaction = None
         self.strategy = None
+        # Return the tid, for cache invalidation optimization
         self.handle_waiting()
+        return tid
 
     def tpc_abort(self, id):
         if not self.check_tid(id):
@@ -546,7 +599,8 @@ class ZEOStorage:
         old_strategy = self.strategy
         assert isinstance(old_strategy, DelayedCommitStrategy)
         self.strategy = ImmediateCommitStrategy(self.storage,
-                                                self.client)
+                                                self.client,
+                                                self.log)
         resp = old_strategy.restart(self.strategy)
         if delay is not None:
             delay.reply(resp)
@@ -602,11 +656,12 @@ class ICommitStrategy:
 class ImmediateCommitStrategy:
     """The storage is available so do a normal commit."""
 
-    def __init__(self, storage, client):
+    def __init__(self, storage, client, logmethod):
         self.storage = storage
         self.client = client
         self.invalidated = []
         self.serials = []
+        self.log = logmethod
 
     def tpc_begin(self, txn, tid, status):
         self.txn = txn
@@ -628,12 +683,14 @@ class ImmediateCommitStrategy:
         try:
             newserial = self.storage.store(oid, serial, data, version,
                                            self.txn)
+        except (SystemExit, KeyboardInterrupt):
+            raise
         except Exception, err:
             if not isinstance(err, TransactionError):
                 # Unexpected errors are logged and passed to the client
                 exc_info = sys.exc_info()
-                log("store error: %s, %s" % exc_info[:2],
-                    zLOG.ERROR, error=exc_info)
+                self.log("store error: %s, %s" % exc_info[:2],
+                         zLOG.ERROR, error=exc_info)
                 del exc_info
             # Try to pickle the exception.  If it can't be pickled,
             # the RPC response would fail, so use something else.
@@ -643,7 +700,7 @@ class ImmediateCommitStrategy:
                 pickler.dump(err, 1)
             except:
                 msg = "Couldn't pickle storage exception: %s" % repr(err)
-                log(msg, zLOG.ERROR)
+                self.log(msg, zLOG.ERROR)
                 err = StorageServerError(msg)
             # The exception is reported back as newserial for this oid
             newserial = err
@@ -776,6 +833,8 @@ class SlowMethodThread(threading.Thread):
     def run(self):
         try:
             result = self._method(*self._args)
+        except (SystemExit, KeyboardInterrupt):
+            raise
         except Exception:
             self.delay.error(sys.exc_info())
         else:
