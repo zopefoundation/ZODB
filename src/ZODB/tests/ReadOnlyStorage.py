@@ -32,28 +32,16 @@ class ReadOnlyStorage:
         self.assertRaises(ReadOnlyError, self._storage.new_oid)
         self.assertRaises(ReadOnlyError, self._storage.undo,
                           '\000' * 8)
-
         t = Transaction()
-        self._storage.tpc_begin(t)
+        self.assertRaises(ReadOnlyError, self._storage.tpc_begin, t)
+
         self.assertRaises(ReadOnlyError, self._storage.abortVersion,
                           '', t)
-        self._storage.tpc_abort(t)
-
-        t = Transaction()
-        self._storage.tpc_begin(t)
         self.assertRaises(ReadOnlyError, self._storage.commitVersion,
                           '', '', t)
-        self._storage.tpc_abort(t)
-
-        t = Transaction()
-        self._storage.tpc_begin(t)
         self.assertRaises(ReadOnlyError, self._storage.store,
                           '\000' * 8, None, '', '', t)
-        self._storage.tpc_abort(t)
 
         if self._storage.supportsTransactionalUndo():
-            t = Transaction()
-            self._storage.tpc_begin(t)
             self.assertRaises(ReadOnlyError, self._storage.transactionalUndo,
                               '\000' * 8, t)
-            self._storage.tpc_abort(t)
