@@ -1,6 +1,6 @@
 *shared*
 cPersistence cPersistence.c -I../ExtensionClass -I../python
 cPickleCache cPickleCache.c -I../ExtensionClass -I../python
-Record Record.c -I../ExtensionClass
+#Record Record.c -I../ExtensionClass
 
 #install CacheManager.py
