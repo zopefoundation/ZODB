@@ -89,6 +89,7 @@ from utils import p64, u64
 from referencesf import referencesf
 from cStringIO import StringIO
 from cPickle import Pickler, Unpickler
+TupleType=type(())
 
 class ExportImport:
 
@@ -181,7 +182,8 @@ class ExportImport:
                 if oids:
                     oid=oids[ooid]
                     if type(oid) is TupleType: oid=oid[0]
-                else: oids[ooid]=return_oid=oid=new_oid()
+                else:
+                    oids[ooid]=return_oid=oid=new_oid()
 
                 pfile=StringIO(p)
                 unpickler=Unpickler(pfile)
