@@ -41,16 +41,28 @@ class TimeStampTests(unittest.TestCase):
         self.assertEquals(dy, t[2])
 
     def checkFullTimeStamp(self):
-        t = time.gmtime()
+        native_ts = int(time.time()) # fractional seconds get in the way
+        t = time.gmtime(native_ts)   # the corresponding GMT struct tm
         ts = TimeStamp(*t[:6])
 
-        # XXX floating point comparison
-        self.assertEquals(ts.timeTime() + time.timezone, time.mktime(t))
+        # Seconds are stored internally via (conceptually) multiplying by
+        # 2**32 then dividing by 60, ending up with a 32-bit integer.
+        # While this gives a lot of room for cramming many distinct
+        # TimeStamps into a second, it's not good at roundtrip accuracy.
+        # For example, 1 second is stored as int(2**32/60) == 71582788.
+        # Converting back gives 71582788*60.0/2**32 == 0.9999999962747097.
+        # In general, we can lose up to 0.999... to truncation during
+        # storing, creating an absolute error up to about 1*60.0/2**32 ==
+        # 0.000000014 on the seconds value we get back.  This is so even
+        # when we have an exact integral second value going in (as we
+        # do in this test), so we can't expect equality in any comparison
+        # involving seconds.  Minutes (etc) are stored exactly, so we
+        # can expect equality for those.
 
+        self.assert_(abs(ts.timeTime() - native_ts) < EPSILON)
         self.assertEqual(ts.year(), t[0])
         self.assertEqual(ts.month(), t[1])
         self.assertEqual(ts.day(), t[2])
-
         self.assertEquals(ts.hour(), t[3])
         self.assertEquals(ts.minute(), t[4])
         self.assert_(abs(ts.second() - t[5]) < EPSILON)
