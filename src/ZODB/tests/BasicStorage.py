@@ -71,7 +71,7 @@ class BasicStorage:
     def checkSerialIsNoneForInitialRevision(self):
         eq = self.assertEqual
         oid = self._storage.new_oid()
-        txn = self._transaction
+        txn = Transaction()
         self._storage.tpc_begin(txn)
         # Use None for serial.  Don't use _dostore() here because that coerces
         # serial=None to serial=ZERO.
@@ -120,11 +120,11 @@ class BasicStorage:
 
     def checkWriteAfterAbort(self):
         oid = self._storage.new_oid()
-        self._storage.tpc_begin(self._transaction)
-        self._storage.store(oid, ZERO, zodb_pickle(MinPO(5)),
-                            '', self._transaction)
+        t = Transaction()
+        self._storage.tpc_begin(t)
+        self._storage.store(oid, ZERO, zodb_pickle(MinPO(5)), '', t)
         # Now abort this transaction
-        self._storage.tpc_abort(self._transaction)
+        self._storage.tpc_abort(t)
         # Now start all over again
         oid = self._storage.new_oid()
         self._dostore(oid=oid, data=MinPO(6))
