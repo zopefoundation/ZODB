@@ -1415,9 +1415,9 @@ bucket__p_resolveConflict(Bucket *self, PyObject *args)
 }
 #endif
 
-/* XXX Even though the _next attribute is read-only, a program could
-   probably do arbitrary damage to a the btree internals.  For
-   example, it could call clear() on a bucket inside a BTree.
+/* Caution:  Even though the _next attribute is read-only, a program could
+   do arbitrary damage to the btree internals.  For example, it could call
+   clear() on a bucket inside a BTree.
 
    We need to decide if the convenience for inspecting BTrees is worth
    the risk.

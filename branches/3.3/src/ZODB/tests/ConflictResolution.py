@@ -37,7 +37,7 @@ class PCounter(Persistent):
 
         return oldState
 
-    # XXX What if _p_resolveConflict _thinks_ it resolved the
+    # Insecurity:  What if _p_resolveConflict _thinks_ it resolved the
     # conflict, but did something wrong?
 
 class PCounter2(PCounter):

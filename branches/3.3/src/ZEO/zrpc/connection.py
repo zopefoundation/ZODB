@@ -407,7 +407,7 @@ class Connection(smac.SizedMessageAsyncConnection, object):
         self.close()
 
     def check_method(self, name):
-        # XXX Is this sufficient "security" for now?
+        # TODO:  This is hardly "secure".
         if name.startswith('_'):
             return None
         return hasattr(self.obj, name)
@@ -524,7 +524,7 @@ class Connection(smac.SizedMessageAsyncConnection, object):
     def _prepare_async(self):
         self.thr_async = False
         ThreadedAsync.register_loop_callback(self.set_async)
-        # XXX If we are not in async mode, this will cause dead
+        # TODO:  If we are not in async mode, this will cause dead
         # Connections to be leaked.
 
     def set_async(self, map):
@@ -642,9 +642,9 @@ class Connection(smac.SizedMessageAsyncConnection, object):
                 # loop is only intended to make sure all incoming data is
                 # returned.
 
-                # XXX What if the server sends a lot of invalidations,
-                # such that pending never finishes?  Seems unlikely, but
-                # not impossible.
+                # Insecurity:  What if the server sends a lot of
+                # invalidations, such that pending never finishes?  Seems
+                # unlikely, but possible.
                 timeout = 0
             if r:
                 try:
@@ -771,7 +771,7 @@ class ManagedClientConnection(Connection):
         return 0
 
     def is_async(self):
-        # XXX could the check_mgr_async() be avoided on each test?
+        # TODO: could the check_mgr_async() be avoided on each test?
         if self.thr_async:
             return 1
         return self.check_mgr_async()

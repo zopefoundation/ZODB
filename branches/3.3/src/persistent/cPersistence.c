@@ -85,7 +85,7 @@ unghostify(cPersistentObject *self)
     if (self->state < 0 && self->jar) {
         PyObject *r;
 
-        /* XXX Is it ever possibly to not have a cache? */
+        /* Is it ever possibly to not have a cache? */
         if (self->cache) {
             /* Create a node in the ring for this unghostified object. */
             self->cache->non_ghost_count++;
@@ -156,7 +156,7 @@ ghostify(cPersistentObject *self)
     if (self->state == cPersistent_GHOST_STATE)
         return;
 
-    /* XXX is it ever possible to not have a cache? */
+    /* Is it ever possible to not have a cache? */
     if (self->cache == NULL) {
         self->state = cPersistent_GHOST_STATE;
         return;
@@ -386,7 +386,7 @@ pickle___getstate__(PyObject *self)
 		    continue;
             }
 
-	    /* XXX will this go through our getattr hook? */
+	    /* Unclear:  Will this go through our getattr hook? */
 	    value = PyObject_GetAttr(self, name);
 	    if (value == NULL)
 		PyErr_Clear();
@@ -548,11 +548,12 @@ pickle___reduce__(PyObject *self)
 static PyObject *
 Per__getstate__(cPersistentObject *self)
 {
-    /* XXX Should it be an error to call __getstate__() on a ghost? */
+    /* TODO:  Should it be an error to call __getstate__() on a ghost? */
     if (unghostify(self) < 0)
         return NULL;
 
-    /* XXX shouldn't we increment stickyness? */
+    /* TODO:  should we increment stickyness?  Tim doesn't understand that
+       question. S*/
     return pickle___getstate__((PyObject*)self);
 }
 
@@ -723,7 +724,7 @@ Per__p_getattr(cPersistentObject *self, PyObject *name)
 }
 
 /*
-   XXX we should probably not allow assignment of __class__ and __dict__.
+   TODO:  we should probably not allow assignment of __class__ and __dict__.
 */
 
 static int
@@ -858,7 +859,7 @@ Per_set_changed(cPersistentObject *self, PyObject *v)
 	    is to clear the exception, but that simply masks the
 	    error.
 
-	    XXX We'll print an error to stderr just like exceptions in
+	    This prints an error to stderr just like exceptions in
 	    __del__().  It would probably be better to log it but that
 	    would be painful from C.
 	    */

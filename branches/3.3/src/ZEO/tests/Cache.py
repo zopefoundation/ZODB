@@ -28,8 +28,9 @@ class TransUndoStorageWithCache:
 
         info = self._storage.undoInfo()
         if not info:
-            # XXX perhaps we have an old storage implementation that
-            # does do the negative nonsense
+            # Preserved this comment, but don't understand it:
+            # "Perhaps we have an old storage implementation that
+            #  does do the negative nonsense."
             info = self._storage.undoInfo(0, 20)
         tid = info[0]['id']
 
