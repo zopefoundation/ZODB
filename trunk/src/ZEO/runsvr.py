@@ -22,6 +22,7 @@ Options:
                         (a PATH must contain at least one "/")
 -f/--filename FILENAME -- filename for FileStorage
 -h/--help -- print this usage message and exit
+-m/--monitor ADDRESS -- address of monitor server
 
 Unless -C is specified, -a and -f are required.
 """
@@ -147,43 +148,62 @@ class Options:
         sys.stderr.write("For help, use %s -h\n" % self.progname)
         sys.exit(2)
 
+def parse_address(arg):
+    if "/" in arg:
+        family = socket.AF_UNIX
+        address = arg
+    else:
+        family = socket.AF_INET
+        if ":" in arg:
+            host, port = arg.split(":", 1)
+        else:
+            host = ""
+            port = arg
+        try:
+            port = int(port)
+        except: # int() can raise all sorts of errors
+            raise ValueError("invalid port number: %r" % port)
+        address = host, port
+    return family, address
 
 class ZEOOptions(Options):
 
     read_only = None
     transaction_timeout = None
     invalidation_queue_size = None
+    monitor_address = None
 
     family = None                       # set by -a; AF_UNIX or AF_INET
     address = None                      # set by -a; string or (host, port)
     storages = None                     # set by -f
 
-    _short_options = "a:C:f:h"
+    _short_options = "a:C:f:hm:"
     _long_options = [
         "address=",
         "configuration=",
         "filename=",
         "help",
+        "monitor=",
         ]
 
     def handle_option(self, opt, arg):
         # Alphabetical order please!
         if opt in ("-a", "--address"):
-            if "/" in arg:
-                self.family = socket.AF_UNIX
-                self.address = arg
+            try:
+                f, a = parse_address(arg)
+            except ValueError, err:
+                self.usage(str(err))
             else:
-                self.family = socket.AF_INET
-                if ":" in arg:
-                    host, port = arg.split(":", 1)
-                else:
-                    host = ""
-                    port = arg
-                try:
-                    port = int(port)
-                except: # int() can raise all sorts of errors
-                    self.usage("invalid port number: %r" % port)
-                self.address = (host, port)
+                self.family = f
+                self.address = a
+        elif opt in ("-m", "--monitor"):
+            try:
+                f, a = parse_address(arg)
+            except ValueError, err:
+                self.usage(str(err))
+            else:
+                self.monitor_family = f
+                self.monitor_address = a
         elif opt in ("-f", "--filename"):
             from ZODB.config import FileStorage
             class FSConfig:
@@ -238,7 +258,7 @@ class ZEOOptions(Options):
 
         self.read_only = self.rootconf.read_only
         self.transaction_timeout = self.rootconf.transaction_timeout
-        self.invalidation_queue_size = self.rootconf.invalidation_queue_size
+        self.invalidation_queue_size = 100
 
     def load_logconf(self):
         # Get logging options from conf, unless overridden by environment
@@ -349,7 +369,8 @@ class ZEOServer:
             self.storages,
             read_only=self.options.read_only,
             invalidation_queue_size=self.options.invalidation_queue_size,
-            transaction_timeout=self.options.transaction_timeout)
+            transaction_timeout=self.options.transaction_timeout,
+            monitor_address=self.options.monitor_address)
 
     def loop_forever(self):
         import ThreadedAsync.LoopCallback
