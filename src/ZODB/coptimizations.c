@@ -14,7 +14,7 @@
 static char coptimizations_doc_string[] = 
 "C optimization for new_persistent_id().\n"
 "\n"
-"$Id: coptimizations.c,v 1.17 2002/03/08 18:36:14 jeremy Exp $\n";
+"$Id: coptimizations.c,v 1.18 2002/09/16 23:50:39 jeremy Exp $\n";
 
 #include "Python.h"
 #define DONT_USE_CPERSISTENCECAPI
@@ -33,207 +33,232 @@ static PyObject *InvalidObjectReference;
 
 typedef struct {
   PyObject_HEAD
-  PyObject *jar, *stackup, *new_oid;
+  PyObject *jar, *stack, *new_oid;
 } persistent_id;
 
-staticforward PyTypeObject persistent_idType;
+static PyTypeObject persistent_idType;
 
 static persistent_id *
 newpersistent_id(PyObject *ignored, PyObject *args)
 {
-  persistent_id *self;
-  PyObject *jar, *stackup;
+    persistent_id *self;
+    PyObject *jar, *stack;
 
-  UNLESS (PyArg_ParseTuple(args, "OO", &jar, &stackup)) return NULL;
-  UNLESS(self = PyObject_NEW(persistent_id, &persistent_idType)) return NULL;
-  Py_INCREF(jar);
-  self->jar=jar;
-  Py_INCREF(stackup);
-  self->stackup=stackup;
-  self->new_oid=NULL;
-  return self;
+    if (!PyArg_ParseTuple(args, "OO!", &jar, &PyList_Type, &stack)) 
+	return NULL;
+    self = PyObject_NEW(persistent_id, &persistent_idType);
+    if (!self)
+	return NULL;
+    Py_INCREF(jar);
+    self->jar = jar;
+    Py_INCREF(stack);
+    self->stack = stack;
+    self->new_oid = NULL;
+    return self;
 }
-
 
 static void
 persistent_id_dealloc(persistent_id *self)
 {
-  Py_DECREF(self->jar);
-  Py_DECREF(self->stackup);
-  Py_XDECREF(self->new_oid);
-  PyObject_DEL(self);
+    Py_DECREF(self->jar);
+    Py_DECREF(self->stack);
+    Py_XDECREF(self->new_oid);
+    PyObject_DEL(self);
+}
+
+/* Returns the klass of a persistent object.
+   Returns NULL for other objects.
+*/
+static PyObject *
+get_class(PyObject *object)
+{
+    PyObject *class;
+
+    if (!PyExtensionClass_Check(object)) {
+	if (PyExtensionInstance_Check(object)) {
+	    class = PyObject_GetAttr(object, py___class__);
+	    if (!class) {
+		PyErr_Clear();
+		return NULL;
+	    }
+	    if (!PyExtensionClass_Check(class) ||
+		!(((PyExtensionClass*)class)->class_flags 
+		  & PERSISTENT_TYPE_FLAG)) {
+		Py_DECREF(class);
+		return NULL;
+	    }
+	}
+	else
+	    return NULL;
+    }
+    return class;
+}
+
+/* Return a two-tuple of the class's module and name.
+ */
+static PyObject *
+get_class_tuple(PyObject *class, PyObject *oid)
+{
+    PyObject *module = NULL, *name = NULL, *tuple;
+
+    module = PyObject_GetAttr(class, py___module__);
+    if (!module)
+	goto err;
+    if (!PyObject_IsTrue(module)) {
+	Py_DECREF(module);
+	/* XXX Handle degenerate 1.x ZClass case. */
+	return oid;
+    }
+
+    name = PyObject_GetAttr(class, py___name__);
+    if (!name)
+	goto err;
+
+    tuple = PyTuple_New(2);
+    if (!tuple)
+	goto err;
+    PyTuple_SET_ITEM(tuple, 0, module);
+    PyTuple_SET_ITEM(tuple, 1, name);
+
+    return tuple;
+ err:
+    Py_XDECREF(module);
+    Py_XDECREF(name);
+    return NULL;
+}
+
+static PyObject *
+set_oid(persistent_id *self, PyObject *object)
+{
+    PyObject *oid;
+
+    if (!self->new_oid) {
+	self->new_oid = PyObject_GetAttr(self->jar, py_new_oid);
+	if (!self->new_oid)
+	    return NULL;
+    }
+    oid = PyObject_CallObject(self->new_oid, NULL);
+    if (!oid)
+	return NULL;
+    if (PyObject_SetAttr(object, py__p_oid, oid) < 0) 
+	goto err;
+    if (PyObject_SetAttr(object, py__p_jar, self->jar) < 0) 
+	goto err;
+    if (PyList_Append(self->stack, object) < 0)
+	goto err;
+    return oid;
+ err:
+    Py_DECREF(oid);
+    return NULL;
 }
 
 static PyObject *
 persistent_id_call(persistent_id *self, PyObject *args, PyObject *kwargs)
 {
-  PyObject *object, *oid, *jar=NULL, *r=NULL, *klass=NULL;
+    PyObject *object, *oid, *klass=NULL;
+    PyObject *t1, *t2;
+    int setjar = 0;
 
-  /*
-  def persistent_id(object, self=self,stackup=stackup):
-  */
-  UNLESS (PyArg_ParseTuple(args, "O", &object)) return NULL;
+    if (!PyArg_ParseTuple(args, "O", &object))
+	return NULL;
 
-  /*
-    if (not hasattr(object, '_p_oid') or
-        type(object) is ClassType): return None
-   */
+    klass = get_class(object);
+    if (!klass)
+	goto return_none;
 
-
-  /* Filter out most objects with low-level test. 
-     Yee ha! 
-     (Also get klass along the way.)
-  */
-  if (! PyExtensionClass_Check(object)) {
-    if (PyExtensionInstance_Check(object))
-      {
-	UNLESS (klass=PyObject_GetAttr(object, py___class__)) 
-	  {
-	    PyErr_Clear();
-	    goto not_persistent;
-	  }
-	UNLESS (
-		PyExtensionClass_Check(klass) &&
-		(((PyExtensionClass*)klass)->class_flags 
-		 & PERSISTENT_TYPE_FLAG)
-		)
-	  goto not_persistent;
-
-      }
-    else 
-      goto not_persistent;
-  }
-
-  UNLESS (oid=PyObject_GetAttr(object, py__p_oid)) 
-    {
-      PyErr_Clear();
-      goto not_persistent;
+    oid = PyObject_GetAttr(object, py__p_oid);
+    if (!oid) {
+	PyErr_Clear();
+	Py_DECREF(klass);
+	goto return_none;
     }
 
-  /*
-      if oid is None or object._p_jar is not self:
-   */
-  if (oid != Py_None)
-    {
-      UNLESS (jar=PyObject_GetAttr(object, py__p_jar)) PyErr_Clear();
-      if (jar && jar != Py_None && jar != self->jar)
-	{
-	  PyErr_SetString(InvalidObjectReference, 
-			  "Attempt to store an object from a foreign "
-			  "database connection");
-	  return NULL;
+    if (oid != Py_None) {
+	PyObject *jar = PyObject_GetAttr(object, py__p_jar);
+	if (!jar)
+	    PyErr_Clear();
+	else {
+	    if (jar != Py_None && jar != self->jar) {
+		PyErr_SetString(InvalidObjectReference, 
+				"Attempt to store an object from a foreign "
+				"database connection");
+		goto err;
+	    }
+	    /* Ignore the oid of the unknown jar and assign a new one. */
+	    if (jar == Py_None)
+		setjar = 1;
+	    Py_DECREF(jar);
 	}
     }
 
-  if (oid == Py_None || jar != self->jar)
-    {
-      /*
-          oid = self.new_oid()
-          object._p_jar=self
-          object._p_oid=oid
-          stackup(object)
-      */
-      UNLESS (self->new_oid ||
-	      (self->new_oid=PyObject_GetAttr(self->jar, py_new_oid)))
+    if (oid == Py_None || setjar) {
+	Py_DECREF(oid);
+	oid = set_oid(self, object);
+	if (!oid)
 	    goto err;
-      ASSIGN(oid, PyObject_CallObject(self->new_oid, NULL));
-      UNLESS (oid) goto null_oid;
-      if (PyObject_SetAttr(object, py__p_jar, self->jar) < 0) goto err;
-      if (PyObject_SetAttr(object, py__p_oid, oid) < 0) goto err;
-      UNLESS (r=PyTuple_New(1)) goto err;
-      PyTuple_SET_ITEM(r, 0, object);
-      Py_INCREF(object);
-      ASSIGN(r, PyObject_CallObject(self->stackup, r));
-      UNLESS (r) goto err;
-      Py_DECREF(r);
     }
 
-  /*
-      klass=object.__class__
+    if (PyExtensionClass_Check(object)
+	|| PyObject_HasAttr(klass, py___getinitargs__))
+	goto return_oid;
 
-      if klass is ExtensionKlass: return oid
-  */
-  
-  if (PyExtensionClass_Check(object)) goto return_oid;
-
-  /*
-      if hasattr(klass, '__getinitargs__'): return oid
-  */
-
-  if ((r=PyObject_GetAttr(klass, py___getinitargs__)))
-    {
-      Py_DECREF(r);
-      goto return_oid;
+    t2 = get_class_tuple(klass, oid);
+    if (!t2)
+	goto err;
+    if (t2 == oid) /* pass through ZClass special case */
+	goto return_oid;
+    t1 = PyTuple_New(2);
+    if (!t1) {
+	Py_DECREF(t2);
+	goto err;
     }
-  PyErr_Clear();
+    /* use borrowed references to oid and t2 */
+    PyTuple_SET_ITEM(t1, 0, oid);
+    PyTuple_SET_ITEM(t1, 1, t2);
 
-  /*
-      module=getattr(klass,'__module__','')
-      if module: klass=module, klass.__name__
-      else: return oid # degenerate 1.x ZClass case
-  */
-  UNLESS (jar=PyObject_GetAttr(klass, py___module__)) goto err;
+    Py_DECREF(klass);
 
-  UNLESS (PyObject_IsTrue(jar)) goto return_oid;
+    return t1;
 
-  ASSIGN(klass, PyObject_GetAttr(klass, py___name__));
-  UNLESS (klass) goto err;
+ err:
+    Py_XDECREF(oid);
+    oid = NULL;
 
-  UNLESS (r=PyTuple_New(2)) goto err;
-  PyTuple_SET_ITEM(r, 0, jar);
-  PyTuple_SET_ITEM(r, 1, klass);
-  klass=r;
-  jar=NULL;
+ return_oid:
+    Py_XDECREF(klass);
+    return oid;
 
-  /*      
-      return oid, klass
-  */
-  UNLESS (r=PyTuple_New(2)) goto err;
-  PyTuple_SET_ITEM(r, 0, oid);
-  PyTuple_SET_ITEM(r, 1, klass);
-  return r;
-
-not_persistent:
-  Py_INCREF(Py_None);
-  return Py_None;
-
-err:
-  Py_DECREF(oid);
-  oid=NULL;
-
-null_oid:
-return_oid:
-  Py_XDECREF(jar);
-  Py_XDECREF(klass);
-  return oid;
+ return_none:
+    Py_INCREF(Py_None);
+    return Py_None;
 }
 
 
 static PyTypeObject persistent_idType = {
-  PyObject_HEAD_INIT(NULL)
-  0,				/*ob_size*/
-  "persistent_id",			/*tp_name*/
-  sizeof(persistent_id),		/*tp_basicsize*/
-  0,				/*tp_itemsize*/
-  /* methods */
-  (destructor)persistent_id_dealloc,	/*tp_dealloc*/
-  (printfunc)0,	/*tp_print*/
-  (getattrfunc)0,		/*obsolete tp_getattr*/
-  (setattrfunc)0,		/*obsolete tp_setattr*/
-  (cmpfunc)0,	/*tp_compare*/
-  (reprfunc)0,		/*tp_repr*/
-  0,		/*tp_as_number*/
-  0,		/*tp_as_sequence*/
-  0,		/*tp_as_mapping*/
-  (hashfunc)0,		/*tp_hash*/
-  (ternaryfunc)persistent_id_call,	/*tp_call*/
-  (reprfunc)0,		/*tp_str*/
-  (getattrofunc)0,	/*tp_getattro*/
-  (setattrofunc)0,	/*tp_setattro*/
-  
-  /* Space for future expansion */
-  0L,0L,
-  "C implementation of the persistent_id function defined in Connection.py"
+    PyObject_HEAD_INIT(NULL)
+    0,				/*ob_size*/
+    "persistent_id",			/*tp_name*/
+    sizeof(persistent_id),		/*tp_basicsize*/
+    0,				/*tp_itemsize*/
+    /* methods */
+    (destructor)persistent_id_dealloc,	/*tp_dealloc*/
+    (printfunc)0,	/*tp_print*/
+    (getattrfunc)0,		/*obsolete tp_getattr*/
+    (setattrfunc)0,		/*obsolete tp_setattr*/
+    (cmpfunc)0,	/*tp_compare*/
+    (reprfunc)0,		/*tp_repr*/
+    0,		/*tp_as_number*/
+    0,		/*tp_as_sequence*/
+    0,		/*tp_as_mapping*/
+    (hashfunc)0,		/*tp_hash*/
+    (ternaryfunc)persistent_id_call,	/*tp_call*/
+    (reprfunc)0,		/*tp_str*/
+    (getattrofunc)0,	/*tp_getattro*/
+    (setattrofunc)0,	/*tp_setattro*/
+    
+    /* Space for future expansion */
+    0L,0L,
+    "C implementation of the persistent_id function defined in Connection.py"
 };
 
 /* End of code for persistent_id objects */
@@ -243,45 +268,40 @@ static PyTypeObject persistent_idType = {
 /* List of methods defined in the module */
 
 static struct PyMethodDef Module_Level__methods[] = {
-  {"new_persistent_id", (PyCFunction)newpersistent_id, METH_VARARGS,
-   "new_persistent_id(jar, stackup, new_oid)"
-   " -- get a new persistent_id function"},
-  {NULL, (PyCFunction)NULL, 0, NULL}		/* sentinel */
+    {"new_persistent_id", (PyCFunction)newpersistent_id, METH_VARARGS,
+     "new_persistent_id(jar, stack) -- get a new persistent_id function"},
+    {NULL, NULL}		/* sentinel */
 };
 
 void
 initcoptimizations(void)
 {
-  PyObject *m, *d;
+    PyObject *m, *d;
 
 #define make_string(S) if (! (py_ ## S=PyString_FromString(#S))) return
-  make_string(_p_oid);
-  make_string(_p_jar);
-  make_string(__getinitargs__);
-  make_string(__module__);
-  make_string(__class__);
-  make_string(__name__);
-  make_string(new_oid);
+    make_string(_p_oid);
+    make_string(_p_jar);
+    make_string(__getinitargs__);
+    make_string(__module__);
+    make_string(__class__);
+    make_string(__name__);
+    make_string(new_oid);
 			
-  /* Get InvalidObjectReference error */
-  UNLESS (m=PyString_FromString("POSException")) return;
-  ASSIGN(m, PyImport_Import(m));
-  UNLESS (m) return;
-  ASSIGN(m, PyObject_GetAttrString(m, "InvalidObjectReference"));
-  UNLESS (m) return;
-  InvalidObjectReference=m;
+    /* Get InvalidObjectReference error */
+    UNLESS (m=PyString_FromString("POSException")) return;
+    ASSIGN(m, PyImport_Import(m));
+    UNLESS (m) return;
+    ASSIGN(m, PyObject_GetAttrString(m, "InvalidObjectReference"));
+    UNLESS (m) return;
+    InvalidObjectReference=m;
 
-  UNLESS (ExtensionClassImported) return;
+    if (!ExtensionClassImported) 
+	return;
 
-  m = Py_InitModule4("coptimizations", Module_Level__methods,
-		     coptimizations_doc_string,
-		     (PyObject*)NULL,PYTHON_API_VERSION);
-  d = PyModule_GetDict(m);
+    m = Py_InitModule3("coptimizations", Module_Level__methods,
+		       coptimizations_doc_string);
+    d = PyModule_GetDict(m);
 
-  persistent_idType.ob_type=&PyType_Type;
-  PyDict_SetItemString(d,"persistent_idType", OBJECT(&persistent_idType));
-
-  /* Check for errors */
-  if (PyErr_Occurred())
-    Py_FatalError("can't initialize module coptimizations");
+    persistent_idType.ob_type = &PyType_Type;
+    PyDict_SetItemString(d,"persistent_idType", OBJECT(&persistent_idType));
 }
