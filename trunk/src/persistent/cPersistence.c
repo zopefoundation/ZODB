@@ -82,7 +82,7 @@
   attributions are listed in the accompanying credits file.
   
  ****************************************************************************/
-static char *what_string = "$Id: cPersistence.c,v 1.28 1999/05/12 15:55:44 jim Exp $";
+static char *what_string = "$Id: cPersistence.c,v 1.29 1999/05/14 19:21:49 jim Exp $";
 
 #include <string.h>
 #include "cPersistence.h"
@@ -580,7 +580,16 @@ _setattro(cPersistentObject *self, PyObject *oname, PyObject *v,
 	}
       if(name[3]=='c' && strcmp(name+4,"hanged")==0) 
 	{
-	  if (! v || v==Py_None)
+	  if (! v)
+	    {
+	      /* delatter is used to invalidate the object
+	         *even* if it has changed.
+	       */
+	      if (self->state != cPersistent_GHOST_STATE)
+		self->state = cPersistent_UPTODATE_STATE;
+	      v=Py_None;
+	    }
+	  if (v==Py_None)
 	    {
 	      if (Per__p_deactivate(self, NULL)) Py_DECREF(Py_None);
 	      self->state=cPersistent_GHOST_STATE;
@@ -690,7 +699,7 @@ void
 initcPersistence()
 {
   PyObject *m, *d;
-  char *rev="$Revision: 1.28 $";
+  char *rev="$Revision: 1.29 $";
 
   TimeStamp=PyString_FromString("TimeStamp");
   if (! TimeStamp) return;
