@@ -29,7 +29,7 @@ class TestzLOGConfig(unittest.TestCase):
     # the test.  Somewhat surgical; there may be a better way.
 
     def setUp(self):
-        self._old_logger = logging.getLogger("event")
+        self._old_logger = logging.getLogger()
         self._old_level = self._old_logger.level
         self._old_handlers = self._old_logger.handlers[:]
         self._old_logger.handlers[:] = [loghandler.NullHandler()]
