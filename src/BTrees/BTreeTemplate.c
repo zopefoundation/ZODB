@@ -12,7 +12,7 @@
 
  ****************************************************************************/
 
-#define BTREETEMPLATE_C "$Id: BTreeTemplate.c,v 1.46 2002/06/12 20:51:46 tim_one Exp $\n"
+#define BTREETEMPLATE_C "$Id: BTreeTemplate.c,v 1.47 2002/06/13 02:12:27 tim_one Exp $\n"
 
 /*
 ** _BTree_get
@@ -280,30 +280,41 @@ BTree_grow(BTree *self, int index, int noval)
   return 0;
 }
 
+/* Return the rightmost bucket reachable from following child pointers
+ * from self.  The caller gets a new reference to this bucket.  Note that
+ * bucket 'next' pointers are not followed:  if self is an interior node
+ * of a BTree, this returns the rightmost bucket in that node's subtree.
+ * In case of error, returns NULL.
+ *
+ * self must not be a ghost; this isn't checked.  The result may be a ghost.
+ *
+ * Pragmatics:  Note that the rightmost bucket's last key is the largest
+ * key in self's subtree.
+ */
 static Bucket *
 BTree_lastBucket(BTree *self)
 {
-  PyObject *o;
+    Sized *pchild;
+    Bucket *result;
 
-  UNLESS (self->data && self->len)
-    {
-      IndexError(-1); /*XXX*/
-      return NULL;
+    UNLESS (self->data && self->len) {
+        IndexError(-1); /*XXX*/
+        return NULL;
     }
 
-  o = OBJECT(self->data[self->len - 1].child);
-  Py_INCREF(o);
-
-  UNLESS (SameType_Check(self, o)) return BUCKET(o);
-
-  self=BTREE(o);
-
-  PER_USE_OR_RETURN(self, NULL);
-  ASSIGN(o, OBJECT(BTree_lastBucket(self)));
-  PER_ALLOW_DEACTIVATION(self);
-  PER_ACCESSED(self);
-
-  return BUCKET(o);
+    pchild = self->data[self->len - 1].child;
+    if (SameType_Check(self, pchild)) {
+        self = BTREE(pchild);
+        PER_USE_OR_RETURN(self, NULL);
+        result = BTree_lastBucket(self);
+        PER_ALLOW_DEACTIVATION(self);
+        PER_ACCESSED(self);
+    }
+    else {
+        Py_INCREF(pchild);
+        result = BUCKET(pchild);
+    }
+    return result;
 }
 
 static int
