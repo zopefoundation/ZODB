@@ -115,7 +115,7 @@
 #   may have a back pointer to a version record or to a non-version
 #   record.
 #
-__version__='$Revision: 1.83 $'[11:-2]
+__version__='$Revision: 1.84 $'[11:-2]
 
 import struct, time, os, string, base64, sys
 from struct import pack, unpack
@@ -1054,12 +1054,39 @@ class FileStorage(BaseStorage.BaseStorage,
         
         self._lock_acquire()
         try:
-            transaction_id = base64.decodestring(transaction_id + '==\n')
-            tid, tpos = transaction_id[:8], U64(transaction_id[8:])
-
+            # As seen in undoLog() below, transaction_id encodes the tid and
+            # possibly the oid of the first object in the transaction record.
+            # transaction_id will be of length 16 if there were objects
+            # affected by the txn, and 8 if there weren't (e.g. abortVersion()
+            # and commitVersion()).  In the latter case, we could still find
+            # the transaction through an expensive search of the file, but
+            # we're punting on that for now.
+            tid = transaction_id[:8]
+            oid = transaction_id[8:]
+            if oid == '' or not self._index.has_key(oid):
+                raise UndoError, 'Undoing a non-object affecting transaction'
+            # Find the file position for the current revision of this object,
+            # and search back for the beginning of its transaction record
+            pos = self._index[oid]
             ostloc = p64(self._pos)
             here = self._pos + (self._tfile.tell() + self._thl)
-
+            while 1:
+                self._file.seek(pos)
+                h = self._file.read(DATA_HDR_LEN)
+                doid,serial,prev,tpos,vlen,plen = unpack('>8s8s8s8sH8s', h)
+                tpos = U64(tpos)
+                self._file.seek(tpos)
+                # Read transaction id to see if we've got a match
+                thistid = self._file.read(8)
+                if thistid == tid:
+                    break # Yeee ha!
+                # Keep looking
+                pos = U64(prev)
+                if not pos:
+                    # We never found the right transaction
+                    raise UndoError, 'Invalid undo transaction id'
+            # We're sitting at the transaction we want to undo, but let's move
+            # the file pointer back to the start of the txn record.
             self._file.seek(tpos)
             h = self._file.read(TRANS_HDR_LEN)
             if len(h) != TRANS_HDR_LEN or h[:8] != tid: 
@@ -1130,15 +1157,18 @@ class FileStorage(BaseStorage.BaseStorage,
         finally: self._lock_release()
 
     def undoLog(self, first=0, last=-20, filter=None):
-        if last < 0: last=first-last+1
+        if last < 0:
+            last=first-last+1
         self._lock_acquire()
         try:
-            packt=self._packt
+            packt = self._packt
             if packt is None:
                 raise UndoError(
                     'Undo is currently disabled for database maintenance.<p>')
             pos=self._pos
-            if pos < 39: return []
+            # BAW: Why 39 please?  This makes no sense (see also below).
+            if pos < 39:
+                return []
             file=self._file
             seek=file.seek
             read=file.read
@@ -1154,24 +1184,54 @@ class FileStorage(BaseStorage.BaseStorage,
                 seek(pos)
                 h=read(TRANS_HDR_LEN)
                 tid, tl, status, ul, dl, el = unpack(">8s8scHHH", h)
-                if tid < packt: break
-                if status != ' ': continue
+                if tid < packt:
+                    break
+                if status != ' ':
+                    continue
                 u=ul and read(ul) or ''
                 d=dl and read(dl) or ''
-                d={'id': encode(tid+p64(pos))[:22],
-                   'time': TimeStamp(tid).timeTime(),
-                   'user_name': u, 'description': d}
+                e = {}
                 if el:
-                    try: 
-                        e=loads(read(el))
-                        d.update(e)
-                    except: pass
+                    try:
+                        e = loads(read(el))
+                    except:
+                        pass
+                # We now need an encoded id that isn't dependent on file
+                # position, because it will break after a pack, and in the
+                # face of replication, while the transaction and data records
+                # may be identical (as viewed from the storage interface),
+                # file positions may be meaningless across replicas.
+                #
+                # We'd love to just give the tid, but FS makes it expensive to
+                # go from tid to transaction record. :(  However, if the txn
+                # has data records, then we can encode the oid of one of the
+                # objects affected by the txn.  Then we can use the index to
+                # find the current revision of the object, follow a
+                # back-pointer to find its most-current txn, and then follow
+                # the txns back until we find a match.  Seems like the best we
+                # can do w/o a persistent tid->filepos mapping.
+                #
+                # Note: if the txn has no data records, we're screwed.  Punt
+                # on that for now.
+                next = read(8)
+                # next is either the redundant txn length - 8, or an oid
+                if next == tl:
+                    # There were no objects in this txn
+                    id = tid
+                else:
+                    id = tid + next
+                d={'id': id,
+                   'time': TimeStamp(tid).timeTime(),
+                   'user_name': u,
+                   'description': d}
+                d.update(e)
                 if filter is None or filter(d):
-                    if i >= first: append(d)
+                    if i >= first:
+                        append(d)
                     i=i+1
-                
             return r
-        finally: self._lock_release()
+        finally:
+            self._lock_release()
 
     def versionEmpty(self, version):
         if not version:
