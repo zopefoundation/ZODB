@@ -61,7 +61,7 @@ if hasattr(FileStorage, 'supportsTransactionalUndo'):
 else:
     class VersionDependentTests:
         pass
-        
+
 class GenericTests(ZEOTestBase,
                    VersionDependentTests,
                    Cache.StorageWithCache,
@@ -80,16 +80,12 @@ class GenericTests(ZEOTestBase,
     returns a specific storage, e.g. FileStorage.
     """
 
-    __super_setUp = StorageTestBase.StorageTestBase.setUp
-    __super_tearDown = StorageTestBase.StorageTestBase.tearDown
-
     def setUp(self):
         """Start a ZEO server using a Unix domain socket
 
         The ZEO server uses the storage object returned by the
         getStorage() method.
         """
-        self.__super_setUp()
         self.running = 1
         client, exit, pid = forker.start_zeo(self.getStorage())
         self._pid = pid
@@ -100,10 +96,10 @@ class GenericTests(ZEOTestBase,
     def tearDown(self):
         """Try to cause the tests to halt"""
         self.running = 0
+        self._storage.close()
         self._server.close()
         os.waitpid(self._pid, 0)
         self.delStorage()
-        self.__super_tearDown()
 
     def checkLargeUpdate(self):
         obj = MinPO("X" * (10 * 128 * 1024))
@@ -138,11 +134,8 @@ class WindowsGenericTests(GenericTests):
     can't be created in the parent process and passed to the child.
     All the work has to be done in the server's process.
     """
-    __super_setUp = StorageTestBase.StorageTestBase.setUp
-    __super_tearDown = StorageTestBase.StorageTestBase.tearDown
 
     def setUp(self):
-        self.__super_setUp()
         args = self.getStorageInfo()
         name = args[0]
         args = args[1:]
@@ -162,7 +155,6 @@ class WindowsGenericTests(GenericTests):
 ##        os.waitpid(self.test_pid, 0)
         time.sleep(0.5)
         self.delStorage()
-        self.__super_tearDown()
 
 class WindowsZEOFileStorageTests(WindowsGenericTests):
 
@@ -186,8 +178,6 @@ class ConnectionTests(ZEOTestBase):
     start and stop a ZEO storage server.
     """
     
-    __super_tearDown = StorageTestBase.StorageTestBase.tearDown
-
     ports = []
     for i in range(200):
         ports.append(random.randrange(25000, 30000))
@@ -203,6 +193,7 @@ class ConnectionTests(ZEOTestBase):
 
     def tearDown(self):
         """Try to cause the tests to halt"""
+        self._storage.close()
         self.shutdownServer()
         # file storage appears to create four files
         for ext in '', '.index', '.lock', '.tmp':
@@ -213,7 +204,6 @@ class ConnectionTests(ZEOTestBase):
             path = "c1-test-%d.zec" % i
             if os.path.exists(path):
                 os.unlink(path)
-        self.__super_tearDown()
 
     def checkBasicPersistence(self):
         """Verify cached data persists across client storage instances.
