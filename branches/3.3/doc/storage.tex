@@ -96,7 +96,7 @@ the following methods:
 
 \begin{methoddesc}{tpc_begin}{transaction\optional{, tid\optional{,
         status}}}
-  Begin the two-phase commit for \var{transaction}.  
+  Begin the two-phase commit for \var{transaction}.
 
   This method blocks until the storage is in the not committing state,
   and then places the storage in the committing state. If the storage
@@ -117,7 +117,7 @@ the following methods:
   \var{oid}.  A Storage need not and often will not write data
   immediately.  If data are written, then the storage should be
   prepared to undo the write if a transaction is aborted.
-  
+
   The value of \var{serial} is opaque; it should be the value returned
   by the \method{load()} call that read the object.  \var{version} is
   a string that identifies the version or the empty string.
@@ -125,7 +125,7 @@ the following methods:
   \class{ZODB.Transaction.Transaction}, is the current transaction.
   The current transaction is the transaction passed to the most recent
   \method{tpc_begin()} call.
-    
+
   There are several possible return values, depending in part on
   whether the storage writes the data immediately.  The return value
   will be one of:
@@ -143,13 +143,13 @@ the following methods:
           sequence of pairs from the exception?  Barry, Jeremy, please
           clarify here.}
   \end{itemize}
-    
+
   Several different exceptions can be raised when an error occurs.
 
   \begin{itemize}
         \item \exception{ConflictError} is raised when \var{serial}
           does not match the most recent serial number for object
-          \var{oid}. 
+          \var{oid}.
 
         \item \exception{VersionLockError} is raised when object
           \var{oid} is locked in a version and the \var{version}
@@ -157,7 +157,7 @@ the following methods:
 
         \item \exception{StorageTransactionError} is raised when
           \var{transaction} does not match the current transaction.
-   
+
         \item \exception{StorageError} or, more often, a subclass of
           it, is raised when an internal error occurs while the
           storage is handling the \method{store()} call.
@@ -197,7 +197,7 @@ the following methods:
 
   If \var{transaction} is not the current transaction, nothing
   happens.
-  
+
   \var{func} is called with no arguments while the storage lock is
   held, but possibly before the updated date is made durable.  This
   argument exists to support the \class{Connection} object's
