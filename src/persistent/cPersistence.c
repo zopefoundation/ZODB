@@ -85,7 +85,7 @@
 static char cPersistence_doc_string[] = 
 "Defines Persistent mixin class for persistent objects.\n"
 "\n"
-"$Id: cPersistence.c,v 1.45 2001/11/06 19:37:00 jeremy Exp $\n";
+"$Id: cPersistence.c,v 1.46 2001/11/08 17:12:02 bwarsaw Exp $\n";
 
 #include <string.h>
 #include "cPersistence.h"
@@ -760,7 +760,7 @@ void
 initcPersistence(void)
 {
   PyObject *m, *d, *s;
-  char *rev="$Revision: 1.45 $";
+  char *rev="$Revision: 1.46 $";
 
   s = PyString_FromString("TimeStamp");
   if (s == NULL)
@@ -772,9 +772,7 @@ initcPersistence(void)
   }
   TimeStamp = PyObject_GetAttr(m, s);
   Py_DECREF(m);
-  if (TimeStamp == NULL) {
-      Py_DECREF(s);
-  }
+  Py_DECREF(s);
 
   if (init_strings() < 0) return;
 
@@ -783,12 +781,19 @@ initcPersistence(void)
 
   
   d = PyModule_GetDict(m);
-  PyDict_SetItemString(d,"__version__",
-		       PyString_FromStringAndSize(rev+11,strlen(rev+11)-2));
+  s = PyString_FromStringAndSize(rev+11,strlen(rev+11)-2);
+  PyDict_SetItemString(d,"__version__", s);
+  Py_XDECREF(s);
+
   PyExtensionClass_Export(d, "Persistent",  Pertype);
   PyExtensionClass_Export(d, "Overridable", Overridable);
 
   cPersistenceCAPI=&truecPersistenceCAPI;
-  PyDict_SetItemString(d, "CAPI",
-		       PyCObject_FromVoidPtr(cPersistenceCAPI,NULL));
+  s = PyCObject_FromVoidPtr(cPersistenceCAPI,NULL);
+  PyDict_SetItemString(d, "CAPI", s);
+  Py_XDECREF(s);
+
+  /* Check for errors */
+  if (PyErr_Occurred())
+    Py_FatalError("can't initialize module cPersistence");
 }
