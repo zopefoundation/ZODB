@@ -13,7 +13,7 @@
 ##############################################################################
 """Sized message async connections
 
-$Id: smac.py,v 1.31 2002/09/29 03:22:28 gvanrossum Exp $
+$Id: smac.py,v 1.32 2002/09/29 07:51:37 gvanrossum Exp $
 """
 
 import asyncore, struct
@@ -89,18 +89,18 @@ class SizedMessageAsyncConnection(asyncore.dispatcher):
         return 1
 
     def handle_read(self):
-        # Use a single __inp buffer and integer indexes to make this fast.
-        try:
-            d = self.recv(8096)
-        except socket.error, err:
-            if err[0] in expected_socket_read_errors:
-                return
-            raise
-        if not d:
-            return
-
         self.__input_lock.acquire()
         try:
+            # Use a single __inp buffer and integer indexes to make this fast.
+            try:
+                d = self.recv(8096)
+            except socket.error, err:
+                if err[0] in expected_socket_read_errors:
+                    return
+                raise
+            if not d:
+                return
+
             input_len = self.__input_len + len(d)
             msg_size = self.__msg_size
             state = self.__state
