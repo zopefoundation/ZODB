@@ -87,7 +87,8 @@ class ConnectionManager:
             if self._thread is not None:
                 # XXX race on _thread
                 self._thread.stop()
-                self._thread.join()
+                self._thread.join(30)
+                assert not self._thread.isAlive()
         finally:
             self._connect_lock.release()
         if self.connection:
