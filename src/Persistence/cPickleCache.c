@@ -90,7 +90,7 @@ them.
 static char cPickleCache_doc_string[] =
 "Defines the PickleCache used by ZODB Connection objects.\n"
 "\n"
-"$Id: cPickleCache.c,v 1.51 2002/04/03 17:00:44 htrd Exp $\n";
+"$Id: cPickleCache.c,v 1.52 2002/04/03 17:20:33 htrd Exp $\n";
 
 #define ASSIGN(V,E) {PyObject *__e; __e=(E); Py_XDECREF(V); (V)=__e;}
 #define UNLESS(E) if(!(E))
@@ -220,6 +220,7 @@ scan_gc_items(ccobject *self,int target)
 
     cPersistentObject *object;
     int error;
+    CPersistentRing placeholder;
     CPersistentRing *here = self->ring_home.next;
 
 #ifdef MUCH_RING_CHECKING
@@ -278,13 +279,17 @@ scan_gc_items(ccobject *self,int target)
         else if (object->state == cPersistent_UPTODATE_STATE) {
             /* deactivate it. This is the main memory saver. */
 
-            /* Save the next pointer of the object we're about to ghostify,
-             * so that we can follow the link after the ghosted object is
-             * removed from the ring (via ghostify()).
-             */
+            /* Add a placeholder; a dummy node in the ring. We need to
+            do this to mark our position in the ring. All the other nodes
+            come from persistent objects, and they are all liable
+            to be deallocated before "obj._p_changed = None" returns
+            to this function. This operation is only safe when the
+            ring lock is held (and it is) */
 
-            /* FIXME: This needs to be changed back to a placeholder */
-            CPersistentRing *next = here->next;
+            placeholder.next = here->next;
+            placeholder.prev = here;
+            here->next->prev = &placeholder;
+            here->next = &placeholder;
 
             ENGINE_NOISE("G");
 
@@ -292,7 +297,12 @@ scan_gc_items(ccobject *self,int target)
             error = PyObject_SetAttr((PyObject *)object, py__p_changed, 
 				     Py_None);
 
-            here = next;
+
+            /* unlink the placeholder */
+            placeholder.next->prev = placeholder.prev;
+            placeholder.prev->next = placeholder.next;
+
+            here = placeholder.next;
 
             if (error)
                 return -1; /* problem */
