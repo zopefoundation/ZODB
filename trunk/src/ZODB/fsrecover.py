@@ -56,13 +56,36 @@ Important:  The ZODB package must be importable.  You may need to adjust
 #
 #     position to start of input
 #     while 1:
-#         if end of file: break
-#          try: copy_transaction
+#         if end of file:
+#             break
+#         try:
+#             copy_transaction
 #          except:
-#                 scan for transaction
-#                 continue
+#             scan for transaction
+#             continue
 
-import sys, os
+import sys
+import os
+import getopt
+import time
+from struct import unpack
+from cPickle import loads
+
+try:
+    import ZODB
+except ImportError:
+    if os.path.exists('ZODB'):
+        sys.path.append('.')
+    elif os.path.exists('FileStorage.py'):
+        sys.path.append('..')
+    import ZODB
+
+import ZODB.FileStorage
+from ZODB.utils import t32, u64
+from ZODB.FileStorage import RecordIterator
+
+from persistent.TimeStamp import TimeStamp
+
 
 def die(mess='', show_docstring=False):
     if mess:
@@ -71,21 +94,8 @@ def die(mess='', show_docstring=False):
         print >> sys.stderr, __doc__ % sys.argv[0]
     sys.exit(1)
 
-try: import ZODB
-except ImportError:
-    if os.path.exists('ZODB'): sys.path.append('.')
-    elif os.path.exists('FileStorage.py'):  sys.path.append('..')
-    import ZODB
-
-
-import getopt, ZODB.FileStorage, time
-from struct import unpack
-from ZODB.utils import t32, u64
-from persistent.TimeStamp import TimeStamp
-from cPickle import loads
-from ZODB.FileStorage import RecordIterator
-
-class ErrorFound(Exception): pass
+class ErrorFound(Exception):
+    pass
 
 def error(mess, *args):
     raise ErrorFound(mess % args)
