@@ -17,6 +17,12 @@ impossible to overlook.  In a release build, ``unghostify()`` raises
 problem in a release build (``ghostify()`` is supposed to be so simple that
 it "can't fail").
 
+Install
+-------
+
+The C header file ``ring.h`` is now installed.
+
+
 What's new in ZODB3 3.3?
 ========================
 Release date: 06-Oct-2004
