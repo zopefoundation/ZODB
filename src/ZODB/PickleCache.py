@@ -1,61 +1,55 @@
-#!/usr/local/bin/python 
-# $What$
-
-__doc__='''PickleJar Object Cache
-
-$Id: PickleCache.py,v 1.3 1998/06/05 22:20:30 jim Exp $'''
-#     Copyright 
+##############################################################################
 #
-#       Copyright 1996 Digital Creations, L.C., 910 Princess Anne
-#       Street, Suite 300, Fredericksburg, Virginia 22401 U.S.A. All
-#       rights reserved.  Copyright in this software is owned by DCLC,
-#       unless otherwise indicated. Permission to use, copy and
-#       distribute this software is hereby granted, provided that the
-#       above copyright notice appear in all copies and that both that
-#       copyright notice and this permission notice appear. Note that
-#       any product, process or technology described in this software
-#       may be the subject of other Intellectual Property rights
-#       reserved by Digital Creations, L.C. and are not licensed
-#       hereunder.
+# Copyright (c) 1996-1998, Digital Creations, Fredericksburg, VA, USA.
+# All rights reserved.
+# 
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+# 
+#   o Redistributions of source code must retain the above copyright
+#     notice, this list of conditions, and the disclaimer that follows.
+# 
+#   o Redistributions in binary form must reproduce the above copyright
+#     notice, this list of conditions, and the following disclaimer in
+#     the documentation and/or other materials provided with the
+#     distribution.
+# 
+#   o Neither the name of Digital Creations nor the names of its
+#     contributors may be used to endorse or promote products derived
+#     from this software without specific prior written permission.
+# 
+# 
+# THIS SOFTWARE IS PROVIDED BY DIGITAL CREATIONS AND CONTRIBUTORS *AS IS*
+# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+# PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL DIGITAL
+# CREATIONS OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
+# OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+# ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR
+# TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
+# USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
+# DAMAGE.
 #
-#     Trademarks 
+# 
+# If you have questions regarding this software, contact:
 #
-#       Digital Creations & DCLC, are trademarks of Digital Creations, L.C..
-#       All other trademarks are owned by their respective companies. 
+#   Digital Creations, L.C.
+#   910 Princess Ann Street
+#   Fredericksburge, Virginia  22401
 #
-#     No Warranty 
-#
-#       The software is provided "as is" without warranty of any kind,
-#       either express or implied, including, but not limited to, the
-#       implied warranties of merchantability, fitness for a particular
-#       purpose, or non-infringement. This software could include
-#       technical inaccuracies or typographical errors. Changes are
-#       periodically made to the software; these changes will be
-#       incorporated in new editions of the software. DCLC may make
-#       improvements and/or changes in this software at any time
-#       without notice.
-#
-#     Limitation Of Liability 
-#
-#       In no event will DCLC be liable for direct, indirect, special,
-#       incidental, economic, cover, or consequential damages arising
-#       out of the use of or inability to use this software even if
-#       advised of the possibility of such damages. Some states do not
-#       allow the exclusion or limitation of implied warranties or
-#       limitation of liability for incidental or consequential
-#       damages, so the above limitation or exclusion may not apply to
-#       you.
-#  
-#
-# If you have questions regarding this software,
-# contact:
-#
-#   Digital Creations, bobo@digicool.com
+#   info@digicool.com
 #
 #   (540) 371-6909
-# 
-__version__='$Revision: 1.3 $'[11:-2]
-	
+#
+##############################################################################
+__doc__='''PickleJar Object Cache
+
+$Id: PickleCache.py,v 1.4 1998/10/23 21:41:24 jim Exp $'''
+__version__='$Revision: 1.4 $'[11:-2]
+        
 from sys import getrefcount
 
 class PickleCache:
@@ -64,8 +58,8 @@ class PickleCache:
         if cache_size < 1: cache_size=1
         self.cache_size=cache_size
         self.data, self.cache_ids, self.cache_location ={}, [], 0
-	for a in 'keys', 'items', 'values', 'has_key':
-	    setattr(self,a,getattr(self.data,a))
+        for a in 'keys', 'items', 'values', 'has_key':
+            setattr(self,a,getattr(self.data,a))
 
 
     def __getitem__(self, key):
@@ -114,19 +108,3 @@ class PickleCache:
                 if rc(cache[id]) <= 2: del cache[id]
                 cache[id]._p_deactivate()
             l=len(cache)
-
-############################################################################
-#
-# $Log: PickleCache.py,v $
-# Revision 1.3  1998/06/05 22:20:30  jim
-# Added __len__ and added a functional minimize method that
-# tries to minimize the size of the cache.
-#
-# Revision 1.2  1998/03/23 15:50:27  jim
-# Added import of getrefcound from sys.
-#
-# Revision 1.1  1997/12/15 17:51:55  jim
-# Split off from PickleJar.
-#
-#
-#
