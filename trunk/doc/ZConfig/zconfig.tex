@@ -402,11 +402,18 @@ The following elements are used to describe a schema:
   Import a schema component.
   Exactly one of the two possible attributes must be specified.
 
+  \begin{attributedesc}{file}{file name without directory information}
+    Name of the component file within a package; if not specified,
+    \file{component.xml} is used.  This may only be given when
+    \attribute{package} is used.
+  \end{attributedesc}
+
   \begin{attributedesc}{package}{\datatype{dotted-name}}
     Python-package style name that identifies a directory found on
     \code{sys.path} containing a schema component in a file named
-    \file{component.xml}.  Dots in the value are converted to
-    directory separators.
+    \file{component.xml} (unless the file name is overridden using
+    \attribute{file}).  Dots in the value are converted to directory
+    separators.
   \end{attributedesc}
 
   \begin{attributedesc}{src}{\datatype{url-reference}}
