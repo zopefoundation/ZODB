@@ -11,7 +11,7 @@
 
 static char BTree_module_documentation[] = 
 ""
-"\n$Id: BTree.c,v 1.3 1997/09/12 18:35:45 jim Exp $"
+"\n$Id: BTree.c,v 1.4 1997/09/17 17:20:32 jim Exp $"
 ;
 
 #define PERSISTENT
@@ -985,7 +985,8 @@ _BTree_set(BTree *self, PyObject *key, PyObject *value)
 	      self->len--;
 	      Py_DECREF(d->value);
 	      DECREF_KEY(d->key);
-	      if(min < self->len) memmove(d, d+1, self->len-min);
+	      if(min < self->len)
+		memmove(d, d+1, (self->len-min)*sizeof(BTreeItem));
 	    }
 	}
       if(PER_CHANGED(self) < 0) goto err;
@@ -1712,7 +1713,7 @@ initBTree()
 #endif
 {
   PyObject *m, *d;
-  char *rev="$Revision: 1.3 $";
+  char *rev="$Revision: 1.4 $";
 
   UNLESS(PyExtensionClassCAPI=PyCObject_Import("ExtensionClass","CAPI"))
       return;
@@ -1772,6 +1773,9 @@ initBTree()
 Revision Log:
 
   $Log: BTree.c,v $
+  Revision 1.4  1997/09/17 17:20:32  jim
+  Fixed bug in deleting members from BTree.
+
   Revision 1.3  1997/09/12 18:35:45  jim
   Fixed bug leading to random core dumps.
 
