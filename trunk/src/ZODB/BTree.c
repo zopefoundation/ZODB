@@ -11,7 +11,7 @@
 
 static char BTree_module_documentation[] = 
 ""
-"\n$Id: BTree.c,v 1.16 1998/03/24 15:17:44 jim Exp $"
+"\n$Id: BTree.c,v 1.17 1998/11/11 02:00:55 jim Exp $"
 ;
 
 #define PERSISTENT
@@ -22,7 +22,7 @@ static char BTree_module_documentation[] =
 #include "ExtensionClass.h"
 #define PER_USE_OR_RETURN(self, NULL)
 #define PER_ALLOW_DEACTIVATION(self)
-#define PER_PREVENT_DEACTIVATION(self)
+#define PER_DEL(self)
 #endif
 
 
@@ -170,7 +170,7 @@ BTreeItems_item_BTree(char kind, int i, BTree *btree)
 
   if(Bucket_Check(d->value))
     {
-      PER_USE_OR_RETURN(d->value, NULL);
+      PER_USE_OR_RETURN((Bucket*)(d->value), NULL);
       switch(kind)
 	{
 	case 'k': 
@@ -867,7 +867,7 @@ BTree_grow(BTree *self, int index)
   v=d->value;
   UNLESS(e=PyObject_CallObject(OBJECT(v->ob_type), NULL)) return -1;
 
-  PER_USE_OR_RETURN(v, -1);
+  PER_USE_OR_RETURN((Bucket*)v, -1);
 
   if(Bucket_Check(v))
     {
@@ -1273,8 +1273,6 @@ bucket_setstate(Bucket *self, PyObject *args)
   char *cv;
 #endif
 
-  PER_PREVENT_DEACTIVATION(self); 
-
   UNLESS(PyArg_ParseTuple(args,"O",&r)) goto err;
   UNLESS(PyArg_ParseTuple(r,"OO",&keys,&values)) goto err;
 
@@ -1452,8 +1450,6 @@ BTree_setstate(BTree *self, PyObject *args)
   UNLESS(PyArg_ParseTuple(args,"O",&state)) return NULL;
   if((l=PyTuple_Size(state))<0) return NULL;
   
-  PER_PREVENT_DEACTIVATION(self); 
-
   if(l>self->size)
     {
       if(self->data)
@@ -1610,6 +1606,7 @@ Bucket_dealloc(Bucket *self)
       DECREF_VALUE(self->data[i].value);
     }
   free(self->data);
+  PER_DEL(self);
 
   PyMem_DEL(self);
 }
@@ -1625,6 +1622,8 @@ BTree_dealloc(BTree *self)
       Py_DECREF(self->data[i].value);
     }
   free(self->data);
+  PER_DEL(self);
+
   PyMem_DEL(self);
 }
 
@@ -1762,7 +1761,7 @@ initBTree()
 #endif
 {
   PyObject *m, *d;
-  char *rev="$Revision: 1.16 $";
+  char *rev="$Revision: 1.17 $";
 
   UNLESS(PyExtensionClassCAPI=PyCObject_Import("ExtensionClass","CAPI"))
       return;
@@ -1798,74 +1797,8 @@ initBTree()
 
   PyDict_SetItemString(d, "__version__",
 		       PyString_FromStringAndSize(rev+11,strlen(rev+11)-2));
-  
-
-#include "dcprotect.h"
-	
+  	
   /* Check for errors */
   if (PyErr_Occurred())
     Py_FatalError("can't initialize module BTree");
 }
-
-/*
-  PER_USE_OR_RETURN(self, NULL);
-  PER_ALLOW_DEACTIVATION(self);
- */
-
-/*****************************************************************************
-Revision Log:
-
-  $Log: BTree.c,v $
-  Revision 1.16  1998/03/24 15:17:44  jim
-  Brought reinit/deactivate machinery up to date.
-
-  Revision 1.15  1998/02/18 22:19:50  jim
-  Fixed C inheritence problem. Waaaaaaa.
-
-  Revision 1.14  1998/02/05 17:46:17  jim
-  Added get methods.
-
-  Revision 1.13  1998/02/04 21:11:26  jim
-  Fixed two leaks in bucket values.
-
-  Revision 1.12  1997/12/31 17:18:04  jim
-  Fixed bugs related to deleting items.
-
-  Revision 1.11  1997/12/12 23:43:05  jim
-  Added basicnew support.
-
-  Revision 1.10  1997/11/13 20:45:51  jim
-  Fixed some bad return values.
-
-  Revision 1.9  1997/11/13 20:38:35  jim
-  added dcprotect
-
-  Revision 1.8  1997/11/03 15:17:53  jim
-  Fixed stupid bug in has_key methods.
-
-  Revision 1.7  1997/10/30 20:58:43  jim
-  Upped bucket sizes.
-
-  Revision 1.6  1997/10/10 18:21:45  jim
-  Fixed bug in range queries.
-
-  Revision 1.5  1997/10/01 02:47:06  jim
-  Fixed bug in setstate that allocates too much memory.
-
-  Revision 1.4  1997/09/17 17:20:32  jim
-  Fixed bug in deleting members from BTree.
-
-  Revision 1.3  1997/09/12 18:35:45  jim
-  Fixed bug leading to random core dumps.
-
-  Revision 1.2  1997/09/10 17:24:47  jim
-  *** empty log message ***
-
-  Revision 1.1  1997/09/08 18:42:21  jim
-  initial BTree
-
-  $Revision 1.1  1997/02/24 23:25:42  jim
-  $initial
-  $
-
-*****************************************************************************/
