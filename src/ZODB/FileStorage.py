@@ -115,7 +115,7 @@
 #   may have a back pointer to a version record or to a non-version
 #   record.
 #
-__version__='$Revision: 1.122 $'[11:-2]
+__version__='$Revision: 1.123 $'[11:-2]
 
 import base64
 from cPickle import Pickler, Unpickler, loads
@@ -775,8 +775,14 @@ class FileStorage(BaseStorage.BaseStorage,
         # - data can be None, which indicates a George Bailey object
         #   (i.e. one who's creation has been transactionally undone).
         #
-        # If prev_txn is not None, it should contain the same data as
-        # the argument data.  If it does, write a backpointer to it.
+        # prev_txn is a backpointer.  In the original database, it's possible
+        # that the data was actually living in a previous transaction.  This
+        # can happen for transactional undo and other operations, and is used
+        # as a space saving optimization.  Under some circumstances the
+        # prev_txn may not actually exist in the target database (i.e. self)
+        # for example, if it's been packed away.  In that case, the prev_txn
+        # should be considered just a hint, and is ignored if the transaction
+        # doesn't exist.
         if self._is_read_only:
             raise POSException.ReadOnlyError()
         if transaction is not self._transaction:
@@ -2215,6 +2221,11 @@ class FileIterator(Iterator):
         if start:
             self._skip_to_start(start)
         self._stop = stop
+
+    def __len__(self):
+        # This is a lie.  It's here only for Python 2.1 support for
+        # list()-ifying these objects.
+        return 0
 
     def close(self):
         file = self._file
