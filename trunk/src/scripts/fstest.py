@@ -181,11 +181,6 @@ def check_drec(path, file, pos, tpos, tid):
     plen = U64(_plen)
     dlen = DREC_HDR_LEN + (plen or 8)
 
-    if serial != tid:
-        raise FormatError("%s object serialno %s does not match"
-                          "transaction id %s" % (pos, hexify(serial),
-                                                 hexify(tid)))
-
     if vlen:
         dlen = dlen + 16 + vlen
         file.seek(8, 1)
