@@ -13,7 +13,7 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.152 2004/04/16 19:55:04 jeremy Exp $"""
+$Id: Connection.py,v 1.153 2004/04/16 20:26:16 jeremy Exp $"""
 
 import logging
 import sys
@@ -600,7 +600,7 @@ class Connection(ExportImport, object):
             self._store_objects(ObjectWriter(obj), transaction)
 
         for obj in self._added_during_commit:
-            self._storage_objects(ObjectWriter(obj), transaction)
+            self._store_objects(ObjectWriter(obj), transaction)
         self._added_during_commit = None
 
     def _store_objects(self, writer, transaction):
