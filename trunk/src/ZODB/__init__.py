@@ -17,7 +17,6 @@ __version__ = '3.1+'
 import sys
 import cPersistence, Persistence
 from zLOG import register_subsystem
-register_subsystem('ZODB')
 
 # This is lame. Don't look. :(
 sys.modules['cPersistence'] = cPersistence

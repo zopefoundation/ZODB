@@ -115,7 +115,7 @@
 #   may have a back pointer to a version record or to a non-version
 #   record.
 #
-__version__='$Revision: 1.113 $'[11:-2]
+__version__='$Revision: 1.114 $'[11:-2]
 
 import base64
 from cPickle import Pickler, Unpickler, loads
@@ -145,7 +145,6 @@ except ImportError:
         return {}
 
 from zLOG import LOG, BLATHER, WARNING, ERROR, PANIC, register_subsystem
-register_subsystem('ZODB FS')
 
 z64='\0'*8
 # the struct formats for the headers
@@ -176,7 +175,11 @@ def panic(message, *data):
     LOG('ZODB FS', PANIC, "%s ERROR: %s\n" % (packed_version, message))
     raise CorruptedTransactionError, message
 
-class FileStorageError(POSException.StorageError): pass
+class FileStorageError(POSException.StorageError):
+    pass
+
+class PackError(FileStorageError):
+    pass
 
 class FileStorageFormatError(FileStorageError):
     """Invalid file format
@@ -617,7 +620,7 @@ class FileStorage(BaseStorage.BaseStorage,
         # will get checked when we store.
         return _loadBack(file, oid, pnv)[0], serial
 
-    def load(self, oid, version, _stuff=None):
+    def load(self, oid, version):
         self._lock_acquire()
         try:
             return self._load(oid, version, self._index, self._file)
@@ -1135,7 +1138,7 @@ class FileStorage(BaseStorage.BaseStorage,
         tid = base64.decodestring(transaction_id + '\n')
         assert len(tid) == 8
         tpos = self._txn_find(tid)
-        tindex = self._txn_undo_write(tpos, tid)
+        tindex = self._txn_undo_write(tpos)
         self._tindex.update(tindex)
         return tindex.keys()
 
@@ -1155,7 +1158,7 @@ class FileStorage(BaseStorage.BaseStorage,
                 break
         raise UndoError("Invalid transaction id")
 
-    def _txn_undo_write(self, tpos, tid):
+    def _txn_undo_write(self, tpos):
         # a helper function to write the data records for transactional undo
 
         ostloc = p64(self._pos)
@@ -1295,8 +1298,7 @@ class FileStorage(BaseStorage.BaseStorage,
                 prev=U64(prev)
 
                 if vlen:
-                    nv = read(8) != z64
-                    file.seek(8,1) # Skip previous version record pointer
+                    read(16)
                     version=read(vlen)
                     if wantver is not None and version != wantver:
                         if prev:
@@ -1412,8 +1414,6 @@ class FileStorage(BaseStorage.BaseStorage,
                     pindex[oid]=0
                     error('Bad reference to %s', `(oid,v)`)
 
-            spackpos=p64(packpos)
-
             ##################################################################
             # Step 2, copy data and compute new index based on new positions.
             index, vindex, tindex, tvindex = self._newIndexes()
@@ -1506,7 +1506,7 @@ class FileStorage(BaseStorage.BaseStorage,
                 thl=ul+dl+el
                 h=read(thl)
                 if len(h) != thl:
-                    raise 'Pack Error', opos
+                    raise PackError(opos)
                 write(h)
                 thl=TRANS_HDR_LEN+thl
                 pos=tpos+thl
@@ -1771,7 +1771,6 @@ def shift_transactions_forward(index, vindex, tindex, file, pos, opos):
     p1=opos
     p2=pos
     offset=p2-p1
-    packpos=opos
 
     # Copy the data in two stages.  In the packing stage,
     # we skip records that are non-current or that are for
@@ -1798,7 +1797,8 @@ def shift_transactions_forward(index, vindex, tindex, file, pos, opos):
 
         thl=ul+dl+el
         h2=read(thl)
-        if len(h2) != thl: raise 'Pack Error', opos
+        if len(h2) != thl:
+            raise PackError(opos)
 
         # write out the transaction record
         seek(opos)
@@ -1950,11 +1950,9 @@ def read_index(file, name, index, vindex, tindex, stop='\377'*8,
         return 4L, maxoid, ltid
 
     index_get=index.get
-    vndexpos=vindex.get
 
     pos=start
     seek(start)
-    unpack=struct.unpack
     tid='\0'*7+'\1'
 
     while 1:
@@ -2045,13 +2043,8 @@ def read_index(file, name, index, vindex, tindex, stop='\377'*8,
 
             if vlen:
                 dlen=dlen+(16+vlen)
-                seek(8,1)
-                pv=U64(read(8))
+                read(16)
                 version=read(vlen)
-                # Jim says: "It's just not worth the bother."
-                #if vndexpos(version, 0) != pv:
-                #    panic("%s incorrect previous version pointer at %s",
-                #          name, pos)
                 vindex[version]=pos
 
             if pos+dlen > tend or tloc != tpos:
@@ -2341,15 +2334,13 @@ class RecordIterator(Iterator, BaseStorage.TransactionRecord):
             self._file.seek(pos)
             h = self._file.read(DATA_HDR_LEN)
             oid, serial, sprev, stloc, vlen, splen = unpack(DATA_HDR, h)
-            prev = U64(sprev)
             tloc = U64(stloc)
             plen = U64(splen)
             dlen = DATA_HDR_LEN + (plen or 8)
 
             if vlen:
                 dlen += (16 + vlen)
-                tmp = self._file.read(16)
-                pv = U64(tmp[8:16])
+                self._file.read(16) # move to the right location
                 version = self._file.read(vlen)
             else:
                 version = ''
