@@ -603,7 +603,7 @@ class TransactionalUndoStorage:
             self._storage.pack(t, referencesf)
             cn.sync()
 
-            # XXX Is _cache supposed to have a clear() method, or not?
+            # TODO:  Is _cache supposed to have a clear() method, or not?
             # cn._cache.clear()
 
             # The last undo set the value to 3 and pack should

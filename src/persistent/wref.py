@@ -234,9 +234,8 @@ class PersistentWeakKeyDictionary(Persistent):
     >>> db.close()
 
     """
-    # XXX it is expensive trying to load dead objects from the database.
-    #     It would be helpful if the data manager/connection cached these.
-
+    # TODO:  It's expensive trying to load dead objects from the database.
+    # It would be helpful if the data manager/connection cached these.
 
     def __init__(self, adict=None, **kwargs):
         self.data = {}
@@ -298,4 +297,4 @@ class PersistentWeakKeyDictionary(Persistent):
             for k, v in adict.items():
                 self.data[WeakRef(k)] = v
 
-    # XXX Someone else can fill out the rest of the methods, with tests. :)
+    # TODO:  May need more methods, and tests.

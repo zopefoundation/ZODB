@@ -44,7 +44,7 @@ ZEO_VERSION = 2
 def check_server(addr, storage, write):
     t0 = time.time()
     if ZEO_VERSION == 2:
-        # XXX should do retries w/ exponential backoff
+        # TODO:  should do retries w/ exponential backoff.
         cs = ClientStorage(addr, storage=storage, wait=0,
                            read_only=(not write))
     else:

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-  Copyright (c) 2001, 2004 Zope Corporation and Contributors. 
+  Copyright (c) 2001, 2004 Zope Corporation and Contributors.
   All Rights Reserved.
 
   This software is subject to the provisions of the Zope Public License,
@@ -43,7 +43,7 @@ static short joff[2][12] = {
 
 static double gmoff=0;
 
-/* XXX should this be stored in sconv? */
+/* TODO:  May be better (faster) to store in a file static. */
 #define SCONV ((double)60) / ((double)(1<<16)) / ((double)(1<<16))
 
 static int
@@ -121,7 +121,6 @@ TimeStamp_hash(TimeStamp *self)
     register unsigned char *p = (unsigned char *)self->data;
     register int len = 8;
     register long x = *p << 7;
-    /* XXX unroll loop? */
     while (--len >= 0)
 	x = (1000003*x) ^ *p++;
     x ^= 8;
@@ -131,7 +130,7 @@ TimeStamp_hash(TimeStamp *self)
 }
 
 typedef struct {
-    /* XXX reverse-engineer what's in these things and comment them */
+    /* TODO:  reverse-engineer what's in these things and comment them */
     int y;
     int m;
     int d;
