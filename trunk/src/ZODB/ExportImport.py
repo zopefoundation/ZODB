@@ -16,12 +16,14 @@
 from cStringIO import StringIO
 from cPickle import Pickler, Unpickler
 from tempfile import TemporaryFile
+import logging
 
 from ZODB.POSException import ExportError
 from ZODB.utils import p64, u64
 from ZODB.serialize import referencesf
-import zLOG
 import sys
+
+logger = logging.getLogger('zodb.ExportImport')
 
 class ExportImport:
 
@@ -43,9 +45,8 @@ class ExportImport:
             try:
                 p, serial = load(oid, self._version)
             except:
-                zLOG.LOG("ZODB", zLOG.DEBUG,
-                         "broken reference for oid %s" % `oid`,
-                         err=sys.exc_info())
+                logger.debug("broken reference for oid %s", repr(oid),
+                             exc_info=True)
             else:
                 referencesf(p, oids)
                 f.writelines([oid, p64(len(p)), p])

@@ -124,10 +124,11 @@
 #   record.
 
 import struct
+import logging
 
 from ZODB.POSException import POSKeyError
 from ZODB.utils import u64, oid_repr, t32
-from zLOG import LOG, ERROR
+
 
 class CorruptedError(Exception):
     pass
@@ -158,6 +159,8 @@ DATA_HDR_LEN = 42
 DATA_VERSION_HDR_LEN = 58
 assert struct.calcsize(TRANS_HDR) == TRANS_HDR_LEN
 assert struct.calcsize(DATA_HDR) == DATA_HDR_LEN
+
+logger = logging.getLogger('zodb.FileStorage.format')
 
 class FileStorageFormatter(object):
     """Mixin class that can read and write the low-level format."""
@@ -244,7 +247,7 @@ class FileStorageFormatter(object):
 
     def fail(self, pos, msg, *args):
         s = ("%s:%s:" + msg) % ((self._name, pos) + args)
-        LOG("FS pack", ERROR, s)
+        logger.error(s)
         raise CorruptedError(s)
 
     def checkTxn(self, th, pos):

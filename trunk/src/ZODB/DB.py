@@ -13,19 +13,21 @@
 ##############################################################################
 """Database objects
 
-$Id: DB.py,v 1.75 2004/04/15 16:41:42 jeremy Exp $"""
+$Id: DB.py,v 1.76 2004/04/17 23:04:52 gintautasm Exp $"""
 
 import cPickle, cStringIO, sys
 from thread import allocate_lock
 from time import time, ctime
 import warnings
+import logging
 
 from ZODB.broken import find_global
 from ZODB.Connection import Connection
 from ZODB.serialize import referencesf
-from zLOG import LOG, ERROR
 
 import transaction
+
+logger = logging.getLogger('zodb.db')
 
 class DB(object):
     """The Object Database
@@ -601,7 +603,7 @@ class DB(object):
         try:
             self._storage.pack(t, referencesf)
         except:
-            LOG("ZODB", ERROR, "packing", error=sys.exc_info())
+            logger.error("packing", exc_info=True)
             raise
 
     def setCacheSize(self, v):
