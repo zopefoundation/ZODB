@@ -14,7 +14,7 @@
 static char cPersistence_doc_string[] =
 "Defines Persistent mixin class for persistent objects.\n"
 "\n"
-"$Id: cPersistence.c,v 1.74 2003/11/28 16:44:55 jim Exp $\n";
+"$Id: cPersistence.c,v 1.75 2004/01/08 16:53:15 tim_one Exp $\n";
 
 #include "cPersistence.h"
 #include "structmember.h"
@@ -175,9 +175,9 @@ changed(cPersistentObject *self)
 	    Py_DECREF(meth);
 	    return -1;
 	}
+	Py_INCREF(self);
 	PyTuple_SET_ITEM(arg, 0, (PyObject *)self);
 	result = PyEval_CallObject(meth, arg);
-	PyTuple_SET_ITEM(arg, 0, NULL);
 	Py_DECREF(arg);
 	Py_DECREF(meth);
 	if (result == NULL)
@@ -244,8 +244,8 @@ static struct PyMethodDef Per_methods[] = {
   {"__getstate__", (PyCFunction)Per__getstate__, METH_NOARGS,
    pickle___getstate__doc },
 
-  PICKLE_SETSTATE_DEF 
-  PICKLE_GETNEWARGS_DEF 
+  PICKLE_SETSTATE_DEF
+  PICKLE_GETNEWARGS_DEF
   PICKLE_REDUCE_DEF
 
   {NULL,		NULL}		/* sentinel */
