@@ -666,7 +666,7 @@ class TestOIBuckets(BucketTests, TestCase):
     def setUp(self):
         self.t = OIBucket()
 
-def main():
+def test_suite():
     TIOBTree = makeSuite(TestIOBTrees, 'test')
     TOOBTree = makeSuite(TestOOBTrees, 'test')
     TOIBTree = makeSuite(TestOIBTrees, 'test')
@@ -691,19 +691,33 @@ def main():
                           TIOTreeSet, TOOTreeSet, TOITreeSet, TIITreeSet,
                           TIOBucket, TOOBucket, TOIBucket, TIIBucket,
                           TOOBTree, TIOBTree, TOIBTree, TIIBTree))
+
+    return alltests
+
+def main():
+    alltests=test_suite()
     runner = TextTestRunner()
     runner.run(alltests)
+
+def debug():
+   test_suite().debug()
+    
 
 ## utility functions
 
 def lsubtract(l1, l2):
-    l = filter(lambda x, l1=l1: x not in l1, l2)
-    l = l + filter(lambda x, l2=l2: x not in l2, l1)
-    return l
+   l1=list(l1)
+   l2=list(l2)
+   l = filter(lambda x, l1=l1: x not in l1, l2)
+   l = l + filter(lambda x, l2=l2: x not in l2, l1)
+   return l
 
 def realseq(itemsob):
     return map(lambda x: x, itemsob)
 
-
-if __name__ == '__main__': main()
+if __name__=='__main__':
+   if len(sys.argv) > 1:
+      globals()[sys.argv[1]]()
+   else:
+      main()
 
