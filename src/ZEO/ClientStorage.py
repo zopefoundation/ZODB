@@ -416,10 +416,15 @@ class ClientStorage:
         stub = self.StorageServerStubClass(conn)
         self._oids = []
         self._info.update(stub.get_info())
+        self._handle_extensions()
         self.verify_cache(stub)
         if not conn.is_async():
             log2(INFO, "Waiting for cache verification to finish")
             self._wait_sync()
+
+    def _handle_extensions(self):
+        for name in self.getExtensionMethods():
+            setattr(self, name, self._server.extensionMethod(name))
 
     def set_server_addr(self, addr):
         # Normalize server address and convert to string
@@ -548,7 +553,7 @@ class ClientStorage:
         Dictionary values should be None; this will be a handy place
         for extra marshalling information, should we need it
         """
-        return self._info['extensionMethods']
+        return self._info.get('extensionMethods', {})
 
     def supportsUndo(self):
         """Storage API: return whether we support undo."""
@@ -618,12 +623,6 @@ class ClientStorage:
         the Storage API.
         """
         return self._server.history(oid, version, length)
-
-    def __getattr__(self, name):
-        if self.getExtensionMethods().has_key(name):
-            return self._server.extensionMethod(name)
-        else:
-            raise AttributeError(name)
 
     def loadSerial(self, oid, serial):
         """Storage API: load a historical revision of an object."""
@@ -757,7 +756,6 @@ class ClientStorage:
         self._tbuf.clear()
         self._seriald.clear()
         del self._serials[:]
-        self._tbuf.clear()
 
     def end_transaction(self):
         """Internal helper to end a transaction."""
