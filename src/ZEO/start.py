@@ -88,9 +88,9 @@ def setup_signals(storages):
     else:
         signal.signal(xfsz, signal.SIG_IGN)
     signal.signal(signal.SIGTERM, lambda sig, frame: shutdown(storages))
-    signal.signal(signal.SIGINT, lambda sig, frame: shutdown(storages, 0))
+    signal.signal(signal.SIGHUP, lambda sig, frame: shutdown(storages, 0))
     try:
-        signal.signal(signal.SIGHUP, rotate_logs_handler)
+        signal.signal(signal.SIGUSR2, rotate_logs_handler)
     except:
         pass
 
@@ -223,7 +223,7 @@ def main(argv):
             pass
         else:
             import zdaemon
-            zdaemon.run(sys.argv, '')
+            zdaemon.run(sys.argv, env.zeo_pid)
 
     try:
 
@@ -258,14 +258,15 @@ def main(argv):
 
         ZEO.StorageServer.StorageServer(unix, storages)
 
-        try:
-            ppid, pid = os.getppid(), os.getpid()
-        except:
-            pass # getpid not supported
-        else:
-            f = open(env.zeo_pid, 'w')
-            f.write("%s %s\n" % (ppid, pid))
-            f.close()
+        if not Z:
+            try:
+                pid = os.getpid()
+            except:
+                pass # getpid not supported
+            else:
+                f = open(env.zeo_pid, 'w')
+                f.write("%s\n" % pid)
+                f.close()
 
     except:
         # Log startup exception and tell zdaemon not to restart us.
