@@ -12,7 +12,7 @@
 
  ****************************************************************************/
 
-#define TREESETTEMPLATE_C "$Id: TreeSetTemplate.c,v 1.14 2002/06/19 23:44:20 tim_one Exp $\n"
+#define TREESETTEMPLATE_C "$Id: TreeSetTemplate.c,v 1.15 2002/10/05 00:39:57 gvanrossum Exp $\n"
 
 static PyObject *
 TreeSet_insert(BTree *self, PyObject *args)
@@ -99,10 +99,10 @@ static struct PyMethodDef TreeSet_methods[] = {
   {"keys",	(PyCFunction) BTree_keys,	METH_VARARGS,
      "keys() -- Return the keys"},
   {"maxKey", (PyCFunction) BTree_maxKey,	METH_VARARGS,
-   "maxKey([key]) -- Fine the maximum key\n\n"
+   "maxKey([key]) -- Find the maximum key\n\n"
    "If an argument is given, find the maximum <= the argument"},
   {"minKey", (PyCFunction) BTree_minKey,	METH_VARARGS,
-   "minKey([key]) -- Fine the minimum key\n\n"
+   "minKey([key]) -- Find the minimum key\n\n"
    "If an argument is given, find the minimum >= the argument"},
   {"clear",	(PyCFunction) BTree_clear,	METH_VARARGS,
    "clear() -- Remove all of the items from the BTree"},

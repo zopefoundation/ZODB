@@ -1,19 +1,21 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
 <html>
 <head>
-<title>4.4 Multithreaded ZODB Programs</title>
-<META NAME="description" CONTENT="4.4 Multithreaded ZODB Programs">
+<title>5.1 ZODB.PersistentMapping</title>
+<META NAME="description" CONTENT="5.1 ZODB.PersistentMapping">
 <META NAME="keywords" CONTENT="zodb">
 <META NAME="resource-type" CONTENT="document">
 <META NAME="distribution" CONTENT="global">
-<meta http-equiv="Content-Type" content="text/html; charset=">
-<link rel="STYLESHEET" href="zodb.css">
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+<link rel="STYLESHEET" href="zodb.css" type='text/css'>
 <link rel="first" href="zodb.html">
 <link rel="contents" href="contents.html" title="Contents">
 
-<LINK REL="previous" HREF="node34.html">
-<LINK REL="up" HREF="node31.html">
 <LINK REL="next" HREF="node36.html">
+<LINK REL="previous" HREF="node34.html">
+<LINK REL="up" HREF="node34.html">
+<LINK REL="next" HREF="node36.html">
+<meta name='aesop' content='information'>
 </head>
 <body>
 <DIV CLASS="navigation">
@@ -22,7 +24,7 @@
 <td><A HREF="node34.html"><img src="/python/writing/icons/previous.gif"
   border="0" height="32"
   alt="Previous Page" width="32"></A></td>
-<td><A HREF="node31.html"><img src="/python/writing/icons/up.gif"
+<td><A HREF="node34.html"><img src="/python/writing/icons/up.gif"
   border="0" height="32"
   alt="Up One Level" width="32"></A></td>
 <td><A HREF="node36.html"><img src="/python/writing/icons/next.gif"
@@ -39,26 +41,33 @@
   border="0" height="32"
   alt="" width="32"></td>
 </tr></table>
-<b class="navlabel">Previous:</b> <a class="sectref" HREF="node34.html">4.3 Versions</A>
-<b class="navlabel">Up:</b> <a class="sectref" HREF="node31.html">4 Transactions and Versioning</A>
-<b class="navlabel">Next:</b> <a class="sectref" HREF="node36.html">5 Related Modules</A>
+<b class="navlabel">Previous:</b> <a class="sectref" HREF="node34.html">5 Related Modules</A>
+<b class="navlabel">Up:</b> <a class="sectref" HREF="node34.html">5 Related Modules</A>
+<b class="navlabel">Next:</b> <a class="sectref" HREF="node36.html">5.2 ZODB.PersistentList</A>
 <br><hr>
 </DIV>
 <!--End of Navigation Panel-->
 
-<H2><A NAME="SECTION000540000000000000000">
-4.4 Multithreaded ZODB Programs</A>
+<H2><A NAME="SECTION000610000000000000000">
+5.1 <tt class="module">ZODB.PersistentMapping</tt></A>
 </H2>
 
 <P>
-ZODB databases can be accessed from multithreaded Python programs.
-The <tt class="class">Storage</tt> and <tt class="class">DB</tt> instances can be shared among
-several threads, as long as individual <tt class="class">Connection</tt> instances
-are created for each thread.  
+The <tt class="class">PersistentMapping</tt> class is a wrapper for mapping objects
+that will set the dirty bit when the mapping is modified by setting or
+deleting a key.  
 
 <P>
-XXX I can't think of anything else to say about multithreaded ZODB
-programs.  Suggestions?  An example program?
+<dl><dt><b><a name="l2h-1"><tt class="function">PersistentMapping</tt></a></b>(<var>container = {}</var>)
+<dd>
+Create a <tt class="class">PersistentMapping</tt> object that wraps the 
+mapping object <var>container</var>.  If you don't specify a
+value for <var>container</var>, a regular Python dictionary is used.
+</dl>
+
+<P>
+<tt class="class">PersistentMapping</tt> objects support all the same methods as 
+Python dictionaries do.
 
 <P>
 
@@ -69,7 +78,7 @@ programs.  Suggestions?  An example program?
 <td><A HREF="node34.html"><img src="/python/writing/icons/previous.gif"
   border="0" height="32"
   alt="Previous Page" width="32"></A></td>
-<td><A HREF="node31.html"><img src="/python/writing/icons/up.gif"
+<td><A HREF="node34.html"><img src="/python/writing/icons/up.gif"
   border="0" height="32"
   alt="Up One Level" width="32"></A></td>
 <td><A HREF="node36.html"><img src="/python/writing/icons/next.gif"
@@ -86,11 +95,11 @@ programs.  Suggestions?  An example program?
   border="0" height="32"
   alt="" width="32"></td>
 </tr></table>
-<b class="navlabel">Previous:</b> <a class="sectref" HREF="node34.html">4.3 Versions</A>
-<b class="navlabel">Up:</b> <a class="sectref" HREF="node31.html">4 Transactions and Versioning</A>
-<b class="navlabel">Next:</b> <a class="sectref" HREF="node36.html">5 Related Modules</A>
+<b class="navlabel">Previous:</b> <a class="sectref" HREF="node34.html">5 Related Modules</A>
+<b class="navlabel">Up:</b> <a class="sectref" HREF="node34.html">5 Related Modules</A>
+<b class="navlabel">Next:</b> <a class="sectref" HREF="node36.html">5.2 ZODB.PersistentList</A>
 <hr>
-<span class="release-info">Release 0.03, documentation updated on February 8, 2002.</span>
+<span class="release-info">Release 0.04, documentation updated on October 4, 2002.</span>
 </DIV>
 <!--End of Navigation Panel-->
 

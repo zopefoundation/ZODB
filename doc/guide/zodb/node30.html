@@ -1,19 +1,21 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
 <html>
 <head>
-<title>3.6 Sample Application: chatter.py</title>
-<META NAME="description" CONTENT="3.6 Sample Application: chatter.py">
+<title>4.1 Subtransactions</title>
+<META NAME="description" CONTENT="4.1 Subtransactions">
 <META NAME="keywords" CONTENT="zodb">
 <META NAME="resource-type" CONTENT="document">
 <META NAME="distribution" CONTENT="global">
-<meta http-equiv="Content-Type" content="text/html; charset=">
-<link rel="STYLESHEET" href="zodb.css">
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+<link rel="STYLESHEET" href="zodb.css" type='text/css'>
 <link rel="first" href="zodb.html">
 <link rel="contents" href="contents.html" title="Contents">
 
-<LINK REL="previous" HREF="node29.html">
-<LINK REL="up" href="zeo.html">
 <LINK REL="next" HREF="node31.html">
+<LINK REL="previous" HREF="node29.html">
+<LINK REL="up" HREF="node29.html">
+<LINK REL="next" HREF="node31.html">
+<meta name='aesop' content='information'>
 </head>
 <body>
 <DIV CLASS="navigation">
@@ -22,7 +24,7 @@
 <td><A HREF="node29.html"><img src="/python/writing/icons/previous.gif"
   border="0" height="32"
   alt="Previous Page" width="32"></A></td>
-<td><A href="zeo.html"><img src="/python/writing/icons/up.gif"
+<td><A HREF="node29.html"><img src="/python/writing/icons/up.gif"
   border="0" height="32"
   alt="Up One Level" width="32"></A></td>
 <td><A HREF="node31.html"><img src="/python/writing/icons/next.gif"
@@ -39,154 +41,52 @@
   border="0" height="32"
   alt="" width="32"></td>
 </tr></table>
-<b class="navlabel">Previous:</b> <a class="sectref" HREF="node29.html">3.5 ZEO Programming Notes</A>
-<b class="navlabel">Up:</b> <a class="sectref" href="zeo.html">3 ZEO</A>
-<b class="navlabel">Next:</b> <a class="sectref" HREF="node31.html">4 Transactions and Versioning</A>
+<b class="navlabel">Previous:</b> <a class="sectref" HREF="node29.html">4 Transactions and Versioning</A>
+<b class="navlabel">Up:</b> <a class="sectref" HREF="node29.html">4 Transactions and Versioning</A>
+<b class="navlabel">Next:</b> <a class="sectref" HREF="node31.html">4.2 Undoing Changes</A>
 <br><hr>
 </DIV>
 <!--End of Navigation Panel-->
 
-<H2><A NAME="SECTION000460000000000000000">
-3.6 Sample Application: chatter.py</A>
+<H2><A NAME="SECTION000510000000000000000">
+4.1 Subtransactions</A>
 </H2>
 
 <P>
-For an example application, we'll build a little chat application.
-What's interesting is that none of the application's code deals with
-network programming at all; instead, an object will hold chat
-messages, and be magically shared between all the clients through ZEO.
-I won't present the complete script here; it's included in my ZODB
-distribution, and you can download it from
-<a class="url" href="http://www.amk.ca/zodb/demos/">http://www.amk.ca/zodb/demos/</a>.  Only the interesting portions of
-the code will be covered here.
+Subtransactions can be created within a transaction.  Each
+subtransaction can be individually committed and aborted, but the
+changes within a subtransaction are not truly committed until the
+containing transaction is committed.
 
 <P>
-The basic data structure is the <tt class="class">ChatSession</tt> object,
-which provides an <tt class="method">add_message()</tt> method that adds a
-message, and a <tt class="method">new_messages()</tt> method that returns a list
-of new messages that have accumulated since the last call to
-<tt class="method">new_messages()</tt>.  Internally, <tt class="class">ChatSession</tt>
-maintains a B-tree that uses the time as the key, and stores the
-message as the corresponding value.
+The primary purpose of subtransactions is to decrease the memory usage
+of transactions that touch a very large number of objects.  Consider a
+transaction during which 200,000 objects are modified.  All the
+objects that are modified in a single transaction have to remain in
+memory until the transaction is committed, because the ZODB can't
+discard them from the object cache.  This can potentially make the
+memory usage quite large.  With subtransactions, a commit can be be
+performed at intervals, say, every 10,000 objects.  Those 10,000
+objects are then written to permanent storage and can be purged from
+the cache to free more space.
 
 <P>
-The constructor for <tt class="class">ChatSession</tt> is pretty simple; it simply
-creates an attribute containing a B-tree:
+To commit a subtransaction instead of a full transaction, 
+pass a true value to the <tt class="method">commit()</tt>
+or <tt class="method">abort()</tt> method of the <tt class="class">Transaction</tt> object.
 
 <P>
-<dl><dd><pre class="verbatim">
-class ChatSession(Persistent):
-    def __init__(self, name):
-        self.name = name
-        # Internal attribute: _messages holds all the chat messages.        
-        self._messages = BTree.BTree()
-</pre></dl>
+<div class="verbatim"><pre>
+# Commit a subtransaction
+get_transaction().commit(1)     
+
+# Abort a subtransaction
+get_transaction().abort(1)
+</pre></div>
 
 <P>
-<tt class="method">add_message()</tt> has to add a message to the
-<code>_messages</code> B-tree.  A complication is that it's possible
-that some other client is trying to add a message at the same time;
-when this happens, the client that commits first wins, and the second
-client will get a <tt class="exception">ConflictError</tt> exception when it tries to
-commit.  For this application, <tt class="exception">ConflictError</tt> isn't serious
-but simply means that the operation has to be retried; other
-applications might treat it as a fatal error.  The code uses
-<code>try...except...else</code> inside a <code>while</code> loop,
-breaking out of the loop when the commit works without raising an
-exception.
-
-<P>
-<dl><dd><pre class="verbatim">
-    def add_message(self, message):
-        """Add a message to the channel.
-        message -- text of the message to be added
-        """
-
-        while 1:
-            try:
-                now = time.time()
-                self._messages[now] = message
-                get_transaction().commit()
-            except ConflictError:
-                # Conflict occurred; this process should pause and
-                # wait for a little bit, then try again.
-                time.sleep(.2)
-                pass
-            else:
-                # No ConflictError exception raised, so break
-                # out of the enclosing while loop.
-                break
-        # end while
-</pre></dl>
-
-<P>
-<tt class="method">new_messages()</tt> introduces the use of <i>volatile</i>
-attributes.  Attributes of a persistent object that begin with
-<code>_v_</code> are considered volatile and are never stored in the
-database.  <tt class="method">new_messages()</tt> needs to store the last time
-the method was called, but if the time was stored as a regular
-attribute, its value would be committed to the database and shared
-with all the other clients.  <tt class="method">new_messages()</tt> would then
-return the new messages accumulated since any other client called
-<tt class="method">new_messages()</tt>, which isn't what we want.
-
-<P>
-<dl><dd><pre class="verbatim">
-    def new_messages(self):
-        "Return new messages."
-
-        # self._v_last_time is the time of the most recent message
-        # returned to the user of this class. 
-        if not hasattr(self, '_v_last_time'):
-            self._v_last_time = 0
-
-        new = []
-        T = self._v_last_time
-
-        for T2, message in self._messages.items():
-            if T2 &gt; T:
-                new.append(message)
-                self._v_last_time = T2
-
-        return new
-</pre></dl>
-
-<P>
-This application is interesting because it uses ZEO to easily share a
-data structure; ZEO and ZODB are being used for their networking
-ability, not primarily for their data storage ability.  I can foresee
-many interesting applications using ZEO in this way:
-
-<P>
-
-<UL>
-<LI>With a Tkinter front-end, and a cleverer, more scalable data
-  structure, you could build a shared whiteboard using the same
-  technique.
-
-<P>
-</LI>
-<LI>A shared chessboard object would make writing a networked chess
-  game easy.  
-
-<P>
-</LI>
-<LI>You could create a Python class containing a CD's title and
-  track information.  To make a CD database, a read-only ZEO server
-  could be opened to the world, or an HTTP or XML-RPC interface could
-  be written on top of the ZODB.
-
-<P>
-</LI>
-<LI>A program like Quicken could use a ZODB on the local disk to
-  store its data.  This avoids the need to write and maintain
-  specialized I/O code that reads in your objects and writes them out;
-  instead you can concentrate on the problem domain, writing objects
-  that represent cheques, stock portfolios, or whatever.
-
-<P>
-</LI>
-</UL>
+A new subtransaction is automatically started on committing or
+aborting the previous subtransaction.
 
 <P>
 
@@ -197,7 +97,7 @@ many interesting applications using ZEO in this way:
 <td><A HREF="node29.html"><img src="/python/writing/icons/previous.gif"
   border="0" height="32"
   alt="Previous Page" width="32"></A></td>
-<td><A href="zeo.html"><img src="/python/writing/icons/up.gif"
+<td><A HREF="node29.html"><img src="/python/writing/icons/up.gif"
   border="0" height="32"
   alt="Up One Level" width="32"></A></td>
 <td><A HREF="node31.html"><img src="/python/writing/icons/next.gif"
@@ -214,11 +114,11 @@ many interesting applications using ZEO in this way:
   border="0" height="32"
   alt="" width="32"></td>
 </tr></table>
-<b class="navlabel">Previous:</b> <a class="sectref" HREF="node29.html">3.5 ZEO Programming Notes</A>
-<b class="navlabel">Up:</b> <a class="sectref" href="zeo.html">3 ZEO</A>
-<b class="navlabel">Next:</b> <a class="sectref" HREF="node31.html">4 Transactions and Versioning</A>
+<b class="navlabel">Previous:</b> <a class="sectref" HREF="node29.html">4 Transactions and Versioning</A>
+<b class="navlabel">Up:</b> <a class="sectref" HREF="node29.html">4 Transactions and Versioning</A>
+<b class="navlabel">Next:</b> <a class="sectref" HREF="node31.html">4.2 Undoing Changes</A>
 <hr>
-<span class="release-info">Release 0.03, documentation updated on February 8, 2002.</span>
+<span class="release-info">Release 0.04, documentation updated on October 4, 2002.</span>
 </DIV>
 <!--End of Navigation Panel-->
 

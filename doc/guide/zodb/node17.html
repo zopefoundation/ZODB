@@ -6,8 +6,8 @@
 <META NAME="keywords" CONTENT="zodb">
 <META NAME="resource-type" CONTENT="document">
 <META NAME="distribution" CONTENT="global">
-<meta http-equiv="Content-Type" content="text/html; charset=">
-<link rel="STYLESHEET" href="zodb.css">
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+<link rel="STYLESHEET" href="zodb.css" type='text/css'>
 <link rel="first" href="zodb.html">
 <link rel="contents" href="contents.html" title="Contents">
 
@@ -15,6 +15,7 @@
 <LINK REL="previous" HREF="node16.html">
 <LINK REL="up" HREF="node15.html">
 <LINK REL="next" HREF="node18.html">
+<meta name='aesop' content='information'>
 </head>
 <body>
 <DIV CLASS="navigation">
@@ -42,7 +43,7 @@
 </tr></table>
 <b class="navlabel">Previous:</b> <a class="sectref" HREF="node16.html">2.5.1 Modifying Mutable Objects</A>
 <b class="navlabel">Up:</b> <a class="sectref" HREF="node15.html">2.5 Rules for Writing</A>
-<b class="navlabel">Next:</b> <a class="sectref" HREF="node18.html">2.5.3 Fixing isinstance and</A>
+<b class="navlabel">Next:</b> <a class="sectref" HREF="node18.html">2.5.3 __getattr__, __delattr__, and</A>
 <br><hr>
 </DIV>
 <!--End of Navigation Panel-->
@@ -77,13 +78,13 @@ instances, which means that <code>type(obj) == types.InstanceType</code>.
 The code inside the Python interpreter looks like this:
 
 <P>
-<dl><dd><pre class="verbatim">
+<div class="verbatim"><pre>
 /* Code to compare objects v and w */
 if (PyInstance_Check(v) || PyInstance_Check(w))
         return PyInstance_DoBinOp(v, w, "__cmp__", "__rcmp__", do_cmp);
 /* Do usual Python comparison of v,w */
 c = PyObject_Compare(v, w);
-</pre></dl>
+</pre></div>
 
 <P>
 While ExtensionClasses try to behave as much like regular Python
@@ -120,9 +121,9 @@ will repair this.
 </tr></table>
 <b class="navlabel">Previous:</b> <a class="sectref" HREF="node16.html">2.5.1 Modifying Mutable Objects</A>
 <b class="navlabel">Up:</b> <a class="sectref" HREF="node15.html">2.5 Rules for Writing</A>
-<b class="navlabel">Next:</b> <a class="sectref" HREF="node18.html">2.5.3 Fixing isinstance and</A>
+<b class="navlabel">Next:</b> <a class="sectref" HREF="node18.html">2.5.3 __getattr__, __delattr__, and</A>
 <hr>
-<span class="release-info">Release 0.03, documentation updated on February 8, 2002.</span>
+<span class="release-info">Release 0.04, documentation updated on October 4, 2002.</span>
 </DIV>
 <!--End of Navigation Panel-->
 

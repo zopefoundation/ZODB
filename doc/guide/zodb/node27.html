@@ -1,20 +1,21 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
 <html>
 <head>
-<title>3.3 Configuring and Running a ZEO Server</title>
-<META NAME="description" CONTENT="3.3 Configuring and Running a ZEO Server">
+<title>3.4 ZEO Programming Notes</title>
+<META NAME="description" CONTENT="3.4 ZEO Programming Notes">
 <META NAME="keywords" CONTENT="zodb">
 <META NAME="resource-type" CONTENT="document">
 <META NAME="distribution" CONTENT="global">
-<meta http-equiv="Content-Type" content="text/html; charset=">
-<link rel="STYLESHEET" href="zodb.css">
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+<link rel="STYLESHEET" href="zodb.css" type='text/css'>
 <link rel="first" href="zodb.html">
 <link rel="contents" href="contents.html" title="Contents">
 
 <LINK REL="next" HREF="node28.html">
-<LINK REL="previous" HREF="node24.html">
+<LINK REL="previous" HREF="node26.html">
 <LINK REL="up" href="zeo.html">
 <LINK REL="next" HREF="node28.html">
+<meta name='aesop' content='information'>
 </head>
 <body>
 <DIV CLASS="navigation">
@@ -40,23 +41,27 @@
   border="0" height="32"
   alt="" width="32"></td>
 </tr></table>
-<b class="navlabel">Previous:</b> <a class="sectref" HREF="node26.html">3.2.2 Installation</A>
+<b class="navlabel">Previous:</b> <a class="sectref" HREF="node26.html">3.3 Testing the ZEO</A>
 <b class="navlabel">Up:</b> <a class="sectref" href="zeo.html">3 ZEO</A>
-<b class="navlabel">Next:</b> <a class="sectref" HREF="node28.html">3.4 Testing the ZEO</A>
+<b class="navlabel">Next:</b> <a class="sectref" HREF="node28.html">3.5 Sample Application: chatter.py</A>
 <br><hr>
 </DIV>
 <!--End of Navigation Panel-->
 
-<H2><A NAME="SECTION000430000000000000000">
-3.3 Configuring and Running a ZEO Server</A>
+<H2><A NAME="SECTION000440000000000000000">
+3.4 ZEO Programming Notes</A>
 </H2>
 
 <P>
-Edit <code>/usr/local/etc/zeo.conf</code> appropriately for your desired
-setup.  This configuration file controls the port on which ZEO will
-listen for connections, the user and group IDs under which the server
-will be executed, and the location of the concrete <tt class="class">Storage</tt>
-object that will be made network-accessible.
+ZEO is written using <tt class="module">asyncore</tt>, from the Python standard
+library.  It assumes that some part of the user application is running
+an <tt class="module">asyncore</tt> mainloop.  For example, Zope run the loop in a
+separate thread and ZEO uses that.  If your application does not have
+a mainloop, ZEO will not process incoming invalidation messages until
+you make some call into ZEO.  The <tt class="method">Connection.sync</tt> method can
+be used to process pending invalidation messages.  You can call it
+when you want to make sure the <tt class="class">Connection</tt> has the most recent
+version of every object, but you don't have any other work for ZEO to do.
 
 <P>
 
@@ -84,11 +89,11 @@ object that will be made network-accessible.
   border="0" height="32"
   alt="" width="32"></td>
 </tr></table>
-<b class="navlabel">Previous:</b> <a class="sectref" HREF="node26.html">3.2.2 Installation</A>
+<b class="navlabel">Previous:</b> <a class="sectref" HREF="node26.html">3.3 Testing the ZEO</A>
 <b class="navlabel">Up:</b> <a class="sectref" href="zeo.html">3 ZEO</A>
-<b class="navlabel">Next:</b> <a class="sectref" HREF="node28.html">3.4 Testing the ZEO</A>
+<b class="navlabel">Next:</b> <a class="sectref" HREF="node28.html">3.5 Sample Application: chatter.py</A>
 <hr>
-<span class="release-info">Release 0.03, documentation updated on February 8, 2002.</span>
+<span class="release-info">Release 0.04, documentation updated on October 4, 2002.</span>
 </DIV>
 <!--End of Navigation Panel-->
 

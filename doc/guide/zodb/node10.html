@@ -6,8 +6,8 @@
 <META NAME="keywords" CONTENT="zodb">
 <META NAME="resource-type" CONTENT="document">
 <META NAME="distribution" CONTENT="global">
-<meta http-equiv="Content-Type" content="text/html; charset=">
-<link rel="STYLESHEET" href="zodb.css">
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+<link rel="STYLESHEET" href="zodb.css" type='text/css'>
 <link rel="first" href="zodb.html">
 <link rel="contents" href="contents.html" title="Contents">
 
@@ -15,6 +15,7 @@
 <LINK REL="previous" HREF="node9.html">
 <LINK REL="up" HREF="node9.html">
 <LINK REL="next" HREF="node11.html">
+<meta name='aesop' content='information'>
 </head>
 <body>
 <DIV CLASS="navigation">
@@ -52,36 +53,15 @@
 </H3>
 
 <P>
-You'll need Python, of course; version 1.5.2 works with some fixes,
-and it also works with Python 2.0, which is what I primarily use.
-
-<P>
-The code is packaged using Distutils, the new distribution tools for
-Python introduced in Python 2.0.  If you're using 1.5.2, first you'll
-have to get the latest Distutils release from the Distutils SIG page
-at <a class="url" href="http://www.python.org/sigs/distutils-sig/download.html">http://www.python.org/sigs/distutils-sig/download.html</a> and
-install it.  This is simply a matter of untarring or unzipping the
+You will need Python 2.1 or higher.  The code is packaged using
+Distutils.  So it is simply a matter of untarring or unzipping the
 release package, and then running <code>python setup.py install</code>.
-
-<P>
-If you're using 1.5.2 and have installed previous versions of the
-Distutils, be sure to get the very latest version, since developing
-the ZODB distribution turned up some bugs along the way.  If you
-encounter problems compiling <span class="file">ZODB/TimeStamp.c</span> or your compiler reports
-an error like ``Can't create build/temp.linux2/ExtensionClass.o: No
-such file or directory'', you need an updated version.  Old versions of
-Distutils have two bugs which affect the setup scripts.  First, for a
-long time the <code>define_macros</code> keyword in setup.py files didn't work due
-to a Distutils bug, so I hacked TimeStamp.c in earlier releases.  The
-Distutils have since been fixed, and the hack became unnecessary, so I
-removed it.  Second, the code that creates directories tries to be
-smart and caches them to save time by not trying to create a directory
-twice, but this code was broken in old versions.
 
 <P>
 You'll need a C compiler to build the packages, because there are
 various C extension modules.  At the moment no one is making Windows
-binaries available, so you'll need a Windows development environment to use the 
+binaries available, so you'll need a Windows development environment
+to build ZODB.
 
 <P>
 
@@ -113,7 +93,7 @@ binaries available, so you'll need a Windows development environment to use the
 <b class="navlabel">Up:</b> <a class="sectref" HREF="node9.html">2.1 Installing ZODB</A>
 <b class="navlabel">Next:</b> <a class="sectref" HREF="node11.html">2.1.2 Installing the Packages</A>
 <hr>
-<span class="release-info">Release 0.03, documentation updated on February 8, 2002.</span>
+<span class="release-info">Release 0.04, documentation updated on October 4, 2002.</span>
 </DIV>
 <!--End of Navigation Panel-->
 

@@ -6,14 +6,15 @@
 <META NAME="keywords" CONTENT="zodb">
 <META NAME="resource-type" CONTENT="document">
 <META NAME="distribution" CONTENT="global">
-<meta http-equiv="Content-Type" content="text/html; charset=">
-<link rel="STYLESHEET" href="zodb.css">
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+<link rel="STYLESHEET" href="zodb.css" type='text/css'>
 <link rel="first" href="zodb.html">
 <link rel="contents" href="contents.html" title="Contents">
 
 <LINK REL="previous" HREF="node10.html">
 <LINK REL="up" HREF="node9.html">
 <LINK REL="next" HREF="node12.html">
+<meta name='aesop' content='information'>
 </head>
 <body>
 <DIV CLASS="navigation">
@@ -52,38 +53,9 @@
 
 <P>
 Download the ZODB tarball containing all the packages for both ZODB
-and ZEO from <a class="url" href="http://www.amk.ca/files/zodb/">http://www.amk.ca/files/zodb/</a>.
-
-<P>
-To build the packages, you must go into the individual directories and
-build and install them one by one.  They should be built and installed
-in this order:
-
-<P>
-
-<OL>
-<LI><code>zodb-basic</code>
-</LI>
-<LI>ExtensionClass
-</LI>
-<LI>ZODB
-</LI>
-<LI><code>BTree</code> and <code>BTrees</code>
-</LI>
-<LI>ZEO
-</LI>
-</OL>
-
-<P>
-In particular, you must install ExtensionClass before building the
-ZODB package; otherwise, the compilation in the ZODB package will die
-complaining that it can't find ExtensionClass.h.  You can manually
-hack the #include path to make it work without installing
-ExtensionClass first, but that's a bit hackish.
-
-<P>
-If you encounter any problems, please let me know at
-<span class="email">akuchlin@mems-exchange.org</span>.
+and ZEO from <a class="url" href="http://www.zope.org/Products/StandaloneZODB">http://www.zope.org/Products/StandaloneZODB</a>.  See
+the <span class="file">README.txt</span> file in the top level of the release directory
+for details on building, testing, and installing.
 
 <P>
 
@@ -115,7 +87,7 @@ If you encounter any problems, please let me know at
 <b class="navlabel">Up:</b> <a class="sectref" HREF="node9.html">2.1 Installing ZODB</A>
 <b class="navlabel">Next:</b> <a class="sectref" HREF="node12.html">2.2 How ZODB Works</A>
 <hr>
-<span class="release-info">Release 0.03, documentation updated on February 8, 2002.</span>
+<span class="release-info">Release 0.04, documentation updated on October 4, 2002.</span>
 </DIV>
 <!--End of Navigation Panel-->
 

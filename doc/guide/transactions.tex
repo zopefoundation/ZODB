@@ -35,7 +35,7 @@ or \method{abort()} method of the \class{Transaction} object.
 
 \begin{verbatim}
 # Commit a subtransaction
-get_transaction().commit(1)	
+get_transaction().commit(1)     
 
 # Abort a subtransaction
 get_transaction().abort(1)   
@@ -103,6 +103,16 @@ transaction''.  Usually this will happen because later transactions
 modified the objects affected by the transaction you're trying to
 undo.
 
+After you call \method{undo()} you must commit the transaction for the
+undo to actually be applied.
+\footnote{There are actually two different ways a storage can
+implement the undo feature.  Most of the storages that ship with ZODB
+use the transactional form of undo described in the main text.  Some
+storages may use a non-transactional undo makes changes visible
+immediately.}  There is one glitch in the undo process.  The thread
+that calls undo may not see the changes to the object until it calls
+\method{Connection.sync()} or commits another transaction.
+
 \subsection{Versions}
 
 While many subtransactions can be contained within a single regular
@@ -160,7 +170,4 @@ ZODB databases can be accessed from multithreaded Python programs.
 The \class{Storage} and \class{DB} instances can be shared among
 several threads, as long as individual \class{Connection} instances
 are created for each thread.  
-
-XXX I can't think of anything else to say about multithreaded ZODB
-programs.  Suggestions?  An example program?
 

@@ -469,7 +469,7 @@ class ConnectionTests(StorageTestBase.StorageTestBase):
     def checkBadMessage1(self):
         # not even close to a real message
         self._bad_message("salty")
-        
+
     def checkBadMessage2(self):
         # just like a real message, but with an unpicklable argument
         global Hack
@@ -484,7 +484,7 @@ class ConnectionTests(StorageTestBase.StorageTestBase):
         # Establish a connection, then send the server an ill-formatted
         # request.  Verify that the connection is closed and that it is
         # possible to establish a new connection.
-        
+
         self._storage = self.openClientStorage()
         self._dostore()
 

@@ -26,6 +26,7 @@ import unittest
 import zLOG
 
 # ZODB test support
+import ZODB
 from ZODB.tests.MinPO import MinPO
 from ZODB.tests.StorageTestBase import zodb_unpickle
 
@@ -130,6 +131,16 @@ class GenericTests(
         self._storage.close()
         self._storage = ClientStorage(addr, read_only=read_only, wait=1)
 
+    def checkWriteMethods(self):
+        # ReadOnlyStorage defines checkWriteMethods.  The decision
+        # about where to raise the read-only error was changed after
+        # Zope 2.5 was released.  So this test needs to detect Zope
+        # of the 2.5 vintage and skip the test.
+
+        # The __version__ attribute was not present in Zope 2.5.
+        if hasattr(ZODB, "__version__"):
+            ReadOnlyStorage.ReadOnlyStorage.checkWriteMethods(self)
+
 class UnixTests(GenericTests):
 
     """Add Unix-specific scaffolding to the generic test suite."""
@@ -200,7 +211,7 @@ def test_suite():
     # shutup warnings about mktemp
     import warnings
     warnings.filterwarnings("ignore", "mktemp")
-    
+
     suite = unittest.TestSuite()
     for klass in test_classes:
         sub = unittest.makeSuite(klass, 'check')

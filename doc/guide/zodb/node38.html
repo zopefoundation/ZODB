@@ -1,20 +1,21 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
 <html>
 <head>
-<title>5.2 ZODB.PersistentList</title>
-<META NAME="description" CONTENT="5.2 ZODB.PersistentList">
+<title>A. Resources</title>
+<META NAME="description" CONTENT="A. Resources">
 <META NAME="keywords" CONTENT="zodb">
 <META NAME="resource-type" CONTENT="document">
 <META NAME="distribution" CONTENT="global">
-<meta http-equiv="Content-Type" content="text/html; charset=">
-<link rel="STYLESHEET" href="zodb.css">
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+<link rel="STYLESHEET" href="zodb.css" type='text/css'>
 <link rel="first" href="zodb.html">
 <link rel="contents" href="contents.html" title="Contents">
 
 <LINK REL="next" HREF="node39.html">
-<LINK REL="previous" HREF="node37.html">
-<LINK REL="up" HREF="node36.html">
+<LINK REL="previous" HREF="node34.html">
+<LINK REL="up" HREF="zodb.html">
 <LINK REL="next" HREF="node39.html">
+<meta name='aesop' content='information'>
 </head>
 <body>
 <DIV CLASS="navigation">
@@ -23,7 +24,7 @@
 <td><A HREF="node37.html"><img src="/python/writing/icons/previous.gif"
   border="0" height="32"
   alt="Previous Page" width="32"></A></td>
-<td><A HREF="node36.html"><img src="/python/writing/icons/up.gif"
+<td><A HREF="zodb.html"><img src="/python/writing/icons/up.gif"
   border="0" height="32"
   alt="Up One Level" width="32"></A></td>
 <td><A HREF="node39.html"><img src="/python/writing/icons/next.gif"
@@ -40,32 +41,45 @@
   border="0" height="32"
   alt="" width="32"></td>
 </tr></table>
-<b class="navlabel">Previous:</b> <a class="sectref" HREF="node37.html">5.1 ZODB.PersistentMapping</A>
-<b class="navlabel">Up:</b> <a class="sectref" HREF="node36.html">5 Related Modules</A>
-<b class="navlabel">Next:</b> <a class="sectref" HREF="node39.html">5.3 B-tree Modules</A>
+<b class="navlabel">Previous:</b> <a class="sectref" HREF="node37.html">5.3 BTrees Package</A>
+<b class="navlabel">Up:</b> <a class="sectref" HREF="zodb.html">ZODB/ZEO Programming Guide</A>
+<b class="navlabel">Next:</b> <a class="sectref" HREF="node39.html">B. GNU Free Documentation</A>
 <br><hr>
 </DIV>
 <!--End of Navigation Panel-->
 
-<H2><A NAME="SECTION000620000000000000000">
-5.2 <tt class="module">ZODB.PersistentList</tt></A>
-</H2>
+<H1><A NAME="SECTION000700000000000000000">
+A. Resources</A>
+</H1>
 
 <P>
-The <tt class="class">PersistentList</tt> class is a wrapper for mutable sequence objects, 
-much as <tt class="class">PersistentMapping</tt> is a wrapper for mappings.  
+ZODB HOWTO, by Michel Pelletier:
 
-<P>
-<dl><dt><b><a name="l2h-2"><tt class="function">PersistentList</tt></a></b>(<var>initlist = []</var>)
-<dd>
-Create a <tt class="class">PersistentList</tt> object that wraps the 
-mutable sequence object <var>initlist</var>.  If you don't specify a
-value for <var>initlist</var>, a regular Python list is used.
-</dl>
+<BR>
+Goes into slightly more detail about the rules for writing applications using the ZODB.
 
+<BR><a class="url" href="http://www.zope.org/Members/michel/HowTos/ZODB-How-To">http://www.zope.org/Members/michel/HowTos/ZODB-How-To</a>
 <P>
-<tt class="class">PersistentList</tt> objects support all the same methods as 
-Python lists do.
+Introduction to the Zope Object Database, by Jim Fulton:
+
+<BR>
+Goes into much greater detail, explaining advanced uses of the ZODB and 
+how it's actually implemented.  A definitive reference, and highly recommended.
+
+<BR><a class="url" href="http://www.python.org/workshops/2000-01/proceedings/papers/fulton/zodb3.html">http://www.python.org/workshops/2000-01/proceedings/papers/fulton/zodb3.html</a>
+<P>
+Persistent Programing with ZODB, by Jeremy Hylton and Barry Warsaw:
+
+<BR>
+Slides for a tutorial presented at the 10th Python conference.  Covers
+much of the same ground as this guide, with more details in some areas
+and less in others.
+
+<BR><a class="url" href="http://www.zope.org/Members/bwarsaw/ipc10-slides">http://www.zope.org/Members/bwarsaw/ipc10-slides</a>
+<P>
+Download link for ZEO: 
+<BR><a class="url" href="http://www.zope.org/Products/ZEO/">http://www.zope.org/Products/ZEO/</a>
+<P>
 
 <P>
 
@@ -76,7 +90,7 @@ Python lists do.
 <td><A HREF="node37.html"><img src="/python/writing/icons/previous.gif"
   border="0" height="32"
   alt="Previous Page" width="32"></A></td>
-<td><A HREF="node36.html"><img src="/python/writing/icons/up.gif"
+<td><A HREF="zodb.html"><img src="/python/writing/icons/up.gif"
   border="0" height="32"
   alt="Up One Level" width="32"></A></td>
 <td><A HREF="node39.html"><img src="/python/writing/icons/next.gif"
@@ -93,11 +107,11 @@ Python lists do.
   border="0" height="32"
   alt="" width="32"></td>
 </tr></table>
-<b class="navlabel">Previous:</b> <a class="sectref" HREF="node37.html">5.1 ZODB.PersistentMapping</A>
-<b class="navlabel">Up:</b> <a class="sectref" HREF="node36.html">5 Related Modules</A>
-<b class="navlabel">Next:</b> <a class="sectref" HREF="node39.html">5.3 B-tree Modules</A>
+<b class="navlabel">Previous:</b> <a class="sectref" HREF="node37.html">5.3 BTrees Package</A>
+<b class="navlabel">Up:</b> <a class="sectref" HREF="zodb.html">ZODB/ZEO Programming Guide</A>
+<b class="navlabel">Next:</b> <a class="sectref" HREF="node39.html">B. GNU Free Documentation</A>
 <hr>
-<span class="release-info">Release 0.03, documentation updated on February 8, 2002.</span>
+<span class="release-info">Release 0.04, documentation updated on October 4, 2002.</span>
 </DIV>
 <!--End of Navigation Panel-->
 

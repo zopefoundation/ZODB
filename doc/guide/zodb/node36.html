@@ -1,20 +1,21 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
 <html>
 <head>
-<title>5 Related Modules</title>
-<META NAME="description" CONTENT="5 Related Modules">
+<title>5.2 ZODB.PersistentList</title>
+<META NAME="description" CONTENT="5.2 ZODB.PersistentList">
 <META NAME="keywords" CONTENT="zodb">
 <META NAME="resource-type" CONTENT="document">
 <META NAME="distribution" CONTENT="global">
-<meta http-equiv="Content-Type" content="text/html; charset=">
-<link rel="STYLESHEET" href="zodb.css">
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+<link rel="STYLESHEET" href="zodb.css" type='text/css'>
 <link rel="first" href="zodb.html">
 <link rel="contents" href="contents.html" title="Contents">
 
-<LINK REL="next" HREF="node40.html">
-<LINK REL="previous" HREF="node31.html">
-<LINK REL="up" HREF="zodb.html">
 <LINK REL="next" HREF="node37.html">
+<LINK REL="previous" HREF="node35.html">
+<LINK REL="up" HREF="node34.html">
+<LINK REL="next" HREF="node37.html">
+<meta name='aesop' content='information'>
 </head>
 <body>
 <DIV CLASS="navigation">
@@ -23,7 +24,7 @@
 <td><A HREF="node35.html"><img src="/python/writing/icons/previous.gif"
   border="0" height="32"
   alt="Previous Page" width="32"></A></td>
-<td><A HREF="zodb.html"><img src="/python/writing/icons/up.gif"
+<td><A HREF="node34.html"><img src="/python/writing/icons/up.gif"
   border="0" height="32"
   alt="Up One Level" width="32"></A></td>
 <td><A HREF="node37.html"><img src="/python/writing/icons/next.gif"
@@ -40,33 +41,34 @@
   border="0" height="32"
   alt="" width="32"></td>
 </tr></table>
-<b class="navlabel">Previous:</b> <a class="sectref" HREF="node35.html">4.4 Multithreaded ZODB Programs</A>
-<b class="navlabel">Up:</b> <a class="sectref" HREF="zodb.html">ZODB/ZEO Programming Guide</A>
-<b class="navlabel">Next:</b> <a class="sectref" HREF="node37.html">5.1 ZODB.PersistentMapping</A>
+<b class="navlabel">Previous:</b> <a class="sectref" HREF="node35.html">5.1 ZODB.PersistentMapping</A>
+<b class="navlabel">Up:</b> <a class="sectref" HREF="node34.html">5 Related Modules</A>
+<b class="navlabel">Next:</b> <a class="sectref" HREF="node37.html">5.3 BTrees Package</A>
 <br><hr>
 </DIV>
 <!--End of Navigation Panel-->
 
-<H1><A NAME="SECTION000600000000000000000">
-5 Related Modules</A>
-</H1>
+<H2><A NAME="SECTION000620000000000000000">
+5.2 <tt class="module">ZODB.PersistentList</tt></A>
+</H2>
 
 <P>
-The ZODB package includes a number of related modules that provide
-useful data types such as BTrees or full-text indexes.
+The <tt class="class">PersistentList</tt> class is a wrapper for mutable sequence objects, 
+much as <tt class="class">PersistentMapping</tt> is a wrapper for mappings.  
 
 <P>
+<dl><dt><b><a name="l2h-2"><tt class="function">PersistentList</tt></a></b>(<var>initlist = []</var>)
+<dd>
+Create a <tt class="class">PersistentList</tt> object that wraps the 
+mutable sequence object <var>initlist</var>.  If you don't specify a
+value for <var>initlist</var>, a regular Python list is used.
+</dl>
 
-<p><hr>
-<!--Table of Child-Links-->
-<A NAME="CHILD_LINKS"><STRONG>Subsections</STRONG></a>
+<P>
+<tt class="class">PersistentList</tt> objects support all the same methods as 
+Python lists do.
 
-<UL>
-<LI><A href="node37.html">5.1 <tt class="module">ZODB.PersistentMapping</tt></a>
-<LI><A href="node38.html">5.2 <tt class="module">ZODB.PersistentList</tt></a>
-<LI><A href="node39.html">5.3 B-tree Modules</a>
-</ul>
-<!--End of Table of Child-Links-->
+<P>
 
 <DIV CLASS="navigation">
 <p><hr>
@@ -75,7 +77,7 @@ useful data types such as BTrees or full-text indexes.
 <td><A HREF="node35.html"><img src="/python/writing/icons/previous.gif"
   border="0" height="32"
   alt="Previous Page" width="32"></A></td>
-<td><A HREF="zodb.html"><img src="/python/writing/icons/up.gif"
+<td><A HREF="node34.html"><img src="/python/writing/icons/up.gif"
   border="0" height="32"
   alt="Up One Level" width="32"></A></td>
 <td><A HREF="node37.html"><img src="/python/writing/icons/next.gif"
@@ -92,11 +94,11 @@ useful data types such as BTrees or full-text indexes.
   border="0" height="32"
   alt="" width="32"></td>
 </tr></table>
-<b class="navlabel">Previous:</b> <a class="sectref" HREF="node35.html">4.4 Multithreaded ZODB Programs</A>
-<b class="navlabel">Up:</b> <a class="sectref" HREF="zodb.html">ZODB/ZEO Programming Guide</A>
-<b class="navlabel">Next:</b> <a class="sectref" HREF="node37.html">5.1 ZODB.PersistentMapping</A>
+<b class="navlabel">Previous:</b> <a class="sectref" HREF="node35.html">5.1 ZODB.PersistentMapping</A>
+<b class="navlabel">Up:</b> <a class="sectref" HREF="node34.html">5 Related Modules</A>
+<b class="navlabel">Next:</b> <a class="sectref" HREF="node37.html">5.3 BTrees Package</A>
 <hr>
-<span class="release-info">Release 0.03, documentation updated on February 8, 2002.</span>
+<span class="release-info">Release 0.04, documentation updated on October 4, 2002.</span>
 </DIV>
 <!--End of Navigation Panel-->
 

@@ -1,4 +1,4 @@
-Zope Enterprise Objects
+Zope Enterprise Objects (ZEO)
 
   Installation
 
@@ -19,7 +19,7 @@ Zope Enterprise Objects
       python test.py -v
 
     Run the script with the -h option for a full list of options.  The
-    ZEO 2.0a1 release contains 87 unit tests on Unix.
+    ZEO 2.0b2 release contains 122 unit tests on Unix.
 
   Starting (and configuring) the ZEO Server
 
@@ -93,4 +93,4 @@ Zope Enterprise Objects
     once with the environment variable FORCE_PRODUCT_LOAD set.
 
     The interaction between ZEO and Zope product installation is
-    unfortunate.  In the future, this interaction will be removed by 
+    unfortunate.

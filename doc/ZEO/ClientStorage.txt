@@ -23,7 +23,9 @@ ClientStorage
       - a sequence of the previous two
 
     If a sequence of addresses is specified, the client will use the
-    first server from the list that it can connect to.
+    first server from the list that it can connect to, subject to the
+    constraints imposed by the optional read_only and
+    read_only_fallback keyword arguments.
 
     The ClientStorage constructor provides a number of additional
     options (arguments). The full list of arguments is:
@@ -36,7 +38,7 @@ ClientStorage
       default name for both the server and client is '1'.
 
     cache_size -- The number of bytes to allow for the client cache.
-      The default is 20,000,000.  A large cache can significantly
+      The default is 20MB.  A large cache can significantly
       increase the performance of a ZEO system.  For applications that
       have a large database, the default size may be too small.
 
@@ -93,3 +95,8 @@ ClientStorage
 
       Each storage served by a ZEO server can be configured as either
       read-write or read-only.
+
+    read_only_fallback -- A flag indicating whether a read-only
+      remote storage should be acceptable as a fallback when no
+      writable storages are available.  Defaults to false.  At most
+      one of read_only and read_only_fallback should be true.

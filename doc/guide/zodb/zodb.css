@@ -39,6 +39,7 @@ body                    { color: #000000;
                           background-color: #ffffff; }
 
 a:active                { color: #ff0000; }
+a[href]:hover           { background-color: #bbeeff; }
 a:visited               { color: #551a8b; }
 a:link                  { color: #0000bb; }
 
@@ -60,18 +61,30 @@ var                     { font-family: times, serif;
                           font-family: avantgarde, sans-serif;
                           font-size: 110%; }
 
+div.warning             { background-color: #fffaf0;
+                          border: thin solid black;
+                          padding: 0.5em;
+                          margin-left: 2em;
+                          margin-right: 2em; }
+
+div.warning .label      { font-size: 110%;
+                          margin-right: 0.5em; }
+
 .release-info           { font-style: italic; }
 
 .titlegraphic           { vertical-align: top; }
 
-.verbatim               { color: #00008b;
+.verbatim pre           { color: #00008b;
                           font-family: lucida typewriter, lucidatypewriter,
-                                       monospace; }
+                                       monospace;
+                          font-size: 90%; }
+.verbatim               { margin-left: 2em; }
 
 .grammar                { background-color: #99ccff;
                           margin-right: 0.5in;
                           padding: 0.05in; }
 .productions            { background-color: #bbeeff; }
+.productions a:hover    { background-color: #99ccff; }
 .productions table      { vertical-align: baseline; }
 .grammar-footer         { padding: 0.05in;
                           font-size: 85%; }
