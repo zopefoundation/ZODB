@@ -15,8 +15,9 @@ We'll fine-tune this for the next release.
 BTrees
 ------
 
-Fixed bug indexing BTreeItems objects with negative indexes. This caused
-reverse iteration to return each item twice.
+Fixed bug indexing BTreeItems objects with negative indexes.  This
+caused reverse iteration to return each item twice.  Thanks to Casey
+Duncan for the fix.
 
 ZODB
 ----
