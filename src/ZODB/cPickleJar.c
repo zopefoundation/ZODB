@@ -3,57 +3,14 @@
 
        Copyright 1997 Digital Creations, L.L.C., 910 Princess Anne
        Street, Suite 300, Fredericksburg, Virginia 22401 U.S.A. All
-       rights reserved.  Copyright in this software is owned by DCLC,
-       unless otherwise indicated. Permission to use, copy and
-       distribute this software is hereby granted, provided that the
-       above copyright notice appear in all copies and that both that
-       copyright notice and this permission notice appear. Note that
-       any product, process or technology described in this software
-       may be the subject of other Intellectual Property rights
-       reserved by Digital Creations, L.C. and are not licensed
-       hereunder.
+       rights reserved. 
 
-     Trademarks 
-
-       Digital Creations & DCLC, are trademarks of Digital Creations, L.C..
-       All other trademarks are owned by their respective companies. 
-
-     No Warranty 
-
-       The software is provided "as is" without warranty of any kind,
-       either express or implied, including, but not limited to, the
-       implied warranties of merchantability, fitness for a particular
-       purpose, or non-infringement. This software could include
-       technical inaccuracies or typographical errors. Changes are
-       periodically made to the software; these changes will be
-       incorporated in new editions of the software. DCLC may make
-       improvements and/or changes in this software at any time
-       without notice.
-
-     Limitation Of Liability 
-
-       In no event will DCLC be liable for direct, indirect, special,
-       incidental, economic, cover, or consequential damages arising
-       out of the use of or inability to use this software even if
-       advised of the possibility of such damages. Some states do not
-       allow the exclusion or limitation of implied warranties or
-       limitation of liability for incidental or consequential
-       damages, so the above limitation or exclusion may not apply to
-       you.
-
-    If you have questions regarding this software,
-    contact:
-   
-      Digital Creations L.L.C.  
-      info@digicool.com
-      (540) 371-6909
-
-******************************************************************/
+ ***********************************************************/
 
 
 static char cPickleJar_module_documentation[] = 
 ""
-"\n$Id: cPickleJar.c,v 1.2 1997/09/08 18:59:55 jim Exp $"
+"\n$Id: cPickleJar.c,v 1.3 1997/12/15 16:36:15 jim Exp $"
 ;
 
 #include "ExtensionClass.h"
@@ -73,7 +30,7 @@ static void PyVar_Assign(PyObject **v, PyObject *e) { Py_XDECREF(*v); *v=e;}
 static PyObject *Pickler, *StringIO, *arg0, *arg1,
   *py__p_oid, *py__p_jar, *py_new_oid, *py__p_changed, *py_persistent_id,
   *py_db, *py_store, *py_seek, *py_getvalue, *py_cache, *py_dump,
-  *py_dump_special, *py_clear_memo, *py___class__, *py___getinitargs__,
+  *py_clear_memo, *py___class__, *py___getinitargs__,
   *py___getstate__, *py___changed__, *py_info;
 
 /* Declarations for objects of type pid */
@@ -121,7 +78,7 @@ pid_dealloc(pidobject *self)
 static PyObject *
 pid_plan(pidobject *self, PyObject *object)
 {
-  PyObject *oid=0, *jar=0;
+  PyObject *oid=0, *jar=0, *cls=0;
 
   UNLESS(oid=PyObject_GetAttr(object, py__p_oid)) goto not_persistent;
   if(oid != Py_None) UNLESS(jar=PyObject_GetAttr(object, py__p_jar)) goto err;
@@ -141,10 +98,20 @@ pid_plan(pidobject *self, PyObject *object)
     }
   Py_XDECREF(jar);
 
+  UNLESS(cls=PyObject_GetAttr(object, py___class__)) goto err;
+  UNLESS(jar=PyObject_GetAttr(cls, py___getinitargs__))
+    {
+      PyErr_Clear();
+      UNLESS_ASSIGN(oid, Py_BuildValue("OO", oid, cls)) goto err;
+    }
+  else Py_DECREF(jar);
+  Py_DECREF(cls);
+
   return oid;
 
 err:
   Py_XDECREF(jar);
+  Py_XDECREF(cls);
   Py_DECREF(oid);
   return NULL;
 
@@ -161,7 +128,6 @@ pid_call(pidobject *self, PyObject *args, PyObject *kw)
 
   UNLESS(PyArg_ParseTuple(args,"O",&object)) return NULL;
   object=pid_plan(self,object);
-  if(object && object!=Py_None) ASSIGN(object, PyObject_Repr(object));
   return object;
 }  
 
@@ -204,7 +170,7 @@ static PyObject *
 pj_store(PyObject *self, PyObject *args)
 {
   PyObject *object, *T=0, *stack, *state=0, *topoid=0, *file=0, *pickler=0,
-    *store=0, *seek=0, *cache=0, *dump=0, *dump_special=0, *clear_memo=0,
+    *store=0, *seek=0, *cache=0, *dump=0, *clear_memo=0,
     *o=0, *oid=0, *r=0;
   int l;
 
@@ -236,7 +202,6 @@ pj_store(PyObject *self, PyObject *args)
   UNLESS_ASSIGN(file, PyObject_GetAttr(file, py_getvalue)) goto err;
   UNLESS(cache=PyObject_GetAttr(self,py_cache)) goto err;
   UNLESS(dump=PyObject_GetAttr(pickler, py_dump)) goto err;
-  UNLESS(dump_special=PyObject_GetAttr(pickler, py_dump_special)) goto err;
   UNLESS(clear_memo=PyObject_GetAttr(pickler, py_clear_memo)) goto err;
   
   while(l)
@@ -247,7 +212,7 @@ pj_store(PyObject *self, PyObject *args)
       UNLESS_ASSIGN(oid,PyObject_GetAttr(o,py__p_oid)) goto err;
 
       UNLESS_ASSIGN(state,PyObject_GetAttr(o,py___class__)) goto err;
-      ASSIGN(args,PyObject_GetAttr(o,py___getinitargs__));
+      ASSIGN(args,PyObject_GetAttr(state,py___getinitargs__));
       if(args)
 	{
 	  UNLESS_ASSIGN(args, PyObject_CallObject(args, NULL)) goto err;
@@ -255,12 +220,14 @@ pj_store(PyObject *self, PyObject *args)
       else
 	{
 	  PyErr_Clear();
-	  UNLESS(args=PyTuple_New(0)) goto err;
+	  args=Py_None;
+	  Py_INCREF(args);
 	}
       UNLESS_ASSIGN(args, Py_BuildValue("OO",state,args)) goto err;
+      UNLESS_ASSIGN(args, Py_BuildValue("(O)",args)) goto err;
       if(call_sub(seek,arg0) < 0) goto err;
       if(call_sub(clear_memo,NULL) < 0) goto err;
-      UNLESS_ASSIGN(state, PyObject_CallObject(dump_special, args));
+      UNLESS_ASSIGN(state, PyObject_CallObject(dump, args));
 
       UNLESS_ASSIGN(state, PyObject_GetAttr(o, py___getstate__)) goto err;
       UNLESS_ASSIGN(state, PyObject_CallObject(state, NULL)) goto err;
@@ -292,7 +259,6 @@ err:
   Py_XDECREF(seek);
   Py_XDECREF(cache);
   Py_XDECREF(dump);
-  Py_XDECREF(dump_special);
   Py_XDECREF(clear_memo);
   Py_XDECREF(o);
   Py_XDECREF(oid);
@@ -322,7 +288,7 @@ void
 initcPickleJar()
 {
   PyObject *m, *d;
-  char *rev="$Revision: 1.2 $";
+  char *rev="$Revision: 1.3 $";
   PURE_MIXIN_CLASS(PickleJar,"",PickleJar_methods);
 
   UNLESS(Pickler=PyImport_ImportModule("cPickle")) return;
@@ -342,7 +308,6 @@ initcPickleJar()
   INIT_STRING(getvalue);
   INIT_STRING(cache);
   INIT_STRING(dump);
-  INIT_STRING(dump_special);
   INIT_STRING(clear_memo);
   INIT_STRING(__class__);
   INIT_STRING(__getinitargs__);
@@ -376,6 +341,9 @@ initcPickleJar()
 Revision Log:
 
   $Log: cPickleJar.c,v $
+  Revision 1.3  1997/12/15 16:36:15  jim
+  Updated to use new pickling protocol.
+
   Revision 1.2  1997/09/08 18:59:55  jim
   Added binary output flag. Waaaaaaa!
 
