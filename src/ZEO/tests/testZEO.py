@@ -220,6 +220,7 @@ class MappingStorageTests(FileStorageTests):
     def checkPackEmptyStorage(self): pass
     def checkPackAllRevisions(self): pass
     def checkPackVersionsInPast(self): pass
+    def checkPackVersionReachable(self): pass
     def checkNotUndoable(self): pass
     def checkNewSerialOnCommitVersionToVersion(self): pass
     def checkModifyAfterAbortVersion(self): pass
