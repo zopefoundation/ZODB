@@ -144,17 +144,19 @@ file 0 and file 1.
 
 """
 
-__version__ = "$Revision: 1.18 $"[11:-2]
+__version__ = "$Revision: 1.19 $"[11:-2]
 
 import os, tempfile
 from struct import pack, unpack
 from thread import allocate_lock
+
+import sys
 import zLOG
 
-magic='ZEC0'
-
-def LOG(msg, level=zLOG.BLATHER):
+def log(msg, level=zLOG.INFO):
     zLOG.LOG("ZEC", level, msg)
+
+magic='ZEC0'
 
 class ClientCache:
 
@@ -211,16 +213,14 @@ class ClientCache:
             f[0].write(magic)
             current=0
 
+        log("cache opened.  current = %s" % current)
+
         self._limit=size/2
         self._current=current
 
-    def close(self):
-        try:
-            self._f[self._current].close()
-        except (os.error, ValueError):
-            pass
-
     def open(self):
+         # XXX open is overloaded to perform two tasks for
+         # optimization reasons  
         self._acquire()
         try:
             self._index=index={}
@@ -234,6 +234,19 @@ class ClientCache:
 
             return serial.items()
         finally: self._release()
+
+    def close(self):
+        for f in self._f:
+            if f is not None:
+                f.close()
+
+    def verify(self, verifyFunc):
+        """Call the verifyFunc on every object in the cache.
+
+        verifyFunc(oid, serialno, version)
+        """
+        for oid, (s, vs) in self.open():
+            verifyFunc(oid, s, vs)
 
     def invalidate(self, oid, version):
         self._acquire()
@@ -373,8 +386,6 @@ class ClientCache:
                     self._f[current]=open(self._p[current],'w+b')
                 else:
                     # Temporary cache file:
-                    if self._f[current] is not None:
-                        self._f[current].close()
                     self._f[current] = tempfile.TemporaryFile(suffix='.zec')
                 self._f[current].write(magic)
                 self._pos=pos=4
@@ -383,55 +394,57 @@ class ClientCache:
 
     def store(self, oid, p, s, version, pv, sv):
         self._acquire()
-        try: self._store(oid, p, s, version, pv, sv)
-        finally: self._release()
+        try:
+            self._store(oid, p, s, version, pv, sv)
+        finally:
+            self._release()
 
     def _store(self, oid, p, s, version, pv, sv):
         if not s:
-            p=''
-            s='\0\0\0\0\0\0\0\0'
-        tlen=31+len(p)
+            p = ''
+            s = '\0\0\0\0\0\0\0\0'
+        tlen = 31 + len(p)
         if version:
-            tlen=tlen+len(version)+12+len(pv)
-            vlen=len(version)
+            tlen = tlen + len(version) + 12 + len(pv)
+            vlen = len(version)
         else:
-            vlen=0
+            vlen = 0
 
-        pos=self._pos
-        current=self._current
-        f=self._f[current]
-        f.seek(pos)
-        stlen=pack(">I",tlen)
-        write=f.write
-        write(oid+'v'+stlen+pack(">HI", vlen, len(p))+s)
-        if p: write(p)
+        stlen = pack(">I", tlen)
+        # accumulate various data to write into a list
+        l = [oid, 'v', stlen, pack(">HI", vlen, len(p)), s]
+        if p:
+            l.append(p)
         if version:
-            write(version)
-            write(pack(">I", len(pv)))
-            write(pv)
-            write(sv)
+            l.extend([version, 
+                      pack(">I", len(pv)),
+                      pv, sv])
+        l.append(stlen)
+        f = self._f[self._current]
+        f.seek(self._pos)
+        f.write("".join(l))
 
-        write(stlen)
+        if self._current:
+            self._index[oid] = - self._pos
+        else:
+            self._index[oid] = self._pos
 
-        if current: self._index[oid]=-pos
-        else: self._index[oid]=pos
-
-        self._pos=pos+tlen
+        self._pos += tlen
 
 def read_index(index, serial, f, current):
-    LOG("read_index(%s)" % f.name)
     seek=f.seek
     read=f.read
     pos=4
+    seek(0,2)
+    size=f.tell()
 
     while 1:
-        seek(pos)
+        f.seek(pos)
         h=read(27)
-
+        
         if len(h)==27 and h[8] in 'vni':
             tlen, vlen, dlen = unpack(">iHi", h[9:19])
-        else:
-            break
+        else: tlen=-1
         if tlen <= 0 or vlen < 0 or dlen < 0 or vlen+dlen > tlen:
             break
 
@@ -466,15 +479,3 @@ def read_index(index, serial, f, current):
     except: pass
     
     return pos
-
-def main(files):
-    for file in files:
-        print file
-        index = {}
-        serial = {}
-        read_index(index, serial, open(file), 0)
-        print index.keys()
-
-if __name__ == "__main__":
-    import sys
-    main(sys.argv[1:])
