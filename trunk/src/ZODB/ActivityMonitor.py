@@ -13,8 +13,8 @@
 ##############################################################################
 """ZODB transfer activity monitoring
 
-$Id: ActivityMonitor.py,v 1.3 2002/08/14 22:07:09 mj Exp $"""
-__version__='$Revision: 1.3 $'[11:-2]
+$Id: ActivityMonitor.py,v 1.4 2002/10/09 15:11:25 shane Exp $"""
+__version__='$Revision: 1.4 $'[11:-2]
 
 import time
 
@@ -72,12 +72,14 @@ class ActivityMonitor:
                 'end': start + (end - start) * (n + 1) / divisions,
                 'loads': 0,
                 'stores': 0,
+                'connections': 0,
                 })
 
         div = res[0]
         div_start = div['start']
         div_end = div['end']
         div_index = 0
+        connections = 0
         total_loads = 0
         total_stores = 0
         for t, loads, stores in self.log:
@@ -90,17 +92,21 @@ class ActivityMonitor:
             while t > div_end:
                 div['loads'] = total_loads
                 div['stores'] = total_stores
+                div['connections'] = connections
                 total_loads = 0
                 total_stores = 0
+                connections = 0
                 div_index = div_index + 1
                 if div_index < divisions:
                     div = res[div_index]
                     div_start = div['start']
                     div_end = div['end']
+            connections = connections + 1
             total_loads = total_loads + loads
             total_stores = total_stores + stores
 
         div['stores'] = div['stores'] + total_stores
         div['loads'] = div['loads'] + total_loads
+        div['connections'] = div['connections'] + connections
 
         return res
