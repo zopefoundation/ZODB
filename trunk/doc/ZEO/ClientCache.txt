@@ -35,16 +35,14 @@ ZEO Client Cache
     transactions commit locally, or as data are loaded from the
     server.
 
+  - When a cache hit is found in the old cache file, it is copied to
+    the current cache file.
+
   - When the current cache file size exceeds one half the cache size, the
     first cache file is recreated and designated the "current" cache
     file.  The second cache file becomes the "old" cache file.
 
   and so on.
-
-  As of ZEO 2.0 beta 2, the above algorithm is augmented as follows.
-  When a cache load finds a hit in the "old" cache file, the data is
-  copied to the "current" cache file.  This appears to improve the hit
-  rate.
 
   Persistent cache files are created in the directory named in the
   'var' argument to the ClientStorage (see ClientStorage.txt) or in
@@ -66,3 +64,4 @@ ZEO Client Cache
 
   For example, the second cache file for storage 'spam' and client 8881
   would be named 'cspam-8881-1.zec'.
+
