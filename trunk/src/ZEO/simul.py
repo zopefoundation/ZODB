@@ -110,7 +110,7 @@ def main():
         ts, code = struct_unpack(">ii", r)
         if ts == 0:
             # Must be a misaligned record caused by a crash
-            print "Skipping 8 bytes at offset", offset-8
+            ##print "Skipping 8 bytes at offset", offset-8
             continue
         r = f_read(16)
         if len(r) < 16:
