@@ -416,14 +416,8 @@ class FileStoragePacker(FileStorageFormatter):
     # progress after it).
     def __init__(self, path, stop, la, lr, cla, clr, current_size):
         self._name = path
-        # Caution:  It's critical that the file be opened in unbuffered mode.
-        # The code used to leave off the trailing 0 argument, and then on
-        # every platform except native Windows it was observed that we could
-        # read stale data from the tail end of the file -- keep in mind that
-        # transactions can still be in progress throughout much of packing,
-        # and are written to the same physical file but via a distinct Python
-        # file object.
-        self._file = open(path, "rb", 0)
+        self._file = open(path, "rb")
+        self._path = path
         self._stop = stop
         self.locked = 0
         self.file_end = current_size
@@ -493,6 +487,19 @@ class FileStoragePacker(FileStorageFormatter):
         self.locked = 1
         self._lock_acquire()
         try:
+            # Re-open the file in unbuffered mode.
+
+            # The main thread may write new transactions to the file,
+            # which creates the possibility that we will read a status
+            # 'c' transaction into the pack thread's stdio buffer even
+            # though we're acquiring the commit lock.  Transactions
+            # can still be in progress throughout much of packing, and
+            # are written to the same physical file but via a distinct
+            # Python file object.  The code used to leave off the
+            # trailing 0 argument, and then on every platform except
+            # native Windows it was observed that we could read stale
+            # data from the tail end of the file.
+            self._file = open(self._path, "rb", 0)
             self._file.seek(0, 2)
             self.file_end = self._file.tell()
         finally:
