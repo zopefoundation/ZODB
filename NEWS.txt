@@ -1,3 +1,22 @@
+What's new in ZODB3 3.3
+=======================
+Release date: DD-MMM-2004
+
+Storages
+--------
+
+Collector #1327 FileStorage init confused by time travel.
+If the system clock "went backwards" a long time between the times a
+FileStorage was closed and reopened, new transaction ids could be
+smaller than transaction ids already in the storage, violating a
+key invariant.  Now transaction ids are guaranteed to be increasing
+even when this happens.  If time appears to have run backwards at all
+when a FileStorage is opened, a new message saying so is logged at
+warning level; if time appears to have run backwards at least 30
+minutes, the message is logged at critical level (and you should
+investigate to find and repair the true cause).
+
+
 What's new in ZODB3 3.3 beta 1
 ==============================
 Release date: 07-Jun-2004

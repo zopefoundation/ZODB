@@ -191,10 +191,12 @@ class FileStorage(BaseStorage.BaseStorage,
         t = time.time()
         t = TimeStamp(*time.gmtime(t)[:5] + (t % 60,))
         if tid > t:
-            logger.warning("%s Database records in the future", file_name);
-            if tid.timeTime() - t.timeTime() > 86400*30:
-                # a month in the future? This is bogus, use current time
-                self._ts = t
+            seconds = tid.timeTime() - t.timeTime()
+            complainer = logger.warning
+            if seconds > 30 * 60:   # 30 minutes -- way screwed up
+                complainer = logger.critical
+            complainer("%s Database records %d seconds in the future",
+                       file_name, seconds)
 
         self._quota = quota
 
