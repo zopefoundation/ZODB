@@ -13,7 +13,7 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.80 2002/12/03 18:36:29 jeremy Exp $"""
+$Id: Connection.py,v 1.81 2003/01/14 15:20:21 shane Exp $"""
 
 from cPickleCache import PickleCache
 from POSException import ConflictError, ReadConflictError
@@ -217,7 +217,8 @@ class Connection(ExportImport.ExportImport):
         self._code_timestamp = global_code_timestamp
         self._invalidated.clear()
         orig_cache = self._cache
-        self._cache = PickleCache(self, orig_cache.cache_size)
+        self._cache = cache = PickleCache(self, orig_cache.cache_size)
+        self._incrgc = self.cacheGC = cache.incrgc
 
     def abort(self, object, transaction):
         """Abort the object in the transaction.

@@ -117,6 +117,21 @@ class ZODBTests(unittest.TestCase, ExportImportTests):
         self._db.abortVersion("version")
         get_transaction().commit()
 
+    def checkResetCache(self):
+        # The cache size after a reset should be 0 and the GC attributes
+        # ought to be linked to it rather than the old cache.
+        conn = self._db.open()
+        try:
+            conn.root()
+            self.assert_(len(conn._cache) > 0)  # Precondition
+            conn._resetCache()
+            self.assertEqual(len(conn._cache), 0)
+            self.assert_(conn._incrgc == conn._cache.incrgc)
+            self.assert_(conn.cacheGC == conn._cache.incrgc)
+        finally:
+            conn.close()
+        
+
 def test_suite():
     return unittest.makeSuite(ZODBTests, 'check')
 
