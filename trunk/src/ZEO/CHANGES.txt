@@ -1,5 +1,18 @@
 Zope Enterprise Objects (ZEO) Revision History
 
+  ZEO 1.0.0 beta 1
+
+    Bugs Fixed
+
+      - A possible (but unobserved) race condition that could
+        lead to ZEO cache corruption was corrected.
+
+      - ZEO clients could fail to start if they needed data that
+        wasn't in their cache and if they couldn't talk to a ZEO
+        server right away. For now, on startup, the client storage
+        will wait to connect to a storage before returning from
+        initialization. 
+
   ZEO 0.4.1
 
     Bugs fixed
