@@ -72,7 +72,8 @@ class StressTask:
         self.step = step
         self.sleep = sleep
         self.added_keys = []
-        self.cn = self.db.open(txn_mgr=transaction.TransactionManager())
+        self.tm = transaction.TransactionManager()
+        self.cn = self.db.open(txn_mgr=self.tm)
         self.cn.sync()
 
     def doStep(self):
@@ -83,11 +84,11 @@ class StressTask:
     def commit(self):
         cn = self.cn
         key = self.startnum
-        cn.getTransaction().note("add key %s" % key)
+        self.tm.get().note("add key %s" % key)
         try:
-            cn.getTransaction().commit()
+            self.tm.get().commit()
         except ConflictError, msg:
-            cn.getTransaction().abort()
+            self.tm.get().abort()
             cn.sync()
         else:
             if self.sleep:
@@ -96,7 +97,7 @@ class StressTask:
         self.startnum += self.step
 
     def cleanup(self):
-        self.cn.getTransaction().abort()
+        self.tm.get().abort()
         self.cn.close()
 
 def _runTasks(rounds, *tasks):
