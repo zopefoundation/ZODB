@@ -13,7 +13,7 @@
 ##############################################################################
 """Network ZODB storage client
 
-$Id: ClientStorage.py,v 1.62 2002/09/19 03:51:22 gvanrossum Exp $
+$Id: ClientStorage.py,v 1.63 2002/09/19 19:15:48 gvanrossum Exp $
 """
 
 # XXX TO DO
@@ -337,7 +337,7 @@ class ClientStorage:
         finally:
             self._oid_lock.release()
 
-    def pack(self, t=None, rf=None, wait=0, days=0):
+    def pack(self, t=None, rf=None, wait=1, days=0):
         # XXX Is it okay that read-only connections allow pack()?
         # rf argument ignored; server will provide it's own implementation
         if t is None:
