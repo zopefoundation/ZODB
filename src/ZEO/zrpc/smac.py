@@ -85,11 +85,14 @@
 """Sized message async connections
 """
 
-__version__ = "$Revision: 1.11 $"[11:-2]
+__version__ = "$Revision: 1.12 $"[11:-2]
 
-import asyncore, string, struct, zLOG, sys, Acquisition
+import asyncore, struct
+from Exceptions import Disconnected
+from zLOG import LOG, TRACE, ERROR, INFO, BLATHER
+from types import StringType
+
 import socket, errno
-from zLOG import LOG, TRACE, ERROR, INFO
 
 # Use the dictionary to make sure we get the minimum number of errno
 # entries.   We expect that EWOULDBLOCK == EAGAIN on most systems --
@@ -109,81 +112,101 @@ tmp_dict = {errno.EAGAIN: 0,
 expected_socket_write_errors = tuple(tmp_dict.keys())
 del tmp_dict
 
-class SizedMessageAsyncConnection(Acquisition.Explicit, asyncore.dispatcher):
+class SizedMessageAsyncConnection(asyncore.dispatcher):
+    __super_init = asyncore.dispatcher.__init__
+    __super_close = asyncore.dispatcher.close
 
-    __append=None # Marker indicating that we're closed
+    __closed = 1 # Marker indicating that we're closed
 
-    socket=None # to outwit Sam's getattr
+    socket = None # to outwit Sam's getattr
+
+    READ_SIZE = 8096
 
     def __init__(self, sock, addr, map=None, debug=None):
-        SizedMessageAsyncConnection.inheritedAttribute(
-            '__init__')(self, sock, map)
-        self.addr=addr
+        self.__super_init(sock, map)
+        self.addr = addr
         if debug is not None:
-            self._debug=debug
+            self._debug = debug
         elif not hasattr(self, '_debug'):
-            self._debug=__debug__ and 'smac'
-        self.__state=None
-        self.__inp=None
-        self.__inpl=0
-        self.__l=4
-        self.__output=output=[]
-        self.__append=output.append
-        self.__pop=output.pop
+            self._debug = __debug__ and 'smac'
+        self.__state = None
+        self.__inp = None # None, a single String, or a list
+        self.__input_len = 0
+        self.__msg_size = 4
+        self.__output = []
+        self.__closed = None
 
-    def handle_read(self,
-                    join=string.join, StringType=type(''), _type=type,
-                    _None=None):
+    # XXX avoid expensive getattr calls?
+    def __nonzero__(self):
+        return 1
 
+    def handle_read(self):
+        # Use a single __inp buffer and integer indexes to make this
+        # fast.
         try:
             d=self.recv(8096)
         except socket.error, err:
             if err[0] in expected_socket_read_errors:
                 return
             raise
-        if not d: return
+        if not d:
+            return
 
-        inp=self.__inp
-        if inp is _None:
-            inp=d
-        elif _type(inp) is StringType:
-            inp=[inp,d]
+        input_len = self.__input_len + len(d)
+        msg_size = self.__msg_size
+        state = self.__state
+
+        inp = self.__inp
+        if msg_size > input_len:
+            if inp is None:
+                self.__inp = d
+            elif type(self.__inp) is StringType:
+                self.__inp = [self.__inp, d]
+            else:
+                self.__inp.append(d)
+            self.__input_len = input_len
+            return # keep waiting for more input
+
+        # load all previous input and d into single string inp
+        if isinstance(inp, StringType):
+            inp = inp + d
+        elif inp is None:
+            inp = d
         else:
             inp.append(d)
+            inp = "".join(inp)
 
-        inpl=self.__inpl+len(d)
-        l=self.__l
-            
-        while 1:
-
-            if l <= inpl:
-                # Woo hoo, we have enough data
-                if _type(inp) is not StringType: inp=join(inp,'')
-                d=inp[:l]
-                inp=inp[l:]
-                inpl=inpl-l                
-                if self.__state is _None:
-                    # waiting for message
-                    l=struct.unpack(">i",d)[0]
-                    self.__state=1
-                else:
-                    l=4
-                    self.__state=_None
-                    self.message_input(d)
+        offset = 0
+        while (offset + msg_size) <= input_len:
+            msg = inp[offset:offset + msg_size]
+            offset = offset + msg_size
+            if state is None:
+                # waiting for message
+                msg_size = struct.unpack(">i", msg)[0]
+                state = 1
             else:
-                break # not enough data
-                
-        self.__l=l
-        self.__inp=inp
-        self.__inpl=inpl
+                msg_size = 4
+                state = None
+                self.message_input(msg)
 
-    def readable(self): return 1
-    def writable(self): return not not self.__output
+        self.__state = state
+        self.__msg_size = msg_size
+        self.__inp = inp[offset:]
+        self.__input_len = input_len - offset
+
+    def readable(self):
+        return 1
+    
+    def writable(self):
+        if len(self.__output) == 0:
+            return 0
+        else:
+            return 1
 
     def handle_write(self):
-        output=self.__output
+        output = self.__output
         while output:
-            v=output[0]
+            v = output[0]
             try:
                 n=self.send(v)
             except socket.error, err:
@@ -191,42 +214,33 @@ class SizedMessageAsyncConnection(Acquisition.Explicit, asyncore.dispatcher):
                     break # we couldn't write anything
                 raise
             if n < len(v):
-                output[0]=v[n:]
+                output[0] = v[n:]
                 break # we can't write any more
             else:
                 del output[0]
-                #break # waaa
-
 
     def handle_close(self):
         self.close()
 
-    def message_output(self, message,
-                       pack=struct.pack, len=len):
-        if self._debug:
-            if len(message) > 40: m=message[:40]+' ...'
-            else: m=message
-            LOG(self._debug, TRACE, 'message_output %s' % `m`)
+    def message_output(self, message):
+        if __debug__:
+            if self._debug:
+                if len(message) > 40:
+                    m = message[:40]+' ...'
+                else:
+                    m = message
+                LOG(self._debug, TRACE, 'message_output %s' % `m`)
 
-        append=self.__append
-        if append is None:
-            raise Disconnected("This action is temporarily unavailable.<p>")
-        
-        append(pack(">i",len(message))+message)
-
-    def log_info(self, message, type='info'):
-        if type=='error': type=ERROR
-        else: type=INFO
-        LOG('ZEO', type, message)
-
-    log=log_info
+        if self.__closed is not None:
+            raise Disconnected, (
+                "This action is temporarily unavailable."
+                "<p>"
+                )
+        # do two separate appends to avoid copying the message string
+        self.__output.append(struct.pack(">i", len(message)))
+        self.__output.append(message)
 
     def close(self):
-        if self.__append is not None:
-            self.__append=None
-            SizedMessageAsyncConnection.inheritedAttribute('close')(self)
-
-class Disconnected(Exception):
-    """The client has become disconnected from the server
-    """
-    
+        if self.__closed is None:
+            self.__closed = 1
+            self.__super_close()
