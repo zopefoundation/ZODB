@@ -11,10 +11,9 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
-__version__='$Revision: 1.20 $'[11:-2]
+__version__='$Revision: 1.21 $'[11:-2]
 
 import os, sys, time
-import zLOG
 
 try:
     import textwrap
@@ -54,39 +53,7 @@ class stupid_log_write:
         self.initialize()
 
     def initialize(self):
-        path, severity = self.get_environment_info()
-        self.initialize_log(path, severity)
-
-    def initialize_with_config(self, config):
-        """Initialize logging with information from ZConfig."""
-        path, severity = self.get_environment_info()
-
-        if config is not None:
-            loginfo = config.getSection("log")
-            if loginfo is not None:
-                if path is None:
-                    path = loginfo.get("path")
-                if severity is None:
-                    severity = loginfo.get("level")
-
-        self.initialize_log(path, severity)
-
-    def initialize_log(self, path, severity):
         global _log_level
-
-        if path is None:
-            _set_log_dest(None)
-        elif path:
-            _set_log_dest(open(path, 'a'))
-        else:
-            _set_log_dest(sys.stderr)
-
-        if severity:
-            _log_level = zLOG.severity(severity)
-        else:
-            _log_level = 0 # INFO
-
-    def get_environment_info(self):
         eget = os.environ.get
 
         # EVENT_LOG_FILE is the preferred envvar, but we accept
@@ -94,14 +61,21 @@ class stupid_log_write:
         path = eget('EVENT_LOG_FILE')
         if path is None:
             path = eget('STUPID_LOG_FILE')
+        if path is None:
+            _set_log_dest(None)
+        else:
+            if path:
+                _set_log_dest(open(path, 'a'))
+            else:
+                _set_log_dest(sys.stderr)
 
         # EVENT_LOG_SEVERITY is the preferred envvar, but we accept
         # STUPID_LOG_SEVERITY also
-        severity = eget('EVENT_LOG_SEVERITY')
-        if severity is None:
-            severity = eget('STUPID_LOG_SEVERITY')
-
-        return path, severity
+        severity = eget('EVENT_LOG_SEVERITY') or eget('STUPID_LOG_SEVERITY')
+        if severity:
+            _log_level = int(severity)
+        else:
+            _log_level = 0 # INFO
 
     def log(self, subsystem, severity, summary, detail, error):
         if _log_dest is None or severity < _log_level:
@@ -138,4 +112,3 @@ class stupid_log_write:
 _log = stupid_log_write()
 log_write = _log.log
 initialize = _log.initialize
-initialize_with_config = _log.initialize_with_config
