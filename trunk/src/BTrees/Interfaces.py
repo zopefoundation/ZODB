@@ -314,9 +314,6 @@ class IIMerge(IMerge):
                   1        if the key is in c2 and c2 is a set
                   c2[key]  if the key is in c2 and c2 is a mapping
 
-        XXX All of the above is wrong if either weight is negative.  I think
-        XXX that's a bug in the implementation and will fix it.
-
         Note that c1 and c2 must be collections.
 
         """
@@ -347,9 +344,6 @@ class IIMerge(IMerge):
 
             v2 is 1        if c2 is a set
                   c2[key]  if c2 is a mapping
-
-        XXX All of the above is wrong if either weight is negative.  I think
-        XXX that's a bug in the implementation and will fix it.
 
         Note that c1 and c2 must be collections.
         """
