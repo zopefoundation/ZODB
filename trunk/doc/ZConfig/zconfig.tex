@@ -242,6 +242,38 @@ key $name
 XXX to be written
 
 
+\section{Libraries of Schema Components \label{schema-library}}
+
+XXX need more explanation
+
+\module{ZConfig} supports a library of extensible schema components
+that can be provided by disparate components, and allows them to be
+knit together into concrete schema for applications.  Neither
+components nor extensions can add additional keys or sections in the
+application schema.
+
+A schema \dfn{component} is allowed to define new section groups and
+section types.  It is not allowed to extend application types or
+include additional types in application-provided section groups.
+Components are identified using a dotted-name, similar to a Python
+module name.  For example, one component may be \code{zodb.storage}.
+There is no relationship between the schema component namespace and
+the Python module namespace.
+
+A schema component \dfn{extension} is allowed to define new section
+types, extend types provided by the component it extends, and include
+new concrete types in section groups provided by the component.
+
+A library of schema components is stored as a directory tree, where
+each component is located in a directory within the tree.  That
+directory must contain a file named \file{component.xml} which defines
+the types provided by that component; it must have a \code{component}
+element as the document element.  Extensions to a component are stored
+in immediate subdirectories; a file \file{extension.xml} provides the
+extension types.  Extensions must have an \code{extension} element as
+the document element.
+
+
 \section{Standard \module{ZConfig} Datatypes\label{standard-datatypes}}
 
 There are a number of data types which can be identified using the
