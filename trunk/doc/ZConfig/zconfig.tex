@@ -434,6 +434,31 @@ The following exceptions are defined by this package:
   ambiguity.
 \end{excdesc}
 
+\begin{excdesc}{DataConversionError}
+  Raised when a data type conversion fails with
+  \exception{ValueError}.  This exception is a subclass of both
+  \exception{ConfigurationError} and \exception{ValueError}.  The
+  \function{str()} of the exception provides the explanation from the
+  original \exception{ValueError}, and the line number and URL of the
+  value which provoked the error.  The following additional attributes
+  are provided:
+
+  \begin{tableii}{l|l}{member}{Attribute}{Value}
+    \lineii{colno}
+           {column number at which the value starts, or \code{None}}
+    \lineii{exception}
+           {the original \exception{ValueError} instance}
+    \lineii{lineno}
+           {line number on which the value starts}
+    \lineii{message}
+           {\function{str()} returned by the original \exception{ValueError}}
+    \lineii{value}
+           {original value passed to the conversion function}
+    \lineii{url}
+           {URL of the resource providing the value text}
+  \end{tableii}
+\end{excdesc}
+
 \begin{excdesc}{SchemaError}
   Raised when a schema contains an error.  This exception type
   provides the attributes \member{url}, \member{lineno}, and
