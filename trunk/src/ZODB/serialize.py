@@ -252,7 +252,6 @@ class BaseObjectWriter:
         if newargs is None:
             meta = klass
         else:
-            print "newargs", repr(newargs)
             meta = klass, newargs()
 
         return self._dump(meta, obj.__getstate__())
