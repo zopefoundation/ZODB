@@ -381,6 +381,60 @@ class PackableStorage(PackableStorageBase):
 
         eq(root['obj'].value, 7)
 
+    def _PackWhileWriting(self, pack_now=0):
+        # A storage should allow some reading and writing during
+        # a pack.  This test attempts to exercise locking code
+        # in the storage to test that it is safe.  It generates
+        # a lot of revisions, so that pack takes a long time.
+
+        db = DB(self._storage)
+        conn = db.open()
+        root = conn.root()
+
+        for i in range(10):
+            root[i] = MinPO(i)
+        get_transaction().commit()
+
+        snooze()
+        packt = time.time()
+
+        for j in range(10):
+            for i in range(10):
+                root[i].value = MinPO(i)
+                get_transaction().commit()
+
+        threads = [ClientThread(db) for i in range(4)]
+        for t in threads:
+            t.start()
+
+        if pack_now:
+            db.pack(time.time())
+        else:
+            db.pack(packt)
+
+        for t in threads:
+            t.join(30)
+        for t in threads:
+            t.join(1)
+            self.assert_(not t.isAlive())
+
+        # Iterate over the storage to make sure it's sane, but not every
+        # storage supports iterators.
+        if not hasattr(self._storage, "iterator"):
+            return
+
+        iter = self._storage.iterator()
+        for txn in iter:
+            for data in txn:
+                pass
+        iter.close()
+
+    def checkPackWhileWriting(self):
+        self._PackWhileWriting(pack_now=0)
+
+    def checkPackNowWhileWriting(self):
+        self._PackWhileWriting(pack_now=1)
+
     def checkPackUndoLog(self):
         self._initroot()
         eq = self.assertEqual
@@ -449,47 +503,6 @@ class PackableStorage(PackableStorageBase):
         print '\nafter packing undoLog was'
         for r in self._storage.undoLog(): print r
         # what can we assert about that?
-
-    def checkPackWhileWriting(self):
-        # A storage should allow some reading and writing during
-        # a pack.  This test attempts to exercise locking code
-        # in the storage to test that it is safe.  It generates
-        # a lot of revisions, so that pack takes a long time.
-
-        db = DB(self._storage)
-        conn = db.open()
-        root = conn.root()
-
-        for i in range(10):
-            root[i] = MinPO(i)
-        get_transaction().commit()
-
-        snooze()
-        packt = time.time()
-
-        for j in range(10):
-            for i in range(10):
-                root[i].value = MinPO(i)
-                get_transaction().commit()
-
-        threads = [ClientThread(db) for i in range(4)]
-        for t in threads:
-            t.start()
-        db.pack(packt)
-        for t in threads:
-            t.join(30)
-        for t in threads:
-            t.join(1)
-            self.assert_(not t.isAlive())
-
-        # iterator over the storage to make sure it's sane
-        if not hasattr(self._storage, "iterator"):
-            return
-        iter = self._storage.iterator()
-        for txn in iter:
-            for data in txn:
-                pass
-        iter.close()
 
 class ClientThread(threading.Thread):
 

@@ -38,7 +38,7 @@ class BerkeleyStorageConfig:
     def getConfig(self, path, create, read_only):
         return """\
         <fullstorage 1>
-        name %s
+        envdir %s
         read-only %s
         </fullstorage>""" % (path, read_only and "yes" or "no")
 
@@ -57,10 +57,17 @@ class FileStorageConnectionTests(
 
 class FileStorageReconnectionTests(
     FileStorageConfig,
-    ConnectionTests.ReconnectionTests
+    ConnectionTests.ReconnectionTests,
     ):
     """FileStorage-specific re-connection tests."""
     # Run this at level 1 because MappingStorage can't do reconnection tests
+    level = 1
+
+class FileStorageInvqTests(
+    FileStorageConfig,
+    ConnectionTests.InvqTests
+    ):
+    """FileStorage-specific invalidation queue tests."""
     level = 1
 
 class FileStorageTimeoutTests(
@@ -68,7 +75,6 @@ class FileStorageTimeoutTests(
     ConnectionTests.TimeoutTests
     ):
     level = 2
-
 
 class BDBConnectionTests(
     BerkeleyStorageConfig,
@@ -83,6 +89,13 @@ class BDBReconnectionTests(
     ConnectionTests.ReconnectionTests
     ):
     """Berkeley storage re-connection tests."""
+    level = 2
+
+class BDBInvqTests(
+    BerkeleyStorageConfig,
+    ConnectionTests.InvqTests
+    ):
+    """Berkeley storage invalidation queue tests."""
     level = 2
 
 class BDBTimeoutTests(
@@ -112,22 +125,19 @@ class MappingStorageTimeoutTests(
 
 test_classes = [FileStorageConnectionTests,
                 FileStorageReconnectionTests,
+                FileStorageInvqTests,
                 FileStorageTimeoutTests,
                 MappingStorageConnectionTests,
                 MappingStorageTimeoutTests]
 
 import BDBStorage
 if BDBStorage.is_available:
-    test_classes.append(BDBConnectionTests)
-    test_classes.append(BDBReconnectionTests)
-    test_classes.append(BDBTimeoutTests)
-
+    test_classes += [BDBConnectionTests,
+                     BDBReconnectionTests,
+                     BDBInvqTests,
+                     BDBTimeoutTests]
 
 def test_suite():
-    # shutup warnings about mktemp
-    import warnings
-    warnings.filterwarnings("ignore", "mktemp")
-
     suite = unittest.TestSuite()
     for klass in test_classes:
         sub = unittest.makeSuite(klass, 'check')

@@ -13,24 +13,29 @@
 ##############################################################################
 """Handy standard storage machinery
 
-$Id: BaseStorage.py,v 1.34 2003/06/10 15:46:31 shane Exp $
+$Id: BaseStorage.py,v 1.35 2003/09/15 16:29:15 jeremy Exp $
 """
 import cPickle
-import ThreadLock, bpthread
-import time, UndoLogCompatible
-import POSException
-from TimeStamp import TimeStamp
-z64='\0'*8
+import time
 
-class BaseStorage(UndoLogCompatible.UndoLogCompatible):
+import ThreadLock
+import zLOG
+from ZODB import bpthread
+from ZODB import POSException
+from ZODB.TimeStamp import TimeStamp
+from ZODB.UndoLogCompatible import UndoLogCompatible
+from ZODB.utils import z64
+
+class BaseStorage(UndoLogCompatible):
     _transaction=None # Transaction that is being committed
     _serial=z64       # Transaction serial number
     _tstatus=' '      # Transaction status, used for copying data
     _is_read_only = 0
 
     def __init__(self, name, base=None):
-
-        self.__name__=name
+        self.__name__= name
+        zLOG.LOG(self.__class__.__name__, zLOG.DEBUG,
+                 "create storage %s" % self.__name__)
 
         # Allocate locks:
         l=ThreadLock.allocate_lock()

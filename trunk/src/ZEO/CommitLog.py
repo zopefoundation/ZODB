@@ -31,6 +31,9 @@ class CommitLog:
         self.stores = 0
         self.read = 0
 
+    def size(self):
+        return self.file.tell()
+
     def store(self, oid, serial, data, version):
         self.pickler.dump((oid, serial, data, version))
         self.stores += 1

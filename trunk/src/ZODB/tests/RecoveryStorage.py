@@ -15,7 +15,7 @@
 
 from ZODB.Transaction import Transaction
 from ZODB.tests.IteratorStorage import IteratorDeepCompare
-from ZODB.tests.StorageTestBase import MinPO, zodb_unpickle
+from ZODB.tests.StorageTestBase import MinPO, zodb_unpickle, snooze
 from ZODB import DB
 from ZODB.referencesf import referencesf
 
@@ -154,3 +154,31 @@ class RecoveryStorage(IteratorDeepCompare):
         it.close()
         self._dst.tpc_vote(final)
         self._dst.tpc_finish(final)
+
+    def checkPackWithGCOnDestinationAfterRestore(self):
+        raises = self.assertRaises
+        db = DB(self._storage)
+        conn = db.open()
+        root = conn.root()
+        root.obj = obj1 = MinPO(1)
+        txn = get_transaction()
+        txn.note('root -> obj')
+        txn.commit()
+        root.obj.obj = obj2 = MinPO(2)
+        txn = get_transaction()
+        txn.note('root -> obj -> obj')
+        txn.commit()
+        del root.obj
+        txn = get_transaction()
+        txn.note('root -X->')
+        txn.commit()
+        # Now copy the transactions to the destination
+        self._dst.copyTransactionsFrom(self._storage)
+        # Now pack the destination.
+        snooze()
+        self._dst.pack(time.time(),  referencesf)
+        # And check to see that the root object exists, but not the other
+        # objects.
+        data, serial = self._dst.load(root._p_oid, '')
+        raises(KeyError, self._dst.load, obj1._p_oid, '')
+        raises(KeyError, self._dst.load, obj2._p_oid, '')

@@ -367,8 +367,14 @@ class ClientCache:
                     data = read(dlen)
                     self._trace(0x2A, oid, version, h[19:], dlen)
                     if (p < 0) != self._current:
+                        # If the cache read we are copying has version info,
+                        # we need to pass the header to copytocurrent().
+                        if vlen:
+                            vheader = read(vlen + 4)
+                        else:
+                            vheader = None
                         self._copytocurrent(ap, oidlen, tlen, dlen, vlen, h,
-                                            oid, data)
+                                            oid, data, vheader)
                     return data, h[19:]
                 else:
                     self._trace(0x26, oid, version)
@@ -412,12 +418,13 @@ class ClientCache:
         """
         if self._pos + tlen > self._limit:
             return # Don't let this cause a cache flip
-        assert len(header) == 27
+        assert len(header) == 27, len(header)
         if header[8] == 'n':
             # Rewrite the header to drop the version data.
             # This shortens the record.
             tlen = 31 + oidlen + dlen
             vlen = 0
+            vheader = None
             # (oidlen:2, reserved:6, status:1, tlen:4,
             #  vlen:2, dlen:4, serial:8)
             header = header[:9] + pack(">IHI", tlen, vlen, dlen) + header[-8:]
@@ -446,7 +453,8 @@ class ClientCache:
             l.append(vdata)
             l.append(vserial)
         else:
-            assert None is vheader is vdata is vserial
+            assert None is vheader is vdata is vserial, (
+                vlen, vheader, vdata, vserial)
         l.append(header[9:13]) # copy of tlen
         g = self._f[self._current]
         g.seek(self._pos)

@@ -123,7 +123,7 @@ class BDBConfigTest(ConfigTestBase):
         cfg = """
         <zodb>
           <fullstorage>
-            name %s
+             envdir %s
           </fullstorage>
         </zodb>
         """ % self._path
@@ -133,7 +133,7 @@ class BDBConfigTest(ConfigTestBase):
         cfg = """
         <zodb>
           <minimalstorage>
-            name %s
+            envdir %s
           </minimalstorage>
         </zodb>
         """ % self._path

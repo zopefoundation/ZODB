@@ -82,8 +82,7 @@ class CommitLockTests:
 
     # The commit lock tests verify that the storage successfully
     # blocks and restarts transactions when there is contention for a
-    # single storage.  There are a lot of cases to cover.  transaction
-    # has finished.
+    # single storage.  There are a lot of cases to cover.
 
     # The general flow of these tests is to start a transaction by
     # getting far enough into 2PC to acquire the commit lock.  Then

@@ -13,7 +13,7 @@
 ##############################################################################
 """Open database and storage from a configuration.
 
-$Id: config.py,v 1.13 2003/06/16 14:51:49 jeremy Exp $"""
+$Id: config.py,v 1.14 2003/09/15 16:29:15 jeremy Exp $"""
 
 import os
 from cStringIO import StringIO
@@ -157,7 +157,7 @@ class BDBStorage(BaseConfig):
             if name.startswith('_'):
                 continue
             setattr(bconf, name, getattr(self.config, name))
-        return storageclass(self.config.name, config=bconf)
+        return storageclass(self.config.envdir, config=bconf)
 
 class BDBMinimalStorage(BDBStorage):
 

@@ -13,7 +13,7 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.98 2003/06/13 21:53:08 jeremy Exp $"""
+$Id: Connection.py,v 1.99 2003/09/15 16:29:15 jeremy Exp $"""
 
 from __future__ import nested_scopes
 
@@ -47,7 +47,7 @@ def updateCodeTimestamp():
 
 ExtensionKlass = Base.__class__
 
-class Connection(ExportImport.ExportImport):
+class Connection(ExportImport.ExportImport, object):
     """Object managers for individual object space.
 
     An object space is a version of collection of objects.  In a
@@ -136,11 +136,10 @@ class Connection(ExportImport.ExportImport):
         # Explicitly remove references from the connection to its
         # cache and to the root object, because they refer back to the
         # connection.
-        self._cache.clear()
-        self._cache = None
+        if self._cache is not None:
+            self._cache.clear()
         self._incrgc = None
         self.cacheGC = None
-        self._root_ = None
 
     def __getitem__(self, oid, tt=type(())):
         obj = self._cache.get(oid, None)
@@ -176,8 +175,6 @@ class Connection(ExportImport.ExportImport):
         object._p_serial=serial
 
         self._cache[oid] = object
-        if oid=='\0\0\0\0\0\0\0\0':
-            self._root_=object # keep a ref
         return object
 
     def _persistent_load(self,oid,
@@ -279,7 +276,8 @@ class Connection(ExportImport.ExportImport):
         self.__onCloseCallbacks.append(f)
 
     def close(self):
-        self._incrgc() # This is a good time to do some GC
+        if self._incrgc is not None:
+            self._incrgc() # This is a good time to do some GC
 
         # Call the close callbacks.
         if self.__onCloseCallbacks is not None:

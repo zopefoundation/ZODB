@@ -32,14 +32,12 @@ class ClientCacheTests(unittest.TestCase):
     _oid3 = 'cdefghij'
 
     def setUp(self):
-        unittest.TestCase.setUp(self)
         self.cachesize = 10*1000*1000
         self.cache = ClientCache(size=self.cachesize)
         self.cache.open()
 
     def tearDown(self):
         self.cache.close()
-        unittest.TestCase.tearDown(self)
 
     def testOpenClose(self):
         pass # All the work is done by setUp() / tearDown()
@@ -281,9 +279,10 @@ class ClientCacheTests(unittest.TestCase):
 class PersistentClientCacheTests(unittest.TestCase):
 
     _oid = 'abcdefgh'
+    _oid2 = 'bcdefghi'
+    _oid3 = 'cdefghij'
 
     def setUp(self):
-        unittest.TestCase.setUp(self)
         self.vardir = os.getcwd() # Don't use /tmp, it's a security risk
         self.cachesize = 10*1000*1000
         self.storagename = 'foo'
@@ -319,7 +318,6 @@ class PersistentClientCacheTests(unittest.TestCase):
                     os.unlink(filename)
                 except os.error:
                     pass
-        unittest.TestCase.tearDown(self)
 
     def testCacheFileSelection(self):
         # A bug in __init__ read the wrong slice of the file to determine
@@ -388,7 +386,42 @@ class PersistentClientCacheTests(unittest.TestCase):
         cache.checkSize(10*self.cachesize) # Force a file flip
         self.failUnless(cache.getLastTid() is None)
 
+    def testLoadNonversionWithVersionInFlippedCache(self):
+        # This test provokes an error seen once in an unrelated test.
+        # The object is stored in the old cache file with version data,
+        # a load for non-version data occurs.  The attempt to copy the
+        # non-version data to the new file fails.
+        nvdata = "Mend your speech a little, lest it may mar your fortunes."
+        nvserial = "12345678"
+        version = "folio"
+        vdata = "Mend your speech a little, lest you may mar your fortunes."
+        vserial = "12346789"
+        
+        self.cache.store(self._oid, nvdata, nvserial, version, vdata, vserial)
+        self.cache.checkSize(10 * self.cachesize) # force a cache flip
 
+        for i in 1, 2: # check the we can load before and after copying
+            for xversion, xdata, xserial in [("", nvdata, nvserial),
+                                          (version, vdata, vserial)]:
+                data, serial = self.cache.load(self._oid, xversion)
+                self.assertEqual(data, xdata)
+                self.assertEqual(serial, xserial)
+
+        # now cause two more cache flips and make sure the data is still there
+        self.cache.store(self._oid2, "", "", "foo", "bar", "23456789")
+        self.cache.checkSize(10 * self.cachesize) # force a cache flip
+        self.cache.load(self._oid, "")
+        self.cache.store(self._oid3, "bar", "34567890", "", "", "")
+        self.cache.checkSize(10 * self.cachesize) # force a cache flip
+        self.cache.load(self._oid, "")
+
+        for i in 1, 2: # check the we can load before and after copying
+            for xversion, xdata, xserial in [("", nvdata, nvserial),
+                                          (version, vdata, vserial)]:
+                data, serial = self.cache.load(self._oid, xversion)
+                self.assertEqual(data, xdata)
+                self.assertEqual(serial, xserial)
+                
 class ClientCacheLongOIDTests(ClientCacheTests):
     _oid  = 'abcdefghijklmnop' * 2
     _oid2 = 'bcdefghijklmnopq' * 2
@@ -397,7 +430,8 @@ class ClientCacheLongOIDTests(ClientCacheTests):
 
 class PersistentClientCacheLongOIDTests(PersistentClientCacheTests):
     _oid = 'abcdefghijklmnop' * 2
-
+    _oid2 = 'bcdefghijklmnopq' * 2
+    _oid3 = 'cdefghijklmnopqr' * 2
 
 def test_suite():
     suite = unittest.TestSuite()

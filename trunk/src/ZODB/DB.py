@@ -13,8 +13,8 @@
 ##############################################################################
 """Database objects
 
-$Id: DB.py,v 1.53 2003/06/24 21:50:18 jeremy Exp $"""
-__version__='$Revision: 1.53 $'[11:-2]
+$Id: DB.py,v 1.54 2003/09/15 16:29:15 jeremy Exp $"""
+__version__='$Revision: 1.54 $'[11:-2]
 
 import cPickle, cStringIO, sys, POSException, UndoLogCompatible
 from Connection import Connection
@@ -32,7 +32,7 @@ def list2dict(L):
         d[elt] = 1
     return d
 
-class DB(UndoLogCompatible.UndoLogCompatible):
+class DB(UndoLogCompatible.UndoLogCompatible, object):
     """The Object Database
 
     The Object database coordinates access to and interaction of one

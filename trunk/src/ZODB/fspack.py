@@ -33,7 +33,7 @@ import struct
 from types import StringType
 
 from ZODB.referencesf import referencesf
-from ZODB.utils import p64, u64, z64
+from ZODB.utils import p64, u64, z64, oid_repr
 from zLOG import LOG, BLATHER, WARNING, ERROR, PANIC
 
 try:
@@ -54,7 +54,7 @@ class CorruptedDataError(CorruptedError):
 
     def __str__(self):
         if self.oid:
-            msg = "Error reading oid %s.  Found %r" % (_fmt_oid(self.oid),
+            msg = "Error reading oid %s.  Found %r" % (oid_repr(self.oid),
                                                        self.buf)
         else:
             msg = "Error reading unknown oid.  Found %r" % self.buf
@@ -166,7 +166,7 @@ class FileStorageFormatter:
     def checkTxn(self, th, pos):
         if th.tid <= self.ltid:
             self.fail(pos, "time-stamp reduction: %s <= %s",
-                      _fmt_oid(th.tid), _fmt_oid(self.ltid))
+                      oid_repr(th.tid), oid_repr(self.ltid))
         self.ltid = th.tid
         if th.status == "c":
             self.fail(pos, "transaction with checkpoint flag set")
@@ -647,11 +647,15 @@ class FileStoragePacker(FileStorageFormatter):
         # vindex: version -> pos of XXX
         # tindex: oid -> pos, for current txn
         # tvindex: version -> pos of XXX, for current txn
+        # oid2serial: not used by the packer
         
         self.index = fsIndex()
         self.vindex = {}
         self.tindex = {}
         self.tvindex = {}
+        self.oid2serial = {}
+        self.toid2serial = {}
+        self.toid2serial_delete = {}
 
         # Index for non-version data.  This is a temporary structure
         # to reduce I/O during packing
@@ -757,7 +761,7 @@ class FileStoragePacker(FileStorageFormatter):
         If any data records are copied, also write txn header (th).
         """
         copy = 0
-        new_tpos = 0
+        new_tpos = 0L
         tend = pos + th.tlen
         pos += th.headerlen()
         while pos < tend:

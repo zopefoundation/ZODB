@@ -488,6 +488,7 @@ class VersionStorage:
 
         root["d"] = MinPO("d")
         get_transaction().commit()
+        snooze()
 
         self._storage.pack(time.time(), referencesf)
         cn.sync()

@@ -1,7 +1,7 @@
-#! /usr/bin/env python
+#!python
 """Make sure a ZEO server is running.
 
-Usage: zeoup.py [options]
+usage: zeoup.py [options]
 
 The test will connect to a ZEO server, load the root object, and attempt to
 update the zeoup counter in the root.  It will report success if it updates
@@ -11,11 +11,11 @@ success, because the client was able to start a transaction.
 Options:
 
     -p port -- port to connect to
-    
+
     -h host -- host to connect to (default is current host)
 
     -S storage -- storage name (default '1')
-    
+
     -U path -- Unix-domain socket to connect to
 
     --nowrite -- Do not update the zeoup counter.

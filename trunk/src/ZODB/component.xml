@@ -47,7 +47,7 @@
     -->
   <sectiontype name="fullstorage" datatype=".BDBFullStorage"
                implements="ZODB.storage">
-    <key name="name" required="yes" />
+    <key name="envdir" required="yes" />
     <key name="interval" datatype="time-interval" default="2m" />
     <key name="kbyte" datatype="integer" default="0" />
     <key name="min" datatype="integer" default="0" />
@@ -55,7 +55,7 @@
     <key name="cachesize" datatype="byte-size" default="128MB" />
     <key name="frequency" datatype="time-interval" default="0" />
     <key name="packtime" datatype="time-interval" default="4h" />
-    <key name="classicpack" datatype="integer" default="0" />
+    <key name="gcpack" datatype="integer" default="0" />
     <key name="read-only" datatype="boolean" default="off"/>
   </sectiontype>
 

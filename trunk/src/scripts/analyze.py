@@ -1,4 +1,4 @@
-#! /usr/bin/env python
+#!python
 # Based on a transaction analyzer by Matt Kromer.
 
 import pickle
@@ -137,4 +137,3 @@ def analyze_rec(report, record):
 if __name__ == "__main__":
     path = sys.argv[1]
     report(analyze(path))
-    

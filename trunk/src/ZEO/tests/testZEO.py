@@ -187,7 +187,7 @@ class BDBTests(FileStorageTests):
         self._envdir = tempfile.mktemp()
         return """\
         <fullstorage 1>
-        name %s
+        envdir %s
         </fullstorage>
         """ % self._envdir
 
