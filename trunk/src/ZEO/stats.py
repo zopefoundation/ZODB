@@ -14,9 +14,11 @@
 ##############################################################################
 """Trace file statistics analyzer.
 
-Usage: stats.py [-v] [-S] tracefile
+Usage: stats.py [-i interval] [-q] [-v] [-S] tracefile
+-i: summarizing interval in minutes (default 15; max 60)
+-q: quiet; don't print sommaries
 -v: verbose; print each record
--S: don't print statistics (implies -v)
+-S: don't print statistics (turns off -q)
 """
 
 """File format:
@@ -58,18 +60,29 @@ def usage(msg):
 def main():
     # Parse options
     verbose = 0
+    quiet = 0
     dostats = 1
+    interval = 900 # Every 15 minutes
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "vS")
+        opts, args = getopt.getopt(sys.argv[1:], "i:qvS")
     except getopt.error, msg:
         usage(msg)
         return 2
     for o, a in opts:
+        if o == "-i":
+            interval = int(60 * float(a))
+            if interval <= 0:
+                interval = 60
+            elif interval > 3600:
+                interval = 3600
+        if o == "-q":
+            quiet = 1
+            verbose = 0
         if o == "-v":
             verbose = 1
         if o == "-S":
             dostats = 0
-            verbose = 1
+            quiet = 0
     if len(args) != 1:
         usage("exactly one file argument required")
         return 2
@@ -91,6 +104,9 @@ def main():
     datarecords = 0
     datasize = 0L
     file0 = file1 = 0
+    byinterval = {}
+    thisinterval = None
+    h0 = he = None
     while 1:
         r = f.read(24)
         if len(r) < 24:
@@ -99,7 +115,16 @@ def main():
         ts, code, oid, serial = struct.unpack(">ii8s8s", r)
         if t0 is None:
             t0 = ts
+            thisinterval = t0 / interval
+            h0 = he = ts
         te = ts
+        if ts / interval != thisinterval:
+            if not quiet:
+                dumpbyinterval(byinterval, h0, he)
+            byinterval = {}
+            thisinterval = ts / interval
+            h0 = ts
+        he = ts
         dlen, code = code & 0x7fffff00, code & 0xff
         if dlen:
             datarecords += 1
@@ -115,7 +140,8 @@ def main():
             file0 += 1
         code = code & 0x7e
         bycode[code] = bycode.get(code, 0) + 1
-        if verbose or code in (0x00, 0x70):
+        byinterval[code] = byinterval.get(code, 0) + 1
+        if verbose:
             print "%s %d %02x %016x %016x %1s %s" % (
                 time.ctime(ts)[4:-5],
                 current,
@@ -124,9 +150,23 @@ def main():
                 U64(serial),
                 version,
                 dlen and str(dlen) or "")
+        if code in (0x00, 0x70):
+            if not quiet:
+                dumpbyinterval(byinterval, h0, he)
+            byinterval = {}
+            thisinterval = ts / interval
+            h0 = he = ts
+            if not quiet:
+                print time.ctime(ts)[4:-5],
+                if code == 0x00:
+                    print '='*20, "Restart", '='*20
+                else:
+                    print '-'*20, "Flip->%d" % current, '-'*20
     bytes = f.tell()
     f.close()
     rte = time.time()
+    if not quiet:
+        dumpbyinterval(byinterval, h0, he)
 
     # Error if nothing was read
     if not records:
@@ -158,6 +198,25 @@ def main():
                 addcommas(bycode.get(code, 0)),
                 code,
                 explain.get(code) or "*** unknown code ***")
+
+def dumpbyinterval(byinterval, h0, he):
+    loads = 0
+    hits = 0
+    for code in byinterval.keys():
+        if code & 0x70 == 0x20:
+            n = byinterval[code]
+            loads += n
+            if code in (0x2A, 0x2C, 0x2E):
+                hits += n
+    if not loads:
+        return
+    if loads:
+        hr = 100.0 * hits / loads
+    else:
+        hr = 0.0
+    print "%s-%s %10s loads, %10s hits,%5.1f%% hit rate" % (
+        time.ctime(h0)[4:-8], time.ctime(he)[14:-8],
+        addcommas(loads), addcommas(hits), hr)
 
 def hitrate(bycode):
     loads = 0
