@@ -13,7 +13,7 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.136 2004/03/04 22:41:50 jim Exp $"""
+$Id: Connection.py,v 1.137 2004/03/12 06:11:36 jeremy Exp $"""
 
 import logging
 import sys
@@ -125,7 +125,7 @@ class Connection(ExportImport, object):
     their state and register changes.  The methods are setstate(),
     register(), setklassstate().
 
-    $Id: Connection.py,v 1.136 2004/03/04 22:41:50 jim Exp $
+    $Id: Connection.py,v 1.137 2004/03/12 06:11:36 jeremy Exp $
     """
 
     _tmp = None
@@ -178,7 +178,6 @@ class Connection(ExportImport, object):
         self._invalidated = d = {}
         self._invalid = d.has_key
         self._conflicts = {}
-        self._noncurrent = {}
 
         # If MVCC is enabled, then _mvcc is True and _txn_time stores
         # the upper bound on transactions visible to this connection.
@@ -637,11 +636,8 @@ class Connection(ExportImport, object):
     def _flush_invalidations(self):
         self._inv_lock.acquire()
         try:
-            for oid in self._noncurrent:
-                assert oid in self._invalidated
             self._cache.invalidate(self._invalidated)
             self._invalidated.clear()
-            self._noncurrent.clear()
             self._txn_time = None
         finally:
             self._inv_lock.release()
@@ -774,15 +770,10 @@ class Connection(ExportImport, object):
         # txn_time.  It must be current at txn_time, but could have
         # been modified at txn_time.
 
-        # It's possible that end is None.  The _txn_time is set by an
-        # invalidation for one specific object, but it used for the
-        # load time for all objects.  If an object hasn't been
-        # modified since _txn_time, it's end tid will be None.
         assert start < self._txn_time, (u64(start), u64(self._txn_time))
         assert end is None or self._txn_time <= end, \
                (u64(self._txn_time), u64(end))
-        if end is not None:
-            self._noncurrent[obj._p_oid] = True
+        assert end is not None
         self._reader.setGhostState(obj, data)
         obj._p_serial = start
         return True
