@@ -11,7 +11,7 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
-r"""
+
 Multi-database tests
 ====================
 
@@ -108,9 +108,3 @@ Clean up:
 
 >>> for a_db in db.databases.values():
 ...     a_db.close()
-"""
-
-from zope.testing import doctest
-
-def test_suite():
-    return doctest.DocTestSuite()
