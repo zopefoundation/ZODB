@@ -13,7 +13,7 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.130 2004/02/27 16:12:35 jeremy Exp $"""
+$Id: Connection.py,v 1.131 2004/03/01 19:07:25 jeremy Exp $"""
 
 import logging
 import sys
@@ -102,7 +102,7 @@ class Connection(ExportImport, object):
 
     XXX Mention the database pool.
 
-    $Id: Connection.py,v 1.130 2004/02/27 16:12:35 jeremy Exp $
+    $Id: Connection.py,v 1.131 2004/03/01 19:07:25 jeremy Exp $
     
     @group User Methods: root, get, add, close, db, sync, isReadOnly,
         cacheFullSweep, cacheMinimize, getVersion, modifiedInVersion
@@ -634,7 +634,7 @@ class Connection(ExportImport, object):
         policy of one transaction manager for each thread.
         """
         assert obj._p_jar is self
-        if obj._p_oid is not None:
+        if obj._p_oid is None:
             # There is some old Zope code that assigns _p_jar
             # directly.  That is no longer allowed, but we need to
             # provide support for old code that still does it.
