@@ -8,4 +8,6 @@
                                 
 #include "intkeymacros.h"
 #include "objectvaluemacros.h"
+#include "cPersistence.h"
+#include "BTree/intSet.h"
 #include "BTreeModuleTemplate.c"

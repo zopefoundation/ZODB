@@ -9,4 +9,6 @@
                 
 #include "intkeymacros.h"
 #include "intvaluemacros.h"
+#include "cPersistence.h"
+#include "BTree/intSet.h"
 #include "BTreeModuleTemplate.c"
