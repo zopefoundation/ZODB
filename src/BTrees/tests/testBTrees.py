@@ -187,6 +187,7 @@ class MappingBase(Base):
         v = self.t.values()
         for i in range(100):
             self.assertEqual(v[i], i*i)
+        self.assertRaises(IndexError, lambda: v[i+1])
         i = 0
         for value in self.t.itervalues():
             self.assertEqual(value, i*i)
@@ -204,6 +205,16 @@ class MappingBase(Base):
             lst = list(self.t.values(max=99-x, min=0+x))
             lst.sort()
             self.assertEqual(lst,range(0+x,99-x+1))
+    
+    def testValuesNegativeIndex(self):
+        L = [-3, 6, -11, 4]
+        for i in L:
+            self.t[i] = i
+        L.sort()
+        vals = self.t.values()
+        for i in range(-1, -4, -1):
+            self.assertEqual(vals[i], L[i])
+        self.assertRaises(IndexError, lambda: vals[-5])
 
     def testKeysWorks(self):
         for x in range(100):
@@ -213,6 +224,7 @@ class MappingBase(Base):
         for x in v:
             self.assertEqual(x,i)
             i = i + 1
+        self.assertRaises(IndexError, lambda: v[i])
 
         for x in range(40):
             lst = self.t.keys(0+x,99-x)
@@ -222,6 +234,16 @@ class MappingBase(Base):
             self.assertEqual(list(lst), range(0+x, 99-x+1))
 
         self.assertEqual(len(v), 100)
+    
+    def testKeysNegativeIndex(self):
+        L = [-3, 6, -11, 4]
+        for i in L:
+            self.t[i] = i
+        L.sort()
+        keys = self.t.keys()
+        for i in range(-1, -4, -1):
+            self.assertEqual(keys[i], L[i])
+        self.assertRaises(IndexError, lambda: keys[-5])
 
     def testItemsWorks(self):
         for x in range(100):
@@ -232,6 +254,7 @@ class MappingBase(Base):
             self.assertEqual(x[0], i)
             self.assertEqual(x[1], 2*i)
             i += 1
+        self.assertRaises(IndexError, lambda: v[i+1])
 
         i = 0
         for x in self.t.iteritems():
@@ -243,7 +266,16 @@ class MappingBase(Base):
 
         items = list(self.t.iteritems(min=12, max=20))
         self.assertEqual(items, zip(range(12, 21), range(24, 43, 2)))
-
+    
+    def testItemsNegativeIndex(self):
+        L = [-3, 6, -11, 4]
+        for i in L:
+            self.t[i] = i
+        L.sort()
+        items = self.t.items()
+        for i in range(-1, -4, -1):
+            self.assertEqual(items[i], (L[i], L[i]))
+        self.assertRaises(IndexError, lambda: items[-5])
 
     def testDeleteInvalidKeyRaisesKeyError(self):
         self.assertRaises(KeyError, self._deletefail)
