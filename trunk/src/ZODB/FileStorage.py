@@ -115,7 +115,7 @@
 #   may have a back pointer to a version record or to a non-version
 #   record.
 #
-__version__='$Revision: 1.127 $'[11:-2]
+__version__='$Revision: 1.128 $'[11:-2]
 
 import base64
 from cPickle import Pickler, Unpickler, loads
@@ -604,14 +604,15 @@ class FileStorage(BaseStorage.BaseStorage,
         h=read(DATA_HDR_LEN)
         doid,serial,prev,tloc,vlen,plen = unpack(DATA_HDR, h)
         if vlen:
-            assert read(8) != z64
+            nv = u64(read(8))
             read(8) # Skip previous version record pointer
-            version=read(vlen)
+            version = read(vlen)
         else:
-            version=''
-            nv=0
+            version = ''
+            nv = 0
 
-        if plen != z64: return read(u64(plen)), version, nv
+        if plen != z64:
+            return read(u64(plen)), version, nv
         return _loadBack(file, oid, read(8))[0], version, nv
 
     def _load(self, oid, version, _index, file):
@@ -1497,6 +1498,8 @@ class FileStorage(BaseStorage.BaseStorage,
                 except:
                     pindex[oid]=0
                     error('Bad reference to %s', `(oid,v)`)
+                    # XXX This try/except frequently masks bugs in the
+                    # implementation.
 
             ##################################################################
             # Step 2, copy data and compute new index based on new positions.
@@ -2348,6 +2351,7 @@ class FileIterator(Iterator):
             seek(pos)
             h=read(TRANS_HDR_LEN)
             if len(h) < TRANS_HDR_LEN: break
+
 
             tid, stl, status, ul, dl, el = unpack(TRANS_HDR,h)
             if el < 0: el=t32-el
