@@ -1,7 +1,12 @@
+from __future__ import nested_scopes
+
 # Check interactions between transactionalUndo() and versions.  Any storage
 # that supports both transactionalUndo() and versions must pass these tests.
 
+import time
+
 from ZODB import POSException
+from ZODB.referencesf import referencesf
 from ZODB.Transaction import Transaction
 from ZODB.tests.MinPO import MinPO
 from ZODB.tests.StorageTestBase import zodb_unpickle
@@ -95,3 +100,115 @@ class TransactionalUndoVersionStorage:
         assert zodb_unpickle(data) == MinPO(92)
         data, revid = self._storage.load(oid, '')
         assert zodb_unpickle(data) == MinPO(91)
+
+    def checkUndoCommitVersion(self):
+        def load_value(oid, version=''):
+            data, revid = self._storage.load(oid, version)
+            return zodb_unpickle(data).value
+
+        # create a bunch of packable transactions
+        oid = self._storage.new_oid()
+        revid = '\000' * 8
+        for i in range(4):
+            revid = self._dostore(oid, revid, description='packable%d' % i)
+        pt = time.time()
+        time.sleep(1)
+        
+        oid1 = self._storage.new_oid()
+        version = 'version'
+        revid1 = self._dostore(oid1, data=MinPO(0), description='create1')
+        revid2 = self._dostore(oid1, data=MinPO(1), revid=revid1,
+                               version=version, description='version1')
+        revid3 = self._dostore(oid1, data=MinPO(2), revid=revid2,
+                               version=version, description='version2')
+        self._dostore(description='create2')
+
+        t = Transaction()
+        t.description = 'commit version'
+        self._storage.tpc_begin(t)
+        self._storage.commitVersion(version, '', t)
+        self._storage.tpc_vote(t)
+        self._storage.tpc_finish(t)
+
+        info = self._storage.undoInfo()
+        t_id = info[0]['id']
+
+        self.assertEqual(load_value(oid1), 2)
+        self.assertEqual(load_value(oid1, version), 2)
+
+        self._storage.pack(pt, referencesf)
+
+        t = Transaction()
+        t.description = 'undo commit version'
+        self._storage.tpc_begin(t)
+        self._storage.transactionalUndo(t_id, t)
+        self._storage.tpc_vote(t)
+        self._storage.tpc_finish(t)
+
+        self.assertEqual(load_value(oid1), 0)
+        self.assertEqual(load_value(oid1, version), 2)
+
+    def checkUndoAbortVersion(self):
+        def load_value(oid, version=''):
+            data, revid = self._storage.load(oid, version)
+            return zodb_unpickle(data).value
+
+        # create a bunch of packable transactions
+        oid = self._storage.new_oid()
+        revid = '\000' * 8
+        for i in range(3):
+            revid = self._dostore(oid, revid, description='packable%d' % i)
+        pt = time.time()
+        time.sleep(1)
+        
+        oid1 = self._storage.new_oid()
+        version = 'version'
+        revid1 = self._dostore(oid1, data=MinPO(0), description='create1')
+        revid2 = self._dostore(oid1, data=MinPO(1), revid=revid1,
+                               version=version, description='version1')
+        revid3 = self._dostore(oid1, data=MinPO(2), revid=revid2,
+                               version=version, description='version2')
+        self._dostore(description='create2')
+
+        t = Transaction()
+        t.description = 'abort version'
+        self._storage.tpc_begin(t)
+        self._storage.abortVersion(version, t)
+        self._storage.tpc_vote(t)
+        self._storage.tpc_finish(t)
+
+        info = self._storage.undoInfo()
+        t_id = info[0]['id']
+
+        self.assertEqual(load_value(oid1), 0)
+        # after abort, we should see non-version data
+        self.assertEqual(load_value(oid1, version), 0)
+
+        t = Transaction()
+        t.description = 'undo abort version'
+        self._storage.tpc_begin(t)
+        self._storage.transactionalUndo(t_id, t)
+        self._storage.tpc_vote(t)
+        self._storage.tpc_finish(t)
+
+        self.assertEqual(load_value(oid1), 0)
+        # t undo will re-create the version
+        self.assertEqual(load_value(oid1, version), 2)
+
+        info = self._storage.undoInfo()
+        t_id = info[0]['id']
+
+        self._storage.pack(pt, referencesf)
+
+        t = Transaction()
+        t.description = 'undo undo'
+        self._storage.tpc_begin(t)
+        self._storage.transactionalUndo(t_id, t)
+        self._storage.tpc_vote(t)
+        self._storage.tpc_finish(t)
+
+        # undo of undo will put as back where we started
+        self.assertEqual(load_value(oid1), 0)
+        # after abort, we should see non-version data
+        self.assertEqual(load_value(oid1, version), 0)
+
