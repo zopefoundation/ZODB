@@ -619,6 +619,7 @@ class TransactionalUndoStorage:
                 obj = root["key%d" % i]
                 self.assertEqual(obj.value, i)
             root.items()
+            self._inter_pack_pause()
 
     def checkPackAfterUndoManyTimes(self):
         db = DB(self._storage)
@@ -658,6 +659,12 @@ class TransactionalUndoStorage:
             # never change that.
             self.assertEqual(rt["test"].value, 3)
             self.assertEqual(rt["test2"].value, 2)
+            self._inter_pack_pause()
+
+    def _inter_pack_pause(self):
+        # DirectoryStorage needs a pause between packs,
+        # most other storages dont.
+        pass
 
     def checkTransactionalUndoIterator(self):
         # check that data_txn set in iterator makes sense
