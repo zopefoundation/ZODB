@@ -38,7 +38,7 @@ class Marshaller:
         try:
             return unpickler.load() # msgid, flags, name, args
         except:
-            log("can't decode message: %s" % repr(msg), level=zLOG.ERROR)
+            log("can't decode message: %s" % short_repr(msg), level=zLOG.ERROR)
             raise
 
 _globals = globals()
