@@ -40,7 +40,7 @@ class BerkeleyStorageConfig:
         <fullstorage>
         name %s
         read-only %s
-        </fullstorage>""" % (path, read_only)
+        </fullstorage>""" % (path, read_only and "yes" or "no")
 
 class MappingStorageConfig:
     def getConfig(self, path, create, read_only):
