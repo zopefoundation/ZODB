@@ -84,8 +84,8 @@
 ##############################################################################
 """Database objects
 
-$Id: DB.py,v 1.16 1999/08/27 20:38:03 jim Exp $"""
-__version__='$Revision: 1.16 $'[11:-2]
+$Id: DB.py,v 1.17 1999/09/23 16:40:01 jim Exp $"""
+__version__='$Revision: 1.17 $'[11:-2]
 
 import cPickle, cStringIO, sys, POSException
 from Connection import Connection
@@ -513,16 +513,35 @@ class DB:
     def pack(self, t):
         self._storage.pack(t,referencesf)
                            
-    def setCacheDeactivateAfter(self, v): self._cache_deactivate_after=v
-    def setCacheSize(self, v): self._cache_size=v
+    def setCacheDeactivateAfter(self, v):
+        self._cache_deactivate_after=v
+        for c in self._pools[0][''][1]:
+            c._cache.cache_age=v
+
+    def setCacheSize(self, v):
+        self._cache_size=v
+        for c in self._pools[0][''][1]:
+            c._cache.cache_size=v
 
     def setClassFactory(self, factory):
         self._classFactory=factory
 
     def setPoolSize(self, v): self._pool_size=v
+    
     def setVersionCacheDeactivateAfter(self, v):
         self._version_cache_deactivate_after=v
-    def setVersionCacheSize(self, v): self._version_cache_size=v
+        for ver in self._pools[0].keys():
+            if ver:
+                for c in self._pools[0][ver][1]:
+                    c._cache.cache_age=v
+
+    def setVersionCacheSize(self, v):
+        self._version_cache_size=v
+        for ver in self._pools[0].keys():
+            if v:
+                for c in self._pools[0][ver][1]:
+                    c._cache.cache_size=v
+        
     def setVersionPoolSize(self, v): self._version_pool_size=v
 
     def cacheStatistics(self): return () # :(
