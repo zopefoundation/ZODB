@@ -84,8 +84,8 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.31 2000/05/05 19:53:58 jim Exp $"""
-__version__='$Revision: 1.31 $'[11:-2]
+$Id: Connection.py,v 1.32 2000/05/09 19:09:16 jim Exp $"""
+__version__='$Revision: 1.32 $'[11:-2]
 
 from cPickleCache import PickleCache
 from POSException import ConflictError, ExportError
@@ -341,6 +341,7 @@ class Connection(ExportImport.ExportImport):
                 else:
                     # defered returns
                     for oi, s in s:
+                        if _type(s) is not _st: raise s
                         o=get(oi, oi)
                         if o is not oi:
                             o._p_serial=s
@@ -379,6 +380,7 @@ class Connection(ExportImport.ExportImport):
                     if o is not _None: o._p_serial=s
                 else:
                     for oid, s in s:
+                        if _type(s) is not _st: raise s
                         o=get(oid, _None)
                         if o is not _None: o._p_serial=s
                         
@@ -491,7 +493,8 @@ class Connection(ExportImport.ExportImport):
 
         self._storage.tpc_begin(transaction)
 
-    def tpc_vote(self, transaction):
+    def tpc_vote(self, transaction,
+                 _type=type, _st=type('')):
         try: vote=self._storage.tpc_vote
         except: return
         s=vote(transaction)
@@ -500,6 +503,7 @@ class Connection(ExportImport.ExportImport):
             for oid, s in s:
                 o=get(oid, oid)
                 if o is not oid:
+                    if _type(s) is not _st: raise s
                     o._p_serial=s
                     o._p_changed=0
         
