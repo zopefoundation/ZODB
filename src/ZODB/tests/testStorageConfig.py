@@ -56,7 +56,7 @@ class StorageTestCase(unittest.TestCase):
         sample = """
         <Storage>
         type       ClientStorage
-        addr       zep://www.python.org:9001
+        addr       zeo://www.python.org:9001
         wait       no
         </Storage>
         """
