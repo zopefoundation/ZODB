@@ -197,7 +197,7 @@ def dofile(func, fp, n=None):
         if not data:
             break
         func(data)
-        bytesread += chunklen
+        bytesread += len(data)
     return bytesread
 
 
