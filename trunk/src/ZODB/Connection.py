@@ -13,7 +13,7 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.96 2003/06/13 17:00:04 jeremy Exp $"""
+$Id: Connection.py,v 1.97 2003/06/13 17:03:39 jeremy Exp $"""
 
 from __future__ import nested_scopes
 
@@ -153,11 +153,7 @@ class Connection(ExportImport.ExportImport):
         unpickler=Unpickler(file)
         unpickler.persistent_load=self._persistent_load
 
-        try:
-            object = unpickler.load()
-        except:
-            raise "Could not load oid %s, pickled data in traceback info may\
-            contain clues" % (oid)
+        object = unpickler.load()
 
         klass, args = object
 
