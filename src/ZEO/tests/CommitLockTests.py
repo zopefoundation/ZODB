@@ -13,7 +13,10 @@
 ##############################################################################
 """Tests of the distributed commit lock."""
 
+import time
+
 from ZODB.Transaction import Transaction
+from ZODB.TimeStamp import TimeStamp
 from ZODB.tests.StorageTestBase import zodb_pickle, MinPO
 
 import ZEO.ClientStorage
@@ -113,7 +116,7 @@ class CommitLockTests:
         for i in range(4):
             storage2 = self._duplicate_client()
             t2 = Transaction()
-            tid = `ZEO.ClientStorage.get_timestamp()` # XXX why?
+            tid = self._get_timestamp()
             dosetup(storage2, t2, tid)
             if i == 0:
                 storage2.close()
