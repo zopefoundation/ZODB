@@ -293,6 +293,18 @@ Error cases:
 - storage doesn't have an earlier revision
 - MVCC returns current revision
 
+Cleanup
+-------
+
+The setLocalTransaction() feature creates cyclic trash involving the
+Connection and Transaction.  The Transaction has an __del__ method,
+which prevents the cycle from being collected.  There's no API for
+clearing the Connection's local transaction.
+
+>>> cn._transaction = None
+>>> cn1._transaction = None
+>>> cn2._transaction = None
+
 """
 
 import doctest
