@@ -1,0 +1,168 @@
+=======
+ZEO 2.0
+=======
+
+What's ZEO?
+===========
+
+ZEO stands for Zope Enterprise Objects.  ZEO is an add-on for Zope
+that allows a ZODB storage to live on a separate machine, which is
+accessed via a network by multiple Zope instances.  ZEO 2 has many
+improvements over ZEO 1, and is incompatible with ZEO 1; if you
+upgrade an existing ZEO 1 installation, you must upgrade the server
+and all clients simultaneous.  If you received ZEO 2 as part of the
+ZODB 3 distribution, the ZEO 1 sources are provided in a separate
+directory (ZEO1).  Some documentation for ZEO is available in the ZODB
+3 package in the Doc subdirectory.  ZEO depends on the ZODB software;
+it can be used with the version of ZODB distributed with Zope 2.5.1 or
+later.  More information about ZEO can be found on its home on the web:
+
+    http://www.zope.org/Products/ZEO/
+
+What's here?
+============
+
+(This list of filenames is mostly for ZEO developers.)
+
+ClientCache.py          client-side cache implementation
+ClientStorage.py        client-side storage implementation
+ClientStub.py           RPC stubs for callbacks from server to client
+CommitLog.py            buffer used during two-phase commit on the server
+Exceptions.py           definitions of exceptions
+ICache.py               interface definition for the client-side cache
+ServerStub.py           RPC stubs for the server
+StorageServer.py        server-side storage implementation
+TransactionBuffer.py    buffer used for transaction data in the client
+__init__.py             near-empty file to make this directory a package
+simul.py                command-line tool to simulate cache behavior
+start.py                command-line tool to start the storage server
+stats.py                command-line tool to process client cache traces
+tests/                  unit tests and other test utilities
+util.py                 utilities used by the server startup tool
+version.txt             text file indicating the ZEO version
+zrpc/                   subpackage implementing Remote Procedure Call (RPC)
+
+Client Cache Tracing
+====================
+
+An important question for ZEO users is, how large should the ZEO
+client cache be.  ZEO 2 (as of ZEO 2.0b2) has a new feature that lets
+you collect a trace of cache activity and tools to analyze this trace,
+enabling you to make an informed decision about the cache size.
+
+Don't confuse the ZEO client cache with the Zope object cache.  The
+ZEO client cache is only used when an object is not in the Zope object
+cache; the ZEO client cache avoids roundtrips to the ZEO server.
+
+Enabling Cache Tracing
+----------------------
+
+To enable cache tracing, set the environment variable ZEO_CACHE_TRACE
+to the name of a file to which the ZEO client process can write.  If
+the file doesn't exist, the ZEO will try to create it.  If there are
+problems with the file, a log message is written to the standard Zope
+log file.  To start or stop tracing, the ZEO client process (typically
+a Zope application server) must be restarted.
+
+The trace file can grow pretty fast; on a moderately loaded server, we
+observed it growing by 5 MB per hour.  The file consists of binary
+records, each 24 bytes long; a detailed description of the record
+lay-out is given in stats.py.  No sensitive data is logged.
+
+Analyzing a Cache Trace
+-----------------------
+
+The stats.py command-line tool is the first-line tool to analyze a
+cache trace.  Its default output consists of two parts: a one-line
+summary of essential statistics for each segment of 15 minutes,
+interspersed with lines indicating client restarts and "cache flip
+events" (more about those later), followed by a more detailed summary
+of overall statistics.
+
+The most important statistic is probably the "hit rate", a percentage
+indicating how many requests to load an object could be satisfied from
+the cache.  Hit rates around 70% are good.  90% is probably close to
+the theoretical maximum.  If you see a hit rate under 60% you can
+probably improve the cache performance (and hence your Zope
+application server's performance) by increasing the ZEO cache size.
+This is normally configured using the cache_size keyword argument to
+the ClientStorage() constructor in your custom_zodb.py file.  The
+default cache size is 20 MB.
+
+The stats.py tool shows its command line syntax when invoked without
+arguments.  The tracefile argument can be a gzipped file if it has a
+.gz extension.  It will read from stdin (assuming uncompressed data)
+if the tracefile argument is '-'.
+
+Simulating Different Cache Sizes
+--------------------------------
+
+Based on a cache trace file, you can make a prediction of how well the
+cache might do with a different cache size.  The simul.py tool runs an
+accurate simulation of the ZEO client cache implementation based upon
+the events read from a trace file.  A new simulation is started each
+time the trace file records a client restart event; if a trace file
+contains more than one restart event, a separate line is printed for
+each simulation, and line with overall statistics is added at the end.
+
+Example, assuming the trace file is in /tmp/cachetrace.log::
+
+    $ python simul.py -s 100 /tmp/cachetrace.log
+      START TIME  DURATION    LOADS     HITS INVALS WRITES  FLIPS HITRATE
+    Sep  4 11:59     38:01    59833    40473    257     20      2  67.6%
+    $
+
+This shows that with a 100 MB cache size, the cache hit rate is
+67.6%.  So let's try this again with a 200 MB cache size::
+
+    $ python simul.py -s 200 /tmp/cachetrace.log
+      START TIME  DURATION    LOADS     HITS INVALS WRITES  FLIPS HITRATE
+    Sep  4 11:59     38:01    59833    40921    258     20      1  68.4%
+    $
+
+This showed hardly any improvement.  So let's try a 300 MB cache
+size::
+
+    $ python2.0 simul.py -s 300 /tmp/cachetrace.log
+    ZEOCacheSimulation, cache size 300,000,000 bytes
+      START TIME  DURATION    LOADS     HITS INVALS WRITES  FLIPS HITRATE
+    Sep  4 11:59     38:01    59833    40921    258     20      0  68.4%
+    $ 
+
+This shows that for this particular trace file, the maximum attainable
+hit rate is 68.4%.  This is probably caused by the fact that nearly a
+third of the objects mentioned in the trace were loaded only once --
+the cache only helps if an object is loaded more than once.
+
+The simul.py tool also supports simulating different cache
+strategies.  Since none of these are implemented, these are not
+further documented here.
+
+Cache Flips
+-----------
+
+The cache uses two files, which are managed as follows:
+
+  - Data are written to file 0 until file 0 exceeds limit/2 in size.
+
+  - Data are written to file 1 until file 1 exceeds limit/2 in size.
+
+  - File 0 is truncated to size 0 (or deleted and recreated).
+
+  - Data are written to file 0 until file 0 exceeds limit/2 in size.
+
+  - File 1 is truncated to size 0 (or deleted and recreated).
+
+  - Data are written to file 1 until file 1 exceeds limit/2 in size.
+
+and so on.
+
+A switch from file 0 to file 1 is called a "cache flip".  At all cache
+flips except the first, half of the cache contents is wiped out.  This
+affects cache performance.  How badly this impact is can be seen from
+the per-15-minutes summaries printed by stats.py.  The -i option lets
+you choose a smaller summary interval which shows the impact more
+acutely.
+
+The simul.py tool shows the number of cache flips in the FLIPS column.
+If you see more than one flip per hour the cache may be too small.
