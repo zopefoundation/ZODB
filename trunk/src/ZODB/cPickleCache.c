@@ -88,7 +88,7 @@ process must skip such objects, rather than deactivating them.
 static char cPickleCache_doc_string[] =
 "Defines the PickleCache used by ZODB Connection objects.\n"
 "\n"
-"$Id: cPickleCache.c,v 1.56 2002/04/12 22:16:20 jeremy Exp $\n";
+"$Id: cPickleCache.c,v 1.57 2002/04/15 15:17:33 chrisw Exp $\n";
 
 #define ASSIGN(V,E) {PyObject *__e; __e=(E); Py_XDECREF(V); (V)=__e;}
 #define UNLESS(E) if(!(E))
@@ -182,7 +182,7 @@ object_from_ring(ccobject *self, CPersistentRing *here, const char *context)
     /* given a pointer to a ring slot in a cPersistent_HEAD, we want to get
      * the pointer to the Python object that slot is embedded in.
      */
-    object = (PyObject *)(((void *)here) - offsetof(cPersistentObject, ring));
+    object = (PyObject *)(((char *)here) - offsetof(cPersistentObject, ring));
 
 #ifdef MUCH_RING_CHECKING
     if (!PyExtensionInstance_Check(object)) {
