@@ -16,7 +16,10 @@ from cStringIO import StringIO
 import struct
 import types
 
+import zLOG
+
 from ZEO.zrpc.error import ZRPCError, DecodingError
+from ZEO.zrpc.log import log
 
 class Marshaller:
     """Marshal requests and replies to second across network"""
