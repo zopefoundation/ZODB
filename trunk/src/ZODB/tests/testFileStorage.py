@@ -8,6 +8,8 @@ import VersionStorage, TransactionalUndoVersionStorage
 import PackableStorage
 import Synchronization
 import ConflictResolution
+import HistoryStorage
+import IteratorStorage
 
 class FileStorageTests(
     StorageTestBase.StorageTestBase,
@@ -18,6 +20,8 @@ class FileStorageTests(
     PackableStorage.PackableStorage,
     Synchronization.SynchronizedStorage,
     ConflictResolution.ConflictResolvingStorage,
+    HistoryStorage.HistoryStorage,
+    IteratorStorage.IteratorStorage
     ):
 
     def setUp(self):
