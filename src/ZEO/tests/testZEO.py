@@ -482,38 +482,36 @@ class ConnectionTests(StorageTestBase.StorageTestBase):
         # Stores should now succeed
         self._dostore()
 
-    def NOcheckReadOnlyFallbackMultiple(self):
-        # XXX This test doesn't work yet
-        self._newAddr()
-        # We don't need the read-write server created by setUp()
-        zLOG.LOG("testZEO", zLOG.INFO, "shutdownServer")
+    def checkReconnectSwitch(self):
+        # A fallback client initially connects to a read-only server,
+        # then discovers a read-write server and switches to that
+
+        # We don't want the read-write server created by setUp()
         self.shutdownServer()
         self._servers = []
         self._pids = []
+
+        # Allocate a second address (for the second server)
+        self._newAddr()
+
         # Start a read-only server
-        zLOG.LOG("testZEO", zLOG.INFO, "startServer(read_only=1)")
         self._startServer(create=0, index=0, read_only=1)
-        # Start a client
-        zLOG.LOG("testZEO", zLOG.INFO, "openClientStorage")
+        # Start a client in fallback mode
         self._storage = self.openClientStorage(wait=0, read_only_fallback=1)
         # Stores should fail here
-        zLOG.LOG("testZEO", zLOG.INFO, "stores should fail here")
         self.assertRaises(ReadOnlyError, self._dostore)
+
         # Start a read-write server
-        zLOG.LOG("testZEO", zLOG.INFO, "startServer(read_only=0)")
         self._startServer(index=1, read_only=0)
         # After a while, stores should work
-        for i in range(30):
+        for i in range(300): # Try for 30 seconds
             try:
-                zLOG.LOG("testZEO", zLOG.INFO, "_dostore")
                 self._dostore()
-                zLOG.LOG("testZEO", zLOG.INFO, "done")
                 break
             except ReadOnlyError:
-                zLOG.LOG("testZEO", zLOG.INFO, "sleep(1)")
-                time.sleep(1)
+                time.sleep(0.1)
         else:
-            self.fail("couldn't store after starting a read-write server")
+            self.fail("Couldn't store after starting a read-write server")
 
     def checkDisconnectionError(self):
         # Make sure we get a Disconnected when we try to read an
