@@ -290,13 +290,18 @@ The following elements are used to describe a schema:
     section.
   \end{attributedesc}
 
-  \begin{attributedesc}{handler}{\strong{basic-key}}
+  \begin{attributedesc}{handler}{\datatype{basic-key}}
   \end{attributedesc}
 
-  \begin{attributedesc}{keytype}{\strong{basic-key}}
+  \begin{attributedesc}{keytype}{\datatype{basic-key}}
+    The data type converter which will be applied to keys found in
+    this section.  This can be used to constrain key values in
+    different ways; two data types which may be especially useful are
+    the \datatype{identifier} and \datatype{ipaddr-or-hostname}
+    types.  The default value is \datatype{basic-key}.
   \end{attributedesc}
 
-  \begin{attributedesc}{prefix}{\strong{dotted-name}}
+  \begin{attributedesc}{prefix}{\datatype{dotted-name}}
   \end{attributedesc}
 \end{elementdesc}
 
@@ -362,14 +367,19 @@ The following elements are used to describe a schema:
     directly in a schema or other section type.
   \end{attributedesc}
 
-  \begin{attributedesc}{keytype}{\strong{basic-key}}
+  \begin{attributedesc}{keytype}{\datatype{basic-key}}
+    The data type converter which will be applied to keys found in
+    this section.  This can be used to constrain key values in
+    different ways; two data types which may be especially useful are
+    the \datatype{identifier} and \datatype{ipaddr-or-hostname}
+    types.  The default value is \datatype{basic-key}.
   \end{attributedesc}
 
   \begin{attributedesc}{name}{\datatype{basic-key}}
     The name of the section type; required.
   \end{attributedesc}
 
-  \begin{attributedesc}{prefix}{\strong{dotted-name}}
+  \begin{attributedesc}{prefix}{\datatype{dotted-name}}
   \end{attributedesc}
 \end{elementdesc}
 
@@ -627,14 +637,14 @@ components and schema component extensions.
 \begin{elementdesc}{component}{description?, (abstracttype | sectiontype)*}
   The top-level element for schema components.
 
-  \begin{attributedesc}{prefix}{\strong{dotted-name}}
+  \begin{attributedesc}{prefix}{\datatype{dotted-name}}
   \end{attributedesc}
 \end{elementdesc}
 
 \begin{elementdesc}{extensions}{description?, (abstracttype | sectiontype)*}
   The top-level element for schema component extensions.
 
-  \begin{attributedesc}{prefix}{\strong{dotted-name}}
+  \begin{attributedesc}{prefix}{\datatype{dotted-name}}
   \end{attributedesc}
 \end{elementdesc}
 
