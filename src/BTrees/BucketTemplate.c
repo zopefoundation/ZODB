@@ -134,6 +134,41 @@ bucket_getitem(Bucket *self, PyObject *key)
   return _bucket_get(self, key, 0);
 }
 
+static int 
+Bucket_grow(Bucket *self, int noval)
+{
+  KEY_TYPE *keys;
+  VALUE_TYPE *values;
+
+  if (self->size)
+    {
+      UNLESS (keys=PyRealloc(self->keys, sizeof(KEY_TYPE)*self->size*2))
+        return -1;
+      
+      UNLESS (noval)
+        {
+          UNLESS (values=PyRealloc(self->values,
+                                   sizeof(VALUE_TYPE)*self->size*2))
+            return -1;
+          self->values=values;
+        }
+      self->keys=keys;
+      self->size*=2;
+    }
+  else
+    {
+      UNLESS (self->keys=PyMalloc(sizeof(KEY_TYPE)*MIN_BUCKET_ALLOC))
+        return -1;
+      UNLESS (noval || 
+              (self->values=PyMalloc(sizeof(VALUE_TYPE)*MIN_BUCKET_ALLOC))
+              )
+        return -1;
+      self->size=MIN_BUCKET_ALLOC;
+    }
+  
+  return 0;
+}
+
 /*
 ** _bucket_set
 **
@@ -153,8 +188,6 @@ _bucket_set(Bucket *self, PyObject *keyarg, PyObject *v, int unique, int noval)
 {
   int min, max, i, l, cmp, copied=1;
   KEY_TYPE key;
-  KEY_TYPE *keys;
-  VALUE_TYPE *values;
   
   COPY_KEY_FROM_ARG(key, keyarg, &copied);
   UNLESS(copied) return -1;
@@ -225,34 +258,8 @@ _bucket_set(Bucket *self, PyObject *keyarg, PyObject *v, int unique, int noval)
       goto err;
     }
 
-  if (self->len==self->size)
-    {
-      if (self->size)
-        {
-	  UNLESS (keys=PyRealloc(self->keys, sizeof(KEY_TYPE)*self->size*2))
-            goto err;
+  if (self->len==self->size && Bucket_grow(self, noval) < 0) goto err;
 
-          UNLESS (noval)
-            {
-              UNLESS (values=PyRealloc(self->values, 
-                                       sizeof(VALUE_TYPE)*self->size*2))
-                goto err;
-              self->values=values;
-            }
-	  self->keys=keys;
-	  self->size*=2;
-	}
-      else
-	{
-	  UNLESS (self->keys=PyMalloc(sizeof(KEY_TYPE)*MIN_BUCKET_ALLOC))
-            goto err;
-	  UNLESS (noval || 
-                  (self->values=PyMalloc(sizeof(VALUE_TYPE)*MIN_BUCKET_ALLOC))
-                  )
-            goto err;
-	  self->size=MIN_BUCKET_ALLOC;
-	}
-    }
   if (max != i) i++;
 
   if (self->len > i)
