@@ -12,7 +12,7 @@
 
  ****************************************************************************/
 
-#define BUCKETTEMPLATE_C "$Id: BucketTemplate.c,v 1.52 2003/04/11 19:38:18 tim_one Exp $\n"
+#define BUCKETTEMPLATE_C "$Id: BucketTemplate.c,v 1.53 2003/04/16 16:01:10 tim_one Exp $\n"
 
 /* Use BUCKET_SEARCH to find the index at which a key belongs.
  * INDEX    An int lvalue to hold the index i such that KEY belongs at
@@ -299,7 +299,18 @@ _bucket_set(Bucket *self, PyObject *keyarg, PyObject *v,
 {
     int i, cmp;
     KEY_TYPE key;
-    VALUE_TYPE value;
+
+    /* Subtle:  there may or may not be a value.  If there is, we need to
+     * check its type early, so that in case of error we can get out before
+     * mutating the bucket.  But because value isn't used on all paths, if
+     * we don't initialize value then gcc gives a nuisance complaint that
+     * value may be used initialized (it can't be, but gcc doesn't know
+     * that).  So we initialize it.  However, VALUE_TYPE can be various types,
+     * including int, PyObject*, and char[6], so it's a puzzle to spell
+     * initialization.  It so happens that {0} is a valid initializer for all
+     * these types.
+     */
+    VALUE_TYPE value = {0};	/* squash nuisance warning */
     int result = -1;    /* until proven innocent */
     int copied = 1;
 
