@@ -26,7 +26,6 @@ Where:
     -h / --help
         Print this text and exit
 
-Flags for --backup and --recover:
     -r dir
     --repository=dir
         Repository directory containing the backup files
@@ -38,6 +37,11 @@ Flags for --backup:
 
     -F / --full
         Force a full backup
+
+    -Q / --quick
+        Verify via md5 checksum only the last incremental written.  This
+        significantly reduces the disk i/o at the (theoretical) cost of
+        inconsistency.
 
 Flags for --recover:
     -D str
@@ -59,6 +63,7 @@ import os
 import sys
 import md5
 import time
+import errno
 import getopt
 
 from ZODB.FileStorage import FileStorage
@@ -102,10 +107,10 @@ def log(msg, *args):
 def parseargs():
     global VERBOSE
     try:
-        opts, args = getopt.getopt(sys.argv[1:], 'BRvhf:r:FD:o:',
+        opts, args = getopt.getopt(sys.argv[1:], 'BRvhf:r:FD:o:Q',
                                    ['backup', 'recover', 'verbose', 'help',
                                     'file=', 'repository=', 'full', 'date=',
-                                    'output='])
+                                    'output=', 'quick'])
     except getopt.error, msg:
         usage(1, msg)
 
@@ -116,12 +121,15 @@ def parseargs():
         full = False
         date = None
         output = None
+        quick = False
 
     options = Options()
 
     for opt, arg in opts:
         if opt in ('-h', '--help'):
             usage(0)
+        elif opt in ('-v', '--verbose'):
+            VERBOSE = True
         elif opt in ('-R', '--recover'):
             if options.mode is not None:
                 usage(1, '-B and -R are mutually exclusive')
@@ -130,8 +138,8 @@ def parseargs():
             if options.mode is not None:
                 usage(1, '-B and -R are mutually exclusive')
             options.mode = BACKUP
-        elif opt in ('-v', '--verbose'):
-            VERBOSE = True
+        elif opt in ('-Q', '--quick'):
+            options.quick = True
         elif opt in ('-f', '--file'):
             options.file = arg
         elif opt in ('-r', '--repository'):
@@ -185,10 +193,9 @@ def dofile(func, fp, n):
     return bytesread
 
 
-def checksum(filename, n):
+def checksum(fp, n):
     # Checksum the first n bytes of the specified file
     sum = md5.new()
-    fp = open(filename, 'rb')
     def func(data):
         sum.update(data)
     dofile(func, fp, n)
@@ -198,14 +205,17 @@ def checksum(filename, n):
 def copyfile(src, dst, start, n):
     # Copy bytes from file src, to file dst, starting at offset start, for n
     # length of bytes
+    sum = md5.new()
     ifp = open(src, 'rb')
     ifp.seek(start)
     ofp = open(dst, 'wb')
     def func(data):
+        sum.update(data)
         ofp.write(data)
     dofile(func, ifp, n)
     ofp.close()
     ifp.close()
+    return sum.hexdigest()
 
 
 def concat(files, ofp=None):
@@ -270,6 +280,33 @@ def find_files(options):
     return needed
 
 
+def scandat(repofiles):
+    # Scan the .dat file corresponding to the last full backup performed.
+    # Return the filename, startpos, endpos, and sum of the last incremental.
+    # If all is a list, then append file name and md5sums to the list.
+    fullfile = repofiles[0]
+    assert fullfile.endswith('.fs')
+    datfile = os.path.splitext(fullfile)[0] + '.dat'
+    # If the .dat file is missing, we have to do a full backup
+    fn = startpos = endpos = sum = None
+    try:
+        fp = open(datfile)
+    except IOError, e:
+        if e.errno <> errno.ENOENT:
+            raise
+    else:
+        while True:
+            line = fp.readline()
+            if not line:
+                break
+            # We only care about the last one
+            fn, startpos, endpos, sum = line.split()
+        fp.close()
+    startpos = long(startpos)
+    endpos = long(endpos)
+    return fn, startpos, endpos, sum
+
+
 
 def do_full_backup(options):
     # Find the file position of the last completed transaction.
@@ -286,10 +323,16 @@ def do_full_backup(options):
     if os.path.exists(dest):
         print >> sys.stderr, 'Cannot overwrite existing file:', dest
         sys.exit(2)
-    copyfile(options.file, dest, 0, pos)
+    log('writing full backup: %s bytes to %s', pos, dest)
+    sum = copyfile(options.file, dest, 0, pos)
+    # Write the data file for this full backup
+    datfile = os.path.splitext(dest)[0] + '.dat'
+    fp = open(datfile, 'w')
+    print >> fp, dest, 0, pos, sum
+    fp.close()
 
 
-def do_incremental_backup(options, dstfile, reposz):
+def do_incremental_backup(options, reposz, repofiles):
     # Find the file position of the last completed transaction.
     fs = FileStorage(options.file, read_only=True)
     # Note that the FileStorage ctor calls read_index() which scans the file
@@ -305,7 +348,17 @@ def do_incremental_backup(options, dstfile, reposz):
         print >> sys.stderr, 'Cannot overwrite existing file:', dest
         sys.exit(2)
     log('writing incremental: %s bytes to %s',  pos-reposz, dest)
-    copyfile(options.file, dest, reposz, pos)
+    sum = copyfile(options.file, dest, reposz, pos)
+    # The first file in repofiles points to the last full backup.  Use this to
+    # get the .dat file and append the information for this incrementatl to
+    # that file.
+    fullfile = repofiles[0]
+    assert fullfile.endswith('.fs')
+    datfile = os.path.splitext(fullfile)[0] + '.dat'
+    # This .dat file better exist.  Let the exception percolate if not.
+    fp = open(datfile, 'a')
+    print >> fp, dest, reposz, pos, sum
+    fp.close()
 
 
 def do_backup(options):
@@ -315,39 +368,72 @@ def do_backup(options):
         log('doing a full backup')
         do_full_backup(options)
         return
-    # See if we can do an incremental, based on the files that already exist.
-    # This call of concat() will not write an output file.
-    reposz, reposum = concat(repofiles)
-    log('repository state: %s bytes, md5: %s', reposz, reposum)
     srcsz = os.path.getsize(options.file)
-    # Get the md5 checksum of the source file, up to two file positions: the
-    # entire size of the file, and up to the file position of the last
-    # incremental backup.
-    srcsum = checksum(options.file, srcsz)
-    srcsum_backedup = checksum(options.file, reposz)
-    log('current state   : %s bytes, md5: %s', srcsz, srcsum)
-    log('backed up state : %s bytes, md5: %s', reposz, srcsum_backedup)
-    # Has nothing changed?
-    if srcsz == reposz and srcsum == reposum:
-        log('No changes, nothing to do')
-        return
-    # Has the file shrunk (probably because of a pack)?
-    if srcsz < reposz:
-        log('file shrunk, possibly because of a pack (full backup)')
-        do_full_backup(options)
-        return
-    # The source file is larger than the repository.  If the md5 checksums
-    # match, then we know we can do an incremental backup.  If they don't,
-    # then perhaps the file was packed at some point (or a non-transactional
-    # undo was performed, but this is deprecated).  Only do a full backup if
-    # forced to.
-    #
-    # XXX For ZODB4, this needs to take into account the storage metadata
-    # header that FileStorage has grown at the front of the file.
-    if reposum == srcsum_backedup:
-        incrdest = gen_filename(options)
-        do_incremental_backup(options, incrdest, reposz)
-        return
+    if options.quick:
+        fn, startpos, endpos, sum = scandat(repofiles)
+        # If the .dat file was missing, or was empty, do a full backup
+        if (fn, startpos, endpos, sum) == (None, None, None, None):
+            log('missing or empty .dat file (full backup)')
+            do_full_backup(options)
+            return
+        # Has the file shrunk, possibly because of a pack?
+        if srcsz < endpos:
+            log('file shrunk, possibly because of a pack (full backup)')
+            do_full_backup(options)
+            return
+        # Now check the md5 sum of the source file, from the last
+        # incremental's start and stop positions.
+        srcfp = open(options.file)
+        srcfp.seek(startpos)
+        srcsum = checksum(srcfp, endpos-startpos)
+        log('last incremental file: %s', fn)
+        log('last incremental checksum: %s', sum)
+        log('source checksum range: [%s..%s], sum: %s',
+            startpos, endpos, srcsum)
+        if sum == srcsum:
+            log('doing incremental, starting at: %s', endpos)
+            do_incremental_backup(options, endpos, repofiles)
+            return
+    else:
+        # This was is much slower, and more disk i/o intensive, but it's also
+        # more accurate since it checks the actual existing files instead of
+        # the information in the .dat file.
+        #
+        # See if we can do an incremental, based on the files that already
+        # exist.  This call of concat() will not write an output file.
+        reposz, reposum = concat(repofiles)
+        log('repository state: %s bytes, md5: %s', reposz, reposum)
+        # Get the md5 checksum of the source file, up to two file positions:
+        # the entire size of the file, and up to the file position of the last
+        # incremental backup.
+        srcfp = open(options.file)
+        srcsum = checksum(srcfp, srcsz)
+        srcfp.seek(0)
+        srcsum_backedup = checksum(srcfp, reposz)
+        srcfp.close()
+        log('current state   : %s bytes, md5: %s', srcsz, srcsum)
+        log('backed up state : %s bytes, md5: %s', reposz, srcsum_backedup)
+        # Has nothing changed?
+        if srcsz == reposz and srcsum == reposum:
+            log('No changes, nothing to do')
+            return
+        # Has the file shrunk, probably because of a pack?
+        if srcsz < reposz:
+            log('file shrunk, possibly because of a pack (full backup)')
+            do_full_backup(options)
+            return
+        # The source file is larger than the repository.  If the md5 checksums
+        # match, then we know we can do an incremental backup.  If they don't,
+        # then perhaps the file was packed at some point (or a
+        # non-transactional undo was performed, but this is deprecated).  Only
+        # do a full backup if forced to.
+        #
+        # XXX For ZODB4, this needs to take into account the storage metadata
+        # header that FileStorage has grown at the front of the file.
+        if reposum == srcsum_backedup:
+            log('doing incremental, starting at: %s', reposz)
+            do_incremental_backup(options, reposz, repofiles)
+            return
     # The checksums don't match, meaning the front of the source file has
     # changed.  We'll need to do a full backup in that case.
     log('file changed, possibly because of a pack (full backup)')
