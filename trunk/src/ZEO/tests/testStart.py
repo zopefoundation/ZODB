@@ -134,10 +134,13 @@ class StartTests(unittest.TestCase):
         f = open(file, "rb")
         buf = f.read()
         f.close()
+        os.unlink(file)
         return buf
 
     def connect(self, port=None, wait=1):
-        cs = ClientStorage(('', port), wait=wait)
+        cs = ClientStorage(('', port), wait=wait,
+                           min_disconnect_poll=0.1,
+                           max_disconnect_poll=0.2)
         cs.close()
 
     def testErrNoPort(self):
@@ -187,11 +190,6 @@ class StartTests(unittest.TestCase):
                 pass
 
 def test_suite():
-
-    # XXX These tests hang on the Zope trunk.  Disable for now, as
-    # start.py won't be supported in ZODB 3.2 anyway.
-
-    return None
 
     # shutup warnings about mktemp
     import warnings
