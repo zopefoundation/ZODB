@@ -143,18 +143,17 @@ class GenericTests(ZEOTestBase,
         The ZEO server uses the storage object returned by the
         getStorage() method.
         """
+        self.__super_setUp()
         self.running = 1
         client, exit, pid = forker.start_zeo(self.getStorage())
         self._pid = pid
         self._server = exit
         self._storage = PackWaitWrapper(client)
         client.registerDB(DummyDB(), None)
-        self.__super_setUp()
 
     def tearDown(self):
         """Try to cause the tests to halt"""
         self.running = 0
-        self._storage.close()
         self._server.close()
         os.waitpid(self._pid, 0)
         self.delStorage()
