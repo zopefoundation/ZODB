@@ -100,11 +100,15 @@ class ZEOTestBase(StorageTestBase.StorageTestBase):
         
 class GenericTests(ZEOTestBase,
                    Cache.StorageWithCache,
+                   Cache.TransUndoStorageWithCache,
                    BasicStorage.BasicStorage,
                    VersionStorage.VersionStorage,
                    PackableStorage.PackableStorage,
                    Synchronization.SynchronizedStorage,
                    ConflictResolution.ConflictResolvingStorage,
+                   ConflictResolution.ConflictResolvingTransUndoStorage,
+                   TransactionalUndoStorage.TransactionalUndoStorage,
+      TransactionalUndoVersionStorage.TransactionalUndoVersionStorage,
                    ):
     """An abstract base class for ZEO tests
 
