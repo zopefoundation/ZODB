@@ -1,6 +1,8 @@
 \documentclass{howto}
 \usepackage{xmlmarkup}
 
+\newcommand{\datatype}[1]{\strong{#1}}
+
 \title{ZConfig Package Reference}
 
 %\date{\today}
@@ -243,15 +245,21 @@ key $name
 
 XXX to be written
 
-\module{ZConfig} schema are written as XML documents.  The following
-elements are 
+\module{ZConfig} schema are written as XML documents.
+
+
+\subsection{Schema Element Reference \label{schema-ref}}
+
+XXX need to discuss notation
+
+The following elements are used to describe a schema:
 
 \begin{elementdesc}{key}{description?, example?, metadefault?}
   A \element{key} element is used to describe a key-value pair which
   may occur at most once in the section type or top-level schema in
   which it is listed.
 
-  \begin{attributedesc}{attribute}{NMTOKEN}
+  \begin{attributedesc}{attribute}{\datatype{identifier}}
     The name of the Python attribute which this key should be the
     value of on a \class{SectionValue} instance.  This must be unique
     within the immediate contents of a section type or schema.  If
@@ -259,12 +267,18 @@ elements are
     computed by converting hyphens in the key name to underscores.
   \end{attributedesc}
 
-  \begin{attributedesc}{datatype}{NMTOKEN}
+  \begin{attributedesc}{datatype}{\datatype{basic-key}
+                                  or \datatype{dotted-name}}
     The data type converter which will be applied to the value of this
-    key.
+    key.  If the value can be matched to a standard data type when
+    interpreted as a \datatype{basic-key}, the standard data type will
+    be used.  If that fails, the value must be a
+    \datatype{dotted-name} containing at least one dot, and a
+    conversion function will be sought using the \method{search()}
+    method of the data type registry used to load the schema.
   \end{attributedesc}
 
-  \begin{attributedesc}{default}{CDATA}
+  \begin{attributedesc}{default}{\datatype{string}}
     If the key-value pair is optional and this attribute is specified,
     the value of this attribute will be converted using the appropiate
     data type converter and returned to the application as the
@@ -272,10 +286,10 @@ elements are
     \attribute{required} attribute is \code{yes}.
   \end{attributedesc}
 
-  \begin{attributedesc}{handler}{NMTOKEN}
+  \begin{attributedesc}{handler}{\datatype{dotted-name}}
   \end{attributedesc}
 
-  \begin{attributedesc}{name}{MNTOKEN}
+  \begin{attributedesc}{name}{\datatype{basic-key}}
     The name of the key, as it must be given in a configuration
     instance, or `\code{*}'.  If the value is `\code{*}', any name not
     already specified as a key may be used, and the configuration
@@ -285,7 +299,7 @@ elements are
     to each key which is found.
   \end{attributedesc}
 
-  \begin{attributedesc}{required}{yes|no}
+  \begin{attributedesc}{required}{\code{yes|no}}
     Specifies whether the configuration instance is required to
     provide the key.  If the value is \code{yes}, the
     \attribute{default} attribute may not be specified and an error
@@ -345,24 +359,24 @@ code.
 The following datatypes are provided by the default type registry.
 
 \begin{definitions}
-\term{basic-key}
+\term{\datatype{basic-key}}
   The default data type for a key in a ZConfig configuration file.
   The result of conversion is always lower-case, and matches the
   regular expression \regexp{[a-z][-._a-z0-9]*}.
 
-\term{boolean}
+\term{\datatype{boolean}}
   Convert a human-friendly string to a boolean value.  The names
   \code{yes}, \code{on}, and \code{true} convert to \constant{True},
   while \code{no}, \code{off}, and \code{false} convert to
   \constant{False}.  Comparisons are case-insensitive.  All other
   input strings are disallowed.
 
-\term{byte-size}
+\term{\datatype{byte-size}}
   A specification of a size, with byte multiplier suffixes (for
   example, \samp{128MB}).  Suffixes are case insensitive and may be
   ``KB'', ``MB'', or ``GB''.
 
-\term{constructor}
+\term{\datatype{constructor}}
   Parse value in the form \samp{fn('1', '2', kw1='a', kw2='b')} into a
   3-tuple where the first element is the string \code{'fn'}, the 2nd
   element is the list \code{['1', '2']}, and the 3rd element is the
@@ -371,75 +385,75 @@ The following datatypes are provided by the default type registry.
   rules are enforced, but only constants are allowed as positional and
   keyword arguments.  The 3-tuple is returned.
 
-\term{existing-dirpath}
+\term{\datatype{existing-dirpath}}
   Validates that the directory portion of a pathname exists.  For
   example, if the value provided is \file{/foo/bar}, \file{/foo} must
   be an existing directory.  No conversion is performed.
 
-\term{existing-directory}
+\term{\datatype{existing-directory}}
   Validates that a directory by the given name exists on 
   the local filesystem.  No conversion is performed. 
 
-\term{existing-file}
+\term{\datatype{existing-file}}
   Validates that a file by the given name exists.  No conversion 
   is performed. 
 
-\term{existing-path}
+\term{\datatype{existing-path}}
   Validates that a path (file, directory, or symlink) by the
   given name exists on the local filesystem.  No conversion
   is performed.
 
-\term{float}
+\term{\datatype{float}}
   A Python float.  \code{Inf}, \code{-Inf}, and \code{NaN} are not
   allowed.
 
-\term{identifier}
+\term{\datatype{identifier}}
   Any valid Python identifier.
 
-\term{inet-address}
+\term{\datatype{inet-address}}
   An internet address expressed as a \code{(\var{hostname},
   \var{port})} pair.  If only the port is specified, an empty string
   will be returned for \var{hostname}.  If the port is omitted,
   \code{None} will be returned for \var{port}.
 
-\term{integer}
+\term{\datatype{integer}}
   Convert a value to an integer.  This will be a Python \class{int} if
   the value is in the range allowed by \class{int}, otherwise a Python
   \class{long} is returned.
 
-\term{ipaddr-or-hostname}
+\term{\datatype{ipaddr-or-hostname}}
   Validates a valid IP address or hostname.  If the first 
   character is a digit, the value is assumed to be an IP 
   address.  If the first character is not a digit, the value 
   is assumed to be a hostname.  No conversion is performed. 
 
-\term{key-value}
+\term{\datatype{key-value}}
   Parse a value in the form \code{'A B'} into the list \code{['A',
   'B']}.  Returns the list.
 
-\term{locale}
+\term{\datatype{locale}}
   Any valid locale specifier accepted by the available
   \function{locale.setlocale()} function.  Be aware that only the
   \code{'C'} locale is supported on some platforms.
 
-\term{logging-level}
+\term{\datatype{logging-level}}
   A logging level usable by the \module{logging} package.  Valid
   values are the names \code{critical}, \code{fatal}, \code{error},
   \code{warn}, \code{info}, \code{debug}, and \code{all}, as well as
   integers in the range [0..50].  Converted values are always
   expressed as integers.
 
-\term{null}
+\term{\datatype{null}}
   No conversion is performed; the value passed in is the value
   returned.  This is the default data type for section values.
 
-\term{port-number}
+\term{\datatype{port-number}}
   Returns a valid port number as an integer.  Validity does not imply
   that any particular use may be made of the port, however.  For
   example, port number lower than 1024 generally cannot be bound by
   non-root users.
 
-\term{socket-address}
+\term{\datatype{socket-address}}
   An address for a socket.  The converted value is an object providing
   two attributes.  \member{family} specifies the address family
   (\constant{AF_INET} or \constant{AF_UNIX}), with \code{None} instead
@@ -448,15 +462,15 @@ The following datatypes are provided by the default type registry.
   to the socket's \method{bind()} method.  If the family is
   \constant{AF_UNIX}, the specific address will be a pathname; if the
   family is \constant{AF_INET}, the second part will be the result of
-  the \strong{inet-address} conversion.
+  the \datatype{inet-address} conversion.
 
-\term{string}
+\term{\datatype{string}}
   Returns the input value as a string.  If the source is a Unicode
   string, this implies that it will be checked to be simple 7-bit
   \ASCII.  This is the default data type for key values in
   configuration files.
 
-\term{time-interval}
+\term{\datatype{time-interval}}
   A specification of a time interval, with multiplier suffixes,
   e.g. 12h.  Suffixes are case insensitive and may be ``s'' (seconds),
   ``m'' (minutes), ``h'' (hours), or ``d'' (days).
