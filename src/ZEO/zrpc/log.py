@@ -24,5 +24,36 @@ def new_label():
 def log(message, level=zLOG.BLATHER, label=None, error=None):
     zLOG.LOG(label or _label, level, message, error=error)
 
-# There's a nice "short_repr" function in the repr module:
-from repr import repr as short_repr
+REPR_LIMIT = 40
+
+def short_repr(obj):
+    "Return an object repr limited to REPR_LIMIT bytes."
+
+    # Some of the objects being repr'd are large strings.  It's wastes
+    # a lot of memory to repr them and then truncate, so special case
+    # them in this function.
+    # Also handle short repr of a tuple containing a long string.
+
+    # This strategy works well for arguments to StorageServer methods.
+    # The oid is usually first and will get included in its entirety.
+    # The pickle is near the beginning, too, and you can often fit the
+    # module name in the pickle.
+
+    if isinstance(obj, types.StringType):
+        r = `obj[:REPR_LIMIT]`
+    elif isinstance(obj, types.TupleType):
+        elts = []
+        size = 0
+        for elt in obj:
+            r = repr(elt)
+            elts.append(r)
+            size += len(r)
+            if size > REPR_LIMIT:
+                break
+        r = "(%s)" % (", ".join(elts))
+    else:
+        r = repr(obj)
+    if len(r) > REPR_LIMIT:
+        return r[:REPR_LIMIT] + '...'
+    else:
+        return r
