@@ -1,8 +1,4 @@
-This directory contains Andrew Kuchling's programmers guide to ZODB
-and ZEO.  It is taken from Andrew's zodb.sf.net project on
-SourceForge.  The SF version should be considered the canonical
-version, so don't make edits here for now.
-
-Eventually, we'll finish merging the two projects and then the version
-here will be the canonical one.  For now, we have to manually keep the
-two directories in sync.
+This directory contains Andrew Kuchling's programmer's guide to ZODB
+and ZEO.  It was originally taken from Andrew's zodb.sf.net project on
+SourceForge.  Because the original version is no longer updated, this
+version is best viewed as an independent fork now.
