@@ -32,6 +32,8 @@ addresses and/or object identity (the synthesized bucket has an address
 that doesn't exist in the actual BTree).
 """
 
+from types import TupleType
+
 try:
     from zodb.btrees.OOBTree import OOBTree, OOBucket, OOSet, OOTreeSet
     from zodb.btrees.OIBTree import OIBTree, OIBucket, OISet, OITreeSet
@@ -44,6 +46,12 @@ except ImportError:
     from BTrees.IIBTree import IIBTree, IIBucket, IISet, IITreeSet
 
 TYPE_UNKNOWN, TYPE_BTREE, TYPE_BUCKET = range(3)
+
+try:
+    True
+except NameError:
+    True = 1
+    False = 0
 
 _type2kind = {IOBTree: (TYPE_BTREE, True),
               IIBTree: (TYPE_BTREE, True),
@@ -131,10 +139,10 @@ def crack_btree(t, is_mapping):
     if state is None:
         return BTREE_EMPTY, [], []
 
-    assert isinstance(state, tuple)
+    assert isinstance(state, TupleType)
     if len(state) == 1:
         state = state[0]
-        assert isinstance(state, tuple) and len(state) == 1
+        assert isinstance(state, TupleType) and len(state) == 1
         state = state[0]
         return BTREE_ONE, state, None
 
@@ -183,7 +191,7 @@ def crack_btree(t, is_mapping):
 
 def crack_bucket(b, is_mapping):
     state = b.__getstate__()
-    assert isinstance(state, tuple)
+    assert isinstance(state, TupleType)
     assert 1 <= len(state) <= 2
     data = state[0]
     if not is_mapping:
@@ -210,7 +218,7 @@ def type_and_adr(obj):
 # visit_XYZ() methods once for each node in the tree, in depth-first
 # left-to-right order.
 
-class Walker(object):
+class Walker:
     def __init__(self, obj):
         self.obj = obj
 
