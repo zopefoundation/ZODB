@@ -84,8 +84,8 @@
 ##############################################################################
 """Database objects
 
-$Id: DB.py,v 1.22 2000/08/08 17:47:29 jim Exp $"""
-__version__='$Revision: 1.22 $'[11:-2]
+$Id: DB.py,v 1.23 2000/08/18 15:53:25 jim Exp $"""
+__version__='$Revision: 1.23 $'[11:-2]
 
 import cPickle, cStringIO, sys, POSException, UndoLogCompatible
 from Connection import Connection
@@ -340,7 +340,8 @@ class DB(UndoLogCompatible.UndoLogCompatible):
                 t=[]
                 for cc in temps:
                     if rc(cc) > 3:
-                        if cc is not connection and cc._version==version:
+                        if (cc is not connection and
+                            (not version or cc._version==version)):
                             cc.invalidate(oid)
                         t.append(cc)
                     else: cc.close()
@@ -587,8 +588,12 @@ class CommitVersion:
     def commit(self, reallyme, t):
         db=self._db
         dest=self._dest
-        for oid in db._storage.commitVersion(self._version, dest, t):
-            db.invalidate(oid, version=dest)
+        oids=db._storage.commitVersion(self._version, dest, t)
+        for oid in oids: db.invalidate(oid, version=dest)
+        if dest:
+            # the code above just invalidated the dest version.
+            # now we need to invalidate the source!
+            for oid in oids: db.invalidate(oid, version=self._version)
     
 class AbortVersion(CommitVersion):
     """An object that will see to version abortion
