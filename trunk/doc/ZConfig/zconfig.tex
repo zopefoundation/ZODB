@@ -194,7 +194,7 @@ syntactic correctness.)
 
 % In this application, sections of type \code{host} would be allowed to
 % acquire configuration data only from the \code{hostclass} type, so the
-% section named \code{grendel} would only be allowed to to acquire
+% section named \code{grendel} would only be allowed to acquire
 % configuration data from a section with type \code{hostclass} and name
 % \code{secondary}.  The \code{hostclass} section named \code{secondary}
 % could in turn acquire additional key-value pairs from some other
@@ -714,7 +714,7 @@ The following data types are provided by the default type registry.
   Any valid Python identifier.
 
 \term{\datatype{inet-address}}
-  An internet address expressed as a \code{(\var{hostname},
+  An Internet address expressed as a \code{(\var{hostname},
   \var{port})} pair.  If only the port is specified, an empty string
   will be returned for \var{hostname}.  If the port is omitted,
   \code{None} will be returned for \var{port}.
@@ -986,7 +986,7 @@ A \dfn{conversion function} is any callable object that accepts a
 single argument and returns a suitable value, or raises an exception
 if the input value is not acceptable.  \exception{ValueError} is the
 preferred exception for disallowed inputs, but any other exception
-will be properly propogated.
+will be properly propagated.
 
 \begin{classdesc}{Registry}{\optional{stock}}
   Implementation of a simple type registry.  If given, \var{stock}
