@@ -214,7 +214,7 @@ def main():
         elif opt == '-P':
             pack = time.time() - float(v)
 
-    recover(inp, outp, verobse, partial, force, pack)
+    recover(inp, outp, verbose, partial, force, pack)
 
 def recover(inp, outp, verbose=0, partial=0, force=0, pack=0):
     print 'Recovering', inp, 'into', outp
