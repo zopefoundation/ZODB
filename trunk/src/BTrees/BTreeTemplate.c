@@ -12,7 +12,7 @@
 
  ****************************************************************************/
 
-#define BTREETEMPLATE_C "$Id: BTreeTemplate.c,v 1.56 2002/06/17 18:26:39 tim_one Exp $\n"
+#define BTREETEMPLATE_C "$Id: BTreeTemplate.c,v 1.57 2002/06/17 18:49:49 tim_one Exp $\n"
 
 /*
 ** _BTree_get
@@ -174,10 +174,18 @@ err:
 ** Grow a BTree
 **
 ** Arguments:	self	The BTree
-**		index	the index item to insert at
+**		index	self->data[index].child needs to be split.  index
+**                      must be 0 if self is empty (len == 0), and a new
+**                      empty bucket is created then.
+**              noval   Boolean; is this a set (true) or mapping (false)?
 **
 ** Returns:	 0	on success
 **		-1	on failure
+**
+** CAUTION:  If self is empty on entry, this routine adds an empty bucket.
+** That isn't a legitimate BTree; if the caller doesn't put something in
+** in the bucket (say, because of a later error), the BTree must be cleared
+** to get rid of the empty bucket.
 */
 static int
 BTree_grow(BTree *self, int index, int noval)
@@ -190,7 +198,7 @@ BTree_grow(BTree *self, int index, int noval)
     {
       if (self->size)
         {
-          d = PyRealloc(self->data, sizeof(BTreeItem)*self->size*2);
+          d = PyRealloc(self->data, sizeof(BTreeItem) * self->size * 2);
           if (d == NULL)
             return -1;
           self->data = d;
@@ -198,7 +206,7 @@ BTree_grow(BTree *self, int index, int noval)
         }
       else
         {
-          d = PyMalloc(sizeof(BTreeItem)*2);
+          d = PyMalloc(sizeof(BTreeItem) * 2);
           if (d == NULL)
             return -1;
           self->data = d;
@@ -206,9 +214,9 @@ BTree_grow(BTree *self, int index, int noval)
         }
     }
 
-  d = self->data + index;
   if (self->len)
     {
+      d = self->data + index;
       v = d->child;
       /* Create a new object of the same type as the target value */
       e = SIZED(PyObject_CallObject(OBJECT(v->ob_type), NULL));
@@ -264,6 +272,11 @@ BTree_grow(BTree *self, int index, int noval)
     }
   else
     {
+      /* The BTree is empty.  Create an empty bucket.  See CAUTION in
+       * the comments preceding.
+       */
+      assert(index == 0);
+      d = self->data;
       if (noval)
         {
           d->child = SIZED(PyObject_CallObject(OBJECT(&SetType), NULL));
