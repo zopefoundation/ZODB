@@ -13,7 +13,7 @@
 ##############################################################################
 """Network ZODB storage client
 
-$Id: ClientStorage.py,v 1.48 2002/08/16 21:58:21 tim_one Exp $
+$Id: ClientStorage.py,v 1.49 2002/08/16 22:48:35 jeremy Exp $
 """
 
 import cPickle
@@ -346,15 +346,8 @@ class ClientStorage:
                 self.tpc_cond.release()
                 return
             self.tpc_cond.wait()
-
-        if self._server is None:
-            # XXX Why set _transaction to None?  It must be None now, else
-            # XXX we would have stayed in the while loop.
-            assert self._transaction is None
-            self._transaction = None
-            self.tpc_cond.notify()
-            self.tpc_cond.release()
-            raise ClientDisconnected()
+        self._transaction = transaction
+        self.tpc_cond.release()
 
         if tid is None:
             self._ts = get_timestamp(self._ts)
@@ -362,13 +355,6 @@ class ClientStorage:
         else:
             self._ts = TimeStamp(tid)
             id = tid
-        # XXX Can setting _transaction be moved above the "id=" business?
-        # XXX We want to hold the condvar across as little code as possible,
-        # XXX to slash the chances for deadlock (among other things); e.g.,
-        # XXX if one of those timestamp routines raised an exception, we'd
-        # XXX hold the condvar forever.
-        self._transaction = transaction
-        self.tpc_cond.release()
 
         try:
             r = self._server.tpc_begin(id,
