@@ -173,10 +173,12 @@ class ExportImport:
             while 1:
                 h=read(16)
                 if h==export_end_marker: break
-                if len(h) != 16: raise ExportError, 'Truncated export file'
+                if len(h) != 16:
+                    raise POSException.ExportError, 'Truncated export file'
                 l=u64(h[8:16])
                 p=read(l)
-                if len(p) != l:  raise ExportError, 'Truncated export file'
+                if len(p) != l:
+                    raise POSException.ExportError, 'Truncated export file'
 
                 ooid=h[:8]
                 if oids:
