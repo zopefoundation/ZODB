@@ -90,7 +90,7 @@ Each cache file is a sequence of records of the form:
 
   oid -- 8-byte object id
 
-  status -- 1-byte status v': valid, 'n': non-version valid, 'i': invalid
+  status -- 1-byte status 'v': valid, 'n': non-version valid, 'i': invalid
 
   tlen -- 4-byte (unsigned) record length
 
@@ -108,7 +108,7 @@ Each cache file is a sequence of records of the form:
 
   vdata -- version data (if vlen > 0)
 
-  vserial -- 8-byte version serial (timestamp)
+  vserial -- 8-byte version serial (timestamp) (if vlen > 0)
 
   tlen -- 4-byte (unsigned) record length (for redundancy and backward
           traversal)
@@ -144,7 +144,7 @@ file 0 and file 1.
 
 """
 
-__version__ = "$Revision: 1.7 $"[11:-2]
+__version__ = "$Revision: 1.8 $"[11:-2]
 
 import os, tempfile
 from struct import pack, unpack
@@ -240,20 +240,27 @@ class ClientCache:
         if len(h)==27 and h[8] in 'nv' and h[:8]==oid:
             tlen, vlen, dlen = unpack(">iHi", h[9:19])
         else: tlen=-1
-        if tlen <= 0 or vlen < 0 or dlen <= 0 or vlen+dlen > tlen:
+        if tlen <= 0 or vlen < 0 or dlen < 0 or vlen+dlen > tlen:
             del self._index[oid]
             return None
 
-        if version and h[8]=='n': return None
+        if h[8]=='n': 
+            if version: return None
+            if not dlen:
+                del self._index[oid]
+                return None                
         
         if not vlen or not version:
-            return read(dlen), h[19:]
+            if dlen: return read(dlen), h[19:]
+            else: return None
 
-        seek(dlen, 1)
+        if dlen: seek(dlen, 1)
         v=read(vlen)
-        if version != v: 
-            seek(-dlen-vlen, 1)
-            return read(dlen), h[19:]
+        if version != v:
+            if dlen:
+                seek(-dlen-vlen, 1)
+                return read(dlen), h[19:]
+            else: None
 
         dlen=unpack(">i", read(4))[0]
         return read(dlen), read(8)
@@ -262,7 +269,8 @@ class ClientCache:
         if version:
             # We need to find and include non-version data
             p=self._get(oid, None)
-            if p is None: return None
+            if p is None:
+                return self.store(oid, '', '', version, data, serial)
             f=self._f[p < 0]
             ap=abs(p)
             seek=f.seek
@@ -271,13 +279,17 @@ class ClientCache:
             h=read(27)
             if len(h)==27 and h[8] in 'nv' and h[:8]==oid:
                 tlen, vlen, dlen = unpack(">iHi", h[9:19])
-            else: tlen=-1
+            else:
+                return self.store(oid, '', '', version, data, serial)
+                
             if tlen <= 0 or vlen < 0 or dlen <= 0 or vlen+dlen > tlen:
-                del self._index[oid]
-                return None
+                return self.store(oid, '', '', version, data, serial)
 
-            p=read(dlen)
-            s=h[19:]
+            if dlen:
+                p=read(dlen)
+                s=h[19:]
+            else: 
+                return self.store(oid, '', '', version, data, serial)
 
             self.store(oid, p, s, version, data, serial)
         else:
@@ -296,7 +308,7 @@ class ClientCache:
         if len(h)==27 and h[8] in 'nv' and h[:8]==oid:
             tlen, vlen, dlen = unpack(">iHi", h[9:19])
         else: tlen=-1
-        if tlen <= 0 or vlen < 0 or dlen <= 0 or vlen+dlen > tlen:
+        if tlen <= 0 or vlen < 0 or dlen < 0 or vlen+dlen > tlen:
             del self._index[oid]
             return None
 
@@ -318,6 +330,9 @@ class ClientCache:
         
 
     def store(self, oid, p, s, version, pv, sv):
+        if not s:
+            p=''
+            s='\0\0\0\0\0\0\0\0'
         tlen=31+len(p)
         if version:
             tlen=tlen+len(version)+12+len(pv)
@@ -332,11 +347,14 @@ class ClientCache:
         stlen=pack(">I",tlen)
         write=f.write
         write(oid+'v'+stlen+pack(">HI", vlen, len(p))+s)
-        write(p)
+        if p: write(p)
         if version:
+            write(version)
             write(pack(">I", len(pv)))
             write(pv)
-            write(sv+stlen)
+            write(sv)
+
+        write(stlen)
 
         if current: self._index[oid]=-pos
         else: self._index[oid]=pos
@@ -357,7 +375,7 @@ def read_index(index, serial, f, current):
         if len(h)==27 and h[8] in 'vni':
             tlen, vlen, dlen = unpack(">iHi", h[9:19])
         else: tlen=-1
-        if tlen <= 0 or vlen < 0 or dlen <= 0 or vlen+dlen > tlen:
+        if tlen <= 0 or vlen < 0 or dlen < 0 or vlen+dlen > tlen:
             break
 
         oid=h[:8]
@@ -379,7 +397,7 @@ def read_index(index, serial, f, current):
             serial[oid]=h[-8:], vs
         else:
             if serial.has_key(oid):
-                # We has a record for this oid, but it was invalidated!
+                # We have a record for this oid, but it was invalidated!
                 del serial[oid]
                 del index[oid]
             
