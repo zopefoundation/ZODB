@@ -21,7 +21,7 @@ collection.  The original proposal is in the fishbowl:
     http://www.zope.org/Wikis/ZODB/MultiDatabases/
 
 It was implemented during the PyCon 2005 sprints, but in a simpler form,
-by Jim Fulton, Christian Theune,and Tim Peters.  Overview:
+by Jim Fulton, Christian Theune, and Tim Peters.  Overview:
 
 No private attributes were added, and one new method was introduced.
 

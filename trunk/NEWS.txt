@@ -28,6 +28,12 @@ DB
   is specified, its value is ignored, and ``DeprecationWarning`` is
   raised.  In ZODB 3.6, these optional arguments will be removed.
 
+- Lightweight support for "multi-databases" is implemented.  These are
+  collections of named DB objects and associated open Connections, such
+  that the Connection for any DB in the collection can be obtained from
+  a Connection from any other DB in the collection.  See the new test
+  file ZODB/tests/multidb.txt for a tutorial doctest.  Thanks to Christian
+  Theune for his work on this during the PyCon 2005 ZODB sprint.
 
 BTrees
 ------
