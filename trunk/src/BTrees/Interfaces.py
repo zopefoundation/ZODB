@@ -31,7 +31,7 @@ class ICollection(Interface):
 class IReadSequence(Interface):
 
     def __getitem__(index):
-        """Return a value at the givem index
+        """Return a value at the given index
 
         An IndexError is raised if the index cannot be found.
         """
