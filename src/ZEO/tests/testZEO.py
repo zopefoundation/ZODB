@@ -209,6 +209,8 @@ class MappingStorageTests(FileStorageTests):
     def checkUndoConflictResolution(self): pass
     def checkUndoCommitVersion(self): pass
     def checkUndoAbortVersion(self): pass
+    def checkPackUndoLog(self): pass
+    def checkUndoLogMetadata(self): pass
     def checkTwoObjectUndoAtOnce(self): pass
     def checkTwoObjectUndoAgain(self): pass
     def checkTwoObjectUndo(self): pass
@@ -247,7 +249,6 @@ class MappingStorageTests(FileStorageTests):
     def checkAbortOneVersionCommitTheOther(self): pass
     def checkResolve(self): pass
     def check4ExtStorageThread(self): pass
-
 
 test_classes = [FileStorageTests, MappingStorageTests]
 
