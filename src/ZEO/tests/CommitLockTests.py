@@ -37,7 +37,7 @@ class WorkerThread(threading.Thread):
         self.trans = trans
         self.method = method
         threading.Thread.__init__(self)
-        self.setDaemon(True)
+        self.setDaemon(1)
 
     def run(self):
         try:
