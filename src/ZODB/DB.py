@@ -84,8 +84,8 @@
 ##############################################################################
 """Database objects
 
-$Id: DB.py,v 1.20 2000/01/11 19:30:53 jim Exp $"""
-__version__='$Revision: 1.20 $'[11:-2]
+$Id: DB.py,v 1.21 2000/08/07 19:03:55 jim Exp $"""
+__version__='$Revision: 1.21 $'[11:-2]
 
 import cPickle, cStringIO, sys, POSException, UndoLogCompatible
 from Connection import Connection
@@ -134,6 +134,8 @@ class DB(UndoLogCompatible.UndoLogCompatible):
             t.description='initial database creation'
             storage.tpc_begin(t)
             storage.store('\0\0\0\0\0\0\0\0', None, file.getvalue(), '', t)
+            if hasattr(storage, 'tpc_vote'): # whimper
+                storage.tpc_vote(t)
             storage.tpc_finish(t)
 
         # Allocate locks:
