@@ -87,7 +87,8 @@
 Note that this is not *really* atomic, but it is close enough.
 """
 
-import tempfile, cPickle
+from ZODB import cPickle
+import tempfile
 
 class Invalidator:
 

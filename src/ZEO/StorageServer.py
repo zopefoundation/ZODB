@@ -83,18 +83,18 @@
 # 
 ##############################################################################
 
-__version__ = "$Revision: 1.19 $"[11:-2]
+__version__ = "$Revision: 1.20 $"[11:-2]
 
-import asyncore, socket, string, sys, cPickle, os
+import asyncore, socket, string, sys, os
 from smac import SizedMessageAsyncConnection
-from ZODB import POSException
+from ZODB import POSException, cPickle
+from ZODB.cPickle import Unpickler
 from ZODB.POSException import TransactionError, UndoError, VersionCommitError
 from ZODB.Transaction import Transaction
 import traceback
 from zLOG import LOG, INFO, ERROR, TRACE
 from ZODB.referencesf import referencesf
 from thread import start_new_thread
-from cPickle import Unpickler
 from cStringIO import StringIO
 
 class StorageServerError(POSException.StorageError): pass
