@@ -19,7 +19,7 @@ from tempfile import TemporaryFile
 
 from ZODB.POSException import ExportError
 from ZODB.utils import p64, u64
-from ZODB.referencesf import referencesf
+from ZODB.serialize import referencesf
 import zLOG
 
 class ExportImport:

@@ -30,7 +30,7 @@ import time
 from ZODB import DB
 from persistent import Persistent
 from persistent.mapping import PersistentMapping
-from ZODB.referencesf import referencesf
+from ZODB.serialize import referencesf
 from ZODB.tests.MinPO import MinPO
 from ZODB.tests.StorageTestBase import snooze
 from ZODB.POSException import ConflictError, StorageError

@@ -26,7 +26,7 @@ a backpointer after that time.
 
 import os
 
-from ZODB.referencesf import referencesf
+from ZODB.serialize import referencesf
 from ZODB.utils import p64, u64, z64
 
 from ZODB.fsIndex import fsIndex
