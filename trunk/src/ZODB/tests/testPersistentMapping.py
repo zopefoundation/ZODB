@@ -24,7 +24,7 @@ import unittest
 
 import ZODB
 from ZODB.MappingStorage import MappingStorage
-from ZODB.Transaction import Transaction
+from transaction import Transaction
 import cPickle
 import cStringIO
 import sys
