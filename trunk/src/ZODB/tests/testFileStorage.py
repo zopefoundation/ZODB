@@ -39,11 +39,10 @@ class FileStorageTests(
                 'FileStorageTests.fs', **kwargs)
 
     def setUp(self):
-        StorageTestBase.StorageTestBase.setUp(self)
         self.open(create=1)
 
     def tearDown(self):
-        StorageTestBase.StorageTestBase.tearDown(self)
+        self._storage.close()
         for ext in '', '.old', '.tmp', '.lock', '.index':
             path = 'FileStorageTests.fs' + ext
             if os.path.exists(path):
@@ -55,12 +54,11 @@ class FileStorageRecoveryTest(
     ):
 
     def setUp(self):
-        StorageTestBase.StorageTestBase.setUp(self)
         self._storage = ZODB.FileStorage.FileStorage('Source.fs')
         self._dst = ZODB.FileStorage.FileStorage('Dest.fs')
 
     def tearDown(self):
-        StorageTestBase.StorageTestBase.tearDown(self)
+        self._storage.close()
         self._dst.close()
         for ext in '', '.old', '.tmp', '.lock', '.index':
             for fs in 'Source', 'Dest':
