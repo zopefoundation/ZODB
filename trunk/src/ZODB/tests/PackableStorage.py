@@ -175,10 +175,20 @@ class PackableStorage(PackableStorageBase):
                 root[i].value = MinPO(i)
                 get_transaction().commit()
 
+        # How many client threads should we run, and how long should we
+        # wait for them to finish?  Hard to say.  Running 4 threads and
+        # waiting 30 seconds too often left a thread still alive on Tim's
+        # Win98SE box, during ZEO flavors of this test.  Those tend to
+        # run one thread at a time to completion, and take about 10 seconds
+        # per thread.  There doesn't appear to be a compelling reason to
+        # run that many threads.  Running 3 threads and waiting up to a
+        # minute seems to work well in practice.  The ZEO tests normally
+        # finish faster than that, and the non-ZEO tests very much faster
+        # than that.
         NUM_LOOP_TRIP = 50
         timer = ElapsedTimer(time.time())
         threads = [ClientThread(db, choices, NUM_LOOP_TRIP, timer, i)
-                   for i in range(4)]
+                   for i in range(3)]
         for t in threads:
             t.start()
 
@@ -188,7 +198,7 @@ class PackableStorage(PackableStorageBase):
             db.pack(packt)
 
         for t in threads:
-            t.join(30)
+            t.join(60)
         liveness = [t.isAlive() for t in threads]
         if True in liveness:
             # They should have finished by now.
