@@ -4,11 +4,30 @@ import asyncore
 import os
 import profile
 import random
+import socket
 import sys
 import types
 import ZEO.ClientStorage, ZEO.StorageServer
 
 PROFILE = 0
+
+def get_port():
+    """Return a port that is not in use.
+
+    Checks if a port is in use by trying to connect to it.  Assumes it
+    is not in use if connect raises an exception.
+
+    Raises RuntimeError after 10 tries.
+    """
+    for i in range(10):
+        port = random.randrange(20000, 30000)
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        try:
+            s.connect(('localhost', port))
+        except socket.error:
+            # XXX check value of error?
+            return port
+    raise RuntimeError, "Can't find port"
 
 if os.name == "nt":
 
@@ -18,8 +37,7 @@ if os.name == "nt":
         Returns the ZEO port, the test server port, and the pid.
         """
         import ZEO.tests.winserver
-        if port is None:
-            port = random.randrange(20000, 30000)
+        port = get_port()
         script = ZEO.tests.winserver.__file__
         if script.endswith('.pyc'):
             script = script[:-1]
@@ -93,8 +111,7 @@ else:
         """
 
         if domain == "AF_INET":
-            import random
-            addr = '', random.randrange(2000, 3000)
+            addr = '', get_port()
         elif domain == "AF_UNIX":
             import tempfile
             addr = tempfile.mktemp()
