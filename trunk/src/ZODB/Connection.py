@@ -13,7 +13,7 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.112 2004/01/06 03:44:53 jeremy Exp $"""
+$Id: Connection.py,v 1.113 2004/01/06 17:01:00 jeremy Exp $"""
 
 import logging
 import sys
@@ -477,10 +477,8 @@ class Connection(ExportImport, object):
         if (obj._p_oid in self._invalidated
             and not myhasattr(obj, "_p_independent")):
             # If the object has _p_independent(), we will handle it below.
-            if not (self._mvcc and self._setstate_noncurrent(obj)):
-                self.getTransaction().register(obj)
-                self._conflicts[obj._p_oid] = 1
-                raise ReadConflictError(object=obj)
+            self._load_before_or_conflict(obj)
+            return
 
         p, serial = self._storage.load(obj._p_oid, self._version)
         self._load_count += 1
@@ -496,13 +494,20 @@ class Connection(ExportImport, object):
                 # This call will raise a ReadConflictError if something
                 # goes wrong
                 self._handle_independent(obj)
-            elif not (self._mvcc and self._setstate_noncurrent(obj)):
-                self.getTransaction().register(obj)
-                self._conflicts[obj._p_oid] = 1
-                raise ReadConflictError(object=obj)
+            else:
+                self._load_before_or_conflict(obj)
+                return
 
         self._reader.setGhostState(obj, p)
         obj._p_serial = serial
+
+    def _load_before_or_conflict(self, obj):
+        """Load non-current state for obj or raise ReadConflictError."""
+        
+        if not (self._mvcc and self._setstate_noncurrent(obj)):
+            self.getTransaction().register(obj)
+            self._conflicts[obj._p_oid] = 1
+            raise ReadConflictError(object=obj)
 
     def _setstate_noncurrent(self, obj):
         """Set state using non-current data.
