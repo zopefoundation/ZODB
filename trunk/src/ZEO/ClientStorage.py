@@ -737,6 +737,7 @@ class ClientStorage:
             raise
 
         self._serial = id
+        self._tbuf.clear()
         self._seriald.clear()
         del self._serials[:]
         self._tbuf.clear()
