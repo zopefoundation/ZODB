@@ -14,12 +14,9 @@
 """Start the server storage.
 """
 
-__version__ = "$Revision: 1.33 $"[11:-2]
+__version__ = "$Revision: 1.34 $"[11:-2]
 
 import sys, os, getopt, string
-
-import StorageServer
-import asyncore
 
 def directory(p, n=1):
     d=p
@@ -265,7 +262,7 @@ def main(argv):
 
         if not unix: unix=host, port
 
-        StorageServer.StorageServer(unix, storages)
+        ZEO.StorageServer.StorageServer(unix, storages)
         
         try:
             ppid, pid = os.getppid(), os.getpid()
