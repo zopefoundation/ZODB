@@ -64,10 +64,10 @@ if os.name == "nt":
         if script.endswith('.pyc'):
             script = script[:-1]
         if ro_svr:
-            args = (sys.executable, script, "-r")
+            prefix = (sys.executable, script, "-r")
         else:
-            args = (sys.executable, script)
-        args += (str(port), storage_name) + args
+            prefix = (sys.executable, script)
+        args = prefix + (str(port), storage_name) + args
         d = os.environ.copy()
         d['PYTHONPATH'] = os.pathsep.join(sys.path)
         pid = os.spawnve(os.P_NOWAIT, sys.executable, args, d)
