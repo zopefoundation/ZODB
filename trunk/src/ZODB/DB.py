@@ -13,7 +13,7 @@
 ##############################################################################
 """Database objects
 
-$Id: DB.py,v 1.73 2004/04/08 18:12:25 tim_one Exp $"""
+$Id: DB.py,v 1.74 2004/04/14 20:45:37 jeremy Exp $"""
 
 import cPickle, cStringIO, sys
 from thread import allocate_lock
@@ -398,7 +398,7 @@ class DB(object):
         return len(self._storage)
 
     def open(self, version='', transaction=None, temporary=0, force=None,
-             waitflag=1, mvcc=True, txn_mgr=None):
+             waitflag=1, mvcc=True, txn_mgr=None, synch=True):
         """Return a database Connection for use by application code.
 
         The optional version argument can be used to specify that a
@@ -412,6 +412,20 @@ class DB(object):
         Note that the connection pool is managed as a stack, to
         increate the likelihood that the connection's stack will
         include useful objects.
+
+        :Parameters:
+          - `version`: the "version" that all changes will be made
+             in, defaults to no version.
+          - `transaction`: XXX
+          - `temporary`: XXX
+          - `force`: XXX
+          - `waitflag`: XXX
+          - `mvcc`: boolean indicating whether MVCC is enabled
+          - `txn_mgr`: transaction manager to use.  None means
+             used the default transaction manager.
+          - `synch`: boolean indicating whether Connection should
+             register for afterCompletion() calls.
+        
         """
         self._a()
         try:
@@ -431,7 +445,7 @@ class DB(object):
                 # a one-use connection.
                 c = self.klass(version=version,
                                cache_size=self._version_cache_size,
-                               mvcc=mvcc, txn_mgr=txn_mgr)
+                               mvcc=mvcc, txn_mgr=txn_mgr, synch=synch)
                 c._setDB(self)
                 self._temps.append(c)
                 if transaction is not None:
@@ -487,7 +501,7 @@ class DB(object):
                 elif self._pool_size > len(allocated) or force:
                     c = self.klass(version=version,
                                    cache_size=self._cache_size,
-                                   mvcc=mvcc, txn_mgr=txn_mgr)
+                                   mvcc=mvcc, txn_mgr=txn_mgr, synch=synch)
                     allocated.append(c)
                     pool.append(c)
 
@@ -518,7 +532,7 @@ class DB(object):
 
             c = pool[-1]
             del pool[-1]
-            c._setDB(self)
+            c._setDB(self, mvcc, txn_mgr, synch)
             for pool, allocated in pooll:
                 for cc in pool:
                     cc.cacheGC()

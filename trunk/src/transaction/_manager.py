@@ -43,7 +43,7 @@ class TransactionManager(object):
         self._txn = None
 
     def registerSynch(self, synch):
-        self.synchs.append(synch)
+        self._synchs.append(synch)
 
     def unregisterSynch(self, synch):
         self._synchs.remove(synch)
