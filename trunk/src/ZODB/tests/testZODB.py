@@ -344,6 +344,77 @@ class ZODBTests(unittest.TestCase):
         self.obj = DecoyIndependent()
         self.readConflict()
 
+    def checkTxnBeginImpliesAbort(self):
+        # begin() should do an abort() first, if needed.
+        cn = self._db.open()
+        rt = cn.root()
+        rt['a'] = 1
+
+        transaction.begin()  # should abort adding 'a' to the root
+        rt = cn.root()
+        self.assertRaises(KeyError, rt.__getitem__, 'a')
+
+        # A longstanding bug:  this didn't work if changes were only in
+        # subtransactions.
+        transaction.begin()
+        rt = cn.root()
+        rt['a'] = 2
+        transaction.commit(1)
+
+        transaction.begin()
+        rt = cn.root()
+        self.assertRaises(KeyError, rt.__getitem__, 'a')
+
+        # One more time, mixing "top level" and subtransaction changes.
+        transaction.begin()
+        rt = cn.root()
+        rt['a'] = 3
+        transaction.commit(1)
+        rt['b'] = 4
+
+        transaction.begin()
+        rt = cn.root()
+        self.assertRaises(KeyError, rt.__getitem__, 'a')
+        self.assertRaises(KeyError, rt.__getitem__, 'b')
+
+        # That used methods of the default transaction *manager*.  Alas,
+        # that's not necessarily the same as using methods of the current
+        # transaction, and, in fact, when this test was written,
+        # Transaction.begin() didn't do anything (everything from here
+        # down failed).
+        cn = self._db.open()
+        rt = cn.root()
+        rt['a'] = 1
+
+        transaction.get().begin()  # should abort adding 'a' to the root
+        rt = cn.root()
+        self.assertRaises(KeyError, rt.__getitem__, 'a')
+
+        # A longstanding bug:  this didn't work if changes were only in
+        # subtransactions.
+        transaction.get().begin()
+        rt = cn.root()
+        rt['a'] = 2
+        transaction.get().commit(1)
+
+        transaction.get().begin()
+        rt = cn.root()
+        self.assertRaises(KeyError, rt.__getitem__, 'a')
+
+        # One more time, mixing "top level" and subtransaction changes.
+        transaction.get().begin()
+        rt = cn.root()
+        rt['a'] = 3
+        transaction.get().commit(1)
+        rt['b'] = 4
+
+        transaction.get().begin()
+        rt = cn.root()
+        self.assertRaises(KeyError, rt.__getitem__, 'a')
+        self.assertRaises(KeyError, rt.__getitem__, 'b')
+
+        cn.close()
+
 def test_suite():
     return unittest.makeSuite(ZODBTests, 'check')
 
