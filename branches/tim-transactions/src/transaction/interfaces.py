@@ -409,11 +409,10 @@ class ISavePoint(zope.interface.Interface):
         """
 
     def discard():
-        """Discard changes saved by this savepoint.
+        """Discard changes saved by and after this savepoint.
 
         That means changes made since the immediately preceding
-        savepoint if one exists, or since the start of the transaction,
-        until this savepoint.
+        savepoint if one exists, or since the start of the transaction.
 
         Once a savepoint has been discarded, it's an error to attempt
         to rollback or discard it again.

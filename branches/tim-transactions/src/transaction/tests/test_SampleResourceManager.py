@@ -86,6 +86,7 @@ class ResourceManager(object):
         self.transaction = None
         self.delta = 0
         self.txn_state = None
+        self.first_savepoint = None
 
     def _check_state(self, *ok_states):
         if self.txn_state not in ok_states:
@@ -215,6 +216,9 @@ class ResourceManager(object):
         self.transaction = None
         self.prepared = False
         self.txn_state = None
+        if self.first_savepoint is not None:
+            self.first_savepoint.invalidate()
+            self.first_savepoint = None
 
     def tpc_abort(self, transaction):
         """Abort a transaction
@@ -365,7 +369,7 @@ class ResourceManager(object):
         >>> r2.rollback()
         Traceback (most recent call last):
         ...
-        TypeError: ('Attempt to roll back to invalid save point', 3, 2)
+        ValueError: operation attempted on invalid SavePoint
 
         We can roll back to a savepoint as often as we like:
 
@@ -394,38 +398,69 @@ class ResourceManager(object):
         >>> r1.rollback()
         Traceback (most recent call last):
         ...
-        TypeError: Attempt to rollback stale rollback
-
+        ValueError: operation attempted on invalid SavePoint
         """
         if self.txn_state is not None:
             raise TypeError("Can't get savepoint during two-phase commit")
         self._checkTransaction(transaction)
         self.transaction = transaction
         self.sp += 1
-        return SavePoint(self)
+        if self.first_savepoint is None:
+            savepoint = SavePoint(self, 0)
+            self.first_savepoint = savepoint
+        else:
+            savepoint = SavePoint(self, self.first_savepoint.delta)
+            self.first_savepoint.last_savepoint().next_savepoint = savepoint
+        return savepoint
 
     def discard(self, transaction):
-        pass
+        if self.first_savepoint is None:
+            self.delta = 0
+        else:
+            self.delta = self.first_savepoint.last_savepoint().delta
 
 class SavePoint(object):
 
-    def __init__(self, rm):
+    def __init__(self, rm, olddelta):
         self.rm = rm
+        self.olddelta = olddelta
         self.sp = rm.sp
         self.delta = rm.delta
         self.transaction = rm.transaction
+        self.next_savepoint = None
+        self.valid = True
+
+    def _valid_check(self):
+        if not self.valid:
+            raise ValueError("operation attempted on invalid SavePoint")
 
     def rollback(self):
-        if self.transaction is not self.rm.transaction:
-            raise TypeError("Attempt to rollback stale rollback")
-        if self.rm.sp < self.sp:
-            raise TypeError("Attempt to roll back to invalid save point",
-                            self.sp, self.rm.sp)
-        self.rm.sp = self.sp
-        self.rm.delta = self.delta
+        self._valid_check()
+        if self.next_savepoint is None:
+            self.rm.discard(self.transaction)
+        else:
+            self.next_savepoint.discard()
+        self.next_savepoint = None
 
     def discard(self):
-        pass
+        self._valid_check()
+        if self.next_savepoint is None:
+            self.rm.discard(self.transaction)
+        else:
+            self.next_savepoint.discard()
+        self.rm.delta = self.olddelta
+        self.valid = False
+
+    def last_savepoint(self):
+        """Return the last savepoint in the chain starting at self."""
+        while self.next_savepoint is not None:
+            self = self.next_savepoint
+        return self
+
+    def invalidate(self):
+        self.valid = False
+        if self.next_savepoint is not None:
+            self.next_savepoint.invalidate()
 
 def test_suite():
     from doctest import DocTestSuite
