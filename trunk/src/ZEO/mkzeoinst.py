@@ -86,6 +86,15 @@ runner_conf_template = """# runner configuration file
 
 zeoctl_template = """#!/bin/sh
 # ZEO instance start script
+
+# The following two lines are for chkconfig.  On Red Hat Linux (and
+# some other systems), you can copy or symlink this script into
+# /etc/rc.d/init.d/ and then run chkconfig(8), to automatically start
+# ZEO at boot time.
+
+# chkconfig: 345 90 10
+# description: start a ZEO server
+
 exec %(zdctl)s -C %(home)s/etc/runner.conf ${1+"$@"}
 """
 
