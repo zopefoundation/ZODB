@@ -115,31 +115,37 @@
 #   may have a back pointer to a version record or to a non-version
 #   record.
 #
-__version__='$Revision: 1.93 $'[11:-2]
+__version__='$Revision: 1.94 $'[11:-2]
 
-import struct, time, os, string, base64, sys
-from struct import pack, unpack
-import POSException
-from POSException import UndoError, POSKeyError
-from TimeStamp import TimeStamp
-from lock_file import lock_file
-from utils import t32, p64, U64, cp
-from zLOG import LOG, BLATHER, WARNING, ERROR, PANIC, register_subsystem
-register_subsystem('ZODB FS')
-import BaseStorage
+import base64
 from cPickle import Pickler, Unpickler, loads
-import ConflictResolution
+import errno
+import os
+import struct
+import sys
+import time
+from types import StringType
+from struct import pack, unpack
 
 try:
-    from fsIndex import fsIndex
+    from posix import fsync
+except:
+    fsync = None
+
+from ZODB import BaseStorage, ConflictResolution, POSException
+from ZODB.POSException import UndoError, POSKeyError
+from ZODB.TimeStamp import TimeStamp
+from ZODB.lock_file import lock_file
+from ZODB.utils import t32, p64, U64, cp
+
+try:
+    from ZODB.fsIndex import fsIndex
 except ImportError:
     def fsIndex():
         return {}
 
-try: from posix import fsync
-except: fsync=None
-
-from types import StringType
+from zLOG import LOG, BLATHER, WARNING, ERROR, PANIC, register_subsystem
+register_subsystem('ZODB FS')
 
 z64='\0'*8
 # constants to support various header sizes
@@ -148,17 +154,20 @@ DATA_HDR_LEN = 42
 DATA_VERSION_HDR_LEN = 58
 
 def warn(message, *data):
-    LOG('ZODB FS',WARNING, "%s  warn: %s\n" % (packed_version, (message % data)))
+    LOG('ZODB FS', WARNING, "%s  warn: %s\n" % (packed_version,
+                                                (message % data)))
 
 def error(message, *data):
-    LOG('ZODB FS',ERROR,"%s ERROR: %s\n" % (packed_version, (message % data)))
+    LOG('ZODB FS', ERROR, "%s ERROR: %s\n" % (packed_version,
+                                              (message % data)))
 
 def nearPanic(message, *data):
-    LOG('ZODB FS',PANIC,"%s ERROR: %s\n" % (packed_version, (message % data)))
+    LOG('ZODB FS', PANIC, "%s ERROR: %s\n" % (packed_version,
+                                              (message % data)))
 
 def panic(message, *data):
-    message=message%data
-    LOG('ZODB FS',PANIC,"%s ERROR: %s\n" % (packed_version, message))
+    message = message % data
+    LOG('ZODB FS', PANIC, "%s ERROR: %s\n" % (packed_version, message))
     raise CorruptedTransactionError, message
 
 class FileStorageError(POSException.StorageError): pass
@@ -186,18 +195,16 @@ packed_version='FS21'
 
 class FileStorage(BaseStorage.BaseStorage,
                   ConflictResolution.ConflictResolvingStorage):
-    _packt=z64
+    # default pack time is 0
+    _packt = z64
 
     def __init__(self, file_name, create=0, read_only=0, stop=None,
                  quota=None):
 
-        if not os.path.exists(file_name):
-            create = 1
-
         if read_only:
             self._is_read_only = 1
             if create:
-                raise ValueError, "can\'t create a read-only file"
+                raise ValueError, "can't create a read-only file"
         elif stop is not None:
             raise ValueError, "time-travel is only supported in read-only mode"
 
@@ -230,14 +237,31 @@ class FileStorage(BaseStorage.BaseStorage,
         self._initIndex(index, vindex, tindex, tvindex)
         
         # Now open the file
-        
-        if create:
+
+        self._file = None
+        if not create:
+            try:
+                self._file = open(file_name, read_only and 'rb' or 'r+b')
+            except IOError, exc:
+                if exc.errno == errno.EFBIG:
+                    # The file is too big to open.  Fail visibly.
+                    raise
+                if exc.errno == errno.ENOENT:
+                    # The file doesn't exist.  Create it.
+                    create = 1
+                # If something else went wrong, it's hard to guess
+                # what the problem was.  If the file does not exist,
+                # create it.  Otherwise, fail.
+                if os.path.exists(file_name):
+                    raise
+                else:
+                    create = 1
+                    
+        if self._file is None and create:
             if os.path.exists(file_name):
                 os.remove(file_name)
             self._file = open(file_name, 'w+b')
             self._file.write(packed_version)
-        else:
-            self._file = open(file_name, read_only and 'rb' or 'r+b')
 
         r = self._restore_index()
         if r is not None:
@@ -1351,7 +1375,7 @@ class FileStorage(BaseStorage.BaseStorage,
             if self._packt != z64:
                 # Already packing.
                 raise FileStorageError, 'Already packing'
-            self._packt=stop
+            self._packt = stop
         finally:
             _lock_release()
 
