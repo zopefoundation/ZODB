@@ -16,7 +16,7 @@
  Set operations
  ****************************************************************************/
 
-#define SETOPTEMPLATE_C "$Id: SetOpTemplate.c,v 1.15 2002/05/31 14:58:29 tim_one Exp $\n"
+#define SETOPTEMPLATE_C "$Id: SetOpTemplate.c,v 1.16 2002/06/01 00:49:19 tim_one Exp $\n"
 
 #ifdef INTSET_H
 static int 
@@ -433,27 +433,45 @@ multiunion_m(PyObject *ignored, PyObject *args)
     /* For each set in the input sequence, append its elements to the result
        set.  At this point, we ignore the possibility of duplicates. */
     for (i = 0; i < n; ++i) {
-        SetIteration setiter = {0, 0, 0};
-        int merge;  /* dummy needed for initSetIteration */
-
         set = PySequence_GetItem(seq, i);
         if (set == NULL)
             goto Error;
 
-        /* XXX TODO: If set is a bucket, do a straight resize+memcpy instead.
-        */
-        if (initSetIteration(&setiter, set, 1, &merge) < 0)
-            goto Error;
-        if (setiter.next(&setiter) < 0)
-            goto Error;
-        while (setiter.position >= 0) {
-            if (result->len >= result->size && Bucket_grow(result, -1, 1) < 0)
+        /* If set is a bucket, do a straight resize + memcpy. */
+        if (set->ob_type == (PyTypeObject*)&SetType ||
+            set->ob_type == (PyTypeObject*)&BucketType) {
+            const int setsize = SIZED(set)->len;
+            int size_desired = result->len + setsize;
+            /* If there are more to come, overallocate by 25% (arbitrary). */
+            if (i < n-1)
+                size_desired += size_desired >> 2;
+            if (size_desired && size_desired > result->size) {
+                if (Bucket_grow(result, size_desired, 1) < 0)
+                    goto Error;
+            }
+            memcpy(result->keys + result->len,
+                   BUCKET(set)->keys,
+                   setsize * sizeof(KEY_TYPE));
+            result->len += setsize;
+        }
+        else {
+            /* No cheap way:  iterate over set's elements one at a time. */
+            SetIteration setiter = {0, 0, 0};
+            int merge;  /* dummy needed for initSetIteration */
+            
+            if (initSetIteration(&setiter, set, 1, &merge) < 0)
                 goto Error;
-            COPY_KEY(result->keys[result->len], setiter.key);
-            ++result->len;
-            /* We know the key is an int, so no need to incref it. */
             if (setiter.next(&setiter) < 0)
                 goto Error;
+            while (setiter.position >= 0) {
+                if (result->len >= result->size && Bucket_grow(result, -1, 1) < 0)
+                    goto Error;
+                COPY_KEY(result->keys[result->len], setiter.key);
+                ++result->len;
+                /* We know the key is an int, so no need to incref it. */
+                if (setiter.next(&setiter) < 0)
+                    goto Error;
+            }
         }
         Py_DECREF(set);
         set = NULL;
