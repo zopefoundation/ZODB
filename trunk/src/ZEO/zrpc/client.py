@@ -2,14 +2,14 @@
 #
 # Copyright (c) 2001, 2002 Zope Corporation and Contributors.
 # All Rights Reserved.
-# 
+#
 # This software is subject to the provisions of the Zope Public License,
 # Version 2.0 (ZPL).  A copy of the ZPL should accompany this distribution.
 # THIS SOFTWARE IS PROVIDED "AS IS" AND ANY AND ALL EXPRESS OR IMPLIED
 # WARRANTIES ARE DISCLAIMED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 # WARRANTIES OF TITLE, MERCHANTABILITY, AGAINST INFRINGEMENT, AND FITNESS
 # FOR A PARTICULAR PURPOSE
-# 
+#
 ##############################################################################
 import errno
 import select
@@ -321,7 +321,7 @@ class ConnectThread(threading.Thread):
             elif e in _CONNECT_OK:
                 # special cases to deal with winsock oddities
                 if sys.platform.startswith("win") and e == 0:
-                    
+
                     # It appears that winsock isn't behaving as
                     # expected on Win2k.  It's possible for connect()
                     # to return 0, but the connection to have failed.
@@ -330,7 +330,7 @@ class ConnectThread(threading.Thread):
                     # connect_ex() return 0.  OTOH, it looks like
                     # select() is a more reliable indicator on
                     # Windows.
-                    
+
                     r, w, x = select.select([s], [s], [s], 0.1)
                     if not (r or w or x):
                         return

@@ -2,14 +2,14 @@
 #
 # Copyright (c) 2001, 2002 Zope Corporation and Contributors.
 # All Rights Reserved.
-# 
+#
 # This software is subject to the provisions of the Zope Public License,
 # Version 2.0 (ZPL).  A copy of the ZPL should accompany this distribution.
 # THIS SOFTWARE IS PROVIDED "AS IS" AND ANY AND ALL EXPRESS OR IMPLIED
 # WARRANTIES ARE DISCLAIMED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 # WARRANTIES OF TITLE, MERCHANTABILITY, AGAINST INFRINGEMENT, AND FITNESS
 # FOR A PARTICULAR PURPOSE
-# 
+#
 ##############################################################################
 import asyncore
 import select
@@ -172,7 +172,7 @@ class Connection(smac.SizedMessageAsyncConnection):
         if message == self.protocol_version:
             self.message_input = self._message_input
         # otherwise do something else...
-    
+
     def message_input(self, message):
         """Decoding an incoming message and dispatch it"""
         # XXX Not sure what to do with errors that reach this level.
