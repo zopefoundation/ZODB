@@ -85,19 +85,20 @@ class HandlerFactory(Factory):
         Factory.__init__(self)
         self.section = section
 
-    def create_logger(self):
-        raise NotImplementedError("subclasses must override create_logger()")
+    def create_loghandler(self):
+        raise NotImplementedError(
+            "subclasses must override create_loghandler()")
 
     def create(self):
         import logging
-        logger = self.create_logger()
+        logger = self.create_loghandler()
         logger.setFormatter(logging.Formatter(self.section.format,
                                               self.section.dateformat))
         logger.setLevel(self.section.level)
         return logger
 
 class FileHandlerFactory(HandlerFactory):
-    def create_logger(self):
+    def create_loghandler(self):
         from zLOG.LogHandlers import StreamHandler, FileHandler
         path = self.section.path
         if path == "STDERR":
@@ -138,13 +139,13 @@ def syslog_facility(value):
     return value
 
 class SyslogHandlerFactory(HandlerFactory):
-    def create_logger(self):
+    def create_loghandler(self):
         from zLOG.LogHandlers import SysLogHandler
         return SysLogHandler(self.section.address.address,
                              self.section.facility)
 
 class Win32EventLogFactory(HandlerFactory):
-    def create_logger(self):
+    def create_loghandler(self):
         from zLOG.LogHandlers import Win32EventLogHandler
         return Win32EventLogHandler(self.section.appname)
 
@@ -177,13 +178,13 @@ def get_or_post(value):
     return value
 
 class HTTPHandlerFactory(HandlerFactory):
-    def create_logger(self):
+    def create_loghandler(self):
         from zLOG.LogHandlers import HTTPHandler
         host, selector = self.section.url
         return HTTPHandler(host, selector, self.section.method)
 
 class SMTPHandlerFactory(HandlerFactory):
-    def create_logger(self):
+    def create_loghandler(self):
         from zLOG.LogHandlers import SMTPHandler
         host, port = self.section.smtp_server
         if not port:
