@@ -81,6 +81,7 @@ typedef struct Bucket_s {
 } Bucket;
 
 #define BUCKET(O) ((Bucket*)(O))
+#define SIZED(O) ((Bucket*)(O))
 
 static void PyVar_AssignB(Bucket **v, Bucket *e) { Py_XDECREF(*v); *v=e;}
 #define ASSIGNB(V,E) PyVar_AssignB(&(V),(E))
@@ -263,6 +264,14 @@ static struct PyMethodDef module_methods[] = {
    "\nw1 and w2 are weights."
   },
 #endif
+#ifdef MULTI_INT_UNION
+  {"multiunion", (PyCFunction) multiunion_m, METH_VARARGS,
+   "multiunion(seq) -- compute union of a sequence of integer sets.\n"
+   "\n"
+   "Each element of seq must be an integer set, or convertible to one\n"
+   "via the set iteration protocol.  The union returned is an IISet."
+  },
+#endif
   {NULL,		NULL}		/* sentinel */
 };
 
@@ -270,7 +279,7 @@ static char BTree_module_documentation[] =
 "\n"
 MASTER_ID
 BTREEITEMSTEMPLATE_C
-"$Id: BTreeModuleTemplate.c,v 1.21 2002/03/08 18:33:01 jeremy Exp $\n"
+"$Id: BTreeModuleTemplate.c,v 1.22 2002/05/30 21:00:30 tim_one Exp $\n"
 BTREETEMPLATE_C
 BUCKETTEMPLATE_C
 KEYMACROS_H

@@ -16,7 +16,7 @@
  Set operations
  ****************************************************************************/
 
-#define SETOPTEMPLATE_C "$Id: SetOpTemplate.c,v 1.12 2002/02/21 21:41:17 jeremy Exp $\n"
+#define SETOPTEMPLATE_C "$Id: SetOpTemplate.c,v 1.13 2002/05/30 21:00:30 tim_one Exp $\n"
 
 #ifdef INTSET_H
 static int 
@@ -399,5 +399,82 @@ wintersection_m(PyObject *ignored, PyObject *args)
 
   return o1;
 }         
+
+#endif
+
+#ifdef MULTI_INT_UNION
+#include "sorters.c"
+
+/* Input is a sequence of integer sets (or convertible to sets by the
+   set iteration protocol).  Output is the union of the sets.  The point
+   is to run much faster than doing pairs of unions.
+*/
+static PyObject *
+multiunion_m(PyObject *ignored, PyObject *args)
+{
+    PyObject *seq;          /* input sequence */
+    int n;                  /* length of input sequence */
+    PyObject *set = NULL;   /* an element of the input sequence */
+    Bucket *result;         /* result set */
+    int i;
+
+    UNLESS(PyArg_ParseTuple(args, "O", &seq))
+        return NULL;
+
+    n = PyObject_Length(seq);
+    if (n < 0)
+        return NULL;
+
+    /* Construct an empty result set. */
+    result = BUCKET(PyObject_CallObject(OBJECT(&SetType), NULL));
+    if (result == NULL)
+        return NULL;
+
+    /* For each set in the input sequence, append its elements to the result
+       set.  At this point, we ignore the possibility of duplicates. */
+    for (i = 0; i < n; ++i) {
+        SetIteration setiter = {0, 0, 0};
+        int merge;  /* dummy needed for initSetIteration */
+
+        set = PySequence_GetItem(seq, i);
+        if (set == NULL)
+            goto Error;
+
+        /* XXX TODO: If set is a bucket, do a straight resize+memcpy instead.
+        */
+        if (initSetIteration(&setiter, set, 1, &merge) < 0)
+            goto Error;
+        if (setiter.next(&setiter) < 0)
+            goto Error;
+        while (setiter.position >= 0) {
+            if (result->len >= result->size && Bucket_grow(result, 1) < 0)
+                goto Error;
+            COPY_KEY(result->keys[result->len], setiter.key);
+            ++result->len;
+            /* We know the key is an int, so no need to incref it. */
+            if (setiter.next(&setiter) < 0)
+                goto Error;
+        }
+        Py_DECREF(set);
+        set = NULL;
+    }
+
+    /* Combine, sort, remove duplicates, and reset the result's len.
+       If the set shrinks (which happens if and only if there are
+       duplicates), no point to realloc'ing the set smaller, as we
+       expect the result set to be short-lived.
+    */
+    if (result->len > 0) {
+        size_t newlen;          /* number of elements in final result set */
+        newlen = sort_int4_nodups(result->keys, (size_t)result->len);
+        result->len = (int)newlen;
+    }
+    return (PyObject *)result;
+
+Error:
+    Py_DECREF(result);
+    Py_XDECREF(set);
+    return NULL;
+}
 
 #endif
