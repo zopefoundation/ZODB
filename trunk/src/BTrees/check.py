@@ -41,12 +41,6 @@ from BTrees.IIBTree import IIBTree, IIBucket, IISet, IITreeSet
 
 TYPE_UNKNOWN, TYPE_BTREE, TYPE_BUCKET = range(3)
 
-try:
-    True
-except NameError:
-    True = 1
-    False = 0
-
 _type2kind = {IOBTree: (TYPE_BTREE, True),
               IIBTree: (TYPE_BTREE, True),
               OIBTree: (TYPE_BTREE, True),

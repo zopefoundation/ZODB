@@ -34,7 +34,6 @@ user/realm/password is used as the session key.  XXX I'm not sure if
 this is a sound approach; SRP would be preferred.
 """
 
-import base64
 import os
 import random
 import sha
