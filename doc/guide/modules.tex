@@ -3,6 +3,7 @@
 %    PersistentList
 %    BTrees
 %       Total Ordering and Persistence
+%       Iteration and Mutation
 %       BTree Diagnostic Tools
 
 \section{Related Modules}
@@ -360,6 +361,51 @@ only with great care:
        or implicitly) on an address-based comparison result will
        eventually cause serious failure.
 \end{enumerate}
+
+
+\subsubsection{Iteration and Mutation}
+
+As with a Python dictionary or list, you should not mutate a BTree-based
+data structure while iterating over it, except that it's fine to replace
+the value associated with an existing key while iterating.  You won't
+create internal damage in the structure if you try to remove, or add new
+keys, while iterating, but the results are undefined and unpredictable.  A
+weak attempt is made to raise \exception{RuntimeError} if the size of a
+BTree-based structure changes while iterating, but it doesn't catch most
+such cases, and is also unreliable.  Example:
+
+\begin{verbatim}
+    >>> from BTrees.IIBTree import *
+    >>> s = IISet(range(10))
+    >>> list(s)
+    [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+    >>> for i in s:  # the output is undefined
+    ...     print i,
+    ...     s.remove(i)
+    0 2 4 6 8
+    Traceback (most recent call last):
+      File "<stdin>", line 1, in ?
+    RuntimeError: the bucket being iterated changed size
+    >>> list(s)      # this output is also undefined
+    [1, 3, 5, 7, 9]
+    >>>
+\end{verbatim}
+
+Also as with Python dictionaries and lists, the safe and predictable way
+to mutate a BTree-based structure while iterating over it is to iterate
+over a copy of the keys.  Example:
+
+\begin{verbatim}
+    >>> from BTrees.IIBTree import *
+    >>> s = IISet(range(10))
+    >>> for i in list(s.keys()):  # this is well defined
+    ...     print i,
+    ...     s.remove(i)
+    0 1 2 3 4 5 6 7 8 9
+    >>> list(s)
+    []
+    >>>
+\end{verbatim}
 
 
 \subsubsection{BTree Diagnostic Tools}
