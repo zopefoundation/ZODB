@@ -587,6 +587,7 @@ class ClientStorage(object):
         self._pickler.fast = 1 # Don't use the memo
 
         # XXX should batch these operations for efficiency
+        # XXX need to acquire lock...
         for oid, tid, version in self._cache.contents():
             server.verify(oid, version, tid)
         self._pending_server = server
@@ -1098,7 +1099,11 @@ class ClientStorage(object):
 
     def invalidateTransaction(self, tid, args):
         """Invalidate objects modified by tid."""
-        self._cache.setLastTid(tid)
+        self._lock.acquire()
+        try:
+            self._cache.setLastTid(tid)
+        finally:
+            self._lock.release()
         if self._pickler is not None:
             log2(BLATHER,
                  "Transactional invalidation during cache verification")
