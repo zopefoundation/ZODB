@@ -1,6 +1,6 @@
 /*
 
-  $Id: cPickleCache.c,v 1.9 1997/07/16 20:18:40 jim Exp $
+  $Id: cPickleCache.c,v 1.10 1997/07/18 14:30:18 jim Exp $
 
   C implementation of a pickle jar cache.
 
@@ -56,7 +56,7 @@
       (540) 371-6909
 
 ***************************************************************************/
-static char *what_string = "$Id: cPickleCache.c,v 1.9 1997/07/16 20:18:40 jim Exp $";
+static char *what_string = "$Id: cPickleCache.c,v 1.10 1997/07/18 14:30:18 jim Exp $";
 
 #define ASSIGN(V,E) {PyObject *__e; __e=(E); Py_XDECREF(V); (V)=__e;}
 #define UNLESS(E) if(!(E))
@@ -350,6 +350,41 @@ cc_reallyfull_sweep(ccobject *self, PyObject *args)
   return Py_None;
 }
 
+static PyObject *
+cc_report(ccobject *self, PyObject *args)
+{
+  PyObject *key, *v, *t=0;
+  int i;
+
+  if(args) PyArg_ParseTuple(args,"|O", &t);
+  
+  for(i=0; PyDict_Next(self->data, &i, &key, &v); )
+    {
+       if(v->ob_type==(PyTypeObject*)PATimeType
+	  && (
+	      (t && ((PATimeobject*)v)->object->ob_type == t)
+	      || ! t))
+	 printf("%d\t%p\t%s\t%ld\t%d\t%ld\n",
+		(((PATimeobject*)v)->object->oid),
+		((PATimeobject*)v)->object,
+		((PATimeobject*)v)->object->ob_type->tp_name,
+		(long)(((PATimeobject*)v)->object->ob_refcnt),
+		(((PATimeobject*)v)->object->state),
+		(long)(((PATimeobject*)v)->object->atime) );
+       else if((t && ((PATimeobject*)v)->object->ob_type == t)
+	       || ! t)
+	 printf("%d\t%p\t%s\t%ld\t%d\n",
+		(((cPersistentObject*)v)->oid),
+		v,
+		v->ob_type->tp_name,
+		(long)(v->ob_refcnt),
+		(((cPersistentObject*)v)->state)
+		);
+    }
+  if(args) Py_INCREF(Py_None);
+  return Py_None;
+}
+
 static struct PyMethodDef cc_methods[] = {
   {"full_sweep",	(PyCFunction)cc_full_sweep,	1,
    "full_sweep([age]) -- Perform a full sweep of the cache\n\n"
@@ -358,6 +393,7 @@ static struct PyMethodDef cc_methods[] = {
    "accessed in the number of seconds given by 'age'.  "
    "'age defaults to the cache age.\n"
    },
+  {"report",	(PyCFunction)cc_report,	1, ""},
   {"minimize",	(PyCFunction)cc_reallyfull_sweep,	1,
    "minimize([age]) -- Remove as many objects as possible\n\n"
    "Make multiple passes through the cache, removing any objects that are no\n"
@@ -400,7 +436,6 @@ newccobject(int cache_size, int cache_age)
   Py_DECREF(self);
   return NULL;
 }
-
 
 static void
 cc_dealloc(ccobject *self)
@@ -620,7 +655,7 @@ void
 initcPickleCache()
 {
   PyObject *m, *d;
-  char *rev="$Revision: 1.9 $";
+  char *rev="$Revision: 1.10 $";
 
   Cctype.ob_type=&PyType_Type;
 
@@ -648,6 +683,9 @@ initcPickleCache()
 
 /******************************************************************************
  $Log: cPickleCache.c,v $
+ Revision 1.10  1997/07/18 14:30:18  jim
+ Added reporting method for use during debugging.
+
  Revision 1.9  1997/07/16 20:18:40  jim
  *** empty log message ***
 
