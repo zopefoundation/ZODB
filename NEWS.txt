@@ -2,6 +2,33 @@ What's new in ZODB3 3.4?
 ========================
 Release date: DD-MMM-2004
 
+DB
+--
+
+- There is no longer a hard limit on the number of connections that
+  ``DB.open()`` will create.  In other words, ``DB.open()`` never blocks
+  anymore waiting for an earlier connection to close, and ``DB.open()``
+  always returns a connection now (while it wasn't documented, it was
+  possible for ``DB.open()`` to return ``None`` before).
+
+  ``pool_size`` continues to default to 7, but its meaning has changed:
+  if more than ``pool_size`` connections are obtained from ``DB.open()``
+  and not closed, a warning is logged; if more than twice ``pool_size``, a
+  critical problem is logged.  ``pool_size`` should be set to the maximum
+  number of connections from the ``DB`` instance you expect to have open
+  simultaneously.
+
+  In addition, if a connection obtained from ``DB.open()`` becomes
+  unreachable without having been explicitly closed, when Python's garbage
+  collection reclaims that connection it no longer counts against the
+  ``pool_size`` thresholds for logging messages.
+
+  The following optional arguments to ``DB.open()`` are deprecated:
+  ``transaction``, ``waitflag``, ``force`` and ``temporary``.  If one
+  is specified, its value is ignored, and ``DeprecationWarning`` is
+  raised.  In ZODB 3.6, these optional arguments will be removed.
+
+
 
 Tools
 -----

@@ -16,7 +16,7 @@
 $Id$"""
 
 import cPickle, cStringIO, sys
-from thread import allocate_lock
+import threading
 from time import time, ctime
 import warnings
 import logging
@@ -25,10 +25,116 @@ from ZODB.broken import find_global
 from ZODB.utils import z64
 from ZODB.Connection import Connection
 from ZODB.serialize import referencesf
+from ZODB.utils import WeakSet
+from ZODB.utils import DEPRECATED_ARGUMENT, deprecated36
 
 import transaction
 
 logger = logging.getLogger('ZODB.DB')
+
+class _ConnectionPool(object):
+    """Manage a pool of connections.
+
+    CAUTION:  Methods should be called under the protection of a lock.
+    This class does no locking of its own.
+
+    There's no limit on the number of connections this can keep track of,
+    but a warning is logged if there are more than pool_size active
+    connections, and a critical problem if more than twice pool_size.
+
+    New connections are registered via push().  This will log a message if
+    "too many" connections are active.
+
+    When a connection is explicitly closed, tell the pool via repush().
+    That adds the connection to a stack of connections available for
+    reuse, and throws away the oldest stack entries if the stack is too large.
+    pop() pops this stack.
+
+    When a connection is obtained via pop(), the pool holds only a weak
+    reference to it thereafter.  It's not necessary to inform the pool
+    if the connection goes away.  A connection handed out by pop() counts
+    against pool_size only so long as it exists, and provided it isn't
+    repush()'ed.  A weak reference is retained so that DB methods like
+    connectionDebugInfo() can still gather statistics.
+    """
+
+    def __init__(self, pool_size):
+        # The largest # of connections we expect to see alive simultaneously.
+        self.pool_size = pool_size
+
+        # A weak set of all connections we've seen.  A connection vanishes
+        # from this set if pop() hands it out, it's not reregistered via
+        # repush(), and it becomes unreachable.
+        self.all = WeakSet()
+
+        # A stack of connections available to hand out.  This is a subset
+        # of self.all.  push() and repush() add to this, and may remove
+        # the oldest available connections if the pool is too large.
+        # pop() pops this stack.  There are never more than pool_size entries
+        # in this stack.
+        # In Python 2.4, a collections.deque would make more sense than
+        # a list (we push only "on the right", but may pop from both ends).
+        self.available = []
+
+    # Change our belief about the expected maximum # of live connections.
+    # If the pool_size is smaller than the current value, this may discard
+    # the oldest available connections.
+    def set_pool_size(self, pool_size):
+        self.pool_size = pool_size
+        self._reduce_size()
+
+    # Register a new available connection.  We must not know about c already.
+    # c will be pushed onto the available stack even if we're over the
+    # pool size limit.
+    def push(self, c):
+        assert c not in self.all
+        assert c not in self.available
+        self._reduce_size(strictly_less=True)
+        self.all.add(c)
+        self.available.append(c)
+        n, limit = len(self.all), self.pool_size
+        if n > limit:
+            reporter = logger.warn
+            if n > 2 * limit:
+                reporter = logger.critical
+            reporter("DB.open() has %s open connections with a pool_size "
+                     "of %s", n, limit)
+
+    # Reregister an available connection formerly obtained via pop().  This
+    # pushes it on the stack of available connections, and may discard
+    # older available connections.
+    def repush(self, c):
+        assert c in self.all
+        assert c not in self.available
+        self._reduce_size(strictly_less=True)
+        self.available.append(c)
+
+    # Throw away the oldest available connections until we're under our
+    # target size (strictly_less=False) or no more than that (strictly_less=
+    # True, the default).
+    def _reduce_size(self, strictly_less=False):
+        target = self.pool_size - bool(strictly_less)
+        while len(self.available) > target:
+            c = self.available.pop(0)
+            self.all.remove(c)
+
+    # Pop an available connection and return it, or return None if none are
+    # available.  In the latter case, the caller should create a new
+    # connection, register it via push(), and call pop() again.  The
+    # caller is responsible for serializing this sequence.
+    def pop(self):
+        result = None
+        if self.available:
+            result = self.available.pop()
+            # Leave it in self.all, so we can still get at it for statistics
+            # while it's alive.
+            assert result in self.all
+        return result
+
+    # Return a list of all connections we currently know about.
+    def all_as_list(self):
+        return self.all.as_list()
+
 
 class DB(object):
     """The Object Database
@@ -41,9 +147,9 @@ class DB(object):
     The DB instance manages a pool of connections.  If a connection is
     closed, it is returned to the pool and its object cache is
     preserved.  A subsequent call to open() will reuse the connection.
-    There is a limit to the pool size; if all its connections are in
-    use, calls to open() will block until one of the open connections
-    is closed.
+    There is no hard limit on the pool size.  If more than `pool_size`
+    connections are opened, a warning is logged, and if more than twice
+    that many, a critical problem is logged.
 
     The class variable 'klass' is used by open() to create database
     connections.  It is set to Connection, but a subclass could override
@@ -81,41 +187,42 @@ class DB(object):
     def __init__(self, storage,
                  pool_size=7,
                  cache_size=400,
-                 cache_deactivate_after=None,
+                 cache_deactivate_after=DEPRECATED_ARGUMENT,
                  version_pool_size=3,
                  version_cache_size=100,
-                 version_cache_deactivate_after=None,
+                 version_cache_deactivate_after=DEPRECATED_ARGUMENT,
                  ):
         """Create an object database.
 
         :Parameters:
           - `storage`: the storage used by the database, e.g. FileStorage
-          - `pool_size`: maximum number of open connections
+          - `pool_size`: expected maximum number of open connections
           - `cache_size`: target size of Connection object cache
-          - `cache_deactivate_after`: ignored
-          - `version_pool_size`: maximum number of connections (per version)
+          - `version_pool_size`: expected maximum number of connections (per
+            version)
           - `version_cache_size`: target size of Connection object cache for
             version connections
+          - `cache_deactivate_after`: ignored
           - `version_cache_deactivate_after`: ignored
         """
-        # Allocate locks:
-        l = allocate_lock()
-        self._a = l.acquire
-        self._r = l.release
+        # Allocate lock.
+        x = threading.RLock()
+        self._a = x.acquire
+        self._r = x.release
 
         # Setup connection pools and cache info
-        self._pools = {},[]
-        self._temps = []
+        # _pools maps a version string to a _ConnectionPool object.
+        self._pools = {}
         self._pool_size = pool_size
         self._cache_size = cache_size
         self._version_pool_size = version_pool_size
         self._version_cache_size = version_cache_size
 
         # warn about use of deprecated arguments
-        if (cache_deactivate_after is not None or
-            version_cache_deactivate_after is not None):
-            warnings.warn("cache_deactivate_after has no effect",
-                          DeprecationWarning)
+        if cache_deactivate_after is not DEPRECATED_ARGUMENT:
+            deprecated36("cache_deactivate_after has no effect")
+        if version_cache_deactivate_after is not DEPRECATED_ARGUMENT:
+            deprecated36("version_cache_deactivate_after has no effect")
 
         self._miv_cache = {}
 
@@ -151,6 +258,7 @@ class DB(object):
         if hasattr(storage, 'undoInfo'):
             self.undoInfo = storage.undoInfo
 
+    # This is called by Connection.close().
     def _closeConnection(self, connection):
         """Return a connection to the pool.
 
@@ -165,10 +273,10 @@ class DB(object):
             am = self._activity_monitor
             if am is not None:
                 am.closedConnection(connection)
+
             version = connection._version
-            pools, pooll = self._pools
             try:
-                pool, allocated, pool_lock = pools[version]
+                pool = self._pools[version]
             except KeyError:
                 # No such version. We must have deleted the pool.
                 # Just let the connection go.
@@ -177,30 +285,18 @@ class DB(object):
                 # XXX What objects are involved in the cycle?
                 connection.__dict__.clear()
                 return
+            pool.repush(connection)
 
-            pool.append(connection)
-            if len(pool) == 1:
-                # Pool now usable again, unlock it.
-                pool_lock.release()
         finally:
             self._r()
 
+    # Call f(c) for all connections c in all pools in all versions.
     def _connectionMap(self, f):
         self._a()
         try:
-            pools, pooll = self._pools
-            for pool, allocated in pooll:
-                for cc in allocated:
-                    f(cc)
-
-            temps = self._temps
-            if temps:
-                t = []
-                rc = sys.getrefcount
-                for cc in temps:
-                    if rc(cc) > 3:
-                        f(cc)
-                self._temps = t
+            for pool in self._pools.values():
+                for c in pool.all_as_list():
+                    f(c)
         finally:
             self._r()
 
@@ -216,12 +312,12 @@ class DB(object):
         """
 
         detail = {}
-        def f(con, detail=detail, have_detail=detail.has_key):
+        def f(con, detail=detail):
             for oid, ob in con._cache.items():
                 module = getattr(ob.__class__, '__module__', '')
                 module = module and '%s.' % module or ''
                 c = "%s%s" % (module, ob.__class__.__name__)
-                if have_detail(c):
+                if c in detail:
                     detail[c] += 1
                 else:
                     detail[c] = 1
@@ -276,7 +372,7 @@ class DB(object):
         self._connectionMap(lambda c: c._cache.full_sweep())
 
     def cacheLastGCTime(self):
-        m=[0]
+        m = [0]
         def f(con, m=m):
             t = con._cache.cache_last_gc_time
             if t > m[0]:
@@ -289,7 +385,7 @@ class DB(object):
         self._connectionMap(lambda c: c._cache.minimize())
 
     def cacheSize(self):
-        m=[0]
+        m = [0]
         def f(con, m=m):
             m[0] += con._cache.cache_non_ghost_count
 
@@ -299,9 +395,9 @@ class DB(object):
     def cacheDetailSize(self):
         m = []
         def f(con, m=m):
-            m.append({'connection':repr(con),
-                      'ngsize':con._cache.cache_non_ghost_count,
-                      'size':len(con._cache)})
+            m.append({'connection': repr(con),
+                      'ngsize': con._cache.cache_non_ghost_count,
+                      'size': len(con._cache)})
         self._connectionMap(f)
         m.sort()
         return m
@@ -358,39 +454,24 @@ class DB(object):
         if connection is not None:
             version = connection._version
         # Update modified in version cache
-        # XXX must make this work with list or dict to backport to 2.6
         for oid in oids.keys():
             h = hash(oid) % 131
             o = self._miv_cache.get(h, None)
             if o is not None and o[0]==oid:
                 del self._miv_cache[h]
 
-        # Notify connections
-        for pool, allocated in self._pools[1]:
-            for cc in allocated:
-                if (cc is not connection and
-                    (not version or cc._version==version)):
-                    if sys.getrefcount(cc) <= 3:
-                        cc.close()
-                    cc.invalidate(tid, oids)
-
-        if self._temps:
-            t = []
-            for cc in self._temps:
-                if sys.getrefcount(cc) > 3:
-                    if (cc is not connection and
-                        (not version or cc._version == version)):
-                        cc.invalidate(tid, oids)
-                    t.append(cc)
-                else:
-                    cc.close()
-            self._temps = t
+        # Notify connections.
+        def inval(c):
+            if (c is not connection and
+                  (not version or c._version == version)):
+                c.invalidate(tid, oids)
+        self._connectionMap(inval)
 
     def modifiedInVersion(self, oid):
         h = hash(oid) % 131
         cache = self._miv_cache
-        o=cache.get(h, None)
-        if o and o[0]==oid:
+        o = cache.get(h, None)
+        if o and o[0] == oid:
             return o[1]
         v = self._storage.modifiedInVersion(oid)
         cache[h] = oid, v
@@ -399,202 +480,107 @@ class DB(object):
     def objectCount(self):
         return len(self._storage)
 
-    def open(self, version='', transaction=None, temporary=0, force=None,
-             waitflag=1, mvcc=True, txn_mgr=None, synch=True):
+    def open(self, version='',
+             transaction=DEPRECATED_ARGUMENT, temporary=DEPRECATED_ARGUMENT,
+             force=DEPRECATED_ARGUMENT, waitflag=DEPRECATED_ARGUMENT,
+             mvcc=True, txn_mgr=None, synch=True):
         """Return a database Connection for use by application code.
 
-        The optional version argument can be used to specify that a
+        The optional `version` argument can be used to specify that a
         version connection is desired.
 
-        The optional transaction argument can be provided to cause the
-        connection to be automatically closed when a transaction is
-        terminated.  In addition, connections per transaction are
-        reused, if possible.
-
         Note that the connection pool is managed as a stack, to
-        increate the likelihood that the connection's stack will
+        increase the likelihood that the connection's stack will
         include useful objects.
 
         :Parameters:
           - `version`: the "version" that all changes will be made
              in, defaults to no version.
-          - `transaction`: XXX
-          - `temporary`: XXX
-          - `force`: XXX
-          - `waitflag`: XXX
           - `mvcc`: boolean indicating whether MVCC is enabled
           - `txn_mgr`: transaction manager to use.  None means
              used the default transaction manager.
           - `synch`: boolean indicating whether Connection should
              register for afterCompletion() calls.
-
         """
+
+        if temporary is not DEPRECATED_ARGUMENT:
+            deprecated36("DB.open() temporary= ignored. "
+                         "open() no longer blocks.")
+
+        if force is not DEPRECATED_ARGUMENT:
+            deprecated36("DB.open() force= ignored. "
+                         "open() no longer blocks.")
+
+        if waitflag is not DEPRECATED_ARGUMENT:
+            deprecated36("DB.open() waitflag= ignored. "
+                         "open() no longer blocks.")
+
+        if transaction is not DEPRECATED_ARGUMENT:
+            deprecated36("DB.open() transaction= ignored.")
+
         self._a()
         try:
-
-            if transaction is not None:
-                connections = transaction._connections
-                if connections:
-                    if connections.has_key(version) and not temporary:
-                        return connections[version]
-                else:
-                    transaction._connections = connections = {}
-                transaction = transaction._connections
-
-            if temporary:
-                # This is a temporary connection.
-                # We won't bother with the pools.  This will be
-                # a one-use connection.
-                c = self.klass(version=version,
-                               cache_size=self._version_cache_size,
-                               mvcc=mvcc, txn_mgr=txn_mgr, synch=synch)
-                c._setDB(self)
-                self._temps.append(c)
-                if transaction is not None:
-                    transaction[id(c)] = c
-                return c
-
-            pools, pooll = self._pools
-
-            # pools is a mapping object:
-            #
-            #   {version -> (pool, allocated, lock)
-            #
-            # where:
-            #
-            #   pool is the connection pool for the version,
-            #   allocated is a list of all of the allocated
-            #     connections, and
-            #   lock is a lock that is used to block when a pool is
-            #     empty and no more connections can be allocated.
-            #
-            # pooll is a list of all of the pools and allocated for
-            # use in cases where we need to iterate over all
-            # connections or all inactive connections.
-
-            # Pool locks are tricky.  Basically, the lock needs to be
-            # set whenever the pool becomes empty so that threads are
-            # forced to wait until the pool gets a connection in it.
-            # The lock is acquired when the (empty) pool is
-            # created.  The lock is acquired just prior to removing
-            # the last connection from the pool and released just after
-            # adding a connection to an empty pool.
-
-
-            if pools.has_key(version):
-                pool, allocated, pool_lock = pools[version]
-            else:
-                pool, allocated, pool_lock = pools[version] = (
-                    [], [], allocate_lock())
-                pooll.append((pool, allocated))
-                pool_lock.acquire()
-
-
-            if not pool:
-                c = None
+            # pool <- the _ConnectionPool for this version
+            pool = self._pools.get(version)
+            if pool is None:
                 if version:
-                    if self._version_pool_size > len(allocated) or force:
-                        c = self.klass(version=version,
-                                       cache_size=self._version_cache_size,
-                                       mvcc=mvcc, txn_mgr=txn_mgr)
-                        allocated.append(c)
-                        pool.append(c)
-                elif self._pool_size > len(allocated) or force:
-                    c = self.klass(version=version,
-                                   cache_size=self._cache_size,
-                                   mvcc=mvcc, txn_mgr=txn_mgr, synch=synch)
-                    allocated.append(c)
-                    pool.append(c)
+                    size = self._version_pool_size
+                else:
+                    size = self._pool_size
+                self._pools[version] = pool = _ConnectionPool(size)
+            assert pool is not None
 
-                if c is None:
-                    if waitflag:
-                        self._r()
-                        pool_lock.acquire()
-                        self._a()
-                        if len(pool) > 1:
-                            # Note that the pool size will normally be 1 here,
-                            # but it could be higher due to a race condition.
-                            pool_lock.release()
-                    else:
-                        return
+            # result <- a connection
+            result = pool.pop()
+            if result is None:
+                if version:
+                    size = self._version_cache_size
+                else:
+                    size = self._cache_size
+                c = self.klass(version=version, cache_size=size,
+                               mvcc=mvcc, txn_mgr=txn_mgr)
+                pool.push(c)
+                result = pool.pop()
+            assert result is not None
 
-            elif len(pool)==1:
-                # Taking last one, lock the pool.
-                # Note that another thread might grab the lock
-                # before us, so we might actually block, however,
-                # when we get the lock back, there *will* be a
-                # connection in the pool.  OTOH, there's no limit on
-                # how long we may need to wait:  if the other thread
-                # grabbed the lock in this section too, we'll wait
-                # here until another connection is closed.
-                # checkConcurrentUpdates1Storage provoked this frequently
-                # on a hyperthreaded machine, with its second thread
-                # timing out after waiting 5 minutes for DB.open() to
-                # return.  So, if we can't get the pool lock immediately,
-                # now we make a recursive call.  This allows the current
-                # thread to allocate a new connection instead of waiting
-                # arbitrarily long for the single connection in the pool
-                # right now.
-                self._r()
-                if not pool_lock.acquire(0):
-                    result = DB.open(self, version, transaction, temporary,
-                                     force, waitflag)
-                    self._a()
-                    return result
-                self._a()
-                if len(pool) > 1:
-                    # Note that the pool size will normally be 1 here,
-                    # but it could be higher due to a race condition.
-                    pool_lock.release()
+            # Tell the connection it belongs to self.
+            result._setDB(self, mvcc=mvcc, txn_mgr=txn_mgr, synch=synch)
 
-            c = pool.pop()
-            c._setDB(self, mvcc=mvcc, txn_mgr=txn_mgr, synch=synch)
-            for pool, allocated in pooll:
-                for cc in pool:
-                    cc.cacheGC()
+            # A good time to do some cache cleanup.
+            self._connectionMap(lambda c: c.cacheGC())
 
-            if transaction is not None:
-                transaction[version] = c
-            return c
+            return result
 
         finally:
             self._r()
 
     def removeVersionPool(self, version):
-        pools, pooll = self._pools
-        info = pools.get(version)
-        if info:
-            del pools[version]
-            pool, allocated, pool_lock = info
-            pooll.remove((pool, allocated))
-            try:
-                pool_lock.release()
-            except: # XXX Do we actually expect this to fail?
-                pass
-            del pool[:]
-            del allocated[:]
+        try:
+            del self._pools[version]
+        except KeyError:
+            pass
 
     def connectionDebugInfo(self):
-        r = []
-        pools, pooll = self._pools
+        result = []
         t = time()
-        for version, (pool, allocated, lock) in pools.items():
-            for c in allocated:
-                o = c._opened
-                d = c._debug_info
-                if d:
-                    if len(d)==1:
-                        d = d[0]
-                else:
-                    d=''
-                d = "%s (%s)" % (d, len(c._cache))
+        def f(c):
+            o = c._opened
+            d = c._debug_info
+            if d:
+                if len(d) == 1:
+                    d = d[0]
+            else:
+                d = ''
+            d = "%s (%s)" % (d, len(c._cache))
 
-                r.append({
-                    'opened': o and ("%s (%.2fs)" % (ctime(o), t-o)),
-                    'info': d,
-                    'version': version,
-                    })
-        return r
+            result.append({
+                'opened': o and ("%s (%.2fs)" % (ctime(o), t-o)),
+                'info': d,
+                'version': version,
+                })
+
+        self._connectionMap(f)
+        return result
 
     def getActivityMonitor(self):
         return self._activity_monitor
@@ -623,33 +609,51 @@ class DB(object):
             logger.error("packing", exc_info=True)
             raise
 
-    def setCacheSize(self, v):
-        self._cache_size = v
-        d = self._pools[0]
-        pool_info = d.get('')
-        if pool_info is not None:
-            for c in pool_info[1]:
-                c._cache.cache_size = v
+    def setActivityMonitor(self, am):
+        self._activity_monitor = am
 
     def classFactory(self, connection, modulename, globalname):
         # Zope will rebind this method to arbitrary user code at runtime.
         return find_global(modulename, globalname)
 
-    def setPoolSize(self, v):
-        self._pool_size = v
-
-    def setActivityMonitor(self, am):
-        self._activity_monitor = am
+    def setCacheSize(self, v):
+        self._a()
+        try:
+            self._cache_size = v
+            pool = self._pools.get('')
+            if pool is not None:
+                for c in pool.all_as_list():
+                    c._cache.cache_size = v
+        finally:
+            self._r()
 
     def setVersionCacheSize(self, v):
-        self._version_cache_size = v
-        for ver in self._pools[0].keys():
-            if ver:
-                for c in self._pools[0][ver][1]:
-                    c._cache.cache_size = v
+        self._a()
+        try:
+            self._version_cache_size = v
+            for version, pool in self._pools.items():
+                if version:
+                    for c in pool.all_as_list():
+                        c._cache.cache_size = v
+        finally:
+            self._r()
 
-    def setVersionPoolSize(self, v):
-        self._version_pool_size=v
+    def setPoolSize(self, size):
+        self._pool_size = size
+        self._reset_pool_sizes(size, for_versions=False)
+
+    def setVersionPoolSize(self, size):
+        self._version_pool_size = size
+        self._reset_pool_sizes(size, for_versions=True)
+
+    def _reset_pool_sizes(self, size, for_versions=False):
+        self._a()
+        try:
+            for version, pool in self._pools.items():
+                if (version != '') == for_versions:
+                    pool.set_pool_size(size)
+        finally:
+            self._r()
 
     def undo(self, id, txn=None):
         """Undo a transaction identified by id.
@@ -679,23 +683,19 @@ class DB(object):
 
     def getCacheDeactivateAfter(self):
         """Deprecated"""
-        warnings.warn("cache_deactivate_after has no effect",
-                      DeprecationWarning)
+        deprecated36("getCacheDeactivateAfter has no effect")
 
     def getVersionCacheDeactivateAfter(self):
         """Deprecated"""
-        warnings.warn("cache_deactivate_after has no effect",
-                      DeprecationWarning)
+        deprecated36("getVersionCacheDeactivateAfter has no effect")
 
     def setCacheDeactivateAfter(self, v):
         """Deprecated"""
-        warnings.warn("cache_deactivate_after has no effect",
-                      DeprecationWarning)
+        deprecated36("setCacheDeactivateAfter has no effect")
 
     def setVersionCacheDeactivateAfter(self, v):
         """Deprecated"""
-        warnings.warn("cache_deactivate_after has no effect",
-                      DeprecationWarning)
+        deprecated36("setVersionCacheDeactivateAfter has no effect")
 
 class ResourceManager(object):
     """Transaction participation for a version or undo resource."""
