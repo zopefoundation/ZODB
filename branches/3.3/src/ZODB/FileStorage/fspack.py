@@ -264,7 +264,7 @@ class GC(FileStorageFormatter):
             if tlen != th.tlen:
                 self.fail(pos, "redundant transaction length does not "
                           "match initial transaction length: %d != %d",
-                          u64(s), th.tlen)
+                          tlen, th.tlen)
             pos += 8
 
         self.packpos = pos
@@ -359,7 +359,7 @@ class GC(FileStorageFormatter):
             if tlen != th.tlen:
                 self.fail(pos, "redundant transaction length does not "
                           "match initial transaction length: %d != %d",
-                          u64(s), th.tlen)
+                          tlen, th.tlen)
             pos += 8
 
         for pos in extra_roots:
@@ -553,7 +553,7 @@ class FileStoragePacker(FileStorageFormatter):
             if tlen != th.tlen:
                 self.fail(pos, "redundant transaction length does not "
                           "match initial transaction length: %d != %d",
-                          u64(s), th.tlen)
+                          tlen, th.tlen)
             pos += 8
 
         return pos, new_pos
