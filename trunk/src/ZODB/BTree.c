@@ -11,7 +11,7 @@
 
 static char BTree_module_documentation[] = 
 ""
-"\n$Id: BTree.c,v 1.13 1998/02/04 21:11:26 jim Exp $"
+"\n$Id: BTree.c,v 1.14 1998/02/05 17:46:17 jim Exp $"
 ;
 
 #define PERSISTENT
@@ -1360,6 +1360,18 @@ bucket_has_key(Bucket *self, PyObject *args)
   return _bucket_get(self, key, 1);
 }
 
+static PyObject *
+bucket_getm(Bucket *self, PyObject *args)
+{
+  PyObject *key, *d=Py_None, *r;
+
+  UNLESS(PyArg_ParseTuple(args, "O|O", &key, &d)) return NULL;
+  if((r=_bucket_get(self, key, 0))) return r;
+  PyErr_Clear();
+  Py_INCREF(d);
+  return d;
+}
+
 static struct PyMethodDef Bucket_methods[] = {
   {"__getstate__", (PyCFunction)bucket_getstate,	METH_VARARGS,
    "__getstate__() -- Return the picklable state of the object"},
@@ -1378,6 +1390,10 @@ static struct PyMethodDef Bucket_methods[] = {
   {"map",	(PyCFunction)bucket_map,	METH_VARARGS,
      "map(keys) -- map a sorted sequence of keys into values\n\n"
      "Invalid keys are skipped"},
+  {"get",	(PyCFunction)bucket_getm,	METH_VARARGS,
+   "get(key[,default]) -- Look up a value\n\n"
+   "Return the default (or None) if the key is not found."
+  },
 #ifdef PERSISTENT
   {"_p___reinit__",	(PyCFunction)bucket__p___reinit__,	METH_VARARGS,
    "_p___reinit__() -- Reinitialize from a newly created copy"},
@@ -1526,6 +1542,18 @@ BTree_has_key(BTree *self, PyObject *args)
   return _BTree_get(self, key, 1);
 }
 
+static PyObject *
+BTree_getm(BTree *self, PyObject *args)
+{
+  PyObject *key, *d=Py_None, *r;
+
+  UNLESS(PyArg_ParseTuple(args, "O|O", &key, &d)) return NULL;
+  if((r=_BTree_get(self, key, 0))) return r;
+  PyErr_Clear();
+  Py_INCREF(d);
+  return d;
+}
+
 static struct PyMethodDef BTree_methods[] = {
   {"__getstate__",	(PyCFunction)BTree_getstate,	METH_VARARGS,
    "__getstate__() -- Return the picklable state of the object"},
@@ -1544,6 +1572,10 @@ static struct PyMethodDef BTree_methods[] = {
   {"map",	(PyCFunction)BTree_map,	METH_VARARGS,
      "map(keys) -- map a sorted sequence of keys into values\n\n"
      "Invalid keys are skipped"},
+  {"get",	(PyCFunction)BTree_getm,	METH_VARARGS,
+   "get(key[,default]) -- Look up a value\n\n"
+   "Return the default (or None) if the key is not found."
+  },
 #ifdef PERSISTENT
   {"_p___reinit__",	(PyCFunction)BTree__p___reinit__,	METH_VARARGS,
    "_p___reinit__() -- Reinitialize from a newly created copy"},
@@ -1714,7 +1746,7 @@ initBTree()
 #endif
 {
   PyObject *m, *d;
-  char *rev="$Revision: 1.13 $";
+  char *rev="$Revision: 1.14 $";
 
   UNLESS(PyExtensionClassCAPI=PyCObject_Import("ExtensionClass","CAPI"))
       return;
@@ -1776,6 +1808,9 @@ initBTree()
 Revision Log:
 
   $Log: BTree.c,v $
+  Revision 1.14  1998/02/05 17:46:17  jim
+  Added get methods.
+
   Revision 1.13  1998/02/04 21:11:26  jim
   Fixed two leaks in bucket values.
 
