@@ -83,7 +83,7 @@
   
  ****************************************************************************/
 
-#define BTREETEMPLATE_C "$Id: BTreeTemplate.c,v 1.13 2001/03/21 14:16:58 jim Exp $\n"
+#define BTREETEMPLATE_C "$Id: BTreeTemplate.c,v 1.14 2001/03/30 20:42:22 jim Exp $\n"
 
 /*
 ** _BTree_get
@@ -1191,6 +1191,7 @@ BTree_getm(BTree *self, PyObject *args)
 
   UNLESS (PyArg_ParseTuple(args, "O|O", &key, &d)) return NULL;
   if ((r=_BTree_get(self, key, 0))) return r;
+  UNLESS (PyErr_ExceptionMatches(PyExc_KeyError)) return NULL;
   PyErr_Clear();
   Py_INCREF(d);
   return d;

@@ -82,7 +82,7 @@
   
  ****************************************************************************/
 
-#define BUCKETTEMPLATE_C "$Id: BucketTemplate.c,v 1.11 2001/03/30 15:50:18 brian Exp $\n"
+#define BUCKETTEMPLATE_C "$Id: BucketTemplate.c,v 1.12 2001/03/30 20:42:22 jim Exp $\n"
 
 /*
 ** _bucket_get
@@ -1057,6 +1057,7 @@ bucket_getm(Bucket *self, PyObject *args)
 
   UNLESS (PyArg_ParseTuple(args, "O|O", &key, &d)) return NULL;
   if ((r=_bucket_get(self, key, 0))) return r;
+  UNLESS (PyErr_ExceptionMatches(PyExc_KeyError)) return NULL;
   PyErr_Clear();
   Py_INCREF(d);
   return d;
