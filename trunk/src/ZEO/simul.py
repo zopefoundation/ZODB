@@ -51,103 +51,175 @@ def main():
         print "can't open %s: %s" % (filename, msg)
         return 1
 
-    # Set up statistics
-    flips = 0
-    loads = 0
-    hits = 0
-    invals = 0
-    writes = 0
-    ts0 = None
-    total_loads = 0
-    total_hits = 0
+    # Create simulation object
+    sim = ZEOCacheSimulation(cachelimit)
 
-    # Set up simulation data
-    filelimit = cachelimit / 2
-    filesize = [4, 4] # account for magic number
-    fileoids = [{}, {}]
-    current = 0 # index into filesize, fileoids
-
-    # Print header
-    print "%12s %12s %6s %6s %6s %6s %6s %6s" % (
-        "__START_TIME", "___STOP_TIME", "LOADS", "HITS",
-        "INVALS", "WRITES", "FLIPS", "HIT%")
+    # Print output header
+    sim.printheader()
 
     # Read trace file, simulating cache behavior
     while 1:
-        # Read a reacord
+        # Read a record
         r = f.read(24)
         if len(r) < 24:
             break
-
         # Decode it
         ts, code, oid, serial = struct.unpack(">ii8s8s", r)
-        dlen, version, code, ignored = (code & 0x7fffff00,
+        dlen, version, code, current = (code & 0x7fffff00,
                                         code & 0x80,
                                         code & 0x7e,
                                         code & 0x01)
-        if ts0 is None:
-            ts0 = ts
+        # And pass it to the simulation
+        sim.event(ts, dlen, version, code, current, oid, serial)
+
+    # Finish simulation
+    sim.finish()
+
+    # Exit code from main()
+    return 0
+
+class Simulation:
+
+    """Abstract base class to define simulation interface.
+
+    These are the only methods that the driver program calls.
+
+    The constructor signature is not part of the interface.
+
+    """
+
+    def event(self, ts, dlen, version, code, current, oid, serial):
+        pass
+
+    def printheader(self):
+        pass
+
+    def finish(self):
+        pass
+
+class ZEOCacheSimulation(Simulation):
+
+    """Simulate the current (ZEO 1.0 and 2.0) ZEO cache behavior."""
+
+    def __init__(self, cachelimit):
+        # Store simulation parameters
+        self.filelimit = cachelimit / 2
+        # Initialize global statistics
+        self.epoch = None
+        self.total_flips = 0
+        self.total_loads = 0
+        self.total_hits = 0
+        self.total_invals = 0
+        self.total_writes = 0
+        # Reset per-run statistics and simulation data
+        self.restart()
+
+    def restart(self):
+        # Set up statistics
+        self.flips = 0
+        self.loads = 0
+        self.hits = 0
+        self.invals = 0
+        self.writes = 0
+        self.ts0 = None
+        # Set up simulation data
+        self.filesize = [4, 4] # account for magic number
+        self.fileoids = [{}, {}]
+        self.current = 0 # index into filesize, fileoids
+
+    def event(self, ts, dlen, _version, code, _current, oid, _serial):
+        # Record first and last timestamp seen
+        if self.ts0 is None:
+            self.ts0 = ts
+            if self.epoch is None:
+                self.epoch = ts
+        self.ts1 = ts
 
         # Simulate cache behavior.  Use load hits, updates and stores
         # only (each load miss is followed immediately by a store
         # unless the object in fact did not exist).  Updates always write.
         if dlen and code & 0x70 in (0x20, 0x30, 0x50):
             if code == 0x3A:
-                writes += 1
+                self.writes += 1
+                self.total_writes += 1
             else:
-                loads += 1
-                total_loads += 1
-            if code != 0x3A and (fileoids[current].get(oid) or
-                                 fileoids[1-current].get(oid)):
-                hits += 1
-                total_hits += 1
+                self.loads += 1
+                self.total_loads += 1
+            if code != 0x3A and (self.fileoids[self.current].get(oid) or
+                                 self.fileoids[1 - self.current].get(oid)):
+                self.hits += 1
+                self.total_hits += 1
             else:
                 # Simulate a miss+store.  Fudge because dlen is
                 # rounded up to multiples of 256.  (31 is header
-                # overhead per cache record; 8 is min data size.)
-                dlen = max(31 + 8, dlen + 31 - 128)
-                if filesize[current] + dlen > filelimit:
+                # overhead per cache record; 127 is to compensate for
+                # rounding up to multiples of 256.)
+                dlen = dlen + 31 - 127
+                if self.filesize[self.current] + dlen > self.filelimit:
                     # Cache flip
-                    flips += 1
-                    current = 1 - current
-                    filesize[current] = 4
-                    fileoids[current] = {}
-                filesize[current] += dlen
-                fileoids[current][oid] = 1
+                    self.flips += 1
+                    self.total_flips += 1
+                    self.current = 1 - self.current
+                    self.filesize[self.current] = 4
+                    self.fileoids[self.current] = {}
+                self.filesize[self.current] += dlen
+                self.fileoids[self.current][oid] = 1
         elif code & 0x70 == 0x10:
             # Invalidate
-            if fileoids[current].get(oid):
-                invals += 1
-                del fileoids[current][oid]
-            elif fileoids[1-current].get(oid):
-                invals += 1
-                del fileoids[1-current][oid]
+            if self.fileoids[self.current].get(oid):
+                self.invals += 1
+                self.total_invals += 1
+                del self.fileoids[self.current][oid]
+            elif self.fileoids[1 - self.current].get(oid):
+                self.invals += 1
+                self.total_invals += 1
+                del self.fileoids[1 - self.current][oid]
         elif code == 0x00:
             # Restart
-            if loads:
-                report(ts0, ts, loads, hits, invals, writes, flips)
-            loads = 0
-            hits = 0
-            flips = 0
-            invals = 0
-            writes = 0
-            ts0 = None
-            filesize = [4, 4] # account for magic number
-            fileoids = [{}, {}]
-            current = 0 # index into filesize, fileoids
+            self.report()
+            self.restart()
 
-    if loads:
-        report(ts0, ts, loads, hits, invals, writes, flips)
+    format = "%12s %9s %8s %8s %6s %6s %5s %6s"
 
-    if total_loads:
-        print "Overall: %d loads, %d hits, hit rate %.1f%%" % (
-            total_loads, total_hits, 100.0 * total_hits / total_loads)
+    def printheader(self):
+        print self.format % (
+            "START TIME", "DURATION", "LOADS", "HITS",
+            "INVALS", "WRITES", "FLIPS", "HITRATE")
 
-def report(ts0, ts, loads, hits, invals, writes, flips):
-    hr = 100.0 * hits / max(loads, 1)
-    print "%s %s %6d %6d %6d %6d %6d %6.1f%%" % (
-        time.ctime(ts0)[4:-8], time.ctime(ts)[4:-8],
-        loads, hits, invals, writes, flips, hr)
+    def report(self):
+        if self.loads:
+            print self.format % (
+                time.ctime(self.ts0)[4:-8],
+                duration(self.ts1 - self.ts0),
+                self.loads, self.hits, self.invals, self.writes, self.flips,
+                hitrate(self.loads, self.hits))
+
+    def finish(self):
+        if self.loads:
+            self.report()
+        if self.total_loads:
+            print (self.format + " OVERALL") % (
+                time.ctime(self.epoch)[4:-8],
+                duration(self.ts1 - self.epoch),
+                self.total_loads,
+                self.total_hits,
+                self.total_invals,
+                self.total_writes,
+                self.total_flips,
+                hitrate(self.total_loads, self.total_hits))
+
+def hitrate(loads, hits):
+    return "%5.1f%%" % (100.0 * hits / max(1, loads))
+
+def duration(secs):
+
+    mm, ss = divmod(secs, 60)
+    hh, mm = divmod(mm, 60)
+    if hh:
+        return "%d:%02d:%02d" % (hh, mm, ss)
+    if mm:
+        return "%d:%02d" % (mm, ss)
+    return "%d" % ss
 
 if __name__ == "__main__":
     sys.exit(main())
