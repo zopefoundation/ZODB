@@ -67,9 +67,10 @@ class SynchronizedStorage:
         apply(self.assertRaises, args)
 
     def verifyWrongTrans(self, callable, *args):
-        self._storage.tpc_begin(Transaction())
-        args = (StorageTransactionError, callable) + args
-        apply(self.assertRaises, args)
+        t = Transaction()
+        self._storage.tpc_begin(t)
+        self.assertRaises(StorageTransactionError, callable, *args)
+        self._storage.tpc_abort(t)
 
     def checkAbortVersionNotCommitting(self):
         self.verifyNotCommitting(self._storage.abortVersion,

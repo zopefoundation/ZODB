@@ -199,9 +199,12 @@ class VersionStorage:
         eq(zodb_unpickle(data), MinPO(54))
         t = Transaction()
         self._storage.tpc_begin(t)
-        self.assertRaises(POSException.VersionCommitError,
-                          self._storage.commitVersion,
-                          'one', 'one', t)
+        try:
+            self.assertRaises(POSException.VersionCommitError,
+                              self._storage.commitVersion,
+                              'one', 'one', t)
+        finally:
+            self._storage.tpc_abort(t)
 
     def checkModifyAfterAbortVersion(self):
         eq = self.assertEqual
