@@ -188,8 +188,9 @@ def check_drec(path, file, pos, tpos, tid):
         file.seek(vlen, 1) # skip the version data
 
     if tloc != tpos:
-        raise FormatError("%s data record exceeds transaction record"
-                          "at %s" % (path, pos))
+        raise FormatError("%s data record exceeds transaction record "
+                          "at %s: tloc %d != tpos %d" %
+                          (path, pos, tloc, tpos))
 
     pos = pos + dlen
     # XXX is the following code necessary?
