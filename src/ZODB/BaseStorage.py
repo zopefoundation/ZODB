@@ -13,7 +13,7 @@
 ##############################################################################
 """Handy standard storage machinery
 
-$Id: BaseStorage.py,v 1.51 2004/04/23 17:30:40 gintautasm Exp $
+$Id$
 """
 import cPickle
 import threading

@@ -13,7 +13,7 @@
 ##############################################################################
 """Persistence and ExtensionClass combined
 
-$Id: __init__.py,v 1.8 2003/12/29 22:40:45 tim_one Exp $
+$Id$
 """
 
 from persistent import PickleCache

@@ -13,7 +13,7 @@
 ##############################################################################
 """XXX short summary goes here.
 
-$Id: test_mapping.py,v 1.2 2003/12/29 22:40:46 tim_one Exp $
+$Id$
 """
 import unittest
 from doctest import DocTestSuite

@@ -13,7 +13,7 @@
 ##############################################################################
 """Python implementation of persistent container type
 
-$Id: dict.py,v 1.2 2004/02/19 02:59:30 jeremy Exp $
+$Id$
 """
 
 import persistent

@@ -13,7 +13,7 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.155 2004/04/23 17:26:37 gintautasm Exp $"""
+$Id$"""
 
 import logging
 import sys

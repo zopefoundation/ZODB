@@ -15,7 +15,7 @@
 
 See ZODB/ActivityMonitor.py
 
-$Id: testActivityMonitor.py,v 1.3 2002/08/14 22:07:09 mj Exp $
+$Id$
 """
 
 import unittest

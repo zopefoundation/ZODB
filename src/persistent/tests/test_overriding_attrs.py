@@ -16,7 +16,7 @@
 This module tests and documents, through example, overriding attribute
 access methods.
 
-$Id: test_overriding_attrs.py,v 1.7 2004/04/19 21:19:10 tim_one Exp $
+$Id$
 """
 
 from persistent import Persistent

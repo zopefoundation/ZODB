@@ -13,7 +13,7 @@
 ##############################################################################
 """Database objects
 
-$Id: DB.py,v 1.79 2004/05/07 19:10:59 tim_one Exp $"""
+$Id$"""
 
 import cPickle, cStringIO, sys
 from thread import allocate_lock

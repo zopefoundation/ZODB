@@ -89,7 +89,7 @@ Usage: loadmail2 [options]
 
        Specify the mailbox for getting input data.
 
-$Id: zodbload.py,v 1.7 2004/04/16 16:00:56 jeremy Exp $
+$Id$
 """
 
 import mailbox

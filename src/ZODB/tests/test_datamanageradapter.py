@@ -13,7 +13,7 @@
 ##############################################################################
 """XXX short summary goes here.
 
-$Id: test_datamanageradapter.py,v 1.4 2004/04/05 18:48:22 tim_one Exp $
+$Id$
 """
 import unittest
 from doctest import DocTestSuite

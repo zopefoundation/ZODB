@@ -13,7 +13,7 @@
 ##############################################################################
 """Utility classes or functions
 
-$Id: util.py,v 1.3 2004/04/19 21:19:10 tim_one Exp $
+$Id$
 """
 
 from transaction.interfaces import IRollback

@@ -13,7 +13,7 @@
 ##############################################################################
 """Test transaction utilities
 
-$Id: test_util.py,v 1.2 2004/02/20 16:56:58 fdrake Exp $
+$Id$
 """
 import unittest
 from doctest import DocTestSuite

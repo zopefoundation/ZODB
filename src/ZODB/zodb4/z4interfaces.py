@@ -26,7 +26,7 @@ the public APIs of the database.
 The IDatabase, IConnection, and ITransactionAttrs interfaces describe
 private APIs used by the implementation.
 
-$Id: z4interfaces.py,v 1.3 2004/04/19 21:19:09 tim_one Exp $
+$Id$
 """
 
 from ZODB.zodb4 import z4utils

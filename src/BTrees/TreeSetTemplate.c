@@ -12,7 +12,7 @@
 
  ****************************************************************************/
 
-#define TREESETTEMPLATE_C "$Id: TreeSetTemplate.c,v 1.16 2003/11/28 16:44:44 jim Exp $\n"
+#define TREESETTEMPLATE_C "$Id$\n"
 
 static PyObject *
 TreeSet_insert(BTree *self, PyObject *args)

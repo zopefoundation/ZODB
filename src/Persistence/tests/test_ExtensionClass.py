@@ -13,7 +13,7 @@
 ##############################################################################
 """Test ExtensionClass support in Persistence.Persistent
 
-$Id: test_ExtensionClass.py,v 1.7 2004/04/19 21:19:03 tim_one Exp $
+$Id$
 """
 
 from doctest import DocTestSuite

@@ -12,7 +12,7 @@
 #
 ############################################################################*/
 
-#define MASTER_ID "$Id: _IIBTree.c,v 1.9 2004/05/03 18:45:52 spascoe Exp $\n"
+#define MASTER_ID "$Id$\n"
 
 /* IIBTree - int key, int value BTree
 

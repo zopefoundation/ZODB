@@ -13,7 +13,7 @@
 ##############################################################################
 """Monitor behavior of ZEO server and record statistics.
 
-$Id: monitor.py,v 1.6 2004/04/25 11:34:15 gintautasm Exp $
+$Id$
 """
 
 import asyncore

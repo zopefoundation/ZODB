@@ -13,7 +13,7 @@
 ##############################################################################
 """Unit tests for PickleCache
 
-$Id: test_PickleCache.py,v 1.2 2004/02/19 02:59:32 jeremy Exp $
+$Id$
 """
 
 class DummyConnection:

@@ -14,7 +14,7 @@
 static char _Persistence_module_documentation[] = 
 "Persistent ExtensionClass\n"
 "\n"
-"$Id: _Persistence.c,v 1.2 2003/11/28 16:44:46 jim Exp $\n"
+"$Id$\n"
 ;
 
 #include "ExtensionClass.h"

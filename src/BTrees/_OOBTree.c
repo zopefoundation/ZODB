@@ -12,7 +12,7 @@
 #
 ############################################################################*/
 
-#define MASTER_ID "$Id: _OOBTree.c,v 1.4 2004/05/03 18:45:52 spascoe Exp $\n"
+#define MASTER_ID "$Id$\n"
 
 /* OOBTree - object key, object value BTree
 

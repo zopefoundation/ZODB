@@ -36,7 +36,7 @@ TODO
     add in tests for objects which are modified multiple times,
     for example an object that gets modified in multiple sub txns.
 
-$Id: test_transaction.py,v 1.2 2004/04/16 15:58:10 jeremy Exp $
+$Id$
 """
 
 import unittest

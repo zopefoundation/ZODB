@@ -13,7 +13,7 @@
 ##############################################################################
 """Test broken-object suppport
 
-$Id: testBroken.py,v 1.5 2004/04/19 21:19:07 tim_one Exp $
+$Id$
 """
 
 import sys
