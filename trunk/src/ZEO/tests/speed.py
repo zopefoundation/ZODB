@@ -243,10 +243,12 @@ def main(args):
     results={1:[], 10:[], 100:[], 1000:[]}
     if threads > 1:
         import threading
-        l = [threading.Thread(target=work,
-                              args=(db, results, nrep, compress, data,
-                                    detailed, minimize, i))
-             for i in range(threads)]
+        l = []
+        for i in range(threads):
+            t = threading.Thread(target=work,
+                                 args=(db, results, nrep, compress, data,
+                                       detailed, minimize, i))
+            l.append(t)
         for t in l:
             t.start()
         for t in l:
@@ -263,7 +265,9 @@ def main(args):
         print '-'*24
     print "num\tmean\tmin\tmax"
     for r in 1, 10, 100, 1000:
-        times = [time for time, conf in results[r]]
+        times = []
+        for time, conf in results[r]:
+            times.append(time)
         t = mean(times)
         print "%d\t%.4f\t%.4f\t%.4f" % (r, t, min(times), max(times))
 

@@ -116,7 +116,9 @@ def main(client_func=None):
     t0 = time.time()
     server_pid, server = start_server(addr)
     t1 = time.time()
-    pids = [start_client(addr, client_func) for i in range(CLIENTS)]
+    pids = []
+    for i in range(CLIENTS):
+        pids.append(start_client(addr, client_func))
     for pid in pids:
         assert type(pid) == types.IntType, "invalid pid type: %s (%s)" % \
                (repr(pid), type(pid))
