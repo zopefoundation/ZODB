@@ -2,6 +2,7 @@
 
 from ZODB.Transaction import Transaction
 from ZODB.tests.IteratorStorage import IteratorDeepCompare
+from ZODB.tests.StorageTestBase import MinPO, zodb_unpickle
 
 
 class RecoveryStorage(IteratorDeepCompare):
@@ -55,3 +56,50 @@ class RecoveryStorage(IteratorDeepCompare):
             self.assertEqual(data.oid, oid)
             self.assertEqual(data.data, None)
     
+    def checkRecoverUndoInVersion(self):
+        oid = self._storage.new_oid()
+        version = "aVersion"
+        revid_a = self._dostore(oid, data=MinPO(91))
+        revid_b = self._dostore(oid, revid=revid_a, version=version,
+                                data=MinPO(92))
+        revid_c = self._dostore(oid, revid=revid_b, version=version,
+                                data=MinPO(93))
+        self._undo(self._storage.undoInfo()[0]['id'], oid)
+        self._commitVersion(version, '')
+        self._undo(self._storage.undoInfo()[0]['id'], oid)
+
+        # now copy the records to a new storage
+        self._dst.copyTransactionsFrom(self._storage)
+        
+        self._abortVersion(version)
+        self.assert_(self._storage.versionEmpty(version))
+        self._undo(self._storage.undoInfo()[0]['id'], oid)
+        self.assert_(not self._storage.versionEmpty(version))
+
+        # check the data is what we expect it to be
+        data, revid = self._storage.load(oid, version)
+        self.assertEqual(zodb_unpickle(data), MinPO(92))
+        data, revid = self._storage.load(oid, '')
+        self.assertEqual(zodb_unpickle(data), MinPO(91))
+
+        # and swap the storages
+        tmp = self._storage
+        self._storage = self._dst
+        self._abortVersion(version)
+        self.assert_(self._storage.versionEmpty(version))
+        self._undo(self._storage.undoInfo()[0]['id'], oid)
+        self.assert_(not self._storage.versionEmpty(version))
+
+        # check the data is what we expect it to be
+        data, revid = self._storage.load(oid, version)
+        self.assertEqual(zodb_unpickle(data), MinPO(92))
+        data, revid = self._storage.load(oid, '')
+        self.assertEqual(zodb_unpickle(data), MinPO(91))
+
+        # Now remove _dst and copy all the transactions a second time.
+        # This time we will be able to confirm via compare().
+        self._storage = tmp
+        self._dst.close()
+        self._dst = self.new_dest()
+        self._dst.copyTransactionsFrom(self._storage)
+        self.compare(self._storage, self._dst)
