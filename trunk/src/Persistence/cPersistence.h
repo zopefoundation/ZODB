@@ -112,10 +112,6 @@ typedef struct {
   persetattr persetattro;
 } cPersistenceCAPIstruct;
 
-static cPersistenceCAPIstruct *cPersistenceCAPI;
-
-#define cPersistanceModuleName "cPersistence"
-
 #define PERSISTENT_TYPE_FLAG EXTENSIONCLASS_USER_FLAG8
 
 /* ExtensionClass class flags for persistent base classes should
