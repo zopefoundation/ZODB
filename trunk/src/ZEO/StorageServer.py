@@ -401,7 +401,7 @@ class ZEOStorage:
             self.locked = 0
             self.timeout.end(self)
             self.stats.lock_time = None
-            self.log("Transaction released storage lock")
+            self.log("Transaction released storage lock", zLOG.BLATHER)
             # _handle_waiting() can start another transaction (by
             # restarting a waiting one) so must be done last
             self._handle_waiting()
