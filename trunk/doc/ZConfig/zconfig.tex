@@ -62,6 +62,112 @@ The main \module{ZConfig} package exports a single function:
 \declaremodule{}{ZConfig.Context}
 \modulesynopsis{Application context}
 
+The \module{ZConfig} package uses the idea of an \dfn{application
+context} to consolidate the connections between the different
+components of the package.  Most applications should not need to worry
+about the application context at all; the \function{load()} function
+in the \module{ZConfig} module uses the default context implementation
+to glue everything together.
+
+For applications that need to change the way their configuration data
+is handled, the best way to do it is to provide an alternate
+application context.  The default implementation is designed to be
+subclassed, so this should not prove to be difficult.
+
+\begin{classdesc}{Context}{}
+  Constructs an instance of the default application context.  This is
+  implemented as an object to allow applications to adjust the way
+  components are created and how they are knit together.  This
+  implementation is designed to be used once and discarded; changing
+  this assumption in a subclass would probably lead to a complete
+  replacement of the class.
+\end{classdesc}
+
+The context object offers one method that is intended to be called
+once:
+
+\begin{methoddesc}{load}{url}
+  Load and return a configuration object from a resource.  The
+  resource is identified by a URL or path given as \var{url}.
+\end{methoddesc}
+
+The following methods are defined to be individually overridable by
+subclasses; this should suffice for most context specialization.
+
+\begin{methoddesc}{createImportedSection}{parent, url}
+  Create a new section that represents a section loaded using
+  \keyword{import}.  The returned section should be conform to the
+  interface of the \class{ImportingConfiguration} class (see the
+  \refmodule{ZConfig.Config} module's documentation for more
+  information on this interface).  \var{parent} is the section that
+  contains the \keyword{import} statement, and \var{url} is the
+  resource that will be loaded into the new section.  This method
+  should not cause the \method{addImport()} of \var{parent} to be
+  called, nor should it cause the resource to actually be loaded.
+  Since the new section represents the top level of an external
+  resource, it's \member{type} and \member{name} attributes should be
+  \code{None}.
+\end{methoddesc}
+
+\begin{methoddesc}{createNestedSection}{parent, type, name, delegatename}
+  Create a new section that represents a child of the section given by
+  \var{parent}.  \var{type} is the type that should be given to the
+  new section and should always be a string.  \var{name} should be the
+  name of the section, and should be a string or \code{None}.
+  \var{delegatename} should also be a string or \code{None}; if not
+  \code{None}, this will be the name of the section eventually passed
+  to the \method{setDelegate()} method of the returned section.  The
+  returned section should be conform to the interface of the
+  \class{Configuration} class (see the \refmodule{ZConfig.Config}
+  module's documentation for more information on this interface).
+\end{methoddesc}
+
+\begin{methoddesc}{createToplevelSection}{url}
+  Create a new section that represents a section loaded and returned
+  by the \method{load()} method of the context object.  The returned
+  section should be conform to the interface of the
+  \class{ImportingConfiguration} class (see the
+  \refmodule{ZConfig.Config} module's documentation for more
+  information on this interface).  \var{url} is the resource that will
+  be loaded into the new section.
+  Since the new section represents the top level of an external
+  resource, it's \member{type} and \member{name} attributes should be
+  \code{None}.
+\end{methoddesc}
+
+\begin{methoddesc}{getDelegateType}{type}
+  Return the type of sections to which sections of type \var{type} may
+  delegate to, or \code{None} if they are not allowed to do so.
+\end{methoddesc}
+
+\begin{methoddesc}{parse}{file, section, url}
+  This method allows subclasses to replace the resource parser.
+  \var{file} is a file object which provides the content of the
+  resource, \var{section} is the section object into which the
+  contents of the resources should be loaded, and \var{url} is the URL
+  from which the resource is being loaded.  The default implementation
+  implements the configuration language described in
+  section~\ref{syntax} using the \function{Parse()} function provided
+  by the \refmodule{ZConfig.ApacheStyle} module.  Providing an
+  alternate parser is most easily done by overriding this method and
+  calling the parser support methods of the context object from the
+  new parser, though different strategies are possible.
+\end{methoddesc}
+
+The following methods are provided to make it easy for parsers to
+support common semantics for the \keyword{import} and
+\keyword{include} statements, if those are defined for the syntax
+implemented by the alternate parser.
+
+\begin{methoddesc}{importConfiguration}{parent, url}
+\end{methoddesc}
+
+\begin{methoddesc}{includeConfiguration}{parent, url}
+\end{methoddesc}
+
+\begin{methoddesc}{nestSection}{parent, type, name, delegatename}
+\end{methoddesc}
+
 
 \section{\module{ZConfig.Config} --- Section objects}
 
