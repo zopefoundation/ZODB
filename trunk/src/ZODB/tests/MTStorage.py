@@ -24,6 +24,7 @@ class ZODBClientThread(threading.Thread):
 
     def __init__(self, db, test, commits=10, delay=SHORT_DELAY):
         self.__super_init()
+        self.setDaemon(1)
         self.db = db
         self.test = test
         self.commits = commits
@@ -169,7 +170,9 @@ class MTStorage:
         for t in threads:
             t.start()
         for t in threads:
-            t.join()
+            t.join(10)
+        for t in threads:
+            self.failIf(t.isAlive())
     
     def check2ZODBThreads(self):
         db = ZODB.DB(self._storage)
