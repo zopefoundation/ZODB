@@ -82,7 +82,7 @@
   attributions are listed in the accompanying credits file.
   
  ****************************************************************************/
-static char *what_string = "$Id: cPickleCache.c,v 1.20 1999/05/14 19:22:38 jim Exp $";
+static char *what_string = "$Id: cPickleCache.c,v 1.21 1999/05/14 19:41:28 jim Exp $";
 
 #define ASSIGN(V,E) {PyObject *__e; __e=(E); Py_XDECREF(V); (V)=__e;}
 #define UNLESS(E) if(!(E))
@@ -361,7 +361,7 @@ cc_invalidate(ccobject *self, PyObject *args)
   PyObject *inv, *key, *v;
   int i, l;
   
-  if (PyArg_ParseTuple(args, "O!", PyDict_Type, &inv)) {
+  if (PyArg_ParseTuple(args, "O!", &PyDict_Type, &inv)) {
     for (i=0; PyDict_Next(inv, &i, &key, &v); ) 
       if (key==Py_None)
 	{ /* Eek some nitwit invalidated everything! */
@@ -623,7 +623,7 @@ void
 initcPickleCache()
 {
   PyObject *m, *d;
-  char *rev="$Revision: 1.20 $";
+  char *rev="$Revision: 1.21 $";
 
   Cctype.ob_type=&PyType_Type;
 
