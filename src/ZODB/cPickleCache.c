@@ -88,7 +88,7 @@ process must skip such objects, rather than deactivating them.
 static char cPickleCache_doc_string[] =
 "Defines the PickleCache used by ZODB Connection objects.\n"
 "\n"
-"$Id: cPickleCache.c,v 1.74 2003/04/01 15:32:28 jeremy Exp $\n";
+"$Id: cPickleCache.c,v 1.75 2003/04/01 15:51:01 jeremy Exp $\n";
 
 #define ASSIGN(V,E) {PyObject *__e; __e=(E); Py_XDECREF(V); (V)=__e;}
 #define UNLESS(E) if(!(E))
@@ -929,8 +929,8 @@ cCM_new(PyObject *self, PyObject *args)
 }
 
 static struct PyMethodDef cCM_methods[] = {
-  {"PickleCache", (PyCFunction)cCM_new,	METH_VARARGS, ""},
-  {NULL,		NULL}		/* sentinel */
+    {"PickleCache", (PyCFunction)cCM_new, METH_VARARGS},
+    {NULL, NULL} /* sentinel */
 };
 
 void
