@@ -13,7 +13,7 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.92 2003/05/08 22:43:07 jeremy Exp $"""
+$Id: Connection.py,v 1.93 2003/05/19 15:40:58 kiko Exp $"""
 
 from __future__ import nested_scopes
 
@@ -317,7 +317,7 @@ class Connection(ExportImport.ExportImport):
         oid = object._p_oid
         if self._conflicts.has_key(oid):
             self.getTransaction().register(object)
-            raise ReadConflictError(oid)
+            raise ReadConflictError(object=object)
         
         invalid = self._invalid
         if oid is None or object._p_jar is not self:
