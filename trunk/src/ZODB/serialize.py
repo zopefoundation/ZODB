@@ -76,17 +76,6 @@ def myhasattr(obj, name, _marker=object()):
     """
     return getattr(obj, name, _marker) is not _marker
 
-def getClassMetadata(obj):
-
-    # We don't use __class__ here, because obj could be a persistent proxy.
-    # We don't want to be folled by proxies.
-    klass = type(obj)
-
-    newargs = getattr(klass, "__getnewargs__", None)
-    if newargs is None:
-        return klass
-    else:
-        return klass, newargs(obj)
 
 class BaseObjectWriter:
     """Serializes objects for storage in the database.
@@ -105,8 +94,84 @@ class BaseObjectWriter:
             assert myhasattr(jar, "new_oid")
         self._jar = jar
 
-
     def persistent_id(self, obj):
+        """Return the persistent id for obj.
+
+        >>> from ZODB.tests.util import P
+        >>> class DummyJar:
+        ...     def new_oid(self):
+        ...         return 42
+        >>> jar = DummyJar()
+        >>> writer = BaseObjectWriter(jar)
+
+        Normally, object references include the oid and a cached
+        reference to the class.  Having the class available allows
+        fast creation of the ghost, avoiding requiring an additional
+        database lookup.
+
+        >>> bob = P('bob')
+        >>> oid, cls = writer.persistent_id(bob)
+        >>> oid
+        42
+        >>> cls is P
+        True
+
+        If a persistent object does not already have an oid and jar,
+        these will be assigned by persistent_id():
+
+        >>> bob._p_oid
+        42
+        >>> bob._p_jar is jar
+        True
+
+        If the object already has a persistent id, it is not changed:
+
+        >>> bob._p_oid = 24
+        >>> oid, cls = writer.persistent_id(bob)
+        >>> oid
+        24
+        >>> cls is P
+        True
+
+        If the jar doesn't match that of the writer, an error is raised:
+
+        >>> bob._p_jar = DummyJar()
+        >>> writer.persistent_id(bob)
+        Traceback (most recent call last):
+          ...
+        InvalidObjectReference: Attempt to store an object from a """ \
+               """foreign database connection
+
+        Constructor arguments used by __new__(), as returned by
+        __getnewargs__(), can affect memory allocation, but also may
+        change over the life of the object.  This makes it useless to
+        cache even the object's class.
+
+        >>> class PNewArgs(P):
+        ...     def __getnewargs__(self):
+        ...         return ()
+
+        >>> sam = PNewArgs('sam')
+        >>> writer.persistent_id(sam)
+        42
+        >>> sam._p_oid
+        42
+        >>> sam._p_jar is jar
+        True
+
+        Check that simple objects don't get accused of persistence:
+
+        >>> writer.persistent_id(42)
+        >>> writer.persistent_id(object())
+
+        Check that a classic class doesn't get identified improperly:
+
+        >>> class ClassicClara:
+        ...    pass
+        >>> clara = ClassicClara()
+
+        >>> writer.persistent_id(clara)
+        """
 
         # Most objects are not persistent. The following cheap test
         # identifies most of them.  For these, we return None,
@@ -179,7 +244,18 @@ class BaseObjectWriter:
         return oid, klass
 
     def serialize(self, obj):
-        return self._dump(getClassMetadata(obj), obj.__getstate__())
+        # We don't use __class__ here, because obj could be a persistent proxy.
+        # We don't want to be folled by proxies.
+        klass = type(obj)
+
+        newargs = getattr(obj, "__getnewargs__", None)
+        if newargs is None:
+            meta = klass
+        else:
+            print "newargs", repr(newargs)
+            meta = klass, newargs()
+
+        return self._dump(meta, obj.__getstate__())
 
     def _dump(self, classmeta, state):
         # To reuse the existing cStringIO object, we must reset
