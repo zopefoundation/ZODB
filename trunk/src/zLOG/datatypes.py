@@ -136,84 +136,80 @@ def syslog_handler(section):
                    section.address.address,
                    section.facility)
 
-## def nteventlog_handler(section):
-##     appname = section.appname
-##     format = section.format
-##     dateformat = section.dateformat
-##     level = section.level
-    
-##     formatter = Factory('logging.Formatter', None, format, dateformat)
+def nteventlog_handler(section):
+    def callback(inst,
+                 format=section.format,
+                 dateformat=section.dateformat,
+                 level=section.level):
+        import logging
+        inst.setFormatter(logging.Formatter(format, dateformat))
+        inst.setLevel(level)
 
-##     def callback(inst, formatter=formatter, level=level):
-##         inst.setFormatter(formatter())
-##         inst.setLevel(level)
+    return Factory('zLOG.LogHandlers.NTEventLogHandler', callback,
+                   section.appname)
 
-##     return Factory('zLOG.LogHandlers.NTEventLogHandler', callback, appname)
+def http_handler_url(value):
+    import urlparse
+    scheme, netloc, path, param, query, fragment = urlparse.urlparse(value)
+    if scheme != 'http':
+        raise ValueError, 'url must be an http url'
+    if not netloc:
+        raise ValueError, 'url must specify a location'
+    if not path:
+        raise ValueError, 'url must specify a path'
+    q = []
+    if param:
+        q.append(';')
+        q.append(param)
+    if query:
+        q.append('?')
+        q.append(query)
+    if fragment:
+        q.append('#')
+        q.append(fragment)
+    return (netloc, path + ''.join(q))
 
-## def http_handler_url(value):
-##     import urlparse
-##     scheme, netloc, path, query, fragment = urlparse.urlsplit(value)
-##     if scheme != 'http':
-##         raise ValueError, 'url must be an http url'
-##     if not netloc:
-##         raise ValueError, 'url must specify a location'
-##     if not path:
-##         raise ValueError, 'url must specify a path'
-##     q = []
-##     if query:
-##         q.append('?')
-##         q.append(query)
-##     if fragment:
-##         q.append('#')
-##         q.append(fragment)
-##     return (netloc, path + ''.join(q))
+def get_or_post(value):
+    value = value.upper()
+    if value not in ('GET', 'POST'):
+        raise ValueError('method must be "GET" or "POST", instead received: '
+                         + repr(value))
+    return value
 
-## def get_or_post(value):
-##     value = value.upper()
-##     if value not in ('GET', 'POST'):
-##         raise ValueError, ('method must be "GET" or "POST", instead received '
-##                            '%s' % repr(value))
-##     return value
+def http_handler(section):
+    def callback(inst,
+                 format=section.format,
+                 dateformat=section.dateformat,
+                 level=section.level):
+        import logging
+        inst.setFormatter(logging.Formatter(format, dateformat))
+        inst.setLevel(level)
 
-## def http_handler(section):
-##     host, url = section.url
-##     method     = section.method
-##     format     = section.format
-##     dateformat = section.dateformat
-##     level      = section.level
-    
-##     formatter = Factory('logging.Formatter', None, format, dateformat)
+    host, selector = section.url
+    return Factory('zLOG.LogHandlers.HTTPHandler',
+                   callback, host, selector, section.method)
 
-##     def callback(inst, formatter=formatter, level=level):
-##         inst.setFormatter(formatter())
-##         inst.setLevel(level)
+def smtp_handler(section):
+    def callback(inst,
+                 format=section.format,
+                 dateformat=section.dateformat,
+                 level=section.level):
+        import logging
+        inst.setFormatter(logging.Formatter(format, dateformat))
+        inst.setLevel(level)
 
-##     return Factory('zLOG.LogHandlers.HTTPHandler', callback, host, url, method)
+    host, port = section.host
+    if not port:
+        mailhost = host
+    else:
+        mailhost = host, port
 
-## def smtp_handler(section):
-##     fromaddr   = section.fromaddr
-##     toaddrs    = section.toaddrs
-##     subject    = section.subject
-##     host, port = section.host
-##     format     = section.format
-##     dateformat = section.dateformat
-##     level      = section.level
-    
-##     if not port:
-##         mailhost = host
-##     else:
-##         mailhost = host, port
-##     formatter = Factory('logging.Formatter', None, format, dateformat)
-
-##     def callback(inst, formatter=formatter, level=level):
-##         inst.setFormatter(formatter())
-##         inst.setLevel(level)
-
-##     return Factory('zLOG.LogHandlers.SMTPHandler', callback,
-##                    mailhost, fromaddr, toaddrs, subject)
-
-## def null_handler(section):
-##     return Factory('zLOG.LogHandlers.NullHandler', None)
+    return Factory('zLOG.LogHandlers.SMTPHandler',
+                   callback,
+                   mailhost,
+                   section.fromaddr,
+                   section.toaddrs,
+                   section.subject)
 
 ## def custom_handler(section):
 ##     formatter_klass, formatter_pos, formatter_kw = section.formatter
@@ -257,7 +253,7 @@ class LoggerWrapper:
             logger.setLevel(self.level)
             if self.handler_factories:
                 for handler_factory in self.handler_factories:
-                    handler =  handler_factory()
+                    handler = handler_factory()
                     logger.addHandler(handler)
             else:
                 from zLOG.LogHandlers import NullHandler

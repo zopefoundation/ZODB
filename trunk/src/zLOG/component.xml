@@ -2,60 +2,57 @@
 
   <abstracttype name="loghandler"/>
 
-  <sectiontype name="file-handler" datatype=".file_handler"
-               implements="loghandler">
-    <key name="path" required="yes"/>
-    <key name="format" default="------\n%(asctime)s %(message)s"
-         datatype=".log_format"/>
+  <sectiontype name="base-log-handler">
+    <description>
+      Base type for most log handlers.  This is cannot be used as a
+      loghandler directly since it doesn't implement the loghandler
+      abstract section type.
+    </description>
     <key name="dateformat" default="%Y-%m-%dT%H:%M:%S"/>
     <key name="level" default="info" datatype=".logging_level"/>
   </sectiontype>
 
-  <sectiontype name="syslog-handler" datatype=".syslog_handler"
-               implements="loghandler">
+  <sectiontype name="logfile" datatype=".file_handler"
+               implements="loghandler" extends="base-log-handler">
+    <key name="path" required="yes"/>
+    <key name="format" default="------\n%(asctime)s %(message)s"
+         datatype=".log_format"/>
+  </sectiontype>
+
+  <sectiontype name="syslog" datatype=".syslog_handler"
+               implements="loghandler" extends="base-log-handler">
     <key name="facility" default="user" datatype=".syslog_facility"/>
     <key name="address" datatype="socket-address" required="yes"/>
     <key name="format" default="%(message)s"
          datatype=".log_format"/>
-    <key name="dateformat" default="%Y-%m-%dT%H:%M:%S"/>
-    <key name="level" default="info" datatype=".logging_level"/>
   </sectiontype>
 
-<!--
-  <sectiontype name="nteventlog_handler" datatype=".nteventlog_handler"
-               implements="loghandler">
+  <sectiontype name="nteventlog" datatype=".nteventlog_handler"
+               implements="loghandler" extends="base-log-handler">
     <key name="appname" default="Zope"/>
     <key name="format" default="%(message)s"
          datatype=".log_format"/>
-    <key name="dateformat" default="%Y-%m-%dT%H:%M:%S"/>
-    <key name="level" default="info" datatype=".logging_level"/>
   </sectiontype>
 
   <sectiontype name="http_handler" datatype=".http_handler"
-               implements="loghandler">
+               implements="loghandler" extends="base-log-handler">
     <key name="url" default="localhost" datatype=".http_handler_url"/>
     <key name="method" default="GET" datatype=".get_or_post"/>
     <key name="format" default="%(asctime)s %(message)s"
          datatype=".log_format"/>
-    <key name="dateformat" default="%Y-%m-%dT%H:%M:%S"/>
-    <key name="level" default="info" datatype=".logging_level"/>
   </sectiontype>
 
   <sectiontype name="smtp_handler" datatype=".smtp_handler"
-               implements="loghandler">
+               implements="loghandler" extends="base-log-handler">
     <key name="fromaddr" required="yes"/>
     <multikey name="toaddr" required="yes" attribute="toaddrs"/>
     <key name="subject" default="Message from Zope"/>
     <key name="host" default="localhost" datatype="inet-address"/>
     <key name="format" default="%(asctime)s %(message)s"
          datatype=".log_format"/>
-    <key name="dateformat" default="%Y-%m-%dT%H:%M:%S"/>
-    <key name="level" default="info" datatype=".logging_level"/>
   </sectiontype>
 
-  <sectiontype name="null_handler" datatype=".null_handler"
-               implements="loghandler"/>
-
+<!--
   <sectiontype name="custom_handler" datatype=".custom_handler"
                implements="loghandler">
     <key name="constructor" datatype="constructor" required="yes"/>
@@ -66,7 +63,7 @@
 -->
 
   <sectiontype name="logger" datatype=".logger">
-     <key name="level" datatype=".logging_level" default="info"/>
+     <key name="level" datatype=".logging_level" default="all"/>
      <multisection type="loghandler" attribute="handlers" name="*"/>
   </sectiontype>
 
