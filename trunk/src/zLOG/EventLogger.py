@@ -22,6 +22,10 @@ __version__='$Revision$'[11:-2]
 import logging
 import time
 
+# XXX Defining custom levels needs to move to
+# ZConfig.components.logger, I think.  It only needs to be done when
+# logging configuration is activated (the logger factory is called).
+#
 # Custom logging levels
 CUSTOM_BLATHER = 15 # Mapping for zLOG.BLATHER
 CUSTOM_TRACE = 5 # Mapping for zLOG.TRACE
