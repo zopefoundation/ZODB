@@ -20,6 +20,8 @@ from cStringIO import StringIO
 from ZODB.FileStorage import FileStorage
 from ZODB.zodb4 import z4iterator
 
+errors = {}
+skipped = 0
 
 class Conversion:
 
@@ -33,6 +35,9 @@ class Conversion:
         self.outstore.copyTransactionsFrom(self.instore)
         self.outstore.close()
         self.instore.close()
+        if errors:
+            sys.stderr.write(error_explanation)
+            sys.stderr.write("%s database records skipped\n" % skipped)
 
 
 class IterableFileIterator(z4iterator.FileIterator):
@@ -57,8 +62,7 @@ class DataRecordConvertingTxn(object):
         return getattr(self._txn, name)
 
     def __iter__(self):
-        errors = {}
-        skipped = 0
+        global skipped
         for record in self._txn:
             record.tid = record.serial
             # transform the data record format
@@ -88,9 +92,6 @@ class DataRecordConvertingTxn(object):
             record.data = sio.getvalue()
             yield record
 
-        if errors:
-            sys.stderr.write(error_explanation)
-            sys.stderr.write("%s database records skipped\n" % skipped)
 
 error_explanation = """
 There were import errors while copying data records.
