@@ -47,7 +47,7 @@
 ##############################################################################
 """Network ZODB storage client
 """
-__version__='$Revision: 1.3 $'[11:-2]
+__version__='$Revision: 1.4 $'[11:-2]
 
 import struct, time, os, socket, cPickle, string, Sync, zrpc, ClientCache
 import tempfile
@@ -64,7 +64,8 @@ class UnrecognizedResult(POSException.StorageError):
 
 class ClientStorage(BaseStorage.BaseStorage):
 
-    def __init__(self, connection, async=0, storage='1', cache_size=20000000):
+    def __init__(self, connection, async=0, storage='1', cache_size=20000000,
+                 name=''):
 
         # Decide whether to use non-temporary files
         client=os.environ.get('ZEO_CLIENT','')
@@ -86,7 +87,7 @@ class ClientStorage(BaseStorage.BaseStorage):
         info=self._call('get_info')
         self._len=info.get('length',0)
         self._size=info.get('size',0)
-        name="%s %s" % (info.get('name', ''), str(connection))
+        name=name or ("%s %s" % (info.get('name', ''), str(connection)))
         self._supportsUndo=info.get('supportsUndo',0)
         self._supportsVersions=info.get('supportsVersions',0)
 
