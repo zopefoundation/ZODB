@@ -123,44 +123,6 @@ class ExportImport:
         write(export_end_marker)
         return file
 
-    def XMLrecord(self, oid, len, p):
-        q=ppml.ToXMLUnpickler
-        f=StringIO(p)
-        u=q(f)
-        id=ppml.u64(oid)
-        aka=encodestring(oid)[:-1]
-        u.idprefix=str(id)+'.'
-        p=u.load().__str__(4)
-        if f.tell() < len:
-            p=p+u.load().__str__(4)
-        String='  <record id="%s" aka="%s">\n%s  </record>\n' % (id, aka, p)
-        return String
-    
-    def exportXML(self, oid, file=None):
-
-        if file is None: file=TemporaryFile()
-        elif type(file) is StringType: file=open(file,'w+b')
-        write=file.write
-        write('<?xml version="1.0"?>\012<ZopeData>\012')
-        version=self._version
-        ref=referencesf
-        oids=[oid]
-        done_oids={}
-        done=done_oids.has_key
-        load=self._storage.load
-        while oids:
-            oid=oids[0]
-            del oids[0]
-            if done(oid): continue
-            done_oids[oid]=1
-            try: p, serial = load(oid, version)
-            except: pass # Ick, a broken reference
-            else:
-                ref(p, oids)
-                write(self.XMLrecord(oid,len(p),p))
-        write('</ZopeData>\n')
-        return file
-
     def importFile(self, file, clue='', customImporters=None):
         # This is tricky, because we need to work in a transaction!
 
