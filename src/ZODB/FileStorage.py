@@ -184,7 +184,7 @@
 #   may have a back pointer to a version record or to a non-version
 #   record.
 #
-__version__='$Revision: 1.47 $'[11:-2]
+__version__='$Revision: 1.48 $'[11:-2]
 
 import struct, time, os, bpthread, string, base64, sys
 from struct import pack, unpack
@@ -298,10 +298,13 @@ class FileStorage(BaseStorage.BaseStorage):
             self._pos, self._oid, tid = read_index(
                 file, file_name, index, vindex, tindex, stop,
                 ltid=ltid, start=start, maxoid=maxoid,
+                read_only=read_only,
                 )
         else:
             self._pos, self._oid, tid = read_index(
-                file, file_name, index, vindex, tindex, stop)
+                file, file_name, index, vindex, tindex, stop,
+                read_only=read_only,
+                )
 
         self._ts=tid=TimeStamp(tid)
         t=time.time()
@@ -522,15 +525,18 @@ class FileStorage(BaseStorage.BaseStorage):
                         if tstatus != 'u':
                             # Yee ha! We can quit
                             break
-                        
-                    elif h[16:24] == pnv:
-                        # This is the first current record, so unmark it.
-                        # Note that we don't need to check if this was
-                        # undone.  If it *was* undone, then there must
-                        # be a later record that is the first record, or
-                        # there isn't a current record.  In either case,
-                        # we can't be in this branch. :)
-                        del current_oids[oid]
+
+                    # The following optimization fails miserably
+                    # if, for some reason, an object is written twice
+                    # in the same transaction!
+                    #elif h[16:24] == pnv and pnv != z64:
+                    #    # This is the first current record, so unmark it.
+                    #    # Note that we don't need to check if this was
+                    #    # undone.  If it *was* undone, then there must
+                    #    # be a later record that is the first record, or
+                    #    # there isn't a current record.  In either case,
+                    #    # we can't be in this branch. :)
+                    #    del current_oids[oid]
                     
                 spos=h[-8:]
                 srcpos=U64(spos)
@@ -997,7 +1003,7 @@ class FileStorage(BaseStorage.BaseStorage):
         _lock_release=self._lock_release
         index, vindex, tindex, tvindex = self._newIndexes()
         name=self.__name__
-        file=open(name, 'r+b')
+        file=open(name, 'rb')
         stop=`apply(TimeStamp, time.gmtime(t)[:5]+(t%60,))`
         if stop==z64: raise FileStorageError, 'Invalid pack time'
 
@@ -1016,7 +1022,9 @@ class FileStorage(BaseStorage.BaseStorage):
             locked=0
             
             packpos, maxoid, ltid = read_index(
-                file, name, index, vindex, tindex, stop)
+                file, name, index, vindex, tindex, stop,
+                read_only=1,
+                )
 
             if self._redundant_pack(file, packpos):
                 raise FileStorageError, (
@@ -1522,7 +1530,7 @@ def recover(file_name):
     
 
 def read_index(file, name, index, vindex, tindex, stop='\377'*8,
-               ltid=z64, start=4L, maxoid=z64, recover=0):
+               ltid=z64, start=4L, maxoid=z64, recover=0, read_only=0):
     
     read=file.read
     seek=file.seek
@@ -1534,7 +1542,7 @@ def read_index(file, name, index, vindex, tindex, stop='\377'*8,
         seek(0)
         if read(4) != packed_version: raise FileStorageFormatError, name
     else:
-        file.write(packed_version)
+        if not read_only: file.write(packed_version)
         return 4L, maxoid, ltid
 
     index_get=index.get
@@ -1551,9 +1559,10 @@ def read_index(file, name, index, vindex, tindex, stop='\377'*8,
         h=read(23)
         if not h: break
         if len(h) != 23:
-            warn('%s truncated at %s', name, pos)
-            seek(pos)
-            file.truncate()
+            if not read_only:
+                warn('%s truncated at %s', name, pos)
+                seek(pos)
+                file.truncate()
             break
 
         tid, stl, status, ul, dl, el = unpack(">8s8scHHH",h)
@@ -1569,9 +1578,10 @@ def read_index(file, name, index, vindex, tindex, stop='\377'*8,
             # Hm, the data were truncated or the checkpoint flag wasn't
             # cleared.  They may also be corrupted,
             # in which case, we don't want to totally lose the data.
-            warn("%s truncated, possibly due to damaged records at %s",
-                 name, pos)
-            _truncate(file, name, pos)
+            if not read_only:
+                warn("%s truncated, possibly due to damaged records at %s",
+                     name, pos)
+                _truncate(file, name, pos)
             break
 
         if status not in ' up':
@@ -1589,11 +1599,12 @@ def read_index(file, name, index, vindex, tindex, stop='\377'*8,
             # reasonable:
             if file_size - rtl < pos or rtl < 23:
                 nearPanic('%s has invalid transaction header at %s', name, pos)
-                warn("It appears that there is invalid data at the end of the "
-                     "file, possibly due to a system crash.  %s truncated "
-                     "to recover from bad data at end."
-                     % name)
-                _truncate(file, name, pos)
+                if not read_only:
+                    warn("It appears that there is invalid data at the end of "
+                         "the file, possibly due to a system crash.  %s "
+                         "truncated to recover from bad data at end."
+                         % name)
+                    _truncate(file, name, pos)
                 break
             else:
                 if recover: return pos, None, None
@@ -1648,7 +1659,7 @@ def read_index(file, name, index, vindex, tindex, stop='\377'*8,
             if index_get(oid,0) != prev:
                 if prev:
                     if recover: return tpos, None, None
-                    panic("%s incorrect previous pointer at %s", name, pos)
+                    error("%s incorrect previous pointer at %s", name, pos)
                 else:
                     warn("%s incorrect previous pointer at %s", name, pos)
 
