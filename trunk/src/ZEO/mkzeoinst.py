@@ -159,8 +159,7 @@ class ZEOInstanceBuilder:
         if args[1:]:
             port = int(args[1])
         else:
-            # XXX Change this to 8001, to make Zope's default (verify!).
-            port = 9999
+            port = 8100  # match example in zope.conf
 
         params = self.get_params(zodb3_home, instance_home, port)
         self.create(instance_home, params)
