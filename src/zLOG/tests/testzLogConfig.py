@@ -60,6 +60,25 @@ class TestzLOGConfig(unittest.TestCase):
         convert("critical")
         self.assertRaises(ValueError, convert, "hopefully-not-a-valid-value")
 
+    def test_http_method(self):
+        convert = zLOG.datatypes.get_or_post
+        self.assertEqual(convert("get"), "GET")
+        self.assertEqual(convert("GET"), "GET")
+        self.assertEqual(convert("post"), "POST")
+        self.assertEqual(convert("POST"), "POST")
+        self.assertRaises(ValueError, convert, "")
+        self.assertRaises(ValueError, convert, "foo")
+
+    def test_syslog_facility(self):
+        convert = zLOG.datatypes.syslog_facility
+        for name in ["auth", "authpriv", "cron", "daemon", "kern",
+                     "lpr", "mail", "news", "security", "syslog",
+                     "user", "uucp", "local0", "local1", "local2",
+                     "local3", "local4", "local5", "local6", "local7"]:
+            self.assertEqual(convert(name), name)
+            self.assertEqual(convert(name.upper()), name)
+        self.assertRaises(ValueError, convert, "hopefully-never-a-valid-value")
+
     def test_config_without_logger(self):
         conf = self.get_config("")
         self.assert_(conf.eventlog is None)
@@ -80,15 +99,67 @@ class TestzLOGConfig(unittest.TestCase):
                                           "    level debug\n"
                                           "  </logfile>\n"
                                           "</eventlog>" % fn)
-        # Make sure there's exactly one handler, since a warning gets
-        # printed if there are no handlers, and we don't want an
-        # unnecessary NullHandler getting added:
-        self.assertEqual(len(logger.handlers), 1)
-        self.assertEqual(logger.handlers[0].level, logging.DEBUG)
-        self.assert_(isinstance(logger.handlers[0],
-                                zLOG.LogHandlers.FileHandler))
+        logfile = logger.handlers[0]
+        self.assertEqual(logfile.level, logging.DEBUG)
+        self.assert_(isinstance(logfile, zLOG.LogHandlers.FileHandler))
 
-    # XXX need to make sure each loghandler datatype gets exercised.
+    def test_with_syslog(self):
+        logger = self.check_simple_logger("<eventlog>\n"
+                                          "  <syslog>\n"
+                                          "    level error\n"
+                                          "    facility local3\n"
+                                          "  </syslog>\n"
+                                          "</eventlog>")
+        syslog = logger.handlers[0]
+        self.assertEqual(syslog.level, logging.ERROR)
+        self.assert_(isinstance(syslog, zLOG.LogHandlers.SysLogHandler))
+
+    def test_with_http_logger_localhost(self):
+        logger = self.check_simple_logger("<eventlog>\n"
+                                          "  <http-logger>\n"
+                                          "    level error\n"
+                                          "    method post\n"
+                                          "  </http-logger>\n"
+                                          "</eventlog>")
+        handler = logger.handlers[0]
+        self.assertEqual(handler.host, "localhost")
+        # XXX The "url" attribute of the handler is misnamed; it
+        # really means just the selector portion of the URL.
+        self.assertEqual(handler.url, "/")
+        self.assertEqual(handler.level, logging.ERROR)
+        self.assertEqual(handler.method, "POST")
+        self.assert_(isinstance(handler, zLOG.LogHandlers.HTTPHandler))
+
+    def test_with_http_logger_remote_host(self):
+        logger = self.check_simple_logger("<eventlog>\n"
+                                          "  <http-logger>\n"
+                                          "    method get\n"
+                                          "    url http://example.com/log/\n"
+                                          "  </http-logger>\n"
+                                          "</eventlog>")
+        handler = logger.handlers[0]
+        self.assertEqual(handler.host, "example.com")
+        # XXX The "url" attribute of the handler is misnamed; it
+        # really means just the selector portion of the URL.
+        self.assertEqual(handler.url, "/log/")
+        self.assertEqual(handler.level, logging.INFO)
+        self.assertEqual(handler.method, "GET")
+        self.assert_(isinstance(handler, zLOG.LogHandlers.HTTPHandler))
+
+    def test_with_email_notifier(self):
+        logger = self.check_simple_logger("<eventlog>\n"
+                                          "  <email-notifier>\n"
+                                          "    to sysadmin@example.com\n"
+                                          "    to sa-pager@example.com\n"
+                                          "    from zlog-user@example.com\n"
+                                          "    level fatal\n"
+                                          "  </email-notifier>\n"
+                                          "</eventlog>")
+        handler = logger.handlers[0]
+        self.assertEqual(handler.toaddrs, ["sysadmin@example.com",
+                                           "sa-pager@example.com"])
+        self.assertEqual(handler.fromaddr, "zlog-user@example.com")
+        self.assertEqual(handler.level, logging.FATAL)
 
     def check_simple_logger(self, text, level=logging.NOTSET):
         conf = self.get_config(text)
@@ -96,6 +167,7 @@ class TestzLOGConfig(unittest.TestCase):
         self.assertEqual(conf.eventlog.level, level)
         logger = conf.eventlog()
         self.assert_(isinstance(logger, logging.Logger))
+        self.assertEqual(len(logger.handlers), 1)
         return logger
 
 
