@@ -481,7 +481,7 @@ class GC(FileStorageFormatter):
         todo = list(roots)
         while todo:
             oid = todo.pop()
-            if oid in self.reachable:
+            if self.reachable.has_key(oid):
                 continue
 
             L = []
@@ -525,7 +525,7 @@ class GC(FileStorageFormatter):
                 self.checkData(th, tpos, dh, pos)
 
                 if dh.back and dh.back < self.packpos:
-                    if dh.oid in self.reachable:
+                    if self.reachable.has_key(dh.oid):
                         L = self.reach_ex.setdefault(dh.oid, [])
                         if dh.back not in L:
                             L.append(dh.back)
@@ -534,7 +534,7 @@ class GC(FileStorageFormatter):
                         self.reachable[dh.oid] = dh.back
 
                 if dh.version and dh.pnv:
-                    if dh.oid in self.reachable:
+                    if self.reachable.has_key(dh.oid):
                         L = self.reach_ex.setdefault(dh.oid, [])
                         if dh.pnv not in L:
                             L.append(dh.pnv)
