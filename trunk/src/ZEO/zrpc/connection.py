@@ -169,7 +169,7 @@ class Connection(smac.SizedMessageAsyncConnection):
             ret = meth(*args)
         except Exception, msg:
             error = sys.exc_info()[:2]
-            log("%s() raised exception: %s" % (name, msg), zLOG.ERROR, error)
+            log("%s() raised exception: %s" % (name, msg), zLOG.ERROR, error=sys.exc_info())
             return self.return_error(msgid, flags, error[0], error[1])
 
         if flags & ASYNC:
