@@ -10,7 +10,7 @@
 
 static char intSet_module_documentation[] = 
 ""
-"\n$Id: intSet.c,v 1.5 1997/11/13 20:47:13 jim Exp $"
+"\n$Id: intSet.c,v 1.6 1997/12/12 23:48:07 jim Exp $"
 ;
 
 #include <limits.h>
@@ -517,6 +517,7 @@ static PyExtensionClass intSetType = {
   0L,0L,
   "A set of integers", 
   METHOD_CHAIN(intSet_methods),
+  EXTENSIONCLASS_BASICNEW_FLAG,
 };
 
 static struct PyMethodDef module_methods[] = {
@@ -527,7 +528,7 @@ void
 initintSet()
 {
   PyObject *m, *d;
-  char *rev="$Revision: 1.5 $";
+  char *rev="$Revision: 1.6 $";
 
   UNLESS(ExtensionClassImported) return;
 
@@ -568,6 +569,9 @@ initintSet()
   Revision Log:
 
   $Log: intSet.c,v $
+  Revision 1.6  1997/12/12 23:48:07  jim
+  Added basicnew support.
+
   Revision 1.5  1997/11/13 20:47:13  jim
   Fixed some bad return values.
 
