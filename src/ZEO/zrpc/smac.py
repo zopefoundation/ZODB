@@ -13,7 +13,7 @@
 ##############################################################################
 """Sized message async connections
 
-$Id: smac.py,v 1.33 2002/10/02 19:54:02 gvanrossum Exp $
+$Id: smac.py,v 1.34 2002/10/02 19:55:24 gvanrossum Exp $
 """
 
 import asyncore, struct
@@ -55,8 +55,6 @@ class SizedMessageAsyncConnection(asyncore.dispatcher):
     __closed = 1 # Marker indicating that we're closed
 
     socket = None # to outwit Sam's getattr
-
-    READ_SIZE = 8192
 
     def __init__(self, sock, addr, map=None, debug=None):
         self.addr = addr
