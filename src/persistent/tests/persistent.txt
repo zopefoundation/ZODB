@@ -1,0 +1,391 @@
+Tests for persistent.Persistent
+===============================
+
+This document is an extended doc test that covers the basics of the
+Persistent base class.  It depends on a few base classes defined in
+test_persistent.py.
+
+Test Persistent without Data Manager
+------------------------------------
+
+First do some simple tests of a Persistent instance that does not have
+a data manager (_p_jar).
+
+>>> p = P()
+>>> p.x
+0
+>>> p._p_changed
+False
+>>> p._p_state
+0
+>>> p._p_jar
+>>> p._p_oid
+
+Verify that modifications have no effect on _p_state of _p_changed.
+
+>>> p.inc()
+>>> p.inc()
+>>> p.x
+2
+>>> p._p_changed
+False
+>>> p._p_state
+0
+
+Try all sorts of different ways to change the object's state.
+
+>>> p._p_deactivate()
+>>> p._p_state
+0
+>>> p._p_changed = True
+>>> p._p_state
+0
+>>> del p._p_changed
+>>> p._p_changed
+False
+>>> p._p_state
+0
+>>> p.x
+2
+
+Test Persistent with Data Manager
+---------------------------------
+
+Next try some tests of an object with a data manager.  The DM class is
+a simple testing stub.
+    
+>>> p = P()
+>>> dm = DM()
+>>> p._p_oid = oid
+>>> p._p_jar = dm
+>>> p._p_changed
+0
+>>> dm.called
+0
+
+Modifying the object marks it as changed and registers it with the
+data manager.  Subsequent modifications don't have additional
+side-effects.
+
+>>> p.inc()
+>>> p._p_changed
+1
+>>> dm.called
+1
+>>> p.inc()
+>>> p._p_changed
+1
+>>> dm.called
+1
+
+It's not possible to deactivate a modified object.
+
+>>> p._p_deactivate()
+>>> p._p_changed
+1
+
+It is possible to invalidate it.  That's the key difference
+between deactivation and invalidation.
+
+>>> p._p_invalidate()
+>>> p._p_state
+-1
+
+Now that the object is a ghost, any attempt to modify it will
+require that it be unghosted first.  The test data manager
+has the odd property that it sets the object's 'x' attribute
+to 42 when it is unghosted.
+
+>>> p.inc()
+>>> p.x
+43
+>>> dm.called
+2
+
+You can manually reset the changed field to False, although
+it's not clear why you would want to do that.  The object
+changes to the UPTODATE state but retains its modifications.
+
+>>> p._p_changed = False
+>>> p._p_state
+0
+>>> p._p_changed
+False
+>>> p.x
+43
+
+>>> p.inc()
+>>> p._p_changed
+True
+>>> dm.called
+3
+
+__getstate__() and __setstate__()
+---------------------------------
+
+The next several tests cover the __getstate__() and __setstate__()
+implementations.
+
+>>> p = P()
+>>> p.__getstate__()
+{'x': 0}
+>>> p._p_state
+0
+
+Calling setstate always leaves the object in the uptodate state?
+(I'm not entirely clear on this one.)
+
+>>> p.__setstate__({'x': 5})
+>>> p._p_state
+0
+
+Assigning to a volatile attribute has no effect on the object state.
+
+>>> p._v_foo = 2
+>>> p.__getstate__()
+{'x': 5}
+>>> p._p_state
+0
+
+The _p_serial attribute is not affected by calling setstate.
+
+>>> p._p_serial = "00000012"
+>>> p.__setstate__(p.__getstate__())
+>>> p._p_serial
+'00000012'
+
+Change Ghost test
+-----------------
+
+If an object is a ghost and it's _p_changed is set to True, it should
+have no effect.
+
+>>> p = P()
+>>> p._p_jar = DM()
+>>> p._p_oid = 1
+>>> p._p_deactivate()
+>>> p._p_changed
+>>> p._p_state
+-1
+>>> p._p_changed = True
+>>> p._p_changed
+>>> p._p_state
+-1
+
+Activate, deactivate, and invalidate
+------------------------------------
+
+Some of these tests are redundant, but are included to make sure there
+are explicit and simple tests of _p_activate(), _p_deactivate(), and
+_p_invalidate().
+
+>>> p = P()
+>>> p._p_oid = 1
+>>> p._p_jar = DM()
+>>> p._p_deactivate()
+>>> p._p_state
+-1
+>>> p._p_activate()
+>>> p._p_state
+0
+>>> p.x
+42
+>>> p.inc()
+>>> p.x
+43
+>>> p._p_state
+1
+>>> p._p_invalidate()
+>>> p._p_state
+-1
+>>> p.x
+42
+
+Test failures
+-------------
+
+The following tests cover various errors cases.
+
+When an object is modified, it registers with its data manager.  If
+that registration fails, the exception is propagated and the object
+stays in the up-to-date state.  It shouldn't change to the modified
+state, because it won't be saved when the transaction commits.
+
+>>> p = P()
+>>> p._p_oid = 1
+>>> p._p_jar = BrokenDM()
+>>> p._p_state
+0
+>>> p._p_jar.called
+0
+>>> p._p_changed = 1
+Traceback (most recent call last):
+  ...
+NotImplementedError
+>>> p._p_jar.called
+1
+>>> p._p_state
+0
+
+Make sure that exceptions that occur inside the data manager's
+setstate() method propagate out to the caller.
+
+>>> p = P()
+>>> p._p_oid = 1
+>>> p._p_jar = BrokenDM()
+>>> p._p_deactivate()
+>>> p._p_state
+-1
+>>> p._p_activate()
+Traceback (most recent call last):
+  ...
+NotImplementedError
+>>> p._p_state
+-1
+
+
+Special test to cover layout of __dict__
+----------------------------------------
+
+We once had a bug in the Persistent class that calculated an incorrect
+offset for the __dict__ attribute.  It assigned __dict__ and _p_jar to
+the same location in memory.  This is a simple test to make sure they
+have different locations.
+
+>>> p = P()
+>>> p.inc()
+>>> p.inc()
+>>> p.__dict__
+{'x': 2}
+>>> p._p_jar
+
+
+Inheritance and metaclasses
+---------------------------
+
+Simple tests to make sure it's possible to inherit from the Persistent
+base class multiple times.  There used to be metaclasses involved in
+Persistent that probably made this a more interesting test.
+
+>>> class A(Persistent):
+...     pass
+>>> class B(Persistent):
+...     pass
+>>> class C(A, B):
+...     pass
+>>> class D(object):
+...     pass
+>>> class E(D, B):
+...     pass
+>>> a = A()
+>>> b = B()
+>>> c = C()
+>>> d = D()
+>>> e = E()
+
+Also make sure that it's possible to define Persistent classes that
+have a custom metaclass.
+
+>>> class alternateMeta(type):
+...     type
+>>> class alternate(object):
+...     __metaclass__ = alternateMeta
+>>> class mixedMeta(alternateMeta, type):
+...     pass
+>>> class mixed(alternate, Persistent):
+...     pass
+>>> class mixed(Persistent, alternate):
+...     pass
+
+
+Basic type structure
+--------------------
+
+>>> Persistent.__dictoffset__ 
+0
+>>> Persistent.__weakrefoffset__
+0
+>>> Persistent.__basicsize__ > object.__basicsize__
+True
+>>> P.__dictoffset__ > 0
+True
+>>> P.__weakrefoffset__ > 0
+True
+>>> P.__dictoffset__ < P.__weakrefoffset__
+True
+>>> P.__basicsize__ > Persistent.__basicsize__
+True
+
+
+Slots
+-----
+
+These are some simple tests of classes that have an __slots__
+attribute.  Some of the classes should have slots, others shouldn't.
+
+>>> class noDict(object):
+...     __slots__ = ['foo']
+>>> class p_noDict(Persistent):
+...     __slots__ = ['foo']
+>>> class p_shouldHaveDict(p_noDict):
+...     pass
+
+>>> p_noDict.__dictoffset__
+0
+>>> x = p_noDict()
+>>> x.foo = 1
+>>> x.foo
+1
+>>> x.bar = 1
+Traceback (most recent call last):
+  ...
+AttributeError: 'p_noDict' object has no attribute 'bar'
+>>> x._v_bar = 1
+Traceback (most recent call last):
+  ...
+AttributeError: 'p_noDict' object has no attribute '_v_bar'
+>>> x.__dict__
+Traceback (most recent call last):
+  ...
+AttributeError: 'p_noDict' object has no attribute '__dict__'
+
+The various _p_ attributes are unaffected by slots.
+>>> p._p_oid
+>>> p._p_jar
+>>> p._p_state
+0
+
+If the most-derived class does not specify 
+
+>>> p_shouldHaveDict.__dictoffset__ > 0
+True
+>>> x = p_shouldHaveDict()
+>>> x.__dict__
+{}
+
+
+Pickling
+--------
+
+There's actually a substantial effort involved in making subclasses of
+Persistent work with plain-old pickle.  The ZODB serialization layer
+never calls pickle on an object; it pickles the object's class
+description and its state as two separate pickles.
+
+>>> import pickle
+>>> p = P()
+>>> p.inc()
+>>> p2 = pickle.loads(pickle.dumps(p))
+>>> p2.__class__ is P
+True
+>>> p2.x == p.x
+True
+
+The P2 class has a custom __getstate__ and __setstate__.
+
+>>> p = P2()
+>>> p2 = pickle.loads(pickle.dumps(p))
+>>> p2.__class__ is P2
+True
+>>> p2.__dict__
+{'v': 42}
