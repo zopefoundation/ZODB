@@ -14,6 +14,25 @@ which objects did it reference?  what kind of object was it?).
 ZODB/test/testfsoids.py is a tutorial doctest.
 
 
+What's new in ZODB3 3.3.1?
+==========================
+Release date: xx-xxx-2004
+
+persistent
+----------
+
+Collector #1350:  ZODB has a default one-thread-per-connection model, and
+two threads should never do operations on a single connection
+simultaneously.  However, ZODB can't detect violations, and this happened
+in an early stage of Zope 2.8 development.  The low-level ``ghostify()``
+and ``unghostify()`` routines in ``cPerisistence.c`` were changed to give
+some help in detecting this when it happens.  In a debug build, both abort
+the process if thread interference is detected.  This is extreme, but
+impossible to overlook.  In a release build, ``unghostify()`` raises
+``SystemError`` if thread damage is detected; ``ghostify()`` ignores the
+problem in a release build (``ghostify()`` is supposed to be so simple that
+it "can't fail").
+
 What's new in ZODB3 3.3?
 ========================
 Release date: 06-Oct-2004
