@@ -13,7 +13,7 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.114 2004/01/06 18:10:43 tim_one Exp $"""
+$Id: Connection.py,v 1.115 2004/01/14 14:33:43 jeremy Exp $"""
 
 import logging
 import sys
@@ -88,7 +88,6 @@ class Connection(ExportImport, object):
 
             self._cache.cache_drain_resistance = 100
         self._incrgc = self.cacheGC = cache.incrgc
-        self._committed = []
         self._reset_counter = global_reset_counter
         self._load_count = 0   # Number of objects unghosted
         self._store_count = 0  # Number of objects stored
@@ -506,7 +505,7 @@ class Connection(ExportImport, object):
 
         if not (self._mvcc and self._setstate_noncurrent(obj)):
             self.getTransaction().register(obj)
-            self._conflicts[obj._p_oid] = 1
+            self._conflicts[obj._p_oid] = True
             raise ReadConflictError(object=obj)
 
     def _setstate_noncurrent(self, obj):
