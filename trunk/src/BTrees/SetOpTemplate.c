@@ -2,26 +2,26 @@
 
   Copyright (c) 2001, 2002 Zope Corporation and Contributors.
   All Rights Reserved.
-  
+
   This software is subject to the provisions of the Zope Public License,
   Version 2.0 (ZPL).  A copy of the ZPL should accompany this distribution.
   THIS SOFTWARE IS PROVIDED "AS IS" AND ANY AND ALL EXPRESS OR IMPLIED
   WARRANTIES ARE DISCLAIMED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
   WARRANTIES OF TITLE, MERCHANTABILITY, AGAINST INFRINGEMENT, AND FITNESS
   FOR A PARTICULAR PURPOSE
-  
+
  ****************************************************************************/
 
 /****************************************************************************
  Set operations
  ****************************************************************************/
 
-#define SETOPTEMPLATE_C "$Id: SetOpTemplate.c,v 1.22 2002/06/07 06:44:01 tim_one Exp $\n"
+#define SETOPTEMPLATE_C "$Id: SetOpTemplate.c,v 1.23 2002/06/08 02:37:58 tim_one Exp $\n"
 
 #ifdef INTSET_H
-static int 
+static int
 nextIntSet(SetIteration *i)
-{    
+{
   if (i->position >= 0)
     {
       UNLESS(PER_USE(INTSET(i->set))) return -1;
@@ -40,16 +40,16 @@ nextIntSet(SetIteration *i)
       PER_ALLOW_DEACTIVATION(INTSET(i->set));
     }
 
-          
+
   return 0;
 }
 #endif
 
 #ifdef KEY_CHECK
-static int 
+static int
 nextKeyAsSet(SetIteration *i)
 {
-  i->position = i->position == 0 ? 1 : -1; 
+  i->position = i->position == 0 ? 1 : -1;
   return 0;
 }
 #endif
@@ -90,65 +90,65 @@ initSetIteration(SetIteration *i, PyObject *s, int w, int *merge)
       i->set = s;
       Py_INCREF(s);
 
-      if (w >= 0) 
+      if (w >= 0)
         {
-          *merge=1;
-          i->next=nextBucket;
+          *merge = 1;
+          i->next = nextBucket;
         }
       else
-        i->next=nextSet;
+        i->next = nextSet;
 
-      i->hasValue=1;
+      i->hasValue = 1;
     }
   else if (ExtensionClassSubclassInstance_Check(s, &SetType))
     {
       i->set = s;
       Py_INCREF(s);
 
-      i->next=nextSet;
-      i->hasValue=0;
+      i->next = nextSet;
+      i->hasValue = 0;
     }
   else if (ExtensionClassSubclassInstance_Check(s, &BTreeType))
     {
-      i->set=BTree_rangeSearch(BTREE(s), NULL, 'i');
+      i->set = BTree_rangeSearch(BTREE(s), NULL, 'i');
       UNLESS(i->set) return -1;
 
-      if (w >= 0) 
+      if (w >= 0)
         {
-          *merge=1;
-          i->next=nextBTreeItems;
+          *merge = 1;
+          i->next = nextBTreeItems;
         }
       else
-        i->next=nextTreeSetItems;
-      i->hasValue=1;
+        i->next = nextTreeSetItems;
+      i->hasValue = 1;
     }
   else if (ExtensionClassSubclassInstance_Check(s, &TreeSetType))
     {
-      i->set=BTree_rangeSearch(BTREE(s), NULL, 'k');
+      i->set = BTree_rangeSearch(BTREE(s), NULL, 'k');
       UNLESS(i->set) return -1;
 
-      i->next=nextTreeSetItems;
-      i->hasValue=0;
+      i->next = nextTreeSetItems;
+      i->hasValue = 0;
     }
 #ifdef INTSET_H
-  else if (s->ob_type==(PyTypeObject*)intSetType)
+  else if (s->ob_type == (PyTypeObject*)intSetType)
     {
       i->set = s;
       Py_INCREF(s);
 
-      i->next=nextIntSet;
-      i->hasValue=0;
+      i->next = nextIntSet;
+      i->hasValue = 0;
     }
 #endif
 #ifdef KEY_CHECK
   else if (KEY_CHECK(s))
     {
-      int copied=1;
+      int copied = 1;
 
       i->set = s;
       Py_INCREF(s);
       i->next=nextKeyAsSet;
-      i->hasValue=0;
+      i->hasValue = 0;
       COPY_KEY_FROM_ARG(i->key, s, copied);
       UNLESS (copied) return -1;
     }
@@ -166,7 +166,7 @@ initSetIteration(SetIteration *i, PyObject *s, int w, int *merge)
 #define MERGE_WEIGHT(O, w) (O)
 #endif
 
-static int 
+static int
 copyRemaining(Bucket *r, SetIteration *i, int merge, int w)
 {
   while (i->position >= 0)
@@ -188,7 +188,7 @@ copyRemaining(Bucket *r, SetIteration *i, int merge, int w)
 }
 
 static PyObject *
-set_operation(PyObject *s1, PyObject *s2, 
+set_operation(PyObject *s1, PyObject *s2,
               int w1, int w2,
               int c1, int c12, int c2)
 {
@@ -272,7 +272,7 @@ set_operation(PyObject *s1, PyObject *s2,
 #else
                   COPY_VALUE(r->values[r->len], i1.value);
                   INCREF_VALUE(r->values[r->len]);
-#endif                    
+#endif
                 }
 	      r->len++;
 	    }
@@ -324,14 +324,14 @@ difference_m(PyObject *ignored, PyObject *args)
   UNLESS(PyArg_ParseTuple(args, "OO", &o1, &o2)) return NULL;
 
 
-  if (o1==Py_None || o2==Py_None) 
+  if (o1==Py_None || o2==Py_None)
     {
       Py_INCREF(Py_None);
       return Py_None;
     }
-  
+
   return set_operation(o1, o2, 1, -1, 1, 0, 0);
-}         
+}
 
 static PyObject *
 union_m(PyObject *ignored, PyObject *args)
@@ -350,9 +350,9 @@ union_m(PyObject *ignored, PyObject *args)
       Py_INCREF(o1);
       return o1;
     }
-  
+
   return set_operation(o1, o2, -1, -1, 1, 1, 1);
-}         
+}
 
 static PyObject *
 intersection_m(PyObject *ignored, PyObject *args)
@@ -371,9 +371,9 @@ intersection_m(PyObject *ignored, PyObject *args)
       Py_INCREF(o1);
       return o1;
     }
-  
+
   return set_operation(o1, o2, -1, -1, 0, 1, 0);
-}         
+}
 
 #ifdef MERGE
 
@@ -389,12 +389,12 @@ wunion_m(PyObject *ignored, PyObject *args)
     return Py_BuildValue("iO", (o2==Py_None ? 0 : w2), o2);
   else if (o2==Py_None)
     return Py_BuildValue("iO", w1, o1);
-  
+
   o1=set_operation(o1, o2, w1, w2, 1, 1, 1);
   if (o1) ASSIGN(o1, Py_BuildValue("iO", 1, o1));
 
   return o1;
-}         
+}
 
 static PyObject *
 wintersection_m(PyObject *ignored, PyObject *args)
@@ -408,15 +408,15 @@ wintersection_m(PyObject *ignored, PyObject *args)
     return Py_BuildValue("iO", (o2==Py_None ? 0 : w2), o2);
   else if (o2==Py_None)
     return Py_BuildValue("iO", w1, o1);
-  
+
   o1=set_operation(o1, o2, w1, w2, 0, 1, 0);
-  if (o1) 
-    ASSIGN(o1, Py_BuildValue("iO", 
+  if (o1)
+    ASSIGN(o1, Py_BuildValue("iO",
             ((o1->ob_type == (PyTypeObject*)(&SetType)) ? w2+w1 : 1),
                              o1));
 
   return o1;
-}         
+}
 
 #endif
 
