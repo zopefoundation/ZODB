@@ -97,7 +97,7 @@ with '\0\0\0\0'.
 If var is not writable, then temporary files are used for
 file 0 and file 1.
 
-$Id: ClientCache.py,v 1.32 2002/08/30 20:02:42 gvanrossum Exp $
+$Id: ClientCache.py,v 1.33 2002/09/04 18:06:44 jeremy Exp $
 """
 
 import os
@@ -250,7 +250,7 @@ class ClientCache:
                     % (U64(oid), U64(h[:8]), ap, p < 0))
                 del self._index[oid]
                 return None
-            f.seek(p+8) # Switch from reading to writing
+            f.seek(ap+8) # Switch from reading to writing
             if version and h[15:19] != '\0\0\0\0':
                 self._trace(0x1A, oid, version)
                 # There's still relevant non-version data in the cache record
