@@ -21,6 +21,15 @@ Connection
 Restored Connection's private ``_opened`` attribute.  This was still
 referenced by ``DB.connectionDebugInfo()``, and Zope 2 calls the latter.
 
+FileStorage
+-----------
+
+Collector #1517: History tab for ZPT does not work. ``FileStorage.history()``
+was reading the user, description, and extension fields out of the object
+pickle, due to starting the read at a wrong location.  Looked like
+cut-and-paste repetition of the same bug in ``FileStorage.FileIterator``
+noted in the news for 3.3c1.
+
 What's new in ZODB3 3.3 release candidate 1?
 ============================================
 Release date: 14-Sep-2004
