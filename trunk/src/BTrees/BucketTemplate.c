@@ -12,7 +12,7 @@
 
  ****************************************************************************/
 
-#define BUCKETTEMPLATE_C "$Id: BucketTemplate.c,v 1.41 2002/06/13 19:19:41 tim_one Exp $\n"
+#define BUCKETTEMPLATE_C "$Id: BucketTemplate.c,v 1.42 2002/06/17 19:03:55 tim_one Exp $\n"
 
 /* Use BUCKET_SEARCH to find the index at which a key belongs.
  * INDEX    An int lvalue to hold the index i such that KEY belongs at
@@ -140,9 +140,12 @@ Bucket_grow(Bucket *self, int newsize, int noval)
 
       UNLESS (noval)
         {
-          UNLESS (values = PyRealloc(self->values,
-                                      sizeof(VALUE_TYPE) * newsize))
-            return -1;
+          values = PyRealloc(self->values, sizeof(VALUE_TYPE) * newsize);
+          if (values == NULL)
+            {
+              free(keys);
+              return -1;
+            }
           self->values = values;
         }
       self->keys = keys;
@@ -155,8 +158,13 @@ Bucket_grow(Bucket *self, int newsize, int noval)
         return -1;
       UNLESS (noval)
         {
-          UNLESS (self->values = PyMalloc(sizeof(VALUE_TYPE) * newsize))
-            return -1;
+          self->values = PyMalloc(sizeof(VALUE_TYPE) * newsize);
+          if (self->values == NULL)
+            {
+              free(self->keys);
+              self->keys = NULL;
+              return -1;
+            }
         }
     }
   self->size = newsize;
