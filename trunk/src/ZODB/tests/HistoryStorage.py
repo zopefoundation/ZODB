@@ -8,6 +8,7 @@ from ZODB.tests.StorageTestBase import zodb_unpickle
 
 class HistoryStorage:
     def checkSimpleHistory(self):
+        eq = self.assertEqual
         # Store a couple of non-version revisions of the object
         oid = self._storage.new_oid()
         revid1 = self._dostore(oid, data=MinPO(11))
@@ -15,36 +16,46 @@ class HistoryStorage:
         revid3 = self._dostore(oid, revid=revid2, data=MinPO(13))
         # Now get various snapshots of the object's history
         h = self._storage.history(oid, size=1)
-        assert len(h) == 1
+        eq(len(h), 1)
         d = h[0]
-        assert d['serial'] == revid3 and d['version'] == ''
+        eq(d['serial'], revid3)
+        eq(d['version'], '')
         # Try to get 2 historical revisions
         h = self._storage.history(oid, size=2)
-        assert len(h) == 2
+        eq(len(h), 2)
         d = h[0]
-        assert d['serial'] == revid3 and d['version'] == ''
+        eq(d['serial'], revid3)
+        eq(d['version'], '')
         d = h[1]
-        assert d['serial'] == revid2 and d['version'] == ''
+        eq(d['serial'], revid2)
+        eq(d['version'], '')
         # Try to get all 3 historical revisions
         h = self._storage.history(oid, size=3)
-        assert len(h) == 3
+        eq(len(h), 3)
         d = h[0]
-        assert d['serial'] == revid3 and d['version'] == ''
+        eq(d['serial'], revid3)
+        eq(d['version'], '')
         d = h[1]
-        assert d['serial'] == revid2 and d['version'] == ''
+        eq(d['serial'], revid2)
+        eq(d['version'], '')
         d = h[2]
-        assert d['serial'] == revid1 and d['version'] == ''
+        eq(d['serial'], revid1)
+        eq(d['version'], '')
         # There should be no more than 3 revisions
         h = self._storage.history(oid, size=4)
-        assert len(h) == 3
+        eq(len(h), 3)
         d = h[0]
-        assert d['serial'] == revid3 and d['version'] == ''
+        eq(d['serial'], revid3)
+        eq(d['version'], '')
         d = h[1]
-        assert d['serial'] == revid2 and d['version'] == ''
+        eq(d['serial'], revid2)
+        eq(d['version'], '')
         d = h[2]
-        assert d['serial'] == revid1 and d['version'] == ''
+        eq(d['serial'], revid1)
+        eq(d['version'], '')
 
     def checkVersionHistory(self):
+        eq = self.assertEqual
         # Store a couple of non-version revisions
         oid = self._storage.new_oid()
         revid1 = self._dostore(oid, data=MinPO(11))
@@ -61,21 +72,28 @@ class HistoryStorage:
         # Now, try to get the six historical revisions (first three are in
         # 'test-version', followed by the non-version revisions).
         h = self._storage.history(oid, version, 100)
-        assert len(h) == 6
+        eq(len(h), 6)
         d = h[0]
-        assert d['serial'] == revid6 and d['version'] == version
+        eq(d['serial'], revid6)
+        eq(d['version'], version)
         d = h[1]
-        assert d['serial'] == revid5 and d['version'] == version
+        eq(d['serial'], revid5)
+        eq(d['version'], version)
         d = h[2]
-        assert d['serial'] == revid4 and d['version'] == version
+        eq(d['serial'], revid4)
+        eq(d['version'], version)
         d = h[3]
-        assert d['serial'] == revid3 and d['version'] == ''
+        eq(d['serial'], revid3)
+        eq(d['version'], '')
         d = h[4]
-        assert d['serial'] == revid2 and d['version'] == ''
+        eq(d['serial'], revid2)
+        eq(d['version'], '')
         d = h[5]
-        assert d['serial'] == revid1 and d['version'] == ''
+        eq(d['serial'], revid1)
+        eq(d['version'], '')
 
     def checkHistoryAfterVersionCommit(self):
+        eq = self.assertEqual
         # Store a couple of non-version revisions
         oid = self._storage.new_oid()
         revid1 = self._dostore(oid, data=MinPO(11))
@@ -108,23 +126,31 @@ class HistoryStorage:
         # Now, try to get the six historical revisions (first three are in
         # 'test-version', followed by the non-version revisions).
         h = self._storage.history(oid, version, 100)
-        assert len(h) == 7
+        eq(len(h), 7)
         d = h[0]
-        assert d['serial'] == revid7 and d['version'] == ''
+        eq(d['serial'], revid7)
+        eq(d['version'], '')
         d = h[1]
-        assert d['serial'] == revid6 and d['version'] == version
+        eq(d['serial'], revid6)
+        eq(d['version'], version)
         d = h[2]
-        assert d['serial'] == revid5 and d['version'] == version
+        eq(d['serial'], revid5)
+        eq(d['version'], version)
         d = h[3]
-        assert d['serial'] == revid4 and d['version'] == version
+        eq(d['serial'], revid4)
+        eq(d['version'], version)
         d = h[4]
-        assert d['serial'] == revid3 and d['version'] == ''
+        eq(d['serial'], revid3)
+        eq(d['version'], '')
         d = h[5]
-        assert d['serial'] == revid2 and d['version'] == ''
+        eq(d['serial'], revid2)
+        eq(d['version'], '')
         d = h[6]
-        assert d['serial'] == revid1 and d['version'] == ''
+        eq(d['serial'], revid1)
+        eq(d['version'], '')
 
     def checkHistoryAfterVersionAbort(self):
+        eq = self.assertEqual
         # Store a couple of non-version revisions
         oid = self._storage.new_oid()
         revid1 = self._dostore(oid, data=MinPO(11))
@@ -157,18 +183,25 @@ class HistoryStorage:
         # Now, try to get the six historical revisions (first three are in
         # 'test-version', followed by the non-version revisions).
         h = self._storage.history(oid, version, 100)
-        assert len(h) == 7
+        eq(len(h), 7)
         d = h[0]
-        assert d['serial'] == revid7 and d['version'] == ''
+        eq(d['serial'], revid7)
+        eq(d['version'], '')
         d = h[1]
-        assert d['serial'] == revid6 and d['version'] == version
+        eq(d['serial'], revid6)
+        eq(d['version'], version)
         d = h[2]
-        assert d['serial'] == revid5 and d['version'] == version
+        eq(d['serial'], revid5)
+        eq(d['version'], version)
         d = h[3]
-        assert d['serial'] == revid4 and d['version'] == version
+        eq(d['serial'], revid4)
+        eq(d['version'], version)
         d = h[4]
-        assert d['serial'] == revid3 and d['version'] == ''
+        eq(d['serial'], revid3)
+        eq(d['version'], '')
         d = h[5]
-        assert d['serial'] == revid2 and d['version'] == ''
+        eq(d['serial'], revid2)
+        eq(d['version'], '')
         d = h[6]
-        assert d['serial'] == revid1 and d['version'] == ''
+        eq(d['serial'], revid1)
+        eq(d['version'], '')

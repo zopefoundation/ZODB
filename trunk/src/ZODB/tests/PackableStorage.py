@@ -104,6 +104,8 @@ class PackableStorageBase:
 
 class PackableStorage(PackableStorageBase):
     def checkPackAllRevisions(self):
+        eq = self.assertEqual
+        raises = self.assertRaises
         # Create a `persistent' object
         obj = self._newobj()
         oid = obj.getoid()
@@ -117,25 +119,27 @@ class PackableStorage(PackableStorageBase):
         # Now make sure all three revisions can be extracted
         data = self._storage.loadSerial(oid, revid1)
         pobj = pickle.loads(data)
-        assert pobj.getoid() == oid and pobj.value == 1
+        eq(pobj.getoid(), oid)
+        eq(pobj.value, 1)
         data = self._storage.loadSerial(oid, revid2)
         pobj = pickle.loads(data)
-        assert pobj.getoid() == oid and pobj.value == 2
+        eq(pobj.getoid(), oid)
+        eq(pobj.value, 2)
         data = self._storage.loadSerial(oid, revid3)
         pobj = pickle.loads(data)
-        assert pobj.getoid() == oid and pobj.value == 3
+        eq(pobj.getoid(), oid)
+        eq(pobj.value, 3)
         # Now pack all transactions
         self._storage.pack(time.time(), referencesf)
         # All revisions of the object should be gone, since there is no
         # reference from the root object to this object.
-        self.assertRaises(KeyError,
-                          self._storage.loadSerial, oid, revid1)
-        self.assertRaises(KeyError,
-                          self._storage.loadSerial, oid, revid2)
-        self.assertRaises(KeyError,
-                          self._storage.loadSerial, oid, revid3)
+        raises(KeyError, self._storage.loadSerial, oid, revid1)
+        raises(KeyError, self._storage.loadSerial, oid, revid2)
+        raises(KeyError, self._storage.loadSerial, oid, revid3)
 
     def checkPackJustOldRevisions(self):
+        eq = self.assertEqual
+        raises = self.assertRaises
         loads = self._makeloader()
         # Create a root object.  This can't be an instance of Object,
         # otherwise the pickling machinery will serialize it as a persistent
@@ -152,7 +156,8 @@ class PackableStorage(PackableStorageBase):
         revid0 = self._dostoreNP(ZERO, data=dumps(root))
         # Make sure the root can be retrieved
         data, revid = self._storage.load(ZERO, '')
-        assert revid == revid0 and loads(data).value == 0
+        eq(revid, revid0)
+        eq(loads(data).value, 0)
         # Commit three different revisions of the other object
         obj.value = 1
         revid1 = self._dostoreNP(oid, data=pickle.dumps(obj))
@@ -163,33 +168,39 @@ class PackableStorage(PackableStorageBase):
         # Now make sure all three revisions can be extracted
         data = self._storage.loadSerial(oid, revid1)
         pobj = pickle.loads(data)
-        assert pobj.getoid() == oid and pobj.value == 1
+        eq(pobj.getoid(), oid)
+        eq(pobj.value, 1)
         data = self._storage.loadSerial(oid, revid2)
         pobj = pickle.loads(data)
-        assert pobj.getoid() == oid and pobj.value == 2
+        eq(pobj.getoid(), oid)
+        eq(pobj.value, 2)
         data = self._storage.loadSerial(oid, revid3)
         pobj = pickle.loads(data)
-        assert pobj.getoid() == oid and pobj.value == 3
+        eq(pobj.getoid(), oid)
+        eq(pobj.value, 3)
         # Now pack just revisions 1 and 2.  The object's current revision
         # should stay alive because it's pointed to by the root.
         self._storage.pack(time.time(), referencesf)
         # Make sure the revisions are gone, but that object zero and revision
         # 3 are still there and correct
         data, revid = self._storage.load(ZERO, '')
-        assert revid == revid0 and loads(data).value == 0
-        self.assertRaises(KeyError,
-                          self._storage.loadSerial, oid, revid1)
-        self.assertRaises(KeyError,
-                          self._storage.loadSerial, oid, revid2)
+        eq(revid, revid0)
+        eq(loads(data).value, 0)
+        raises(KeyError, self._storage.loadSerial, oid, revid1)
+        raises(KeyError, self._storage.loadSerial, oid, revid2)
         data = self._storage.loadSerial(oid, revid3)
         pobj = pickle.loads(data)
-        assert pobj.getoid() == oid and pobj.value == 3
+        eq(pobj.getoid(), oid)
+        eq(pobj.value, 3)
         data, revid = self._storage.load(oid, '')
-        assert revid == revid3
+        eq(revid, revid3)
         pobj = pickle.loads(data)
-        assert pobj.getoid() == oid and pobj.value == 3
+        eq(pobj.getoid(), oid)
+        eq(pobj.value, 3)
 
     def checkPackOnlyOneObject(self):
+        eq = self.assertEqual
+        raises = self.assertRaises
         loads = self._makeloader()
         # Create a root object.  This can't be an instance of Object,
         # otherwise the pickling machinery will serialize it as a persistent
@@ -203,7 +214,7 @@ class PackableStorage(PackableStorageBase):
         # sure it's oid is greater than the first object's oid.
         obj2 = self._newobj()
         oid2 = obj2.getoid()
-        assert oid2 > oid1
+        self.failUnless(oid2 > oid1)
         # Link the root object to the persistent objects, in order to keep
         # them alive.  Store the root object.
         root.obj1 = obj1
@@ -212,7 +223,8 @@ class PackableStorage(PackableStorageBase):
         revid0 = self._dostoreNP(ZERO, data=dumps(root))
         # Make sure the root can be retrieved
         data, revid = self._storage.load(ZERO, '')
-        assert revid == revid0 and loads(data).value == 0
+        eq(revid, revid0)
+        eq(loads(data).value, 0)
         # Commit three different revisions of the first object
         obj1.value = 1
         revid1 = self._dostoreNP(oid1, data=pickle.dumps(obj1))
@@ -223,20 +235,24 @@ class PackableStorage(PackableStorageBase):
         # Now make sure all three revisions can be extracted
         data = self._storage.loadSerial(oid1, revid1)
         pobj = pickle.loads(data)
-        assert pobj.getoid() == oid1 and pobj.value == 1
+        eq(pobj.getoid(), oid1)
+        eq(pobj.value, 1)
         data = self._storage.loadSerial(oid1, revid2)
         pobj = pickle.loads(data)
-        assert pobj.getoid() == oid1 and pobj.value == 2
+        eq(pobj.getoid(), oid1)
+        eq(pobj.value, 2)
         data = self._storage.loadSerial(oid1, revid3)
         pobj = pickle.loads(data)
-        assert pobj.getoid() == oid1 and pobj.value == 3
+        eq(pobj.getoid(), oid1)
+        eq(pobj.value, 3)
         # Now commit a revision of the second object
         obj2.value = 11
         revid4 = self._dostoreNP(oid2, data=pickle.dumps(obj2))
         # And make sure the revision can be extracted
         data = self._storage.loadSerial(oid2, revid4)
         pobj = pickle.loads(data)
-        assert pobj.getoid() == oid2 and pobj.value == 11
+        eq(pobj.getoid(), oid2)
+        eq(pobj.value, 11)
         # Now pack just revisions 1 and 2 of object1.  Object1's current
         # revision should stay alive because it's pointed to by the root, as
         # should Object2's current revision.
@@ -244,20 +260,23 @@ class PackableStorage(PackableStorageBase):
         # Make sure the revisions are gone, but that object zero, object2, and
         # revision 3 of object1 are still there and correct.
         data, revid = self._storage.load(ZERO, '')
-        assert revid == revid0 and loads(data).value == 0
-        self.assertRaises(KeyError,
-                          self._storage.loadSerial, oid1, revid1)
-        self.assertRaises(KeyError,
-                          self._storage.loadSerial, oid1, revid2)
+        eq(revid, revid0)
+        eq(loads(data).value, 0)
+        raises(KeyError, self._storage.loadSerial, oid1, revid1)
+        raises(KeyError, self._storage.loadSerial, oid1, revid2)
         data = self._storage.loadSerial(oid1, revid3)
         pobj = pickle.loads(data)
-        assert pobj.getoid() == oid1 and pobj.value == 3
+        eq(pobj.getoid(), oid1)
+        eq(pobj.value, 3)
         data, revid = self._storage.load(oid1, '')
-        assert revid == revid3
+        eq(revid, revid3)
         pobj = pickle.loads(data)
-        assert pobj.getoid() == oid1 and pobj.value == 3
+        eq(pobj.getoid(), oid1)
+        eq(pobj.value, 3)
         data, revid = self._storage.load(oid2, '')
-        assert revid == revid4 and loads(data).value == 11
+        eq(revid, revid4)
+        eq(loads(data).value, 11)
         data = self._storage.loadSerial(oid2, revid4)
         pobj = pickle.loads(data)
-        assert pobj.getoid() == oid2 and pobj.value == 11
+        eq(pobj.getoid(), oid2)
+        eq(pobj.value, 11)
