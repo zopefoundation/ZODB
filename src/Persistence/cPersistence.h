@@ -112,7 +112,9 @@ typedef struct {
   persetattr persetattro;
 } cPersistenceCAPIstruct;
 
+#ifndef DONT_USE_CPERSISTENCECAPI
 static cPersistenceCAPIstruct *cPersistenceCAPI;
+#endif
 
 #define cPersistanceModuleName "cPersistence"
 

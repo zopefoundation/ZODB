@@ -85,13 +85,14 @@
 static char cPickleCache_doc_string[] = 
 "Defines the PickleCache used by ZODB Connection objects.\n"
 "\n"
-"$Id: cPickleCache.c,v 1.32 2001/03/28 00:35:09 jeremy Exp $\n";
+"$Id: cPickleCache.c,v 1.33 2001/03/28 14:36:30 jim Exp $\n";
 
 #define ASSIGN(V,E) {PyObject *__e; __e=(E); Py_XDECREF(V); (V)=__e;}
 #define UNLESS(E) if(!(E))
 #define UNLESS_ASSIGN(V,E) ASSIGN(V,E) UNLESS(V)
 #define OBJECT(O) ((PyObject*)O)
 
+#define DONT_USE_CPERSISTENCECAPI
 #include "cPersistence.h"
 #include <time.h>
 
@@ -678,7 +679,7 @@ void
 initcPickleCache(void)
 {
   PyObject *m, *d;
-  char *rev="$Revision: 1.32 $";
+  char *rev="$Revision: 1.33 $";
 
   Cctype.ob_type=&PyType_Type;
 
