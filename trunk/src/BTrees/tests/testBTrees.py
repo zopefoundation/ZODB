@@ -849,6 +849,107 @@ class TestIITreeSets(NormalSetTests, TestCase):
     def setUp(self):
         self.t = IITreeSet()
 
+    # Build a degenerate tree (set).  Boxes are BTree nodes.  There are
+    # 5 leaf buckets, each containing a single int.  Keys in the BTree
+    # nodes don't appear in the buckets.  Seven BTree nodes are purely
+    # indirection nodes (no keys).  Buckets aren't all at the same depth:
+    #
+    #     +------------------------+
+    #     |          4             |
+    #     +------------------------+
+    #         |              |
+    #         |              v
+    #         |             +-+
+    #         |             | |
+    #         |             +-+
+    #         |              |
+    #         v              v
+    #     +-------+   +-------------+
+    #     |   2   |   |   6     10  |
+    #     +-------+   +-------------+
+    #      |     |     |     |     |
+    #      v     v     v     v     v
+    #     +-+   +-+   +-+   +-+   +-+
+    #     | |   | |   | |   | |   | |
+    #     +-+   +-+   +-+   +-+   +-+
+    #      |     |     |     |     |
+    #      v     v     v     v     v
+    #      1     3    +-+    7     11
+    #                 | |
+    #                 +-+
+    #                  |
+    #                  v
+    #                  5
+    #
+    # This is nasty for many algorithms.  Consider a high-end range search
+    # for 4.  The BTree nodes direct it to the 5 bucket, but the correct
+    # answer is the 3 bucket, which requires going in a different direction
+    # at the very top node already.  Consider a low-end range search for
+    # 10.  The BTree nodes direct it to the 11 bucket, but the correct answer
+    # is the 7 bucket.  This is also a nasty-case tree for deletions.
+
+    def _build_degenerate_tree(self):
+        # Build the buckets and chain them together.
+        bucket11 = IISet([11])
+
+        bucket7 = IISet()
+        bucket7.__setstate__(((7,), bucket11))
+
+        bucket5 = IISet()
+        bucket5.__setstate__(((5,), bucket7))
+
+        bucket3 = IISet()
+        bucket3.__setstate__(((3,), bucket5))
+
+        bucket1 = IISet()
+        bucket1.__setstate__(((1,), bucket3))
+
+        # Build the deepest layers of indirection nodes.
+        ts = IITreeSet
+        tree1 = ts()
+        tree1.__setstate__(((bucket1,), bucket1))
+
+        tree3 = ts()
+        tree3.__setstate__(((bucket3,), bucket3))
+
+        tree5lower = ts()
+        tree5lower.__setstate__(((bucket5,), bucket5))
+        tree5 = ts()
+        tree5.__setstate__(((tree5lower,), bucket5))
+
+        tree7 = ts()
+        tree7.__setstate__(((bucket7,), bucket7))
+
+        tree11 = ts()
+        tree11.__setstate__(((bucket11,), bucket11))
+
+        # Paste together the middle layers.
+        tree13 = ts()
+        tree13.__setstate__(((tree1, 2, tree3), bucket1))
+
+        tree5711lower = ts()
+        tree5711lower.__setstate__(((tree5, 6, tree7, 10, tree11), bucket5))
+        tree5711 = ts()
+        tree5711.__setstate__(((tree5711lower,), bucket5))
+
+        # One more.
+        t = ts()
+        t.__setstate__(((tree13, 4, tree5711), bucket1))
+        return t
+
+    def testDegenerateBasicOps(self):
+        t = self._build_degenerate_tree()
+        self.assertEqual(len(t), 5)
+        self.assertEqual(list(t.keys()), [1, 3, 5, 7, 11])
+        # has_key actually returns the depth of a bucket.
+        self.assertEqual(t.has_key(1), 4)
+        self.assertEqual(t.has_key(3), 4)
+        self.assertEqual(t.has_key(5), 6)
+        self.assertEqual(t.has_key(7), 5)
+        self.assertEqual(t.has_key(11), 5)
+        for i in 0, 2, 4, 6, 8, 9, 10, 12:
+            self.assertEqual(t.has_key(i), 0)
+
 class TestOITreeSets(NormalSetTests, TestCase):
     def setUp(self):
         self.t = OITreeSet()
@@ -917,6 +1018,7 @@ def test_suite():
                          ))
 
     return alltests
+
 
 
 ## utility functions
