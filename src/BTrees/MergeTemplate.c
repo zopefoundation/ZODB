@@ -83,7 +83,7 @@
   
  ****************************************************************************/
 
-#define MERGETEMPLATE_C "$Id: MergeTemplate.c,v 1.4 2001/04/02 16:57:40 jeremy Exp $\n"
+#define MERGETEMPLATE_C "$Id: MergeTemplate.c,v 1.5 2001/04/03 15:02:17 jim Exp $\n"
 
 /****************************************************************************
  Set operations
@@ -111,7 +111,10 @@ merge_error(int p1, int p2, int p3, int reason)
 
   UNLESS (r=Py_BuildValue("iiii", p1, p2, p3, reason)) r=Py_None;
   PyErr_SetObject(PyExc_ValueError, r);
-  if (r != Py_None) Py_DECREF(r);
+  if (r != Py_None) 
+    {
+      Py_DECREF(r);
+    }
 
   return NULL;
 }
@@ -330,9 +333,7 @@ bucket_merge(Bucket *s1, Bucket *s2, Bucket *s3)
 
   return s;
 
-invalid_set_operation:
-  PyErr_SetString(PyExc_TypeError, "invalid set operation");
-err:
+ err:
   Py_XDECREF(i1.set);
   Py_XDECREF(i2.set);
   Py_XDECREF(i3.set);

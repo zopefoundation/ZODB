@@ -83,7 +83,7 @@
   
  ****************************************************************************/
 
-#define BTREETEMPLATE_C "$Id: BTreeTemplate.c,v 1.15 2001/04/02 16:57:40 jeremy Exp $\n"
+#define BTREETEMPLATE_C "$Id: BTreeTemplate.c,v 1.16 2001/04/03 15:02:17 jim Exp $\n"
 
 /*
 ** _BTree_get
@@ -505,36 +505,43 @@ _BTree_set(BTree *self, PyObject *keyarg, PyObject *value,
                 }
               self->len--;
               Py_DECREF(d->value);
-              if (min) DECREF_KEY(d->key);
+              if (min) 
+                {
+                  DECREF_KEY(d->key);
+                }
               if (min < self->len)
                 memmove(d, d+1, (self->len-min)*sizeof(BTreeItem));
 
               if (! min) 
-                if (self->len)
-                  { /* We just deleted our first child, so we need to
-                       adjust our first bucket. */
-                    if (SameType_Check(self, self->data->value))
-                      {
-                        UNLESS (PER_USE(BTREE(self->data->value))) goto err;
-                        ASSIGNB(self->firstbucket, 
-                                BTREE(self->data->value)->firstbucket);
-                        Py_XINCREF(self->firstbucket);
-                        PER_ALLOW_DEACTIVATION(BTREE(self->data->value));
-                        PER_ACCESSED(BTREE(self->data->value));
-                      }
-                    else
-                      {
-                        ASSIGNB(self->firstbucket, BUCKET(self->data->value));
-                        Py_INCREF(self->firstbucket);
-                      }
-                    /* We can toss our first key now */
-                    DECREF_KEY(self->data->key);
-                  }
-                else 
-                  {
-                    Py_XDECREF(self->firstbucket);
-                    self->firstbucket = 0;
-                  }
+                {
+                  if (self->len)
+                    { /* We just deleted our first child, so we need to
+                         adjust our first bucket. */
+                      if (SameType_Check(self, self->data->value))
+                        {
+                          UNLESS (PER_USE(BTREE(self->data->value))) goto err;
+                          ASSIGNB(self->firstbucket, 
+                                  BTREE(self->data->value)->firstbucket);
+                          Py_XINCREF(self->firstbucket);
+                          PER_ALLOW_DEACTIVATION(BTREE(self->data->value));
+                          PER_ACCESSED(BTREE(self->data->value));
+                        }
+                      else
+                        {
+                          ASSIGNB(self->firstbucket, 
+                                  BUCKET(self->data->value));
+                          Py_INCREF(self->firstbucket);
+                        }
+                      /* We can toss our first key now */
+                      DECREF_KEY(self->data->key);
+                    }
+                  else 
+                    {
+                      Py_XDECREF(self->firstbucket);
+                      self->firstbucket = 0;
+                    }
+                }
+
               changed=1;
             }
         }
@@ -612,7 +619,10 @@ _BTree_clear(BTree *self)
 
   for (l=self->len, i=0; i < l; i++)
     {
-      if (i) DECREF_KEY(self->data[i].key);
+      if (i) 
+        {
+          DECREF_KEY(self->data[i].key);
+        }
       Py_DECREF(self->data[i].value);
     }
   self->len=0;

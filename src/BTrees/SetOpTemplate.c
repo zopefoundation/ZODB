@@ -87,7 +87,7 @@
  Set operations
  ****************************************************************************/
 
-#define SETOPTEMPLATE_C "$Id: SetOpTemplate.c,v 1.6 2001/03/21 14:16:58 jim Exp $\n"
+#define SETOPTEMPLATE_C "$Id: SetOpTemplate.c,v 1.7 2001/04/03 15:02:17 jim Exp $\n"
 
 #ifdef INTSET_H
 static int 
@@ -357,8 +357,11 @@ set_operation(PyObject *s1, PyObject *s2,
 
   return OBJECT(r);
 
+#ifndef MERGE_DEFAULT
 invalid_set_operation:
   PyErr_SetString(PyExc_TypeError, "invalid set operation");
+#endif
+
 err:
   Py_XDECREF(i1.set);
   Py_XDECREF(i2.set);
