@@ -13,7 +13,7 @@
 ##############################################################################
 """Persistence and ExtensionClass combined
 
-$Id: __init__.py,v 1.6 2003/12/15 06:59:19 jim Exp $
+$Id: __init__.py,v 1.7 2003/12/15 07:30:27 jim Exp $
 """
 
 from persistent import PickleCache
@@ -46,3 +46,11 @@ except:
 Overridable = Persistent
 
 from Persistence.mapping import PersistentMapping
+
+# This is a travesty. Whimper. The Data.fs.in used in Zope 2 have
+# ancient pickles refering to BoboPOS. Waaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa!
+import sys
+sys.modules['BoboPOS'] = sys.modules['Persistence']
+sys.modules['BoboPOS.PersistentMapping'] = sys.modules['Persistence.mapping']
+del sys
+
