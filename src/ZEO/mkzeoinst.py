@@ -72,7 +72,7 @@ runner_conf_template = """# %(package)sctl configuration file
 %%define INSTANCE %(home)s
 
 <runner>
-  program %(server)s -C $INSTANCE/etc/%(package)s.conf
+  program %(python)s %(server)s -C $INSTANCE/etc/%(package)s.conf
   socket-name $INSTANCE/etc/%(package)s.zdsock
   daemon true
   forever false
@@ -109,7 +109,7 @@ zdctl_template = """#!/bin/sh
 
 INSTANCE='%(home)s'
 
-exec %(zdctl)s -C "$INSTANCE/etc/%(package)sctl.conf" ${1+"$@"}
+exec %(python)s %(zdctl)s -C "$INSTANCE/etc/%(package)sctl.conf" ${1+"$@"}
 """
 
 def main():
