@@ -10,16 +10,13 @@ import ZODB, ZODB.FileStorage
 from StorageTestBase import StorageTestBase
 
 class FileStorageCorruptTests(StorageTestBase):
-    __super_setUp = StorageTestBase.setUp
-    __super_tearDown = StorageTestBase.tearDown
 
     def setUp(self):
-        self.__super_setUp()
         self.path = tempfile.mktemp()
         self._storage = ZODB.FileStorage.FileStorage(self.path, create=1)
 
     def tearDown(self):
-        self.__super_tearDown()
+        self._storage.close()
         for ext in '', '.old', '.tmp', '.lock', '.index':
             path = self.path + ext
             if os.path.exists(path):
