@@ -26,7 +26,7 @@ class ReadOnlyStorage:
 
     def _make_readonly(self):
         self._storage.close()
-        self.open(read_only=1)
+        self.open(read_only=True)
         self.assert_(self._storage.isReadOnly())
 
     def checkReadMethods(self):
