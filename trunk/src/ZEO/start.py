@@ -1,4 +1,50 @@
-# Start the server storage
+######################################################################
+# Digital Creations Options License Version 0.9.0
+# -----------------------------------------------
+# 
+# Copyright (c) 1999, Digital Creations.  All rights reserved.
+# 
+# This license covers Zope software delivered as "options" by Digital
+# Creations.
+# 
+# Use in source and binary forms, with or without modification, are
+# permitted provided that the following conditions are met:
+# 
+# 1. Redistributions are not permitted in any form.
+# 
+# 2. This license permits one copy of software to be used by up to five
+#    developers in a single company. Use by more than five developers
+#    requires additional licenses.
+# 
+# 3. Software may be used to operate any type of website, including
+#    publicly accessible ones.
+# 
+# 4. Software is not fully documented, and the customer acknowledges
+#    that the product can best be utilized by reading the source code.
+# 
+# 5. Support for software is included for 90 days in email only. Further
+#    support can be purchased separately.
+# 
+# Disclaimer
+# 
+#   THIS SOFTWARE IS PROVIDED BY DIGITAL CREATIONS ``AS IS'' AND ANY
+#   EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+#   IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+#   PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL DIGITAL CREATIONS OR ITS
+#   CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+#   SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+#   LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF
+#   USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+#   ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+#   OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
+#   OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+#   SUCH DAMAGE.
+#####################################################################
+
+"""Start the server storage.
+"""
+
+__version__ = "$Revision: 1.3 $"[11:-2]
 
 import sys, os, getopt, string
 
