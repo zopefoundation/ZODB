@@ -11,13 +11,11 @@
 # FOR A PARTICULAR PURPOSE
 # 
 ##############################################################################
-# This module is a simplified version of the select_trigger module
-# from Sam Rushing's Medusa server.
-
 import asyncore
 
 import os
 import socket
+import string
 import thread
 
 if os.name == 'posix':
@@ -55,16 +53,25 @@ if os.name == 'posix':
         # the main thread is trying to remove some]
 
         def __init__ (self):
-            r, w = os.pipe()
+            r, w = self._fds = os.pipe()
             self.trigger = w
             asyncore.file_dispatcher.__init__ (self, r)
             self.lock = thread.allocate_lock()
             self.thunks = []
+            self._closed = None
+
+        # Override the asyncore close() method, because it seems that
+        # it would only close the r file descriptor and not w.  The
+        # constructor calls file_dispactcher.__init__ and passes r,
+        # which would get stored in a file_wrapper and get closed by
+        # the default close.  But that would leave w open...
 
         def close(self):
-            self.del_channel()
-            self.socket.close() # the read side of the pipe
-            os.close(self.trigger) # the write side of the pipe
+            if self._closed is None:
+                self._closed = 1
+                self.del_channel()
+                for fd in self._fds:
+                    os.close(fd)
 
         def __repr__ (self):
             return '<select-trigger (pipe) at %x>' % id(self)
@@ -79,7 +86,6 @@ if os.name == 'posix':
             pass
 
         def pull_trigger (self, thunk=None):
-            # print 'PULL_TRIGGER: ', len(self.thunks)
             if thunk:
                 try:
                     self.lock.acquire()
@@ -96,13 +102,17 @@ if os.name == 'posix':
                     try:
                         thunk()
                     except:
-                        (file, fun, line), t, v, tbinfo = asyncore.compact_traceback()
-                        print 'exception in trigger thunk: (%s:%s %s)' % (t, v, tbinfo)
+                        nil, t, v, tbinfo = asyncore.compact_traceback()
+                        print ('exception in trigger thunk:'
+                               ' (%s:%s %s)' % (t, v, tbinfo))
                 self.thunks = []
             finally:
                 self.lock.release()
 
 else:
+
+    # XXX Should define a base class that has the common methods and
+    # then put the platform-specific in a subclass named trigger.
 
     # win32-safe version
 
@@ -118,65 +128,66 @@ else:
             w.setsockopt(socket.IPPROTO_TCP, 1, 1)
 
             # tricky: get a pair of connected sockets
-            host='127.0.0.1'
-            port=19999
+            host = '127.0.0.1'
+            port = 19999
             while 1:
                 try:
-                    self.address=(host, port)
+                    self.address = host, port
                     a.bind(self.address)
                     break
                 except:
                     if port <= 19950:
                         raise 'Bind Error', 'Cannot bind trigger!'
-                    port=port - 1
+                    port -= 1
 
-            a.listen (1)
-            w.setblocking (0)
+            a.listen(1)
+            w.setblocking(0)
             try:
-                w.connect (self.address)
+                w.connect(self.address)
             except:
                 pass
             r, addr = a.accept()
             a.close()
-            w.setblocking (1)
+            w.setblocking(1)
             self.trigger = w
 
-            asyncore.dispatcher.__init__ (self, r)
+            asyncore.dispatcher.__init__(self, r)
             self.lock = thread.allocate_lock()
             self.thunks = []
             self._trigger_connected = 0
 
-        def __repr__ (self):
+        def __repr__(self):
             return '<select-trigger (loopback) at %x>' % id(self)
 
-        def readable (self):
+        def readable(self):
             return 1
 
-        def writable (self):
+        def writable(self):
             return 0
 
-        def handle_connect (self):
+        def handle_connect(self):
             pass
 
-        def pull_trigger (self, thunk=None):
+        def pull_trigger(self, thunk=None):
             if thunk:
                 try:
                     self.lock.acquire()
-                    self.thunks.append (thunk)
+                    self.thunks.append(thunk)
                 finally:
                     self.lock.release()
-            self.trigger.send ('x')
+            self.trigger.send('x')
 
-        def handle_read (self):
-            self.recv (8192)
+        def handle_read(self):
+            self.recv(8192)
             try:
                 self.lock.acquire()
                 for thunk in self.thunks:
                     try:
                         thunk()
                     except:
-                        (file, fun, line), t, v, tbinfo = asyncore.compact_traceback()
-                        print 'exception in trigger thunk: (%s:%s %s)' % (t, v, tbinfo)
+                        nil, t, v, tbinfo = asyncore.compact_traceback()
+                        print ('exception in trigger thunk:'
+                               ' (%s:%s %s)' % (t, v, tbinfo))
                 self.thunks = []
             finally:
                 self.lock.release()
