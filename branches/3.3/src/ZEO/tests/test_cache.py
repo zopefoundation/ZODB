@@ -29,7 +29,10 @@ n5 = p64(5)
 class CacheTests(unittest.TestCase):
 
     def setUp(self):
-        self.cache = ZEO.cache.ClientCache()
+        # The default cache size is much larger than we need here.  Since
+        # testSerialization reads the entire file into a string, it's not
+        # good to leave it that big.
+        self.cache = ZEO.cache.ClientCache(size=1024**2)
         self.cache.open()
 
     def tearDown(self):
