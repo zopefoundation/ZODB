@@ -10,6 +10,14 @@
           keytype    NMTOKEN  #IMPLIED
           datatype   NMTOKEN  #IMPLIED>
 
+<!ELEMENT component (description?, (sectiontype | sectiongroup)*)>
+<!ATTLIST component
+          prefix     NMTOKEN  #IMPLIED>
+
+<!ELEMENT extension (description?, (sectiontype | sectiongroup)*)>
+<!ATTLIST extension
+          prefix     NMTOKEN  #IMPLIED>
+
 <!ELEMENT import EMPTY>
 <!ATTLIST import
           src        CDATA    #REQUIRED>
@@ -40,7 +48,9 @@
           type       NMTOKEN  #REQUIRED
           prefix     NMTOKEN  #IMPLIED
           keytype    NMTOKEN  #IMPLIED
-          datatype   NMTOKEN  #IMPLIED>
+          datatype   NMTOKEN  #IMPLIED
+          group      NMTOKEN  #IMPLIED
+          extends    NMTOKEN  #IMPLIED>
 
 <!ELEMENT sectiongroup (description?, sectiontype+)>
 <!ATTLIST sectiongroup
