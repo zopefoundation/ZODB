@@ -85,7 +85,7 @@
 static char cPickleCache_doc_string[] = 
 "Defines the PickleCache used by ZODB Connection objects.\n"
 "\n"
-"$Id: cPickleCache.c,v 1.35 2001/11/06 19:37:00 jeremy Exp $\n";
+"$Id: cPickleCache.c,v 1.36 2001/11/08 17:13:01 bwarsaw Exp $\n";
 
 #define ASSIGN(V,E) {PyObject *__e; __e=(E); Py_XDECREF(V); (V)=__e;}
 #define UNLESS(E) if(!(E))
@@ -726,8 +726,8 @@ static struct PyMethodDef cCM_methods[] = {
 void
 initcPickleCache(void)
 {
-  PyObject *m, *d;
-  char *rev="$Revision: 1.35 $";
+  PyObject *m, *d, *s;
+  char *rev="$Revision: 1.36 $";
 
   Cctype.ob_type=&PyType_Type;
 
@@ -742,6 +742,11 @@ initcPickleCache(void)
   py__p_jar=PyString_FromString("_p_jar");
   py__p_changed=PyString_FromString("_p_changed");
 
-  PyDict_SetItemString(d,"__version__",
-		       PyString_FromStringAndSize(rev+11,strlen(rev+11)-2));
+  s = PyString_FromStringAndSize(rev+11,strlen(rev+11)-2);
+  PyDict_SetItemString(d,"__version__", s);
+  Py_XDECREF(s);
+
+  /* Check for errors */
+  if (PyErr_Occurred())
+    Py_FatalError("can't initialize module cPickleCache");
 }
