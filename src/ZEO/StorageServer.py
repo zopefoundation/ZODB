@@ -83,7 +83,7 @@
 # 
 ##############################################################################
 
-__version__ = "$Revision: 1.14 $"[11:-2]
+__version__ = "$Revision: 1.15 $"[11:-2]
 
 import asyncore, socket, string, sys, cPickle, os
 from smac import SizedMessageAsyncConnection
@@ -156,11 +156,13 @@ class StorageServer(asyncore.dispatcher):
         
             self.__connections[storage_id]=n
 
-    def invalidate(self, connection, storage_id, invalidated,
+    def invalidate(self, connection, storage_id, invalidated=(), info=0,
                    dump=dump):
         for c in self.__connections[storage_id]:
-            if c is connection: continue
-            c.message_output('I'+dump(invalidated, 1))
+            if invalidated and c is not connection: 
+                c.message_output('I'+dump(invalidated, 1))
+            if info:
+                c.message_output('S'+dump(info, 1))
 
     def writable(self): return 0
     
@@ -252,8 +254,11 @@ class Connection(SizedMessageAsyncConnection):
             blather('message_input', m, id(self))
 
         if self.__storage is None:
+            # This is the first communication from the client
             self.__storage, self.__storage_id = (
                 self.__server.register_connection(self, message))
+            # Send info back asynchronously, so client need not ask
+            self.message_output('S'+dump(self.get_info(), 1))
             return
             
         rt='R'
@@ -308,6 +313,13 @@ class Connection(SizedMessageAsyncConnection):
             'supportsVersions': storage.supportsVersions(),
             }
 
+    def get_size_info(self):
+        storage=self.__storage
+        return {
+            'length': len(storage),
+            'size': storage.getSize(),
+            }
+
     def zeoLoad(self, oid):
         storage=self.__storage
         v=storage.modifiedInVersion(oid)
@@ -356,7 +368,10 @@ class Connection(SizedMessageAsyncConnection):
 
     def _pack(self, t):
         self.__storage.pack(t, referencesf)
-        self.message_output('S'+dump(self.get_info(), 1))
+
+        # Broadcast new size statistics
+        self.__server.invalidate(0, self.__storage_id, (),
+                                 self.get_size_info())
 
     def abortVersion(self, src, id):
         t=self._transaction
@@ -507,7 +522,8 @@ class Connection(SizedMessageAsyncConnection):
         self._transaction=None
         if self.__invalidated:
             self.__server.invalidate(self, self.__storage_id,
-                                     self.__invalidated)
+                                     self.__invalidated,
+                                     self.get_size_info())
             self.__invalidated=[]
 
 def init_storage(storage):
