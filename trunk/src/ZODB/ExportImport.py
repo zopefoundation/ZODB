@@ -74,7 +74,7 @@ class ExportImport:
         t.commit(1)
         # Return the root imported object.
         if return_oid_list:
-            return self[return_oid_list[0]]
+            return self.get(return_oid_list[0])
         else:
             return None
 

@@ -465,7 +465,7 @@ class ConnectionObjectReader(BaseObjectReader):
             except TypeError:
                 # Couldn't create the instance.  Maybe there's more
                 # current data in the object's actual record!
-                return self._conn[oid]
+                return self._conn.get(oid)
 
             # XXX should be done by connection
             obj._p_oid = oid
@@ -489,7 +489,7 @@ class ConnectionObjectReader(BaseObjectReader):
         obj = self._cache.get(oid, None)
         if obj is not None:
             return obj
-        return self._conn[oid]
+        return self._conn.get(oid)
 
 def referencesf(p, rootl=None):
 
