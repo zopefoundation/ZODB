@@ -11,7 +11,7 @@
 # FOR A PARTICULAR PURPOSE
 # 
 ##############################################################################
-__version__='$Revision: 1.6 $'[11:-2]
+__version__='$Revision: 1.7 $'[11:-2]
 
 import os,  sys, time
 
@@ -37,7 +37,7 @@ def log_time():
     """Return a simple time string without spaces suitable for logging
     """
     return ("%4.4d-%2.2d-%2.2dT%2.2d:%2.2d:%2.2d"
-            % time.gmtime(time.time())[:6])
+            % time.localtime()[:6])
 
 def _set_log_dest(dest):
     global _log_dest
