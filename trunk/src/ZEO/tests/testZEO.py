@@ -26,7 +26,6 @@ import types
 import unittest
 
 import ZEO.ClientStorage, ZEO.StorageServer
-import ThreadedAsync, ZEO.trigger
 from ZODB.FileStorage import FileStorage
 from ZODB.Transaction import Transaction
 from ZODB.tests.StorageTestBase import zodb_pickle, MinPO
