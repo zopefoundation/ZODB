@@ -15,7 +15,7 @@
 from transaction.manager import ThreadedTransactionManager
 
 _manager = ThreadedTransactionManager()
-get_transaction = _manager.new
+get_transaction = _manager.get
 
 def set_factory(factory):
     _manager.txn_factory = factory

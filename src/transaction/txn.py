@@ -4,6 +4,7 @@
 __metaclass__ = type
 
 from transaction.interfaces import ITransaction, TransactionError
+from threading import Lock
 
 class Set(dict):
 
@@ -19,6 +20,7 @@ class Status:
     COMMITTED = "Committed"
     ABORTING = "Aborting"
     ABORTED = "Aborted"
+    SUSPENDED = "Suspended"
 
 class Transaction:
 
@@ -28,7 +30,9 @@ class Transaction:
         self._manager = manager
         self._parent = parent
         self._status = Status.ACTIVE
+        self._suspend = None
         self._resources = Set()
+        self._lock = Lock()
 
     def __repr__(self):
         return "<%s %X %s>" % (self.__class__.__name__, id(self), self._status)
@@ -69,3 +73,25 @@ class Transaction:
     def status(self):
         """Return the status of the transaction."""
         return self._status
+
+    def suspend(self):
+        self._lock.acquire()
+        try:
+            if self._status == Status.SUSPENDED:
+                raise TransactionError("Already suspended")
+            self._manager.suspend(self)
+            self._suspend = self._status
+            self._status = Status.SUSPENDED
+        finally:
+            self._lock.release()
+
+    def resume(self):
+        self._lock.acquire()
+        try:
+            if self._status != Status.SUSPENDED:
+                raise TransactionError("Can only resume suspended transaction")
+            self._manager.resume(self)
+            self._status = self._suspend
+            self._suspend = None
+        finally:
+            self._lock.release()
