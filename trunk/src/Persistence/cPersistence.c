@@ -14,7 +14,7 @@
 static char cPersistence_doc_string[] = 
 "Defines Persistent mixin class for persistent objects.\n"
 "\n"
-"$Id: cPersistence.c,v 1.69 2003/04/23 20:05:51 jeremy Exp $\n";
+"$Id: cPersistence.c,v 1.70 2003/05/13 22:58:37 jeremy Exp $\n";
 
 #include "cPersistence.h"
 
@@ -192,7 +192,13 @@ ghostify(cPersistentObject *self)
     self->ring.prev = NULL;
     self->ring.next = NULL;
     self->state = cPersistent_GHOST_STATE;
-    /* self->ring held a reference to the object. */
+
+    /* We remove the reference to the just ghosted object that the ring
+     * holds.  Note that the dictionary of oids->objects has an uncounted
+     * reference, so if the ring's reference was the only one, this frees
+     * the ghost object.  Note further that the object's dealloc knows to
+     * inform the dictionary that it is going away.
+     */
     Py_DECREF(self);
 }
 
