@@ -81,6 +81,7 @@ class Tracer(object):
     def _msg(self, oid, tid, *args):
         args = map(str, args)
         self.msgs.append( (oid, tid, ' '.join(args)) )
+        self._produced_msg = True
 
     def report(self):
         """Show all msgs, grouped by oid and sub-grouped by tid."""
@@ -130,20 +131,18 @@ class Tracer(object):
     def _check_trec(self, txn):
         # txn has members tid, status, user, description,
         # _extension, _pos, _tend, _file, _tpos
-        interesting = False
+        self._produced_msg = False
         for drec in txn:
-            if self._check_drec(drec):
-                interesting = True
-        if interesting:
+            self._check_drec(drec)
+        if self._produced_msg:
+            # Copy txn info for later output.
             self.tid2info[txn.tid] = (txn.status, txn.user, txn.description,
                                       txn._tpos)
 
-    # Process next data record.  Return true iff a message is produced (so
-    # the caller can know whether to save information about the tid the
-    # data record belongs to).
+    # Process next data record.  If a message is produced, self._produced_msg
+    # will be set True.
     def _check_drec(self, drec):
         # drec has members oid, tid, version, data, data_txn
-        result = False
         tid, oid, pick, pos = drec.tid, drec.oid, drec.data, drec.pos
         if pick:
             oidclass = None
@@ -151,7 +150,6 @@ class Tracer(object):
                 oidclass = get_class(pick)
                 self._msg(oid, tid, "new revision", oidclass,
                           "at", drec.pos)
-                result = True
                 self.oids[oid] += 1
                 self.oid2name[oid] = oidclass
 
@@ -166,16 +164,11 @@ class Tracer(object):
                         oidclass = get_class(pick)
                     self._msg(ref, tid, "referenced by", oid_repr(oid),
                               oidclass, "at", pos)
-                    result = True
 
                 if oid in self.oids:
                     self._msg(oid, tid, "references", oid_repr(ref), klass,
                               "at", pos)
-                    result = True
 
         elif oid in self.oids:
             # Or maybe it's a version abort.
             self._msg(oid, tid, "creation undo at", pos)
-            result = True
-
-        return result
