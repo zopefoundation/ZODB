@@ -288,7 +288,6 @@ class ClientStorage:
         self._oid = '\0\0\0\0\0\0\0\0'
 
         # Decide whether to use non-temporary files
-        client = client
         self._cache = self.ClientCacheClass(storage, cache_size,
                                             client=client, var=var)
 
@@ -321,7 +320,7 @@ class ClientStorage:
                 self._ready.wait(30)
                 if self._ready.isSet():
                     break
-                log2(INFO, "Wait for cache verification to finish")
+                log2(INFO, "Waiting for cache verification to finish")
         else:
             self._wait_sync()
 
@@ -331,7 +330,7 @@ class ClientStorage:
         while 1:
             if self._ready.isSet():
                 break
-            log2(INFO, "Wait for cache verification to finish")
+            log2(INFO, "Waiting for cache verification to finish")
             if self._connection is None:
                 # If the connection was closed while we were
                 # waiting for it to become ready, start over.
