@@ -13,7 +13,7 @@
 ##############################################################################
 """Network ZODB storage client
 
-$Id: ClientStorage.py,v 1.55 2002/09/08 00:20:20 jeremy Exp $
+$Id: ClientStorage.py,v 1.56 2002/09/09 18:34:03 jeremy Exp $
 """
 
 # XXX TO DO
@@ -243,8 +243,17 @@ class ClientStorage:
     def abortVersion(self, src, transaction):
         self._check_trans(transaction)
         oids = self._server.abortVersion(src, self._serial)
+        # When a version aborts, invalidate the version and
+        # non-version data.  The non-version data should still be
+        # valid, but older versions of ZODB will change the
+        # non-version serialno on an abort version.  With those
+        # versions of ZODB, you'd get a conflict error if you tried to
+        # commit a transaction with the cached data.
+
+        # XXX If we could guarantee that ZODB gave the right answer,
+        # we could just invalidate the version data.
         for oid in oids:
-            self._tbuf.invalidate(oid, src)
+            self._tbuf.invalidate(oid, '')
         return oids
 
     def commitVersion(self, src, dest, transaction):
