@@ -84,7 +84,7 @@
 ##############################################################################
 """Network ZODB storage client
 """
-__version__='$Revision: 1.10 $'[11:-2]
+__version__='$Revision: 1.11 $'[11:-2]
 
 import struct, time, os, socket, string, Sync, zrpc, ClientCache
 import tempfile, Invalidator, ExtensionClass, thread
@@ -329,7 +329,7 @@ class ClientStorage(ExtensionClass.Base, BaseStorage.BaseStorage):
             raise POSException.StorageTransactionError(self, transaction)
         self._lock_acquire()
         try:
-            self._call('vote')
+            self._call('vote', self._serial)
 
             if self._serials:
                 s=self._serials
