@@ -119,6 +119,9 @@ winlock = Extension(name = 'ZODB.winlock',
 
 exts += [cPersistence, cPickleCache, TimeStamp, winlock]
 
+# The ZODB.zodb4 code is not being packaged, because it is only
+# need to convert early versions of Zope3 databases to ZODB3.
+
 packages = ["BTrees", "BTrees.tests",
             "ZEO", "ZEO.auth", "ZEO.zrpc", "ZEO.tests",
             "ZODB", "ZODB.FileStorage", "ZODB.tests",
