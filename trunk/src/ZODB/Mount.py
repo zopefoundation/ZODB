@@ -13,8 +13,8 @@
 ##############################################################################
 """Mounted database support
 
-$Id: Mount.py,v 1.19 2003/02/06 20:31:17 shane Exp $"""
-__version__='$Revision: 1.19 $'[11:-2]
+$Id: Mount.py,v 1.20 2003/11/18 13:17:16 tseaver Exp $"""
+__version__='$Revision: 1.20 $'[11:-2]
 
 import thread, Persistence, Acquisition
 from Acquisition import aq_base
@@ -88,7 +88,7 @@ class MountPoint(Persistence.Persistent, Acquisition.Implicit):
         '''Gets the database object, usually by creating a Storage object
         and returning ZODB.DB(storage).
         '''
-        raise 'NotImplemented'
+        raise NotImplementedError
 
     def _getDB(self):
         '''Creates or opens a DB object.
