@@ -24,6 +24,7 @@ class FileStorageTests(
     PackableStorage.PackableStorage,
     Synchronization.SynchronizedStorage,
     ConflictResolution.ConflictResolvingStorage,
+    ConflictResolution.ConflictResolvingTransUndoStorage,
     HistoryStorage.HistoryStorage,
     IteratorStorage.IteratorStorage,
     IteratorStorage.ExtendedIteratorStorage,
