@@ -239,21 +239,22 @@ def main():
         die("two positional arguments required", show_docstring=True)
     inp, outp = args
 
-    force = partial = verbose = 0
+    force = partial = False
+    verbose = 0
     pack = None
     for opt, v in opts:
         if opt == "-v":
             verbose = int(v)
         elif opt == "-p":
-            partial = 1
+            partial = True
         elif opt == "-f":
-            force = 1
+            force = True
         elif opt == "-P":
             pack = time.time() - float(v)
 
     recover(inp, outp, verbose, partial, force, pack)
 
-def recover(inp, outp, verbose=0, partial=0, force=0, pack=0):
+def recover(inp, outp, verbose=0, partial=False, force=False, pack=None):
     print "Recovering", inp, "into", outp
 
     if os.path.exists(outp) and not force:
