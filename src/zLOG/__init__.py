@@ -2,14 +2,14 @@
 #
 # Copyright (c) 2001, 2002 Zope Corporation and Contributors.
 # All Rights Reserved.
-# 
+#
 # This software is subject to the provisions of the Zope Public License,
 # Version 2.0 (ZPL).  A copy of the ZPL should accompany this distribution.
 # THIS SOFTWARE IS PROVIDED "AS IS" AND ANY AND ALL EXPRESS OR IMPLIED
 # WARRANTIES ARE DISCLAIMED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 # WARRANTIES OF TITLE, MERCHANTABILITY, AGAINST INFRINGEMENT, AND FITNESS
 # FOR A PARTICULAR PURPOSE
-# 
+#
 ##############################################################################
 
 """General logging facility
@@ -70,7 +70,7 @@ with a callable object that takes 5 arguments:
 
 The callable object can provide a reinitialize method that may be
 called with no arguments to reopen the log files (if any) as part of a
-log-rotation facility. 
+log-rotation facility.
 
 There is a default event logging facility that:
 
@@ -86,7 +86,7 @@ There is a default event logging facility that:
     can be overridden with the environment variable EVENT_LOG_SEVERITY
 
 """
-__version__='$Revision: 1.7 $'[11:-2]
+__version__='$Revision: 1.8 $'[11:-2]
 
 from MinimalLogger import log_write, log_time, severity_string, \
      _set_log_dest, initialize
@@ -96,10 +96,10 @@ from FormatException import format_exception
 TRACE   = -300
 DEBUG   = -200
 BLATHER = -100
-INFO    =    0      
+INFO    =    0
 PROBLEM =  100
-WARNING =  100             
-ERROR   =  200   
+WARNING =  100
+ERROR   =  200
 PANIC   =  300
 
 def LOG(subsystem, severity, summary, detail='', error=None, reraise=None):

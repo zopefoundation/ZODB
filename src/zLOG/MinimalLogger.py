@@ -2,16 +2,16 @@
 #
 # Copyright (c) 2001, 2002 Zope Corporation and Contributors.
 # All Rights Reserved.
-# 
+#
 # This software is subject to the provisions of the Zope Public License,
 # Version 2.0 (ZPL).  A copy of the ZPL should accompany this distribution.
 # THIS SOFTWARE IS PROVIDED "AS IS" AND ANY AND ALL EXPRESS OR IMPLIED
 # WARRANTIES ARE DISCLAIMED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 # WARRANTIES OF TITLE, MERCHANTABILITY, AGAINST INFRINGEMENT, AND FITNESS
 # FOR A PARTICULAR PURPOSE
-# 
+#
 ##############################################################################
-__version__='$Revision: 1.11 $'[11:-2]
+__version__='$Revision: 1.12 $'[11:-2]
 
 import os, sys, time
 
@@ -21,10 +21,10 @@ def severity_string(severity, mapping={
     -300: 'TRACE',
     -200: 'DEBUG',
     -100: 'BLATHER',
-       0: 'INFO',       
-     100: 'PROBLEM', 
-     200: 'ERROR',    
-     300: 'PANIC', 
+       0: 'INFO',
+     100: 'PROBLEM',
+     200: 'ERROR',
+     300: 'PANIC',
     }):
     """Convert a severity code to a string."""
     s = mapping.get(int(severity), '')
@@ -71,7 +71,7 @@ class stupid_log_write:
             _log_level = int(severity)
         else:
             _log_level = 0 # INFO
-    
+
     def log(self, subsystem, severity, summary, detail, error):
         if _log_dest is None or severity < _log_level:
             return
