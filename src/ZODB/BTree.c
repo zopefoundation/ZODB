@@ -11,7 +11,7 @@
 
 static char BTree_module_documentation[] = 
 ""
-"\n$Id: BTree.c,v 1.1 1997/09/08 18:42:21 jim Exp $"
+"\n$Id: BTree.c,v 1.2 1997/09/10 17:24:47 jim Exp $"
 ;
 
 #define PERSISTENT
@@ -666,6 +666,7 @@ _bucket_set(Bucket *self, PyObject *key, PyObject *v)
 #else
 	      ASSIGN(self->data[i].value, v);
 #endif
+	      if(PER_CHANGED(self) < 0) goto err;
 	      PER_ALLOW_DEACTIVATION(self);
 	      return 0;
 	    }
@@ -682,6 +683,7 @@ _bucket_set(Bucket *self, PyObject *key, PyObject *v)
 		  free(self->data);
 		  self->data=NULL;
 		}
+	      if(PER_CHANGED(self) < 0) goto err;
 	      PER_ALLOW_DEACTIVATION(self);
 	      return 1;
 	    }
@@ -726,6 +728,7 @@ _bucket_set(Bucket *self, PyObject *key, PyObject *v)
 #endif
   self->len++;
 
+  if(PER_CHANGED(self) < 0) goto err;
   PER_ALLOW_DEACTIVATION(self);
   return 1;
 
@@ -965,25 +968,29 @@ _BTree_set(BTree *self, PyObject *key, PyObject *value)
   if(grew < 0) goto err;
 
   if(grew)
-    if(value)			/* got bigger */
-      {
-	d->count++;
-	self->count++;
-	if(d->count > MAX_SIZE(self) && BTree_grow(self,min) < 0) goto err;
-      }
-    else			/* got smaller */
-      {
-	d->count--;
-	self->count--;
-	if(! d->count)
-	  {
-	    self->len--;
-	    Py_DECREF(d->value);
-	    DECREF_KEY(d->key);
-	    if(min < self->len) memmove(d, d+1, self->len-min);
-	  }
-      }
-  
+    {
+      if(value)			/* got bigger */
+	{
+	  d->count++;
+	  self->count++;
+	  if(BUCKET(d->value)->len > MAX_SIZE(self) &&
+	     BTree_grow(self,min) < 0) goto err;
+	}
+      else			/* got smaller */
+	{
+	  d->count--;
+	  self->count--;
+	  if(! d->count)
+	    {
+	      self->len--;
+	      Py_DECREF(d->value);
+	      DECREF_KEY(d->key);
+	      if(min < self->len) memmove(d, d+1, self->len-min);
+	    }
+	}
+      if(PER_CHANGED(self) < 0) goto err;
+    }
+
   PER_ALLOW_DEACTIVATION(self);
   return grew;
 
@@ -1086,6 +1093,24 @@ bucket_items(Bucket *self, PyObject *args)
   Py_DECREF(r);
   return NULL;
 }
+
+#ifdef PERSISTENT
+static PyObject *
+bucket__p___reinit__(Bucket *self, PyObject *args)
+{
+  int i;
+  /* Note that this implementation is broken, in that it doesn't
+     account for subclass needs. */
+  for(i=self->len; --i >= 0; )
+    {
+      DECREF_KEY(self->data[i].key);
+      DECREF_VALUE(self->data[i].value);
+    }
+  self->len=0;
+  Py_INCREF(Py_None);
+  return Py_None;
+}
+#endif
   
 static PyObject *
 bucket_clear(Bucket *self, PyObject *args)
@@ -1100,8 +1125,13 @@ bucket_clear(Bucket *self, PyObject *args)
       DECREF_VALUE(self->data[i].value);
     }
   self->len=0;
+  if(PER_CHANGED(self) < 0) goto err;
   PER_ALLOW_DEACTIVATION(self);
   RETURN_NONE;
+
+err:
+  PER_ALLOW_DEACTIVATION(self);
+  return NULL;
 }
   
 static int
@@ -1109,8 +1139,8 @@ _BTree_clear(BTree *self)
 {
   int i;
 
+  UNLESS(self->data) return 0;
 
-  PER_USE_OR_RETURN(self, -1);
   for(i=self->len; --i >= 0; )
     {
       DECREF_KEY(self->data[i].key);
@@ -1119,16 +1149,36 @@ _BTree_clear(BTree *self)
 
   i=BTree_ini(self);
 
-  PER_ALLOW_DEACTIVATION(self);
   return i;
 }
-  
+
+#ifdef PERSISTENT
+static PyObject *
+BTree__p___reinit__(BTree *self, PyObject *args)
+{
+  /* Note that this implementation is broken, in that it doesn't
+     account for subclass needs. */
+  if(_BTree_clear(self) < 0) return NULL;
+  Py_INCREF(Py_None);
+  return Py_None;
+}
+#endif
+
 static PyObject *
 BTree_clear(BTree *self, PyObject *args)
 {
-  if(_BTree_clear(self) < 0) return NULL;
+  PER_USE_OR_RETURN(self, NULL);
+  if(_BTree_clear(self) < 0) goto err;
+
+  if(PER_CHANGED(self) < 0) goto err;
+
+  PER_ALLOW_DEACTIVATION(self);
 
   RETURN_NONE;
+
+err:
+  PER_ALLOW_DEACTIVATION(self);
+  return NULL;
 }
 
 static PyObject *
@@ -1220,7 +1270,7 @@ bucket_setstate(Bucket *self, PyObject *args)
   PER_PREVENT_DEACTIVATION(self); 
 
   UNLESS(PyArg_ParseTuple(args,"O",&r)) goto err;
-  UNLESS(PyArg_ParseTuple(r,"O",&keys,&values)) goto err;
+  UNLESS(PyArg_ParseTuple(r,"OO",&keys,&values)) goto err;
 
   if((l=PyObject_Length(keys)) < 0) goto err;
 #ifdef INTKEY
@@ -1331,6 +1381,10 @@ static struct PyMethodDef Bucket_methods[] = {
   {"map",	(PyCFunction)bucket_map,	METH_VARARGS,
      "map(keys) -- map a sorted sequence of keys into values\n\n"
      "Invalid keys are skipped"},
+#ifdef PERSISTENT
+  {"_p___reinit__",	(PyCFunction)bucket__p___reinit__,	METH_VARARGS,
+   "_p___reinit__() -- Reinitialize from a newly created copy"},
+#endif
   {NULL,		NULL}		/* sentinel */
 };
 
@@ -1399,6 +1453,7 @@ BTree_setstate(BTree *self, PyObject *args)
 			      KEY_PARSE "Oi",
 			      &(d->key), &(d->value), &(d->count)))
 	goto err;
+      Py_INCREF(d->value);
       self->count+=d->count;
     }
 
@@ -1486,6 +1541,10 @@ static struct PyMethodDef BTree_methods[] = {
   {"map",	(PyCFunction)BTree_map,	METH_VARARGS,
      "map(keys) -- map a sorted sequence of keys into values\n\n"
      "Invalid keys are skipped"},
+#ifdef PERSISTENT
+  {"_p___reinit__",	(PyCFunction)BTree__p___reinit__,	METH_VARARGS,
+   "_p___reinit__() -- Reinitialize from a newly created copy"},
+#endif
   {NULL,		NULL}		/* sentinel */
 };
 
@@ -1650,7 +1709,7 @@ initBTree()
 #endif
 {
   PyObject *m, *d;
-  char *rev="$Revision: 1.1 $";
+  char *rev="$Revision: 1.2 $";
 
   UNLESS(PyExtensionClassCAPI=PyCObject_Import("ExtensionClass","CAPI"))
       return;
@@ -1710,6 +1769,9 @@ initBTree()
 Revision Log:
 
   $Log: BTree.c,v $
+  Revision 1.2  1997/09/10 17:24:47  jim
+  *** empty log message ***
+
   Revision 1.1  1997/09/08 18:42:21  jim
   initial BTree
 
