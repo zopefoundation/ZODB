@@ -13,7 +13,7 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.113 2004/01/06 17:01:00 jeremy Exp $"""
+$Id: Connection.py,v 1.114 2004/01/06 18:10:43 tim_one Exp $"""
 
 import logging
 import sys
@@ -503,7 +503,7 @@ class Connection(ExportImport, object):
 
     def _load_before_or_conflict(self, obj):
         """Load non-current state for obj or raise ReadConflictError."""
-        
+
         if not (self._mvcc and self._setstate_noncurrent(obj)):
             self.getTransaction().register(obj)
             self._conflicts[obj._p_oid] = 1
