@@ -13,7 +13,7 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.102 2003/11/28 16:44:49 jim Exp $"""
+$Id: Connection.py,v 1.103 2003/12/08 21:12:25 jeremy Exp $"""
 
 import sys
 import threading
@@ -158,8 +158,6 @@ class Connection(ExportImport, object):
         Any objects modified since the last transaction are invalidated.
         """
         self._db = odb
-        self._reader = ConnectionObjectReader(self, self._cache,
-                                              self._db._classFactory)
         self._storage = odb._storage
         self._sortKey = odb._storage.sortKey
         self.new_oid = odb._storage.new_oid
@@ -168,6 +166,8 @@ class Connection(ExportImport, object):
             self._resetCache()
         else:
             self._flush_invalidations()
+        self._reader = ConnectionObjectReader(self, self._cache,
+                                              self._db._classFactory)
         self._opened = time()
 
         return self
