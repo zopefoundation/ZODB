@@ -29,26 +29,10 @@ severity_string = {
      300: 'PANIC',
     }
 
-class StupidLogTest(unittest.TestCase):
-    """Test zLOG with the default implementation.
-
-    The default implementation uses the environment variables
-    STUPID_LOG_FILE and STUPID_LOG_SEVERITY.
-    """
-    prefix = 'STUPID'
-
-    def wipeEnvironment(self):
-        if os.environ.has_key('STUPID_LOG_FILE'):
-            del os.environ['STUPID_LOG_FILE']
-        if os.environ.has_key('EVENT_LOG_FILE'):
-            del os.environ['EVENT_LOG_FILE']
-        if os.environ.has_key('STUPID_LOG_SEVERITY'):
-            del os.environ['STUPID_LOG_SEVERITY']
-        if os.environ.has_key('EVENT_LOG_SEVERITY'):
-            del os.environ['EVENT_LOG_SEVERITY']
+class EventLogTest(unittest.TestCase):
+    """Test zLOG with the default implementation."""
 
     def setUp(self):
-        self.wipeEnvironment()
         self.path = tempfile.mktemp()
         self._severity = 0
         # Windows cannot remove a file that's open.  The logging code
@@ -67,7 +51,6 @@ class StupidLogTest(unittest.TestCase):
                 h.close()
                 del logging._handlers[h]
         os.remove(self.path)
-        self.wipeEnvironment()
         zLOG.initialize()
 
     def setLog(self, severity=0):
@@ -157,15 +140,9 @@ class StupidLogTest(unittest.TestCase):
             f.close()
 
 
-class EventLogTest(StupidLogTest):
-    """ Test alternate envvars EVENT_LOG_FILE and EVENT_LOG_SEVERITY """
-    prefix = 'EVENT'
-
 def test_suite():
     return unittest.TestSuite()
-    suite = unittest.makeSuite(StupidLogTest, 'check')
-    suite.addTest(unittest.makeSuite(EventLogTest, 'check'))
-    return suite
+    return unittest.makeSuite(EventLogTest, 'check')
 
 if __name__ == "__main__":
     loader = unittest.TestLoader()
