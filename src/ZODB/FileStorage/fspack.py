@@ -275,7 +275,6 @@ class GC(FileStorageFormatter):
             # Delay import to code with circular imports.
             # XXX put exceptions in a separate module
             from ZODB.FileStorage.FileStorage import FileStorageError
-            print "Yow!"
             raise FileStorageError(
                 "The database has already been packed to a later time"
                 " or no changes have been made since the last pack")
