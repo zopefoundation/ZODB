@@ -21,8 +21,7 @@ import ZConfig.Context
 
 from ZODB import StorageConfig
 
-class StorageTestCase(unittest.TestCase):
-
+class StorageTestBase(unittest.TestCase):
     def setUp(self):
         unittest.TestCase.setUp(self)
         self.tmpfn = tempfile.mktemp()
@@ -51,6 +50,8 @@ class StorageTestCase(unittest.TestCase):
         io = StringIO(text)
         return context.loadFile(io)
 
+
+class StorageTestCase(StorageTestBase):
     def testFileStorage(self):
         from ZODB.FileStorage import FileStorage
         sample = """
@@ -116,6 +117,8 @@ class StorageTestCase(unittest.TestCase):
         self.storage = StorageConfig.createStorage(storageconf)
         self.assert_(isinstance(self.storage, DemoStorage))
 
+
+class BDBStorageTests(StorageTestBase):
     def testFullStorage(self):
         try:
             from BDBStorage.BDBFullStorage import BDBFullStorage
@@ -168,8 +171,15 @@ class StorageTestCase(unittest.TestCase):
         # XXX _config isn't public
         self.assert_(self.storage._config.cachesize, 1000)
 
+
 def test_suite():
-    return unittest.makeSuite(StorageTestCase)
+    suite = unittest.TestSuite()
+    suite.addTest(unittest.makeSuite(StorageTestCase))
+    import BDBStorage
+    if BDBStorage.is_available:
+        suite.addTest(unittest.makeSuite(BDBStorageTests))
+    return suite
+
 
 if __name__ == '__main__':
     unittest.main(defaultTest='test_suite')
