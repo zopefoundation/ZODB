@@ -33,8 +33,8 @@ The database name is accessible afterwards and in a newly created collection:
 
 Adding a new database works like this:
 
->>> db2 = DB(MinimalMemoryStorage(), 
-...     database_name='notroot', 
+>>> db2 = DB(MinimalMemoryStorage(),
+...     database_name='notroot',
 ...     databases=db.databases)
 
 The new db2 now shares the 'databases' dictionary with db and has two entries:
@@ -46,11 +46,11 @@ True
 
 Trying to insert a database with a name that is already in use will not work:
 
->>> db3 = DB(MinimalMemoryStorage(), 
-...     database_name='root', 
+>>> db3 = DB(MinimalMemoryStorage(),
+...     database_name='root',
 ...     databases=db.databases)
 Traceback (most recent call last):
-    ... fancy traceback here ...
+    ...
 ValueError: database_name 'root' already in databases
 
 You can (still) get a connection to a database this way:
@@ -79,6 +79,29 @@ True
 >>> len(cn2.connections)
 2
 
+So long as this database group remains open, the same Connection objects
+are returned:
+
+>>> cn.get_connection('root') is cn
+True
+>>> cn.get_connection('notroot') is cn2
+True
+>>> cn2.get_connection('root') is cn
+True
+>>> cn2.get_connection('notroot') is cn2
+True
+
+Of course trying to get a non-existent named database doesn't work:
+
+>>> cn.get_connection('no way')
+Traceback (most recent call last):
+  ...
+KeyError: 'no way'
+
+Clean up:
+
+>>> for a_db in db.databases.values():
+...     a_db.close()
 """
 
 from zope.testing import doctest
