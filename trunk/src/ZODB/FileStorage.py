@@ -115,7 +115,7 @@
 #   may have a back pointer to a version record or to a non-version
 #   record.
 #
-__version__='$Revision: 1.90 $'[11:-2]
+__version__='$Revision: 1.91 $'[11:-2]
 
 import struct, time, os, string, base64, sys
 from struct import pack, unpack
@@ -2120,11 +2120,11 @@ def read_index(file, name, index, vindex, tindex, stop='\377'*8,
                   name, pos)
         pos=pos+8
 
-        _maxoid = max(tindex.keys()) # in 2.2, just max(tindex)
-        maxoid = max(_maxoid, maxoid)
-        index.update(tindex)
-
-        tindex.clear()
+        if tindex: # avoid the pathological empty transaction case
+            _maxoid = max(tindex.keys()) # in 2.2, just max(tindex)
+            maxoid = max(_maxoid, maxoid)
+            index.update(tindex)
+            tindex.clear()
 
     return pos, maxoid, ltid
 
