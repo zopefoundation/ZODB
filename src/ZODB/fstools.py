@@ -21,7 +21,7 @@ XXX This file needs to be kept in sync with FileStorage.py.
 import cPickle
 import struct
 
-from ZODB.FileStorage import TRANS_HDR, DATA_HDR, TRANS_HDR_LEN, \
+from ZODB.FileStorage.format import TRANS_HDR, DATA_HDR, TRANS_HDR_LEN, \
      DATA_HDR_LEN, DATA_VERSION_HDR_LEN
 from ZODB.utils import p64, u64
 from persistent.TimeStamp import TimeStamp
@@ -47,9 +47,8 @@ class TxnHeader:
     def _read_header(self):
         self._file.seek(self._pos)
         self._hdr = self._file.read(TRANS_HDR_LEN)
-        (self.tid, length, self.status, self.user_len, self.descr_len,
+        (self.tid, self.length, self.status, self.user_len, self.descr_len,
          self.ext_len) = struct.unpack(TRANS_HDR, self._hdr)
-        self.length = u64(length)
 
     def read_meta(self):
         """Load user, descr, and ext attributes."""
