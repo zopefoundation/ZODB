@@ -59,11 +59,11 @@ touching every single key).
 The BTrees package provides a large collection of related data
 structures.  There are variants of the data structures specialized to
 integers, which are faster and use less memory.  There
-are four modules that handle the different variants.  The first two
+are five modules that handle the different variants.  The first two
 letters of the module name specify the types of the keys and values in
-mappings -- O for any object and I for integer.  For example, the
-\module{BTrees.IOBTree} module provides a mapping with integer
-keys and arbitrary objects as values.
+mappings -- O for any object, I for 32-bit signed integer, and F for
+32-bit C float.  For example, the \module{BTrees.IOBTree} module provides
+a mapping with integer keys and arbitrary objects as values.
 
 The four data structures provide by each module are a BTree, a Bucket,
 a TreeSet, and a Set.  The BTree and Bucket types are mappings and
@@ -85,10 +85,10 @@ is built out of multiple objects, which ZODB can load individually
 as needed.
 
 The four modules are named \module{OOBTree}, \module{IOBTree},
-\module{OIBTree}, and \module{IIBTree}.  The two letter prefixes are
-repeated in the data types names.  The \module{BTrees.OOBTree} module
-defines the following types: \class{OOBTree}, \class{OOBucket},
-\class{OOSet}, and \class{OOTreeSet}.  Similarly, the other three modules
+\module{OIBTree}, \module{IIBTree}, and \module{IFBTree}.  The two letter
+prefixes are repeated in the data types names.  The \module{BTrees.OOBTree}
+module defines the following types: \class{OOBTree}, \class{OOBucket},
+\class{OOSet}, and \class{OOTreeSet}.  Similarly, the other four modules
 each define their own variants of those four types.
 
 The \function{keys()}, \function{values()}, and \function{items()}
@@ -179,8 +179,8 @@ BTrees -- \function{difference()}, \function{union()}, and
 \function{intersection()}.  The \function{difference()} function returns
 a Bucket, while the other two methods return a Set.
 If the keys are integers, then the module also defines
-\function{multiunion()}.  If the values are integers, then the module
-also defines \function{weightedIntersection()} and
+\function{multiunion()}.  If the values are integers or floats, then the
+module also defines \function{weightedIntersection()} and
 \function{weightedUnion()}.  The function doc strings describe each
 function briefly.
 
