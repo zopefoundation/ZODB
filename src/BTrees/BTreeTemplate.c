@@ -12,7 +12,132 @@
 
  ****************************************************************************/
 
-#define BTREETEMPLATE_C "$Id: BTreeTemplate.c,v 1.63 2002/06/19 20:20:07 jeremy Exp $\n"
+#define BTREETEMPLATE_C "$Id: BTreeTemplate.c,v 1.64 2002/06/19 23:44:20 tim_one Exp $\n"
+
+/* Sanity-check a BTree.  This is a private helper for BTree_check.  Return:
+ *      -1         Error.  If it's an internal inconsistency in the BTree,
+ *                 AssertionError is set.
+ *       0         No problem found.
+ *
+ * nextbucket is the bucket "one beyond the end" of the BTree; the last bucket
+ * directly reachable from following right child pointers *should* be linked
+ * to nextbucket (and this is checked).
+ */
+static int
+BTree_check_inner(BTree *self, Bucket *nextbucket)
+{
+    int i;
+    Bucket *bucketafter;
+    Sized *child;
+    char *errormsg = "internal error";  /* someone should have overriden */
+    Sized *activated_child = NULL;
+    int result = -1;    /* until proved innocent */
+
+#define CHECK(CONDITION, ERRORMSG)          \
+    if (!(CONDITION)) {                     \
+        errormsg = (ERRORMSG);              \
+        goto Error;                         \
+    }
+
+    PER_USE_OR_RETURN(self, -1);
+    CHECK(self->len >= 0, "BTree len < 0");
+    CHECK(self->len <= self->size, "BTree len > size");
+    if (self->len == 0) {
+        /* Empty BTree. */
+        CHECK(self->firstbucket == NULL,
+              "Empty BTree has non-NULL firstbucket");
+        result = 0;
+        goto Done;
+    }
+    /* Non-empty BTree. */
+    CHECK(self->firstbucket != NULL, "Non-empty BTree has NULL firstbucket");
+    CHECK(self->firstbucket->ob_refcnt >= 2,
+          "Non-empty BTree firstbucket has refcount < 2");
+    for (i = 0; i < self->len; ++i) {
+        CHECK(self->data[i].child != NULL, "BTree has NULL child");
+    }
+    if (SameType_Check(self, self->data[0].child)) {
+        /* Our children are also BTrees. */
+        child = self->data[0].child;
+        UNLESS (PER_USE(child)) goto Done;
+        activated_child = child;
+        CHECK(self->firstbucket == BTREE(child)->firstbucket,
+               "BTree has firstbucket different than "
+               "its first child's firstbucket");
+        PER_ALLOW_DEACTIVATION(child);
+        activated_child = NULL;
+        for (i = 0; i < self->len; ++i) {
+            child = self->data[i].child;
+            CHECK(SameType_Check(self, child),
+                  "BTree children have different types");
+            if (i == self->len - 1)
+                bucketafter = nextbucket;
+            else {
+                BTree *child2 = BTREE(self->data[i+1].child);
+                UNLESS (PER_USE(child2)) goto Done;
+                bucketafter = child2->firstbucket;
+                PER_ALLOW_DEACTIVATION(child2);
+            }
+            if (BTree_check_inner(BTREE(child), bucketafter) < 0) goto Done;
+        }
+    }
+    else {
+        /* Our children are buckets. */
+        CHECK(self->firstbucket == BUCKET(self->data[0].child),
+              "Bottom-level BTree node has inconsistent firstbucket belief");
+        for (i = 0; i < self->len; ++i) {
+            child = self->data[i].child;
+            UNLESS (PER_USE(child)) goto Done;
+            activated_child = child;
+            CHECK(!SameType_Check(self, child),
+                  "BTree children have different types");
+            CHECK(child->len >= 1, "Bucket length < 1"); /* no empty buckets! */
+            CHECK(child->len <= child->size, "Bucket len > size");
+            CHECK(child->ob_refcnt >= 2, "Bucket has refcount < 2");
+            if (i == self->len - 1)
+                bucketafter = nextbucket;
+            else
+                bucketafter = BUCKET(self->data[i+1].child);
+            CHECK(BUCKET(child)->next == bucketafter,
+                  "Bucket next pointer is damaged");
+            PER_ALLOW_DEACTIVATION(child);
+            activated_child = NULL;
+        }
+    }
+    result = 0;
+    goto Done;
+
+Error:
+    PyErr_SetString(PyExc_AssertionError, errormsg);
+    result = -1;
+Done:
+    /* No point updating access time -- this isn't a "real" use. */
+    PER_ALLOW_DEACTIVATION(self);
+    if (activated_child) {
+        PER_ALLOW_DEACTIVATION(activated_child);
+    }
+    return result;
+
+#undef CHECK
+}
+
+/* Sanity-check a BTree.  This is the ._check() method.  Return:
+ *      NULL       Error.  If it's an internal inconsistency in the BTree,
+ *                 AssertionError is set.
+ *      Py_None    No problem found.
+ */
+static PyObject*
+BTree_check(BTree *self, PyObject *args)
+{
+    PyObject *result = NULL;
+    int i = BTree_check_inner(self, NULL);
+
+    if (i >= 0) {
+        result = Py_None;
+        Py_INCREF(result);
+    }
+    return result;
+}
 
 /*
 ** _BTree_get
@@ -767,7 +892,7 @@ _BTree_setstate(BTree *self, PyObject *state, int noval)
     BTreeItem *d;
     int len, l, i, copied=1;
 
-    if (_BTree_clear(self) < 0) 
+    if (_BTree_clear(self) < 0)
 	return -1;
 
     /* The state of a BTree can be one of the following:
@@ -1460,6 +1585,8 @@ static struct PyMethodDef BTree_methods[] = {
    "update(collection) -- Add the items from the given collection"},
   {"__init__",	(PyCFunction) Mapping_update,	METH_VARARGS,
    "__init__(collection) -- Initialize with items from the given collection"},
+  {"_check", (PyCFunction) BTree_check,         METH_VARARGS,
+   "Perform sanity check on BTree, and raise exception if flawed."},
 #ifdef PERSISTENT
   {"_p_resolveConflict", (PyCFunction) BTree__p_resolveConflict, METH_VARARGS,
    "_p_resolveConflict() -- Reinitialize from a newly created copy"},

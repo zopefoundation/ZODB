@@ -2,17 +2,17 @@
 
   Copyright (c) 2001, 2002 Zope Corporation and Contributors.
   All Rights Reserved.
-  
+
   This software is subject to the provisions of the Zope Public License,
   Version 2.0 (ZPL).  A copy of the ZPL should accompany this distribution.
   THIS SOFTWARE IS PROVIDED "AS IS" AND ANY AND ALL EXPRESS OR IMPLIED
   WARRANTIES ARE DISCLAIMED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
   WARRANTIES OF TITLE, MERCHANTABILITY, AGAINST INFRINGEMENT, AND FITNESS
   FOR A PARTICULAR PURPOSE
-  
+
  ****************************************************************************/
 
-#define TREESETTEMPLATE_C "$Id: TreeSetTemplate.c,v 1.13 2002/02/21 21:41:17 jeremy Exp $\n"
+#define TREESETTEMPLATE_C "$Id: TreeSetTemplate.c,v 1.14 2002/06/19 23:44:20 tim_one Exp $\n"
 
 static PyObject *
 TreeSet_insert(BTree *self, PyObject *args)
@@ -78,8 +78,8 @@ TreeSet_setstate(BTree *self, PyObject *args)
   int r;
 
   if (!PyArg_ParseTuple(args,"O",&args)) return NULL;
- 
-  PER_PREVENT_DEACTIVATION(self); 
+
+  PER_PREVENT_DEACTIVATION(self);
   r=_BTree_setstate(self, args, 1);
   PER_ALLOW_DEACTIVATION(self);
   PER_ACCESSED(self);
@@ -105,7 +105,7 @@ static struct PyMethodDef TreeSet_methods[] = {
    "minKey([key]) -- Fine the minimum key\n\n"
    "If an argument is given, find the minimum >= the argument"},
   {"clear",	(PyCFunction) BTree_clear,	METH_VARARGS,
-   "clear() -- Remove all of the items from the BTree"},  
+   "clear() -- Remove all of the items from the BTree"},
   {"insert",	(PyCFunction)TreeSet_insert,	METH_VARARGS,
    "insert(id,[ignored]) -- Add an id to the set"},
   {"update",	(PyCFunction)TreeSet_update,	METH_VARARGS,
@@ -114,6 +114,8 @@ static struct PyMethodDef TreeSet_methods[] = {
    "__init__(seq) -- Initialize with  the items from the given sequence"},
   {"remove",	(PyCFunction)TreeSet_remove,	METH_VARARGS,
    "remove(id) -- Remove a key from the set"},
+  {"_check", (PyCFunction) BTree_check,         METH_VARARGS,
+   "Perform sanity check on TreeSet, and raise exception if flawed."},
 #ifdef PERSISTENT
   {"_p_resolveConflict", (PyCFunction) BTree__p_resolveConflict, METH_VARARGS,
    "_p_resolveConflict() -- Reinitialize from a newly created copy"},
@@ -148,14 +150,14 @@ static PyExtensionClass TreeSetType = {
   (reprfunc)0,			/*tp_str*/
   (getattrofunc)0,
   0,				/*tp_setattro*/
-  
+
   /* Space for future expansion */
   0L,0L,
-  "Set implemented as sorted tree of items", 
+  "Set implemented as sorted tree of items",
   METHOD_CHAIN(TreeSet_methods),
-  EXTENSIONCLASS_BASICNEW_FLAG 
+  EXTENSIONCLASS_BASICNEW_FLAG
 #ifdef PERSISTENT
-  | PERSISTENT_TYPE_FLAG 
+  | PERSISTENT_TYPE_FLAG
 #endif
   | EXTENSIONCLASS_NOINSTDICT_FLAG,
 };
