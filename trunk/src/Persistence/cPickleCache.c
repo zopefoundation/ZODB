@@ -82,7 +82,7 @@
   attributions are listed in the accompanying credits file.
   
  ****************************************************************************/
-static char *what_string = "$Id: cPickleCache.c,v 1.28 1999/07/20 19:08:06 jim Exp $";
+static char *what_string = "$Id: cPickleCache.c,v 1.29 1999/09/23 16:44:15 jim Exp $";
 
 #define ASSIGN(V,E) {PyObject *__e; __e=(E); Py_XDECREF(V); (V)=__e;}
 #define UNLESS(E) if(!(E))
@@ -220,15 +220,8 @@ fullgc(ccobject *self, int idt)
   if ((i=PyDict_Size(self->data)) < 1) return 0;
 
   now=((long)(time(NULL)/3))%65536;
-
-  if (idt) dt=idt*3;
-  else
-    {
-      i=PyDict_Size(self->data)-3/self->cache_size;
-      if(i < 3) i=3;
-      dt=self->cache_age*3/i;
-      if(dt < 10) dt=10;
-    }
+  if (dt < 0) dt=0;
+  else dt /= 3;
 
   for(i=0; PyDict_Next(self->data, &i, &key, &v); )
     if(gc_item(self,key,v,now,dt) < 0) return -1;
@@ -246,9 +239,13 @@ reallyfullgc(ccobject *self, int dt)
   int i, l, last;
   time_t now;
 
+  if (self->cache_size < 1) return 0;
   if((last=PyDict_Size(self->data)) < 0) return -1;
 
-  now=time(NULL);
+  now=((long)(time(NULL)/3))%65536;
+  if (dt < 0) dt=0;
+  else dt /= 3;
+
   /* First time through should get refcounts to 1 */
   for(i=0; PyDict_Next(self->data, &i, &key, &v); )
     if(gc_item(self,key,v,now,dt) < 0) return -1;
@@ -284,13 +281,19 @@ maybegc(ccobject *self, PyObject *thisv)
   size=self->cache_size;
   self->cache_size=0;
 
+  /* Decide how many objects to look at */
   n=(s-size)/10;
-
   if (n < 3) n=3;
+
+  /* Decide how much time to give them before deactivating them */
   s=8*size/s;
   if (s > 100) s=100;
   dt=(long)(self->cache_age*(0.2+0.1*s));
-  if (dt < 10) dt=10;
+
+  /* Units are 3 seconds */
+  dt /= 3; 
+
+  if (dt < 1) dt=1;
   
   while (--n >= 0)
     {
@@ -669,7 +672,7 @@ void
 initcPickleCache()
 {
   PyObject *m, *d;
-  char *rev="$Revision: 1.28 $";
+  char *rev="$Revision: 1.29 $";
 
   Cctype.ob_type=&PyType_Type;
 
