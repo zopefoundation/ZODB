@@ -107,6 +107,7 @@ class TestzLOGConfig(unittest.TestCase):
                                 zLOG.LogHandlers.NullHandler))
 
     def test_with_logfile(self):
+        import os
         fn = tempfile.mktemp()
         logger = self.check_simple_logger("<eventlog>\n"
                                           "  <logfile>\n"
@@ -117,6 +118,8 @@ class TestzLOGConfig(unittest.TestCase):
         logfile = logger.handlers[0]
         self.assertEqual(logfile.level, logging.DEBUG)
         self.assert_(isinstance(logfile, zLOG.LogHandlers.FileHandler))
+        logfile.close()
+        os.remove(fn)
 
     def test_with_stderr(self):
         self.check_standard_stream("stderr")
