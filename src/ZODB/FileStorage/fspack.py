@@ -82,9 +82,10 @@ class DataCopier(FileStorageFormatter):
         # Else oid's data record contains the data, and the file offset of
         # oid's data record is returned.  This data record should contain
         # a pickle identical to the 'data' argument.
-        # XXX If the length of the stored data doesn't match len(data),
-        # XXX an exception is raised.  If the lengths match but the data
-        # XXX isn't the same, 0 is returned.  Why the discrepancy?
+
+        # Unclear:  If the length of the stored data doesn't match len(data),
+        # an exception is raised.  If the lengths match but the data isn't
+        # the same, 0 is returned.  Why the discrepancy?
         h = self._read_txn_header(tpos)
         tend = tpos + h.tlen
         pos = self._file.tell()
@@ -121,7 +122,7 @@ class DataCopier(FileStorageFormatter):
         if h.version:
             return h.pnv
         elif bp:
-            # XXX Not sure the following is always true:
+            # Unclear:  Not sure the following is always true:
             # The previous record is not for this version, yet we
             # have a backpointer to it.  The current record must
             # be an undo of an abort or commit, so the backpointer
@@ -280,8 +281,8 @@ class GC(FileStorageFormatter):
             if err.buf != "":
                 raise
         if th.status == 'p':
-            # Delay import to cope with circular imports.
-            # XXX put exceptions in a separate module
+            # Delayed import to cope with circular imports.
+            # TODO:  put exceptions in a separate module.
             from ZODB.FileStorage.FileStorage import RedundantPackWarning
             raise RedundantPackWarning(
                 "The database has already been packed to a later time"
@@ -447,9 +448,9 @@ class FileStoragePacker(FileStorageFormatter):
 
         # The packer will use several indexes.
         # index: oid -> pos
-        # vindex: version -> pos of XXX
+        # vindex: version -> pos
         # tindex: oid -> pos, for current txn
-        # tvindex: version -> pos of XXX, for current txn
+        # tvindex: version -> pos, for current txn
         # oid2tid: not used by the packer
 
         self.index = fsIndex()
@@ -476,12 +477,12 @@ class FileStoragePacker(FileStorageFormatter):
         # Because these pointers are stored as file offsets, they
         # must be updated when we copy data.
 
-        # XXX Need to add sanity checking to pack
+        # TODO:  Should add sanity checking to pack.
 
         self.gc.findReachable()
 
         # Setup the destination file and copy the metadata.
-        # XXX rename from _tfile to something clearer
+        # TODO:  rename from _tfile to something clearer.
         self._tfile = open(self._name + ".pack", "w+b")
         self._file.seek(0)
         self._tfile.write(self._file.read(self._metadata_size))

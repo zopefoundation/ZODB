@@ -174,7 +174,8 @@ class DB(object):
                 # Just let the connection go.
 
                 # We need to break circular refs to make it really go.
-                # XXX What objects are involved in the cycle?
+                # TODO:  Figure out exactly which objects are involved in the
+                # cycle.
                 connection.__dict__.clear()
                 return
 
@@ -711,9 +712,8 @@ class ResourceManager(object):
         return "%s:%s" % (self._db._storage.sortKey(), id(self))
 
     def tpc_begin(self, txn, sub=False):
-        # XXX we should never be called with sub=True.
         if sub:
-            raise ValueError, "doesn't supoprt sub-transactions"
+            raise ValueError("doesn't support sub-transactions")
         self._db._storage.tpc_begin(txn)
 
     # The object registers itself with the txn manager, so the ob

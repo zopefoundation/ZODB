@@ -120,13 +120,13 @@ class ConnectionManager(object):
         # be started in a child process after a fork.  Regardless,
         # it's good to be defensive.
 
-        # XXX need each connection started with async==0 to have a
-        # callback
+        # We need each connection started with async==0 to have a
+        # callback.
         log("CM.set_async(%s)" % repr(map), level=logging.DEBUG)
         if not self.closed and self.trigger is None:
             log("CM.set_async(): first call")
             self.trigger = trigger()
-            self.thr_async = 1 # XXX needs to be set on the Connection
+            self.thr_async = 1 # needs to be set on the Connection
 
     def attempt_connect(self):
         """Attempt a connection to the server without blocking too long.
@@ -139,8 +139,8 @@ class ConnectionManager(object):
         finishes quickly.
         """
 
-        # XXX Will a single attempt take too long?
-        # XXX Answer: it depends -- normally, you'll connect or get a
+        # Will a single attempt take too long?
+        # Answer:  it depends -- normally, you'll connect or get a
         # connection refused error very quickly.  Packet-eating
         # firewalls and other mishaps may cause the connect to take a
         # long time to time out though.  It's also possible that you
@@ -228,7 +228,7 @@ class ConnectionManager(object):
 # to the errno value(s) expected if the connect succeeds *or* if it's
 # already connected (our code can attempt redundant connects).
 if hasattr(errno, "WSAEWOULDBLOCK"):    # Windows
-    # XXX The official Winsock docs claim that WSAEALREADY should be
+    # Caution:  The official Winsock docs claim that WSAEALREADY should be
     # treated as yet another "in progress" indicator, but we've never
     # seen this.
     _CONNECT_IN_PROGRESS = (errno.WSAEWOULDBLOCK,)
@@ -287,7 +287,7 @@ class ConnectThread(threading.Thread):
         delay = self.tmin
         success = 0
         # Don't wait too long the first time.
-        # XXX make timeout configurable?
+        # TODO: make timeout configurable?
         attempt_timeout = 5
         while not self.stopped:
             success = self.try_connecting(attempt_timeout)
@@ -373,7 +373,7 @@ class ConnectThread(threading.Thread):
                 log("CT: select() %d, %d, %d" % tuple(map(len, (r,w,x))))
             except select.error, msg:
                 log("CT: select failed; msg=%s" % str(msg),
-                    level=logging.WARNING) # XXX Is this the right level?
+                    level=logging.WARNING)
                 continue
             # Exceptable wrappers are in trouble; close these suckers
             for wrap in x:
@@ -408,7 +408,7 @@ class ConnectThread(threading.Thread):
             assert wrap.state == "closed"
             del wrappers[wrap]
 
-            # XXX should check deadline
+            # TODO: should check deadline
 
 
 class ConnectWrapper:
@@ -520,8 +520,7 @@ class ConnectWrapper:
         self.preferred = 0
         if self.conn is not None:
             # Closing the ZRPC connection will eventually close the
-            # socket, somewhere in asyncore.
-            # XXX Why do we care? --Guido
+            # socket, somewhere in asyncore.  Guido asks: Why do we care?
             self.conn.close()
             self.conn = None
         if self.sock is not None:
