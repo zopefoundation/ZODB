@@ -14,6 +14,7 @@
 
 from zope.interface import Interface
 
+
 class ICollection(Interface):
 
     def clear():
@@ -41,6 +42,7 @@ class IReadSequence(Interface):
         Such that the subsequence includes the items from index1 up
         to, but not including, index2.
         """
+
 
 class IKeyed(ICollection):
 
@@ -76,6 +78,7 @@ class IKeyed(ICollection):
         greater than or equal to the argument.
         """
 
+
 class ISetMutable(IKeyed):
 
     def insert(key):
@@ -88,28 +91,33 @@ class ISetMutable(IKeyed):
         """Remove the key from the set."""
 
     def update(seq):
-        """Add the items from the given sequence to the set"""
+        """Add the items from the given sequence to the set."""
+
 
 class ISized(Interface):
-    "anything supporting __len"
+    """An object that supports __len__."""
 
     def __len__():
-        """Return the number of items in the container"""
+        """Return the number of items in the container."""
+
 
 class IKeySequence(IKeyed, ISized):
 
     def __getitem__(index):
-        """Return the key in the given index position
+        """Return the key in the given index position.
 
         This allows iteration with for loops and use in functions,
         like map and list, that read sequences.
         """
 
+
 class ISet(IKeySequence, ISetMutable):
     pass
 
+
 class ITreeSet(IKeyed, ISetMutable):
     pass
+
 
 class IMinimalDictionary(ISized):
 
@@ -205,6 +213,7 @@ class IDictionaryIsh(IKeyed, IMinimalDictionary):
         integer values, the normalization is division.
         """
 
+
 class IBTree(IDictionaryIsh):
 
     def insert(key, value):
@@ -225,6 +234,7 @@ class IBTree(IDictionaryIsh):
           while not t.insert(key, value):
               key=generate_key()
         """
+
 
 class IMerge(Interface):
     """Object with methods for merging sets, buckets, and trees.
@@ -274,6 +284,7 @@ class IMerge(Interface):
         The output is a Set containing matching keys from the input
         collections.
         """
+
 
 class IIMerge(IMerge):
     """Merge collections with integer value type.
@@ -346,6 +357,7 @@ class IIMerge(IMerge):
 
         Note that c1 and c2 must be collections.
         """
+
 
 class IMergeIntegerKey(IMerge):
     """IMerge-able objects with integer keys.
