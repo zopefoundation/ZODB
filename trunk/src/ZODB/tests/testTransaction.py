@@ -36,7 +36,7 @@ TODO
     add in tests for objects which are modified multiple times,
     for example an object that gets modified in multiple sub txns.
 
-$Id: testTransaction.py,v 1.20 2004/04/01 03:56:57 jeremy Exp $
+$Id: testTransaction.py,v 1.21 2004/04/02 19:31:32 tim_one Exp $
 """
 
 import unittest
@@ -378,7 +378,6 @@ class TransactionTests(unittest.TestCase):
         assert self.sub1._p_jar.ctpc_abort == 1
 
     def testExceptionInTpcAbort(self):
-
         self.sub1._p_jar = SubTransactionJar(
                                 errors=('tpc_abort', 'tpc_vote'))
 
@@ -387,7 +386,8 @@ class TransactionTests(unittest.TestCase):
 
         try:
             get_transaction().commit()
-        except TestTxnException: pass
+        except TestTxnException:
+            pass
 
         assert self.nosub1._p_jar.ctpc_abort == 1
 
