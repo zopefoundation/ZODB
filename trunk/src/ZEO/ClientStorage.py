@@ -985,22 +985,7 @@ class ClientStorage(object):
         if self._cache is None:
             return
 
-        try:
-            self._tbuf.begin_iterate()
-        except ValueError, msg:
-            raise ClientStorageError, (
-                "Unexpected error reading temporary file in "
-                "client storage: %s" % msg)
-        while 1:
-            try:
-                t = self._tbuf.next()
-            except ValueError, msg:
-                raise ClientStorageError, (
-                    "Unexpected error reading temporary file in "
-                    "client storage: %s" % msg)
-            if t is None:
-                break
-            oid, version, data = t
+        for oid, version, data in self._tbuf:
             self._cache.invalidate(oid, version, tid)
             # If data is None, we just invalidate.
             if data is not None:

@@ -35,13 +35,9 @@ class TransBufTests(unittest.TestCase):
         tbuf = TransactionBuffer()
         tbuf.store(*new_store_data())
         tbuf.invalidate(*new_invalidate_data())
-        tbuf.begin_iterate()
-        while 1:
-            o = tbuf.next()
-            if o is None:
-                break
-        tbuf.clear()
-
+        for o in tbuf:
+            pass
+            
     def doUpdates(self, tbuf):
         data = []
         for i in range(10):
@@ -52,9 +48,7 @@ class TransBufTests(unittest.TestCase):
             tbuf.invalidate(*d)
             data.append(d)
 
-        tbuf.begin_iterate()
-        for i in range(len(data)):
-            x = tbuf.next()
+        for i, x in enumerate(tbuf):
             if x[2] is None:
                 # the tbuf add a dummy None to invalidates
                 x = x[:2]
