@@ -347,14 +347,34 @@ class ZEOStorage:
 
     def zeoVerify(self, oid, s, sv):
         try:
-            p, os, v, pv, osv = self.zeoLoad(oid)
-        except: # except what?
-            return None
-        if os != s:
+            os = self.getSerial(oid)
+        except KeyError:
             self.client.invalidateVerify((oid, ''))
-        elif osv != sv:
-            self.client.invalidateVerify((oid, v))
+            # XXX It's not clear what we should do now.  The KeyError
+            # could be caused by an object uncreation, in which case
+            # invalidation is right.  It could be an application bug
+            # that left a dangling reference, in which case it's bad.
+        else:
+            # If the client has version data, the logic is a bit more
+            # complicated.  If the current serial number matches the
+            # client serial number, then the non-version data must
+            # also be valid.  If the current serialno is for a
+            # version, then the non-version data can't change.
 
+            # If the version serialno isn't valid, then the
+            # non-version serialno may or may not be valid.  Rather
+            # than trying to figure it whether it is valid, we just
+            # invalidate it.  Sending an invalidation for the
+            # non-version data implies invalidating the version data
+            # too, since an update to non-version data can only occur
+            # after the version is aborted or committed.
+            if sv:
+                if sv != os:
+                    self.client.invalidateVerify((oid, ''))
+            else:
+                if s != os:
+                    self.client.invalidateVerify((oid, ''))
+                
     def endZeoVerify(self):
         self.client.endVerify()
 
