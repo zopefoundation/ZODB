@@ -83,7 +83,7 @@
 # 
 ##############################################################################
 
-__version__ = "$Revision: 1.16 $"[11:-2]
+__version__ = "$Revision: 1.17 $"[11:-2]
 
 import asyncore, socket, string, sys, cPickle, os
 from smac import SizedMessageAsyncConnection
@@ -418,8 +418,16 @@ class Connection(SizedMessageAsyncConnection):
         else:
             if serial != '\0\0\0\0\0\0\0\0':
                 self.__invalidated.append((oid, version))
-                
-        self.message_output('s'+dump((oid,newserial), 1))
+
+        try: r=dump((oid,newserial), 1)
+        except:
+            # We got a pickling error, must be because the
+            # newserial is an unpicklable exception.
+            r=StorageServerError("Couldn't pickle exception %s" % `newserial`)
+            dump('',1) # clear pickler
+            r=dump((oid, r),1)
+            
+        self.message_output('s'+r)
         return _noreturn
 
     def vote(self, id): 
