@@ -87,7 +87,7 @@ method::
 and call it to minotor the storage.
 
 """
-__version__='$Revision: 1.7 $'[11:-2]
+__version__='$Revision: 1.8 $'[11:-2]
 
 import POSException, BaseStorage, string, utils
 from TimeStamp import TimeStamp
@@ -100,6 +100,7 @@ class MappingStorage(BaseStorage.BaseStorage):
 
         self._index={}
         self._tindex=[]
+        self._ltid = None
 
         # Note:
         # If you subclass this and use a persistent mapping facility
@@ -153,6 +154,10 @@ class MappingStorage(BaseStorage.BaseStorage):
 
         index=self._index
         for oid, p in self._tindex: index[oid]=p
+        self._ltid = self._serial
+
+    def lastTransaction(self):
+        return self._ltid
 
     def pack(self, t, referencesf):
 
