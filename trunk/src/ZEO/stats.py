@@ -30,7 +30,7 @@ Offset  Size  Contents
 4       3     data size, in 256-byte increments, rounded up
 7       1     code (see below)
 8       8     object id
-8       8     serial number
+16      8     serial number
 
 The code at offset 7 packs three fields:
 
