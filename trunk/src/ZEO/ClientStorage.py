@@ -210,8 +210,11 @@ class ClientStorage:
         self._connection = None
         self._pending_server = None
         self._ready = threading.Event()
-        
+
+        # _is_read_only stores the constructor argument
         self._is_read_only = read_only
+        # _conn_is_read_only stores the status of the current connection
+        self._conn_is_read_only = False
         self._storage = storage
         self._read_only_fallback = read_only_fallback
         # _server_addr is used by sortKey()
@@ -365,6 +368,7 @@ class ClientStorage:
         """
         log2(INFO, "Testing connection %r" % conn)
         # XXX Check the protocol version here?
+        self._conn_is_read_only = False
         stub = self.StorageServerStubClass(conn)
         try:
             stub.register(str(self._storage), self._is_read_only)
@@ -374,6 +378,7 @@ class ClientStorage:
                 raise
             log2(INFO, "Got ReadOnlyError; trying again with read_only=1")
             stub.register(str(self._storage), read_only=1)
+            self._conn_is_read_only = True
             return 0
 
     def notifyConnected(self, conn):
@@ -548,12 +553,14 @@ class ClientStorage:
         return self._info['supportsTransactionalUndo']
 
     def isReadOnly(self):
-        """Storage API: return whether we are in read-only mode.
-
-        XXX In read-only fallback mode, this returns false, even if we
-        are currently connected to a read-only server.
-        """
-        return self._is_read_only
+        """Storage API: return whether we are in read-only mode."""
+        if self._is_read_only:
+            return True
+        else:
+            # If the client is configured for a read-write connection
+            # but has a read-only fallback connection, _conn_is_read_only
+            # will be True.
+            return self._conn_is_read_only
 
     def _check_trans(self, trans):
         """Internal helper to check a transaction argument for sanity."""
