@@ -90,8 +90,8 @@ class ConflictError(TransactionError):
 
         if data is not None:
             # avoid circular import chain
-            from ZODB.serialize import SimpleObjectReader
-            self.class_name = SimpleObjectReader().getClassName(data)
+            from ZODB.utils import get_pickle_metadata
+            self.class_name = "%s.%s" % get_pickle_metadata(data)
 ##        else:
 ##            if message != "data read conflict error":
 ##                raise RuntimeError
