@@ -173,14 +173,49 @@ staticforward PyExtensionClass BTreeType;
     (RESULT) = _i;                                          \
 }
 
+/* SetIteration structs are used in the internal set iteration protocol.
+ * When you want to iterate over a set or bucket or BTree (even an
+ * individual key!),
+ * 1. Declare a new iterator and a "merge" int:
+ *        SetIteration si = {0,0,0};
+ *        int merge = 0;
+ *    XXX Using "{0,0,0}" or "{0,0}" appear most common, but I don't
+ *    XXX think it makes any difference; looks like "{0}" would work too;
+ *    XXX looks like not initializing it at all would also work.
+ * 2. Initialize it via
+ *        initSetIteration(&si, PyObject *s, int weight, &merge)
+ *    There's an error if that returns an int < 0.  Note that si.set must
+ *        be Py_XDECREF'ed in this case.
+ *    If it's successful, si.hasValue is set to true iff s has values (as
+ *    well as keys).
+ * 3. Get the first element:
+ *        if (si.next(&si) < 0) { there was an error }
+ *    If the set isn't empty, this sets si.position to an int >= 0,
+ *    si.key to the element's key (of type KEY_TYPE), and si.value to
+ *    the element's value (of type VALUE_TYPE).  si.value is defined
+ *    iff merge was set to true by the initSetIteration() call.  If
+ *    there was an error, the caller is responsible for Py_XDECREF'ing
+ *    si.set.
+ * 4. Process all the elements:
+ *        while (si.position >= 0) {
+ *            do something si.key and/or si.value;
+ *            if (si.next(&si) < 0) {
+ *                there was an error;
+ *                Py_XDECREF(si.set);
+ *                do whatever else is appropriate for the caller;
+ *            }
+ *        }
+ * 5. Decref the SetIteration's set:
+ *        Py_XDECREF(si.set);
+ */
 typedef struct SetIteration_s
 {
-  PyObject *set;
-  int position;
-  int hasValue;
-  KEY_TYPE key;
-  VALUE_TYPE value;
-  int (*next)(struct SetIteration_s*);
+  PyObject *set;    /* the set, bucket, BTree, ..., being iterated */
+  int position;     /* initialized to 0; set to -1 by next() when done */
+  int hasValue;     /* true iff 'set' has values (as well as keys) */
+  KEY_TYPE key;     /* next() sets to next key */
+  VALUE_TYPE value; /* next() sets to next value, iff hasValue is true */
+  int (*next)(struct SetIteration_s*);  /* function to get next element */
 } SetIteration;
 
 static PyObject *
@@ -349,7 +384,7 @@ static char BTree_module_documentation[] =
 "\n"
 MASTER_ID
 BTREEITEMSTEMPLATE_C
-"$Id: BTreeModuleTemplate.c,v 1.27 2002/05/31 20:01:16 tim_one Exp $\n"
+"$Id: BTreeModuleTemplate.c,v 1.28 2002/06/02 07:40:20 tim_one Exp $\n"
 BTREETEMPLATE_C
 BUCKETTEMPLATE_C
 KEYMACROS_H
