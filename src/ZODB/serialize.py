@@ -86,13 +86,15 @@ import cPickle
 import cStringIO
 import logging
 
+
 from persistent import Persistent
 from persistent.wref import WeakRefMarker, WeakRef
+from ZODB import broken
+from ZODB.broken import Broken
 from ZODB.POSException import InvalidObjectReference
 
-# Might to update or redo to reflect weakrefs
+# Might to update or redo coptimizations to reflect weakrefs:
 # from ZODB.coptimizations import new_persistent_id
-
 
 def myhasattr(obj, name, _marker=object()):
     """Make sure we don't mask exceptions like hasattr().
@@ -369,13 +371,20 @@ class BaseObjectReader:
             if isinstance(klass, tuple):
                 # Old module_name, class_name tuple
                 klass = self._get_class(*klass)
+
             if args is None:
-                return klass.__new__(klass)
-            else:
-                return klass.__new__(klass, *args)
+                args = ()
         else:
             # Definately new style direct class reference
-            return klass.__new__(klass)
+            args = ()
+
+        if issubclass(klass, Broken):
+            # We got a broken class. We might need to make it
+            # PersistentBroken
+            if not issubclass(klass, broken.PersistentBroken):
+                klass = broken.persistentBroken(klass)
+
+        return klass.__new__(klass, *args)
 
     def getState(self, pickle):
         unpickler = self._get_unpickler(pickle)
@@ -420,16 +429,37 @@ class ConnectionObjectReader(BaseObjectReader):
     def _get_class(self, module, name):
         return self._factory(self._conn, module, name)
 
+    def _get_unpickler(self, pickle):
+        unpickler = BaseObjectReader._get_unpickler(self, pickle)
+        factory = self._factory
+        conn = self._conn
+
+        def find_global(modulename, name):
+            return factory(conn, modulename, name)
+
+        unpickler.find_global = find_global
+
+        return unpickler
+
     def _persistent_load(self, oid):
         if isinstance(oid, tuple):
             # Quick instance reference.  We know all we need to know
             # to create the instance w/o hitting the db, so go for it!
             oid, klass = oid
+
             obj = self._cache.get(oid, None) # XXX it's not a dict
             if obj is not None:
                 return obj
+
             if isinstance(klass, tuple):
                 klass = self._get_class(*klass)
+
+            if issubclass(klass, Broken):
+                # We got a broken class. We might need to make it
+                # PersistentBroken
+                if not issubclass(klass, broken.PersistentBroken):
+                    klass = broken.persistentBroken(klass)
+
             try:
                 obj = klass.__new__(klass)
             except TypeError:
