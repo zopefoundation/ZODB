@@ -104,7 +104,7 @@
 #   
 #   - 2-byte length of description 
 #   
-#   - 4-byte length of extension attributes 
+#   - 2-byte length of extension attributes 
 #   
 #   -   user name
 #   
@@ -184,9 +184,9 @@
 #   may have a back pointer to a version record or to a non-version
 #   record.
 #
-__version__='$Revision: 1.22 $'[11:-2]
+__version__='$Revision: 1.23 $'[11:-2]
 
-import struct, time, os, bpthread, string, base64
+import struct, time, os, bpthread, string, base64, sys
 from struct import pack, unpack
 from cPickle import loads
 import POSException
@@ -204,6 +204,9 @@ def warn(message, *data):
 
 def error(message, *data):
     LOG('ZODB FS',ERROR,"%s ERROR: %s\n" % (packed_version, (message % data)))
+
+def nearPanic(message, *data):
+    LOG('ZODB FS',PANIC,"%s ERROR: %s\n" % (packed_version, (message % data)))
 
 def panic(message, *data):
     message=message%data
@@ -226,12 +229,18 @@ class CorruptedFileStorageError(FileStorageError,
 class CorruptedTransactionError(CorruptedFileStorageError): pass
 class CorruptedDataError(CorruptedFileStorageError): pass
 
+class FileStorageQuotaError(FileStorageError,
+                                POSException.StorageSystemError):
+    """File storage quota exceeded
+    """
+
 packed_version='FS21'
 
 class FileStorage(BaseStorage.BaseStorage):
     _packt=z64
 
-    def __init__(self, file_name, create=0, read_only=0, stop=None):
+    def __init__(self, file_name, create=0, read_only=0, stop=None,
+                 quota=None):
 
         if not os.path.exists(file_name): create = 1
 
@@ -286,6 +295,8 @@ class FileStorage(BaseStorage.BaseStorage):
             if tid.timeTime() - t.timeTime() > 86400*30:
                 # a month in the future? This is bogus, use current time
                 self._ts=t
+
+        self._quota=quota
             
 
     def _initIndex(self, index, vindex, tindex, tvindex):
@@ -515,6 +526,12 @@ class FileStorage(BaseStorage.BaseStorage):
 
             write(data)
 
+            # Check quota
+            quota=self._quota
+            if quota is not None and tfile.tell()+pos+self._thl > quota:
+                raise FileStorageQuotaError, (
+                    'The storage quota has been exceeded.')
+
             return serial
         
         finally: self._lock_release()
@@ -544,25 +561,31 @@ class FileStorage(BaseStorage.BaseStorage):
         file.seek(pos)
         tl=tlen+dlen
         stl=p64(tl)
-        # Note that we use a status of 'c', for checkpoint.
-        # If this flag isn't cleared, anything after this is
-        # suspect.
-        write(pack(
-            ">8s" "8s" "c"  "H"        "H"        "H"
-             ,id, stl, 'c', len(user), len(desc), len(ext),
-            ))
-        if user: write(user)
-        if desc: write(desc)
-        if ext: write(ext)
 
-        cp(tfile, file, dlen)
-
-        write(stl)
-
-        # OK, not clear the checkpoint flag
-        file.seek(pos+16)
-        write(' ')        
-        file.flush()
+        try:
+            # Note that we use a status of 'c', for checkpoint.
+            # If this flag isn't cleared, anything after this is
+            # suspect.
+            write(pack(
+                ">8s" "8s" "c"  "H"        "H"        "H"
+                 ,id, stl, 'c', len(user), len(desc), len(ext),
+                ))
+            if user: write(user)
+            if desc: write(desc)
+            if ext: write(ext)
+    
+            cp(tfile, file, dlen)
+    
+            write(stl)
+    
+            # OK, not clear the checkpoint flag
+            file.seek(pos+16)
+            write(' ')        
+            file.flush()
+        except:
+            # Hm, an error occured writing out the data. Maybe the
+            # disk is full. We don't want any turd at the end.
+            file.truncate(pos)
         
         self._pos=pos+tl+8
 
@@ -1105,31 +1128,32 @@ def read_index(file, name, index, vindex, tindex, stop='\377'*8):
             # in which case, we don't want to totally lose the data.
             warn("%s truncated, possibly due to damaged records at %s",
                  name, pos)
-            try:
-                i=0
-                while 1:
-                    if os.path.exists('%s.tr%s' % (name, i)):
-                        i=i+1
-                    else:
-                        o=open('%s.tr%s' % (name, i),'wb')
-                        seek(pos)
-                        cp(file, o, file_size-pos)
-                        o.close()
-                        break
-            except:
-                error("couldn\'t write truncated data for %s", name)
-                raise POSException.StorageSystemError, (
-                    "Couldn't save truncated data")
-            
-            seek(pos)
-            file.truncate()
+            _truncate(file, name, pos)
             break
 
         if status not in ' up':
             warn('%s has invalid status, %s, at %s', name, status, pos)
 
-        if ul > tl or dl > tl or el > tl:
-            panic('%s has invalid transaction header at %s', name, pos)
+        if ul > tl or dl > tl or el > tl or tl < (23+ul+dl+el):
+            # We're in trouble. Find out if this is bad data in the
+            # middle of the file, or just a turd that Win 9x dropped
+            # at the end when the system crashed.
+            # Skip to the end and read what should be the transaction length
+            # of the last transaction.
+            seek(-8, 2)
+            rtl=u64(read(8))
+            # Now check to see if the redundant transaction length is
+            # reasonable:
+            if file_size - rtl < pos or rtl < 23:
+                nearPanic('%s has invalid transaction header at %s', name, pos)
+                warn("It appears that there is invalid data at the end of the "
+                     "file, possibly due to a system crash.  %s truncated "
+                     "to recover from bad data at end."
+                     % name)
+                _truncate(file, name, pos)
+                break
+            else:
+                panic('%s has invalid transaction header at %s', name, pos)
 
         if tid >= stop: break
 
@@ -1230,3 +1254,28 @@ def _loadBackPOS(file, oid, back):
         if vlen: seek(vlen+16,1)
         if plen != z64: return old
         back=read(8) # We got a back pointer!
+
+def _truncate(file, name, pos):
+    seek=file.seek
+    seek(0,2)
+    file_size=file.tell()
+    try:
+        i=0
+        while 1:
+            oname='%s.tr%s' % (name, i)
+            if os.path.exists(oname):
+                i=i+1
+            else:
+                warn("Writing truncated data from %s to %s", name, oname)
+                o=open(oname,'wb')
+                seek(pos)
+                cp(file, o, file_size-pos)
+                o.close()
+                break
+    except:
+        error("couldn\'t write truncated data for %s", name)
+        raise POSException.StorageSystemError, (
+            "Couldn't save truncated data")
+            
+    seek(pos)
+    file.truncate()
