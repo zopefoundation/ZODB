@@ -418,24 +418,51 @@ class ConnectionTests(CommonSetupTearDown):
         self.assertEqual(revid1, revid2)
         self._storage.close()
 
-    def checkRollover(self):
-        # Check that the cache works when the files are swapped.
-
-        # In this case, only one object fits in a cache file.  When the
-        # cache files swap, the first object is effectively uncached.
-
-        self._storage = self.openClientStorage('test', 1000)
+    def checkDisconnectedCacheWorks(self):
+        # Check that the cache works when the client is disconnected.
+        self._storage = self.openClientStorage('test')
         oid1 = self._storage.new_oid()
         obj1 = MinPO("1" * 500)
         self._dostore(oid1, data=obj1)
         oid2 = self._storage.new_oid()
         obj2 = MinPO("2" * 500)
         self._dostore(oid2, data=obj2)
+        expected1 = self._storage.load(oid1, '')
+        expected2 = self._storage.load(oid2, '')
+
+        # Shut it all down, and try loading from the persistent cache file
+        # without a server present.
         self._storage.close()
         self.shutdownServer()
-        self._storage = self.openClientStorage('test', 1000, wait=0)
-        self._storage.load(oid1, '')
-        self._storage.load(oid2, '')
+        self._storage = self.openClientStorage('test', wait=False)
+        self.assertEqual(expected1, self._storage.load(oid1, ''))
+        self.assertEqual(expected2, self._storage.load(oid2, ''))
+        self._storage.close()
+
+    def checkDisconnectedCacheFails(self):
+        # Like checkDisconnectedCacheWorks above, except the cache
+        # file is so small that only one object can be remembered.
+        self._storage = self.openClientStorage('test', cache_size=900)
+        oid1 = self._storage.new_oid()
+        obj1 = MinPO("1" * 500)
+        self._dostore(oid1, data=obj1)
+        oid2 = self._storage.new_oid()
+        obj2 = MinPO("2" * 500)
+        # The cache file is so small that adding oid2 will evict oid1.
+        self._dostore(oid2, data=obj2)
+        expected2 = self._storage.load(oid2, '')
+
+        # Shut it all down, and try loading from the persistent cache file
+        # without a server present.
+        self._storage.close()
+        self.shutdownServer()
+        self._storage = self.openClientStorage('test', cache_size=900,
+                                               wait=False)
+        # oid2 should still be in cache.
+        self.assertEqual(expected2, self._storage.load(oid2, ''))
+        # But oid1 should have been purged, so that trying to load it will
+        # try to fetch it from the (non-existent) ZEO server.
+        self.assertRaises(ClientDisconnected, self._storage.load, oid1, '')
         self._storage.close()
 
     def checkReconnection(self):
