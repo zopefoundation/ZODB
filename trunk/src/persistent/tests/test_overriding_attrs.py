@@ -16,7 +16,7 @@
 This module tests and documents, through example, overriding attribute
 access methods.
 
-$Id: test_overriding_attrs.py,v 1.3 2004/02/19 18:13:34 jeremy Exp $
+$Id: test_overriding_attrs.py,v 1.4 2004/03/02 22:17:43 jeremy Exp $
 """
 
 from persistent import Persistent
@@ -48,7 +48,7 @@ class SampleOverridingGetattr(Persistent):
         >>> o._p_oid
         >>> o._p_jar
         >>> o.spam
-        ('SPAM', 0)
+        ('SPAM', False)
         >>> o.spam = 1
         >>> o.spam
         1
@@ -65,7 +65,7 @@ class SampleOverridingGetattr(Persistent):
         And now, if we ask for an attribute it doesn't have, 
 
         >>> o.eggs
-        ('EGGS', 0)
+        ('EGGS', False)
 
         And we see that the object was activated before calling the
         __getattr__ method.
