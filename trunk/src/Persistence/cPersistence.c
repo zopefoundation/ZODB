@@ -82,7 +82,7 @@
   attributions are listed in the accompanying credits file.
   
  ****************************************************************************/
-static char *what_string = "$Id: cPersistence.c,v 1.31 1999/06/29 18:26:48 jim Exp $";
+static char *what_string = "$Id: cPersistence.c,v 1.32 1999/07/13 21:14:21 jim Exp $";
 
 #include <string.h>
 #include "cPersistence.h"
@@ -292,7 +292,7 @@ Per___changed__(cPersistentObject *self, PyObject *args)
 static PyObject *
 Per__p_deactivate(cPersistentObject *self, PyObject *args)
 {
-  PyObject *init=0, *copy, *dict;
+  PyObject *init=0, *dict;
 
 #ifdef DEBUG_LOG
   if (idebug_log < 0) call_debug("reinit",self);
@@ -614,8 +614,6 @@ _setattro(cPersistentObject *self, PyObject *oname, PyObject *v,
     }
   else
     {
-      PyObject *r;
-
       UPDATE_STATE_IF_NECESSARY(self, -1);
       
       /* Record access times */
@@ -711,7 +709,7 @@ void
 initcPersistence()
 {
   PyObject *m, *d;
-  char *rev="$Revision: 1.31 $";
+  char *rev="$Revision: 1.32 $";
 
   TimeStamp=PyString_FromString("TimeStamp");
   if (! TimeStamp) return;
