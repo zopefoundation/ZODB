@@ -43,7 +43,7 @@ import ZEO
 from zdaemon.zdoptions import ZDOptions
 
 def parse_address(arg):
-    # XXX Unclear whether this is an official part of the ZConfig API
+    # XXX Not part of the official ZConfig API
     obj = ZConfig.datatypes.SocketAddress(arg)
     return obj.family, obj.address
 
