@@ -4,7 +4,7 @@
 __doc__='''Python implementation of persistent base types
 
 
-$Id: Persistence.py,v 1.2 1997/03/05 22:59:48 jim Exp $'''
+$Id: Persistence.py,v 1.3 1997/03/08 22:03:54 jfulton Exp $'''
 #     Copyright 
 #
 #       Copyright 1996 Digital Creations, L.C., 910 Princess Anne
@@ -60,6 +60,9 @@ $Id: Persistence.py,v 1.2 1997/03/05 22:59:48 jim Exp $'''
 #   (540) 371-6909
 #
 # $Log: Persistence.py,v $
+# Revision 1.3  1997/03/08 22:03:54  jfulton
+# Paul made change to clear method to see if keys exist.
+#
 # Revision 1.2  1997/03/05 22:59:48  jim
 # Added clear method.
 #
@@ -68,7 +71,7 @@ $Id: Persistence.py,v 1.2 1997/03/05 22:59:48 jim Exp $'''
 #
 #
 # 
-__version__='$Revision: 1.2 $'[11:-2]
+__version__='$Revision: 1.3 $'[11:-2]
 
 class Persistent:
     """\
@@ -248,7 +251,7 @@ class PersistentMapping(Persistent):
 
     def clear(self):
 	self._container={}
-	del self._keys
+	if hasattr(self,'_keys'): del self._keys
 
     def values(self):
 	return map(lambda k, d=self: d[k], self.keys())
