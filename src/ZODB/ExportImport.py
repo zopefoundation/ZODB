@@ -215,6 +215,7 @@ class ExportImport:
             storage.tpc_abort(t)
             raise
         else:
+            storage.tpc_vote(t)
             storage.tpc_finish(t)
             if return_oid is not None: return self[return_oid]
 
