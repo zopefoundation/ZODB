@@ -1,6 +1,6 @@
 /*
 
-  $Id: cPersistence.c,v 1.13 1997/04/27 09:18:01 jim Exp $
+  $Id: cPersistence.c,v 1.14 1997/05/01 20:33:58 jim Exp $
 
   C Persistence Module
 
@@ -56,7 +56,7 @@
 
 
 *****************************************************************************/
-static char *what_string = "$Id: cPersistence.c,v 1.13 1997/04/27 09:18:01 jim Exp $";
+static char *what_string = "$Id: cPersistence.c,v 1.14 1997/05/01 20:33:58 jim Exp $";
 
 #include <time.h>
 #include "cPersistence.h"
@@ -68,6 +68,7 @@ static char *what_string = "$Id: cPersistence.c,v 1.13 1997/04/27 09:18:01 jim E
 static PyObject *py_store, *py_oops, *py_keys, *py_setstate, *py___changed__,
   *py___dict__, *py_mtime, *py_onearg, *py___getinitargs__, *py___init__;
 
+#ifdef DEBUG_LOG
 static PyObject *debug_log=0;
 static int idebug_log=0;
 
@@ -83,6 +84,7 @@ call_debug(char *event, cPersistentObject *self)
 			  self->ob_type->tp_name, self->oid, self->state);
   Py_XDECREF(r);
 }
+#endif
 
 static void
 init_strings()
@@ -390,7 +392,9 @@ Per__p___init__(self, args)
   PyObject *jar;
 
   UNLESS(PyArg_Parse(args, "(iO)", &oid, &jar)) return NULL;
+#ifdef DEBUG_LOG
   if(idebug_log < 0) call_debug("init",self);
+#endif
   Py_INCREF(jar);
   self->oid=oid;
   ASSIGN(self->jar, jar);
@@ -405,18 +409,11 @@ Per__p___reinit__(cPersistentObject *self, PyObject *args)
   int oid;
   PyObject *init=0, *copy, *dict;
 
+#ifdef DEBUG_LOG
   if(idebug_log < 0) call_debug("reinit",self);
+#endif
   if(PyArg_Parse(args,""))
     {
-      if(0
-      /*
-	 || strcmp(self->ob_type->tp_name,"Classified")==0
-      */
-	 )
-	{
-	  Py_INCREF(Py_None);
-	  return Py_None;
-	}
       if(self->state==cPersistent_UPTODATE_STATE)
 	if(init=PyObject_GetAttr((PyObject*)self,py___init__))
 	  {
@@ -437,12 +434,8 @@ Per__p___reinit__(cPersistentObject *self, PyObject *args)
 		PyErr_Clear();
 	      }
 	    
-	    if(INSTANCE_DICT(self))
-	      {
-		UNLESS(dict=PyDict_New()) goto err;
-		Py_DECREF(INSTANCE_DICT(self));
-		INSTANCE_DICT(self)=dict;
-	      }
+	    if(HasInstDict(self) && (dict=INSTANCE_DICT(self)))
+	      PyDict_Clear(dict);
 
 	    dict=self->jar;
 	    self->jar=NULL;	/* Grasping at straws :-( */
@@ -453,12 +446,9 @@ Per__p___reinit__(cPersistentObject *self, PyObject *args)
 	    Py_DECREF(copy);
 	    Py_DECREF(init);
 	  }
-	else if(INSTANCE_DICT(self))
+	else if(HasInstDict(self) && (dict=INSTANCE_DICT(self)))
 	  {
-	    PyErr_Clear();
-	    UNLESS(dict=PyDict_New()) return NULL;
-	    Py_DECREF(INSTANCE_DICT(self));
-	    INSTANCE_DICT(self)=dict;
+	    PyDict_Clear(dict);
 	    self->state=cPersistent_GHOST_STATE;
 	  }
     }
@@ -467,7 +457,7 @@ Per__p___reinit__(cPersistentObject *self, PyObject *args)
       PyErr_Clear();
 
       UNLESS(PyArg_Parse(args, "O", &copy)) return NULL;
-      if(self->state==cPersistent_UPTODATE_STATE)
+      if(HasInstDict(self) && self->state==cPersistent_UPTODATE_STATE)
 	{
 	  UNLESS(args=PyObject_GetAttr(copy,py___dict__)) return NULL;
 	  ASSIGN(INSTANCE_DICT(self),args);
@@ -509,7 +499,10 @@ Per__getstate__(self,args)
 
   UNLESS(PyArg_Parse(args, "")) return NULL;
 
+#ifdef DEBUG_LOG
   if(idebug_log < 0) call_debug("get",self);
+#endif
+
   /* Update state, if necessary */
   if(self->state==GHOST_STATE && self->jar)
     {
@@ -524,15 +517,12 @@ Per__getstate__(self,args)
       Py_DECREF(r);
     }
 
-  UNLESS(__dict__=PyObject_GetAttr((PyObject*)self,py___dict__))
-    return NULL;
-
-  if(PyDict_Check(__dict__))
+  if(HasInstDict(self) && (__dict__=INSTANCE_DICT(self)))
     {
       PyObject *k, *v;
       int pos;
       char *ck;
-      
+	  
       for(pos=0; PyDict_Next(__dict__, &pos, &k, &v); )
 	{
 	  if(PyString_Check(k) && (ck=PyString_AsString(k)) &&
@@ -543,12 +533,16 @@ Per__getstate__(self,args)
 		UNLESS(PyString_Check(k) && (ck=PyString_AsString(k)) &&
 		       (*ck=='_' && ck[1]=='v' && ck[2]=='_'))
 		  if(PyDict_SetItem(d,k,v) < 0) goto err;
-	      Py_DECREF(__dict__);
 	      return d;
 	    }
-	} 
-    }    
+	}
+    }
+  else
+    __dict__=Py_None;
+
+  Py_INCREF(__dict__);
   return __dict__;
+
 err:
   Py_DECREF(__dict__);
   Py_XDECREF(d);
@@ -564,27 +558,44 @@ Per__setstate__(self,args)
 
   /*printf("%s(%d) ", self->ob_type->tp_name,self->oid);*/
 
-  UNLESS(PyArg_Parse(args, "O", &v)) return NULL;
-  if(idebug_log < 0) call_debug("set",self);
-  self->state=UPTODATE_STATE;
-  if(v!=Py_None)
+  if(HasInstDict(self))
     {
-      UNLESS(__dict__=PyObject_GetAttr((PyObject*)self,py___dict__))
-	goto err;
-      UNLESS(keys=callmethod(v,py_keys)) goto err;
-      UNLESS(-1 != (l=PyObject_Length(keys))) goto err;
 
-      for(i=0; i < l; i++)
-	{
-	  UNLESS_ASSIGN(key,PySequence_GetItem(keys,i)) goto err;
-	  UNLESS_ASSIGN(e,PyObject_GetItem(v,key)) goto err;
-	  UNLESS(-1 != PyObject_SetItem(__dict__,key,e)) goto err;
-	}
-
-      Py_XDECREF(key);
-      Py_XDECREF(e);
-      Py_DECREF(keys);
-      Py_DECREF(__dict__);
+       UNLESS(PyArg_Parse(args, "O", &v)) return NULL;
+#ifdef DEBUG_LOG
+       if(idebug_log < 0) call_debug("set",self);
+#endif
+       self->state=UPTODATE_STATE;
+       if(v!=Py_None)
+	 {
+	   __dict__=INSTANCE_DICT(self);
+	   
+	   if(PyDict_Check(v))
+	     {
+	       for(i=0; PyDict_Next(v,&i,&key,&e);)
+		 if(PyObject_SetItem(__dict__,key,e) < 0)
+		   {
+		     self->state=GHOST_STATE;
+		     return NULL;
+		   }
+	     }
+	   else
+	     {
+	       UNLESS(keys=callmethod(v,py_keys)) goto err;
+	       UNLESS(-1 != (l=PyObject_Length(keys))) goto err;
+	       
+	       for(i=0; i < l; i++)
+		 {
+		   UNLESS_ASSIGN(key,PySequence_GetItem(keys,i)) goto err;
+		   UNLESS_ASSIGN(e,PyObject_GetItem(v,key)) goto err;
+		   UNLESS(-1 != PyObject_SetItem(__dict__,key,e)) goto err;
+		 }
+	       
+	       Py_XDECREF(key);
+	       Py_XDECREF(e);
+	       Py_DECREF(keys);
+	     }
+	 }
     }
   Py_INCREF(Py_None);
   return Py_None;
@@ -593,7 +604,6 @@ err:
   Py_XDECREF(key);
   Py_XDECREF(e);
   Py_XDECREF(keys);
-  Py_DECREF(__dict__);
   return NULL;
 }  
 
@@ -625,7 +635,9 @@ static void
 Per_dealloc(self)
 	cPersistentObject *self;
 {
+#ifdef DEBUG_LOG
   if(idebug_log < 0) call_debug("del",self);
+#endif
   Py_XDECREF(self->jar);
   /*Py_XDECREF(self->atime);*/
   PyMem_DEL(self);
@@ -875,6 +887,7 @@ static PyExtensionClass Pertype = {
 
 /* List of methods defined in the module */
 
+#ifdef DEBUG_LOG
 static PyObject *
 set_debug_log(PyObject *ignored, PyObject *args)
 {
@@ -885,13 +898,16 @@ set_debug_log(PyObject *ignored, PyObject *args)
   Py_INCREF(Py_None);
   return Py_None;
 }
+#endif
 
 static struct PyMethodDef cP_methods[] = {
+#ifdef DEBUG_LOG
   {"set_debug_log", (PyCFunction)set_debug_log, 0,
    "set_debug_log(callable) -- Provide a function to log events\n"
    "\n"
    "The function will be called with an event name and a persistent object.\n"
   },
+#endif
   {NULL,		NULL}		/* sentinel */
 };
 
@@ -907,15 +923,15 @@ truecPersistenceCAPI = {
   (setattrofunc)Per_setattro,	/*tp_setattr with object key*/
   changed,
   (intfunctionwithpythonarg)Per_setstate,
-  Per_getattr,
-  _setattro,
+  (pergetattr)Per_getattr,
+  (persetattr)_setattro,
 };
 
 void
 initcPersistence()
 {
   PyObject *m, *d;
-  char *rev="$Revision: 1.13 $";
+  char *rev="$Revision: 1.14 $";
 
   PATimeType.ob_type=&PyType_Type;
 
@@ -942,6 +958,10 @@ initcPersistence()
 /****************************************************************************
 
   $Log: cPersistence.c,v $
+  Revision 1.14  1997/05/01 20:33:58  jim
+  I made (and restored) some optimizations.  The effect is probably
+  minor, but who knows.
+
   Revision 1.13  1997/04/27 09:18:01  jim
   Added to the CAPI to support subtypes (like Record) that want to
   extend attr functions.
