@@ -12,15 +12,15 @@
 
  ****************************************************************************/
 
-#define BTREEITEMSTEMPLATE_C "$Id: BTreeItemsTemplate.c,v 1.10 2002/06/09 17:19:05 tim_one Exp $\n"
+#define BTREEITEMSTEMPLATE_C "$Id: BTreeItemsTemplate.c,v 1.11 2002/06/09 19:27:48 tim_one Exp $\n"
 
 typedef struct {
   PyObject_HEAD
-  Bucket *firstbucket;			/* First bucket known		*/
-  Bucket *currentbucket;		/* Current bucket position	*/
-  Bucket *lastbucket;			/* Last bucket position		*/
-  int currentoffset;			/* Start count of current bucket*/
-  int pseudoindex;			/* Its an indicator		*/
+  Bucket *firstbucket;		/* First bucket known		*/
+  Bucket *currentbucket;	/* Current bucket position	*/
+  Bucket *lastbucket;		/* Last bucket position		*/
+  int currentoffset;		/* Start count of current bucket*/
+  int pseudoindex;		/* It's an indicator		*/
   int first, last;
   char kind;
 } BTreeItems;
@@ -348,18 +348,70 @@ BTreeItems_slice(BTreeItems *self, int ilow, int ihigh)
   Bucket *highbucket;
   int lowoffset;
   int highoffset;
+  int length = -1;  /* len(self), but computed only if needed */
 
+  /* Complications:
+   * A Python slice never raises IndexError, but BTreeItems_seek does.
+   * Python did only part of index normalization before calling this:
+   *     ilow may be < 0 now, and ihigh may be arbitrarily large.  It's
+   *     our responsibility to clip them.
+   * A Python slice is exclusive of the high index, but a BTreeItems
+   *     struct is inclusive on both ends.
+   */
 
-  if (BTreeItems_seek(self, ilow) < 0) return NULL;
+  /* First adjust ilow and ihigh to be legit endpoints in the Python
+   * sense (ilow inclusive, ihigh exclusive).  This block duplicates the
+   * logic from Python's list_slice function (slicing for builtin lists).
+   */
+  if (ilow < 0)
+      ilow = 0;
+  else {
+      if (length < 0)
+          length = BTreeItems_length(self);
+      if (ilow > length)
+          ilow = length;
+  }
 
-  lowbucket = self->currentbucket;
-  lowoffset = self->currentoffset;
+  if (ihigh < ilow)
+      ihigh = ilow;
+  else {
+      if (length < 0)
+          length = BTreeItems_length(self);
+      if (ihigh > length)
+          ihigh = length;
+  }
+  assert(0 <= ilow && ilow <= ihigh);
+  assert(length < 0 || ihigh <= length);
 
-  if (BTreeItems_seek(self, ihigh) < 0) return NULL;
+  /* Now adjust for that our struct is inclusive on both ends.  This is
+   * easy *except* when the slice is empty:  there's no good way to spell
+   * that in an inclusive-on-both-ends scheme.  For example, if the
+   * slice is btree.items([:0]), ilow == ihigh == 0 at this point, and if
+   * we were to subtract 1 from ihigh that would get interpreted by
+   * BTreeItems_seek as meaning the *entire* set of items.  Setting ilow==1
+   * and ihigh==0 doesn't work either, as BTreeItems_seek raises IndexError
+   * if we attempt to seek to ilow==1 when the underlying sequence is empty.
+   * It seems simplest to deal with empty slices as a special case here.
+   */
+   if (ilow == ihigh) {
+       /* empty slice */
+       lowbucket = highbucket = self->currentbucket;
+       lowoffset = 1;
+       highoffset = 0;
+   }
+   else {
+       assert(ilow < ihigh);
+       --ihigh;  /* exclusive -> inclusive */
 
-  highbucket = self->currentbucket;
-  highoffset = self->currentoffset;
+       if (BTreeItems_seek(self, ilow) < 0) return NULL;
+       lowbucket = self->currentbucket;
+       lowoffset = self->currentoffset;
 
+       if (BTreeItems_seek(self, ihigh) < 0) return NULL;
+
+       highbucket = self->currentbucket;
+       highoffset = self->currentoffset;
+  }
   return newBTreeItems(self->kind,
                        lowbucket, lowoffset, highbucket, highoffset);
 }
