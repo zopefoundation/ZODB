@@ -13,12 +13,11 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.151 2004/04/16 19:07:00 tim_one Exp $"""
+$Id: Connection.py,v 1.152 2004/04/16 19:55:04 jeremy Exp $"""
 
 import logging
 import sys
 import threading
-import itertools
 import warnings
 from time import time
 from utils import u64
@@ -568,6 +567,14 @@ class Connection(ExportImport, object):
             self._importDuringCommit(transaction, *self._import)
             self._import = None
 
+        # Just in case an object is added as a side-effect of storing
+        # a modified object.  If, for example, a __getstate__() method
+        # calls add(), the newly added objects will show up in
+        # _added_during_commit.  This sounds insane, but has actually
+        # happened.
+        
+        self._added_during_commit = []
+        
         for obj in self._registered_objects:
             oid = obj._p_oid
             assert oid
@@ -592,9 +599,12 @@ class Connection(ExportImport, object):
 
             self._store_objects(ObjectWriter(obj), transaction)
 
+        for obj in self._added_during_commit:
+            self._storage_objects(ObjectWriter(obj), transaction)
+        self._added_during_commit = None
+
     def _store_objects(self, writer, transaction):
-        self._added_during_commit = []
-        for obj in itertools.chain(writer, self._added_during_commit):
+        for obj in writer:
             oid = obj._p_oid
             serial = getattr(obj, "_p_serial", z64)
 
@@ -625,7 +635,6 @@ class Connection(ExportImport, object):
                     raise
 
             self._handle_serial(s, oid)
-        self._added_during_commit = None
 
     def commit_sub(self, t):
         """Commit all work done in all subtransactions for this transaction."""

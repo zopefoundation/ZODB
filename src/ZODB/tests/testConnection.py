@@ -115,7 +115,9 @@ class ConnectionDotAdd(unittest.TestCase):
         self.assertEquals(self.db._storage._finished, [oid])
 
     def checkModifyOnGetstate(self):
+        member = StubObject()
         subobj = StubObject()
+        subobj.member = member
         obj = ModifyOnGetStateObject(subobj)
         self.datamgr.add(obj)
         self.datamgr.tpc_begin(self.transaction)
@@ -125,6 +127,7 @@ class ConnectionDotAdd(unittest.TestCase):
         self.assert_(obj._p_oid in storage._stored, "object was not stored")
         self.assert_(subobj._p_oid in storage._stored,
                 "subobject was not stored")
+        self.assert_(member._p_oid in storage._stored, "member was not stored")
         self.assert_(self.datamgr._added_during_commit is None)
 
     def checkUnusedAddWorks(self):
