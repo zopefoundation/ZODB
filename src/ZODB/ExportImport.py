@@ -92,6 +92,7 @@ from cPickle import Pickler, Unpickler
 import Shared.DC.xml.ppml
 ppml=Shared.DC.xml.ppml
 TupleType=type(())
+from base64 import encodestring
 
 def save_record(self, tag, data):
     file=self.file
@@ -165,11 +166,12 @@ class ExportImport:
         f=StringIO(p)
         u=q(f)
         id=ppml.u64(oid)
+        aka=encodestring(oid)[:-1]
         u.idprefix=str(id)+'.'
         p=u.load().__str__(4)
         if f.tell() < len:
             p=p+u.load().__str__(4)
-        String='  <record id="%s">\n%s  </record>\n' % (id, p)
+        String='  <record id="%s" aka="%s">\n%s  </record>\n' % (id, aka, p)
         return String
     
     def exportXML(self, oid, file=None):
