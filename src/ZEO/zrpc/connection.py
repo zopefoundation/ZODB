@@ -451,6 +451,13 @@ class Connection(smac.SizedMessageAsyncConnection):
         finally:
             self.replies_cond.release()
 
+    def flush(self):
+        """Invoke poll() until the output buffer is empty."""
+        if __debug__:
+            self.log("flush")
+        while self.writable():
+            self.poll()
+
     def poll(self):
         """Invoke asyncore mainloop to get pending message out."""
         if __debug__:
