@@ -12,6 +12,17 @@ tests to ensure it continues working.
 Collector #1309:  The reference counts reported by DB.cacheExtremeDetails()
 for ghosts were one too small.
 
+Collector #1208:  Infinite loop in cPickleCache.
+If a persistent object had a __del__ method (probably not a good idea
+regardless, but we don't prevent it) that referenced an attribute of
+self, the code to deactivate objects in the cache could get into an
+infinite loop:  ghostifying the object could lead to calling its __del__
+method, the latter would load the object into cache again to
+satsify the attribute reference, the cache would again decide that
+the object should be ghostified, and so on.  The infinite loop no longer
+occurs, but note that objects of this kind still aren't sensible (they're
+effectively immortal).
+
 
 What's new in ZODB3 3.3 alpha 3
 ===============================
