@@ -1,21 +1,18 @@
+# Run the basic tests for a storage as described in the official storage API:
+#
+# http://www.zope.org/Documentation/Developer/Models/ZODB/ZODB_Architecture_Storage_Interface_Info.html
+#
+# All storages should be able to pass these tests
+
 from ZODB.Transaction import Transaction
-ZERO = '\0'*8
-import pickle
 from ZODB import POSException
 
+ZERO = '\0'*8
+import pickle
+
+
+
 class BasicStorage:
-
-    def setUp(self):
-        # You need to override this with a setUp that creates self._storage
-        self._transaction = Transaction()
-
-    def _close(self):
-        self._transaction.abort()
-        self._storage.close()
-
-    def tearDown(self):
-        self._close()
-
     def checkBasics(self):
         self._storage.tpc_begin(self._transaction)
         # This should simply return
@@ -43,28 +40,6 @@ class BasicStorage:
             0, 1, 2, 3, Transaction())
         self._storage.tpc_abort(self._transaction)
 
-    def _dostore(self, oid=None, revid=None, data=None, version=None):
-        # Defaults
-        if oid is None:
-            oid = self._storage.new_oid()
-        if revid is None:
-            revid = ZERO
-        if data is None:
-            data = pickle.dumps(7)
-        else:
-            data = pickle.dumps(data)
-        if version is None:
-            version = ''
-        # Begin the transaction
-        self._storage.tpc_begin(self._transaction)
-        # Store an object
-        newrevid = self._storage.store(oid, revid, data, version,
-                                       self._transaction)
-        # Finish the transaction
-        self._storage.tpc_vote(self._transaction)
-        self._storage.tpc_finish(self._transaction)
-        return newrevid
-        
     def checkNonVersionStore(self, oid=None, revid=None, version=None):
         revid = ZERO
         newrevid = self._dostore(revid=revid)
