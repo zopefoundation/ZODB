@@ -14,6 +14,12 @@
 """Stub for interface exported by ClientStorage"""
 
 class ClientStorage:
+
+    # The on-the-wire names of some of the methods don't match the
+    # Python method names.  That's because the on-the-wire protocol
+    # was fixed for ZEO 2 and we don't want to change it.  There are
+    # some aliases in ClientStorage.py to make up for this.
+
     def __init__(self, rpc):
         self.rpc = rpc
 
