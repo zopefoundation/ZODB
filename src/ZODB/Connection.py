@@ -84,8 +84,8 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.51 2001/05/10 23:00:14 jeremy Exp $"""
-__version__='$Revision: 1.51 $'[11:-2]
+$Id: Connection.py,v 1.52 2001/05/16 20:47:38 jeremy Exp $"""
+__version__='$Revision: 1.52 $'[11:-2]
 
 from cPickleCache import PickleCache
 from POSException import ConflictError, ExportError
@@ -630,6 +630,8 @@ class Connection(ExportImport.ExportImport):
             assert oid is not None
             serial = store_return
             obj = self._cache.get(oid, None)
+            if obj is None:
+                return
             if serial == ResolvedSerial:
                 obj._p_changed = None
             else:
