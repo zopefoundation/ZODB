@@ -14,33 +14,35 @@ Options:
 You must specify either -p and -h or -U.
 """
 
+import getopt
+import socket
+import sys
+
+import ZODB
 from ZEO.ClientStorage import ClientStorage
 
-def main(addr, storage, days):
-    cs = ClientStorage(addr, storage=storage, wait_for_server_on_startup=1)
+def check_server(addr, storage):
+    cs = ClientStorage(addr, storage=storage,
+                       wait_for_server_on_startup=0)
     # _startup() is an artifact of the way ZEO 1.0 works.  The
     # ClientStorage doesn't get fully initialized until registerDB()
     # is called.  The only thing we care about, though, is that
     # registerDB() calls _startup().
-    cs._startup()
+    db = ZODB.DB(cs)
+    db.close()
 
 def usage(exit=1):
     print __doc__
     print " ".join(sys.argv)
     sys.exit(exit)
 
-if __name__ == "__main__":
-    import getopt
-    import socket
-    import sys
-
+def main():
     host = None
     port = None
     unix = None
     storage = '1'
-    days = 0
     try:
-        opts, args = getopt.getopt(sys.argv[1:], 'p:h:U:S:d:')
+        opts, args = getopt.getopt(sys.argv[1:], 'p:h:U:S:')
         for o, a in opts:
             if o == '-p':
                 port = int(a)
@@ -62,5 +64,12 @@ if __name__ == "__main__":
         if port is None:
             usage()
         addr = host, port
-    
-    main(addr, storage, days)
+
+    check_server(addr, storage)
+
+if __name__ == "__main__":
+    try:
+        main()
+    except Exception, err:
+        print err
+        sys.exit(1)
