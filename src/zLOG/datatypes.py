@@ -120,9 +120,9 @@ _syslog_facilities = {
 def syslog_facility(value):
     value = value.lower()
     if not _syslog_facilities.has_key(value):
-        raise ValueError(
-            "Syslog facility must be one of "
-            + ", ".join(_syslog_facilities.keys()))
+        L = _syslog_facilities.keys()
+        L.sort()
+        raise ValueError("Syslog facility must be one of " + ", ".join(L))
     return value
 
 def syslog_handler(section):
@@ -200,7 +200,7 @@ def smtp_handler(section):
         inst.setFormatter(logging.Formatter(format, dateformat))
         inst.setLevel(level)
 
-    host, port = section.host
+    host, port = section.smtp_server
     if not port:
         mailhost = host
     else:
