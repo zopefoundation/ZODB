@@ -115,7 +115,7 @@
 #   may have a back pointer to a version record or to a non-version
 #   record.
 #
-__version__='$Revision: 1.96 $'[11:-2]
+__version__='$Revision: 1.97 $'[11:-2]
 
 import base64
 from cPickle import Pickler, Unpickler, loads
@@ -489,8 +489,8 @@ class FileStorage(BaseStorage.BaseStorage,
             self._file.seek(srcpos)
             h = self._file.read(DATA_VERSION_HDR_LEN)
             # h -> oid, serial, prev(oid), tloc, vlen, plen, pnv, pv
-            oid=h[:8]
-            pnv=h[-16:-8]
+            oid = h[:8]
+            pnv = h[-16:-8]
             if self._index.get(oid) == srcpos:
                 # This is a current record!
                 self._tindex[oid] = here
@@ -2098,9 +2098,6 @@ def read_index(file, name, index, vindex, tindex, stop='\377'*8,
 
 
 def _loadBack(file, oid, back):
-##    seek=file.seek
-##    read=file.read
-
     while 1:
         old = U64(back)
         if not old:
