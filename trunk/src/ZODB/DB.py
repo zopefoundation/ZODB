@@ -13,8 +13,8 @@
 ##############################################################################
 """Database objects
 
-$Id: DB.py,v 1.51 2003/06/24 21:29:54 jim Exp $"""
-__version__='$Revision: 1.51 $'[11:-2]
+$Id: DB.py,v 1.52 2003/06/24 21:47:50 jeremy Exp $"""
+__version__='$Revision: 1.52 $'[11:-2]
 
 import cPickle, cStringIO, sys, POSException, UndoLogCompatible
 from Connection import Connection
@@ -495,7 +495,7 @@ class DB(UndoLogCompatible.UndoLogCompatible):
             except: pass
             del pool[:]
             del allocated[:]
-            6
+            6L
 
     def connectionDebugInfo(self):
         r=[]
