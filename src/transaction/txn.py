@@ -16,6 +16,7 @@ __metaclass__ = type
 
 from transaction.interfaces import *
 from threading import Lock
+import logging
 
 try:
     from sets import Set
@@ -93,6 +94,7 @@ class Transaction:
         assert self._manager is not None
         if self._status != Status.ACTIVE:
             raise IllegalStateError("join", self._status)
+        self._manager.logger.debug("%s join %s" % (self, resource))
         self._resources.add(resource)
 
     def status(self):
