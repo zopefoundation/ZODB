@@ -66,10 +66,9 @@ class DB(object):
       - `Version Methods`: modifiedInVersion, abortVersion, commitVersion,
         versionEmpty
       - `Cache Inspection Methods`: cacheDetail, cacheExtremeDetail,
-        cacheFullSweep, cacheLastGCTime, cacheMinimize, cacheMeanAge,
-        cacheMeanDeac, cacheMeanDeal, cacheSize, cacheDetailSize,
-        getCacheSize, getVersionCacheSize, setCacheSize, setVersionCacheSize,
-        cacheStatistics
+        cacheFullSweep, cacheLastGCTime, cacheMinimize, cacheSize,
+        cacheDetailSize, getCacheSize, getVersionCacheSize, setCacheSize,
+        setVersionCacheSize
       - `Deprecated Methods`: getCacheDeactivateAfter,
         setCacheDeactivateAfter,
         getVersionCacheDeactivateAfter, setVersionCacheDeactivateAfter
@@ -150,22 +149,6 @@ class DB(object):
 
         if hasattr(storage, 'undoInfo'):
             self.undoInfo = storage.undoInfo
-
-
-    def _cacheMean(self, attr):
-        # XXX this method doesn't work
-        m = [0, 0]
-        def f(con, m=m, attr=attr):
-            t = getattr(con._cache, attr)
-            m[0] += t
-            m[1] += 1
-
-        self._connectionMap(f)
-        if m[1]:
-            m = m[0] / m[1] # XXX should this be // ?
-        else:
-            m = None
-        return m
 
     def _closeConnection(self, connection):
         """Return a connection to the pool.
@@ -303,13 +286,6 @@ class DB(object):
 
     def cacheMinimize(self):
         self._connectionMap(lambda c: c._cache.minimize())
-
-    def cacheMeanAge(self):
-        return self._cacheMean('cache_mean_age')
-    def cacheMeanDeac(self):
-        return self._cacheMean('cache_mean_deac')
-    def cacheMeanDeal(self):
-        return self._cacheMean('cache_mean_deal')
 
     def cacheSize(self):
         m=[0]
@@ -673,9 +649,6 @@ class DB(object):
 
     def setVersionPoolSize(self, v):
         self._version_pool_size=v
-
-    def cacheStatistics(self):
-        return () # :(
 
     def undo(self, id, txn=None):
         """Undo a transaction identified by id.
