@@ -140,7 +140,7 @@ class IPersistent(Interface):
           - call _p_deactivate()
           - set _p_changed to None
 
-    There are two ways to invalidate an object: call the
+    There are two ways to invalidate an object:  call the
     _p_invalidate() method (preferred) or delete its _p_changed
     attribute.  This cannot be ignored, and is used when semantics
     require invalidation.  Normally, an invalidated object transitions
@@ -231,7 +231,7 @@ class IPersistent(Interface):
         """Invalidate the object.
 
         Invalidate the object.  This causes any data to be thrown
-        away, even if the object is inthe changed state.  The object
+        away, even if the object is in the changed state.  The object
         is moved to the ghost state; further accesses will cause
         object data to be reloaded.
         """
