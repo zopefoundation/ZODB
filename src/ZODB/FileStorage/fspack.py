@@ -416,7 +416,14 @@ class FileStoragePacker(FileStorageFormatter):
     # progress after it).
     def __init__(self, path, stop, la, lr, cla, clr, current_size):
         self._name = path
-        self._file = open(path, "rb")
+        # Caution:  It's critical that the file be opened in unbuffered mode.
+        # The code used to leave off the trailing 0 argument, and then on
+        # every platform except native Windows it was observed that we could
+        # read stale data from the tail end of the file -- keep in mind that
+        # transactions can still be in progress throughout much of packing,
+        # and are written to the same physical file but via a distinct Python
+        # file object.
+        self._file = open(path, "rb", 0)
         self._stop = stop
         self.locked = 0
         self.file_end = current_size
