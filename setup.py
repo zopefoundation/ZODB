@@ -182,6 +182,7 @@ def copy_other_files(cmd, outputbase):
         "ZConfig/tests/library/widget",
         "ZEO",
         "ZODB",
+        "ZODB/tests",
         "zdaemon",
         "zdaemon/tests",
         ]:
