@@ -159,6 +159,8 @@ class TmpStore:
         del self._tindex[:]   # Just to be sure!
         self._pos=self._tpos
 
+    def tpc_vote(self, transaction): pass
+
     def tpc_finish(self, transaction, f=None):
         if transaction is not self._transaction: return
         if f is not None: f()
