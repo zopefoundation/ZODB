@@ -17,6 +17,5 @@ from _OIBTree import *
 
 # We don't really want _ names in pickles, so update all of the __module__
 # references.
-for o in globals().values():
-    if hasattr(o, '__module__'):
-        o.__module__=__name__
+for obj in OIBucket, OIBTree, OISet, OITreeSet:
+    obj.__module__ = __name__
