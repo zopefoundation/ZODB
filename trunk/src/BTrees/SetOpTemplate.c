@@ -16,7 +16,7 @@
  Set operations
  ****************************************************************************/
 
-#define SETOPTEMPLATE_C "$Id: SetOpTemplate.c,v 1.25 2002/06/23 19:36:12 tim_one Exp $\n"
+#define SETOPTEMPLATE_C "$Id: SetOpTemplate.c,v 1.26 2002/06/25 22:02:27 tim_one Exp $\n"
 
 #ifdef INTSET_H
 static int
@@ -66,24 +66,19 @@ nextKeyAsSet(SetIteration *i)
  * Start the set iteration protocol.  See the comments at struct SetIteration.
  *
  * Arguments
- *      i       The address of a SetIteration control struct.
- *      s       The address of the set, bucket, BTree, ..., to be iterated.
- *      w       If w < 0, ignore values when iterating.
- *      merge   Is set to 1 if s has values (as well as keys) and w >= 0.
- *              The value on input is ignored.
+ *      i           The address of a SetIteration control struct.
+ *      s           The address of the set, bucket, BTree, ..., to be iterated.
+ *      useValues   Boolean; if true, and s has values (is a mapping), copy
+ *                  them into i->value each time i->next() is called; else
+ *                  ignore s's values even if s is a mapping.
  *
  * Return
  *      0 on success; -1 and an exception set if error.
- *      *merge is set to 1 if s has values and w >= 0, else merge is left
- *          alone.
- *      i.usesValue is also set to 1 if s has values and w >= 0, else
- *          .usesValue is set to 0.
+ *      i.usesValue is set to 1 (true) if s has values and useValues was
+ *          true; else usesValue is set to 0 (false).
  *      i.set gets a new reference to s, or to some other object used to
  *          iterate over s.
  *      i.position is set to 0.
- *      i.hasValue is set to true if s has values, and to false otherwise.
- *          Note that this is done independent of w's value, and when w < 0
- *          may differ from i.usesValue.
  *      i.next is set to an appropriate iteration function.
  *      i.key and i.value are left alone.
  *
@@ -102,20 +97,18 @@ nextKeyAsSet(SetIteration *i)
  *          A SetIteration struct has been cleaned up iff i.set is NULL.
  */
 static int
-initSetIteration(SetIteration *i, PyObject *s, int w, int *merge)
+initSetIteration(SetIteration *i, PyObject *s, int useValues)
 {
   i->set = NULL;
   i->position = -1;     /* set to 0 only on normal return */
-  i->hasValue = 0;      /* assume it's a set */
   i->usesValue = 0;     /* assume it's a set or that values aren't iterated */
 
   if (ExtensionClassSubclassInstance_Check(s, &BucketType))
     {
       i->set = s;
       Py_INCREF(s);
-      i->hasValue = 1;
 
-      if (w >= 0)
+      if (useValues)
         {
           i->usesValue = 1;
           i->next = nextBucket;
@@ -133,9 +126,8 @@ initSetIteration(SetIteration *i, PyObject *s, int w, int *merge)
     {
       i->set = BTree_rangeSearch(BTREE(s), NULL, 'i');
       UNLESS(i->set) return -1;
-      i->hasValue = 1;
 
-      if (w >= 0)
+      if (useValues)
         {
           i->usesValue = 1;
           i->next = nextBTreeItems;
@@ -176,7 +168,6 @@ initSetIteration(SetIteration *i, PyObject *s, int w, int *merge)
       return -1;
     }
 
-  *merge |= i->usesValue;
   i->position = 0;
 
   return 0;
@@ -214,17 +205,18 @@ set_operation(PyObject *s1, PyObject *s2,
 {
   Bucket *r=0;
   SetIteration i1 = {0,0,0}, i2 = {0,0,0};
-  int cmp, merge=0;
+  int cmp, merge;
 
-  if (initSetIteration(&i1, s1, w1, &merge) < 0) goto err;
-  if (initSetIteration(&i2, s2, w2, &merge) < 0) goto err;
+  if (initSetIteration(&i1, s1, w1 >= 0) < 0) goto err;
+  if (initSetIteration(&i2, s2, w2 >= 0) < 0) goto err;
+  merge = i1.usesValue | i2.usesValue;
 
   if (merge)
     {
 #ifndef MERGE
-      if (c12 && i1.hasValue && i2.hasValue) goto invalid_set_operation;
+      if (c12 && i1.usesValue && i2.usesValue) goto invalid_set_operation;
 #endif
-      if (! i1.hasValue && i2.hasValue)
+      if (! i1.usesValue && i2.usesValue)
         {
           SetIteration t;
           int i;
@@ -237,9 +229,9 @@ set_operation(PyObject *s1, PyObject *s2,
       i1.value=MERGE_DEFAULT;
       i2.value=MERGE_DEFAULT;
 #else
-      if (i1.hasValue)
+      if (i1.usesValue)
         {
-          if (! i2.hasValue && c2) goto invalid_set_operation;
+          if (! i2.usesValue && c2) goto invalid_set_operation;
         }
       else
         {
@@ -506,9 +498,7 @@ multiunion_m(PyObject *ignored, PyObject *args)
         }
         else {
             /* No cheap way:  iterate over set's elements one at a time. */
-            int merge;  /* dummy needed for initSetIteration */
-
-            if (initSetIteration(&setiter, set, -1, &merge) < 0) goto Error;
+            if (initSetIteration(&setiter, set, 0) < 0) goto Error;
             if (setiter.next(&setiter) < 0) goto Error;
             while (setiter.position >= 0) {
                 if (result->len >= result->size && Bucket_grow(result, -1, 1) < 0)
