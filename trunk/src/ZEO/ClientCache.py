@@ -63,9 +63,11 @@ records of the form:
   31+dlen+vlen+vdlen: vserial -- 8-byte version serial (timestamp)
                                  (if vlen > 0)
 
+  27+dlen (if vlen == 0) **or**
   39+dlen+vlen+vdlen: tlen -- 4-byte (unsigned) record length (for
                               redundancy and backward traversal)
 
+  31+dlen (if vlen == 0) **or**
   43+dlen+vlen+vdlen: -- total record length (equal to tlen)
 
 There is a cache size limit.
@@ -97,7 +99,7 @@ with '\0\0\0\0'.
 If var is not writable, then temporary files are used for
 file 0 and file 1.
 
-$Id: ClientCache.py,v 1.34 2002/09/04 18:09:14 jeremy Exp $
+$Id: ClientCache.py,v 1.35 2002/09/06 02:37:57 gvanrossum Exp $
 """
 
 import os
