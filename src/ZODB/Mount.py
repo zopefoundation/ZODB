@@ -12,8 +12,8 @@
 ##############################################################################
 """Mounted database support
 
-$Id: Mount.py,v 1.12 2001/12/04 23:04:14 shane Exp $"""
-__version__='$Revision: 1.12 $'[11:-2]
+$Id: Mount.py,v 1.13 2001/12/05 16:45:58 shane Exp $"""
+__version__='$Revision: 1.13 $'[11:-2]
 
 import thread, Persistence, Acquisition
 import ExtensionClass, string, time, sys
@@ -28,20 +28,18 @@ dbs = {}
 # dblock is locked every time dbs is accessed.
 dblock=thread.allocate_lock()
 
-try:
-    # Make special provisions for ZClasses if we're in a Zope
-    # installation.
-    from Zope.ClassFactory import ClassFactory
-    
-    def RootDefsClassFactory(jar, module, name):
-        # Use the class definitions given at
-        # the root of the Zope installation.
-        while hasattr(jar, '_mount_parent_jar'):
-            jar = jar._mount_parent_jar
-        return ClassFactory(jar, module, name)
-except:
-    ClassFactory = None
-    RootDefsClassFactory = None
+
+def parentClassFactory(jar, module, name):
+    # Use the class factory from the parent database.
+    parent_db = getattr(getattr(jar, '_mount_parent_jar', None),
+                        '_db', None)
+    if parent_db is None:
+        _globals = {}
+        _silly = ('__doc__',)
+        return getattr(__import__(
+            module, _globals, _globals, _silly), name)
+    else:
+        return parent_db._classFactory(jar, module, name)
 
 
 class MountPoint(Persistence.Persistent, Acquisition.Implicit):
@@ -104,11 +102,8 @@ class MountPoint(Persistence.Persistent, Acquisition.Implicit):
                 newMount = 1
                 dbs[params] = (db, {self.__mountpoint_id:1})
 
-                if RootDefsClassFactory is not None and \
-                   getattr(self, '_classDefsFromRoot', 1):
-                    db.setClassFactory(RootDefsClassFactory)
-                elif ClassFactory is not None:
-                    db.setClassFactory(ClassFactory)
+                if getattr(self, '_classDefsFromRoot', 1):
+                    db.setClassFactory(parentClassFactory)
             else:
                 db, mounts = dbInfo
                 # Be sure this object is in the list of mount points.
