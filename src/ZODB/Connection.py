@@ -84,8 +84,8 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.16 1999/07/08 16:33:52 jim Exp $"""
-__version__='$Revision: 1.16 $'[11:-2]
+$Id: Connection.py,v 1.17 1999/07/14 15:14:03 jim Exp $"""
+__version__='$Revision: 1.17 $'[11:-2]
 
 from cPickleCache import PickleCache
 from POSException import ConflictError, ExportError
@@ -307,6 +307,7 @@ class Connection(ExportImport.ExportImport):
 
                     module=getattr(klass,'__module__','')
                     if module: klass=module, klass.__name__
+                    __traceback_info__=klass, oid, self._version
                     state=object.__getstate__()
 
                 seek(0)
