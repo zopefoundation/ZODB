@@ -108,11 +108,9 @@ class BDBConfigTest(ConfigTestBase):
 def test_suite():
     suite = unittest.TestSuite()
     suite.addTest(unittest.makeSuite(ZODBConfigTest))
-    try:
-        import BDBStorage.BDBFullStorage
-    except ImportError:
-        pass
-    else:
+    # Only run the Berkeley tests if they are available
+    import BDBStorage
+    if BDBStorage.is_available:
         suite.addTest(unittest.makeSuite(BDBConfigTest))
     return suite
 
