@@ -184,3 +184,56 @@ class BasicStorage:
         self._storage.store(oid, None, data, '', t)
         self._storage.tpc_vote(t)
         self._storage.tpc_finish(t)
+
+    def checkLen(self):
+        # len(storage) reports the number of objects.
+        # check it is zero when empty
+        self.assertEqual(len(self._storage),0)
+        # check it is correct when the storage contains two object.
+        # len may also be zero, for storages that do not keep track
+        # of this number
+        self._dostore(data=MinPO(22))
+        self._dostore(data=MinPO(23))
+        self.assert_(len(self._storage) in [0,2])
+
+    def checkGetSize(self):
+        self._dostore(data=MinPO(25))
+        # the size should be a byte count
+        size = self._storage.getSize()
+        # all Zope really cares about is that the size is printable
+        str(size)
+        if type(size) in [type(0),type(0L),type(0.0)]:
+            # a numerical size - that means we can check that the size is reasonable.
+            self.assert_(10<size<100*1024, size)
+
+    def checkNote(self):
+        oid = self._storage.new_oid()
+        t = Transaction()
+        self._storage.tpc_begin(t)
+        t.note('this is a test')
+        self._storage.store(oid, ZERO, zodb_pickle(MinPO(5)), '', t)
+        self._storage.tpc_vote(t)
+        self._storage.tpc_finish(t)
+
+    def checkOversizeNote(self):
+        oid = self._storage.new_oid()
+        t = Transaction()
+        # Most storages cant cope with comments this long
+        t.note('0'*128*1024)
+        try:
+            self._storage.tpc_begin(t)
+            self._storage.store(oid, ZERO, zodb_pickle(MinPO(5)), '', t)
+            self._storage.tpc_vote(t)
+            self._storage.tpc_finish(t)
+        except POSException.POSError:
+            # failed as expected
+            pass
+        else:
+            self.fail()
+
+    def checkGetExtensionMethods(self):
+        m = self._storage.getExtensionMethods()
+        self.assertEqual(type(m),type({}))
+        for k,v in m.items():
+            self.assertEqual(v,None)
+            self.assert_(callable(getattr(self._storage,k)))

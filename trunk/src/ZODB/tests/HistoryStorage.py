@@ -28,6 +28,7 @@ class HistoryStorage:
         eq = self.assertEqual
         # Store a couple of non-version revisions of the object
         oid = self._storage.new_oid()
+        self.assertRaises(KeyError,self._storage.history,oid)
         revid1 = self._dostore(oid, data=MinPO(11))
         revid2 = self._dostore(oid, revid=revid1, data=MinPO(12))
         revid3 = self._dostore(oid, revid=revid2, data=MinPO(13))

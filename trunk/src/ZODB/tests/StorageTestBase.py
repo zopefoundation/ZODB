@@ -209,7 +209,7 @@ class StorageTestBase(unittest.TestCase):
 
     def _dostoreNP(self, oid=None, revid=None, data=None, version=None,
                    user=None, description=None):
-        return self._dostore(oid, revid, data, version, already_pickled=1)
+        return self._dostore(oid, revid, data, version, 1, user, description)
     
     # The following methods depend on optional storage features.
 
