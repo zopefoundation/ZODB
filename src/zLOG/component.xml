@@ -27,14 +27,14 @@
          datatype=".log_format"/>
   </sectiontype>
 
-  <sectiontype name="nteventlog" datatype=".nteventlog_handler"
+  <sectiontype name="win32-eventlog" datatype=".nteventlog_handler"
                implements="loghandler" extends="base-log-handler">
     <key name="appname" default="Zope"/>
     <key name="format" default="%(message)s"
          datatype=".log_format"/>
   </sectiontype>
 
-  <sectiontype name="http_handler" datatype=".http_handler"
+  <sectiontype name="http-logger" datatype=".http_handler"
                implements="loghandler" extends="base-log-handler">
     <key name="url" default="localhost" datatype=".http_handler_url"/>
     <key name="method" default="GET" datatype=".get_or_post"/>
@@ -42,7 +42,7 @@
          datatype=".log_format"/>
   </sectiontype>
 
-  <sectiontype name="smtp_handler" datatype=".smtp_handler"
+  <sectiontype name="email-notifier" datatype=".smtp_handler"
                implements="loghandler" extends="base-log-handler">
     <key name="fromaddr" required="yes"/>
     <multikey name="toaddr" required="yes" attribute="toaddrs"/>
@@ -52,17 +52,8 @@
          datatype=".log_format"/>
   </sectiontype>
 
-<!--
-  <sectiontype name="custom_handler" datatype=".custom_handler"
-               implements="loghandler">
-    <key name="constructor" datatype="constructor" required="yes"/>
-    <key name="formatter" datatype="constructor"
-         default="logging.Formatter()"/>
-    <key name="level" default="info" datatype=".logging_level"/>
-  </sectiontype>
--->
 
-  <sectiontype name="logger" datatype=".logger">
+  <sectiontype name="eventlog" datatype=".EventLogFactory">
      <key name="level" datatype=".logging_level" default="all"/>
      <multisection type="loghandler" attribute="handlers" name="*"/>
   </sectiontype>

@@ -93,7 +93,7 @@ class ZEOOptionsMixin:
 
 class ZEOOptions(ZDOptions, ZEOOptionsMixin):
 
-    logsectionname = "logger"
+    logsectionname = "eventlog"
 
     def __init__(self):
         self.schemadir = os.path.dirname(ZEO.__file__)

@@ -27,6 +27,6 @@
     </description>
   </multisection>
 
-  <section name="*" type="logger" attribute="logger" required="no" />
+  <section name="*" type="eventlog" attribute="eventlog" required="no" />
 
 </schema>

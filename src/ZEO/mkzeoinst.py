@@ -54,12 +54,12 @@ zeo_conf_template = """# ZEO configuration file
   path %(home)s/var/Data.fs
 </filestorage>
 
-<logger>
+<eventlog>
   level info
   <logfile>
     path %(home)s/log/zeo.log
   </logfile>
-</logger>
+</eventlog>
 """
 
 runner_conf_template = """# runner configuration file
