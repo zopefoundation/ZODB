@@ -144,7 +144,7 @@ file 0 and file 1.
 
 """
 
-__version__ = "$Revision: 1.12 $"[11:-2]
+__version__ = "$Revision: 1.13 $"[11:-2]
 
 import os, tempfile
 from struct import pack, unpack
@@ -163,7 +163,10 @@ class ClientCache:
 
         if client:
             # Create a persistent cache
-            if var is None: var=os.path.join(INSTANCE_HOME,'var')
+            if var is None:
+                try: var=os.path.join(INSTANCE_HOME,'var')
+                except: var=os.getcwd()
+
             # Get the list of cache file names
             self._p=p=map(lambda i, p=storage, var=var, c=client:
                           os.path.join(var,'c%s-%s-%s.zec' % (p, c, i)),
