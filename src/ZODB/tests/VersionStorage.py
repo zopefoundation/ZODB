@@ -366,3 +366,16 @@ class VersionStorage:
                           self._storage.load, oid, '')
         self.assertRaises(KeyError,
                           self._storage.load, oid, 'two')
+
+    def checkCreateObjectInVersionWithAbort(self):
+        oid = self._storage.new_oid()
+        revid = self._dostore(oid, data=21, version="one")
+        revid = self._dostore(oid, revid=revid, data=23, version='one')
+        revid = self._dostore(oid, revid=revid, data=34, version='one')
+        # Now abort the version and the creation
+        t = Transaction()
+        self._storage.tpc_begin(t)
+        oids = self._storage.abortVersion('one', t)
+        self._storage.tpc_vote(t)
+        self._storage.tpc_finish(t)
+        self.assertEqual(oids, [oid])
