@@ -16,6 +16,7 @@ import sys
 import TimeStamp, time
 
 from struct import pack, unpack
+from types import StringType
 
 z64 = '\0'*8
 t32 = 1L << 32
@@ -86,3 +87,13 @@ def newTimeStamp(old=None,
     if old is not None:
         return ts.laterThan(old)
     return ts
+
+
+def oid_repr(oid):
+    if isinstance(oid, StringType) and len(oid) == 8:
+        return '%016x' % U64(oid)
+    else:
+        return repr(oid)
+
+serial_repr = oid_repr
+
