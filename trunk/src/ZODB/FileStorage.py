@@ -184,7 +184,7 @@
 #   may have a back pointer to a version record or to a non-version
 #   record.
 #
-__version__='$Revision: 1.45 $'[11:-2]
+__version__='$Revision: 1.46 $'[11:-2]
 
 import struct, time, os, bpthread, string, base64, sys
 from struct import pack, unpack
@@ -762,21 +762,23 @@ class FileStorage(BaseStorage.BaseStorage):
         finally: self._lock_release()
  
     def _finish(self, tid, u, d, e):
-        file=self._file
+        nextpos=self._nextpos
+        if nextpos:
+            file=self._file
 
-        # Clear the checkpoint flag
-        file.seek(self._pos+16)
-        file.write(self._tstatus)        
-        file.flush()
+            # Clear the checkpoint flag
+            file.seek(self._pos+16)
+            file.write(self._tstatus)        
+            file.flush()
 
-        if fsync is not None: fsync(file.fileno())
+            if fsync is not None: fsync(file.fileno())
 
-        self._pos=self._nextpos
+            self._pos=nextpos
 
-        index=self._index
-        for oid, pos in self._tindex: index[oid]=pos
+            index=self._index
+            for oid, pos in self._tindex: index[oid]=pos
 
-        self._vindex.update(self._tvindex)
+            self._vindex.update(self._tvindex)
 
     def _abort(self):
         if self._nextpos: self._file.truncate(self._nextpos)
