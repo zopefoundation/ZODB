@@ -114,7 +114,7 @@
 #   may have a back pointer to a version record or to a non-version
 #   record.
 #
-__version__='$Revision: 1.77 $'[11:-2]
+__version__='$Revision: 1.78 $'[11:-2]
 
 import struct, time, os, string, base64, sys
 from struct import pack, unpack
@@ -2205,10 +2205,20 @@ class RecordIterator(Iterator, BaseStorage.TransactionRecord):
                 break
 
             self._pos=pos+dlen
-            if plen: p=read(plen)
+            if plen:
+                p = read(plen)
             else:
-                p=read(8)
-                p=_loadBack(file, oid, p)[0]
+                p = read(8)
+                if p == z64:
+                    # If the backpointer is 0 (encoded as z64), then
+                    # this transaction undoes the object creation.  It
+                    # either aborts the version that created the
+                    # object or undid the transaction that created it.
+                    # Return None instead of a pickle to indicate
+                    # this.
+                    p = None
+                else:
+                    p = _loadBack(file, oid, p)[0]
                 
             r=Record(oid, serial, version, p)
             
