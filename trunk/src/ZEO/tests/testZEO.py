@@ -256,6 +256,7 @@ class ConnectionTests(StorageTestBase.StorageTestBase):
 
     def tearDown(self):
         """Try to cause the tests to halt"""
+        zLOG.LOG("testZEO", zLOG.INFO, "tearDown() %s" % self.id())
         if getattr(self, '_storage', None) is not None:
             self._storage.close()
         for i in range(len(self._servers)):
@@ -277,6 +278,16 @@ class ConnectionTests(StorageTestBase.StorageTestBase):
                 except os.error:
                     pass
         self.__super_tearDown()
+
+    def pollUp(self):
+        # Poll until we're connected
+        while not self._storage.is_connected():
+            asyncore.poll(0.1)
+
+    def pollDown(self):
+        # Poll until we're disconnected
+        while self._storage.is_connected():
+            asyncore.poll(0.1)
 
     def checkMultipleAddresses(self):
         for i in range(4):
@@ -309,16 +320,21 @@ class ConnectionTests(StorageTestBase.StorageTestBase):
                 time.sleep(0.5)
 
     def checkReadOnlyClient(self):
+        # Open a read-only client to a read-write server; stores fail
+
         # Start a read-only client for a read-write server
         self._storage = self.openClientStorage(read_only=1)
         # Stores should fail here
         self.assertRaises(ReadOnlyError, self._dostore)
 
     def checkReadOnlyServer(self):
+        # Open a read-only client to a read-only server; stores fail
+
         # We don't want the read-write server created by setUp()
         self.shutdownServer()
         self._servers = []
         self._pids = []
+
         # Start a read-only server
         self._startServer(create=0, index=0, read_only=1)
         # Start a read-only client
@@ -327,16 +343,21 @@ class ConnectionTests(StorageTestBase.StorageTestBase):
         self.assertRaises(ReadOnlyError, self._dostore)
 
     def checkReadOnlyFallbackWritable(self):
+        # Open a fallback client to a read-write server; stores succeed
+
         # Start a read-only-fallback client for a read-write server
         self._storage = self.openClientStorage(read_only_fallback=1)
         # Stores should succeed here
         self._dostore()
 
     def checkReadOnlyFallbackReadOnly(self):
+        # Open a fallback client to a read-only server; stores fail
+
         # We don't want the read-write server created by setUp()
         self.shutdownServer()
         self._servers = []
         self._pids = []
+
         # Start a read-only server
         self._startServer(create=0, index=0, read_only=1)
         # Start a read-only-fallback client
@@ -344,25 +365,120 @@ class ConnectionTests(StorageTestBase.StorageTestBase):
         # Stores should fail here
         self.assertRaises(ReadOnlyError, self._dostore)
 
-    def checkReadOnlyFallbackSwitch(self):
-        # We don't want the read-write server created by setUp()
-        self.shutdownServer()
-        self._servers = []
-        self._pids = []
-        # Start a read-only server
-        self._startServer(create=0, read_only=1)
-        # Start a read-only-fallback client
-        self._storage = self.openClientStorage(wait=0, read_only_fallback=1)
-        # Stores should fail here
-        self.assertRaises(ReadOnlyError, self._dostore)
+    # XXX Compare checkReconnectXXX() here to checkReconnection()
+    # further down.  Is the code here hopelessly naive, or is
+    # checkReconnection() overwrought?
+
+    def checkReconnectWritable(self):
+        # A read-write client reconnects to a read-write server
+
+        # Start a client
+        self._storage = self.openClientStorage(wait=1)
+        # Stores should succeed here
+        self._dostore()
+
         # Shut down the server
         self.shutdownServer()
         self._servers = []
         self._pids = []
-        # Restart the server, this time read-write
+        # Poll until the client disconnects
+        self.pollDown()
+        # Stores should fail now
+        self.assertRaises(Disconnected, self._dostore)
+
+        # Restart the server
         self._startServer(create=0)
-        # Stores should now succeed
-##        # XXX This completely hangs :-(
+        # Poll until the client connects
+        self.pollUp()
+        # Stores should succeed here
+        self._dostore()
+
+    def checkReconnectReadOnly(self):
+        # A read-only client reconnects from a read-write to a
+        # read-only server
+
+        # Start a client
+        self._storage = self.openClientStorage(wait=1, read_only=1)
+        # Stores should fail here
+        self.assertRaises(ReadOnlyError, self._dostore)
+
+        # Shut down the server
+        self.shutdownServer()
+        self._servers = []
+        self._pids = []
+        # Poll until the client disconnects
+        self.pollDown()
+        # Stores should still fail
+        self.assertRaises(ReadOnlyError, self._dostore)
+
+        # Restart the server
+        self._startServer(create=0, read_only=1)
+        # Poll until the client connects
+        self.pollUp()
+        # Stores should still fail
+        self.assertRaises(ReadOnlyError, self._dostore)
+
+    def checkReconnectFallback(self):
+        # A fallback client reconnects from a read-write to a
+        # read-only server
+
+        # Start a client in fallback mode
+        self._storage = self.openClientStorage(wait=1, read_only_fallback=1)
+        # Stores should succeed here
+        self._dostore()
+
+        # Shut down the server
+        self.shutdownServer()
+        self._servers = []
+        self._pids = []
+        # Poll until the client disconnects
+        self.pollDown()
+        # Stores should fail now
+        self.assertRaises(Disconnected, self._dostore)
+
+        # Restart the server
+        self._startServer(create=0, read_only=1)
+        # Poll until the client connects
+        self.pollUp()
+        # Stores should fail here
+        self.assertRaises(ReadOnlyError, self._dostore)
+
+    def checkReconnectUpgrade(self):
+        # A fallback client reconnects from a read-only to a
+        # read-write server
+
+        # We don't want the read-write server created by setUp()
+        self.shutdownServer()
+        self._servers = []
+        self._pids = []
+
+        # Start a read-only server
+        self._startServer(create=0, read_only=1)
+        # Start a client in fallback mode
+        self._storage = self.openClientStorage(wait=0, read_only_fallback=1)
+        # Poll until the client is connected
+        self.pollUp()
+        # Stores should fail here
+        self.assertRaises(ReadOnlyError, self._dostore)
+
+        # Shut down the server
+        self.shutdownServer()
+        self._servers = []
+        self._pids = []
+        # Poll until the client disconnects
+        self.pollDown()
+        # Stores should fail now
+        self.assert_(not self._storage.is_connected())
+
+        # XXX From here on the test doesn't work yet
+##        zLOG.LOG("testZEO", zLOG.INFO, "WHY DOES THIS HANG???")
+##        self.assertRaises(Disconnected, self._dostore)
+
+##        # Restart the server, this time read-write
+##        self._startServer(create=0)
+##        # Poll until the client sconnects
+##        self.pollUp()
+##        # Stores should now succeed
 ##        self._dostore()
 
     def NOcheckReadOnlyFallbackMultiple(self):
