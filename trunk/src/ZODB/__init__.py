@@ -12,7 +12,8 @@
 #
 ##############################################################################
 
-__version__ = "3.3a2"
+# The next line must use double quotes, so replace.py recognizes it.
+__version__ = "3.3a3"
 
 import sys
 import __builtin__

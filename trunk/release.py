@@ -41,11 +41,12 @@ def main(args):
     zeoversion = compute_zeoversion(version)
 
     replace("setup.py", 'version="\S+"', 'version="%s"' % version)
-    replace("README.txt", "'\d+\.\d+[a-z]?\d*'", "'%s'" % version)
     replace("src/ZODB/__init__.py",
-            "__version__ = '\S+'", "__version__ = '%s'" % version)
+            '__version__ = "\S+"',
+            '__version__ = "%s"' % version)
     replace("src/ZEO/__init__.py",
-            'version = "\S+"', 'version = "%s"' % zeoversion)
+            'version = "\S+"',
+            'version = "%s"' % zeoversion)
     write_zeoversion("src/ZEO/version.txt", zeoversion)
     replace("NEWS.txt",
             "Release date: XX-\S+-\S+", "Release date: %s" % date)
