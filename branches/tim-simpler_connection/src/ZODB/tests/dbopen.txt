@@ -42,7 +42,7 @@ Open one more, and we get a warning:
 >>> print msg.name, msg.levelname, msg.getMessage()
 ZODB.DB WARNING DB.open() has 8 open connections with a pool_size of 7
 
-Open six more, and we get 6 more warnings:
+Open 6 more, and we get 6 more warnings:
 
 >>> conns.extend([db.open() for dummy in range(6)])
 >>> len(conns)
@@ -65,4 +65,55 @@ rises to critical:
 >>> print msg.name, msg.levelname, msg.getMessage()
 ZODB.DB CRITICAL DB.open() has 15 open connections with a pool_size of 7
 
+While it's boring, it's important to verify that the same relationships
+hold if the default pool size is overridden.
 
+>>> handler.clear()
+>>> st.close()
+>>> st = Storage()
+>>> PS = 2
+>>> db = DB(st, pool_size=PS)
+>>> conns = [db.open() for dummy in range(PS)]
+>>> handler.records
+[]
+>>> conns.append(db.open())
+
+A warning for opening one more:
+
+>>> len(handler.records)
+1
+>>> msg = handler.records[0]
+>>> print msg.name, msg.levelname, msg.getMessage()
+ZODB.DB WARNING DB.open() has 3 open connections with a pool_size of 2
+
+More warnings through 4 connections:
+
+>>> conns.extend([db.open() for dummy in range(PS-1)])
+>>> len(conns)
+4
+>>> len(handler.records)
+2
+>>> msg = handler.records[-1]
+>>> print msg.name, msg.levelname, msg.getMessage()
+ZODB.DB WARNING DB.open() has 4 open connections with a pool_size of 2
+
+And a critical for going beyond that:
+
+>>> conns.append(db.open())
+>>> len(conns)
+5
+>>> len(handler.records)
+3
+>>> msg = handler.records[-1]
+>>> print msg.name, msg.levelname, msg.getMessage()
+ZODB.DB CRITICAL DB.open() has 5 open connections with a pool_size of 2
+
+We can change the pool size on the fly:
+
+>>> handler.clear()
+>>> db.setPoolSize(6)
+>>> conns.append(db.open)
+>>> handler.records  # no log msg -- the pool is bigger now
+[]
+
+>>> handler.uninstall()
