@@ -13,7 +13,7 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.129 2004/02/27 14:54:27 jeremy Exp $"""
+$Id: Connection.py,v 1.130 2004/02/27 16:12:35 jeremy Exp $"""
 
 import logging
 import sys
@@ -102,7 +102,7 @@ class Connection(ExportImport, object):
 
     XXX Mention the database pool.
 
-    $Id: Connection.py,v 1.129 2004/02/27 14:54:27 jeremy Exp $
+    $Id: Connection.py,v 1.130 2004/02/27 16:12:35 jeremy Exp $
     
     @group User Methods: root, get, add, close, db, sync, isReadOnly,
         cacheFullSweep, cacheMinimize, getVersion, modifiedInVersion
@@ -376,14 +376,14 @@ class Connection(ExportImport, object):
     def cacheFullSweep(self, dt=0):
         # XXX needs doc string
         warnings.warn("cacheFullSweep is deprecated. "
-                      "Use cacheMinimize instead.", PendingDeprecationWarning)
+                      "Use cacheMinimize instead.", DeprecationWarning)
         self._cache.full_sweep(dt)
 
     def cacheMinimize(self, dt=None):
         # XXX needs doc string
         if dt is not None:
             warnings.warn("The dt argument to cacheMinimize is ignored.",
-                          PendingDeprecationWarning)
+                          DeprecationWarning)
         self._cache.minimize()
 
     __onCloseCallbacks = None
@@ -644,7 +644,7 @@ class Connection(ExportImport, object):
             # achieve that without assignment to _p_jar.  If there is
             # a way, this will be a very confusing warning.
             warnings.warn("Assigning to _p_jar is deprecated",
-                          PendingDeprecationWarning)
+                          DeprecationWarning)
         self.getTransaction().register(obj)
 
     def root(self):
