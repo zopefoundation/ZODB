@@ -129,14 +129,14 @@ typedef struct BTree_s {
 
   /* firstbucket points to the bucket containing the smallest key in
    * the BTree.  This is found by traversing leftmost child pointers
-   * (data[0].value) until reaching a Bucket.
+   * (data[0].child) until reaching a Bucket.
    */
   Bucket *firstbucket;
 
   /* The BTree points to 'len' children, via the "child" fields of the data
    * array.  There are len-1 keys in the 'key' fields, stored in increasing
    * order.  data[0].key is unused.  For i in 0 .. len-1, all keys reachable
-   * from data[i].value are >= data[i].key and < data[i+1].key, at the
+   * from data[i].child are >= data[i].key and < data[i+1].key, at the
    * endpoints pretending that data[0].key is minus infinity and
    * data[len].key is positive infinity.
    */
@@ -323,7 +323,7 @@ static char BTree_module_documentation[] =
 "\n"
 MASTER_ID
 BTREEITEMSTEMPLATE_C
-"$Id: BTreeModuleTemplate.c,v 1.24 2002/05/31 17:22:40 tim_one Exp $\n"
+"$Id: BTreeModuleTemplate.c,v 1.25 2002/05/31 17:30:30 tim_one Exp $\n"
 BTREETEMPLATE_C
 BUCKETTEMPLATE_C
 KEYMACROS_H
