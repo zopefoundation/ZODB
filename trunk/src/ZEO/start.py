@@ -86,7 +86,7 @@
 """Start the server storage.
 """
 
-__version__ = "$Revision: 1.13 $"[11:-2]
+__version__ = "$Revision: 1.14 $"[11:-2]
 
 import sys, os, getopt, string
 
@@ -277,24 +277,15 @@ def main(argv):
     # Try to set up a signal handler
     try:
         import signal
-        def handler(signum, frame, storages=storages, die=signal.SIGTERM):
-            import asyncore
-            for socket in asyncore.socket_map.values():
-                socket.close()
-            
-            for storage in storages.values():
-                try: storage.close()
-                finally: pass
 
-            try:
-                from zLOG import LOG, INFO
-                LOG('ZEO Server', INFO, "Shutting down (signal %s)" % signum)
-            except: pass
-            if signum==dir: sys.exit(0)
-            else: sys.exit(1)
+        signal.signal(signal.SIGTERM,
+                      lambda sig, frame, s=storages: shutdown(s)
+                      )
+        signal.signal(signal.SIGINT,
+                      lambda sig, frame, s=storages: shutdown(s, 0)
+                      )
+        signal.signal(signal.SIGHUP, rotate_logs_handler)
 
-        signal.signal(signal.SIGTERM, handler)
-        signal.signal(signal.SIGHUP, handler)
     finally: pass
 
     items=storages.items()
@@ -311,5 +302,44 @@ def main(argv):
     
     asyncore.loop()
 
+
+def rotate_logs():
+    import zLOG
+    if hasattr(zLOG.log_write, 'reinitialize'):
+        zLOG.log_write.reinitialize()
+    else:
+        # Hm, lets at least try to take care of the stupid logger:
+        zLOG._stupid_dest=None
+
+def rotate_logs_handler(signum, frame):
+    rotate_logs()
+
+    import signal
+    signal.signal(signal.SIGHUP, rotate_logs_handler)
+
+def shutdown(storages, die=1):
+    import asyncore
+
+    # Do this twice, in case we got some more connections
+    # while going through the loop.  This is really sort of
+    # unnecessary, since we now use so_reuseaddr.
+    for ignored in 1,2:
+        for socket in asyncore.socket_map.values():
+            try: socket.close()
+            except: pass
+
+    for storage in storages.values():
+        try: storage.close()
+        finally: pass
+
+    try:
+        from zLOG import LOG, INFO
+        LOG('ZEO Server', INFO,
+            "Shutting down (%s)" % (die and "shutdown" or "restart")
+            )
+    except: pass
+    
+    if die: sys.exit(0)
+    else: sys.exit(1)
 
 if __name__=='__main__': main(sys.argv)
