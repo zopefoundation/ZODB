@@ -10,7 +10,7 @@
 
 static char intSet_module_documentation[] = 
 ""
-"\n$Id: intSet.c,v 1.3 1997/10/01 02:45:58 jim Exp $"
+"\n$Id: intSet.c,v 1.4 1997/11/13 20:38:39 jim Exp $"
 ;
 
 #include <limits.h>
@@ -527,7 +527,7 @@ void
 initintSet()
 {
   PyObject *m, *d;
-  char *rev="$Revision: 1.3 $";
+  char *rev="$Revision: 1.4 $";
 
   UNLESS(ExtensionClassImported) return;
 
@@ -555,6 +555,8 @@ initintSet()
   PyDict_SetItemString(d, "__version__",
 		       PyString_FromStringAndSize(rev+11,strlen(rev+11)-2));
   
+
+#include "dcprotect.h"
 	
   /* Check for errors */
   if (PyErr_Occurred())
@@ -566,6 +568,9 @@ initintSet()
   Revision Log:
 
   $Log: intSet.c,v $
+  Revision 1.4  1997/11/13 20:38:39  jim
+  added dcprotect
+
   Revision 1.3  1997/10/01 02:45:58  jim
   Minor reformat.
 

@@ -11,7 +11,7 @@
 
 static char BTree_module_documentation[] = 
 ""
-"\n$Id: BTree.c,v 1.8 1997/11/03 15:17:53 jim Exp $"
+"\n$Id: BTree.c,v 1.9 1997/11/13 20:38:35 jim Exp $"
 ;
 
 #define PERSISTENT
@@ -1720,7 +1720,7 @@ initBTree()
 #endif
 {
   PyObject *m, *d;
-  char *rev="$Revision: 1.8 $";
+  char *rev="$Revision: 1.9 $";
 
   UNLESS(PyExtensionClassCAPI=PyCObject_Import("ExtensionClass","CAPI"))
       return;
@@ -1765,6 +1765,8 @@ initBTree()
   PyDict_SetItemString(d, "__version__",
 		       PyString_FromStringAndSize(rev+11,strlen(rev+11)-2));
   
+
+#include "dcprotect.h"
 	
   /* Check for errors */
   if (PyErr_Occurred())
@@ -1780,6 +1782,9 @@ initBTree()
 Revision Log:
 
   $Log: BTree.c,v $
+  Revision 1.9  1997/11/13 20:38:35  jim
+  added dcprotect
+
   Revision 1.8  1997/11/03 15:17:53  jim
   Fixed stupid bug in has_key methods.
 
