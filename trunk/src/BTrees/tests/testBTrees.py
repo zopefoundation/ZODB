@@ -91,10 +91,10 @@ except:
     sys.path.insert(0, '../..')
     import ZODB
 
-from BTrees.OOBTree import OOBTree, OOBucket, OOSet
-from BTrees.IOBTree import IOBTree, IOBucket, IOSet
-from BTrees.IIBTree import IIBTree, IIBucket, IISet
-from BTrees.OIBTree import OIBTree, OIBucket, OISet
+from BTrees.OOBTree import OOBTree, OOBucket, OOSet, OOTreeSet
+from BTrees.IOBTree import IOBTree, IOBucket, IOSet, IOTreeSet
+from BTrees.IIBTree import IIBTree, IIBucket, IISet, IITreeSet
+from BTrees.OIBTree import OIBTree, OIBucket, OISet, OITreeSet
 from unittest import TestCase, TestSuite, TextTestRunner, makeSuite
 
 class Base:
@@ -263,7 +263,7 @@ class MappingBase(Base):
         diff = lsubtract(list(self.t.keys()), [])
         assert diff == [], diff
 
-class SetTests(Base):
+class NormalSetTests(Base):
     """ Test common to all set types """
     def testInsertReturnsValue(self):
         t = self.t
@@ -342,12 +342,19 @@ class SetTests(Base):
         assert t.minKey(3) == 3
         assert t.minKey(9) == 10
 
+class ExtendedSetTests(NormalSetTests):
     def testLen(self):
-        # should sets know their length?
         t = self.t
         r = xrange(10000)
         for x in r: t.insert(x)
         assert len(t) == 10000, len(t)
+
+    def testGetItem(self):
+        t = self.t
+        r = xrange(10000)
+        for x in r: t.insert(x)
+        for x in r:
+            assert t[x] == x
         
 class BucketTests(MappingBase):
     """ Tests common to all buckets """
@@ -609,22 +616,38 @@ class TestIIBTrees(BTreeTests, TestCase):
 
 ## Set tests
 
-class TestIOSets(SetTests, TestCase):
+class TestIOSets(ExtendedSetTests, TestCase):
     def setUp(self):
         self.t = IOSet()
 
-class TestOOSets(SetTests, TestCase):
+class TestOOSets(ExtendedSetTests, TestCase):
     def setUp(self):
         self.t = OOSet()
 
-class TestIISets(SetTests, TestCase):
+class TestIISets(ExtendedSetTests, TestCase):
     def setUp(self):
         self.t = IISet()
 
-class TestOISets(SetTests, TestCase):
+class TestOISets(ExtendedSetTests, TestCase):
     def setUp(self):
         self.t = OISet()
 
+class TestIOTreeSets(NormalSetTests, TestCase):
+    def setUp(self):
+        self.t = IOTreeSet()
+        
+class TestOOTreeSets(NormalSetTests, TestCase):
+    def setUp(self):
+        self.t = OOTreeSet()
+
+class TestIITreeSets(NormalSetTests, TestCase):
+    def setUp(self):
+        self.t = IITreeSet()
+
+class TestOITreeSets(NormalSetTests, TestCase):
+    def setUp(self):
+        self.t = OITreeSet()
+        
 ## Bucket tests
 
 class TestIOBuckets(BucketTests, TestCase):
@@ -654,12 +677,18 @@ def main():
     TOISet = makeSuite(TestIOSets, 'test')
     TIISet = makeSuite(TestOOSets, 'test')
 
+    TIOTreeSet = makeSuite(TestIOTreeSets, 'test')
+    TOOTreeSet = makeSuite(TestOOTreeSets, 'test')
+    TOITreeSet = makeSuite(TestIOTreeSets, 'test')
+    TIITreeSet = makeSuite(TestOOTreeSets, 'test')
+
     TIOBucket = makeSuite(TestIOBuckets, 'test')
     TOOBucket = makeSuite(TestOOBuckets, 'test')
     TOIBucket = makeSuite(TestOIBuckets, 'test')
     TIIBucket = makeSuite(TestIIBuckets, 'test')
     
     alltests = TestSuite((TIOSet, TOOSet, TOISet, TIISet,
+                          TIOTreeSet, TOOTreeSet, TOITreeSet, TIITreeSet,
                           TIOBucket, TOOBucket, TOIBucket, TIIBucket,
                           TOOBTree, TIOBTree, TOIBTree, TIIBTree))
     runner = TextTestRunner()
