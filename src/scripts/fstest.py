@@ -135,7 +135,7 @@ def check_trec(path, file, pos, ltid, file_size):
         i = 0
         while pos < tend:
             _pos = pos
-            pos, oid = check_drec(path, file, pos, tpos)
+            pos, oid = check_drec(path, file, pos, tpos, tid)
             if pos > tend:
                 raise FormatError("%s has data records that extend beyond"
                                   " the transaction record; end at %s" %
@@ -152,7 +152,7 @@ def check_trec(path, file, pos, ltid, file_size):
     pos = tend + 8
     return pos, tid
 
-def check_drec(path, file, pos, tpos):
+def check_drec(path, file, pos, tpos, tid):
     """Check a data record for the current transaction record"""
 
     h = file.read(DREC_HDR_LEN)
@@ -164,6 +164,11 @@ def check_drec(path, file, pos, tpos):
     tloc = U64(_tloc)
     plen = U64(_plen)
     dlen = DREC_HDR_LEN + (plen or 8)
+
+    if serial != tid:
+        raise FormatError("%s object serialno %s does not match"
+                          "transaction id %s" % (pos, hexify(serial),
+                                                 hexify(tid)))
 
     if vlen:
         dlen = dlen + 16 + vlen
