@@ -953,12 +953,12 @@ class TestIITreeSets(NormalSetTests, TestCase):
         # One more.
         t = ts()
         t.__setstate__(((tree13, 4, tree5711), bucket1))
-        return t
+        return t, [1, 3, 5, 7, 11]
 
     def testDegenerateBasicOps(self):
-        t = self._build_degenerate_tree()
-        self.assertEqual(len(t), 5)
-        self.assertEqual(list(t.keys()), [1, 3, 5, 7, 11])
+        t, keys = self._build_degenerate_tree()
+        self.assertEqual(len(t), len(keys))
+        self.assertEqual(list(t.keys()), keys)
         # has_key actually returns the depth of a bucket.
         self.assertEqual(t.has_key(1), 4)
         self.assertEqual(t.has_key(3), 4)
@@ -970,12 +970,14 @@ class TestIITreeSets(NormalSetTests, TestCase):
 
     def _checkRanges(self, tree, keys):
         self.assertEqual(len(tree), len(keys))
-        self.assertEqual(list(tree.keys()), keys)
+        sorted_keys = keys[:]
+        sorted_keys.sort()
+        self.assertEqual(list(tree.keys()), sorted_keys)
         for k in keys:
             self.assert_(tree.has_key(k))
         if keys:
-            lokey = min(keys)
-            hikey = max(keys)
+            lokey = sorted_keys[0]
+            hikey = sorted_keys[-1]
             self.assertEqual(lokey, tree.minKey())
             self.assertEqual(hikey, tree.maxKey())
         else:
@@ -989,8 +991,36 @@ class TestIITreeSets(NormalSetTests, TestCase):
                 self.assertEqual(want, got)
 
     def testRanges(self):
-        t = self._build_degenerate_tree()
-        self._checkRanges(t, [1, 3, 5, 7, 11])
+        t, keys = self._build_degenerate_tree()
+        self._checkRanges(t, keys)
+
+    def XXXtestDeletes(self):
+        # Delete keys in all possible orders, checking each tree along
+        # the way.
+
+        # XXX This is hopeless for now:  it dies with:
+        # XXX 1. A variety of assertion failures in _checkRanges.
+        # XXX 2. Assorted "Invalid firstbucket pointer" failures at
+        # XXX    seemingly random times, coming out of the BTree destructor.
+        # XXX 3. Under Python 2.3 CVS, some baffling
+        # XXX    RuntimeWarning: tp_compare didn't return -1 or -2 for exception
+        # XXX    warnings, possibly due to memory corruption after a BTree
+        # XXX    goes insane.
+        # XXX These are probably related to "Guido's bug" (which test case
+        # SXX is also disabled for now).
+
+        t, keys = self._build_degenerate_tree()
+        for oneperm in permutations(keys):
+            t, keys = self._build_degenerate_tree()
+            for key in oneperm:
+                t.remove(key)
+                keys.remove(key)
+                self._checkRanges(t, keys)
+            # A damaged tree may trigger an "invalid firstbucket pointer"
+            # failure at the time its destructor is invoked.  Try to force
+            # that to happen now, so it doesn't look like a baffling failure
+            # at some unrelated line.
+            del t   # trigger destructor
 
 class TestOITreeSets(NormalSetTests, TestCase):
     def setUp(self):
@@ -1075,10 +1105,23 @@ def lsubtract(l1, l2):
 def realseq(itemsob):
     return map(lambda x: x, itemsob)
 
+def permutations(x):
+    # Return a list of all permutations of list x.
+    n = len(x)
+    if n <= 1:
+        return [x]
+    result = []
+    x0 = x[0]
+    for i in range(n):
+        # Build the (n-1)! permutations with x[i] in the first position.
+        xcopy = x[:]
+        first, xcopy[i] = xcopy[i], x0
+        result.extend([[first] + p for p in permutations(xcopy[1:])])
+    return result
+
 
 def main():
     TextTestRunner().run(test_suite())
 
 if __name__ == '__main__':
     main()
-
