@@ -144,7 +144,7 @@ file 0 and file 1.
 
 """
 
-__version__ = "$Revision: 1.6 $"[11:-2]
+__version__ = "$Revision: 1.7 $"[11:-2]
 
 import os, tempfile
 from struct import pack, unpack
@@ -310,7 +310,7 @@ class ClientCache:
         # Make sure we aren't going to exceed the target size.
         # If we are, then flip the cache.
         if self._pos+size > self._limit:
-            current=not current
+            current=not self._current
             self._current=current
             self._f[current]=open(self._p[current],'w+b')
             self._f[current].write(magic)
