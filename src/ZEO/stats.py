@@ -14,7 +14,8 @@
 ##############################################################################
 """Trace file statistics analyzer.
 
-Usage: stats.py [-i interval] [-q] [-v] [-S] tracefile
+Usage: stats.py [-h] [-i interval] [-q] [-v] [-S] tracefile
+-h: print histogram
 -i: summarizing interval in minutes (default 15; max 60)
 -q: quiet; don't print sommaries
 -v: verbose; print each record
@@ -65,7 +66,7 @@ def main():
     print_histogram = 0
     interval = 900 # Every 15 minutes
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "i:qvSh")
+        opts, args = getopt.getopt(sys.argv[1:], "hi:qvSh")
     except getopt.error, msg:
         usage(msg)
         return 2
