@@ -97,13 +97,28 @@ def main():
     sim.printheader()
 
     # Read trace file, simulating cache behavior
+    offset = 0
+    records = 0
+    f_read = f.read
+    struct_unpack = struct.unpack
     while 1:
-        # Read a record
-        r = f.read(24)
-        if len(r) < 24:
+        # Read a record and decode it
+        r = f_read(8)
+        if len(r) < 8:
             break
-        # Decode it
-        ts, code, oid, serial = struct.unpack(">ii8s8s", r)
+        offset += 8
+        ts, code = struct_unpack(">ii", r)
+        if ts == 0:
+            # Must be a misaligned record caused by a crash
+            print "Skipping 8 bytes at offset", offset-8
+            continue
+        r = f_read(16)
+        if len(r) < 16:
+            break
+        offset += 16
+        records += 1
+        oid, serial = struct_unpack(">8s8s", r)
+        # Decode the code
         dlen, version, code, current = (code & 0x7fffff00,
                                         code & 0x80,
                                         code & 0x7e,
