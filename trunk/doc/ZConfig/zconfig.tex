@@ -242,23 +242,21 @@ key $name
 XXX to be written
 
 
-\section{Libraries of Schema Components \label{schema-library}}
+\section{Schema Components \label{schema-components}}
 
 XXX need more explanation
 
-\module{ZConfig} supports a library of extensible schema components
-that can be provided by disparate components, and allows them to be
-knit together into concrete schema for applications.  Neither
-components nor extensions can add additional keys or sections in the
-application schema.
+\module{ZConfig} supports extensible schema components that can be
+provided by disparate components, and allows them to be knit together
+into concrete schema for applications.  Neither components nor
+extensions can add additional keys or sections in the application
+schema.
 
 A schema \dfn{component} is allowed to define new abstract and
 section types.  It is not allowed to extend application types or
 include additional types in application-provided abstract types.
 Components are identified using a dotted-name, similar to a Python
 module name.  For example, one component may be \code{zodb.storage}.
-There is no relationship between the schema component namespace and
-the Python module namespace.
 
 A schema component \dfn{extension} is allowed to define new abstract
 and section types, extend types provided by the component it extends,
@@ -980,14 +978,11 @@ non-default data type registry.
   for the instance to be used via the public API.
 \end{classdesc}
 
-\begin{classdesc}{ConfigLoader}{schema\optional{, library}}
+\begin{classdesc}{ConfigLoader}{schema}
   Loader for configuration files.  Each configuration file must
   conform to the schema \var{schema}.  The \method{load*()} methods
   return a tuple consisting of the configuration object and a
   composite handler.
-  The schema component directory is stored in the directory identified
-  by \var{library}, which defaults to \constant{LIBRARY_DIR} if
-  omitted or \code{None}.
 \end{classdesc}
 
 \begin{classdesc}{SchemaLoader}{\optional{registry}}
@@ -997,10 +992,6 @@ non-default data type registry.
   otherwise an instance of \class{ZConfig.datatypes.Registry} will be
   used.
 \end{classdesc}
-
-\begin{datadesc}{LIBRARY_DIR}
-  Default directory for the schema component library.
-\end{datadesc}
 
 
 \subsection{Loader Objects}
