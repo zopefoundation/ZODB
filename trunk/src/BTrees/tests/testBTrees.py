@@ -499,6 +499,11 @@ class BucketTests(MappingBase):
 
 class BTreeTests(MappingBase):
     """ Tests common to all BTrees """
+
+    def tearDown(self):
+        self.t._check()
+        MappingBase.tearDown(self)
+
     def testDeleteNoChildrenWorks(self):
         self.t[5] = 6
         self.t[2] = 10
@@ -953,6 +958,7 @@ class TestIITreeSets(NormalSetTests, TestCase):
         # One more.
         t = ts()
         t.__setstate__(((tree13, 4, tree5711), bucket1))
+        t._check()
         return t, [1, 3, 5, 7, 11]
 
     def testDegenerateBasicOps(self):
@@ -1013,6 +1019,7 @@ class TestIITreeSets(NormalSetTests, TestCase):
             for key in oneperm:
                 t.remove(key)
                 keys.remove(key)
+                t._check()
                 self._checkRanges(t, keys)
             # We removed all the keys, so the tree should be empty now.
             self.assertEqual(t.__getstate__(), None)
