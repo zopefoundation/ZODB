@@ -150,6 +150,7 @@ class ZEOClient(BaseConfig):
         L = [server.address for server in self.config.server]
         return ClientStorage(
             L,
+            blob_dir=self.config.blob_dir,
             storage=self.config.storage,
             cache_size=self.config.cache_size,
             name=self.config.name,

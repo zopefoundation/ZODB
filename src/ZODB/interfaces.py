@@ -386,7 +386,7 @@ class IStorage(Interface):
         """XXX"""
         
     def getSize():
-        """XXX"""
+        """Return the size of the database in bytes."""
 
     def history(oid, version, length=1, filter=None):
         """XXX"""

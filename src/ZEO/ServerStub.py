@@ -211,6 +211,12 @@ class StorageServer:
     def storea(self, oid, serial, data, version, id):
         self.rpc.callAsync('storea', oid, serial, data, version, id)
 
+    def storeBlobEnd(self, oid, serial, data, version, id):
+        self.rpc.callAsync('storeBlobEnd', oid, serial, data, version, id)
+
+    def storeBlob(self, oid, serial, chunk, version, id):
+        self.rpc.callAsync('storeBlob', oid, serial, chunk, version, id)
+
     ##
     # Start two-phase commit for a transaction
     # @param id id used by client to identify current transaction.  The
@@ -249,6 +255,9 @@ class StorageServer:
 
     def load(self, oid, version):
         return self.rpc.call('load', oid, version)
+
+    def loadBlob(self, oid, serial, version, offset):
+        return self.rpc.call('loadBlob', oid, serial, version, offset)
 
     def getSerial(self, oid):
         return self.rpc.call('getSerial', oid)
