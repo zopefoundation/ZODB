@@ -184,7 +184,7 @@
 #   may have a back pointer to a version record or to a non-version
 #   record.
 #
-__version__='$Revision: 1.54 $'[11:-2]
+__version__='$Revision: 1.55 $'[11:-2]
 
 import struct, time, os, bpthread, string, base64, sys
 from struct import pack, unpack
@@ -937,8 +937,13 @@ class FileStorage(BaseStorage.BaseStorage,
             # we can just copy our previous-record pointer forward
             return '', pre, version, snv, ipos
 
-        data=self.tryToResolveConflict(
-            oid, cserial, serial, _loadBack(self._file, oid, p64(pre)), cdata)
+        try:
+            # returns data, serial tuple
+            bdata = _loadBack(self._file, oid, p64(pre))[0]
+        except KeyError:
+            # couldn't find oid; what's the real explanation for this?
+            raise UndoError("_loadBack() failed for %s" % repr(oid))
+        data=self.tryToResolveConflict(oid, cserial, serial, bdata, cdata)  
 
         if data:
             return data, 0, version, snv, ipos
