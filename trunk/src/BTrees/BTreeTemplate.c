@@ -12,7 +12,7 @@
 
  ****************************************************************************/
 
-#define BTREETEMPLATE_C "$Id: BTreeTemplate.c,v 1.72 2002/10/05 00:39:56 gvanrossum Exp $\n"
+#define BTREETEMPLATE_C "$Id: BTreeTemplate.c,v 1.73 2003/04/10 23:36:55 tim_one Exp $\n"
 
 /* Sanity-check a BTree.  This is a private helper for BTree_check.  Return:
  *      -1         Error.  If it's an internal inconsistency in the BTree,
@@ -490,15 +490,17 @@ BTree_deleteNextBucket(BTree *self)
 
   PER_USE_OR_RETURN(self, -1);
 
-  UNLESS (b=BTree_lastBucket(self)) goto err;
+  UNLESS (b = BTree_lastBucket(self)) goto err;
   if (Bucket_deleteNextBucket(b) < 0) goto err;
 
+  Py_DECREF(b);
   PER_ALLOW_DEACTIVATION(self);
   PER_ACCESSED(self);
 
   return 0;
 
  err:
+  Py_XDECREF(b);
   PER_ALLOW_DEACTIVATION(self);
   return -1;
 }
