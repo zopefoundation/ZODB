@@ -86,7 +86,7 @@
 """Start the server storage.
 """
 
-__version__ = "$Revision: 1.6 $"[11:-2]
+__version__ = "$Revision: 1.7 $"[11:-2]
 
 import sys, os, getopt, string
 
@@ -145,7 +145,7 @@ def main(argv):
 
        -s -- Don't use zdeamon
 
-       -S name=module -- A storage specification The name is the
+       -Sname=module -- A storage specification The name is the
           storage name used in the ZEO protocol and the module is a
           module that defines an attribute with the given name that
           provides the storage.
