@@ -39,4 +39,3 @@ class IConnection(zope.interface.Interface):
         must implement the IPersistent interface and must not
         already be associated with a Connection.
         """
-
