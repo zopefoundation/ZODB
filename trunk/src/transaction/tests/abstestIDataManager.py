@@ -27,13 +27,10 @@ the data actually gets written/not written to the storge.
 
 Obviously this test suite should be expanded.
 
-$Id: abstestIDataManager.py,v 1.2 2002/12/25 14:12:15 jim Exp $
+$Id: abstestIDataManager.py,v 1.3 2003/05/01 19:34:57 faassen Exp $
 """
 
-import os
 from unittest import TestCase
-
-from transaction.txn import Transaction
 
 class IDataManagerTests(TestCase, object):
 
