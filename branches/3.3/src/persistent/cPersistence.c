@@ -58,6 +58,24 @@ init_strings(void)
     return 0;
 }
 
+#ifdef Py_DEBUG
+static void
+fatal_1350(cPersistentObject *self, const char *caller, const char *detail)
+{
+	char buf[1000];
+
+	PyOS_snprintf(buf, sizeof(buf),
+	    "cPersistence.c %s(): object at %p with type %.200s\n"
+	    "%s.\n"
+	    "The only known cause is multiple threads trying to ghost and\n"
+	    "unghost the object simultaneously.\n"
+	    "That's not legal, but ZODB can't stop it.\n"
+	    "See Collector #1350.\n",
+	    caller, self, self->ob_type->tp_name, detail);
+	Py_FatalError(buf);
+}
+#endif
+
 static void ghostify(cPersistentObject*);
 
 /* Load the state of the object, unghostifying it.  Upon success, return 1.
@@ -88,6 +106,18 @@ unghostify(cPersistentObject *self)
         }
         self->state = cPersistent_UPTODATE_STATE;
         Py_DECREF(r);
+        if (self->cache && self->ring.r_next == NULL) {
+#ifdef Py_DEBUG
+        	fatal_1350(self, "unghostify",
+		    		 "is not in the cache despite that we just "
+		      		 "unghostified it");
+#else
+		PyErr_Format(PyExc_SystemError, "object at %p with type "
+			     "%.200s not in the cache despite that we just "
+			     "unghostified it", self, self->ob_type->tp_name);
+		return -1;
+#endif
+	}
     }
     return 1;
 }
@@ -134,13 +164,19 @@ ghostify(cPersistentObject *self)
         return;
     }
 
-    /* If the cache is still active, we must unlink the object. */
-    if (self->ring.r_next) {
-	/* if we're ghostifying an object, we better have some non-ghosts */
-	assert(self->cache->non_ghost_count > 0);
-	self->cache->non_ghost_count--;
-	ring_del(&self->ring);
+    if (self->ring.r_next == NULL) {
+	/* There's no way to raise an error in this routine. */
+#ifdef Py_DEBUG
+	fatal_1350(self, "ghostify", "claims to be in a cache but isn't");
+#else
+	return;
+#endif
     }
+
+    /* If we're ghostifying an object, we better have some non-ghosts. */
+    assert(self->cache->non_ghost_count > 0);
+    self->cache->non_ghost_count--;
+    ring_del(&self->ring);
     self->state = cPersistent_GHOST_STATE;
     dictptr = _PyObject_GetDictPtr((PyObject *)self);
     if (dictptr && *dictptr) {
@@ -249,7 +285,7 @@ pickle_slotnames(PyTypeObject *cls)
 	return slotnames;
     }
 
-    slotnames = PyObject_CallFunctionObjArgs(copy_reg_slotnames, 
+    slotnames = PyObject_CallFunctionObjArgs(copy_reg_slotnames,
 					     (PyObject*)cls, NULL);
     if (slotnames && !(slotnames == Py_None || PyList_Check(slotnames))) {
 	PyErr_SetString(PyExc_TypeError,
@@ -257,7 +293,7 @@ pickle_slotnames(PyTypeObject *cls)
 	Py_DECREF(slotnames);
 	return NULL;
     }
-  
+
     return slotnames;
 }
 
@@ -288,7 +324,7 @@ pickle_copy_dict(PyObject *state)
 	if (PyObject_SetItem(copy, key, value) < 0)
 	    goto err;
     }
-  
+
     return copy;
  err:
     Py_DECREF(copy);
@@ -366,13 +402,13 @@ pickle___getstate__(PyObject *self)
         }
     }
 
-    if (n) 
+    if (n)
 	state = Py_BuildValue("(NO)", state, slots);
 
  end:
     Py_XDECREF(slotnames);
     Py_XDECREF(slots);
-  
+
     return state;
 }
 
@@ -381,12 +417,12 @@ pickle_setattrs_from_dict(PyObject *self, PyObject *dict)
 {
     PyObject *key, *value;
     int pos = 0;
-  
+
     if (!PyDict_Check(dict)) {
 	PyErr_SetString(PyExc_TypeError, "Expected dictionary");
 	return -1;
     }
-  
+
     while (PyDict_Next(dict, &pos, &key, &value)) {
 	if (PyObject_SetAttr(self, key, value) < 0)
 	    return -1;
@@ -451,7 +487,7 @@ pickle___setstate__(PyObject *self, PyObject *state)
     return Py_None;
 }
 
-static char pickle___reduce__doc[] = 
+static char pickle___reduce__doc[] =
 "Reduce an object to contituent parts for serialization\n"
 ;
 
@@ -475,18 +511,18 @@ pickle___reduce__(PyObject *self)
 	PyErr_Clear();
 	l = 0;
     }
-  
+
     args = PyTuple_New(l+1);
     if (args == NULL)
 	goto end;
-  
+
     Py_INCREF(self->ob_type);
     PyTuple_SET_ITEM(args, 0, (PyObject*)(self->ob_type));
     for (i = 0; i < l; i++) {
 	Py_INCREF(PyTuple_GET_ITEM(bargs, i));
 	PyTuple_SET_ITEM(args, i+1, PyTuple_GET_ITEM(bargs, i));
     }
-  
+
     state = PyObject_CallMethodObjArgs(self, py___getstate__, NULL);
     if (!state)
 	goto end;
@@ -680,7 +716,7 @@ Per__p_getattr(cPersistentObject *self, PyObject *name)
     }
     else
 	result = Py_True;
-      
+
     Py_INCREF(result);
 
   Done:
@@ -688,7 +724,7 @@ Per__p_getattr(cPersistentObject *self, PyObject *name)
     return result;
 }
 
-/* 
+/*
    XXX we should probably not allow assignment of __class__ and __dict__.
 */
 
@@ -1012,7 +1048,7 @@ static struct PyMethodDef Per_methods[] = {
   {"__getstate__", (PyCFunction)Per__getstate__, METH_NOARGS,
    pickle___getstate__doc },
   {"__setstate__", (PyCFunction)pickle___setstate__, METH_O,
-   pickle___setstate__doc},                                          
+   pickle___setstate__doc},
   {"__reduce__", (PyCFunction)pickle___reduce__, METH_NOARGS,
    pickle___reduce__doc},
 
