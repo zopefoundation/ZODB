@@ -263,7 +263,7 @@ class Transaction(object):
     def begin(self):
         warnings.warn("Transaction.begin() should no longer be used; use "
                       "the begin() method of a transaction manager.",
-                      DeprecationWarning)
+                      DeprecationWarning, stacklevel=2)
         if (self._resources or
               self._sub or
               self._nonsub or
