@@ -337,7 +337,7 @@ class TxnHeader(object):
     def asString(self):
         s = struct.pack(TRANS_HDR, self.tid, self.tlen, self.status,
                         self.ulen, self.dlen, self.elen)
-        return "".join([s, self.user, self.descr, self.ext])
+        return "".join(map(str, [s, self.user, self.descr, self.ext]))
 
     def headerlen(self):
         return TRANS_HDR_LEN + self.ulen + self.dlen + self.elen
