@@ -150,11 +150,8 @@ scripts = ["src/scripts/fsdump.py",
            "src/ZEO/zeopasswd.py",
            "src/ZEO/mkzeoinst.py",
            "src/ZEO/zeoctl.py",
-           "src/ZEO/stats.py",
-           "src/ZEO/simul.py",
            "src/zdaemon/zdrun.py",
            "src/zdaemon/zdctl.py",
-           "src/ZODB/tests/dangle.py",
            ]
 
 def copy_other_files(cmd, outputbase):
