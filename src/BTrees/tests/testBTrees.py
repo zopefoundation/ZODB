@@ -250,6 +250,82 @@ class MappingBase(Base):
         self.assertEqual(list(t.keys(6,8)),[], list(t.keys(6,8)))
         self.assertEqual(list(t.keys(10,12)),[], list(t.keys(10,12)))
 
+    def testSlicing(self):
+        # Test that slicing of .keys()/.values()/.items() works exactly the
+        # same way as slicing a Python list with the same contents.
+        # This tests fixes to several bugs in this area, starting with
+        # http://collector.zope.org/Zope/419,
+        # "BTreeItems slice contains 1 too many elements".
+
+        t = self.t
+        for n in range(10):
+            t.clear()
+            self.assertEqual(len(t), 0)
+
+            keys = []
+            values = []
+            items = []
+            for key in range(n):
+                value = -2 * key
+                t[key] = value
+                keys.append(key)
+                values.append(value)
+                items.append((key, value))
+            self.assertEqual(len(t), n)
+
+            kslice = t.keys()
+            vslice = t.values()
+            islice = t.items()
+            self.assertEqual(len(kslice), n)
+            self.assertEqual(len(vslice), n)
+            self.assertEqual(len(islice), n)
+
+            # Test whole-structure slices.
+            x = kslice[:]
+            self.assertEqual(list(x), keys[:])
+
+            x = vslice[:]
+            self.assertEqual(list(x), values[:])
+
+            x = islice[:]
+            self.assertEqual(list(x), items[:])
+
+            for lo in range(-2*n, 2*n+1):
+                # Test one-sided slices.
+                x = kslice[:lo]
+                self.assertEqual(list(x), keys[:lo])
+                x = kslice[lo:]
+                self.assertEqual(list(x), keys[lo:])
+
+                x = vslice[:lo]
+                self.assertEqual(list(x), values[:lo])
+                x = vslice[lo:]
+                self.assertEqual(list(x), values[lo:])
+
+                x = islice[:lo]
+                self.assertEqual(list(x), items[:lo])
+                x = islice[lo:]
+                self.assertEqual(list(x), items[lo:])
+
+                for hi in range(-2*n, 2*n+1):
+                    # Test two-sided slices.
+                    x = kslice[lo:hi]
+                    self.assertEqual(list(x), keys[lo:hi])
+
+                    x = vslice[lo:hi]
+                    self.assertEqual(list(x), values[lo:hi])
+
+                    x = islice[lo:hi]
+                    self.assertEqual(list(x), items[lo:hi])
+
+        # The specific test case from Zope collector 419.
+        t.clear()
+        for i in xrange(100):
+            t[i] = 1
+        tslice = t.items()[20:80]
+        self.assertEqual(len(tslice), 60)
+        self.assertEqual(list(tslice), zip(range(20, 80), [1]*60))
+
 
 class NormalSetTests(Base):
     """ Test common to all set types """
@@ -351,6 +427,39 @@ class NormalSetTests(Base):
         self.assertEqual(list(t.keys(2,4)),[], list(t.keys(2,4)))
         self.assertEqual(list(t.keys(6,8)),[], list(t.keys(6,8)))
         self.assertEqual(list(t.keys(10,12)),[], list(t.keys(10,12)))
+
+    def testSlicing(self):
+        # Test that slicing of .keys() works exactly the same way as slicing
+        # a Python list with the same contents.
+
+        t = self.t
+        for n in range(10):
+            t.clear()
+            self.assertEqual(len(t), 0)
+
+            keys = range(10*n, 11*n)
+            t.update(keys)
+            self.assertEqual(len(t), n)
+
+            kslice = t.keys()
+            self.assertEqual(len(kslice), n)
+
+            # Test whole-structure slices.
+            x = kslice[:]
+            self.assertEqual(list(x), keys[:])
+
+            for lo in range(-2*n, 2*n+1):
+                # Test one-sided slices.
+                x = kslice[:lo]
+                self.assertEqual(list(x), keys[:lo])
+                x = kslice[lo:]
+                self.assertEqual(list(x), keys[lo:])
+
+                for hi in range(-2*n, 2*n+1):
+                    # Test two-sided slices.
+                    x = kslice[lo:hi]
+                    self.assertEqual(list(x), keys[lo:hi])
+
 
 class ExtendedSetTests(NormalSetTests):
     def testLen(self):
