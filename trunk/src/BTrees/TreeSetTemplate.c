@@ -12,7 +12,7 @@
   
  ****************************************************************************/
 
-#define TREESETTEMPLATE_C "$Id: TreeSetTemplate.c,v 1.12 2002/02/20 23:59:51 jeremy Exp $\n"
+#define TREESETTEMPLATE_C "$Id: TreeSetTemplate.c,v 1.13 2002/02/21 21:41:17 jeremy Exp $\n"
 
 static PyObject *
 TreeSet_insert(BTree *self, PyObject *args)
@@ -127,46 +127,35 @@ static PyMappingMethods TreeSet_as_mapping = {
   (inquiry)BTree_length,		/*mp_length*/
 };
 
-static PyTypeObject TreeSetType = {
-    PyObject_HEAD_INIT(NULL) /* PyPersist_Type */
-    0,					/* ob_size */
-    MOD_NAME_PREFIX "TreeSet",		/* tp_name */
-    sizeof(BTree),			/* tp_basicsize */
-    0,					/* tp_itemsize */
-    (destructor)BTree_dealloc,		/* tp_dealloc */
-    0,					/* tp_print */
-    0,					/* tp_getattr */
-    0,					/* tp_setattr */
-    0,					/* tp_compare */
-    0,					/* tp_repr */
-    &BTree_as_number_for_nonzero,	/* tp_as_number */
-    0,					/* tp_as_sequence */
-    &TreeSet_as_mapping,		/* tp_as_mapping */
-    0,					/* tp_hash */
-    0,					/* tp_call */
-    0,					/* tp_str */
-    0,					/* tp_getattro */
-    0,					/* tp_setattro */
-    0,					/* tp_as_buffer */
-/* XXX need to define traverse and clear functions */
-    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC |
-	    Py_TPFLAGS_BASETYPE, 	/* tp_flags */
-    0,					/* tp_doc */
-    0,	/* tp_traverse */
-    0,		/* tp_clear */
-    0,					/* tp_richcompare */
-    0,					/* tp_weaklistoffset */
-    0,					/* tp_iter */
-    0,					/* tp_iternext */
-    TreeSet_methods,			/* tp_methods */
-    0,					/* tp_members */
-    0,					/* tp_getset */
-    0,					/* tp_base */
-    0,					/* tp_dict */
-    0,					/* tp_descr_get */
-    0,					/* tp_descr_set */
-    0,					/* tp_dictoffset */
-    0,					/* tp_init */
-    0,					/* tp_alloc */
-    PyType_GenericNew,			/* tp_new */
+static PyExtensionClass TreeSetType = {
+  PyObject_HEAD_INIT(NULL)
+  0,				/*ob_size*/
+  MOD_NAME_PREFIX "TreeSet",		/*tp_name*/
+  sizeof(BTree),		/*tp_basicsize*/
+  0,				/*tp_itemsize*/
+  /************* methods ********************/
+  (destructor) BTree_dealloc,   /*tp_dealloc*/
+  (printfunc)0,			/*tp_print*/
+  (getattrfunc)0,		/*obsolete tp_getattr*/
+  (setattrfunc)0,		/*obsolete tp_setattr*/
+  (cmpfunc)0,			/*tp_compare*/
+  (reprfunc)0,			/*tp_repr*/
+  &BTree_as_number_for_nonzero,	/*tp_as_number*/
+  0,				/*tp_as_sequence*/
+  &TreeSet_as_mapping,		/*tp_as_mapping*/
+  (hashfunc)0,			/*tp_hash*/
+  (ternaryfunc)0,		/*tp_call*/
+  (reprfunc)0,			/*tp_str*/
+  (getattrofunc)0,
+  0,				/*tp_setattro*/
+  
+  /* Space for future expansion */
+  0L,0L,
+  "Set implemented as sorted tree of items", 
+  METHOD_CHAIN(TreeSet_methods),
+  EXTENSIONCLASS_BASICNEW_FLAG 
+#ifdef PERSISTENT
+  | PERSISTENT_TYPE_FLAG 
+#endif
+  | EXTENSIONCLASS_NOINSTDICT_FLAG,
 };
