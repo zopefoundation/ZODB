@@ -95,7 +95,7 @@ from BTrees.OOBTree import OOBTree, OOBucket, OOSet, OOTreeSet
 from BTrees.IOBTree import IOBTree, IOBucket, IOSet, IOTreeSet
 from BTrees.IIBTree import IIBTree, IIBucket, IISet, IITreeSet
 from BTrees.OIBTree import OIBTree, OIBucket, OISet, OITreeSet
-from unittest import TestCase, TestSuite, JUnitTextTestRunner, VerboseTextTestRunner, makeSuite
+from unittest import TestCase, TestSuite, VerboseTextTestRunner, makeSuite
 
 from glob import glob
 import os
