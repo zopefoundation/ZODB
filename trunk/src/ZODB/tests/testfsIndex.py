@@ -15,7 +15,7 @@ import unittest
 import random
 
 from ZODB.fsIndex import fsIndex
-from ZODB.utils import p64
+from ZODB.utils import p64, z64
 
 
 class Test(unittest.TestCase):
@@ -129,6 +129,44 @@ class Test(unittest.TestCase):
             correct_max = max(correct_max, key)
             index_max = index.maxKey()
             self.assertEqual(index_max, correct_max)
+
+        index.clear()
+        a = '\000\000\000\000\000\001\000\000'
+        b = '\000\000\000\000\000\002\000\000'
+        c = '\000\000\000\000\000\003\000\000'
+        d = '\000\000\000\000\000\004\000\000'
+        index[a] = 1
+        index[c] = 2
+        self.assertEqual(index.maxKey(b), a)
+        self.assertEqual(index.maxKey(d), c)
+        self.assertRaises(ValueError, index.maxKey, z64)
+
+    def testMinKey(self):
+        index = self.index
+        index.clear()
+
+        # An empty index should complain.
+        self.assertRaises(ValueError, index.minKey)
+
+        # Now build up a tree with random values, and check maxKey at each
+        # step.
+        correct_min = "\xff" * 8   # bigger than anything we'll add
+        for i in range(1000):
+            key = p64(random.randrange(100000000))
+            index[key] = i
+            correct_min = min(correct_min, key)
+            index_min = index.minKey()
+            self.assertEqual(index_min, correct_min)
+
+        index.clear()
+        a = '\000\000\000\000\000\001\000\000'
+        b = '\000\000\000\000\000\002\000\000'
+        c = '\000\000\000\000\000\003\000\000'
+        d = '\000\000\000\000\000\004\000\000'
+        index[a] = 1
+        index[c] = 2
+        self.assertEqual(index.minKey(b), c)
+        self.assertRaises(ValueError, index.minKey, d)
 
 def test_suite():
     loader=unittest.TestLoader()
