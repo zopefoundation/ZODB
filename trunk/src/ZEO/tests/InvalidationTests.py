@@ -452,6 +452,7 @@ class InvalidationTests:
         cn = db1.open()
         tree = cn.root()["tree"] = OOBTree()
         get_transaction().commit()
+        cn.close()
 
         # Run two threads that update the BTree
         cd = {}
@@ -459,7 +460,11 @@ class InvalidationTests:
         t2 = self.StressThread(self, db2, stop, 2, cd, 2)
         self.go(stop, cd, t1, t2)
 
-        cn.sync()
+        while db1.lastTransaction() != db2.lastTransaction():
+            db1._storage.sync()
+            db2._storage.sync()
+
+        cn = db1.open()
         self._check_tree(cn, tree)
         self._check_threads(tree, t1, t2)
 
@@ -475,6 +480,7 @@ class InvalidationTests:
         cn = db1.open()
         tree = cn.root()["tree"] = OOBTree()
         get_transaction().commit()
+        cn.close()
 
         # Run two threads that update the BTree
         cd = {}
@@ -482,7 +488,7 @@ class InvalidationTests:
         t2 = self.StressThread(self, db1, stop, 2, cd, 2, sleep=0.01)
         self.go(stop, cd, t1, t2)
 
-        cn.sync()
+        cn = db1.open()
         self._check_tree(cn, tree)
         self._check_threads(tree, t1, t2)
 
@@ -498,6 +504,7 @@ class InvalidationTests:
         cn = db1.open()
         tree = cn.root()["tree"] = OOBTree()
         get_transaction().commit()
+        cn.close()
 
         # Run three threads that update the BTree.
         # Two of the threads share a single storage so that it
@@ -510,7 +517,11 @@ class InvalidationTests:
         t3 = self.StressThread(self, db2, stop, 3, cd, 3, 3, 0.01)
         self.go(stop, cd, t1, t2, t3)
 
-        cn.sync()
+        while db1.lastTransaction() != db2.lastTransaction():
+            db1._storage.sync()
+            db2._storage.sync()
+
+        cn = db1.open()
         self._check_tree(cn, tree)
         self._check_threads(tree, t1, t2, t3)
 
@@ -527,6 +538,7 @@ class InvalidationTests:
         cn = db1.open()
         tree = cn.root()["tree"] = OOBTree()
         get_transaction().commit()
+        cn.close()
 
         # Run three threads that update the BTree.
         # Two of the threads share a single storage so that it
@@ -537,10 +549,13 @@ class InvalidationTests:
         t1 = VersionStressThread(self, db1, stop, 1, cd, 1, 3)
         t2 = VersionStressThread(self, db2, stop, 2, cd, 2, 3, 0.01)
         t3 = VersionStressThread(self, db2, stop, 3, cd, 3, 3, 0.01)
-##        t1 = VersionStressThread(self, db2, stop, 3, cd, 1, 3, 0.01)
         self.go(stop, cd, t1, t2, t3)
 
-        cn.sync()
+        while db1.lastTransaction() != db2.lastTransaction():
+            db1._storage.sync()
+            db2._storage.sync()
+
+        cn = db1.open()
         self._check_tree(cn, tree)
         self._check_threads(tree, t1, t2, t3)
 
@@ -560,6 +575,7 @@ class InvalidationTests:
         for i in range(0, 3000, 2):
             tree[i] = 0
         get_transaction().commit()
+        cn.close()
 
         # Run three threads that update the BTree.
         # Two of the threads share a single storage so that it
@@ -572,7 +588,10 @@ class InvalidationTests:
         t3 = LargeUpdatesThread(self, db2, stop, 3, cd, 3, 3, 0.01)
         self.go(stop, cd, t1, t2, t3)
 
-        cn.sync()
+        while db1.lastTransaction() != db2.lastTransaction():
+            db1._storage.sync()
+            db2._storage.sync()
+        cn = db1.open()
         self._check_tree(cn, tree)
 
         # Purge the tree of the dummy entries mapping to 0.
