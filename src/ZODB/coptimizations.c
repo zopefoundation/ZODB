@@ -14,7 +14,7 @@
 static char coptimizations_doc_string[] = 
 "C optimization for new_persistent_id().\n"
 "\n"
-"$Id: coptimizations.c,v 1.19 2002/09/17 03:42:58 jeremy Exp $\n";
+"$Id: coptimizations.c,v 1.20 2002/09/30 16:02:32 gvanrossum Exp $\n";
 
 #include "Python.h"
 #define DONT_USE_CPERSISTENCECAPI
@@ -288,7 +288,7 @@ initcoptimizations(void)
     make_string(new_oid);
 			
     /* Get InvalidObjectReference error */
-    UNLESS (m=PyString_FromString("POSException")) return;
+    UNLESS (m=PyString_FromString("ZODB.POSException")) return;
     ASSIGN(m, PyImport_Import(m));
     UNLESS (m) return;
     ASSIGN(m, PyObject_GetAttrString(m, "InvalidObjectReference"));
