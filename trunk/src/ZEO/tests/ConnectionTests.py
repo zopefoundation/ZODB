@@ -109,25 +109,26 @@ class CommonSetupTearDown(StorageTestBase):
                 os.waitpid(pid, 0)
         for c in self.caches:
             for i in 0, 1:
-                path = "%s-%s.zec" % (c, "1")
-                # On Windows before 2.3, we don't have a way to wait for
-                # the spawned server(s) to close, and they inherited
-                # file descriptors for our open files.  So long as those
-                # processes are alive, we can't delete the files.  Try
-                # a few times then give up.
-                need_to_delete = 0
-                if os.path.exists(path):
-                    need_to_delete = 1
-                    for dummy in range(5):
-                        try:
-                            os.unlink(path)
-                        except:
-                            time.sleep(0.5)
-                        else:
-                            need_to_delete = 0
-                            break
-                if need_to_delete:
-                    os.unlink(path)  # sometimes this is just gonna fail
+                for ext in "", ".trace":
+                    path = "%s-%s.zec%s" % (c, "1", ext)
+                    # On Windows before 2.3, we don't have a way to wait for
+                    # the spawned server(s) to close, and they inherited
+                    # file descriptors for our open files.  So long as those
+                    # processes are alive, we can't delete the files.  Try
+                    # a few times then give up.
+                    need_to_delete = False
+                    if os.path.exists(path):
+                        need_to_delete = True
+                        for dummy in range(5):
+                            try:
+                                os.unlink(path)
+                            except:
+                                time.sleep(0.5)
+                            else:
+                                need_to_delete = False
+                                break
+                    if need_to_delete:
+                        os.unlink(path)  # sometimes this is just gonna fail
         self.__super_tearDown()
 
     def _newAddr(self):
@@ -576,6 +577,7 @@ class InvqTests(CommonSetupTearDown):
 
         self._storage = self.openClientStorage()
         oid = self._storage.new_oid()
+        oid2 = self._storage.new_oid()
         # When we create a new storage, it should always do a full
         # verification
         self.assertEqual(self._storage.verify_result, "full verification")
@@ -583,6 +585,7 @@ class InvqTests(CommonSetupTearDown):
         # message is generated
         revid = self._dostore(oid)
         revid = self._dostore(oid, revid)
+        self._dostore(oid2)
 
         # sync() is needed to prevent invalidation for oid from arriving
         # in the middle of the load() call.
