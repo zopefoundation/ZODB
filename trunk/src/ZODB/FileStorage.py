@@ -115,7 +115,7 @@
 #   may have a back pointer to a version record or to a non-version
 #   record.
 #
-__version__='$Revision: 1.104 $'[11:-2]
+__version__='$Revision: 1.105 $'[11:-2]
 
 import base64
 from cPickle import Pickler, Unpickler, loads
@@ -1940,7 +1940,7 @@ def read_index(file, name, index, vindex, tindex, stop='\377'*8,
     file_size=file.tell()
 
     if file_size:
-        if file_size < start: raise FileStorageFormatError, file.name
+        if file_size < start: raise FileStorageFormatError, name
         seek(0)
         if read(4) != packed_version: raise FileStorageFormatError, name
     else:
@@ -2172,7 +2172,7 @@ class FileIterator(Iterator):
             file = open(file, 'rb')
         self._file = file
         if file.read(4) != packed_version:
-            raise FileStorageFormatError, name
+            raise FileStorageFormatError, file.name
         file.seek(0,2)
         self._file_size = file.tell()
         self._pos = 4L
