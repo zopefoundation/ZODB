@@ -101,13 +101,13 @@ class RecoverTest(unittest.TestCase):
     def testNoDamage(self):
         output = self.recover()
         self.assert_('error' not in output, output)
-        self.assert_('0 bytes removed during recovery' in output, output)
+        self.assert_('\n0 bytes removed during recovery' in output, output)
 
     def testOneBlock(self):
         for i in range(self.ITERATIONS):
             self.damage(1, 1024)
             output = self.recover()
-            self.assert_('error' in output)
+            self.assert_('error' in output, output)
             self.recovered = FileStorage(self.dest)
             self.recovered.close()
             os.remove(self.path)
@@ -117,7 +117,7 @@ class RecoverTest(unittest.TestCase):
         for i in range(self.ITERATIONS):
             self.damage(4, 512)
             output = self.recover()
-            self.assert_('error' in output)
+            self.assert_('error' in output, output)
             self.recovered = FileStorage(self.dest)
             self.recovered.close()
             os.remove(self.path)
@@ -127,7 +127,7 @@ class RecoverTest(unittest.TestCase):
         for i in range(self.ITERATIONS):
             self.damage(1, 32 * 1024)
             output = self.recover()
-            self.assert_('error' in output)
+            self.assert_('error' in output, output)
             self.recovered = FileStorage(self.dest)
             self.recovered.close()
             os.remove(self.path)
@@ -153,7 +153,7 @@ class RecoverTest(unittest.TestCase):
         f.write("\0" * 100)
         f.close()
         output = self.recover()
-        self.assert_('error' in output)
+        self.assert_('error' in output, output)
         self.recovered = FileStorage(self.dest)
         self.recovered.close()
         os.remove(self.path)
@@ -165,7 +165,7 @@ class RecoverTest(unittest.TestCase):
         f.write("\0" * 100)
         f.close()
         output = self.recover()
-        self.assert_('error' in output)
+        self.assert_('error' in output, output)
         self.recovered = FileStorage(self.dest)
         self.recovered.close()
 
