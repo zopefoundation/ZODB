@@ -85,10 +85,11 @@
 __doc__='''Python implementation of persistent base types
 
 
-$Id: PersistentMapping.py,v 1.5 1999/05/10 23:15:56 jim Exp $'''
-__version__='$Revision: 1.5 $'[11:-2]
+$Id: PersistentMapping.py,v 1.6 2000/04/13 14:22:54 tseaver Exp $'''
+__version__='$Revision: 1.6 $'[11:-2]
 
 import Persistence
+import types
 
 class PersistentMapping(Persistence.Persistent):
     """A persistent wrapper for mapping objects.
@@ -137,7 +138,7 @@ class PersistentMapping(Persistence.Persistent):
         try: return self._v_keys
         except: pass
         keys=self._v_keys=filter(
-            lambda k: k[:1]!='_',
+            lambda k: not isinstance(k,types.StringType) or k[:1]!='_',
             self._container.keys())
         keys.sort()
         return keys
