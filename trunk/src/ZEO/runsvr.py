@@ -213,6 +213,12 @@ class ZEOOptions(Options):
         if self.args:
             self.usage("positional arguments are not supported")
 
+        # Set defaults for some options
+        if self.read_only is None:
+            self.read_only = 0
+        if self.invalidation_queue_size is None:
+            self.invalidation_queue_size = 100
+
     def load_configuration(self):
         Options.load_configuration(self) # Sets self.rootconf
         if not self.rootconf:
