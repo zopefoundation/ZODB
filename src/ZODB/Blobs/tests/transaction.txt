@@ -43,14 +43,14 @@ resulting filehandle is accomplished via the filehandle's read method:
     >>> connection2 = database.open()
     >>> root = connection2.root()
     >>> blob2 = root['myblob']
-    >>> blob2._get_refcounts()
+    >>> blob2._p_blob_refcounts()
     (0, 0)
     >>>
     >>> b1 = blob2.open("r")
     >>> b1.read()
     'abc'
     >>> # we reach into the implementation here, dont try this at home
-    >>> b1.blob._get_refcounts()[0]
+    >>> b1.blob._p_blob_refcounts()[0]
     1
 
 Let's make another filehandle for read only to blob2, this should bump
@@ -58,18 +58,18 @@ up its refcount by one, and each file handle has a reference to the
 (same) underlying blob:
 
     >>> b2 = blob2.open("r")
-    >>> b2.blob._get_refcounts()
+    >>> b2.blob._p_blob_refcounts()
     (2, 0)
-    >>> b1.blob._get_refcounts()
+    >>> b1.blob._p_blob_refcounts()
     (2, 0)
 
 Let's close the first filehandle we got from the blob, this should decrease
 its refcount by one:
 
     >>> b1.close()
-    >>> b1.blob._get_refcounts()
+    >>> b1.blob._p_blob_refcounts()
     (1, 0)
-    >>> b1.blob._get_refcounts()
+    >>> b1.blob._p_blob_refcounts()
     (1, 0)
 
 Let's abort this transaction, and ensure that the filehandles that we
@@ -77,9 +77,9 @@ opened are now closed and that the filehandle refcounts on the blob
 object are cleared.
 
     >>> transaction.abort()
-    >>> b1.blob._get_refcounts()
+    >>> b1.blob._p_blob_refcounts()
     (0, 0)
-    >>> b2.blob._get_refcounts()
+    >>> b2.blob._p_blob_refcounts()
     (0, 0)
     >>> b2.read()
     Traceback (most recent call last):
@@ -88,10 +88,10 @@ object are cleared.
 
 If we open a blob for writing, its write refcount should be nonzero:
 
-    >>> blob2._get_refcounts()
+    >>> blob2._p_blob_refcounts()
     (0, 0)
     >>> b2 = blob2.open('a')
-    >>> blob2._get_refcounts()
+    >>> blob2._p_blob_refcounts()
     (0, 1)
 
 While we are testing this, we don't need the storage directory and databases
