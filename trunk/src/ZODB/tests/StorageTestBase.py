@@ -25,7 +25,8 @@ class StorageTestBase(unittest.TestCase):
     def tearDown(self):
         self._close()
 
-    def _dostore(self, oid=None, revid=None, data=None, version=None):
+    def _dostore(self, oid=None, revid=None, data=None, version=None,
+                 already_pickled=0):
         # Do a complete storage transaction.  The defaults are:
         # - oid=None, ask the storage for a new oid
         # - revid=None, use a revid of ZERO
@@ -38,8 +39,8 @@ class StorageTestBase(unittest.TestCase):
         if revid is None:
             revid = ZERO
         if data is None:
-            data = pickle.dumps(7)
-        else:
+            data = 7
+        if not already_pickled:
             data = pickle.dumps(data)
         if version is None:
             version = ''
@@ -53,3 +54,5 @@ class StorageTestBase(unittest.TestCase):
         self._storage.tpc_finish(self._transaction)
         return newrevid
         
+    def _dostoreNP(self, oid=None, revid=None, data=None, version=None):
+        self._dostore(oid, revid, data, version, already_pickled=1)
