@@ -13,9 +13,24 @@
 ##############################################################################
 """Implement a client cache
 
-The cache is managed as two files, var/c0.zec and var/c1.zec.
+The cache is managed as two files.
 
-Each cache file is a sequence of records of the form:
+The cache can be persistent (meaning it is survives a process restart)
+or temporary.  It is persistent if the client argument is not None.
+
+Persistent cache files live in the var directory and are named
+'c<storage>-<client>-<digit>.zec' where <storage> is the storage
+argument (default ''), <client> is the client argument, and <digit> is
+0 or 1.  Temporary cache files are unnamed files in the standard
+temporary directory as determined by the tempfile module.
+
+The ClientStorage overrides some of the defaults; in particular, its
+storage name defaults to '1' and its client name defaults to the value
+of the environment variable ZEO_CLIENT, if it exists, otherwise to
+None.
+
+Each cache file has a 4-byte magic number followed by a sequence of
+records of the form:
 
   oid -- 8-byte object id
 
@@ -73,7 +88,7 @@ file 0 and file 1.
 
 """
 
-__version__ = "$Revision: 1.26 $"[11:-2]
+__version__ = "$Revision: 1.27 $"[11:-2]
 
 import os
 import sys
@@ -122,7 +137,8 @@ class ClientCache:
                     if fi.read(4) == magic: # Minimal sanity
                         fi.seek(0, 2)
                         if fi.tell() > 30:
-                            fi.seek(22)
+                            # First serial is at offset 19 + 4 for magic
+                            fi.seek(23)
                             s[i] = fi.read(8)
                     # If we found a non-zero serial, then use the file
                     if s[i] != '\0\0\0\0\0\0\0\0':
@@ -201,7 +217,7 @@ class ClientCache:
             h = f.read(8)
             if h != oid:
                 return
-            f.seek(8, 1) # Dang, we shouldn't have to do this. Bad Solaris & NT
+            f.seek(p+8) # Switch from reading to writing
             if version:
                 f.write('n')
             else:
