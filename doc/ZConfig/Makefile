@@ -6,7 +6,7 @@
 # See the README.txt file for information on the mkhowto program used
 # to generate the PDF and PostScript versions of the documentation.
 
-.PHONY:	default all html pdf ps
+.PHONY:	default all html pdf ps text
 
 default:  pdf
 all:	  html pdf ps text
@@ -32,5 +32,5 @@ clean:
 	rm -f zconfig.l2h zconfig.l2h~
 
 clobber:  clean
-	rm -f zconfig.pdf zconfig.ps
+	rm -f zconfig.pdf zconfig.ps zconfig.txt
 	rm -rf zconfig
