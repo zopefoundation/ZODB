@@ -191,7 +191,7 @@ class MappingBase(Base):
         b1.clear()
         bm.clear()
 
-        test_merge(base, b1, b2, bm, 'empty one and not other')
+        test_merge(base, b1, b2, bm, 'empty one and not other', should_fail=1)
 
     def testFailMergeInsert(self):
         base, b1, b2, bm, e1, e2, items = self._setupConflict()
@@ -289,7 +289,7 @@ class SetTests(Base):
         b1.clear()
         bm.clear()
 
-        test_merge(base, b1, b2, bm, 'empty one and not other')
+        test_merge(base, b1, b2, bm, 'empty one and not other', should_fail=1)
 
     def testFailMergeInsert(self):
         base, b1, b2, bm, e1, e2, items = self._setupConflict()
@@ -586,22 +586,12 @@ class NastyConfict(Base, TestCase):
         self.assertEqual(state[0][1], 60)
         self.assertEqual(state[0][3], 120)
 
-        # Conflict resolution empties bucket1 entirely.
-
-        # XXX This is broken:  it doesn't raise ConflictError now.
-        ### XXX The ConflictError imported at the top of this module isn't
-        ### XXX the ConflictError that gets raised here.
-        ##from zodb.interfaces import ConflictError
-        ##self.assertRaises(ConflictError, get_transaction().commit)
-        ##get_transaction().abort()   # horrible things happen w/o this
-
-        # XXX Instead it creates an insane BTree (with an empty bucket
-        # XXX still linked in.  Remove the remaining lines and uncomment
-        # XXX the lines above when this is fixed.
-        # XXX    AssertionError: Bucket length < 1
-        get_transaction().commit()
-        self.assertRaises(AssertionError, b._check)
-
+        # Conflict resolution empties bucket1 entirely.  This used to
+        # create an "insane" BTree (a legit BTree cannot contain an empty
+        # bucket -- it contains NULL pointers the BTree code doesn't
+        # expect, and segfaults result).
+        self.assertRaises(ConflictError, get_transaction().commit)
+        get_transaction().abort()   # horrible things happen w/o this
 
     def testEmptyBucketNoConflict(self):
         # Tests that a plain empty bucket (on input) is not viewed as a

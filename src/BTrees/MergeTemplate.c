@@ -12,7 +12,7 @@
 
  ****************************************************************************/
 
-#define MERGETEMPLATE_C "$Id: MergeTemplate.c,v 1.15 2002/06/25 22:02:27 tim_one Exp $\n"
+#define MERGETEMPLATE_C "$Id: MergeTemplate.c,v 1.16 2003/01/17 17:20:49 tim_one Exp $\n"
 
 /****************************************************************************
  Set operations
@@ -251,6 +251,15 @@ bucket_merge(Bucket *s1, Bucket *s2, Bucket *s3)
     {                           /* Inserting i2 at end */
       if (merge_output(r, &i3, mapping) < 0) goto err;
       if (i3.next(&i3) < 0) goto err;
+    }
+
+  /* If the output bucket is empty, conflict resolution doesn't have
+   * enough info to unlink it from its containing BTree correctly.
+   */
+  if (r->len == 0)
+    {
+      merge_error(-1, -1, -1, 10);
+      goto err;
     }
 
   finiSetIteration(&i1);
