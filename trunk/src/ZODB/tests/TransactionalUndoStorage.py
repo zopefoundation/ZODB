@@ -556,7 +556,7 @@ class TransactionalUndoStorage:
         orig = []
         for i in range(BATCHES):
             t = Transaction()
-            tid = p64(i)
+            tid = p64(i+1)
             s.tpc_begin(t, tid)
             for j in range(OBJECTS):
                 oid = s.new_oid()
@@ -602,7 +602,7 @@ class TransactionalUndoStorage:
             txn = iter[offset]
             offset += 1
             
-            tid = p64(i)
+            tid = p64(i + 1)
             eq(txn.tid, tid)
 
             L1 = [(rec.oid, rec.serial, rec.data_txn) for rec in txn]
@@ -621,7 +621,7 @@ class TransactionalUndoStorage:
             offset += 1
 
             # The undos are performed in reverse order.
-            otid = p64(BATCHES - 1 - i)
+            otid = p64(BATCHES - i)
             L1 = [(rec.oid, rec.data_txn) for rec in txn]
             L2 = [(oid, otid) for _tid, oid, revid in orig
                   if _tid == otid]
