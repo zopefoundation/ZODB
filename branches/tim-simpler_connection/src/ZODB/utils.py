@@ -190,6 +190,9 @@ class WeakSet(object):
     def __len__(self):
         return len(self.data)
 
+    def __contains__(self, obj):
+        return id(obj) in self.data
+
     # Same as a Set, add obj to the collection.
     def add(self, obj):
         self.data[id(obj)] = obj
