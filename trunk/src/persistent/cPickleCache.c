@@ -90,7 +90,7 @@ process must skip such objects, rather than deactivating them.
 static char cPickleCache_doc_string[] =
 "Defines the PickleCache used by ZODB Connection objects.\n"
 "\n"
-"$Id: cPickleCache.c,v 1.83 2003/05/01 17:08:39 jeremy Exp $\n";
+"$Id: cPickleCache.c,v 1.84 2003/05/13 23:15:16 jeremy Exp $\n";
 
 #define ASSIGN(V,E) {PyObject *__e; __e=(E); Py_XDECREF(V); (V)=__e;}
 #define UNLESS(E) if(!(E))
@@ -626,8 +626,6 @@ cc_dealloc(ccobject *self)
 static PyObject *
 cc_getattr(ccobject *self, char *name)
 {
-  PyObject *r;
-
   if(*name=='c')
     {
       if(strcmp(name,"cache_age")==0)
@@ -646,16 +644,10 @@ cc_getattr(ccobject *self, char *name)
 	  return PyDict_Copy(self->data);
 	}
     }
-  if((*name=='h' && strcmp(name, "has_key")==0) ||
-     (*name=='i' && strcmp(name, "items")==0) ||
-     (*name=='k' && strcmp(name, "keys")==0)
-     )
-    return PyObject_GetAttrString(self->data, name);
 
-  if((r=Py_FindMethod(cc_methods, (PyObject *)self, name)))
-    return r;
-  PyErr_Clear();
-  return PyObject_GetAttrString(self->data, name);
+  if (strcmp(name, "items") == 0)
+      return PyObject_GetAttrString(self->data, name);
+  return Py_FindMethod(cc_methods, (PyObject *)self, name);
 }
 
 static int
