@@ -13,7 +13,7 @@
 ##############################################################################
 """Database objects
 
-$Id: DB.py,v 1.74 2004/04/14 20:45:37 jeremy Exp $"""
+$Id: DB.py,v 1.75 2004/04/15 16:41:42 jeremy Exp $"""
 
 import cPickle, cStringIO, sys
 from thread import allocate_lock
@@ -532,7 +532,7 @@ class DB(object):
 
             c = pool[-1]
             del pool[-1]
-            c._setDB(self, mvcc, txn_mgr, synch)
+            c._setDB(self, mvcc=mvcc, txn_mgr=txn_mgr, synch=synch)
             for pool, allocated in pooll:
                 for cc in pool:
                     cc.cacheGC()
@@ -613,6 +613,7 @@ class DB(object):
                 c._cache.cache_size = v
 
     def classFactory(self, connection, modulename, globalname):
+        # Zope will rebind this method to arbitrary user code at runtime.
         return find_global(modulename, globalname)
 
     def setPoolSize(self, v):
