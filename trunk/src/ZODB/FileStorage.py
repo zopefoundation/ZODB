@@ -186,7 +186,7 @@
 #   may have a back pointer to a version record or to a non-version
 #   record.
 #
-__version__='$Revision: 1.73 $'[11:-2]
+__version__='$Revision: 1.74 $'[11:-2]
 
 import struct, time, os, bpthread, string, base64, sys
 from struct import pack, unpack
@@ -253,38 +253,41 @@ class FileStorage(BaseStorage.BaseStorage,
     def __init__(self, file_name, create=0, read_only=0, stop=None,
                  quota=None):
 
-        if not os.path.exists(file_name): create = 1
+        if not os.path.exists(file_name):
+            create = 1
 
         if read_only:
-            if create: raise ValueError, "can\'t create a read-only file"
+            if create:
+                raise ValueError, "can\'t create a read-only file"
         elif stop is not None:
             raise ValueError, "time-travel is only supported in read-only mode"
 
-        if stop is None: stop='\377'*8
+        if stop is None:
+            stop='\377'*8
 
         # Lock the database and set up the temp file.
         if not read_only:
-            try: f=open(file_name+'.lock', 'r+')
-            except: f=open(file_name+'.lock', 'w+')
+            try:
+                f = open(file_name + '.lock', 'r+')
+            except:
+                f = open(file_name+'.lock', 'w+')
             lock_file(f)
             try:
                 f.write(str(os.getpid()))
                 f.flush()
-            except: pass
-            self._lock_file=f # so it stays open
+            except:
+                pass
+            self._lock_file = f # so it stays open
 
-            self._tfile=open(file_name+'.tmp','w+b')
-
+            self._tfile = open(file_name + '.tmp', 'w+b')
         else:
+            self._tfile = None
 
-            self._tfile=None
-
-        self._file_name=file_name
+        self._file_name = file_name
 
         BaseStorage.BaseStorage.__init__(self, file_name)
 
         index, vindex, tindex, tvindex = self._newIndexes()
-
         self._initIndex(index, vindex, tindex, tvindex)
         
         # Now open the file
@@ -292,38 +295,36 @@ class FileStorage(BaseStorage.BaseStorage,
         if create:
             if os.path.exists(file_name):
                 os.remove(file_name)
-            file=open(file_name,'w+b')
-            file.write(packed_version)
+            self._file = open(file_name, 'w+b')
+            self._file.write(packed_version)
         else:
-            file=open(file_name, read_only and 'rb' or 'r+b')
+            self._file = open(file_name, read_only and 'rb' or 'r+b')
 
-        self._file=file
-
-        r=self._restore_index()
+        r = self._restore_index()
         if r is not None:
             index, vindex, start, maxoid, ltid = r
             self._initIndex(index, vindex, tindex, tvindex)
             self._pos, self._oid, tid = read_index(
-                file, file_name, index, vindex, tindex, stop,
+                self._file, file_name, index, vindex, tindex, stop,
                 ltid=ltid, start=start, maxoid=maxoid,
                 read_only=read_only,
                 )
         else:
             self._pos, self._oid, tid = read_index(
-                file, file_name, index, vindex, tindex, stop,
+                self._file, file_name, index, vindex, tindex, stop,
                 read_only=read_only,
                 )
 
-        self._ts=tid=TimeStamp(tid)
-        t=time.time()
-        t=apply(TimeStamp,(time.gmtime(t)[:5]+(t%60,)))
+        self._ts = tid = TimeStamp(tid)
+        t = time.time()
+        t = apply(TimeStamp, (time.gmtime(t)[:5] + (t % 60,)))
         if tid > t:
             warn("%s Database records in the future", file_name);
             if tid.timeTime() - t.timeTime() > 86400*30:
                 # a month in the future? This is bogus, use current time
-                self._ts=t
+                self._ts = t
 
-        self._quota=quota
+        self._quota = quota
 
     def _initIndex(self, index, vindex, tindex, tvindex):
         self._index=index
@@ -335,7 +336,9 @@ class FileStorage(BaseStorage.BaseStorage,
 
     def __len__(self): return len(self._index)
 
-    def _newIndexes(self): return {}, {}, {}, {}
+    def _newIndexes(self):
+        # hook to use something other than builtin dict
+        return {}, {}, {}, {}
         
     def abortVersion(self, src, transaction):
         return self.commitVersion(src, '', transaction, abort=1)
@@ -1804,9 +1807,9 @@ def read_index(file, name, index, vindex, tindex, stop='\377'*8,
     transaction. 
     """
     
-    read=file.read
-    seek=file.seek
-    seek(0,2)
+    read = file.read
+    seek = file.seek
+    seek(0, 2)
     file_size=file.tell()
 
     if file_size:
