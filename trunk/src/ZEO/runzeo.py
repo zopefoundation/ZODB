@@ -203,6 +203,10 @@ class ZEOServer:
         info("terminated by SIGINT")
         sys.exit(0)
 
+    def handle_sighup(self):
+        info("restarted by SIGHUP")
+        sys.exit(1)
+
     def handle_sigusr2(self):
         # This requires a modern zLOG (from Zope 2.6 or later); older
         # zLOG packages don't have the initialize() method
