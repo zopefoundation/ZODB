@@ -115,7 +115,7 @@
 #   may have a back pointer to a version record or to a non-version
 #   record.
 #
-__version__='$Revision: 1.99 $'[11:-2]
+__version__='$Revision: 1.100 $'[11:-2]
 
 import base64
 from cPickle import Pickler, Unpickler, loads
@@ -1091,13 +1091,19 @@ class FileStorage(BaseStorage.BaseStorage,
             us = UndoSearch(self._file, self._pos, self._packt,
                             first, last, filter)
             while not us.finished():
-                us.search()
+                # Hold lock for batches of 20 searches, so default search
+                # parameters will finish without letting another thread run.
+                for i in range(20):
+                    if us.finished():
+                        break
+                    us.search()
+                # Give another thread a chance, so that a long undoLog()
+                # operation doesn't block all other activity.
+                self._lock_release()
+                self._lock_acquire()
             return us.results
         finally:
             self._lock_release()
-
-    def undoFindNext(self, pos, result, first, i, filter):
-        pass
 
     def transactionalUndo(self, transaction_id, transaction):
         """Undo a transaction, given by transaction_id.
