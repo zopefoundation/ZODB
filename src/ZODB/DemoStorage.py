@@ -100,7 +100,7 @@ There are three main data structures:
   _data -- Transaction logging information necessary for undo
 
       This is a mapping from transaction id to transaction, where
-      a transaction is simply a 4-tuple:
+      a transaction is simply a 5-tuple:
 
         packed, user, description, extension_data, records
 
@@ -150,7 +150,7 @@ method::
 and call it to minotor the storage.
 
 """
-__version__='$Revision: 1.5 $'[11:-2]
+__version__='$Revision: 1.6 $'[11:-2]
 
 import base64, POSException, BTree, BaseStorage, time, string, utils
 from TimeStamp import TimeStamp
