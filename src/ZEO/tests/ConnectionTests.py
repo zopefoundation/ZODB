@@ -20,7 +20,6 @@ import socket
 import asyncore
 import tempfile
 import threading
-import time
 
 import zLOG
 
