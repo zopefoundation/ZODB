@@ -205,7 +205,7 @@ class LRUCacheTests(CacheTestBase):
         # XXX The above gc.collect call is necessary to make this test
         # pass.
         #
-        # This test then only works because the other of computations
+        # This test then only works because the order of computations
         # and object accesses in the "noodle" calls is such that the
         # persistent mapping containing the MinPO objects is
         # deactivated before the MinPO objects.
@@ -230,12 +230,15 @@ class LRUCacheTests(CacheTestBase):
                 self.assertEqual(count, CONNS)
 
         for details in self.db.cacheExtremeDetail():
-            # one dict per object.  keys:
+            # one 'details' dict per object
             if details['klass'].endswith('PersistentMapping'):
                 self.assertEqual(details['state'], None)
             else:
                 self.assert_(details['klass'].endswith('MinPO'))
                 self.assertEqual(details['state'], 0)
+            # The cache should never hold an unreferenced ghost.
+            if details['state'] is None:    # i.e., it's a ghost
+                self.assert_(details['rc'] > 0)
 
 class StubDataManager:
     def setklassstate(self, object):

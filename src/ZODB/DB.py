@@ -13,7 +13,7 @@
 ##############################################################################
 """Database objects
 
-$Id: DB.py,v 1.78 2004/04/23 17:26:37 gintautasm Exp $"""
+$Id: DB.py,v 1.79 2004/05/07 19:10:59 tim_one Exp $"""
 
 import cPickle, cStringIO, sys
 from thread import allocate_lock
@@ -243,29 +243,39 @@ class DB(object):
         return detail
 
     def cacheExtremeDetail(self):
-        detail=[]
+        detail = []
         conn_no = [0]  # A mutable reference to a counter
         def f(con, detail=detail, rc=sys.getrefcount, conn_no=conn_no):
-            conn_no[0] = conn_no[0] + 1
+            conn_no[0] += 1
             cn = conn_no[0]
             for oid, ob in con._cache_items():
-                id=''
-                if hasattr(ob,'__dict__'):
-                    d=ob.__dict__
+                id = ''
+                if hasattr(ob, '__dict__'):
+                    d = ob.__dict__
                     if d.has_key('id'):
-                        id=d['id']
+                        id = d['id']
                     elif d.has_key('__name__'):
-                        id=d['__name__']
+                        id = d['__name__']
 
                 module = getattr(ob.__class__, '__module__', '')
-                module = module and '%s.' % module or ''
+                module = module and ('%s.' % module) or ''
 
+                # What refcount ('rc') should we return?  The intent is
+                # that we return the true Python refcount, but as if the
+                # cache didn't exist.  This routine adds 3 to the true
+                # refcount:  1 for binding to name 'ob', another because
+                # ob lives in the con._cache_items() list we're iterating
+                # over, and calling sys.getrefcount(ob) boosts ob's
+                # count by 1 too.  So the true refcount is 3 less than
+                # sys.getrefcount(ob) returns.  But, in addition to that,
+                # the cache holds an extra reference on non-ghost objects,
+                # and we also want to pretend that doesn't exist.
                 detail.append({
                     'conn_no': cn,
                     'oid': oid,
                     'id': id,
                     'klass': "%s%s" % (module, ob.__class__.__name__),
-                    'rc': rc(ob)-4,
+                    'rc': rc(ob) - 3 - (ob._p_changed is not None),
                     'state': ob._p_changed,
                     #'references': con.references(oid),
                     })
