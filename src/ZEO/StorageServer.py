@@ -83,7 +83,7 @@
 # 
 ##############################################################################
 
-__version__ = "$Revision: 1.23 $"[11:-2]
+__version__ = "$Revision: 1.24 $"[11:-2]
 
 import asyncore, socket, string, sys, os
 from smac import SizedMessageAsyncConnection
@@ -441,7 +441,7 @@ class ZEOConnection(SizedMessageAsyncConnection):
             r=StorageServerError("Couldn't pickle exception %s" % `newserial`)
             dump('',1) # clear pickler
             r=dump((oid, r),1)
-            
+
         self.message_output('s'+r)
         return _noreturn
 
@@ -499,6 +499,7 @@ class ZEOConnection(SizedMessageAsyncConnection):
         t.id=id
         t.user=user
         t.description=description
+        t._extension=ext
         storage.tpc_begin(t)
         self.__invalidated=[]
 
@@ -532,9 +533,6 @@ class ZEOConnection(SizedMessageAsyncConnection):
     def tpc_finish(self, id, user, description, ext):
         t=self._transaction
         if id != t.id: return
-        t.user=user
-        t.description=description
-        t.ext=ext
 
         storage=self.__storage
         r=storage.tpc_finish(t)
