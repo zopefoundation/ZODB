@@ -84,8 +84,8 @@
 ##############################################################################
 """Database objects
 
-$Id: DB.py,v 1.11 1999/07/14 11:32:31 jim Exp $"""
-__version__='$Revision: 1.11 $'[11:-2]
+$Id: DB.py,v 1.12 1999/07/30 14:34:33 jim Exp $"""
+__version__='$Revision: 1.12 $'[11:-2]
 
 import cPickle, cStringIO, sys, POSException
 from Connection import Connection
@@ -149,8 +149,10 @@ class DB:
         self._version_cache_size=version_cache_size
         self._version_cache_deactivate_after=version_cache_deactivate_after
 
+        self._miv_cache={}
+
         # Pass through methods:
-        for m in ('history', 'modifiedInVersion',
+        for m in ('history',
                   'supportsUndo', 'supportsVersions', 'undoLog',
                   'versionEmpty', 'versions'):
             setattr(self, m, getattr(storage, m))
@@ -310,6 +312,14 @@ class DB:
         if connection is not None: version=connection._version
         self._a()
         try:
+
+            # Update modified in version cache
+            h=hash(oid)%131
+            cache=self._miv_cache
+            o=cache.get(h, None)
+            if o and o[0]==oid: del cache[h]
+
+            # Notify connections
             pools,pooll=self._pools
             for pool, allocated in pooll:
                 for cc in allocated:
@@ -335,6 +345,16 @@ class DB:
         if oids is None: self.invalidate(None, version=version)
         else:
             for oid in oids: self.invalidate(oid, version=version)
+
+    def modifiedInVersion(self, oid):
+        h=hash(oid)%131
+        cache=self._miv_cache
+        o=cache.get(h, None)
+        if o and o[0]==oid:
+            return o[1]
+        v=self._storage.modifiedInVersion(oid)
+        cache[h]=oid, v
+        return v
 
     def objectCount(self): return len(self._storage)
         
