@@ -83,10 +83,7 @@ There is a default event logging facility that:
     can be overridden with the environment variable EVENT_LOG_SEVERITY
 
 """
-__version__='$Revision: 1.18 $'[11:-2]
-
-from EventLogger import log_write, log_time, severity_string, \
-     initialize_from_environment
+from EventLogger import log_write, log_time, severity_string
 from traceback import format_exception
 
 # Standard severities
@@ -99,16 +96,9 @@ WARNING =  100
 ERROR   =  200
 PANIC   =  300
 
-# Flag indicating whether LOG() should call initialize()
-_call_initialize = 1
-
-# Function called to (re-)initialize the logger we're using
-_initializer = initialize_from_environment
 
 def initialize():
-    global _call_initialize
-    _call_initialize = 0
-    _initializer()
+    pass
 
 def set_initializer(func):
     """Set the function used to re-initialize the logs.
@@ -119,8 +109,7 @@ def set_initializer(func):
     This does not ensure that the new function gets called; the caller
     should do that separately.
     """
-    global _initializer
-    _initializer = func
+    pass
 
 
 def LOG(subsystem, severity, summary, detail='', error=None, reraise=None):
@@ -148,13 +137,11 @@ def LOG(subsystem, severity, summary, detail='', error=None, reraise=None):
                  error is reraised.
 
     """
-    if _call_initialize:
-        initialize()
     log_write(subsystem, severity, summary, detail, error)
     if reraise and error:
         raise error[0], error[1], error[2]
 
-_subsystems=[]
+_subsystems = []
 def register_subsystem(subsystem):
     """Register a subsystem name
 
