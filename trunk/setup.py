@@ -127,6 +127,7 @@ packages = ["BTrees", "BTrees.tests",
             "ZODB", "ZODB.FileStorage", "ZODB.tests",
             "Persistence", "Persistence.tests",
             "persistent", "persistent.tests",
+            "transaction", "transaction.tests",
             "ThreadedAsync",
             "zLOG", "zLOG.tests",
             "zdaemon", "zdaemon.tests",
@@ -159,6 +160,7 @@ def copy_other_files(cmd, outputbase):
     # into a package just like .py files.
     extensions = ["*.conf", "*.xml", "*.txt", "*.sh"]
     for dir in [
+        "transaction",
         "persistent/tests",
         "ZConfig/components/basic",
         "ZConfig/components/logger",
