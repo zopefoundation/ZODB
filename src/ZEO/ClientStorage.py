@@ -2,18 +2,18 @@
 #
 # Copyright (c) 2001, 2002 Zope Corporation and Contributors.
 # All Rights Reserved.
-# 
+#
 # This software is subject to the provisions of the Zope Public License,
 # Version 2.0 (ZPL).  A copy of the ZPL should accompany this distribution.
 # THIS SOFTWARE IS PROVIDED "AS IS" AND ANY AND ALL EXPRESS OR IMPLIED
 # WARRANTIES ARE DISCLAIMED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 # WARRANTIES OF TITLE, MERCHANTABILITY, AGAINST INFRINGEMENT, AND FITNESS
 # FOR A PARTICULAR PURPOSE
-# 
+#
 ##############################################################################
 """Network ZODB storage client
 
-$Id: ClientStorage.py,v 1.46 2002/08/16 18:15:04 bwarsaw Exp $
+$Id: ClientStorage.py,v 1.47 2002/08/16 21:42:49 tim_one Exp $
 """
 
 import cPickle
@@ -117,7 +117,7 @@ class ClientStorage:
         # Mutual exclusion is achieved using tpc_cond(), which
         # protects _transaction.  A thread that wants to assign to
         # self._transaction must acquire tpc_cond() first.
-        
+
         # Invariant: If self._transaction is not None, then tpc_cond()
         # must be acquired.
         self.tpc_cond = threading.Condition()
@@ -339,22 +339,20 @@ class ClientStorage:
     def tpc_begin(self, transaction, tid=None, status=' '):
         self.tpc_cond.acquire()
         while self._transaction is not None:
+            # It is allowable for a client to call two tpc_begins in a
+            # row with the same transaction, and the second of these
+            # must be ignored.
             if self._transaction == transaction:
-                # Our tpc_cond lock is re-entrant.  It is allowable for a
-                # client to call two tpc_begins in a row with the same
-                # transaction, and the second of these must be ignored.  Our
-                # locking is safe because the acquire() above gives us a
-                # second lock on tpc_cond, and the following release() brings
-                # us back to owning just the one tpc_cond lock (acquired
-                # during the first of two consecutive tpc_begins).
                 self.tpc_cond.release()
                 return
             self.tpc_cond.wait()
-        self.tpc_cond.release()
 
         if self._server is None:
-            self.tpc_cond.release()
+            # XXX Why set _transaction to None?  It must be None now, else
+            # XXX we would have stayed in the while loop.
+            assert self._transaction is None
             self._transaction = None
+            self.tpc_cond.release()
             raise ClientDisconnected()
 
         if tid is None:
@@ -363,7 +361,13 @@ class ClientStorage:
         else:
             self._ts = TimeStamp(tid)
             id = tid
+        # XXX Can setting _transaction be moved above the "id=" business?
+        # XXX We want to hold the condvar across as little code as possible,
+        # XXX to slash the chances for deadlock (among other things); e.g.,
+        # XXX if one of those timestamp routines raised an exception, we'd
+        # XXX hold the condvar forever.
         self._transaction = transaction
+        self.tpc_cond.release()
 
         try:
             r = self._server.tpc_begin(id,
@@ -373,10 +377,10 @@ class ClientStorage:
                                        tid, status)
         except:
             # Client may have disconnected during the tpc_begin().
-            # Then notifyDisconnected() will have released the lock.
             if self._server is not disconnected_stub:
                 self.tpc_cond.acquire()
                 self._transaction = None
+                self.tpc_cond.notify()
                 self.tpc_cond.release()
             raise
 
