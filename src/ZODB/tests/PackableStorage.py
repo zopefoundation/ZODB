@@ -126,6 +126,10 @@ class PackableStorage(PackableStorageBase):
         self._initroot()
         self._storage.pack(time.time() + 10000, referencesf)
             
+    def checkPackYesterday(self):
+        self._initroot()
+        self._storage.pack(time.time() - 10000, referencesf)
+            
     def checkPackAllRevisions(self):
         self._initroot()
         eq = self.assertEqual

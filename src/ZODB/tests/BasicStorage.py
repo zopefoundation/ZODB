@@ -73,10 +73,11 @@ class BasicStorage:
         self._storage.tpc_begin(txn)
         # Use None for serial.  Don't use _dostore() here because that coerces
         # serial=None to serial=ZERO.
-        newrevid = self._storage.store(oid, None, zodb_pickle(MinPO(11)),
+        r1 = self._storage.store(oid, None, zodb_pickle(MinPO(11)),
                                        '', txn)
-        self._storage.tpc_vote(txn)
+        r2 = self._storage.tpc_vote(txn)
         self._storage.tpc_finish(txn)
+        newrevid = self._handle_serials(oid, r1, r2)
         data, revid = self._storage.load(oid, '')
         value = zodb_unpickle(data)
         eq(value, MinPO(11))
@@ -118,22 +119,22 @@ class BasicStorage:
     def checkWriteAfterAbort(self):
         oid = self._storage.new_oid()
         self._storage.tpc_begin(self._transaction)
-        revid = self._storage.store(oid, ZERO, zodb_pickle(MinPO(5)),
-                                    '', self._transaction)
+        self._storage.store(oid, ZERO, zodb_pickle(MinPO(5)),
+                            '', self._transaction)
         # Now abort this transaction
         self._storage.tpc_abort(self._transaction)
         # Now start all over again
         self._transaction = Transaction()
         oid = self._storage.new_oid()
-        revid = self._dostore(oid=oid, data=MinPO(6))
+        self._dostore(oid=oid, data=MinPO(6))
 
     def checkAbortAfterVote(self):
         oid1 = self._storage.new_oid()
         revid1 = self._dostore(oid=oid1, data=MinPO(-2))
         oid = self._storage.new_oid()
         self._storage.tpc_begin(self._transaction)
-        revid = self._storage.store(oid, ZERO, zodb_pickle(MinPO(5)),
-                                    '', self._transaction)
+        self._storage.store(oid, ZERO, zodb_pickle(MinPO(5)),
+                            '', self._transaction)
         # Now abort this transaction
         self._storage.tpc_vote(self._transaction)
         self._storage.tpc_abort(self._transaction)
