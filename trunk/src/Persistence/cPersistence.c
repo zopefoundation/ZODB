@@ -14,7 +14,7 @@
 static char cPersistence_doc_string[] = 
 "Defines Persistent mixin class for persistent objects.\n"
 "\n"
-"$Id: cPersistence.c,v 1.59 2002/04/15 18:42:51 jeremy Exp $\n";
+"$Id: cPersistence.c,v 1.60 2002/06/14 15:29:30 jeremy Exp $\n";
 
 #include "cPersistence.h"
 
@@ -214,35 +214,33 @@ deallocated(cPersistentObject *self)
 static int
 changed(cPersistentObject *self)
 {
-  static PyObject *builtins=0, *get_transaction=0, *py_register=0;
-  PyObject *T;
-  
   if ((self->state == cPersistent_UPTODATE_STATE ||
        self->state == cPersistent_STICKY_STATE)
        && self->jar)
     {
-      UNLESS (get_transaction)
-	{
-	  UNLESS (py_register=PyString_FromString("register")) return -1;
-	  UNLESS (T=PyImport_ImportModule("__main__")) return -1;
-	  ASSIGN(T,PyObject_GetAttrString(T,"__builtins__"));
-	  UNLESS (T) return -1;
-	  builtins=T;
-	  UNLESS (get_transaction=PyObject_GetAttrString(builtins,
-							 "get_transaction"))
-	    PyErr_Clear();
-	}
-      if (get_transaction)
-	{    
-	  UNLESS (T=PyObject_CallObject(get_transaction,NULL)) return -1;
-	  ASSIGN(T,PyObject_GetAttr(T,py_register));
-	  UNLESS (T) return -1;
-	  ASSIGN(T, PyObject_CallFunction(T,"O",self));
-	  if (T) Py_DECREF(T);
-	  else return -1;
-	}
+	PyObject *meth, *arg, *result;
+	static PyObject *s_register;
 
-      self->state=cPersistent_CHANGED_STATE;
+	if (s_register == NULL) 
+	    s_register = PyString_InternFromString("register");
+	meth = PyObject_GetAttr((PyObject *)self->jar, s_register);
+	if (meth == NULL)
+	    return -1;
+	arg = PyTuple_New(1);
+	if (arg == NULL) {
+	    Py_DECREF(meth);
+	    return -1;
+	}
+	PyTuple_SET_ITEM(arg, 0, (PyObject *)self);
+	result = PyObject_Call(meth, arg, NULL);
+	PyTuple_SET_ITEM(arg, 0, NULL);
+	Py_DECREF(arg);
+	Py_DECREF(meth);
+	if (result == NULL)
+	    return -1;
+	Py_DECREF(result);
+
+	self->state = cPersistent_CHANGED_STATE;
     }
 
   return 0;
