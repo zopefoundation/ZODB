@@ -1,6 +1,6 @@
 /*
 
-  $Id: cPersistence.h,v 1.1 1997/04/01 17:15:48 jim Exp $
+  $Id: cPersistence.h,v 1.2 1997/04/22 02:40:28 jim Exp $
 
   Definitions to facilitate making cPersistent subclasses in C.
 
@@ -56,6 +56,9 @@
 
 
   $Log: cPersistence.h,v $
+  Revision 1.2  1997/04/22 02:40:28  jim
+  Changed object header layout.
+
   Revision 1.1  1997/04/01 17:15:48  jim
   *** empty log message ***
 
@@ -67,16 +70,12 @@
 
 #include "ExtensionClass.h"
 
-typedef struct {
-  PyObject_HEAD
-  time_t value;
-} PATimeobject;
-
 #define cPersistent_HEAD   PyObject_HEAD \
-  PyObject *oid; \
   PyObject *jar; \
-  PATimeobject *atime; \
-  int state;			
+  int oid; \
+  int state; \
+  time_t atime; \
+
 
 #define cPersistent_GHOST_STATE -1
 #define cPersistent_UPTODATE_STATE 0
@@ -85,6 +84,11 @@ typedef struct {
 typedef struct {
   cPersistent_HEAD
 } cPersistentObject;
+
+typedef struct {
+  PyObject_HEAD
+  cPersistentObject *object;
+} PATimeobject;
 
 
 typedef struct {
