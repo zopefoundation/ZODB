@@ -145,6 +145,33 @@ class SetResult(TestCase):
                 else:
                     self.assertEqual(list(C), want)
 
+    def testLargerInputs(self):
+        from random import randint
+        MAXSIZE = 200
+        MAXVAL = 400
+        for i in range(3):
+            n = randint(0, MAXSIZE)
+            Akeys = [randint(1, MAXVAL) for j in range(n)]
+            As = [makeset(Akeys) for makeset in self.builders]
+            Akeys = IISet(Akeys)
+
+            n = randint(0, MAXSIZE)
+            Bkeys = [randint(1, MAXVAL) for j in range(n)]
+            Bs = [makeset(Bkeys) for makeset in self.builders]
+            Bkeys = IISet(Bkeys)
+
+            for op, simulator in ((self.union, self._union),
+                                  (self.intersection, self._intersection),
+                                  (self.difference, self._difference)):
+                for A in As:
+                    for B in Bs:
+                        got = op(A, B)
+                        want = simulator(Akeys, Bkeys)
+                        self.assertEqual(list(got.keys()), want,
+                                         (A, B,
+                                          Akeys, Bkeys,
+                                          list(got.keys()), want))
+
 # Given a mapping builder (IIBTree, OOBucket, etc), return a function
 # that builds an object of that type given only a list of keys.
 def makeBuilder(mapbuilder):
