@@ -86,7 +86,7 @@
 """Start the server storage.
 """
 
-__version__ = "$Revision: 1.19 $"[11:-2]
+__version__ = "$Revision: 1.20 $"[11:-2]
 
 import sys, os, getopt, string
 
@@ -296,7 +296,8 @@ def main(argv):
             signal.signal(signal.SIGINT,
                           lambda sig, frame, s=storages: shutdown(s, 0)
                           )
-            signal.signal(signal.SIGHUP, rotate_logs_handler)
+            try: signal.signal(signal.SIGHUP, rotate_logs_handler)
+            finally: pass
 
         finally: pass
 
@@ -309,8 +310,9 @@ def main(argv):
 
         ZEO.StorageServer.StorageServer(unix, storages)
 
-
-        open(zeo_pid,'w').write("%s %s" % (os.getppid(), os.getpid()))
+        try: ppid, pid = os.getppid(), os.getpid()
+        except: pass # getpid not supported
+        else: open(zeo_pid,'w').write("%s %s" % (ppid, pid))
 
         asyncore.loop()
     except:
