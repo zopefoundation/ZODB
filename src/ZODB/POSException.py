@@ -13,7 +13,7 @@
 ##############################################################################
 """ZODB-defined exceptions
 
-$Id: POSException.py,v 1.17 2002/12/10 21:42:05 bwarsaw Exp $"""
+$Id: POSException.py,v 1.18 2003/01/03 22:08:22 jeremy Exp $"""
 
 from types import StringType, DictType
 import ZODB.utils
@@ -219,4 +219,6 @@ class InvalidObjectReference(POSError):
     o A reference to a wrapped persistent object.
 
     o A reference to an object in a different database connection.
+
+    XXX The exception ought to have a member that is the invalid object.
     """
