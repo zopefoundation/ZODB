@@ -86,7 +86,7 @@
 """Start the server storage.
 """
 
-__version__ = "$Revision: 1.11 $"[11:-2]
+__version__ = "$Revision: 1.12 $"[11:-2]
 
 import sys, os, getopt, string
 
@@ -216,6 +216,37 @@ def main(argv):
     __builtins__.__debug__=debug
     if debug: os.environ['Z_DEBUG_MODE']='1'
 
+    # Try to set uid to "-u" -provided uid.
+    # Try to set gid to  "-u" user's primary group. 
+    # This will only work if this script is run by root.
+    try:
+        import pwd
+        try:
+            try: UID=string.atoi(UID)
+            except: pass
+            gid = None
+            if type(UID) == type(""):
+                uid = pwd.getpwnam(UID)[2]
+                gid = pwd.getpwnam(UID)[3]
+            elif type(UID) == type(1):
+                uid = pwd.getpwuid(UID)[2]
+                gid = pwd.getpwuid(UID)[3]
+            else:
+                raise KeyError 
+            try:
+                if gid is not None:
+                    try:
+                        os.setgid(gid)
+                    except OSError:
+                        pass
+                os.setuid(uid)
+            except OSError:
+                pass
+        except KeyError:
+            zLOG.LOG("z2", zLOG.ERROR, ("can't find UID %s" % UID))
+    except:
+        pass
+
     if Z:
         try: import posix
         except: pass
@@ -264,37 +295,6 @@ def main(argv):
 
     ZEO.StorageServer.StorageServer(unix, storages)
 
-
-    # Try to set uid to "-u" -provided uid.
-    # Try to set gid to  "-u" user's primary group. 
-    # This will only work if this script is run by root.
-    try:
-        import pwd
-        try:
-            try: UID=string.atoi(UID)
-            except: pass
-            gid = None
-            if type(UID) == type(""):
-                uid = pwd.getpwnam(UID)[2]
-                gid = pwd.getpwnam(UID)[3]
-            elif type(UID) == type(1):
-                uid = pwd.getpwuid(UID)[2]
-                gid = pwd.getpwuid(UID)[3]
-            else:
-                raise KeyError 
-            try:
-                if gid is not None:
-                    try:
-                        os.setgid(gid)
-                    except OSError:
-                        pass
-                os.setuid(uid)
-            except OSError:
-                pass
-        except KeyError:
-            zLOG.LOG("z2", zLOG.ERROR, ("can't find UID %s" % UID))
-    except:
-        pass
 
     open(zeo_pid,'w').write("%s %s" % (os.getppid(), os.getpid()))
     
