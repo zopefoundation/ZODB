@@ -61,9 +61,9 @@ structures.  There are variants of the data structures specialized to
 integers, which are faster and use less memory.  There
 are five modules that handle the different variants.  The first two
 letters of the module name specify the types of the keys and values in
-mappings -- O for any object, I for 32-bit signed integer, and F for
-32-bit C float.  For example, the \module{BTrees.IOBTree} module provides
-a mapping with integer keys and arbitrary objects as values.
+mappings -- O for any object, I for 32-bit signed integer, and (new in
+ZODB 3.4) F for 32-bit C float.  For example, the \module{BTrees.IOBTree}
+module provides a mapping with integer keys and arbitrary objects as values.
 
 The four data structures provide by each module are a BTree, a Bucket,
 a TreeSet, and a Set.  The BTree and Bucket types are mappings and
@@ -84,12 +84,13 @@ much better (logarithmic) worst-case time bounds, and the tree structure
 is built out of multiple objects, which ZODB can load individually
 as needed.
 
-The four modules are named \module{OOBTree}, \module{IOBTree},
-\module{OIBTree}, \module{IIBTree}, and \module{IFBTree}.  The two letter
-prefixes are repeated in the data types names.  The \module{BTrees.OOBTree}
-module defines the following types: \class{OOBTree}, \class{OOBucket},
-\class{OOSet}, and \class{OOTreeSet}.  Similarly, the other four modules
-each define their own variants of those four types.
+The five modules are named \module{OOBTree}, \module{IOBTree},
+\module{OIBTree}, \module{IIBTree}, and (new in ZODB 3.4)
+\module{IFBTree}.  The two letter prefixes are repeated in the data types
+names.  The \module{BTrees.OOBTree} module defines the following types:
+\class{OOBTree}, \class{OOBucket}, \class{OOSet}, and \class{OOTreeSet}.
+Similarly, the other four modules each define their own variants of those
+four types.
 
 The \function{keys()}, \function{values()}, and \function{items()}
 methods on BTree and TreeSet types do not materialize a list with all
