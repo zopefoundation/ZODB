@@ -84,7 +84,7 @@
 ##############################################################################
 """Network ZODB storage client
 """
-__version__='$Revision: 1.21 $'[11:-2]
+__version__='$Revision: 1.22 $'[11:-2]
 
 import struct, time, os, socket, string, Sync, zrpc, ClientCache
 import tempfile, Invalidator, ExtensionClass, thread
@@ -115,7 +115,7 @@ class ClientStorage(ExtensionClass.Base, BaseStorage.BaseStorage):
     _connected=_async=0
     __begin='tpc_begin_sync'
 
-    def __init__(self, connection, async=0, storage='1', cache_size=20000000,
+    def __init__(self, connection, storage='1', cache_size=20000000,
                  name='', client='', debug=0, var=None,
                  min_disconnect_poll=5, max_disconnect_poll=300,
                  wait_for_server_on_starup=1):
