@@ -2,14 +2,14 @@
 #
 # Copyright (c) 2001, 2002 Zope Corporation and Contributors.
 # All Rights Reserved.
-# 
+#
 # This software is subject to the provisions of the Zope Public License,
 # Version 2.0 (ZPL).  A copy of the ZPL should accompany this distribution.
 # THIS SOFTWARE IS PROVIDED "AS IS" AND ANY AND ALL EXPRESS OR IMPLIED
 # WARRANTIES ARE DISCLAIMED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 # WARRANTIES OF TITLE, MERCHANTABILITY, AGAINST INFRINGEMENT, AND FITNESS
 # FOR A PARTICULAR PURPOSE
-# 
+#
 ##############################################################################
 
 import os
@@ -22,9 +22,9 @@ severity_string = {
     -300: 'TRACE',
     -200: 'DEBUG',
     -100: 'BLATHER',
-       0: 'INFO',       
-     100: 'PROBLEM', 
-     200: 'ERROR',    
+       0: 'INFO',
+     100: 'PROBLEM',
+     200: 'ERROR',
      300: 'PANIC',
     }
 
@@ -52,7 +52,7 @@ class StupidLogTest(unittest.TestCase):
             del os.environ['STUPID_LOG_SEVERITY']
         if os.environ.has_key('EVENT_LOG_SEVERITY'):
             del os.environ['EVENT_LOG_SEVERITY']
-            
+
     def setLog(self, severity=0):
         os.environ['%s_LOG_FILE' % self.prefix] = self.path
         if severity:
@@ -68,7 +68,7 @@ class StupidLogTest(unittest.TestCase):
             if not line:
                 self.fail("can't find entry in log file")
             line = f.readline()
-            
+
         line = f.readline().strip()
         _time, rest = line.split(" ", 1)
         if time is not None:
@@ -122,7 +122,7 @@ class StupidLogTest(unittest.TestCase):
             1 / 0
         except ZeroDivisionError, err:
             err = sys.exc_info()
-            
+
         zLOG.LOG("basic", zLOG.INFO, "summary")
         zLOG.LOG("basic", zLOG.ERROR, "raised exception", error=err)
 
@@ -139,7 +139,7 @@ def test_suite():
     suite = unittest.makeSuite(StupidLogTest, 'check')
     suite.addTest(unittest.makeSuite(EventLogTest, 'check'))
     return suite
-            
+
 if __name__ == "__main__":
     loader = unittest.TestLoader()
     loader.testMethodPrefix = "check"
