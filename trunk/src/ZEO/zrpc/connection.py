@@ -12,6 +12,7 @@
 #
 ##############################################################################
 import asyncore
+import errno
 import select
 import sys
 import threading
@@ -331,6 +332,7 @@ class Connection(smac.SizedMessageAsyncConnection):
         self.thr_async = 1
 
     def is_async(self):
+        # overridden for ManagedConnection
         if self.thr_async:
             return 1
         else:
@@ -366,6 +368,36 @@ class Connection(smac.SizedMessageAsyncConnection):
             self.trigger.pull_trigger()
         else:
             asyncore.poll(0.0, self._map)
+
+    def pending(self):
+        """Invoke mainloop until any pending messages are handled."""
+        if __debug__:
+            log("pending(), async=%d" % self.is_async(), level=zLOG.TRACE)
+        if self.is_async():
+            return
+        # Inline the asyncore poll3 function to know whether any input
+        # was actually read.  Repeat until know input is ready.
+        # XXX This only does reads.
+        poll = select.poll()
+        poll.register(self._fileno, select.POLLIN)
+        # put dummy value in r so we enter the while loop the first time
+        r = [(self._fileno, None)]
+        while r:
+            try:
+                r = poll.poll()
+            except select.error, err:
+                if err[0] == errno.EINTR:
+                    continue
+                else:
+                    raise
+            if r:
+                try:
+                    self.handle_read_event()
+                except asyncore.ExitNow:
+                    raise
+                else:
+                    self.handle_error()
+                    
 
 class ServerConnection(Connection):
     """Connection on the server side"""
@@ -423,6 +455,7 @@ class ManagedConnection(Connection):
         return 0
 
     def is_async(self):
+        # XXX could the check_mgr_async() be avoided on each test?
         if self.thr_async:
             return 1
         return self.check_mgr_async()
