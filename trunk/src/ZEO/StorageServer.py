@@ -141,9 +141,9 @@ class ZEOStorage:
         return "<%s %X trans=%s s_trans=%s>" % (name, id(self), tid, stid)
 
     def _log(self, msg, level=zLOG.INFO, error=None, pid=os.getpid()):
-        name = getattr(self, '__name__', None)
+        name = getattr(self.__storage, '__name__', None)
         if name is None:
-            name = str(self)
+            name = str(self.__storage)
         zLOG.LOG("ZEO Server:%s:%s" % (pid, name), level, msg, error=error)
 
     def setup_delegation(self):
