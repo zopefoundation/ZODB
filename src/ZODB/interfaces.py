@@ -17,7 +17,8 @@ $Id$
 """
 
 try:
-    from zope.interface import Interface, Attribute
+    from zope.interface import Interface, Attribute, implements
+    from zope.interface.verify import verifyObject
 except ImportError:
     class Interface:
         pass
@@ -27,6 +28,11 @@ except ImportError:
             self.__name__ = __name__
             self.__doc__ = __doc__
 
+    def implements(*args):
+        pass
+
+    def verifyObject(*args):
+        pass
 
 class IDataManager(Interface):
     """Objects that manage transactional storage.
@@ -144,6 +150,16 @@ class IDataManager(Interface):
 
         """
 
+    def sortKey():
+        """
+        Return a key to use for ordering registered DataManagers
+
+        ZODB uses a global sort order to prevent deadlock when it commits
+        transactions involving multiple resource managers.  The resource
+        manager must define a sortKey() method that provides a global ordering
+        for resource managers.
+        """
+
 
 class ITransaction(Interface):
     """Object representing a running transaction.
@@ -224,3 +240,26 @@ class ITransaction(Interface):
         """
         # XXX is this this allowed to cause an exception here, during
         # the two-phase commit, or can it toss data silently?
+
+
+class IConnection(Interface):
+    """ZODB connection.
+
+    XXX: This interface is incomplete.
+    """
+
+    def add(ob):
+        """Add a new object 'obj' to the database and assign it an oid.
+
+        A persistent object is normally added to the database and
+        assigned an oid when it becomes reachable to an object already in
+        the database.  In some cases, it is useful to create a new
+        object and use its oid (_p_oid) in a single transaction.
+
+        This method assigns a new oid regardless of whether the object
+        is reachable.
+
+        The object is added when the transaction commits.  The object
+        must implement the IPersistent interface and must not
+        already be associated with a Connection.
+        """

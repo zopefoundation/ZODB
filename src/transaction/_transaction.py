@@ -25,7 +25,7 @@ Transaction has two methods for a resource manager to call to
 participate in a transaction -- register() and join().  join() takes a
 resource manager and adds it to the list of resources.  register() is
 for backwards compatibility.  It takes a persistent object and
-registers its _p_jar attribute.  XXX explain adapter
+registers its _p_jar attribute.  TODO: explain adapter
 
 Subtransactions
 ---------------
@@ -54,7 +54,7 @@ methods and support a second argument to tpc_begin().
 
 The second argument to tpc_begin() indicates that a subtransaction
 commit is beginning (if it is true).  In a subtransaction, there is no
-tpc_vote() call.  (XXX I don't have any idea why.)  The tpc_finish()
+tpc_vote() call.  (XXX: I don't have any idea why.)  The tpc_finish()
 or tpc_abort() call applies just to that subtransaction.
 
 Once a resource manager is involved in a subtransaction, all
@@ -187,11 +187,11 @@ class Transaction(object):
 
     def join(self, resource):
         if self.status != Status.ACTIVE:
-            # XXX Should it be possible to join a committing transaction?
+            # TODO: Should it be possible to join a committing transaction?
             # I think some users want it.
             raise ValueError("expected txn status %r, but it's %r" % (
                              Status.ACTIVE, self.status))
-        # XXX the prepare check is a bit of a hack, perhaps it would
+        # TODO: the prepare check is a bit of a hack, perhaps it would
         # be better to use interfaces.  If this is a ZODB4-style
         # resource manager, it needs to be adapted, too.
         if myhasattr(resource, "prepare"):
@@ -219,7 +219,7 @@ class Transaction(object):
             self._adapters[manager] = adapter
             self.join(adapter)
         else:
-            # XXX comment out this expensive assert later
+            # TODO: comment out this expensive assert later
             # Use id() to guard against proxies.
             assert id(obj) not in map(id, adapter.objects)
             adapter.objects.append(obj)
@@ -230,7 +230,7 @@ class Transaction(object):
                 self._resources.append(adapter)
 
     def begin(self):
-        # XXX I'm not sure how this should be implemented.  Not doing
+        # TODO: I'm not sure how this should be implemented.  Not doing
         # anything now, but my best guess is: If nothing has happened
         # yet, it's fine.  Otherwise, abort this transaction and let
         # the txn manager create a new one.
@@ -293,8 +293,8 @@ class Transaction(object):
                 for rm in L:
                     rm.tpc_finish(self)
             except:
-                # XXX do we need to make this warning stronger?
-                # XXX It would be nice if the system could be configured
+                # TODO: do we need to make this warning stronger?
+                # TODO: It would be nice if the system could be configured
                 # to stop committing transactions at this point.
                 self.log.critical("A storage error occured during the second "
                                   "phase of the two-phase commit.  Resources "
@@ -365,8 +365,8 @@ class Transaction(object):
                 # Merge all of _sub, _nonsub, and _resources.
                 d = dict(self._sub)
                 d.update(self._nonsub)
-                # XXX I think _sub and _nonsub are disjoint, and that
-                # XXX _resources is empty.  If so, we can simplify this code.
+                # TODO: I think _sub and _nonsub are disjoint, and that
+                #       _resources is empty.  If so, we can simplify this code.
                 assert len(d) == len(self._sub) + len(self._nonsub)
                 assert not self._resources
                 for rm in self._resources:
@@ -430,7 +430,7 @@ class Transaction(object):
     def setExtendedInfo(self, name, value):
         self._extension[name] = value
 
-# XXX We need a better name for the adapters.
+# TODO: We need a better name for the adapters.
 
 class MultiObjectResourceAdapter(object):
     """Adapt the old-style register() call to the new-style join().
@@ -538,7 +538,7 @@ class DataManagerAdapter(object):
         self._datamanager = datamanager
         self._rollback = None
 
-    # XXX I'm not sure why commit() doesn't do anything
+    # TODO: I'm not sure why commit() doesn't do anything
 
     def commit(self, transaction):
         pass
@@ -580,3 +580,7 @@ class DataManagerAdapter(object):
     def tpc_vote(self, transaction):
         if not self._sub:
             self._datamanager.prepare(transaction)
+
+    def sortKey(self):
+        return self._datamanager.sortKey()
+

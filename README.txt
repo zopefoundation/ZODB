@@ -28,7 +28,7 @@ ZoneAlarm.  Many particularly slow tests are skipped unless you pass
 Compatibility
 -------------
 
-ZODB 3.3 is requires Python 2.3.4 or later.
+ZODB 3.3 requires Python 2.3.4 or later.
 
 The Zope 2.8 release should be compatible with this version of ZODB.
 Note that Zope 2.7 and higher includes ZEO, so this package should
