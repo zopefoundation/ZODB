@@ -27,7 +27,7 @@ def main(addr, storage, days):
     # is called.  The only thing we care about, though, is that
     # registerDB() calls _startup().
     cs._startup()
-    cs.pack(wait=1, days=0)
+    cs.pack(wait=1, days=days)
 
 def usage(exit=1):
     print __doc__
