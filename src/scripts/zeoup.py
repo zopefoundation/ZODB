@@ -14,6 +14,8 @@ Options:
     -p port -- port to connect to
     
     -h host -- host to connect to (default is current host)
+
+    -S storage -- storage name (default '1')
     
     -U path -- Unix-domain socket to connect to
 
@@ -95,7 +97,10 @@ def main():
             elif o == '-1':
                 ZEO_VERSION = 1
     except Exception, err:
-        print err
+        s = str(err)
+        if s:
+            s = ": " + s
+        print err.__class__.__name__ + s
         usage()
 
     if unix is not None:
@@ -112,6 +117,11 @@ def main():
 if __name__ == "__main__":
     try:
         main()
+    except SystemExit:
+        raise
     except Exception, err:
-        print err
+        s = str(err)
+        if s:
+            s = ": " + s
+        print err.__class__.__name__ + s
         sys.exit(1)
