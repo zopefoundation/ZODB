@@ -1,0 +1,242 @@
+Running a ZEO Server HOWTO
+==========================
+
+Introduction
+------------
+
+ZEO stands for Zope Enterprise Objects.  It is a client-server system
+for sharing a single storage among many clients.  Normally, a ZODB
+storage can only be used by a single process.  When you use ZEO, the
+storage is opened in the ZEO server process.  Client programs connect
+to this process using a ZEO ClientStorage.  ZEO provides a consistent
+view of the database to all clients.  The ZEO client and server
+communicate using a custom RPC protocol layered on top of TCP.
+
+Installing software
+-------------------
+
+ZEO is distributed as part of the ZODB3 package and with Zope,
+starting with Zope 2.7.  You can download it from:
+
+- http://www.zope.org/Products/ZODB3.2, or
+- http://www.zope.org/Products/Zope
+
+To use ZEO with Zope 2.6, download ZODB3.2 and install it into your
+Zope software home.  ZODB3 comes with a distutils setup.py script.
+You can use the --home option to setup.py install to the software in
+custom location.  For example, if Zope is installed in /home/zope,
+then this command will install the new ZEO and ZODB:
+
+    python setup.py install --home /home/zope
+
+The install command should create a /home/zope/lib/python/ZEO directoy.
+
+Configuring server
+------------------
+
+The script ZEO/runzeo.py runs the ZEO server.  The server can be
+configured using command-line arguments or a config file.  This
+document describes only describes the config file.  Run ZEO/runzeo.py
+-h to see the list of command-line arguments.
+
+The runzeo.py script imports the ZEO package.  ZEO must either be
+installed in Python's site-packages directory or be in a directory on
+PYTHONPATH.  
+
+The configuration file specifies the underlying storage the server
+uses, the address it binds, and a few other optional parameters.
+An example is:
+
+    <zeo>
+    address zeo.example.com:8090
+    monitor-address zeo.example.com:8091
+    </zeo>
+
+    <filestorage 1>
+    path /var/tmp/Data.fs
+    </filestorage>
+
+    <eventlog>
+    <logfile>
+    path /var/tmp/zeo.log
+    format %(asctime)s %(message)s
+    </logfile>
+    </eventlog>
+
+This file configures a server to use a FileStorage from
+/var/tmp/Data.fs.  The server listens on port 8090 of zeo.example.com.
+It also starts a monitor server that lists in port 8091.  The ZEO
+server writes its log file to /var/tmp/zeo.log and uses a custom
+format for each line.  Assuming the example configuration it stored in
+zeo.config, you can run a server by typing:
+
+    python ~/src/ZODB3/ZEO/runzeo.py -C zeo.config
+
+A configuration file consists of a <zeo> section and a storage
+section, where the storage section can use any of the valid ZODB
+storage types.  It may also contain an eventlog configuration.  See
+the document "Configuring a ZODB database" for more information about
+configuring storages and eventlogs.
+
+The zeo section must list the address.  All the other keys are
+optional.
+
+address
+
+        The address at which the server should listen.  This can be in
+        the form 'host:port' to signify a TCP/IP connection or a
+        pathname string to signify a Unix domain socket connection (at
+        least one '/' is required).  A hostname may be a DNS name or a
+        dotted IP address.  If the hostname is omitted, the platform's
+        default behavior is used when binding the listening socket (''
+        is passed to socket.bind() as the hostname portion of the
+        address).
+
+read-only
+
+        Flag indicating whether the server should operate in read-only
+        mode.  Defaults to false.  Note that even if the server is
+        operating in writable mode, individual storages may still be
+        read-only.  But if the server is in read-only mode, no write
+        operations are allowed, even if the storages are writable.  Note
+        that pack() is considered a read-only operation.
+
+invalidation-queue-size
+
+        The storage server keeps a queue of the objects modified by the
+        last N transactions, where N == invalidation_queue_size.  This
+        queue is used to speed client cache verification when a client
+        disconnects for a short period of time.
+
+monitor-address
+
+        The address at which the monitor server should listen.  If
+        specified, a monitor server is started.  The monitor server
+        provides server statistics in a simple text format.  This can
+        be in the form 'host:port' to signify a TCP/IP connection or a
+        pathname string to signify a Unix domain socket connection (at
+        least one '/' is required).  A hostname may be a DNS name or a
+        dotted IP address.  If the hostname is omitted, the platform's
+        default behavior is used when binding the listening socket (''
+        is passed to socket.bind() as the hostname portion of the
+        address).
+
+transaction-timeout
+
+        The maximum amount of time to wait for a transaction to commit
+        after acquiring the storage lock, specified in seconds.  If the
+        transaction takes too long, the client connection will be closed
+        and the transaction aborted.
+
+Configuring client
+------------------
+
+The ZEO client can also be configured using ZConfig.  The ZODB.config
+module provides several function for opening a storage based on its
+configuration.
+
+    ZODB.config.storageFromString()
+    ZODB.config.storageFromFile()
+    ZODB.config.storageFromURL()
+
+The ZEO client configuration requires the server address be
+specified.  Everything else is optional.  An example configuration is:
+
+    <zeoclient>
+    server zeo.example.com:8090
+    </zeoclient>
+
+To use a ZEO client from Zope, write a configuration file and load it
+from custom_zodb.py:
+
+    from ZODB.config import storageFromURL
+    Storage = storageFromURL("/path/to/client.txt")
+
+The other configuration options are listed below.
+
+storage
+
+        The name of the storage that the client wants to use.  If the
+        ZEO server serves more than one storage, the client selects
+        the storage it wants to use by name.  The default name is '1',
+        which is also the default name for the ZEO server.
+
+cache-size
+
+        The maximum size of the client cache, in bytes.
+
+name
+
+        The storage name.  If unspecified, the address of the server
+        will be used as the name.
+
+client
+
+        Enables persistent cache files.  The string passed here is
+        used to construct the cache filenames.  If it is not
+        specified, the client creates a temporary cache that will
+        only be used by the current object.
+
+var
+
+        The directory where persistent cache files are stored.  By
+        default cache files, if they are persistent, are stored in 
+        the current directory.
+
+min-disconnect-poll
+
+        The minimum delay in seconds between attempts to connect to
+        the server, in seconds.  Defaults to 5 seconds.
+
+max-disconnect-poll
+
+        The maximum delay in seconds between attempts to connect to
+        the server, in seconds.  Defaults to 300 seconds.
+
+wait
+
+        A boolean indicating whether the constructor should wait
+        for the client to connect to the server and verify the cache
+        before returning.  The default is true.
+
+read-only
+
+        A flag indicating whether this should be a read-only storage,
+        defaulting to false (i.e. writing is allowed by default).
+
+read-only-fallback
+
+        A flag indicating whether a read-only remote storage should be
+        acceptable as a fallback when no writable storages are
+        available.  Defaults to false.  At most one of read_only and
+        read_only_fallback should be true.
+
+A ZEO client can also be created by calling the ClientStorage
+constructor explicitly.  For example:
+
+    from ZEO.ClientStorage import ClientStorage
+    storage = ClientStorage(("zeo.example.com", 8090))
+
+Running the ZEO server as a daemon
+----------------------------------
+
+ZEO features
+------------
+
+Client cache configuration
+--------------------------
+
+Setting the cache size.
+Persistent or not.
+cache trace.
+
+Diagnosing problems
+-------------------
+
+How to use the debug logs.
+Common gotchas.
+
+Details
+-------
+
+How does the zrpc protocol work?
