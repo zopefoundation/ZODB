@@ -10,8 +10,7 @@ Current limitations / simplifications: Ignores revisions and versions.
 """
 
 from ZODB.FileStorage import FileStorage
-from ZODB.utils import U64
-from ZODB.fsdump import get_pickle_metadata
+from ZODB.utils import U64, get_pickle_metadata
 
 def run(path, v=0):
     fs = FileStorage(path, read_only=1)
