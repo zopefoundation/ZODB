@@ -57,21 +57,33 @@ class PackerTests(StorageTestBase):
     def testPack(self):
         self.set_inet_addr()
         self.start()
-        os.system("zeopack.py -h %s -p %s" % (self.host, self.port))
+        status = os.system("zeopack.py -h %s -p %s" % (self.host, self.port))
+        assert status == 0
         assert os.path.exists(self.path + ".old")
 
     def testPackDays(self):
         self.set_inet_addr()
         self.start()
-        os.system("zeopack.py -h %s -p %s -d 1" % (self.host, self.port))
+        status = os.system("zeopack.py -h %s -p %s -d 1" % (self.host,
+                                                            self.port))
         # Since we specified one day, nothing should get packed
+        assert status == 0
         assert not os.path.exists(self.path + ".old")
 
     def testAF_UNIXPack(self):
         self.addr = tempfile.mktemp(suffix=".zeo-socket")
         self.start()
-        os.system("zeopack.py -U %s" % self.addr)
+        status = os.system("zeopack.py -U %s" % self.addr)
+        assert status == 0
         assert os.path.exists(self.path + ".old")
+
+class UpTest(unittest.TestCase):
+    
+    def testUp(self):
+        status = os.system("zeoup.py -p 19")
+        # There is no ZEO server on port 19, so we should see non-zero
+        # exit status.
+        assert status != 0
 
 if __name__ == "__main__":
     unittest.main()
