@@ -34,6 +34,7 @@
 
 <!ELEMENT import EMPTY>
 <!ATTLIST import
+          file       CDATA    #IMPLIED
           package    NMTOKEN  #IMPLIED
           src        CDATA    #IMPLIED>
 
