@@ -202,12 +202,13 @@ class ZEOServer:
     def main(self):
         self.check_socket()
         self.clear_socket()
-        self.open_storages()
-        self.setup_signals()
         try:
+            self.open_storages()
+            self.setup_signals()
             self.create_server()
             self.loop_forever()
         finally:
+            self.close_storages()
             self.clear_socket()
 
     def check_socket(self):
@@ -221,7 +222,7 @@ class ZEOServer:
             pass
         else:
             s.close()
-            self.opts.usage("address %r still in use" % self.opts.address)
+            self.opts.usage("address %r already in use" % self.opts.address)
 
     def clear_socket(self):
         if isinstance(self.opts.address, type("")):
@@ -293,12 +294,10 @@ class ZEOServer:
 
     def handle_sigterm(self):
         info("terminated by SIGTERM")
-        self.close_storages()
         sys.exit(0)
 
     def handle_sigint(self):
         info("terminated by SIGINT")
-        self.close_storages()
         sys.exit(0)
 
     def handle_sigusr2(self):
