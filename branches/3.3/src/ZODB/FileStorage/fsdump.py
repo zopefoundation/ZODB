@@ -1,5 +1,16 @@
-from cPickle import Unpickler
-from cStringIO import StringIO
+##############################################################################
+#
+# Copyright (c) 2003 Zope Corporation and Contributors.
+# All Rights Reserved.
+#
+# This software is subject to the provisions of the Zope Public License,
+# Version 2.1 (ZPL).  A copy of the ZPL should accompany this distribution.
+# THIS SOFTWARE IS PROVIDED "AS IS" AND ANY AND ALL EXPRESS OR IMPLIED
+# WARRANTIES ARE DISCLAIMED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+# WARRANTIES OF TITLE, MERCHANTABILITY, AGAINST INFRINGEMENT, AND FITNESS
+# FOR A PARTICULAR PURPOSE.
+#
+##############################################################################
 import md5
 import struct
 
@@ -7,47 +18,8 @@ from ZODB.FileStorage import FileIterator
 from ZODB.FileStorage.format \
      import TRANS_HDR, TRANS_HDR_LEN, DATA_HDR, DATA_HDR_LEN
 from ZODB.TimeStamp import TimeStamp
-from ZODB.utils import u64
+from ZODB.utils import u64, get_pickle_metadata
 from ZODB.tests.StorageTestBase import zodb_unpickle
-
-def get_pickle_metadata(data):
-    # ZODB's data records contain two pickles.  The first is the class
-    # of the object, the second is the object.  We're only trying to
-    # pick apart the first here, to extract the module and class names.
-    if data.startswith('(c'):   # pickle MARK GLOBAL opcode sequence
-        global_prefix = 2
-    elif data.startswith('c'):  # pickle GLOBAL opcode
-        global_prefix = 1
-    else:
-        global_prefix = 0
-
-    if global_prefix:
-        # Don't actually unpickle a class, because it will attempt to
-        # load the class.  Just break open the pickle and get the
-        # module and class from it.  The module and the class names are
-        # given by newline-terminated strings following the GLOBAL opcode.
-        modname, classname, rest = data.split('\n', 2)
-        modname = modname[global_prefix:]   # strip GLOBAL opcode
-        return modname, classname
-
-    # Else there are a bunch of other possible formats.
-    f = StringIO(data)
-    u = Unpickler(f)
-    try:
-        class_info = u.load()
-    except Exception, err:
-        print "Error", err
-        return '', ''
-    if isinstance(class_info, tuple):
-        if isinstance(class_info[0], tuple):
-            modname, classname = class_info[0]
-        else:
-            modname, classname = class_info
-    else:
-        # XXX not sure what to do here
-        modname = repr(class_info)
-        classname = ''
-    return modname, classname
 
 def fsdump(path, file=None, with_offset=1):
     i = 0
