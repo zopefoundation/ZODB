@@ -170,7 +170,7 @@ Total ordering means three things:
 \item  Transitivity.  Whenever \code{\var{x} <= \var{y}} and
        \code{\var{y} <= \var{z}}, it's also true that
        \code{\var{x} <= \var{z}}.
-end{enumerate}
+\end{enumerate}
 
 The default comparison functions for most objects that come with Python
 satisfy these rules, with some crucial cautions explained later.  Complex
@@ -268,7 +268,7 @@ results within a single program run).
 
 Another problem occurs with instances of classes that do define
 \method{__cmp__()}, but define it incorrectly.  It's possible but
-rare for a custom \method\{__cmp__()} implementation to violate one
+rare for a custom \method{__cmp__()} implementation to violate one
 of the three required formal properties directly.  It's more common for
 it to fall back" to address-based comparison by mistake.
 For example,
@@ -313,4 +313,4 @@ only with great care:
        Any part of a comparison implementation that relies (explicitly
        or implicitly) on an address-based comparison result will
        eventually cause serious failure.
-end{enumerate}
+\end{enumerate}
