@@ -13,8 +13,8 @@
 ##############################################################################
 """Database objects
 
-$Id: DB.py,v 1.50 2003/04/23 20:05:51 jeremy Exp $"""
-__version__='$Revision: 1.50 $'[11:-2]
+$Id: DB.py,v 1.51 2003/06/24 21:29:54 jim Exp $"""
+__version__='$Revision: 1.51 $'[11:-2]
 
 import cPickle, cStringIO, sys, POSException, UndoLogCompatible
 from Connection import Connection
@@ -136,12 +136,23 @@ class DB(UndoLogCompatible.UndoLogCompatible):
                 am.closedConnection(connection)
             version=connection._version
             pools,pooll=self._pools
-            pool, allocated, pool_lock = pools[version]
+            try:
+                pool, allocated, pool_lock = pools[version]
+            except KeyError:
+                # No such version. We must have deleted the pool.
+                # Just let the connection go.
+
+                # We need to break circular refs to make it really go:
+                connection.__dict__.clear()
+                
+                return
+                
             pool.append(connection)
             if len(pool)==1:
                 # Pool now usable again, unlock it.
                 pool_lock.release()
-        finally: self._r()
+        finally:
+            self._r()
 
     def _connectionMap(self, f):
         self._a()
@@ -384,7 +395,7 @@ class DB(UndoLogCompatible.UndoLogCompatible):
                 return c
 
 
-            pools,pooll=self._pools
+            pools, pooll = self._pools
 
             # pools is a mapping object:
             #
@@ -472,6 +483,19 @@ class DB(UndoLogCompatible.UndoLogCompatible):
             return c
 
         finally: self._r()
+
+    def removeVersionPool(self, version):
+        pools, pooll = self._pools
+        info = pools.get(version)
+        if info:
+            del pools[version]
+            pool, allocated, pool_lock = info
+            pooll.remove((pool, allocated))
+            try: pool_lock.release()
+            except: pass
+            del pool[:]
+            del allocated[:]
+            6
 
     def connectionDebugInfo(self):
         r=[]
