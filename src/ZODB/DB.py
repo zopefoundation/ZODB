@@ -13,7 +13,7 @@
 ##############################################################################
 """Database objects
 
-$Id: DB.py,v 1.70 2004/03/04 22:41:50 jim Exp $"""
+$Id: DB.py,v 1.71 2004/03/16 16:28:19 jeremy Exp $"""
 
 import cPickle, cStringIO, sys
 from thread import allocate_lock
@@ -28,6 +28,7 @@ from zLOG import LOG, ERROR
 
 class DB(object):
     """The Object Database
+    -------------------
 
     The DB class coordinates the activities of multiple database
     Connection instances.  Most of the work is done by the
@@ -47,6 +48,28 @@ class DB(object):
     The database provides a few methods intended for application code
     -- open, close, undo, and pack -- and a large collection of
     methods for inspecting the database and its connections' caches.
+
+    :Cvariables:
+      - `klass`: Class used by L{open} to create database connections
+
+    :Groups:
+      - `User Methods`: __init__, open, close, undo, pack, classFactory
+      - `Inspection Methods`: getName, getSize, objectCount,
+        getActivityMonitor, setActivityMonitor
+      - `Connection Pool Methods`: getPoolSize, getVersionPoolSize,
+        removeVersionPool, setPoolSize, setVersionPoolSize
+      - `Transaction Methods`: invalidate
+      - `Other Methods`: lastTransaction, connectionDebugInfo
+      - `Version Methods`: modifiedInVersion, abortVersion, commitVersion,
+        versionEmpty
+      - `Cache Inspection Methods`: cacheDetail, cacheExtremeDetail,
+        cacheFullSweep, cacheLastGCTime, cacheMinimize, cacheMeanAge,
+        cacheMeanDeac, cacheMeanDeal, cacheSize, cacheDetailSize,
+        getCacheSize, getVersionCacheSize, setCacheSize, setVersionCacheSize,
+        cacheStatistics
+      - `Deprecated Methods`: getCacheDeactivateAfter,
+        setCacheDeactivateAfter,
+        getVersionCacheDeactivateAfter, setVersionCacheDeactivateAfter
     """
     
     klass = Connection  # Class to use for connections
@@ -62,17 +85,15 @@ class DB(object):
                  ):
         """Create an object database.
 
-        The constructor requires one argument, the storage used by the
-        database, e.g. FileStorage.
-
-        There are several other optional arguments:
-        pool_size: maximum number of open connections
-        cache_size: target size of Connection object cache
-        cache_deactivate_after: ignored
-        version_pool_size: maximum number of connections (per version)
-        version_cache_size: target size of Connection object cache for
+        :Parameters:
+          - `storage`: the storage used by the database, e.g. FileStorage
+          - `pool_size`: maximum number of open connections
+          - `cache_size`: target size of Connection object cache
+          - `cache_deactivate_after`: ignored
+          - `version_pool_size`: maximum number of connections (per version)
+          - `version_cache_size`: target size of Connection object cache for
             version connections
-        version_cache_deactivate_after: ignored
+          - `version_cache_deactivate_after`: ignored
         """
         # Allocate locks:
         l=allocate_lock()
@@ -602,9 +623,10 @@ class DB(object):
         or undoInfo().  The value of id is not the same as a
         transaction id used by other methods; it is unique to undo().
 
-        In addition, a user can pass the optional argument,
-        transaction, which identifies a transaction context to use for
-        the undo().
+        :Parameters:
+          - `id`: a storage-specific transaction identifier
+          - `transaction`: transaction context to use for undo().
+            By default, uses the current transaction.
         """
         if transaction is None:
             transaction = get_transaction()
