@@ -18,14 +18,29 @@
 #include "ExtensionClass.h"
 #include <time.h>
 
+#define CACHE_HEAD \
+    PyObject_HEAD \
+    CPersistentRing ring_home; \
+    int non_ghost_count;
 
-#define cPersistent_HEAD PyObject_HEAD PyObject *jar, *oid, *cache; CPersistentRing ring; char serial[8]; signed char state; unsigned char reserved[3];
+struct ccobject_head_struct;
+
+typedef struct ccobject_head_struct PerCache;
+
+#define cPersistent_HEAD \
+    PyObject_HEAD; \
+    PyObject *jar; \
+    PyObject *oid; \
+    PerCache *cache; \
+    CPersistentRing ring; \
+    char serial[8]; \
+    signed char state; \
+    unsigned char reserved[3];
+
 #define cPersistent_GHOST_STATE -1
 #define cPersistent_UPTODATE_STATE 0
 #define cPersistent_CHANGED_STATE 1
 #define cPersistent_STICKY_STATE 2
-
-struct ccobject_head_struct;
 
 typedef struct CPersistentRing_struct
 {
@@ -34,7 +49,7 @@ typedef struct CPersistentRing_struct
 } CPersistentRing;
 
 typedef struct {
-  cPersistent_HEAD
+    cPersistent_HEAD
 } cPersistentObject;
 
 typedef int (*persetattr)(PyObject *, PyObject*, PyObject *, setattrofunc);

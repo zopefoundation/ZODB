@@ -15,7 +15,7 @@
 static char cPickleCache_doc_string[] =
 "Defines the PickleCache used by ZODB Connection objects.\n"
 "\n"
-"$Id: cPickleCache.c,v 1.42 2002/03/27 10:14:04 htrd Exp $\n";
+"$Id: cPickleCache.c,v 1.43 2002/04/01 23:36:34 jeremy Exp $\n";
 
 #define ASSIGN(V,E) {PyObject *__e; __e=(E); Py_XDECREF(V); (V)=__e;}
 #define UNLESS(E) if(!(E))
@@ -45,16 +45,14 @@ static PyObject *py__p_oid, *py_reload, *py__p_jar, *py__p_changed;
 
 /* the layout of this struct is the same as the start of ccobject_head in cPersistence.c */
 typedef struct {
-  PyObject_HEAD
-  CPersistentRing ring_home;
-  int non_ghost_count;
-  int klass_count;
-  PyObject *data;
-  PyObject *jar;
-  PyObject *setklassstate;
-  int cache_size;
-  int ring_lock;
-  int cache_drain_resistance;
+    CACHE_HEAD
+    int klass_count;
+    PyObject *data;
+    PyObject *jar;
+    PyObject *setklassstate;
+    int cache_size;
+    int ring_lock;
+    int cache_drain_resistance;
 } ccobject;
 
 staticforward PyTypeObject Cctype;
@@ -78,7 +76,8 @@ static PyObject *object_from_oid(ccobject *self,PyObject *key)
     return v;
 }
 
-static cPersistentObject *object_from_ring(ccobject *self,CPersistentRing *here,const char *context)
+static cPersistentObject *
+object_from_ring(ccobject *self, CPersistentRing *here, const char *context)
 {
     /* Given a position in the LRU ring, return a borrowed
     reference to the object at that point in the ring. The caller is
@@ -86,27 +85,31 @@ static cPersistentObject *object_from_ring(ccobject *self,CPersistentRing *here,
     correspond to a persistent object, although the debugging
     version will double-check this. */
 
-    PyObject *object = (PyObject *)(((char *)here)-offsetof(cPersistentObject,ring));
+    PyObject *object;
+
+    object = (PyObject *)(((char *)here) - offsetof(cPersistentObject, ring));
 
 #ifdef MUCH_RING_CHECKING
-    if(!PyExtensionInstance_Check(object))
-    {
-        PyErr_Format(PyExc_RuntimeError,"Unexpectedly encountered non-ExtensionClass object in %s",context);
+    if (!PyExtensionInstance_Check(object)) {
+        PyErr_Format(PyExc_RuntimeError,
+	     "Unexpectedly encountered non-ExtensionClass object in %s",
+		     context);
         return NULL;
     }
-    if(!(((PyExtensionClass*)(object->ob_type))->class_flags & PERSISTENT_TYPE_FLAG))
-    {
-        PyErr_Format(PyExc_RuntimeError,"Unexpectedly encountered non-persistent object in %s",context);
+    if (!(((PyExtensionClass*)(object->ob_type))->class_flags & PERSISTENT_TYPE_FLAG)) {
+        PyErr_Format(PyExc_RuntimeError,
+	     "Unexpectedly encountered non-persistent object in %s", context);
         return NULL;
     }
-    if(((cPersistentObject*)object)->jar!=self->jar)
-    {
-        PyErr_Format(PyExc_RuntimeError,"Unexpectedly encountered object from a different jar in %s",context);
+    if (((cPersistentObject*)object)->jar != self->jar) {
+        PyErr_Format(PyExc_RuntimeError,
+	     "Unexpectedly encountered object from a different jar in %s",
+		     context);
         return NULL;
     }
-    if(((cPersistentObject*)object)->cache!=(PyObject *)self)
-    {
-        PyErr_Format(PyExc_RuntimeError,"Unexpectedly encountered broken ring in %s",context);
+    if (((cPersistentObject *)object)->cache != (PerCache *)self) {
+        PyErr_Format(PyExc_RuntimeError,
+		     "Unexpectedly encountered broken ring in %s", context);
         return NULL;
     }
 #endif
@@ -714,27 +717,27 @@ cc_ass_sub(ccobject *self, PyObject *key, PyObject *v)
             }
             else
             {
-                if(((cPersistentObject*)v)->cache)
-                {
-                    if(((cPersistentObject*)v)->cache==(PyObject *)self)
-                    {
-                        /* This object is already one of ours, which is ok.
-                        It would be very strange if someone was trying to register the
-                        same object under a different key */
-                    }
-                    else
-                    {
+                if(((cPersistentObject*)v)->cache) {
+                    if(((cPersistentObject*)v)->cache != (PerCache *)self) {
                         /* This object is already in a different cache. */
-                        PyErr_SetString(PyExc_ValueError, "Cache values may only be in one cache.");
+                        PyErr_SetString(PyExc_ValueError, 
+				"Cache values may only be in one cache.");
                         return -1;
-                    }
+                    } 
+		    /* else:
+		       
+		       This object is already one of ours, which
+		       is ok.  It would be very strange if someone
+		       was trying to register the same object under a
+		       different key. 
+		    */
                 }
 
                 if(check_ring(self,"pre-setitem")) return -1;
                 if(PyDict_SetItem(self->data, key, v)) return -1;
 
                 Py_INCREF(self);
-                ((cPersistentObject*)v)->cache = (PyObject *)self;
+                ((cPersistentObject*)v)->cache = (PerCache *)self;
                 if(((cPersistentObject*)v)->state>=0)
                 {
                     /* insert this non-ghost object into the ring just behind the home position */
@@ -791,7 +794,7 @@ cc_ass_sub(ccobject *self, PyObject *key, PyObject *v)
                 Py_INCREF(v);
             }
 
-            Py_DECREF(((cPersistentObject*)v)->cache);
+            Py_DECREF((PyObject *)((cPersistentObject*)v)->cache);
             ((cPersistentObject*)v)->cache = NULL;
         }
 
