@@ -14,11 +14,10 @@
 static char cPersistence_doc_string[] = 
 "Defines Persistent mixin class for persistent objects.\n"
 "\n"
-"$Id: cPersistence.c,v 1.57 2002/04/02 22:46:48 jeremy Exp $\n";
+"$Id: cPersistence.c,v 1.58 2002/04/05 01:12:48 jeremy Exp $\n";
 
 #include "cPersistence.h"
 
-/* XXX What is this structure used for? */
 struct ccobject_head_struct {
     CACHE_HEAD
 };
@@ -202,15 +201,11 @@ deallocated(cPersistentObject *self)
     if (self->state >= 0) 
 	ghostify(self);
     if (self->cache) {
-        PyObject *v;
-
-	/* XXX should just add this to the C API struct */
-	v = PyObject_CallMethod((PyObject *)self->cache, 
-				"_oid_unreferenced", "O", self->oid);
-        if (v == NULL)
-	    PyErr_Clear(); /* I dont think this should ever happen */
-	else
-	    Py_DECREF(v);
+	/* XXX This function shouldn't be able to fail? If not, maybe
+	   it shouldn't set an exception either.
+	*/
+	if (cPersistenceCAPI->percachedel(self->cache, self->oid) < 0)
+	    PyErr_Clear(); /* I don't think this should ever happen */
     }
     Py_XDECREF(self->jar);
     Py_XDECREF(self->oid);
@@ -256,19 +251,22 @@ changed(cPersistentObject *self)
 static PyObject *
 Per___changed__(cPersistentObject *self, PyObject *args)
 {
-  PyObject *v=0;
+    PyObject *v = NULL;
 
-  if (args && ! PyArg_ParseTuple(args, "|O",&v)) return NULL;
-  if (! v) return PyObject_GetAttr(OBJECT(self), py__p_changed);
+    if (args && !PyArg_ParseTuple(args, "|O:__changed__", &v)) 
+	return NULL;
+    if (!v) 
+	return PyObject_GetAttr(OBJECT(self), py__p_changed);
 
-  if (PyObject_IsTrue(v)) 
-    {
-      if (changed(self) < 0) return NULL;
+    if (PyObject_IsTrue(v)) {
+	if (changed(self) < 0) 
+	    return NULL;
     }
-  else if (self->state >= 0) self->state=cPersistent_UPTODATE_STATE;
+    else if (self->state >= 0) 
+	self->state = cPersistent_UPTODATE_STATE;
 
-  Py_INCREF(Py_None);
-  return Py_None;
+    Py_INCREF(Py_None);
+    return Py_None;
 }
 
 static PyObject *
@@ -295,7 +293,7 @@ Per__p_deactivate(cPersistentObject *self, PyObject *args)
     }
 
   /* need to delay releasing the last reference on instance attributes
-  until after we have finished accounting for losing our state */
+     until after we have finished accounting for losing our state */
   if (dict2)
   {
       PyDict_Clear(dict2);
@@ -807,6 +805,7 @@ truecPersistenceCAPI = {
   deallocated,
   (intfunctionwithpythonarg)Per_setstate,
   (pergetattr)Per_getattr,
+  NULL
 };
 
 void
@@ -826,7 +825,8 @@ initcPersistence(void)
   Py_DECREF(m);
   Py_DECREF(s);
 
-  if (init_strings() < 0) return;
+  if (init_strings() < 0) 
+      return;
 
   m = Py_InitModule4("cPersistence", cP_methods, cPersistence_doc_string,
 		     (PyObject*)NULL, PYTHON_API_VERSION);
@@ -837,12 +837,8 @@ initcPersistence(void)
   PyExtensionClass_Export(d, "Persistent",  Pertype);
   PyExtensionClass_Export(d, "Overridable", Overridable);
 
-  cPersistenceCAPI=&truecPersistenceCAPI;
-  s = PyCObject_FromVoidPtr(cPersistenceCAPI,NULL);
+  cPersistenceCAPI = &truecPersistenceCAPI;
+  s = PyCObject_FromVoidPtr(cPersistenceCAPI, NULL);
   PyDict_SetItemString(d, "CAPI", s);
   Py_XDECREF(s);
-
-  /* Check for errors */
-  if (PyErr_Occurred())
-    Py_FatalError("can't initialize module cPersistence");
 }

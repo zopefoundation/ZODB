@@ -88,7 +88,7 @@ process must skip such objects, rather than deactivating them.
 static char cPickleCache_doc_string[] =
 "Defines the PickleCache used by ZODB Connection objects.\n"
 "\n"
-"$Id: cPickleCache.c,v 1.54 2002/04/04 22:02:32 bwarsaw Exp $\n";
+"$Id: cPickleCache.c,v 1.55 2002/04/05 01:12:48 jeremy Exp $\n";
 
 #define ASSIGN(V,E) {PyObject *__e; __e=(E); Py_XDECREF(V); (V)=__e;}
 #define UNLESS(E) if(!(E))
@@ -118,9 +118,9 @@ static PyObject *py__p_oid, *py_reload, *py__p_jar, *py__p_changed;
 #define ENGINE_NOISE(A) ((void)A)
 #endif
 
-/* This object is the pickle cache.  The CACHE_HEAD macro guarantees that
-layout of this struct is the same as the start of ccobject_head in
-cPersistence.c */
+/* This object is the pickle cache.  The CACHE_HEAD macro guarantees
+   that layout of this struct is the same as the start of
+   ccobject_head in cPersistence.c */
 typedef struct {
     CACHE_HEAD
     int klass_count;                         /* count of persistent classes */
@@ -156,15 +156,15 @@ static int cc_ass_sub(ccobject *self, PyObject *key, PyObject *v);
 
 /* ---------------------------------------------------------------- */
 
-static PyObject *object_from_oid(ccobject *self, PyObject *key)
 /* somewhat of a replacement for PyDict_GetItem(self->data....
    however this returns a *new* reference */
+static PyObject *
+object_from_oid(ccobject *self, PyObject *key)
 {
     PyObject *v = PyDict_GetItem(self->data, key);
-    if(!v) return NULL;
-
+    if (!v) 
+	return NULL;
     Py_INCREF(v);
-
     return v;
 }
 
@@ -263,10 +263,11 @@ scan_gc_items(ccobject *self,int target)
         if (here == &self->ring_home)
             return 0;
 
-        /* At this point we know that the ring only contains nodes from
-        persistent objects, plus our own home node. We know this because
-        the ring lock is held.  We can safely assume the current ring
-        node is a persistent object now we know it is not the home */
+        /* At this point we know that the ring only contains nodes
+	   from persistent objects, plus our own home node. We know
+	   this because the ring lock is held.  We can safely assume
+	   the current ring node is a persistent object now we know it
+	   is not the home */
         object = object_from_ring(self, here, "scan_gc_items");
         if (!object) 
 	    return -1;
@@ -277,12 +278,15 @@ scan_gc_items(ccobject *self,int target)
         else if (object->state == cPersistent_UPTODATE_STATE) {
             /* deactivate it. This is the main memory saver. */
 
-            /* Add a placeholder; a dummy node in the ring. We need to
-            do this to mark our position in the ring. All the other nodes
-            come from persistent objects, and they are all liable
-            to be deallocated before "obj._p_changed = None" returns
-            to this function. This operation is only safe when the
-            ring lock is held (and it is) */
+            /* Add a placeholder; a dummy node in the ring.  We need
+	       to do this to mark our position in the ring.  It is
+	       possible that the PyObject_SetAttr() call below will
+	       invoke an __setattr__() hook in Python.  If it does,
+	       another thread might run; if that thread accesses a
+	       persistent object and moves it to the head of the ring,
+	       it might cause the gc scan to start working from the
+	       head of the list.
+	    */
 
             placeholder.next = here->next;
             placeholder.prev = here;
@@ -315,7 +319,7 @@ scan_gc_items(ccobject *self,int target)
 static PyObject *
 lockgc(ccobject *self, int target_size)
 {
-    /* We think this is thread-safe because of the GIL, and there's nothing
+    /* This is thread-safe because of the GIL, and there's nothing
      * in between checking the ring_lock and acquiring it that calls back
      * into Python.
      */
@@ -361,8 +365,15 @@ cc_incrgc(ccobject *self, PyObject *args)
     if (!PyArg_ParseTuple(args, "|i:incrgc", &n)) 
 	return NULL;
 
-    return lockgc(self,target_size);
+    return lockgc(self, target_size);
 }
+
+/* XXX Does it make sense for full_sweep() and reallyfull_sweep() to
+   empty the cache completely?  I agree that it would if dt is 0, but
+   don't think it should for other times.  Perhaps it should just call
+   incrgc() if dt > 2; the new cache may be efficient enough that
+   incrgc() would suffice.
+*/
 
 static PyObject *
 cc_full_sweep(ccobject *self, PyObject *args)
@@ -370,7 +381,7 @@ cc_full_sweep(ccobject *self, PyObject *args)
     int dt = 0;
     if (!PyArg_ParseTuple(args, "|i:full_sweep", &dt)) 
 	return NULL;
-    return lockgc(self,0);
+    return lockgc(self, 0);
 }
 
 static PyObject *
@@ -379,7 +390,7 @@ cc_reallyfull_sweep(ccobject *self, PyObject *args)
   int dt = 0;
   if (!PyArg_ParseTuple(args, "|i:reallyfull_sweep", &dt)) 
       return NULL;
-  return lockgc(self,0);
+  return lockgc(self, 0);
 }
 
 static void
@@ -460,22 +471,19 @@ cc_get(ccobject *self, PyObject *args)
 {
   PyObject *r, *key, *d=0;
 
-  UNLESS (PyArg_ParseTuple(args,"O|O", &key, &d)) return NULL;
+  if (!PyArg_ParseTuple(args, "O|O:get", &key, &d)) 
+      return NULL;
 
-  UNLESS (r=(PyObject *)object_from_oid(self, key))
-    {
-      if (d) 
-	{
-	  PyErr_Clear();
-	  r=d;
+  r = (PyObject *)object_from_oid(self, key);
+  if (!r) {
+      if (d) {
+	  r = d;
           Py_INCREF(r);
-	}
-      else
-	{
+      } else {
 	  PyErr_SetObject(PyExc_KeyError, key);
 	  return NULL;
-	}
-    }
+      }
+  }
 
   return r;
 }
@@ -522,8 +530,9 @@ cc_lru_items(ccobject *self, PyObject *args)
 	return NULL;
 
     if (self->ring_lock) {
-	/* When the ring lock is held, we have no way of know which ring nodes
-	belong to persistent objects, and which a placeholders. */
+	/* When the ring lock is held, we have no way of know which
+	   ring nodes belong to persistent objects, and which a
+	   placeholders. */
         PyErr_SetString(PyExc_ValueError,
 		".lru_items() is unavailable during garbage collection");
         return NULL;
@@ -562,40 +571,25 @@ cc_lru_items(ccobject *self, PyObject *args)
     return l;
 }
 
-static PyObject *
-cc_oid_unreferenced(ccobject *self, PyObject *args)
+static int
+cc_oid_unreferenced(ccobject *self, PyObject *oid)
 {
-    /* This is called by the persistent object deallocation
-    function when the reference count on a persistent
-    object reaches zero. We need to fix up our dictionary;
-    its reference is now dangling because we stole its
-    reference count. Be careful to not release the global
-    interpreter lock until this is complete. */
+    /* This is called by the persistent object deallocation function
+       when the reference count on a persistent object reaches
+       zero. We need to fix up our dictionary; its reference is now
+       dangling because we stole its reference count. Be careful to
+       not release the global interpreter lock until this is
+       complete. */
 
-    PyObject *oid, *v;
-    if (!PyArg_ParseTuple(args, "O:_oid_unreferenced", &oid)) 
-	return NULL;
+    PyObject *v;
 
     v = PyDict_GetItem(self->data, oid);
     if (v == NULL) {
 	PyErr_SetObject(PyExc_KeyError, oid);
-	/* jeremy debug
-	   fprintf(stderr, "oid_unreferenced: key error\n");
-	*/
-	return NULL;
+	return -1;
     }
 
-    /* jeremy debug
-    fprintf(stderr, "oid_unreferenced: %X %d %s\n", v,
-	    v->ob_refcnt, v->ob_type->tp_name);
-    */
-
-    if (v->ob_refcnt) {
-        PyErr_Format(PyExc_ValueError,
-	     "object has reference count of %d, should be zero", v->ob_refcnt);
-        return NULL;
-    }
-
+    assert(v->ob_refcnt == 0);
     /* Need to be very hairy here because a dictionary is about
        to decref an already deleted object. 
     */
@@ -609,40 +603,33 @@ cc_oid_unreferenced(ccobject *self, PyObject *args)
 #else
     Py_INCREF(v);
 #endif
-
-    if (v->ob_refcnt != 1) {
-        PyErr_SetString(PyExc_ValueError,
-			"refcount is not 1 after resurrection");
-        return NULL;
-    }
-
-    /* return the stolen reference */
+    /* Incremement the refcount again, because delitem is going to
+       DECREF it.  If it's refcount reached zero again, we'd call back to
+       the dealloc function that called us.
+    */
     Py_INCREF(v);
 
+    /* XXX what if this fails? */
     PyDict_DelItem(self->data, oid);
 
     if (v->ob_refcnt != 1) {
         PyErr_SetString(PyExc_ValueError,
 			"refcount is not 1 after removal from dict");
-        return NULL;
+        return -1;
     }
 
     /* undo the temporary resurrection */
 #ifdef Py_TRACE_REFS
     _Py_ForgetReference(v);
 #else
-    v->ob_refcnt=0;
+    v->ob_refcnt = 0;
 #endif
 
-    Py_INCREF(Py_None);
-    return Py_None;
+    return 0;
 }
 
 
 static struct PyMethodDef cc_methods[] = {
-  {"_oid_unreferenced", (PyCFunction)cc_oid_unreferenced, METH_VARARGS,
-   NULL
-   },
   {"lru_items", (PyCFunction)cc_lru_items, METH_VARARGS,
    "List (oid, object) pairs from the lru list, as 2-tuples.\n"
    },
@@ -1103,10 +1090,17 @@ void
 initcPickleCache(void)
 {
   PyObject *m, *d;
+  cPersistenceCAPIstruct *capi;
 
-  Cctype.ob_type=&PyType_Type;
+  Cctype.ob_type = &PyType_Type;
 
-  UNLESS(ExtensionClassImported) return;
+  if (!ExtensionClassImported) 
+      return;
+
+  capi = (cPersistenceCAPIstruct *)PyCObject_Import("cPersistence", "CAPI");
+  if (!capi)
+      return;
+  capi->percachedel = (percachedelfunc)cc_oid_unreferenced;
 
   m = Py_InitModule4("cPickleCache", cCM_methods, cPickleCache_doc_string,
 		     (PyObject*)NULL, PYTHON_API_VERSION);
@@ -1118,11 +1112,11 @@ initcPickleCache(void)
 
   d = PyModule_GetDict(m);
 
-  PyDict_SetItemString(d,"cache_variant",PyString_FromString("stiff/c"));
+  PyDict_SetItemString(d, "cache_variant", PyString_FromString("stiff/c"));
 
 #ifdef MUCH_RING_CHECKING
-  PyDict_SetItemString(d,"MUCH_RING_CHECKING",PyInt_FromLong(1));
+  PyDict_SetItemString(d, "MUCH_RING_CHECKING", PyInt_FromLong(1));
 #else
-  PyDict_SetItemString(d,"MUCH_RING_CHECKING",PyInt_FromLong(0));
+  PyDict_SetItemString(d, "MUCH_RING_CHECKING", PyInt_FromLong(0));
 #endif
 }

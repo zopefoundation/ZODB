@@ -18,6 +18,12 @@
 #include "ExtensionClass.h"
 #include <time.h>
 
+typedef struct CPersistentRing_struct
+{
+    struct CPersistentRing_struct *prev;
+    struct CPersistentRing_struct *next;
+} CPersistentRing;
+
 #define CACHE_HEAD \
     PyObject_HEAD \
     CPersistentRing ring_home; \
@@ -42,30 +48,26 @@ typedef struct ccobject_head_struct PerCache;
 #define cPersistent_CHANGED_STATE 1
 #define cPersistent_STICKY_STATE 2
 
-typedef struct CPersistentRing_struct
-{
-    struct CPersistentRing_struct *prev;
-    struct CPersistentRing_struct *next;
-} CPersistentRing;
-
 typedef struct {
     cPersistent_HEAD
 } cPersistentObject;
 
 typedef int (*persetattr)(PyObject *, PyObject*, PyObject *, setattrofunc);
 typedef PyObject *(*pergetattr)(PyObject *, PyObject*, char *, getattrofunc);
+typedef int (*percachedelfunc)(PerCache *, PyObject *);
 
 typedef struct {
-  PyMethodChain *methods;
-  getattrofunc getattro;
-  setattrofunc setattro;
-  int (*changed)(cPersistentObject*);
-  void (*accessed)(cPersistentObject*);
-  void (*ghostify)(cPersistentObject*);
-  void (*deallocated)(cPersistentObject*);
-  int (*setstate)(PyObject*);
-  pergetattr pergetattro;
-  persetattr persetattro;
+    PyMethodChain *methods;
+    getattrofunc getattro;
+    setattrofunc setattro;
+    int (*changed)(cPersistentObject*);
+    void (*accessed)(cPersistentObject*);
+    void (*ghostify)(cPersistentObject*);
+    void (*deallocated)(cPersistentObject*);
+    int (*setstate)(PyObject*);
+    pergetattr pergetattro;
+    persetattr persetattro;
+    percachedelfunc percachedel;
 } cPersistenceCAPIstruct;
 
 #ifndef DONT_USE_CPERSISTENCECAPI
