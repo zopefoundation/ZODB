@@ -13,7 +13,7 @@
 ##############################################################################
 """Transaction management
 
-$Id: Transaction.py,v 1.44 2002/12/02 22:22:38 jeremy Exp $
+$Id: Transaction.py,v 1.45 2002/12/02 22:42:05 jeremy Exp $
 """
 
 import time, sys, struct, POSException
@@ -175,7 +175,7 @@ class Transaction:
             self.description=strip(join(info[1:],'\t'))
 
     def commit(self, subtransaction=None):
-        ""Finalize the transaction."""
+        """Finalize the transaction."""
         objects = self._objects
 
         subjars = []
