@@ -26,32 +26,25 @@ from ZEO.tests import ConnectionTests
 class FileStorageConfig:
     def getConfig(self, path, create, read_only):
         return """\
-        <Storage>
-            type FileStorage
-            file_name %s
-            create %s
-            read_only %s
-        </Storage>""" % (path,
-                         create and 'yes' or 'no',
-                         read_only and 'yes' or 'no')
+        <filestorage>
+        path %s
+        create %s
+        read-only %s
+        </filestorage>""" % (path,
+                             create and 'yes' or 'no',
+                             read_only and 'yes' or 'no')
 
 class BerkeleyStorageConfig:
     def getConfig(self, path, create, read_only):
         return """\
-        <Storage>
-            type BDBFullStorage
-            name %s
-            read_only %s
-        </Storage>""" % (path, read_only)
+        <fullstorage>
+        name %s
+        read-only %s
+        </fullstorage>""" % (path, read_only)
 
 class MappingStorageConfig:
     def getConfig(self, path, create, read_only):
-        return """\
-        <Storage>
-            type MappingStorage
-            name %s
-        </Storage>""" % path
-
+        return """<mappingstorage/>"""
 
 
 class FileStorageConnectionTests(

@@ -150,19 +150,10 @@ class FileStorageTests(GenericTests):
     def getConfig(self):
         filename = self.__fs_base = tempfile.mktemp()
         return """\
-        <Storage>
-            type FileStorage
-            file_name %s
-            create yes
-        </Storage>
+        <filestorage>
+        path %s
+        </filestorage>
         """ % filename
-
-    def checkPackVersionsInPast(self):
-        # FileStorage can't cope with backpointers to objects
-        # created in versions.  Should fix if we can figure out actually how
-        # to fix it.
-        pass
-
 
 class BDBTests(FileStorageTests):
     """ZEO backed by a Berkeley full storage."""
@@ -171,23 +162,16 @@ class BDBTests(FileStorageTests):
     def getConfig(self):
         self._envdir = tempfile.mktemp()
         return """\
-        <Storage>
-            type BDBFullStorage
-            name %s
-        </Storage>
+        <fullstorage>
+        name %s
+        </fullstorage>
         """ % self._envdir
 
 class MappingStorageTests(FileStorageTests):
     """ZEO backed by a Mapping storage."""
 
     def getConfig(self):
-        self._envdir = tempfile.mktemp()
-        return """\
-        <Storage>
-            type MappingStorage
-            name %s
-        </Storage>
-        """ % self._envdir
+        return """<mappingstorage/>"""
 
     # Tests which MappingStorage can't possibly pass, because it doesn't
     # support versions or undo.
