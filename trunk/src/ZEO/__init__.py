@@ -84,4 +84,3 @@
 ##############################################################################
 
 import fap
-fap.fap() # fixup asyncore/cPickle dependencies
