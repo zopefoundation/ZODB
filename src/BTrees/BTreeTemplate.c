@@ -12,7 +12,7 @@
 
  ****************************************************************************/
 
-#define BTREETEMPLATE_C "$Id: BTreeTemplate.c,v 1.60 2002/06/17 23:39:56 tim_one Exp $\n"
+#define BTREETEMPLATE_C "$Id: BTreeTemplate.c,v 1.61 2002/06/17 23:55:48 tim_one Exp $\n"
 
 /*
 ** _BTree_get
@@ -1070,7 +1070,7 @@ Done:
 static PyObject *
 BTree_maxminKey(BTree *self, PyObject *args, int min)
 {
-  PyObject *key=0;
+  PyObject *key = 0;
   Bucket *bucket = NULL;
   int offset, rc;
 
@@ -1100,6 +1100,9 @@ BTree_maxminKey(BTree *self, PyObject *args, int min)
   else if (min)
     {
       bucket = self->firstbucket;
+      PER_ALLOW_DEACTIVATION(self);
+      PER_ACCESSED(self);
+      PER_USE_OR_RETURN(bucket, NULL);
       Py_INCREF(bucket);
       offset = 0;
     }
