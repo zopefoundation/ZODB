@@ -84,8 +84,8 @@
 ##############################################################################
 """Transaction management
 
-$Id: Transaction.py,v 1.9 1999/06/29 19:25:25 jim Exp $"""
-__version__='$Revision: 1.9 $'[11:-2]
+$Id: Transaction.py,v 1.10 1999/06/29 19:28:10 jim Exp $"""
+__version__='$Revision: 1.10 $'[11:-2]
 
 import time, sys, struct
 from struct import pack
@@ -166,7 +166,7 @@ class Transaction:
                 if self._id is not None: free_transaction()
             else: self._init()
 
-    def begin(self, subtransaction=None, info=None):
+    def begin(self, info=None, subtransaction=None):
         '''Begin a new transaction.
 
         This aborts any transaction in progres.
