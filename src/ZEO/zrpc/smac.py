@@ -13,7 +13,7 @@
 ##############################################################################
 """Sized message async connections
 
-$Id: smac.py,v 1.29 2002/09/27 19:28:29 gvanrossum Exp $
+$Id: smac.py,v 1.30 2002/09/29 02:46:58 gvanrossum Exp $
 """
 
 import asyncore, struct
@@ -63,9 +63,16 @@ class SizedMessageAsyncConnection(asyncore.dispatcher):
             self._debug = debug
         elif not hasattr(self, '_debug'):
             self._debug = __debug__
-        self.__state = None
         self.__inp = None # None, a single String, or a list
         self.__input_len = 0
+        # Instance variables __state and __msg_size work together:
+        #   when __state == 0:
+        #     __msg_size == 4, and the next thing read is a message size;
+        #   when __state == 1:
+        #     __msg_size is variable, and the next thing read is a message.
+        # The next thing read is always of length __msg_size.
+        # The state alternates between 0 and 1.
+        self.__state = 0
         self.__msg_size = 4
         self.__output = []
         self.__closed = 0
@@ -116,13 +123,13 @@ class SizedMessageAsyncConnection(asyncore.dispatcher):
         while (offset + msg_size) <= input_len:
             msg = inp[offset:offset + msg_size]
             offset = offset + msg_size
-            if state is None:
+            if not state:
                 # waiting for message
                 msg_size = struct.unpack(">i", msg)[0]
                 state = 1
             else:
                 msg_size = 4
-                state = None
+                state = 0
                 self.message_input(msg)
 
         self.__state = state
