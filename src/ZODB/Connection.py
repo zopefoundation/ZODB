@@ -84,8 +84,8 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.27 1999/10/07 14:17:50 jim Exp $"""
-__version__='$Revision: 1.27 $'[11:-2]
+$Id: Connection.py,v 1.28 1999/10/07 22:41:01 jim Exp $"""
+__version__='$Revision: 1.28 $'[11:-2]
 
 from cPickleCache import PickleCache
 from POSException import ConflictError, ExportError
@@ -384,32 +384,30 @@ class Connection(ExportImport.ExportImport):
     def root(self): return self['\0\0\0\0\0\0\0\0']
 
     def setstate(self,object):
-        # Note, we no longer mess with the object's state
-        # flag, _p_changed.  This is the object's job.
-        oid=object._p_oid
-        invalid=self._invalid
-        if invalid(oid) or invalid(None): raise ConflictError, oid
-        p, serial = self._storage.load(oid, self._version)
-        file=StringIO(p)
-        unpickler=Unpickler(file)
-        unpickler.persistent_load=self._persistent_load
         try:
+            oid=object._p_oid
+            invalid=self._invalid
+            if invalid(oid) or invalid(None): raise ConflictError, oid
+            p, serial = self._storage.load(oid, self._version)
+            file=StringIO(p)
+            unpickler=Unpickler(file)
+            unpickler.persistent_load=self._persistent_load
             unpickler.load()
             state = unpickler.load()
+
+            if hasattr(object, '__setstate__'):
+                object.__setstate__(state)
+            else:
+                d=object.__dict__
+                for k,v in state.items(): d[k]=v
+
+            object._p_serial=serial
+
         except:
             t, v =sys.exc_info()[:2]
-            LOG('ZODB',ERROR,
-                "Couldn't unnpickle %s" % `oid`,
+            LOG('ZODB',ERROR, "Couldn't load state for %s" % `oid`,
                 error=sys.exc_info())
             raise
-            
-        if hasattr(object, '__setstate__'):
-            object.__setstate__(state)
-        else:
-            d=object.__dict__
-            for k,v in state.items(): d[k]=v
-        object._p_serial=serial
-
 
     def setklassstate(self, object,
                       tt=type(()), ct=type(HelperClass)):
