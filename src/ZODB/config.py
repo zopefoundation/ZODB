@@ -13,7 +13,7 @@
 ##############################################################################
 """Open database and storage from a configuration.
 
-$Id: config.py,v 1.10 2003/01/28 23:15:56 fdrake Exp $"""
+$Id: config.py,v 1.11 2003/05/23 21:31:40 jeremy Exp $"""
 
 import os
 import StringIO
@@ -22,27 +22,50 @@ import ZConfig
 
 import ZODB
 
-schema_path = os.path.join(ZODB.__path__[0], "config.xml")
-_schema = None
+db_schema_path = os.path.join(ZODB.__path__[0], "config.xml")
+_db_schema = None
 
-def getSchema():
-    global _schema
-    if _schema is None:
-        _schema = ZConfig.loadSchema(schema_path)
-    return _schema
+s_schema_path = os.path.join(ZODB.__path__[0], "storage.xml")
+_s_schema = None
+
+def getDbSchema():
+    global _db_schema
+    if _db_schema is None:
+        _db_schema = ZConfig.loadSchema(db_schema_path)
+    return _db_schema
+
+def getStorageSchema():
+    global _s_schema
+    if _s_schema is None:
+        _s_schema = ZConfig.loadSchema(s_schema_path)
+    return _s_schema
 
 def databaseFromString(s):
     return databaseFromFile(StringIO.StringIO(s))
 
 def databaseFromFile(f):
-    config, handle = ZConfig.loadConfigFile(getSchema(), f)
+    config, handle = ZConfig.loadConfigFile(getDbSchema(), f)
     return databaseFromConfig(config.database)
 
 def databaseFromURL(url):
-    config, handler = ZConfig.loadConfig(getSchema(), url)
+    config, handler = ZConfig.loadConfig(getDbSchema(), url)
     return databaseFromConfig(config.database)
 
 def databaseFromConfig(section):
+    return section.open()
+
+def storageFromString(s):
+    return storageFromFile(StringIO.StringIO(s))
+
+def storageFromFile(f):
+    config, handle = ZConfig.loadConfigFile(getStorageSchema(), f)
+    return storageFromConfig(config.storage)
+
+def storageFromURL(url):
+    config, handler = ZConfig.loadConfig(getStorageSchema(), url)
+    return storageFromConfig(config.storage)
+
+def storageFromConfig(section):
     return section.open()
 
 
