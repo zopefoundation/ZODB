@@ -192,7 +192,9 @@ The syntax for \keyword{\%define} is:
 \end{alltt}
 
 The value of \var{name} must be a sequence of letters, digits, and
-underscores, and may not start with a digit.  If \var{value} is
+underscores, and may not start with a digit; the namespace for these
+names is separate from the other namespaces used with
+\module{ZConfig}, and is case-insensitive.  If \var{value} is
 omitted, it will be the empty string.  If given, there must be
 whitespace between \var{name} and \var{value}; \var{value} will not
 include any whitespace on either side, just like values from key-value
@@ -638,7 +640,8 @@ Notes:
 \end{description}
 
 In each case, \var{name} is a non-empty sequence of alphanumeric and
-underscore characters not starting with a digit.  If there is not a
+underscore characters not starting with a digit.  Names are converted
+to lowercase before lookup in \var{mapping}.  If there is not a
 replacement for \var{name}, these functions search up the containment
 chain for a suitable replacement.  The containment chain is found by
 looking for an attribute \member{container} on the \var{mapping}
