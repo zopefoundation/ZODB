@@ -58,12 +58,4 @@
      <multisection type="zLOG.loghandler" attribute="handlers" name="*"/>
   </sectiontype>
 
-  <sectiontype name="warnfilter" datatype=".warning_filter_handler">
-      <key name="action" datatype=".warn_action" default="default"/>
-      <key name="message" default=""/>
-      <key name="category" datatype=".warning_subclass" default="Warning"/>
-      <key name="module" default=""/>
-      <key name="lineno" datatype="integer" default="0"/>
-  </sectiontype>
-
 </component>
