@@ -214,12 +214,11 @@ class MappingBase(Base):
 
     def testValuesWorks(self):
         for x in range(100):
-            self.t[x] = x
+            self.t[x] = x*x
         v = self.t.values()
-        i = 0
-        for x in v:
-            assert x == i, (x,i)
-            i = i + 1
+        for i in range(100):
+            assert v[i]==i*i , (i*i,i)
+
             
     def testKeysWorks(self):
         for x in range(100):
