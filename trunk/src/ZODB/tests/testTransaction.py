@@ -14,7 +14,7 @@
 
 """
 Revision information:
-$Id: testTransaction.py,v 1.6 2002/04/12 18:22:45 jeremy Exp $
+$Id: testTransaction.py,v 1.7 2002/04/15 18:55:11 jeremy Exp $
 """
 
 """
@@ -571,22 +571,15 @@ class DataObject:
         self._p_jar = None
 
     def modify(self, nojar=0, tracing=0):
-
         if not nojar:
-            
             if self.nost:
                 self._p_jar = NoSubTransactionJar(tracing=tracing)
-                
             else:
                 self._p_jar = SubTransactionJar(tracing=tracing)
-                
-        else: pass
-
         get_transaction().register(self)
 
-
-
-class TestTxnException(Exception): pass
+class TestTxnException(Exception):
+    pass
 
 class BasicJar:
 
