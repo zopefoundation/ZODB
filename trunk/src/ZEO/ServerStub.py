@@ -11,14 +11,35 @@
 # FOR A PARTICULAR PURPOSE
 #
 ##############################################################################
-"""Stub for interface exposed by StorageServer"""
+"""RPC stubs for interface exported by StorageServer."""
 
 class StorageServer:
 
+    """An RPC stub class for the interface exported by ClientStorage.
+
+    This is the interface presented by the StorageServer to the
+    ClientStorage; i.e. the ClientStorage calls these methods and they
+    are executed in the StorageServer.
+
+    See the StorageServer module for documentation on these methods,
+    with the exception of _update(), which is documented here.
+    """
+
     def __init__(self, rpc):
+        """Constructor.
+
+        The argument is a connection: an instance of the
+        zrpc.connection.Connection class.
+        """
         self.rpc = rpc
 
     def _update(self):
+        """Handle pending incoming messages.
+
+        This method is typically only used when no asyncore mainloop
+        is already active.  It can cause arbitrary callbacks from the
+        server to the client to be handled.
+        """
         self.rpc.pending()
 
     def register(self, storage_name, read_only):
@@ -103,7 +124,6 @@ class StorageServer:
         return self.rpc.call('undo', trans_id)
 
     def undoLog(self, first, last):
-        # XXX filter not allowed across RPC
         return self.rpc.call('undoLog', first, last)
 
     def undoInfo(self, first, last, spec):
