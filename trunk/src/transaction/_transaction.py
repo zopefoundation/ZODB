@@ -136,6 +136,7 @@ XXX This code isn't tested.
 import logging
 import sys
 import thread
+import warnings
 
 _marker = object()
 
@@ -230,6 +231,9 @@ class Transaction(object):
                 self._resources.append(adapter)
 
     def begin(self):
+        warnings.warn("Transaction.begin() should no longer be used; use "
+                      "the begin() method of a transaction manager.",
+                      DeprecationWarning)
         if (self._resources or
               self._sub or
               self._nonsub or
