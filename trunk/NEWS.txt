@@ -43,6 +43,12 @@ is raised.
 transaction
 -----------
 
+If ReadConflictError was raised by an attempt to load an object with a
+_p_independent() method that returned false, attempting to commit the
+transaction failed to (re)raise ReadConflictError for that object.  Note
+that ZODB intends to prevent committing a transaction in which a
+ReadConflictError occurred; this was an obscure case it missed.
+
 Growing pains:  ZODB 3.1 and 3.2 had a bug wherein Transaction.begin()
 didn't abort the current transaction if the only pending changes were in a
 subtransaction.  In ZODB 3.3, it's intended that transaction managers be
