@@ -58,7 +58,7 @@ class StartTests(unittest.TestCase):
 
     def kill(self, sig=signal.SIGTERM, pids=None):
         if pids is None:
-            pids = self.pids
+            pids = self.pids.keys()
         for pid in pids:
             try:
                 os.kill(pid, sig)
@@ -67,9 +67,9 @@ class StartTests(unittest.TestCase):
 
     def wait(self, flag=0, pids=None):
         if pids is None:
-            pids = self.pids
+            pids = self.pids.keys()
         alive = []
-        for pid in self.pids:
+        for pid in pids:
             try:
                 _pid, status = os.waitpid(pid, flag)
             except os.error, err:
