@@ -13,7 +13,7 @@
 ##############################################################################
 
 import ZODB.FileStorage
-from ZODB.FileStorage.fsdump import get_pickle_metadata
+from ZODB.utils import get_pickle_metadata
 from ZODB.utils import U64, p64, oid_repr, tid_repr, get_refs
 from ZODB.TimeStamp import TimeStamp
 
