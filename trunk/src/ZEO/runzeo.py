@@ -109,6 +109,7 @@ class ZEOServer:
         self.options = options
 
     def main(self):
+        self.setup_default_logging()
         self.check_socket()
         self.clear_socket()
         try:
@@ -119,6 +120,17 @@ class ZEOServer:
         finally:
             self.close_storages()
             self.clear_socket()
+
+    def setup_default_logging(self):
+        if self.options.config_logger is not None:
+            return
+        if os.getenv("EVENT_LOG_FILE") is not None:
+            return
+        if os.getenv("STUPID_LOG_FILE") is not None:
+            return
+        # No log file is configured; default to stderr.  The logging
+        # level can still be controlled by {STUPID,EVENT}_LOG_SEVERITY.
+        os.environ["EVENT_LOG_FILE"] = ""
 
     def check_socket(self):
         if self.can_connect(self.options.family, self.options.address):
