@@ -205,12 +205,109 @@ class SlowFileStorageTest(BaseFileStorageTests):
             self._storage.tpc_vote(t)
             self._storage.tpc_finish(t)
 
+# Raise an exception if the tids in FileStorage fs aren't
+# strictly increasing.
+def checkIncreasingTids(fs):
+    lasttid = '\0' * 8
+    for txn in fs.iterator():
+        if lasttid >= txn.tid:
+            raise ValueError("tids out of order %r >= %r" % (lasttid, tid))
+        lasttid = txn.tid
+
+# Return a TimeStamp object 'minutes' minutes in the future.
+def timestamp(minutes):
+    import time
+    from persistent.TimeStamp import TimeStamp
+
+    t = time.time() + 60 * minutes
+    return TimeStamp(*time.gmtime(t)[:5] + (t % 60,))
+
+def testTimeTravelOnOpen():
+    """
+    >>> from ZODB.FileStorage import FileStorage
+    >>> from ZODB.DB import DB
+    >>> import transaction
+    >>> from ZODB.tests.loggingsupport import InstalledHandler
+
+    Arrange to capture log messages -- they're an important part of
+    this test!
+
+    >>> handler = InstalledHandler('ZODB.FileStorage')
+
+    Create a new file storage.
+
+    >>> st = FileStorage('temp.fs', create=True)
+    >>> db = DB(st)
+    >>> db.close()
+
+    First check the normal case:  transactions are recorded with
+    increasing tids, and time doesn't run backwards.
+
+    >>> st = FileStorage('temp.fs')
+    >>> db = DB(st)
+    >>> conn = db.open()
+    >>> conn.root()['xyz'] = 1
+    >>> transaction.get().commit()
+    >>> checkIncreasingTids(st)
+    >>> db.close()
+    >>> st.cleanup() # remove .fs, .index, etc files
+    >>> handler.records   # i.e., no log messages
+    []
+
+    Now force the database to have transaction records with tids from
+    the future.
+
+    >>> st = FileStorage('temp.fs', create=True)
+    >>> st._ts = timestamp(15)  # 15 minutes in the future
+    >>> db = DB(st)
+    >>> db.close()
+
+    >>> st = FileStorage('temp.fs') # this should log a warning
+    >>> db = DB(st)
+    >>> conn = db.open()
+    >>> conn.root()['xyz'] = 1
+    >>> transaction.get().commit()
+    >>> checkIncreasingTids(st)
+    >>> db.close()
+    >>> st.cleanup()
+
+    >>> [record.levelname for record in handler.records]
+    ['WARNING']
+    >>> handler.clear()
+
+    And one more time, with transaction records far in the future.
+    We expect to log a critical error then, as a time so far in the
+    future probably indicates a real problem with the system.  Shorter
+    spans may be due to clock drift.
+
+    >>> st = FileStorage('temp.fs', create=True)
+    >>> st._ts = timestamp(60)  # an hour in the future
+    >>> db = DB(st)
+    >>> db.close()
+
+    >>> st = FileStorage('temp.fs') # this should log a critical error
+    >>> db = DB(st)
+    >>> conn = db.open()
+    >>> conn.root()['xyz'] = 1
+    >>> transaction.get().commit()
+    >>> checkIncreasingTids(st)
+    >>> db.close()
+    >>> st.cleanup()
+
+    >>> [record.levelname for record in handler.records]
+    ['CRITICAL']
+    >>> handler.clear()
+    >>> handler.uninstall()
+    """
 
 def test_suite():
+    import doctest
+
     suite = unittest.TestSuite()
     for klass in [FileStorageTests, Corruption.FileStorageCorruptTests,
                   FileStorageRecoveryTest, SlowFileStorageTest]:
         suite.addTest(unittest.makeSuite(klass, "check"))
+    suite.addTest(doctest.DocTestSuite())
     return suite
 
 if __name__=='__main__':
