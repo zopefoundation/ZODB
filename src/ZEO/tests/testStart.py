@@ -49,11 +49,14 @@ class StartTests(unittest.TestCase):
             except os.error:
                 pass
 
-    def stop_server(self):
+    def getpids(self):
         if not os.path.exists(self.env.zeo_pid):
             # If there's no pid file, assume the server isn't running
-            return
-        ppid, pid = map(int, open(self.env.zeo_pid).read().split())
+            return None, None
+        return map(int, open(self.env.zeo_pid).read().split())
+
+    def stop_server(self):
+        ppid, pid = self.getpids()
         self.kill(pids=[pid])
 
     def kill(self, sig=signal.SIGTERM, pids=None):
@@ -131,6 +134,35 @@ class StartTests(unittest.TestCase):
         port = 9090
         outp = self.fork("-s", "-p", str(port))
         self.connect(port=port)
+
+    def testLogRestart(self):
+        port = 9090
+        logfile1 = tempfile.mktemp(suffix="log")
+        logfile2 = tempfile.mktemp(suffix="log")
+        os.environ["EVENT_LOG_FILE"] = logfile1
+
+        try:
+            outp = self.fork("-s", "-p", str(port))
+            self.connect(port=port)
+            buf1 = open(logfile1).read()
+            self.assert_(buf1)
+            os.rename(logfile1, logfile2)
+            ppid, pid = self.getpids()
+    ##        os.kill(ppid, signal.SIGHUP)
+            os.kill(pid, signal.SIGHUP)
+            self.connect(port=port)
+            buf2 = open(logfile1).read()
+            self.assert_(buf2)
+        finally:
+            self.shutdown()
+            try:
+                os.unlink(logfile1)
+            except os.error:
+                pass
+            try:
+                os.unlink(logfile2)
+            except os.error:
+                pass
         
 def test_suite():
     if os.name == "posix":
