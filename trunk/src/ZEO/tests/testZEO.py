@@ -126,27 +126,26 @@ class GenericTests(
             ReadOnlyStorage.ReadOnlyStorage.checkWriteMethods(self)
 
 
-class UnixTests(GenericTests):
-
-    """Add Unix-specific scaffolding to the generic test suite."""
+class FileStorageTests(GenericTests):
+    """Test ZEO backed by a FileStorage."""
 
     def setUp(self):
         zLOG.LOG("testZEO", zLOG.INFO, "setUp() %s" % self.id())
-        client, exit, pid = forker.start_zeo(*self.getStorage())
+        zeoport, adminaddr, pid = forker.start_zeo_server(self.getConfig())
         self._pids = [pid]
-        self._servers = [exit]
-        self._storage = client
-        client.registerDB(DummyDB(), None)
+        self._servers = [adminaddr]
+        self._storage = ClientStorage(zeoport, '1', cache_size=20000000,
+                                      min_disconnect_poll=0.5, wait=1)
+        self._storage.registerDB(DummyDB(), None)
 
     def tearDown(self):
         self._storage.close()
         for server in self._servers:
-            server.close()
+            forker.shutdown_zeo_server(server)
         for pid in self._pids:
             os.waitpid(pid, 0)
-        self.delStorage()
 
-    def getStorage(self):
+    def getConfig(self):
         filename = self.__fs_base = tempfile.mktemp()
         # Return a 1-tuple
         return """\
@@ -155,16 +154,11 @@ class UnixTests(GenericTests):
             file_name %s
             create yes
         </Storage>
-        """ % filename,
-
-    def delStorage(self):
-        from ZODB.FileStorage import cleanup
-        cleanup(self.__fs_base)
+        """ % filename
 
 
-class BDBTests(UnixTests):
-
-    """Add Berkeley storage tests (not sure if these are Unix specific)."""
+class BDBTests(FileStorageTests):
+    """ZEO backed by a Berkeley Full storage."""
 
     def getStorage(self):
         self._envdir = tempfile.mktemp()
@@ -174,45 +168,11 @@ class BDBTests(UnixTests):
             type Full
             name %s
         </Storage>
-        """ % self._envdir,
-
-    def delStorage(self):
-        from bsddb3Storage.BerkeleyBase import cleanup
-        cleanup(self._envdir)
+        """ % self._envdir
 
 
-class WindowsTests(UnixTests):
 
-    """Add Windows-specific scaffolding to the generic test suite."""
-
-    def setUp(self):
-        zLOG.LOG("testZEO", zLOG.INFO, "setUp() %s" % self.id())
-        args = self.getStorage()
-        name = args[0]
-        args = args[1]
-        zeo_addr, self.test_addr, self.test_pid = \
-                  forker.start_zeo_server(name, args)
-        storage = ClientStorage(zeo_addr, wait=1, min_disconnect_poll=0.1)
-        self._storage = storage
-        storage.registerDB(DummyDB(), None)
-
-    def tearDown(self):
-        self._storage.close()
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.connect(self.test_addr)
-        s.close()
-        # the connection should cause the storage server to die
-        time.sleep(0.5)
-        self.delStorage()
-
-
-if os.name == "posix":
-    test_classes = [UnixTests]
-elif os.name == "nt":
-    test_classes = [WindowsTests]
-else:
-    raise RuntimeError, "unsupported os: %s" % os.name
-
+test_classes = [FileStorageTests]
 try:
     from bsddb3Storage.Full import Full
 except ImportError:
