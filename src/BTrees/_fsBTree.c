@@ -1,3 +1,19 @@
+/*############################################################################
+#
+# Copyright (c) 2004 Zope Corporation and Contributors.
+# All Rights Reserved.
+#
+# This software is subject to the provisions of the Zope Public License,
+# Version 2.0 (ZPL).  A copy of the ZPL should accompany this distribution.
+# THIS SOFTWARE IS PROVIDED "AS IS" AND ANY AND ALL EXPRESS OR IMPLIED
+# WARRANTIES ARE DISCLAIMED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+# WARRANTIES OF TITLE, MERCHANTABILITY, AGAINST INFRINGEMENT, AND FITNESS
+# FOR A PARTICULAR PURPOSE.
+#
+############################################################################*/
+
+#define MASTER_ID "$Id: _fsBTree.c,v 1.9 2004/05/01 01:15:45 spascoe Exp $\n"
+
 /* fsBTree - FileStorage index BTree
 
    This BTree implements a mapping from 2-character strings
@@ -12,8 +28,6 @@ typedef unsigned char char6[6];
 
 /* Setup template macros */
 
-#define MASTER_ID "$Id: _fsBTree.c,v 1.8 2003/11/28 16:44:44 jim Exp $\n"
-
 #define PERSISTENT
 
 #define MOD_NAME_PREFIX "fs"
@@ -23,7 +37,7 @@ typedef unsigned char char6[6];
 
 /*#include "intkeymacros.h"*/
 
-#define KEYMACROS_H "$Id: _fsBTree.c,v 1.8 2003/11/28 16:44:44 jim Exp $\n"
+#define KEYMACROS_H "$Id: _fsBTree.c,v 1.9 2004/05/01 01:15:45 spascoe Exp $\n"
 #define KEY_TYPE char2
 #undef KEY_TYPE_IS_PYOBJECT
 #define KEY_CHECK(K) (PyString_Check(K) && PyString_GET_SIZE(K)==2)
@@ -38,7 +52,7 @@ typedef unsigned char char6[6];
       (STATUS)=0; }
 
 /*#include "intvaluemacros.h"*/
-#define VALUEMACROS_H "$Id: _fsBTree.c,v 1.8 2003/11/28 16:44:44 jim Exp $\n"
+#define VALUEMACROS_H "$Id: _fsBTree.c,v 1.9 2004/05/01 01:15:45 spascoe Exp $\n"
 #define VALUE_TYPE char6
 #undef VALUE_TYPE_IS_PYOBJECT
 #define TEST_VALUE(K, T) memcmp(K,T,6)
