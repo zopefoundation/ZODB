@@ -150,7 +150,7 @@ class fsIndex(object):
             smallest_prefix = self._data.minKey()
         else:
             smallest_prefix = self._data.minKey(key[:6])
-            
+
         tree = self._data[smallest_prefix]
 
         assert tree
@@ -192,4 +192,3 @@ class fsIndex(object):
                 biggest_suffix = tree.maxKey()
 
         return biggest_prefix + biggest_suffix
-
