@@ -14,7 +14,7 @@
 static char cPersistence_doc_string[] = 
 "Defines Persistent mixin class for persistent objects.\n"
 "\n"
-"$Id: cPersistence.c,v 1.65 2002/10/16 16:12:48 jeremy Exp $\n";
+"$Id: cPersistence.c,v 1.66 2003/04/01 16:08:14 jeremy Exp $\n";
 
 #include "cPersistence.h"
 
@@ -434,7 +434,6 @@ Per_dealloc(cPersistentObject *self)
   if (idebug_log < 0) call_debug("del",self);
 #endif
   deallocated(self);
-  Py_XDECREF(self->cache);
   Py_DECREF(self->ob_type);
   PyObject_DEL(self);
 }
@@ -724,7 +723,7 @@ Per_setattro(cPersistentObject *self, PyObject *oname, PyObject *v)
       else PyErr_SetObject(PyExc_AttributeError, oname);
     }
   else
-    return _setattro(self,oname, v, PyExtensionClassCAPI->setattro);
+    return _setattro(self, oname, v, PyExtensionClassCAPI->setattro);
 
   if (m) 
     {
