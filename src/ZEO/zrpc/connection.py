@@ -38,25 +38,34 @@ class Delay:
     the mainloop from sending a response.
     """
 
-    def set_sender(self, msgid, send_reply):
+    def set_sender(self, msgid, send_reply, return_error):
         self.msgid = msgid
         self.send_reply = send_reply
+        self.return_error = return_error
 
     def reply(self, obj):
         self.send_reply(self.msgid, obj)
+
+    def error(self, exc_info):
+        log("Error raised in delayed method", zLOG.ERROR, error=exc_info)
+        self.return_error(self.msgid, 0, *exc_info[:2])
 
 class MTDelay(Delay):
 
     def __init__(self):
         self.ready = threading.Event()
 
-    def set_sender(self, msgid, send_reply):
-        Delay.set_sender(self, msgid, send_reply)
+    def set_sender(self, msgid, send_reply, return_error):
+        Delay.set_sender(self, msgid, send_reply, return_error)
         self.ready.set()
 
     def reply(self, obj):
         self.ready.wait()
         Delay.reply(self, obj)
+
+    def error(self, exc_info):
+        self.ready.wait()
+        Delay.error(self, exc_info)
 
 class Connection(smac.SizedMessageAsyncConnection):
     """Dispatcher for RPC on object on both sides of socket.
@@ -227,7 +236,7 @@ class Connection(smac.SizedMessageAsyncConnection):
             if __debug__:
                 log("%s return %s" % (name, short_repr(ret)), zLOG.DEBUG)
             if isinstance(ret, Delay):
-                ret.set_sender(msgid, self.send_reply)
+                ret.set_sender(msgid, self.send_reply, self.return_error)
             else:
                 self.send_reply(msgid, ret)
 
@@ -296,11 +305,12 @@ class Connection(smac.SizedMessageAsyncConnection):
         self.__reply_lock.acquire()
         assert r_msgid == msgid, "%s != %s: %s" % (r_msgid, msgid, r_args)
 
-        if type(r_args) == types.TupleType \
-           and type(r_args[0]) == types.ClassType \
-           and issubclass(r_args[0], Exception):
-            raise r_args[1] # error raised by server
-        return r_args
+        if (isinstance(r_args, types.TupleType)
+            and issubclass(r_args[0], Exception)):
+            inst = r_args[1]
+            raise inst # error raised by server
+        else:
+            return r_args
 
     def callAsync(self, method, *args):
         self.__call_lock.acquire()
