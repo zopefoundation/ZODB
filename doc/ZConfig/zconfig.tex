@@ -627,13 +627,17 @@ containment chain is optional.
   indirectly.
 \end{funcdesc}
 
-An additional function is provided which provides some interesting
-information about a source string:
+Some additional functions are provided:
 
 \begin{funcdesc}{getnames}{s}
   Return a list of the names referenced by the string \var{s}.  The
   names will have been converted to lower case.  Each name will only
   be included once, even if it is referenced multiple times.
+\end{funcdesc}
+
+\begin{funcdesc}{isname}{s}
+  Returns \code{True} if \var{s} is a valid name for a substitution
+  text, otherwise returns \code{False}.
 \end{funcdesc}
 
 The following exceptions are defined:
