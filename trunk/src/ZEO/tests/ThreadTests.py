@@ -32,6 +32,11 @@ class BasicThread(threading.Thread):
         self.gotValueError = 0
         self.gotDisconnected = 0
         threading.Thread.__init__(self)
+        self.setDaemon(1)
+
+    def join(self):
+        threading.Thread.join(self, 10)
+        assert not self.isAlive()
 
 
 class GetsThroughVoteThread(BasicThread):
