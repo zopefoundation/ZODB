@@ -114,7 +114,7 @@
 #   may have a back pointer to a version record or to a non-version
 #   record.
 #
-__version__='$Revision: 1.79 $'[11:-2]
+__version__='$Revision: 1.80 $'[11:-2]
 
 import struct, time, os, string, base64, sys
 from struct import pack, unpack
@@ -135,6 +135,10 @@ except: fsync=None
 from types import StringType
 
 z64='\0'*8
+# constants to support various header sizes
+TRANS_HDR_LEN = 23
+DATA_HDR_LEN = 42
+DATA_VERSION_HDR_LEN = 58
 
 def warn(message, *data):
     LOG('ZODB FS',WARNING, "%s  warn: %s\n" % (packed_version, (message % data)))
@@ -329,25 +333,26 @@ class FileStorage(BaseStorage.BaseStorage,
             pos=pos-tl-8
             if pos < 4: return 0
             seek(pos)
-            tid, stl, status, ul, dl, el = unpack(">8s8scHHH", read(23))
+            s = read(TRANS_HDR_LEN)
+            tid, stl, status, ul, dl, el = unpack(">8s8scHHH", s)
             if not ltid: ltid=tid
             if stl != rstl: return 0 # inconsistent lengths
             if status == 'u': continue # undone trans, search back
             if status not in ' p': return 0
-            if tl < (23+ul+dl+el): return 0
+            if tl < (TRANS_HDR_LEN + ul + dl + el): return 0
             tend=pos+tl
-            opos=pos+(23+ul+dl+el)
+            opos=pos+(TRANS_HDR_LEN + ul + dl + el)
             if opos==tend: continue # empty trans
 
             while opos < tend:
                 # Read the data records for this transaction    
                 seek(opos)
-                h=read(42)
+                h=read(DATA_HDR_LEN)
                 oid,serial,sprev,stloc,vlen,splen = unpack(">8s8s8s8sH8s", h)
                 tloc=U64(stloc)
                 plen=U64(splen)
                 
-                dlen=42+(plen or 8)
+                dlen=DATA_HDR_LEN+(plen or 8)
                 if vlen: dlen=dlen+(16+vlen)
     
                 if opos+dlen > tend or tloc != pos: return 0
@@ -422,86 +427,85 @@ class FileStorage(BaseStorage.BaseStorage,
         
         self._lock_acquire()
         try:
-            read=self._file.read
-            seek=self._file.seek
-            tfile=self._tfile
-            write=tfile.write
-            tindex=self._tindex
-            index=self._index
-            index_get=index.get
+            return self._commitVersion(src, dest, transaction, abort)
+        finally:
+            self._lock_release()
 
-            srcpos=self._vindex_get(src, 0)
-            spos=p64(srcpos)
-            middle=struct.pack(">8sH8s", p64(self._pos), len(dest), z64)
+    def _commitVersion(self, src, dest, transaction, abort=None):
+        # call after checking arguments and acquiring lock
+        srcpos = self._vindex_get(src, 0)
+        spos = p64(srcpos)
+        # middle holds bytes 16:34 of a data record:
+        #    pos of transaction, len of version name, data length
+        #    commit version never writes data, so data length is always 0
+        middle = struct.pack(">8sH8s", p64(self._pos), len(dest), z64)
 
-            if dest:
-                sd=p64(self._vindex_get(dest, 0))
-                heredelta=66+len(dest)
+        if dest:
+            sd = p64(self._vindex_get(dest, 0))
+            heredelta = 66 + len(dest)
+        else:
+            sd = ''
+            heredelta = 50
+
+        here = self._pos + (self._tfile.tell() + self._thl)
+        oids = []
+        current_oids = {}
+        t = None
+        tstatus = ' '
+
+        while srcpos:
+            self._file.seek(srcpos)
+            h = self._file.read(DATA_VERSION_HDR_LEN)
+            # h -> oid, serial, prev(oid), tloc, vlen, plen, pnv, pv
+            oid=h[:8]
+            pnv=h[-16:-8]
+            if self._index.get(oid) == srcpos:
+                # This is a current record!
+                self._tindex[oid] = here
+                oids.append(oid)
+                self._tfile.write(h[:16] + spos + middle)
+                if dest:
+                    self._tvindex[dest] = here
+                    self._tfile.write(pnv + sd + dest)
+                    sd = p64(here)
+
+                self._tfile.write(abort and pnv or spos)
+                # data backpointer to src data
+                here += heredelta
+
+                current_oids[oid] = 1
+
             else:
-                sd=''
-                heredelta=50
-                        
-            here=self._pos+(tfile.tell()+self._thl)
-            oids=[]
-            appoids=oids.append
-            tvindex=self._tvindex
-            current_oids={}
-            current=current_oids.has_key
-            t=None
-            tstatus=' '
+                # Hm.  This is a non-current record.  Is there a
+                # current record for this oid?
+                if not current_oids.has_key(oid):
+                    # Nope. We're done *if* this transaction wasn't undone.
+                    tloc = h[24:32]
+                    if t != tloc:
+                        # We haven't checked this transaction before,
+                        # get it's status.
+                        t = tloc
+                        self._file.seek(U64(t) + 16)
+                        tstatus = self._file.read(1)
+                    if tstatus != 'u':
+                        # Yee ha! We can quit
+                        break
 
-            while srcpos:
-                seek(srcpos)
-                h=read(58) # oid, serial, prev(oid), tloc, vlen, plen, pnv, pv
-                oid=h[:8]
-                pnv=h[-16:-8]
-                if index_get(oid) == srcpos:
-                    # This is a current record!
-                    tindex[oid]=here
-                    appoids(oid)
-                    write(h[:16] + spos + middle)
-                    if dest:
-                        tvindex[dest]=here
-                        write(pnv+sd+dest)
-                        sd=p64(here)
-
-                    write(abort and pnv or spos) # data backpointer to src data
-                    here=here+heredelta
-
-                    current_oids[oid]=1
-
-                else:
-                    # Hm.  This is a non-current record.  Is there a
-                    # current record for this oid?
-                    if not current(oid):
-                        # Nope. We're done *if* this transaction wasn't undone.
-                        tloc=h[24:32]
-                        if t != tloc:
-                            # We haven't checked this transaction before,
-                            # get it's status.
-                            t=tloc
-                            seek(U64(t)+16)
-                            tstatus=read(1)
-                            
-                        if tstatus != 'u':
-                            # Yee ha! We can quit
-                            break
-
-                spos=h[-8:]
-                srcpos=U64(spos)
-
-            return oids
-
-        finally: self._lock_release()
+            spos = h[-8:]
+            srcpos = U64(spos)
+        return oids
 
     def getSize(self): return self._pos
 
     def _loada(self, oid, _index, file):
         "Read any version and return the version"
-        pos=_index[oid]
+        try:
+            pos=_index[oid]
+        except KeyError:
+            raise POSKeyError(oid)
         file.seek(pos)
         read=file.read
-        h=read(42)
+        h=read(DATA_HDR_LEN)
         doid,serial,prev,tloc,vlen,plen = unpack(">8s8s8s8sH8s", h)
         if vlen:
             nv = read(8) != z64
@@ -540,10 +544,13 @@ class FileStorage(BaseStorage.BaseStorage,
         
 
     def _load(self, oid, version, _index, file):
-        pos=_index[oid]
+        try:
+            pos=_index[oid]
+        except KeyError:
+            raise POSKeyError(oid)
         file.seek(pos)
         read=file.read
-        h=read(42)
+        h=read(DATA_HDR_LEN)
         doid,serial,prev,tloc,vlen,plen = unpack(">8s8s8s8sH8s", h)
         if doid != oid: raise CorruptedDataError, h
         if vlen:
@@ -580,7 +587,7 @@ class FileStorage(BaseStorage.BaseStorage,
                 raise POSKeyError(oid)
             while 1:
                 seek(pos)
-                h=read(42)
+                h=read(DATA_HDR_LEN)
                 doid,dserial,prev,tloc,vlen,plen = unpack(">8s8s8s8sH8s", h)
                 if doid != oid: raise CorruptedDataError, h
                 if dserial == serial: break # Yeee ha!
@@ -632,7 +639,7 @@ class FileStorage(BaseStorage.BaseStorage,
                 file=self._file
                 file.seek(old)
                 read=file.read
-                h=read(42)
+                h=read(DATA_HDR_LEN)
                 doid,oserial,sprev,stloc,vlen,splen = unpack(">8s8s8s8sH8s", h)
                 if doid != oid: raise CorruptedDataError, h
                 if vlen:
@@ -773,7 +780,7 @@ class FileStorage(BaseStorage.BaseStorage,
             self._tfile.seek(0)
 
     def _begin(self, tid, u, d, e):
-        self._thl=23+len(u)+len(d)+len(e)
+        self._thl=TRANS_HDR_LEN+len(u)+len(d)+len(e)
         self._nextpos=0
 
     def tpc_vote(self, transaction):
@@ -872,24 +879,24 @@ class FileStorage(BaseStorage.BaseStorage,
             index_get=self._index_get
             unpack=struct.unpack
             seek(tpos)
-            h=read(23)
-            if len(h) != 23 or h[:8] != tid: 
+            h=read(TRANS_HDR_LEN)
+            if len(h) != TRANS_HDR_LEN or h[:8] != tid: 
                 raise UndoError('Invalid undo transaction id')
             if h[16] == 'u': return
             if h[16] != ' ': raise UndoError
             tl=U64(h[8:16])
-            ul,dl,el=unpack(">HHH", h[17:23])
+            ul,dl,el=unpack(">HHH", h[17:TRANS_HDR_LEN])
             tend=tpos+tl
-            pos=tpos+(23+ul+dl+el)
+            pos=tpos+(TRANS_HDR_LEN+ul+dl+el)
             t={}
             while pos < tend:
                 # Read the data records for this transaction
                 seek(pos)
-                h=read(42)
+                h=read(DATA_HDR_LEN)
                 oid,serial,sprev,stloc,vlen,splen = unpack(">8s8s8s8sH8s", h)
                 plen=U64(splen)
                 prev=U64(sprev)
-                dlen=42+(plen or 8)
+                dlen=DATA_HDR_LEN+(plen or 8)
                 if vlen: dlen=dlen+(16+vlen)
                 if index_get(oid, 0) != pos: raise UndoError
                 pos=pos+dlen
@@ -918,7 +925,7 @@ class FileStorage(BaseStorage.BaseStorage,
 
         read=file.read
         file.seek(pos)
-        h=read(42)
+        h=read(DATA_HDR_LEN)
         roid,serial,sprev,stloc,vlen,splen = unpack(">8s8s8s8sH8s", h)
         if roid != oid: raise UndoError('Invalid undo transaction id')
         if vlen:
@@ -941,7 +948,7 @@ class FileStorage(BaseStorage.BaseStorage,
     def _getVersion(self, oid, pos):
         self._file.seek(pos)
         read=self._file.read
-        h=read(42)
+        h=read(DATA_HDR_LEN)
         doid,serial,sprev,stloc,vlen,splen = unpack(">8s8s8s8sH8s", h)
         if vlen:
             h=read(16)
@@ -1021,11 +1028,13 @@ class FileStorage(BaseStorage.BaseStorage,
         """Undo a transaction, given by transaction_id.
 
         Do so by writing new data that reverses the action taken by
-        the transaction."""        
-        # Usually, we can get by with just copying a data pointer, by
-        # writing a file position rather than a pickle. Sometimes, we
-        # may do conflict resolution, in which case we actually copy
-        # new data that results from resolution.
+        the transaction.
+
+        Usually, we can get by with just copying a data pointer, by
+        writing a file position rather than a pickle. Sometimes, we
+        may do conflict resolution, in which case we actually copy
+        new data that results from resolution.
+        """
 
         if self._is_read_only:
             raise POSException.ReadOnlyError()
@@ -1034,69 +1043,68 @@ class FileStorage(BaseStorage.BaseStorage,
         
         self._lock_acquire()
         try:
-            transaction_id=base64.decodestring(transaction_id+'==\n')
+            transaction_id = base64.decodestring(transaction_id + '==\n')
             tid, tpos = transaction_id[:8], U64(transaction_id[8:])
 
-            seek=self._file.seek
-            read=self._file.read
-            unpack=struct.unpack
-            write=self._tfile.write
-
             ostloc = p64(self._pos)
-            newserial=self._serial
-            here=self._pos+(self._tfile.tell()+self._thl)
+            here = self._pos + (self._tfile.tell() + self._thl)
 
-            seek(tpos)
-            h=read(23)
-            if len(h) != 23 or h[:8] != tid: 
+            self._file.seek(tpos)
+            h = self._file.read(TRANS_HDR_LEN)
+            if len(h) != TRANS_HDR_LEN or h[:8] != tid: 
                 raise UndoError, 'Invalid undo transaction id'
-            if h[16] == 'u': return
+            if h[16] == 'u':
+                return
             if h[16] != ' ':
                 raise UndoError, 'non-undoable transaction'
-            tl=U64(h[8:16])
-            ul,dl,el=unpack(">HHH", h[17:23])
-            tend=tpos+tl
-            pos=tpos+(23+ul+dl+el)
-            tindex={}
-            failures={} # keep track of failures, cause we may succeed later
-            failed=failures.has_key
+            tl = U64(h[8:16])
+            ul, dl, el = struct.unpack(">HHH", h[17:TRANS_HDR_LEN])
+            tend = tpos + tl
+            pos = tpos + (TRANS_HDR_LEN + ul + dl + el)
+            tindex = {}
+            failures = {} # keep track of failures, cause we may succeed later
+            failed = failures.has_key
             # Read the data records for this transaction
             while pos < tend:
-                seek(pos)
-                h=read(42)
-                oid,serial,sprev,stloc,vlen,splen = unpack(">8s8s8s8sH8s", h)
-                if failed(oid): del failures[oid] # second chance! 
-                plen=U64(splen)
-                prev=U64(sprev)
+                self._file.seek(pos)
+                h = self._file.read(DATA_HDR_LEN)
+                oid, serial, sprev, stloc, vlen, splen = \
+                     struct.unpack(">8s8s8s8sH8s", h)
+                if failed(oid):
+                    del failures[oid] # second chance! 
+                plen = U64(splen)
+                prev = U64(sprev)
                 if vlen:
-                    dlen=58+vlen+(plen or 8)
-                    read(16)
-                    version=read(vlen)
+                    dlen = DATA_VERSION_HDR_LEN + vlen + (plen or 8)
+                    self._file.seek(16, 1)
+                    version = self._file.read(vlen)
                 else:
-                    dlen=42+(plen or 8)
-                    version=''
+                    dlen = DATA_HDR_LEN + (plen or 8)
+                    version = ''
 
                 try:
                     p, prev, v, snv, ipos = self._transactionalUndoRecord(
                         oid, pos, serial, prev, version)
                 except UndoError, v:
                     # Don't fail right away. We may be redeemed later!
-                    failures[oid]=v
+                    failures[oid] = v
                 else:
-                    plen=len(p)                
-                    write(pack(">8s8s8s8sH8s",
-                               oid, newserial, p64(ipos), ostloc,
-                               len(v), p64(plen)))
+                    plen =len(p)                
+                    self._tfile.write(pack(">8s8s8s8sH8s",
+                                           oid, self._serial, p64(ipos),
+                                           ostloc, len(v), p64(plen)))
                     if v:
                         vprev=self._tvindex.get(v, 0) or self._vindex.get(v, 0)
-                        write(snv+p64(vprev)+v)
+                        self._tfile.write(snv + p64(vprev) + v)
                         self._tvindex[v]=here
-                        odlen = 58+len(v)+(plen or 8)
+                        odlen = DATA_VERSION_HDR_LEN + len(v)+(plen or 8)
                     else:
-                        odlen = 42+(plen or 8)
+                        odlen = DATA_HDR_LEN+(plen or 8)
 
-                    if p: write(p)
-                    else: write(p64(prev))
+                    if p:
+                        self._tfile.write(p)
+                    else:
+                        self._tfile.write(p64(prev))
                     tindex[oid]=here
                     here=here+odlen
 
@@ -1133,7 +1141,7 @@ class FileStorage(BaseStorage.BaseStorage,
                 seek(pos-8)
                 pos=pos-U64(read(8))-8
                 seek(pos)
-                h=read(23)
+                h=read(TRANS_HDR_LEN)
                 tid, tl, status, ul, dl, el = unpack(">8s8scHHH", h)
                 if tid < packt: break
                 if status != ' ': continue
@@ -1216,7 +1224,7 @@ class FileStorage(BaseStorage.BaseStorage,
             while 1:
                 if len(r) >= size: return r
                 seek(pos)
-                h=read(42)
+                h=read(DATA_HDR_LEN)
                 doid,serial,prev,tloc,vlen,plen = unpack(">8s8s8s8sH8s", h)
                 prev=U64(prev)
 
@@ -1235,7 +1243,7 @@ class FileStorage(BaseStorage.BaseStorage,
                     wantver=None
 
                 seek(U64(tloc))
-                h=read(23)
+                h=read(TRANS_HDR_LEN)
                 tid, stl, status, ul, dl, el = unpack(">8s8scHHH",h)
                 user_name=read(ul)
                 description=read(dl)
@@ -1399,8 +1407,8 @@ class FileStorage(BaseStorage.BaseStorage,
 
                 # Read the transaction record
                 seek(pos)
-                h=read(23)
-                if len(h) < 23: break
+                h=read(TRANS_HDR_LEN)
+                if len(h) < TRANS_HDR_LEN: break
                 tid, stl, status, ul, dl, el = unpack(">8s8scHHH",h)
                 if status=='c':
                     # Oops. we found a checkpoint flag.
@@ -1417,7 +1425,7 @@ class FileStorage(BaseStorage.BaseStorage,
                         # for now to squash a bug.
                         write(h)
                         tl=tl+8
-                        write(read(tl-23))
+                        write(read(tl-TRANS_HDR_LEN))
                         opos=opos+tl
                         
                     # Undone transaction, skip it
@@ -1434,7 +1442,7 @@ class FileStorage(BaseStorage.BaseStorage,
                 if len(h) != thl:
                     raise 'Pack Error', opos
                 write(h)
-                thl=23+thl
+                thl=TRANS_HDR_LEN+thl
                 pos=tpos+thl
                 opos=otpos+thl
 
@@ -1442,11 +1450,11 @@ class FileStorage(BaseStorage.BaseStorage,
                     # Read the data records for this transaction
 
                     seek(pos)
-                    h=read(42)
+                    h=read(DATA_HDR_LEN)
                     oid,serial,sprev,stloc,vlen,splen = unpack(
                         ">8s8s8s8sH8s", h)
                     plen=U64(splen)
-                    dlen=42+(plen or 8)
+                    dlen=DATA_HDR_LEN+(plen or 8)
 
                     if vlen:
                         dlen=dlen+(16+vlen)
@@ -1477,7 +1485,7 @@ class FileStorage(BaseStorage.BaseStorage,
                                 # But maybe it's the most current committed
                                 # record.
                                 seek(ppos)
-                                ph=read(42)
+                                ph=read(DATA_HDR_LEN)
                                 pdoid,ps,pp,pt,pvlen,pplen = unpack(
                                     ">8s8s8s8sH8s", ph)
                                 if not pvlen:
@@ -1499,7 +1507,7 @@ class FileStorage(BaseStorage.BaseStorage,
                                 # place, after wandering around to figure
                                 # out is we were current. Seek back
                                 # to pickle data:
-                                seek(pos+42)
+                                seek(pos+DATA_HDR_LEN)
 
                             nvindex[oid]=opos
 
@@ -1712,8 +1720,8 @@ def shift_transactions_forward(index, vindex, tindex, file, pos, opos):
 
         # Read the transaction record
         seek(pos)
-        h=read(23)
-        if len(h) < 23: break
+        h=read(TRANS_HDR_LEN)
+        if len(h) < TRANS_HDR_LEN: break
         tid, stl, status, ul, dl, el = unpack(">8s8scHHH",h)
         if status=='c': break # Oops. we found a checkpoint flag.            
         tl=U64(stl)
@@ -1731,17 +1739,17 @@ def shift_transactions_forward(index, vindex, tindex, file, pos, opos):
         write(h)
         write(h2)
 
-        thl=23+thl
+        thl=TRANS_HDR_LEN+thl
         pos=tpos+thl
         opos=otpos+thl
 
         while pos < tend:
             # Read the data records for this transaction
             seek(pos)
-            h=read(42)
+            h=read(DATA_HDR_LEN)
             oid,serial,sprev,stloc,vlen,splen = unpack(">8s8s8s8sH8s", h)
             plen=U64(splen)
-            dlen=42+(plen or 8)
+            dlen=DATA_HDR_LEN+(plen or 8)
 
             if vlen:
                 dlen=dlen+(16+vlen)
@@ -1885,9 +1893,9 @@ def read_index(file, name, index, vindex, tindex, stop='\377'*8,
 
     while 1:
         # Read the transaction record
-        h=read(23)
+        h=read(TRANS_HDR_LEN)
         if not h: break
-        if len(h) != 23:
+        if len(h) != TRANS_HDR_LEN:
             if not read_only:
                 warn('%s truncated at %s', name, pos)
                 seek(pos)
@@ -1916,7 +1924,7 @@ def read_index(file, name, index, vindex, tindex, stop='\377'*8,
         if status not in ' up':
             warn('%s has invalid status, %s, at %s', name, status, pos)
 
-        if tl < (23+ul+dl+el):
+        if tl < (TRANS_HDR_LEN+ul+dl+el):
             # We're in trouble. Find out if this is bad data in the
             # middle of the file, or just a turd that Win 9x dropped
             # at the end when the system crashed.
@@ -1926,7 +1934,7 @@ def read_index(file, name, index, vindex, tindex, stop='\377'*8,
             rtl=U64(read(8))
             # Now check to see if the redundant transaction length is
             # reasonable:
-            if file_size - rtl < pos or rtl < 23:
+            if file_size - rtl < pos or rtl < TRANS_HDR_LEN:
                 nearPanic('%s has invalid transaction header at %s', name, pos)
                 if not read_only:
                     warn("It appears that there is invalid data at the end of "
@@ -1955,18 +1963,18 @@ def read_index(file, name, index, vindex, tindex, stop='\377'*8,
             pos=tend+8
             continue
 
-        pos=tpos+(23+ul+dl+el)
+        pos=tpos+(TRANS_HDR_LEN+ul+dl+el)
         while pos < tend:
             # Read the data records for this transaction
 
             seek(pos)
-            h=read(42)
+            h=read(DATA_HDR_LEN)
             oid,serial,sprev,stloc,vlen,splen = unpack(">8s8s8s8sH8s", h)
             prev=U64(sprev)
             tloc=U64(stloc)
             plen=U64(splen)
             
-            dlen=42+(plen or 8)
+            dlen=DATA_HDR_LEN+(plen or 8)
             tindex[oid]=pos
             
             if vlen:
@@ -2017,20 +2025,22 @@ def read_index(file, name, index, vindex, tindex, stop='\377'*8,
 
 
 def _loadBack(file, oid, back):
-    seek=file.seek
-    read=file.read
+##    seek=file.seek
+##    read=file.read
     
     while 1:
-        old=U64(back)
+        old = U64(back)
         if not old:
             raise POSKeyError(oid)
-        seek(old)
-        h=read(42)
-        doid,serial,prev,tloc,vlen,plen = unpack(">8s8s8s8sH8s", h)
+        file.seek(old)
+        h=file.read(DATA_HDR_LEN)
+        doid, serial, prev, tloc, vlen, plen = unpack(">8s8s8s8sH8s", h)
 
-        if vlen: seek(vlen+16,1)
-        if plen != z64: return read(U64(plen)), serial
-        back=read(8) # We got a back pointer!
+        if vlen:
+            file.seek(vlen + 16, 1)
+        if plen != z64:
+            return file.read(U64(plen)), serial
+        back = file.read(8) # We got a back pointer!
 
 def _loadBackPOS(file, oid, back):
     """Return the position of the record containing the data used by
@@ -2043,7 +2053,7 @@ def _loadBackPOS(file, oid, back):
         if not old:
             raise POSKeyError(oid)
         seek(old)
-        h=read(42)
+        h=read(DATA_HDR_LEN)
         doid,serial,prev,tloc,vlen,plen = unpack(">8s8s8s8sH8s", h)
         if vlen: seek(vlen+16,1)
         if plen != z64: return old
@@ -2093,8 +2103,7 @@ class Iterator:
 class FileIterator(Iterator):
     """Iterate over the transactions in a FileStorage file.
     """
-    _ltid=z64
-
+    _ltid = z64
     _file = None
     
     def __init__(self, file, start=None, stop=None):
@@ -2158,8 +2167,8 @@ class FileIterator(Iterator):
         while 1:
             # Read the transaction record
             seek(pos)
-            h=read(23)
-            if len(h) < 23: break
+            h=read(TRANS_HDR_LEN)
+            if len(h) < TRANS_HDR_LEN: break
 
             tid, stl, status, ul, dl, el = unpack(">8s8scHHH",h)
             if el < 0: el=t32-el
@@ -2182,7 +2191,7 @@ class FileIterator(Iterator):
                 warn('%s has invalid status, %s, at %s', self._file.name,
                      status, pos)
 
-            if tl < (23+ul+dl+el):
+            if tl < (TRANS_HDR_LEN+ul+dl+el):
                 # We're in trouble. Find out if this is bad data in
                 # the middle of the file, or just a turd that Win 9x
                 # dropped at the end when the system crashed.  Skip to
@@ -2192,7 +2201,7 @@ class FileIterator(Iterator):
                 rtl=U64(read(8))
                 # Now check to see if the redundant transaction length is
                 # reasonable:
-                if self._file_size - rtl < pos or rtl < 23:
+                if self._file_size - rtl < pos or rtl < TRANS_HDR_LEN:
                     nearPanic('%s has invalid transaction header at %s',
                               self._file.name, pos)
                     warn("It appears that there is invalid data at the end of "
@@ -2225,7 +2234,7 @@ class FileIterator(Iterator):
                 pos=tend+8
                 continue
 
-            pos=tpos+(23+ul+dl+el)
+            pos=tpos+(TRANS_HDR_LEN+ul+dl+el)
             user=read(ul)
             description=read(dl)
             if el:
@@ -2273,15 +2282,14 @@ class RecordIterator(Iterator, BaseStorage.TransactionRecord):
         tend, file, seek, read, tpos = self._stuff
         while pos < tend:
             # Read the data records for this transaction
-
             seek(pos)
-            h=read(42)
+            h=read(DATA_HDR_LEN)
             oid,serial,sprev,stloc,vlen,splen = unpack(">8s8s8s8sH8s", h)
             prev=U64(sprev)
             tloc=U64(stloc)
             plen=U64(splen)
 
-            dlen=42+(plen or 8)
+            dlen=DATA_HDR_LEN+(plen or 8)
 
             if vlen:
                 dlen=dlen+(16+vlen)
@@ -2312,7 +2320,7 @@ class RecordIterator(Iterator, BaseStorage.TransactionRecord):
                 else:
                     p = _loadBack(file, oid, p)[0]
                 
-            r=Record(oid, serial, version, p)
+            r = Record(oid, serial, version, p)
             
             return r
         
