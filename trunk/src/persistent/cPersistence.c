@@ -85,7 +85,7 @@
 static char cPersistence_doc_string[] = 
 "Defines Persistent mixin class for persistent objects.\n"
 "\n"
-"$Id: cPersistence.c,v 1.42 2001/03/28 00:34:34 jeremy Exp $\n";
+"$Id: cPersistence.c,v 1.43 2001/03/28 14:04:15 jim Exp $\n";
 
 #include <string.h>
 #include "cPersistence.h"
@@ -94,8 +94,6 @@ static char cPersistence_doc_string[] =
 #define UNLESS(E) if(!(E))
 #define UNLESS_ASSIGN(V,E) ASSIGN(V,E) UNLESS(V)
 #define OBJECT(V) ((PyObject*)(V))
-
-static cPersistenceCAPIstruct *cPersistenceCAPI;
 
 static PyObject *py_keys, *py_setstate, *py___dict__, *py_timeTime;
 static PyObject *py__p_changed, *py__p_deactivate;
@@ -122,10 +120,10 @@ call_debug(char *event, cPersistentObject *self)
 }
 #endif
 
-static void
+static int
 init_strings(void)
 {
-#define INIT_STRING(S) py_ ## S = PyString_FromString(#S)
+#define INIT_STRING(S) if (! (py_ ## S = PyString_FromString(#S))) return -1;
   INIT_STRING(keys);
   INIT_STRING(setstate);
   INIT_STRING(timeTime);
@@ -136,6 +134,7 @@ init_strings(void)
   INIT_STRING(__setattr__);
   INIT_STRING(__delattr__);
 #undef INIT_STRING
+  return 0;
 }
 
 static PyObject *
@@ -740,7 +739,7 @@ void
 initcPersistence(void)
 {
   PyObject *m, *d, *s;
-  char *rev="$Revision: 1.42 $";
+  char *rev="$Revision: 1.43 $";
 
   s = PyString_FromString("TimeStamp");
   if (s == NULL)
@@ -756,10 +755,11 @@ initcPersistence(void)
       Py_DECREF(s);
   }
 
+  if (init_strings() < 0) return;
+
   m = Py_InitModule4("cPersistence", cP_methods, cPersistence_doc_string,
 		     (PyObject*)NULL, PYTHON_API_VERSION);
 
-  init_strings();
   
   d = PyModule_GetDict(m);
   PyDict_SetItemString(d,"__version__",
