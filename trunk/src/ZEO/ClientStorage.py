@@ -13,7 +13,7 @@
 ##############################################################################
 """Network ZODB storage client
 
-$Id: ClientStorage.py,v 1.58 2002/09/12 04:30:19 gvanrossum Exp $
+$Id: ClientStorage.py,v 1.59 2002/09/13 21:08:48 gvanrossum Exp $
 """
 
 # XXX TO DO
@@ -37,7 +37,7 @@ from ZODB import POSException
 from ZODB.TimeStamp import TimeStamp
 from zLOG import LOG, PROBLEM, INFO, BLATHER
 
-def log2(type, msg, subsys="ClientStorage %d" % os.getpid()):
+def log2(type, msg, subsys="ClientStorage:%d" % os.getpid()):
     LOG(subsys, type, msg)
 
 try:
@@ -76,6 +76,12 @@ class ClientStorage:
                  min_disconnect_poll=5, max_disconnect_poll=300,
                  wait=0, read_only=0, read_only_fallback=0):
 
+        log2(INFO, "ClientStorage (pid=%d) created %s/%s for storage: %r" %
+             (os.getpid(),
+              read_only and "RO" or "RW",
+              read_only_fallback and "fallback" or "normal",
+              storage))
+
         self._addr = addr # For tests
         self._server = disconnected_stub
         self._is_read_only = read_only
@@ -106,9 +112,6 @@ class ClientStorage:
                                           tmin=min_disconnect_poll,
                                           tmax=max_disconnect_poll)
 
-        # XXX What if we can only get a read-only connection and we
-        # want a read-write connection?  Looks like the current code
-        # will block forever.  (Future feature)
         if wait:
             self._rpc_mgr.connect(sync=1)
         else:
@@ -198,6 +201,7 @@ class ClientStorage:
         except POSException.ReadOnlyError:
             if not self._read_only_fallback:
                 raise
+            log2(INFO, "Got ReadOnlyError; trying again with read_only=1")
             stub.register(str(self._storage), read_only=1)
             return (stub, 0)
 
@@ -205,13 +209,15 @@ class ClientStorage:
         """Start using the given RPC stub.
 
         This is called by ConnectionManager after it has decided which
-        connection should be used.
+        connection should be used.  The stub is one returned by a
+        previous testConnection() call.
         """
+        log2(INFO, "Connected to storage")
         self._oids = []
         self._info.update(stub.get_info())
         self.verify_cache(stub)
 
-        # XXX The stub should be saved here and set in end() below.
+        # XXX The stub should be saved here and set in endVerify() below.
         self._server = stub
 
     def verify_cache(self, server):
@@ -372,7 +378,7 @@ class ClientStorage:
             if self._transaction == transaction:
                 self._tpc_cond.release()
                 return
-            self._tpc_cond.wait()
+            self._tpc_cond.wait(30)
         self._transaction = transaction
         self._tpc_cond.release()
 
