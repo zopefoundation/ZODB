@@ -84,8 +84,8 @@
 ##############################################################################
 """Database objects
 
-$Id: DB.py,v 1.10 1999/07/07 19:57:55 jim Exp $"""
-__version__='$Revision: 1.10 $'[11:-2]
+$Id: DB.py,v 1.11 1999/07/14 11:32:31 jim Exp $"""
+__version__='$Revision: 1.11 $'[11:-2]
 
 import cPickle, cStringIO, sys, POSException
 from Connection import Connection
@@ -196,6 +196,7 @@ class DB:
             temps=self._temps
             if temps:
                 t=[]
+                rc=sys.getrefcount
                 for cc in temps:
                     if rc(cc) > 3: f(cc)
                 self._temps=t
