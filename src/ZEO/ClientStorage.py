@@ -12,8 +12,9 @@
 # 
 ##############################################################################
 """Network ZODB storage client
+
+$Id: ClientStorage.py,v 1.43 2002/08/14 16:22:23 jeremy Exp $
 """
-__version__='$Revision: 1.42 $'[11:-2]
 
 import cPickle
 import os
@@ -61,6 +62,13 @@ class DisconnectedServerStub:
         raise ClientDisconnected()
 
 disconnected_stub = DisconnectedServerStub()
+
+import thread
+
+def check_thread_id(txn):
+    if txn._id is None: # We can't tell what thread created this
+        return 1
+    return txn._id == thread.get_ident()
 
 class ClientStorage:
 
@@ -113,9 +121,12 @@ class ClientStorage:
         self.__name__ = name
 
         # A ClientStorage only allows one client to commit at a time.
-        # A client enters the commit state by finding tpc_tid set to
-        # None and updating it to the new transaction's id.  The
-        # tpc_tid variable is protected by tpc_cond.
+        # Mutual exclusion is achieved using tpc_cond(), which
+        # protects _transaction.  A thread that wants to assign to
+        # self._transaction must acquire tpc_cond() first.
+        
+        # Invariant: If self._transaction is not None, then tpc_cond()
+        # must be acquired.
         self.tpc_cond = threading.Condition()
         self._transaction = None
 
@@ -216,14 +227,6 @@ class ClientStorage:
                 return 0
             else:
                 raise exc(self._transaction, trans)
-        return 1
-
-    def _check_tid(self, tid, exc=None):
-        if self.tpc_tid != tid:
-            if exc is None:
-                return 0
-            else:
-                raise exc(self.tpc_tid, tid)
         return 1
 
     def abortVersion(self, src, transaction):
@@ -330,6 +333,7 @@ class ClientStorage:
     def tpc_abort(self, transaction):
         if transaction is not self._transaction:
             return
+        assert check_thread_id(transaction)
         try:
             self._server.tpc_abort(self._serial)
             self._tbuf.clear()
@@ -389,6 +393,7 @@ class ClientStorage:
     def tpc_finish(self, transaction, f=None):
         if transaction is not self._transaction:
             return
+        assert check_thread_id(transaction)
         try:
             if f is not None:
                 f()
