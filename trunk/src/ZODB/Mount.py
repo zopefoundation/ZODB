@@ -13,8 +13,8 @@
 ##############################################################################
 """Mounted database support
 
-$Id: Mount.py,v 1.22 2004/02/27 00:31:53 faassen Exp $"""
-__version__='$Revision: 1.22 $'[11:-2]
+$Id: Mount.py,v 1.23 2004/03/04 22:41:50 jim Exp $"""
+__version__='$Revision: 1.23 $'[11:-2]
 
 import thread, persistent, Acquisition
 from Acquisition import aq_base
@@ -41,7 +41,7 @@ def parentClassFactory(jar, module, name):
         return getattr(__import__(
             module, _globals, _globals, _silly), name)
     else:
-        return parent_db._classFactory(parent_conn, module, name)
+        return parent_db.classFactory(parent_conn, module, name)
 
 
 class MountPoint(persistent.Persistent, Acquisition.Implicit):
@@ -105,7 +105,7 @@ class MountPoint(persistent.Persistent, Acquisition.Implicit):
                 dbs[params] = (db, {self.__mountpoint_id:1})
 
                 if getattr(self, '_classDefsFromRoot', 1):
-                    db.setClassFactory(parentClassFactory)
+                    db.classFactory = parentClassFactory
             else:
                 db, mounts = dbInfo
                 # Be sure this object is in the list of mount points.

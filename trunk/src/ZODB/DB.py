@@ -13,7 +13,7 @@
 ##############################################################################
 """Database objects
 
-$Id: DB.py,v 1.69 2004/03/04 19:48:04 jeremy Exp $"""
+$Id: DB.py,v 1.70 2004/03/04 22:41:50 jim Exp $"""
 
 import cPickle, cStringIO, sys
 from thread import allocate_lock
@@ -45,9 +45,8 @@ class DB(object):
     it to provide a different connection implementation.
 
     The database provides a few methods intended for application code
-    -- open, close, undo, pack, setClassFactory -- and a large
-    collection of methods for inspecting the database and its connections'
-    caches.
+    -- open, close, undo, and pack -- and a large collection of
+    methods for inspecting the database and its connections' caches.
     """
     
     klass = Connection  # Class to use for connections
@@ -141,9 +140,6 @@ class DB(object):
         if m[1]: m=m[0]/m[1]
         else: m=None
         return m
-
-    def _classFactory(self, connection, modulename, globalname):
-        return find_global(modulename, globalname)
 
     def _closeConnection(self, connection):
         """Return a connection to the pool"""
@@ -574,19 +570,8 @@ class DB(object):
             for c in pool_info[1]:
                 c._cache.cache_size = v
 
-    def setClassFactory(self, factory):
-        """Override default mechanism for loading object classes.
-
-        The database stores objects, but uses Python's standard import
-        to load the code for those objects.  The class factory is used
-        by the database serialization layer to find the classes.  It
-        uses ZODB.broken.find_global by default.
-
-        This method can be used to override the default class loading
-        code.  See ZODB.broken.find_global for details
-        about the contract of factory.
-        """
-        self._classFactory = factory
+    def classFactory(self, connection, modulename, globalname):
+        return find_global(modulename, globalname)
 
     def setPoolSize(self, v):
         self._pool_size=v

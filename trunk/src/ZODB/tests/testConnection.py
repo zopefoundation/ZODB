@@ -569,7 +569,7 @@ class StubDatabase:
     def __init__(self):
         self._storage = StubStorage()
 
-    _classFactory = None
+    classFactory = None
 
     def invalidate(self, transaction, dict_with_oid_keys, connection):
         pass
