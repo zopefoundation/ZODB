@@ -1,0 +1,56 @@
+<schema type="ZEO">
+  <description>
+    This schema describes the configuration of the ZEO storage server
+    process.
+  </description>
+
+  <!-- Use the storage types defined by ZODB. -->
+  <import src="../ZODB/config.xml"/>
+
+  <key name="address" datatype="socket-address"
+       required="yes">
+    <description>
+      The address at which the server should listen.  This can be in
+      the form 'host:port' to signify a TCP/IP connection or a
+      pathname string to signify a Unix domain socket connection (at
+      least one '/' is required).  A hostname may be a DNS name or a
+      dotted IP address.  If the hostname is omitted, the platform's
+      default behavior is used when binding the listening socket (''
+      is passed to socket.bind() as the hostname portion of the
+      address).
+    </description>
+  </key>
+
+  <key name="read-only" datatype="boolean"
+       required="no"
+       default="false">
+    <description>
+      Flag indicating whether the server should operate in read-only
+      mode.  Defaults to false.  Note that even if the server is
+      operating in writable mode, individual storages may still be
+      read-only.  But if the server is in read-only mode, no write
+      operations are allowed, even if the storages are writable.  Note
+      that pack() is considered a read-only operation.
+    </description>
+  </key>
+
+  <key name="invalidation-history-size" datatype="integer"
+       required="no"
+       default="100">
+    <description>
+      XXX Jeremy needs to explain this.
+      I think I know what it is, but Jeremy really understands it.
+    </description>
+  </key>
+
+  <multisection name="+" type="storage"
+                attribute="storages"
+                required="yes">
+    <description>
+      One or more storages that are provided by the ZEO server.  The
+      section names are used as the storage names, and must be unique
+      within each ZEO storage server.  Traditionally, these names
+      represent small integers starting at '1'.
+    </description>
+  </multisection>
+</schema>
