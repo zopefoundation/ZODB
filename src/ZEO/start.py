@@ -11,10 +11,8 @@
 # FOR A PARTICULAR PURPOSE
 #
 ##############################################################################
-"""Start the server storage.
+"""Start the ZEO storage server."""
 
-$Id: start.py,v 1.45 2002/09/23 01:52:50 gvanrossum Exp $
-"""
 from __future__ import nested_scopes
 
 import sys, os, getopt
@@ -106,7 +104,7 @@ def main(argv):
     env = Environment(me)
 
     # XXX hack for profiling support
-    global unix, storages, zeo_pid, asyncore
+    global unix, storages, asyncore
 
     args = []
     last = ''
@@ -172,7 +170,7 @@ def main(argv):
     port = None
     debug = 0
     host = ''
-    unix =None
+    unix = None
     Z = 1
     UID = 'nobody'
     prof = None
@@ -265,7 +263,7 @@ def main(argv):
         except:
             pass # getpid not supported
         else:
-            open(env.zeo_pid,'w').write("%s %s" % (ppid, pid))
+            open(env.zeo_pid,'w').write("%s %s\n" % (ppid, pid))
 
     except:
         # Log startup exception and tell zdaemon not to restart us.
