@@ -145,11 +145,13 @@ class CommonSetupTearDown(StorageTestBase):
             forker.shutdown_zeo_server(adminaddr)
             self._servers[index] = None
 
-    def pollUp(self, timeout=30.0):
+    def pollUp(self, timeout=30.0, storage=None):
+        if storage is None:
+            storage = self._storage
         # Poll until we're connected
         now = time.time()
         giveup = now + timeout
-        while not self._storage.is_connected():
+        while not storage.is_connected():
             asyncore.poll(0.1)
             now = time.time()
             if now > giveup:
@@ -645,14 +647,15 @@ class ReconnectionTests(CommonSetupTearDown):
         self.pollDown()
         self._storage.verify_result = None
         perstorage.verify_result = None
+        zLOG.LOG("testZEO", zLOG.INFO, '2ALLBEEF')
         self.startServer(create=0)
         self.pollUp()
+        self.pollUp(storage=perstorage)
         # There were no transactions committed, so no verification
         # should be needed.
         self.assertEqual(self._storage.verify_result, "no verification")
-
-        perstorage.close()
         self.assertEqual(perstorage.verify_result, "no verification")
+        perstorage.close()
 
     def checkQuickVerificationWith2Clients(self):
         perstorage = self.openClientStorage(cache="test")
