@@ -46,7 +46,7 @@ class TransUndoStorageWithCache:
 
         # Make sure this doesn't load invalid data into the cache
         self._storage.load(oid, '')
-        
+
         self._storage.tpc_vote(t)
         self._storage.tpc_finish(t)
 

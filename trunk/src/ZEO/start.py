@@ -11,13 +11,15 @@
 # FOR A PARTICULAR PURPOSE
 # 
 ##############################################################################
-
 """Start the server storage.
 """
 
-__version__ = "$Revision: 1.32 $"[11:-2]
+__version__ = "$Revision: 1.33 $"[11:-2]
 
 import sys, os, getopt, string
+
+import StorageServer
+import asyncore
 
 def directory(p, n=1):
     d=p
@@ -25,7 +27,7 @@ def directory(p, n=1):
         d=os.path.split(d)[0]
         if not d or d=='.': d=os.getcwd()
         n=n-1
-        
+
     return d
 
 def get_storage(m, n, cache={}):
@@ -44,8 +46,10 @@ def get_storage(m, n, cache={}):
 
 def main(argv):
     me=argv[0]
-    sys.path[:]==filter(None, sys.path)
     sys.path.insert(0, directory(me, 2))
+
+    # XXX hack for profiling support
+    global unix, storages, zeo_pid, asyncore
 
     args=[]
     last=''
@@ -77,23 +81,22 @@ def main(argv):
 
     fs = os.path.join(var, 'Data.fs')
 
-    usage = """%s [options] [filename]
+    usage="""%s [options] [filename]
 
     where options are:
 
        -D -- Run in debug mode
 
-       -d -- Generate detailed debug logging without running
-             in the foreground.
+       -d -- Set STUPD_LOG_SEVERITY to -300
 
        -U -- Unix-domain socket file to listen on
-    
+
        -u username or uid number
 
          The username to run the ZEO server as. You may want to run
          the ZEO server as 'nobody' or some other user with limited
-         resouces. The only works under Unix, and if the storage
-         server is started by root.
+         resouces. The only works under Unix, and if ZServer is
+         started by root.
 
        -p port -- port to listen on
 
@@ -116,30 +119,47 @@ def main(argv):
             attr_name -- This is the name to which the storage object
               is assigned in the module.
 
+       -P file -- Run under profile and dump output to file.  Implies the
+          -s flag.
+
     if no file name is specified, then %s is used.
     """ % (me, fs)
 
     try:
-        opts, args = getopt.getopt(args, 'p:Ddh:U:sS:u:')
-    except getopt.error, err:
-        print err
+        opts, args = getopt.getopt(args, 'p:Dh:U:sS:u:P:d')
+    except getopt.error, msg:
         print usage
+        print msg
         sys.exit(1)
 
-    port=None
-    debug=detailed=0
-    host=''
-    unix=None
-    Z=1
-    UID='nobody'
+    port = None
+    debug = 0
+    host = ''
+    unix =None
+    Z = 1
+    UID = 'nobody'
+    prof = None
+    detailed = 0
     for o, v in opts:
-        if o=='-p': port=string.atoi(v)
-        elif o=='-h': host=v
-        elif o=='-U': unix=v
-        elif o=='-u': UID=v
-        elif o=='-D': debug=1
-        elif o=='-d': detailed=1
-        elif o=='-s': Z=0
+        if o=='-p':
+            port = int(v)
+        elif o=='-h':
+            host = v
+        elif o=='-U':
+            unix = v
+        elif o=='-u':
+            UID = v
+        elif o=='-D':
+            debug = 1
+        elif o=='-d':
+            detailed = 1
+        elif o=='-s':
+            Z = 0
+        elif o=='-P':
+            prof = v
+
+    if prof:
+        Z = 0
 
     if port is None and unix is None:
         print usage
@@ -153,14 +173,16 @@ def main(argv):
             sys.exit(1)
         fs=args[0]
 
-    if debug: os.environ['Z_DEBUG_MODE']='1'
-
-    if detailed: os.environ['STUPID_LOG_SEVERITY']='-99999'
+    __builtins__.__debug__=debug
+    if debug:
+        os.environ['Z_DEBUG_MODE'] = '1'
+    if detailed:
+        os.environ['STUPID_LOG_SEVERITY'] = '-300'
 
     from zLOG import LOG, INFO, ERROR
 
     # Try to set uid to "-u" -provided uid.
-    # Try to set gid to  "-u" user's primary group. 
+    # Try to set gid to  "-u" user's primary group.
     # This will only work if this script is run by root.
     try:
         import pwd
@@ -175,7 +197,7 @@ def main(argv):
                 uid = pwd.getpwuid(UID)[2]
                 gid = pwd.getpwuid(UID)[3]
             else:
-                raise KeyError 
+                raise KeyError
             try:
                 if gid is not None:
                     try:
@@ -200,7 +222,7 @@ def main(argv):
     try:
 
         import ZEO.StorageServer, asyncore
-
+        
         storages={}
         for o, v in opts:
             if o=='-S':
@@ -243,15 +265,15 @@ def main(argv):
 
         if not unix: unix=host, port
 
-        ZEO.StorageServer.StorageServer(unix, storages)
-
+        StorageServer.StorageServer(unix, storages)
+        
         try:
             ppid, pid = os.getppid(), os.getpid()
         except:
             pass # getpid not supported
         else:
             open(zeo_pid,'w').write("%s %s" % (ppid, pid))
-
+            
     except:
         # Log startup exception and tell zdaemon not to restart us.
         info = sys.exc_info()
@@ -268,7 +290,6 @@ def main(argv):
         sys.exit(0)
 
     asyncore.loop()
-
 
 def rotate_logs():
     import zLOG
@@ -292,29 +313,21 @@ def shutdown(storages, die=1):
     # unnecessary, since we now use so_reuseaddr.
     for ignored in 1,2:
         for socket in asyncore.socket_map.values():
-            try:
-                socket.close()
-            except:
-                pass
+            try: socket.close()
+            except: pass
 
     for storage in storages.values():
-        try:
-            storage.close()
-        except:
-            pass
+        try: storage.close()
+        finally: pass
 
     try:
         from zLOG import LOG, INFO
         LOG('ZEO Server', INFO,
             "Shutting down (%s)" % (die and "shutdown" or "restart")
             )
-    except:
-        pass
-    
-    if die:
-        sys.exit(0)
-    else:
-        sys.exit(1)
+    except: pass
 
-if __name__ == '__main__':
-    main(sys.argv)
+    if die: sys.exit(0)
+    else: sys.exit(1)
+
+if __name__=='__main__': main(sys.argv)

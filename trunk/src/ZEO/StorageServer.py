@@ -11,660 +11,550 @@
 # FOR A PARTICULAR PURPOSE
 # 
 ##############################################################################
+"""Network ZODB storage server
 
-__version__ = "$Revision: 1.36 $"[11:-2]
+This server acts as a front-end for one or more real storages, like
+file storage or Berkeley storage.
 
-import asyncore, socket, string, sys, os
+XXX Need some basic access control-- a declaration of the methods
+exported for invocation by the server.
+"""
+
+import asyncore
 import cPickle
-from cPickle import Unpickler
-from cStringIO import StringIO
-from thread import start_new_thread
-import time
-from types import StringType
+import os
+import sys
+import threading
 
-from ZODB import POSException
-from ZODB.POSException import TransactionError, UndoError, VersionCommitError
-from ZODB.Transaction import Transaction
+from ZEO import ClientStub
+from ZEO.CommitLog import CommitLog
+from ZEO.zrpc.server import Dispatcher
+from ZEO.zrpc.connection import ManagedServerConnection, Delay
+
+import zLOG
+from ZODB.POSException import StorageError, StorageTransactionError, \
+     TransactionError, ReadOnlyError
 from ZODB.referencesf import referencesf
-from ZODB.utils import U64
-
-from ZEO import trigger
-from ZEO import asyncwrap
-from ZEO.smac import Disconnected, SizedMessageAsyncConnection
-from ZEO.logger import zLogger, format_msg
-
-class StorageServerError(POSException.StorageError):
-    pass
+from ZODB.Transaction import Transaction
+from ZODB.TmpStore import TmpStore
 
 # We create a special fast pickler! This allows us
 # to create slightly more efficient pickles and
 # to create them a tad faster.
-pickler=cPickle.Pickler()
-pickler.fast=1 # Don't use the memo
-dump=pickler.dump
+pickler = cPickle.Pickler()
+pickler.fast = 1 # Don't use the memo
+dump = pickler.dump
 
-log = zLogger("ZEO Server")
+def log(message, level=zLOG.INFO, label="ZEO Server:%s" % os.getpid(),
+        error=None):
+    zLOG.LOG(label, level, message, error=error)
 
-class StorageServer(asyncore.dispatcher):
+# a version of log that includes the storage name
+def slog(storage, msg, level=zLOG.INFO, error=None, pid=os.getpid()):
+    name = getattr(storage, '__name__', None)
+    if name is None:
+        name = str(self.storage)
+    zLOG.LOG("ZEO Server:%s:%s" % (pid, name), level, msg, error=error)
 
-    def __init__(self, connection, storages):
-        
-        self.__storages=storages
-        for n, s in storages.items():
-            init_storage(s)
-            # Create a waiting list to support the distributed commit lock.
+class StorageServerError(StorageError):
+    pass
+
+class StorageServer:
+    def __init__(self, addr, storages, read_only=0):
+        # XXX should read_only be a per-storage option? not yet...
+        self.addr = addr
+        self.storages = storages
+        for s in storages.values():
             s._waiting = []
+        self.read_only = read_only
+        self.connections = {}
+        self.dispatcher = Dispatcher(addr, factory=self.newConnection,
+                                     reuse_addr=1)
 
-        self.__connections={}
-        self.__get_connections=self.__connections.get
+    def newConnection(self, sock, addr):
+        c = ManagedServerConnection(sock, addr, ZEOStorage(self), self)
+        log("new connection %s: %s" % (addr, `c`))
+        return c
 
-        self._pack_trigger = trigger.trigger()
-        asyncore.dispatcher.__init__(self)
+    def register(self, storage_id, proxy):
+        """Register a connection's use with a particular storage.
 
-        if type(connection) is type(''):
-            self.create_socket(socket.AF_UNIX, socket.SOCK_STREAM)
-            try: os.unlink(connection)
-            except: pass
-        else:
-            self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
-            self.set_reuse_addr()
+        This information is needed to handle invalidation.
+        """
+        l = self.connections.get(storage_id)
+        if l is None:
+            l = self.connections[storage_id] = []
+        l.append(proxy)
 
-        log.info('Listening on %s' % repr(connection))
-        self.bind(connection)
-        self.listen(5)
-
-    def register_connection(self, connection, storage_id):
-        storage=self.__storages.get(storage_id, None)
-        if storage is None:
-            log.error("Unknown storage_id: %s" % storage_id)
-            connection.close()
-            return None, None
-        
-        connections=self.__get_connections(storage_id, None)
-        if connections is None:
-            self.__connections[storage_id]=connections=[]
-        connections.append(connection)
-        return storage, storage_id
-
-    def unregister_connection(self, connection, storage_id):
-        
-        connections=self.__get_connections(storage_id, None)
-        if connections: 
-            n=[]
-            for c in connections:
-                if c is not connection:
-                    n.append(c)
-        
-            self.__connections[storage_id]=n
-
-    def invalidate(self, connection, storage_id, invalidated=(), info=0,
-                   dump=dump):
-        for c in self.__connections[storage_id]:
-            if invalidated and c is not connection: 
-                c.message_output('I'+dump(invalidated, 1))
-            if info:
-                c.message_output('S'+dump(info, 1))
-
-    def writable(self): return 0
-    
-    def handle_read(self): pass
-    
-    def readable(self): return 1
-    
-    def handle_connect (self): pass
-    
-    def handle_accept(self):
-        try:
-            r = self.accept()
-            if r is None:
-                return
-            sock, addr = r
-        except socket.error, err:
-            log.warning("accept() failed: %s" % err)
-        else:
-            ZEOConnection(self, sock, addr)
-
-    def status(self):
-        """Log status information about connections and storages"""
-
-        lines = []
-        for storage_id, connections in self.__connections.items():
-            s = "Storage %s has %d connections" % (storage_id,
-                                                   len(connections))
-            lines.append(s)
-            for c in connections:
-                lines.append("%s readable=%s writeable=%s" % (
-                   c, c.readable(), c.writable()))
-                lines.append("\t" + c.stats())
-        log.info(string.join(lines, "\n"))
-        return _noreturn
-
-storage_methods={}
-for n in (
-    'get_info', 'abortVersion', 'commitVersion',
-    'history', 'load', 'loadSerial',
-    'modifiedInVersion', 'new_oid', 'new_oids', 'pack', 'store',
-    'storea', 'tpc_abort', 'tpc_begin', 'tpc_begin_sync',
-    'tpc_finish', 'undo', 'undoLog', 'undoInfo', 'versionEmpty', 'versions',
-    'transactionalUndo',
-    'vote', 'zeoLoad', 'zeoVerify', 'beginZeoVerify', 'endZeoVerify',
-    'status'
-    ):
-    storage_methods[n]=1
-storage_method=storage_methods.has_key
-
-def find_global(module, name,
-                global_dict=globals(), silly=('__doc__',)):
-    try: m=__import__(module, global_dict, global_dict, silly)
-    except:
-        raise StorageServerError, (
-            "Couldn\'t import global module %s" % module)
-
-    try:
-        r=getattr(m, name)
-    except:
-        raise StorageServerError, (
-            "Couldn\'t find global %s in module %s" % (name, module))
-        
-    safe=getattr(r, '__no_side_effects__', 0)
-    if safe: return r
-
-    raise StorageServerError, 'Unsafe global, %s.%s' % (module, name)
-
-_noreturn=[]
-class ZEOConnection(SizedMessageAsyncConnection):
-
-    _transaction=None
-    __storage=__storage_id=None
-
-    def __init__(self, server, sock, addr):
-        self.__server=server
-        self.status = server.status
-        self.__invalidated=[]
-        self.__closed=None
-        if __debug__:
-            debug = log
-        else:
-            debug = None
-
-        if __debug__:
-            # store some detailed statistics about method calls
-            self._last_method = None
-            self._t_begin = None
-            self._t_end = None
-            self._ncalls = 0
-            
-        SizedMessageAsyncConnection.__init__(self, sock, addr, debug=debug)
-        self.logaddr = repr(addr) # form of addr suitable for logging
-        log.info('Connect %s %s' % (id(self), self.logaddr))
-
-    def stats(self):
-        # This method is called via the status() command.  The stats
-        # are of limited use for the current command, because the
-        # actual invocation of status() will clobber the previous
-        # method's statistics.
-        #
-        # When there are multiple connections active, a new connection
-        # can always get detailed statistics about other connections.
-        if __debug__:
-            if self._last_method == "status":
-                return "method=status begin=%s end=... ncalls=%d" % (
-                    self._t_begin, self._ncalls)
-            if self._t_end is not None and self._t_begin is not None:
-                delta = self._t_end - self._t_begin
+    def invalidate(self, conn, storage_id, invalidated=(), info=0):
+        for p in self.connections.get(storage_id, ()):
+            if invalidated and p is not conn:
+                p.client.Invalidate(invalidated)
             else:
-                delta = -1
-            return "method=%s begin=%s end=%s delta=%.3f ncalls=%d" % (
-                self._last_method, self._t_begin, self._t_end, delta,
-                self._ncalls)
-        else:
-            return ""
+                p.client.info(info)
+
+    def close_server(self):
+        # Close the dispatcher so that there are no new connections.
+        self.dispatcher.close()
+        for storage in self.storages.values():
+            storage.close()
+        # Force the asyncore mainloop to exit by hackery, i.e. close
+        # every socket in the map.  loop() will return when the map is
+        # empty.
+        for s in asyncore.socket_map.values():
+            try:
+                s.close()
+            except:
+                pass
+
+    def close(self, conn):
+        removed = 0
+        for sid, cl in self.connections.items():
+            if conn.obj in cl:
+                cl.remove(conn.obj)
+                removed = 1
+
+class ZEOStorage:
+    def __init__(self, server):
+        self.server = server
+        self.client = None
+        self.__storage = None
+        self.__storage_id = "uninitialized"
+        self._transaction = None
+
+    def notifyConnected(self, conn):
+        self.client = ClientStub.ClientStorage(conn)
 
     def __repr__(self):
-        return "<ZEOConnection %s%s" % (`self.addr`,
-                         # sort of messy way to add tag 'closed' to
-                         # connections that are closed
-                         (self.__closed is None and '>' or ' closed>'))
+        tid = self._transaction and repr(self._transaction.id)
+        if self.__storage:
+            stid = self.__storage._transaction and \
+                   repr(self.__storage._transaction.id)
+        else:
+            stid = None
+        name = self.__class__.__name__
+        return "<%s %X trans=%s s_trans=%s>" % (name, id(self), tid, stid)
 
-    def close(self):
-        t=self._transaction
-        if (t is not None and self.__storage is not None and
-            self.__storage._transaction is t):
-            self.tpc_abort(t.id)
-        else:           
-            self._transaction=None
-            self.__invalidated=[]
+    def _log(self, msg, level=zLOG.INFO, error=None, pid=os.getpid()):
+        zLOG.LOG("ZEO Server:%s:%s" % (pid, self.__storage_id),
+                   level, msg, error=error)
 
-        self.__server.unregister_connection(self, self.__storage_id)
-        self.__closed=1
-        SizedMessageAsyncConnection.close(self)
-        log.info('Close %s' % id(self))
+    def setup_delegation(self):
+        """Delegate several methods to the storage"""
+        self.undoInfo = self.__storage.undoInfo
+        self.undoLog = self.__storage.undoLog
+        self.versionEmpty = self.__storage.versionEmpty
+        self.versions = self.__storage.versions
+        self.history = self.__storage.history
+        self.load = self.__storage.load
+        self.loadSerial = self.__storage.loadSerial
 
-    def message_input(self, message,
-                      dump=dump, Unpickler=Unpickler, StringIO=StringIO,
-                      None=None):
-        if __debug__:
-
-            self._t_begin = time.time()
-            self._t_end = None
-            
-            if len(message) > 120: # XXX need constant from logger
-                tmp = `message[:120]`
+    def _check_tid(self, tid, exc=None):
+        caller = sys._getframe().f_back.f_code.co_name
+        if self._transaction is None:
+            self._log("no current transaction: %s()" % caller,
+                zLOG.PROBLEM)
+            if exc is not None:
+                raise exc(None, tid)
             else:
-                tmp = `message`
-            log.trace("message_input %s" % tmp)
-
-        if self.__storage is None:
-            if __debug__:
-                log.blather("register connection to %s from %s" % (message,
-                                                                self.logaddr))
-            # This is the first communication from the client
-            self.__storage, self.__storage_id = (
-                self.__server.register_connection(self, message))
-
-            # Send info back asynchronously, so client need not ask
-            self.message_output('S'+dump(self.get_info(), 1))
-            return
-            
-        try:
-
-            # Unpickle carefully.
-            unpickler=Unpickler(StringIO(message))
-            unpickler.find_global=find_global
-            args=unpickler.load()
-            
-            name, args = args[0], args[1:]
-            if __debug__:
-                self._last_method = name
-                self._ncalls = self._ncalls + 1
-                log.debug("call %s%s from %s" % (name, format_msg(args),
-                                                 self.logaddr))
-                
-            if not storage_method(name):
-                log.warning("Invalid method name: %s" % name)
-                if __debug__:
-                    self._t_end = time.time()
-                raise 'Invalid Method Name', name
-            if hasattr(self, name):
-                r=apply(getattr(self, name), args)
+                return 0
+        if self._transaction.id != tid:
+            self._log("%s(%s) invalid; current transaction = %s" % \
+                (caller, repr(tid), repr(self._transaction.id)),
+                zLOG.PROBLEM)
+            if exc is not None:
+                raise exc(self._transaction.id, tid)
             else:
-                r=apply(getattr(self.__storage, name), args)
-            if r is _noreturn:
-                if __debug__:
-                    log.debug("no return to %s" % self.logaddr)
-                    self._t_end = time.time()
-                return
-        except (UndoError, VersionCommitError), err:
-            if __debug__:
-                log.debug("return error %s to %s" % (err, self.logaddr))
-                self._t_end = time.time()
-            # These are normal usage errors. No need to log them.
-            self.return_error(sys.exc_info()[0], sys.exc_info()[1])
-            return
-        except:
-            if __debug__:
-                self._t_end = time.time()
-            log.error("error", error=sys.exc_info())
-            self.return_error(sys.exc_info()[0], sys.exc_info()[1])
-            return
+                return 0
+        return 1
 
-        if __debug__:
-            log.debug("return %s to %s" % (format_msg(r), self.logaddr))
-            self._t_end = time.time()
-            
-        r=dump(r,1)            
-        self.message_output('R'+r)
+    def register(self, storage_id, read_only):
+        """Select the storage that this client will use
 
-    def return_error(self, err_type, err_value, type=type, dump=dump):
-        if type(err_value) is not type(self):
-            err_value = err_type, err_value
+        This method must be the first one called by the client.
+        """
+        self._log("register(%s, %s)" % (storage_id, read_only))
+        storage = self.server.storages.get(storage_id)
+        if storage is None:
+            self._log("unknown storage_id: %s" % storage_id)
+            raise ValueError, "unknown storage: %s" % storage_id
 
-        if __debug__:
-            log.trace("%s E: %s" % (id(self), `err_value`))
-                    
-        try: r=dump(err_value, 1)
-        except:
-            # Ugh, must be an unpicklable exception
-            r=StorageServerError("Couldn't pickle error %s" % `r`)
-            dump('',1) # clear pickler
-            r=dump(r,1)
+        if not read_only and (self.server.read_only or storage.isReadOnly()):
+            raise ReadOnlyError()
 
-        self.message_output('E'+r)
-        
+        self.__storage_id = storage_id
+        self.__storage = storage
+        self.setup_delegation()
+        self.server.register(storage_id, self)
+        self._log("registered storage %s: %s" % (storage_id, storage))
 
     def get_info(self):
-        storage=self.__storage
-        info = {
-            'length': len(storage),
-            'size': storage.getSize(),
-            'name': storage.getName(),
-            }
-        for feature in ('supportsUndo',
-                        'supportsVersions',
-                        'supportsTransactionalUndo',):
-            if hasattr(storage, feature):
-                info[feature] = getattr(storage, feature)()
-            else:
-                info[feature] = 0
-        return info
+        return {'length': len(self.__storage),
+                'size': self.__storage.getSize(),
+                'name': self.__storage.getName(),
+                'supportsUndo': self.__storage.supportsUndo(),
+                'supportsVersions': self.__storage.supportsVersions(),
+                'supportsTransactionalUndo':
+                self.__storage.supportsTransactionalUndo(),
+                }
 
     def get_size_info(self):
-        storage=self.__storage
-        return {
-            'length': len(storage),
-            'size': storage.getSize(),
-            }
+        return {'length': len(self.__storage),
+                'size': self.__storage.getSize(),
+                }
 
     def zeoLoad(self, oid):
-        if __debug__:
-            log.blather("zeoLoad(%s) %s" % (U64(oid), self.logaddr))
-        storage=self.__storage
-        v=storage.modifiedInVersion(oid)
-        if v: pv, sv = storage.load(oid, v)
-        else: pv=sv=None
+        v = self.__storage.modifiedInVersion(oid)
+        if v:
+            pv, sv = self.__storage.load(oid, v)
+        else:
+            pv = sv = None
         try:
-            p, s = storage.load(oid,'')
+            p, s = self.__storage.load(oid, '')
         except KeyError:
             if sv:
                 # Created in version, no non-version data
-                p=s=None
+                p = s = None
             else:
                 raise
         return p, s, v, pv, sv
-            
 
     def beginZeoVerify(self):
-        if __debug__:
-            log.blather("beginZeoVerify() %s" % self.logaddr)
-        self.message_output('bN.')            
-        return _noreturn
+        self.client.beginVerify()
 
-    def zeoVerify(self, oid, s, sv,
-                  dump=dump):
-        try: p, os, v, pv, osv = self.zeoLoad(oid)
-        except: return _noreturn
-        p=pv=None # free the pickles
+    def zeoVerify(self, oid, s, sv):
+        try:
+            p, os, v, pv, osv = self.zeoLoad(oid)
+        except: # except what?
+            return None
         if os != s:
-            self.message_output('i'+dump((oid, ''),1))            
+            self.client.invalidate((oid, ''))
         elif osv != sv:
-            self.message_output('i'+dump((oid,  v),1))
-            
-        return _noreturn
+            self.client.invalidate((oid, v))
 
     def endZeoVerify(self):
-        if __debug__:
-            log.blather("endZeoVerify() %s" % self.logaddr)
-        self.message_output('eN.')
-        return _noreturn
+        self.client.endVerify()
 
-    def new_oids(self, n=100):
-        new_oid=self.__storage.new_oid
-        if n < 0: n=1
-        r=range(n)
-        for i in r: r[i]=new_oid()
-        return r
+    def modifiedInVersion(self, oid):
+        return self.__storage.modifiedInVersion(oid)
 
     def pack(self, t, wait=0):
-        start_new_thread(self._pack, (t,wait))
-        if wait: return _noreturn
+        t = threading.Thread(target=self._pack, args=(t, wait))
+        t.start()
 
     def _pack(self, t, wait=0):
         try:
-            log.blather('pack begin')
             self.__storage.pack(t, referencesf)
-            log.blather('pack end')
         except:
-            log.error(
-                'Pack failed for %s' % self.__storage_id,
-                error=sys.exc_info())
+            self._log('Pack failed for %s' % self.__storage_id,
+                      zLOG.ERROR,
+                      error=sys.exc_info())
             if wait:
-                self.return_error(sys.exc_info()[0], sys.exc_info()[1])
-                self.__server._pack_trigger.pull_trigger()
+                raise
         else:
-            if wait:
-                self.message_output('RN.')
-                self.__server._pack_trigger.pull_trigger()
-            else:
+            # XXX Why doesn't we broadcast on wait?
+            if not wait:
                 # Broadcast new size statistics
-                self.__server.invalidate(0, self.__storage_id, (),
-                                         self.get_size_info())
+                self.server.invalidate(0, self.__storage_id, (),
+                                       self.get_size_info())
 
-    def abortVersion(self, src, id):
-        t=self._transaction
-        if t is None or id != t.id:
-            raise POSException.StorageTransactionError(self, id)
-        oids=self.__storage.abortVersion(src, t)
-        a=self.__invalidated.append
-        for oid in oids: a((oid,src))
-        return oids
+    def new_oids(self, n=100):
+        """Return a sequence of n new oids, where n defaults to 100"""
+        if n < 0:
+            n = 1
+        return [self.__storage.new_oid() for i in range(n)]
 
-    def commitVersion(self, src, dest, id):
-        t=self._transaction
-        if t is None or id != t.id:
-            raise POSException.StorageTransactionError(self, id)
-        oids=self.__storage.commitVersion(src, dest, t)
-        a=self.__invalidated.append
-        for oid in oids:
-            a((oid,dest))
-            if dest: a((oid,src))
-        return oids
-
-    def storea(self, oid, serial, data, version, id,
-               dump=dump):
-        if __debug__:
-            log.blather("storea(%s, [%d], %s) %s" % (U64(oid), len(data),
-                                                   U64(id), self.logaddr))
-        try:
-            t=self._transaction
-            if t is None or id != t.id:
-                raise POSException.StorageTransactionError(self, id)
-        
-            newserial=self.__storage.store(oid, serial, data, version, t)
-        except TransactionError, v:
-            # This is a normal transaction errorm such as a conflict error
-            # or a version lock or conflict error. It doen't need to be
-            # logged.
-            newserial=v
-        except:
-            # all errors need to be serialized to prevent unexpected
-            # returns, which would screw up the return handling.
-            # IOW, Anything that ends up here is evil enough to be logged.
-            log.error('store error', error=sys.exc_info())
-            newserial=sys.exc_info()[1]
-        else:
-            if serial != '\0\0\0\0\0\0\0\0':
-                self.__invalidated.append((oid, version))
-
-        try: r=dump((oid,newserial), 1)
-        except:
-            # We got a pickling error, must be because the
-            # newserial is an unpicklable exception.
-            r=StorageServerError("Couldn't pickle exception %s" % `newserial`)
-            dump('',1) # clear pickler
-            r=dump((oid, r),1)
-
-        self.message_output('s'+r)
-        return _noreturn
-
-    def vote(self, id): 
-        t=self._transaction
-        if t is None or id != t.id:
-            raise POSException.StorageTransactionError(self, id)
-        return self.__storage.tpc_vote(t)
-
-    def transactionalUndo(self, trans_id, id):
-        if __debug__:
-            log.blather("transactionalUndo(%s, %s) %s" % (trans_id,
-                                                        U64(id), self.logaddr))
-        t=self._transaction
-        if t is None or id != t.id:
-            raise POSException.StorageTransactionError(self, id)
-        return self.__storage.transactionalUndo(trans_id, self._transaction)
-        
     def undo(self, transaction_id):
-        if __debug__:
-            log.blather("undo(%s) %s" % (transaction_id, self.logaddr))
-        oids=self.__storage.undo(transaction_id)
+        oids = self.__storage.undo(transaction_id)
         if oids:
-            self.__server.invalidate(
-                self, self.__storage_id, map(lambda oid: (oid,None), oids)
-                )
+            self.server.invalidate(self, self.__storage_id,
+                                   map(lambda oid: (oid, None, ''), oids))
             return oids
         return ()
 
-    # distributed commit lock support methods
-
-    # Only one client at a time can commit a transaction on a
-    # storage.  If one client is committing a transaction, and a
-    # second client sends a tpc_begin(), then second client is queued.
-    # When the first transaction finishes, either by abort or commit,
-    # the request from the queued client must be handled.
-
-    # It is important that this code be robust.  If a queued
-    # transaction is not restarted, the server will stop processing
-    # new transactions.
-
-    # This lock is implemented by storing the queued requests in a
-    # list on the storage object.  The list contains:
-    #     a callable object to resume request
-    #     arguments to that object
-    #     a callable object to handle errors during resume
-
-    # XXX I am not sure that the commitlock_resume() method is
-    # sufficiently paranoid.
-
-    def commitlock_suspend(self, resume, args, onerror):
-        self.__storage._waiting.append((resume, args, onerror))
-        log.blather("suspend %s.  %d queued clients" % (resume.im_self,
-                                            len(self.__storage._waiting)))
-
-    def commitlock_resume(self):
-        waiting = self.__storage._waiting
-        while waiting:
-            resume, args, onerror = waiting.pop(0)
-            log.blather("resuming queued client %s, %d still queued" % (
-                resume.im_self, len(waiting)))
-            try:
-                if apply(resume, args):
-                    break
-            except Disconnected:
-                # A disconnected error isn't an unexpected error.
-                # There should be no need to log it, because the
-                # disconnect will have generated its own log event.
-                onerror()
-            except:
-                log.error(
-                    "Unexpected error handling queued tpc_begin()",
-                    error=sys.exc_info())
-                onerror()
-
-    def tpc_abort(self, id):
-        if __debug__:
-            try:
-                log.blather("tpc_abort(%s) %s" % (U64(id), self.logaddr))
-            except:
-                print repr(id)
-                raise
-        t = self._transaction
-        if t is None or id != t.id:
-            return
-        r = self.__storage.tpc_abort(t)
-
-        self._transaction = None
-        self.__invalidated = []
-        self.commitlock_resume()
-        
-    def unlock(self):
-        if self.__closed:
-            return
-        self.message_output('UN.')
-
-    def tpc_begin(self, id, user, description, ext):
-        if __debug__:
-            log.blather("tpc_begin(%s, %s, %s) %s" % (U64(id), `user`,
-                                                      `description`,
-                                                      self.logaddr))
-        t = self._transaction
-        if t is not None:
-            if id == t.id:
+    def tpc_begin(self, id, user, description, ext, tid, status):
+        if self._transaction is not None:
+            if self._transaction.id == id:
+                self._log("duplicate tpc_begin(%s)" % repr(id))
                 return
             else:
-                raise StorageServerError(
-                    "Multiple simultaneous tpc_begin requests from the same "
-                    "client."
-                    )
-        storage = self.__storage
-        if storage._transaction is not None:
-            self.commitlock_suspend(self.unlock, (), self.close)
-            return 1 # Return a flag indicating a lock condition.
+                raise StorageTransactionError("Multiple simultaneous tpc_begin"
+                                              " requests from one client.")
 
-        assert id != 't'
-        self._transaction=t=Transaction()
-        t.id=id
-        t.user=user
-        t.description=description
-        t._extension=ext
-        storage.tpc_begin(t)
-        self.__invalidated=[]
-
-    def tpc_begin_sync(self, id, user, description, ext):
-        if self.__closed: return
-        t=self._transaction
-        if t is not None and id == t.id: return
-        storage=self.__storage
-        if storage._transaction is None:
-            self.try_again_sync(id, user, description, ext)
+        if self.__storage._transaction is None:
+            self.strategy = ImmediateCommitStrategy(self.__storage,
+                                                    self.client)
         else:
-            self.commitlock_suspend(self.try_again_sync,
-                                    (id, user, description, ext),
-                                    self.close)
-
-        return _noreturn
-        
-    def try_again_sync(self, id, user, description, ext):
-        storage=self.__storage
-        if storage._transaction is None:
-            self._transaction=t=Transaction()
-            t.id=id
-            t.user=user
-            t.description=description
-            storage.tpc_begin(t)
-            self.__invalidated=[]
-            self.message_output('RN.')
+            self.strategy = DelayedCommitStrategy(self.__storage,
+                                                  self.wait)
             
-        return 1
+        t = Transaction()
+        t.id = id
+        t.user = user
+        t.description = description
+        t._extension = ext
 
-    def tpc_finish(self, id, user, description, ext):
-        if __debug__:
-            log.blather("tpc_finish(%s) %s" % (U64(id), self.logaddr))
-        t = self._transaction
-        if id != t.id:
+        self.strategy.tpc_begin(t, tid, status)
+        self._transaction = t
+
+    def tpc_finish(self, id):
+        if not self._check_tid(id):
             return
+        invalidated = self.strategy.tpc_finish()
+        if invalidated:
+            self.server.invalidate(self, self.__storage_id,
+                                   invalidated, self.get_size_info())
+        if not self._handle_waiting():
+            self._transaction = None
+            self.strategy = None
 
-        storage = self.__storage
-        r = storage.tpc_finish(t)
+    def tpc_abort(self, id):
+        if not self._check_tid(id):
+            return
+        self.strategy.tpc_abort()
+        if not self._handle_waiting():
+            self._transaction = None
+            self.strategy = None
 
-        self._transaction = None
-        if self.__invalidated:
-            self.__server.invalidate(self, self.__storage_id,
-                                     self.__invalidated,
-                                     self.get_size_info())
-            self.__invalidated = []
+    # XXX handle new serialnos
+
+    def storea(self, oid, serial, data, version, id):
+        self._check_tid(id, exc=StorageTransactionError)
+        self.strategy.store(oid, serial, data, version)
+
+    def vote(self, id):
+        self._check_tid(id, exc=StorageTransactionError)
+        return self.strategy.tpc_vote()
+
+    def abortVersion(self, src, id):
+        self._check_tid(id, exc=StorageTransactionError)
+        return self.strategy.abortVersion(src)
+
+    def commitVersion(self, src, dest, id):
+        self._check_tid(id, exc=StorageTransactionError)
+        return self.strategy.commitVersion(src, dest)
+
+    def transactionalUndo(self, trans_id, id):
+        self._check_tid(id, exc=StorageTransactionError)
+        return self.strategy.transactionalUndo(trans_id)
+
+    # When a delayed transaction is restarted, the dance is
+    # complicated.  The restart occurs when one ZEOStorage instance
+    # finishes as a transaction and finds another instance is in the
+    # _waiting list.
+
+    # XXX It might be better to have a mechanism to explicitly send
+    # the finishing transaction's reply before restarting the waiting
+    # transaction.  If the restart takes a long time, the previous
+    # client will be blocked until it finishes.
+    
+    def wait(self):
+        if self.__storage._transaction:
+            d = Delay()
+            self.__storage._waiting.append((d, self))
+            self._log("Transaction block waiting for storage. "
+                      "%d clients waiting." % len(self.__storage._waiting))
+            return d
+        else:
+            self.restart()
+
+    def _handle_waiting(self):
+        while self.__storage._waiting:
+            delay, zeo_storage = self.__storage._waiting.pop(0)
+            if self._restart(zeo_storage, delay):
+                break
+
+    def _restart(self, zeo_storage, delay):
+        # call the restart() method on the appropriate server
+        try:
+            zeo_storage.restart(delay)
+        except:
+            self._log("Unexpected error handling waiting transaction",
+                      level=zLOG.WARNING, error=sys.exc_info())
+            zeo_storage.close()
+            return 0
+        else:
+            return 1
             
-        self.commitlock_resume()
+    def restart(self, delay=None):
+        old_strategy = self.strategy
+        self.strategy = ImmediateCommitStrategy(self.__storage,
+                                                self.client)
+        resp = old_strategy.restart(self.strategy)
+        if delay is not None:
+            delay.reply(resp)
 
-def init_storage(storage):
-    if not hasattr(storage,'tpc_vote'): storage.tpc_vote=lambda *args: None
+# A ZEOStorage instance can use different strategies to commit a
+# transaction.  The current implementation uses different strategies
+# depending on whether the underlying storage is available.  These
+# strategies implement the distributed commit lock.
 
-if __name__=='__main__':
-    import ZODB.FileStorage
-    name, port = sys.argv[1:3]
-    log.trace(format_msg(name, port))
-    try:
-        port='', int(port)
-    except:
-        pass
+# If the underlying storage is availabe, start the commit immediately
+# using the ImmediateCommitStrategy.  If the underlying storage is not
+# available because another client is committing a transaction, delay
+# the commit as long as possible.  At some point it will no longer be
+# possible to delay; either the transaction will reach the vote stage
+# or a synchronous method like transactionalUndo() will be called.
+# When it is no longer possible to delay, the client must block until
+# the storage is ready.  Then we switch back to the immediate strategy.
 
-    d = {'1': ZODB.FileStorage.FileStorage(name)}
-    StorageServer(port, d)
-    asyncwrap.loop()
+class ICommitStrategy:
+    """A class that describes that commit strategy interface.
+
+    The commit strategy interface does not require the transaction
+    argument, except for tpc_begin().  The storage interface requires
+    the client to pass a transaction object/id to each transactional
+    method.  The strategy does not; it requires the caller to only
+    call methods for a single transaction.
+    """
+    # This isn't a proper Zope interface, because I don't want to
+    # introduce a dependency between ZODB and Zope interfaces.
+
+    def tpc_begin(self, trans, tid, status): pass
+
+    def store(self, oid, serial, data, version): pass
+
+    def abortVersion(self, src): pass
+
+    def commitVersion(self, src, dest): pass
+
+    # the trans_id arg to transactionalUndo is not the current txn's id
+    def transactionalUndo(self, trans_id): pass
+
+    def tpc_vote(self): pass
+
+    def tpc_abort(self): pass
+
+    def tpc_finish(self): pass
+
+class ImmediateCommitStrategy:
+    """The storage is available so do a normal commit."""
+
+    def __init__(self, storage, client):
+        self.storage = storage
+        self.client = client
+        self.invalidated = []
+        self.serials = []
+
+    def tpc_begin(self, txn, tid, status):
+        self.txn = txn
+        self.storage.tpc_begin(txn, tid, status)
+
+    def tpc_vote(self):
+        # send all the serialnos as a batch
+        self.client.serialnos(self.serials)
+        return self.storage.tpc_vote(self.txn)
+
+    def tpc_finish(self):
+        self.storage.tpc_finish(self.txn)
+        return self.invalidated
+
+    def tpc_abort(self):
+        self.storage.tpc_abort(self.txn)
+
+    def store(self, oid, serial, data, version):
+        try:
+            newserial = self.storage.store(oid, serial, data, version,
+                                           self.txn)
+        except TransactionError, err:
+            # Storage errors are passed to the client
+            newserial = err
+        except:
+            # Unexpected storage errors are logged and passed to the client
+            exc_info = sys.exc_info()
+            slog(self.storage, "store error: %s, %s" % exc_info[:2],
+                zLOG.ERROR, error=exc_info)
+            newserial = exc_info[1]
+            del exc_info
+        else:
+            if serial != "\0\0\0\0\0\0\0\0":
+                self.invalidated.append((oid, version))
+
+        try:
+            nil = dump(newserial, 1)
+        except:
+            msg = "Couldn't pickle storage exception: %s" % repr(newserial)
+            slog(self.storage, msg, zLOG.ERROR)
+            dump('', 1) # clear pickler
+            r = StorageServerError(msg)
+            newserial = r
+        self.serials.append((oid, newserial))
+
+    def commitVersion(self, src, dest):
+        oids = self.storage.commitVersion(src, dest, self.txn)
+        inv = [(oid, dest) for oid in oids]
+        self.invalidated.extend(inv)
+        if dest:
+            inv = [(oid, src) for oid in oids]
+            self.invalidated.extend(inv)
+        return oids
+
+    def abortVersion(self, src):
+        oids = self.storage.abortVersion(src, self.txn)
+        inv = [(oid, src) for oid in oids]
+        self.invalidated.extend(inv)
+        return oids
+
+    def transactionalUndo(self, trans_id):
+        oids = self.storage.transactionalUndo(trans_id, self.txn)
+        inv = [(oid, None) for oid in oids]
+        self.invalidated.extend(inv)
+        return oids
+
+class DelayedCommitStrategy:
+    """The storage is unavailable, so log to a file."""
+
+    def __init__(self, storage, block):
+        # the block argument is called when we can't delay any longer
+        self.storage = storage
+        self.block = block
+        self.log = CommitLog()
+        self.invalidated = []
+
+        # Store information about the call that blocks
+        self.name = None
+        self.args = None
+
+    def tpc_begin(self, txn, tid, status):
+        self.txn = txn
+        self.tid = tid
+        self.status = status
+
+    def store(self, oid, serial, data, version):
+        self.log.store(oid, serial, data, version)
+
+    def tpc_abort(self):
+        pass # just forget about this strategy
+
+    def tpc_finish(self):
+        raise RuntimeError, "Logic error.  This method must not be called."
+
+    def tpc_vote(self):
+        self.name = "tpc_vote"
+        self.args = ()
+        return self.block()
+
+    def commitVersion(self, src, dest):
+        self.name = "commitVersion"
+        self.args = src, dest
+        return self.block()
+
+    def abortVersion(self, src):
+        self.name = "abortVersion"
+        self.args = src,
+        return self.block()
+
+    def transactionalUndo(self, trans_id):
+        self.name = "transactionalUndo"
+        self.args = trans_id,
+        return self.block()
+
+    def restart(self, new_strategy):
+        # called by the storage when the storage is available
+        new_strategy.tpc_begin(self.txn, self.tid, self.status)
+        loads, loader = self.log.get_loader()
+        for i in range(loads):
+            oid, serial, data, version = loader.load()
+            new_strategy.store(oid, serial, data, version)
+        meth = getattr(new_strategy, self.name)
+        return meth(*self.args)
