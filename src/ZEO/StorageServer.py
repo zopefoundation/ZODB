@@ -4,9 +4,12 @@ from smac import smac
 from ZODB import POSException
 from ZODB.Transaction import Transaction
 import traceback
+from zLOG import LOG, INFO, ERROR
 
 class StorageServerError(POSException.StorageError): pass
 
+def blather(*args):
+    LOG('ZEO Server', INFO, string.join(args))
 
 class StorageServer(asyncore.dispatcher):
 
@@ -71,6 +74,13 @@ class StorageServer(asyncore.dispatcher):
 
         Connection(self, sock, addr)
 
+    def log_info(self, message, type='info'):
+        if type=='error': type=ERROR
+        else: type=INFO
+        LOG('ZEO Server', type, message)
+
+    log=log_info
+
 storage_methods={}
 for n in ('get_info', 'abortVersion', 'commitVersion', 'history',
           'load', 'modifiedInVersion', 'new_oid', 'pack', 'store',
@@ -107,7 +117,7 @@ class Connection(smac):
         if __debug__:
             m=`message`
             if len(m) > 60: m=m[:60]+' ...'
-            print 'message_input', m
+            blather('message_input', m)
 
         if self.__storage is None:
             self.__storage, self.__storage_id = (
@@ -121,7 +131,7 @@ class Connection(smac):
             if __debug__:
                 m=`tuple(args)`
                 if len(m) > 60: m=m[:60]+' ...'
-                print 'call: %s%s' % (name, m)
+                blather('call: %s%s' % (name, m))
                 
             if not storage_method(name):
                 raise 'Invalid Method Name', name
@@ -131,7 +141,7 @@ class Connection(smac):
                 r=apply(getattr(self.__storage, name), args)
             if r is _noreturn: return
         except:
-            traceback.print_exc()
+            LOG('ZEO Server', ERROR, 'error', error=sys.exc_info())
             t, r = sys.exc_info()[:2]
             if type(r) is not type(self): r=t,r
             rt='E'
@@ -139,7 +149,7 @@ class Connection(smac):
         if __debug__:
             m=`r`
             if len(m) > 60: m=m[:60]+' ...'
-            print '%s: %s' % (rt, m)
+            blather('%s: %s' % (rt, m))
             
         r=cPickle.dumps(r,1)
         self.message_output(rt+r)
@@ -271,7 +281,7 @@ class Connection(smac):
 if __name__=='__main__':
     import ZODB.FileStorage
     name, port = sys.argv[1:3]
-    print name, port
+    blather(name, port)
     try: port='',string.atoi(port)
     except: pass
     StorageServer(port, ZODB.FileStorage.FileStorage(name))
