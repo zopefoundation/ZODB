@@ -44,7 +44,7 @@
 """Start the server storage.
 """
 
-__version__ = "$Revision: 1.3 $"[11:-2]
+__version__ = "$Revision: 1.4 $"[11:-2]
 
 import sys, os, getopt, string
 
@@ -132,7 +132,7 @@ def main(argv):
             },
         )
 
-    open(zeo_pid,'w').write("%s %s" % (os.getpid(), os.getppid()))
+    open(zeo_pid,'w').write("%s %s" % (os.getppid(), os.getpid()))
     
     asyncore.loop()
 
