@@ -129,7 +129,7 @@ class Suicide(threading.Thread):
         self._adminaddr = addr
 
     def run(self):
-        # If this process doesn't exit in 60 seconds, commit suicide
+        # If this process doesn't exit in 100 seconds, commit suicide
         for i in range(20):
             time.sleep(5)
         from ZEO.tests.forker import shutdown_zeo_server
@@ -173,8 +173,8 @@ def main():
     # The rest of the args are hostname, portnum
     zeo_port = int(args[0])
     test_port = zeo_port + 1
-    test_addr = ('', test_port)
-    addr = ('', zeo_port)
+    test_addr = ('localhost', test_port)
+    addr = ('localhost', zeo_port)
     log(label, 'creating the storage server')
     serv = ZEO.StorageServer.StorageServer(
         addr, {'1': storage}, ro_svr,
