@@ -83,7 +83,7 @@
   
  ****************************************************************************/
 
-#define BTREETEMPLATE_C "$Id: BTreeTemplate.c,v 1.17 2001/06/20 14:48:51 matt Exp $\n"
+#define BTREETEMPLATE_C "$Id: BTreeTemplate.c,v 1.18 2001/08/13 19:03:10 andreasjung Exp $\n"
 
 /*
 ** _BTree_get
@@ -845,13 +845,15 @@ BTree__p_resolveConflict(BTree *self, PyObject *args)
   PyObject *s[3], *r;
   int i;
 
-  UNLESS (PyArg_ParseTuple(args, "OOO", s, s+1, s+2)) return NULL;
+  r = NULL;
+
+  UNLESS (PyArg_ParseTuple(args, "OOO", s, s+1, s+2)) goto err;
 
                                 /* for each state, detuplefy it twice */
   for (i=0; i < 3; i++)
-    UNLESS (s[i]==Py_None || PyArg_ParseTuple(s[i], "O", s+i)) return NULL;
+    UNLESS (s[i]==Py_None || PyArg_ParseTuple(s[i], "O", s+i)) goto err;
   for (i=0; i < 3; i++)
-    UNLESS (s[i]==Py_None || PyArg_ParseTuple(s[i], "O", s+i)) return NULL;
+    UNLESS (s[i]==Py_None || PyArg_ParseTuple(s[i], "O", s+i)) goto err;
 
   for (i=0; i < 3; i++)         /* Now make sure detupled thing is a tuple */
     UNLESS (s[i]==Py_None || PyTuple_Check(s[i]))
@@ -861,6 +863,8 @@ BTree__p_resolveConflict(BTree *self, PyObject *args)
       r = _bucket__p_resolveConflict(OBJECT(&BucketType), s);
   else
       r = _bucket__p_resolveConflict(OBJECT(&SetType), s);
+
+err:
 
   if (r) {
   	ASSIGN(r, Py_BuildValue("((O))", r));
