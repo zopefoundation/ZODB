@@ -184,7 +184,7 @@
 #   may have a back pointer to a version record or to a non-version
 #   record.
 #
-__version__='$Revision: 1.60 $'[11:-2]
+__version__='$Revision: 1.61 $'[11:-2]
 
 import struct, time, os, bpthread, string, base64, sys
 from struct import pack, unpack
@@ -1215,20 +1215,21 @@ class FileStorage(BaseStorage.BaseStorage,
         stop=`apply(TimeStamp, time.gmtime(t)[:5]+(t%60,))`
         if stop==z64: raise FileStorageError, 'Invalid pack time'
 
+        # Record pack time so we don't undo while packing
+        _lock_acquire()
+        try:
+            if self._packt != z64:
+                # Already packing.
+                raise FileStorageError, 'Already packing'
+            self._packt=stop
+        finally:
+            _lock_release()
+
         try:
             ##################################################################
             # Step 1, get index as of pack time that
             # includes only referenced objects.
 
-            # Record pack time so we don't undo while packing
-            _lock_acquire()
-            locked=1
-            if self._packt != z64:
-                raise FileStorageError, 'Already packing'
-            self._packt=stop
-            _lock_release()
-            locked=0
-            
             packpos, maxoid, ltid = read_index(
                 file, name, index, vindex, tindex, stop,
                 read_only=1,
