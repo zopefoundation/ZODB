@@ -186,7 +186,7 @@
 #   may have a back pointer to a version record or to a non-version
 #   record.
 #
-__version__='$Revision: 1.74 $'[11:-2]
+__version__='$Revision: 1.75 $'[11:-2]
 
 import struct, time, os, bpthread, string, base64, sys
 from struct import pack, unpack
@@ -1231,6 +1231,7 @@ class FileStorage(BaseStorage.BaseStorage,
         finally: self._lock_release()
 
     def _redundant_pack(self, file, pos):
+        assert pos > 8, pos
         file.seek(pos-8)
         p=U64(file.read(8))
         file.seek(pos-p+8)
@@ -1280,6 +1281,8 @@ class FileStorage(BaseStorage.BaseStorage,
                 read_only=1,
                 )
 
+            if packpos == 4:
+                return
             if self._redundant_pack(file, packpos):
                 raise FileStorageError, (
                     'The database has already been packed to a later time\n'
