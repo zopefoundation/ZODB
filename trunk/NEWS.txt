@@ -96,6 +96,15 @@ This happens if an attempt is made to add distinct objects to the cache
 that have the same oid (object identifier).  ZODB should never do this,
 but it's possible for application code to force such an attempt.
 
+fsIndex
+-------
+
+An efficient ``maxKey()`` method was implemented for the ``fsIndex`` class.
+This makes it possible to determine the largest oid in a ``FileStorage``
+index efficiently, directly, and reliably, replacing a more delicate scheme
+that tried to keep track of this by saving an oid high water mark in the
+index file and incrementally updating it.
+
 
 What's new in ZODB3 3.3.1a1?
 ============================
