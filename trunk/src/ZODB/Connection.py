@@ -13,7 +13,7 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.76 2002/09/16 23:50:39 jeremy Exp $"""
+$Id: Connection.py,v 1.77 2002/10/04 20:44:25 jeremy Exp $"""
 
 from cPickleCache import PickleCache, MUCH_RING_CHECKING
 from POSException import ConflictError, ReadConflictError
@@ -270,7 +270,7 @@ class Connection(ExportImport.ExportImport):
 
     # NB: commit() is responsible for calling tpc_begin() on the storage.
     # It uses self._begun to track whether it has been called.  When
-    # self._begun is None, it has not been called.
+    # self._begun is 0, it has not been called.
 
     # This arrangement allows us to handle the special case of a
     # transaction with no modified objects.  It is possible for
@@ -285,7 +285,7 @@ class Connection(ExportImport.ExportImport):
 
     def commit(self, object, transaction):
         if object is self:
-            if self._begun is None:
+            if not self._begun:
                 self._storage.tpc_begin(transaction)
                 self._begun = 1
 
@@ -313,7 +313,7 @@ class Connection(ExportImport.ExportImport):
             # Nothing to do
             return
 
-        if self._begun is None:
+        if not self._begun:
             self._storage.tpc_begin(transaction)
             self._begun = 1
 
@@ -623,7 +623,7 @@ class Connection(ExportImport.ExportImport):
     def tpc_begin(self, transaction, sub=None):
         self._invalidating = []
         self._creating = []
-        self._begun = None
+        self._begun = 0
 
         if sub:
             # Sub-transaction!
