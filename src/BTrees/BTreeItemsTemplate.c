@@ -12,7 +12,7 @@
 
  ****************************************************************************/
 
-#define BTREEITEMSTEMPLATE_C "$Id: BTreeItemsTemplate.c,v 1.15 2002/06/18 02:26:19 tim_one Exp $\n"
+#define BTREEITEMSTEMPLATE_C "$Id: BTreeItemsTemplate.c,v 1.16 2002/06/18 02:41:26 tim_one Exp $\n"
 
 /* A BTreeItems struct is returned from calling .items(), .keys() or
  * .values() on a BTree-based data structure, and is also the result of
@@ -157,32 +157,27 @@ BTreeItems_seek(BTreeItems *self, int i)
         pseudoindex = -1;
     }
 
-    PER_USE_OR_RETURN(currentbucket, -1);
     delta = i - pseudoindex;
     while (delta > 0) {         /* move right */
         int max;
         /* Want to move right delta positions; the most we can move right in
          * this bucket is currentbucket->len - currentoffset - 1 positions.
          */
+        PER_USE_OR_RETURN(currentbucket, -1);
         max = currentbucket->len - currentoffset - 1;
+        b = currentbucket->next;
+        PER_ALLOW_DEACTIVATION(currentbucket);
+        PER_ACCESSED(currentbucket);
         if (delta <= max) {
             currentoffset += delta;
             pseudoindex += delta;
             if (currentbucket == self->lastbucket
-                && currentoffset > self->last) {
-                PER_ALLOW_DEACTIVATION(currentbucket);
-                PER_ACCESSED(currentbucket);
-                goto no_match;
-            }
+                && currentoffset > self->last) goto no_match;
             break;
         }
         /* Move to start of next bucket. */
-        b = currentbucket->next;
-        PER_ALLOW_DEACTIVATION(currentbucket);
-        PER_ACCESSED(currentbucket);
         if (currentbucket == self->lastbucket || b == NULL) goto no_match;
         currentbucket = b;
-        PER_USE_OR_RETURN(currentbucket, -1);
         pseudoindex += max + 1;
         delta -= max + 1;
         currentoffset = 0;
@@ -196,29 +191,23 @@ BTreeItems_seek(BTreeItems *self, int i)
             currentoffset += delta;
             pseudoindex += delta;
             if (currentbucket == self->firstbucket
-                && currentoffset < self->first) {
-                PER_ALLOW_DEACTIVATION(currentbucket);
-                PER_ACCESSED(currentbucket);
-                goto no_match;
-            }
+                && currentoffset < self->first) goto no_match;
             break;
         }
         /* Move to end of previous bucket. */
-        PER_ALLOW_DEACTIVATION(currentbucket);
-        PER_ACCESSED(currentbucket);
         if (currentbucket == self->firstbucket) goto no_match;
         status = PreviousBucket(&currentbucket, self->firstbucket);
         if (status == 0)
             goto no_match;
         else if (status < 0)
             return -1;
-        PER_USE_OR_RETURN(currentbucket, -1);
         pseudoindex -= currentoffset + 1;
         delta += currentoffset + 1;
+        PER_USE_OR_RETURN(currentbucket, -1);
         currentoffset = currentbucket->len - 1;
+        PER_ALLOW_DEACTIVATION(currentbucket);
+        PER_ACCESSED(currentbucket);
     }
-    PER_ALLOW_DEACTIVATION(currentbucket);
-    PER_ACCESSED(currentbucket);
 
     assert(pseudoindex == i);
     Py_INCREF(currentbucket);
