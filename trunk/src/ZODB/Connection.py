@@ -13,7 +13,7 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.108 2004/01/02 19:57:12 jeremy Exp $"""
+$Id: Connection.py,v 1.109 2004/01/02 22:56:43 jeremy Exp $"""
 
 import logging
 import sys
@@ -404,8 +404,11 @@ class Connection(ExportImport, object):
     def _flush_invalidations(self):
         self._inv_lock.acquire()
         try:
+            for oid in self._noncurrent:
+                assert oid in self._invalidated
             self._cache.invalidate(self._invalidated)
             self._invalidated.clear()
+            self._noncurrent.clear()
             self._txn_time = None
         finally:
             self._inv_lock.release()
@@ -525,7 +528,8 @@ class Connection(ExportImport, object):
         assert start < self._txn_time, (u64(start), u64(self._txn_time))
         assert end is None or self._txn_time <= end, \
                (u64(self._txn_time), u64(end))
-        self._noncurrent[obj._p_oid] = True
+        if end is not None:
+            self._noncurrent[obj._p_oid] = True
         self._reader.setGhostState(obj, data)
         obj._p_serial = start
 
