@@ -26,12 +26,12 @@ class P(Persistent):
 class Independent(Persistent):
 
     def _p_independent(self):
-        return True
+        return 1
 
 class DecoyIndependent(Persistent):
 
     def _p_independent(self):
-        return False
+        return 0
 
 class ZODBTests(unittest.TestCase):
 
@@ -193,7 +193,7 @@ class ZODBTests(unittest.TestCase):
         self.obj = P()
         self.readConflict()
 
-    def readConflict(self, shouldFail=True):
+    def readConflict(self, shouldFail=1):
         # Two transactions run concurrently.  Each reads some object,
         # then one commits and the other tries to read an object
         # modified by the first.  This read should fail with a conflict
@@ -237,10 +237,10 @@ class ZODBTests(unittest.TestCase):
         root["real_data"] = real_data = PersistentDict()
         root["index"] = index = PersistentDict()
 
-        real_data["a"] = PersistentDict({"indexed_value": False})
-        real_data["b"] = PersistentDict({"indexed_value": True})
-        index[True] = PersistentDict({"b": 1})
-        index[False] = PersistentDict({"a": 1})
+        real_data["a"] = PersistentDict({"indexed_value": 0})
+        real_data["b"] = PersistentDict({"indexed_value": 1})
+        index[1] = PersistentDict({"b": 1})
+        index[0] = PersistentDict({"a": 1})
         get_transaction().commit()
 
         # load some objects from one connection
@@ -251,8 +251,8 @@ class ZODBTests(unittest.TestCase):
         index2 = r2["index"]
 
         real_data["b"]["indexed_value"] = False
-        del index[True]["b"]
-        index[False]["b"] = 1
+        del index[1]["b"]
+        index[0]["b"] = 1
         cn2.getTransaction().commit()
 
         del real_data2["a"]
@@ -269,8 +269,8 @@ class ZODBTests(unittest.TestCase):
 
         # index2 values not ready to commit
         self.assert_(not index2._p_changed)
-        self.assert_(not index2[False]._p_changed)
-        self.assert_(not index2[True]._p_changed)
+        self.assert_(not index2[0]._p_changed)
+        self.assert_(not index2[1]._p_changed)
 
         self.assertRaises(ConflictError, get_transaction().commit)
         get_transaction().abort()

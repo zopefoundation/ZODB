@@ -438,6 +438,7 @@ class ConnectionTests(CommonSetupTearDown):
         self._storage = self.openClientStorage()
         self._dostore()
 
+        
     # Test case for multiple storages participating in a single
     # transaction.  This is not really a connection test, but it needs
     # about the same infrastructure (several storage servers).
@@ -491,8 +492,12 @@ class ConnectionTests(CommonSetupTearDown):
         get_transaction().commit()
 
         # make sure the invalidation is received in the other client
-        c1._storage.sync()
-        self.assert_(r1._p_oid in c1._invalidated)
+        for i in range(10):
+            c1._storage.sync()
+            if c1._invalidated.has_key(r1._p_oid):
+                break
+            time.sleep(0.1)
+        self.assert_(c1._invalidated.has_key(r1._p_oid))
 
         # force the invalidations to be applied...
         c1.setLocalTransaction()

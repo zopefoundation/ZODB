@@ -13,8 +13,8 @@
 ##############################################################################
 """Database objects
 
-$Id: DB.py,v 1.48 2003/04/08 15:55:44 jeremy Exp $"""
-__version__='$Revision: 1.48 $'[11:-2]
+$Id: DB.py,v 1.49 2003/04/22 18:04:37 jeremy Exp $"""
+__version__='$Revision: 1.49 $'[11:-2]
 
 import cPickle, cStringIO, sys, POSException, UndoLogCompatible
 from Connection import Connection
@@ -301,7 +301,7 @@ class DB(UndoLogCompatible.UndoLogCompatible):
             version=connection._version
         # Update modified in version cache
         # XXX must make this work with list or dict to backport to 2.6
-        for oid in oids:
+        for oid in oids.keys():
             h=hash(oid)%131
             o=self._miv_cache.get(h, None)
             if o is not None and o[0]==oid: del self._miv_cache[h]
