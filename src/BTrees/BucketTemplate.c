@@ -12,21 +12,32 @@
 
  ****************************************************************************/
 
-#define BUCKETTEMPLATE_C "$Id: BucketTemplate.c,v 1.34 2002/06/08 15:57:48 tim_one Exp $\n"
+#define BUCKETTEMPLATE_C "$Id: BucketTemplate.c,v 1.35 2002/06/08 16:16:32 tim_one Exp $\n"
 
 /*
 ** _bucket_get
 **
-** Get the bucket item with the matching key
+** Search a bucket for a given key.
 **
-** Arguments:	self	The bucket
-**		key	The key to match against
-**		has_key	Just return object "1" if key found, object "0" if not
+** Arguments
+**     self	The bucket
+**     keyarg	The key to look for
+**     has_key	Boolean; if true, return a true/false result; else return
+**              the value associated with the key.
 **
-** Returns:	object	matching object or 0/1 object
+** Return
+**     If has_key:
+**         Returns the Python int 0 if the key is absent, else returns
+**         has_key itself as a Python int.  A BTree caller generally passes
+**         the depth of the bucket for has_key, so a true result returns
+**         the bucket depth then.
+**         Note that has_key should be tree when searching set buckets.
+**     If not has_key:
+**         If the key is present, returns the associated value, and the
+**         caller owns the reference.  Else returns NULL and sets KeyError.
+**     Whether or not has_key:
+**         If a comparison sets an exception, returns NULL.
 */
-
-
 static PyObject *
 _bucket_get(Bucket *self, PyObject *keyarg, int has_key)
 {
