@@ -115,7 +115,7 @@ import tempfile
 from struct import pack, unpack
 from thread import allocate_lock
 
-from ZODB.utils import oid_repr
+from ZODB.utils import oid_repr, u64, z64
 
 import zLOG
 from ZEO.ICache import ICache
@@ -155,20 +155,19 @@ class ClientCache:
             # Initialize pairs of filenames, file objects, and serialnos.
             self._p = p = [fmt % 0, fmt % 1]
             self._f = f = [None, None]
-            s = ['\0\0\0\0\0\0\0\0', '\0\0\0\0\0\0\0\0']
+            self._current = 0
+            s = [z64, z64]
             for i in 0, 1:
                 if os.path.exists(p[i]):
                     fi = open(p[i],'r+b')
                     if fi.read(4) == magic: # Minimal sanity
-                        fi.seek(0, 2)
-                        if fi.tell() > headersize:
-                            # Read serial at offset 19 of first record
-                            fi.seek(headersize + 19)
-                            s[i] = fi.read(8)
+                        # Read the ltid for this file.  If it never
+                        # saw a transaction commit, it will get tossed,
+                        # even if it has valid data.
+                        s[i] = fi.read(8)
                     # If we found a non-zero serial, then use the file
-                    if s[i] != '\0\0\0\0\0\0\0\0':
+                    if s[i] != z64:
                         f[i] = fi
-                    fi = None
 
             # Whoever has the larger serial is the current
             if s[1] > s[0]:
@@ -250,8 +249,7 @@ class ClientCache:
         f = self._f[self._current]
         f.seek(4)
         tid = f.read(8)
-        self.log("reading ltid %r" % tid)
-        if len(tid) < 8 or tid == '\0\0\0\0\0\0\0\0':
+        if len(tid) < 8 or tid == z64:
             return None
         else:
             return tid
@@ -263,7 +261,7 @@ class ClientCache:
         cache file; otherwise it's an instance variable.
         """
         if self._client is None:
-            if tid == '\0\0\0\0\0\0\0\0':
+            if tid == z64:
                 tid = None
             self._ltid = tid
         else:
@@ -275,7 +273,7 @@ class ClientCache:
 
     def _setLastTid(self, tid):
         if tid is None:
-            tid = '\0\0\0\0\0\0\0\0'
+            tid = z64
         else:
             tid = str(tid)
             assert len(tid) == 8
@@ -597,7 +595,7 @@ class ClientCache:
     def _store(self, oid, p, s, version, pv, sv):
         if not s:
             p = ''
-            s = '\0\0\0\0\0\0\0\0'
+            s = z64
         tlen = 31 + len(oid) + len(p)
         if version:
             tlen = tlen + len(version) + 12 + len(pv)
