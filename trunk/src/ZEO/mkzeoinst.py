@@ -23,16 +23,12 @@ options (all of which have default values), create the following:
 <home>/etc/zeoctl.conf  -- zdctl+zdrun config file
 <home>/var/             -- Directory for data files: Data.fs etc.
 <home>/log/             -- Directory for log files: zeo.log and zeoctl.log
+<home>/bin/runzeo       -- the zeo server runner
 <home>/bin/zeoctl       -- start/stop script (a shim for zdctl.py)
 
 The script will not overwrite existing files; instead, it will issue a
 warning if an existing file is found that differs from the file that
 would be written if it didn't exist.
-
-The script assumes that runzeo.py, zdrun.py, and zdctl.py can be found
-on the shell's $PATH, and that their #! line names the right Python
-interpreter.  When you use the ZODB3 setup.py script to install the
-ZODB3 software, this is taken care of.
 """
 
 # WARNING!  Several templates and functions here are reused by ZRS.
@@ -45,7 +41,7 @@ import getopt
 
 zeo_conf_template = """# ZEO configuration file
 
-%%define INSTANCE %(home)s
+%%define INSTANCE_HOME %(instance_home)s
 
 <zeo>
   address %(port)d
@@ -56,24 +52,24 @@ zeo_conf_template = """# ZEO configuration file
 </zeo>
 
 <filestorage 1>
-  path $INSTANCE/var/Data.fs
+  path $INSTANCE_HOME/var/Data.fs
 </filestorage>
 
 <eventlog>
   level info
   <logfile>
-    path $INSTANCE/log/zeo.log
+    path $INSTANCE_HOME/log/zeo.log
   </logfile>
 </eventlog>
 """
 
 runner_conf_template = """# %(package)sctl configuration file
 
-%%define INSTANCE %(home)s
+%%define INSTANCE_HOME %(instance_home)s
 
 <runner>
-  program %(python)s %(server)s -C $INSTANCE/etc/%(package)s.conf
-  socket-name $INSTANCE/etc/%(package)s.zdsock
+  program $INSTANCE_HOME/bin/runzeo
+  socket-name $INSTANCE_HOME/etc/%(package)s.zdsock
   daemon true
   forever false
   backoff-limit 10
@@ -82,16 +78,16 @@ runner_conf_template = """# %(package)sctl configuration file
   default-to-interactive true
   # user zope
   python %(python)s
-  zdrun %(zdrun)s
+  zdrun %(zope_home)s/zdaemon/zdrun.py
   # This logfile should match the one in the %(package)s.conf file.
   # It is used by zdctl's logtail command, zdrun/zdctl doesn't write it.
-  logfile $INSTANCE/log/%(package)s.log
+  logfile $INSTANCE_HOME/log/%(package)s.log
 </runner>
 
 <eventlog>
   level info
   <logfile>
-    path $INSTANCE/log/%(package)sctl.log
+    path $INSTANCE_HOME/log/%(package)sctl.log
   </logfile>
 </eventlog>
 """
@@ -107,15 +103,40 @@ zdctl_template = """#!/bin/sh
 # chkconfig: 345 90 10
 # description: start a %(PACKAGE)s server
 
-INSTANCE='%(home)s'
+PYTHON="%(python)s"
+ZOPE_HOME="%(zope_home)s"
+INSTANCE_HOME="%(instance_home)s"
 
-exec %(python)s %(zdctl)s -C "$INSTANCE/etc/%(package)sctl.conf" ${1+"$@"}
+CONFIG_FILE="$INSTANCE_HOME/etc/%(package)sctl.conf"
+
+PYTHONPATH="$ZOPE_HOME"
+export PYTHONPATH
+
+ZDCTL="$ZOPE_HOME/zdaemon/zdctl.py"
+
+exec "$PYTHON" "$ZDCTL" -C "$CONFIG_FILE" ${1+"$@"}
+"""
+
+runzeo_template = """#!/bin/sh
+# %(PACKAGE)s instance start script
+
+PYTHON="%(python)s"
+ZOPE_HOME="%(zope_home)s"
+INSTANCE_HOME="%(instance_home)s"
+
+CONFIG_FILE="$INSTANCE_HOME/etc/%(package)s.conf"
+
+PYTHONPATH="$ZOPE_HOME"
+export PYTHONPATH
+
+ZEO_RUN="$ZOPE_HOME/ZEO/runzeo.py"
+
+exec "$PYTHON" "$ZEO_RUN" -C "$CONFIG_FILE" ${1+"$@"}
 """
 
 def main():
     ZEOInstanceBuilder().run()
     print "All done."
-
 
 class ZEOInstanceBuilder:
     def run(self):
@@ -133,27 +154,36 @@ class ZEOInstanceBuilder:
         if len(args) not in [1, 2]:
             print "Usage: %s home [port]" % program
             sys.exit(2)
-        home = args[0]
-        if not os.path.isabs(home):
-            home = os.path.abspath(home)
+
+        instance_home = args[0]
+        if not os.path.isabs(instance_home):
+            instance_home = os.path.abspath(instance_home)
+
+        for entry in sys.path:
+            if os.path.exists(os.path.join(entry, 'Zope')):
+                zope_home = entry
+                break
+        else:
+            print "Can't find the Zope home (not in sys.path)"
+            sys.exit(2)
+
         if args[1:]:
             port = int(args[1])
         else:
             port = 9999
         checkport(port)
-        params = self.get_params(home, port)
-        self.create(home, params)
 
-    def get_params(self, home, port):
+        params = self.get_params(zope_home, instance_home, port)
+        self.create(instance_home, params)
+
+    def get_params(self, zope_home, instance_home, port):
         return {
             "package": "zeo",
             "PACKAGE": "ZEO",
-            "home": home,
+            "zope_home": zope_home,
+            "instance_home": instance_home,
             "port": port,
             "python": sys.executable,
-            "server": which("runzeo.py"),
-            "zdrun": which("zdrun.py"),
-            "zdctl": which("zdctl.py"),
             }
 
     def create(self, home, params):
@@ -165,6 +195,7 @@ class ZEOInstanceBuilder:
         makefile(zeo_conf_template, home, "etc", "zeo.conf", **params)
         makefile(runner_conf_template, home, "etc", "zeoctl.conf", **params)
         makexfile(zdctl_template, home, "bin", "zeoctl", **params)
+        makexfile(runzeo_template, home, "bin", "runzeo", **params)
 
 
 def checkport(port):
