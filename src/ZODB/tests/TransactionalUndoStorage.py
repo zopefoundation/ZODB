@@ -18,7 +18,7 @@ class TransactionalUndoStorage:
         r = self._storage.store(oid, rev, data, vers, trans)
         if r:
             if type(r) == types.StringType:
-                self.__oids[oid] = r
+                self.__serials[oid] = r
             else:
                 for oid, serial in r:
                     self.__serials[oid] = serial
