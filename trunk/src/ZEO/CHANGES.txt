@@ -1,5 +1,25 @@
 Zope Enterprise Objects (ZEO) Revision History
 
+  ZEO 0.3.0
+
+    Bugs fixed
+
+      - Large transactions (e.g. ZCatalog updates) could cause
+        spurious conflict errors that could, eventually, make it
+        impossible to modify some objects without restarting Zope.
+
+    Features added
+
+      - On Unix, when the storage server start script is run as root,
+        the script will switch to a different user (nobody by
+        default). There is a new '-u' option that can be used to
+        specify the user.
+
+      - On Unix the server will gracefully close served storages when
+        the server is killed with a SIGTERM or SIGHUP. If a
+        FileStorage is being served, then an index file will be
+        written.
+
   ZEO 0.2.3
 
     Bugs fixed
