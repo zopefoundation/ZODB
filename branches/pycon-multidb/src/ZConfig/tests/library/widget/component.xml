@@ -1,0 +1,7 @@
+<component>
+  <abstracttype name='widget'/>
+  <sectiontype name='widget-a' implements='widget'>
+    <key name='widget-a-key' default='widget-a-default'/>
+  </sectiontype>
+  <sectiontype name='widget-b' implements='widget' extends='widget-a'/>
+</component>
