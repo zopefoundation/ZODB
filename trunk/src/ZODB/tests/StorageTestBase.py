@@ -89,7 +89,7 @@ def handle_all_serials(oid, *args):
         else:
             for oid, serial in arg:
                 if not isinstance(serial, types.StringType):
-                    raise arg
+                    raise serial # error from ZEO server
                 d[oid] = serial
     return d
 
@@ -107,16 +107,17 @@ def import_helper(name):
 
 
 class StorageTestBase(unittest.TestCase):
+
+    # XXX It would be simpler if concrete tests didn't need to extend
+    # setUp() and tearDown().
+    
     def setUp(self):
         # You need to override this with a setUp that creates self._storage
-        self._transaction = Transaction()
         self._storage = None
 
     def _close(self):
         # You should override this if closing your storage requires additional
         # shutdown operations.
-        if self._transaction:
-            self._transaction.abort()
         if self._storage is not None:
             self._storage.close()
 
@@ -157,8 +158,9 @@ class StorageTestBase(unittest.TestCase):
         r1 = self._storage.store(oid, revid, data, version, t)
         # Finish the transaction
         r2 = self._storage.tpc_vote(t)
+        revid = handle_serials(oid, r1, r2)
         self._storage.tpc_finish(t)
-        return handle_serials(oid, r1, r2)
+        return revid
         
     def _dostoreNP(self, oid=None, revid=None, data=None, version=None,
                    user=None, description=None):
