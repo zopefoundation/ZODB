@@ -110,12 +110,9 @@ class MappingStorageTimeoutTests(
 
 test_classes = [FileStorageConnectionTests,
                 FileStorageReconnectionTests,
-                FileStorageTimeoutTests]
-
-test_classes.extend(
-    [MappingStorageConnectionTests,
-     MappingStorageTimeoutTests])
-
+                FileStorageTimeoutTests,
+                MappingStorageConnectionTests,
+                MappingStorageTimeoutTests]
 
 import BDBStorage
 if BDBStorage.is_available:

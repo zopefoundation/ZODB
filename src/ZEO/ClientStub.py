@@ -53,7 +53,7 @@ class ClientStorage:
         self.rpc.callAsync('endVerify')
 
     def invalidateTransaction(self, tid, args):
-        self.rpc.callAsync('invalidateTransaction', tid, args)
+        self.rpc.callAsyncNoPoll('invalidateTransaction', tid, args)
 
     def serialnos(self, arg):
         self.rpc.callAsync('serialnos', arg)
