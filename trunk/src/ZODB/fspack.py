@@ -77,7 +77,7 @@ class FileStorageFormatter:
 
     # subclasses must provide _file
 
-    _metadata_size = 4
+    _metadata_size = 4L
     _format_version = "21"
 
     def _read_num(self, pos):
@@ -464,7 +464,7 @@ class GC(FileStorageFormatter):
         del self.oid2curpos
 
     def buildPackIndex(self):
-        pos = 4
+        pos = 4L
         while pos < self.eof:
             th = self._read_txn_header(pos)
             if th.tid > self.packtime:
