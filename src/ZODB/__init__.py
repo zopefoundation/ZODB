@@ -11,6 +11,9 @@
 # FOR A PARTICULAR PURPOSE
 #
 ##############################################################################
+
+__version__ = '3.1b1'
+
 import sys
 import cPersistence, Persistence
 from zLOG import register_subsystem
