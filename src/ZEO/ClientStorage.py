@@ -84,7 +84,7 @@
 ##############################################################################
 """Network ZODB storage client
 """
-__version__='$Revision: 1.11 $'[11:-2]
+__version__='$Revision: 1.12 $'[11:-2]
 
 import struct, time, os, socket, string, Sync, zrpc, ClientCache
 import tempfile, Invalidator, ExtensionClass, thread
@@ -182,6 +182,9 @@ class ClientStorage(ExtensionClass.Base, BaseStorage.BaseStorage):
         LOG("ClientStorage", PROBLEM, "Disconnected from storage")
         self._connected=0
         thread.start_new_thread(self._call.connect,(0,))
+        try: self._commit_lock_release()
+        except: pass
+
 
     def becomeAsync(self, map):
         self._lock_acquire()
@@ -229,7 +232,11 @@ class ClientStorage(ExtensionClass.Base, BaseStorage.BaseStorage):
         if transaction is not self._transaction:
             raise POSException.StorageTransactionError(self, transaction)
         self._lock_acquire()
-        try: return self._call('abortVersion', src, self._serial)
+        try:
+            oids=self._call('abortVersion', src, self._serial)
+            invalidate=self._cache.invalidate
+            for oid in oids: invalidate(oid, src)
+            return oids
         finally: self._lock_release()
 
     def close(self):
@@ -241,7 +248,17 @@ class ClientStorage(ExtensionClass.Base, BaseStorage.BaseStorage):
         if transaction is not self._transaction:
             raise POSException.StorageTransactionError(self, transaction)
         self._lock_acquire()
-        try: return self._call('commitVersion', src, dest, self._serial)
+        try:
+            oids=self._call('commitVersion', src, dest, self._serial)
+            invalidate=self._cache.invalidate
+            if dest:
+                # just invalidate our version data
+                for oid in oids: invalidate(oid, src)
+            else:
+                # dest is '', so invalidate version and non-version
+                for oid in oids: invalidate(oid, dest)
+                
+            return oids
         finally: self._lock_release()
 
     def getName(self):
@@ -265,11 +282,12 @@ class ClientStorage(ExtensionClass.Base, BaseStorage.BaseStorage):
         self._lock_acquire()
         try:
             p = self._cache.load(oid, version)
-            if p is not None: return p
+            if p: return p
             p, s, v, pv, sv = self._call('zeoLoad', oid)
             self._cache.store(oid, p, s, v, pv, sv)
             if not v or not version or version != v:
-                return p, s
+                if s: return p, s
+                raise KeyError, oid # no non-version data for this
             return pv, sv
         finally: self._lock_release()
                     
@@ -465,5 +483,5 @@ class ClientStorage(ExtensionClass.Base, BaseStorage.BaseStorage):
 
     def versions(self, max=None):
         self._lock_acquire()
-        try: return self._call('versionEmpty', max)
+        try: return self._call('versions', max)
         finally: self._lock_release()
