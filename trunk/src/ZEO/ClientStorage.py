@@ -84,7 +84,7 @@
 ##############################################################################
 """Network ZODB storage client
 """
-__version__='$Revision: 1.23 $'[11:-2]
+__version__='$Revision: 1.24 $'[11:-2]
 
 import struct, time, os, socket, string, Sync, zrpc, ClientCache
 import tempfile, Invalidator, ExtensionClass, thread
@@ -108,7 +108,6 @@ class UnrecognizedResult(ClientStorageError):
 class ClientDisconnected(ClientStorageError):
     """The database storage is disconnected from the storage.
     """
-    
 
 class ClientStorage(ExtensionClass.Base, BaseStorage.BaseStorage):
 
@@ -458,8 +457,11 @@ class ClientStorage(ExtensionClass.Base, BaseStorage.BaseStorage):
                 self._ts=t=t.laterThan(self._ts)
                 id=`t`
                 
-                if not self._connected: raise ClientDisconnected()
-                try: r=self._call(self.__begin, id, user, desc, ext)
+                try:
+                    if not self._connected:
+                        raise ClientDisconnected(
+                            "This action is temporarily unavailable.<p>")
+                    r=self._call(self.__begin, id, user, desc, ext)
                 except:
                     self._commit_lock_release()
                     raise
@@ -559,3 +561,4 @@ class ClientStorage(ExtensionClass.Base, BaseStorage.BaseStorage):
         self._lock_acquire()
         try: return self._call('versions', max)
         finally: self._lock_release()
+
