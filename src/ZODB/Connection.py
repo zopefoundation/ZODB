@@ -84,8 +84,8 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.40 2000/10/06 15:20:56 brian Exp $"""
-__version__='$Revision: 1.40 $'[11:-2]
+$Id: Connection.py,v 1.41 2001/01/11 21:57:20 jim Exp $"""
+__version__='$Revision: 1.41 $'[11:-2]
 
 from cPickleCache import PickleCache
 from POSException import ConflictError, ExportError
@@ -550,6 +550,8 @@ class Connection(ExportImport.ExportImport):
 
     def sync(self):
         get_transaction().abort()
+        sync=getattr(self._storage, 'sync', 0)
+        if sync != 0: sync()
         self._cache.invalidate(self._invalidated)
         self._incrgc() # This is a good time to do some GC
 
