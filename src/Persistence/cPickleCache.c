@@ -88,7 +88,7 @@ process must skip such objects, rather than deactivating them.
 static char cPickleCache_doc_string[] =
 "Defines the PickleCache used by ZODB Connection objects.\n"
 "\n"
-"$Id: cPickleCache.c,v 1.57 2002/04/15 15:17:33 chrisw Exp $\n";
+"$Id: cPickleCache.c,v 1.58 2002/04/15 18:42:51 jeremy Exp $\n";
 
 #define ASSIGN(V,E) {PyObject *__e; __e=(E); Py_XDECREF(V); (V)=__e;}
 #define UNLESS(E) if(!(E))
@@ -150,7 +150,9 @@ typedef struct {
 
 } ccobject;
 
+#ifdef MUCH_RING_CHECKING
 static int present_in_ring(ccobject *self, CPersistentRing *target);
+#endif
 static int ring_corrupt(ccobject *self, const char *context);
 static int cc_ass_sub(ccobject *self, PyObject *key, PyObject *v);
 
@@ -214,7 +216,9 @@ object_from_ring(ccobject *self, CPersistentRing *here, const char *context)
 static int
 scan_gc_items(ccobject *self,int target)
 {
-    /* This function must only be called with the ring lock held */
+    /* This function must only be called with the ring lock held,
+       because it places a non-object placeholder in the ring.
+    */
 
     cPersistentObject *object;
     int error;
@@ -632,6 +636,19 @@ cc_oid_unreferenced(ccobject *self, PyObject *oid)
     return 0;
 }
 
+static PyObject *
+cc_ringlen(ccobject *self, PyObject *args)
+{
+    CPersistentRing *here;
+    int c = 0;
+
+    if (!PyArg_ParseTuple(args, ":ringlen"))
+	return NULL;
+    for (here = self->ring_home.next; here != &self->ring_home;
+	 here = here->next)
+	c++;
+    return PyInt_FromLong(c);
+}
 
 static struct PyMethodDef cc_methods[] = {
   {"lru_items", (PyCFunction)cc_lru_items, METH_VARARGS,
@@ -658,6 +675,8 @@ static struct PyMethodDef cc_methods[] = {
    "invalidate(oids) -- invalidate one, many, or all ids"},
   {"get", (PyCFunction)cc_get, METH_VARARGS,
    "get(key [, default]) -- get an item, or a default"},
+  {"ringlen", (PyCFunction)cc_ringlen, METH_VARARGS,
+   "ringlen() -- Returns number of non-ghost items in cache."},
   {NULL,		NULL}		/* sentinel */
 };
 
@@ -771,14 +790,14 @@ cc_add_item(ccobject *self, PyObject *key, PyObject *v)
     cPersistentObject *p;
 
     if (!PyExtensionInstance_Check(v)) {
-	PyErr_SetString(PyExc_ValueError, 
+	PyErr_SetString(PyExc_TypeError, 
 			"Cache values must be persistent objects.");
 	return -1;
     }
     class = (PyExtensionClass *)(v->ob_type);
     if (!((class->class_flags & PERSISTENT_TYPE_FLAG)
 	  && v->ob_type->tp_basicsize >= sizeof(cPersistentObject))) {
-	PyErr_SetString(PyExc_ValueError, 
+	PyErr_SetString(PyExc_TypeError, 
 			"Cache values must be persistent objects.");
 	/* Must be either persistent classes (ie ZClasses), or instances
 	of persistent classes (ie Python classeses that derive from
@@ -790,7 +809,6 @@ cc_add_item(ccobject *self, PyObject *key, PyObject *v)
      *  persistent class.
      */
     oid = PyObject_GetAttr(v, py__p_oid);
-
     if (oid == NULL)
 	return -1;
     /* XXX key and oid should both be PyString objects.
@@ -805,6 +823,8 @@ cc_add_item(ccobject *self, PyObject *key, PyObject *v)
 	PyErr_SetString(PyExc_ValueError, "cache key does not match oid");
 	return -1;
     }
+
+    /* XXX check that object has valid _p_jar? */
 
     object_again = object_from_oid(self, key);
     if (object_again) {
@@ -911,7 +931,7 @@ cc_del_item(ccobject *self, PyObject *key)
 
     if (PyDict_DelItem(self->data, key) < 0) {
 	PyErr_SetString(PyExc_RuntimeError,
-			"unexpectedly couldnt remove key in cc_ass_sub");
+			"unexpectedly couldn't remove key in cc_ass_sub");
 	return -1;
     }
 
@@ -958,7 +978,9 @@ _ring_corrupt(ccobject *self, const char *context)
         if (here->next->prev != here) 
 	    return 10;
         if (!self->ring_lock) {
-            /* if the ring must be locked then it only contains object other than persistent instances */
+            /* If the ring must be locked, then it only contains
+	       object other than persistent instances.
+	    */ 
             if (here != &self->ring_home) {
                 cPersistentObject *object = object_from_ring(self, here, 
 							     context);
@@ -986,17 +1008,19 @@ static int
 ring_corrupt(ccobject *self, const char *context)
 {
 #ifdef MUCH_RING_CHECKING
-    int code = _ring_corrupt(self,context);
+    int code = _ring_corrupt(self, context);
     if (code) {
-        PyErr_Format(PyExc_RuntimeError,
-		     "broken ring (code %d) in %s, size %d",
-		     code, context, PyDict_Size(self->data));
+	if (!PyErr_Occurred())
+	    PyErr_Format(PyExc_RuntimeError,
+			 "broken ring (code %d) in %s, size %d",
+			 code, context, PyDict_Size(self->data));
         return code;
     }
 #endif
     return 0;
 }
 
+#ifdef MUCH_RING_CHECKING
 static int
 present_in_ring(ccobject *self,CPersistentRing *target)
 {
@@ -1009,6 +1033,7 @@ present_in_ring(ccobject *self,CPersistentRing *target)
         here = here->next;
     }
 }
+#endif
 
 static PyMappingMethods cc_as_mapping = {
   (inquiry)cc_length,		/*mp_length*/
@@ -1038,7 +1063,7 @@ static PyTypeObject Cctype = {
 };
 
 static ccobject *
-newccobject(PyObject *jar, int cache_size, int cache_age)
+newccobject(PyObject *jar, int cache_size)
 {
     ccobject *self;
   
@@ -1071,16 +1096,16 @@ newccobject(PyObject *jar, int cache_size, int cache_age)
 static PyObject *
 cCM_new(PyObject *self, PyObject *args)
 {
-    int cache_size=100, cache_age=1000;
+    int cache_size=100;
     PyObject *jar;
 
-    if (!PyArg_ParseTuple(args, "O|ii", &jar, &cache_size, &cache_age))
+    if (!PyArg_ParseTuple(args, "O|i", &jar, &cache_size))
 	return NULL;
-    return (PyObject*)newccobject(jar, cache_size, cache_age);
+    return (PyObject*)newccobject(jar, cache_size);
 }
 
 static struct PyMethodDef cCM_methods[] = {
-  {"PickleCache",(PyCFunction)cCM_new,	METH_VARARGS, ""},
+  {"PickleCache", (PyCFunction)cCM_new,	METH_VARARGS, ""},
   {NULL,		NULL}		/* sentinel */
 };
 

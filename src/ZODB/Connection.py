@@ -13,8 +13,8 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.65 2002/04/13 20:17:22 jeremy Exp $"""
-__version__='$Revision: 1.65 $'[11:-2]
+$Id: Connection.py,v 1.66 2002/04/15 18:42:50 jeremy Exp $"""
+__version__='$Revision: 1.66 $'[11:-2]
 
 from cPickleCache import PickleCache, MUCH_RING_CHECKING
 from POSException import ConflictError, ReadConflictError
@@ -69,11 +69,14 @@ class Connection(ExportImport.ExportImport):
                  cache_deactivate_after=60):
         """Create a new Connection"""
         self._version=version
-        self._cache=cache=PickleCache(self, cache_size, cache_deactivate_after)
+        self._cache = cache = PickleCache(self, cache_size)
         if version:
             # Caches for versions end up empty if the version
             # is not used for a while. Non-version caches
             # keep their content indefinitely.
+
+            # XXX Why do we want version caches to behave this way?
+
             self._cache.cache_drain_resistance = 100
         self._incrgc=self.cacheGC=cache.incrgc
         self._invalidated=d={}
@@ -209,8 +212,7 @@ class Connection(ExportImport.ExportImport):
         self._code_timestamp = global_code_timestamp
         self._invalidated.clear()
         orig_cache = self._cache
-        self._cache = PickleCache(self, orig_cache.cache_size,
-                                  orig_cache.cache_age)
+        self._cache = PickleCache(self, orig_cache.cache_size)
 
     def abort(self, object, transaction):
         """Abort the object in the transaction.
@@ -226,7 +228,8 @@ class Connection(ExportImport.ExportImport):
         self._cache.full_sweep(dt)
         
     def cacheMinimize(self, dt=0):
-        self._cache.minimize(dt)
+        # dt is ignored
+        self._cache.minimize()
 
     __onCloseCallbacks = None
     
