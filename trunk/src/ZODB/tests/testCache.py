@@ -398,6 +398,28 @@ class CacheErrors(unittest.TestCase):
         else:
             self.fail("expect that you can't delete jar of cached object")
 
+    def checkTwoObjsSameOid(self):
+        # Try to add two distinct objects with the same oid to the cache.
+        # This has always been an error, but the error message prior to
+        # ZODB 3.2.6 didn't make sense.  This test verifies that (a) an
+        # exception is raised; and, (b) the error message is the intended
+        # one.
+        obj1 = StubObject()
+        key = obj1._p_oid = p64(1)
+        obj1._p_jar = self.jar
+        self.cache[key] = obj1
+
+        obj2 = StubObject()
+        obj2._p_oid = key
+        obj2._p_jar = self.jar
+        try:
+            self.cache[key] = obj2
+        except ValueError, detail:
+            self.assertEqual(str(detail),
+                             "A different object already has the same oid")
+        else:
+            self.fail("two objects with the same oid should have failed")
+
 def test_suite():
     s = unittest.makeSuite(DBMethods, 'check')
     s.addTest(unittest.makeSuite(LRUCacheTests, 'check'))
