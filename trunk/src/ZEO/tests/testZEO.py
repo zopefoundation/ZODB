@@ -233,7 +233,9 @@ class ConnectionTests(StorageTestBase.StorageTestBase):
         self.addr.append(self._getAddr())
 
     def _getAddr(self):
-        return 'localhost', random.randrange(25000, 30000)
+        # On windows, port+1 is also used (see winserver.py), so only
+        # draw even port numbers
+        return 'localhost', random.randrange(25000, 30000, 2)
 
     def openClientStorage(self, cache='', cache_size=200000, wait=1,
                           read_only=0, read_only_fallback=0):
