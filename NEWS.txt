@@ -15,6 +15,11 @@ transaction
 The deprecation warning for ``Transaction.begin()`` was changed to
 point to the caller, instead of to ``Transaction.begin()`` itself.
 
+Connection
+----------
+
+Restored Connection's private ``_opened`` attribute.  This was still
+referenced by ``DB.connectionDebugInfo()``, and Zope 2 calls the latter.
 
 What's new in ZODB3 3.3 release candidate 1?
 ============================================
