@@ -11,5 +11,14 @@
 # FOR A PARTICULAR PURPOSE
 #
 ##############################################################################
+"""ZEO -- Zope Enterprise Objects.
+
+See the file README.txt in this directory for an overview.
+
+ZEO's home on the web is
+
+    http://www.zope.org/Products/ZEO/
+
+"""
 
 version = "2.0b1"
