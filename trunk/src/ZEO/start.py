@@ -86,7 +86,7 @@
 """Start the server storage.
 """
 
-__version__ = "$Revision: 1.12 $"[11:-2]
+__version__ = "$Revision: 1.13 $"[11:-2]
 
 import sys, os, getopt, string
 
@@ -136,7 +136,7 @@ def main(argv):
                            os.path.join(INSTANCE_HOME, 'var', 'ZEO_SERVER.pid')
                            )
 
-    opts, args = getopt.getopt(args, 'p:Dh:U:sS:')
+    opts, args = getopt.getopt(args, 'p:Dh:U:sS:u:')
 
     
     
@@ -216,6 +216,8 @@ def main(argv):
     __builtins__.__debug__=debug
     if debug: os.environ['Z_DEBUG_MODE']='1'
 
+    from zLOG import LOG, INFO, ERROR
+
     # Try to set uid to "-u" -provided uid.
     # Try to set gid to  "-u" user's primary group. 
     # This will only work if this script is run by root.
@@ -243,7 +245,7 @@ def main(argv):
             except OSError:
                 pass
         except KeyError:
-            zLOG.LOG("z2", zLOG.ERROR, ("can't find UID %s" % UID))
+            LOG('ZEO Server', ERROR, ("can't find UID %s" % UID))
     except:
         pass
 
@@ -254,7 +256,7 @@ def main(argv):
             import zdaemon
             zdaemon.run(sys.argv, '')
 
-    import ZEO.StorageServer, asyncore, zLOG
+    import ZEO.StorageServer, asyncore
 
     storages={}
     for o, v in opts:
@@ -276,9 +278,18 @@ def main(argv):
     try:
         import signal
         def handler(signum, frame, storages=storages, die=signal.SIGTERM):
+            import asyncore
+            for socket in asyncore.socket_map.values():
+                socket.close()
+            
             for storage in storages.values():
                 try: storage.close()
                 finally: pass
+
+            try:
+                from zLOG import LOG, INFO
+                LOG('ZEO Server', INFO, "Shutting down (signal %s)" % signum)
+            except: pass
             if signum==dir: sys.exit(0)
             else: sys.exit(1)
 
@@ -289,7 +300,7 @@ def main(argv):
     items=storages.items()
     items.sort()
     for kv in items:
-        zLOG.LOG('ZEO Server', zLOG.INFO, 'Serving %s:\t%s' % kv)
+        LOG('ZEO Server', INFO, 'Serving %s:\t%s' % kv)
 
     if not unix: unix=host, port
 
