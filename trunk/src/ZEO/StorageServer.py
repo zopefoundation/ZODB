@@ -83,7 +83,7 @@
 # 
 ##############################################################################
 
-__version__ = "$Revision: 1.30 $"[11:-2]
+__version__ = "$Revision: 1.31 $"[11:-2]
 
 import asyncore, socket, string, sys, os
 from smac import SizedMessageAsyncConnection
@@ -99,6 +99,7 @@ from thread import start_new_thread
 from cStringIO import StringIO
 from ZEO import trigger
 from ZEO import asyncwrap
+from types import StringType
 
 class StorageServerError(POSException.StorageError): pass
 
@@ -421,7 +422,6 @@ class ZEOConnection(SizedMessageAsyncConnection):
             if wait:
                 self.message_output('RN.')
                 self.__server._pack_trigger.pull_trigger()
-
             else:
                 # Broadcast new size statistics
                 self.__server.invalidate(0, self.__storage_id, (),
@@ -607,4 +607,3 @@ if __name__=='__main__':
     d = {'1': ZODB.FileStorage.FileStorage(name)}
     StorageServer(port, d)
     asyncwrap.loop()
-
