@@ -12,8 +12,8 @@
 #define COPY_VALUE(V, E) (V=(E))
 #define COPY_VALUE_TO_OBJECT(O, K) O=PyFloat_FromDouble(K) 
 #define COPY_VALUE_FROM_ARG(TARGET, ARG, STATUS) \
-  if (PyFloat_Check(ARG)) TARGET = PyFloat_AsDouble(ARG); \
-  else if (PyInt_Check(ARG)) TARGET = PyInt_AsLong(ARG); \
+  if (PyFloat_Check(ARG)) TARGET = (float)PyFloat_AsDouble(ARG); \
+  else if (PyInt_Check(ARG)) TARGET = (float)PyInt_AsLong(ARG); \
   else { \
       PyErr_SetString(PyExc_TypeError, "expected float or int value"); \
       (STATUS)=0; (TARGET)=0; } 
