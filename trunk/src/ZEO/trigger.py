@@ -166,13 +166,17 @@ if os.name == 'posix':
                     try:
                         thunk()
                     except:
-                        (file, fun, line), t, v, tbinfo = asyncore.compact_traceback()
-                        print 'exception in trigger thunk: (%s:%s %s)' % (t, v, tbinfo)
+                        nil, t, v, tbinfo = asyncore.compact_traceback()
+                        print ('exception in trigger thunk:'
+                               ' (%s:%s %s)' % (t, v, tbinfo))
                 self.thunks = []
             finally:
                 self.lock.release()
 
 else:
+
+    # XXX Should define a base class that has the common methods and
+    # then put the platform-specific in a subclass named trigger.
 
     # win32-safe version
 
@@ -245,12 +249,9 @@ else:
                     try:
                         thunk()
                     except:
-                        (file, fun, line), t, v, tbinfo = asyncore.compact_traceback()
-                        print 'exception in trigger thunk: (%s:%s %s)' % (t, v, tbinfo)
+                        nil, t, v, tbinfo = asyncore.compact_traceback()
+                        print ('exception in trigger thunk:'
+                               ' (%s:%s %s)' % (t, v, tbinfo))
                 self.thunks = []
             finally:
                 self.lock.release()
-
-
-
-
