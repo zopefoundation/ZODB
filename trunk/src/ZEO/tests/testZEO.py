@@ -17,20 +17,13 @@
 import os
 import sys
 import time
-import random
-import select
 import socket
-import thread
 import asyncore
 import tempfile
 import unittest
 
 # Zope/ZODB3 imports
 import zLOG
-
-# ZODB imports
-from ZODB.Transaction import get_transaction
-from ZODB.POSException import ReadOnlyError
 
 # ZODB test support
 from ZODB.tests.MinPO import MinPO
