@@ -39,6 +39,9 @@ def make_pickle(ob):
     return sio.getvalue()
 
 
+def test_factory(conn, module_name, name):
+    return globals()[name]
+
 class SerializerTestCase(unittest.TestCase):
 
     # old format:  (module, name), None
@@ -58,7 +61,7 @@ class SerializerTestCase(unittest.TestCase):
         (ClassWithNewargs, (1,)))
 
     def test_getClassName(self):
-        r = serialize.BaseObjectReader()
+        r = serialize.ObjectReader(factory=test_factory)
         eq = self.assertEqual
         eq(r.getClassName(self.old_style_with_newargs),
            __name__ + ".ClassWithNewargs")
@@ -73,14 +76,14 @@ class SerializerTestCase(unittest.TestCase):
         # Use a TestObjectReader since we need _get_class() to be
         # implemented; otherwise this is just a BaseObjectReader.
 
-        class TestObjectReader(serialize.BaseObjectReader):
+        class TestObjectReader(serialize.ObjectReader):
             # A production object reader would optimize this, but we
             # don't need to in a test
             def _get_class(self, module, name):
                 __import__(module)
                 return getattr(sys.modules[module], name)
 
-        r = TestObjectReader()
+        r = TestObjectReader(factory=test_factory)
         g = r.getGhost(self.old_style_with_newargs)
         self.assert_(isinstance(g, ClassWithNewargs))
         self.assertEqual(g, 1)
