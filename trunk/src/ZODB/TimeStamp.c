@@ -85,7 +85,7 @@
 
 static char TimeStamp_module_documentation[] = 
 ""
-"\n$Id: TimeStamp.c,v 1.2 1999/05/18 22:22:03 jim Exp $"
+"\n$Id: TimeStamp.c,v 1.3 1999/05/18 22:26:49 jim Exp $"
 ;
 
 #include <stdlib.h>
@@ -301,15 +301,15 @@ TimeStamp_laterThan(TimeStamp *self, PyObject *args)
   PyObject *a;
   int i;
   
-  UNLESS(PyArg_ParseTuple(args, "|O!", self->ob_type, &o)) return NULL;
+  UNLESS(PyArg_ParseTuple(args, "O!", self->ob_type, &o)) return NULL;
 
-  if (! o || memcmp(self->data, o->data, 8) > 0)
+  if (memcmp(self->data, o->data, 8) > 0)
     {
       Py_INCREF(self);
       return OBJECT(self);
     }
 
-  if (o) self=o;
+  self=o;
 
   UNLESS(a=PyString_FromStringAndSize(self->data, 8)) return NULL;
   s=(unsigned char *)PyString_AsString(a);
@@ -483,7 +483,7 @@ void
 initTimeStamp()
 {
   PyObject *m, *d;
-  char *rev="$Revision: 1.2 $";
+  char *rev="$Revision: 1.3 $";
 
   if (TimeStamp_init_gmoff() < 0) return;
   if (! ExtensionClassImported) return;
