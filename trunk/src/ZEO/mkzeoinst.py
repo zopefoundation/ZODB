@@ -74,7 +74,7 @@ runner_conf_template = """# %(package)sctl configuration file
   forever false
   backoff-limit 10
   exit-codes 0, 2
-  directory $INSTANCE
+  directory $INSTANCE_HOME
   default-to-interactive true
   # user zope
   python %(python)s
