@@ -86,7 +86,7 @@
 """Start the server storage.
 """
 
-__version__ = "$Revision: 1.18 $"[11:-2]
+__version__ = "$Revision: 1.19 $"[11:-2]
 
 import sys, os, getopt, string
 
@@ -207,7 +207,8 @@ def main(argv):
         elif o=='-d': detailed=1
         elif o=='-s': Z=0
 
-    import fap # fixup asyncore/cPickle dependencies
+    import fap
+    fap.fap(directory(me, 4)) # fixup asyncore/cPickle dependencies
 
     if port is None and unix is None:
         print usage

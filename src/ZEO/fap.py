@@ -90,47 +90,54 @@ localizing the hacks^H^H^H^H^Hchanges here.
 """
 import sys
 
-# if we are using an old version of Python, our asyncore is likely to
-# be out of date.  If ZServer is sitting around, we can get a current
-# version of ayncore from it. In any case, if we are going to be used
-# with Zope, it's important to use the version from Zope.
-try:
-    from ZServer.medusa import asyncore 
-except:
-    # Try a little harder to import ZServer
+def whiff(where):
+    if not where: return 0
     import os, imp
-    try: m=imp.find_module('ZServer', ['.'])
-    except:
-        try: m=imp.find_module('ZServer', [os.path.join('..','..')])
-        except:
-            import asyncore
-        else:
-            sys.path.append(os.path.join('..','..'))
-            from ZServer.medusa import asyncore 
-    else:
-        sys.path.append('.')
-        from ZServer.medusa import asyncore 
+    try: m=imp.find_module('ZServer', [where])
+    except: return 0
+    else: return 1
+    
 
-if sys.version[:1] < '2' and asyncore.loop.func_code.co_argcount < 3:
-    raise ImportError, 'Cannot import an up-to-date asyncore'
-
-sys.modules['ZEO.asyncore']=asyncore
-
-# We need a recent version of cPickle too.
-if sys.version[:3] < '1.6':
+def fap(where=''):
+    # if we are using an old version of Python, our asyncore is likely to
+    # be out of date.  If ZServer is sitting around, we can get a current
+    # version of ayncore from it. In any case, if we are going to be used
+    # with Zope, it's important to use the version from Zope.
     try:
-        from ZODB import cPickle
-        sys.modules['ZEO.cPickle']=cPickle
+        from ZServer.medusa import asyncore 
     except:
-        # Try a little harder
-        import cPickle
-else:
-    import cPickle
+        # Try a little harder to import ZServer
+        import os, imp
 
-import cStringIO
-p=cPickle.Pickler(cStringIO.StringIO(),1)
-try:
-    p.fast=1
-except:
-    raise ImportError, 'Cannot import an up-to-date cPickle'
+        for location in where, '.', os.path.join('..','..'):
+            if whiff(location):
+                sys.path.append(location)
+                try: 
+                    from ZServer.medusa import asyncore 
+                except:
+                    import asyncore
+                break
+
+    if sys.version[:1] < '2' and asyncore.loop.func_code.co_argcount < 3:
+        raise ImportError, 'Cannot import an up-to-date asyncore'
+
+    sys.modules['ZEO.asyncore']=asyncore
+
+    # We need a recent version of cPickle too.
+    if sys.version[:3] < '1.6':
+        try:
+            from ZODB import cPickle
+            sys.modules['ZEO.cPickle']=cPickle
+        except:
+            # Try a little harder
+            import cPickle
+    else:
+        import cPickle
+
+    import cStringIO
+    p=cPickle.Pickler(cStringIO.StringIO(),1)
+    try:
+        p.fast=1
+    except:
+        raise ImportError, 'Cannot import an up-to-date cPickle'
 
