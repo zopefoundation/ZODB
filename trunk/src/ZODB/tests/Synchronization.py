@@ -108,19 +108,26 @@ class SynchronizedStorage:
         self._storage.tpc_abort(Transaction())
 
     def checkAbortWrongTrans(self):
-        self._storage.tpc_begin(Transaction())
+        t = Transaction()
+        self._storage.tpc_begin(t)
         self._storage.tpc_abort(Transaction())
+        self._storage.tpc_abort(t)
 
     def checkFinishNotCommitting(self):
-        self._storage.tpc_finish(Transaction())
+        t = Transaction()
+        self._storage.tpc_finish(t)
+        self._storage.tpc_abort(t)
 
     def checkFinishWrongTrans(self):
-        self._storage.tpc_begin(Transaction())
+        t = Transaction()
+        self._storage.tpc_begin(t)
         self._storage.tpc_finish(Transaction())
+        self._storage.tpc_abort(t)
     
     def checkBeginCommitting(self):
         t = Transaction()
         self._storage.tpc_begin(t)
         self._storage.tpc_begin(t)
+        self._storage.tpc_abort(t)
 
     # XXX how to check undo?
