@@ -2,14 +2,14 @@
 #
 # Copyright (c) 2001, 2002 Zope Corporation and Contributors.
 # All Rights Reserved.
-# 
+#
 # This software is subject to the provisions of the Zope Public License,
 # Version 2.0 (ZPL).  A copy of the ZPL should accompany this distribution.
 # THIS SOFTWARE IS PROVIDED "AS IS" AND ANY AND ALL EXPRESS OR IMPLIED
 # WARRANTIES ARE DISCLAIMED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 # WARRANTIES OF TITLE, MERCHANTABILITY, AGAINST INFRINGEMENT, AND FITNESS
 # FOR A PARTICULAR PURPOSE
-# 
+#
 ##############################################################################
 
 import OOBTree, Interface
@@ -78,7 +78,7 @@ class IKeyed(ICollection):
         """
 
 class ISetMutable(IKeyed):
-    
+
     def insert(key):
         """Add the key (value) to the set.
 
@@ -87,7 +87,7 @@ class ISetMutable(IKeyed):
 
     def remove(key):
         """Remove the key from the set."""
-        
+
     def update(seq):
         """Add the items from the given sequence to the set"""
 
@@ -113,7 +113,7 @@ class ITreeSet(IKeyed, ISetMutable):
     pass
 
 class IMinimalDictionary(ISized):
-        
+
     def has_key(key):
         """Check whether the object has an item with the given key"""
 
@@ -205,7 +205,7 @@ class IDictionaryIsh(IKeyed, IMinimalDictionary):
         the minimum value. This normalization may be a noop, but, for
         integer values, the normalization is division.
         """
-    
+
 class IBTree(IDictionaryIsh):
 
     def insert(key, value):
@@ -288,15 +288,13 @@ class IIMerge(IMerge):
     def weightedUnion(c1, c2, weight1=1, weight2=1):
         """Compute the weighted Union of c1 and c2.
 
-        If c1 and c2 are None, the output is 0 and None
+        If c1 and c2 are None, the output is (0, None).
 
-        if c1 is None and c2 is not None, the output is weight2 and
-        c2.
+        If c1 is None and c2 is not None, the output is (weight2, c2).
 
-        if c1 is not None and c2 not None and both sets, the output is 
-        weight1 and c1.
+        If c1 is not None and c2 is None, the output is (weight1, c1).
 
-        If c1 and c2 are not None and not both sets, the output is 1 
+        If c1 and c2 are not None and not both sets, the output is 1
         and a Bucket such that the output values are::
 
           v1*weight1 + v2*weight2
@@ -309,20 +307,18 @@ class IIMerge(IMerge):
             v2 is 0 if the key was not in c2. Otherwise, v2 is 2, if
             c2 is a set, or the value from c2.
 
-        Note that c1 and c2 must be collections. 
+        Note that c1 and c2 must be collections.
 
         """
 
     def weightedIntersection(c1, c2, weight1=1, weight2=1):
         """Compute the weighted intersection of c1 and c2.
 
-        If c1 and c2 are None, the output is None, None.
+        If c1 and c2 are None, the output is (0, None).
 
-        if c1 is None and c2 is not None, the output is weight2 and
-        c2.
+        If c1 is None and c2 is not None, the output is (weight2, c2).
 
-        if c1 is not None and c2 not None, the output is weight1 and
-        c1.
+        If c1 is not None and c2 is None, the output is (weight1, c1).
 
         If c1 and c2 are both sets, the output is the sum of the weights
         and the (unweighted) intersection of the sets.
@@ -340,7 +336,7 @@ class IIMerge(IMerge):
             v2 is 0 if the key was not in c2. Otherwise, v2 is 2, if
             c2 is a set, or the value from c2.
 
-        Note that c1 and c2 must be collections. 
+        Note that c1 and c2 must be collections.
         """
 
 ###############################################################
