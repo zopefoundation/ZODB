@@ -26,7 +26,7 @@ interface, rich transaction support, and undo.
 # Development Status :: 3 - Alpha
 
 classifiers = """\
-Development Status :: 5 - Production/Stable
+Development Status :: 3 - Alpha
 Intended Audience :: Developers
 License :: OSI Approved :: Zope Public License
 Programming Language :: Python
@@ -247,7 +247,7 @@ class MyDistribution(Distribution):
 doclines = __doc__.split("\n")
 
 setup(name="ZODB3",
-      version="3.4a0",
+      version="3.4a1",
       maintainer="Zope Corporation",
       maintainer_email="zodb-dev@zope.org",
       url = "http://www.zope.org/Wikis/ZODB",
