@@ -183,7 +183,10 @@ class ZEOOptions(Options):
                 self.address = (host, port)
         elif opt in ("-f", "--filename"):
             from ZODB.FileStorage import FileStorage
-            self.storages = {"1": (FileStorage, {"file_name": arg})}
+            if not self.storages:
+                self.storages = {}
+            key = str(1 + len(self.storages))
+            self.storages[key] = (FileStorage, {"file_name": arg})
         else:
             # Pass it to the base class, for --help/-h
             Options.handle_option(self, opt, arg)
@@ -273,6 +276,9 @@ class ZEOOptions(Options):
             name = section.name
             if not name:
                 name = str(1 + len(self.storages))
+            if self.storages.has_key(name):
+                # (Actually, the parser doesn't allow this)
+                self.usage("duplicate storage name %r" % name)
             self.storages[name] = ZConfig.Storage.getStorageInfo(section)
 
 
