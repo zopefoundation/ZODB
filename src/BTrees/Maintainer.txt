@@ -169,5 +169,5 @@ More or less random bits of helpful info.
 
 + DEFAULT_MAX_BUCKET_SIZE and DEFAULT_MAX_BTREE_SIZE are chosen
   mostly to "even out" pickle sizes in storage.  That's why, e.g.,
-  an IIBTree has large values than an OOBTree:  pickles store ints
+  an IIBTree has larger values than an OOBTree:  pickles store ints
   more efficiently than they can store arbitrary Python objects.
