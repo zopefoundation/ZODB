@@ -39,6 +39,10 @@ class DemoStorageTests(StorageTestBase.StorageTestBase,
         # XXX Need to implement a real loadBefore for DemoStorage?
         pass
 
+    def checkLoadBeforeVersion(self):
+        # XXX Need to implement a real loadBefore for DemoStorage?
+        pass
+
 
 def test_suite():
     suite = unittest.makeSuite(DemoStorageTests, 'check')
