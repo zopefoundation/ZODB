@@ -23,16 +23,11 @@ from ZEO.zrpc.log import log
 class Marshaller:
     """Marshal requests and replies to second across network"""
 
-    # It's okay to share a single Pickler as long as it's in fast
-    # mode, which means that it doesn't have a memo.
-
-    pickler = cPickle.Pickler()
-    pickler.fast = 1
-    pickle = pickler.dump
-
     def encode(self, msgid, flags, name, args):
         """Returns an encoded message"""
-        return self.pickle((msgid, flags, name, args), 1)
+        pickler = cPickle.Pickler()
+        pickler.fast = 1
+        return pickler.dump((msgid, flags, name, args), 1)
 
     def decode(self, msg):
         """Decodes msg and returns its parts"""
