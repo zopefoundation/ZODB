@@ -47,10 +47,10 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.2 1999/04/28 11:10:48 jim Exp $"""
-__version__='$Revision: 1.2 $'[11:-2]
+$Id: Connection.py,v 1.3 1999/05/07 01:03:02 jim Exp $"""
+__version__='$Revision: 1.3 $'[11:-2]
 
-from PickleCache import PickleCache
+from cPickleCache import PickleCache
 from bpthread import allocate_lock
 from POSException import ConflictError
 from cStringIO import StringIO
@@ -75,7 +75,7 @@ class Connection:
         self._storage=storage
         self.new_oid=storage.new_oid
         self._version=version
-        self._cache=cache=PickleCache(cache_size, cache_deactivate_after)
+        self._cache=cache=PickleCache(self, cache_size, cache_deactivate_after)
         self._incrgc=cache.incrgc
         self._invalidated={}
         lock=allocate_lock()
@@ -94,38 +94,25 @@ class Connection:
         if cache.has_key(oid): return cache[oid]
 
         __traceback_info__=oid
-        p=self._storage.load(oid, self._version)
+        p, serial = self._storage.load(oid, self._version)
         file=StringIO(p)
         unpickler=Unpickler(file)
         unpickler.persistent_load=self._persistent_load
 
         object = unpickler.load()
 
-        if type(object) is tt:
-            klass, args = object
-            if (args is None or
-                not args and not hasattr(klass,'__getinitargs__')):
-                if type(klass) is ct:
-                    object=HelperClass()
-                    object.__class__=klass
-                else: object=klass.__basicnew__()
-            else:
-                object=apply(klass,args)
-                object.__dict__.clear()
+        klass, args = object
+        if (args is None or
+            not args and not hasattr(klass,'__getinitargs__')):
+            object=klass.__basicnew__()
         else:
+            object=apply(klass,args)
             object.__dict__.clear()
-            klass=object.__class__
 
-
-        if type(klass) is ct:
-            d=object.__dict__
-            d['_p_oid']=oid
-            d['_p_jar']=self
-            d['_p_changed']=None
-        else:
-            object._p_oid=oid
-            object._p_jar=self
-            object._p_changed=None
+        object._p_oid=oid
+        object._p_jar=self
+        object._p_changed=None
+        object._p_serial=serial
 
         cache[oid]=object
         return object
@@ -143,18 +130,10 @@ class Connection:
             # to create the instance wo hitting the db, so go for it!
             oid, klass = oid
             if cache.has_key(oid): return cache[oid]
-            if type(klass) is ct:
-                object=HelperClass()
-                object.__class__=klass
-                d=object.__dict__
-                d['_p_oid']=oid
-                d['_p_jar']=self
-                d['_p_changed']=None
-            else:
-                object=klass.__basicnew__()
-                object._p_oid=oid
-                object._p_jar=self
-                object._p_changed=None
+            object=klass.__basicnew__()
+            object._p_oid=oid
+            object._p_jar=self
+            object._p_changed=None
             
             cache[oid]=object
             return object
@@ -236,6 +215,7 @@ class Connection:
                 object=stack[-1]
                 del stack[-1]
                 oid=object._p_oid
+                serial=object._p_serial
                 if self._invalidated.has_key(oid): raise ConflictError, oid
                 cls = object.__class__
                 if hasattr(cls, '__getinitargs__'):
@@ -249,7 +229,7 @@ class Connection:
                 state=object.__getstate__()
                 dump(state)
                 p=file()
-                dbstore(oid,p,version,transaction)
+                object._p_serial=dbstore(oid,serial,p,version,transaction)
                 object._p_changed=0
                 cache[oid]=object
 
@@ -287,7 +267,7 @@ class Connection:
             self._r()
             raise ConflictError, oid
         self._r()
-        p=self._storage.load(oid, self._version)
+        p, serial = self._storage.load(oid, self._version)
         file=StringIO(p)
         unpickler=Unpickler(file)
         unpickler.persistent_load=self._persistent_load
@@ -298,6 +278,7 @@ class Connection:
         else:
             d=object.__dict__
             for k,v in state.items(): d[k]=v
+        object._p_serial=serial
 
     def tpc_abort(self, transaction):
         self._storage.tpc_abort(transaction)

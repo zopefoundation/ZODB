@@ -47,8 +47,8 @@
 ##############################################################################
 """Database objects
 
-$Id: DB.py,v 1.2 1999/04/28 11:10:48 jim Exp $"""
-__version__='$Revision: 1.2 $'[11:-2]
+$Id: DB.py,v 1.3 1999/05/07 01:03:02 jim Exp $"""
+__version__='$Revision: 1.3 $'[11:-2]
 
 import cPickle, cStringIO, sys
 from Connection import Connection
@@ -90,7 +90,7 @@ class DB:
             t=Transaction()
             t.description='initial database creation'
             storage.tpc_begin(t)
-            storage.store('\0\0\0\0\0\0\0\0', file.getvalue(), '', t)
+            storage.store('\0\0\0\0\0\0\0\0', None, file.getvalue(), '', t)
             storage.tpc_finish(t)
 
         # Allocate locks:
@@ -389,8 +389,8 @@ class DB:
     def getCacheDeactivateAfter(self): return self._cache_deactivate_after
     def getCacheSize(self): return self._cache_size
     def getPoolSize(self): return self._pool_size
-    def getVersionCacheDeactivateAfter(self): return
-        self._version_cache_deactivate_after
+    def getVersionCacheDeactivateAfter(self):
+        return self._version_cache_deactivate_after
     def getVersionCacheSize(self): return self._version_cache_size
     def getVersionPoolSize(self): return self._version_pool_size
 

@@ -1,4 +1,4 @@
-static char *what_string = "$Id: cPickleCache.c,v 1.16 1998/11/11 02:00:56 jim Exp $";
+static char *what_string = "$Id: cPickleCache.c,v 1.17 1999/05/07 01:03:03 jim Exp $";
 
 #define ASSIGN(V,E) {PyObject *__e; __e=(E); Py_XDECREF(V); (V)=__e;}
 #define UNLESS(E) if(!(E))
@@ -12,12 +12,10 @@ static char *what_string = "$Id: cPickleCache.c,v 1.16 1998/11/11 02:00:56 jim E
 
 static PyObject *py_reload, *py__p_jar, *py__p_deactivate;
 
-
-/* Declarations for objects of type cCache */
-
 typedef struct {
   PyObject_HEAD
   PyObject *data;
+  PyObject *jar;
   int position;
   int cache_size;
   int cache_age;
@@ -65,8 +63,11 @@ gc_item(ccobject *self, PyObject *key, PyObject *v, long now, int dt)
 	  return PyDict_DelItem(self->data, key);
 	}
 
-      if (dt && v->ob_type->tp_basicsize >= sizeof(cPersistentObject) &&
-	  ((cPersistentObject*)v)->state==cPersistent_UPTODATE_STATE)
+      if (dt && 
+	  (! PyExtensionClass_Check(v)) &&
+	  ((cPersistentObject*)v)->jar==self->jar /* I'm paranoid */ &&
+	  ((cPersistentObject*)v)->state==cPersistent_UPTODATE_STATE
+	  )
 	{
 	  now -= ((cPersistentObject*)v)->atime;
 	  if (now < 0) now += 65536;
@@ -281,13 +282,15 @@ static struct PyMethodDef cc_methods[] = {
 };
 
 static ccobject *
-newccobject(int cache_size, int cache_age)
+newccobject(PyObject *jar, int cache_size, int cache_age)
 {
   ccobject *self;
   
   UNLESS(self = PyObject_NEW(ccobject, &Cctype)) return NULL;
   if(self->data=PyDict_New())
     {
+      self->jar=jar; 
+      Py_INCREF(jar);
       self->position=0;
       self->cache_size=cache_size;
       self->cache_age=cache_age < 1 ? 1 : cache_age;
@@ -312,6 +315,7 @@ static void
 cc_dealloc(ccobject *self)
 {
   Py_XDECREF(self->data);
+  Py_XDECREF(self->jar);
   PyMem_DEL(self);
 }
 
@@ -404,10 +408,24 @@ cc_subscript(ccobject *self, PyObject *key)
   return r;
 }
 
+static PyExtensionClass *Persistent=0;
+
 static int
 cc_ass_sub(ccobject *self, PyObject *key, PyObject *v)
 {
-  if(v) return PyDict_SetItem(self->data, key, v);
+  if(v) 
+    {
+      if (PyExtensionClass_Check(v) ||
+	  (PyExtensionInstance_Check(v) &&
+	   ExtensionClassSubclassInstance_Check(v, Persistent)
+	   )
+	  )	  
+	return PyDict_SetItem(self->data, key, v);
+
+      PyErr_SetString(PyExc_ValueError,
+		      "Cache values must be persistent objects or classes.");
+      return -1;
+    }
   return PyDict_DelItem(self->data, key);
 }
 
@@ -446,8 +464,10 @@ static PyObject *
 cCM_new(PyObject *self, PyObject *args)
 {
   int cache_size=100, cache_age=1000;
-  UNLESS(PyArg_ParseTuple(args, "|ii", &cache_size, &cache_age)) return NULL;
-  return (PyObject*)newccobject(cache_size,cache_age);
+  PyObject *jar;
+
+  UNLESS(PyArg_ParseTuple(args, "O|ii", &jar, &cache_size, &cache_age)) return NULL;
+  return (PyObject*)newccobject(jar, cache_size,cache_age);
 }
 
 static struct PyMethodDef cCM_methods[] = {
@@ -459,9 +479,19 @@ void
 initcPickleCache()
 {
   PyObject *m, *d;
-  char *rev="$Revision: 1.16 $";
+  char *rev="$Revision: 1.17 $";
 
   Cctype.ob_type=&PyType_Type;
+
+  UNLESS(ExtensionClassImported) return;
+
+  /* Get the Persistent base class */
+  UNLESS(m=PyString_FromString(cPersistanceModuleName)) return;
+  ASSIGN(m, PyImport_Import(m));
+  UNLESS(m) return;
+  ASSIGN(m, PyObject_GetAttrString(m, "Persistent"));
+  UNLESS(m) return;
+  Persistent=(PyExtensionClass *)m;
 
   m = Py_InitModule4("cPickleCache", cCM_methods, "",
 		     (PyObject*)NULL,PYTHON_API_VERSION);

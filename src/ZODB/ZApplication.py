@@ -50,9 +50,9 @@
 This module provides a wrapper that causes a database connection to be created
 and used when bobo publishes a bobo_application object.
 """
-__version__='$Revision: 1.1 $'[11:-2]
+__version__='$Revision: 1.2 $'[11:-2]
 
-class BoboApplication:
+class ZApplicationWrapper:
 
     def __init__(self, db, name, klass= None, klass_args= (),
                  version_cookie_name=None):
@@ -94,8 +94,14 @@ class BoboApplication:
         
         return v
 
-    __call__=__bobo_traverse__ # A convenience for command-line use
 
+    def __call__(self, connection=None):
+        db, aname, version_support = self._stuff
+
+        if connection is None:
+            connection=db.open()
+        
+        return connection.root()[aname]
     
 
 class Cleanup: pass

@@ -1,6 +1,6 @@
 /*
 
-  $Id: cPersistence.h,v 1.10 1998/11/11 02:00:56 jim Exp $
+  $Id: cPersistence.h,v 1.11 1999/05/07 01:03:03 jim Exp $
 
   Definitions to facilitate making cPersistent subclasses in C.
 
@@ -15,9 +15,11 @@
 
 #define cPersistent_HEAD   PyObject_HEAD \
   PyObject *jar; \
-  char oid[8]; \
+  PyObject *oid; \
+  char serial[8]; \
   unsigned short atime; \
   signed char state; \
+  unsigned char reserved; \
 
 #define cPersistent_GHOST_STATE -1
 #define cPersistent_UPTODATE_STATE 0
@@ -43,6 +45,8 @@ typedef struct {
 
 static cPersistenceCAPIstruct *cPersistenceCAPI;
 
+#define cPersistanceModuleName "cPersistence"
+
 #define PER_USE_OR_RETURN(O,R) {                        \
   if ((O)->state==cPersistent_GHOST_STATE &&            \
       cPersistenceCAPI->setstate((PyObject*)(O)) < 0)	\
@@ -56,6 +60,10 @@ static cPersistenceCAPIstruct *cPersistenceCAPI;
 #define PER_ALLOW_DEACTIVATION(O)           \
 ((O)->state==cPersistent_STICKY_STATE &&    \
  ((O)->state=cPersistent_UPTODATE_STATE)) 
+
+#define PER_PREVENT_DEACTIVATION(O)           \
+((O)->state==cPersistent_UPTODATE_STATE &&    \
+ ((O)->state=cPersistent_STICKY_STATE)) 
 
 #define PER_DEL(O) Py_XDECREF((O)->jar)
 
