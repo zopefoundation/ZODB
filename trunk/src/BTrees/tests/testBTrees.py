@@ -97,6 +97,9 @@ from BTrees.IIBTree import IIBTree, IIBucket, IISet, IITreeSet
 from BTrees.OIBTree import OIBTree, OIBucket, OISet, OITreeSet
 from unittest import TestCase, TestSuite, JUnitTextTestRunner, VerboseTextTestRunner, makeSuite
 
+from glob import glob
+import os
+
 TextTestRunner = VerboseTextTestRunner
 
 class Base:
@@ -119,8 +122,9 @@ class Base:
         root = None
 
     def _delDB(self):
-        os.system('rm fs_tmp__*')
-                
+        for file in glob('fs_tmp__*'):
+            os.remove(file)
+        
     def testLoadAndStore(self):
         for i in 0, 10, 1000:
             t = self.t.__class__()
