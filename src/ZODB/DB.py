@@ -84,8 +84,8 @@
 ##############################################################################
 """Database objects
 
-$Id: DB.py,v 1.19 1999/11/23 22:55:54 jim Exp $"""
-__version__='$Revision: 1.19 $'[11:-2]
+$Id: DB.py,v 1.20 2000/01/11 19:30:53 jim Exp $"""
+__version__='$Revision: 1.20 $'[11:-2]
 
 import cPickle, cStringIO, sys, POSException, UndoLogCompatible
 from Connection import Connection
@@ -469,6 +469,10 @@ class DB(UndoLogCompatible.UndoLogCompatible):
                         self._r()
                         pool_lock.acquire()
                         self._a()
+                        if len(pool) > 1:
+                            # Note that the pool size will normally be 1 here,
+                            # but it could be higher due to a race condition.
+                            pool_lock.release()
                     else: return
 
             elif len(pool)==1:
@@ -480,6 +484,10 @@ class DB(UndoLogCompatible.UndoLogCompatible):
                 self._r()
                 pool_lock.acquire()
                 self._a()
+                if len(pool) > 1:
+                    # Note that the pool size will normally be 1 here,
+                    # but it could be higher due to a race condition.
+                    pool_lock.release()
 
             c=pool[-1]
             del pool[-1]
