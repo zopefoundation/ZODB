@@ -12,7 +12,7 @@
 
  ****************************************************************************/
 
-#define BTREETEMPLATE_C "$Id: BTreeTemplate.c,v 1.70 2002/06/28 19:58:13 tim_one Exp $\n"
+#define BTREETEMPLATE_C "$Id: BTreeTemplate.c,v 1.71 2002/06/28 20:52:30 tim_one Exp $\n"
 
 /* Sanity-check a BTree.  This is a private helper for BTree_check.  Return:
  *      -1         Error.  If it's an internal inconsistency in the BTree,
@@ -599,7 +599,6 @@ _BTree_set(BTree *self, PyObject *keyarg, PyObject *value,
            int unique, int noval)
 {
     int changed = 0;    /* did I mutate? */
-    int bchanged = 0;   /* do I have a direct bucket child that mutated? */
     int min;            /* index of child I searched */
     BTreeItem *d;       /* self->data[min] */
     int childlength;    /* len(self->data[min].child) */
@@ -634,9 +633,24 @@ _BTree_set(BTree *self, PyObject *keyarg, PyObject *value,
 
     if (SameType_Check(self, d->child))
 	status = _BTree_set(BTREE(d->child), keyarg, value, unique, noval);
-    else
+    else {
+        int bucket_changed = 0;
 	status = _bucket_set(BUCKET(d->child), keyarg,
-	                     value, unique, noval, &bchanged);
+	                     value, unique, noval, &bucket_changed);
+#ifdef PERSISTENT
+	/* If a BTree contains only a single bucket, BTree.__getstate__()
+	 * includes the bucket's entire state, and the bucket doesn't get
+	 * an oid of its own.  So if we have a single oid-less bucket that
+	 * changed, it's *our* oid that should be marked as changed.
+	 */
+	if (bucket_changed
+	    && self->len == 1
+	    && self->data[0].child->oid == NULL)
+	{
+	    changed = 1;
+	}
+#endif
+    }
     if (status == 0) goto Done;
     if (status < 0) goto Error;
     assert(status == 1 || status == 2);
@@ -647,8 +661,7 @@ _BTree_set(BTree *self, PyObject *keyarg, PyObject *value,
      */
     UNLESS(PER_USE(d->child)) goto Error;
     childlength = d->child->len;
-    PER_ALLOW_DEACTIVATION(d->child);
-    PER_ACCESSED(d->child);
+    PER_UNUSE(d->child);
 
     if (value) {
         /* A bucket got bigger -- if it's "too big", split it. */
@@ -687,8 +700,7 @@ _BTree_set(BTree *self, PyObject *keyarg, PyObject *value,
             Bucket *nextbucket;
             UNLESS(PER_USE(d->child)) goto Error;
             nextbucket = BTREE(d->child)->firstbucket;
-            PER_ALLOW_DEACTIVATION(d->child);
-            PER_ACCESSED(d->child);
+            PER_UNUSE(d->child);
 
             Py_XINCREF(nextbucket);
             Py_DECREF(self->firstbucket);
@@ -731,8 +743,7 @@ _BTree_set(BTree *self, PyObject *keyarg, PyObject *value,
             /* 'changed' will be set true by the deletion code following. */
             UNLESS(PER_USE(d->child)) goto Error;
             nextbucket = BUCKET(d->child)->next;
-            PER_ALLOW_DEACTIVATION(d->child);
-            PER_ACCESSED(d->child);
+            PER_UNUSE(d->child);
 
             Py_XINCREF(nextbucket);
             Py_DECREF(self->firstbucket);
@@ -754,19 +765,11 @@ _BTree_set(BTree *self, PyObject *keyarg, PyObject *value,
 
 Done:
 #ifdef PERSISTENT
-    if (changed
-	|| (bchanged                   /* our kid was a bucket & it mutated */
-	    && self->len == 1          /* and we have only one child */
-            && self->data[0].child->oid == NULL /* and it's in our record */
-	   )
-	) {
+    if (changed) {
         if (PER_CHANGED(self) < 0) goto Error;
     }
 #endif
-
-_return:
-    PER_ALLOW_DEACTIVATION(self);
-    PER_ACCESSED(self);
+    PER_UNUSE(self);
     return status;
 
 Error:
@@ -776,8 +779,8 @@ Error:
          */
         _BTree_clear(self);
     }
-    status = -1;
-    goto _return;
+    PER_UNUSE(self);
+    return -1;
 }
 
 /*
