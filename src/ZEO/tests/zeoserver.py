@@ -71,6 +71,7 @@ class ZEOTestServer(asyncore.dispatcher):
     def __init__(self, addr, server, keep):
         self.__super_init()
         self._server = server
+        self._sockets = [self]
         self._keep = keep
         # Count down to zero, the number of connects
         self._count = 1
@@ -105,11 +106,22 @@ class ZEOTestServer(asyncore.dispatcher):
                 for storage in self._server.storages.values():
                     cleanup(storage)
             self.log('exiting')
+            # Close all the other sockets so that we don't have to wait
+            # for os._exit() to get to it before starting the next
+            # server process.
+            for s in self._sockets:
+                s.close()
+            # Now explicitly close the socket returned from accept(),
+            # since it didn't go through the wrapper.
+            sock.close()
             os._exit(0)
         self.log('continuing')
         sock.send('X')
         self._count -= 1
 
+    def register_socket(self, sock):
+        # Register a socket to be closed when server shutsdown.
+        self._sockets.append(sock)
 
 class Suicide(threading.Thread):
     def __init__(self, addr):
@@ -118,7 +130,8 @@ class Suicide(threading.Thread):
 
     def run(self):
         # If this process doesn't exit in 60 seconds, commit suicide
-        time.sleep(60)
+        for i in range(20):
+            time.sleep(5)
         from ZEO.tests.forker import shutdown_zeo_server
         # XXX If the -k option was given to zeoserver, then the process will
         # go away but the temp files won't get cleaned up.
@@ -177,6 +190,7 @@ def main():
         storage.close()
         cleanup(storage)
         sys.exit(2)
+    t.register_socket(serv.dispatcher)
     # Create daemon suicide thread
     d = Suicide(test_addr)
     d.setDaemon(1)
