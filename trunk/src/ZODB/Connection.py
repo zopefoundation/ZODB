@@ -84,8 +84,8 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.6 1999/05/18 15:55:09 jim Exp $"""
-__version__='$Revision: 1.6 $'[11:-2]
+$Id: Connection.py,v 1.7 1999/05/24 21:46:21 jim Exp $"""
+__version__='$Revision: 1.7 $'[11:-2]
 
 from cPickleCache import PickleCache
 from POSException import ConflictError, ExportError
@@ -219,6 +219,13 @@ class Connection(ExportImport.ExportImport):
         self._cache.invalidate(self._invalidated)
 
         return self
+
+    def abort(self, object, transaction):
+        """Abort the object in the transaction.
+
+        This just deactivates the thing.
+        """
+        del object._p_changed
 
     def close(self):
         self._incrgc()
