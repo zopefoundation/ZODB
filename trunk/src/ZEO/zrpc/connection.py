@@ -218,7 +218,7 @@ class Connection(smac.SizedMessageAsyncConnection):
             msg = "Invalid method name: %s on %s" % (name, repr(self.obj))
             raise ZRPCError(msg)
         if __debug__:
-            log("%s%s" % (name, short_repr(args)), level=zLOG.BLATHER)
+            log("calling %s%s" % (name, short_repr(args)), level=zLOG.BLATHER)
 
         meth = getattr(self.obj, name)
         try:
@@ -238,7 +238,7 @@ class Connection(smac.SizedMessageAsyncConnection):
                                 (name, repr(ret)))
         else:
             if __debug__:
-                log("%s return %s" % (name, short_repr(ret)), zLOG.DEBUG)
+                log("%s returns %s" % (name, short_repr(ret)), zLOG.DEBUG)
             if isinstance(ret, Delay):
                 ret.set_sender(msgid, self.send_reply, self.return_error)
             else:
