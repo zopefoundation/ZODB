@@ -5,14 +5,14 @@ Release date: DD-MMM-YYYY
 Connection
 ----------
 
-ZODB intends to raise ConnnectionStateError if an attempt is made to
-close a connection while modifications are pending (the connection is
-involved in a transaction that hasn't been abort()'ed or commit()'ed).
-It was missing the case where the only pending modifications were made
-in subtransactions.  This has been fixed.  If an attempt to close a
-connection with pending subtransactions is made now,
+ZODB intends to raise ConnnectionStateError if an attempt is made to close
+a connection while modifications are pending (the connection is involved in
+a transaction that hasn't been ``abort()``'ed or ``commit()``'ed). It was
+missing the case where the only pending modifications were made in
+subtransactions.  This has been fixed.  If an attempt to close a connection
+with pending subtransactions is made now::
 
-    ``ConnnectionStateError: Cannot close a connection with a pending subtransaction``
+    ConnnectionStateError: Cannot close a connection with a pending subtransaction
 
 is raised.
 
@@ -29,21 +29,38 @@ transaction
   that ZODB intends to prevent committing a transaction in which a
   ReadConflictError occurred; this was an obscure case it missed.
 
-- Growing pains:  ZODB 3.1 and 3.2 had a bug wherein ``Transaction.begin()``
-  didn't abort the current transaction if the only pending changes were in a
-  subtransaction.  In ZODB 3.3, it's intended that transaction managers be
-  used instead of invoking methods directly on Transaction objects, and
-  calling ``begin()`` on a transaction manager didn't have this old bug.
-  However, ``Transaction.begin()`` still exists in 3.3, and it had a worse
-  bug:  it never aborted the transaction (not even if changes were pending
-  outside of subtransactions).  ``Transaction.begin()`` has been changed to
-  abort the transaction, although it's still strongly recommended to invoke
-  ``begin()`` on the relevant transaction manager instead.  For example::
+- Growing pains:  ZODB 3.2 had a bug wherein ``Transaction.begin()`` didn't
+  abort the current transaction if the only pending changes were in a
+  subtransaction.  In ZODB 3.3, it's intended that a transaction manager be
+  used to effect ``begin()`` (instead of invoking ``Transaction.begin()``),
+  and calling ``begin()`` on a transaction manager didn't have this old
+  bug.  However, ``Transaction.begin()`` still exists in 3.3, and it had a
+  worse bug:  it never aborted the transaction (not even if changes were
+  pending outside of subtransactions). ``Transaction.begin()`` has been
+  changed to abort the transaction. ``Transaction.begin()`` is also
+  deprecated.  Don't use it.  Use ``begin()`` on the relevant transaction
+  manager instead.  For example,
 
-    import transaction
-    transaction.begin()
+      >>> import transaction
+      >>> txn = transaction.begin()  # start a txn using the default TM
 
   if using the default ThreadTransactionManager (see news for 3.3a3 below).
+  In 3.3, it's intended that a single Transaction object is used for exactly
+  one transaction.  So, unlike as in 3.2, when somtimes Transaction objects
+  were reused across transactions, but sometimes weren't, when you do
+  ``Transaction.begin()`` in 3.3 a brand new transaction object is
+  created.  That's why this use is deprecated.  Code of the form:
+
+      >>> txn = transaction.get()
+      >>> ...
+      >>> txn.begin()
+      >>> ...
+      >>> txn.commit()
+
+  can't work as intended is 3.3, because ``txn`` is no longer the current
+  Transaction object the instant ``txn.begin()`` returns.
+
+
 
 BTrees
 ------

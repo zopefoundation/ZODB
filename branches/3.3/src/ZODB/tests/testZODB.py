@@ -386,38 +386,57 @@ class ZODBTests(unittest.TestCase):
         # transaction, and, in fact, when this test was written,
         # Transaction.begin() didn't do anything (everything from here
         # down failed).
-        cn = self._db.open()
-        rt = cn.root()
-        rt['a'] = 1
 
-        transaction.get().begin()  # should abort adding 'a' to the root
-        rt = cn.root()
-        self.assertRaises(KeyError, rt.__getitem__, 'a')
+        # Oh, bleech.  Since Transaction.begin is also deprecated, we have
+        # to goof around suppressing the deprecation warning.
+        import warnings
 
-        # A longstanding bug:  this didn't work if changes were only in
-        # subtransactions.
-        transaction.get().begin()
-        rt = cn.root()
-        rt['a'] = 2
-        transaction.get().commit(1)
+        # First verify that Transaction.begin *is* deprecated, by turning
+        # the warning into an error.
+        warnings.filterwarnings("error", category=DeprecationWarning)
+        self.assertRaises(DeprecationWarning, transaction.get().begin)
+        del warnings.filters[0]
 
-        transaction.get().begin()
-        rt = cn.root()
-        self.assertRaises(KeyError, rt.__getitem__, 'a')
+        # Now ignore DeprecationWarnings for the duration.  Use a
+        # try/finally block to ensure we reenable DeprecationWarnings
+        # no matter what.
+        warnings.filterwarnings("ignore", category=DeprecationWarning)
+        try:
+            cn = self._db.open()
+            rt = cn.root()
+            rt['a'] = 1
 
-        # One more time, mixing "top level" and subtransaction changes.
-        transaction.get().begin()
-        rt = cn.root()
-        rt['a'] = 3
-        transaction.get().commit(1)
-        rt['b'] = 4
+            transaction.get().begin()  # should abort adding 'a' to the root
+            rt = cn.root()
+            self.assertRaises(KeyError, rt.__getitem__, 'a')
 
-        transaction.get().begin()
-        rt = cn.root()
-        self.assertRaises(KeyError, rt.__getitem__, 'a')
-        self.assertRaises(KeyError, rt.__getitem__, 'b')
+            # A longstanding bug:  this didn't work if changes were only in
+            # subtransactions.
+            transaction.get().begin()
+            rt = cn.root()
+            rt['a'] = 2
+            transaction.get().commit(1)
 
-        cn.close()
+            transaction.get().begin()
+            rt = cn.root()
+            self.assertRaises(KeyError, rt.__getitem__, 'a')
+
+            # One more time, mixing "top level" and subtransaction changes.
+            transaction.get().begin()
+            rt = cn.root()
+            rt['a'] = 3
+            transaction.get().commit(1)
+            rt['b'] = 4
+
+            transaction.get().begin()
+            rt = cn.root()
+            self.assertRaises(KeyError, rt.__getitem__, 'a')
+            self.assertRaises(KeyError, rt.__getitem__, 'b')
+
+            cn.close()
+
+        finally:
+            del warnings.filters[0]
 
 def test_suite():
     return unittest.makeSuite(ZODBTests, 'check')
