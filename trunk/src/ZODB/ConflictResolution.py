@@ -12,12 +12,16 @@
 #
 ##############################################################################
 import sys
+import logging
 from cStringIO import StringIO
 from cPickle import Unpickler, Pickler
 from pickle import PicklingError
 
 from ZODB.POSException import ConflictError
-import zLOG
+
+BLATHER = 15
+logging.addLevelName("BLATHER", BLATHER)
+logger = logging.getLogger('zodb.ConflictResolution')
 
 ResolvedSerial = 'rs'
 
@@ -39,8 +43,7 @@ def find_global(*args):
         _class_cache[args] = cls
 
         if cls == 1:
-            zLOG.LOG("Conflict Resolution", zLOG.BLATHER,
-                     "Unable to load class", error=sys.exc_info())
+            logger.log(BLATHER, "Unable to load class", exc_info=True)
 
     if cls == 1:
         # Not importable
@@ -136,8 +139,7 @@ def tryToResolveConflict(self, oid, committedSerial, oldSerial, newpickle,
         # the original ConflictError.  A client can recover from a
         # ConflictError, but not necessarily from other errors.  But log
         # the error so that any problems can be fixed.
-        zLOG.LOG("Conflict Resolution", zLOG.ERROR,
-                 "Unexpected error", error=sys.exc_info())
+        logger.error("Unexpected error", exc_info=True)
         return None
 
 class ConflictResolvingStorage:
