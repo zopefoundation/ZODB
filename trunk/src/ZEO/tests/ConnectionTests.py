@@ -25,6 +25,7 @@ import zLOG
 
 import ZEO.ClientStorage
 from ZEO.Exceptions import Disconnected
+from ZEO.zrpc.marshal import Marshaller
 
 from ZODB.Transaction import get_transaction
 from ZODB.POSException import ReadOnlyError
@@ -452,3 +453,39 @@ class ConnectionTests(StorageTestBase.StorageTestBase):
             # inherit from POSException.
         zLOG.LOG("checkReconnection", zLOG.INFO, "finished")
 
+    def checkBadMessage1(self):
+        # not even close to a real message
+        self._bad_message("salty")
+        
+    def checkBadMessage2(self):
+        # just like a real message, but with an unpicklable argument
+        global Hack
+        class Hack:
+            pass
+
+        msg = Marshaller().encode(1, 0, "foo", (Hack(),))
+        self._bad_message(msg)
+        del Hack
+
+    def _bad_message(self, msg):
+        # Establish a connection, then send the server an ill-formatted
+        # request.  Verify that the connection is closed and that it is
+        # possible to establish a new connection.
+        
+        self._storage = self.openClientStorage()
+        self._dostore()
+
+        # break into the internals to send a bogus message
+        zrpc_conn = self._storage._server.rpc
+        zrpc_conn.message_output(msg)
+
+        try:
+            self._dostore()
+        except Disconnected:
+            pass
+        else:
+            self.fail("Server did not disconnect after bogus message")
+
+        self._storage = self.openClientStorage()
+        self._dostore()
+        
