@@ -16,6 +16,7 @@ import unittest
 import ZODB
 import ZODB.FileStorage
 from ZODB.POSException import ReadConflictError, ConflictError
+from ZODB.tests.warnhook import WarningsHook
 
 from persistent import Persistent
 from persistent.mapping import PersistentMapping
@@ -209,6 +210,8 @@ class ZODBTests(unittest.TestCase):
         # not the thread.
         conn1 = self._db.open()
         conn2 = self._db.open()
+        hook = WarningsHook()
+        hook.install()
         try:
             conn1.setLocalTransaction()
             conn2.setLocalTransaction()
@@ -238,9 +241,12 @@ class ZODBTests(unittest.TestCase):
             conn2.sync()
             self.assertEqual(r1['item'], 2)
             self.assertEqual(r2['item'], 2)
+            for msg, obj, filename, lineno in hook.warnings:
+                self.assert_(msg.startswith("getTransaction() is deprecated."))
         finally:
             conn1.close()
             conn2.close()
+            hook.uninstall()
 
     def checkReadConflict(self):
         self.obj = P()
