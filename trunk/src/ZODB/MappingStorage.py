@@ -86,7 +86,7 @@ method::
 and call it to minotor the storage.
 
 """
-__version__='$Revision: 1.4 $'[11:-2]
+__version__='$Revision: 1.5 $'[11:-2]
 
 import POSException, BaseStorage, string, utils
 from TimeStamp import TimeStamp
@@ -136,7 +136,8 @@ class MappingStorage(BaseStorage.BaseStorage):
             if self._index.has_key(oid):
                 old=self._index[oid]
                 oserial=old[:8]
-                if serial != oserial: raise POSException.ConflictError
+                if serial != oserial:
+                    raise POSException.ConflictError(serials=(oserial, serial))
                 
             serial=self._serial
             self._tindex.append((oid,serial+data))
