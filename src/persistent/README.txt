@@ -14,11 +14,6 @@ __getattr__ method, the behavior is like that for regular Python
 classes and for earlier versions of ZODB 3.
 
 For __getattribute__, __setattr__, and __delattr__, it is necessary to
-cal certain methods defined by persistent.Persistent.  Detailed
+call certain methods defined by persistent.Persistent.  Detailed
 examples and documentation is provided in the test module,
 persistent.tests.test_overriding_attrs.
-
-
-
-
-  
