@@ -73,13 +73,13 @@ of the line:
 An import is expressed like this:
 
 \begin{verbatim}
-import defaults.conf
+%import defaults.conf
 \end{verbatim}
 
 while an inclusion is expressed like this:
 
 \begin{verbatim}
-include defaults.conf
+%include defaults.conf
 \end{verbatim}
 
 The resource to be imported or included can be a relative or absolute
@@ -122,9 +122,9 @@ syntactic constraints as key names.
 
 The terminator looks like this:
 
-\begin{verbatim}
+\begin{alltt}
 </\var{section-type}>
-\end{verbatim}
+\end{alltt}
 
 The configuration data in a non-empty section consists of a sequence
 of one or more key-value pairs and sections.  For example:
@@ -195,7 +195,7 @@ The main \module{ZConfig} package exports two convenience functions:
   Load and return a configuration from an opened file object.
   If \var{url} is omitted, one will be computed based on the
   \member{name} attribute of \var{file}, if it exists.  If no URL can
-  be determined, all \keyword{include} statements in the configuration
+  be determined, all \keyword{\%include} statements in the configuration
   must use absolute URLs.
 \end{funcdesc}
 
@@ -240,7 +240,7 @@ should be called only once:
   Load and return a configuration from an opened file object.
   If \var{url} is omitted, one will be computed based on the
   \member{name} attribute of \var{file}, if it exists.  If no URL can
-  be determined, all \keyword{include} statements in the configuration
+  be determined, all \keyword{\%include} statements in the configuration
   must use absolute URLs.
 \end{methoddesc}
 
@@ -249,11 +249,11 @@ subclasses; this should suffice for most context specialization.
 
 \begin{methoddesc}{createImportedSection}{parent, url}
   Create a new section that represents a section loaded using
-  \keyword{import}.  The returned section should be conform to the
+  \keyword{\%import}.  The returned section should be conform to the
   interface of the \class{ImportingConfiguration} class (see the
   \refmodule{ZConfig.Config} module's documentation for more
   information on this interface).  \var{parent} is the section that
-  contains the \keyword{import} statement, and \var{url} is the
+  contains the \keyword{\%import} statement, and \var{url} is the
   resource that will be loaded into the new section.  This method
   should not cause the \method{addImport()} of \var{parent} to be
   called, nor should it cause the resource to actually be loaded.
@@ -293,13 +293,15 @@ subclasses; this should suffice for most context specialization.
   delegate to, or \code{None} if they are not allowed to do so.
 \end{methoddesc}
 
-\begin{methoddesc}{parse}{file, section, url}
+\begin{methoddesc}{parse}{resource, section}
   This method allows subclasses to replace the resource parser.
-  \var{file} is a file object which provides the content of the
-  resource, \var{section} is the section object into which the
-  contents of the resources should be loaded, and \var{url} is the URL
-  from which the resource is being loaded.  The default implementation
-  implements the configuration language described in
+  \var{resource} is an object that represents a configuration source;
+  it has two attributes, \member{file} and \member{url}.  The
+  \member{file} attribute is a file object which provides the content
+  of the resource, and \member{url} is the URL from which the resource
+  is being loaded.  \var{section} is the section object into which the
+  contents of the resources should be loaded.  The default
+  implementation implements the configuration language described in
   section~\ref{syntax} using the \function{Parse()} function provided
   by the \refmodule{ZConfig.ApacheStyle} module.  Providing an
   alternate parser is most easily done by overriding this method and
@@ -308,8 +310,8 @@ subclasses; this should suffice for most context specialization.
 \end{methoddesc}
 
 The following methods are provided to make it easy for parsers to
-support common semantics for the \keyword{import} and
-\keyword{include} statements, if those are defined for the syntax
+support common semantics for the \keyword{\%import} and
+\keyword{\%include} statements, if those are defined for the syntax
 implemented by the alternate parser.
 
 \begin{methoddesc}{importConfiguration}{parent, url}
@@ -331,7 +333,7 @@ implemented by the alternate parser.
 The \module{ZConfig.Config} module provides implementations of the
 standard key-value section.  There are two implementations: the basic
 implementation used for ``internal'' sections, and a subclass that
-provides additional support for the \keyword{import} statement (used
+provides additional support for the \keyword{\%import} statement (used
 for the top level of a configuration and for imported resources).
 
 \begin{classdesc}{Configuration}{type, name, url}
@@ -344,7 +346,7 @@ for the top level of a configuration and for imported resources).
 
 \begin{classdesc}{ImportingConfiguration}{type, name, url}
   A subclass of \class{Configuration} which supports the context
-  needed to support the \keyword{import} directive.  This class
+  needed to support the \keyword{\%import} directive.  This class
   differs from the base class in that it offers an additional method
   and changes the lookup semantics of the \method{get()} method.
 \end{classdesc}
