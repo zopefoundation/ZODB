@@ -1,5 +1,5 @@
-What's new in ZODB3 3.4?
-========================
+What's new in ZODB3 3.4a1?
+==========================
 Release date: DD-MMM-2004
 
 transaction
