@@ -12,7 +12,7 @@
 
  ****************************************************************************/
 
-/* Revision information: $Id: sorters.c,v 1.3 2002/06/06 19:30:42 tim_one Exp $ */
+/* Revision information: $Id: sorters.c,v 1.4 2002/06/12 04:17:48 tim_one Exp $ */
 
 /* The only routine here intended to be used outside the file is
    size_t sort_int4_nodups(int *p, size_t n)
@@ -35,7 +35,6 @@
 
 #include <stdlib.h>
 #include <stddef.h>
-#include <malloc.h>
 #include <memory.h>
 #include <string.h>
 #include <assert.h>
