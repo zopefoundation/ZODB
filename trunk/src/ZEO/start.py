@@ -95,7 +95,6 @@ def setup_signals(storages):
 def main(argv):
     me = argv[0]
     sys.path.insert(0, directory(me, 2))
-    import zLOG
 
     global LOG, INFO, ERROR
     from zLOG import LOG, INFO, WARNING, ERROR, PANIC
@@ -212,7 +211,7 @@ def main(argv):
         os.environ['Z_DEBUG_MODE'] = '1'
     if detailed:
         os.environ['STUPID_LOG_SEVERITY'] = '-300'
-        zLOG.initialize()
+        rotate_logs() # reinitialize zLOG
 
     set_uid(UID)
 
