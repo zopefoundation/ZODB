@@ -382,7 +382,7 @@ class ConnectThread(threading.Thread):
         try:
             (stub, preferred) = self.client.testConnection(c)
         except:
-            log("error in testConnection (%r)" % addr,
+            log("error in testConnection (%r)" % (addr,),
                 level=zLOG.ERROR, error=sys.exc_info())
             c.close()
             # Closing the ZRPC connection will eventually close the
@@ -392,7 +392,7 @@ class ConnectThread(threading.Thread):
             try:
                 self.client.notifyConnected(stub)
             except:
-                log("error in notifyConnected (%r)" % addr,
+                log("error in notifyConnected (%r)" % (addr,),
                     level=zLOG.ERROR, error=sys.exc_info())
                 c.close()
                 return 0
