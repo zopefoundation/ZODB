@@ -96,7 +96,6 @@ def main(argv):
     me = argv[0]
     sys.path.insert(0, directory(me, 2))
     import zLOG
-    zLOG.initialize()
 
     global LOG, INFO, ERROR
     from zLOG import LOG, INFO, WARNING, ERROR, PANIC
