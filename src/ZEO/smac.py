@@ -43,12 +43,12 @@
 """Sized message async connections
 """
 
-__version__ = "$Revision: 1.5 $"[11:-2]
+__version__ = "$Revision: 1.6 $"[11:-2]
 
 import asyncore, string, struct, zLOG
 from zLOG import LOG, INFO, ERROR
 
-class smac(asyncore.dispatcher):
+class SizedMessageAsyncConnection(asyncore.dispatcher):
 
     def __init__(self, sock, addr):
         asyncore.dispatcher.__init__(self, sock)
@@ -102,7 +102,8 @@ class smac(asyncore.dispatcher):
             else:
                 del output[0]
 
-    def handle_close(self): self.close()
+    def handle_close(self):
+        self.close()
 
     def message_output(self, message,
                        pack=struct.pack, len=len):
@@ -115,6 +116,6 @@ class smac(asyncore.dispatcher):
     def log_info(self, message, type='info'):
         if type=='error': type=ERROR
         else: type=INFO
-        LOG('ZEO Server', type, message)
+        LOG('ZEO', type, message)
 
     log=log_info

@@ -42,7 +42,7 @@
 ######################################################################
 """Network ZODB storage client
 """
-__version__='$Revision: 1.5 $'[11:-2]
+__version__='$Revision: 1.6 $'[11:-2]
 
 import struct, time, os, socket, cPickle, string, Sync, zrpc, ClientCache
 import tempfile
@@ -75,7 +75,7 @@ class ClientStorage(BaseStorage.BaseStorage):
                 loop(timeout, use_poll)
             asyncore.loop=loop
 
-        self._call=zrpc.sync(connection)
+        self._call=zrpc.syncRPC(connection)
         self.__begin='tpc_begin_sync'
 
         self._call._write(str(storage))
@@ -101,7 +101,7 @@ class ClientStorage(BaseStorage.BaseStorage):
         BaseStorage.BaseStorage.__init__(self, name)
 
     def becomeAsync(self):
-        self._call=zrpc.async(self._call)
+        self._call=zrpc.asyncRPC(self._call)
         self.__begin='tpc_begin'
 
     def registerDB(self, db, limit):
@@ -276,20 +276,25 @@ class ClientStorage(BaseStorage.BaseStorage):
 
     def undo(self, transaction_id):
         self._lock_acquire()
-        try: return self._call('undo', transaction_id)
+        try:
+            oids=self._call('undo', transaction_id)
+            cinvalidate=self._cache.invalidate
+            for oid in oids: cinvalidate(oid,'')                
+            return oids
         finally: self._lock_release()
 
-    def undoLog(self, version, first, last, filter=None):
-        # Waaaa, we really need to get the filter through
-        # but how can we send it over the wire?
 
-        # I suppose we could try to run the filter in a restricted execution
-        # env.
+    def undoInfo(self, first, last, specification):
+        self._lock_acquire()
+        try:
+            return self._call('undoInfo', first, last, specification)
+        finally: self._lock_release()
 
-        # Maybe .... we are really going to want to pass lambdas, hm.
+    def undoLog(self, first, last, filter=None):
+        if filter is not None: return ()
         
         self._lock_acquire()
-        try: return self._call('undoLog', version, first, last) # Eek!
+        try: return self._call('undoLog', first, last) # Eek!
         finally: self._lock_release()
 
     def versionEmpty(self, version):

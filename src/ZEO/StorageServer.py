@@ -41,10 +41,10 @@
 #   SUCH DAMAGE.
 ######################################################################
 
-__version__ = "$Revision: 1.5 $"[11:-2]
+__version__ = "$Revision: 1.6 $"[11:-2]
 
 import asyncore, socket, string, sys, cPickle
-from smac import smac
+from smac import SizedMessageAsyncConnection
 from ZODB import POSException
 from ZODB.Transaction import Transaction
 import traceback
@@ -129,20 +129,20 @@ storage_methods={}
 for n in ('get_info', 'abortVersion', 'commitVersion', 'history',
           'load', 'modifiedInVersion', 'new_oid', 'pack', 'store',
           'tpc_abort', 'tpc_begin', 'tpc_begin_sync', 'tpc_finish', 'undo',
-          'undoLog', 'versionEmpty',
+          'undoLog', 'undoInfo', 'versionEmpty',
           'zeoLoad', 'zeoVerify',
           ):
     storage_methods[n]=1
 storage_method=storage_methods.has_key
 
 _noreturn=[]
-class Connection(smac):
+class Connection(SizedMessageAsyncConnection):
 
     _transaction=None
     __storage=__storage_id=None
 
     def __init__(self, server, sock, addr):
-        smac.__init__(self, sock, addr)
+        SizedMessageAsyncConnection.__init__(self, sock, addr)
         self.__server=server
         self.__invalidated=[]
         self.__closed=None
@@ -155,7 +155,7 @@ class Connection(smac):
 
         self.__server.unregister_connection(self, self.__storage_id)
         self.__closed=1
-        smac.close(self)
+        SizedMessageAsyncConnection.close(self)
 
     def message_input(self, message):
         if __debug__:
@@ -237,6 +237,12 @@ class Connection(smac):
         if serial != '\0\0\0\0\0\0\0\0':
             self.__invalidated.append(oid, serial, version)
         return newserial
+
+    def undo(self, transaction_id):
+        oids=self.__storage.undo(transaction_id)
+        self.__server.invalidate(
+            self, self.__storage_id, map(lambda oid: (oid,None,''), oids))
+        return oids
 
     def tpc_abort(self, id):
         t=self._transaction
