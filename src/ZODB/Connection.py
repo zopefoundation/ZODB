@@ -13,7 +13,7 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.125 2004/02/26 22:55:51 jeremy Exp $"""
+$Id: Connection.py,v 1.126 2004/02/26 22:57:09 jeremy Exp $"""
 
 import logging
 import sys
@@ -76,6 +76,9 @@ class Connection(ExportImport, object):
 
     You should not instantiate this class directly; instead call the
     open() method of a DB instance.
+
+    In many applications, root() is the only method of the Connection
+    that you will need to use.
     
     Synchronization
 
@@ -112,7 +115,7 @@ class Connection(ExportImport, object):
     @group Other Methods: oldstate, exchange, getDebugInfo, setDebugInfo,
         getTransferCounts
 
-    $Id: Connection.py,v 1.125 2004/02/26 22:55:51 jeremy Exp $
+    $Id: Connection.py,v 1.126 2004/02/26 22:57:09 jeremy Exp $
     """
 
     _tmp = None
@@ -221,6 +224,9 @@ class Connection(ExportImport, object):
         ghostable, then a ghost will be returned.  If the object is
         already in the cache, a reference to the cached object will be
         returned.
+
+        Applications seldom need to call this method, because objects
+        are loaded transparently during attribute lookup.
 
         @return: persistent object
         @rtype: L{IPersistent}
