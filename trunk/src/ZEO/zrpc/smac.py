@@ -13,7 +13,7 @@
 ##############################################################################
 """Sized message async connections
 
-$Id: smac.py,v 1.28 2002/09/27 19:14:16 gvanrossum Exp $
+$Id: smac.py,v 1.29 2002/09/27 19:28:29 gvanrossum Exp $
 """
 
 import asyncore, struct
@@ -181,7 +181,8 @@ class SizedMessageAsyncConnection(asyncore.dispatcher):
                     m = message[:40]+' ...'
                 else:
                     m = message
-                log('smac message_output %s' % `m`, level=zLOG.TRACE)
+                log('message_output %d bytes: %s' % (len(message), `m`),
+                    level=zLOG.TRACE)
 
         if self.__closed:
             raise Disconnected, (
