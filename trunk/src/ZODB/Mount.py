@@ -84,8 +84,8 @@
 ##############################################################################
 """Mounted database support
 
-$Id: Mount.py,v 1.8 2000/12/30 20:04:49 shane Exp $"""
-__version__='$Revision: 1.8 $'[11:-2]
+$Id: Mount.py,v 1.9 2001/01/12 20:57:01 shane Exp $"""
+__version__='$Revision: 1.9 $'[11:-2]
 
 import thread, Persistence, Acquisition
 import ExtensionClass, string, time, sys
@@ -223,7 +223,7 @@ class MountPoint(Persistence.Persistent, Acquisition.Implicit):
 
         mcc = MountedConnectionCloser(self, conn)
         jar.onCloseCallback(mcc)
-        return conn, newMount
+        return conn, newMount, mcc
 
     def _getObjectFromConnection(self, conn):
         obj = self._getMountRoot(conn.root())
@@ -237,20 +237,28 @@ class MountPoint(Persistence.Persistent, Acquisition.Implicit):
         if t is None:
             self._v_connect_error = None
             conn = None
+            newMount = 0
             try:
-                conn, newMount = self._openMountableConnection(parent)
+                conn, newMount, mcc = self._openMountableConnection(parent)
                 data = self._getObjectFromConnection(conn)
-                if newMount:
-                    id = data.getId()
-                    p = string.join(parent.getPhysicalPath() + (id,), '/')
-                    LOG('ZODB', INFO, 'Mounted database %s at %s' %
-                        (self._getMountParams(), p))
             except:
-                # Broken database.
-                if conn is not None:
-                    conn._close_mounted_db = 1
+                # Possibly broken database.
+                if mcc is not None:
+                    # Note that the next line may be a little rash--
+                    # if, for example, a working database throws an
+                    # exception rather than wait for a new connection,
+                    # this will likely cause the database to be closed
+                    # prematurely.  Perhaps DB.py needs a
+                    # countActiveConnections() method.
+                    mcc.setCloseDb()
                 self._logConnectException()
                 raise
+            if newMount:
+                try: id = data.getId()
+                except: id = '???'  # data has no getId() method.  Bad.
+                p = string.join(parent.getPhysicalPath() + (id,), '/')
+                LOG('ZODB', INFO, 'Mounted database %s at %s' %
+                    (self._getMountParams(), p))
         else:
             data = t[0]
 
@@ -308,11 +316,15 @@ class MountedConnectionCloser:
     '''Closes the connection used by the mounted database
     while performing other cleanup.
     '''
+    close_db = 0
 
     def __init__(self, mountpoint, conn):
         # conn is the child connection.
         self.mp = mountpoint
         self.conn = conn
+
+    def setCloseDb(self):
+        self.close_db = 1
 
     def __call__(self):
         # The onCloseCallback handler.
@@ -326,7 +338,7 @@ class MountedConnectionCloser:
             self.conn = None
             self.mp = None
             # Detect whether we should close the database.
-            close_db = getattr(conn, '_close_mounted_db', 0)
+            close_db = self.close_db
             t = mp._v_data
             if t is not None:
                 mp._v_data = None
