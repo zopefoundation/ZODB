@@ -86,6 +86,14 @@ object are cleared.
         ...
     ValueError: I/O operation on closed file
 
+If we open a blob for writing, its write refcount should be nonzero:
+
+    >>> blob2._get_refcounts()
+    (0, 0)
+    >>> b2 = blob2.open('a')
+    >>> blob2._get_refcounts()
+    (0, 1)
+
 While we are testing this, we don't need the storage directory and databases
 anymore:
 
