@@ -13,13 +13,13 @@
 ##############################################################################
 """Test broken-object suppport
 
-$Id: testBroken.py,v 1.1 2004/02/25 12:31:41 jim Exp $
+$Id: testBroken.py,v 1.2 2004/02/25 13:06:12 jim Exp $
 """
 
 import sys
 import unittest
 import persistent
-from transaction import get_transaction
+#from transaction import get_transaction
 from doctest import DocTestSuite
 from ZODB.tests.util import DB
 
