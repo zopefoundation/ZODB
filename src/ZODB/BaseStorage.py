@@ -13,19 +13,21 @@
 ##############################################################################
 """Handy standard storage machinery
 
-$Id: BaseStorage.py,v 1.47 2004/04/13 22:01:51 fdrake Exp $
+$Id: BaseStorage.py,v 1.48 2004/04/17 22:19:30 gintautasm Exp $
 """
 import cPickle
 import threading
 import time
+import logging
 
 import UndoLogCompatible
 import POSException
 from persistent.TimeStamp import TimeStamp
 
-import zLOG
 from ZODB import POSException, utils
 from ZODB.UndoLogCompatible import UndoLogCompatible
+
+log = logging.getLogger("zodb.BaseStorage")
 
 class BaseStorage(UndoLogCompatible):
     """Abstract base class that support storage implementations.
@@ -82,8 +84,7 @@ class BaseStorage(UndoLogCompatible):
 
     def __init__(self, name, base=None):
         self.__name__= name
-        zLOG.LOG(self.__class__.__name__, zLOG.DEBUG,
-                 "create storage %s" % self.__name__)
+        log.debug("create storage %s", self.__name__)
 
         # Allocate locks:
         l = threading.RLock()
