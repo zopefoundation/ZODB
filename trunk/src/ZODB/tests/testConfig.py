@@ -81,7 +81,7 @@ class ZODBConfigTest(ConfigTestBase):
         self.assertRaises(ReadOnlyError, self._test, cfg)
 
     def test_zeo_config(self):
-        self.fail("This test hangs on Debian Linux 2.4.20 i686 unknown")
+        #self.fail("This test hangs on Debian Linux 2.4.20 i686 unknown")
         cfg = """
         <zodb>
           <zeoclient>
