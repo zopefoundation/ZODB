@@ -93,7 +93,8 @@ but that doesn't work unless an object is modified.  sync() will abort
 a transaction and process invalidations.
 
 >>> cn.sync()
->>> cn._txn_time
+>>> print cn._txn_time  # the high-water mark got reset to None
+None
 
 Basic functionality
 -------------------
