@@ -84,9 +84,9 @@
  ****************************************************************************/
 
 static char TimeStamp_module_documentation[] = 
-""
-"\n$Id: TimeStamp.c,v 1.6 2000/03/06 21:09:14 jim Exp $"
-;
+"Defines 64-bit TimeStamp objects used as ZODB serial numbers.\n"
+"\n"
+"\n$Id: TimeStamp.c,v 1.7 2001/03/28 00:28:27 jeremy Exp $\n";
 
 #include <stdlib.h>
 #include <time.h>
@@ -100,10 +100,7 @@ static PyObject *ErrorObject;
 
 /* ----------------------------------------------------- */
 
-static void PyVar_Assign(PyObject **v, PyObject *e) { Py_XDECREF(*v); *v=e;}
-#define ASSIGN(V,E) PyVar_Assign(&(V),(E))
 #define UNLESS(E) if(!(E))
-#define UNLESS_ASSIGN(V,E) ASSIGN(V,E); UNLESS(V)
 #define OBJECT(O) ((PyObject*)(O))
 
 /* Declarations for objects of type TimeStamp */
@@ -156,7 +153,7 @@ TimeStamp_abst(int y, int mo, int d, int m, int s)
 static double gmoff=0, sconv=0;
 
 static int
-TimeStamp_init_gmoff()
+TimeStamp_init_gmoff(void)
 {
   struct tm *t;
   time_t z=0;
@@ -409,7 +406,7 @@ TimeStamp_str(TimeStamp *self)
   int l;
 
   TimeStamp_parts(self);
-  l=sprintf(buf, "%4.4d-%2.2d-%2.2d %2.2d:%2.2d:%lf",
+  l=sprintf(buf, "%4.4d-%2.2d-%2.2d %2.2d:%2.2d:%f",
 	    TimeStamp_y, TimeStamp_m, TimeStamp_d, 
 	    TimeStamp_mi/60, TimeStamp_mi%60, TimeStamp_sec(self));
 
@@ -485,17 +482,17 @@ static struct PyMethodDef Module_Level__methods[] = {
 };
 
 void
-initTimeStamp()
+initTimeStamp(void)
 {
-  PyObject *m, *d;
-  char *rev="$Revision: 1.6 $";
+  PyObject *m, *d, *s;
+  char *rev="$Revision: 1.7 $";
 
   if (TimeStamp_init_gmoff() < 0) return;
   if (! ExtensionClassImported) return;
 
   /* Create the module and add the functions */
   m = Py_InitModule4("TimeStamp", Module_Level__methods,
-		     "Simple time stamps",
+		     TimeStamp_module_documentation,
 		     (PyObject*)NULL,PYTHON_API_VERSION);
 
   /* Add some symbolic constants to the module */
@@ -509,13 +506,13 @@ initTimeStamp()
 
   PyDict_SetItemString(d,"TimeStampType", OBJECT(&TimeStampType));
 
-  ErrorObject = PyString_FromString("TimeStamp.error");
-  PyDict_SetItemString(d, "error", ErrorObject);
+  s = PyString_FromString("TimeStamp.error");
+  if (s == NULL)
+      return;
+  PyDict_SetItemString(d, "error", s);
+  Py_DECREF(s);
 
   PyDict_SetItemString(d, "__version__",
-		       PyString_FromStringAndSize(rev+11,strlen(rev+11)-2));
-  
-  /* Check for errors */
-  if (PyErr_Occurred())
-    Py_FatalError("can't initialize module TimeStamp");
+		       PyString_FromStringAndSize(rev + 11, 
+						  strlen(rev + 11) - 2));
 }
