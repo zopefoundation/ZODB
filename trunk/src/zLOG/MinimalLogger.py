@@ -82,7 +82,7 @@
 # attributions are listed in the accompanying credits file.
 # 
 ##############################################################################
-__version__='$Revision: 1.2 $'[11:-2]
+__version__='$Revision: 1.3 $'[11:-2]
 
 import os, string, sys, time
 
@@ -161,7 +161,7 @@ class stupid_log_write:
                                          trailer="\n", limit=100)
                 print >> _log_dest, lines
             except:
-                print >> _log_dest, "s: %s" % error[:2]
+                print >> _log_dest, "%s: %s" % error[:2]
         _log_dest.flush()
 
 
