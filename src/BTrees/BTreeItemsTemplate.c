@@ -94,6 +94,8 @@ typedef struct {
   char kind;
 } BTreeItems;
 
+#define ITEMS(O)((BTreeItems*)(O))
+
 static PyObject *
 newBTreeItems(char kind, 
               Bucket *lowbucket, int lowoffset,
