@@ -13,7 +13,7 @@
 ##############################################################################
 """Start the server storage.
 
-$Id: start.py,v 1.38 2002/08/01 18:50:28 jeremy Exp $
+$Id: start.py,v 1.39 2002/08/05 21:39:02 jeremy Exp $
 """
 from __future__ import nested_scopes
 
@@ -296,11 +296,9 @@ def main(argv):
 
 def rotate_logs():
     import zLOG
-    if hasattr(zLOG.log_write, 'reinitialize'):
-        zLOG.log_write.reinitialize()
-    else:
-        # Hm, lets at least try to take care of the stupid logger:
-        zLOG._stupid_dest=None
+    init = getattr(zLOG, 'initialize', None)
+    if init is not None:
+        init()
 
 def rotate_logs_handler(signum, frame):
     rotate_logs()
