@@ -1,3 +1,17 @@
+##############################################################################
+#
+# Copyright (c) 2001, 2002 Zope Corporation and Contributors.
+# All Rights Reserved.
+# 
+# This software is subject to the provisions of the Zope Public License,
+# Version 2.0 (ZPL).  A copy of the ZPL should accompany this distribution.
+# THIS SOFTWARE IS PROVIDED "AS IS" AND ANY AND ALL EXPRESS OR IMPLIED
+# WARRANTIES ARE DISCLAIMED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+# WARRANTIES OF TITLE, MERCHANTABILITY, AGAINST INFRINGEMENT, AND FITNESS
+# FOR A PARTICULAR PURPOSE
+# 
+##############################################################################
+
 """Library for forking storage server and connecting client storage"""
 
 import asyncore
@@ -48,7 +62,7 @@ if os.name == "nt":
         args = (sys.executable, script, str(port), storage_name) + args
         d = os.environ.copy()
         d['PYTHONPATH'] = os.pathsep.join(sys.path)
-        pid = os.spawnve(os.P_NOWAIT, sys.executable, args, os.environ)
+        pid = os.spawnve(os.P_NOWAIT, sys.executable, args, d)
         return ('localhost', port), ('localhost', port + 1), pid
 
 else:
