@@ -13,7 +13,7 @@
 ##############################################################################
 """Start the server storage.
 
-$Id: start.py,v 1.40 2002/08/05 21:44:22 jeremy Exp $
+$Id: start.py,v 1.41 2002/08/23 14:26:47 jeremy Exp $
 """
 from __future__ import nested_scopes
 
@@ -305,8 +305,8 @@ def rotate_logs():
         return
     # This will work if the minimal logger is in use, but not if some
     # other logger is active.
-    import zLog.MinimalLogger
-    zLog.MinimalLogger._log.initialize()
+    import zLOG.MinimalLogger
+    zLOG.MinimalLogger._log.initialize()
 
 def rotate_logs_handler(signum, frame):
     rotate_logs()
