@@ -126,8 +126,10 @@ static struct PyMethodDef TreeSet_methods[] = {
    "insert(id,[ignored]) -- Add an id to the set"},
   {"remove",	(PyCFunction)TreeSet_remove,	METH_VARARGS,
    "remove(id) -- Remove a key from the set"},
+#ifdef PERSISTENT
   {"_p_deactivate", (PyCFunction) BTree__p_deactivate,	METH_VARARGS,
    "_p_deactivate() -- Reinitialize from a newly created copy"},
+#endif
   {NULL,		NULL}		/* sentinel */
 };
 
@@ -157,6 +159,9 @@ static PyExtensionClass TreeSetType = {
   0L,0L,
   "Set implemented as sorted tree of items", 
   METHOD_CHAIN(TreeSet_methods),
-  EXTENSIONCLASS_BASICNEW_FLAG | PERSISTENT_TYPE_FLAG 
+  EXTENSIONCLASS_BASICNEW_FLAG 
+#ifdef PERSISTENT
+  | PERSISTENT_TYPE_FLAG 
+#endif
   | EXTENSIONCLASS_NOINSTDICT_FLAG,
 };

@@ -726,17 +726,7 @@ bucket_byValue(Bucket *self, PyObject *args)
   return NULL;
 }
 
-/*
-** bucket__p_deactivate
-**
-** Reinitialization function for persistence machinery; turns this
-** bucket into a ghost (releases contained data)
-**
-** Arguments:	self	The Bucket
-**		args	(unused)
-**
-** Returns:	None
-*/
+#ifdef PERSISTENT
 static PyObject *
 bucket__p_deactivate(Bucket *self, PyObject *args)
 {
@@ -757,6 +747,7 @@ bucket__p_deactivate(Bucket *self, PyObject *args)
   Py_INCREF(Py_None);
   return Py_None;
 }
+#endif
 
 /*
 ** bucket_clear
@@ -980,8 +971,10 @@ static struct PyMethodDef Bucket_methods[] = {
    "get(key[,default]) -- Look up a value\n\n"
    "Return the default (or None) if the key is not found."
   },
+#ifdef PERSISTENT
   {"_p_deactivate", (PyCFunction) bucket__p_deactivate, METH_VARARGS,
    "_p_deactivate() -- Reinitialize from a newly created copy"},
+#endif
   {NULL,		NULL}		/* sentinel */
 };
 
@@ -1065,7 +1058,10 @@ static PyExtensionClass BucketType = {
   0L,0L,
   "Mapping type implemented as sorted list of items", 
   METHOD_CHAIN(Bucket_methods),
-  EXTENSIONCLASS_BASICNEW_FLAG | PERSISTENT_TYPE_FLAG 
+  EXTENSIONCLASS_BASICNEW_FLAG
+#ifdef PERSISTENT
+  | PERSISTENT_TYPE_FLAG 
+#endif
   | EXTENSIONCLASS_NOINSTDICT_FLAG,
 };
 

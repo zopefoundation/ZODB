@@ -85,9 +85,10 @@
 
 static char BTree_module_documentation[] = 
 ""
-"\n$Id: BTreeModuleTemplate.c,v 1.1 2001/02/19 00:09:45 jim Exp $"
+"\n$Id: BTreeModuleTemplate.c,v 1.2 2001/02/19 00:38:41 jim Exp $"
 ;
 
+#ifdef PERSISTENT
 #include "cPersistence.h"
 
 /***************************************************************
@@ -100,9 +101,17 @@ static char BTree_module_documentation[] =
  ? (((O)->state==cPersistent_UPTODATE_STATE) \
     ? ((O)->state=cPersistent_STICKY_STATE) : 1) : 0)
 
-#define Ghost_Test(O) ((O)->state == cPersistent_GHOST_STATE)
 #endif
 /***************************************************************/
+#else
+#include "ExtensionClass.h"
+#define PER_USE_OR_RETURN(self, NULL)
+#define PER_ALLOW_DEACTIVATION(self)
+#define PER_PREVENT_DEACTIVATION(self)
+#define PER_DEL(self)
+#define PER_USE(O) 1
+#define PER_CHANGED(O) 0
+#endif
 
 PyObject *sort_str, *reverse_str;
 
@@ -126,7 +135,11 @@ typedef struct BTreeItemStruct {
 } BTreeItem;
 
 typedef struct Bucket_s {
+#ifdef PERSISTENT
   cPersistent_HEAD
+#else
+  PyObject_HEAD
+#endif
   int size, len;
   struct Bucket_s *next;
   KEY_TYPE *keys;
@@ -140,7 +153,11 @@ static void PyVar_AssignB(Bucket **v, Bucket *e) { Py_XDECREF(*v); *v=e;}
 #define ASSIGNBC(V,E) (Py_INCREF((E)), PyVar_AssignB(&(V),(E)))
 
 typedef struct {
+#ifdef PERSISTENT
   cPersistent_HEAD
+#else
+  PyObject_HEAD
+#endif
   int size, len;
   Bucket *firstbucket;
   BTreeItem *data;
@@ -311,6 +328,7 @@ INITMODULE ()
   UNLESS (PyExtensionClassCAPI=PyCObject_Import("ExtensionClass","CAPI"))
       return;
 
+#ifdef PERSISTENT
   if (cPersistenceCAPI=PyCObject_Import("cPersistence","CAPI"))
     {
 	BucketType.methods.link=cPersistenceCAPI->methods;
@@ -330,6 +348,12 @@ INITMODULE ()
 	TreeSetType.tp_setattro=cPersistenceCAPI->setattro;
     }
   else return;
+#else
+  BTreeType.tp_getattro=PyExtensionClassCAPI->getattro;
+  BucketType.tp_getattro=PyExtensionClassCAPI->getattro;
+  SetType.tp_getattro=PyExtensionClassCAPI->getattro;
+  TreeSetType.tp_getattro=PyExtensionClassCAPI->getattro;
+#endif
 
   BTreeItemsType.ob_type=&PyType_Type;
 
@@ -342,7 +366,7 @@ INITMODULE ()
   d = PyModule_GetDict(m);
 
   PyDict_SetItemString(d, "__version__",
-		       PyString_FromString("$Revision: 1.1 $"));
+		       PyString_FromString("$Revision: 1.2 $"));
 
   PyExtensionClass_Export(d,PREFIX "Bucket", BucketType);
   PyExtensionClass_Export(d,PREFIX "BTree", BTreeType);
