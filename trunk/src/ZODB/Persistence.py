@@ -4,7 +4,7 @@
 __doc__='''Python implementation of persistent base types
 
 
-$Id: Persistence.py,v 1.9 1997/04/22 00:16:50 jim Exp $'''
+$Id: Persistence.py,v 1.10 1997/10/30 18:49:22 jim Exp $'''
 #     Copyright 
 #
 #       Copyright 1996 Digital Creations, L.C., 910 Princess Anne
@@ -60,6 +60,9 @@ $Id: Persistence.py,v 1.9 1997/04/22 00:16:50 jim Exp $'''
 #   (540) 371-6909
 #
 # $Log: Persistence.py,v $
+# Revision 1.10  1997/10/30 18:49:22  jim
+# Changed abort to use jar's abort method.
+#
 # Revision 1.9  1997/04/22 00:16:50  jim
 # Changed to use new cPersistent header.
 #
@@ -92,7 +95,7 @@ $Id: Persistence.py,v 1.9 1997/04/22 00:16:50 jim Exp $'''
 #
 #
 # 
-__version__='$Revision: 1.9 $'[11:-2]
+__version__='$Revision: 1.10 $'[11:-2]
 
 class Persistent:
     """\
@@ -247,7 +250,7 @@ class Persistent:
 	if jar and self._p_changed: jar.store(self,T)
 
     def __inform_abort__(self,T,start_time):
-	try: self._p_jar.oops(self,start_time)
+	try: self._p_jar.abort(self,start_time)
 	except: pass
 
 
