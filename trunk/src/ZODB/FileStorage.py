@@ -184,11 +184,12 @@
 #   may have a back pointer to a version record or to a non-version
 #   record.
 #
-__version__='$Revision: 1.57 $'[11:-2]
+__version__='$Revision: 1.58 $'[11:-2]
 
 import struct, time, os, bpthread, string, base64, sys
 from struct import pack, unpack
 from cPickle import loads
+import POSException
 from POSException import UndoError
 from TimeStamp import TimeStamp
 from lock_file import lock_file
