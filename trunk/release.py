@@ -22,23 +22,30 @@ import re
 # In file filename, replace the first occurrence of regexp pat with
 # string repl.
 def replace(filename, pat, repl):
+    from sys import stderr as e # fileinput hijacks sys.stdout
     foundone = False
     for line in fileinput.input([filename], inplace=True, backup="~"):
         if foundone:
             print line,
         else:
-            new = re.sub(pat, repl, line)
-            if new != line:
+            match = re.search(pat, line)
+            if match is not None:
                 foundone = True
-                print "In %r, replaced:" % filename
-                print "   ", line
-                print "by:"
-                print "   ", new
-            print new,
+
+                new = re.sub(pat, repl, line)
+                print new,
+
+                print >> e, "In %r, replaced:" % filename
+                print >> e, "   ", line
+                print >> e, "by:"
+                print >> e, "   ", new
+
+            else:
+                print line,
 
     if not foundone:
-        print "*" * 60, "Oops!"
-        print "    Failed to find %r in %r" % (pat, filename)
+        print >> e, "*" * 60, "Oops!"
+        print >> e, "    Failed to find %r in %r" % (pat, filename)
 
 def compute_zeoversion(version):
     # ZEO version's trail ZODB versions by one full revision.
@@ -69,7 +76,9 @@ def main(args):
     replace("NEWS.txt",
             r"^Release date: .*",
             "Release date: %s" % date)
-
+    replace("doc/guide/zodb.tex",
+            r"\\release{\S+}",
+            r"\release{%s}" % version)
 if __name__ == "__main__":
     import sys
     main(sys.argv[1:])
