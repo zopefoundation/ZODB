@@ -245,6 +245,45 @@ The main \module{ZConfig} package exports two convenience functions:
   must use absolute URLs.
 \end{funcdesc}
 
+The following exceptions defined by this package:
+
+\begin{excdesc}{ConfigurationError}
+  Base class for exceptions specific to the \module{ZConfig} package.
+  All instances provide a \member{message} attribute that describes
+  the specific error.
+\end{excdesc}
+
+\begin{excdesc}{ConfigurationSyntaxError}
+  Exception raised when a configuration source does not conform to the
+  allowed syntax.  In addition to the \member{message} attribute,
+  exceptions of this type offer the \member{url} and \member{lineno}
+  attributes, which provide the URL and line number at which the error
+  was detected.
+\end{excdesc}
+
+\begin{excdesc}{ConfigurationTypeError}
+\end{excdesc}
+
+\begin{excdesc}{ConfigurationMissingSectionError}
+  Raised when a requested named section is not available.
+\end{excdesc}
+
+\begin{excdesc}{ConfigurationConflictingSectionError}
+  Raised when a request for a section cannot be fulfilled without
+  ambiguity.
+\end{excdesc}
+
+\begin{excdesc}{SubstitutionReplacementError}
+  Raised when the source text contains references to names which are
+  not defined in \var{mapping}.  The attributes \member{source} and
+  \member{name} provide the complete source text and the name
+  (converted to lower case) for which no replacement is defined.
+\end{excdesc}
+
+\begin{excdesc}{SubstitutionSyntaxError}
+  Raised when the source text contains syntactical errors.
+\end{excdesc}
+
 
 \section{\module{ZConfig.Context} --- Application context}
 
@@ -555,38 +594,6 @@ support this interface.
 \end{methoddesc}
 
 
-\section{\module{ZConfig.Common} --- Exceptions}
-
-\declaremodule{}{ZConfig.Common}
-\modulesynopsis{Exceptions for ZConfig.}
-
-\begin{excdesc}{ConfigurationError}
-  Base class for exceptions specific to the \module{ZConfig} package.
-  All instances provide a \member{message} attribute that describes
-  the specific error.
-\end{excdesc}
-
-\begin{excdesc}{ConfigurationSyntaxError}
-  Exception raised when a configuration source does not conform to the
-  allowed syntax.  In addition to the \member{message} attribute,
-  exceptions of this type offer the \member{url} and \member{lineno}
-  attributes, which provide the URL and line number at which the error
-  was detected.
-\end{excdesc}
-
-\begin{excdesc}{ConfigurationTypeError}
-\end{excdesc}
-
-\begin{excdesc}{ConfigurationMissingSectionError}
-  Raised when a requested named section is not available.
-\end{excdesc}
-
-\begin{excdesc}{ConfigurationConflictingSectionError}
-  Raised when a request for a section cannot be fulfilled without
-  ambiguity.
-\end{excdesc}
-
-
 \section{\module{ZConfig.ApacheStyle} --- Apache-style parser}
 
 \declaremodule{}{ZConfig.ApacheStyle}
@@ -659,22 +666,6 @@ This module provides these functions:
 \end{funcdesc}
 
 The following exceptions are defined:
-
-\begin{excdesc}{SubstitutionError}
-  Base class for the specific exceptions raised by this module.
-  This is derived from \exception{ConfigurationError}.
-\end{excdesc}
-
-\begin{excdesc}{SubstitutionReplacementError}
-  Raised when the source text contains references to names which are
-  not defined in \var{mapping}.  The attributes \member{source} and
-  \member{name} provide the complete source text and the name
-  (converted to lower case) for which no replacement is defined.
-\end{excdesc}
-
-\begin{excdesc}{SubstitutionSyntaxError}
-  Raised when the source text contains syntactical errors.
-\end{excdesc}
 
 
 \subsection{Examples}
