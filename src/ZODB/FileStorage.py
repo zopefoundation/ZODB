@@ -184,13 +184,12 @@
 #   may have a back pointer to a version record or to a non-version
 #   record.
 #
-__version__='$Revision: 1.56 $'[11:-2]
+__version__='$Revision: 1.57 $'[11:-2]
 
 import struct, time, os, bpthread, string, base64, sys
 from struct import pack, unpack
 from cPickle import loads
-import POSException
-UndoError = POSException.UndoError
+from POSException import UndoError
 from TimeStamp import TimeStamp
 from lock_file import lock_file
 from utils import t32, p64, U64, cp
@@ -203,7 +202,7 @@ import ConflictResolution
 try: from posix import fsync
 except: fsync=None
 
-StringType=type('')
+from types import StringType
 
 z64='\0'*8
 
@@ -238,7 +237,7 @@ class CorruptedTransactionError(CorruptedFileStorageError): pass
 class CorruptedDataError(CorruptedFileStorageError): pass
 
 class FileStorageQuotaError(FileStorageError,
-                                POSException.StorageSystemError):
+                            POSException.StorageSystemError):
     """File storage quota exceeded
     """
 
