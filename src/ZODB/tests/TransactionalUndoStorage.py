@@ -15,7 +15,7 @@ class TransactionalUndoStorage:
         revid = self._dostore(oid, revid=revid, data=24)
         revid = self._dostore(oid, revid=revid, data=25)
 
-        info =self._storage.undoInfo()
+        info = self._storage.undoInfo()
         tid = info[0]['id']
         # Now start an undo transaction
         self._transaction.note('undo1')
@@ -28,7 +28,7 @@ class TransactionalUndoStorage:
         data, revid = self._storage.load(oid, '')
         assert pickle.loads(data) == 24
         # Do another one
-        info =self._storage.undoInfo()
+        info = self._storage.undoInfo()
         tid = info[2]['id']
         self._transaction.note('undo2')
         self._storage.tpc_begin(self._transaction)
@@ -40,7 +40,7 @@ class TransactionalUndoStorage:
         data, revid = self._storage.load(oid, '')
         assert pickle.loads(data) == 23
         # Try to undo the first record
-        info =self._storage.undoInfo()
+        info = self._storage.undoInfo()
         tid = info[4]['id']
         self._transaction.note('undo3')
         self._storage.tpc_begin(self._transaction)
@@ -54,7 +54,7 @@ class TransactionalUndoStorage:
         self.assertRaises(KeyError,
                           self._storage.load, oid, '')
         # And now let's try to redo the object's creation
-        info =self._storage.undoInfo()
+        info = self._storage.undoInfo()
         tid = info[0]['id']
         self._storage.tpc_begin(self._transaction)
         oids = self._storage.transactionalUndo(tid, self._transaction)
@@ -93,7 +93,7 @@ class TransactionalUndoStorage:
         data, revid2 = self._storage.load(oid2, '')
         assert pickle.loads(data) == 52
         # Now attempt to undo the transaction containing two objects
-        info =self._storage.undoInfo()
+        info = self._storage.undoInfo()
         tid = info[0]['id']
         self._storage.tpc_begin(self._transaction)
         oids = self._storage.transactionalUndo(tid, self._transaction)
@@ -142,7 +142,7 @@ class TransactionalUndoStorage:
         data, revid2 = self._storage.load(oid2, '')
         assert pickle.loads(data) == 52
         # Now attempt to undo the transaction containing two objects
-        info =self._storage.undoInfo()
+        info = self._storage.undoInfo()
         tid = info[0]['id']
         tid1 = info[1]['id']
         self._storage.tpc_begin(self._transaction)
@@ -162,7 +162,7 @@ class TransactionalUndoStorage:
         assert pickle.loads(data) == 50
 
         # Now try to undo the one we just did to undo, whew
-        info =self._storage.undoInfo()
+        info = self._storage.undoInfo()
         tid = info[0]['id']
         self._storage.tpc_begin(self._transaction)
         oids = self._storage.transactionalUndo(tid, self._transaction)
@@ -192,7 +192,7 @@ class TransactionalUndoStorage:
         self._storage.tpc_finish(self._transaction)
         assert revid1 == revid2
         # Now attempt to undo the transaction containing two objects
-        info =self._storage.undoInfo()
+        info = self._storage.undoInfo()
         tid = info[0]['id']
         self._storage.tpc_begin(self._transaction)
         oids = self._storage.transactionalUndo(tid, self._transaction)
@@ -217,7 +217,7 @@ class TransactionalUndoStorage:
         revid1 = self._dostore(oid1, revid=revid1, data=34)
         revid2 = self._dostore(oid2, revid=revid2, data=54)
         # Now attempt to undo the transaction containing two objects
-        info =self._storage.undoInfo()
+        info = self._storage.undoInfo()
         tid = info[1]['id']
         self._storage.tpc_begin(self._transaction)
         oids = self._storage.transactionalUndo(tid, self._transaction)
@@ -238,7 +238,7 @@ class TransactionalUndoStorage:
         revid_b = self._dostore(oid, revid=revid_a, data=52)
         revid_c = self._dostore(oid, revid=revid_b, data=53)
         # Start the undo
-        info =self._storage.undoInfo()
+        info = self._storage.undoInfo()
         tid = info[1]['id']
         self._storage.tpc_begin(self._transaction)
         self.assertRaises(POSException.UndoError,
@@ -269,7 +269,7 @@ class TransactionalUndoStorage:
         # Now modify oid2
         revid2 = self._dostore(oid2, revid=revid2, data=p92)
         assert revid1 <> revid2 and revid2 <> revid_22
-        info =self._storage.undoInfo()
+        info = self._storage.undoInfo()
         tid = info[1]['id']
         self._storage.tpc_begin(self._transaction)
         self.assertRaises(POSException.UndoError,
