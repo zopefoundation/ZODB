@@ -1,16 +1,11 @@
-import sys
-sys.path.insert(0, '.')
-
 import ZODB.FileStorage
 import os, unittest
-import StorageTestBase, BasicStorage, TransactionalUndoStorage
-import VersionStorage, TransactionalUndoVersionStorage
-import PackableStorage
-import Synchronization
-import ConflictResolution
-import HistoryStorage
-import IteratorStorage
-import Corruption
+
+from ZODB.tests import StorageTestBase, BasicStorage, \
+     TransactionalUndoStorage, VersionStorage, \
+     TransactionalUndoVersionStorage, PackableStorage, \
+     Synchronization, ConflictResolution, HistoryStorage, \
+     IteratorStorage, Corruption
 
 class FileStorageTests(
     StorageTestBase.StorageTestBase,
