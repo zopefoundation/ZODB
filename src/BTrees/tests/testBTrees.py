@@ -17,6 +17,7 @@ from unittest import TestCase, TestSuite, TextTestRunner, makeSuite
 from BTrees.OOBTree import OOBTree, OOBucket, OOSet, OOTreeSet
 from BTrees.IOBTree import IOBTree, IOBucket, IOSet, IOTreeSet
 from BTrees.IIBTree import IIBTree, IIBucket, IISet, IITreeSet
+from BTrees.IFBTree import IFBTree, IFBucket, IFSet, IFTreeSet
 from BTrees.OIBTree import OIBTree, OIBucket, OISet, OITreeSet
 
 from BTrees.check import check
@@ -1126,6 +1127,39 @@ class TestIIBTrees(TestCase):
     def _noneraisesvalue(self):
         self.t[1] = None
 
+class TestIFBTrees(TestCase):
+    def setUp(self):
+        self.t = IFBTree()
+
+    def testNonIntegerKeyRaises(self):
+        self.assertRaises(TypeError, self._stringraiseskey)
+        self.assertRaises(TypeError, self._floatraiseskey)
+        self.assertRaises(TypeError, self._noneraiseskey)
+
+    def testNonNumericValueRaises(self):
+        self.assertRaises(TypeError, self._stringraisesvalue)
+        self.assertRaises(TypeError, self._noneraisesvalue)
+        self.t[1] = 1
+        self.t[1] = 1.0
+
+    def _stringraiseskey(self):
+        self.t['c'] = 1
+
+    def _floatraiseskey(self):
+        self.t[2.5] = 1
+
+    def _noneraiseskey(self):
+        self.t[None] = 1
+
+    def _stringraisesvalue(self):
+        self.t[1] = 'c'
+
+    def _floatraisesvalue(self):
+        self.t[1] = 1.4
+
+    def _noneraisesvalue(self):
+        self.t[1] = None
+
 class TestIOSets(TestCase):
     def setUp(self):
         self.t = IOSet()
@@ -1315,6 +1349,9 @@ class DegenerateBTree(TestCase):
 class IIBucketTest(MappingBase):
     def setUp(self):
         self.t = IIBucket()
+class IFBucketTest(MappingBase):
+    def setUp(self):
+        self.t = IFBucket()
 class IOBucketTest(MappingBase):
     def setUp(self):
         self.t = IOBucket()
@@ -1328,6 +1365,9 @@ class OOBucketTest(MappingBase):
 class IITreeSetTest(NormalSetTests):
     def setUp(self):
         self.t = IITreeSet()
+class IFTreeSetTest(NormalSetTests):
+    def setUp(self):
+        self.t = IFTreeSet()
 class IOTreeSetTest(NormalSetTests):
     def setUp(self):
         self.t = IOTreeSet()
@@ -1341,6 +1381,9 @@ class OOTreeSetTest(NormalSetTests):
 class IISetTest(ExtendedSetTests):
     def setUp(self):
         self.t = IISet()
+class IFSetTest(ExtendedSetTests):
+    def setUp(self):
+        self.t = IFSet()
 class IOSetTest(ExtendedSetTests):
     def setUp(self):
         self.t = IOSet()
@@ -1354,6 +1397,9 @@ class OOSetTest(ExtendedSetTests):
 class IIBTreeTest(BTreeTests):
     def setUp(self):
         self.t = IIBTree()
+class IFBTreeTest(BTreeTests):
+    def setUp(self):
+        self.t = IFBTree()
 class IOBTreeTest(BTreeTests):
     def setUp(self):
         self.t = IOBTree()
@@ -1385,17 +1431,20 @@ class TestCmpError(TestCase):
 def test_suite():
     s = TestSuite()
 
-    for klass in (IIBucketTest,  IOBucketTest,  OIBucketTest,  OOBucketTest,
-                  IITreeSetTest, IOTreeSetTest, OITreeSetTest, OOTreeSetTest,
-                  IISetTest,     IOSetTest,     OISetTest,     OOSetTest,
-                  IIBTreeTest,   IOBTreeTest,   OIBTreeTest,   OOBTreeTest,
-                  # Note:  there is no TestOOBTrees.  The next three are
-                  # checking for assorted TypeErrors, and when both keys
-                  # and values oare objects (OO), there's nothing to test.
-                  TestIIBTrees,  TestIOBTrees,  TestOIBTrees,
-                  TestIOSets,
-                  DegenerateBTree,
-                  TestCmpError):
+    for klass in (
+        IIBucketTest, IIBTreeTest, IISetTest, IITreeSetTest,
+        IFBucketTest, IFBTreeTest, IFSetTest, IFTreeSetTest,
+        IOBucketTest, IOBTreeTest, IOSetTest, IOTreeSetTest,
+        OOBucketTest, OOBTreeTest, OOSetTest, OOTreeSetTest,
+        OIBucketTest, OIBTreeTest, OISetTest, OITreeSetTest,
+
+        # Note:  there is no TestOOBTrees.  The next three are
+        # checking for assorted TypeErrors, and when both keys
+        # and values oare objects (OO), there's nothing to test.
+        TestIIBTrees, TestIFBTrees,  TestIOBTrees,  TestOIBTrees,
+        TestIOSets,
+        DegenerateBTree,
+        TestCmpError):
         s.addTest(makeSuite(klass))
 
     return s

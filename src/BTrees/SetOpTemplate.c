@@ -143,7 +143,14 @@ initSetIteration(SetIteration *i, PyObject *s, int useValues)
 #endif
 
 static int
-copyRemaining(Bucket *r, SetIteration *i, int merge, int w)
+copyRemaining(Bucket *r, SetIteration *i, int merge, 
+
+/* See comment # 42 */
+#ifdef MERGE
+              VALUE_TYPE w)
+#else
+              int w)
+#endif
 {
   while (i->position >= 0)
     {
@@ -193,8 +200,25 @@ copyRemaining(Bucket *r, SetIteration *i, int merge, int w)
 static PyObject *
 set_operation(PyObject *s1, PyObject *s2,
               int usevalues1, int usevalues2,
+
+/* Comment # 42
+
+The following ifdef works around a template/type problem
+
+Weights are passed as integers. In particular, the weight passed by
+difference is one.  This works find in the int value and float value
+cases but makes no sense in the object value case.  In the object
+value case, we don't do merging, so we don't use the weights, so it
+doesn't matter what they are. 
+*/
+#ifdef MERGE
+              VALUE_TYPE w1, VALUE_TYPE w2,
+#else
               int w1, int w2,
+#endif
               int c1, int c12, int c2)
+
+
 {
   Bucket *r=0;
   SetIteration i1 = {0,0,0}, i2 = {0,0,0};
@@ -214,9 +238,16 @@ set_operation(PyObject *s1, PyObject *s2,
           SetIteration t;
           int i;
 
+/* See comment # 42 above */
+#ifdef MERGE
+          VALUE_TYPE v;
+#else
+          int v;
+#endif
+
           t=i1; i1=i2; i2=t;
           i=c1; c1=c2; c2=i;
-          i=w1; w1=w2; w2=i;
+          v=w1; w1=w2; w2=v;
         }
 #ifdef MERGE_DEFAULT
       i1.value=MERGE_DEFAULT;
@@ -394,17 +425,20 @@ static PyObject *
 wunion_m(PyObject *ignored, PyObject *args)
 {
   PyObject *o1, *o2;
-  int w1 = 1, w2 = 1;
+  VALUE_TYPE w1 = 1, w2 = 1;
 
-  UNLESS(PyArg_ParseTuple(args, "OO|ii", &o1, &o2, &w1, &w2)) return NULL;
+  UNLESS(PyArg_ParseTuple(args, "OO|" VALUE_PARSE VALUE_PARSE, 
+                          &o1, &o2, &w1, &w2)
+         ) return NULL;
 
   if (o1 == Py_None)
-    return Py_BuildValue("iO", (o2 == Py_None ? 0 : w2), o2);
+    return Py_BuildValue(VALUE_PARSE "O", (o2 == Py_None ? 0 : w2), o2);
   else if (o2 == Py_None)
-    return Py_BuildValue("iO", w1, o1);
+    return Py_BuildValue(VALUE_PARSE "O", w1, o1);
 
   o1 = set_operation(o1, o2, 1, 1, w1, w2, 1, 1, 1);
-  if (o1) ASSIGN(o1, Py_BuildValue("iO", 1, o1));
+  if (o1) 
+    ASSIGN(o1, Py_BuildValue(VALUE_PARSE "O", (VALUE_TYPE)1, o1));
 
   return o1;
 }
@@ -413,18 +447,20 @@ static PyObject *
 wintersection_m(PyObject *ignored, PyObject *args)
 {
   PyObject *o1, *o2;
-  int w1 = 1, w2 = 1;
+  VALUE_TYPE w1 = 1, w2 = 1;
 
-  UNLESS(PyArg_ParseTuple(args, "OO|ii", &o1, &o2, &w1, &w2)) return NULL;
+  UNLESS(PyArg_ParseTuple(args, "OO|" VALUE_PARSE VALUE_PARSE, 
+                          &o1, &o2, &w1, &w2)
+         ) return NULL;
 
   if (o1 == Py_None)
-    return Py_BuildValue("iO", (o2 == Py_None ? 0 : w2), o2);
+    return Py_BuildValue(VALUE_PARSE "O", (o2 == Py_None ? 0 : w2), o2);
   else if (o2 == Py_None)
-    return Py_BuildValue("iO", w1, o1);
+    return Py_BuildValue(VALUE_PARSE "O", w1, o1);
 
   o1 = set_operation(o1, o2, 1, 1, w1, w2, 0, 1, 0);
   if (o1)
-    ASSIGN(o1, Py_BuildValue("iO",
+    ASSIGN(o1, Py_BuildValue(VALUE_PARSE "O",
             ((o1->ob_type == (PyTypeObject*)(&SetType)) ? w2+w1 : 1),
                              o1));
 

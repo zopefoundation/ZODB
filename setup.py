@@ -69,7 +69,7 @@ base_btrees_depends = [
     "src/persistent/cPersistence.h",
     ]
 
-_flavors = {"O": "object", "I": "int"}
+_flavors = {"O": "object", "I": "int", "F": "float"}
 
 KEY_H = "src/BTrees/%skeymacros.h"
 VALUE_H = "src/BTrees/%svaluemacros.h"
@@ -87,7 +87,8 @@ def BTreeExtension(flavor):
         kwargs["define_macros"] = [('EXCLUDE_INTSET_SUPPORT', None)]
     return Extension(name, sources, **kwargs)
 
-exts = [BTreeExtension(flavor) for flavor in ["OO", "IO", "OI", "II", "fs"]]
+exts = [BTreeExtension(flavor)
+        for flavor in ("OO", "IO", "OI", "II", "IF", "fs")]
 
 cPersistence = Extension(name = 'persistent.cPersistence',
                          include_dirs = include,
