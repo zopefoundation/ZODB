@@ -981,6 +981,16 @@ The following exceptions are defined by this package:
   may be \code{None} in some cases.
 \end{excdesc}
 
+\begin{excdesc}{SchemaResourceError}
+  Raised when there's an error locating a resource required by the
+  schema.  This is derived from \exception{SchemaError}.  Instances of
+  this exception class add the attributes \member{filename},
+  \member{package}, and \member{path}, which hold the filename
+  searched for within the package being loaded, the name of the
+  package, and the \code{__path__} attribute of the package itself (or
+  \constant{None} if it isn't a package or could not be imported).
+\end{excdesc}
+
 \begin{excdesc}{SubstitutionReplacementError}
   Raised when the source text contains references to names which are
   not defined in \var{mapping}.  The attributes \member{source} and
