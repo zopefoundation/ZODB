@@ -15,7 +15,7 @@
 """Support for database export and import.
 """
 
-import POSException, string
+import POSException
 
 from utils import p64, u64
 from referencesf import referencesf
