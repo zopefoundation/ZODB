@@ -101,11 +101,17 @@ class Blob(Persistent):
     def _change(self):
         self._p_changed = 1
 
-    def _rc_clear(self):
+    # utility methods which should not cause the object's state to be
+    # loaded if they are called while the object is a ghost.  Thus,
+    # they are named with the _p_ convention and only operate against
+    # other _p_ instance attributes. We conventionally name these methods
+    # and attributes with a _p_blob prefix.
+
+    def _p_blob_clear(self):
         self._p_blob_readers = 0
         self._p_blob_writers = 0
 
-    def _rc_decref(self, mode):
+    def _p_blob_decref(self, mode):
         if mode.startswith('r') or mode == 'U':
             self._p_blob_readers = max(0, self._p_blob_readers - 1)
         elif mode.startswith('w') or mode.startswith('a'):
@@ -113,7 +119,7 @@ class Blob(Persistent):
         else:
             raise AssertionError, 'Unknown mode %s' % mode
 
-    def _get_refcounts(self):
+    def _p_blob_refcounts(self):
         # used by unit tests
         return self._p_blob_readers, self._p_blob_writers
 
@@ -162,14 +168,14 @@ class BlobDataManager:
                 
     def commit(self, object, transaction):
         if not self.subtransaction:
-            self.blob._rc_clear() # clear all blob refcounts
+            self.blob._p_blob_clear() # clear all blob refcounts
             filehandle = self.fhref()
             if filehandle is not None:
                 filehandle.close()
 
     def abort(self, object, transaction):
         if not self.subtransaction:
-            self.blob._rc_clear()
+            self.blob._p_blob_clear()
             filehandle = self.fhref()
             if filehandle is not None:
                 filehandle.close()
@@ -214,7 +220,7 @@ class BlobFile(file):
     def close(self):
         # we don't want to decref twice
         if not self.close_called:
-            self.blob._rc_decref(self.mode)
+            self.blob._p_blob_decref(self.mode)
             self.close_called = True
             super(BlobFile, self).close()
 
