@@ -13,7 +13,7 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.116 2004/01/14 18:42:13 jeremy Exp $"""
+$Id: Connection.py,v 1.117 2004/01/14 18:58:08 jeremy Exp $"""
 
 import logging
 import sys
@@ -295,7 +295,6 @@ class Connection(ExportImport, object):
                 # new object
                 self._creating.append(oid)
             else:
-                #XXX We should never get here
                 if invalid(oid) and not hasattr(object, '_p_resolveConflict'):
                     raise ConflictError(object=obj)
                 self._modified.append(oid)
