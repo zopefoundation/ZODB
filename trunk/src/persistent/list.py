@@ -14,9 +14,9 @@
 
 """Python implementation of persistent list.
 
-$Id: list.py,v 1.5 2003/11/28 16:44:55 jim Exp $"""
+$Id: list.py,v 1.6 2004/02/19 02:59:30 jeremy Exp $"""
 
-__version__='$Revision: 1.5 $'[11:-2]
+__version__='$Revision: 1.6 $'[11:-2]
 
 import persistent
 from UserList import UserList
@@ -53,12 +53,14 @@ class PersistentList(UserList, persistent.Persistent):
         self._p_changed = 1
 
     def __iadd__(self, other):
-        self.__super_iadd(other)
+        L = self.__super_iadd(other)
         self._p_changed = 1
+        return L
 
     def __imul__(self, n):
-        self.__super_imul(n)
+        L = self.__super_imul(n)
         self._p_changed = 1
+        return L
 
     def append(self, item):
         self.__super_append(item)

@@ -13,5 +13,19 @@
 ##############################################################################
 """Provide access to Persistent and PersistentMapping."""
 
-from cPersistence import Persistent
+from cPersistence import Persistent, GHOST, UPTODATE, CHANGED, STICKY
 from cPickleCache import PickleCache
+
+from cPersistence import simple_new
+import copy_reg
+copy_reg.constructor(simple_new)
+
+# Make an interface declaration for Persistent,
+# if zope.interface is available.
+try:
+    from zope.interface import classImplements
+except ImportError:
+    pass
+else:
+    from persistent.interfaces import IPersistent
+    classImplements(Persistent, IPersistent)

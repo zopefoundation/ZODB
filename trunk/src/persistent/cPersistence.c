@@ -14,7 +14,7 @@
 static char cPersistence_doc_string[] =
 "Defines Persistent mixin class for persistent objects.\n"
 "\n"
-"$Id: cPersistence.c,v 1.75 2004/01/08 16:53:15 tim_one Exp $\n";
+"$Id: cPersistence.c,v 1.76 2004/02/19 02:59:30 jeremy Exp $\n";
 
 #include "cPersistence.h"
 #include "structmember.h"
@@ -23,18 +23,14 @@ struct ccobject_head_struct {
     CACHE_HEAD
 };
 
-#define ASSIGN(V,E) {PyObject *__e; __e=(E); Py_XDECREF(V); (V)=__e;}
-#define UNLESS(E) if(!(E))
-#define UNLESS_ASSIGN(V,E) ASSIGN(V,E) UNLESS(V)
+/* These two objects are initialized when the module is loaded */
+static PyObject *TimeStamp, *py_simple_new;
 
 /* Strings initialized by init_strings() below. */
 static PyObject *py_keys, *py_setstate, *py___dict__, *py_timeTime;
 static PyObject *py__p_changed, *py__p_deactivate;
 static PyObject *py___getattr__, *py___setattr__, *py___delattr__;
 static PyObject *py___getstate__;
-
-/* These two objects are initialized when the module is loaded */
-static PyObject *TimeStamp, *py_simple_new;
 
 static int
 init_strings(void)
@@ -59,7 +55,7 @@ init_strings(void)
 static void ghostify(cPersistentObject*);
 
 /* Load the state of the object, unghostifying it.  Upon success, return 1.
- * If an error occurred, re-ghostify the object and return 0.
+ * If an error occurred, re-ghostify the object and return -1.
  */
 static int
 unghostify(cPersistentObject *self)
@@ -82,7 +78,7 @@ unghostify(cPersistentObject *self)
 	r = PyObject_CallMethod(self->jar, "setstate", "O", (PyObject *)self);
         if (r == NULL) {
             ghostify(self);
-            return 0;
+            return -1;
         }
         self->state = cPersistent_UPTODATE_STATE;
         Py_DECREF(r);
@@ -209,6 +205,33 @@ Per__p_deactivate(cPersistentObject *self)
     return Py_None;
 }
 
+static PyObject *
+Per__p_activate(cPersistentObject *self)
+{
+    if (unghostify(self) < 0)
+        return NULL;
+
+    Py_INCREF(Py_None);
+    return Py_None;
+}
+
+static int Per_set_changed(cPersistentObject *self, PyObject *v);
+
+static PyObject *
+Per__p_invalidate(cPersistentObject *self)
+{
+    signed char old_state = self->state;
+
+    if (old_state != cPersistent_GHOST_STATE) {
+        if (Per_set_changed(self, NULL) < 0)
+            return NULL;
+        ghostify(self);
+    }
+    Py_INCREF(Py_None);
+    return Py_None;
+}
+
+
 
 #include "pickle/pickle.c"
 
@@ -230,26 +253,12 @@ static PyObject *
 Per__getstate__(cPersistentObject *self)
 {
     /* XXX Should it be an error to call __getstate__() on a ghost? */
-    if (!unghostify(self))
+    if (unghostify(self) < 0)
         return NULL;
 
     /* XXX shouldn't we increment stickyness? */
     return pickle___getstate__((PyObject*)self);
 }
-
-
-static struct PyMethodDef Per_methods[] = {
-  {"_p_deactivate", (PyCFunction)Per__p_deactivate, METH_NOARGS,
-   "_p_deactivate() -- Deactivate the object"},
-  {"__getstate__", (PyCFunction)Per__getstate__, METH_NOARGS,
-   pickle___getstate__doc },
-
-  PICKLE_SETSTATE_DEF
-  PICKLE_GETNEWARGS_DEF
-  PICKLE_REDUCE_DEF
-
-  {NULL,		NULL}		/* sentinel */
-};
 
 /* The Persistent base type provides a traverse function, but not a
    clear function.  An instance of a Persistent subclass will have
@@ -378,7 +387,7 @@ Per_getattro(cPersistentObject *self, PyObject *name)
     s = PyString_AS_STRING(name);
 
     if (*s != '_' || unghost_getattr(s)) {
-	if (!unghostify(self))
+	if (unghostify(self) < 0)
 	    goto Done;
 	accessed(self);
     }
@@ -389,23 +398,37 @@ Per_getattro(cPersistentObject *self, PyObject *name)
     return result;
 }
 
-/* We need to decide on a reasonable way for a programmer to write
-   an __setattr__() or __delattr__() hook.
+/* Exposed as _p_getattr method.  Test whether base getattr should be used */
+static PyObject *
+Per__p_getattr(cPersistentObject *self, PyObject *name)
+{
+    PyObject *result = NULL;	/* guilty until proved innocent */
+    char *s;
 
-   The ZODB3 has been that if you write a hook, it will be called if
-   the attribute is not an _p_ attribute and after doing any necessary
-   unghostifying.  AMK's guide says modification will not be tracked
-   automatically, so the hook must explicitly set _p_changed; I'm not
-   sure if I believe that.
+    name = convert_name(name);
+    if (!name)
+	goto Done;
+    s = PyString_AS_STRING(name);
 
-   This approach won't work with new-style classes, because type will
-   install a slot wrapper that calls the derived class's __setattr__().
-   That means Persistent's tp_setattro doesn't get a chance to be called.
-   Changing this behavior would require a metaclass.
+    if (*s != '_' || unghost_getattr(s)) 
+      {
+	if (unghostify(self) < 0)
+	    goto Done;
+	accessed(self);
+        result = Py_False;
+      }
+    else
+      result = Py_True;
+      
+    Py_INCREF(result);
 
-   One option for ZODB 3.3 is to require setattr hooks to know about
-   _p_ and to call a prep function before modifying the object's state.
-   That's the solution I like best at the moment.
+  Done:
+    Py_XDECREF(name);
+    return result;
+}
+
+/* 
+   XXX we should probably not allow assignment of __class__ and __dict__.
 */
 
 static int
@@ -420,7 +443,7 @@ Per_setattro(cPersistentObject *self, PyObject *name, PyObject *v)
     s = PyString_AS_STRING(name);
 
     if (strncmp(s, "_p_", 3) != 0) {
-	if (!unghostify(self))
+	if (unghostify(self) < 0)
 	    goto Done;
 	accessed(self);
 	if (strncmp(s, "_v_", 3) != 0
@@ -435,6 +458,72 @@ Per_setattro(cPersistentObject *self, PyObject *name, PyObject *v)
     Py_XDECREF(name);
     return result;
 }
+
+
+static int
+Per_p_set_or_delattro(cPersistentObject *self, PyObject *name, PyObject *v)
+{
+    int result = -1;	/* guilty until proved innocent */
+    char *s;
+
+    name = convert_name(name);
+    if (!name)
+	goto Done;
+    s = PyString_AS_STRING(name);
+
+    if (strncmp(s, "_p_", 3) != 0) 
+      {
+	if (unghostify(self) < 0)
+	    goto Done;
+	accessed(self);
+
+        result = 0;
+      }
+    else
+      {
+        if (PyObject_GenericSetAttr((PyObject *)self, name, v) < 0)
+          goto Done;
+        result = 1;
+      }
+
+ Done:
+    Py_XDECREF(name);
+    return result;
+}
+
+static PyObject *
+Per__p_setattr(cPersistentObject *self, PyObject *args)
+{
+  PyObject *name, *v, *result;
+  int r;
+
+  if (! PyArg_ParseTuple(args, "OO:_p_setattr", &name, &v))
+    return NULL;
+
+  r = Per_p_set_or_delattro(self, name, v);
+  if (r < 0)
+    return NULL;
+
+  result = r ? Py_True : Py_False;
+  Py_INCREF(result);
+  return result;
+}
+
+static PyObject *
+Per__p_delattr(cPersistentObject *self, PyObject *name)
+{
+  int r;
+  PyObject *result;
+
+  r = Per_p_set_or_delattro(self, name, NULL);
+  if (r < 0)
+    return NULL;
+
+  result = r ? Py_True : Py_False;
+  Py_INCREF(result);
+  return result;
+}
+
 
 static PyObject *
 Per_get_changed(cPersistentObject *self)
@@ -589,7 +678,7 @@ Per_get_mtime(cPersistentObject *self)
 {
     PyObject *t, *v;
 
-    if (!unghostify(self))
+    if (unghostify(self) < 0)
 	return NULL;
 
     accessed(self);
@@ -607,13 +696,68 @@ Per_get_mtime(cPersistentObject *self)
     return v;
 }
 
+static PyObject *
+Per_get_state(cPersistentObject *self)
+{
+    return PyInt_FromLong(self->state);
+}
+
 static PyGetSetDef Per_getsets[] = {
     {"_p_changed", (getter)Per_get_changed, (setter)Per_set_changed},
     {"_p_jar", (getter)Per_get_jar, (setter)Per_set_jar},
     {"_p_mtime", (getter)Per_get_mtime},
     {"_p_oid", (getter)Per_get_oid, (setter)Per_set_oid},
     {"_p_serial", (getter)Per_get_serial, (setter)Per_set_serial},
+    {"_p_state", (getter)Per_get_state},
     {NULL}
+};
+
+static struct PyMethodDef Per_methods[] = {
+  {"_p_deactivate", (PyCFunction)Per__p_deactivate, METH_NOARGS,
+   "_p_deactivate() -- Deactivate the object"},
+  {"_p_activate", (PyCFunction)Per__p_activate, METH_NOARGS,
+   "_p_activate() -- Activate the object"},
+  {"_p_invalidate", (PyCFunction)Per__p_invalidate, METH_NOARGS,
+   "_p_invalidate() -- Invalidate the object"},
+  {"_p_getattr", (PyCFunction)Per__p_getattr, METH_O,
+   "_p_getattr(name) -- Test whether the base class must handle the name\n"
+   "\n"
+   "The method unghostifies the object, if necessary.\n"
+   "The method records the object access, if necessary.\n"
+   "\n"
+   "This method should be called by subclass __getattribute__\n"
+   "implementations before doing anything else. If the method\n"
+   "returns True, then __getattribute__ implementations must delegate\n"
+   "to the base class, Persistent.\n"
+  },
+  {"_p_setattr", (PyCFunction)Per__p_setattr, METH_VARARGS,
+   "_p_setattr(name, value) -- Save persistent meta data\n"
+   "\n"
+   "This method should be called by subclass __setattr__ implementations\n"
+   "before doing anything else.  If it returns true, then the attribute\n"
+   "was handled by the base class.\n"
+   "\n"
+   "The method unghostifies the object, if necessary.\n"
+   "The method records the object access, if necessary.\n"
+  },
+  {"_p_delattr", (PyCFunction)Per__p_delattr, METH_O,
+   "_p_delattr(name) -- Delete persistent meta data\n"
+   "\n"
+   "This method should be called by subclass __delattr__ implementations\n"
+   "before doing anything else.  If it returns true, then the attribute\n"
+   "was handled by the base class.\n"
+   "\n"
+   "The method unghostifies the object, if necessary.\n"
+   "The method records the object access, if necessary.\n"
+  },
+  {"__getstate__", (PyCFunction)Per__getstate__, METH_NOARGS,
+   pickle___getstate__doc },
+
+  PICKLE_SETSTATE_DEF
+  PICKLE_GETNEWARGS_DEF
+  PICKLE_REDUCE_DEF
+
+  {NULL,		NULL}		/* sentinel */
 };
 
 /* This module is compiled as a shared library.  Some compilers don't
@@ -669,7 +813,7 @@ typedef int (*intfunctionwithpythonarg)(PyObject*);
 static int
 Per_setstate(cPersistentObject *self)
 {
-    if (!unghostify(self))
+    if (unghostify(self) < 0)
         return -1;
     self->state = cPersistent_STICKY_STATE;
     return 0;
@@ -731,15 +875,28 @@ initcPersistence(void)
     if (PyModule_AddObject(m, "CAPI", s) < 0)
 	return;
 
+    if (PyModule_AddIntConstant(m, "GHOST", cPersistent_GHOST_STATE) < 0)
+	return;
+
+    if (PyModule_AddIntConstant(m, "UPTODATE", cPersistent_UPTODATE_STATE) < 0)
+	return;
+
+    if (PyModule_AddIntConstant(m, "CHANGED", cPersistent_CHANGED_STATE) < 0)
+	return;
+
+    if (PyModule_AddIntConstant(m, "STICKY", cPersistent_STICKY_STATE) < 0)
+	return;
+
     py_simple_new = PyObject_GetAttrString(m, "simple_new");
     if (!py_simple_new)
         return;
 
-    m = PyImport_ImportModule("persistent.TimeStamp");
-    if (!m)
-	return;
-    TimeStamp = PyObject_GetAttrString(m, "TimeStamp");
-    if (!TimeStamp)
-	return;
-    Py_DECREF(m);
+    if (TimeStamp == NULL) {
+        m = PyImport_ImportModule("persistent.TimeStamp");
+        if (!m)
+	    return;
+        TimeStamp = PyObject_GetAttrString(m, "TimeStamp");
+        Py_DECREF(m);
+        /* fall through to immediate return on error */
+    }
 }

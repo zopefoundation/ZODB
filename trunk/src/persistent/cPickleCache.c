@@ -90,7 +90,7 @@ process must skip such objects, rather than deactivating them.
 static char cPickleCache_doc_string[] =
 "Defines the PickleCache used by ZODB Connection objects.\n"
 "\n"
-"$Id: cPickleCache.c,v 1.87 2003/11/28 16:44:55 jim Exp $\n";
+"$Id: cPickleCache.c,v 1.88 2004/02/19 02:59:30 jeremy Exp $\n";
 
 #define DONT_USE_CPERSISTENCECAPI
 #include "cPersistence.h"
@@ -107,11 +107,11 @@ static cPersistenceCAPIstruct *capi;
    ccobject_head in cPersistence.c */
 typedef struct {
     CACHE_HEAD
-    int klass_count;                         /* count of persistent classes */
-    PyObject *data;                          /* oid -> object dict */
-    PyObject *jar;                           /* Connection object */
-    PyObject *setklassstate;                 /* ??? */
-    int cache_size;                          /* target number of items in cache */
+    int klass_count;                     /* count of persistent classes */
+    PyObject *data;                      /* oid -> object dict */
+    PyObject *jar;                       /* Connection object */
+    PyObject *setklassstate;             /* ??? */
+    int cache_size;                      /* target number of items in cache */
 
     /* Most of the time the ring contains only:
        * many nodes corresponding to persistent objects
@@ -138,7 +138,7 @@ static int cc_ass_sub(ccobject *self, PyObject *key, PyObject *v);
 
 /* ---------------------------------------------------------------- */
 
-#define OBJECT_FROM_RING(SELF, HERE, CTX) \
+#define OBJECT_FROM_RING(SELF, HERE) \
     ((cPersistentObject *)(((char *)here) - offsetof(cPersistentObject, ring)))
 
 static int
@@ -167,7 +167,7 @@ scan_gc_items(ccobject *self,int target)
 	   this because the ring lock is held.  We can safely assume
 	   the current ring node is a persistent object now we know it
 	   is not the home */
-        object = OBJECT_FROM_RING(self, here, "scan_gc_items");
+        object = OBJECT_FROM_RING(self, here);
         if (!object)
 	    return -1;
 
@@ -223,7 +223,7 @@ lockgc(ccobject *self, int target_size)
     }
 
     self->ring_lock = 1;
-    if (scan_gc_items(self, target_size)) {
+    if (scan_gc_items(self, target_size) < 0) {
         self->ring_lock = 0;
         return NULL;
     }
@@ -236,7 +236,7 @@ lockgc(ccobject *self, int target_size)
 static PyObject *
 cc_incrgc(ccobject *self, PyObject *args)
 {
-    int n = 1;
+    int obsolete_arg = -999; 
     int starting_size = self->non_ghost_count;
     int target_size = self->cache_size;
 
@@ -250,8 +250,16 @@ cc_incrgc(ccobject *self, PyObject *args)
             target_size = target_size_2;
     }
 
-    if (!PyArg_ParseTuple(args, "|i:incrgc", &n))
+
+    if (!PyArg_ParseTuple(args, "|i:incrgc", &obsolete_arg))
 	return NULL;
+
+    if (obsolete_arg != -999
+        &&
+        (PyErr_Warn(PyExc_DeprecationWarning,
+                    "No argument expected")
+         < 0))
+        return NULL;
 
     return lockgc(self, target_size);
 }
@@ -259,10 +267,13 @@ cc_incrgc(ccobject *self, PyObject *args)
 static PyObject *
 cc_full_sweep(ccobject *self, PyObject *args)
 {
-    int dt = 0;
+    int dt = -999;
+
+    /* XXX This should be deprecated */
+
     if (!PyArg_ParseTuple(args, "|i:full_sweep", &dt))
 	return NULL;
-    if (dt == 0)
+    if (dt == -999)
 	return lockgc(self, 0);
     else
 	return cc_incrgc(self, args);
@@ -271,9 +282,18 @@ cc_full_sweep(ccobject *self, PyObject *args)
 static PyObject *
 cc_minimize(ccobject *self, PyObject *args)
 {
-    int ignored;
+    int ignored = -999;
+
     if (!PyArg_ParseTuple(args, "|i:minimize", &ignored))
 	return NULL;
+
+    if (ignored != -999
+        &&
+        (PyErr_Warn(PyExc_DeprecationWarning,
+                    "No argument expected")
+         < 0))
+        return NULL;
+
     return lockgc(self, 0);
 }
 
@@ -285,6 +305,13 @@ _invalidate(ccobject *self, PyObject *key)
     if (!v)
 	return;
     if (PyType_Check(v)) {
+        /* This looks wrong, but it isn't. We use strong references to types 
+           because they don't have the ring members.
+
+           XXX the result is that we *never* remove classes unless
+           they are modified.
+
+         */
 	if (v->ob_refcnt <= 1) {
 	    self->klass_count--;
 	    if (PyDict_DelItem(self->data, key) < 0)
@@ -372,7 +399,7 @@ cc_klass_items(ccobject *self)
     PyObject *l,*k,*v;
     int p = 0;
 
-    l = PyList_New(PyDict_Size(self->data));
+    l = PyList_New(0);
     if (l == NULL)
 	return NULL;
 
@@ -393,6 +420,45 @@ cc_klass_items(ccobject *self)
     }
 
     return l;
+}
+
+static PyObject *
+cc_debug_info(ccobject *self)
+{
+    PyObject *l,*k,*v;
+    int p = 0;
+
+    l = PyList_New(0);
+    if (l == NULL)
+	return NULL;
+
+    while (PyDict_Next(self->data, &p, &k, &v)) 
+      {
+        if (v->ob_refcnt <= 0)
+          v = Py_BuildValue("Oi", k, v->ob_refcnt);
+
+        else if (! PyType_Check(v) &&
+                 (v->ob_type->tp_basicsize >= sizeof(cPersistentObject))
+                 )
+          v = Py_BuildValue("Oisi", 
+                            k, v->ob_refcnt, v->ob_type->tp_name,
+                            ((cPersistentObject*)v)->state);
+        else
+          v = Py_BuildValue("Ois", k, v->ob_refcnt, v->ob_type->tp_name);
+
+        if (v == NULL)
+          goto err;
+
+        if (PyList_Append(l, v) < 0)
+          goto err;
+      }
+
+    return l;
+
+ err:
+    Py_DECREF(l);
+    return NULL;
+
 }
 
 static PyObject *
@@ -417,7 +483,7 @@ cc_lru_items(ccobject *self)
     here = self->ring_home.r_next;
     while (here != &self->ring_home) {
         PyObject *v;
-        cPersistentObject *object = OBJECT_FROM_RING(self, here, "cc_items");
+        cPersistentObject *object = OBJECT_FROM_RING(self, here);
 
         if (object == NULL) {
             Py_DECREF(l);
@@ -520,15 +586,14 @@ static struct PyMethodDef cc_methods[] = {
     {"klass_items", (PyCFunction)cc_klass_items, METH_NOARGS,
      "List (oid, object) pairs of cached persistent classes."},
     {"full_sweep", (PyCFunction)cc_full_sweep, METH_VARARGS,
-     "full_sweep([age]) -- Perform a full sweep of the cache\n\n"
-     "Supported for backwards compatibility.  If the age argument is 0,\n"
-     "behaves like minimize().  Otherwise, behaves like incrgc()."},
+     "full_sweep() -- Perform a full sweep of the cache."},
     {"minimize",	(PyCFunction)cc_minimize, METH_VARARGS,
      "minimize([ignored]) -- Remove as many objects as possible\n\n"
      "Ghostify all objects that are not modified.  Takes an optional\n"
      "argument, but ignores it."},
     {"incrgc", (PyCFunction)cc_incrgc, METH_VARARGS,
-     "incrgc([n]) -- Perform incremental garbage collection\n\n"
+     "incrgc() -- Perform incremental garbage collection\n\n"
+     "This method had been depricated!"
      "Some other implementations support an optional parameter 'n' which\n"
      "indicates a repetition count; this value is ignored."},
     {"invalidate", (PyCFunction)cc_invalidate, METH_O,
@@ -537,6 +602,8 @@ static struct PyMethodDef cc_methods[] = {
      "get(key [, default]) -- get an item, or a default"},
     {"ringlen", (PyCFunction)cc_ringlen, METH_NOARGS,
      "ringlen() -- Returns number of non-ghost items in cache."},
+    {"debug_info", (PyCFunction)cc_debug_info, METH_NOARGS,
+     "debug_info() -- Returns debugging data about objects in the cache."},
     {NULL, NULL}		/* sentinel */
 };
 
@@ -618,7 +685,7 @@ cc_clear(ccobject *self)
 
     while (self->ring_home.r_next != &self->ring_home) {
 	CPersistentRing *here = self->ring_home.r_next;
-	cPersistentObject *o = OBJECT_FROM_RING(self, here, "cc_clear");
+	cPersistentObject *o = OBJECT_FROM_RING(self, here);
 
 	if (o->cache) {
 	    Py_INCREF(o); /* account for uncounted reference */
@@ -685,7 +752,7 @@ cc_traverse(ccobject *self, visitproc visit, void *arg)
 	return 0;
 
     while (here != &self->ring_home) {
-	cPersistentObject *o = OBJECT_FROM_RING(self, here, "foo");
+	cPersistentObject *o = OBJECT_FROM_RING(self, here);
 	VISIT(o);
 	here = here->r_next;
     }
@@ -722,6 +789,7 @@ cc_add_item(ccobject *self, PyObject *key, PyObject *v)
     PyObject *oid, *object_again, *jar;
     cPersistentObject *p;
 
+    /* Sanity check the value given to make sure it is allowed in the cache */
     if (PyType_Check(v)) {
         /* Its a persistent class, such as a ZClass. Thats ok. */
     }
@@ -743,12 +811,13 @@ cc_add_item(ccobject *self, PyObject *key, PyObject *v)
     oid = PyObject_GetAttr(v, py__p_oid);
     if (oid == NULL)
 	return -1;
-    if (!PyString_Check(oid)) {
+    if (! PyString_Check(oid)) {
         PyErr_Format(PyExc_TypeError,
                      "Cached object oid must be a string, not a %s",
 		     oid->ob_type->tp_name);
 	return -1;
     }
+
     /*  we know they are both strings.
      *  now check if they are the same string.
      */
@@ -836,8 +905,10 @@ cc_del_item(ccobject *self, PyObject *key)
 
     /* unlink this item from the ring */
     v = PyDict_GetItem(self->data, key);
-    if (v == NULL)
+    if (v == NULL) {
+	PyErr_SetObject(PyExc_KeyError, key);
 	return -1;
+    }
 
     if (PyType_Check(v)) {
 	self->klass_count--;
