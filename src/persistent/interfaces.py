@@ -15,18 +15,9 @@
 
 $Id$
 """
-try:
-    from zope.interface import Interface
-    from zope.interface import Attribute
-except ImportError:
 
-    # just allow the module to compile if zope isn't available
-
-    class Interface(object):
-        pass
-
-    def Attribute(s):
-        return s
+from zope.interface import Interface
+from zope.interface import Attribute
 
 class IPersistent(Interface):
     """Python persistent interface

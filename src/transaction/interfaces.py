@@ -15,12 +15,8 @@
 
 $Id$
 """
-try:
-    from zope.interface import Interface
-except ImportError:
-    class Interface:
-        pass
 
+from zope.interface import Interface
 
 class IDataManager(Interface):
     """Data management interface for storing objects transactionally
