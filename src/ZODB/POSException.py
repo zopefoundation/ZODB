@@ -84,8 +84,8 @@
 ##############################################################################
 '''BoboPOS-defined exceptions
 
-$Id: POSException.py,v 1.5 2000/05/24 20:53:34 shane Exp $'''
-__version__='$Revision: 1.5 $'[11:-2]
+$Id: POSException.py,v 1.6 2001/02/08 22:25:59 chrism Exp $'''
+__version__='$Revision: 1.6 $'[11:-2]
 
 
 class POSError(Exception):
@@ -115,7 +115,7 @@ class VersionLockError(VersionError, TransactionError):
     been modified in an unsaved version"""
 
 class UndoError(POSError):
-    """An attempt was made to undo an undoable transaction.
+    """An attempt was made to undo a non-undoable transaction.
     """
 
 class StorageError(POSError):
