@@ -1,5 +1,18 @@
 Zope Enterprise Objects (ZEO) Revision History
 
+  ZEO 0.2.3
+
+    Bugs fixed
+
+      - Versions didn't work. Not even close. :|
+ 
+      - If a client was disconnected from a server during transaction
+        commit, then, when the client was reconnected to the server,
+        attempts to commit transactions caused the client to hang.
+
+      - The server would fail (and successfully automatically restart)
+        if an unpickleable exception was raised.
+
   ZEO 0.2.2
 
     Bugs fixed
