@@ -508,7 +508,8 @@ class ConnectionTests(StorageTestBase.StorageTestBase):
             try:
                 self._dostore()
                 break
-            except ReadOnlyError:
+            except (Disconnected, ReadOnlyError,
+                    select.error, thread.error, socket.error):
                 time.sleep(0.1)
         else:
             self.fail("Couldn't store after starting a read-write server")
