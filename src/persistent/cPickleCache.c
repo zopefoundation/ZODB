@@ -15,7 +15,7 @@
 static char cPickleCache_doc_string[] =
 "Defines the PickleCache used by ZODB Connection objects.\n"
 "\n"
-"$Id: cPickleCache.c,v 1.49 2002/04/02 22:22:03 bwarsaw Exp $\n";
+"$Id: cPickleCache.c,v 1.50 2002/04/03 00:03:32 jeremy Exp $\n";
 
 #define ASSIGN(V,E) {PyObject *__e; __e=(E); Py_XDECREF(V); (V)=__e;}
 #define UNLESS(E) if(!(E))
@@ -691,13 +691,15 @@ cc_add_item(ccobject *self, PyObject *key, PyObject *v)
 	return -1;
     }
 
-    /* XXX Why not self->oid? */
+    /* Can't access v->oid directly because the object might be a
+     *  persistent class.
+     */
     oid = PyObject_GetAttr(v, py__p_oid);
 
     if (oid == NULL)
 	return -1;
     /* XXX key and oid should both be PyString objects */
-    if (PyObject_Cmp(key, oid, &result)) {
+    if (PyObject_Cmp(key, oid, &result) < 0) {
 	Py_DECREF(oid);
 	return -1;
     }
@@ -709,7 +711,6 @@ cc_add_item(ccobject *self, PyObject *key, PyObject *v)
     }
     object_again = object_from_oid(self, key);
     if (object_again) {
-	/* XXX Do we need to check for this? */
 	if (object_again != v) {
 	    Py_DECREF(object_again);
 	    PyErr_SetString(PyExc_ValueError,
@@ -748,8 +749,8 @@ cc_add_item(ccobject *self, PyObject *key, PyObject *v)
     if (PyDict_SetItem(self->data, key, v)) 
 	return -1;
     
-    Py_INCREF(self);
     p = (cPersistentObject *)v;
+    Py_INCREF(self);
     p->cache = (PerCache *)self;
     if (p->state >= 0) {
 	/* insert this non-ghost object into the ring just 
@@ -825,6 +826,11 @@ cc_del_item(ccobject *self, PyObject *key)
 static int
 cc_ass_sub(ccobject *self, PyObject *key, PyObject *v)
 {
+    if (!PyString_Check(key)) {
+	PyErr_Format("cPickleCache key must be a string, not a %s",
+		     key->ob_type->tp_name);
+	return NULL;
+    }
     if (v)
 	return cc_add_item(self, key, v);
     else
@@ -939,38 +945,43 @@ static PyTypeObject Cctype = {
 static ccobject *
 newccobject(PyObject *jar, int cache_size, int cache_age)
 {
-  ccobject *self;
+    ccobject *self;
   
-  UNLESS(self = PyObject_NEW(ccobject, &Cctype)) return NULL;
-  self->setklassstate=self->jar=NULL;
-  if ((self->data=PyDict_New()))
-    {
-      self->jar=jar; 
-      Py_INCREF(jar);
-      UNLESS (self->setklassstate=PyObject_GetAttrString(jar, "setklassstate"))
+    self = PyObject_NEW(ccobject, &Cctype);
+    if (self == NULL)
 	return NULL;
-      self->cache_size=cache_size;
-      self->non_ghost_count=0;
-      self->klass_count=0;
-      self->cache_drain_resistance=0;
-      self->ring_lock=0;
-      self->ring_home.next = &self->ring_home;
-      self->ring_home.prev = &self->ring_home;
-      return self;
+    self->setklassstate = self->jar = NULL;
+    self->data = PyDict_New();
+    if (self->data == NULL) {
+	Py_DECREF(self);
+	return NULL;
     }
-  Py_DECREF(self);
-  return NULL;
+    self->setklassstate = PyObject_GetAttrString(jar, "setklassstate");
+    if (self->setklassstate == NULL) {
+	Py_DECREF(self);
+	return NULL;
+    }
+    self->jar = jar; 
+    Py_INCREF(jar);
+    self->cache_size = cache_size;
+    self->non_ghost_count = 0;
+    self->klass_count = 0;
+    self->cache_drain_resistance = 0;
+    self->ring_lock = 0;
+    self->ring_home.next = &self->ring_home;
+    self->ring_home.prev = &self->ring_home;
+    return self;
 }
 
 static PyObject *
 cCM_new(PyObject *self, PyObject *args)
 {
-  int cache_size=100, cache_age=1000;
-  PyObject *jar;
+    int cache_size=100, cache_age=1000;
+    PyObject *jar;
 
-  UNLESS(PyArg_ParseTuple(args, "O|ii", &jar, &cache_size, &cache_age))
-      return NULL;
-  return (PyObject*)newccobject(jar, cache_size,cache_age);
+    if (!PyArg_ParseTuple(args, "O|ii", &jar, &cache_size, &cache_age))
+	return NULL;
+    return (PyObject*)newccobject(jar, cache_size, cache_age);
 }
 
 static struct PyMethodDef cCM_methods[] = {
