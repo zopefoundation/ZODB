@@ -13,9 +13,9 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.77 2002/10/04 20:44:25 jeremy Exp $"""
+$Id: Connection.py,v 1.78 2002/10/23 19:18:35 jeremy Exp $"""
 
-from cPickleCache import PickleCache, MUCH_RING_CHECKING
+from cPickleCache import PickleCache
 from POSException import ConflictError, ReadConflictError
 from ExtensionClass import Base
 import ExportImport, TmpStore
@@ -30,13 +30,6 @@ from time import time
 from types import StringType, ClassType
 
 global_code_timestamp = 0
-
-if MUCH_RING_CHECKING:
-    # To get rid of this warning, change the define inside
-    # cPickleCache.c and recompile.
-    LOG('ZODB',WARNING,
-        'Using cPickleCache with low performance (but extra debugging checks)')
-del MUCH_RING_CHECKING
 
 def updateCodeTimestamp():
     '''

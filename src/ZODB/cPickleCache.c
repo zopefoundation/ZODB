@@ -88,7 +88,7 @@ process must skip such objects, rather than deactivating them.
 static char cPickleCache_doc_string[] =
 "Defines the PickleCache used by ZODB Connection objects.\n"
 "\n"
-"$Id: cPickleCache.c,v 1.68 2002/06/11 02:34:22 jeremy Exp $\n";
+"$Id: cPickleCache.c,v 1.69 2002/10/23 19:18:35 jeremy Exp $\n";
 
 #define ASSIGN(V,E) {PyObject *__e; __e=(E); Py_XDECREF(V); (V)=__e;}
 #define UNLESS(E) if(!(E))
@@ -159,72 +159,8 @@ object_from_oid(ccobject *self, PyObject *key)
     return v;
 }
 
-/* define this for extra debugging checks, and lousy performance.
-   Not really necessary in production code... disable this before
-   release, providing noone has been reporting and RuntimeErrors
-   that it uses to report problems.
-*/
-
-/* #define MUCH_RING_CHECKING */
-
-#ifdef MUCH_RING_CHECKING
-static int present_in_ring(ccobject *self, CPersistentRing *target);
-static int ring_corrupt(ccobject *self, const char *context);
-
-#define IS_RING_CORRUPT(OBJ, CTX) ring_corrupt((OBJ), (CTX))
-#define OBJECT_FROM_RING(SELF, HERE, CTX) \
-    object_from_ring((SELF), (HERE), (CTX))
-
-static cPersistentObject *
-object_from_ring(ccobject *self, CPersistentRing *here, const char *context)
-{
-    /* Given a position in the LRU ring, return a borrowed
-    reference to the object at that point in the ring. The caller is
-    responsible for ensuring that this ring position really does
-    correspond to a persistent object, although the debugging
-    version will double-check this. */
-
-    PyObject *object;
-
-    /* given a pointer to a ring slot in a cPersistent_HEAD, we want to get
-     * the pointer to the Python object that slot is embedded in.
-     */
-    object = (PyObject *)(((char *)here) - offsetof(cPersistentObject, ring));
-
-    if (!PyExtensionInstance_Check(object)) {
-        PyErr_Format(PyExc_RuntimeError,
-	     "Unexpectedly encountered non-ExtensionClass object in %s",
-		     context);
-        return NULL;
-    }
-    if (!(((PyExtensionClass*)(object->ob_type))->class_flags & PERSISTENT_TYPE_FLAG)) {
-        PyErr_Format(PyExc_RuntimeError,
-	     "Unexpectedly encountered non-persistent object in %s", context);
-        return NULL;
-    }
-    if (((cPersistentObject*)object)->jar != self->jar) {
-        PyErr_Format(PyExc_RuntimeError,
-	     "Unexpectedly encountered object from a different jar in %s",
-		     context);
-        return NULL;
-    }
-    if (((cPersistentObject *)object)->cache != (PerCache *)self) {
-        PyErr_Format(PyExc_RuntimeError,
-		     "Unexpectedly encountered broken ring in %s", context);
-        return NULL;
-    }
-    return (cPersistentObject *)object;
-}
-
-#else /* MUCH_RING_CHECKING */
-
-#define IS_RING_CORRUPT(OBJ, CTX) 0
-
 #define OBJECT_FROM_RING(SELF, HERE, CTX) \
     ((cPersistentObject *)(((char *)here) - offsetof(cPersistentObject, ring)))
-
-#endif
-
 
 static int
 scan_gc_items(ccobject *self,int target)
@@ -238,44 +174,11 @@ scan_gc_items(ccobject *self,int target)
     CPersistentRing placeholder;
     CPersistentRing *here = self->ring_home.next;
 
-#ifdef MUCH_RING_CHECKING
-    int safety_counter = self->cache_size * 10;
-    if (safety_counter < 10000) 
-	safety_counter = 10000;
-#endif
-
     /* Scan through the ring until we either find the ring_home (i.e. start
      * of the ring, or we've ghosted enough objects to reach the target
      * size.
      */
     while (1) {
-        if (IS_RING_CORRUPT(self, "mid-gc")) 
-	    return -1;
-
-#ifdef MUCH_RING_CHECKING
-        if (!safety_counter--) {
-            /* This loop has been running for a very long time.  It is
-               possible that someone loaded a very large number of objects,
-               and now wants us to blow them all away. However it may also
-               indicate a logic error. If the loop has been running this
-               long then you really have to doubt it will ever terminate.
-               In the MUCH_RING_CHECKING build we prefer to raise an
-               exception here
-            */
-            PyErr_SetString(PyExc_RuntimeError,
-			    "scan_gc_items safety counter exceeded");
-            return -1;
-        }
-
-        if (!present_in_ring(self, here)) {
-            /* Our current working position is no longer in the ring. 
-	       That's bad. */ 
-            PyErr_SetString(PyExc_RuntimeError,
-		    "working position fell out the ring, in scan_gc_items");
-            return -1;
-        }
-#endif
-
 	/* back to the home position. stop looking */
         if (here == &self->ring_home)
             return 0;
@@ -345,8 +248,6 @@ lockgc(ccobject *self, int target_size)
         return Py_None;
     }
 
-    if (IS_RING_CORRUPT(self, "pre-gc")) 
-	return NULL;
     ENGINE_NOISE("<");
     self->ring_lock = 1;
     if (scan_gc_items(self, target_size)) {
@@ -355,8 +256,6 @@ lockgc(ccobject *self, int target_size)
     }
     self->ring_lock = 0;
     ENGINE_NOISE(">\n");
-    if (IS_RING_CORRUPT(self, "post-gc")) 
-	return NULL;
 
     Py_INCREF(Py_None);
     return Py_None;
@@ -549,9 +448,6 @@ cc_lru_items(ccobject *self, PyObject *args)
         return NULL;
     }
 
-    if (IS_RING_CORRUPT(self, "pre-cc_items")) 
-	return NULL;
-
     l = PyList_New(0);
     if (l == NULL) 
 	return NULL;
@@ -701,9 +597,6 @@ cc_getattr(ccobject *self, char *name)
 {
   PyObject *r;
 
-  if (IS_RING_CORRUPT(self, "getattr")) 
-      return NULL;
-
   if(*name=='c')
     {
       if(strcmp(name,"cache_age")==0)
@@ -775,9 +668,6 @@ static PyObject *
 cc_subscript(ccobject *self, PyObject *key)
 {
     PyObject *r;
-
-    if (IS_RING_CORRUPT(self, "__getitem__")) 
-	return NULL;
 
     r = (PyObject *)object_from_oid(self, key);
     if (r == NULL) {
@@ -884,8 +774,6 @@ cc_add_item(ccobject *self, PyObject *key, PyObject *v)
 	*/
     }
     
-    if (IS_RING_CORRUPT(self, "pre-setitem")) 
-	return -1;
     if (PyDict_SetItem(self->data, key, v) < 0) 
 	return -1;
     
@@ -906,10 +794,7 @@ cc_add_item(ccobject *self, PyObject *key, PyObject *v)
 	Py_DECREF(v);
     }
     
-    if (IS_RING_CORRUPT(self, "post-setitem")) 
-	return -1;
-    else
-	return 0;
+    return 0;
 }
 
 static int
@@ -919,9 +804,6 @@ cc_del_item(ccobject *self, PyObject *key)
     cPersistentObject *p;
 
     /* unlink this item from the ring */
-    if (IS_RING_CORRUPT(self, "pre-delitem")) 
-	return -1;
-
     v = (PyObject *)object_from_oid(self, key);
     if (v == NULL)
 	return -1;
@@ -957,9 +839,6 @@ cc_del_item(ccobject *self, PyObject *key)
 	return -1;
     }
 
-    if (IS_RING_CORRUPT(self, "post-delitem")) 
-	return -1;
-
     return 0;
 }
 
@@ -977,101 +856,6 @@ cc_ass_sub(ccobject *self, PyObject *key, PyObject *v)
     else
 	return cc_del_item(self, key);
 }
-
-#ifdef MUCH_RING_CHECKING
-static int 
-_ring_corrupt(ccobject *self, const char *context)
-{
-    CPersistentRing *here = &(self->ring_home);
-
-    /* Determine the number of objects we expect to see in the ring.
-     * Normally this is one for the home node plus one for each
-     * non-ghost object, for which we maintain a separate total. If the
-     * ring is unlocked then this value should be precise; there should
-     * be no foreign nodes in the ring. If locked, it may be an
-     * underestimate */
-    int expected = 1 + self->non_ghost_count;
-
-    int total = 0;
-    do {
-        if (++total > (expected + 10))
-            /* ring too big, by a large margin. This probably
-             * means we are stomping through random memory. Abort
-             * now, and maybe we can deliver this error message
-             * before dumping core */ 
-	    return 3;            
-        if (!here->next)
-	    return 4;                      /* various linking problems */
-        if (!here->prev) 
-	    return 5;
-        if (!here->next->prev) 
-	    return 7;
-        if (!here->prev->next) 
-	    return 8;
-        if (here->prev->next != here) 
-	    return 9;
-        if (here->next->prev != here) 
-	    return 10;
-        if (!self->ring_lock) {
-            /* If the ring is unlocked, then it must not contain
-	     * objects other than persistent instances (and the home) */ 
-            if (here != &self->ring_home) {
-                cPersistentObject *object = OBJECT_FROM_RING(self, here, 
-							     context);
-                if (!object) 
-		    return 12;
-                if (object->state == cPersistent_GHOST_STATE)
-		    /* ghost objects should not be in the ring, according
-                     * to the ghost storage regime. Experience shows
-                     * that this error condition is likely to be caused
-                     * by a race condition bug somewhere */
-                    return 13;
-            }
-        }
-        here = here->next;
-    } while (here != &self->ring_home);
-
-    if (self->ring_lock) {
-        if (total < expected)
-            /* ring is too small.
-               too big is ok when locked, we have already checked it is
-               not too big */ 
-	    return 6;       
-    } else {
-        if (total != expected) 
-	    return 14;     /* ring size wrong, or bad ghost accounting */
-    }
-
-    return 0;
-}
-
-static int 
-ring_corrupt(ccobject *self, const char *context)
-{
-    int code = _ring_corrupt(self, context);
-    if (code) {
-	if (!PyErr_Occurred())
-	    PyErr_Format(PyExc_RuntimeError,
-			 "broken ring (code %d) in %s, size %d",
-			 code, context, PyDict_Size(self->data));
-        return code;
-    }
-    return 0;
-}
-
-static int
-present_in_ring(ccobject *self,CPersistentRing *target)
-{
-    CPersistentRing *here = self->ring_home.next;
-    while (1) {
-        if (here == target) 
-            return 1;
-        if (here == &self->ring_home)
-            return 0; /* back to the home position, and we didnt find it */
-        here = here->next;
-    }
-}
-#endif /* MUCH_RING_CHECKING */
 
 static PyMappingMethods cc_as_mapping = {
   (inquiry)cc_length,		/*mp_length*/
@@ -1174,10 +958,4 @@ initcPickleCache(void)
   d = PyModule_GetDict(m);
 
   PyDict_SetItemString(d, "cache_variant", PyString_FromString("stiff/c"));
-
-#ifdef MUCH_RING_CHECKING
-  PyDict_SetItemString(d, "MUCH_RING_CHECKING", PyInt_FromLong(1));
-#else
-  PyDict_SetItemString(d, "MUCH_RING_CHECKING", PyInt_FromLong(0));
-#endif
 }
