@@ -153,6 +153,7 @@ class Tracer(object):
                           "at", drec.pos)
                 result = True
                 self.oids[oid] += 1
+                self.oid2name[oid] = oidclass
 
             for ref, klass in get_refs(pick):
                 if klass is None:
@@ -171,9 +172,6 @@ class Tracer(object):
                     self._msg(oid, tid, "references", oid_repr(ref), klass,
                               "at", pos)
                     result = True
-
-            if oidclass is not None:
-                self.oid2name[oid] = oidclass
 
         elif oid in self.oids:
             # Or maybe it's a version abort.
