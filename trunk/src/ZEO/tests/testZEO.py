@@ -222,10 +222,12 @@ class ConnectionTests(ZEOTestBase):
     start and stop a ZEO storage server.
     """
     
-    ports = range(29000, 30000, 10) # enough for 100 tests
-    random.shuffle(ports)
+    __super_setUp = StorageTestBase.StorageTestBase.setUp
 
-    __super_tearDown = StorageTestBase.StorageTestBase.tearDown
+    ports = []
+    for i in range(200):
+        ports.append(random.randrange(25000, 30000))
+    del i
 
     def openClientStorage(self, cache='', cache_size=200000, wait=1):
         # defined by subclasses
@@ -302,11 +304,16 @@ class ConnectionTests(ZEOTestBase):
         while 1:
             try:
                 revid1 = self._dostore(oid, data=obj)
-            except (ClientDisconnected, thread.error), err:
+            except (ClientDisconnected, thread.error, socket.error), err:
                 get_transaction().abort()
                 time.sleep(0.1)
             else:
                 break
+            # XXX This is a bloody pain.  We're placing a heavy burden
+            # on users to catch a plethora of exceptions in order to
+            # write robust code.  Need to think about implementing
+            # John Heintz's suggestion to make sure all exceptions
+            # inherit from POSException. 
 
 class UnixConnectionTests(ConnectionTests):
     __super_setUp = StorageTestBase.StorageTestBase.setUp
@@ -381,8 +388,8 @@ class WindowsConnectionTests(ConnectionTests):
 
     def tearDown(self):
         self.shutdownServer()
-        
-    
+
+
 def get_methods(klass):
     l = [klass]
     meth = {}
@@ -405,20 +412,15 @@ else:
 def makeTestSuite(testname=''):
     suite = unittest.TestSuite()
     name = 'check' + testname
-    for klass in ZEOFileStorageTests, ConnectionTests:
+    lname = len(name)
+    for klass in test_classes:
         for meth in get_methods(klass):
-            if meth.startswith(name):
+            if meth[:lname] == name:
                 suite.addTest(klass(meth))
     return suite
 
 def test_suite():
-    t = unittest.TestLoader()
-    t.testMethodPrefix = 'check'
-    tests = []
-    for klass in test_classes:
-        s = t.loadTestsFromTestCase(klass)
-        tests.extend(s._tests)
-    return unittest.TestSuite(tests)
+    return makeTestSuite()
 
 def main():
     import sys, getopt
