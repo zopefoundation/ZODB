@@ -39,6 +39,7 @@
 import struct
 
 from BTrees._fsBTree import fsBucket
+from BTrees.OOBTree import OOBTree
 
 # convert between numbers and six-byte strings
 
@@ -48,10 +49,18 @@ def num2str(n):
 def str2num(s):
     return struct.unpack(">Q", "\000\000" + s)[0]
 
+def prefix_plus_one(s):
+    num = str2num(s)
+    return num2str(num + 1)
+
+def prefix_minus_one(s):
+    num = str2num(s)
+    return num2str(num - 1)
+
 class fsIndex(object):
 
     def __init__(self):
-        self._data = {}
+        self._data = OOBTree()
 
     def __getitem__(self, key):
         return str2num(self._data[key[:6]][key[6:]])
@@ -126,31 +135,61 @@ class fsIndex(object):
     def values(self):
         return list(self.itervalues())
 
-    def maxKey(self):
-        # This is less general than the BTree method of the same name:  we
-        # only care about the largest key in the entire tree.  By
-        # construction, that's the largest oid in use in the associated
-        # FileStorage.
+    # Comment below applies for the following minKey and maxKey methods
+    #
+    # Obscure:  what if `tree` is actually empty?  We're relying here on
+    # that this class doesn't implement __delitem__:  once a key gets
+    # into an fsIndex, the only way it can go away is by invoking
+    # clear().  Therefore nothing in _data.values() is ever empty.
+    #
+    # Note that because `tree` is an fsBTree, its minKey()/maxKey() methods are
+    # very efficient.
 
-        keys = self._data.keys()
-        if not keys:
-            # This is the same exception a BTree maxKey() raises when the
-            # tree is empty.
-            raise ValueError("empty tree")
+    def minKey(self, key=None):
+        if key is None:
+            smallest_prefix = self._data.minKey()
+        else:
+            smallest_prefix = self._data.minKey(key[:6])
+            
+        tree = self._data[smallest_prefix]
 
-        # We expect that keys is small, since each fsBTree in _data.values()
-        # can hold as many as 2**16 = 64K entries.  So this max() should go
-        # fast too.  Regardless, there's no faster way to find the largest
-        # prefix.
-        biggest_prefix = max(keys)
+        assert tree
+
+        if key is None:
+            smallest_suffix = tree.minKey()
+        else:
+            try:
+                smallest_suffix = tree.minKey(key[6:])
+            except ValueError: # 'empty tree' (no suffix >= arg)
+                next_prefix = prefix_plus_one(smallest_prefix)
+                smallest_prefix = self._data.minKey(next_prefix)
+                tree = self._data[smallest_prefix]
+                assert tree
+                smallest_suffix = tree.minKey()
+
+        return smallest_prefix + smallest_suffix
+
+    def maxKey(self, key=None):
+        if key is None:
+            biggest_prefix = self._data.maxKey()
+        else:
+            biggest_prefix = self._data.maxKey(key[:6])
+
         tree = self._data[biggest_prefix]
 
-        # Obscure:  what if tree is actually empty?  We're relying here on
-        # that this class doesn't implement __delitem__:  once a key gets
-        # into an fsIndex, the only way it can go away is by invoking
-        # clear().  Therefore nothing in _data.values() is ever empty.
-        #
-        # Note that because `tree` is an fsBTree, its maxKey() method is very
-        # efficient.
         assert tree
-        return biggest_prefix + tree.maxKey()
+
+        if key is None:
+            biggest_suffix = tree.maxKey()
+        else:
+            try:
+                biggest_suffix = tree.maxKey(key[6:])
+            except ValueError: # 'empty tree' (no suffix <= arg)
+                next_prefix = prefix_minus_one(biggest_prefix)
+                biggest_prefix = self._data.maxKey(next_prefix)
+                tree = self._data[biggest_prefix]
+                assert tree
+                biggest_suffix = tree.maxKey()
+
+        return biggest_prefix + biggest_suffix
+

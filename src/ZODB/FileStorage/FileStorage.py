@@ -371,8 +371,13 @@ class FileStorage(BaseStorage.BaseStorage,
             return None
         pos = long(pos)
 
-        if isinstance(index, DictType):
-            # Convert to fsIndex.
+        if (
+            isinstance(index, DictType) or
+            (isinstance(index, fsIndex) and isinstance(index._data, DictType))
+             ):
+            # Convert dictionary indexes to fsIndexes *or* convert fsIndexes
+            # which have a DictType `_data` attribute to a new fsIndex (newer
+            # fsIndexes have an OOBTree as `_data`)
             newindex = fsIndex()
             newindex.update(index)
             index = newindex
@@ -1396,6 +1401,19 @@ class FileStorage(BaseStorage.BaseStorage,
             except OSError, e:
                 if e.errno != errno.ENOENT:
                     raise
+
+    def record_iternext(self, next=None):
+        index = self._index
+        oid = index.minKey(next)
+        
+        try:
+            next_oid = index.minKey(self.new_oid(oid))
+        except ValueError: # "empty tree" error
+            next_oid = None
+
+        data, tid = self.load(oid, None) # ignore versions
+        return oid, tid, data, next_oid
+        
 
 
 def shift_transactions_forward(index, vindex, tindex, file, pos, opos):

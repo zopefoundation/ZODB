@@ -137,6 +137,41 @@ class FileStorageTests(
         # Python dict.
         self.check_conversion_to_fsIndex(read_only=True)
 
+    def check_conversion_from_dict_to_btree_data_in_fsIndex(self):
+        # To support efficient range searches on its keys as part of
+        # implementing a record iteration protocol in FileStorage, we
+        # converted the fsIndex class from using a dictionary as its
+        # self._data attribute to using an OOBTree in its stead.
+
+        from ZODB.fsIndex import fsIndex
+        from BTrees.OOBTree import OOBTree
+
+        # Create some data, and remember the index.
+        for i in range(10):
+            self._dostore()
+        data_dict = dict(self._storage._index._data)
+
+        # Replace the OOBTree with a dictionary and commit it.
+        self._storage._index._data = data_dict
+        get_transaction().commit()
+
+        # Save the index.
+        self._storage.close()
+
+        # Verify it's converted to fsIndex in memory upon open.
+        self.open()
+        self.assert_(isinstance(self._storage._index, fsIndex))
+        self.assert_(isinstance(self._storage._index._data, OOBTree))
+
+        # Verify it has the right content.
+        new_data_dict = dict(self._storage._index._data)
+        self.assertEqual(len(data_dict), len(new_data_dict))
+
+        for k in data_dict:
+            old_tree = data_dict[k]
+            new_tree = new_data_dict[k]
+            self.assertEqual(list(old_tree.items()), list(new_tree.items()))
+
     def check_save_after_load_with_no_index(self):
         for i in range(10):
             self._dostore()
@@ -287,6 +322,35 @@ class FileStorageTests(
                          "initial transaction length" in str(detail))
         else:
             self.fail("expected CorruptedError")
+
+    def check_record_iternext(self):
+        from ZODB.DB import DB
+
+        db = DB(self._storage)
+        conn = db.open()
+        conn.root()['abc'] = MinPO('abc')
+        conn.root()['xyz'] = MinPO('xyz')
+        get_transaction().commit()
+
+        # Ensure it's all on disk.
+        db.close()
+        self._storage.close()
+
+        self.open()
+
+        key = None
+        for x in ('\000', '\001', '\002'):
+            oid, tid, data, next_oid = self._storage.record_iternext(key)
+            self.assertEqual(oid, ('\000' * 7) + x)
+            key = next_oid
+            expected_data, expected_tid = self._storage.load(oid, '')
+            self.assertEqual(expected_data, data)
+            self.assertEqual(expected_tid, tid)
+            if x == '\002':
+                self.assertEqual(next_oid, None)
+            else:
+                self.assertNotEqual(next_oid, None)
+
 
 class FileStorageRecoveryTest(
     StorageTestBase.StorageTestBase,
