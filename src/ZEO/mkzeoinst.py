@@ -35,6 +35,9 @@ interpreter.  When you use the ZODB3 setup.py script to install the
 ZODB3 software, this is taken care of.
 """
 
+# WARNING!  Several templates and functions here are reused by ZRS.
+# So be careful with changes.
+
 import os
 import sys
 import stat
@@ -65,8 +68,8 @@ zeo_conf_template = """# ZEO configuration file
 runner_conf_template = """# runner configuration file
 
 <runner>
-  program %(runzeo)s -C %(home)s/etc/zeo.conf
-  socket-name %(home)s/etc/zeo.zdsock
+  program %(server)s -C %(home)s/etc/%(package)s.conf
+  socket-name %(home)s/etc/%(package)s.zdsock
   daemon true
   forever false
   backoff-limit 10
@@ -74,6 +77,8 @@ runner_conf_template = """# runner configuration file
   directory %(home)s
   default-to-interactive true
   # user zope
+  python %(python)s
+  zdrun %(zdrun)s
 </runner>
 
 <eventlog>
@@ -84,16 +89,16 @@ runner_conf_template = """# runner configuration file
 </eventlog>
 """
 
-zeoctl_template = """#!/bin/sh
-# ZEO instance start script
+zdctl_template = """#!/bin/sh
+# %(PACKAGE)s instance start script
 
 # The following two lines are for chkconfig.  On Red Hat Linux (and
 # some other systems), you can copy or symlink this script into
 # /etc/rc.d/init.d/ and then run chkconfig(8), to automatically start
-# ZEO at boot time.
+# %(PACKAGE) at boot time.
 
 # chkconfig: 345 90 10
-# description: start a ZEO server
+# description: start a %(PACKAGE) server
 
 exec %(zdctl)s -C %(home)s/etc/runner.conf ${1+"$@"}
 """
@@ -115,16 +120,24 @@ def main():
     else:
         port = 9999
     checkport(port)
+    params = {
+        "package": "zeo",
+        "PACKAGE": "ZEO",
+        "home": home,
+        "port": port,
+        "python": sys.executable,
+        "server": which("runzeo.py"),
+        "zdrun": which("zdrun.py"),
+        "zdctl": which("zdctl.py"),
+        }
     makedir(home)
     makedir(home, "etc")
     makedir(home, "var")
     makedir(home, "log")
     makedir(home, "bin")
-    makefile(zeo_conf_template, home, "etc", "zeo.conf", home=home, port=port)
-    makefile(runner_conf_template, home, "etc", "runner.conf",
-             home=home, runzeo=which("runzeo.py"))
-    makexfile(zeoctl_template, home, "bin", "zeoctl",
-              home=home, python=sys.executable, zdctl=which("zdctl.py"))
+    makefile(zeo_conf_template, home, "etc", "zeo.conf", **params)
+    makefile(runner_conf_template, home, "etc", "runner.conf", **params)
+    makexfile(zdctl_template, home, "bin", "zeoctl", **params)
     print "All done."
 
 def checkport(port):
