@@ -85,10 +85,10 @@
 """Sized message async connections
 """
 
-__version__ = "$Revision: 1.7 $"[11:-2]
+__version__ = "$Revision: 1.8 $"[11:-2]
 
 import asyncore, string, struct, zLOG, sys, Acquisition
-from zLOG import LOG, TRACE, ERROR
+from zLOG import LOG, TRACE, ERROR, INFO
 
 class SizedMessageAsyncConnection(Acquisition.Explicit, asyncore.dispatcher):
 
