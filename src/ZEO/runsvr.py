@@ -200,7 +200,7 @@ class ZEOOptions(Options):
             self.usage("no positional arguments supported")
 
 
-class Server:
+class ZEOServer:
 
     OptionsClass = ZEOOptions
 
@@ -397,8 +397,8 @@ def _log(msg, severity=zLOG.INFO, error=None):
 # Main program
 
 def main(args=None):
-    opts = Server.OptionsClass(args)
-    s = Server(opts)
+    opts = ZEOOptions(args)
+    s = ZEOServer(opts)
     s.main()
 
 if __name__ == "__main__":
