@@ -182,7 +182,7 @@ class Connection(smac.SizedMessageAsyncConnection):
         if message == self.protocol_version:
             self.message_input = self._message_input
         else:
-            log("recv_handshake: bad handshake %s" % repr(message),
+            log("recv_handshake: bad handshake %s" % short_repr(message),
                 level=zLOG.ERROR)
         # otherwise do something else...
 
@@ -236,7 +236,7 @@ class Connection(smac.SizedMessageAsyncConnection):
         if flags & ASYNC:
             if ret is not None:
                 raise ZRPCError("async method %s returned value %s" %
-                                (name, repr(ret)))
+                                (name, short_repr(ret)))
         else:
             if __debug__:
                 log("%s returns %s" % (name, short_repr(ret)), zLOG.DEBUG)
@@ -265,7 +265,7 @@ class Connection(smac.SizedMessageAsyncConnection):
             msg = self.marshal.encode(msgid, 0, REPLY, ret)
         except self.marshal.errors:
             try:
-                r = repr(ret)
+                r = short_repr(ret)
             except:
                 r = "<unreprable>"
             err = ZRPCError("Couldn't pickle return %.100s" % r)
@@ -284,7 +284,7 @@ class Connection(smac.SizedMessageAsyncConnection):
             msg = self.marshal.encode(msgid, 0, REPLY, (err_type, err_value))
         except self.marshal.errors:
             try:
-                r = repr(err_value)
+                r = short_repr(err_value)
             except:
                 r = "<unreprable>"
             err = ZRPCError("Couldn't pickle error %.100s" % r)
