@@ -18,13 +18,26 @@
 
 \begin{abstract}
 \noindent
-
+This document describes the syntax and API used in configuration files
+for components of a Zope installation written by Zope Corporation.
 \end{abstract}
 
 \tableofcontents
 
 
 \section{Introduction \label{intro}}
+
+Zope uses a common syntax and API for configuration files designed for
+software components written by Zope Corporation.  Third-party software
+which is also part of a Zope installation may use a different syntax,
+though any software is welcome to use the syntax used by Zope
+Corporation.  Any software written in Python is free to use the
+\module{ZConfig} software to load such configuration files in order to
+ensure compatibility.  This software is covered by the Zope Public
+License, version 2.0.
+
+The \module{ZConfig} package has been tested with Python 2.1 and 2.2.
+It only relies on the Python standard library.
 
 
 \section{Configuration Syntax \label{syntax}}
