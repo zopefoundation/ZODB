@@ -325,7 +325,12 @@ class Connection(smac.SizedMessageAsyncConnection):
             # Do loop only if lock is already acquired.  XXX But can't
             # we already guarantee that the lock is already acquired?
             while not self.__reply_lock.acquire(0):
-                asyncore.poll(10.0, self._map)
+                try:
+                    asyncore.poll(10.0, self._map)
+                except select.error, err:
+                    log("Closing.  asyncore.poll() raised %s." % err,
+                        level=zLOG.BLATHER)
+                    self.close()
                 if self.closed:
                     raise DisconnectedError()
         self.__reply_lock.release()

@@ -118,11 +118,16 @@ class ZEOStorage:
     def __init__(self, server):
         self.server = server
         self.client = None
+        self._conn = None # the connection associated with client
         self.__storage = None
         self.__storage_id = "uninitialized"
         self._transaction = None
 
+    def close(self):
+        self._conn.close()
+
     def notifyConnected(self, conn):
+        self._conn = conn
         self.client = ClientStub.ClientStorage(conn)
 
     def __repr__(self):
