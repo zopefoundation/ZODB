@@ -82,7 +82,7 @@
   
  ****************************************************************************/
 
-#define BUCKETTEMPLATE_C "$Id: BucketTemplate.c,v 1.9 2001/03/20 13:52:00 jim Exp $\n"
+#define BUCKETTEMPLATE_C "$Id: BucketTemplate.c,v 1.10 2001/03/21 14:16:58 jim Exp $\n"
 
 /*
 ** _bucket_get
@@ -102,7 +102,7 @@ _bucket_get(Bucket *self, PyObject *keyarg, int has_key)
   PyObject *r;
   KEY_TYPE key;
   
-  COPY_KEY_FROM_ARG(key, keyarg, &copied);
+  COPY_KEY_FROM_ARG(key, keyarg, copied);
   UNLESS (copied) return NULL;
 
   PER_USE_OR_RETURN(self, NULL);
@@ -194,7 +194,7 @@ _bucket_set(Bucket *self, PyObject *keyarg, PyObject *v,
   int min, max, i, l, cmp, copied=1;
   KEY_TYPE key;
   
-  COPY_KEY_FROM_ARG(key, keyarg, &copied);
+  COPY_KEY_FROM_ARG(key, keyarg, copied);
   UNLESS(copied) return -1;
 
   PER_USE_OR_RETURN(self, -1);
@@ -210,7 +210,7 @@ _bucket_set(Bucket *self, PyObject *keyarg, PyObject *v,
                 {
                   VALUE_TYPE value;
 
-                  COPY_VALUE_FROM_ARG(value, v, &copied);
+                  COPY_VALUE_FROM_ARG(value, v, copied);
                   UNLESS(copied) return -1;
 
 #ifdef VALUE_SAME
@@ -295,7 +295,7 @@ _bucket_set(Bucket *self, PyObject *keyarg, PyObject *v,
 
   UNLESS (noval)
     {
-      COPY_VALUE_FROM_ARG(self->values[i], v, &copied);
+      COPY_VALUE_FROM_ARG(self->values[i], v, copied);
       UNLESS(copied) return -1;
       INCREF_VALUE(self->values[i]);
     }
@@ -487,7 +487,7 @@ Bucket_findRangeEnd(Bucket *self, PyObject *keyarg, int low, int *offset)
   Bucket *release = NULL;
   KEY_TYPE key;
 
-  COPY_KEY_FROM_ARG(key, keyarg, &copied);
+  COPY_KEY_FROM_ARG(key, keyarg, copied);
   UNLESS (copied) return -1;
 
   PER_USE_OR_RETURN(self, -1);
@@ -768,7 +768,7 @@ bucket_byValue(Bucket *self, PyObject *args)
   PER_USE_OR_RETURN(self, NULL);
 
   UNLESS (PyArg_ParseTuple(args, "O", &omin)) return NULL;
-  COPY_VALUE_FROM_ARG(min, omin, &copied);
+  COPY_VALUE_FROM_ARG(min, omin, copied);
   UNLESS(copied) return NULL;
 
   for (i=0, l=0; i < self->len; i++) 
@@ -994,9 +994,9 @@ _bucket_setstate(Bucket *self, PyObject *args)
       v=PyTuple_GET_ITEM(items, l);
       l++;
 
-      COPY_KEY_FROM_ARG(self->keys[i], k, &copied);
+      COPY_KEY_FROM_ARG(self->keys[i], k, copied);
       UNLESS (copied) return -1;
-      COPY_VALUE_FROM_ARG(self->values[i], v, &copied);
+      COPY_VALUE_FROM_ARG(self->values[i], v, copied);
       UNLESS (copied) return -1;
       INCREF_KEY(self->keys[i]);
       INCREF_VALUE(self->values[i]);

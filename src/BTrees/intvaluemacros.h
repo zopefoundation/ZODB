@@ -1,5 +1,5 @@
 
-#define VALUEMACROS_H "$Id: intvaluemacros.h,v 1.5 2001/03/20 13:52:00 jim Exp $\n"
+#define VALUEMACROS_H "$Id: intvaluemacros.h,v 1.6 2001/03/21 14:16:58 jim Exp $\n"
 
 #define VALUE_TYPE int
 #define TEST_VALUE(K, T) (((K) < (T)) ? -1 : (((K) > (T)) ? 1: 0)) 
@@ -13,7 +13,7 @@
 #define COPY_VALUE_FROM_ARG(TARGET, ARG, STATUS) \
   if (PyInt_Check(ARG)) TARGET=PyInt_AsLong(ARG); else { \
       PyErr_SetString(PyExc_TypeError, "expected integer value"); \
-      *(STATUS)=0; } 
+      (STATUS)=0; } 
   
 #define NORMALIZE_VALUE(V, MIN) ((MIN) > 0) ? ((V)/=(MIN)) : 0
 
