@@ -439,6 +439,16 @@ class TestIIBTrees(Base, TestCase):
     def setUp(self):
         self.t = IIBTree()
 
+    def nonIntegerKeyRaises(self):
+        self.assertRaises(TypeError, self._stringraises)
+        self.assertRaises(TypeError, self._floatraises)
+
+    def _stringraises(self):
+        self.t['c'] = 1
+
+    def _floatraises(self):
+        self.t[2.5] = 1
+
 class TestOIBTrees(Base, TestCase):
     def setUp(self):
         self.t = OIBTree()
