@@ -12,7 +12,7 @@
 
  ****************************************************************************/
 
-#define BTREETEMPLATE_C "$Id: BTreeTemplate.c,v 1.65 2002/06/20 02:40:01 tim_one Exp $\n"
+#define BTREETEMPLATE_C "$Id: BTreeTemplate.c,v 1.66 2002/06/21 05:43:56 tim_one Exp $\n"
 
 /* Sanity-check a BTree.  This is a private helper for BTree_check.  Return:
  *      -1         Error.  If it's an internal inconsistency in the BTree,
@@ -51,11 +51,25 @@ BTree_check_inner(BTree *self, Bucket *nextbucket)
     }
     /* Non-empty BTree. */
     CHECK(self->firstbucket != NULL, "Non-empty BTree has NULL firstbucket");
+
+    /* Obscure:  The first bucket is pointed to at least by self->firstbucket
+     * and data[0].child of whichever BTree node it's a child of.  However,
+     * if persistence is enabled then the latter BTree node may be a ghost
+     * at this point, and so its pointers "don't count":  we can only rely
+     * on self's pointers being intact.
+     */
+#ifdef PERSISTENT
+    CHECK(self->firstbucket->ob_refcnt >= 1,
+          "Non-empty BTree firstbucket has refcount < 1");
+#else
     CHECK(self->firstbucket->ob_refcnt >= 2,
           "Non-empty BTree firstbucket has refcount < 2");
+#endif
+
     for (i = 0; i < self->len; ++i) {
         CHECK(self->data[i].child != NULL, "BTree has NULL child");
     }
+
     if (SameType_Check(self, self->data[0].child)) {
         /* Our children are also BTrees. */
         child = self->data[0].child;
@@ -93,7 +107,11 @@ BTree_check_inner(BTree *self, Bucket *nextbucket)
                   "BTree children have different types");
             CHECK(child->len >= 1, "Bucket length < 1"); /* no empty buckets! */
             CHECK(child->len <= child->size, "Bucket len > size");
+#ifdef PERSISTENT
+            CHECK(child->ob_refcnt >= 1, "Bucket has refcount < 1");
+#else
             CHECK(child->ob_refcnt >= 2, "Bucket has refcount < 2");
+#endif
             if (i == self->len - 1)
                 bucketafter = nextbucket;
             else
@@ -505,8 +523,19 @@ _BTree_clear(BTree *self)
     const int len = self->len;
 
     if (self->firstbucket) {
+        /* Obscure:  The first bucket is pointed to at least by
+         * self->firstbucket and data[0].child of whichever BTree node it's
+         * a child of.  However, if persistence is enabled then the latter
+         * BTree node may be a ghost at this point, and so its pointers "don't
+         * count":  we can only rely on self's pointers being intact.
+         */
+#ifdef PERSISTENT
+	ASSERT(self->firstbucket->ob_refcnt > 0,
+	       "Invalid firstbucket pointer", -1);
+#else
 	ASSERT(self->firstbucket->ob_refcnt > 1,
 	       "Invalid firstbucket pointer", -1);
+#endif
 	Py_DECREF(self->firstbucket);
 	self->firstbucket = NULL;
     }
@@ -967,7 +996,12 @@ _BTree_setstate(BTree *self, PyObject *state, int noval)
 
     self->firstbucket = BUCKET(firstbucket);
     Py_INCREF(firstbucket);
-    assert(firstbucket->ob_refcnt > 1);
+#ifndef PERSISTENT
+    /* firstbucket is also the child of some BTree node, but that node may
+     * be a ghost if persistence is enabled.
+     */
+    assert(self->firstbucket->ob_refcnt > 1);
+#endif
 
     self->len = len;
 
@@ -1021,7 +1055,8 @@ err:
 
   if (r) {
   	ASSIGN(r, Py_BuildValue("((O))", r));
-  } else {
+  }
+  else {
   	PyObject *error;
 	PyObject *value;
 	PyObject *traceback;
