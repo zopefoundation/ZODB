@@ -92,6 +92,7 @@ class SizedMessageAsyncConnection(asyncore.dispatcher):
         # The next thing read is always of length __msg_size.
         # The state alternates between 0 and 1.
         self.__state = 0
+        self.__has_mac = True
         self.__msg_size = 4
         self.__output_lock = threading.Lock() # Protects __output
         self.__output = []
@@ -149,6 +150,7 @@ class SizedMessageAsyncConnection(asyncore.dispatcher):
             input_len = self.__input_len + len(d)
             msg_size = self.__msg_size
             state = self.__state
+            has_mac = self.__has_mac
 
             inp = self.__inp
             if msg_size > input_len:
@@ -171,7 +173,6 @@ class SizedMessageAsyncConnection(asyncore.dispatcher):
                 inp = "".join(inp)
 
             offset = 0
-            has_mac = 0
             while (offset + msg_size) <= input_len:
                 msg = inp[offset:offset + msg_size]
                 offset = offset + msg_size
@@ -208,9 +209,12 @@ class SizedMessageAsyncConnection(asyncore.dispatcher):
                                                  % (_mac, mac))
                         else:
                             log("Received MAC but no session key set")
+                    elif self.__hmac_send:
+                        raise ValueError("Received message without MAC")
                     self.message_input(msg)
 
             self.__state = state
+            self.__has_mac = has_mac
             self.__msg_size = msg_size
             self.__inp = inp[offset:]
             self.__input_len = input_len - offset
