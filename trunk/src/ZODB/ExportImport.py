@@ -21,6 +21,7 @@ from ZODB.POSException import ExportError
 from ZODB.utils import p64, u64
 from ZODB.serialize import referencesf
 import zLOG
+import sys
 
 class ExportImport:
 
