@@ -13,7 +13,7 @@
 ##############################################################################
 """Broken object support
 
-$Id: broken.py,v 1.1 2004/02/25 12:31:40 jim Exp $
+$Id: broken.py,v 1.2 2004/02/27 21:40:20 jeremy Exp $
 """
 
 import sys
@@ -121,7 +121,7 @@ class Broken(object):
         raise BrokenModified("Can't change broken objects")
 
 def find_global(modulename, globalname, Broken=Broken):
-    """Find a global object, returninga broken class if it can't be found
+    """Find a global object, returning a broken class if it can't be found.
 
        This function looks up global variable in modules::
 
