@@ -73,9 +73,18 @@ class DataCopier(FileStorageFormatter):
         raise UndoError(None, "Invalid transaction id")
 
     def _data_find(self, tpos, oid, data):
-        # Return backpointer to oid in data record for in transaction at tpos.
-        # It should contain a pickle identical to data. Returns 0 on failure.
-        # Must call with lock held.
+        # Return backpointer for oid.  Must call with the lock held.
+        # This is a file offset to oid's data record if found, else 0.
+        # The data records in the transaction at tpos are searched for oid.
+        # If a data record for oid isn't found, returns 0.
+        # Else if oid's data record contains a backpointer, that
+        # backpointer is returned.
+        # Else oid's data record contains the data, and the file offset of
+        # oid's data record is returned.  This data record should contain
+        # a pickle identical to the 'data' argument.
+        # XXX If the length of the stored data doesn't match len(data),
+        # XXX an exception is raised.  If the lengths match but the data
+        # XXX isn't the same, 0 is returned.  Why the discrepancy?
         h = self._read_txn_header(tpos)
         tend = tpos + h.tlen
         pos = self._file.tell()
