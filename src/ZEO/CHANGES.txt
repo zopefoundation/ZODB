@@ -8,6 +8,9 @@ Zope Enterprise Objects (ZEO) Revision History
         spurious conflict errors that could, eventually, make it
         impossible to modify some objects without restarting Zope.
 
+      - Temporary non-persistent cache files were not removed at the
+        end of a run.
+
     Features added
 
       - On Unix, when the storage server start script is run as root,
