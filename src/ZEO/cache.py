@@ -287,7 +287,6 @@ class ClientCache:
     # @param oid object id
     # @param version name of version to invalidate.
     # @param tid the id of the transaction that wrote a new revision of oid
-
     def invalidate(self, oid, version, tid):
         if tid > self.fc.tid:
             self.fc.settid(tid)
@@ -307,22 +306,72 @@ class ClientCache:
             self._trace(0x10, oid, version, tid)
             return
         cur_tid = self.current.pop(oid)
+
+        # XXX.  During checkDisconnectedAbort, tid shows up as None here
+        # sometimes.
+        #
+        #if not cur_tid < tid:
+        #    print "OUCH1", cur_tid, tid
+        #    import traceback
+        #    traceback.print_stack()
+        #assert cur_tid < tid
+        #
+        # The stack trace.  oid is 1, version '', tid None:
+        #
+        #  File "C:\Python23\lib\threading.py", line 436, in __bootstrap
+        #    self.run()
+        #  File "C:\Code\ZODB3.3\build\lib.win32-2.3\ZEO\zrpc\client.py", line 293, in run
+        #    success = self.try_connecting(attempt_timeout)
+        #  File "C:\Code\ZODB3.3\build\lib.win32-2.3\ZEO\zrpc\client.py", line 324, in try_connecting
+        #    r = self._connect_wrappers(wrappers, deadline)
+        #  File "C:\Code\ZODB3.3\build\lib.win32-2.3\ZEO\zrpc\client.py", line 385, in _connect_wrappers
+        #    wrap.connect_procedure()
+        #  File "C:\Code\ZODB3.3\build\lib.win32-2.3\ZEO\zrpc\client.py", line 471, in connect_procedure
+        #    self.test_connection()
+        #  File "C:\Code\ZODB3.3\build\lib.win32-2.3\ZEO\zrpc\client.py", line 495, in test_connection
+        #    self.notify_client()
+        #  File "C:\Code\ZODB3.3\build\lib.win32-2.3\ZEO\zrpc\client.py", line 507, in notify_client
+        #    self.client.notifyConnected(self.conn)
+        #  File "C:\Code\ZODB3.3\build\lib.win32-2.3\ZEO\ClientStorage.py", line 516, in notifyConnected
+        #    self._wait_sync()
+        #  File "C:\Code\ZODB3.3\build\lib.win32-2.3\ZEO\ClientStorage.py", line 370, in _wait_sync
+        #    self._connection.pending(30)
+        #  File "C:\Code\ZODB3.3\build\lib.win32-2.3\ZEO\zrpc\connection.py", line 546, in pending
+        #    self.handle_read_event()
+        #  File "C:\Python23\lib\asyncore.py", line 390, in handle_read_event
+        #    self.handle_read()
+        #  File "C:\Code\ZODB3.3\build\lib.win32-2.3\ZEO\zrpc\smac.py", line 219, in handle_read
+        #    self.message_input(msg)
+        #  File "C:\Code\ZODB3.3\build\lib.win32-2.3\ZEO\zrpc\connection.py", line 244, in message_input
+        #    self.handle_request(msgid, flags, name, args)
+        #  File "C:\Code\ZODB3.3\build\lib.win32-2.3\ZEO\zrpc\connection.py", line 269, in handle_request
+        #    ret = meth(*args)
+        #  File "C:\Code\ZODB3.3\build\lib.win32-2.3\ZEO\tests\ConnectionTests.py", line 63, in endVerify
+        #    ClientStorage.endVerify(self)
+        #  File "C:\Code\ZODB3.3\build\lib.win32-2.3\ZEO\ClientStorage.py", line 1093, in endVerify
+        #    self._process_invalidations(InvalidationLogIterator(f))
+        #  File "C:\Code\ZODB3.3\build\lib.win32-2.3\ZEO\ClientStorage.py", line 1074, in _process_invalidations
+        #    self._cache.invalidate(oid, version, tid)
+        #  File "C:\Code\ZODB3.3\build\lib.win32-2.3\ZEO\cache.py", line 313, in invalidate
+        #    traceback.print_stack()
+
         # XXX Want to fetch object without marking it as accessed
         o = self.fc.access((oid, cur_tid))
+        assert o is not None
+        assert o.end_tid is None  # i.e., o was current
         if o is None:
-            # XXX is this possible?
+            # XXX is this possible? (doubt it; added an assert just above)
             return None
         o.end_tid = tid
-        self.fc.update(o)
+        self.fc.update(o)   # record the new end_tid on disk
         self._trace(0x1C, oid, version, tid)
         L = self.noncurrent.setdefault(oid, [])
         bisect.insort_left(L, (cur_tid, tid))
 
     ##
     # Return the number of object revisions in the cache.
-
+    #
     # XXX just return len(self.cache)?
-
     def __len__(self):
         n = len(self.current) + len(self.version)
         if self.noncurrent:
@@ -488,25 +537,33 @@ class Object(object):
         if data is not None:
             self.size = self.TOTAL_FIXED_SIZE + len(data) + len(version)
 
+    ##
+    # Return the fixed-sized serialization header as a string:  pack end_tid,
+    # and the lengths of the .version and .data members.
     def get_header(self):
-        # Return just the fixed-size serialization header.
         return struct.pack(self.fmt,
                            self.end_tid or z64,
                            len(self.version),
                            len(self.data))
 
+    ##
+    # Write the serialized representation of self to file f, at its current
+    # position.
     def serialize(self, f):
-        # Write standard form of Object to file f, at its current offset.
         f.writelines([self.get_header(),
                       self.version,
                       self.data,
                       self.key[0]])
 
+    ##
+    # Write the fixed-size header for self, to file f at its current position.
+    # The only real use for this is when the current revision of an object
+    # in cache is invalidated.  Then the end_tid field gets set to the tid
+    # of the transaction that caused the invalidation.
     def serialize_header(self, f):
-        # Write the fixed-sized serialization header, + the version.
-        # Why is the version part of this?
-        f.writelines([self.get_header(), self.version])
+        f.write(self.get_header())
 
+    ##
     # fromFile is a class constructor, unserializing an Object from the
     # current position in file f.  Exclusive access to f for the duration
     # is assumed.  The key is a (oid, start_tid) pair, and the oid must
@@ -955,7 +1012,9 @@ class FileCache(object):
     # Update on-disk representation of Object obj.
     #
     # This method should be called when the object header is modified.
-    # obj must be in the cache.
+    # obj must be in the cache.  The only real use for this is during
+    # invalidation, to set the end_tid field on a revision that was current
+    # (and so had an end_tid of None, but no longer does).
     def update(self, obj):
         e = self.key2entry[obj.key]
         self.f.seek(e.offset + OBJECT_HEADER_SIZE)
