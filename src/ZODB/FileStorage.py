@@ -184,7 +184,7 @@
 #   may have a back pointer to a version record or to a non-version
 #   record.
 #
-__version__='$Revision: 1.64 $'[11:-2]
+__version__='$Revision: 1.65 $'[11:-2]
 
 import struct, time, os, bpthread, string, base64, sys
 from struct import pack, unpack
@@ -435,13 +435,20 @@ class FileStorage(BaseStorage.BaseStorage,
         
         p=Unpickler(f)
 
-        info=p.load()
+        try:
+            info=p.load()
+        except:
+            exc, err, tb = sys.exc_info()
+            warn("Failed to load database index: %s: %s" %
+                 (exc, err))
+            return None
         index=info.get('index', None)
-        pos=long(info.get('pos', None))
+        pos=info.get('pos', None)
         oid=info.get('oid', None)
         vindex=info.get('vindex', None)
         if index is None or pos is None or oid is None or vindex is None:
             return None
+        pos = long(pos)
 
         tid=self._sane(index, pos)
         if not tid: return None
