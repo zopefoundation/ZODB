@@ -159,9 +159,10 @@ def main():
     test_addr = ('localhost', test_port)
     addr = ('localhost', zeo_port)
     log(label, 'creating the storage server')
+    storage = zo.storages[0].open()
     server = ZEO.StorageServer.StorageServer(
         zo.address,
-        {"1": zo.storages[0].open()},
+        {"1": storage},
         read_only=zo.read_only,
         invalidation_queue_size=zo.invalidation_queue_size,
         transaction_timeout=zo.transaction_timeout,
