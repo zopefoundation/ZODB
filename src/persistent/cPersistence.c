@@ -14,7 +14,7 @@
 static char cPersistence_doc_string[] =
 "Defines Persistent mixin class for persistent objects.\n"
 "\n"
-"$Id: cPersistence.c,v 1.79 2004/03/02 20:22:16 jeremy Exp $\n";
+"$Id: cPersistence.c,v 1.80 2004/03/13 07:42:06 jeremy Exp $\n";
 
 #include "cPersistence.h"
 #include "structmember.h"
@@ -648,7 +648,7 @@ Per_getattro(cPersistentObject *self, PyObject *name)
 	goto Done;
     s = PyString_AS_STRING(name);
 
-    if (*s != '_' || unghost_getattr(s)) {
+    if (unghost_getattr(s)) {
 	if (unghostify(self) < 0)
 	    goto Done;
 	accessed(self);
@@ -672,15 +672,14 @@ Per__p_getattr(cPersistentObject *self, PyObject *name)
 	goto Done;
     s = PyString_AS_STRING(name);
 
-    if (*s != '_' || unghost_getattr(s)) 
-      {
+    if (*s != '_' || unghost_getattr(s)) {
 	if (unghostify(self) < 0)
 	    goto Done;
 	accessed(self);
         result = Py_False;
-      }
+    }
     else
-      result = Py_True;
+	result = Py_True;
       
     Py_INCREF(result);
 
@@ -733,20 +732,18 @@ Per_p_set_or_delattro(cPersistentObject *self, PyObject *name, PyObject *v)
 	goto Done;
     s = PyString_AS_STRING(name);
 
-    if (strncmp(s, "_p_", 3) != 0) 
-      {
+    if (strncmp(s, "_p_", 3)) {
 	if (unghostify(self) < 0)
 	    goto Done;
 	accessed(self);
 
         result = 0;
-      }
-    else
-      {
+    }
+    else {
         if (PyObject_GenericSetAttr((PyObject *)self, name, v) < 0)
-          goto Done;
+	    goto Done;
         result = 1;
-      }
+    }
 
  Done:
     Py_XDECREF(name);
@@ -756,34 +753,34 @@ Per_p_set_or_delattro(cPersistentObject *self, PyObject *name, PyObject *v)
 static PyObject *
 Per__p_setattr(cPersistentObject *self, PyObject *args)
 {
-  PyObject *name, *v, *result;
-  int r;
+    PyObject *name, *v, *result;
+    int r;
 
-  if (! PyArg_ParseTuple(args, "OO:_p_setattr", &name, &v))
-    return NULL;
+    if (!PyArg_ParseTuple(args, "OO:_p_setattr", &name, &v))
+	return NULL;
 
-  r = Per_p_set_or_delattro(self, name, v);
-  if (r < 0)
-    return NULL;
+    r = Per_p_set_or_delattro(self, name, v);
+    if (r < 0)
+	return NULL;
 
-  result = r ? Py_True : Py_False;
-  Py_INCREF(result);
-  return result;
+    result = r ? Py_True : Py_False;
+    Py_INCREF(result);
+    return result;
 }
 
 static PyObject *
 Per__p_delattr(cPersistentObject *self, PyObject *name)
 {
-  int r;
-  PyObject *result;
+    int r;
+    PyObject *result;
 
-  r = Per_p_set_or_delattro(self, name, NULL);
-  if (r < 0)
-    return NULL;
+    r = Per_p_set_or_delattro(self, name, NULL);
+    if (r < 0)
+	return NULL;
 
-  result = r ? Py_True : Py_False;
-  Py_INCREF(result);
-  return result;
+    result = r ? Py_True : Py_False;
+    Py_INCREF(result);
+    return result;
 }
 
 
