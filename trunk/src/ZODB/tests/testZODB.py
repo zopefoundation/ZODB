@@ -136,11 +136,10 @@ class ZODBTests(unittest.TestCase):
         get_transaction().commit()
 
     def checkResetCache(self):
-        # The cache size after a reset should be 0 and the GC attributes
-        # ought to be linked to it rather than the old cache.
-        # Note that _resetCache is not a public API, but the
-        # resetCaches() function is, and resetCaches() causes
-        # _resetCache() to be called.
+        # The cache size after a reset should be 0.  Note that
+        # _resetCache is not a public API, but the resetCaches()
+        # function is, and resetCaches() causes _resetCache() to be
+        # called.
         self.populate()
         conn = self._db.open()
         conn.root()
