@@ -34,6 +34,7 @@ from ZODB.referencesf import referencesf
 from ZODB.tests.MinPO import MinPO
 from ZODB.tests.StorageTestBase import snooze
 from ZODB.POSException import ConflictError, StorageError
+from ZODB.FileStorage import FileStorage
 
 from ZODB.tests.MTStorage import TestThread
 
@@ -473,13 +474,12 @@ class PackableUndoStorage(PackableStorageBase):
         packt2 = time.time()
 
         db.pack(packt2)
-        # BDBStorage allows the second pack, but doesn't lose data.
-        try:
+        if isinstance(self._storage, FileStorage):
+            # If FileStorage performed a redundant pack, it would
+            # remove the lost_oid.
+            self.assertRaises(StorageError, db.pack, packt1)
+        else:
             db.pack(packt1)
-        except StorageError:
-            pass
-        # This object would be removed by the second pack, even though
-        # it is reachable.
         self._storage.load(lost_oid, "")
 
     def checkPackUndoLog(self):
