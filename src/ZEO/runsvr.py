@@ -22,8 +22,8 @@ Options:
                         (a PATH must contain at least one "/")
 -f/--filename FILENAME -- filename for FileStorage
 -h/--help -- print this usage message and exit
--m/--monitor ADDRESS -- address of monitor server
--r/--record -- path of file to record low-level network activity
+-m/--monitor ADDRESS -- address of monitor server ([HOST:]PORT or PATH)
+-r/--record FILENAME -- filename to record low-level network activity
 
 Unless -C is specified, -a and -f are required.
 """
@@ -32,274 +32,90 @@ Unless -C is specified, -a and -f are required.
 # For the forseeable future, it must work under Python 2.1 as well as
 # 2.2 and above.
 
-# XXX The option parsing infrastructure could be shared with zdaemon.py
-
 import os
 import sys
 import getopt
 import signal
 import socket
 
+import ZConfig, ZConfig.datatypes
 import zLOG
-import ZConfig
-import ZEO
-
-
-class Options:
-
-    """A class to parse and hold the command line options.
-
-    Options are represented by various attributes (zeoport etc.).
-    Positional arguments are represented by the args attribute.
-
-    This also has a public usage() method that can be used to report
-    errors related to the command line.
-    """
-
-    configuration = None
-    rootconf = None
-
-    args = []
-
-    def __init__(self, args=None, progname=None, doc=None):
-        """Constructor.
-
-        Optional arguments:
-
-        args     -- the command line arguments, less the program name
-                    (default is sys.argv[1:] at the time of call)
-
-        progname -- the program name (default sys.argv[0])
-
-        doc      -- usage message (default, __main__.__doc__)
-        """
-
-        if args is None:
-            args = sys.argv[1:]
-        if progname is None:
-            progname = sys.argv[0]
-        self.progname = progname
-        if doc is None:
-            import __main__
-            doc = __main__.__doc__
-        if doc and not doc.endswith("\n"):
-            doc += "\n"
-        self.doc = doc
-        try:
-            self.options, self.args = getopt.getopt(args,
-                                                    self._short_options,
-                                                    self._long_options)
-        except getopt.error, msg:
-            self.usage(str(msg))
-        for opt, arg in self.options:
-            self.handle_option(opt, arg)
-        self.check_options()
-
-    # Default set of options.  Subclasses should override.
-    _short_options = "C:h"
-    _long_options = ["configuration=", "help"]
-
-    def handle_option(self, opt, arg):
-        """Handle one option.  Subclasses should override.
-
-        This sets the various instance variables overriding the defaults.
-
-        When -h is detected, print the module docstring to stdout and exit(0).
-        """
-        if opt in ("-C", "--configuration"):
-            self.set_configuration(arg)
-        if opt in ("-h", "--help"):
-            self.help()
-
-    def set_configuration(self, arg):
-        self.configuration = arg
-
-    def check_options(self):
-        """Check options.  Subclasses may override.
-
-        This can be used to ensure certain options are set, etc.
-        """
-        self.load_configuration()
-
-    def load_schema(self):
-        here = os.path.dirname(ZEO.__file__)
-        schemafile = os.path.join(here, "schema.xml")
-        self.schema = ZConfig.loadSchema(schemafile)
-
-    def load_configuration(self):
-        if not self.configuration:
-            return
-        self.load_schema()
-        try:
-            self.rootconf, nil = ZConfig.loadConfig(self.schema,
-                                                    self.configuration)
-        except ZConfig.ConfigurationError, errobj:
-            self.usage(str(errobj))
-
-    def help(self):
-        """Print a long help message (self.doc) to stdout and exit(0).
-
-        Occurrences of "%s" in self.doc are replaced by self.progname.
-        """
-        doc = self.doc
-        if doc.find("%s") > 0:
-            doc = doc.replace("%s", self.progname)
-        print doc
-        sys.exit(0)
-
-    def usage(self, msg):
-        """Print a brief error message to stderr and exit(2)."""
-        sys.stderr.write("Error: %s\n" % str(msg))
-        sys.stderr.write("For help, use %s -h\n" % self.progname)
-        sys.exit(2)
+from zdaemon.zdoptions import ZDOptions
 
 def parse_address(arg):
-    if "/" in arg:
-        family = socket.AF_UNIX
-        address = arg
-    else:
-        family = socket.AF_INET
-        if ":" in arg:
-            host, port = arg.split(":", 1)
-        else:
-            host = ""
-            port = arg
-        try:
-            port = int(port)
-        except: # int() can raise all sorts of errors
-            raise ValueError("invalid port number: %r" % port)
-        address = host, port
-    return family, address
+    # XXX Unclear whether this is an official part of the ZConfig API
+    obj = ZConfig.datatypes.SocketAddress(arg)
+    return obj.family, obj.address
 
-class ZEOOptions(Options):
+class ZEOOptions(ZDOptions):
 
-    read_only = None
-    transaction_timeout = None
-    invalidation_queue_size = None
-    monitor_address = None
-    record = None
+    storages = None
 
-    family = None                       # set by -a; AF_UNIX or AF_INET
-    address = None                      # set by -a; string or (host, port)
-    storages = None                     # set by -f
+    def handle_address(self, arg):
+        self.family, self.address = parse_address(arg)
 
-    _short_options = "a:C:f:hm:r:"
-    _long_options = [
-        "address=",
-        "configuration=",
-        "filename=",
-        "help",
-        "monitor=",
-        "record=",
-        ]
+    def handle_monitor_address(self, arg):
+        self.monitor_family, self.monitor_address = parse_address(arg)
 
-    def handle_option(self, opt, arg):
-        # Alphabetical order please!
-        if opt in ("-a", "--address"):
-            try:
-                f, a = parse_address(arg)
-            except ValueError, err:
-                self.usage(str(err))
-            else:
-                self.family = f
-                self.address = a
-        elif opt in ("-m", "--monitor"):
-            try:
-                f, a = parse_address(arg)
-            except ValueError, err:
-                self.usage(str(err))
-            else:
-                self.monitor_family = f
-                self.monitor_address = a
-        elif opt in ("-f", "--filename"):
-            from ZODB.config import FileStorage
-            class FSConfig:
-                def __init__(self, name, path):
-                    self._name = name
-                    self.path = path
-                    self.create = 0
-                    self.read_only = 0
-                    self.stop = None
-                    self.quota = None
-                def getSectionName(self):
-                    return self._name
-            if not self.storages:
-                self.storages = {}
-            key = str(1 + len(self.storages))
-            conf = FSConfig(key, arg)
-            self.storages[key] = FileStorage(conf)
-        elif opt in ("-r", "--record"):
-            self.record = arg
-        else:
-            # Pass it to the base class, for --help/-h
-            Options.handle_option(self, opt, arg)
-
-    def check_options(self):
-        Options.check_options(self) # Calls load_configuration()
+    def handle_filename(self, arg):
+        from ZODB.config import FileStorage # That's a FileStorage *opener*!
+        class FSConfig:
+            def __init__(self, name, path):
+                self._name = name
+                self.path = path
+                self.create = 0
+                self.read_only = 0
+                self.stop = None
+                self.quota = None
+            def getSectionName(self):
+                return self._name
         if not self.storages:
-            self.usage("no storages specified; use -f or -C")
-        if self.family is None:
-            self.usage("no server address specified; use -a or -C")
+            self.storages = []
+        name = str(1 + len(self.storages))
+        conf = FileStorage(FSConfig(name, arg))
+        self.storages.append(conf)
+
+    def __init__(self):
+        self.schemadir = os.path.dirname(__file__)
+        ZDOptions.__init__(self)
+        self.add(None, None, "a:", "address=", self.handle_address)
+        self.add(None, None, "f:", "filename=", self.handle_filename)
+        self.add("storages", "storages",
+                 required="no storages specified; use -f or -C")
+        self.add("family", "zeo.address.family")
+        self.add("address", "zeo.address.address",
+                 required="no server address specified; use -a or -C")
+        self.add("read_only", "zeo.read_only", default=0)
+        self.add("invalidation_queue_size", "zeo.invalidation_queue_size",
+                 default=100)
+        self.add("transaction_timeout", "zeo.transaction_timeout")
+        self.add("monitor_address", None, "m:", "monitor=",
+                 self.handle_monitor_address)
+        self.add("record", None, "r:", "record=")
+
+    def realize(self, *args):
+        ZDOptions.realize(self, *args)
         if self.args:
             self.usage("positional arguments are not supported")
-
-        # Set defaults for some options
-        if self.read_only is None:
-            self.read_only = 0
-        if self.invalidation_queue_size is None:
-            self.invalidation_queue_size = 100
-
-    def load_configuration(self):
-        Options.load_configuration(self) # Sets self.rootconf
-        if not self.rootconf:
-            return
-
-        # Now extract options from various configuration sections
-        self.load_zeoconf()
         self.load_logconf()
-        self.load_storages()
-
-    def load_zeoconf(self):
-        # Get some option values from the configuration
-        if self.family is None:
-            self.family = self.rootconf.zeo.address.family
-            self.address = self.rootconf.zeo.address.address
-
-        self.read_only = self.rootconf.zeo.read_only
-        self.transaction_timeout = self.rootconf.zeo.transaction_timeout
-        self.invalidation_queue_size = self.rootconf.zeo.invalidation_queue_size
 
     def load_logconf(self):
-        if self.rootconf.logger is not None:
+        if self.configroot.logger is not None:
             zLOG.set_initializer(self.log_initializer)
             zLOG.initialize()
 
     def log_initializer(self):
         from zLOG import EventLogger
-        logger = self.rootconf.logger()
+        logger = self.configroot.logger()
         for handler in logger.handlers:
             if hasattr(handler, "reopen"):
                 handler.reopen()
         EventLogger.event_logger.logger = logger
-
-    def load_storages(self):
-        # Get the storage specifications
-        if self.storages:
-            # -f option overrides
-            return
-
-        self.storages = {}
-        for opener in self.rootconf.storages:
-            self.storages[opener.name] = opener
-
+    
 
 class ZEOServer:
 
-    OptionsClass = ZEOOptions
-
-    def __init__(self, options=None):
-        if options is None:
-            options = self.OptionsClass()
+    def __init__(self, options):
         self.options = options
 
     def main(self):
@@ -338,10 +154,10 @@ class ZEOServer:
 
     def open_storages(self):
         self.storages = {}
-        for name, opener in self.options.storages.items():
+        for opener in self.options.storages:
             info("opening storage %r using %s"
-                 % (name, opener.__class__.__name__))
-            self.storages[name] = opener.open()
+                 % (opener.name, opener.__class__.__name__))
+            self.storages[opener.name] = opener.open()
 
     def setup_signals(self):
         """Set up signal handlers.
@@ -464,9 +280,11 @@ def _log(msg, severity=zLOG.INFO, error=None):
 # Main program
 
 def main(args=None):
-    options = ZEOOptions(args)
+    options = ZEOOptions()
+    options.realize(args)
     s = ZEOServer(options)
     s.main()
 
 if __name__ == "__main__":
+    __file__ = sys.argv[0]
     main()
