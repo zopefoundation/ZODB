@@ -2,6 +2,11 @@
 
   <sectiontype name="zeo">
 
+    <description>
+      The content of a "ZEO" section describe operational parameters
+      of a ZEO server except for the storage(s) to be served.
+    </description>
+
     <key name="address" datatype="socket-address"
 	 required="yes">
       <description>
