@@ -53,6 +53,7 @@ class StorageServerError(StorageError):
     pass
 
 class StorageServer:
+
     def __init__(self, addr, storages, read_only=0):
         # XXX should read_only be a per-storage option? not yet...
         self.addr = addr
@@ -61,15 +62,15 @@ class StorageServer:
             s._waiting = []
         self.read_only = read_only
         self.connections = {}
-        self.dispatcher = Dispatcher(addr, factory=self.newConnection,
+        self.dispatcher = Dispatcher(addr, factory=self.new_connection,
                                      reuse_addr=1)
 
-    def newConnection(self, sock, addr):
+    def new_connection(self, sock, addr):
         c = ManagedServerConnection(sock, addr, ZEOStorage(self), self)
         log("new connection %s: %s" % (addr, `c`))
         return c
 
-    def register(self, storage_id, proxy):
+    def register_connection(self, storage_id, conn):
         """Register a connection's use with a particular storage.
 
         This information is needed to handle invalidation.
@@ -77,7 +78,7 @@ class StorageServer:
         l = self.connections.get(storage_id)
         if l is None:
             l = self.connections[storage_id] = []
-        l.append(proxy)
+        l.append(conn)
 
     def invalidate(self, conn, storage_id, invalidated=(), info=None):
         for p in self.connections.get(storage_id, ()):
@@ -188,7 +189,7 @@ class ZEOStorage:
         self.__storage_id = storage_id
         self.__storage = storage
         self.setup_delegation()
-        self.server.register(storage_id, self)
+        self.server.register_connection(storage_id, self)
         self._log("registered storage %s: %s" % (storage_id, storage))
 
     def get_info(self):
