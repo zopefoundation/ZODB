@@ -86,7 +86,7 @@
 """Start the server storage.
 """
 
-__version__ = "$Revision: 1.9 $"[11:-2]
+__version__ = "$Revision: 1.10 $"[11:-2]
 
 import sys, os, getopt, string
 
@@ -149,6 +149,13 @@ def main(argv):
        -D -- Run in debug mode
 
        -U -- Unix-domain socket file to listen on
+    
+       -u username or uid number
+
+         The username to run the ZEO server as. You may want to run
+         the ZEO server as 'nobody' or some other user with limited
+         resouces. The only works under Unix, and if ZServer is
+         started by root.
 
        -p port -- port to listen on
 
@@ -180,10 +187,12 @@ def main(argv):
     unix=None
     prefix=''
     Z=1
+    UID='nobody'
     for o, v in opts:
         if o=='-p': port=string.atoi(v)
         elif o=='-h': host=v
         elif o=='-U': unix=v
+        elif o=='-u': UID=v
         elif o=='-D': debug=1
         elif o=='-s': Z=0
 
@@ -214,6 +223,38 @@ def main(argv):
             import zdaemon
             zdaemon.run(sys.argv, '')
 
+
+    # Try to set uid to "-u" -provided uid.
+    # Try to set gid to  "-u" user's primary group. 
+    # This will only work if this script is run by root.
+    try:
+        import pwd
+        try:
+            try: UID=string.atoi(UID)
+            except: pass
+            gid = None
+            if type(UID) == type(""):
+                uid = pwd.getpwnam(UID)[2]
+                gid = pwd.getpwnam(UID)[3]
+            elif type(UID) == type(1):
+                uid = pwd.getpwuid(UID)[2]
+                gid = pwd.getpwuid(UID)[3]
+            else:
+                raise KeyError 
+            try:
+                if gid is not None:
+                    try:
+                        os.setgid(gid)
+                    except OSError:
+                        pass
+                os.setuid(uid)
+            except OSError:
+                pass
+        except KeyError:
+            zLOG.LOG("z2", zLOG.ERROR, ("can't find UID %s" % UID))
+    except:
+        pass
+
     import ZEO.StorageServer, asyncore, zLOG
 
     storages={}
@@ -231,6 +272,20 @@ def main(argv):
     if not storages:
         import ZODB.FileStorage
         storages['1']=ZODB.FileStorage.FileStorage(fs)
+
+    # Try to set up a signal handler
+    try:
+        import signal
+        def handler(signum, frame, storages=storages, die=signal.SIGTERM):
+            for storage in storages.values():
+                try: storage.close()
+                finally: pass
+            if signum==dir: sys.exit(0)
+            else: sys.exit(1)
+
+        signal.signal(signal.SIGTERM, handler)
+        signal.signal(signal.SIGHUP, handler)
+    finally: pass
 
     items=storages.items()
     items.sort()
