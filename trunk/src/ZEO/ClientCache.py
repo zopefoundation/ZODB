@@ -189,8 +189,13 @@ class ClientCache:
             f[0].write(magic + '\0' * (headersize - len(magic)))
             current = 0
 
-        self.log("%s: storage=%r, size=%r; file[%r]=%r" %
-                 (self.__class__.__name__, storage, size, current, p[current]))
+        if self._ltid:
+            ts = "; last txn=%x" % u64(self._ltid)
+        else:
+            ts = ""
+        self.log("%s: storage=%r, size=%r; file[%r]=%r%s" %
+                 (self.__class__.__name__, storage, size, current, p[current],
+                  ts))
 
         self._current = current
         self._setup_trace()
