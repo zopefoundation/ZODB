@@ -13,7 +13,7 @@
 ##############################################################################
 """Open database and storage from a configuration.
 
-$Id: config.py,v 1.15 2003/10/02 18:17:19 jeremy Exp $"""
+$Id: config.py,v 1.16 2004/03/08 22:36:17 tim_one Exp $"""
 
 import os
 from cStringIO import StringIO
@@ -94,11 +94,16 @@ class ZODBDatabase(BaseConfig):
 
     def open(self):
         section = self.config
-        return ZODB.DB(section.storage.open(),
-                       pool_size=section.pool_size,
-                       cache_size=section.cache_size,
-                       version_pool_size=section.version_pool_size,
-                       version_cache_size=section.version_cache_size)
+        storage = section.storage.open()
+        try:
+            return ZODB.DB(storage,
+                           pool_size=section.pool_size,
+                           cache_size=section.cache_size,
+                           version_pool_size=section.version_pool_size,
+                           version_cache_size=section.version_cache_size)
+        except:
+            storage.close()
+            raise
 
 class MappingStorage(BaseConfig):
 
