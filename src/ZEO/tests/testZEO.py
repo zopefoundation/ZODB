@@ -211,6 +211,8 @@ class MappingStorageTests(FileStorageTests):
     def checkTransactionalUndoAfterPack(self): pass
     def checkSimpleTransactionalUndo(self): pass
     def checkReadMethods(self): pass
+    def checkPackAfterUndoDeletion(self): pass
+    def checkPackAfterUndoManyTimes(self): pass
     def checkPackVersions(self): pass
     def checkPackUnlinkedFromRoot(self): pass
     def checkPackOnlyOneObject(self): pass
