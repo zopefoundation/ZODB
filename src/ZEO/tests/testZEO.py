@@ -487,6 +487,9 @@ class ConnectionTests(StorageTestBase.StorageTestBase):
 class UnixConnectionTests(ConnectionTests):
 
     def _startServer(self, create=1, index=0, read_only=0):
+        zLOG.LOG("testZEO", zLOG.INFO,
+                 "_startServer(create=%d, index=%d, read_only=%d)" %
+                 (create, index, read_only))
         path = "%s.%d" % (self.file, index)
         addr = self.addr[index]
         pid, server = forker.start_zeo_server('FileStorage',
@@ -495,6 +498,7 @@ class UnixConnectionTests(ConnectionTests):
         self._servers.append(server)
 
     def shutdownServer(self, index=0):
+        zLOG.LOG("testZEO", zLOG.INFO, "shutdownServer(index=%d)" % index)
         self._servers[index].close()
         if self._pids[index] is not None:
             try:
@@ -506,6 +510,9 @@ class UnixConnectionTests(ConnectionTests):
 class WindowsConnectionTests(ConnectionTests):
 
     def _startServer(self, create=1, index=0, read_only=0):
+        zLOG.LOG("testZEO", zLOG.INFO,
+                 "_startServer(create=%d, index=%d, read_only=%d)" %
+                 (create, index, read_only))
         path = "%s.%d" % (self.file, index)
         addr = self.addr[index]
         args = (path, '='+str(create), '='+str(read_only))
@@ -515,6 +522,7 @@ class WindowsConnectionTests(ConnectionTests):
         self._servers.append(test_addr)
 
     def shutdownServer(self, index=0):
+        zLOG.LOG("testZEO", zLOG.INFO, "shutdownServer(index=%d)" % index)
         if self._servers[index] is not None:
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             s.connect(self._servers[index])
