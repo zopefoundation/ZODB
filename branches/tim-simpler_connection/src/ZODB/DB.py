@@ -16,7 +16,7 @@
 $Id$"""
 
 import cPickle, cStringIO, sys
-from thread import allocate_lock
+import threading
 from time import time, ctime
 import warnings
 import logging
@@ -113,7 +113,7 @@ class _ConnectionPool(object):
 
     # Throw away the oldest available connections until we're under our
     # target size (strictly_less=False) or no more than that (strictly_less=
-    # True, the default).  It may not be possible to achieve this.
+    # True, the default).
     def _reduce_size(self, strictly_less=False):
         target = self.pool_size - bool(strictly_less)
         while len(self.available) > target:
@@ -207,10 +207,10 @@ class DB(object):
           - `cache_deactivate_after`: ignored
           - `version_cache_deactivate_after`: ignored
         """
-        # Allocate locks:
-        l = allocate_lock()
-        self._a = l.acquire
-        self._r = l.release
+        # Allocate lock.
+        x = threading.RLock()
+        self._a = x.acquire
+        self._r = x.release
 
         # Setup connection pools and cache info
         # _pools maps a version string to a _ConnectionPool object.
@@ -314,12 +314,12 @@ class DB(object):
         """
 
         detail = {}
-        def f(con, detail=detail, have_detail=detail.has_key):
+        def f(con, detail=detail):
             for oid, ob in con._cache.items():
                 module = getattr(ob.__class__, '__module__', '')
                 module = module and '%s.' % module or ''
                 c = "%s%s" % (module, ob.__class__.__name__)
-                if have_detail(c):
+                if c in detail:
                     detail[c] += 1
                 else:
                     detail[c] = 1
@@ -397,9 +397,9 @@ class DB(object):
     def cacheDetailSize(self):
         m = []
         def f(con, m=m):
-            m.append({'connection':repr(con),
-                      'ngsize':con._cache.cache_non_ghost_count,
-                      'size':len(con._cache)})
+            m.append({'connection': repr(con),
+                      'ngsize': con._cache.cache_non_ghost_count,
+                      'size': len(con._cache)})
         self._connectionMap(f)
         m.sort()
         return m
@@ -462,19 +462,18 @@ class DB(object):
             if o is not None and o[0]==oid:
                 del self._miv_cache[h]
 
-        # Notify connections
-        for pool in self._pools.values():
-            for cc in pool.all_as_list():
-                if (cc is not connection and
-                      (not version or cc._version == version)):
-                    cc.invalidate(tid, oids)
-
+        # Notify connections.
+        def inval(c):
+            if (c is not connection and
+                  (not version or c._version == version)):
+                c.invalidate(tid, oids)
+        self._connectionMap(inval)
 
     def modifiedInVersion(self, oid):
         h = hash(oid) % 131
         cache = self._miv_cache
-        o=cache.get(h, None)
-        if o and o[0]==oid:
+        o = cache.get(h, None)
+        if o and o[0] == oid:
             return o[1]
         v = self._storage.modifiedInVersion(oid)
         cache[h] = oid, v
@@ -532,15 +531,16 @@ class DB(object):
                 else:
                     size = self._pool_size
                 self._pools[version] = pool = _ConnectionPool(size)
+            assert pool is not None
 
             # result <- a connection
             result = pool.pop()
             if result is None:
                 if version:
-                    cache = self._version_cache_size
+                    size = self._version_cache_size
                 else:
-                    cache = self._cache_size
-                c = self.klass(version=version, cache_size=cache,
+                    size = self._cache_size
+                c = self.klass(version=version, cache_size=size,
                                mvcc=mvcc, txn_mgr=txn_mgr)
                 pool.push(c)
                 result = pool.pop()
@@ -550,9 +550,7 @@ class DB(object):
             result._setDB(self, mvcc=mvcc, txn_mgr=txn_mgr, synch=synch)
 
             # A good time to do some cache cleanup.
-            for pool in self._pools.itervalues():
-                for c in pool.all_as_list():
-                    c.cacheGC()
+            self._connectionMap(lambda c: c.cacheGC())
 
             return result
 
@@ -568,23 +566,23 @@ class DB(object):
     def connectionDebugInfo(self):
         result = []
         t = time()
-        for version, pool in self._pools.items():
-            for c in pool.all_as_list():
-                o = c._opened
-                d = c._debug_info
-                if d:
-                    if len(d) == 1:
-                        d = d[0]
-                else:
-                    d = ''
-                d = "%s (%s)" % (d, len(c._cache))
+        def f(c):
+            o = c._opened
+            d = c._debug_info
+            if d:
+                if len(d) == 1:
+                    d = d[0]
+            else:
+                d = ''
+            d = "%s (%s)" % (d, len(c._cache))
 
-                result.append({
-                    'opened': o and ("%s (%.2fs)" % (ctime(o), t-o)),
-                    'info': d,
-                    'version': version,
-                    })
+            result.append({
+                'opened': o and ("%s (%.2fs)" % (ctime(o), t-o)),
+                'info': d,
+                'version': version,
+                })
 
+        self._connectionMap(f)
         return result
 
     def getActivityMonitor(self):
@@ -622,18 +620,26 @@ class DB(object):
         return find_global(modulename, globalname)
 
     def setCacheSize(self, v):
-        self._cache_size = v
-        pool = self._pools.get('')
-        if pool is not None:
-            for c in pool.all_as_list():
-                c._cache.cache_size = v
-
-    def setVersionCacheSize(self, v):
-        self._version_cache_size = v
-        for version, pool in self._pools.items():
-            if version:
+        self._a()
+        try:
+            self._cache_size = v
+            pool = self._pools.get('')
+            if pool is not None:
                 for c in pool.all_as_list():
                     c._cache.cache_size = v
+        finally:
+            self._r()
+
+    def setVersionCacheSize(self, v):
+        self._a()
+        try:
+            self._version_cache_size = v
+            for version, pool in self._pools.items():
+                if version:
+                    for c in pool.all_as_list():
+                        c._cache.cache_size = v
+        finally:
+            self._r()
 
     def setPoolSize(self, size):
         self._pool_size = size
@@ -649,7 +655,6 @@ class DB(object):
             for version, pool in self._pools.items():
                 if (version != '') == for_versions:
                     pool.set_pool_size(size)
-
         finally:
             self._r()
 
