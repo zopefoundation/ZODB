@@ -12,7 +12,7 @@
 
  ****************************************************************************/
 
-#define BTREETEMPLATE_C "$Id: BTreeTemplate.c,v 1.59 2002/06/17 20:31:40 tim_one Exp $\n"
+#define BTREETEMPLATE_C "$Id: BTreeTemplate.c,v 1.60 2002/06/17 23:39:56 tim_one Exp $\n"
 
 /*
 ** _BTree_get
@@ -1100,19 +1100,8 @@ BTree_maxminKey(BTree *self, PyObject *args, int min)
   else if (min)
     {
       bucket = self->firstbucket;
-      PER_ALLOW_DEACTIVATION(self);
-      PER_ACCESSED(self);
-      UNLESS (PER_USE(bucket)) return NULL;
       Py_INCREF(bucket);
       offset = 0;
-      if (offset >= bucket->len)
-        {
-          switch (firstBucketOffset(&bucket, &offset))
-            {
-            case 0:  goto empty;
-            case -1: goto err;
-            }
-        }
     }
   else
     {
@@ -1124,16 +1113,8 @@ BTree_maxminKey(BTree *self, PyObject *args, int min)
           Py_DECREF(bucket);
           return NULL;
         }
-      if (bucket->len)
-        offset = bucket->len - 1;
-      else
-        {
-          switch (lastBucketOffset(&bucket, &offset, self->firstbucket, -1))
-            {
-            case 0:  goto empty;
-            case -1: goto err;
-            }
-        }
+      assert(bucket->len);
+      offset = bucket->len - 1;
     }
 
   COPY_KEY_TO_OBJECT(key, bucket->keys[offset]);
