@@ -1,6 +1,7 @@
 Zope Enterprize Objects, ZEO 0.2
 
-  Put this package in your Zope lib/python.
+  Put this package (the ZEO directory, without any wrapping directory
+  included in a distribution) in your Zope lib/python.
 
   Note -- This release of ZEO requires Zope 2.2 or a CVS checkout
     of Zope. See 'CHANGES.txt' for details.
