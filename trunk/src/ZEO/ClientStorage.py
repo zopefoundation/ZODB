@@ -20,7 +20,7 @@ ClientStorageError -- exception raised by ClientStorage
 UnrecognizedResult -- exception raised by ClientStorage
 ClientDisconnected -- exception raised by ClientStorage
 
-$Id: ClientStorage.py,v 1.72 2002/10/01 18:45:56 gvanrossum Exp $
+$Id: ClientStorage.py,v 1.73 2002/10/01 21:12:12 gvanrossum Exp $
 """
 
 # XXX TO DO
@@ -166,8 +166,9 @@ class ClientStorage:
             true.
         """
 
-        log2(INFO, "ClientStorage (pid=%d) created %s/%s for storage: %r" %
-             (os.getpid(),
+        log2(INFO, "%s (pid=%d) created %s/%s for storage: %r" %
+             (self.__class__.__name__,
+              os.getpid(),
               read_only and "RO" or "RW",
               read_only_fallback and "fallback" or "normal",
               storage))
