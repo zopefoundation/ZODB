@@ -14,7 +14,7 @@
 
 """
 Revision information:
-$Id: testTransaction.py,v 1.5 2002/03/12 19:44:13 k_vertigo Exp $
+$Id: testTransaction.py,v 1.6 2002/04/12 18:22:45 jeremy Exp $
 """
 
 """
@@ -44,9 +44,8 @@ TODO
     
 """
 
-import unittest
-
 from types import TupleType
+import unittest
 
 from ZODB import Transaction
 
@@ -467,31 +466,32 @@ class TransactionTests(unittest.TestCase):
         assert self.nosub1._p_jar.ctpc_abort == 1
 
     def testExceptionInSubAbortSub(self):
-
         self.sub1._p_jar = SubTransactionJar(errors='commit_sub')
-
         self.sub1.modify(nojar=1)
-
         get_transaction().commit(1)
 
         self.nosub1.modify()
-
         self.sub2._p_jar = SubTransactionJar(errors='abort_sub')
-
         self.sub2.modify(nojar=1)
-
         get_transaction().commit(1)
         
         self.sub3.modify()
 
         try:
             get_transaction().commit()
-        except TestTxnException: pass
-
-        if self.sub3._p_jar.ccommit_sub == 1:
-            assert self.sub3._p_jar.ctpc_abort == 1
+        except TestTxnException, err:
+            pass
         else:
-            assert self.sub3._p_jar.cabort_sub == 1
+            self.fail("expected transaction to fail")
+
+        # The last commit failed.  If the commit_sub() method was
+        # called, then tpc_abort() should be called to abort the
+        # actual transaction.  If not, then calling abort_sub() is
+        # sufficient.
+        if self.sub3._p_jar.ccommit_sub == 1:
+            self.assertEqual(self.sub3._p_jar.ctpc_abort, 1)
+        else:
+            self.assertEqual(self.sub3._p_jar.cabort_sub, 1)
 
     ### XXX
     def BUGtestExceptionInSubTpcBegin(self):
@@ -603,15 +603,12 @@ class BasicJar:
         self.ccommit_sub = 0        
         
     def check(self, method):
-        
         if self.tracing:
             print '%s calling method %s'%(str(self.tracing),method)
-
         
-        if (type(self.errors) is TupleType and method in self.errors) or \
-            method == self.errors:
-            
-            raise TestTxnException(" error %s"%method)
+        if ((type(self.errors) is TupleType and method in self.errors)
+            or method == self.errors):
+            raise TestTxnException("error %s" % method)
 
     ## basic jar txn interface 
 
