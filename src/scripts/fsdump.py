@@ -1,4 +1,4 @@
-#! /usr/bin/env python
+#!python
 """Print a text summary of the contents of a FileStorage."""
 
 from ZODB.fsdump import fsdump

@@ -1,4 +1,4 @@
-#! /usr/bin/env python
+#!python
 ##############################################################################
 #
 # Copyright (c) 2001, 2002 Zope Corporation and Contributors.
