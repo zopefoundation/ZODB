@@ -1897,16 +1897,14 @@ class FileIterator(Iterator, FileStorageFormatter):
 
             if h.status != "u":
                 pos = tpos + h.headerlen()
-                user = self._file.read(h.ulen)
-                description = self._file.read(h.dlen)
                 e = {}
                 if h.elen:
                     try:
-                        e = loads(self._file.read(h.elen))
+                        e = loads(h.ext)
                     except:
                         pass
 
-                result = RecordIterator(h.tid, h.status, user, description,
+                result = RecordIterator(h.tid, h.status, h.user, h.descr,
                                         e, pos, tend, self._file, tpos)
 
             # Read the (intentionally redundant) transaction length
@@ -1966,16 +1964,20 @@ class RecordIterator(Iterator, BaseStorage.TransactionRecord,
                     # it go to the original data like BDBFullStorage?
                     prev_txn = self.getTxnFromData(h.oid, h.back)
 
-            r = Record(h.oid, h.tid, h.version, data, prev_txn)
-
+            r = Record(h.oid, h.tid, h.version, data, prev_txn, pos)
             return r
 
         raise IndexError, index
 
 class Record(BaseStorage.DataRecord):
     """An abstract database record."""
-    def __init__(self, *args):
-        self.oid, self.tid, self.version, self.data, self.data_txn = args
+    def __init__(self, oid, tid, version, data, prev, pos):
+        self.oid = oid
+        self.tid = tid
+        self.version = version
+        self.data = data
+        self.data_txn = prev
+        self.pos = pos
 
 class UndoSearch:
 
