@@ -116,7 +116,7 @@ def work(db, results, nrep, compress, data, detailed, minimize, threadno=None):
             rt=d=p=v=None # release all references
             if minimize:
                 time.sleep(3)
-                jar.cacheMinimize(3)
+                jar.cacheMinimize()
 
 def main(args):
     opts, args = getopt.getopt(args, 'zd:n:Ds:LMt:U')
