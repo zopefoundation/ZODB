@@ -4,7 +4,7 @@
 __doc__='''Python implementation of persistent base types
 
 
-$Id: Persistence.py,v 1.5 1997/03/25 20:42:42 jim Exp $'''
+$Id: Persistence.py,v 1.6 1997/03/28 23:04:48 jim Exp $'''
 #     Copyright 
 #
 #       Copyright 1996 Digital Creations, L.C., 910 Princess Anne
@@ -60,6 +60,9 @@ $Id: Persistence.py,v 1.5 1997/03/25 20:42:42 jim Exp $'''
 #   (540) 371-6909
 #
 # $Log: Persistence.py,v $
+# Revision 1.6  1997/03/28 23:04:48  jim
+# Changed reinit to tolerate being called with no arguments.
+#
 # Revision 1.5  1997/03/25 20:42:42  jim
 # Changed to make all persistent objects transactional.
 #
@@ -79,7 +82,7 @@ $Id: Persistence.py,v 1.5 1997/03/25 20:42:42 jim Exp $'''
 #
 #
 # 
-__version__='$Revision: 1.5 $'[11:-2]
+__version__='$Revision: 1.6 $'[11:-2]
 
 class Persistent:
     """\
@@ -132,7 +135,8 @@ class Persistent:
 	    d['_p_setstate']=jar.setstate
 	    d['_p_changed']=0
 
-    def _p___reinit__(self,oid,jar,copy):
+    def _p___reinit__(self,oid=None,jar=None,copy=None):
+	if copy is None: return
 	d=self.__dict__
 	cd=copy.__dict__
 	if self._p_oid is None: d['_p_oid']=oid
