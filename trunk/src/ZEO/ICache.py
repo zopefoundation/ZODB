@@ -17,7 +17,7 @@ class ICache(Base):
     client -- a string; if specified, cache is persistent.
     var -- var directory to store cache files in
     """
-    
+
     def open():
         """Returns a sequence of object info tuples.
 
@@ -75,9 +75,3 @@ class ICache(Base):
         size is a hint about the amount of data that is about to be
         stored.  The cache may want to evict some data to make space.
         """
-
-    
-    
-        
-
-    

@@ -2,14 +2,14 @@
 #
 # Copyright (c) 2001, 2002 Zope Corporation and Contributors.
 # All Rights Reserved.
-# 
+#
 # This software is subject to the provisions of the Zope Public License,
 # Version 2.0 (ZPL).  A copy of the ZPL should accompany this distribution.
 # THIS SOFTWARE IS PROVIDED "AS IS" AND ANY AND ALL EXPRESS OR IMPLIED
 # WARRANTIES ARE DISCLAIMED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 # WARRANTIES OF TITLE, MERCHANTABILITY, AGAINST INFRINGEMENT, AND FITNESS
 # FOR A PARTICULAR PURPOSE
-# 
+#
 ##############################################################################
 """Network ZODB storage server
 
@@ -114,7 +114,7 @@ class StorageServer:
 
 class ZEOStorage:
     """Proxy to underlying storage for a single remote client."""
-    
+
     def __init__(self, server):
         self.server = server
         self.client = None
@@ -305,7 +305,7 @@ class ZEOStorage:
         else:
             self.strategy = DelayedCommitStrategy(self.__storage,
                                                   self.wait)
-            
+
         t = Transaction()
         t.id = id
         t.user = user
@@ -365,7 +365,7 @@ class ZEOStorage:
     # the finishing transaction's reply before restarting the waiting
     # transaction.  If the restart takes a long time, the previous
     # client will be blocked until it finishes.
-    
+
     def wait(self):
         if self.__storage._transaction:
             d = Delay()
@@ -401,7 +401,7 @@ class ZEOStorage:
             return 0
         else:
             return 1
-            
+
     def restart(self, delay=None):
         old_strategy = self.strategy
         self.strategy = ImmediateCommitStrategy(self.__storage,

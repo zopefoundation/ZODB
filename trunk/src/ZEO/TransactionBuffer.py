@@ -2,14 +2,14 @@
 #
 # Copyright (c) 2001, 2002 Zope Corporation and Contributors.
 # All Rights Reserved.
-# 
+#
 # This software is subject to the provisions of the Zope Public License,
 # Version 2.0 (ZPL).  A copy of the ZPL should accompany this distribution.
 # THIS SOFTWARE IS PROVIDED "AS IS" AND ANY AND ALL EXPRESS OR IMPLIED
 # WARRANTIES ARE DISCLAIMED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 # WARRANTIES OF TITLE, MERCHANTABILITY, AGAINST INFRINGEMENT, AND FITNESS
 # FOR A PARTICULAR PURPOSE
-# 
+#
 ##############################################################################
 """A TransactionBuffer store transaction updates until commit or abort.
 
@@ -35,12 +35,12 @@ class TransactionBuffer:
         self.pickler = cPickle.Pickler(self.file, 1)
         self.pickler.fast = 1
 
-    def close(self): 
+    def close(self):
         try:
             self.file.close()
         except OSError:
             pass
-        
+
 
     def store(self, oid, version, data):
         """Store oid, version, data for later retrieval"""
