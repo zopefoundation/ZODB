@@ -84,8 +84,8 @@
 ##############################################################################
 """Transaction management
 
-$Id: Transaction.py,v 1.25 2001/01/18 18:12:21 jim Exp $"""
-__version__='$Revision: 1.25 $'[11:-2]
+$Id: Transaction.py,v 1.26 2001/02/15 20:01:12 jim Exp $"""
+__version__='$Revision: 1.26 $'[11:-2]
 
 import time, sys, struct, POSException
 from struct import pack
@@ -103,6 +103,7 @@ class Transaction:
     _connections=None
     _extension=None
     _sub=None # This is a subtrasaction flag
+    _sub_no_partial_abort=None
 
     def __init__(self, id=None):
         self._id=id
@@ -136,6 +137,13 @@ class Transaction:
         This is called from the application.  This means that we haven\'t
         entered two-phase commit yet, so no tpc_ messages are sent.
         '''
+
+        if subtransaction and self._sub_no_partial_abort:
+            raise POSException.TransactionError, (
+                """Attempted to abort a sub-transaction, but a participating
+                data manager doesn't support partial abort.
+                """)
+
         t=v=tb=None
         subj=self._sub
         subjars=()
@@ -146,6 +154,7 @@ class Transaction:
                 # subtransactions.
                 subjars=subj.values()
                 self._sub=None
+                self._sub_no_partial_abort=None
 
         try:
             # Abort the objects
@@ -200,6 +209,7 @@ class Transaction:
                     objects=[]
                 subjars=subj.values()
                 self._sub=None
+                self._sub_no_partial_abort=None
 
         t=v=tb=None
 
@@ -245,8 +255,12 @@ class Transaction:
                         if not jars.has_key(i):
                             jars[i]=j
                             if subtransaction:
-                                subj[i]=j
-                                j.tpc_begin(self, subtransaction)
+                                try: j.tpc_begin(self, subtransaction)
+                                except TypeError:
+                                    j.tpc_begin(self)
+                                    self._sub_no_partial_abort=1
+                                else:
+                                    subj[i]=j
                             else:
                                 j.tpc_begin(self)
                         j.commit(o,self)
