@@ -88,7 +88,7 @@ process must skip such objects, rather than deactivating them.
 static char cPickleCache_doc_string[] =
 "Defines the PickleCache used by ZODB Connection objects.\n"
 "\n"
-"$Id: cPickleCache.c,v 1.62 2002/04/18 09:16:24 htrd Exp $\n";
+"$Id: cPickleCache.c,v 1.63 2002/04/18 09:18:26 htrd Exp $\n";
 
 #define ASSIGN(V,E) {PyObject *__e; __e=(E); Py_XDECREF(V); (V)=__e;}
 #define UNLESS(E) if(!(E))
@@ -834,12 +834,12 @@ cc_add_item(ccobject *self, PyObject *key, PyObject *v)
     jar = PyObject_GetAttr(v, py__p_jar);
     if (jar == NULL)
         return -1;
-    Py_DECREF(jar);
     if (jar==Py_None) {
         PyErr_SetString(PyExc_ValueError,
                         "Cached object jar missing");
 	return -1;
     }
+    Py_DECREF(jar);
 
     object_again = object_from_oid(self, key);
     if (object_again) {
