@@ -94,10 +94,16 @@ class HistoryStorage:
         oids = self._storage.commitVersion(version, '', self._transaction)
         self._storage.tpc_vote(self._transaction)
         self._storage.tpc_finish(self._transaction)
-        # It is not guaranteed that the revision id (a.k.a. serial number) for
-        # the version-committed object is the same as the last in-version
-        # modification.  We need to suck that out of the API a different way,
-        # just to be sure.
+        # After consultation with Jim, we agreed that the semantics of
+        # revision id's after a version commit is that the committed object
+        # gets a new serial number (a.k.a. revision id).  Note that
+        # FileStorage is broken here; the serial number in the post-commit
+        # non-version revision will be the same as the serial number of the
+        # previous in-version revision.
+        #
+        # BAW: Using load() is the only way to get the serial number of the
+        # current revision of the object.  But at least this works for both
+        # broken and working storages.
         ign, revid7 = self._storage.load(oid, '')
         # Now, try to get the six historical revisions (first three are in
         # 'test-version', followed by the non-version revisions).
@@ -137,10 +143,16 @@ class HistoryStorage:
         oids = self._storage.abortVersion(version, self._transaction)
         self._storage.tpc_vote(self._transaction)
         self._storage.tpc_finish(self._transaction)
-        # It is not guaranteed that the revision id (a.k.a. serial number) for
-        # the version-committed object is the same as the last in-version
-        # modification.  We need to suck that out of the API a different way,
-        # just to be sure.
+        # After consultation with Jim, we agreed that the semantics of
+        # revision id's after a version commit is that the committed object
+        # gets a new serial number (a.k.a. revision id).  Note that
+        # FileStorage is broken here; the serial number in the post-commit
+        # non-version revision will be the same as the serial number of the
+        # previous in-version revision.
+        #
+        # BAW: Using load() is the only way to get the serial number of the
+        # current revision of the object.  But at least this works for both
+        # broken and working storages.
         ign, revid7 = self._storage.load(oid, '')
         # Now, try to get the six historical revisions (first three are in
         # 'test-version', followed by the non-version revisions).
