@@ -84,8 +84,8 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.26 1999/09/24 21:32:52 amos Exp $"""
-__version__='$Revision: 1.26 $'[11:-2]
+$Id: Connection.py,v 1.27 1999/10/07 14:17:50 jim Exp $"""
+__version__='$Revision: 1.27 $'[11:-2]
 
 from cPickleCache import PickleCache
 from POSException import ConflictError, ExportError
@@ -228,7 +228,7 @@ class Connection(ExportImport.ExportImport):
     def cacheMinimize(self, dt=0): self._cache.minimize(dt)
 
     def close(self):
-        self._incrgc()
+        self._incrgc() # This is a good time to do some GC
         db=self._db
         self._db=self._storage=self._tmp=self.new_oid=self._opened=None
         self._debug_info=()
@@ -468,6 +468,7 @@ class Connection(ExportImport.ExportImport):
     def tpc_finish(self, transaction):
         self._storage.tpc_finish(transaction, self.tpc_finish_)
         self._cache.invalidate(self._invalidated)
+        self._incrgc() # This is a good time to do some GC
 
     def tpc_finish_(self):
         invalidate=self._db.invalidate
@@ -476,6 +477,7 @@ class Connection(ExportImport.ExportImport):
     def sync(self):
         get_transaction().abort()
         self._cache.invalidate(self._invalidated)
+        self._incrgc() # This is a good time to do some GC
 
     def getDebugInfo(self): return self._debug_info
     def setDebugInfo(self, *args): self._debug_info=self._debug_info+args
