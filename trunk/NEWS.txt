@@ -18,7 +18,7 @@ get_transaction() builtin, which will be deprecated.  For example:
 should now be written as
 
     >>> import transaction
-    >>> transaction.get()
+    >>> transaction.commit()
 
 The new API provides explicit transaction manager objects.  The
 transaction manager (TM) is responsible for associating resource
@@ -26,7 +26,7 @@ managers with a "current" transaction.  It is available as
 `transaction.manager`.  The default TM, implemented by
 ThreadedTransactionManager, assigns each thread its own current
 transaction.  The TransactionManager class assigns all threads to the
-same transaction.  
+same transaction.
 
 A transaction manager instance can be passed as the txn_mgr argument
 to DB.open().  If you do, the connection will use the specified
@@ -46,7 +46,7 @@ TM instead of a Transaction.
 
 The TM creates Transaction objects, which are used for exactly one
 transaction.  They have a status() method that returns their current
-state. 
+state.
 
 Resource managers, e.g. Connection or RDB adapter, should use join()
 instead of register().  An object that calls join() manages its own
