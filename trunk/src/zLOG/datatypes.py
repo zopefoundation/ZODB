@@ -25,9 +25,13 @@ _logging_levels = {
     "fatal": 50,
     "error": 40,
     "warn": 30,
+    "warning": 30,
     "info": 20,
+    "blather": 15,
     "debug": 10,
-    "all": 0,
+    "trace": 5,
+    "all": 1,
+    "notset": 0,
     }
 
 def logging_level(value):
