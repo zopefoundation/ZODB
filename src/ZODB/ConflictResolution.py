@@ -91,7 +91,11 @@ from ZODB.POSException import ConflictError
 #import traceback
 
 bad_classes={}
-bad_class=bad_classes.has_key
+def bad_class(class_tuple):
+    if bad_classes.has_key(class_tuple) or class_tuple[0][1] == '*':
+        # if we've seen the class before or if it's a ZClass, we know that
+        # we can't resolve the conflict
+        return 1
 
 ResolvedSerial='rs'
 
