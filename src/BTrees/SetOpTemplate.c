@@ -16,7 +16,7 @@
  Set operations
  ****************************************************************************/
 
-#define SETOPTEMPLATE_C "$Id: SetOpTemplate.c,v 1.24 2002/06/08 04:41:44 tim_one Exp $\n"
+#define SETOPTEMPLATE_C "$Id: SetOpTemplate.c,v 1.25 2002/06/23 19:36:12 tim_one Exp $\n"
 
 #ifdef INTSET_H
 static int
@@ -346,8 +346,9 @@ difference_m(PyObject *ignored, PyObject *args)
 
   if (o1==Py_None || o2==Py_None)
     {
-      Py_INCREF(Py_None);
-      return Py_None;
+      /* difference(None, X) -> None; difference(X, None) -> X */
+      Py_INCREF(o1);
+      return o1;
     }
 
   return set_operation(o1, o2, 1, -1, 1, 0, 0);

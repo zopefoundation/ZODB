@@ -249,8 +249,11 @@ class IMerge(Interface):
         """Return the keys or items in c1 for which there is no key in
         c2.
 
-        If c1 is None, then None is returned.  If c2 is none, then c1
+        If c1 is None, then None is returned.  If c2 is None, then c1
         is returned.
+
+        If neither c1 nor c2 is None, the output is a Set if c1 is a Set or
+        TreeSet, and is a Bucket if c1 is a Bucket or BTree.
         """
 
     def union(c1, c2):
