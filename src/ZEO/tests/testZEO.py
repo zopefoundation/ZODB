@@ -98,8 +98,26 @@ class ZEOTestBase(StorageTestBase.StorageTestBase):
                     raise serial
                 d[oid] = serial
         return d
+
+# Some of the ZEO tests depend on the version of FileStorage available
+# for the tests.  If we run these tests using Zope 2.3, FileStorage
+# doesn't support TransactionalUndo.
+
+if hasattr(FileStorage, 'supportsTransactionalUndo'):
+    # XXX Assume that a FileStorage that supports transactional undo
+    # also supports conflict resolution.
+    class VersionDependentTests(
+        TransactionalUndoStorage.TransactionalUndoStorage,
+        TransactionalUndoVersionStorage.TransactionalUndoVersionStorage,
+        ConflictResolution.ConflictResolvingStorage,
+        ConflictResolution.ConflictResolvingTransUndoStorage):
+        pass
+else:
+    class VersionDependentTests:
+        pass
         
 class GenericTests(ZEOTestBase,
+                   VersionDependentTests,
                    Cache.StorageWithCache,
                    Cache.TransUndoStorageWithCache,
                    BasicStorage.BasicStorage,
@@ -107,10 +125,6 @@ class GenericTests(ZEOTestBase,
                    RevisionStorage.RevisionStorage,
                    PackableStorage.PackableStorage,
                    Synchronization.SynchronizedStorage,
-                   ConflictResolution.ConflictResolvingStorage,
-                   ConflictResolution.ConflictResolvingTransUndoStorage,
-                   TransactionalUndoStorage.TransactionalUndoStorage,
-      TransactionalUndoVersionStorage.TransactionalUndoVersionStorage,
                    ):
     """An abstract base class for ZEO tests
 
@@ -187,7 +201,7 @@ class WindowsGenericTests(GenericTests):
         zeo_addr, self.test_addr, self.test_pid = \
                   forker.start_zeo_server(name, args)
         storage = ZEO.ClientStorage.ClientStorage(zeo_addr, debug=1,
-                                                  min_disconnect_poll=0.5)
+                                                  min_disconnect_poll=0.1)
         self._storage = PackWaitWrapper(storage)
         storage.registerDB(DummyDB(), None)
 
@@ -195,6 +209,7 @@ class WindowsGenericTests(GenericTests):
         self._storage.close()
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.connect(self.test_addr)
+        s.close()
         # the connection should cause the storage server to die
 ##        os.waitpid(self.test_pid, 0)
         time.sleep(0.5)

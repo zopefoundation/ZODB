@@ -144,7 +144,7 @@ file 0 and file 1.
 
 """
 
-__version__ = "$Revision: 1.17 $"[11:-2]
+__version__ = "$Revision: 1.18 $"[11:-2]
 
 import os, tempfile
 from struct import pack, unpack
@@ -217,7 +217,7 @@ class ClientCache:
     def close(self):
         try:
             self._f[self._current].close()
-        except OSError:
+        except (os.error, ValueError):
             pass
 
     def open(self):
@@ -373,6 +373,8 @@ class ClientCache:
                     self._f[current]=open(self._p[current],'w+b')
                 else:
                     # Temporary cache file:
+                    if self._f[current] is not None:
+                        self._f[current].close()
                     self._f[current] = tempfile.TemporaryFile(suffix='.zec')
                 self._f[current].write(magic)
                 self._pos=pos=4

@@ -84,7 +84,8 @@
 ##############################################################################
 """Network ZODB storage client
 """
-__version__='$Revision: 1.34 $'[11:-2]
+
+__version__='$Revision: 1.35 $'[11:-2]
 
 import struct, time, os, socket, string, Sync, zrpc, ClientCache
 import tempfile, Invalidator, ExtensionClass, thread
@@ -168,17 +169,16 @@ class ClientStorage(ExtensionClass.Base, BaseStorage.BaseStorage):
         # Among other things, we know that our data methods won't get
         # called until after this call.
 
-        invalidator=Invalidator.Invalidator(
-            db.invalidate,
-            self._cache.invalidate)
+        self.invalidator = Invalidator.Invalidator(db.invalidate,
+                                                   self._cache.invalidate)
 
         def out_of_band_hook(
             code, args,
             get_hook={
-                'b': (invalidator.begin, 0),
-                'i': (invalidator.invalidate, 1),
-                'e': (invalidator.end, 0),
-                'I': (invalidator.Invalidate, 1),
+                'b': (self.invalidator.begin, 0),
+                'i': (self.invalidator.invalidate, 1),
+                'e': (self.invalidator.end, 0),
+                'I': (self.invalidator.Invalidate, 1),
                 'U': (self._commit_lock_release, 0),
                 's': (self._serials.append, 1),
                 'S': (self._info.update, 1),
@@ -307,8 +307,18 @@ class ClientStorage(ExtensionClass.Base, BaseStorage.BaseStorage):
         try:
             LOG("ClientStorage", INFO, "close")
             self._call.closeIntensionally()
+            try:
+                self._tfile.close()
+            except os.error:
+                # On Windows, this can fail if it is called more than
+                # once, because it tries to delete the file each
+                # time.
+                pass
             self._cache.close()
-            self.closed = 1 
+            if self.invalidator is not None:
+                self.invalidator.close()
+                self.invalidator = None
+            self.closed = 1
         finally: self._lock_release()
         
     def commitVersion(self, src, dest, transaction):
@@ -317,7 +327,6 @@ class ClientStorage(ExtensionClass.Base, BaseStorage.BaseStorage):
         self._lock_acquire()
         try:
             oids=self._call('commitVersion', src, dest, self._serial)
-            invalidate=self._cache.invalidate
             if dest:
                 vlen = pack(">H", len(src))
                 # just invalidate our version data
@@ -436,12 +445,17 @@ class ClientStorage(ExtensionClass.Base, BaseStorage.BaseStorage):
         
         finally: self._lock_release()
             
-        
-
-    def supportsUndo(self): return self._info['supportsUndo']
-    def supportsVersions(self): return self._info['supportsVersions']
+    def supportsUndo(self):
+        return self._info['supportsUndo']
+    
+    def supportsVersions(self):
+        return self._info['supportsVersions']
+    
     def supportsTransactionalUndo(self):
-        return self._info['supportsTransactionalUndo']
+        try:
+            return self._info['supportsTransactionalUndo']
+        except KeyError:
+            return 0
         
     def tpc_abort(self, transaction):
         self._lock_acquire()
@@ -522,7 +536,6 @@ class ClientStorage(ExtensionClass.Base, BaseStorage.BaseStorage):
             seek=tfile.seek
             read=tfile.read
             cache=self._cache
-            update=cache.update
             size=tfile.tell()
             cache.checkSize(size)
             seek(0)
@@ -543,9 +556,9 @@ class ClientStorage(ExtensionClass.Base, BaseStorage.BaseStorage):
                             "temporary file."
                             )
                     if s==ResolvedSerial:
-                        cache.invalidate(oid, v)
+                        self._cache.invalidate(oid, v)
                     else:
-                        update(oid, s, v, p)
+                        self._cache.update(oid, s, v, p)
                     i=i+15+vlen+dlen
                 elif opcode == "i":
                     oid=read(8)
@@ -578,7 +591,8 @@ class ClientStorage(ExtensionClass.Base, BaseStorage.BaseStorage):
         try:
             oids=self._call('undo', transaction_id)
             cinvalidate=self._cache.invalidate
-            for oid in oids: cinvalidate(oid,'')                
+            for oid in oids:
+                cinvalidate(oid,'')                
             return oids
         finally: self._lock_release()
 
