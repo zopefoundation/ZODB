@@ -13,7 +13,7 @@
 ##############################################################################
 """Network ZODB storage client
 
-$Id: ClientStorage.py,v 1.44 2002/08/14 19:46:28 jeremy Exp $
+$Id: ClientStorage.py,v 1.45 2002/08/14 20:44:28 jeremy Exp $
 """
 
 import cPickle
@@ -290,8 +290,7 @@ class ClientStorage:
         return oid
 
     def pack(self, t=None, rf=None, wait=0, days=0):
-        if self._is_read_only:
-            raise POSException.ReadOnlyError()
+        # XXX Is it okay that read-only connections allow pack()?
         # rf argument ignored; server will provide it's own implementation
         if t is None:
             t = time.time()
