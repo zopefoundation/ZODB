@@ -6,7 +6,6 @@ objects in memory under the assumption that they may be used again.
 """
 from __future__ import nested_scopes
 
-import random
 import time
 import types
 import unittest
@@ -34,8 +33,6 @@ class CacheTestBase(unittest.TestCase):
             conn.close()
         self.db.close()
 
-    NUM_COLLECTIONS = 10
-    MAX_OBJECTS = 100
     CACHE_SIZE = 20
 
     def noodle_new_connection(self):
@@ -48,17 +45,16 @@ class CacheTestBase(unittest.TestCase):
     def noodle_connection(self, c):
         r = c.root()
 
-        i = random.randrange(0, self.NUM_COLLECTIONS)
+        i = len(self.conns)
         d = r.get(i)
         if d is None:
             d = r[i] = PersistentMapping()
             get_transaction().commit()
             
-        for i in range(random.randrange(10, 20)):
-            j = random.randrange(0, self.MAX_OBJECTS)
-            o = d.get(j)
+        for i in range(15):
+            o = d.get(i)
             if o is None:
-                o = d[j] = MinPO(j)
+                o = d[i] = MinPO(i)
             o.value += 1
         get_transaction().commit()
 
@@ -196,11 +192,11 @@ class LRUCacheTests(CacheTestBase):
             self.noodle_new_connection()
         
         for klass, count in self.db.cacheDetail():
+            if klass.endswith('MinPO'):
+                self.assertEqual(count, CONNS * CACHE_SIZE)
             if klass.endswith('PersistentMapping'):
                 # one root per connection
                 self.assertEqual(count, CONNS)
-            if klass.endswith('MinPO'):
-                self.assertEqual(count, CONNS * CACHE_SIZE)
 
         for details in self.db.cacheExtremeDetail():
             # one dict per object.  keys:
