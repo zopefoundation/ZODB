@@ -184,7 +184,7 @@
 #   may have a back pointer to a version record or to a non-version
 #   record.
 #
-__version__='$Revision: 1.39 $'[11:-2]
+__version__='$Revision: 1.40 $'[11:-2]
 
 import struct, time, os, bpthread, string, base64, sys
 from struct import pack, unpack
@@ -827,9 +827,6 @@ class FileStorage(BaseStorage.BaseStorage):
             while i < last and pos > 39:
                 seek(pos-8)
                 pos=pos-u64(read(8))-8
-                if i < first:
-                    i = i+1
-                    continue
                 seek(pos)
                 h=read(23)
                 tid, tl, status, ul, dl, el = unpack(">8s8scHHH", h)
@@ -846,7 +843,7 @@ class FileStorage(BaseStorage.BaseStorage):
                         d.update(e)
                     except: pass
                 if filter is None or filter(d):
-                    append(d)
+                    if i >= first: append(d)
                     i=i+1
                 
             return r
