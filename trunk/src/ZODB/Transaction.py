@@ -84,8 +84,8 @@
 ##############################################################################
 """Transaction management
 
-$Id: Transaction.py,v 1.11 1999/07/07 19:57:03 jim Exp $"""
-__version__='$Revision: 1.11 $'[11:-2]
+$Id: Transaction.py,v 1.12 1999/07/22 15:03:09 jim Exp $"""
+__version__='$Revision: 1.12 $'[11:-2]
 
 import time, sys, struct
 from struct import pack
@@ -123,6 +123,9 @@ class Transaction:
         return r
         
     def __str__(self): return "%.3f\t%s" % (self._id, self.user)
+
+    def __del__(self):
+        if self._objects: self.abort(freeme=0)
 
     def abort(self, subtransaction=0, freeme=1):
         '''Abort the transaction.
