@@ -43,6 +43,10 @@ Flags for --backup:
         significantly reduces the disk i/o at the (theoretical) cost of
         inconsistency.
 
+    -z / --gzip
+        Compress with gzip the backup files.  Uses the default zlib
+        compression level.
+
 Flags for --recover:
     -D str
     --date=str
@@ -62,6 +66,7 @@ from __future__ import nested_scopes
 import os
 import sys
 import md5
+import gzip
 import time
 import errno
 import getopt
@@ -107,10 +112,10 @@ def log(msg, *args):
 def parseargs():
     global VERBOSE
     try:
-        opts, args = getopt.getopt(sys.argv[1:], 'BRvhf:r:FD:o:Q',
+        opts, args = getopt.getopt(sys.argv[1:], 'BRvhf:r:FD:o:Qz',
                                    ['backup', 'recover', 'verbose', 'help',
                                     'file=', 'repository=', 'full', 'date=',
-                                    'output=', 'quick'])
+                                    'output=', 'quick', 'gzip'])
     except getopt.error, msg:
         usage(1, msg)
 
@@ -122,6 +127,7 @@ def parseargs():
         date = None
         output = None
         quick = False
+        gzip = False
 
     options = Options()
 
@@ -150,6 +156,8 @@ def parseargs():
             options.date = arg
         elif opt in ('-o', '--output'):
             options.output = arg
+        elif opt in ('-z', '--gzip'):
+            options.gzip = True
 
     # Any other arguments are invalid
     if args:
@@ -177,12 +185,12 @@ def parseargs():
 
 
 # Do something with a run of bytes from a file
-def dofile(func, fp, n):
+def dofile(func, fp, n=None):
     bytesread = 0
     stop = False
     chunklen = READCHUNK
     while not stop:
-        if chunklen + bytesread > n:
+        if n is not None and chunklen + bytesread > n:
             chunklen = n - bytesread
             stop = True
         data = fp.read(chunklen)
@@ -202,13 +210,16 @@ def checksum(fp, n):
     return sum.hexdigest()
 
 
-def copyfile(src, dst, start, n):
+def copyfile(options, dst, start, n):
     # Copy bytes from file src, to file dst, starting at offset start, for n
     # length of bytes
     sum = md5.new()
-    ifp = open(src, 'rb')
+    ifp = open(options.file, 'rb')
     ifp.seek(start)
-    ofp = open(dst, 'wb')
+    if options.gzip:
+        ofp = gzip.open(dst, 'wb')
+    else:
+        ofp = open(dst, 'wb')
     def func(data):
         sum.update(data)
         ofp.write(data)
@@ -229,8 +240,12 @@ def concat(files, ofp=None):
             ofp.write(data)
     bytesread = 0
     for f in files:
-        ifp = open(f, 'rb')
-        bytesread += dofile(func, ifp, os.path.getsize(f))
+        # Auto uncompress
+        if f.endswith('fsz'):
+            ifp = gzip.open(f, 'rb')
+        else:
+            ifp = open(f, 'rb')
+        bytesread += dofile(func, ifp)
         ifp.close()
     if ofp:
         ofp.close()
@@ -243,6 +258,8 @@ def gen_filename(options, ext=None):
             ext = '.fs'
         else:
             ext = '.deltafs'
+        if options.gzip:
+            ext += 'z'
     t = time.gmtime()[:6] + (ext,)
     return '%04d-%02d-%02d-%02d-%02d-%02d%s' % t
 
@@ -265,7 +282,7 @@ def find_files(options):
         root, ext = os.path.splitext(file)
         if root <= when:
             needed.append(file)
-        if ext == '.fs':
+        if ext in ('.fs', '.fsz'):
             break
     # Make the file names relative to the repository directory
     needed = [os.path.join(options.repository, f) for f in needed]
@@ -285,7 +302,6 @@ def scandat(repofiles):
     # Return the filename, startpos, endpos, and sum of the last incremental.
     # If all is a list, then append file name and md5sums to the list.
     fullfile = repofiles[0]
-    assert fullfile.endswith('.fs')
     datfile = os.path.splitext(fullfile)[0] + '.dat'
     # If the .dat file is missing, we have to do a full backup
     fn = startpos = endpos = sum = None
@@ -324,7 +340,7 @@ def do_full_backup(options):
         print >> sys.stderr, 'Cannot overwrite existing file:', dest
         sys.exit(2)
     log('writing full backup: %s bytes to %s', pos, dest)
-    sum = copyfile(options.file, dest, 0, pos)
+    sum = copyfile(options, dest, 0, pos)
     # Write the data file for this full backup
     datfile = os.path.splitext(dest)[0] + '.dat'
     fp = open(datfile, 'w')
@@ -348,12 +364,11 @@ def do_incremental_backup(options, reposz, repofiles):
         print >> sys.stderr, 'Cannot overwrite existing file:', dest
         sys.exit(2)
     log('writing incremental: %s bytes to %s',  pos-reposz, dest)
-    sum = copyfile(options.file, dest, reposz, pos)
+    sum = copyfile(options, dest, reposz, pos)
     # The first file in repofiles points to the last full backup.  Use this to
     # get the .dat file and append the information for this incrementatl to
     # that file.
     fullfile = repofiles[0]
-    assert fullfile.endswith('.fs')
     datfile = os.path.splitext(fullfile)[0] + '.dat'
     # This .dat file better exist.  Let the exception percolate if not.
     fp = open(datfile, 'a')
