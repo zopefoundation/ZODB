@@ -88,7 +88,7 @@ process must skip such objects, rather than deactivating them.
 static char cPickleCache_doc_string[] =
 "Defines the PickleCache used by ZODB Connection objects.\n"
 "\n"
-"$Id: cPickleCache.c,v 1.73 2003/03/31 22:43:42 jeremy Exp $\n";
+"$Id: cPickleCache.c,v 1.74 2003/04/01 15:32:28 jeremy Exp $\n";
 
 #define ASSIGN(V,E) {PyObject *__e; __e=(E); Py_XDECREF(V); (V)=__e;}
 #define UNLESS(E) if(!(E))
@@ -501,6 +501,12 @@ cc_oid_unreferenced(ccobject *self, PyObject *oid)
        interpreter has untracked the reference.  Track it again.
      */
     _Py_NewReference(v);
+    /* Don't increment total refcount as a result of the 
+       shenanigans played in this function.  The _Py_NewReference()
+       call above and the Py_INCREF() below both create artificial
+       references to v.
+    */
+    _Py_RefTotal -= 2;
     /* XXX it may be a problem that v->ob_type is still NULL? 
        I don't understand what this comment means.  --jeremy */
     assert(v->ob_type);
@@ -517,6 +523,7 @@ cc_oid_unreferenced(ccobject *self, PyObject *oid)
     /* XXX Should we call _Py_ForgetReference() on error exit? */
     if (PyDict_DelItem(self->data, oid) < 0)
 	return -1;
+    Py_DECREF((ccobject *)((cPersistentObject *)v)->cache);
 
     if (v->ob_refcnt != 1) {
         PyErr_SetString(PyExc_ValueError,
@@ -929,28 +936,28 @@ static struct PyMethodDef cCM_methods[] = {
 void
 initcPickleCache(void)
 {
-  PyObject *m, *d;
-  cPersistenceCAPIstruct *capi;
+    PyObject *m, *d;
+    cPersistenceCAPIstruct *capi;
 
-  Cctype.ob_type = &PyType_Type;
+    Cctype.ob_type = &PyType_Type;
 
-  if (!ExtensionClassImported) 
-      return;
+    if (!ExtensionClassImported) 
+	return;
 
-  capi = (cPersistenceCAPIstruct *)PyCObject_Import("cPersistence", "CAPI");
-  if (!capi)
-      return;
-  capi->percachedel = (percachedelfunc)cc_oid_unreferenced;
+    capi = (cPersistenceCAPIstruct *)PyCObject_Import("cPersistence", "CAPI");
+    if (!capi)
+	return;
+    capi->percachedel = (percachedelfunc)cc_oid_unreferenced;
 
-  m = Py_InitModule4("cPickleCache", cCM_methods, cPickleCache_doc_string,
-		     (PyObject*)NULL, PYTHON_API_VERSION);
+    m = Py_InitModule4("cPickleCache", cCM_methods, cPickleCache_doc_string,
+		       (PyObject*)NULL, PYTHON_API_VERSION);
 
-  py_reload = PyString_InternFromString("reload");
-  py__p_jar = PyString_InternFromString("_p_jar");
-  py__p_changed = PyString_InternFromString("_p_changed");
-  py__p_oid = PyString_InternFromString("_p_oid");
+    py_reload = PyString_InternFromString("reload");
+    py__p_jar = PyString_InternFromString("_p_jar");
+    py__p_changed = PyString_InternFromString("_p_changed");
+    py__p_oid = PyString_InternFromString("_p_oid");
 
-  d = PyModule_GetDict(m);
+    d = PyModule_GetDict(m);
 
-  PyDict_SetItemString(d, "cache_variant", PyString_FromString("stiff/c"));
+    PyDict_SetItemString(d, "cache_variant", PyString_FromString("stiff/c"));
 }
