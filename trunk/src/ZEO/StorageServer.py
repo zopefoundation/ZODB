@@ -115,6 +115,8 @@ class StorageServer:
                 removed = 1
 
 class ZEOStorage:
+    """Proxy to underlying storage for a single remote client."""
+    
     def __init__(self, server):
         self.server = server
         self.client = None
@@ -124,6 +126,11 @@ class ZEOStorage:
         self._transaction = None
 
     def close(self):
+        # When this storage closes, we must ensure that it aborts
+        # any pending transaction.  Not sure if this is the clearest way.
+        if self._transaction is not None:
+            self.__storage.tpc_abort(self._transaction)
+            self._transaction is None
         self._conn.close()
 
     def notifyConnected(self, conn):
