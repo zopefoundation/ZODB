@@ -115,7 +115,7 @@
 #   may have a back pointer to a version record or to a non-version
 #   record.
 #
-__version__='$Revision: 1.106 $'[11:-2]
+__version__='$Revision: 1.107 $'[11:-2]
 
 import base64
 from cPickle import Pickler, Unpickler, loads
@@ -684,16 +684,14 @@ class FileStorage(BaseStorage.BaseStorage,
             old=self._index_get(oid, 0)
             pnv=None
             if old:
-                file=self._file
-                file.seek(old)
-                read=file.read
-                h=read(DATA_HDR_LEN)
+                self._file.seek(old)
+                h=self._file.read(DATA_HDR_LEN)
                 doid,oserial,sprev,stloc,vlen,splen = unpack(">8s8s8s8sH8s", h)
                 if doid != oid: raise CorruptedDataError, h
                 if vlen:
-                    pnv=read(8) # non-version data pointer
-                    read(8) # skip past version link
-                    locked_version=read(vlen)
+                    pnv=self._file.read(8) # non-version data pointer
+                    self._file.read(8) # skip past version link
+                    locked_version=self._file.read(vlen)
                     if version != locked_version:
                         raise POSException.VersionLockError, (
                             `oid`, locked_version)
@@ -762,25 +760,7 @@ class FileStorage(BaseStorage.BaseStorage,
 
         self._lock_acquire()
         try:
-            # Position of the non-version data
-            pnv = None
-            # We need to get some information about previous revisions
-            # of the object.  Specifically, we need the position of
-            # the non-version data if this update is in a version.  We
-            # also need the position of the previous record in this
-            # version.
             old = self._index_get(oid, 0)
-            if old:
-                self._file.seek(old)
-                # Read the previous revision record
-                h = self._file.read(42)
-                doid,oserial,sprev,stloc,vlen,splen = unpack(">8s8s8s8sH8s",
-                                                             h)
-                if doid != oid:
-                    raise CorruptedDataError, h
-                if vlen > 0:
-                    # non-version data pointer
-                    pnv = self._file.read(8)
             # Calculate the file position in the temporary file
             here = self._pos + self._tfile.tell() + self._thl
             # And update the temp file index
@@ -796,9 +776,20 @@ class FileStorage(BaseStorage.BaseStorage,
             # We need to write some version information if this revision is
             # happening in a version.
             if version:
-                # If there's a previous revision in this version, write the
-                # position, otherwise write the position of the previous
-                # non-version revision.
+                pnv = None
+                # We need to write the position of the non-version data.
+                # If the previous revision of the object was in a version,
+                # then it will contain a pnv record.  Otherwise, the
+                # previous record is the non-version data.
+                if old:
+                    self._file.seek(old)
+                    h = self._file.read(42)
+                    doid, x, y, z, vlen, w = unpack(">8s8s8s8sH8s", h)
+                    if doid != oid:
+                        raise CorruptedDataError, h
+                    # XXX assert versions match?
+                    if vlen > 0:
+                        pnv = self._file.read(8)
                 if pnv:
                     self._tfile.write(pnv)
                 else:
@@ -806,14 +797,14 @@ class FileStorage(BaseStorage.BaseStorage,
                 # Link to the last record for this version
                 pv = self._tvindex.get(version, 0)
                 if not pv:
-                    self._vindex_get(version, 0)
+                    pv = self._vindex_get(version, 0)
                 self._tfile.write(p64(pv))
                 self._tvindex[version] = here
                 self._tfile.write(version)
             # And finally, write the data
             if data is None:
-                # Write a zero backpointer, which is indication used to
-                # represent an un-creation transaction.
+                # Write a zero backpointer, which indicates an
+                # un-creation transaction.
                 self._tfile.write(z64)
             else:
                 self._tfile.write(data)
