@@ -453,11 +453,8 @@ class ConnectionTests(CommonSetupTearDown):
                          "Error after server restart; retrying.",
                          error=sys.exc_info())
                 get_transaction().abort()
-            # XXX This is a bloody pain.  We're placing a heavy burden
-            # on users to catch a plethora of exceptions in order to
-            # write robust code.  Need to think about implementing
-            # John Heintz's suggestion to make sure all exceptions
-            # inherit from POSException.
+            # Give the other thread a chance to run.
+            time.sleep(0.1)
         zLOG.LOG("checkReconnection", zLOG.INFO, "finished")
         self._storage.close()
 
