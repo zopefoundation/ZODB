@@ -807,6 +807,8 @@ def test_suite():
 
     return alltests
 
+
+
 ## utility functions
 
 def lsubtract(l1, l2):
@@ -818,4 +820,11 @@ def lsubtract(l1, l2):
 
 def realseq(itemsob):
     return map(lambda x: x, itemsob)
+
+
+def main():
+    TextTestRunner().run(test_suite())
+
+if __name__ == '__main__':
+    main()
 
