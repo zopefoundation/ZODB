@@ -184,7 +184,7 @@
 #   may have a back pointer to a version record or to a non-version
 #   record.
 #
-__version__='$Revision: 1.62 $'[11:-2]
+__version__='$Revision: 1.63 $'[11:-2]
 
 import struct, time, os, bpthread, string, base64, sys
 from struct import pack, unpack
@@ -288,7 +288,8 @@ class FileStorage(BaseStorage.BaseStorage,
         # Now open the file
         
         if create:
-            if os.path.exists(file_name): os.remove(file_name)
+            if os.path.exists(file_name):
+                os.remove(file_name)
             file=open(file_name,'w+b')
             file.write(packed_version)
         else:
@@ -355,15 +356,20 @@ class FileStorage(BaseStorage.BaseStorage,
         f.flush()
         f.close()
         try:
-            try: os.unlink(index_name)
-            except: pass
+            try:
+                os.remove(index_name)
+            except OSError:
+                pass
             os.rename(tmp_name, index_name)
         except: pass
 
     def _clear_index(self):
         index_name=self.__name__+'.index'
         if os.path.exists(index_name):
-            os.unlink(index_name)
+            try:
+                os.remove(index_name)
+            except OSError:
+                pass
 
     def _sane(self, index, pos):
         """Sanity check saved index data by reading the last undone trans
