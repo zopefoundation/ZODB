@@ -265,25 +265,17 @@ class ZEOOptions(Options):
         self.invalidation_queue_size = self.rootconf.zeo.invalidation_queue_size
 
     def load_logconf(self):
-        # Get logging options from conf, unless overridden by environment
-        # XXX This still needs to be supported in the config schema.
-        reinit = 0
-        if os.getenv("EVENT_LOG_FILE") is None:
-            if os.getenv("STUPID_LOG_FILE") is None:
-                path = None # self.logconf.get("path")
-                if path is not None:
-                    os.environ["EVENT_LOG_FILE"] = path
-                    os.environ["STUPID_LOG_FILE"] = path
-                    reinit = 1
-        if os.getenv("EVENT_LOG_SEVERITY") is None:
-            if os.getenv("STUPID_LOG_SEVERITY") is None:
-                level = None # self.logconf.get("level")
-                if level is not None:
-                    os.environ["EVENT_LOG_SEVERITY"] = level
-                    os.environ["STUPID_LOG_SEVERITY"] = level
-                    reinit = 1
-        if reinit:
+        if self.rootconf.logger is not None:
+            zLOG.set_initializer(self.log_initializer)
             zLOG.initialize()
+
+    def log_initializer(self):
+        from zLOG import EventLogger
+        logger = self.rootconf.logger()
+        for handler in logger.handlers:
+            if hasattr(handler, "reopen"):
+                handler.reopen()
+        EventLogger.event_logger.logger = logger
 
     def load_storages(self):
         # Get the storage specifications
