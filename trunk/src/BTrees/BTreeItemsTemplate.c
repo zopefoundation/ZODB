@@ -12,7 +12,7 @@
 
  ****************************************************************************/
 
-#define BTREEITEMSTEMPLATE_C "$Id: BTreeItemsTemplate.c,v 1.16 2002/06/18 02:41:26 tim_one Exp $\n"
+#define BTREEITEMSTEMPLATE_C "$Id: BTreeItemsTemplate.c,v 1.17 2002/06/22 17:22:54 tim_one Exp $\n"
 
 /* A BTreeItems struct is returned from calling .items(), .keys() or
  * .values() on a BTree-based data structure, and is also the result of
@@ -264,13 +264,13 @@ BTreeItems_item(BTreeItems *self, int i)
     break;
   }
 
-  PER_ALLOW_DEACTIVATION(self->currentbucket);
+  PER_UNUSE(self->currentbucket);
   return r;
 
  err:
   Py_DECREF(k);
   Py_XDECREF(v);
-  PER_ALLOW_DEACTIVATION(self->currentbucket);
+  PER_UNUSE(self->currentbucket);
   return NULL;
 }
 
@@ -487,7 +487,7 @@ nextBTreeItems(SetIteration *i)
 
           i->position ++;
 
-          PER_ALLOW_DEACTIVATION(currentbucket);
+          PER_UNUSE(currentbucket);
         }
       else
         {
@@ -527,7 +527,7 @@ nextTreeSetItems(SetIteration *i)
 
           i->position ++;
 
-          PER_ALLOW_DEACTIVATION(currentbucket);
+          PER_UNUSE(currentbucket);
         }
       else
         {
