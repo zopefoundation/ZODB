@@ -5,6 +5,11 @@ Release date: DD-MMM-2004
 ZODB
 ----
 
+When trying to do recovery to a time earlier than that of the most recent
+full backup, repozo.py failed to find the appropriate files, erroneously
+claiming "No files in repository before <specified time>".  This has
+been repaired.
+
 Collector #1330:  repozo.py -R can create corrupt .fs.
 When looking for the backup files needed to recreate a Data.fs file,
 repozo could (unintentionally) include its meta .dat files in the list,

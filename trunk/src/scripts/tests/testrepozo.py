@@ -26,6 +26,7 @@ import random
 import time
 import glob
 import sys
+import shutil
 
 import ZODB
 from ZODB import FileStorage
@@ -68,34 +69,49 @@ class OurDB:
             self.db.close()
             self.db = None
 
-# Do recovery to current time, and check that it's identical to Data.fs.
-def check():
-    os.system(PYTHON + '../repozo.py -vRr backup -o Copy.fs')
-    f = file('Data.fs', 'rb')
+# Do recovery to time 'when', and check that it's identical to correctpath.
+def check(correctpath='Data.fs', when=None):
+    if when is None:
+        extra = ''
+    else:
+        extra = ' -D ' + when
+    cmd = PYTHON + '../repozo.py -vRr backup -o Copy.fs' + extra
+    os.system(cmd)
+    f = file(correctpath, 'rb')
     g = file('Copy.fs', 'rb')
     fguts = f.read()
     gguts = g.read()
     f.close()
     g.close()
     if fguts != gguts:
-        raise ValueError("guts don't match")
+        raise ValueError("guts don't match\n"
+                         "    correctpath=%r when=%r\n"
+                         "    cmd=%r" % (correctpath, when, cmd))
+
+def mutatedb(db):
+    # Make random mutations to the btree in the database.
+    tree = db.gettree()
+    for dummy in range(100):
+        if random.random() < 0.6:
+            tree[random.randrange(100000)] = random.randrange(100000)
+        else:
+            keys = tree.keys()
+            if keys:
+                del tree[keys[0]]
+    get_transaction().commit()
+    db.close()
 
 def main():
     cleanup()
     os.mkdir('backup')
     d = OurDB()
-    for dummy in range(100):
+    # Every 9th time thru the loop, we save a full copy of Data.fs,
+    # and at the end we ensure we can reproduce those too.
+    saved_snapshots = []  # list of (name, time) pairs for copies.
+
+    for i in range(100):
         # Make some mutations.
-        tree = d.gettree()
-        for dummy2 in range(100):
-            if random.random() < 0.6:
-                tree[random.randrange(100000)] = random.randrange(100000)
-            else:
-                keys = tree.keys()
-                if keys:
-                    del tree[keys[0]]
-        get_transaction().commit()
-        d.close()
+        mutatedb(d)
 
         # Pack about each tenth time.
         if random.random() < 0.1:
@@ -109,11 +125,22 @@ def main():
         else:
             os.system(PYTHON + '../repozo.py -zvBQr backup -f Data.fs')
 
+        if i % 9 == 0:
+            copytime = '%04d-%02d-%02d-%02d-%02d-%02d' % (time.gmtime()[:6])
+            copyname = os.path.join('backup', "Data%d" % i) + '.fs'
+            shutil.copyfile('Data.fs', copyname)
+            saved_snapshots.append((copyname, copytime))
+
         # Make sure the clock moves at least a second.
         time.sleep(1.01)
 
         # Verify current Data.fs can be reproduced exactly.
         check()
+
+    # Verify snapshots can be reproduced exactly.
+    for copyname, copytime in saved_snapshots:
+        print "Checking that", copyname, "at", copytime, "is reproducible."
+        check(copyname, copytime)
 
     # Tear it all down.
     cleanup()
