@@ -18,7 +18,7 @@ them in a distributed fashion without Zope ever entering the picture.
 The combination of ZEO and ZODB is essentially a Python-specific
 object database.
 
-ZEO consists of about 6000 lines of Python code, excluding tests.  The
+ZEO consists of about 12,000 lines of Python code, excluding tests.  The
 code is relatively small because it contains only code for a TCP/IP
 server, and for a new type of Storage, \class{ClientStorage}.
 \class{ClientStorage} simply makes remote procedure calls to the
@@ -45,9 +45,9 @@ writes, and ZEO is therefore better suited for read-intensive
 applications.  If every \class{ClientStorage} is writing to the
 database all the time, this will result in a storm of invalidate
 messages being sent, and this might take up more processing time than
-the actual database operations themselves.\footnote{These messages are
+the actual database operations themselves. These messages are
 small and sent in batches, so there would need to be a lot of writes
-before it became a problem.}
+before it became a problem.
 
 On the other hand, for applications that have few writes in comparison
 to the number of read accesses, this aggressive caching can be a major
@@ -71,15 +71,15 @@ configure and run a ZEO Storage Server on a machine.
 \subsubsection{Requirements}
 
 The ZEO server software is included in ZODB3.  As with the rest of
-ZODB3, you'll need Python 2.1 or higher.
+ZODB3, you'll need Python 2.3 or higher.
 
 \subsubsection{Running a server}
 
-The start.py script in the ZEO directory can be used to start a
+The runzeo.py script in the ZEO directory can be used to start a
 server.  Run it with the -h option to see the various values.  If
 you're just experimenting, a good choise is to use 
-\code{python ZEO/start.py -D -U /tmp/zeosocket} to run ZEO in
-debug mode and with a Unix domain socket.
+\code{python ZEO/runzeo.py -a /tmp/zeosocket -f /tmp/test.fs} to run
+ZEO with a Unix domain socket and a \class{FileStorage}.
 
 \subsection{Testing the ZEO Installation}
 
@@ -101,7 +101,7 @@ from ZEO import ClientStorage
 from ZODB import DB
 
 # Change next line to connect to your ZEO server
-addr = ('kronos.example.com', 1975)
+addr = 'kronos.example.com', 1975
 storage = ClientStorage.ClientStorage(addr)
 db = DB(storage)
 conn = db.open()
@@ -116,6 +116,26 @@ get_transaction().commit()
 \end{verbatim}
 
 If this code runs properly, then your ZEO server is working correctly.
+
+You can also use a configuration file.
+
+\begin{verbatim}
+<zodb>
+    <zeoclient>
+    server localhost:9100
+    </zeoclient>
+</zodb>
+\end{verbatim}
+
+One nice feature of the configuration file is that you don't need to
+specify imports for a specific storage.  That makes the code a little
+shorter and allows you to change storages without changing the code.
+
+\begin{verbatim}
+import ZODB.config
+
+db = ZODB.config.databaseFromURL('/tmp/zeo.conf')
+\end{verbatim}
 
 \subsection{ZEO Programming Notes}
 
