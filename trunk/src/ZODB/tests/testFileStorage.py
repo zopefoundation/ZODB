@@ -191,7 +191,8 @@ class FileStorageTests(
 
     def checkPackVersionsInPast(self):
         # FileStorage can't cope with backpointers to objects
-        # created in versions.  Must fix.
+        # created in versions.  Should fix if we can figure out actually how
+        # to fix it.
         pass
 
 class FileStorageRecoveryTest(
