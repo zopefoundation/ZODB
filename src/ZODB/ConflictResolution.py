@@ -18,9 +18,8 @@ from cPickle import Unpickler, Pickler
 from pickle import PicklingError
 
 from ZODB.POSException import ConflictError
+from ZODB.loglevels import BLATHER
 
-BLATHER = 15
-logging.addLevelName("BLATHER", BLATHER)
 logger = logging.getLogger('zodb.ConflictResolution')
 
 ResolvedSerial = 'rs'
