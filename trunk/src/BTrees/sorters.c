@@ -12,7 +12,7 @@
 
  ****************************************************************************/
 
-/* Revision information: $Id: sorters.c,v 1.2 2002/05/31 00:21:54 tim_one Exp $ */
+/* Revision information: $Id: sorters.c,v 1.3 2002/06/06 19:30:42 tim_one Exp $ */
 
 /* The only routine here intended to be used outside the file is
    size_t sort_int4_nodups(int *p, size_t n)
@@ -268,6 +268,11 @@ uniq(element_type *out, element_type *in, size_t n)
 	return pout - out;
 }
 
+#if 0
+/* insertionsort is no longer referenced directly, but I'd like to keep
+ *  the code here just in case.
+ */
+
 /* Straight insertion sort of the n elements starting at 'in'. */
 static void
 insertionsort(element_type *in, size_t n)
@@ -306,6 +311,7 @@ insertionsort(element_type *in, size_t n)
 		}
 	}
 }
+#endif
 
 /* The maximum number of elements in the pending-work stack quicksort
    maintains.  The maximum stack depth is approximately log2(n), so
