@@ -84,8 +84,8 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.36 2000/07/06 19:36:54 jim Exp $"""
-__version__='$Revision: 1.36 $'[11:-2]
+$Id: Connection.py,v 1.37 2000/07/12 17:37:23 shane Exp $"""
+__version__='$Revision: 1.37 $'[11:-2]
 
 from cPickleCache import PickleCache
 from POSException import ConflictError, ExportError
@@ -251,7 +251,8 @@ class Connection(ExportImport.ExportImport):
             try: f()
             except:
                 f=getattr(f, 'im_self', f)
-                LOG('ZODB',ERROR, 'Close callback failed for %s' % f)
+                LOG('ZODB',ERROR, 'Close callback failed for %s' % f,
+                    error=sys.exc_info())
         self.__onCloseCallbacks=()
 
     def commit(self, object, transaction, _type=type, _st=type('')):
@@ -497,7 +498,7 @@ class Connection(ExportImport.ExportImport):
             object._p_changed=0
             object._p_serial=serial
         except:
-            LOG('ZODB',ERROR, 'setklassstate failed', error=sys.exc_info)
+            LOG('ZODB',ERROR, 'setklassstate failed', error=sys.exc_info())
             raise
 
     def tpc_abort(self, transaction):
