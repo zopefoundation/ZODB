@@ -85,79 +85,54 @@
 __doc__='''Python implementation of persistent base types
 
 
-$Id: PersistentMapping.py,v 1.11 2001/08/16 17:25:41 jim Exp $'''
-__version__='$Revision: 1.11 $'[11:-2]
+$Id: PersistentMapping.py,v 1.12 2001/11/27 21:38:06 jeremy Exp $'''
+__version__='$Revision: 1.12 $'[11:-2]
 
 import Persistence
 import types
+from UserDict import UserDict
 
 _marker=[]
-class PersistentMapping(Persistence.Persistent):
+
+class PersistentMapping(UserDict, Persistence.Persistent):
     """A persistent wrapper for mapping objects.
 
-    This class allows wrapping of mapping objects so that
-    object changes are registered.  As a side effect,
-    mapping objects may be subclassed.
+    This class allows wrapping of mapping objects so that object
+    changes are registered.  As a side effect, mapping objects may be
+    subclassed.
     """
 
-    def __init__(self,container=None):
-        if container is None: container={}
-        self._container=container
+    __super_delitem = UserDict.__delitem__
+    __super_setitem = UserDict.__setitem__
+    __super_clear = UserDict.clear
+    __super_update = UserDict.update
+    __super_setdefault = UserDict.setdefault
+    __super_popitem = UserDict.popitem
 
     def __delitem__(self, key):
-        del self._container[key]
-        try: del self._v_keys
-        except: pass
+        self.__super_delitem(key)
         self.__changed__(1)
 
-    def __getitem__(self, key):
-        return self._container[key]
-
-    def __len__(self):     return len(self._container)
-
     def __setitem__(self, key, v):
-        self._container[key]=v
-        try: del self._v_keys
-        except: pass
+        self.__super_setitem(key, v)
         self.__changed__(1)
 
     def clear(self):
-        self._container.clear()
-        self._p_changed=1
-        if hasattr(self,'_v_keys'): del self._v_keys
-
-    def copy(self): return self.__class__(self._container.copy())
-
-    def get(self, key, default=_marker):
-        if default is _marker:
-            return self._container.get(key)
-        else:
-            return self._container.get(key, default)
-
-    def has_key(self,key): return self._container.has_key(key)
-
-    def items(self):
-        return map(lambda k, d=self: (k,d[k]), self.keys())
-
-    def keys(self):
-        try: return list(self._v_keys) # return a copy (Collector 2283)
-        except: pass
-        keys=self._v_keys=filter(
-            lambda k: not isinstance(k,types.StringType) or k[:1]!='_',
-            self._container.keys())
-        keys.sort()
-        return list(keys)
+        self.__super_clear()
+        self._p_changed = 1
 
     def update(self, b):
-        a=self._container
-        for k, v in b.items(): a[k] = v
-        try: del self._v_keys
-        except: pass
-        self._p_changed=1
+        self.__super_update(b)
+        self._p_changed = 1
 
-    def values(self):
-        return map(lambda k, d=self: d[k], self.keys())
+    def setdefault(self, key, failobj=None):
+        # We could inline all of UserDict's implementation into the
+        # method here, but I'd rather not depend at all on the
+        # implementation in UserDict (simple as it is).
+        if not self.has_key(key):
+            self._p_changed = 1
+        return self.__super_setdefault(key, failobj)
 
-    def __cmp__(self,other):
-        return cmp(self._container, other._container)
-
+    def popitem(self):
+        self._p_changed = 1
+        return self.__super_popitem()
