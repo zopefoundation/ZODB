@@ -83,6 +83,10 @@ class Database:
         
         fd = open(filename)
         L = fd.readlines()
+
+        if not L:
+            return
+
         if L[0].startswith("realm "):
             line = L.pop(0).strip()
             self.realm = line[len("realm "):]
