@@ -430,7 +430,7 @@ class ConnectWrapper:
 
     def test_connection(self):
         """Establish and test a connection at the zrpc level.
-        
+
         Call the client's testConnection(), giving the client a chance
         to do app-level check of the connection.
         """

@@ -6,8 +6,8 @@
 <META NAME="keywords" CONTENT="zodb">
 <META NAME="resource-type" CONTENT="document">
 <META NAME="distribution" CONTENT="global">
-<meta http-equiv="Content-Type" content="text/html; charset=">
-<link rel="STYLESHEET" href="zodb.css">
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+<link rel="STYLESHEET" href="zodb.css" type='text/css'>
 <link rel="first" href="zodb.html">
 <link rel="contents" href="contents.html" title="Contents">
 
@@ -15,6 +15,7 @@
 <LINK REL="previous" HREF="node12.html">
 <LINK REL="up" HREF="node8.html">
 <LINK REL="next" HREF="node14.html">
+<meta name='aesop' content='information'>
 </head>
 <body>
 <DIV CLASS="navigation">
@@ -65,7 +66,7 @@ implement the <tt class="class">Storage</tt> interface.
  storing and retrieving objects from some form of long-term storage.
  A few different types of Storage have been written, such as
  <tt class="class">FileStorage</tt>, which uses regular disk files, and
- <tt class="class">BerkeleyStorage</tt>, which uses Sleepycat Software's BerkeleyDB
+ <tt class="class">bsddb3Storage</tt>, which uses Sleepycat Software's BerkeleyDB
  database.  You could write a new Storage that stored objects in a
  relational database or Metakit file, for example, if that would
  better suit your application.  Two example storages,
@@ -81,7 +82,7 @@ implement the <tt class="class">Storage</tt> interface.
 <P>
 </LI>
 <LI>Finally, the <tt class="class">Connection</tt> class caches objects, and moves
- them into and out of object storage.  A multi-threaded program can
+ them into and out of object storage.  A multi-threaded program should
  open a separate <tt class="class">Connection</tt> instance for each thread.
  Different threads can then modify objects and commit their
  modifications independently.
@@ -97,13 +98,13 @@ a <tt class="class">Connection</tt> from the <tt class="class">DB instance</tt>.
 code:
 
 <P>
-<dl><dd><pre class="verbatim">
+<div class="verbatim"><pre>
 from ZODB import FileStorage, DB
 
 storage = FileStorage.FileStorage('/tmp/test-filestorage.fs')
 db = DB(storage)
 conn = db.open()
-</pre></dl>
+</pre></div>
 
 <P>
 Note that you can use a completely different data storage mechanism by
@@ -141,7 +142,7 @@ you'll see how ZEO uses this flexibility to good effect.
 <b class="navlabel">Up:</b> <a class="sectref" HREF="node8.html">2 ZODB Programming</A>
 <b class="navlabel">Next:</b> <a class="sectref" HREF="node14.html">2.4 Writing a Persistent</A>
 <hr>
-<span class="release-info">Release 0.03, documentation updated on February 8, 2002.</span>
+<span class="release-info">Release 0.04, documentation updated on October 4, 2002.</span>
 </DIV>
 <!--End of Navigation Panel-->
 

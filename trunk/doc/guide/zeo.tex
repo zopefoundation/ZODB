@@ -18,22 +18,21 @@ them in a distributed fashion without Zope ever entering the picture.
 The combination of ZEO and ZODB is essentially a Python-specific
 object database.
 
-ZEO consists of about 1400 lines of Python code.  The code is
-relatively small because it contains only code for a TCP/IP server,
-and for a new type of Storage, \class{ClientStorage}.
-\class{ClientStorage} doesn't use disk files at all; it simply
-makes remote procedure calls to the server, which then passes them on
-a regular \class{Storage} class such as \class{FileStorage}.  The
-following diagram lays out the system:
+ZEO consists of about 6000 lines of Python code, excluding tests.  The
+code is relatively small because it contains only code for a TCP/IP
+server, and for a new type of Storage, \class{ClientStorage}.
+\class{ClientStorage} simply makes remote procedure calls to the
+server, which then passes them on a regular \class{Storage} class such
+as \class{FileStorage}.  The following diagram lays out the system:
 
 XXX insert diagram here later
 
 Any number of processes can create a \class{ClientStorage}
 instance, and any number of threads in each process can be using that
 instance.  \class{ClientStorage} aggressively caches objects
-locally, so in order to avoid using stale data, the ZEO server sends
-an invalidate message to all the connected \class{ClientStorage}
-instances on every write operation.  The invalidate message contains
+locally, so in order to avoid using stale data.  The ZEO server sends
+an invalidation message to all the connected \class{ClientStorage}
+instances on every write operation.  The invalidation message contains
 the object ID for each object that's been modified, letting the
 \class{ClientStorage} instances delete the old data for the
 given object from their caches.
@@ -46,7 +45,9 @@ writes, and ZEO is therefore better suited for read-intensive
 applications.  If every \class{ClientStorage} is writing to the
 database all the time, this will result in a storm of invalidate
 messages being sent, and this might take up more processing time than
-the actual database operations themselves.
+the actual database operations themselves.\footnote{These messages are
+small and sent in batches, so there would need to be a lot of writes
+before it became a problem.}
 
 On the other hand, for applications that have few writes in comparison
 to the number of read accesses, this aggressive caching can be a major
@@ -69,36 +70,17 @@ configure and run a ZEO Storage Server on a machine.
 
 \subsubsection{Requirements}
 
-To run a ZEO server, you'll need Python 1.5.2 or 2.0, and the ZODB
-packages from \url{http://www.amk.ca/files/zodb/}
-have to be installed.  
+The ZEO server software is included in ZODB3.  As with the rest of
+ZODB3, you'll need Python 2.1 or higher.
 
-\emph{Note for Python 1.5.2 users}: ZEO requires updated versions
-of the \module{asyncore.py} and \module{asynchat.py} modules that are
-included in 1.5.2's standard library.  Current versions of the ZODB
-distribution install private versions of these modules, so you
-shouldn't need to grab updated versions yourself.  (The symptom of
-this problem is a traceback on attempting to run a ZEO client program:
-the traceback is ``TypeError: too many arguments; expected 2, got 3''
-around line 100 of \file{smac.py}.
+\subsubsection{Running a server}
 
-\subsubsection{Installation}
+The start.py script in the ZEO directory can be used to start a
+server.  Run it with the -h option to see the various values.  If
+you're just experimenting, a good choise is to use 
+\code{python ZEO/start.py -D -U /tmp/zeosocket} to run ZEO in
+debug mode and with a Unix domain socket.
 
-Installing the ZEO package is easy.  Just run \code{python setup.py
-install}.  This will install the ZEO/ package into your Python
-installation, and copy various files into their proper locations:
-\file{zeo.conf} will be put into \file{/usr/local/etc/}, a \file{zeo} startup
-script will be put in \file{/etc/rc.d/init.d/}, and the \file{zeod}
-daemon program will be placed in \file{/usr/local/bin}.
-
-\subsection{Configuring and Running a ZEO Server}
-
-Edit \code{/usr/local/etc/zeo.conf} appropriately for your desired
-setup.  This configuration file controls the port on which ZEO will
-listen for connections, the user and group IDs under which the server
-will be executed, and the location of the concrete \class{Storage}
-object that will be made network-accessible.
- 
 \subsection{Testing the ZEO Installation}
 
 Once a ZEO server is up and running, using it is just like using ZODB
@@ -137,15 +119,15 @@ If this code runs properly, then your ZEO server is working correctly.
 
 \subsection{ZEO Programming Notes}
 
-XXX The Connection.sync() method and its necessity (if it works at all!) 
-
-% That doesn't work.  I tested it.  sync() doesn't seem to get into
-% the asyncore loop.  One of us should probably look into adding an
-% API for this when we have some free time.  It would be a nice
-% small project that would get into ZODB's guts.
-
-
-
+ZEO is written using \module{asyncore}, from the Python standard
+library.  It assumes that some part of the user application is running
+an \module{asyncore} mainloop.  For example, Zope run the loop in a
+separate thread and ZEO uses that.  If your application does not have
+a mainloop, ZEO will not process incoming invalidation messages until
+you make some call into ZEO.  The \method{Connection.sync} method can
+be used to process pending invalidation messages.  You can call it
+when you want to make sure the \class{Connection} has the most recent
+version of every object, but you don't have any other work for ZEO to do.
 
 \subsection{Sample Application: chatter.py}
 
@@ -174,7 +156,7 @@ class ChatSession(Persistent):
     def __init__(self, name):
         self.name = name
         # Internal attribute: _messages holds all the chat messages.        
-        self._messages = BTree.BTree()        
+        self._messages = BTrees.OOBTree.OOBTree()        
 \end{verbatim}
 
 \method{add_message()} has to add a message to the

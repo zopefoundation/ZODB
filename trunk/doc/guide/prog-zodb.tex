@@ -23,59 +23,21 @@ difficulties you encounter.
 
 \subsubsection{Requirements}
 
-You'll need Python, of course; version 1.5.2 works with some fixes,
-and it also works with Python 2.0, which is what I primarily use.
-
-The code is packaged using Distutils, the new distribution tools for
-Python introduced in Python 2.0.  If you're using 1.5.2, first you'll
-have to get the latest Distutils release from the Distutils SIG page
-at \url{http://www.python.org/sigs/distutils-sig/download.html} and
-install it.  This is simply a matter of untarring or unzipping the
+You will need Python 2.1 or higher.  The code is packaged using
+Distutils.  So it is simply a matter of untarring or unzipping the
 release package, and then running \code{python setup.py install}.
-
-If you're using 1.5.2 and have installed previous versions of the
-Distutils, be sure to get the very latest version, since developing
-the ZODB distribution turned up some bugs along the way.  If you
-encounter problems compiling \file{ZODB/TimeStamp.c} or your compiler reports
-an error like ``Can't create build/temp.linux2/ExtensionClass.o: No
-such file or directory'', you need an updated version.  Old versions of
-Distutils have two bugs which affect the setup scripts.  First, for a
-long time the \code{define_macros} keyword in setup.py files didn't work due
-to a Distutils bug, so I hacked TimeStamp.c in earlier releases.  The
-Distutils have since been fixed, and the hack became unnecessary, so I
-removed it.  Second, the code that creates directories tries to be
-smart and caches them to save time by not trying to create a directory
-twice, but this code was broken in old versions.
 
 You'll need a C compiler to build the packages, because there are
 various C extension modules.  At the moment no one is making Windows
-binaries available, so you'll need a Windows development environment to use the 
+binaries available, so you'll need a Windows development environment
+to build ZODB.
 
 \subsubsection{Installing the Packages}
 
 Download the ZODB tarball containing all the packages for both ZODB
-and ZEO from \url{http://www.amk.ca/files/zodb/}.
-
-To build the packages, you must go into the individual directories and
-build and install them one by one.  They should be built and installed
-in this order:
- 
-\begin{enumerate}
-  \item \code{zodb-basic}
-  \item ExtensionClass
-  \item ZODB
-  \item \code{BTree} and \code{BTrees}
-  \item ZEO
-\end{enumerate}
-
-In particular, you must install ExtensionClass before building the
-ZODB package; otherwise, the compilation in the ZODB package will die
-complaining that it can't find ExtensionClass.h.  You can manually
-hack the \#include path to make it work without installing
-ExtensionClass first, but that's a bit hackish.
-
-If you encounter any problems, please let me know at
-\email{akuchlin@mems-exchange.org}.
+and ZEO from \url{http://www.zope.org/Products/StandaloneZODB}.  See
+the \file{README.txt} file in the top level of the release directory
+for details on building, testing, and installing.
 
 \subsection{How ZODB Works}
 
@@ -113,10 +75,16 @@ state.
 
 \item[Consistency] means that the data cannot be placed into a
 logically invalid state; sanity checks can be written and enforced.
-Usually this is done by defining a database schema, and requiring the
-data always matches the schema.  For example, this might enforce that
-the \code{order_number} attribute is always an integer, and not a
-string, tuple, or other object.
+Usually this is done by defining a database schema, and requiring
+the data always matches the schema.  There are two typical
+approaches to consistency.  One is to enforce rules about the types
+of objects and attribute; for example, enforce that the
+\code{order_number} attribute is always an integer, and not a
+string, tuple, or other object.  Another is to guarantee consistency
+across data structures; for example, that any object with an
+\code{order_number} attribute must also appear in the
+\code{orders_table} object.  In general, atomicity and isolation make
+it possible for applications to provide consistency.
 
 \item[Isolation] means that two programs or threads running in two
  different transactions cannot see each other's changes until they
@@ -144,7 +112,7 @@ implement the \class{Storage} interface.
  storing and retrieving objects from some form of long-term storage.
  A few different types of Storage have been written, such as
  \class{FileStorage}, which uses regular disk files, and
- \class{BerkeleyStorage}, which uses Sleepycat Software's BerkeleyDB
+ \class{bsddb3Storage}, which uses Sleepycat Software's BerkeleyDB
  database.  You could write a new Storage that stored objects in a
  relational database or Metakit file, for example, if that would
  better suit your application.  Two example storages,
@@ -156,7 +124,7 @@ implement the \class{Storage} interface.
  created per process.
 
  \item Finally, the \class{Connection} class caches objects, and moves
- them into and out of object storage.  A multi-threaded program can
+ them into and out of object storage.  A multi-threaded program should
  open a separate \class{Connection} instance for each thread.
  Different threads can then modify objects and commit their
  modifications independently.
@@ -198,6 +166,10 @@ The apparently unnecessary \code{import ZODB} statement is
 needed for the following \code{from...import} statement to work
 correctly, since the ZODB code does some magical tricks with
 importing.
+
+The \class{Persistent} base class is an \module{ExtensionClass}
+class.  As a result, it not compatible with new-style classes or types
+in Python 2.2 and up.
 
 For simplicity, in the examples the \class{User} class will
 simply be used as a holder for a bunch of attributes.  Normally the
@@ -304,11 +276,6 @@ defined on ExtensionClasses.  The most important ones are the
 arithmetic operations: \method{__radd__}, \method{__rsub__}, and so
 forth.
 
-\item Python's built-in \function{isinstance()} and \function{issubclass()}
-functions don't work properly on ExtensionClasses.  Solution: use
-custom \function{isinstance()} and \function{issubclass()} functions
-that handle ExtensionClasses correctly.
-
 \item Recent versions of the ZODB allow writing a class with 
 \method{__setattr__} , \method{__getattr__}, or \method{__delattr__} methods.  (Older versions didn't support this at all.)
 If you write such a \method{__setattr__} or \method{__delattr__} method, 
@@ -414,100 +381,6 @@ instances as possible, they are still not instances, and
 no attempt is ever made to call \method{__cmp__}.  Perhaps Python 2.2
 will repair this.
 
-\subsubsection{Fixing \function{isinstance} and \function{issubclass}}
-
-Python's built-in functions 
-\function{isinstance()} and \function{issubclass} don't
-work on ExtensionClass instances, for much the same reason that 
-\method{__cmp__} is never called; in some bits of the Python core code,
-branches are taken only if an object is of the \class{InstanceType}
-type, and this can never be true for an ExtensionClass instance.
-Python 2.1 tried to fix this, and changed these functions slightly in
-an effort to make them work for ExtensionClasses; unfortunately, the
-changes didn't work.
-
-The solution is to use customized versions of these functions that
-handle ExtensionClasses specially and fall back to the built-in
-version otherwise.  Here are the versions we've written at the MEMS Exchange:
-
-\begin{verbatim}
-# The built-in 'isinstance()' and 'issubclass()' won't work on
-# ExtensionClasses, so you have to use the versions supplied here.
-# (But those versions work fine on regular instances and classes too,
-# so you should *always* use them.)
-
-def issubclass (class1, class2):
-    """A version of 'issubclass' that works with extension classes
-    as well as regular Python classes.
-    """
-
-    # Both class objects are regular Python classes, so use the
-    # built-in 'issubclass()'.
-    if type(class1) is ClassType and type(class2) is ClassType:
-        return __builtin__.issubclass(class1, class2)
-
-    # Both so-called class objects have a '__bases__' attribute: ie.,
-    # they aren't regular Python classes, but they sure look like them.
-    # Assume they are extension classes and reimplement what the builtin
-    # 'issubclass()' does behind the scenes.
-    elif hasattr(class1, '__bases__') and hasattr(class2, '__bases__'):
-        # XXX it appears that "ec.__class__ is type(ec)" for an
-        # extension class 'ec': could we/should we use this as an
-        # additional check for extension classes?
-
-        # Breadth-first traversal of class1's superclass tree.  Order
-        # doesn't matter because we're just looking for a "yes/no"
-        # answer from the tree; if we were trying to resolve a name,
-        # order would be important!
-        stack = [class1]
-        while stack:
-            if stack[0] is class2:
-                return 1
-            stack.extend(list(stack[0].__bases__))
-            del stack[0]
-        else:
-            return 0
-
-    # Not a regular class, not an extension class: blow up for consistency
-    # with builtin 'issubclass()"
-    else:
-        raise TypeError, "arguments must be class or ExtensionClass objects"
-
-# issubclass ()
-
-def isinstance (object, klass):
-    """A version of 'isinstance' that works with extension classes
-    as well as regular Python classes."""
-
-    if type(klass) is TypeType:
-        return __builtin__.isinstance(object, klass)
-    elif hasattr(object, '__class__'):
-        return issubclass(object.__class__, klass)
-    else:
-        return 0
-\end{verbatim}
-
-I'd recommend putting these functions in a module that always gets
-imported.  The convention on my work project is to put them in
-\file{mems/lib/base.py}, which contains various fundamental classes
-and functions for our system, and access them like this:
-
-\begin{verbatim}
-from mems.lib import base
-...
-if base.isinstance(object, Class): ...
-\end{verbatim}
-
-Don't insert the modified functions into Python's
-\module{__builtin__} module, or import just the
-\function{isinstance()} and \function{issubclass} functions.  
-If you consistently use \function{base.isinstance()}, then forgetting
-to import the \module{base} module will result in a
-\exception{NameError} exception.  In the
-case of a forgotten import, calling the functions directly would use
-Python's built-in versions, leading to subtle bugs that might not be
-noticed for some time.
-
 \subsubsection{\method{__getattr__}, \method{__delattr__}, and \method{__setattr__}}
 
 Recent versions of ZODB allow writing persistent classes that have
@@ -545,7 +418,7 @@ update them to match the new schema.  This can be easy if your network
 of object references is quite structured, making it easy to find all
 the instances of the class being modified.  For example, if all
 \class{User} objects can be found inside a single dictionary or
-B-tree, then it would be a simple matter to loop over every
+BTree, then it would be a simple matter to loop over every
 \class{User} instance with a \keyword{for} statement.
 This is more difficult if your object graph is less structured; if
 \class{User} objects can be found as attributes of any number of

@@ -1,19 +1,20 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
 <html>
 <head>
-<title>2.5.4 __getattr__, __delattr__, and __setattr__</title>
-<META NAME="description" CONTENT="2.5.4 __getattr__, __delattr__, and __setattr__">
+<title>2.6 Writing Persistent Classes</title>
+<META NAME="description" CONTENT="2.6 Writing Persistent Classes">
 <META NAME="keywords" CONTENT="zodb">
 <META NAME="resource-type" CONTENT="document">
 <META NAME="distribution" CONTENT="global">
-<meta http-equiv="Content-Type" content="text/html; charset=">
-<link rel="STYLESHEET" href="zodb.css">
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+<link rel="STYLESHEET" href="zodb.css" type='text/css'>
 <link rel="first" href="zodb.html">
 <link rel="contents" href="contents.html" title="Contents">
 
-<LINK REL="previous" HREF="node18.html">
-<LINK REL="up" HREF="node15.html">
+<LINK REL="previous" HREF="node15.html">
+<LINK REL="up" HREF="node8.html">
 <LINK REL="next" HREF="node20.html">
+<meta name='aesop' content='information'>
 </head>
 <body>
 <DIV CLASS="navigation">
@@ -22,7 +23,7 @@
 <td><A HREF="node18.html"><img src="/python/writing/icons/previous.gif"
   border="0" height="32"
   alt="Previous Page" width="32"></A></td>
-<td><A HREF="node15.html"><img src="/python/writing/icons/up.gif"
+<td><A HREF="node8.html"><img src="/python/writing/icons/up.gif"
   border="0" height="32"
   alt="Up One Level" width="32"></A></td>
 <td><A HREF="node20.html"><img src="/python/writing/icons/next.gif"
@@ -39,28 +40,32 @@
   border="0" height="32"
   alt="" width="32"></td>
 </tr></table>
-<b class="navlabel">Previous:</b> <a class="sectref" HREF="node18.html">2.5.3 Fixing isinstance and</A>
-<b class="navlabel">Up:</b> <a class="sectref" HREF="node15.html">2.5 Rules for Writing</A>
-<b class="navlabel">Next:</b> <a class="sectref" HREF="node20.html">2.6 Writing Persistent Classes</A>
+<b class="navlabel">Previous:</b> <a class="sectref" HREF="node18.html">2.5.3 __getattr__, __delattr__, and</A>
+<b class="navlabel">Up:</b> <a class="sectref" HREF="node8.html">2 ZODB Programming</A>
+<b class="navlabel">Next:</b> <a class="sectref" HREF="node20.html">2.6.1 Changing Instance Attributes</A>
 <br><hr>
 </DIV>
 <!--End of Navigation Panel-->
 
-<H3><A NAME="SECTION000354000000000000000">
-2.5.4 <tt class="method">__getattr__</tt>, <tt class="method">__delattr__</tt>, and <tt class="method">__setattr__</tt></A>
-</H3>
+<H2><A NAME="SECTION000360000000000000000">
+2.6 Writing Persistent Classes</A>
+</H2>
 
 <P>
-Recent versions of ZODB allow writing persistent classes that have
-<tt class="method">__getattr__</tt>, <tt class="method">__delattr__</tt>, or <tt class="method">__setattr__</tt>
-methods.  The one minor complication is that the machinery for
-automatically detecting changes to the object is disabled while the
-<tt class="method">__getattr__</tt>, <tt class="method">__delattr__</tt>, or <tt class="method">__setattr__</tt>
-method is executing.  This means that if the object is modified, the
-object should be marked as dirty by setting the object's
-<tt class="member">_p_changed</tt> method to true.
+Now that we've looked at the basics of programming using the ZODB,
+we'll turn to some more subtle tasks that are likely to come up for
+anyone using the ZODB in a production system.
 
 <P>
+
+<p><hr>
+<!--Table of Child-Links-->
+<A NAME="CHILD_LINKS"><STRONG>Subsections</STRONG></a>
+
+<UL>
+<LI><A href="node20.html">2.6.1 Changing Instance Attributes</a>
+</ul>
+<!--End of Table of Child-Links-->
 
 <DIV CLASS="navigation">
 <p><hr>
@@ -69,7 +74,7 @@ object should be marked as dirty by setting the object's
 <td><A HREF="node18.html"><img src="/python/writing/icons/previous.gif"
   border="0" height="32"
   alt="Previous Page" width="32"></A></td>
-<td><A HREF="node15.html"><img src="/python/writing/icons/up.gif"
+<td><A HREF="node8.html"><img src="/python/writing/icons/up.gif"
   border="0" height="32"
   alt="Up One Level" width="32"></A></td>
 <td><A HREF="node20.html"><img src="/python/writing/icons/next.gif"
@@ -86,11 +91,11 @@ object should be marked as dirty by setting the object's
   border="0" height="32"
   alt="" width="32"></td>
 </tr></table>
-<b class="navlabel">Previous:</b> <a class="sectref" HREF="node18.html">2.5.3 Fixing isinstance and</A>
-<b class="navlabel">Up:</b> <a class="sectref" HREF="node15.html">2.5 Rules for Writing</A>
-<b class="navlabel">Next:</b> <a class="sectref" HREF="node20.html">2.6 Writing Persistent Classes</A>
+<b class="navlabel">Previous:</b> <a class="sectref" HREF="node18.html">2.5.3 __getattr__, __delattr__, and</A>
+<b class="navlabel">Up:</b> <a class="sectref" HREF="node8.html">2 ZODB Programming</A>
+<b class="navlabel">Next:</b> <a class="sectref" HREF="node20.html">2.6.1 Changing Instance Attributes</A>
 <hr>
-<span class="release-info">Release 0.03, documentation updated on February 8, 2002.</span>
+<span class="release-info">Release 0.04, documentation updated on October 4, 2002.</span>
 </DIV>
 <!--End of Navigation Panel-->
 

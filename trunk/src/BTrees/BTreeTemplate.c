@@ -12,7 +12,7 @@
 
  ****************************************************************************/
 
-#define BTREETEMPLATE_C "$Id: BTreeTemplate.c,v 1.71 2002/06/28 20:52:30 tim_one Exp $\n"
+#define BTREETEMPLATE_C "$Id: BTreeTemplate.c,v 1.72 2002/10/05 00:39:56 gvanrossum Exp $\n"
 
 /* Sanity-check a BTree.  This is a private helper for BTree_check.  Return:
  *      -1         Error.  If it's an internal inconsistency in the BTree,
@@ -1618,10 +1618,10 @@ static struct PyMethodDef BTree_methods[] = {
    "Return the default (or None) if the key is not found."
   },
   {"maxKey", (PyCFunction) BTree_maxKey,	METH_VARARGS,
-   "maxKey([key]) -- Fine the maximum key\n\n"
+   "maxKey([key]) -- Find the maximum key\n\n"
    "If an argument is given, find the maximum <= the argument"},
   {"minKey", (PyCFunction) BTree_minKey,	METH_VARARGS,
-   "minKey([key]) -- Fine the minimum key\n\n"
+   "minKey([key]) -- Find the minimum key\n\n"
    "If an argument is given, find the minimum >= the argument"},
   {"clear",	(PyCFunction) BTree_clear,	METH_VARARGS,
    "clear() -- Remove all of the items from the BTree"},

@@ -18,7 +18,7 @@ Usage: simul.py [-bflyz] [-s size] tracefile
 
 Use one of -b, -f, -l, -y or -z select the cache simulator:
 -b: buddy system allocator
--f: simple free list allocator 
+-f: simple free list allocator
 -l: idealized LRU (no allocator)
 -y: variation on the existing ZEO cache that copies to current file
 -z: existing ZEO cache (default)

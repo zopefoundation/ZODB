@@ -1,19 +1,21 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
 <html>
 <head>
-<title>5.3 B-tree Modules</title>
-<META NAME="description" CONTENT="5.3 B-tree Modules">
+<title>B. GNU Free Documentation License</title>
+<META NAME="description" CONTENT="B. GNU Free Documentation License">
 <META NAME="keywords" CONTENT="zodb">
 <META NAME="resource-type" CONTENT="document">
 <META NAME="distribution" CONTENT="global">
-<meta http-equiv="Content-Type" content="text/html; charset=">
-<link rel="STYLESHEET" href="zodb.css">
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+<link rel="STYLESHEET" href="zodb.css" type='text/css'>
 <link rel="first" href="zodb.html">
 <link rel="contents" href="contents.html" title="Contents">
 
+<LINK REL="next" href="about.html">
 <LINK REL="previous" HREF="node38.html">
-<LINK REL="up" HREF="node36.html">
+<LINK REL="up" HREF="zodb.html">
 <LINK REL="next" HREF="node40.html">
+<meta name='aesop' content='information'>
 </head>
 <body>
 <DIV CLASS="navigation">
@@ -22,7 +24,7 @@
 <td><A HREF="node38.html"><img src="/python/writing/icons/previous.gif"
   border="0" height="32"
   alt="Previous Page" width="32"></A></td>
-<td><A HREF="node36.html"><img src="/python/writing/icons/up.gif"
+<td><A HREF="zodb.html"><img src="/python/writing/icons/up.gif"
   border="0" height="32"
   alt="Up One Level" width="32"></A></td>
 <td><A HREF="node40.html"><img src="/python/writing/icons/next.gif"
@@ -39,75 +41,52 @@
   border="0" height="32"
   alt="" width="32"></td>
 </tr></table>
-<b class="navlabel">Previous:</b> <a class="sectref" HREF="node38.html">5.2 ZODB.PersistentList</A>
-<b class="navlabel">Up:</b> <a class="sectref" HREF="node36.html">5 Related Modules</A>
-<b class="navlabel">Next:</b> <a class="sectref" HREF="node40.html">A. Resources</A>
+<b class="navlabel">Previous:</b> <a class="sectref" HREF="node38.html">A. Resources</A>
+<b class="navlabel">Up:</b> <a class="sectref" HREF="zodb.html">ZODB/ZEO Programming Guide</A>
+<b class="navlabel">Next:</b> <a class="sectref" HREF="node40.html">Preamble</A>
 <br><hr>
 </DIV>
 <!--End of Navigation Panel-->
 
-<H2><A NAME="SECTION000630000000000000000">
-5.3 B-tree Modules</A>
-</H2>
+<H1><A NAME="SECTION000800000000000000000">
+B. GNU Free Documentation License</A>
+</H1>
 
 <P>
-When programming with the ZODB, Python dictionaries aren't always what
-you need.  The most important case is where you want to store a very
-large mapping.  When a Python dictionary is accessed in a ZODB, the
-whole dictionary has to be unpickled and brought into memory.  If
-you're storing something very large, such as a 100,000-entry user
-database, unpickling such a large object will be slow.  B-trees are a
-balanced tree data structure that behave like a mapping but distribute
-keys throughout a number of tree nodes.  Nodes are then only unpickled
-and brought into memory as they're accessed, so the entire tree
-doesn't have to occupy memory (unless you really are touching every
-single key).
-
+Version 1.1, March 2000
+<BR>
 <P>
-There are four different BTree modules provided.  One of them, the
-<tt class="module">BTree</tt> module, provides the most general data type; the keys
-and values in the B-tree can be any Python object.  Some specialized B-tree
-modules require that the keys, and perhaps even the values, to be of a
-certain type, and provide faster performance because of this limitation.
-
-<P>
-<DL COMPACT>
-<DT> <tt class="module">IOBTree</tt> </DT>
-<DD>requires the keys to be integers.
-The module name reminds you of this; the <tt class="module">IOBTree</tt> module
-maps Integers to Objects.
-
-<P>
-</DD>
-<DT> <tt class="module">OIBTree</tt> </DT>
-<DD>requires the values to be integers,
-mapping Objects to Integers.
-
-<P>
-</DD>
-<DT> <tt class="module">IIBTree</tt> </DT>
-<DD>is strictest, requiring that both keys and values must be integers.
-
-<P>
-</DD>
-</DL>
-
-<P>
-To use a B-tree, simply import the desired module and call the
-constructor, always named <tt class="function">BTree()</tt>, to get a B-tree
-instance, and then use it like any other mapping:
-
-<P>
-<dl><dd><pre class="verbatim">
-import IIBTree
-iimap = IIBTree.BTree()
-iimap[1972] = 27
-</pre></dl>
+Copyright <SPAN CLASS="MATH"><IMG
+ WIDTH="20" HEIGHT="29" ALIGN="MIDDLE" BORDER="0"
+ SRC="img1.gif"
+ ALT="$\copyright$"></SPAN> 2000  Free Software Foundation, Inc.
+<BR>
+59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+<BR>
+Everyone is permitted to copy and distribute verbatim copies
+ of this license document, but changing it is not allowed.
 
 <P>
 
+<p><hr>
+<!--Table of Child-Links-->
+<A NAME="CHILD_LINKS"><STRONG>Subsections</STRONG></a>
 
-<P>
+<UL>
+<LI><A href="node40.html">Preamble</a>
+<LI><A href="node41.html">B..1 Applicability and Definitions</a>
+<LI><A href="node42.html">B..2 Verbatim Copying</a>
+<LI><A href="node43.html">B..3 Copying in Quantity</a>
+<LI><A href="node44.html">B..4 Modifications</a>
+<LI><A href="node45.html">B..5 Combining Documents</a>
+<LI><A href="node46.html">B..6 Collections of Documents</a>
+<LI><A href="node47.html">B..7 Aggregation With Independent Works</a>
+<LI><A href="node48.html">B..8 Translation</a>
+<LI><A href="node49.html">B..9 Termination</a>
+<LI><A href="node50.html">B..10 Future Revisions of This Licence</a>
+<LI><A href="node51.html">ADDENDUM: How to use this License for your documents</a>
+</ul>
+<!--End of Table of Child-Links-->
 
 <DIV CLASS="navigation">
 <p><hr>
@@ -116,7 +95,7 @@ iimap[1972] = 27
 <td><A HREF="node38.html"><img src="/python/writing/icons/previous.gif"
   border="0" height="32"
   alt="Previous Page" width="32"></A></td>
-<td><A HREF="node36.html"><img src="/python/writing/icons/up.gif"
+<td><A HREF="zodb.html"><img src="/python/writing/icons/up.gif"
   border="0" height="32"
   alt="Up One Level" width="32"></A></td>
 <td><A HREF="node40.html"><img src="/python/writing/icons/next.gif"
@@ -133,11 +112,11 @@ iimap[1972] = 27
   border="0" height="32"
   alt="" width="32"></td>
 </tr></table>
-<b class="navlabel">Previous:</b> <a class="sectref" HREF="node38.html">5.2 ZODB.PersistentList</A>
-<b class="navlabel">Up:</b> <a class="sectref" HREF="node36.html">5 Related Modules</A>
-<b class="navlabel">Next:</b> <a class="sectref" HREF="node40.html">A. Resources</A>
+<b class="navlabel">Previous:</b> <a class="sectref" HREF="node38.html">A. Resources</A>
+<b class="navlabel">Up:</b> <a class="sectref" HREF="zodb.html">ZODB/ZEO Programming Guide</A>
+<b class="navlabel">Next:</b> <a class="sectref" HREF="node40.html">Preamble</A>
 <hr>
-<span class="release-info">Release 0.03, documentation updated on February 8, 2002.</span>
+<span class="release-info">Release 0.04, documentation updated on October 4, 2002.</span>
 </DIV>
 <!--End of Navigation Panel-->
 

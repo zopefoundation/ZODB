@@ -1,20 +1,20 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
 <html>
 <head>
-<title>4.2 Undoing Changes</title>
-<META NAME="description" CONTENT="4.2 Undoing Changes">
+<title>4.4 Multithreaded ZODB Programs</title>
+<META NAME="description" CONTENT="4.4 Multithreaded ZODB Programs">
 <META NAME="keywords" CONTENT="zodb">
 <META NAME="resource-type" CONTENT="document">
 <META NAME="distribution" CONTENT="global">
-<meta http-equiv="Content-Type" content="text/html; charset=">
-<link rel="STYLESHEET" href="zodb.css">
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+<link rel="STYLESHEET" href="zodb.css" type='text/css'>
 <link rel="first" href="zodb.html">
 <link rel="contents" href="contents.html" title="Contents">
 
-<LINK REL="next" HREF="node34.html">
 <LINK REL="previous" HREF="node32.html">
-<LINK REL="up" HREF="node31.html">
+<LINK REL="up" HREF="node29.html">
 <LINK REL="next" HREF="node34.html">
+<meta name='aesop' content='information'>
 </head>
 <body>
 <DIV CLASS="navigation">
@@ -23,7 +23,7 @@
 <td><A HREF="node32.html"><img src="/python/writing/icons/previous.gif"
   border="0" height="32"
   alt="Previous Page" width="32"></A></td>
-<td><A HREF="node31.html"><img src="/python/writing/icons/up.gif"
+<td><A HREF="node29.html"><img src="/python/writing/icons/up.gif"
   border="0" height="32"
   alt="Up One Level" width="32"></A></td>
 <td><A HREF="node34.html"><img src="/python/writing/icons/next.gif"
@@ -40,78 +40,22 @@
   border="0" height="32"
   alt="" width="32"></td>
 </tr></table>
-<b class="navlabel">Previous:</b> <a class="sectref" HREF="node32.html">4.1 Subtransactions</A>
-<b class="navlabel">Up:</b> <a class="sectref" HREF="node31.html">4 Transactions and Versioning</A>
-<b class="navlabel">Next:</b> <a class="sectref" HREF="node34.html">4.3 Versions</A>
+<b class="navlabel">Previous:</b> <a class="sectref" HREF="node32.html">4.3 Versions</A>
+<b class="navlabel">Up:</b> <a class="sectref" HREF="node29.html">4 Transactions and Versioning</A>
+<b class="navlabel">Next:</b> <a class="sectref" HREF="node34.html">5 Related Modules</A>
 <br><hr>
 </DIV>
 <!--End of Navigation Panel-->
 
-<H2><A NAME="SECTION000520000000000000000">
-4.2 Undoing Changes</A>
+<H2><A NAME="SECTION000540000000000000000">
+4.4 Multithreaded ZODB Programs</A>
 </H2>
 
 <P>
-Some types of <tt class="class">Storage</tt> support undoing a transaction even after
-it's been committed.  You can tell if this is the case by calling the
-<tt class="method">supportsUndo()</tt> method of the <tt class="class">DB</tt> instance, which
-returns true if the underlying storage supports undo.  Alternatively
-you can call the <tt class="method">supportsUndo()</tt> method on the underlying
-storage instance.
-
-<P>
-If a database supports undo, then the <tt class="method">undoLog(<var>start</var>,
-<var>end</var><big>[</big>, func<big>]</big>)</tt> method on the <tt class="class">DB</tt> instance returns
-the log of past transactions, returning transactions between the times
-<var>start</var> and <var>end</var>, measured in seconds from the epoch.   
-If present, <var>func</var> is a function that acts as a filter on the
-transactions to be returned; it's passed a dictionary representing
-each transaction, and only transactions for which <var>func</var> returns
-true will be included in the list of transactions returned to the
-caller of <tt class="method">undoLog()</tt>.  The dictionary contains keys for
-various properties of the transaction.  The most important keys are
-"<tt class="samp">id</tt>", for the transaction ID, and "<tt class="samp">time</tt>", for the time at
-which the transaction was committed.  
-
-<P>
-<dl><dd><pre class="verbatim">
-&gt;&gt;&gt; print storage.undoLog(0, sys.maxint)
-[{'description': '',
-  'id': 'AzpGEGqU/0QAAAAAAAAGMA',
-  'time': 981126744.98,
-  'user_name': ''},
- {'description': '',
-  'id': 'AzpGC/hUOKoAAAAAAAAFDQ',
-  'time': 981126478.202,
-  'user_name': ''}
-  ...
-</pre></dl>
-
-<P>
-To store a description and a user name on a commit, get the current
-transaction and call the <tt class="method">note(<var>text</var>)</tt> method to store a
-description, and the
-<tt class="method">setUser(<var>user_name</var>)</tt> method to store the user name.  
-While <tt class="method">setUser()</tt> overwrites the current user name and replaces
-it with the new value, the <tt class="method">note()</tt> method always adds the text
-to the transaction's description, so it can be called several times to
-log several different changes made in the course of a single
-transaction.
-
-<P>
-<dl><dd><pre class="verbatim">
-get_transaction().setUser('amk')
-get_transaction().note('Change ownership')
-</pre></dl>
-
-<P>
-To undo a transaction, call the <tt class="method">DB.undo(<var>id</var>)</tt> method,
-passing it the ID of the transaction to undo.  If the transaction
-can't be undone, a <tt class="exception">ZODB.POSException.UndoError</tt> exception
-will be raised, with the message ``non-undoable
-transaction''.  Usually this will happen because later transactions
-modified the objects affected by the transaction you're trying to
-undo.
+ZODB databases can be accessed from multithreaded Python programs.
+The <tt class="class">Storage</tt> and <tt class="class">DB</tt> instances can be shared among
+several threads, as long as individual <tt class="class">Connection</tt> instances
+are created for each thread.  
 
 <P>
 
@@ -122,7 +66,7 @@ undo.
 <td><A HREF="node32.html"><img src="/python/writing/icons/previous.gif"
   border="0" height="32"
   alt="Previous Page" width="32"></A></td>
-<td><A HREF="node31.html"><img src="/python/writing/icons/up.gif"
+<td><A HREF="node29.html"><img src="/python/writing/icons/up.gif"
   border="0" height="32"
   alt="Up One Level" width="32"></A></td>
 <td><A HREF="node34.html"><img src="/python/writing/icons/next.gif"
@@ -139,11 +83,11 @@ undo.
   border="0" height="32"
   alt="" width="32"></td>
 </tr></table>
-<b class="navlabel">Previous:</b> <a class="sectref" HREF="node32.html">4.1 Subtransactions</A>
-<b class="navlabel">Up:</b> <a class="sectref" HREF="node31.html">4 Transactions and Versioning</A>
-<b class="navlabel">Next:</b> <a class="sectref" HREF="node34.html">4.3 Versions</A>
+<b class="navlabel">Previous:</b> <a class="sectref" HREF="node32.html">4.3 Versions</A>
+<b class="navlabel">Up:</b> <a class="sectref" HREF="node29.html">4 Transactions and Versioning</A>
+<b class="navlabel">Next:</b> <a class="sectref" HREF="node34.html">5 Related Modules</A>
 <hr>
-<span class="release-info">Release 0.03, documentation updated on February 8, 2002.</span>
+<span class="release-info">Release 0.04, documentation updated on October 4, 2002.</span>
 </DIV>
 <!--End of Navigation Panel-->
 

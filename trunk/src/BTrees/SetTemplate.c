@@ -12,7 +12,7 @@
   
  ****************************************************************************/
 
-#define SETTEMPLATE_C "$Id: SetTemplate.c,v 1.15 2002/02/21 21:41:17 jeremy Exp $\n"
+#define SETTEMPLATE_C "$Id: SetTemplate.c,v 1.16 2002/10/05 00:39:57 gvanrossum Exp $\n"
 
 static PyObject *
 Set_insert(Bucket *self, PyObject *args)
@@ -152,10 +152,10 @@ static struct PyMethodDef Set_methods[] = {
   {"clear",	(PyCFunction) bucket_clear,	METH_VARARGS,
    "clear() -- Remove all of the items from the bucket"},
   {"maxKey", (PyCFunction) Bucket_maxKey,	METH_VARARGS,
-   "maxKey([key]) -- Fine the maximum key\n\n"
+   "maxKey([key]) -- Find the maximum key\n\n"
    "If an argument is given, find the maximum <= the argument"},
   {"minKey", (PyCFunction) Bucket_minKey,	METH_VARARGS,
-   "minKey([key]) -- Fine the minimum key\n\n"
+   "minKey([key]) -- Find the minimum key\n\n"
    "If an argument is given, find the minimum >= the argument"},
 #ifdef PERSISTENT
   {"_p_resolveConflict", (PyCFunction) bucket__p_resolveConflict, METH_VARARGS,

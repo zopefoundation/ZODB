@@ -12,7 +12,7 @@
 
  ****************************************************************************/
 
-#define BUCKETTEMPLATE_C "$Id: BucketTemplate.c,v 1.47 2002/06/27 22:09:32 tim_one Exp $\n"
+#define BUCKETTEMPLATE_C "$Id: BucketTemplate.c,v 1.48 2002/10/05 00:39:56 gvanrossum Exp $\n"
 
 /* Use BUCKET_SEARCH to find the index at which a key belongs.
  * INDEX    An int lvalue to hold the index i such that KEY belongs at
@@ -1305,10 +1305,10 @@ static struct PyMethodDef Bucket_methods[] = {
   {"__init__",	(PyCFunction) Mapping_update,	METH_VARARGS,
    "__init__(collection) -- Initialize with items from the given collection"},
   {"maxKey", (PyCFunction) Bucket_maxKey,	METH_VARARGS,
-   "maxKey([key]) -- Fine the maximum key\n\n"
+   "maxKey([key]) -- Find the maximum key\n\n"
    "If an argument is given, find the maximum <= the argument"},
   {"minKey", (PyCFunction) Bucket_minKey,	METH_VARARGS,
-   "minKey([key]) -- Fine the minimum key\n\n"
+   "minKey([key]) -- Find the minimum key\n\n"
    "If an argument is given, find the minimum >= the argument"},
   {"values",	(PyCFunction) bucket_values,	METH_VARARGS,
      "values([min, max]) -- Return the values"},

@@ -6,15 +6,16 @@
 <META NAME="keywords" CONTENT="zodb">
 <META NAME="resource-type" CONTENT="document">
 <META NAME="distribution" CONTENT="global">
-<meta http-equiv="Content-Type" content="text/html; charset=">
-<link rel="STYLESHEET" href="zodb.css">
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+<link rel="STYLESHEET" href="zodb.css" type='text/css'>
 <link rel="first" href="zodb.html">
 <link rel="contents" href="contents.html" title="Contents">
 
-<LINK REL="next" HREF="node20.html">
+<LINK REL="next" HREF="node19.html">
 <LINK REL="previous" HREF="node14.html">
 <LINK REL="up" HREF="node8.html">
 <LINK REL="next" HREF="node16.html">
+<meta name='aesop' content='information'>
 </head>
 <body>
 <DIV CLASS="navigation">
@@ -83,13 +84,6 @@ forth.
 
 <P>
 </LI>
-<LI>Python's built-in <tt class="function">isinstance()</tt> and <tt class="function">issubclass()</tt>
-functions don't work properly on ExtensionClasses.  Solution: use
-custom <tt class="function">isinstance()</tt> and <tt class="function">issubclass()</tt> functions
-that handle ExtensionClasses correctly.
-
-<P>
-</LI>
 <LI>Recent versions of the ZODB allow writing a class with 
 <tt class="method">__setattr__</tt> , <tt class="method">__getattr__</tt>, or <tt class="method">__delattr__</tt> methods.  (Older versions didn't support this at all.)
 If you write such a <tt class="method">__setattr__</tt> or <tt class="method">__delattr__</tt> method, 
@@ -111,8 +105,7 @@ Let's look at each of these rules in detail.
 <UL>
 <LI><A href="node16.html">2.5.1 Modifying Mutable Objects</a>
 <LI><A href="node17.html">2.5.2 Some Special Methods Don't Work</a>
-<LI><A href="node18.html">2.5.3 Fixing <tt class="function">isinstance</tt> and <tt class="function">issubclass</tt></a>
-<LI><A href="node19.html">2.5.4 <tt class="method">__getattr__</tt>, <tt class="method">__delattr__</tt>, and <tt class="method">__setattr__</tt></a>
+<LI><A href="node18.html">2.5.3 <tt class="method">__getattr__</tt>, <tt class="method">__delattr__</tt>, and <tt class="method">__setattr__</tt></a>
 </ul>
 <!--End of Table of Child-Links-->
 
@@ -144,7 +137,7 @@ Let's look at each of these rules in detail.
 <b class="navlabel">Up:</b> <a class="sectref" HREF="node8.html">2 ZODB Programming</A>
 <b class="navlabel">Next:</b> <a class="sectref" HREF="node16.html">2.5.1 Modifying Mutable Objects</A>
 <hr>
-<span class="release-info">Release 0.03, documentation updated on February 8, 2002.</span>
+<span class="release-info">Release 0.04, documentation updated on October 4, 2002.</span>
 </DIV>
 <!--End of Navigation Panel-->
 

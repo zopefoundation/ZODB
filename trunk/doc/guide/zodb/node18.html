@@ -1,20 +1,20 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
 <html>
 <head>
-<title>2.5.3 Fixing isinstance and issubclass</title>
-<META NAME="description" CONTENT="2.5.3 Fixing isinstance and issubclass">
+<title>2.5.3 __getattr__, __delattr__, and __setattr__</title>
+<META NAME="description" CONTENT="2.5.3 __getattr__, __delattr__, and __setattr__">
 <META NAME="keywords" CONTENT="zodb">
 <META NAME="resource-type" CONTENT="document">
 <META NAME="distribution" CONTENT="global">
-<meta http-equiv="Content-Type" content="text/html; charset=">
-<link rel="STYLESHEET" href="zodb.css">
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+<link rel="STYLESHEET" href="zodb.css" type='text/css'>
 <link rel="first" href="zodb.html">
 <link rel="contents" href="contents.html" title="Contents">
 
-<LINK REL="next" HREF="node19.html">
 <LINK REL="previous" HREF="node17.html">
 <LINK REL="up" HREF="node15.html">
 <LINK REL="next" HREF="node19.html">
+<meta name='aesop' content='information'>
 </head>
 <body>
 <DIV CLASS="navigation">
@@ -42,112 +42,24 @@
 </tr></table>
 <b class="navlabel">Previous:</b> <a class="sectref" HREF="node17.html">2.5.2 Some Special Methods</A>
 <b class="navlabel">Up:</b> <a class="sectref" HREF="node15.html">2.5 Rules for Writing</A>
-<b class="navlabel">Next:</b> <a class="sectref" HREF="node19.html">2.5.4 __getattr__, __delattr__, and</A>
+<b class="navlabel">Next:</b> <a class="sectref" HREF="node19.html">2.6 Writing Persistent Classes</A>
 <br><hr>
 </DIV>
 <!--End of Navigation Panel-->
 
 <H3><A NAME="SECTION000353000000000000000">
-2.5.3 Fixing <tt class="function">isinstance</tt> and <tt class="function">issubclass</tt></A>
+2.5.3 <tt class="method">__getattr__</tt>, <tt class="method">__delattr__</tt>, and <tt class="method">__setattr__</tt></A>
 </H3>
 
 <P>
-Python's built-in functions 
-<tt class="function">isinstance()</tt> and <tt class="function">issubclass</tt> don't
-work on ExtensionClass instances, for much the same reason that 
-<tt class="method">__cmp__</tt> is never called; in some bits of the Python core code,
-branches are taken only if an object is of the <tt class="class">InstanceType</tt>
-type, and this can never be true for an ExtensionClass instance.
-Python 2.1 tried to fix this, and changed these functions slightly in
-an effort to make them work for ExtensionClasses; unfortunately, the
-changes didn't work.
-
-<P>
-The solution is to use customized versions of these functions that
-handle ExtensionClasses specially and fall back to the built-in
-version otherwise.  Here are the versions we've written at the MEMS Exchange:
-
-<P>
-<dl><dd><pre class="verbatim">
-# The built-in 'isinstance()' and 'issubclass()' won't work on
-# ExtensionClasses, so you have to use the versions supplied here.
-# (But those versions work fine on regular instances and classes too,
-# so you should *always* use them.)
-
-def issubclass (class1, class2):
-    """A version of 'issubclass' that works with extension classes
-    as well as regular Python classes.
-    """
-
-    # Both class objects are regular Python classes, so use the
-    # built-in 'issubclass()'.
-    if type(class1) is ClassType and type(class2) is ClassType:
-        return __builtin__.issubclass(class1, class2)
-
-    # Both so-called class objects have a '__bases__' attribute: ie.,
-    # they aren't regular Python classes, but they sure look like them.
-    # Assume they are extension classes and reimplement what the builtin
-    # 'issubclass()' does behind the scenes.
-    elif hasattr(class1, '__bases__') and hasattr(class2, '__bases__'):
-        # XXX it appears that "ec.__class__ is type(ec)" for an
-        # extension class 'ec': could we/should we use this as an
-        # additional check for extension classes?
-
-        # Breadth-first traversal of class1's superclass tree.  Order
-        # doesn't matter because we're just looking for a "yes/no"
-        # answer from the tree; if we were trying to resolve a name,
-        # order would be important!
-        stack = [class1]
-        while stack:
-            if stack[0] is class2:
-                return 1
-            stack.extend(list(stack[0].__bases__))
-            del stack[0]
-        else:
-            return 0
-
-    # Not a regular class, not an extension class: blow up for consistency
-    # with builtin 'issubclass()"
-    else:
-        raise TypeError, "arguments must be class or ExtensionClass objects"
-
-# issubclass ()
-
-def isinstance (object, klass):
-    """A version of 'isinstance' that works with extension classes
-    as well as regular Python classes."""
-
-    if type(klass) is TypeType:
-        return __builtin__.isinstance(object, klass)
-    elif hasattr(object, '__class__'):
-        return issubclass(object.__class__, klass)
-    else:
-        return 0
-</pre></dl>
-
-<P>
-I'd recommend putting these functions in a module that always gets
-imported.  The convention on my work project is to put them in
-<span class="file">mems/lib/base.py</span>, which contains various fundamental classes
-and functions for our system, and access them like this:
-
-<P>
-<dl><dd><pre class="verbatim">
-from mems.lib import base
-...
-if base.isinstance(object, Class): ...
-</pre></dl>
-
-<P>
-Don't insert the modified functions into Python's
-<tt class="module">__builtin__</tt> module, or import just the
-<tt class="function">isinstance()</tt> and <tt class="function">issubclass</tt> functions.  
-If you consistently use <tt class="function">base.isinstance()</tt>, then forgetting
-to import the <tt class="module">base</tt> module will result in a
-<tt class="exception">NameError</tt> exception.  In the
-case of a forgotten import, calling the functions directly would use
-Python's built-in versions, leading to subtle bugs that might not be
-noticed for some time.
+Recent versions of ZODB allow writing persistent classes that have
+<tt class="method">__getattr__</tt>, <tt class="method">__delattr__</tt>, or <tt class="method">__setattr__</tt>
+methods.  The one minor complication is that the machinery for
+automatically detecting changes to the object is disabled while the
+<tt class="method">__getattr__</tt>, <tt class="method">__delattr__</tt>, or <tt class="method">__setattr__</tt>
+method is executing.  This means that if the object is modified, the
+object should be marked as dirty by setting the object's
+<tt class="member">_p_changed</tt> method to true.
 
 <P>
 
@@ -177,9 +89,9 @@ noticed for some time.
 </tr></table>
 <b class="navlabel">Previous:</b> <a class="sectref" HREF="node17.html">2.5.2 Some Special Methods</A>
 <b class="navlabel">Up:</b> <a class="sectref" HREF="node15.html">2.5 Rules for Writing</A>
-<b class="navlabel">Next:</b> <a class="sectref" HREF="node19.html">2.5.4 __getattr__, __delattr__, and</A>
+<b class="navlabel">Next:</b> <a class="sectref" HREF="node19.html">2.6 Writing Persistent Classes</A>
 <hr>
-<span class="release-info">Release 0.03, documentation updated on February 8, 2002.</span>
+<span class="release-info">Release 0.04, documentation updated on October 4, 2002.</span>
 </DIV>
 <!--End of Navigation Panel-->
 

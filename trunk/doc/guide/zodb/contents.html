@@ -6,8 +6,8 @@
 <META NAME="keywords" CONTENT="zodb">
 <META NAME="resource-type" CONTENT="document">
 <META NAME="distribution" CONTENT="global">
-<meta http-equiv="Content-Type" content="text/html; charset=">
-<link rel="STYLESHEET" href="zodb.css">
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+<link rel="STYLESHEET" href="zodb.css" type='text/css'>
 <link rel="first" href="zodb.html">
 <link rel="contents" href="contents.html" title="Contents">
 
@@ -15,6 +15,7 @@
 <LINK REL="previous" HREF="zodb.html">
 <LINK REL="up" HREF="zodb.html">
 <LINK REL="next" HREF="node2.html">
+<meta name='aesop' content='information'>
 </head>
 <body>
 <DIV CLASS="navigation">
@@ -66,45 +67,44 @@ Contents</A>
 <LI><A href="node13.html">2.3 Opening a ZODB</a>
 <LI><A href="node14.html">2.4 Writing a Persistent Class</a>
 <LI><A href="node15.html">2.5 Rules for Writing Persistent Classes</a>
-<LI><A href="node20.html">2.6 Writing Persistent Classes</a>
+<LI><A href="node19.html">2.6 Writing Persistent Classes</a>
 </ul>
 <LI><A href="zeo.html">3 ZEO</a>
 <UL>
-<LI><A href="node23.html">3.1 How ZEO Works</a>
-<LI><A href="node24.html">3.2 Installing ZEO</a>
-<LI><A href="node27.html">3.3 Configuring and Running a ZEO Server</a>
-<LI><A href="node28.html">3.4 Testing the ZEO Installation</a>
-<LI><A href="node29.html">3.5 ZEO Programming Notes</a>
-<LI><A href="node30.html">3.6 Sample Application: chatter.py</a>
+<LI><A href="node22.html">3.1 How ZEO Works</a>
+<LI><A href="node23.html">3.2 Installing ZEO</a>
+<LI><A href="node26.html">3.3 Testing the ZEO Installation</a>
+<LI><A href="node27.html">3.4 ZEO Programming Notes</a>
+<LI><A href="node28.html">3.5 Sample Application: chatter.py</a>
 </ul>
-<LI><A href="node31.html">4 Transactions and Versioning</a>
+<LI><A href="node29.html">4 Transactions and Versioning</a>
 <UL>
-<LI><A href="node32.html">4.1 Subtransactions</a>
-<LI><A href="node33.html">4.2 Undoing Changes</a>
-<LI><A href="node34.html">4.3 Versions</a>
-<LI><A href="node35.html">4.4 Multithreaded ZODB Programs</a>
+<LI><A href="node30.html">4.1 Subtransactions</a>
+<LI><A href="node31.html">4.2 Undoing Changes</a>
+<LI><A href="node32.html">4.3 Versions</a>
+<LI><A href="node33.html">4.4 Multithreaded ZODB Programs</a>
 </ul>
-<LI><A href="node36.html">5 Related Modules</a>
+<LI><A href="node34.html">5 Related Modules</a>
 <UL>
-<LI><A href="node37.html">5.1 <tt class="module">ZODB.PersistentMapping</tt></a>
-<LI><A href="node38.html">5.2 <tt class="module">ZODB.PersistentList</tt></a>
-<LI><A href="node39.html">5.3 B-tree Modules</a>
+<LI><A href="node35.html">5.1 <tt class="module">ZODB.PersistentMapping</tt></a>
+<LI><A href="node36.html">5.2 <tt class="module">ZODB.PersistentList</tt></a>
+<LI><A href="node37.html">5.3 BTrees Package</a>
 </ul>
-<LI><A href="node40.html">A. Resources</a>
-<LI><A href="node41.html">B. GNU Free Documentation License</a>
+<LI><A href="node38.html">A. Resources</a>
+<LI><A href="node39.html">B. GNU Free Documentation License</a>
 <UL>
-<LI><A href="node42.html">Preamble</a>
-<LI><A href="node43.html">B..1 Applicability and Definitions</a>
-<LI><A href="node44.html">B..2 Verbatim Copying</a>
-<LI><A href="node45.html">B..3 Copying in Quantity</a>
-<LI><A href="node46.html">B..4 Modifications</a>
-<LI><A href="node47.html">B..5 Combining Documents</a>
-<LI><A href="node48.html">B..6 Collections of Documents</a>
-<LI><A href="node49.html">B..7 Aggregation With Independent Works</a>
-<LI><A href="node50.html">B..8 Translation</a>
-<LI><A href="node51.html">B..9 Termination</a>
-<LI><A href="node52.html">B..10 Future Revisions of This Licence</a>
-<LI><A href="node53.html">ADDENDUM: How to use this License for your documents</a>
+<LI><A href="node40.html">Preamble</a>
+<LI><A href="node41.html">B..1 Applicability and Definitions</a>
+<LI><A href="node42.html">B..2 Verbatim Copying</a>
+<LI><A href="node43.html">B..3 Copying in Quantity</a>
+<LI><A href="node44.html">B..4 Modifications</a>
+<LI><A href="node45.html">B..5 Combining Documents</a>
+<LI><A href="node46.html">B..6 Collections of Documents</a>
+<LI><A href="node47.html">B..7 Aggregation With Independent Works</a>
+<LI><A href="node48.html">B..8 Translation</a>
+<LI><A href="node49.html">B..9 Termination</a>
+<LI><A href="node50.html">B..10 Future Revisions of This Licence</a>
+<LI><A href="node51.html">ADDENDUM: How to use this License for your documents</a>
 </ul>
 <LI><A href="about.html">About this document ...</a>
 </ul>
@@ -147,7 +147,7 @@ Contents</A>
 <b class="navlabel">Up:</b> <a class="sectref" HREF="zodb.html">ZODB/ZEO Programming Guide</A>
 <b class="navlabel">Next:</b> <a class="sectref" HREF="node2.html">1 Introduction</A>
 <hr>
-<span class="release-info">Release 0.03, documentation updated on February 8, 2002.</span>
+<span class="release-info">Release 0.04, documentation updated on October 4, 2002.</span>
 </DIV>
 <!--End of Navigation Panel-->
 

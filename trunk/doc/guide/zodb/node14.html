@@ -6,8 +6,8 @@
 <META NAME="keywords" CONTENT="zodb">
 <META NAME="resource-type" CONTENT="document">
 <META NAME="distribution" CONTENT="global">
-<meta http-equiv="Content-Type" content="text/html; charset=">
-<link rel="STYLESHEET" href="zodb.css">
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+<link rel="STYLESHEET" href="zodb.css" type='text/css'>
 <link rel="first" href="zodb.html">
 <link rel="contents" href="contents.html" title="Contents">
 
@@ -15,6 +15,7 @@
 <LINK REL="previous" HREF="node13.html">
 <LINK REL="up" HREF="node8.html">
 <LINK REL="next" HREF="node15.html">
+<meta name='aesop' content='information'>
 </head>
 <body>
 <DIV CLASS="navigation">
@@ -56,19 +57,24 @@ Making a Python class persistent is quite simple; it simply needs to
 subclass from the <tt class="class">Persistent</tt> class, as shown in this example:
 
 <P>
-<dl><dd><pre class="verbatim">
+<div class="verbatim"><pre>
 import ZODB
 from Persistence import Persistent
 
 class User(Persistent):
     pass
-</pre></dl>
+</pre></div>
 
 <P>
 The apparently unnecessary <code>import ZODB</code> statement is
 needed for the following <code>from...import</code> statement to work
 correctly, since the ZODB code does some magical tricks with
 importing.
+
+<P>
+The <tt class="class">Persistent</tt> base class is an <tt class="module">ExtensionClass</tt>
+class.  As a result, it not compatible with new-style classes or types
+in Python 2.2 and up.
 
 <P>
 For simplicity, in the examples the <tt class="class">User</tt> class will
@@ -96,7 +102,7 @@ that will contain all the <tt class="class">User</tt> objects.  (The
 <tt class="class">BTree</tt> module is also included as part of Zope.)
 
 <P>
-<dl><dd><pre class="verbatim">
+<div class="verbatim"><pre>
 dbroot = conn.root()
 
 # Ensure that a 'userdb' key is present 
@@ -106,7 +112,7 @@ if not dbroot.has_key('userdb'):
     dbroot['userdb'] = BTree.BTree()
 
 userdb = dbroot['userdb']
-</pre></dl>
+</pre></div>
 
 <P>
 Inserting a new user is simple: create the <tt class="class">User</tt> object, fill
@@ -114,7 +120,7 @@ it with data, insert it into the <tt class="class">BTree</tt> instance, and comm
 this transaction.
 
 <P>
-<dl><dd><pre class="verbatim"># Create new User instance
+<div class="verbatim"><pre># Create new User instance
 newuser = User() 
 
 # Add whatever attributes you want to track
@@ -127,7 +133,7 @@ userdb[newuser.id] = newuser
 
 # Commit the change
 get_transaction().commit()
-</pre></dl>
+</pre></div>
 
 <P>
 When you import the ZODB package, it adds a new function,
@@ -146,7 +152,7 @@ having transactional semantics for your program's variables, and you
 can experiment with transactions at the Python interpreter's prompt:
 
 <P>
-<dl><dd><pre class="verbatim">&gt;&gt;&gt; newuser
+<div class="verbatim"><pre>&gt;&gt;&gt; newuser
 &lt;User instance at 81b1f40&gt;
 &gt;&gt;&gt; newuser.first_name           # Print initial value
 'Andrew'         
@@ -156,7 +162,7 @@ can experiment with transactions at the Python interpreter's prompt:
 &gt;&gt;&gt; get_transaction().abort()    # Abort transaction
 &gt;&gt;&gt; newuser.first_name           # The value has changed back
 'Andrew'
-</pre></dl>
+</pre></div>
 
 <P>
 
@@ -188,7 +194,7 @@ can experiment with transactions at the Python interpreter's prompt:
 <b class="navlabel">Up:</b> <a class="sectref" HREF="node8.html">2 ZODB Programming</A>
 <b class="navlabel">Next:</b> <a class="sectref" HREF="node15.html">2.5 Rules for Writing</A>
 <hr>
-<span class="release-info">Release 0.03, documentation updated on February 8, 2002.</span>
+<span class="release-info">Release 0.04, documentation updated on October 4, 2002.</span>
 </DIV>
 <!--End of Navigation Panel-->
 

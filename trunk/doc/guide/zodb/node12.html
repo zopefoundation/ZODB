@@ -6,8 +6,8 @@
 <META NAME="keywords" CONTENT="zodb">
 <META NAME="resource-type" CONTENT="document">
 <META NAME="distribution" CONTENT="global">
-<meta http-equiv="Content-Type" content="text/html; charset=">
-<link rel="STYLESHEET" href="zodb.css">
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+<link rel="STYLESHEET" href="zodb.css" type='text/css'>
 <link rel="first" href="zodb.html">
 <link rel="contents" href="contents.html" title="Contents">
 
@@ -15,6 +15,7 @@
 <LINK REL="previous" HREF="node9.html">
 <LINK REL="up" HREF="node8.html">
 <LINK REL="next" HREF="node13.html">
+<meta name='aesop' content='information'>
 </head>
 <body>
 <DIV CLASS="navigation">
@@ -91,10 +92,16 @@ state.
 <DT>Consistency</DT>
 <DD>means that the data cannot be placed into a
 logically invalid state; sanity checks can be written and enforced.
-Usually this is done by defining a database schema, and requiring the
-data always matches the schema.  For example, this might enforce that
-the <code>order_number</code> attribute is always an integer, and not a
-string, tuple, or other object.
+Usually this is done by defining a database schema, and requiring
+the data always matches the schema.  There are two typical
+approaches to consistency.  One is to enforce rules about the types
+of objects and attribute; for example, enforce that the
+<code>order_number</code> attribute is always an integer, and not a
+string, tuple, or other object.  Another is to guarantee consistency
+across data structures; for example, that any object with an
+<code>order_number</code> attribute must also appear in the
+<code>orders_table</code> object.  In general, atomicity and isolation make
+it possible for applications to provide consistency.
 
 <P>
 </DD>
@@ -148,7 +155,7 @@ has no way of enforcing consistency with a schema.
 <b class="navlabel">Up:</b> <a class="sectref" HREF="node8.html">2 ZODB Programming</A>
 <b class="navlabel">Next:</b> <a class="sectref" HREF="node13.html">2.3 Opening a ZODB</A>
 <hr>
-<span class="release-info">Release 0.03, documentation updated on February 8, 2002.</span>
+<span class="release-info">Release 0.04, documentation updated on October 4, 2002.</span>
 </DIV>
 <!--End of Navigation Panel-->
 

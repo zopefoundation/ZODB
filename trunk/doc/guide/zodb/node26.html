@@ -1,19 +1,21 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
 <html>
 <head>
-<title>3.2.2 Installation</title>
-<META NAME="description" CONTENT="3.2.2 Installation">
+<title>3.3 Testing the ZEO Installation</title>
+<META NAME="description" CONTENT="3.3 Testing the ZEO Installation">
 <META NAME="keywords" CONTENT="zodb">
 <META NAME="resource-type" CONTENT="document">
 <META NAME="distribution" CONTENT="global">
-<meta http-equiv="Content-Type" content="text/html; charset=">
-<link rel="STYLESHEET" href="zodb.css">
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+<link rel="STYLESHEET" href="zodb.css" type='text/css'>
 <link rel="first" href="zodb.html">
 <link rel="contents" href="contents.html" title="Contents">
 
-<LINK REL="previous" HREF="node25.html">
-<LINK REL="up" HREF="node24.html">
 <LINK REL="next" HREF="node27.html">
+<LINK REL="previous" HREF="node23.html">
+<LINK REL="up" href="zeo.html">
+<LINK REL="next" HREF="node27.html">
+<meta name='aesop' content='information'>
 </head>
 <body>
 <DIV CLASS="navigation">
@@ -22,7 +24,7 @@
 <td><A HREF="node25.html"><img src="/python/writing/icons/previous.gif"
   border="0" height="32"
   alt="Previous Page" width="32"></A></td>
-<td><A HREF="node24.html"><img src="/python/writing/icons/up.gif"
+<td><A href="zeo.html"><img src="/python/writing/icons/up.gif"
   border="0" height="32"
   alt="Up One Level" width="32"></A></td>
 <td><A HREF="node27.html"><img src="/python/writing/icons/next.gif"
@@ -39,24 +41,54 @@
   border="0" height="32"
   alt="" width="32"></td>
 </tr></table>
-<b class="navlabel">Previous:</b> <a class="sectref" HREF="node25.html">3.2.1 Requirements</A>
-<b class="navlabel">Up:</b> <a class="sectref" HREF="node24.html">3.2 Installing ZEO</A>
-<b class="navlabel">Next:</b> <a class="sectref" HREF="node27.html">3.3 Configuring and Running</A>
+<b class="navlabel">Previous:</b> <a class="sectref" HREF="node25.html">3.2.2 Running a server</A>
+<b class="navlabel">Up:</b> <a class="sectref" href="zeo.html">3 ZEO</A>
+<b class="navlabel">Next:</b> <a class="sectref" HREF="node27.html">3.4 ZEO Programming Notes</A>
 <br><hr>
 </DIV>
 <!--End of Navigation Panel-->
 
-<H3><A NAME="SECTION000422000000000000000">
-3.2.2 Installation</A>
-</H3>
+<H2><A NAME="SECTION000430000000000000000">
+3.3 Testing the ZEO Installation</A>
+</H2>
 
 <P>
-Installing the ZEO package is easy.  Just run <code>python setup.py
-install</code>.  This will install the ZEO/ package into your Python
-installation, and copy various files into their proper locations:
-<span class="file">zeo.conf</span> will be put into <span class="file">/usr/local/etc/</span>, a <span class="file">zeo</span> startup
-script will be put in <span class="file">/etc/rc.d/init.d/</span>, and the <span class="file">zeod</span>
-daemon program will be placed in <span class="file">/usr/local/bin</span>.
+Once a ZEO server is up and running, using it is just like using ZODB
+with a more conventional disk-based storage; no new programming
+details are introduced by using a remote server.  The only difference
+is that programs must create a <tt class="class">ClientStorage</tt> instance instead
+of a <tt class="class">FileStorage</tt> instance.  From that point onward, ZODB-based
+code is happily unaware that objects are being retrieved from a ZEO
+server, and not from the local disk.
+
+<P>
+As an example, and to test whether ZEO is working correctly, try
+running the following lines of code, which will connect to the server,
+add some bits of data to the root of the ZODB, and commits the
+transaction:
+
+<P>
+<div class="verbatim"><pre>
+from ZEO import ClientStorage
+from ZODB import DB
+
+# Change next line to connect to your ZEO server
+addr = ('kronos.example.com', 1975)
+storage = ClientStorage.ClientStorage(addr)
+db = DB(storage)
+conn = db.open()
+root = conn.root()
+
+# Store some things in the root
+root['list'] = ['a', 'b', 1.0, 3]
+root['dict'] = {'a':1, 'b':4}
+
+# Commit the transaction
+get_transaction().commit()
+</pre></div>
+
+<P>
+If this code runs properly, then your ZEO server is working correctly.
 
 <P>
 
@@ -67,7 +99,7 @@ daemon program will be placed in <span class="file">/usr/local/bin</span>.
 <td><A HREF="node25.html"><img src="/python/writing/icons/previous.gif"
   border="0" height="32"
   alt="Previous Page" width="32"></A></td>
-<td><A HREF="node24.html"><img src="/python/writing/icons/up.gif"
+<td><A href="zeo.html"><img src="/python/writing/icons/up.gif"
   border="0" height="32"
   alt="Up One Level" width="32"></A></td>
 <td><A HREF="node27.html"><img src="/python/writing/icons/next.gif"
@@ -84,11 +116,11 @@ daemon program will be placed in <span class="file">/usr/local/bin</span>.
   border="0" height="32"
   alt="" width="32"></td>
 </tr></table>
-<b class="navlabel">Previous:</b> <a class="sectref" HREF="node25.html">3.2.1 Requirements</A>
-<b class="navlabel">Up:</b> <a class="sectref" HREF="node24.html">3.2 Installing ZEO</A>
-<b class="navlabel">Next:</b> <a class="sectref" HREF="node27.html">3.3 Configuring and Running</A>
+<b class="navlabel">Previous:</b> <a class="sectref" HREF="node25.html">3.2.2 Running a server</A>
+<b class="navlabel">Up:</b> <a class="sectref" href="zeo.html">3 ZEO</A>
+<b class="navlabel">Next:</b> <a class="sectref" HREF="node27.html">3.4 ZEO Programming Notes</A>
 <hr>
-<span class="release-info">Release 0.03, documentation updated on February 8, 2002.</span>
+<span class="release-info">Release 0.04, documentation updated on October 4, 2002.</span>
 </DIV>
 <!--End of Navigation Panel-->
 

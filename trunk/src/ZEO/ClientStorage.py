@@ -20,7 +20,7 @@ ClientStorageError -- exception raised by ClientStorage
 UnrecognizedResult -- exception raised by ClientStorage
 ClientDisconnected -- exception raised by ClientStorage
 
-$Id: ClientStorage.py,v 1.74 2002/10/04 16:46:23 gvanrossum Exp $
+$Id: ClientStorage.py,v 1.75 2002/10/05 00:35:25 gvanrossum Exp $
 """
 
 # XXX TO DO
@@ -88,6 +88,8 @@ class DisconnectedServerStub:
 # Singleton instance of DisconnectedServerStub
 disconnected_stub = DisconnectedServerStub()
 
+MB = 1024**2
+
 class ClientStorage:
 
     """A Storage class that is a network client to a remote storage.
@@ -105,7 +107,7 @@ class ClientStorage:
     ConnectionManagerClass = ConnectionManager
     StorageServerStubClass = ServerStub.StorageServer
 
-    def __init__(self, addr, storage='1', cache_size=20000000,
+    def __init__(self, addr, storage='1', cache_size=20 * MB,
                  name='', client=None, debug=0, var=None,
                  min_disconnect_poll=5, max_disconnect_poll=300,
                  wait_for_server_on_startup=None, # deprecated alias for wait
@@ -120,15 +122,16 @@ class ClientStorage:
         Arguments:
 
         addr -- The server address(es).  This is either a list of
-            addresses, or a single address.  Each address can be a
-            (hostname, port) tuple to signify a TCP/IP connection, or
+            addresses or a single address.  Each address can be a
+            (hostname, port) tuple to signify a TCP/IP connection or
             a pathname string to signify a Unix domain socket
             connection.  A hostname may be a DNS name or a dotted IP
             address.  Required.
 
-        storage -- The storage name, defaulting to '1'.  This must
+        storage -- The storage name, defaulting to '1'.  The name must
             match one of the storage names supported by the server(s)
-            specified by the addr argument.
+            specified by the addr argument.  The storage name is
+            displayed in the Zope control panel.
 
         cache_size -- The disk cache size, defaulting to 20 megabytes.
             This is passed to the ClientCache constructor.
@@ -137,16 +140,15 @@ class ClientStorage:
             str(addr) is used as the storage name.
 
         client -- The client name, defaulting to None.  If this is
-            false, the environment value ZEO_CLIENT is used.  if the
+            false, the environment value ZEO_CLIENT is used.  If the
             effective value is true, the client cache is persistent.
             See ClientCache for more info.
 
         debug -- Ignored.  This is present only for backwards
             compatibility with ZEO 1.
 
-        var -- The 'var' directory, defaulting to None.  This is
-            passed to the ClientCache constructor, which picks a
-            default if the value is None.
+        var -- The 'var' directory, defaulting to None, in which
+            the persistent cache files should be written.
 
         min_disconnect_poll -- The minimum delay in seconds between
             attempts to connect to the server, in seconds.  Defaults

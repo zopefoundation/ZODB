@@ -1,20 +1,21 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
 <html>
 <head>
-<title>3.5 ZEO Programming Notes</title>
-<META NAME="description" CONTENT="3.5 ZEO Programming Notes">
+<title>4 Transactions and Versioning</title>
+<META NAME="description" CONTENT="4 Transactions and Versioning">
 <META NAME="keywords" CONTENT="zodb">
 <META NAME="resource-type" CONTENT="document">
 <META NAME="distribution" CONTENT="global">
-<meta http-equiv="Content-Type" content="text/html; charset=">
-<link rel="STYLESHEET" href="zodb.css">
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+<link rel="STYLESHEET" href="zodb.css" type='text/css'>
 <link rel="first" href="zodb.html">
 <link rel="contents" href="contents.html" title="Contents">
 
+<LINK REL="next" HREF="node34.html">
+<LINK REL="previous" href="zeo.html">
+<LINK REL="up" HREF="zodb.html">
 <LINK REL="next" HREF="node30.html">
-<LINK REL="previous" HREF="node28.html">
-<LINK REL="up" href="zeo.html">
-<LINK REL="next" HREF="node30.html">
+<meta name='aesop' content='information'>
 </head>
 <body>
 <DIV CLASS="navigation">
@@ -23,7 +24,7 @@
 <td><A HREF="node28.html"><img src="/python/writing/icons/previous.gif"
   border="0" height="32"
   alt="Previous Page" width="32"></A></td>
-<td><A href="zeo.html"><img src="/python/writing/icons/up.gif"
+<td><A HREF="zodb.html"><img src="/python/writing/icons/up.gif"
   border="0" height="32"
   alt="Up One Level" width="32"></A></td>
 <td><A HREF="node30.html"><img src="/python/writing/icons/next.gif"
@@ -40,21 +41,30 @@
   border="0" height="32"
   alt="" width="32"></td>
 </tr></table>
-<b class="navlabel">Previous:</b> <a class="sectref" HREF="node28.html">3.4 Testing the ZEO</A>
-<b class="navlabel">Up:</b> <a class="sectref" href="zeo.html">3 ZEO</A>
-<b class="navlabel">Next:</b> <a class="sectref" HREF="node30.html">3.6 Sample Application: chatter.py</A>
+<b class="navlabel">Previous:</b> <a class="sectref" HREF="node28.html">3.5 Sample Application: chatter.py</A>
+<b class="navlabel">Up:</b> <a class="sectref" HREF="zodb.html">ZODB/ZEO Programming Guide</A>
+<b class="navlabel">Next:</b> <a class="sectref" HREF="node30.html">4.1 Subtransactions</A>
 <br><hr>
 </DIV>
 <!--End of Navigation Panel-->
 
-<H2><A NAME="SECTION000450000000000000000">
-3.5 ZEO Programming Notes</A>
-</H2>
+<H1><A NAME="SECTION000500000000000000000">
+4 Transactions and Versioning</A>
+</H1>
 
 <P>
-XXX The Connection.sync() method and its necessity (if it works at all!) 
 
-<P>
+<p><hr>
+<!--Table of Child-Links-->
+<A NAME="CHILD_LINKS"><STRONG>Subsections</STRONG></a>
+
+<UL>
+<LI><A href="node30.html">4.1 Subtransactions</a>
+<LI><A href="node31.html">4.2 Undoing Changes</a>
+<LI><A href="node32.html">4.3 Versions</a>
+<LI><A href="node33.html">4.4 Multithreaded ZODB Programs</a>
+</ul>
+<!--End of Table of Child-Links-->
 
 <DIV CLASS="navigation">
 <p><hr>
@@ -63,7 +73,7 @@ XXX The Connection.sync() method and its necessity (if it works at all!)
 <td><A HREF="node28.html"><img src="/python/writing/icons/previous.gif"
   border="0" height="32"
   alt="Previous Page" width="32"></A></td>
-<td><A href="zeo.html"><img src="/python/writing/icons/up.gif"
+<td><A HREF="zodb.html"><img src="/python/writing/icons/up.gif"
   border="0" height="32"
   alt="Up One Level" width="32"></A></td>
 <td><A HREF="node30.html"><img src="/python/writing/icons/next.gif"
@@ -80,11 +90,11 @@ XXX The Connection.sync() method and its necessity (if it works at all!)
   border="0" height="32"
   alt="" width="32"></td>
 </tr></table>
-<b class="navlabel">Previous:</b> <a class="sectref" HREF="node28.html">3.4 Testing the ZEO</A>
-<b class="navlabel">Up:</b> <a class="sectref" href="zeo.html">3 ZEO</A>
-<b class="navlabel">Next:</b> <a class="sectref" HREF="node30.html">3.6 Sample Application: chatter.py</A>
+<b class="navlabel">Previous:</b> <a class="sectref" HREF="node28.html">3.5 Sample Application: chatter.py</A>
+<b class="navlabel">Up:</b> <a class="sectref" HREF="zodb.html">ZODB/ZEO Programming Guide</A>
+<b class="navlabel">Next:</b> <a class="sectref" HREF="node30.html">4.1 Subtransactions</A>
 <hr>
-<span class="release-info">Release 0.03, documentation updated on February 8, 2002.</span>
+<span class="release-info">Release 0.04, documentation updated on October 4, 2002.</span>
 </DIV>
 <!--End of Navigation Panel-->
 

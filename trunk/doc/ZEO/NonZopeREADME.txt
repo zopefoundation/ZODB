@@ -20,7 +20,7 @@ Zope Enterprize Objects
       python test.py -v
 
     Run the script with the -h option for a full list of options.  The
-    ZEO 2.0a1 release contains 87 unit tests on Unix.
+    ZEO 2.0b2 release contains 122 unit tests on Unix.
 
   Starting (and configuring) the ZEO Server
 
@@ -75,6 +75,6 @@ Zope Enterprize Objects
 
   Dependencies on other modules
 
-    ZEO depends on other modules that are distributed with
-    StandaloneZODB and with Zope.  You can download StandaloneZODB
-    from http://www.zope.org/Products/StandaloneZODB.
+    ZEO depends on other modules that are distributed with ZODB3 and
+    with Zope.  You can download ZODB3 from
+    http://www.zope.org/Products/StandaloneZODB.

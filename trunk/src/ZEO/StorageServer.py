@@ -43,7 +43,7 @@ def set_label():
     """Internal helper to reset the logging label (e.g. after fork())."""
     global _label
     _label = "ZSS:%s" % os.getpid()
-    
+
 def log(message, level=zLOG.INFO, label=None, error=None):
     """Internal helper to log a message using zLOG."""
     zLOG.LOG(label or _label, level, message, error=error)
