@@ -25,7 +25,8 @@ log_write implementation.  It is intended that applications main
 programs will replace this method with a method more suited to their needs.
 
 The module provides a register_subsystem method that does nothing, but
-provides a hook that logging management systems could use to collect information about subsystems being used.
+provides a hook that logging management systems could use to collect
+information about subsystems being used.
 
 The module defines several standard severities:
 
@@ -82,7 +83,7 @@ There is a default event logging facility that:
     can be overridden with the environment variable EVENT_LOG_SEVERITY
 
 """
-__version__='$Revision: 1.16 $'[11:-2]
+__version__='$Revision: 1.17 $'[11:-2]
 
 from EventLogger import log_write, log_time, severity_string, \
      initialize_from_environment
