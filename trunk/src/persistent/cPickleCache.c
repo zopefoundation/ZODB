@@ -21,58 +21,57 @@ Regime 1: Persistent Classes
 Persistent Classes are part of ZClasses. They are stored in the
 self->data dictionary, and are never garbage collected.
 
-The klass_items() method returns a sequence of (oid,object) tuples
-for every Persistent Class, which should make it possible to
-implement garbage collection in Python if necessary.
+The klass_items() method returns a sequence of (oid,object) tuples for
+every Persistent Class, which should make it possible to implement
+garbage collection in Python if necessary.
 
 Regime 2: Ghost Objects
 
-There is no benefit to keeping a ghost object which has no
-external references, therefore a weak reference scheme is
-used to ensure that ghost objects are removed from memory
-as soon as possible, when the last external reference is lost.
+There is no benefit to keeping a ghost object which has no external
+references, therefore a weak reference scheme is used to ensure that
+ghost objects are removed from memory as soon as possible, when the
+last external reference is lost.
 
-Ghost objects are stored in the self->data dictionary. Normally
-a dictionary keeps a strong reference on its values, however
-this reference count is 'stolen'.
+Ghost objects are stored in the self->data dictionary. Normally a
+dictionary keeps a strong reference on its values, however this
+reference count is 'stolen'.
 
 This weak reference scheme leaves a dangling reference, in the
-dictionary, when the last external reference is lost. To clean up
-this dangling reference the persistent object dealloc function
-calls self->cache->_oid_unreferenced(self->oid). The cache looks
-up the oid in the dictionary, ensures it points to an object whose
-reference count is zero, then removes it from the dictionary. Before
-removing the object from the dictionary it must temporarily resurrect
-the object in much the same way that class instances are resurrected
+dictionary, when the last external reference is lost. To clean up this
+dangling reference the persistent object dealloc function calls
+self->cache->_oid_unreferenced(self->oid). The cache looks up the oid
+in the dictionary, ensures it points to an object whose reference
+count is zero, then removes it from the dictionary. Before removing
+the object from the dictionary it must temporarily resurrect the
+object in much the same way that class instances are resurrected
 before their __del__ is called.
 
-Since ghost objects are stored under a different regime to
-non-ghost objects, an extra ghostify function in cPersistenceAPI
-replaces self->state=GHOST_STATE assignments that were common in
-other persistent classes (such as BTrees).
+Since ghost objects are stored under a different regime to non-ghost
+objects, an extra ghostify function in cPersistenceAPI replaces
+self->state=GHOST_STATE assignments that were common in other
+persistent classes (such as BTrees).
 
 Regime 3: Non-Ghost Objects
 
-Non-ghost objects are stored in two data structures. Firstly, in
-the dictionary along with everything else, with a *strong* reference.
-Secondly, they are stored in a doubly-linked-list which encodes
-the order in which these objects have been most recently used.
+Non-ghost objects are stored in two data structures. Firstly, in the
+dictionary along with everything else, with a *strong* reference.
+Secondly, they are stored in a doubly-linked-list which encodes the
+order in which these objects have been most recently used.
 
-The doubly-link-list nodes contain next and previous pointers
-linking together the cache and all non-ghost persistent objects.
+The doubly-link-list nodes contain next and previous pointers linking
+together the cache and all non-ghost persistent objects.
 
 The node embedded in the cache is the home position. On every
-attribute access a non-ghost object will relink itself just
-behind the home position in the ring. Objects accessed least
-recently will eventually find themselves positioned after
-the home position.
+attribute access a non-ghost object will relink itself just behind the
+home position in the ring. Objects accessed least recently will
+eventually find themselves positioned after the home position.
 
-Occasionally other nodes are temporarily inserted in the ring
-as position markers. The cache contains a ring_lock flag which
-must be set and unset before and after doing so. Only if the flag
-is unset can the cache assume that all nodes are either his own
-home node, or nodes from persistent objects. This assumption is
-useful during the garbage collection process.
+Occasionally other nodes are temporarily inserted in the ring as
+position markers. The cache contains a ring_lock flag which must be
+set and unset before and after doing so. Only if the flag is unset can
+the cache assume that all nodes are either his own home node, or nodes
+from persistent objects. This assumption is useful during the garbage
+collection process.
 
 The number of non-ghost objects is counted in self->non_ghost_count.
 The garbage collection process consists of traversing the ring, and
@@ -80,17 +79,16 @@ deactivating (that is, turning into a ghost) every object until
 self->non_ghost_count is down to the target size, or until it
 reaches the home position again.
 
-Note that objects in the sticky or changed states are still kept
-in the ring, however they can not be deactivated. The garbage
-collection process must skip such objects, rather than deactivating
-them.
+Note that objects in the sticky or changed states are still kept in
+the ring, however they can not be deactivated. The garbage collection
+process must skip such objects, rather than deactivating them.
 
 */
 
 static char cPickleCache_doc_string[] =
 "Defines the PickleCache used by ZODB Connection objects.\n"
 "\n"
-"$Id: cPickleCache.c,v 1.52 2002/04/03 17:20:33 htrd Exp $\n";
+"$Id: cPickleCache.c,v 1.53 2002/04/03 17:53:27 jeremy Exp $\n";
 
 #define ASSIGN(V,E) {PyObject *__e; __e=(E); Py_XDECREF(V); (V)=__e;}
 #define UNLESS(E) if(!(E))
