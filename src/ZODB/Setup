@@ -1,6 +1,13 @@
 *shared*
 cPersistence cPersistence.c -I../ExtensionClass -I../python
 cPickleCache cPickleCache.c -I../ExtensionClass -I../python
-#Record Record.c -I../ExtensionClass
+cPickleJar ./cPickleJar.c -I../ExtensionClass
+iTree ./iTree.c -I../ExtensionClass
 
-#install CacheManager.py
+intSet ./intSet.c -I/projects/_/ExtensionClass -I/projects/_/cPersistence -I/projects/_/python
+BTree ./BTree.c -I/projects/_/ExtensionClass -I/projects/_/cPersistence -I/projects/_/python
+IIBTree ./IIBTree.c -I/projects/_/ExtensionClass -I/projects/_/cPersistence -I/projects/_/python
+IOBTree ./IOBTree.c -I/projects/_/ExtensionClass -I/projects/_/cPersistence -I/projects/_/python
+OIBTree ./OIBTree.c -I/projects/_/ExtensionClass -I/projects/_/cPersistence -I/projects/_/python
+
+

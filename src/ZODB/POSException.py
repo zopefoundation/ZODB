@@ -45,70 +45,50 @@
 #   (540) 371-6909
 #
 ##############################################################################
-__doc__='''PickleJar Object Cache
+'''BoboPOS-defined exceptions
 
-$Id: PickleCache.py,v 1.5 1998/11/11 02:00:56 jim Exp $'''
-__version__='$Revision: 1.5 $'[11:-2]
-        
-from sys import getrefcount
+$Id: POSException.py,v 1.1 1998/11/11 02:00:55 jim Exp $'''
+__version__='$Revision: 1.1 $'[11:-2]
 
-class PickleCache:
 
-    def __init__(self, cache_size, cache_age=1000):
-        if cache_size < 1: cache_size=1
-        self.cache_size=cache_size
-        self.data, self.cache_ids, self.cache_location ={}, [], 0
-        for a in 'keys', 'items', 'values', 'has_key':
-            setattr(self,a,getattr(self.data,a))
+class POSError(Exception):
+    """Persistent object system error
+    """
 
-    def __getitem__(self, key):
-        v=self.data[key]
-        self.incrgc()
-        return v
+class TransactionError(POSError):
+    """An error occured due to normal transaction processing
+    """
 
-    def incrgc(self):
-        # Do cache GC
-        cache=self.data
-        n=min(len(cache)/self.cache_size,10)
-        if n:
-            l=self.cache_location
-            ids=self.cache_ids
-            while n:
-                if not l:
-                    ids=self.cache_ids=cache.keys()
-                    l=len(ids)
-                l=l-1
-                n=n-1
-                id=ids[l]
-                if getrefcount(cache[id]) <= 2:
-                    del cache[id]
-            self.cache_location=l
+class ConflictError(TransactionError):
+    """Two transactions tried to modify the same object at once
 
-    def __setitem__(self, key, v):
-        self.data[key]=v
-        self.incrgc()
+    This transaction should be resubmitted.
+    """
 
-    def __delitem__(self, key):
-        del self.data[key]
-        self.incrgc()
+class VersionError(POSError):
+    """An error in handling versions occurred
+    """
 
-    def __len__(self): return len(self.data)
+class VersionCommitError(VersionError):
+    """An invalid combination of versions was used in a version commit
+    """
 
-    def values(self): return self.data.values()
+class VersionLockError(VersionError, TransactionError):
+    """An attempt was made to modify an object that has
+    been modified in an unsaved version"""
 
-    def full_sweep(self):
-        cache=self.data
-        for id in cache.keys():
-            if getrefcount(cache[id]) <= 2: del cache[id]
+class UndoError(POSError):
+    """An attempt was made to undo an undoable transaction.
+    """
 
-    def minimize(self):
-        cache=self.data
-        keys=cache.keys()
-        rc=getrefcount
-        last=None
-        l=len(cache)
-        while l != last:
-            for id in keys():
-                if rc(cache[id]) <= 2: del cache[id]
-                cache[id]._p_deactivate()
-            l=len(cache)
+class StorageError(POSError):
+    pass
+
+class StorageTransactionError(StorageError):
+    """An operation was invoked for an invalid transaction or state
+    """
+
+class StorageSystemError(StorageError):
+    """Panic! Internal storage error!
+    """
+

@@ -10,7 +10,7 @@
 
 static char intSet_module_documentation[] = 
 ""
-"\n$Id: intSet.c,v 1.9 1998/03/24 15:17:34 jim Exp $"
+"\n$Id: intSet.c,v 1.10 1998/11/11 02:00:56 jim Exp $"
 ;
 
 #include <limits.h>
@@ -225,8 +225,6 @@ intSet___setstate__(intSet *self, PyObject *args)
   char *c;
   INTSET_DATA_TYPE k;
 
-  PER_PREVENT_DEACTIVATION(self); 
-
   UNLESS(PyArg_ParseTuple(args,"O",&data)) return PER_RETURN(self, NULL);
   UNLESS(c=PyString_AsString(data)) return PER_RETURN(self, NULL);
 
@@ -271,7 +269,7 @@ intSet_set_operation(intSet *self, PyObject *other,
   o=INTSET(other);
 
   PER_USE_OR_RETURN(self, NULL);
-  PER_USE_OR_RETURN(other, NULL);
+  PER_USE_OR_RETURN((intSet*)other, NULL);
 
   od=o->data;
 
@@ -537,7 +535,7 @@ void
 initintSet()
 {
   PyObject *m, *d;
-  char *rev="$Revision: 1.9 $";
+  char *rev="$Revision: 1.10 $";
 
   UNLESS(ExtensionClassImported) return;
 
@@ -575,6 +573,9 @@ initintSet()
   Revision Log:
 
   $Log: intSet.c,v $
+  Revision 1.10  1998/11/11 02:00:56  jim
+  alpha1
+
   Revision 1.9  1998/03/24 15:17:34  jim
   *** empty log message ***
 

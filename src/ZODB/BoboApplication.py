@@ -45,70 +45,55 @@
 #   (540) 371-6909
 #
 ##############################################################################
-__doc__='''PickleJar Object Cache
+"""Implement an bobo_application object that is BoboPOS3 aware
 
-$Id: PickleCache.py,v 1.5 1998/11/11 02:00:56 jim Exp $'''
-__version__='$Revision: 1.5 $'[11:-2]
+This module provides a wrapper that causes a database connection to be created
+and used when bobo publishes a bobo_application object.
+"""
+__version__='$Revision: 1.1 $'[11:-2]
+
+class BoboApplication:
+
+    def __init__(self, db, name, klass= None, klass_args= (),
+                 version_cookie_name=None):
+        self._stuff = db, name, version_cookie_name
+        if klass is not None:
+            conn=db.open()
+            root=conn.root()
+            if not root.has_key(name):
+                root[name]=klass()
+                get_transaction().commit()
+            conn.close()
+            self._klass=klass
         
-from sys import getrefcount
 
-class PickleCache:
+    # This hack is to overcome a bug in Bobo!
+    def __getattr__(self, name):
+        return getattr(self._klass, name)
 
-    def __init__(self, cache_size, cache_age=1000):
-        if cache_size < 1: cache_size=1
-        self.cache_size=cache_size
-        self.data, self.cache_ids, self.cache_location ={}, [], 0
-        for a in 'keys', 'items', 'values', 'has_key':
-            setattr(self,a,getattr(self.data,a))
+    def __bobo_traverse__(self, REQUEST=None, name=None):
+        db, aname, version_support = self._stuff
+        if version_support is not None and REQUEST is not None:
+            version=REQUEST.get(version_support,'')
+        else: version=''
+        conn=db.open(version)
 
-    def __getitem__(self, key):
-        v=self.data[key]
-        self.incrgc()
+        # arrange for the connection to be closed when the request goes away
+        cleanup=Cleanup()
+        cleanup.__del__=conn.close
+        REQUEST[Cleanup]=cleanup
+        
+        v=conn.root()[aname]
+
+        if name is not None:
+            if hasattr(v,name): return getattr(v,name)
+            return v[name]
+        
         return v
 
-    def incrgc(self):
-        # Do cache GC
-        cache=self.data
-        n=min(len(cache)/self.cache_size,10)
-        if n:
-            l=self.cache_location
-            ids=self.cache_ids
-            while n:
-                if not l:
-                    ids=self.cache_ids=cache.keys()
-                    l=len(ids)
-                l=l-1
-                n=n-1
-                id=ids[l]
-                if getrefcount(cache[id]) <= 2:
-                    del cache[id]
-            self.cache_location=l
+    __call__=__bobo_traverse__ # A convenience for command-line use
 
-    def __setitem__(self, key, v):
-        self.data[key]=v
-        self.incrgc()
+    
 
-    def __delitem__(self, key):
-        del self.data[key]
-        self.incrgc()
+class Cleanup: pass
 
-    def __len__(self): return len(self.data)
-
-    def values(self): return self.data.values()
-
-    def full_sweep(self):
-        cache=self.data
-        for id in cache.keys():
-            if getrefcount(cache[id]) <= 2: del cache[id]
-
-    def minimize(self):
-        cache=self.data
-        keys=cache.keys()
-        rc=getrefcount
-        last=None
-        l=len(cache)
-        while l != last:
-            for id in keys():
-                if rc(cache[id]) <= 2: del cache[id]
-                cache[id]._p_deactivate()
-            l=len(cache)

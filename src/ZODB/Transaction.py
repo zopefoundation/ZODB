@@ -1,138 +1,183 @@
-#!/usr/local/bin/python 
-# $What$
-
-__doc__='''A very simple HTTP transaction manager.
-
-This module provides a very simple transaction manager for
-HTTP requests in a single-threaded application environment.
-(Future versions of this module may support multiple transactions.)
-
-This module treats each HTTP request as a transaction.
-
-To use, import the module and then call the 'install' function.
-This will install the function 'get_transaction'.  This function will
-be used by transactional objects to get the current transaction.
-
-$Id: Transaction.py,v 1.2 1997/10/30 20:23:26 brian Exp $'''
-#     Copyright 
+##############################################################################
 #
-#       Copyright 1996 Digital Creations, L.C., 910 Princess Anne
-#       Street, Suite 300, Fredericksburg, Virginia 22401 U.S.A. All
-#       rights reserved.  Copyright in this software is owned by DCLC,
-#       unless otherwise indicated. Permission to use, copy and
-#       distribute this software is hereby granted, provided that the
-#       above copyright notice appear in all copies and that both that
-#       copyright notice and this permission notice appear. Note that
-#       any product, process or technology described in this software
-#       may be the subject of other Intellectual Property rights
-#       reserved by Digital Creations, L.C. and are not licensed
-#       hereunder.
+# Copyright (c) 1996-1998, Digital Creations, Fredericksburg, VA, USA.
+# All rights reserved.
+# 
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+# 
+#   o Redistributions of source code must retain the above copyright
+#     notice, this list of conditions, and the disclaimer that follows.
+# 
+#   o Redistributions in binary form must reproduce the above copyright
+#     notice, this list of conditions, and the following disclaimer in
+#     the documentation and/or other materials provided with the
+#     distribution.
+# 
+#   o Neither the name of Digital Creations nor the names of its
+#     contributors may be used to endorse or promote products derived
+#     from this software without specific prior written permission.
+# 
+# 
+# THIS SOFTWARE IS PROVIDED BY DIGITAL CREATIONS AND CONTRIBUTORS *AS IS*
+# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+# PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL DIGITAL
+# CREATIONS OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
+# OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+# ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR
+# TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
+# USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
+# DAMAGE.
 #
-#     Trademarks 
+# 
+# If you have questions regarding this software, contact:
 #
-#       Digital Creations & DCLC, are trademarks of Digital Creations, L.C..
-#       All other trademarks are owned by their respective companies. 
+#   Digital Creations, L.C.
+#   910 Princess Ann Street
+#   Fredericksburge, Virginia  22401
 #
-#     No Warranty 
-#
-#       The software is provided "as is" without warranty of any kind,
-#       either express or implied, including, but not limited to, the
-#       implied warranties of merchantability, fitness for a particular
-#       purpose, or non-infringement. This software could include
-#       technical inaccuracies or typographical errors. Changes are
-#       periodically made to the software; these changes will be
-#       incorporated in new editions of the software. DCLC may make
-#       improvements and/or changes in this software at any time
-#       without notice.
-#
-#     Limitation Of Liability 
-#
-#       In no event will DCLC be liable for direct, indirect, special,
-#       incidental, economic, cover, or consequential damages arising
-#       out of the use of or inability to use this software even if
-#       advised of the possibility of such damages. Some states do not
-#       allow the exclusion or limitation of implied warranties or
-#       limitation of liability for incidental or consequential
-#       damages, so the above limitation or exclusion may not apply to
-#       you.
-#  
-#
-# If you have questions regarding this software,
-# contact:
-#
-#   Jim Fulton, jim@digicool.com
+#   info@digicool.com
 #
 #   (540) 371-6909
 #
-# $Log: Transaction.py,v $
-# Revision 1.2  1997/10/30 20:23:26  brian
-# Fixed thread dependency
-#
-# Revision 1.1  1997/04/11 21:42:52  jim
-# *** empty log message ***
-#
-# Revision 1.5  1997/03/25 20:42:58  jim
-# Changed to make all persistent objects transactional.
-#
-# Revision 1.4  1997/02/11 13:23:14  jim
-# Many changes to support both cPickle and LRT.
-#
-# Revision 1.3  1996/11/14 17:49:38  jim
-# Removed c-implementation support.
-#
-# Revision 1.2  1996/10/15 18:32:25  jim
-# Added support for cSingleThreadedTransaction
-#
-# Revision 1.1  1996/09/06 14:35:54  jfulton
-# For use with Chris doing installation
-#
-#
-# 
-__version__='$Revision: 1.2 $'[11:-2]
+##############################################################################
+"""Transaction management
 
-# Install myself before anything else happens:
+$Id: Transaction.py,v 1.3 1998/11/11 02:00:56 jim Exp $"""
+__version__='$Revision: 1.3 $'[11:-2]
 
-# This both gets everything STT has *and* arranges for our
-# get_transaction to override their's
-from SingleThreadedTransaction import *
+import time, sys, struct
+from struct import pack
+from string import split, strip, join
 
-import SingleThreadedTransaction
+ConflictError=""
+
+class Transaction:
+    'Simple transaction objects for single-threaded applications.'
+    user=''
+    description=''
+    _connections=None
+
+    def __init__(self,
+                 time=time.time, pack=struct.pack, gmtime=time.gmtime):
+        self._objects=[]
+        self._append=self._objects.append
+        self.time=now=time()
+        y,mo,d,h,m=gmtime(now)[:5]
+        s=int((now%60)*1000000)
+        self.id=pack("<II", (((y*12+mo)*31+d)*24+h)*60+m, s)
+        self._note=self._user=self._description=''
+        if self._connections:
+            for c in self._connections.values(): c.close()
+            del self._connections
+        
+    def __str__(self): return "%.3f\t%s" % (self.time,self._note)
+
+    def abort(self, freeme=1):
+        'Abort the transaction.'
+        t=v=tb=None
+        try:
+            for o in self._objects:
+                try:
+                    if hasattr(o,'_p_jar'): o=o._p_jar
+                    if hasattr(o,'tpc_abort'): o.tpc_abort(self)
+                except: t,v,tb=sys.exc_info()
+            if t is not None: raise t,v,tb
+        finally:
+            tb=None
+            if freeme: free_transaction()
+
+    def begin(self, info=None):
+        '''Begin a new transaction.
+
+        This aborts any transaction in progres.
+        '''
+        if self._objects: self._abort(0)
+        self.__init__()
+        if info:
+            info=split(info,'\t')
+            self.user=strip(info[0])
+            self.description=strip(join(info,'\t'))
+
+    def commit(self):
+        'Finalize the transaction'
+        
+        t=v=tb=None
+        try:
+            try:
+                for o in self._objects:
+                    if hasattr(o,'_p_jar'):
+                        j=o._p_jar
+                        j.tpc_begin(self)
+                        j.commit(o,self)
+                    elif hasattr(o,'tpc_begin'):
+                        o.tpc_begin(self)
+            except:
+                t,v,tb=sys.exc_info()
+                self.abort()
+                raise t,v,tb
+
+            for o in self._objects:
+                try:
+                    if hasattr(o,'_p_jar'): o=o._p_jar
+                    if hasattr(o,'tpc_finish'): o.tpc_finish(self)
+                except: t,v,tb=sys.exc_info()
+            if t is not None: raise t,v,tb
+
+        finally:
+            tb=None
+            free_transaction()
+
+    def register(self,object):
+        'Register the given object for transaction control.'
+        self._append(object)
+
+    def remark(self, text):
+        if self.description:
+            self.description = "%s\n\n%s" % (self.description, strip(text))
+        else: 
+            self.description = strip(text)
+        
+    def setUser(self, user_name, path='/'):
+        self.user="%s %s" % (path, user_name)
+        
+
+
+############################################################################
+# install get_transaction:
 
 try:
     import thread
-    get_id=thread.get_ident
+    _t={}
+    def get_transaction(_id=thread.get_ident, _t=_t):
+        id=_id()
+        try: t=_t[id]
+        except KeyError: _t[id]=t=Transaction()
+        return t
+
+    def free_transaction(_id=thread.get_ident, _t=_t):
+        id=_id()
+        try: del _t[id]
+        except KeyError: pass
+
+    del thread
+
 except:
-    def get_id(): return 0
+    _t=Transaction()
+    def get_transaction(_t=_t): return _t
+    def free_transaction(_t=_t): _t.__init__()
 
-theTransactions={}
-
-def get_transaction():
-    id=get_id()
-    try: theTransaction=theTransactions[id]
-    except KeyError: theTransactions[id]=theTransaction=Transaction()
-    return theTransaction
+del _t
 
 import __main__ 
 __main__.__builtins__.get_transaction=get_transaction
 
-class Transaction(SingleThreadedTransaction.Transaction):
-    '''\
-    Simple transaction objects.
-
-    '''
-
-    def abort(self):
-	'''\
-	Abort the transaction.
-
-	All objects participating in the current transaction will be
-	informed of the abort so that they can roll back changes or
-	forget pending changes.
-	'''
-	self._abort()
-	id=get_id()
-	del theTransactions[id]
-
-
-
-
+def time2id(now, gmtime=time.gmtime, pack=struct.pack):
+    y,m,d,h,m=gmtime(now)[:5]
+    s=int((now%60)*1000000)
+    return pack("<II", ((y*12+m)*31+d)*24, s)
+    

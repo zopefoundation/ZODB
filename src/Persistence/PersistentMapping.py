@@ -48,12 +48,12 @@
 __doc__='''Python implementation of persistent base types
 
 
-$Id: PersistentMapping.py,v 1.2 1998/10/23 21:40:59 jim Exp $'''
-__version__='$Revision: 1.2 $'[11:-2]
+$Id: PersistentMapping.py,v 1.3 1998/11/11 02:00:56 jim Exp $'''
+__version__='$Revision: 1.3 $'[11:-2]
 
 import Persistence
-        
-class PersistentMapping(Persistence.Persistent):
+
+class PM(Persistence.Persistent):
     """A persistent wrapper for mapping objects.
 
     This class allows wrapping of mapping objects so that
@@ -65,8 +65,16 @@ class PersistentMapping(Persistence.Persistent):
         if container is None: container={}
         self._container=container
 
+    def __delitem__(self, key):
+        del self._container[key]
+        try: del self._v_keys
+        except: pass
+        self.__changed__(1)
+
     def __getitem__(self, key):
         return self._container[key]
+
+    def __len__(self):     return len(self._container)
 
     def __setitem__(self, key, v):
         self._container[key]=v
@@ -74,13 +82,19 @@ class PersistentMapping(Persistence.Persistent):
         except: pass
         self.__changed__(1)
 
-    def __delitem__(self, key):
-        del self._container[key]
-        try: del self._v_keys
-        except: pass
-        self.__changed__(1)
+    def clear(self):
+        self._container.clear()
+        self._p_changed=1
+        if hasattr(self,'_v_keys'): del self._v_keys
 
-    def __len__(self):     return len(self._container)
+    def copy(self): return self.__class__(self._container.copy())
+
+    def get(self, key, default): return self._container.get(key, default)
+
+    def has_key(self,key): return self._container.has_key(key)
+
+    def items(self):
+        return map(lambda k, d=self: (k,d[k]), self.keys())
 
     def keys(self):
         try: return self._v_keys
@@ -91,14 +105,12 @@ class PersistentMapping(Persistence.Persistent):
         keys.sort()
         return keys
 
-    def clear(self):
-        self._container={}
-        if hasattr(self,'_v_keys'): del self._v_keys
+    def update(self, b):
+        a=self._container
+        for k, v in b.items(): a[k] = v
+        self._p_changed=1
 
     def values(self):
         return map(lambda k, d=self: d[k], self.keys())
 
-    def items(self):
-        return map(lambda k, d=self: (k,d[k]), self.keys())
-
-    def has_key(self,key): return self._container.has_key(key)
+PersistentMapping=PM

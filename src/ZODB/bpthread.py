@@ -45,70 +45,17 @@
 #   (540) 371-6909
 #
 ##############################################################################
-__doc__='''PickleJar Object Cache
+"""Thread abstraction module
 
-$Id: PickleCache.py,v 1.5 1998/11/11 02:00:56 jim Exp $'''
-__version__='$Revision: 1.5 $'[11:-2]
-        
-from sys import getrefcount
+With this, we can run with or wothout threads.
 
-class PickleCache:
+$Id: bpthread.py,v 1.1 1998/11/11 02:00:56 jim Exp $"""
 
-    def __init__(self, cache_size, cache_age=1000):
-        if cache_size < 1: cache_size=1
-        self.cache_size=cache_size
-        self.data, self.cache_ids, self.cache_location ={}, [], 0
-        for a in 'keys', 'items', 'values', 'has_key':
-            setattr(self,a,getattr(self.data,a))
+try:
+    from thread import *
+except:
+    class allocate_lock:
+        def acquire(self, *args): return args and 1 or None
+        def release(self): pass
 
-    def __getitem__(self, key):
-        v=self.data[key]
-        self.incrgc()
-        return v
-
-    def incrgc(self):
-        # Do cache GC
-        cache=self.data
-        n=min(len(cache)/self.cache_size,10)
-        if n:
-            l=self.cache_location
-            ids=self.cache_ids
-            while n:
-                if not l:
-                    ids=self.cache_ids=cache.keys()
-                    l=len(ids)
-                l=l-1
-                n=n-1
-                id=ids[l]
-                if getrefcount(cache[id]) <= 2:
-                    del cache[id]
-            self.cache_location=l
-
-    def __setitem__(self, key, v):
-        self.data[key]=v
-        self.incrgc()
-
-    def __delitem__(self, key):
-        del self.data[key]
-        self.incrgc()
-
-    def __len__(self): return len(self.data)
-
-    def values(self): return self.data.values()
-
-    def full_sweep(self):
-        cache=self.data
-        for id in cache.keys():
-            if getrefcount(cache[id]) <= 2: del cache[id]
-
-    def minimize(self):
-        cache=self.data
-        keys=cache.keys()
-        rc=getrefcount
-        last=None
-        l=len(cache)
-        while l != last:
-            for id in keys():
-                if rc(cache[id]) <= 2: del cache[id]
-                cache[id]._p_deactivate()
-            l=len(cache)
+    start_new_thread=apply
