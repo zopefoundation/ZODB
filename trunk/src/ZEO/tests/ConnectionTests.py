@@ -30,6 +30,7 @@ from ZEO.ClientStorage import ClientStorage
 from ZEO.Exceptions import ClientDisconnected
 from ZEO.zrpc.marshal import Marshaller
 from ZEO.tests import forker
+from ZEO.tests.InvalidationTests import InvalidationTests
 
 from ZODB.DB import DB
 from ZODB.Transaction import get_transaction, Transaction
@@ -198,7 +199,7 @@ class CommonSetupTearDown(StorageTestBase):
                 self.fail("timed out waiting for storage to disconnect")
 
 
-class ConnectionTests(CommonSetupTearDown):
+class ConnectionTests(CommonSetupTearDown, InvalidationTests):
     """Tests that explicitly manage the server process.
 
     To test the cache or re-connection, these test cases explicit
