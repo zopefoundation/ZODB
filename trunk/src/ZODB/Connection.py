@@ -13,7 +13,7 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.118 2004/02/19 02:59:06 jeremy Exp $"""
+$Id: Connection.py,v 1.119 2004/02/23 08:23:46 stevea Exp $"""
 
 import logging
 import sys
@@ -335,7 +335,7 @@ class Connection(ExportImport, object):
                         raise ConflictError(object=obj)
                     self._modified.append(oid)
                 p = w.serialize(obj)  # This calls __getstate__ of obj
-                
+
                 s = self._storage.store(oid, serial, p, self._version,
                                         transaction)
                 self._store_count = self._store_count + 1
@@ -354,7 +354,6 @@ class Connection(ExportImport, object):
                 self._handle_serial(s, oid)
         finally:
             del self._added_during_commit
-       
 
     def commit_sub(self, t):
         """Commit all work done in all subtransactions for this transaction"""
