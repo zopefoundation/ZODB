@@ -412,24 +412,3 @@ def check(btree):
 def display(btree):
     "Display the internal structure of a BTree, Bucket, TreeSet or Set."
     Printer(btree).display()
-
-def _test():
-    t = OOBTree()
-    for i in range(31):
-        t[i] = 2*i
-    display(t)
-    check(t)
-    s = t.__getstate__()
-    # Looks like (state, first_bucket)
-    # where state looks like (bucket0, 15, bucket1).
-    assert len(s) == 2
-    assert len(s[0]) == 3
-    assert s[0][1] == 15
-    # Damage an invariant by dropping the BTree key to 14.
-    news = (s[0][0], 14, s[0][2]), s[1]
-    t.__setstate__(news)
-    display(t)
-    check(t)
-
-if __name__ == "__main__":
-    _test()
