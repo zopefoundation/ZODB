@@ -184,7 +184,7 @@
 #   may have a back pointer to a version record or to a non-version
 #   record.
 #
-__version__='$Revision: 1.16 $'[11:-2]
+__version__='$Revision: 1.17 $'[11:-2]
 
 import struct, time, os, bpthread, string, base64
 from struct import pack, unpack
@@ -454,7 +454,7 @@ class FileStorage(BaseStorage.BaseStorage):
             seek(pos)
             doid,serial,prev,tloc,vlen = unpack(">8s8s8s8sH", file.read(34))
             if doid != oid:
-                raise CorruptedDataError, h
+                raise CorruptedDataError, pos
             if vlen:
                 seek(24,1) # skip plen, pnv, and pv
                 return file.read(vlen)
