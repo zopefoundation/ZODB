@@ -190,7 +190,7 @@ First get the database back in an initial state.
 >>> r2["a"].value
 0
 >>> r2["b"].value = 1
->>> cn2.getTransaction().commit()
+>>> tm2.get().commit()
 
 >>> r1["b"].value
 0
@@ -208,7 +208,7 @@ should all have the same effect on non-current objects in cache.
 ...     tm1.get().commit()
 ...     cn2.sync()
 ...     r2["b"].value = 1
-...     cn2.getTransaction().commit()
+...     tm2.get().commit()
 
 >>> testit()
 >>> r1["b"]._p_state  # 0 means UPTODATE, although note it's an older revision
