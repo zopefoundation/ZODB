@@ -13,7 +13,7 @@
 ##############################################################################
 """Persistence and ExtensionClass combined
 
-$Id: __init__.py,v 1.5 2003/11/28 16:44:46 jim Exp $
+$Id: __init__.py,v 1.6 2003/12/15 06:59:19 jim Exp $
 """
 
 from persistent import PickleCache
@@ -45,4 +45,4 @@ except:
 
 Overridable = Persistent
 
-from PersistentMapping import PersistentMapping
+from Persistence.mapping import PersistentMapping
