@@ -56,7 +56,7 @@ class TestMultiUnion(TestCase):
         self.assertEqual(len(output), 50000)
         self.assertEqual(list(output), range(50000))
 
-    def testLotsOfLittleOnes:
+    def testLotsOfLittleOnes(self):
         from random import shuffle
         N = 5000
         inputs = []
@@ -64,15 +64,13 @@ class TestMultiUnion(TestCase):
             base = i * 4 - N
             inputs.append(IISet([base, base+1]))
             inputs.append(IITreeSet([base+2, base+3]))
-        inputs.shuffle()
+        shuffle(inputs)
         output = multiunion(inputs)
         self.assertEqual(len(output), N*4)
         self.assertEqual(list(output), range(-N, 3*N))
 
 def test_suite():
-    alltests = TestSuite((makeSuite(TestMultiUnion, 'test'),
-                        ))
-    return alltests
+    return makeSuite(TestMultiUnion, 'test')
 
 def main():
   TextTestRunner().run(test_suite())
