@@ -135,8 +135,9 @@ def main():
     configfile = None
     invalidation_queue_size = 100
     transaction_timeout = None
+    monitor_address = None
     # Parse the arguments and let getopt.error percolate
-    opts, args = getopt.getopt(sys.argv[1:], 'rkC:Q:T:')
+    opts, args = getopt.getopt(sys.argv[1:], 'rkC:Q:T:m:')
     for opt, arg in opts:
         if opt == '-r':
             ro_svr = 1
@@ -148,6 +149,8 @@ def main():
             invalidation_queue_size = int(arg)
         elif opt == '-T':
             transaction_timeout = int(arg)
+        elif opt == "-m":
+            monitor_address = '', int(arg)
     # Open the config file and let ZConfig parse the data there.  Then remove
     # the config file, otherwise we'll leave turds.
     fp = open(configfile, 'r')
@@ -163,7 +166,8 @@ def main():
     serv = ZEO.StorageServer.StorageServer(
         addr, {'1': storage}, ro_svr,
         invalidation_queue_size=invalidation_queue_size,
-        transaction_timeout=transaction_timeout)
+        transaction_timeout=transaction_timeout,
+        monitor_address=monitor_address)
     try:
         log(label, 'creating the test server, ro: %s, keep: %s', ro_svr, keep)
         t = ZEOTestServer(test_addr, serv, keep)

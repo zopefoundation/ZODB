@@ -61,6 +61,7 @@ class CommonSetupTearDown(StorageTestBase):
     keep = 0
     invq = None
     timeout = None
+    monitor = 0
 
     def setUp(self):
         """Test setup for connection tests.
@@ -132,7 +133,8 @@ class CommonSetupTearDown(StorageTestBase):
         path = "%s.%d" % (self.file, index)
         conf = self.getConfig(path, create, read_only)
         zeoport, adminaddr, pid = forker.start_zeo_server(
-            conf, addr, ro_svr, self.keep, self.invq, self.timeout)
+            conf, addr, ro_svr,
+            self.monitor, self.keep, self.invq, self.timeout)
         self._pids.append(pid)
         self._servers.append(adminaddr)
 
