@@ -188,6 +188,7 @@ class ClientCache:
             self._p = p = [None, None]
             f[0].write(magic + '\0' * (headersize - len(magic)))
             current = 0
+        self._current = current
 
         if self._ltid:
             ts = "; last txn=%x" % u64(self._ltid)
@@ -197,7 +198,6 @@ class ClientCache:
                  (self.__class__.__name__, storage, size, current, p[current],
                   ts))
 
-        self._current = current
         self._setup_trace()
 
     def open(self):
@@ -250,6 +250,7 @@ class ClientCache:
         f = self._f[self._current]
         f.seek(4)
         tid = f.read(8)
+        self.log("reading ltid %r" % tid)
         if len(tid) < 8 or tid == '\0\0\0\0\0\0\0\0':
             return None
         else:
@@ -755,4 +756,6 @@ class ClientCache:
                  % (msg, pos, fileindex))
 
     def log(self, msg, level=zLOG.INFO):
-        zLOG.LOG("ZEC:%s" % self._storage, level, msg)
+        # XXX Using the path of the current file means the tags
+        # won't match after a cache flip.  But they'll be very similar.
+        zLOG.LOG("ZEC:%s" % self._p[self._current], level, msg)
