@@ -115,7 +115,7 @@
 #   may have a back pointer to a version record or to a non-version
 #   record.
 #
-__version__='$Revision: 1.131 $'[11:-2]
+__version__='$Revision: 1.132 $'[11:-2]
 
 import base64
 from cPickle import Pickler, Unpickler, loads
@@ -1460,25 +1460,28 @@ class FileStorage(BaseStorage.BaseStorage,
             if opos is None:
                 return
             oldpath = self._file_name + ".old"
-            self._file.close()
+            self._lock_acquire()
             try:
-                if os.path.exists(oldpath):
-                    os.remove(oldpath)
-                os.rename(self._file_name, oldpath)
-            except Exception, msg:
-                self._file = open(self._file_name, 'r+b')
-                raise
+                self._file.close()
+                try:
+                    if os.path.exists(oldpath):
+                        os.remove(oldpath)
+                    os.rename(self._file_name, oldpath)
+                except Exception, msg:
+                    self._file = open(self._file_name, 'r+b')
+                    raise
 
-            # OK, we're beyond the point of no return
-            os.rename(self._file_name + '.pack', self._file_name)
-            self._file = open(self._file_name, 'r+b')
-            self._initIndex(p.index, p.vindex, p.tindex, p.tvindex)
-            self._pos = opos
-            self._save_index()
+                # OK, we're beyond the point of no return
+                os.rename(self._file_name + '.pack', self._file_name)
+                self._file = open(self._file_name, 'r+b')
+                self._initIndex(p.index, p.vindex, p.tindex, p.tvindex)
+                self._pos = opos
+                self._save_index()
+            finally:
+                self._lock_release()
         finally:
             if p.locked:
                 self._commit_lock_release()
-                self._lock_release()
             self._lock_acquire()
             self._packt = z64
             self._lock_release()

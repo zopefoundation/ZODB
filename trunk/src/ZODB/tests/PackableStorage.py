@@ -25,11 +25,15 @@ try:
 except ImportError:
     from StringIO import StringIO
 
+import threading
 import time
+
 from ZODB import DB
 from Persistence import Persistent
 from ZODB.referencesf import referencesf
-
+from ZODB.tests.MinPO import MinPO
+from ZODB.tests.StorageTestBase import snooze
+from ZODB.POSException import ConflictError
 
 ZERO = '\0'*8
 
@@ -376,3 +380,56 @@ class PackableStorage(PackableStorageBase):
         conn.sync()
 
         eq(root['obj'].value, 7)
+
+    def checkPackWhileWriting(self):
+        # A storage should allow some reading and writing during
+        # a pack.  This test attempts to exercise locking code
+        # in the storage to test that it is safe.  It generates
+        # a lot of revisions, so that pack takes a long time.
+
+        db = DB(self._storage)
+        conn = db.open()
+        root = conn.root()
+
+        for i in range(10):
+            root[i] = MinPO(i)
+        get_transaction().commit()
+
+        snooze()
+        packt = time.time()
+
+        for j in range(10):
+            for i in range(10):
+                root[i].value = MinPO(i)
+                get_transaction().commit()
+
+        threads = [ClientThread(db) for i in range(4)]
+        for t in threads:
+            t.start()
+        db.pack(packt)
+        for t in threads:
+            t.join(30)
+        for t in threads:
+            t.join(1)
+            self.assert_(not t.isAlive())
+
+        # iterator over the storage to make sure it's sane
+        iter = self._storage.iterator()
+        for txn in iter:
+            for data in txn:
+                pass
+        iter.close()
+
+class ClientThread(threading.Thread):
+
+    def __init__(self, db):
+        threading.Thread.__init__(self)
+        self.root = db.open().root()
+        
+    def run(self):
+        for j in range(50):
+            try:
+                self.root[j % 10].value = MinPO(j)
+                get_transaction().commit()
+            except ConflictError:
+                get_transaction().abort()

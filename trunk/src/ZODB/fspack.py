@@ -45,6 +45,23 @@ except ImportError:
 class CorruptedError(Exception):
     pass
 
+class CorruptedDataError(CorruptedError):
+
+    def __init__(self, oid=None, buf=None, pos=None):
+        self.oid = oid
+        self.buf = buf
+        self.pos = pos
+
+    def __str__(self):
+        if self.oid:
+            msg = "Error reading oid %s.  Found %r" % (_fmt_oid(self.oid),
+                                                       self.buf)
+        else:
+            msg = "Error reading unknown oid.  Found %r" % self.buf
+        if self.pos:
+            msg += " at %d" % self.pos
+        return msg
+
 # the struct formats for the headers
 TRANS_HDR = ">8s8scHHH"
 DATA_HDR = ">8s8s8s8sH8s"
@@ -672,6 +689,14 @@ class FileStoragePacker(FileStorageFormatter):
             self._tfile.close()
             os.remove(self._name + ".pack")
             return None
+        self._commit_lock_acquire()
+        self.locked = True
+        self._lock_acquire()
+        try:
+            self._file.seek(0, 2)
+            self.file_end = self._file.tell()
+        finally:
+            self._lock_release()
         if ipos < self.file_end:
             self.copyRest(ipos)
 
@@ -795,34 +820,58 @@ class FileStoragePacker(FileStorageFormatter):
         # After the pack time, all data records are copied.
         # Copy one txn at a time, using copy() for data.
 
-        while ipos < self.file_end:
-            th = self._read_txn_header(ipos)
-            pos = self._tfile.tell()
-            self._copier.setTxnPos(pos)
-            self._tfile.write(th.asString())
-            tend = ipos + th.tlen
-            ipos += th.headerlen()
+        # Release the commit lock every 20 copies
+        self._lock_counter = 0
 
-            while ipos < tend:
-                h = self._read_data_header(ipos)
-                ipos += h.recordlen()
-                prev_txn = None
-                if h.plen:
-                    data = self._file.read(h.plen)
-                else:
-                    data = self.fetchBackpointer(h.oid, h.back)
-                    if h.back:
-                        prev_txn = self.getTxnFromData(h.oid, h.back)
+        try:
+            while 1:
+                ipos = self.copyOne(ipos)
+        except CorruptedDataError, err:
+            # The last call to copyOne() will raise
+            # CorruptedDataError, because it will attempt to read past
+            # the end of the file.  Double-check that the exception
+            # occurred for this reason.
+            self._file.seek(0, 2)
+            endpos = self._file.tell()
+            if endpos != err.pos:
+                raise
 
-                self._copier.copy(h.oid, h.serial, data, h.version,
-                                  prev_txn, pos, self._tfile.tell())
+    def copyOne(self, ipos):
+        # The call below will raise CorruptedDataError at EOF.
+        th = self._read_txn_header(ipos)
+        self._lock_counter += 1
+        if self._lock_counter % 20 == 0:
+            self._commit_lock_release()
+        pos = self._tfile.tell()
+        self._copier.setTxnPos(pos)
+        self._tfile.write(th.asString())
+        tend = ipos + th.tlen
+        ipos += th.headerlen()
 
-            tlen = self._tfile.tell() - pos
-            assert tlen == th.tlen
-            self._tfile.write(p64(tlen))
-            ipos += 8
+        while ipos < tend:
+            h = self._read_data_header(ipos)
+            ipos += h.recordlen()
+            prev_txn = None
+            if h.plen:
+                data = self._file.read(h.plen)
+            else:
+                data = self.fetchBackpointer(h.oid, h.back)
+                if h.back:
+                    prev_txn = self.getTxnFromData(h.oid, h.back)
 
-            self.index.update(self.tindex)
-            self.tindex.clear()
-            self.vindex.update(self.tvindex)
-            self.tvindex.clear()
+            self._copier.copy(h.oid, h.serial, data, h.version,
+                              prev_txn, pos, self._tfile.tell())
+
+        tlen = self._tfile.tell() - pos
+        assert tlen == th.tlen
+        self._tfile.write(p64(tlen))
+        ipos += 8
+
+        self.index.update(self.tindex)
+        self.tindex.clear()
+        self.vindex.update(self.tvindex)
+        self.tvindex.clear()
+        if self._lock_counter % 20 == 0:
+            self._commit_lock_acquire()
+        return ipos
+
