@@ -136,6 +136,14 @@ static cPersistenceCAPIstruct *cPersistenceCAPI;
 
 #define PER_DEL(O) Py_XDECREF((O)->jar); Py_XDECREF((O)->oid);
 
+#define PER_USE(O) \
+(((O)->state != cPersistent_GHOST_STATE \
+  || (cPersistenceCAPI->setstate((PyObject*)(O)) >= 0)) \
+ ? (((O)->state==cPersistent_UPTODATE_STATE) \
+    ? ((O)->state=cPersistent_STICKY_STATE) : 1) : 0)
+
+#define PER_ACCESSED(O) ((O)->atime=((long)(time(NULL)/3))%65536) 
+
 #endif
 
 
