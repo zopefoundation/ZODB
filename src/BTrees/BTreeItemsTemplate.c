@@ -12,7 +12,7 @@
 
  ****************************************************************************/
 
-#define BTREEITEMSTEMPLATE_C "$Id: BTreeItemsTemplate.c,v 1.17 2002/06/22 17:22:54 tim_one Exp $\n"
+#define BTREEITEMSTEMPLATE_C "$Id: BTreeItemsTemplate.c,v 1.18 2003/01/31 20:13:02 tim_one Exp $\n"
 
 /* A BTreeItems struct is returned from calling .items(), .keys() or
  * .values() on a BTree-based data structure, and is also the result of
@@ -137,6 +137,7 @@ BTreeItems_seek(BTreeItems *self, int i)
 {
     int delta, pseudoindex, currentoffset;
     Bucket *b, *currentbucket;
+    int error;
 
     pseudoindex = self->pseudoindex;
     currentoffset = self->currentoffset;
@@ -210,6 +211,21 @@ BTreeItems_seek(BTreeItems *self, int i)
     }
 
     assert(pseudoindex == i);
+
+    /* Alas, the user may have mutated the bucket since the last time we
+     * were called, and if they deleted stuff, we may be pointing into
+     * trash memory now.
+     */
+    PER_USE_OR_RETURN(currentbucket, -1);
+    error = currentoffset < 0 || currentoffset >= currentbucket->len;
+    PER_ALLOW_DEACTIVATION(currentbucket);
+    PER_ACCESSED(currentbucket);
+    if (error) {
+	PyErr_SetString(PyExc_RuntimeError,
+	                "the bucket being iterated changed size");
+	return -1;
+    }
+
     Py_INCREF(currentbucket);
     Py_DECREF(self->currentbucket);
     self->currentbucket = currentbucket;
