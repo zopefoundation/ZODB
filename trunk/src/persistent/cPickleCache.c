@@ -1,6 +1,6 @@
 /*
 
-  $Id: cPickleCache.c,v 1.8 1997/06/30 15:27:51 jim Exp $
+  $Id: cPickleCache.c,v 1.9 1997/07/16 20:18:40 jim Exp $
 
   C implementation of a pickle jar cache.
 
@@ -56,7 +56,7 @@
       (540) 371-6909
 
 ***************************************************************************/
-static char *what_string = "$Id: cPickleCache.c,v 1.8 1997/06/30 15:27:51 jim Exp $";
+static char *what_string = "$Id: cPickleCache.c,v 1.9 1997/07/16 20:18:40 jim Exp $";
 
 #define ASSIGN(V,E) {PyObject *__e; __e=(E); Py_XDECREF(V); (V)=__e;}
 #define UNLESS(E) if(!(E))
@@ -306,7 +306,7 @@ maybegc(ccobject *self, PyObject *thisv)
   self->cache_size=0;
   n=s/size;
   if(n < 3) n=3;
-  dt=self->cache_age*(0.2+0.8*size/s);
+  dt=(long)(self->cache_age*(0.2+0.8*size/s));
   if(dt < 10) dt=10;
   now=time(NULL);
   
@@ -620,7 +620,7 @@ void
 initcPickleCache()
 {
   PyObject *m, *d;
-  char *rev="$Revision: 1.8 $";
+  char *rev="$Revision: 1.9 $";
 
   Cctype.ob_type=&PyType_Type;
 
@@ -648,6 +648,9 @@ initcPickleCache()
 
 /******************************************************************************
  $Log: cPickleCache.c,v $
+ Revision 1.9  1997/07/16 20:18:40  jim
+ *** empty log message ***
+
  Revision 1.8  1997/06/30 15:27:51  jim
  Added machinery to track cache statistics.
  Fixed bug in garbage collector, which had a nasty habit
