@@ -19,7 +19,7 @@ from struct import pack, unpack
 
 z64 = '\0'*8
 
-if sys.version >= (2, 2):
+if sys.version_info >= (2, 2):
 
     # Note that the distinction between ints and longs is blurred in
     # Python 2.2.  So make u64() and U64() the same.
