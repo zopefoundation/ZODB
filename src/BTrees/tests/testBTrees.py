@@ -18,6 +18,9 @@ from BTrees.OOBTree import OOBTree, OOBucket, OOSet, OOTreeSet
 from BTrees.IOBTree import IOBTree, IOBucket, IOSet, IOTreeSet
 from BTrees.IIBTree import IIBTree, IIBucket, IISet, IITreeSet
 from BTrees.OIBTree import OIBTree, OIBucket, OISet, OITreeSet
+
+from BTrees.check import check
+
 from unittest import TestCase, TestSuite, TextTestRunner, makeSuite
 
 from glob import glob
@@ -524,6 +527,7 @@ class BTreeTests(MappingBase):
 
     def tearDown(self):
         self.t._check()
+        check(self.t)
         MappingBase.tearDown(self)
 
     def testDeleteNoChildrenWorks(self):
@@ -981,6 +985,7 @@ class TestIITreeSets(NormalSetTests, TestCase):
         t = ts()
         t.__setstate__(((tree13, 4, tree5711), bucket1))
         t._check()
+        check(t)
         return t, [1, 3, 5, 7, 11]
 
     def testDegenerateBasicOps(self):
@@ -1042,6 +1047,7 @@ class TestIITreeSets(NormalSetTests, TestCase):
                 t.remove(key)
                 keys.remove(key)
                 t._check()
+                check(t)
                 self._checkRanges(t, keys)
             # We removed all the keys, so the tree should be empty now.
             self.assertEqual(t.__getstate__(), None)
