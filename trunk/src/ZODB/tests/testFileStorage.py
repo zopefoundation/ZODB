@@ -7,6 +7,7 @@ import StorageTestBase, BasicStorage, TransactionalUndoStorage
 import VersionStorage, TransactionalUndoVersionStorage
 import PackableStorage
 import Synchronization
+import ConflictResolution
 
 class FileStorageTests(
     StorageTestBase.StorageTestBase,
@@ -16,6 +17,7 @@ class FileStorageTests(
     TransactionalUndoVersionStorage.TransactionalUndoVersionStorage,
     PackableStorage.PackableStorage,
     Synchronization.SynchronizedStorage,
+    ConflictResolution.ConflictResolvingStorage,
     ):
 
     def setUp(self):

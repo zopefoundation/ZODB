@@ -7,8 +7,10 @@
 from ZODB.Transaction import Transaction
 from ZODB import POSException
 
+from ZODB.tests.MinPO import MinPO
+from ZODB.tests.StorageTestBase import zodb_unpickle
+
 ZERO = '\0'*8
-import pickle
 
 
 
@@ -70,16 +72,16 @@ class BasicStorage:
 
     def checkNonVersionStoreAndLoad(self):
         oid = self._storage.new_oid()
-        self._dostore(oid=oid, data=7)
+        self._dostore(oid=oid, data=MinPO(7))
         data, revid = self._storage.load(oid, '')
-        value = pickle.loads(data)
-        assert value == 7
+        value = zodb_unpickle(data)
+        assert value == MinPO(7)
         # Now do a bunch of updates to an object
         for i in range(13, 22):
-            revid = self._dostore(oid, revid=revid, data=i)
+            revid = self._dostore(oid, revid=revid, data=MinPO(i))
         # Now get the latest revision of the object
         data, revid = self._storage.load(oid, '')
-        assert pickle.loads(data) == 21
+        assert zodb_unpickle(data) == MinPO(21)
 
     def checkNonVersionModifiedInVersion(self):
         oid = self._storage.new_oid()
@@ -91,18 +93,18 @@ class BasicStorage:
         revid = ZERO
         revisions = {}
         for i in range(31, 38):
-            revid = self._dostore(oid, revid=revid, data=i)
-            revisions[revid] = i
+            revid = self._dostore(oid, revid=revid, data=MinPO(i))
+            revisions[revid] = MinPO(i)
         # Now make sure all the revisions have the correct value
         for revid, value in revisions.items():
             data = self._storage.loadSerial(oid, revid)
-            assert pickle.loads(data) == value
+            assert zodb_unpickle(data) == value
     
 
     def checkConflicts(self):
         oid = self._storage.new_oid()
-        revid1 = self._dostore(oid, data=11)
-        revid2 = self._dostore(oid, revid=revid1, data=12)
+        revid1 = self._dostore(oid, data=MinPO(11))
+        revid2 = self._dostore(oid, revid=revid1, data=MinPO(12))
         self.assertRaises(POSException.ConflictError,
                           self._dostore,
-                          oid, revid=revid1, data=13)
+                          oid, revid=revid1, data=MinPO(13))
