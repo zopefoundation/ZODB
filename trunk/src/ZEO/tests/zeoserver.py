@@ -26,15 +26,8 @@ import ThreadedAsync.LoopCallback
 
 import ZConfig.Context
 import zLOG
-from ZODB import StorageConfig
 import ZEO.StorageServer
-
-
-def load_storage(fp):
-    context = ZConfig.Context.Context()
-    rootconf = context.loadFile(fp)
-    storageconf = rootconf.getSection('Storage')
-    return StorageConfig.createStorage(storageconf)
+from ZODB.config import storageFromURL
 
 
 def cleanup(storage):
@@ -166,9 +159,7 @@ def main():
             monitor_address = '', int(arg)
     # Open the config file and let ZConfig parse the data there.  Then remove
     # the config file, otherwise we'll leave turds.
-    fp = open(configfile, 'r')
-    storage = load_storage(fp)
-    fp.close()
+    storage = storageFromURL(configfile)
     os.remove(configfile)
     # The rest of the args are hostname, portnum
     zeo_port = int(args[0])
