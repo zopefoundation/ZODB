@@ -17,6 +17,8 @@ import TimeStamp, time
 
 from struct import pack, unpack
 
+z64 = '\0'*8
+
 if sys.version >= (2, 2):
 
     # Note that the distinction between ints and longs is blurred in

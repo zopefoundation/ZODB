@@ -11,23 +11,28 @@
 # FOR A PARTICULAR PURPOSE
 #
 ##############################################################################
-"""BoboPOS-defined exceptions
+"""ZODB-defined exceptions
 
-$Id: POSException.py,v 1.14 2002/09/05 10:19:40 htrd Exp $"""
-__version__ = '$Revision: 1.14 $'.split()[-2:][0]
+$Id: POSException.py,v 1.15 2002/12/03 18:36:29 jeremy Exp $"""
 
-from string import join
 from types import StringType, DictType
-from ZODB import utils
+import ZODB.utils
 
-class POSError(Exception):
+def _fmt_oid(oid):
+    return "%016x" % ZODB.utils.u64(oid)
+
+def _fmt_undo(oid, reason):
+    s = reason and (": %s" % reason) or ""
+    return "Undo error %s%s" % (_fmt_oid(oid), s)
+
+class POSError(StandardError):
     """Persistent object system error."""
 
 class POSKeyError(KeyError, POSError):
     """Key not found in database."""
 
     def __str__(self):
-        return "%016x" % utils.U64(self.args[0])
+        return _fmt_oid(self.args[0])
 
 class TransactionError(POSError):
     """An error occured due to normal transaction processing."""
@@ -78,12 +83,12 @@ class ConflictError(TransactionError):
     def __str__(self):
         extras = []
         if self.oid:
-            extras.append("oid %016x" % utils.U64(self.oid))
+            extras.append("oid %s" % _fmt_oid(self.oid))
         if self.class_name:
             extras.append("class %s" % self.class_name)
         if self.serials:
-            extras.append("serial was %016x, now %016x" %
-                          tuple(map(utils.U64, self.serials)))
+            extras.append("serial was %s, now %s" %
+                          tuple(map(_fmt_oid, self.serials)))
         if extras:
             return "%s (%s)" % (self.message, ", ".join(extras))
         else:
@@ -104,27 +109,8 @@ class ConflictError(TransactionError):
     def get_serials(self):
         return self.serials
 
-class DanglingReferenceError(TransactionError):
-    """The transaction stored an object A containing a reference to another
-    object B, but B does not exist
-
-    Instance attributes:
-
-    Aoid: oid of the object being written
-
-    Boid: referenced oid that does not have a corresponding object
-    """
-
-    def __init__(self,Aoid,Boid):
-        self.Aoid = Aoid
-        self.Boid = Boid
-
-    def __str__(self):
-        return "from %r to %r" % (self.Aoid,self.Boid)
-
-
 class ReadConflictError(ConflictError):
-    """A conflict was detected at read time.
+    """Conflict detected when object was loaded.
 
     An attempt was made to read an object that has changed in another
     transaction (eg. another thread or process).
@@ -144,6 +130,27 @@ class BTreesConflictError(ConflictError):
         ConflictError.__init__(self, message="BTrees conflict error")
         self.btree = btree_args
 
+class DanglingReferenceError(TransactionError):
+    """An object has a persistent reference to a missing object.
+
+    If an object is stored and it has a reference to another object
+    that does not exist (for example, it was deleted by pack), this
+    exception may be raised.  Whether a storage supports this feature,
+    it a quality of implementation issue.
+
+    Instance attributes:
+    referer: oid of the object being written
+    missing: referenced oid that does not have a corresponding object
+    """
+
+    def __init__(self, Aoid, Boid):
+        self.referer = Aoid
+        self.missing = Boid
+
+    def __str__(self):
+        return "from %s to %s" % (_fmt_oid(self.referer),
+                                  _fmt_oid(self.missing))
+
 class VersionError(POSError):
     """An error in handling versions occurred."""
 
@@ -159,26 +166,24 @@ class VersionLockError(VersionError, TransactionError):
 
 class UndoError(POSError):
     """An attempt was made to undo a non-undoable transaction."""
-    def __init__(self, *reason):
-        if len(reason) == 1: reason=reason[0]
-        self.__reason=reason
 
-    def __repr__(self):
-        reason=self.__reason
-        if type(reason) is not DictType:
-            if reason: return str(reason)
-            return "non-undoable transaction"
-        r=[]
-        for oid, reason in reason.items():
-            if reason:
-                r.append("Couldn't undo change to %s because %s"
-                         % (`oid`, reason))
-            else:
-                r.append("Couldn't undo change to %s" % (`oid`))
+    def __init__(self, oid, reason=None):
+        self._oid = oid
+        self._reason = reason
 
-        return join(r,'\n')
+    def __str__(self):
+        return _fmt_undo(self._oid, self._reason)
 
-    __str__=__repr__
+class MultipleUndoErrors(UndoError):
+    """Several undo errors occured during a single transaction."""
+    
+    def __init__(self, errs):
+        # provide an oid and reason for clients that only look at that
+        UndoError.__init__(self, *errs[0])
+        self._errs = errs
+
+    def __str__(self):
+        return "\n".join([_fmt_undo(*pair) for pair in self._errs])
 
 class StorageError(POSError):
     """Base class for storage based exceptions."""
@@ -200,9 +205,6 @@ class TransactionTooLargeError(StorageTransactionError):
 
 class ExportError(POSError):
     """An export file doesn't have the right format."""
-
-class Unimplemented(POSError):
-    """An unimplemented feature was used."""
 
 class Unsupported(POSError):
     """An feature that is unsupported bt the storage was used."""

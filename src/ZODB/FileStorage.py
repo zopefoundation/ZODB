@@ -115,7 +115,7 @@
 #   may have a back pointer to a version record or to a non-version
 #   record.
 #
-__version__='$Revision: 1.118 $'[11:-2]
+__version__='$Revision: 1.119 $'[11:-2]
 
 import base64
 from cPickle import Pickler, Unpickler, loads
@@ -133,10 +133,10 @@ except:
     fsync = None
 
 from ZODB import BaseStorage, ConflictResolution, POSException
-from ZODB.POSException import UndoError, POSKeyError
+from ZODB.POSException import UndoError, POSKeyError, MultipleUndoErrors
 from ZODB.TimeStamp import TimeStamp
 from ZODB.lock_file import lock_file
-from ZODB.utils import t32, p64, U64, cp
+from ZODB.utils import p64, u64, cp, z64
 
 try:
     from ZODB.fsIndex import fsIndex
@@ -144,9 +144,9 @@ except ImportError:
     def fsIndex():
         return {}
 
-from zLOG import LOG, BLATHER, WARNING, ERROR, PANIC, register_subsystem
+from zLOG import LOG, BLATHER, WARNING, ERROR, PANIC
 
-z64='\0'*8
+t32 = 1L << 32
 # the struct formats for the headers
 TRANS_HDR = ">8s8scHHH"
 DATA_HDR = ">8s8s8s8sH8s"
@@ -173,7 +173,7 @@ def nearPanic(message, *data):
 def panic(message, *data):
     message = message % data
     LOG('ZODB FS', PANIC, "%s ERROR: %s\n" % (packed_version, message))
-    raise CorruptedTransactionError, message
+    raise CorruptedTransactionError(message)
 
 class FileStorageError(POSException.StorageError):
     pass
@@ -191,8 +191,11 @@ class CorruptedFileStorageError(FileStorageError,
                                 POSException.StorageSystemError):
     """Corrupted file storage."""
 
-class CorruptedTransactionError(CorruptedFileStorageError): pass
-class CorruptedDataError(CorruptedFileStorageError): pass
+class CorruptedTransactionError(CorruptedFileStorageError):
+    pass
+
+class CorruptedDataError(CorruptedFileStorageError):
+    pass
 
 class FileStorageQuotaError(FileStorageError,
                             POSException.StorageSystemError):
@@ -317,11 +320,10 @@ class FileStorage(BaseStorage.BaseStorage,
         return {}, {}, {}, {}
 
     def _save_index(self):
-        """Write the database index to a file to support quick startup
-        """
+        """Write the database index to a file to support quick startup."""
 
-        index_name=self.__name__+'.index'
-        tmp_name=index_name+'.index_tmp'
+        index_name = self.__name__ + '.index'
+        tmp_name = index_name + '.index_tmp'
 
         f=open(tmp_name,'wb')
         p=Pickler(f,1)
@@ -341,7 +343,7 @@ class FileStorage(BaseStorage.BaseStorage,
         except: pass
 
     def _clear_index(self):
-        index_name=self.__name__+'.index'
+        index_name = self.__name__ + '.index'
         if os.path.exists(index_name):
             try:
                 os.remove(index_name)
@@ -368,7 +370,7 @@ class FileStorage(BaseStorage.BaseStorage,
         while 1:
             seek(pos-8)
             rstl=read(8)
-            tl=U64(rstl)
+            tl=u64(rstl)
             pos=pos-tl-8
             if pos < 4: return 0
             seek(pos)
@@ -388,8 +390,8 @@ class FileStorage(BaseStorage.BaseStorage,
                 seek(opos)
                 h=read(DATA_HDR_LEN)
                 oid,serial,sprev,stloc,vlen,splen = unpack(DATA_HDR, h)
-                tloc=U64(stloc)
-                plen=U64(splen)
+                tloc=u64(stloc)
+                plen=u64(splen)
 
                 dlen=DATA_HDR_LEN+(plen or 8)
                 if vlen: dlen=dlen+(16+vlen)
@@ -507,7 +509,7 @@ class FileStorage(BaseStorage.BaseStorage,
                 # non-version data record.
                 # XXX This might be the only time that the serialno
                 # of a data record does not match the transaction id.
-                self._file.seek(U64(pnv))
+                self._file.seek(u64(pnv))
                 h_pnv = self._file.read(DATA_VERSION_HDR_LEN)
                 newserial = h_pnv[8:16]
             
@@ -538,16 +540,16 @@ class FileStorage(BaseStorage.BaseStorage,
                     tloc = h[24:32]
                     if t != tloc:
                         # We haven't checked this transaction before,
-                        # get it's status.
+                        # get its status.
                         t = tloc
-                        self._file.seek(U64(t) + 16)
+                        self._file.seek(u64(t) + 16)
                         tstatus = self._file.read(1)
                     if tstatus != 'u':
                         # Yee ha! We can quit
                         break
 
             spos = h[-8:]
-            srcpos = U64(spos)
+            srcpos = u64(spos)
         return oids
 
     def getSize(self): return self._pos
@@ -563,14 +565,14 @@ class FileStorage(BaseStorage.BaseStorage,
         h=read(DATA_HDR_LEN)
         doid,serial,prev,tloc,vlen,plen = unpack(DATA_HDR, h)
         if vlen:
-            nv = read(8) != z64
-            file.seek(8,1) # Skip previous version record pointer
+            assert read(8) != z64
+            read(8) # Skip previous version record pointer
             version=read(vlen)
         else:
             version=''
             nv=0
 
-        if plen != z64: return read(U64(plen)), version, nv
+        if plen != z64: return read(u64(plen)), version, nv
         return _loadBack(file, oid, read(8))[0], version, nv
 
     def _load(self, oid, version, _index, file):
@@ -594,7 +596,7 @@ class FileStorage(BaseStorage.BaseStorage,
         # If we get here, then either this was not a version record,
         # or we've already read past the version data!
         if plen != z64:
-            return read(U64(plen)), serial
+            return read(u64(plen)), serial
         pnv = read(8)
         # We use the current serial, since that is the one that
         # will get checked when we store.
@@ -621,10 +623,10 @@ class FileStorage(BaseStorage.BaseStorage,
                 seek(pos)
                 h=read(DATA_HDR_LEN)
                 doid,dserial,prev,tloc,vlen,plen = unpack(DATA_HDR, h)
-                if doid != oid: raise CorruptedDataError, h
+                if doid != oid: raise CorruptedDataError(h)
                 if dserial == serial: break # Yeee ha!
                 # Keep looking for serial
-                pos=U64(prev)
+                pos = u64(prev)
                 if not pos:
                     raise POSKeyError(serial)
                 continue
@@ -634,7 +636,7 @@ class FileStorage(BaseStorage.BaseStorage,
                 read(8) # skip past version link
                 read(vlen) # skip version
 
-            if plen != z64: return read(U64(plen))
+            if plen != z64: return read(u64(plen))
 
             # We got a backpointer, probably from a commit.
             pnv=read(8)
@@ -652,7 +654,7 @@ class FileStorage(BaseStorage.BaseStorage,
             file.seek(pos)
             doid,serial,prev,tloc,vlen = unpack(">8s8s8s8sH", file.read(34))
             if doid != oid:
-                raise CorruptedDataError, pos
+                raise CorruptedDataError(pos)
             if vlen:
                 file.read(24) # skip plen, pnv, and pv
                 return file.read(vlen)
@@ -673,7 +675,7 @@ class FileStorage(BaseStorage.BaseStorage,
                 self._file.seek(old)
                 h=self._file.read(DATA_HDR_LEN)
                 doid,oserial,sprev,stloc,vlen,splen = unpack(DATA_HDR, h)
-                if doid != oid: raise CorruptedDataError, h
+                if doid != oid: raise CorruptedDataError(h)
                 if vlen:
                     pnv=self._file.read(8) # non-version data pointer
                     self._file.read(8) # skip past version link
@@ -683,8 +685,9 @@ class FileStorage(BaseStorage.BaseStorage,
                             `oid`, locked_version)
 
                 if serial != oserial:
-                    data=self.tryToResolveConflict(oid, oserial, serial, data)
-                    if not data:
+                    data = self.tryToResolveConflict(oid, oserial, serial,
+                                                     data)
+                    if data is None:
                         raise POSException.ConflictError(oid=oid,
                                                 serials=(oserial, serial))
             else:
@@ -733,12 +736,12 @@ class FileStorage(BaseStorage.BaseStorage,
         h = self._file.read(TRANS_HDR_LEN)
         tid, stl, status, ul, dl, el = struct.unpack(TRANS_HDR, h)
         self._file.read(ul + dl + el)
-        tend = tpos + U64(stl) + 8
+        tend = tpos + u64(stl) + 8
         pos = self._file.tell()
         while pos < tend:
             h = self._file.read(DATA_HDR_LEN)
             _oid, serial, sprev, stpos, vl, sdl = struct.unpack(DATA_HDR, h)
-            dl = U64(sdl)
+            dl = u64(sdl)
             reclen = DATA_HDR_LEN + vl + dl
             if vl:
                 reclen += 16
@@ -841,7 +844,7 @@ class FileStorage(BaseStorage.BaseStorage,
         # If there is no previous record, there can't be a pnv.
         if not prev:
             return None
-        
+
         pnv = None
 
         # Load the record pointed to be prev
@@ -865,7 +868,7 @@ class FileStorage(BaseStorage.BaseStorage,
             self._file.seek(bp)
             h2 = self._file.read(DATA_HDR_LEN)
             doid2, x, y, z, vlen2, sdl = unpack(DATA_HDR, h2)
-            dl = U64(sdl)
+            dl = u64(sdl)
             if oid != doid2:
                 raise CorruptedDataError, h2
             if vlen2 > 0:
@@ -991,19 +994,20 @@ class FileStorage(BaseStorage.BaseStorage,
         file.seek(pos)
         h=read(DATA_HDR_LEN)
         roid,serial,sprev,stloc,vlen,splen = unpack(DATA_HDR, h)
-        if roid != oid: raise UndoError('Invalid undo transaction id')
+        if roid != oid:
+            raise UndoError(oid, 'Invalid undo transaction id')
         if vlen:
             read(16) # skip nv pointer and version previous pointer
             version=read(vlen)
         else:
             version=''
 
-        plen = U64(splen)
+        plen = u64(splen)
         if plen:
             data = read(plen)
         else:
             data=''
-            pos=U64(read(8))
+            pos=u64(read(8))
 
         if tpos: file.seek(tpos) # Restore temp file to end
 
@@ -1055,7 +1059,7 @@ class FileStorage(BaseStorage.BaseStorage,
                 oid, ipos, tpos)
             # Versions of undone record and current record *must* match!
             if cver != version:
-                raise UndoError('Current and undone versions differ')
+                raise UndoError(oid, 'Current and undone versions differ')
 
             if cdataptr != pos:
                 # We aren't sure if we are talking about the same data
@@ -1069,15 +1073,15 @@ class FileStorage(BaseStorage.BaseStorage,
                         _loadBackPOS(self._file, oid, p64(cdataptr))
                         ):
                         if pre and not tpos:
-                            copy=0 # we'll try to do conflict resolution
+                            copy = 0 # we'll try to do conflict resolution
                         else:
                             # We bail if:
                             # - We don't have a previous record, which should
                             #   be impossible.
-                            raise UndoError
+                            raise UndoError(oid, "no previous record")
                 except KeyError:
                     # LoadBack gave us a key error. Bail.
-                    raise UndoError
+                    raise UndoError(oid, "_loadBack() failed")
 
         # Return the data that should be written in the undo record.
         if not pre:
@@ -1095,13 +1099,13 @@ class FileStorage(BaseStorage.BaseStorage,
             bdata = _loadBack(self._file, oid, p64(pre))[0]
         except KeyError:
             # couldn't find oid; what's the real explanation for this?
-            raise UndoError("_loadBack() failed for %s" % repr(oid))
+            raise UndoError(oid, "_loadBack() failed for %s")
         data=self.tryToResolveConflict(oid, cserial, serial, bdata, cdata)
 
         if data:
             return data, 0, version, snv, ipos
 
-        raise UndoError('Some data were modified by a later transaction')
+        raise UndoError(oid, "Some data were modified by a later transaction")
 
     # undoLog() returns a description dict that includes an id entry.
     # The id is opaque to the client, but contains the transaction id.
@@ -1170,7 +1174,7 @@ class FileStorage(BaseStorage.BaseStorage,
         # XXX Why 39?  Only because undoLog() uses it as a boundary.
         while pos > 39:
             self._file.seek(pos - 8)
-            pos = pos - U64(self._file.read(8)) - 8
+            pos = pos - u64(self._file.read(8)) - 8
             self._file.seek(pos)
             h = self._file.read(TRANS_HDR_LEN)
             _tid = h[:8]
@@ -1179,7 +1183,7 @@ class FileStorage(BaseStorage.BaseStorage,
             status = h[16] # get the c in 8s8sc
             if status == 'p' or _tid < self._packt:
                 break
-        raise UndoError("Invalid transaction id")
+        raise UndoError(None, "Invalid transaction id")
 
     def _txn_undo_write(self, tpos):
         # a helper function to write the data records for transactional undo
@@ -1192,8 +1196,8 @@ class FileStorage(BaseStorage.BaseStorage,
         if h[16] == 'u':
             return
         if h[16] != ' ':
-            raise UndoError('non-undoable transaction')
-        tl = U64(h[8:16])
+            raise UndoError(None, 'non-undoable transaction')
+        tl = u64(h[8:16])
         ul, dl, el = struct.unpack(">HHH", h[17:TRANS_HDR_LEN])
         tend = tpos + tl
         pos = tpos + (TRANS_HDR_LEN + ul + dl + el)
@@ -1207,8 +1211,8 @@ class FileStorage(BaseStorage.BaseStorage,
             oid, serial, sprev, stloc, vlen, splen = struct.unpack(DATA_HDR, h)
             if failed(oid):
                 del failures[oid] # second chance!
-            plen = U64(splen)
-            prev = U64(sprev)
+            plen = u64(splen)
+            prev = u64(sprev)
             if vlen:
                 dlen = DATA_VERSION_HDR_LEN + vlen + (plen or 8)
                 self._file.seek(16, 1)
@@ -1234,7 +1238,7 @@ class FileStorage(BaseStorage.BaseStorage,
                     self._tvindex[v] = here
                     odlen = DATA_VERSION_HDR_LEN + len(v)+(plen or 8)
                 else:
-                    odlen = DATA_HDR_LEN+(plen or 8)
+                    odlen = DATA_HDR_LEN + (plen or 8)
 
                 if p:
                     self._tfile.write(p)
@@ -1245,10 +1249,10 @@ class FileStorage(BaseStorage.BaseStorage,
 
             pos += dlen
             if pos > tend:
-                raise UndoError, 'non-undoable transaction'
+                raise UndoError(None, "non-undoable transaction")
 
         if failures:
-            raise UndoError(failures)
+            raise MultipleUndoErrors(failures.items())
 
         return tindex
 
@@ -1277,15 +1281,15 @@ class FileStorage(BaseStorage.BaseStorage,
                 tloc=h[16:24]
                 if t != tloc:
                     # We haven't checked this transaction before,
-                    # get it's status.
+                    # get its status.
                     t=tloc
-                    seek(U64(t)+16)
+                    seek(u64(t)+16)
                     tstatus=read(1)
 
                 if tstatus != 'u': return 1
 
                 spos=h[-8:]
-                srcpos=U64(spos)
+                srcpos=u64(spos)
 
             return 1
         finally: self._lock_release()
@@ -1317,7 +1321,7 @@ class FileStorage(BaseStorage.BaseStorage,
                 seek(pos)
                 h=read(DATA_HDR_LEN)
                 doid,serial,prev,tloc,vlen,plen = unpack(DATA_HDR, h)
-                prev=U64(prev)
+                prev=u64(prev)
 
                 if vlen:
                     read(16)
@@ -1332,7 +1336,7 @@ class FileStorage(BaseStorage.BaseStorage,
                     version=''
                     wantver=None
 
-                seek(U64(tloc))
+                seek(u64(tloc))
                 h=read(TRANS_HDR_LEN)
                 tid, stl, status, ul, dl, el = unpack(TRANS_HDR,h)
                 user_name=read(ul)
@@ -1345,7 +1349,7 @@ class FileStorage(BaseStorage.BaseStorage,
                 d['description']=description
                 d['serial']=serial
                 d['version']=version
-                d['size']=U64(plen)
+                d['size']=u64(plen)
 
                 if filter is None or filter(d):
                     r.append(d)
@@ -1357,7 +1361,7 @@ class FileStorage(BaseStorage.BaseStorage,
     def _redundant_pack(self, file, pos):
         assert pos > 8, pos
         file.seek(pos - 8)
-        p = U64(file.read(8))
+        p = u64(file.read(8))
         file.seek(pos - p + 8)
         return file.read(1) not in ' u'
 
@@ -1499,7 +1503,7 @@ class FileStorage(BaseStorage.BaseStorage,
                 if status=='c':
                     # Oops. we found a checkpoint flag.
                     break
-                tl=U64(stl)
+                tl=u64(stl)
                 tpos=pos
                 tend=tpos+tl
 
@@ -1539,7 +1543,7 @@ class FileStorage(BaseStorage.BaseStorage,
                     h=read(DATA_HDR_LEN)
                     oid,serial,sprev,stloc,vlen,splen = unpack(
                         DATA_HDR, h)
-                    plen=U64(splen)
+                    plen=u64(splen)
                     dlen=DATA_HDR_LEN+(plen or 8)
 
                     if vlen:
@@ -1550,7 +1554,7 @@ class FileStorage(BaseStorage.BaseStorage,
                             pos=pos+dlen
                             continue
 
-                        pnv=U64(read(8))
+                        pnv=u64(read(8))
                         # skip position of previous version record
                         seek(8,1)
                         version=read(vlen)
@@ -1613,7 +1617,7 @@ class FileStorage(BaseStorage.BaseStorage,
                             opos=opos+plen-8
                             splen=p64(plen)
                         else:
-                            p=U64(p)
+                            p=u64(p)
                             if p < packpos:
                                 # We have a backpointer to a
                                 # non-packed record. We have to be
@@ -1766,10 +1770,10 @@ class FileStorage(BaseStorage.BaseStorage,
         # first 8 bytes are oid, second 8 bytes are serialno
         h = self._file.read(16)
         if len(h) < 16:
-            raise CorruptedDataError, h
+            raise CorruptedDataError(h)
         if h[:8] != oid:
             h = h + self._file.read(26) # get rest of header
-            raise CorruptedDataError, h
+            raise CorruptedDataError(h)
         return h[8:]
 
 def shift_transactions_forward(index, vindex, tindex, file, pos, opos):
@@ -1809,7 +1813,7 @@ def shift_transactions_forward(index, vindex, tindex, file, pos, opos):
         if len(h) < TRANS_HDR_LEN: break
         tid, stl, status, ul, dl, el = unpack(TRANS_HDR,h)
         if status=='c': break # Oops. we found a checkpoint flag.
-        tl=U64(stl)
+        tl=u64(stl)
         tpos=pos
         tend=tpos+tl
 
@@ -1834,12 +1838,12 @@ def shift_transactions_forward(index, vindex, tindex, file, pos, opos):
             seek(pos)
             h=read(DATA_HDR_LEN)
             oid,serial,sprev,stloc,vlen,splen = unpack(DATA_HDR, h)
-            plen=U64(splen)
+            plen=u64(splen)
             dlen=DATA_HDR_LEN+(plen or 8)
 
             if vlen:
                 dlen=dlen+(16+vlen)
-                pnv=U64(read(8))
+                pnv=u64(read(8))
                 # skip position of previous version record
                 seek(8,1)
                 version=read(vlen)
@@ -1851,7 +1855,7 @@ def shift_transactions_forward(index, vindex, tindex, file, pos, opos):
             if plen: p=read(plen)
             else:
                 p=read(8)
-                p=U64(p)
+                p=u64(p)
                 if p >= p2: p=p-offset
                 elif p >= p1:
                     # Ick, we're in trouble. Let's bail
@@ -1900,7 +1904,7 @@ def search_back(file, pos):
     s=p=file.tell()
     while p > pos:
         seek(p-8)
-        l=U64(read(8))
+        l=u64(read(8))
         if l <= 0: break
         p=p-l-8
 
@@ -1955,14 +1959,13 @@ def read_index(file, name, index, vindex, tindex, stop='\377'*8,
     id in the data.  The transaction id is the tid of the last
     transaction.
     """
-
     read = file.read
     seek = file.seek
     seek(0, 2)
     file_size=file.tell()
 
     if file_size:
-        if file_size < start: raise FileStorageFormatError, name
+        if file_size < start: raise FileStorageFormatError, file.name
         seek(0)
         if read(4) != packed_version: raise FileStorageFormatError, name
     else:
@@ -1993,7 +1996,7 @@ def read_index(file, name, index, vindex, tindex, stop='\377'*8,
             warn("%s time-stamp reduction at %s", name, pos)
         ltid=tid
 
-        tl=U64(stl)
+        tl=u64(stl)
 
         if pos+(tl+8) > file_size or status=='c':
             # Hm, the data were truncated or the checkpoint flag wasn't
@@ -2015,7 +2018,7 @@ def read_index(file, name, index, vindex, tindex, stop='\377'*8,
             # Skip to the end and read what should be the transaction length
             # of the last transaction.
             seek(-8, 2)
-            rtl=U64(read(8))
+            rtl=u64(read(8))
             # Now check to see if the redundant transaction length is
             # reasonable:
             if file_size - rtl < pos or rtl < TRANS_HDR_LEN:
@@ -2054,9 +2057,9 @@ def read_index(file, name, index, vindex, tindex, stop='\377'*8,
             seek(pos)
             h=read(DATA_HDR_LEN)
             oid,serial,sprev,stloc,vlen,splen = unpack(DATA_HDR, h)
-            prev=U64(sprev)
-            tloc=U64(stloc)
-            plen=U64(splen)
+            prev=u64(sprev)
+            tloc=u64(stloc)
+            plen=u64(splen)
 
             dlen=DATA_HDR_LEN+(plen or 8)
             tindex[oid]=pos
@@ -2106,7 +2109,7 @@ def read_index(file, name, index, vindex, tindex, stop='\377'*8,
 def _loadBack_impl(file, oid, back):
     # shared implementation used by various _loadBack methods
     while 1:
-        old = U64(back)
+        old = u64(back)
         if not old:
             # If the backpointer is 0, the object does not currently exist.
             raise POSKeyError(oid)
@@ -2118,7 +2121,7 @@ def _loadBack_impl(file, oid, back):
             file.read(16)
             version = file.read(vlen)
         if plen != z64:
-            return file.read(U64(plen)), serial, old, tloc
+            return file.read(u64(plen)), serial, old, tloc
         back = file.read(8) # We got a back pointer!
 
 def _loadBack(file, oid, back):
@@ -2133,7 +2136,7 @@ def _loadBackPOS(file, oid, back):
 def _loadBackTxn(file, oid, back):
     """Return data, serial, and txn id for backpointer."""
     data, serial, old, stloc = _loadBack_impl(file, oid, back)
-    tloc = U64(stloc)
+    tloc = u64(stloc)
     file.seek(tloc)
     h = file.read(TRANS_HDR_LEN)
     tid = h[:8]
@@ -2141,11 +2144,11 @@ def _loadBackTxn(file, oid, back):
 
 def getTxnFromData(file, oid, back):
     """Return transaction id for data at back."""
-    file.seek(U64(back))
+    file.seek(u64(back))
     h = file.read(DATA_HDR_LEN)
     doid, serial, prev, stloc, vlen, plen = unpack(DATA_HDR, h)
     assert oid == doid
-    tloc = U64(stloc)
+    tloc = u64(stloc)
     file.seek(tloc)
     # seek to transaction header, where tid is first 8 bytes
     return file.read(8)
@@ -2229,7 +2232,7 @@ class FileIterator(Iterator):
             tid, stl = unpack(">8s8s", h)
             if tid >= start:
                 return
-            tl = U64(stl)
+            tl = u64(stl)
             try:
                 self._pos += tl + 8
             except OverflowError:
@@ -2242,7 +2245,7 @@ class FileIterator(Iterator):
                     pos = self._file.tell() - 8
                     panic("%s has inconsistent transaction length at %s "
                           "(%s != %s)",
-                          self._file.name, pos, U64(rtl), U64(stl))
+                          self._file.name, pos, u64(rtl), u64(stl))
 
     def next(self, index=0):
         if self._file is None:
@@ -2267,7 +2270,7 @@ class FileIterator(Iterator):
                 warn("%s time-stamp reduction at %s", self._file.name, pos)
             self._ltid=tid
 
-            tl=U64(stl)
+            tl=u64(stl)
 
             if pos+(tl+8) > self._file_size or status=='c':
                 # Hm, the data were truncated or the checkpoint flag wasn't
@@ -2288,7 +2291,7 @@ class FileIterator(Iterator):
                 # the end and read what should be the transaction
                 # length of the last transaction.
                 seek(-8, 2)
-                rtl=U64(read(8))
+                rtl=u64(read(8))
                 # Now check to see if the redundant transaction length is
                 # reasonable:
                 if self._file_size - rtl < pos or rtl < TRANS_HDR_LEN:
@@ -2346,8 +2349,8 @@ class FileIterator(Iterator):
         raise IndexError, index
 
 class RecordIterator(Iterator, BaseStorage.TransactionRecord):
-    """Iterate over the transactions in a FileStorage file.
-    """
+    """Iterate over the transactions in a FileStorage file."""
+    
     def __init__(self, tid, status, user, desc, ext, pos, tend, file, tpos):
         self.tid = tid
         self.status = status
@@ -2366,15 +2369,15 @@ class RecordIterator(Iterator, BaseStorage.TransactionRecord):
             self._file.seek(pos)
             h = self._file.read(DATA_HDR_LEN)
             oid, serial, sprev, stloc, vlen, splen = unpack(DATA_HDR, h)
-            prev = U64(sprev)
-            tloc = U64(stloc)
-            plen = U64(splen)
+            prev = u64(sprev)
+            tloc = u64(stloc)
+            plen = u64(splen)
             dlen = DATA_HDR_LEN + (plen or 8)
 
             if vlen:
                 dlen += (16 + vlen)
                 tmp = self._file.read(16)
-                pv = U64(tmp[8:16])
+                pv = u64(tmp[8:16])
                 version = self._file.read(vlen)
             else:
                 version = ''
@@ -2447,7 +2450,7 @@ class UndoSearch:
     def _readnext(self):
         """Read the next record from the storage."""
         self.file.seek(self.pos - 8)
-        self.pos -= U64(self.file.read(8)) + 8
+        self.pos -= u64(self.file.read(8)) + 8
         self.file.seek(self.pos)
         h = self.file.read(TRANS_HDR_LEN)
         tid, tl, status, ul, dl, el = struct.unpack(TRANS_HDR, h)
