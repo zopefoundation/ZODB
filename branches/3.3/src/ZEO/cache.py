@@ -31,6 +31,8 @@ import time
 
 from ZODB.utils import z64, u64
 
+logger = logging.getLogger("zeo.cache")
+
 ##
 # A disk-based cache for ZEO clients.
 # <p>
@@ -73,7 +75,6 @@ class ClientCache:
     def __init__(self, path=None, size=None, trace=False):
         self.path = path
         self.size = size
-        self.log = logging.getLogger("zeo.cache")
 
         if trace and path:
             self._setup_trace()
@@ -109,8 +110,13 @@ class ClientCache:
     def open(self):
         self.fc.scan(self.install)
 
+    ##
+    # Callback for FileCache.scan(), when a pre-existing file cache is
+    # used.  For each object in the file, `install()` is invoked.  `f`
+    # is the file object, positioned at the start of the serialized Object.
+    # `ent` is an Entry giving the object's key ((oid, start_tid) pair).
     def install(self, f, ent):
-        # Called by cache storage layer to insert object
+        # Called by cache storage layer to insert object.
         o = Object.fromFile(f, ent.key, header_only=True)
         if o is None:
             return
@@ -372,8 +378,8 @@ class ClientCache:
             self._trace(0x00)
         except IOError, msg:
             self.tracefile = None
-            self.log.warning("Could not write to trace file %s: %s",
-                             tfn, msg)
+            logger.warning("Could not write to trace file %s: %s",
+                           tfn, msg)
 
     def _notrace(self, *arg, **kwargs):
         pass
@@ -417,6 +423,9 @@ class ClientCache:
 # <p>
 # The serialized format does not include the key, because it is stored
 # in the header used by the cache's storage format.
+# <p>
+# Instances of Object are generally short-lived -- they're really a way to
+# package data on the way to or from the disk file.
 
 class Object(object):
     __slots__ = (# pair (object id, txn id) -- something usable as a dict key;
@@ -469,7 +478,7 @@ class Object(object):
         self.data = data
         self.start_tid = start_tid
         self.end_tid = end_tid
-        # The size of a the serialized object on disk, including the
+        # The size of the serialized object on disk, including the
         # 14-byte header, the lengths of data and version, and a
         # copy of the 8-byte oid.
         if data is not None:
@@ -483,7 +492,7 @@ class Object(object):
                            len(self.data))
 
     def serialize(self, f):
-        # Write standard form of Object to file f.
+        # Write standard form of Object to file f, at its current offset.
         f.writelines([self.get_header(),
                       self.version,
                       self.data,
@@ -496,7 +505,7 @@ class Object(object):
 
     # fromFile is a class constructor, unserializing an Object from the
     # current position in file f.  Exclusive access to f for the duration
-    # is assumed.  The key is a (start_tid, oid) pair, and the oid must
+    # is assumed.  The key is a (oid, start_tid) pair, and the oid must
     # match the serialized oid.  If header_only is true, .data is left
     # None in the Object returned.
     def fromFile(cls, f, key, header_only=False):
@@ -610,7 +619,10 @@ def sync(f):
 class FileCache(object):
 
     def __init__(self, maxsize, fpath, parent, reuse=True):
-        # - `maxsize`:  total size of the cache file, in bytes
+        # - `maxsize`:  total size of the cache file, in bytes; this is
+        #   ignored if reuse is true and fpath names an existing file;
+        #   perhaps we should attempt to change the cache size in that
+        #   case
         # - `fpath`:  filepath for the cache file, or None; see `reuse`
         # - `parent`:  the ClientCache this FileCache is part of
         # - `reuse`:  If true, and fpath is not None, and fpath names a
@@ -625,6 +637,13 @@ class FileCache(object):
         # stored near the start of the file.
         self.tid = None
 
+        # There's one Entry instance, kept in memory, for each currently
+        # allocated block in the file, and there's one allocated block in the
+        # file per serialized Object.  filemap retrieves the Entry given the
+        # starting offset of a block, and key2entry retrieves the Entry given
+        # an object revision's key (an (oid, start_tid) pair).  From an
+        # Entry, we can get the Object's key and file offset.
+
         # Map offset in file to pair (data record size, Entry).
         # Entry is None iff the block starting at offset is free.
         # filemap always contains a complete account of what's in the
@@ -632,15 +651,15 @@ class FileCache(object):
         # of the relevant invariants.  An offset is at the start of a
         # block iff it's a key in filemap.  The data record size is
         # stored in the file too, so we could just seek to the offset
-        # and read it up; keeping it in memory too is an optimization.
+        # and read it up; keeping it in memory is an optimization.
         self.filemap = {}
 
-        # Map key to Entry.  There's one Entry for each object in the
-        # cache file.  After
+        # Map key to Entry.  After
         #     obj = key2entry[key]
         # then
         #     obj.key == key
-        # is true.
+        # is true.  An object is currently stored on disk iff its key is in
+        # key2entry.
         self.key2entry = {}
 
         # Always the offset into the file of the start of a block.
@@ -648,15 +667,17 @@ class FileCache(object):
         # currentofs.
         self.currentofs = ZEC3_HEADER_SIZE
 
-        # self.new is false iff we're reusing an existing file.
         # self.f is the open file object.
         # When we're not reusing an existing file, self.f is left None
         # here -- the scan() method must be called then to open the file
         # (and it sets self.f).
 
         self.fpath = fpath
-        if not reuse or not fpath or not os.path.exists(fpath):
-            self.new = True
+        if reuse and fpath and os.path.exists(fpath):
+            # Reuse an existing file.  scan() will open & read it.
+            assert fpath
+            self.f = None
+        else:
             if fpath:
                 self.f = open(fpath, 'wb+')
             else:
@@ -675,11 +696,6 @@ class FileCache(object):
             self.sync()
             self.filemap[ZEC3_HEADER_SIZE] = (self.maxsize - ZEC3_HEADER_SIZE,
                                               None)
-        else:
-            # Reuse an existing file.  scan() will open & read it.
-            self.new = False
-            assert fpath
-            self.f = None
 
         # Statistics:  _n_adds, _n_added_bytes,
         #              _n_evicts, _n_evicted_bytes,
@@ -687,13 +703,18 @@ class FileCache(object):
         self.clearStats()
 
     ##
-    # Scan the current contents of the cache file, calling install
+    # Scan the current contents of the cache file, calling `install`
     # for each object found in the cache.  This method should only
     # be called once to initialize the cache from disk.
     def scan(self, install):
-        if self.new:
+        if self.f is not None:
             return
         fsize = os.path.getsize(self.fpath)
+        if fsize != self.maxsize:
+            logger.warning("existing cache file %s has size %d; "
+                           "requested size %d ignored", self.fpath,
+                           fsize, self.maxsize)
+            self.maxsize = fsize
         self.f = open(self.fpath, 'rb+')
         _magic = self.f.read(4)
         if _magic != magic:
@@ -701,8 +722,11 @@ class FileCache(object):
         self.tid = self.f.read(8)
         if len(self.tid) != 8:
             raise ValueError("cache file too small -- no tid at start")
-        # Remember the largest free block.  That seems a
-        # decent place to start currentofs.
+
+        # Populate .filemap and .key2entry to reflect what's currently in the
+        # file, and tell our parent about it too (via the `install` callback).
+        # Remember the location of the largest free block  That seems a decent
+        # place to start currentofs.
         max_free_size = max_free_offset = 0
         ofs = ZEC3_HEADER_SIZE
         while ofs < fsize:
