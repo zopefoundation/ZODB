@@ -13,7 +13,7 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.142 2004/04/02 17:47:57 fdrake Exp $"""
+$Id: Connection.py,v 1.143 2004/04/06 20:21:55 tim_one Exp $"""
 
 import logging
 import sys
@@ -223,7 +223,9 @@ class Connection(ExportImport, object):
             ver = ' (in version %s)' % `self._version`
         else:
             ver = ''
-        return '<Connection at %08x%s>' % (id(self), ver)
+        # Force the address to look positive.  A negative address will
+        # show up as signed in Python 2.4, and in 2.3 raises FutureWarning.
+        return '<Connection at %08x%s>' % (id(self) & 0xffffffffL, ver)
 
     def get(self, oid):
         """Return the persistent object with oid 'oid'.

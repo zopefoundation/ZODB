@@ -198,7 +198,9 @@ def crack_bucket(b, is_mapping):
     return keys, values
 
 def type_and_adr(obj):
-    return "%s (0x%x)" % (type(obj).__name__, id(obj))
+    # Force the address to look positive.  A negative address will
+    # show up as signed in Python 2.4, and in 2.3 raises FutureWarning.
+    return "%s (0x%x)" % (type(obj).__name__, id(obj) & 0xffffffffL)
 
 # Walker implements a depth-first search of a BTree (or TreeSet or Set or
 # Bucket).  Subclasses must implement the visit_btree() and visit_bucket()
