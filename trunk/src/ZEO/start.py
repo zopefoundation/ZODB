@@ -2,16 +2,20 @@
 
 import sys, os, getopt, string
 
-def directory(p):
-    d=os.path.split(p)[0]
-    if not d or d=='.': return os.getcwd()
+def directory(p, n=1):
+    d=p
+    while n:
+        d=os.path.split(d)[0]
+        if not d or d=='.': d=os.getcwd()
+        n=n-1
+        
     return d
     
 
 def main(argv):
     me=argv[0]
     sys.path[:]==filter(None, sys.path)
-    sys.path.insert(0, directory(directory(me)))
+    sys.path.insert(0, directory(me, 2))
 
     args=[]
     for a in argv[1:]:
@@ -21,9 +25,15 @@ def main(argv):
             continue
         args.append(a)
 
-    opts, args = getopt.getopt(args, 'p:Dh:')
+    INSTANCE_HOME=os.environ.get('INSTANCE_HOME', directory(me, 4))
 
-    fs=directory(directory(directory(directory(me))))+'/var/Data.fs'
+    zeo_pid=os.environ.get('ZEO_SERVER_PID',
+                           os.path.join(INSTANCE_HOME, 'var', 'ZEO_SERVER.pid')
+                           )
+
+    opts, args = getopt.getopt(args, 'p:Dh:')
+    
+    fs=os.path.join(INSTANCE_HOME, 'var', 'Data.fs')
 
     usage="""%s -p port [options] [filename]
 
@@ -57,10 +67,17 @@ def main(argv):
         fs=args[0]
 
     __builtins__.__debug__=debug
+    if debug: os.environ['Z_DEBUG_MODE']='1'
 
-    import ZEO.StorageServer, ZODB.FileStorage, asyncore
+    try: import posix
+    except: pass
+    else:
+        import zdaemon
+        zdaemon.run(sys.argv, '')
 
-    print 'Serving', fs
+    import ZEO.StorageServer, ZODB.FileStorage, asyncore, zLOG
+
+    zLOG.LOG('ZEO Server', zLOG.INFO, 'Serving %s' % fs)
 
     ZEO.StorageServer.StorageServer(
         (host,port),
@@ -68,6 +85,9 @@ def main(argv):
             '1': ZODB.FileStorage.FileStorage(fs)
             },
         )
+
+    open(zeo_pid,'w').write("%s %s" % (os.getpid(), os.getppid()))
+    
     asyncore.loop()
 
 
