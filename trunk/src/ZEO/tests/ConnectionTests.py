@@ -849,7 +849,6 @@ class TimeoutTests(CommonSetupTearDown):
     def checkTimeoutAfterVote(self):
         raises = self.assertRaises
         unless = self.failUnless
-        self.startServer()
         self._storage = storage = self.openClientStorage()
         # Assert that the zeo cache is empty
         unless(not storage._cache._index)
@@ -880,7 +879,6 @@ class TimeoutTests(CommonSetupTearDown):
         eq = self.assertEqual
         raises = self.assertRaises
         unless = self.failUnless
-        self.startServer()
         self._storage = storage = self.openClientStorage()
         # Assert that the zeo cache is empty
         unless(not storage._cache._index)
