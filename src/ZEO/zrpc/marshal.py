@@ -18,7 +18,7 @@ import types
 
 import zLOG
 
-from ZEO.zrpc.error import ZRPCError, DecodingError
+from ZEO.zrpc.error import ZRPCError
 from ZEO.zrpc.log import log
 
 class Marshaller:
@@ -50,8 +50,8 @@ class Marshaller:
         try:
             return unpickler.load() # msgid, flags, name, args
         except (self.errors, IndexError), err_msg:
-            log("can't decode %s" % repr(msg), level=zLOG.ERROR)
-            raise DecodingError(msg)
+            log("can't decode message: %s" % repr(msg), level=zLOG.ERROR)
+            raise
 
 _globals = globals()
 _silly = ('__doc__',)

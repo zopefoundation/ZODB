@@ -17,8 +17,5 @@ from ZEO.Exceptions import Disconnected
 class ZRPCError(POSException.StorageError):
     pass
 
-class DecodingError(ZRPCError):
-    """A ZRPC message could not be decoded."""
-
 class DisconnectedError(ZRPCError, Disconnected):
     """The database storage is disconnected from the storage server."""
