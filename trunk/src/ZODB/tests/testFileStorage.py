@@ -1,20 +1,23 @@
-import sys, os
-
+import sys
 sys.path.insert(0, '.')
 
 import ZODB.FileStorage
-import unittest, UndoVersionStorage
+import os, unittest
+import StorageTestBase, BasicStorage, TransactionalUndoStorage
 
-class FileStorageTests(UndoVersionStorage.UndoVersionStorage,
-                       unittest.TestCase):
+class FileStorageTests(
+    StorageTestBase.StorageTestBase,
+    BasicStorage.BasicStorage,
+    TransactionalUndoStorage.TransactionalUndoStorage,
+    ):
 
     def setUp(self):
         self._storage = ZODB.FileStorage.FileStorage(
             'FileStorageTests.fs', create=1)
-        UndoVersionStorage.UndoVersionStorage.setUp(self)
+        StorageTestBase.StorageTestBase.setUp(self)
 
     def tearDown(self):
-        UndoVersionStorage.UndoVersionStorage.tearDown(self)
+        StorageTestBase.StorageTestBase.tearDown(self)
         os.remove('FileStorageTests.fs')
 
 def test_suite():
