@@ -114,7 +114,7 @@ def read_txn_header(f, pos, file_size, outp, ltid):
         error("time-stamp reducation %s < %s, at %s", u64(tid), u64(ltid), pos)
 
     if status == "c":
-        truncate(f, pos, file_size, output)
+        truncate(f, pos, file_size, outp)
         raise EOFError
 
     if status not in " up":
@@ -226,7 +226,7 @@ def main():
         opts, (inp, outp) = getopt.getopt(sys.argv[1:], "fv:pP:")
     except getopt.error:
         die()
-        print __doc__ % argv[0]
+        print __doc__ % sys.argv[0]
 
     force = partial = verbose = 0
     pack = None
