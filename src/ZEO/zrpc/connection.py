@@ -351,9 +351,14 @@ class Connection(smac.SizedMessageAsyncConnection):
     def wait(self, msgid):
         """Invoke asyncore mainloop and wait for reply."""
         if __debug__:
-            log("wait() async=%d" % self.is_async(), level=zLOG.TRACE)
+            log("wait(%d), async=%d" % (msgid, self.is_async()),
+                level=zLOG.TRACE)
         if self.is_async():
             self.trigger.pull_trigger()
+
+        # Delay used when we call asyncore.poll() directly.
+        # Start with a 1 msec delay, double until 1 sec.
+        delay = 0.001
 
         self.replies_cond.acquire()
         try:
@@ -363,6 +368,9 @@ class Connection(smac.SizedMessageAsyncConnection):
                 reply = self.replies.get(msgid)
                 if reply is not None:
                     del self.replies[msgid]
+                    if __debug__:
+                        log("wait(%d): reply=%s" % (msgid, short_repr(reply)),
+                            level=zLOG.DEBUG)
                     return reply
                 if self.is_async():
                     self.replies_cond.wait(10.0)
@@ -370,7 +378,12 @@ class Connection(smac.SizedMessageAsyncConnection):
                     self.replies_cond.release()
                     try:
                         try:
-                            asyncore.poll(10.0, self._map)
+                            if __debug__:
+                                log("wait(%d): asyncore.poll(%s)" %
+                                    (msgid, delay), level=zLOG.TRACE)
+                            asyncore.poll(delay, self._map)
+                            if delay < 1.0:
+                                delay += delay
                         except select.error, err:
                             log("Closing.  asyncore.poll() raised %s." % err,
                                 level=zLOG.BLATHER)
