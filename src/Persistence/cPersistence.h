@@ -1,6 +1,6 @@
 /*
 
-  $Id: cPersistence.h,v 1.6 1997/06/06 19:13:32 jim Exp $
+  $Id: cPersistence.h,v 1.7 1997/07/18 14:15:39 jim Exp $
 
   Definitions to facilitate making cPersistent subclasses in C.
 
@@ -56,6 +56,9 @@
 
 
   $Log: cPersistence.h,v $
+  Revision 1.7  1997/07/18 14:15:39  jim
+  Added PER_DEL so that subclasses can handle deallocation correctly.
+
   Revision 1.6  1997/06/06 19:13:32  jim
   Changed/fixed convenience macros.
 
@@ -126,6 +129,7 @@ static cPersistenceCAPIstruct *cPersistenceCAPI;
 
 #define PER_PREVENT_DEACTIVATION(O) ((O)->atime=(time_t)1);
 #define PER_ALLOW_DEACTIVATION(O) ((O)->atime=time(NULL));
+#define PER_DEL(O) Py_XDECREF((O)->jar)
 
 #endif
 
