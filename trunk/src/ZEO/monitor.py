@@ -13,7 +13,7 @@
 ##############################################################################
 """Monitor behavior of ZEO server and record statistics.
 
-$id:$
+$Id: monitor.py,v 1.2 2003/01/09 23:55:57 jeremy Exp $
 """
 
 import asyncore
@@ -22,6 +22,7 @@ import time
 import types
 
 import ZEO
+import zLOG
 
 class StorageStats:
     """Per-storage usage statistics."""
@@ -37,8 +38,10 @@ class StorageStats:
         self.lock_time = None
         self.conflicts = 0
         self.conflicts_resolved = 0
+        self.start = time.ctime()
 
     def dump(self, f):
+        print >> f, "Server started:", self.start
         print >> f, "Clients:", self.clients
         print >> f, "Clients verifying:", self.verifying_clients
         print >> f, "Active transactions:", self.active_txns
@@ -97,6 +100,7 @@ class StatsServer(asyncore.dispatcher):
         else:
             self.create_socket(socket.AF_UNIX, socket.SOCK_STREAM)
         self.set_reuse_addr()
+        zLOG.LOG("ZSM", zLOG.INFO, "monitor listening on %s" % repr(self.addr))
         self.bind(self.addr)
         self.listen(5)
 
