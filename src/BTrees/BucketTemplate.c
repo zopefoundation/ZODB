@@ -1175,7 +1175,7 @@ bucket_repr(Bucket *self)
   static PyObject *format;
   PyObject *r, *t;
 
-  UNLESS (format) UNLESS (format=PyString_FromString(PREFIX "Bucket(%s)")) 
+  UNLESS (format) UNLESS (format=PyString_FromString(MOD_NAME_PREFIX "Bucket(%s)")) 
     return NULL;
   UNLESS (t=PyTuple_New(1)) return NULL;
   UNLESS (r=bucket_items(self,NULL)) goto err;
@@ -1191,7 +1191,7 @@ err:
 static PyExtensionClass BucketType = {
   PyObject_HEAD_INIT(NULL)
   0,				/*ob_size*/
-  PREFIX "Bucket",			/*tp_name*/
+  MOD_NAME_PREFIX "Bucket",			/*tp_name*/
   sizeof(Bucket),		/*tp_basicsize*/
   0,				/*tp_itemsize*/
   /*********** methods ***********************/

@@ -250,7 +250,7 @@ set_repr(Bucket *self)
   static PyObject *format;
   PyObject *r, *t;
 
-  UNLESS (format) UNLESS (format=PyString_FromString(PREFIX "Set(%s)")) 
+  UNLESS (format) UNLESS (format=PyString_FromString(MOD_NAME_PREFIX "Set(%s)")) 
     return NULL;
   UNLESS (t=PyTuple_New(1)) return NULL;
   UNLESS (r=bucket_keys(self,NULL)) goto err;
@@ -306,7 +306,7 @@ static PySequenceMethods set_as_sequence = {
 static PyExtensionClass SetType = {
   PyObject_HEAD_INIT(NULL)
   0,				/*ob_size*/
-  PREFIX "Set",			/*tp_name*/
+  MOD_NAME_PREFIX "Set",			/*tp_name*/
   sizeof(Bucket),		/*tp_basicsize*/
   0,				/*tp_itemsize*/
   /*********** methods ***********************/

@@ -452,7 +452,7 @@ static PyNumberMethods BTreeItems_as_number_for_nonzero = {
 static PyTypeObject BTreeItemsType = {
   PyObject_HEAD_INIT(NULL)
   0,					/*ob_size*/
-  PREFIX "BTreeItems",	        /*tp_name*/
+  MOD_NAME_PREFIX "BTreeItems",	        /*tp_name*/
   sizeof(BTreeItems),		        /*tp_basicsize*/
   0,					/*tp_itemsize*/
   /* methods */

@@ -85,7 +85,7 @@
 
 static char BTree_module_documentation[] = 
 ""
-"\n$Id: BTreeModuleTemplate.c,v 1.5 2001/03/15 13:16:22 jim Exp $"
+"\n$Id: BTreeModuleTemplate.c,v 1.6 2001/03/15 17:33:07 brian Exp $"
 ;
 
 #ifdef PERSISTENT
@@ -379,7 +379,7 @@ INITMODULE ()
 #endif
 
   /* Create the module and add the functions */
-  m = Py_InitModule4(PREFIX "BTree", module_methods,
+  m = Py_InitModule4(MOD_NAME_PREFIX "BTree", module_methods,
 		     BTree_module_documentation,
 		     (PyObject*)NULL,PYTHON_API_VERSION);
 
@@ -387,14 +387,14 @@ INITMODULE ()
   d = PyModule_GetDict(m);
 
   PyDict_SetItemString(d, "__version__",
-		       PyString_FromString("$Revision: 1.5 $"));
+		       PyString_FromString("$Revision: 1.6 $"));
 
-  PyExtensionClass_Export(d,PREFIX "Bucket", BucketType);
-  PyExtensionClass_Export(d,PREFIX "BTree", BTreeType);
-  PyExtensionClass_Export(d,PREFIX "Set", SetType);
-  PyExtensionClass_Export(d,PREFIX "TreeSet", TreeSetType);
+  PyExtensionClass_Export(d,MOD_NAME_PREFIX "Bucket", BucketType);
+  PyExtensionClass_Export(d,MOD_NAME_PREFIX "BTree", BTreeType);
+  PyExtensionClass_Export(d,MOD_NAME_PREFIX "Set", SetType);
+  PyExtensionClass_Export(d,MOD_NAME_PREFIX "TreeSet", TreeSetType);
  
   /* Check for errors */
   if (PyErr_Occurred())
-    Py_FatalError("can't initialize module " PREFIX "BTree");
+    Py_FatalError("can't initialize module " MOD_NAME_PREFIX "BTree");
 }
