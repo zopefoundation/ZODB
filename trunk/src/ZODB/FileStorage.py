@@ -184,7 +184,7 @@
 #   may have a back pointer to a version record or to a non-version
 #   record.
 #
-__version__='$Revision: 1.51 $'[11:-2]
+__version__='$Revision: 1.52 $'[11:-2]
 
 import struct, time, os, bpthread, string, base64, sys
 from struct import pack, unpack
@@ -328,7 +328,6 @@ class FileStorage(BaseStorage.BaseStorage,
         self._index_get=index.get
         self._vindex_get=vindex.get
         self._tappend=tindex.append
-
 
     def __len__(self): return len(self._index)
 
@@ -528,18 +527,6 @@ class FileStorage(BaseStorage.BaseStorage,
                             # Yee ha! We can quit
                             break
 
-                    # The following optimization fails miserably
-                    # if, for some reason, an object is written twice
-                    # in the same transaction!
-                    #elif h[16:24] == pnv and pnv != z64:
-                    #    # This is the first current record, so unmark it.
-                    #    # Note that we don't need to check if this was
-                    #    # undone.  If it *was* undone, then there must
-                    #    # be a later record that is the first record, or
-                    #    # there isn't a current record.  In either case,
-                    #    # we can't be in this branch. :)
-                    #    del current_oids[oid]
-                    
                 spos=h[-8:]
                 srcpos=U64(spos)
 
@@ -850,7 +837,180 @@ class FileStorage(BaseStorage.BaseStorage,
             return t.keys()            
         finally: self._lock_release()
 
-    def undoLog(self, first, last, filter=None):
+    def supportsTransactionalUndo(self): return 0
+
+    def _dataInfo(self, oid, pos):
+        """Return the serial, version and data pointer for the oid
+        record at pos"""
+        file=self._file
+        read=file.read
+        file.seek(pos)
+        h=read(42)
+        roid,serial,sprev,stloc,vlen,splen = unpack(">8s8s8s8sH8s", h)
+        if roid != oid: 
+            raise POSException.UndoError, 'Invalid undo transaction id'
+        if vlen:
+            read(16) # skip nv pointer and version previous pointer
+            version=read(vlen)
+        else:
+            version=''
+
+        if U64(splen):
+            return serial, pos, version
+        else:
+            return serial, U64(read(8)), version
+
+    def _getVersion(self, oid, pos):
+        self._file.seek(pos)
+        read=self._file.read
+        h=read(42)
+        doid,serial,sprev,stloc,vlen,splen = unpack(">8s8s8s8sH8s", h)
+        if vlen:
+            h=read(16)
+            return read(vlen), h[:8]
+        else:
+            return '',''
+        
+    def _getSerial(self, oid, pos):
+        self._file.seek(pos+8)
+        return self._file.read(8)
+
+
+    def _transactionalUndoRecord(self, oid, pos, serial, pre, version):
+        """Get the indo information for a data record
+
+        Return a 5-tuple consisting of a pickle, data pointer,
+        version, packed non-version data pointer, and current
+        position.  If the pickle is true, then the data pointer must
+        be 0, but the pickle can be empty *and* the pointer 0.
+
+        """
+        
+        copy=1 # Can we just copy a data pointer
+        ipos=self._index.get(oid,0)
+        if ipos != pos:
+            # Eek, a later transaction modified the data, but,
+            # maybe it is pointing at the same data we are.
+            cserial, cdata, cver = self._dataInfo(oid, ipos)
+            # Versions of undone record and current record *must* match!
+            if cver != version:
+                raise POSException.UndoError(
+                    'non-undoable transaction')
+
+            if cdata != pos:
+                # We aren't sure if we are talking about the same data
+                if (
+                    cdata == ipos # The current record wrote a new pickle
+                    or
+                    # Backpointers are different
+                    _loadBackPOS(self._file, oid, p64(pos)) !=
+                    _loadBackPOS(self._file, oid, p64(cdata))
+                    ):
+                    if pre:
+                        copy=0 # we'll try to do conflict resolution
+                    else:
+                        raise POSException.UndoError(
+                            'non-undoable transaction')
+
+        version, snv = self._getVersion(oid, pre)
+        if copy:
+            # we can just copy our previous-record pointer forward
+            return '', pre, version, snv, ipos
+
+        data=self.tryToResolveConflict(
+            oid, cserial, serial, _loadBack(self._file, oid, p64(pre)))
+
+        if data:
+            return data, 0, version, snv, ipos
+
+        raise POSException.UndoError(
+            'non-undoable transaction')
+
+    def transactionalUndo(self, transaction_id, transaction):
+        """Undo a transaction, given by transaction_id.
+
+        Do so by writing new data that reverses tyhe action taken by
+        the transaction."""        
+        # Usually, we can get by with just copying a data pointer, by
+        # writing a file position rather than a pickle. Sometimes, we
+        # may do conflict resolution, in which case we actually copy
+        # new data that results from resolution.
+        
+        if transaction is not self._transaction:
+            raise POSException.StorageTransactionError(self, transaction)
+        
+        self._lock_acquire()
+        try:
+            transaction_id=base64.decodestring(transaction_id+'==\n')
+            tid, tpos = transaction_id[:8], U64(transaction_id[8:])
+
+            seek=self._file.seek
+            read=self._file.read
+            unpack=struct.unpack
+            write=self._tfile.write
+
+            ostloc = p64(self._pos)
+            newserial=self._serial
+            here=self._pos+(self._tfile.tell()+self._thl)
+
+            seek(tpos)
+            h=read(23)
+            if len(h) != 23 or h[:8] != tid: 
+                raise POSException.UndoError, 'Invalid undo transaction id'
+            if h[16] == 'u': return
+            if h[16] != ' ':
+                raise POSException.UndoError, 'non-undoable transaction'
+            tl=U64(h[8:16])
+            ul,dl,el=unpack(">HHH", h[17:23])
+            tend=tpos+tl
+            pos=tpos+(23+ul+dl+el)
+            tindex={}
+            # Read the data records for this transaction
+            while pos < tend:
+                seek(pos)
+                h=read(42)
+                oid,serial,sprev,stloc,vlen,splen = unpack(">8s8s8s8sH8s", h)
+                plen=U64(splen)
+                prev=U64(sprev)
+                if vlen:
+                    dlen=58+vlen+(plen or 8)
+                    read(16)
+                    version=read(vlen)
+                else:
+                    dlen=42+(plen or 8)
+                    version=''
+
+                p, prev, v, snv, ipos = self._transactionalUndoRecord(
+                    oid, pos, serial, prev, version)
+
+                plen=len(p)                
+                write(pack(">8s8s8s8sH8s",
+                           oid, newserial, p64(ipos), ostloc,
+                           len(v), p64(plen)))
+                if v:
+                    vprev=self._tvindex.get(v, self._vindex.get(v, 0))
+                    write(snv+p64(vprev)+v)
+                    self._tvindex[v]=here
+                    odlen = 58+len(v)+(plen or 8)
+                else:
+                    odlen = 42+(plen or 8)
+
+                if p: write(p)
+                else: write(p64(prev))
+
+                pos=pos+dlen
+                if pos > tend:
+                    raise POSException.UndoError, 'non-undoable transaction'
+                tindex[oid]=here
+                here=here+odlen
+
+            self._tindex[len(self._tindex):] = tindex.items()
+            return tindex.keys()            
+
+        finally: self._lock_release()
+
+    def undoLog(self, first=0, last=-20, filter=None):
+        if last < 0: last=first-last+1
         self._lock_acquire()
         try:
             packt=self._packt
@@ -1719,6 +1879,8 @@ def _loadBack(file, oid, back):
         back=read(8) # We got a back pointer!
 
 def _loadBackPOS(file, oid, back):
+    """Return the position of the record containing the data used by
+    the record at the given position (back)."""
     seek=file.seek
     read=file.read
     
