@@ -247,6 +247,46 @@ err:
   return NULL;
 }
 
+static int
+set_length(Bucket *self) 
+{
+  int r;
+
+  PER_USE_OR_RETURN(self, -1);
+  r = self->len;
+  PER_ALLOW_DEACTIVATION(self);
+
+  return r;
+}
+
+static PyObject *
+set_item(Bucket *self, int index)
+{
+  PyObject *r=0;
+
+  PER_USE_OR_RETURN(self, NULL);
+  if (index >= 0 && index < self->len)
+    {
+      COPY_KEY_TO_OBJECT(r, self->keys[index]);
+    }
+  else
+    IndexError(index);
+
+  PER_ALLOW_DEACTIVATION(self);
+
+  return r;
+}
+
+static PySequenceMethods set_as_sequence = {
+	(inquiry)set_length,		/*sq_length*/
+	(binaryfunc)0,		/*sq_concat*/
+	(intargfunc)0,		/*sq_repeat*/
+	(intargfunc)set_item,		/*sq_item*/
+	(intintargfunc)0,		/*sq_slice*/
+	(intobjargproc)0,	/*sq_ass_item*/
+	(intintobjargproc)0,	/*sq_ass_slice*/
+};
+
 static PyExtensionClass SetType = {
   PyObject_HEAD_INIT(NULL)
   0,				/*ob_size*/
@@ -259,9 +299,9 @@ static PyExtensionClass SetType = {
   (getattrfunc)0,		/*obsolete tp_getattr*/
   (setattrfunc)0,		/*obsolete tp_setattr*/
   (cmpfunc)0,			/*tp_compare*/
-  (reprfunc) set_repr,	/*tp_repr*/
+  (reprfunc) set_repr,		/*tp_repr*/
   0,				/*tp_as_number*/
-  0,				/*tp_as_sequence*/
+  &set_as_sequence,		/*tp_as_sequence*/
   0,		                /*tp_as_mapping*/
   (hashfunc)0,			/*tp_hash*/
   (ternaryfunc)0,		/*tp_call*/
@@ -273,5 +313,6 @@ static PyExtensionClass SetType = {
   0L,0L,
   "Set implemented as sorted keys", 
   METHOD_CHAIN(Set_methods),
-  EXTENSIONCLASS_BASICNEW_FLAG | PERSISTENT_TYPE_FLAG,
+  EXTENSIONCLASS_BASICNEW_FLAG | PERSISTENT_TYPE_FLAG 
+  | EXTENSIONCLASS_NOINSTDICT_FLAG,
 };

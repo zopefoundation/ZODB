@@ -154,17 +154,10 @@ _bucket_set(Bucket *self, PyObject *keyarg, PyObject *v, int unique, int noval)
   int min, max, i, l, cmp, copied=1;
   KEY_TYPE key;
   KEY_TYPE *keys;
-  VALUE_TYPE value;
   VALUE_TYPE *values;
   
   COPY_KEY_FROM_ARG(key, keyarg, &copied);
   UNLESS(copied) return -1;
-
-  UNLESS (noval)
-    {
-      COPY_VALUE_FROM_ARG(value, v, &copied);
-      UNLESS(copied) return -1;
-    }
 
   PER_USE_OR_RETURN(self, -1);
 
@@ -178,7 +171,10 @@ _bucket_set(Bucket *self, PyObject *keyarg, PyObject *v, int unique, int noval)
               if (! unique && ! noval && self->values)
                 {
                   DECREF_VALUE(self->values[i]);
-                  COPY_VALUE(self->values[i], value);
+
+                  COPY_VALUE_FROM_ARG(self->values[i], v, &copied);
+                  UNLESS(copied) return -1;
+
                   INCREF_VALUE(self->values[i]);
                   if (PER_CHANGED(self) < 0) goto err;
                 }
@@ -274,7 +270,8 @@ _bucket_set(Bucket *self, PyObject *keyarg, PyObject *v, int unique, int noval)
 
   UNLESS (noval)
     {
-      COPY_VALUE(self->values[i], value);
+      COPY_VALUE_FROM_ARG(self->values[i], v, &copied);
+      UNLESS(copied) return -1;
       INCREF_VALUE(self->values[i]);
     }
 
@@ -676,15 +673,13 @@ bucket__p_deactivate(Bucket *self, PyObject *args)
   if (self->state==cPersistent_UPTODATE_STATE)
     {
       int i;
-      PyObject *dict;
 
       for (i=self->len; --i >= 0; )
 	{
 	  DECREF_KEY(self->keys[i]);
 	  if (self->values) DECREF_VALUE(self->values[i]);
 	}
-      Py_DECREF(self->next);
-      if (HasInstDict(self) && (dict=INSTANCE_DICT(self))) PyDict_Clear(dict);
+      Py_XDECREF(self->next);
       self->len=0;
       self->state=cPersistent_GHOST_STATE;
     }
@@ -720,7 +715,8 @@ bucket_clear(Bucket *self, PyObject *args)
   self->len=0;
   if (PER_CHANGED(self) < 0) goto err;
   PER_ALLOW_DEACTIVATION(self);
-  RETURN_NONE;
+  Py_INCREF(Py_None); 
+  return Py_None;
 
 err:
   PER_ALLOW_DEACTIVATION(self);
@@ -995,5 +991,6 @@ static PyExtensionClass BucketType = {
   0L,0L,
   "Mapping type implemented as sorted list of items", 
   METHOD_CHAIN(Bucket_methods),
-  EXTENSIONCLASS_BASICNEW_FLAG | PERSISTENT_TYPE_FLAG,
+  EXTENSIONCLASS_BASICNEW_FLAG | PERSISTENT_TYPE_FLAG 
+  | EXTENSIONCLASS_NOINSTDICT_FLAG,
 };
