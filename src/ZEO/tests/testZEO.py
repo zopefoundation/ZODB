@@ -29,6 +29,7 @@ import ZEO.ClientStorage, ZEO.StorageServer
 from ZODB.FileStorage import FileStorage
 from ZODB.Transaction import Transaction
 from ZODB.tests.StorageTestBase import zodb_pickle, MinPO
+from ZODB.POSException import ReadOnlyError
 import zLOG
 
 try:
@@ -49,7 +50,7 @@ except ImportError:
 
 
 from ZEO.tests import forker, Cache, CommitLockTests, ThreadTests
-from ZEO.zrpc.smac import Disconnected
+from ZEO.Exceptions import Disconnected
 
 from ZODB.tests import StorageTestBase, BasicStorage, VersionStorage, \
      TransactionalUndoStorage, TransactionalUndoVersionStorage, \
@@ -223,6 +224,7 @@ class ConnectionTests(StorageTestBase.StorageTestBase):
         The ZEO server uses the storage object returned by the
         getStorage() method.
         """
+        zLOG.LOG("testZEO", zLOG.INFO, "setUp() %s" % self.id())
         self.file = tempfile.mktemp()
         self.addr = []
         self._pids = []
@@ -230,18 +232,24 @@ class ConnectionTests(StorageTestBase.StorageTestBase):
         self._newAddr()
         self._startServer()
 
+    # _startServer(), shutdownServer() are defined in OS-specific subclasses
+
     def _newAddr(self):
         self.addr.append(self._getAddr())
 
     def _getAddr(self):
         return 'localhost', self.ports.pop()
 
-    def openClientStorage(self, cache='', cache_size=200000, wait=1):
+    def openClientStorage(self, cache='', cache_size=200000, wait=1,
+                          read_only=0, read_only_fallback=0):
         base = ZEO.ClientStorage.ClientStorage(self.addr,
                                                client=cache,
                                                cache_size=cache_size,
                                                wait=wait,
-                                               min_disconnect_poll=0.1)
+                                               min_disconnect_poll=0.1,
+                                               read_only=read_only,
+                                               read_only_fallback=
+                                                       read_only_fallback)
         storage = PackWaitWrapper(base)
         storage.registerDB(DummyDB(), None)
         return storage
@@ -300,6 +308,95 @@ class ConnectionTests(StorageTestBase.StorageTestBase):
             except Disconnected:
                 time.sleep(0.5)
 
+    def checkReadOnlyClient(self):
+        # Start a read-only client for a read-write server
+        self._storage = self.openClientStorage(read_only=1)
+        # Stores should fail here
+        self.assertRaises(ReadOnlyError, self._dostore)
+
+    def checkReadOnlyServer(self):
+        # We don't want the read-write server created by setUp()
+        self.shutdownServer()
+        self._servers = []
+        self._pids = []
+        # Start a read-only server
+        self._startServer(create=0, index=0, read_only=1)
+        # Start a read-only client
+        self._storage = self.openClientStorage(read_only=1)
+        # Stores should fail here
+        self.assertRaises(ReadOnlyError, self._dostore)
+
+    def checkReadOnlyFallbackWritable(self):
+        # Start a read-only-fallback client for a read-write server
+        self._storage = self.openClientStorage(read_only_fallback=1)
+        # Stores should succeed here
+        self._dostore()
+
+    def checkReadOnlyFallbackReadOnly(self):
+        # We don't want the read-write server created by setUp()
+        self.shutdownServer()
+        self._servers = []
+        self._pids = []
+        # Start a read-only server
+        self._startServer(create=0, index=0, read_only=1)
+        # Start a read-only-fallback client
+        self._storage = self.openClientStorage(wait=0, read_only_fallback=1)
+        # Stores should fail here
+        self.assertRaises(ReadOnlyError, self._dostore)
+
+    def checkReadOnlyFallbackSwitch(self):
+        # We don't want the read-write server created by setUp()
+        self.shutdownServer()
+        self._servers = []
+        self._pids = []
+        # Start a read-only server
+        self._startServer(create=0, read_only=1)
+        # Start a read-only-fallback client
+        self._storage = self.openClientStorage(wait=0, read_only_fallback=1)
+        # Stores should fail here
+        self.assertRaises(ReadOnlyError, self._dostore)
+        # Shut down the server
+        self.shutdownServer()
+        self._servers = []
+        self._pids = []
+        # Restart the server, this time read-write
+        self._startServer(create=0)
+        # Stores should now succeed
+##        # XXX This completely hangs :-(
+##        self._dostore()
+
+    def NOcheckReadOnlyFallbackMultiple(self):
+        # XXX This test doesn't work yet
+        self._newAddr()
+        # We don't need the read-write server created by setUp()
+        zLOG.LOG("testZEO", zLOG.INFO, "shutdownServer")
+        self.shutdownServer()
+        self._servers = []
+        self._pids = []
+        # Start a read-only server
+        zLOG.LOG("testZEO", zLOG.INFO, "startServer(read_only=1)")
+        self._startServer(create=0, index=0, read_only=1)
+        # Start a client
+        zLOG.LOG("testZEO", zLOG.INFO, "openClientStorage")
+        self._storage = self.openClientStorage(wait=0, read_only_fallback=1)
+        # Stores should fail here
+        zLOG.LOG("testZEO", zLOG.INFO, "stores should fail here")
+        self.assertRaises(ReadOnlyError, self._dostore)
+        # Start a read-write server
+        zLOG.LOG("testZEO", zLOG.INFO, "startServer(read_only=0)")
+        self._startServer(index=1, read_only=0)
+        # After a while, stores should work
+        for i in range(30):
+            try:
+                zLOG.LOG("testZEO", zLOG.INFO, "_dostore")
+                self._dostore()
+                zLOG.LOG("testZEO", zLOG.INFO, "done")
+                break
+            except ReadOnlyError:
+                zLOG.LOG("testZEO", zLOG.INFO, "sleep(1)")
+                time.sleep(1)
+        else:
+            self.fail("couldn't store after starting a read-write server")
 
     def checkDisconnectionError(self):
         # Make sure we get a Disconnected when we try to read an
@@ -389,11 +486,11 @@ class ConnectionTests(StorageTestBase.StorageTestBase):
 
 class UnixConnectionTests(ConnectionTests):
 
-    def _startServer(self, create=1, index=0):
+    def _startServer(self, create=1, index=0, read_only=0):
         path = "%s.%d" % (self.file, index)
         addr = self.addr[index]
         pid, server = forker.start_zeo_server('FileStorage',
-                                              (path, create), addr)
+                                              (path, create, read_only), addr)
         self._pids.append(pid)
         self._servers.append(server)
 
@@ -408,11 +505,11 @@ class UnixConnectionTests(ConnectionTests):
 
 class WindowsConnectionTests(ConnectionTests):
 
-    def _startServer(self, create=1, index=0):
+    def _startServer(self, create=1, index=0, read_only=0):
         path = "%s.%d" % (self.file, index)
         addr = self.addr[index]
-        _addr, test_addr, test_pid = forker.start_zeo_server('FileStorage',
-                                                 (path, str(create)), addr)
+        _addr, test_addr, test_pid = forker.start_zeo_server(
+            'FileStorage', (path, str(create), read_only), addr)
         self._pids.append(test_pid)
         self._servers.append(test_addr)
 
