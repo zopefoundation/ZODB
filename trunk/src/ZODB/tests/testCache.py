@@ -142,9 +142,11 @@ class LRUCacheTests(CacheTestBase):
         self.assertEqual(x._p_changed, None) # the root is ghosted
         for i in range(len(l)):
             if i < CACHE_SIZE:
-                self.assertEqual(l[i]._p_changed, None)
-            else:
+                # Changes are flushed but objects not ghostified
                 self.assertEqual(l[i]._p_changed, 0)
+            else:
+                # Objects are ghostified and evicted from the cache
+                self.assertEqual(l[i]._p_changed, None)
 
     def checkSize(self):
         self.assertEqual(self.db.cacheSize(), 0)
