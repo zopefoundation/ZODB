@@ -42,63 +42,9 @@ class PackWaitWrapper:
         self.storage.pack(t, f, wait=1)
 
 class ZEOTestBase(StorageTestBase.StorageTestBase):
-    """Version of the storage test class that supports ZEO.
+    """Version of the storage test class that supports ZEO."""
+    pass
     
-    For ZEO, we don't always get the serialno/exception for a
-    particular store as the return value from the store.   But we
-    will get no later than the return value from vote.
-    """
-    
-    def _dostore(self, oid=None, revid=None, data=None, version=None,
-                 already_pickled=0):
-        """Do a complete storage transaction.
-
-        The defaults are:
-         - oid=None, ask the storage for a new oid
-         - revid=None, use a revid of ZERO
-         - data=None, pickle up some arbitrary data (the integer 7)
-         - version=None, use the empty string version
-        
-        Returns the object's new revision id.
-        """
-        if oid is None:
-            oid = self._storage.new_oid()
-        if revid is None:
-            revid = ZERO
-        if data is None:
-            data = MinPO(7)
-        if not already_pickled:
-            data = StorageTestBase.zodb_pickle(data)
-        if version is None:
-            version = ''
-        # Begin the transaction
-        self._storage.tpc_begin(self._transaction)
-        # Store an object
-        r1 = self._storage.store(oid, revid, data, version,
-                                 self._transaction)
-        s1 = self._get_serial(r1)
-        # Finish the transaction
-        r2 = self._storage.tpc_vote(self._transaction)
-        s2 = self._get_serial(r2)
-        self._storage.tpc_finish(self._transaction)
-        # s1, s2 can be None or dict
-        assert not (s1 and s2)
-        return s1 and s1[oid] or s2 and s2[oid]
-
-    def _get_serial(self, r):
-        """Return oid -> serialno dict from sequence of ZEO replies."""
-        d = {}
-        if r is None:
-            return None
-        if type(r) == types.StringType:
-            raise RuntimeError, "unexpected ZEO response: no oid"
-        else:
-            for oid, serial in r:
-                if isinstance(serial, Exception):
-                    raise serial
-                d[oid] = serial
-        return d
-
 # Some of the ZEO tests depend on the version of FileStorage available
 # for the tests.  If we run these tests using Zope 2.3, FileStorage
 # doesn't support TransactionalUndo.
