@@ -249,8 +249,8 @@ class ZEOStorage:
     def endZeoVerify(self):
         self.client.endVerify()
 
-    def pack(self, time, wait=None):
-        if wait is not None:
+    def pack(self, time, wait=0):
+        if wait:
             return run_in_thread(self.pack_impl, time)
         else:
             # If the client isn't waiting for a reply, start a thread
