@@ -18,10 +18,9 @@ purposes. It acts like a memo for unpickling.  It also keeps recent
 objects in memory under the assumption that they may be used again.
 """
 
-import time
-import types
-import unittest
 import gc
+import time
+import unittest
 
 import ZODB
 import ZODB.MappingStorage
@@ -81,8 +80,8 @@ class DBMethods(CacheTestBase):
 
     def checkCacheDetail(self):
         for name, count in self.db.cacheDetail():
-            self.assert_(isinstance(name, types.StringType))
-            self.assert_(isinstance(count, types.IntType))
+            self.assert_(isinstance(name, str))
+            self.assert_(isinstance(count, int))
 
     def checkCacheExtremeDetail(self):
         expected = ['conn_no', 'id', 'oid', 'rc', 'klass', 'state']
