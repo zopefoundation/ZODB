@@ -62,7 +62,7 @@ def pack1(addr, storage, days, wait):
     cs.close()
 
 def pack2(addr, storage, days):
-    cs = ClientStorage(addr, storage=storage, wait=1)
+    cs = ClientStorage(addr, storage=storage, wait=1, read_only=1)
     cs.pack(wait=1, days=days)
     cs.close()
 
