@@ -1136,15 +1136,16 @@ The following exceptions are defined by this package:
 \begin{excdesc}{ConfigurationError}
   Base class for exceptions specific to the \module{ZConfig} package.
   All instances provide a \member{message} attribute that describes
-  the specific error.
+  the specific error, and a \member{url} attribute that gives the URL
+  of the resource the error was located in, or \constant{None}.
 \end{excdesc}
 
 \begin{excdesc}{ConfigurationSyntaxError}
   Exception raised when a configuration source does not conform to the
-  allowed syntax.  In addition to the \member{message} attribute,
-  exceptions of this type offer the \member{url} and \member{lineno}
-  attributes, which provide the URL and line number at which the error
-  was detected.
+  allowed syntax.  In addition to the \member{message} and
+  \member{url} attributes, exceptions of this type offer the
+  \member{lineno} attribute, which provides the line number at which
+  the error was detected.
 \end{excdesc}
 
 \begin{excdesc}{DataConversionError}
