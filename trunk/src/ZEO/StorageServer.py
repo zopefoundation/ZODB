@@ -49,13 +49,6 @@ def log(message, level=zLOG.INFO, label="ZEO Server:%s" % os.getpid(),
         error=None):
     zLOG.LOG(label, level, message, error=error)
 
-# a version of log that includes the storage name
-def slog(storage, msg, level=zLOG.INFO, error=None, pid=os.getpid()):
-    name = getattr(storage, '__name__', None)
-    if name is None:
-        name = str(storage)
-    zLOG.LOG("ZEO Server:%s:%s" % (pid, name), level, msg, error=error)
-
 class StorageServerError(StorageError):
     pass
 
@@ -126,6 +119,7 @@ class ZEOStorage:
     def close(self):
         # When this storage closes, we must ensure that it aborts
         # any pending transaction.  Not sure if this is the clearest way.
+        zLOG.LOG
         if self._transaction is not None:
             self.tpc_abort(self._transaction.id)
         self._conn.close()
@@ -145,8 +139,10 @@ class ZEOStorage:
         return "<%s %X trans=%s s_trans=%s>" % (name, id(self), tid, stid)
 
     def _log(self, msg, level=zLOG.INFO, error=None, pid=os.getpid()):
-        zLOG.LOG("ZEO Server:%s:%s" % (pid, self.__storage_id),
-                   level, msg, error=error)
+        name = getattr(self, '__name__', None)
+        if name is None:
+            name = str(self)
+        zLOG.LOG("ZEO Server:%s:%s" % (pid, name), level, msg, error=error)
 
     def setup_delegation(self):
         """Delegate several methods to the storage"""
@@ -162,16 +158,14 @@ class ZEOStorage:
     def _check_tid(self, tid, exc=None):
         caller = sys._getframe().f_back.f_code.co_name
         if self._transaction is None:
-            self._log("no current transaction: %s()" % caller,
-                zLOG.PROBLEM)
+            self._log("no current transaction: %s()" % caller, zLOG.PROBLEM)
             if exc is not None:
                 raise exc(None, tid)
             else:
                 return 0
         if self._transaction.id != tid:
             self._log("%s(%s) invalid; current transaction = %s" % \
-                (caller, repr(tid), repr(self._transaction.id)),
-                zLOG.PROBLEM)
+                 (caller, repr(tid), repr(self._transaction.id)), zLOG.PROBLEM)
             if exc is not None:
                 raise exc(self._transaction.id, tid)
             else:
@@ -487,8 +481,8 @@ class ImmediateCommitStrategy:
         except Exception:
             # Unexpected storage errors are logged and passed to the client
             exc_info = sys.exc_info()
-            slog(self.storage, "store error: %s, %s" % exc_info[:2],
-                zLOG.ERROR, error=exc_info)
+            self.storage._log("store error: %s, %s" % exc_info[:2],
+                              zLOG.ERROR, error=exc_info)
             newserial = exc_info[1]
             del exc_info
         else:
@@ -499,7 +493,7 @@ class ImmediateCommitStrategy:
             dump(newserial, 1)
         except:
             msg = "Couldn't pickle storage exception: %s" % repr(newserial)
-            slog(self.storage, msg, zLOG.ERROR)
+            self.storage._log(msg, zLOG.ERROR)
             dump('', 1) # clear pickler
             r = StorageServerError(msg)
             newserial = r
