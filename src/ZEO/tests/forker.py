@@ -65,7 +65,7 @@ def run_server(storage, addr, rd, wr):
         os.unlink(addr)
 
 def start_zeo(storage, cache=None, cleanup=None, domain="AF_INET",
-              storage_id="1"):
+              storage_id="1", cache_size=20000000):
     """Setup ZEO client-server for storage.
 
     Returns a ClientStorage instance and a ZEOClientExit instance.
@@ -84,9 +84,7 @@ def start_zeo(storage, cache=None, cleanup=None, domain="AF_INET",
 
     pid, exit = start_zeo_server(storage, addr)
     s = ZEO.ClientStorage.ClientStorage(addr, storage_id,
-                                        debug=1, client=cache)
-    if hasattr(s, 'is_connected'):
-        while not s.is_connected():
-            time.sleep(0.1)
+                                        debug=1, client=cache,
+                                        cache_size=cache_size)
     return s, exit, pid
 
