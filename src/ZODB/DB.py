@@ -13,7 +13,7 @@
 ##############################################################################
 """Database objects
 
-$Id: DB.py,v 1.77 2004/04/19 21:19:05 tim_one Exp $"""
+$Id: DB.py,v 1.78 2004/04/23 17:26:37 gintautasm Exp $"""
 
 import cPickle, cStringIO, sys
 from thread import allocate_lock
@@ -27,7 +27,7 @@ from ZODB.serialize import referencesf
 
 import transaction
 
-logger = logging.getLogger('zodb.db')
+logger = logging.getLogger('ZODB.DB')
 
 class DB(object):
     """The Object Database

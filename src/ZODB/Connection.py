@@ -13,7 +13,7 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.154 2004/04/19 20:24:02 tim_one Exp $"""
+$Id: Connection.py,v 1.155 2004/04/23 17:26:37 gintautasm Exp $"""
 
 import logging
 import sys
@@ -172,7 +172,7 @@ class Connection(ExportImport, object):
              register for afterCompletion() calls.
         """
 
-        self._log = logging.getLogger("zodb.conn")
+        self._log = logging.getLogger("ZODB.Connection")
         self._storage = None
         self._debug_info = ()
 

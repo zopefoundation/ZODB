@@ -20,7 +20,7 @@ from pickle import PicklingError
 from ZODB.POSException import ConflictError
 from ZODB.loglevels import BLATHER
 
-logger = logging.getLogger('zodb.ConflictResolution')
+logger = logging.getLogger('ZODB.ConflictResolution')
 
 ResolvedSerial = 'rs'
 

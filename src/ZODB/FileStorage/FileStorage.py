@@ -13,7 +13,7 @@
 ##############################################################################
 """Storage implementation using a log written to a single file.
 
-$Revision: 1.15 $
+$Revision: 1.16 $
 """
 
 import base64
@@ -52,7 +52,7 @@ t32 = 1L << 32
 
 packed_version = "FS21"
 
-logger = logging.getLogger('zodb.FileStorage')
+logger = logging.getLogger('ZODB.FileStorage')
 
 
 def panic(message, *data):

@@ -23,7 +23,7 @@ from ZODB.utils import p64, u64
 from ZODB.serialize import referencesf
 import sys
 
-logger = logging.getLogger('zodb.ExportImport')
+logger = logging.getLogger('ZODB.ExportImport')
 
 class ExportImport:
 
