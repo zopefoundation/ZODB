@@ -115,7 +115,7 @@
 #   may have a back pointer to a version record or to a non-version
 #   record.
 #
-__version__='$Revision: 1.111 $'[11:-2]
+__version__='$Revision: 1.112 $'[11:-2]
 
 import base64
 from cPickle import Pickler, Unpickler, loads
@@ -1045,19 +1045,20 @@ class FileStorage(BaseStorage.BaseStorage,
 
     def _getVersion(self, oid, pos):
         self._file.seek(pos)
-        read=self._file.read
-        h=read(DATA_HDR_LEN)
-        doid,serial,sprev,stloc,vlen,splen = unpack(DATA_HDR, h)
+        h = self._file.read(DATA_HDR_LEN)
+        doid, serial, sprev, stloc, vlen, splen = unpack(DATA_HDR, h)
         assert doid == oid
         if vlen:
-            h=read(16)
-            return read(vlen), h[:8]
+            h = self._file.read(16)
+            return self._file.read(vlen), h[:8]
         else:
-            return '',''
+            return '', ''
 
     def _getSerial(self, oid, pos):
-        self._file.seek(pos+8)
-        return self._file.read(8)
+        self._file.seek(pos)
+        h = self._file.read(16)
+        assert oid == h[:8]
+        return h[8:]
 
     def _transactionalUndoRecord(self, oid, pos, serial, pre, version):
         """Get the indo information for a data record
@@ -1069,6 +1070,8 @@ class FileStorage(BaseStorage.BaseStorage,
         """
 
         copy=1 # Can we just copy a data pointer
+
+        # First check if it is possible to undo this record.
         tpos=self._tindex.get(oid, 0)
         ipos=self._index.get(oid, 0)
         tipos=tpos or ipos
@@ -1103,10 +1106,13 @@ class FileStorage(BaseStorage.BaseStorage,
                     # LoadBack gave us a key error. Bail.
                     raise UndoError
 
-        if pre:
-            version, snv = self._getVersion(oid, pre)
-        else:
-            version, snv = '', ''
+        # Return the data that should be written in the undo record.
+        if not pre:
+            # There is no previous revision, because the object creation
+            # is being undone.
+            return '', 0, '', '', ipos
+
+        version, snv = self._getVersion(oid, pre)
         if copy:
             # we can just copy our previous-record pointer forward
             return '', pre, version, snv, ipos
@@ -1265,7 +1271,7 @@ class FileStorage(BaseStorage.BaseStorage,
                 tindex[oid] = here
                 here += odlen
 
-            pos=pos+dlen
+            pos += dlen
             if pos > tend:
                 raise UndoError, 'non-undoable transaction'
 
@@ -2142,6 +2148,7 @@ def _loadBack_impl(file, oid, back):
     while 1:
         old = U64(back)
         if not old:
+            # If the backpointer is 0, the object does not currently exist.
             raise POSKeyError(oid)
         file.seek(old)
         h = file.read(DATA_HDR_LEN)
