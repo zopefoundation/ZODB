@@ -58,6 +58,10 @@ class BlobStorage(ProxyBase):
             try:
                 os.rename(blobfilename, targetname)
             except OSError:
+                # XXX CM: I don't think this is a good idea; maybe just fail
+                # here instead of doing a brute force copy?  This is awfully
+                # expensive and people won't know it's happening without
+                # at least a warning.
                 target = file(targetname, "wb")
                 source = file(blobfilename, "rb")
                 utils.cp(blobfile, target)
