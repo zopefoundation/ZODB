@@ -460,7 +460,7 @@ class Connection(smac.SizedMessageAsyncConnection):
         else:
             asyncore.poll(0.0, self._map)
 
-    def pending(self):
+    def pending(self, timeout=0):
         """Invoke mainloop until any pending messages are handled."""
         if __debug__:
             self.log("pending(), async=%d" % self.is_async(), level=zLOG.TRACE)
@@ -468,26 +468,50 @@ class Connection(smac.SizedMessageAsyncConnection):
             return
         # Inline the asyncore poll() function to know whether any input
         # was actually read.  Repeat until no input is ready.
-        # XXX This only does reads.
-        r_in = [self._fileno]
-        w_in = []
+
+        # Pending does reads and writes.  In the case of server
+        # startup, we may need to write out zeoVerify() messages.
+        # Always check for read status, but don't check for write status
+        # only there is output to do.  Only continue in this loop as
+        # long as there is data to read.
+        r = r_in = [self._fileno]
         x_in = []
-        while 1:
+        while r and not self.closed:
+            if self.writable():
+                w_in = [self._fileno]
+            else:
+                w_in = []
             try:
-                r, w, x = select.select(r_in, w_in, x_in, 0)
+                r, w, x = select.select(r_in, w_in, x_in, timeout)
             except select.error, err:
                 if err[0] == errno.EINTR:
+                    timeout = 0
                     continue
                 else:
                     raise
-            if not r:
-                break
-            try:
-                self.handle_read_event()
-            except asyncore.ExitNow:
-                raise
-            except:
-                self.handle_error()
+            else:
+                # Make sure any subsequent select does not block.  The
+                # loop is only intended to make sure all incoming data is
+                # returned.
+
+                # XXX What if the server sends a lot of invalidations,
+                # such that pending never finishes?  Seems unlikely, but
+                # not impossible.
+                timeout = 0
+            if r:
+                try:
+                    self.handle_read_event()
+                except asyncore.ExitNow:
+                    raise
+                except:
+                    self.handle_error()
+            if w:
+                try:
+                    self.handle_write_event()
+                except asyncore.ExitNow:
+                    raise
+                except:
+                    self.handle_error()
 
 class ManagedServerConnection(Connection):
     """Server-side Connection subclass."""
