@@ -214,7 +214,7 @@ class ClientStorage:
         # _is_read_only stores the constructor argument
         self._is_read_only = read_only
         # _conn_is_read_only stores the status of the current connection
-        self._conn_is_read_only = False
+        self._conn_is_read_only = 0
         self._storage = storage
         self._read_only_fallback = read_only_fallback
         # _server_addr is used by sortKey()
@@ -367,7 +367,7 @@ class ClientStorage:
         """
         log2(INFO, "Testing connection %r" % conn)
         # XXX Check the protocol version here?
-        self._conn_is_read_only = False
+        self._conn_is_read_only = 0
         stub = self.StorageServerStubClass(conn)
         try:
             stub.register(str(self._storage), self._is_read_only)
@@ -377,7 +377,7 @@ class ClientStorage:
                 raise
             log2(INFO, "Got ReadOnlyError; trying again with read_only=1")
             stub.register(str(self._storage), read_only=1)
-            self._conn_is_read_only = True
+            self._conn_is_read_only = 1
             return 0
 
     def notifyConnected(self, conn):
@@ -559,7 +559,7 @@ class ClientStorage:
     def isReadOnly(self):
         """Storage API: return whether we are in read-only mode."""
         if self._is_read_only:
-            return True
+            return 1
         else:
             # If the client is configured for a read-write connection
             # but has a read-only fallback connection, _conn_is_read_only
@@ -961,12 +961,18 @@ class ClientStorage:
     end = endVerify
     Invalidate = invalidateTrans
 
+try:
+    StopIteration
+except NameError:
+    class StopIteration(Exception):
+        pass
+
 class InvalidationLogIterator:
     """Helper class for reading invalidations in endVerify."""
-    # XXX will require extra work to backport to Python 2.1
 
     def __init__(self, fileobj):
         self._unpickler = cPickle.Unpickler(fileobj)
+        self.getitem_i = 0
 
     def __iter__(self):
         return self
@@ -976,3 +982,15 @@ class InvalidationLogIterator:
         if oid is None:
             raise StopIteration
         return oid, version
+
+    # The __getitem__() method is needed to support iteration
+    # in Python 2.1.
+
+    def __getitem__(self, i):
+        assert i == self.getitem_i
+        try:
+            obj = self.next()
+        except StopIteration:
+            raise IndexError, i
+        self.getitem_i += 1
+        return obj

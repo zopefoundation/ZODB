@@ -13,7 +13,10 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.88 2003/04/08 15:55:44 jeremy Exp $"""
+$Id: Connection.py,v 1.89 2003/04/22 18:04:37 jeremy Exp $"""
+
+from __future__ import nested_scopes
+
 from cPickleCache import PickleCache
 from POSException import ConflictError, ReadConflictError, TransactionError
 from ExtensionClass import Base
