@@ -960,12 +960,11 @@ class ClientStorage(object):
             self._lock.acquire()  # for atomic processing of invalidations
             try:
                 self._update_cache(tid)
+                self._cache.setLastTid(tid)
                 if f is not None:
                     f(tid)
             finally:
                 self._lock.release()
-            # XXX Shouldn't this cache call be made while holding the lock?
-            self._cache.setLastTid(tid)
 
             r = self._check_serials()
             assert r is None or len(r) == 0, "unhandled serialnos: %s" % r
