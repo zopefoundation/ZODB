@@ -41,7 +41,7 @@ Options:
     -t n       Number of concurrent threads to run.
 """
 
-import asyncore  
+import asyncore
 import sys, os, getopt, string, time
 ##sys.path.insert(0, os.getcwd())
 
@@ -81,7 +81,7 @@ def work(db, results, nrep, compress, data, detailed, minimize, threadno=None):
         for r in 1, 10, 100, 1000:
             t = time.time()
             conflicts = 0
-            
+
             jar = db.open()
             while 1:
                 try:
@@ -105,7 +105,7 @@ def work(db, results, nrep, compress, data, detailed, minimize, threadno=None):
                 else:
                     break
             jar.close()
-            
+
             t = time.time() - t
             if detailed:
                 if threadno is None:
@@ -205,11 +205,11 @@ def mean(l):
     for v in l:
         tot = tot + v
     return tot / len(l)
-    
+
 ##def compress(s):
 ##    c = zlib.compressobj()
 ##    o = c.compress(s)
-##    return o + c.flush()    
+##    return o + c.flush()
 
 if __name__=='__main__':
     main(sys.argv[1:])

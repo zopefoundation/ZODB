@@ -103,8 +103,13 @@ def start_child(zaddr):
     pid = os.fork()
     if pid != 0:
         return pid
-    
-    storage = ClientStorage(zaddr, debug=1, min_disconnect_poll=0.5)
+    try:
+        _start_child(zaddr)
+    finally:
+        os._exit(0)
+
+def _start_child(zaddr):
+    storage = ClientStorage(zaddr, debug=1, min_disconnect_poll=0.5, wait=1)
     db = ZODB.DB(storage, pool_size=NUM_CONNECTIONS)
     setup(db.open())
     conns = []
@@ -128,8 +133,6 @@ def start_child(zaddr):
         else:
             c.__count += 1
         work(c)
-
-    os._exit(0)
 
 if __name__ == "__main__":
     main()

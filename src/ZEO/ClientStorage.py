@@ -13,185 +13,166 @@
 ##############################################################################
 """Network ZODB storage client
 """
-__version__='$Revision: 1.40 $'[11:-2]
+__version__='$Revision: 1.41 $'[11:-2]
 
-import struct, time, os, socket, string
-import tempfile, thread
-from struct import pack, unpack
-from types import TupleType
+import cPickle
+import os
+import tempfile
+import threading
+import time
 
-import Invalidator, ExtensionClass
-import ThreadedAsync, Sync, zrpc, ClientCache
+from ZEO import ClientCache, ServerStub
+from ZEO.TransactionBuffer import TransactionBuffer
+from ZEO.Exceptions import Disconnected
+from ZEO.zrpc.client import ConnectionManager
 
-from ZODB import POSException, BaseStorage
+from ZODB import POSException
 from ZODB.TimeStamp import TimeStamp
+from zLOG import LOG, PROBLEM, INFO, BLATHER
 
-from ZEO.logger import zLogger
-
-log = zLogger("ZEO Client")
+def log2(type, msg, subsys="ClientStorage %d" % os.getpid()):
+    LOG(subsys, type, msg)
 
 try:
     from ZODB.ConflictResolution import ResolvedSerial
-except:
-    ResolvedSerial='rs'
+except ImportError:
+    ResolvedSerial = 'rs'
 
 class ClientStorageError(POSException.StorageError):
     """An error occured in the ZEO Client Storage"""
 
 class UnrecognizedResult(ClientStorageError):
-    """A server call returned an unrecognized result
-    """
+    """A server call returned an unrecognized result"""
 
-class ClientDisconnected(ClientStorageError):
-    """The database storage is disconnected from the storage.
-    """
+class ClientDisconnected(ClientStorageError, Disconnected):
+    """The database storage is disconnected from the storage."""
 
-class ClientStorage(ExtensionClass.Base, BaseStorage.BaseStorage):
+def get_timestamp(prev_ts=None):
+    t = time.time()
+    t = apply(TimeStamp, (time.gmtime(t)[:5] + (t % 60,)))
+    if prev_ts is not None:
+        t = t.laterThan(prev_ts)
+    return t
 
-    _connected=_async=0
-    __begin='tpc_begin_sync'
+class DisconnectedServerStub:
+    """Raise ClientDisconnected on all attribute access."""
 
-    def __init__(self, connection, storage='1', cache_size=20000000,
-                 name='', client='', debug=0, var=None,
+    def __getattr__(self, attr):
+        raise ClientDisconnected()
+
+disconnected_stub = DisconnectedServerStub()
+
+class ClientStorage:
+
+    def __init__(self, addr, storage='1', cache_size=20000000,
+                 name='', client='', var=None,
                  min_disconnect_poll=5, max_disconnect_poll=300,
-                 wait_for_server_on_startup=1):
+                 wait=0, read_only=0):
+
+        self._server = disconnected_stub
+        self._is_read_only = read_only
+        self._storage = storage
+
+        self._info = {'length': 0, 'size': 0, 'name': 'ZEO Client',
+                      'supportsUndo':0, 'supportsVersions': 0}
+
+        self._tbuf = TransactionBuffer()
+        self._db = None
+        self._oids = []
+        # _serials: stores (oid, serialno) as returned by server
+        # _seriald: _check_serials() moves from _serials to _seriald,
+        #           which maps oid to serialno
+        self._serials = []
+        self._seriald = {}
+
+        self._basic_init(name or str(addr))
 
         # Decide whether to use non-temporary files
-        client=client or os.environ.get('ZEO_CLIENT','')
+        client = client or os.environ.get('ZEO_CLIENT', '')
+        self._cache = ClientCache.ClientCache(storage, cache_size,
+                                              client=client, var=var)
+        self._cache.open() # XXX open now? or later?
 
-        self._connection=connection
-        self._storage=storage
-        self._debug=debug
-        self._wait_for_server_on_startup=wait_for_server_on_startup
+        self._rpc_mgr = ConnectionManager(addr, self,
+                                          tmin=min_disconnect_poll,
+                                          tmax=max_disconnect_poll)
 
-        self._info={'length': 0, 'size': 0, 'name': 'ZEO Client',
-                    'supportsUndo':0, 'supportsVersions': 0,
-                    }
-
-        if debug:
-            debug_log = log
+        # XXX What if we can only get a read-only connection and we
+        # want a read-write connection?  Looks like the current code
+        # will block forever.  (Future feature)
+        if wait:
+            self._rpc_mgr.connect(sync=1)
         else:
-            debug_log = None
-        self._call=zrpc.asyncRPC(connection, debug=debug_log,
-                                 tmin=min_disconnect_poll,
-                                 tmax=max_disconnect_poll)
+            if not self._rpc_mgr.attempt_connect():
+                self._rpc_mgr.connect()
 
-        name = name or str(connection)
+    def _basic_init(self, name):
+        """Handle initialization activites of BaseStorage"""
 
-        self.closed = 0
-        self._tfile=tempfile.TemporaryFile()
-        self._oids=[]
-        self._serials=[]
-        self._seriald={}
+        # XXX does anything depend on attr being __name__
+        self.__name__ = name
 
-        ClientStorage.inheritedAttribute('__init__')(self, name)
+        # A ClientStorage only allows one client to commit at a time.
+        # A client enters the commit state by finding tpc_tid set to
+        # None and updating it to the new transaction's id.  The
+        # tpc_tid variable is protected by tpc_cond.
+        self.tpc_cond = threading.Condition()
+        self._transaction = None
 
-        self.__lock_acquire=self._lock_acquire
+        # Prevent multiple new_oid calls from going out.  The _oids
+        # variable should only be modified while holding the
+        # oid_cond.
+        self.oid_cond = threading.Condition()
 
-        self._cache=ClientCache.ClientCache(
-            storage, cache_size, client=client, var=var)
+        commit_lock = threading.Lock()
+        self._commit_lock_acquire = commit_lock.acquire
+        self._commit_lock_release = commit_lock.release
 
+        t = self._ts = get_timestamp()
+        self._serial = `t`
+        self._oid='\0\0\0\0\0\0\0\0'
 
-        ThreadedAsync.register_loop_callback(self.becomeAsync)
-
-        # IMPORTANT: Note that we aren't fully "there" yet.
-        # In particular, we don't actually connect to the server
-        # until we have a controlling database set with registerDB
-        # below.
+    def close(self):
+        if self._tbuf is not None:
+            self._tbuf.close()
+        if self._cache is not None:
+            self._cache.close()
+        self._rpc_mgr.close()
 
     def registerDB(self, db, limit):
-        """Register that the storage is controlled by the given DB.
-        """
-        
-        # Among other things, we know that our data methods won't get
-        # called until after this call.
+        """Register that the storage is controlled by the given DB."""
+        log2(INFO, "registerDB(%s, %s)" % (repr(db), repr(limit)))
+        self._db = db
 
-        self.invalidator = Invalidator.Invalidator(db.invalidate,
-                                                   self._cache.invalidate)
+    def is_connected(self):
+        if self._server is disconnected_stub:
+            return 0
+        else:
+            return 1
 
-        def out_of_band_hook(
-            code, args,
-            get_hook={
-                'b': (self.invalidator.begin, 0),
-                'i': (self.invalidator.invalidate, 1),
-                'e': (self.invalidator.end, 0),
-                'I': (self.invalidator.Invalidate, 1),
-                'U': (self._commit_lock_release, 0),
-                's': (self._serials.append, 1),
-                'S': (self._info.update, 1),
-                }.get):
+    def notifyConnected(self, c):
+        log2(INFO, "Connected to storage via %s" % repr(c))
 
-            hook = get_hook(code, None)
-            if hook is None: return
-            hook, flag = hook
-            if flag: hook(args)
-            else: hook()
+        # check the protocol version here?
 
-        self._call.setOutOfBand(out_of_band_hook)
+        stub = ServerStub.StorageServer(c)
 
-        # Now that we have our callback system in place, we can
-        # try to connect
+        self._oids = []
 
-        self._startup()
+        # XXX Why is this synchronous?  If it were async, verification
+        # would start faster.
+        stub.register(str(self._storage), self._is_read_only)
+        self._info.update(stub.get_info())
+        self.verify_cache(stub)
 
-    def _startup(self):
+        # Don't make the server available to clients until after
+        # validating the cache
+        self._server = stub
 
-        if not self._call.connect(not self._wait_for_server_on_startup):
-
-            # If we can't connect right away, go ahead and open the cache
-            # and start a separate thread to try and reconnect.
-
-            log.problem("Failed to connect to storage")
-            self._cache.open()
-            thread.start_new_thread(self._call.connect,(0,))
-
-            # If the connect succeeds then this work will be done by
-            # notifyConnected
-
-    def notifyConnected(self, s):
-        log.info("Connected to storage")
-        self._lock_acquire()
-        try:
-            
-            # We let the connection keep coming up now that
-            # we have the storage lock. This way, we know no calls
-            # will be made while in the process of coming up.
-
-            self._call.finishConnect(s)
-
-            if self.closed:
-                return
-
-            self._connected=1
-            self._oids=[]
-
-            # we do synchronous commits until we are sure that
-            # we have and are ready for a main loop.
-
-            # Hm. This is a little silly. If self._async, then
-            # we will really never do a synchronous commit.
-            # See below.
-            self.__begin='tpc_begin_sync'
-            
-            self._call.message_output(str(self._storage))
-
-            ### This seems silly. We should get the info asynchronously.
-            # self._info.update(self._call('get_info'))
-
-            cached=self._cache.open()
-            ### This is a little expensive for large caches
-            if cached:
-                self._call.sendMessage('beginZeoVerify')
-                for oid, (s, vs) in cached:
-                    self._call.sendMessage('zeoVerify', oid, s, vs)
-                self._call.sendMessage('endZeoVerify')
-
-        finally: self._lock_release()
-
-        if self._async:
-            import asyncore
-            self.becomeAsync(asyncore.socket_map)
-
+    def verify_cache(self, server):
+        server.beginZeoVerify()
+        self._cache.verify(server.zeoVerify)
+        server.endZeoVerify()
 
     ### Is there a race condition between notifyConnected and
     ### notifyDisconnected? In Particular, what if we get
@@ -201,370 +182,334 @@ class ClientStorage(ExtensionClass.Base, BaseStorage.BaseStorage):
     ### notifyDisconnected had to get the instance lock.  There's
     ### nothing to gain by getting the instance lock.
 
-    ### Note that we *don't* have to worry about getting connected
-    ### in the middle of notifyDisconnected, because *it's*
-    ### responsible for starting the thread that makes the connection.
+    def notifyDisconnected(self):
+        log2(PROBLEM, "Disconnected from storage")
+        self._server = disconnected_stub
 
-    def notifyDisconnected(self, ignored):
-        log.problem("Disconnected from storage")
-        self._connected=0
-        self._transaction=None
-        thread.start_new_thread(self._call.connect,(0,))
-        if self._transaction is not None:
-            try:
-                self._commit_lock_release()
-            except:
-                pass
-
-    def becomeAsync(self, map):
-        self._lock_acquire()
-        try:
-            self._async=1
-            if self._connected:
-                self._call.setLoop(map, getWakeup())
-                self.__begin='tpc_begin'
-        finally: self._lock_release()
-
-    def __len__(self): return self._info['length']
-
-    def abortVersion(self, src, transaction):
-        if transaction is not self._transaction:
-            raise POSException.StorageTransactionError(self, transaction)
-        self._lock_acquire()
-        try:
-            oids=self._call('abortVersion', src, self._serial)
-            vlen = pack(">H", len(src))
-            for oid in oids:
-                self._tfile.write("i%s%s%s" % (oid, vlen, src))
-            return oids
-        finally: self._lock_release()
-
-    def close(self):
-        self._lock_acquire()
-        try:
-            log.info("close")
-            self._call.closeIntensionally()
-            try:
-                self._tfile.close()
-            except os.error:
-                # On Windows, this can fail if it is called more than
-                # once, because it tries to delete the file each
-                # time.
-                pass
-            self._cache.close()
-            if self.invalidator is not None:
-                self.invalidator.close()
-                self.invalidator = None
-            self.closed = 1
-        finally: self._lock_release()
-        
-    def commitVersion(self, src, dest, transaction):
-        if transaction is not self._transaction:
-            raise POSException.StorageTransactionError(self, transaction)
-        self._lock_acquire()
-        try:
-            oids=self._call('commitVersion', src, dest, self._serial)
-            if dest:
-                vlen = pack(">H", len(src))
-                # just invalidate our version data
-                for oid in oids:
-                    self._tfile.write("i%s%s%s" % (oid, vlen, src))
-            else:
-                vlen = pack(">H", len(dest))
-                # dest is '', so invalidate version and non-version
-                for oid in oids:
-                    self._tfile.write("i%s%s%s" % (oid, vlen, dest))
-            return oids
-        finally: self._lock_release()
+    def __len__(self):
+        return self._info['length']
 
     def getName(self):
-        return "%s (%s)" % (
-            self.__name__,
-            self._connected and 'connected' or 'disconnected')
+        return "%s (%s)" % (self.__name__, "XXX")
 
-    def getSize(self): return self._info['size']
-                  
-    def history(self, oid, version, length=1):
-        self._lock_acquire()
-        try: return self._call('history', oid, version, length)     
-        finally: self._lock_release()       
-                  
-    def loadSerial(self, oid, serial):
-        self._lock_acquire()
-        try: return self._call('loadSerial', oid, serial)     
-        finally: self._lock_release()       
+    def getSize(self):
+        return self._info['size']
 
-    def load(self, oid, version, _stuff=None):
-        self._lock_acquire()
-        try:
-            cache=self._cache
-            p = cache.load(oid, version)
-            if p: return p
-            p, s, v, pv, sv = self._call('zeoLoad', oid)
-            cache.checkSize(0)
-            cache.store(oid, p, s, v, pv, sv)
-            if not v or not version or version != v:
-                if s: return p, s
-                raise KeyError, oid # no non-version data for this
-            return pv, sv
-        finally: self._lock_release()
-                    
-    def modifiedInVersion(self, oid):
-        self._lock_acquire()
-        try:
-            v=self._cache.modifiedInVersion(oid)
-            if v is not None: return v
-            return self._call('modifiedInVersion', oid)
-        finally: self._lock_release()
-
-    def new_oid(self, last=None):
-        self._lock_acquire()
-        try:
-            oids=self._oids
-            if not oids:
-                oids[:]=self._call('new_oids')
-                oids.reverse()
-                
-            return oids.pop()
-        finally: self._lock_release()
-        
-    def pack(self, t=None, rf=None, wait=0, days=0):
-        # Note that we ignore the rf argument.  The server
-        # will provide it's own implementation.
-        if t is None: t=time.time()
-        t=t-(days*86400)
-        self._lock_acquire()
-        try: return self._call('pack', t, wait)
-        finally: self._lock_release()
-
-    def store(self, oid, serial, data, version, transaction):
-        if transaction is not self._transaction:
-            raise POSException.StorageTransactionError(self, transaction)
-        self._lock_acquire()
-        try:
-            serial=self._call.sendMessage('storea', oid, serial,
-                                          data, version, self._serial)
-            
-            write=self._tfile.write
-            buf = string.join(("s", oid,
-                               pack(">HI", len(version), len(data)),
-                               version, data), "")
-            write(buf)
-
-            if self._serials:
-                s=self._serials
-                l=len(s)
-                r=s[:l]
-                del s[:l]
-                d=self._seriald
-                for oid, s in r: d[oid]=s
-                return r
-
-            return serial
-        
-        finally: self._lock_release()
-
-    def tpc_vote(self, transaction):
-        self._lock_acquire()
-        try:
-            if transaction is not self._transaction:
-                return
-            self._call('vote', self._serial)
-
-            if self._serials:
-                s=self._serials
-                l=len(s)
-                r=s[:l]
-                del s[:l]
-                d=self._seriald
-                for oid, s in r: d[oid]=s
-                return r
-        
-        finally: self._lock_release()
-            
     def supportsUndo(self):
         return self._info['supportsUndo']
-    
+
     def supportsVersions(self):
         return self._info['supportsVersions']
-    
+
     def supportsTransactionalUndo(self):
         try:
             return self._info['supportsTransactionalUndo']
         except KeyError:
             return 0
-        
+
+    def isReadOnly(self):
+        return self._is_read_only
+
+    def _check_trans(self, trans, exc=None):
+        if self._transaction is not trans:
+            if exc is None:
+                return 0
+            else:
+                raise exc(self._transaction, trans)
+        return 1
+
+    def _check_tid(self, tid, exc=None):
+        if self.tpc_tid != tid:
+            if exc is None:
+                return 0
+            else:
+                raise exc(self.tpc_tid, tid)
+        return 1
+
+    def abortVersion(self, src, transaction):
+        if self._is_read_only:
+            raise POSException.ReadOnlyError()
+        self._check_trans(transaction,
+                          POSException.StorageTransactionError)
+        oids = self._server.abortVersion(src, self._serial)
+        for oid in oids:
+            self._tbuf.invalidate(oid, src)
+        return oids
+
+    def commitVersion(self, src, dest, transaction):
+        if self._is_read_only:
+            raise POSException.ReadOnlyError()
+        self._check_trans(transaction,
+                          POSException.StorageTransactionError)
+        oids = self._server.commitVersion(src, dest, self._serial)
+        if dest:
+            # just invalidate our version data
+            for oid in oids:
+                self._tbuf.invalidate(oid, src)
+        else:
+            # dest is '', so invalidate version and non-version
+            for oid in oids:
+                self._tbuf.invalidate(oid, dest)
+        return oids
+
+    def history(self, oid, version, length=1):
+        return self._server.history(oid, version, length)
+
+    def loadSerial(self, oid, serial):
+        return self._server.loadSerial(oid, serial)
+
+    def load(self, oid, version, _stuff=None):
+        p = self._cache.load(oid, version)
+        if p:
+            return p
+        if self._server is None:
+            raise ClientDisconnected()
+        p, s, v, pv, sv = self._server.zeoLoad(oid)
+        self._cache.checkSize(0)
+        self._cache.store(oid, p, s, v, pv, sv)
+        if v and version and v == version:
+            return pv, sv
+        else:
+            if s:
+                return p, s
+            raise KeyError, oid # no non-version data for this
+
+    def modifiedInVersion(self, oid):
+        v = self._cache.modifiedInVersion(oid)
+        if v is not None:
+            return v
+        return self._server.modifiedInVersion(oid)
+
+    def new_oid(self, last=None):
+        if self._is_read_only:
+            raise POSException.ReadOnlyError()
+        # avoid multiple oid requests to server at the same time
+        self.oid_cond.acquire()
+        if not self._oids:
+            self._oids = self._server.new_oids()
+            self._oids.reverse()
+            self.oid_cond.notifyAll()
+        oid = self._oids.pop()
+        self.oid_cond.release()
+        return oid
+
+    def pack(self, t=None, rf=None, wait=0, days=0):
+        if self._is_read_only:
+            raise POSException.ReadOnlyError()
+        # rf argument ignored; server will provide it's own implementation
+        if t is None:
+            t = time.time()
+        t = t - (days * 86400)
+        return self._server.pack(t, wait)
+
+    def _check_serials(self):
+        if self._serials:
+            l = len(self._serials)
+            r = self._serials[:l]
+            del self._serials[:l]
+            for oid, s in r:
+                if isinstance(s, Exception):
+                    raise s
+                self._seriald[oid] = s
+            return r
+
+    def store(self, oid, serial, data, version, transaction):
+        if self._is_read_only:
+            raise POSException.ReadOnlyError()
+        self._check_trans(transaction, POSException.StorageTransactionError)
+        self._server.storea(oid, serial, data, version, self._serial)
+        self._tbuf.store(oid, version, data)
+        return self._check_serials()
+
+    def tpc_vote(self, transaction):
+        if transaction is not self._transaction:
+            return
+        self._server.vote(self._serial)
+        return self._check_serials()
+
     def tpc_abort(self, transaction):
-        self._lock_acquire()
+        if transaction is not self._transaction:
+            return
         try:
-            if transaction is not self._transaction: return
-            self._call('tpc_abort', self._serial)
-            self._transaction=None
-            self._tfile.seek(0)
+            self._server.tpc_abort(self._serial)
+            self._tbuf.clear()
             self._seriald.clear()
             del self._serials[:]
-            self._commit_lock_release()
-        finally: self._lock_release()
+        finally:
+            self._transaction = None
+            self.tpc_cond.notify()
+            self.tpc_cond.release()
 
-    def tpc_begin(self, transaction):
-        self._lock_acquire()
+    def tpc_begin(self, transaction, tid=None, status=' '):
+        self.tpc_cond.acquire()
+        while self._transaction is not None:
+            if self._transaction == transaction:
+                # Our tpc_cond lock is re-entrant.  It is allowable for a
+                # client to call two tpc_begins in a row with the same
+                # transaction, and the second of these must be ignored.  Our
+                # locking is safe because the acquire() above gives us a
+                # second lock on tpc_cond, and the following release() brings
+                # us back to owning just the one tpc_cond lock (acquired
+                # during the first of two consecutive tpc_begins).
+                self.tpc_cond.release()
+                return
+            self.tpc_cond.wait()
+
+        if self._server is None:
+            self.tpc_cond.release()
+            self._transaction = None
+            raise ClientDisconnected()
+
+        if tid is None:
+            self._ts = get_timestamp(self._ts)
+            id = `self._ts`
+        else:
+            self._ts = TimeStamp(tid)
+            id = tid
+        self._transaction = transaction
+
         try:
-            if self._transaction is transaction: return
+            r = self._server.tpc_begin(id,
+                                       transaction.user,
+                                       transaction.description,
+                                       transaction._extension,
+                                       tid, status)
+        except:
+            # Client may have disconnected during the tpc_begin().
+            # Then notifyDisconnected() will have released the lock.
+            if self._server is not disconnected_stub:
+                self._transaction = None
+                self.tpc_cond.release()
+            raise
 
-            user=transaction.user
-            desc=transaction.description
-            ext=transaction._extension
-
-            while 1:
-                self._lock_release()
-                self._commit_lock_acquire()
-                self._lock_acquire()
-
-                # We've got the local commit lock. Now get
-                # a (tentative) transaction time stamp.
-                t=time.time()
-                t=apply(TimeStamp,(time.gmtime(t)[:5]+(t%60,)))
-                self._ts=t=t.laterThan(self._ts)
-                id=`t`
-                
-                try:
-                    if not self._connected:
-                        raise ClientDisconnected(
-                            "This action is temporarily unavailable.<p>")
-                    r=self._call(self.__begin, id, user, desc, ext)
-                except:
-                    # XXX can't seem to guarantee that the lock is held here. 
-                    self._commit_lock_release()
-                    raise
-                
-                if r is None: break
-
-            # We have *BOTH* the local and distributed commit
-            # lock, now we can actually get ready to get started.
-            self._serial=id
-            self._tfile.seek(0)
-            self._seriald.clear()
-            del self._serials[:]
-
-            self._transaction=transaction
-            
-        finally: self._lock_release()
+        self._serial = id
+        self._seriald.clear()
+        del self._serials[:]
 
     def tpc_finish(self, transaction, f=None):
-        self._lock_acquire()
+        if transaction is not self._transaction:
+            return
         try:
-            if transaction is not self._transaction: return
-            if f is not None: f()
+            if f is not None:
+                f()
 
-            self._call('tpc_finish', self._serial,
-                       transaction.user,
-                       transaction.description,
-                       transaction._extension)
+            self._server.tpc_finish(self._serial)
 
-            seriald=self._seriald
-            if self._serials:
-                s=self._serials
-                l=len(s)
-                r=s[:l]
-                del s[:l]
-                for oid, s in r: seriald[oid]=s
+            r = self._check_serials()
+            assert r is None or len(r) == 0, "unhandled serialnos: %s" % r
 
-            tfile=self._tfile
-            seek=tfile.seek
-            read=tfile.read
-            cache=self._cache
-            size=tfile.tell()
-            cache.checkSize(size)
-            seek(0)
-            i=0
-            while i < size:
-                opcode=read(1)
-                if opcode == "s":
-                    oid=read(8)
-                    s=seriald[oid]
-                    h=read(6)
-                    vlen, dlen = unpack(">HI", h)
-                    if vlen: v=read(vlen)
-                    else: v=''
-                    p=read(dlen)
-                    if len(p) != dlen:
-                        raise ClientStorageError, (
-                            "Unexpected end of file in client storage "
-                            "temporary file."
-                            )
-                    if s==ResolvedSerial:
-                        self._cache.invalidate(oid, v)
-                    else:
-                        self._cache.update(oid, s, v, p)
-                    i=i+15+vlen+dlen
-                elif opcode == "i":
-                    oid=read(8)
-                    h=read(2)
-                    vlen=unpack(">H", h)[0]
-                    v=read(vlen)
-                    self._cache.invalidate(oid, v)
-                    i=i+11+vlen
+            self._update_cache()
+        finally:
+            self._transaction = None
+            self.tpc_cond.notify()
+            self.tpc_cond.release()
 
-            seek(0)
-
-            self._transaction=None
-            self._commit_lock_release()
-        finally: self._lock_release()
+    def _update_cache(self):
+        # Iterate over the objects in the transaction buffer and
+        # update or invalidate the cache.
+        self._cache.checkSize(self._tbuf.get_size())
+        try:
+            self._tbuf.begin_iterate()
+        except ValueError, msg:
+            raise ClientStorageError, (
+                "Unexpected error reading temporary file in "
+                "client storage: %s" % msg)
+        while 1:
+            try:
+                t = self._tbuf.next()
+            except ValueError, msg:
+                raise ClientStorageError, (
+                    "Unexpected error reading temporary file in "
+                    "client storage: %s" % msg)
+            if t is None:
+                break
+            oid, v, p = t
+            if p is None: # an invalidation
+                s = None
+            else:
+                s = self._seriald[oid]
+            if s == ResolvedSerial or s is None:
+                self._cache.invalidate(oid, v)
+            else:
+                self._cache.update(oid, s, v, p)
+        self._tbuf.clear()
 
     def transactionalUndo(self, trans_id, trans):
-        self._lock_acquire()
-        try:
-            if trans is not self._transaction:
-                raise POSException.StorageTransactionError(self, transaction)
-            oids = self._call('transactionalUndo', trans_id, self._serial)
-            for oid in oids:
-                # write invalidation records with no version
-                self._tfile.write("i%s\000\000" % oid)
-            return oids
-        finally: self._lock_release()
+        if self._is_read_only:
+            raise POSException.ReadOnlyError()
+        self._check_trans(trans, POSException.StorageTransactionError)
+        oids = self._server.transactionalUndo(trans_id, self._serial)
+        for oid in oids:
+            self._tbuf.invalidate(oid, '')
+        return oids
 
     def undo(self, transaction_id):
-        self._lock_acquire()
-        try:
-            oids=self._call('undo', transaction_id)
-            cinvalidate=self._cache.invalidate
-            for oid in oids:
-                cinvalidate(oid,'')                
-            return oids
-        finally: self._lock_release()
-
+        if self._is_read_only:
+            raise POSException.ReadOnlyError()
+        # XXX what are the sync issues here?
+        oids = self._server.undo(transaction_id)
+        for oid in oids:
+            self._cache.invalidate(oid, '')
+        return oids
 
     def undoInfo(self, first=0, last=-20, specification=None):
-        self._lock_acquire()
-        try:
-            return self._call('undoInfo', first, last, specification)
-        finally: self._lock_release()
+        return self._server.undoInfo(first, last, specification)
 
     def undoLog(self, first, last, filter=None):
-        if filter is not None: return ()
-        
-        self._lock_acquire()
-        try: return self._call('undoLog', first, last) # Eek!
-        finally: self._lock_release()
+        if filter is not None:
+            return () # can't pass a filter to server
+
+        return self._server.undoLog(first, last) # Eek!
 
     def versionEmpty(self, version):
-        self._lock_acquire()
-        try: return self._call('versionEmpty', version)
-        finally: self._lock_release()
+        return self._server.versionEmpty(version)
 
     def versions(self, max=None):
-        self._lock_acquire()
-        try: return self._call('versions', max)
-        finally: self._lock_release()
+        return self._server.versions(max)
 
-    def sync(self): self._call.sync()
+    # below are methods invoked by the StorageServer
 
-    def status(self):
-        self._call.sendMessage('status')
+    def serialnos(self, args):
+        self._serials.extend(args)
 
-def getWakeup(_w=[]):
-    if _w: return _w[0]
-    import trigger
-    t=trigger.trigger().pull_trigger
-    _w.append(t)
-    return t
+    def info(self, dict):
+        self._info.update(dict)
+
+    def begin(self):
+        self._tfile = tempfile.TemporaryFile(suffix=".inv")
+        self._pickler = cPickle.Pickler(self._tfile, 1)
+        self._pickler.fast = 1 # Don't use the memo
+
+    def invalidate(self, args):
+        # Queue an invalidate for the end the transaction
+        if self._pickler is None:
+            return
+        self._pickler.dump(args)
+
+    def end(self):
+        if self._pickler is None:
+            return
+        self._pickler.dump((0,0))
+        self._tfile.seek(0)
+        unpick = cPickle.Unpickler(self._tfile)
+        f = self._tfile
+        self._tfile = None
+
+        while 1:
+            oid, version = unpick.load()
+            if not oid:
+                break
+            self._cache.invalidate(oid, version=version)
+            self._db.invalidate(oid, version=version)
+        f.close()
+
+    def Invalidate(self, args):
+        for oid, version in args:
+            self._cache.invalidate(oid, version=version)
+            try:
+                self._db.invalidate(oid, version=version)
+            except AttributeError, msg:
+                log2(PROBLEM,
+                    "Invalidate(%s, %s) failed for _db: %s" % (repr(oid),
+                                                               repr(version),
+                                                               msg))
