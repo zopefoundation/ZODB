@@ -166,8 +166,9 @@ persistent_id_call(persistent_id *self, PyObject *args, PyObject *kwargs)
 	  goto not_persistent;
 
       }
-    } else 
+    else 
       goto not_persistent;
+  }
 
   UNLESS (oid=PyObject_GetAttr(object, py__p_oid)) 
     {
@@ -318,7 +319,7 @@ void
 initcoptimizations(void)
 {
   PyObject *m, *d;
-  char *rev="$Revision: 1.11 $";
+  char *rev="$Revision: 1.12 $";
 
 #define make_string(S) if (! (py_ ## S=PyString_FromString(#S))) return
   make_string(_p_oid);
