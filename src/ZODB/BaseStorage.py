@@ -84,7 +84,7 @@
 ##############################################################################
 """Handy standard storage machinery
 """
-__version__='$Revision: 1.2 $'[11:-2]
+__version__='$Revision: 1.3 $'[11:-2]
 
 import time, bpthread
 from POSException import UndoError
@@ -113,11 +113,20 @@ class BaseStorage:
         if base is None: self._oid='\0\0\0\0\0\0\0\0'
         else:            self._oid=base._oid
 
+    def abortVersion(self, src, transaction):
+        if transaction is not self._transaction:
+            raise POSException.StorageTransactionError(self, transaction)
+        return []
+
     def close(self): pass
+
+    commitVersion=abortVersion
 
     def getName(self): return self.__name__
     def getSize(self): return len(self)*300 # WAG!
     def history(self, oid, version, length=1): pass
+                    
+    def modifiedInVersion(self, oid): return ''
 
     def new_oid(self, last=None):
         if last is None:
@@ -197,7 +206,7 @@ class BaseStorage:
         pass
 
     def undo(self, transaction_id):
-        raise UndoError, 'Undoable transaction'
+        raise UndoError, 'non-undoable transaction'
 
     def undoLog(self, first, last, filter=None): return ()
 
