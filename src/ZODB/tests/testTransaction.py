@@ -36,11 +36,12 @@ TODO
     add in tests for objects which are modified multiple times,
     for example an object that gets modified in multiple sub txns.
 
-$Id: testTransaction.py,v 1.23 2004/04/06 01:06:41 tim_one Exp $
+$Id: testTransaction.py,v 1.24 2004/04/06 21:47:12 tim_one Exp $
 """
 
 import unittest
 import transaction
+from ZODB.utils import positive_id
 
 class TransactionTests(unittest.TestCase):
 
@@ -532,7 +533,9 @@ class BasicJar:
         self.ccommit_sub = 0
 
     def __repr__(self):
-        return "<%s %X %s>" % (self.__class__.__name__, id(self), self.errors)
+        return "<%s %X %s>" % (self.__class__.__name__,
+                               positive_id(self),
+                               self.errors)
 
     def sortKey(self):
         # All these jars use the same sort key, and Python's list.sort()

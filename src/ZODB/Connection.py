@@ -13,7 +13,7 @@
 ##############################################################################
 """Database connection support
 
-$Id: Connection.py,v 1.143 2004/04/06 20:21:55 tim_one Exp $"""
+$Id: Connection.py,v 1.144 2004/04/06 21:47:12 tim_one Exp $"""
 
 import logging
 import sys
@@ -33,7 +33,7 @@ from ZODB.ExportImport import ExportImport
 from ZODB.POSException \
      import ConflictError, ReadConflictError, InvalidObjectReference
 from ZODB.TmpStore import TmpStore
-from ZODB.utils import oid_repr, z64
+from ZODB.utils import oid_repr, z64, positive_id
 from ZODB.serialize import ObjectWriter, ConnectionObjectReader, myhasattr
 
 global_reset_counter = 0
@@ -223,9 +223,7 @@ class Connection(ExportImport, object):
             ver = ' (in version %s)' % `self._version`
         else:
             ver = ''
-        # Force the address to look positive.  A negative address will
-        # show up as signed in Python 2.4, and in 2.3 raises FutureWarning.
-        return '<Connection at %08x%s>' % (id(self) & 0xffffffffL, ver)
+        return '<Connection at %08x%s>' % (positive_id(self), ver)
 
     def get(self, oid):
         """Return the persistent object with oid 'oid'.

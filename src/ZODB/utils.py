@@ -69,3 +69,26 @@ def oid_repr(oid):
         return repr(oid)
 
 serial_repr = oid_repr
+
+# Addresses can "look negative" on some boxes, some of the time.  If you
+# feed a "negative address" to an %x format, Python 2.3 displays it as
+# unsigned, but produces a FutureWarning, because Python 2.4 will display
+# it as signed.  So when you want to prodce an address, use positive_id() to
+# obtain it.
+def positive_id(obj):
+    """Return id(obj) as a non-negative integer."""
+
+    result = id(obj)
+    if result < 0:
+        # This is a puzzle:  there's no way to know the natural width of
+        # addresses on this box (in particular, there's no necessary
+        # relation to sys.maxint).  Try 32 bits first (and on a 32-bit
+        # box, adding 2**32 gives a positive number with the same hex
+        # representation as the original result).
+        result += 1L << 32
+        if result < 0:
+            # Undo that, and try 64 bits.
+            result -= 1L << 32
+            result += 1L << 64
+            assert result >= 0 # else addresses are fatter than 64 bits
+    return result
