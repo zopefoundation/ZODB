@@ -146,6 +146,7 @@ class MappingBase(Base):
         for i in range(100):
             assert v[i]==i*i , (i*i,i)
 
+
             
     def testKeysWorks(self):
         for x in range(100):
@@ -153,8 +154,13 @@ class MappingBase(Base):
         v = self.t.keys()
         i = 0
         for x in v:
-            assert x == i, (x,i)
+            self.assertEqual(x,i)
             i = i + 1
+
+        for x in range(40):
+            lst = self.t.keys(0+x,99-x)
+            self.assertEqual(list(lst),range(0+x,99-x+1))
+
         # BTree items must lie about their lengths, so we convert to list
         assert len(v) == 100, len(v)
         #assert len(v) == 100, len(v)
