@@ -1423,6 +1423,11 @@ The following method must be overridden by subclasses:
 
 The following methods can be used as utilities:
 
+\begin{methoddesc}[loader]{isPath}{s}
+  Return true if \var{s} should be considered a filesystem path rather
+  than a URL.
+\end{methoddesc}
+
 \begin{methoddesc}[loader]{normalizeURL}{url-or-path}
   Return a URL for \var{url-or-path}.  If \var{url-or-path} refers to
   an existing file, the corresponding \code{file:} URL is returned.
@@ -1436,7 +1441,8 @@ The following methods can be used as utilities:
   Returns a resource object that represents the URL \var{url}.  The
   URL is opened using the \function{urllib2.urlopen()} function, and
   the returned resource object is created using
-  \method{createResource()}.
+  \method{createResource()}.  If the URL cannot be opened,
+  \exception{ConfigurationError} is raised.
 \end{methoddesc}
 
 \begin{methoddesc}[loader]{createResource}{file, url}
