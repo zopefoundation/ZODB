@@ -82,20 +82,21 @@
 # attributions are listed in the accompanying credits file.
 # 
 ##############################################################################
-__version__='$Revision: 1.1 $'[11:-2]
+__version__='$Revision: 1.2 $'[11:-2]
 
 import string, sys
 
-format_exception_only=None
-def format_exception(etype,value,tb,limit=None, delimiter='\n',
+format_exception_only = None
+
+def format_exception(etype, value, tb, limit=None, delimiter='\n',
                      header='', trailer=''):
     global format_exception_only
     if format_exception_only is None:
         import traceback
-        format_exception_only=traceback.format_exception_only
+        format_exception_only = traceback.format_exception_only
         
     result=['Traceback (innermost last):']
-    if header: result.insert(0,header)
+    if header: result.insert(0, header)
     if limit is None:
         if hasattr(sys, 'tracebacklimit'):
             limit = sys.tracebacklimit
@@ -106,9 +107,9 @@ def format_exception(etype,value,tb,limit=None, delimiter='\n',
         co = f.f_code
         filename = co.co_filename
         name = co.co_name
-        locals=f.f_locals
+        locals = f.f_locals
         result.append('  File %s, line %d, in %s'
-                      % (filename,lineno,name))
+                      % (filename, lineno, name))
         try: result.append('    (Object: %s)' %
                            locals[co.co_varnames[0]].__name__)
         except: pass
@@ -118,7 +119,7 @@ def format_exception(etype,value,tb,limit=None, delimiter='\n',
         tb = tb.tb_next
         n = n+1
     result.append(string.join(format_exception_only(etype, value),
-                       ' '))
+                              ' '))
     if trailer: result.append(trailer)
     
     return string.join(result, delimiter)
