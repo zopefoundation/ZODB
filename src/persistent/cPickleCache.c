@@ -88,7 +88,7 @@ process must skip such objects, rather than deactivating them.
 static char cPickleCache_doc_string[] =
 "Defines the PickleCache used by ZODB Connection objects.\n"
 "\n"
-"$Id: cPickleCache.c,v 1.60 2002/04/16 06:26:44 htrd Exp $\n";
+"$Id: cPickleCache.c,v 1.61 2002/04/17 17:18:37 htrd Exp $\n";
 
 #define ASSIGN(V,E) {PyObject *__e; __e=(E); Py_XDECREF(V); (V)=__e;}
 #define UNLESS(E) if(!(E))
@@ -786,23 +786,21 @@ static int
 cc_add_item(ccobject *self, PyObject *key, PyObject *v)
 {
     int result;
-    PyExtensionClass *class;
     PyObject *oid, *object_again;
     cPersistentObject *p;
 
-    if (!PyExtensionInstance_Check(v)) {
-	PyErr_SetString(PyExc_TypeError, 
-			"Cache values must be persistent objects.");
-	return -1;
+    if (PyExtensionClass_Check(v)) {
+        /* Its a persistent class, such as a ZClass. Thats ok. */
     }
-    class = (PyExtensionClass *)(v->ob_type);
-    if (!((class->class_flags & PERSISTENT_TYPE_FLAG)
-	  && v->ob_type->tp_basicsize >= sizeof(cPersistentObject))) {
+    else if( PyExtensionInstance_Check(v) &&
+             (((PyExtensionClass*)(v->ob_type))->class_flags & PERSISTENT_TYPE_FLAG) &&
+             (v->ob_type->tp_basicsize >= sizeof(cPersistentObject)) ) {
+        /* Its and instance of a persistent class, (ie Python classeses that
+        derive from Persistence.Persistent, BTrees, etc). Thats ok. */
+    }
+    else {
 	PyErr_SetString(PyExc_TypeError, 
 			"Cache values must be persistent objects.");
-	/* Must be either persistent classes (ie ZClasses), or instances
-	of persistent classes (ie Python classeses that derive from
-	Persistence.Persistent, BTrees, etc) */
 	return -1;
     }
 
