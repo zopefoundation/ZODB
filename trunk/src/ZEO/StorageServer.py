@@ -824,9 +824,12 @@ class TimeoutThread(threading.Thread):
         while 1:
             self._cond.acquire()
             try:
-                while self._client is None:
+                while self._deadline is None:
                     self._cond.wait()
                 howlong = self._deadline - time.time()
+                if howlong <= 0:
+                    # Prevent reporting timeout more than once
+                    self._deadline = None
                 client = self._client # For the howlong <= 0 branch below
             finally:
                 self._cond.release()
