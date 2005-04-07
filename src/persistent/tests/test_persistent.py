@@ -11,10 +11,8 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
-
+from zope.testing import doctest
 from persistent import Persistent
-
-from zope.testing.doctestunit import DocFileSuite
 
 class P(Persistent):
     def __init__(self):
@@ -23,4 +21,4 @@ class P(Persistent):
         self.x += 1
 
 def test_suite():
-    return DocFileSuite("persistent.txt", globs={"P": P})
+    return doctest.DocFileSuite("persistent.txt", globs={"P": P})

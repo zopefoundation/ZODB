@@ -32,14 +32,19 @@ object exists as a ghost, its state is passed to ``__setstate__``.
 
 The class description can be in a variety of formats, in part to
 provide backwards compatibility with earlier versions of Zope.  The
-two current formats for class description are:
+four current formats for class description are:
 
     1. type(obj)
     2. type(obj), obj.__getnewargs__()
+    3. (module name, class name), None
+    7. (module name, class name), obj.__getnewargs__()
 
 The second of these options is used if the object has a __getnewargs__()
 method.  It is intended to support objects like persistent classes that have
-custom C layouts that are determined by arguments to __new__().
+custom C layouts that are determined by arguments to __new__().  The
+third and fourth (#3 & #7) apply to instances of a persistent class (which
+means the class itself is persistent, not that it's a subclass of
+Persistent).
 
 The type object is usually stored using the standard pickle mechanism, which
 involves the pickle GLOBAL opcode (giving the type's module and name as
@@ -59,17 +64,17 @@ useful places to concentrate confusion about exactly which formats exist:
 
 Earlier versions of Zope supported several other kinds of class
 descriptions.  The current serialization code reads these descriptions, but
-does not write them.  The four earlier formats are:
+does not write them.  The three earlier formats are:
 
-    3. (module name, class name), None
     4. (module name, class name), __getinitargs__()
     5. class, None
     6. class, __getinitargs__()
 
 Formats 4 and 6 are used only if the class defines a __getinitargs__()
-method.  Formats 5 and 6 are used if the class does not have a __module__
-attribute (I'm not sure when this applies, but I think it occurs for some
-but not all ZClasses).
+method, but we really can't tell them apart from formats 7 and 2
+(respectively).  Formats 5 and 6 are used if the class does not have a
+__module__ attribute (I'm not sure when this applies, but I think it occurs
+for some but not all ZClasses).
 
 
 Persistent references
@@ -99,6 +104,8 @@ from persistent.wref import WeakRefMarker, WeakRef
 from ZODB import broken
 from ZODB.broken import Broken
 from ZODB.POSException import InvalidObjectReference
+
+_oidtypes = str, type(None)
 
 # Might to update or redo coptimizations to reflect weakrefs:
 # from ZODB.coptimizations import new_persistent_id
@@ -147,10 +154,10 @@ class ObjectWriter:
         ...     _p_jar = jar
         >>> writer = ObjectWriter(O)
 
-        Normally, object references include the oid and a cached
-        reference to the class.  Having the class available allows
-        fast creation of the ghost, avoiding requiring an additional
-        database lookup.
+        Normally, object references include the oid and a cached named
+        reference to the class.  Having the class information
+        available allows fast creation of the ghost, avoiding
+        requiring an additional database lookup.
 
         >>> bob = P('bob')
         >>> oid, cls = writer.persistent_id(bob)
@@ -282,7 +289,15 @@ class ObjectWriter:
             # It's possible that __getnewargs__ is degenerate and
             # returns (), but we don't want to have to deghostify
             # the object to find out.
+
+            # Note that this has the odd effect that, if the class has
+            # __getnewargs__ of its own, we'll lose the optimization
+            # of caching the class info.
+
             return oid
+
+        # Note that we never get here for persistent classes.
+        # We'll use driect refs for normal classes.
 
         return oid, klass
 
@@ -291,10 +306,25 @@ class ObjectWriter:
         # We don't want to be fooled by proxies.
         klass = type(obj)
 
+        # We want to serialize persistent classes by name if they have
+        # a non-None non-empty module so as not to have a direct
+        # ref. This is important when copying.  We probably want to
+        # revisit this in the future.
         newargs = getattr(obj, "__getnewargs__", None)
-        if newargs is None:
+        if (isinstance(getattr(klass, '_p_oid', 0), _oidtypes)
+              and klass.__module__):
+            # This is a persistent class with a non-empty module.  This
+            # uses pickle format #3 or #7.
+            klass = klass.__module__, klass.__name__
+            if newargs is None:
+                meta = klass, None
+            else:
+                meta = klass, newargs()
+        elif newargs is None:
+            # Pickle format #1.
             meta = klass
         else:
+            # Pickle format #2.
             meta = klass, newargs()
 
         return self._dump(meta, obj.__getstate__())

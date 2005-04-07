@@ -40,7 +40,7 @@ def test_delitem():
 
     """
 
-from doctest import DocTestSuite
+from zope.testing.doctest import DocTestSuite
 import unittest
 
 def test_suite():

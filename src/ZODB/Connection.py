@@ -120,9 +120,9 @@ class Connection(ExportImport, object):
         # will execute atomically by virtue of the GIL.  But some storage
         # might generate oids where hash or compare invokes Python code.  In
         # that case, the GIL can't save us.
+
         self._inv_lock = threading.Lock()
         self._invalidated = d = {}
-        self._invalid = d.has_key
 
         # We intend to prevent committing a transaction in which
         # ReadConflictError occurs.  _conflicts is the set of oids that
@@ -221,6 +221,26 @@ class Connection(ExportImport, object):
                 del obj._p_jar
                 del obj._p_oid
             else:
+
+                # Note: If we invalidate a non-ghostifiable object
+                # (i.e. a persistent class), the object will
+                # immediately reread it's state.  That means that the
+                # following call could result in a call to
+                # self.setstate, which, of course, must suceed.
+                # In general, it would be better if the read could be
+                # delayed until the start of the next transaction.  If
+                # we read at the end of a transaction and if the
+                # object was invalidated during this transaction, then
+                # we'll read non-current data, which we'll discard
+                # later in transaction finalization.  Unfortnately, we
+                # can only delay the read if this abort corresponds to
+                # a top-level-transaction abort.  We can't tell if
+                # this is a top-level-transaction abort, so we have to
+                # go ahead and invalidate now. Fortunately, it's
+                # pretty unlikely that the object we are invalidating
+                # was invalidated by another thread, so the risk of a
+                # reread is pretty low.
+
                 self._cache.invalidate(oid)
 
         self._tpc_cleanup()
@@ -387,6 +407,22 @@ class Connection(ExportImport, object):
         self._storage = self._tmp
         self._tmp = None
 
+        # Note: If we invalidate a non-ghostifiable object (i.e. a
+        # persistent class), the object will immediately reread it's
+        # state.  That means that the following call could result in a
+        # call to self.setstate, which, of course, must succeed.  In
+        # general, it would be better if the read could be delayed
+        # until the start of the next transaction.  If we read at the
+        # end of a transaction and if the object was invalidated
+        # during this transaction, then we'll read non-current data,
+        # which we'll discard later in transaction finalization.  We
+        # could, theoretically queue this invalidation by calling
+        # self.invalidate.  Unfortunately, attempts to make that
+        # change resulted in mysterious test failures.  It's pretty
+        # unlikely that the object we are invalidating was invalidated
+        # by another thread, so the risk of a reread is pretty low.
+        # It's really not worth the effort to pursue this.
+
         self._cache.invalidate(src._index.keys())
         self._invalidate_creating(src._creating)
 
@@ -415,12 +451,44 @@ class Connection(ExportImport, object):
     def _flush_invalidations(self):
         self._inv_lock.acquire()
         try:
-            self._cache.invalidate(self._invalidated)
-            self._invalidated.clear()
+
+            # Non-ghostifiable objects may need to read when they are
+            # invalidated, so, we'll quickly just replace the
+            # invalidating dict with a new one.  We'll then process
+            # the invalidations after freeing the lock *and* after
+            # reseting the time.  This means that invalidations will
+            # happen after the start of the transactions.  They are
+            # subject to conflict errors and to reading old data,
+
+            # TODO: There is a potential problem lurking for persistent
+            # classes.  Suppose we have an invlidation of a persistent
+            # class and of an instance.  If the instance is
+            # invalidated first and if the invalidation logic uses
+            # data read from the class, then the invalidation could
+            # be performed with state data.  Or, suppose that there
+            # are instances of the class that are freed as a result of
+            # invalidating some object.  Perhaps code in their __del__
+            # uses class data.  Really, the only way to properly fix
+            # this is to, in fact, make classes ghostifiable.  Then
+            # we'd have to reimplement attribute lookup to check the
+            # class state and, if necessary, activate the class.  It's
+            # much worse than that though, because we'd also need to
+            # deal with slots.  When a class is ghostified, we'd need
+            # to replace all of the slot operations with versions that
+            # reloaded the object when caled. It's hard to say which
+            # is better for worse.  For now, it seems the risk of
+            # using a class while objects are being invalidated seems
+            # small enough t be acceptable.
+
+            invalidated = self._invalidated
+            self._invalidated = {}
             self._txn_time = None
         finally:
             self._inv_lock.release()
-        # Now is a good time to collect some garbage
+
+        self._cache.invalidate(invalidated)
+
+        # Now is a good time to collect some garbage.
         self._cache.incrgc()
 
     def root(self):
@@ -532,10 +600,26 @@ class Connection(ExportImport, object):
         self._tpc_cleanup()
 
     def tpc_abort(self, transaction):
-        """Abort a transaction."""
         if self._import:
             self._import = None
         self._storage.tpc_abort(transaction)
+
+        # Note: If we invalidate a non-justifiable object (i.e. a
+        # persistent class), the object will immediately reread it's
+        # state.  That means that the following call could result in a
+        # call to self.setstate, which, of course, must succeed.  In
+        # general, it would be better if the read could be delayed
+        # until the start of the next transaction.  If we read at the
+        # end of a transaction and if the object was invalidated
+        # during this transaction, then we'll read non-current data,
+        # which we'll discard later in transaction finalization.  We
+        # could, theoretically queue this invalidation by calling
+        # self.invalidate.  Unfortunately, attempts to make that
+        # change resulted in mysterious test failures.  It's pretty
+        # unlikely that the object we are invalidating was invalidated
+        # by another thread, so the risk of a reread is pretty low.
+        # It's really not worth the effort to pursue this.
+
         self._cache.invalidate(self._modified)
         self._invalidate_creating()
         while self._added:
@@ -630,7 +714,9 @@ class Connection(ExportImport, object):
         # because we have to check again after the load anyway.
 
         if (obj._p_oid in self._invalidated
-            and not myhasattr(obj, "_p_independent")):
+            and not myhasattr(obj, "_p_independent")
+            and not self._invalidated
+            ):
             # If the object has _p_independent(), we will handle it below.
             self._load_before_or_conflict(obj)
             return
@@ -913,4 +999,3 @@ class Connection(ExportImport, object):
         if dt is not DEPRECATED_ARGUMENT:
             deprecated36("cacheMinimize() dt= is ignored.")
         self._cache.minimize()
-

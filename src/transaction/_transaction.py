@@ -54,8 +54,10 @@ methods and support a second argument to tpc_begin().
 
 The second argument to tpc_begin() indicates that a subtransaction
 commit is beginning (if it is true).  In a subtransaction, there is no
-tpc_vote() call (I don't know why not).  The tpc_finish()
-or tpc_abort() call applies just to that subtransaction.
+tpc_vote() call, because sub-transactions don't need 2-phase commit.
+If a sub-transaction abort or commit fails, we can abort the outer
+transaction.  The tpc_finish() or tpc_abort() call applies just to
+that subtransaction.
 
 Once a resource manager is involved in a subtransaction, all
 subsequent transactions will be treated as subtransactions until
@@ -244,6 +246,8 @@ class Transaction(object):
         # commit protocol.
 
         manager = getattr(obj, "_p_jar", obj)
+        if manager is None:
+            raise ValueError("Register with no manager")
         adapter = self._adapters.get(manager)
         if adapter is None:
             if myhasattr(manager, "commit_sub"):

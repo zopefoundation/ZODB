@@ -15,7 +15,7 @@
 $Id$
 """
 import unittest
-from doctest import DocTestSuite
+from zope.testing.doctest import DocTestSuite
 from Persistence import PersistentMapping
 
 def test_basic_functionality():

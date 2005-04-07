@@ -15,7 +15,7 @@
 $Id$
 """
 import unittest
-from doctest import DocTestSuite
+from zope.testing.doctest import DocTestSuite
 
 def test_suite():
     return DocTestSuite('persistent.wref')

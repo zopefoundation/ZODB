@@ -61,7 +61,13 @@ class TransactionManager(object):
     def unregisterSynch(self, synch):
         self._synchs.remove(synch)
 
-class ThreadTransactionManager(object):
+    def commit(self, sub=False):
+        self.get().commit(sub)
+
+    def abort(self, sub=False):
+        self.get().abort(sub)
+
+class ThreadTransactionManager(TransactionManager):
     """Thread-aware transaction manager.
 
     Each thread is associated with a unique transaction.

@@ -485,7 +485,7 @@ def testTimeTravelOnOpen():
     """
 
 def test_suite():
-    import doctest
+    from zope.testing import doctest
 
     suite = unittest.TestSuite()
     for klass in [FileStorageTests, Corruption.FileStorageCorruptTests,

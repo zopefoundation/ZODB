@@ -13,7 +13,7 @@
 ##############################################################################
 """Unit tests for the Connection class."""
 
-import doctest
+from zope.testing import doctest
 import unittest
 import warnings
 
