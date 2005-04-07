@@ -631,6 +631,124 @@ def test_join():
 
     """
 
+def test_beforeCommitHook():
+    """Test the beforeCommitHook.
+
+    Let's define a hook to call, and a way to see that it was called.
+
+      >>> log = []
+      >>> def reset_log():
+      ...     del log[:]
+
+      >>> def hook(arg='no_arg', kw1='no_kw1', kw2='no_kw2'):
+      ...     log.append("arg %r kw1 %r kw2 %r" % (arg, kw1, kw2))
+
+    Now register the hook with a transaction.
+
+      >>> import transaction
+      >>> t = transaction.begin()
+      >>> t.beforeCommitHook(hook, '1')
+
+    When transaction commit starts, the hook is called, with its
+    arguments.
+
+      >>> log
+      []
+      >>> t.commit()
+      >>> log
+      ["arg '1' kw1 'no_kw1' kw2 'no_kw2'"]
+      >>> reset_log()
+
+    A hook's registration is consumed whenever the hook is called.  Since
+    the hook above was called, it's no longer registered:
+
+      >>> transaction.commit()
+      >>> log
+      []
+
+    The hook is only called for a full commit, not for subtransactions.
+
+      >>> t = transaction.begin()
+      >>> t.beforeCommitHook(hook, 'A', kw1='B')
+      >>> t.commit(subtransaction=True)
+      >>> log
+      []
+      >>> t.commit()
+      >>> log
+      ["arg 'A' kw1 'B' kw2 'no_kw2'"]
+      >>> reset_log()
+
+    If a transaction is aborted, no hook is called.
+
+      >>> t = transaction.begin()
+      >>> t.beforeCommitHook(hook, "OOPS!")
+      >>> transaction.abort()
+      >>> log
+      []
+      >>> transaction.commit()
+      >>> log
+      []
+
+    The hook is called before the commit does anything, so even if the
+    commit fails the hook will have been called.  To provoke failures in
+    commit, we'll add failing resource manager to the transaction.
+
+      >>> class CommitFailure(Exception):
+      ...     pass
+      >>> class FailingDataManager:
+      ...     def tpc_begin(self, txn, sub=False):
+      ...         raise CommitFailure
+      ...     def abort(self, txn):
+      ...         pass
+
+      >>> t = transaction.begin()
+      >>> t.join(FailingDataManager())
+
+      >>> t.beforeCommitHook(hook, '2')
+      >>> t.commit()
+      Traceback (most recent call last):
+      ...
+      CommitFailure
+      >>> log
+      ["arg '2' kw1 'no_kw1' kw2 'no_kw2'"]
+      >>> reset_log()
+
+    If several hooks are defined, they are called in order.
+
+      >>> t = transaction.begin()
+      >>> t.beforeCommitHook(hook, '4', kw1='4.1')
+      >>> t.beforeCommitHook(hook, '5', kw2='5.2')
+      >>> t.commit()
+      >>> len(log)
+      2
+      >>> log  #doctest: +NORMALIZE_WHITESPACE
+      ["arg '4' kw1 '4.1' kw2 'no_kw2'",
+       "arg '5' kw1 'no_kw1' kw2 '5.2'"]
+      >>> reset_log()
+
+    While executing, a hook can itself add more hooks, and they will all
+    be called before the real commit starts.
+
+      >>> def recurse(txn, arg):
+      ...     log.append('rec' + str(arg))
+      ...     if arg:
+      ...         txn.beforeCommitHook(hook, '-')
+      ...         txn.beforeCommitHook(recurse, txn, arg-1)
+
+      >>> t = transaction.begin()
+      >>> t.beforeCommitHook(recurse, t, 3)
+      >>> transaction.commit()
+      >>> log  #doctest: +NORMALIZE_WHITESPACE
+      ['rec3',
+               "arg '-' kw1 'no_kw1' kw2 'no_kw2'",
+       'rec2',
+               "arg '-' kw1 'no_kw1' kw2 'no_kw2'",
+       'rec1',
+               "arg '-' kw1 'no_kw1' kw2 'no_kw2'",
+       'rec0']
+      >>> reset_log()
+    """
+
 def test_suite():
     from zope.testing.doctest import DocTestSuite
     return unittest.TestSuite((
