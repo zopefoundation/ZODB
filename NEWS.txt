@@ -7,6 +7,19 @@ What's new in ZODB3 3.4xx?
 ==========================
 Release date: MM-DDD-2005
 
+transaction
+-----------
+
+Transaction objects have a new method,
+``beforeCommitHook(hook, *args, **kws)``.  Hook functions registered with
+a transaction are called at the start of a top-level commit, before any
+of the work is begun, so a hook function can perform any database operations
+it likes.  See ``test_beforeCommitHook()`` in
+``transaction/tests/test_transaction.py`` for a tutorial doctest, and
+the ``ITransaction`` interface for details.  Thanks to Florent Guillaume
+for contributing code and tests.
+
+
 Tests
 -----
 

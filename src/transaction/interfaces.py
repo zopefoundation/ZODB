@@ -107,7 +107,7 @@ class IDataManager(zope.interface.Interface):
         database is not expected to maintain consistency; it's a
         serious error.
 
-        It's important that the storage calls the passed function 
+        It's important that the storage calls the passed function
         while it still has its lock.  We don't want another thread
         to be able to read any updated data until we've had a chance
         to send an invalidation message to all of the other
@@ -131,7 +131,7 @@ class IDataManager(zope.interface.Interface):
         the transaction commits.
 
         This includes conflict detection and handling. If no conflicts or
-        errors occur it saves the objects in the storage. 
+        errors occur it saves the objects in the storage.
         """
 
     def abort(transaction):
@@ -139,8 +139,8 @@ class IDataManager(zope.interface.Interface):
 
         Abort must be called outside of a two-phase commit.
 
-        Abort is called by the transaction manager to abort transactions 
-        that are not yet in a two-phase commit. 
+        Abort is called by the transaction manager to abort transactions
+        that are not yet in a two-phase commit.
         """
 
     def sortKey():
@@ -245,6 +245,30 @@ class ITransaction(zope.interface.Interface):
         # Unsure:  is this allowed to cause an exception here, during
         # the two-phase commit, or can it toss data silently?
 
+    def beforeCommitHook(hook, *args, **kws):
+        """Register a hook to call before the transaction is committed.
+
+        The specified hook function will be called after the transaction's
+        commit method has been called, but before the commit process has been
+        started.  The hook will be passed the specified positional and keyword
+        arguments.
+
+        Multiple hooks can be registered and will be called in the order they
+        were registered (first registered, first called).  This method can
+        also be called from a hook:  an executing hook can register more
+        hooks.  Applications should take care to avoid creating infinite loops
+        by recursively registering hooks.
+
+        Hooks are called only for a top-level commit.  A subtransaction
+        commit does not call any hooks.  If the transaction is aborted, hooks
+        are not called, and are discarded.  Calling a hook "consumes" its
+        registration too:  hook registrations do not persist across
+        transactions.  If it's desired to call the same hook on every
+        transaction commit, then beforeCommitHook() must be called with that
+        hook during every transaction; in such a case consider registering a
+        synchronizer object via a TransactionManager's registerSynch() method
+        instead.
+        """
 
 class IRollback(zope.interface.Interface):
 
