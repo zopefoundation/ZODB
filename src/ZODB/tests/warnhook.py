@@ -20,7 +20,7 @@ class WarningsHook:
     application code, allowing the application to customize the way it
     handles warnings.
 
-    This hook captures the unformatted warning information and stored
+    This hook captures the unformatted warning information and stores
     it in a list.  A test can inspect this list after the test is over.
 
     Issues:
