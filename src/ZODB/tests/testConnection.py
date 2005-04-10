@@ -407,6 +407,13 @@ class UserMethodTests(unittest.TestCase):
         >>> hook = WarningsHook()
         >>> hook.install()
 
+        More problems in case this test is run more than once:  fool the
+        warnings module into delivering the warnings despite that they've
+        been seen before.
+
+        >>> import warnings
+        >>> warnings.filterwarnings("always", category=DeprecationWarning)
+
         >>> r._p_activate()
         >>> cn.cacheMinimize(12)
         >>> r._p_state
@@ -450,6 +457,10 @@ class UserMethodTests(unittest.TestCase):
 
         >>> hook.uninstall()
 
+        Obscure:  There is no API call for removing the filter we added, but
+        filters appears to be a public variable.
+
+        >>> del warnings.filters[0]
         """
 
 class InvalidationTests(unittest.TestCase):
