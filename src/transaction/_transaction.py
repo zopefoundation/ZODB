@@ -150,6 +150,9 @@ import warnings
 import traceback
 from cStringIO import StringIO
 
+from zope import interface
+from transaction import interfaces
+
 # Sigh.  In the maze of __init__.py's, ZODB.__init__.py takes 'get'
 # out of transaction.__init__.py, in order to stuff the 'get_transaction'
 # alias in __builtin__.  So here in _transaction.py, we can't import
@@ -177,6 +180,9 @@ class Status:
     COMMITFAILED = "Commit failed"
 
 class Transaction(object):
+
+    interface.implements(interfaces.ITransaction,
+                         interfaces.ITransactionDeprecated)
 
     def __init__(self, synchronizers=None, manager=None):
         self.status = Status.ACTIVE
@@ -248,6 +254,7 @@ class Transaction(object):
         # be better to use interfaces.  If this is a ZODB4-style
         # resource manager, it needs to be adapted, too.
         if myhasattr(resource, "prepare"):
+            # TODO: deprecate 3.6
             resource = DataManagerAdapter(resource)
         self._resources.append(resource)
 
@@ -602,6 +609,7 @@ def object_hint(o):
         oid = oid_repr(oid)
     return "%s oid=%s" % (klass, oid)
 
+# TODO: deprecate for 3.6.
 class DataManagerAdapter(object):
     """Adapt zodb 4-style data managers to zodb3 style
 

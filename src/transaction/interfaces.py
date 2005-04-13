@@ -18,6 +18,17 @@ $Id$
 
 import zope.interface
 
+class ISynchronizer(zope.interface.Interface):
+    """Objects that participate in the transaction-boundary notification API.
+    """
+
+    def beforeCompletion(transaction):
+        """Hook that is called by the transaction at the start of a commit."""
+
+    def afterCompletion(transaction):
+        """Hook that is called by the transaction after completing a commit."""
+
+
 class IDataManager(zope.interface.Interface):
     """Objects that manage transactional storage.
 
@@ -159,12 +170,6 @@ class IDataManager(zope.interface.Interface):
         #which is good enough to avoid ZEO deadlocks.
         #"""
 
-    def beforeCompletion(transaction):
-        """Hook that is called by the transaction before completing a commit"""
-
-    def afterCompletion(transaction):
-        """Hook that is called by the transaction after completing a commit"""
-
 class ITransaction(zope.interface.Interface):
     """Object representing a running transaction.
 
@@ -174,22 +179,28 @@ class ITransaction(zope.interface.Interface):
     """
 
     user = zope.interface.Attribute(
-        "user",
-        "The name of the user on whose behalf the transaction is being\n"
-        "performed.  The format of the user name is defined by the\n"
-        "application.")
-    # Unsure: required to be a string?
+        """A user name associated with the transaction.
+
+        The format of the user name is defined by the application.  The value
+        is of Python type str.  Storages record the user value, as meta-data,
+        when a transaction commits.
+
+        A storage may impose a limit on the size of the value; behavior is
+        undefined if such a limit is exceeded (for example, a storage may
+        raise an exception, or truncate the value).
+        """)
 
     description = zope.interface.Attribute(
-        "description",
-        "Textual description of the transaction.")
+        """A textual description of the transaction.
 
-    def begin(info=None, subtransaction=None):
-        """Begin a new transaction.
+        The value is of Python type str.  Method note() is the intended
+        way to set the value.  Storages record the description, as meta-data,
+        when a transaction commits.
 
-        If the transaction is in progress, it is aborted and a new
-        transaction is started using the same transaction object.
-        """
+        A storage may impose a limit on the size of the description; behavior
+        is undefined if such a limit is exceeded (for example, a storage may
+        raise an exception, or truncate the value).
+        """)
 
     def commit(subtransaction=None):
         """Finalize the transaction.
@@ -213,9 +224,6 @@ class ITransaction(zope.interface.Interface):
         adaptable to ZODB.interfaces.IDataManager.
         """
 
-    def register(object):
-        """Register the given object for transaction control."""
-
     def note(text):
         """Add text to the transaction description.
 
@@ -230,7 +238,8 @@ class ITransaction(zope.interface.Interface):
         """Set the user name.
 
         path should be provided if needed to further qualify the
-        identified user.
+        identified user.  This is a convenience method used by Zope.
+        It sets the .user attribute to str(path) + " " + str(user_name).
         """
 
     def setExtendedInfo(name, value):
@@ -269,3 +278,18 @@ class ITransaction(zope.interface.Interface):
         synchronizer object via a TransactionManager's registerSynch() method
         instead.
         """
+
+class ITransactionDeprecated(zope.interface.Interface):
+    """Deprecated parts of the transaction API."""
+
+    # TODO: deprecated36
+    def begin(info=None):
+        """Begin a new transaction.
+
+        If the transaction is in progress, it is aborted and a new
+        transaction is started using the same transaction object.
+        """
+
+    # TODO: deprecate this for 3.6.
+    def register(object):
+        """Register the given object for transaction control."""
