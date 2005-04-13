@@ -3,9 +3,12 @@ What's new in ZODB3 3.5a0?
 Release date: DD-MMM-YYYY
 
 
-What's new in ZODB3 3.4xx?
+What's new in ZODB3 3.4a3?
 ==========================
-Release date: MM-DDD-2005
+Release date: 13-Apr-2005
+
+This was an internal release, to make a tag for ongoing Zope3 and Zope 2.8
+development to use.
 
 transaction
 -----------
@@ -19,6 +22,7 @@ it likes.  See ``test_beforeCommitHook()`` in
 the ``ITransaction`` interface for details.  Thanks to Florent Guillaume
 for contributing code and tests.
 
+Clarifications were made to transaction interfaces too.
 
 Tests
 -----
