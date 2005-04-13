@@ -269,19 +269,3 @@ class ITransaction(zope.interface.Interface):
         synchronizer object via a TransactionManager's registerSynch() method
         instead.
         """
-
-class IRollback(zope.interface.Interface):
-
-    def rollback():
-        """Rollback changes since savepoint.
-
-        IOW, rollback to the last savepoint.
-
-        It is an error to rollback to a savepoint if:
-
-        - An earlier savepoint within the same transaction has been
-          rolled back to, or
-
-        - The transaction has ended.
-        """
-
