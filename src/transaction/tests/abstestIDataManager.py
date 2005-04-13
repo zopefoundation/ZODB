@@ -31,7 +31,6 @@ $Id$
 """
 
 from unittest import TestCase
-from transaction.interfaces import IRollback
 
 class IDataManagerTests(TestCase, object):
 
@@ -56,8 +55,3 @@ class IDataManagerTests(TestCase, object):
         tran = self.get_transaction()
         self.datamgr.prepare(tran)
         self.datamgr.abort(tran)
-
-    def testRollback(self):
-        tran = self.get_transaction()
-        rb = self.datamgr.savepoint(tran)
-        self.assert_(IRollback.providedBy(rb))
