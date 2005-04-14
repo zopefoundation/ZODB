@@ -1,6 +1,10 @@
 What's new in ZODB3 3.3.1?
 ==========================
-Release date: DD-MMM-2005
+Release date: 14-Apr-2005
+
+Please note that ZODB 3.3.1 final is expected to be the last release in
+the 3.3.1 line.  Zope 2.8 and Zope3 development have moved on to the
+ZODB 3.4 line.
 
 Tests
 -----
