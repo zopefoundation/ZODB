@@ -1,6 +1,13 @@
-What's new in ZODB3 3.4xx?
+What's new in ZODB3 3.4a4?
 ==========================
 Release date: DD-MMM-2005
+
+Tools
+-----
+
+``fsdump.py`` now displays the size (in bytes) of data records.  This
+actually went in several months go, but wasn't noted here at the time.
+Thanks to Dmitry Vasiliev for contributing code and tests.
 
 
 What's new in ZODB3 3.4a3?
