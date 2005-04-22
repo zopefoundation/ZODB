@@ -7,12 +7,30 @@ What's new in ZODB3 3.4a4?
 ==========================
 Release date: DD-MMM-YYYY
 
+DemoStorage
+-----------
+
+Appropriate implementations of the storage API's ``registerDB()`` and
+``new_oid()`` methods were added, delegating to the base storage.  This was
+needed to support wrapping a ZEO client storage as a ``DemoStorage`` base
+storage, as some new Zope tests want to do.
+
 Tools
 -----
 
 ``fsdump.py`` now displays the size (in bytes) of data records.  This
 actually went in several months go, but wasn't noted here at the time.
 Thanks to Dmitry Vasiliev for contributing code and tests.
+
+BaseStorage
+-----------
+
+``new_oid()``'s undocumented ``last=`` argument was removed.  It was used
+only for internal recursion, and injured code sanity elsewhere because not
+all storages included it in their ``new_oid()``'s signature.  Straightening
+this out required adding ``last=`` everywhere, or removing it everywhere.
+Since recursion isn't actually needed, and there was no other use for
+``last=``, removing it everywhere was the obvious choice.
 
 
 What's new in ZODB3 3.4a3?

@@ -81,16 +81,17 @@ and call it to monitor the storage.
 """
 
 import base64, time
-from ZODB import POSException, BaseStorage
+from ZODB import POSException
 from ZODB.utils import z64, oid_repr
+from ZODB.BaseStorage import BaseStorage
 from persistent.TimeStamp import TimeStamp
 from cPickle import loads
 from BTrees import OOBTree
 
-class DemoStorage(BaseStorage.BaseStorage):
+class DemoStorage(BaseStorage):
 
     def __init__(self, name='Demo Storage', base=None, quota=None):
-        BaseStorage.BaseStorage.__init__(self, name, base)
+        BaseStorage.__init__(self, name, base)
 
         # We use a BTree because the items are sorted!
         self._data = OOBTree.OOBTree()
@@ -105,6 +106,23 @@ class DemoStorage(BaseStorage.BaseStorage):
             raise POSException.StorageError, (
                 "Demo base storage has version data")
 
+    # While we officially don't support wrapping a non-read-only base
+    # storage, it has proved useful for test suites to wrap a ClientStorage
+    # in DemoStorage.  The least we can do to help support that case is
+    # to arrange for invalidations to get delivered to the base storage.
+    def registerDB(self, db, limit):
+        if self._base is not None: # delegate
+            self._base.registerDB(db, limit)
+
+    # When DemoStorage needs to create a new oid, and there is a base
+    # storage, it must use that storage's new_oid() method.  Else
+    # DemoStorage may end up assigning "new" oids that are already in use
+    # by the base storage, leading to a variety of "impossible" problems.
+    def new_oid(self):
+        if self._base is None:
+            return BaseStorage.new_oid(self)
+        else:
+            return self._base.new_oid()
 
     def __len__(self):
         base=self._base

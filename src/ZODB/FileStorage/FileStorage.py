@@ -1406,8 +1406,10 @@ class FileStorage(BaseStorage.BaseStorage,
         index = self._index
         oid = index.minKey(next)
 
+        oid_as_long, = unpack(">Q", oid)
+        next_oid = pack(">Q", oid_as_long + 1)
         try:
-            next_oid = index.minKey(self.new_oid(oid))
+            next_oid = index.minKey(next_oid)
         except ValueError: # "empty tree" error
             next_oid = None
 

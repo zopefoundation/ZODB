@@ -19,6 +19,7 @@ import cPickle
 import threading
 import time
 import logging
+from struct import pack as _structpack, unpack as _structunpack
 
 from persistent.TimeStamp import TimeStamp
 
@@ -96,10 +97,15 @@ class BaseStorage(UndoLogCompatible):
         t=time.time()
         t=self._ts=apply(TimeStamp,(time.gmtime(t)[:5]+(t%60,)))
         self._tid = `t`
+
+        # ._oid is the highest oid in use (0 is always in use -- it's
+        # a reserved oid for the root object).  Our new_oid() method
+        # increments it by 1, and returns the result.  It's really a
+        # 64-bit integer stored as an 8-byte big-endian string.
         if base is None:
-            self._oid=z64
+            self._oid = z64
         else:
-            self._oid=base._oid
+            self._oid = base._oid
 
     def abortVersion(self, src, transaction):
         if transaction is not self._transaction:
@@ -138,24 +144,22 @@ class BaseStorage(UndoLogCompatible):
     def modifiedInVersion(self, oid):
         return ''
 
-    def new_oid(self, last=None):
-        # 'last' is only for internal use, not part of the public API
+    def new_oid(self):
         if self._is_read_only:
             raise POSException.ReadOnlyError()
-        if last is None:
-            self._lock_acquire()
-            try:
-                last=self._oid
-                d=ord(last[-1])
-                if d < 255: last=last[:-1]+chr(d+1)
-                else:       last=self.new_oid(last[:-1])
-                self._oid=last
-                return last
-            finally: self._lock_release()
-        else:
-            d=ord(last[-1])
-            if d < 255: return last[:-1]+chr(d+1)+'\0'*(8-len(last))
-            else:       return self.new_oid(last[:-1])
+        self._lock_acquire()
+        try:
+            last = self._oid
+            d = ord(last[-1])
+            if d < 255:  # fast path for the usual case
+                last = last[:-1] + chr(d+1)
+            else:        # there's a carry out of the last byte
+                last_as_long, = _structunpack(">Q", last)
+                last = _structpack(">Q", last_as_long + 1)
+            self._oid = last
+            return last
+        finally:
+            self._lock_release()
 
     # Update the maximum oid in use, under protection of a lock.  The
     # maximum-in-use attribute is changed only if possible_new_max_oid is
