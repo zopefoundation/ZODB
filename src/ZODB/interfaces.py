@@ -391,7 +391,7 @@ class IStorage(Interface):
     def history(oid, version, length=1, filter=None):
         """TODO"""
 
-    def new_oid(last=None):
+    def new_oid():
         """TODO"""
 
     def set_max_oid(possible_new_max_oid):

@@ -259,11 +259,8 @@ class StorageServer:
     def modifiedInVersion(self, oid):
         return self.rpc.call('modifiedInVersion', oid)
 
-    def new_oid(self, last=None):
-        if last is None:
-            return self.rpc.call('new_oid')
-        else:
-            return self.rpc.call('new_oid', last)
+    def new_oid(self):
+        return self.rpc.call('new_oid')
 
     def store(self, oid, serial, data, version, trans):
         return self.rpc.call('store', oid, serial, data, version, trans)
