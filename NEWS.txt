@@ -7,6 +7,33 @@ What's new in ZODB3 3.4a4?
 ==========================
 Release date: DD-MMM-YYYY
 
+ZEO
+---
+
+The default logging setup in ``runzeo.py`` was broken.  It was changed
+so that running ``runzeo.py`` from a command line now, and without using
+a config file, prints output to the console much as ZODB 3.2 did.
+
+ZEO on Windows
+--------------
+
+Thanks to Mark Hammond for these ``runzeo.py`` enhancements on Windows:
+
+- A pid file (containing the process id as a decimal string) is created now
+  for a ZEO server started via ``runzeo.py``.  External programs can
+  read the pid from this file and derive a "signal name" used in a new
+  signal-emulation scheme for Windows.  This is only necessary on Windows,
+  but the pid file is created on all platforms that implement
+  ``os.getpid()``, as long as the ``pid-filename`` option is set, or
+  environment variable ``INSTANCE_HOME`` is defined.  The ``pid-filename``
+  option can be set in a ZEO config file, or passed as the new ``--pid-file``
+  argument to ``runzeo.py``.
+
+- If available, ``runzeo.py`` now uses Zope's new 'Signal' mechanism for
+  Windows, to implement clean shutdown and log rotation handlers for Windows.
+  Note that the Python in use on the ZEO server must also have the Python
+  Win32 extensions installed for this to be useful.
+
 DemoStorage
 -----------
 

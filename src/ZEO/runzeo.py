@@ -24,6 +24,9 @@ Options:
 -t/--timeout TIMEOUT -- transaction timeout in seconds (default no timeout)
 -h/--help -- print this usage message and exit
 -m/--monitor ADDRESS -- address of monitor server ([HOST:]PORT or PATH)
+--pid-file PATH -- relative path to output file containing this process's pid;
+                   default $(INSTANCE_HOME)/var/ZEO.pid but only if envar
+                   INSTANCE_HOME is defined
 
 Unless -C is specified, -a and -f are required.
 """
@@ -50,12 +53,15 @@ def log(msg, level=logging.INFO, exc_info=False):
     message = "(%s) %s" % (_pid, msg)
     logger.log(level, message, exc_info=exc_info)
 
-
 def parse_address(arg):
     # Caution:  Not part of the official ZConfig API.
     obj = ZConfig.datatypes.SocketAddress(arg)
     return obj.family, obj.address
 
+def windows_shutdown_handler():
+    # Called by the signal mechanism on Windows to perform shutdown.
+    import asyncore
+    asyncore.close_all()
 
 class ZEOOptionsMixin:
 
@@ -104,6 +110,8 @@ class ZEOOptionsMixin:
                  None, 'auth-database=')
         self.add('auth_realm', 'zeo.authentication_realm',
                  None, 'auth-realm=')
+        self.add('pid_file', 'zeo.pid_filename',
+                 None, 'pid-file=')
 
 class ZEOOptions(ZDOptions, ZEOOptionsMixin):
 
@@ -126,6 +134,7 @@ class ZEOServer:
         self.setup_default_logging()
         self.check_socket()
         self.clear_socket()
+        self.make_pidfile()
         try:
             self.open_storages()
             self.setup_signals()
@@ -134,15 +143,20 @@ class ZEOServer:
         finally:
             self.close_storages()
             self.clear_socket()
+            self.remove_pidfile()
 
     def setup_default_logging(self):
         if self.options.config_logger is not None:
             return
         # No log file is configured; default to stderr.
-        logger = logging.getLogger()
+        root = logging.getLogger()
+        root.setLevel(logging.INFO)
+        fmt = logging.Formatter(
+            "------\n%(asctime)s %(levelname)s %(name)s %(message)s",
+            "%Y-%m-%dT%H:%M:%S")
         handler = logging.StreamHandler()
-        handler.setLevel(logging.INFO)
-        logger.addHandler(handler)
+        handler.setFormatter(fmt)
+        root.addHandler(handler)
 
     def check_socket(self):
         if self.can_connect(self.options.family, self.options.address):
@@ -182,6 +196,8 @@ class ZEOServer:
         method is called without additional arguments.
         """
         if os.name != "posix":
+            if os.name == "nt":
+                self.setup_win32_signals()
             return
         if hasattr(signal, 'SIGXFSZ'):
             signal.signal(signal.SIGXFSZ, signal.SIG_IGN) # Special case
@@ -192,6 +208,27 @@ class ZEOServer:
                 def wrapper(sig_dummy, frame_dummy, method=method):
                     method()
                 signal.signal(sig, wrapper)
+
+    def setup_win32_signals(self):
+        # Borrow the Zope Signals package win32 support, if available.
+        # Signals does a check/log for the availability of pywin32.
+        try:
+            import Signals.Signals
+        except ImportError:
+            logger.debug("Signals package not found. "
+                         "Windows-specific signal handler "
+                         "will *not* be installed.")
+            return
+        SignalHandler = Signals.Signals.SignalHandler
+        if SignalHandler is not None: # may be None if no pywin32.
+            SignalHandler.registerHandler(signal.SIGTERM,
+                                          windows_shutdown_handler)
+            SignalHandler.registerHandler(signal.SIGINT,
+                                          windows_shutdown_handler)
+            # Can use the log rotate handler too.
+            from Signals.Signals import logfileRotateHandler
+            SIGUSR2 = 12 # not in signal module on Windows.
+            SignalHandler.registerHandler(SIGUSR2, logfileRotateHandler)
 
     def create_server(self):
         from ZEO.StorageServer import StorageServer
@@ -237,6 +274,52 @@ class ZEOServer:
                 log("failed to close storage %r" % name,
                     level=logging.EXCEPTION, exc_info=True)
 
+    def _get_pidfile(self):
+        pidfile = self.options.pid_file
+        # 'pidfile' is marked as not required.
+        if not pidfile:
+            # Try to find a reasonable location if the pidfile is not
+            # set. If we are running in a Zope environment, we can
+            # safely assume INSTANCE_HOME.
+            instance_home = os.environ.get("INSTANCE_HOME")
+            if not instance_home:
+                # If all our attempts failed, just log a message and
+                # proceed.
+                logger.debug("'pidfile' option not set, and 'INSTANCE_HOME' "
+                             "environment variable could not be found. "
+                             "Cannot guess pidfile location.")
+                return
+            self.options.pid_file = os.path.join(instance_home,
+                                                 "var", "ZEO.pid")
+
+    def make_pidfile(self):
+        if not self.options.read_only:
+            self._get_pidfile()
+            pidfile = self.options.pid_file
+            if pidfile is None:
+                return
+            pid = os.getpid()
+            try:
+                if os.path.exists(pidfile):
+                    os.unlink(pidfile)
+                f = open(pidfile, 'w')
+                print >> f, pid
+                f.close()
+                log("created PID file '%s'" % pidfile)
+            except IOError:
+                logger.error("PID file '%s' cannot be opened" % pidfile)
+
+    def remove_pidfile(self):
+        if not self.options.read_only:
+            pidfile = self.options.pid_file
+            if pidfile is None:
+                return
+            try:
+                if os.path.exists(pidfile):
+                    os.unlink(pidfile)
+                    log("removed PID file '%s'" % pidfile)
+            except IOError:
+                logger.error("PID file '%s' could not be removed" % pidfile)
 
 # Signal names
 

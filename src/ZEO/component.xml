@@ -93,6 +93,15 @@
       </description>
     </key>
 
+    <key name="pid-filename" datatype="existing-dirpath"
+         required="no">
+      <description>
+        The full path to the file in which to write the ZEO server's Process ID
+        at startup. If omitted, $INSTANCE/var/ZEO.pid is used.
+      </description>
+      <metadefault>$INSTANCE/var/ZEO.pid (or $clienthome/ZEO.pid)</metadefault>
+    </key>
+
   </sectiontype>
 
 </component>
