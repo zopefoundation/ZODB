@@ -47,6 +47,7 @@ zeo_conf_template = """\
   address %(port)d
   read-only false
   invalidation-queue-size 100
+  # pid-filename $INSTANCE/var/ZEO.pid
   # monitor-address PORT
   # transaction-timeout SECONDS
 </zeo>
