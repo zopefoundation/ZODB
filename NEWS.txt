@@ -5,14 +5,22 @@ Release date: DD-MMM-YYYY
 
 What's new in ZODB3 3.4a4?
 ==========================
-Release date: DD-MMM-YYYY
+Release date: 23-Apr-2005
 
 ZEO
 ---
 
-The default logging setup in ``runzeo.py`` was broken.  It was changed
-so that running ``runzeo.py`` from a command line now, and without using
-a config file, prints output to the console much as ZODB 3.2 did.
+- The ZODB and ZEO version numbers are now the same.  Concretely::
+
+      import ZODB, ZEO
+      assert ZODB.__version__ == ZEO.version
+
+  no longer fails.  If interested, see the README file for details about
+  earlier version numbering schemes.
+
+- The default logging setup in ``runzeo.py`` was broken.  It was changed
+  so that running ``runzeo.py`` from a command line now, and without using
+  a config file, prints output to the console much as ZODB 3.2 did.
 
 ZEO on Windows
 --------------

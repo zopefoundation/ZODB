@@ -42,6 +42,13 @@ class DummyDB:
     def invalidate(self, *args):
         pass
 
+class OneTimeTests(unittest.TestCase):
+
+    def checkZEOVersionNumber(self):
+        import ZEO
+        # Starting with ZODB 3.4, the ZODB and ZEO version numbers should
+        # be identical.
+        self.assertEqual(ZODB.__version__, ZEO.version)
 
 class MiscZEOTests:
     """ZEO tests that don't fit in elsewhere."""
@@ -183,25 +190,15 @@ class FileStorageTests(FullGenericTests):
         </filestorage>
         """ % filename
 
-class BDBTests(FullGenericTests):
-    """ZEO backed by a Berkeley full storage."""
-    level = 2
-
-    def getConfig(self):
-        self._envdir = tempfile.mktemp()
-        return """\
-        <fullstorage 1>
-        envdir %s
-        </fullstorage>
-        """ % self._envdir
-
 class MappingStorageTests(GenericTests):
     """ZEO backed by a Mapping storage."""
 
     def getConfig(self):
         return """<mappingstorage 1/>"""
 
-test_classes = [FileStorageTests, MappingStorageTests]
+test_classes = [OneTimeTests,
+                FileStorageTests,
+                MappingStorageTests]
 
 def test_suite():
     suite = unittest.TestSuite()
