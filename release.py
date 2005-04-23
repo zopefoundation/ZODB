@@ -46,13 +46,11 @@ def replace(filename, pat, repl):
         print >> e, "*" * 60, "Oops!"
         print >> e, "    Failed to find %r in %r" % (pat, filename)
 
-def compute_zeoversion(version):
-    # ZEO version's trail ZODB versions by one full revision.
-    # ZODB 3.2c1 corresponds to ZEO 2.2c1
-    major, rest = version.split(".", 1)
-    major = int(major) - 1
-    return "%s.%s" % (major, rest)
-
+# Nothing in our codebase cares about ZEO/version.txt.  Jeremy said
+# someone asked for it so that a shell script could read up the ZEO
+# version easily.
+# Before ZODB 3.4, the ZEO version was one smaller than the ZODB version;
+# e.g., ZEO 2.2.7 shipped with ZODB 3.2.7.
 def write_zeoversion(path, version):
     f = file(path, "w")
     print >> f, version
@@ -60,7 +58,6 @@ def write_zeoversion(path, version):
 
 def main(args):
     version, date = args
-    zeoversion = compute_zeoversion(version)
 
     replace("setup.py",
             r'version="\S+"',
@@ -70,8 +67,8 @@ def main(args):
             '__version__ = "%s"' % version)
     replace("src/ZEO/__init__.py",
             r'version = "\S+"',
-            'version = "%s"' % zeoversion)
-    write_zeoversion("src/ZEO/version.txt", zeoversion)
+            'version = "%s"' % version)
+    write_zeoversion("src/ZEO/version.txt", version)
     replace("NEWS.txt",
             r"^Release date: .*",
             "Release date: %s" % date)

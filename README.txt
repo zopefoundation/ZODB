@@ -124,10 +124,13 @@ Running all the tests takes much longer.::
 History
 -------
 
-The version numbering scheme for ZODB is complicated.  Starting with
-the ZODB 3.1 release, we tried to make it simpler.  Versions prior to
-3.1 had different names and different numbers.  This section describes
-the gory details.
+The historical version numbering schemes for ZODB and ZEO are complicated.
+Starting with ZODB 3.4, the ZODB and ZEO version numbers are the same.
+
+In the ZODB 3.1 through 3.3 lines, the ZEO version number was "one smaller"
+than the ZODB version number; e.g., ZODB 3.2.7 included ZEO 2.2.7.  ZODB and
+ZEO were distinct releases prior to ZODB 3.1, and had independent version
+numbers.
 
 Historically, ZODB was distributed as a part of the Zope application
 server.  Jim Fulton's paper at the Python conference in 2000 described
@@ -155,8 +158,10 @@ release "ZODB".
 
 To make matters worse, we worked on a ZODB4 package for a while and
 made a couple of alpha releases.  We've now abandoned that effort,
-because we didn't have the resources to pursue while also maintaining
+because we didn't have the resources to pursue ot while also maintaining
 ZODB(3).
+
+
 
 License
 -------
