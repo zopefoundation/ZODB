@@ -33,6 +33,21 @@ def testAddingThenModifyThenAbort():
     >>> transaction.abort()
   
 """
+
+def testModifyThenSavePointThenModifySomeMoreThenCommit():
+    """
+    >>> import ZODB.tests.util
+    >>> db = ZODB.tests.util.DB()
+    >>> connection = db.open()
+    >>> root = connection.root()
+    >>> sp = transaction.savepoint()
+    >>> root['a'] = 1
+    >>> sp = transaction.savepoint()
+    >>> root['a'] = 2
+    >>> transaction.commit()
+  
+"""
+
 def test_suite():
     return unittest.TestSuite((
         doctest.DocFileSuite('testConnectionSavepoint.txt'),

@@ -63,7 +63,6 @@ class Connection(ExportImport, object):
 
     _storage = _normal_storage = _savepoint_storage = None
 
-    _tmp = None
     _code_timestamp = 0
 
     ##########################################################################
@@ -437,9 +436,17 @@ class Connection(ExportImport, object):
         """Commit changes to an object"""
 
         if self._savepoint_storage is not None:
+
+            # We first checkpoint the current changes to the savepoint
+            self.savepoint()
+
+            # then commit all of the savepoint changes at once
             self._commit_savepoint(transaction)
 
-        self._commit(transaction)
+            # No need to call _commit since savepoint did.
+            
+        else:
+            self._commit(transaction)
 
     def _commit(self, transaction):
         """Commit changes to an object"""
