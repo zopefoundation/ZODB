@@ -325,10 +325,18 @@ class Connection(ExportImport, object):
     def abort(self, transaction):
         """Abort a transaction and forget all changes."""
 
-        if self._savepoint_storage is not None:
-            self._abort_savepoint()
+        # The order is important here.  We want to abort registered
+        # objects before we process the cache.  Otherwise, we may un-add
+        # objects added in savepoints.  If they've been modified since
+        # the savepoint, then they won't have _p_oid or _p_jar after
+        # they've been unadded. This will make the code in _abort
+        # confused.
+        
 
         self._abort()
+
+        if self._savepoint_storage is not None:
+            self._abort_savepoint()
 
         self._tpc_cleanup()
 
@@ -988,6 +996,7 @@ class Connection(ExportImport, object):
 
     def _rollback(self, state):
         self._abort()
+        self._registered_objects = []
         src = self._storage
         self._cache.invalidate(src.index)
         src.reset(*state)

@@ -17,11 +17,26 @@ $Id$
 """
 import unittest
 from zope.testing import doctest
+import persistent.dict, transaction
 
+def testAddingThenModifyThenAbort():
+    """
+    >>> import ZODB.tests.util
+    >>> db = ZODB.tests.util.DB()
+    >>> connection = db.open()
+    >>> root = connection.root()
 
+    >>> ob = persistent.dict.PersistentDict()
+    >>> root['ob'] = ob
+    >>> sp = transaction.savepoint()
+    >>> ob.x = 1
+    >>> transaction.abort()
+  
+"""
 def test_suite():
     return unittest.TestSuite((
         doctest.DocFileSuite('testConnectionSavepoint.txt'),
+        doctest.DocTestSuite(),
         ))
 
 if __name__ == '__main__':
