@@ -30,7 +30,7 @@ class SampleDataManager(UserDict.DictMixin):
     This data manager stores named simple values, like strings and numbers.
     """
     
-    interface.implements(transaction.interfaces.ISavepointDataManager)
+    interface.implements(transaction.interfaces.IDataManager)
 
     def __init__(self, transaction_manager = None):
         if transaction_manager is None:
@@ -156,6 +156,8 @@ class SampleSavepointDataManager(SampleDataManager):
     This extends the basic data manager with savepoint support.
     """
 
+    interface.implements(transaction.interfaces.ISavepointDataManager)
+
     def savepoint(self):
         # When we create the savepoint, we save the existing database state
         return SampleSavepoint(self, self.uncommitted.copy())
@@ -165,6 +167,8 @@ class SampleSavepointDataManager(SampleDataManager):
         self.uncommitted = savepoint.data
 
 class SampleSavepoint:
+
+    interface.implements(transaction.interfaces.IDataManagerSavepoint)
 
     def __init__(self, data_manager, data):
         self.data_manager = data_manager

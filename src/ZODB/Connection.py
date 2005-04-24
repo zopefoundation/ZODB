@@ -27,7 +27,7 @@ from persistent import PickleCache
 # interfaces
 from persistent.interfaces import IPersistentDataManager
 from ZODB.interfaces import IConnection
-from transaction.interfaces import IDataManager
+from transaction.interfaces import ISavepointDataManager, IDataManagerSavepoint
 from zope.interface import implements
 
 import transaction
@@ -59,7 +59,7 @@ def resetCaches():
 class Connection(ExportImport, object):
     """Connection to ZODB for loading and storing objects."""
 
-    implements(IConnection, IDataManager, IPersistentDataManager)
+    implements(IConnection, ISavepointDataManager, IPersistentDataManager)
 
     _storage = _normal_storage = _savepoint_storage = None
 
@@ -319,7 +319,7 @@ class Connection(ExportImport, object):
     ##########################################################################
 
     ##########################################################################
-    # Data manager (IDataManager) methods
+    # Data manager (ISavepointDataManager) methods
 
     def abort(self, transaction):
         """Abort a transaction and forget all changes."""
@@ -638,7 +638,7 @@ class Connection(ExportImport, object):
         """Return a consistent sort key for this connection."""
         return "%s:%s" % (self._storage.sortKey(), id(self))
 
-    # Data manager (IDataManager) methods
+    # Data manager (ISavepointDataManager) methods
     ##########################################################################
 
     ##########################################################################
@@ -1060,6 +1060,8 @@ class Connection(ExportImport, object):
     #####################################################################
 
 class Savepoint:
+
+    implements(IDataManagerSavepoint)
 
     def __init__(self, datamanager, state):
         self.datamanager = datamanager

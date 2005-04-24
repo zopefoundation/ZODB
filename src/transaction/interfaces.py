@@ -308,7 +308,25 @@ class IDataManager(zope.interface.Interface):
 class ISavepointDataManager(IDataManager):
 
     def savepoint():
-        """Return a savepoint (ISavepoint)
+        """Return a data-manager savepoint (IDataManagerSavepoint)
+        """
+
+class IDataManagerSavepoint(zope.interface.Interface):
+    """Savepoint for data-manager changes for use in transaction savepoints
+
+    Datamanager savepoints are used by, and only by, transaction savepoints.
+    
+    Note that data manager savepoints don't have any notion of or
+    responsibility for validity.  It isn't the responsibility of
+    data-manager savepoints to prevent multiple rollbacks or rollbacks
+    after transaction termination.  Preventing invalid savepoint
+    rollback is the responsibility of transaction rollbacks.
+    Application code should never use data-manager savepoints.
+    
+    """
+
+    def rollback():
+        """Rollback any work done since the savepoint
         """
 
 class ISavepoint(zope.interface.Interface):
