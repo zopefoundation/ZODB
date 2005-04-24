@@ -550,13 +550,17 @@ class ZODBTests(unittest.TestCase):
         self.assertEqual(rt['a'], 1)
 
         rt['b'] = 2
+
         # Subtransactions don't do tpc_vote, so we poison tpc_begin.
-        poisoned = PoisonedObject(PoisonedJar(break_tpc_begin=True))
-        transaction.get().register(poisoned)
+        poisoned = PoisonedJar()
+        transaction.get().join(poisoned)
+        poisoned.break_savepoint = True
         self.assertRaises(PoisonedError, transaction.get().commit, True)
         # Trying to subtxn-commit again fails too.
-        self.assertRaises(TransactionFailedError, transaction.get().commit, True)
-        self.assertRaises(TransactionFailedError, transaction.get().commit, True)
+        self.assertRaises(TransactionFailedError,
+                          transaction.get().commit, True)
+        self.assertRaises(TransactionFailedError,
+                          transaction.get().commit, True)
         # Top-level commit also fails.
         self.assertRaises(TransactionFailedError, transaction.get().commit)
 
@@ -568,6 +572,7 @@ class ZODBTests(unittest.TestCase):
         # also raises TransactionFailedError.
         self.assertRaises(TransactionFailedError, rt.__setitem__, 'b', 2)
 
+
         # Clean up via abort(), and try again.
         transaction.get().abort()
         rt['a'] = 1
@@ -576,13 +581,18 @@ class ZODBTests(unittest.TestCase):
 
         # Cleaning up via begin() should also work.
         rt['a'] = 2
-        transaction.get().register(poisoned)
+        poisoned = PoisonedJar()
+        transaction.get().join(poisoned)
+        poisoned.break_savepoint = True
         self.assertRaises(PoisonedError, transaction.get().commit, True)
-        self.assertRaises(TransactionFailedError, transaction.get().commit, True)
+        self.assertRaises(TransactionFailedError,
+                          transaction.get().commit, True)
+
         # The change to rt['a'] is lost.
         self.assertEqual(rt['a'], 1)
         # Trying to modify an object also fails.
         self.assertRaises(TransactionFailedError, rt.__setitem__, 'b', 2)
+
         # Clean up via begin(), and try again.
         transaction.begin()
         rt['a'] = 2
@@ -603,9 +613,11 @@ class PoisonedError(Exception):
 # PoisonedJar arranges to raise exceptions from interesting places.
 # For whatever reason, subtransaction commits don't call tpc_vote.
 class PoisonedJar:
-    def __init__(self, break_tpc_begin=False, break_tpc_vote=False):
+    def __init__(self, break_tpc_begin=False, break_tpc_vote=False,
+                 break_savepoint=False):
         self.break_tpc_begin = break_tpc_begin
         self.break_tpc_vote = break_tpc_vote
+        self.break_savepoint = break_savepoint
 
     def sortKey(self):
         return str(id(self))
@@ -620,13 +632,9 @@ class PoisonedJar:
         if self.break_tpc_vote:
             raise PoisonedError("tpc_vote fails")
 
-    # commit_sub is needed else this jar is ignored during subtransaction
-    # commit.
-    def commit_sub(*args):
-        pass
-
-    def abort_sub(*args):
-        pass
+    def savepoint(self):
+        if self.break_savepoint:
+            raise PoisonedError("savepoint fails")        
 
     def commit(*args):
         pass

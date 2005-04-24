@@ -85,100 +85,6 @@ class TransactionTests(unittest.TestCase):
 
         t.abort()
 
-    def testSubTransactionCommitCommit(self):
-
-        self.sub1.modify()
-        self.sub2.modify()
-
-        self.txn_mgr.commit(1)
-
-        assert self.sub1._p_jar.ctpc_vote == 0
-        assert self.sub1._p_jar.ctpc_finish == 1
-
-        self.txn_mgr.commit()
-
-        assert self.sub1._p_jar.ccommit_sub == 1
-        assert self.sub1._p_jar.ctpc_vote == 1
-
-    def testSubTransactionCommitAbort(self):
-
-        self.sub1.modify()
-        self.sub2.modify()
-
-        self.txn_mgr.commit(1)
-        self.txn_mgr.abort()
-
-        assert self.sub1._p_jar.ctpc_vote == 0
-        assert self.sub1._p_jar.cabort == 0
-        assert self.sub1._p_jar.cabort_sub == 1
-
-    def testMultipleSubTransactionCommitCommit(self):
-        self.sub1.modify()
-        self.txn_mgr.commit(1)
-
-        self.sub2.modify()
-        # reset a flag on the original to test it again
-        self.sub1.ctpc_finish = 0
-        self.txn_mgr.commit(1)
-
-        # this is interesting.. we go through
-        # every subtrans commit with all subtrans capable
-        # objects... i don't like this but its an impl artifact
-
-        assert self.sub1._p_jar.ctpc_vote == 0
-        assert self.sub1._p_jar.ctpc_finish > 0
-
-        # add another before we do the entire txn commit
-        self.sub3.modify()
-
-        self.txn_mgr.commit()
-
-        # we did an implicit sub commit, is this impl artifact?
-        assert self.sub3._p_jar.ccommit_sub == 1
-        assert self.sub1._p_jar.ctpc_finish > 1
-
-
-    def testMultipleSubTransactionCommitAbortSub(self):
-        """
-        sub1 calling method commit
-        sub1 calling method tpc_finish
-        sub2 calling method tpc_begin
-        sub2 calling method commit
-        sub2 calling method tpc_finish
-        sub3 calling method abort
-        sub1 calling method commit_sub
-        sub2 calling method commit_sub
-        sub2 calling method tpc_vote
-        sub1 calling method tpc_vote
-        sub1 calling method tpc_finish
-        sub2 calling method tpc_finish
-        """
-
-        # add it
-        self.sub1.modify()
-
-        self.txn_mgr.commit(1)
-
-        # add another
-        self.sub2.modify()
-
-        self.txn_mgr.commit(1)
-
-        assert self.sub1._p_jar.ctpc_vote == 0
-        assert self.sub1._p_jar.ctpc_finish > 0
-
-        # add another before we do the entire txn commit
-        self.sub3.modify()
-
-        # abort the sub transaction
-        self.txn_mgr.abort(1)
-
-        # commit the container transaction
-        self.txn_mgr.commit()
-
-        assert self.sub3._p_jar.cabort == 1
-        assert self.sub1._p_jar.ccommit_sub == 1
-        assert self.sub1._p_jar.ctpc_finish > 1
 
     # repeat adding in a nonsub trans jars
 
@@ -230,68 +136,6 @@ class TransactionTests(unittest.TestCase):
         assert self.nosub1._p_jar.cabort == 1
         assert self.sub1._p_jar.cabort_sub == 1
 
-    def testNSJSubTransactionCommitCommit(self):
-
-        self.sub1.modify()
-        self.nosub1.modify()
-
-        self.txn_mgr.commit(1)
-
-        assert self.nosub1._p_jar.ctpc_vote == 0
-
-        self.txn_mgr.commit()
-
-        #assert self.nosub1._p_jar.ccommit_sub == 0
-        assert self.nosub1._p_jar.ctpc_vote == 1
-        assert self.sub1._p_jar.ccommit_sub == 1
-        assert self.sub1._p_jar.ctpc_vote == 1
-
-
-    def testNSJMultipleSubTransactionCommitCommit(self):
-        """
-        sub1 calling method tpc_begin
-        sub1 calling method commit
-        sub1 calling method tpc_finish
-        nosub calling method tpc_begin
-        nosub calling method tpc_finish
-        sub2 calling method tpc_begin
-        sub2 calling method commit
-        sub2 calling method tpc_finish
-        nosub calling method tpc_begin
-        nosub calling method commit
-        sub1 calling method commit_sub
-        sub2 calling method commit_sub
-        sub1 calling method tpc_vote
-        nosub calling method tpc_vote
-        sub2 calling method tpc_vote
-        sub2 calling method tpc_finish
-        nosub calling method tpc_finish
-        sub1 calling method tpc_finish
-        """
-
-        # add it
-        self.sub1.modify()
-
-        self.txn_mgr.commit(1)
-
-        # add another
-        self.nosub1.modify()
-
-        self.txn_mgr.commit(1)
-
-        assert self.sub1._p_jar.ctpc_vote == 0
-        assert self.nosub1._p_jar.ctpc_vote == 0
-        assert self.sub1._p_jar.ctpc_finish > 0
-
-        # add another before we do the entire txn commit
-        self.sub2.modify()
-
-        # commit the container transaction
-        self.txn_mgr.commit()
-
-        # we did an implicit sub commit
-        assert self.sub2._p_jar.ccommit_sub == 1
-        assert self.sub1._p_jar.ctpc_finish > 1
 
     ### Failure Mode Tests
     #
@@ -387,80 +231,6 @@ class TransactionTests(unittest.TestCase):
 
         assert self.nosub1._p_jar.ctpc_abort == 1
 
-    ### More Failure modes...
-    # now we mix in some sub transactions
-    ###
-
-    def testExceptionInSubCommitSub(self):
-        # It's harder than normal to verify test results, because
-        # the subtransaction jars are stored in a dictionary.  The
-        # order in which jars are processed depends on the order
-        # they come out of the dictionary.
-
-        self.sub1.modify()
-        self.txn_mgr.commit(1)
-
-        self.nosub1.modify()
-
-        self.sub2._p_jar = SubTransactionJar(errors='commit_sub')
-        self.sub2.modify(nojar=1)
-
-        self.txn_mgr.commit(1)
-
-        self.sub3.modify()
-
-        try:
-            self.txn_mgr.commit()
-        except TestTxnException:
-            pass
-
-        if self.sub1._p_jar.ccommit_sub:
-            self.assertEqual(self.sub1._p_jar.ctpc_abort, 1)
-        else:
-            self.assertEqual(self.sub1._p_jar.cabort_sub, 1)
-
-        self.assertEqual(self.sub2._p_jar.ctpc_abort, 1)
-        self.assertEqual(self.nosub1._p_jar.ctpc_abort, 1)
-
-        if self.sub3._p_jar.ccommit_sub:
-            self.assertEqual(self.sub3._p_jar.ctpc_abort, 1)
-        else:
-            self.assertEqual(self.sub3._p_jar.cabort_sub, 1)
-
-    def testExceptionInSubAbortSub(self):
-        # This test has two errors.  When commit_sub() is called on
-        # sub1, it will fail.  If sub1 is handled first, it will raise
-        # an except and abort_sub() will be called on sub2.  If sub2
-        # is handled first, then commit_sub() will fail after sub2 has
-        # already begun its top-level transaction and tpc_abort() will
-        # be called.
-
-        self.sub1._p_jar = SubTransactionJar(errors='commit_sub')
-        self.sub1.modify(nojar=1)
-        self.txn_mgr.commit(1)
-
-        self.nosub1.modify()
-        self.sub2._p_jar = SubTransactionJar(errors='abort_sub')
-        self.sub2.modify(nojar=1)
-        self.txn_mgr.commit(1)
-
-        self.sub3.modify()
-
-        try:
-            self.txn_mgr.commit()
-        except TestTxnException, err:
-            pass
-        else:
-            self.fail("expected transaction to fail")
-
-        # The last commit failed.  If the commit_sub() method was
-        # called, then tpc_abort() should be called to abort the
-        # actual transaction.  If not, then calling abort_sub() is
-        # sufficient.
-        if self.sub3._p_jar.ccommit_sub:
-            self.assertEqual(self.sub3._p_jar.ctpc_abort, 1)
-        else:
-            self.assertEqual(self.sub3._p_jar.cabort_sub, 1)
 
     # last test, check the hosing mechanism
 
@@ -507,7 +277,7 @@ class DataObject:
                 self._p_jar = NoSubTransactionJar(tracing=tracing)
             else:
                 self._p_jar = SubTransactionJar(tracing=tracing)
-        self.txn_mgr.get().register(self)
+        self.txn_mgr.get().join(self._p_jar)
 
 class TestTxnException(Exception):
     pass

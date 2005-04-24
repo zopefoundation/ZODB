@@ -128,7 +128,7 @@ class TestConnection:
     def sortKey(self):
         return str(id(self))
 
-    def tpc_begin(self, txn, sub):
+    def tpc_begin(self, txn):
         self.calls.append("begin")
 
     def tpc_vote(self, txn):
