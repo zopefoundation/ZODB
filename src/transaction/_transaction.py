@@ -30,6 +30,8 @@ registers its _p_jar attribute.  TODO: explain adapter
 Subtransactions
 ---------------
 
+Note: Suntransactions are deprecated!
+
 A subtransaction applies the transaction notion recursively.  It
 allows a set of modifications within a transaction to be committed or
 aborted as a group.  A subtransaction is a strictly local activity;
@@ -82,13 +84,15 @@ calls the following four methods on each resource manager; it calls
 tpc_begin() on each resource manager before calling commit() on any of
 them.
 
-    1. tpc_begin(txn, subtransaction=False)
+    1. tpc_begin(txn)
     2. commit(txn)
     3. tpc_vote(txn)
     4. tpc_finish(txn)
 
 Subtransaction commit
 ---------------------
+
+Note: Subtransactions are deprecated!
 
 When a subtransaction commits, the protocol is different.
 
@@ -128,8 +132,7 @@ uncommitted object, including the object that failed in its commit(),
 call abort().
 
 Once uncommitted objects are aborted, tpc_abort() or abort_sub() is
-called on each resource manager.  abort_sub() is called if the
-resource manager was involved in a subtransaction.
+called on each resource manager.
 
 Synchronization
 ---------------
@@ -213,14 +216,6 @@ class Transaction(object):
         self.log = logging.getLogger("txn.%d" % thread.get_ident())
         self.log.debug("new transaction")
 
-        # _sub contains all of the resource managers involved in
-        # subtransactions.  It maps id(a resource manager) to the resource
-        # manager.
-        self._sub = {}
-        # _nonsub contains all the resource managers that do not support
-        # subtransactions that were involved in subtransaction commits.
-        self._nonsub = {}
-
         # If a commit fails, the traceback is saved in _failure_traceback.
         # If another attempt is made to commit, TransactionFailedError is
         # raised, incorporating this traceback.
@@ -230,6 +225,9 @@ class Transaction(object):
         # TODO:  in Python 2.4, change to collections.deque; lists can be
         # inefficient for FIFO access of this kind.
         self._before_commit = []
+
+        # Keep track of the last savepoint
+        self._last_savepoint = None
 
     # Raise TransactionFailedError, due to commit()/join()/register()
     # getting called when the current transaction has already suffered
@@ -258,6 +256,34 @@ class Transaction(object):
             resource = DataManagerAdapter(resource)
         self._resources.append(resource)
 
+        if self._last_savepoint is not None:
+            self._last_savepoint.join(resource)
+
+    def savepoint(self, optimistic=False):
+        if self.status is Status.COMMITFAILED:
+            self._prior_commit_failed() # doesn't return, it raises
+
+        try:
+            savepoint = Savepoint(optimistic)
+            for resource in self._resources:
+                savepoint.join(resource)
+        except:
+            self._cleanup(self._resources)
+            self._saveCommitishError() # doesn't return, it raises!
+            
+        if self._last_savepoint is not None:
+            savepoint.previous = self._last_savepoint
+            self._last_savepoint.next = savepoint
+        self._last_savepoint = savepoint
+        return savepoint
+
+    def _invalidate_last_savepoint(self):
+        # Invalidate the last savepoint and any previous
+        # savepoints. This is done on a commit or abort.
+        if self._last_savepoint is not None:
+            self._last_savepoint._invalidate_previous()
+            self._last_savepoint = None
+
     def register(self, obj):
         # The old way of registering transaction participants.
         #
@@ -273,10 +299,7 @@ class Transaction(object):
             raise ValueError("Register with no manager")
         adapter = self._adapters.get(manager)
         if adapter is None:
-            if myhasattr(manager, "commit_sub"):
-                adapter = MultiObjectResourceAdapterSub(manager)
-            else:
-                adapter = MultiObjectResourceAdapter(manager)
+            adapter = MultiObjectResourceAdapter(manager)
             adapter.objects.append(obj)
             self._adapters[manager] = adapter
             self.join(adapter)
@@ -286,66 +309,58 @@ class Transaction(object):
             assert id(obj) not in map(id, adapter.objects)
             adapter.objects.append(obj)
 
-            # In the presence of subtransactions, an existing adapter
-            # might be in _adapters but not in _resources.
-            if adapter not in self._resources:
-                self._resources.append(adapter)
-
     def begin(self):
         from ZODB.utils import deprecated36
 
         deprecated36("Transaction.begin() should no longer be used; use "
                       "the begin() method of a transaction manager.")
-        if (self._resources or
-              self._sub or
-              self._nonsub or
-              self._synchronizers):
+        if (self._resources or self._synchronizers):
             self.abort()
         # Else aborting wouldn't do anything, except if _manager is non-None,
         # in which case it would do nothing besides uselessly free() this
         # transaction.
 
     def commit(self, subtransaction=False):
+
+        self._invalidate_last_savepoint()
+
+        if subtransaction:
+            # TODO depricate subtransactions
+            self.savepoint(1)
+            return
+        
         if self.status is Status.COMMITFAILED:
             self._prior_commit_failed() # doesn't return
 
-        if not subtransaction:
-            self._callBeforeCommitHooks()
+        self._callBeforeCommitHooks()
 
-        if not subtransaction and self._sub and self._resources:
-            # This commit is for a top-level transaction that has
-            # previously committed subtransactions.  Do one last
-            # subtransaction commit to clear out the current objects,
-            # then commit all the subjars.
-            self.commit(True)
-
-        if not subtransaction:
-            self._synchronizers.map(lambda s: s.beforeCompletion(self))
-            self.status = Status.COMMITTING
+        self._synchronizers.map(lambda s: s.beforeCompletion(self))
+        self.status = Status.COMMITTING
 
         try:
-            self._commitResources(subtransaction)
+            self._commitResources()
         except:
-            self.status = Status.COMMITFAILED
-            # Save the traceback for TransactionFailedError.
-            ft = self._failure_traceback = StringIO()
-            t, v, tb = sys.exc_info()
-            # Record how we got into commit().
-            traceback.print_stack(sys._getframe(1), None, ft)
-            # Append the stack entries from here down to the exception.
-            traceback.print_tb(tb, None, ft)
-            # Append the exception type and value.
-            ft.writelines(traceback.format_exception_only(t, v))
-            raise t, v, tb
+            self._saveCommitishError() # This raises!
 
-        if subtransaction:
-            self._resources = []
-        else:
-            self.status = Status.COMMITTED
-            if self._manager:
-                self._manager.free(self)
-            self._synchronizers.map(lambda s: s.afterCompletion(self))
-            self.log.debug("commit")
+        self.status = Status.COMMITTED
+        if self._manager:
+            self._manager.free(self)
+        self._synchronizers.map(lambda s: s.afterCompletion(self))
+        self.log.debug("commit")
+
+    def _saveCommitishError(self):
+        self.status = Status.COMMITFAILED
+        # Save the traceback for TransactionFailedError.
+        ft = self._failure_traceback = StringIO()
+        t, v, tb = sys.exc_info()
+        # Record how we got into commit().
+        traceback.print_stack(sys._getframe(1), None, ft)
+        # Append the stack entries from here down to the exception.
+        traceback.print_tb(tb, None, ft)
+        # Append the exception type and value.
+        ft.writelines(traceback.format_exception_only(t, v))
+        raise t, v, tb
+        
 
     def beforeCommitHook(self, hook, *args, **kws):
         self._before_commit.append((hook, args, kws))
@@ -357,31 +372,20 @@ class Transaction(object):
             hook, args, kws = self._before_commit.pop(0)
             hook(*args, **kws)
 
-    def _commitResources(self, subtransaction):
+    def _commitResources(self):
         # Execute the two-phase commit protocol.
 
-        L = self._getResourceManagers(subtransaction)
+        L = list(self._resources)
+        L.sort(rm_cmp)
         try:
             for rm in L:
-                # If you pass subtransaction=True to tpc_begin(), it
-                # will create a temporary storage for the duration of
-                # the transaction.  To signal that the top-level
-                # transaction is committing, you must then call
-                # commit_sub().
-                if not subtransaction and id(rm) in self._sub:
-                    del self._sub[id(rm)]
-                    rm.commit_sub(self)
-                else:
-                    rm.tpc_begin(self, subtransaction)
+                rm.tpc_begin(self)
             for rm in L:
                 rm.commit(self)
                 self.log.debug("commit %r" % rm)
-            if not subtransaction:
-                # Not sure why, but it is intentional that you do not
-                # call tpc_vote() for subtransaction commits.
-                for rm in L:
-                    rm.tpc_vote(self)
-                    self._voted[id(rm)] = True
+            for rm in L:
+                rm.tpc_vote(self)
+                self._voted[id(rm)] = True
 
             try:
                 for rm in L:
@@ -401,8 +405,7 @@ class Transaction(object):
             try:
                 self._cleanup(L)
             finally:
-                if not subtransaction:
-                    self._synchronizers.map(lambda s: s.afterCompletion(self))
+                self._synchronizers.map(lambda s: s.afterCompletion(self))
             raise t, v, tb
 
     def _cleanup(self, L):
@@ -415,68 +418,30 @@ class Transaction(object):
                     self.log.error("Error in abort() on manager %s",
                                    rm, exc_info=sys.exc_info())
         for rm in L:
-            if id(rm) in self._sub:
-                try:
-                    rm.abort_sub(self)
-                except Exception:
-                    self.log.error("Error in abort_sub() on manager %s",
-                                   rm, exc_info=sys.exc_info())
-            else:
-                try:
-                    rm.tpc_abort(self)
-                except Exception:
-                    self.log.error("Error in tpc_abort() on manager %s",
-                                   rm, exc_info=sys.exc_info())
-
-    def _getResourceManagers(self, subtransaction):
-        L = []
-        if subtransaction:
-            # If we are in a subtransaction, make sure all resource
-            # managers are placed in either _sub or _nonsub.  When
-            # the top-level transaction commits, we need to merge
-            # these back into the resource set.
-
-            # If a data manager doesn't support sub-transactions, we
-            # don't do anything with it now.  (That's somewhat okay,
-            # because subtransactions are mostly just an
-            # optimization.)  Save it until the top-level transaction
-            # commits.
-
-            for rm in self._resources:
-                if myhasattr(rm, "commit_sub"):
-                    self._sub[id(rm)] = rm
-                    L.append(rm)
-                else:
-                    self._nonsub[id(rm)] = rm
-        else:
-            if self._sub or self._nonsub:
-                # Merge all of _sub, _nonsub, and _resources.
-                d = dict(self._sub)
-                d.update(self._nonsub)
-                # TODO: I think _sub and _nonsub are disjoint, and that
-                #       _resources is empty.  If so, we can simplify this code.
-                assert len(d) == len(self._sub) + len(self._nonsub)
-                assert not self._resources
-                for rm in self._resources:
-                    d[id(rm)] = rm
-                L = d.values()
-            else:
-                L = list(self._resources)
-
-        L.sort(rm_cmp)
-        return L
+            try:
+                rm.tpc_abort(self)
+            except Exception:
+                self.log.error("Error in tpc_abort() on manager %s",
+                               rm, exc_info=sys.exc_info())
 
     def abort(self, subtransaction=False):
-        if not subtransaction:
-            self._synchronizers.map(lambda s: s.beforeCompletion(self))
 
-        if subtransaction and self._nonsub:
-            from ZODB.POSException import TransactionError
-            raise TransactionError("Resource manager does not support "
-                                   "subtransaction abort")
+        if subtransaction:
+            # TODO deprecate subtransactions
+            if not self._last_savepoint:
+                raise interfaces.InvalidSavepointRollbackError
+            if self._last_savepoint.valid:
+                # We're supposed to be able to call abort(1) multiple
+                # times. Sigh.
+                self._last_savepoint.rollback()
+            return
+
+        self._invalidate_last_savepoint()
+        
+        self._synchronizers.map(lambda s: s.beforeCompletion(self))
 
         tb = None
-        for rm in self._resources + self._nonsub.values():
+        for rm in self._resources:
             try:
                 rm.abort(self)
             except:
@@ -485,21 +450,12 @@ class Transaction(object):
                 self.log.error("Failed to abort resource manager: %s",
                                rm, exc_info=sys.exc_info())
 
-        if not subtransaction:
-            for rm in self._sub.values():
-                try:
-                    rm.abort_sub(self)
-                except:
-                    if tb is None:
-                        t, v, tb = sys.exc_info()
-                    self.log.error("Failed to abort_sub resource manager: %s",
-                                   rm, exc_info=sys.exc_info())
+        if self._manager:
+            self._manager.free(self)
+            
+        self._synchronizers.map(lambda s: s.afterCompletion(self))
 
-        if not subtransaction:
-            if self._manager:
-                self._manager.free(self)
-            self._synchronizers.map(lambda s: s.afterCompletion(self))
-            self.log.debug("abort")
+        self.log.debug("abort")
 
         if tb is not None:
             raise t, v, tb
@@ -539,8 +495,8 @@ class MultiObjectResourceAdapter(object):
     def sortKey(self):
         return self.manager.sortKey()
 
-    def tpc_begin(self, txn, sub=False):
-        self.manager.tpc_begin(txn, sub)
+    def tpc_begin(self, txn):
+        self.manager.tpc_begin(txn)
 
     def tpc_finish(self, txn):
         self.manager.tpc_finish(txn)
@@ -570,25 +526,6 @@ class MultiObjectResourceAdapter(object):
                               object_hint(o), exc_info=sys.exc_info())
         if tb is not None:
             raise t, v, tb
-
-class MultiObjectResourceAdapterSub(MultiObjectResourceAdapter):
-    """Adapt resource managers that participate in subtransactions."""
-
-    def commit_sub(self, txn):
-        self.manager.commit_sub(txn)
-
-    def abort_sub(self, txn):
-        self.manager.abort_sub(txn)
-
-    def tpc_begin(self, txn, sub=False):
-        self.manager.tpc_begin(txn, sub)
-        self.sub = sub
-
-    def tpc_finish(self, txn):
-        self.manager.tpc_finish(txn)
-        if self.sub:
-            self.objects = []
-
 
 def rm_cmp(rm1, rm2):
     return cmp(rm1.sortKey(), rm2.sortKey())
@@ -624,50 +561,82 @@ class DataManagerAdapter(object):
 
     def __init__(self, datamanager):
         self._datamanager = datamanager
-        self._rollback = None
 
     # TODO: I'm not sure why commit() doesn't do anything
 
     def commit(self, transaction):
+        # We don't do anything here because ZODB4-style data managers
+        # didn't have a separate commit step
         pass
 
     def abort(self, transaction):
-
-        # We need to discard any changes since the last save point, or all
-        # changes
-
-        if self._rollback is None:
-            # No previous savepoint, so just abort
-            self._datamanager.abort(transaction)
-        else:
-            self._rollback()
-
-    def abort_sub(self, transaction):
         self._datamanager.abort(transaction)
 
-    def commit_sub(self, transaction):
-        # Nothing to do wrt data, be we begin 2pc for the top-level
-        # trans
-        self._sub = False
-
-    def tpc_begin(self, transaction, subtransaction=False):
-        self._sub = subtransaction
-
+    def tpc_begin(self, transaction):
+        # We don't do anything here because ZODB4-style data managers
+        # didn't have a separate tpc_begin step
+        pass
+        
     def tpc_abort(self, transaction):
-        if self._sub:
-            self.abort(self, transaction)
-        else:
-            self._datamanager.abort(transaction)
+        self._datamanager.abort(transaction)
 
     def tpc_finish(self, transaction):
-        if self._sub:
-            self._rollback = self._datamanager.savepoint(transaction).rollback
-        else:
-            self._datamanager.commit(transaction)
+        self._datamanager.commit(transaction)
 
     def tpc_vote(self, transaction):
-        if not self._sub:
-            self._datamanager.prepare(transaction)
+        self._datamanager.prepare(transaction)
 
     def sortKey(self):
         return self._datamanager.sortKey()
+
+class Savepoint:
+    """Transaction savepoint
+
+    Transaction savepoints coordinate savepoints for data managers
+    participating in a transaction.
+    
+    """
+    interface.implements(interfaces.ISavepoint)
+
+    def __init__(self, optimistic):
+        self._savepoints = []
+        self.valid = True
+        self.next = self.previous = None
+        self.optimistic = optimistic
+    
+    def join(self, datamanager):
+        try:
+            savepoint = datamanager.savepoint
+        except AttributeError:
+            if not self.optimistic:
+                raise TypeError("Savepoints unsupported", datamanager)
+            savepoint = NoRollbackSavepoint(datamanager)
+        else:
+            savepoint = savepoint()
+                
+        self._savepoints.append(savepoint)
+
+    def rollback(self):
+        if not self.valid:
+            raise interfaces.InvalidSavepointRollbackError
+        self._invalidate_next()
+        for savepoint in self._savepoints:
+            savepoint.rollback()
+
+    def _invalidate_next(self):
+        self.valid = False
+        if self.next is not None:
+            self.next._invalidate_next()
+
+    def _invalidate_previous(self):
+        self.valid = False
+        if self.previous is not None:
+            self.previous._invalidate_previous()
+
+class NoRollbackSavepoint:
+
+    def __init__(self, datamanager):
+        self.datamanager = datamanager
+
+    def rollback(self):
+        raise TypeError("Savepoints unsupported", self.datamanager)

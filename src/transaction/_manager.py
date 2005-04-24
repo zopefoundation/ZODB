@@ -67,6 +67,9 @@ class TransactionManager(object):
     def abort(self, sub=False):
         self.get().abort(sub)
 
+    def savepoint(self, optimistic=False):
+        return self.get().savepoint(optimistic)
+
 class ThreadTransactionManager(TransactionManager):
     """Thread-aware transaction manager.
 

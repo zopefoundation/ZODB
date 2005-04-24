@@ -294,7 +294,7 @@ class UserMethodTests(unittest.TestCase):
         >>> cn.close()  # this was succeeding
         Traceback (most recent call last):
           ...
-        ConnectionStateError: Cannot close a connection with a pending subtransaction
+        ConnectionStateError: Cannot close a connection joined to a transaction
 
         Again this leaves the connection as it was.
         >>> transaction.commit()

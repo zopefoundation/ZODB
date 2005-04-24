@@ -17,6 +17,7 @@ $Id$"""
 
 import logging
 import sys
+import tempfile
 import threading
 import warnings
 from time import time
@@ -33,13 +34,12 @@ import transaction
 
 from ZODB.ConflictResolution import ResolvedSerial
 from ZODB.ExportImport import ExportImport
-from ZODB.POSException \
-     import ConflictError, ReadConflictError, InvalidObjectReference, \
-            ConnectionStateError
-from ZODB.TmpStore import TmpStore
+from ZODB import POSException
+from ZODB.POSException import InvalidObjectReference, ConnectionStateError
+from ZODB.POSException import ConflictError, ReadConflictError
 from ZODB.serialize import ObjectWriter, ObjectReader, myhasattr
-from ZODB.utils import u64, oid_repr, z64, positive_id, \
-        DEPRECATED_ARGUMENT, deprecated36
+from ZODB.utils import DEPRECATED_ARGUMENT, deprecated36
+from ZODB.utils import p64, u64, z64, oid_repr, positive_id
 
 global_reset_counter = 0
 
@@ -61,17 +61,19 @@ class Connection(ExportImport, object):
 
     implements(IConnection, IDataManager, IPersistentDataManager)
 
+    _storage = _normal_storage = _savepoint_storage = None
+
     _tmp = None
     _code_timestamp = 0
 
-    # ZODB.IConnection
+    ##########################################################################
+    # Connection methods, ZODB.IConnection
 
     def __init__(self, version='', cache_size=400,
                  cache_deactivate_after=None, mvcc=True, txn_mgr=None,
                  synch=True):
         """Create a new Connection."""
         self._log = logging.getLogger("ZODB.Connection")
-        self._storage = None
         self._debug_info = ()
         self._opened = None # time.time() when DB.open() opened us
 
@@ -150,39 +152,6 @@ class Connection(ExportImport, object):
 
         self.connections = None
 
-    def get_connection(self, database_name):
-        """Return a Connection for the named database."""
-        connection = self.connections.get(database_name)
-        if connection is None:
-            new_con = self._db.databases[database_name].open()
-            self.connections.update(new_con.connections)
-            new_con.connections = self.connections
-            connection = new_con
-        return connection
-
-    def get(self, oid):
-        """Return the persistent object with oid 'oid'."""
-        if self._storage is None:
-            raise ConnectionStateError("The database connection is closed")
-
-        obj = self._cache.get(oid, None)
-        if obj is not None:
-            return obj
-        obj = self._added.get(oid, None)
-        if obj is not None:
-            return obj
-
-        p, serial = self._storage.load(oid, self._version)
-        obj = self._reader.getGhost(p)
-
-        obj._p_oid = oid
-        obj._p_jar = self
-        obj._p_changed = None
-        obj._p_serial = serial
-
-        self._cache[oid] = obj
-        return obj
-
     def add(self, obj):
         """Add a new object 'obj' to the database and assign it an oid."""
         if self._storage is None:
@@ -207,12 +176,165 @@ class Connection(ExportImport, object):
         elif obj._p_jar is not self:
             raise InvalidObjectReference(obj, obj._p_jar)
 
-    def sortKey(self):
-        """Return a consistent sort key for this connection."""
-        return "%s:%s" % (self._storage.sortKey(), id(self))
+    def get(self, oid):
+        """Return the persistent object with oid 'oid'."""
+        if self._storage is None:
+            raise ConnectionStateError("The database connection is closed")
+
+        obj = self._cache.get(oid, None)
+        if obj is not None:
+            return obj
+        obj = self._added.get(oid, None)
+        if obj is not None:
+            return obj
+
+        p, serial = self._storage.load(oid, self._version)
+        obj = self._reader.getGhost(p)
+
+        obj._p_oid = oid
+        obj._p_jar = self
+        obj._p_changed = None
+        obj._p_serial = serial
+
+        self._cache[oid] = obj
+        return obj
+
+    def cacheMinimize(self, dt=DEPRECATED_ARGUMENT):
+        """Deactivate all unmodified objects in the cache."""
+        if dt is not DEPRECATED_ARGUMENT:
+            deprecated36("cacheMinimize() dt= is ignored.")
+        self._cache.minimize()
+
+    # TODO: we should test what happens when cacheGC is called mid-transaction.
+    def cacheGC(self):
+        """Reduce cache size to target size."""
+        self._cache.incrgc()
+
+    __onCloseCallbacks = None
+    def onCloseCallback(self, f):
+        """Register a callable, f, to be called by close()."""
+        if self.__onCloseCallbacks is None:
+            self.__onCloseCallbacks = []
+        self.__onCloseCallbacks.append(f)
+
+    def close(self):
+        """Close the Connection."""
+        if not self._needs_to_join:
+            # We're currently joined to a transaction.
+            raise ConnectionStateError("Cannot close a connection joined to "
+                                       "a transaction")
+
+        if self._cache is not None:
+            self._cache.incrgc() # This is a good time to do some GC
+
+        # Call the close callbacks.
+        if self.__onCloseCallbacks is not None:
+            for f in self.__onCloseCallbacks:
+                try:
+                    f()
+                except: # except what?
+                    f = getattr(f, 'im_self', f)
+                    self._log.error("Close callback failed for %s", f,
+                                    exc_info=sys.exc_info())
+            self.__onCloseCallbacks = None
+        self._storage = self._savepoint_storage = self._normal_storage = None
+        self.new_oid = None
+        self._debug_info = ()
+        self._opened = None
+        # Return the connection to the pool.
+        if self._db is not None:
+            if self._synch:
+                self._txn_mgr.unregisterSynch(self)
+            self._db._closeConnection(self)
+            # _closeConnection() set self._db to None.  However, we can't
+            # assert that here, because self may have been reused (by
+            # another thread) by the time we get back here.
+
+    def db(self):
+        """Returns a handle to the database this connection belongs to."""
+        return self._db
+
+    def isReadOnly(self):
+        """Returns True if the storage for this connection is read only."""
+        if self._storage is None:
+            raise ConnectionStateError("The database connection is closed")
+        return self._storage.isReadOnly()
+
+    def invalidate(self, tid, oids):
+        """Notify the Connection that transaction 'tid' invalidated oids."""
+        self._inv_lock.acquire()
+        try:
+            if self._txn_time is None:
+                self._txn_time = tid
+            self._invalidated.update(oids)
+        finally:
+            self._inv_lock.release()
+
+    def root(self):
+        """Return the database root object."""
+        return self.get(z64)
+
+    def getVersion(self):
+        """Returns the version this connection is attached to."""
+        if self._storage is None:
+            raise ConnectionStateError("The database connection is closed")
+        return self._version
+
+    def get_connection(self, database_name):
+        """Return a Connection for the named database."""
+        connection = self.connections.get(database_name)
+        if connection is None:
+            new_con = self._db.databases[database_name].open()
+            self.connections.update(new_con.connections)
+            new_con.connections = self.connections
+            connection = new_con
+        return connection
+
+    def sync(self):
+        """Manually update the view on the database."""
+        self._txn_mgr.get().abort()
+        sync = getattr(self._storage, 'sync', 0)
+        if sync:
+            sync()
+        self._flush_invalidations()
+
+    def getDebugInfo(self):
+        """Returns a tuple with different items for debugging the
+        connection.
+        """
+        return self._debug_info
+
+    def setDebugInfo(self, *args):
+        """Add the given items to the debug information of this connection."""
+        self._debug_info = self._debug_info + args
+
+    def getTransferCounts(self, clear=False):
+        """Returns the number of objects loaded and stored."""
+        res = self._load_count, self._store_count
+        if clear:
+            self._load_count = 0
+            self._store_count = 0
+        return res
+
+    # Connection methods
+    ##########################################################################
+
+    ##########################################################################
+    # Data manager (IDataManager) methods
 
     def abort(self, transaction):
         """Abort a transaction and forget all changes."""
+
+        if self._savepoint_storage is not None:
+            self._abort_savepoint()
+
+        self._abort()
+
+        self._tpc_cleanup()
+
+    def _abort(self):
+        """Abort a transaction and forget all changes."""
+        
         for obj in self._registered_objects:
             oid = obj._p_oid
             assert oid is not None
@@ -243,64 +365,77 @@ class Connection(ExportImport, object):
 
                 self._cache.invalidate(oid)
 
-        self._tpc_cleanup()
+    def _tpc_cleanup(self):
+        """Performs cleanup operations to support tpc_finish and tpc_abort."""
+        self._conflicts.clear()
+        if not self._synch:
+            self._flush_invalidations()
+        self._needs_to_join = True
+        self._registered_objects = []
 
-    # TODO: we should test what happens when cacheGC is called mid-transaction.
+    def _flush_invalidations(self):
+        self._inv_lock.acquire()
+        try:
 
-    def cacheGC(self):
-        """Reduce cache size to target size."""
+            # Non-ghostifiable objects may need to read when they are
+            # invalidated, so, we'll quickly just replace the
+            # invalidating dict with a new one.  We'll then process
+            # the invalidations after freeing the lock *and* after
+            # reseting the time.  This means that invalidations will
+            # happen after the start of the transactions.  They are
+            # subject to conflict errors and to reading old data,
+
+            # TODO: There is a potential problem lurking for persistent
+            # classes.  Suppose we have an invlidation of a persistent
+            # class and of an instance.  If the instance is
+            # invalidated first and if the invalidation logic uses
+            # data read from the class, then the invalidation could
+            # be performed with state data.  Or, suppose that there
+            # are instances of the class that are freed as a result of
+            # invalidating some object.  Perhaps code in their __del__
+            # uses class data.  Really, the only way to properly fix
+            # this is to, in fact, make classes ghostifiable.  Then
+            # we'd have to reimplement attribute lookup to check the
+            # class state and, if necessary, activate the class.  It's
+            # much worse than that though, because we'd also need to
+            # deal with slots.  When a class is ghostified, we'd need
+            # to replace all of the slot operations with versions that
+            # reloaded the object when caled. It's hard to say which
+            # is better for worse.  For now, it seems the risk of
+            # using a class while objects are being invalidated seems
+            # small enough t be acceptable.
+
+            invalidated = self._invalidated
+            self._invalidated = {}
+            self._txn_time = None
+        finally:
+            self._inv_lock.release()
+
+        self._cache.invalidate(invalidated)
+
+        # Now is a good time to collect some garbage.
         self._cache.incrgc()
 
-    __onCloseCallbacks = None
+    def tpc_begin(self, transaction):
+        """Begin commit of a transaction, starting the two-phase commit."""
+        self._modified = []
 
-    def onCloseCallback(self, f):
-        """Register a callable, f, to be called by close()."""
-        if self.__onCloseCallbacks is None:
-            self.__onCloseCallbacks = []
-        self.__onCloseCallbacks.append(f)
-
-    def close(self):
-        """Close the Connection."""
-        if not self._needs_to_join:
-            # We're currently joined to a transaction.
-            raise ConnectionStateError("Cannot close a connection joined to "
-                                       "a transaction")
-
-        if self._tmp is not None:
-            # There are no direct modifications pending, but a subtransaction
-            # is pending.
-            raise ConnectionStateError("Cannot close a connection with a "
-                                       "pending subtransaction")
-
-        if self._cache is not None:
-            self._cache.incrgc() # This is a good time to do some GC
-
-        # Call the close callbacks.
-        if self.__onCloseCallbacks is not None:
-            for f in self.__onCloseCallbacks:
-                try:
-                    f()
-                except: # except what?
-                    f = getattr(f, 'im_self', f)
-                    self._log.error("Close callback failed for %s", f,
-                                    exc_info=sys.exc_info())
-            self.__onCloseCallbacks = None
-        self._storage = self._tmp = self.new_oid = None
-        self._debug_info = ()
-        self._opened = None
-        # Return the connection to the pool.
-        if self._db is not None:
-            if self._synch:
-                self._txn_mgr.unregisterSynch(self)
-            self._db._closeConnection(self)
-            # _closeConnection() set self._db to None.  However, we can't
-            # assert that here, because self may have been reused (by
-            # another thread) by the time we get back here.
-
-    # transaction.interfaces.IDataManager
+        # _creating is a list of oids of new objects, which is used to
+        # remove them from the cache if a transaction aborts.
+        self._creating = []
+        self._normal_storage.tpc_begin(transaction)
 
     def commit(self, transaction):
         """Commit changes to an object"""
+
+        if self._savepoint_storage is not None:
+            self._commit_savepoint(transaction)
+
+        self._commit(transaction)
+
+    def _commit(self, transaction):
+        """Commit changes to an object"""
+
         if self._import:
             # TODO:  This code seems important for Zope, but needs docs
             # to explain why.
@@ -377,169 +512,6 @@ class Connection(ExportImport, object):
 
             self._handle_serial(s, oid)
 
-    def commit_sub(self, t):
-        """Commit all changes made in subtransactions and begin 2-phase commit
-        """
-        if self._tmp is None:
-            return
-        src = self._storage
-        self._storage = self._tmp
-        self._tmp = None
-
-        self._log.debug("Commiting subtransaction of size %s", src.getSize())
-        oids = src._index.keys()
-        self._storage.tpc_begin(t)
-
-        # Copy invalidating and creating info from temporary storage:
-        self._modified.extend(oids)
-        self._creating.extend(src._creating)
-
-        for oid in oids:
-            data, serial = src.load(oid, src)
-            s = self._storage.store(oid, serial, data, self._version, t)
-            self._handle_serial(s, oid, change=False)
-
-    def abort_sub(self, t):
-        """Discard all subtransaction data."""
-        if self._tmp is None:
-            return
-        src = self._storage
-        self._storage = self._tmp
-        self._tmp = None
-
-        # Note: If we invalidate a non-ghostifiable object (i.e. a
-        # persistent class), the object will immediately reread it's
-        # state.  That means that the following call could result in a
-        # call to self.setstate, which, of course, must succeed.  In
-        # general, it would be better if the read could be delayed
-        # until the start of the next transaction.  If we read at the
-        # end of a transaction and if the object was invalidated
-        # during this transaction, then we'll read non-current data,
-        # which we'll discard later in transaction finalization.  We
-        # could, theoretically queue this invalidation by calling
-        # self.invalidate.  Unfortunately, attempts to make that
-        # change resulted in mysterious test failures.  It's pretty
-        # unlikely that the object we are invalidating was invalidated
-        # by another thread, so the risk of a reread is pretty low.
-        # It's really not worth the effort to pursue this.
-
-        self._cache.invalidate(src._index.keys())
-        self._invalidate_creating(src._creating)
-
-    def _invalidate_creating(self, creating=None):
-        """Disown any objects newly saved in an uncommitted transaction."""
-        if creating is None:
-            creating = self._creating
-            self._creating = []
-
-        for oid in creating:
-            o = self._cache.get(oid)
-            if o is not None:
-                del self._cache[oid]
-                del o._p_jar
-                del o._p_oid
-
-    # The next two methods are callbacks for transaction synchronization.
-
-    def beforeCompletion(self, txn):
-        # We don't do anything before a commit starts.
-        pass
-
-    def afterCompletion(self, txn):
-        self._flush_invalidations()
-
-    def _flush_invalidations(self):
-        self._inv_lock.acquire()
-        try:
-
-            # Non-ghostifiable objects may need to read when they are
-            # invalidated, so, we'll quickly just replace the
-            # invalidating dict with a new one.  We'll then process
-            # the invalidations after freeing the lock *and* after
-            # reseting the time.  This means that invalidations will
-            # happen after the start of the transactions.  They are
-            # subject to conflict errors and to reading old data,
-
-            # TODO: There is a potential problem lurking for persistent
-            # classes.  Suppose we have an invlidation of a persistent
-            # class and of an instance.  If the instance is
-            # invalidated first and if the invalidation logic uses
-            # data read from the class, then the invalidation could
-            # be performed with state data.  Or, suppose that there
-            # are instances of the class that are freed as a result of
-            # invalidating some object.  Perhaps code in their __del__
-            # uses class data.  Really, the only way to properly fix
-            # this is to, in fact, make classes ghostifiable.  Then
-            # we'd have to reimplement attribute lookup to check the
-            # class state and, if necessary, activate the class.  It's
-            # much worse than that though, because we'd also need to
-            # deal with slots.  When a class is ghostified, we'd need
-            # to replace all of the slot operations with versions that
-            # reloaded the object when caled. It's hard to say which
-            # is better for worse.  For now, it seems the risk of
-            # using a class while objects are being invalidated seems
-            # small enough t be acceptable.
-
-            invalidated = self._invalidated
-            self._invalidated = {}
-            self._txn_time = None
-        finally:
-            self._inv_lock.release()
-
-        self._cache.invalidate(invalidated)
-
-        # Now is a good time to collect some garbage.
-        self._cache.incrgc()
-
-    def root(self):
-        """Return the database root object."""
-        return self.get(z64)
-
-    def db(self):
-        """Returns a handle to the database this connection belongs to."""
-        return self._db
-
-    def isReadOnly(self):
-        """Returns True if the storage for this connection is read only."""
-        if self._storage is None:
-            raise ConnectionStateError("The database connection is closed")
-        return self._storage.isReadOnly()
-
-    def invalidate(self, tid, oids):
-        """Notify the Connection that transaction 'tid' invalidated oids."""
-        self._inv_lock.acquire()
-        try:
-            if self._txn_time is None:
-                self._txn_time = tid
-            self._invalidated.update(oids)
-        finally:
-            self._inv_lock.release()
-
-    # IDataManager
-
-    def tpc_begin(self, transaction, sub=False):
-        """Begin commit of a transaction, starting the two-phase commit."""
-        self._modified = []
-
-        # _creating is a list of oids of new objects, which is used to
-        # remove them from the cache if a transaction aborts.
-        self._creating = []
-        if sub and self._tmp is None:
-            # Sub-transaction!
-            self._tmp = self._storage
-            self._storage = TmpStore(self._version, self._storage)
-
-        self._storage.tpc_begin(transaction)
-
-    def tpc_vote(self, transaction):
-        """Verify that a data manager can commit the transaction."""
-        try:
-            vote = self._storage.tpc_vote
-        except AttributeError:
-            return
-        s = vote(transaction)
-        self._handle_serial(s)
-
     def _handle_serial(self, store_return, oid=None, change=1):
         """Handle the returns from store() and tpc_vote() calls."""
 
@@ -582,26 +554,13 @@ class Connection(ExportImport, object):
                 obj._p_changed = 0 # transition from changed to up-to-date
             obj._p_serial = serial
 
-    def tpc_finish(self, transaction):
-        """Indicate confirmation that the transaction is done."""
-        if self._tmp is not None:
-            # Commiting a subtransaction!
-            # There is no need to invalidate anything.
-            self._storage.tpc_finish(transaction)
-            self._storage._creating[:0]=self._creating
-            del self._creating[:]
-        else:
-            def callback(tid):
-                d = {}
-                for oid in self._modified:
-                    d[oid] = 1
-                self._db.invalidate(tid, d, self)
-            self._storage.tpc_finish(transaction, callback)
-        self._tpc_cleanup()
-
     def tpc_abort(self, transaction):
         if self._import:
             self._import = None
+
+        if self._savepoint_storage is not None:
+            self._abort_savepoint()
+            
         self._storage.tpc_abort(transaction)
 
         # Note: If we invalidate a non-justifiable object (i.e. a
@@ -628,41 +587,59 @@ class Connection(ExportImport, object):
             del obj._p_jar
         self._tpc_cleanup()
 
-    def _tpc_cleanup(self):
-        """Performs cleanup operations to support tpc_finish and tpc_abort."""
-        self._conflicts.clear()
-        if not self._synch:
-            self._flush_invalidations()
-        self._needs_to_join = True
-        self._registered_objects = []
+    def _invalidate_creating(self, creating=None):
+        """Disown any objects newly saved in an uncommitted transaction."""
+        if creating is None:
+            creating = self._creating
+            self._creating = []
 
-    def sync(self):
-        """Manually update the view on the database."""
-        self._txn_mgr.get().abort()
-        sync = getattr(self._storage, 'sync', 0)
-        if sync:
-            sync()
+        for oid in creating:
+            o = self._cache.get(oid)
+            if o is not None:
+                del self._cache[oid]
+                del o._p_jar
+                del o._p_oid
+
+    def tpc_vote(self, transaction):
+        """Verify that a data manager can commit the transaction."""
+        try:
+            vote = self._storage.tpc_vote
+        except AttributeError:
+            return
+        s = vote(transaction)
+        self._handle_serial(s)
+
+    def tpc_finish(self, transaction):
+        """Indicate confirmation that the transaction is done."""
+        def callback(tid):
+            d = {}
+            for oid in self._modified:
+                d[oid] = 1
+            self._db.invalidate(tid, d, self)
+        self._storage.tpc_finish(transaction, callback)
+        self._tpc_cleanup()
+
+    def sortKey(self):
+        """Return a consistent sort key for this connection."""
+        return "%s:%s" % (self._storage.sortKey(), id(self))
+
+    # Data manager (IDataManager) methods
+    ##########################################################################
+
+    ##########################################################################
+    # Transaction-manager synchronization -- ISynchronizer
+
+    def beforeCompletion(self, txn):
+        # We don't do anything before a commit starts.
+        pass
+
+    def afterCompletion(self, txn):
         self._flush_invalidations()
 
-    def getDebugInfo(self):
-        """Returns a tuple with different items for debugging the
-        connection.
-        """
-        return self._debug_info
-
-    def setDebugInfo(self, *args):
-        """Add the given items to the debug information of this connection."""
-        self._debug_info = self._debug_info + args
-
-    def getTransferCounts(self, clear=False):
-        """Returns the number of objects loaded and stored."""
-        res = self._load_count, self._store_count
-        if clear:
-            self._load_count = 0
-            self._store_count = 0
-        return res
-
-    ##############################################
+    # Transaction-manager synchronization -- ISynchronizer
+    ##########################################################################
+    
+    ##########################################################################
     # persistent.interfaces.IPersistentDatamanager
 
     def oldstate(self, obj, tid):
@@ -818,12 +795,24 @@ class Connection(ExportImport, object):
         self._register(obj)
 
     def _register(self, obj=None):
-        if obj is not None:
-            self._registered_objects.append(obj)
+
+        # The order here is important.  We need to join before
+        # registering the object, because joining may take a
+        # savepoint, and the savepoint should not reflect the change
+        # to the object.
+        
         if self._needs_to_join:
             self._txn_mgr.get().join(self)
             self._needs_to_join = False
 
+        if obj is not None:
+            self._registered_objects.append(obj)
+
+    
+    # persistent.interfaces.IPersistentDatamanager
+    ##########################################################################
+
+    ##########################################################################
     # PROTECTED stuff (used by e.g. ZODB.DB.DB)
 
     def _cache_items(self):
@@ -862,7 +851,7 @@ class Connection(ExportImport, object):
         # and Storage.
 
         self._db = odb
-        self._storage = odb._storage
+        self._normal_storage = self._storage = odb._storage
         self.new_oid = odb._storage.new_oid
         self._opened = time()
         if synch is not None:
@@ -892,6 +881,7 @@ class Connection(ExportImport, object):
         cache_size = self._cache.cache_size
         self._cache = cache = PickleCache(self, cache_size)
 
+    ##########################################################################
     # Python protocol
 
     def __repr__(self):
@@ -901,6 +891,10 @@ class Connection(ExportImport, object):
             ver = ''
         return '<Connection at %08x%s>' % (positive_id(self), ver)
 
+    # Python protocol
+    ##########################################################################
+
+    ##########################################################################
     # DEPRECATION candidates
 
     __getitem__ = get
@@ -916,33 +910,6 @@ class Connection(ExportImport, object):
         except KeyError:
             return self.getVersion()
 
-    def getVersion(self):
-        """Returns the version this connection is attached to."""
-        if self._storage is None:
-            raise ConnectionStateError("The database connection is closed")
-        return self._version
-
-    def setklassstate(self, obj):
-        # Special case code to handle ZClasses, I think.
-        # Called the cache when an object of type type is invalidated.
-        try:
-            oid = obj._p_oid
-            p, serial = self._storage.load(oid, self._version)
-
-            # We call getGhost(), but we actually get a non-ghost back.
-            # The object is a class, which can't actually be ghosted.
-            copy = self._reader.getGhost(p)
-            obj.__dict__.clear()
-            obj.__dict__.update(copy.__dict__)
-
-            obj._p_oid = oid
-            obj._p_jar = self
-            obj._p_changed = 0
-            obj._p_serial = serial
-        except:
-            self._log.error("setklassstate failed", exc_info=sys.exc_info())
-            raise
-
     def exchange(self, old, new):
         # called by a ZClasses method that isn't executed by the test suite
         oid = old._p_oid
@@ -952,7 +919,19 @@ class Connection(ExportImport, object):
         self._register(new)
         self._cache[oid] = new
 
+    # DEPRECATION candidates
+    ##########################################################################
+
+    ##########################################################################
     # DEPRECATED methods
+
+    def cacheFullSweep(self, dt=None):
+        deprecated36("cacheFullSweep is deprecated. "
+                     "Use cacheMinimize instead.")
+        if dt is None:
+            self._cache.full_sweep()
+        else:
+            self._cache.full_sweep(dt)
 
     def getTransaction(self):
         """Get the current transaction for this connection.
@@ -986,16 +965,150 @@ class Connection(ExportImport, object):
                 self._txn_mgr.registerSynch(self)
         return self._txn_mgr
 
-    def cacheFullSweep(self, dt=None):
-        deprecated36("cacheFullSweep is deprecated. "
-                     "Use cacheMinimize instead.")
-        if dt is None:
-            self._cache.full_sweep()
-        else:
-            self._cache.full_sweep(dt)
+    # DEPRECATED methods
+    ##########################################################################
 
-    def cacheMinimize(self, dt=DEPRECATED_ARGUMENT):
-        """Deactivate all unmodified objects in the cache."""
-        if dt is not DEPRECATED_ARGUMENT:
-            deprecated36("cacheMinimize() dt= is ignored.")
-        self._cache.minimize()
+    #####################################################################
+    # Savepoint support
+
+    def savepoint(self):
+        if self._savepoint_storage is None:
+            self._savepoint_storage = TmpStore(self._version,
+                                               self._normal_storage)
+            self._storage = self._savepoint_storage
+
+        self._creating = []
+        self._commit(None)
+        self._storage.creating.extend(self._creating)
+        del self._creating[:]
+        self._registered_objects = []
+
+        state = self._storage.position, self._storage.index.copy()
+        return Savepoint(self, state)
+
+    def _rollback(self, state):
+        self._abort()
+        src = self._storage
+        self._cache.invalidate(src.index)
+        src.reset(*state)
+
+    def _commit_savepoint(self, transaction):
+        """Commit all changes made in subtransactions and begin 2-phase commit
+        """
+        src = self._savepoint_storage
+        self._storage = self._normal_storage
+        self._savepoint_storage = None
+
+        self._log.debug("Commiting savepoints of size %s", src.getSize())
+        oids = src.index.keys()
+
+        # Copy invalidating and creating info from temporary storage:
+        self._modified.extend(oids)
+        self._creating.extend(src.creating)
+
+        for oid in oids:
+            data, serial = src.load(oid, src)
+            s = self._storage.store(oid, serial, data,
+                                    self._version, transaction)
+            self._handle_serial(s, oid, change=False)
+
+        src.close()
+
+    def _abort_savepoint(self):
+        """Discard all subtransaction data."""
+        src = self._savepoint_storage
+        self._storage = self._normal_storage
+        self._savepoint_storage = None
+
+        # Note: If we invalidate a non-ghostifiable object (i.e. a
+        # persistent class), the object will immediately reread it's
+        # state.  That means that the following call could result in a
+        # call to self.setstate, which, of course, must succeed.  In
+        # general, it would be better if the read could be delayed
+        # until the start of the next transaction.  If we read at the
+        # end of a transaction and if the object was invalidated
+        # during this transaction, then we'll read non-current data,
+        # which we'll discard later in transaction finalization.  We
+        # could, theoretically queue this invalidation by calling
+        # self.invalidate.  Unfortunately, attempts to make that
+        # change resulted in mysterious test failures.  It's pretty
+        # unlikely that the object we are invalidating was invalidated
+        # by another thread, so the risk of a reread is pretty low.
+        # It's really not worth the effort to pursue this.
+
+        self._cache.invalidate(src.index)
+        self._invalidate_creating(src.creating)
+        src.close()
+
+    # Savepoint support
+    #####################################################################
+
+class Savepoint:
+
+    def __init__(self, datamanager, state):
+        self.datamanager = datamanager
+        self.state = state
+
+    def rollback(self):
+        self.datamanager._rollback(self.state)
+
+class TmpStore:
+    """A storage-like thing to support savepoints."""
+
+    def __init__(self, base_version, storage):
+        self._storage = storage
+        for method in (
+            'getName', 'new_oid', 'modifiedInVersion', 'getSize', 
+            'undoLog', 'versionEmpty', 'sortKey',
+            ):
+            setattr(self, method, getattr(storage, method))
+            
+        self._base_version = base_version
+        self._file = tempfile.TemporaryFile()
+        # position: current file position
+        # _tpos: file position at last commit point
+        self.position = 0L
+        # index: map oid to pos of last committed version
+        self.index = {}
+        self.creating = []
+                    
+    def __len__(self):
+        return len(self.index)
+
+    def close(self):
+        self._file.close()
+
+    def load(self, oid, version):
+        pos = self.index.get(oid)
+        if pos is None:
+            return self._storage.load(oid, self._base_version)
+        self._file.seek(pos)
+        h = self._file.read(8)
+        oidlen = u64(h)
+        read_oid = self._file.read(oidlen)
+        if read_oid != oid:
+            raise POSException.StorageSystemError('Bad temporary storage')
+        h = self._file.read(16)
+        size = u64(h[8:])
+        serial = h[:8]
+        return self._file.read(size), serial
+
+    def store(self, oid, serial, data, version, transaction):
+        # we have this funny signature so we can reuse the normal non-commit
+        # commit logic
+        assert version == self._base_version
+        self._file.seek(self.position)
+        l = len(data)
+        if serial is None:
+            serial = z64
+        header = p64(len(oid)) + oid + serial + p64(l)
+        self._file.write(header)
+        self._file.write(data)
+        self.index[oid] = self.position
+        self.position += l + len(header)
+        return serial
+
+    def reset(self, position, index):
+        self._file.truncate(position)
+        self.position = position
+        self.index = index

@@ -24,6 +24,7 @@ get = manager.get
 begin = manager.begin
 commit = manager.commit
 abort = manager.abort
+savepoint = manager.savepoint
 
 def get_transaction():
     from ZODB.utils import deprecated36
