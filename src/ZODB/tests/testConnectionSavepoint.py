@@ -20,7 +20,20 @@ from zope.testing import doctest
 import persistent.dict, transaction
 
 def testAddingThenModifyThenAbort():
-    """
+    """\
+
+We ran into a problem in which abort failed after adding an object in
+a savepoint and then modifying the object. The problem was that, on
+commit, the savepoint was aborted before the modifications were
+aborted.  Because the object was added in the savepoint, it's _p_oid
+and _p_jar were cleared when the savepoint was aborted.  The object
+was in the registered-object list.  There's an invariant for this
+lists that states that all objects in the list should have an oid and
+(correct) jar.
+
+The fix was to abort work done after he savepoint before aborting the
+savepoint.
+    
     >>> import ZODB.tests.util
     >>> db = ZODB.tests.util.DB()
     >>> connection = db.open()
@@ -35,7 +48,20 @@ def testAddingThenModifyThenAbort():
 """
 
 def testModifyThenSavePointThenModifySomeMoreThenCommit():
-    """
+    """\
+
+We got conflict errors when we committed after we modified an object
+in a savepoint and then modified it some more after the last
+savepoint.
+
+The problem was that we were effectively commiting the object twice --
+when commiting the current data and when committing the savepoint.
+The fix was to first make a new savepoint to move new changes to the
+savepoint storage and *then* to commit the savepoint storage. (This is
+similar to thr strategy that was used for subtransactions prior to
+savepoints.)
+
+
     >>> import ZODB.tests.util
     >>> db = ZODB.tests.util.DB()
     >>> connection = db.open()
