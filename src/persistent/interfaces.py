@@ -288,10 +288,11 @@ class IPersistentDataManager(Interface):
         policy of one transaction manager for each thread.
         """
 
-    def mtime(object):
-        """Return the modification time of the object.
+# Maybe later:
+##     def mtime(object):
+##         """Return the modification time of the object.
 
-        The modification time may not be known, in which case None
-        is returned.  If non-None, the return value is the kind of
-        timestamp supplied by Python's time.time().
-        """
+##         The modification time may not be known, in which case None
+##         is returned.  If non-None, the return value is the kind of
+##         timestamp supplied by Python's time.time().
+##         """
