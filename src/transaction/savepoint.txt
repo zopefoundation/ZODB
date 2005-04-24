@@ -219,3 +219,57 @@ is there are no reasons to roll back:
     ...
     TypeError: ('Savepoints unsupported', {'name': 'sam'})
 
+Failures
+--------
+
+If a failure occurs when creating or rolling back a savepoint, the
+transaction state will be uncertain and the transaction will become
+uncommitable.  From that point on, most transaction operations,
+including commit, will fail until the transaction is aborted.
+
+In the previous example, we got an error when we tried to rollback the
+savepoint. If we try to commit the transaction, the commit will fail:
+
+    >>> transaction.commit() # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ...
+    TransactionFailedError: An operation previously failed, with traceback:
+    ...
+    TypeError: ('Savepoints unsupported', {'name': 'sam'})
+    <BLANKLINE>
+
+We have to abort it to make any progress:
+
+    >>> transaction.abort()
+
+Similarly, in our earlier example, where we tried to take a savepoint
+with a data manager that didn't support savepoints:
+
+    >>> dm_no_sp['name'] = 'sally'
+    >>> dm['name'] = 'sally'
+    >>> savepoint = transaction.savepoint()
+    Traceback (most recent call last):
+    ...
+    TypeError: ('Savepoints unsupported', {'name': 'sue'})
+
+    >>> transaction.commit() # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ...
+    TransactionFailedError: An operation previously failed, with traceback:
+    ...
+    TypeError: ('Savepoints unsupported', {'name': 'sue'})
+    <BLANKLINE>
+    
+    >>> transaction.abort()
+ 
+After clearing the transaction with an abort, we can get on with new
+transactions: 
+
+    >>> dm_no_sp['name'] = 'sally'
+    >>> dm['name'] = 'sally'
+    >>> transaction.commit()
+    >>> dm_no_sp['name']
+    'sally'
+    >>> dm['name']
+    'sally'
+    

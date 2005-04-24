@@ -231,17 +231,17 @@ class Transaction(object):
 
     # Raise TransactionFailedError, due to commit()/join()/register()
     # getting called when the current transaction has already suffered
-    # a commit failure.
-    def _prior_commit_failed(self):
+    # a commit/savepoint failure.
+    def _prior_operation_failed(self):
         from ZODB.POSException import TransactionFailedError
         assert self._failure_traceback is not None
-        raise TransactionFailedError("commit() previously failed, "
-                "with this traceback:\n\n%s" %
+        raise TransactionFailedError("An operation previously failed, "
+                "with traceback:\n\n%s" %
                 self._failure_traceback.getvalue())
 
     def join(self, resource):
         if self.status is Status.COMMITFAILED:
-            self._prior_commit_failed() # doesn't return
+            self._prior_operation_failed() # doesn't return
 
         if self.status is not Status.ACTIVE:
             # TODO: Should it be possible to join a committing transaction?
@@ -261,15 +261,15 @@ class Transaction(object):
 
     def savepoint(self, optimistic=False):
         if self.status is Status.COMMITFAILED:
-            self._prior_commit_failed() # doesn't return, it raises
+            self._prior_operation_failed() # doesn't return, it raises
 
         try:
-            savepoint = Savepoint(optimistic)
+            savepoint = Savepoint(self, optimistic)
             for resource in self._resources:
                 savepoint.join(resource)
         except:
             self._cleanup(self._resources)
-            self._saveCommitishError() # doesn't return, it raises!
+            self._saveCommitishError() # reraises!
             
         if self._last_savepoint is not None:
             savepoint.previous = self._last_savepoint
@@ -330,7 +330,7 @@ class Transaction(object):
             return
         
         if self.status is Status.COMMITFAILED:
-            self._prior_commit_failed() # doesn't return
+            self._prior_operation_failed() # doesn't return
 
         self._callBeforeCommitHooks()
 
@@ -598,7 +598,8 @@ class Savepoint:
     """
     interface.implements(interfaces.ISavepoint)
 
-    def __init__(self, optimistic):
+    def __init__(self, transaction, optimistic):
+        self.transaction = transaction
         self._savepoints = []
         self.valid = True
         self.next = self.previous = None
@@ -620,8 +621,12 @@ class Savepoint:
         if not self.valid:
             raise interfaces.InvalidSavepointRollbackError
         self._invalidate_next()
-        for savepoint in self._savepoints:
-            savepoint.rollback()
+        try:
+            for savepoint in self._savepoints:
+                savepoint.rollback()
+        except:
+            # Mark the transaction as failed
+            self.transaction._saveCommitishError() # reraises!
 
     def _invalidate_next(self):
         self.valid = False
