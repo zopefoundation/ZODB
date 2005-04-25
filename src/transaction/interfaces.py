@@ -71,7 +71,8 @@ class ITransaction(zope.interface.Interface):
 
     Objects with this interface may represent different transactions
     during their lifetime (.begin() can be called to start a new
-    transaction using the same instance).
+    transaction using the same instance, although that example is
+    deprecated and will go away in ZODB 3.6).
     """
 
     user = zope.interface.Attribute(
@@ -123,29 +124,21 @@ class ITransaction(zope.interface.Interface):
         """
 
     def join(datamanager):
-        """Add a datamanager to the transaction.
+        """Add a data manager to the transaction.
 
-        If the data manager supports savepoints, it must call join *before*
-        making any changes:  if the transaction has made any savepoints, then
-        the transaction will take a savepoint of the data manager when join
-        is called, and this savepoint must reflect the state of the data
-        manager before any changes that caused the data manager to join the
-        transaction.
-
-        The datamanager must implement the
-        transactions.interfaces.IDataManager interface, and be
-        adaptable to ZODB.interfaces.IDataManager.
+        `datamanager` must provide the transactions.interfaces.IDataManager
+        interface.
         """
 
     def note(text):
         """Add text to the transaction description.
 
-        If a description has already been set, text is added to the
-        end of the description following two newline characters.
-        Surrounding whitespace is stripped from text.
+        This modifies the `.description` attribute; see its docs for more
+        detail.  First surrounding whitespace is stripped from `text`.  If
+        `.description` is currently an empty string, then the stripped text
+        becomes its value, else two newlines and the stripped text are
+        appended to `.description`.
         """
-        # Unsure:  does impl do the right thing with ''?  Not clear what
-        # the "right thing" is.
 
     def setUser(user_name, path="/"):
         """Set the user name.
@@ -153,19 +146,23 @@ class ITransaction(zope.interface.Interface):
         path should be provided if needed to further qualify the
         identified user.  This is a convenience method used by Zope.
         It sets the .user attribute to str(path) + " " + str(user_name).
+        This sets the `.user` attribute; see its docs for more detail.
         """
 
     def setExtendedInfo(name, value):
         """Add extension data to the transaction.
 
-        name is the name of the extension property to set; value must
-        be a picklable value.
+        name is the name of the extension property to set, of Python type
+        str; value must be pickleable.  Multiple calls may be made to set
+        multiple extension properties, provided the names are distinct.
 
-        Storage implementations may limit the amount of extension data
-        which can be stored.
+        Storages record the extension data, as meta-data, when a transaction
+        commits.
+
+        A storage may impose a limit on the size of extension data; behavior
+        is undefined if such a limit is exceeded (for example, a storage may
+        raise an exception, or remove `<name, value>` pairs).
         """
-        # Unsure:  is this allowed to cause an exception here, during
-        # the two-phase commit, or can it toss data silently?
 
     def beforeCommitHook(hook, *args, **kws):
         """Register a hook to call before the transaction is committed.
@@ -195,7 +192,6 @@ class ITransaction(zope.interface.Interface):
 class ITransactionDeprecated(zope.interface.Interface):
     """Deprecated parts of the transaction API."""
 
-    # TODO: deprecated36
     def begin(info=None):
         """Begin a new transaction.
 
@@ -206,6 +202,7 @@ class ITransactionDeprecated(zope.interface.Interface):
     # TODO: deprecate this for 3.6.
     def register(object):
         """Register the given object for transaction control."""
+
 
 class IDataManager(zope.interface.Interface):
     """Objects that manage transactional storage.
@@ -219,10 +216,6 @@ class IDataManager(zope.interface.Interface):
     the transaction.
     """
 
-    # Two-phase commit protocol.  These methods are called by the
-    # ITransaction object associated with the transaction being
-    # committed.
-
     def abort(transaction):
         """Abort a transaction and forget all changes.
 
@@ -231,6 +224,11 @@ class IDataManager(zope.interface.Interface):
         Abort is called by the transaction manager to abort transactions
         that are not yet in a two-phase commit.
         """
+
+    # Two-phase commit protocol.  These methods are called by the ITransaction
+    # object associated with the transaction being committed.  The sequence
+    # of calls normally follows this regular expression:
+    #     tpc_begin commit tpc_vote (tpc_finish | tpc_abort)
 
     def tpc_begin(transaction):
         """Begin commit of a transaction, starting the two-phase commit.
@@ -242,25 +240,13 @@ class IDataManager(zope.interface.Interface):
     def commit(transaction):
         """Commit modifications to registered objects.
 
-        Save the object as part of the data to be made persistent if
-        the transaction commits.
+        Save changes to be made persistent if the transaction commits (if
+        tpc_finish is called later).  If tpc_abort is called later, changes
+        must not persist.
 
-        This includes conflict detection and handling. If no conflicts or
-        errors occur it saves the objects in the storage.
-        """
-
-    def tpc_abort(transaction):
-        """Abort a transaction.
-
-        This is called by a transaction manager to end a two-phase commit on
-        the data manager.
-
-        This is always called after a tpc_begin call.
-
-        transaction is the ITransaction instance associated with the
-        transaction being committed.
-
-        This should never fail.
+        This includes conflict detection and handling.  If no conflicts or
+        errors occur, the data manager should be prepared to make the
+        changes persist when tpc_finish is called.
         """
 
     def tpc_vote(transaction):
@@ -276,18 +262,27 @@ class IDataManager(zope.interface.Interface):
     def tpc_finish(transaction):
         """Indicate confirmation that the transaction is done.
 
+        Make all changes to objects modified by this transaction persist.
+
         transaction is the ITransaction instance associated with the
         transaction being committed.
 
-        This should never fail. If this raises an exception, the
+        This should never fail.  If this raises an exception, the
         database is not expected to maintain consistency; it's a
         serious error.
+        """
 
-        It's important that the storage calls the passed function
-        while it still has its lock.  We don't want another thread
-        to be able to read any updated data until we've had a chance
-        to send an invalidation message to all of the other
-        connections!
+    def tpc_abort(transaction):
+        """Abort a transaction.
+
+        This is called by a transaction manager to end a two-phase commit on
+        the data manager.  Abandon all changes to objects modified by this
+        transaction.
+
+        transaction is the ITransaction instance associated with the
+        transaction being committed.
+
+        This should never fail.
         """
 
     def sortKey():
@@ -321,7 +316,7 @@ class IDataManagerSavepoint(zope.interface.Interface):
     responsibility for, validity.  It isn't the responsibility of
     data-manager savepoints to prevent multiple rollbacks or rollbacks after
     transaction termination.  Preventing invalid savepoint rollback is the
-    responsibility of transaction rollbacks. Application code should never
+    responsibility of transaction rollbacks.  Application code should never
     use data-manager savepoints.
     """
 
