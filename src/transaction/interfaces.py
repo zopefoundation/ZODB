@@ -19,7 +19,7 @@ $Id$
 import zope.interface
 
 class ITransactionManager(zope.interface.Interface):
-    """An object that manages a sequence of transactions
+    """An object that manages a sequence of transactions.
 
     Applications use transaction managers to establish transaction boundaries.
     """
@@ -35,11 +35,11 @@ class ITransactionManager(zope.interface.Interface):
         """
 
     def commit():
-        """Commit the current transaction
+        """Commit the current transaction.
         """
 
     def abort():
-        """Abort the current transaction
+        """Abort the current transaction.
         """
 
     def savepoint(optimistic=False):
@@ -268,7 +268,7 @@ class IDataManager(zope.interface.Interface):
         """
 
     def tpc_vote(transaction):
-        """Verify that a data manager can commit the transaction
+        """Verify that a data manager can commit the transaction.
 
         This is the last chance for a data manager to vote 'no'.  A
         data manager votes 'no' by raising an exception.
@@ -295,7 +295,7 @@ class IDataManager(zope.interface.Interface):
         """
 
     def sortKey():
-        """Return a key to use for ordering registered DataManagers
+        """Return a key to use for ordering registered DataManagers.
 
         ZODB uses a global sort order to prevent deadlock when it commits
         transactions involving multiple resource managers.  The resource
@@ -313,11 +313,11 @@ class IDataManager(zope.interface.Interface):
 class ISavepointDataManager(IDataManager):
 
     def savepoint():
-        """Return a data-manager savepoint (IDataManagerSavepoint)
+        """Return a data-manager savepoint (IDataManagerSavepoint).
         """
 
 class IDataManagerSavepoint(zope.interface.Interface):
-    """Savepoint for data-manager changes for use in transaction savepoints
+    """Savepoint for data-manager changes for use in transaction savepoints.
 
     Datamanager savepoints are used by, and only by, transaction savepoints.
 
@@ -330,15 +330,15 @@ class IDataManagerSavepoint(zope.interface.Interface):
     """
 
     def rollback():
-        """Rollback any work done since the savepoint
+        """Rollback any work done since the savepoint.
         """
 
 class ISavepoint(zope.interface.Interface):
-    """A transaction savepoint
+    """A transaction savepoint.
     """
 
     def rollback():
-        """Rollback any work done since the savepoint
+        """Rollback any work done since the savepoint.
 
         An InvalidSavepointRollbackError is raised if the savepoint
         isn't valid.
@@ -349,13 +349,13 @@ class ISavepoint(zope.interface.Interface):
         "Boolean indicating whether the savepoint is valid")
 
 class InvalidSavepointRollbackError(Exception):
-    """Attempt to rollback an invalid savepoint
+    """Attempt to rollback an invalid savepoint.
 
     A savepoint may be invalid because:
 
-    - The surrounding transaction has committed or aborted
+    - The surrounding transaction has committed or aborted.
 
-    - An earlier savepoint in the same transaction has been rolled back
+    - An earlier savepoint in the same transaction has been rolled back.
     """
 
 class ISynchronizer(zope.interface.Interface):
