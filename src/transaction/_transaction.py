@@ -264,9 +264,7 @@ class Transaction(object):
             self._prior_operation_failed() # doesn't return, it raises
 
         try:
-            savepoint = Savepoint(self, optimistic)
-            for resource in self._resources:
-                savepoint.join(resource)
+            savepoint = Savepoint(self, optimistic, *self._resources)
         except:
             self._cleanup(self._resources)
             self._saveCommitishError() # reraises!
@@ -598,24 +596,41 @@ class Savepoint:
     """
     interface.implements(interfaces.ISavepoint)
 
-    def __init__(self, transaction, optimistic):
+    def __init__(self, transaction, optimistic, *resources):
         self.transaction = transaction
-        self._savepoints = []
+        self._savepoints = savepoints = []
         self.valid = True
         self.next = self.previous = None
         self.optimistic = optimistic
+
+        for datamanager in resources:
+            try:
+                savepoint = datamanager.savepoint
+            except AttributeError:
+                if not self.optimistic:
+                    raise TypeError("Savepoints unsupported", datamanager)
+                savepoint = NoRollbackSavepoint(datamanager)
+            else:
+                savepoint = savepoint()
+                
+            savepoints.append(savepoint)
     
     def join(self, datamanager):
-        try:
-            savepoint = datamanager.savepoint
-        except AttributeError:
-            if not self.optimistic:
-                raise TypeError("Savepoints unsupported", datamanager)
-            savepoint = NoRollbackSavepoint(datamanager)
-        else:
-            savepoint = savepoint()
-                
-        self._savepoints.append(savepoint)
+        
+        # A data manager has joined a transaction *after* a savepoint
+        # was created.  A couple of things are different in this case:
+        
+        # 1. We need to add it's savepoint to all previous savepoints.
+        # so that if they are rolled back, we roll this was back too.
+        
+        # 2. We don't actualy need to ask it for a savepoint.  Because
+        # is just joining, then we can abort it if there is an error,
+        # so we use an AbortSavepoint.
+
+        savepoint = AbortSavepoint(datamanager, self.transaction)
+        while self is not None:
+            self._savepoints.append(savepoint)
+            self = self.previous
 
     def rollback(self):
         if not self.valid:
@@ -637,6 +652,15 @@ class Savepoint:
         self.valid = False
         if self.previous is not None:
             self.previous._invalidate_previous()
+
+class AbortSavepoint:
+
+    def __init__(self, datamanager, transaction):
+        self.datamanager = datamanager
+        self.transaction = transaction
+
+    def rollback(self):
+        self.datamanager.abort(self.transaction)
 
 class NoRollbackSavepoint:
 

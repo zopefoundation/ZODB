@@ -201,7 +201,7 @@ support savepoints:
     >>> transaction.abort()
     
 However, a flag can be passed to the transaction savepoint method to
-indicate that databases without savepoint support should be tolderated
+indicate that databases without savepoint support should be tolerated
 until a savepoint is roled back.  This allows transactions to proceed
 is there are no reasons to roll back:
 
@@ -212,8 +212,8 @@ is there are no reasons to roll back:
     >>> dm_no_sp['name']
     'sue'
 
-    >>> savepoint = transaction.savepoint(1)
     >>> dm_no_sp['name'] = 'sam'
+    >>> savepoint = transaction.savepoint(1)
     >>> savepoint.rollback()
     Traceback (most recent call last):
     ...
