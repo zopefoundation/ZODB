@@ -19,11 +19,10 @@ $Id$
 import zope.interface
 
 class ITransactionManager(zope.interface.Interface):
-    """An object that manages a sequence of transactions
+    """An object that manages a sequence of transactions.
 
     Applications use transaction managers to establish transaction boundaries.
     """
-
 
     def begin():
         """Begin a new transaction.
@@ -36,11 +35,21 @@ class ITransactionManager(zope.interface.Interface):
         """
 
     def commit():
-        """Commit the current transaction
+        """Commit the current transaction.
         """
 
-    def abort(self):
-        """Abort the current transaction
+    def abort():
+        """Abort the current transaction.
+        """
+
+    def savepoint(optimistic=False):
+        """Create a savepoint from the current transaction.
+
+        If the optimistic argument is true, then data managers that
+        don't support savepoints can be used, but an error will be
+        raised if the savepoint is rolled back.
+
+        An ISavepoint object is returned.
         """
 
     def registerSynch(synch):
@@ -48,7 +57,6 @@ class ITransactionManager(zope.interface.Interface):
 
         Synchronizers are notified at the beginning and end of
         transaction completion.
-        
         """
 
     def unregisterSynch(synch):
@@ -56,7 +64,6 @@ class ITransactionManager(zope.interface.Interface):
 
         Synchronizers are notified at the beginning and end of
         transaction completion.
-        
         """
 
 class ITransaction(zope.interface.Interface):
@@ -91,34 +98,43 @@ class ITransaction(zope.interface.Interface):
         raise an exception, or truncate the value).
         """)
 
-    def commit(subtransaction=None):
+    def commit():
         """Finalize the transaction.
 
         This executes the two-phase commit algorithm for all
         IDataManager objects associated with the transaction.
         """
 
-    def abort(subtransaction=0, freeme=1):
+    def abort():
         """Abort the transaction.
 
         This is called from the application.  This can only be called
         before the two-phase commit protocol has been started.
         """
 
+    def savepoint(optimistic=False):
+        """Create a savepoint.
+
+        If the optimistic argument is true, then data managers that don't
+        support savepoints can be used, but an error will be raised if the
+        savepoint is rolled back.
+
+        An ISavepoint object is returned.
+        """
+
     def join(datamanager):
         """Add a datamanager to the transaction.
 
-        The if the data manager supports savepoints, it must call this
-        *before* making any changes.  If the transaction has had any
-        savepoints, then it will take a savepoint of the data manager
-        when join is called and this savepoint must reflct the state
-        of the data manager before any changes that caused the data
-        manager to join the transaction.
+        If the data manager supports savepoints, it must call join *before*
+        making any changes:  if the transaction has made any savepoints, then
+        the transaction will take a savepoint of the data manager when join
+        is called, and this savepoint must reflect the state of the data
+        manager before any changes that caused the data manager to join the
+        transaction.
 
         The datamanager must implement the
         transactions.interfaces.IDataManager interface, and be
         adaptable to ZODB.interfaces.IDataManager.
-        
         """
 
     def note(text):
@@ -195,16 +211,12 @@ class IDataManager(zope.interface.Interface):
     """Objects that manage transactional storage.
 
     These objects may manage data for other objects, or they may manage
-    non-object storages, such as relational databases.
+    non-object storages, such as relational databases.  For example,
+    a ZODB.Connection.
 
-    IDataManagerOriginal is the interface currently provided by ZODB
-    database connections, but the intent is to move to the newer
-    IDataManager.
-
-    Note that when data are modified, data managers should join a
-    transaction so that data can be committed when the user commits
+    Note that when some data is modified, that data's data manager should
+    join a transaction so that data can be committed when the user commits
     the transaction.
-
     """
 
     # Two-phase commit protocol.  These methods are called by the
@@ -225,17 +237,6 @@ class IDataManager(zope.interface.Interface):
 
         transaction is the ITransaction instance associated with the
         transaction being committed.
-
-        subtransaction is a Boolean flag indicating whether the
-        two-phase commit is being invoked for a subtransaction.
-
-        Important note: Subtransactions are modelled in the sense that
-        when you commit a subtransaction, subsequent commits should be
-        for subtransactions as well.  That is, there must be a
-        commit_sub() call between a tpc_begin() call with the
-        subtransaction flag set to true and a tpc_begin() with the
-        flag set to false.
-
         """
 
     def commit(transaction):
@@ -263,7 +264,7 @@ class IDataManager(zope.interface.Interface):
         """
 
     def tpc_vote(transaction):
-        """Verify that a data manager can commit the transaction
+        """Verify that a data manager can commit the transaction.
 
         This is the last chance for a data manager to vote 'no'.  A
         data manager votes 'no' by raising an exception.
@@ -290,7 +291,7 @@ class IDataManager(zope.interface.Interface):
         """
 
     def sortKey():
-        """Return a key to use for ordering registered DataManagers
+        """Return a key to use for ordering registered DataManagers.
 
         ZODB uses a global sort order to prevent deadlock when it commits
         transactions involving multiple resource managers.  The resource
@@ -308,32 +309,47 @@ class IDataManager(zope.interface.Interface):
 class ISavepointDataManager(IDataManager):
 
     def savepoint():
-        """Return a savepoint (ISavepoint)
+        """Return a data-manager savepoint (IDataManagerSavepoint).
         """
 
-class ISavepoint(zope.interface.Interface):
-    """A transaction savepoint
+class IDataManagerSavepoint(zope.interface.Interface):
+    """Savepoint for data-manager changes for use in transaction savepoints.
+
+    Datamanager savepoints are used by, and only by, transaction savepoints.
+
+    Note that data manager savepoints don't have any notion of, or
+    responsibility for, validity.  It isn't the responsibility of
+    data-manager savepoints to prevent multiple rollbacks or rollbacks after
+    transaction termination.  Preventing invalid savepoint rollback is the
+    responsibility of transaction rollbacks. Application code should never
+    use data-manager savepoints.
     """
 
     def rollback():
-        """Rollback any work done since the savepoint
+        """Rollback any work done since the savepoint.
+        """
 
-        An InvalidSavepointRollbackError is raised if the savepoint
-        isn't valid.
-        
+class ISavepoint(zope.interface.Interface):
+    """A transaction savepoint.
+    """
+
+    def rollback():
+        """Rollback any work done since the savepoint.
+
+        InvalidSavepointRollbackError is raised if the savepoint isn't valid.
         """
 
     valid = zope.interface.Attribute(
         "Boolean indicating whether the savepoint is valid")
 
 class InvalidSavepointRollbackError(Exception):
-    """Attempt to rollback an invalid savepoint
+    """Attempt to rollback an invalid savepoint.
 
     A savepoint may be invalid because:
 
-    - The surrounding transaction has committed or aborted
+    - The surrounding transaction has committed or aborted.
 
-    - An earlier savepoint in the same transaction has been rolled back
+    - An earlier savepoint in the same transaction has been rolled back.
     """
 
 class ISynchronizer(zope.interface.Interface):
@@ -347,4 +363,3 @@ class ISynchronizer(zope.interface.Interface):
     def afterCompletion(transaction):
         """Hook that is called by the transaction after completing a commit.
         """
-

@@ -3,9 +3,28 @@ What's new in ZODB3 3.5a0?
 Release date: DD-MMM-YYYY
 
 
+What's new in ZODB3 3.4a5?
+==========================
+Release date: 25-Apr-2005
+
+This was an internal release, to fix problems with the new savepoint feature.
+
+
 What's new in ZODB3 3.4a4?
 ==========================
 Release date: 23-Apr-2005
+
+This was an internal release, to create a tag for use in Zope 2.8b1 and
+Zope3 development.
+
+transaction
+-----------
+
+Transactions now support savepoints.  Savepoints allow changes to be
+periodically checkpointed within a transaction.  You can then
+rollback to a previously created savepoint.  See
+``transaction/savepoint.txt``.
+
 
 ZEO
 ---
@@ -67,6 +86,12 @@ this out required adding ``last=`` everywhere, or removing it everywhere.
 Since recursion isn't actually needed, and there was no other use for
 ``last=``, removing it everywhere was the obvious choice.
 
+Support for ZODB4 savepoint-aware data managers has been dropped
+----------------------------------------------------------------
+
+In adding savepoint support, we dropped the attempted support
+for ZODB4 data managers that support savepoints.  We don't think that
+this will affect anyone.
 
 What's new in ZODB3 3.4a3?
 ==========================
