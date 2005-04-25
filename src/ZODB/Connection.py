@@ -330,7 +330,7 @@ class Connection(ExportImport, object):
         # the savepoint, then they won't have _p_oid or _p_jar after
         # they've been unadded. This will make the code in _abort
         # confused.
-        
+
 
         self._abort()
 
@@ -341,7 +341,7 @@ class Connection(ExportImport, object):
 
     def _abort(self):
         """Abort a transaction and forget all changes."""
-        
+
         for obj in self._registered_objects:
             oid = obj._p_oid
             assert oid is not None
@@ -444,7 +444,7 @@ class Connection(ExportImport, object):
             self._commit_savepoint(transaction)
 
             # No need to call _commit since savepoint did.
-            
+
         else:
             self._commit(transaction)
 
@@ -575,7 +575,7 @@ class Connection(ExportImport, object):
 
         if self._savepoint_storage is not None:
             self._abort_savepoint()
-            
+
         self._storage.tpc_abort(transaction)
 
         # Note: If we invalidate a non-justifiable object (i.e. a
@@ -626,11 +626,15 @@ class Connection(ExportImport, object):
 
     def tpc_finish(self, transaction):
         """Indicate confirmation that the transaction is done."""
+
         def callback(tid):
-            d = {}
-            for oid in self._modified:
-                d[oid] = 1
+            d = dict.fromkeys(self._modified)
             self._db.invalidate(tid, d, self)
+#       It's important that the storage calls the passed function
+#       while it still has its lock.  We don't want another thread
+#       to be able to read any updated data until we've had a chance
+#       to send an invalidation message to all of the other
+#       connections!
         self._storage.tpc_finish(transaction, callback)
         self._tpc_cleanup()
 
@@ -653,7 +657,7 @@ class Connection(ExportImport, object):
 
     # Transaction-manager synchronization -- ISynchronizer
     ##########################################################################
-    
+
     ##########################################################################
     # persistent.interfaces.IPersistentDatamanager
 
@@ -815,7 +819,7 @@ class Connection(ExportImport, object):
         # registering the object, because joining may take a
         # savepoint, and the savepoint should not reflect the change
         # to the object.
-        
+
         if self._needs_to_join:
             self._txn_mgr.get().join(self)
             self._needs_to_join = False
@@ -823,7 +827,7 @@ class Connection(ExportImport, object):
         if obj is not None:
             self._registered_objects.append(obj)
 
-    
+
     # persistent.interfaces.IPersistentDatamanager
     ##########################################################################
 
@@ -1076,11 +1080,11 @@ class TmpStore:
     def __init__(self, base_version, storage):
         self._storage = storage
         for method in (
-            'getName', 'new_oid', 'modifiedInVersion', 'getSize', 
+            'getName', 'new_oid', 'modifiedInVersion', 'getSize',
             'undoLog', 'versionEmpty', 'sortKey',
             ):
             setattr(self, method, getattr(storage, method))
-            
+
         self._base_version = base_version
         self._file = tempfile.TemporaryFile()
         # position: current file position
@@ -1089,7 +1093,7 @@ class TmpStore:
         # index: map oid to pos of last committed version
         self.index = {}
         self.creating = []
-                    
+
     def __len__(self):
         return len(self.index)
 
