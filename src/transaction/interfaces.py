@@ -39,9 +39,20 @@ class ITransactionManager(zope.interface.Interface):
         """Commit the current transaction
         """
 
-    def abort(self):
+    def abort():
         """Abort the current transaction
         """
+
+    def savepoint(optimistic=False):
+        """Create a savepoint from the current transaction.
+
+        If the optimistic argument is true, then data managers that
+        don't support savepoints can be used, but an error will be
+        raised if the savepoint is rolled back.
+
+        An ISavepoint object is returned.
+        """
+        
 
     def registerSynch(synch):
         """Register an ISynchronizer.
@@ -91,18 +102,28 @@ class ITransaction(zope.interface.Interface):
         raise an exception, or truncate the value).
         """)
 
-    def commit(subtransaction=None):
+    def commit():
         """Finalize the transaction.
 
         This executes the two-phase commit algorithm for all
         IDataManager objects associated with the transaction.
         """
 
-    def abort(subtransaction=0, freeme=1):
+    def abort():
         """Abort the transaction.
 
         This is called from the application.  This can only be called
         before the two-phase commit protocol has been started.
+        """
+
+    def savepoint(optimistic=False):
+        """Create a savepoint.
+
+        If the optimistic argument is true, then data managers that
+        don't support savepoints can be used, but an error will be
+        raised if the savepoint is rolled back.
+
+        An ISavepoint object is returned.
         """
 
     def join(datamanager):
