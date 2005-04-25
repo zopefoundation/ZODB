@@ -24,7 +24,6 @@ class ITransactionManager(zope.interface.Interface):
     Applications use transaction managers to establish transaction boundaries.
     """
 
-
     def begin():
         """Begin a new transaction.
 
@@ -52,14 +51,12 @@ class ITransactionManager(zope.interface.Interface):
 
         An ISavepoint object is returned.
         """
-        
 
     def registerSynch(synch):
         """Register an ISynchronizer.
 
         Synchronizers are notified at the beginning and end of
         transaction completion.
-        
         """
 
     def unregisterSynch(synch):
@@ -67,7 +64,6 @@ class ITransactionManager(zope.interface.Interface):
 
         Synchronizers are notified at the beginning and end of
         transaction completion.
-        
         """
 
 class ITransaction(zope.interface.Interface):
@@ -139,7 +135,6 @@ class ITransaction(zope.interface.Interface):
         The datamanager must implement the
         transactions.interfaces.IDataManager interface, and be
         adaptable to ZODB.interfaces.IDataManager.
-        
         """
 
     def note(text):
@@ -325,14 +320,13 @@ class IDataManagerSavepoint(zope.interface.Interface):
     """Savepoint for data-manager changes for use in transaction savepoints
 
     Datamanager savepoints are used by, and only by, transaction savepoints.
-    
+
     Note that data manager savepoints don't have any notion of or
     responsibility for validity.  It isn't the responsibility of
     data-manager savepoints to prevent multiple rollbacks or rollbacks
     after transaction termination.  Preventing invalid savepoint
     rollback is the responsibility of transaction rollbacks.
     Application code should never use data-manager savepoints.
-    
     """
 
     def rollback():
@@ -348,7 +342,7 @@ class ISavepoint(zope.interface.Interface):
 
         An InvalidSavepointRollbackError is raised if the savepoint
         isn't valid.
-        
+
         """
 
     valid = zope.interface.Attribute(
@@ -375,4 +369,3 @@ class ISynchronizer(zope.interface.Interface):
     def afterCompletion(transaction):
         """Hook that is called by the transaction after completing a commit.
         """
-
