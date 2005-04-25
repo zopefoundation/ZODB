@@ -225,17 +225,6 @@ class IDataManager(zope.interface.Interface):
 
         transaction is the ITransaction instance associated with the
         transaction being committed.
-
-        subtransaction is a Boolean flag indicating whether the
-        two-phase commit is being invoked for a subtransaction.
-
-        Important note: Subtransactions are modelled in the sense that
-        when you commit a subtransaction, subsequent commits should be
-        for subtransactions as well.  That is, there must be a
-        commit_sub() call between a tpc_begin() call with the
-        subtransaction flag set to true and a tpc_begin() with the
-        flag set to false.
-
         """
 
     def commit(transaction):
