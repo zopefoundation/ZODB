@@ -115,9 +115,9 @@ class ITransaction(zope.interface.Interface):
     def savepoint(optimistic=False):
         """Create a savepoint.
 
-        If the optimistic argument is true, then data managers that
-        don't support savepoints can be used, but an error will be
-        raised if the savepoint is rolled back.
+        If the optimistic argument is true, then data managers that don't
+        support savepoints can be used, but an error will be raised if the
+        savepoint is rolled back.
 
         An ISavepoint object is returned.
         """
@@ -125,12 +125,12 @@ class ITransaction(zope.interface.Interface):
     def join(datamanager):
         """Add a datamanager to the transaction.
 
-        The if the data manager supports savepoints, it must call this
-        *before* making any changes.  If the transaction has had any
-        savepoints, then it will take a savepoint of the data manager
-        when join is called and this savepoint must reflct the state
-        of the data manager before any changes that caused the data
-        manager to join the transaction.
+        If the data manager supports savepoints, it must call join *before*
+        making any changes:  if the transaction has made any savepoints, then
+        the transaction will take a savepoint of the data manager when join
+        is called, and this savepoint must reflect the state of the data
+        manager before any changes that caused the data manager to join the
+        transaction.
 
         The datamanager must implement the
         transactions.interfaces.IDataManager interface, and be
@@ -211,16 +211,12 @@ class IDataManager(zope.interface.Interface):
     """Objects that manage transactional storage.
 
     These objects may manage data for other objects, or they may manage
-    non-object storages, such as relational databases.
+    non-object storages, such as relational databases.  For example,
+    a ZODB.Connection.
 
-    IDataManagerOriginal is the interface currently provided by ZODB
-    database connections, but the intent is to move to the newer
-    IDataManager.
-
-    Note that when data are modified, data managers should join a
-    transaction so that data can be committed when the user commits
+    Note that when some data is modified, that data's data manager should
+    join a transaction so that data can be committed when the user commits
     the transaction.
-
     """
 
     # Two-phase commit protocol.  These methods are called by the
@@ -321,12 +317,12 @@ class IDataManagerSavepoint(zope.interface.Interface):
 
     Datamanager savepoints are used by, and only by, transaction savepoints.
 
-    Note that data manager savepoints don't have any notion of or
-    responsibility for validity.  It isn't the responsibility of
-    data-manager savepoints to prevent multiple rollbacks or rollbacks
-    after transaction termination.  Preventing invalid savepoint
-    rollback is the responsibility of transaction rollbacks.
-    Application code should never use data-manager savepoints.
+    Note that data manager savepoints don't have any notion of, or
+    responsibility for, validity.  It isn't the responsibility of
+    data-manager savepoints to prevent multiple rollbacks or rollbacks after
+    transaction termination.  Preventing invalid savepoint rollback is the
+    responsibility of transaction rollbacks. Application code should never
+    use data-manager savepoints.
     """
 
     def rollback():
@@ -340,9 +336,7 @@ class ISavepoint(zope.interface.Interface):
     def rollback():
         """Rollback any work done since the savepoint.
 
-        An InvalidSavepointRollbackError is raised if the savepoint
-        isn't valid.
-
+        InvalidSavepointRollbackError is raised if the savepoint isn't valid.
         """
 
     valid = zope.interface.Attribute(
