@@ -1,14 +1,24 @@
+What's new in ZODB3 3.4a5?
+==========================
+Release date: 25-Apr-2005
+
+This was an internal release, to fix problems with the new savepoint feature.
+
+
 What's new in ZODB3 3.4a4?
 ==========================
 Release date: 23-Apr-2005
 
-Transactions
-------------
+This was an internal release, to create a tag for use in Zope 2.8b1 and
+Zope3 development.
+
+transaction
+-----------
 
 Transactions now support savepoints.  Savepoints allow changes to be
-periodically be checkpointed within a transaction.  You can then
+periodically checkpointed within a transaction.  You can then
 rollback to a previously created savepoint.  See
-transaction/savepoint.txt.
+``transaction/savepoint.txt``.
 
 
 ZEO
