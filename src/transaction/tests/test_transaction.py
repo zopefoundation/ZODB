@@ -419,6 +419,12 @@ def test_beforeCommitHook():
       >>> t = transaction.begin()
       >>> t.beforeCommitHook(hook, '1')
 
+    We can see that the hook is indeed registered.
+
+      >>> [(hook.func_name, args, kws)
+      ...  for hook, args, kws in t.getBeforeCommitHooks()]
+      [('hook', ('1',), {})]
+
     When transaction commit starts, the hook is called, with its
     arguments.
 
@@ -432,6 +438,8 @@ def test_beforeCommitHook():
     A hook's registration is consumed whenever the hook is called.  Since
     the hook above was called, it's no longer registered:
 
+      >>> len(list(t.getBeforeCommitHooks()))
+      0
       >>> transaction.commit()
       >>> log
       []
@@ -483,11 +491,21 @@ def test_beforeCommitHook():
       ["arg '2' kw1 'no_kw1' kw2 'no_kw2'"]
       >>> reset_log()
 
-    If several hooks are defined, they are called in order.
+    Let's register several hooks.
 
       >>> t = transaction.begin()
       >>> t.beforeCommitHook(hook, '4', kw1='4.1')
       >>> t.beforeCommitHook(hook, '5', kw2='5.2')
+
+    They are returned in the same order by getBeforeCommitHooks.
+
+      >>> [(hook.func_name, args, kws)     #doctest: +NORMALIZE_WHITESPACE
+      ...  for hook, args, kws in t.getBeforeCommitHooks()]
+      [('hook', ('4',), {'kw1': '4.1'}),
+       ('hook', ('5',), {'kw2': '5.2'})]
+
+    And commit also calls them in this order.
+
       >>> t.commit()
       >>> len(log)
       2

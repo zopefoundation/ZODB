@@ -358,7 +358,9 @@ class Transaction(object):
         # Append the exception type and value.
         ft.writelines(traceback.format_exception_only(t, v))
         raise t, v, tb
-        
+
+    def getBeforeCommitHooks(self):
+        return iter(self._before_commit)
 
     def beforeCommitHook(self, hook, *args, **kws):
         self._before_commit.append((hook, args, kws))
