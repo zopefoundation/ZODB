@@ -268,7 +268,7 @@ class Transaction(object):
         except:
             self._cleanup(self._resources)
             self._saveCommitishError() # reraises!
-            
+
         if self._last_savepoint is not None:
             savepoint.previous = self._last_savepoint
             self._last_savepoint.next = savepoint
@@ -326,7 +326,7 @@ class Transaction(object):
             # TODO depricate subtransactions
             self.savepoint(1)
             return
-        
+
         if self.status is Status.COMMITFAILED:
             self._prior_operation_failed() # doesn't return
 
@@ -437,7 +437,7 @@ class Transaction(object):
             return
 
         self._invalidate_last_savepoint()
-        
+
         self._synchronizers.map(lambda s: s.beforeCompletion(self))
 
         tb = None
@@ -452,7 +452,7 @@ class Transaction(object):
 
         if self._manager:
             self._manager.free(self)
-            
+
         self._synchronizers.map(lambda s: s.afterCompletion(self))
 
         self.log.debug("abort")
@@ -576,7 +576,7 @@ class DataManagerAdapter(object):
         # We don't do anything here because ZODB4-style data managers
         # didn't have a separate tpc_begin step
         pass
-        
+
     def tpc_abort(self, transaction):
         self._datamanager.abort(transaction)
 
@@ -594,7 +594,7 @@ class Savepoint:
 
     Transaction savepoints coordinate savepoints for data managers
     participating in a transaction.
-    
+
     """
     interface.implements(interfaces.ISavepoint)
 
@@ -614,17 +614,17 @@ class Savepoint:
                 savepoint = NoRollbackSavepoint(datamanager)
             else:
                 savepoint = savepoint()
-                
+
             savepoints.append(savepoint)
-    
+
     def join(self, datamanager):
-        
+
         # A data manager has joined a transaction *after* a savepoint
         # was created.  A couple of things are different in this case:
-        
+
         # 1. We need to add it's savepoint to all previous savepoints.
         # so that if they are rolled back, we roll this was back too.
-        
+
         # 2. We don't actualy need to ask it for a savepoint.  Because
         # is just joining, then we can abort it if there is an error,
         # so we use an AbortSavepoint.
