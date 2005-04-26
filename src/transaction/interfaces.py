@@ -189,6 +189,13 @@ class ITransaction(zope.interface.Interface):
         instead.
         """
 
+    def getBeforeCommitHooks():
+        """Return iterable producing the registered beforeCommit hooks.
+
+        A triple (hook, args, kws) is produced for each registered hook.
+        The hooks are produced in the order in which they were registered.
+        """
+
 class ITransactionDeprecated(zope.interface.Interface):
     """Deprecated parts of the transaction API."""
 
