@@ -2,8 +2,17 @@ What's new in ZODB3 3.5a0?
 ==========================
 Release date: DD-MMM-YYYY
 
-A ``getBeforeCommitHooks()`` method has been added to Transaction. It
-returns an iterable producing the registered beforeCommit hooks.
+
+What's new in ZODB3 3.4b1?
+==========================
+Release date: DD-MMM-2005
+
+transaction
+-----------
+
+A ``getBeforeCommitHooks()`` method was added.  It returns an iterable
+producing the registered beforeCommit hooks.
+
 
 What's new in ZODB3 3.4a5?
 ==========================
