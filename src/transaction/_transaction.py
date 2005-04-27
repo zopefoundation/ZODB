@@ -194,7 +194,7 @@ class Transaction(object):
     _savepoint_index = 0
 
     # If savepoints are used, keep a weak key dict of them
-    _savepoints = {}
+    _savepoints = None
 
     # Remamber the savepoint for the last subtransaction
     _subtransaction_savepoint = None
