@@ -150,6 +150,7 @@ import logging
 import sys
 import thread
 import warnings
+import weakref
 import traceback
 from cStringIO import StringIO
 
@@ -187,6 +188,21 @@ class Transaction(object):
     interface.implements(interfaces.ITransaction,
                          interfaces.ITransactionDeprecated)
 
+
+    # Assign an index to each savepoint so we can invalidate
+    # later savepoints on rollback
+    _savepoint_index = 0
+
+    # If savepoints are used, keep a weak key dict of them
+    _savepoints = None
+
+    # Remamber the savepoint for the last subtransaction
+    _subtransaction_savepoint = None
+
+    # Meta data 
+    user = ""
+    description = ""
+
     def __init__(self, synchronizers=None, manager=None):
         self.status = Status.ACTIVE
         # List of resource managers, e.g. MultiObjectResourceAdapters.
@@ -209,8 +225,6 @@ class Transaction(object):
 
         # The user, description, and _extension attributes are accessed
         # directly by storages, leading underscore notwithstanding.
-        self.user = ""
-        self.description = ""
         self._extension = {}
 
         self.log = logging.getLogger("txn.%d" % thread.get_ident())
@@ -225,9 +239,6 @@ class Transaction(object):
         # TODO:  in Python 2.4, change to collections.deque; lists can be
         # inefficient for FIFO access of this kind.
         self._before_commit = []
-
-        # Keep track of the last savepoint
-        self._last_savepoint = None
 
     # Raise TransactionFailedError, due to commit()/join()/register()
     # getting called when the current transaction has already suffered
@@ -256,8 +267,26 @@ class Transaction(object):
             resource = DataManagerAdapter(resource)
         self._resources.append(resource)
 
-        if self._last_savepoint is not None:
-            self._last_savepoint.join(resource)
+
+        if self._savepoints:
+        
+            # A data manager has joined a transaction *after* a savepoint
+            # was created.  A couple of things are different in this case:
+
+            # 1. We need to add it's savepoint to all previous savepoints.
+            # so that if they are rolled back, we roll this was back too.
+
+            # 2. We don't actualy need to ask it for a savepoint.
+            # Because is just joining. We can just abort it to roll
+            # back to the current state, so we simply use and
+            # AbortSavepoint.
+            
+            datamanager_savepoint = AbortSavepoint(resource, self)
+            for ref in self._savepoints:
+                transaction_savepoint = ref()
+                if transaction_savepoint is not None:
+                    transaction_savepoint._savepoints.append(
+                        datamanager_savepoint)
 
     def savepoint(self, optimistic=False):
         if self.status is Status.COMMITFAILED:
@@ -269,18 +298,44 @@ class Transaction(object):
             self._cleanup(self._resources)
             self._saveCommitishError() # reraises!
 
-        if self._last_savepoint is not None:
-            savepoint.previous = self._last_savepoint
-            self._last_savepoint.next = savepoint
-        self._last_savepoint = savepoint
+
+        self._savepoint_index += 1
+        ref = weakref.ref(savepoint, self._remove_savepoint_ref)
+        if self._savepoints is None:
+            self._savepoints = {}
+        self._savepoints[ref] = self._savepoint_index
+
         return savepoint
 
-    def _invalidate_last_savepoint(self):
-        # Invalidate the last savepoint and any previous
-        # savepoints. This is done on a commit or abort.
-        if self._last_savepoint is not None:
-            self._last_savepoint._invalidate_previous()
-            self._last_savepoint = None
+    def _remove_savepoint_ref(self, ref):
+        try:
+            del self._savepoints[ref]
+        except KeyError:
+            pass
+
+    def _invalidate_next(self, savepoint):
+        savepoints = self._savepoints
+        ref = weakref.ref(savepoint)
+        index = savepoints[ref]
+        del savepoints[ref]
+
+        # use items to make copy to avoid mutating while iterating
+        for ref, i in savepoints.items():
+            if i > index:
+                savepoint = ref()
+                if savepoint is not None:
+                    savepoint.transaction = None # invalidate
+                    del savepoints[ref]
+
+    def _invalidate_savepoints(self):
+        savepoints = self._savepoints
+        for ref in savepoints:
+            savepoint = ref()
+            if savepoint is not None:
+                savepoint.transaction = None # invalidate
+
+        savepoints.clear()
+
 
     def register(self, obj):
         # The old way of registering transaction participants.
@@ -320,11 +375,12 @@ class Transaction(object):
 
     def commit(self, subtransaction=False):
 
-        self._invalidate_last_savepoint()
+        if self._savepoints:
+            self._invalidate_savepoints()
 
         if subtransaction:
-            # TODO depricate subtransactions
-            self.savepoint(1)
+            # TODO deprecate subtransactions
+            self._subtransaction_savepoint = self.savepoint(1)
             return
 
         if self.status is Status.COMMITFAILED:
@@ -428,15 +484,16 @@ class Transaction(object):
 
         if subtransaction:
             # TODO deprecate subtransactions
-            if not self._last_savepoint:
+            if not self._subtransaction_savepoint:
                 raise interfaces.InvalidSavepointRollbackError
-            if self._last_savepoint.valid:
+            if self._subtransaction_savepoint.valid:
                 # We're supposed to be able to call abort(1) multiple
                 # times. Sigh.
-                self._last_savepoint.rollback()
+                self._subtransaction_savepoint.rollback()
             return
 
-        self._invalidate_last_savepoint()
+        if self._savepoints:
+            self._invalidate_savepoints()
 
         self._synchronizers.map(lambda s: s.beforeCompletion(self))
 
@@ -598,18 +655,17 @@ class Savepoint:
     """
     interface.implements(interfaces.ISavepoint)
 
+    valid = property(lambda self: self.transaction is not None)
+
     def __init__(self, transaction, optimistic, *resources):
         self.transaction = transaction
         self._savepoints = savepoints = []
-        self.valid = True
-        self.next = self.previous = None
-        self.optimistic = optimistic
 
         for datamanager in resources:
             try:
                 savepoint = datamanager.savepoint
             except AttributeError:
-                if not self.optimistic:
+                if not optimistic:
                     raise TypeError("Savepoints unsupported", datamanager)
                 savepoint = NoRollbackSavepoint(datamanager)
             else:
@@ -617,43 +673,19 @@ class Savepoint:
 
             savepoints.append(savepoint)
 
-    def join(self, datamanager):
-
-        # A data manager has joined a transaction *after* a savepoint
-        # was created.  A couple of things are different in this case:
-
-        # 1. We need to add it's savepoint to all previous savepoints.
-        # so that if they are rolled back, we roll this was back too.
-
-        # 2. We don't actualy need to ask it for a savepoint.  Because
-        # is just joining, then we can abort it if there is an error,
-        # so we use an AbortSavepoint.
-
-        savepoint = AbortSavepoint(datamanager, self.transaction)
-        while self is not None:
-            self._savepoints.append(savepoint)
-            self = self.previous
-
     def rollback(self):
-        if not self.valid:
+        transaction = self.transaction
+        if transaction is None:
             raise interfaces.InvalidSavepointRollbackError
-        self._invalidate_next()
+        self.transaction = None
+        transaction._invalidate_next(self)
+
         try:
             for savepoint in self._savepoints:
                 savepoint.rollback()
         except:
             # Mark the transaction as failed
-            self.transaction._saveCommitishError() # reraises!
-
-    def _invalidate_next(self):
-        self.valid = False
-        if self.next is not None:
-            self.next._invalidate_next()
-
-    def _invalidate_previous(self):
-        self.valid = False
-        if self.previous is not None:
-            self.previous._invalidate_previous()
+            transaction._saveCommitishError() # reraises!
 
 class AbortSavepoint:
 
