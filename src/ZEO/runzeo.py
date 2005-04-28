@@ -272,7 +272,7 @@ class ZEOServer:
                 storage.close()
             except: # Keep going
                 log("failed to close storage %r" % name,
-                    level=logging.EXCEPTION, exc_info=True)
+                    level=logging.ERROR, exc_info=True)
 
     def _get_pidfile(self):
         pidfile = self.options.pid_file
