@@ -363,6 +363,70 @@ class ZODBTests(unittest.TestCase):
         self.obj = DecoyIndependent()
         self.readConflict()
 
+    def checkSubtxnCommitDoesntGetInvalidations(self):
+        # Prior to ZODB 3.2.9 and 3.4, Connection.tpc_finish() processed
+        # invalidations even for a subtxn commit.  This could make
+        # inconsistent state visible after a subtxn commit.  There was a
+        # suspicion that POSKeyError was possible as a result, but I wasn't
+        # able to construct a case where that happened.
+
+        # Set up the database, to hold
+        # root --> "p" -> value = 1
+        #      --> "q" -> value = 2
+        tm1 = transaction.TransactionManager()
+        conn = self._db.open(txn_mgr=tm1)
+        r1 = conn.root()
+        p = P()
+        p.value = 1
+        r1["p"] = p
+        q = P()
+        q.value = 2
+        r1["q"] = q
+        tm1.commit()
+
+        # Now txn T1 changes p.value to 3 locally (subtxn commit).
+        p.value = 3
+        tm1.commit(True)
+
+        # Start new txn T2 with a new connection.
+        tm2 = transaction.TransactionManager()
+        cn2 = self._db.open(txn_mgr=tm2)
+        r2 = cn2.root()
+        p2 = r2["p"]
+        self.assertEqual(p._p_oid, p2._p_oid)
+        # T2 shouldn't see T1's change of p.value to 3, because T1 didn't
+        # commit yet.
+        self.assertEqual(p2.value, 1)
+        # Change p.value to 4, and q.value to 5.  Neither should be visible
+        # to T1, because T1 is still in progress.
+        p2.value = 4
+        q2 = r2["q"]
+        self.assertEqual(q._p_oid, q2._p_oid)
+        self.assertEqual(q2.value, 2)
+        q2.value = 5
+        tm2.commit()
+
+        # Back to T1.  p and q still have the expected values.
+        rt = conn.root()
+        self.assertEqual(rt["p"].value, 3)
+        self.assertEqual(rt["q"].value, 2)
+
+        # Now do another subtxn commit in T1.  This shouldn't change what
+        # T1 sees for p and q.
+        rt["r"] = P()
+        tm1.commit(True)
+
+        # Doing that subtxn commit in T1 should not process invalidations
+        # from T2's commit.  p.value should still be 3 here (because that's
+        # what T1 subtxn-committed earlier), and q.value should still be 2.
+        # Prior to ZODB 3.2.9 and 3.4, q.value was 5 here.
+        rt = conn.root()
+        try:
+            self.assertEqual(rt["p"].value, 3)
+            self.assertEqual(rt["q"].value, 2)
+        finally:
+            tm1.abort()
+
     def checkReadConflictErrorClearedDuringAbort(self):
         # When a transaction is aborted, the "memory" of which
         # objects were the cause of a ReadConflictError during
@@ -634,7 +698,7 @@ class PoisonedJar:
 
     def savepoint(self):
         if self.break_savepoint:
-            raise PoisonedError("savepoint fails")        
+            raise PoisonedError("savepoint fails")
 
     def commit(*args):
         pass

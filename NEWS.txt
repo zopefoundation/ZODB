@@ -5,8 +5,24 @@ Release date: DD-MMM-2005
 transaction
 -----------
 
-A ``getBeforeCommitHooks()`` method was added.  It returns an iterable
-producing the registered beforeCommit hooks.
+- A ``getBeforeCommitHooks()`` method was added.  It returns an iterable
+  producing the registered beforeCommit hooks.
+
+- Doing a subtransaction commit erroneously processed invalidations, which
+  could lead to an inconsistent view of the database.  For example, let T be
+  the transaction of which the subtransaction commit was a part.  If T read a
+  persistent object O's state before the subtransaction commit, did not
+  commit new state of its own for O during its subtransaction commit, and O
+  was modified before the subtransaction commit by a different transaction,
+  then the subtransaction commit processed an invalidation for O, and the
+  state T read for O originally was discarded in T.  If T went on to access O
+  again, it saw the newly committed (by a different transaction) state for O::
+
+      o_attr = O.some_attribute
+      get_transaction().commit(True)
+      assert o_attr == O.some_attribute
+
+  could fail, and despite that T never modifed O.
 
 
 What's new in ZODB3 3.4a5?

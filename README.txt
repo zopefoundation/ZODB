@@ -29,7 +29,7 @@ Compatibility
 -------------
 
 ZODB 3.4 requires Python 2.3.4 or later.  For best results, we recommend
-Python 2.3.5.
+Python 2.3.5.  Python 2.4.1 can also be used.
 
 The Zope 2.8 release, and Zope3 releases, should be compatible with this
 version of ZODB.  Note that Zope 2.7 and higher includes ZEO, so this package
