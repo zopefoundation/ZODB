@@ -29,10 +29,10 @@ class SampleDataManager(UserDict.DictMixin):
 
     This data manager stores named simple values, like strings and numbers.
     """
-    
+
     interface.implements(transaction.interfaces.IDataManager)
 
-    def __init__(self, transaction_manager = None):
+    def __init__(self, transaction_manager=None):
         if transaction_manager is None:
             # Use the thread-local transaction manager if none is provided:
             transaction_manager = transaction.manager
@@ -43,7 +43,7 @@ class SampleDataManager(UserDict.DictMixin):
         self.uncommitted = self.committed.copy()
 
         # Our transaction state:
-
+        #
         #   If our uncommitted data is modified, we'll join a transaction
         #   and keep track of the transaction we joined.  Any commit
         #   related messages we get should be for this same transaction
@@ -56,14 +56,14 @@ class SampleDataManager(UserDict.DictMixin):
     #######################################################################
     # Provide a mapping interface to uncommitted data.  We provide
     # a basic subset of the interface. DictMixin does the rest.
-    
+
     def __getitem__(self, name):
         return self.uncommitted[name]
-    
+
     def __setitem__(self, name, value):
         self._join() # join the current transaction, if we haven't already
         self.uncommitted[name] = value
-    
+
     def __delitem__(self, name):
         self._join() # join the current transaction, if we haven't already
         del self.uncommitted[name]
@@ -126,13 +126,13 @@ class SampleDataManager(UserDict.DictMixin):
         assert self.tpc_phase == 2, "Must be called in second phase of tpc"
         self.committed = self.uncommitted.copy()
         self._resetTransaction()
-        
+
     def tpc_abort(self, transaction):
         assert transaction is self.transaction, "Must not change transactions"
         assert self.tpc_phase is not None, "Must be called inside of tpc"
         self.uncommitted = self.committed.copy()
         self._resetTransaction()
-    
+
     #
     #######################################################################
 

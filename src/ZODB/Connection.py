@@ -331,7 +331,6 @@ class Connection(ExportImport, object):
         # they've been unadded. This will make the code in _abort
         # confused.
 
-
         self._abort()
 
         if self._savepoint_storage is not None:
@@ -353,9 +352,9 @@ class Connection(ExportImport, object):
 
                 # Note: If we invalidate a non-ghostifiable object
                 # (i.e. a persistent class), the object will
-                # immediately reread it's state.  That means that the
+                # immediately reread its state.  That means that the
                 # following call could result in a call to
-                # self.setstate, which, of course, must suceed.
+                # self.setstate, which, of course, must succeed.
                 # In general, it would be better if the read could be
                 # delayed until the start of the next transaction.  If
                 # we read at the end of a transaction and if the
@@ -365,7 +364,7 @@ class Connection(ExportImport, object):
                 # can only delay the read if this abort corresponds to
                 # a top-level-transaction abort.  We can't tell if
                 # this is a top-level-transaction abort, so we have to
-                # go ahead and invalidate now. Fortunately, it's
+                # go ahead and invalidate now.  Fortunately, it's
                 # pretty unlikely that the object we are invalidating
                 # was invalidated by another thread, so the risk of a
                 # reread is pretty low.
@@ -383,21 +382,20 @@ class Connection(ExportImport, object):
     def _flush_invalidations(self):
         self._inv_lock.acquire()
         try:
-
             # Non-ghostifiable objects may need to read when they are
-            # invalidated, so, we'll quickly just replace the
+            # invalidated, so we'll quickly just replace the
             # invalidating dict with a new one.  We'll then process
             # the invalidations after freeing the lock *and* after
-            # reseting the time.  This means that invalidations will
+            # resetting the time.  This means that invalidations will
             # happen after the start of the transactions.  They are
-            # subject to conflict errors and to reading old data,
+            # subject to conflict errors and to reading old data.
 
             # TODO: There is a potential problem lurking for persistent
-            # classes.  Suppose we have an invlidation of a persistent
+            # classes.  Suppose we have an invalidation of a persistent
             # class and of an instance.  If the instance is
             # invalidated first and if the invalidation logic uses
             # data read from the class, then the invalidation could
-            # be performed with state data.  Or, suppose that there
+            # be performed with stale data.  Or, suppose that there
             # are instances of the class that are freed as a result of
             # invalidating some object.  Perhaps code in their __del__
             # uses class data.  Really, the only way to properly fix
@@ -407,10 +405,10 @@ class Connection(ExportImport, object):
             # much worse than that though, because we'd also need to
             # deal with slots.  When a class is ghostified, we'd need
             # to replace all of the slot operations with versions that
-            # reloaded the object when caled. It's hard to say which
-            # is better for worse.  For now, it seems the risk of
+            # reloaded the object when called. It's hard to say which
+            # is better or worse.  For now, it seems the risk of
             # using a class while objects are being invalidated seems
-            # small enough t be acceptable.
+            # small enough to be acceptable.
 
             invalidated = self._invalidated
             self._invalidated = {}
