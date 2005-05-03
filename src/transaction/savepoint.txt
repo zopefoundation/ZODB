@@ -24,7 +24,7 @@ support within the transaction system.  This data manager is very
 simple.  It provides flat storage of named immutable values, like strings
 and numbers.
 
-     
+
     >>> import transaction.tests.savepointsample
     >>> dm = transaction.tests.savepointsample.SampleSavepointDataManager()
     >>> dm['name'] = 'bob'
@@ -49,7 +49,7 @@ It allows deposits and debits to be entered for multiple people.
 It accepts a sequence of entries and generates a sequence of status
 messages.  For each entry, it applies the change and then validates
 the user's account.  If the user's account is invalid, we role back
-the change for that entry.  The success or failure of an entry is 
+the change for that entry.  The success or failure of an entry is
 indicated in the output status. First we'll initialize some accounts:
 
     >>> dm['bob-balance'] = 0.0
@@ -65,7 +65,7 @@ Now, we'll define a validation function to validate an account:
     ...         raise ValueError('Overdrawn', name)
 
 And a function to apply entries.  If the function fails in some
-unexpected way, it rolls back all of it's changes and 
+unexpected way, it rolls back all of it's changes and
 prints the error:
 
     >>> def apply_entries(entries):
@@ -107,7 +107,7 @@ Now let's try applying some entries:
 
     >>> dm['sally-balance']
     -80.0
-    
+
 If we give provide entries that cause an unexpected error:
 
     >>> apply_entries([
@@ -120,7 +120,7 @@ If we give provide entries that cause an unexpected error:
     Updated sally
     Unexpected exception unsupported operand type(s) for +=: 'float' and 'str'
 
-Because the apply_entries used a savepoint for the entire function, 
+Because the apply_entries used a savepoint for the entire function,
 it was able to rollback the partial changes without rolling back
 changes made in the previous call to apply_entries:
 
@@ -199,7 +199,7 @@ support savepoints:
     TypeError: ('Savepoints unsupported', {'name': 'bob'})
 
     >>> transaction.abort()
-    
+
 However, a flag can be passed to the transaction savepoint method to
 indicate that databases without savepoint support should be tolerated
 until a savepoint is roled back.  This allows transactions to proceed
@@ -259,11 +259,11 @@ with a data manager that didn't support savepoints:
     ...
     TypeError: ('Savepoints unsupported', {'name': 'sue'})
     <BLANKLINE>
-    
+
     >>> transaction.abort()
- 
+
 After clearing the transaction with an abort, we can get on with new
-transactions: 
+transactions:
 
     >>> dm_no_sp['name'] = 'sally'
     >>> dm['name'] = 'sally'
@@ -272,4 +272,4 @@ transactions:
     'sally'
     >>> dm['name']
     'sally'
-    
+

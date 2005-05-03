@@ -30,7 +30,7 @@ registers its _p_jar attribute.  TODO: explain adapter
 Subtransactions
 ---------------
 
-Note: Suntransactions are deprecated!
+Note: Suntransactions are deprecated!  Use savepoint/rollback instead.
 
 A subtransaction applies the transaction notion recursively.  It
 allows a set of modifications within a transaction to be committed or
@@ -189,17 +189,20 @@ class Transaction(object):
                          interfaces.ITransactionDeprecated)
 
 
-    # Assign an index to each savepoint so we can invalidate
-    # later savepoints on rollback
+    # Assign an index to each savepoint so we can invalidate later savepoints
+    # on rollback.  The first index assigned is 1, and it goes up by 1 each
+    # time.
     _savepoint_index = 0
 
-    # If savepoints are used, keep a weak key dict of them
-    _savepoints = None
+    # If savepoints are used, keep a weak key dict of them.  This maps a
+    # savepoint to its index (see above).
+    _savepoint2index = None
 
-    # Remamber the savepoint for the last subtransaction
+    # Remember the savepoint for the last subtransaction.
     _subtransaction_savepoint = None
 
-    # Meta data 
+    # Meta data.  ._extension is also metadata, but is initialized to an
+    # emtpy dict in __init__.
     user = ""
     description = ""
 
@@ -267,26 +270,21 @@ class Transaction(object):
             resource = DataManagerAdapter(resource)
         self._resources.append(resource)
 
-
-        if self._savepoints:
-        
+        if self._savepoint2index:
             # A data manager has joined a transaction *after* a savepoint
             # was created.  A couple of things are different in this case:
-
-            # 1. We need to add it's savepoint to all previous savepoints.
-            # so that if they are rolled back, we roll this was back too.
-
-            # 2. We don't actualy need to ask it for a savepoint.
-            # Because is just joining. We can just abort it to roll
-            # back to the current state, so we simply use and
+            #
+            # 1. We need to add its savepoint to all previous savepoints.
+            # so that if they are rolled back, we roll this one back too.
+            #
+            # 2. We don't actually need to ask the data manager for a
+            # savepoint:  because it's just joining, we can just abort it to
+            # roll back to the current state, so we simply use an
             # AbortSavepoint.
-            
             datamanager_savepoint = AbortSavepoint(resource, self)
-            for ref in self._savepoints:
-                transaction_savepoint = ref()
-                if transaction_savepoint is not None:
-                    transaction_savepoint._savepoints.append(
-                        datamanager_savepoint)
+            for transaction_savepoint in self._savepoint2index.keys():
+                transaction_savepoint._savepoints.append(
+                    datamanager_savepoint)
 
     def savepoint(self, optimistic=False):
         if self.status is Status.COMMITFAILED:
@@ -298,43 +296,30 @@ class Transaction(object):
             self._cleanup(self._resources)
             self._saveCommitishError() # reraises!
 
-
+        if self._savepoint2index is None:
+            self._savepoint2index = weakref.WeakKeyDictionary()
         self._savepoint_index += 1
-        ref = weakref.ref(savepoint, self._remove_savepoint_ref)
-        if self._savepoints is None:
-            self._savepoints = {}
-        self._savepoints[ref] = self._savepoint_index
+        self._savepoint2index[savepoint] = self._savepoint_index
 
         return savepoint
 
-    def _remove_savepoint_ref(self, ref):
-        try:
-            del self._savepoints[ref]
-        except KeyError:
-            pass
-
-    def _invalidate_next(self, savepoint):
-        savepoints = self._savepoints
-        ref = weakref.ref(savepoint)
-        index = savepoints[ref]
-        del savepoints[ref]
-
+    # Remove `savepoint` from _savepoint2index, and also remove and invalidate
+    # all savepoints we know about with an index larger than `savepoint`'s.
+    # This is what's needed when a rollback _to_ `savepoint` is done.
+    def _remove_and_invalidate_after(self, savepoint):
+        savepoint2index = self._savepoint2index
+        index = savepoint2index.pop(savepoint)
         # use items to make copy to avoid mutating while iterating
-        for ref, i in savepoints.items():
+        for savepoint, i in savepoint2index.items():
             if i > index:
-                savepoint = ref()
-                if savepoint is not None:
-                    savepoint.transaction = None # invalidate
-                    del savepoints[ref]
-
-    def _invalidate_savepoints(self):
-        savepoints = self._savepoints
-        for ref in savepoints:
-            savepoint = ref()
-            if savepoint is not None:
                 savepoint.transaction = None # invalidate
+                del savepoint2index[savepoint]
 
-        savepoints.clear()
+    # Invalidate and forget about all savepoints.
+    def _invalidate_all_savepoints(self):
+        for savepoint in self._savepoint2index.keys():
+            savepoint.transaction = None # invalidate
+        self._savepoint2index.clear()
 
 
     def register(self, obj):
@@ -375,8 +360,8 @@ class Transaction(object):
 
     def commit(self, subtransaction=False):
 
-        if self._savepoints:
-            self._invalidate_savepoints()
+        if self._savepoint2index:
+            self._invalidate_all_savepoints()
 
         if subtransaction:
             # TODO deprecate subtransactions
@@ -492,8 +477,8 @@ class Transaction(object):
                 self._subtransaction_savepoint.rollback()
             return
 
-        if self._savepoints:
-            self._invalidate_savepoints()
+        if self._savepoint2index:
+            self._invalidate_all_savepoints()
 
         self._synchronizers.map(lambda s: s.beforeCompletion(self))
 
@@ -647,11 +632,10 @@ class DataManagerAdapter(object):
         return self._datamanager.sortKey()
 
 class Savepoint:
-    """Transaction savepoint
+    """Transaction savepoint.
 
     Transaction savepoints coordinate savepoints for data managers
     participating in a transaction.
-
     """
     interface.implements(interfaces.ISavepoint)
 
@@ -678,7 +662,7 @@ class Savepoint:
         if transaction is None:
             raise interfaces.InvalidSavepointRollbackError
         self.transaction = None
-        transaction._invalidate_next(self)
+        transaction._remove_and_invalidate_after(self)
 
         try:
             for savepoint in self._savepoints:
