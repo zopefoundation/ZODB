@@ -28,6 +28,9 @@ class ITransactionManager(zope.interface.Interface):
         """Begin a new transaction.
 
         If an existing transaction is in progress, it will be aborted.
+
+        The newTransaction() method of registered synchronizers is called,
+        passing the new transaction object.
         """
 
     def get():
@@ -55,15 +58,15 @@ class ITransactionManager(zope.interface.Interface):
     def registerSynch(synch):
         """Register an ISynchronizer.
 
-        Synchronizers are notified at the beginning and end of
-        transaction completion.
+        Synchronizers are notified about some major events in a transaction's
+        life.  See ISynchronizer for details.
         """
 
     def unregisterSynch(synch):
         """Unregister an ISynchronizer.
 
-        Synchronizers are notified at the beginning and end of
-        transaction completion.
+        Synchronizers are notified about some major events in a transaction's
+        life.  See ISynchronizer for details.
         """
 
 class ITransaction(zope.interface.Interface):
@@ -364,4 +367,11 @@ class ISynchronizer(zope.interface.Interface):
 
     def afterCompletion(transaction):
         """Hook that is called by the transaction after completing a commit.
+        """
+
+    def newTransaction(transaction):
+        """Hook that is called at the start of a transaction.
+
+        This hook is called when, and only when, a transaction manager's
+        begin() method is called explictly.
         """

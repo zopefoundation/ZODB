@@ -1,0 +1,61 @@
+Here are some tests that storage sync() methods get called at appropriate
+times in the life of a transaction.  The tested behavior is new in ZODB 3.4.
+
+First define a lightweight storage with a sync() method:
+
+    >>> import ZODB
+    >>> from ZODB.MappingStorage import MappingStorage
+    >>> import transaction
+
+    >>> class SimpleStorage(MappingStorage):
+    ...     sync_called = False
+    ...
+    ...     def sync(self, *args):
+    ...         self.sync_called = True
+
+Make a change locally:
+
+    >>> st = SimpleStorage()
+    >>> db = ZODB.DB(st)
+    >>> cn = db.open()
+    >>> rt = cn.root()
+    >>> rt['a'] = 1
+
+Sync should not have been called yet.
+
+    >>> st.sync_called  # False before 3.4
+    False
+
+
+sync is called by the Connection's afterCompletion() hook after the commit
+completes.
+
+    >>> transaction.commit()
+    >>> st.sync_called  # False before 3.4
+    True
+
+sync is also called by the afterCompletion() hook after an abort.
+
+    >>> st.sync_called = False
+    >>> rt['b'] = 2
+    >>> transaction.abort()
+    >>> st.sync_called  # False before 3.4
+    True
+
+And sync is called whenever we explicitly start a new txn, via the
+newTransaction() hook.
+
+    >>> st.sync_called = False
+    >>> dummy = transaction.begin()
+    >>> st.sync_called  # False before 3.4
+    True
+
+
+Clean up.  Closing db isn't enough -- closing a DB doesn't close its
+Connections.  Leaving our Connection open here can cause the
+SimpleStorage.sync() method to get called later, during another test, and
+our doctest-synthesized module globals no longer exist then.  You get
+a weird traceback then ;-)
+
+    >>> cn.close()
+    >>> db.close()
