@@ -1,3 +1,20 @@
+What's new in ZODB3 3.4a7?
+==========================
+Release date: 06-May-2005
+
+This was an internal release, to fix an obscure older bug discovered while
+testing the ``ISynchronizer`` enhancements.
+
+transaction
+-----------
+
+- If the first activity seen by a new ``ThreadTransactionManager`` was
+  an explicit ``begin()`` call, then synchronizers registered after that
+  (but still during the first transaction) were not communicated to the
+  transaction object.  As a result, the ``afterCompletion()`` methods of
+  registered synchronizers weren't called when the first transaction ended.
+
+
 What's new in ZODB3 3.4a6?
 ==========================
 Release date: 05-May-2005

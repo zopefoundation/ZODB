@@ -33,7 +33,7 @@ from transaction._transaction import Transaction
 # at top level here.
 
 # Call the ISynchronizer newTransaction() method on every element of
-# WeakSet synchs (or skip it if synchs is None).
+# WeakSet synchs.
 # A transaction manager needs to do this whenever begin() is called.
 # Since it would be good if tm.get() returned the new transaction while
 # newTransaction() is running, calling this has to be delayed until after
@@ -42,6 +42,13 @@ from transaction._transaction import Transaction
 def _new_transaction(txn, synchs):
     if synchs:
         synchs.map(lambda s: s.newTransaction(txn))
+
+# Important:  we must always pass a WeakSet (even if empty) to the Transaction
+# constructor:  synchronizers are registered with the TM, but the
+# ISynchronizer xyzCompletion() methods are called by Transactions without
+# consulting the TM, so we need to pass a mutable collection of synchronizers
+# so that Transactions "see" synchronizers that get registered after the
+# Transaction object is constructed.
 
 class TransactionManager(object):
 
@@ -91,6 +98,7 @@ class ThreadTransactionManager(TransactionManager):
     def __init__(self):
         # _threads maps thread ids to transactions
         self._txns = {}
+
         # _synchs maps a thread id to a WeakSet of registered synchronizers.
         # The WeakSet is passed to the Transaction constructor, because the
         # latter needs to call the synchronizers when it commits.
@@ -101,7 +109,12 @@ class ThreadTransactionManager(TransactionManager):
         txn = self._txns.get(tid)
         if txn is not None:
             txn.abort()
+
         synchs = self._synchs.get(tid)
+        if synchs is None:
+            from ZODB.utils import WeakSet
+            synchs = self._synchs[tid] = WeakSet()
+
         txn = self._txns[tid] = Transaction(synchs, self)
         _new_transaction(txn, synchs)
         return txn
@@ -111,6 +124,9 @@ class ThreadTransactionManager(TransactionManager):
         txn = self._txns.get(tid)
         if txn is None:
             synchs = self._synchs.get(tid)
+            if synchs is None:
+                from ZODB.utils import WeakSet
+                synchs = self._synchs[tid] = WeakSet()
             txn = self._txns[tid] = Transaction(synchs, self)
         return txn
 
@@ -120,11 +136,10 @@ class ThreadTransactionManager(TransactionManager):
         del self._txns[tid]
 
     def registerSynch(self, synch):
-        from ZODB.utils import WeakSet
-
         tid = thread.get_ident()
         ws = self._synchs.get(tid)
         if ws is None:
+            from ZODB.utils import WeakSet
             ws = self._synchs[tid] = WeakSet()
         ws.add(synch)
 
