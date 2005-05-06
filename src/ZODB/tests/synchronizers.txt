@@ -61,10 +61,10 @@ a weird traceback then ;-)
 One more, very obscure.  It was the case that if the first action a new
 threaded transaction manager saw was a begin() call, then synchronizers
 registered after that in the same transaction weren't communicated to
-the Transaction object, and so the storage's afterCompletion() hook wasn't
-called when the transaction commited.  None of the test suites (ZODB's,
-Zope 2.8's, or Zope3's) caught that, but apparently Zope3 takes this path
-at some point when serving pages.
+the Transaction object, and so the synchronizers' afterCompletion() hooks
+weren't called when the transaction commited.  None of the test suites
+(ZODB's, Zope 2.8's, or Zope3's) caught that, but apparently Zope3 takes this
+path at some point when serving pages.
 
     >>> tm = transaction.ThreadTransactionManager()
     >>> st.sync_called = False
@@ -75,8 +75,8 @@ at some point when serving pages.
     >>> st.sync_called
     False
 
-Now ensure that st.afterCompletion() gets called by commit despite that the
-Connection registered after the transaction began:
+Now ensure that cn.afterCompletion() -> st.sync() gets called by commit
+despite that the Connection registered after the transaction began:
 
     >>> tm.commit()
     >>> st.sync_called
