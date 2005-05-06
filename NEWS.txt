@@ -3,9 +3,12 @@ What's new in ZODB3 3.5a0?
 Release date: DD-MMM-YYYY
 
 
-What's new in ZODB3 3.4b1?
+What's new in ZODB3 3.4a6?
 ==========================
-Release date: DD-MMM-2005
+Release date: 05-May-2005
+
+This was an internal release, to get the last of the planned new 3.4 features
+into the Zope 2.8 beta.
 
 transaction
 -----------
