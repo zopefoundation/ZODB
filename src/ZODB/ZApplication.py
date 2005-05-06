@@ -74,7 +74,7 @@ class ZApplicationWrapper:
 
         if connection is None:
             connection=db.open()
-        elif isinstance(type, basestring):
+        elif isinstance(connection, basestring):
             connection=db.open(connection)
 
         return connection.root()[aname]

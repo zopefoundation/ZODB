@@ -19,6 +19,12 @@ transaction
   transaction object.  As a result, the ``afterCompletion()`` methods of
   registered synchronizers weren't called when the first transaction ended.
 
+ZApplication
+------------
+
+- The ``__call__`` method didn't work if a non-None ``connection`` string
+  argument was passed.  Thanks to Stefan Holek for noticing.
+
 
 What's new in ZODB3 3.4a6?
 ==========================
