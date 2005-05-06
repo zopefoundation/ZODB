@@ -33,14 +33,15 @@ from transaction._transaction import Transaction
 # at top level here.
 
 # Call the ISynchronizer newTransaction() method on every element of
-# WeakSet synchs.
+# WeakSet synchs (or skip it if synchs is None).
 # A transaction manager needs to do this whenever begin() is called.
 # Since it would be good if tm.get() returned the new transaction while
 # newTransaction() is running, calling this has to be delayed until after
 # the transaction manager has done whatever it needs to do to make its
 # get() return the new txn.
 def _new_transaction(txn, synchs):
-    synchs.map(lambda s: s.newTransaction(txn))
+    if synchs:
+        synchs.map(lambda s: s.newTransaction(txn))
 
 class TransactionManager(object):
 
