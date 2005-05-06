@@ -88,8 +88,7 @@ class StressTask:
         try:
             self.tm.get().commit()
         except ConflictError, msg:
-            self.tm.get().abort()
-            cn.sync()
+            self.tm.abort()
         else:
             if self.sleep:
                 time.sleep(self.sleep)
@@ -152,7 +151,6 @@ class StressThread(FailableThread):
                 break
             except (ConflictError, KeyError):
                 transaction.abort()
-                cn.sync()
         key = self.startnum
         while not self.stop.isSet():
             try:
@@ -164,11 +162,6 @@ class StressThread(FailableThread):
                     time.sleep(self.sleep)
             except (ReadConflictError, ConflictError), msg:
                 transaction.abort()
-                # sync() is necessary here to process invalidations
-                # if we get a read conflict.  In the read conflict case,
-                # no objects were modified so cn never got registered
-                # with the transaction.
-                cn.sync()
             else:
                 self.added_keys.append(key)
             key += self.step
@@ -201,7 +194,6 @@ class LargeUpdatesThread(FailableThread):
             except (ConflictError, KeyError):
                 # print "%d getting tree abort" % self.threadnum
                 transaction.abort()
-                cn.sync()
 
         keys_added = {} # set of keys we commit
         tkeys = []
@@ -223,7 +215,6 @@ class LargeUpdatesThread(FailableThread):
                 except (ReadConflictError, ConflictError), msg:
                     # print "%d setting key %s" % (self.threadnum, msg)
                     transaction.abort()
-                    cn.sync()
                     break
             else:
                 # print "%d set #%d" % (self.threadnum, len(keys))
@@ -236,16 +227,10 @@ class LargeUpdatesThread(FailableThread):
                 except ConflictError, msg:
                     # print "%d commit %s" % (self.threadnum, msg)
                     transaction.abort()
-                    cn.sync()
                     continue
                 for k in keys:
                     tkeys.remove(k)
                     keys_added[k] = 1
-                # sync() is necessary here to process invalidations
-                # if we get a read conflict.  In the read conflict case,
-                # no objects were modified so cn never got registered
-                # with the transaction.
-                cn.sync()
         self.added_keys = keys_added.keys()
         cn.close()
 
@@ -287,7 +272,6 @@ class VersionStressThread(FailableThread):
                 break
             except (ConflictError, KeyError):
                 transaction.abort()
-                cn.sync()
         while not self.stop.isSet():
             try:
                 tree[key] = self.threadnum
@@ -297,11 +281,6 @@ class VersionStressThread(FailableThread):
                 break
             except (VersionLockError, ReadConflictError, ConflictError), msg:
                 transaction.abort()
-                # sync() is necessary here to process invalidations
-                # if we get a read conflict.  In the read conflict case,
-                # no objects were modified so cn never got registered
-                # with the transaction.
-                cn.sync()
                 if self.sleep:
                     time.sleep(self.sleep)
         try:
@@ -319,7 +298,6 @@ class VersionStressThread(FailableThread):
                     return commit
                 except ConflictError, msg:
                     transaction.abort()
-                    cn.sync()
         finally:
             cn.close()
         return 0
@@ -351,7 +329,6 @@ class InvalidationTests:
             except ReadConflictError:
                 if retries:
                     transaction.abort()
-                    cn.sync()
                 else:
                     raise
             except:

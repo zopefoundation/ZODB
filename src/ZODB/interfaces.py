@@ -279,8 +279,8 @@ class IConnection(Interface):
         """Manually update the view on the database.
 
         This includes aborting the current transaction, getting a fresh and
-        consistent view of the data (synchronizing with the storage if possible)
-        and call cacheGC() for this connection.
+        consistent view of the data (synchronizing with the storage if
+        possible) and calling cacheGC() for this connection.
 
         This method was especially useful in ZODB 3.2 to better support
         read-only connections that were affected by a couple of problems.

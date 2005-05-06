@@ -640,6 +640,7 @@ class ConnectionTests(CommonSetupTearDown):
 
         r1["a"] = MinPO("a")
         transaction.commit()
+        self.assertEqual(r1._p_state, 0) # up-to-date
 
         db2 = DB(self.openClientStorage())
         r2 = db2.open().root()
@@ -649,18 +650,16 @@ class ConnectionTests(CommonSetupTearDown):
         r2["b"] = MinPO("b")
         transaction.commit()
 
-        # make sure the invalidation is received in the other client
+        # Make sure the invalidation is received in the other client.
         for i in range(10):
-            c1._storage.sync()
-            if c1._invalidated.has_key(r1._p_oid):
+            if r1._p_state == -1:
                 break
             time.sleep(0.1)
-        self.assert_(c1._invalidated.has_key(r1._p_oid))
+        self.assertEqual(r1._p_state, -1) # ghost
 
-        # force the invalidations to be applied...
-        c1.sync()
         r1.keys() # unghostify
         self.assertEqual(r1._p_serial, r2._p_serial)
+        self.assertEqual(r1["b"].value, "b")
 
         db2.close()
         db1.close()

@@ -21,19 +21,18 @@ import persistent.dict, transaction
 
 def testAddingThenModifyThenAbort():
     """\
-
 We ran into a problem in which abort failed after adding an object in
-a savepoint and then modifying the object. The problem was that, on
+a savepoint and then modifying the object.  The problem was that, on
 commit, the savepoint was aborted before the modifications were
-aborted.  Because the object was added in the savepoint, it's _p_oid
+aborted.  Because the object was added in the savepoint, its _p_oid
 and _p_jar were cleared when the savepoint was aborted.  The object
 was in the registered-object list.  There's an invariant for this
-lists that states that all objects in the list should have an oid and
+list that states that all objects in the list should have an oid and
 (correct) jar.
 
-The fix was to abort work done after he savepoint before aborting the
+The fix was to abort work done after the savepoint before aborting the
 savepoint.
-    
+
     >>> import ZODB.tests.util
     >>> db = ZODB.tests.util.DB()
     >>> connection = db.open()
@@ -44,21 +43,19 @@ savepoint.
     >>> sp = transaction.savepoint()
     >>> ob.x = 1
     >>> transaction.abort()
-  
 """
 
 def testModifyThenSavePointThenModifySomeMoreThenCommit():
     """\
-
 We got conflict errors when we committed after we modified an object
-in a savepoint and then modified it some more after the last
+in a savepoint, and then modified it some more after the last
 savepoint.
 
 The problem was that we were effectively commiting the object twice --
 when commiting the current data and when committing the savepoint.
 The fix was to first make a new savepoint to move new changes to the
 savepoint storage and *then* to commit the savepoint storage. (This is
-similar to thr strategy that was used for subtransactions prior to
+similar to the strategy that was used for subtransactions prior to
 savepoints.)
 
 
@@ -71,7 +68,6 @@ savepoints.)
     >>> sp = transaction.savepoint()
     >>> root['a'] = 2
     >>> transaction.commit()
-  
 """
 
 def test_suite():
@@ -82,4 +78,3 @@ def test_suite():
 
 if __name__ == '__main__':
     unittest.main(defaultTest='test_suite')
-

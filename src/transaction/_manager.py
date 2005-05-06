@@ -32,6 +32,16 @@ from transaction._transaction import Transaction
 # Obscure:  because of the __init__.py maze, we can't import WeakSet
 # at top level here.
 
+# Call the ISynchronizer newTransaction() method on every element of
+# WeakSet synchs.
+# A transaction manager needs to do this whenever begin() is called.
+# Since it would be good if tm.get() returned the new transaction while
+# newTransaction() is running, calling this has to be delayed until after
+# the transaction manager has done whatever it needs to do to make its
+# get() return the new txn.
+def _new_transaction(txn, synchs):
+    synchs.map(lambda s: s.newTransaction(txn))
+
 class TransactionManager(object):
 
     def __init__(self):
@@ -43,8 +53,9 @@ class TransactionManager(object):
     def begin(self):
         if self._txn is not None:
             self._txn.abort()
-        self._txn = Transaction(self._synchs, self)
-        return self._txn
+        txn = self._txn = Transaction(self._synchs, self)
+        _new_transaction(txn, self._synchs)
+        return txn
 
     def get(self):
         if self._txn is None:
@@ -91,6 +102,7 @@ class ThreadTransactionManager(TransactionManager):
             txn.abort()
         synchs = self._synchs.get(tid)
         txn = self._txns[tid] = Transaction(synchs, self)
+        _new_transaction(txn, synchs)
         return txn
 
     def get(self):

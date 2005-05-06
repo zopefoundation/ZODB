@@ -27,7 +27,9 @@ from persistent import PickleCache
 # interfaces
 from persistent.interfaces import IPersistentDataManager
 from ZODB.interfaces import IConnection
-from transaction.interfaces import ISavepointDataManager, IDataManagerSavepoint
+from transaction.interfaces import ISavepointDataManager
+from transaction.interfaces import IDataManagerSavepoint
+from transaction.interfaces import ISynchronizer
 from zope.interface import implements
 
 import transaction
@@ -59,7 +61,10 @@ def resetCaches():
 class Connection(ExportImport, object):
     """Connection to ZODB for loading and storing objects."""
 
-    implements(IConnection, ISavepointDataManager, IPersistentDataManager)
+    implements(IConnection,
+               ISavepointDataManager,
+               IPersistentDataManager,
+               ISynchronizer)
 
     _storage = _normal_storage = _savepoint_storage = None
 
@@ -291,11 +296,8 @@ class Connection(ExportImport, object):
 
     def sync(self):
         """Manually update the view on the database."""
-        self._txn_mgr.get().abort()
-        sync = getattr(self._storage, 'sync', 0)
-        if sync:
-            sync()
-        self._flush_invalidations()
+        self._txn_mgr.abort()
+        self._storage_sync()
 
     def getDebugInfo(self):
         """Returns a tuple with different items for debugging the
@@ -379,6 +381,7 @@ class Connection(ExportImport, object):
         self._needs_to_join = True
         self._registered_objects = []
 
+    # Process pending invalidations.
     def _flush_invalidations(self):
         self._inv_lock.acquire()
         try:
@@ -650,10 +653,19 @@ class Connection(ExportImport, object):
         # We don't do anything before a commit starts.
         pass
 
-    def afterCompletion(self, txn):
+    # Call the underlying storage's sync() method (if any), and process
+    # pending invalidations regardless.  Of course this should only be
+    # called at transaction boundaries.
+    def _storage_sync(self, *ignored):
+        sync = getattr(self._storage, 'sync', 0)
+        if sync:
+            sync()
         self._flush_invalidations()
 
-    # Transaction-manager synchronization -- ISynchronizer
+    afterCompletion =  _storage_sync
+    newTransaction = _storage_sync
+
+     # Transaction-manager synchronization -- ISynchronizer
     ##########################################################################
 
     ##########################################################################

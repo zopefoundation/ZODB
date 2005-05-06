@@ -5,9 +5,6 @@ Release date: DD-MMM-2005
 transaction
 -----------
 
-- A ``getBeforeCommitHooks()`` method was added.  It returns an iterable
-  producing the registered beforeCommit hooks.
-
 - Doing a subtransaction commit erroneously processed invalidations, which
   could lead to an inconsistent view of the database.  For example, let T be
   the transaction of which the subtransaction commit was a part.  If T read a
@@ -23,6 +20,24 @@ transaction
       assert o_attr == O.some_attribute
 
   could fail, and despite that T never modifed O.
+
+- A ``getBeforeCommitHooks()`` method was added.  It returns an iterable
+  producing the registered beforeCommit hooks.
+
+- The ``ISynchronizer`` interface has a new ``newTransaction()`` method.
+  This is invoked whenever a transaction manager's ``begin()`` method is
+  called.  (Note that a transaction object's (as opposed to a transaction
+  manager's) ``begin()`` method is deprecated, and ``newTransaction()``
+  is not called when using the deprecated method.)
+
+- Relatedly, ``Connection`` implements ``ISynchronizer``, and ``Connection``'s
+  ``afterCompletion()`` and ``newTransaction()`` methods now call ``sync()``
+  on the underlying storage (if the underlying storage has such a method),
+  in addition to processing invalidations.  The practical implication is that
+  storage synchronization will be done automatically now, whenever a
+  transaction is explicitly started, and after top-level transaction commit
+  or abort.  As a result, ``Connection.sync()`` should virtually never be
+  needed anymore, and will eventually be deprecated.
 
 
 What's new in ZODB3 3.4a5?
