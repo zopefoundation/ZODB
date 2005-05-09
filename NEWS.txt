@@ -5,14 +5,14 @@ Release date: DD-MMM-YYYY
 
 What's new in ZODB3 3.4a8?
 ==========================
-Release date: DD-May-2005
+Release date: 09-May-2005
 
 Another internal release, to move Zope 2.8 along.
 
 ZApplication
 ------------
 
-- The file ``ZApplication.py`` was moved, from ZODB to Zope(3).  ZODB and
+- The file ``ZApplication.py`` was moved, from ZODB to Zope(2).  ZODB and
   Zope3 don't use it, but Zope2 does.
 
 
