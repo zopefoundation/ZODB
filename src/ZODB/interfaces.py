@@ -474,7 +474,7 @@ class IStorageUndoable(IStorage):
         description mapping is passed to `filter` for each potentially
         undoable transaction.  The sequence returned by `undoLog()` excludes
         descriptions for which `filter` returns a false value.  By default,
-        `filter` always returns a true value
+        `filter` always returns a true value.
 
         ZEO note:  Arbitrary callables cannot be passed from a ZEO client
         to a ZEO server, and a ZEO client's implementation of `undoLog()`
@@ -490,9 +490,9 @@ class IStorageUndoable(IStorage):
             `first`:  This is the index of the first transaction description
                       in the slice.  It must be >= 0.
             `last`:  If >= 0, this is the index of the last transaction
-                     description in the slice, and last should be at least
-                     as large as first in this case.  If `last` is less than
-                     0, then `abs(last)` is taken to be the maximum number
+                     description in the slice, and `last` should be at least
+                     as large as `first` in this case.  If `last` is less than
+                     0, then abs(last) is taken to be the maximum number
                      of descriptions in the slice (which still begins at
                      index `first`).  When `last` < 0, the same effect could
                      be gotten by passing the positive first-last-1 for
@@ -506,7 +506,7 @@ class IStorageUndoable(IStorage):
         If given, `specification` is a dictionary, and `undoInfo()`
         synthesizes a `filter` function `f` for `undoLog()` such that
         `f(desc)` returns true for a transaction description mapping
-        `desc` if and only if `desc` maps each skey in `specification` to
+        `desc` if and only if `desc` maps each key in `specification` to
         the same value `specification` maps that key to.  In other words,
         only extensions (or supersets) of `specification` match.
 
