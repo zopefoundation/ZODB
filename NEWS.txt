@@ -1,53 +1,33 @@
-What's new in ZODB3 3.4a8?
+What's new in ZODB3 3.4a9?
 ==========================
-Release date: 09-May-2005
+Release date: DD-MMM-2005
 
-Another internal release, to move Zope 2.8 along.
+What follows is combined news from the "internal releases" (to support
+ongoing Zope 2.8 and Zope3 development) since the last public ZODB 3.4
+release.  These are the dates of the internal releases:
 
-ZApplication
-------------
+- 3.4a8 09-May-2005
+- 3.4a7 06-May-2005
+- 3.4a6 05-May-2005
+- 3.4a5 25-Apr-2005
+- 3.4a4 23-Apr-2005
+- 3.4a3 13-Apr-2005
+- 3.4a2 03-Apr-2005
 
-- The file ``ZApplication.py`` was moved, from ZODB to Zope(2).  ZODB and
-  Zope3 don't use it, but Zope2 does.
-
-
-What's new in ZODB3 3.4a7?
-==========================
-Release date: 06-May-2005
-
-This was an internal release, to fix an obscure older bug discovered while
-testing the ``ISynchronizer`` enhancements.
 
 transaction
 -----------
 
-- If the first activity seen by a new ``ThreadTransactionManager`` was
-  an explicit ``begin()`` call, then synchronizers registered after that
-  (but still during the first transaction) were not communicated to the
+- (3.4a7) If the first activity seen by a new ``ThreadTransactionManager`` was
+  an explicit ``begin()`` call, then synchronizers registered after that (but
+  still during the first transaction) were not communicated to the
   transaction object.  As a result, the ``afterCompletion()`` methods of
   registered synchronizers weren't called when the first transaction ended.
 
-ZApplication
-------------
-
-- The ``__call__`` method didn't work if a non-None ``connection`` string
-  argument was passed.  Thanks to Stefan Holek for noticing.
-
-
-What's new in ZODB3 3.4a6?
-==========================
-Release date: 05-May-2005
-
-This was an internal release, to get the last of the planned new 3.4 features
-into the Zope 2.8 beta.
-
-transaction
------------
-
-- Doing a subtransaction commit erroneously processed invalidations, which
-  could lead to an inconsistent view of the database.  For example, let T be
-  the transaction of which the subtransaction commit was a part.  If T read a
-  persistent object O's state before the subtransaction commit, did not
+- (3.4a6) Doing a subtransaction commit erroneously processed invalidations,
+  which could lead to an inconsistent view of the database.  For example, let
+  T be the transaction of which the subtransaction commit was a part.  If T
+  read a persistent object O's state before the subtransaction commit, did not
   commit new state of its own for O during its subtransaction commit, and O
   was modified before the subtransaction commit by a different transaction,
   then the subtransaction commit processed an invalidation for O, and the
@@ -60,52 +40,49 @@ transaction
 
   could fail, and despite that T never modifed O.
 
-- A ``getBeforeCommitHooks()`` method was added.  It returns an iterable
-  producing the registered beforeCommit hooks.
+- (3.4a4) Transactions now support savepoints.  Savepoints allow changes to be
+  periodically checkpointed within a transaction.  You can then rollback to a
+  previously created savepoint.  See ``transaction/savepoint.txt``.
 
-- The ``ISynchronizer`` interface has a new ``newTransaction()`` method.
-  This is invoked whenever a transaction manager's ``begin()`` method is
-  called.  (Note that a transaction object's (as opposed to a transaction
-  manager's) ``begin()`` method is deprecated, and ``newTransaction()``
-  is not called when using the deprecated method.)
+- (3.4a6) A ``getBeforeCommitHooks()`` method was added.  It returns an
+  iterable producing the registered beforeCommit hooks.
 
-- Relatedly, ``Connection`` implements ``ISynchronizer``, and ``Connection``'s
-  ``afterCompletion()`` and ``newTransaction()`` methods now call ``sync()``
-  on the underlying storage (if the underlying storage has such a method),
-  in addition to processing invalidations.  The practical implication is that
-  storage synchronization will be done automatically now, whenever a
-  transaction is explicitly started, and after top-level transaction commit
-  or abort.  As a result, ``Connection.sync()`` should virtually never be
-  needed anymore, and will eventually be deprecated.
+- (3.4a6) The ``ISynchronizer`` interface has a new ``newTransaction()``
+  method. This is invoked whenever a transaction manager's ``begin()`` method
+  is called.  (Note that a transaction object's (as opposed to a transaction
+  manager's) ``begin()`` method is deprecated, and ``newTransaction()`` is
+  not called when using the deprecated method.)
 
+- (3.4a6) Relatedly, ``Connection`` implements ``ISynchronizer``, and
+  ``Connection``'s ``afterCompletion()`` and ``newTransaction()`` methods now
+  call ``sync()`` on the underlying storage (if the underlying storage has
+  such a method), in addition to processing invalidations.  The practical
+  implication is that storage synchronization will be done automatically now,
+  whenever a transaction is explicitly started, and after top-level
+  transaction commit or abort.  As a result, ``Connection.sync()`` should
+  virtually never be needed anymore, and will eventually be deprecated.
 
-What's new in ZODB3 3.4a5?
-==========================
-Release date: 25-Apr-2005
+- (3.4a3) Transaction objects have a new method, ``beforeCommitHook(hook,
+  *args, **kws)``.  Hook functions registered with a transaction are called
+  at the start of a top-level commit, before any of the work is begun, so a
+  hook function can perform any database operations it likes.  See
+  ``test_beforeCommitHook()`` in ``transaction/tests/test_transaction.py``
+  for a tutorial doctest, and the ``ITransaction`` interface for details.
+  Thanks to Florent Guillaume for contributing code and tests.
 
-This was an internal release, to fix problems with the new savepoint feature.
+- (3.4a3) Clarifications were made to transaction interfaces.
 
+Support for ZODB4 savepoint-aware data managers has been dropped
+----------------------------------------------------------------
 
-What's new in ZODB3 3.4a4?
-==========================
-Release date: 23-Apr-2005
-
-This was an internal release, to create a tag for use in Zope 2.8b1 and
-Zope3 development.
-
-transaction
------------
-
-Transactions now support savepoints.  Savepoints allow changes to be
-periodically checkpointed within a transaction.  You can then
-rollback to a previously created savepoint.  See
-``transaction/savepoint.txt``.
-
+- (3.4a4) In adding savepoint support, we dropped the attempted support for
+  ZODB4 data managers that support savepoints.  We don't think that this will
+  affect anyone.
 
 ZEO
 ---
 
-- The ZODB and ZEO version numbers are now the same.  Concretely::
+- (3.4a4) The ZODB and ZEO version numbers are now the same.  Concretely::
 
       import ZODB, ZEO
       assert ZODB.__version__ == ZEO.version
@@ -113,18 +90,18 @@ ZEO
   no longer fails.  If interested, see the README file for details about
   earlier version numbering schemes.
 
-- The default logging setup in ``runzeo.py`` was broken.  It was changed
-  so that running ``runzeo.py`` from a command line now, and without using
-  a config file, prints output to the console much as ZODB 3.2 did.
+- (3.4a4) The default logging setup in ``runzeo.py`` was broken.  It was
+  changed so that running ``runzeo.py`` from a command line now, and without
+  using a config file, prints output to the console much as ZODB 3.2 did.
 
 ZEO on Windows
 --------------
 
 Thanks to Mark Hammond for these ``runzeo.py`` enhancements on Windows:
 
-- A pid file (containing the process id as a decimal string) is created now
-  for a ZEO server started via ``runzeo.py``.  External programs can
-  read the pid from this file and derive a "signal name" used in a new
+- (3.4a4) A pid file (containing the process id as a decimal string) is
+  created now for a ZEO server started via ``runzeo.py``.  External programs
+  can read the pid from this file and derive a "signal name" used in a new
   signal-emulation scheme for Windows.  This is only necessary on Windows,
   but the pid file is created on all platforms that implement
   ``os.getpid()``, as long as the ``pid-filename`` option is set, or
@@ -132,84 +109,60 @@ Thanks to Mark Hammond for these ``runzeo.py`` enhancements on Windows:
   option can be set in a ZEO config file, or passed as the new ``--pid-file``
   argument to ``runzeo.py``.
 
-- If available, ``runzeo.py`` now uses Zope's new 'Signal' mechanism for
-  Windows, to implement clean shutdown and log rotation handlers for Windows.
-  Note that the Python in use on the ZEO server must also have the Python
-  Win32 extensions installed for this to be useful.
-
-DemoStorage
------------
-
-Appropriate implementations of the storage API's ``registerDB()`` and
-``new_oid()`` methods were added, delegating to the base storage.  This was
-needed to support wrapping a ZEO client storage as a ``DemoStorage`` base
-storage, as some new Zope tests want to do.
+- (3.4a4) If available, ``runzeo.py`` now uses Zope's new 'Signal' mechanism
+  for Windows, to implement clean shutdown and log rotation handlers for
+  Windows. Note that the Python in use on the ZEO server must also have the
+  Python Win32 extensions installed for this to be useful.
 
 Tools
 -----
 
-``fsdump.py`` now displays the size (in bytes) of data records.  This
-actually went in several months go, but wasn't noted here at the time.
-Thanks to Dmitry Vasiliev for contributing code and tests.
+- (3.4a4) ``fsdump.py`` now displays the size (in bytes) of data records.
+  This actually went in several months go, but wasn't noted here at the time.
+  Thanks to Dmitry Vasiliev for contributing code and tests.
+
+DemoStorage
+-----------
+
+- (3.4a4) Appropriate implementations of the storage API's ``registerDB()``
+  and ``new_oid()`` methods were added, delegating to the base storage.  This
+  was needed to support wrapping a ZEO client storage as a ``DemoStorage``
+  base storage, as some new Zope tests want to do.
 
 BaseStorage
 -----------
 
-``new_oid()``'s undocumented ``last=`` argument was removed.  It was used
-only for internal recursion, and injured code sanity elsewhere because not
-all storages included it in their ``new_oid()``'s signature.  Straightening
-this out required adding ``last=`` everywhere, or removing it everywhere.
-Since recursion isn't actually needed, and there was no other use for
-``last=``, removing it everywhere was the obvious choice.
-
-Support for ZODB4 savepoint-aware data managers has been dropped
-----------------------------------------------------------------
-
-In adding savepoint support, we dropped the attempted support
-for ZODB4 data managers that support savepoints.  We don't think that
-this will affect anyone.
-
-What's new in ZODB3 3.4a3?
-==========================
-Release date: 13-Apr-2005
-
-This was an internal release, to make a tag for ongoing Zope3 and Zope 2.8
-development to use.
-
-transaction
------------
-
-Transaction objects have a new method,
-``beforeCommitHook(hook, *args, **kws)``.  Hook functions registered with
-a transaction are called at the start of a top-level commit, before any
-of the work is begun, so a hook function can perform any database operations
-it likes.  See ``test_beforeCommitHook()`` in
-``transaction/tests/test_transaction.py`` for a tutorial doctest, and
-the ``ITransaction`` interface for details.  Thanks to Florent Guillaume
-for contributing code and tests.
-
-Clarifications were made to transaction interfaces too.
+- (3.4a4) ``new_oid()``'s undocumented ``last=`` argument was removed.  It
+  was used only for internal recursion, and injured code sanity elsewhere
+  because not all storages included it in their ``new_oid()``'s signature.
+  Straightening this out required adding ``last=`` everywhere, or removing it
+  everywhere. Since recursion isn't actually needed, and there was no other
+  use for ``last=``, removing it everywhere was the obvious choice.
 
 Tests
 -----
 
-The various flavors of the ``check2ZODBThreads`` and ``check7ZODBThreads``
-tests are much less likely to suffer sproadic failures now.
+- (3.4a3) The various flavors of the ``check2ZODBThreads`` and
+  ``check7ZODBThreads`` tests are much less likely to suffer sproadic
+  failures now.
 
+- (3.4a2) The test ``checkOldStyleRoot`` failed in Zope3, because of an
+  obscure dependence on the ``Persistence`` package (which Zope3 doesn't use).
 
-What's new in ZODB3 3.4a2?
-==========================
-Release date: 03-Apr-2005
+FileStorage
+-----------
 
-This was an internal release, to supply "quick fixes" for a few glitches
-in 3.4a1, and to give ongoing Zope2 and Zope3 development a release tag to
-use:
-
-- A ``pdb.set_trace()`` call was mistakenly left in method
+- (3.4a2) A ``pdb.set_trace()`` call was mistakenly left in method
   ``FileStorage.modifiedInVersion()``.
 
-- The test ``checkOldStyleRoot`` failed in Zope3, because of an obscure
-  dependence on the ``Persistence`` package (which Zope3 doesn't use).
+ZApplication
+------------
+
+- (3.4a8) The file ``ZApplication.py`` was moved, from ZODB to Zope(2).  ZODB
+  and Zope3 don't use it, but Zope2 does.
+
+- (3.4a7) The ``__call__`` method didn't work if a non-None ``connection``
+  string argument was passed.  Thanks to Stefan Holek for noticing.
 
 
 What's new in ZODB3 3.4a1?
