@@ -442,16 +442,78 @@ class IStorage(Interface):
         may return the new serial or not
         """
 
-class IUndoableStorage(IStorage):
+class IStorageUndoable(IStorage):
 
     def undo(transaction_id, txn):
         """TODO"""
 
-    def undoInfo():
-        """TODO"""
+    def undoLog(first, last, filter=(lambda desc: True)):
+        """Return a sequence of descriptions for undoable transactions.
 
-    def undoLog(first, last, filter=None):
-        """TODO"""
+        Application code should call undoLog() on a DB instance instead of on
+        the storage directly.
+
+        A transaction description is a mapping with at least these keys:
+
+            "time":  The time, as float seconds since the epoch, when
+                     the transaction committed.
+            "user_name":  The value of the `.user` attribute on that
+                          transaction.
+            "description":  The value of the `.description` attribute on
+                            that transaction.
+            "id`"  A string uniquely identifying the transaction to the
+                   storage.  If it's desired to undo this transaction,
+                   this is the `transaction_id` to pass to `undo()`.
+
+        In addition, if any name+value pairs were added to the transaction
+        by `setExtendedInfo()`, those may be added to the transaction
+        description mapping too (for example, FileStorage's `undoLog()` does
+        this).
+
+        `filter` is a callable, taking one argument.  A transaction
+        description mapping is passed to `filter` for each potentially
+        undoable transaction.  The sequence returned by `undoLog()` excludes
+        descriptions for which `filter` returns a false value.  By default,
+        `filter` always returns a true value
+
+        ZEO note:  Arbitrary callables cannot be passed from a ZEO client
+        to a ZEO server, and a ZEO client's implementation of `undoLog()`
+        ignores any `filter` argument that may be passed.  ZEO clients
+        should use the related `undoInfo()` method instead (if they want
+        to do filtering).
+
+        Now picture a list containing descriptions of all undoable
+        transactions that pass the filter, most recent transaction first (at
+        index 0).  The `first` and `last` arguments specify the slice of this
+        (conceptual) list to be returned:
+
+            `first`:  This is the index of the first transaction description
+                      in the slice.  It must be >= 0.
+            `last`:  If >= 0, this is the index of the last transaction
+                     description in the slice, and last should be at least
+                     as large as first in this case.  If `last` is less than
+                     0, then `abs(last)` is taken to be the maximum number
+                     of descriptions in the slice (which still begins at
+                     index `first`).  When `last` < 0, the same effect could
+                     be gotten by passing the positive first-last-1 for
+                     `last` instead.
+        """
+
+    def undoInfo(first, last, specification=None):
+        """Return a sequence of descriptions for undoable transactions.
+
+        This is like `undoLog()`, except for the `specification` argument.
+        If given, `specification` is a dictionary, and `undoInfo()`
+        synthesizes a `filter` function `f` for `undoLog()` such that
+        `f(desc)` returns true for a transaction description mapping
+        `desc` if and only if `desc` maps each skey in `specification` to
+        the same value `specification` maps that key to.  In other words,
+        only extensions (or supersets) of `specification` match.
+
+        ZEO note:  `undoInfo()` passes the `specification` argument from a
+        ZEO client to its ZEO server (while a ZEO client ignores any `filter`
+        argument passed to `undoLog()`).
+        """
 
     def pack(t, referencesf):
         """TODO"""
