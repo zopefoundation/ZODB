@@ -25,22 +25,8 @@ from ZODB.tests.StorageTestBase import zodb_unpickle
 
 class TransactionalUndoVersionStorage:
 
-    def _x_dostore(self, *args, **kwargs):
-        # ugh: backwards compatibilty for ZEO 1.0 which runs these
-        # tests but has a _dostore() method that does not support the
-        # description kwarg.
-        try:
-            return self._dostore(*args, **kwargs)
-        except TypeError:
-            # assume that the type error means we've got a _dostore()
-            # without the description kwarg
-            try:
-                del kwargs['description']
-            except KeyError:
-                pass # not expected
-        return self._dostore(*args, **kwargs)
-
-    def checkUndoInVersion(self):
+    # `hook` is a callable used by the ZRS tests.
+    def checkUndoInVersion(self, hook=None):
         eq = self.assertEqual
         unless = self.failUnless
 
@@ -62,7 +48,11 @@ class TransactionalUndoVersionStorage:
         self._undo(info[0]['id'], [oid])
 
         data, revid = self._storage.load(oid, '')
-##        eq(revid, revid_a)
+        # load() always returns the tid of the most recent reversion in 3.4,
+        # so this old test of revid can't work anymore.
+        ##eq(revid, revid_a)
+
+        # But the data should be correct for the non-version revision.
         eq(zodb_unpickle(data), MinPO(91))
         data, revid = self._storage.load(oid, version)
         unless(revid > revid_b and revid > revid_c)
@@ -81,16 +71,23 @@ class TransactionalUndoVersionStorage:
 
         check_objects(91, 92)
 
+        if hook:
+            # ZRS passes a hook that arranges to start a secondary at this
+            # point in the test.
+            hook()
+
+        # Now abort the version.
         oids = self._abortVersion(version)
         assert len(oids) == 1
         assert oids[0] == oid
 
         check_objects(91, 91)
 
-        # Now undo the abort
+        # Now undo the abort.
         info=self._storage.undoInfo()
         self._undo(info[0]['id'], [oid])
 
+        # And the object should be back in versions 'one' and ''.
         check_objects(91, 92)
 
     def checkUndoCommitVersion(self):
@@ -102,18 +99,18 @@ class TransactionalUndoVersionStorage:
         oid = self._storage.new_oid()
         revid = '\000' * 8
         for i in range(4):
-            revid = self._x_dostore(oid, revid, description='packable%d' % i)
+            revid = self._dostore(oid, revid, description='packable%d' % i)
         pt = time.time()
         time.sleep(1)
 
         oid1 = self._storage.new_oid()
         version = 'version'
-        revid1 = self._x_dostore(oid1, data=MinPO(0), description='create1')
-        revid2 = self._x_dostore(oid1, data=MinPO(1), revid=revid1,
-                                 version=version, description='version1')
-        self._x_dostore(oid1, data=MinPO(2), revid=revid2,
-                        version=version, description='version2')
-        self._x_dostore(description='create2')
+        revid1 = self._dostore(oid1, data=MinPO(0), description='create1')
+        revid2 = self._dostore(oid1, data=MinPO(1), revid=revid1,
+                               version=version, description='version1')
+        self._dostore(oid1, data=MinPO(2), revid=revid2,
+                      version=version, description='version2')
+        self._dostore(description='create2')
 
         t = transaction.Transaction()
         t.description = 'commit version'
@@ -157,18 +154,18 @@ class TransactionalUndoVersionStorage:
         oid = self._storage.new_oid()
         revid = '\000' * 8
         for i in range(3):
-            revid = self._x_dostore(oid, revid, description='packable%d' % i)
+            revid = self._dostore(oid, revid, description='packable%d' % i)
         pt = time.time()
         time.sleep(1)
 
         oid1 = self._storage.new_oid()
         version = 'version'
-        revid1 = self._x_dostore(oid1, data=MinPO(0), description='create1')
-        revid2 = self._x_dostore(oid1, data=MinPO(1), revid=revid1,
-                                 version=version, description='version1')
-        self._x_dostore(oid1, data=MinPO(2), revid=revid2,
-                        version=version, description='version2')
-        self._x_dostore(description='create2')
+        revid1 = self._dostore(oid1, data=MinPO(0), description='create1')
+        revid2 = self._dostore(oid1, data=MinPO(1), revid=revid1,
+                               version=version, description='version1')
+        self._dostore(oid1, data=MinPO(2), revid=revid2,
+                      version=version, description='version2')
+        self._dostore(description='create2')
 
         self._abortVersion(version)
 
