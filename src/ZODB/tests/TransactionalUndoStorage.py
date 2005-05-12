@@ -773,7 +773,11 @@ class TransactionalUndoStorage:
         self.assertEqual(oddball, redundant)
 
         cn.close()
-        db.close()
+        # Caution:  don't close db; the framework does that.  If you close
+        # it here, the ZODB tests still work, but the ZRS RecoveryStorageTests
+        # fail (closing the DB here in those tests closes the ZRS primary
+        # before a ZRS secondary even starts, and then the latter can't
+        # find a server to recover from).
 
     def checkIndicesInUndoInfo(self):
         self._exercise_info_indices("undoInfo")

@@ -43,7 +43,7 @@ logger = logging.getLogger('ZEO.tests.zeoserver')
 
 def log(label, msg, *args):
     message = "(%s) %s" % (label, msg)
-    logger.debug(message, args)
+    logger.debug(message, *args)
 
 
 class ZEOTestServer(asyncore.dispatcher):
