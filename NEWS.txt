@@ -6,6 +6,7 @@ What follows is combined news from the "internal releases" (to support
 ongoing Zope 2.8 and Zope3 development) since the last public ZODB 3.4
 release.  These are the dates of the internal releases:
 
+- 3.4a9 DD-MMM-2005
 - 3.4a8 09-May-2005
 - 3.4a7 06-May-2005
 - 3.4a6 05-May-2005
@@ -121,6 +122,18 @@ Tools
   This actually went in several months go, but wasn't noted here at the time.
   Thanks to Dmitry Vasiliev for contributing code and tests.
 
+FileStorage
+-----------
+
+- (3.4a9) The ``undoLog()`` and ``undoInfo()`` methods almost always returned
+  a wrong number of results, one too many if ``last < 0`` (the default is
+  such a case), or one too few if ``last >= 0``.  These have been repaired,
+  new tests were added, and these methods are now documented in
+  ``ZODB.interfaces.IStorageUndoable``.
+
+- (3.4a2) A ``pdb.set_trace()`` call was mistakenly left in method
+  ``FileStorage.modifiedInVersion()``.
+
 DemoStorage
 -----------
 
@@ -148,12 +161,6 @@ Tests
 
 - (3.4a2) The test ``checkOldStyleRoot`` failed in Zope3, because of an
   obscure dependence on the ``Persistence`` package (which Zope3 doesn't use).
-
-FileStorage
------------
-
-- (3.4a2) A ``pdb.set_trace()`` call was mistakenly left in method
-  ``FileStorage.modifiedInVersion()``.
 
 ZApplication
 ------------

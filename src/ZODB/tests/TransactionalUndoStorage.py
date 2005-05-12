@@ -724,3 +724,59 @@ class TransactionalUndoStorage:
         self.assertEqual(d['description'],'t1')
         self.assertEqual(d['k2'],'this is transaction metadata')
         self.assertEqual(d['user_name'],'p3 u3')
+
+    # A common test body for index tests on undoInfo and undoLog.  Before
+    # ZODB 3.4, they always returned a wrong number of results (one too
+    # few _or_ too many, depending on how they were called).
+    def _exercise_info_indices(self, method_name):
+        db = DB(self._storage)
+        info_func = getattr(db, method_name)
+        cn = db.open()
+        rt = cn.root()
+
+        # Do some transactions.
+        for key in "abcdefghijklmnopqrstuvwxyz":
+            rt[key] = ord(key)
+            transaction.commit()
+
+        # 26 letters = 26 transactions, + the hidden transaction to make
+        # the root object, == 27 expected.
+        allofem = info_func(0, 100000)
+        self.assertEqual(len(allofem), 27)
+
+        # Asking for no more than 100000 should do the same.
+        redundant = info_func(last=-1000000)
+        self.assertEqual(allofem, redundant)
+
+        # By default, we should get only 20 back.
+        default = info_func()
+        self.assertEqual(len(default), 20)
+        # And they should be the most recent 20.
+        self.assertEqual(default, allofem[:20])
+
+        # If we ask for only one, we should get only the most recent.
+        fresh = info_func(last=0)
+        self.assertEqual(len(fresh), 1)
+        self.assertEqual(fresh[0], allofem[0])
+
+        # Another way of asking for only the most recent.
+        redundant = info_func(last=-1)
+        self.assertEqual(fresh, redundant)
+
+        # Try a slice that doesn't start at 0.
+        oddball = info_func(first=11, last=17)
+        self.assertEqual(len(oddball), 17-11+1)
+        self.assertEqual(oddball, allofem[11 : 11+len(oddball)])
+
+        # And another way to spell the same thing.
+        redundant = info_func(first=11, last=-7)
+        self.assertEqual(oddball, redundant)
+
+        cn.close()
+        db.close()
+
+    def checkIndicesInUndoInfo(self):
+        self._exercise_info_indices("undoInfo")
+
+    def checkIndicesInUndoLog(self):
+        self._exercise_info_indices("undoLog")
