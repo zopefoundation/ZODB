@@ -5,13 +5,13 @@ Release date: DD-MMM-YYYY
 
 What's new in ZODB3 3.4a9?
 ==========================
-Release date: DD-MMM-2005
+Release date: 12-May-2005
 
 What follows is combined news from the "internal releases" (to support
 ongoing Zope 2.8 and Zope3 development) since the last public ZODB 3.4
 release.  These are the dates of the internal releases:
 
-- 3.4a9 DD-MMM-2005
+- 3.4a9 12-May-2005
 - 3.4a8 09-May-2005
 - 3.4a7 06-May-2005
 - 3.4a6 05-May-2005
