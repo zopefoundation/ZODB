@@ -1,7 +1,4 @@
 # These packages are used to provide the standalone ZODB distribution.
-# This package map can be addressed as
-#
-#   svn://svn.zope.org/repos/main/ReleaseSupport/trunk/PackageMaps/zodb3.map
 
 # This is the ZODB3 release package:
 #
