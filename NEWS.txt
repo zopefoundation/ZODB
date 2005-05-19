@@ -1,11 +1,12 @@
-What's new in ZODB3 3.4a9?
+What's new in ZODB3 3.4b1?
 ==========================
-Release date: 12-May-2005
+Release date: DD-May-2005
 
 What follows is combined news from the "internal releases" (to support
 ongoing Zope 2.8 and Zope3 development) since the last public ZODB 3.4
 release.  These are the dates of the internal releases:
 
+- 3.4b1 NN-May-2005
 - 3.4a9 12-May-2005
 - 3.4a8 09-May-2005
 - 3.4a7 06-May-2005
@@ -99,6 +100,8 @@ ZEO on Windows
 --------------
 
 Thanks to Mark Hammond for these ``runzeo.py`` enhancements on Windows:
+
+- (3.4b1) Collector 1788:  Repair one of the new features below.
 
 - (3.4a4) A pid file (containing the process id as a decimal string) is
   created now for a ZEO server started via ``runzeo.py``.  External programs
