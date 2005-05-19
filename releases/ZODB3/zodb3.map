@@ -1,7 +1,4 @@
 # These packages are used to provide the standalone ZODB distribution.
-# This package map can be addressed as
-#
-#   svn://svn.zope.org/repos/main/ReleaseSupport/trunk/PackageMaps/zodb3.map
 
 # This is the ZODB3 release package:
 #
@@ -27,5 +24,5 @@ zope.testing    svn://svn.zope.org/repos/main/Zope3/tags/ZopeX3-3.0.0-Zope-2.8-a
 
 # These are copied in from the ZConfig and zdaemon projects:
 #
-ZConfig         svn://svn.zope.org/repos/main/ZODB/tags/*/src/ZConfig
+ZConfig         svn://svn.zope.org/repos/main/ZConfig/tags/ZConfig-2.3
 zdaemon         svn://svn.zope.org/repos/main/ZODB/tags/*/src/zdaemon
