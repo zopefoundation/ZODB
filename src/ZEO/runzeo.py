@@ -225,10 +225,8 @@ class ZEOServer:
                                           windows_shutdown_handler)
             SignalHandler.registerHandler(signal.SIGINT,
                                           windows_shutdown_handler)
-            # Can use the log rotate handler too.
-            from Signals.Signals import logfileRotateHandler
             SIGUSR2 = 12 # not in signal module on Windows.
-            SignalHandler.registerHandler(SIGUSR2, logfileRotateHandler)
+            SignalHandler.registerHandler(SIGUSR2, self.handle_sigusr2)
 
     def create_server(self):
         from ZEO.StorageServer import StorageServer
