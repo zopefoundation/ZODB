@@ -53,9 +53,9 @@ def log(msg, level=logging.INFO, exc_info=False):
     message = "(%s) %s" % (_pid, msg)
     logger.log(level, message, exc_info=exc_info)
 
-def parse_address(arg):
+def parse_binding_address(arg):
     # Caution:  Not part of the official ZConfig API.
-    obj = ZConfig.datatypes.SocketAddress(arg)
+    obj = ZConfig.datatypes.SocketBindingAddress(arg)
     return obj.family, obj.address
 
 def windows_shutdown_handler():
@@ -68,10 +68,10 @@ class ZEOOptionsMixin:
     storages = None
 
     def handle_address(self, arg):
-        self.family, self.address = parse_address(arg)
+        self.family, self.address = parse_binding_address(arg)
 
     def handle_monitor_address(self, arg):
-        self.monitor_family, self.monitor_address = parse_address(arg)
+        self.monitor_family, self.monitor_address = parse_binding_address(arg)
 
     def handle_filename(self, arg):
         from ZODB.config import FileStorage # That's a FileStorage *opener*!
