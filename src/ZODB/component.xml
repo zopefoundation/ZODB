@@ -64,7 +64,7 @@
 
   <sectiontype name="zeoclient" datatype=".ZEOClient"
                implements="ZODB.storage">
-    <multikey name="server" datatype="socket-address" required="yes"/>
+    <multikey name="server" datatype="socket-connection-address" required="yes"/>
     <key name="storage" default="1">
       <description>
         The name of the storage that the client wants to use.  If the
