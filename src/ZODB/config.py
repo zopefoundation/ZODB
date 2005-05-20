@@ -136,7 +136,7 @@ class ZEOClient(BaseConfig):
 
     def open(self):
         from ZEO.ClientStorage import ClientStorage
-        # config.server is a multikey of socket-address values
+        # config.server is a multikey of socket-connection-address values
         # where the value is a socket family, address tuple.
         L = [server.address for server in self.config.server]
         return ClientStorage(

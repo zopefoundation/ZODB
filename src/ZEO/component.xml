@@ -7,7 +7,7 @@
       of a ZEO server except for the storage(s) to be served.
     </description>
 
-    <key name="address" datatype="socket-address"
+    <key name="address" datatype="socket-binding-address"
          required="yes">
       <description>
         The address at which the server should listen.  This can be in
@@ -45,7 +45,7 @@
       </description>
     </key>
 
-    <key name="monitor-address" datatype="socket-address"
+    <key name="monitor-address" datatype="socket-binding-address"
          required="no">
       <description>
         The address at which the monitor server should listen.  If

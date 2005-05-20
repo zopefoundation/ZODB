@@ -92,6 +92,16 @@ ZEO
   no longer fails.  If interested, see the README file for details about
   earlier version numbering schemes.
 
+- (3.4b1) ZConfig version 2.3 adds new socket address types, for smoother
+  default behavior across platforms.  The hostname portion of
+  socket-binding-address defaults to an empty string, which acts like
+  INADDR_ANY on Windows and Linux (bind to any interface).  The hostname
+  portion of socket-connection-address defaults to "127.0.0.1" (aka
+  "localhost").  In config files, the types of ``zeo`` section keys
+  ``address`` and ``monitor-address`` changed to socket-binding-address,
+  and the type of the ``zeoclient`` section key ``server`` changed to
+  socket-connection-address.
+
 - (3.4a4) The default logging setup in ``runzeo.py`` was broken.  It was
   changed so that running ``runzeo.py`` from a command line now, and without
   using a config file, prints output to the console much as ZODB 3.2 did.
@@ -136,6 +146,11 @@ FileStorage
 
 - (3.4a2) A ``pdb.set_trace()`` call was mistakenly left in method
   ``FileStorage.modifiedInVersion()``.
+
+ZConfig
+-------
+
+- (3.4b1) The "standalone" release of ZODB now includes ZConfig version 2.3.
 
 DemoStorage
 -----------
