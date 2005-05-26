@@ -49,7 +49,7 @@ from distutils.command.build_py import build_py
 from distutils.util import convert_path
 
 if sys.version_info < (2, 3, 4):
-    print "ZODB 3.3 requires Python 2.3.4 or higher"
+    print "ZODB 3.4 requires Python 2.3.4 or higher"
     sys.exit(0)
 
 # Include directories for C extensions
@@ -264,7 +264,7 @@ class MyDistribution(Distribution):
 doclines = __doc__.split("\n")
 
 setup(name="ZODB3",
-      version="3.4.0b1",
+      version="3.4.0b2",
       maintainer="Zope Corporation",
       maintainer_email="zodb-dev@zope.org",
       url = "http://www.zope.org/Wikis/ZODB",

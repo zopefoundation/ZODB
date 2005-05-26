@@ -1,11 +1,17 @@
-What's new in ZODB3 3.4b2?
+What's new in ZODB3 3.4b3?
 ==========================
-Release date: DD-May-2005
+Release date: DD-MMM-2005
+
+Following is combined news from the "internal releases" (to support
+ongoing Zope 2.8 and Zope3 development) since the last public ZODB 3.4
+release.  These are the dates of the internal releases:
+
+- 3.4b2 26-May-2005
 
 Development
 -----------
 
-- ZODB's ``test.py`` is now a small driver for the shared
+- (3.4b2) ZODB's ``test.py`` is now a small driver for the shared
   ``zope.testing.testrunner``.  See the latter's documentation
   for command-line arguments.
 
