@@ -155,6 +155,7 @@ packages = ["BTrees", "BTrees.tests",
 
             "zope",
             "zope.interface", "zope.interface.tests",
+            "zope.interface.common", "zope.interface.common.tests",
             "zope.proxy", "zope.proxy.tests",
             "zope.testing",
 
@@ -187,7 +188,7 @@ def copy_other_files(cmd, outputbase):
     # A delicate dance to copy files with certain extensions
     # into a package just like .py files.
     extensions = ["*.conf", "*.xml", "*.txt", "*.sh"]
-    for dir in [
+    directories = [
         "transaction",
         "persistent/tests",
         "ZConfig/components/basic",
@@ -203,15 +204,31 @@ def copy_other_files(cmd, outputbase):
         "zdaemon",
         "zdaemon/tests",
         "zope/interface", "zope/interface/tests",
-        ]:
+        "zope/testing",
+        ]
+    # zope.testing's testrunner-ex is not a package, but contains
+    # packages, in a fairly elaborate subtree.  Major special-casing
+    # for this.  First find all the (non-SVN) directories starting
+    # there, and append them all to `directories`.
+    for root, dirs, files in os.walk("src/zope/testing/testrunner-ex"):
+        dirs[:] = [d for d in dirs if ".svn" not in d]
+        assert root.startswith("src/")
+        normpath = root[4:].replace("\\", "/")
+        directories.append(normpath)
+    for dir in directories:
+        exts = extensions
+        if dir.startswith("zope/testing/testrunner-ex"):
+            # testrunner-ex isn't a package, so not even the .py files
+            # get copied unless we force that there.
+            exts = extensions + ["*.py"]
         dir = convert_path(dir)
         inputdir = os.path.join("src", dir)
         outputdir = os.path.join(outputbase, dir)
         if not os.path.exists(outputdir):
             dir_util.mkpath(outputdir)
-        for pattern in extensions:
+        for pattern in exts:
             for fn in glob.glob(os.path.join(inputdir, pattern)):
-                # glob is going to give us a path include "src",
+                # glob is going to give us a path including "src",
                 # which must be stripped to get the destination dir
                 dest = os.path.join(outputbase, fn[4:])
                 cmd.copy_file(fn, dest)
