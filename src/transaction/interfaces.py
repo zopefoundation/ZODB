@@ -226,6 +226,14 @@ class IDataManager(zope.interface.Interface):
     the transaction.
     """
 
+    transaction_manager = zope.interface.Attribute(
+        """The transaction manager (TM) used by this data manager.
+
+        This is a public attribute, intended for read-only use.  The value
+        is an instance of ITransactionManager, typically set by the data
+        manager's constructor.
+        """)
+
     def abort(transaction):
         """Abort a transaction and forget all changes.
 

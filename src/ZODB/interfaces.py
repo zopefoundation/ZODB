@@ -113,7 +113,8 @@ class IConnection(Interface):
     """
 
     def __init__(version='', cache_size=400,
-                 cache_deactivate_after=None, mvcc=True, txn_mgr=None,
+                 cache_deactivate_after=None, mvcc=True,
+                 transaction_manager=None,
                  synch=True):
         """Create a new Connection.
 
@@ -126,8 +127,8 @@ class IConnection(Interface):
         cache_size: the target size of the in-memory object cache, measured
             in objects.
         mvcc: boolean indicating whether MVCC is enabled
-        txn_mgr: transaction manager to use. None means used the default
-            transaction manager.
+        transaction_manager: transaction manager to use.  None means use the
+            default transaction manager.
         synch: boolean indicating whether Connection should register for
             afterCompletion() calls.
         """

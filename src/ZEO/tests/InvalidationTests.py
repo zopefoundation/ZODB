@@ -73,7 +73,7 @@ class StressTask:
         self.sleep = sleep
         self.added_keys = []
         self.tm = transaction.TransactionManager()
-        self.cn = self.db.open(txn_mgr=self.tm)
+        self.cn = self.db.open(transaction_manager=self.tm)
         self.cn.sync()
 
     def doStep(self):

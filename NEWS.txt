@@ -3,14 +3,31 @@ What's new in ZODB3 3.5a0?
 Release date: DD-MMM-YYYY
 
 
-What's new in ZODB3 3.4b3?
+What's new in ZODB3 3.4b4?
 Release date: DD-MMM-2005
 
 Following is combined news from the "internal releases" (to support
 ongoing Zope 2.8 and Zope3 development) since the last public ZODB 3.4
 release.  These are the dates of the internal releases:
 
+- 3.4b3 27-May-2005
 - 3.4b2 26-May-2005
+
+Connection, DB
+--------------
+
+- (3.4b3) ``.transaction_manager`` is now a public attribute of
+  IDataManager, and is the instance of ITransactionManager used by the
+  data manager as its transaction manager.  There was previously no way
+  to ask a data manager which transaction manager it was using.  It's
+  intended that ``transaction_manager`` be treated as read-only.
+
+- (3.4b3) For sanity, the ``txn_mgr`` argument to ``DB.open()``,
+  ``Connection.__init__()``, and ``Connection._setDB()`` has been renamed
+  to ``transaction_manager``.  ``txn_mgr`` is still accepted, but is
+  deprecated and will be removed in ZODB 3.6.  Any code that was using
+  the private ``._txn_mgr`` attribute of ``Connection`` will break
+  immediately.
 
 Development
 -----------
@@ -944,20 +961,21 @@ transaction.  This default TM is available as ``transaction.manager``.  The
 and is an explicit replacement for the ``Connection.setLocalTransaction()``
 method:
 
-A transaction manager instance can be passed as the txn_mgr argument to
-``DB.open()``.  If you do, the connection will use the specified
+A transaction manager instance can be passed as the transaction_manager
+argument to ``DB.open()``.  If you do, the connection will use the specified
 transaction manager instead of the default TM.  The current transaction is
 obtained by calling ``get()`` on a TM. For example:
 
     >>> tm = transaction.TransactionManager()
-    >>> cn = db.open(txn_mgr=tm)
+    >>> cn = db.open(transaction_manager=tm)
     [...]
     >>> tm.get().commit()
 
 The ``setLocalTransaction()`` and ``getTransaction()`` methods of
-Connection are deprecated.  Use an explicit TM passed via ``txn_mgr=`` to
-``DB.open()`` instead.  The ``setLocalTransaction()`` method still works,
-but it returns a TM instead of a Transaction.
+Connection are deprecated.  Use an explicit TM passed via
+``transaction_manager=`` to ``DB.open()`` instead.  The
+``setLocalTransaction()`` method still works, but it returns a TM instead of
+a Transaction.
 
 A TM creates Transaction objects, which are used for exactly one
 transaction.  Transaction objects still have ``commit()``, ``abort()``,
