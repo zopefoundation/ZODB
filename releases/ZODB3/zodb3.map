@@ -19,7 +19,7 @@ zope            svn://svn.zope.org/repos/main/ZODB/tags/*/src/zope
 # These are copied in from the Zope3 project; they are needed for ZODB
 # 3.4 and newer:
 #
-zope.interface  svn://svn.zope.org/repos/main/Zope3/tags/ZopeX3-3.0.0-Zope-2.8-a3/src/zope/interface
+zope.interface  svn://svn.zope.org/repos/main/Zope3/tags/ZopeX3-3.0.0-Zope-2.8-a4/src/zope/interface
 zope.testing    svn://svn.zope.org/repos/main/zope.testing/trunk/src/zope/testing
 
 # These are copied in from the ZConfig and zdaemon projects:
