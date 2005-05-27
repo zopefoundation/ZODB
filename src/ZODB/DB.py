@@ -497,7 +497,8 @@ class DB(object):
     def open(self, version='',
              transaction=DEPRECATED_ARGUMENT, temporary=DEPRECATED_ARGUMENT,
              force=DEPRECATED_ARGUMENT, waitflag=DEPRECATED_ARGUMENT,
-             mvcc=True, txn_mgr=None, synch=True):
+             mvcc=True, txn_mgr=DEPRECATED_ARGUMENT,
+             transaction_manager=None, synch=True):
         """Return a database Connection for use by application code.
 
         The optional `version` argument can be used to specify that a
@@ -511,8 +512,8 @@ class DB(object):
           - `version`: the "version" that all changes will be made
              in, defaults to no version.
           - `mvcc`: boolean indicating whether MVCC is enabled
-          - `txn_mgr`: transaction manager to use.  None means
-             used the default transaction manager.
+          - `transaction_manager`: transaction manager to use.  None means
+             use the default transaction manager.
           - `synch`: boolean indicating whether Connection should
              register for afterCompletion() calls.
         """
@@ -531,6 +532,14 @@ class DB(object):
 
         if transaction is not DEPRECATED_ARGUMENT:
             deprecated36("DB.open() transaction= ignored.")
+
+        if txn_mgr is not DEPRECATED_ARGUMENT:
+            deprecated36("use transaction_manager= instead of txn_mgr=")
+            if transaction_manager is None:
+                transaction_manager = txn_mgr
+            else:
+                raise ValueError("cannot specify both transaction_manager= "
+                                 "and txn_mgr=")
 
         self._a()
         try:
@@ -551,14 +560,15 @@ class DB(object):
                     size = self._version_cache_size
                 else:
                     size = self._cache_size
-                c = self.klass(version=version, cache_size=size,
-                               mvcc=mvcc, txn_mgr=txn_mgr)
+                c = self.klass(version=version, cache_size=size, mvcc=mvcc,
+                               transaction_manager=transaction_manager)
                 pool.push(c)
                 result = pool.pop()
             assert result is not None
 
             # Tell the connection it belongs to self.
-            result._setDB(self, mvcc=mvcc, txn_mgr=txn_mgr, synch=synch)
+            result._setDB(self, mvcc=mvcc, synch=synch,
+                          transaction_manager=transaction_manager)
 
             # A good time to do some cache cleanup.
             self._connectionMap(lambda c: c.cacheGC())

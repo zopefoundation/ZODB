@@ -43,7 +43,7 @@ independently, even though they'll be run from a single thread.
 
 >>> import transaction
 >>> tm1 = transaction.TransactionManager()
->>> cn1 = db.open(txn_mgr=tm1)
+>>> cn1 = db.open(transaction_manager=tm1)
 
 The test will just use some MinPO objects.  The next few lines just
 setup an initial database state.
@@ -57,7 +57,7 @@ setup an initial database state.
 Now open a second connection.
 
 >>> tm2 = transaction.TransactionManager()
->>> cn2 = db.open(txn_mgr=tm2)
+>>> cn2 = db.open(transaction_manager=tm2)
 
 Connection high-water mark
 --------------------------
@@ -281,7 +281,7 @@ non-current revision to load.
 
 >>> ts = TestStorage()
 >>> db = DB(ts)
->>> cn1 = db.open(txn_mgr=tm1)
+>>> cn1 = db.open(transaction_manager=tm1)
 >>> r1 = cn1.root()
 >>> r1["a"] = MinPO(0)
 >>> r1["b"] = MinPO(0)
@@ -318,7 +318,7 @@ activate "b" will result in a ReadConflictError.
 
 >>> ts = TestStorage()
 >>> db = DB(ts)
->>> cn1 = db.open(txn_mgr=tm1)
+>>> cn1 = db.open(transaction_manager=tm1)
 >>> r1 = cn1.root()
 >>> r1["a"] = MinPO(0)
 >>> r1["b"] = MinPO(0)

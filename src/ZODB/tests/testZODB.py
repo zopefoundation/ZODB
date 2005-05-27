@@ -172,9 +172,9 @@ class ZODBTests(unittest.TestCase):
         # Test of transactions that apply to only the connection,
         # not the thread.
         tm1 = transaction.TransactionManager()
-        conn1 = self._db.open(txn_mgr=tm1)
+        conn1 = self._db.open(transaction_manager=tm1)
         tm2 = transaction.TransactionManager()
-        conn2 = self._db.open(txn_mgr=tm2)
+        conn2 = self._db.open(transaction_manager=tm2)
         try:
             r1 = conn1.root()
             r2 = conn2.root()
@@ -246,10 +246,13 @@ class ZODBTests(unittest.TestCase):
                 self.assert_(msg in [
                     "This will be removed in ZODB 3.6:\n"
                         "setLocalTransaction() is deprecated. "
-                        "Use the txn_mgr argument to DB.open() instead.",
+                        "Use the transaction_manager argument "
+                        "to DB.open() instead.",
                     "This will be removed in ZODB 3.6:\n"
                         "getTransaction() is deprecated. "
-                        "Use the txn_mgr argument to DB.open() instead."])
+                        "Use the transaction_manager argument "
+                        "to DB.open() instead, or access "
+                        ".transaction_manager directly on the Connection."])
         finally:
             conn1.close()
             conn2.close()
@@ -267,7 +270,7 @@ class ZODBTests(unittest.TestCase):
         # consistent with the objects read earlier in the transaction.
 
         tm1 = transaction.TransactionManager()
-        conn = self._db.open(mvcc=False, txn_mgr=tm1)
+        conn = self._db.open(mvcc=False, transaction_manager=tm1)
         r1 = conn.root()
         r1["p"] = self.obj
         self.obj.child1 = P()
@@ -275,7 +278,7 @@ class ZODBTests(unittest.TestCase):
 
         # start a new transaction with a new connection
         tm2 = transaction.TransactionManager()
-        cn2 = self._db.open(mvcc=False, txn_mgr=tm2)
+        cn2 = self._db.open(mvcc=False, transaction_manager=tm2)
         # start a new transaction with the other connection
         r2 = cn2.root()
 
@@ -324,7 +327,7 @@ class ZODBTests(unittest.TestCase):
 
         # load some objects from one connection
         tm = transaction.TransactionManager()
-        cn2 = self._db.open(mvcc=False, txn_mgr=tm)
+        cn2 = self._db.open(mvcc=False, transaction_manager=tm)
         r2 = cn2.root()
         real_data2 = r2["real_data"]
         index2 = r2["index"]
@@ -374,7 +377,7 @@ class ZODBTests(unittest.TestCase):
         # root --> "p" -> value = 1
         #      --> "q" -> value = 2
         tm1 = transaction.TransactionManager()
-        conn = self._db.open(txn_mgr=tm1)
+        conn = self._db.open(transaction_manager=tm1)
         r1 = conn.root()
         p = P()
         p.value = 1
@@ -390,7 +393,7 @@ class ZODBTests(unittest.TestCase):
 
         # Start new txn T2 with a new connection.
         tm2 = transaction.TransactionManager()
-        cn2 = self._db.open(txn_mgr=tm2)
+        cn2 = self._db.open(transaction_manager=tm2)
         r2 = cn2.root()
         p2 = r2["p"]
         self.assertEqual(p._p_oid, p2._p_oid)
@@ -438,7 +441,7 @@ class ZODBTests(unittest.TestCase):
 
         # Provoke a ReadConflictError.
         tm2 = transaction.TransactionManager()
-        cn2 = self._db.open(mvcc=False, txn_mgr=tm2)
+        cn2 = self._db.open(mvcc=False, transaction_manager=tm2)
         r2 = cn2.root()
         data2 = r2["data"]
 

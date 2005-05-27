@@ -65,7 +65,7 @@ class ExportImport:
                 return customImporters[magic](self, f, clue)
             raise ExportError("Invalid export header")
 
-        t = self._txn_mgr.get()
+        t = self.transaction_manager.get()
         if clue:
             t.note(clue)
 

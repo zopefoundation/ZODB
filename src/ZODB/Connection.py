@@ -74,9 +74,20 @@ class Connection(ExportImport, object):
     # Connection methods, ZODB.IConnection
 
     def __init__(self, version='', cache_size=400,
-                 cache_deactivate_after=None, mvcc=True, txn_mgr=None,
+                 cache_deactivate_after=None, mvcc=True,
+                 txn_mgr=DEPRECATED_ARGUMENT,
+                 transaction_manager=None,
                  synch=True):
         """Create a new Connection."""
+
+        if txn_mgr is not DEPRECATED_ARGUMENT:
+            deprecated36("use transaction_manager= instead of txn_mgr=")
+            if transaction_manager is None:
+                transaction_manager = txn_mgr
+            else:
+                raise ValueError("cannot specify both transaction_manager= "
+                                 "and txn_mgr=")
+
         self._log = logging.getLogger("ZODB.Connection")
         self._debug_info = ()
         self._opened = None # time.time() when DB.open() opened us
@@ -110,7 +121,8 @@ class Connection(ExportImport, object):
         # If a transaction manager is passed to the constructor, use
         # it instead of the global transaction manager.  The instance
         # variable will hold a TM instance.
-        self._txn_mgr = txn_mgr or transaction.manager
+        self.transaction_manager = transaction_manager or transaction.manager
+
         # _synch is a boolean; if True, the Connection will register
         # with the TM to receive afterCompletion() calls.
         self._synch = synch
@@ -248,7 +260,7 @@ class Connection(ExportImport, object):
         # Return the connection to the pool.
         if self._db is not None:
             if self._synch:
-                self._txn_mgr.unregisterSynch(self)
+                self.transaction_manager.unregisterSynch(self)
             self._db._closeConnection(self)
             # _closeConnection() set self._db to None.  However, we can't
             # assert that here, because self may have been reused (by
@@ -296,7 +308,7 @@ class Connection(ExportImport, object):
 
     def sync(self):
         """Manually update the view on the database."""
-        self._txn_mgr.abort()
+        self.transaction_manager.abort()
         self._storage_sync()
 
     def getDebugInfo(self):
@@ -831,7 +843,7 @@ class Connection(ExportImport, object):
         # to the object.
 
         if self._needs_to_join:
-            self._txn_mgr.get().join(self)
+            self.transaction_manager.get().join(self)
             self._needs_to_join = False
 
         if obj is not None:
@@ -855,7 +867,8 @@ class Connection(ExportImport, object):
         # return a list of [ghosts....not recently used.....recently used]
         return everything.items() + items
 
-    def _setDB(self, odb, mvcc=None, txn_mgr=None, synch=None):
+    def _setDB(self, odb, mvcc=None, txn_mgr=DEPRECATED_ARGUMENT,
+               transaction_manager=None, synch=None):
         """Register odb, the DB that this Connection uses.
 
         This method is called by the DB every time a Connection
@@ -868,11 +881,19 @@ class Connection(ExportImport, object):
         Parameters:
         odb: database that owns the Connection
         mvcc: boolean indicating whether MVCC is enabled
-        txn_mgr: transaction manager to use.  None means
-            used the default transaction manager.
+        transaction_manager: transaction manager to use.  None means
+            use the default transaction manager.
         synch: boolean indicating whether Connection should
         register for afterCompletion() calls.
         """
+
+        if txn_mgr is not DEPRECATED_ARGUMENT:
+            deprecated36("use transaction_manager= instead of txn_mgr=")
+            if transaction_manager is None:
+                transaction_manager = txn_mgr
+            else:
+                raise ValueError("cannot specify both transaction_manager= "
+                                 "and txn_mgr=")
 
         # TODO:  Why do we go to all the trouble of setting _db and
         # other attributes on open and clearing them on close?
@@ -887,14 +908,14 @@ class Connection(ExportImport, object):
             self._synch = synch
         if mvcc is not None:
             self._mvcc = mvcc
-        self._txn_mgr = txn_mgr or transaction.manager
+        self.transaction_manager = transaction_manager or transaction.manager
         if self._reset_counter != global_reset_counter:
             # New code is in place.  Start a new cache.
             self._resetCache()
         else:
             self._flush_invalidations()
         if self._synch:
-            self._txn_mgr.registerSynch(self)
+            self.transaction_manager.registerSynch(self)
         self._reader = ObjectReader(self, self._cache, self._db.classFactory)
 
         # Multi-database support
@@ -972,8 +993,10 @@ class Connection(ExportImport, object):
         to control which TM the Connection uses.
         """
         deprecated36("getTransaction() is deprecated. "
-                     "Use the txn_mgr argument to DB.open() instead.")
-        return self._txn_mgr.get()
+                     "Use the transaction_manager argument "
+                     "to DB.open() instead, or access "
+                     ".transaction_manager directly on the Connection.")
+        return self.transaction_manager.get()
 
     def setLocalTransaction(self):
         """Use a transaction bound to the connection rather than the thread.
@@ -985,14 +1008,15 @@ class Connection(ExportImport, object):
         which TM the Connection uses.
         """
         deprecated36("setLocalTransaction() is deprecated. "
-                     "Use the txn_mgr argument to DB.open() instead.")
-        if self._txn_mgr is transaction.manager:
+                     "Use the transaction_manager argument "
+                     "to DB.open() instead.")
+        if self.transaction_manager is transaction.manager:
             if self._synch:
-                self._txn_mgr.unregisterSynch(self)
-            self._txn_mgr = transaction.TransactionManager()
+                self.transaction_manager.unregisterSynch(self)
+            self.transaction_manager = transaction.TransactionManager()
             if self._synch:
-                self._txn_mgr.registerSynch(self)
-        return self._txn_mgr
+                self.transaction_manager.registerSynch(self)
+        return self.transaction_manager
 
     # DEPRECATED methods
     ##########################################################################

@@ -82,7 +82,7 @@ without having to use threads.
 
     >>> import transaction
     >>> tm = transaction.TransactionManager()
-    >>> connection = some_database.open(txn_mgr=tm)
+    >>> connection = some_database.open(transaction_manager=tm)
     >>> connection.root()['C'] = C
     >>> tm.commit()
 
@@ -128,7 +128,7 @@ Then the class will return to it's prior state:
 We can open another connection and access the class there.
 
     >>> tm2 = transaction.TransactionManager()
-    >>> connection2 = some_database.open(txn_mgr=tm2)
+    >>> connection2 = some_database.open(transaction_manager=tm2)
 
     >>> C2 = connection2.root()['C']
     >>> c2 = C2('other')
@@ -248,8 +248,8 @@ connections to a variable first to prevent getting them from the
 connection pool:
 
     >>> old = connection, connection2
-    >>> connection = some_database.open(txn_mgr=tm)
-    >>> connection2 = some_database.open(txn_mgr=tm2)
+    >>> connection = some_database.open(transaction_manager=tm)
+    >>> connection2 = some_database.open(transaction_manager=tm2)
    
 Now, we can read the object:
 
