@@ -3,13 +3,15 @@ What's new in ZODB3 3.5a0?
 Release date: DD-MMM-YYYY
 
 
-What's new in ZODB3 3.4b4?
+What's new in ZODB3 3.4b5?
+==========================
 Release date: DD-MMM-2005
 
 Following is combined news from the "internal releases" (to support
 ongoing Zope 2.8 and Zope3 development) since the last public ZODB 3.4
 release.  These are the dates of the internal releases:
 
+- 3.4b4 02-Jun-2005
 - 3.4b3 27-May-2005
 - 3.4b2 26-May-2005
 
@@ -46,8 +48,8 @@ _Persistence.c
 Error reporting
 ---------------
 
-- In the unlikely event that ``referencesf()`` reports an unpickling error
-  (for example, a corrupt database can cause this), the message it
+- (3.4b4) In the unlikely event that ``referencesf()`` reports an unpickling
+  error (for example, a corrupt database can cause this), the message it
   produces no longer contains unprintable characters.
 
 
