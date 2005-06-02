@@ -36,6 +36,13 @@ Development
   ``zope.testing.testrunner``.  See the latter's documentation
   for command-line arguments.
 
+_Persistence.c
+--------------
+
+- (3.4b4) The source code for this was removed from the project.  Zope (2.8)
+  has its own copy, and the C code hadn't been compiled in ZODB since before
+  ZODB 3.3.
+
 
 What's new in ZODB3 3.4b1?
 ==========================
