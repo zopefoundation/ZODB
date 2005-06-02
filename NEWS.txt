@@ -43,6 +43,13 @@ _Persistence.c
   has its own copy, and the C code hadn't been compiled in ZODB since before
   ZODB 3.3.
 
+Error reporting
+---------------
+
+- In the unlikely event that ``referencesf()`` reports an unpickling error
+  (for example, a corrupt database can cause this), the message it
+  produces no longer contains unprintable characters.
+
 
 What's new in ZODB3 3.4b1?
 ==========================
