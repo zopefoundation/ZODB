@@ -26,7 +26,7 @@ interface, rich transaction support, and undo.
 # Development Status :: 3 - Alpha
 
 classifiers = """\
-Development Status :: 4 - Beta
+Development Status :: 5 - Production/Stable
 Intended Audience :: Developers
 License :: OSI Approved :: Zope Public License
 Programming Language :: Python
