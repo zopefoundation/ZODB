@@ -651,10 +651,13 @@ class ConnectionTests(CommonSetupTearDown):
         transaction.commit()
 
         # Make sure the invalidation is received in the other client.
-        for i in range(10):
+        # We've had problems with this timing out on "slow" and/or "very
+        # busy" machines, so we increase the sleep time on each trip, and
+        # are willing to wait quite a long time.
+        for i in range(20):
             if r1._p_state == -1:
                 break
-            time.sleep(0.1)
+            time.sleep(i / 10.0)
         self.assertEqual(r1._p_state, -1) # ghost
 
         r1.keys() # unghostify

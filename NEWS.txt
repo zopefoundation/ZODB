@@ -45,6 +45,13 @@ Error reporting
   error (for example, a corrupt database can cause this), the message it
   produces no longer contains unprintable characters.
 
+Tests
+-----
+
+- (3.4c2) ``checkCrossDBInvalidations`` suffered spurious failures too often
+  on slow and/or busy machines.  The test is willing to wait longer for
+  success now.
+
 
 What's new in ZODB3 3.4b1?
 ==========================
