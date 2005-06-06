@@ -655,6 +655,7 @@ class ConnectionTests(CommonSetupTearDown):
         # busy" machines, so we increase the sleep time on each trip, and
         # are willing to wait quite a long time.
         for i in range(20):
+            c1.sync()
             if r1._p_state == -1:
                 break
             time.sleep(i / 10.0)
