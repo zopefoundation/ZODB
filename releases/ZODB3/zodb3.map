@@ -22,7 +22,7 @@ zope            svn://svn.zope.org/repos/main/ZODB/tags/*/src/zope
 zope.interface  svn://svn.zope.org/repos/main/Zope3/tags/ZopeX3-3.0.0-Zope-2.8-a4/src/zope/interface
 zope.testing    svn://svn.zope.org/repos/main/zope.testing/trunk/src/zope/testing
 
-# These are copied in from the ZConfig and zdaemon projects:
-#
+# The ZConfig and zdaemon projects:
+
 ZConfig         svn://svn.zope.org/repos/main/ZConfig/tags/ZConfig-2.3
-zdaemon         svn://svn.zope.org/repos/main/ZODB/tags/*/src/zdaemon
+zdaemon         svn://svn.zope.org/repos/main/zdaemon/tags/zdaemon-Zope-2-8-0
