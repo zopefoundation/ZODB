@@ -22,4 +22,4 @@ ZEO is now part of ZODB; ZODB's home on the web is
 """
 
 # The next line must use double quotes, so release.py recognizes it.
-version = "3.4.0c1"
+version = "3.4.0c2"
