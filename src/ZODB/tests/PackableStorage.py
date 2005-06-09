@@ -86,9 +86,16 @@ def dumps(obj):
     p = pickle.Pickler(s)
     p.persistent_id = getpersid
     p.dump(obj)
+    p.dump(None)
     return s.getvalue()
 
-
+def pdumps(obj):
+    s = StringIO()
+    p = pickle.Pickler(s)
+    p.dump(obj)
+    p.dump(None)
+    return s.getvalue()
+    
 
 class PackableStorageBase:
     # We keep a cache of object ids to instances so that the unpickler can
@@ -315,11 +322,11 @@ class PackableUndoStorage(PackableStorageBase):
         oid = obj.getoid()
         obj.value = 1
         # Commit three different revisions
-        revid1 = self._dostoreNP(oid, data=pickle.dumps(obj))
+        revid1 = self._dostoreNP(oid, data=pdumps(obj))
         obj.value = 2
-        revid2 = self._dostoreNP(oid, revid=revid1, data=pickle.dumps(obj))
+        revid2 = self._dostoreNP(oid, revid=revid1, data=pdumps(obj))
         obj.value = 3
-        revid3 = self._dostoreNP(oid, revid=revid2, data=pickle.dumps(obj))
+        revid3 = self._dostoreNP(oid, revid=revid2, data=pdumps(obj))
         # Now make sure all three revisions can be extracted
         data = self._storage.loadSerial(oid, revid1)
         pobj = pickle.loads(data)
@@ -368,11 +375,11 @@ class PackableUndoStorage(PackableStorageBase):
         eq(loads(data).value, 0)
         # Commit three different revisions of the other object
         obj.value = 1
-        revid1 = self._dostoreNP(oid, data=pickle.dumps(obj))
+        revid1 = self._dostoreNP(oid, data=pdumps(obj))
         obj.value = 2
-        revid2 = self._dostoreNP(oid, revid=revid1, data=pickle.dumps(obj))
+        revid2 = self._dostoreNP(oid, revid=revid1, data=pdumps(obj))
         obj.value = 3
-        revid3 = self._dostoreNP(oid, revid=revid2, data=pickle.dumps(obj))
+        revid3 = self._dostoreNP(oid, revid=revid2, data=pdumps(obj))
         # Now make sure all three revisions can be extracted
         data = self._storage.loadSerial(oid, revid1)
         pobj = pickle.loads(data)
@@ -438,11 +445,11 @@ class PackableUndoStorage(PackableStorageBase):
         eq(loads(data).value, 0)
         # Commit three different revisions of the first object
         obj1.value = 1
-        revid1 = self._dostoreNP(oid1, data=pickle.dumps(obj1))
+        revid1 = self._dostoreNP(oid1, data=pdumps(obj1))
         obj1.value = 2
-        revid2 = self._dostoreNP(oid1, revid=revid1, data=pickle.dumps(obj1))
+        revid2 = self._dostoreNP(oid1, revid=revid1, data=pdumps(obj1))
         obj1.value = 3
-        revid3 = self._dostoreNP(oid1, revid=revid2, data=pickle.dumps(obj1))
+        revid3 = self._dostoreNP(oid1, revid=revid2, data=pdumps(obj1))
         # Now make sure all three revisions can be extracted
         data = self._storage.loadSerial(oid1, revid1)
         pobj = pickle.loads(data)
@@ -458,7 +465,7 @@ class PackableUndoStorage(PackableStorageBase):
         eq(pobj.value, 3)
         # Now commit a revision of the second object
         obj2.value = 11
-        revid4 = self._dostoreNP(oid2, data=pickle.dumps(obj2))
+        revid4 = self._dostoreNP(oid2, data=pdumps(obj2))
         # And make sure the revision can be extracted
         data = self._storage.loadSerial(oid2, revid4)
         pobj = pickle.loads(data)
@@ -586,12 +593,12 @@ class PackableUndoStorage(PackableStorageBase):
         oid = obj.getoid()
         obj.value = 1
         # Commit two different revisions
-        revid1 = self._dostoreNP(oid, data=pickle.dumps(obj))
+        revid1 = self._dostoreNP(oid, data=pdumps(obj))
         obj.value = 2
         snooze()
         packtime = time.time()
         snooze()
-        self._dostoreNP(oid, revid=revid1, data=pickle.dumps(obj))
+        self._dostoreNP(oid, revid=revid1, data=pdumps(obj))
         # Now pack the first transaction
         self.assertEqual(3, len(self._storage.undoLog()))
         self._storage.pack(packtime, referencesf)
@@ -616,9 +623,9 @@ class PackableUndoStorage(PackableStorageBase):
         obj2.value = 2
 
         # Commit the first revision of each of them
-        revid11 = self._dostoreNP(oid1, data=pickle.dumps(obj1),
+        revid11 = self._dostoreNP(oid1, data=pdumps(obj1),
                                   description="1-1")
-        revid22 = self._dostoreNP(oid2, data=pickle.dumps(obj2),
+        revid22 = self._dostoreNP(oid2, data=pdumps(obj2),
                                   description="2-2")
 
         # remember the time. everything above here will be packed away
@@ -628,14 +635,14 @@ class PackableUndoStorage(PackableStorageBase):
         # Commit two revisions of the first object
         obj1.value = 3
         revid13 = self._dostoreNP(oid1, revid=revid11,
-                                  data=pickle.dumps(obj1), description="1-3")
+                                  data=pdumps(obj1), description="1-3")
         obj1.value = 4
         self._dostoreNP(oid1, revid=revid13,
-                        data=pickle.dumps(obj1), description="1-4")
+                        data=pdumps(obj1), description="1-4")
         # Commit one revision of the second object
         obj2.value = 5
         self._dostoreNP(oid2, revid=revid22,
-                        data=pickle.dumps(obj2), description="2-5")
+                        data=pdumps(obj2), description="2-5")
         # Now pack
         self.assertEqual(6,len(self._storage.undoLog()))
         print '\ninitial undoLog was'
