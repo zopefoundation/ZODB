@@ -22,8 +22,8 @@ import transaction
 from ZODB.MappingStorage import MappingStorage
 from ZODB.DB import DB as _DB
 
-def DB(name='Test'):
-    return _DB(MappingStorage(name))
+def DB(name='Test', **dbargs):
+    return _DB(MappingStorage(name), **dbargs)
 
 def commit():
     transaction.commit()
