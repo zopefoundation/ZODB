@@ -80,18 +80,57 @@ for some but not all ZClasses).
 Persistent references
 ---------------------
 
-A persistent reference is a pair containing an oid and class metadata.
 When one persistent object pickle refers to another persistent object,
-the database uses a persistent reference.  The format allows a
-significant optimization, because ghosts can be created directly from
-persistent references.  If the reference was just an oid, a database
-access would be required to determine the class of the ghost.
+the database uses a persistent reference.
 
-Because the persistent reference includes the class, it is not
-possible to change the class of a persistent object.  If a transaction
-changed the class of an object, a new record with new class metadata
-would be written but all the old references would still include the
-old class.
+ZODB persistent references are of the form::
+
+oid
+    A simple object reference.
+
+(oid, class meta data)
+    A persistent object reference
+
+[reference_type, args]
+    An extended reference
+
+    Extension references come in a number of subforms, based on the
+    reference types.
+
+    The following reference types are defined:
+
+    'w'
+        Persistent weak reference.  The arguments consist of an oid.
+
+    The following are planned for the future:
+
+    'n'
+        Multi-database simple object reference.  The arguments consist
+        of a databaase name, and an object id.
+
+    'm'
+        Multi-database persistent object reference.  The arguments consist
+        of a databaase name, an object id, and class meta data.
+
+The following legacy format is also supported.
+    
+[oid]
+    A persistent weak reference
+
+Because the persistent object reference forms include class
+information, it is not possible to change the class of a persistent
+object for which this form is used.  If a transaction changed the
+class of an object, a new record with new class metadata would be
+written but all the old references would still use the old class.  (It
+is possible that we could deal with this limitation in the future.)
+
+An object id is used alone when a class requires arguments
+to it's __new__ method, which is signalled by the class having a
+__getnewargs__ attribute.
+
+A number of legacyforms are defined:
+
+
 """
 
 import cPickle
@@ -265,7 +304,7 @@ class ObjectWriter:
                         obj._p_jar = self._jar
                         obj._p_oid = oid
                         self._stack.append(obj)
-                return [oid]
+                return ['w', (oid, )]
 
 
         # Since we have an oid, we have either a persistent instance
@@ -385,55 +424,74 @@ class ObjectReader:
 
         return unpickler
 
-    def _persistent_load(self, oid):
-        if isinstance(oid, tuple):
-            # Quick instance reference.  We know all we need to know
-            # to create the instance w/o hitting the db, so go for it!
-            oid, klass = oid
+    loaders = {}
 
-            obj = self._cache.get(oid, None)
-            if obj is not None:
-                return obj
-
-            if isinstance(klass, tuple):
-                klass = self._get_class(*klass)
-
-            if issubclass(klass, Broken):
-                # We got a broken class. We might need to make it
-                # PersistentBroken
-                if not issubclass(klass, broken.PersistentBroken):
-                    klass = broken.persistentBroken(klass)
-
+    def _persistent_load(self, reference):
+        if isinstance(reference, tuple):
+            return self.load_persistent(*reference)
+        elif isinstance(reference, str):
+            return self.load_oid(reference)
+        else:
             try:
-                obj = klass.__new__(klass)
-            except TypeError:
-                # Couldn't create the instance.  Maybe there's more
-                # current data in the object's actual record!
-                return self._conn.get(oid)
+                reference_type, args = reference
+            except ValueError:
+                # weakref
+                return self.loaders['w'](self, *reference)
+            else:
+                return self.loaders[reference_type](self, *args)
 
-            # TODO: should be done by connection
-            obj._p_oid = oid
-            obj._p_jar = self._conn
-            # When an object is created, it is put in the UPTODATE
-            # state.  We must explicitly deactivate it to turn it into
-            # a ghost.
-            obj._p_changed = None
-
-            self._cache[oid] = obj
-            return obj
-
-        elif isinstance(oid, list):
-            # see weakref.py
-            [oid] = oid
-            obj = WeakRef.__new__(WeakRef)
-            obj.oid = oid
-            obj.dm = self._conn
-            return obj
+    def load_persistent(self, oid, klass):
+        # Quick instance reference.  We know all we need to know
+        # to create the instance w/o hitting the db, so go for it!
 
         obj = self._cache.get(oid, None)
         if obj is not None:
             return obj
+
+        if isinstance(klass, tuple):
+            klass = self._get_class(*klass)
+
+        if issubclass(klass, Broken):
+            # We got a broken class. We might need to make it
+            # PersistentBroken
+            if not issubclass(klass, broken.PersistentBroken):
+                klass = broken.persistentBroken(klass)
+
+        try:
+            obj = klass.__new__(klass)
+        except TypeError:
+            # Couldn't create the instance.  Maybe there's more
+            # current data in the object's actual record!
+            return self._conn.get(oid)
+
+        # TODO: should be done by connection
+        obj._p_oid = oid
+        obj._p_jar = self._conn
+        # When an object is created, it is put in the UPTODATE
+        # state.  We must explicitly deactivate it to turn it into
+        # a ghost.
+        obj._p_changed = None
+
+        self._cache[oid] = obj
+        return obj
+
+    loaders['p'] = load_persistent
+
+    def load_persistent_weakref(self, oid):
+        obj = WeakRef.__new__(WeakRef)
+        obj.oid = oid
+        obj.dm = self._conn
+        return obj
+
+    loaders['w'] = load_persistent_weakref
+
+    def load_oid(self, oid):
+        obj = self._cache.get(oid, None)
+        if obj is not None:
+            return obj
         return self._conn.get(oid)
+
+    loaders['o'] = load_oid
 
     def _new_object(self, klass, args):
         if not args and not myhasattr(klass, "__getnewargs__"):
@@ -495,54 +553,89 @@ class ObjectReader:
         state = self.getState(pickle)
         obj.__setstate__(state)
 
-def referencesf(p, rootl=None):
 
-    if rootl is None:
-        rootl = []
+oid_loaders = {
+    'w': lambda oid: None,
+    }
 
+def referencesf(p, oids=None):
+    """Return a list of object ids found in a pickle
+
+    A list may be passed in, in which case, information is
+    appended to it.
+
+    Weak references are not included.
+    """
+
+    refs = []
     u = cPickle.Unpickler(cStringIO.StringIO(p))
-    l = len(rootl)
-    u.persistent_load = rootl
+    u.persistent_load = refs
     u.noload()
-    try:
-        u.noload()
-    except:
-        # Hm.  We failed to do second load.  Maybe there wasn't a
-        # second pickle.  Let's check:
-        f = cStringIO.StringIO(p)
-        u = cPickle.Unpickler(f)
-        u.persistent_load = []
-        u.noload()
-        if len(p) > f.tell():
-            raise ValueError, 'Error unpickling %r' % p
+    u.noload()
 
+    # Now we have a list of referencs.  Need to convert to list of
+    # oids:
 
-    # References may be:
-    #
-    # - A tuple, in which case they are an oid and class.
-    #   In this case, just extract the first element, which is
-    #   the oid
-    #
-    # - A list, which is a weak reference. We skip those.
-    #
-    # - Anything else must be an oid. This means that an oid
-    #   may not be a list or a tuple. This is a bit lame.
-    #   We could avoid this lamosity by allowing single-element
-    #   tuples, so that we wrap oids that are lists or tuples in
-    #   tuples.
-    #
-    # - oids may *not* be False.  I'm not sure why.
+    if oids is None:
+        oids = []
+        
+    for reference in refs:
+        if isinstance(reference, tuple):
+            oid = reference[0]
+        elif isinstance(reference, str):
+            oid = reference
+        else:
+            try:
+                reference_type, args = reference
+            except ValueError:
+                # weakref
+                continue
+            else:
+                oid = oid_loaders[reference_type](*args)
 
-    out = []
-    for v in rootl:
-        assert v # Let's see if we ever get empty ones
-        if type(v) is list:
-            # skip wekrefs
-            continue
-        if type(v) is tuple:
-            v = v[0]
-        out.append(v)
+        if oid:
+            oids.append(oid)
+    
+    return oids
 
-    rootl[:] = out
+oid_klass_loaders = {
+    'w': lambda oid: None,
+    }
 
-    return rootl
+def get_refs(a_pickle):
+    """Return oid and class information for references in a pickle
+
+    The result of a list of oid and class information tuples.
+    If the reference doesn't contain class information, then the
+    klass information is None.
+    """
+    
+    refs = []
+    u = cPickle.Unpickler(cStringIO.StringIO(a_pickle))
+    u.persistent_load = refs
+    u.noload()
+    u.noload()
+
+    # Now we have a list of referencs.  Need to convert to list of
+    # oids and class info:
+
+    result = []
+
+    for reference in refs:
+        if isinstance(reference, tuple):
+            data = reference
+        elif isinstance(reference, str):
+            data = reference, None
+        else:
+            try:
+                reference_type, args = reference
+            except ValueError:
+                # weakref
+                continue
+            else:
+                data = oid_klass_loaders[reference_type](*args)
+
+        if data:
+            result.append(data)
+    
+    return result

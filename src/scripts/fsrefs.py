@@ -68,7 +68,8 @@ import types
 
 from ZODB.FileStorage import FileStorage
 from ZODB.TimeStamp import TimeStamp
-from ZODB.utils import u64, oid_repr, get_refs, get_pickle_metadata
+from ZODB.utils import u64, oid_repr, get_pickle_metadata
+from ZODB.serialize import get_refs
 from ZODB.POSException import POSKeyError
 
 VERBOSE = 0
@@ -129,9 +130,8 @@ def main(path):
         refs = get_refs(data)
         missing = [] # contains 3-tuples of oid, klass-metadata, reason
         for info in refs:
-            try:
-                ref, klass = info
-            except (ValueError, TypeError):
+            ref, klass = info
+            if klass is None:
                 # failed to unpack
                 ref = info
                 klass = '<unknown>'
