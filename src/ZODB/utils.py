@@ -155,35 +155,6 @@ def positive_id(obj):
         assert result > 0
     return result
 
-# So full of undocumented magic it's hard to fathom.
-# The existence of cPickle.noload() isn't documented, and what it
-# does isn't documented either.  In general it unpickles, but doesn't
-# actually build any objects of user-defined classes.  Despite that
-# persistent_load is documented to be a callable, there's an
-# undocumented gimmick where if it's actually a list, for a PERSID or
-# BINPERSID opcode cPickle just appends "the persistent id" to that list.
-# Also despite that "a persistent id" is documented to be a string,
-# ZODB persistent ids are actually (often? always?) tuples, most often
-# of the form
-#     (oid, (module_name, class_name))
-# So the effect of the following is to dig into the object pickle, and
-# return a list of the persistent ids found (which are usually nested
-# tuples), without actually loading any modules or classes.
-# Note that pickle.py doesn't support any of this, it's undocumented code
-# only in cPickle.c.
-def get_refs(a_pickle):
-    # The pickle is in two parts.  First there's the class of the object,
-    # needed to build a ghost,  See get_pickle_metadata for how complicated
-    # this can get.  The second part is the state of the object.  We want
-    # to find all the persistent references within both parts (although I
-    # expect they can only appear in the second part).
-    f = StringIO(a_pickle)
-    u = pickle.Unpickler(f)
-    u.persistent_load = refs = []
-    u.noload() # class info
-    u.noload() # instance state info
-    return refs
-
 # Given a ZODB pickle, return pair of strings (module_name, class_name).
 # Do this without importing the module or class object.
 # See ZODB/serialize.py's module docstring for the only docs that exist about
