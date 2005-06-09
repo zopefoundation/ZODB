@@ -25,4 +25,4 @@ zope.testing    svn://svn.zope.org/repos/main/zope.testing/trunk/src/zope/testin
 # The ZConfig and zdaemon projects:
 
 ZConfig         svn://svn.zope.org/repos/main/ZConfig/tags/ZConfig-2.3
-zdaemon         svn://svn.zope.org/repos/main/zdaemon/tags/zdaemon-Zope-2-8-0
+zdaemon         svn://svn.zope.org/repos/main/zdaemon/tags/zdaemon-1.1
