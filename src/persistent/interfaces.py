@@ -162,8 +162,7 @@ class IPersistent(Interface):
 
         It is up to the data manager to assign this.
         The special value None is reserved to indicate that an object
-        id has not been assigned.  Non-None object ids must be hashable
-        and totally ordered.
+        id has not been assigned.  Non-None object ids must be strings.
         """)
 
     _p_changed = Attribute(
