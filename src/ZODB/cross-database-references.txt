@@ -1,0 +1,82 @@
+Cross-Database References
+=========================
+
+Persistent references to objects in different databases within a
+multi-database are allowed.  
+
+Lets set up a multi-database with 2 databases:
+
+    >>> import ZODB.tests.util, transaction, persistent
+    >>> databases = {}
+    >>> db1 = ZODB.tests.util.DB(databases=databases, database_name='1')
+    >>> db2 = ZODB.tests.util.DB(databases=databases, database_name='2')
+
+And create a persistent object in the first database:
+
+    >>> tm = transaction.TransactionManager()
+    >>> conn1 = db1.open(transaction_manager=tm)
+    >>> p1 = MyClass()
+    >>> conn1.root()['p'] = p1
+    >>> tm.commit()
+
+Now, we'll create a second persistent object in the second database.
+We'll have a reference to the first object:
+
+    >>> tm = transaction.TransactionManager()
+    >>> conn2 = db2.open(transaction_manager=tm)
+    >>> p2 = MyClass()
+    >>> conn2.root()['p'] = p2
+    >>> p2.p1 = p1
+    >>> tm.commit()
+
+Now, let's open a separate connection to database 2.  We use it to
+read p2, use p2 to get to p1, and verify that it is in database 1:
+
+    >>> conn = db2.open()
+    >>> p2x = conn.root()['p']
+    >>> p1x = p2x.p1
+
+    >>> p2x is p2, p2x._p_oid == p2._p_oid, p2x._p_jar.db() is db2
+    (False, True, True)
+
+    >>> p1x is p1, p1x._p_oid == p1._p_oid, p1x._p_jar.db() is db1
+    (False, True, True)
+
+It isn't valid to create references outside a multi database:
+
+    >>> db3 = ZODB.tests.util.DB()
+    >>> conn3 = db3.open(transaction_manager=tm)
+    >>> p3 = MyClass()
+    >>> conn3.root()['p'] = p3
+    >>> tm.commit()
+
+    >>> p2.p3 = p3
+    >>> tm.commit() # doctest: +NORMALIZE_WHITESPACE
+    Traceback (most recent call last):
+    ...
+    InvalidObjectReference: 
+    Attempt to store an object from a foreign database connection
+
+NOTE
+----
+
+This implementation is incomplete.  It allows creatting and using
+cross-database references, however, there are a number of facilities
+missing:
+
+cross-database garbage collection
+    Garbage collection is done on a database by database basis.
+    If an object on a database only has references to it from other
+    databases, then the object will be garbage collected when it's
+    database is packed.  The cross-database references to it will be
+    broken.
+
+cross-database undo
+    Undo is only applied to a single database.  Fixing this for
+    mutliple databases is going to be extremely difficult.  Undo
+    currently poses consistency problems, so it is not (or should not
+    be) widely used.
+
+Cross-database aware (tolerant) export/import
+    The export/import facility needs to be aware, at least, of cross-database
+    references.

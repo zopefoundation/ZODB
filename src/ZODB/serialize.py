@@ -188,6 +188,10 @@ class ObjectWriter:
         >>> class DummyJar:
         ...     def new_oid(self):
         ...         return 42
+        ...     def db(self):
+        ...         return self
+        ...     databases = {}
+        
         >>> jar = DummyJar()
         >>> class O:
         ...     _p_jar = jar
@@ -312,15 +316,26 @@ class ObjectWriter:
 
         # NOTE! Persistent classes don't (and can't) subclass persistent.
 
+        database_name = None
+
         if oid is None:
             oid = obj._p_oid = self._jar.new_oid()
             obj._p_jar = self._jar
             self._stack.append(obj)
+            
         elif obj._p_jar is not self._jar:
-            raise InvalidObjectReference(
-                "Attempt to store an object from a foreign "
-                "database connection"
-                )
+
+            try:
+                otherdb = obj._p_jar.db()
+                database_name = otherdb.database_name
+            except AttributeError:
+                otherdb = self
+
+            if self._jar.db().databases.get(database_name) is not otherdb:
+                raise InvalidObjectReference(
+                    "Attempt to store an object from a foreign "
+                    "database connection"
+                    )
 
         klass = type(obj)
         if hasattr(klass, '__getnewargs__'):
@@ -333,11 +348,15 @@ class ObjectWriter:
             # __getnewargs__ of its own, we'll lose the optimization
             # of caching the class info.
 
+            if database_name:
+                return ['n', (database_name, oid)]
             return oid
 
         # Note that we never get here for persistent classes.
         # We'll use driect refs for normal classes.
 
+        if database_name:
+            return ['m', (database_name, oid, klass)]
         return oid, klass
 
     def serialize(self, obj):
@@ -475,7 +494,14 @@ class ObjectReader:
         self._cache[oid] = obj
         return obj
 
-    loaders['p'] = load_persistent
+    def load_multi_persistent(self, database_name, oid, klass):
+        conn = self._conn.get_connection(database_name)
+        # TODO, make connection _cache attr public
+        reader = ObjectReader(conn, conn._cache, self._factory)
+        return reader.load_persistent(oid, klass)
+
+    loaders['m'] = load_multi_persistent
+
 
     def load_persistent_weakref(self, oid):
         obj = WeakRef.__new__(WeakRef)
@@ -491,7 +517,13 @@ class ObjectReader:
             return obj
         return self._conn.get(oid)
 
-    loaders['o'] = load_oid
+    def load_multi_oid(self, database_name, oid):
+        conn = self._conn.get_connection(database_name)
+        # TODO, make connection _cache attr public
+        reader = ObjectReader(conn, conn._cache, self._factory)
+        return reader.load_oid(oid)
+
+    loaders['n'] = load_multi_oid
 
     def _new_object(self, klass, args):
         if not args and not myhasattr(klass, "__getnewargs__"):
