@@ -88,6 +88,10 @@ class ExportImport:
         """
         oids = {}
 
+        # IMPORTANT: This code should be consistent with the code in
+        # serialize.py. It is currently out of date and doesn't handle
+        # weak references.
+
         def persistent_load(ooid):
             """Remap a persistent id to a new ID and create a ghost for it."""
 
