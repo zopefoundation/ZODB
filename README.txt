@@ -35,8 +35,8 @@ The Zope 2.8 release, and Zope3 releases, should be compatible with this
 version of ZODB.  Note that Zope 2.7 and higher includes ZEO, so this package
 should only be needed to run a ZEO server.
 
-ZEO servers and clients are wholly compatible among 3.3, 3.3.1 and 3.4: a ZEO
-client from any of those versions can talk with a ZEO server from any.
+ZEO servers and clients are wholly compatible among 3.3, 3.3.1, 3.4 and 3.5:
+a ZEO client from any of those versions can talk with a ZEO server from any.
 
 Trying to mix ZEO clients and servers from 3.3 or later from ZODB releases
 before 3.3 is much harder.   ZODB 3.3 introduced multiversion concurrency

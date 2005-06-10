@@ -2,7 +2,7 @@ Cross-Database References
 =========================
 
 Persistent references to objects in different databases within a
-multi-database are allowed.  
+multi-database are allowed.
 
 Lets set up a multi-database with 2 databases:
 
@@ -54,26 +54,26 @@ It isn't valid to create references outside a multi database:
     >>> tm.commit() # doctest: +NORMALIZE_WHITESPACE
     Traceback (most recent call last):
     ...
-    InvalidObjectReference: 
+    InvalidObjectReference:
     Attempt to store an object from a foreign database connection
 
 NOTE
 ----
 
-This implementation is incomplete.  It allows creatting and using
+This implementation is incomplete.  It allows creating and using
 cross-database references, however, there are a number of facilities
 missing:
 
 cross-database garbage collection
     Garbage collection is done on a database by database basis.
     If an object on a database only has references to it from other
-    databases, then the object will be garbage collected when it's
+    databases, then the object will be garbage collected when its
     database is packed.  The cross-database references to it will be
     broken.
 
 cross-database undo
     Undo is only applied to a single database.  Fixing this for
-    mutliple databases is going to be extremely difficult.  Undo
+    multiple databases is going to be extremely difficult.  Undo
     currently poses consistency problems, so it is not (or should not
     be) widely used.
 
