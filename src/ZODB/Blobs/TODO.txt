@@ -33,3 +33,8 @@ Features
 
 - Unify ZEO/Blob implementation and the BlobProxyStorage directory
   structures.
+
+- Write code to clean up ClientStorage blob cache (it will grow without
+  bound currently).
+
+
