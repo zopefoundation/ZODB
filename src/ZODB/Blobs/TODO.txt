@@ -2,6 +2,11 @@
 Tests
 -----
 
+- ZConfig config testing (make sure that blob storage
+  config via ZConfig does the right thing)
+
+- Test BlobStorage.getSize
+
 - Test packing.
 
 - Test import/export.
@@ -23,3 +28,8 @@ Features
 - More options for blob directory structures (e.g. dirstorage's
   bushy/chunky/lawn/flat).
 
+- Log loudly on best_rename when it actually does a
+  copy.
+
+- Unify ZEO/Blob implementation and the BlobProxyStorage directory
+  structures.
