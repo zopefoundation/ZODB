@@ -7,8 +7,6 @@ Tests
 
 - Test BlobStorage.getSize
 
-- Test packing.
-
 - Test import/export.
 
 - Test conflict behavior.
@@ -37,4 +35,6 @@ Features
 - Write code to clean up ClientStorage blob cache (it will grow without
   bound currently).
 
-
+- Allow "read-only" blob cache dirs from ClientStorages which can
+  point to a filesystem mount from the ZEO server of the canonical
+  blob locations.
