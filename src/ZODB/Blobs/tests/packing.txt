@@ -29,9 +29,9 @@ We need an database with an undoing blob supporting storage:
     >>> import shutil
     >>> import transaction
     >>> from tempfile import mkdtemp, mktemp
-    >>> storagefile = '/home/chrism/blobtest.fs'
+    >>> storagefile = mktemp()
     >>> base_storage = FileStorage(storagefile)
-    >>> blob_dir = '/home/chrism/test_blobs'
+    >>> blob_dir = mkdtemp()
     >>> blob_storage = BlobStorage(blob_dir, base_storage)
     >>> database = DB(blob_storage)
     
@@ -52,35 +52,30 @@ Put some revisions of a blob object in our database and on the filesystem:
     >>> root['blob'] = blob
     >>> transaction.commit()
     >>> tids.append(blob_storage._tid)
-    >>> time.sleep(1.1) # let mtime catch up (temporary)
 
     >>> nothing = transaction.begin()
     >>> times.append(time.time())
     >>> root['blob'].open('w').write('this is blob data 1')
     >>> transaction.commit()
     >>> tids.append(blob_storage._tid)
-    >>> time.sleep(1.1) # let mtime catch up (temporary)
 
     >>> nothing = transaction.begin()
     >>> times.append(time.time())
     >>> root['blob'].open('w').write('this is blob data 2')
     >>> transaction.commit()
     >>> tids.append(blob_storage._tid)
-    >>> time.sleep(1.1) # let mtime catch up (temporary)
 
     >>> nothing = transaction.begin()
     >>> times.append(time.time())
     >>> root['blob'].open('w').write('this is blob data 3')
     >>> transaction.commit()
     >>> tids.append(blob_storage._tid)
-    >>> time.sleep(1.1) # let mtime catch up (temporary)
 
     >>> nothing = transaction.begin()
     >>> times.append(time.time())
     >>> root['blob'].open('w').write('this is blob data 4')
     >>> transaction.commit()
     >>> tids.append(blob_storage._tid)
-    >>> time.sleep(1.1) # let mtime catch up (temporary)
 
     >>> oid = root['blob']._p_oid
     >>> fns = [ blob_storage._getCleanFilename(oid, x) for x in tids ]
@@ -186,35 +181,30 @@ Put some revisions of a blob object in our database and on the filesystem:
     >>> root['blob'] = blob
     >>> transaction.commit()
     >>> tids.append(blob_storage._tid)
-    >>> time.sleep(1.1) # let mtime catch up (temporary)
 
     >>> nothing = transaction.begin()
     >>> times.append(time.time())
     >>> root['blob'].open('w').write('this is blob data 1')
     >>> transaction.commit()
     >>> tids.append(blob_storage._tid)
-    >>> time.sleep(1.1) # let mtime catch up (temporary)
 
     >>> nothing = transaction.begin()
     >>> times.append(time.time())
     >>> root['blob'].open('w').write('this is blob data 2')
     >>> transaction.commit()
     >>> tids.append(blob_storage._tid)
-    >>> time.sleep(1.1) # let mtime catch up (temporary)
 
     >>> nothing = transaction.begin()
     >>> times.append(time.time())
     >>> root['blob'].open('w').write('this is blob data 3')
     >>> transaction.commit()
     >>> tids.append(blob_storage._tid)
-    >>> time.sleep(1.1) # let mtime catch up (temporary)
 
     >>> nothing = transaction.begin()
     >>> times.append(time.time())
     >>> root['blob'].open('w').write('this is blob data 4')
     >>> transaction.commit()
     >>> tids.append(blob_storage._tid)
-    >>> time.sleep(1.1) # let mtime catch up (temporary)
 
     >>> oid = root['blob']._p_oid
     >>> fns = [ blob_storage._getCleanFilename(oid, x) for x in tids ]
@@ -252,3 +242,6 @@ revision as well as the entire directory:
     >>> os.path.exists(os.path.split(fns[0])[0])
     False
 
+Clean up our blob directory:
+
+    >>> shutil.rmtree(blob_dir)
