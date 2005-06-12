@@ -15,12 +15,10 @@
 Packing support for blob data
 =============================
 
-UNDOING
-=======
-
-We need an database with an undoing blob supporting storage:
+Set up:
 
     >>> from ZODB.FileStorage import FileStorage
+    >>> from ZODB.MappingStorage import MappingStorage
     >>> from ZODB.serialize import referencesf
     >>> from ZODB.Blobs.BlobStorage import BlobStorage
     >>> from ZODB.Blobs.Blob import Blob
@@ -30,8 +28,15 @@ We need an database with an undoing blob supporting storage:
     >>> import transaction
     >>> from tempfile import mkdtemp, mktemp
     >>> storagefile = mktemp()
-    >>> base_storage = FileStorage(storagefile)
     >>> blob_dir = mkdtemp()
+
+
+UNDOING
+=======
+
+We need an database with an undoing blob supporting storage:
+
+    >>> base_storage = FileStorage(storagefile)
     >>> blob_storage = BlobStorage(blob_dir, base_storage)
     >>> database = DB(blob_storage)
     
@@ -151,16 +156,7 @@ NON-UNDOING
 
 We need an database with a NON-undoing blob supporting storage:
 
-    >>> from ZODB.MappingStorage import MappingStorage
-    >>> from ZODB.serialize import referencesf
-    >>> from ZODB.Blobs.BlobStorage import BlobStorage
-    >>> from ZODB.Blobs.Blob import Blob
-    >>> from ZODB import utils
-    >>> from ZODB.DB import DB
-    >>> import transaction
-    >>> from tempfile import mkdtemp, mktemp
     >>> base_storage = MappingStorage('storage')
-    >>> blob_dir = '/home/chrism/test_blobs'
     >>> blob_storage = BlobStorage(blob_dir, base_storage)
     >>> database = DB(blob_storage)
     
