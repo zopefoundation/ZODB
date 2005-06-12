@@ -115,6 +115,15 @@ class BlobStorage(ProxyBase):
         serials.sort(lambda x,y: cmp(os.stat(x).st_mtime, 
                                      os.stat(y).st_mtime)
                      )
+
+        # XXX the above sort is inadequate for files written within
+        # the same second at least under UNIX (st_mtime has a 1-second
+        # resolution).  We should really try to make it an invariant
+        # that the filenames be sortable instead.  This is the case
+        # right now due to ever-increasing tid values, but that's
+        # presumably an implementation detail, and also relies on the
+        # clock never going backwards.
+
         return self._splitBlobFilename(serials[-1])[1]
 
     def pack(self, packtime, referencesf):
