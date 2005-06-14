@@ -223,7 +223,40 @@ class BlobAdaptedFileStorageTests(GenericTests):
         """ % (self.blobdir, tempfile.mktemp())
 
     def checkStoreBlob(self):
-        pass  
+        from ZODB.utils import oid_repr, tid_repr
+        from ZODB.Blobs.Blob import Blob
+        from ZODB.Blobs.BlobStorage import BLOB_SUFFIX
+        from ZODB.tests.StorageTestBase import zodb_pickle, ZERO, \
+             handle_serials
+        import transaction
+
+        somedata = 'a' * 10
+
+        blob = Blob()
+        bd_fh = blob.open('w')
+        bd_fh.write(somedata)
+        bd_fh.close()
+        tfname = bd_fh.name
+        oid = self._storage.new_oid()
+        data = zodb_pickle(blob)
+        self.assert_(os.path.exists(tfname))
+
+        t = transaction.Transaction()
+        try:
+            self._storage.tpc_begin(t)
+            r1 = self._storage.storeBlob(oid, ZERO, data, tfname, '', t)
+            r2 = self._storage.tpc_vote(t)
+            revid = handle_serials(oid, r1, r2)
+            self._storage.tpc_finish(t)
+        except:
+            self._storage.tpc_abort(t)
+            raise
+        self.assert_(not os.path.exists(tfname))
+        filename = os.path.join(self.blobdir, oid_repr(oid),
+                                tid_repr(revid) + BLOB_SUFFIX)
+        self.assert_(os.path.exists(filename))
+        self.assertEqual(somedata, open(filename).read())
+        
 
 test_classes = [FileStorageTests, MappingStorageTests,
                 BlobAdaptedFileStorageTests]

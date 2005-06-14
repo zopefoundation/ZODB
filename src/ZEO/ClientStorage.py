@@ -903,10 +903,13 @@ class ClientStorage(object):
         blobfile = open(blobfilename, "rb")
         while True:
             chunk = blobfile.read(4096)
+            # even if the blobfile is completely empty, we need to call
+            # storeBlob at least once in order to be able to call
+            # storeBlobEnd successfully.
+            self._server.storeBlob(oid, serial, chunk, version, id(txn))
             if not chunk:
                 self._server.storeBlobEnd(oid, serial, data, version, id(txn))
                 break
-            self._server.storeBlob(oid, serial, chunk, version, id(txn))
         os.unlink(blobfilename)
         return serials
 
