@@ -5,8 +5,8 @@ Release date: DD-MMM-2005
 Following is combined news from "internal releases" (to support ongoing
 Zope3 development).  These are the dates of the internal releases:
 
+- 3.5a2 DD-MMM-2005
 - 3.5a1 10-Jun-2005
-
 
 Multi-database
 --------------
@@ -14,6 +14,31 @@ Multi-database
 - (3.5a1) Preliminary support for persistent cross-database references has
   been added.  See ``ZODB/cross-database-references.txt`` for an
   introduction.
+
+FileStorage.UndoSearch
+----------------------
+
+- (3.5a2) The ``_readnext()`` method now returns the transaction size as
+  the value of the "size" key.  Thanks to Dieter Maurer for the patch, from
+  http://mail.zope.org/pipermail/zodb-dev/2003-October/006157.html. "This is
+  very valuable when you want to spot strange transaction sizes via Zope's
+  'Undo' tab".
+
+
+What's new in ZODB3 3.4a1?
+==========================
+Release date: DD-MMM-2005
+
+-3.4.1a1 DD-MMM-2005
+
+FileStorage.UndoSearch
+----------------------
+
+- (3.4.1a1) The ``_readnext()`` method now returns the transaction size as
+  the value of the "size" key.  Thanks to Dieter Maurer for the patch, from
+  http://mail.zope.org/pipermail/zodb-dev/2003-October/006157.html. "This is
+  very valuable when you want to spot strange transaction sizes via Zope's
+  'Undo' tab".
 
 
 What's new in ZODB3 3.4?
