@@ -2088,6 +2088,7 @@ class UndoSearch:
         d = {'id': base64.encodestring(tid).rstrip(),
              'time': TimeStamp(tid).timeTime(),
              'user_name': u,
+             'size': tl,
              'description': d}
         d.update(e)
         return d
