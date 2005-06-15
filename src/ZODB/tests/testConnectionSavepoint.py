@@ -70,6 +70,23 @@ savepoints.)
     >>> transaction.commit()
 """
 
+def testCantCloseConnectionWithActiveSavepoint():
+    """
+    >>> import ZODB.tests.util
+    >>> db = ZODB.tests.util.DB()
+    >>> connection = db.open()
+    >>> root = connection.root()
+    >>> root['a'] = 1
+    >>> sp = transaction.savepoint()
+    >>> connection.close()
+    Traceback (most recent call last):
+    ...
+    ConnectionStateError: Cannot close a connection joined to a transaction
+
+    >>> db.close()
+    """
+    
+
 def test_suite():
     return unittest.TestSuite((
         doctest.DocFileSuite('testConnectionSavepoint.txt'),
