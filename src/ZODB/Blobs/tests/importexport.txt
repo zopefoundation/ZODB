@@ -18,11 +18,8 @@ Import/export support for blob data
 Set up:
 
     >>> from ZODB.FileStorage import FileStorage
-    >>> from ZODB.MappingStorage import MappingStorage
-    >>> from ZODB.serialize import referencesf
     >>> from ZODB.Blobs.BlobStorage import BlobStorage
     >>> from ZODB.Blobs.Blob import Blob
-    >>> from ZODB import utils
     >>> from ZODB.DB import DB
     >>> from persistent.mapping import PersistentMapping
     >>> import shutil
@@ -94,3 +91,5 @@ Clean up our blob directory:
     >>> shutil.rmtree(blob_dir1)
     >>> shutil.rmtree(blob_dir2)
     >>> os.unlink(exportfile)
+    >>> os.unlink(storagefile1)
+    >>> os.unlink(storagefile2)
