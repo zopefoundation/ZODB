@@ -7,8 +7,6 @@ Tests
 
 - Test BlobStorage.getSize
 
-- Test import/export.
-
 - Test conflict behavior.
 
 - Test shared client usage of blob cache dir.

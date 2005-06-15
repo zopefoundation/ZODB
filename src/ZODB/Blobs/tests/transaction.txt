@@ -134,27 +134,36 @@ moment):
         ...
     TypeError: coercing to Unicode: need string or buffer, BlobFile found
 
+Abort for good measure:
+
+    >>> transaction.abort()
+
 Attempting to change a blob simultaneously from two different
 connections should result in a write conflict error (this test is
 broken currently because I need to figure out how to commit the
 changes made in each connection independently):
 
-    >>> transaction.abort()
-    >>> blob1c1 = root1['blob1']
-    >>> blob1c2 = root2['blob1']
-    >>> blob1c1fh1 = blob1c1.open('a')
-    >>> blob1c2fh1 = blob1c2.open('a')
-    >>> blob1c1fh1.write('this is from connection 1')
-    >>> blob1c2fh1.write('this is from connection 2')
-    >>> transaction.commit()
+    >>> tm1 = transaction.TransactionManager()
+    >>> tm2 = transaction.TransactionManager()
+    >>> root3 = database.open(txn_mgr=tm1).root()
+    >>> root4 = database.open(txn_mgr=tm2).root()
+    >>> blob1c3 = root3['blob1']
+    >>> blob1c4 = root4['blob1']
+    >>> blob1c3fh1 = blob1c3.open('a')
+    >>> blob1c4fh1 = blob1c4.open('a')
+    >>> blob1c3fh1.write('this is from connection 3')
+    >>> blob1c4fh1.write('this is from connection 4')
+    >>> tm1.get().commit()
+    >>> tm2.get().commit()
     Traceback (most recent call last):
         ...
-    ConflictError
+    ConflictError: database conflict error (oid 0x01, class ZODB.Blobs.Blob.Blob)
 
 While we are testing this, we don't need the storage directory and databases
 anymore:
 
     >>> import shutil
     >>> shutil.rmtree(blob_dir)
-    >>> transaction.abort()
+    >>> tm1.get().abort()
+    >>> tm2.get().abort()
     >>> database.close()
