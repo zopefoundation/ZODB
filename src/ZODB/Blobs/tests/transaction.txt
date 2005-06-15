@@ -139,9 +139,7 @@ Abort for good measure:
     >>> transaction.abort()
 
 Attempting to change a blob simultaneously from two different
-connections should result in a write conflict error (this test is
-broken currently because I need to figure out how to commit the
-changes made in each connection independently):
+connections should result in a write conflict error.
 
     >>> tm1 = transaction.TransactionManager()
     >>> tm2 = transaction.TransactionManager()
