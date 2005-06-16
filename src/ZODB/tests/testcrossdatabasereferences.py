@@ -78,14 +78,19 @@ different connections to the same database.
 
 """
 
+def tearDownDbs(test):
+    test.globs['db1'].close()
+    test.globs['db2'].close()
 
 def test_suite():
     return unittest.TestSuite((
         doctest.DocFileSuite('../cross-database-references.txt',
                              globs=dict(MyClass=MyClass),
+                             tearDown=tearDownDbs,
                              ),
         doctest.DocFileSuite('../cross-database-references.txt',
                              globs=dict(MyClass=MyClass_w_getnewargs),
+                             tearDown=tearDownDbs,
                              ),
         doctest.DocTestSuite(),
         ))

@@ -107,6 +107,7 @@ class Connection(ExportImport, object):
         self._reset_counter = global_reset_counter
         self._load_count = 0   # Number of objects unghosted
         self._store_count = 0  # Number of objects stored
+        self._creating = {}
 
         # List of oids of modified objects (to be invalidated on an abort).
         self._modified = []
@@ -395,6 +396,7 @@ class Connection(ExportImport, object):
             self._flush_invalidations()
         self._needs_to_join = True
         self._registered_objects = []
+        self._creating.clear()
 
     # Process pending invalidations.
     def _flush_invalidations(self):
@@ -445,7 +447,7 @@ class Connection(ExportImport, object):
 
         # _creating is a list of oids of new objects, which is used to
         # remove them from the cache if a transaction aborts.
-        self._creating = []
+        self._creating.clear()
         self._normal_storage.tpc_begin(transaction)
 
     def commit(self, transaction):
@@ -468,8 +470,9 @@ class Connection(ExportImport, object):
         """Commit changes to an object"""
 
         if self._import:
-            # TODO:  This code seems important for Zope, but needs docs
-            # to explain why.
+            # We are importing an export file. We alsways do this
+            # while making a savepoint so we can copy export data
+            # directly to out storage, typically a TmpStore.
             self._importDuringCommit(transaction, *self._import)
             self._import = None
 
@@ -516,7 +519,7 @@ class Connection(ExportImport, object):
 
             if serial == z64:
                 # obj is a new object
-                self._creating.append(oid)
+                self._creating[oid] = 1
                 # Because obj was added, it is now in _creating, so it can
                 # be removed from _added.
                 self._added.pop(oid, None)
@@ -622,7 +625,7 @@ class Connection(ExportImport, object):
         """Disown any objects newly saved in an uncommitted transaction."""
         if creating is None:
             creating = self._creating
-            self._creating = []
+            self._creating = {}
 
         for oid in creating:
             o = self._cache.get(oid)
@@ -1033,10 +1036,10 @@ class Connection(ExportImport, object):
                                                self._normal_storage)
             self._storage = self._savepoint_storage
 
-        self._creating = []
+        self._creating.clear()
         self._commit(None)
-        self._storage.creating.extend(self._creating)
-        del self._creating[:]
+        self._storage.creating.update(self._creating)
+        self._creating.clear()
         self._registered_objects = []
 
         state = self._storage.position, self._storage.index.copy()
@@ -1061,7 +1064,7 @@ class Connection(ExportImport, object):
 
         # Copy invalidating and creating info from temporary storage:
         self._modified.extend(oids)
-        self._creating.extend(src.creating)
+        self._creating.update(src.creating)
 
         for oid in oids:
             data, serial = src.load(oid, src)
@@ -1129,7 +1132,7 @@ class TmpStore:
         self.position = 0L
         # index: map oid to pos of last committed version
         self.index = {}
-        self.creating = []
+        self.creating = {}
 
     def __len__(self):
         return len(self.index)

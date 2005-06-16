@@ -63,6 +63,47 @@ It isn't valid to create references outside a multi database:
     InvalidObjectReference:
     Attempt to store an object from a foreign database connection
 
+    >>> tm.abort()
+
+Databases for new objects
+-------------------------
+
+Objects are normally added to a database by making them reachable from
+an object already in the database.  This is unambiguous when there is
+only one database.  With modultiple databases, it is not so clear what
+happens.  Consider:
+
+    >>> p4 = MyClass()
+    >>> p1.p4 = p4
+    >>> p2.p4 = p4
+
+In this example, the new object is reachable from both p1 in database
+1 and p2 in database 2.  If we commit, which database will p4 end up
+in?  This sort of ambiguity can lead to subtle bugs. For that reason,
+an error is generated if we commit changes when new objects are
+reachable from multiple databases:
+
+    >>> tm.commit() # doctest: +NORMALIZE_WHITESPACE
+    Traceback (most recent call last):
+    ...
+    InvalidObjectReference: A new object is reachable from multiple
+    databases. Won't try to guess which one was correct!
+
+    >>> tm.abort()
+
+To resolve this ambiguity, we need to commit, or create a savepoint
+before an object becomes reachable from multiple databases.  Here
+we'll use a savepoint to make sure that p4 lands in database 1:
+
+    >>> p4 = MyClass()
+    >>> p1.p4 = p4
+    >>> s = tm.savepoint()
+    >>> p2.p4 = p4
+
+The advantage of using a savepoint is that we aren't making a
+commitment.  Changes made in the savepoint will be rolled back if the
+transaction is aborted.
+
 NOTE
 ----
 
