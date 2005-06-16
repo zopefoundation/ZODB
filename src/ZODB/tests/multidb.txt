@@ -94,7 +94,9 @@ Because that failed, db.databases wasn't changed:
 
 You can (still) get a connection to a database this way:
 
-    >>> cn = db.open()
+    >>> import transaction
+    >>> tm = transaction.TransactionManager()
+    >>> cn = db.open(transaction_manager=tm)
     >>> cn                  # doctest: +ELLIPSIS
     <Connection at ...>
 
@@ -110,6 +112,11 @@ thread/transaction/context ...):
     >>> cn2 = cn.get_connection('notroot')
     >>> cn2                  # doctest: +ELLIPSIS
     <Connection at ...>
+
+The second connection gets the same transaction manager as the first:
+
+    >>> cn2.transaction_manager is tm
+    True
 
 Now there are two connections in that collection:
 

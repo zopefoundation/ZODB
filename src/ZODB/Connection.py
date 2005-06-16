@@ -300,7 +300,10 @@ class Connection(ExportImport, object):
         """Return a Connection for the named database."""
         connection = self.connections.get(database_name)
         if connection is None:
-            new_con = self._db.databases[database_name].open()
+            new_con = self._db.databases[database_name].open(
+                transaction_manager=self.transaction_manager,
+                mvcc=self._mvcc, version=self._version, synch=self._synch,
+                )
             self.connections.update(new_con.connections)
             new_con.connections = self.connections
             connection = new_con
