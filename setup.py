@@ -264,7 +264,7 @@ class MyDistribution(Distribution):
 doclines = __doc__.split("\n")
 
 setup(name="ZODB3",
-      version="3.5.0a1",
+      version="3.5.0a2",
       maintainer="Zope Corporation",
       maintainer_email="zodb-dev@zope.org",
       url = "http://www.zope.org/Wikis/ZODB",
