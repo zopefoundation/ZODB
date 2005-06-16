@@ -344,18 +344,6 @@ ReadConflictError: database read conflict error (oid 0x02, class ZODB.tests.MinP
 True
 >>> ts.count
 1
-
-Cleanup
--------
-
-The setLocalTransaction() feature creates cyclic trash involving the
-Connection and Transaction.  The Transaction has an __del__ method,
-which prevents the cycle from being collected.  There's no API for
-clearing the Connection's local transaction.
-
->>> cn1._transaction = None
->>> cn2._transaction = None
-
 """
 
 from zope.testing import doctest
