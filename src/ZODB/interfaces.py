@@ -112,24 +112,6 @@ class IConnection(Interface):
             getTransferCounts
     """
 
-    def __init__(database, version='', cache_size=400):
-        """Create a new Connection.
-
-        A Connection instance should by instantiated by the DB
-        instance that it is connected to.
-
-        Parameters:
-        version: the "version" that all changes will be made in, defaults
-            to no version.
-        cache_size: the target size of the in-memory object cache, measured
-            in objects.
-        mvcc: boolean indicating whether MVCC is enabled
-        transaction_manager: transaction manager to use.  None means use the
-            default transaction manager.
-        synch: boolean indicating whether Connection should register for
-            afterCompletion() calls.
-        """
-
     def add(ob):
         """Add a new object 'obj' to the database and assign it an oid.
 
