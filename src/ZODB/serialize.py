@@ -337,6 +337,14 @@ class ObjectWriter:
                     "database connection"
                     )
 
+            if self._jar.get_connection(database_name) is not obj._p_jar:
+                raise InvalidObjectReference(
+                    "Attempt to store a reference to an object from "
+                    "a separate onnection to the same database or "
+                    "multidatabase"
+                    )
+                
+
         klass = type(obj)
         if hasattr(klass, '__getnewargs__'):
             # We don't want to save newargs in object refs.

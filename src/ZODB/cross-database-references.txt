@@ -19,11 +19,17 @@ And create a persistent object in the first database:
     >>> conn1.root()['p'] = p1
     >>> tm.commit()
 
+First, we get a connection to the second database.  We get the second
+connection using the first connection's `get_connextion` method.  This
+is important.  When using multiple databases, we need to make sure we
+use a consistent set of connections so that the objects in the
+connection caches are connected in a consistent manner.
+
+    >>> conn2 = conn1.get_connection('2')
+
 Now, we'll create a second persistent object in the second database.
 We'll have a reference to the first object:
 
-    >>> tm = transaction.TransactionManager()
-    >>> conn2 = db2.open(transaction_manager=tm)
     >>> p2 = MyClass()
     >>> conn2.root()['p'] = p2
     >>> p2.p1 = p1
