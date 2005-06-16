@@ -112,10 +112,7 @@ class IConnection(Interface):
             getTransferCounts
     """
 
-    def __init__(version='', cache_size=400,
-                 cache_deactivate_after=None, mvcc=True,
-                 transaction_manager=None,
-                 synch=True):
+    def __init__(database, version='', cache_size=400):
         """Create a new Connection.
 
         A Connection instance should by instantiated by the DB

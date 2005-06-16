@@ -273,7 +273,7 @@ class DB(object):
             self.undoInfo = storage.undoInfo
 
     # This is called by Connection.close().
-    def _closeConnection(self, connection):
+    def _returnToPool(self, connection):
         """Return a connection to the pool.
 
         connection._db must be self on entry.
@@ -282,7 +282,7 @@ class DB(object):
         self._a()
         try:
             assert connection._db is self
-            connection._db = None
+            connection._opened = None
 
             am = self._activity_monitor
             if am is not None:
@@ -560,16 +560,14 @@ class DB(object):
                     size = self._version_cache_size
                 else:
                     size = self._cache_size
-                c = self.klass(version=version, cache_size=size, mvcc=mvcc,
-                               transaction_manager=transaction_manager)
+                c = self.klass(self, version, size)
                 pool.push(c)
                 result = pool.pop()
             assert result is not None
 
             # Tell the connection it belongs to self.
-            result._setDB(self, mvcc=mvcc, synch=synch,
-                          transaction_manager=transaction_manager)
-
+            result.open(transaction_manager, mvcc, synch)
+            
             # A good time to do some cache cleanup.
             self._connectionMap(lambda c: c.cacheGC())
 

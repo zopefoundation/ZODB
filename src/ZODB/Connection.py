@@ -66,27 +66,22 @@ class Connection(ExportImport, object):
                IPersistentDataManager,
                ISynchronizer)
 
-    _storage = _normal_storage = _savepoint_storage = None
 
     _code_timestamp = 0
 
     ##########################################################################
     # Connection methods, ZODB.IConnection
 
-    def __init__(self, version='', cache_size=400,
-                 cache_deactivate_after=None, mvcc=True,
-                 txn_mgr=DEPRECATED_ARGUMENT,
-                 transaction_manager=None,
-                 synch=True):
+    def __init__(self, db, version='', cache_size=400):
         """Create a new Connection."""
 
-        if txn_mgr is not DEPRECATED_ARGUMENT:
-            deprecated36("use transaction_manager= instead of txn_mgr=")
-            if transaction_manager is None:
-                transaction_manager = txn_mgr
-            else:
-                raise ValueError("cannot specify both transaction_manager= "
-                                 "and txn_mgr=")
+        self._db = db
+        self._normal_storage = self._storage = db._storage
+        self.new_oid = db._storage.new_oid
+        self._savepoint_storage = None
+
+        self.transaction_manager = self._synch = self._mvcc = None
+
 
         self._log = logging.getLogger("ZODB.Connection")
         self._debug_info = ()
@@ -101,6 +96,7 @@ class Connection(ExportImport, object):
             # Unclear:  Why do we want version caches to behave this way?
 
             self._cache.cache_drain_resistance = 100
+
         self._committed = []
         self._added = {}
         self._added_during_commit = None
@@ -118,15 +114,6 @@ class Connection(ExportImport, object):
 
         # Do we need to join a txn manager?
         self._needs_to_join = True
-
-        # If a transaction manager is passed to the constructor, use
-        # it instead of the global transaction manager.  The instance
-        # variable will hold a TM instance.
-        self.transaction_manager = transaction_manager or transaction.manager
-
-        # _synch is a boolean; if True, the Connection will register
-        # with the TM to receive afterCompletion() calls.
-        self._synch = synch
 
         # _invalidated queues invalidate messages delivered from the DB
         # _inv_lock prevents one thread from modifying the set while
@@ -158,7 +145,6 @@ class Connection(ExportImport, object):
         # If it is None, then the current revisions are acceptable.
         # If the connection is in a version, mvcc will be disabled, because
         # loadBefore() only returns non-version data.
-        self._mvcc = mvcc and not version
         self._txn_time = None
 
         # To support importFile(), implemented in the ExportImport base
@@ -167,11 +153,16 @@ class Connection(ExportImport, object):
         # to pass to _importDuringCommit().
         self._import = None
 
-        self.connections = None
+
+        self._reader = ObjectReader(self, self._cache, self._db.classFactory)
+
+        # Multi-database support
+        self.connections = {self._db.database_name: self}
+
 
     def add(self, obj):
         """Add a new object 'obj' to the database and assign it an oid."""
-        if self._storage is None:
+        if self._opened is None:
             raise ConnectionStateError("The database connection is closed")
 
         marker = object()
@@ -195,7 +186,7 @@ class Connection(ExportImport, object):
 
     def get(self, oid):
         """Return the persistent object with oid 'oid'."""
-        if self._storage is None:
+        if self._opened is None:
             raise ConnectionStateError("The database connection is closed")
 
         obj = self._cache.get(oid, None)
@@ -234,7 +225,7 @@ class Connection(ExportImport, object):
             self.__onCloseCallbacks = []
         self.__onCloseCallbacks.append(f)
 
-    def close(self):
+    def close(self, primary=True):
         """Close the Connection."""
         if not self._needs_to_join:
             # We're currently joined to a transaction.
@@ -254,18 +245,28 @@ class Connection(ExportImport, object):
                     self._log.error("Close callback failed for %s", f,
                                     exc_info=sys.exc_info())
             self.__onCloseCallbacks = None
-        self._storage = self._savepoint_storage = self._normal_storage = None
-        self.new_oid = None
+
         self._debug_info = ()
-        self._opened = None
-        # Return the connection to the pool.
-        if self._db is not None:
-            if self._synch:
-                self.transaction_manager.unregisterSynch(self)
-            self._db._closeConnection(self)
-            # _closeConnection() set self._db to None.  However, we can't
-            # assert that here, because self may have been reused (by
-            # another thread) by the time we get back here.
+
+        if self._synch:
+            self.transaction_manager.unregisterSynch(self)
+            self._synch = None
+
+        if primary:
+            for connection in self.connections.values():
+                if connection is not self:
+                    connection.close(False)
+
+            # Return the connection to the pool.
+            if self._opened is not None:
+                self._db._returnToPool(self)
+                
+                # _returnToPool() set self._opened to None.
+                # However, we can't assert that here, because self may
+                # have been reused (by another thread) by the time we
+                # get back here.
+        else:
+            self._opened = None
 
     def db(self):
         """Returns a handle to the database this connection belongs to."""
@@ -273,7 +274,7 @@ class Connection(ExportImport, object):
 
     def isReadOnly(self):
         """Returns True if the storage for this connection is read only."""
-        if self._storage is None:
+        if self._opened is None:
             raise ConnectionStateError("The database connection is closed")
         return self._storage.isReadOnly()
 
@@ -700,7 +701,7 @@ class Connection(ExportImport, object):
         database."""
         oid = obj._p_oid
 
-        if self._storage is None:
+        if self._opened is None:
             msg = ("Shouldn't load state for %s "
                    "when the connection is closed" % oid_repr(oid))
             self._log.error(msg)
@@ -873,8 +874,8 @@ class Connection(ExportImport, object):
         # return a list of [ghosts....not recently used.....recently used]
         return everything.items() + items
 
-    def _setDB(self, odb, mvcc=None, txn_mgr=DEPRECATED_ARGUMENT,
-               transaction_manager=None, synch=None):
+    def open(self, transaction_manager=None, mvcc=True, synch=True,
+             delegate=True):
         """Register odb, the DB that this Connection uses.
 
         This method is called by the DB every time a Connection
@@ -893,39 +894,37 @@ class Connection(ExportImport, object):
         register for afterCompletion() calls.
         """
 
-        if txn_mgr is not DEPRECATED_ARGUMENT:
-            deprecated36("use transaction_manager= instead of txn_mgr=")
-            if transaction_manager is None:
-                transaction_manager = txn_mgr
-            else:
-                raise ValueError("cannot specify both transaction_manager= "
-                                 "and txn_mgr=")
-
         # TODO:  Why do we go to all the trouble of setting _db and
         # other attributes on open and clearing them on close?
         # A Connection is only ever associated with a single DB
         # and Storage.
 
-        self._db = odb
-        self._normal_storage = self._storage = odb._storage
-        self.new_oid = odb._storage.new_oid
         self._opened = time()
-        if synch is not None:
-            self._synch = synch
-        if mvcc is not None:
-            self._mvcc = mvcc
-        self.transaction_manager = transaction_manager or transaction.manager
+        self._synch = synch
+        self._mvcc = mvcc and not self._version
+
+        if transaction_manager is None:
+            transaction_manager = transaction.manager
+        
+        self.transaction_manager = transaction_manager
+
         if self._reset_counter != global_reset_counter:
             # New code is in place.  Start a new cache.
             self._resetCache()
         else:
             self._flush_invalidations()
-        if self._synch:
-            self.transaction_manager.registerSynch(self)
-        self._reader = ObjectReader(self, self._cache, self._db.classFactory)
 
-        # Multi-database support
-        self.connections = {self._db.database_name: self}
+        if synch:
+            transaction_manager.registerSynch(self)
+
+        if self._cache is not None:
+            self._cache.incrgc() # This is a good time to do some GC
+
+        if delegate:
+            # delegate open to secondary connections
+            for connection in self.connections.values():
+                if connection is not self:
+                    connection.open(transaction_manager, mvcc, synch, False)
 
     def _resetCache(self):
         """Creates a new cache, discarding the old one.

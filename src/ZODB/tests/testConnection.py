@@ -28,9 +28,9 @@ class ConnectionDotAdd(unittest.TestCase):
 
     def setUp(self):
         from ZODB.Connection import Connection
-        self.datamgr = Connection()
         self.db = StubDatabase()
-        self.datamgr._setDB(self.db)
+        self.datamgr = Connection(self.db)
+        self.datamgr.open()
         self.transaction = StubTransaction()
 
     def tearDown(self):
@@ -358,7 +358,8 @@ class UserMethodTests(unittest.TestCase):
         >>> cn.db() is db
         True
         >>> cn.close()
-        >>> cn.db()
+        >>> cn.db() is db
+        True
         """
 
     def test_isReadOnly(self):

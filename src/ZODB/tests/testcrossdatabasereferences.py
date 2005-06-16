@@ -78,6 +78,50 @@ different connections to the same database.
 
 """
 
+def test_connection_management_doesnt_get_caching_wrong():
+    """
+
+If a connection participates in a multidatabase, then it's
+connections must remain so that references between it's cached
+objects remain sane.
+
+    >>> import ZODB.tests.util, transaction, persistent
+    >>> databases = {}
+    >>> db1 = ZODB.tests.util.DB(databases=databases, database_name='1')
+    >>> db2 = ZODB.tests.util.DB(databases=databases, database_name='2')
+    >>> tm = transaction.TransactionManager()
+    >>> conn1 = db1.open(transaction_manager=tm)
+    >>> conn2 = conn1.get_connection('2')
+    >>> z = MyClass()
+    >>> conn2.root()['z'] = z
+    >>> tm.commit()
+    >>> x = MyClass()
+    >>> x.z = z
+    >>> conn1.root()['x'] = x
+    >>> y = MyClass()
+    >>> y.z = z
+    >>> conn1.root()['y'] = y
+    >>> tm.commit()
+
+    >>> conn1.root()['x'].z is conn1.root()['y'].z
+    True
+
+So, we have 2 objects in conn1 that point to the same object in conn2.
+Now, we'll deactivate one, close and repopen the connection, and see
+if we get the same objects:
+
+    >>> x._p_deactivate()
+    >>> conn1.close()
+    >>> conn1 = db1.open(transaction_manager=tm)
+
+    >>> conn1.root()['x'].z is conn1.root()['y'].z
+    True
+    
+    >>> db1.close()
+    >>> db2.close()
+"""
+
+
 def tearDownDbs(test):
     test.globs['db1'].close()
     test.globs['db2'].close()

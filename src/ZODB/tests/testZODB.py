@@ -165,7 +165,7 @@ class ZODBTests(unittest.TestCase):
         ZODB.Connection.resetCaches()
         conn.close()
         self.assert_(len(conn._cache) > 0)  # Still not flushed
-        conn._setDB(self._db)  # simulate the connection being reopened
+        conn.open()  # simulate the connection being reopened
         self.assertEqual(len(conn._cache), 0)
 
     def checkExplicitTransactionManager(self):
