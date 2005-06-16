@@ -1120,7 +1120,7 @@ class TmpStore:
         self._storage = storage
         for method in (
             'getName', 'new_oid', 'modifiedInVersion', 'getSize',
-            'undoLog', 'versionEmpty', 'sortKey',
+            'undoLog', 'versionEmpty', 'sortKey', 'loadBefore',
             ):
             setattr(self, method, getattr(storage, method))
 
