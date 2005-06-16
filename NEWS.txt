@@ -4,6 +4,17 @@ Release date: DD-MMM-2005
 
 -3.4.1a1 DD-MMM-2005
 
+Savepoints
+----------
+
+- (3.4.1a1) When a savepoint is made, the states of objects modified so far
+  are saved to a temporary storage (an instance of class ``TmpStore``,
+  although that's an internal implementation detail).  That storage needs
+  to implement the full storage API too, but was missing the ``loadBefore()``
+  method needed for MVCC to retrieve non-current revisions of objects.  This
+  could cause spurious errors if a transaction with a pending savepoint
+  needed to fetch an older revision of some object.
+
 FileStorage.UndoSearch
 ----------------------
 

@@ -244,7 +244,63 @@ a ghost.
 >>> r1["b"]._p_state # GHOST
 -1
 
->>> cn1._transaction = None # See the Cleanup section below
+
+Interaction with Savepoints
+---------------------------
+
+Basically, making a savepoint shouldn't have any effect on what a thread
+sees.  Before ZODB 3.4.1, the internal TmpStore used when savepoints are
+pending didn't delegate all the methods necessary to make this work, so
+we'll do a quick test of that here.  First get a clean slate:
+
+>>> cn1.close(); cn2.close()
+>>> cn1 = db.open(transaction_manager=tm1)
+>>> r1 = cn1.root()
+>>> r1["a"].value = 0
+>>> r1["b"].value = 1
+>>> tm1.commit()
+
+Now modify "a", but not "b", and make a savepoint.
+
+>>> r1["a"].value = 42
+>>> sp = cn1.savepoint()
+
+Over in the other connection, modify "b" and commit it.  This makes the
+first connection's state for b "old".
+
+>>> cn2 = db.open(transaction_manager=tm2)
+>>> r2 = cn2.root()
+>>> r2["a"].value, r2["b"].value  # shouldn't see the change to "a"
+(0, 1)
+>>> r2["b"].value = 43
+>>> tm2.commit()
+>>> r2["a"].value, r2["b"].value
+(0, 43)
+
+Now deactivate "b" in the first connection, and (re)fetch it.  The first
+connection should still see 1, due to MVCC, but to get this old state
+TmpStore needs to handle the loadBefore() method.
+
+>>> r1["b"]._p_deactivate()
+
+Before 3.4.1, the next line died with
+    AttributeError: TmpStore instance has no attribute 'loadBefore'
+
+>>> r1["b"]._p_state  # ghost
+-1
+>>> r1["b"].value
+1
+
+Just for fun, finish the commit and make sure both connections see the
+same things now.
+
+>>> tm1.commit()
+>>> cn1.sync(); cn2.sync()
+>>> r1["a"].value, r1["b"].value
+(42, 43)
+>>> r2["a"].value, r2["b"].value
+(42, 43)
+
 
 Late invalidation
 -----------------
