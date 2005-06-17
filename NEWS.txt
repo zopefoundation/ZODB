@@ -1,6 +1,6 @@
 What's new in ZODB3 3.5a3?
 ==========================
-Release date: DD-MMM-2005
+Release date: 17-Jun-2005
 
 Following is combined news from "internal releases" (to support ongoing
 Zope3 development).  These are the dates of the internal releases:
