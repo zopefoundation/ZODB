@@ -347,8 +347,7 @@ class ObjectWriter:
             # OK, we have an object from another database.
             # Lets make sure the object ws not *just* loaded.
 
-            # TODO: shouldn't depend on underware (_creating)
-            if oid in obj._p_jar._creating:
+            if obj._p_jar._implicitlyAdding(oid):
                 raise InvalidObjectReference(
                     "A new object is reachable from multiple databases. "
                     "Won't try to guess which one was correct!"

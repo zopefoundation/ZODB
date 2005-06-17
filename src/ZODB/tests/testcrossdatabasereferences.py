@@ -121,6 +121,30 @@ if we get the same objects:
     >>> db2.close()
 """
 
+def test_explicit_adding_with_savepoint():
+    """
+
+    >>> import ZODB.tests.util, transaction, persistent
+    >>> databases = {}
+    >>> db1 = ZODB.tests.util.DB(databases=databases, database_name='1')
+    >>> db2 = ZODB.tests.util.DB(databases=databases, database_name='2')
+    >>> tm = transaction.TransactionManager()
+    >>> conn1 = db1.open(transaction_manager=tm)
+    >>> conn2 = conn1.get_connection('2')
+    >>> z = MyClass()
+
+    >>> conn1.root()['z'] = z
+    >>> conn1.add(z)
+    >>> s = tm.savepoint()
+    >>> conn2.root()['z'] = z
+    >>> tm.commit()
+    >>> z._p_jar.db().database_name
+    '1'
+    
+    >>> db1.close()
+    >>> db2.close()
+
+"""
 
 def tearDownDbs(test):
     test.globs['db1'].close()

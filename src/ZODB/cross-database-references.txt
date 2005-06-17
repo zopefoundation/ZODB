@@ -91,18 +91,47 @@ reachable from multiple databases:
 
     >>> tm.abort()
 
-To resolve this ambiguity, we need to commit, or create a savepoint
-before an object becomes reachable from multiple databases.  Here
-we'll use a savepoint to make sure that p4 lands in database 1:
+To resolve this ambiguity, we can commit before an object becomes
+reachable from multiple databases.
 
     >>> p4 = MyClass()
     >>> p1.p4 = p4
-    >>> s = tm.savepoint()
+    >>> tm.commit()
     >>> p2.p4 = p4
+    >>> tm.commit()
+    >>> p4._p_jar.db().database_name
+    '1'
 
-The advantage of using a savepoint is that we aren't making a
-commitment.  Changes made in the savepoint will be rolled back if the
-transaction is aborted.
+This doesn't work with a savepoint:
+
+    >>> p5 = MyClass()
+    >>> p1.p5 = p5
+    >>> s = tm.savepoint()
+    >>> p2.p5 = p5
+    >>> tm.commit() # doctest: +NORMALIZE_WHITESPACE
+    Traceback (most recent call last):
+    ...
+    InvalidObjectReference: A new object is reachable from multiple
+    databases. Won't try to guess which one was correct!
+
+    >>> tm.abort()
+
+(Maybe it should.)
+
+We can disambiguate this situation by using the connection add method
+to explicitly say waht database an object belongs to:
+
+
+    >>> p5 = MyClass()
+    >>> p1.p5 = p5
+    >>> p2.p5 = p5
+    >>> conn1.add(p5)
+    >>> tm.commit() 
+    >>> p5._p_jar.db().database_name
+    '1'
+
+This the most explicit and thus the best way, when practical, to avoid
+the ambiguity.
 
 NOTE
 ----

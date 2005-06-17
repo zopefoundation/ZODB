@@ -311,6 +311,22 @@ class Connection(ExportImport, object):
             connection = new_con
         return connection
 
+    def _implicitlyAdding(self, oid):
+        """Are we implicitly adding an object within the current transaction
+
+        This is used in a check to avoid implicitly adding an object
+        to a database in a multi-database situation.
+        See serialize.ObjectWriter.persistent_id.
+        
+        """
+        return (self._creating.get(oid, 0)
+                or
+                ((self._savepoint_storage is not None)
+                 and
+                 self._savepoint_storage.creating.get(oid, 0)
+                 )
+                )
+
     def sync(self):
         """Manually update the view on the database."""
         self.transaction_manager.abort()
@@ -520,10 +536,15 @@ class Connection(ExportImport, object):
 
             if serial == z64:
                 # obj is a new object
-                self._creating[oid] = 1
-                # Because obj was added, it is now in _creating, so it can
-                # be removed from _added.
-                self._added.pop(oid, None)
+
+                # Because obj was added, it is now in _creating, so it
+                # can be removed from _added.  If oid wasn't in
+                # adding, then we are adding it implicitly.
+                
+                implicitly_adding = self._added.pop(oid, None) is None
+
+                self._creating[oid] = implicitly_adding
+                
             else:
                 if (oid in self._invalidated
                     and not hasattr(obj, '_p_resolveConflict')):
