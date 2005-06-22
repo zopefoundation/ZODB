@@ -1,11 +1,12 @@
-What's new in ZODB3 3.5a3?
+What's new in ZODB3 3.5a4?
 ==========================
-Release date: 17-Jun-2005
+Release date: DD-MMM-2005
 
 Following is combined news from "internal releases" (to support ongoing
 Zope3 development).  These are the dates of the internal releases:
 
-- 3.5a3 DD-MMM-2005
+- 3.5a4 DD-MMM-2005
+- 3.5a3 17-Jun-2005
 - 3.5a2 16-Jun-2005
 - 3.5a1 10-Jun-2005
 
@@ -26,6 +27,18 @@ Multi-database
 - (3.5a1) Preliminary support for persistent cross-database references has
   been added.  See ``ZODB/cross-database-references.txt`` for an
   introduction.
+
+ThreadedAsync.LoopCallback
+--------------------------
+
+- (3.5a4) This replaces Python's ``asyncore.loop`` function with its own, in
+  order to get notified when ``loop()`` is first called.  The signature of
+  ``asyncore.loop`` changed in Python 2.4, but ``LoopCallback.loop``'s
+  signature didn't change to match.  The code here was repaired to be
+  compatible with both old and new signatures, and also repaired to invoke
+  Python's ``asyncore.loop()`` instead of replacing it entirely (so, for
+  example, debugging prints added to Python's ``asyncore.loop`` won't be
+  lost anymore).
 
 FileStorage.UndoSearch
 ----------------------
@@ -62,6 +75,18 @@ FileStorage.UndoSearch
   http://mail.zope.org/pipermail/zodb-dev/2003-October/006157.html. "This is
   very valuable when you want to spot strange transaction sizes via Zope's
   'Undo' tab".
+
+ThreadedAsync.LoopCallback
+--------------------------
+
+- This replaces Python's ``asyncore.loop`` function with its own, in order
+  to get notified when ``loop()`` is first called.  The signature of
+  ``asyncore.loop`` changed in Python 2.4, but ``LoopCallback.loop``'s
+  signature didn't change to match.  The code here was repaired to be
+  compatible with both old and new signatures, and also repaired to invoke
+  Python's ``asyncore.loop()`` instead of replacing it entirely (so, for
+  example, debugging prints added to Python's ``asyncore.loop`` won't be
+  lost anymore).
 
 
 What's new in ZODB3 3.4?
