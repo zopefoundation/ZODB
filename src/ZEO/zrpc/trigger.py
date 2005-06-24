@@ -52,7 +52,7 @@ from ZODB.utils import positive_id
 # new data onto a channel's outgoing data queue at the same time that
 # the main thread is trying to remove some]
 
-class _triggerbase:
+class _triggerbase(object):
     """OS-independent base class for OS-dependent trigger class."""
 
     kind = None  # subclass must set to "pipe" or "loopback"; used by repr
@@ -168,23 +168,10 @@ else:
 
             # Specifying port 0 tells Windows to pick a port for us.
             a.bind(("127.0.0.1", 0))
-            connect_address = a.getsockname()  # actual (host, port) pair
+            connect_address = a.getsockname()  # assigned (host, port) pair
             a.listen(1)
-
-            # Before connecting, set w non-blocking, because the connect can't
-            # succeed before we call a.accept() -- while a.accept() can't
-            # succeed before we try to connect.  Maybe it would be clearer
-            # to spin off a thread to do this, but that's much more expensive
-            # than this hack.
-            w.setblocking(0)
-            try:
-                w.connect(connect_address)
-            except socket.error:
-                # Expected exception, since a.accept() hasn't been called
-                # yet.
-                pass
-            w.setblocking(1)
-            r, addr = a.accept()  # r becomes asyncore's socket
+            w.connect(connect_address)
+            r, addr = a.accept()  # r becomes asyncore's (self.)socket
             a.close()
             asyncore.dispatcher.__init__(self, r)
 
