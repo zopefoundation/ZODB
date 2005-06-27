@@ -50,11 +50,14 @@ FileStorage.UndoSearch
   'Undo' tab".
 
 
-What's new in ZODB3 3.4a1?
-==========================
+What's new in ZODB3 3.4.1a2?
+============================
 Release date: DD-MMM-2005
 
--3.4.1a1 DD-MMM-2005
+Following are dates of internal releases (to support ongoing Zope 2
+development) since ZODB 3.4's last public release:
+
+- 3.4.1a1 27-Jun-2005
 
 Savepoints
 ----------
