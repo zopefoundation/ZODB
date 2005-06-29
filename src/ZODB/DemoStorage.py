@@ -337,21 +337,19 @@ class DemoStorage(BaseStorage):
         self._ltid = self._tid
 
     def undoLog(self, first, last, filter=None):
-        if last < 0:
-            last = first - last + 1
+        if last < 0:  # abs(last) is an upper bound on the # to return
+            last = first - last
         self._lock_acquire()
         try:
-            # Unsure:  shouldn we sort this?
             transactions = self._data.items()
             pos = len(transactions)
             r = []
             i = 0
             while i < last and pos:
-                pos = pos - 1
-                if i < first:
-                    i = i + 1
-                    continue
+                pos -= 1
                 tid, (p, u, d, e, t) = transactions[pos]
+                # Bug alert:  why do we skip this if the transaction
+                # has been packed?
                 if p:
                     continue
                 d = {'id': base64.encodestring(tid)[:-1],
@@ -359,10 +357,10 @@ class DemoStorage(BaseStorage):
                      'user_name': u, 'description': d}
                 if e:
                     d.update(loads(e))
-
                 if filter is None or filter(d):
-                    r.append(d)
-                    i = i + 1
+                    if i >= first:
+                        r.append(d)
+                    i += 1
             return r
         finally:
             self._lock_release()

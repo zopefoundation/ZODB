@@ -1070,11 +1070,11 @@ class FileStorage(BaseStorage.BaseStorage,
     def undoLog(self, first=0, last=-20, filter=None):
         if last < 0:
             # -last is supposed to be the max # of transactions.  Convert to
-            # a positive index.  Should have x - first + 1 = -last, which
-            # means x = first - last - 1.  This is spelled out here because
+            # a positive index.  Should have x - first = -last, which
+            # means x = first - last.  This is spelled out here because
             # the normalization code was incorrect for years (used +1
-            # instead -- off by 2), until ZODB 3.4.
-            last = first - last - 1
+            # instead -- off by 1), until ZODB 3.4.
+            last = first - last
         self._lock_acquire()
         try:
             if self._pack_is_in_progress:
@@ -2043,7 +2043,7 @@ class UndoSearch:
         self.filter = filter
         # self.i is the index of the transaction we're _going_ to find
         # next.  When it reaches self.first, we should start appending
-        # to self.results.  When it reaches self.last + 1, we're done
+        # to self.results.  When it reaches self.last, we're done
         # (although we may finish earlier).
         self.i = 0
         self.results = []
@@ -2052,7 +2052,7 @@ class UndoSearch:
     def finished(self):
         """Return True if UndoSearch has found enough records."""
         # BAW: Why 39 please?  This makes no sense (see also below).
-        return self.i > self.last or self.pos < 39 or self.stop
+        return self.i >= self.last or self.pos < 39 or self.stop
 
     def search(self):
         """Search for another record."""

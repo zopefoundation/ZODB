@@ -755,7 +755,7 @@ class TransactionalUndoStorage:
         self.assertEqual(default, allofem[:20])
 
         # If we ask for only one, we should get only the most recent.
-        fresh = info_func(last=0)
+        fresh = info_func(last=1)
         self.assertEqual(len(fresh), 1)
         self.assertEqual(fresh[0], allofem[0])
 
@@ -765,11 +765,11 @@ class TransactionalUndoStorage:
 
         # Try a slice that doesn't start at 0.
         oddball = info_func(first=11, last=17)
-        self.assertEqual(len(oddball), 17-11+1)
+        self.assertEqual(len(oddball), 17-11)
         self.assertEqual(oddball, allofem[11 : 11+len(oddball)])
 
         # And another way to spell the same thing.
-        redundant = info_func(first=11, last=-7)
+        redundant = info_func(first=11, last=-6)
         self.assertEqual(oddball, redundant)
 
         cn.close()
