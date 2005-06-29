@@ -490,13 +490,15 @@ class IStorageUndoable(IStorage):
 
             `first`:  This is the index of the first transaction description
                       in the slice.  It must be >= 0.
-            `last`:  If >= 0, this is the index of the last transaction
-                     description in the slice, and `last` should be at least
-                     as large as `first` in this case.  If `last` is less than
-                     0, then abs(last) is taken to be the maximum number
-                     of descriptions in the slice (which still begins at
-                     index `first`).  When `last` < 0, the same effect could
-                     be gotten by passing the positive first-last-1 for
+            `last`:  If >= 0, first:last acts like a Python slice, selecting
+                     the descriptions at indices `first`, first+1, ..., up to
+                     but not including index `last`.  At most last-first
+                     descriptions are in the slice, and `last` should be at
+                     least as large as `first` in this case.  If `last` is
+                     less than 0, then abs(last) is taken to be the maximum
+                     number of descriptions in the slice (which still begins
+                     at index `first`).  When `last` < 0, the same effect
+                     could be gotten by passing the positive first-last for
                      `last` instead.
         """
 

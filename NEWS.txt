@@ -1,10 +1,11 @@
-What's new in ZODB3 3.4.1a2?
+What's new in ZODB3 3.4.1a3?
 ============================
 Release date: DD-MMM-2005
 
 Following are dates of internal releases (to support ongoing Zope 2
 development) since ZODB 3.4's last public release:
 
+- 3.4.1a2 29-Jun-2005
 - 3.4.1a1 27-Jun-2005
 
 Savepoints
@@ -18,11 +19,21 @@ Savepoints
   could cause spurious errors if a transaction with a pending savepoint
   needed to fetch an older revision of some object.
 
-FileStorage.UndoSearch
-----------------------
+FileStorage
+-----------
 
-- (3.4.1a1) The ``_readnext()`` method now returns the transaction size as
-  the value of the "size" key.  Thanks to Dieter Maurer for the patch, from
+- (3.4.1a2) Collector #1822.  The ``undoLog()`` and ``undoInfo()`` methods
+  were changed in 3.4a9 to return the documented results.  Alas, some pieces
+  of (non-ZODB) code relied on the actual behavior.  When the `first` and
+  `last` arguments are both >= 0, these methods now treat them as if they
+  were Python slice indices, including the `first` index but excluding the
+  `last` index.  This matches former behavior, although it contradicts older
+  ZODB UML documentation.  The documentation in
+  ``ZODB.interfaces.IStorageUndoable`` was changed to match the new intent.
+
+- (3.4.1a1) The ``UndoSearch._readnext()`` method now returns the transaction
+  size as the value of the "size" key.  Thanks to Dieter Maurer for the
+  patch, from
   http://mail.zope.org/pipermail/zodb-dev/2003-October/006157.html. "This is
   very valuable when you want to spot strange transaction sizes via Zope's
   'Undo' tab".
@@ -38,6 +49,11 @@ ThreadedAsync.LoopCallback
   Python's ``asyncore.loop()`` instead of replacing it entirely (so, for
   example, debugging prints added to Python's ``asyncore.loop`` won't be
   lost anymore).
+
+DemoStorage
+-----------
+
+- The implementation of ``undoLog()`` was wrong in several ways; repaired.
 
 
 What's new in ZODB3 3.4?
