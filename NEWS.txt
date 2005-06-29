@@ -24,10 +24,10 @@ FileStorage
 
 - (3.4.1a2) Collector #1822.  The ``undoLog()`` and ``undoInfo()`` methods
   were changed in 3.4a9 to return the documented results.  Alas, some pieces
-  of (non-ZODB) code relied on the actual behavior.  When the `first` and
-  `last` arguments are both >= 0, these methods now treat them as if they
-  were Python slice indices, including the `first` index but excluding the
-  `last` index.  This matches former behavior, although it contradicts older
+  of (non-ZODB) code relied on the actual behavior.  When the ``first`` and
+  ``last`` arguments are both >= 0, these methods now treat them as if they
+  were Python slice indices, including the ``first`` index but excluding the
+  ``last`` index.  This matches former behavior, although it contradicts older
   ZODB UML documentation.  The documentation in
   ``ZODB.interfaces.IStorageUndoable`` was changed to match the new intent.
 
