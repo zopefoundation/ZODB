@@ -18,31 +18,30 @@ from zope.interface import Interface
 class ICollection(Interface):
 
     def clear():
-        """Remove all of the items from the collection"""
+        """Remove all of the items from the collection."""
 
     def __nonzero__():
         """Check if the collection is non-empty.
 
         Return a true value if the collection is non-empty and a
-        false otherwise.
+        false value otherwise.
         """
 
 
 class IReadSequence(Interface):
 
     def __getitem__(index):
-        """Return a value at the given index
+        """Return the value at the given index.
 
         An IndexError is raised if the index cannot be found.
         """
 
     def __getslice__(index1, index2):
-        """Return a subsequence from the original sequence
+        """Return a subsequence from the original sequence.
 
-        Such that the subsequence includes the items from index1 up
-        to, but not including, index2.
+        The subsequence includes the items from index1 up to, but not
+        including, index2.
         """
-
 
 class IKeyed(ICollection):
 
@@ -55,7 +54,7 @@ class IKeyed(ICollection):
     def keys(min=None, max=None, excludemin=False, excludemax=False):
         """Return an IReadSequence containing the keys in the collection.
 
-        The type of the IReadSequence is not specified. It could be a list
+        The type of the IReadSequence is not specified.  It could be a list
         or a tuple or some other type.
 
         All arguments are optional, and may be specified as keyword
@@ -75,17 +74,19 @@ class IKeyed(ICollection):
         """
 
     def maxKey(key=None):
-        """Return the maximum key
+        """Return the maximum key.
 
-        If a key argument if provided, return the largest key that is
-        less than or equal to the argument.
+        If a key argument if provided and not None, return the largest key
+        that is less than or equal to the argument.  Raise an exception if
+        no such key exists.
         """
 
     def minKey(key=None):
-        """Return the minimum key
+        """Return the minimum key.
 
-        If a key argument if provided, return the smallest key that is
-        greater than or equal to the argument.
+        If a key argument if provided and not None, return the smallest key
+        that is greater than or equal to the argument.  Raise an exception
+        if no such key exists.
         """
 
 
@@ -131,24 +132,24 @@ class ITreeSet(IKeyed, ISetMutable):
 class IMinimalDictionary(ISized, IKeyed):
 
     def get(key, default):
-        """Get the value for the given key
+        """Get the value associated with the given key.
 
-        Return the default if the key is not in the collection.
+        Return the default if has_key(key) is false.
         """
 
     def __setitem__(key, value):
-        """Set the value for the given key."""
+        """Set the value associated with the given key."""
 
     def __delitem__(key):
-        """Delete the value for the given key.
+        """Delete the value associated with the given key.
 
-        Raise KeyError if the key if not in the collection.
+        Raise KeyError if the key if has_key(key) is false.
         """
 
     def values(min=None, max=None, excludemin=False, excludemax=False):
         """Return an IReadSequence containing the values in the collection.
 
-        The type of the IReadSequence is not specified. It could be a list
+        The type of the IReadSequence is not specified.  It could be a list
         or a tuple or some other type.
 
         All arguments are optional, and may be specified as keyword
@@ -200,19 +201,18 @@ class IDictionaryIsh(IMinimalDictionary):
     def update(collection):
         """Add the items from the given collection object to the collection.
 
-        The input collection must be a sequence of key-value tuples,
+        The input collection must be a sequence of (key, value) 2-tuples,
         or an object with an 'items' method that returns a sequence of
-        key-value tuples.
+        (key, value) pairs.
         """
 
     def byValue(minValue):
-        """Return a sequence of value-key pairs, sorted by value
+        """Return a sequence of (value, key) pairs, sorted by value.
 
-        Values < min are ommitted and other values are "normalized" by
-        the minimum value. This normalization may be a noop, but, for
+        Values < minValue are omitted and other values are "normalized" by
+        the minimum value.  This normalization may be a noop, but, for
         integer values, the normalization is division.
         """
-
 
 class IBTree(IDictionaryIsh):
 
@@ -230,7 +230,7 @@ class IBTree(IDictionaryIsh):
 
         A standard idiom for generating new keys will be::
 
-          key=generate_key()
+          key = generate_key()
           while not t.insert(key, value):
               key=generate_key()
         """
@@ -255,8 +255,7 @@ class IMerge(Interface):
     """
 
     def difference(c1, c2):
-        """Return the keys or items in c1 for which there is no key in
-        c2.
+        """Return the keys or items in c1 for which there is no key in c2.
 
         If c1 is None, then None is returned.  If c2 is None, then c1
         is returned.
