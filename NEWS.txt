@@ -59,6 +59,12 @@ FileStorage
   very valuable when you want to spot strange transaction sizes via Zope's
   'Undo' tab".
 
+BTrees interface
+----------------
+
+- (3.5a4S) Collector 1829.  Clarified that the ``minKey()`` and ``maxKey()``
+  methods raise an exception if no key exists satsifying the constraints.
+
 
 What's new in ZODB3 3.4.1a3?
 ============================
@@ -67,6 +73,7 @@ Release date: DD-MMM-2005
 Following are dates of internal releases (to support ongoing Zope 2
 development) since ZODB 3.4's last public release:
 
+- 3.4.1a3 DD-MMM-2005
 - 3.4.1a2 29-Jun-2005
 - 3.4.1a1 27-Jun-2005
 
@@ -116,6 +123,12 @@ DemoStorage
 -----------
 
 - The implementation of ``undoLog()`` was wrong in several ways; repaired.
+
+BTrees interface
+----------------
+
+- (3.4.1a3) Collector 1829.  Clarified that the ``minKey()`` and ``maxKey()``
+  methods raise an exception if no key exists satsifying the constraints.
 
 
 What's new in ZODB3 3.4?
