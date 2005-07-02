@@ -1730,7 +1730,7 @@ def read_index(file, name, index, vindex, tindex, stop='\377'*8,
                       name, pos)
 
             if index_get(h.oid, 0) != h.prev:
-                if prev:
+                if h.prev:
                     if recover:
                         return tpos, None, None
                     logger.error("%s incorrect previous pointer at %s",

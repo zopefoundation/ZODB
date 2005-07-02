@@ -44,6 +44,9 @@ ThreadedAsync.LoopCallback
 FileStorage
 -----------
 
+- (3.5a4) Collector #1830.  In some error cases when reading a FileStorage
+  index, the code referenced an undefined global.
+
 - (3.5a4) Collector #1822.  The ``undoLog()`` and ``undoInfo()`` methods
   were changed in 3.4a9 to return the documented results.  Alas, some pieces
   of (non-ZODB) code relied on the actual behavior.  When the ``first`` and
@@ -66,14 +69,14 @@ BTrees interface
   methods raise an exception if no key exists satsifying the constraints.
 
 
-What's new in ZODB3 3.4.1a3?
+What's new in ZODB3 3.4.1a4?
 ============================
 Release date: DD-MMM-2005
 
 Following are dates of internal releases (to support ongoing Zope 2
 development) since ZODB 3.4's last public release:
 
-- 3.4.1a3 DD-MMM-2005
+- 3.4.1a3 02-Jul-2005
 - 3.4.1a2 29-Jun-2005
 - 3.4.1a1 27-Jun-2005
 
@@ -90,6 +93,9 @@ Savepoints
 
 FileStorage
 -----------
+
+- (3.4.1a3) Collector #1830.  In some error cases when reading a FileStorage
+  index, the code referenced an undefined global.
 
 - (3.4.1a2) Collector #1822.  The ``undoLog()`` and ``undoInfo()`` methods
   were changed in 3.4a9 to return the documented results.  Alas, some pieces
