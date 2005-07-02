@@ -42,8 +42,6 @@ from ZODB.FileStorage.format \
 from ZODB.loglevels import BLATHER
 from ZODB.fsIndex import fsIndex
 
-t32 = 1L << 32
-
 packed_version = "FS21"
 
 logger = logging.getLogger('ZODB.FileStorage')
@@ -1653,8 +1651,6 @@ def read_index(file, name, index, vindex, tindex, stop='\377'*8,
             break
 
         tid, tl, status, ul, dl, el = unpack(TRANS_HDR, h)
-        if el < 0: 
-            el = t32 - el
 
         if tid <= ltid:
             logger.warning("%s time-stamp reduction at %s", name, pos)

@@ -127,7 +127,7 @@ import struct
 import logging
 
 from ZODB.POSException import POSKeyError
-from ZODB.utils import u64, oid_repr, t32
+from ZODB.utils import u64, oid_repr
 
 
 class CorruptedError(Exception):
@@ -342,8 +342,7 @@ class TxnHeader(object):
         self.ulen = ulen
         self.dlen = dlen
         self.elen = elen
-        if elen < 0:
-            self.elen = t32 - elen
+        assert elen >= 0
 
     def asString(self):
         s = struct.pack(TRANS_HDR, self.tid, self.tlen, self.status,
