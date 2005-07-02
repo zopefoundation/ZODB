@@ -81,7 +81,7 @@ except ImportError:
     import ZODB
 
 import ZODB.FileStorage
-from ZODB.utils import t32, u64
+from ZODB.utils import u64
 from ZODB.FileStorage import RecordIterator
 
 from persistent.TimeStamp import TimeStamp
@@ -108,8 +108,6 @@ def read_txn_header(f, pos, file_size, outp, ltid):
         raise EOFError
 
     tid, stl, status, ul, dl, el = unpack(">8s8scHHH",h)
-    if el < 0: el=t32-el
-
     tl = u64(stl)
 
     if pos + (tl + 8) > file_size:
