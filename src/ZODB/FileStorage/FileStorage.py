@@ -1620,7 +1620,7 @@ def read_index(file, name, index, vindex, tindex, stop='\377'*8,
     read = file.read
     seek = file.seek
     seek(0, 2)
-    file_size=file.tell()
+    file_size = file.tell()
     fmt = TempFormatter(file)
 
     if file_size:
@@ -1634,16 +1634,17 @@ def read_index(file, name, index, vindex, tindex, stop='\377'*8,
             file.write(packed_version)
         return 4L, z64, ltid
 
-    index_get=index.get
+    index_get = index.get
 
-    pos=start
+    pos = start
     seek(start)
-    tid='\0'*7+'\1'
+    tid = '\0' * 7 + '\1'
 
     while 1:
         # Read the transaction record
-        h=read(TRANS_HDR_LEN)
-        if not h: break
+        h = read(TRANS_HDR_LEN)
+        if not h:
+            break
         if len(h) != TRANS_HDR_LEN:
             if not read_only:
                 logger.warning('%s truncated at %s', name, pos)
@@ -1651,8 +1652,9 @@ def read_index(file, name, index, vindex, tindex, stop='\377'*8,
                 file.truncate()
             break
 
-        tid, tl, status, ul, dl, el = unpack(TRANS_HDR,h)
-        if el < 0: el=t32-el
+        tid, tl, status, ul, dl, el = unpack(TRANS_HDR, h)
+        if el < 0: 
+            el = t32 - el
 
         if tid <= ltid:
             logger.warning("%s time-stamp reduction at %s", name, pos)
@@ -1672,14 +1674,14 @@ def read_index(file, name, index, vindex, tindex, stop='\377'*8,
             logger.warning('%s has invalid status, %s, at %s',
                            name, status, pos)
 
-        if tl < (TRANS_HDR_LEN+ul+dl+el):
+        if tl < TRANS_HDR_LEN + ul + dl + el:
             # We're in trouble. Find out if this is bad data in the
             # middle of the file, or just a turd that Win 9x dropped
             # at the end when the system crashed.
             # Skip to the end and read what should be the transaction length
             # of the last transaction.
             seek(-8, 2)
-            rtl=u64(read(8))
+            rtl = u64(read(8))
             # Now check to see if the redundant transaction length is
             # reasonable:
             if file_size - rtl < pos or rtl < TRANS_HDR_LEN:
@@ -1693,7 +1695,8 @@ def read_index(file, name, index, vindex, tindex, stop='\377'*8,
                     _truncate(file, name, pos)
                 break
             else:
-                if recover: return pos, None, None
+                if recover:
+                    return pos, None, None
                 panic('%s has invalid transaction header at %s', name, pos)
 
         if tid >= stop:
@@ -1702,18 +1705,19 @@ def read_index(file, name, index, vindex, tindex, stop='\377'*8,
         tpos = pos
         tend = tpos + tl
 
-        if status=='u':
+        if status == 'u':
             # Undone transaction, skip it
             seek(tend)
             h = u64(read(8))
             if h != tl:
-                if recover: return tpos, None, None
+                if recover:
+                    return tpos, None, None
                 panic('%s has inconsistent transaction length at %s',
                       name, pos)
             pos = tend + 8
             continue
 
-        pos = tpos+ TRANS_HDR_LEN + ul + dl + el
+        pos = tpos + TRANS_HDR_LEN + ul + dl + el
         while pos < tend:
             # Read the data records for this transaction
             h = fmt._read_data_header(pos)
@@ -1731,7 +1735,8 @@ def read_index(file, name, index, vindex, tindex, stop='\377'*8,
 
             if index_get(h.oid, 0) != h.prev:
                 if prev:
-                    if recover: return tpos, None, None
+                    if recover:
+                        return tpos, None, None
                     logger.error("%s incorrect previous pointer at %s",
                                  name, pos)
                 else:
