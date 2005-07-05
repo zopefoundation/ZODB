@@ -173,12 +173,17 @@ class StorageServer:
         return self.rpc.call('zeoLoad', oid)
 
     ##
-    # Return current data for oid along with tid if transaction that
-    # wrote the date.
+    # Return current data for oid in version, the tid of the transaction that
+    # wrote the most recent revision, and the name of the version for the
+    # data returned.  Versions make this hard to understand; in particular,
+    # the version string returned may not equal the version string passed
+    # in, and that's "a feature" I don't understand.  Similarly, the tid
+    # returned is the tid of the most recent revision of oid, and that may
+    # not equal the tid of the transaction that wrote the data returned.
     # @param oid object id
     # @param version string, name of version
-    # @defreturn 4-tuple
-    # @return data, serial number, transaction id, version,
+    # @defreturn 3-tuple
+    # @return data, transaction id, version
     #         where version is the name of the version the data came
     #         from or "" for non-version data
     # @exception KeyError if oid is not found
