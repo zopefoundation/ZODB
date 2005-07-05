@@ -5,6 +5,7 @@ Release date: DD-MMM-2005
 Following are dates of internal releases (to support ongoing Zope 2
 development) since ZODB 3.4's last public release:
 
+- 3.4.1a4 DD-MMM-2005
 - 3.4.1a3 02-Jul-2005
 - 3.4.1a2 29-Jun-2005
 - 3.4.1a1 27-Jun-2005
@@ -59,8 +60,12 @@ DemoStorage
 
 - The implementation of ``undoLog()`` was wrong in several ways; repaired.
 
-BTrees interface
-----------------
+BTrees
+------
+
+- (3.4.1a4) Collector 1831.  The BTree ``minKey()`` and ``maxKey()`` methods
+  gave a misleading message if no key satisfying the constraints existed in a
+  non-empty tree.
 
 - (3.4.1a3) Collector 1829.  Clarified that the ``minKey()`` and ``maxKey()``
   methods raise an exception if no key exists satsifying the constraints.
