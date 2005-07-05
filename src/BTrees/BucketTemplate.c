@@ -683,6 +683,7 @@ Bucket_maxminKey(Bucket *self, PyObject *args, int min)
 {
   PyObject *key=0;
   int rc, offset;
+  int empty_bucket = 1;
 
   if (args && ! PyArg_ParseTuple(args, "|O", &key)) return NULL;
 
@@ -696,6 +697,7 @@ Bucket_maxminKey(Bucket *self, PyObject *args, int min)
       if ((rc = Bucket_findRangeEnd(self, key, min, 0, &offset)) <= 0)
         {
           if (rc < 0) return NULL;
+          empty_bucket = 0;
           goto empty;
         }
     }
@@ -708,7 +710,9 @@ Bucket_maxminKey(Bucket *self, PyObject *args, int min)
   return key;
 
  empty:
-  PyErr_SetString(PyExc_ValueError, "empty bucket");
+  PyErr_SetString(PyExc_ValueError,
+		  empty_bucket ? "empty bucket" :
+				 "no key satisfies the conditions");
   PER_UNUSE(self);
   return NULL;
 }

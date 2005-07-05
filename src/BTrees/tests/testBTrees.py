@@ -302,6 +302,20 @@ class MappingBase(Base):
         self.assertEqual(t.minKey(3), 3)
         self.assertEqual(t.minKey(9), 10)
 
+        try:
+            t.maxKey(t.minKey() - 1)
+        except ValueError, err:
+            self.assertEqual(str(err), "no key satisfies the conditions")
+        else:
+            self.fail("expected ValueError")
+
+        try:
+            t.minKey(t.maxKey() + 1)
+        except ValueError, err:
+            self.assertEqual(str(err), "no key satisfies the conditions")
+        else:
+            self.fail("expected ValueError")
+
     def testClear(self):
         r = range(100)
         for x in r:
@@ -671,6 +685,20 @@ class NormalSetTests(Base):
         self.assert_(t.minKey()-1 not in t)
         self.assert_(t.maxKey() in t)
         self.assert_(t.maxKey()+1 not in t)
+
+        try:
+            t.maxKey(t.minKey() - 1)
+        except ValueError, err:
+            self.assertEqual(str(err), "no key satisfies the conditions")
+        else:
+            self.fail("expected ValueError")
+
+        try:
+            t.minKey(t.maxKey() + 1)
+        except ValueError, err:
+            self.assertEqual(str(err), "no key satisfies the conditions")
+        else:
+            self.fail("expected ValueError")
 
     def testUpdate(self):
         d={}
