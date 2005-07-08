@@ -73,14 +73,14 @@ BTrees
   methods raise an exception if no key exists satsifying the constraints.
 
 
-What's new in ZODB3 3.4.1a4?
+What's new in ZODB3 3.4.1a5?
 ============================
 Release date: DD-MMM-2005
 
 Following are dates of internal releases (to support ongoing Zope 2
 development) since ZODB 3.4's last public release:
 
-- 3.4.1a4 DD-MMM-2005
+- 3.4.1a4 08-Jul-2005
 - 3.4.1a3 02-Jul-2005
 - 3.4.1a2 29-Jun-2005
 - 3.4.1a1 27-Jun-2005
@@ -121,19 +121,20 @@ FileStorage
 ThreadedAsync.LoopCallback
 --------------------------
 
-- This replaces Python's ``asyncore.loop`` function with its own, in order
-  to get notified when ``loop()`` is first called.  The signature of
+- (3.4.1a1) This replaces Python's ``asyncore.loop`` function with its own,
+  in order to get notified when ``loop()`` is first called.  The signature of
   ``asyncore.loop`` changed in Python 2.4, but ``LoopCallback.loop``'s
   signature didn't change to match.  The code here was repaired to be
   compatible with both old and new signatures, and also repaired to invoke
   Python's ``asyncore.loop()`` instead of replacing it entirely (so, for
-  example, debugging prints added to Python's ``asyncore.loop`` won't be
-  lost anymore).
+  example, debugging prints added to Python's ``asyncore.loop`` won't be lost
+  anymore).
 
 DemoStorage
 -----------
 
-- The implementation of ``undoLog()`` was wrong in several ways; repaired.
+- (3.4.1a1) The implementation of ``undoLog()`` was wrong in several ways;
+  repaired.
 
 BTrees
 ------
