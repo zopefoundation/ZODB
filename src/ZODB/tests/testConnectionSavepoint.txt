@@ -39,13 +39,13 @@ and abort changes:
     >>> root['name']
     'bob'
 
-Now, lets look at an application that manages funds for people.
+Now, let's look at an application that manages funds for people.
 It allows deposits and debits to be entered for multiple people.
 It accepts a sequence of entries and generates a sequence of status
 messages.  For each entry, it applies the change and then validates
-the user's account.  If the user's account is invalid, we role back
+the user's account.  If the user's account is invalid, we roll back
 the change for that entry.  The success or failure of an entry is
-indicated in the output status. First we'll initialize some accounts:
+indicated in the output status.  First we'll initialize some accounts:
 
     >>> root['bob-balance'] = 0.0
     >>> root['bob-credit'] = 0.0
@@ -60,8 +60,7 @@ Now, we'll define a validation function to validate an account:
     ...         raise ValueError('Overdrawn', name)
 
 And a function to apply entries.  If the function fails in some
-unexpected way, it rolls back all of it's changes and
-prints the error:
+unexpected way, it rolls back all of its changes and prints the error:
 
     >>> def apply_entries(entries):
     ...     savepoint = transaction.savepoint()
@@ -103,7 +102,7 @@ Now let's try applying some entries:
     >>> root['sally-balance']
     -80.0
 
-If we give provide entries that cause an unexpected error:
+If we provide entries that cause an unexpected error:
 
     >>> apply_entries([
     ...     ('bob',   10.0),

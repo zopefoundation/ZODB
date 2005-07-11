@@ -18,12 +18,11 @@ Applications
 To demonstrate how savepoints work with transactions, we've provided a
 sample data manager implementation that provides savepoint support.
 The primary purpose of this data manager is to provide code that can
-be read to understand how savepoints work. The secondary purpose is to
+be read to understand how savepoints work.  The secondary purpose is to
 provide support for demonstrating the correct operation of savepoint
 support within the transaction system.  This data manager is very
 simple.  It provides flat storage of named immutable values, like strings
 and numbers.
-
 
     >>> import transaction.tests.savepointsample
     >>> dm = transaction.tests.savepointsample.SampleSavepointDataManager()
@@ -44,13 +43,13 @@ and abort changes:
     >>> dm['name']
     'bob'
 
-Now, lets look at an application that manages funds for people.
+Now, let's look at an application that manages funds for people.
 It allows deposits and debits to be entered for multiple people.
 It accepts a sequence of entries and generates a sequence of status
 messages.  For each entry, it applies the change and then validates
-the user's account.  If the user's account is invalid, we role back
+the user's account.  If the user's account is invalid, we roll back
 the change for that entry.  The success or failure of an entry is
-indicated in the output status. First we'll initialize some accounts:
+indicated in the output status.  First we'll initialize some accounts:
 
     >>> dm['bob-balance'] = 0.0
     >>> dm['bob-credit'] = 0.0
@@ -65,8 +64,7 @@ Now, we'll define a validation function to validate an account:
     ...         raise ValueError('Overdrawn', name)
 
 And a function to apply entries.  If the function fails in some
-unexpected way, it rolls back all of it's changes and
-prints the error:
+unexpected way, it rolls back all of its changes and prints the error:
 
     >>> def apply_entries(entries):
     ...     savepoint = transaction.savepoint()
@@ -108,7 +106,7 @@ Now let's try applying some entries:
     >>> dm['sally-balance']
     -80.0
 
-If we give provide entries that cause an unexpected error:
+If we provide entries that cause an unexpected error:
 
     >>> apply_entries([
     ...     ('bob',   10.0),
@@ -160,7 +158,7 @@ Once a savepoint has been used, it can't be used again:
     ...
     InvalidSavepointRollbackError
 
-Using a savepoint also invalidates any savepoints that com eafter it:
+Using a savepoint also invalidates any savepoints that come after it:
 
     >>> savepoint1 = transaction.savepoint()
     >>> dm['bob-balance'] = 100.0
@@ -202,8 +200,8 @@ support savepoints:
 
 However, a flag can be passed to the transaction savepoint method to
 indicate that databases without savepoint support should be tolerated
-until a savepoint is roled back.  This allows transactions to proceed
-is there are no reasons to roll back:
+until a savepoint is rolled back.  This allows transactions to proceed
+if there are no reasons to roll back:
 
     >>> dm_no_sp['name'] = 'sally'
     >>> savepoint = transaction.savepoint(1)
@@ -228,7 +226,7 @@ uncommitable.  From that point on, most transaction operations,
 including commit, will fail until the transaction is aborted.
 
 In the previous example, we got an error when we tried to rollback the
-savepoint. If we try to commit the transaction, the commit will fail:
+savepoint.  If we try to commit the transaction, the commit will fail:
 
     >>> transaction.commit() # doctest: +ELLIPSIS
     Traceback (most recent call last):
