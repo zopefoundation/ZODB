@@ -5,6 +5,7 @@ Release date: DD-MMM-2005
 Following are dates of internal releases (to support ongoing Zope 2
 development) since ZODB 3.4's last public release:
 
+- 3.4.1a5 DD-MMM-2005
 - 3.4.1a4 08-Jul-2005
 - 3.4.1a3 02-Jul-2005
 - 3.4.1a2 29-Jun-2005
@@ -20,6 +21,12 @@ Savepoints
   method needed for MVCC to retrieve non-current revisions of objects.  This
   could cause spurious errors if a transaction with a pending savepoint
   needed to fetch an older revision of some object.
+
+- (3.4.1a5) The ``ISavepoint`` interface docs said you could roll back to a
+  given savepoint any number of times (until the transaction ends, or until
+  you roll back to an earlier savepoint's state), but the implementation
+  marked a savepoint as invalid after its first use.  The implementation has
+  been repaired, to match the docs.
 
 FileStorage
 -----------
