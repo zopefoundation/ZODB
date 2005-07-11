@@ -134,3 +134,59 @@ away:
 
     >>> root['sally-balance']
     0.0
+
+Savepoint invalidation
+----------------------
+
+A savepoint can be used any number of times:
+
+    >>> root['bob-balance'] = 100.0
+    >>> root['bob-balance']
+    100.0
+    >>> savepoint = transaction.savepoint()
+
+    >>> root['bob-balance'] = 200.0
+    >>> root['bob-balance']
+    200.0
+    >>> savepoint.rollback()
+    >>> root['bob-balance']
+    100.0
+
+    >>> savepoint.rollback()  # redundant, but should be harmless
+    >>> root['bob-balance']
+    100.0
+
+    >>> root['bob-balance'] = 300.0
+    >>> root['bob-balance']
+    300.0
+    >>> savepoint.rollback()
+    >>> root['bob-balance']
+    100.0
+
+However, using a savepoint invalidates any savepoints that come after it:
+
+    >>> root['bob-balance'] = 200.0
+    >>> root['bob-balance']
+    200.0
+    >>> savepoint1 = transaction.savepoint()
+
+    >>> root['bob-balance'] = 300.0
+    >>> root['bob-balance']
+    300.0
+    >>> savepoint2 = transaction.savepoint()
+
+    >>> savepoint.rollback()
+    >>> root['bob-balance']
+    100.0
+
+    >>> savepoint2.rollback()
+    Traceback (most recent call last):
+    ...
+    InvalidSavepointRollbackError
+
+    >>> savepoint1.rollback()
+    Traceback (most recent call last):
+    ...
+    InvalidSavepointRollbackError
+
+    >>> transaction.abort()

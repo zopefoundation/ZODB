@@ -144,44 +144,44 @@ Savepoint invalidation
 
 A savepoint can be used any number of times:
 
-    >>> savepoint = transaction.savepoint()
     >>> dm['bob-balance'] = 100.0
     >>> dm['bob-balance']
     100.0
-
-    >>> savepoint.rollback()
-    >>> dm['bob-balance']
-    0.0
+    >>> savepoint = transaction.savepoint()
 
     >>> dm['bob-balance'] = 200.0
     >>> dm['bob-balance']
     200.0
     >>> savepoint.rollback()
     >>> dm['bob-balance']
-    0.0
+    100.0
+
+    >>> savepoint.rollback()  # redundant, but should be harmless
+    >>> dm['bob-balance']
+    100.0
 
     >>> dm['bob-balance'] = 300.0
     >>> dm['bob-balance']
     300.0
     >>> savepoint.rollback()
     >>> dm['bob-balance']
-    0.0
+    100.0
 
 However, using a savepoint invalidates any savepoints that come after it:
 
-    >>> savepoint1 = transaction.savepoint()
-    >>> dm['bob-balance'] = 100.0
-    >>> dm['bob-balance']
-    100.0
-
-    >>> savepoint2 = transaction.savepoint()
     >>> dm['bob-balance'] = 200.0
     >>> dm['bob-balance']
     200.0
+    >>> savepoint1 = transaction.savepoint()
+
+    >>> dm['bob-balance'] = 300.0
+    >>> dm['bob-balance']
+    300.0
+    >>> savepoint2 = transaction.savepoint()
 
     >>> savepoint.rollback()
     >>> dm['bob-balance']
-    0.0
+    100.0
 
     >>> savepoint2.rollback()
     Traceback (most recent call last):

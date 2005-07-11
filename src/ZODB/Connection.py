@@ -1043,7 +1043,13 @@ class Connection(ExportImport, object):
         self._abort()
         self._registered_objects = []
         src = self._storage
-        self._cache.invalidate(src.index)
+        # Caution:  it's possible that src.index is part of `state`, and
+        # invalidate() clears the container passed to it.  When rollback() is
+        # called on the same savepoint more than once, that's even likely.
+        # Therefore we must pass a copy of the oids to invalidate, lest
+        # we next reset `src` to have an empty index:  the ".keys()" here
+        # is vital.
+        self._cache.invalidate(src.index.keys())
         src.reset(*state)
 
     def _commit_savepoint(self, transaction):
