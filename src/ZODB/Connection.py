@@ -1173,4 +1173,13 @@ class TmpStore:
     def reset(self, position, index):
         self._file.truncate(position)
         self.position = position
-        self.index = index
+        # Caution:  We're typically called as part of a savepoint rollback.
+        # Other machinery remembers the index to restore, and passes it to
+        # us.  If we simply bind self.index to `index`, then if the caller
+        # didn't pass a copy of the index, the caller's index will mutate
+        # when self.index mutates.  This can be a disaster if the caller is a
+        # savepoint to which the user rolls back again later (the savepoint
+        # loses the original index it passed).  Therefore, to be safe, we make
+        # a copy of the index here.  An alternative would be to ensure that
+        # all callers pass copies.  As is, our callers do not make copies.
+        self.index = index.copy()
