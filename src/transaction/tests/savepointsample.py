@@ -11,9 +11,10 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
-"""Savepoint data manager implementation example
+"""Savepoint data manager implementation example.
 
-Sample data manager implementation that illustrates how to implement savepoints
+Sample data manager implementation that illustrates how to implement
+savepoints.
 
 See savepoint.txt in the transaction package.
 
@@ -159,12 +160,17 @@ class SampleSavepointDataManager(SampleDataManager):
     interface.implements(transaction.interfaces.ISavepointDataManager)
 
     def savepoint(self):
-        # When we create the savepoint, we save the existing database state
+        # When we create the savepoint, we save the existing database state.
         return SampleSavepoint(self, self.uncommitted.copy())
 
     def _rollback_savepoint(self, savepoint):
-        # when we rollback the savepoint, we restore the saved data
-        self.uncommitted = savepoint.data
+        # When we rollback the savepoint, we restore the saved data.
+        # Caution:  without the copy(), further changes to the database
+        # could reflect in savepoint.data, and then `savepoint` would no
+        # longer contain the originally saved data, and so `savepoint`
+        # couldn't restore the original state if a rollback to this
+        # savepoint was done again.  IOW, copy() is necessary.
+        self.uncommitted = savepoint.data.copy()
 
 class SampleSavepoint:
 

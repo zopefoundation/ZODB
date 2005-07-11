@@ -1069,7 +1069,13 @@ class Connection(ExportImport, object):
         self._abort()
         self._registered_objects = []
         src = self._storage
-        self._cache.invalidate(src.index)
+        # Caution:  it's possible that src.index is part of `state`, and
+        # invalidate() clears the container passed to it.  When rollback() is
+        # called on the same savepoint more than once, that's even likely.
+        # Therefore we must pass a copy of the oids to invalidate, lest
+        # we next reset `src` to have an empty index:  the ".keys()" here
+        # is vital.
+        self._cache.invalidate(src.index.keys())
         src.reset(*state)
 
     def _commit_savepoint(self, transaction):
@@ -1193,4 +1199,13 @@ class TmpStore:
     def reset(self, position, index):
         self._file.truncate(position)
         self.position = position
-        self.index = index
+        # Caution:  We're typically called as part of a savepoint rollback.
+        # Other machinery remembers the index to restore, and passes it to
+        # us.  If we simply bind self.index to `index`, then if the caller
+        # didn't pass a copy of the index, the caller's index will mutate
+        # when self.index mutates.  This can be a disaster if the caller is a
+        # savepoint to which the user rolls back again later (the savepoint
+        # loses the original index it passed).  Therefore, to be safe, we make
+        # a copy of the index here.  An alternative would be to ensure that
+        # all callers pass copies.  As is, our callers do not make copies.
+        self.index = index.copy()
