@@ -28,6 +28,41 @@ Savepoints
   marked a savepoint as invalid after its first use.  The implementation has
   been repaired, to match the docs.
 
+Subtransactions
+---------------
+
+- (3.4.1a5) Internal uses of subtransactions (transaction ``commit()`` or
+  ``abort()`` passing a true argument) were rewritten to use savepoints
+  instead.  Application code is strongly encouraged to do this too:
+  subtransactions are weaker, will be deprecated soon, and do not mix well
+  with savepoints (when you do a subtransaction commit, all current
+  savepoints are made unusable).  In general, a subtransaction commit
+  done just to free memory can be changed from::
+
+      transaction.commit(1)
+
+  to::
+
+      transaction.savepoint()
+
+  That is, make a savepoint, and forget it.  In rarer cases, a
+  subtransaction commit is followed later by a subtransaction abort.  In
+  that case, change the initial::
+
+      transaction.commit(1)
+
+  to::
+
+      sp = transaction.savepoint()
+
+  and in place of the subtransaction abort::
+
+      transaction.abort(1)
+
+  roll back the savepoint instead::
+
+      sp.rollback()
+
 FileStorage
 -----------
 

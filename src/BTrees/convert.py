@@ -12,6 +12,11 @@
 #
 ##############################################################################
 
+# TODO:  does this script still serve a purpose?  Writing this in 2005,
+# "old btree" doesn't mean much to me.
+
+import transaction
+
 def convert(old, new, threshold=200, f=None):
     "Utility for converting old btree to new"
     n=0
@@ -20,9 +25,9 @@ def convert(old, new, threshold=200, f=None):
         new[k]=v
         n=n+1
         if n > threshold:
-            transaction.commit(1)
+            transaction.savepoint()
             old._p_jar.cacheMinimize()
             n=0
 
-    transaction.commit(1)
+    transaction.savepoint()
     old._p_jar.cacheMinimize()

@@ -56,7 +56,7 @@ class ExportImport:
         # This is tricky, because we need to work in a transaction!
 
         if isinstance(f, str):
-            f = open(f,'rb')
+            f = open(f, 'rb')
 
         magic = f.read(4)
         if magic != 'ZEXP':
@@ -72,7 +72,7 @@ class ExportImport:
         return_oid_list = []
         self._import = f, return_oid_list
         self._register()
-        t.commit(1)
+        t.savepoint()
         # Return the root imported object.
         if return_oid_list:
             return self.get(return_oid_list[0])
