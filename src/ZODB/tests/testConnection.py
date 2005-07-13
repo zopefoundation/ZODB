@@ -322,11 +322,6 @@ class UserMethodTests(unittest.TestCase):
         >>> cn.close()
 
         >>> db.close()
-
-        Obscure:  There is no API call for removing the filter we added, but
-        filters appears to be a public variable.
-
-        >>> del warnings.filters[0]
         """
 
     def test_onCloseCallbacks(self):
