@@ -15,7 +15,7 @@
 ZODB subtransaction tests
 =========================
 
-Subtransactions are deprecated.  First we install a hook, to ensure that
+Subtransactions are deprecated.  First we install a hook, to verify that
 deprecation warnings are generated.
 
 >>> hook = WarningsHook()
