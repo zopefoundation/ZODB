@@ -631,7 +631,7 @@ class ZODBTests(unittest.TestCase):
         poisoned.break_savepoint = True
         # We're using try/except here instead of assertRaises so that this
         # module's attempt to suppress subtransaction deprecation wngs
-        # work.
+        # works.
         try:
             transaction.get().commit(True)
         except PoisonedError:
