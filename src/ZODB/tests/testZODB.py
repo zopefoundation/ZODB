@@ -12,6 +12,7 @@
 #
 ##############################################################################
 import unittest
+import warnings
 
 import ZODB
 import ZODB.FileStorage
@@ -22,6 +23,12 @@ from ZODB.tests.warnhook import WarningsHook
 from persistent import Persistent
 from persistent.mapping import PersistentMapping
 import transaction
+
+# deprecated37  remove when subtransactions go away
+# Don't complain about subtxns in these tests.
+warnings.filterwarnings("ignore",
+                        ".*\nsubtransactions are deprecated",
+                        DeprecationWarning, __name__)
 
 class P(Persistent):
     pass
@@ -622,12 +629,28 @@ class ZODBTests(unittest.TestCase):
         poisoned = PoisonedJar()
         transaction.get().join(poisoned)
         poisoned.break_savepoint = True
-        self.assertRaises(PoisonedError, transaction.get().commit, True)
+        # We're using try/except here instead of assertRaises so that this
+        # module's attempt to suppress subtransaction deprecation wngs
+        # work.
+        try:
+            transaction.get().commit(True)
+        except PoisonedError:
+            pass
+        else:
+            self.fail("expected PoisonedError")
         # Trying to subtxn-commit again fails too.
-        self.assertRaises(TransactionFailedError,
-                          transaction.get().commit, True)
-        self.assertRaises(TransactionFailedError,
-                          transaction.get().commit, True)
+        try:
+            transaction.get().commit(True)
+        except TransactionFailedError:
+            pass
+        else:
+            self.fail("expected TransactionFailedError")
+        try:
+            transaction.get().commit(True)
+        except TransactionFailedError:
+            pass
+        else:
+            self.fail("expected TransactionFailedError")
         # Top-level commit also fails.
         self.assertRaises(TransactionFailedError, transaction.get().commit)
 
@@ -651,9 +674,19 @@ class ZODBTests(unittest.TestCase):
         poisoned = PoisonedJar()
         transaction.get().join(poisoned)
         poisoned.break_savepoint = True
-        self.assertRaises(PoisonedError, transaction.get().commit, True)
-        self.assertRaises(TransactionFailedError,
-                          transaction.get().commit, True)
+        try:
+            transaction.commit(True)
+        except PoisonedError:
+            pass
+        else:
+            self.fail("expected PoisonedError")
+        # Trying to subtxn-commit again fails too.
+        try:
+            transaction.commit(True)
+        except TransactionFailedError:
+            pass
+        else:
+            self.fail("expected TransactionFailedError")
 
         # The change to rt['a'] is lost.
         self.assertEqual(rt['a'], 1)

@@ -27,16 +27,16 @@ Savepoints
   marked a savepoint as invalid after its first use.  The implementation has
   been repaired, to match the docs.
 
-Subtransactions
----------------
+Subtransactions are deprecated
+------------------------------
 
-- (3.5a4) Internal uses of subtransactions (transaction ``commit()`` or
-  ``abort()`` passing a true argument) were rewritten to use savepoints
-  instead.  Application code is strongly encouraged to do this too:
-  subtransactions are weaker, will be deprecated soon, and do not mix well
-  with savepoints (when you do a subtransaction commit, all current
-  savepoints are made unusable).  In general, a subtransaction commit
-  done just to free memory can be changed from::
+- (3.5a4) Subtransactions are deprecated, and will be removed in ZODB 3.7.
+  Use savepoints instead.  Savepoints are more powerful, and code using
+  subtransactions does not mix well with code using savepoints (a
+  subtransaction commit forces all current savepoints to become unusable, so
+  code using subtransactions can hurt newer code trying to use savepoints).
+  In general, a subtransaction commit done just to free memory can be changed
+  from::
 
       transaction.commit(1)
 
@@ -61,6 +61,10 @@ Subtransactions
   roll back the savepoint instead::
 
       sp.rollback()
+
+- (3.5a4) Internal uses of subtransactions (transaction ``commit()`` or
+  ``abort()`` passing a true argument) were rewritten to use savepoints
+  instead.
 
 Multi-database
 --------------

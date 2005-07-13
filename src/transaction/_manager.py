@@ -21,6 +21,11 @@ import thread
 
 from transaction._transaction import Transaction
 
+# Used for deprecated arguments.  ZODB.utils.DEPRECATED_ARGUMENT is
+# too hard to use here, due to the convoluted import dance across
+# __init__.py files.
+_marker = object()
+
 # We have to remember sets of synch objects, especially Connections.
 # But we don't want mere registration with a transaction manager to
 # keep a synch object alive forever; in particular, it's common
@@ -80,11 +85,26 @@ class TransactionManager(object):
     def unregisterSynch(self, synch):
         self._synchs.remove(synch)
 
-    def commit(self, sub=False):
-        self.get().commit(sub)
+    def commit(self, sub=_marker):
+        if sub is _marker:
+            sub = None
+        else:
+            from ZODB.utils import deprecated37
+            deprecated37("subtransactions are deprecated; use "
+                         "transaction.savepoint() instead of "
+                         "transaction.commit(1)")
+        return self.get().commit(sub, deprecation_wng=False)
 
-    def abort(self, sub=False):
-        self.get().abort(sub)
+    def abort(self, sub=_marker):
+        if sub is _marker:
+            sub = None
+        else:
+            from ZODB.utils import deprecated37
+            deprecated37("subtransactions are deprecated; use "
+                         "sp.rollback() instead of "
+                         "transaction.abort(1), where `sp` is the "
+                         "corresponding savepoint captured earlier")
+        return self.get().abort(sub, deprecation_wng=False)
 
     def savepoint(self, optimistic=False):
         return self.get().savepoint(optimistic)

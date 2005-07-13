@@ -40,8 +40,16 @@ $Id$
 """
 
 import unittest
+import warnings
+
 import transaction
 from ZODB.utils import positive_id
+
+# deprecated37  remove when subtransactions go away
+# Don't complain about subtxns in these tests.
+warnings.filterwarnings("ignore",
+                        ".*\nsubtransactions are deprecated",
+                        DeprecationWarning, __name__)
 
 class TransactionTests(unittest.TestCase):
 
@@ -212,7 +220,8 @@ class TransactionTests(unittest.TestCase):
 
         try:
             self.transaction_manager.commit()
-        except TestTxnException: pass
+        except TestTxnException:
+            pass
 
         assert self.nosub1._p_jar.ctpc_abort == 1
         assert self.sub1._p_jar.ctpc_abort == 1
@@ -444,10 +453,14 @@ def test_beforeCommitHook():
       >>> log
       []
 
-    The hook is only called for a full commit, not for subtransactions.
+    The hook is only called for a full commit, not for a savepoint or
+    subtransaction.
 
       >>> t = transaction.begin()
       >>> t.beforeCommitHook(hook, 'A', kw1='B')
+      >>> dummy = t.savepoint()
+      >>> log
+      []
       >>> t.commit(subtransaction=True)
       >>> log
       []

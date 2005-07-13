@@ -358,7 +358,15 @@ class Transaction(object):
         # in which case it would do nothing besides uselessly free() this
         # transaction.
 
-    def commit(self, subtransaction=False):
+    def commit(self, subtransaction=_marker, deprecation_wng=True):
+        if subtransaction is _marker:
+            subtransaction = 0
+        elif deprecation_wng:
+            from ZODB.utils import deprecated37
+            deprecated37("subtransactions are deprecated; use "
+                         "transaction.savepoint() instead of "
+                         "transaction.commit(1)")
+
         if self._savepoint2index:
             self._invalidate_all_savepoints()
 
@@ -464,7 +472,16 @@ class Transaction(object):
                 self.log.error("Error in tpc_abort() on manager %s",
                                rm, exc_info=sys.exc_info())
 
-    def abort(self, subtransaction=False):
+    def abort(self, subtransaction=_marker, deprecation_wng=True):
+        if subtransaction is _marker:
+            subtransaction = 0
+        elif deprecation_wng:
+            from ZODB.utils import deprecated37
+            deprecated37("subtransactions are deprecated; use "
+                         "sp.rollback() instead of "
+                         "transaction.abort(1), where `sp` is the "
+                         "corresponding savepoint captured earlier")
+
         if subtransaction:
             # TODO deprecate subtransactions.
             if not self._subtransaction_savepoint:

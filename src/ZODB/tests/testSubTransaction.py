@@ -11,9 +11,15 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
-r"""
+"""
 ZODB subtransaction tests
 =========================
+
+Subtransactions are deprecated.  First we install a hook, to ensure that
+deprecation warnings are generated.
+
+>>> hook = WarningsHook()
+>>> hook.install()
 
 Subtransactions are provided by a generic transaction interface, but
 only supported by ZODB.  These tests verify that some of the important
@@ -61,6 +67,19 @@ We'll make a series of modifications in subtransactions.
 >>> shadow_a.value, shadow_b.value
 ('a0', 'b0')
 
+The subtransaction commit should have generated a deprecation wng:
+
+>>> len(hook.warnings)
+1
+>>> message, category, filename, lineno = hook.warnings[0]
+>>> print message
+This will be removed in ZODB 3.7:
+subtransactions are deprecated; use transaction.savepoint() instead of \
+transaction.commit(1)
+>>> category.__name__
+'DeprecationWarning'
+>>> hook.clear()
+
 >>> a.value = "a2"
 >>> c.value = "c1"
 >>> transaction.commit(1)
@@ -100,6 +119,21 @@ database state as of the last sub-transaction commit.  There is
 >>> a.value, b.value, c.value
 ('a1', 'b1', 'c0')
 
+The subtxn abort should also have generated a deprecation warning:
+
+>>> len(hook.warnings)
+1
+>>> message, category, filename, lineno = hook.warnings[0]
+>>> print message
+This will be removed in ZODB 3.7:
+subtransactions are deprecated; use sp.rollback() instead of \
+transaction.abort(1), where `sp` is the corresponding savepoint \
+captured earlier
+>>> category.__name__
+'DeprecationWarning'
+>>> hook.clear()
+
+
 Multiple aborts have no extra effect.
 
 >>> transaction.abort(1)
@@ -131,8 +165,14 @@ database state as of the last sub-transaction commit.  There is
 >>> a.value, b.value, c.value
 ('a0', 'b0', 'c0')
 
+We have to uninstall the hook so that other warnings don't get lost.
+
+>>> len(hook.warnings)  # we don't expect we captured other warnings
+0
+>>> hook.uninstall()
 """
 
+from ZODB.tests.warnhook import WarningsHook
 from zope.testing import doctest
 
 def test_suite():
