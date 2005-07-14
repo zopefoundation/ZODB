@@ -638,6 +638,7 @@ class ZODBTests(unittest.TestCase):
 
     def checkFailingCommitSticks(self):
         # See also checkFailingSubtransactionCommitSticks.
+        # See also checkFailingSavepointSticks.
         cn = self._db.open()
         rt = cn.root()
         rt['a'] = 1
@@ -773,6 +774,65 @@ class ZODBTests(unittest.TestCase):
         cn.close()
         cn2.close()
 
+    def checkFailingSavepointSticks(self):
+        cn = self._db.open()
+        rt = cn.root()
+        rt['a'] = 1
+        transaction.savepoint()
+        self.assertEqual(rt['a'], 1)
+
+        rt['b'] = 2
+
+        # Make a jar that raises PoisonedError when making a savepoint.
+        poisoned = PoisonedJar(break_savepoint=True)
+        transaction.get().join(poisoned)
+        self.assertRaises(PoisonedError, transaction.savepoint)
+        # Trying to make a savepoint again fails too.
+        self.assertRaises(TransactionFailedError, transaction.savepoint)
+        self.assertRaises(TransactionFailedError, transaction.savepoint)
+        # Top-level commit also fails.
+        self.assertRaises(TransactionFailedError, transaction.commit)
+
+        # The changes to rt['a'] and rt['b'] are lost.
+        self.assertRaises(KeyError, rt.__getitem__, 'a')
+        self.assertRaises(KeyError, rt.__getitem__, 'b')
+
+        # Trying to modify an object also fails, because Transaction.join()
+        # also raises TransactionFailedError.
+        self.assertRaises(TransactionFailedError, rt.__setitem__, 'b', 2)
+
+        # Clean up via abort(), and try again.
+        transaction.abort()
+        rt['a'] = 1
+        transaction.commit()
+        self.assertEqual(rt['a'], 1)
+
+        # Cleaning up via begin() should also work.
+        rt['a'] = 2
+        transaction.get().join(poisoned)
+        self.assertRaises(PoisonedError, transaction.savepoint)
+        # Trying to make a savepoint again fails too.
+        self.assertRaises(TransactionFailedError, transaction.savepoint)
+
+        # The change to rt['a'] is lost.
+        self.assertEqual(rt['a'], 1)
+        # Trying to modify an object also fails.
+        self.assertRaises(TransactionFailedError, rt.__setitem__, 'b', 2)
+
+        # Clean up via begin(), and try again.
+        transaction.begin()
+        rt['a'] = 2
+        transaction.savepoint()
+        self.assertEqual(rt['a'], 2)
+        transaction.commit()
+
+        cn2 = self._db.open()
+        rt = cn.root()
+        self.assertEqual(rt['a'], 2)
+
+        cn.close()
+        cn2.close()
+
 class PoisonedError(Exception):
     pass
 
@@ -798,6 +858,7 @@ class PoisonedJar:
         if self.break_tpc_vote:
             raise PoisonedError("tpc_vote fails")
 
+    # A way to poison a savepoint.
     def savepoint(self):
         if self.break_savepoint:
             raise PoisonedError("savepoint fails")
