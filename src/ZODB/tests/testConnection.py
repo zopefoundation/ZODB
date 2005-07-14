@@ -24,6 +24,12 @@ from ZODB.utils import p64, u64
 from ZODB.tests.warnhook import WarningsHook
 from zope.interface.verify import verifyObject
 
+# deprecated37  remove when subtransactions go away
+# Don't complain about subtxns in these tests.
+warnings.filterwarnings("ignore",
+                        ".*\nsubtransactions are deprecated",
+                        DeprecationWarning, __name__)
+
 class ConnectionDotAdd(unittest.TestCase):
 
     def setUp(self):
