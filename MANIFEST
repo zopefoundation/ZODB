@@ -61,7 +61,6 @@ src/BTrees/_OOBTree.c
 src/BTrees/__init__.py
 src/BTrees/_fsBTree.c
 src/BTrees/check.py
-src/BTrees/convert.py
 src/BTrees/intkeymacros.h
 src/BTrees/intvaluemacros.h
 src/BTrees/objectkeymacros.h

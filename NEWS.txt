@@ -118,6 +118,10 @@ BTrees
 - (3.5a4) Collector 1829.  Clarified that the ``minKey()`` and ``maxKey()``
   methods raise an exception if no key exists satsifying the constraints.
 
+- (3.5a4) The ancient ``convert.py`` script was removed.  It was intended to
+  convert "old" BTrees to "new" BTrees, but the "old" BTree implementation
+  was removed from ZODB years ago.
+
 
 What's new in ZODB3 3.4.1a6?
 ============================
