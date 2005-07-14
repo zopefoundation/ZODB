@@ -687,39 +687,38 @@ class ZODBTests(unittest.TestCase):
         cn = self._db.open()
         rt = cn.root()
         rt['a'] = 1
-        transaction.get().commit(True)
+        transaction.commit(True)
         self.assertEqual(rt['a'], 1)
 
         rt['b'] = 2
 
-        # Subtransactions don't do tpc_vote, so we poison tpc_begin.
-        poisoned = PoisonedJar()
+        # Make a jar that raises PoisonedError when a subtxn commit is done.
+        poisoned = PoisonedJar(break_savepoint=True)
         transaction.get().join(poisoned)
-        poisoned.break_savepoint = True
         # We're using try/except here instead of assertRaises so that this
         # module's attempt to suppress subtransaction deprecation wngs
         # works.
         try:
-            transaction.get().commit(True)
+            transaction.commit(True)
         except PoisonedError:
             pass
         else:
             self.fail("expected PoisonedError")
         # Trying to subtxn-commit again fails too.
         try:
-            transaction.get().commit(True)
+            transaction.commit(True)
         except TransactionFailedError:
             pass
         else:
             self.fail("expected TransactionFailedError")
         try:
-            transaction.get().commit(True)
+            transaction.commit(True)
         except TransactionFailedError:
             pass
         else:
             self.fail("expected TransactionFailedError")
         # Top-level commit also fails.
-        self.assertRaises(TransactionFailedError, transaction.get().commit)
+        self.assertRaises(TransactionFailedError, transaction.commit)
 
         # The changes to rt['a'] and rt['b'] are lost.
         self.assertRaises(KeyError, rt.__getitem__, 'a')
@@ -729,18 +728,15 @@ class ZODBTests(unittest.TestCase):
         # also raises TransactionFailedError.
         self.assertRaises(TransactionFailedError, rt.__setitem__, 'b', 2)
 
-
         # Clean up via abort(), and try again.
-        transaction.get().abort()
+        transaction.abort()
         rt['a'] = 1
-        transaction.get().commit()
+        transaction.commit()
         self.assertEqual(rt['a'], 1)
 
         # Cleaning up via begin() should also work.
         rt['a'] = 2
-        poisoned = PoisonedJar()
         transaction.get().join(poisoned)
-        poisoned.break_savepoint = True
         try:
             transaction.commit(True)
         except PoisonedError:
@@ -763,7 +759,7 @@ class ZODBTests(unittest.TestCase):
         # Clean up via begin(), and try again.
         transaction.begin()
         rt['a'] = 2
-        transaction.get().commit(True)
+        transaction.commit(True)
         self.assertEqual(rt['a'], 2)
         transaction.get().commit()
 
@@ -848,7 +844,8 @@ class PoisonedJar:
     def sortKey(self):
         return str(id(self))
 
-    # A way to poison a subtransaction commit.
+    # A way that used to poison a subtransaction commit.  With the current
+    # implementation of subtxns, pass break_savepoint=True instead.
     def tpc_begin(self, *args):
         if self.break_tpc_begin:
             raise PoisonedError("tpc_begin fails")
