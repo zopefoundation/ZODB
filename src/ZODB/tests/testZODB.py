@@ -832,8 +832,7 @@ class ZODBTests(unittest.TestCase):
 class PoisonedError(Exception):
     pass
 
-# PoisonedJar arranges to raise exceptions from interesting places.
-# For whatever reason, subtransaction commits don't call tpc_vote.
+# PoisonedJar arranges to raise PoisonedError from interesting places.
 class PoisonedJar:
     def __init__(self, break_tpc_begin=False, break_tpc_vote=False,
                  break_savepoint=False):
@@ -855,7 +854,7 @@ class PoisonedJar:
         if self.break_tpc_vote:
             raise PoisonedError("tpc_vote fails")
 
-    # A way to poison a savepoint.
+    # A way to poison a savepoint -- also a way to poison a subtxn commit.
     def savepoint(self):
         if self.break_savepoint:
             raise PoisonedError("savepoint fails")
