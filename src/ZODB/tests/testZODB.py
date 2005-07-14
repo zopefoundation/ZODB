@@ -649,9 +649,9 @@ class ZODBTests(unittest.TestCase):
 
         self.assertRaises(PoisonedError, transaction.get().commit)
         # Trying to commit again fails too.
-        self.assertRaises(TransactionFailedError, transaction.get().commit)
-        self.assertRaises(TransactionFailedError, transaction.get().commit)
-        self.assertRaises(TransactionFailedError, transaction.get().commit)
+        self.assertRaises(TransactionFailedError, transaction.commit)
+        self.assertRaises(TransactionFailedError, transaction.commit)
+        self.assertRaises(TransactionFailedError, transaction.commit)
 
         # The change to rt['a'] is lost.
         self.assertRaises(KeyError, rt.__getitem__, 'a')
@@ -661,16 +661,16 @@ class ZODBTests(unittest.TestCase):
         self.assertRaises(TransactionFailedError, rt.__setitem__, 'b', 2)
 
         # Clean up via abort(), and try again.
-        transaction.get().abort()
+        transaction.abort()
         rt['a'] = 1
-        transaction.get().commit()
+        transaction.commit()
         self.assertEqual(rt['a'], 1)
 
         # Cleaning up via begin() should also work.
         rt['a'] = 2
         transaction.get().register(poisoned)
-        self.assertRaises(PoisonedError, transaction.get().commit)
-        self.assertRaises(TransactionFailedError, transaction.get().commit)
+        self.assertRaises(PoisonedError, transaction.commit)
+        self.assertRaises(TransactionFailedError, transaction.commit)
         # The change to rt['a'] is lost.
         self.assertEqual(rt['a'], 1)
         # Trying to modify an object also fails.
@@ -678,7 +678,7 @@ class ZODBTests(unittest.TestCase):
         # Clean up via begin(), and try again.
         transaction.begin()
         rt['a'] = 2
-        transaction.get().commit()
+        transaction.commit()
         self.assertEqual(rt['a'], 2)
 
         cn.close()
