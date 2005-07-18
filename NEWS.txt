@@ -114,6 +114,11 @@ DemoStorage
 BTrees
 ------
 
+- (3.4.1a6) Collector 1843.  When a non-integer was passed to a method like
+  ``keys()`` of a Bucket or Set with integer keys, an internal error code
+  was overlooked, leading to everything from "delayed errors" to segfaults.
+  Such cases raise TypeError now, as intended.
+
 - (3.4.1a4) Collector 1831.  The BTree ``minKey()`` and ``maxKey()`` methods
   gave a misleading message if no key satisfying the constraints existed in a
   non-empty tree.
