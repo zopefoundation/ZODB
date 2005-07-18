@@ -162,12 +162,18 @@ def read_txn_header(f, pos, file_size, outp, ltid):
 def truncate(f, pos, file_size, outp):
     """Copy data from pos to end of f to a .trNNN file."""
 
+    # _trname is global so that the test suite can know the path too (in
+    # order to delete the file when the test ends).
+    global _trname
+
     i = 0
     while 1:
-        trname = outp + ".tr%d" % i
-        if os.path.exists(trname):
+        _trname = outp + ".tr%d" % i
+        if os.path.exists(_trname):
             i += 1
-    tr = open(trname, "wb")
+        else:
+            break
+    tr = open(_trname, "wb")
     copy(f, tr, file_size - pos)
     f.seek(pos)
     tr.close()
