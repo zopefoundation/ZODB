@@ -752,10 +752,11 @@ Bucket_rangeSearch(Bucket *self, PyObject *args, PyObject *kw,
 
     /* Find the low range */
     if (min != Py_None) {
-        UNLESS (rc = Bucket_findRangeEnd(self, min, 1, excludemin, low)) {
-            if (rc < 0) return -1;
+        rc = Bucket_findRangeEnd(self, min, 1, excludemin, low);
+        if (rc < 0)
+            return -1;
+        if (rc == 0)
             goto empty;
-        }
     }
     else {
     	*low = 0;
@@ -768,10 +769,11 @@ Bucket_rangeSearch(Bucket *self, PyObject *args, PyObject *kw,
 
     /* Find the high range */
     if (max != Py_None) {
-        UNLESS (rc = Bucket_findRangeEnd(self, max, 0, excludemax, high)) {
-            if (rc < 0) return -1;
+        rc = Bucket_findRangeEnd(self, max, 0, excludemax, high);
+        if (rc < 0)
+            return -1;
+        if (rc == 0)
             goto empty;
-	}
     }
     else {
 	*high = self->len - 1;

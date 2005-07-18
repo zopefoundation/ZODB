@@ -1409,6 +1409,16 @@ class OOTreeSetTest(NormalSetTests):
 class IISetTest(ExtendedSetTests):
     def setUp(self):
         self.t = IISet()
+
+    # Collector 1843.  Error returns were effectively ignored in
+    # Bucket_rangeSearch(), leading to "delayed" errors, or worse.
+    def testNonIntKeyRaises(self):
+        self.t.insert(1)
+        # This one used to fail to raise the TypeError when it occurred.
+        self.assertRaises(TypeError, self.t.keys, "")
+        # This one used to segfault.
+        self.assertRaises(TypeError, self.t.keys, 0, "")
+
 class IFSetTest(ExtendedSetTests):
     def setUp(self):
         self.t = IFSet()
