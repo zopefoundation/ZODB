@@ -74,6 +74,12 @@ Multi-database
   been added.  See ``ZODB/cross-database-references.txt`` for an
   introduction.
 
+Tools
+-----
+
+- (3.5a5) Collector #1846:  If an uncommitted transaction was found,
+  fsrecover.py fell into an infinite loop.
+
 ThreadedAsync.LoopCallback
 --------------------------
 
@@ -130,6 +136,7 @@ Release date: DD-MMM-2005
 Following are dates of internal releases (to support ongoing Zope 2
 development) since ZODB 3.4's last public release:
 
+- 3.4.1a6 DD-MMM-2005
 - 3.4.1a5 12-Jul-2005
 - 3.4.1a4 08-Jul-2005
 - 3.4.1a3 02-Jul-2005
@@ -221,6 +228,13 @@ ThreadedAsync.LoopCallback
   Python's ``asyncore.loop()`` instead of replacing it entirely (so, for
   example, debugging prints added to Python's ``asyncore.loop`` won't be lost
   anymore).
+
+Tools
+-----
+
+- (3.4.1a6) Collector #1846:  If an uncommitted transaction was found,
+  fsrecover.py fell into an infinite loop.
+
 
 DemoStorage
 -----------
