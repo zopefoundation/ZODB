@@ -1,11 +1,12 @@
-What's new in ZODB3 3.5a5?
+What's new in ZODB3 3.5a6?
 ==========================
 Release date: DD-MMM-2005
 
 Following is combined news from internal releases (to support ongoing
 Zope3 development).  These are the dates of the internal releases:
 
-- 3.5a5 DD-MMM-2005
+- 3.5a6 DD-MMM-2005
+- 3.5a5 19-Jul-2005
 - 3.5a4 14-Jul-2005
 - 3.5a3 17-Jun-2005
 - 3.5a2 16-Jun-2005
@@ -82,6 +83,13 @@ Tools
 
 ThreadedAsync.LoopCallback
 --------------------------
+
+- (3.5a5) This once again physically replaces Python's ``asyncore.loop``
+  function with its own loop function, because it turns out Zope relied on
+  the seemingly unused ``LoopCallback.exit_status`` global, which was
+  removed in the change described below.  Python's ``asyncore.loop`` is again
+  not invoked, so any breakpoints or debugging prints added to that are again
+  "lost".
 
 - (3.5a4) This replaces Python's ``asyncore.loop`` function with its own, in
   order to get notified when ``loop()`` is first called.  The signature of
@@ -224,6 +232,13 @@ FileStorage
 
 ThreadedAsync.LoopCallback
 --------------------------
+
+- (3.4.1a6) This once again physically replaces Python's ``asyncore.loop``
+  function with its own loop function, because it turns out Zope relied on
+  the seemingly unused ``LoopCallback.exit_status`` global, which was
+  removed in the change described below.  Python's ``asyncore.loop`` is again
+  not invoked, so any breakpoints or debugging prints added to that are again
+  "lost".
 
 - (3.4.1a1) This replaces Python's ``asyncore.loop`` function with its own,
   in order to get notified when ``loop()`` is first called.  The signature of
