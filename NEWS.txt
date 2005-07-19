@@ -89,6 +89,13 @@ FileStorage
 ThreadedAsync.LoopCallback
 --------------------------
 
+- (3.4.1a6) This once again physically replaces Python's ``asyncore.loop``
+  function with its own loop function, because it turns out Zope relied on
+  the seemingly unused ``LoopCallback.exit_status`` global, which was
+  removed in the change described below.  Python's ``asyncore.loop`` is again
+  not invoked, so any breakpoints or debugging prints added to that are again
+  "lost".
+
 - (3.4.1a1) This replaces Python's ``asyncore.loop`` function with its own,
   in order to get notified when ``loop()`` is first called.  The signature of
   ``asyncore.loop`` changed in Python 2.4, but ``LoopCallback.loop``'s
