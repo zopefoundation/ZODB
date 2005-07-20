@@ -16,7 +16,7 @@
 ClientCache exposes an API used by the ZEO client storage.  FileCache stores
 objects on disk using a 2-tuple of oid and tid as key.
 
-ClientCaches API is similar to a storage API with methods like load(),
+ClientCache's API is similar to a storage API, with methods like load(),
 store(), and invalidate().  It manages in-memory data structures that allow
 it to map this richer API onto the simple key-based API of the lower-level
 FileCache.
