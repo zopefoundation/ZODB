@@ -64,7 +64,7 @@ logger = logging.getLogger("ZEO.cache")
 # full verification
 # <p>
 
-class ClientCache:
+class ClientCache(object):
     """A simple in-memory cache."""
 
     ##
@@ -689,17 +689,15 @@ def sync(f):
 
 class FileCache(object):
 
-    def __init__(self, maxsize, fpath, parent, reuse=True):
+    def __init__(self, maxsize, fpath, parent):
         # - `maxsize`:  total size of the cache file, in bytes; this is
-        #   ignored if reuse is true and fpath names an existing file;
-        #   perhaps we should attempt to change the cache size in that
-        #   case
-        # - `fpath`:  filepath for the cache file, or None; see `reuse`
-        # - `parent`:  the ClientCache this FileCache is part of
-        # - `reuse`:  If true, and fpath is not None, and fpath names a
-        #    file that exists, that pre-existing file is used (persistent
-        #    cache).  In all other cases a new file is created:  a temp
-        #    file if fpath is None, else with path fpath.
+        #   ignored path names an existing file; perhaps we should attempt
+        #   to change the cache size in that case
+        # - `fpath`:  filepath for the cache file, or None (in which case
+        #   a temp file will be created)
+        # - `parent`:  the ClientCache instance; its `_evicted()` method
+        #   is called whenever we need to evict an object to make room in
+        #   the file
         self.maxsize = maxsize
         self.parent = parent
 
@@ -743,17 +741,17 @@ class FileCache(object):
         # (and it sets self.f).
 
         self.fpath = fpath
-        if reuse and fpath and os.path.exists(fpath):
+        if fpath and os.path.exists(fpath):
             # Reuse an existing file.  scan() will open & read it.
             self.f = None
+            logger.info("reusing persistent cache file %r", fpath)
         else:
-            if reuse:
-                logger.warning("reuse=True but the given file path %r "
-                               "doesn't exist; ignoring reuse=True", fpath)
             if fpath:
                 self.f = open(fpath, 'wb+')
+                logger.info("created persistent cache file %r", fpath)
             else:
                 self.f = tempfile.TemporaryFile()
+                logger.info("created temporary cache file %r", self.f.name)
             # Make sure the OS really saves enough bytes for the file.
             self.f.seek(self.maxsize - 1)
             self.f.write('x')
@@ -779,11 +777,11 @@ class FileCache(object):
     # for each object found in the cache.  This method should only
     # be called once to initialize the cache from disk.
     def scan(self, install):
-        if self.f is not None:
+        if self.f is not None:  # we're not (re)using a pre-existing file
             return
         fsize = os.path.getsize(self.fpath)
         if fsize != self.maxsize:
-            logger.warning("existing cache file %s has size %d; "
+            logger.warning("existing cache file %r has size %d; "
                            "requested size %d ignored", self.fpath,
                            fsize, self.maxsize)
             self.maxsize = fsize
@@ -797,8 +795,8 @@ class FileCache(object):
 
         # Populate .filemap and .key2entry to reflect what's currently in the
         # file, and tell our parent about it too (via the `install` callback).
-        # Remember the location of the largest free block  That seems a decent
-        # place to start currentofs.
+        # Remember the location of the largest free block.  That seems a
+        # decent place to start currentofs.
         max_free_size = max_free_offset = 0
         ofs = ZEC3_HEADER_SIZE
         while ofs < fsize:
