@@ -76,14 +76,9 @@ class ClientCache(object):
     # default of 20MB.  The default here is misleading, though, since
     # ClientStorage is the only user of ClientCache, and it always passes an
     # explicit size of its own choosing.
-    def __init__(self, path=None, size=200*1024**2, trace=False):
+    def __init__(self, path=None, size=200*1024**2):
         self.path = path
         self.size = size
-
-        if trace and path:
-            self._setup_trace()
-        else:
-            self._trace = self._notrace
 
         # The cache stores objects in a dict mapping (oid, tid) pairs
         # to Object() records (see below).  The tid is the transaction
@@ -110,6 +105,8 @@ class ClientCache(object):
         # A FileCache instance does all the low-level work of storing
         # and retrieving objects to/from the cache file.
         self.fc = FileCache(size, self.path, self)
+
+        self._setup_trace(self.path)
 
     def open(self):
         self.fc.scan(self.install)
@@ -140,6 +137,10 @@ class ClientCache(object):
 
     def close(self):
         self.fc.close()
+        if self._tracefile:
+            sync(self._tracefile)
+            self._tracefile.close()
+            self._tracefile = None
 
     ##
     # Set the last transaction seen by the cache.
@@ -430,19 +431,29 @@ class ClientCache(object):
             L = self.noncurrent[oid]
             L.remove((o.start_tid, o.end_tid))
 
-    def _setup_trace(self):
-        tfn = self.path + ".trace"
-        self.tracefile = None
-        try:
-            self.tracefile = open(tfn, "ab")
-            self._trace(0x00)
-        except IOError, msg:
-            self.tracefile = None
-            logger.warning("Could not write to trace file %s: %s",
-                           tfn, msg)
+    # If `path` isn't None (== we're using a persistent cache file), and
+    # envar ZEO_CACHE_TRACE is set to a non-empty value, try to open
+    # path+'.trace' as a trace file, and store the file object in
+    # self._tracefile.  If not, or we can't write to the trace file, disable
+    # tracing by setting self._trace to a dummy function, and set
+    # self._tracefile to None.
+    def _setup_trace(self, path):
+        self._tracefile = None
+        if path and os.environ.get("ZEO_CACHE_TRACE"):
+            tfn = path + ".trace"
+            try:
+                self._tracefile = open(tfn, "ab")
+                self._trace(0x00)
+            except IOError, msg:
+                self._tracefile = None
+                logger.warning("cannot write tracefile %r (%s)", tfn, msg)
+            else:
+                logger.info("opened tracefile %r", tfn)
 
-    def _notrace(self, *arg, **kwargs):
-        pass
+        if self._tracefile is None:
+            def notrace(*args, **kws):
+                pass
+            self._trace = notrace
 
     def _trace(self,
                code, oid="", version="", tid="", end_tid=z64, dlen=0,
@@ -462,7 +473,7 @@ class ClientCache(object):
         if end_tid is None:
             end_tid = z64
         try:
-            self.tracefile.write(
+            self._tracefile.write(
                 struct_pack(">iiH8s8s",
                             time_time(),
                             encoded,
