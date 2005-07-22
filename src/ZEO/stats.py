@@ -26,8 +26,8 @@ Usage: stats.py [-h] [-i interval] [-q] [-s] [-S] [-v] [-X] tracefile
 
 """File format:
 
-Each record is 24 bytes, with the following layout.  Numbers are
-big-endian integers.
+Each record is 18 bytes, plus a variable number of bytes to store an oid,
+with the following layout.  Numbers are big-endian integers.
 
 Offset  Size  Contents
 
@@ -46,6 +46,9 @@ Mask    bits  Contents
 0x7e    6     function and outcome code
 0x01    1     current cache file (0 or 1)
 
+The "current cache file" bit is no longer used; it refers to a 2-file
+cache scheme used before ZODB 3.3.
+
 The function and outcome codes are documented in detail at the end of
 this file in the 'explain' dictionary.  Note that the keys there (and
 also the arguments to _trace() in ClientStorage.py) are 'code & 0x7e',
@@ -59,18 +62,18 @@ import struct
 from types import StringType
 
 def usage(msg):
-    print >>sys.stderr, msg
-    print >>sys.stderr, __doc__
+    print >> sys.stderr, msg
+    print >> sys.stderr, __doc__
 
 def main():
     # Parse options
-    verbose = 0
-    quiet = 0
-    dostats = 1
-    print_size_histogram = 0
-    print_histogram = 0
-    interval = 900 # Every 15 minutes
-    heuristic = 0
+    verbose = False
+    quiet = False
+    dostats = True
+    print_size_histogram = False
+    print_histogram = False
+    interval = 15*60 # Every 15 minutes
+    heuristic = False
     try:
         opts, args = getopt.getopt(sys.argv[1:], "hi:qsSvX")
     except getopt.error, msg:
@@ -78,24 +81,27 @@ def main():
         return 2
     for o, a in opts:
         if o == '-h':
-            print_histogram = 1
-        if o == "-i":
+            print_histogram = True
+        elif o == "-i":
             interval = int(60 * float(a))
             if interval <= 0:
                 interval = 60
             elif interval > 3600:
                 interval = 3600
-        if o == "-q":
-            quiet = 1
-            verbose = 0
-        if o == "-s":
-            print_size_histogram = 1
-        if o == "-S":
-            dostats = 0
-        if o == "-v":
-            verbose = 1
-        if o == '-X':
-            heuristic = 1
+        elif o == "-q":
+            quiet = True
+            verbose = False
+        elif o == "-s":
+            print_size_histogram = True
+        elif o == "-S":
+            dostats = False
+        elif o == "-v":
+            verbose = True
+        elif o == '-X':
+            heuristic = True
+        else:
+            assert False, (o, opt)
+
     if len(args) != 1:
         usage("exactly one file argument required")
         return 2
@@ -107,12 +113,12 @@ def main():
         try:
             import gzip
         except ImportError:
-            print >>sys.stderr,  "can't read gzipped files (no module gzip)"
+            print >> sys.stderr, "can't read gzipped files (no module gzip)"
             return 1
         try:
             f = gzip.open(filename, "rb")
         except IOError, msg:
-            print >>sys.stderr,  "can't open %s: %s" % (filename, msg)
+            print >> sys.stderr, "can't open %s: %s" % (filename, msg)
             return 1
     elif filename == '-':
         # Read from stdin
@@ -122,7 +128,7 @@ def main():
         try:
             f = open(filename, "rb")
         except IOError, msg:
-            print >>sys.stderr,  "can't open %s: %s" % (filename, msg)
+            print >> sys.stderr, "can't open %s: %s" % (filename, msg)
             return 1
 
     # Read file, gathering statistics, and printing each record if verbose
@@ -203,9 +209,8 @@ def main():
                     bysizew[dlen] = d = bysizew.get(dlen) or {}
                     d[oid] = d.get(oid, 0) + 1
             if verbose:
-                print "%s %d %02x %s %016x %016x %1s %s" % (
+                print "%s %02x %s %016x %016x %c %s" % (
                     time.ctime(ts)[4:-5],
-                    current,
                     code,
                     oid_repr(oid),
                     U64(start_tid),
@@ -234,7 +239,7 @@ def main():
 
     # Error if nothing was read
     if not records:
-        print >>sys.stderr, "No records processed"
+        print >> sys.stderr, "No records processed"
         return 1
 
     # Print statistics
@@ -261,7 +266,7 @@ def main():
                 code,
                 explain.get(code) or "*** unknown code ***")
 
-    # Print histogram
+    # Print histogram.
     if print_histogram:
         print
         print "Histogram of object load frequency"
@@ -281,7 +286,7 @@ def main():
             print fmt % (binsize, addcommas(count),
                          obj_percent, load_percent, cum)
 
-    # Print size histogram
+    # Print size histogram.
     if print_size_histogram:
         print
         print "Histograms of object sizes"
@@ -325,7 +330,7 @@ def dumpbyinterval(byinterval, h0, he):
 def hitrate(bycode):
     loads = 0
     hits = 0
-    for code in bycode.keys():
+    for code in bycode:
         if code & 0x70 == 0x20:
             n = bycode[code]
             loads += n
@@ -345,8 +350,7 @@ def histogram(d):
     return L
 
 def U64(s):
-    h, v = struct.unpack(">II", s)
-    return (long(h) << 32) + v
+    return struct.unpack(">Q", s)[0]
 
 def oid_repr(oid):
     if isinstance(oid, StringType) and len(oid) == 8:

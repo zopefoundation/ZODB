@@ -13,29 +13,32 @@ cache; the ZEO client cache avoids roundtrips to the ZEO server.
 Enabling Cache Tracing
 ----------------------
 
-To enable cache tracing, set the environment variable ZEO_CACHE_TRACE
-to the name of a file to which the ZEO client process can write.  ZEO
-will append a hyphen and the storage name to the filename, to
-distinguish different storages.  If the file doesn't exist, the ZEO
-will try to create it.  If there are problems with the file, a log
-message is written to the standard Zope log file.  To start or stop
-tracing, the ZEO client process (typically a Zope application server)
-must be restarted.
+To enable cache tracing, you must use a persistent cache (specify a ``client``
+name), and set the environment variable ZEO_CACHE_TRACE.  The path to the
+trace file is derived from the path to the persistent cache file by appending
+".trace".  If the file doesn't exist, ZEO will try to create it.  If the file
+does exist, it's opened for appending (previous trace information is not
+overwritten).  If there are problems with the file, a warning message is
+logged.  To start or stop tracing, the ZEO client process (typically a Zope
+application server) must be restarted.
 
-The trace file can grow pretty quickly; on a moderately loaded server,
-we observed it growing by 5 MB per hour.  The file consists of binary
-records, each 24 bytes long; a detailed description of the record
-lay-out is given in stats.py.  No sensitive data is logged.
+The trace file can grow pretty quickly; on a moderately loaded server, we
+observed it growing by 5 MB per hour.  The file consists of binary records,
+each 26 bytes long if 8-byte oids are in use; a detailed description of the
+record lay-out is given in stats.py.  No sensitive data is logged:  data
+record sizes and binary object and transaction ids are logged, but no
+information about object types or names, user names, version names,
+transaction comments, access paths, or machine information such as machine
+name or IP address.
 
 Analyzing a Cache Trace
 -----------------------
 
-The stats.py command-line tool is the first-line tool to analyze a
-cache trace.  Its default output consists of two parts: a one-line
-summary of essential statistics for each segment of 15 minutes,
-interspersed with lines indicating client restarts and "cache flip
-events" (more about those later), followed by a more detailed summary
-of overall statistics.
+The stats.py command-line tool is the first-line tool to analyze a cache
+trace.  Its default output consists of two parts:  a one-line summary of
+essential statistics for each segment of 15 minutes, interspersed with lines
+indicating client restarts, followed by a more detailed summary of overall
+statistics.
 
 The most important statistic is probably the "hit rate", a percentage
 indicating how many requests to load an object could be satisfied from
@@ -43,9 +46,9 @@ the cache.  Hit rates around 70% are good.  90% is probably close to
 the theoretical maximum.  If you see a hit rate under 60% you can
 probably improve the cache performance (and hence your Zope
 application server's performance) by increasing the ZEO cache size.
-This is normally configured using the cache_size keyword argument to
-the ClientStorage() constructor in your custom_zodb.py file.  The
-default cache size is 20 MB.
+This is normally configured using cache_size key in the ``zeoclient``
+section of your configuration file.  The default cache size is 20 MB, which
+is very small.
 
 The stats.py tool shows its command line syntax when invoked without
 arguments.  The tracefile argument can be a gzipped file if it has a
@@ -85,7 +88,7 @@ size::
     ZEOCacheSimulation, cache size 300,000,000 bytes
       START TIME  DURATION    LOADS     HITS INVALS WRITES  FLIPS HITRATE
     Sep  4 11:59     38:01    59833    40921    258     20      0  68.4%
-    $ 
+    $
 
 This shows that for this particular trace file, the maximum attainable
 hit rate is 68.4%.  This is probably caused by the fact that nearly a
@@ -95,32 +98,3 @@ the cache only helps if an object is loaded more than once.
 The simul.py tool also supports simulating different cache
 strategies.  Since none of these are implemented, these are not
 further documented here.
-
-Cache Flips
------------
-
-The cache uses two files, which are managed as follows:
-
-  - Data are written to file 0 until file 0 exceeds limit/2 in size.
-
-  - Data are written to file 1 until file 1 exceeds limit/2 in size.
-
-  - File 0 is truncated to size 0 (or deleted and recreated).
-
-  - Data are written to file 0 until file 0 exceeds limit/2 in size.
-
-  - File 1 is truncated to size 0 (or deleted and recreated).
-
-  - Data are written to file 1 until file 1 exceeds limit/2 in size.
-
-and so on.
-
-A switch from file 0 to file 1 is called a "cache flip".  At all cache
-flips except the first, half of the cache contents is wiped out.  This
-affects cache performance.  How badly this impact is can be seen from
-the per-15-minutes summaries printed by stats.py.  The -i option lets
-you choose a smaller summary interval which shows the impact more
-acutely.
-
-The simul.py tool shows the number of cache flips in the FLIPS column.
-If you see more than one flip per hour the cache may be too small.
