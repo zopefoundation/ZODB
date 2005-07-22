@@ -368,7 +368,7 @@ class ClientCache(object):
         assert o.end_tid is None  # i.e., o was current
         if o is None:
             # TODO:  Since we asserted o is not None above, this block
-            # should be removing; waiting on time to prove it can't happen.
+            # should be removed; waiting on time to prove it can't happen.
             return
         o.end_tid = tid
         self.fc.update(o)   # record the new end_tid on disk

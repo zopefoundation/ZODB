@@ -1,11 +1,11 @@
 #! /usr/bin/env python
 ##############################################################################
 #
-# Copyright (c) 2001, 2002 Zope Corporation and Contributors.
+# Copyright (c) 2001-2005 Zope Corporation and Contributors.
 # All Rights Reserved.
 #
 # This software is subject to the provisions of the Zope Public License,
-# Version 2.0 (ZPL).  A copy of the ZPL should accompany this distribution.
+# Version 2.1 (ZPL).  A copy of the ZPL should accompany this distribution.
 # THIS SOFTWARE IS PROVIDED "AS IS" AND ANY AND ALL EXPRESS OR IMPLIED
 # WARRANTIES ARE DISCLAIMED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 # WARRANTIES OF TITLE, MERCHANTABILITY, AGAINST INFRINGEMENT, AND FITNESS
@@ -55,32 +55,34 @@ def main():
     for o, a in opts:
         if o == '-b':
             simclass = BuddyCacheSimulation
-        if o == '-f':
+        elif o == '-f':
             simclass = SimpleCacheSimulation
-        if o == '-l':
+        elif o == '-l':
             simclass = LRUCacheSimulation
-        if o == '-y':
+        elif o == '-y':
             simclass = AltZEOCacheSimulation
-        if o == '-z':
+        elif o == '-z':
             simclass = ZEOCacheSimulation
-        if o == '-s':
+        elif o == '-s':
             cachelimit = int(float(a)*MB)
-        if o == '-2':
+        elif o == '-2':
             simclass = TwoQSimluation
-        if o == '-c':
+        elif o == '-c':
             simclass = CircularCacheSimulation
-        if o == '-o':
+        elif o == '-o':
             omicron = float(a)
-        if o == '-t':
+        elif o == '-t':
             theta = float(a)
-        if o == '-O':
+        elif o == '-O':
             simclass = OracleSimulation
-        if o == '-a':
+        elif o == '-a':
             simclass = ARCCacheSimulation
-        if o == '-T':
+        elif o == '-T':
             simclass = ThorSimulation
-        if o == '-U':
+        elif o == '-U':
             simclass = UnboundedSimulation
+        else:
+            assert False, (o, a)
 
     if len(args) != 1:
         usage("exactly one file argument required")
@@ -97,12 +99,12 @@ def main():
         try:
             import gzip
         except ImportError:
-            print >>sys.stderr,  "can't read gzipped files (no module gzip)"
+            print >> sys.stderr, "can't read gzipped files (no module gzip)"
             return 1
         try:
             f = gzip.open(filename, "rb")
         except IOError, msg:
-            print >>sys.stderr,  "can't open %s: %s" % (filename, msg)
+            print >> sys.stderr, "can't open %s: %s" % (filename, msg)
             return 1
     elif filename == "-":
         # Read from stdin
@@ -112,7 +114,7 @@ def main():
         try:
             f = open(filename, "rb")
         except IOError, msg:
-            print >>sys.stderr,  "can't open %s: %s" % (filename, msg)
+            print >> sys.stderr, "can't open %s: %s" % (filename, msg)
             return 1
 
     # Create simulation object
@@ -127,7 +129,6 @@ def main():
     sim.printheader()
 
     # Read trace file, simulating cache behavior
-    offset = 0
     records = 0
     f_read = f.read
     struct_unpack = struct.unpack
@@ -136,16 +137,13 @@ def main():
         r = f_read(8)
         if len(r) < 8:
             break
-        offset += 8
         ts, code = struct_unpack(">ii", r)
         if ts == 0:
             # Must be a misaligned record caused by a crash
-            ##print "Skipping 8 bytes at offset", offset-8
             continue
         r = f_read(16)
         if len(r) < 16:
             break
-        offset += 16
         records += 1
         oid, serial = struct_unpack(">8s8s", r)
         # Decode the code
@@ -288,12 +286,10 @@ class Simulation:
             print (self.format + " OVERALL") % args
 
 class ZEOCacheSimulation(Simulation):
-
-    """Simulate the current (ZEO 1.0 and 2.0) ZEO cache behavior.
+    """Simulate the ZEO 1.0 and 2.0cache behavior.
 
     This assumes the cache is not persistent (we don't know how to
     simulate cache validation.)
-
     """
 
     extraname = "flips"
@@ -348,7 +344,6 @@ class ZEOCacheSimulation(Simulation):
             del self.fileoids[1 - self.current][oid]
 
 class AltZEOCacheSimulation(ZEOCacheSimulation):
-
     """A variation of the ZEO cache that copies to the current file.
 
     When a hit is found in the non-current cache file, it is copied to
@@ -436,16 +431,13 @@ class LRUCacheSimulation(Simulation):
             self.size -= node.size
             assert self.size >= 0
 
-class Node:
-
+class Node(object):
     """Node in a doubly-linked list, storing oid and size as payload.
 
     A node can be linked or unlinked; in the latter case, next and
     prev are None.  Initially a node is unlinked.
-
     """
-    # Make it a new-style class in Python 2.2 and up; no effect in 2.1
-    __metaclass__ = type
+
     __slots__ = ['prev', 'next', 'oid', 'size']
 
     def __init__(self, oid, size):
@@ -495,7 +487,6 @@ class Node2Q(Node):
         Node.linkbefore(self, next)
 
 class TwoQSimluation(Simulation):
-
     # The original 2Q algorithm is page based and the authors offer
     # tuning guidlines based on a page-based cache.  Our cache is
     # object based, so, for example, it's hard to compute the number
@@ -922,7 +913,6 @@ class ARCCacheSimulation(Simulation):
         pass
 
 class OracleSimulation(LRUCacheSimulation):
-
     # Not sure how to implement this yet.  This is a cache where I
     # cheat to see how good we could actually do.  The cache
     # replacement problem for multi-size caches is NP-hard, so we're
@@ -987,7 +977,6 @@ class OracleSimulation(LRUCacheSimulation):
             all, len(self.count))
 
 class CircularCacheSimulation(Simulation):
-
     # The cache is managed as a single file with a pointer that
     # goes around the file, circularly, forever.  New objects
     # are written at the current pointer, evicting whatever was
@@ -1481,7 +1470,6 @@ def hitrate(loads, hits):
     return "%5.1f%%" % (100.0 * hits / max(1, loads))
 
 def duration(secs):
-
     mm, ss = divmod(secs, 60)
     hh, mm = divmod(mm, 60)
     if hh:
@@ -1509,7 +1497,7 @@ def maybe(f, p=0.5):
 #############################################################################
 # Thor-like eviction scheme.
 #
-# The cache keeps such a list of all objects, and uses a travelling pointer
+# The cache keeps a list of all objects, and uses a travelling pointer
 # to decay the worth of objects over time.
 
 class ThorNode(Node):

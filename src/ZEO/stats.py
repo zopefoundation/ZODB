@@ -149,23 +149,20 @@ def main():
     he = None       # timestamp at end of current interval
     thisinterval = None  # generally te//interval
     f_read = f.read
-    struct_unpack = struct.unpack
+    unpack = struct.unpack
     # Read file, gathering statistics, and printing each record if verbose.
     try:
         while 1:
-            r = f_read(8) # timestamp:4 code:4
-            if len(r) < 8:
+            r = f_read(26)
+            if len(r) < 26:
                 break
-            ts, code = struct_unpack(">ii", r)
+            ts, code, oidlen, start_tid, end_tid = unpack(">iiH8s8s", r)
             if ts == 0:
                 # Must be a misaligned record caused by a crash.
                 if not quiet:
-                    print "Skipping 8 bytes at offset", f.tell() - 8
+                    print "Skipping 8 bytes at offset", f.tell() - 26
+                    f.seek(f.tell() - 18)
                 continue
-            r = f_read(18) # oidlen:2 starttid:8 endtid:8
-            if len(r) < 18:
-                break
-            oidlen, start_tid, end_tid = struct_unpack(">H8s8s", r)
             oid = f_read(oidlen)
             if len(oid) < oidlen:
                 break
