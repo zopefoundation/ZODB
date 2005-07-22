@@ -24,7 +24,7 @@ application server) must be restarted.
 
 The trace file can grow pretty quickly; on a moderately loaded server, we
 observed it growing by 5 MB per hour.  The file consists of binary records,
-each 26 bytes long if 8-byte oids are in use; a detailed description of the
+each 34 bytes long if 8-byte oids are in use; a detailed description of the
 record lay-out is given in stats.py.  No sensitive data is logged:  data
 record sizes and binary object and transaction ids are logged, but no
 information about object types or names, user names, version names,

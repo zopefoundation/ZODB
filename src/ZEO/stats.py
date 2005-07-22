@@ -26,7 +26,7 @@ Usage: stats.py [-h] [-i interval] [-q] [-s] [-S] [-v] [-X] tracefile
 
 """File format:
 
-Each record is 18 bytes, plus a variable number of bytes to store an oid,
+Each record is 26 bytes, plus a variable number of bytes to store an oid,
 with the following layout.  Numbers are big-endian integers.
 
 Offset  Size  Contents
@@ -35,8 +35,9 @@ Offset  Size  Contents
 4       3     data size, in 256-byte increments, rounded up
 7       1     code (see below)
 8       2     object id length
-10      8     serial number
-18  variable  object id
+10      8     start tid
+18      8     end tid
+26  variable  object id
 
 The code at offset 7 packs three fields:
 
@@ -131,74 +132,66 @@ def main():
             print >> sys.stderr, "can't open %s: %s" % (filename, msg)
             return 1
 
-    # Read file, gathering statistics, and printing each record if verbose
     rt0 = time.time()
-    # bycode -- map code to count of occurrences
-    bycode = {}
-    # records -- number of records
-    records = 0
-    # version -- number of records with versions
-    versions = 0
-    t0 = te = None
-    # datarecords -- number of records with dlen set
-    datarecords = 0
-    datasize = 0L
-    # oids -- maps oid to number of times it was loaded
-    oids = {}
-    # bysize -- maps data size to number of loads
-    bysize = {}
-    # bysize -- maps data size to number of writes
-    bysizew = {}
+    bycode = {}     # map code to count of occurrences
+    byinterval = {} # map code to count in current interval
+    records = 0     # number of trace records read
+    versions = 0    # number of trace records with versions
+    datarecords = 0 # number of records with dlen set
+    datasize = 0L   # sum of dlen across records with dlen set
+    oids = {}       # map oid to number of times it was loaded
+    bysize = {}     # map data size to number of loads
+    bysizew = {}    # map data size to number of writes
     total_loads = 0
-    byinterval = {}
-    thisinterval = None
-    h0 = he = None
-    offset = 0
+    t0 = None       # first timestamp seen
+    te = None       # most recent timestamp seen
+    h0 = None       # timestamp at start of current interval
+    he = None       # timestamp at end of current interval
+    thisinterval = None  # generally te//interval
     f_read = f.read
     struct_unpack = struct.unpack
+    # Read file, gathering statistics, and printing each record if verbose.
     try:
         while 1:
-            r = f_read(8)
+            r = f_read(8) # timestamp:4 code:4
             if len(r) < 8:
                 break
-            offset += 8
             ts, code = struct_unpack(">ii", r)
             if ts == 0:
-                # Must be a misaligned record caused by a crash
+                # Must be a misaligned record caused by a crash.
                 if not quiet:
-                    print "Skipping 8 bytes at offset", offset-8
+                    print "Skipping 8 bytes at offset", f.tell() - 8
                 continue
-            r = f_read(18)
-            if len(r) < 10:
+            r = f_read(18) # oidlen:2 starttid:8 endtid:8
+            if len(r) < 18:
                 break
-            offset += 10
-            records += 1
             oidlen, start_tid, end_tid = struct_unpack(">H8s8s", r)
             oid = f_read(oidlen)
-            if len(oid) != oidlen:
+            if len(oid) < oidlen:
                 break
-            offset += oidlen
+            records += 1
             if t0 is None:
                 t0 = ts
-                thisinterval = t0 / interval
+                thisinterval = t0 // interval
                 h0 = he = ts
             te = ts
-            if ts / interval != thisinterval:
+            if ts // interval != thisinterval:
                 if not quiet:
                     dumpbyinterval(byinterval, h0, he)
                 byinterval = {}
-                thisinterval = ts / interval
+                thisinterval = ts // interval
                 h0 = ts
             he = ts
             dlen, code = code & 0x7fffff00, code & 0xff
             if dlen:
                 datarecords += 1
                 datasize += dlen
-            version = '-'
             if code & 0x80:
                 version = 'V'
                 versions += 1
-            code = code & 0x7e
+            else:
+                version = '-'
+            code &= 0x7e
             bycode[code] = bycode.get(code, 0) + 1
             byinterval[code] = byinterval.get(code, 0) + 1
             if dlen:
@@ -220,11 +213,11 @@ def main():
             if code & 0x70 == 0x20:
                 oids[oid] = oids.get(oid, 0) + 1
                 total_loads += 1
-            if code == 0x00:
+            if code == 0x00:    # restart
                 if not quiet:
                     dumpbyinterval(byinterval, h0, he)
                 byinterval = {}
-                thisinterval = ts / interval
+                thisinterval = ts // interval
                 h0 = he = ts
                 if not quiet:
                     print time.ctime(ts)[4:-5],
@@ -232,6 +225,7 @@ def main():
     except KeyboardInterrupt:
         print "\nInterrupted.  Stats so far:\n"
 
+    end_pos = f.tell()
     f.close()
     rte = time.time()
     if not quiet:
@@ -245,8 +239,8 @@ def main():
     # Print statistics
     if dostats:
         print
-        print "Read %s records (%s bytes) in %.1f seconds" % (
-            addcommas(records), addcommas(records*24), rte-rt0)
+        print "Read %s trace records (%s bytes) in %.1f seconds" % (
+            addcommas(records), addcommas(end_pos), rte-rt0)
         print "Versions:   %s records used a version" % addcommas(versions)
         print "First time: %s" % time.ctime(t0)
         print "Last time:  %s" % time.ctime(te)
@@ -309,9 +303,8 @@ def dumpbysize(bysize, how, how2):
                                 loads)
 
 def dumpbyinterval(byinterval, h0, he):
-    loads = 0
-    hits = 0
-    for code in byinterval.keys():
+    loads = hits = 0
+    for code in byinterval:
         if code & 0x70 == 0x20:
             n = byinterval[code]
             loads += n
@@ -328,8 +321,7 @@ def dumpbyinterval(byinterval, h0, he):
         addcommas(loads), addcommas(hits), hr)
 
 def hitrate(bycode):
-    loads = 0
-    hits = 0
+    loads = hits = 0
     for code in bycode:
         if code & 0x70 == 0x20:
             n = bycode[code]
@@ -389,7 +381,6 @@ explain = {
     0x50: "store (version)",
     0x52: "store (current, non-version)",
     0x54: "store (non-current)",
-
     }
 
 if __name__ == "__main__":
