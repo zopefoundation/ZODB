@@ -42,13 +42,12 @@ def usage(msg):
     print >>sys.stderr, __doc__
 
 def main():
-    # Parse options
-    MB = 1000*1000
+    # Parse options.
+    MB = 1024**2
     cachelimit = 20*MB
     simclass = ZEOCacheSimulation
-    theta = omicron = None
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "bflyz2cOaTUs:o:t:")
+        opts, args = getopt.getopt(sys.argv[1:], "bflyz2cOaTUs:")
     except getopt.error, msg:
         usage(msg)
         return 2
@@ -69,10 +68,6 @@ def main():
             simclass = TwoQSimluation
         elif o == '-c':
             simclass = CircularCacheSimulation
-        elif o == '-o':
-            omicron = float(a)
-        elif o == '-t':
-            theta = float(a)
         elif o == '-O':
             simclass = OracleSimulation
         elif o == '-a':
@@ -89,13 +84,9 @@ def main():
         return 2
     filename = args[0]
 
-    if omicron is not None and simclass != CircularCacheSimulation:
-        usage("-o flag only useful with -c (CircularCacheSimulation)")
-        return 2
-
-    # Open file
+    # Open file.
     if filename.endswith(".gz"):
-        # Open gzipped file
+        # Open gzipped file.
         try:
             import gzip
         except ImportError:
@@ -107,57 +98,55 @@ def main():
             print >> sys.stderr, "can't open %s: %s" % (filename, msg)
             return 1
     elif filename == "-":
-        # Read from stdin
+        # Read from stdin.
         f = sys.stdin
     else:
-        # Open regular file
+        # Open regular file.
         try:
             f = open(filename, "rb")
         except IOError, msg:
             print >> sys.stderr, "can't open %s: %s" % (filename, msg)
             return 1
 
-    # Create simulation object
-    if omicron is not None or theta is not None:
-        sim = simclass(cachelimit, omicron, theta)
-    elif simclass is OracleSimulation:
+    # Create simulation object.
+    if simclass is OracleSimulation:
         sim = simclass(cachelimit, filename)
     else:
         sim = simclass(cachelimit)
 
-    # Print output header
+    # Print output header.
     sim.printheader()
 
-    # Read trace file, simulating cache behavior
-    records = 0
+    # Read trace file, simulating cache behavior.
     f_read = f.read
-    struct_unpack = struct.unpack
+    unpack = struct.unpack
     while 1:
-        # Read a record and decode it
-        r = f_read(8)
-        if len(r) < 8:
+        # Read a record and decode it.
+        r = f_read(26)
+        if len(r) < 26:
             break
-        ts, code = struct_unpack(">ii", r)
+        ts, code, oidlen, start_tid, end_tid = unpack(">iiH8s8s", r)
         if ts == 0:
-            # Must be a misaligned record caused by a crash
+            # Must be a misaligned record caused by a crash; skip 8 bytes
+            # and try again.  Why 8?  Lost in the mist of history.
+            f.seek(f.tell() - 18)
             continue
-        r = f_read(16)
-        if len(r) < 16:
+        oid = f_read(oidlen)
+        if len(oid) < oidlen:
             break
-        records += 1
-        oid, serial = struct_unpack(">8s8s", r)
-        # Decode the code
+        # Decode the code.
         dlen, version, code, current = (code & 0x7fffff00,
                                         code & 0x80,
                                         code & 0x7e,
                                         code & 0x01)
-        # And pass it to the simulation
-        sim.event(ts, dlen, version, code, current, oid, serial)
+        # And pass it to the simulation.
+        sim.event(ts, dlen, version, code, current, oid, start_tid)
 
-    # Finish simulation
+    f.close()
+    # Finish simulation.
     sim.finish()
 
-    # Exit code from main()
+    # Exit code from main().
     return 0
 
 class Simulation:
@@ -195,32 +184,33 @@ class Simulation:
         self.ts0 = None
 
     def event(self, ts, dlen, _version, code, _current, oid, _serial):
-        # Record first and last timestamp seen
+        # Record first and last timestamp seen.
         if self.ts0 is None:
             self.ts0 = ts
             if self.epoch is None:
                 self.epoch = ts
         self.ts1 = ts
 
-        # Simulate cache behavior.  Use load hits, updates and stores
-        # only (each load miss is followed immediately by a store
-        # unless the object in fact did not exist).  Updates always write.
-        if dlen and code & 0x70 in (0x20, 0x30, 0x50):
-            if code == 0x3A:
-                # Update
+        # Simulate cache behavior.
+        action = code & 0x70  # ignore high bit (version flag)
+        if dlen:
+            if action == 0x20:
+                # Load.
+                self.loads += 1
+                self.total_loads += 1
+                self.load(oid, dlen)
+            elif action == 0x50:
+                # Store.
                 self.writes += 1
                 self.total_writes += 1
                 self.write(oid, dlen)
             else:
-                # Load hit or store -- these are really the load requests
-                self.loads += 1
-                self.total_loads += 1
-                self.load(oid, dlen)
-        elif code & 0x70 == 0x10:
-            # Invalidate
+                assert False, (hex(code), dlen)
+        elif action == 0x10:
+            # Invalidate.
             self.inval(oid)
-        elif code == 0x00:
-            # Restart
+        elif action == 0x00:
+            # Restart.
             self.report()
             self.restart()
 
@@ -982,78 +972,34 @@ class CircularCacheSimulation(Simulation):
     # are written at the current pointer, evicting whatever was
     # there previously.
 
-    # For each cache hit, there is some distance between the current
-    # pointer offset and the offset of the cached data record.  The
-    # cache can be configured to copy objects to the current offset
-    # depending on how far away they are now.  The omicron parameter
-    # specifies a percentage
+    extras = "evicts", "inuse"
 
-    extras = "evicts", "copies", "inuse", "skips"
-
-    def __init__(self, cachelimit, omicron=None, skip=None):
+    def __init__(self, cachelimit):
         Simulation.__init__(self, cachelimit)
-        self.omicron = omicron or 0
-        self.skip = skip or 0
         self.total_evicts = 0
-        self.total_copies = 0
-        self.total_skips = 0
-        # Current offset in file
+        # Current offset in file.
         self.offset = 0
-        # Map offset in file to tuple of size, oid
+        # Map offset in file to (size, oid) pair.
         self.filemap = {0: (self.cachelimit, None)}
-        # Map oid to offset, node
-        self.cache = {}
-        # LRU list of oids
-        self.head = Node(None, None)
-        self.head.linkbefore(self.head)
-
-    def extraheader(self):
-        print "omicron = %s, theta = %s" % (self.omicron, self.skip)
+        # Map oid to file offset.
+        self.oid2ofs = {}
 
     def restart(self):
         Simulation.restart(self)
         self.evicts = 0
-        self.copies = 0
-        self.skips = 0
 
     def load(self, oid, size):
-        p = self.cache.get(oid)
-        if p is None:
-            self.add(oid, size)
-        else:
-            pos, node = p
+        if oid in self.oid2ofs:
             self.hits += 1
             self.total_hits += 1
-            node.linkbefore(self.head)
-            self.copy(oid, size, pos)
-
-    def check(self):
-        d = dict(self.filemap)
-        done = {}
-        while d:
-            pos, (size, oid) = d.popitem()
-            next = pos + size
-            if not (next in d or next in done or next == self.cachelimit):
-                print "check", next, pos, size, repr(oid)
-                self.dump()
-                raise RuntimeError
-            done[pos] = pos
-
-    def dump(self):
-        print len(self.filemap)
-        L = list(self.filemap)
-        L.sort()
-        for k in L:
-            v = self.filemap[k]
-            print k, v[0], repr(v[1])
+        else:
+            self.add(oid, size)
 
     def add(self, oid, size):
         avail = self.makeroom(size)
-        assert oid not in self.cache
+        assert oid not in self.oid2ofs
         self.filemap[self.offset] = size, oid
-        node = Node(oid, size)
-        node.linkbefore(self.head)
-        self.cache[oid] = self.offset, node
+        self.oid2ofs[oid] = self.offset
         self.offset += size
         # All the space made available must be accounted for in filemap.
         excess = avail - size
@@ -1061,102 +1007,48 @@ class CircularCacheSimulation(Simulation):
             self.filemap[self.offset] = excess, None
 
     def makeroom(self, need):
+        # Evict enough objects to make the necessary space available.
         if self.offset + need > self.cachelimit:
             self.offset = 0
         pos = self.offset
-        # Evict enough objects to make the necessary space available.
-        self.compute_closeenough()
-        evicted = False
         while need > 0:
-            if pos == self.cachelimit:
-                print "wrap makeroom", need
-                pos = 0
+            assert pos < self.cachelimit
             try:
                 size, oid = self.filemap[pos]
-            except:
+            except KeyError:
                 self.dump()
                 raise
-
-            if not evicted and self.skip and oid and self.closeenough(oid):
-                self.skips += 1
-                self.total_skips += 1
-                self.offset += size
-                pos += size
-                continue
-
-            evicted = True
             del self.filemap[pos]
-
-            if oid is not None:
+            if oid:
                 self.evicts += 1
                 self.total_evicts += 1
-                pos, node = self.cache.pop(oid)
-                node.unlink()
+                _pos = self.oid2ofs.pop(oid)
+                assert pos == _pos
             need -= size
             pos += size
-
-        return pos - self.offset
-
-    def compute_closeenough(self):
-        self.lru = {}
-        n = int(len(self.cache) * self.skip)
-        node = self.head.prev
-        while n > 0:
-            self.lru[node.oid] = True
-            node = node.prev
-            n -= 1
-
-    def closeenough(self, oid):
-        # If oid is in the top portion of the most recently used
-        # elements, skip it.
-        return oid in self.lru
-
-    def copy(self, oid, size, pos):
-        # Copy only if the distance is greater than omicron.
-        dist = self.offset - pos
-        if dist < 0:
-            dist += self.cachelimit
-        if dist < self.omicron * self.cachelimit:
-            self.copies += 1
-            self.total_copies += 1
-            self.filemap[pos] = size, None
-            pos, node =  self.cache.pop(oid)
-            node.unlink()
-            self.add(oid, size)
+        return pos - self.offset  # total number of bytes freed
 
     def inval(self, oid):
-        p = self.cache.get(oid)
-        if p is None:
+        pos = self.oid2ofs.pop(oid, None)
+        if pos is None:
             return
-        pos, node = p
         self.invals += 1
         self.total_invals += 1
         size, _oid = self.filemap[pos]
         assert oid == _oid
         self.filemap[pos] = size, None
-        pos, node = self.cache.pop(oid)
-        node.unlink()
 
     def write(self, oid, size):
-        p = self.cache.get(oid)
-        if p is None:
-            return
-        pos, node = p
-        oldsize, _oid = self.filemap[pos]
-        assert oid == _oid
-        if size == oldsize:
-            return
-        if size < oldsize:
-            excess = oldsize - size
-            self.filemap[pos] = size, oid
-            self.filemap[pos + size] = excess, None
-        else:
-            self.filemap[pos] = oldsize, None
-            pos, node = self.cache.pop(oid)
-            node.unlink()
-            self.add(oid, size)
+        if oid in self.oid2ofs:
+            # Delete the current record.
+            pos = self.oid2ofs.pop(oid)
+            size, _oid = self.filemap[pos]
+            assert oid == _oid
+            self.filemap[pos] = size, None
+        self.add(oid, size)
 
     def report(self):
+        self.check()
         free = used = total = 0
         for size, oid in self.filemap.itervalues():
             total += size
@@ -1168,6 +1060,25 @@ class CircularCacheSimulation(Simulation):
         self.inuse = round(100.0 * used / total, 1)
         self.total_inuse = self.inuse
         Simulation.report(self)
+
+    def check(self):
+        pos = oidcount = 0
+        while pos < self.cachelimit:
+            size, oid = self.filemap[pos]
+            if oid:
+                oidcount += 1
+                assert self.oid2ofs[oid] == pos
+            pos += size
+        assert oidcount == len(self.oid2ofs)
+        assert pos == self.cachelimit
+
+    def dump(self):
+        print len(self.filemap)
+        L = list(self.filemap)
+        L.sort()
+        for k in L:
+            v = self.filemap[k]
+            print k, v[0], repr(v[1])
 
 class BuddyCacheSimulation(LRUCacheSimulation):
 
