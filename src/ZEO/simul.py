@@ -120,16 +120,19 @@ def main():
     # Read trace file, simulating cache behavior.
     f_read = f.read
     unpack = struct.unpack
+    FMT = ">iiH8s8s"
+    FMT_SIZE = struct.calcsize(FMT)
+    assert FMT_SIZE == 26
     while 1:
         # Read a record and decode it.
-        r = f_read(26)
-        if len(r) < 26:
+        r = f_read(FMT_SIZE)
+        if len(r) < FMT_SIZE:
             break
-        ts, code, oidlen, start_tid, end_tid = unpack(">iiH8s8s", r)
+        ts, code, oidlen, start_tid, end_tid = unpack(FMT, r)
         if ts == 0:
             # Must be a misaligned record caused by a crash; skip 8 bytes
             # and try again.  Why 8?  Lost in the mist of history.
-            f.seek(f.tell() - 18)
+            f.seek(f.tell() - FMT_SIZE + 8)
             continue
         oid = f_read(oidlen)
         if len(oid) < oidlen:
@@ -149,8 +152,7 @@ def main():
     # Exit code from main().
     return 0
 
-class Simulation:
-
+class Simulation(object):
     """Base class for simulations.
 
     The driver program calls: event(), printheader(), finish().
@@ -163,7 +165,7 @@ class Simulation:
 
     def __init__(self, cachelimit):
         self.cachelimit = cachelimit
-        # Initialize global statistics
+        # Initialize global statistics.
         self.epoch = None
         self.total_loads = 0
         self.total_hits = 0       # subclass must increment
@@ -172,11 +174,11 @@ class Simulation:
         if not hasattr(self, "extras"):
             self.extras = (self.extraname,)
         self.format = self.format + " %7s" * len(self.extras)
-        # Reset per-run statistics and set up simulation data
+        # Reset per-run statistics and set up simulation data.
         self.restart()
 
     def restart(self):
-        # Reset per-run statistics
+        # Reset per-run statistics.
         self.loads = 0
         self.hits = 0       # subclass must increment
         self.invals = 0     # subclass must increment
@@ -191,21 +193,22 @@ class Simulation:
                 self.epoch = ts
         self.ts1 = ts
 
-        # Simulate cache behavior.
+        # Simulate cache behavior.  Caution:  the codes in the trace file
+        # record whether the actual cache missed or hit on each load, but
+        # that bears no relationship to whether the simulated cache will
+        # hit or miss.
         action = code & 0x70  # ignore high bit (version flag)
-        if dlen:
-            if action == 0x20:
-                # Load.
-                self.loads += 1
-                self.total_loads += 1
+        if action == 0x20:
+            # Load.
+            self.loads += 1
+            self.total_loads += 1
+            assert (dlen == 0) == (code in (0x20, 0x24))
+            if dlen:
                 self.load(oid, dlen)
-            elif action == 0x50:
-                # Store.
-                self.writes += 1
-                self.total_writes += 1
-                self.write(oid, dlen)
-            else:
-                assert False, (hex(code), dlen)
+        elif action == 0x50:
+            # Store.
+            assert dlen
+            self.write(oid, dlen)
         elif action == 0x10:
             # Invalidate.
             self.inval(oid)
@@ -213,6 +216,8 @@ class Simulation:
             # Restart.
             self.report()
             self.restart()
+        else:
+            raise ValueError("unknown trace code 0x%x" % code)
 
     def write(self, oid, size):
         pass
@@ -966,6 +971,9 @@ class OracleSimulation(LRUCacheSimulation):
         print "Scanned file, %d unique oids, %d repeats" % (
             all, len(self.count))
 
+
+from ZEO.cache import ZEC3_HEADER_SIZE
+
 class CircularCacheSimulation(Simulation):
     # The cache is managed as a single file with a pointer that
     # goes around the file, circularly, forever.  New objects
@@ -975,14 +983,20 @@ class CircularCacheSimulation(Simulation):
     extras = "evicts", "inuse"
 
     def __init__(self, cachelimit):
+        from ZEO import cache
+
         Simulation.__init__(self, cachelimit)
         self.total_evicts = 0
         # Current offset in file.
-        self.offset = 0
+        self.offset = ZEC3_HEADER_SIZE
         # Map offset in file to (size, oid) pair.
-        self.filemap = {0: (self.cachelimit, None)}
+        self.filemap = {ZEC3_HEADER_SIZE: (self.cachelimit - ZEC3_HEADER_SIZE,
+                                           None)}
         # Map oid to file offset.
         self.oid2ofs = {}
+
+        self.overhead = (cache.Object.TOTAL_FIXED_SIZE +
+                         cache.OBJECT_HEADER_SIZE)
 
     def restart(self):
         Simulation.restart(self)
@@ -992,10 +1006,30 @@ class CircularCacheSimulation(Simulation):
         if oid in self.oid2ofs:
             self.hits += 1
             self.total_hits += 1
-        else:
+        elif size:
+            self.writes += 1
+            self.total_writes += 1
+            self.add(oid, size)
+        # Else it was a load miss in the trace file, and a load miss here too.
+
+    def inval(self, oid):
+        pos = self.oid2ofs.pop(oid, None)
+        if pos is None:
+            return
+        self.invals += 1
+        self.total_invals += 1
+        size, _oid = self.filemap[pos]
+        assert oid == _oid
+        self.filemap[pos] = size, None
+
+    def write(self, oid, size):
+        if oid not in self.oid2ofs:
+            self.writes += 1
+            self.total_writes += 1
             self.add(oid, size)
 
     def add(self, oid, size):
+        size += self.overhead
         avail = self.makeroom(size)
         assert oid not in self.oid2ofs
         self.filemap[self.offset] = size, oid
@@ -1009,7 +1043,7 @@ class CircularCacheSimulation(Simulation):
     def makeroom(self, need):
         # Evict enough objects to make the necessary space available.
         if self.offset + need > self.cachelimit:
-            self.offset = 0
+            self.offset = ZEC3_HEADER_SIZE
         pos = self.offset
         while need > 0:
             assert pos < self.cachelimit
@@ -1028,25 +1062,6 @@ class CircularCacheSimulation(Simulation):
             pos += size
         return pos - self.offset  # total number of bytes freed
 
-    def inval(self, oid):
-        pos = self.oid2ofs.pop(oid, None)
-        if pos is None:
-            return
-        self.invals += 1
-        self.total_invals += 1
-        size, _oid = self.filemap[pos]
-        assert oid == _oid
-        self.filemap[pos] = size, None
-
-    def write(self, oid, size):
-        if oid in self.oid2ofs:
-            # Delete the current record.
-            pos = self.oid2ofs.pop(oid)
-            size, _oid = self.filemap[pos]
-            assert oid == _oid
-            self.filemap[pos] = size, None
-        self.add(oid, size)
-
     def report(self):
         self.check()
         free = used = total = 0
@@ -1062,7 +1077,8 @@ class CircularCacheSimulation(Simulation):
         Simulation.report(self)
 
     def check(self):
-        pos = oidcount = 0
+        oidcount = 0
+        pos = ZEC3_HEADER_SIZE
         while pos < self.cachelimit:
             size, oid = self.filemap[pos]
             if oid:

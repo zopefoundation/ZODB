@@ -174,6 +174,7 @@ class ClientCache(object):
         if version:
             p = self.version.get(oid)
             if p is None:
+                self._trace(0x20, oid, version)
                 return None
             elif p[0] == version:
                 tid = p[1]
@@ -187,6 +188,7 @@ class ClientCache(object):
             return None
         o = self.fc.access((oid, tid))
         if o is None:
+            self._trace(0x20, oid, version)
             return None
         self._trace(0x22, oid, version, o.start_tid, o.end_tid, len(o.data))
         return o.data, tid, o.version
@@ -389,7 +391,6 @@ class ClientCache(object):
     ##
     # Generates (oid, serial, version) triples for all objects in the
     # cache.  This generator is used by cache verification.
-
     def contents(self):
         # May need to materialize list instead of iterating;
         # depends on whether the caller may change the cache.
@@ -461,8 +462,6 @@ class ClientCache(object):
                time_time=time.time, struct_pack=struct.pack):
         # The code argument is two hex digits; bits 0 and 7 must be zero.
         # The first hex digit shows the operation, the second the outcome.
-        # If the second digit is in "02468" then it is a 'miss'.
-        # If it is in "ACE" then it is a 'hit'.
         # This method has been carefully tuned to be as fast as possible.
         # Note: when tracing is disabled, this method is hidden by a dummy.
         if version:

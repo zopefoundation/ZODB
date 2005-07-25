@@ -150,18 +150,21 @@ def main():
     thisinterval = None  # generally te//interval
     f_read = f.read
     unpack = struct.unpack
+    FMT = ">iiH8s8s"
+    FMT_SIZE = struct.calcsize(FMT)
+    assert FMT_SIZE == 26
     # Read file, gathering statistics, and printing each record if verbose.
     try:
         while 1:
-            r = f_read(26)
-            if len(r) < 26:
+            r = f_read(FMT_SIZE)
+            if len(r) < FMT_SIZE:
                 break
-            ts, code, oidlen, start_tid, end_tid = unpack(">iiH8s8s", r)
+            ts, code, oidlen, start_tid, end_tid = unpack(FMT, r)
             if ts == 0:
                 # Must be a misaligned record caused by a crash.
                 if not quiet:
-                    print "Skipping 8 bytes at offset", f.tell() - 26
-                    f.seek(f.tell() - 18)
+                    print "Skipping 8 bytes at offset", f.tell() - FMT_SIZE
+                    f.seek(f.tell() - FMT_SIZE + 8)
                 continue
             oid = f_read(oidlen)
             if len(oid) < oidlen:
@@ -210,7 +213,7 @@ def main():
             if code & 0x70 == 0x20:
                 oids[oid] = oids.get(oid, 0) + 1
                 total_loads += 1
-            if code == 0x00:    # restart
+            elif code == 0x00:    # restart
                 if not quiet:
                     dumpbyinterval(byinterval, h0, he)
                 byinterval = {}
