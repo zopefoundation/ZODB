@@ -14,19 +14,10 @@
 ##############################################################################
 """Cache simulation.
 
-Usage: simul.py [-bflyz] [-s size] tracefile
-
-Use one of -b, -f, -l, -y or -z select the cache simulator:
--b: buddy system allocator
--f: simple free list allocator
--l: idealized LRU (no allocator)
--y: variation on the existing ZEO cache that copies to current file
--z: existing ZEO cache (default)
+Usage: simul.py [-s size] tracefile
 
 Options:
 -s size: cache size in MB (default 20 MB)
-
-Note: the buddy system allocator rounds the cache size up to a power of 2
 """
 
 import sys
@@ -47,7 +38,7 @@ def main():
     # Parse options.
     MB = 1024**2
     cachelimit = 20*MB
-    simclass = ZEOCacheSimulation
+    simclass = CircularCacheSimulation
     try:
         opts, args = getopt.getopt(sys.argv[1:], "bflyz2cOaTUs:")
     except getopt.error, msg:
@@ -140,12 +131,11 @@ def main():
         if len(oid) < oidlen:
             break
         # Decode the code.
-        dlen, version, code, current = (code & 0x7fffff00,
-                                        code & 0x80,
-                                        code & 0x7e,
-                                        code & 0x01)
+        dlen, version, code = (code & 0x7fffff00,
+                               code & 0x80,
+                               code & 0x7e)
         # And pass it to the simulation.
-        sim.event(ts, dlen, version, code, current, oid, start_tid, end_tid)
+        sim.event(ts, dlen, version, code, oid, start_tid, end_tid)
 
     f.close()
     # Finish simulation.
@@ -162,7 +152,6 @@ class Simulation(object):
     The standard event() method calls these additional methods:
     write(), load(), inval(), report(), restart(); the standard
     finish() method also calls report().
-
     """
 
     def __init__(self, cachelimit):
@@ -187,7 +176,7 @@ class Simulation(object):
         self.writes = 0
         self.ts0 = None
 
-    def event(self, ts, dlen, _version, code, _current, oid,
+    def event(self, ts, dlen, _version, code, oid,
               start_tid, end_tid):
         # Record first and last timestamp seen.
         if self.ts0 is None:
@@ -198,9 +187,11 @@ class Simulation(object):
 
         # Simulate cache behavior.  Caution:  the codes in the trace file
         # record whether the actual cache missed or hit on each load, but
-        # that bears no relationship to whether the simulated cache will
-        # hit or miss.
-        action = code & 0x70  # ignore high bit (version flag)
+        # that bears no necessary relationship to whether the simulated cache
+        # will hit or miss.  Relatedly, if the actual cache needed to store
+        # an object, the simulated cache may not need to (it may already
+        # have the data).
+        action = code & 0x70
         if action == 0x20:
             # Load.
             self.loads += 1
@@ -282,12 +273,34 @@ class Simulation(object):
                            for name in self.extras])
             print (self.format + " OVERALL") % args
 
+
+# For use in CircularCacheSimulation.
+class CircularCacheEntry(object):
+    __slots__ = (# object key:  an (oid, start_tid) pair, where
+                 # start_tid is the tid of the transaction that created
+                 # this revision of oid
+                 'key',
+
+                 # tid of transaction that created the next revision;
+                 # z64 iff this is the current revision
+                 'end_tid',
+
+                 # Offset from start of file to the object's data
+                 # record; this includes all overhead bytes (status
+                 # byte, size bytes, etc).
+                 'offset',
+                )
+
+    def __init__(self, key, end_tid, offset):
+        self.key = key
+        self.end_tid = end_tid
+        self.offset = offset
+
 from ZEO.cache import ZEC3_HEADER_SIZE
-# An Entry just wraps a (key, offset) pair.  A key is in turn an
-# (oid, tid) pair.
-from ZEO.cache import Entry
 
 class CircularCacheSimulation(Simulation):
+    """Simulate the ZEO 3.0a cache."""
+
     # The cache is managed as a single file with a pointer that
     # goes around the file, circularly, forever.  New objects
     # are written at the current pointer, evicting whatever was
@@ -300,14 +313,16 @@ class CircularCacheSimulation(Simulation):
         from BTrees.OIBTree import OIBTree
 
         Simulation.__init__(self, cachelimit)
-        self.total_evicts = 0
+        self.total_evicts = 0  # number of cache evictions
+
         # Current offset in file.
         self.offset = ZEC3_HEADER_SIZE
-        # Map offset in file to (size, Entry) pair, or to (size, None) if
-        # the offset starts a free block.
+
+        # Map offset in file to (size, CircularCacheEntry) pair, or to
+        # (size, None) if the offset starts a free block.
         self.filemap = {ZEC3_HEADER_SIZE: (self.cachelimit - ZEC3_HEADER_SIZE,
                                            None)}
-        # Map key to Entry.  A key is an (oid, tid) pair.
+        # Map key to CircularCacheEntry.  A key is an (oid, tid) pair.
         self.key2entry = {}
 
         # Map oid to tid of current revision.
@@ -348,7 +363,7 @@ class CircularCacheSimulation(Simulation):
                 self._cache_miss(oid, tid)
             return
 
-        # May or may not be trying to load current revisiion.
+        # May or may not be trying to load current revision.
         cur_tid = self.current.get(oid)
         if cur_tid == tid:
             self.hits += 1
@@ -375,9 +390,10 @@ class CircularCacheSimulation(Simulation):
         self.total_hits += 1
 
     def _cache_miss(self, oid, tid, HUGE64='\xff'*8):
+        return
         have_data = False
         if tid == z64:
-            # Miss on current data.  Find the most revision we ever saw.
+            # Miss on current data.  Find the most recent revision we ever saw.
             items = self.key2size.items(min=(oid, z64), max=(oid, HUGE64))
             if items:
                 (oid, tid), size = items[-1]  # most recent
@@ -393,10 +409,11 @@ class CircularCacheSimulation(Simulation):
             # Pretend the cache miss was followed by a store.
             self.writes += 1
             self.total_writes += 1
-            self.add(oid, tid, size)
+            self.add(oid, size, tid)
 
     # (oid, tid) is in the cache.  Remove it:  take it out of key2entry,
-    # and in `filemap` mark the space it occupied as being free.
+    # and in `filemap` mark the space it occupied as being free.  The
+    # caller is responsible for removing it from `current` or `noncurrent`.
     def _remove(self, oid, tid):
         key = oid, tid
         e = self.key2entry.pop(key)
@@ -416,12 +433,13 @@ class CircularCacheSimulation(Simulation):
 
     def inval(self, oid, tid):
         if tid == z64:
-            # This is part of startup cache verification.
+            # This is part of startup cache verification:  forget everything
+            # about this oid.
             self._remove_noncurrent_revisions(oid, version)
 
         cur_tid = self.current.get(oid)
         if cur_tid is None:
-            # We don't have current data, so nothing to do.
+            # We don't have current data, so nothing more to do.
             return
 
         # We had current data for oid, but no longer.
@@ -433,10 +451,15 @@ class CircularCacheSimulation(Simulation):
             self._remove(oid, current_tid)
             return
 
-        # Add the validty range to the list of non-current data for oid.
+        # Our current data becomes non-current data.
+        # Add the validity range to the list of non-current data for oid.
         assert cur_tid < tid
         L = self.noncurrent.setdefault(oid, [])
         bisect.insort_left(L, (cur_tid, tid))
+        # Update the end of oid's validity range in its CircularCacheEntry.
+        e = self.key2entry[oid, cur_tid]
+        assert e.end_tid == z64
+        e.end_tid = tid
 
     def write(self, oid, size, start_tid, end_tid):
         if end_tid == z64:
@@ -447,7 +470,7 @@ class CircularCacheSimulation(Simulation):
             self.key2size[oid, start_tid] = size
             self.writes += 1
             self.total_writes += 1
-            self.add(oid, start_tid, size)
+            self.add(oid, size, start_tid)
             return
         # Storing non-current revision.
         L = self.noncurrent.setdefault(oid, [])
@@ -458,14 +481,17 @@ class CircularCacheSimulation(Simulation):
         self.key2size[(oid, start_tid)] = size
         self.writes += 1
         self.total_writes += 1
-        self.add(oid, start_tid, size)
+        self.add(oid, size, start_tid, end_tid)
 
-    def add(self, oid, tid, size):
+    # Add `oid` to the cache, evicting objects as needed to make room.
+    # This updates `filemap` and `key2entry`; it's the caller's
+    # responsibilty to update `current` or `noncurrent` appropriately.
+    def add(self, oid, size, start_tid, end_tid=z64):
+        key = oid, start_tid
+        assert key not in self.key2entry
         size += self.overhead
         avail = self.makeroom(size)
-        key = oid, tid
-        assert key not in self.key2entry
-        e = Entry(key, self.offset)
+        e = CircularCacheEntry(key, end_tid, self.offset)
         self.filemap[self.offset] = size, e
         self.key2entry[key] = e
         self.offset += size
@@ -474,8 +500,13 @@ class CircularCacheSimulation(Simulation):
         if excess:
             self.filemap[self.offset] = excess, None
 
+    # Evict enough objects to make at least `need` contiguous bytes, starting
+    # at `self.offset`, available.  Evicted objects are removed from
+    # `filemap`, `key2entry`, `current` and `noncurrent`.  The caller is
+    # responsible for adding new entries to `filemap` to account for all
+    # the freed bytes, and for advancing `self.offset`.  The number of bytes
+    # freed is the return value, and will be >= need.
     def makeroom(self, need):
-        # Evict enough objects to make the necessary space available.
         if self.offset + need > self.cachelimit:
             self.offset = ZEC3_HEADER_SIZE
         pos = self.offset
@@ -487,12 +518,18 @@ class CircularCacheSimulation(Simulation):
                 self.dump()
                 raise
             del self.filemap[pos]
-            if e:
+            if e:   # there is an object here (else it's already free space)
                 self.evicts += 1
                 self.total_evicts += 1
                 assert pos == e.offset
                 _e = self.key2entry.pop(e.key)
                 assert e is _e
+                oid, start_tid = e.key
+                if e.end_tid == z64:
+                    del self.current[oid]
+                else:
+                    L = self.noncurrent[oid]
+                    L.remove((start_tid, e.end_tid))
             need -= size
             pos += size
         return pos - self.offset  # total number of bytes freed
@@ -531,8 +568,16 @@ class CircularCacheSimulation(Simulation):
             v = self.filemap[k]
             print k, v[0], repr(v[1])
 
+#############################################################################
+# CAUTION:  It's most likely that none of the simulators below this
+# point work anymore.  A great many changes were needed to teach
+# CircularCacheSimulation (above) about MVCC, including method signature
+# changes and changes in cache file format, and none of the others simulator
+# classes were changed.
+#############################################################################
+
 class ZEOCacheSimulation(Simulation):
-    """Simulate the ZEO 1.0 and 2.0cache behavior.
+    """Simulate the ZEO 1.0 and 2.0 cache behavior.
 
     This assumes the cache is not persistent (we don't know how to
     simulate cache validation.)

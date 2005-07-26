@@ -210,7 +210,7 @@ class ClientCache(object):
         # than any comparable non-None object in recent Pythons.
         i = bisect.bisect_left(L, (tid, None))
         # Now L[i-1] < (tid, None) < L[i], and the start_tid for everything in
-        # L[:i} is < tid, and the start_tid for everything in L[i:] is >= tid.
+        # L[:i] is < tid, and the start_tid for everything in L[i:] is >= tid.
         # Therefore the largest start_tid < tid must be at L[i-1].  If i is 0,
         # there is no start_tid < tid:  we don't have any data old enougn.
         if i == 0:
