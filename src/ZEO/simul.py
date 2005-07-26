@@ -34,12 +34,14 @@ import time
 import getopt
 import struct
 import math
-
+import bisect
 from sets import Set
 
+from ZODB.utils import z64
+
 def usage(msg):
-    print >>sys.stderr, msg
-    print >>sys.stderr, __doc__
+    print >> sys.stderr, msg
+    print >> sys.stderr, __doc__
 
 def main():
     # Parse options.
@@ -143,7 +145,7 @@ def main():
                                         code & 0x7e,
                                         code & 0x01)
         # And pass it to the simulation.
-        sim.event(ts, dlen, version, code, current, oid, start_tid)
+        sim.event(ts, dlen, version, code, current, oid, start_tid, end_tid)
 
     f.close()
     # Finish simulation.
@@ -185,7 +187,8 @@ class Simulation(object):
         self.writes = 0
         self.ts0 = None
 
-    def event(self, ts, dlen, _version, code, _current, oid, _serial):
+    def event(self, ts, dlen, _version, code, _current, oid,
+              start_tid, end_tid):
         # Record first and last timestamp seen.
         if self.ts0 is None:
             self.ts0 = ts
@@ -203,15 +206,14 @@ class Simulation(object):
             self.loads += 1
             self.total_loads += 1
             assert (dlen == 0) == (code in (0x20, 0x24))
-            if dlen:
-                self.load(oid, dlen)
+            self.load(oid, dlen, start_tid)
         elif action == 0x50:
             # Store.
             assert dlen
-            self.write(oid, dlen)
+            self.write(oid, dlen, start_tid, end_tid)
         elif action == 0x10:
             # Invalidate.
-            self.inval(oid)
+            self.inval(oid, start_tid)
         elif action == 0x00:
             # Restart.
             self.report()
@@ -219,14 +221,14 @@ class Simulation(object):
         else:
             raise ValueError("unknown trace code 0x%x" % code)
 
-    def write(self, oid, size):
+    def write(self, oid, size, start_tid, end_tid):
         pass
 
-    def load(self, oid, size):
+    def load(self, oid, size, start_tid):
         # Must increment .hits and .total_hits as appropriate.
         pass
 
-    def inval(self, oid):
+    def inval(self, oid, start_tid):
         # Must increment .invals and .total_invals as appropriate.
         pass
 
@@ -279,6 +281,255 @@ class Simulation(object):
             args += tuple([getattr(self, "total_" + name)
                            for name in self.extras])
             print (self.format + " OVERALL") % args
+
+from ZEO.cache import ZEC3_HEADER_SIZE
+# An Entry just wraps a (key, offset) pair.  A key is in turn an
+# (oid, tid) pair.
+from ZEO.cache import Entry
+
+class CircularCacheSimulation(Simulation):
+    # The cache is managed as a single file with a pointer that
+    # goes around the file, circularly, forever.  New objects
+    # are written at the current pointer, evicting whatever was
+    # there previously.
+
+    extras = "evicts", "inuse"
+
+    def __init__(self, cachelimit):
+        from ZEO import cache
+        from BTrees.OIBTree import OIBTree
+
+        Simulation.__init__(self, cachelimit)
+        self.total_evicts = 0
+        # Current offset in file.
+        self.offset = ZEC3_HEADER_SIZE
+        # Map offset in file to (size, Entry) pair, or to (size, None) if
+        # the offset starts a free block.
+        self.filemap = {ZEC3_HEADER_SIZE: (self.cachelimit - ZEC3_HEADER_SIZE,
+                                           None)}
+        # Map key to Entry.  A key is an (oid, tid) pair.
+        self.key2entry = {}
+
+        # Map oid to tid of current revision.
+        self.current = {}
+
+        # Map oid to list of (start_tid, end_tid) pairs in sorted order.
+        # Used to find matching key for load of non-current data.
+        self.noncurrent = {}
+
+        # Map key (an (oid, tid) pair) to the size of the object state.
+        # Unlike the others, this accumulates knowledge over time, regardless
+        # of what's in the cache.  The problem:  the trace file may have
+        # a load hit where we have a load miss.  There won't be a store in
+        # the trace file "soon" since the actual cache had the data.  What
+        # can the simulated cache do?  If the object has ever been seen
+        # before, it can look up its size in this dict, and "pretend" to
+        # do a store.  This isn't faithful in all cases, since we don't
+        # know the right tid:  if we miss on a plain load(), the trace
+        # fail contains no indication of the appropriate tid.
+        self.key2size = OIBTree()
+
+        # The number of overhead bytes needed to store an object pickle
+        # on disk (all bytes beyond those needed for the object pickle).
+        self.overhead = (cache.Object.TOTAL_FIXED_SIZE +
+                         cache.OBJECT_HEADER_SIZE)
+
+    def restart(self):
+        Simulation.restart(self)
+        self.evicts = 0
+
+    def load(self, oid, size, tid):
+        if tid == z64:
+            # Trying to load current revision.
+            if oid in self.current:
+                self.hits += 1
+                self.total_hits += 1
+            else:
+                self._cache_miss(oid, tid)
+            return
+
+        # May or may not be trying to load current revisiion.
+        cur_tid = self.current.get(oid)
+        if cur_tid == tid:
+            self.hits += 1
+            self.total_hits += 1
+            return
+
+        # It's a load for non-current data.  Do we know about this oid?
+        L = self.noncurrent.get(oid)
+        if L is None:
+            self._cache_miss(oid, tid)
+            return
+        i = bisect.bisect_left(L, (tid, None))
+        if i == 0:
+            # This tid is smaller than any we know about -- miss.
+            self._cache_miss(oid, tid)
+            return
+        lo, hi = L[i-1]
+        assert lo < tid
+        if tid > hi:
+            self._cache_miss(oid, tid)
+            return
+        # Cache hit.
+        self.hits += 1
+        self.total_hits += 1
+
+    def _cache_miss(self, oid, tid, HUGE64='\xff'*8):
+        have_data = False
+        if tid == z64:
+            # Miss on current data.  Find the most revision we ever saw.
+            items = self.key2size.items(min=(oid, z64), max=(oid, HUGE64))
+            if items:
+                (oid, tid), size = items[-1]  # most recent
+                have_data = True
+        else:
+            # Miss on non-current data.  Find one "that fits", approximately.
+            items = self.key2size.items(min=(oid, tid), max=(oid, HUGE64))
+            if items:
+                (oid, tid), size = items[0]  # first one at or after tid
+                have_data = True
+
+        if have_data:
+            # Pretend the cache miss was followed by a store.
+            self.writes += 1
+            self.total_writes += 1
+            self.add(oid, tid, size)
+
+    # (oid, tid) is in the cache.  Remove it:  take it out of key2entry,
+    # and in `filemap` mark the space it occupied as being free.
+    def _remove(self, oid, tid):
+        key = oid, tid
+        e = self.key2entry.pop(key)
+        pos = e.offset
+        size, _e = self.filemap[pos]
+        assert e is _e
+        self.filemap[pos] = size, None
+
+    def _remove_noncurrent_revisions(self, oid):
+        noncurrent_list = self.noncurrent.get(oid)
+        if noncurrent_list:
+            self.invals += len(noncurrent_list)
+            self.total_invals += len(noncurrent_list)
+            for start_tid, end_tid in noncurrent_list:
+                self._remove(oid, start_tid)
+            del self.noncurrent[oid]
+
+    def inval(self, oid, tid):
+        if tid == z64:
+            # This is part of startup cache verification.
+            self._remove_noncurrent_revisions(oid, version)
+
+        cur_tid = self.current.get(oid)
+        if cur_tid is None:
+            # We don't have current data, so nothing to do.
+            return
+
+        # We had current data for oid, but no longer.
+        self.invals += 1
+        self.total_invals += 1
+        del self.current[oid]
+        if tid == z64:
+            # Startup cache verification:  forget this oid entirely.
+            self._remove(oid, current_tid)
+            return
+
+        # Add the validty range to the list of non-current data for oid.
+        assert cur_tid < tid
+        L = self.noncurrent.setdefault(oid, [])
+        bisect.insort_left(L, (cur_tid, tid))
+
+    def write(self, oid, size, start_tid, end_tid):
+        if end_tid == z64:
+            # Storing current revision.
+            if oid in self.current:  # we already have it in cache
+                return
+            self.current[oid] = start_tid
+            self.key2size[oid, start_tid] = size
+            self.writes += 1
+            self.total_writes += 1
+            self.add(oid, start_tid, size)
+            return
+        # Storing non-current revision.
+        L = self.noncurrent.setdefault(oid, [])
+        p = start_tid, end_tid
+        if p in L:
+            return  # we already have it in cache
+        bisect.insort_left(L, p)
+        self.key2size[(oid, start_tid)] = size
+        self.writes += 1
+        self.total_writes += 1
+        self.add(oid, start_tid, size)
+
+    def add(self, oid, tid, size):
+        size += self.overhead
+        avail = self.makeroom(size)
+        key = oid, tid
+        assert key not in self.key2entry
+        e = Entry(key, self.offset)
+        self.filemap[self.offset] = size, e
+        self.key2entry[key] = e
+        self.offset += size
+        # All the space made available must be accounted for in filemap.
+        excess = avail - size
+        if excess:
+            self.filemap[self.offset] = excess, None
+
+    def makeroom(self, need):
+        # Evict enough objects to make the necessary space available.
+        if self.offset + need > self.cachelimit:
+            self.offset = ZEC3_HEADER_SIZE
+        pos = self.offset
+        while need > 0:
+            assert pos < self.cachelimit
+            try:
+                size, e = self.filemap[pos]
+            except KeyError:
+                self.dump()
+                raise
+            del self.filemap[pos]
+            if e:
+                self.evicts += 1
+                self.total_evicts += 1
+                assert pos == e.offset
+                _e = self.key2entry.pop(e.key)
+                assert e is _e
+            need -= size
+            pos += size
+        return pos - self.offset  # total number of bytes freed
+
+    def report(self):
+        self.check()
+        free = used = total = 0
+        for size, e in self.filemap.itervalues():
+            total += size
+            if e:
+                used += size
+            else:
+                free += size
+
+        self.inuse = round(100.0 * used / total, 1)
+        self.total_inuse = self.inuse
+        Simulation.report(self)
+
+    def check(self):
+        oidcount = 0
+        pos = ZEC3_HEADER_SIZE
+        while pos < self.cachelimit:
+            size, e = self.filemap[pos]
+            if e:
+                oidcount += 1
+                assert self.key2entry[e.key].offset == pos
+            pos += size
+        assert oidcount == len(self.key2entry)
+        assert pos == self.cachelimit
+
+    def dump(self):
+        print len(self.filemap)
+        L = list(self.filemap)
+        L.sort()
+        for k in L:
+            v = self.filemap[k]
+            print k, v[0], repr(v[1])
 
 class ZEOCacheSimulation(Simulation):
     """Simulate the ZEO 1.0 and 2.0cache behavior.
@@ -970,131 +1221,6 @@ class OracleSimulation(LRUCacheSimulation):
 
         print "Scanned file, %d unique oids, %d repeats" % (
             all, len(self.count))
-
-
-from ZEO.cache import ZEC3_HEADER_SIZE
-
-class CircularCacheSimulation(Simulation):
-    # The cache is managed as a single file with a pointer that
-    # goes around the file, circularly, forever.  New objects
-    # are written at the current pointer, evicting whatever was
-    # there previously.
-
-    extras = "evicts", "inuse"
-
-    def __init__(self, cachelimit):
-        from ZEO import cache
-
-        Simulation.__init__(self, cachelimit)
-        self.total_evicts = 0
-        # Current offset in file.
-        self.offset = ZEC3_HEADER_SIZE
-        # Map offset in file to (size, oid) pair.
-        self.filemap = {ZEC3_HEADER_SIZE: (self.cachelimit - ZEC3_HEADER_SIZE,
-                                           None)}
-        # Map oid to file offset.
-        self.oid2ofs = {}
-
-        self.overhead = (cache.Object.TOTAL_FIXED_SIZE +
-                         cache.OBJECT_HEADER_SIZE)
-
-    def restart(self):
-        Simulation.restart(self)
-        self.evicts = 0
-
-    def load(self, oid, size):
-        if oid in self.oid2ofs:
-            self.hits += 1
-            self.total_hits += 1
-        elif size:
-            self.writes += 1
-            self.total_writes += 1
-            self.add(oid, size)
-        # Else it was a load miss in the trace file, and a load miss here too.
-
-    def inval(self, oid):
-        pos = self.oid2ofs.pop(oid, None)
-        if pos is None:
-            return
-        self.invals += 1
-        self.total_invals += 1
-        size, _oid = self.filemap[pos]
-        assert oid == _oid
-        self.filemap[pos] = size, None
-
-    def write(self, oid, size):
-        if oid not in self.oid2ofs:
-            self.writes += 1
-            self.total_writes += 1
-            self.add(oid, size)
-
-    def add(self, oid, size):
-        size += self.overhead
-        avail = self.makeroom(size)
-        assert oid not in self.oid2ofs
-        self.filemap[self.offset] = size, oid
-        self.oid2ofs[oid] = self.offset
-        self.offset += size
-        # All the space made available must be accounted for in filemap.
-        excess = avail - size
-        if excess:
-            self.filemap[self.offset] = excess, None
-
-    def makeroom(self, need):
-        # Evict enough objects to make the necessary space available.
-        if self.offset + need > self.cachelimit:
-            self.offset = ZEC3_HEADER_SIZE
-        pos = self.offset
-        while need > 0:
-            assert pos < self.cachelimit
-            try:
-                size, oid = self.filemap[pos]
-            except KeyError:
-                self.dump()
-                raise
-            del self.filemap[pos]
-            if oid:
-                self.evicts += 1
-                self.total_evicts += 1
-                _pos = self.oid2ofs.pop(oid)
-                assert pos == _pos
-            need -= size
-            pos += size
-        return pos - self.offset  # total number of bytes freed
-
-    def report(self):
-        self.check()
-        free = used = total = 0
-        for size, oid in self.filemap.itervalues():
-            total += size
-            if oid:
-                used += size
-            else:
-                free += size
-
-        self.inuse = round(100.0 * used / total, 1)
-        self.total_inuse = self.inuse
-        Simulation.report(self)
-
-    def check(self):
-        oidcount = 0
-        pos = ZEC3_HEADER_SIZE
-        while pos < self.cachelimit:
-            size, oid = self.filemap[pos]
-            if oid:
-                oidcount += 1
-                assert self.oid2ofs[oid] == pos
-            pos += size
-        assert oidcount == len(self.oid2ofs)
-        assert pos == self.cachelimit
-
-    def dump(self):
-        print len(self.filemap)
-        L = list(self.filemap)
-        L.sort()
-        for k in L:
-            v = self.filemap[k]
-            print k, v[0], repr(v[1])
 
 class BuddyCacheSimulation(LRUCacheSimulation):
 
