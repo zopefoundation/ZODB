@@ -1,11 +1,11 @@
-What's new in ZODB3 3.4.1a7?
+What's new in ZODB3 3.4.1b2?
 ============================
 Release date: DD-MMM-2005
 
 Following are dates of internal releases (to support ongoing Zope 2
 development) since ZODB 3.4's last public release:
 
-- 3.4.1a7 DD-MMM-2005
+- 3.4.1b1 26-Jul-2005
 - 3.4.1a6 19-Jul-2005
 - 3.4.1a5 12-Jul-2005
 - 3.4.1a4 08-Jul-2005
@@ -108,6 +108,13 @@ ThreadedAsync.LoopCallback
 
 Tools
 -----
+
+- (3.4.1b1) Collector #1847.  The ZEO client cache tracing and simulation
+  tools weren't updated to work with ZODB 3.3, and the introduction of
+  MVCC required major reworking of the tracing and simulation code.  These
+  tools are in a working state again, although so far lightly tested on
+  just a few applications.  In ``doc/ZEO/``, see the heavily revised
+  ``trace.txt`` and ``cache.txt``.
 
 - (3.4.1a6) Collector #1846:  If an uncommitted transaction was found,
   fsrecover.py fell into an infinite loop.
