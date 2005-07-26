@@ -205,17 +205,20 @@ class ClientCache(object):
         if L is None:
             self._trace(0x24, oid, tid)
             return None
-        # A pair with None as the second element will always be less
-        # than any pair with the same first tid.
+        # A pair with None as the second element is less than any pair with
+        # the same first tid.  Dubious:  this relies on that None is less
+        # than any comparable non-None object in recent Pythons.
         i = bisect.bisect_left(L, (tid, None))
-        # The least element left of tid was written before tid.  If
-        # there is no element, the cache doesn't have old enough data.
+        # Now L[i-1] < (tid, None) < L[i], and the start_tid for everything in
+        # L[:i} is < tid, and the start_tid for everything in L[i:] is >= tid.
+        # Therefore the largest start_tid < tid must be at L[i-1].  If i is 0,
+        # there is no start_tid < tid:  we don't have any data old enougn.
         if i == 0:
             self._trace(0x24, oid, tid)
             return
         lo, hi = L[i-1]
-        # lo should always be less than tid
-        if not lo < tid <= hi:
+        assert lo < tid
+        if tid > hi:    # we don't have any data in the right range
             self._trace(0x24, oid, tid)
             return None
         o = self.fc.access((oid, lo))
@@ -284,7 +287,7 @@ class ClientCache(object):
                 p = start_tid, end_tid
                 if p in L:
                     return # duplicate store
-                bisect.insort_left(L, (start_tid, end_tid))
+                bisect.insort_left(L, p)
                 self._trace(0x54, oid, version, start_tid, end_tid,
                             dlen=len(data))
         self.fc.add(o)
@@ -457,7 +460,7 @@ class ClientCache(object):
             self._trace = notrace
 
     def _trace(self,
-               code, oid="", version="", tid="", end_tid=z64, dlen=0,
+               code, oid="", version="", tid=z64, end_tid=z64, dlen=0,
                # The next two are just speed hacks.
                time_time=time.time, struct_pack=struct.pack):
         # The code argument is two hex digits; bits 0 and 7 must be zero.
