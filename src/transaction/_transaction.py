@@ -303,13 +303,13 @@ class Transaction(object):
 
         return savepoint
 
-    # Remove `savepoint` from _savepoint2index, and also remove and invalidate
-    # all savepoints we know about with an index larger than `savepoint`'s.
-    # This is what's needed when a rollback _to_ `savepoint` is done.
+    # Remove and invalidate all savepoints we know about with an index
+    # larger than `savepoint`'s.  This is what's needed when a rollback
+    # _to_ `savepoint` is done.
     def _remove_and_invalidate_after(self, savepoint):
         savepoint2index = self._savepoint2index
-        index = savepoint2index.pop(savepoint)
-        # use items to make copy to avoid mutating while iterating
+        index = savepoint2index[savepoint]
+        # use items() to make copy to avoid mutating while iterating
         for savepoint, i in savepoint2index.items():
             if i > index:
                 savepoint.transaction = None # invalidate
@@ -359,7 +359,6 @@ class Transaction(object):
         # transaction.
 
     def commit(self, subtransaction=False):
-
         if self._savepoint2index:
             self._invalidate_all_savepoints()
 
@@ -466,15 +465,17 @@ class Transaction(object):
                                rm, exc_info=sys.exc_info())
 
     def abort(self, subtransaction=False):
-
         if subtransaction:
-            # TODO deprecate subtransactions
+            # TODO deprecate subtransactions.
             if not self._subtransaction_savepoint:
                 raise interfaces.InvalidSavepointRollbackError
             if self._subtransaction_savepoint.valid:
-                # We're supposed to be able to call abort(1) multiple
-                # times. Sigh.
                 self._subtransaction_savepoint.rollback()
+                # We're supposed to be able to call abort(1) multiple
+                # times without additional effect, so mark the subtxn
+                # savepoint invalid now.
+                self._subtransaction_savepoint.transaction = None
+                assert not self._subtransaction_savepoint.valid
             return
 
         if self._savepoint2index:
@@ -661,14 +662,13 @@ class Savepoint:
         transaction = self.transaction
         if transaction is None:
             raise interfaces.InvalidSavepointRollbackError
-        self.transaction = None
         transaction._remove_and_invalidate_after(self)
 
         try:
             for savepoint in self._savepoints:
                 savepoint.rollback()
         except:
-            # Mark the transaction as failed
+            # Mark the transaction as failed.
             transaction._saveCommitishError() # reraises!
 
 class AbortSavepoint:

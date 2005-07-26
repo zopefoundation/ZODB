@@ -97,11 +97,12 @@ database state as of the last sub-transaction commit.  There is
 
 >>> c.value = "c1"
 >>> transaction.abort(1)
+>>> a.value, b.value, c.value
+('a1', 'b1', 'c0')
 
 Multiple aborts have no extra effect.
 
 >>> transaction.abort(1)
-
 >>> a.value, b.value, c.value
 ('a1', 'b1', 'c0')
 

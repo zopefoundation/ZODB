@@ -1,3 +1,198 @@
+What's new in ZODB3 3.4.1b2?
+============================
+Release date: DD-MMM-2005
+
+Following are dates of internal releases (to support ongoing Zope 2
+development) since ZODB 3.4's last public release:
+
+- 3.4.1b1 26-Jul-2005
+- 3.4.1a6 19-Jul-2005
+- 3.4.1a5 12-Jul-2005
+- 3.4.1a4 08-Jul-2005
+- 3.4.1a3 02-Jul-2005
+- 3.4.1a2 29-Jun-2005
+- 3.4.1a1 27-Jun-2005
+
+Savepoints
+----------
+
+- (3.4.1a1) When a savepoint is made, the states of objects modified so far
+  are saved to a temporary storage (an instance of class ``TmpStore``,
+  although that's an internal implementation detail).  That storage needs
+  to implement the full storage API too, but was missing the ``loadBefore()``
+  method needed for MVCC to retrieve non-current revisions of objects.  This
+  could cause spurious errors if a transaction with a pending savepoint
+  needed to fetch an older revision of some object.
+
+- (3.4.1a5) The ``ISavepoint`` interface docs said you could roll back to a
+  given savepoint any number of times (until the transaction ends, or until
+  you roll back to an earlier savepoint's state), but the implementation
+  marked a savepoint as invalid after its first use.  The implementation has
+  been repaired, to match the docs.
+
+Subtransactions
+---------------
+
+- (3.4.1a5) Internal uses of subtransactions (transaction ``commit()`` or
+  ``abort()`` passing a true argument) were rewritten to use savepoints
+  instead.  Application code is strongly encouraged to do this too:
+  subtransactions are weaker, will be deprecated soon, and do not mix well
+  with savepoints (when you do a subtransaction commit, all current
+  savepoints are made unusable).  In general, a subtransaction commit
+  done just to free memory can be changed from::
+
+      transaction.commit(1)
+
+  to::
+
+      transaction.savepoint()
+
+  That is, make a savepoint, and forget it.  In rarer cases, a
+  subtransaction commit is followed later by a subtransaction abort.  In
+  that case, change the initial::
+
+      transaction.commit(1)
+
+  to::
+
+      sp = transaction.savepoint()
+
+  and in place of the subtransaction abort::
+
+      transaction.abort(1)
+
+  roll back the savepoint instead::
+
+      sp.rollback()
+
+FileStorage
+-----------
+
+- (3.4.1a3) Collector #1830.  In some error cases when reading a FileStorage
+  index, the code referenced an undefined global.
+
+- (3.4.1a2) Collector #1822.  The ``undoLog()`` and ``undoInfo()`` methods
+  were changed in 3.4a9 to return the documented results.  Alas, some pieces
+  of (non-ZODB) code relied on the actual behavior.  When the ``first`` and
+  ``last`` arguments are both >= 0, these methods now treat them as if they
+  were Python slice indices, including the ``first`` index but excluding the
+  ``last`` index.  This matches former behavior, although it contradicts older
+  ZODB UML documentation.  The documentation in
+  ``ZODB.interfaces.IStorageUndoable`` was changed to match the new intent.
+
+- (3.4.1a1) The ``UndoSearch._readnext()`` method now returns the transaction
+  size as the value of the "size" key.  Thanks to Dieter Maurer for the
+  patch, from
+  http://mail.zope.org/pipermail/zodb-dev/2003-October/006157.html. "This is
+  very valuable when you want to spot strange transaction sizes via Zope's
+  'Undo' tab".
+
+ThreadedAsync.LoopCallback
+--------------------------
+
+- (3.4.1a6) This once again physically replaces Python's ``asyncore.loop``
+  function with its own loop function, because it turns out Zope relied on
+  the seemingly unused ``LoopCallback.exit_status`` global, which was
+  removed in the change described below.  Python's ``asyncore.loop`` is again
+  not invoked, so any breakpoints or debugging prints added to that are again
+  "lost".
+
+- (3.4.1a1) This replaces Python's ``asyncore.loop`` function with its own,
+  in order to get notified when ``loop()`` is first called.  The signature of
+  ``asyncore.loop`` changed in Python 2.4, but ``LoopCallback.loop``'s
+  signature didn't change to match.  The code here was repaired to be
+  compatible with both old and new signatures, and also repaired to invoke
+  Python's ``asyncore.loop()`` instead of replacing it entirely (so, for
+  example, debugging prints added to Python's ``asyncore.loop`` won't be lost
+  anymore).
+
+Tools
+-----
+
+- (3.4.1b1) Collector #1847.  The ZEO client cache tracing and simulation
+  tools weren't updated to work with ZODB 3.3, and the introduction of
+  MVCC required major reworking of the tracing and simulation code.  These
+  tools are in a working state again, although so far lightly tested on
+  just a few applications.  In ``doc/ZEO/``, see the heavily revised
+  ``trace.txt`` and ``cache.txt``.
+
+- (3.4.1a6) Collector #1846:  If an uncommitted transaction was found,
+  fsrecover.py fell into an infinite loop.
+
+
+DemoStorage
+-----------
+
+- (3.4.1a1) The implementation of ``undoLog()`` was wrong in several ways;
+  repaired.
+
+BTrees
+------
+
+- (3.4.1a6) Collector 1843.  When a non-integer was passed to a method like
+  ``keys()`` of a Bucket or Set with integer keys, an internal error code
+  was overlooked, leading to everything from "delayed errors" to segfaults.
+  Such cases raise TypeError now, as intended.
+
+- (3.4.1a4) Collector 1831.  The BTree ``minKey()`` and ``maxKey()`` methods
+  gave a misleading message if no key satisfying the constraints existed in a
+  non-empty tree.
+
+- (3.4.1a3) Collector 1829.  Clarified that the ``minKey()`` and ``maxKey()``
+  methods raise an exception if no key exists satsifying the constraints.
+
+
+What's new in ZODB3 3.4?
+========================
+Release date: 09-Jun-2005
+
+Following is combined news from the "internal releases" (to support
+ongoing Zope 2.8 and Zope3 development) since the last public ZODB 3.4
+release.  These are the dates of the internal releases:
+
+- 3.4c2 06-Jun-2005
+- 3.4c1 03-Jun-2005
+- 3.4b3 27-May-2005
+- 3.4b2 26-May-2005
+
+Connection, DB
+--------------
+
+- (3.4b3) ``.transaction_manager`` is now a public attribute of
+  IDataManager, and is the instance of ITransactionManager used by the
+  data manager as its transaction manager.  There was previously no way
+  to ask a data manager which transaction manager it was using.  It's
+  intended that ``transaction_manager`` be treated as read-only.
+
+- (3.4b3) For sanity, the ``txn_mgr`` argument to ``DB.open()``,
+  ``Connection.__init__()``, and ``Connection._setDB()`` has been renamed
+  to ``transaction_manager``.  ``txn_mgr`` is still accepted, but is
+  deprecated and will be removed in ZODB 3.6.  Any code that was using
+  the private ``._txn_mgr`` attribute of ``Connection`` will break
+  immediately.
+
+Development
+-----------
+
+- (3.4b2) ZODB's ``test.py`` is now a small driver for the shared
+  ``zope.testing.testrunner``.  See the latter's documentation
+  for command-line arguments.
+
+Error reporting
+---------------
+
+- (3.4c1) In the unlikely event that ``referencesf()`` reports an unpickling
+  error (for example, a corrupt database can cause this), the message it
+  produces no longer contains unprintable characters.
+
+Tests
+-----
+
+- (3.4c2) ``checkCrossDBInvalidations`` suffered spurious failures too often
+  on slow and/or busy machines.  The test is willing to wait longer for
+  success now.
+
+
 What's new in ZODB3 3.4b1?
 ==========================
 Release date: 19-May-2005
@@ -922,20 +1117,21 @@ transaction.  This default TM is available as ``transaction.manager``.  The
 and is an explicit replacement for the ``Connection.setLocalTransaction()``
 method:
 
-A transaction manager instance can be passed as the txn_mgr argument to
-``DB.open()``.  If you do, the connection will use the specified
+A transaction manager instance can be passed as the transaction_manager
+argument to ``DB.open()``.  If you do, the connection will use the specified
 transaction manager instead of the default TM.  The current transaction is
 obtained by calling ``get()`` on a TM. For example:
 
     >>> tm = transaction.TransactionManager()
-    >>> cn = db.open(txn_mgr=tm)
+    >>> cn = db.open(transaction_manager=tm)
     [...]
     >>> tm.get().commit()
 
 The ``setLocalTransaction()`` and ``getTransaction()`` methods of
-Connection are deprecated.  Use an explicit TM passed via ``txn_mgr=`` to
-``DB.open()`` instead.  The ``setLocalTransaction()`` method still works,
-but it returns a TM instead of a Transaction.
+Connection are deprecated.  Use an explicit TM passed via
+``transaction_manager=`` to ``DB.open()`` instead.  The
+``setLocalTransaction()`` method still works, but it returns a TM instead of
+a Transaction.
 
 A TM creates Transaction objects, which are used for exactly one
 transaction.  Transaction objects still have ``commit()``, ``abort()``,

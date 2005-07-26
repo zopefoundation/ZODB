@@ -43,7 +43,7 @@ independently, even though they'll be run from a single thread.
 
 >>> import transaction
 >>> tm1 = transaction.TransactionManager()
->>> cn1 = db.open(txn_mgr=tm1)
+>>> cn1 = db.open(transaction_manager=tm1)
 
 The test will just use some MinPO objects.  The next few lines just
 setup an initial database state.
@@ -57,7 +57,7 @@ setup an initial database state.
 Now open a second connection.
 
 >>> tm2 = transaction.TransactionManager()
->>> cn2 = db.open(txn_mgr=tm2)
+>>> cn2 = db.open(transaction_manager=tm2)
 
 Connection high-water mark
 --------------------------
@@ -244,7 +244,63 @@ a ghost.
 >>> r1["b"]._p_state # GHOST
 -1
 
->>> cn1._transaction = None # See the Cleanup section below
+
+Interaction with Savepoints
+---------------------------
+
+Basically, making a savepoint shouldn't have any effect on what a thread
+sees.  Before ZODB 3.4.1, the internal TmpStore used when savepoints are
+pending didn't delegate all the methods necessary to make this work, so
+we'll do a quick test of that here.  First get a clean slate:
+
+>>> cn1.close(); cn2.close()
+>>> cn1 = db.open(transaction_manager=tm1)
+>>> r1 = cn1.root()
+>>> r1["a"].value = 0
+>>> r1["b"].value = 1
+>>> tm1.commit()
+
+Now modify "a", but not "b", and make a savepoint.
+
+>>> r1["a"].value = 42
+>>> sp = cn1.savepoint()
+
+Over in the other connection, modify "b" and commit it.  This makes the
+first connection's state for b "old".
+
+>>> cn2 = db.open(transaction_manager=tm2)
+>>> r2 = cn2.root()
+>>> r2["a"].value, r2["b"].value  # shouldn't see the change to "a"
+(0, 1)
+>>> r2["b"].value = 43
+>>> tm2.commit()
+>>> r2["a"].value, r2["b"].value
+(0, 43)
+
+Now deactivate "b" in the first connection, and (re)fetch it.  The first
+connection should still see 1, due to MVCC, but to get this old state
+TmpStore needs to handle the loadBefore() method.
+
+>>> r1["b"]._p_deactivate()
+
+Before 3.4.1, the next line died with
+    AttributeError: TmpStore instance has no attribute 'loadBefore'
+
+>>> r1["b"]._p_state  # ghost
+-1
+>>> r1["b"].value
+1
+
+Just for fun, finish the commit and make sure both connections see the
+same things now.
+
+>>> tm1.commit()
+>>> cn1.sync(); cn2.sync()
+>>> r1["a"].value, r1["b"].value
+(42, 43)
+>>> r2["a"].value, r2["b"].value
+(42, 43)
+
 
 Late invalidation
 -----------------
@@ -281,7 +337,7 @@ non-current revision to load.
 
 >>> ts = TestStorage()
 >>> db = DB(ts)
->>> cn1 = db.open(txn_mgr=tm1)
+>>> cn1 = db.open(transaction_manager=tm1)
 >>> r1 = cn1.root()
 >>> r1["a"] = MinPO(0)
 >>> r1["b"] = MinPO(0)
@@ -318,7 +374,7 @@ activate "b" will result in a ReadConflictError.
 
 >>> ts = TestStorage()
 >>> db = DB(ts)
->>> cn1 = db.open(txn_mgr=tm1)
+>>> cn1 = db.open(transaction_manager=tm1)
 >>> r1 = cn1.root()
 >>> r1["a"] = MinPO(0)
 >>> r1["b"] = MinPO(0)
@@ -344,18 +400,6 @@ ReadConflictError: database read conflict error (oid 0x02, class ZODB.tests.MinP
 True
 >>> ts.count
 1
-
-Cleanup
--------
-
-The setLocalTransaction() feature creates cyclic trash involving the
-Connection and Transaction.  The Transaction has an __del__ method,
-which prevents the cycle from being collected.  There's no API for
-clearing the Connection's local transaction.
-
->>> cn1._transaction = None
->>> cn2._transaction = None
-
 """
 
 from zope.testing import doctest

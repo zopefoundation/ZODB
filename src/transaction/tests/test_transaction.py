@@ -46,11 +46,11 @@ from ZODB.utils import positive_id
 class TransactionTests(unittest.TestCase):
 
     def setUp(self):
-        self.txn_mgr = transaction.TransactionManager()
-        self.sub1 = DataObject(self.txn_mgr)
-        self.sub2 = DataObject(self.txn_mgr)
-        self.sub3 = DataObject(self.txn_mgr)
-        self.nosub1 = DataObject(self.txn_mgr, nost=1)
+        mgr = self.transaction_manager = transaction.TransactionManager()
+        self.sub1 = DataObject(mgr)
+        self.sub2 = DataObject(mgr)
+        self.sub3 = DataObject(mgr)
+        self.nosub1 = DataObject(mgr, nost=1)
 
     # basic tests with two sub trans jars
     # really we only need one, so tests for
@@ -60,7 +60,7 @@ class TransactionTests(unittest.TestCase):
         self.sub1.modify()
         self.sub2.modify()
 
-        self.txn_mgr.commit()
+        self.transaction_manager.commit()
 
         assert self.sub1._p_jar.ccommit_sub == 0
         assert self.sub1._p_jar.ctpc_finish == 1
@@ -70,13 +70,13 @@ class TransactionTests(unittest.TestCase):
         self.sub1.modify()
         self.sub2.modify()
 
-        self.txn_mgr.abort()
+        self.transaction_manager.abort()
 
         assert self.sub2._p_jar.cabort == 1
 
     def testTransactionNote(self):
 
-        t = self.txn_mgr.get()
+        t = self.transaction_manager.get()
 
         t.note('This is a note.')
         self.assertEqual(t.description, 'This is a note.')
@@ -92,7 +92,7 @@ class TransactionTests(unittest.TestCase):
 
         self.nosub1.modify()
 
-        self.txn_mgr.commit()
+        self.transaction_manager.commit()
 
         assert self.nosub1._p_jar.ctpc_finish == 1
 
@@ -100,7 +100,7 @@ class TransactionTests(unittest.TestCase):
 
         self.nosub1.modify()
 
-        self.txn_mgr.abort()
+        self.transaction_manager.abort()
 
         assert self.nosub1._p_jar.ctpc_finish == 0
         assert self.nosub1._p_jar.cabort == 1
@@ -123,7 +123,7 @@ class TransactionTests(unittest.TestCase):
         self.sub1.modify(tracing='sub')
         self.nosub1.modify(tracing='nosub')
 
-        self.txn_mgr.commit(1)
+        self.transaction_manager.commit(1)
 
         assert self.sub1._p_jar.ctpc_finish == 1
 
@@ -131,7 +131,7 @@ class TransactionTests(unittest.TestCase):
         # in a subtrans
         assert self.nosub1._p_jar.ctpc_finish == 0
 
-        self.txn_mgr.abort()
+        self.transaction_manager.abort()
 
         assert self.nosub1._p_jar.cabort == 1
         assert self.sub1._p_jar.cabort_sub == 1
@@ -156,7 +156,7 @@ class TransactionTests(unittest.TestCase):
         self.sub2.modify()
 
         try:
-            self.txn_mgr.abort()
+            self.transaction_manager.abort()
         except TestTxnException: pass
 
         assert self.nosub1._p_jar.cabort == 1
@@ -170,7 +170,7 @@ class TransactionTests(unittest.TestCase):
         self.sub1.modify(nojar=1)
 
         try:
-            self.txn_mgr.commit()
+            self.transaction_manager.commit()
         except TestTxnException: pass
 
         assert self.nosub1._p_jar.ctpc_finish == 0
@@ -185,7 +185,7 @@ class TransactionTests(unittest.TestCase):
         self.sub1.modify(nojar=1)
 
         try:
-            self.txn_mgr.commit()
+            self.transaction_manager.commit()
         except TestTxnException: pass
 
         assert self.nosub1._p_jar.ctpc_finish == 0
@@ -211,7 +211,7 @@ class TransactionTests(unittest.TestCase):
         self.sub1.modify(nojar=1)
 
         try:
-            self.txn_mgr.commit()
+            self.transaction_manager.commit()
         except TestTxnException: pass
 
         assert self.nosub1._p_jar.ctpc_abort == 1
@@ -225,7 +225,7 @@ class TransactionTests(unittest.TestCase):
         self.sub1.modify(nojar=1)
 
         try:
-            self.txn_mgr.commit()
+            self.transaction_manager.commit()
         except TestTxnException:
             pass
 
@@ -266,8 +266,8 @@ class TransactionTests(unittest.TestCase):
 
 class DataObject:
 
-    def __init__(self, txn_mgr, nost=0):
-        self.txn_mgr = txn_mgr
+    def __init__(self, transaction_manager, nost=0):
+        self.transaction_manager = transaction_manager
         self.nost = nost
         self._p_jar = None
 
@@ -277,7 +277,7 @@ class DataObject:
                 self._p_jar = NoSubTransactionJar(tracing=tracing)
             else:
                 self._p_jar = SubTransactionJar(tracing=tracing)
-        self.txn_mgr.get().join(self._p_jar)
+        self.transaction_manager.get().join(self._p_jar)
 
 class TestTxnException(Exception):
     pass

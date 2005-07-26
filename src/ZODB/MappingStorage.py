@@ -31,9 +31,11 @@ class MappingStorage(BaseStorage):
 
     def __init__(self, name='Mapping Storage'):
         BaseStorage.__init__(self, name)
+        # ._index maps an oid to a string s.  s[:8] is the tid of the
+        # transaction that created oid's current state, and s[8:] is oid's
+        # current state.
         self._index = {}
-        # FIXME: Why we don't use dict for _tindex?
-        self._tindex = []
+        self._clear_temp()
         self._ltid = None
         # Note: If you subclass this and use a persistent mapping facility
         # (e.g. a dbm file), you will need to get the maximum key and save it
@@ -45,7 +47,7 @@ class MappingStorage(BaseStorage):
     def getSize(self):
         self._lock_acquire()
         try:
-            # These constants are for Python object memory overheads
+            # These constants are for Python object memory overheads.  Heh.
             s = 32
             for p in self._index.itervalues():
                 s += 56 + len(p)
@@ -62,14 +64,9 @@ class MappingStorage(BaseStorage):
             self._lock_release()
 
     def loadEx(self, oid, version):
-        self._lock_acquire()
-        try:
-            # Since this storage doesn't support versions, tid and
-            # serial will always be the same.
-            p = self._index[oid]
-            return p[8:], p[:8], "" # pickle, tid, version
-        finally:
-            self._lock_release()
+        # Since we don't support versions, just tack the empty version
+        # string onto load's result.
+        return self.load(oid, version) + ("",)
 
     def getTid(self, oid):
         self._lock_acquire()
@@ -78,7 +75,6 @@ class MappingStorage(BaseStorage):
             return self._index[oid][:8]
         finally:
             self._lock_release()
-
 
     def store(self, oid, serial, data, version, transaction):
         if transaction is not self._transaction:
@@ -95,17 +91,18 @@ class MappingStorage(BaseStorage):
                     raise POSException.ConflictError(oid=oid,
                                                      serials=(oserial, serial),
                                                      data=data)
-
-            self._tindex.append((oid, self._tid + data))
+            self._tindex[oid] = self._tid + data
         finally:
             self._lock_release()
         return self._tid
 
     def _clear_temp(self):
-        self._tindex = []
+        # store() saves data in _tindex; if the transaction completes
+        # successfully, _finish() merges _tindex into _index.
+        self._tindex = {}
 
     def _finish(self, tid, user, desc, ext):
-        self._index.update(dict(self._tindex))
+        self._index.update(self._tindex)
         self._ltid = self._tid
 
     def lastTransaction(self):
@@ -121,17 +118,12 @@ class MappingStorage(BaseStorage):
             pindex = {}
             while rootl:
                 oid = rootl.pop()
-                if oid in pindex:
-                    continue
-                # Scan non-version pickle for references
-                r = self._index[oid]
-                pindex[oid] = r
-                referencesf(r[8:], rootl)
-
-            # Now delete any unreferenced entries:
-            for oid in self._index.keys():
                 if oid not in pindex:
-                    del self._index[oid]
+                    # Scan non-version pickle for references.
+                    r = self._index[oid]
+                    pindex[oid] = r
+                    referencesf(r[8:], rootl)
+            self._index = pindex
 
         finally:
             self._lock_release()

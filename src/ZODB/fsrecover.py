@@ -81,7 +81,7 @@ except ImportError:
     import ZODB
 
 import ZODB.FileStorage
-from ZODB.utils import t32, u64
+from ZODB.utils import u64
 from ZODB.FileStorage import RecordIterator
 
 from persistent.TimeStamp import TimeStamp
@@ -108,8 +108,6 @@ def read_txn_header(f, pos, file_size, outp, ltid):
         raise EOFError
 
     tid, stl, status, ul, dl, el = unpack(">8s8scHHH",h)
-    if el < 0: el=t32-el
-
     tl = u64(stl)
 
     if pos + (tl + 8) > file_size:
@@ -164,12 +162,18 @@ def read_txn_header(f, pos, file_size, outp, ltid):
 def truncate(f, pos, file_size, outp):
     """Copy data from pos to end of f to a .trNNN file."""
 
+    # _trname is global so that the test suite can know the path too (in
+    # order to delete the file when the test ends).
+    global _trname
+
     i = 0
     while 1:
-        trname = outp + ".tr%d" % i
-        if os.path.exists(trname):
+        _trname = outp + ".tr%d" % i
+        if os.path.exists(_trname):
             i += 1
-    tr = open(trname, "wb")
+        else:
+            break
+    tr = open(_trname, "wb")
     copy(f, tr, file_size - pos)
     f.seek(pos)
     tr.close()

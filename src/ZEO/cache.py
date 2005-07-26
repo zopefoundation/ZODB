@@ -16,7 +16,7 @@
 ClientCache exposes an API used by the ZEO client storage.  FileCache stores
 objects on disk using a 2-tuple of oid and tid as key.
 
-ClientCaches API is similar to a storage API with methods like load(),
+ClientCache's API is similar to a storage API, with methods like load(),
 store(), and invalidate().  It manages in-memory data structures that allow
 it to map this richer API onto the simple key-based API of the lower-level
 FileCache.
@@ -64,7 +64,7 @@ logger = logging.getLogger("ZEO.cache")
 # full verification
 # <p>
 
-class ClientCache:
+class ClientCache(object):
     """A simple in-memory cache."""
 
     ##
@@ -76,14 +76,9 @@ class ClientCache:
     # default of 20MB.  The default here is misleading, though, since
     # ClientStorage is the only user of ClientCache, and it always passes an
     # explicit size of its own choosing.
-    def __init__(self, path=None, size=200*1024**2, trace=False):
+    def __init__(self, path=None, size=200*1024**2):
         self.path = path
         self.size = size
-
-        if trace and path:
-            self._setup_trace()
-        else:
-            self._trace = self._notrace
 
         # The cache stores objects in a dict mapping (oid, tid) pairs
         # to Object() records (see below).  The tid is the transaction
@@ -110,6 +105,8 @@ class ClientCache:
         # A FileCache instance does all the low-level work of storing
         # and retrieving objects to/from the cache file.
         self.fc = FileCache(size, self.path, self)
+
+        self._setup_trace(self.path)
 
     def open(self):
         self.fc.scan(self.install)
@@ -140,6 +137,10 @@ class ClientCache:
 
     def close(self):
         self.fc.close()
+        if self._tracefile:
+            sync(self._tracefile)
+            self._tracefile.close()
+            self._tracefile = None
 
     ##
     # Set the last transaction seen by the cache.
@@ -173,6 +174,7 @@ class ClientCache:
         if version:
             p = self.version.get(oid)
             if p is None:
+                self._trace(0x20, oid, version)
                 return None
             elif p[0] == version:
                 tid = p[1]
@@ -186,6 +188,7 @@ class ClientCache:
             return None
         o = self.fc.access((oid, tid))
         if o is None:
+            self._trace(0x20, oid, version)
             return None
         self._trace(0x22, oid, version, o.start_tid, o.end_tid, len(o.data))
         return o.data, tid, o.version
@@ -202,17 +205,20 @@ class ClientCache:
         if L is None:
             self._trace(0x24, oid, tid)
             return None
-        # A pair with None as the second element will always be less
-        # than any pair with the same first tid.
+        # A pair with None as the second element is less than any pair with
+        # the same first tid.  Dubious:  this relies on that None is less
+        # than any comparable non-None object in recent Pythons.
         i = bisect.bisect_left(L, (tid, None))
-        # The least element left of tid was written before tid.  If
-        # there is no element, the cache doesn't have old enough data.
+        # Now L[i-1] < (tid, None) < L[i], and the start_tid for everything in
+        # L[:i] is < tid, and the start_tid for everything in L[i:] is >= tid.
+        # Therefore the largest start_tid < tid must be at L[i-1].  If i is 0,
+        # there is no start_tid < tid:  we don't have any data old enougn.
         if i == 0:
             self._trace(0x24, oid, tid)
             return
         lo, hi = L[i-1]
-        # lo should always be less than tid
-        if not lo < tid <= hi:
+        assert lo < tid
+        if tid > hi:    # we don't have any data in the right range
             self._trace(0x24, oid, tid)
             return None
         o = self.fc.access((oid, lo))
@@ -281,7 +287,7 @@ class ClientCache:
                 p = start_tid, end_tid
                 if p in L:
                     return # duplicate store
-                bisect.insort_left(L, (start_tid, end_tid))
+                bisect.insort_left(L, p)
                 self._trace(0x54, oid, version, start_tid, end_tid,
                             dlen=len(data))
         self.fc.add(o)
@@ -367,7 +373,7 @@ class ClientCache:
         assert o.end_tid is None  # i.e., o was current
         if o is None:
             # TODO:  Since we asserted o is not None above, this block
-            # should be removing; waiting on time to prove it can't happen.
+            # should be removed; waiting on time to prove it can't happen.
             return
         o.end_tid = tid
         self.fc.update(o)   # record the new end_tid on disk
@@ -388,7 +394,6 @@ class ClientCache:
     ##
     # Generates (oid, serial, version) triples for all objects in the
     # cache.  This generator is used by cache verification.
-
     def contents(self):
         # May need to materialize list instead of iterating;
         # depends on whether the caller may change the cache.
@@ -430,28 +435,36 @@ class ClientCache:
             L = self.noncurrent[oid]
             L.remove((o.start_tid, o.end_tid))
 
-    def _setup_trace(self):
-        tfn = self.path + ".trace"
-        self.tracefile = None
-        try:
-            self.tracefile = open(tfn, "ab")
-            self._trace(0x00)
-        except IOError, msg:
-            self.tracefile = None
-            logger.warning("Could not write to trace file %s: %s",
-                           tfn, msg)
+    # If `path` isn't None (== we're using a persistent cache file), and
+    # envar ZEO_CACHE_TRACE is set to a non-empty value, try to open
+    # path+'.trace' as a trace file, and store the file object in
+    # self._tracefile.  If not, or we can't write to the trace file, disable
+    # tracing by setting self._trace to a dummy function, and set
+    # self._tracefile to None.
+    def _setup_trace(self, path):
+        self._tracefile = None
+        if path and os.environ.get("ZEO_CACHE_TRACE"):
+            tfn = path + ".trace"
+            try:
+                self._tracefile = open(tfn, "ab")
+                self._trace(0x00)
+            except IOError, msg:
+                self._tracefile = None
+                logger.warning("cannot write tracefile %r (%s)", tfn, msg)
+            else:
+                logger.info("opened tracefile %r", tfn)
 
-    def _notrace(self, *arg, **kwargs):
-        pass
+        if self._tracefile is None:
+            def notrace(*args, **kws):
+                pass
+            self._trace = notrace
 
     def _trace(self,
-               code, oid="", version="", tid="", end_tid=z64, dlen=0,
+               code, oid="", version="", tid=z64, end_tid=z64, dlen=0,
                # The next two are just speed hacks.
                time_time=time.time, struct_pack=struct.pack):
         # The code argument is two hex digits; bits 0 and 7 must be zero.
         # The first hex digit shows the operation, the second the outcome.
-        # If the second digit is in "02468" then it is a 'miss'.
-        # If it is in "ACE" then it is a 'hit'.
         # This method has been carefully tuned to be as fast as possible.
         # Note: when tracing is disabled, this method is hidden by a dummy.
         if version:
@@ -462,7 +475,7 @@ class ClientCache:
         if end_tid is None:
             end_tid = z64
         try:
-            self.tracefile.write(
+            self._tracefile.write(
                 struct_pack(">iiH8s8s",
                             time_time(),
                             encoded,
@@ -689,17 +702,15 @@ def sync(f):
 
 class FileCache(object):
 
-    def __init__(self, maxsize, fpath, parent, reuse=True):
+    def __init__(self, maxsize, fpath, parent):
         # - `maxsize`:  total size of the cache file, in bytes; this is
-        #   ignored if reuse is true and fpath names an existing file;
-        #   perhaps we should attempt to change the cache size in that
-        #   case
-        # - `fpath`:  filepath for the cache file, or None; see `reuse`
-        # - `parent`:  the ClientCache this FileCache is part of
-        # - `reuse`:  If true, and fpath is not None, and fpath names a
-        #    file that exists, that pre-existing file is used (persistent
-        #    cache).  In all other cases a new file is created:  a temp
-        #    file if fpath is None, else with path fpath.
+        #   ignored path names an existing file; perhaps we should attempt
+        #   to change the cache size in that case
+        # - `fpath`:  filepath for the cache file, or None (in which case
+        #   a temp file will be created)
+        # - `parent`:  the ClientCache instance; its `_evicted()` method
+        #   is called whenever we need to evict an object to make room in
+        #   the file
         self.maxsize = maxsize
         self.parent = parent
 
@@ -743,17 +754,17 @@ class FileCache(object):
         # (and it sets self.f).
 
         self.fpath = fpath
-        if reuse and fpath and os.path.exists(fpath):
+        if fpath and os.path.exists(fpath):
             # Reuse an existing file.  scan() will open & read it.
             self.f = None
+            logger.info("reusing persistent cache file %r", fpath)
         else:
-            if reuse:
-                logger.warning("reuse=True but the given file path %r "
-                               "doesn't exist; ignoring reuse=True", fpath)
             if fpath:
                 self.f = open(fpath, 'wb+')
+                logger.info("created persistent cache file %r", fpath)
             else:
                 self.f = tempfile.TemporaryFile()
+                logger.info("created temporary cache file %r", self.f.name)
             # Make sure the OS really saves enough bytes for the file.
             self.f.seek(self.maxsize - 1)
             self.f.write('x')
@@ -779,11 +790,11 @@ class FileCache(object):
     # for each object found in the cache.  This method should only
     # be called once to initialize the cache from disk.
     def scan(self, install):
-        if self.f is not None:
+        if self.f is not None:  # we're not (re)using a pre-existing file
             return
         fsize = os.path.getsize(self.fpath)
         if fsize != self.maxsize:
-            logger.warning("existing cache file %s has size %d; "
+            logger.warning("existing cache file %r has size %d; "
                            "requested size %d ignored", self.fpath,
                            fsize, self.maxsize)
             self.maxsize = fsize
@@ -797,8 +808,8 @@ class FileCache(object):
 
         # Populate .filemap and .key2entry to reflect what's currently in the
         # file, and tell our parent about it too (via the `install` callback).
-        # Remember the location of the largest free block  That seems a decent
-        # place to start currentofs.
+        # Remember the location of the largest free block.  That seems a
+        # decent place to start currentofs.
         max_free_size = max_free_offset = 0
         ofs = ZEC3_HEADER_SIZE
         while ofs < fsize:

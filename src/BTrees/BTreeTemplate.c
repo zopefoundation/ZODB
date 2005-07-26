@@ -1341,6 +1341,7 @@ BTree_maxminKey(BTree *self, PyObject *args, int min)
   PyObject *key=0;
   Bucket *bucket = NULL;
   int offset, rc;
+  int empty_tree = 1;
 
   UNLESS (PyArg_ParseTuple(args, "|O", &key)) return NULL;
 
@@ -1355,6 +1356,7 @@ BTree_maxminKey(BTree *self, PyObject *args, int min)
       if ((rc = BTree_findRangeEnd(self, key, min, 0, &bucket, &offset)) <= 0)
         {
           if (rc < 0) goto err;
+          empty_tree = 0;
           goto empty;
         }
       PER_UNUSE(self);
@@ -1392,8 +1394,9 @@ BTree_maxminKey(BTree *self, PyObject *args, int min)
   return key;
 
  empty:
-  PyErr_SetString(PyExc_ValueError, "empty tree");
-
+  PyErr_SetString(PyExc_ValueError,
+  		  empty_tree ? "empty tree" :
+			       "no key satisfies the conditions");
  err:
   PER_UNUSE(self);
   if (bucket)

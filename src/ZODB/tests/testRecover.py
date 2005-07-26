@@ -23,7 +23,7 @@ import StringIO
 
 import ZODB
 from ZODB.FileStorage import FileStorage
-from ZODB.fsrecover import recover
+import ZODB.fsrecover
 
 from persistent.mapping import PersistentMapping
 import transaction
@@ -83,7 +83,7 @@ class RecoverTest(unittest.TestCase):
         try:
             sys.stdout = faux_stdout
             try:
-                recover(self.path, self.dest,
+                ZODB.fsrecover.recover(self.path, self.dest,
                         verbose=0, partial=True, force=False, pack=1)
             except SystemExit:
                 raise RuntimeError, "recover tried to exit"
@@ -179,6 +179,36 @@ class RecoverTest(unittest.TestCase):
         self.assert_('error' in output, output)
         self.recovered = FileStorage(self.dest)
         self.recovered.close()
+
+    # Issue 1846:  When a transaction had 'c' status (not yet committed),
+    # the attempt to open a temp file to write the trailing bytes fell
+    # into an infinite loop.
+    def testUncommittedAtEnd(self):
+        # Find a transaction near the end.
+        L = self.storage.undoLog()
+        r = L[1]
+        tid = base64.decodestring(r["id"] + "\n")
+        pos = self.storage._txn_find(tid, 0)
+
+        # Overwrite its status with 'c'.
+        f = open(self.path, "r+b")
+        f.seek(pos + 16)
+        current_status = f.read(1)
+        self.assertEqual(current_status, ' ')
+        f.seek(pos + 16)
+        f.write('c')
+        f.close()
+
+        # Try to recover.  The original bug was that this never completed --
+        # infinite loop in fsrecover.py.  Also, in the ZODB 3.2 line,
+        # reference to an undefined global masked the infinite loop.
+        self.recover()
+
+        # Verify the destination got truncated.
+        self.assertEqual(os.path.getsize(self.dest), pos)
+
+        # Get rid of the temp file holding the truncated bytes.
+        os.remove(ZODB.fsrecover._trname)
 
 
 def test_suite():

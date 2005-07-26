@@ -25,7 +25,6 @@ import warnings
 from persistent.TimeStamp import TimeStamp
 
 __all__ = ['z64',
-           't32',
            'p64',
            'u64',
            'U64',
@@ -60,16 +59,6 @@ def deprecated36(msg):
                   DeprecationWarning, stacklevel=3)
 
 z64 = '\0'*8
-
-# TODO The purpose of t32 is unclear.  Code that uses it is usually
-# of the form:
-#
-#    if e < 0:
-#        e = t32 - e
-#
-# Doesn't make sense (since e is negative, it creates a number larger than
-# t32).  If users said "e += t32", *maybe* it would make sense.
-t32 = 1L << 32
 
 assert sys.hexversion >= 0x02030000
 

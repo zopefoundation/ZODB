@@ -117,8 +117,6 @@ def check_trec(path, file, pos, ltid, file_size):
         raise FormatError("%s truncated at %s" % (path, pos))
 
     tid, stl, status, ul, dl, el = struct.unpack(">8s8scHHH", h)
-    if el < 0:
-        el = t32 - el
     tmeta_len = TREC_HDR_LEN + ul + dl + el
 
     if tid <= ltid:

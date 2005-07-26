@@ -18,12 +18,20 @@ class UndoLogCompatible:
 
     def undoInfo(self, first=0, last=-20, specification=None):
         if specification:
+            # filter(desc) returns true iff `desc` is a "superdict"
+            # of `specification`, meaning that `desc` contains the same
+            # (key, value) pairs as `specification`, and possibly additional
+            # (key, value) pairs.  Another way to do this might be
+            #    d = desc.copy()
+            #    d.update(specification)
+            #    return d == desc
             def filter(desc, spec=specification.items()):
-                get=desc.get
+                get = desc.get
                 for k, v in spec:
                     if get(k, None) != v:
                         return 0
                 return 1
-        else: filter=None
+        else:
+            filter = None
 
         return self.undoLog(first, last, filter)

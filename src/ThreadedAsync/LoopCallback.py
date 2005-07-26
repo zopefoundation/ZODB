@@ -11,7 +11,7 @@
 # FOR A PARTICULAR PURPOSE
 #
 ##############################################################################
-"""Manage the asyncore mainloop in a multi-threaded app
+"""Manage the asyncore mainloop in a multi-threaded app.
 
 In a multi-threaded application, only a single thread runs the
 asyncore mainloop.  This thread (the "mainloop thread") may not start
@@ -27,27 +27,19 @@ socket map as its first argument.
 """
 
 import asyncore
-import select
 import thread
-import time
-from errno import EINTR
+
+# Zope pokes a non-None value into exit_status when it wants the loop()
+# function to exit.  Indeed, there appears to be no other way to tell
+# Zope3 to shut down.
+exit_status = None
 
 _loop_lock = thread.allocate_lock()
-_looping = None
+_looping = None # changes to socket map when loop() starts
 _loop_callbacks = []
 
-def remove_loop_callback(callback):
-    """Remove a callback function registered earlier.
-
-    This is useful if loop() was never called.
-    """
-    for i in range(len(_loop_callbacks)):
-        if _loop_callbacks[i][0] == callback:
-            del _loop_callbacks[i]
-            return
-
 def register_loop_callback(callback, args=(), kw=None):
-    """Register callback function to be called when mainloop starts
+    """Register callback function to be called when mainloop starts.
 
     The callable object callback will be invokved when the mainloop
     starts.  If the mainloop is currently running, the callback will
@@ -72,15 +64,43 @@ def remove_loop_callback(callback):
 
     This is useful if loop() was never called.
     """
-    for i in range(len(_loop_callbacks)):
-        if _loop_callbacks[i][0] == callback:
+    for i, value in enumerate(_loop_callbacks):
+        if value[0] == callback:
             del _loop_callbacks[i]
             return
 
-def _start_loop(map):
+# Because of the exit_status magic, we can't just invoke asyncore.loop(),
+# and that's a shame.
+# The signature of asyncore.loop changed between Python 2.3 and 2.4, and
+# this loop() has 2.4's signature, which added the optional `count` argument.
+# Since we physically replace asyncore.loop with this `loop`, and want
+# compatibility with both Pythons, we need to support the most recent
+# signature.  Applications running under 2.3 should (of course) avoid using
+# the `count` argument, since 2.3 doesn't have it.
+def loop(timeout=30.0, use_poll=False, map=None, count=None):
+    global _looping
+    global exit_status
+
+    exit_status = None
+
+    if map is None:
+        map = asyncore.socket_map
+
+    # This section is taken from Python 2.3's asyncore.loop, and is more
+    # elaborate than the corresponding section of 2.4's:  in 2.4 poll2 and
+    # poll3 are aliases for the same function, in 2.3 they're different
+    # functions.
+    if use_poll:
+        if hasattr(select, 'poll'):
+            poll_fun = asyncore.poll3
+        else:
+            poll_fun = asyncore.poll2
+    else:
+        poll_fun = asyncore.poll
+
+    # The loop is about to start:  invoke any registered callbacks.
     _loop_lock.acquire()
     try:
-        global _looping
         _looping = map
         while _loop_callbacks:
             cb, args, kw = _loop_callbacks.pop()
@@ -88,96 +108,31 @@ def _start_loop(map):
     finally:
         _loop_lock.release()
 
-def _stop_loop():
+    # Run the loop.  This is 2.4's logic, with the addition that we stop
+    # if/when this module's exit_status global is set to a non-None value.
+    if count is None:
+        while map and exit_status is None:
+            poll_fun(timeout, map)
+    else:
+        while map and count > 0 and exit_status is None:
+            poll_fun(timeout, map)
+            count -= 1
+
     _loop_lock.acquire()
     try:
-        global _looping
         _looping = None
     finally:
         _loop_lock.release()
 
-def poll(timeout=0.0, map=None):
-    """A copy of asyncore.poll() with a bug fixed (see comment).
-
-    (asyncore.poll2() and .poll3() don't have this bug.)
-    """
-    if map is None:
-        map = asyncore.socket_map
-    if map:
-        r = []; w = []; e = []
-        for fd, obj in map.items():
-            if obj.readable():
-                r.append(fd)
-            if obj.writable():
-                w.append(fd)
-        if [] == r == w == e:
-            time.sleep(timeout)
-        else:
-            try:
-                r, w, e = select.select(r, w, e, timeout)
-            except select.error, err:
-                if err[0] != EINTR:
-                    raise
-                else:
-                    # This part is missing in asyncore before Python 2.3
-                    return
-
-        for fd in r:
-            obj = map.get(fd)
-            if obj is not None:
-                try:
-                    obj.handle_read_event()
-                except asyncore.ExitNow:
-                    raise asyncore.ExitNow
-                except:
-                    obj.handle_error()
-
-        for fd in w:
-            obj = map.get(fd)
-            if obj is not None:
-                try:
-                    obj.handle_write_event()
-                except asyncore.ExitNow:
-                    raise asyncore.ExitNow
-                except:
-                    obj.handle_error()
-
-def loop(timeout=30.0, use_poll=0, map=None):
-    """Invoke asyncore mainloop
-
-    This function functions like the regular asyncore.loop() function
-    except that it also triggers ThreadedAsync callback functions
-    before starting the loop.
-    """
-    global exit_status
-    exit_status = None
-
-    if use_poll:
-        if hasattr(select, 'poll'):
-            poll_fun = asyncore.poll3
-        else:
-            poll_fun = asyncore.poll2
-    else:
-        poll_fun = poll
-
-    if map is None:
-        map = asyncore.socket_map
-
-    _start_loop(map)
-    while map and exit_status is None:
-        poll_fun(timeout, map)
-    _stop_loop()
-
-
-# This module used to do something evil -- it rebound asyncore.loop to the
-# above loop() function.  What was evil about this is that if you added some
-# debugging to asyncore.loop, you'd spend 6 hours debugging why your debugging
-# code wasn't called!
+# Evil:  rebind asyncore.loop to the above loop() function.
 #
-# Code should instead explicitly call ThreadedAsync.loop() instead of
-# asyncore.loop().  Most of ZODB has been fixed, but ripping this out may
-# break 3rd party code.  So we'll issue a warning and let it continue -- for
-# now.
+# Code should explicitly call ThreadedAsync.loop() instead of asyncore.loop().
+# Most of ZODB has been fixed, but ripping this out may break 3rd party code.
+# Maybe we should issue a warning and let it continue for a while (NOTE:  code
+# to raise DeprecationWarning was written but got commented out below; don't
+# know why it got commented out).  Or maybe we should get rid of this
+# mechanism entirely, and have each piece that needs one run its own asyncore
+# loop in its own thread.
 
 ##def deprecated_loop(*args, **kws):
 ##    import warnings
@@ -186,7 +141,7 @@ def loop(timeout=30.0, use_poll=0, map=None):
 ##You should change your code to call ThreadedAsync.loop() explicitly.""",
 ##                  DeprecationWarning)
 ##    loop(*args, **kws)
-
+##
 ##asyncore.loop = deprecated_loop
 
 asyncore.loop = loop

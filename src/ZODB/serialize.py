@@ -514,7 +514,7 @@ def referencesf(p, rootl=None):
         u.persistent_load = []
         u.noload()
         if len(p) > f.tell():
-            raise ValueError, 'Error unpickling, %s' % p
+            raise ValueError, 'Error unpickling %r' % p
 
 
     # References may be:
