@@ -299,7 +299,7 @@ class CircularCacheEntry(object):
 from ZEO.cache import ZEC3_HEADER_SIZE
 
 class CircularCacheSimulation(Simulation):
-    """Simulate the ZEO 3.0a cache."""
+    """Simulate the ZEO 3.0 cache."""
 
     # The cache is managed as a single file with a pointer that
     # goes around the file, circularly, forever.  New objects
@@ -572,7 +572,7 @@ class CircularCacheSimulation(Simulation):
 # CAUTION:  It's most likely that none of the simulators below this
 # point work anymore.  A great many changes were needed to teach
 # CircularCacheSimulation (above) about MVCC, including method signature
-# changes and changes in cache file format, and none of the others simulator
+# changes and changes in cache file format, and none of the other simulator
 # classes were changed.
 #############################################################################
 
