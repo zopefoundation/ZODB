@@ -196,7 +196,8 @@ class Simulation(object):
             # Load.
             self.loads += 1
             self.total_loads += 1
-            assert (dlen == 0) == (code in (0x20, 0x24))
+            # Asserting that dlen is 0 iff it's a load miss.
+            # assert (dlen == 0) == (code in (0x20, 0x24))
             self.load(oid, dlen, start_tid)
         elif action == 0x50:
             # Store.
@@ -310,7 +311,6 @@ class CircularCacheSimulation(Simulation):
 
     def __init__(self, cachelimit):
         from ZEO import cache
-        from BTrees.OIBTree import OIBTree
 
         Simulation.__init__(self, cachelimit)
         self.total_evicts = 0  # number of cache evictions
@@ -332,18 +332,6 @@ class CircularCacheSimulation(Simulation):
         # Used to find matching key for load of non-current data.
         self.noncurrent = {}
 
-        # Map key (an (oid, tid) pair) to the size of the object state.
-        # Unlike the others, this accumulates knowledge over time, regardless
-        # of what's in the cache.  The problem:  the trace file may have
-        # a load hit where we have a load miss.  There won't be a store in
-        # the trace file "soon" since the actual cache had the data.  What
-        # can the simulated cache do?  If the object has ever been seen
-        # before, it can look up its size in this dict, and "pretend" to
-        # do a store.  This isn't faithful in all cases, since we don't
-        # know the right tid:  if we miss on a plain load(), the trace
-        # fail contains no indication of the appropriate tid.
-        self.key2size = OIBTree()
-
         # The number of overhead bytes needed to store an object pickle
         # on disk (all bytes beyond those needed for the object pickle).
         self.overhead = (cache.Object.TOTAL_FIXED_SIZE +
@@ -356,11 +344,9 @@ class CircularCacheSimulation(Simulation):
     def load(self, oid, size, tid):
         if tid == z64:
             # Trying to load current revision.
-            if oid in self.current:
+            if oid in self.current: # else it's a cache miss
                 self.hits += 1
                 self.total_hits += 1
-            else:
-                self._cache_miss(oid, tid)
             return
 
         # May or may not be trying to load current revision.
@@ -373,43 +359,19 @@ class CircularCacheSimulation(Simulation):
         # It's a load for non-current data.  Do we know about this oid?
         L = self.noncurrent.get(oid)
         if L is None:
-            self._cache_miss(oid, tid)
-            return
+            return  # cache miss
         i = bisect.bisect_left(L, (tid, None))
         if i == 0:
             # This tid is smaller than any we know about -- miss.
-            self._cache_miss(oid, tid)
             return
         lo, hi = L[i-1]
         assert lo < tid
         if tid > hi:
-            self._cache_miss(oid, tid)
+            # No data in the right tid range -- miss.
             return
         # Cache hit.
         self.hits += 1
         self.total_hits += 1
-
-    def _cache_miss(self, oid, tid, HUGE64='\xff'*8):
-        return
-        have_data = False
-        if tid == z64:
-            # Miss on current data.  Find the most recent revision we ever saw.
-            items = self.key2size.items(min=(oid, z64), max=(oid, HUGE64))
-            if items:
-                (oid, tid), size = items[-1]  # most recent
-                have_data = True
-        else:
-            # Miss on non-current data.  Find one "that fits", approximately.
-            items = self.key2size.items(min=(oid, tid), max=(oid, HUGE64))
-            if items:
-                (oid, tid), size = items[0]  # first one at or after tid
-                have_data = True
-
-        if have_data:
-            # Pretend the cache miss was followed by a store.
-            self.writes += 1
-            self.total_writes += 1
-            self.add(oid, size, tid)
 
     # (oid, tid) is in the cache.  Remove it:  take it out of key2entry,
     # and in `filemap` mark the space it occupied as being free.  The
@@ -467,7 +429,6 @@ class CircularCacheSimulation(Simulation):
             if oid in self.current:  # we already have it in cache
                 return
             self.current[oid] = start_tid
-            self.key2size[oid, start_tid] = size
             self.writes += 1
             self.total_writes += 1
             self.add(oid, size, start_tid)
@@ -478,7 +439,6 @@ class CircularCacheSimulation(Simulation):
         if p in L:
             return  # we already have it in cache
         bisect.insort_left(L, p)
-        self.key2size[(oid, start_tid)] = size
         self.writes += 1
         self.total_writes += 1
         self.add(oid, size, start_tid, end_tid)
