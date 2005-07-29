@@ -472,12 +472,7 @@ class CircularCacheSimulation(Simulation):
         pos = self.offset
         while need > 0:
             assert pos < self.cachelimit
-            try:
-                size, e = self.filemap[pos]
-            except KeyError:
-                self.dump()
-                raise
-            del self.filemap[pos]
+            size, e = self.filemap.pop(pos)
             if e:   # there is an object here (else it's already free space)
                 self.evicts += 1
                 self.total_evicts += 1
