@@ -88,6 +88,16 @@ Tools
 - (3.5a5) Collector #1846:  If an uncommitted transaction was found,
   fsrecover.py fell into an infinite loop.
 
+Windows
+-------
+
+- (3.5a6) As developed in a long thread starting at
+  http://mail.zope.org/pipermail/zope/2005-July/160433.html
+  there appears to be a race bug in the Microsoft Windows socket
+  implementation, rarely visible in ZEO when multiple processes try to
+  create an "asyncore trigger" simultaneously.  Windows-specific code in
+  ``ZEO/zrpc/trigger.py`` changed to work around this bug when it occurs.
+
 ThreadedAsync.LoopCallback
 --------------------------
 
@@ -156,6 +166,7 @@ Release date: DD-MMM-2005
 Following are dates of internal releases (to support ongoing Zope 2
 development) since ZODB 3.4's last public release:
 
+- 3.4.1b2 DD-MMM-2005
 - 3.4.1b1 26-Jul-2005
 - 3.4.1a6 19-Jul-2005
 - 3.4.1a5 12-Jul-2005
@@ -256,6 +267,17 @@ ThreadedAsync.LoopCallback
   Python's ``asyncore.loop()`` instead of replacing it entirely (so, for
   example, debugging prints added to Python's ``asyncore.loop`` won't be lost
   anymore).
+
+Windows
+-------
+
+- (3.4.1b2) As developed in a long thread starting at
+  http://mail.zope.org/pipermail/zope/2005-July/160433.html
+  there appears to be a race bug in the Microsoft Windows socket
+  implementation, rarely visible in ZEO when multiple processes try to
+  create an "asyncore trigger" simultaneously.  Windows-specific code in
+  ``ZEO/zrpc/trigger.py`` changed to work around this bug when it occurs.
+
 
 Tools
 -----
