@@ -16,6 +16,7 @@ import asyncore
 import os
 import socket
 import thread
+import errno
 
 from ZODB.utils import positive_id
 
