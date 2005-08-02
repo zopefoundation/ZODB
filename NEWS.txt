@@ -159,14 +159,14 @@ BTrees
   was removed from ZODB years ago.
 
 
-What's new in ZODB3 3.4.1b2?
+What's new in ZODB3 3.4.1b3?
 ============================
 Release date: DD-MMM-2005
 
 Following are dates of internal releases (to support ongoing Zope 2
 development) since ZODB 3.4's last public release:
 
-- 3.4.1b2 DD-MMM-2005
+- 3.4.1b2 02-Aug-2005
 - 3.4.1b1 26-Jul-2005
 - 3.4.1a6 19-Jul-2005
 - 3.4.1a5 12-Jul-2005
