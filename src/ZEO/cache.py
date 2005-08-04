@@ -306,7 +306,10 @@ class ClientCache(object):
                 # 0x1E = invalidate (hit, discarding current or non-current)
                 self._trace(0x1E, oid, version, tid)
                 self.fc.remove((oid, old_tid))
-            del self.noncurrent[oid]
+            # fc.remove() calling back to _evicted() should have removed
+            # the list from noncurrent when the last non-current revision
+            # was removed.
+            assert oid not in self.noncurrent
 
     ##
     # If `tid` is None, or we have data for `oid` in a (non-empty) version,
@@ -433,7 +436,15 @@ class ClientCache(object):
             # we never expect the list to be very long.  So the
             # brute force approach should normally be fine.
             L = self.noncurrent[oid]
-            L.remove((o.start_tid, o.end_tid))
+            element = (o.start_tid, o.end_tid)
+            if len(L) == 1:
+                # We don't want to leave an empty list in the dict:  if
+                # the oid is never referenced again, it would consume RAM
+                # forever more for no purpose.
+                assert L[0] == element
+                del self.noncurrent[oid]
+            else:
+                L.remove(element)
 
     # If `path` isn't None (== we're using a persistent cache file), and
     # envar ZEO_CACHE_TRACE is set to a non-empty value, try to open
@@ -890,8 +901,8 @@ class FileCache(object):
     # the end of the file, currentofs is reset to ZEC3_HEADER_SIZE first.
     # The number of bytes actually freed may be (and probably will be)
     # greater than nbytes, and is _makeroom's return value.  The file is not
-    # altered by _makeroom.  filemap is updated to reflect the
-    # evictions, and it's the caller's responsibilty both to fiddle
+    # altered by _makeroom.  filemap and key2entry are updated to reflect the
+    # evictions, and it's the caller's responsibility both to fiddle
     # the file, and to update filemap, to account for all the space
     # freed (starting at currentofs when _makeroom returns, and
     # spanning the number of bytes retured by _makeroom).
@@ -903,6 +914,7 @@ class FileCache(object):
         while nbytes > 0:
             size, e = self.filemap.pop(ofs)
             if e is not None:
+                del self.key2entry[e.key]
                 self._evictobj(e, size)
             ofs += size
             nbytes -= size
@@ -912,7 +924,8 @@ class FileCache(object):
     # Write Object obj, with data, to file starting at currentofs.
     # nfreebytes are already available for overwriting, and it's
     # guranteed that's enough.  obj.offset is changed to reflect the
-    # new data record position, and filemap is updated to match.
+    # new data record position, and filemap and key2entry are updated to
+    # match.
     def _writeobj(self, obj, nfreebytes):
         size = OBJECT_HEADER_SIZE + obj.size
         assert size <= nfreebytes
