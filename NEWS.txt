@@ -166,13 +166,14 @@ BTrees
   was removed from ZODB years ago.
 
 
-What's new in ZODB3 3.4.1b3?
+What's new in ZODB3 3.4.1b4?
 ============================
 Release date: DD-MMM-2005
 
 Following are dates of internal releases (to support ongoing Zope 2
 development) since ZODB 3.4's last public release:
 
+- 3.4.1b4 07-Aug-2005
 - 3.4.1b3 04-Aug-2005
 - 3.4.1b2 02-Aug-2005
 - 3.4.1b1 26-Jul-2005
@@ -199,6 +200,10 @@ Savepoints
   you roll back to an earlier savepoint's state), but the implementation
   marked a savepoint as invalid after its first use.  The implementation has
   been repaired, to match the docs.
+
+- (3.4.1b4) Collector 1860:  use an optimistic savepoint in ExportImport
+  (there's no possiblity of rollback here, so no need to insist that the
+  data manager support rollbacks).
 
 ZEO client cache
 ----------------
