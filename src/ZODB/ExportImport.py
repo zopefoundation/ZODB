@@ -72,7 +72,7 @@ class ExportImport:
         return_oid_list = []
         self._import = f, return_oid_list
         self._register()
-        t.savepoint()
+        t.savepoint(optimistic=True)
         # Return the root imported object.
         if return_oid_list:
             return self.get(return_oid_list[0])
