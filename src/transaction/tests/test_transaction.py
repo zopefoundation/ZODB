@@ -550,6 +550,116 @@ def test_beforeCommitHook():
       >>> reset_log()
     """
 
+def test_beforeCommitHookOrdered():
+    """Test the beforeCommitHookOrdered with order arguments.
+
+    Let's define a hook to call, and a way to see that it was called.
+
+      >>> log = []
+      >>> def reset_log():
+      ...     del log[:]
+
+      >>> def hook(arg='no_arg', kw1='no_kw1', kw2='no_kw2'):
+      ...     log.append("arg %r kw1 %r kw2 %r" % (arg, kw1, kw2))
+
+    Now register the hook within a transaction with an order explictly
+    equal to 0. (e.g : which is the default value)
+
+      >>> import transaction
+      >>> t = transaction.begin()
+      >>> t.beforeCommitHookOrdered(hook, 0, '1')
+
+    We can see that the hook is indeed registered.
+
+      >>> [(hook.func_name, args, kws)
+      ...  for hook, args, kws in t.getBeforeCommitHooks()]
+      [('hook', ('1',), {})]
+
+    Let's add another one with a smaller order. It will be registered
+    to be call at first
+
+      >>> t.beforeCommitHookOrdered(hook, -999999, '2')
+      >>> [(hook.func_name, args, kws)
+      ...  for hook, args, kws in t.getBeforeCommitHooks()]
+      [('hook', ('2',), {}), ('hook', ('1',), {})]
+
+    Let's add another one with a bigger order. It will be registered
+    to be call at last
+    
+      >>> t.beforeCommitHookOrdered(hook, 999999, '3')
+      >>> for hook, args, kws in t.getBeforeCommitHooks():
+      ...     print (hook.func_name, args, kws)
+      ('hook', ('2',), {})
+      ('hook', ('1',), {})
+      ('hook', ('3',), {})
+
+    Above, we checked that the order parameter works as expected.
+    Now, we will check that the insertion with the same order values
+    respect the order of the registration.
+
+      >>> t.beforeCommitHookOrdered(hook, 0, '4')
+      >>> for hook, args, kws in t.getBeforeCommitHooks():
+      ...     print (hook.func_name, args, kws)
+      ('hook', ('2',), {})
+      ('hook', ('1',), {})
+      ('hook', ('4',), {})
+      ('hook', ('3',), {})
+
+      >>> t.beforeCommitHookOrdered(hook, 999999, '5')
+      >>> for hook, args, kws in t.getBeforeCommitHooks():
+      ...     print (hook.func_name, args, kws)
+      ('hook', ('2',), {})
+      ('hook', ('1',), {})
+      ('hook', ('4',), {})
+      ('hook', ('3',), {})
+      ('hook', ('5',), {})
+
+      >>> t.beforeCommitHookOrdered(hook, -999999, '6')
+      >>> for hook, args, kws in t.getBeforeCommitHooks():
+      ...     print (hook.func_name, args, kws)
+      ('hook', ('2',), {})
+      ('hook', ('6',), {})
+      ('hook', ('1',), {})
+      ('hook', ('4',), {})
+      ('hook', ('3',), {})
+      ('hook', ('5',), {})
+
+    Try to register an hook with an order value different than an
+    integer value. It will be replaced by the default order value (e.g
+    : 0)
+
+      >>> t.beforeCommitHookOrdered(hook, 'string_value', '7')
+      >>> for hook, args, kws in t.getBeforeCommitHooks():
+      ...     print (hook.func_name, args, kws)
+      ('hook', ('2',), {})
+      ('hook', ('6',), {})
+      ('hook', ('1',), {})
+      ('hook', ('4',), {})
+      ('hook', ('7',), {})
+      ('hook', ('3',), {})
+      ('hook', ('5',), {})
+
+    Ensure, the calls are made in the order of the registration
+    without taking the whole tuple while internal comparaison. For
+    instance bisect.insort() can't work in this case
+
+      >>> def hook2(arg='no_arg', kw1='no_kw1', kw2='no_kw2'):
+      ...     log.append("arg %r kw1 %r kw2 %r" % (arg, kw1, kw2))
+
+      >>> t.beforeCommitHookOrdered(hook2, 0, '8')
+      >>> for hook, args, kws in t.getBeforeCommitHooks():
+      ...     print (hook.func_name, args, kws)
+      ('hook', ('2',), {})
+      ('hook', ('6',), {})
+      ('hook', ('1',), {})
+      ('hook', ('4',), {})
+      ('hook', ('7',), {})
+      ('hook2', ('8',), {})
+      ('hook', ('3',), {})
+      ('hook', ('5',), {})
+    
+    """
+
 def test_suite():
     from zope.testing.doctest import DocTestSuite
     return unittest.TestSuite((

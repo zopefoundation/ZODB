@@ -192,6 +192,42 @@ class ITransaction(zope.interface.Interface):
         instead.
         """
 
+    def beforeCommitHookOrdered(hook, order, *args, **kws):
+        """Register a hook to call before the transaction is committed.
+
+        The specified hook function will be called after the transaction's
+        commit method has been called, but before the commit process has been
+        started.  The hook will be passed the specified positional and keyword
+        arguments.
+
+        Multiple hooks can be registered and will be called in the order they
+        were registered (first registered, first called) unless they
+        explicitly provide an argument named 'order' that will be used to
+        define the order in which the hooks will be invoked.
+
+        For instance, a hook registered with an order=1 will be invoked after
+        another hook registred within an order=-999999 and before another one
+        registred with an order=999999. If two hooks are registred with the
+        same order then those will be called in the order the were registred.
+
+        Note, a hook __call__() method can't define any 'order' argument since
+        this one is reserved by this method
+
+        This method can also be called from a hook:  an executing hook can
+        register more hooks.  Applications should take care to avoid creating
+        infinite loops by recursively registering hooks.
+
+        Hooks are called only for a top-level commit.  A subtransaction
+        commit does not call any hooks.  If the transaction is aborted, hooks
+        are not called, and are discarded.  Calling a hook "consumes" its
+        registration too:  hook registrations do not persist across
+        transactions.  If it's desired to call the same hook on every
+        transaction commit, then beforeCommitHook() must be called with that
+        hook during every transaction; in such a case consider registering a
+        synchronizer object via a TransactionManager's registerSynch() method
+        instead.
+        """
+
     def getBeforeCommitHooks():
         """Return iterable producing the registered beforeCommit hooks.
 

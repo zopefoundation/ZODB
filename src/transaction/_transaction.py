@@ -146,6 +146,8 @@ committed or aborted.  The methods are passed the current Transaction
 as their only argument.
 """
 
+from types import IntType
+
 import logging
 import sys
 import thread
@@ -408,16 +410,27 @@ class Transaction(object):
         raise t, v, tb
 
     def getBeforeCommitHooks(self):
-        return iter(self._before_commit)
+        # Don't return the hook order value because of backward compatiblity. 
+        return iter([(x[1], x[2], x[3]) for x in self._before_commit])
+
+    def beforeCommitHookOrdered(self, hook, order, *args, **kws):
+        if not isinstance(order, IntType):
+            order = 0
+        index = 0
+        for o, h, a, k in self._before_commit:
+            if order < o:
+                break
+            index += 1
+        self._before_commit.insert(index, (order, hook, args, kws))
 
     def beforeCommitHook(self, hook, *args, **kws):
-        self._before_commit.append((hook, args, kws))
+        self.beforeCommitHookOrdered(hook, 0, *args, **kws)
 
     def _callBeforeCommitHooks(self):
         # Call all hooks registered, allowing further registrations
         # during processing.
         while self._before_commit:
-            hook, args, kws = self._before_commit.pop(0)
+            order, hook, args, kws = self._before_commit.pop(0)
             hook(*args, **kws)
 
     def _commitResources(self):
