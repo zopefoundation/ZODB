@@ -411,19 +411,20 @@ class Transaction(object):
         raise t, v, tb
 
     def getBeforeCommitHooks(self):
-        # Don't return the hook order value because of backward compatibility.
-        return iter([x[1:4] for x in self._before_commit])
+        # Don't return the hook order and index values because of
+        # backward compatibility. As well, those are internals
+        return iter([x[2:5] for x in self._before_commit])
 
     def beforeCommitHookOrdered(self, hook, order, *args, **kws):
         if not isinstance(order, IntType):
             raise ValueError("An integer value is required "
                              "for the order argument")
-        index = 0
-        for o, h, a, k in self._before_commit:
-            if order < o:
-                break
-            index += 1
-        self._before_commit.insert(index, (order, hook, args, kws))
+        # `index` goes up by 1 on each append.  Then no two tuples can
+        # compare equal, and indeed no more than the `order` and
+        # `index` fields ever get compared when the tuples are compared
+        # (because no two `index` fields are equal).
+        index = len([x[1] for x in self._before_commit if x[1] == order])
+        bisect.insort(self._before_commit, (order, index, hook, args, kws))
 
     def beforeCommitHook(self, hook, *args, **kws):
         self.beforeCommitHookOrdered(hook, 0, *args, **kws)
@@ -432,7 +433,7 @@ class Transaction(object):
         # Call all hooks registered, allowing further registrations
         # during processing.
         while self._before_commit:
-            order, hook, args, kws = self._before_commit.pop(0)
+            order, index, hook, args, kws = self._before_commit.pop(0)
             hook(*args, **kws)
 
     def _commitResources(self):
