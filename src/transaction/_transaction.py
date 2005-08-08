@@ -148,6 +148,7 @@ as their only argument.
 
 from types import IntType
 
+import bisect
 import logging
 import sys
 import thread
@@ -410,8 +411,8 @@ class Transaction(object):
         raise t, v, tb
 
     def getBeforeCommitHooks(self):
-        # Don't return the hook order value because of backward compatiblity. 
-        return iter([(x[1], x[2], x[3]) for x in self._before_commit])
+        # Don't return the hook order value because of backward compatibility.
+        return iter([x[1:4] for x in self._before_commit])
 
     def beforeCommitHookOrdered(self, hook, order, *args, **kws):
         if not isinstance(order, IntType):
