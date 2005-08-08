@@ -397,7 +397,7 @@ class CircularCacheSimulation(Simulation):
         if tid == z64:
             # This is part of startup cache verification:  forget everything
             # about this oid.
-            self._remove_noncurrent_revisions(oid, version)
+            self._remove_noncurrent_revisions(oid)
 
         cur_tid = self.current.get(oid)
         if cur_tid is None:
@@ -410,7 +410,7 @@ class CircularCacheSimulation(Simulation):
         del self.current[oid]
         if tid == z64:
             # Startup cache verification:  forget this oid entirely.
-            self._remove(oid, current_tid)
+            self._remove(oid, cur_tid)
             return
 
         # Our current data becomes non-current data.
