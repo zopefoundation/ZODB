@@ -415,19 +415,19 @@ class Transaction(object):
         # backward compatibility. As well, those are internals
         return iter([x[2:5] for x in self._before_commit])
 
-    def beforeCommitHookOrdered(self, hook, order, *args, **kws):
-        if not isinstance(order, IntType):
+    def beforeCommitHookOrdered(self, __hook, __order, *args, **kws):
+        if not isinstance(__order, IntType):
             raise ValueError("An integer value is required "
                              "for the order argument")
         # `index` goes up by 1 on each append.  Then no two tuples can
         # compare equal, and indeed no more than the `order` and
         # `index` fields ever get compared when the tuples are compared
         # (because no two `index` fields are equal).
-        index = len([x[1] for x in self._before_commit if x[1] == order])
-        bisect.insort(self._before_commit, (order, index, hook, args, kws))
+        index = len([x[1] for x in self._before_commit if x[1] == __order])
+        bisect.insort(self._before_commit, (__order, index, __hook, args, kws))
 
-    def beforeCommitHook(self, hook, *args, **kws):
-        self.beforeCommitHookOrdered(hook, 0, *args, **kws)
+    def beforeCommitHook(self, __hook, *args, **kws):
+        self.beforeCommitHookOrdered(__hook, 0, *args, **kws)
 
     def _callBeforeCommitHooks(self):
         # Call all hooks registered, allowing further registrations

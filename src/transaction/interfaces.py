@@ -167,7 +167,7 @@ class ITransaction(zope.interface.Interface):
         raise an exception, or remove `<name, value>` pairs).
         """
 
-    def beforeCommitHook(hook, *args, **kws):
+    def beforeCommitHook(__hook, *args, **kws):
         """Register a hook to call before the transaction is committed.
 
         The specified hook function will be called after the transaction's
@@ -192,7 +192,7 @@ class ITransaction(zope.interface.Interface):
         instead.
         """
 
-    def beforeCommitHookOrdered(hook, order, *args, **kws):
+    def beforeCommitHookOrdered(__hook, __order, *args, **kws):
         """Register a hook to call before the transaction is committed.
 
         The specified hook function will be called after the transaction's
