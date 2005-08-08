@@ -203,7 +203,7 @@ class ClientCache(object):
     def loadBefore(self, oid, tid):
         L = self.noncurrent.get(oid)
         if L is None:
-            self._trace(0x24, oid, tid)
+            self._trace(0x24, oid, "", tid)
             return None
         # A pair with None as the second element is less than any pair with
         # the same first tid.  Dubious:  this relies on that None is less
@@ -214,15 +214,15 @@ class ClientCache(object):
         # Therefore the largest start_tid < tid must be at L[i-1].  If i is 0,
         # there is no start_tid < tid:  we don't have any data old enougn.
         if i == 0:
-            self._trace(0x24, oid, tid)
+            self._trace(0x24, oid, "", tid)
             return
         lo, hi = L[i-1]
         assert lo < tid
         if tid > hi:    # we don't have any data in the right range
-            self._trace(0x24, oid, tid)
+            self._trace(0x24, oid, "", tid)
             return None
         o = self.fc.access((oid, lo))
-        self._trace(0x26, oid, tid)
+        self._trace(0x26, oid, "", tid)
         return o.data, o.start_tid, o.end_tid
 
     ##
