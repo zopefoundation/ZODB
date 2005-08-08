@@ -427,6 +427,7 @@ class Transaction(object):
         bisect.insort(self._before_commit, (__order, index, __hook, args, kws))
 
     def beforeCommitHook(self, __hook, *args, **kws):
+        # Default order is zero (0)
         self.beforeCommitHookOrdered(__hook, 0, *args, **kws)
 
     def _callBeforeCommitHooks(self):
