@@ -1,10 +1,11 @@
-What's new in ZODB3 3.4.1b4?
+What's new in ZODB3 3.4.1b5?
 ============================
-Release date: DD-MMM-2005
+Release date: 08-Aug-2005
 
 Following are dates of internal releases (to support ongoing Zope 2
 development) since ZODB 3.4's last public release:
 
+- 3.4.1b5 08-Aug-2005
 - 3.4.1b4 07-Aug-2005
 - 3.4.1b3 04-Aug-2005
 - 3.4.1b2 02-Aug-2005
@@ -134,11 +135,11 @@ Windows
 Tools
 -----
 
-- (3.4.1b1) Collector #1847.  The ZEO client cache tracing and simulation
-  tools weren't updated to work with ZODB 3.3, and the introduction of
-  MVCC required major reworking of the tracing and simulation code.  These
-  tools are in a working state again, although so far lightly tested on
-  just a few applications.  In ``doc/ZEO/``, see the heavily revised
+- (3.4.1b1 thru 3.4.1b5) Collector #1847.  The ZEO client cache tracing and
+  simulation tools weren't updated to work with ZODB 3.3, and the
+  introduction of MVCC required major reworking of the tracing and simulation
+  code.  These tools are in a working state again, although so far lightly
+  tested on just a few applications.  In ``doc/ZEO/``, see the heavily revised
   ``trace.txt`` and ``cache.txt``.
 
 - (3.4.1a6) Collector #1846:  If an uncommitted transaction was found,
