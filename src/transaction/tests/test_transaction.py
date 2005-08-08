@@ -410,6 +410,34 @@ def test_join():
 
     """
 
+def hook():
+    pass
+
+class BeforeCommitHookTests(unittest.TestCase):
+
+    def test_01_beforecommithook_order_exceptions(self):
+        # string
+        t = transaction.Transaction()
+        self.assertRaises(ValueError, t.beforeCommitHookOrdered,
+                          hook, 'string')
+
+    def test_02_beforecommithook_order_exceptions(self):
+        # float
+        t = transaction.Transaction()
+        self.assertRaises(ValueError, t.beforeCommitHookOrdered,
+                          hook, 1.2)
+
+    def test_03_beforecommithook_order_exceptions(self):
+        # object
+        t = transaction.Transaction()
+        class foo:
+            pass
+        self.assertRaises(ValueError, t.beforeCommitHookOrdered,
+                          hook, foo())
+
+    # XXX if the type check for whatever reasons gets more complex one
+    # day just add some more tests in here
+
 def test_beforeCommitHook():
     """Test the beforeCommitHook.
 
@@ -624,28 +652,13 @@ def test_beforeCommitHookOrdered():
       ('hook', ('3',), {})
       ('hook', ('5',), {})
 
-    Try to register an hook with an order value different than an
-    integer value. It will be replaced by the default order value (e.g
-    : 0)
-
-      >>> t.beforeCommitHookOrdered(hook, 'string_value', '7')
-      >>> for hook, args, kws in t.getBeforeCommitHooks():
-      ...     print (hook.func_name, args, kws)
-      ('hook', ('2',), {})
-      ('hook', ('6',), {})
-      ('hook', ('1',), {})
-      ('hook', ('4',), {})
-      ('hook', ('7',), {})
-      ('hook', ('3',), {})
-      ('hook', ('5',), {})
-
     Ensure, the calls are made in the order of the registration
     without taking the whole tuple while internal comparaison. For
     instance bisect.insort() can't work in this case
-
+    
       >>> def hook2(arg='no_arg', kw1='no_kw1', kw2='no_kw2'):
       ...     log.append("arg %r kw1 %r kw2 %r" % (arg, kw1, kw2))
-
+    
       >>> t.beforeCommitHookOrdered(hook2, 0, '8')
       >>> for hook, args, kws in t.getBeforeCommitHooks():
       ...     print (hook.func_name, args, kws)
@@ -653,7 +666,6 @@ def test_beforeCommitHookOrdered():
       ('hook', ('6',), {})
       ('hook', ('1',), {})
       ('hook', ('4',), {})
-      ('hook', ('7',), {})
       ('hook2', ('8',), {})
       ('hook', ('3',), {})
       ('hook', ('5',), {})
@@ -665,8 +677,8 @@ def test_suite():
     return unittest.TestSuite((
         DocTestSuite(),
         unittest.makeSuite(TransactionTests),
+        unittest.makeSuite(BeforeCommitHookTests),
         ))
-
 
 if __name__ == '__main__':
     unittest.TextTestRunner().run(test_suite())

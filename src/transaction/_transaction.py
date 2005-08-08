@@ -415,7 +415,8 @@ class Transaction(object):
 
     def beforeCommitHookOrdered(self, hook, order, *args, **kws):
         if not isinstance(order, IntType):
-            order = 0
+            raise ValueError("An integer value is required "
+                             "for the order argument")
         index = 0
         for o, h, a, k in self._before_commit:
             if order < o:
