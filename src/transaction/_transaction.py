@@ -146,8 +146,6 @@ committed or aborted.  The methods are passed the current Transaction
 as their only argument.
 """
 
-from types import IntType
-
 import bisect
 import logging
 import sys
@@ -416,7 +414,7 @@ class Transaction(object):
         return iter([x[2:5] for x in self._before_commit])
 
     def beforeCommitHookOrdered(self, __hook, __order, *args, **kws):
-        if not isinstance(__order, IntType):
+        if not isinstance(__order, int):
             raise ValueError("An integer value is required "
                              "for the order argument")
         # `index` goes up by 1 on each append.  Then no two tuples can
