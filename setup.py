@@ -32,9 +32,9 @@ context = zpkgsetup.setup.SetupContext(
     "ZODB3", "3.5.0a42", __file__)
 
 context.load_metadata(
-    os.path.join(here, "releases", "ZODB3", "PUBLICATION.cfg"))
+    os.path.join(here, "PUBLICATION.cfg"))
 
-context.scan("ZODB3",          *join("releases", "ZODB3"))
+context.scan("ZODB3",          here, ".")
 context.scan("BTrees",         *join("src", "BTrees"))
 context.scan("Persistence",    *join("src", "Persistence"))
 context.scan("persistent",     *join("src", "persistent"))
