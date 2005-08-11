@@ -17,7 +17,7 @@
 #include "structmember.h"
 
 #ifdef PERSISTENT
-#include "cPersistence.h"
+#include "persistent/cPersistence.h"
 #else
 #define PER_USE_OR_RETURN(self, NULL)
 #define PER_ALLOW_DEACTIVATION(self)

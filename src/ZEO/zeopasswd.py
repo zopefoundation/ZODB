@@ -1,4 +1,3 @@
-#!python
 ##############################################################################
 #
 # Copyright (c) 2003 Zope Corporation and Contributors.
@@ -124,6 +123,3 @@ def main(args=None, dbclass=None):
             password = getpass.getpass("Enter password: ")
         db.add_user(username, password)
     db.save()
-
-if __name__ == "__main__":
-    main(sys.argv[1:])

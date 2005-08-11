@@ -1,4 +1,3 @@
-#!python
 ##############################################################################
 #
 # Copyright (c) 2001, 2002, 2003 Zope Corporation and Contributors.
@@ -352,6 +351,3 @@ def main(args=None):
     options.realize(args)
     s = ZEOServer(options)
     s.main()
-
-if __name__ == "__main__":
-    main()
