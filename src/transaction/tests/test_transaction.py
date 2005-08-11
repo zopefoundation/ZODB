@@ -418,22 +418,22 @@ class BeforeCommitHookTests(unittest.TestCase):
     def test_01_beforecommithook_order_exceptions(self):
         # string
         t = transaction.Transaction()
-        self.assertRaises(ValueError, t.beforeCommitHookOrdered,
-                          hook, 'string')
+        self.assertRaises(ValueError, t.addBeforeCommitHook,
+                          hook, order='string')
 
     def test_02_beforecommithook_order_exceptions(self):
         # float
         t = transaction.Transaction()
-        self.assertRaises(ValueError, t.beforeCommitHookOrdered,
-                          hook, 1.2)
+        self.assertRaises(ValueError, t.addBeforeCommitHook,
+                          hook, order=1.2)
 
     def test_03_beforecommithook_order_exceptions(self):
         # object
         t = transaction.Transaction()
         class foo:
             pass
-        self.assertRaises(ValueError, t.beforeCommitHookOrdered,
-                          hook, foo())
+        self.assertRaises(ValueError, t.addBeforeCommitHook,
+                          hook, order=foo())
 
     # XXX if the type check for whatever reasons gets more complex one
     # day just add some more tests in here
@@ -578,8 +578,8 @@ def test_beforeCommitHook():
       >>> reset_log()
     """
 
-def test_beforeCommitHookOrdered():
-    """Test the beforeCommitHookOrdered with order arguments.
+def test_addBeforeCommitHook():
+    """Test the addBeforeCommitHook with order arguments.
 
     Let's define a hook to call, and a way to see that it was called.
 
@@ -595,7 +595,7 @@ def test_beforeCommitHookOrdered():
 
       >>> import transaction
       >>> t = transaction.begin()
-      >>> t.beforeCommitHookOrdered(hook, 0, '1')
+      >>> t.addBeforeCommitHook(hook, '1', order=0)
 
     We can see that the hook is indeed registered.
 
@@ -606,7 +606,7 @@ def test_beforeCommitHookOrdered():
     Let's add another one with a smaller order. It will be registered
     to be call at first
 
-      >>> t.beforeCommitHookOrdered(hook, -999999, '2')
+      >>> t.addBeforeCommitHook(hook, '2', order=-999999)
       >>> [(hook.func_name, args, kws)
       ...  for hook, args, kws in t.getBeforeCommitHooks()]
       [('hook', ('2',), {}), ('hook', ('1',), {})]
@@ -614,7 +614,7 @@ def test_beforeCommitHookOrdered():
     Let's add another one with a bigger order. It will be registered
     to be call at last
     
-      >>> t.beforeCommitHookOrdered(hook, 999999, '3')
+      >>> t.addBeforeCommitHook(hook, '3', order=999999)
       >>> for hook, args, kws in t.getBeforeCommitHooks():
       ...     print (hook.func_name, args, kws)
       ('hook', ('2',), {})
@@ -625,7 +625,7 @@ def test_beforeCommitHookOrdered():
     Now, we will check that the insertion with the same order values
     respect the order of the registration.
 
-      >>> t.beforeCommitHookOrdered(hook, 0, '4')
+      >>> t.addBeforeCommitHook(hook, '4', order=0)
       >>> for hook, args, kws in t.getBeforeCommitHooks():
       ...     print (hook.func_name, args, kws)
       ('hook', ('2',), {})
@@ -633,7 +633,7 @@ def test_beforeCommitHookOrdered():
       ('hook', ('4',), {})
       ('hook', ('3',), {})
 
-      >>> t.beforeCommitHookOrdered(hook, 999999, '5')
+      >>> t.addBeforeCommitHook(hook, '5', order=999999)
       >>> for hook, args, kws in t.getBeforeCommitHooks():
       ...     print (hook.func_name, args, kws)
       ('hook', ('2',), {})
@@ -642,7 +642,7 @@ def test_beforeCommitHookOrdered():
       ('hook', ('3',), {})
       ('hook', ('5',), {})
 
-      >>> t.beforeCommitHookOrdered(hook, -999999, '6')
+      >>> t.addBeforeCommitHook(hook, '6', order=-999999)
       >>> for hook, args, kws in t.getBeforeCommitHooks():
       ...     print (hook.func_name, args, kws)
       ('hook', ('2',), {})
@@ -659,7 +659,7 @@ def test_beforeCommitHookOrdered():
       >>> def hook2(arg='no_arg', kw1='no_kw1', kw2='no_kw2'):
       ...     log.append("arg %r kw1 %r kw2 %r" % (arg, kw1, kw2))
     
-      >>> t.beforeCommitHookOrdered(hook2, 0, '8')
+      >>> t.addBeforeCommitHook(hook2, '8', order=0)
       >>> for hook, args, kws in t.getBeforeCommitHooks():
       ...     print (hook.func_name, args, kws)
       ('hook', ('2',), {})
