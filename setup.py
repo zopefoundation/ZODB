@@ -19,6 +19,8 @@ import sys
 
 import zpkgsetup.setup
 
+# Note that release.py must be able to recognize the VERSION line.
+VERSION = "3.5a6"
 
 here = os.path.dirname(os.path.abspath(__file__))
 
@@ -27,9 +29,7 @@ def join(*parts):
     relative_path = posixpath.join(*parts)
     return local_full_path, relative_path
 
-
-context = zpkgsetup.setup.SetupContext(
-    "ZODB3", "3.5.0a42", __file__)
+context = zpkgsetup.setup.SetupContext("ZODB3", VERSION, __file__)
 
 context.load_metadata(
     os.path.join(here, "PUBLICATION.cfg"))

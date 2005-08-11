@@ -60,8 +60,8 @@ def main(args):
     version, date = args
 
     replace("setup.py",
-            r'version="\S+"',
-            'version="%s"' % version)
+            r'^VERSION = "\S+"$',
+            'VERSION = "%s"' % version)
     replace("src/ZODB/__init__.py",
             r'__version__ = "\S+"',
             '__version__ = "%s"' % version)
