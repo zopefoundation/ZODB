@@ -239,10 +239,14 @@ class Transaction(object):
         # raised, incorporating this traceback.
         self._failure_traceback = None
 
-        # Holds (order, index, hook, args, kws) added by
-        # addbeforeCommitHook.  TODO: in Python 2.4, change to
-        # collections.deque; lists can be inefficient for FIFO access
-        # of this kind.
+        # List of (order, index, hook, args, kws) tuples added by
+        # addbeforeCommitHook().  `index` is used to resolve ties on equal
+        # `order` values, preserving the order in which the hooks were
+        # registered.  Each time we append a tuple to _before_commit,
+        # the current value of _before_commit_index is used for the
+        # index, and then the latter is incremented by 1.
+        # TODO: in Python 2.4, change to collections.deque; lists can be
+        # inefficient for FIFO access of this kind.
         self._before_commit = []
         self._before_commit_index = 0
 
@@ -412,25 +416,21 @@ class Transaction(object):
 
     def getBeforeCommitHooks(self):
         # Don't return the hook order and index values because of
-        # backward compatibility. As well, those are internals
-        return iter([x[2:5] for x in self._before_commit])
-    
+        # backward compatibility, and because they're internal details.
+        return iter([x[2:] for x in self._before_commit])
+
     def addBeforeCommitHook(self, hook, args=(), kws=None, order=0):
         if not isinstance(order, int):
             raise ValueError("An integer value is required "
                              "for the order argument")
         if kws is None:
             kws = {}
-        # `index` goes up by 1 on each append.  Then no two tuples can
-        # compare equal, and indeed no more than the `order` and
-        # `index` fields ever get compared when the tuples are compared
-        # (because no two `index` fields are equal).
         bisect.insort(self._before_commit, (order, self._before_commit_index,
                                             hook, tuple(args), kws))
         self._before_commit_index += 1
 
     def beforeCommitHook(self, hook, *args, **kws):
-        # Default order is zero (0)
+        # Default order is zero.
         self.addBeforeCommitHook(hook, args, kws, order=0)
 
     def _callBeforeCommitHooks(self):
