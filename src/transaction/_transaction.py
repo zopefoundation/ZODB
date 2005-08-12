@@ -111,7 +111,7 @@ Sometimes, applications want to execute some code when a transaction is
 committed.  For example, one might want to delay object indexing until a
 transaction commits, rather than indexing every time an object is changed.
 Or someone might want to check invariants only after a set of operations.  A
-pre-commit hook is available for such use cases, just use beforeCommitHook()
+pre-commit hook is available for such use cases:  use addBeforeCommitHook(),
 passing it a callable and arguments.  The callable will be called with its
 arguments at the start of the commit (but not for substransaction commits).
 
