@@ -167,6 +167,7 @@ class ITransaction(zope.interface.Interface):
         raise an exception, or remove `<name, value>` pairs).
         """
 
+    # deprecated37
     def beforeCommitHook(__hook, *args, **kws):
         """Register a hook to call before the transaction is committed.
 

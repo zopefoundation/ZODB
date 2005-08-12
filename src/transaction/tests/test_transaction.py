@@ -44,6 +44,7 @@ import warnings
 
 import transaction
 from ZODB.utils import positive_id
+from ZODB.tests.warnhook import WarningsHook
 
 # deprecated37  remove when subtransactions go away
 # Don't complain about subtxns in these tests.
@@ -434,6 +435,182 @@ class BeforeCommitHookTests(unittest.TestCase):
             pass
         self.assertRaises(ValueError, t.addBeforeCommitHook,
                           hook, order=foo())
+
+# deprecated37; remove this then
+def test_beforeCommitHook():
+    """Test beforeCommitHook.
+
+    Let's define a hook to call, and a way to see that it was called.
+
+      >>> log = []
+      >>> def reset_log():
+      ...     del log[:]
+
+      >>> def hook(arg='no_arg', kw1='no_kw1', kw2='no_kw2'):
+      ...     log.append("arg %r kw1 %r kw2 %r" % (arg, kw1, kw2))
+
+    beforeCommitHook is deprecated, so we need cruft to suppress the
+    warnings.
+
+      >>> whook = WarningsHook()
+      >>> whook.install()
+
+    Fool the warnings module into delivering the warnings despite that
+    they've been seen before; this is needed in case this test is run
+    more than once.
+
+      >>> import warnings
+      >>> warnings.filterwarnings("always", category=DeprecationWarning)
+
+    Now register the hook with a transaction.
+
+      >>> import transaction
+      >>> t = transaction.begin()
+      >>> t.beforeCommitHook(hook, '1')
+
+    Make sure it triggered a deprecation warning:
+
+      >>> len(whook.warnings)
+      1
+      >>> message, category, filename, lineno = whook.warnings[0]
+      >>> print message
+      This will be removed in ZODB 3.7:
+      Use addBeforeCommitHook instead of beforeCommitHook.
+      >>> category.__name__
+      'DeprecationWarning'
+      >>> whook.clear()
+
+    We can see that the hook is indeed registered.
+
+      >>> [(hook.func_name, args, kws)
+      ...  for hook, args, kws in t.getBeforeCommitHooks()]
+      [('hook', ('1',), {})]
+
+    When transaction commit starts, the hook is called, with its
+    arguments.
+
+      >>> log
+      []
+      >>> t.commit()
+      >>> log
+      ["arg '1' kw1 'no_kw1' kw2 'no_kw2'"]
+      >>> reset_log()
+
+    A hook's registration is consumed whenever the hook is called.  Since
+    the hook above was called, it's no longer registered:
+
+      >>> len(list(t.getBeforeCommitHooks()))
+      0
+      >>> transaction.commit()
+      >>> log
+      []
+
+    The hook is only called for a full commit, not for a savepoint or
+    subtransaction.
+
+      >>> t = transaction.begin()
+      >>> t.beforeCommitHook(hook, 'A', kw1='B')
+      >>> dummy = t.savepoint()
+      >>> log
+      []
+      >>> t.commit(subtransaction=True)
+      >>> log
+      []
+      >>> t.commit()
+      >>> log
+      ["arg 'A' kw1 'B' kw2 'no_kw2'"]
+      >>> reset_log()
+
+    If a transaction is aborted, no hook is called.
+
+      >>> t = transaction.begin()
+      >>> t.beforeCommitHook(hook, "OOPS!")
+      >>> transaction.abort()
+      >>> log
+      []
+      >>> transaction.commit()
+      >>> log
+      []
+
+    The hook is called before the commit does anything, so even if the
+    commit fails the hook will have been called.  To provoke failures in
+    commit, we'll add failing resource manager to the transaction.
+
+      >>> class CommitFailure(Exception):
+      ...     pass
+      >>> class FailingDataManager:
+      ...     def tpc_begin(self, txn, sub=False):
+      ...         raise CommitFailure
+      ...     def abort(self, txn):
+      ...         pass
+
+      >>> t = transaction.begin()
+      >>> t.join(FailingDataManager())
+
+      >>> t.beforeCommitHook(hook, '2')
+      >>> t.commit()
+      Traceback (most recent call last):
+      ...
+      CommitFailure
+      >>> log
+      ["arg '2' kw1 'no_kw1' kw2 'no_kw2'"]
+      >>> reset_log()
+
+    Let's register several hooks.
+
+      >>> t = transaction.begin()
+      >>> t.beforeCommitHook(hook, '4', kw1='4.1')
+      >>> t.beforeCommitHook(hook, '5', kw2='5.2')
+
+    They are returned in the same order by getBeforeCommitHooks.
+
+      >>> [(hook.func_name, args, kws)     #doctest: +NORMALIZE_WHITESPACE
+      ...  for hook, args, kws in t.getBeforeCommitHooks()]
+      [('hook', ('4',), {'kw1': '4.1'}),
+       ('hook', ('5',), {'kw2': '5.2'})]
+
+    And commit also calls them in this order.
+
+      >>> t.commit()
+      >>> len(log)
+      2
+      >>> log  #doctest: +NORMALIZE_WHITESPACE
+      ["arg '4' kw1 '4.1' kw2 'no_kw2'",
+       "arg '5' kw1 'no_kw1' kw2 '5.2'"]
+      >>> reset_log()
+
+    While executing, a hook can itself add more hooks, and they will all
+    be called before the real commit starts.
+
+      >>> def recurse(txn, arg):
+      ...     log.append('rec' + str(arg))
+      ...     if arg:
+      ...         txn.beforeCommitHook(hook, '-')
+      ...         txn.beforeCommitHook(recurse, txn, arg-1)
+
+      >>> t = transaction.begin()
+      >>> t.beforeCommitHook(recurse, t, 3)
+      >>> transaction.commit()
+      >>> log  #doctest: +NORMALIZE_WHITESPACE
+      ['rec3',
+               "arg '-' kw1 'no_kw1' kw2 'no_kw2'",
+       'rec2',
+               "arg '-' kw1 'no_kw1' kw2 'no_kw2'",
+       'rec1',
+               "arg '-' kw1 'no_kw1' kw2 'no_kw2'",
+       'rec0']
+      >>> reset_log()
+
+    We have to uninstall the warnings hook so that other warnings don't get
+    lost.
+
+      >>> whook.uninstall()
+
+    Obscure:  There is no API call for removing the filter we added, but
+    filters appears to be a public variable.
+
+      >>> del warnings.filters[0]
+    """
 
 def test_addBeforeCommitHook():
     """Test addBeforeCommitHook, without order arguments.
