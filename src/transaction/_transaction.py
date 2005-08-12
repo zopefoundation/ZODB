@@ -105,7 +105,7 @@ commit will start with a commit_sub() call instead of a tpc_begin()
 call.
 
 Before-commit hook
----------------
+------------------
 
 Sometimes, applications want to execute some code when a transaction is
 committed.  For example, one might want to delay object indexing until a
