@@ -435,9 +435,6 @@ class BeforeCommitHookTests(unittest.TestCase):
         self.assertRaises(ValueError, t.addBeforeCommitHook,
                           hook, order=foo())
 
-    # XXX if the type check for whatever reasons gets more complex one
-    # day just add some more tests in here
-
 def test_addBeforeCommitHook():
     """Test addBeforeCommitHook, without order arguments.
 
