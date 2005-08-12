@@ -579,19 +579,9 @@ def test_beforeCommitHook():
     """
 
 def test_addBeforeCommitHook():
-    """Test the addBeforeCommitHook with order arguments.
+    """Test addBeforeCommitHook with order arguments.
 
-    Let's define a hook to call, and a way to see that it was called.
-
-      >>> log = []
-      >>> def reset_log():
-      ...     del log[:]
-
-      >>> def hook(arg='no_arg', kw1='no_kw1', kw2='no_kw2'):
-      ...     log.append("arg %r kw1 %r kw2 %r" % (arg, kw1, kw2))
-
-    Now register the hook within a transaction with an order explictly
-    equal to 0. (e.g : which is the default value)
+    Register a hook with an order explicitly equal to 0 (the default value):
 
       >>> import transaction
       >>> t = transaction.begin()
@@ -604,16 +594,16 @@ def test_addBeforeCommitHook():
       [('hook', ('1',), {})]
 
     Let's add another one with a smaller order. It will be registered
-    to be call at first
+    to be called first.
 
       >>> t.addBeforeCommitHook(hook, '2', order=-999999)
       >>> [(hook.func_name, args, kws)
       ...  for hook, args, kws in t.getBeforeCommitHooks()]
       [('hook', ('2',), {}), ('hook', ('1',), {})]
 
-    Let's add another one with a bigger order. It will be registered
-    to be call at last
-    
+    Let's add another one with a bigger order.  It will be registered
+    to be called last.
+
       >>> t.addBeforeCommitHook(hook, '3', order=999999)
       >>> for hook, args, kws in t.getBeforeCommitHooks():
       ...     print (hook.func_name, args, kws)
@@ -622,10 +612,10 @@ def test_addBeforeCommitHook():
       ('hook', ('3',), {})
 
     Above, we checked that the order parameter works as expected.
-    Now, we will check that the insertion with the same order values
-    respect the order of the registration.
+    Now check that insertion with the same order values  respects the order
+    of registration.
 
-      >>> t.addBeforeCommitHook(hook, '4', order=0)
+      >>> t.addBeforeCommitHook(hook, '4') # order=0 implied
       >>> for hook, args, kws in t.getBeforeCommitHooks():
       ...     print (hook.func_name, args, kws)
       ('hook', ('2',), {})
@@ -652,13 +642,9 @@ def test_addBeforeCommitHook():
       ('hook', ('3',), {})
       ('hook', ('5',), {})
 
-    Ensure, the calls are made in the order of the registration
-    without taking the whole tuple while internal comparaison. For
-    instance bisect.insort() can't work in this case
-    
-      >>> def hook2(arg='no_arg', kw1='no_kw1', kw2='no_kw2'):
-      ...     log.append("arg %r kw1 %r kw2 %r" % (arg, kw1, kw2))
-    
+      >>> def hook2():
+      ...     pass
+
       >>> t.addBeforeCommitHook(hook2, '8', order=0)
       >>> for hook, args, kws in t.getBeforeCommitHooks():
       ...     print (hook.func_name, args, kws)
@@ -669,7 +655,7 @@ def test_addBeforeCommitHook():
       ('hook2', ('8',), {})
       ('hook', ('3',), {})
       ('hook', ('5',), {})
-    
+
     """
 
 def test_suite():
