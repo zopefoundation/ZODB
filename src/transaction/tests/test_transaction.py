@@ -438,8 +438,8 @@ class BeforeCommitHookTests(unittest.TestCase):
     # XXX if the type check for whatever reasons gets more complex one
     # day just add some more tests in here
 
-def test_beforeCommitHook():
-    """Test the beforeCommitHook.
+def test_addBeforeCommitHook():
+    """Test addBeforeCommitHook, without order arguments.
 
     Let's define a hook to call, and a way to see that it was called.
 
@@ -454,7 +454,7 @@ def test_beforeCommitHook():
 
       >>> import transaction
       >>> t = transaction.begin()
-      >>> t.beforeCommitHook(hook, '1')
+      >>> t.addBeforeCommitHook(hook, '1')
 
     We can see that the hook is indeed registered.
 
@@ -485,7 +485,7 @@ def test_beforeCommitHook():
     subtransaction.
 
       >>> t = transaction.begin()
-      >>> t.beforeCommitHook(hook, 'A', kw1='B')
+      >>> t.addBeforeCommitHook(hook, 'A', dict(kw1='B'))
       >>> dummy = t.savepoint()
       >>> log
       []
@@ -500,7 +500,7 @@ def test_beforeCommitHook():
     If a transaction is aborted, no hook is called.
 
       >>> t = transaction.begin()
-      >>> t.beforeCommitHook(hook, "OOPS!")
+      >>> t.addBeforeCommitHook(hook, ["OOPS!"])
       >>> transaction.abort()
       >>> log
       []
@@ -523,7 +523,7 @@ def test_beforeCommitHook():
       >>> t = transaction.begin()
       >>> t.join(FailingDataManager())
 
-      >>> t.beforeCommitHook(hook, '2')
+      >>> t.addBeforeCommitHook(hook, '2')
       >>> t.commit()
       Traceback (most recent call last):
       ...
@@ -535,8 +535,8 @@ def test_beforeCommitHook():
     Let's register several hooks.
 
       >>> t = transaction.begin()
-      >>> t.beforeCommitHook(hook, '4', kw1='4.1')
-      >>> t.beforeCommitHook(hook, '5', kw2='5.2')
+      >>> t.addBeforeCommitHook(hook, '4', dict(kw1='4.1'))
+      >>> t.addBeforeCommitHook(hook, '5', dict(kw2='5.2'))
 
     They are returned in the same order by getBeforeCommitHooks.
 
@@ -561,11 +561,11 @@ def test_beforeCommitHook():
       >>> def recurse(txn, arg):
       ...     log.append('rec' + str(arg))
       ...     if arg:
-      ...         txn.beforeCommitHook(hook, '-')
-      ...         txn.beforeCommitHook(recurse, txn, arg-1)
+      ...         txn.addBeforeCommitHook(hook, '-')
+      ...         txn.addBeforeCommitHook(recurse, (txn, arg-1))
 
       >>> t = transaction.begin()
-      >>> t.beforeCommitHook(recurse, t, 3)
+      >>> t.addBeforeCommitHook(recurse, (t, 3))
       >>> transaction.commit()
       >>> log  #doctest: +NORMALIZE_WHITESPACE
       ['rec3',
@@ -578,7 +578,7 @@ def test_beforeCommitHook():
       >>> reset_log()
     """
 
-def test_addBeforeCommitHook():
+def test_addBeforeCommitHookOrder():
     """Test addBeforeCommitHook with order arguments.
 
     Register a hook with an order explicitly equal to 0 (the default value):
