@@ -94,12 +94,13 @@ zeoctl_template = """\
 # description: start a %(PACKAGE)s server
 
 PYTHON="%(python)s"
+INSTANCE_HOME="%(instance_home)s"
 ZODB3_HOME="%(zodb3_home)s"
 
 CONFIG_FILE="%(instance_home)s/etc/%(package)s.conf"
 
 PYTHONPATH="$ZODB3_HOME"
-export PYTHONPATH
+export PYTHONPATH INSTANCE_HOME
 
 ZEOCTL="$ZODB3_HOME/ZEO/zeoctl.py"
 
@@ -111,12 +112,13 @@ runzeo_template = """\
 # %(PACKAGE)s instance start script
 
 PYTHON="%(python)s"
+INSTANCE_HOME="%(instance_home)s"
 ZODB3_HOME="%(zodb3_home)s"
 
 CONFIG_FILE="%(instance_home)s/etc/%(package)s.conf"
 
 PYTHONPATH="$ZODB3_HOME"
-export PYTHONPATH
+export PYTHONPATH INSTANCE_HOME
 
 RUNZEO="$ZODB3_HOME/ZEO/runzeo.py"
 
