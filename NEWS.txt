@@ -30,6 +30,16 @@ Savepoints
   marked a savepoint as invalid after its first use.  The implementation has
   been repaired, to match the docs.
 
+Commit hooks
+------------
+
+- (3.5a8) A new ``addBeforeCommitHook()`` method of transactions generalizes
+  the older ``beforeCommitHook()`` method, with a more-robust signature
+  and an optional new ``order`` argument to influence the order in which
+  commit hooks are invoked.  ``beforeCommitHook()`` is now deprecated, and
+  will be removed in ZODB 3.7.  Thanks to Julien Anguenot for contributing
+  code and tests.
+
 ZEO client cache
 ----------------
 
@@ -165,6 +175,17 @@ BTrees
 - (3.5a4) The ancient ``convert.py`` script was removed.  It was intended to
   convert "old" BTrees to "new" BTrees, but the "old" BTree implementation
   was removed from ZODB years ago.
+
+Development
+-----------
+
+- (3.5a7) ZODB's ``setup.py`` now uses zpkg for checkout-tree builds,
+  ensuring that the same code is used to build and test ZODB on a daily
+  basis as is used to build ZODB releases.  In order to support this,
+  the ZODB repository now stitches in part of zpkgtools (via
+  ``svn:externals``), all script files were moved into a new ``scripts``
+  directory in the checkout tree, and intra-ZODB ``#include`` directives
+  in ZODB's C code were rewritten in minor ways.
 
 
 What's new in ZODB3 3.4.1?

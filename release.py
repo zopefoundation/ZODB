@@ -3,7 +3,7 @@
 
 usage: release.py version date
 
-version should be a string like "3.2c1"
+version should be a string like "3.2.0c1"
 date should be a string like "23-Sep-2003"
 
 The following files are updated:
@@ -50,9 +50,10 @@ def replace(filename, pat, repl):
 # someone asked for it so that a shell script could read up the ZEO
 # version easily.
 # Before ZODB 3.4, the ZEO version was one smaller than the ZODB version;
-# e.g., ZEO 2.2.7 shipped with ZODB 3.2.7.
+# e.g., ZEO 2.2.7 shipped with ZODB 3.2.7.  Now ZEO and ZODB share their
+# version number.
 def write_zeoversion(path, version):
-    f = file(path, "w")
+    f = open(path, "w")
     print >> f, version
     f.close()
 
