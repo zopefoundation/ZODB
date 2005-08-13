@@ -105,13 +105,13 @@ commit will start with a commit_sub() call instead of a tpc_begin()
 call.
 
 Before-commit hook
----------------
+------------------
 
 Sometimes, applications want to execute some code when a transaction is
 committed.  For example, one might want to delay object indexing until a
 transaction commits, rather than indexing every time an object is changed.
 Or someone might want to check invariants only after a set of operations.  A
-pre-commit hook is available for such use cases, just use beforeCommitHook()
+pre-commit hook is available for such use cases:  use addBeforeCommitHook(),
 passing it a callable and arguments.  The callable will be called with its
 arguments at the start of the commit (but not for substransaction commits).
 
@@ -146,6 +146,7 @@ committed or aborted.  The methods are passed the current Transaction
 as their only argument.
 """
 
+import bisect
 import logging
 import sys
 import thread
@@ -238,10 +239,16 @@ class Transaction(object):
         # raised, incorporating this traceback.
         self._failure_traceback = None
 
-        # Holds (hook, args, kws) triples added by beforeCommitHook.
-        # TODO:  in Python 2.4, change to collections.deque; lists can be
+        # List of (order, index, hook, args, kws) tuples added by
+        # addbeforeCommitHook().  `index` is used to resolve ties on equal
+        # `order` values, preserving the order in which the hooks were
+        # registered.  Each time we append a tuple to _before_commit,
+        # the current value of _before_commit_index is used for the
+        # index, and then the latter is incremented by 1.
+        # TODO: in Python 2.4, change to collections.deque; lists can be
         # inefficient for FIFO access of this kind.
         self._before_commit = []
+        self._before_commit_index = 0
 
     # Raise TransactionFailedError, due to commit()/join()/register()
     # getting called when the current transaction has already suffered
@@ -408,17 +415,34 @@ class Transaction(object):
         raise t, v, tb
 
     def getBeforeCommitHooks(self):
-        return iter(self._before_commit)
+        # Don't return the hook order and index values because of
+        # backward compatibility, and because they're internal details.
+        return iter([x[2:] for x in self._before_commit])
+
+    def addBeforeCommitHook(self, hook, args=(), kws=None, order=0):
+        if not isinstance(order, int):
+            raise ValueError("An integer value is required "
+                             "for the order argument")
+        if kws is None:
+            kws = {}
+        bisect.insort(self._before_commit, (order, self._before_commit_index,
+                                            hook, tuple(args), kws))
+        self._before_commit_index += 1
 
     def beforeCommitHook(self, hook, *args, **kws):
-        self._before_commit.append((hook, args, kws))
+        from ZODB.utils import deprecated37
+
+        deprecated37("Use addBeforeCommitHook instead of beforeCommitHook.")
+        # Default order is zero.
+        self.addBeforeCommitHook(hook, args, kws, order=0)
 
     def _callBeforeCommitHooks(self):
         # Call all hooks registered, allowing further registrations
         # during processing.
         while self._before_commit:
-            hook, args, kws = self._before_commit.pop(0)
+            order, index, hook, args, kws = self._before_commit.pop(0)
             hook(*args, **kws)
+        self._before_commit_index = 0
 
     def _commitResources(self):
         # Execute the two-phase commit protocol.
