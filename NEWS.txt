@@ -16,6 +16,13 @@ Zope3 development).  These are the dates of the internal releases:
 Savepoints
 ----------
 
+- (3.5a8) As for deprecated subtransaction commits, the intent was
+  that making a savepoint would invoke incremental garbage collection on
+  Connection memory caches, to try to reduce the number of objects in
+  cache to the configured cache size.  Due to an oversight, this didn't
+  happen, and stopped happening for subtransaction commits too.  Making a
+  savepoint (or doing a subtransaction commit) does invoke cache gc now.
+
 - (3.5a3) When a savepoint is made, the states of objects modified so far
   are saved to a temporary storage (an instance of class ``TmpStore``,
   although that's an internal implementation detail).  That storage needs
@@ -62,11 +69,15 @@ Subtransactions are deprecated
 
   to::
 
-      transaction.savepoint()
+      transaction.savepoint(True)
 
-  That is, make a savepoint, and forget it.  In rarer cases, a
-  subtransaction commit is followed later by a subtransaction abort.  In
-  that case, change the initial::
+  That is, make a savepoint, and forget it.  As shown, it's best to pass
+  ``True`` for the optional ``optimistic`` argument in this case:  because
+  there's no possibility of asking for a rollback later, there's no need
+  to insist that all data managers support rollback.
+
+  In rarer cases, a subtransaction commit is followed later by a
+  subtransaction abort.  In that case, change the initial::
 
       transaction.commit(1)
 
@@ -188,6 +199,26 @@ Development
   in ZODB's C code were rewritten in minor ways.
 
 
+What's new in ZODB3 3.4.2a1?
+============================
+Release date: DD-MMM-2005
+
+Following are dates of internal releases (to support ongoing Zope 2
+development) since ZODB 3.4's last public release:
+
+- 3.4.2a1 DD-MMM-2005
+
+Savepoints
+----------
+
+- (3.4.2a1) As for deprecated subtransaction commits, the intent was
+  that making a savepoint would invoke incremental garbage collection on
+  Connection memory caches, to try to reduce the number of objects in
+  cache to the configured cache size.  Due to an oversight, this didn't
+  happen, and stopped happening for subtransaction commits too.  Making a
+  savepoint (or doing a subtransaction commit) does invoke cache gc now.
+
+
 What's new in ZODB3 3.4.1?
 ==========================
 Release date: 09-Aug-2005
@@ -250,11 +281,15 @@ Subtransactions
 
   to::
 
-      transaction.savepoint()
+      transaction.savepoint(True)
 
-  That is, make a savepoint, and forget it.  In rarer cases, a
-  subtransaction commit is followed later by a subtransaction abort.  In
-  that case, change the initial::
+  That is, make a savepoint, and forget it.  As shown, it's best to pass
+  ``True`` for the optional ``optimistic`` argument in this case:  because
+  there's no possibility of asking for a rollback later, there's no need
+  to insist that all data managers support rollback.
+
+  In rarer cases, a subtransaction commit is followed later by a
+  subtransaction abort.  In that case, change the initial::
 
       transaction.commit(1)
 
