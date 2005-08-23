@@ -1037,7 +1037,13 @@ class Connection(ExportImport, object):
         self._registered_objects = []
 
         state = self._storage.position, self._storage.index.copy()
-        return Savepoint(self, state)
+        result = Savepoint(self, state)
+        # While the interface doesn't guarantee this, savepoints are
+        # sometimes used just to "break up" very long transactions, and as
+        # a pragmatic matter this is a good time to reduce the cache
+        # memory burden.
+        self.cacheGC()
+        return result
 
     def _rollback(self, state):
         self._abort()

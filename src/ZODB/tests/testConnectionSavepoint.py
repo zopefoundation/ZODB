@@ -70,6 +70,62 @@ savepoints.)
     >>> transaction.commit()
 """
 
+def testSavepointDoesCacheGC():
+    """\
+Although the interface doesn't guarantee this internal detail, making a
+savepoint should do incremental gc on connection memory caches.  Indeed,
+one traditional use for savepoints (started by the older, related
+"subtransaction commit" idea) is simply to free memory space midstream
+during a long transaction.  Before ZODB 3.4.2, making a savepoint failed
+to trigger cache gc, and this test verifies that it now does.
+
+    >>> import ZODB
+    >>> from ZODB.tests.MinPO import MinPO
+    >>> from ZODB.MappingStorage import MappingStorage
+    >>> import transaction
+    >>> CACHESIZE = 5  # something tiny
+    >>> LOOPCOUNT = CACHESIZE * 10
+    >>> st = MappingStorage("Test")
+    >>> db = ZODB.DB(st, cache_size=CACHESIZE)
+    >>> cn = db.open()
+    >>> rt = cn.root()
+
+Now attach substantially more than CACHESIZE persistent objects to the root:
+
+    >>> for i in range(LOOPCOUNT):
+    ...     rt[i] = MinPO(i)
+    >>> transaction.commit()
+
+Now modify all of them; the cache should contain LOOPCOUNT MinPO objects
+then, + 1 for the root object:
+
+    >>> for i in range(LOOPCOUNT):
+    ...     obj = rt[i]
+    ...     obj.value = -i
+    >>> len(cn._cache) == LOOPCOUNT + 1
+    True
+
+Making a savepoint at this time used to leave the cache holding the same
+number of objects.  Make sure the cache shrinks now instead.
+
+    >>> dummy = transaction.savepoint()
+    >>> len(cn._cache) <= CACHESIZE + 1
+    True
+
+Verify all the values are as expected:
+
+    >>> failures = []
+    >>> for i in range(LOOPCOUNT):
+    ...     obj = rt[i]
+    ...     if obj.value != -i:
+    ...         failures.append(obj)
+    >>> failures
+    []
+
+    >>> transaction.abort()
+    >>> db.close()
+"""
+
 def test_suite():
     return unittest.TestSuite((
         doctest.DocFileSuite('testConnectionSavepoint.txt'),
