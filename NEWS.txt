@@ -104,6 +104,17 @@ Multi-database
   been added.  See ``ZODB/cross-database-references.txt`` for an
   introduction.
 
+PersistentMapping
+-----------------
+
+- (3.5a8) The ``PersistentMapping`` class has an ``__iter__()`` method
+  now, so that objects of this type work well with Python's iteration
+  protocol.  For example, if ``x`` is a ``PersistentMapping`` (or
+  Python dictionary, or BTree, or ``PersistentDict``, ...), then
+  ``for key in x:`` iterates over the keys of ``x``, ``list(x)`` creates
+  a list containing ``x``'s keys, ``iter(x)`` creates an iterator for
+  ``x``'s keys, and so on.
+
 Tools
 -----
 
@@ -217,6 +228,17 @@ Savepoints
   cache to the configured cache size.  Due to an oversight, this didn't
   happen, and stopped happening for subtransaction commits too.  Making a
   savepoint (or doing a subtransaction commit) does invoke cache gc now.
+
+PersistentMapping
+-----------------
+
+- (3.4.2a1) The ``PersistentMapping`` class has an ``__iter__()`` method
+  now, so that objects of this type work well with Python's iteration
+  protocol.  For example, if ``x`` is a ``PersistentMapping`` (or
+  Python dictionary, or BTree, or ``PersistentDict``, ...), then
+  ``for key in x:`` iterates over the keys of ``x``, ``list(x)`` creates
+  a list containing ``x``'s keys, ``iter(x)`` creates an iterator for
+  ``x``'s keys, and so on.
 
 
 What's new in ZODB3 3.4.1?

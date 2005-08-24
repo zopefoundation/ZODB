@@ -95,6 +95,74 @@ class PMTests(unittest.TestCase):
 
         self.assert_(oldPath is newPath)
 
+    def checkBasicOps(self):
+        from persistent.mapping import PersistentMapping
+        m = PersistentMapping({'x': 1}, a=2, b=3)
+        m['name'] = 'bob'
+        self.assertEqual(m['name'], "bob")
+        self.assertEqual(m.get('name', 42), "bob")
+        self.assert_('name' in m)
+
+        try:
+            m['fred']
+        except KeyError:
+            pass
+        else:
+            self.fail("expected KeyError")
+        self.assert_('fred' not in m)
+        self.assertEqual(m.get('fred'), None)
+        self.assertEqual(m.get('fred', 42), 42)
+
+        keys = m.keys()
+        keys.sort()
+        self.assertEqual(keys, ['a', 'b', 'name', 'x'])
+
+        values = m.values()
+        values.sort()
+        self.assertEqual(values, [1, 2, 3, 'bob'])
+
+        items = m.items()
+        items.sort()
+        self.assertEqual(items,
+                         [('a', 2), ('b', 3), ('name', 'bob'), ('x', 1)])
+
+        keys = list(m.iterkeys())
+        keys.sort()
+        self.assertEqual(keys, ['a', 'b', 'name', 'x'])
+
+        values = list(m.itervalues())
+        values.sort()
+        self.assertEqual(values, [1, 2, 3, 'bob'])
+
+        items = list(m.iteritems())
+        items.sort()
+        self.assertEqual(items,
+                         [('a', 2), ('b', 3), ('name', 'bob'), ('x', 1)])
+
+    # PersistentMapping didn't have an __iter__ method before ZODB 3.4.2.
+    # Check that it plays well now with the Python iteration protocol.
+    def checkIteration(self):
+        from persistent.mapping import PersistentMapping
+        m = PersistentMapping({'x': 1}, a=2, b=3)
+        m['name'] = 'bob'
+
+        def check(keylist):
+            keylist.sort()
+            self.assertEqual(keylist, ['a', 'b', 'name', 'x'])
+
+        check(list(m))
+        check([key for key in m])
+
+        i = iter(m)
+        keylist = []
+        while 1:
+            try:
+                key = i.next()
+            except StopIteration:
+                break
+            keylist.append(key)
+        check(keylist)
+
 def find_global(modulename, classname):
     """Helper for this test suite to get special PersistentMapping"""
 
