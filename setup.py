@@ -1,7 +1,6 @@
-#!/usr/bin/env python
-##############################################################################
+#############################################################################
 #
-# Copyright (c) 2005 Zope Corporation and Contributors.
+# Copyright (c) 2002 Zope Corporation and Contributors.
 # All Rights Reserved.
 #
 # This software is subject to the provisions of the Zope Public License,
@@ -14,40 +13,32 @@
 ##############################################################################
 
 import os
-import posixpath
-import sys
 
+import zpkgsetup.package
+import zpkgsetup.publication
 import zpkgsetup.setup
 
-# Note that release.py must be able to recognize the VERSION line.
-VERSION = "3.5.0a7"
 
 here = os.path.dirname(os.path.abspath(__file__))
 
-def join(*parts):
-    local_full_path = os.path.join(here, *parts)
-    relative_path = posixpath.join(*parts)
-    return local_full_path, relative_path
-
-context = zpkgsetup.setup.SetupContext("ZODB3", VERSION, __file__)
+context = zpkgsetup.setup.SetupContext(
+    "ZODB", "3.5.0a42", __file__)
 
 context.load_metadata(
-    os.path.join(here, "PUBLICATION.cfg"))
+    os.path.join(here,
+                 zpkgsetup.publication.PUBLICATION_CONF))
 
-context.scan("ZODB3",          here, ".")
-context.scan("BTrees",         *join("src", "BTrees"))
-context.scan("Persistence",    *join("src", "Persistence"))
-context.scan("persistent",     *join("src", "persistent"))
-context.scan("ThreadedAsync",  *join("src", "ThreadedAsync"))
-context.scan("transaction",    *join("src", "transaction"))
-context.scan("ZConfig",        *join("src", "ZConfig"))
-context.scan("zdaemon",        *join("src", "zdaemon"))
-context.scan("ZEO",            *join("src", "ZEO"))
-context.scan("ZODB",           *join("src", "ZODB"))
-context.scan("ZODB-Scripts",   *join("src", "scripts"))
-context.scan("zope",           *join("src", "zope"))
-context.scan("zope.interface", *join("src", "zope", "interface"))
-context.scan("zope.proxy",     *join("src", "zope", "proxy"))
-context.scan("zope.testing",   *join("src", "zope", "testing"))
-context.scan("ZopeUndo",       *join("src", "ZopeUndo"))
+for root, dirs, files in os.walk("src"):
+    for d in dirs[:]:
+        # drop sub-directories that are not Python packages:
+        initfn = os.path.join(root, d, "__init__.py")
+        if not os.path.isfile(initfn):
+            dirs.remove(d)
+    if zpkgsetup.package.PACKAGE_CONF in files:
+        # scan this directory as a package:
+        pkgname = root[4:].replace(os.path.sep, ".")
+        local_full_path = os.path.join(here, root)
+        relative_path = root.replace(os.path.sep, "/")
+        context.scan(pkgname, local_full_path, relative_path)
+
 context.setup()
