@@ -80,7 +80,7 @@ class IConnection(Interface):
     Two options affect consistency.  By default, the mvcc and synch
     options are enabled by default.
 
-    If you pass mvcc=True to db.open(), the Connection will never read
+    If you pass mvcc=False to db.open(), the Connection will never read
     non-current revisions of an object.  Instead it will raise a
     ReadConflictError to indicate that the current revision is
     unavailable because it was written after the current transaction
@@ -332,97 +332,104 @@ class IStorage(Interface):
     """A storage is responsible for storing and retrieving data of objects.
     """
 
-    def load(oid, version):
-        """TODO"""
+## What follows is the union of methods found across various storage
+## implementations.  Exactly what "the storage API" is and means has
+## become fuzzy over time.  Methods should be uncommented here, or
+## even deleted, as the storage API regains a crisp definition.
 
-    def close():
-        """TODO"""
-
-    def cleanup():
-        """TODO"""
-
-    def lastSerial():
-        """TODO"""
-
-    def lastTransaction():
-        """TODO"""
-
-    def lastTid(oid):
-        """Return last serialno committed for object oid."""
-
-    def loadSerial(oid, serial):
-        """TODO"""
-
-    def loadBefore(oid, tid):
-        """TODO"""
-
-    def iterator(start=None, stop=None):
-        """TODO"""
-
-    def sortKey():
-        """TODO"""
-
-    def getName():
-        """TODO"""
-
-    def getSize():
-        """TODO"""
-
-    def history(oid, version, length=1, filter=None):
-        """TODO"""
-
-    def new_oid():
-        """TODO"""
-
-    def set_max_oid(possible_new_max_oid):
-        """TODO"""
-
-    def registerDB(db, limit):
-        """TODO"""
-
-    def isReadOnly():
-        """TODO"""
-
-    def supportsUndo():
-        """TODO"""
-
-    def supportsVersions():
-        """TODO"""
-
-    def tpc_abort(transaction):
-        """TODO"""
-
-    def tpc_begin(transaction):
-        """TODO"""
-
-    def tpc_vote(transaction):
-        """TODO"""
-
-    def tpc_finish(transaction, f=None):
-        """TODO"""
-
-    def getSerial(oid):
-        """TODO"""
-
-    def loadSerial(oid, serial):
-        """TODO"""
-
-    def loadBefore(oid, tid):
-        """TODO"""
-
-    def getExtensionMethods():
-        """TODO"""
-
-    def copyTransactionsFrom():
-        """TODO"""
-
-    def store(oid, oldserial, data, version, transaction):
-        """
-
-        may return the new serial or not
-        """
+##    def load(oid, version):
+##        """TODO"""
+##
+##    def close():
+##        """TODO"""
+##
+##    def cleanup():
+##        """TODO"""
+##
+##    def lastSerial():
+##        """TODO"""
+##
+##    def lastTransaction():
+##        """TODO"""
+##
+##    def lastTid(oid):
+##        """Return last serialno committed for object oid."""
+##
+##    def loadSerial(oid, serial):
+##        """TODO"""
+##
+##    def loadBefore(oid, tid):
+##        """TODO"""
+##
+##    def iterator(start=None, stop=None):
+##        """TODO"""
+##
+##    def sortKey():
+##        """TODO"""
+##
+##    def getName():
+##        """TODO"""
+##
+##    def getSize():
+##        """TODO"""
+##
+##    def history(oid, version, length=1, filter=None):
+##        """TODO"""
+##
+##    def new_oid():
+##        """TODO"""
+##
+##    def set_max_oid(possible_new_max_oid):
+##        """TODO"""
+##
+##    def registerDB(db, limit):
+##        """TODO"""
+##
+##    def isReadOnly():
+##        """TODO"""
+##
+##    def supportsUndo():
+##        """TODO"""
+##
+##    def supportsVersions():
+##        """TODO"""
+##
+##    def tpc_abort(transaction):
+##        """TODO"""
+##
+##    def tpc_begin(transaction):
+##        """TODO"""
+##
+##    def tpc_vote(transaction):
+##        """TODO"""
+##
+##    def tpc_finish(transaction, f=None):
+##        """TODO"""
+##
+##    def getSerial(oid):
+##        """TODO"""
+##
+##    def loadSerial(oid, serial):
+##        """TODO"""
+##
+##    def loadBefore(oid, tid):
+##        """TODO"""
+##
+##    def getExtensionMethods():
+##        """TODO"""
+##
+##    def copyTransactionsFrom():
+##        """TODO"""
+##
+##    def store(oid, oldserial, data, version, transaction):
+##        """
+##
+##        may return the new serial or not
+##        """
 
 class IStorageUndoable(IStorage):
+    """A storage supporting transactional undo.
+    """
 
     def undo(transaction_id, txn):
         """TODO"""
@@ -500,20 +507,26 @@ class IStorageUndoable(IStorage):
     def pack(t, referencesf):
         """TODO"""
 
-class IVersioningStorage(IStorage):
+class IStorageVersioning(IStorage):
+    """A storage supporting versions.
+    """
 
-    def abortVersion(src, transaction):
-        """TODO"""
+## What follows is the union of methods found across various version storage
+## implementations.  Exactly what "the storage API" is and means has
+## become fuzzy over time.  Methods should be uncommented here, or
+## even deleted, as the storage API regains a crisp definition.
 
-    def commitVersion(src, dest, transaction):
-        """TODO"""
-
-    def modifiedInVersion(oid):
-        """TODO"""
-
-    def versionEmpty(version):
-        """TODO"""
-
-    def versions(max=None):
-        """TODO"""
-
+##    def abortVersion(src, transaction):
+##        """TODO"""
+##
+##    def commitVersion(src, dest, transaction):
+##        """TODO"""
+##
+##    def modifiedInVersion(oid):
+##        """TODO"""
+##
+##    def versionEmpty(version):
+##        """TODO"""
+##
+##    def versions(max=None):
+##        """TODO"""
