@@ -210,6 +210,12 @@ Development
   directory in the checkout tree, and intra-ZODB ``#include`` directives
   in ZODB's C code were rewritten in minor ways.
 
+- (3.5a9) The source code for the old ExtensionClass-based Persistence
+  package moved, from ZODB to the Zope 2.9 development tree.  ZODB 3.5
+  makes no use of Persistence, and, indeed, the Persistence package could
+  not be compiled from a ZODB release, since some of the C header files
+  needed appear only in Zope.
+
 
 What's new in ZODB3 3.4.2a1?
 ============================
