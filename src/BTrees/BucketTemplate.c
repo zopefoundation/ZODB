@@ -457,7 +457,12 @@ update_from_seq(PyObject *map, PyObject *seq)
        INCREF of the seq argument.  So seq must always be DECREFed on
        the way out.
      */
-    if (!PySequence_Check(seq)) {
+    /* Use items() if it's not a sequence.  Alas, PySequence_Check()
+     * returns true for a PeristentMapping or PersistentDict, and we
+     * want to use items() in those cases too.
+     */
+    if (!PySequence_Check(seq) || /* or it "looks like a dict" */
+          PyObject_HasAttrString(seq, "iteritems")) {
 	PyObject *items;
 	items = PyObject_GetAttrString(seq, "items");
 	if (items == NULL)
@@ -466,7 +471,8 @@ update_from_seq(PyObject *map, PyObject *seq)
 	Py_DECREF(items);
 	if (seq == NULL)
 	    return -1;
-    } else
+    }
+    else
 	Py_INCREF(seq);
 
     iter = PyObject_GetIter(seq);

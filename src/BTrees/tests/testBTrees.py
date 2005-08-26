@@ -345,6 +345,18 @@ class MappingBase(Base):
         self.t.update(l)
         self.assertEqual(list(self.t.items()), items)
 
+    # Before ZODB 3.4.2, update/construction from PersistentMapping failed.
+    def testUpdateFromPersistentMapping(self):
+        from persistent.mapping import PersistentMapping
+
+        pm = PersistentMapping({1: 2})
+        self.t.update(pm)
+        self.assertEqual(list(self.t.items()), [(1, 2)])
+
+        # Construction goes thru the same internals as .update().
+        t = self.t.__class__(pm)
+        self.assertEqual(list(t.items()), [(1, 2)])
+
     def testEmptyRangeSearches(self):
         t = self.t
         t.update([(1,1), (5,5), (9,9)])
