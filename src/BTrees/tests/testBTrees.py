@@ -1090,6 +1090,14 @@ class BTreeTests(MappingBase):
                                               "changed size")
                 break
 
+    def testSetdefault(self):
+        t = self.t
+        self.assert_(t.setdefault(1) is None)
+        self.assertEqual(t.setdefault(1, 5), 5)
+        self.assert_(t[1] == 5)
+        self.assertEqual(t.setdefault(1, 3), 5)
+
+
 # tests of various type errors
 
 class TypeTest(TestCase):

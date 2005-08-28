@@ -1700,6 +1700,29 @@ BTree_has_key(BTree *self, PyObject *key)
     return _BTree_get(self, key, 1);
 }
 
+static PyObject *
+BTree_setdefault(BTree *self, PyObject *args)
+{
+        PyObject *key, *d = Py_None, *r;
+
+        UNLESS (PyArg_ParseTuple(args, "O|O", &key, &d)) return NULL;
+        if ((r = _BTree_get(self, key, 0)))
+                return r;
+        UNLESS (PyErr_ExceptionMatches(PyExc_KeyError)) return NULL;
+        PyErr_Clear();
+
+        Py_INCREF(d);
+        if (d == Py_None)
+                return d;
+
+        if (BTree_setitem(self, key, d) < 0) {
+                Py_DECREF(d);
+                return NULL;
+        }
+        return d;
+}
+
+
 /* Search BTree self for key.  This is the sq_contains slot of the
  * PySequenceMethods.
  *
@@ -1837,6 +1860,12 @@ static struct PyMethodDef BTree_methods[] = {
     {"get",	(PyCFunction) BTree_getm,	METH_VARARGS,
      "get(key[, default=None]) -> Value for key or default\n\n"
      "Return the value or the default if the key is not found."},
+
+    {"setdefault", (PyCFunction) BTree_setdefault, METH_VARARGS,
+     "D.setdefault(k[, x]) -> D.get(k, x), also set D[k] = x if k not in D\n\n"
+     "Return the value like get() except that if key is missing, x is both\n"
+     "returned and inserted into the dictionary as the value of k.\n"
+     "x defaults to None."},
 
     {"maxKey", (PyCFunction) BTree_maxKey,	METH_VARARGS,
      "maxKey([max]) -> key\n\n"
