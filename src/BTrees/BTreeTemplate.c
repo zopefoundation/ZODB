@@ -1715,7 +1715,7 @@ BTree_setdefault(BTree *self, PyObject *args)
         if (d == Py_None)
                 return d;
 
-        if (BTree_setitem(self, key, d) < 0) {
+        if (_BTree_set(self, key, d, 0, 0) < 0) {
                 Py_DECREF(d);
                 return NULL;
         }
