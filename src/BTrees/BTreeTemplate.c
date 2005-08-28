@@ -1862,10 +1862,10 @@ static struct PyMethodDef BTree_methods[] = {
      "Return the value or the default if the key is not found."},
 
     {"setdefault", (PyCFunction) BTree_setdefault, METH_VARARGS,
-     "D.setdefault(k[, x]) -> D.get(k, x), also set D[k] = x if k not in D\n\n"
-     "Return the value like get() except that if key is missing, x is both\n"
+     "D.setdefault(k[, d]) -> D.get(k, d), also set D[k]=d if k not in D\n\n"
+     "Return the value like get() except that if key is missing, d is both\n"
      "returned and inserted into the dictionary as the value of k.\n"
-     "x defaults to None."},
+     "d defaults to None."},
 
     {"maxKey", (PyCFunction) BTree_maxKey,	METH_VARARGS,
      "maxKey([max]) -> key\n\n"
