@@ -214,6 +214,14 @@ class IDictionaryIsh(IMinimalDictionary):
         integer values, the normalization is division.
         """
 
+    def setdefault(key, d):
+        """D.setdefault(k[, d]) -> D.get(k, d), also set D[k]=d if k not in D
+
+        Return the value like get() except that if key is missing, d is both
+        returned and inserted into the dictionary as the value of k.
+        d defaults to None.
+        """
+
 class IBTree(IDictionaryIsh):
 
     def insert(key, value):
