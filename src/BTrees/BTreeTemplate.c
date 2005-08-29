@@ -1703,23 +1703,30 @@ BTree_has_key(BTree *self, PyObject *key)
 static PyObject *
 BTree_setdefault(BTree *self, PyObject *args)
 {
-        PyObject *key, *d = Py_None, *r;
+    PyObject *key;
+    PyObject *failobj = Py_None;  /* default */
+    PyObject *value;  /* return value */
 
-        UNLESS (PyArg_ParseTuple(args, "O|O", &key, &d)) return NULL;
-        if ((r = _BTree_get(self, key, 0)))
-                return r;
-        UNLESS (PyErr_ExceptionMatches(PyExc_KeyError)) return NULL;
-        PyErr_Clear();
+    if (! PyArg_UnpackTuple(args, "setdefault", 1, 2, &key, &failobj))
+    	return NULL;
 
-        Py_INCREF(d);
-        if (d == Py_None)
-                return d;
+    value = _BTree_get(self, key, 0);
+    if (value != NULL)
+        return value;
 
-        if (_BTree_set(self, key, d, 0, 0) < 0) {
-                Py_DECREF(d);
-                return NULL;
-        }
-        return d;
+    /* The key isn't in the tree.  If that's not due to a KeyError exception,
+     * pass back the unexpected exception.
+     */
+    if (! PyErr_ExceptionMatches(PyExc_KeyError))
+        return NULL;
+    PyErr_Clear();
+
+    /* Associate `key` with `failobj` in the tree, and return `failobj`. */
+    value = failobj;
+    if (_BTree_set(self, key, failobj, 0, 0) < 0)
+        value = NULL;
+    Py_XINCREF(value);
+    return value;
 }
 
 

@@ -1092,10 +1092,19 @@ class BTreeTests(MappingBase):
 
     def testSetdefault(self):
         t = self.t
+
+        # XXX This test fails for II, OI, and IF trees:  they can't have
+        # XXX None as a value.
         self.assert_(t.setdefault(1) is None)
-        self.assertEqual(t.setdefault(1, 5), 5)
-        self.assert_(t[1] == 5)
-        self.assertEqual(t.setdefault(1, 3), 5)
+        # That should also have associated 1 with None in the tree.
+        self.assert_(t[1] is None)
+        # And trying to change it again should have no effect.
+        self.assert_(t.setdefault(1, 666) is None)
+
+        # Same thing, but with an explicit default.
+        self.assertEqual(t.setdefault(2, 5), 5)
+        self.assertEqual(t[2], 5)
+        self.assertEqual(t.setdefault(2, 666), 5)
 
 
 # tests of various type errors
