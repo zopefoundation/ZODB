@@ -215,11 +215,15 @@ class IDictionaryIsh(IMinimalDictionary):
         """
 
     def setdefault(key, d):
-        """D.setdefault(k[, d]) -> D.get(k, d), also set D[k]=d if k not in D
+        """D.setdefault(k, d) -> D.get(k, d), also set D[k]=d if k not in D.
 
         Return the value like get() except that if key is missing, d is both
         returned and inserted into the dictionary as the value of k.
-        d defaults to None.
+
+        Note that, unlike as for Python's dict.setdefault(), d is not
+        optional.  Python defaults d to None, but that doesn't make sense
+        for mappings that can't have None as a value (for example, an
+        IIBTree can have only integers as values).
         """
 
 class IBTree(IDictionaryIsh):

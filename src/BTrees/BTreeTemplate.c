@@ -1704,10 +1704,10 @@ static PyObject *
 BTree_setdefault(BTree *self, PyObject *args)
 {
     PyObject *key;
-    PyObject *failobj = Py_None;  /* default */
-    PyObject *value;  /* return value */
+    PyObject *failobj; /* default */
+    PyObject *value;   /* return value */
 
-    if (! PyArg_UnpackTuple(args, "setdefault", 1, 2, &key, &failobj))
+    if (! PyArg_UnpackTuple(args, "setdefault", 2, 2, &key, &failobj))
     	return NULL;
 
     value = _BTree_get(self, key, 0);
@@ -1869,10 +1869,9 @@ static struct PyMethodDef BTree_methods[] = {
      "Return the value or the default if the key is not found."},
 
     {"setdefault", (PyCFunction) BTree_setdefault, METH_VARARGS,
-     "D.setdefault(k[, d]) -> D.get(k, d), also set D[k]=d if k not in D\n\n"
+     "D.setdefault(k, d) -> D.get(k, d), also set D[k]=d if k not in D.\n\n"
      "Return the value like get() except that if key is missing, d is both\n"
-     "returned and inserted into the dictionary as the value of k.\n"
-     "d defaults to None."},
+     "returned and inserted into the dictionary as the value of k."},
 
     {"maxKey", (PyCFunction) BTree_maxKey,	METH_VARARGS,
      "maxKey([max]) -> key\n\n"

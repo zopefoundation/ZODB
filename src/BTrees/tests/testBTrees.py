@@ -611,6 +611,25 @@ class MappingBase(Base):
                                        excludemax=True)),
                              f([1]))
 
+    # XXX This test fails for all bucket types, since they haven't
+    # XXX implented setdefault yet.
+    def testSetdefault(self):
+        t = self.t
+
+        self.assertEqual(t.setdefault(1, 2), 2)
+        # That should also have associated 1 with 2 in the tree.
+        self.assert_(1 in t)
+        self.assertEqual(t[1], 2)
+        # And trying to change it again should have no effect.
+        self.assertEqual(t.setdefault(1, 666), 2)
+        self.assertEqual(t[1], 2)
+
+        # Not enough arguments.
+        self.assertRaises(TypeError, t.setdefault)
+        self.assertRaises(TypeError, t.setdefault, 1)
+        # Too many arguments.
+        self.assertRaises(TypeError, t.setdefault, 1, 2, 3)
+
 class NormalSetTests(Base):
     """ Test common to all set types """
 
@@ -1089,23 +1108,6 @@ class BTreeTests(MappingBase):
                 self.assertEqual(str(detail), "the bucket being iterated "
                                               "changed size")
                 break
-
-    def testSetdefault(self):
-        t = self.t
-
-        # XXX This test fails for II, OI, and IF trees:  they can't have
-        # XXX None as a value.
-        self.assert_(t.setdefault(1) is None)
-        # That should also have associated 1 with None in the tree.
-        self.assert_(t[1] is None)
-        # And trying to change it again should have no effect.
-        self.assert_(t.setdefault(1, 666) is None)
-
-        # Same thing, but with an explicit default.
-        self.assertEqual(t.setdefault(2, 5), 5)
-        self.assertEqual(t[2], 5)
-        self.assertEqual(t.setdefault(2, 666), 5)
-
 
 # tests of various type errors
 
