@@ -611,8 +611,6 @@ class MappingBase(Base):
                                        excludemax=True)),
                              f([1]))
 
-    # XXX This test fails for all bucket types, since they haven't
-    # XXX implented setdefault yet.
     def testSetdefault(self):
         t = self.t
 
