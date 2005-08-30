@@ -1319,9 +1319,10 @@ bucket_pop(Bucket *self, PyObject *args)
         return NULL;
 
     int res = Bucket_length(self);
-    if (res < 0) {
+    if (res < 0)
         return NULL;
-    } else if (!res) {
+
+    if (! res) {
         /* bucket is empty */
         if (failobj == NULL) {
             PyErr_SetString(PyExc_KeyError, "pop(): dictionary is empty");

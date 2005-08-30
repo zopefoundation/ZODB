@@ -1758,11 +1758,12 @@ BTree_pop(BTree *self, PyObject *args)
     if (! PyErr_ExceptionMatches(PyExc_KeyError))
         return NULL;
 
-    int nonzero = 1;
+    int nonzero = 1; /* request just a non-empty/empty result */
     int res = BTree_length_or_nonzero(self, nonzero);
-    if (res < 0) {
+    if (res < 0)
         return NULL;
-    } else if (!res) {
+
+    if (! res) {
         /* btree is empty */
         if (failobj == NULL) {
             PyErr_SetString(PyExc_KeyError, "pop(): dictionary is empty");
