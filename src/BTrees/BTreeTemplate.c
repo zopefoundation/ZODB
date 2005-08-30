@@ -1768,15 +1768,13 @@ BTree_pop(BTree *self, PyObject *args)
             PyErr_SetString(PyExc_KeyError, "pop(): dictionary is empty");
             return NULL;
         }
-        PyErr_Clear();
-        Py_INCREF(failobj);
-        return failobj;
+        goto rdefault;
     }
 
     /* btree is not empty */
     if (failobj == NULL)
         return NULL;
-
+rdefault:
     PyErr_Clear();
     Py_INCREF(failobj);
     return failobj;

@@ -1327,15 +1327,13 @@ bucket_pop(Bucket *self, PyObject *args)
             PyErr_SetString(PyExc_KeyError, "pop(): dictionary is empty");
             return NULL;
         }
-        PyErr_Clear();
-        Py_INCREF(failobj);
-        return failobj;
+        goto rdefault;
     }
 
     /* bucket is not empty */
     if (failobj == NULL)
         return NULL;
-
+rdefault:
     PyErr_Clear();
     Py_INCREF(failobj);
     return failobj;
