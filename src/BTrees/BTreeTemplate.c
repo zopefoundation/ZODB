@@ -1927,8 +1927,9 @@ static struct PyMethodDef BTree_methods[] = {
      "returned and inserted into the BTree as the value of k."},
 
     {"pop", (PyCFunction) BTree_pop, METH_VARARGS,
-     "D.pop(k[,d]) -> v, remove specified key and return the corresponding value.\n\n"
-     "If key is not found, d is returned if given, otherwise KeyError is raised."},
+     "D.pop(k[, d]) -> v, remove key and return the corresponding value.\n\n"
+     "If key is not found, d is returned if given, otherwise KeyError\n"
+     "is raised."},
 
     {"maxKey", (PyCFunction) BTree_maxKey,	METH_VARARGS,
      "maxKey([max]) -> key\n\n"
