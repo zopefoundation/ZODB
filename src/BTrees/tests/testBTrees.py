@@ -636,9 +636,19 @@ class MappingBase(Base):
         self.assertRaises(KeyError, t.pop, 1)
 
         t[1] = 3
+        # KeyError when key is not in container and default is not passed
         self.assertRaises(KeyError, t.pop, 5)
+
         self.assertEqual(t.pop(1), 3)
         self.assertEqual(len(t), 0)
+
+        # Pop only one item
+        t[1] = 3
+        t[2] = 4
+        self.assertEqual(len(t), 2)
+        self.assertEqual(t.pop(1), 3)
+        self.assertEqual(len(t), 1)
+        self.assert_(t[2] == 4)
 
         self.assertEqual(t.pop(1, 3), 3)
 
