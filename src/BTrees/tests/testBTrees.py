@@ -642,6 +642,10 @@ class MappingBase(Base):
         self.assertEqual(t.pop(1), 3)
         self.assertEqual(len(t), 0)
 
+        # If key is present, return value bypassing default
+        t[1] = 3
+        self.assertEqual(t.pop(1, 7), 3)
+
         # Pop only one item
         t[1] = 3
         t[2] = 4
