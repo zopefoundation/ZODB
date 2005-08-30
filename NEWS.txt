@@ -183,6 +183,13 @@ FileStorage
 BTrees
 ------
 
+- (3.5a9) BTrees and Buckets now implement the ``setdefault()`` method.
+  This is exactly list Python's ``setdefault()`` method for dictionaries,
+  except that both arguments are required (and Python is likely to change
+  to require both arguments too -- defaulting the ``default`` argument to
+  ``None`` has no viable use cases).  Thanks to Ruslan Spivak for
+  contributing code, tests, and documentation.
+
 - (3.5a5) Collector 1843.  When a non-integer was passed to a method like
   ``keys()`` of a Bucket or Set with integer keys, an internal error code
   was overlooked, leading to everything from "delayed errors" to segfaults.

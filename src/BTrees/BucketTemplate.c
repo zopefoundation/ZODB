@@ -1257,6 +1257,35 @@ bucket_has_key(Bucket *self, PyObject *key)
     return _bucket_get(self, key, 1);
 }
 
+static PyObject *
+bucket_setdefault(Bucket *self, PyObject *args)
+{
+    PyObject *key;
+    PyObject *failobj; /* default */
+    PyObject *value;   /* return value */
+    int dummy_changed; /* in order to call _bucket_set */
+
+    if (! PyArg_UnpackTuple(args, "setdefault", 2, 2, &key, &failobj))
+    	return NULL;
+
+    value = _bucket_get(self, key, 0);
+    if (value != NULL)
+        return value;
+
+    /* The key isn't in the bucket.  If that's not due to a KeyError exception,
+     * pass back the unexpected exception.
+     */
+    if (! PyErr_ExceptionMatches(PyExc_KeyError))
+        return NULL;
+    PyErr_Clear();
+
+    /* Associate `key` with `failobj` in the bucket, and return `failobj`. */
+    value = failobj;
+    if (_bucket_set(self, key, failobj, 0, 0, &dummy_changed) < 0)
+        value = NULL;
+    Py_XINCREF(value);
+    return value;
+}
 
 /* Search bucket self for key.  This is the sq_contains slot of the
  * PySequenceMethods.
@@ -1480,6 +1509,11 @@ static struct PyMethodDef Bucket_methods[] = {
     {"get",	(PyCFunction) bucket_getm,	METH_VARARGS,
      "get(key[,default]) -- Look up a value\n\n"
      "Return the default (or None) if the key is not found."},
+
+    {"setdefault", (PyCFunction) bucket_setdefault, METH_VARARGS,
+     "D.setdefault(k, d) -> D.get(k, d), also set D[k]=d if k not in D.\n\n"
+     "Return the value like get() except that if key is missing, d is both\n"
+     "returned and inserted into the bucket as the value of k."},
 
     {"iterkeys", (PyCFunction) Bucket_iterkeys,  METH_KEYWORDS,
      "B.iterkeys([min[,max]]) -> an iterator over the keys of B"},

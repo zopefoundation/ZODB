@@ -611,6 +611,23 @@ class MappingBase(Base):
                                        excludemax=True)),
                              f([1]))
 
+    def testSetdefault(self):
+        t = self.t
+
+        self.assertEqual(t.setdefault(1, 2), 2)
+        # That should also have associated 1 with 2 in the tree.
+        self.assert_(1 in t)
+        self.assertEqual(t[1], 2)
+        # And trying to change it again should have no effect.
+        self.assertEqual(t.setdefault(1, 666), 2)
+        self.assertEqual(t[1], 2)
+
+        # Not enough arguments.
+        self.assertRaises(TypeError, t.setdefault)
+        self.assertRaises(TypeError, t.setdefault, 1)
+        # Too many arguments.
+        self.assertRaises(TypeError, t.setdefault, 1, 2, 3)
+
 class NormalSetTests(Base):
     """ Test common to all set types """
 
