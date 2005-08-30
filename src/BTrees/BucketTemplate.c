@@ -1287,6 +1287,61 @@ bucket_setdefault(Bucket *self, PyObject *args)
     return value;
 }
 
+
+/* forward declaration */
+static int
+Bucket_length(Bucket *self);
+
+static PyObject *
+bucket_pop(Bucket *self, PyObject *args)
+{
+    PyObject *key;
+    PyObject *failobj = NULL; /* default */
+    PyObject *value;          /* return value */
+    int dummy_changed;        /* in order to call _bucket_set */
+
+    if (! PyArg_UnpackTuple(args, "pop", 1, 2, &key, &failobj))
+    	return NULL;
+
+    value = _bucket_get(self, key, 0);
+    if (value != NULL) {
+        if (_bucket_set(self, key, 0, 0, 0, &dummy_changed) < 0) {
+            Py_DECREF(value);
+            return NULL;;
+        }
+        return value;
+    }
+
+    /* The key isn't in the bucket.  If that's not due to a KeyError exception,
+     * pass back the unexpected exception.
+     */
+    if (! PyErr_ExceptionMatches(PyExc_KeyError))
+        return NULL;
+
+    int res = Bucket_length(self);
+    if (res < 0) {
+        return NULL;
+    } else if (!res) {
+        /* bucket is empty */
+        if (failobj == NULL) {
+            PyErr_SetString(PyExc_KeyError, "pop(): dictionary is empty");
+            return NULL;
+        }
+        PyErr_Clear();
+        Py_INCREF(failobj);
+        return failobj;
+    }
+
+    /* bucket is not empty */
+    if (failobj == NULL)
+        return NULL;
+
+    PyErr_Clear();
+    Py_INCREF(failobj);
+    return failobj;
+}
+
+
 /* Search bucket self for key.  This is the sq_contains slot of the
  * PySequenceMethods.
  *
@@ -1514,6 +1569,10 @@ static struct PyMethodDef Bucket_methods[] = {
      "D.setdefault(k, d) -> D.get(k, d), also set D[k]=d if k not in D.\n\n"
      "Return the value like get() except that if key is missing, d is both\n"
      "returned and inserted into the bucket as the value of k."},
+
+    {"pop", (PyCFunction) bucket_pop, METH_VARARGS,
+     "D.pop(k[,d]) -> v, remove specified key and return the corresponding value.\n\n"
+     "If key is not found, d is returned if given, otherwise KeyError is raised."},
 
     {"iterkeys", (PyCFunction) Bucket_iterkeys,  METH_KEYWORDS,
      "B.iterkeys([min[,max]]) -> an iterator over the keys of B"},

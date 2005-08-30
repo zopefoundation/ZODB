@@ -628,6 +628,21 @@ class MappingBase(Base):
         # Too many arguments.
         self.assertRaises(TypeError, t.setdefault, 1, 2, 3)
 
+
+    def testPop(self):
+        t = self.t
+
+        # KeyError when container is empty
+        self.assertRaises(KeyError, t.pop, 1)
+
+        t[1] = 3
+        self.assertRaises(KeyError, t.pop, 5)
+        self.assertEqual(t.pop(1), 3)
+        self.assertEqual(len(t), 0)
+
+        self.assertEqual(t.pop(1, 3), 3)
+
+
 class NormalSetTests(Base):
     """ Test common to all set types """
 
