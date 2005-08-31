@@ -1305,6 +1305,7 @@ bucket_pop(Bucket *self, PyObject *args)
 
     value = _bucket_get(self, key, 0);
     if (value != NULL) {
+        /* Delete key and associated value */
         if (_bucket_set(self, key, 0, 0, 0, &dummy_changed) < 0) {
             Py_DECREF(value);
             return NULL;;

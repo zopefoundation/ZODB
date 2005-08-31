@@ -1745,6 +1745,7 @@ BTree_pop(BTree *self, PyObject *args)
 
     value = _BTree_get(self, key, 0);
     if (value != NULL) {
+        /* Delete key and associated value */
         if (_BTree_set(self, key, 0, 0, 0) < 0) {
             Py_DECREF(value);
             return NULL;;
