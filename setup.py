@@ -20,7 +20,7 @@ import sys
 import zpkgsetup.setup
 
 # Note that release.py must be able to recognize the VERSION line.
-VERSION = "3.5.0a7"
+VERSION = "3.5.0"
 
 here = os.path.dirname(os.path.abspath(__file__))
 
