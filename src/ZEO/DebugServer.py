@@ -15,6 +15,7 @@
 
 import struct
 import time
+import socket
 
 from ZEO.StorageServer import StorageServer, log
 from ZEO.zrpc.server import ManagedServerConnection
@@ -59,7 +60,7 @@ class DebugManagedServerConnection(ManagedServerConnection):
                 self.handle_close()
                 return ''
             else:
-                raise socket.error, why
+                raise socket.error(why)
 
 class DebugServer(StorageServer):
 
