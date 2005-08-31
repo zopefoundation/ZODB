@@ -1333,8 +1333,10 @@ bucket_pop(Bucket *self, PyObject *args)
     }
 
     /* bucket is not empty */
-    if (failobj == NULL)
+    if (failobj == NULL) {
+        /* Pass back KeyError exception */
         return NULL;
+    }
 rdefault:
     PyErr_Clear();
     Py_INCREF(failobj);

@@ -1774,8 +1774,10 @@ BTree_pop(BTree *self, PyObject *args)
     }
 
     /* btree is not empty */
-    if (failobj == NULL)
+    if (failobj == NULL) {
+        /* Pass back KeyError exception */
         return NULL;
+    }
 rdefault:
     PyErr_Clear();
     Py_INCREF(failobj);
