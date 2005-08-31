@@ -112,7 +112,7 @@ def main(args=None, dbclass=None):
         # dbclass is used for testing tests.auth_plaintext, see testAuth.py
         Database = dbclass
     else:
-        raise ValueError, "Unknown database type %r" % p
+        raise ValueError("Unknown database type %r" % p)
     if auth_db is None:
         usage("Error: configuration does not specify auth database")
     db = Database(auth_db, auth_realm)

@@ -26,5 +26,5 @@ def get_module(name):
 
 def register_module(name, storage_class, client, db):
     if _auth_modules.has_key(name):
-        raise TypeError, "%s is already registred" % name
+        raise TypeError("%s is already registred" % name)
     _auth_modules[name] = storage_class, client, db

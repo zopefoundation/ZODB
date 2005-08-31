@@ -103,7 +103,7 @@ class DemoStorage(BaseStorage):
         self._ltid = None
         self._clear_temp()
         if base is not None and base.versions():
-            raise POSException.StorageError, (
+            raise POSException.StorageError(
                 "Demo base storage has version data")
 
     # While we officially don't support wrapping a non-read-only base
@@ -213,7 +213,7 @@ class DemoStorage(BaseStorage):
             except KeyError:
                 if self._base:
                     return self._base.load(oid, '')
-                raise KeyError, oid
+                raise KeyError(oid)
 
             ver = ""
             if vdata:
@@ -224,11 +224,11 @@ class DemoStorage(BaseStorage):
                         # data.
                         oid, pre, vdata, p, skiptid = nv
                     else:
-                        raise KeyError, oid
+                        raise KeyError(oid)
                 ver = oversion
 
             if p is None:
-                raise KeyError, oid
+                raise KeyError(oid)
 
             return p, tid, ver
         finally: self._lock_release()
@@ -269,7 +269,7 @@ class DemoStorage(BaseStorage):
 
                 if vdata:
                     if vdata[0] != version:
-                        raise POSException.VersionLockError, oid
+                        raise POSException.VersionLockError(oid)
 
                     nv=vdata[1]
                 else:
@@ -287,7 +287,7 @@ class DemoStorage(BaseStorage):
             if version: s=s+32+len(version)
 
             if self._quota is not None and s > self._quota:
-                raise POSException.StorageError, (
+                raise POSException.StorageError(
                     '''<b>Quota Exceeded</b><br>
                     The maximum quota for this demonstration storage
                     has been exceeded.<br>Have a nice day.''')

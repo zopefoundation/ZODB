@@ -47,11 +47,11 @@ class PCounter2(PCounter):
 
 class PCounter3(PCounter):
     def _p_resolveConflict(self, oldState, savedState, newState):
-        raise AttributeError, "no attribute (testing conflict resolution)"
+        raise AttributeError("no attribute (testing conflict resolution)")
 
 class PCounter4(PCounter):
     def _p_resolveConflict(self, oldState, savedState):
-        raise RuntimeError, "Can't get here; not enough args"
+        raise RuntimeError("Can't get here; not enough args")
 
 class ConflictResolvingStorage:
 

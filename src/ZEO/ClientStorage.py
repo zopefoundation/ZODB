@@ -417,7 +417,7 @@ class ClientStorage(object):
 
     def doAuth(self, protocol, stub):
         if not (self._username and self._password):
-            raise AuthError, "empty username or password"
+            raise AuthError("empty username or password")
 
         module = get_module(protocol)
         if not module:
@@ -430,7 +430,7 @@ class ClientStorage(object):
         if not client:
             log2("%s: %s isn't a valid protocol, must have a Client class" %
                  (self.__class__.__name__, protocol), level=logging.WARNING)
-            raise AuthError, "invalid protocol"
+            raise AuthError("invalid protocol")
 
         c = client(stub)
 
@@ -472,7 +472,7 @@ class ClientStorage(object):
                 conn.setSessionKey(skey)
             else:
                 log2("Authentication failed")
-                raise AuthError, "Authentication failed"
+                raise AuthError("Authentication failed")
 
         try:
             stub.register(str(self._storage), self._is_read_only)

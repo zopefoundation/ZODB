@@ -206,15 +206,15 @@ class ZEOStorage:
         immediately after authentication is finished.
         """
         if self.auth_realm and not self.authenticated:
-            raise AuthError, "Client was never authenticated with server!"
+            raise AuthError("Client was never authenticated with server!")
 
         if self.storage is not None:
             self.log("duplicate register() call")
-            raise ValueError, "duplicate register() call"
+            raise ValueError("duplicate register() call")
         storage = self.server.storages.get(storage_id)
         if storage is None:
             self.log("unknown storage_id: %s" % storage_id)
-            raise ValueError, "unknown storage: %s" % storage_id
+            raise ValueError("unknown storage: %s" % storage_id)
 
         if not read_only and (self.read_only or storage.isReadOnly()):
             raise ReadOnlyError()

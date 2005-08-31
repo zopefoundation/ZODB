@@ -123,7 +123,7 @@ class MinimalMemoryStorage(BaseStorage, object):
         try:
             tids = [tid for oid, tid in self._index if oid == the_oid]
             if not tids:
-                raise KeyError, the_oid
+                raise KeyError(the_oid)
             tids.sort()
             i = bisect.bisect_left(tids, the_tid) - 1
             if i == -1:

@@ -52,7 +52,7 @@ def main():
         opts, args = getopt.getopt(sys.argv[1:], 'f:')
         if not args:
             usage()
-            raise ValueError, "Must specify a FileStorage"
+            raise ValueError("Must specify a FileStorage")
         path = None
         for k, v in opts:
             if k == '-f':

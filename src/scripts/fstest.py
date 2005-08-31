@@ -209,7 +209,7 @@ if __name__ == "__main__":
     try:
         opts, args = getopt.getopt(sys.argv[1:], 'v')
         if len(args) != 1:
-            raise ValueError, "expected one argument"
+            raise ValueError("expected one argument")
         for k, v in opts:
             if k == '-v':
                 VERBOSE = VERBOSE + 1

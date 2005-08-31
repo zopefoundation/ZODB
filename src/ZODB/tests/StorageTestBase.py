@@ -99,7 +99,7 @@ def zodb_unpickle(data):
                 print >> sys.stderr, "can't find %s in %r" % (klassname, ns)
         inst = klass()
     else:
-        raise ValueError, "expected class info: %s" % repr(klass_info)
+        raise ValueError("expected class info: %s" % repr(klass_info))
     state = u.load()
     inst.__setstate__(state)
     return inst

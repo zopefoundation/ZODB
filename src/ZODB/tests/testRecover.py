@@ -86,7 +86,7 @@ class RecoverTest(unittest.TestCase):
                 ZODB.fsrecover.recover(self.path, self.dest,
                         verbose=0, partial=True, force=False, pack=1)
             except SystemExit:
-                raise RuntimeError, "recover tried to exit"
+                raise RuntimeError("recover tried to exit")
         finally:
             sys.stdout = orig_stdout
         return faux_stdout.getvalue()

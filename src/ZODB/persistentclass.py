@@ -54,14 +54,14 @@ class _p_DataDescr(object):
             return self
 
         if '__global_persistent_class_not_stored_in_DB__' in inst.__dict__:
-            raise AttributeError, self.__name__
+            raise AttributeError(self.__name__)
         return inst._p_class_dict.get(self.__name__)
     
     def __set__(self, inst, v):
         inst._p_class_dict[self.__name__] = v
 
     def __delete__(self, inst):
-        raise AttributeError, self.__name__
+        raise AttributeError(self.__name__)
 
 class _p_oid_or_jar_Descr(_p_DataDescr):
     # Special descr for _p_oid and _p_jar that loads
@@ -112,10 +112,10 @@ class _p_MethodDescr(object):
         return self.func.__get__(inst, cls)
 
     def __set__(self, inst, v):
-        raise AttributeError, self.__name__
+        raise AttributeError(self.__name__)
 
     def __delete__(self, inst):
-        raise AttributeError, self.__name__
+        raise AttributeError(self.__name__)
     
 
 special_class_descrs = '__dict__', '__weakref__'

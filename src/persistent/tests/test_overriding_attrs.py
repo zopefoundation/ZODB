@@ -73,7 +73,7 @@ class SampleOverridingGetattr(Persistent):
         """
         # Don't pretend we have any special attributes.
         if name.startswith("__") and name.endswrith("__"):
-            raise AttributeError, name
+            raise AttributeError(name)
         else:
             return name.upper(), self._p_changed
 
@@ -178,7 +178,7 @@ class SampleOverridingGetattributeSetattrAndDelattr(Persistent):
         # Maybe it's a method:
         meth = getattr(self.__class__, name, None)
         if meth is None:
-            raise AttributeError, name
+            raise AttributeError(name)
 
         return meth.__get__(self, self.__class__)
 

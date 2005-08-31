@@ -62,8 +62,8 @@ class Database:
         self.load()
         if realm:
             if self.realm and self.realm != realm:
-                raise ValueError, ("Specified realm %r differs from database "
-                                   "realm %r" % (realm or '', self.realm))
+                raise ValueError("Specified realm %r differs from database "
+                                 "realm %r" % (realm or '', self.realm))
             else:
                 self.realm = realm
 
@@ -109,7 +109,7 @@ class Database:
         Callers must check for LookupError, which is raised in
         the case of a non-existent user specified."""
         if not self._users.has_key(username):
-            raise LookupError, "No such user: %s" % username
+            raise LookupError("No such user: %s" % username)
         return self._users[username]
 
     def hash(self, s):
@@ -117,15 +117,15 @@ class Database:
 
     def add_user(self, username, password):
         if self._users.has_key(username):
-            raise LookupError, "User %s already exists" % username
+            raise LookupError("User %s already exists" % username)
         self._store_password(username, password)
 
     def del_user(self, username):
         if not self._users.has_key(username):
-            raise LookupError, "No such user: %s" % username
+            raise LookupError("No such user: %s" % username)
         del self._users[username]
 
     def change_password(self, username, password):
         if not self._users.has_key(username):
-            raise LookupError, "No such user: %s" % username
+            raise LookupError("No such user: %s" % username)
         self._store_password(username, password)

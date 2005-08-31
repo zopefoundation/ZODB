@@ -112,7 +112,7 @@ class StorageClass(ZEOStorage):
         # we sent to the client.  It will need to generate a new
         # nonce for a new connection anyway.
         if self._challenge != challenge:
-            raise ValueError, "invalid challenge"
+            raise ValueError("invalid challenge")
 
         # lookup user in database
         h_up = self.database.get_password(user)

@@ -98,7 +98,7 @@ def get_port():
                 return port
         finally:
             s.close()
-    raise RuntimeError, "Can't find port"
+    raise RuntimeError("Can't find port")
 
 class GenericTests(
     # Base class for all ZODB tests

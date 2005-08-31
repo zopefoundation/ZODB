@@ -55,7 +55,7 @@ class HMAC:
             self.update(msg)
 
 ##    def clear(self):
-##        raise NotImplementedError, "clear() method not available in HMAC."
+##        raise NotImplementedError("clear() method not available in HMAC.")
 
     def update(self, msg):
         """Update this hashing object with the string msg.

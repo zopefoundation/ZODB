@@ -288,7 +288,7 @@ class BaseStorage(UndoLogCompatible):
     def undo(self, transaction_id, txn):
         if self._is_read_only:
             raise POSException.ReadOnlyError()
-        raise POSException.UndoError, 'non-undoable transaction'
+        raise POSException.UndoError('non-undoable transaction')
 
     def undoLog(self, first, last, filter=None):
         return ()
@@ -313,7 +313,7 @@ class BaseStorage(UndoLogCompatible):
             self._lock_release()
 
     def loadSerial(self, oid, serial):
-        raise POSException.Unsupported, (
+        raise POSException.Unsupported(
             "Retrieval of historical revisions is not supported")
 
     def loadBefore(self, oid, tid):

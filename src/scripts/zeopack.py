@@ -45,7 +45,7 @@ def connect(storage):
         storage._call.connect()
         if storage._connected:
             return
-    raise RuntimeError, "Unable to connect to ZEO server"
+    raise RuntimeError("Unable to connect to ZEO server")
 
 def pack1(addr, storage, days, wait):
     cs = ClientStorage(addr, storage=storage,

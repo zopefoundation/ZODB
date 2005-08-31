@@ -66,8 +66,7 @@ class ConnectionManager(object):
             for addr in addrs:
                 addr_type = self._guess_type(addr)
                 if addr_type is None:
-                    raise ValueError, (
-                        "unknown address in list: %s" % repr(addr))
+                    raise ValueError("unknown address in list: %s" % repr(addr))
                 addrlist.append((addr_type, addr))
             return addrlist
 

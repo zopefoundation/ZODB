@@ -215,12 +215,12 @@ class MountPoint(persistent.Persistent, Acquisition.Implicit):
         try:
             app = root['Application']
         except:
-            raise MountedStorageError, (
+            raise MountedStorageError(
                 "No 'Application' object exists in the mountable database.")
         try:
             return app.unrestrictedTraverse(self._path)
         except:
-            raise MountedStorageError, (
+            raise MountedStorageError(
                 "The path '%s' was not found in the mountable database."
                 % self._path)
 

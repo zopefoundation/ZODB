@@ -197,7 +197,7 @@ def which(program):
             if not os.path.isabs(path):
                 path = os.path.abspath(path)
             return path
-    raise IOError, "can't find %r on path %r" % (program, strpath)
+    raise IOError("can't find %r on path %r" % (program, strpath))
 
 def makedir(*args):
     path = ""

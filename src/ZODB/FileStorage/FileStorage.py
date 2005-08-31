@@ -1322,7 +1322,7 @@ class FileStorage(BaseStorage.BaseStorage,
             raise POSException.ReadOnlyError()
 
         stop=`TimeStamp(*time.gmtime(t)[:5]+(t%60,))`
-        if stop==z64: raise FileStorageError, 'Invalid pack time'
+        if stop==z64: raise FileStorageError('Invalid pack time')
 
         # If the storage is empty, there's nothing to do.
         if not self._index:
@@ -1331,7 +1331,7 @@ class FileStorage(BaseStorage.BaseStorage,
         self._lock_acquire()
         try:
             if self._pack_is_in_progress:
-                raise FileStorageError, 'Already packing'
+                raise FileStorageError('Already packing')
             self._pack_is_in_progress = True
             current_size = self.getSize()
         finally:
@@ -1624,10 +1624,10 @@ def read_index(file, name, index, vindex, tindex, stop='\377'*8,
 
     if file_size:
         if file_size < start:
-            raise FileStorageFormatError, file.name
+            raise FileStorageFormatError(file.name)
         seek(0)
         if read(4) != packed_version:
-            raise FileStorageFormatError, name
+            raise FileStorageFormatError(name)
     else:
         if not read_only:
             file.write(packed_version)
@@ -1791,8 +1791,7 @@ def _truncate(file, name, pos):
     except:
         logger.error("couldn\'t write truncated data for %s", name,
               exc_info=True)
-        raise POSException.StorageSystemError, (
-            "Couldn't save truncated data")
+        raise POSException.StorageSystemError("Couldn't save truncated data")
 
     file.seek(pos)
     file.truncate()
@@ -1824,7 +1823,7 @@ class FileIterator(Iterator, FileStorageFormatter):
             file = open(file, 'rb')
         self._file = file
         if file.read(4) != packed_version:
-            raise FileStorageFormatError, file.name
+            raise FileStorageFormatError(file.name)
         file.seek(0,2)
         self._file_size = file.tell()
         self._pos = 4L
@@ -1887,7 +1886,7 @@ class FileIterator(Iterator, FileStorageFormatter):
         if self._file is None:
             # A closed iterator.  Is IOError the best we can do?  For
             # now, mimic a read on a closed file.
-            raise IOError, 'iterator is closed'
+            raise IOError('iterator is closed')
 
         pos = self._pos
         while 1:
@@ -1906,11 +1905,11 @@ class FileIterator(Iterator, FileStorageFormatter):
             self._ltid = h.tid
 
             if self._stop is not None and h.tid > self._stop:
-                raise IndexError, index
+                raise IndexError(index)
 
             if h.status == "c":
                 # Assume we've hit the last, in-progress transaction
-                raise IndexError, index
+                raise IndexError(index)
 
             if pos + h.tlen + 8 > self._file_size:
                 # Hm, the data were truncated or the checkpoint flag wasn't
@@ -1974,7 +1973,7 @@ class FileIterator(Iterator, FileStorageFormatter):
 
             return result
 
-        raise IndexError, index
+        raise IndexError(index)
 
 class RecordIterator(Iterator, BaseStorage.TransactionRecord,
                      FileStorageFormatter):
@@ -2023,7 +2022,7 @@ class RecordIterator(Iterator, BaseStorage.TransactionRecord,
             r = Record(h.oid, h.tid, h.version, data, prev_txn, pos)
             return r
 
-        raise IndexError, index
+        raise IndexError(index)
 
 class Record(BaseStorage.DataRecord):
     """An abstract database record."""

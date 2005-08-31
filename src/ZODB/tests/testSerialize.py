@@ -102,7 +102,7 @@ class SerializerTestCase(unittest.TestCase):
                 if name == "error":
                     raise ValueError("whee!")
                 else:
-                    raise AttributeError, name
+                    raise AttributeError(name)
 
         class NewStyle(object):
             bar = "bar"

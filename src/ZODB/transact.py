@@ -54,5 +54,5 @@ def transact(f, note=None, retries=5):
                     raise
                 continue
             return r
-        raise RuntimeError, "couldn't commit transaction"
+        raise RuntimeError("couldn't commit transaction")
     return g

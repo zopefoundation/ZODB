@@ -64,7 +64,7 @@ class PersistentReference:
         return "PR(%s %s)" % (id(self), self.data)
 
     def __getstate__(self):
-        raise PicklingError, "Can't pickle PersistentReference"
+        raise PicklingError("Can't pickle PersistentReference")
 
 class PersistentReferenceFactory:
 
