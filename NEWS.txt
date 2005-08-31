@@ -16,6 +16,13 @@ Zope3 development).  These are the dates of the internal releases:
 Savepoints
 ----------
 
+- (3.5.0) As for deprecated subtransaction commits, the intent was
+  that making a savepoint would invoke incremental garbage collection on
+  Connection memory caches, to try to reduce the number of objects in
+  cache to the configured cache size.  Due to an oversight, this didn't
+  happen, and stopped happening for subtransaction commits too.  Making a
+  savepoint (or doing a subtransaction commit) does invoke cache gc now.
+
 - (3.5a3) When a savepoint is made, the states of objects modified so far
   are saved to a temporary storage (an instance of class ``TmpStore``,
   although that's an internal implementation detail).  That storage needs
@@ -52,11 +59,15 @@ Subtransactions are deprecated
 
   to::
 
-      transaction.savepoint()
+      transaction.savepoint(True)
 
-  That is, make a savepoint, and forget it.  In rarer cases, a
-  subtransaction commit is followed later by a subtransaction abort.  In
-  that case, change the initial::
+  That is, make a savepoint, and forget it.  As shown, it's best to pass
+  ``True`` for the optional ``optimistic`` argument in this case:  because
+  there's no possibility of asking for a rollback later, there's no need
+  to insist that all data managers support rollback.
+
+  In rarer cases, a subtransaction commit is followed later by a
+  subtransaction abort.  In that case, change the initial::
 
       transaction.commit(1)
 
@@ -229,11 +240,15 @@ Subtransactions
 
   to::
 
-      transaction.savepoint()
+      transaction.savepoint(True)
 
-  That is, make a savepoint, and forget it.  In rarer cases, a
-  subtransaction commit is followed later by a subtransaction abort.  In
-  that case, change the initial::
+  That is, make a savepoint, and forget it.  As shown, it's best to pass
+  ``True`` for the optional ``optimistic`` argument in this case:  because
+  there's no possibility of asking for a rollback later, there's no need
+  to insist that all data managers support rollback.
+
+  In rarer cases, a subtransaction commit is followed later by a
+  subtransaction abort.  In that case, change the initial::
 
       transaction.commit(1)
 
