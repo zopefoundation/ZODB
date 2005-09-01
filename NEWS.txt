@@ -1,11 +1,64 @@
-What's new in ZODB3 3.5a9?
+What's new in ZODB3 3.6a1?
 ==========================
 Release date: DD-MMM-2005
 
 Following is combined news from internal releases (to support ongoing
 Zope3 development).  These are the dates of the internal releases:
 
-- 3.5a8 25-Aug-2005
+- 3.6a1 DD-MMM-2005
+
+Commit hooks
+------------
+
+- (3.6a1) A new ``addBeforeCommitHook()`` method of transactions generalizes
+  the older ``beforeCommitHook()`` method, with a more-robust signature
+  and an optional new ``order`` argument to influence the order in which
+  commit hooks are invoked.  ``beforeCommitHook()`` is now deprecated, and
+  will be removed in ZODB 3.7.  Thanks to Julien Anguenot for contributing
+  code and tests.
+
+PersistentMapping
+-----------------
+
+- (3.6a1) The ``PersistentMapping`` class has an ``__iter__()`` method
+  now, so that objects of this type work well with Python's iteration
+  protocol.  For example, if ``x`` is a ``PersistentMapping`` (or
+  Python dictionary, or BTree, or ``PersistentDict``, ...), then
+  ``for key in x:`` iterates over the keys of ``x``, ``list(x)`` creates
+  a list containing ``x``'s keys, ``iter(x)`` creates an iterator for
+  ``x``'s keys, and so on.
+
+BTrees
+------
+
+- (3.6a1) BTrees and Buckets now implement the ``setdefault()`` method.
+  This is exactly like Python's ``setdefault()`` method for dictionaries,
+  except that both arguments are required (and Python is likely to change
+  to require both arguments too -- defaulting the ``default`` argument to
+  ``None`` has no viable use cases).  Thanks to Ruslan Spivak for
+  contributing code, tests, and documentation.
+
+- (3.6a1) Collector 1873.  It wasn't possible to construct a BTree or Bucket
+  from, or apply their update() methods to, a PersistentMapping or
+  PersistentDict.  This works now.
+
+Development
+-----------
+
+- (3.6a1) The source code for the old ExtensionClass-based Persistence
+  package moved, from ZODB to the Zope 2.9 development tree.  ZODB 3.5
+  makes no use of Persistence, and, indeed, the Persistence package could
+  not be compiled from a ZODB release, since some of the C header files
+  needed appear only in Zope.
+
+
+What's new in ZODB3 3.5.0?
+==========================
+Release date: 31-Aug-2005
+
+Following is combined news from internal releases (to support ongoing
+Zope3 development).  These are the dates of the internal releases:
+
 - 3.5a7 11-Aug-2005
 - 3.5a6 04-Aug-2005
 - 3.5a5 19-Jul-2005
@@ -17,7 +70,7 @@ Zope3 development).  These are the dates of the internal releases:
 Savepoints
 ----------
 
-- (3.5a8) As for deprecated subtransaction commits, the intent was
+- (3.5.0) As for deprecated subtransaction commits, the intent was
   that making a savepoint would invoke incremental garbage collection on
   Connection memory caches, to try to reduce the number of objects in
   cache to the configured cache size.  Due to an oversight, this didn't
@@ -37,16 +90,6 @@ Savepoints
   you roll back to an earlier savepoint's state), but the implementation
   marked a savepoint as invalid after its first use.  The implementation has
   been repaired, to match the docs.
-
-Commit hooks
-------------
-
-- (3.5a8) A new ``addBeforeCommitHook()`` method of transactions generalizes
-  the older ``beforeCommitHook()`` method, with a more-robust signature
-  and an optional new ``order`` argument to influence the order in which
-  commit hooks are invoked.  ``beforeCommitHook()`` is now deprecated, and
-  will be removed in ZODB 3.7.  Thanks to Julien Anguenot for contributing
-  code and tests.
 
 ZEO client cache
 ----------------
@@ -104,17 +147,6 @@ Multi-database
 - (3.5a1) Preliminary support for persistent cross-database references has
   been added.  See ``ZODB/cross-database-references.txt`` for an
   introduction.
-
-PersistentMapping
------------------
-
-- (3.5a8) The ``PersistentMapping`` class has an ``__iter__()`` method
-  now, so that objects of this type work well with Python's iteration
-  protocol.  For example, if ``x`` is a ``PersistentMapping`` (or
-  Python dictionary, or BTree, or ``PersistentDict``, ...), then
-  ``for key in x:`` iterates over the keys of ``x``, ``list(x)`` creates
-  a list containing ``x``'s keys, ``iter(x)`` creates an iterator for
-  ``x``'s keys, and so on.
 
 Tools
 -----
@@ -183,21 +215,10 @@ FileStorage
 BTrees
 ------
 
-- (3.5a9) BTrees and Buckets now implement the ``setdefault()`` method.
-  This is exactly like Python's ``setdefault()`` method for dictionaries,
-  except that both arguments are required (and Python is likely to change
-  to require both arguments too -- defaulting the ``default`` argument to
-  ``None`` has no viable use cases).  Thanks to Ruslan Spivak for
-  contributing code, tests, and documentation.
-
-- (3.5a5) Collector 1843.  When a non-integer was passed to a method like
+- (3.5.a5) Collector 1843.  When a non-integer was passed to a method like
   ``keys()`` of a Bucket or Set with integer keys, an internal error code
   was overlooked, leading to everything from "delayed errors" to segfaults.
   Such cases raise TypeError now, as intended.
-
-- (3.5a9) Collector 1873.  It wasn't possible to construct a BTree or Bucket
-  from, or apply their update() methods to, a PersistentMapping or
-  PersistentDict.  This works now.
 
 - (3.5a4) Collector 1831.  The BTree ``minKey()`` and ``maxKey()`` methods
   gave a misleading message if no key satisfying the constraints existed in a
@@ -209,23 +230,6 @@ BTrees
 - (3.5a4) The ancient ``convert.py`` script was removed.  It was intended to
   convert "old" BTrees to "new" BTrees, but the "old" BTree implementation
   was removed from ZODB years ago.
-
-Development
------------
-
-- (3.5a7) ZODB's ``setup.py`` now uses zpkg for checkout-tree builds,
-  ensuring that the same code is used to build and test ZODB on a daily
-  basis as is used to build ZODB releases.  In order to support this,
-  the ZODB repository now stitches in part of zpkgtools (via
-  ``svn:externals``), all script files were moved into a new ``scripts``
-  directory in the checkout tree, and intra-ZODB ``#include`` directives
-  in ZODB's C code were rewritten in minor ways.
-
-- (3.5a9) The source code for the old ExtensionClass-based Persistence
-  package moved, from ZODB to the Zope 2.9 development tree.  ZODB 3.5
-  makes no use of Persistence, and, indeed, the Persistence package could
-  not be compiled from a ZODB release, since some of the C header files
-  needed appear only in Zope.
 
 
 What's new in ZODB3 3.4.2a1?
