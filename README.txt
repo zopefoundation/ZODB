@@ -19,7 +19,7 @@ The components you get with the ZODB release are as follows:
 - ZConfig -- a Zope configuration language
 - documentation
 
-Our primary development platforms are Linux and Windows 2000.  The
+Our primary development platforms are Linux and Windows XP.  The
 test suite should pass without error on all of these platforms,
 although it can take a long time on Windows -- longer if you use
 ZoneAlarm.  Many particularly slow tests are skipped unless you pass
