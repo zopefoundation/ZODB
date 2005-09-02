@@ -1729,6 +1729,50 @@ BTree_setdefault(BTree *self, PyObject *args)
     return value;
 }
 
+/* forward declaration */
+static int
+BTree_length_or_nonzero(BTree *self, int nonzero);
+
+static PyObject *
+BTree_pop(BTree *self, PyObject *args)
+{
+    PyObject *key;
+    PyObject *failobj = NULL; /* default */
+    PyObject *value;          /* return value */
+
+    if (! PyArg_UnpackTuple(args, "pop", 1, 2, &key, &failobj))
+    	return NULL;
+
+    value = _BTree_get(self, key, 0);
+    if (value != NULL) {
+        /* Delete key and associated value. */
+        if (_BTree_set(self, key, NULL, 0, 0) < 0) {
+            Py_DECREF(value);
+            return NULL;;
+        }
+        return value;
+    }
+
+    /* The key isn't in the tree.  If that's not due to a KeyError exception,
+     * pass back the unexpected exception.
+     */
+    if (! PyErr_ExceptionMatches(PyExc_KeyError))
+        return NULL;
+
+    if (failobj != NULL) {
+    	/* Clear the KeyError and return the explicit default. */
+    	PyErr_Clear();
+    	Py_INCREF(failobj);
+    	return failobj;
+    }
+
+    /* No default given.  The only difference in this case is the error
+     * message, which depends on whether the tree is empty.
+     */
+    if (BTree_length_or_nonzero(self, 1) == 0) /* tree is empty */
+        PyErr_SetString(PyExc_KeyError, "pop(): BTree is empty");
+    return NULL;
+}
 
 /* Search BTree self for key.  This is the sq_contains slot of the
  * PySequenceMethods.
@@ -1872,6 +1916,11 @@ static struct PyMethodDef BTree_methods[] = {
      "D.setdefault(k, d) -> D.get(k, d), also set D[k]=d if k not in D.\n\n"
      "Return the value like get() except that if key is missing, d is both\n"
      "returned and inserted into the BTree as the value of k."},
+
+    {"pop", (PyCFunction) BTree_pop, METH_VARARGS,
+     "D.pop(k[, d]) -> v, remove key and return the corresponding value.\n\n"
+     "If key is not found, d is returned if given, otherwise KeyError\n"
+     "is raised."},
 
     {"maxKey", (PyCFunction) BTree_maxKey,	METH_VARARGS,
      "maxKey([max]) -> key\n\n"

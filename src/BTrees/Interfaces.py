@@ -226,6 +226,13 @@ class IDictionaryIsh(IMinimalDictionary):
         IIBTree can have only integers as values).
         """
 
+    def pop(key, d):
+        """D.pop(k[, d]) -> v, remove key and return the corresponding value.
+
+        If key is not found, d is returned if given, otherwise KeyError is
+        raised.
+        """
+
 class IBTree(IDictionaryIsh):
 
     def insert(key, value):
