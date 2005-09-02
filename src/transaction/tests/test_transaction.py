@@ -436,7 +436,7 @@ class BeforeCommitHookTests(unittest.TestCase):
         self.assertRaises(ValueError, t.addBeforeCommitHook,
                           hook, order=foo())
 
-# deprecated37; remove this then
+# deprecated38; remove this then
 def test_beforeCommitHook():
     """Test beforeCommitHook.
 
@@ -474,7 +474,7 @@ def test_beforeCommitHook():
       1
       >>> message, category, filename, lineno = whook.warnings[0]
       >>> print message
-      This will be removed in ZODB 3.7:
+      This will be removed in ZODB 3.8:
       Use addBeforeCommitHook instead of beforeCommitHook.
       >>> category.__name__
       'DeprecationWarning'

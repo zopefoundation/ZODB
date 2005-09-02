@@ -167,11 +167,11 @@ class ITransaction(zope.interface.Interface):
         raise an exception, or remove `<name, value>` pairs).
         """
 
-    # deprecated37
+    # deprecated38
     def beforeCommitHook(__hook, *args, **kws):
         """Register a hook to call before the transaction is committed.
 
-        THIS IS DEPRECATED IN ZODB 3.5.  Use addBeforeCommitHook() instead.
+        THIS IS DEPRECATED IN ZODB 3.6.  Use addBeforeCommitHook() instead.
 
         The specified hook function will be called after the transaction's
         commit method has been called, but before the commit process has been

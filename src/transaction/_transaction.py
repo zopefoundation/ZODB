@@ -430,9 +430,9 @@ class Transaction(object):
         self._before_commit_index += 1
 
     def beforeCommitHook(self, hook, *args, **kws):
-        from ZODB.utils import deprecated37
+        from ZODB.utils import deprecated38
 
-        deprecated37("Use addBeforeCommitHook instead of beforeCommitHook.")
+        deprecated38("Use addBeforeCommitHook instead of beforeCommitHook.")
         # Default order is zero.
         self.addBeforeCommitHook(hook, args, kws, order=0)
 
