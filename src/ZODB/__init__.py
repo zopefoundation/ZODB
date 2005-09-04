@@ -13,7 +13,7 @@
 ##############################################################################
 
 # The next line must use double quotes, so release.py recognizes it.
-__version__ = "3.6.0a1"
+__version__ = "3.6a1"
 
 import sys
 import __builtin__
