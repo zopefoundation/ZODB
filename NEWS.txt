@@ -10,12 +10,10 @@ Zope3 development).  These are the dates of the internal releases:
 Commit hooks
 ------------
 
-- (3.6a1) A new ``addBeforeCommitHook()`` method of transactions generalizes
-  the older ``beforeCommitHook()`` method, with a more-robust signature
-  and an optional new ``order`` argument to influence the order in which
-  commit hooks are invoked.  ``beforeCommitHook()`` is now deprecated, and
-  will be removed in ZODB 3.7.  Thanks to Julien Anguenot for contributing
-  code and tests.
+- (3.6a1) The ``beforeCommitHook()`` method has been replaced by the new
+  ``addBeforeCommitHook()`` method, with a more-robust signature.
+  ``beforeCommitHook()`` is now deprecated, and will be removed in ZODB 3.8.
+  Thanks to Julien Anguenot for contributing code and tests.
 
 PersistentMapping
 -----------------

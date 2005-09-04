@@ -195,7 +195,7 @@ class ITransaction(zope.interface.Interface):
         instead.
         """
 
-    def addBeforeCommitHook(hook, args=(), kws=None, order=0):
+    def addBeforeCommitHook(hook, args=(), kws=None):
         """Register a hook to call before the transaction is committed.
 
         The specified hook function will be called after the transaction's
@@ -208,20 +208,10 @@ class ITransaction(zope.interface.Interface):
         arguments are passed).
 
         Multiple hooks can be registered and will be called in the order they
-        were registered (first registered, first called), except that
-        hooks registered with different `order` arguments are invoked from
-        smallest `order` value to largest.  `order` must be an integer,
-        and defaults to 0.
-
-        For instance, a hook registered with order=1 will be invoked after
-        another hook registered with order=-1 and before another registered
-        with order=2, regardless of which was registered first.  When two
-        hooks are registered with the same order, the first one registered is
-        called first.
-
-        This method can also be called from a hook:  an executing hook can
-        register more hooks.  Applications should take care to avoid creating
-        infinite loops by recursively registering hooks.
+        were registered (first registered, first called).  This method can
+        also be called from a hook:  an executing hook can register more
+        hooks.  Applications should take care to avoid creating infinite loops
+        by recursively registering hooks.
 
         Hooks are called only for a top-level commit.  A subtransaction
         commit or savepoint creation does not call any hooks.  If the

@@ -414,28 +414,6 @@ def test_join():
 def hook():
     pass
 
-class BeforeCommitHookTests(unittest.TestCase):
-
-    def test_01_beforecommithook_order_exceptions(self):
-        # string
-        t = transaction.Transaction()
-        self.assertRaises(ValueError, t.addBeforeCommitHook,
-                          hook, order='string')
-
-    def test_02_beforecommithook_order_exceptions(self):
-        # float
-        t = transaction.Transaction()
-        self.assertRaises(ValueError, t.addBeforeCommitHook,
-                          hook, order=1.2)
-
-    def test_03_beforecommithook_order_exceptions(self):
-        # object
-        t = transaction.Transaction()
-        class foo:
-            pass
-        self.assertRaises(ValueError, t.addBeforeCommitHook,
-                          hook, order=foo())
-
 # deprecated38; remove this then
 def test_beforeCommitHook():
     """Test beforeCommitHook.
@@ -613,7 +591,7 @@ def test_beforeCommitHook():
     """
 
 def test_addBeforeCommitHook():
-    """Test addBeforeCommitHook, without order arguments.
+    """Test addBeforeCommitHook.
 
     Let's define a hook to call, and a way to see that it was called.
 
@@ -752,92 +730,11 @@ def test_addBeforeCommitHook():
       >>> reset_log()
     """
 
-def test_addBeforeCommitHookOrder():
-    """Test addBeforeCommitHook with order arguments.
-
-    Register a hook with an order explicitly equal to 0 (the default value):
-
-      >>> import transaction
-      >>> t = transaction.begin()
-      >>> t.addBeforeCommitHook(hook, '1', order=0)
-
-    We can see that the hook is indeed registered.
-
-      >>> [(hook.func_name, args, kws)
-      ...  for hook, args, kws in t.getBeforeCommitHooks()]
-      [('hook', ('1',), {})]
-
-    Let's add another one with a smaller order. It will be registered
-    to be called first.
-
-      >>> t.addBeforeCommitHook(hook, '2', order=-999999)
-      >>> [(hook.func_name, args, kws)
-      ...  for hook, args, kws in t.getBeforeCommitHooks()]
-      [('hook', ('2',), {}), ('hook', ('1',), {})]
-
-    Let's add another one with a bigger order.  It will be registered
-    to be called last.
-
-      >>> t.addBeforeCommitHook(hook, '3', order=999999)
-      >>> for hook, args, kws in t.getBeforeCommitHooks():
-      ...     print (hook.func_name, args, kws)
-      ('hook', ('2',), {})
-      ('hook', ('1',), {})
-      ('hook', ('3',), {})
-
-    Above, we checked that the order parameter works as expected.
-    Now check that insertion with the same order values  respects the order
-    of registration.
-
-      >>> t.addBeforeCommitHook(hook, '4') # order=0 implied
-      >>> for hook, args, kws in t.getBeforeCommitHooks():
-      ...     print (hook.func_name, args, kws)
-      ('hook', ('2',), {})
-      ('hook', ('1',), {})
-      ('hook', ('4',), {})
-      ('hook', ('3',), {})
-
-      >>> t.addBeforeCommitHook(hook, '5', order=999999)
-      >>> for hook, args, kws in t.getBeforeCommitHooks():
-      ...     print (hook.func_name, args, kws)
-      ('hook', ('2',), {})
-      ('hook', ('1',), {})
-      ('hook', ('4',), {})
-      ('hook', ('3',), {})
-      ('hook', ('5',), {})
-
-      >>> t.addBeforeCommitHook(hook, '6', order=-999999)
-      >>> for hook, args, kws in t.getBeforeCommitHooks():
-      ...     print (hook.func_name, args, kws)
-      ('hook', ('2',), {})
-      ('hook', ('6',), {})
-      ('hook', ('1',), {})
-      ('hook', ('4',), {})
-      ('hook', ('3',), {})
-      ('hook', ('5',), {})
-
-      >>> def hook2():
-      ...     pass
-
-      >>> t.addBeforeCommitHook(hook2, '8', order=0)
-      >>> for hook, args, kws in t.getBeforeCommitHooks():
-      ...     print (hook.func_name, args, kws)
-      ('hook', ('2',), {})
-      ('hook', ('6',), {})
-      ('hook', ('1',), {})
-      ('hook', ('4',), {})
-      ('hook2', ('8',), {})
-      ('hook', ('3',), {})
-      ('hook', ('5',), {})
-
-    """
-
 def test_suite():
     from zope.testing.doctest import DocTestSuite
     return unittest.TestSuite((
         DocTestSuite(),
         unittest.makeSuite(TransactionTests),
-        unittest.makeSuite(BeforeCommitHookTests),
         ))
 
 if __name__ == '__main__':

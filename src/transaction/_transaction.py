@@ -146,7 +146,6 @@ committed or aborted.  The methods are passed the current Transaction
 as their only argument.
 """
 
-import bisect
 import logging
 import sys
 import thread
@@ -239,16 +238,8 @@ class Transaction(object):
         # raised, incorporating this traceback.
         self._failure_traceback = None
 
-        # List of (order, index, hook, args, kws) tuples added by
-        # addbeforeCommitHook().  `index` is used to resolve ties on equal
-        # `order` values, preserving the order in which the hooks were
-        # registered.  Each time we append a tuple to _before_commit,
-        # the current value of _before_commit_index is used for the
-        # index, and then the latter is incremented by 1.
-        # TODO: in Python 2.4, change to collections.deque; lists can be
-        # inefficient for FIFO access of this kind.
+        # List of (hook, args, kws) tuples added by addbeforeCommitHook().
         self._before_commit = []
-        self._before_commit_index = 0
 
     # Raise TransactionFailedError, due to commit()/join()/register()
     # getting called when the current transaction has already suffered
@@ -415,34 +406,27 @@ class Transaction(object):
         raise t, v, tb
 
     def getBeforeCommitHooks(self):
-        # Don't return the hook order and index values because of
-        # backward compatibility, and because they're internal details.
-        return iter([x[2:] for x in self._before_commit])
+        return iter(self._before_commit)
 
-    def addBeforeCommitHook(self, hook, args=(), kws=None, order=0):
-        if not isinstance(order, int):
-            raise ValueError("An integer value is required "
-                             "for the order argument")
+    def addBeforeCommitHook(self, hook, args=(), kws=None):
         if kws is None:
             kws = {}
-        bisect.insort(self._before_commit, (order, self._before_commit_index,
-                                            hook, tuple(args), kws))
-        self._before_commit_index += 1
+        self._before_commit.append((hook, tuple(args), kws))
 
     def beforeCommitHook(self, hook, *args, **kws):
         from ZODB.utils import deprecated38
 
         deprecated38("Use addBeforeCommitHook instead of beforeCommitHook.")
-        # Default order is zero.
-        self.addBeforeCommitHook(hook, args, kws, order=0)
+        self.addBeforeCommitHook(hook, args, kws)
 
     def _callBeforeCommitHooks(self):
         # Call all hooks registered, allowing further registrations
-        # during processing.
-        while self._before_commit:
-            order, index, hook, args, kws = self._before_commit.pop(0)
+        # during processing.  Note that calls to addBeforeCommitHook() may
+        # add additional hooks while hooks are running, and iterating over a
+        # growing list is well-defined in Python.
+        for hook, args, kws in self._before_commit:
             hook(*args, **kws)
-        self._before_commit_index = 0
+        self._before_commit = []
 
     def _commitResources(self):
         # Execute the two-phase commit protocol.
