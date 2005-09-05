@@ -83,7 +83,7 @@ static struct PyMethodDef methods[] = {
 
 #endif
 
-/* Initialization function for the module (*must* be called initcStringIO) */
+/* Initialization function for the module (*must* be called initwinlock) */
 
 #ifndef DL_EXPORT	/* declarations for DLL import/export */
 #define DL_EXPORT(RTYPE) RTYPE
