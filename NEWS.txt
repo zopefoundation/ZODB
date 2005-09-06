@@ -50,6 +50,27 @@ Development
   not be compiled from a ZODB release, since some of the C header files
   needed appear only in Zope.
 
+- (3.6a2) The ``mkzeoinst`` module was re-added to ZEO, because Zope3
+  has a script that expects to import it from there.  ZODB's ``mkzeoinst``
+  script was rewritten to invoke the ``mkzeoinst`` module.
+
+
+What's new in ZODB3 3.5.1b1?
+============================
+Release date: 31-Aug-2005
+
+Following is combined news from internal releases (to support ongoing
+Zope3 development).  These are the dates of the internal releases:
+
+- 3.5.1b1 06-Sep-2005
+
+Build
+-----
+
+- (3.5.1b1) The ``mkzeoinst`` module was re-added to ZEO, because Zope3
+  has a script that expects to import it from there.  ZODB's ``mkzeoinst``
+  script was rewritten to invoke the ``mkzeoinst`` module.
+
 
 What's new in ZODB3 3.5.0?
 ==========================
