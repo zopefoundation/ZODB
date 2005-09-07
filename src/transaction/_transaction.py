@@ -238,7 +238,7 @@ class Transaction(object):
         # raised, incorporating this traceback.
         self._failure_traceback = None
 
-        # List of (hook, args, kws) tuples added by addbeforeCommitHook().
+        # List of (hook, args, kws) tuples added by addBeforeCommitHook().
         self._before_commit = []
 
     # Raise TransactionFailedError, due to commit()/join()/register()
