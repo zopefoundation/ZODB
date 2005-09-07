@@ -351,3 +351,6 @@ def main(args=None):
     options.realize(args)
     s = ZEOServer(options)
     s.main()
+
+if __name__ == "__main__":
+    main()
