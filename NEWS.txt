@@ -1,10 +1,11 @@
-What's new in ZODB3 3.5.1b1?
+What's new in ZODB3 3.5.1b3?
 ============================
-Release date: 06-Sep-2005
+Release date: DD-MMM-2005
 
 Following is combined news from internal releases (to support ongoing
 Zope3 development).  These are the dates of the internal releases:
 
+- 3.5.1b3 DD-MMM-2005
 - 3.5.1b2 07-Sep-2005
 - 3.5.1b1 06-Sep-2005
 
