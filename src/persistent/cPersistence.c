@@ -832,7 +832,9 @@ Per_get_changed(cPersistentObject *self)
 static int
 Per_set_changed(cPersistentObject *self, PyObject *v)
 {
-    int deactivate = 0, true;
+    int deactivate = 0;
+    int true;
+
     if (!v) {
 	/* delattr is used to invalidate an object even if it has changed. */
 	if (self->state != cPersistent_GHOST_STATE)
@@ -868,12 +870,25 @@ Per_set_changed(cPersistentObject *self, PyObject *v)
 	Py_DECREF(meth);
 	return 0;
     }
+    /* !deactivate.  If passed a true argument, mark self as changed (starting
+     * with ZODB 3.6, that includes activating the object if it's a ghost).
+     * If passed a false argument, and the object isn't a ghost, set the
+     * state as up-to-date.
+     */
     true = PyObject_IsTrue(v);
     if (true == -1)
 	return -1;
-    else if (true)
+    if (true) {
+    	if (self->state < 0) {
+    	    if (unghostify(self) < 0)
+    	        return -1;
+    	    }
 	return changed(self);
+    }
 
+    /* We were passed a false, non-None argument.  If we're not a ghost,
+     * mark self as up-to-date.
+     */
     if (self->state >= 0)
 	self->state = cPersistent_UPTODATE_STATE;
     return 0;

@@ -87,7 +87,7 @@ Test Persistent with Data Manager
 
 Next try some tests of an object with a data manager.  The DM class is
 a simple testing stub.
-    
+
 >>> p = P()
 >>> dm = DM()
 >>> p._p_oid = "00000012"
@@ -194,20 +194,24 @@ The _p_serial attribute is not affected by calling setstate.
 Change Ghost test
 -----------------
 
-If an object is a ghost and it's _p_changed is set to True, it should
-have no effect.
+If an object is a ghost and its _p_changed is set to True (any true value),
+it should activate (unghostify) the object.  This behavior is new in ZODB
+3.6; before then, an attempt to do "ghost._p_changed = True" was ignored.
 
 >>> p = P()
 >>> p._p_jar = DM()
 >>> p._p_oid = 1
 >>> p._p_deactivate()
->>> p._p_changed
->>> p._p_state
+>>> p._p_changed # None
+>>> p._p_state # ghost state
 -1
 >>> p._p_changed = True
 >>> p._p_changed
->>> p._p_state
--1
+1
+>>> p._p_state # changed state
+1
+>>> p.x
+42
 
 Activate, deactivate, and invalidate
 ------------------------------------
@@ -338,7 +342,7 @@ have a custom metaclass.
 Basic type structure
 --------------------
 
->>> Persistent.__dictoffset__ 
+>>> Persistent.__dictoffset__
 0
 >>> Persistent.__weakrefoffset__
 0
@@ -392,7 +396,7 @@ The various _p_ attributes are unaffected by slots.
 >>> p._p_state
 0
 
-If the most-derived class does not specify 
+If the most-derived class does not specify
 
 >>> p_shouldHaveDict.__dictoffset__ > 0
 True

@@ -10,6 +10,17 @@ Zope3 development).  These are the dates of the internal releases:
 - 3.6a2 06-Sep-2005
 - 3.6a1 04-Sep-2005
 
+Persistent
+----------
+
+- (3.6a4) ZODB 3.6 introduces a change to the basic behavior of Persistent
+  objects in a particular end case.  Before ZODB 3.6, setting
+  ``obj._p_changed`` to a true value when ``obj`` was a ghost was ignored:
+  ``obj`` remained a ghost, and getting ``obj._p_changed`` continued to
+  return ``None``.  Starting with ZODB 3.6, ``obj`` is activated instead
+  (unghostified), and its state is changed from the ghost state to the
+  changed state.  The new behavior is less surprising and more robust.
+
 Commit hooks
 ------------
 

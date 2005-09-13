@@ -71,7 +71,7 @@ class IPersistent(Interface):
     In all the above, _p_oid (the persistent object id) is set when
     _p_jar first gets set.
 
-    The following state transactions are possible:
+    The following state transitions are possible:
 
     - Unsaved -> Saved
 
@@ -82,12 +82,17 @@ class IPersistent(Interface):
 
     - Saved  -> Changed
       Sticky -> Changed
+      Ghost  -> Changed
 
       This transition occurs when someone sets an attribute or sets
-      _p_changed to a true value on a saved or sticky object.  When the
-      transition occurs, the persistent object is required to call the
+      _p_changed to a true value on a saved, sticky or ghost object.  When
+      the transition occurs, the persistent object is required to call the
       register() method on its data manager, passing itself as the
       only argument.
+
+      Prior to ZODB 3.6, setting _p_changed to a true value on a ghost object
+      was ignored (the object remained a ghost, and getting its _p_changed
+      attribute continued to return None).
 
     - Saved -> Sticky
 
@@ -166,7 +171,7 @@ class IPersistent(Interface):
         """)
 
     _p_changed = Attribute(
-        """The persistent state of the object
+        """The persistent state of the object.
 
         This is one of:
 
@@ -180,6 +185,10 @@ class IPersistent(Interface):
         attribute; however, assigning None is ignored if the object is
         not in the saved state, and may be ignored even if the object is
         in the saved state.
+
+        At and after ZODB 3.6, setting _p_changed to a true value for a ghost
+        object activates the object; prior to 3.6, setting _p_changed to a
+        true value on a ghost object was ignored.
 
         Note that an object can transition to the changed state only if
         it has a data manager.  When such a state change occurs, the
@@ -273,8 +282,8 @@ class IPersistentDataManager(Interface):
         obj: a persistent object from this Connection.
         tid: id of a transaction that wrote an earlier revision.
 
-        Raises KeyError if tid does not exist or if tid deleted a revision of 
-            obj. 
+        Raises KeyError if tid does not exist or if tid deleted a revision of
+        obj.
         """
 
     def register(object):
