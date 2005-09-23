@@ -42,7 +42,7 @@ from ZODB.ConflictResolution import ResolvedSerial
 from ZODB.POSException import StorageError, StorageTransactionError
 from ZODB.POSException import TransactionError, ReadOnlyError, ConflictError
 from ZODB.serialize import referencesf
-from ZODB.utils import u64, oid_repr
+from ZODB.utils import u64, oid_repr, mktemp
 from ZODB.loglevels import BLATHER
 
 logger = logging.getLogger('ZEO.StorageServer')
@@ -93,6 +93,9 @@ class ZEOStorage:
         self.log_label = _label
         self.authenticated = 0
         self.auth_realm = auth_realm
+        self.blob_transfer = {}
+        self.blob_log = []
+        self.blob_loads = {}
         # The authentication protocol may define extra methods.
         self._extensions = {}
         for func in self.extensions:
@@ -454,6 +457,49 @@ class ZEOStorage:
         self.stats.stores += 1
         self.txnlog.store(oid, serial, data, version)
 
+    def storeBlobEnd(self, oid, serial, data, version, id):
+        key = (oid, id)
+        if key not in self.blob_transfer:
+            raise Exception, "Can't finish a non-started Blob"
+        tempname, tempfile = self.blob_transfer.pop(key)
+        tempfile.close()
+        self.blob_log.append((oid, serial, data, tempname, version))
+
+    def storeBlob(self, oid, serial, chunk, version, id):
+        # XXX check that underlying storage supports blobs
+        key = (oid, id)
+        if key not in self.blob_transfer:
+            tempname = mktemp()
+            tempfile = open(tempname, "wb")
+            self.blob_transfer[key] = (tempname, tempfile)   # XXX Force close and remove them when Storage closes
+        else:
+            tempname, tempfile = self.blob_transfer[key]
+
+        tempfile.write(chunk)
+ 
+    def loadBlob(self, oid, serial, version, offset):
+        key = (oid, serial)
+        if not key in self.blob_loads:
+            self.blob_loads[key] = \
+                    open(self.storage.loadBlob(oid, serial, version))
+        blobdata = self.blob_loads[key]
+        blobdata.seek(offset)
+        chunk = blobdata.read(4096)
+        if not chunk:
+            del self.blob_loads[key]
+        return chunk
+
+            
+           
+        
+            
+
+
+            
+
+
+        
+
     # The following four methods return values, so they must acquire
     # the storage lock and begin the transaction before returning.
 
@@ -596,6 +642,13 @@ class ZEOStorage:
             # load oid, serial, data, version
             if not self._store(*loader.load()):
                 break
+
+        # Blob support
+        while self.blob_log:
+            oid, oldserial, data, blobfilename, version = self.blob_log.pop()
+            self.storage.storeBlob(oid, oldserial, data, blobfilename, 
+                                   version, self.transaction,)
+
         resp = self._thunk()
         if delay is not None:
             delay.reply(resp)

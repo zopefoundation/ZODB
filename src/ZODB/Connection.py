@@ -27,6 +27,7 @@ from persistent import PickleCache
 # interfaces
 from persistent.interfaces import IPersistentDataManager
 from ZODB.interfaces import IConnection
+from ZODB.Blobs.interfaces import IBlob, IBlobStorage
 from transaction.interfaces import ISavepointDataManager
 from transaction.interfaces import IDataManagerSavepoint
 from transaction.interfaces import ISynchronizer
@@ -551,7 +552,23 @@ class Connection(ExportImport, object):
                     raise ConflictError(object=obj)
                 self._modified.append(oid)
             p = writer.serialize(obj)  # This calls __getstate__ of obj
-            s = self._storage.store(oid, serial, p, self._version, transaction)
+
+            if IBlob.providedBy(obj):
+                if not IBlobStorage.providedBy(self._storage):
+                    raise Unsupported(
+                        "Storing Blobs in %s is not supported." % 
+                        repr(self._storage))
+                s = self._storage.storeBlob(oid, serial, p,
+                                            obj._p_blob_uncommitted,
+                                            self._version, transaction)
+                # we invalidate the object here in order to ensure
+                # that that the next attribute access of its name
+                # unghostify it, which will cause its blob data
+                # to be reattached "cleanly"
+                obj._p_invalidate()
+            else:
+                s = self._storage.store(oid, serial, p, self._version,
+                                        transaction)
             self._store_count += 1
             # Put the object in the cache before handling the
             # response, just in case the response contains the

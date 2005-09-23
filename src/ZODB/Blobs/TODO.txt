@@ -1,0 +1,38 @@
+
+Tests
+-----
+
+- ZConfig config testing (make sure that blob storage
+  config via ZConfig does the right thing)
+
+- Test BlobStorage.getSize
+
+- Test conflict behavior.
+
+- Test shared client usage of blob cache dir.
+
+- More ZEO tests.
+
+Features
+--------
+
+- Ensure we detect and play a failed txn involving blobs forward or
+  backward at startup.
+
+- Importing backward compatible ZEXP files (no \0BLOBSTART) used
+
+- More options for blob directory structures (e.g. dirstorage's
+  bushy/chunky/lawn/flat).
+
+- Log loudly on best_rename when it actually does a
+  copy.
+
+- Unify ZEO/Blob implementation and the BlobProxyStorage directory
+  structures.
+
+- Write code to clean up ClientStorage blob cache (it will grow without
+  bound currently).
+
+- Allow "read-only" blob cache dirs from ClientStorages which can
+  point to a filesystem mount from the ZEO server of the canonical
+  blob locations.

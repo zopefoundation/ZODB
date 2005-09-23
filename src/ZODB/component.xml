@@ -65,6 +65,11 @@
   <sectiontype name="zeoclient" datatype=".ZEOClient"
                implements="ZODB.storage">
     <multikey name="server" datatype="socket-connection-address" required="yes"/>
+    <key name="blob-dir" required="no" default="/tmp">
+      <description>
+        Path name to the blob storage directory.
+      </description>
+    </key>
     <key name="storage" default="1">
       <description>
         The name of the storage that the client wants to use.  If the
@@ -157,5 +162,19 @@
     <key name="version-pool-size" datatype="integer" default="3"/>
     <key name="version-cache-size" datatype="integer" default="100"/>
   </sectiontype>
+
+  <sectiontype name="blobstorage" datatype=".BlobStorage"
+    implements="ZODB.storage">
+    <key name="blob-dir" required="yes">
+      <description>
+        Path name to the blob storage directory.
+      </description>
+    </key>
+    <section type="ZODB.storage" name="*" attribute="base"/>
+  </sectiontype>
+
+
+    
+
 
 </component>
