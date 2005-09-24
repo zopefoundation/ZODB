@@ -32,7 +32,8 @@ class BlobStorage(ProxyBase):
     implements(IBlobStorage)
 
     __slots__ = ('base_directory', 'dirty_oids')
-    # XXX CM: what is the purpose of specifying __slots__ here?
+    # Proxies can't have a __dict__ so specifying __slots__ here allows
+    # us to have instance attributes? XXX confirm
 
     def __new__(self, base_directory, storage):
         return ProxyBase.__new__(self, storage)
@@ -87,16 +88,18 @@ class BlobStorage(ProxyBase):
                                       BLOB_SUFFIX,)
                             )
 
-    def _finish(self, tid, u, d, e): 
-        ProxyBase._finish(self, tid, u, d, e)
-        # Move dirty blobs if they are "really" dirty
-        
+    def tpc_finish(self, *arg, **kw):
+        """ We need to override the base storage's tpc_finish instead of
+        providing a _finish method because methods aren't rebound to the proxy
+        when they're found via getattr on the unproxied object"""
+        getProxiedObject(self).tpc_finish(*arg, **kw)
         self.dirty_blobs = []
 
-    def _abort(self):
-        ProxyBase._abort(self)
-
-        # Throw away the stuff we'd had committed
+    def tpc_abort(self, *arg, **kw):
+        """ We need to override the base storage's tpc_abort instead of
+        providing a _abort method because methods aren't rebound to the proxy
+        when they're found via getattr on the unproxied object"""
+        getProxiedObject(self).tpc_abort(*arg, **kw)
         while self.dirty_blobs:
             oid, serial = self.dirty_blobs.pop()
             clean = self._getCleanFilename(oid, serial)
