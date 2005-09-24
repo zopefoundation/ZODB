@@ -90,18 +90,19 @@ class BlobStorage(ProxyBase):
 
     def tpc_finish(self, *arg, **kw):
         """ We need to override the base storage's tpc_finish instead of
-        providing a _finish method because methods aren't rebound to the proxy
-        when they're found via getattr on the unproxied object"""
+        providing a _finish method because methods found on the proxied object
+        aren't rebound to the proxy """
         getProxiedObject(self).tpc_finish(*arg, **kw)
-        self.dirty_blobs = []
+        self.dirty_oids = []
 
     def tpc_abort(self, *arg, **kw):
-        """ We need to override the base storage's tpc_abort instead of
-        providing a _abort method because methods aren't rebound to the proxy
-        when they're found via getattr on the unproxied object"""
-        getProxiedObject(self).tpc_abort(*arg, **kw)
-        while self.dirty_blobs:
-            oid, serial = self.dirty_blobs.pop()
+        """ We need to override the base storage's abort instead of
+        providing an _abort method because methods found on the proxied object
+        aren't rebound to the proxy """
+        # XXX this is never called during our tests.
+        getProxiedObject(self).abort(*arg, **kw)
+        while self.dirty_oids:
+            oid, serial = self.dirty_oids.pop()
             clean = self._getCleanFilename(oid, serial)
             dirty = self._getDirtyFilename(oid, serial)
             for filename in [clean, dirty]:
