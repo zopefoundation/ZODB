@@ -143,8 +143,8 @@ connections should result in a write conflict error.
 
     >>> tm1 = transaction.TransactionManager()
     >>> tm2 = transaction.TransactionManager()
-    >>> root3 = database.open(txn_mgr=tm1).root()
-    >>> root4 = database.open(txn_mgr=tm2).root()
+    >>> root3 = database.open(transaction_manager=tm1).root()
+    >>> root4 = database.open(transaction_manager=tm2).root()
     >>> blob1c3 = root3['blob1']
     >>> blob1c4 = root4['blob1']
     >>> blob1c3fh1 = blob1c3.open('a')

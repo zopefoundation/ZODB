@@ -20,6 +20,7 @@ import sys
 import tempfile
 import threading
 import warnings
+import os
 from time import time
 
 from persistent import PickleCache
@@ -42,9 +43,11 @@ from ZODB import POSException
 from ZODB.POSException import InvalidObjectReference, ConnectionStateError
 from ZODB.POSException import ConflictError, ReadConflictError
 from ZODB.POSException import Unsupported
+from ZODB.POSException import POSKeyError
 from ZODB.serialize import ObjectWriter, ObjectReader, myhasattr
 from ZODB.utils import DEPRECATED_ARGUMENT, deprecated36
 from ZODB.utils import p64, u64, z64, oid_repr, positive_id
+from ZODB import utils
 
 global_reset_counter = 0
 
@@ -1120,10 +1123,15 @@ class Connection(ExportImport, object):
 
         for oid in oids:
             data, serial = src.load(oid, src)
-            s = self._storage.store(oid, serial, data,
-                                    self._version, transaction)
+            try:
+                blobfilename = src.loadBlob(oid, serial, self._version)
+            except POSKeyError:
+                s = self._storage.store(oid, serial, data,
+                                        self._version, transaction)
+            else:
+                s = self._storage.storeBlob(oid, serial, data, blobfilename,
+                                            self._version, transaction)
             self._handle_serial(s, oid, change=False)
-
         src.close()
 
     def _abort_savepoint(self):
@@ -1166,6 +1174,9 @@ class Savepoint:
     def rollback(self):
         self.datamanager._rollback(self.state)
 
+BLOB_SUFFIX = ".blob"
+BLOB_DIRTY = "store"
+
 class TmpStore:
     """A storage-like thing to support savepoints."""
 
@@ -1179,6 +1190,7 @@ class TmpStore:
 
         self._base_version = base_version
         self._file = tempfile.TemporaryFile()
+        self._blobdir = tempfile.mkdtemp()
         # position: current file position
         # _tpos: file position at last commit point
         self.position = 0L
@@ -1222,6 +1234,38 @@ class TmpStore:
         self.position += l + len(header)
         return serial
 
+    def storeBlob(self, oid, serial, data, blobfilename, version,
+                  transaction):
+        # XXX we need to clean up after ourselves!
+        serial = self.store(oid, serial, data, version, transaction)
+        assert isinstance(serial, str) # XXX in theory serials could be 
+                                       # something else
+
+        targetpath = self._getBlobPath(oid)
+        if not os.path.exists(targetpath):
+            os.makedirs(targetpath, 0700)
+
+        targetname = self._getCleanFilename(oid, serial)
+        utils.best_rename(blobfilename, targetname)
+
+    def loadBlob(self, oid, serial, version):
+        """Return the filename where the blob file can be found.
+        """
+        filename = self._getCleanFilename(oid, serial)
+        if not os.path.exists(filename):
+            raise POSKeyError, "Not an existing blob."
+        return filename
+
+    def _getBlobPath(self, oid):
+        return os.path.join(self._blobdir,
+                            utils.oid_repr(oid)
+                            )
+
+    def _getCleanFilename(self, oid, tid):
+        return os.path.join(self._getBlobPath(oid),
+                            "%s%s" % (utils.tid_repr(tid), 
+                                      BLOB_SUFFIX,)
+                            )
     def reset(self, position, index):
         self._file.truncate(position)
         self.position = position

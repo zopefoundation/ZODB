@@ -42,6 +42,11 @@ class BlobStorage(ProxyBase):
         ProxyBase.__init__(self, storage)
         self.base_directory = base_directory
         self.dirty_oids = []
+
+    def __repr__(self):
+        normal_storage = getProxiedObject(self)
+        return '<BlobStorage proxy for %r at %s>' % (normal_storage,
+                                                     hex(id(self)))
      
     def storeBlob(self, oid, oldserial, data, blobfilename, version,
                   transaction):
