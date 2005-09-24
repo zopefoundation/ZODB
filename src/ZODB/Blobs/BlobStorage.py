@@ -100,7 +100,7 @@ class BlobStorage(ProxyBase):
         providing an _abort method because methods found on the proxied object
         aren't rebound to the proxy """
         # XXX this is never called during our tests.
-        getProxiedObject(self).abort(*arg, **kw)
+        getProxiedObject(self).tpc_abort(*arg, **kw)
         while self.dirty_oids:
             oid, serial = self.dirty_oids.pop()
             clean = self._getCleanFilename(oid, serial)
