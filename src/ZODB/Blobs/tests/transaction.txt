@@ -26,16 +26,30 @@ We need a database with a blob supporting storage:
     >>> blob_dir = mkdtemp()
     >>> blob_storage = BlobStorage(blob_dir, base_storage)
     >>> database = DB(blob_storage)
-    
-Putting a Blob into a Connection works like any other Persistent object:
-
     >>> connection1 = database.open()
     >>> root1 = connection1.root()
     >>> from ZODB.Blobs.Blob import Blob
+    
+Putting a Blob into a Connection works like any other Persistent object:
+
     >>> blob1 = Blob()
     >>> blob1.open('w').write('this is blob 1')
     >>> root1['blob1'] = blob1
     >>> transaction.commit()
+
+Aborting a transaction involving a blob write cleans up uncommitted
+file data:
+
+    >>> dead_blob = Blob()
+    >>> dead_blob.open('w').write('this is a dead blob')
+    >>> root1['dead_blob'] = dead_blob
+    >>> fname = dead_blob._p_blob_uncommitted
+    >>> import os
+    >>> os.path.exists(fname)
+    True
+    >>> transaction.abort()
+    >>> os.path.exists(fname)
+    False
 
 Opening a blob gives us a filehandle.  Getting data out of the
 resulting filehandle is accomplished via the filehandle's read method:
@@ -157,8 +171,7 @@ connections should result in a write conflict error.
         ...
     ConflictError: database conflict error (oid 0x01, class ZODB.Blobs.Blob.Blob)
 
-While we are testing this, we don't need the storage directory and databases
-anymore:
+We don't need the storage directory and databases anymore:
 
     >>> import shutil
     >>> shutil.rmtree(blob_dir)
