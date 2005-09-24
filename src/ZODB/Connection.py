@@ -28,6 +28,7 @@ from persistent import PickleCache
 from persistent.interfaces import IPersistentDataManager
 from ZODB.interfaces import IConnection
 from ZODB.Blobs.interfaces import IBlob, IBlobStorage
+from ZODB.Blobs.BlobStorage import BlobStorage
 from transaction.interfaces import ISavepointDataManager
 from transaction.interfaces import IDataManagerSavepoint
 from transaction.interfaces import ISynchronizer
@@ -40,6 +41,7 @@ from ZODB.ExportImport import ExportImport
 from ZODB import POSException
 from ZODB.POSException import InvalidObjectReference, ConnectionStateError
 from ZODB.POSException import ConflictError, ReadConflictError
+from ZODB.POSException import Unsupported
 from ZODB.serialize import ObjectWriter, ObjectReader, myhasattr
 from ZODB.utils import DEPRECATED_ARGUMENT, deprecated36
 from ZODB.utils import p64, u64, z64, oid_repr, positive_id
@@ -805,6 +807,12 @@ class Connection(ExportImport, object):
         self._reader.setGhostState(obj, p)
         obj._p_serial = serial
 
+        # Blob support
+        if IBlob.providedBy(obj):
+            obj._p_blob_uncommitted = None
+            obj._p_blob_data = \
+                    self._storage.loadBlob(obj._p_oid, serial, self._version)
+
     def _load_before_or_conflict(self, obj):
         """Load non-current state for obj or raise ReadConflictError."""
         if not (self._mvcc and self._setstate_noncurrent(obj)):
@@ -1069,8 +1077,9 @@ class Connection(ExportImport, object):
 
     def savepoint(self):
         if self._savepoint_storage is None:
-            self._savepoint_storage = TmpStore(self._version,
-                                               self._normal_storage)
+            # XXX what to do about IBlobStorages?
+            tmpstore = TmpStore(self._version, self._normal_storage)
+            self._savepoint_storage = tmpstore
             self._storage = self._savepoint_storage
 
         self._creating.clear()
@@ -1226,3 +1235,4 @@ class TmpStore:
         # a copy of the index here.  An alternative would be to ensure that
         # all callers pass copies.  As is, our callers do not make copies.
         self.index = index.copy()
+
