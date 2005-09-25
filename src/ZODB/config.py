@@ -86,13 +86,13 @@ class BaseConfig:
         self.config = config
         self.name = config.getSectionName()
 
-    def open(self):
+    def open(self, database_name='unnamed', databases=None):
         """Open and return the storage object."""
         raise NotImplementedError
 
 class ZODBDatabase(BaseConfig):
 
-    def open(self):
+    def open(self, database_name='unnamed', databases=None):
         section = self.config
         storage = section.storage.open()
         try:
@@ -100,7 +100,9 @@ class ZODBDatabase(BaseConfig):
                            pool_size=section.pool_size,
                            cache_size=section.cache_size,
                            version_pool_size=section.version_pool_size,
-                           version_cache_size=section.version_cache_size)
+                           version_cache_size=section.version_cache_size,
+                           databases=databases,
+                           database_name=database_name)
         except:
             storage.close()
             raise
