@@ -54,6 +54,14 @@ BTrees
   from, or apply their update() methods to, a PersistentMapping or
   PersistentDict.  This works now.
 
+ZopeUndo
+--------
+
+- (3.6a4) Collector 1810. A previous bugfix (#1726) broke listing undoable
+  transactions for users defined in a non-root acl_users folder. Zope logs
+  a acl_users path together with a username (separated by a space) and this
+  previous fix failed to take this into account.
+
 Development
 -----------
 

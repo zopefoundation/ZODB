@@ -39,6 +39,10 @@ class Prefix:
 
     def __cmp__(self, o):
         other_path = o.split('/')
+        if other_path and ' ' in other_path[-1]:
+            # don't include logged username in comparison
+            pos = other_path[-1].rfind(' ')
+            other_path[-1] = other_path[-1][:pos]
         return cmp(other_path[:self.length], self.path)
 
     def __repr__(self):
