@@ -19,6 +19,14 @@ Build
   has a script that expects to import it from there.  ZODB's ``mkzeoinst``
   script was rewritten to invoke the ``mkzeoinst`` module.
 
+ZopeUndo
+--------
+
+- (3.5.1b3) Collector 1810. A previous bugfix (#1726) broke listing undoable
+  transactions for users defined in a non-root acl_users folder. Zope logs
+  a acl_users path together with a username (separated by a space) and this
+  previous fix failed to take this into account.
+
 
 What's new in ZODB3 3.5.0?
 ==========================
