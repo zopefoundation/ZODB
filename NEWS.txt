@@ -1,11 +1,10 @@
-What's new in ZODB3 3.5.1b3?
-============================
-Release date: DD-MMM-2005
+What's new in ZODB3 3.5.1?
+==========================
+Release date: 26-Sep-2005
 
 Following is combined news from internal releases (to support ongoing
 Zope3 development).  These are the dates of the internal releases:
 
-- 3.5.1b3 DD-MMM-2005
 - 3.5.1b2 07-Sep-2005
 - 3.5.1b1 06-Sep-2005
 
@@ -22,7 +21,7 @@ Build
 ZopeUndo
 --------
 
-- (3.5.1b3) Collector 1810. A previous bugfix (#1726) broke listing undoable
+- (3.5.1) Collector 1810. A previous bugfix (#1726) broke listing undoable
   transactions for users defined in a non-root acl_users folder. Zope logs
   a acl_users path together with a username (separated by a space) and this
   previous fix failed to take this into account.
