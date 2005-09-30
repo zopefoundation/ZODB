@@ -121,6 +121,16 @@ Running all the tests takes much longer.::
 
     OK
 
+To test the build, first build the externals and add the src dir to
+your PYTHONPATH,
+
+    % python setup.py build_ext -i
+    % export PYTHONPATH=`pwd`/src:$PYTHONPATH
+
+Then run the test script::
+
+    % python test.py
+
 
 History
 -------
