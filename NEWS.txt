@@ -1,16 +1,16 @@
-What's new in ZODB3 3.4.2a1?
-============================
+What's new in ZODB3 3.4.2?
+==========================
 Release date: DD-MMM-2005
 
 Following are dates of internal releases (to support ongoing Zope 2
 development) since ZODB 3.4's last public release:
 
-- 3.4.2a1 DD-MMM-2005
+- 3.4.2b1 03-Oct-2005
 
 Savepoints
 ----------
 
-- (3.4.2a1) As for deprecated subtransaction commits, the intent was
+- (3.4.2b1) As for deprecated subtransaction commits, the intent was
   that making a savepoint would invoke incremental garbage collection on
   Connection memory caches, to try to reduce the number of objects in
   cache to the configured cache size.  Due to an oversight, this didn't
@@ -20,7 +20,7 @@ Savepoints
 PersistentMapping
 -----------------
 
-- (3.4.2a1) The ``PersistentMapping`` class has an ``__iter__()`` method
+- (3.4.2b1) The ``PersistentMapping`` class has an ``__iter__()`` method
   now, so that objects of this type work well with Python's iteration
   protocol.  For example, if ``x`` is a ``PersistentMapping`` (or
   Python dictionary, or BTree, or ``PersistentDict``, ...), then
@@ -31,14 +31,14 @@ PersistentMapping
 BTrees
 ------
 
-- (3.4.2a1) Collector 1873.  It wasn't possible to construct a BTree or Bucket
+- (3.4.2b1) Collector 1873.  It wasn't possible to construct a BTree or Bucket
   from, or apply their update() methods to, a PersistentMapping or
   PersistentDict.  This works now.
 
 ZopeUndo
 --------
 
-- (3.4.2a1) Collector 1810. A previous bugfix (#1726) broke listing undoable
+- (3.4.2b1) Collector 1810. A previous bugfix (#1726) broke listing undoable
   transactions for users defined in a non-root acl_users folder. Zope logs
   a acl_users path together with a username (separated by a space) and this
   previous fix failed to take this into account.
