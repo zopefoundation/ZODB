@@ -5,6 +5,7 @@ Release date: DD-MMM-2005
 Following are dates of internal releases (to support ongoing Zope 2
 development) since ZODB 3.4's last public release:
 
+- 3.4.2b2 04-Oct-2005
 - 3.4.2b1 03-Oct-2005
 
 Savepoints
@@ -42,6 +43,15 @@ ZopeUndo
   transactions for users defined in a non-root acl_users folder. Zope logs
   a acl_users path together with a username (separated by a space) and this
   previous fix failed to take this into account.
+
+ZEO
+---
+
+- (3.4.2b2) Collector 1900.  In some cases of pickle exceptions raised by
+  low-level ZEO communication code, callers of ``marshal.encode()`` could
+  attempt to catch an exception that didn't actually exist, leading to an
+  erroneous ``AttributeError`` exception.  Thanks to Tres Seaver for the
+  diagnosis.
 
 
 What's new in ZODB3 3.4.1?
