@@ -1,6 +1,6 @@
 What's new in ZODB3 3.4.2?
 ==========================
-Release date: DD-MMM-2005
+Release date: 04-Oct-2005
 
 Following are dates of internal releases (to support ongoing Zope 2
 development) since ZODB 3.4's last public release:
