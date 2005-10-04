@@ -1,12 +1,23 @@
 What's new in ZODB3 3.5.1?
 ==========================
-Release date: 26-Sep-2005
+Release date: DD-MMM-2005
 
 Following is combined news from internal releases (to support ongoing
 Zope3 development).  These are the dates of the internal releases:
 
+- 3.5.1b3 DD-MMM-2005
 - 3.5.1b2 07-Sep-2005
 - 3.5.1b1 06-Sep-2005
+
+
+ZEO
+---
+
+- (3.5.1b3) Collector 1900.  In some cases of pickle exceptions raised by
+  low-level ZEO communication code, callers of ``marshal.encode()`` could
+  attempt to catch an exception that didn't actually exist, leading to an
+  erroneous ``AttributeError`` exception.  Thanks to Tres Seaver for the
+  diagnosis.
 
 Build
 -----
