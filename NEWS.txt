@@ -29,6 +29,15 @@ Commit hooks
   ``beforeCommitHook()`` is now deprecated, and will be removed in ZODB 3.8.
   Thanks to Julien Anguenot for contributing code and tests.
 
+ZEO
+---
+
+- (3.6a4) Collector 1900.  In some cases of pickle exceptions raised by
+  low-level ZEO communication code, callers of ``marshal.encode()`` could
+  attempt to catch an exception that didn't actually exist, leading to an
+  erroneous ``AttributeError`` exception.  Thanks to Tres Seaver for the
+  diagnosis.
+
 PersistentMapping
 -----------------
 
