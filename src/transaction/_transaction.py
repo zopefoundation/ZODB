@@ -361,16 +361,20 @@ class Transaction(object):
             subtransaction = 0
         elif deprecation_wng:
             from ZODB.utils import deprecated37
-            deprecated37("subtransactions are deprecated; use "
-                         "transaction.savepoint() instead of "
-                         "transaction.commit(1)")
+            deprecated37("subtransactions are deprecated; instead of "
+                         "transaction.commit(1), use "
+                         "transaction.savepoint(optimistic=True) in "
+                         "contexts where a subtransaction abort will never "
+                         "occur, or sp=transaction.savepoint() if later "
+                         "rollback is possible and then sp.rollback() "
+                         "instead of transaction.abort(1)")
 
         if self._savepoint2index:
             self._invalidate_all_savepoints()
 
         if subtransaction:
             # TODO deprecate subtransactions
-            self._subtransaction_savepoint = self.savepoint(1)
+            self._subtransaction_savepoint = self.savepoint(optimistic=True)
             return
 
         if self.status is Status.COMMITFAILED:
