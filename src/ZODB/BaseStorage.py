@@ -192,8 +192,8 @@ class BaseStorage(UndoLogCompatible):
             self._abort()
             self._clear_temp()
             self._transaction = None
-            self._commit_lock_release()
         finally:
+            self._commit_lock_release()
             self._lock_release()
 
     def _abort(self):

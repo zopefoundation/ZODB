@@ -5,6 +5,7 @@ Release date: 04-Oct-2005
 Following are dates of internal releases (to support ongoing Zope 2
 development) since ZODB 3.4's last public release:
 
+- 3.4.2b3 05-Oct-2005
 - 3.4.2b2 04-Oct-2005
 - 3.4.2b1 03-Oct-2005
 
@@ -17,6 +18,15 @@ Savepoints
   cache to the configured cache size.  Due to an oversight, this didn't
   happen, and stopped happening for subtransaction commits too.  Making a
   savepoint (or doing a subtransaction commit) does invoke cache gc now.
+
+BaseStorage
+-----------
+
+- (3.4.2b3) Nothing done by ``tpc_abort()`` should raise an exception.
+  However, if something does (an error case), ``BaseStorage.tpc_abort()``
+  left the commit lock in the acquired state, causing any later attempt
+  to commit changes hang.
+
 
 PersistentMapping
 -----------------
