@@ -38,6 +38,14 @@ ZEO
   erroneous ``AttributeError`` exception.  Thanks to Tres Seaver for the
   diagnosis.
 
+BaseStorage
+-----------
+
+- (3.6a4) Nothing done by ``tpc_abort()`` should raise an exception.
+  However, if something does (an error case), ``BaseStorage.tpc_abort()``
+  left the commit lock in the acquired state, causing any later attempt
+  to commit changes hang.
+
 PersistentMapping
 -----------------
 
