@@ -189,11 +189,13 @@ class BaseStorage(UndoLogCompatible):
         try:
             if transaction is not self._transaction:
                 return
-            self._abort()
-            self._clear_temp()
-            self._transaction = None
+            try:
+                self._abort()
+                self._clear_temp()
+                self._transaction = None
+            finally:
+                self._commit_lock_release()
         finally:
-            self._commit_lock_release()
             self._lock_release()
 
     def _abort(self):
