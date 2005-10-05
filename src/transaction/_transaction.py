@@ -362,7 +362,7 @@ class Transaction(object):
         elif deprecation_wng:
             from ZODB.utils import deprecated37
             deprecated37("subtransactions are deprecated; use "
-                         "transaction.savepoint() instead of "
+                         "transaction.savepoint(optimistic=True) instead of "
                          "transaction.commit(1)")
 
         if self._savepoint2index:
@@ -370,7 +370,7 @@ class Transaction(object):
 
         if subtransaction:
             # TODO deprecate subtransactions
-            self._subtransaction_savepoint = self.savepoint(1)
+            self._subtransaction_savepoint = self.savepoint(optimistic=True)
             return
 
         if self.status is Status.COMMITFAILED:
