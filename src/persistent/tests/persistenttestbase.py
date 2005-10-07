@@ -119,7 +119,7 @@ class Test(unittest.TestCase):
 
     def testGhostChanged(self):
         # If an object is a ghost and its _p_changed is set to True (any
-        # true value),i t should activate (unghostify) the object.  This
+        # true value), it should activate (unghostify) the object.  This
         # behavior is new in ZODB 3.6; before then, an attempt to do
         # "ghost._p_changed = True" was ignored.
         p = self.klass()
