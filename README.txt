@@ -29,11 +29,11 @@ Compatibility
 -------------
 
 ZODB 3.4 requires Python 2.3.4 or later.  For best results, we recommend
-Python 2.3.5.  Python 2.4.1 can also be used.
+Python 2.3.5.  Python 2.4.1+ can also be used.
 
-The Zope 2.8 release, and Zope3 releases, should be compatible with this
-version of ZODB.  Note that Zope 2.7 and higher includes ZEO, so this package
-should only be needed to run a ZEO server.
+The Zope 2.8 release is compatible with this version of ZODB.  Note that
+Zope 2.7 and higher includes ZEO, so this package should only be needed to
+run a ZEO server.
 
 ZEO servers and clients are wholly compatible among 3.3, 3.3.1 and 3.4: a ZEO
 client from any of those versions can talk with a ZEO server from any.
