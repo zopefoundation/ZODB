@@ -176,7 +176,7 @@ until we sync:
 Instances of Persistent Classes
 -------------------------------
 
-We can, of course, store instances of perstent classes in the
+We can, of course, store instances of persistent classes in the
 database:
 
     >>> c.color = 'blue'
