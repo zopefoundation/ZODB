@@ -156,7 +156,7 @@ class ITransaction(zope.interface.Interface):
         """Add extension data to the transaction.
 
         name is the name of the extension property to set, of Python type
-        str; value must be pickleable.  Multiple calls may be made to set
+        str; value must be picklable.  Multiple calls may be made to set
         multiple extension properties, provided the names are distinct.
 
         Storages record the extension data, as meta-data, when a transaction
