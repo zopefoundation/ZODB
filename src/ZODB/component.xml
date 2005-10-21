@@ -153,9 +153,29 @@
                implements="ZODB.database">
     <section type="ZODB.storage" name="*" attribute="storage"/>
     <key name="cache-size" datatype="integer" default="5000"/>
+      <description>
+        Target size, in number of objects, of each connection's
+        object cache.
+      </description>
     <key name="pool-size" datatype="integer" default="7"/>
+      <description>
+        The expected maximum number of simultaneously open connections.
+        There is no hard limit (as many connections as are requested
+        will be opened, until system resources are exhausted).  Exceeding
+        pool-size connections causes a warning message to be logged,
+        and exceeding twice pool-size connections causes a critical
+        message to be logged.
+      </description>
     <key name="version-pool-size" datatype="integer" default="3"/>
+      <description>
+        The expected maximum number of connections simultaneously open
+        per version.
+      </description>
     <key name="version-cache-size" datatype="integer" default="100"/>
+      <description>
+        Target size, in number of objects, of each version connection's
+        object cache.
+      </description>
   </sectiontype>
 
 </component>
