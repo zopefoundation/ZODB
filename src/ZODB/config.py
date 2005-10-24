@@ -100,7 +100,8 @@ class ZODBDatabase(BaseConfig):
                            pool_size=section.pool_size,
                            cache_size=section.cache_size,
                            version_pool_size=section.version_pool_size,
-                           version_cache_size=section.version_cache_size)
+                           version_cache_size=section.version_cache_size,
+                           database_name=section.database_name)
         except:
             storage.close()
             raise

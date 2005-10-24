@@ -151,3 +151,22 @@ Clean up:
 
     >>> for a_db in dbmap.values():
     ...     a_db.close()
+
+The database name can also be specified in a config file, starting in
+ZODB 3.6:
+
+    >>> from ZODB.config import databaseFromString
+    >>> config = """
+    ... <zodb>
+    ...   <mappingstorage/>
+    ...   database-name this_is_the_name
+    ... </zodb>
+    ... """
+    >>> db = databaseFromString(config)
+    >>> print db.database_name
+    this_is_the_name
+    >>> db.databases.keys()
+    ['this_is_the_name']
+
+    >>> db.close()
+

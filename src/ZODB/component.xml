@@ -176,6 +176,17 @@
         Target size, in number of objects, of each version connection's
         object cache.
       </description>
+    <key name="database-name" default="unnamed"/>
+      <description>
+        When multidatabases are in use, this is the name given to this
+        database in the collection.  The name must be unique across all
+        databases in the collection.  The collection must also be given
+        a mapping from its databases' names to their databases, but that
+        cannot be specified in a ZODB config file.  Applications using
+        multidatabases typical supply a way to configure the mapping in
+        their own config files, using the "databases" parameter of a DB
+        constructor.
+      </description>
   </sectiontype>
 
 </component>
