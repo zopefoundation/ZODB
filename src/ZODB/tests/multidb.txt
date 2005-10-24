@@ -152,6 +152,9 @@ Clean up:
     >>> for a_db in dbmap.values():
     ...     a_db.close()
 
+Configuration from File
+-----------------------
+
 The database name can also be specified in a config file, starting in
 ZODB 3.6:
 
@@ -168,5 +171,38 @@ ZODB 3.6:
     >>> db.databases.keys()
     ['this_is_the_name']
 
-    >>> db.close()
+However, the .databases attribute cannot be configured from file.  It
+can be passed to the ZConfig factory.  I'm not sure of the clearest way
+to test that here; this is ugly:
 
+    >>> from ZODB.config import getDbSchema
+    >>> import ZConfig
+    >>> from cStringIO import StringIO
+
+Derive a new `config2` string from the `config` string, specifying a
+different database_name:
+
+    >>> config2 = config.replace("this_is_the_name", "another_name")
+
+Now get a ZConfig factory from `config2`:
+
+    >>> f = StringIO(config2)
+    >>> zconfig, handle = ZConfig.loadConfigFile(getDbSchema(), f)
+    >>> factory = zconfig.database
+
+The desired `databases` mapping can be passed to this factory:
+
+    >>> db2 = factory.open(databases=db.databases)
+    >>> print db2.database_name   # has the right name
+    another_name
+    >>> db.databases is db2.databases # shares .databases with `db`
+    True
+    >>> all = db2.databases.keys()
+    >>> all.sort()
+    >>> all   # and db.database_name & db2.database_name are the keys
+    ['another_name', 'this_is_the_name']
+
+Cleanup.
+
+    >>> db.close()
+    >>> db2.close()

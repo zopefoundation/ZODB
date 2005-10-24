@@ -1,11 +1,11 @@
-What's new in ZODB3 3.6a5?
+What's new in ZODB3 3.6b2?
 ==========================
 Release date: DD-MMM-2005
 
 Following is combined news from internal releases (to support ongoing
 Zope3 development).  These are the dates of the internal releases:
 
-- 3.6a5 DD-MMM-2005
+- 3.6b1 DD-MMM-2005
 - 3.6a4 07-Oct-2005
 - 3.6a3 07-Sep-2005
 - 3.6a2 06-Sep-2005
@@ -46,6 +46,20 @@ BaseStorage
   However, if something does (an error case), ``BaseStorage.tpc_abort()``
   left the commit lock in the acquired state, causing any later attempt
   to commit changes hang.
+
+Multidatabase
+-------------
+
+- (3.6b1) The ``database_name`` for a database in a multidatabase
+  collection can now be specified in a config file's ``<zodb>`` section,
+  as the value of the optional new ``database_name`` key.  The
+  ``.databases`` attribute cannot be specified in a config file, but
+  can be passed as the optional new ``databases`` argument to the
+  ``open()`` method of a ZConfig factory for type ``ZODBDatabase``.
+  For backward compatibility, Zope 2.9 continues to allow using the
+  name in its ``<zodb_db name>`` config section as the database name
+  (note that ``<zodb_db>`` is defined by Zope, not by ZODB -- it's a
+  Zope-specific extension of ZODB's ``<zodb>`` section).
 
 PersistentMapping
 -----------------

@@ -92,7 +92,7 @@ class BaseConfig:
 
 class ZODBDatabase(BaseConfig):
 
-    def open(self):
+    def open(self, databases=None):
         section = self.config
         storage = section.storage.open()
         try:
@@ -101,7 +101,8 @@ class ZODBDatabase(BaseConfig):
                            cache_size=section.cache_size,
                            version_pool_size=section.version_pool_size,
                            version_cache_size=section.version_cache_size,
-                           database_name=section.database_name)
+                           database_name=section.database_name,
+                           databases=databases)
         except:
             storage.close()
             raise
