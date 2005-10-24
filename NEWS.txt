@@ -5,7 +5,7 @@ Release date: DD-MMM-2005
 Following is combined news from internal releases (to support ongoing
 Zope3 development).  These are the dates of the internal releases:
 
-- 3.6b1 DD-MMM-2005
+- 3.6b1 24-Oct-2005
 - 3.6a4 07-Oct-2005
 - 3.6a3 07-Sep-2005
 - 3.6a2 06-Sep-2005
