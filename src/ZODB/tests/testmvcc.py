@@ -37,9 +37,9 @@ MinimalMemoryStorage that implements MVCC support, but not much else.
 >>> from ZODB import DB
 >>> db = DB(MinimalMemoryStorage())
 
-We will use two different connections with the experimental
-setLocalTransaction() method to make sure that the connections act
-independently, even though they'll be run from a single thread.
+We will use two different connections with different transaction managers
+to make sure that the connections act independently, even though they'll
+be run from a single thread.
 
 >>> import transaction
 >>> tm1 = transaction.TransactionManager()

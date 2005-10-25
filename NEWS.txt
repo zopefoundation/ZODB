@@ -11,6 +11,49 @@ Zope3 development).  These are the dates of the internal releases:
 - 3.6a2 06-Sep-2005
 - 3.6a1 04-Sep-2005
 
+Removal of Features Deprecated in ZODB 3.4
+------------------------------------------
+
+(3.6b2) ZODB 3.6 no longer contains features officially deprecated in the
+ZODB 3.4 release.  These include:
+
+- ``get_transaction()``.  Use ``transaction.get()`` instead.
+   ``transaction.commit()`` is a shortcut spelling of
+   ``transaction.get().commit()``, and ``transaction.abort()``
+   of ``transaction.get().abort()``.  Note that importing ZODB no longer
+   installs ``get_transaction`` as a name in Python's ``__builtin__``
+   either.
+
+- The ``begin()`` method of ``Transaction`` objects.  Use the ``begin()``
+  method of a transaction manager instead.  ``transaction.begin()`` is
+  a shortcut spelling to call the default transaction manager's ``begin()``
+  method.
+
+- The ``dt`` argument to ``Connection.cacheMinimize()``.
+
+- The ``Connection.cacheFullSweep()`` method.  Use ``cacheMinimize()``
+  instead.
+
+- The ``Connection.getTransaction()`` method.  Pass a transaction manager
+  to ``DB.open()`` instead.
+
+- The ``Connection.getLocalTransaction()`` method.  Pass a transaction
+  manager to ``DB.open()`` instead.
+
+- The ``cache_deactivate_after`` and ``version_cache_deactivate_after``
+  arguments to the ``DB`` constructor.
+
+- The ``temporary``, ``force``, and ``waitflag`` arguments
+  to ``DB.open()``.  ``DB.open()`` no longer blocks (there's no longer
+  a fixed limit on the number of open connections).
+
+- The ``transaction`` and ``txn_mgr``arguments to ``DB.open()``.  Use
+  the ``transaction_manager`` argument instead.
+
+- The ``getCacheDeactivateAfter``, ``setCacheDeactivateAfter``,
+  ``getVersionCacheDeactivateAfter`` and ``setVersionCacheDeactivateAfter``
+  methods of ``DB``.
+
 Persistent
 ----------
 

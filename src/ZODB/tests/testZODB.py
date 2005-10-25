@@ -213,58 +213,6 @@ class ZODBTests(unittest.TestCase):
             conn1.close()
             conn2.close()
 
-    def checkLocalTransactions(self):
-        # Test of transactions that apply to only the connection,
-        # not the thread.
-        conn1 = self._db.open()
-        conn2 = self._db.open()
-        hook = WarningsHook()
-        hook.install()
-        try:
-            conn1.setLocalTransaction()
-            conn2.setLocalTransaction()
-            r1 = conn1.root()
-            r2 = conn2.root()
-            if r1.has_key('item'):
-                del r1['item']
-                conn1.getTransaction().commit()
-            r1.get('item')
-            r2.get('item')
-            r1['item'] = 1
-            conn1.getTransaction().commit()
-            self.assertEqual(r1['item'], 1)
-            # r2 has not seen a transaction boundary,
-            # so it should be unchanged.
-            self.assertEqual(r2.get('item'), None)
-            conn2.sync()
-            # Now r2 is updated.
-            self.assertEqual(r2['item'], 1)
-
-            # Now, for good measure, send an update in the other direction.
-            r2['item'] = 2
-            conn2.getTransaction().commit()
-            self.assertEqual(r1['item'], 1)
-            self.assertEqual(r2['item'], 2)
-            conn1.sync()
-            conn2.sync()
-            self.assertEqual(r1['item'], 2)
-            self.assertEqual(r2['item'], 2)
-            for msg, obj, filename, lineno in hook.warnings:
-                self.assert_(msg in [
-                    "This will be removed in ZODB 3.6:\n"
-                        "setLocalTransaction() is deprecated. "
-                        "Use the transaction_manager argument "
-                        "to DB.open() instead.",
-                    "This will be removed in ZODB 3.6:\n"
-                        "getTransaction() is deprecated. "
-                        "Use the transaction_manager argument "
-                        "to DB.open() instead, or access "
-                        ".transaction_manager directly on the Connection."])
-        finally:
-            conn1.close()
-            conn2.close()
-            hook.uninstall()
-
     def checkReadConflict(self):
         self.obj = P()
         self.readConflict()
@@ -584,57 +532,8 @@ class ZODBTests(unittest.TestCase):
         # transaction, and, in fact, when this test was written,
         # Transaction.begin() didn't do anything (everything from here
         # down failed).
-
-        # Oh, bleech.  Since Transaction.begin is also deprecated, we have
-        # to goof around suppressing the deprecation warning.
-        import warnings
-
-        # First verify that Transaction.begin *is* deprecated, by turning
-        # the warning into an error.
-        warnings.filterwarnings("error", category=DeprecationWarning)
-        self.assertRaises(DeprecationWarning, transaction.get().begin)
-        del warnings.filters[0]
-
-        # Now ignore DeprecationWarnings for the duration.  Use a
-        # try/finally block to ensure we reenable DeprecationWarnings
-        # no matter what.
-        warnings.filterwarnings("ignore", category=DeprecationWarning)
-        try:
-            cn = self._db.open()
-            rt = cn.root()
-            rt['a'] = 1
-
-            transaction.get().begin()  # should abort adding 'a' to the root
-            rt = cn.root()
-            self.assertRaises(KeyError, rt.__getitem__, 'a')
-
-            # A longstanding bug:  this didn't work if changes were only in
-            # subtransactions.
-            transaction.get().begin()
-            rt = cn.root()
-            rt['a'] = 2
-            transaction.get().commit(1)
-
-            transaction.get().begin()
-            rt = cn.root()
-            self.assertRaises(KeyError, rt.__getitem__, 'a')
-
-            # One more time, mixing "top level" and subtransaction changes.
-            transaction.get().begin()
-            rt = cn.root()
-            rt['a'] = 3
-            transaction.get().commit(1)
-            rt['b'] = 4
-
-            transaction.get().begin()
-            rt = cn.root()
-            self.assertRaises(KeyError, rt.__getitem__, 'a')
-            self.assertRaises(KeyError, rt.__getitem__, 'b')
-
-            cn.close()
-
-        finally:
-            del warnings.filters[0]
+        # Later (ZODB 3.6):  Transaction.begin() no longer exists, so the
+        # rest of this test was tossed.
 
     def checkFailingCommitSticks(self):
         # See also checkFailingSubtransactionCommitSticks.

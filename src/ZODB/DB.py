@@ -25,7 +25,6 @@ from ZODB.utils import z64
 from ZODB.Connection import Connection
 from ZODB.serialize import referencesf
 from ZODB.utils import WeakSet
-from ZODB.utils import DEPRECATED_ARGUMENT, deprecated36
 
 from zope.interface import implements
 from ZODB.interfaces import IDatabase
@@ -177,9 +176,6 @@ class DB(object):
         cacheFullSweep, cacheLastGCTime, cacheMinimize, cacheSize,
         cacheDetailSize, getCacheSize, getVersionCacheSize, setCacheSize,
         setVersionCacheSize
-      - `Deprecated Methods`: getCacheDeactivateAfter,
-        setCacheDeactivateAfter,
-        getVersionCacheDeactivateAfter, setVersionCacheDeactivateAfter
     """
     implements(IDatabase)
 
@@ -189,12 +185,10 @@ class DB(object):
     def __init__(self, storage,
                  pool_size=7,
                  cache_size=400,
-                 cache_deactivate_after=DEPRECATED_ARGUMENT,
                  version_pool_size=3,
                  version_cache_size=100,
                  database_name='unnamed',
                  databases=None,
-                 version_cache_deactivate_after=DEPRECATED_ARGUMENT,
                  ):
         """Create an object database.
 
@@ -206,8 +200,6 @@ class DB(object):
             version)
           - `version_cache_size`: target size of Connection object cache for
             version connections
-          - `cache_deactivate_after`: ignored
-          - `version_cache_deactivate_after`: ignored
         """
         # Allocate lock.
         x = threading.RLock()
@@ -221,12 +213,6 @@ class DB(object):
         self._cache_size = cache_size
         self._version_pool_size = version_pool_size
         self._version_cache_size = version_cache_size
-
-        # warn about use of deprecated arguments
-        if cache_deactivate_after is not DEPRECATED_ARGUMENT:
-            deprecated36("cache_deactivate_after has no effect")
-        if version_cache_deactivate_after is not DEPRECATED_ARGUMENT:
-            deprecated36("version_cache_deactivate_after has no effect")
 
         self._miv_cache = {}
 
@@ -494,10 +480,7 @@ class DB(object):
     def objectCount(self):
         return len(self._storage)
 
-    def open(self, version='',
-             transaction=DEPRECATED_ARGUMENT, temporary=DEPRECATED_ARGUMENT,
-             force=DEPRECATED_ARGUMENT, waitflag=DEPRECATED_ARGUMENT,
-             mvcc=True, txn_mgr=DEPRECATED_ARGUMENT,
+    def open(self, version='', mvcc=True,
              transaction_manager=None, synch=True):
         """Return a database Connection for use by application code.
 
@@ -517,29 +500,6 @@ class DB(object):
           - `synch`: boolean indicating whether Connection should
              register for afterCompletion() calls.
         """
-
-        if temporary is not DEPRECATED_ARGUMENT:
-            deprecated36("DB.open() temporary= ignored. "
-                         "open() no longer blocks.")
-
-        if force is not DEPRECATED_ARGUMENT:
-            deprecated36("DB.open() force= ignored. "
-                         "open() no longer blocks.")
-
-        if waitflag is not DEPRECATED_ARGUMENT:
-            deprecated36("DB.open() waitflag= ignored. "
-                         "open() no longer blocks.")
-
-        if transaction is not DEPRECATED_ARGUMENT:
-            deprecated36("DB.open() transaction= ignored.")
-
-        if txn_mgr is not DEPRECATED_ARGUMENT:
-            deprecated36("use transaction_manager= instead of txn_mgr=")
-            if transaction_manager is None:
-                transaction_manager = txn_mgr
-            else:
-                raise ValueError("cannot specify both transaction_manager= "
-                                 "and txn_mgr=")
 
         self._a()
         try:
@@ -705,24 +665,6 @@ class DB(object):
 
     def versionEmpty(self, version):
         return self._storage.versionEmpty(version)
-
-    # The following methods are deprecated and have no effect
-
-    def getCacheDeactivateAfter(self):
-        """Deprecated"""
-        deprecated36("getCacheDeactivateAfter has no effect")
-
-    def getVersionCacheDeactivateAfter(self):
-        """Deprecated"""
-        deprecated36("getVersionCacheDeactivateAfter has no effect")
-
-    def setCacheDeactivateAfter(self, v):
-        """Deprecated"""
-        deprecated36("setCacheDeactivateAfter has no effect")
-
-    def setVersionCacheDeactivateAfter(self, v):
-        """Deprecated"""
-        deprecated36("setVersionCacheDeactivateAfter has no effect")
 
 class ResourceManager(object):
     """Transaction participation for a version or undo resource."""

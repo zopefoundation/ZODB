@@ -30,7 +30,7 @@ registers its _p_jar attribute.  TODO: explain adapter
 Subtransactions
 ---------------
 
-Note: Suntransactions are deprecated!  Use savepoint/rollback instead.
+Note: Subtransactions are deprecated!  Use savepoint/rollback instead.
 
 A subtransaction applies the transaction notion recursively.  It
 allows a set of modifications within a transaction to be committed or
@@ -344,17 +344,6 @@ class Transaction(object):
             # Use id() to guard against proxies.
             assert id(obj) not in map(id, adapter.objects)
             adapter.objects.append(obj)
-
-    def begin(self):
-        from ZODB.utils import deprecated36
-
-        deprecated36("Transaction.begin() should no longer be used; use "
-                      "the begin() method of a transaction manager.")
-        if (self._resources or self._synchronizers):
-            self.abort()
-        # Else aborting wouldn't do anything, except if _manager is non-None,
-        # in which case it would do nothing besides uselessly free() this
-        # transaction.
 
     def commit(self, subtransaction=_marker, deprecation_wng=True):
         if subtransaction is _marker:

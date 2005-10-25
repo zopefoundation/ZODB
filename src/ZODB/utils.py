@@ -37,7 +37,6 @@ __all__ = ['z64',
            'readable_tid_repr',
            'WeakSet',
            'DEPRECATED_ARGUMENT',
-           'deprecated36',
            'deprecated37',
            'deprecated38',
            'get_pickle_metadata',
@@ -51,13 +50,6 @@ __all__ = ['z64',
 #
 # dance.
 DEPRECATED_ARGUMENT = object()
-
-# Raise DeprecationWarning, noting that the deprecated thing will go
-# away in ZODB 3.6.  Point to the caller of our caller (i.e., at the
-# code using the deprecated thing).
-def deprecated36(msg):
-    warnings.warn("This will be removed in ZODB 3.6:\n%s" % msg,
-                  DeprecationWarning, stacklevel=3)
 
 # Raise DeprecationWarning, noting that the deprecated thing will go
 # away in ZODB 3.7.  Point to the caller of our caller (i.e., at the
