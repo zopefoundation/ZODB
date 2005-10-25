@@ -1,10 +1,11 @@
-What's new in ZODB3 3.6b2?
+What's new in ZODB3 3.6b3?
 ==========================
 Release date: DD-MMM-2005
 
 Following is combined news from internal releases (to support ongoing
 Zope3 development).  These are the dates of the internal releases:
 
+- 3.6b2 25-Oct-2005
 - 3.6b1 24-Oct-2005
 - 3.6a4 07-Oct-2005
 - 3.6a3 07-Sep-2005
@@ -18,11 +19,11 @@ Removal of Features Deprecated in ZODB 3.4
 ZODB 3.4 release.  These include:
 
 - ``get_transaction()``.  Use ``transaction.get()`` instead.
-   ``transaction.commit()`` is a shortcut spelling of
-   ``transaction.get().commit()``, and ``transaction.abort()``
-   of ``transaction.get().abort()``.  Note that importing ZODB no longer
-   installs ``get_transaction`` as a name in Python's ``__builtin__``
-   either.
+  ``transaction.commit()`` is a shortcut spelling of
+  ``transaction.get().commit()``, and ``transaction.abort()``
+  of ``transaction.get().abort()``.  Note that importing ZODB no longer
+  installs ``get_transaction`` as a name in Python's ``__builtin__``
+  module either.
 
 - The ``begin()`` method of ``Transaction`` objects.  Use the ``begin()``
   method of a transaction manager instead.  ``transaction.begin()`` is
