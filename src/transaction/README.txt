@@ -1,14 +1,13 @@
-This package is currently a facade of the ZODB.Transaction module.
+============
+Transactions
+============
 
-It exists to support:
+This package contains a generic transaction implementation for Python. It is
+mainly used by the ZODB, though.
 
-- Application code that uses the ZODB 4 transaction API
-
-- ZODB4-style data managers (transaction.interfaces.IDataManager)
-
-Note that the data manager API, transaction.interfaces.IDataManager,
+Note that the data manager API, ``transaction.interfaces.IDataManager``,
 is syntactically simple, but semantically complex.  The semantics
 were not easy to express in the interface. This could probably use
 more work.  The semantics are presented in detail through examples of
-a sample data manager in transaction.tests.test_SampleDataManager.
+a sample data manager in ``transaction.tests.test_SampleDataManager``.
 
