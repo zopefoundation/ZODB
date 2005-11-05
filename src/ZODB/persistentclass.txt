@@ -1,3 +1,4 @@
+==================
 Persistent Classes
 ==================
 
@@ -39,7 +40,7 @@ functions to make them picklable.
 
 Also note that we explictly set the module.  Persistent classes don't
 live in normal Python modules. Rather, they live in the database.  We
-use information in __module__ to record where in the database.  When
+use information in ``__module__`` to record where in the database.  When
 we want to use a database, we will need to supply a custom class
 factory to load instances of the class.
 
@@ -189,7 +190,7 @@ database:
 
 NOTE: If a non-persistent instance of a persistent class is copied,
       the class may be copied as well. This is usually not the desired
-      result. 
+      result.
 
 
 Persistent instances of persistent classes
@@ -228,10 +229,10 @@ Now, if we try to load it, we get a broken oject:
     >>> connection2.root()['obs']['p']
     <persistent broken __zodb__.P instance '\x00\x00\x00\x00\x00\x00\x00\x04'>
 
-because the module, "__zodb__" can't be loaded.  We need to provide a
+because the module, `__zodb__` can't be loaded.  We need to provide a
 class factory that knows about this special module. Here we'll supply a
 sample class factory that looks up a class name in the database root
-if the module is "__zodb__".  It falls back to the normal class lookup 
+if the module is `__zodb__`.  It falls back to the normal class lookup
 for other modules:
 
     >>> from ZODB.broken import find_global
@@ -242,7 +243,7 @@ for other modules:
 
     >>> some_database.classFactory = classFactory
 
-Normally, the classFactory should be set before a database is opened. 
+Normally, the classFactory should be set before a database is opened.
 We'll reopen the connections we're using.  We'll assign the old
 connections to a variable first to prevent getting them from the
 connection pool:
@@ -250,7 +251,7 @@ connection pool:
     >>> old = connection, connection2
     >>> connection = some_database.open(transaction_manager=tm)
     >>> connection2 = some_database.open(transaction_manager=tm2)
-   
+
 Now, we can read the object:
 
     >>> connection2.root()['obs']['p'].color
