@@ -1,19 +1,6 @@
-##############################################################################
-#
-# Copyright (c) 2005 Zope Corporation and Contributors.
-# All Rights Reserved.
-#
-# This software is subject to the provisions of the Zope Public License,
-# Version 2.1 (ZPL).  A copy of the ZPL should accompany this distribution.
-# THIS SOFTWARE IS PROVIDED "AS IS" AND ANY AND ALL EXPRESS OR IMPLIED
-# WARRANTIES ARE DISCLAIMED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-# WARRANTIES OF TITLE, MERCHANTABILITY, AGAINST INFRINGEMENT, AND FITNESS
-# FOR A PARTICULAR PURPOSE.
-#
-##############################################################################
-
-Multi-database tests
-====================
+==================
+Multiple Databases
+==================
 
 Multi-database support adds the ability to tie multiple databases into a
 collection.  The original proposal is in the fishbowl:
@@ -25,29 +12,29 @@ by Jim Fulton, Christian Theune, and Tim Peters.  Overview:
 
 No private attributes were added, and one new method was introduced.
 
-DB:
+``DB``:
 
-- a new .database_name attribute holds the name of this database
+- a new ``.database_name`` attribute holds the name of this database.
 
-- a new .databases attribute maps from database name to DB object; all DBs
-  in a multi-database collection share the same .databases object
+- a new ``.databases`` attribute maps from database name to ``DB`` object; all
+  databases in a multi-database collection share the same ``.databases`` object
 
-- the DB constructor has new optional arguments with the same names
-  (database_name= and databases=).
+- the ``DB`` constructor has new optional arguments with the same names
+  (``database_name=`` and ``databases=``).
 
-Connection:
+``Connection``:
 
-- a new .connections attribute maps from database name to a Connection for
-  the database with that name; the .connections mapping object is also
-  shared among databases in a collection
+- a new ``.connections`` attribute maps from database name to a ``Connection``
+  for the database with that name; the ``.connections`` mapping object is also
+  shared among databases in a collection.
 
-- a new .get_connection(database_name) method returns a Connection for a
-  database in the collection; if a connection is already open, it's returned
-  (this is the value .connections[database_name]), else a new connection is
-  opened (and stored as .connections[database_name])
+- a new ``.get_connection(database_name)`` method returns a ``Connection`` for
+  a database in the collection; if a connection is already open, it's returned
+  (this is the value ``.connections[database_name]``), else a new connection
+  is opened (and stored as ``.connections[database_name]``)
 
 
-Creating a multi-database starts with creating a named DB:
+Creating a multi-database starts with creating a named ``DB``:
 
     >>> from ZODB.tests.test_storage import MinimalMemoryStorage
     >>> from ZODB import DB
@@ -69,7 +56,8 @@ Adding another database to the collection works like this:
     ...     database_name='notroot',
     ...     databases=dbmap)
 
-The new db2 now shares the 'databases' dictionary with db and has two entries:
+The new ``db2`` now shares the ``databases`` dictionary with db and has two
+entries:
 
     >>> db2.databases is db.databases is dbmap
     True
@@ -87,7 +75,7 @@ It's an error to try to insert a database with a name already in use:
         ...
     ValueError: database_name 'root' already in databases
 
-Because that failed, db.databases wasn't changed:
+Because that failed, ``db.databases`` wasn't changed:
 
     >>> len(db.databases)  # still 2
     2
@@ -127,7 +115,7 @@ Now there are two connections in that collection:
     >>> names = cn.connections.keys(); names.sort(); print names
     ['notroot', 'root']
 
-So long as this database group remains open, the same Connection objects
+So long as this database group remains open, the same ``Connection`` objects
 are returned:
 
     >>> cn.get_connection('root') is cn
@@ -152,6 +140,7 @@ Clean up:
     >>> for a_db in dbmap.values():
     ...     a_db.close()
 
+
 Configuration from File
 -----------------------
 
@@ -171,8 +160,8 @@ ZODB 3.6:
     >>> db.databases.keys()
     ['this_is_the_name']
 
-However, the .databases attribute cannot be configured from file.  It
-can be passed to the ZConfig factory.  I'm not sure of the clearest way
+However, the ``.databases`` attribute cannot be configured from file.  It
+can be passed to the `ZConfig` factory.  I'm not sure of the clearest way
 to test that here; this is ugly:
 
     >>> from ZODB.config import getDbSchema
@@ -184,13 +173,13 @@ different database_name:
 
     >>> config2 = config.replace("this_is_the_name", "another_name")
 
-Now get a ZConfig factory from `config2`:
+Now get a `ZConfig` factory from `config2`:
 
     >>> f = StringIO(config2)
     >>> zconfig, handle = ZConfig.loadConfigFile(getDbSchema(), f)
     >>> factory = zconfig.database
 
-The desired `databases` mapping can be passed to this factory:
+The desired ``databases`` mapping can be passed to this factory:
 
     >>> db2 = factory.open(databases=db.databases)
     >>> print db2.database_name   # has the right name

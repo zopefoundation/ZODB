@@ -1,16 +1,18 @@
+==========
 Savepoints
 ==========
 
-Savepoints provide a way to save to disk intermediate work done during
-a transaction allowing:
+Savepoints provide a way to save to disk intermediate work done during a
+transaction allowing:
 
 - partial transaction (subtransaction) rollback (abort)
 
 - state of saved objects to be freed, freeing on-line memory for other
   uses
 
-Savepoints make it possible to write atomic subroutines that don't
-make top-level transaction commitments.
+Savepoints make it possible to write atomic subroutines that don't make
+top-level transaction commitments.
+
 
 Applications
 ------------
@@ -39,13 +41,13 @@ and abort changes:
     >>> root['name']
     'bob'
 
-Now, let's look at an application that manages funds for people.
-It allows deposits and debits to be entered for multiple people.
-It accepts a sequence of entries and generates a sequence of status
-messages.  For each entry, it applies the change and then validates
-the user's account.  If the user's account is invalid, we roll back
-the change for that entry.  The success or failure of an entry is
-indicated in the output status.  First we'll initialize some accounts:
+Now, let's look at an application that manages funds for people.  It allows
+deposits and debits to be entered for multiple people.  It accepts a sequence
+of entries and generates a sequence of status messages.  For each entry, it
+applies the change and then validates the user's account.  If the user's
+account is invalid, we roll back the change for that entry.  The success or
+failure of an entry is indicated in the output status.  First we'll initialize
+some accounts:
 
     >>> root['bob-balance'] = 0.0
     >>> root['bob-credit'] = 0.0
@@ -59,8 +61,8 @@ Now, we'll define a validation function to validate an account:
     ...     if root[name+'-balance'] + root[name+'-credit'] < 0:
     ...         raise ValueError('Overdrawn', name)
 
-And a function to apply entries.  If the function fails in some
-unexpected way, it rolls back all of its changes and prints the error:
+And a function to apply entries.  If the function fails in some unexpected
+way, it rolls back all of its changes and prints the error:
 
     >>> def apply_entries(entries):
     ...     savepoint = transaction.savepoint()
@@ -114,9 +116,9 @@ If we provide entries that cause an unexpected error:
     Updated sally
     Unexpected exception unsupported operand type(s) for +=: 'float' and 'str'
 
-Because the apply_entries used a savepoint for the entire function,
-it was able to rollback the partial changes without rolling back
-changes made in the previous call to apply_entries:
+Because the apply_entries used a savepoint for the entire function, it was
+able to rollback the partial changes without rolling back changes made in the
+previous call to ``apply_entries``:
 
     >>> root['bob-balance']
     30.0
@@ -134,6 +136,7 @@ away:
 
     >>> root['sally-balance']
     0.0
+
 
 Savepoint invalidation
 ----------------------
