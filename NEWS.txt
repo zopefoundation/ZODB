@@ -9,6 +9,13 @@ Zope development).  These are the dates of the internal releases:
 - 3.7a1 DD-MMM-200Y
 
 
+Documentation
+-------------
+
+- (3.7a1) Thanks to Stephan Richter for converting many of the doctest
+  files to ReST format.  These are now chapters in the Zope 3 apidoc too.
+
+
 What's new in ZODB3 3.6b3?
 ==========================
 Release date: DD-MMM-2005
