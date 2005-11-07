@@ -1,10 +1,11 @@
-What's new in ZODB3 3.6b3?
+What's new in ZODB3 3.6b4?
 ==========================
-Release date: DD-MMM-2005
+Release date: 06-Nov-2005
 
 Following is combined news from internal releases (to support ongoing
 Zope3 development).  These are the dates of the internal releases:
 
+- 3.6b3 06-Nov-2005
 - 3.6b2 25-Oct-2005
 - 3.6b1 24-Oct-2005
 - 3.6a4 07-Oct-2005
@@ -137,6 +138,12 @@ ZopeUndo
   transactions for users defined in a non-root acl_users folder. Zope logs
   a acl_users path together with a username (separated by a space) and this
   previous fix failed to take this into account.
+
+Documentation
+-------------
+
+- (3.6b3) Thanks to Stephan Richter for converting many of the doctest
+  files to ReST format.  These are now chapters in the Zope 3 apidoc too.
 
 Development
 -----------
