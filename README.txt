@@ -92,12 +92,14 @@ script::
 
 This should now make all of ZODB accessible to your Python programs.
 
-Testing
--------
+Testing for Developers
+----------------------
 
-ZODB comes with a large test suite that can be run from the source
-directory before ZODB is installed.  The simplest way to run the tests
-is::
+When working from a ZODB checkout, do an in-place build instead::
+
+    % python setup.py build_ext -i
+
+followed by::
 
     % python test.py -v
 
@@ -119,16 +121,6 @@ Running all the tests takes much longer.::
     Ran 1561 tests in 1461.557s
 
     OK
-
-To test the build, first build the externals and add the src dir to
-your PYTHONPATH,
-
-    % python setup.py build_ext -i
-    % export PYTHONPATH=`pwd`/src:$PYTHONPATH
-
-Then run the test script::
-
-    % python test.py
 
 
 History
