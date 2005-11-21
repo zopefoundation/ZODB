@@ -39,6 +39,7 @@ class PersistentDict(persistent.Persistent, IterableUserDict):
     __super_clear = IterableUserDict.clear
     __super_update = IterableUserDict.update
     __super_setdefault = IterableUserDict.setdefault
+    __super_pop = IterableUserDict.pop
     __super_popitem = IterableUserDict.popitem
 
     __super_p_init = persistent.Persistent.__init__
@@ -71,6 +72,10 @@ class PersistentDict(persistent.Persistent, IterableUserDict):
         if not self.has_key(key):
             self._p_changed = True
         return self.__super_setdefault(key, failobj)
+
+    def pop(self, i):
+        self._p_changed = True
+        return self.__super_pop(i)
 
     def popitem(self):
         self._p_changed = True

@@ -67,6 +67,15 @@ class PersistentMapping(UserDict, persistent.Persistent):
         return self.__super_setdefault(key, failobj)
 
     try:
+        __super_pop = UserDict.pop
+    except AttributeError:
+        pass
+    else:
+        def pop(self, i):
+            self._p_changed = 1
+            return self.__super_pop(i)
+
+    try:
         __super_popitem = UserDict.popitem
     except AttributeError:
         pass
