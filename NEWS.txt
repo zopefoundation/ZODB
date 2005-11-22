@@ -1,19 +1,16 @@
-What's new in ZODB3 3.5.1?
+What's new in ZODB3 3.5.2?
 ==========================
-Release date: DD-MMM-2005
+Release date: DD-MMM-200Y
 
 Following is combined news from internal releases (to support ongoing
 Zope3 development).  These are the dates of the internal releases:
 
-- 3.5.1b3 DD-MMM-2005
-- 3.5.1b2 07-Sep-2005
-- 3.5.1b1 06-Sep-2005
-
+- 3.5.2b1 DD-MMM-200Y
 
 ZEO
 ---
 
-- (3.5.1b3) Collector 1900.  In some cases of pickle exceptions raised by
+- (3.5.2b1) Collector 1900.  In some cases of pickle exceptions raised by
   low-level ZEO communication code, callers of ``marshal.encode()`` could
   attempt to catch an exception that didn't actually exist, leading to an
   erroneous ``AttributeError`` exception.  Thanks to Tres Seaver for the
@@ -22,10 +19,21 @@ ZEO
 BaseStorage
 -----------
 
-- (3.5.1b3) Nothing done by ``tpc_abort()`` should raise an exception.
+- (3.5.2b1) Nothing done by ``tpc_abort()`` should raise an exception.
   However, if something does (an error case), ``BaseStorage.tpc_abort()``
   left the commit lock in the acquired state, causing any later attempt
   to commit changes hang.
+
+
+What's new in ZODB3 3.5.1?
+==========================
+Release date: 26-Sep-2005
+
+Following is combined news from internal releases (to support ongoing
+Zope3 development).  These are the dates of the internal releases:
+
+- 3.5.1b2 07-Sep-2005
+- 3.5.1b1 06-Sep-2005
 
 Build
 -----
