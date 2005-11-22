@@ -41,6 +41,8 @@ class PersistentMapping(UserDict, persistent.Persistent):
     __super_clear = UserDict.clear
     __super_update = UserDict.update
     __super_setdefault = UserDict.setdefault
+    __super_pop = UserDict.pop
+    __super_popitem = UserDict.popitem
 
     def __delitem__(self, key):
         self.__super_delitem(key)
@@ -66,14 +68,13 @@ class PersistentMapping(UserDict, persistent.Persistent):
             self._p_changed = 1
         return self.__super_setdefault(key, failobj)
 
-    try:
-        __super_popitem = UserDict.popitem
-    except AttributeError:
-        pass
-    else:
-        def popitem(self):
-            self._p_changed = 1
-            return self.__super_popitem()
+    def pop(self, key, *args):
+        self._p_changed = 1
+        return self.__super_pop(key, *args)
+
+    def popitem(self):
+        self._p_changed = 1
+        return self.__super_popitem()
 
     # __iter__ was added in ZODB 3.4.2, but should have been added long
     # before.  We could inherit from Python's IterableUserDict instead

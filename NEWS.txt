@@ -27,6 +27,9 @@ BaseStorage
 PersistentMapping
 -----------------
 
+- (3.5.2b1) The ``PersistentMapping`` makes changes by a ``pop()`` method call
+  persistent now.
+
 - (3.5.2b1) The ``PersistentMapping`` class has an ``__iter__()`` method
   now, so that objects of this type work well with Python's iteration
   protocol.  For example, if ``x`` is a ``PersistentMapping`` (or
