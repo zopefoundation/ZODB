@@ -73,9 +73,9 @@ class PersistentDict(persistent.Persistent, IterableUserDict):
             self._p_changed = True
         return self.__super_setdefault(key, failobj)
 
-    def pop(self, i):
+    def pop(self, key, *args):
         self._p_changed = True
-        return self.__super_pop(i)
+        return self.__super_pop(key, *args)
 
     def popitem(self):
         self._p_changed = True
