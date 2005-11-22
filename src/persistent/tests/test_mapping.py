@@ -1,6 +1,6 @@
 ##############################################################################
 #
-# Copyright (c) 2001, 2002 Zope Corporation and Contributors.
+# Copyright (c) 2005 Zope Corporation and Contributors.
 # All Rights Reserved.
 #
 # This software is subject to the provisions of the Zope Public License,
@@ -135,6 +135,9 @@ class TestPMapping(unittest.TestCase):
             pass
         else:
             raise TestFailed("1 should not be poppable from u2")
+
+        x = u2.pop(1, 7)
+        eq(x, 7, "u2.pop(1, 7) == 7")
 
         # Test popitem
 
