@@ -34,9 +34,13 @@ LIB_DIR = os.path.join("build", "lib.%s" % PLAT_SPEC)
 path = "src"
 if os.path.isdir(LIB_DIR):
     path = LIB_DIR
-print "Running tests from", path
+    print "Running tests from", path
 
-sys.path.append(path)
+# Insert the ZODB src dir first in the sys.path to avoid a name conflict
+# with zope.whatever librairies that might be installed on the Python
+# version used to launch these tests.
+sys.path.insert(0, path)
+
 from zope.testing import testrunner
 
 # Persistence/__init__.py generates a long warning message about the
