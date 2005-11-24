@@ -34,7 +34,7 @@ LIB_DIR = os.path.join("build", "lib.%s" % PLAT_SPEC)
 path = "src"
 if os.path.isdir(LIB_DIR):
     path = LIB_DIR
-    print "Running tests from", path
+print "Running tests from", path
 
 # Insert the ZODB src dir first in the sys.path to avoid a name conflict
 # with zope.whatever librairies that might be installed on the Python
