@@ -31,7 +31,7 @@ class POSKeyError(KeyError, POSError):
         return oid_repr(self.args[0])
 
 class TransactionError(POSError):
-    """An error occured due to normal transaction processing."""
+    """An error occurred due to normal transaction processing."""
 
 class TransactionFailedError(POSError):
     """Cannot perform an operation on a transaction that previously failed.
@@ -252,7 +252,7 @@ class UndoError(POSError):
         return _fmt_undo(self._oid, self._reason)
 
 class MultipleUndoErrors(UndoError):
-    """Several undo errors occured during a single transaction."""
+    """Several undo errors occurred during a single transaction."""
 
     def __init__(self, errs):
         # provide a reason and oid for clients that only look at that

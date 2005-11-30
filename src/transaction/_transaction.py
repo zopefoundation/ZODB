@@ -443,7 +443,7 @@ class Transaction(object):
                 # TODO: do we need to make this warning stronger?
                 # TODO: It would be nice if the system could be configured
                 # to stop committing transactions at this point.
-                self.log.critical("A storage error occured during the second "
+                self.log.critical("A storage error occurred during the second "
                                   "phase of the two-phase commit.  Resources "
                                   "may be in an inconsistent state.")
                 raise
