@@ -890,7 +890,7 @@ class FileStorage(BaseStorage.BaseStorage,
                 self._file.write(p64(tl))
                 self._file.flush()
             except:
-                # Hm, an error occured writing out the data. Maybe the
+                # Hm, an error occurred writing out the data. Maybe the
                 # disk is full. We don't want any turd at the end.
                 self._file.truncate(self._pos)
                 raise
