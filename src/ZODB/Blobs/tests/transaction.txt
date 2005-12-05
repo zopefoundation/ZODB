@@ -109,6 +109,8 @@ aborted above, so the object should be "clean" when we start):
 
     >>> bool(blob1a._p_changed)
     False
+    >>> blob1a.open('r').read()
+    'this is blob 1'
     >>> blob1afh3 = blob1a.open('a')
     >>> blob1afh3.write('woot!')
     >>> blob1a._p_blob_refcounts()
@@ -124,6 +126,8 @@ transaction:
     >>> root2['blob2'] = blob2
     >>> transaction.commit()
     >>> blob2._p_blob_refcounts()
+    (0, 0)
+    >>> blob1._p_blob_refcounts()
     (0, 0)
 
 Since we committed the current transaction above, the aggregate

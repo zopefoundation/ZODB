@@ -2,7 +2,6 @@
 import os
 import time
 import tempfile
-import weakref
 
 from zope.interface import implements
 
@@ -21,6 +20,11 @@ class Blob(Persistent):
     _p_blob_writers = 0
     _p_blob_uncommitted = None
     _p_blob_data = None
+
+    # All persistent object store a reference to their data manager, a database
+    # connection in the _p_jar attribute. So we are going to do the same with
+    # blobs here.
+    _p_blob_manager = None
 
     def open(self, mode="r"):
         """ Returns a file(-like) object representing blob data.  This
@@ -86,8 +90,14 @@ class Blob(Persistent):
             # counts that keep track of open readers and writers and
             # close any writable filehandles we've opened.
 
-            dm = BlobDataManager(self, result)
-            transaction.get().register(dm)
+            if self._p_blob_manager is None:
+                dm = BlobDataManager(self, result)
+                transaction.get().register(dm)
+            else:
+                # each blob data manager should manage only the one blob
+                # assert that this is the case and it is the correct blob
+                assert self._p_blob_manager.blob is self
+                self._p_blob_manager.register_fh(result)
 
         return result
 
@@ -144,9 +154,13 @@ class BlobDataManager:
         # we keep a weakref to the file handle because we don't want to
         # keep it alive if all other references to it die (e.g. in the
         # case it's opened without assigning it to a name).
-        self.fhref = weakref.ref(filehandle)
+        self.fhrefs = utils.WeakSet()
+        self.register_fh(filehandle)
         self.subtransaction = False
         self.sortkey = time.time()
+
+    def register_fh(self, filehandle):
+        self.fhrefs.add(filehandle)
 
     def abort_sub(self, transaction):
         pass
@@ -169,16 +183,15 @@ class BlobDataManager:
     def commit(self, object, transaction):
         if not self.subtransaction:
             self.blob._p_blob_clear() # clear all blob refcounts
-            filehandle = self.fhref()
-            if filehandle is not None:
-                filehandle.close()
+            self.fhrefs.map(lambda fhref: fhref.close())
 
     def abort(self, object, transaction):
         if not self.subtransaction:
             self.blob._p_blob_clear()
-            filehandle = self.fhref()
-            if filehandle is not None:
-                filehandle.close()
+            self.fhrefs.map(lambda fhref: fhref.close())
+            if self.blob._p_blob_uncommitted is not None and \
+               os.path.exists(self.blob._p_blob_uncommitted):
+                os.unlink(self.blob._p_blob_uncommitted)
 
     def sortKey(self):
         return self.sortkey
