@@ -558,7 +558,13 @@ class Connection(ExportImport, object):
                 self._modified.append(oid)
             p = writer.serialize(obj)  # This calls __getstate__ of obj
 
-            if IBlob.providedBy(obj):
+            # This is a workaround to calling IBlob.proivdedBy(obj). Calling
+            # Interface.providedBy on a object to be stored can invertible
+            # set the '__providedBy__' and '__implemented__' attributes on the
+            # object. This interferes the storing of the object by requesting
+            # that the values of these objects should be stored with the ZODB.
+            providedBy = getattr(obj, '__providedBy__', None)
+            if providedBy is not None and IBlob in providedBy:
                 if not IBlobStorage.providedBy(self._storage):
                     raise Unsupported(
                         "Storing Blobs in %s is not supported." % 
@@ -811,7 +817,8 @@ class Connection(ExportImport, object):
         obj._p_serial = serial
 
         # Blob support
-        if IBlob.providedBy(obj):
+        providedBy = getattr(obj, '__providedBy__', None)
+        if providedBy is not None and IBlob in providedBy:
             obj._p_blob_uncommitted = None
             obj._p_blob_data = \
                     self._storage.loadBlob(obj._p_oid, serial, self._version)
