@@ -1,10 +1,11 @@
 What's new in ZODB3 3.6b5?
 ==========================
-Release date: 04-Dec-2005
+Release date: DD-MMM-2005
 
 Following is combined news from internal releases (to support ongoing
 Zope3 development).  These are the dates of the internal releases:
 
+- 3.6b5 DD-MMM-2005
 - 3.6b4 04-Dec-2005
 - 3.6b3 06-Nov-2005
 - 3.6b2 25-Oct-2005
@@ -67,6 +68,9 @@ Persistent
   return ``None``.  Starting with ZODB 3.6, ``obj`` is activated instead
   (unghostified), and its state is changed from the ghost state to the
   changed state.  The new behavior is less surprising and more robust.
+
+- (3.6b5) The documentation for ``_p_oid`` now specifies the concrete
+  type of oids (in short, an oid is either None or a non-empty string).
 
 Commit hooks
 ------------

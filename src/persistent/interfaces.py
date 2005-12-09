@@ -167,7 +167,9 @@ class IPersistent(Interface):
 
         It is up to the data manager to assign this.
         The special value None is reserved to indicate that an object
-        id has not been assigned.  Non-None object ids must be strings.
+        id has not been assigned.  Non-None object ids must be non-empty
+        strings.  The 8-byte string '\0'*8 (8 NUL bytes) is reserved to
+        identify the database root object.
         """)
 
     _p_changed = Attribute(
