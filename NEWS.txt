@@ -15,6 +15,12 @@ Documentation
 - (3.7a1) Thanks to Stephan Richter for converting many of the doctest
   files to ReST format.  These are now chapters in the Zope 3 apidoc too.
 
+IPersistent
+-----------
+
+- (3.7a1) The documentation for ``_p_oid`` now specifiies the concrete
+  type of oids (in short, an oid is either None or a non-empty string).
+
 
 What's new in ZODB3 3.6b3?
 ==========================
