@@ -18,7 +18,7 @@ Documentation
 IPersistent
 -----------
 
-- (3.7a1) The documentation for ``_p_oid`` now specifiies the concrete
+- (3.7a1) The documentation for ``_p_oid`` now specifies the concrete
   type of oids (in short, an oid is either None or a non-empty string).
 
 
