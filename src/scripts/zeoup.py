@@ -27,6 +27,7 @@ You must specify either -p and -h or -U.
 """
 
 import getopt
+import logging
 import socket
 import sys
 import time
@@ -40,6 +41,18 @@ from ZODB.tests.MinPO import MinPO
 from ZEO.ClientStorage import ClientStorage
 
 ZEO_VERSION = 2
+
+def setup_logging():
+    # Set up logging to stderr which will show messages originating
+    # at severity ERROR or higher.
+    root = logging.getLogger()
+    root.setLevel(logging.ERROR)
+    fmt = logging.Formatter(
+        "------\n%(asctime)s %(levelname)s %(name)s %(message)s",
+        "%Y-%m-%dT%H:%M:%S")
+    handler = logging.StreamHandler()
+    handler.setFormatter(fmt)
+    root.addHandler(handler)
 
 def check_server(addr, storage, write):
     t0 = time.time()
@@ -122,6 +135,7 @@ def main():
             usage()
         addr = host, port
 
+    setup_logging()
     check_server(addr, storage, write)
 
 if __name__ == "__main__":
