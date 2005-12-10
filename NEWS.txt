@@ -13,6 +13,13 @@ PersistentMapping
 - (3.4.3b1) The ``PersistentMapping`` makes changes by a ``pop()`` method call
   persistent now.
 
+Tools
+-----
+
+- (3.4.3b1) The changeover from zLOG to the logging module means that some
+  tools need to perform minimal logging configuration themselves. Changed
+  the zeoup script to do so and thus enable it to emit error messages.
+
 
 What's new in ZODB3 3.4.2?
 ==========================
