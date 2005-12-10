@@ -21,6 +21,13 @@ IPersistent
 - (3.7a1) The documentation for ``_p_oid`` now specifies the concrete
   type of oids (in short, an oid is either None or a non-empty string).
 
+Tools
+-----
+
+- (3.7a1) The changeover from zLOG to the logging module means that some
+  tools need to perform minimal logging configuration themselves. Changed
+  the zeoup script to do so and thus enable it to emit error messages.
+
 
 What's new in ZODB3 3.6b3?
 ==========================
