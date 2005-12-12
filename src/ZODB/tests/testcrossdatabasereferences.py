@@ -56,7 +56,7 @@ database open function, but this doesn't work:
     Traceback (most recent call last):
     ...
     InvalidObjectReference: Attempt to store a reference to an object
-    from a separate onnection to the same database or multidatabase
+    from a separate connection to the same database or multidatabase
 
     >>> tm.abort()
 
@@ -72,7 +72,7 @@ different connections to the same database.
     Traceback (most recent call last):
     ...
     InvalidObjectReference: Attempt to store a reference to an object
-    from a separate onnection to the same database or multidatabase
+    from a separate connection to the same database or multidatabase
 
     >>> tm.abort()
 
