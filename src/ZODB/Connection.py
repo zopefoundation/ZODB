@@ -125,6 +125,9 @@ class Connection(ExportImport, object):
         # will execute atomically by virtue of the GIL.  But some storage
         # might generate oids where hash or compare invokes Python code.  In
         # that case, the GIL can't save us.
+        # Note:  since that was written, it was officially declared that the
+        # type of an oid is str.  TODO:  remove the related now-unnecessary
+        # critical sections (if any -- this needs careful thought).
 
         self._inv_lock = threading.Lock()
         self._invalidated = d = {}
