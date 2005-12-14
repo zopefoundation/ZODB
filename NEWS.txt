@@ -45,6 +45,12 @@ Tools
   tools need to perform minimal logging configuration themselves. Changed
   the zeoup script to do so and thus enable it to emit error messages.
 
+Connection
+----------
+
+- (3.5.2b1) An optimization for loading non-current data (MVCC) was
+  inadvertently disabled in ``_setstate()``; this has been repaired.
+
 
 What's new in ZODB3 3.5.1?
 ==========================

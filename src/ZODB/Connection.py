@@ -619,8 +619,8 @@ class Connection(ExportImport, object):
 
         self._storage.tpc_abort(transaction)
 
-        # Note: If we invalidate a non-justifiable object (i.e. a
-        # persistent class), the object will immediately reread it's
+        # Note: If we invalidate a non-ghostifiable object (i.e. a
+        # persistent class), the object will immediately reread its
         # state.  That means that the following call could result in a
         # call to self.setstate, which, of course, must succeed.  In
         # general, it would be better if the read could be delayed
@@ -759,10 +759,8 @@ class Connection(ExportImport, object):
         # dict update could go on in another thread, but we don't care
         # because we have to check again after the load anyway.
 
-        if (obj._p_oid in self._invalidated
-            and not myhasattr(obj, "_p_independent")
-            and not self._invalidated
-            ):
+        if (obj._p_oid in self._invalidated and
+                not myhasattr(obj, "_p_independent")):
             # If the object has _p_independent(), we will handle it below.
             self._load_before_or_conflict(obj)
             return
