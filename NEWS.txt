@@ -154,6 +154,12 @@ ZopeUndo
   a acl_users path together with a username (separated by a space) and this
   previous fix failed to take this into account.
 
+Connection
+----------
+
+- (3.6b5) An optimization for loading non-current data (MVCC) was
+  inadvertently disabled in ``_setstate()``; this has been repaired.
+
 Documentation
 -------------
 
