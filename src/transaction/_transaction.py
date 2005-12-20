@@ -115,6 +115,19 @@ pre-commit hook is available for such use cases:  use addBeforeCommitHook(),
 passing it a callable and arguments.  The callable will be called with its
 arguments at the start of the commit (but not for substransaction commits).
 
+After-commit hook
+------------------
+
+Sometimes, applications want to execute some code after a transaction
+is committed. For example, one might want to launch non transactional
+code after a successful commit. Or someone might want to launch
+asynchronous.  A post-commit hook is available for such use cases: use
+addAfterCommitHook(), passing it a callable and arguments.  The
+callable will be called with a Boolean value representing the status
+of the commit operation as first argument (true if successfull or
+false iff aborted) preceding its arguments at the start of the commit
+(but not for substransaction commits).
+
 Error handling
 --------------
 
@@ -178,7 +191,7 @@ class Status:
 
     COMMITTING   = "Committing"
     COMMITTED    = "Committed"
-
+    
     # commit() or commit(True) raised an exception.  All further attempts
     # to commit or join this transaction will raise TransactionFailedError.
     COMMITFAILED = "Commit failed"
@@ -240,6 +253,9 @@ class Transaction(object):
 
         # List of (hook, args, kws) tuples added by addBeforeCommitHook().
         self._before_commit = []
+
+        # List of (hook, args, kws) tuples added by addAfterCommitHook().
+        self._after_commit = []
 
     # Raise TransactionFailedError, due to commit()/join()/register()
     # getting called when the current transaction has already suffered
@@ -376,16 +392,21 @@ class Transaction(object):
 
         try:
             self._commitResources()
+            self.status = Status.COMMITTED
         except:
-            self._saveCommitishError() # This raises!
-
-        self.status = Status.COMMITTED
-        if self._manager:
-            self._manager.free(self)
-        self._synchronizers.map(lambda s: s.afterCompletion(self))
+            t, v, tb = self._getCommitishError()
+            # XXX should we catch the exceptions ?
+            self._callAfterCommitHooks(status=False)
+            raise t, v, tb
+        else:
+            if self._manager:
+                self._manager.free(self)
+            self._synchronizers.map(lambda s: s.afterCompletion(self))
+            # XXX should we catch the exceptions ?
+            self._callAfterCommitHooks(status=True)
         self.log.debug("commit")
 
-    def _saveCommitishError(self):
+    def _getCommitishError(self):
         self.status = Status.COMMITFAILED
         # Save the traceback for TransactionFailedError.
         ft = self._failure_traceback = StringIO()
@@ -396,6 +417,11 @@ class Transaction(object):
         traceback.print_tb(tb, None, ft)
         # Append the exception type and value.
         ft.writelines(traceback.format_exception_only(t, v))
+        return (t, v, tb)
+
+    def _saveCommitishError(self):
+        # XXX this should probably
+        t, v, tb = self._getCommitishError()
         raise t, v, tb
 
     def getBeforeCommitHooks(self):
@@ -420,6 +446,41 @@ class Transaction(object):
         for hook, args, kws in self._before_commit:
             hook(*args, **kws)
         self._before_commit = []
+
+    def getAfterCommitHooks(self):
+        return iter(self._after_commit)
+
+    def addAfterCommitHook(self, hook, args=(), kws=None):
+        if kws is None:
+            kws = {}
+        self._after_commit.append((hook, tuple(args), kws))
+
+    def _callAfterCommitHooks(self, status=True):
+        # Call all hooks registered, allowing further registrations
+        # during processing.  Note that calls to addAterCommitHook() may
+        # add additional hooks while hooks are running, and iterating over a
+        # growing list is well-defined in Python.
+        for hook, args, kws in self._after_commit:
+            # The first argument passed to the hook is a Boolean value,
+            # true if the commit succeeded, or false if the commit aborted.
+            args = (status,) + args
+            # XXX should we catch exceptions ? or at commit() level ? 
+            hook(*args, **kws)
+        self._after_commit = []
+        # The transaction is already committed. It must not have
+        # further effects after the commit.
+        for rm in self._resources:
+            if hasattr(rm, 'objects'):
+                # `MultiObjectRessourceAdapter` instance
+                # XXX I'm not sure if this is enough ? 
+                rm.objects = []
+            else:
+                # `Connection` instance
+                # XXX this has side effects on third party code tests that
+                # try to introspect the aborted objects.
+                rm.abort(self)
+        self._before_commit = []
+        # XXX do we need to cleanup some more ?
 
     def _commitResources(self):
         # Execute the two-phase commit protocol.

@@ -232,6 +232,43 @@ class ITransaction(zope.interface.Interface):
         by a top-level transaction commit.
         """
 
+    def addAfterCommitHook(hook, args=(), kws=None):
+         """Register a hook to call after a transaction commit attempt.
+         
+         The specified hook function will be called after the transaction
+         commit succeeds or aborts.  The first argument passed to the hook
+         is a Boolean value, true if the commit succeeded, or false if the
+         commit aborted.  `args` specifies additional positional, and `kws`
+         keyword, arguments to pass to the hook.  `args` is a sequence of
+         positional arguments to be passed, defaulting to an empty tuple
+         (only the true/false success argument is passed).  `kws` is a
+         dictionary of keyword argument names and values to be passed, or
+         the default None (no keyword arguments are passed).
+         
+         Multiple hooks can be registered and will be called in the order they
+         were registered (first registered, first called).  This method can
+         also be called from a hook:  an executing hook can register more
+         hooks.  Applications should take care to avoid creating infinite loops
+         by recursively registering hooks.
+         
+         Hooks are called only for a top-level commit.  A subtransaction
+         commit or savepoint creation does not call any hooks.  Calling a
+         hook "consumes" its registration:  hook registrations do not
+         persist across transactions.  If it's desired to call the same
+         hook on every transaction commit, then addAfterCommitHook() must be
+         called with that hook during every transaction; in such a case
+         consider registering a synchronizer object via a TransactionManager's
+         registerSynch() method instead.
+         """
+
+    def getAfterCommitHooks():
+        """Return iterable producing the registered addAfterCommit hooks.
+
+        A triple (hook, args, kws) is produced for each registered hook.
+        The hooks are produced in the order in which they would be invoked
+        by a top-level transaction commit.
+        """
+
 class ITransactionDeprecated(zope.interface.Interface):
     """Deprecated parts of the transaction API."""
 
