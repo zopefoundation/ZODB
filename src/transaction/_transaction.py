@@ -407,6 +407,7 @@ class Transaction(object):
         self.log.debug("commit")
 
     def _getCommitishError(self):
+        # XXX this should probably be renamed
         self.status = Status.COMMITFAILED
         # Save the traceback for TransactionFailedError.
         ft = self._failure_traceback = StringIO()
@@ -420,7 +421,7 @@ class Transaction(object):
         return (t, v, tb)
 
     def _saveCommitishError(self):
-        # XXX this should probably
+        # XXX this should probably be renamed
         t, v, tb = self._getCommitishError()
         raise t, v, tb
 
