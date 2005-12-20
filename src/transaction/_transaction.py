@@ -191,7 +191,7 @@ class Status:
 
     COMMITTING   = "Committing"
     COMMITTED    = "Committed"
-    
+
     # commit() or commit(True) raised an exception.  All further attempts
     # to commit or join this transaction will raise TransactionFailedError.
     COMMITFAILED = "Commit failed"
@@ -461,28 +461,23 @@ class Transaction(object):
         # during processing.  Note that calls to addAterCommitHook() may
         # add additional hooks while hooks are running, and iterating over a
         # growing list is well-defined in Python.
+        if not self._after_commit:
+            return
         for hook, args, kws in self._after_commit:
             # The first argument passed to the hook is a Boolean value,
             # true if the commit succeeded, or false if the commit aborted.
             args = (status,) + args
-            # XXX should we catch exceptions ? or at commit() level ? 
+            # XXX should we catch exceptions ? or at commit() level ?
             hook(*args, **kws)
         self._after_commit = []
         # The transaction is already committed. It must not have
         # further effects after the commit.
         for rm in self._resources:
-            if hasattr(rm, 'objects'):
-                # `MultiObjectRessourceAdapter` instance
-                # XXX I'm not sure if this is enough ? 
-                rm.objects = []
-            else:
-                # `Connection` instance
-                # XXX this has side effects on third party code tests that
-                # try to introspect the aborted objects.
-                rm.abort(self)
+            # XXX is it ok for every ressource managers ?
+            rm.abort(self)
         self._before_commit = []
         # XXX do we need to cleanup some more ?
-
+        
     def _commitResources(self):
         # Execute the two-phase commit protocol.
 
