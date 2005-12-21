@@ -405,7 +405,7 @@ class Transaction(object):
             # XXX should we catch the exceptions ?
             self._callAfterCommitHooks(status=True)
         self.log.debug("commit")
-
+    
     def _saveAndGetCommitishError(self):
         self.status = Status.COMMITFAILED
         # Save the traceback for TransactionFailedError.
@@ -465,8 +465,13 @@ class Transaction(object):
             # The first argument passed to the hook is a Boolean value,
             # true if the commit succeeded, or false if the commit aborted.
             args = (status,) + args
-            # XXX should we catch exceptions ? or at commit() level ?
-            hook(*args, **kws)
+            try:
+                hook(*args, **kws)
+            except:
+                # We need to catch the exceptions if we want all hooks
+                # to be called
+                self.log.error("Error in after commit hook exec in %s ",
+                               hook, exc_info=sys.exc_info())
         self._after_commit = []
         # The transaction is already committed. It must not have
         # further effects after the commit.
@@ -474,7 +479,6 @@ class Transaction(object):
             # XXX is it ok for every ressource managers ?
             rm.abort(self)
         self._before_commit = []
-        # XXX do we need to cleanup some more ?
         
     def _commitResources(self):
         # Execute the two-phase commit protocol.

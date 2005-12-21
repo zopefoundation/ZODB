@@ -875,6 +875,26 @@ def test_addAfterCommitHook():
 
     TODO
 
+    If an after commit hook is raising an exception then it will log a
+    message at error level so that if other hooks are registred they
+    can be executed. We don't support execution dependencies at this level.
+
+      >>> mgr = transaction.TransactionManager()
+      >>> do = DataObject(mgr)
+
+      >>> def hookRaise(status, arg='no_arg', kw1='no_kw1', kw2='no_kw2'):
+      ...     raise TypeError("Fake raise")
+
+      >>> t = transaction.begin()
+
+      >>> t.addAfterCommitHook(hook, ('-', 1))
+      >>> t.addAfterCommitHook(hookRaise, ('-', 2))
+      >>> t.addAfterCommitHook(hook, ('-', 3))
+      >>> transaction.commit()
+
+      >>> log
+      ["True arg '-' kw1 1 kw2 'no_kw2'", "True arg '-' kw1 3 kw2 'no_kw2'"]
+
     """
        
 def test_suite():
