@@ -463,9 +463,8 @@ class Transaction(object):
         for hook, args, kws in self._after_commit:
             # The first argument passed to the hook is a Boolean value,
             # true if the commit succeeded, or false if the commit aborted.
-            args = (status,) + args
             try:
-                hook(*args, **kws)
+                hook(status, *args, **kws)
             except:
                 # We need to catch the exceptions if we want all hooks
                 # to be called
@@ -476,7 +475,7 @@ class Transaction(object):
         for rm in self._resources:
             try:
                 rm.abort(self)
-            except Exception:
+            except:
                 # XXX should we take further actions here ?
                 self.log.error("Error in abort() on manager %s",
                                rm, exc_info=sys.exc_info())
