@@ -1,6 +1,6 @@
 ##############################################################################
 #
-# Copyright (c) 2001, 2002 Zope Corporation and Contributors.
+# Copyright (c) 2001, 2002, 2005 Zope Corporation and Contributors.
 # All Rights Reserved.
 #
 # This software is subject to the provisions of the Zope Public License,
@@ -11,7 +11,7 @@
 # FOR A PARTICULAR PURPOSE
 #
 ##############################################################################
-"""Test tranasction behavior for variety of cases.
+"""Test transaction behavior for variety of cases.
 
 I wrote these unittests to investigate some odd transaction
 behavior when doing unittests of integrating non sub transaction
@@ -240,7 +240,6 @@ class TransactionTests(unittest.TestCase):
             pass
 
         assert self.nosub1._p_jar.ctpc_abort == 1
-
 
     # last test, check the hosing mechanism
 
@@ -728,6 +727,44 @@ def test_addBeforeCommitHook():
                "arg '-' kw1 'no_kw1' kw2 'no_kw2'",
        'rec0']
       >>> reset_log()
+
+    When modifing persitent objects within before commit hooks
+    modifies the objects, of course :)
+    
+    Start a new transaction
+
+      >>> t = transaction.begin()
+
+    Create a DB instance and add a IOBTree within
+
+      >>> from ZODB.tests.util import DB
+      >>> from ZODB.tests.util import P
+      >>> db = DB()
+      >>> con = db.open()
+      >>> root = con.root()
+      >>> root['p'] = P('julien')
+      >>> p = root['p']
+
+      >>> p.name
+      'julien'
+      
+    This hook will get the object from the `DB` instance and change
+    the flag attribute.
+
+      >>> def hookmodify(status, arg=None, kw1='no_kw1', kw2='no_kw2'):
+      ...     p.name = 'jul'
+
+    Now register this hook and commit.
+
+      >>> t.addBeforeCommitHook(hookmodify, (p, 1))
+      >>> transaction.commit()
+
+    Nothing should have changed since it should have been aborted.
+
+      >>> p.name
+      'jul'
+
+      >>> db.close()
     """
 
 def test_addAfterCommitHook():
@@ -869,14 +906,8 @@ def test_addAfterCommitHook():
        'rec0']
       >>> reset_log()
 
-    The transaction is already committed when the after commit hooks
-    will be executed. Executing the hooks must not have further
-    effects.
-
-    TODO
-
     If an after commit hook is raising an exception then it will log a
-    message at error level so that if other hooks are registred they
+    message at error level so that if other hooks are registered they
     can be executed. We don't support execution dependencies at this level.
 
       >>> mgr = transaction.TransactionManager()
@@ -897,8 +928,8 @@ def test_addAfterCommitHook():
 
       >>> reset_log()
 
-    Test that the assiated transaction manager has been cleanup when
-    after commit hooks are registred
+    Test that the associated transaction manager has been cleanup when
+    after commit hooks are registered
 
       >>> mgr = transaction.TransactionManager()
       >>> do = DataObject(mgr)
@@ -917,6 +948,46 @@ def test_addAfterCommitHook():
       0
 
       >>> reset_log()
+
+
+    The transaction is already committed when the after commit hooks
+    will be executed. Executing the hooks must not have further
+    effects on persistent objects.
+
+    Start a new transaction
+
+      >>> t = transaction.begin()
+
+    Create a DB instance and add a IOBTree within
+
+      >>> from ZODB.tests.util import DB
+      >>> from ZODB.tests.util import P
+      >>> db = DB()
+      >>> con = db.open()
+      >>> root = con.root()
+      >>> root['p'] = P('julien')
+      >>> p = root['p']
+
+      >>> p.name
+      'julien'
+      
+    This hook will get the object from the `DB` instance and change
+    the flag attribute.
+
+      >>> def badhook(status, arg=None, kw1='no_kw1', kw2='no_kw2'):
+      ...     p.name = 'jul'
+
+    Now register this hook and commit.
+
+      >>> t.addAfterCommitHook(badhook, (p, 1))
+      >>> transaction.commit()
+
+    Nothing should have changed since it should have been aborted.
+
+      >>> p.name
+      'julien'
+
+      >>> db.close()
 
     """
 
