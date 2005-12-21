@@ -395,14 +395,12 @@ class Transaction(object):
             self.status = Status.COMMITTED
         except:
             t, v, tb = self._saveAndGetCommitishError()
-            # XXX should we catch the exceptions ?
             self._callAfterCommitHooks(status=False)
             raise t, v, tb
         else:
             if self._manager:
                 self._manager.free(self)
             self._synchronizers.map(lambda s: s.afterCompletion(self))
-            # XXX should we catch the exceptions ?
             self._callAfterCommitHooks(status=True)
         self.log.debug("commit")
 
