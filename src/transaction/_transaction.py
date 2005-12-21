@@ -405,7 +405,7 @@ class Transaction(object):
             # XXX should we catch the exceptions ?
             self._callAfterCommitHooks(status=True)
         self.log.debug("commit")
-    
+
     def _saveAndGetCommitishError(self):
         self.status = Status.COMMITFAILED
         # Save the traceback for TransactionFailedError.
@@ -455,12 +455,13 @@ class Transaction(object):
         self._after_commit.append((hook, tuple(args), kws))
 
     def _callAfterCommitHooks(self, status=True):
+        # Avoid to abort anything at the end if no hooks are registred.
+        if not self._after_commit:
+            return
         # Call all hooks registered, allowing further registrations
         # during processing.  Note that calls to addAterCommitHook() may
         # add additional hooks while hooks are running, and iterating over a
         # growing list is well-defined in Python.
-        if not self._after_commit:
-            return
         for hook, args, kws in self._after_commit:
             # The first argument passed to the hook is a Boolean value,
             # true if the commit succeeded, or false if the commit aborted.
@@ -472,14 +473,18 @@ class Transaction(object):
                 # to be called
                 self.log.error("Error in after commit hook exec in %s ",
                                hook, exc_info=sys.exc_info())
-        self._after_commit = []
         # The transaction is already committed. It must not have
         # further effects after the commit.
         for rm in self._resources:
-            # XXX is it ok for every ressource managers ?
-            rm.abort(self)
+            try:
+                rm.abort(self)
+            except Exception:
+                # XXX should we take further actions here ?
+                self.log.error("Error in abort() on manager %s",
+                               rm, exc_info=sys.exc_info())
+        self._after_commit = []
         self._before_commit = []
-        
+
     def _commitResources(self):
         # Execute the two-phase commit protocol.
 
