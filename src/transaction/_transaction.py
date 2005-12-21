@@ -308,7 +308,7 @@ class Transaction(object):
             savepoint = Savepoint(self, optimistic, *self._resources)
         except:
             self._cleanup(self._resources)
-            self._saveCommitishError() # reraises!
+            self._saveAndRaiseCommitishError() # reraises!
 
         if self._savepoint2index is None:
             self._savepoint2index = weakref.WeakKeyDictionary()
@@ -394,7 +394,7 @@ class Transaction(object):
             self._commitResources()
             self.status = Status.COMMITTED
         except:
-            t, v, tb = self._getCommitishError()
+            t, v, tb = self._saveAndGetCommitishError()
             # XXX should we catch the exceptions ?
             self._callAfterCommitHooks(status=False)
             raise t, v, tb
@@ -406,8 +406,7 @@ class Transaction(object):
             self._callAfterCommitHooks(status=True)
         self.log.debug("commit")
 
-    def _getCommitishError(self):
-        # XXX this should probably be renamed
+    def _saveAndGetCommitishError(self):
         self.status = Status.COMMITFAILED
         # Save the traceback for TransactionFailedError.
         ft = self._failure_traceback = StringIO()
@@ -418,11 +417,10 @@ class Transaction(object):
         traceback.print_tb(tb, None, ft)
         # Append the exception type and value.
         ft.writelines(traceback.format_exception_only(t, v))
-        return (t, v, tb)
+        return t, v, tb
 
-    def _saveCommitishError(self):
-        # XXX this should probably be renamed
-        t, v, tb = self._getCommitishError()
+    def _saveAndRaiseCommitishError(self):
+        t, v, tb = self._saveAndGetCommitishError()
         raise t, v, tb
 
     def getBeforeCommitHooks(self):
@@ -744,7 +742,7 @@ class Savepoint:
                 savepoint.rollback()
         except:
             # Mark the transaction as failed.
-            transaction._saveCommitishError() # reraises!
+            transaction._saveAndRaiseCommitishError() # reraises!
 
 class AbortSavepoint:
 
