@@ -895,6 +895,8 @@ def test_addAfterCommitHook():
       >>> log
       ["True arg '-' kw1 1 kw2 'no_kw2'", "True arg '-' kw1 3 kw2 'no_kw2'"]
 
+      >>> reset_log()
+
     Test that the assiated transaction manager has been cleanup when
     after commit hooks are registred
 
@@ -908,8 +910,13 @@ def test_addAfterCommitHook():
       >>> t.addAfterCommitHook(hook, ('-', 1))
       >>> transaction.commit()
 
+      >>> log
+      ["True arg '-' kw1 1 kw2 'no_kw2'"]
+
       >>> len(t._manager._txns)
       0
+
+      >>> reset_log()
 
     """
 
