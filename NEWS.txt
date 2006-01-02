@@ -80,6 +80,20 @@ Commit hooks
   ``beforeCommitHook()`` is now deprecated, and will be removed in ZODB 3.8.
   Thanks to Julien Anguenot for contributing code and tests.
 
+Connection management
+---------------------
+
+- (3.6b6) When more than ``pool_size`` connections have been closed,
+  ``DB`` forgets the excess (over ``pool_size``) connections closed first.
+  Python's cyclic garbage collection can take "a long time" to reclaim them
+  (and may in fact never reclaim them if application code keeps strong
+  references to them), but such forgotten connections can never be opened
+  again, so their caches are now cleared at the time ``DB`` forgets them.
+  Most applications won't notice a difference, but applications that open
+  many connections, and/or store many large objects in connection caches,
+  and/or store limited resources (such as RDB connections) in connection
+  caches may benefit.
+
 ZEO
 ---
 
