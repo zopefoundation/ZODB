@@ -1,10 +1,11 @@
-What's new in ZODB3 3.6b6?
+What's new in ZODB3 3.6b7?
 ==========================
-Release date: DD-MMM-2005
+Release date: DD-MMM-2006
 
 Following is combined news from internal releases (to support ongoing
 Zope3 development).  These are the dates of the internal releases:
 
+- 3.6b6 01-Jan-2006
 - 3.6b5 18-Dec-2005
 - 3.6b4 04-Dec-2005
 - 3.6b3 06-Nov-2005
