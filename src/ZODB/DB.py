@@ -118,6 +118,19 @@ class _ConnectionPool(object):
         while len(self.available) > target:
             c = self.available.pop(0)
             self.all.remove(c)
+            # While application code may still hold a reference to `c`,
+            # there's little useful that can be done with this Connection
+            # anymore.  Its cache may be holding on to limited resources,
+            # and we replace the cache with an empty one now so that we
+            # don't have to wait for gc to reclaim it.  Note that it's not
+            # possible for DB.open() to return `c` again:  `c` can never
+            # be in an open state again.
+            # TODO:  Perhaps it would be better to break the reference
+            # cycles between `c` and `c._cache`, so that refcounting reclaims
+            # both right now.  But if user code _does_ have a strong
+            # reference to `c` now, breaking the cycle would not reclaim `c`
+            # now, and `c` would be left in a user-visible crazy state.
+            c._resetCache()
 
     # Pop an available connection and return it, or return None if none are
     # available.  In the latter case, the caller should create a new
@@ -527,7 +540,7 @@ class DB(object):
 
             # Tell the connection it belongs to self.
             result.open(transaction_manager, mvcc, synch)
-            
+
             # A good time to do some cache cleanup.
             self._connectionMap(lambda c: c.cacheGC())
 
