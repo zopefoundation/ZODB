@@ -46,3 +46,15 @@ Connection
 
 - (3.7a1) An optimization for loading non-current data (MVCC) was
   inadvertently disabled in ``_setstate()``; this has been repaired.
+
+After Commit hooks
+------------------
+
+- (3.7a1) Transaction objects have a new method,
+  ``addAfterCommitHook(hook, *args, **kws)``.  Hook functions
+  registered with a transaction are called after the transaction
+  commits or aborts. For example, one might want to launch non
+  transactional or asynchrnonous code after a successful, or aborted,
+  commit. See ``test_afterCommitHook()`` in
+  ``transaction/tests/test_transaction.py`` for a tutorial doctest,
+  and the ``ITransaction`` interface for details.
