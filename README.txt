@@ -32,8 +32,8 @@ ZODB 3.6 requires Python 2.3.4 or later.  For best results, we recommend
 Python 2.4.2 or later.
 
 The Zope 2.9 and Zope 3.2 releases include this version of ZODB.  Note that
-Zope 2.7 and higher include ZEO, so this package should only be needed to
-run a ZEO server.
+they require Python 2.4.1 or later.  Note that Zope 2.7 and higher include
+ZEO, so this package should only be needed to run a ZEO server.
 
 ZEO servers and clients are wholly compatible among 3.3, 3.3.1, 3.4, 3.5,
 and 3.6; a ZEO client from any of those versions can talk with a ZEO server
