@@ -34,7 +34,7 @@ import zpkgsetup.publication
 import zpkgsetup.setup
 
 # Note that release.py must be able to recognize the VERSION line.
-VERSION = "3.6.0b6"
+VERSION = "3.6.0"
 
 context = zpkgsetup.setup.SetupContext(
     "ZODB", VERSION, __file__)
