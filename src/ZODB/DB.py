@@ -679,6 +679,9 @@ class DB(object):
     def versionEmpty(self, version):
         return self._storage.versionEmpty(version)
 
+resource_counter_lock = threading.Lock()
+resource_counter = 0
+
 class ResourceManager(object):
     """Transaction participation for a version or undo resource."""
 
@@ -689,8 +692,20 @@ class ResourceManager(object):
         self.tpc_finish = self._db._storage.tpc_finish
         self.tpc_abort = self._db._storage.tpc_abort
 
+        # Get a number from a simple thread-safe counter, then
+        # increment it, for the purpose of sorting ResourceManagers by
+        # creation order.  This ensures that multiple ResourceManagers
+        # within a transaction commit in a predictable sequence.
+        resource_counter_lock.acquire()
+        try:
+            global resource_counter
+            self._count = resource_counter
+            resource_counter += 1
+        finally:
+            resource_counter_lock.release()
+
     def sortKey(self):
-        return "%s:%s" % (self._db._storage.sortKey(), id(self))
+        return "%s:%016x" % (self._db._storage.sortKey(), self._count)
 
     def tpc_begin(self, txn, sub=False):
         if sub:
