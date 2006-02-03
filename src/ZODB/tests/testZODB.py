@@ -728,6 +728,42 @@ class ZODBTests(unittest.TestCase):
         cn.close()
         cn2.close()
 
+    def checkMultipleUndoInOneTransaction(self):
+        # Verify that it's possible to perform multiple undo
+        # operations within a transaction.  If ZODB performs the undo
+        # operations in a nondeterministic order, this test will often
+        # fail.
+
+        conn = self._db.open()
+        try:
+            root = conn.root()
+
+            # Add transactions that set root["state"] to (0..5)
+            for state_num in range(6):
+                transaction.begin()
+                root['state'] = state_num
+                transaction.get().note('root["state"] = %d' % state_num)
+                transaction.commit()
+
+            # Undo all but the first.  Note that no work is actually
+            # performed yet.
+            transaction.begin()
+            log = self._db.undoLog()
+            for i in range(5):
+                self._db.undo(log[i]['id'])
+            transaction.get().note('undo states 1 through 5')
+
+            # Now attempt all those undo operations.
+            transaction.commit()
+
+            # Sanity check: we should be back to the first state.
+            self.assertEqual(root['state'], 0)
+        finally:
+            transaction.abort()
+            conn.close()
+
+        
+
 class PoisonedError(Exception):
     pass
 
