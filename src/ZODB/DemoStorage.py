@@ -21,7 +21,7 @@ The Demo storage serves two purposes:
   - Provide a volatile storage that is useful for giving demonstrations.
 
 The demo storage can have a "base" storage that is used in a
-read-only fashion. The base storage must not not to contain version
+read-only fashion. The base storage must not contain version
 data.
 
 There are three main data structures:

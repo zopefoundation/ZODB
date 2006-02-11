@@ -993,7 +993,11 @@ class FileStorage(BaseStorage.BaseStorage,
             return "", None
 
     def _transactionalUndoRecord(self, oid, pos, tid, pre, version):
-        """Get the indo information for a data record
+        """Get the undo information for a data record
+
+        'pos' points to the data header for 'oid' in the transaction
+        being undone.  'tid' refers to the transaction being undone.
+        'pre' is the 'prev' field of the same data header.
 
         Return a 5-tuple consisting of a pickle, data pointer,
         version, packed non-version data pointer, and current
