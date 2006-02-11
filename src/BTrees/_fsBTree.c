@@ -45,7 +45,7 @@ typedef unsigned char char6[6];
 #define DECREF_KEY(KEY)
 #define INCREF_KEY(k)
 #define COPY_KEY(KEY, E) (*(KEY)=*(E), (KEY)[1]=(E)[1])
-#define COPY_KEY_TO_OBJECT(O, K) O=PyString_FromStringAndSize(K,2)
+#define COPY_KEY_TO_OBJECT(O, K) O=PyString_FromStringAndSize((const char*)K,2)
 #define COPY_KEY_FROM_ARG(TARGET, ARG, STATUS) \
   if (KEY_CHECK(ARG)) memcpy(TARGET, PyString_AS_STRING(ARG), 2); else { \
       PyErr_SetString(PyExc_TypeError, "expected two-character string key"); \
@@ -59,7 +59,7 @@ typedef unsigned char char6[6];
 #define DECREF_VALUE(k)
 #define INCREF_VALUE(k)
 #define COPY_VALUE(V, E) (memcpy(V, E, 6))
-#define COPY_VALUE_TO_OBJECT(O, K) O=PyString_FromStringAndSize(K,6)
+#define COPY_VALUE_TO_OBJECT(O, K) O=PyString_FromStringAndSize((const char*)K,6)
 #define COPY_VALUE_FROM_ARG(TARGET, ARG, STATUS) \
   if ((PyString_Check(ARG) && PyString_GET_SIZE(ARG)==6)) \
       memcpy(TARGET, PyString_AS_STRING(ARG), 6); else { \

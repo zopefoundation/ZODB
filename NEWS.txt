@@ -62,6 +62,9 @@ ZODB 3.4 release.  These include:
 Persistent
 ----------
 
+- (3.6b7) Suppressed warnings about signedness of characters when
+  compiling under GCC 4.0.x.  See http://www.zope.org/Collectors/Zope/2027.
+
 - (3.6a4) ZODB 3.6 introduces a change to the basic behavior of Persistent
   objects in a particular end case.  Before ZODB 3.6, setting
   ``obj._p_changed`` to a true value when ``obj`` was a ghost was ignored:
@@ -149,6 +152,9 @@ Tools
 
 BTrees
 ------
+
+- (3.6b7) Suppressed warnings about signedness of characters when
+  compiling under GCC 4.0.x.  See http://www.zope.org/Collectors/Zope/2027.
 
 - (3.6a1) BTrees and Buckets now implement the ``setdefault()`` and ``pop()``
   methods. These are exactly like Python's dictionary methods of the same

@@ -218,7 +218,7 @@ TimeStamp_timeTime(TimeStamp *self)
 static PyObject *
 TimeStamp_raw(TimeStamp *self)
 {
-    return PyString_FromStringAndSize(self->data, 8);
+    return PyString_FromStringAndSize((const char*)self->data, 8);
 }
 
 static PyObject *
@@ -261,7 +261,7 @@ TimeStamp_laterThan(TimeStamp *self, PyObject *obj)
 	    new[i] = 0;
 	else {
 	    new[i]++;
-	    return TimeStamp_FromString(new);
+	    return TimeStamp_FromString((const char*)new);
 	}
     }
 
