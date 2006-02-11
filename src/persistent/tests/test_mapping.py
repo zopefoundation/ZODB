@@ -38,6 +38,8 @@ class TestPMapping(unittest.TestCase):
         class OtherMapping:
             def __init__(self, initmapping):
                 self.__data = initmapping
+            def keys(self):
+                return self.__data.keys()
             def items(self):
                 return self.__data.items()
         v0 = PersistentMapping(OtherMapping(u0))

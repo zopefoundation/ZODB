@@ -10,6 +10,9 @@ development) since ZODB 3.4's last public release:
 PersistentMapping
 -----------------
 
+- (3.4.3b1) Made new tests ``test_mapping`` conform to the requirements for
+  a ``dict`` initializer in Python 2.3.x.
+
 - (3.4.3b1) The ``PersistentMapping`` makes changes by a ``pop()`` method call
   persistent now.
 
