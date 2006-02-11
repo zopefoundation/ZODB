@@ -41,11 +41,23 @@ Tools
   tools need to perform minimal logging configuration themselves. Changed
   the zeoup script to do so and thus enable it to emit error messages.
 
+BTrees
+------
+
+- (3.7a1) Suppressed warnings about signedness of characters when
+  compiling under GCC 4.0.x.  See http://www.zope.org/Collectors/Zope/2027.
+
 Connection
 ----------
 
 - (3.7a1) An optimization for loading non-current data (MVCC) was
   inadvertently disabled in ``_setstate()``; this has been repaired.
+
+persistent
+----------
+
+- (3.7a1) Suppressed warnings about signedness of characters when
+  compiling under GCC 4.0.x.  See http://www.zope.org/Collectors/Zope/2027.
 
 After Commit hooks
 ------------------
