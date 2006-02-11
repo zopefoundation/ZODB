@@ -24,6 +24,18 @@ BaseStorage
   left the commit lock in the acquired state, causing any later attempt
   to commit changes hang.
 
+TimeStamp
+---------
+
+- (3.5.2g1) Suppressed warnings about signedness of characters when
+  compiling under GCC 4.0.x.  See http://www.zope.org/Collectors/Zope/2027.
+
+_fsBTree
+--------
+
+- (3.5.2g1) Suppressed warnings about signedness of characters when
+  compiling under GCC 4.0.x.  See http://www.zope.org/Collectors/Zope/2027.
+
 PersistentMapping
 -----------------
 
