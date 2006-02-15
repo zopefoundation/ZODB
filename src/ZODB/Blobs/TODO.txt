@@ -33,6 +33,27 @@ Production
 
 - Importing backward compatible ZEXP files (no \0BLOBSTART) used
 
+- Test Connection.TmpStore.storeBlob better.  Why doesn't it do any
+  locking like normal storages do?  It also needs to clean up its
+  tempfiles.
+
+- abort is never called on a BlobStorage when a transaction is
+  aborted... it couldn't have been because there was basically a bit
+  of nonsensical code in the method that would have raised an
+  exception.  I don't think we solved this.  I think we did figure out
+  why it wasn't called -- it seems that methods of a
+  zope.proxy-wrapped object aren't rebound to the wrapper but instead
+  to the wrapped object.  I then tried every which way to have some
+  cleanup code invoked on abort (overriding "tpc_abort" instead of
+  "_abort", overriding "abort" instead of "_abort") but without
+  success.  Late in the day I think we figured that the abort cleanup
+  code might need to go in the "BlobDataManager" (each blob has its
+  own data manager) instead of the BlobStorage because it's unclear
+  when BlobStorage's tpc_abort/_abort/abort methods will be called.
+
+- Savepoints: currently non-optimistic savepoints in transactions
+  which involve blobs don't work.  Is this OK?
+
 Far future
 ----------
 
