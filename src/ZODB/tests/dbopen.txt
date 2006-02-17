@@ -272,6 +272,54 @@ first popped:
     >>> len(pool.available), len(pool.all)
     (0, 2)
 
+Next:  when a closed Connection is removed from .available due to exceeding
+pool_size, that Connection's cache is cleared (this behavior was new in
+ZODB 3.6b6).  While user code may still hold a reference to that
+Connection, once it vanishes from .available it's really not usable for
+anything sensible (it can never be in the open state again).  Waiting for
+gc to reclaim the Connection and its cache eventually works, but that can
+take "a long time" and caches can hold on to many objects, and limited
+resources (like RDB connections), for the duration.
+
+    >>> st.close()
+    >>> st = Storage()
+    >>> db = DB(st, pool_size=2)
+    >>> conn0 = db.open()
+    >>> len(conn0._cache)  # empty now
+    0
+    >>> import transaction
+    >>> conn0.root()['a'] = 1
+    >>> transaction.commit()
+    >>> len(conn0._cache)  # but now the cache holds the root object
+    1
+
+Now open more connections so that the total exceeds pool_size (2):
+
+    >>> conn1 = db.open()
+    >>> conn2 = db.open()
+    >>> pool = db._pools['']
+    >>> len(pool.all), len(pool.available)  # all Connections are in use
+    (3, 0)
+
+Return pool_size (2) Connections to the pool:
+
+    >>> conn0.close()
+    >>> conn1.close()
+    >>> len(pool.all), len(pool.available)
+    (3, 2)
+    >>> len(conn0._cache)  # nothing relevant has changed yet
+    1
+
+When we close the third connection, conn0 will be booted from .all, and
+we expect its cache to be cleared then:
+
+    >>> conn2.close()
+    >>> len(pool.all), len(pool.available)
+    (2, 2)
+    >>> len(conn0._cache)  # conn0's cache is empty again
+    0
+    >>> del conn0, conn1, conn2
+
 Clean up.
 
     >>> st.close()

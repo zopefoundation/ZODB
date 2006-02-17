@@ -45,7 +45,6 @@ from ZODB.POSException import ConflictError, ReadConflictError
 from ZODB.POSException import Unsupported
 from ZODB.POSException import POSKeyError
 from ZODB.serialize import ObjectWriter, ObjectReader, myhasattr
-from ZODB.utils import DEPRECATED_ARGUMENT, deprecated36
 from ZODB.utils import p64, u64, z64, oid_repr, positive_id
 from ZODB import utils
 
@@ -132,6 +131,9 @@ class Connection(ExportImport, object):
         # will execute atomically by virtue of the GIL.  But some storage
         # might generate oids where hash or compare invokes Python code.  In
         # that case, the GIL can't save us.
+        # Note:  since that was written, it was officially declared that the
+        # type of an oid is str.  TODO:  remove the related now-unnecessary
+        # critical sections (if any -- this needs careful thought).
 
         self._inv_lock = threading.Lock()
         self._invalidated = d = {}
@@ -213,10 +215,8 @@ class Connection(ExportImport, object):
         self._cache[oid] = obj
         return obj
 
-    def cacheMinimize(self, dt=DEPRECATED_ARGUMENT):
+    def cacheMinimize(self):
         """Deactivate all unmodified objects in the cache."""
-        if dt is not DEPRECATED_ARGUMENT:
-            deprecated36("cacheMinimize() dt= is ignored.")
         self._cache.minimize()
 
     # TODO: we should test what happens when cacheGC is called mid-transaction.
@@ -266,7 +266,7 @@ class Connection(ExportImport, object):
             # Return the connection to the pool.
             if self._opened is not None:
                 self._db._returnToPool(self)
-                
+
                 # _returnToPool() set self._opened to None.
                 # However, we can't assert that here, because self may
                 # have been reused (by another thread) by the time we
@@ -323,7 +323,7 @@ class Connection(ExportImport, object):
         This is used in a check to avoid implicitly adding an object
         to a database in a multi-database situation.
         See serialize.ObjectWriter.persistent_id.
-        
+
         """
         return (self._creating.get(oid, 0)
                 or
@@ -546,11 +546,11 @@ class Connection(ExportImport, object):
                 # Because obj was added, it is now in _creating, so it
                 # can be removed from _added.  If oid wasn't in
                 # adding, then we are adding it implicitly.
-                
+
                 implicitly_adding = self._added.pop(oid, None) is None
 
                 self._creating[oid] = implicitly_adding
-                
+
             else:
                 if (oid in self._invalidated
                     and not hasattr(obj, '_p_resolveConflict')):
@@ -647,8 +647,8 @@ class Connection(ExportImport, object):
 
         self._storage.tpc_abort(transaction)
 
-        # Note: If we invalidate a non-justifiable object (i.e. a
-        # persistent class), the object will immediately reread it's
+        # Note: If we invalidate a non-ghostifiable object (i.e. a
+        # persistent class), the object will immediately reread its
         # state.  That means that the following call could result in a
         # call to self.setstate, which, of course, must succeed.  In
         # general, it would be better if the read could be delayed
@@ -787,10 +787,8 @@ class Connection(ExportImport, object):
         # dict update could go on in another thread, but we don't care
         # because we have to check again after the load anyway.
 
-        if (obj._p_oid in self._invalidated
-            and not myhasattr(obj, "_p_independent")
-            and not self._invalidated
-            ):
+        if (obj._p_oid in self._invalidated and
+                not myhasattr(obj, "_p_independent")):
             # If the object has _p_independent(), we will handle it below.
             self._load_before_or_conflict(obj)
             return
@@ -883,16 +881,11 @@ class Connection(ExportImport, object):
         """
         assert obj._p_jar is self
         if obj._p_oid is None:
-            # There is some old Zope code that assigns _p_jar
-            # directly.  That is no longer allowed, but we need to
-            # provide support for old code that still does it.
-
             # The actual complaint here is that an object without
             # an oid is being registered.  I can't think of any way to
             # achieve that without assignment to _p_jar.  If there is
-            # a way, this will be a very confusing warning.
-            deprecated36("Assigning to _p_jar is deprecated, and will be "
-                         "changed to raise an exception.")
+            # a way, this will be a very confusing exception.
+            raise ValueError("assigning to _p_jar is not supported")
         elif obj._p_oid in self._added:
             # It was registered before it was added to _added.
             return
@@ -961,7 +954,7 @@ class Connection(ExportImport, object):
 
         if transaction_manager is None:
             transaction_manager = transaction.manager
-        
+
         self.transaction_manager = transaction_manager
 
         if self._reset_counter != global_reset_counter:
@@ -1036,48 +1029,7 @@ class Connection(ExportImport, object):
     ##########################################################################
     # DEPRECATED methods
 
-    def cacheFullSweep(self, dt=None):
-        deprecated36("cacheFullSweep is deprecated. "
-                     "Use cacheMinimize instead.")
-        if dt is None:
-            self._cache.full_sweep()
-        else:
-            self._cache.full_sweep(dt)
-
-    def getTransaction(self):
-        """Get the current transaction for this connection.
-
-        :deprecated:
-
-        The transaction manager's get method works the same as this
-        method.  You can pass a transaction manager (TM) to DB.open()
-        to control which TM the Connection uses.
-        """
-        deprecated36("getTransaction() is deprecated. "
-                     "Use the transaction_manager argument "
-                     "to DB.open() instead, or access "
-                     ".transaction_manager directly on the Connection.")
-        return self.transaction_manager.get()
-
-    def setLocalTransaction(self):
-        """Use a transaction bound to the connection rather than the thread.
-
-        :deprecated:
-
-        Returns the transaction manager used by the connection.  You
-        can pass a transaction manager (TM) to DB.open() to control
-        which TM the Connection uses.
-        """
-        deprecated36("setLocalTransaction() is deprecated. "
-                     "Use the transaction_manager argument "
-                     "to DB.open() instead.")
-        if self.transaction_manager is transaction.manager:
-            if self._synch:
-                self.transaction_manager.unregisterSynch(self)
-            self.transaction_manager = transaction.TransactionManager()
-            if self._synch:
-                self.transaction_manager.registerSynch(self)
-        return self.transaction_manager
+    # None at present.
 
     # DEPRECATED methods
     ##########################################################################

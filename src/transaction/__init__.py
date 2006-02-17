@@ -25,10 +25,3 @@ begin = manager.begin
 commit = manager.commit
 abort = manager.abort
 savepoint = manager.savepoint
-
-def get_transaction():
-    from ZODB.utils import deprecated36
-    deprecated36("""   use transaction.get() instead of get_transaction().
-   transaction.commit() is a shortcut spelling of transaction.get().commit(),
-   and transaction.abort() of transaction.get().abort().""")
-    return get()

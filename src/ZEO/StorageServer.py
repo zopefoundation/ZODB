@@ -64,7 +64,7 @@ def log(message, level=logging.INFO, label=None, exc_info=False):
     logger.log(level, message, exc_info=exc_info)
 
 class StorageServerError(StorageError):
-    """Error reported when an unpickleable exception is raised."""
+    """Error reported when an unpicklable exception is raised."""
 
 class ZEOStorage:
     """Proxy to underlying storage for a single remote client."""

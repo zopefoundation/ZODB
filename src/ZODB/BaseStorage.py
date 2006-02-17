@@ -34,6 +34,7 @@ class BaseStorage(UndoLogCompatible):
 
     A subclass must define the following methods:
     load()
+    store()
     close()
     cleanup()
     lastSerial()
@@ -53,7 +54,6 @@ class BaseStorage(UndoLogCompatible):
 
     If the subclass wants to implement undo, it should implement the
     multiple revision methods and:
-    loadSerial()
     undo()
     undoInfo()
     undoLog()
@@ -94,9 +94,9 @@ class BaseStorage(UndoLogCompatible):
         self._commit_lock_acquire = l.acquire
         self._commit_lock_release = l.release
 
-        t=time.time()
-        t=self._ts=apply(TimeStamp,(time.gmtime(t)[:5]+(t%60,)))
-        self._tid = `t`
+        t = time.time()
+        t = self._ts = TimeStamp(*(time.gmtime(t)[:5] + (t%60,)))
+        self._tid = repr(t)
 
         # ._oid is the highest oid in use (0 is always in use -- it's
         # a reserved oid for the root object).  Our new_oid() method
@@ -189,10 +189,12 @@ class BaseStorage(UndoLogCompatible):
         try:
             if transaction is not self._transaction:
                 return
-            self._abort()
-            self._clear_temp()
-            self._transaction = None
-            self._commit_lock_release()
+            try:
+                self._abort()
+                self._clear_temp()
+                self._transaction = None
+            finally:
+                self._commit_lock_release()
         finally:
             self._lock_release()
 
@@ -226,7 +228,7 @@ class BaseStorage(UndoLogCompatible):
                 now = time.time()
                 t = TimeStamp(*(time.gmtime(now)[:5] + (now % 60,)))
                 self._ts = t = t.laterThan(self._ts)
-                self._tid = `t`
+                self._tid = repr(t)
             else:
                 self._ts = TimeStamp(tid)
                 self._tid = tid

@@ -890,7 +890,7 @@ class FileStorage(BaseStorage.BaseStorage,
                 self._file.write(p64(tl))
                 self._file.flush()
             except:
-                # Hm, an error occured writing out the data. Maybe the
+                # Hm, an error occurred writing out the data. Maybe the
                 # disk is full. We don't want any turd at the end.
                 self._file.truncate(self._pos)
                 raise
@@ -993,7 +993,11 @@ class FileStorage(BaseStorage.BaseStorage,
             return "", None
 
     def _transactionalUndoRecord(self, oid, pos, tid, pre, version):
-        """Get the indo information for a data record
+        """Get the undo information for a data record
+
+        'pos' points to the data header for 'oid' in the transaction
+        being undone.  'tid' refers to the transaction being undone.
+        'pre' is the 'prev' field of the same data header.
 
         Return a 5-tuple consisting of a pickle, data pointer,
         version, packed non-version data pointer, and current

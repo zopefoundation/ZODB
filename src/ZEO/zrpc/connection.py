@@ -460,9 +460,13 @@ class Connection(smac.SizedMessageAsyncConnection, object):
         return hasattr(self.obj, name)
 
     def send_reply(self, msgid, ret):
+        # encode() can pass on a wide variety of exceptions from cPickle.
+        # While a bare `except` is generally poor practice, in this case
+        # it's acceptable -- we really do want to catch every exception
+        # cPickle may raise.
         try:
             msg = self.marshal.encode(msgid, 0, REPLY, ret)
-        except self.marshal.errors:
+        except: # see above
             try:
                 r = short_repr(ret)
             except:
@@ -480,9 +484,13 @@ class Connection(smac.SizedMessageAsyncConnection, object):
         if type(err_value) is not types.InstanceType:
             err_value = err_type, err_value
 
+        # encode() can pass on a wide variety of exceptions from cPickle.
+        # While a bare `except` is generally poor practice, in this case
+        # it's acceptable -- we really do want to catch every exception
+        # cPickle may raise.
         try:
             msg = self.marshal.encode(msgid, 0, REPLY, (err_type, err_value))
-        except self.marshal.errors:
+        except: # see above
             try:
                 r = short_repr(err_value)
             except:

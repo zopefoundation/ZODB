@@ -1,13 +1,26 @@
+=======================
+Collabortation Diagrams
+=======================
+
+This file contains several collaboration diagrams for the ZODB.
+
+Simple fetch, modify, commit
+============================
+
 Participants
-    DB:  ZODB.DB.DB
-    C:  ZODB.Connection.Connection
-    S:  ZODB.FileStorage.FileStorage
-    T:  transaction.interfaces.ITransaction
-    TM:  transaction.interfaces.ITransactionManager
-    o1, o2, ...:  pre-existing persistent objects
+------------
+
+- ``DB``:  ``ZODB.DB.DB``
+- ``C``:  ``ZODB.Connection.Connection``
+- ``S``:  ``ZODB.FileStorage.FileStorage``
+- ``T``:  ``transaction.interfaces.ITransaction``
+- ``TM``: ``transaction.interfaces.ITransactionManager``
+- ``o1``, ``o2``, ...:  pre-existing persistent objects
 
 Scenario
-    """Simple fetch, modify, commit."""
+--------
+
+::
 
     DB.open()
         create C
@@ -50,16 +63,23 @@ Scenario
             # transactions.
 
 
+Simple fetch, modify, abort
+===========================
+
 Participants
-    DB:  ZODB.DB.DB
-    C:  ZODB.Connection.Connection
-    S:  ZODB.FileStorage.FileStorage
-    T:  transaction.interfaces.ITransaction
-    TM:  transaction.interfaces.ITransactionManager
-    o1, o2, ...:  pre-existing persistent objects
+------------
+
+- ``DB``:  ``ZODB.DB.DB``
+- ``C``:  ``ZODB.Connection.Connection``
+- ``S``:  ``ZODB.FileStorage.FileStorage``
+- ``T``:  ``transaction.interfaces.ITransaction``
+- ``TM``: ``transaction.interfaces.ITransactionManager``
+- ``o1``, ``o2``, ...:  pre-existing persistent objects
 
 Scenario
-    """Simple fetch, modify, abort."""
+--------
+
+::
 
     DB.open()
         create C
@@ -91,15 +111,22 @@ Scenario
             # transactions.
 
 
-Participants:
-  T: ITransaction
-  o1, o2, o3: some persistent objects
-  C1, C2, C3: resource managers
-  S1, S2: Transaction savepoint objects
-  s11, s21, s22: resource-manager savepoints
+Rollback of a savepoint
+=======================
+
+Participants
+------------
+
+- ``T``:  ``transaction.interfaces.ITransaction``
+- ``o1``, ``o2``, ``o3``: some persistent objects
+- ``C1``, ``C2``, ``C3``: resource managers
+- ``S1``, ``S2``: Transaction savepoint objects
+- ``s11``, ``s21``, ``s22``: resource-manager savepoints
 
 Scenario
-    """Rollback of a savepoint"""
+--------
+
+::
 
         create T
         o1.modify()
@@ -140,8 +167,8 @@ Scenario
                         o2.invalidate()
                         # truncates temporary storage to beginning, because
                         # s22 was the first savepoint.  (Perhaps conection
-                        # savepoints record the log position before the 
-                        # data were written, which is 0 in this case. 
+                        # savepoints record the log position before the
+                        # data were written, which is 0 in this case.
         T.commit()
             C1.beforeCompletion(T)
             C2.beforeCompletion(T)

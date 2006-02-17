@@ -340,7 +340,7 @@ class ObjectWriter:
             if self._jar.get_connection(database_name) is not obj._p_jar:
                 raise InvalidObjectReference(
                     "Attempt to store a reference to an object from "
-                    "a separate onnection to the same database or "
+                    "a separate connection to the same database or "
                     "multidatabase"
                     )
 

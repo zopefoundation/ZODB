@@ -390,11 +390,11 @@ class UserMethodTests(unittest.TestCase):
         """
 
     def test_cache(self):
-        r"""doctest of cacheMinimize() and cacheFullSweep() methods.
+        r"""doctest of cacheMinimize().
 
-        These tests are fairly minimal, just verifying that the
-        methods can be called and have some effect.  We need other
-        tests that verify the cache works as intended.
+        Thus test us minimal, just verifying that the method can be called
+        and has some effect.  We need other tests that verify the cache works
+        as intended.
 
         >>> db = databaseFromString("<zodb>\n<mappingstorage/>\n</zodb>")
         >>> cn = db.open()
@@ -403,71 +403,12 @@ class UserMethodTests(unittest.TestCase):
         >>> r._p_state
         -1
 
-        The next couple of tests are involved because they have to
-        cater to backwards compatibility issues.  The cacheMinimize()
-        method used to take an argument, but now ignores it.
-        cacheFullSweep() used to do something different than
-        cacheMinimize(), but it doesn't anymore.  We want to verify
-        that these methods do something, but all cause deprecation
-        warnings.  To do that, we need a warnings hook.
-
-        >>> hook = WarningsHook()
-        >>> hook.install()
-
-        More problems in case this test is run more than once:  fool the
-        warnings module into delivering the warnings despite that they've
-        been seen before.
-
-        >>> import warnings
-        >>> warnings.filterwarnings("always", category=DeprecationWarning)
-
         >>> r._p_activate()
-        >>> cn.cacheMinimize(12)
-        >>> r._p_state
-        -1
-        >>> len(hook.warnings)
-        1
-        >>> message, category, filename, lineno = hook.warnings[0]
-        >>> print message
-        This will be removed in ZODB 3.6:
-        cacheMinimize() dt= is ignored.
-        >>> category.__name__
-        'DeprecationWarning'
-        >>> hook.clear()
-
-        cacheFullSweep() is a doozy.  It generates two deprecation
-        warnings, one from the Connection and one from the
-        cPickleCache.  Maybe we should drop the cPickleCache warning,
-        but it's there for now.  When passed an argument, it acts like
-        cacheGC().  When it isn't passed an argument it acts like
-        cacheMinimize().
-
-        >>> r._p_activate()
-        >>> cn.cacheFullSweep(12)
-        >>> r._p_state
+        >>> r._p_state  # up to date
         0
-        >>> len(hook.warnings)
-        2
-        >>> message, category, filename, lineno = hook.warnings[0]
-        >>> print message
-        This will be removed in ZODB 3.6:
-        cacheFullSweep is deprecated. Use cacheMinimize instead.
-        >>> category.__name__
-        'DeprecationWarning'
-        >>> message, category, filename, lineno = hook.warnings[1]
-        >>> message
-        'No argument expected'
-        >>> category.__name__
-        'DeprecationWarning'
-
-        We have to uninstall the hook so that other warnings don't get lost.
-
-        >>> hook.uninstall()
-
-        Obscure:  There is no API call for removing the filter we added, but
-        filters appears to be a public variable.
-
-        >>> del warnings.filters[0]
+        >>> cn.cacheMinimize()
+        >>> r._p_state  # ghost again
+        -1
         """
 
 class InvalidationTests(unittest.TestCase):

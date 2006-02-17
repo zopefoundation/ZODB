@@ -13,10 +13,9 @@
 ##############################################################################
 
 # The next line must use double quotes, so release.py recognizes it.
-__version__ = "3.6.0a3"
+__version__ = "3.7.0a0"
 
 import sys
-import __builtin__
 
 from persistent import TimeStamp
 from persistent import list
@@ -30,9 +29,3 @@ sys.modules['ZODB.PersistentList'] = sys.modules['persistent.list']
 del mapping, list, sys
 
 from DB import DB
-
-# TODO:  get_transaction() scheduled to go away in ZODB 3.6.
-from transaction import get_transaction
-__builtin__.get_transaction = get_transaction
-
-del __builtin__

@@ -54,15 +54,6 @@ class DBTests(unittest.TestCase):
     # make sure the basic methods are callable
 
     def testSets(self):
-        # test set methods that have non-trivial implementations
-        warnings.filterwarnings("error", category=DeprecationWarning)
-        self.assertRaises(DeprecationWarning,
-                          self.db.setCacheDeactivateAfter, 12)
-        self.assertRaises(DeprecationWarning,
-                          self.db.setVersionCacheDeactivateAfter, 12)
-        # Obscure:  There is no API call for removing the warning we just
-        # added, but filters appears to be a public variable.
-        del warnings.filters[0]
         self.db.setCacheSize(15)
         self.db.setVersionCacheSize(15)
 

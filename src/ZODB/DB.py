@@ -25,7 +25,6 @@ from ZODB.utils import z64
 from ZODB.Connection import Connection
 from ZODB.serialize import referencesf
 from ZODB.utils import WeakSet
-from ZODB.utils import DEPRECATED_ARGUMENT, deprecated36
 
 from zope.interface import implements
 from ZODB.interfaces import IDatabase
@@ -119,6 +118,19 @@ class _ConnectionPool(object):
         while len(self.available) > target:
             c = self.available.pop(0)
             self.all.remove(c)
+            # While application code may still hold a reference to `c`,
+            # there's little useful that can be done with this Connection
+            # anymore.  Its cache may be holding on to limited resources,
+            # and we replace the cache with an empty one now so that we
+            # don't have to wait for gc to reclaim it.  Note that it's not
+            # possible for DB.open() to return `c` again:  `c` can never
+            # be in an open state again.
+            # TODO:  Perhaps it would be better to break the reference
+            # cycles between `c` and `c._cache`, so that refcounting reclaims
+            # both right now.  But if user code _does_ have a strong
+            # reference to `c` now, breaking the cycle would not reclaim `c`
+            # now, and `c` would be left in a user-visible crazy state.
+            c._resetCache()
 
     # Pop an available connection and return it, or return None if none are
     # available.  In the latter case, the caller should create a new
@@ -177,9 +189,6 @@ class DB(object):
         cacheFullSweep, cacheLastGCTime, cacheMinimize, cacheSize,
         cacheDetailSize, getCacheSize, getVersionCacheSize, setCacheSize,
         setVersionCacheSize
-      - `Deprecated Methods`: getCacheDeactivateAfter,
-        setCacheDeactivateAfter,
-        getVersionCacheDeactivateAfter, setVersionCacheDeactivateAfter
     """
     implements(IDatabase)
 
@@ -189,12 +198,10 @@ class DB(object):
     def __init__(self, storage,
                  pool_size=7,
                  cache_size=400,
-                 cache_deactivate_after=DEPRECATED_ARGUMENT,
                  version_pool_size=3,
                  version_cache_size=100,
                  database_name='unnamed',
                  databases=None,
-                 version_cache_deactivate_after=DEPRECATED_ARGUMENT,
                  ):
         """Create an object database.
 
@@ -206,8 +213,6 @@ class DB(object):
             version)
           - `version_cache_size`: target size of Connection object cache for
             version connections
-          - `cache_deactivate_after`: ignored
-          - `version_cache_deactivate_after`: ignored
         """
         # Allocate lock.
         x = threading.RLock()
@@ -221,12 +226,6 @@ class DB(object):
         self._cache_size = cache_size
         self._version_pool_size = version_pool_size
         self._version_cache_size = version_cache_size
-
-        # warn about use of deprecated arguments
-        if cache_deactivate_after is not DEPRECATED_ARGUMENT:
-            deprecated36("cache_deactivate_after has no effect")
-        if version_cache_deactivate_after is not DEPRECATED_ARGUMENT:
-            deprecated36("version_cache_deactivate_after has no effect")
 
         self._miv_cache = {}
 
@@ -494,10 +493,7 @@ class DB(object):
     def objectCount(self):
         return len(self._storage)
 
-    def open(self, version='',
-             transaction=DEPRECATED_ARGUMENT, temporary=DEPRECATED_ARGUMENT,
-             force=DEPRECATED_ARGUMENT, waitflag=DEPRECATED_ARGUMENT,
-             mvcc=True, txn_mgr=DEPRECATED_ARGUMENT,
+    def open(self, version='', mvcc=True,
              transaction_manager=None, synch=True):
         """Return a database Connection for use by application code.
 
@@ -517,29 +513,6 @@ class DB(object):
           - `synch`: boolean indicating whether Connection should
              register for afterCompletion() calls.
         """
-
-        if temporary is not DEPRECATED_ARGUMENT:
-            deprecated36("DB.open() temporary= ignored. "
-                         "open() no longer blocks.")
-
-        if force is not DEPRECATED_ARGUMENT:
-            deprecated36("DB.open() force= ignored. "
-                         "open() no longer blocks.")
-
-        if waitflag is not DEPRECATED_ARGUMENT:
-            deprecated36("DB.open() waitflag= ignored. "
-                         "open() no longer blocks.")
-
-        if transaction is not DEPRECATED_ARGUMENT:
-            deprecated36("DB.open() transaction= ignored.")
-
-        if txn_mgr is not DEPRECATED_ARGUMENT:
-            deprecated36("use transaction_manager= instead of txn_mgr=")
-            if transaction_manager is None:
-                transaction_manager = txn_mgr
-            else:
-                raise ValueError("cannot specify both transaction_manager= "
-                                 "and txn_mgr=")
 
         self._a()
         try:
@@ -567,7 +540,7 @@ class DB(object):
 
             # Tell the connection it belongs to self.
             result.open(transaction_manager, mvcc, synch)
-            
+
             # A good time to do some cache cleanup.
             self._connectionMap(lambda c: c.cacheGC())
 
@@ -706,23 +679,8 @@ class DB(object):
     def versionEmpty(self, version):
         return self._storage.versionEmpty(version)
 
-    # The following methods are deprecated and have no effect
-
-    def getCacheDeactivateAfter(self):
-        """Deprecated"""
-        deprecated36("getCacheDeactivateAfter has no effect")
-
-    def getVersionCacheDeactivateAfter(self):
-        """Deprecated"""
-        deprecated36("getVersionCacheDeactivateAfter has no effect")
-
-    def setCacheDeactivateAfter(self, v):
-        """Deprecated"""
-        deprecated36("setCacheDeactivateAfter has no effect")
-
-    def setVersionCacheDeactivateAfter(self, v):
-        """Deprecated"""
-        deprecated36("setVersionCacheDeactivateAfter has no effect")
+resource_counter_lock = threading.Lock()
+resource_counter = 0
 
 class ResourceManager(object):
     """Transaction participation for a version or undo resource."""
@@ -734,8 +692,20 @@ class ResourceManager(object):
         self.tpc_finish = self._db._storage.tpc_finish
         self.tpc_abort = self._db._storage.tpc_abort
 
+        # Get a number from a simple thread-safe counter, then
+        # increment it, for the purpose of sorting ResourceManagers by
+        # creation order.  This ensures that multiple ResourceManagers
+        # within a transaction commit in a predictable sequence.
+        resource_counter_lock.acquire()
+        try:
+            global resource_counter
+            self._count = resource_counter
+            resource_counter += 1
+        finally:
+            resource_counter_lock.release()
+
     def sortKey(self):
-        return "%s:%s" % (self._db._storage.sortKey(), id(self))
+        return "%s:%016x" % (self._db._storage.sortKey(), self._count)
 
     def tpc_begin(self, txn, sub=False):
         if sub:

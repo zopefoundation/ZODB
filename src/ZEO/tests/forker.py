@@ -176,8 +176,14 @@ def shutdown_zeo_server(adminaddr):
     # superstition.
     for i in range(3):
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.settimeout(.3)
         try:
             s.connect(adminaddr)
+        except socket.timeout:
+            # On FreeBSD 5.3 the connection just timed out
+            if i > 0:
+                break
+            raise
         except socket.error, e:
             if e[0] == errno.ECONNREFUSED and i > 0:
                 break

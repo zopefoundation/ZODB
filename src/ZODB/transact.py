@@ -14,6 +14,7 @@
 """Tools to simplify transactions within applications."""
 
 from ZODB.POSException import ReadConflictError, ConflictError
+import transaction
 
 def _commit(note):
     t = transaction.get()

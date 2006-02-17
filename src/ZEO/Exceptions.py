@@ -16,7 +16,7 @@
 from ZODB.POSException import StorageError
 
 class ClientStorageError(StorageError):
-    """An error occured in the ZEO Client Storage."""
+    """An error occurred in the ZEO Client Storage."""
 
 class UnrecognizedResult(ClientStorageError):
     """A server call returned an unrecognized result."""
