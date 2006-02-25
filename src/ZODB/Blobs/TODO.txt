@@ -4,6 +4,8 @@ Todo for preview
 Must
 ----
 
+- load_lock strategy in ClientStorage
+
 - Merge to current ZODB trunk
 
 - Unify ZEO/Blob implementation and the BlobProxyStorage directory structures.
