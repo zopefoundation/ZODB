@@ -72,11 +72,6 @@ class BlobStorage(ProxyBase):
             self._lock_release()
         return self._tid
 
-    def _getDirtyFilename(self, oid):
-        """Generate an intermediate filename for two-phase commit.
-        """
-        return self._getCleanFilename(oid, BLOB_DIRTY)
-
     def _getBlobPath(self, oid):
         return os.path.join(self.base_directory,
                             utils.oid_repr(oid)
@@ -104,10 +99,8 @@ class BlobStorage(ProxyBase):
         while self.dirty_oids:
             oid, serial = self.dirty_oids.pop()
             clean = self._getCleanFilename(oid, serial)
-            dirty = self._getDirtyFilename(oid, serial)
-            for filename in [clean, dirty]:
-                if os.exists(filename):
-                    os.unlink(filename) 
+            if os.exists(clean):
+                os.unlink(clean) 
 
     def loadBlob(self, oid, serial, version):
         """Return the filename where the blob file can be found.
