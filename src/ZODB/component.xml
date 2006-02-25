@@ -65,7 +65,7 @@
   <sectiontype name="zeoclient" datatype=".ZEOClient"
                implements="ZODB.storage">
     <multikey name="server" datatype="socket-connection-address" required="yes"/>
-    <key name="blob-dir" required="no" default="/tmp">
+    <key name="blob-dir" required="no">
       <description>
         Path name to the blob storage directory.
       </description>
