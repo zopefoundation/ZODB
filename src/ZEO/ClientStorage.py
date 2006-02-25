@@ -314,6 +314,11 @@ class ClientStorage(object):
         # is executing.
         self._lock = threading.Lock()
 
+        # XXX need to check for POSIX-ness here
+        if (os.stat(blob_dir).st_mode & 077) != 0:
+            log2('Blob dir %s has insecure mode setting' % blob_dir,
+                 level=logging.WARNING)
+
         self.blob_dir = blob_dir
 
         # Initialize locks
@@ -950,7 +955,8 @@ class ClientStorage(object):
             tempfile.write(chunk)
 
         tempfile.close()
-        utils.best_rename(tempfilename, blob_filename)
+        # XXX will fail on Windows if file is open
+        os.rename(tempfilename, blob_filename)
         return blob_filename
 
     def loadBlob(self, oid, serial, version):
@@ -968,7 +974,7 @@ class ClientStorage(object):
         blob_filename = self._getCleanFilename(oid, serial)
         # Case 1: Blob is available already, just use it
         if os.path.exists(blob_filename):
-                return blob_filename
+            return blob_filename
 
         # Case 2,3: Blob might still be downloading or not there yet
 
@@ -981,7 +987,7 @@ class ClientStorage(object):
         self.blob_status_lock.acquire()
         try:
             if not self.blob_status.has_key(oid):
-                self.blob_status[lock_key] = Lock()
+                self.blob_status[lock_key] = self.getBlobLock()
             lock = self.blob_status[lock_key]
         finally:
             self.blob_status_lock.release()
@@ -1006,10 +1012,13 @@ class ClientStorage(object):
             # making the creation of this status lock non-atomic (see above)
             self.blob_status_lock.acquire()
             try:
-                del self.blob_status_lock[lock_key]
+                del self.blob_status[lock_key]
             finally:
                 self.blob_status_lock.release()
-        
+
+    def getBlobLock(self):
+        # indirection to support unit testing
+        return Lock()
 
     def tpc_vote(self, txn):
         """Storage API: vote on a transaction."""

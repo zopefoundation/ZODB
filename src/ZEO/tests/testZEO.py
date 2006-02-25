@@ -252,6 +252,57 @@ class BlobAdaptedFileStorageTests(GenericTests):
         self.assert_(os.path.exists(filename))
         self.assertEqual(somedata, open(filename).read())
         
+    def checkLoadBlob(self):
+        from ZODB.tests.StorageTestBase import zodb_pickle, ZERO, \
+             handle_serials
+        oid = self._storage.new_oid()
+        serial = ZERO
+        version = ''
+        filename = self._storage._getCleanFilename(oid, serial)
+
+        class Dummy:
+            def __init__(self):
+                self.acquired = 0
+                self.released = 0
+            def acquire(self):
+                self.acquired += 1
+            def release(self):
+                self.released += 1
+
+        class statusdict(dict):
+            def __init__(self):
+                self.added = []
+                self.removed = []
+                
+            def __setitem__(self, k, v):
+                self.added.append(k)
+                super(dict, self).__setitem__(k, v)
+
+            def __delitem__(self, k):
+                self.removed.append(k)
+                super(dict, self).__delitem__(k)
+
+        # ensure that we do locking properly
+        thestatuslock = self._storage.blob_status_lock = Dummy()
+        thebloblock = Dummy()
+
+        def getBlobLock(self):
+            return thebloblock
+
+        # override getBlobLock to test that locking is performed
+        self._storage.getBlobLock = getBlobLock
+        thestatusdict = self._storage.blob_status = statusdict()
+
+        filename = self._storage.loadBlob(oid, serial, version)
+
+        self.assertEqual(thestatuslock.acquired, 2)
+        self.assertEqual(thestatuslock.released, 2)
+        
+        self.assertEqual(thebloblock.acquired, 1)
+        self.assertEqual(thebloblock.released, 1)
+
+        self.assertEqual(thestatusdict.added, (oid, serial))
+        self.assertEqual(thestatusdict.removed, (oid, serial))
 
 test_classes = [FileStorageTests, MappingStorageTests,
                 BlobAdaptedFileStorageTests]
