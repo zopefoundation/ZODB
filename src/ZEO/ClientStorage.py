@@ -763,7 +763,6 @@ class ClientStorage(object):
         return self.loadEx(oid, version)[:2]
 
     def loadEx(self, oid, version):
-        print "LOAD"
         self._lock.acquire()    # for atomic processing of invalidations
         try:
             t = self._cache.load(oid, version)
