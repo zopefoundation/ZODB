@@ -4,11 +4,7 @@ Todo for preview
 Must
 ----
 
-- load_lock strategy in ClientStorage
-
 - Merge to current ZODB trunk
-
-- Unify ZEO/Blob implementation and the BlobProxyStorage directory structures.
 
 - Test for possible collision of the dirty blob filename when two concurring
   transactions try to update an existing blob. 
@@ -22,8 +18,6 @@ Must
 
 Production
 ----------
-
-- Log loudly on best_rename when it actually does a copy.
 
 - Make the ClientStorage support minimizing the blob cache. (Idea: LRU
   principle via mstat access time and a size-based threshold) currently).
