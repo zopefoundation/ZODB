@@ -145,4 +145,17 @@ We can explicitly open Blobs in the different modified modes:
     'rb'
     >>> f9.close()
 
+We can specify the tempdir that blobs use to keep uncommitted data by
+modifying the ZODB_BLOB_TEMPDIR environment variable:
 
+    >>> import os, tempfile, shutil
+    >>> tempdir = tempfile.mkdtemp()
+    >>> os.environ['ZODB_BLOB_TEMPDIR'] = tempdir
+    >>> myblob = Blob()
+    >>> len(os.listdir(tempdir))
+    0
+    >>> f = myblob.open('w')
+    >>> len(os.listdir(tempdir))
+    1
+    >>> shutil.rmtree(tempdir)
+    >>> del os.environ['ZODB_BLOB_TEMPDIR']

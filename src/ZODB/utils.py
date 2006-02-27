@@ -289,9 +289,9 @@ class WeakSet(object):
         return self.data.data.values()
 
 
-def mktemp():
+def mktemp(dir=None):
     """Create a temp file, known by name, in a semi-secure manner."""
-    handle, filename = mkstemp()
+    handle, filename = mkstemp(dir=dir)
     os.close(handle)
     return filename
 

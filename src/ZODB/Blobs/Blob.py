@@ -46,6 +46,8 @@ class Blob(Persistent):
         results from this method call is unconditionally closed at
         transaction boundaries and so may not be used across
         transactions.  """
+
+        tempdir = os.environ.get('ZODB_BLOB_TEMPDIR', tempfile.gettempdir())
         
         result = None
 
@@ -64,7 +66,7 @@ class Blob(Persistent):
                 raise BlobError, "Already opened for reading."
 
             if self._p_blob_uncommitted is None:
-                self._p_blob_uncommitted = utils.mktemp()
+                self._p_blob_uncommitted = utils.mktemp(dir=tempdir)
 
             self._p_blob_writers += 1
             result = BlobFile(self._p_blob_uncommitted, mode, self)
@@ -75,7 +77,7 @@ class Blob(Persistent):
 
             if self._p_blob_uncommitted is None:
                 # Create a new working copy
-                self._p_blob_uncommitted = utils.mktemp()
+                self._p_blob_uncommitted = utils.mktemp(dir=tempdir)
                 uncommitted = BlobFile(self._p_blob_uncommitted, mode, self)
                 # NOTE: _p_blob data appears by virtue of Connection._setstate
                 utils.cp(file(self._p_blob_data), uncommitted)
@@ -103,7 +105,7 @@ class Blob(Persistent):
                 dm = BlobDataManager(self, result)
 
                 # Blobs need to always participate in transactions.
-                if self._p_jar:
+                if self._p_jar is not None:
                     # If we are connected to a database, then we register
                     # with the transaction manager for that.
                     self._p_jar.transaction_manager.get().register(dm)
