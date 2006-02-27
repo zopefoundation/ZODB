@@ -937,7 +937,7 @@ class ClientStorage(object):
         # We write to a temporary file first, so we do not accidentally 
         # allow half-baked copies of this blob be loaded
         tempfd, tempfilename = self.fshelper.blob_mkstemp(oid, serial)
-        tempfile = fdopen(tempfd, 'wb')
+        tempfile = os.fdopen(tempfd, 'wb')
 
         offset = 0
         while True:
