@@ -315,9 +315,15 @@ class ClientStorage(object):
         self._lock = threading.Lock()
 
         # XXX need to check for POSIX-ness here
-        if blob_dir is not None and (os.stat(blob_dir).st_mode & 077) != 0:
-            log2('Blob dir %s has insecure mode setting' % blob_dir,
-                 level=logging.WARNING)
+        if blob_dir is not None:
+            if not os.path.exists(blob_dir):
+                os.makedirs(blob_dir, 0700)
+                log2("Blob cache directory '%s' does not exist. "
+                            "Created new directory." % self.base_directory,
+                            level=logging.INFO)
+            if (os.stat(blob_dir).st_mode & 077) != 0:
+                log2('Blob dir %s has insecure mode setting' % blob_dir,
+                     level=logging.WARNING)
 
         self.blob_dir = blob_dir
 

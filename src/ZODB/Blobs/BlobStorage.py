@@ -15,6 +15,7 @@
 import os
 import shutil
 import base64
+import logging
 
 from zope.interface import implements
 from zope.proxy import ProxyBase, getProxiedObject
@@ -25,6 +26,8 @@ from ZODB.POSException import POSKeyError
 
 BLOB_SUFFIX = ".blob"
 
+logger = logging.getLogger('ZODB.BlobStorage')
+
 class BlobStorage(ProxyBase):
     """A storage to support blobs."""
 
@@ -32,7 +35,7 @@ class BlobStorage(ProxyBase):
 
     __slots__ = ('base_directory', 'dirty_oids')
     # Proxies can't have a __dict__ so specifying __slots__ here allows
-    # us to have instance attributes? XXX confirm
+    # us to have instance attributes explicitly on the proxy.
 
     def __new__(self, base_directory, storage):
         return ProxyBase.__new__(self, storage)
@@ -41,6 +44,10 @@ class BlobStorage(ProxyBase):
         # TODO Complain if storage is ClientStorage
         ProxyBase.__init__(self, storage)
         self.base_directory = base_directory
+        if not os.path.exists(self.base_directory):
+            os.makedirs(self.base_directory, 0700)
+            logger.info("Blob directory '%s' does not exist. "
+                        "Created new directory." % self.base_directory)
         self.dirty_oids = []
 
     def __repr__(self):
@@ -93,7 +100,6 @@ class BlobStorage(ProxyBase):
         """ We need to override the base storage's abort instead of
         providing an _abort method because methods found on the proxied object
         aren't rebound to the proxy """
-        # XXX this is never called during our tests.
         getProxiedObject(self).tpc_abort(*arg, **kw)
         while self.dirty_oids:
             oid, serial = self.dirty_oids.pop()
