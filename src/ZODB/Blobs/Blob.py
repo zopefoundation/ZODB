@@ -300,7 +300,7 @@ class FilesystemHelper:
 
     def checkSecure(self):
         if not self.isSecure(self.base_dir):
-            log('Blob dir %s has insecure mode setting' % path,
+            log('Blob dir %s has insecure mode setting' % self.base_dir,
                  level=logging.WARNING)
 
     def getPathForOID(self, oid):
