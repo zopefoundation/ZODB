@@ -21,6 +21,7 @@ import tempfile
 import threading
 import warnings
 import os
+import shutil
 from time import time
 
 from persistent import PickleCache
@@ -1090,6 +1091,11 @@ class Connection(ExportImport, object):
             else:
                 s = self._storage.storeBlob(oid, serial, data, blobfilename,
                                             self._version, transaction)
+                # we invalidate the object here in order to ensure
+                # that that the next attribute access of its name
+                # unghostify it, which will cause its blob data
+                # to be reattached "cleanly"
+                self.invalidate(s, {oid:True})
             self._handle_serial(s, oid, change=False)
         src.close()
 
@@ -1139,6 +1145,8 @@ BLOB_DIRTY = "store"
 class TmpStore:
     """A storage-like thing to support savepoints."""
 
+    implements(IBlobStorage)
+
     def __init__(self, base_version, storage):
         self._storage = storage
         for method in (
@@ -1149,7 +1157,8 @@ class TmpStore:
 
         self._base_version = base_version
         self._file = tempfile.TemporaryFile()
-        self._blobdir = tempfile.mkdtemp()
+        self._blobdir = tempfile.mkdtemp()      # XXX this needs to go to the 
+                                                # storage dependent blob area
         # position: current file position
         # _tpos: file position at last commit point
         self.position = 0L
@@ -1162,6 +1171,7 @@ class TmpStore:
 
     def close(self):
         self._file.close()
+        shutil.rmtree(self._blobdir)
 
     def load(self, oid, version):
         pos = self.index.get(oid)
@@ -1195,7 +1205,6 @@ class TmpStore:
 
     def storeBlob(self, oid, serial, data, blobfilename, version,
                   transaction):
-        # XXX we need to clean up after ourselves!
         serial = self.store(oid, serial, data, version, transaction)
         assert isinstance(serial, str) # XXX in theory serials could be 
                                        # something else

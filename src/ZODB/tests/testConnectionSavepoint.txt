@@ -193,3 +193,4 @@ However, using a savepoint invalidates any savepoints that come after it:
     InvalidSavepointRollbackError
 
     >>> transaction.abort()
+
