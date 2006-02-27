@@ -1156,9 +1156,11 @@ class TmpStore:
             setattr(self, method, getattr(storage, method))
 
         self._base_version = base_version
+        tmpdir = os.environ.get('ZODB_BLOB_TEMPDIR')
+        if tmpdir is None:
+            tmpdir = tempfile.mkdtemp()
+        self._blobdir = tmpdir
         self._file = tempfile.TemporaryFile()
-        self._blobdir = tempfile.mkdtemp()      # XXX this needs to go to the 
-                                                # storage dependent blob area
         # position: current file position
         # _tpos: file position at last commit point
         self.position = 0L

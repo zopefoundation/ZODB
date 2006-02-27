@@ -22,7 +22,6 @@ We need a database with a blob supporting storage:
     >>> from ZODB.DB import DB
     >>> import transaction
     >>> import tempfile
-    >>> tempfile.tempdir = "/home/ctheune/blobtemp"
     >>> from tempfile import mkdtemp
     >>> base_storage = MappingStorage("test")
     >>> blob_dir = mkdtemp()
