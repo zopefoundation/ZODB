@@ -315,7 +315,8 @@ class ClientStorage(object):
         self._lock = threading.Lock()
 
         # XXX need to check for POSIX-ness here
-        if (os.stat(blob_dir).st_mode & 077) != 0:
+        if blob_dir is not None and \
+           (os.stat(blob_dir).st_mode & 077) != 0:
             log2('Blob dir %s has insecure mode setting' % blob_dir,
                  level=logging.WARNING)
 
@@ -923,23 +924,31 @@ class ClientStorage(object):
         os.unlink(blobfilename)
         return serials
 
+    def _getBlobPath(self, oid):
+        return os.path.join(self.blob_dir,
+                            utils.oid_repr(oid)
+                            )
+
     def _getDirtyFilename(self, oid, serial):
         """Generate an intermediate filename for two-phase commit.
         """
         return self._getCleanFilename(oid, serial) + "." + BLOB_DIRTY
 
     def _getCleanFilename(self, oid, tid):
-        return os.path.join(self.blob_dir,
-                            "%s-%s%s" % (utils.oid_repr(oid),
-                                         utils.tid_repr(tid), 
+        return os.path.join(self._getBlobPath(oid),
+                            "%s%s" % (utils.tid_repr(tid), 
                                          BLOB_SUFFIX,)
                             )
 
-    def _do_load_blob(self, oid, serial):
+    def _do_load_blob(self, oid, serial, version):
         """Do the actual loading from the RPC server."""
         blob_filename = self._getCleanFilename(oid, serial)
         if self._server is None:
             raise ClientDisconnected()
+
+        targetpath = self._getBlobPath(oid)
+        if not os.path.exists(targetpath):
+            os.makedirs(targetpath, 0700)
 
         # We write to a temporary file first, so we do not accidentally 
         # allow half-baked copies of this blob be loaded
@@ -1002,7 +1011,7 @@ class ClientStorage(object):
                 return blob_filename
 
             # Otherwise we download and use that
-            return self._do_load_blob(oid, serial)
+            return self._do_load_blob(oid, serial, version)
         finally:
             # When done we remove the download lock ...
             lock.release()
