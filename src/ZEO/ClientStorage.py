@@ -315,8 +315,7 @@ class ClientStorage(object):
         self._lock = threading.Lock()
 
         # XXX need to check for POSIX-ness here
-        if blob_dir is not None and \
-           (os.stat(blob_dir).st_mode & 077) != 0:
+        if blob_dir is not None and (os.stat(blob_dir).st_mode & 077) != 0:
             log2('Blob dir %s has insecure mode setting' % blob_dir,
                  level=logging.WARNING)
 
@@ -978,7 +977,8 @@ class ClientStorage(object):
             3. If not beeing downloaded, start download
         """
         if self.blob_dir is None:
-            raise POSException.Unsupported("No blob cache directory is configured. Can not load blob.")
+            raise POSException.Unsupported("No blob cache directory is "
+                                           "configured.")
 
         blob_filename = self._getCleanFilename(oid, serial)
         # Case 1: Blob is available already, just use it

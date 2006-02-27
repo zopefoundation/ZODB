@@ -185,6 +185,10 @@ def shutdown_zeo_server(adminaddr):
                 break
             raise
         except socket.error, e:
+            # Mac OS X uses EINVAL to signal unbound socket timeout failure
+            if sys.platform == 'darwin': 
+                if e[0] == errno.EINVAL and i > 0:
+                    break
             if e[0] == errno.ECONNREFUSED and i > 0:
                 break
             raise
