@@ -2,6 +2,7 @@
 import os
 import time
 import tempfile
+import logging
 
 from zope.interface import implements
 
@@ -11,6 +12,8 @@ from ZODB import utils
 import transaction
 from transaction.interfaces import IDataManager
 from persistent import Persistent
+
+BLOB_SUFFIX = ".blob"
 
 class Blob(Persistent):
  
@@ -265,3 +268,87 @@ class BlobFile(file):
         # we'll assume they will be for now in the name of not
         # muddying the code needlessly.
         self.close()
+
+logger = logging.getLogger('ZODB.Blobs')
+_pid = str(os.getpid())
+
+def log(msg, level=logging.INFO, subsys=_pid, exc_info=False):
+    message = "(%s) %s" % (subsys, msg)
+    logger.log(level, message, exc_info=exc_info)
+
+class FilesystemHelper:
+
+    # Storages that implement IBlobStorage can choose to use this
+    # helper class to generate and parse blob filenames.  This is not
+    # a set-in-stone interface for all filesystem operations dealing
+    # with blobs and storages needn't indirect through this if they
+    # want to perform blob storage differently.
+
+    def __init__(self, base_dir):
+        self.base_dir = base_dir
+
+    def create(self):
+        if not os.path.exists(self.base_dir):
+            os.makedirs(self.base_dir, 0700)
+            log("Blob cache directory '%s' does not exist. "
+                "Created new directory." % self.base_dir,
+                level=logging.INFO)
+
+    def isSecure(self, path):
+        """ Ensure that (POSIX) path mode bits are 0700 """
+        return (os.stat(path).st_mode & 077) != 0
+
+    def getPathForOID(self, oid):
+        """ Given an OID, return the path on the filesystem where
+        the blob data relating to that OID is stored """
+        return os.path.join(self.base_dir, utils.oid_repr(oid))
+
+    def getBlobFilename(self, oid, tid):
+        """ Given an oid and a tid, return the full filename of the
+        'committed' blob file related to that oid and tid. """
+        oid_path = self.getPathForOID(oid)
+        filename = "%s%s" % (utils.tid_repr(tid), BLOB_SUFFIX)
+        return os.path.join(oid_path, filename)
+
+    def blob_mkstemp(self, oid, tid):
+        """ Given an oid and a tid, return a temporary file descriptor
+        and a related filename.  The file is guaranteed to exist on
+        the same partition as committed data, which is important for
+        being able to rename the file without a copy operation.  The
+        directory in which the file will be placed, which is the
+        return value of self.getPathForOID(oid), must exist before
+        this method may be called successfully."""
+        oidpath = self.getPathForOID(oid)
+        fd, name = tempfile.mkstemp(suffix='.tmp', prefix=utils.tid_repr(tid),
+                                    dir=oidpath)
+        return fd, name
+
+    def splitBlobFilename(self, filename):
+        """Returns the oid and tid for a given blob filename.
+
+        If the filename cannot be recognized as a blob filename, (None, None)
+        is returned.
+        """
+        if not filename.endswith(BLOB_SUFFIX):
+            return None, None
+        path, filename = os.path.split(filename)
+        oid = os.path.split(path)[1]
+
+        serial = filename[:-len(BLOB_SUFFIX)]
+        oid = utils.repr_to_oid(oid)
+        serial = utils.repr_to_oid(serial)
+        return oid, serial 
+
+    def getOIDsForSerial(self, search_serial):
+        """ Return all oids related to a particular tid that exist in
+        blob data """
+        oids = []
+        base_dir = self.base_dir
+        for oidpath in os.listdir(base_dir):
+            for filename in os.listdir(os.path.join(base_dir, oidpath)):
+                blob_path = os.path.join(base_dir, oidpath, filename)
+                oid, serial = self.splitBlobFilename(blob_path)
+                if search_serial == serial:
+                    oids.append(oid)
+        return oids
+        

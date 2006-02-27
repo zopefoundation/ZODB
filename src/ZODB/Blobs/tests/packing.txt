@@ -83,13 +83,13 @@ Put some revisions of a blob object in our database and on the filesystem:
     >>> tids.append(blob_storage._tid)
 
     >>> oid = root['blob']._p_oid
-    >>> fns = [ blob_storage._getCleanFilename(oid, x) for x in tids ]
+    >>> fns = [ blob_storage.fshelper.getBlobFilename(oid, x) for x in tids ]
     >>> [ os.path.exists(x) for x in fns ]
     [True, True, True, True, True]
 
 Get our blob filenames for this oid.
 
-    >>> fns = [ blob_storage._getCleanFilename(oid, x) for x in tids ]
+    >>> fns = [ blob_storage.fshelper.getBlobFilename(oid, x) for x in tids ]
 
 Do a pack to the slightly before the first revision was written:
 
@@ -203,13 +203,13 @@ Put some revisions of a blob object in our database and on the filesystem:
     >>> tids.append(blob_storage._tid)
 
     >>> oid = root['blob']._p_oid
-    >>> fns = [ blob_storage._getCleanFilename(oid, x) for x in tids ]
+    >>> fns = [ blob_storage.fshelper.getBlobFilename(oid, x) for x in tids ]
     >>> [ os.path.exists(x) for x in fns ]
     [True, True, True, True, True]
 
 Get our blob filenames for this oid.
 
-    >>> fns = [ blob_storage._getCleanFilename(oid, x) for x in tids ]
+    >>> fns = [ blob_storage.fshelper.getBlobFilename(oid, x) for x in tids ]
 
 Do a pack to the slightly before the first revision was written:
 

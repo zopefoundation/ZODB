@@ -35,11 +35,11 @@ from ZEO.Exceptions import ClientStorageError, ClientDisconnected, AuthError
 from ZEO.auth import get_module
 from ZEO.zrpc.client import ConnectionManager
 
-from ZODB.Blobs.BlobStorage import BLOB_SUFFIX 
 from ZODB import POSException
 from ZODB import utils
 from ZODB.loglevels import BLATHER
 from ZODB.Blobs.interfaces import IBlobStorage
+from ZODB.Blobs.Blob import FilesystemHelper
 from persistent.TimeStamp import TimeStamp
 
 logger = logging.getLogger('ZEO.ClientStorage')
@@ -316,17 +316,13 @@ class ClientStorage(object):
 
         # XXX need to check for POSIX-ness here
         if blob_dir is not None:
-            if not os.path.exists(blob_dir):
-                os.makedirs(blob_dir, 0700)
-                log2("Blob cache directory '%s' does not exist. "
-                            "Created new directory." % self.base_directory,
-                            level=logging.INFO)
-            if (os.stat(blob_dir).st_mode & 077) != 0:
+            self.fshelper = FilesystemHelper(blob_dir)
+            self.fshelper.create()
+            if not self.fshelper.isSecure(blob_dir):
                 log2('Blob dir %s has insecure mode setting' % blob_dir,
                      level=logging.WARNING)
-
-        self.blob_dir = blob_dir
-
+        else:
+            self.fshelper = None
         # Initialize locks
         self.blob_status_lock = threading.Lock()
         self.blob_status = {}
@@ -929,37 +925,21 @@ class ClientStorage(object):
         os.unlink(blobfilename)
         return serials
 
-    def _getBlobPath(self, oid):
-        return os.path.join(self.blob_dir,
-                            utils.oid_repr(oid)
-                            )
-
-    def _getLoadingFilename(self, oid, serial):
-        """Generate an intermediate filename for two-phase commit.
-        """
-        return self._getCleanFilename(oid, serial) + ".loading" 
-
-    def _getCleanFilename(self, oid, tid):
-        return os.path.join(self._getBlobPath(oid),
-                            "%s%s" % (utils.tid_repr(tid), 
-                                         BLOB_SUFFIX,)
-                            )
-
     def _do_load_blob(self, oid, serial, version):
         """Do the actual loading from the RPC server."""
-        blob_filename = self._getCleanFilename(oid, serial)
+        blob_filename = self.fshelper.getBlobFilename(oid, serial)
         if self._server is None:
             raise ClientDisconnected()
 
-        targetpath = self._getBlobPath(oid)
+        targetpath = self.fshelper.getPathForOID(oid)
         if not os.path.exists(targetpath):
             os.makedirs(targetpath, 0700)
 
         # We write to a temporary file first, so we do not accidentally 
         # allow half-baked copies of this blob be loaded
-        tempfilename = self._getLoadingFilename(oid, serial)
-        tempfile = open(tempfilename, "wb")
-        
+        tempfd, tempfilename = self.fshelper.blob_mkstemp(oid, serial)
+        tempfile = fdopen(tempfd, 'wb')
+
         offset = 0
         while True:
             chunk = self._server.loadBlob(oid, serial, version, offset)
@@ -982,11 +962,11 @@ class ClientStorage(object):
             2a. Wait for other download to finish, return 
             3. If not beeing downloaded, start download
         """
-        if self.blob_dir is None:
+        if self.fshelper is None:
             raise POSException.Unsupported("No blob cache directory is "
                                            "configured.")
 
-        blob_filename = self._getCleanFilename(oid, serial)
+        blob_filename = self.fshelper.getBlobFilename(oid, serial)
         # Case 1: Blob is available already, just use it
         if os.path.exists(blob_filename):
             return blob_filename

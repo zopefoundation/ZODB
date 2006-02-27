@@ -308,7 +308,7 @@ class BlobAdaptedFileStorageTests(GenericTests):
                 super(statusdict, self).__delitem__(k)
 
         # ensure that we do locking properly
-        filename = self._storage._getCleanFilename(oid, serial)
+        filename = self._storage.fshelper.getBlobFilename(oid, serial)
         thestatuslock = self._storage.blob_status_lock = Dummy()
         thebloblock = Dummy()
 

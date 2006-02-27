@@ -23,8 +23,8 @@ from zope.proxy import ProxyBase, getProxiedObject
 from ZODB import utils
 from ZODB.Blobs.interfaces import IBlobStorage, IBlob
 from ZODB.POSException import POSKeyError
-
-BLOB_SUFFIX = ".blob"
+from ZODB.Blobs.Blob import BLOB_SUFFIX
+from ZODB.Blobs.Blob import FilesystemHelper
 
 logger = logging.getLogger('ZODB.BlobStorage')
 
@@ -33,7 +33,7 @@ class BlobStorage(ProxyBase):
 
     implements(IBlobStorage)
 
-    __slots__ = ('base_directory', 'dirty_oids')
+    __slots__ = ('fshelper', 'dirty_oids')
     # Proxies can't have a __dict__ so specifying __slots__ here allows
     # us to have instance attributes explicitly on the proxy.
 
@@ -43,7 +43,7 @@ class BlobStorage(ProxyBase):
     def __init__(self, base_directory, storage):    
         # TODO Complain if storage is ClientStorage
         ProxyBase.__init__(self, storage)
-        self.base_directory = base_directory
+        self.fshelper = FilesystemHelper(base_directory)
         if not os.path.exists(self.base_directory):
             os.makedirs(self.base_directory, 0700)
             logger.info("Blob directory '%s' does not exist. "
@@ -64,11 +64,11 @@ class BlobStorage(ProxyBase):
 
         self._lock_acquire()
         try:
-            targetpath = self._getBlobPath(oid)
+            targetpath = self.fshelper.getPathForOID(oid)
             if not os.path.exists(targetpath):
                 os.makedirs(targetpath, 0700)
                               
-            targetname = self._getCleanFilename(oid, serial)
+            targetname = self.fshelper.getBlobFilename(oid, serial)
             os.rename(blobfilename, targetname)
 
             # XXX if oid already in there, something is really hosed.
@@ -77,17 +77,6 @@ class BlobStorage(ProxyBase):
         finally:
             self._lock_release()
         return self._tid
-
-    def _getBlobPath(self, oid):
-        return os.path.join(self.base_directory,
-                            utils.oid_repr(oid)
-                            )
-
-    def _getCleanFilename(self, oid, tid):
-        return os.path.join(self._getBlobPath(oid),
-                            "%s%s" % (utils.tid_repr(tid), 
-                                      BLOB_SUFFIX,)
-                            )
 
     def tpc_finish(self, *arg, **kw):
         """ We need to override the base storage's tpc_finish instead of
@@ -103,14 +92,14 @@ class BlobStorage(ProxyBase):
         getProxiedObject(self).tpc_abort(*arg, **kw)
         while self.dirty_oids:
             oid, serial = self.dirty_oids.pop()
-            clean = self._getCleanFilename(oid, serial)
+            clean = self.fshelper.getBlobFilename(oid, serial)
             if os.exists(clean):
                 os.unlink(clean) 
 
     def loadBlob(self, oid, serial, version):
         """Return the filename where the blob file can be found.
         """
-        filename = self._getCleanFilename(oid, serial)
+        filename = self.fshelper.getBlobFilename(oid, serial)
         if not os.path.exists(filename):
             raise POSKeyError, "Not an existing blob."
         return filename
@@ -125,17 +114,18 @@ class BlobStorage(ProxyBase):
         # XXX we should be tolerant of "garbage" directories/files in
         # the base_directory here.
 
-        for oid_repr in os.listdir(self.base_directory):
+        base_dir = self.fshelper.base_dir
+        for oid_repr in os.listdir(base_dir):
             oid = utils.repr_to_oid(oid_repr)
-            oid_path = os.path.join(self.base_directory, oid_repr)
+            oid_path = os.path.join(base_dir, oid_repr)
             files = os.listdir(oid_path)
             files.sort()
 
             for filename in files:
                 filepath = os.path.join(oid_path, filename)
-                whatever, serial = self._splitBlobFilename(filepath)
+                whatever, serial = self.fshelper.splitBlobFilename(filepath)
                 try:
-                    fn = self._getCleanFilename(oid, serial)
+                    fn = self.fshelper.getBlobFilename(oid, serial)
                     self.loadSerial(oid, serial)
                 except POSKeyError:
                     os.unlink(filepath)
@@ -144,9 +134,10 @@ class BlobStorage(ProxyBase):
                 shutil.rmtree(oid_path)
 
     def _packNonUndoing(self, packtime, referencesf):
-        for oid_repr in os.listdir(self.base_directory):
+        base_dir = self.fshelper.base_dir
+        for oid_repr in os.listdir(base_dir):
             oid = utils.repr_to_oid(oid_repr)
-            oid_path = os.path.join(self.base_directory, oid_repr)
+            oid_path = os.path.join(base_dir, oid_repr)
             exists = True
 
             try:
@@ -193,29 +184,15 @@ class BlobStorage(ProxyBase):
         orig_size = getProxiedObject(self).getSize()
         
         blob_size = 0
-        for oid in os.listdir(self.base_directory):
-            for serial in os.listdir(os.path.join(self.base_directory, oid)):
+        base_dir = self.fshelper.base_dir
+        for oid in os.listdir(base_dir):
+            for serial in os.listdir(os.path.join(base_dir, oid)):
                 if not serial.endswith(BLOB_SUFFIX):
                     continue
-                file_path = os.path.join(self.base_directory, oid, serial)
+                file_path = os.path.join(base_dir, oid, serial)
                 blob_size += os.stat(file_path).st_size
         
         return orig_size + blob_size
-
-    def _splitBlobFilename(self, filename):
-        """Returns OID, TID for a given blob filename.
-
-        If it's not a blob filename, (None, None) is returned.
-        """
-        if not filename.endswith(BLOB_SUFFIX):
-            return None, None
-        path, filename = os.path.split(filename)
-        oid = os.path.split(path)[1]
-
-        serial = filename[:-len(BLOB_SUFFIX)]
-        oid = utils.repr_to_oid(oid)
-        serial = utils.repr_to_oid(serial)
-        return oid, serial 
 
     def undo(self, serial_id, transaction):
         serial, keys = getProxiedObject(self).undo(serial_id, transaction)
@@ -223,11 +200,13 @@ class BlobStorage(ProxyBase):
         try:
             # The old serial_id is given in base64 encoding ...
             serial_id = base64.decodestring(serial_id+ '\n')
-            for oid in self._getOIDsForSerial(serial_id):
-                data, serial_before, serial_after = \
-                        self.loadBefore(oid, serial_id) 
-                orig = file(self._getCleanFilename(oid, serial_before), "r")
-                new = file(self._getCleanFilename(oid, serial), "w")
+            for oid in self.fshelper.getOIDsForSerial(serial_id):
+                data, serial_before, serial_after = self.loadBefore(oid,
+                                                                    serial_id) 
+                orig_fn = self.fshelper.getBlobFilename(oid, serial_before)
+                orig = open(orig_fn, "r")
+                new_fn = self.fshelper.getBlobFilename(oid, serial)
+                new = open(new_fn, "wb")
                 utils.cp(orig, new)
                 orig.close()
                 new.close()
@@ -236,14 +215,3 @@ class BlobStorage(ProxyBase):
             self._lock_release()
         return serial, keys
 
-    def _getOIDsForSerial(self, search_serial):
-        oids = []
-        for oidpath in os.listdir(self.base_directory):
-            for filename in os.listdir(os.path.join(self.base_directory,
-                                     oidpath)):
-                blob_path = os.path.join(self.base_directory, oidpath, 
-                                         filename)
-                oid, serial = self._splitBlobFilename(blob_path)
-                if search_serial == serial:
-                    oids.append(oid)
-        return oids
