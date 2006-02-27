@@ -318,11 +318,10 @@ class ClientStorage(object):
         if blob_dir is not None:
             self.fshelper = FilesystemHelper(blob_dir)
             self.fshelper.create()
-            if not self.fshelper.isSecure(blob_dir):
-                log2('Blob dir %s has insecure mode setting' % blob_dir,
-                     level=logging.WARNING)
+            self.fshelper.checkSecure()
         else:
             self.fshelper = None
+
         # Initialize locks
         self.blob_status_lock = threading.Lock()
         self.blob_status = {}

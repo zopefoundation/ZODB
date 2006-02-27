@@ -298,6 +298,11 @@ class FilesystemHelper:
         """ Ensure that (POSIX) path mode bits are 0700 """
         return (os.stat(path).st_mode & 077) != 0
 
+    def checkSecure(self):
+        if not self.isSecure(self.base_dir):
+            log('Blob dir %s has insecure mode setting' % path,
+                 level=logging.WARNING)
+
     def getPathForOID(self, oid):
         """ Given an OID, return the path on the filesystem where
         the blob data relating to that OID is stored """

@@ -44,10 +44,8 @@ class BlobStorage(ProxyBase):
         # TODO Complain if storage is ClientStorage
         ProxyBase.__init__(self, storage)
         self.fshelper = FilesystemHelper(base_directory)
-        if not os.path.exists(self.base_directory):
-            os.makedirs(self.base_directory, 0700)
-            logger.info("Blob directory '%s' does not exist. "
-                        "Created new directory." % self.base_directory)
+        self.fshelper.create()
+        self.fshelper.checkSecure()
         self.dirty_oids = []
 
     def __repr__(self):
