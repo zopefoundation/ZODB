@@ -26,6 +26,12 @@ class Blob(Persistent):
     # blobs here.
     _p_blob_manager = None
 
+    # Blobs need to participate in transactions even when not connected to
+    # a database yet. If you want to use a non-default transaction manager,
+    # you can override it via _p_blob_transaction. This is currently
+    # required for unit testing.
+    _p_blob_transaction = None
+
     def open(self, mode="r"):
         """ Returns a file(-like) object representing blob data.  This
         method will either return the file object, raise a BlobError
@@ -75,7 +81,7 @@ class Blob(Persistent):
                 # Re-use existing working copy
                 uncommitted = BlobFile(self._p_blob_uncommitted, mode, self)
 
-            self._p_blob_writers +=1
+            self._p_blob_writers += 1
             result = uncommitted
 
         else:
@@ -92,7 +98,21 @@ class Blob(Persistent):
 
             if self._p_blob_manager is None:
                 dm = BlobDataManager(self, result)
-                transaction.get().register(dm)
+
+                # Blobs need to always participate in transactions.
+                if self._p_jar:
+                    # If we are connected to a database, then we register
+                    # with the transaction manager for that.
+                    self._p_jar.transaction_manager.get().register(dm)
+                else:
+                    # If we are not connected to a database, we check whether
+                    # we have been given an explicit transaction manager
+                    if self._p_blob_transaction:
+                        self._p_blob_transaction.get().register(dm)
+                    else:
+                        # Otherwise we register with the default 
+                        # transaction manager as an educated guess.
+                        transaction.get().register(dm)
             else:
                 # each blob data manager should manage only the one blob
                 # assert that this is the case and it is the correct blob

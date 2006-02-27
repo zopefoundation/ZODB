@@ -170,10 +170,20 @@ connections should result in a write conflict error.
     >>> blob1c3fh1.write('this is from connection 3')
     >>> blob1c4fh1.write('this is from connection 4')
     >>> tm1.get().commit()
+    >>> root3['blob1'].open('r').read()
+    'this is blob 1woot!this is from connection 3'
     >>> tm2.get().commit()
     Traceback (most recent call last):
         ...
     ConflictError: database conflict error (oid 0x01, class ZODB.Blobs.Blob.Blob)
+
+BlobStorages implementation of getSize() includes the blob data and adds it to
+the underlying storages result of getSize():
+
+    >>> underlying_size = base_storage.getSize()
+    >>> blob_size = blob_storage.getSize()
+    >>> blob_size - underlying_size
+    91L
 
 We don't need the storage directory and databases anymore:
 
@@ -182,3 +192,4 @@ We don't need the storage directory and databases anymore:
     >>> tm1.get().abort()
     >>> tm2.get().abort()
     >>> database.close()
+
