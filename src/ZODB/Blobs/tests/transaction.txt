@@ -184,7 +184,8 @@ connections:
 
     >>> root3['blob1'].open('r').read()
     'this is blob 1woot!this is from connection 3'
-    >>> root2['blob1'].open('r').read()
+    >>> tm2.get().abort()
+    >>> root4['blob1'].open('r').read()
     'this is blob 1woot!this is from connection 3'
 
 BlobStorages implementation of getSize() includes the blob data and adds it to
