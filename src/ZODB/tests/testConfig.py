@@ -102,6 +102,9 @@ class ZEOConfigTest(ConfigTestBase):
         # an elaborate comment explaining this instead.  Go ahead,
         # grep for 9.
         from ZEO.ClientStorage import ClientDisconnected
+        import ZConfig
+        from ZODB.config import getDbSchema
+        from StringIO import StringIO
         cfg = """
         <zodb>
           <zeoclient>
@@ -110,6 +113,23 @@ class ZEOConfigTest(ConfigTestBase):
           </zeoclient>
         </zodb>
         """
+        config, handle = ZConfig.loadConfigFile(getDbSchema(), StringIO(cfg))
+        self.assertEqual(config.database.config.storage.config.blob_dir,
+                         None)
+        self.assertRaises(ClientDisconnected, self._test, cfg)
+
+        cfg = """
+        <zodb>
+          <zeoclient>
+            blob-dir /tmp
+            server localhost:56897
+            wait false
+          </zeoclient>
+        </zodb>
+        """
+        config, handle = ZConfig.loadConfigFile(getDbSchema(), StringIO(cfg))
+        self.assertEqual(config.database.config.storage.config.blob_dir,
+                         '/tmp')
         self.assertRaises(ClientDisconnected, self._test, cfg)
 
 
