@@ -1205,7 +1205,7 @@ class TmpStore:
             os.makedirs(targetpath, 0700)
 
         targetname = self._getCleanFilename(oid, serial)
-        utils.best_rename(blobfilename, targetname)
+        os.rename(blobfilename, targetname)
 
     def loadBlob(self, oid, serial, version):
         """Return the filename where the blob file can be found.

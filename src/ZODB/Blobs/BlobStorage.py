@@ -63,7 +63,7 @@ class BlobStorage(ProxyBase):
                 os.makedirs(targetpath, 0700)
                               
             targetname = self._getCleanFilename(oid, serial)
-            utils.best_rename(blobfilename, targetname)
+            os.rename(blobfilename, targetname)
 
             # XXX if oid already in there, something is really hosed.
             # The underlying storage should have complained anyway

@@ -295,27 +295,4 @@ def mktemp():
     os.close(handle)
     return filename
 
-def best_rename(sourcename, targetname):
-    """ Try to rename via os.rename, but if we can't (for instance, if the
-    source and target are on separate partitions/volumes), fall back to copying
-    the file and unlinking the original. """
-    try:
-        os.rename(sourcename, targetname)
-    except OSError:
-        # XXX CM: I don't think this is a good idea; maybe just fail
-        # here instead of doing a brute force copy?  This is awfully
-        # expensive and people won't know it's happening without
-        # at least a warning.  It also increases the possibility of a race
-        # condition: both the source and target filenames exist at the
-        # same time.
-        source = open(sourcename, "rb")
-        target = open(targetname, "wb")
-        while True:
-            chunk = source.read(1<<16)
-            if not chunk:
-                break
-            target.write(chunk)
-        source.close()
-        target.close()
-        os.unlink(sourcename)
 
