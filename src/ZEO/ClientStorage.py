@@ -968,7 +968,8 @@ class ClientStorage(object):
         blob_filename = self.fshelper.getBlobFilename(oid, serial)
         # Case 1: Blob is available already, just use it
         if os.path.exists(blob_filename):
-            log2("Found blob %s/%s in cache." % (oid, serial), level=BLATHER)
+            log2("Found blob %s/%s in cache." % (utils.repr_to_oid(oid),
+                utils.repr_to_oid(serial)), level=BLATHER)
             return blob_filename
 
         # Case 2,3: Blob might still be downloading or not there yet
@@ -995,7 +996,8 @@ class ClientStorage(object):
             # we just take the result.
             if os.path.exists(blob_filename):
                 log2("Found blob %s/%s in cache after it was downloaded "
-                     "from another thread." % (oid, serial), level=BLATHER)
+                     "from another thread." % (utils.repr_to_oid(oid),
+                     utils.repr_to_oid(serial)), level=BLATHER)
                 return blob_filename
 
             # Otherwise we download and use that
