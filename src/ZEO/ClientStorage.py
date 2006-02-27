@@ -35,7 +35,7 @@ from ZEO.Exceptions import ClientStorageError, ClientDisconnected, AuthError
 from ZEO.auth import get_module
 from ZEO.zrpc.client import ConnectionManager
 
-from ZODB.Blobs.BlobStorage import BLOB_SUFFIX, BLOB_DIRTY
+from ZODB.Blobs.BlobStorage import BLOB_SUFFIX 
 from ZODB import POSException
 from ZODB import utils
 from ZODB.loglevels import BLATHER
@@ -928,10 +928,10 @@ class ClientStorage(object):
                             utils.oid_repr(oid)
                             )
 
-    def _getDirtyFilename(self, oid, serial):
+    def _getLoadingFilename(self, oid, serial):
         """Generate an intermediate filename for two-phase commit.
         """
-        return self._getCleanFilename(oid, serial) + "." + BLOB_DIRTY
+        return self._getCleanFilename(oid, serial) + ".loading" 
 
     def _getCleanFilename(self, oid, tid):
         return os.path.join(self._getBlobPath(oid),
@@ -951,7 +951,7 @@ class ClientStorage(object):
 
         # We write to a temporary file first, so we do not accidentally 
         # allow half-baked copies of this blob be loaded
-        tempfilename = self._getDirtyFilename(oid, serial)
+        tempfilename = self._getLoadingFilename(oid, serial)
         tempfile = open(tempfilename, "wb")
         
         offset = 0

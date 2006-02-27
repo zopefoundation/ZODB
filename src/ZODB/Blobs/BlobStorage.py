@@ -24,7 +24,6 @@ from ZODB.Blobs.interfaces import IBlobStorage, IBlob
 from ZODB.POSException import POSKeyError
 
 BLOB_SUFFIX = ".blob"
-BLOB_DIRTY = "store"
 
 class BlobStorage(ProxyBase):
     """A storage to support blobs."""
@@ -209,10 +208,7 @@ class BlobStorage(ProxyBase):
 
         serial = filename[:-len(BLOB_SUFFIX)]
         oid = utils.repr_to_oid(oid)
-        if serial != BLOB_DIRTY:
-            serial = utils.repr_to_oid(serial)
-        else:
-            serial = None
+        serial = utils.repr_to_oid(serial)
         return oid, serial 
 
     def undo(self, serial_id, transaction):
