@@ -23,6 +23,7 @@ from ZODB.Blobs.Blob import Blob
 from ZODB.DB import DB
 import transaction
 from ZODB.Blobs.Blob import Blob
+from ZODB import utils
 
 class BlobUndoTests(unittest.TestCase):
 
@@ -44,17 +45,20 @@ class BlobUndoTests(unittest.TestCase):
         connection = database.open()
         root = connection.root()
         transaction.begin()
-        blob = Blob()
-        blob.open('w').write('this is state 1')
-        root['blob'] = blob
+        root['blob'] = Blob()
         transaction.commit()
 
         serial = base64.encodestring(blob_storage._tid)
 
+        # undo the creation of the previously added blob
         transaction.begin()
-        blob_storage.undo(serial, blob_storage._transaction)
+        database.undo(serial, blob_storage._transaction)
         transaction.commit()
 
+        connection.close()
+        connection = database.open()
+        root = connection.root()
+        # the blob footprint object should exist no longer
         self.assertRaises(KeyError, root.__getitem__, 'blob')
 
     def testUndo(self):
@@ -89,6 +93,79 @@ class BlobUndoTests(unittest.TestCase):
         blob = root['blob']
         self.assertEqual(blob.open('r').read(), 'this is state 1')
         transaction.abort()
+
+    def testRedo(self):
+        base_storage = FileStorage(self.storagefile)
+        blob_storage = BlobStorage(self.blob_dir, base_storage)
+        database = DB(blob_storage)
+        connection = database.open()
+        root = connection.root()
+        blob = Blob()
+
+        transaction.begin()
+        blob.open('w').write('this is state 1')
+        root['blob'] = blob
+        transaction.commit()
+
+        transaction.begin()
+        blob = root['blob']
+        blob.open('w').write('this is state 2')
+        transaction.commit()
+
+        serial = base64.encodestring(blob_storage._tid)
+
+        transaction.begin()
+        database.undo(serial)
+        transaction.commit()
+
+        transaction.begin()
+        blob = root['blob']
+        self.assertEqual(blob.open('r').read(), 'this is state 1')
+        transaction.abort()
+
+        serial = base64.encodestring(blob_storage._tid)
+
+        transaction.begin()
+        database.undo(serial)
+        transaction.commit()
+
+        transaction.begin()
+        blob = root['blob']
+        self.assertEqual(blob.open('r').read(), 'this is state 2')
+        transaction.abort()
+        
+    def testRedoOfCreation(self):
+        base_storage = FileStorage(self.storagefile)
+        blob_storage = BlobStorage(self.blob_dir, base_storage)
+        database = DB(blob_storage)
+        connection = database.open()
+        root = connection.root()
+        blob = Blob()
+
+        transaction.begin()
+        blob.open('w').write('this is state 1')
+        root['blob'] = blob
+        transaction.commit()
+
+        serial = base64.encodestring(blob_storage._tid)
+
+        transaction.begin()
+        database.undo(serial)
+        transaction.commit()
+
+        self.assertRaises(KeyError, root.__getitem__, 'blob')
+
+        serial = base64.encodestring(blob_storage._tid)
+
+        transaction.begin()
+        database.undo(serial)
+        transaction.commit()
+
+        transaction.begin()
+        blob = root['blob']
+        self.assertEqual(blob.open('r').read(), 'this is state 1')
+        transaction.abort()
+
 
 def test_suite():
     suite = unittest.TestSuite()
