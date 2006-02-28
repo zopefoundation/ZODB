@@ -37,6 +37,26 @@ class BlobUndoTests(unittest.TestCase):
             pass
         shutil.rmtree(self.blob_dir)
 
+    def testUndoWithoutPreviousVersion(self):
+        base_storage = FileStorage(self.storagefile)
+        blob_storage = BlobStorage(self.blob_dir, base_storage)
+        database = DB(blob_storage)
+        connection = database.open()
+        root = connection.root()
+        transaction.begin()
+        blob = Blob()
+        blob.open('w').write('this is state 1')
+        root['blob'] = blob
+        transaction.commit()
+
+        serial = base64.encodestring(blob_storage._tid)
+
+        transaction.begin()
+        blob_storage.undo(serial, blob_storage._transaction)
+        transaction.commit()
+
+        self.assertRaises(KeyError, root.__getitem__, 'blob')
+
     def testUndo(self):
         base_storage = FileStorage(self.storagefile)
         blob_storage = BlobStorage(self.blob_dir, base_storage)

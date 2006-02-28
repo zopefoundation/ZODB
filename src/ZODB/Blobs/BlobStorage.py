@@ -193,14 +193,20 @@ class BlobStorage(ProxyBase):
         return orig_size + blob_size
 
     def undo(self, serial_id, transaction):
+        import pdb; pdb.set_trace() 
         serial, keys = getProxiedObject(self).undo(serial_id, transaction)
         self._lock_acquire()
         try:
             # The old serial_id is given in base64 encoding ...
             serial_id = base64.decodestring(serial_id+ '\n')
             for oid in self.fshelper.getOIDsForSerial(serial_id):
-                data, serial_before, serial_after = self.loadBefore(oid,
-                                                                    serial_id) 
+                load_result = self.loadBefore(oid, serial_id) 
+
+                if load_result is None:
+                    continue
+
+                data, serial_before, serial_after = load_result
+                                                    
                 orig_fn = self.fshelper.getBlobFilename(oid, serial_before)
                 orig = open(orig_fn, "r")
                 new_fn = self.fshelper.getBlobFilename(oid, serial)
