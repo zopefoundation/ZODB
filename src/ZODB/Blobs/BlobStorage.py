@@ -61,20 +61,23 @@ class BlobStorage(ProxyBase):
                                        # something else
 
         self._lock_acquire()
-        try:
-            targetpath = self.fshelper.getPathForOID(oid)
-            if not os.path.exists(targetpath):
-                os.makedirs(targetpath, 0700)
-                              
-            targetname = self.fshelper.getBlobFilename(oid, serial)
-            os.rename(blobfilename, targetname)
+        # the user may not have called "open" on the blob object,
+        # in which case, the blob will not have a filename.
+        if blobfilename is not None:
+            try:
+                targetpath = self.fshelper.getPathForOID(oid)
+                if not os.path.exists(targetpath):
+                    os.makedirs(targetpath, 0700)
 
-            # XXX if oid already in there, something is really hosed.
-            # The underlying storage should have complained anyway
-            self.dirty_oids.append((oid, serial))
-        finally:
-            self._lock_release()
-        return self._tid
+                targetname = self.fshelper.getBlobFilename(oid, serial)
+                os.rename(blobfilename, targetname)
+
+                # XXX if oid already in there, something is really hosed.
+                # The underlying storage should have complained anyway
+                self.dirty_oids.append((oid, serial))
+            finally:
+                self._lock_release()
+            return self._tid
 
     def tpc_finish(self, *arg, **kw):
         """ We need to override the base storage's tpc_finish instead of
@@ -193,29 +196,52 @@ class BlobStorage(ProxyBase):
         return orig_size + blob_size
 
     def undo(self, serial_id, transaction):
-        import pdb; pdb.set_trace() 
-        serial, keys = getProxiedObject(self).undo(serial_id, transaction)
+        undo_serial, keys = getProxiedObject(self).undo(serial_id, transaction)
+        # serial_id is the transaction id of the txn that we wish to undo.
+        # "undo_serial" is the transaction id of txn in which the undo is
+        # performed.  "keys" is the list of oids that are involved in the
+        # undo transaction.
+
+        # The serial_id is assumed to be given to us base-64 encoded
+        # (belying the web UI legacy of the ZODB code :-()
+        serial_id = base64.decodestring(serial_id+'\n')
+
         self._lock_acquire()
+
         try:
-            # The old serial_id is given in base64 encoding ...
-            serial_id = base64.decodestring(serial_id+ '\n')
+            # we get all the blob oids on the filesystem related to the
+            # transaction we want to undo.
             for oid in self.fshelper.getOIDsForSerial(serial_id):
-                load_result = self.loadBefore(oid, serial_id) 
 
+                # we want to find the serial id of the previous revision
+                # of this blob object.
+                load_result = self.loadBefore(oid, serial_id)
+                
                 if load_result is None:
-                    continue
-
-                data, serial_before, serial_after = load_result
-                                                    
-                orig_fn = self.fshelper.getBlobFilename(oid, serial_before)
+                    # There was no previous revision of this blob
+                    # object.  The blob was created in the transaction
+                    # represented by serial_id.  We copy the blob data
+                    # to a new file that references the undo
+                    # transaction in case a user wishes to undo this
+                    # undo.
+                    orig_fn = self.fshelper.getBlobFilename(oid, serial_id)
+                    new_fn = self.fshelper.getBlobFilename(oid, undo_serial)
+                else:
+                    # A previous revision of this blob existed before the
+                    # transaction implied by "serial_id".  We copy the blob
+                    # data to a new file that references the undo transaction
+                    # in case a user wishes to undo this undo.
+                    data, serial_before, serial_after = load_result
+                    orig_fn = self.fshelper.getBlobFilename(oid, serial_before)
+                    new_fn = self.fshelper.getBlobFilename(oid, undo_serial)
                 orig = open(orig_fn, "r")
-                new_fn = self.fshelper.getBlobFilename(oid, serial)
                 new = open(new_fn, "wb")
                 utils.cp(orig, new)
                 orig.close()
                 new.close()
-                self.dirty_oids.append((oid, serial))
+                self.dirty_oids.append((oid, undo_serial))
+
         finally:
             self._lock_release()
-        return serial, keys
+        return undo_serial, keys
 

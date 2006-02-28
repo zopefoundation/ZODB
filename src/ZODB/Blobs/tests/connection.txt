@@ -19,6 +19,7 @@ Connections handle Blobs specially. To demonstrate that, we first need a Blob wi
 
     >>> from ZODB.Blobs.interfaces import IBlob
     >>> from ZODB.Blobs.Blob import Blob
+    >>> import transaction
     >>> blob = Blob()
     >>> data = blob.open("w")
     >>> data.write("I'm a happy Blob.")
@@ -40,8 +41,15 @@ Putting a Blob into a Connection works like every other object:
     >>> connection = database.open()
     >>> root = connection.root()
     >>> root['myblob'] = blob
-    >>> import transaction
     >>> transaction.commit()
+
+We can also commit a transaction that seats a blob into place without
+calling the blob's open method (this currently fails):
+
+    >>> nothing = transaction.begin()
+    >>> anotherblob = Blob()
+    >>> root['anotherblob'] = anotherblob
+    >>> nothing = transaction.commit()
 
 Getting stuff out of there works similar:
 
@@ -65,7 +73,8 @@ You can't put blobs into a database that has uses a Non-Blob-Storage, though:
         ...
     Unsupported: Storing Blobs in <ZODB.MappingStorage.MappingStorage instance at ...> is not supported.
 
-While we are testing this, we don't need the storage directory and databases anymore:
+While we are testing this, we don't need the storage directory and
+databases anymore:
 
     >>> import shutil
     >>> shutil.rmtree(blob_dir)
