@@ -12,6 +12,7 @@
 #
 ##############################################################################
 import tempfile, shutil, unittest
+import os
 
 from ZODB.tests.testConfig import ConfigTestBase
 from ZConfig import ConfigurationSyntaxError
@@ -55,8 +56,11 @@ class ZODBBlobConfigTest(BlobConfigTestBase):
               </blobstorage>
             </zodb>
             """ %(self.blob_dir, path))
+        os.unlink(path)
+        os.unlink(path+".index")
+        os.unlink(path+".tmp")
 
-    def test_blod_dir_needed(self):
+    def test_blob_dir_needed(self):
         self.assertRaises(ConfigurationSyntaxError,
                           self._test,
                           """

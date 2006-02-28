@@ -159,3 +159,8 @@ modifying the ZODB_BLOB_TEMPDIR environment variable:
     1
     >>> shutil.rmtree(tempdir)
     >>> del os.environ['ZODB_BLOB_TEMPDIR']
+
+Some cleanup in this test is needed:
+
+    >>> import transaction
+    >>> transaction.get().abort()

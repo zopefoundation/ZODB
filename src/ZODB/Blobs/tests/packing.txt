@@ -30,7 +30,6 @@ Set up:
     >>> storagefile = mktemp()
     >>> blob_dir = mkdtemp()
 
-
 UNDOING
 =======
 
@@ -149,7 +148,11 @@ revision as well as the entire directory:
 Clean up our blob directory and database:
 
     >>> shutil.rmtree(blob_dir)
+    >>> base_storage.close()
     >>> os.unlink(storagefile)
+    >>> os.unlink(storagefile+".index")
+    >>> os.unlink(storagefile+".tmp")
+    >>> os.unlink(storagefile+".old")
 
 NON-UNDOING
 ===========
