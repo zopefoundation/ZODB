@@ -913,7 +913,7 @@ class ClientStorage(object):
         serials = self.store(oid, serial, data, version, txn)
         blobfile = open(blobfilename, "rb")
         while True:
-            chunk = blobfile.read(4096)
+            chunk = blobfile.read(1<<16)
             # even if the blobfile is completely empty, we need to call
             # storeBlob at least once in order to be able to call
             # storeBlobEnd successfully.
