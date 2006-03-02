@@ -1,8 +1,0 @@
-# This allows the ZConfig checked out with Zope to be used by the zpkg
-# code invoked by setup.py.
-#
-# If zpkg ever requires a different version of ZConfig than Zope
-# provides as part of it's checkout, this file should be replaced by
-# an svn:external to the required version.
-#
-../src
