@@ -10,6 +10,9 @@ development) since ZODB 3.4's last public release:
 PersistentMapping
 -----------------
 
+- (3.4.3b1) PersistentMapping was inadvertently pickling volatile attributes
+  (http://www.zope.org/Collectors/Zope/2052).
+
 - (3.4.3b1) Suppressed warnings about signedness of characters when compiling
   under GCC 4.0.x (http://www.zope.org/Collectors/Zope/2027).
 
