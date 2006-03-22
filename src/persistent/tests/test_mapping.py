@@ -1,6 +1,6 @@
 ##############################################################################
 #
-# Copyright (c) 2005 Zope Corporation and Contributors.
+# Copyright (c) 2006 Zope Corporation and Contributors.
 # All Rights Reserved.
 #
 # This software is subject to the provisions of the Zope Public License,
@@ -11,37 +11,50 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
-"""Test the mapping interface to PersistentMapping
+"""Test PersistentMapping
 """
 
 import unittest
-from persistent.mapping import PersistentMapping
 
 l0 = {}
 l1 = {0:0}
 l2 = {0:0, 1:1}
 
-class TestPMapping(unittest.TestCase):
+class MappingTests(unittest.TestCase):
+
+    def _getTargetClass(self):
+        from persistent.mapping import PersistentMapping
+        return PersistentMapping
+
+    def test_volatile_attributes_not_persisted(self):
+        # http://www.zope.org/Collectors/Zope/2052
+        m = self._getTargetClass()()
+        m.foo = 'bar'
+        m._v_baz = 'qux'
+        state = m.__getstate__()
+        self.failUnless('foo' in state)
+        self.failIf('_v_baz' in state)
 
     def testTheWorld(self):
         # Test constructors
-        u = PersistentMapping()
-        u0 = PersistentMapping(l0)
-        u1 = PersistentMapping(l1)
-        u2 = PersistentMapping(l2)
+        pm = self._getTargetClass()
+        u = pm()
+        u0 = pm(l0)
+        u1 = pm(l1)
+        u2 = pm(l2)
 
-        uu = PersistentMapping(u)
-        uu0 = PersistentMapping(u0)
-        uu1 = PersistentMapping(u1)
-        uu2 = PersistentMapping(u2)
+        uu = pm(u)
+        uu0 = pm(u0)
+        uu1 = pm(u1)
+        uu2 = pm(u2)
 
         class OtherMapping:
             def __init__(self, initmapping):
                 self.__data = initmapping
             def items(self):
                 return self.__data.items()
-        v0 = PersistentMapping(OtherMapping(u0))
-        vv = PersistentMapping([(0, 0), (1, 1)])
+        v0 = pm(OtherMapping(u0))
+        vv = pm([(0, 0), (1, 1)])
 
         # Test __repr__
         eq = self.assertEqual
@@ -105,7 +118,7 @@ class TestPMapping(unittest.TestCase):
         # Test update
 
         l = {"a":"b"}
-        u = PersistentMapping(l)
+        u = pm(l)
         u.update(u2)
         for i in u:
             self.failUnless(i in l or i in u2, "i in l or i in u2")
@@ -151,10 +164,8 @@ class TestPMapping(unittest.TestCase):
         u2.clear()
         eq(u2, {}, "u2 == {}")
 
-
 def test_suite():
-    return unittest.makeSuite(TestPMapping)
+    return unittest.makeSuite(MappingTests)
 
-if __name__ == "__main__":
-    loader = unittest.TestLoader()
-    unittest.main(testLoader=loader)
+if __name__ == '__main__':
+    unittest.main(defaultTest='test_suite')

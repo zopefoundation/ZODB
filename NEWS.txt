@@ -132,6 +132,9 @@ Multidatabase
 PersistentMapping
 -----------------
 
+- (3.6.1b1) PersistentMapping was inadvertently pickling volatile attributes
+  (http://www.zope.org/Collectors/Zope/2052).
+
 - (3.6b4) ``PersistentMapping`` makes changes by a ``pop()`` method call
   persistent now.
 
