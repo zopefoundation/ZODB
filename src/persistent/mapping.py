@@ -98,8 +98,8 @@ class PersistentMapping(UserDict, persistent.Persistent):
     # actual internal dictionary using the name _container.
 
     def __getstate__(self):
-        state = {}
-        state.update(self.__dict__)
+        state = dict([x for x in self.__dict__.items()
+                        if not x[0].startswith('_v_')])
         state['_container'] = state['data']
         del state['data']
         return state

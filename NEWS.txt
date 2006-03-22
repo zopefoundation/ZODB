@@ -59,6 +59,9 @@ persistent
 - (3.7a1) Suppressed warnings about signedness of characters when
   compiling under GCC 4.0.x.  See http://www.zope.org/Collectors/Zope/2027.
 
+- (3.7a1) PersistentMapping was inadvertently pickling volatile attributes
+  (http://www.zope.org/Collectors/Zope/2052).
+
 After Commit hooks
 ------------------
 
