@@ -11,11 +11,10 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
-"""Test the list interface to PersistentList
+"""Tests for PersistentList
 """
 
 import unittest
-from persistent.list import PersistentList
 
 l0 = []
 l1 = [0]
@@ -23,19 +22,33 @@ l2 = [0, 1]
 
 class TestPList(unittest.TestCase):
 
+    def _getTargetClass(self):
+        from persistent.list import PersistentList
+        return PersistentList
+
+    def test_volatile_attributes_not_persisted(self):
+        # http://www.zope.org/Collectors/Zope/2052
+        m = self._getTargetClass()()
+        m.foo = 'bar'
+        m._v_baz = 'qux'
+        state = m.__getstate__()
+        self.failUnless('foo' in state)
+        self.failIf('_v_baz' in state)
+
     def testTheWorld(self):
         # Test constructors
-        u = PersistentList()
-        u0 = PersistentList(l0)
-        u1 = PersistentList(l1)
-        u2 = PersistentList(l2)
+        pl = self._getTargetClass()
+        u = pl()
+        u0 = pl(l0)
+        u1 = pl(l1)
+        u2 = pl(l2)
 
-        uu = PersistentList(u)
-        uu0 = PersistentList(u0)
-        uu1 = PersistentList(u1)
-        uu2 = PersistentList(u2)
+        uu = pl(u)
+        uu0 = pl(u0)
+        uu1 = pl(u1)
+        uu2 = pl(u2)
 
-        v = PersistentList(tuple(u))
+        v = pl(tuple(u))
         class OtherList:
             def __init__(self, initlist):
                 self.__data = initlist
@@ -43,8 +56,8 @@ class TestPList(unittest.TestCase):
                 return len(self.__data)
             def __getitem__(self, i):
                 return self.__data[i]
-        v0 = PersistentList(OtherList(u0))
-        vv = PersistentList("this is also a sequence")
+        v0 = pl(OtherList(u0))
+        vv = pl("this is also a sequence")
 
         # Test __repr__
         eq = self.assertEqual
@@ -160,7 +173,7 @@ class TestPList(unittest.TestCase):
 
         # Test pop
 
-        u = PersistentList([0, -1, 1])
+        u = pl([0, -1, 1])
         u.pop()
         eq(u, [0, -1], "u == [0, -1]")
         u.pop(0)
@@ -200,7 +213,7 @@ class TestPList(unittest.TestCase):
 
         # Test sort
 
-        u = PersistentList([1, 0])
+        u = pl([1, 0])
         u.sort()
         eq(u, u2, "u == u2")
 
