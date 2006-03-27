@@ -1,10 +1,12 @@
-What's new in ZODB3 3.6.0?
+What's new in ZODB3 3.6.1?
 ==========================
-Release date: 05-Jan-2006
+Release date: 27-Mar-2006
 
 Following is combined news from internal releases (to support ongoing
-Zope3 development).  These are the dates of the internal releases:
+Zope2 / Zope3 development).  These are the dates of the internal releases:
 
+- 3.6.1 27-Mar-2006
+- 3.6.0 05-Jan-2006
 - 3.6b6 01-Jan-2006
 - 3.6b5 18-Dec-2005
 - 3.6b4 04-Dec-2005
@@ -62,7 +64,7 @@ ZODB 3.4 release.  These include:
 Persistent
 ----------
 
-- (3.6b7) Suppressed warnings about signedness of characters when
+- (3.6.1) Suppressed warnings about signedness of characters when
   compiling under GCC 4.0.x.  See http://www.zope.org/Collectors/Zope/2027.
 
 - (3.6a4) ZODB 3.6 introduces a change to the basic behavior of Persistent
@@ -132,7 +134,7 @@ Multidatabase
 PersistentMapping
 -----------------
 
-- (3.6.1b1) PersistentMapping was inadvertently pickling volatile attributes
+- (3.6.1) PersistentMapping was inadvertently pickling volatile attributes
   (http://www.zope.org/Collectors/Zope/2052).
 
 - (3.6b4) ``PersistentMapping`` makes changes by a ``pop()`` method call
@@ -156,7 +158,7 @@ Tools
 BTrees
 ------
 
-- (3.6b7) Suppressed warnings about signedness of characters when
+- (3.6.1) Suppressed warnings about signedness of characters when
   compiling under GCC 4.0.x.  See http://www.zope.org/Collectors/Zope/2027.
 
 - (3.6a1) BTrees and Buckets now implement the ``setdefault()`` and ``pop()``
