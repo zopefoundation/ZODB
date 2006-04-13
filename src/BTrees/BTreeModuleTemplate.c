@@ -70,6 +70,10 @@ static void PyVar_Assign(PyObject **v, PyObject *e) { Py_XDECREF(*v); *v=e;}
 #ifdef NEED_LONG_LONG_SUPPORT
 /* Helper code used to support long long instead of int. */
 
+#ifndef PY_LONG_LONG
+#error "PY_LONG_LONG required but not defined"
+#endif
+
 static int
 longlong_check(PyObject *ob)
 {
