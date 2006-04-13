@@ -1,16 +1,23 @@
 
 #define KEYMACROS_H "$Id$\n"
 
-#define KEY_TYPE int
+#define NEED_LONG_LONG_SUPPORT
+
+#define KEY_TYPE PY_LONG_LONG
 #undef KEY_TYPE_IS_PYOBJECT
-#define KEY_CHECK PyInt_Check
+#define KEY_CHECK longlong_check
 #define TEST_KEY_SET_OR(V, K, T) if ( ( (V) = (((K) < (T)) ? -1 : (((K) > (T)) ? 1: 0)) ) , 0 )
 #define DECREF_KEY(KEY)
 #define INCREF_KEY(k)
 #define COPY_KEY(KEY, E) (KEY=(E))
-#define COPY_KEY_TO_OBJECT(O, K) O=PyInt_FromLong(K)
+#define COPY_KEY_TO_OBJECT(O, K) O=longlong_as_object(K)
 #define COPY_KEY_FROM_ARG(TARGET, ARG, STATUS) \
-  if (PyInt_Check(ARG)) TARGET=PyInt_AS_LONG(ARG); else { \
-      PyErr_SetString(PyExc_TypeError, "expected integer key"); \
-      (STATUS)=0; (TARGET)=0; }
+    if (PyInt_Check(ARG)) TARGET=PyInt_AS_LONG(ARG); else \
+        if (longlong_check(ARG)) TARGET=PyLong_AsLongLong(ARG); else \
+            if (PyLong_Check(ARG)) { \
+                PyErr_SetString(PyExc_ValueError, "long integer out of range"); \
+                (STATUS)=0; (TARGET)=0; } \
+            else { \
+            PyErr_SetString(PyExc_TypeError, "expected integer key");   \
+            (STATUS)=0; (TARGET)=0; }
 #define MULTI_INT_UNION 1
