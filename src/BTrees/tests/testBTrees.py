@@ -20,6 +20,10 @@ from BTrees.IIBTree import IIBTree, IIBucket, IISet, IITreeSet
 from BTrees.IFBTree import IFBTree, IFBucket, IFSet, IFTreeSet
 from BTrees.OIBTree import OIBTree, OIBucket, OISet, OITreeSet
 
+from BTrees.LOBTree import LOBTree, LOBucket, LOSet, LOTreeSet
+from BTrees.LLBTree import LLBTree, LLBucket, LLSet, LLTreeSet
+from BTrees.OLBTree import OLBTree, OLBucket, OLSet, OLTreeSet
+
 from BTrees.check import check
 
 import transaction
@@ -1263,6 +1267,10 @@ class TestIOBTrees(TypeTest):
     def _noneraises(self):
         self.t[None] = 1
 
+class TestLOBTrees(TestIOBTrees):
+    def setUp(self):
+        self.t = LOBTree()
+
 class TestOIBTrees(TypeTest):
     def setUp(self):
         self.t = OIBTree()
@@ -1285,6 +1293,10 @@ class TestOIBTrees(TypeTest):
             b[i+40000] = i
 
         self.assertEqual(b.keys()[0], 30)
+
+class TestOLBTrees(TestOIBTrees):
+    def setUp(self):
+        self.t = OLBTree()
 
 class TestIIBTrees(TestCase):
     def setUp(self):
@@ -1317,6 +1329,10 @@ class TestIIBTrees(TestCase):
 
     def _noneraisesvalue(self):
         self.t[1] = None
+
+class TestLLBTrees(TestIIBTrees):
+    def setUp(self):
+        self.t = LLBTree()
 
 class TestIFBTrees(TestCase):
     def setUp(self):
@@ -1368,6 +1384,10 @@ class TestIOSets(TestCase):
 
     def _insertnoneraises(self):
         self.t.insert(None)
+
+class TestLOSets(TestIOSets):
+    def setUp(self):
+        self.t = LOSet()
 
 class DegenerateBTree(TestCase):
     # Build a degenerate tree (set).  Boxes are BTree nodes.  There are
@@ -1552,6 +1572,15 @@ class OIBucketTest(MappingBase):
 class OOBucketTest(MappingBase):
     def setUp(self):
         self.t = OOBucket()
+class LLBucketTest(MappingBase):
+    def setUp(self):
+        self.t = LLBucket()
+class LOBucketTest(MappingBase):
+    def setUp(self):
+        self.t = LOBucket()
+class OLBucketTest(MappingBase):
+    def setUp(self):
+        self.t = OLBucket()
 
 class IITreeSetTest(NormalSetTests):
     def setUp(self):
@@ -1568,6 +1597,15 @@ class OITreeSetTest(NormalSetTests):
 class OOTreeSetTest(NormalSetTests):
     def setUp(self):
         self.t = OOTreeSet()
+class LLTreeSetTest(NormalSetTests):
+    def setUp(self):
+        self.t = LLTreeSet()
+class LOTreeSetTest(NormalSetTests):
+    def setUp(self):
+        self.t = LOTreeSet()
+class OLTreeSetTest(NormalSetTests):
+    def setUp(self):
+        self.t = OLTreeSet()
 
 class IISetTest(ExtendedSetTests):
     def setUp(self):
@@ -1582,6 +1620,10 @@ class IISetTest(ExtendedSetTests):
         # This one used to segfault.
         self.assertRaises(TypeError, self.t.keys, 0, "")
 
+class LLSetTest(IISetTest):
+    def setUp(self):
+        self.t = LLSet()
+
 class IFSetTest(ExtendedSetTests):
     def setUp(self):
         self.t = IFSet()
@@ -1594,28 +1636,42 @@ class OISetTest(ExtendedSetTests):
 class OOSetTest(ExtendedSetTests):
     def setUp(self):
         self.t = OOSet()
+class LOSetTest(ExtendedSetTests):
+    def setUp(self):
+        self.t = LOSet()
+class OLSetTest(ExtendedSetTests):
+    def setUp(self):
+        self.t = OLSet()
 
-class IIBTreeTest(BTreeTests, TestLongIntKeys, TestLongIntValues):
+class IIBTreeTest(BTreeTests):
     def setUp(self):
         self.t = IIBTree()
-    def getTwoValues(self):
-        return 1, 2
-class IFBTreeTest(BTreeTests, TestLongIntKeys):
+class IFBTreeTest(BTreeTests):
     def setUp(self):
         self.t = IFBTree()
-    def getTwoValues(self):
-        return 0.5, 1.5
-class IOBTreeTest(BTreeTests, TestLongIntKeys):
+class IOBTreeTest(BTreeTests):
     def setUp(self):
         self.t = IOBTree()
-class OIBTreeTest(BTreeTests, TestLongIntValues):
+class OIBTreeTest(BTreeTests):
     def setUp(self):
         self.t = OIBTree()
-    def getTwoKeys(self):
-        return object(), object()
 class OOBTreeTest(BTreeTests):
     def setUp(self):
         self.t = OOBTree()
+
+class LLBTreeTest(BTreeTests, TestLongIntKeys, TestLongIntValues):
+    def setUp(self):
+        self.t = LLBTree()
+    def getTwoValues(self):
+        return 1, 2
+class LOBTreeTest(BTreeTests, TestLongIntKeys):
+    def setUp(self):
+        self.t = LOBTree()
+class OLBTreeTest(BTreeTests, TestLongIntValues):
+    def setUp(self):
+        self.t = OLBTree()
+    def getTwoKeys(self):
+        return object(), object()
 
 # cmp error propagation tests
 
@@ -1644,11 +1700,15 @@ def test_suite():
         IOBucketTest, IOBTreeTest, IOSetTest, IOTreeSetTest,
         OOBucketTest, OOBTreeTest, OOSetTest, OOTreeSetTest,
         OIBucketTest, OIBTreeTest, OISetTest, OITreeSetTest,
+        LLBucketTest, LLBTreeTest, LLSetTest, LLTreeSetTest,
+        LOBucketTest, LOBTreeTest, LOSetTest, LOTreeSetTest,
+        OLBucketTest, OLBTreeTest, OLSetTest, OLTreeSetTest,
 
         # Note:  there is no TestOOBTrees.  The next three are
         # checking for assorted TypeErrors, and when both keys
         # and values oare objects (OO), there's nothing to test.
-        TestIIBTrees, TestIFBTrees,  TestIOBTrees,  TestOIBTrees,
+        TestIIBTrees, TestIFBTrees, TestIOBTrees, TestOIBTrees,
+        TestLLBTrees, TestLOBTrees, TestOLBTrees,
         TestIOSets,
         DegenerateBTree,
         TestCmpError):

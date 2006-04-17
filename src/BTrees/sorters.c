@@ -15,13 +15,13 @@
 /* Revision information: $Id$ */
 
 /* The only routine here intended to be used outside the file is
-   size_t sort_int8_nodups(int *p, size_t n)
+   size_t sort_int_nodups(int *p, size_t n)
 
    Sort the array of n ints pointed at by p, in place, and also remove
    duplicates.  Return the number of unique elements remaining, which occupy
    a contiguous and monotonically increasing slice of the array starting at p.
 
-   Example:  If the input array is [3, 1, 2, 3, 1, 5, 2], sort_int8_nodups
+   Example:  If the input array is [3, 1, 2, 3, 1, 5, 2], sort_int_nodups
    returns 4, and the first 4 elements of the array are changed to
    [1, 2, 3, 5].  The content of the remaining array positions is not defined.
 
@@ -45,7 +45,7 @@
    the radix sort has to know everything about the type's internal
    representation.
 */
-typedef PY_LONG_LONG element_type;
+typedef KEY_TYPE element_type;
 
 /* The radixsort is faster than the quicksort for large arrays, but radixsort
    has high fixed overhead, making it a poor choice for small arrays.  The
@@ -72,11 +72,12 @@ typedef PY_LONG_LONG element_type;
    swaps are done internally, the final result may come back in 'in' or 'work';
    and that pointer is returned.
 
-   radixsort_int8 is specific to signed 8-byte ints, with natural machine
-   endianness.
+   radixsort_int is specific to signed 4-byte or 8-byte ints, with
+   natural machine endianness, depending on the setting of the
+   KEYS_ARE_64_BITS pre-processor define.
 */
 static element_type*
-radixsort_int8(element_type *in, element_type *work, size_t n)
+radixsort_int(element_type *in, element_type *work, size_t n)
 {
 	/* count[i][j] is the number of input elements that have byte value j
 	   in byte position i, where byte position 0 is the LSB.  Note that
@@ -102,10 +103,12 @@ radixsort_int8(element_type *in, element_type *work, size_t n)
 		++count[1][(x >>  8) & 0xff];
 		++count[2][(x >> 16) & 0xff];
 		++count[3][(x >> 24) & 0xff];
+#ifdef KEYS_ARE_64_BITS
 		++count[4][(x >> 32) & 0xff];
 		++count[5][(x >> 40) & 0xff];
 		++count[6][(x >> 48) & 0xff];
 		++count[7][(x >> 56) & 0xff];
+#endif
 	}
 
 	/* For p an element_type* cast to char*, offset is how much farther we
@@ -502,12 +505,11 @@ quicksort(element_type *plo, size_t n)
 
 /* Sort p and remove duplicates, as fast as we can. */
 static size_t
-sort_int8_nodups(PY_LONG_LONG *p, size_t n)
+sort_int_nodups(KEY_TYPE *p, size_t n)
 {
 	size_t nunique;
 	element_type *work;
 
-	assert(sizeof(PY_LONG_LONG) == sizeof(element_type));
 	assert(p);
 
 	/* Use quicksort if the array is small, OR if malloc can't find
@@ -518,7 +520,7 @@ sort_int8_nodups(PY_LONG_LONG *p, size_t n)
 		work = (element_type *)malloc(n * sizeof(element_type));
 
 	if (work) {
-		element_type *out = radixsort_int8(p, work, n);
+		element_type *out = radixsort_int(p, work, n);
 		nunique = uniq(p, out, n);
 		free(work);
 	}

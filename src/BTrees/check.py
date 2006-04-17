@@ -39,6 +39,9 @@ from BTrees.OIBTree import OIBTree, OIBucket, OISet, OITreeSet
 from BTrees.IOBTree import IOBTree, IOBucket, IOSet, IOTreeSet
 from BTrees.IIBTree import IIBTree, IIBucket, IISet, IITreeSet
 from BTrees.IFBTree import IFBTree, IFBucket, IFSet, IFTreeSet
+from BTrees.OLBTree import OLBTree, OLBucket, OLSet, OLTreeSet
+from BTrees.LOBTree import LOBTree, LOBucket, LOSet, LOTreeSet
+from BTrees.LLBTree import LLBTree, LLBucket, LLSet, LLTreeSet
 
 from ZODB.utils import positive_id, oid_repr
 
@@ -49,24 +52,36 @@ _type2kind = {IOBTree: (TYPE_BTREE, True),
               IFBTree: (TYPE_BTREE, True),
               OIBTree: (TYPE_BTREE, True),
               OOBTree: (TYPE_BTREE, True),
+              LOBTree: (TYPE_BTREE, True),
+              LLBTree: (TYPE_BTREE, True),
+              OLBTree: (TYPE_BTREE, True),
 
               IOBucket: (TYPE_BUCKET, True),
               IIBucket: (TYPE_BUCKET, True),
               IFBucket: (TYPE_BUCKET, True),
               OIBucket: (TYPE_BUCKET, True),
               OOBucket: (TYPE_BUCKET, True),
+              LOBucket: (TYPE_BUCKET, True),
+              LLBucket: (TYPE_BUCKET, True),
+              OLBucket: (TYPE_BUCKET, True),
 
               IOTreeSet: (TYPE_BTREE, False),
               IITreeSet: (TYPE_BTREE, False),
               IFTreeSet: (TYPE_BTREE, False),
               OITreeSet: (TYPE_BTREE, False),
               OOTreeSet: (TYPE_BTREE, False),
+              LOTreeSet: (TYPE_BTREE, False),
+              LLTreeSet: (TYPE_BTREE, False),
+              OLTreeSet: (TYPE_BTREE, False),
 
               IOSet: (TYPE_BUCKET, False),
               IISet: (TYPE_BUCKET, False),
               IFSet: (TYPE_BUCKET, False),
               OISet: (TYPE_BUCKET, False),
               OOSet: (TYPE_BUCKET, False),
+              LOSet: (TYPE_BUCKET, False),
+              LLSet: (TYPE_BUCKET, False),
+              OLSet: (TYPE_BUCKET, False),
              }
 
 # Return pair
@@ -130,7 +145,17 @@ _btree2bucket = {IOBTree: IOBucket,
                  OITreeSet: OISet,
 
                  OOBTree: OOBucket,
-                 OOTreeSet: OOSet}
+                 OOTreeSet: OOSet,
+
+                 LOBTree: LOBucket,
+                 LOTreeSet: LOSet,
+
+                 LLBTree: LLBucket,
+                 LLTreeSet: LLSet,
+
+                 OLBTree: OLBucket,
+                 OLTreeSet: OLSet,
+                 }
 
 def crack_btree(t, is_mapping):
     state = t.__getstate__()
