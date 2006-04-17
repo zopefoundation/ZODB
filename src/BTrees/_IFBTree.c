@@ -14,10 +14,10 @@
 
 #define MASTER_ID "$Id$\n"
 
-/* IIBTree - int key, int value BTree
+/* IFBTree - int key, float value BTree
 
    Implements a collection using int type keys
-   and int type values
+   and float type values
 */
 
 /* Setup template macros */
