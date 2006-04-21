@@ -60,6 +60,7 @@ warnings.filterwarnings("ignore",
 
 defaults = [
     "--path", path,
+    "-m", "!^zope[.]",
     ]
 
 testrunner.run(defaults)

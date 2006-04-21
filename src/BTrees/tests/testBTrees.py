@@ -20,6 +20,7 @@ from BTrees.IIBTree import IIBTree, IIBucket, IISet, IITreeSet
 from BTrees.IFBTree import IFBTree, IFBucket, IFSet, IFTreeSet
 from BTrees.OIBTree import OIBTree, OIBucket, OISet, OITreeSet
 
+from BTrees.IIBTree import using64bits
 from BTrees.check import check
 
 import transaction
@@ -1239,6 +1240,17 @@ class TestLongIntValues(TestLongIntSupport):
         self.assertRaises(
             ValueError,
             self._set_value, k1, LARGEST_NEGATIVE_65_BITS)
+
+
+if not using64bits:
+    # We're not using 64-bit ints in this build, so we don't expect
+    # the long-integer tests to pass.
+
+    class TestLongIntKeys:
+        pass
+
+    class TestLongIntValues:
+        pass
 
 
 # tests of various type errors

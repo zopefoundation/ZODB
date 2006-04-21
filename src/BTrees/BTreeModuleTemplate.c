@@ -527,4 +527,11 @@ INITMODULE (void)
     if (PyDict_SetItemString(d, MOD_NAME_PREFIX "TreeIterator",
 			     (PyObject *)&BTreeIter_Type) < 0)
 	return;
+#if defined(ZODB_64BIT_INTS) && defined(NEED_LONG_LONG_SUPPORT)
+    if (PyDict_SetItemString(d, "using64bits", Py_True) < 0)
+        return;
+#else
+    if (PyDict_SetItemString(d, "using64bits", Py_False) < 0)
+        return;
+#endif
 }
