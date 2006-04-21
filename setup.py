@@ -190,6 +190,7 @@ def copy_other_files(cmd, outputbase):
     directories = [
         "transaction",
         "persistent/tests",
+        "BTrees",
         "ZConfig/components/basic",
         "ZConfig/components/logger",
         "ZConfig/tests/input",
