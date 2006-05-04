@@ -18,11 +18,11 @@ Test runner for ZODB.
 See the docs for zope.testing; test.py is a small driver for
 zope.testing.testrunner.
 """
-
-import warnings
-import sys
-import os
 from distutils.util import get_platform
+import logging
+import os
+import sys
+import warnings
 
 # If ``setup.py build_ext -i`` was used, we want to get code from src/.
 # Else (``setup.py build``) we have to look in a funky platform-specific
@@ -62,4 +62,10 @@ defaults = [
     "--path", path,
     ]
 
-testrunner.run(defaults)
+result = testrunner.run(defaults)
+
+# Try to avoid spurious error during exit. Some thing is trying to log
+# something after the files used by the logger have been closed.
+logging.disable(999999999)
+import os
+os._exit(result)
