@@ -728,6 +728,13 @@ class ClientStorage(object):
         """
         return self._server.history(oid, version, length)
 
+    def record_iternext(self, next=None):
+        """Storage API: get the mext database record.
+
+        This is part of the conversion-support API.
+        """
+        return self._server.record_iternext(next)
+
     def getSerial(self, oid):
         """Storage API: return current serial number for oid."""
         return self._server.getSerial(oid)

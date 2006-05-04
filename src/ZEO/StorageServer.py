@@ -151,6 +151,11 @@ class ZEOStorage:
         self.load = self.storage.load
         self.loadSerial = self.storage.loadSerial
         self.modifiedInVersion = self.storage.modifiedInVersion
+        record_iternext = getattr(self.storage, 'record_iternext', None)
+        if record_iternext is not None:
+            self.record_iternext = record_iternext
+            
+            
         try:
             fn = self.storage.getExtensionMethods
         except AttributeError:
@@ -233,6 +238,7 @@ class ZEOStorage:
                 'supportsUndo': self.storage.supportsUndo(),
                 'supportsVersions': self.storage.supportsVersions(),
                 'extensionMethods': self.getExtensionMethods(),
+                'supports_record_iternext': hasattr(self, 'record_iternext'),
                 }
 
     def get_size_info(self):
@@ -627,6 +633,7 @@ class ZEOStorage:
             return 0
         else:
             return 1
+
 
 class StorageServer:
 

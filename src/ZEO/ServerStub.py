@@ -252,6 +252,9 @@ class StorageServer:
         else:
             return self.rpc.call('history', oid, version, length)
 
+    def record_iternext(self, next):
+        return self.rpc.call('record_iternext', next)
+
     def load(self, oid, version):
         return self.rpc.call('load', oid, version)
 
