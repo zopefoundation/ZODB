@@ -185,11 +185,11 @@ Interfaces
 Simple implementation
 ---------------------
 
-For connection (IConnection) objects, I envision using 2 threads, an
-input thread and an outout thread.  The input will use select, calling
-the IConnectionHandler callback when data arrives.  The output thread
-will wait on a connection for input from the application and then do
-blocking output.
+For connection (IConnection) objects, I envision using 2 threads per
+connection, an input thread and an outout thread.  The input will use
+select, calling the IConnectionHandler callback when data arrives.
+The output thread will wait on a connection for input from the
+application and then do blocking output.
 
 The conection-factory implementations will be fairly similar to what
 we have now.
