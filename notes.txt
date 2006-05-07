@@ -1,0 +1,216 @@
+
+Goals
+=====
+
+1. Make ZEO sanely testable by separating network functions.
+   It should be possible to test most of ZEO without using sockets
+   or creating separate server threads or processes.
+
+2. Same as 1.
+
+3...10 same as 1. :)
+
+11. Make the networking support more pluggable to make it easier to 
+    leverage existing network architecture, most notably Twisted.
+    This will give us better access to network functions like
+    authentication or encryption.
+
+12. Get rid of insane synchronous/asynchronous modes in th client
+    storage. 
+
+13. Allow simultaneous synchronous calls from the same client.
+
+Testability is by far my main goal.
+
+A basic principal is that there should be a networking layer that is
+as small as possible.  There should be no networking code outside this
+layer.  It should be possible to test code outside this layer without
+creating sockets, servers, subprocesses or threads.
+
+ZEO Usage Patterns
+==================
+
+ZEO is nothing like HTTP.  ZEO servers typically have a small number 
+(at most tens) of long-lived stateful conections, as opposed to a web
+server that may have millions of short-lived stateless connections.
+Therefore the goals of a networking architecture to support ZEO are
+quite different from those needed to support HTTP. 
+
+Implementation
+==============
+
+I'm not aware of any Python networking frameworks that provide the
+kind of separation and testability I'm looking for.  I hope I'm wrong
+and that someone could point me to something we can reuse. If I'm
+right, then hopefully our efforts will spur others to create simpler
+more testable frameworks.  I really don't want to be in the
+networking/RPC business.
+
+The networking layer should define some simple interfaces that can
+have multiple implementations.  Ideally, the implementations should
+include:
+
+1. A test-fixture implementation
+
+2. A simple socket-based implementation.
+
+3. A Twisted implementation
+
+ZEO would then be built on top of this layer.
+
+Following are some initial implementation sketches.
+
+Interfaces
+----------
+
+::
+
+  class IConnectionHandler(Interface):
+      """Objects that can handle connection events
+      """
+
+      def input_data(connection, data):
+          """Handle input data from a connection
+
+          The data is an 8-bit string.
+          """
+
+      def connection_closed(connection, reason):
+          """Recieve notification that a connection has closed
+
+          The reason argument can be converted to a string for logging
+          purposes.  It may have data useful for debugging, but this
+          is undefined.
+          """
+
+
+  class IConnection(Interface):
+      """Threaded network connections
+
+      Network connections handle input and output asynchronously from
+      application code.  They are threaded, typically having their own
+      threads for input and outut.  Handlers react to input data that
+      they collect and pass data to them without blocking.
+      """
+
+      def __nonzero__():
+          """Return the connection status
+
+          True is returned if the connection is open/active and
+          False otherwise.
+          """
+
+      def setHandler(handler):
+          """Set the IConnectionHandler for a connection.
+
+          The existing handler, if any is returned.  None may be
+          passed to remove the handler.  Any input recieved while
+          a handler is unset is queued.
+          """
+
+      def write(data):
+          """Write output data to a connection.
+
+          The write call is non-blocking.
+          """
+
+    def close():
+        """Close the connection
+        """
+
+
+  class ConnectionFailed(Exception):
+      """A attempt to connect has failed.
+      """
+
+
+  class IConnectionFactoryHandler(Interface):
+      """Recieve notifications of connection-creation attempts
+      """
+
+      def connected(connection):
+          """Recieve notification that a connection had been established
+          """
+
+      def failed_connection(reason):
+          """Recieve notificantion that a connection could not be established
+
+          The reason argument can be converted to a string for logging
+          purposes.  It may have data useful for debugging, but this
+          is undefined.
+          """
+
+
+  class IClientConnectionFactory(Interface):
+      """Create a connection to a server
+      """
+
+      def __call__(addresses, handler=None,
+                   min_delay=1, max_delay=1, delay_backoff=1, 
+                   max_attempts=None):
+          """Try to make a connection to one of the given addresses
+
+          The addresses argument is an iterable of addresses.  Each of
+          the addreses is tried in turn.  No connection is made, then
+          delay and try again.  The delay is initially min_delay.  It is
+          multiplied by delay_backoff after each attempt, but is limited
+          to max_delay.  If max_tries is specified, then at most that
+          many attempts will be made (to each of the addresses) to
+          connect, after which a connection error will be generated.
+
+          The handler, if passes must be ann IConnectionFactoryHandler
+          and the call will return None immediately.  The handler connected
+          method will be called with an IConnection object if and when
+          the connection suceeds or call the failed_connection method if
+          the connection fails.
+
+          If no handler is passed, then the call will block until a
+          conection is made successfully or fails.  If the conection
+          succeeds, am IConnection will be returned, otherwise a
+          ConnectionFailed exception will be raised.
+          """
+
+
+  class IServerConnectionFactory(Interface):
+      """Listed for incoming connections
+      """
+
+      def __call__(address):
+          """Return an iterable of IConnection objects
+
+          The iterable returned has a close method that can be called to
+          stop receiving connections.
+          """
+
+Simple implementation
+---------------------
+
+For connection (IConnection) objects, I envision using 2 threads, an
+input thread and an outout thread.  The input will use select, calling
+the IConnectionHandler callback when data arrives.  The output thread
+will wait on a connection for input from the application and then do
+blocking output.
+
+The conection-factory implementations will be fairly similar to what
+we have now.
+
+Ideally, these implementations will provide hooks for providing fake
+sockets or socket-factories for testing purposes.
+
+Twisted Implementation
+----------------------
+
+I'm not a Twisted programmer, but the Twisted implementation seems
+straightforward.  The only tricky part is managing the twisted reactor
+loop. The loop used for ZEO would have to start before doing any
+database operations.
+
+Packaging and impact on ZEO
+===========================
+
+The framework could and probably should be packaged as a separate
+package independent of ZEO.
+
+ZEO would be refactored to use the framework. ZEO's Sized Message
+Async Connection (smac) framework could be layered on this pretty
+easily. Everything else layers on smac.
