@@ -37,7 +37,6 @@ class BaseStorage(UndoLogCompatible):
     store()
     close()
     cleanup()
-    lastSerial()
     lastTransaction()
 
     It must override these hooks:
