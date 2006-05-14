@@ -283,7 +283,30 @@ class IConnection(Interface):
         If clear is True, reset the counters.
         """
 
-class IDatabase(Interface):
+class IStorageDB(Interface):
+    """Database interface exposed to storages
+
+    This interface provides 2 facilities:
+
+    - Out-of-band invalidation support
+
+      A storage can notify it's database of object invalidations that
+      don't occur du eto direct operations on the storage.  Currently
+      this is only used by ZEO client storages to pass invalidation
+      messages sent from a server.
+      
+    - Record-reference extraction.
+
+      The references method can be used to extract referenced object
+      IDs from a database record.  This can be used by storages to
+      provide more advanced garbage collection.
+
+    This interface may be implemented by storage adapters.  For
+    example, a storage adapter that provides encryption and/or
+    compresssion will apply record transformations in it's references method.
+    """
+
+class IDatabase(IStorageDB):
     """ZODB DB.
 
     TODO: This interface is incomplete.
@@ -332,109 +355,202 @@ class IStorage(Interface):
     """A storage is responsible for storing and retrieving data of objects.
     """
 
-## What follows is the union of methods found across various storage
-## implementations.  Exactly what "the storage API" is and means has
-## become fuzzy over time.  Methods should be uncommented here, or
-## even deleted, as the storage API regains a crisp definition.
+    def getName():
+        """The name of the storage
 
-##    def load(oid, version):
-##        """TODO"""
-##
-##    def close():
-##        """TODO"""
-##
-##    def cleanup():
-##        """TODO"""
-##
-##    def lastSerial():
-##        """TODO"""
-##
-##    def lastTransaction():
-##        """TODO"""
-##
-##    def lastTid(oid):
-##        """Return last serialno committed for object oid."""
-##
-##    def loadSerial(oid, serial):
-##        """TODO"""
-##
-##    def loadBefore(oid, tid):
-##        """TODO"""
-##
-##    def iterator(start=None, stop=None):
-##        """TODO"""
-##
-##    def sortKey():
-##        """TODO"""
-##
-##    def getName():
-##        """TODO"""
-##
-##    def getSize():
-##        """TODO"""
-##
-##    def history(oid, version, length=1, filter=None):
-##        """TODO"""
-##
-##    def new_oid():
-##        """TODO"""
-##
-##    def set_max_oid(possible_new_max_oid):
-##        """TODO"""
-##
-##    def registerDB(db, limit):
-##        """TODO"""
-##
-##    def isReadOnly():
-##        """TODO"""
-##
-##    def supportsUndo():
-##        """TODO"""
-##
-##    def supportsVersions():
-##        """TODO"""
-##
-##    def tpc_abort(transaction):
-##        """TODO"""
-##
-##    def tpc_begin(transaction):
-##        """TODO"""
-##
-##    def tpc_vote(transaction):
-##        """TODO"""
-##
-##    def tpc_finish(transaction, f=None):
-##        """TODO"""
-##
-##    def getSerial(oid):
-##        """TODO"""
-##
-##    def loadSerial(oid, serial):
-##        """TODO"""
-##
-##    def loadBefore(oid, tid):
-##        """TODO"""
-##
-##    def getExtensionMethods():
-##        """TODO"""
-##
-##    def copyTransactionsFrom():
-##        """TODO"""
-##
-##    def store(oid, oldserial, data, version, transaction):
-##        """
-##
-##        may return the new serial or not
-##        """
+        The format and interpretation of this name is storage
+        dependent. It could be a file name, a database name, etc.
+
+        This is used soley for documentation purposes.
+        """
+
+    def sortKey():
+        """Sort key used to order distributed transactions
+
+        When a transaction involved multiple storages, 2-phase commit
+        operations are applied in sort-key order.
+
+        """
+                    
+    def getSize():
+        """An approximate size of the database, in bytes.
+        """
+
+                        
+    def load(oid, version):
+        """Load data for an objeject id and version
+        """
+
+    def loadSerial(oid, serial):
+        """Load the object record for the give transaction id
+
+        A single string is returned.
+        """
+
+    def loadBefore(oid, tid):
+        """Load the object data written before a transaction id
+
+        Three values are returned:
+
+        - The data record
+
+        - The transaction id of the data record
+
+        - The transaction id of the following revision, if any.
+        """
+        
+    def new_oid():
+        """Allocate a new object id.
+
+        The object id returned is reserved at least as long as the
+        storage is opened.
+
+        TODO: study race conditions.
+
+        The return value is a string.
+        """
+        
+    def store(oid, serial, data, version, transaction):
+        """Store data for the object id, oid.
+
+        Data is given as a string that may contain binary data. A
+        Storage need not and often will not write data immediately. If
+        data are written, then the storage should be prepared to undo
+        the write if a transaction is aborted.
+
+        """
+
+    # XXX restore
+
+    def supportsUndo():
+        """true if the storage supports undo, and false otherwise
+        """
+        
+    def supportsVersions():
+        """true if the storage supports versions, and false otherwise
+        """
+        
+    def tpc_abort(transaction):
+        """Abort the transaction.
+
+        Any changes made by the transaction are discarded.
+        """
+        
+    def tpc_begin(transaction):
+        """Begin the two-phase commit process.
+        """
+
+    def tpc_vote(transaction):
+        """Provide a storage with an opportunity to veto a transaction
+
+        If a transaction can be committed by a storage, then the
+        method should return. The returned value is ignored.
+
+        If a transaction cannot be committed, then an exception should
+        be raised.
+        
+        """
+        
+    def tpc_finish(transaction, func = lambda: None):
+        """Finish the transaction, making any transaction changes permanent.
+
+        Changes must be made permanent at this point.
+        """
+        
+    def history(oid, version = None, size = 1, filter = lambda e: 1):
+        """Return a sequence of HistoryEntry objects.
+
+        The information provides a log of the changes made to the
+        object. Data are reported in reverse chronological order.
+
+        """
+
+    def registerDB(db):
+        """Register an IStorageDB.
+
+        Note that, for historical reasons, an implementation may
+        require a second argument, however, if required, the None will
+        be passed as the second argument.
+        
+        """
+        
+    def close():
+        """Close the storage.
+        """
+
+    def lastTransaction():
+        """Return the last committed transaction id
+        """
+
+    def isReadOnly():
+        """Test whether a storage supports writes
+
+        XXX is this dynamic?  Can a storage support writes some of the
+        time, and not others?
+        
+        """
+
+class IStorageRecordInformation(Iterface):
+    """Provide information about a single storage record
+    """
+
+    oid = Attribute("The object id")
+    version = Attribute("The version")
+    data = Attribute("The data record")
+    
+
+class IStorageTransactionInformation(Interface):
+    """Provide information about a storage transaction
+    """
+
+    tid = Attribute("Transaction id")
+    status = Attribute("Transaction Status") # XXX what are valid values?
+    user = Attribute("Transaction user")
+    description = Attribute("Transaction Description")
+    extension = Attribute("Transaction extension data")
+
+    def __iter__():
+        """Return an iterable of IStorageTransactionInformation
+        """
+    
+    
+class IStorageIteration(Interface):
+    """API for iterating over the contents of a storage
+
+    Note that this is a future API.  Some storages now provide an
+    approximation of this.
+    
+    """
+
+    def iterator(start=None, stop=None):
+        """Return an 
+
+        An IStorageTransactionInformation iterator is returned for
+        iterating over the transactions in the storage.
+
+        If the start argument is not None, then iteration will start
+        with the first transaction whos identifier is greater than or
+        equal to start.
+
+        If the stop argument is not None, then iteration will end with
+        the last transaction whos identifier is less than or equal to
+        start.
+        
+        """
 
 class IStorageUndoable(IStorage):
     """A storage supporting transactional undo.
     """
+        
+    def undo(transaction_id, transaction):
+        """Undo the transaction corresponding to the given transaction id.
 
-    def undo(transaction_id, txn):
-        """TODO"""
+        This method is not state dependent. If the transaction_id
+        cannot be undone, then an UndoError is raised.
+        """
+        # Used by DB (Actually, by TransactionalUndo)
 
-    def undoLog(first, last, filter=(lambda desc: True)):
+    def undoLog(first=0, last-20, filter=(lambda desc: True)):
         """Return a sequence of descriptions for undoable transactions.
 
         Application code should call undoLog() on a DB instance instead of on
@@ -487,6 +603,7 @@ class IStorageUndoable(IStorage):
                      could be gotten by passing the positive first-last for
                      `last` instead.
         """
+        # DB pass through
 
     def undoInfo(first, last, specification=None):
         """Return a sequence of descriptions for undoable transactions.
@@ -503,30 +620,61 @@ class IStorageUndoable(IStorage):
         ZEO client to its ZEO server (while a ZEO client ignores any `filter`
         argument passed to `undoLog()`).
         """
+        # DB pass-through
 
+
+class IPackableStorage(Interface):
+        
     def pack(t, referencesf):
-        """TODO"""
+        """Pack the storage
+
+        Pack and/or garbage-collect the storage. If the storage does
+        not support undo, then t is ignored. All records for objects
+        that are not reachable from the system root object as of time
+        t, or as of the current time, if undo is not supported, are
+        removed from the storage.
+
+        A storage implementation may treat this method as ano-op. A
+        storage implementation may also delay packing and return
+        immediately. Storage documentation should define the behavior
+        of this method.
+        """
+    # Called by DB
 
 class IStorageVersioning(IStorage):
     """A storage supporting versions.
     """
+        
+    def abortVersion(version, transaction):
+        """Clear any changes made by the given version.
+        """
+    # used by DB
+            
+    def commitVersion(source, destination, transaction):
+        """Save version changes
 
-## What follows is the union of methods found across various version storage
-## implementations.  Exactly what "the storage API" is and means has
-## become fuzzy over time.  Methods should be uncommented here, or
-## even deleted, as the storage API regains a crisp definition.
+        Store changes made in the source version into the destination
+        version. A VersionCommitError is raised if the source and
+        destination are equal or if the source is an empty string. The
+        destination may be an empty string, in which case the data are
+        saved to non-version storage.
+        """
+    # used by DB
+        
+    def versionEmpty(version):
+        """true if the version for the given version string is empty.
+        """
+        # DB pass through
+        
+    def modifiedInVersion(oid):
+        """the version that the object was modified in,
 
-##    def abortVersion(src, transaction):
-##        """TODO"""
-##
-##    def commitVersion(src, dest, transaction):
-##        """TODO"""
-##
-##    def modifiedInVersion(oid):
-##        """TODO"""
-##
-##    def versionEmpty(version):
-##        """TODO"""
-##
-##    def versions(max=None):
-##        """TODO"""
+        or an empty string if the object was not modified in a version
+        """
+        # DB pass through, sor of.  In the past (including present :),
+        # the DB tried to cache this.  We'll probably stop bothering.
+        
+    def versions(max = None):
+        """A sequence of version strings for active cersions
+        """
+        # DB pass through
