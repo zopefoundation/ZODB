@@ -15,6 +15,8 @@
 
 $Id$"""
 
+import warnings
+
 import cPickle, cStringIO, sys
 import threading
 from time import time, ctime
@@ -231,11 +233,21 @@ class DB(object):
 
         # Setup storage
         self._storage=storage
+
         storage.registerDB(self, None)
+
         if not hasattr(storage,'tpc_vote'):
+            warnings.warn(
+                "Storage doesn't have a tpc_vote and this violates "
+                "the stirage API. Violently monkeypatching in a do-nothing "
+                "tpc_vote.",
+                DeprecationWarning, 2)
             storage.tpc_vote = lambda *args: None
+            
+
         try:
             storage.load(z64,'')
+
         except KeyError:
             # Create the database's root in the storage if it doesn't exist
             from persistent.mapping import PersistentMapping
