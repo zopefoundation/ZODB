@@ -1,11 +1,6 @@
-What's new in ZODB3 3.4.3b1?
+What's new in ZODB3 3.4.3?
 ==========================
-Release date: DD-MMM-2005
-
-Following are dates of internal releases (to support ongoing Zope 2
-development) since ZODB 3.4's last public release:
-
-- 3.4.3b1 DD-MMM-2005
+Release date: 26-May-2006 (internal release for Zope 2.8.7)
 
 PersistentMapping
 -----------------
