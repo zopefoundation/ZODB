@@ -43,7 +43,7 @@ PersistentMapping
   (http://www.zope.org/Collectors/Zope/2052).
 
 - (3.5.2b1) The ``PersistentMapping`` makes changes by a ``pop()`` method call
-  persistent now.
+  persistent now (http://www.zope.org/Collectors/Zope/2036).
 
 - (3.5.2b1) The ``PersistentMapping`` class has an ``__iter__()`` method
   now, so that objects of this type work well with Python's iteration
