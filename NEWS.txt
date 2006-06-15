@@ -24,6 +24,13 @@ BaseStorage
   left the commit lock in the acquired state, causing any later attempt
   to commit changes hang.
 
+DemoStorage
+-----------
+
+- (3.5.2b1) DemoStorage was unable to wrap base storages who did not have
+            an '_oid' attribute:  most notably, ZEO.ClientStorage
+            (http://www.zope.org/Collectors/Zope/2016).
+
 TimeStamp
 ---------
 

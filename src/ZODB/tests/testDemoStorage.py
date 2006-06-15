@@ -11,7 +11,6 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
-import ZODB.DemoStorage
 import unittest
 
 from ZODB.tests import StorageTestBase, BasicStorage, \
@@ -24,6 +23,7 @@ class DemoStorageTests(StorageTestBase.StorageTestBase,
                        ):
 
     def setUp(self):
+        import ZODB.DemoStorage
         self._storage = ZODB.DemoStorage.DemoStorage()
 
     def tearDown(self):
@@ -55,8 +55,40 @@ class DemoStorageTests(StorageTestBase.StorageTestBase,
         pass
 
 
+class DemoStorageWrappedBase(DemoStorageTests):
+
+    def setUp(self):
+        import ZODB.DemoStorage
+        self._base = self._makeBaseStorage()
+        self._storage = ZODB.DemoStorage.DemoStorage(base=self._base)
+
+    def tearDown(self):
+        self._storage.close()
+        self._base.close()
+
+    def _makeBaseStorage(self):
+        raise NotImplementedError
+
+class DemoStorageWrappedAroundFileStorage(DemoStorageWrappedBase):
+
+    def _makeBaseStorage(self):
+        from ZODB.MappingStorage import MappingStorage
+        return MappingStorage()
+
+class DemoStorageWrappedAroundMappingStorage(DemoStorageWrappedBase):
+
+    def _makeBaseStorage(self):
+        from ZODB.FileStorage import FileStorage
+        return FileStorage('FileStorageTests.fs')
+                       
+
 def test_suite():
-    suite = unittest.makeSuite(DemoStorageTests, 'check')
+    suite = unittest.TestSuite()
+    suite.addTest(unittest.makeSuite(DemoStorageTests, 'check'))
+    suite.addTest(unittest.makeSuite(DemoStorageWrappedAroundFileStorage,
+                                     'check'))
+    suite.addTest(unittest.makeSuite(DemoStorageWrappedAroundMappingStorage,
+                                     'check'))
     return suite
 
 if __name__ == "__main__":
