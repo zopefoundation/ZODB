@@ -15,7 +15,7 @@ PersistentMapping
   a ``dict`` initializer in Python 2.3.x.
 
 - (3.4.3b1) The ``PersistentMapping`` makes changes by a ``pop()`` method call
-  persistent now.
+  persistent now (http://www.zope.org/Collectors/Zope/2036).
 
 Tools
 -----
