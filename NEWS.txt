@@ -8,6 +8,13 @@ Zope development).  These are the dates of the internal releases:
 
 - 3.7a1 DD-MMM-200Y
 
+DemoStorage
+-----------
+
+- (3.7a1) DemoStorage was unable to wrap base storages who did not have
+          an '_oid' attribute:  most notably, ZEO.ClientStorage
+          (http://www.zope.org/Collectors/Zope/2016).
+
 Connection management
 ---------------------
 
