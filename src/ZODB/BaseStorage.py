@@ -102,10 +102,11 @@ class BaseStorage(UndoLogCompatible):
         # a reserved oid for the root object).  Our new_oid() method
         # increments it by 1, and returns the result.  It's really a
         # 64-bit integer stored as an 8-byte big-endian string.
-        if base is None:
+        oid = getattr(base, '_oid', None)
+        if oid is None:
             self._oid = z64
         else:
-            self._oid = base._oid
+            self._oid = oid
 
     def abortVersion(self, src, transaction):
         if transaction is not self._transaction:
