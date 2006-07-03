@@ -75,6 +75,7 @@ class Connection(ExportImport, object):
         """Create a new Connection."""
 
         self._db = db
+        self._version = version
         self._normal_storage = self._storage = db._storage
         self.new_oid = db._storage.new_oid
         self._savepoint_storage = None
@@ -87,32 +88,55 @@ class Connection(ExportImport, object):
         self._debug_info = ()
         self._opened = None # time.time() when DB.open() opened us
 
-        self._version = version
+        self._reset_counter = global_reset_counter
+        self._load_count = 0   # Number of objects unghosted
+        self._store_count = 0  # Number of objects stored
+
+        # Do we need to join a txn manager?
+        self._needs_to_join = True
+
+        # Cache which can ghostify (forget the state of) objects not
+        # recently used. Its API is roughly that of a dict, with
+        # additional gc-related and invalidation-related methods.
         self._cache = PickleCache(self, cache_size)
         if version:
             # Caches for versions end up empty if the version
             # is not used for a while. Non-version caches
             # keep their content indefinitely.
             # Unclear:  Why do we want version caches to behave this way?
-
             self._cache.cache_drain_resistance = 100
 
-        self._added = {}
-        self._added_during_commit = None
-        self._reset_counter = global_reset_counter
-        self._load_count = 0   # Number of objects unghosted
-        self._store_count = 0  # Number of objects stored
-        self._creating = {}
-
-        # List of oids of modified objects (to be invalidated on an abort).
-        self._modified = []
-
         # List of all objects (not oids) registered as modified by the
-        # persistence machinery.
+        # persistence machinery, or by add(), or whose access caused a
+        # ReadConflictError (just to be able to clean them up from the
+        # cache on abort with the other modified objects). All objects
+        # of this list are either in _cache or in _added.
         self._registered_objects = []
 
-        # Do we need to join a txn manager?
-        self._needs_to_join = True
+        # Dict of oid->obj added explicitly through add(). Used as a
+        # preliminary cache until commit time when objects are all moved
+        # to the real _cache. The objects are moved to _creating at
+        # commit time.
+        self._added = {}
+
+        # During commit this is turned into a list, which receives
+        # objects added as a side-effect of storing a modified object.
+        self._added_during_commit = None
+
+        # During commit, all objects go to either _modified or _creating:
+
+        # Dict of oid->flag of new objects (without serial), either
+        # added by add() or implicitely added (discovered by the
+        # serializer during commit). The flag is True for implicit
+        # adding. Used during abort to remove created objects from the
+        # _cache, and by persistent_id to check that a new object isn't
+        # reachable from multiple databases.
+        self._creating = {}
+
+        # List of oids of modified objects, which have to be invalidated
+        # in the cache on abort and in other connections on finish.
+        self._modified = []
+
 
         # _invalidated queues invalidate messages delivered from the DB
         # _inv_lock prevents one thread from modifying the set while
