@@ -79,15 +79,16 @@ class Connection(ExportImport, object):
         self.new_oid = db._storage.new_oid
         self._savepoint_storage = None
 
-        self.transaction_manager = self._synch = self._mvcc = None
-
+        self.transaction_manager = None
+        self._synch = None
+        self._mvcc = None
 
         self._log = logging.getLogger("ZODB.Connection")
         self._debug_info = ()
         self._opened = None # time.time() when DB.open() opened us
 
         self._version = version
-        self._cache = cache = PickleCache(self, cache_size)
+        self._cache = PickleCache(self, cache_size)
         if version:
             # Caches for versions end up empty if the version
             # is not used for a while. Non-version caches
@@ -96,7 +97,6 @@ class Connection(ExportImport, object):
 
             self._cache.cache_drain_resistance = 100
 
-        self._committed = []
         self._added = {}
         self._added_during_commit = None
         self._reset_counter = global_reset_counter
