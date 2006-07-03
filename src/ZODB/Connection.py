@@ -74,26 +74,29 @@ class Connection(ExportImport, object):
     def __init__(self, db, version='', cache_size=400):
         """Create a new Connection."""
 
+        self._log = logging.getLogger('ZODB.Connection')
+        self._debug_info = ()
+
         self._db = db
+        # Multi-database support
+        self.connections = {self._db.database_name: self}
+
+        self._synch = None
+        self._mvcc = None
+
         self._version = version
         self._normal_storage = self._storage = db._storage
         self.new_oid = db._storage.new_oid
         self._savepoint_storage = None
 
+        # Do we need to join a txn manager?
+        self._needs_to_join = True
         self.transaction_manager = None
-        self._synch = None
-        self._mvcc = None
-
-        self._log = logging.getLogger("ZODB.Connection")
-        self._debug_info = ()
         self._opened = None # time.time() when DB.open() opened us
 
         self._reset_counter = global_reset_counter
         self._load_count = 0   # Number of objects unghosted
         self._store_count = 0  # Number of objects stored
-
-        # Do we need to join a txn manager?
-        self._needs_to_join = True
 
         # Cache which can ghostify (forget the state of) objects not
         # recently used. Its API is roughly that of a dict, with
@@ -154,7 +157,7 @@ class Connection(ExportImport, object):
         # critical sections (if any -- this needs careful thought).
 
         self._inv_lock = threading.Lock()
-        self._invalidated = d = {}
+        self._invalidated = {}
 
         # We intend to prevent committing a transaction in which
         # ReadConflictError occurs.  _conflicts is the set of oids that
@@ -179,11 +182,7 @@ class Connection(ExportImport, object):
         # to pass to _importDuringCommit().
         self._import = None
 
-
         self._reader = ObjectReader(self, self._cache, self._db.classFactory)
-
-        # Multi-database support
-        self.connections = {self._db.database_name: self}
 
 
     def add(self, obj):
