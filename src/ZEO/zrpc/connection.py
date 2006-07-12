@@ -354,12 +354,13 @@ class Connection(smac.SizedMessageAsyncConnection, object):
             return
         self._singleton.clear()
         self.closed = True
-        self.close_trigger()
         self.__super_close()
+        self.close_trigger()
 
     def close_trigger(self):
         # Overridden by ManagedClientConnection.
         if self.trigger is not None:
+            self.trigger.pull_trigger()
             self.trigger.close()
 
     def register_object(self, obj):
@@ -561,16 +562,16 @@ class Connection(smac.SizedMessageAsyncConnection, object):
             return r_args
 
     # For testing purposes, it is useful to begin a synchronous call
-    # but not block waiting for its response.  Since these methods are
-    # used for testing they can assume they are not in async mode and
-    # call asyncore.poll() directly to get the message out without
-    # also waiting for the reply.
+    # but not block waiting for its response.
 
     def _deferred_call(self, method, *args):
         if self.closed:
             raise DisconnectedError()
         msgid = self.send_call(method, args, 0)
-        asyncore.poll(0.01, self._singleton)
+        if self.is_async():
+            self.trigger.pull_trigger()
+        else:
+            asyncore.poll(0.01, self._singleton)
         return msgid
 
     def _deferred_wait(self, msgid):
@@ -833,8 +834,10 @@ class ManagedClientConnection(Connection):
     def close_trigger(self):
         # We are using a shared trigger for all client connections.
         # We never want to close it.
-        #del self.trigger
-        pass
+
+        # We do want to pull it to make sure the select loop detects that
+        # we're closed.
+        self.trigger.pull_trigger()
 
     def set_async(self, map):
         pass
