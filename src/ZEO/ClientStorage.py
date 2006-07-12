@@ -339,43 +339,16 @@ class ClientStorage(object):
         # still be going on.  This code must wait until validation
         # finishes, but if the connection isn't a zrpc async
         # connection it also needs to poll for input.
-        if self._connection.is_async():
-            while 1:
-                self._ready.wait(30)
-                if self._ready.isSet():
-                    break
-                if timeout and time.time() > deadline:
-                    log2("Timed out waiting for connection",
-                         level=logging.WARNING)
-                    break
-                log2("Waiting for cache verification to finish")
-        else:
-            self._wait_sync(deadline)
-
-    def _wait_sync(self, deadline=None):
-        # Log no more than one "waiting" message per LOG_THROTTLE seconds.
-        LOG_THROTTLE = 300 # 5 minutes
-        next_log_time = time.time()
-
-        while not self._ready.isSet():
-            now = time.time()
-            if deadline and now > deadline:
-                log2("Timed out waiting for connection", level=logging.WARNING)
+        assert self._connection.is_async()
+        while 1:
+            self._ready.wait(30)
+            if self._ready.isSet():
                 break
-            if now >= next_log_time:
-                log2("Waiting for cache verification to finish")
-                next_log_time = now + LOG_THROTTLE
-            if self._connection is None:
-                # If the connection was closed while we were
-                # waiting for it to become ready, start over.
-                if deadline is None:
-                    timeout = None
-                else:
-                    timeout = deadline - now
-                return self._wait(timeout)
-            # No mainloop ia running, so we need to call something fancy to
-            # handle asyncore events.
-            self._connection.pending(30)
+            if timeout and time.time() > deadline:
+                log2("Timed out waiting for connection",
+                     level=logging.WARNING)
+                break
+            log2("Waiting for cache verification to finish")
 
     def close(self):
         """Storage API: finalize the storage, releasing external resources."""
@@ -403,17 +376,8 @@ class ClientStorage(object):
         return self._ready.isSet()
 
     def sync(self):
-        """Handle any pending invalidation messages.
-
-        This is called by the sync method in ZODB.Connection.
-        """
-        # If there is no connection, return immediately.  Technically,
-        # there are no pending invalidations so they are all handled.
-        # There doesn't seem to be much benefit to raising an exception.
-
-        cn = self._connection
-        if cn is not None:
-            cn.pending()
+        # The separate async thread should keep us up to date
+        pass
 
     def doAuth(self, protocol, stub):
         if not (self._username and self._password):
@@ -517,11 +481,17 @@ class ClientStorage(object):
 
         stub = self.StorageServerStubClass(conn)
         self._oids = []
-        self._info.update(stub.get_info())
         self.verify_cache(stub)
-        if not conn.is_async():
-            log2("Waiting for cache verification to finish")
-            self._wait_sync()
+
+        # It's important to call get_info after calling verify_cache.
+        # If we end up doing a full-verification, we need to wait till
+        # it's done.  By doing a synchonous call, we are guarenteed
+        # that the verification will be done because operations are
+        # handled in order.        
+        self._info.update(stub.get_info())
+
+        assert conn.is_async()
+
         self._handle_extensions()
 
     def _handle_extensions(self):

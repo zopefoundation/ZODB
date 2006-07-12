@@ -19,6 +19,7 @@ import random
 import socket
 import asyncore
 import tempfile
+import time
 import unittest
 import logging
 
@@ -70,14 +71,19 @@ class MiscZEOTests:
             self.assertEqual(zodb_unpickle(data), MinPO('first'))
             self.assertEqual(serial, revid1)
             revid2 = self._dostore(oid, data=MinPO('second'), revid=revid1)
-            for n in range(3):
-                # Let the server and client talk for a moment.
-                # Is there a better way to do this?
-                asyncore.poll(0.1)
-            data, serial = storage2.load(oid, '')
-            self.assertEqual(zodb_unpickle(data), MinPO('second'),
-                             'Invalidation message was not sent!')
-            self.assertEqual(serial, revid2)
+
+            # Now, storage 2 should eventually get the new data. It
+            # will take some time, although hopefully not much.
+            # We'll poll till we get it and whine if we time out:
+            for n in range(30):
+                time.sleep(.1)
+                data, serial = storage2.load(oid, '')
+                if (serial == revid2 and
+                    zodb_unpickle(data) == MinPO('second')
+                    ):
+                    break
+            else:
+                raise AssertionError('Invalidation message was not sent!')
         finally:
             storage2.close()
 

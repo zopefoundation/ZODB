@@ -30,6 +30,27 @@ from ZODB.loglevels import BLATHER, TRACE
 REPLY = ".reply" # message name used for replies
 ASYNC = 1
 
+##############################################################################
+# Dedicated Client select loop:
+client_map = {}
+client_trigger = trigger(client_map)
+
+def client_loop():
+    map = client_map
+    poll_fun = asyncore.poll
+    logger = logging.getLogger('ZEO.zrpc.client_loop')
+    while map:
+        try:
+            poll_fun(30.0, map)
+        except:
+            logger.exception('poll failure')
+
+client_thread = threading.Thread(target=client_loop)
+client_thread.setDaemon(True)
+client_thread.start()
+#
+##############################################################################
+
 class Delay:
     """Used to delay response to client for synchronous calls.
 
@@ -235,7 +256,7 @@ class Connection(smac.SizedMessageAsyncConnection, object):
     # Client constructor passes 'C' for tag, server constructor 'S'.  This
     # is used in log messages, and to determine whether we can speak with
     # our peer.
-    def __init__(self, sock, addr, obj, tag):
+    def __init__(self, sock, addr, obj, tag, map=None):
         self.obj = None
         self.marshal = Marshaller()
         self.closed = False
@@ -315,8 +336,10 @@ class Connection(smac.SizedMessageAsyncConnection, object):
         # isn't necessary before Python 2.4, but doesn't hurt then (it just
         # gives us an unused attribute in 2.3); updating the global socket
         # map is necessary regardless of Python version.
-        self._map = asyncore.socket_map
-        asyncore.socket_map.update(ourmap)
+        if map is None:
+            map = asyncore.socket_map
+        self._map = map
+        map.update(ourmap)
 
     def __repr__(self):
         return "<%s %s>" % (self.__class__.__name__, self.addr)
@@ -663,7 +686,7 @@ class Connection(smac.SizedMessageAsyncConnection, object):
         else:
             asyncore.poll(0.0, self._singleton)
 
-    def pending(self, timeout=0):
+    def _pending(self, timeout=0):
         """Invoke mainloop until any pending messages are handled."""
         if __debug__:
             self.log("pending(), async=%d" % self.is_async(), level=TRACE)
@@ -758,8 +781,10 @@ class ManagedClientConnection(Connection):
         self.queue_output = True
         self.queued_messages = []
 
-        self.__super_init(sock, addr, obj, tag='C')
-        self.check_mgr_async()
+        self.__super_init(sock, addr, obj, tag='C', map=client_map)
+        self.thr_async = True
+        self.trigger = client_trigger
+        client_trigger.pull_trigger()
 
     # Our message_ouput() queues messages until recv_handshake() gets the
     # protocol handshake from the server.
@@ -806,9 +831,10 @@ class ManagedClientConnection(Connection):
     # Defer the ThreadedAsync work to the manager.
 
     def close_trigger(self):
-        # the manager should actually close the trigger
-        # TODO: what is that comment trying to say?  What 'manager'?
-        del self.trigger
+        # We are using a shared trigger for all client connections.
+        # We never want to close it.
+        #del self.trigger
+        pass
 
     def set_async(self, map):
         pass
@@ -817,20 +843,8 @@ class ManagedClientConnection(Connection):
         # Don't do the register_loop_callback that the superclass does
         pass
 
-    def check_mgr_async(self):
-        if not self.thr_async and self.mgr.thr_async:
-            assert self.mgr.trigger is not None, \
-                   "manager (%s) has no trigger" % self.mgr
-            self.thr_async = True
-            self.trigger = self.mgr.trigger
-            return 1
-        return 0
-
     def is_async(self):
-        # TODO: could the check_mgr_async() be avoided on each test?
-        if self.thr_async:
-            return 1
-        return self.check_mgr_async()
+        return True
 
     def close(self):
         self.mgr.close_conn(self)
