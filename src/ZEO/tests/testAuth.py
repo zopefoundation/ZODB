@@ -95,10 +95,11 @@ class AuthTest(CommonSetupTearDown):
     def testUnauthenticatedMessage(self):
         # Test that an unauthenticated message is rejected by the server
         # if it was sent after the connection was authenticated.
-        # Sleep for 0.2 seconds to give the server some time to start up
-        # seems to be needed before and after creating the storage
+
         self._storage = self.openClientStorage(wait=0, username="foo",
                                               password="bar", realm=self.realm)
+        # Sleep for 0.2 seconds to give the server some time to start up
+        # seems to be needed before and after creating the storage
         self.wait()
         self._storage.versions()
         # Manually clear the state of the hmac connection
