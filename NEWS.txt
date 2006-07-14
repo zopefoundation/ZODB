@@ -1,6 +1,6 @@
 What's new in ZODB3 3.4.4?
 ==========================
-Unreleased
+Release date: 14-Jul-2006 (internal release for Zope 2.8.8)
 
 DemoStorage
 -----------
