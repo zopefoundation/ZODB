@@ -1,17 +1,14 @@
 What's new in ZODB3 3.6.2?
 ==========================
-Unreleased
+Release date: 15-July-2006
+
 
 DemoStorage
 -----------
 
-- (3.6.2b1) DemoStorage was unable to wrap base storages who did not have
-            an '_oid' attribute:  most notably, ZEO.ClientStorage
-            (http://www.zope.org/Collectors/Zope/2016).
-
-What's new in ZODB3 3.6.1?
-==========================
-Release date: 27-Mar-2006
+- (3.6.2) DemoStorage was unable to wrap base storages who did not have
+          an '_oid' attribute:  most notably, ZEO.ClientStorage
+          (http://www.zope.org/Collectors/Zope/2016).
 
 Following is combined news from internal releases (to support ongoing
 Zope2 / Zope3 development).  These are the dates of the internal releases:
