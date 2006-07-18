@@ -14,14 +14,15 @@
 """Test suite for ZEO based on ZODB.tests."""
 
 # System imports
+import asyncore
+import logging
 import os
 import random
+import signal
 import socket
-import asyncore
 import tempfile
 import time
 import unittest
-import logging
 
 # ZODB test support
 import ZODB
@@ -243,7 +244,14 @@ class HeartbeatTests(ZEO.tests.ConnectionTests.CommonSetupTearDown):
         self.assert_(ZEO.zrpc.connection.client_timeout_count
                      > client_timeout_count)
         self._dostore()
-        self.shutdownServer()
+
+        if hasattr(os, 'kill'):
+            # Kill server violently, in hopes of provoking problem
+            os.kill(self._pids[0], signal.SIGKILL)
+            self._servers[0] = None
+        else:
+            self.shutdownServer()
+
         for i in range(91):
             # wait for disconnection
             if not self._storage.is_connected():
