@@ -13,6 +13,8 @@
 ##############################################################################
 """RPC stubs for interface exported by StorageServer."""
 
+import time
+
 ##
 # ZEO storage server.
 # <p>
@@ -44,9 +46,11 @@ class StorageServer:
         zrpc.connection.Connection class.
         """
         self.rpc = rpc
+        
         # Wait until we know what version the other side is using.
         while rpc.peer_protocol_version is None:
-            rpc.pending()
+            time.sleep(0.1)
+
         if rpc.peer_protocol_version == 'Z200':
             self.lastTransaction = lambda: None
             self.getInvalidations = lambda tid: None

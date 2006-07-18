@@ -1,12 +1,34 @@
-What's new in ZODB3 3.7a1?
-==========================
-Release date: DD-MMM-200Y
+What's new on ZODB 3.7b2?
+=========================
 
+ClientStorage
+-------------
 
-Following is combined news from internal releases (to support ongoing
-Zope development).  These are the dates of the internal releases:
+- (3.7b2) Removed the "sync" mode for ClientStorage.  
 
-- 3.7a1 DD-MMM-200Y
+  Previously, a ClientStorage could be in either "sync" mode or "async"
+  mode.  Now there is just "async" mode.  There is now a dedicicated
+  asyncore main loop dedicated to ZEO clients.
+
+  Applications no-longer need to run an asyncore main loop to cause
+  client storages to run in async mode.  Even if an application runs an
+  asyncore main loop, it is independent of the loop used by client
+  storages. 
+
+  This addresses a test failure on Mac OS X,
+  http://www.zope.org/Collectors/Zope3-dev/650, that I believe was due
+  to a bug in sync mode. Some asyncore-based code was being called from
+  multiple threads that didn't expect to be.
+
+  Converting to always-async mode revealed some bugs that weren't caught
+  before because the tests ran in sync mode.  These problems could
+  explain some problems we've seen at times with clients taking a long
+  time to reconnect after a disconnect.
+
+  Added a partial heart beat to try to detect lost connections that
+  aren't otherwise caught,
+  http://mail.zope.org/pipermail/zodb-dev/2005-June/008951.html, by
+  perioidically writing to all connections during periods of inactivity.
 
 Connection management
 ---------------------
@@ -33,6 +55,14 @@ IPersistent
 
 - (3.7a1) The documentation for ``_p_oid`` now specifies the concrete
   type of oids (in short, an oid is either None or a non-empty string).
+
+Testing
+-------
+
+- (3.7b2) Fixed test-runner output truncation.
+
+  A bug was fixed in the test runner that caused result summaries to be
+  omitted when running on Windows.
 
 Tools
 -----

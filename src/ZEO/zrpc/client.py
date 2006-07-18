@@ -11,6 +11,7 @@
 # FOR A PARTICULAR PURPOSE
 #
 ##############################################################################
+import asyncore
 import errno
 import select
 import socket
@@ -20,13 +21,11 @@ import time
 import types
 import logging
 
-import ThreadedAsync
-
 from ZODB.POSException import ReadOnlyError
 from ZODB.loglevels import BLATHER
 
 from ZEO.zrpc.log import log
-from ZEO.zrpc.trigger import trigger
+import ZEO.zrpc.trigger
 from ZEO.zrpc.connection import ManagedClientConnection
 
 class ConnectionManager(object):
@@ -43,9 +42,6 @@ class ConnectionManager(object):
         # If thread is not None, then there is a helper thread
         # attempting to connect.
         self.thread = None # Protected by self.cond
-        self.trigger = None
-        self.thr_async = 0
-        ThreadedAsync.register_loop_callback(self.set_async)
 
     def __repr__(self):
         return "<%s for %s>" % (self.__class__.__name__, self.addrlist)
@@ -85,7 +81,6 @@ class ConnectionManager(object):
     def close(self):
         """Prevent ConnectionManager from opening new connections"""
         self.closed = 1
-        ThreadedAsync.remove_loop_callback(self.set_async)
         self.cond.acquire()
         try:
             t = self.thread
@@ -103,29 +98,6 @@ class ConnectionManager(object):
         if conn is not None:
             # This will call close_conn() below which clears self.connection
             conn.close()
-        if self.trigger is not None:
-            self.trigger.close()
-            self.trigger = None
-        ThreadedAsync.remove_loop_callback(self.set_async)
-
-    def set_async(self, map):
-        # This is the callback registered with ThreadedAsync.  The
-        # callback might be called multiple times, so it shouldn't
-        # create a trigger every time and should never do anything
-        # after it's closed.
-
-        # It may be that the only case where it is called multiple
-        # times is in the test suite, where ThreadedAsync's loop can
-        # be started in a child process after a fork.  Regardless,
-        # it's good to be defensive.
-
-        # We need each connection started with async==0 to have a
-        # callback.
-        log("CM.set_async(%s)" % repr(map), level=logging.DEBUG)
-        if not self.closed and self.trigger is None:
-            log("CM.set_async(): first call")
-            self.trigger = trigger()
-            self.thr_async = 1 # needs to be set on the Connection
 
     def attempt_connect(self):
         """Attempt a connection to the server without blocking too long.

@@ -14,13 +14,15 @@
 """Test suite for ZEO based on ZODB.tests."""
 
 # System imports
+import asyncore
+import logging
 import os
 import random
+import signal
 import socket
-import asyncore
 import tempfile
+import time
 import unittest
-import logging
 
 # ZODB test support
 import ZODB
@@ -36,7 +38,12 @@ from ZODB.tests import StorageTestBase, BasicStorage, VersionStorage, \
 from ZODB.tests.testDemoStorage import DemoStorageWrappedBase
 
 from ZEO.ClientStorage import ClientStorage
+
+import ZEO.zrpc.connection
+
 from ZEO.tests import forker, Cache, CommitLockTests, ThreadTests
+
+import ZEO.tests.ConnectionTests
 
 logger = logging.getLogger('ZEO.tests.testZEO')
 
@@ -70,14 +77,19 @@ class MiscZEOTests:
             self.assertEqual(zodb_unpickle(data), MinPO('first'))
             self.assertEqual(serial, revid1)
             revid2 = self._dostore(oid, data=MinPO('second'), revid=revid1)
-            for n in range(3):
-                # Let the server and client talk for a moment.
-                # Is there a better way to do this?
-                asyncore.poll(0.1)
-            data, serial = storage2.load(oid, '')
-            self.assertEqual(zodb_unpickle(data), MinPO('second'),
-                             'Invalidation message was not sent!')
-            self.assertEqual(serial, revid2)
+
+            # Now, storage 2 should eventually get the new data. It
+            # will take some time, although hopefully not much.
+            # We'll poll till we get it and whine if we time out:
+            for n in range(30):
+                time.sleep(.1)
+                data, serial = storage2.load(oid, '')
+                if (serial == revid2 and
+                    zodb_unpickle(data) == MinPO('second')
+                    ):
+                    break
+            else:
+                raise AssertionError('Invalidation message was not sent!')
         finally:
             storage2.close()
 
@@ -198,6 +210,67 @@ class MappingStorageTests(GenericTests):
     def getConfig(self):
         return """<mappingstorage 1/>"""
 
+
+class HeartbeatTests(ZEO.tests.ConnectionTests.CommonSetupTearDown):
+    """Make sure a heartbeat is being sent and that it does no harm
+
+    This is really hard to test properly because we can't see the data
+    flow between the client and server and we can't really tell what's
+    going on in the server very well. :(
+
+    """
+
+    def setUp(self):
+        # Crank down the select frequency
+        self.__old_client_timeout = ZEO.zrpc.connection.client_timeout
+        ZEO.zrpc.connection.client_timeout = 0.1
+        ZEO.zrpc.connection.client_trigger.pull_trigger()
+        ZEO.tests.ConnectionTests.CommonSetupTearDown.setUp(self)
+
+    def tearDown(self):
+        ZEO.zrpc.connection.client_timeout = self.__old_client_timeout
+        ZEO.zrpc.connection.client_trigger.pull_trigger()
+        ZEO.tests.ConnectionTests.CommonSetupTearDown.tearDown(self)
+
+    def getConfig(self, path, create, read_only):
+        return """<mappingstorage 1/>"""
+
+    def checkHeartbeatWithServerClose(self):
+        # This is a minimal test that mainly tests that the heartbeat
+        # function does no harm.
+        client_timeout_count = ZEO.zrpc.connection.client_timeout_count
+        self._storage = self.openClientStorage()
+        time.sleep(1) # allow some time for the select loop to fire a few times
+        self.assert_(ZEO.zrpc.connection.client_timeout_count
+                     > client_timeout_count)
+        self._dostore()
+
+        if hasattr(os, 'kill'):
+            # Kill server violently, in hopes of provoking problem
+            os.kill(self._pids[0], signal.SIGKILL)
+            self._servers[0] = None
+        else:
+            self.shutdownServer()
+
+        for i in range(91):
+            # wait for disconnection
+            if not self._storage.is_connected():
+                break
+            time.sleep(0.1)
+        else:
+            raise AssertionError("Didn't detect server shutdown in 5 seconds")
+
+    def checkHeartbeatWithClientClose(self):
+        # This is a minimal test that mainly tests that the heartbeat
+        # function does no harm.
+        client_timeout_count = ZEO.zrpc.connection.client_timeout_count
+        self._storage = self.openClientStorage()
+        self._storage.close()
+        time.sleep(1) # allow some time for the select loop to fire a few times
+        self.assert_(ZEO.zrpc.connection.client_timeout_count
+                     > client_timeout_count)
+
+
 class DemoStorageWrappedAroundClientStorage(DemoStorageWrappedBase):
 
     def getConfig(self):
@@ -233,6 +306,7 @@ test_classes = [OneTimeTests,
                 FileStorageTests,
                 MappingStorageTests,
                 DemoStorageWrappedAroundClientStorage,
+                HeartbeatTests,
                ]
 
 def test_suite():

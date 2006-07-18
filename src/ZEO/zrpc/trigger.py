@@ -135,10 +135,10 @@ if os.name == 'posix':
     class trigger(_triggerbase, asyncore.file_dispatcher):
         kind = "pipe"
 
-        def __init__(self):
+        def __init__(self, map=None):
             _triggerbase.__init__(self)
             r, self.trigger = self._fds = os.pipe()
-            asyncore.file_dispatcher.__init__(self, r)
+            asyncore.file_dispatcher.__init__(self, r, map)
 
         def _close(self):
             for fd in self._fds:
@@ -155,7 +155,7 @@ else:
     class trigger(_triggerbase, asyncore.dispatcher):
         kind = "loopback"
 
-        def __init__(self):
+        def __init__(self, map=None):
             _triggerbase.__init__(self)
 
             # Get a pair of connected sockets.  The trigger is the 'w'
@@ -208,7 +208,7 @@ else:
             r, addr = a.accept()  # r becomes asyncore's (self.)socket
             a.close()
             self.trigger = w
-            asyncore.dispatcher.__init__(self, r)
+            asyncore.dispatcher.__init__(self, r, map)
 
         def _close(self):
             # self.socket is r, and self.trigger is w, from __init__

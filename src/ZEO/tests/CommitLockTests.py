@@ -35,10 +35,9 @@ class WorkerThread(TestThread):
     # run the entire test in a thread so that the blocking call for
     # tpc_vote() doesn't hang the test suite.
 
-    def __init__(self, storage, trans, method="tpc_finish"):
+    def __init__(self, storage, trans):
         self.storage = storage
         self.trans = trans
-        self.method = method
         self.ready = threading.Event()
         TestThread.__init__(self)
 
@@ -52,10 +51,7 @@ class WorkerThread(TestThread):
             p = zodb_pickle(MinPO("c"))
             self.storage.store(oid, ZERO, p, '', self.trans)
             self.myvote()
-            if self.method == "tpc_finish":
-                self.storage.tpc_finish(self.trans)
-            else:
-                self.storage.tpc_abort(self.trans)
+            self.storage.tpc_finish(self.trans)
         except ClientDisconnected:
             pass
 
@@ -120,7 +116,7 @@ class CommitLockTests:
             t.start()
             t.ready.wait()
 
-            # Close on the connections abnormally to test server response
+            # Close one of the connections abnormally to test server response
             if i == 0:
                 storage.close()
             else:
@@ -237,7 +233,6 @@ class CommitLockUndoTests(CommitLockTests):
         trans_id = self._get_trans_id()
         oid, txn = self._start_txn()
         msgid = self._begin_undo(trans_id, txn)
-
         self._begin_threads()
 
         self._finish_undo(msgid)
