@@ -34,19 +34,19 @@ ASYNC = 1
 
 ##############################################################################
 # Dedicated Client select loop:
-client_map = {}
-client_trigger = trigger(client_map)
 client_timeout = 30.0
 client_timeout_count = 0 # for testing
+client_map = {}
+client_trigger = trigger(client_map)
+client_logger = logging.getLogger('ZEO.zrpc.client_loop')
 
 def client_loop():
     map = client_map
-    logger = logging.getLogger('ZEO.zrpc.client_loop')
-    logger.addHandler(logging.StreamHandler())
 
     read = asyncore.read
     write = asyncore.write
     _exception = asyncore._exception
+    loop_failures = 0
     
     while map:
         try:
@@ -106,8 +106,17 @@ def client_loop():
                 _exception(obj)
 
         except:
-            logger.exception('poll failure')
-            raise
+            client_logger.critical('The ZEO cient loop failed.',
+                            exc_info=sys.exc_info())
+            for fd, obj in map.items():
+                if obj is client_trigger:
+                    continue
+                try:
+                    obj.mgr.client.close()
+                except:
+                    map.pop(fd, None)
+                    client_logger.critical("Couldn't close a dispatcher.",
+                                           exc_info=sys.exc_info())
 
 client_thread = threading.Thread(target=client_loop)
 client_thread.setDaemon(True)

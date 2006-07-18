@@ -271,6 +271,43 @@ class HeartbeatTests(ZEO.tests.ConnectionTests.CommonSetupTearDown):
                      > client_timeout_count)
 
 
+class CatastrophicClientLoopFailure(
+    ZEO.tests.ConnectionTests.CommonSetupTearDown):
+    """Test what happens when the client loop falls over
+    """
+
+    def getConfig(self, path, create, read_only):
+        return """<mappingstorage 1/>"""
+
+    def checkCatastrophicClientLoopFailure(self):
+        self._storage = self.openClientStorage()
+
+        class Evil:
+            def writable(self):
+                raise SystemError("I'm evil")
+
+        log = []
+        ZEO.zrpc.connection.client_logger.critical = (
+            lambda m, *a, **kw: log.append((m % a, kw))
+            )
+
+        ZEO.zrpc.connection.client_map[None] = Evil()
+        
+        try:
+            ZEO.zrpc.connection.client_trigger.pull_trigger()
+        except DisconnectedError:
+            pass
+
+        time.sleep(.1)
+        self.failIf(self._storage.is_connected())
+        self.assertEqual(len(ZEO.zrpc.connection.client_map), 1)
+        del ZEO.zrpc.connection.client_logger.critical
+        self.assertEqual(log[0][0], 'The ZEO cient loop failed.')
+        self.assert_('exc_info' in log[0][1])
+        self.assertEqual(log[1][0], "Couldn't close a dispatcher.")
+        self.assert_('exc_info' in log[1][1])
+    
+
 class DemoStorageWrappedAroundClientStorage(DemoStorageWrappedBase):
 
     def getConfig(self):
@@ -307,6 +344,7 @@ test_classes = [OneTimeTests,
                 MappingStorageTests,
                 DemoStorageWrappedAroundClientStorage,
                 HeartbeatTests,
+                CatastrophicClientLoopFailure,
                ]
 
 def test_suite():
