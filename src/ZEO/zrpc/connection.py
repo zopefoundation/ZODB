@@ -37,6 +37,7 @@ ASYNC = 1
 client_map = {}
 client_trigger = trigger(client_map)
 client_timeout = 30.0
+client_timeout_count = 0 # for testing
 
 def client_loop():
     map = client_map
@@ -49,16 +50,8 @@ def client_loop():
     
     while map:
         try:
-            r = []; w = []; e = []
-            for fd, obj in map.items():
-                is_r = obj.readable()
-                is_w = obj.writable()
-                if is_r:
-                    r.append(fd)
-                if is_w:
-                    w.append(fd)
-                if is_r or is_w:
-                    e.append(fd)
+            r = e = list(client_map)
+            w = [fd for (fd, obj) in map.iteritems() if obj.writable()]
 
             try:
                 r, w, e = select.select(r, w, e, client_timeout)
@@ -77,10 +70,22 @@ def client_loop():
                         if [fd for fd in w if fd not in client_map]:
                             continue
                         
-#                        print 'BADF', list(client_map), r, w, e
                     raise
                 else:
                     continue
+
+            if not (r or w or e):
+                for obj in client_map.itervalues():
+                    if isinstance(obj, Connection):
+                        # Send a heartbeat message as a reply to a
+                        # non-existent message id.
+                        try:
+                            obj.send_reply(-1, None)
+                        except DisconnectedError:
+                            pass
+                global client_timeout_count
+                client_timeout_count += 1
+                continue
 
             for fd in r:
                 obj = map.get(fd)
@@ -101,50 +106,8 @@ def client_loop():
                 _exception(obj)
 
         except:
-#            print 'poll failure', sys.exc_info()[1], time.time()
             logger.exception('poll failure')
             raise
-
-#import time
-def poll(timeout, map):
-    if map:
-        r = []; w = []; e = []
-        for fd, obj in map.items():
-            is_r = obj.readable()
-            is_w = obj.writable()
-            if is_r:
-                r.append(fd)
-            if is_w:
-                w.append(fd)
-            if is_r or is_w:
-                e.append(fd)
-
-        try:
-            r, w, e = select.select(r, w, e, timeout)
-        except select.error, err:
-            if err[0] != errno.EINTR:
-                raise
-            else:
-                return
-
-        for fd in r:
-            obj = map.get(fd)
-            if obj is None:
-                continue
-            asyncore.read(obj)
-
-        for fd in w:
-            obj = map.get(fd)
-            if obj is None:
-                continue
-            asyncore.write(obj)
-
-        for fd in e:
-            obj = map.get(fd)
-            if obj is None:
-                continue
-            asyncore._exception(obj)
-
 
 client_thread = threading.Thread(target=client_loop)
 client_thread.setDaemon(True)
