@@ -68,4 +68,9 @@ result = testrunner.run(defaults)
 # something after the files used by the logger have been closed.
 logging.disable(999999999)
 import os
+
+# Because we're about to use os._exit, we flush output so we don't miss any.
+sys.stdout.flush()
+sys.stderr.flush()
+
 os._exit(result)
