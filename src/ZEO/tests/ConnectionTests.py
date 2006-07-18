@@ -55,6 +55,12 @@ class TestClientStorage(ClientStorage):
 
     StorageServerStubClass = TestServerStub
 
+    connection_count_for_tests = 0
+
+    def notifyConnected(self, conn):
+        ClientStorage.notifyConnected(self, conn)
+        self.connection_count_for_tests += 1
+
     def verify_cache(self, stub):
         self.end_verify = threading.Event()
         self.verify_result = ClientStorage.verify_cache(self, stub)
@@ -959,40 +965,39 @@ class TimeoutTests(CommonSetupTearDown):
         storage.close()
 
     def checkTimeoutAfterVote(self):
-        raises = self.assertRaises
-        unless = self.failUnless
         self._storage = storage = self.openClientStorage()
         # Assert that the zeo cache is empty
-        unless(not list(storage._cache.contents()))
+        self.assert_(not list(storage._cache.contents()))
         # Create the object
         oid = storage.new_oid()
         obj = MinPO(7)
         # Now do a store, sleeping before the finish so as to cause a timeout
         t = Transaction()
+        old_connection_count = storage.connection_count_for_tests
         storage.tpc_begin(t)
         revid1 = storage.store(oid, ZERO, zodb_pickle(obj), '', t)
         storage.tpc_vote(t)
         # Now sleep long enough for the storage to time out
         time.sleep(3)
-        storage.sync()
-        unless(not storage.is_connected())
+        self.assert_(
+            (not storage.is_connected())
+            or
+            (storage.connection_count_for_tests > old_connection_count)
+            )
         storage._wait()
-        unless(storage.is_connected())
+        self.assert_(storage.is_connected())
         # We expect finish to fail
-        raises(ClientDisconnected, storage.tpc_finish, t)
+        self.assertRaises(ClientDisconnected, storage.tpc_finish, t)
         # The cache should still be empty
-        unless(not list(storage._cache.contents()))
+        self.assert_(not list(storage._cache.contents()))
         # Load should fail since the object should not be in either the cache
         # or the server.
-        raises(KeyError, storage.load, oid, '')
+        self.assertRaises(KeyError, storage.load, oid, '')
 
     def checkTimeoutProvokingConflicts(self):
-        eq = self.assertEqual
-        raises = self.assertRaises
-        require = self.assert_
         self._storage = storage = self.openClientStorage()
         # Assert that the zeo cache is empty.
-        require(not list(storage._cache.contents()))
+        self.assert_(not list(storage._cache.contents()))
         # Create the object
         oid = storage.new_oid()
         obj = MinPO(7)
@@ -1007,6 +1012,7 @@ class TimeoutTests(CommonSetupTearDown):
         # Now do a store, sleeping before the finish so as to cause a timeout.
         obj.value = 8
         t = Transaction()
+        old_connection_count = storage.connection_count_for_tests
         storage.tpc_begin(t)
         revid2a = storage.store(oid, revid1, zodb_pickle(obj), '', t)
         revid2b = storage.tpc_vote(t)
@@ -1020,17 +1026,21 @@ class TimeoutTests(CommonSetupTearDown):
         # of 3).
         deadline = time.time() + 60 # wait up to a minute
         while time.time() < deadline:
-            if storage.is_connected():
+            if (storage.is_connected() and
+                (storage.connection_count_for_tests == old_connection_count)
+                ):
                 time.sleep(self.timeout / 1.8)
-                storage.sync()
             else:
                 break
-        storage.sync()
-        require(not storage.is_connected())
+        self.assert_(
+            (not storage.is_connected())
+            or
+            (storage.connection_count_for_tests > old_connection_count)
+            )
         storage._wait()
-        require(storage.is_connected())
+        self.assert_(storage.is_connected())
         # We expect finish to fail.
-        raises(ClientDisconnected, storage.tpc_finish, t)
+        self.assertRaises(ClientDisconnected, storage.tpc_finish, t)
         # Now we think we've committed the second transaction, but we really
         # haven't.  A third one should produce a POSKeyError on the server,
         # which manifests as a ConflictError on the client.
@@ -1038,7 +1048,7 @@ class TimeoutTests(CommonSetupTearDown):
         t = Transaction()
         storage.tpc_begin(t)
         storage.store(oid, revid2, zodb_pickle(obj), '', t)
-        raises(ConflictError, storage.tpc_vote, t)
+        self.assertRaises(ConflictError, storage.tpc_vote, t)
         # Even aborting won't help.
         storage.tpc_abort(t)
         storage.tpc_finish(t)
@@ -1048,7 +1058,7 @@ class TimeoutTests(CommonSetupTearDown):
         storage.tpc_begin(t)
         storage.store(oid, revid2, zodb_pickle(obj), '', t)
         # Even aborting won't help.
-        raises(ConflictError, storage.tpc_vote, t)
+        self.assertRaises(ConflictError, storage.tpc_vote, t)
         # Abort this one and try a transaction that should succeed.
         storage.tpc_abort(t)
         storage.tpc_finish(t)
@@ -1062,8 +1072,8 @@ class TimeoutTests(CommonSetupTearDown):
         storage.tpc_finish(t)
         # Now load the object and verify that it has a value of 11.
         data, revid = storage.load(oid, '')
-        eq(zodb_unpickle(data), MinPO(11))
-        eq(revid, revid2)
+        self.assertEqual(zodb_unpickle(data), MinPO(11))
+        self.assertEqual(revid, revid2)
 
 class MSTThread(threading.Thread):
 

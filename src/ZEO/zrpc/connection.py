@@ -19,6 +19,8 @@ import threading
 import types
 import logging
 
+import traceback, time
+
 import ThreadedAsync
 from ZEO.zrpc import smac
 from ZEO.zrpc.error import ZRPCError, DisconnectedError
@@ -29,6 +31,89 @@ from ZODB.loglevels import BLATHER, TRACE
 
 REPLY = ".reply" # message name used for replies
 ASYNC = 1
+
+##############################################################################
+# Dedicated Client select loop:
+client_map = {}
+client_trigger = trigger(client_map)
+client_timeout = 30.0
+client_timeout_count = 0 # for testing
+
+def client_loop():
+    map = client_map
+    logger = logging.getLogger('ZEO.zrpc.client_loop')
+    logger.addHandler(logging.StreamHandler())
+
+    read = asyncore.read
+    write = asyncore.write
+    _exception = asyncore._exception
+    
+    while map:
+        try:
+            r = e = list(client_map)
+            w = [fd for (fd, obj) in map.iteritems() if obj.writable()]
+
+            try:
+                r, w, e = select.select(r, w, e, client_timeout)
+            except select.error, err:
+                if err[0] != errno.EINTR:
+                    if err[0] == errno.EBADF:
+
+                        # If a connection is closed while we are
+                        # calling select on it, we can get a bad
+                        # file-descriptor error.  We'll check for this
+                        # case by looking for entries in r and w that
+                        # are not in the socket map.
+
+                        if [fd for fd in r if fd not in client_map]:
+                            continue
+                        if [fd for fd in w if fd not in client_map]:
+                            continue
+                        
+                    raise
+                else:
+                    continue
+
+            if not (r or w or e):
+                for obj in client_map.itervalues():
+                    if isinstance(obj, Connection):
+                        # Send a heartbeat message as a reply to a
+                        # non-existent message id.
+                        try:
+                            obj.send_reply(-1, None)
+                        except DisconnectedError:
+                            pass
+                global client_timeout_count
+                client_timeout_count += 1
+                continue
+
+            for fd in r:
+                obj = map.get(fd)
+                if obj is None:
+                    continue
+                read(obj)
+
+            for fd in w:
+                obj = map.get(fd)
+                if obj is None:
+                    continue
+                write(obj)
+
+            for fd in e:
+                obj = map.get(fd)
+                if obj is None:
+                    continue
+                _exception(obj)
+
+        except:
+            logger.exception('poll failure')
+            raise
+
+client_thread = threading.Thread(target=client_loop)
+client_thread.setDaemon(True)
+client_thread.start()
+#
+##############################################################################
 
 class Delay:
     """Used to delay response to client for synchronous calls.
@@ -235,7 +320,7 @@ class Connection(smac.SizedMessageAsyncConnection, object):
     # Client constructor passes 'C' for tag, server constructor 'S'.  This
     # is used in log messages, and to determine whether we can speak with
     # our peer.
-    def __init__(self, sock, addr, obj, tag):
+    def __init__(self, sock, addr, obj, tag, map=None):
         self.obj = None
         self.marshal = Marshaller()
         self.closed = False
@@ -315,8 +400,10 @@ class Connection(smac.SizedMessageAsyncConnection, object):
         # isn't necessary before Python 2.4, but doesn't hurt then (it just
         # gives us an unused attribute in 2.3); updating the global socket
         # map is necessary regardless of Python version.
-        self._map = asyncore.socket_map
-        asyncore.socket_map.update(ourmap)
+        if map is None:
+            map = asyncore.socket_map
+        self._map = map
+        map.update(ourmap)
 
     def __repr__(self):
         return "<%s %s>" % (self.__class__.__name__, self.addr)
@@ -331,12 +418,13 @@ class Connection(smac.SizedMessageAsyncConnection, object):
             return
         self._singleton.clear()
         self.closed = True
-        self.close_trigger()
         self.__super_close()
+        self.close_trigger()
 
     def close_trigger(self):
         # Overridden by ManagedClientConnection.
         if self.trigger is not None:
+            self.trigger.pull_trigger()
             self.trigger.close()
 
     def register_object(self, obj):
@@ -538,16 +626,16 @@ class Connection(smac.SizedMessageAsyncConnection, object):
             return r_args
 
     # For testing purposes, it is useful to begin a synchronous call
-    # but not block waiting for its response.  Since these methods are
-    # used for testing they can assume they are not in async mode and
-    # call asyncore.poll() directly to get the message out without
-    # also waiting for the reply.
+    # but not block waiting for its response.
 
     def _deferred_call(self, method, *args):
         if self.closed:
             raise DisconnectedError()
         msgid = self.send_call(method, args, 0)
-        asyncore.poll(0.01, self._singleton)
+        if self.is_async():
+            self.trigger.pull_trigger()
+        else:
+            asyncore.poll(0.01, self._singleton)
         return msgid
 
     def _deferred_wait(self, msgid):
@@ -663,7 +751,7 @@ class Connection(smac.SizedMessageAsyncConnection, object):
         else:
             asyncore.poll(0.0, self._singleton)
 
-    def pending(self, timeout=0):
+    def _pending(self, timeout=0):
         """Invoke mainloop until any pending messages are handled."""
         if __debug__:
             self.log("pending(), async=%d" % self.is_async(), level=TRACE)
@@ -758,8 +846,10 @@ class ManagedClientConnection(Connection):
         self.queue_output = True
         self.queued_messages = []
 
-        self.__super_init(sock, addr, obj, tag='C')
-        self.check_mgr_async()
+        self.__super_init(sock, addr, obj, tag='C', map=client_map)
+        self.thr_async = True
+        self.trigger = client_trigger
+        client_trigger.pull_trigger()
 
     # Our message_ouput() queues messages until recv_handshake() gets the
     # protocol handshake from the server.
@@ -806,9 +896,12 @@ class ManagedClientConnection(Connection):
     # Defer the ThreadedAsync work to the manager.
 
     def close_trigger(self):
-        # the manager should actually close the trigger
-        # TODO: what is that comment trying to say?  What 'manager'?
-        del self.trigger
+        # We are using a shared trigger for all client connections.
+        # We never want to close it.
+
+        # We do want to pull it to make sure the select loop detects that
+        # we're closed.
+        self.trigger.pull_trigger()
 
     def set_async(self, map):
         pass
@@ -817,20 +910,8 @@ class ManagedClientConnection(Connection):
         # Don't do the register_loop_callback that the superclass does
         pass
 
-    def check_mgr_async(self):
-        if not self.thr_async and self.mgr.thr_async:
-            assert self.mgr.trigger is not None, \
-                   "manager (%s) has no trigger" % self.mgr
-            self.thr_async = True
-            self.trigger = self.mgr.trigger
-            return 1
-        return 0
-
     def is_async(self):
-        # TODO: could the check_mgr_async() be avoided on each test?
-        if self.thr_async:
-            return 1
-        return self.check_mgr_async()
+        return True
 
     def close(self):
         self.mgr.close_conn(self)
