@@ -74,6 +74,10 @@ Testing
 Tools
 -----
 
+- (3.7b2) Fixed bug in 'fsrefs.py' which caused it to report erroneous
+  "missing" classes.
+
+
 - (3.7a1) The changeover from zLOG to the logging module means that some
   tools need to perform minimal logging configuration themselves. Changed
   the zeoup script to do so and thus enable it to emit error messages.

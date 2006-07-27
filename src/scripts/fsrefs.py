@@ -129,11 +129,8 @@ def main(path):
         data, serial = fs.load(oid, "")
         refs = get_refs(data)
         missing = [] # contains 3-tuples of oid, klass-metadata, reason
-        for info in refs:
-            ref, klass = info
+        for ref, klass in refs:
             if klass is None:
-                # failed to unpack
-                ref = info
                 klass = '<unknown>'
             if ref not in fs._index:
                 missing.append((ref, klass, "missing"))
