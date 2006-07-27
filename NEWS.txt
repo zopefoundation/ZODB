@@ -153,6 +153,8 @@ PersistentMapping
 
 Tools
 -----
+- (3.6.3) Fixed bug in 'fsrefs.py' which caused it to report erroneous
+  "missing" classes.
 
 - (3.6b5) The changeover from zLOG to the logging module means that some
   tools need to perform minimal logging configuration themselves. Changed
