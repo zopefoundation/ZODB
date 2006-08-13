@@ -49,7 +49,7 @@ from distutils.command.build_py import build_py
 from distutils.util import convert_path
 
 if sys.version_info < (2, 4, 2):
-    print "ZODB 3.3 requires Python 2.4.2 or higher"
+    print "ZODB 3.7 requires Python 2.4.2 or higher"
     sys.exit(0)
 
 # Include directories for C extensions
