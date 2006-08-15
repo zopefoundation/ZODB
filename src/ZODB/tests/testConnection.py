@@ -478,6 +478,80 @@ class InvalidationTests(unittest.TestCase):
 
         """
 
+def test_invalidateCache():
+    """\
+
+The invalidateCache method invalidates a connection's cache.  It also
+prevents reads until the end of a transaction.
+
+    >>> from ZODB.tests.util import DB
+    >>> import transaction
+    >>> db = DB()
+    >>> tm = transaction.TransactionManager()
+    >>> connection = db.open(transaction_manager=tm)
+    >>> connection.root()['a'] = StubObject()
+    >>> connection.root()['a'].x = 1
+    >>> connection.root()['b'] = StubObject()
+    >>> connection.root()['b'].x = 1
+    >>> connection.root()['c'] = StubObject()
+    >>> connection.root()['c'].x = 1
+    >>> tm.commit()
+    >>> connection.root()['b']._p_deactivate()
+    >>> connection.root()['c'].x = 2
+
+So we have a connection and an active transaction with some
+modifications. Lets call invalidateCache:
+
+    >>> connection.invalidateCache()
+
+Now, if we try to load an object, we'll get a read conflict:
+
+    >>> connection.root()['b'].x
+    Traceback (most recent call last):
+    ...
+    ReadConflictError: database read conflict error
+
+If we try to commit the transaction, we'll get a conflict error:
+
+    >>> tm.commit()
+    Traceback (most recent call last):
+    ...
+    ConflictError: database conflict error
+
+and the cache will have been cleared:
+
+    >>> print connection.root()['a']._p_changed
+    None
+    >>> print connection.root()['b']._p_changed
+    None
+    >>> print connection.root()['c']._p_changed
+    None
+
+But we'll be able to access data again:
+
+    >>> connection.root()['b'].x
+    1
+
+Aborting a transaction after a read conflict also lets us read data
+and go on about our business:
+    
+    >>> connection.invalidateCache()
+
+    >>> connection.root()['c'].x
+    Traceback (most recent call last):
+    ...
+    ReadConflictError: database read conflict error
+
+    >>> tm.abort()
+    >>> connection.root()['c'].x
+    1
+
+    >>> connection.root()['c'].x = 2
+    >>> tm.commit()
+
+    >>> db.close()
+    """
+
 # ---- stubs
 
 class StubObject(Persistent):

@@ -306,6 +306,53 @@ class CatastrophicClientLoopFailure(
         self.assert_('exc_info' in log[0][1])
         self.assertEqual(log[1][0], "Couldn't close a dispatcher.")
         self.assert_('exc_info' in log[1][1])
+
+class ConnectionInvalidationOnReconnect(
+    ZEO.tests.ConnectionTests.CommonSetupTearDown):
+    """Test what happens when the client loop falls over
+    """
+
+    def getConfig(self, path, create, read_only):
+        return """<mappingstorage 1/>"""
+
+    def checkConnectionInvalidationOnReconnect(self):
+
+        storage = ClientStorage(self.addr, wait=1, min_disconnect_poll=0.1)
+        self._storage = storage
+
+        # and we'll wait for the storage to be reconnected:
+        for i in range(100):
+            if storage.is_connected():
+                break
+            time.sleep(0.1)
+        else:
+            raise AssertionError("Couldn't connect to server")
+
+        class DummyDB:
+            _invalidatedCache = 0
+            def invalidateCache(self):
+                self._invalidatedCache += 1
+            def invalidate(*a, **k):
+                pass
+                
+        db = DummyDB()
+        storage.registerDB(db, None)
+
+        base = db._invalidatedCache
+
+        # Now we'll force a disconnection and reconnection
+        storage._connection.close()
+
+        # and we'll wait for the storage to be reconnected:
+        for i in range(100):
+            if storage.is_connected():
+                break
+            time.sleep(0.1)
+        else:
+            raise AssertionError("Couldn't connect to server")
+
+        # Now, the root object in the connection should have been invalidated:
+        self.assertEqual(db._invalidatedCache, base+1)
     
 
 class DemoStorageWrappedAroundClientStorage(DemoStorageWrappedBase):
@@ -345,6 +392,7 @@ test_classes = [OneTimeTests,
                 DemoStorageWrappedAroundClientStorage,
                 HeartbeatTests,
                 CatastrophicClientLoopFailure,
+                ConnectionInvalidationOnReconnect,
                ]
 
 def test_suite():

@@ -480,6 +480,12 @@ class DB(object):
                 c.invalidate(tid, oids)
         self._connectionMap(inval)
 
+    def invalidateCache(self):
+        """Invalidate each of the connection caches
+        """        
+        self._miv_cache.clear()
+        self._connectionMap(lambda c: c.invalidateCache())
+
     def modifiedInVersion(self, oid):
         h = hash(oid) % 131
         cache = self._miv_cache

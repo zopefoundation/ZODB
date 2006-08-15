@@ -130,7 +130,10 @@ class Connection(ExportImport, object):
         # critical sections (if any -- this needs careful thought).
 
         self._inv_lock = threading.Lock()
-        self._invalidated = d = {}
+        self._invalidated = {}
+
+        # Flag indicating whether the cache has been invalidated:
+        self._invalidatedCache = False
 
         # We intend to prevent committing a transaction in which
         # ReadConflictError occurs.  _conflicts is the set of oids that
@@ -287,6 +290,14 @@ class Connection(ExportImport, object):
             self._invalidated.update(oids)
         finally:
             self._inv_lock.release()
+
+    def invalidateCache(self):
+        self._inv_lock.acquire()
+        try:
+            self._invalidatedCache = True
+        finally:
+            self._inv_lock.release()
+        
 
     def root(self):
         """Return the database root object."""
@@ -450,6 +461,9 @@ class Connection(ExportImport, object):
             invalidated = self._invalidated
             self._invalidated = {}
             self._txn_time = None
+            if self._invalidatedCache:
+                self._invalidatedCache = False
+                invalidated = self._cache.cache_data.copy()
         finally:
             self._inv_lock.release()
 
@@ -500,6 +514,9 @@ class Connection(ExportImport, object):
         # happened.
 
         self._added_during_commit = []
+
+        if self._invalidatedCache:
+            raise ConflictError()            
 
         for obj in self._registered_objects:
             oid = obj._p_oid
@@ -759,6 +776,10 @@ class Connection(ExportImport, object):
         # dict update could go on in another thread, but we don't care
         # because we have to check again after the load anyway.
 
+
+        if self._invalidatedCache:
+            raise ReadConflictError()            
+
         if (obj._p_oid in self._invalidated and
                 not myhasattr(obj, "_p_independent")):
             # If the object has _p_independent(), we will handle it below.
@@ -947,6 +968,7 @@ class Connection(ExportImport, object):
         """
         self._reset_counter = global_reset_counter
         self._invalidated.clear()
+        self._invalidatedCache = False
         cache_size = self._cache.cache_size
         self._cache = cache = PickleCache(self, cache_size)
 
