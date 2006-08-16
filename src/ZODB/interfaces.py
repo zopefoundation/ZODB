@@ -283,40 +283,51 @@ class IConnection(Interface):
         If clear is True, reset the counters.
         """
 
+    def invalidateCache():
+        """Invalidate the connection cache
+
+        This invalidates *all* objects in the cache. If the connection
+        is open, subsequent reads will fail until a new transaction
+        begins or until the connection os reopned.
+        
+        """
+
 class IDatabase(Interface):
     """ZODB DB.
 
     TODO: This interface is incomplete.
     """
 
-    def __init__(storage,
-                 pool_size=7,
-                 cache_size=400,
-                 version_pool_size=3,
-                 version_cache_size=100,
-                 database_name='unnamed',
-                 databases=None,
-                 ):
-        """Create an object database.
+## __init__ methods don't belong in interfaces:
+##
+##     def __init__(storage,
+##                  pool_size=7,
+##                  cache_size=400,
+##                  version_pool_size=3,
+##                  version_cache_size=100,
+##                  database_name='unnamed',
+##                  databases=None,
+##                  ):
+##         """Create an object database.
 
-        storage: the storage used by the database, e.g. FileStorage
-        pool_size: expected maximum number of open connections
-        cache_size: target size of Connection object cache, in number of
-            objects
-        version_pool_size: expected maximum number of connections (per
-            version)
-        version_cache_size: target size of Connection object cache for
-             version connections, in number of objects
-        database_name: when using a multi-database, the name of this DB
-            within the database group.  It's a (detected) error if databases
-            is specified too and database_name is already a key in it.
-            This becomes the value of the DB's database_name attribute.
-        databases: when using a multi-database, a mapping to use as the
-            binding of this DB's .databases attribute.  It's intended
-            that the second and following DB's added to a multi-database
-            pass the .databases attribute set on the first DB added to the
-            collection.
-        """
+##         storage: the storage used by the database, e.g. FileStorage
+##         pool_size: expected maximum number of open connections
+##         cache_size: target size of Connection object cache, in number of
+##             objects
+##         version_pool_size: expected maximum number of connections (per
+##             version)
+##         version_cache_size: target size of Connection object cache for
+##              version connections, in number of objects
+##         database_name: when using a multi-database, the name of this DB
+##             within the database group.  It's a (detected) error if databases
+##             is specified too and database_name is already a key in it.
+##             This becomes the value of the DB's database_name attribute.
+##         databases: when using a multi-database, a mapping to use as the
+##             binding of this DB's .databases attribute.  It's intended
+##             that the second and following DB's added to a multi-database
+##             pass the .databases attribute set on the first DB added to the
+##             collection.
+##         """
 
     databases = Attribute("""\
         A mapping from database name to DB (database) object.
@@ -327,6 +338,12 @@ class IDatabase(Interface):
         In single-database use, of course this mapping contains a single
         entry.
         """)
+
+    def invalidateCache():
+        """Invalidate all objects in the database object caches
+
+        invalidateCache will be called on each of the database's connections.
+        """
 
 class IStorage(Interface):
     """A storage is responsible for storing and retrieving data of objects.

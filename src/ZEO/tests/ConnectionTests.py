@@ -79,6 +79,9 @@ class DummyDB:
     def invalidate(self, *args, **kwargs):
         pass
 
+    def invalidateCache(self):
+        pass
+
 class CommonSetupTearDown(StorageTestBase):
     """Common boilerplate"""
 
