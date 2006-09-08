@@ -19,9 +19,11 @@ are associated with the right transaction.
 
 import thread
 
+from ZODB.utils import WeakSet, deprecated37
+
 from transaction._transaction import Transaction
 
-# Used for deprecated arguments.  ZODB.utils.DEPRECATED_ARGUMENT is
+# Used for deprecated arguments.  ZODB.utils.DEPRECATED_ARGUMENT was
 # too hard to use here, due to the convoluted import dance across
 # __init__.py files.
 _marker = object()
@@ -34,8 +36,6 @@ _marker = object()
 # alive (e.g., the cache, and everything reachable from it too).
 # Therefore we use "weak sets" internally.
 #
-# Obscure:  because of the __init__.py maze, we can't import WeakSet
-# at top level here.
 
 # Call the ISynchronizer newTransaction() method on every element of
 # WeakSet synchs.
@@ -58,8 +58,6 @@ def _new_transaction(txn, synchs):
 class TransactionManager(object):
 
     def __init__(self):
-        from ZODB.utils import WeakSet
-
         self._txn = None
         self._synchs = WeakSet()
 
@@ -85,11 +83,16 @@ class TransactionManager(object):
     def unregisterSynch(self, synch):
         self._synchs.remove(synch)
 
+    def isDoomed(self):
+        return self.get().isDoomed()
+
+    def doom(self):
+        return self.get().doom()
+
     def commit(self, sub=_marker):
         if sub is _marker:
             sub = None
         else:
-            from ZODB.utils import deprecated37
             deprecated37("subtransactions are deprecated; use "
                          "transaction.savepoint() instead of "
                          "transaction.commit(1)")
@@ -99,7 +102,6 @@ class TransactionManager(object):
         if sub is _marker:
             sub = None
         else:
-            from ZODB.utils import deprecated37
             deprecated37("subtransactions are deprecated; use "
                          "sp.rollback() instead of "
                          "transaction.abort(1), where `sp` is the "
@@ -132,7 +134,6 @@ class ThreadTransactionManager(TransactionManager):
 
         synchs = self._synchs.get(tid)
         if synchs is None:
-            from ZODB.utils import WeakSet
             synchs = self._synchs[tid] = WeakSet()
 
         txn = self._txns[tid] = Transaction(synchs, self)
@@ -145,7 +146,6 @@ class ThreadTransactionManager(TransactionManager):
         if txn is None:
             synchs = self._synchs.get(tid)
             if synchs is None:
-                from ZODB.utils import WeakSet
                 synchs = self._synchs[tid] = WeakSet()
             txn = self._txns[tid] = Transaction(synchs, self)
         return txn
@@ -159,7 +159,6 @@ class ThreadTransactionManager(TransactionManager):
         tid = thread.get_ident()
         ws = self._synchs.get(tid)
         if ws is None:
-            from ZODB.utils import WeakSet
             ws = self._synchs[tid] = WeakSet()
         ws.add(synch)
 

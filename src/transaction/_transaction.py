@@ -169,15 +169,13 @@ import traceback
 from cStringIO import StringIO
 
 from zope import interface
-from transaction import interfaces
+from ZODB.utils import WeakSet
+from ZODB.utils import deprecated37, deprecated38
+from ZODB.POSException import TransactionFailedError
+from ZODB.utils import oid_repr
 
-# Sigh.  In the maze of __init__.py's, ZODB.__init__.py takes 'get'
-# out of transaction.__init__.py, in order to stuff the 'get_transaction'
-# alias in __builtin__.  So here in _transaction.py, we can't import
-# exceptions from ZODB.POSException at top level (we're imported by
-# our __init__.py, which is imported by ZODB's __init__, so the ZODB
-# package isn't well-formed when we're first imported).
-# from ZODB.POSException import TransactionError, TransactionFailedError
+
+from transaction import interfaces
 
 _marker = object()
 
@@ -192,6 +190,8 @@ class Status:
 
     COMMITTING   = "Committing"
     COMMITTED    = "Committed"
+
+    DOOMED = "Doomed"
 
     # commit() or commit(True) raised an exception.  All further attempts
     # to commit or join this transaction will raise TransactionFailedError.
@@ -227,7 +227,6 @@ class Transaction(object):
 
         # Weak set of synchronizer objects to call.
         if synchronizers is None:
-            from ZODB.utils import WeakSet
             synchronizers = WeakSet()
         self._synchronizers = synchronizers
 
@@ -258,11 +257,21 @@ class Transaction(object):
         # List of (hook, args, kws) tuples added by addAfterCommitHook().
         self._after_commit = []
 
+    def isDoomed(self):
+        return self.status is Status.DOOMED
+
+    def doom(self):
+        if self.status is not Status.DOOMED:
+            if self.status is not Status.ACTIVE:
+                # should not doom transactions in the middle,
+                # or after, a commit
+                raise AssertionError()
+            self.status = Status.DOOMED
+
     # Raise TransactionFailedError, due to commit()/join()/register()
     # getting called when the current transaction has already suffered
     # a commit/savepoint failure.
     def _prior_operation_failed(self):
-        from ZODB.POSException import TransactionFailedError
         assert self._failure_traceback is not None
         raise TransactionFailedError("An operation previously failed, "
                 "with traceback:\n\n%s" %
@@ -272,11 +281,12 @@ class Transaction(object):
         if self.status is Status.COMMITFAILED:
             self._prior_operation_failed() # doesn't return
 
-        if self.status is not Status.ACTIVE:
+        if (self.status is not Status.ACTIVE and
+                self.status is not Status.DOOMED):
             # TODO: Should it be possible to join a committing transaction?
             # I think some users want it.
-            raise ValueError("expected txn status %r, but it's %r" % (
-                             Status.ACTIVE, self.status))
+            raise ValueError("expected txn status %r or %r, but it's %r" % (
+                             Status.ACTIVE, Status.DOOMED, self.status))
         # TODO: the prepare check is a bit of a hack, perhaps it would
         # be better to use interfaces.  If this is a ZODB4-style
         # resource manager, it needs to be adapted, too.
@@ -363,10 +373,12 @@ class Transaction(object):
             adapter.objects.append(obj)
 
     def commit(self, subtransaction=_marker, deprecation_wng=True):
+        if self.status is Status.DOOMED:
+            raise interfaces.DoomedTransaction()
+
         if subtransaction is _marker:
             subtransaction = 0
         elif deprecation_wng:
-            from ZODB.utils import deprecated37
             deprecated37("subtransactions are deprecated; instead of "
                          "transaction.commit(1), use "
                          "transaction.savepoint(optimistic=True) in "
@@ -431,7 +443,6 @@ class Transaction(object):
         self._before_commit.append((hook, tuple(args), kws))
 
     def beforeCommitHook(self, hook, *args, **kws):
-        from ZODB.utils import deprecated38
 
         deprecated38("Use addBeforeCommitHook instead of beforeCommitHook.")
         self.addBeforeCommitHook(hook, args, kws)
@@ -539,7 +550,6 @@ class Transaction(object):
         if subtransaction is _marker:
             subtransaction = 0
         elif deprecation_wng:
-            from ZODB.utils import deprecated37
             deprecated37("subtransactions are deprecated; use "
                          "sp.rollback() instead of "
                          "transaction.abort(1), where `sp` is the "
@@ -658,8 +668,6 @@ def object_hint(o):
 
     This function does not raise an exception.
     """
-
-    from ZODB.utils import oid_repr
 
     # We should always be able to get __class__.
     klass = o.__class__.__name__

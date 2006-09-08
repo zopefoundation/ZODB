@@ -45,6 +45,14 @@ class ITransactionManager(zope.interface.Interface):
         """Abort the current transaction.
         """
 
+    def doom():
+        """Doom the current transaction.
+        """
+
+    def isDoomed():
+        """Returns True if the current transaction is doomed, otherwise False.
+        """
+
     def savepoint(optimistic=False):
         """Create a savepoint from the current transaction.
 
@@ -114,6 +122,16 @@ class ITransaction(zope.interface.Interface):
 
         This is called from the application.  This can only be called
         before the two-phase commit protocol has been started.
+        """
+    
+    def doom():
+        """Doom the transaction.
+
+        Dooms the current transaction. This will cause
+        DoomedTransactionException to be raised on any attempt to commit the
+        transaction.
+
+        Otherwise the transaction will behave as if it was active.
         """
 
     def savepoint(optimistic=False):
@@ -453,3 +471,6 @@ class ISynchronizer(zope.interface.Interface):
         This hook is called when, and only when, a transaction manager's
         begin() method is called explictly.
         """
+
+class DoomedTransaction(Exception):
+    """A commit was attempted on a transaction that was doomed."""
