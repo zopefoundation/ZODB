@@ -1,3 +1,31 @@
+What's new on ZODB 3.8a1?
+=========================
+
+Transactions
+------------
+
+- (3.8a1) Add a doom() and isDoomed() interface to the transaction module.
+
+  First step towards the resolution of
+  http://www.zope.org/Collectors/Zope3-dev/655
+
+  A doomed transaction behaves exactly the same way as an active transaction
+  but raises an error on any attempt to commit it, thus forcing an abort.
+
+  Doom is useful in places where abort is unsafe and an exception cannot be
+  raised.  This occurs when the programmer wants the code following the doom to
+  run but not commit. It is unsafe to abort in these circumstances as a
+  following get() may implicitly open a new transaction.
+
+  Any attempt to commit a doomed transaction will raise a DoomedTransaction
+  exception.
+
+- (3.8a1) Clean up the ZODB imports in transaction.
+
+  Clean up weird import dance with ZODB. This is unnecessary since the
+  transaction module stopped being imported in ZODB/__init__.py in rev 39622.
+
+
 What's new on ZODB 3.7b2?
 =========================
 
