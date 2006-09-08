@@ -24,4 +24,5 @@ get = manager.get
 begin = manager.begin
 commit = manager.commit
 abort = manager.abort
+doom = manager.doom
 savepoint = manager.savepoint

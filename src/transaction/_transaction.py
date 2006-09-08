@@ -193,6 +193,8 @@ class Status:
     COMMITTING   = "Committing"
     COMMITTED    = "Committed"
 
+    DOOMED = "Doomed"
+
     # commit() or commit(True) raised an exception.  All further attempts
     # to commit or join this transaction will raise TransactionFailedError.
     COMMITFAILED = "Commit failed"
@@ -258,6 +260,14 @@ class Transaction(object):
         # List of (hook, args, kws) tuples added by addAfterCommitHook().
         self._after_commit = []
 
+    def doom(self):
+        if self.status is not Status.DOOMED:
+            if self.status is not Status.ACTIVE:
+                # should not doom transactions in the middle,
+                # or after, a commit
+                raise AssertionError()
+            self.status = Status.DOOMED
+
     # Raise TransactionFailedError, due to commit()/join()/register()
     # getting called when the current transaction has already suffered
     # a commit/savepoint failure.
@@ -272,11 +282,12 @@ class Transaction(object):
         if self.status is Status.COMMITFAILED:
             self._prior_operation_failed() # doesn't return
 
-        if self.status is not Status.ACTIVE:
+        if (self.status is not Status.ACTIVE and
+                self.status is not Status.DOOMED):
             # TODO: Should it be possible to join a committing transaction?
             # I think some users want it.
-            raise ValueError("expected txn status %r, but it's %r" % (
-                             Status.ACTIVE, self.status))
+            raise ValueError("expected txn status %r or %r, but it's %r" % (
+                             Status.ACTIVE, Status.DOOMED, self.status))
         # TODO: the prepare check is a bit of a hack, perhaps it would
         # be better to use interfaces.  If this is a ZODB4-style
         # resource manager, it needs to be adapted, too.
@@ -363,6 +374,9 @@ class Transaction(object):
             adapter.objects.append(obj)
 
     def commit(self, subtransaction=_marker, deprecation_wng=True):
+        if self.status is Status.DOOMED:
+            raise interfaces.DoomedTransaction()
+
         if subtransaction is _marker:
             subtransaction = 0
         elif deprecation_wng:

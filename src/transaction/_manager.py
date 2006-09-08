@@ -85,6 +85,9 @@ class TransactionManager(object):
     def unregisterSynch(self, synch):
         self._synchs.remove(synch)
 
+    def doom(self):
+        return self.get().doom()
+
     def commit(self, sub=_marker):
         if sub is _marker:
             sub = None

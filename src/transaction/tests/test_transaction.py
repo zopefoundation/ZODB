@@ -992,8 +992,9 @@ def test_addAfterCommitHook():
     """
 
 def test_suite():
-    from zope.testing.doctest import DocTestSuite
+    from zope.testing.doctest import DocTestSuite, DocFileSuite
     return unittest.TestSuite((
+        DocFileSuite('doom.txt'),
         DocTestSuite(),
         unittest.makeSuite(TransactionTests),
         ))
