@@ -50,9 +50,20 @@ Start a new transaction:
     >>> dm = DataManager()
     >>> txn.join(dm)
 
+We can ask a transaction if it is doomed to avoid expensive operations. An
+example of a use case is an object-relational mapper where a pre-commit hook
+sends all outstanding SQL to a relational database for objects changed during
+the transaction. This expensive operation is not necessary if the transaction
+has been doomed. A non-doomed transaction should return False:
+
+    >>> txn.isDoomed()
+    False
+
 We can doom a transaction by calling .doom() on it:
 
     >>> txn.doom()
+    >>> txn.isDoomed()
+    True
 
 We can doom it again if we like:
 
@@ -95,7 +106,11 @@ Dooming the current transaction can also be done directly from the transaction
 module. We can also begin a new transaction directly after dooming the old one:
 
     >>> txn = transaction.begin()
+    >>> transaction.isDoomed()
+    False
     >>> transaction.doom()
+    >>> transaction.isDoomed()
+    True
     >>> txn = transaction.begin()
 
 After committing a transaction we get an assertion error if we try to doom the

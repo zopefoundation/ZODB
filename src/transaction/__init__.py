@@ -25,4 +25,5 @@ begin = manager.begin
 commit = manager.commit
 abort = manager.abort
 doom = manager.doom
+isDoomed = manager.isDoomed
 savepoint = manager.savepoint

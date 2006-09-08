@@ -260,6 +260,9 @@ class Transaction(object):
         # List of (hook, args, kws) tuples added by addAfterCommitHook().
         self._after_commit = []
 
+    def isDoomed(self):
+        return self.status is Status.DOOMED
+
     def doom(self):
         if self.status is not Status.DOOMED:
             if self.status is not Status.ACTIVE:

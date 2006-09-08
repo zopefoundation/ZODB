@@ -85,6 +85,9 @@ class TransactionManager(object):
     def unregisterSynch(self, synch):
         self._synchs.remove(synch)
 
+    def isDoomed(self):
+        return self.get().isDoomed()
+
     def doom(self):
         return self.get().doom()
 

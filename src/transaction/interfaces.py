@@ -49,6 +49,10 @@ class ITransactionManager(zope.interface.Interface):
         """Doom the current transaction.
         """
 
+    def isDoomed():
+        """Returns True if the current transaction is doomed, otherwise False.
+        """
+
     def savepoint(optimistic=False):
         """Create a savepoint from the current transaction.
 
