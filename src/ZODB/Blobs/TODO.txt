@@ -1,62 +1,38 @@
-Todo for preview
-----------------
-
-Must
-----
-
-- Merge to current ZODB trunk
-
-- Test for possible collision of the dirty blob filename when two concurring
-  transactions try to update an existing blob. 
-
-- Test BlobStorage.getSize
-
-- Test conflict behavior.
-
-- Ensure we detect and play a failed txn involving blobs forward or backward
-  at startup.
-
 Production
-----------
 
-- Make the ClientStorage support minimizing the blob cache. (Idea: LRU
-  principle via mstat access time and a size-based threshold) currently).
+    - Ensure we detect and replay a failed txn involving blobs forward or
+      backward at startup.
 
-- ZConfig config testing (make sure that blob storage config via ZConfig does
-  the right thing)
+    - Check for windows compatibility
 
-- More ZEO tests.
+    - Check cache-compatibility with shared network filesystems (mcdonc)
 
-- Importing backward compatible ZEXP files (no \0BLOBSTART) used
-
-- Test Connection.TmpStore.storeBlob better.  Why doesn't it do any
-  locking like normal storages do?  It also needs to clean up its
-  tempfiles.
-
-- abort is never called on a BlobStorage when a transaction is
-  aborted... it couldn't have been because there was basically a bit
-  of nonsensical code in the method that would have raised an
-  exception.  I don't think we solved this.  I think we did figure out
-  why it wasn't called -- it seems that methods of a
-  zope.proxy-wrapped object aren't rebound to the wrapper but instead
-  to the wrapped object.  I then tried every which way to have some
-  cleanup code invoked on abort (overriding "tpc_abort" instead of
-  "_abort", overriding "abort" instead of "_abort") but without
-  success.  Late in the day I think we figured that the abort cleanup
-  code might need to go in the "BlobDataManager" (each blob has its
-  own data manager) instead of the BlobStorage because it's unclear
-  when BlobStorage's tpc_abort/_abort/abort methods will be called.
-
-- Savepoints: currently non-optimistic savepoints in transactions
-  which involve blobs don't work.  Is this OK?
+    - tests for openDetached
 
 Far future
-----------
 
-- More options for blob directory structures (e.g. dirstorage's
-  bushy/chunky/lawn/flat).
+      More options for blob directory structures (e.g. dirstorages
+      bushy/chunky/lawn/flat).
 
-- Allow "read-only" blob cache dirs from ClientStorages which can point to a
-  filesystem mount from the ZEO server of the canonical blob locations.
+      Make the ClientStorage support minimizing the blob cache. (Idea: LRU
+      principle via mstat access time and a size-based threshold) currently).
 
-- Test shared client usage of blob storage dir from ZEO server
+      Make blobs able to efficiently consume existing files from the filesystem
+
+Savepoint support
+=================
+
+ - A savepoint represents the whole state of the data at a certain point in
+   time
+
+ - Need special storage for blob savepointing (in the spirit of tmpstorage) 
+
+ - What belongs to the state of the data?
+
+   - Data contained in files at that point in time
+
+   - File handles are complex because they might be referred to from various
+     places. We would have to introduce an abstraction layer to allow
+     switching them around... 
+
+     Simpler solution: :
