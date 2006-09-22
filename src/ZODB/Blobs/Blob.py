@@ -196,13 +196,14 @@ class BlobDataManager:
 
     def __init__(self, blob, filehandle, tm):
         self.blob = blob
-        self.transaction_manager = tm
+        self.transaction = tm.get()
         # we keep a weakref to the file handle because we don't want to
         # keep it alive if all other references to it die (e.g. in the
         # case it's opened without assigning it to a name).
         self.fhrefs = utils.WeakSet()
         self.register_fh(filehandle)
         self.sortkey = time.time()
+        self.prepared = False
 
     # Blob specific methods
 
@@ -257,7 +258,6 @@ class BlobDataManager:
         self._checkTransaction(transaction)
         self.prepared = True
         self.transaction = transaction
-        self.state += self.delta
 
     def _checkTransaction(self, transaction):
         if (self.transaction is not None and

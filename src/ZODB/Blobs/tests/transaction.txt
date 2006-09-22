@@ -231,7 +231,7 @@ We do not support non-optimistic savepoints:
     >>> savepoint = transaction.savepoint()             # doctest: +ELLIPSIS
     Traceback (most recent call last):
         ...
-    TypeError: ('Savepoints unsupported', <MultiObjectResourceAdapter for <ZODB.Blobs.Blob.BlobDataManager instance at ...> at ...>)
+    TypeError: ('Savepoints unsupported', <transaction._transaction.DataManagerAdapter object at 0x...>)
 
 
 Teardown

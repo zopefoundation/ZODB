@@ -44,11 +44,11 @@ class BlobStorage(SpecificationDecoratorBase):
     __slots__ = ('fshelper', 'dirty_oids')
 
     def __new__(self, base_directory, storage):
-        return zope.decorator.Decorator.__new__(self, storage)
+        return SpecificationDecoratorBase.__new__(self, storage)
 
     def __init__(self, base_directory, storage):
-        # TODO Log warning if storage is ClientStorage
-        zope.decorator.Decorator.__init__(self, storage)
+        # XXX Log warning if storage is ClientStorage
+        SpecificationDecoratorBase.__init__(self, storage)
         self.fshelper = FilesystemHelper(base_directory)
         self.fshelper.create()
         self.fshelper.checkSecure()
