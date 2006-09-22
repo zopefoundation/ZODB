@@ -1,6 +1,6 @@
 ##############################################################################
 #
-# Copyright (c) 2004 Zope Corporation and Contributors.
+# Copyright (c) 2004-2006 Zope Corporation and Contributors.
 # All Rights Reserved.
 #
 # This software is subject to the provisions of the Zope Public License,
@@ -17,6 +17,7 @@ import os
 from ZODB.tests.testConfig import ConfigTestBase
 from ZConfig import ConfigurationSyntaxError
 
+
 class BlobConfigTestBase(ConfigTestBase):
 
     def setUp(self):
@@ -28,7 +29,7 @@ class BlobConfigTestBase(ConfigTestBase):
         super(BlobConfigTestBase, self).tearDown()
 
         shutil.rmtree(self.blob_dir)
-    
+
 
 class ZODBBlobConfigTest(BlobConfigTestBase):
 
