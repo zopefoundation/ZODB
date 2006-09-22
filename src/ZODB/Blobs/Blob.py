@@ -1,28 +1,47 @@
+##############################################################################
+#
+# Copyright (c) 2005-2006 Zope Corporation and Contributors.
+# All Rights Reserved.
+#
+# This software is subject to the provisions of the Zope Public License,
+# Version 2.1 (ZPL).  A copy of the ZPL should accompany this distribution.
+# THIS SOFTWARE IS PROVIDED "AS IS" AND ANY AND ALL EXPRESS OR IMPLIED
+# WARRANTIES ARE DISCLAIMED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+# WARRANTIES OF TITLE, MERCHANTABILITY, AGAINST INFRINGEMENT, AND FITNESS
+# FOR A PARTICULAR PURPOSE
+#
+##############################################################################
+"""The blob class and related utilities.
+
+"""
+__docformat__ = "reStructuredText"
 
 import os
 import time
 import tempfile
 import logging
 
-from zope.interface import implements
+import zope.interface
 
 from ZODB.Blobs.interfaces import IBlob
 from ZODB.Blobs.exceptions import BlobError
 from ZODB import utils
 import transaction
-from transaction.interfaces import IDataManager
+import transaction.interfaces
 from persistent import Persistent
+
 
 BLOB_SUFFIX = ".blob"
 
+
 class Blob(Persistent):
  
-    implements(IBlob)
+    zope.interface.implements(IBlob)
 
     _p_blob_readers = 0
     _p_blob_writers = 0
-    _p_blob_uncommitted = None
-    _p_blob_data = None
+    _p_blob_uncommitted = None  # Filename of the uncommitted (dirty) data
+    _p_blob_data = None         # Filename of the committed data
 
     # All persistent object store a reference to their data manager, a database
     # connection in the _p_jar attribute. So we are going to do the same with
@@ -36,19 +55,10 @@ class Blob(Persistent):
     _p_blob_transaction = None
 
     def open(self, mode="r"):
-        """ Returns a file(-like) object representing blob data.  This
-        method will either return the file object, raise a BlobError
-        or an IOError.  A file may be open for exclusive read any
-        number of times, but may not be opened simultaneously for read
-        and write during the course of a single transaction and may
-        not be opened for simultaneous writes during the course of a
-        single transaction. Additionally, the file handle which
-        results from this method call is unconditionally closed at
-        transaction boundaries and so may not be used across
-        transactions.  """
+        """Returns a file(-like) object representing blob data."""
 
         tempdir = os.environ.get('ZODB_BLOB_TEMPDIR', tempfile.gettempdir())
-        
+
         result = None
 
         if (mode.startswith("r") or mode=="U"):
@@ -93,38 +103,47 @@ class Blob(Persistent):
             raise IOError, 'invalid mode: %s ' % mode
 
         if result is not None:
-
-            # we register ourselves as a data manager with the
-            # transaction machinery in order to be notified of
-            # commit/vote/abort events.  We do this because at
-            # transaction boundaries, we need to fix up _p_ reference
-            # counts that keep track of open readers and writers and
-            # close any writable filehandles we've opened.
-
+            # We join the transaction with our own data manager in order to be
+            # notified of commit/vote/abort events.  We do this because at
+            # transaction boundaries, we need to fix up _p_ reference counts
+            # that keep track of open readers and writers and close any
+            # writable filehandles we've opened.
             if self._p_blob_manager is None:
-                dm = BlobDataManager(self, result)
-
                 # Blobs need to always participate in transactions.
                 if self._p_jar is not None:
-                    # If we are connected to a database, then we register
-                    # with the transaction manager for that.
-                    self._p_jar.transaction_manager.get().register(dm)
+                    # If we are connected to a database, then we use the
+                    # transaction manager that belongs to this connection
+                    tm = self._p_jar.transaction_manager
                 else:
                     # If we are not connected to a database, we check whether
                     # we have been given an explicit transaction manager
                     if self._p_blob_transaction:
-                        self._p_blob_transaction.get().register(dm)
+                        tm = self._p_blob_transaction
                     else:
-                        # Otherwise we register with the default 
+                        # Otherwise we use the default
                         # transaction manager as an educated guess.
-                        transaction.get().register(dm)
+                        tm = transaction.manager
+                # Create our datamanager and join he current transaction.
+                dm = BlobDataManager(self, result, tm)
+                tm.get().join(dm)
             else:
-                # each blob data manager should manage only the one blob
-                # assert that this is the case and it is the correct blob
+                # Each blob data manager should manage only the one blob
+                # assigned to it.  Assert that this is the case and it is the
+                # correct blob
                 assert self._p_blob_manager.blob is self
                 self._p_blob_manager.register_fh(result)
-
         return result
+
+    def openDetached(self):
+        """Returns a file(-like) object in read mode that can be used
+        outside of transaction boundaries.
+
+        """
+        if self._current_filename() is None:
+            raise BlobError, "Blob does not exist."
+        if self._p_blob_writers != 0:
+            raise BlobError, "Already opened for writing."
+        return file(self._current_filename(), "rb")
 
     # utility methods
 
@@ -158,12 +177,13 @@ class Blob(Persistent):
         # used by unit tests
         return self._p_blob_readers, self._p_blob_writers
 
+
 class BlobDataManager:
-    """Special data manager to handle transaction boundaries for blobs.
+    """Special data managerto handle transaction boundaries for blobs.
 
     Blobs need some special care-taking on transaction boundaries. As
 
-    a) the ghost objects might get reused, the _p_ reader and writer
+    a) the ghost objects might get reused, the _p_reader and _p_writer
        refcount attributes must be set to a consistent state
     b) the file objects might get passed out of the thread/transaction
        and must deny any relationship to the original blob.
@@ -172,68 +192,89 @@ class BlobDataManager:
 
     """
 
-    implements(IDataManager)
+    zope.interface.implements(transaction.interfaces.IDataManager)
 
-    def __init__(self, blob, filehandle):
+    def __init__(self, blob, filehandle, tm):
         self.blob = blob
+        self.transaction_manager = tm
         # we keep a weakref to the file handle because we don't want to
         # keep it alive if all other references to it die (e.g. in the
         # case it's opened without assigning it to a name).
         self.fhrefs = utils.WeakSet()
         self.register_fh(filehandle)
-        self.subtransaction = False
         self.sortkey = time.time()
+
+    # Blob specific methods
 
     def register_fh(self, filehandle):
         self.fhrefs.add(filehandle)
 
-    def abort_sub(self, transaction):
-        pass
+    def _remove_uncommitted_data(self):
+        self.blob._p_blob_clear()
+        self.fhrefs.map(lambda fhref: fhref.close())
+        if self.blob._p_blob_uncommitted is not None and \
+           os.path.exists(self.blob._p_blob_uncommitted):
+            os.unlink(self.blob._p_blob_uncommitted)
 
-    def commit_sub(self, transaction):
-        pass
+    # IDataManager
 
-    def tpc_begin(self, transaction, subtransaction=False):
-        self.subtransaction = subtransaction
+    def tpc_begin(self, transaction):
+        pass
 
     def tpc_abort(self, transaction):
         pass
 
     def tpc_finish(self, transaction):
-        self.subtransaction = False
+        pass
 
     def tpc_vote(self, transaction):
         pass
-                
-    def commit(self, object, transaction):
-        if not self.subtransaction:
-            self.blob._p_blob_clear() # clear all blob refcounts
-            self.fhrefs.map(lambda fhref: fhref.close())
 
-    def abort(self, object, transaction):
-        if not self.subtransaction:
-            self.blob._p_blob_clear()
-            self.fhrefs.map(lambda fhref: fhref.close())
-            if self.blob._p_blob_uncommitted is not None and \
-               os.path.exists(self.blob._p_blob_uncommitted):
-                os.unlink(self.blob._p_blob_uncommitted)
+    def commit(self, transaction):
+        if not self.prepared:
+            raise TypeError('Not prepared to commit')
+        self._checkTransaction(transaction)
+        self.transaction = None
+        self.prepared = False
+
+        self.blob._p_blob_clear() 
+        self.fhrefs.map(lambda fhref: fhref.close())
+
+    def abort(self, transaction):
+        self._checkTransaction(transaction)
+        if self.transaction is not None:
+            self.transaction = None
+        self.prepared = False
+
+        self._remove_uncommitted_data()
 
     def sortKey(self):
         return self.sortkey
 
-    def beforeCompletion(self, transaction):
-        pass
+    def prepare(self, transaction):
+        if self.prepared:
+            raise TypeError('Already prepared')
+        self._checkTransaction(transaction)
+        self.prepared = True
+        self.transaction = transaction
+        self.state += self.delta
 
-    def afterCompletion(self, transaction):
-        pass
+    def _checkTransaction(self, transaction):
+        if (self.transaction is not None and
+            self.transaction is not transaction):
+            raise TypeError("Transaction missmatch",
+                            transaction, self.transaction)
+
 
 class BlobFile(file):
-    
-    """ A BlobFile is a file that can be used within a transaction
-    boundary; a BlobFile is just a Python file object, we only
-    override methods which cause a change to blob data in order to
-    call methods on our 'parent' persistent blob object signifying
-    that the change happened. """
+    """A BlobFile that holds a file handle to actual blob data.
+
+    It is a file that can be used within a transaction boundary; a BlobFile is
+    just a Python file object, we only override methods which cause a change to
+    blob data in order to call methods on our 'parent' persistent blob object
+    signifying that the change happened.
+
+    """
 
     # XXX these files should be created in the same partition as
     # the storage later puts them to avoid copying them ...
@@ -271,15 +312,17 @@ class BlobFile(file):
         # muddying the code needlessly.
         self.close()
 
+
 logger = logging.getLogger('ZODB.Blobs')
 _pid = str(os.getpid())
+
 
 def log(msg, level=logging.INFO, subsys=_pid, exc_info=False):
     message = "(%s) %s" % (subsys, msg)
     logger.log(level, message, exc_info=exc_info)
 
-class FilesystemHelper:
 
+class FilesystemHelper:
     # Storages that implement IBlobStorage can choose to use this
     # helper class to generate and parse blob filenames.  This is not
     # a set-in-stone interface for all filesystem operations dealing
@@ -297,34 +340,41 @@ class FilesystemHelper:
                 level=logging.INFO)
 
     def isSecure(self, path):
-        """ Ensure that (POSIX) path mode bits are 0700 """
+        """Ensure that (POSIX) path mode bits are 0700."""
         return (os.stat(path).st_mode & 077) != 0
 
     def checkSecure(self):
         if not self.isSecure(self.base_dir):
             log('Blob dir %s has insecure mode setting' % self.base_dir,
-                 level=logging.WARNING)
+                level=logging.WARNING)
 
     def getPathForOID(self, oid):
-        """ Given an OID, return the path on the filesystem where
-        the blob data relating to that OID is stored """
+        """Given an OID, return the path on the filesystem where
+        the blob data relating to that OID is stored.
+
+        """
         return os.path.join(self.base_dir, utils.oid_repr(oid))
 
     def getBlobFilename(self, oid, tid):
-        """ Given an oid and a tid, return the full filename of the
-        'committed' blob file related to that oid and tid. """
+        """Given an oid and a tid, return the full filename of the
+        'committed' blob file related to that oid and tid.
+
+        """
         oid_path = self.getPathForOID(oid)
         filename = "%s%s" % (utils.tid_repr(tid), BLOB_SUFFIX)
         return os.path.join(oid_path, filename)
 
     def blob_mkstemp(self, oid, tid):
-        """ Given an oid and a tid, return a temporary file descriptor
-        and a related filename.  The file is guaranteed to exist on
-        the same partition as committed data, which is important for
-        being able to rename the file without a copy operation.  The
-        directory in which the file will be placed, which is the
-        return value of self.getPathForOID(oid), must exist before
-        this method may be called successfully."""
+        """Given an oid and a tid, return a temporary file descriptor
+        and a related filename.
+
+        The file is guaranteed to exist on the same partition as committed
+        data, which is important for being able to rename the file without a
+        copy operation.  The directory in which the file will be placed, which
+        is the return value of self.getPathForOID(oid), must exist before this
+        method may be called successfully.
+
+        """
         oidpath = self.getPathForOID(oid)
         fd, name = tempfile.mkstemp(suffix='.tmp', prefix=utils.tid_repr(tid),
                                     dir=oidpath)
@@ -335,6 +385,7 @@ class FilesystemHelper:
 
         If the filename cannot be recognized as a blob filename, (None, None)
         is returned.
+
         """
         if not filename.endswith(BLOB_SUFFIX):
             return None, None
@@ -347,8 +398,10 @@ class FilesystemHelper:
         return oid, serial 
 
     def getOIDsForSerial(self, search_serial):
-        """ Return all oids related to a particular tid that exist in
-        blob data """
+        """Return all oids related to a particular tid that exist in
+        blob data.
+
+        """
         oids = []
         base_dir = self.base_dir
         for oidpath in os.listdir(base_dir):
@@ -358,4 +411,3 @@ class FilesystemHelper:
                 if search_serial == serial:
                     oids.append(oid)
         return oids
-        

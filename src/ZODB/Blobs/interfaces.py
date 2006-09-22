@@ -10,6 +10,17 @@ class IBlob(Interface):
         mode: Mode to open the file with. Possible values: r,w,r+,a
         """
 
+    def openDetached():
+        """Returns a file(-like) object in read mode that can be used
+        outside of transaction boundaries.
+
+        The file handle returned by this method is read-only and at the
+        beginning of the file. 
+
+        The handle is not attached to the blob and can be used outside of a
+        transaction.
+        """
+
     # XXX need a method to initialize the blob from the storage
     # this means a) setting the _p_blob_data filename and b) putting
     # the current data in that file
