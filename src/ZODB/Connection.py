@@ -1074,7 +1074,7 @@ class Connection(ExportImport, object):
         self._storage = self._normal_storage
         self._savepoint_storage = None
 
-        self._log.debug("Commiting savepoints of size %s", src.getSize())
+        self._log.debug("Committing savepoints of size %s", src.getSize())
         oids = src.index.keys()
 
         # Copy invalidating and creating info from temporary storage:
