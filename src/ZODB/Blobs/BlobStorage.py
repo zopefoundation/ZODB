@@ -1,6 +1,6 @@
 ##############################################################################
 #
-# Copyright (c) 2005 Zope Corporation and Contributors.
+# Copyright (c) 2005-2006 Zope Corporation and Contributors.
 # All Rights Reserved.
 #
 # This software is subject to the provisions of the Zope Public License,
@@ -11,6 +11,10 @@
 # FOR A PARTICULAR PURPOSE
 #
 ##############################################################################
+"""A ZODB storage that provides blob capabilities.
+
+"""
+__docformat__ = "reStructuredText"
 
 import os
 import shutil
@@ -18,7 +22,8 @@ import base64
 import logging
 
 from zope.interface import implements
-from zope.proxy import ProxyBase, getProxiedObject
+from zope.proxy import getProxiedObject, non_overridable
+from zope.proxy.decorator import SpecificationDecoratorBase
 
 from ZODB import utils
 from ZODB.Blobs.interfaces import IBlobStorage, IBlob
@@ -28,31 +33,33 @@ from ZODB.Blobs.Blob import FilesystemHelper
 
 logger = logging.getLogger('ZODB.BlobStorage')
 
-class BlobStorage(ProxyBase):
+
+class BlobStorage(SpecificationDecoratorBase):
     """A storage to support blobs."""
 
     implements(IBlobStorage)
 
-    __slots__ = ('fshelper', 'dirty_oids')
     # Proxies can't have a __dict__ so specifying __slots__ here allows
     # us to have instance attributes explicitly on the proxy.
+    __slots__ = ('fshelper', 'dirty_oids')
 
     def __new__(self, base_directory, storage):
-        return ProxyBase.__new__(self, storage)
+        return zope.decorator.Decorator.__new__(self, storage)
 
-    def __init__(self, base_directory, storage):    
-        # TODO Complain if storage is ClientStorage
-        ProxyBase.__init__(self, storage)
+    def __init__(self, base_directory, storage):
+        # TODO Log warning if storage is ClientStorage
+        zope.decorator.Decorator.__init__(self, storage)
         self.fshelper = FilesystemHelper(base_directory)
         self.fshelper.create()
         self.fshelper.checkSecure()
         self.dirty_oids = []
 
+    @non_overridable
     def __repr__(self):
         normal_storage = getProxiedObject(self)
         return '<BlobStorage proxy for %r at %s>' % (normal_storage,
                                                      hex(id(self)))
-     
+    @non_overridable
     def storeBlob(self, oid, oldserial, data, blobfilename, version,
                   transaction):
         """Stores data that has a BLOB attached."""
@@ -79,17 +86,19 @@ class BlobStorage(ProxyBase):
                 self._lock_release()
             return self._tid
 
+    @non_overridable
     def tpc_finish(self, *arg, **kw):
-        """ We need to override the base storage's tpc_finish instead of
-        providing a _finish method because methods found on the proxied object
-        aren't rebound to the proxy """
+        # We need to override the base storage's tpc_finish instead of
+        # providing a _finish method because methods found on the proxied 
+        # object aren't rebound to the proxy
         getProxiedObject(self).tpc_finish(*arg, **kw)
         self.dirty_oids = []
 
+    @non_overridable
     def tpc_abort(self, *arg, **kw):
-        """ We need to override the base storage's abort instead of
-        providing an _abort method because methods found on the proxied object
-        aren't rebound to the proxy """
+        # We need to override the base storage's abort instead of
+        # providing an _abort method because methods found on the proxied object
+        # aren't rebound to the proxy
         getProxiedObject(self).tpc_abort(*arg, **kw)
         while self.dirty_oids:
             oid, serial = self.dirty_oids.pop()
@@ -97,16 +106,18 @@ class BlobStorage(ProxyBase):
             if os.exists(clean):
                 os.unlink(clean) 
 
+    @non_overridable
     def loadBlob(self, oid, serial, version):
         """Return the filename where the blob file can be found.
+
         """
         filename = self.fshelper.getBlobFilename(oid, serial)
         if not os.path.exists(filename):
             raise POSKeyError, "Not an existing blob."
         return filename
 
+    @non_overridable
     def _packUndoing(self, packtime, referencesf):
-
         # Walk over all existing revisions of all blob files and check
         # if they are still needed by attempting to load the revision
         # of that object from the database.  This is maybe the slowest
@@ -134,6 +145,7 @@ class BlobStorage(ProxyBase):
             if not os.listdir(oid_path):
                 shutil.rmtree(oid_path)
 
+    @non_overridable
     def _packNonUndoing(self, packtime, referencesf):
         base_dir = self.fshelper.base_dir
         for oid_repr in os.listdir(base_dir):
@@ -160,6 +172,7 @@ class BlobStorage(ProxyBase):
             if not os.listdir(oid_path):
                 shutil.rmtree(oid_path)
 
+    @non_overridable
     def pack(self, packtime, referencesf):
         """Remove all unused oid/tid combinations."""
         unproxied = getProxiedObject(self)
@@ -179,11 +192,12 @@ class BlobStorage(ProxyBase):
             self._lock_release()
 
         return result
-    
+
+    @non_overridable
     def getSize(self):
         """Return the size of the database in bytes."""
         orig_size = getProxiedObject(self).getSize()
-        
+
         blob_size = 0
         base_dir = self.fshelper.base_dir
         for oid in os.listdir(base_dir):
@@ -192,9 +206,10 @@ class BlobStorage(ProxyBase):
                     continue
                 file_path = os.path.join(base_dir, oid, serial)
                 blob_size += os.stat(file_path).st_size
-        
+
         return orig_size + blob_size
 
+    @non_overridable
     def undo(self, serial_id, transaction):
         undo_serial, keys = getProxiedObject(self).undo(serial_id, transaction)
         # serial_id is the transaction id of the txn that we wish to undo.
@@ -216,7 +231,7 @@ class BlobStorage(ProxyBase):
                 # we want to find the serial id of the previous revision
                 # of this blob object.
                 load_result = self.loadBefore(oid, serial_id)
-                
+
                 if load_result is None:
                     # There was no previous revision of this blob
                     # object.  The blob was created in the transaction
@@ -244,4 +259,3 @@ class BlobStorage(ProxyBase):
         finally:
             self._lock_release()
         return undo_serial, keys
-
