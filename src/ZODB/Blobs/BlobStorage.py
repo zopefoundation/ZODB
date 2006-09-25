@@ -67,10 +67,10 @@ class BlobStorage(SpecificationDecoratorBase):
         assert isinstance(serial, str) # XXX in theory serials could be 
                                        # something else
 
-        self._lock_acquire()
         # the user may not have called "open" on the blob object,
         # in which case, the blob will not have a filename.
         if blobfilename is not None:
+            self._lock_acquire()
             try:
                 targetpath = self.fshelper.getPathForOID(oid)
                 if not os.path.exists(targetpath):
