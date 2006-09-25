@@ -232,6 +232,57 @@ We do not support non-optimistic savepoints:
     Traceback (most recent call last):
         ...
     TypeError: ('Savepoints unsupported', <ZODB.Blobs.Blob.BlobDataManager instance at 0x...>)
+    >>> transaction.abort()
+
+Reading Blobs outside of a transaction
+--------------------------------------
+
+If you want to read from a Blob outside of transaction boundaries (e.g. to
+stream a file to the browser), you can use the openDetached() method:
+
+    >>> connection6 = database.open()
+    >>> root6 = connection6.root()
+    >>> blob = Blob()
+    >>> blob_fh = blob.open("wb")
+    >>> blob_fh.write("I'm a happy blob.")
+    >>> blob_fh.close()
+    >>> root6['blob'] = blob
+    >>> transaction.commit()
+    >>> blob.openDetached().read()
+    "I'm a happy blob."
+
+Of course, that doesn't work for empty blobs
+
+    >>> blob = Blob()
+    >>> blob.openDetached()
+    Traceback (most recent call last):
+        ...
+    BlobError: Blob does not exist.
+
+nor when the Blob is already opened for writing:
+
+    >>> blob = Blob()
+    >>> blob_fh = blob.open("wb")
+    >>> blob.openDetached()
+    Traceback (most recent call last):
+        ...
+    BlobError: Already opened for writing.
+
+It does work when the transaction was aborted, though:
+
+    >>> blob = Blob()
+    >>> blob_fh = blob.open("wb")
+    >>> blob_fh.write("I'm a happy blob.")
+    >>> blob_fh.close()
+    >>> root6['blob'] = blob
+    >>> transaction.commit()
+
+    >>> blob_fh = blob.open("wb")
+    >>> blob_fh.write("And I'm singing.")
+    >>> blob_fh.close()
+    >>> transaction.abort()
+    >>> blob.openDetached().read()
+    "I'm a happy blob."
 
 
 Teardown

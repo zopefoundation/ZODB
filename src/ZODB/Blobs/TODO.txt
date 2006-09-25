@@ -7,8 +7,6 @@ Production
 
     - Check cache-compatibility with shared network filesystems (mcdonc)
 
-    - tests for openDetached
-
 Far future
 
       More options for blob directory structures (e.g. dirstorages

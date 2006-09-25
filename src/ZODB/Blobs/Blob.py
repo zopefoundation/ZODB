@@ -216,6 +216,7 @@ class BlobDataManager:
         if self.blob._p_blob_uncommitted is not None and \
            os.path.exists(self.blob._p_blob_uncommitted):
             os.unlink(self.blob._p_blob_uncommitted)
+            self.blob._p_blob_uncommitted = None
 
     # IDataManager
 
