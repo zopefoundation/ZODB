@@ -179,7 +179,7 @@ class Blob(Persistent):
 
 
 class BlobDataManager:
-    """Special data managerto handle transaction boundaries for blobs.
+    """Special data manager to handle transaction boundaries for blobs.
 
     Blobs need some special care-taking on transaction boundaries. As
 
@@ -220,16 +220,12 @@ class BlobDataManager:
     # IDataManager
 
     def tpc_begin(self, transaction):
-        pass
-
-    def tpc_abort(self, transaction):
-        pass
-
-    def tpc_finish(self, transaction):
-        pass
-
-    def tpc_vote(self, transaction):
-        pass
+        if self.prepared:
+            raise TypeError('Already prepared')
+        self._checkTransaction(transaction)
+        self.prepared = True
+        self.transaction = transaction
+        self.fhrefs.map(lambda fhref: fhref.close())
 
     def commit(self, transaction):
         if not self.prepared:
@@ -239,9 +235,11 @@ class BlobDataManager:
         self.prepared = False
 
         self.blob._p_blob_clear() 
-        self.fhrefs.map(lambda fhref: fhref.close())
 
     def abort(self, transaction):
+        self.tpc_abort(transaction)
+
+    def tpc_abort(self, transaction):
         self._checkTransaction(transaction)
         if self.transaction is not None:
             self.transaction = None
@@ -249,15 +247,14 @@ class BlobDataManager:
 
         self._remove_uncommitted_data()
 
+    def tpc_finish(self, transaction):
+        pass
+
+    def tpc_vote(self, transaction):
+        pass
+
     def sortKey(self):
         return self.sortkey
-
-    def prepare(self, transaction):
-        if self.prepared:
-            raise TypeError('Already prepared')
-        self._checkTransaction(transaction)
-        self.prepared = True
-        self.transaction = transaction
 
     def _checkTransaction(self, transaction):
         if (self.transaction is not None and
