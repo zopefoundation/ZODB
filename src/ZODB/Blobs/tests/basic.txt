@@ -157,6 +157,7 @@ modifying the ZODB_BLOB_TEMPDIR environment variable:
     >>> f = myblob.open('w')
     >>> len(os.listdir(tempdir))
     1
+    >>> f.close()
     >>> shutil.rmtree(tempdir)
     >>> del os.environ['ZODB_BLOB_TEMPDIR']
 

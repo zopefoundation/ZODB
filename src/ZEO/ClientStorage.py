@@ -921,6 +921,7 @@ class ClientStorage(object):
             if not chunk:
                 self._server.storeBlobEnd(oid, serial, data, version, id(txn))
                 break
+        blobfile.close()
         os.unlink(blobfilename)
         return serials
 

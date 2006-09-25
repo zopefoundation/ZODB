@@ -207,9 +207,8 @@ class BlobAdaptedFileStorageTests(GenericTests):
         super(BlobAdaptedFileStorageTests, self).setUp()
         
     def tearDown(self):
-        shutil.rmtree(self.blobdir)
-        os.unlink(self.filestorage)
         super(BlobAdaptedFileStorageTests, self).tearDown()
+        shutil.rmtree(self.blobdir)
 
     def getConfig(self):
         return """
