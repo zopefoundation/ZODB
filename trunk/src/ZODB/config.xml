@@ -1,7 +1,0 @@
-<schema prefix="ZODB.config">
-
-  <import package="ZODB"/>
-
-  <section type="ZODB.database" name="*" attribute="database"/>
-
-</schema>
