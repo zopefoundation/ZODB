@@ -1,0 +1,197 @@
+==================
+Multiple Databases
+==================
+
+Multi-database support adds the ability to tie multiple databases into a
+collection.  The original proposal is in the fishbowl:
+
+    http://www.zope.org/Wikis/ZODB/MultiDatabases/
+
+It was implemented during the PyCon 2005 sprints, but in a simpler form,
+by Jim Fulton, Christian Theune, and Tim Peters.  Overview:
+
+No private attributes were added, and one new method was introduced.
+
+``DB``:
+
+- a new ``.database_name`` attribute holds the name of this database.
+
+- a new ``.databases`` attribute maps from database name to ``DB`` object; all
+  databases in a multi-database collection share the same ``.databases`` object
+
+- the ``DB`` constructor has new optional arguments with the same names
+  (``database_name=`` and ``databases=``).
+
+``Connection``:
+
+- a new ``.connections`` attribute maps from database name to a ``Connection``
+  for the database with that name; the ``.connections`` mapping object is also
+  shared among databases in a collection.
+
+- a new ``.get_connection(database_name)`` method returns a ``Connection`` for
+  a database in the collection; if a connection is already open, it's returned
+  (this is the value ``.connections[database_name]``), else a new connection
+  is opened (and stored as ``.connections[database_name]``)
+
+
+Creating a multi-database starts with creating a named ``DB``:
+
+    >>> from ZODB.tests.test_storage import MinimalMemoryStorage
+    >>> from ZODB import DB
+    >>> dbmap = {}
+    >>> db = DB(MinimalMemoryStorage(), database_name='root', databases=dbmap)
+
+The database name is accessible afterwards and in a newly created collection:
+
+    >>> db.database_name
+    'root'
+    >>> db.databases        # doctest: +ELLIPSIS
+    {'root': <ZODB.DB.DB object at ...>}
+    >>> db.databases is dbmap
+    True
+
+Adding another database to the collection works like this:
+
+    >>> db2 = DB(MinimalMemoryStorage(),
+    ...     database_name='notroot',
+    ...     databases=dbmap)
+
+The new ``db2`` now shares the ``databases`` dictionary with db and has two
+entries:
+
+    >>> db2.databases is db.databases is dbmap
+    True
+    >>> len(db2.databases)
+    2
+    >>> names = dbmap.keys(); names.sort(); print names
+    ['notroot', 'root']
+
+It's an error to try to insert a database with a name already in use:
+
+    >>> db3 = DB(MinimalMemoryStorage(),
+    ...     database_name='root',
+    ...     databases=dbmap)
+    Traceback (most recent call last):
+        ...
+    ValueError: database_name 'root' already in databases
+
+Because that failed, ``db.databases`` wasn't changed:
+
+    >>> len(db.databases)  # still 2
+    2
+
+You can (still) get a connection to a database this way:
+
+    >>> import transaction
+    >>> tm = transaction.TransactionManager()
+    >>> cn = db.open(transaction_manager=tm)
+    >>> cn                  # doctest: +ELLIPSIS
+    <Connection at ...>
+
+This is the only connection in this collection right now:
+
+    >>> cn.connections      # doctest: +ELLIPSIS
+    {'root': <Connection at ...>}
+
+Getting a connection to a different database from an existing connection in the
+same database collection (this enables 'connection binding' within a given
+thread/transaction/context ...):
+
+    >>> cn2 = cn.get_connection('notroot')
+    >>> cn2                  # doctest: +ELLIPSIS
+    <Connection at ...>
+
+The second connection gets the same transaction manager as the first:
+
+    >>> cn2.transaction_manager is tm
+    True
+
+Now there are two connections in that collection:
+
+    >>> cn2.connections is cn.connections
+    True
+    >>> len(cn2.connections)
+    2
+    >>> names = cn.connections.keys(); names.sort(); print names
+    ['notroot', 'root']
+
+So long as this database group remains open, the same ``Connection`` objects
+are returned:
+
+    >>> cn.get_connection('root') is cn
+    True
+    >>> cn.get_connection('notroot') is cn2
+    True
+    >>> cn2.get_connection('root') is cn
+    True
+    >>> cn2.get_connection('notroot') is cn2
+    True
+
+Of course trying to get a connection for a database not in the group raises
+an exception:
+
+    >>> cn.get_connection('no way')
+    Traceback (most recent call last):
+      ...
+    KeyError: 'no way'
+
+Clean up:
+
+    >>> for a_db in dbmap.values():
+    ...     a_db.close()
+
+
+Configuration from File
+-----------------------
+
+The database name can also be specified in a config file, starting in
+ZODB 3.6:
+
+    >>> from ZODB.config import databaseFromString
+    >>> config = """
+    ... <zodb>
+    ...   <mappingstorage/>
+    ...   database-name this_is_the_name
+    ... </zodb>
+    ... """
+    >>> db = databaseFromString(config)
+    >>> print db.database_name
+    this_is_the_name
+    >>> db.databases.keys()
+    ['this_is_the_name']
+
+However, the ``.databases`` attribute cannot be configured from file.  It
+can be passed to the `ZConfig` factory.  I'm not sure of the clearest way
+to test that here; this is ugly:
+
+    >>> from ZODB.config import getDbSchema
+    >>> import ZConfig
+    >>> from cStringIO import StringIO
+
+Derive a new `config2` string from the `config` string, specifying a
+different database_name:
+
+    >>> config2 = config.replace("this_is_the_name", "another_name")
+
+Now get a `ZConfig` factory from `config2`:
+
+    >>> f = StringIO(config2)
+    >>> zconfig, handle = ZConfig.loadConfigFile(getDbSchema(), f)
+    >>> factory = zconfig.database
+
+The desired ``databases`` mapping can be passed to this factory:
+
+    >>> db2 = factory.open(databases=db.databases)
+    >>> print db2.database_name   # has the right name
+    another_name
+    >>> db.databases is db2.databases # shares .databases with `db`
+    True
+    >>> all = db2.databases.keys()
+    >>> all.sort()
+    >>> all   # and db.database_name & db2.database_name are the keys
+    ['another_name', 'this_is_the_name']
+
+Cleanup.
+
+    >>> db.close()
+    >>> db2.close()
