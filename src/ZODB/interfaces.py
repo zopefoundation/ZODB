@@ -291,10 +291,10 @@ class IStorageDB(Interface):
     - Out-of-band invalidation support
 
       A storage can notify it's database of object invalidations that
-      don't occur du eto direct operations on the storage.  Currently
+      don't occur due to direct operations on the storage.  Currently
       this is only used by ZEO client storages to pass invalidation
       messages sent from a server.
-      
+
     - Record-reference extraction.
 
       The references method can be used to extract referenced object
@@ -318,7 +318,7 @@ class IDatabase(IStorageDB):
                  version_pool_size=3,
                  version_cache_size=100,
                  database_name='unnamed',
-                 databases=None,
+                 databases=None
                  ):
         """Create an object database.
 
@@ -351,6 +351,40 @@ class IDatabase(IStorageDB):
         entry.
         """)
 
+    def open(version='',
+             mvcc=True,
+             transaction_manager=None,
+             synch=True
+             ):
+        """Return an IConnection object for use by application code.
+
+        version: the "version" that all changes will be made
+            in, defaults to no version.
+        mvcc: boolean indicating whether MVCC is enabled
+        transaction_manager: transaction manager to use.  None means
+            use the default transaction manager.
+        synch: boolean indicating whether Connection should
+            register for afterCompletion() calls.
+
+        Note that the connection pool is managed as a stack, to
+        increase the likelihood that the connection's stack will
+        include useful objects.
+        """
+
+    def close():
+        """Close the database and its underlying storage.
+
+        It is important to close the database, because the storage may
+        flush in-memory data structures to disk when it is closed.
+        Leaving the storage open with the process exits can cause the
+        next open to be slow.
+
+        What effect does closing the database have on existing
+        connections?  Technically, they remain open, but their storage
+        is closed, so they stop behaving usefully.  Perhaps close()
+        should also close all the Connections.
+        """
+
 class IStorage(Interface):
     """A storage is responsible for storing and retrieving data of objects.
     """
@@ -371,12 +405,12 @@ class IStorage(Interface):
         operations are applied in sort-key order.
 
         """
-                    
+
     def getSize():
         """An approximate size of the database, in bytes.
         """
 
-                        
+
     def load(oid, version):
         """Load data for an objeject id and version
         """
@@ -398,7 +432,7 @@ class IStorage(Interface):
 
         - The transaction id of the following revision, if any.
         """
-        
+
     def new_oid():
         """Allocate a new object id.
 
@@ -409,7 +443,7 @@ class IStorage(Interface):
 
         The return value is a string.
         """
-        
+
     def store(oid, serial, data, version, transaction):
         """Store data for the object id, oid.
 
@@ -425,17 +459,17 @@ class IStorage(Interface):
     def supportsUndo():
         """true if the storage supports undo, and false otherwise
         """
-        
+
     def supportsVersions():
         """true if the storage supports versions, and false otherwise
         """
-        
+
     def tpc_abort(transaction):
         """Abort the transaction.
 
         Any changes made by the transaction are discarded.
         """
-        
+
     def tpc_begin(transaction):
         """Begin the two-phase commit process.
         """
@@ -448,15 +482,15 @@ class IStorage(Interface):
 
         If a transaction cannot be committed, then an exception should
         be raised.
-        
+
         """
-        
+
     def tpc_finish(transaction, func = lambda: None):
         """Finish the transaction, making any transaction changes permanent.
 
         Changes must be made permanent at this point.
         """
-        
+
     def history(oid, version = None, size = 1, filter = lambda e: 1):
         """Return a sequence of HistoryEntry objects.
 
@@ -471,9 +505,9 @@ class IStorage(Interface):
         Note that, for historical reasons, an implementation may
         require a second argument, however, if required, the None will
         be passed as the second argument.
-        
+
         """
-        
+
     def close():
         """Close the storage.
         """
@@ -487,17 +521,17 @@ class IStorage(Interface):
 
         XXX is this dynamic?  Can a storage support writes some of the
         time, and not others?
-        
+
         """
 
-class IStorageRecordInformation(Iterface):
+class IStorageRecordInformation(Interface):
     """Provide information about a single storage record
     """
 
     oid = Attribute("The object id")
     version = Attribute("The version")
     data = Attribute("The data record")
-    
+
 
 class IStorageTransactionInformation(Interface):
     """Provide information about a storage transaction
@@ -512,18 +546,18 @@ class IStorageTransactionInformation(Interface):
     def __iter__():
         """Return an iterable of IStorageTransactionInformation
         """
-    
-    
+
+
 class IStorageIteration(Interface):
     """API for iterating over the contents of a storage
 
     Note that this is a future API.  Some storages now provide an
     approximation of this.
-    
+
     """
 
     def iterator(start=None, stop=None):
-        """Return an 
+        """Return an IStorageTransactionInformation iterator.
 
         An IStorageTransactionInformation iterator is returned for
         iterating over the transactions in the storage.
@@ -535,13 +569,13 @@ class IStorageIteration(Interface):
         If the stop argument is not None, then iteration will end with
         the last transaction whos identifier is less than or equal to
         start.
-        
+
         """
 
 class IStorageUndoable(IStorage):
     """A storage supporting transactional undo.
     """
-        
+
     def undo(transaction_id, transaction):
         """Undo the transaction corresponding to the given transaction id.
 
@@ -550,7 +584,7 @@ class IStorageUndoable(IStorage):
         """
         # Used by DB (Actually, by TransactionalUndo)
 
-    def undoLog(first=0, last-20, filter=(lambda desc: True)):
+    def undoLog(first=0, last=20, filter=(lambda desc: True)):
         """Return a sequence of descriptions for undoable transactions.
 
         Application code should call undoLog() on a DB instance instead of on
@@ -624,7 +658,7 @@ class IStorageUndoable(IStorage):
 
 
 class IPackableStorage(Interface):
-        
+
     def pack(t, referencesf):
         """Pack the storage
 
@@ -639,17 +673,17 @@ class IPackableStorage(Interface):
         immediately. Storage documentation should define the behavior
         of this method.
         """
-    # Called by DB
+        # Called by DB
 
 class IStorageVersioning(IStorage):
     """A storage supporting versions.
     """
-        
+
     def abortVersion(version, transaction):
         """Clear any changes made by the given version.
         """
-    # used by DB
-            
+        # used by DB
+
     def commitVersion(source, destination, transaction):
         """Save version changes
 
@@ -659,13 +693,13 @@ class IStorageVersioning(IStorage):
         destination may be an empty string, in which case the data are
         saved to non-version storage.
         """
-    # used by DB
-        
+        # used by DB
+
     def versionEmpty(version):
         """true if the version for the given version string is empty.
         """
         # DB pass through
-        
+
     def modifiedInVersion(oid):
         """the version that the object was modified in,
 
@@ -673,7 +707,7 @@ class IStorageVersioning(IStorage):
         """
         # DB pass through, sor of.  In the past (including present :),
         # the DB tried to cache this.  We'll probably stop bothering.
-        
+
     def versions(max = None):
         """A sequence of version strings for active cersions
         """
