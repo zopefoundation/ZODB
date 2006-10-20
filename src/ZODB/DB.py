@@ -33,6 +33,7 @@ from ZODB.interfaces import IDatabase
 
 import transaction
 
+
 logger = logging.getLogger('ZODB.DB')
 
 class _ConnectionPool(object):
@@ -79,23 +80,28 @@ class _ConnectionPool(object):
         # a list (we push only "on the right", but may pop from both ends).
         self.available = []
 
-    # Change our belief about the expected maximum # of live connections.
-    # If the pool_size is smaller than the current value, this may discard
-    # the oldest available connections.
     def set_pool_size(self, pool_size):
+        """Change our belief about the expected maximum # of live connections.
+
+        If the pool_size is smaller than the current value, this may discard
+        the oldest available connections.
+        """
         self.pool_size = pool_size
         self._reduce_size()
 
-    # Register a new available connection.  We must not know about c already.
-    # c will be pushed onto the available stack even if we're over the
-    # pool size limit.
     def push(self, c):
+        """Register a new available connection.
+
+        We must not know about c already. c will be pushed onto the available
+        stack even if we're over the pool size limit.
+        """
         assert c not in self.all
         assert c not in self.available
         self._reduce_size(strictly_less=True)
         self.all.add(c)
         self.available.append(c)
-        n, limit = len(self.all), self.pool_size
+        n = len(self.all)
+        limit = self.pool_size
         if n > limit:
             reporter = logger.warn
             if n > 2 * limit:
@@ -103,20 +109,25 @@ class _ConnectionPool(object):
             reporter("DB.open() has %s open connections with a pool_size "
                      "of %s", n, limit)
 
-    # Reregister an available connection formerly obtained via pop().  This
-    # pushes it on the stack of available connections, and may discard
-    # older available connections.
     def repush(self, c):
+        """Reregister an available connection formerly obtained via pop().
+
+        This pushes it on the stack of available connections, and may discard
+        older available connections.
+        """
         assert c in self.all
         assert c not in self.available
         self._reduce_size(strictly_less=True)
         self.available.append(c)
 
-    # Throw away the oldest available connections until we're under our
-    # target size (strictly_less=False) or no more than that (strictly_less=
-    # True, the default).
     def _reduce_size(self, strictly_less=False):
-        target = self.pool_size - bool(strictly_less)
+        """Throw away the oldest available connections until we're under our
+        target size (strictly_less=False, the default) or no more than that
+        (strictly_less=True).
+        """
+        target = self.pool_size
+        if strictly_less:
+            target -= 1
         while len(self.available) > target:
             c = self.available.pop(0)
             self.all.remove(c)
@@ -134,11 +145,13 @@ class _ConnectionPool(object):
             # now, and `c` would be left in a user-visible crazy state.
             c._resetCache()
 
-    # Pop an available connection and return it, or return None if none are
-    # available.  In the latter case, the caller should create a new
-    # connection, register it via push(), and call pop() again.  The
-    # caller is responsible for serializing this sequence.
     def pop(self):
+        """Pop an available connection and return it.
+
+        Return None if none are available - in this case, the caller should
+        create a new connection, register it via push(), and call pop() again.
+        The caller is responsible for serializing this sequence.
+        """
         result = None
         if self.available:
             result = self.available.pop()
@@ -147,8 +160,8 @@ class _ConnectionPool(object):
             assert result in self.all
         return result
 
-    # For every live connection c, invoke f(c).
     def map(self, f):
+        """For every live connection c, invoke f(c)."""
         self.all.map(f)
 
 class DB(object):
@@ -243,11 +256,9 @@ class DB(object):
                 "tpc_vote.",
                 DeprecationWarning, 2)
             storage.tpc_vote = lambda *args: None
-            
 
         try:
             storage.load(z64,'')
-
         except KeyError:
             # Create the database's root in the storage if it doesn't exist
             from persistent.mapping import PersistentMapping
