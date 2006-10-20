@@ -620,7 +620,7 @@ class IStorageUndoable(IStorage):
         """
         # Used by DB (Actually, by TransactionalUndo)
 
-    def undoLog(first=0, last=20, filter=(lambda desc: True)):
+    def undoLog(first, last, filter=None):
         """Return a sequence of descriptions for undoable transactions.
 
         Application code should call undoLog() on a DB instance instead of on
@@ -675,7 +675,7 @@ class IStorageUndoable(IStorage):
         """
         # DB pass through
 
-    def undoInfo(first, last, specification=None):
+    def undoInfo(first=0, last=-20, specification=None):
         """Return a sequence of descriptions for undoable transactions.
 
         This is like `undoLog()`, except for the `specification` argument.
