@@ -39,11 +39,15 @@ def main(path, ntxn):
         th = th.prev_txn()
         i -= 1
 
-if __name__ == "__main__":
+def Main():
     ntxn = 10
     opts, args = getopt.getopt(sys.argv[1:], "n:")
     path, = args
     for k, v in opts:
         if k == '-n':
             ntxn = int(v)
-    main(path, ntxn)
+    Main(path, ntxn)
+    
+
+if __name__ == "__main__":
+    Main()

@@ -130,3 +130,7 @@ class Dumper:
         if not dlen:
             sbp = self.file.read(8)
             print >> self.dest, "backpointer: %d" % u64(sbp)
+
+def main():
+    import sys
+    fsdump(sys.argv[1])

@@ -1,7 +1,6 @@
 This directory contains a collection of utilities for managing ZODB
 databases.  Some are more useful than others.  If you install ZODB
-using distutils ("python setup.py install"), fsdump.py, fstest.py,
-repozo.py, and zeopack.py will be installed in /usr/local/bin.
+using distutils ("python setup.py install"), a few of these will be installed.
 
 Unless otherwise noted, these scripts are invoked with the name of the
 Data.fs file as their only argument.  Example: checkbtrees.py data.fs.
@@ -95,43 +94,10 @@ This script connects to a storage, begins a transaction, calls store()
 and tpc_vote(), and then sleeps forever.  This should trigger the
 transaction timeout feature of the server.
 
-
-zeopack.py -- pack a ZEO server
-
-The script connects to a server and calls pack() on a specific
-storage.  See the script for usage details.
-
-
-zeoreplay.py -- experimental script to replay transactions from a ZEO log
-
-Like parsezeolog.py, this may be obsolete because it was written
-against an earlier version of the ZEO server.  See the script for
-usage details.
-
-
-zeoup.py
-
-usage: zeoup.py [options]
-
-The test will connect to a ZEO server, load the root object, and
-attempt to update the zeoup counter in the root.  It will report
-success if it updates to counter or if it gets a ConflictError.  A
-ConflictError is considered a success, because the client was able to
-start a transaction.
-
-See the script for details about the options.
-
-
 zodbload.py -- exercise ZODB under a heavy synthesized Zope-like load
 
 See the module docstring for details.  Note that this script requires
 Zope.  New in ZODB3 3.1.4.
-
-
-zeoserverlog.py -- analyze ZEO server log for performance statistics
-
-See the module docstring for details; there are a large number of
-options.  New in ZODB3 3.1.4.
 
 
 fsrefs.py -- check FileStorage for dangling references
@@ -146,10 +112,5 @@ Optional argument -n specifies ntxn, and defaults to 10.
 
 
 migrate.py -- do a storage migration and gather statistics
-
-See the module docstring for details.
-
-
-zeoqueue.py -- report number of clients currently waiting in the ZEO queue
 
 See the module docstring for details.

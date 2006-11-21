@@ -95,7 +95,19 @@ def report(oid, data, serial, missing):
         print "\toid %s %s: %r" % (oid_repr(oid), reason, description)
     print
 
-def main(path):
+def main(path=None):
+    if path is None:
+        import sys
+        import getopt
+
+        opts, args = getopt.getopt(sys.argv[1:], "v")
+        for k, v in opts:
+            if k == "-v":
+                VERBOSE += 1
+
+        path, = args
+
+    
     fs = FileStorage(path, read_only=1)
 
     # Set of oids in the index that failed to load due to POSKeyError.
@@ -142,13 +154,4 @@ def main(path):
             report(oid, data, serial, missing)
 
 if __name__ == "__main__":
-    import sys
-    import getopt
-
-    opts, args = getopt.getopt(sys.argv[1:], "v")
-    for k, v in opts:
-        if k == "-v":
-            VERBOSE += 1
-
-    path, = args
-    main(path)
+    main()
