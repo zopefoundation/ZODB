@@ -220,6 +220,8 @@ else:
         zip_safe = False,
         dependency_links = ['http://download.zope.org/distribution/'],
         )
+    scripts = []
+    
 
 setup(name="ZODB3",
       version="3.7.0a2",
