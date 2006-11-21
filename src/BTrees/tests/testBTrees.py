@@ -20,6 +20,7 @@ from BTrees.IIBTree import IIBTree, IIBucket, IISet, IITreeSet
 from BTrees.IFBTree import IFBTree, IFBucket, IFSet, IFTreeSet
 from BTrees.OIBTree import OIBTree, OIBucket, OISet, OITreeSet
 
+from BTrees.IIBTree import using64bits
 from BTrees.check import check
 
 import transaction
@@ -1145,6 +1146,113 @@ class BTreeTests(MappingBase):
                                               "changed size")
                 break
 
+
+LARGEST_32_BITS = 2147483647
+SMALLEST_32_BITS = -LARGEST_32_BITS - 1
+
+SMALLEST_POSITIVE_33_BITS = LARGEST_32_BITS + 1
+LARGEST_NEGATIVE_33_BITS = SMALLEST_32_BITS - 1
+
+LARGEST_64_BITS = 0x7fffffffffffffff
+SMALLEST_64_BITS = -LARGEST_64_BITS - 1
+
+SMALLEST_POSITIVE_65_BITS = LARGEST_64_BITS + 1
+LARGEST_NEGATIVE_65_BITS = SMALLEST_64_BITS - 1
+
+class TestLongIntSupport:
+
+    def getTwoValues(self):
+        """Return two distinct values; these must compare as un-equal.
+
+        These values must be usable as values.
+
+        """
+        return object(), object()
+
+    def getTwoKeys(self):
+        """Return two distinct values, these must compare as un-equal.
+
+        These values must be usable as keys.
+
+        """
+        return 0, 1
+
+    def _set_value(self, key, value):
+        self.t[key] = value
+
+class TestLongIntKeys(TestLongIntSupport):
+
+    def testLongIntKeysWork(self):
+        o1, o2 = self.getTwoValues()
+        assert o1 != o2
+
+        # Test some small key values first:
+        self.t[0L] = o1
+        self.assertEqual(self.t[0], o1)
+        self.t[0] = o2
+        self.assertEqual(self.t[0L], o2)
+        self.assertEqual(list(self.t.keys()), [0])
+
+        # Test some large key values too:
+        k1 = SMALLEST_POSITIVE_33_BITS
+        k2 = LARGEST_64_BITS
+        k3 = SMALLEST_64_BITS
+        self.t[k1] = o1
+        self.t[k2] = o2
+        self.t[k3] = o1
+        self.assertEqual(self.t[k1], o1)
+        self.assertEqual(self.t[k2], o2)
+        self.assertEqual(self.t[k3], o1)
+        self.assertEqual(list(self.t.keys()), [k3, 0, k1, k2])
+
+    def testLongIntKeysOutOfRange(self):
+        o1, o2 = self.getTwoValues()
+        self.assertRaises(
+            ValueError,
+            self._set_value, SMALLEST_POSITIVE_65_BITS, o1)
+        self.assertRaises(
+            ValueError,
+            self._set_value, LARGEST_NEGATIVE_65_BITS, o1)
+
+class TestLongIntValues(TestLongIntSupport):
+
+    def testLongIntValuesWork(self):
+        keys = list(self.getTwoKeys())
+        keys.sort()
+        k1, k2 = keys
+        assert k1 != k2
+
+        # This is the smallest positive integer that requires 33 bits:
+        v1 = SMALLEST_POSITIVE_33_BITS
+        v2 = v1 + 1
+
+        self.t[k1] = v1
+        self.t[k2] = v2
+        self.assertEqual(self.t[k1], v1)
+        self.assertEqual(self.t[k2], v2)
+        self.assertEqual(list(self.t.values()), [v1, v2])
+
+    def testLongIntValuesOutOfRange(self):
+        k1, k2 = self.getTwoKeys()
+        self.assertRaises(
+            ValueError,
+            self._set_value, k1, SMALLEST_POSITIVE_65_BITS)
+        self.assertRaises(
+            ValueError,
+            self._set_value, k1, LARGEST_NEGATIVE_65_BITS)
+
+
+if not using64bits:
+    # We're not using 64-bit ints in this build, so we don't expect
+    # the long-integer tests to pass.
+
+    class TestLongIntKeys:
+        pass
+
+    class TestLongIntValues:
+        pass
+
+
 # tests of various type errors
 
 class TypeTest(TestCase):
@@ -1499,18 +1607,24 @@ class OOSetTest(ExtendedSetTests):
     def setUp(self):
         self.t = OOSet()
 
-class IIBTreeTest(BTreeTests):
+class IIBTreeTest(BTreeTests, TestLongIntKeys, TestLongIntValues):
     def setUp(self):
         self.t = IIBTree()
-class IFBTreeTest(BTreeTests):
+    def getTwoValues(self):
+        return 1, 2
+class IFBTreeTest(BTreeTests, TestLongIntKeys):
     def setUp(self):
         self.t = IFBTree()
-class IOBTreeTest(BTreeTests):
+    def getTwoValues(self):
+        return 0.5, 1.5
+class IOBTreeTest(BTreeTests, TestLongIntKeys):
     def setUp(self):
         self.t = IOBTree()
-class OIBTreeTest(BTreeTests):
+class OIBTreeTest(BTreeTests, TestLongIntValues):
     def setUp(self):
         self.t = OIBTree()
+    def getTwoKeys(self):
+        return object(), object()
 class OOBTreeTest(BTreeTests):
     def setUp(self):
         self.t = OOBTree()
