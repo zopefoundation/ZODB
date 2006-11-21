@@ -134,19 +134,6 @@ packages = ["BTrees", "BTrees.tests",
             "ZopeUndo", "ZopeUndo.tests",
             ]
 
-scripts = ["src/scripts/fsdump.py",
-           "src/scripts/fsoids.py",
-           "src/scripts/fsrefs.py",
-           "src/scripts/fstail.py",
-           "src/scripts/fstest.py",
-           "src/scripts/repozo.py",
-           "src/scripts/zeopack.py",
-           "src/scripts/runzeo.py",
-           "src/scripts/zeopasswd.py",
-           "src/scripts/mkzeoinst.py",
-           "src/scripts/zeoctl.py",
-           ]
-
 def copy_other_files(cmd, outputbase):
     # A delicate dance to copy files with certain extensions
     # into a package just like .py files.
@@ -207,8 +194,34 @@ try:
     from setuptools import setup
 except ImportError:
     from distutils.core import setup
-    extra = {}
+    extra = dict(
+        scripts = ["src/ZODB/scripts/fsdump.py",
+                   "src/ZODB/scripts/fsoids.py",
+                   "src/ZODB/scripts/fsrefs.py",
+                   "src/ZODB/scripts/fstail.py",
+                   "src/ZODB/scripts/fstest.py",
+                   "src/ZODB/scripts/repozo.py",
+                   "src/ZEO/scripts/zeopack.py",
+                   "src/ZEO/scripts/runzeo.py",
+                   "src/ZEO/scripts/zeopasswd.py",
+                   "src/ZEO/scripts/mkzeoinst.py",
+                   "src/ZEO/scripts/zeoctl.py",
+                   ],
+        )
 else:
+    entry_points = """
+    [console_scripts]
+    fsdump = ZODB.FileStorage.fsdump:main
+    fsoids = ZODB.scripts.fsoids:main
+    fsrefs = ZODB.scripts.fsrefs:main
+    fstail = ZODB.scripts.fstail:Main
+    repozo = ZODB.scripts.repozo:main
+    zeopack = ZEO.scripts.zeopack:main
+    runzeo = ZEO.runzeo:main
+    zeopasswd = ZEO.zeopasswd:main
+    mkzeoinst = ZEO.mkzeoinst:main
+    zeoctl = ZEO.zeoctl:main
+    """
     extra = dict(
         install_requires = [
             'zope.interface',
@@ -219,6 +232,7 @@ else:
             ],
         zip_safe = False,
         dependency_links = ['http://download.zope.org/distribution/'],
+        entry_points = entry_points,
         )
     scripts = []
     
@@ -240,5 +254,4 @@ setup(name="ZODB3",
       classifiers = filter(None, classifiers.split("\n")),
       long_description = "\n".join(doclines[2:]),
       distclass = MyDistribution,
-      scripts = scripts,
       **extra)
