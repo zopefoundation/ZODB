@@ -20,8 +20,6 @@ to application logic.  ZODB includes features such as a plugable storage
 interface, rich transaction support, and undo.
 """
 
-DEPENDENCIES = 
-
 # The (non-obvious!) choices for the Trove Development Status line:
 # Development Status :: 5 - Production/Stable
 # Development Status :: 4 - Beta
