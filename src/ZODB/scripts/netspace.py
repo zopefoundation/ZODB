@@ -95,7 +95,7 @@ def main(path):
         path = paths.get(oid, '-')
         print fmt % (U64(oid), len(data), total_size(oid), path, mod, klass)
 
-if __name__ == "__main__":
+def Main():
     import sys
     import getopt
 
@@ -118,3 +118,6 @@ if __name__ == "__main__":
         if o == '-v':
             VERBOSE += 1
     main(path)
+
+if __name__ == "__main__":
+    Main()

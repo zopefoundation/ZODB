@@ -101,6 +101,8 @@ def options(args):
     return auth_protocol, auth_db, auth_realm, delete, username, password
 
 def main(args=None, dbclass=None):
+    if args is None:
+        args = sys.argv[1:]
     p, auth_db, auth_realm, delete, username, password = options(args)
     if p is None:
         usage("Error: configuration does not specify auth protocol")
