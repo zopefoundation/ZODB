@@ -66,6 +66,45 @@ static void PyVar_Assign(PyObject **v, PyObject *e) { Py_XDECREF(*v); *v=e;}
 #define ASSERT(C, S, R) if (! (C)) { \
   PyErr_SetString(PyExc_AssertionError, (S)); return (R); }
 
+
+#ifdef NEED_LONG_LONG_SUPPORT
+/* Helper code used to support long long instead of int. */
+
+#ifndef PY_LONG_LONG
+#error "PY_LONG_LONG required but not defined"
+#endif
+
+static int
+longlong_check(PyObject *ob)
+{
+    if (PyInt_Check(ob))
+        return 1;
+
+    if (PyLong_Check(ob)) {
+        /* check magnitude */
+        PY_LONG_LONG val = PyLong_AsLongLong(ob);
+
+        if (val == -1 && PyErr_Occurred())
+            return 0;
+        return 1;
+    }
+    return 0;
+}
+
+static PyObject *
+longlong_as_object(PY_LONG_LONG val)
+{
+    static PY_LONG_LONG maxint = 0;
+
+    if (maxint == 0)
+        maxint = PyInt_GetMax();
+    if ((val > maxint) || (val < (-maxint-1)))
+        return PyLong_FromLongLong(val);
+    return PyInt_FromLong((long)val);
+}
+#endif
+
+
 /* Various kinds of BTree and Bucket structs are instances of
  * "sized containers", and have a common initial layout:
  *     The stuff needed for all Python objects, or all Persistent objects.
@@ -488,4 +527,11 @@ INITMODULE (void)
     if (PyDict_SetItemString(d, MOD_NAME_PREFIX "TreeIterator",
 			     (PyObject *)&BTreeIter_Type) < 0)
 	return;
+#if defined(ZODB_64BIT_INTS) && defined(NEED_LONG_LONG_SUPPORT)
+    if (PyDict_SetItemString(d, "using64bits", Py_True) < 0)
+        return;
+#else
+    if (PyDict_SetItemString(d, "using64bits", Py_False) < 0)
+        return;
+#endif
 }

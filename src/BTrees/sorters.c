@@ -15,22 +15,23 @@
 /* Revision information: $Id$ */
 
 /* The only routine here intended to be used outside the file is
-   size_t sort_int4_nodups(int *p, size_t n)
+   size_t sort_int_nodups(int *p, size_t n)
 
    Sort the array of n ints pointed at by p, in place, and also remove
    duplicates.  Return the number of unique elements remaining, which occupy
    a contiguous and monotonically increasing slice of the array starting at p.
 
-   Example:  If the input array is [3, 1, 2, 3, 1, 5, 2], sort_int4_nodups
+   Example:  If the input array is [3, 1, 2, 3, 1, 5, 2], sort_int_nodups
    returns 4, and the first 4 elements of the array are changed to
    [1, 2, 3, 5].  The content of the remaining array positions is not defined.
 
    Notes:
 
-   + This is specific to 4-byte signed ints, with endianness natural to the
-     platform.
+   + This is specific to n-byte signed ints, with endianness natural to the
+     platform.  `n` is determined based on ZODB_64BIT_INTS.
 
-   + 4*n bytes of available heap memory are required for best speed.
+   + 4*n bytes of available heap memory are required for best speed
+     (8*n when ZODB_64BIT_INTS is defined).
 */
 
 #include <stdlib.h>
@@ -45,7 +46,7 @@
    the radix sort has to know everything about the type's internal
    representation.
 */
-typedef int element_type;
+typedef KEY_TYPE element_type;
 
 /* The radixsort is faster than the quicksort for large arrays, but radixsort
    has high fixed overhead, making it a poor choice for small arrays.  The
@@ -72,25 +73,33 @@ typedef int element_type;
    swaps are done internally, the final result may come back in 'in' or 'work';
    and that pointer is returned.
 
-   radixsort_int4 is specific to signed 4-byte ints, with natural machine
-   endianness.
+   radixsort_int is specific to signed n-byte ints, with natural machine
+   endianness.  `n` is determined based on ZODB_64BIT_INTS.
 */
 static element_type*
-radixsort_int4(element_type *in, element_type *work, size_t n)
+radixsort_int(element_type *in, element_type *work, size_t n)
 {
 	/* count[i][j] is the number of input elements that have byte value j
 	   in byte position i, where byte position 0 is the LSB.  Note that
 	   holding i fixed, the sum of count[i][j] over all j in range(256)
 	   is n.
 	*/
-	size_t count[4][256];
+#ifdef ZODB_64BIT_INTS
+	size_t count[8][256];
+#else
+        size_t count[4][256];
+#endif
 	size_t i;
 	int offset, offsetinc;
 
 	/* Which byte position are we working on now?  0=LSB, 1, 2, ... */
 	int bytenum;
 
-	assert(sizeof(element_type) == 4);
+#ifdef ZODB_64BIT_INTS
+	assert(sizeof(element_type) == 8);
+#else
+        assert(sizeof(element_type) == 4);
+#endif
 	assert(in);
 	assert(work);
 
@@ -102,6 +111,12 @@ radixsort_int4(element_type *in, element_type *work, size_t n)
 		++count[1][(x >>  8) & 0xff];
 		++count[2][(x >> 16) & 0xff];
 		++count[3][(x >> 24) & 0xff];
+#ifdef ZODB_64BIT_INTS
+		++count[4][(x >> 32) & 0xff];
+		++count[5][(x >> 40) & 0xff];
+		++count[6][(x >> 48) & 0xff];
+		++count[7][(x >> 56) & 0xff];
+#endif
 	}
 
 	/* For p an element_type* cast to char*, offset is how much farther we
@@ -111,7 +126,7 @@ radixsort_int4(element_type *in, element_type *work, size_t n)
 	   from p+offset to get to the element's more-significant bytes.
 	*/
 	{
-		int one = 1;
+		element_type one = 1;
 		if (*(char*)&one) {
 			/* Little endian. */
 			offset = 0;
@@ -498,12 +513,12 @@ quicksort(element_type *plo, size_t n)
 
 /* Sort p and remove duplicates, as fast as we can. */
 static size_t
-sort_int4_nodups(int *p, size_t n)
+sort_int_nodups(KEY_TYPE *p, size_t n)
 {
 	size_t nunique;
 	element_type *work;
 
-	assert(sizeof(int) == sizeof(element_type));
+	assert(sizeof(KEY_TYPE) == sizeof(element_type));
 	assert(p);
 
 	/* Use quicksort if the array is small, OR if malloc can't find
@@ -514,7 +529,7 @@ sort_int4_nodups(int *p, size_t n)
 		work = (element_type *)malloc(n * sizeof(element_type));
 
 	if (work) {
-		element_type *out = radixsort_int4(p, work, n);
+		element_type *out = radixsort_int(p, work, n);
 		nunique = uniq(p, out, n);
 		free(work);
 	}

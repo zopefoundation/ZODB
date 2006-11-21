@@ -543,7 +543,7 @@ multiunion_m(PyObject *ignored, PyObject *args)
     */
     if (result->len > 0) {
         size_t newlen;          /* number of elements in final result set */
-        newlen = sort_int4_nodups(result->keys, (size_t)result->len);
+        newlen = sort_int_nodups(result->keys, (size_t)result->len);
         result->len = (int)newlen;
     }
     return (PyObject *)result;
