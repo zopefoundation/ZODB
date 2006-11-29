@@ -20,6 +20,8 @@ import sys
 import tempfile
 import threading
 import warnings
+import os
+import shutil
 from time import time
 
 from persistent import PickleCache
@@ -27,6 +29,8 @@ from persistent import PickleCache
 # interfaces
 from persistent.interfaces import IPersistentDataManager
 from ZODB.interfaces import IConnection
+from ZODB.Blobs.interfaces import IBlob, IBlobStorage
+from ZODB.Blobs.BlobStorage import BlobStorage
 from transaction.interfaces import ISavepointDataManager
 from transaction.interfaces import IDataManagerSavepoint
 from transaction.interfaces import ISynchronizer
@@ -39,8 +43,11 @@ from ZODB.ExportImport import ExportImport
 from ZODB import POSException
 from ZODB.POSException import InvalidObjectReference, ConnectionStateError
 from ZODB.POSException import ConflictError, ReadConflictError
+from ZODB.POSException import Unsupported
+from ZODB.POSException import POSKeyError
 from ZODB.serialize import ObjectWriter, ObjectReader, myhasattr
 from ZODB.utils import p64, u64, z64, oid_repr, positive_id
+from ZODB import utils
 
 global_reset_counter = 0
 
@@ -591,7 +598,29 @@ class Connection(ExportImport, object):
                     raise ConflictError(object=obj)
                 self._modified.append(oid)
             p = writer.serialize(obj)  # This calls __getstate__ of obj
-            s = self._storage.store(oid, serial, p, self._version, transaction)
+
+            # This is a workaround to calling IBlob.proivdedBy(obj). Calling
+            # Interface.providedBy on a object to be stored can invertible
+            # set the '__providedBy__' and '__implemented__' attributes on the
+            # object. This interferes the storing of the object by requesting
+            # that the values of these objects should be stored with the ZODB.
+            providedBy = getattr(obj, '__providedBy__', None)
+            if providedBy is not None and IBlob in providedBy:
+                if not IBlobStorage.providedBy(self._storage):
+                    raise Unsupported(
+                        "Storing Blobs in %s is not supported." % 
+                        repr(self._storage))
+                s = self._storage.storeBlob(oid, serial, p,
+                                            obj._p_blob_uncommitted,
+                                            self._version, transaction)
+                # we invalidate the object here in order to ensure
+                # that that the next attribute access of its name
+                # unghostify it, which will cause its blob data
+                # to be reattached "cleanly"
+                obj._p_invalidate()
+            else:
+                s = self._storage.store(oid, serial, p, self._version,
+                                        transaction)
             self._store_count += 1
             # Put the object in the cache before handling the
             # response, just in case the response contains the
@@ -801,7 +830,7 @@ class Connection(ExportImport, object):
 
 
         if self._invalidatedCache:
-            raise ReadConflictError()            
+            raise ReadConflictError()
 
         if (obj._p_oid in self._invalidated and
                 not myhasattr(obj, "_p_independent")):
@@ -829,6 +858,13 @@ class Connection(ExportImport, object):
 
         self._reader.setGhostState(obj, p)
         obj._p_serial = serial
+
+        # Blob support
+        providedBy = getattr(obj, '__providedBy__', None)
+        if providedBy is not None and IBlob in providedBy:
+            obj._p_blob_uncommitted = None
+            obj._p_blob_data = \
+                    self._storage.loadBlob(obj._p_oid, serial, self._version)
 
     def _load_before_or_conflict(self, obj):
         """Load non-current state for obj or raise ReadConflictError."""
@@ -1049,8 +1085,9 @@ class Connection(ExportImport, object):
 
     def savepoint(self):
         if self._savepoint_storage is None:
-            self._savepoint_storage = TmpStore(self._version,
-                                               self._normal_storage)
+            # XXX what to do about IBlobStorages?
+            tmpstore = TmpStore(self._version, self._normal_storage)
+            self._savepoint_storage = tmpstore
             self._storage = self._savepoint_storage
 
         self._creating.clear()
@@ -1082,7 +1119,7 @@ class Connection(ExportImport, object):
         self._storage = self._normal_storage
         self._savepoint_storage = None
 
-        self._log.debug("Commiting savepoints of size %s", src.getSize())
+        self._log.debug("Committing savepoints of size %s", src.getSize())
         oids = src.index.keys()
 
         # Copy invalidating and creating info from temporary storage:
@@ -1091,10 +1128,20 @@ class Connection(ExportImport, object):
 
         for oid in oids:
             data, serial = src.load(oid, src)
-            s = self._storage.store(oid, serial, data,
-                                    self._version, transaction)
+            try:
+                blobfilename = src.loadBlob(oid, serial, self._version)
+            except POSKeyError:
+                s = self._storage.store(oid, serial, data,
+                                        self._version, transaction)
+            else:
+                s = self._storage.storeBlob(oid, serial, data, blobfilename,
+                                            self._version, transaction)
+                # we invalidate the object here in order to ensure
+                # that that the next attribute access of its name
+                # unghostify it, which will cause its blob data
+                # to be reattached "cleanly"
+                self.invalidate(s, {oid:True})
             self._handle_serial(s, oid, change=False)
-
         src.close()
 
     def _abort_savepoint(self):
@@ -1137,8 +1184,13 @@ class Savepoint:
     def rollback(self):
         self.datamanager._rollback(self.state)
 
+BLOB_SUFFIX = ".blob"
+BLOB_DIRTY = "store"
+
 class TmpStore:
     """A storage-like thing to support savepoints."""
+
+    implements(IBlobStorage)
 
     def __init__(self, base_version, storage):
         self._storage = storage
@@ -1149,6 +1201,10 @@ class TmpStore:
             setattr(self, method, getattr(storage, method))
 
         self._base_version = base_version
+        tmpdir = os.environ.get('ZODB_BLOB_TEMPDIR')
+        if tmpdir is None:
+            tmpdir = tempfile.mkdtemp()
+        self._blobdir = tmpdir
         self._file = tempfile.TemporaryFile()
         # position: current file position
         # _tpos: file position at last commit point
@@ -1162,6 +1218,7 @@ class TmpStore:
 
     def close(self):
         self._file.close()
+        shutil.rmtree(self._blobdir)
 
     def load(self, oid, version):
         pos = self.index.get(oid)
@@ -1193,6 +1250,37 @@ class TmpStore:
         self.position += l + len(header)
         return serial
 
+    def storeBlob(self, oid, serial, data, blobfilename, version,
+                  transaction):
+        serial = self.store(oid, serial, data, version, transaction)
+        assert isinstance(serial, str) # XXX in theory serials could be 
+                                       # something else
+
+        targetpath = self._getBlobPath(oid)
+        if not os.path.exists(targetpath):
+            os.makedirs(targetpath, 0700)
+
+        targetname = self._getCleanFilename(oid, serial)
+        os.rename(blobfilename, targetname)
+
+    def loadBlob(self, oid, serial, version):
+        """Return the filename where the blob file can be found.
+        """
+        filename = self._getCleanFilename(oid, serial)
+        if not os.path.exists(filename):
+            raise POSKeyError, "Not an existing blob."
+        return filename
+
+    def _getBlobPath(self, oid):
+        return os.path.join(self._blobdir,
+                            utils.oid_repr(oid)
+                            )
+
+    def _getCleanFilename(self, oid, tid):
+        return os.path.join(self._getBlobPath(oid),
+                            "%s%s" % (utils.tid_repr(tid), 
+                                      BLOB_SUFFIX,)
+                            )
     def reset(self, position, index):
         self._file.truncate(position)
         self.position = position
@@ -1206,3 +1294,4 @@ class TmpStore:
         # a copy of the index here.  An alternative would be to ensure that
         # all callers pass copies.  As is, our callers do not make copies.
         self.index = index.copy()
+

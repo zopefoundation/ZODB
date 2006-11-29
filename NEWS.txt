@@ -25,6 +25,15 @@ Transactions
   Clean up weird import dance with ZODB. This is unnecessary since the
   transaction module stopped being imported in ZODB/__init__.py in rev 39622.
 
+Blobs
+-----
+
+- (3.8a1) Added new blob feature. See the ZODB/Blobs directory for
+  documentation.
+
+  ZODB now handles (reasonably) large binary objects efficiently. Useful to
+  use from a few kilobytes to at least multiple hundred megabytes.
+
 
 What's new on ZODB 3.7b2?
 =========================

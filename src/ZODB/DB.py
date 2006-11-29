@@ -232,10 +232,10 @@ class DB(object):
         # Setup storage
         self._storage=storage
         storage.registerDB(self, None)
-        if not hasattr(storage,'tpc_vote'):
+        if not hasattr(storage, 'tpc_vote'):
             storage.tpc_vote = lambda *args: None
         try:
-            storage.load(z64,'')
+            storage.load(z64, '')
         except KeyError:
             # Create the database's root in the storage if it doesn't exist
             from persistent.mapping import PersistentMapping

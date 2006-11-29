@@ -86,7 +86,7 @@ class BaseConfig:
         self.config = config
         self.name = config.getSectionName()
 
-    def open(self):
+    def open(self, database_name='unnamed', databases=None):
         """Open and return the storage object."""
         raise NotImplementedError
 
@@ -134,6 +134,14 @@ class FileStorage(BaseConfig):
                            read_only=self.config.read_only,
                            quota=self.config.quota)
 
+class BlobStorage(BaseConfig):
+
+    def open(self):
+        from ZODB.Blobs.BlobStorage import BlobStorage
+        base = self.config.base.open()
+        return BlobStorage(self.config.blob_dir, base)
+
+        
 class ZEOClient(BaseConfig):
 
     def open(self):
@@ -143,6 +151,7 @@ class ZEOClient(BaseConfig):
         L = [server.address for server in self.config.server]
         return ClientStorage(
             L,
+            blob_dir=self.config.blob_dir,
             storage=self.config.storage,
             cache_size=self.config.cache_size,
             name=self.config.name,

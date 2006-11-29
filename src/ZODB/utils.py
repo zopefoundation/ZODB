@@ -16,11 +16,13 @@ import sys
 import time
 import struct
 from struct import pack, unpack
-from binascii import hexlify
+from binascii import hexlify, unhexlify
 import cPickle as pickle
 from cStringIO import StringIO
 import weakref
 import warnings
+from tempfile import mkstemp
+import os
 
 from persistent.TimeStamp import TimeStamp
 
@@ -82,20 +84,33 @@ def u64(v):
 
 U64 = u64
 
-def cp(f1, f2, l):
+def cp(f1, f2, length=None):
+    """Copy all data from one file to another.
+    
+    It copies the data from the current position of the input file (f1)
+    appending it to the current position of the output file (f2). 
+    
+    It copies at most 'length' bytes. If 'length' isn't given, it copies
+    until the end of the input file.
+    """
     read = f1.read
     write = f2.write
     n = 8192
 
-    while l > 0:
-        if n > l:
-            n = l
-        d = read(n)
-        if not d:
+    if length is None:
+        old_pos = f1.tell()
+        f1.seek(0,2)
+        length = f1.tell()
+        f1.seek(old_pos)
+    
+    while length > 0:
+        if n > length:
+            n = length
+        data = read(n)
+        if not data:
             break
-        write(d)
-        l = l - len(d)
-
+        write(data)
+        length -= len(data)
 
 def newTimeStamp(old=None,
                  TimeStamp=TimeStamp,
@@ -119,6 +134,13 @@ def oid_repr(oid):
         return '0x' + as_hex
     else:
         return repr(oid)
+
+def repr_to_oid(repr):
+    if repr.startswith("0x"):
+        repr = repr[2:]
+    as_bin = unhexlify(repr)
+    as_bin = "\x00"*(8-len(as_bin)) + as_bin
+    return as_bin
 
 serial_repr = oid_repr
 tid_repr = serial_repr
@@ -265,3 +287,12 @@ class WeakSet(object):
         # We're cheating by breaking into the internals of Python's
         # WeakValueDictionary here (accessing its .data attribute).
         return self.data.data.values()
+
+
+def mktemp(dir=None):
+    """Create a temp file, known by name, in a semi-secure manner."""
+    handle, filename = mkstemp(dir=dir)
+    os.close(handle)
+    return filename
+
+
