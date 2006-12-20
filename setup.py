@@ -20,6 +20,8 @@ to application logic.  ZODB includes features such as a plugable storage
 interface, rich transaction support, and undo.
 """
 
+VERSION = "3.7.0b3"
+
 # The (non-obvious!) choices for the Trove Development Status line:
 # Development Status :: 5 - Production/Stable
 # Development Status :: 4 - Beta
@@ -39,17 +41,15 @@ Operating System :: Unix
 import glob
 import os
 import sys
-from distutils.core import setup
 from distutils.extension import Extension
 from distutils import dir_util
-from distutils.core import setup
 from distutils.dist import Distribution
 from distutils.command.install_lib import install_lib
 from distutils.command.build_py import build_py
 from distutils.util import convert_path
 
-if sys.version_info < (2, 3, 4):
-    print "ZODB 3.3 requires Python 2.3.4 or higher"
+if sys.version_info < (2, 4, 2):
+    print "This version of ZODB requires Python 2.4.2 or higher"
     sys.exit(0)
 
 # Include directories for C extensions
@@ -113,32 +113,15 @@ TimeStamp = Extension(name = 'persistent.TimeStamp',
                       sources= ['src/persistent/TimeStamp.c']
                       )
 
-##coptimizations = Extension(name = 'ZODB.coptimizations',
-##                           include_dirs = include,
-##                           sources= ['src/ZODB/coptimizations.c']
-##                           )
-
 winlock = Extension(name = 'ZODB.winlock',
                     include_dirs = include,
                     sources = ['src/ZODB/winlock.c']
                     )
 
-cZopeInterface = Extension(
-            name = 'zope.interface._zope_interface_coptimizations',
-            sources= ['src/zope/interface/_zope_interface_coptimizations.c']
-            )
-
-cZopeProxy = Extension(
-            name = 'zope.proxy._zope_proxy_proxy',
-            sources= ['src/zope/proxy/_zope_proxy_proxy.c']
-            )
-
 exts += [cPersistence,
          cPickleCache,
          TimeStamp,
          winlock,
-         cZopeInterface,
-         cZopeProxy,
         ]
 
 # The ZODB.zodb4 code is not being packaged, because it is only
@@ -147,42 +130,11 @@ exts += [cPersistence,
 packages = ["BTrees", "BTrees.tests",
             "ZEO", "ZEO.auth", "ZEO.zrpc", "ZEO.tests",
             "ZODB", "ZODB.FileStorage", "ZODB.tests",
-            #"Persistence", "Persistence.tests",
             "persistent", "persistent.tests",
             "transaction", "transaction.tests",
             "ThreadedAsync",
-            "zdaemon", "zdaemon.tests",
-
-            "zope",
-            "zope.interface", "zope.interface.tests",
-            "zope.interface.common", "zope.interface.common.tests",
-            "zope.proxy", "zope.proxy.tests",
-            "zope.testing",
-
             "ZopeUndo", "ZopeUndo.tests",
-            "ZConfig", "ZConfig.tests",
-            "ZConfig.components",
-            "ZConfig.components.basic", "ZConfig.components.basic.tests",
-            "ZConfig.components.logger", "ZConfig.components.logger.tests",
-            "ZConfig.tests.library", "ZConfig.tests.library.widget",
-            "ZConfig.tests.library.thing",
             ]
-
-scripts = ["src/scripts/fsdump.py",
-           "src/scripts/fsoids.py",
-           "src/scripts/fsrefs.py",
-           "src/scripts/fstail.py",
-           "src/scripts/fstest.py",
-           "src/scripts/repozo.py",
-           "src/scripts/zeopack.py",
-           "src/scripts/runzeo.py",
-           "src/scripts/zeopasswd.py",
-           "src/scripts/mkzeoinst.py",
-           "src/scripts/zeoctl.py",
-           "src/ZConfig/scripts/zconfig",
-           "src/zdaemon/zdrun.py",
-           "src/zdaemon/zdctl.py",
-           ]
 
 def copy_other_files(cmd, outputbase):
     # A delicate dance to copy files with certain extensions
@@ -190,37 +142,14 @@ def copy_other_files(cmd, outputbase):
     extensions = ["*.conf", "*.xml", "*.txt", "*.sh"]
     directories = [
         "transaction",
+        "transaction/tests",
         "persistent/tests",
-        "ZConfig/components/basic",
-        "ZConfig/components/logger",
-        "ZConfig/tests/input",
-        "ZConfig/tests/library",
-        "ZConfig/tests/library/thing",
-        "ZConfig/tests/library/thing/extras",
-        "ZConfig/tests/library/widget",
         "ZEO",
         "ZODB",
         "ZODB/tests",
-        "zdaemon",
-        "zdaemon/tests",
-        "zope/interface", "zope/interface/tests",
-        "zope/testing",
         ]
-    # zope.testing's testrunner-ex is not a package, but contains
-    # packages, in a fairly elaborate subtree.  Major special-casing
-    # for this.  First find all the (non-SVN) directories starting
-    # there, and append them all to `directories`.
-    for root, dirs, files in os.walk("src/zope/testing/testrunner-ex"):
-        dirs[:] = [d for d in dirs if ".svn" not in d]
-        assert root.startswith("src/")
-        normpath = root[4:].replace("\\", "/")
-        directories.append(normpath)
     for dir in directories:
         exts = extensions
-        if dir.startswith("zope/testing/testrunner-ex"):
-            # testrunner-ex isn't a package, so not even the .py files
-            # get copied unless we force that there.
-            exts = extensions + ["*.py"]
         dir = convert_path(dir)
         inputdir = os.path.join("src", dir)
         outputdir = os.path.join(outputbase, dir)
@@ -263,8 +192,55 @@ class MyDistribution(Distribution):
 
 doclines = __doc__.split("\n")
 
+try:
+    from setuptools import setup
+except ImportError:
+    from distutils.core import setup
+    extra = dict(
+        scripts = ["src/ZODB/scripts/fsdump.py",
+                   "src/ZODB/scripts/fsoids.py",
+                   "src/ZODB/scripts/fsrefs.py",
+                   "src/ZODB/scripts/fstail.py",
+                   "src/ZODB/scripts/fstest.py",
+                   "src/ZODB/scripts/repozo.py",
+                   "src/ZEO/scripts/zeopack.py",
+                   "src/ZEO/scripts/runzeo.py",
+                   "src/ZEO/scripts/zeopasswd.py",
+                   "src/ZEO/scripts/mkzeoinst.py",
+                   "src/ZEO/scripts/zeoctl.py",
+                   ],
+        )
+else:
+    entry_points = """
+    [console_scripts]
+    fsdump = ZODB.FileStorage.fsdump:main
+    fsoids = ZODB.scripts.fsoids:main
+    fsrefs = ZODB.scripts.fsrefs:main
+    fstail = ZODB.scripts.fstail:Main
+    repozo = ZODB.scripts.repozo:main
+    zeopack = ZEO.scripts.zeopack:main
+    runzeo = ZEO.runzeo:main
+    zeopasswd = ZEO.zeopasswd:main
+    mkzeoinst = ZEO.mkzeoinst:main
+    zeoctl = ZEO.zeoctl:main
+    """
+    extra = dict(
+        install_requires = [
+            'zope.interface',
+            'zope.proxy',
+            'zope.testing',
+            'ZConfig',
+            'zdaemon',
+            ],
+        zip_safe = False,
+        dependency_links = ['http://download.zope.org/distribution/'],
+        entry_points = entry_points,
+        )
+    scripts = []
+    
+
 setup(name="ZODB3",
-      version="3.5.0a6",
+      version=VERSION,
       maintainer="Zope Corporation",
       maintainer_email="zodb-dev@zope.org",
       url = "http://www.zope.org/Wikis/ZODB",
@@ -280,5 +256,4 @@ setup(name="ZODB3",
       classifiers = filter(None, classifiers.split("\n")),
       long_description = "\n".join(doclines[2:]),
       distclass = MyDistribution,
-      scripts = scripts,
-      )
+      **extra)

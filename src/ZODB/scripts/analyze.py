@@ -130,6 +130,9 @@ def analyze_rec(report, record):
     except Exception, err:
         print err
 
-if __name__ == "__main__":
+def main():
     path = sys.argv[1]
     report(analyze(path))
+
+if __name__ == "__main__":
+    main()

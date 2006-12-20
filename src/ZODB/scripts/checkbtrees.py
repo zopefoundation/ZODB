@@ -65,7 +65,15 @@ def get_subobjects(obj):
 
     return sub
 
-def main(fname):
+def main(fname=None):
+    if fname is None:
+        import sys
+        try:
+            fname, = sys.argv[1:]
+        except:
+            print __doc__
+            sys.exit(2)
+        
     fs = FileStorage(fname, read_only=1)
     cn = ZODB.DB(fs).open()
     rt = cn.root()
@@ -112,11 +120,4 @@ def main(fname):
     print "total", len(fs._index), "found", found
 
 if __name__ == "__main__":
-    import sys
-    try:
-        fname, = sys.argv[1:]
-    except:
-        print __doc__
-        sys.exit(2)
-
-    main(fname)
+    main()

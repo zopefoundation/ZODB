@@ -16,7 +16,6 @@ The components you get with the ZODB release are as follows:
 - Standard storages such as FileStorage
 - The persistent BTrees modules
 - ZEO
-- ZConfig -- a Zope configuration language
 - documentation
 
 Our primary development platforms are Linux and Windows 2000.  The
@@ -34,7 +33,7 @@ older versions of the BTrees package will not be able to load
 persistent BTrees that use 64-bit data (an exception will be raised on
 load).
 
-The Zope 2.8 release, and Zope3 releases, should be compatible with this
+The Zope 2.10 release, and Zope 3.3 releases, should be compatible with this
 version of ZODB.  Note that Zope 2.7 and higher includes ZEO, so this package
 should only be needed to run a ZEO server.
 
@@ -74,11 +73,24 @@ be sure that you've installed the development RPMs too, since ZODB
 builds Python extensions.  If you have the source release of ZODB,
 you will need a C compiler.
 
+You also need the ZConfig, zdaemon, zope.interface, zope.proxy and
+zope.testing packages.  If you are using easy_install or zc.buildout to
+install ZODB, then these will be installed for you automatically.
+
 Installation
 ------------
 
-ZODB is released as a distutils package.  To build it, run the setup
-script::
+ZODB is released as a distutils package.  The easiest ways to build
+and install it are to use `easy_install
+<http://peak.telecommunity.com/DevCenter/EasyInstall>`_, or
+`zc.buildout <http://www.python.org/pypi/zc.buildout>`_.
+
+To install by hand, first install the dependencies, ZConfig, zdaemon,
+zope.interface, zope.proxy and zope.testing.  These can be found
+either in the `Python Package Index <http://www.python.org/pypi>`_,
+or at http://download.zope.org/distribution/.
+
+To build it, run the setup script::
 
     % python setup.py build
 
@@ -104,13 +116,19 @@ This should now make all of ZODB accessible to your Python programs.
 Testing for Developers
 ----------------------
 
-When working from a ZODB checkout, do an in-place build instead::
+The ZODB check outs are `buldouts <http://www.python.org/pypi/zc.buildout>`_.
+When working from a ZODB checkout, first run the bootstrap.py script
+to initialize the buildout:
 
-    % python setup.py build_ext -i
+    % python bootstrap.py
 
-followed by::
+and then use the buildout script to build ZODB and gather the dependencies:
+ 
+    % bin/buildout
 
-    % python test.py -v
+This creates a test script:
+
+    % bin/test -v
 
 This command will run all the tests, printing a single dot for each
 test.  When it finishes, it will print a test summary.  The exact

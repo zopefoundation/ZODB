@@ -121,7 +121,9 @@ def revision_detail(lifetimes, classes):
         if keep:
             h.report("Number of revisions for %s" % name, binsize=10)
 
-def main(path):
+def main(path=None):
+    if path is None:
+        path = sys.argv[1]
     txn_objects = Histogram() # histogram of txn size in objects
     txn_bytes = Histogram() # histogram of txn size in bytes
     obj_size = Histogram() # histogram of object size
@@ -196,4 +198,4 @@ def main(path):
     class_detail(class_size)
 
 if __name__ == "__main__":
-    main(sys.argv[1])
+    main()

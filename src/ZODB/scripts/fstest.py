@@ -203,7 +203,7 @@ def usage():
     print __doc__
     sys.exit(-1)
 
-if __name__ == "__main__":
+def main():
     import getopt
 
     try:
@@ -223,3 +223,6 @@ if __name__ == "__main__":
         sys.exit(-1)
 
     chatter("no errors detected")
+
+if __name__ == "__main__":
+    main()

@@ -35,8 +35,23 @@ Blobs
   use from a few kilobytes to at least multiple hundred megabytes.
 
 
-What's new on ZODB 3.7b2?
-=========================
+What's new on ZODB 3.7.0b3?
+===========================
+
+Packaging
+---------
+
+- (3.7.0b3) ZODB is now packaged without it's dependencies
+
+  ZODB no longer includes copies of dependencies such as 
+  ZConfig, zope.interface and so on.  It now treats these as
+  dependencies.  If ZODB is installed with easy_install or
+  zc.buildout, the dependencies will be installed automatically.
+
+
+- (3.7.0b3) ZODB is now a buildout
+
+  ZODB checkouts are now built and tested using zc.buildout.
 
 ClientStorage
 -------------
