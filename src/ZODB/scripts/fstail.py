@@ -46,7 +46,7 @@ def Main():
     for k, v in opts:
         if k == '-n':
             ntxn = int(v)
-    Main(path, ntxn)
+    main(path, ntxn)
     
 
 if __name__ == "__main__":
