@@ -14,6 +14,7 @@
 import random
 from unittest import TestCase, TestSuite, TextTestRunner, makeSuite
 from types import ClassType
+import zope.interface.verify
 
 from BTrees.OOBTree import OOBTree, OOBucket, OOSet, OOTreeSet
 from BTrees.IOBTree import IOBTree, IOBucket, IOSet, IOTreeSet
@@ -24,6 +25,17 @@ from BTrees.LOBTree import LOBTree, LOBucket, LOSet, LOTreeSet
 from BTrees.LLBTree import LLBTree, LLBucket, LLSet, LLTreeSet
 from BTrees.LFBTree import LFBTree, LFBucket, LFSet, LFTreeSet
 from BTrees.OLBTree import OLBTree, OLBucket, OLSet, OLTreeSet
+
+import BTrees.OOBTree
+import BTrees.IOBTree
+import BTrees.IIBTree
+import BTrees.IFBTree
+import BTrees.OIBTree
+import BTrees.LOBTree
+import BTrees.LLBTree
+import BTrees.LFBTree
+import BTrees.OLBTree
+import BTrees.Interfaces
 
 from BTrees.IIBTree import using64bits
 from BTrees.check import check
@@ -1648,6 +1660,22 @@ class TestCmpError(TestCase):
             self.fail('incomarable objects should not be allowed into '
                       'the tree')
 
+# test for presence of generic names in module
+
+class ModuleTest(TestCase):
+    module = None
+    prefix = None
+    iface = None
+    def testNames(self):
+        for name in ('Bucket', 'BTree', 'Set', 'TreeSet'):
+            klass = getattr(self.module, name)
+            self.assertEqual(klass.__module__, self.module.__name__)
+            self.assert_(klass is getattr(self.module, self.prefix + name))
+
+    def testModuleProvides(self):
+        self.assert_(
+            zope.interface.verify.verifyObject(self.iface, self.module))
+
 def test_suite():
     s = TestSuite()
 
@@ -1662,6 +1690,25 @@ def test_suite():
             klass = ClassType(kv + name + 'Test', bases,
                               dict(t_class=globals()[kv+name]))
             s.addTest(makeSuite(klass))
+    for kv, iface in (
+        ('OO', BTrees.Interfaces.IObjectObjectBTreeModule),
+        ('IO', BTrees.Interfaces.IIntegerObjectBTreeModule),
+        ('LO', BTrees.Interfaces.IIntegerObjectBTreeModule),
+        ('OI', BTrees.Interfaces.IObjectIntegerBTreeModule),
+        ('OL', BTrees.Interfaces.IObjectIntegerBTreeModule),
+        ('II', BTrees.Interfaces.IIntegerIntegerBTreeModule),
+        ('LL', BTrees.Interfaces.IIntegerIntegerBTreeModule),
+        ('IF', BTrees.Interfaces.IIntegerFloatBTreeModule),
+        ('LF', BTrees.Interfaces.IIntegerFloatBTreeModule)):
+        s.addTest(
+            makeSuite(
+                ClassType(
+                    kv + 'ModuleTest',
+                    (ModuleTest,),
+                    dict(
+                        prefix=kv,
+                        module=getattr(BTrees, kv + 'BTree'),
+                        iface=iface))))
 
     for klass in (
         IIBTreeTest, IFBTreeTest, IOBTreeTest, OIBTreeTest,
@@ -1670,7 +1717,7 @@ def test_suite():
 
         # Note:  there is no TestOOBTrees.  The next three are
         # checking for assorted TypeErrors, and when both keys
-        # and values oare objects (OO), there's nothing to test.
+        # and values are objects (OO), there's nothing to test.
         TestIIBTrees, TestIFBTrees,  TestIOBTrees,  TestOIBTrees,
         TestIOSets,
         DegenerateBTree,

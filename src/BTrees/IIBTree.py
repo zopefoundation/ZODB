@@ -12,5 +12,10 @@
 #
 ##############################################################################
 
+import zope.interface
+import BTrees.Interfaces
+
 # hack to overcome dynamic-linking headache.
 from _IIBTree import *
+
+zope.interface.moduleProvides(BTrees.Interfaces.IIntegerIntegerBTreeModule)

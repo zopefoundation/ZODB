@@ -38,15 +38,17 @@
     PER_ACCESSED(OBJ);                  \
 } while (0)
 
-/*
-  The tp_name slots of the various BTree types contain the fully
-  qualified names of the types, e.g. zodb.btrees.OOBTree.OOBTree.
-  The full name is usd to support pickling and because it is not
-  possible to modify the __module__ slot of a type dynamically.  (This
-  may be a bug in Python 2.2).
-*/
-
-#define MODULE_NAME "BTrees._" MOD_NAME_PREFIX "BTree."
+/* The tp_name slots of the various BTree types contain the fully
+ * qualified names of the types, e.g. zodb.btrees.OOBTree.OOBTree.
+ * The full name is usd to support pickling and because it is not
+ * possible to modify the __module__ slot of a type dynamically.  (This
+ * may be a bug in Python 2.2).
+ *
+ * The MODULE_NAME here used to be "BTrees._".  We actually want the module
+ * name to point to the Python module rather than the C, so the underline
+ * is now removed.
+ */
+#define MODULE_NAME "BTrees." MOD_NAME_PREFIX "BTree."
 
 static PyObject *sort_str, *reverse_str, *__setstate___str,
     *_bucket_type_str;
@@ -526,6 +528,23 @@ INITMODULE (void)
 	return;
     if (PyDict_SetItemString(d, MOD_NAME_PREFIX "TreeIterator",
 			     (PyObject *)&BTreeIter_Type) < 0)
+	return;
+	/* We also want to be able to access these constants without the prefix
+	 * so that code can more easily exchange modules (particularly the integer
+	 * and long modules, but also others).  The TreeIterator is only internal,
+	 * so we don't bother to expose that.
+     */
+    if (PyDict_SetItemString(d, "Bucket",
+			     (PyObject *)&BucketType) < 0)
+	return;
+    if (PyDict_SetItemString(d, "BTree",
+			     (PyObject *)&BTreeType) < 0)
+	return;
+    if (PyDict_SetItemString(d, "Set",
+			     (PyObject *)&SetType) < 0)
+	return;
+    if (PyDict_SetItemString(d, "TreeSet",
+			     (PyObject *)&TreeSetType) < 0)
 	return;
 #if defined(ZODB_64BIT_INTS) && defined(NEED_LONG_LONG_SUPPORT)
     if (PyDict_SetItemString(d, "using64bits", Py_True) < 0)
