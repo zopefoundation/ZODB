@@ -20,7 +20,7 @@ to application logic.  ZODB includes features such as a plugable storage
 interface, rich transaction support, and undo.
 """
 
-VERSION = "3.7.0b3"
+VERSION = "3.8.0a1"
 
 # The (non-obvious!) choices for the Trove Development Status line:
 # Development Status :: 5 - Production/Stable
@@ -83,6 +83,8 @@ def BTreeExtension(flavor):
     if flavor != "fs":
         kwargs["depends"] = (base_btrees_depends + [KEY_H % _flavors[key],
                                                     VALUE_H % _flavors[value]])
+    else:
+        kwargs["depends"] = base_btrees_depends
     if key != "O":
         kwargs["define_macros"] = [('EXCLUDE_INTSET_SUPPORT', None)]
     return Extension(name, sources, **kwargs)
