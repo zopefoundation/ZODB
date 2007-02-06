@@ -1,6 +1,9 @@
 What's new in ZODB3 3.7.0?
 ==========================
 Release date: ???
+[NOTE: even though 3.7 has not had a standalone release, it has effectively
+been released as part of Zope 3.3 and 2.10, and should be considered feature
+frozen.]
 
 BTrees
 ------
