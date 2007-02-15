@@ -12,6 +12,7 @@
 #
 ##############################################################################
 import asyncore
+import atexit
 import errno
 import select
 import sys
@@ -39,6 +40,7 @@ client_timeout_count = 0 # for testing
 client_map = {}
 client_trigger = trigger(client_map)
 client_logger = logging.getLogger('ZEO.zrpc.client_loop')
+atexit.register(client_map.clear)
 
 def client_loop():
     map = client_map
@@ -106,17 +108,25 @@ def client_loop():
                 _exception(obj)
 
         except:
-            client_logger.critical('The ZEO cient loop failed.',
-                            exc_info=sys.exc_info())
-            for fd, obj in map.items():
-                if obj is client_trigger:
-                    continue
+            if map:
                 try:
-                    obj.mgr.client.close()
-                except:
-                    map.pop(fd, None)
-                    client_logger.critical("Couldn't close a dispatcher.",
+                    client_logger.critical('The ZEO cient loop failed.',
                                            exc_info=sys.exc_info())
+                except:
+                    pass
+
+                for fd, obj in map.items():
+                    if obj is client_trigger:
+                        continue
+                    try:
+                        obj.mgr.client.close()
+                    except:
+                        map.pop(fd, None)
+                        try:
+                            client_logger.critical("Couldn't close a dispatcher.",
+                                                   exc_info=sys.exc_info())
+                        except:
+                            pass
 
 client_thread = threading.Thread(target=client_loop)
 client_thread.setDaemon(True)

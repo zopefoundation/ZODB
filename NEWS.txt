@@ -35,7 +35,7 @@ Blobs
   use from a few kilobytes to at least multiple hundred megabytes.
 
 
-What's new on ZODB 3.7.0b3?
+What's new on ZODB 3.7.0b4?
 ===========================
 
 Packaging
@@ -55,6 +55,9 @@ Packaging
 
 ClientStorage
 -------------
+
+- (3.7b4) Added logic to avoid spurious errors from the logging system
+  on exit.
 
 - (3.7b2) Removed the "sync" mode for ClientStorage.  
 
