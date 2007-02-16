@@ -132,8 +132,10 @@ exts += [cPersistence,
 # need to convert early versions of Zope3 databases to ZODB3.
 
 packages = ["BTrees", "BTrees.tests",
-            "ZEO", "ZEO.auth", "ZEO.zrpc", "ZEO.tests",
-            "ZODB", "ZODB.FileStorage", "ZODB.tests",
+            "ZEO", "ZEO.auth", "ZEO.zrpc", "ZEO.tests", "ZEO.scripts",
+            "ZODB", "ZODB.Blobs", "ZODB.Blobs.tests",
+                    "ZODB.FileStorage", "ZODB.tests",
+                    "ZODB.scripts",
             "persistent", "persistent.tests",
             "transaction", "transaction.tests",
             "ThreadedAsync",
@@ -151,6 +153,8 @@ def copy_other_files(cmd, outputbase):
         "ZEO",
         "ZODB",
         "ZODB/tests",
+        "ZODB/Blobs",
+        "ZODB/Blobs/tests",
         ]
     for dir in directories:
         exts = extensions
@@ -248,7 +252,6 @@ setup(name="ZODB3",
       maintainer="Zope Corporation",
       maintainer_email="zodb-dev@zope.org",
       url = "http://www.zope.org/Wikis/ZODB",
-      download_url = "http://www.zope.org/Products/ZODB3.5",
       packages = packages,
       package_dir = {'': 'src'},
       ext_modules = exts,
