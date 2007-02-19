@@ -212,7 +212,7 @@ class DemoStorage(BaseStorage):
                 oid, pre, vdata, p, tid = self._index[oid]
             except KeyError:
                 if self._base:
-                    return self._base.load(oid, '')
+                    return self._base.loadEx(oid, '')
                 raise KeyError(oid)
 
             ver = ""
