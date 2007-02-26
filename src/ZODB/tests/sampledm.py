@@ -113,7 +113,7 @@ class DataManager(object):
         >>> dm.state
         1
 
-        It is en error to call prepare more than once without an intervening
+        It is an error to call prepare more than once without an intervening
         commit or abort:
 
         >>> dm.prepare(t1)
