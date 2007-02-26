@@ -431,6 +431,7 @@ class TransactionalUndoStorage:
         # Add a few object revisions
         oid = self._storage.new_oid()
         revid1 = self._dostore(oid, data=MinPO(51))
+        snooze()
         packtime = time.time()
         snooze()                # time.time() now distinct from packtime
         revid2 = self._dostore(oid, revid=revid1, data=MinPO(52))
