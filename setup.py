@@ -38,6 +38,52 @@ Operating System :: Microsoft :: Windows
 Operating System :: Unix
 """
 
+try:
+    from setuptools import setup
+except ImportError:
+    from distutils.core import setup
+    extra = dict(
+        scripts = ["src/ZODB/scripts/fsdump.py",
+                   "src/ZODB/scripts/fsoids.py",
+                   "src/ZODB/scripts/fsrefs.py",
+                   "src/ZODB/scripts/fstail.py",
+                   "src/ZODB/scripts/fstest.py",
+                   "src/ZODB/scripts/repozo.py",
+                   "src/ZEO/scripts/zeopack.py",
+                   "src/ZEO/scripts/runzeo.py",
+                   "src/ZEO/scripts/zeopasswd.py",
+                   "src/ZEO/scripts/mkzeoinst.py",
+                   "src/ZEO/scripts/zeoctl.py",
+                   ],
+        )
+else:
+    entry_points = """
+    [console_scripts]
+    fsdump = ZODB.FileStorage.fsdump:main
+    fsoids = ZODB.scripts.fsoids:main
+    fsrefs = ZODB.scripts.fsrefs:main
+    fstail = ZODB.scripts.fstail:Main
+    repozo = ZODB.scripts.repozo:main
+    zeopack = ZEO.scripts.zeopack:main
+    runzeo = ZEO.runzeo:main
+    zeopasswd = ZEO.zeopasswd:main
+    mkzeoinst = ZEO.mkzeoinst:main
+    zeoctl = ZEO.zeoctl:main
+    """
+    extra = dict(
+        install_requires = [
+            'zope.interface',
+            'zope.proxy',
+            'zope.testing',
+            'ZConfig',
+            'zdaemon',
+            ],
+        zip_safe = False,
+        dependency_links = ['http://download.zope.org/distribution/'],
+        entry_points = entry_points,
+        )
+    scripts = []
+
 import glob
 import os
 import sys
@@ -200,52 +246,6 @@ class MyDistribution(Distribution):
 
 doclines = __doc__.split("\n")
 
-try:
-    from setuptools import setup
-except ImportError:
-    from distutils.core import setup
-    extra = dict(
-        scripts = ["src/ZODB/scripts/fsdump.py",
-                   "src/ZODB/scripts/fsoids.py",
-                   "src/ZODB/scripts/fsrefs.py",
-                   "src/ZODB/scripts/fstail.py",
-                   "src/ZODB/scripts/fstest.py",
-                   "src/ZODB/scripts/repozo.py",
-                   "src/ZEO/scripts/zeopack.py",
-                   "src/ZEO/scripts/runzeo.py",
-                   "src/ZEO/scripts/zeopasswd.py",
-                   "src/ZEO/scripts/mkzeoinst.py",
-                   "src/ZEO/scripts/zeoctl.py",
-                   ],
-        )
-else:
-    entry_points = """
-    [console_scripts]
-    fsdump = ZODB.FileStorage.fsdump:main
-    fsoids = ZODB.scripts.fsoids:main
-    fsrefs = ZODB.scripts.fsrefs:main
-    fstail = ZODB.scripts.fstail:Main
-    repozo = ZODB.scripts.repozo:main
-    zeopack = ZEO.scripts.zeopack:main
-    runzeo = ZEO.runzeo:main
-    zeopasswd = ZEO.zeopasswd:main
-    mkzeoinst = ZEO.mkzeoinst:main
-    zeoctl = ZEO.zeoctl:main
-    """
-    extra = dict(
-        install_requires = [
-            'zope.interface',
-            'zope.proxy',
-            'zope.testing',
-            'ZConfig',
-            'zdaemon',
-            ],
-        zip_safe = False,
-        dependency_links = ['http://download.zope.org/distribution/'],
-        entry_points = entry_points,
-        )
-    scripts = []
-    
 
 setup(name="ZODB3",
       version=VERSION,
