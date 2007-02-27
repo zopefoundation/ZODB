@@ -20,7 +20,7 @@ to application logic.  ZODB includes features such as a plugable storage
 interface, rich transaction support, and undo.
 """
 
-VERSION = "3.7.0b3"
+VERSION = "3.7.0b4"
 
 # The (non-obvious!) choices for the Trove Development Status line:
 # Development Status :: 5 - Production/Stable
@@ -37,6 +37,52 @@ Topic :: Software Development :: Libraries :: Python Modules
 Operating System :: Microsoft :: Windows
 Operating System :: Unix
 """
+
+try:
+    from setuptools import setup
+except ImportError:
+    from distutils.core import setup
+    extra = dict(
+        scripts = ["src/ZODB/scripts/fsdump.py",
+                   "src/ZODB/scripts/fsoids.py",
+                   "src/ZODB/scripts/fsrefs.py",
+                   "src/ZODB/scripts/fstail.py",
+                   "src/ZODB/scripts/fstest.py",
+                   "src/ZODB/scripts/repozo.py",
+                   "src/ZEO/scripts/zeopack.py",
+                   "src/ZEO/scripts/runzeo.py",
+                   "src/ZEO/scripts/zeopasswd.py",
+                   "src/ZEO/scripts/mkzeoinst.py",
+                   "src/ZEO/scripts/zeoctl.py",
+                   ],
+        )
+else:
+    entry_points = """
+    [console_scripts]
+    fsdump = ZODB.FileStorage.fsdump:main
+    fsoids = ZODB.scripts.fsoids:main
+    fsrefs = ZODB.scripts.fsrefs:main
+    fstail = ZODB.scripts.fstail:Main
+    repozo = ZODB.scripts.repozo:main
+    zeopack = ZEO.scripts.zeopack:main
+    runzeo = ZEO.runzeo:main
+    zeopasswd = ZEO.zeopasswd:main
+    mkzeoinst = ZEO.mkzeoinst:main
+    zeoctl = ZEO.zeoctl:main
+    """
+    extra = dict(
+        install_requires = [
+            'zope.interface',
+            'zope.proxy',
+            'zope.testing',
+            'ZConfig',
+            'zdaemon',
+            ],
+        zip_safe = False,
+        dependency_links = ['http://download.zope.org/distribution/'],
+        entry_points = entry_points,
+        )
+    scripts = []
 
 import glob
 import os
@@ -139,7 +185,7 @@ packages = ["BTrees", "BTrees.tests",
 def copy_other_files(cmd, outputbase):
     # A delicate dance to copy files with certain extensions
     # into a package just like .py files.
-    extensions = ["*.conf", "*.xml", "*.txt", "*.sh"]
+    extensions = ["*.conf", "*.xml", "*.txt", "*.sh", "*.txt"]
     directories = [
         "transaction",
         "transaction/tests",
@@ -192,52 +238,6 @@ class MyDistribution(Distribution):
 
 doclines = __doc__.split("\n")
 
-try:
-    from setuptools import setup
-except ImportError:
-    from distutils.core import setup
-    extra = dict(
-        scripts = ["src/ZODB/scripts/fsdump.py",
-                   "src/ZODB/scripts/fsoids.py",
-                   "src/ZODB/scripts/fsrefs.py",
-                   "src/ZODB/scripts/fstail.py",
-                   "src/ZODB/scripts/fstest.py",
-                   "src/ZODB/scripts/repozo.py",
-                   "src/ZEO/scripts/zeopack.py",
-                   "src/ZEO/scripts/runzeo.py",
-                   "src/ZEO/scripts/zeopasswd.py",
-                   "src/ZEO/scripts/mkzeoinst.py",
-                   "src/ZEO/scripts/zeoctl.py",
-                   ],
-        )
-else:
-    entry_points = """
-    [console_scripts]
-    fsdump = ZODB.FileStorage.fsdump:main
-    fsoids = ZODB.scripts.fsoids:main
-    fsrefs = ZODB.scripts.fsrefs:main
-    fstail = ZODB.scripts.fstail:Main
-    repozo = ZODB.scripts.repozo:main
-    zeopack = ZEO.scripts.zeopack:main
-    runzeo = ZEO.runzeo:main
-    zeopasswd = ZEO.zeopasswd:main
-    mkzeoinst = ZEO.mkzeoinst:main
-    zeoctl = ZEO.zeoctl:main
-    """
-    extra = dict(
-        install_requires = [
-            'zope.interface',
-            'zope.proxy',
-            'zope.testing',
-            'ZConfig',
-            'zdaemon',
-            ],
-        zip_safe = False,
-        dependency_links = ['http://download.zope.org/distribution/'],
-        entry_points = entry_points,
-        )
-    scripts = []
-    
 
 setup(name="ZODB3",
       version=VERSION,
