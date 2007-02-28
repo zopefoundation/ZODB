@@ -1,5 +1,4 @@
-
-What's new on ZODB 3.7.0b4?
+What's new on ZODB 3.7.0c1?
 ===========================
 
 Packaging
@@ -106,6 +105,9 @@ BTrees
 
 - (3.7a1) Suppressed warnings about signedness of characters when
   compiling under GCC 4.0.x.  See http://www.zope.org/Collectors/Zope/2027.
+
+- (3.7a1) Support for 64-bit integer keys and values has been provided as a
+  compile-time option.
 
 Connection
 ----------
