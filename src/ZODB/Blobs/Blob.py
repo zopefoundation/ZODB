@@ -38,6 +38,9 @@ class Blob(Persistent):
  
     zope.interface.implements(IBlob)
 
+    # Binding this to an attribute allows overriding it in the unit tests
+    _os_link = os.link
+
     _p_blob_readers = 0
     _p_blob_writers = 0
     _p_blob_uncommitted = None  # Filename of the uncommitted (dirty) data
@@ -56,9 +59,6 @@ class Blob(Persistent):
 
     def open(self, mode="r"):
         """Returns a file(-like) object representing blob data."""
-
-        tempdir = os.environ.get('ZODB_BLOB_TEMPDIR', tempfile.gettempdir())
-
         result = None
 
         if (mode.startswith("r") or mode=="U"):
@@ -76,7 +76,9 @@ class Blob(Persistent):
                 raise BlobError("Already opened for reading.")
 
             self._p_blob_writers += 1
-            result = BlobFile(self._get_uncommitted_filename(), mode, self)
+            if self._p_blob_uncommitted is None:
+                self._create_uncommitted_file()
+            result = BlobFile(self._p_blob_uncommitted, mode, self)
 
         elif mode.startswith("a"):
             if self._p_blob_readers != 0:
@@ -84,13 +86,13 @@ class Blob(Persistent):
 
             if self._p_blob_uncommitted is None:
                 # Create a new working copy
-                uncommitted = BlobFile(self._get_uncommitted_filename(), mode, self)
+                uncommitted = BlobFile(self._create_uncommitted_file(), mode, self)
                 # NOTE: _p_blob data appears by virtue of Connection._setstate
                 utils.cp(file(self._p_blob_data), uncommitted)
                 uncommitted.seek(0)
             else:
                 # Re-use existing working copy
-                uncommitted = BlobFile(self._get_uncommitted_filename(), mode, self)
+                uncommitted = BlobFile(self._p_blob_uncommitted, mode, self)
 
             self._p_blob_writers += 1
             result = uncommitted
@@ -150,13 +152,42 @@ class Blob(Persistent):
             raise BlobError("Already opened for writing.")
         if self._p_blob_readers != 0:
             raise BlobError("Already opened for reading.")
-        target = self._get_uncommitted_filename()
-        # XXX What if link fails and the target was removed? We should do a rename and
-        #  maybe name it back if link gives an exception.
-        if os.path.exists(target):
+
+        previous_uncommitted = bool(self._p_blob_uncommitted)
+        if previous_uncommitted:
+            # If we have uncommitted data, we move it aside for now
+            # in case the consumption doesn't work.
+            target = self._p_blob_uncommitted
+            target_aside = target+".aside"
+            os.rename(target, target_aside)
+        else:
+            target = self._create_uncommitted_file()
+            # We need to unlink the freshly created target again
+            # to allow link() to do its job
             os.unlink(target)
-        # XXX what if link() fails
-        os.link(filename, target)
+
+        try:
+            self._os_link(filename, target)
+        except:
+            # Recover from the failed consumption: First remove the file, it
+            # might exist and mark the pointer to the uncommitted file.
+            self._p_blob_uncommitted = None
+            if os.path.exists(target):
+                os.unlink(target)
+
+            # If there was a file moved aside, bring it back including the pointer to
+            # the uncommitted file.
+            if previous_uncommitted:
+                os.rename(target_aside, target)
+                self._p_blob_uncommitted = target
+
+            # Re-raise the exception to make the application aware of it.
+            raise
+        else:
+            if previous_uncommitted:
+                # The relinking worked so we can remove the data that we had 
+                # set aside.
+                os.unlink(target_aside)
 
     # utility methods
 
@@ -165,14 +196,10 @@ class Blob(Persistent):
         # Connection._setstate
         return self._p_blob_uncommitted or self._p_blob_data
 
-    def _get_uncommitted_filename(self):
-        """Return the filename for existing uncommitted data
-        or generate a new filename and set it as the current filename
-        for uncomitted data.
-        """
-        if self._p_blob_uncommitted is None:
-            tempdir = os.environ.get('ZODB_BLOB_TEMPDIR', tempfile.gettempdir())
-            self._p_blob_uncommitted = utils.mktemp(dir=tempdir)
+    def _create_uncommitted_file(self):
+        assert self._p_blob_uncommitted is None, "Uncommitted file already exists."
+        tempdir = os.environ.get('ZODB_BLOB_TEMPDIR', tempfile.gettempdir())
+        self._p_blob_uncommitted = utils.mktemp(dir=tempdir)
         return self._p_blob_uncommitted
 
     def _change(self):

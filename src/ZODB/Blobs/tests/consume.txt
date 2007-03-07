@@ -65,3 +65,40 @@ Now, after closing all readers and writers we can consume files again::
     >>> blob_read = blob.open('r')
     >>> blob_read.read()
     'I am another blob.'
+
+
+Edge cases
+==========
+
+There are some edge cases what happens when the link() operation fails. We simulate this in different states:
+
+Case 1: We don't have uncommitted data, but the link operation fails. The
+exception will be re-raised and the target file will not exist::
+
+    >>> input = tempfile.NamedTemporaryFile()
+    >>> input.write('Some data')
+    >>> input.flush()
+
+    >>> def failing_link(self, filename):
+    ...   raise Exception("I can't link.")
+
+    >>> blob = Blob()
+    >>> blob.open('r')
+    Traceback (most recent call last):
+    BlobError: Blob does not exist.
+
+    >>> blob._os_link = failing_link
+    >>> blob.consumeFile(input.name)
+    Traceback (most recent call last):
+    Exception: I can't link.
+
+The blob did not exist before, so it shouldn't exist now::
+
+    >>> blob.open('r')
+    Traceback (most recent call last):
+    BlobError: Blob does not exist.
+
+Case 2: We thave uncommitted data, but the link operation fails. The
+exception will be re-raised and the target file will not exist::
+
+    2. uncommitted data exist, the link fails, the uncommitted data is still there
