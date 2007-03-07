@@ -1,5 +1,22 @@
+##############################################################################
+#
+# Copyright (c) 2005-2007 Zope Corporation and Contributors.
+# All Rights Reserved.
+#
+# This software is subject to the provisions of the Zope Public License,
+# Version 2.1 (ZPL).  A copy of the ZPL should accompany this distribution.
+# THIS SOFTWARE IS PROVIDED "AS IS" AND ANY AND ALL EXPRESS OR IMPLIED
+# WARRANTIES ARE DISCLAIMED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+# WARRANTIES OF TITLE, MERCHANTABILITY, AGAINST INFRINGEMENT, AND FITNESS
+# FOR A PARTICULAR PURPOSE
+#
+##############################################################################
+"""Blob-related interfaces
+
+"""
 
 from zope.interface import Interface
+
 
 class IBlob(Interface):
     """A BLOB supports efficient handling of large data within ZODB."""
@@ -21,9 +38,17 @@ class IBlob(Interface):
         transaction.
         """
 
-    # XXX need a method to initialize the blob from the storage
-    # this means a) setting the _p_blob_data filename and b) putting
-    # the current data in that file
+    def consumeFile(filename):
+        """Will replace the current data of the blob with the file given under
+        filename.
+
+        This method uses link() internally and has the same requirements (UNIX
+        only and must live on the same partition as the original file).
+
+        The blob must not be opened for reading or writing when consuming a 
+        file.
+        """
+
 
 class IBlobStorage(Interface):
     """A storage supporting BLOBs."""
@@ -39,4 +64,3 @@ class IBlobStorage(Interface):
 
         Raises POSKeyError if the blobfile cannot be found.
         """
-

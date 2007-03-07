@@ -63,44 +63,40 @@ class Blob(Persistent):
 
         if (mode.startswith("r") or mode=="U"):
             if self._current_filename() is None:
-                raise BlobError, "Blob does not exist."
+                raise BlobError("Blob does not exist.")
 
             if self._p_blob_writers != 0:
-                raise BlobError, "Already opened for writing."
+                raise BlobError("Already opened for writing.")
 
             self._p_blob_readers += 1
             result = BlobFile(self._current_filename(), mode, self)
 
         elif mode.startswith("w"):
             if self._p_blob_readers != 0:
-                raise BlobError, "Already opened for reading."
-
-            if self._p_blob_uncommitted is None:
-                self._p_blob_uncommitted = utils.mktemp(dir=tempdir)
+                raise BlobError("Already opened for reading.")
 
             self._p_blob_writers += 1
-            result = BlobFile(self._p_blob_uncommitted, mode, self)
+            result = BlobFile(self._get_uncommitted_filename(), mode, self)
 
         elif mode.startswith("a"):
             if self._p_blob_readers != 0:
-                raise BlobError, "Already opened for reading."
+                raise BlobError("Already opened for reading.")
 
             if self._p_blob_uncommitted is None:
                 # Create a new working copy
-                self._p_blob_uncommitted = utils.mktemp(dir=tempdir)
-                uncommitted = BlobFile(self._p_blob_uncommitted, mode, self)
+                uncommitted = BlobFile(self._get_uncommitted_filename(), mode, self)
                 # NOTE: _p_blob data appears by virtue of Connection._setstate
                 utils.cp(file(self._p_blob_data), uncommitted)
                 uncommitted.seek(0)
             else:
                 # Re-use existing working copy
-                uncommitted = BlobFile(self._p_blob_uncommitted, mode, self)
+                uncommitted = BlobFile(self._get_uncommitted_filename(), mode, self)
 
             self._p_blob_writers += 1
             result = uncommitted
 
         else:
-            raise IOError, 'invalid mode: %s ' % mode
+            raise IOError('invalid mode: %s ' % mode)
 
         if result is not None:
             # We join the transaction with our own data manager in order to be
@@ -140,10 +136,27 @@ class Blob(Persistent):
 
         """
         if self._current_filename() is None:
-            raise BlobError, "Blob does not exist."
+            raise BlobError("Blob does not exist.")
         if self._p_blob_writers != 0:
-            raise BlobError, "Already opened for writing."
+            raise BlobError("Already opened for writing.")
+        # XXX this should increase the reader number and have a test !?!
         return file(self._current_filename(), "rb")
+
+    def consumeFile(self, filename):
+        """Will replace the current data of the blob with the file given under
+        filename.
+        """
+        if self._p_blob_writers != 0:
+            raise BlobError("Already opened for writing.")
+        if self._p_blob_readers != 0:
+            raise BlobError("Already opened for reading.")
+        target = self._get_uncommitted_filename()
+        # XXX What if link fails and the target was removed? We should do a rename and
+        #  maybe name it back if link gives an exception.
+        if os.path.exists(target):
+            os.unlink(target)
+        # XXX what if link() fails
+        os.link(filename, target)
 
     # utility methods
 
@@ -151,6 +164,16 @@ class Blob(Persistent):
         # NOTE: _p_blob_data and _p_blob_uncommitted appear by virtue of
         # Connection._setstate
         return self._p_blob_uncommitted or self._p_blob_data
+
+    def _get_uncommitted_filename(self):
+        """Return the filename for existing uncommitted data
+        or generate a new filename and set it as the current filename
+        for uncomitted data.
+        """
+        if self._p_blob_uncommitted is None:
+            tempdir = os.environ.get('ZODB_BLOB_TEMPDIR', tempfile.gettempdir())
+            self._p_blob_uncommitted = utils.mktemp(dir=tempdir)
+        return self._p_blob_uncommitted
 
     def _change(self):
         self._p_changed = 1
@@ -171,7 +194,7 @@ class Blob(Persistent):
         elif mode.startswith('w') or mode.startswith('a'):
             self._p_blob_writers = max(0, self._p_blob_writers - 1)
         else:
-            raise AssertionError, 'Unknown mode %s' % mode
+            raise AssertionError('Unknown mode %s' % mode)
 
     def _p_blob_refcounts(self):
         # used by unit tests
