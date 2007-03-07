@@ -3,10 +3,6 @@ Production
     - Ensure we detect and replay a failed txn involving blobs forward or
       backward at startup.
 
-    - Check for windows compatibility
-
-    - Check cache-compatibility with shared network filesystems (mcdonc)
-
 Far future
 
       More options for blob directory structures (e.g. dirstorages
