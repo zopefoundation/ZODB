@@ -132,7 +132,7 @@ class Blob(Persistent):
                 self._p_blob_manager.register_fh(result)
         return result
 
-    def openDetached(self):
+    def openDetached(self, class_=file):
         """Returns a file(-like) object in read mode that can be used
         outside of transaction boundaries.
 
@@ -142,7 +142,7 @@ class Blob(Persistent):
         if self._p_blob_writers != 0:
             raise BlobError("Already opened for writing.")
         # XXX this should increase the reader number and have a test !?!
-        return file(self._current_filename(), "rb")
+        return class_(self._current_filename(), "rb")
 
     def consumeFile(self, filename):
         """Will replace the current data of the blob with the file given under

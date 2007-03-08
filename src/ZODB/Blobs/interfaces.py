@@ -27,7 +27,7 @@ class IBlob(Interface):
         mode: Mode to open the file with. Possible values: r,w,r+,a
         """
 
-    def openDetached():
+    def openDetached(class_=file):
         """Returns a file(-like) object in read mode that can be used
         outside of transaction boundaries.
 
@@ -36,6 +36,9 @@ class IBlob(Interface):
 
         The handle is not attached to the blob and can be used outside of a
         transaction.
+
+        Optionally the class that should be used to open the file can be
+        specified. This can be used to e.g. use Zope's FileStreamIterator.
         """
 
     def consumeFile(filename):
