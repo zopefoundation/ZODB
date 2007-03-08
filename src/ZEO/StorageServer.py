@@ -482,12 +482,18 @@ class ZEOStorage:
         if key not in self.blob_transfer:
             tempname = mktemp()
             tempfile = open(tempname, "wb")
-            self.blob_transfer[key] = (tempname, tempfile)   # XXX Force close and remove them when Storage closes
+            # XXX Force close and remove them when Storage closes
+            self.blob_transfer[key] = (tempname, tempfile)
         else:
             tempname, tempfile = self.blob_transfer[key]
-
         tempfile.write(chunk)
- 
+
+    def storeBlobShared(self, oid, serial, data, filename, version, id):
+        # Reconstruct the full path from the filename in the OID directory
+        filename = os.path.join(self.storage.fshelper.getPathForOID(oid),
+                                filename)
+        self.blob_log.append((oid, serial, data, filename, version))
+
     def loadBlob(self, oid, serial, version, offset):
         key = (oid, serial)
         if not key in self.blob_loads:

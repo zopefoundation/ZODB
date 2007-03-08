@@ -141,7 +141,7 @@ class BlobStorage(BaseConfig):
         base = self.config.base.open()
         return BlobStorage(self.config.blob_dir, base)
 
-        
+
 class ZEOClient(BaseConfig):
 
     def open(self):
@@ -152,6 +152,7 @@ class ZEOClient(BaseConfig):
         return ClientStorage(
             L,
             blob_dir=self.config.blob_dir,
+            blob_cache_writable=self.config.blob_cache_writable,
             storage=self.config.storage,
             cache_size=self.config.cache_size,
             name=self.config.name,

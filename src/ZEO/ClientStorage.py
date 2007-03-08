@@ -112,7 +112,7 @@ class ClientStorage(object):
                  wait=None, wait_timeout=None,
                  read_only=0, read_only_fallback=0,
                  username='', password='', realm=None,
-                 blob_dir=None):
+                 blob_dir=None, blob_cache_writable=False):
         """ClientStorage constructor.
 
         This is typically invoked from a custom_zodb.py file.
@@ -187,6 +187,10 @@ class ClientStorage(object):
 
         blob_dir -- directory path for blob data.  'blob data' is data that
             is retrieved via the loadBlob API.
+
+        blob_cache_writable -- Flag whether the blob_dir is a writable shared
+        filesystem that should be used instead of transferring blob data over
+        zrpc.
 
         Note that the authentication protocol is defined by the server
         and is detected by the ClientStorage upon connecting (see
@@ -315,6 +319,8 @@ class ClientStorage(object):
         self._lock = threading.Lock()
 
         # XXX need to check for POSIX-ness here
+        self.blob_dir = blob_dir
+        self.blob_cache_writable = blob_cache_writable
         if blob_dir is not None:
             self.fshelper = FilesystemHelper(blob_dir)
             self.fshelper.create()
@@ -892,6 +898,26 @@ class ClientStorage(object):
     def storeBlob(self, oid, serial, data, blobfilename, version, txn):
         """Storage API: store a blob object."""
         serials = self.store(oid, serial, data, version, txn)
+        if self.blob_cache_writable:
+            self._storeBlob_shared(oid, serial, data, blobfilename, version, txn)
+        else:
+            self._storeBlob_copy(oid, serial, data, blobfilename, version, txn)
+        return serials
+
+    def _storeBlob_shared(self, oid, serial, data, filename, version, txn):
+        # First, move the blob into the blob directory
+        dir = self.fshelper.getPathForOID(oid)
+        if not os.path.exists(dir):
+            os.mkdir(dir)
+        fd, target = self.fshelper.blob_mkstemp(oid, serial)
+        os.close(fd)
+        os.rename(filename, target)
+        # Now tell the server where we put it
+        self._server.storeBlobShared(oid, serial, data,
+                                     os.path.basename(target), version, id(txn))
+
+    def _storeBlob_copy(self, oid, serial, data, blobfilename, version, txn):
+        """Version of storeBlob() that copies the data over the ZEO protocol."""
         blobfile = open(blobfilename, "rb")
         while True:
             chunk = blobfile.read(1<<16)
@@ -904,7 +930,6 @@ class ClientStorage(object):
                 break
         blobfile.close()
         os.unlink(blobfilename)
-        return serials
 
     def _do_load_blob(self, oid, serial, version):
         """Do the actual loading from the RPC server."""
@@ -999,7 +1024,7 @@ class ClientStorage(object):
 
     def getBlobLock(self):
         # indirection to support unit testing
-        return Lock()
+        return threading.Lock()
 
     def tpc_vote(self, txn):
         """Storage API: vote on a transaction."""
