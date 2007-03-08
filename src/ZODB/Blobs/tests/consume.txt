@@ -99,6 +99,26 @@ The blob did not exist before, so it shouldn't exist now::
     BlobError: Blob does not exist.
 
 Case 2: We thave uncommitted data, but the link operation fails. The
-exception will be re-raised and the target file will not exist::
+exception will be re-raised and the target file will exist with the previous
+uncomitted data::
 
-    2. uncommitted data exist, the link fails, the uncommitted data is still there
+
+    >>> input = tempfile.NamedTemporaryFile()
+    >>> input.write('Unimported data')
+    >>> input.flush()
+
+    >>> blob = Blob()
+    >>> blob_writing = blob.open('w')
+    >>> blob_writing.write('Uncommitted data')
+    >>> blob_writing.close()
+
+    >>> blob._os_link = failing_link
+    >>> blob.consumeFile(input.name)
+    Traceback (most recent call last):
+    Exception: I can't link.
+
+The blob did existed before and had uncommitted data, this shouldn't have
+changed::
+
+    >>> blob.open('r').read()
+    'Uncommitted data'
