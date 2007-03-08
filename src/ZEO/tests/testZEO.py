@@ -133,6 +133,9 @@ class GenericTests(
 
     """Combine tests from various origins in one class."""
 
+    blob_cache_writable = False
+    blob_cache_dir = None
+
     def setUp(self):
         logger.info("setUp() %s", self.id())
         port = get_port()
@@ -142,10 +145,12 @@ class GenericTests(
         self._pids = [pid]
         self._servers = [adminaddr]
         self._conf_path = path
-        self.blob_cache_dir = tempfile.mkdtemp()  # This is the blob cache for ClientStorage
+        if not self.blob_cache_dir:
+            self.blob_cache_dir = tempfile.mkdtemp()  # This is the blob cache for ClientStorage
         self._storage = ClientStorage(zport, '1', cache_size=20000000,
                                       min_disconnect_poll=0.5, wait=1,
-                                      wait_timeout=60, blob_dir=self.blob_cache_dir)
+                                      wait_timeout=60, blob_dir=self.blob_cache_dir,
+                                      blob_cache_writable=self.blob_cache_writable)
         self._storage.registerDB(DummyDB(), None)
 
     def tearDown(self):
@@ -397,16 +402,14 @@ test_classes = [OneTimeTests,
                 ConnectionInvalidationOnReconnect,
                ]
 
-class BlobAdaptedFileStorageTests(GenericTests):
-    """ZEO backed by a BlobStorage-adapted FileStorage."""
-    def setUp(self):
-        self.blobdir = tempfile.mkdtemp()  # This is the blob directory on the ZEO server
-        self.filestorage = tempfile.mktemp()
-        super(BlobAdaptedFileStorageTests, self).setUp()
+class CommonBlobTests:
 
     def tearDown(self):
         super(BlobAdaptedFileStorageTests, self).tearDown()
-        shutil.rmtree(self.blobdir)
+        if os.path.exists(self.blobdir):
+            # Might be gone already if the super() method deleted
+            # the shared directory. Don't worry.
+            shutil.rmtree(self.blobdir)
 
     def getConfig(self):
         return """
@@ -452,8 +455,48 @@ class BlobAdaptedFileStorageTests(GenericTests):
                                 tid_repr(revid) + BLOB_SUFFIX)
         self.assert_(os.path.exists(filename))
         self.assertEqual(somedata, open(filename).read())
-        
+
     def checkLoadBlob(self):
+        from ZODB.Blobs.Blob import Blob
+        from ZODB.tests.StorageTestBase import zodb_pickle, ZERO, \
+             handle_serials
+        import transaction
+
+        version = ''
+        somedata = 'a' * 10
+
+        blob = Blob()
+        bd_fh = blob.open('w')
+        bd_fh.write(somedata)
+        bd_fh.close()
+        tfname = bd_fh.name
+        oid = self._storage.new_oid()
+        data = zodb_pickle(blob)
+
+        t = transaction.Transaction()
+        try:
+            self._storage.tpc_begin(t)
+            r1 = self._storage.storeBlob(oid, ZERO, data, tfname, '', t)
+            r2 = self._storage.tpc_vote(t)
+            serial = handle_serials(oid, r1, r2)
+            self._storage.tpc_finish(t)
+        except:
+            self._storage.tpc_abort(t)
+            raise
+
+        filename = self._storage.loadBlob(oid, serial, version)
+        self.assertEquals(somedata, open(filename, 'rb').read())
+
+
+class BlobAdaptedFileStorageTests(GenericTests, CommonBlobTests):
+    """ZEO backed by a BlobStorage-adapted FileStorage."""
+
+    def setUp(self):
+        self.blobdir = tempfile.mkdtemp()  # This is the blob directory on the ZEO server
+        self.filestorage = tempfile.mktemp()
+        super(BlobAdaptedFileStorageTests, self).setUp()
+
+    def checkLoadBlobLocks(self):
         from ZODB.Blobs.Blob import Blob
         from ZODB.tests.StorageTestBase import zodb_pickle, ZERO, \
              handle_serials
@@ -527,8 +570,18 @@ class BlobAdaptedFileStorageTests(GenericTests):
         self.assertEqual(thestatusdict.added, [(oid, serial)])
         self.assertEqual(thestatusdict.removed, [(oid, serial)])
 
+
+class BlobWritableCacheTests(GenericTests, CommonBlobTests):
+
+    def setUp(self):
+        self.blobdir = self.blob_cache_dir = tempfile.mkdtemp()
+        self.filestorage = tempfile.mktemp()
+        self.blob_cache_writable = True
+        super(BlobWritableCacheTests, self).setUp()
+
+
 test_classes = [FileStorageTests, MappingStorageTests,
-                BlobAdaptedFileStorageTests]
+                BlobAdaptedFileStorageTests, BlobWritableCacheTests]
 
 def test_suite():
     suite = unittest.TestSuite()

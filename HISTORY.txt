@@ -3,6 +3,8 @@ What's new in ZODB3 3.8.0?
 ==========================
 Release date: ???
 
+- Added support for Blobs. 
+
 BTrees
 ------
 

@@ -226,6 +226,10 @@ class StorageServer:
     def storeBlob(self, oid, serial, chunk, version, id):
         self.rpc.callAsync('storeBlob', oid, serial, chunk, version, id)
 
+    def storeBlobShared(self, oid, serial, data, filename, version, id):
+        self.rpc.callAsync('storeBlobShared', oid, serial, data, filename, 
+                           version, id)
+
     ##
     # Start two-phase commit for a transaction
     # @param id id used by client to identify current transaction.  The

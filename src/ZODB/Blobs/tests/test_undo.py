@@ -94,6 +94,47 @@ class BlobUndoTests(unittest.TestCase):
         self.assertEqual(blob.open('r').read(), 'this is state 1')
         transaction.abort()
 
+    def testUndoAfterConsumption(self):
+        base_storage = FileStorage(self.storagefile)
+        blob_storage = BlobStorage(self.blob_dir, base_storage)
+        database = DB(blob_storage)
+        connection = database.open()
+        root = connection.root()
+        transaction.begin()
+        to_consume = tempfile.NamedTemporaryFile()
+        to_consume.write('this is state 1')
+        to_consume.flush()
+
+        blob = Blob()
+        blob.consumeFile(to_consume.name)
+
+        root['blob'] = blob
+        transaction.commit()
+
+        transaction.begin()
+        blob = root['blob']
+        to_consume = tempfile.NamedTemporaryFile()
+        to_consume.write('this is state 2')
+        to_consume.flush()
+        blob.consumeFile(to_consume.name)
+        transaction.commit()
+
+        transaction.begin()
+        blob = root['blob']
+        self.assertEqual(blob.open('r').read(), 'this is state 2')
+        transaction.abort()
+
+        serial = base64.encodestring(blob_storage._tid)
+
+        transaction.begin()
+        blob_storage.undo(serial, blob_storage._transaction)
+        transaction.commit()
+
+        transaction.begin()
+        blob = root['blob']
+        self.assertEqual(blob.open('r').read(), 'this is state 1')
+        transaction.abort()
+
     def testRedo(self):
         base_storage = FileStorage(self.storagefile)
         blob_storage = BlobStorage(self.blob_dir, base_storage)

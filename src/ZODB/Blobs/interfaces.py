@@ -1,5 +1,22 @@
+##############################################################################
+#
+# Copyright (c) 2005-2007 Zope Corporation and Contributors.
+# All Rights Reserved.
+#
+# This software is subject to the provisions of the Zope Public License,
+# Version 2.1 (ZPL).  A copy of the ZPL should accompany this distribution.
+# THIS SOFTWARE IS PROVIDED "AS IS" AND ANY AND ALL EXPRESS OR IMPLIED
+# WARRANTIES ARE DISCLAIMED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+# WARRANTIES OF TITLE, MERCHANTABILITY, AGAINST INFRINGEMENT, AND FITNESS
+# FOR A PARTICULAR PURPOSE
+#
+##############################################################################
+"""Blob-related interfaces
+
+"""
 
 from zope.interface import Interface
+
 
 class IBlob(Interface):
     """A BLOB supports efficient handling of large data within ZODB."""
@@ -10,7 +27,7 @@ class IBlob(Interface):
         mode: Mode to open the file with. Possible values: r,w,r+,a
         """
 
-    def openDetached():
+    def openDetached(class_=file):
         """Returns a file(-like) object in read mode that can be used
         outside of transaction boundaries.
 
@@ -19,11 +36,23 @@ class IBlob(Interface):
 
         The handle is not attached to the blob and can be used outside of a
         transaction.
+
+        Optionally the class that should be used to open the file can be
+        specified. This can be used to e.g. use Zope's FileStreamIterator.
         """
 
-    # XXX need a method to initialize the blob from the storage
-    # this means a) setting the _p_blob_data filename and b) putting
-    # the current data in that file
+    def consumeFile(filename):
+        """Will replace the current data of the blob with the file given under
+        filename.
+
+        This method uses link-like semantics internally and has the requirement
+        that the file that is to be consumed lives on the same volume (or
+        mount/share) as the blob directory.
+
+        The blob must not be opened for reading or writing when consuming a 
+        file.
+        """
+
 
 class IBlobStorage(Interface):
     """A storage supporting BLOBs."""
@@ -39,4 +68,3 @@ class IBlobStorage(Interface):
 
         Raises POSKeyError if the blobfile cannot be found.
         """
-

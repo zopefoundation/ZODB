@@ -16,4 +16,4 @@ from zope.testing.doctestunit import DocFileSuite
 
 def test_suite():
     return DocFileSuite("basic.txt",  "connection.txt", "transaction.txt",
-                        "packing.txt", "importexport.txt")
+                        "packing.txt", "importexport.txt", "consume.txt")

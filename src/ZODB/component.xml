@@ -67,9 +67,18 @@
     <multikey name="server" datatype="socket-connection-address" required="yes"/>
     <key name="blob-dir" required="no">
       <description>
-        Path name to the blob storage directory.
+        Path name to the blob cache directory.
       </description>
     </key>
+    <key name="blob-cache-writable" required="no" default="no"
+        datatype="boolean">
+      <description>
+          Tells whether the cache is a shared writable directory
+          and that the ZEO protocol should not transfer the file
+          but only the filename when committing.
+      </description>
+    </key>
+
     <key name="storage" default="1">
       <description>
         The name of the storage that the client wants to use.  If the

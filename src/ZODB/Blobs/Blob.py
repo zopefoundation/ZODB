@@ -17,6 +17,7 @@
 __docformat__ = "reStructuredText"
 
 import os
+import sys
 import time
 import tempfile
 import logging
@@ -30,13 +31,21 @@ import transaction
 import transaction.interfaces
 from persistent import Persistent
 
+if sys.platform == 'win32':
+    import win32file
 
 BLOB_SUFFIX = ".blob"
 
 
 class Blob(Persistent):
- 
+
     zope.interface.implements(IBlob)
+
+    # Binding this to an attribute allows overriding it in the unit tests
+    if sys.platform == 'win32':
+        _os_link = lambda src, dst: win32file.CreateHardLink(src, dst, None)
+    else:
+        _os_link = os.link
 
     _p_blob_readers = 0
     _p_blob_writers = 0
@@ -56,39 +65,34 @@ class Blob(Persistent):
 
     def open(self, mode="r"):
         """Returns a file(-like) object representing blob data."""
-
-        tempdir = os.environ.get('ZODB_BLOB_TEMPDIR', tempfile.gettempdir())
-
         result = None
 
         if (mode.startswith("r") or mode=="U"):
             if self._current_filename() is None:
-                raise BlobError, "Blob does not exist."
+                raise BlobError("Blob does not exist.")
 
             if self._p_blob_writers != 0:
-                raise BlobError, "Already opened for writing."
+                raise BlobError("Already opened for writing.")
 
             self._p_blob_readers += 1
             result = BlobFile(self._current_filename(), mode, self)
 
         elif mode.startswith("w"):
             if self._p_blob_readers != 0:
-                raise BlobError, "Already opened for reading."
-
-            if self._p_blob_uncommitted is None:
-                self._p_blob_uncommitted = utils.mktemp(dir=tempdir)
+                raise BlobError("Already opened for reading.")
 
             self._p_blob_writers += 1
+            if self._p_blob_uncommitted is None:
+                self._create_uncommitted_file()
             result = BlobFile(self._p_blob_uncommitted, mode, self)
 
         elif mode.startswith("a"):
             if self._p_blob_readers != 0:
-                raise BlobError, "Already opened for reading."
+                raise BlobError("Already opened for reading.")
 
             if self._p_blob_uncommitted is None:
                 # Create a new working copy
-                self._p_blob_uncommitted = utils.mktemp(dir=tempdir)
-                uncommitted = BlobFile(self._p_blob_uncommitted, mode, self)
+                uncommitted = BlobFile(self._create_uncommitted_file(), mode, self)
                 # NOTE: _p_blob data appears by virtue of Connection._setstate
                 utils.cp(file(self._p_blob_data), uncommitted)
                 uncommitted.seek(0)
@@ -100,50 +104,72 @@ class Blob(Persistent):
             result = uncommitted
 
         else:
-            raise IOError, 'invalid mode: %s ' % mode
+            raise IOError('invalid mode: %s ' % mode)
 
         if result is not None:
-            # We join the transaction with our own data manager in order to be
-            # notified of commit/vote/abort events.  We do this because at
-            # transaction boundaries, we need to fix up _p_ reference counts
-            # that keep track of open readers and writers and close any
-            # writable filehandles we've opened.
-            if self._p_blob_manager is None:
-                # Blobs need to always participate in transactions.
-                if self._p_jar is not None:
-                    # If we are connected to a database, then we use the
-                    # transaction manager that belongs to this connection
-                    tm = self._p_jar.transaction_manager
-                else:
-                    # If we are not connected to a database, we check whether
-                    # we have been given an explicit transaction manager
-                    if self._p_blob_transaction:
-                        tm = self._p_blob_transaction
-                    else:
-                        # Otherwise we use the default
-                        # transaction manager as an educated guess.
-                        tm = transaction.manager
-                # Create our datamanager and join he current transaction.
-                dm = BlobDataManager(self, result, tm)
-                tm.get().join(dm)
-            else:
-                # Each blob data manager should manage only the one blob
-                # assigned to it.  Assert that this is the case and it is the
-                # correct blob
-                assert self._p_blob_manager.blob is self
-                self._p_blob_manager.register_fh(result)
+            self._setup_transaction_manager(result)
         return result
 
-    def openDetached(self):
+    def openDetached(self, class_=file):
         """Returns a file(-like) object in read mode that can be used
         outside of transaction boundaries.
 
         """
         if self._current_filename() is None:
-            raise BlobError, "Blob does not exist."
+            raise BlobError("Blob does not exist.")
         if self._p_blob_writers != 0:
-            raise BlobError, "Already opened for writing."
-        return file(self._current_filename(), "rb")
+            raise BlobError("Already opened for writing.")
+        # XXX this should increase the reader number and have a test !?!
+        return class_(self._current_filename(), "rb")
+
+    def consumeFile(self, filename):
+        """Will replace the current data of the blob with the file given under
+        filename.
+        """
+        if self._p_blob_writers != 0:
+            raise BlobError("Already opened for writing.")
+        if self._p_blob_readers != 0:
+            raise BlobError("Already opened for reading.")
+
+        previous_uncommitted = bool(self._p_blob_uncommitted)
+        if previous_uncommitted:
+            # If we have uncommitted data, we move it aside for now
+            # in case the consumption doesn't work.
+            target = self._p_blob_uncommitted
+            target_aside = target+".aside"
+            os.rename(target, target_aside)
+        else:
+            target = self._create_uncommitted_file()
+            # We need to unlink the freshly created target again
+            # to allow link() to do its job
+            os.unlink(target)
+
+        try:
+            self._os_link(filename, target)
+        except:
+            # Recover from the failed consumption: First remove the file, it
+            # might exist and mark the pointer to the uncommitted file.
+            self._p_blob_uncommitted = None
+            if os.path.exists(target):
+                os.unlink(target)
+
+            # If there was a file moved aside, bring it back including the pointer to
+            # the uncommitted file.
+            if previous_uncommitted:
+                os.rename(target_aside, target)
+                self._p_blob_uncommitted = target
+
+            # Re-raise the exception to make the application aware of it.
+            raise
+        else:
+            if previous_uncommitted:
+                # The relinking worked so we can remove the data that we had 
+                # set aside.
+                os.unlink(target_aside)
+
+            # We changed the blob state and have to make sure we join the
+            # transaction.
+            self._change()
 
     # utility methods
 
@@ -152,8 +178,45 @@ class Blob(Persistent):
         # Connection._setstate
         return self._p_blob_uncommitted or self._p_blob_data
 
+    def _create_uncommitted_file(self):
+        assert self._p_blob_uncommitted is None, "Uncommitted file already exists."
+        tempdir = os.environ.get('ZODB_BLOB_TEMPDIR', tempfile.gettempdir())
+        self._p_blob_uncommitted = utils.mktemp(dir=tempdir)
+        return self._p_blob_uncommitted
+
     def _change(self):
         self._p_changed = 1
+
+    def _setup_transaction_manager(self, result):
+        # We join the transaction with our own data manager in order to be
+        # notified of commit/vote/abort events.  We do this because at
+        # transaction boundaries, we need to fix up _p_ reference counts
+        # that keep track of open readers and writers and close any
+        # writable filehandles we've opened.
+        if self._p_blob_manager is None:
+            # Blobs need to always participate in transactions.
+            if self._p_jar is not None:
+                # If we are connected to a database, then we use the
+                # transaction manager that belongs to this connection
+                tm = self._p_jar.transaction_manager
+            else:
+                # If we are not connected to a database, we check whether
+                # we have been given an explicit transaction manager
+                if self._p_blob_transaction:
+                    tm = self._p_blob_transaction
+                else:
+                    # Otherwise we use the default
+                    # transaction manager as an educated guess.
+                    tm = transaction.manager
+            # Create our datamanager and join he current transaction.
+            dm = BlobDataManager(self, result, tm)
+            tm.get().join(dm)
+        elif result:
+            # Each blob data manager should manage only the one blob
+            # assigned to it.  Assert that this is the case and it is the
+            # correct blob
+            assert self._p_blob_manager.blob is self
+            self._p_blob_manager.register_fh(result)
 
     # utility methods which should not cause the object's state to be
     # loaded if they are called while the object is a ghost.  Thus,
@@ -171,7 +234,7 @@ class Blob(Persistent):
         elif mode.startswith('w') or mode.startswith('a'):
             self._p_blob_writers = max(0, self._p_blob_writers - 1)
         else:
-            raise AssertionError, 'Unknown mode %s' % mode
+            raise AssertionError('Unknown mode %s' % mode)
 
     def _p_blob_refcounts(self):
         # used by unit tests
