@@ -101,35 +101,7 @@ class Blob(Persistent):
             raise IOError('invalid mode: %s ' % mode)
 
         if result is not None:
-            # We join the transaction with our own data manager in order to be
-            # notified of commit/vote/abort events.  We do this because at
-            # transaction boundaries, we need to fix up _p_ reference counts
-            # that keep track of open readers and writers and close any
-            # writable filehandles we've opened.
-            if self._p_blob_manager is None:
-                # Blobs need to always participate in transactions.
-                if self._p_jar is not None:
-                    # If we are connected to a database, then we use the
-                    # transaction manager that belongs to this connection
-                    tm = self._p_jar.transaction_manager
-                else:
-                    # If we are not connected to a database, we check whether
-                    # we have been given an explicit transaction manager
-                    if self._p_blob_transaction:
-                        tm = self._p_blob_transaction
-                    else:
-                        # Otherwise we use the default
-                        # transaction manager as an educated guess.
-                        tm = transaction.manager
-                # Create our datamanager and join he current transaction.
-                dm = BlobDataManager(self, result, tm)
-                tm.get().join(dm)
-            else:
-                # Each blob data manager should manage only the one blob
-                # assigned to it.  Assert that this is the case and it is the
-                # correct blob
-                assert self._p_blob_manager.blob is self
-                self._p_blob_manager.register_fh(result)
+            self._setup_transaction_manager(result)
         return result
 
     def openDetached(self, class_=file):
@@ -189,6 +161,10 @@ class Blob(Persistent):
                 # set aside.
                 os.unlink(target_aside)
 
+            # We changed the blob state and have to make sure we join the
+            # transaction.
+            self._change()
+
     # utility methods
 
     def _current_filename(self):
@@ -204,6 +180,37 @@ class Blob(Persistent):
 
     def _change(self):
         self._p_changed = 1
+
+    def _setup_transaction_manager(self, result):
+        # We join the transaction with our own data manager in order to be
+        # notified of commit/vote/abort events.  We do this because at
+        # transaction boundaries, we need to fix up _p_ reference counts
+        # that keep track of open readers and writers and close any
+        # writable filehandles we've opened.
+        if self._p_blob_manager is None:
+            # Blobs need to always participate in transactions.
+            if self._p_jar is not None:
+                # If we are connected to a database, then we use the
+                # transaction manager that belongs to this connection
+                tm = self._p_jar.transaction_manager
+            else:
+                # If we are not connected to a database, we check whether
+                # we have been given an explicit transaction manager
+                if self._p_blob_transaction:
+                    tm = self._p_blob_transaction
+                else:
+                    # Otherwise we use the default
+                    # transaction manager as an educated guess.
+                    tm = transaction.manager
+            # Create our datamanager and join he current transaction.
+            dm = BlobDataManager(self, result, tm)
+            tm.get().join(dm)
+        elif result:
+            # Each blob data manager should manage only the one blob
+            # assigned to it.  Assert that this is the case and it is the
+            # correct blob
+            assert self._p_blob_manager.blob is self
+            self._p_blob_manager.register_fh(result)
 
     # utility methods which should not cause the object's state to be
     # loaded if they are called while the object is a ghost.  Thus,
