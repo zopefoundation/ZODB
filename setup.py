@@ -193,11 +193,14 @@ def copy_other_files(cmd, outputbase):
     # into a package just like .py files.
     extensions = ["*.conf", "*.xml", "*.txt", "*.sh"]
     directories = [
+        "BTrees",
         "transaction",
         "transaction/tests",
         "persistent/tests",
         "ZEO",
+        "ZEO/scripts",
         "ZODB",
+        "ZODB/scripts",
         "ZODB/tests",
         "ZODB/Blobs",
         "ZODB/Blobs/tests",
