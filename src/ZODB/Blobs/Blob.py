@@ -17,6 +17,7 @@
 __docformat__ = "reStructuredText"
 
 import os
+import sys
 import time
 import tempfile
 import logging
@@ -30,16 +31,21 @@ import transaction
 import transaction.interfaces
 from persistent import Persistent
 
+if sys.platform == 'win32':
+    import win32file
 
 BLOB_SUFFIX = ".blob"
 
 
 class Blob(Persistent):
- 
+
     zope.interface.implements(IBlob)
 
     # Binding this to an attribute allows overriding it in the unit tests
-    _os_link = os.link
+    if sys.platform == 'win32':
+        _os_link = lambda src, dst: win32file.CreateHardLink(src, dst, None)
+    else:
+        _os_link = os.link
 
     _p_blob_readers = 0
     _p_blob_writers = 0
