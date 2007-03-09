@@ -43,7 +43,7 @@ class Blob(Persistent):
 
     # Binding this to an attribute allows overriding it in the unit tests
     if sys.platform == 'win32':
-        _os_link = lambda self, src, dst: win32file.CreateHardLink(src, dst, None)
+        _os_link = lambda self, src, dst: win32file.CreateHardLink(dst, src, None)
     else:
         _os_link = os.link
 
