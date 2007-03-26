@@ -16,7 +16,11 @@
 $Id$
 """
 
+import os
+import shutil
+import tempfile
 import time
+
 import persistent
 import transaction
 from ZODB.MappingStorage import MappingStorage
@@ -38,3 +42,18 @@ class P(persistent.Persistent):
 
     def __repr__(self):
         return 'P(%s)' % self.name
+
+def setUp(test):
+    test.globs['__teardown_stack__'] = []
+    tmp = tempfile.mkdtemp('test')
+    registerTearDown(test, lambda : shutil.rmtree(tmp))
+    here = os.getcwd()
+    registerTearDown(test, lambda : os.chdir(here))
+    os.chdir(tmp)
+    
+def registerTearDown(test, func):
+    test.globs['__teardown_stack__'].append(func)    
+    
+def tearDown(test):
+    for f in test.globs['__teardown_stack__']:
+        f()
