@@ -14,7 +14,9 @@
 import os, unittest
 import transaction
 import ZODB.FileStorage
+import ZODB.tests.util
 from ZODB import POSException
+from ZODB import DB
 
 from ZODB.tests import StorageTestBase, BasicStorage, \
      TransactionalUndoStorage, VersionStorage, \
@@ -192,7 +194,6 @@ class FileStorageTests(
         # Now the cached 'oid' value is ignored:  verify that this is so.
         import cPickle as pickle
         from ZODB.utils import z64
-        from ZODB.DB import DB
 
         # Create some data.
         db = DB(self._storage)
@@ -281,7 +282,6 @@ class FileStorageTests(
         # global.
         import time
 
-        from ZODB.DB import DB
         from ZODB.utils import U64, p64
         from ZODB.FileStorage.format import CorruptedError
 
@@ -324,7 +324,6 @@ class FileStorageTests(
             self.fail("expected CorruptedError")
 
     def check_record_iternext(self):
-        from ZODB.DB import DB
 
         db = DB(self._storage)
         conn = db.open()
@@ -350,7 +349,6 @@ class FileStorageTests(
                 self.assertEqual(next_oid, None)
             else:
                 self.assertNotEqual(next_oid, None)
-
 
 class FileStorageRecoveryTest(
     StorageTestBase.StorageTestBase,
@@ -409,8 +407,6 @@ def timestamp(minutes):
 def testTimeTravelOnOpen():
     """
     >>> from ZODB.FileStorage import FileStorage
-    >>> from ZODB.DB import DB
-    >>> import transaction
     >>> from zope.testing.loggingsupport import InstalledHandler
 
     Arrange to capture log messages -- they're an important part of
@@ -484,6 +480,55 @@ def testTimeTravelOnOpen():
     >>> handler.uninstall()
     """
 
+def lastInvalidations():
+    """
+
+The last invalidations method is used by a storage server to pupulate
+it's data structure of recent invalidations.  The lastInvalidations
+method is passed a count and must return up to count number of the
+most recent transactions.
+
+We'll create a FileStorage and populate it with some data, keeping
+track of the transactions along the way:
+
+    >>> fs = ZODB.FileStorage.FileStorage('t.fs', create=True)
+    >>> db = DB(fs)
+    >>> conn = db.open()
+    >>> from persistent.dict import PersistentDict
+    >>> last = []
+    >>> for i in range(100):
+    ...     conn.root()[i] = PersistentDict()
+    ...     transaction.commit()
+    ...     last.append(fs.lastTransaction())
+
+Now, we can call lastInvalidations on it:
+
+    >>> invalidations = fs.lastInvalidations(10)
+    >>> [t for (t, oids) in invalidations] == last[-10:]
+    True
+
+    >>> from ZODB.utils import u64
+    >>> [[u64(oid) for (oid, version) in oids]
+    ...  for (i, oids) in invalidations]
+    ... # doctest: +NORMALIZE_WHITESPACE
+    [[0L, 91L], [0L, 92L], [0L, 93L], [0L, 94L], [0L, 95L],
+     [0L, 96L], [0L, 97L], [0L, 98L], [0L, 99L], [0L, 100L]]
+
+If we ask for more transactions than there are, we'll get as many as
+there are:
+
+    >>> len(fs.lastInvalidations(1000))
+    101
+
+Of course, calling lastInvalidations on an empty storage refturns no data:
+
+    >>> fs.close()
+    >>> fs = ZODB.FileStorage.FileStorage('t.fs', create=True)
+    >>> list(fs.lastInvalidations(10))
+    []
+
+    """
+
 def test_suite():
     from zope.testing import doctest
 
@@ -491,7 +536,8 @@ def test_suite():
     for klass in [FileStorageTests, Corruption.FileStorageCorruptTests,
                   FileStorageRecoveryTest, SlowFileStorageTest]:
         suite.addTest(unittest.makeSuite(klass, "check"))
-    suite.addTest(doctest.DocTestSuite())
+    suite.addTest(doctest.DocTestSuite(setUp=ZODB.tests.util.setUp,
+                                       tearDown=ZODB.tests.util.tearDown))
     return suite
 
 if __name__=='__main__':

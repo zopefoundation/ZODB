@@ -1390,6 +1390,25 @@ class FileStorage(BaseStorage.BaseStorage,
         """Return transaction id for last committed transaction"""
         return self._ltid
 
+    def lastInvalidations(self, count):
+        file = self._file
+        seek = file.seek
+        read = file.read
+        self._lock_acquire()
+        try:
+            pos = self._pos
+            while count > 0 and pos > 4:
+                count -= 1
+                seek(pos-8)
+                pos = pos - 8 - u64(read(8))
+
+            seek(0)
+            return [(trans.tid, [(r.oid, r.version) for r in trans])
+                    for trans in FileIterator(self._file, pos=pos)]
+        finally:
+            self._lock_release()
+        
+
     def lastTid(self, oid):
         """Return last serialno committed for object oid.
 
@@ -1822,7 +1841,7 @@ class FileIterator(Iterator, FileStorageFormatter):
     _ltid = z64
     _file = None
 
-    def __init__(self, file, start=None, stop=None):
+    def __init__(self, file, start=None, stop=None, pos=4L):
         if isinstance(file, str):
             file = open(file, 'rb')
         self._file = file
@@ -1830,7 +1849,7 @@ class FileIterator(Iterator, FileStorageFormatter):
             raise FileStorageFormatError(file.name)
         file.seek(0,2)
         self._file_size = file.tell()
-        self._pos = 4L
+        self._pos = pos
         assert start is None or isinstance(start, str)
         assert stop is None or isinstance(stop, str)
         if start:
