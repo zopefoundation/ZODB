@@ -283,7 +283,7 @@ class ZEOStorage:
         return p, s, v, pv, sv
 
     def getInvalidations(self, tid):
-        invtid, invlist = self.server.get_invalidations(tid)
+        invtid, invlist = self.server.get_invalidations(self.storage_id, tid)
         if invtid is None:
             return None
         self.log("Return %d invalidations up to tid %s"
@@ -787,11 +787,20 @@ class StorageServer:
         self.database = None
         if auth_protocol:
             self._setup_auth(auth_protocol)
-        # A list of at most invalidation_queue_size invalidations.
+        # A list, by server, of at most invalidation_queue_size invalidations.
         # The list is kept in sorted order with the most recent
         # invalidation at the front.  The list never has more than
         # self.invq_bound elements.
-        self.invq = []
+        self.invq = {}
+        for name, storage in storages.items():
+            lastInvalidations = getattr(storage, 'lastInvalidations', None)
+            if lastInvalidations is None:
+                self.invq[name] = [(storage.lastTransaction(), None)]
+            else:
+                self.invq[name] = list(
+                    lastInvalidations(invalidation_queue_size)
+                    )
+                self.invq[name].reverse()
         self.invq_bound = invalidation_queue_size
         self.connections = {}
         self.dispatcher = self.DispatcherClass(addr,
@@ -906,17 +915,20 @@ class StorageServer:
           the current client.
 
         """
+
         if invalidated:
-            if len(self.invq) >= self.invq_bound:
-                self.invq.pop()
-            self.invq.insert(0, (tid, invalidated))
+            invq = self.invq[storage_id]
+            if len(invq) >= self.invq_bound:
+                invq.pop()
+            invq.insert(0, (tid, invalidated))
+
         for p in self.connections.get(storage_id, ()):
             if invalidated and p is not conn:
                 p.client.invalidateTransaction(tid, invalidated)
             elif info is not None:
                 p.client.info(info)
 
-    def get_invalidations(self, tid):
+    def get_invalidations(self, storage_id, tid):
         """Return a tid and list of all objects invalidation since tid.
 
         The tid is the most recent transaction id seen by the client.
@@ -926,22 +938,23 @@ class StorageServer:
         do full cache verification.
         """
 
-        if not self.invq:
+        invq = self.invq[storage_id]
+        if not invq:
             log("invq empty")
             return None, []
 
-        earliest_tid = self.invq[-1][0]
+        earliest_tid = invq[-1][0]
         if earliest_tid > tid:
             log("tid to old for invq %s < %s" % (u64(tid), u64(earliest_tid)))
             return None, []
 
         oids = {}
-        for _tid, L in self.invq:
+        for _tid, L in invq:
             if _tid <= tid:
                 break
             for key in L:
                 oids[key] = 1
-        latest_tid = self.invq[0][0]
+        latest_tid = invq[0][0]
         return latest_tid, oids.keys()
 
     def close_server(self):

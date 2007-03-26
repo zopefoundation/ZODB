@@ -1,6 +1,21 @@
 What's new on ZODB 3.8a1?
 =========================
 
+ZEO
+---
+
+- (3.8a1) ZEO's strategoes for avoiding client cache verification were
+  improved in the case that servers are restarted.  Before, if
+  transactions were committed after the restart, clients that were up
+  to date or nearly up to date at the time of the restart and then
+  connected had to verify their caches.  Now, it is far more likely
+  that a client that reconnects soon after a server restart won't have
+  to verify its cache.
+
+- Fixed a serious bug that could cause clients that disconnect from and
+  reconnect to a server to get bad invalidation data if the server
+  serves multiple storages with active writes.
+
 Transactions
 ------------
 
