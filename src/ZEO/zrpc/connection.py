@@ -28,6 +28,7 @@ from ZEO.zrpc.error import ZRPCError, DisconnectedError
 from ZEO.zrpc.marshal import Marshaller
 from ZEO.zrpc.trigger import trigger
 from ZEO.zrpc.log import short_repr, log
+from ZEO.zrpc import condition
 from ZODB.loglevels import BLATHER, TRACE
 
 REPLY = ".reply" # message name used for replies
@@ -386,7 +387,7 @@ class Connection(smac.SizedMessageAsyncConnection, object):
 
         # replies_cond is used to block when a synchronous call is
         # waiting for a response
-        self.replies_cond = threading.Condition()
+        self.replies_cond = condition.Condition()
         self.replies = {}
 
         # waiting_for_reply is used internally to indicate whether
