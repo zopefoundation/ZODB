@@ -439,6 +439,9 @@ class Connection(smac.SizedMessageAsyncConnection, object):
         self.closed = True
         self.__super_close()
         self.close_trigger()
+        self.replies_cond.acquire()
+        self.replies_cond.notifyAll()
+        self.replies_cond.release()
 
     def close_trigger(self):
         # Overridden by ManagedClientConnection.
@@ -733,24 +736,8 @@ class Connection(smac.SizedMessageAsyncConnection, object):
                         self.log("wait(%d): reply=%s" %
                                  (msgid, short_repr(reply)), level=TRACE)
                     return reply
-                if self.is_async():
-                    self.replies_cond.wait(10.0)
-                else:
-                    self.replies_cond.release()
-                    try:
-                        try:
-                            if __debug__:
-                                self.log("wait(%d): asyncore.poll(%s)" %
-                                         (msgid, delay), level=TRACE)
-                            asyncore.poll(delay, self._singleton)
-                            if delay < 1.0:
-                                delay += delay
-                        except select.error, err:
-                            self.log("Closing.  asyncore.poll() raised %s."
-                                     % err, level=BLATHER)
-                            self.close()
-                    finally:
-                        self.replies_cond.acquire()
+                assert self.is_async() # XXX we're such cowards
+                self.replies_cond.wait()
         finally:
             self.replies_cond.release()
 
