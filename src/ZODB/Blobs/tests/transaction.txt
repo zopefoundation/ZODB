@@ -188,12 +188,14 @@ connections::
     'this is blob 1woot!this is from connection 3'
 
 BlobStorages implementation of getSize() includes the blob data and adds it to
-the underlying storages result of getSize()::
+the underlying storages result of getSize(). (We need to ensure the last
+number to be an int, otherwise it will be a long on 32-bit platforms and an
+int on 64-bit)::
 
     >>> underlying_size = base_storage.getSize()
     >>> blob_size = blob_storage.getSize()
-    >>> blob_size - underlying_size
-    91L
+    >>> int(blob_size - underlying_size)
+    91
 
 
 Savepoints and Blobs
