@@ -333,6 +333,9 @@ class Connection(smac.SizedMessageAsyncConnection, object):
         self.closed = True
         self.close_trigger()
         self.__super_close()
+        self.replies_cond.acquire()
+        self.replies_cond.notifyAll()
+        self.replies_cond.release()
 
     def close_trigger(self):
         # Overridden by ManagedClientConnection.
@@ -627,7 +630,7 @@ class Connection(smac.SizedMessageAsyncConnection, object):
                                  (msgid, short_repr(reply)), level=TRACE)
                     return reply
                 if self.is_async():
-                    self.replies_cond.wait(10.0)
+                    self.replies_cond.wait()
                 else:
                     self.replies_cond.release()
                     try:
