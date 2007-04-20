@@ -27,7 +27,7 @@ ZoneAlarm.  Many particularly slow tests are skipped unless you pass
 Compatibility
 -------------
 
-ZODB 3.7 requires Python 2.4.2 or later.  The BTree code may be
+ZODB 3.7 requires Python 2.4 (2.4.2 or later).  The BTree code may be
 compiled with support for 64-bit keys and values for the "I" flavors;
 older versions of the BTrees package will not be able to load
 persistent BTrees that use 64-bit data (an exception will be raised on
