@@ -184,7 +184,7 @@ class CommonSetupTearDown(StorageTestBase):
                                     username=username,
                                     password=password,
                                     realm=realm)
-        storage.registerDB(DummyDB(), None)
+        storage.registerDB(DummyDB())
         return storage
 
     def getServerConfig(self, addr, ro_svr):

@@ -134,7 +134,7 @@ class CommitLockTests:
         # address.
         addr = self._storage._addr
         new = ZEO.ClientStorage.ClientStorage(addr, wait=1)
-        new.registerDB(DummyDB(), None)
+        new.registerDB(DummyDB())
         return new
 
     def _get_timestamp(self):

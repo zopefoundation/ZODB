@@ -155,7 +155,7 @@ class GenericTests(
                                       min_disconnect_poll=0.5, wait=1,
                                       wait_timeout=60, blob_dir=self.blob_cache_dir,
                                       blob_cache_writable=self.blob_cache_writable)
-        self._storage.registerDB(DummyDB(), None)
+        self._storage.registerDB(DummyDB())
 
     def tearDown(self):
         self._storage.close()
@@ -347,7 +347,7 @@ class ConnectionInvalidationOnReconnect(
                 pass
                 
         db = DummyDB()
-        storage.registerDB(db, None)
+        storage.registerDB(db)
 
         base = db._invalidatedCache
 
@@ -383,7 +383,7 @@ class DemoStorageWrappedAroundClientStorage(DemoStorageWrappedBase):
         _base = ClientStorage(zport, '1', cache_size=20000000,
                                       min_disconnect_poll=0.5, wait=1,
                                       wait_timeout=60)
-        _base.registerDB(DummyDB(), None)
+        _base.registerDB(DummyDB())
         return _base
 
     def tearDown(self):

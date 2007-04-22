@@ -89,6 +89,21 @@ from cPickle import loads
 from BTrees import OOBTree
 
 class DemoStorage(BaseStorage):
+    """Demo storage
+
+    Demo storages provide useful storages for writing tests because
+    they store their data in memory and throw away their data
+    (implicitly) when they are closed.
+
+    They were originally designed to allow demonstrations using base
+    data provided on a CD.  They can optionally wrap an *unchanging*
+    base storage.  It is critical that the base storage does not
+    change. Using a changing base storage is not just unsupported, it
+    is known not to work and can even lead to serious errors and even
+    core dumps.
+    
+    """
+    
 
     def __init__(self, name='Demo Storage', base=None, quota=None):
         BaseStorage.__init__(self, name, base)
@@ -105,14 +120,6 @@ class DemoStorage(BaseStorage):
         if base is not None and base.versions():
             raise POSException.StorageError(
                 "Demo base storage has version data")
-
-    # While we officially don't support wrapping a non-read-only base
-    # storage, it has proved useful for test suites to wrap a ClientStorage
-    # in DemoStorage.  The least we can do to help support that case is
-    # to arrange for invalidations to get delivered to the base storage.
-    def registerDB(self, db, limit):
-        if self._base is not None: # delegate
-            self._base.registerDB(db, limit)
 
     # When DemoStorage needs to create a new oid, and there is a base
     # storage, it must use that storage's new_oid() method.  Else

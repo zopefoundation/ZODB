@@ -164,7 +164,7 @@ class Connection(ExportImport, object):
         # critical sections (if any -- this needs careful thought).
 
         self._inv_lock = threading.Lock()
-        self._invalidated = {}
+        self._invalidated = set()
 
         # Flag indicating whether the cache has been invalidated:
         self._invalidatedCache = False
@@ -488,8 +488,8 @@ class Connection(ExportImport, object):
             # using a class while objects are being invalidated seems
             # small enough to be acceptable.
 
-            invalidated = self._invalidated
-            self._invalidated = {}
+            invalidated = dict.fromkeys(self._invalidated)
+            self._invalidated = set()
             self._txn_time = None
             if self._invalidatedCache:
                 self._invalidatedCache = False
@@ -906,7 +906,7 @@ class Connection(ExportImport, object):
             self._inv_lock.acquire()
             try:
                 try:
-                    del self._invalidated[obj._p_oid]
+                    self._invalidated.remove(obj._p_oid)
                 except KeyError:
                     pass
             finally:

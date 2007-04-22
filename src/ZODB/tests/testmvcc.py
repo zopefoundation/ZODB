@@ -323,7 +323,7 @@ to test the Connection code.
 ...        self.hooked = {}
 ...        self.count = 0
 ...        super(TestStorage, self).__init__()
-...    def registerDB(self, db, limit):
+...    def registerDB(self, db):
 ...        self.db = db
 ...    def hook(self, oid, tid, version):
 ...        if oid in self.hooked:

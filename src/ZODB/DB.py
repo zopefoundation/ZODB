@@ -23,7 +23,7 @@ import logging
 from ZODB.broken import find_global
 from ZODB.utils import z64
 from ZODB.Connection import Connection
-from ZODB.serialize import referencesf
+import ZODB.serialize
 from ZODB.utils import WeakSet
 
 from zope.interface import implements
@@ -231,7 +231,12 @@ class DB(object):
 
         # Setup storage
         self._storage=storage
-        storage.registerDB(self, None)
+        self.references = ZODB.serialize.referencesf
+        try:
+            storage.registerDB(self)
+        except TypeError:
+            storage.registerDB(self, None) # Backward compat
+            
         if not hasattr(storage, 'tpc_vote'):
             storage.tpc_vote = lambda *args: None
         try:
@@ -467,7 +472,7 @@ class DB(object):
         if connection is not None:
             version = connection._version
         # Update modified in version cache
-        for oid in oids.keys():
+        for oid in oids:
             h = hash(oid) % 131
             o = self._miv_cache.get(h, None)
             if o is not None and o[0]==oid:
@@ -608,7 +613,7 @@ class DB(object):
             t = time()
         t -= days * 86400
         try:
-            self._storage.pack(t, referencesf)
+            self._storage.pack(t, self.references)
         except:
             logger.error("packing", exc_info=True)
             raise
@@ -684,6 +689,8 @@ class DB(object):
 
     def versionEmpty(self, version):
         return self._storage.versionEmpty(version)
+
+
 
 resource_counter_lock = threading.Lock()
 resource_counter = 0

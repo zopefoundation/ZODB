@@ -474,7 +474,7 @@ class InvalidationTests(unittest.TestCase):
         >>> p3._p_state
         0
         >>> cn._invalidated
-        {}
+        set([])
 
         """
 

@@ -30,14 +30,18 @@ from ZODB.UndoLogCompatible import UndoLogCompatible
 log = logging.getLogger("ZODB.BaseStorage")
 
 class BaseStorage(UndoLogCompatible):
-    """Abstract base class that supports storage implementations.
+    """Base class that supports storage implementations.
+
+    XXX Base classes like this are an attractive nuisance. They often
+    introduce more complexity than they save.  While important logic
+    is implemented here, we should consider exposing it as utility
+    functions or as objects that can be used through composition.
 
     A subclass must define the following methods:
     load()
     store()
     close()
     cleanup()
-    lastSerial()
     lastTransaction()
 
     It must override these hooks:
@@ -173,7 +177,7 @@ class BaseStorage(UndoLogCompatible):
         finally:
             self._lock_release()
 
-    def registerDB(self, db, limit):
+    def registerDB(self, db):
         pass # we don't care
 
     def isReadOnly(self):

@@ -292,7 +292,54 @@ class IConnection(Interface):
         
         """
 
-class IDatabase(Interface):
+class IStorageDB(Interface):
+    """Database interface exposed to storages
+
+    This interface provides 2 facilities:
+
+    - Out-of-band invalidation support
+
+      A storage can notify it's database of object invalidations that
+      don't occur due to direct operations on the storage.  Currently
+      this is only used by ZEO client storages to pass invalidation
+      messages sent from a server.
+
+    - Record-reference extraction.
+
+      The references method can be used to extract referenced object
+      IDs from a database record.  This can be used by storages to
+      provide more advanced garbage collection.
+
+    This interface may be implemented by storage adapters or other
+    intermediaries.  For example, a storage adapter that provides
+    encryption and/or compresssion will apply record transformations
+    in it's references method.
+    """
+
+    def invalidateCache():
+        """Discard all cached data
+
+        This can be necessary if there have been major changes to
+        stored data and it is either impractical to enumerate them or
+        there would be so many that it would be inefficient to do so.        
+        """
+
+    def references(record, oids=None):
+        """Scan the given record for object ids
+
+        A list of object ids is returned.  If a list is passed in,
+        then it will be used and augmented. Otherwise, a new list will
+        be created and returned.
+        """
+
+    def invalidate(transaction_id, oids, version=''):
+        """Invalidate object ids committed by the given transaction
+
+        The oids argument is an iterable of object identifiers.
+        """
+
+
+class IDatabase(IStorageDB):
     """ZODB DB.
 
     TODO: This interface is incomplete.
@@ -399,7 +446,7 @@ class IStorage(Interface):
 ##    def set_max_oid(possible_new_max_oid):
 ##        """TODO"""
 ##
-##    def registerDB(db, limit):
+##    def registerDB(db):
 ##        """TODO"""
 ##
 ##    def isReadOnly():

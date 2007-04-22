@@ -131,6 +131,14 @@ class DBTests(unittest.TestCase):
         self.assertEqual(len(pools), 3)
         self.assertEqual(nconn(pools), 3)
 
+    def test_references(self):
+
+        # TODO: For now test that we're using referencesf.  We really should
+        #       have tests of referencesf.  
+
+        import ZODB.serialize
+        self.assert_(self.db.references is ZODB.serialize.referencesf)
+
 
 def test_invalidateCache():
     """\

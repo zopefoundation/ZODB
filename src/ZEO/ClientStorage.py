@@ -389,7 +389,7 @@ class ClientStorage(object):
             self._rpc_mgr.close()
             self._rpc_mgr = None
 
-    def registerDB(self, db, limit):
+    def registerDB(self, db):
         """Storage API: register a database for invalidation messages.
 
         This is called by ZODB.DB (and by some tests).
@@ -1221,7 +1221,11 @@ class ClientStorage(object):
                 if oid == self._load_oid:
                     self._load_status = 0
                 self._cache.invalidate(oid, version, tid)
-                versions.setdefault((version, tid), {})[oid] = tid
+                oids = versions.get((version, tid))
+                if not oids:
+                    versions[(version, tid)] = [oid]
+                else:
+                    oids.append(oid)
 
             if self._db is not None:
                 for (version, tid), d in versions.items():
