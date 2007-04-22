@@ -324,18 +324,18 @@ class IStorageDB(Interface):
         there would be so many that it would be inefficient to do so.        
         """
 
+    def invalidate(transaction_id, oids, version=''):
+        """Invalidate object ids committed by the given transaction
+
+        The oids argument is an iterable of object identifiers.
+        """
+
     def references(record, oids=None):
         """Scan the given record for object ids
 
         A list of object ids is returned.  If a list is passed in,
         then it will be used and augmented. Otherwise, a new list will
         be created and returned.
-        """
-
-    def invalidate(transaction_id, oids, version=''):
-        """Invalidate object ids committed by the given transaction
-
-        The oids argument is an iterable of object identifiers.
         """
 
 
