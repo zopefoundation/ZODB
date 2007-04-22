@@ -898,6 +898,8 @@ class StorageServer:
 
         This is called from several ZEOStorage methods.
 
+        invalidated is a sequence of oid, version pairs.
+
         This can do three different things:
 
         - If the invalidated argument is non-empty, it broadcasts
