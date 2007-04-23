@@ -30,6 +30,7 @@ import logging
 
 import transaction
 
+import ZODB.serialize
 from ZEO import ClientStub
 from ZEO.CommitLog import CommitLog
 from ZEO.monitor import StorageStats, StatsServer
@@ -687,6 +688,11 @@ class ZEOStorage:
         else:
             return 1
 
+class StorageServerDB:
+
+    def __init__(self, server):
+        self.server = server
+        self.references = ZODB.serial.referencesf
 
 class StorageServer:
 

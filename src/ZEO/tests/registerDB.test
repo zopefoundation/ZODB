@@ -1,0 +1,67 @@
+Storage Servers should call registerDB on storages to propigate invalidations
+=============================================================================
+
+Storages servers propigate invalidations from their storages. Among
+other things, this allows client storages to be used in storage
+servers, allowing storage-server fan out, spreading read load over
+multiple storage servers.
+
+We'll create a Faux storage that has a registerDB method.
+
+    >>> class FauxStorage:
+    ...     def registerDB(self, db):
+    ...         self.db = db
+    ...     def isReadOnly(self):
+    ...         return False
+    ...     def getName(self):
+    ...         return 'faux'
+    ...     def lastTransaction(self):
+    ...         return '\0\0\0\0\0\0\0\0'
+
+We'll create a storage and a storage server using it:
+
+    >>> storage = FauxStorage()
+    >>> import ZEO.StorageServer
+    >>> server = ZEO.StorageServer.StorageServer('addr', dict(t=storage))
+
+Out storage now has a db attribute that provides IStorageDB.  It's
+references method is just the referencesf function from ZODB.Serialize
+
+    >>> import ZODB.serialize
+    >>> storage.db.references is ZODB.serialize.referencesf
+    True
+
+To see the effects of the invalidation messages, we'll create a client
+stub that implements the client invalidation calls:
+
+    >>> class Client:
+    ...     def invalidateCache(self):
+    ...         print 'invalidateCache'
+    ...     def invalidateTransaction(self, tid, invalidated):
+    ...         print 'invalidateTransaction', tid
+    ...         print invalidated
+
+    >>> class Connection:
+    ...     def __init__(self):
+    ...         self.client = Client()
+
+Now, we'll register the client with the storage server:
+
+    >>> server.register_connection('t', Connection())
+    
+Now, if we call invalidateCache, we'll see it propigate to the client:
+
+    >>> storage.db.invalidateCache()
+    invalidateCache
+
+And likewise if we call invalidate:
+
+    >>> storage.db.invalidate('trans1, ['ob1', 'ob2'])
+    invalidateTransaction trans1
+    [('ob1', ''), ('ob2', '')]
+
+    >>> storage.db.invalidate('trans1, ['ob1', 'ob2'], 'v')
+    invalidateTransaction trans1
+    [('ob1', 'v'), ('ob2', 'v')]
+
+    

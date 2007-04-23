@@ -790,6 +790,7 @@ def test_suite():
     suite = unittest.TestSuite()
     suite.addTest(doctest.DocTestSuite(setUp=ZODB.tests.util.setUp,
                                        tearDown=ZODB.tests.util.tearDown))
+    suite.addTest(doctest.DocFileSuite('registerDB.test'))
     for klass in test_classes:
         sub = unittest.makeSuite(klass, "check")
         suite.addTest(sub)
