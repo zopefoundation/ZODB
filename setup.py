@@ -79,7 +79,6 @@ else:
             'zdaemon',
             ],
         zip_safe = False,
-        dependency_links = ['http://download.zope.org/distribution/'],
         entry_points = entry_points,
         )
     scripts = []
