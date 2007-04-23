@@ -690,9 +690,19 @@ class ZEOStorage:
 
 class StorageServerDB:
 
-    def __init__(self, server):
+    def __init__(self, server, storage_id):
         self.server = server
+        self.storage_id = storage_id
         self.references = ZODB.serial.referencesf
+
+    def invalidate(self, tid, oids, version=''):
+        self.server.invalidate(
+            None, self.storage_id, tid,
+            [(oid, version) for oid in oids],
+            )
+
+    def invalidateCache(self):
+        pass
 
 class StorageServer:
 
