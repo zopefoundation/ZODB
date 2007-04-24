@@ -940,9 +940,6 @@ class FileStorage(BaseStorage.BaseStorage,
             self._file.truncate(self._pos)
             self._nextpos=0
 
-    def supportsTransactionalUndo(self):
-        return 1
-
     def _undoDataInfo(self, oid, pos, tpos):
         """Return the tid, data pointer, data, and version for the oid
         record at pos"""
@@ -1440,7 +1437,10 @@ class FileStorage(BaseStorage.BaseStorage,
         except ValueError: # "empty tree" error
             next_oid = None
 
-        data, tid = self.load(oid, "") # ignore versions
+        # ignore versions
+        # XXX if the object was created in a version, this will fail.
+        data, tid = self.load(oid, "")
+
         return oid, tid, data, next_oid
 
 

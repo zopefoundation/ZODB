@@ -141,8 +141,8 @@ class ZEOStorage:
     def __repr__(self):
         tid = self.transaction and repr(self.transaction.id)
         if self.storage:
-            stid = (self.storage._transaction and
-                    repr(self.storage._transaction.id))
+            stid = (self.storage.tpc_transaction() and
+                    repr(self.storage.tpc_transaction().id))
         else:
             stid = None
         name = self.__class__.__name__
@@ -152,14 +152,32 @@ class ZEOStorage:
         log(msg, level=level, label=self.log_label, exc_info=exc_info)
 
     def setup_delegation(self):
-        """Delegate several methods to the storage"""
-        self.versionEmpty = self.storage.versionEmpty
-        self.versions = self.storage.versions
-        self.getSerial = self.storage.getSerial
+        """Delegate several methods to the storage
+        """
+
+        info = self.get_info()
+        if info['supportsVersions']:
+            self.versionEmpty = self.storage.versionEmpty
+            self.versions = self.storage.versions
+            self.modifiedInVersion = self.storage.modifiedInVersion
+        else:
+            self.versionEmpty = lambda version: True
+            self.versions = lambda max=None: ()
+            self.modifiedInVersion = lambda oid: ''
+            def commitVersion(*a, **k):
+                raise NotImplementedError
+            self.commitVersion = self.abortVersion = commitVersion
+
+        if not info['supportsUndo']:
+            self.undoLog = self.undoInfo = lambda *a,**k: ()
+            def undo(*a, **k):
+                raise NotImplementedError
+            self.undo = undo
+
+        self.getTid = self.storage.getTid
         self.history = self.storage.history
         self.load = self.storage.load
         self.loadSerial = self.storage.loadSerial
-        self.modifiedInVersion = self.storage.modifiedInVersion
         record_iternext = getattr(self.storage, 'record_iternext', None)
         if record_iternext is not None:
             self.record_iternext = record_iternext
@@ -240,11 +258,27 @@ class ZEOStorage:
                                                                    self)
 
     def get_info(self):
-        return {'length': len(self.storage),
-                'size': self.storage.getSize(),
-                'name': self.storage.getName(),
-                'supportsUndo': self.storage.supportsUndo(),
-                'supportsVersions': self.storage.supportsVersions(),
+        storage = self.storage
+
+        try:
+            supportsVersions = storage.supportsVersions
+        except AttributeError:
+            supportsVersions = False
+        else:
+            supportsVersions = supportsVersions()
+
+        try:
+            supportsUndo = storage.supportsUndo
+        except AttributeError:
+            supportsUndo = False
+        else:
+            supportsUndo = supportsUndo()
+
+        return {'length': len(storage),
+                'size': storage.getSize(),
+                'name': storage.getName(),
+                'supportsUndo': supportsUndo,
+                'supportsVersions': supportsVersions,
                 'extensionMethods': self.getExtensionMethods(),
                 'supports_record_iternext': hasattr(self, 'record_iternext'),
                 }
@@ -292,7 +326,7 @@ class ZEOStorage:
 
     def verify(self, oid, version, tid):
         try:
-            t = self.storage.getTid(oid)
+            t = self.getTid(oid)
         except KeyError:
             self.client.invalidateVerify((oid, ""))
         else:
@@ -309,7 +343,7 @@ class ZEOStorage:
             self.verifying = 1
             self.stats.verifying_clients += 1
         try:
-            os = self.storage.getTid(oid)
+            os = self.getTid(oid)
         except KeyError:
             self.client.invalidateVerify((oid, ''))
             # It's not clear what we should do now.  The KeyError
@@ -624,7 +658,7 @@ class ZEOStorage:
     def _wait(self, thunk):
         # Wait for the storage lock to be acquired.
         self._thunk = thunk
-        if self.storage._transaction:
+        if self.storage.tpc_transaction():
             d = Delay()
             self.storage._waiting.append((d, self))
             self.log("Transaction blocked waiting for storage. "

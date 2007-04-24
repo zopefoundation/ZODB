@@ -213,13 +213,14 @@ class DemoStorage(BaseStorage):
             self._lock_release()
 
     def loadEx(self, oid, version):
+        raise TypeError("untested")
         self._lock_acquire()
         try:
             try:
                 oid, pre, vdata, p, tid = self._index[oid]
             except KeyError:
                 if self._base:
-                    return self._base.load(oid, '')
+                    return self._base.loadEx(oid, '')
                 raise KeyError(oid)
 
             ver = ""

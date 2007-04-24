@@ -143,7 +143,7 @@ class TransactionalUndoStorage:
         eq(zodb_unpickle(data), MinPO(23))
         self._iterate()
 
-    def checkCreationUndoneGetSerial(self):
+    def checkCreationUndoneGetTid(self):
         # create an object
         oid = self._storage.new_oid()
         self._dostore(oid, data=MinPO(23))
@@ -156,9 +156,9 @@ class TransactionalUndoStorage:
         self._storage.undo(tid, t)
         self._storage.tpc_vote(t)
         self._storage.tpc_finish(t)
-        # Check that calling getSerial on an uncreated object raises a KeyError
+        # Check that calling getTid on an uncreated object raises a KeyError
         # The current version of FileStorage fails this test
-        self.assertRaises(KeyError, self._storage.getSerial, oid)
+        self.assertRaises(KeyError, self._storage.getTid, oid)
 
     def checkUndoCreationBranch1(self):
         eq = self.assertEqual

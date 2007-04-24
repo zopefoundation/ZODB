@@ -112,16 +112,6 @@ class BaseStorage(UndoLogCompatible):
         else:
             self._oid = oid
 
-    def abortVersion(self, src, transaction):
-        if transaction is not self._transaction:
-            raise POSException.StorageTransactionError(self, transaction)
-        return self._tid, []
-
-    def commitVersion(self, src, dest, transaction):
-        if transaction is not self._transaction:
-            raise POSException.StorageTransactionError(self, transaction)
-        return self._tid, []
-
     def close(self):
         pass
 
@@ -144,10 +134,7 @@ class BaseStorage(UndoLogCompatible):
         return len(self)*300 # WAG!
 
     def history(self, oid, version, length=1, filter=None):
-        pass
-
-    def modifiedInVersion(self, oid):
-        return ''
+        return ()
 
     def new_oid(self):
         if self._is_read_only:
@@ -183,12 +170,6 @@ class BaseStorage(UndoLogCompatible):
     def isReadOnly(self):
         return self._is_read_only
 
-    def supportsUndo(self):
-        return 0
-
-    def supportsVersions(self):
-        return 0
-
     def tpc_abort(self, transaction):
         self._lock_acquire()
         try:
@@ -205,7 +186,7 @@ class BaseStorage(UndoLogCompatible):
 
     def _abort(self):
         """Subclasses should redefine this to supply abort actions"""
-        pass
+        raise NotImplementedError
 
     def tpc_begin(self, transaction, tid=None, status=' '):
         if self._is_read_only:
@@ -243,10 +224,13 @@ class BaseStorage(UndoLogCompatible):
         finally:
             self._lock_release()
 
+    def tpc_transaction(self):
+        return self._transaction
+
     def _begin(self, tid, u, d, e):
         """Subclasses should redefine this to supply transaction start actions.
         """
-        pass
+        raise NotImplementedError
 
     def tpc_vote(self, transaction):
         self._lock_acquire()
@@ -260,7 +244,7 @@ class BaseStorage(UndoLogCompatible):
     def _vote(self):
         """Subclasses should redefine this to supply transaction vote actions.
         """
-        pass
+        raise NotImplementedError
 
     def tpc_finish(self, transaction, f=None):
         # It's important that the storage calls the function we pass
@@ -292,25 +276,7 @@ class BaseStorage(UndoLogCompatible):
         """
         pass
 
-    def undo(self, transaction_id, txn):
-        if self._is_read_only:
-            raise POSException.ReadOnlyError()
-        raise POSException.UndoError('non-undoable transaction')
-
-    def undoLog(self, first, last, filter=None):
-        return ()
-
-    def versionEmpty(self, version):
-        return 1
-
-    def versions(self, max=None):
-        return ()
-
-    def pack(self, t, referencesf):
-        if self._is_read_only:
-            raise POSException.ReadOnlyError()
-
-    def getSerial(self, oid):
+    def getTid(self, oid):
         self._lock_acquire()
         try:
             v = self.modifiedInVersion(oid)

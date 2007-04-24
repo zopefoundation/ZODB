@@ -161,19 +161,19 @@ class BasicStorage:
         revid4 = self._dostore(oid2, revid=revid2, data=p52)
         noteq(revid3, revid4)
 
-    def checkGetSerial(self):
-        if not hasattr(self._storage, 'getSerial'):
+    def checkGetTid(self):
+        if not hasattr(self._storage, 'getTid'):
             return
         eq = self.assertEqual
         p41, p42 = map(MinPO, (41, 42))
         oid = self._storage.new_oid()
-        self.assertRaises(KeyError, self._storage.getSerial, oid)
+        self.assertRaises(KeyError, self._storage.getTid, oid)
         # Now store a revision
         revid1 = self._dostore(oid, data=p41)
-        eq(revid1, self._storage.getSerial(oid))
+        eq(revid1, self._storage.getTid(oid))
         # And another one
         revid2 = self._dostore(oid, revid=revid1, data=p42)
-        eq(revid2, self._storage.getSerial(oid))
+        eq(revid2, self._storage.getTid(oid))
 
     def checkTwoArgBegin(self):
         # Unsure: how standard is three-argument tpc_begin()?

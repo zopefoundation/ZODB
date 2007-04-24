@@ -231,6 +231,9 @@ class Connection(ExportImport, object):
         if obj is not None:
             return obj
 
+        # This appears to be an MVCC violation because we are loading
+        # the must recent data when perhaps we shouldnt. The key is
+        # that we are only creating a ghost!        
         p, serial = self._storage.load(oid, self._version)
         obj = self._reader.getGhost(p)
 

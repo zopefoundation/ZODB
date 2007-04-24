@@ -80,8 +80,8 @@ class VersionStorage:
         eq(zodb_unpickle(data), MinPO(12))
         data, vrevid = self._storage.load(oid, version)
         eq(zodb_unpickle(data), MinPO(15))
-        if hasattr(self._storage, 'getSerial'):
-            s = self._storage.getSerial(oid)
+        if hasattr(self._storage, 'getTid'):
+            s = self._storage.getTid(oid)
             eq(s, max(revid, vrevid))
         data, tid, ver = self._storage.loadEx(oid, version)
         eq(zodb_unpickle(data), MinPO(15))
@@ -186,7 +186,7 @@ class VersionStorage:
         eq = self.assertEqual
         oid, version = self._setup_version()
 
-        # Not sure I can write a test for getSerial() in the
+        # Not sure I can write a test for getTid() in the
         # presence of aborted versions, because FileStorage and
         # Berkeley storage give a different answer. I think Berkeley
         # is right and FS is wrong.
@@ -219,11 +219,9 @@ class VersionStorage:
         self._storage.tpc_begin(t)
 
         # And try to abort the empty version
-        if (hasattr(self._storage, 'supportsTransactionalUndo') and
-                self._storage.supportsTransactionalUndo()):
-            self.assertRaises(POSException.VersionError,
-                              self._storage.abortVersion,
-                              '', t)
+        self.assertRaises(POSException.VersionError,
+                          self._storage.abortVersion,
+                          '', t)
 
         # But now we really try to abort the version
         tid, oids = self._storage.abortVersion(version, t)
@@ -235,9 +233,6 @@ class VersionStorage:
         eq(zodb_unpickle(data), MinPO(51))
 
     def checkCommitVersionErrors(self):
-        if not (hasattr(self._storage, 'supportsTransactionalUndo') and
-                self._storage.supportsTransactionalUndo()):
-            return
         eq = self.assertEqual
         oid1, version1 = self._setup_version('one')
         data, revid1 = self._storage.load(oid1, version1)

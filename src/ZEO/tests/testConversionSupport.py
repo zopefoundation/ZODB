@@ -17,7 +17,7 @@ from zope.testing import doctest
 class FakeStorageBase:
 
     def __getattr__(self, name):
-        if name in ('versionEmpty', 'versions', 'getSerial',
+        if name in ('versionEmpty', 'versions',
                     'history', 'load', 'loadSerial', 'modifiedInVersion',
                     'lastTransaction', 'getSize', 'getName', 'supportsUndo',
                     'supportsVersions'):

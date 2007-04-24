@@ -266,8 +266,7 @@ class ClientStorage(object):
         self._pickler = None
 
         self._info = {'length': 0, 'size': 0, 'name': 'ZEO Client',
-                      'supportsUndo':0, 'supportsVersions': 0,
-                      'supportsTransactionalUndo': 0}
+                      'supportsUndo':0, 'supportsVersions': 0}
 
         self._tbuf = self.TransactionBufferClass()
         self._db = None
@@ -670,10 +669,6 @@ class ClientStorage(object):
         """Storage API: return whether we support versions."""
         return self._info['supportsVersions']
 
-    def supportsTransactionalUndo(self):
-        """Storage API: return whether we support transactional undo."""
-        return self._info['supportsTransactionalUndo']
-
     def isReadOnly(self):
         """Storage API: return whether we are in read-only mode."""
         if self._is_read_only:
@@ -732,15 +727,15 @@ class ClientStorage(object):
         return self._server.history(oid, version, length)
 
     def record_iternext(self, next=None):
-        """Storage API: get the mext database record.
+        """Storage API: get the next database record.
 
         This is part of the conversion-support API.
         """
         return self._server.record_iternext(next)
 
-    def getSerial(self, oid):
+    def getTid(self, oid):
         """Storage API: return current serial number for oid."""
-        return self._server.getSerial(oid)
+        return self._server.getTid(oid)
 
     def loadSerial(self, oid, serial):
         """Storage API: load a historical revision of an object."""

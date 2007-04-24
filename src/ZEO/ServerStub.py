@@ -275,8 +275,8 @@ class StorageServer:
     def loadBlob(self, oid, serial, version, offset):
         return self.rpc.call('loadBlob', oid, serial, version, offset)
 
-    def getSerial(self, oid):
-        return self.rpc.call('getSerial', oid)
+    def getTid(self, oid):
+        return self.rpc.call('getTid', oid)
 
     def loadSerial(self, oid, serial):
         return self.rpc.call('loadSerial', oid, serial)

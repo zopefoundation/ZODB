@@ -87,11 +87,6 @@ class IteratorStorage(IteratorCompare):
                 pass
 
     def checkUndoZombieNonVersion(self):
-        if not hasattr(self._storage, 'supportsTransactionalUndo'):
-            return
-        if not self._storage.supportsTransactionalUndo():
-            return
-
         oid = self._storage.new_oid()
         revid = self._dostore(oid, data=MinPO(94))
         # Get the undo information
