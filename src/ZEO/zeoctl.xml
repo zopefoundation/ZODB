@@ -1,0 +1,31 @@
+<schema>
+
+  <description>
+    This schema describes the configuration of the ZEO storage server
+    controller.  It differs from the schema for the storage server
+    only in that the "runner" section is required.
+  </description>
+
+  <!-- Use the storage types defined by ZODB. -->
+  <import package="ZODB"/>
+
+  <!-- Use the ZEO server information structure. -->
+  <import package="ZEO"/>
+
+  <import package="ZConfig.components.logger"/>
+
+  <!-- runner control -->
+  <import package="zdaemon"/>
+
+
+  <section type="zeo" name="*" required="yes" attribute="zeo" />
+
+  <section type="runner" name="*" required="yes" attribute="runner" />
+
+  <multisection name="+" type="ZODB.storage"
+                attribute="storages"
+                required="yes" />
+
+  <section name="*" type="eventlog" attribute="eventlog" required="no" />
+
+</schema>

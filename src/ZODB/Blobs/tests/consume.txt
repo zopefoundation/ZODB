@@ -1,0 +1,124 @@
+Consuming existing files
+========================
+
+The ZODB Blob implementation allows to import existing files as Blobs within
+an O(1) operation we call `consume`::
+
+Let's create a file::
+
+    >>> import tempfile
+    >>> to_import = tempfile.NamedTemporaryFile()
+    >>> to_import.write("I'm a Blob and I feel fine.")
+    >>> to_import.flush()
+
+Now, let's consume this file in a blob by specifying it's name::
+
+    >>> from ZODB.Blobs.Blob import Blob
+    >>> blob = Blob()
+    >>> blob.consumeFile(to_import.name)
+
+We now can call open on the blob and read and write the data::
+
+    >>> blob_read = blob.open('rb')
+    >>> blob_read.read()
+    "I'm a Blob and I feel fine."
+    >>> blob_read.close()
+    >>> blob_write = blob.open('w')
+    >>> blob_write.write('I was changed.')
+    >>> blob_write.close()
+
+Please note that the interface for the `consume` method specifies a hard-link
+as a part of the contract so your existing file and the blob file will be the
+same. If one gets changed the other will reflect those changes as well. This
+is especially a known side-effect when consuming a file and then opening the
+blob for writing before committing in between::
+
+    >>> to_import.seek(0)
+    >>> to_import.read()
+    'I was changed.'
+
+(Applications are expected that files for consumption are typically copies of
+existing data and that the imported link to the file will be removed after a
+successfull import. This can be achieved (as in this test) by using a
+NamedTempFile.)
+
+We can not consume a file when there is a reader or writer around for a blob
+already::
+
+    >>> to_import2 = tempfile.NamedTemporaryFile()
+    >>> to_import2.write('I am another blob.')
+    >>> to_import2.flush()
+    >>> blob_read = blob.open('r')
+    >>> blob.consumeFile(to_import2.name)
+    Traceback (most recent call last):
+    BlobError: Already opened for reading.
+    >>> blob_read.close()
+    >>> blob_write = blob.open('w')
+    >>> blob.consumeFile(to_import2.name)
+    Traceback (most recent call last):
+    BlobError: Already opened for writing.
+    >>> blob_write.close()
+
+Now, after closing all readers and writers we can consume files again::
+
+    >>> blob.consumeFile(to_import2.name)
+    >>> blob_read = blob.open('r')
+    >>> blob_read.read()
+    'I am another blob.'
+
+
+Edge cases
+==========
+
+There are some edge cases what happens when the link() operation fails. We simulate this in different states:
+
+Case 1: We don't have uncommitted data, but the link operation fails. The
+exception will be re-raised and the target file will not exist::
+
+    >>> input = tempfile.NamedTemporaryFile()
+    >>> input.write('Some data')
+    >>> input.flush()
+
+    >>> def failing_link(self, filename):
+    ...   raise Exception("I can't link.")
+
+    >>> blob = Blob()
+    >>> blob.open('r')
+    Traceback (most recent call last):
+    BlobError: Blob does not exist.
+
+    >>> blob._os_link = failing_link
+    >>> blob.consumeFile(input.name)
+    Traceback (most recent call last):
+    Exception: I can't link.
+
+The blob did not exist before, so it shouldn't exist now::
+
+    >>> blob.open('r')
+    Traceback (most recent call last):
+    BlobError: Blob does not exist.
+
+Case 2: We thave uncommitted data, but the link operation fails. The
+exception will be re-raised and the target file will exist with the previous
+uncomitted data::
+
+
+    >>> input = tempfile.NamedTemporaryFile()
+    >>> input.write('Unimported data')
+    >>> input.flush()
+
+    >>> blob = Blob()
+    >>> blob_writing = blob.open('w')
+    >>> blob_writing.write('Uncommitted data')
+    >>> blob_writing.close()
+
+    >>> blob._os_link = failing_link
+    >>> blob.consumeFile(input.name)
+    Traceback (most recent call last):
+    Exception: I can't link.
+
+The blob did existed before and had uncommitted data, this shouldn't have
+changed::
+
+    >>> blob.open('r').read()
+    'Uncommitted data'
