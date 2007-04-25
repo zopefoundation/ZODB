@@ -222,6 +222,36 @@ class MappingStorageTests(GenericTests):
     def getConfig(self):
         return """<mappingstorage 1/>"""
 
+class DemoStorageTests(
+    GenericTests,
+    Cache.StorageWithCache,
+    VersionStorage.VersionStorage,
+    ):
+
+    def getConfig(self):
+        return """
+        <demostorage 1>
+          <filestorage 1>
+             path %s
+          </filestorage>
+        </demostorage>
+        """ % tempfile.mktemp()
+
+    def checkLoadBeforeVersion(self):
+        # Doesn't implement loadBefore, except as a kind of place holder.
+        pass
+    
+    # the next three pack tests depend on undo
+
+    def checkPackVersionReachable(self):
+        pass
+
+    def checkPackVersions(self):
+        pass
+
+    def checkPackVersionsInPast(self):
+        pass
+
 class HeartbeatTests(ZEO.tests.ConnectionTests.CommonSetupTearDown):
     """Make sure a heartbeat is being sent and that it does no harm
 
@@ -782,7 +812,7 @@ transaction, we'll get a result:
     """
 
 
-test_classes = [FileStorageTests, MappingStorageTests,
+test_classes = [FileStorageTests, MappingStorageTests, DemoStorageTests,
                 BlobAdaptedFileStorageTests, BlobWritableCacheTests]
 
 
