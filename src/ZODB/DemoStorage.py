@@ -213,7 +213,6 @@ class DemoStorage(BaseStorage):
             self._lock_release()
 
     def loadEx(self, oid, version):
-        raise TypeError("untested")
         self._lock_acquire()
         try:
             try:
