@@ -52,17 +52,23 @@ Blobs
 BTrees
 ------
 
-- Normalize names in modules so that BTrees, Buckets, Sets, and TreeSets can
-  all be accessed with those names in the modules (e.g.,
+- (3.8a1) Added support for 64-bit integer BTrees as separate types.  
+
+  (For now, we're retaining compile-time support for making the regular
+  integer BTrees 64-bit.)
+
+- (3.8a1) Normalize names in modules so that BTrees, Buckets, Sets, and
+  TreeSets can all be accessed with those names in the modules (e.g.,
   BTrees.IOBTree.BTree).  This is in addition to the older names (e.g.,
-  BTrees.IOBTree.IOBTree).  This allows easier drop-in replacement, which can
-  especially be simplify code for packages that want to support both 32-bit and
-  64-bit BTrees.
+  BTrees.IOBTree.IOBTree).  This allows easier drop-in replacement, which
+  can especially be simplify code for packages that want to support both
+  32-bit and 64-bit BTrees.
 
-- Describe the interfaces for each module and actually declare the interfaces
-  for each.
+- (3.8a1) Describe the interfaces for each module and actually declare
+  the interfaces for each.
 
-- Fix module references so klass.__module__ points to the Python wrapper
-  module, not the C extension.
+- (3.8a1) Fix module references so klass.__module__ points to the Python
+  wrapper module, not the C extension.
 
-- introduce module families, to group all 32-bit and all 64-bit modules.
+- (3.8a1) introduce module families, to group all 32-bit and all 64-bit
+  modules.
