@@ -440,10 +440,27 @@ class IMergeIntegerKey(IMerge):
         linear-time pass.
         """
 
+class IIntegerFamily(Interface):
+    """the 64-bit or 32-bit family"""
+    IOModule = Attribute(
+        'The IIntegerObjectBTreeModule for this family')
+    OIModule = Attribute(
+        'The IObjectIntegerBTreeModule for this family')
+    IIModule = Attribute(
+        'The IIntegerIntegerBTreeModule for this family')
+    IFModule = Attribute(
+        'The IIntegerFloatBTreeModule for this family')
+    maxint = Attribute('The maximum integer storable in this family')
+    minint = Attribute('The minimum integer storable in this family')
+
+
 class IIntegerObjectBTreeModule(IBTreeModule, IMerge):
     """keys, or set values, are integers; values are objects.
     
     describes IOBTree and LOBTree"""
+    
+    family = Attribute('The IIntegerFamily of this module')
+
 
 class IObjectIntegerBTreeModule(IBTreeModule, IIMerge):
     """keys, or set values, are objects; values are integers.
@@ -452,11 +469,17 @@ class IObjectIntegerBTreeModule(IBTreeModule, IIMerge):
     object id)!  Homogenous key types recommended.
     
     describes OIBTree and LOBTree"""
+    
+    family = Attribute('The IIntegerFamily of this module')
+
 
 class IIntegerIntegerBTreeModule(IBTreeModule, IIMerge, IMergeIntegerKey):
     """keys, or set values, are integers; values are also integers.
     
     describes IIBTree and LLBTree"""
+    
+    family = Attribute('The IIntegerFamily of this module')
+
 
 class IObjectObjectBTreeModule(IBTreeModule, IMerge):
     """keys, or set values, are objects; values are also objects.
@@ -466,10 +489,14 @@ class IObjectObjectBTreeModule(IBTreeModule, IMerge):
     
     describes OOBTree"""
 
+
 class IIntegerFloatBTreeModule(IBTreeModule, IMerge):
     """keys, or set values, are integers; values are floats.
     
     describes IFBTree and LFBTree"""
+    
+    family = Attribute('The IIntegerFamily of this module')
+
 
 ###############################################################
 # IMPORTANT NOTE

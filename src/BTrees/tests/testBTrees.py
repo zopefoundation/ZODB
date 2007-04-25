@@ -26,6 +26,8 @@ from BTrees.LLBTree import LLBTree, LLBucket, LLSet, LLTreeSet
 from BTrees.LFBTree import LFBTree, LFBucket, LFSet, LFTreeSet
 from BTrees.OLBTree import OLBTree, OLBucket, OLSet, OLTreeSet
 
+import BTrees.family32
+import BTrees.family64
 import BTrees.OOBTree
 import BTrees.IOBTree
 import BTrees.IIBTree
@@ -1676,6 +1678,72 @@ class ModuleTest(TestCase):
         self.assert_(
             zope.interface.verify.verifyObject(self.iface, self.module))
 
+    def testFamily(self):
+        if self.prefix == 'OO':
+            self.assert_(
+                getattr(self.module, 'family', self) is self)
+        elif 'L' in self.prefix:
+            self.assert_(self.module.family is BTrees.family64)
+        elif 'I' in self.prefix:
+            self.assert_(self.module.family is BTrees.family32)
+
+class FamilyTest(TestCase):
+    def test32(self):
+        self.assert_(
+            zope.interface.verify.verifyObject(
+                BTrees.Interfaces.IIntegerFamily, BTrees.family32))
+        self.assertEquals(
+            BTrees.family32.IOModule, BTrees.IOBTree)
+        self.assertEquals(
+            BTrees.family32.OIModule, BTrees.OIBTree)
+        self.assertEquals(
+            BTrees.family32.IIModule, BTrees.IIBTree)
+        self.assertEquals(
+            BTrees.family32.IFModule, BTrees.IFBTree)
+        s = IOTreeSet()
+        s.insert(BTrees.family32.maxint)
+        self.assert_(BTrees.family32.maxint in s)
+        s = IOTreeSet()
+        s.insert(BTrees.family32.minint)
+        self.assert_(BTrees.family32.minint in s)
+        s = IOTreeSet()
+        # this next bit illustrates an, um, "interesting feature".  If
+        # the characteristics change to match the 64 bit version, please
+        # feel free to change.
+        big = BTrees.family32.maxint + 1
+        if isinstance(big, long):
+            self.assertRaises(TypeError, s.insert, big)
+            self.assertRaises(TypeError, s.insert, BTrees.family32.minint - 1)
+        else: # 64 bit Python
+            s.insert(BTrees.family32.maxint + 1)
+            self.assert_(BTrees.family32.maxint + 1 not in s)
+            # yeah, it's len of 1 now...don't look...don't look...
+            s = IOTreeSet()
+            s.insert(BTrees.family32.minint - 1)
+            self.assert_(BTrees.family32.minint - 1 not in s)
+
+    def test64(self):
+        self.assert_(
+            zope.interface.verify.verifyObject(
+                BTrees.Interfaces.IIntegerFamily, BTrees.family64))
+        self.assertEquals(
+            BTrees.family64.IOModule, BTrees.LOBTree)
+        self.assertEquals(
+            BTrees.family64.OIModule, BTrees.OLBTree)
+        self.assertEquals(
+            BTrees.family64.IIModule, BTrees.LLBTree)
+        self.assertEquals(
+            BTrees.family64.IFModule, BTrees.LFBTree)
+        s = LOTreeSet()
+        s.insert(BTrees.family64.maxint)
+        self.assert_(BTrees.family64.maxint in s)
+        s = LOTreeSet()
+        s.insert(BTrees.family64.minint)
+        self.assert_(BTrees.family64.minint in s)
+        s = LOTreeSet()
+        self.assertRaises(ValueError, s.insert, BTrees.family64.maxint + 1)
+        self.assertRaises(ValueError, s.insert, BTrees.family64.minint - 1)
+
 def test_suite():
     s = TestSuite()
 
@@ -1723,6 +1791,7 @@ def test_suite():
         DegenerateBTree,
         TestCmpError,
         BugFixes,
+        FamilyTest,
         ):
         s.addTest(makeSuite(klass))
 
