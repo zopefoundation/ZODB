@@ -42,6 +42,9 @@ class FakeStorage(FakeStorageBase):
 
         return oid, oid*8, 'data ' + oid, next
 
+    def getTid(self, oid):
+        pass
+
 class FakeServer:
     storages = {
         '1': FakeStorage(),
