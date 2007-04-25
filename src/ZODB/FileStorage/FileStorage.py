@@ -971,16 +971,16 @@ class FileStorage(BaseStorage.BaseStorage,
             result = self._get_cached_tid(oid)
             if result is None:
                 pos = self._lookup_pos(oid)
-                result = self._getTid(oid, pos)
+                h = self._read_data_header(pos, oid)
+                if h.plen == 0 and h.back == 0:
+                    # Undone creation
+                    raise POSKeyError(oid)
+                else:
+                    result = h.tid
+                    self._oid2tid[oid] = result
             return result
         finally:
             self._lock_release()
-
-    def _getTid(self, oid, pos):
-        self._file.seek(pos)
-        h = self._file.read(16)
-        assert oid == h[:8]
-        return h[8:]
 
     def _getVersion(self, oid, pos):
         h = self._read_data_header(pos, oid)
