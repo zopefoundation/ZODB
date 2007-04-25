@@ -863,8 +863,8 @@ class Connection(ExportImport, object):
         providedBy = getattr(obj, '__providedBy__', None)
         if providedBy is not None and IBlob in providedBy:
             obj._p_blob_uncommitted = None
-            obj._p_blob_data = \
-                    self._storage.loadBlob(obj._p_oid, serial, self._version)
+            obj._p_blob_data = self._storage.loadBlob(
+                obj._p_oid, serial, self._version)
 
     def _load_before_or_conflict(self, obj):
         """Load non-current state for obj or raise ReadConflictError."""
