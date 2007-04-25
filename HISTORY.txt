@@ -63,11 +63,6 @@ Connection management
 BTrees
 ------
 
-- Added support for 64-bit integer BTrees as separate types.  
-
-  (For now, we're retaining compile-time support for making the
-   regular integer BTrees 64-bit.)
-
 - Support for 64-bit integer keys and values has been provided as a
   compile-time option for the "I" BTrees (e.g. IIBTree).
 
