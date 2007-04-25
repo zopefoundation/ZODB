@@ -1,32 +1,3 @@
-
-What's new in ZODB3 3.8.0?
-==========================
-Release date: ???
-
-- Added support for Blobs. 
-
-BTrees
-------
-
-- Added support for 64-bit integer BTrees as separate types.  
-
-  (For now, we're retaining compile-time support for making the
-   regular integer BTrees 64-bit.)
-
-- Normalize names in modules so that BTrees, Buckets, Sets, and TreeSets can
-  all be accessed with those names in the modules (e.g.,
-  BTrees.IOBTree.BTree).  This is in addition to the older names (e.g.,
-  BTrees.IOBTree.IOBTree).  This allows easier drop-in replacement, which can
-  especially be simplify code for packages that want to support both 32-bit and
-  64-bit BTrees.
-
-- Describe the interfaces for each module and actually declare the interfaces
-  for each.
-
-- Fix module references so klass.__module__ points to the Python wrapper
-  module, not the C extension.
-
-
 What's new in ZODB3 3.7.0?
 ==========================
 Release date: ???
