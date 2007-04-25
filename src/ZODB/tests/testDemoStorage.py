@@ -13,8 +13,12 @@
 ##############################################################################
 import unittest
 
-from ZODB.tests import StorageTestBase, BasicStorage, \
-     VersionStorage, Synchronization
+import transaction
+from ZODB.DB import DB
+import ZODB.utils
+import ZODB.DemoStorage
+from ZODB.tests import StorageTestBase, BasicStorage, VersionStorage
+from ZODB.tests import Synchronization
 
 class DemoStorageTests(StorageTestBase.StorageTestBase,
                        BasicStorage.BasicStorage,
@@ -23,7 +27,6 @@ class DemoStorageTests(StorageTestBase.StorageTestBase,
                        ):
 
     def setUp(self):
-        import ZODB.DemoStorage
         self._storage = ZODB.DemoStorage.DemoStorage()
 
     def tearDown(self):
@@ -53,6 +56,13 @@ class DemoStorageTests(StorageTestBase.StorageTestBase,
 
     def checkPackVersionsInPast(self):
         pass
+
+    def checkLoadExDelegation(self):
+        # Minimal test of loadEX w/o version -- ironically
+        db = DB(self._storage) # creates object 0. :)
+        s2 = ZODB.DemoStorage.DemoStorage(base=self._storage)
+        self.assertEqual(s2.loadEx(ZODB.utils.z64, ''),
+                         self._storage.loadEx(ZODB.utils.z64, ''))
 
 
 class DemoStorageWrappedBase(DemoStorageTests):

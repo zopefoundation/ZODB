@@ -219,7 +219,7 @@ class DemoStorage(BaseStorage):
                 oid, pre, vdata, p, tid = self._index[oid]
             except KeyError:
                 if self._base:
-                    return self._base.load(oid, '')
+                    return self._base.loadEx(oid, version)
                 raise KeyError(oid)
 
             ver = ""
@@ -560,3 +560,7 @@ class DemoStorage(BaseStorage):
                 o.append('    %s: %s' % (oid_repr(oid), r))
 
         return '\n'.join(o)
+
+    def cleanup(self):
+        if self._base is not None:
+            self._base.cleanup()
