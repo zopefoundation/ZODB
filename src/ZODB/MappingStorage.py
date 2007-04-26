@@ -63,11 +63,6 @@ class MappingStorage(BaseStorage):
         finally:
             self._lock_release()
 
-    def loadEx(self, oid, version):
-        # Since we don't support versions, just tack the empty version
-        # string onto load's result.
-        return self.load(oid, version) + ("",)
-
     def getTid(self, oid):
         self._lock_acquire()
         try:
@@ -139,3 +134,9 @@ class MappingStorage(BaseStorage):
                      (u64(oid), TimeStamp(r[:8]), repr(r[8:])))
 
         return '\n'.join(o)
+
+    def cleanup(self):
+        pass
+
+    def close(self):
+        pass
