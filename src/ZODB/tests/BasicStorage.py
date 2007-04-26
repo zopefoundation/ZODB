@@ -28,8 +28,6 @@ import transaction
 
 ZERO = '\0'*8
 
-
-
 class BasicStorage:
     def checkBasics(self):
         t = transaction.Transaction()
@@ -224,10 +222,3 @@ class BasicStorage:
         self._storage.store(oid, ZERO, zodb_pickle(MinPO(5)), '', t)
         self._storage.tpc_vote(t)
         self._storage.tpc_finish(t)
-
-    def checkGetExtensionMethods(self):
-        m = self._storage.getExtensionMethods()
-        self.assertEqual(type(m),type({}))
-        for k,v in m.items():
-            self.assertEqual(v,None)
-            self.assert_(callable(getattr(self._storage,k)))
