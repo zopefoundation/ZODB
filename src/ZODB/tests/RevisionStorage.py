@@ -52,7 +52,7 @@ class RevisionStorage:
             snooze()
             snooze()
             revid = self._dostore(oid, revid, data=MinPO(i))
-            revs.append(self._storage.loadEx(oid, ""))
+            revs.append(self._storage.load(oid, ""))
 
         prev = u64(revs[0][1])
         for i in range(1, 10):
@@ -123,10 +123,10 @@ class RevisionStorage:
             # Always undo the most recent txn, so the value will
             # alternate between 3 and 4.
             self._undo(tid, [oid], note="undo %d" % i)
-            revs.append(self._storage.loadEx(oid, ""))
+            revs.append(self._storage.load(oid, ""))
 
         prev_tid = None
-        for i, (data, tid, ver) in enumerate(revs):
+        for i, (data, tid) in enumerate(revs):
             t = self._storage.loadBefore(oid, p64(u64(tid) + 1))
             self.assertEqual(data, t[0])
             self.assertEqual(tid, t[1])
