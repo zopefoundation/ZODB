@@ -74,18 +74,15 @@ class MinimalMemoryStorage(BaseStorage, object):
     def _clear_temp(self):
         pass
 
-    def loadEx(self, oid, version):
+    def load(self, oid, version):
         self._lock_acquire()
         try:
             assert not version
             tid = self._cur[oid]
-            self.hook(oid, tid, version)
-            return self._index[(oid, tid)], tid, ""
+            self.hook(oid, tid, '')
+            return self._index[(oid, tid)], tid
         finally:
             self._lock_release()
-
-    def load(self, oid, version):
-        return self.loadEx(oid, version)[:2]
 
     def _begin(self, tid, u, d, e):
         self._txn = Transaction(tid)
@@ -144,6 +141,11 @@ class MinimalMemoryStorage(BaseStorage, object):
             return self._index[(oid, serial)]
         finally:
             self._lock_release()
+
+    def close(self):
+        pass
+
+    cleanup = close
 
 class MinimalTestSuite(StorageTestBase.StorageTestBase,
                        BasicStorage.BasicStorage,
