@@ -117,9 +117,15 @@ class DemoStorage(BaseStorage):
         self._quota = quota
         self._ltid = None
         self._clear_temp()
-        if base is not None and base.versions():
-            raise POSException.StorageError(
-                "Demo base storage has version data")
+
+        try:
+            versions = base.versions
+        except AttributeError:
+            pass
+        else:
+            if base.versions():
+                raise POSException.StorageError(
+                    "Demo base storage has version data")
 
     # When DemoStorage needs to create a new oid, and there is a base
     # storage, it must use that storage's new_oid() method.  Else
