@@ -84,21 +84,33 @@ class SynchronizedStorage:
         self.assertRaises(StorageTransactionError, callable, *args)
         self._storage.tpc_abort(t)
 
+    def __supportsVersions(self):
+        storage = self._storage
+        try:
+            supportsVersions = storage.supportsVersions
+        except AttributeError:
+            return False
+        return supportsVersions()
+
     def checkAbortVersionNotCommitting(self):
-        self.verifyNotCommitting(self._storage.abortVersion,
-                                 VERSION, Transaction())
+        if self.__supportsVersions():
+            self.verifyNotCommitting(self._storage.abortVersion,
+                                     VERSION, Transaction())
 
     def checkAbortVersionWrongTrans(self):
-        self.verifyWrongTrans(self._storage.abortVersion,
-                              VERSION, Transaction())
+        if self.__supportsVersions():
+            self.verifyWrongTrans(self._storage.abortVersion,
+                                  VERSION, Transaction())
 
     def checkCommitVersionNotCommitting(self):
-        self.verifyNotCommitting(self._storage.commitVersion,
-                                 VERSION, "", Transaction())
+        if self.__supportsVersions():
+            self.verifyNotCommitting(self._storage.commitVersion,
+                                     VERSION, "", Transaction())
 
     def checkCommitVersionWrongTrans(self):
-        self.verifyWrongTrans(self._storage.commitVersion,
-                              VERSION, "", Transaction())
+        if self.__supportsVersions():
+            self.verifyWrongTrans(self._storage.commitVersion,
+                                  VERSION, "", Transaction())
 
 
     def checkStoreNotCommitting(self):
