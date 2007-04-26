@@ -1,1 +1,0 @@
-Test ZEO with demo storage and mapping storage.
