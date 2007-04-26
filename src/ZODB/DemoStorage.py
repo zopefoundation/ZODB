@@ -117,9 +117,15 @@ class DemoStorage(BaseStorage):
         self._quota = quota
         self._ltid = None
         self._clear_temp()
-        if base is not None and base.versions():
-            raise POSException.StorageError(
-                "Demo base storage has version data")
+
+        try:
+            versions = base.versions
+        except AttributeError:
+            pass
+        else:
+            if base.versions():
+                raise POSException.StorageError(
+                    "Demo base storage has version data")
 
     # When DemoStorage needs to create a new oid, and there is a base
     # storage, it must use that storage's new_oid() method.  Else
@@ -212,36 +218,31 @@ class DemoStorage(BaseStorage):
         finally:
             self._lock_release()
 
-    def loadEx(self, oid, version):
+    def load(self, oid, version):
         self._lock_acquire()
         try:
             try:
                 oid, pre, vdata, p, tid = self._index[oid]
             except KeyError:
                 if self._base:
-                    return self._base.loadEx(oid, version)
+                    return self._base.load(oid, version)
                 raise KeyError(oid)
 
-            ver = ""
             if vdata:
                 oversion, nv = vdata
                 if oversion != version:
                     if nv:
                         # Return the current txn's tid with the non-version
                         # data.
-                        oid, pre, vdata, p, skiptid = nv
+                        p = nv[3]
                     else:
                         raise KeyError(oid)
-                ver = oversion
 
             if p is None:
                 raise KeyError(oid)
 
-            return p, tid, ver
+            return p, tid
         finally: self._lock_release()
-
-    def load(self, oid, version):
-        return self.loadEx(oid, version)[:2]
 
     def modifiedInVersion(self, oid):
         self._lock_acquire()
@@ -564,3 +565,7 @@ class DemoStorage(BaseStorage):
     def cleanup(self):
         if self._base is not None:
             self._base.cleanup()
+
+    def close(self):
+        if self._base is not None:
+            self._base.close()
