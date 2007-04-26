@@ -528,7 +528,8 @@ class IStorage(Interface):
     def loadSerial(oid, serial):
         """Load the object record for the give transaction id
 
-        A data record is returned.
+        If a matching data record can be found, it is returned,
+        otherwise, POSKeyError is raised.
         """
 
     def new_oid():
@@ -909,48 +910,3 @@ class IStorageCurrentRecordIteration(IStorage):
             ...         break
         
         """
-
-class IStorageVersioning(IStorage):
-    """A storage supporting versions.
-
-    It is likely that version support will disappear from future
-    versions of ZODB.  There are known bugs in version handling.
-    """
-
-    def supportsVersions():
-        """Return True, idicating that the storage suports versions.
-        """
-
-    def abortVersion(version, transaction):
-        """Clear any changes made by the given version.
-        """
-        # used by DB
-
-    def commitVersion(source, destination, transaction):
-        """Save version changes
-
-        Store changes made in the source version into the destination
-        version. A VersionCommitError is raised if the source and
-        destination are equal or if the source is an empty string. The
-        destination may be an empty string, in which case the data are
-        saved to non-version storage.
-        """
-        # used by DB
-
-    def versionEmpty(version):
-        """true if the version for the given version string is empty.
-        """
-        # DB pass through
-
-    def modifiedInVersion(oid):
-        """the version that the object was modified in,
-
-        or an empty string if the object was not modified in a version
-        """
-        # DB pass through, sor of.  In the past (including present :),
-        # the DB tried to cache this.  We'll probably stop bothering.
-
-    def versions(max = None):
-        """A sequence of version strings for active versions
-        """
-        # DB pass through
