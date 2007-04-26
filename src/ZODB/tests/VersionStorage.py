@@ -27,6 +27,16 @@ from ZODB.tests.MinPO import MinPO
 from ZODB.tests.StorageTestBase import zodb_unpickle, snooze
 from ZODB import DB
 
+def loadEx(storage, oid, version):
+    v = storage.modifiedInVersion(oid)
+    if v == version:
+        data, serial = storage.load(oid, version)
+        return data, serial, version
+    else:
+        data, serial = storage.load(oid, '')
+        return data, serial, ''
+        
+
 class VersionStorage:
 
     def checkCommitVersionSerialno(self):
@@ -46,7 +56,7 @@ class VersionStorage:
         revid1 = self._dostore(oid, data=MinPO(12))
         revid2 = self._dostore(oid, revid=revid1, data=MinPO(13),
                                version="version")
-        data, tid, ver = self._storage.loadEx(oid, "version")
+        data, tid, ver = loadEx(self._storage, oid, "version")
         self.assertEqual(revid2, tid)
         self.assertEqual(zodb_unpickle(data), MinPO(13))
         oids = self._abortVersion("version")
@@ -55,7 +65,7 @@ class VersionStorage:
         # use repr() to avoid getting binary data in a traceback on error
         self.assertNotEqual(revid1, revid3)
         self.assertNotEqual(revid2, revid3)
-        data, tid, ver = self._storage.loadEx(oid, "")
+        data, tid = self._storage.load(oid, "")
         self.assertEqual(revid3, tid)
         self.assertEqual(zodb_unpickle(data), MinPO(12))
         self.assertEqual(tid, self._storage.lastTransaction())
@@ -80,13 +90,13 @@ class VersionStorage:
         eq(zodb_unpickle(data), MinPO(12))
         data, vrevid = self._storage.load(oid, version)
         eq(zodb_unpickle(data), MinPO(15))
-        if hasattr(self._storage, 'getSerial'):
-            s = self._storage.getSerial(oid)
+        if hasattr(self._storage, 'getTid'):
+            s = self._storage.getTid(oid)
             eq(s, max(revid, vrevid))
-        data, tid, ver = self._storage.loadEx(oid, version)
+        data, tid, ver = loadEx(self._storage, oid, version)
         eq(zodb_unpickle(data), MinPO(15))
         eq(tid, revid2)
-        data, tid, ver = self._storage.loadEx(oid, "other version")
+        data, tid, ver = loadEx(self._storage, oid, "other version")
         eq(zodb_unpickle(data), MinPO(12))
         eq(tid, revid2)
         # loadSerial returns non-version data
@@ -186,7 +196,7 @@ class VersionStorage:
         eq = self.assertEqual
         oid, version = self._setup_version()
 
-        # Not sure I can write a test for getSerial() in the
+        # Not sure I can write a test for getTid() in the
         # presence of aborted versions, because FileStorage and
         # Berkeley storage give a different answer. I think Berkeley
         # is right and FS is wrong.
@@ -202,7 +212,7 @@ class VersionStorage:
         # after a version is aborted.
         oid, version = self._setup_version()
         self._abortVersion(version)
-        data, tid, ver = self._storage.loadEx(oid, "")
+        data, tid, ver = loadEx(self._storage, oid, "")
         # write a new revision of oid so that the aborted-version txn
         # is not current
         self._dostore(oid, revid=tid, data=MinPO(17))
@@ -219,11 +229,9 @@ class VersionStorage:
         self._storage.tpc_begin(t)
 
         # And try to abort the empty version
-        if (hasattr(self._storage, 'supportsTransactionalUndo') and
-                self._storage.supportsTransactionalUndo()):
-            self.assertRaises(POSException.VersionError,
-                              self._storage.abortVersion,
-                              '', t)
+        self.assertRaises(POSException.VersionError,
+                          self._storage.abortVersion,
+                          '', t)
 
         # But now we really try to abort the version
         tid, oids = self._storage.abortVersion(version, t)
@@ -235,9 +243,6 @@ class VersionStorage:
         eq(zodb_unpickle(data), MinPO(51))
 
     def checkCommitVersionErrors(self):
-        if not (hasattr(self._storage, 'supportsTransactionalUndo') and
-                self._storage.supportsTransactionalUndo()):
-            return
         eq = self.assertEqual
         oid1, version1 = self._setup_version('one')
         data, revid1 = self._storage.load(oid1, version1)
