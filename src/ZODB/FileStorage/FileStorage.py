@@ -515,32 +515,6 @@ class FileStorage(BaseStorage.BaseStorage,
         except TypeError:
             raise TypeError("invalid oid %r" % (oid,))
 
-    def loadEx(self, oid, version):
-        # A variant of load() that also returns the version string.
-        # ZEO wants this for managing its cache.
-        self._lock_acquire()
-        try:
-            pos = self._lookup_pos(oid)
-            h = self._read_data_header(pos, oid)
-            if h.version and h.version != version:
-                # Return data and tid from pnv (non-version data).
-                # If we return the old record's transaction id, then
-                # it will look to the cache like old data is current.
-                # The tid for the current data must always be greater
-                # than any non-current data.
-                data = self._loadBack_impl(oid, h.pnv)[0]
-                return data, h.tid, ""
-            if h.plen:
-                data = self._file.read(h.plen)
-                return data, h.tid, h.version
-            else:
-                # Get the data from the backpointer, but tid from
-                # currnt txn.
-                data = self._loadBack_impl(oid, h.back)[0]
-                return data, h.tid, h.version
-        finally:
-            self._lock_release()
-
     def load(self, oid, version):
         """Return pickle data and serial number."""
         self._lock_acquire()
@@ -940,9 +914,6 @@ class FileStorage(BaseStorage.BaseStorage,
             self._file.truncate(self._pos)
             self._nextpos=0
 
-    def supportsTransactionalUndo(self):
-        return 1
-
     def _undoDataInfo(self, oid, pos, tpos):
         """Return the tid, data pointer, data, and version for the oid
         record at pos"""
@@ -974,16 +945,16 @@ class FileStorage(BaseStorage.BaseStorage,
             result = self._get_cached_tid(oid)
             if result is None:
                 pos = self._lookup_pos(oid)
-                result = self._getTid(oid, pos)
+                h = self._read_data_header(pos, oid)
+                if h.plen == 0 and h.back == 0:
+                    # Undone creation
+                    raise POSKeyError(oid)
+                else:
+                    result = h.tid
+                    self._oid2tid[oid] = result
             return result
         finally:
             self._lock_release()
-
-    def _getTid(self, oid, pos):
-        self._file.seek(pos)
-        h = self._file.read(16)
-        assert oid == h[:8]
-        return h[8:]
 
     def _getVersion(self, oid, pos):
         h = self._read_data_header(pos, oid)
@@ -1440,7 +1411,10 @@ class FileStorage(BaseStorage.BaseStorage,
         except ValueError: # "empty tree" error
             next_oid = None
 
-        data, tid = self.load(oid, "") # ignore versions
+        # ignore versions
+        # XXX if the object was created in a version, this will fail.
+        data, tid = self.load(oid, "")
+
         return oid, tid, data, next_oid
 
 
