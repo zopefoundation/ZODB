@@ -231,6 +231,9 @@ class Connection(ExportImport, object):
         if obj is not None:
             return obj
 
+        # This appears to be an MVCC violation because we are loading
+        # the must recent data when perhaps we shouldnt. The key is
+        # that we are only creating a ghost!        
         p, serial = self._storage.load(oid, self._version)
         obj = self._reader.getGhost(p)
 
@@ -1195,10 +1198,18 @@ class TmpStore:
     def __init__(self, base_version, storage):
         self._storage = storage
         for method in (
-            'getName', 'new_oid', 'modifiedInVersion', 'getSize',
-            'undoLog', 'versionEmpty', 'sortKey', 'loadBefore',
+            'getName', 'new_oid', 'getSize', 'sortKey', 'loadBefore',
             ):
             setattr(self, method, getattr(storage, method))
+
+        try:
+            supportsVersions = storage.supportsVersions
+        except AttributeError:
+            pass
+        else:
+            if supportsVersions():
+                self.modifiedInVersion = storage.modifiedInVersion
+                self.versionEmpty = storage.versionEmpty
 
         self._base_version = base_version
         tmpdir = os.environ.get('ZODB_BLOB_TEMPDIR')
