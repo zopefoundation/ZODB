@@ -33,25 +33,6 @@ class IServeable(zope.interface.Interface):
         return the transaction (object) being committed.  Otherwise
         return None.
         """
-
-    def loadEx(oid, version):
-        """Load current object data for a version
-
-        Return the current data, serial (transaction id) and version
-        for an object in a version.
-
-        If an object has been modified in the given version, then the
-        data and serial are for the most current revision of the
-        object and the returned version will match the given version.
-
-        If an object hasn't been modified in a version, or has been
-        modified in a version other than the given one, then the data,
-        and serial for the most recent non-version revision will be
-        returned along with an empty version string.
-
-        If a storage doesn't support versions, it should ignore the
-        version argument.
-        """
         
     def lastInvalidations(size):
         """Get recent transaction invalidations

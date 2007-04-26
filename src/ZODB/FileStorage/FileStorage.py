@@ -515,32 +515,6 @@ class FileStorage(BaseStorage.BaseStorage,
         except TypeError:
             raise TypeError("invalid oid %r" % (oid,))
 
-    def loadEx(self, oid, version):
-        # A variant of load() that also returns the version string.
-        # ZEO wants this for managing its cache.
-        self._lock_acquire()
-        try:
-            pos = self._lookup_pos(oid)
-            h = self._read_data_header(pos, oid)
-            if h.version and h.version != version:
-                # Return data and tid from pnv (non-version data).
-                # If we return the old record's transaction id, then
-                # it will look to the cache like old data is current.
-                # The tid for the current data must always be greater
-                # than any non-current data.
-                data = self._loadBack_impl(oid, h.pnv)[0]
-                return data, h.tid, ""
-            if h.plen:
-                data = self._file.read(h.plen)
-                return data, h.tid, h.version
-            else:
-                # Get the data from the backpointer, but tid from
-                # currnt txn.
-                data = self._loadBack_impl(oid, h.back)[0]
-                return data, h.tid, h.version
-        finally:
-            self._lock_release()
-
     def load(self, oid, version):
         """Return pickle data and serial number."""
         self._lock_acquire()

@@ -144,20 +144,6 @@ class IteratorStorage(IteratorCompare):
         finally:
             self._storage.tpc_finish(t)
 
-    def checkLoadEx(self):
-        oid = self._storage.new_oid()
-        self._dostore(oid, data=42)
-        data, tid, ver = self._storage.loadEx(oid, "")
-        self.assertEqual(zodb_unpickle(data), MinPO(42))
-        match = False
-        for txn in self._storage.iterator():
-            for rec in txn:
-                if rec.oid == oid and rec.tid == tid:
-                    self.assertEqual(txn.tid, tid)
-                    match = True
-        if not match:
-            self.fail("Could not find transaction with matching id")
-
 
 class ExtendedIteratorStorage(IteratorCompare):
 

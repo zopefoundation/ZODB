@@ -22,6 +22,7 @@ from ZODB.serialize import referencesf
 from ZODB.tests.MinPO import MinPO
 from ZODB.tests.StorageTestBase import zodb_unpickle
 
+from ZODB.tests.VersionStorage import loadEx
 
 class TransactionalUndoVersionStorage:
 
@@ -132,16 +133,15 @@ class TransactionalUndoVersionStorage:
         self.assertEqual(load_value(oid1), 0)
         self.assertEqual(load_value(oid1, version), 2)
 
-        data, tid, ver = self._storage.loadEx(oid1, "")
+        data, tid = self._storage.load(oid1, "")
         # After undoing the version commit, the non-version data
         # once again becomes the non-version data from 'create1'.
         self.assertEqual(tid, self._storage.lastTransaction())
-        self.assertEqual(ver, "")
 
         # The current version data comes from an undo record, which
         # means that it gets data via the backpointer but tid from the
         # current txn.
-        data, tid, ver = self._storage.loadEx(oid1, version)
+        data, tid, ver = loadEx(self._storage, oid1, version)
         self.assertEqual(ver, version)
         self.assertEqual(tid, self._storage.lastTransaction())
 

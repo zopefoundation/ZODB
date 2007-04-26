@@ -289,7 +289,14 @@ class ZEOStorage:
 
     def loadEx(self, oid, version):
         self.stats.loads += 1
-        return self.storage.loadEx(oid, version)
+        if version:
+            oversion = self.storage.modifiedInVersion(oid)
+            if oversion == version:
+                data, serial = self.storage.load(oid, version)
+                return data, serial, version
+
+        data, serial = self.storage.load(oid, '')
+        return data, serial, ''
 
     def loadBefore(self, oid, tid):
         self.stats.loads += 1
