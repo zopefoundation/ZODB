@@ -185,15 +185,11 @@ class ZEOStorage:
         try:
             fn = self.storage.getExtensionMethods
         except AttributeError:
-            # We must be running with a ZODB which
-            # predates adding getExtensionMethods to
-            # BaseStorage. Eventually this try/except
-            # can be removed
-            pass
+            pass # no extension methods
         else:
             d = fn()
             self._extensions.update(d)
-            for name in d.keys():
+            for name in d:
                 assert not hasattr(self, name)
                 setattr(self, name, getattr(self.storage, name))
         self.lastTransaction = self.storage.lastTransaction
