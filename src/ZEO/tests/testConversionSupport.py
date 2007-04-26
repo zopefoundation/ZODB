@@ -30,6 +30,9 @@ class FakeStorageBase:
     def __len__(self):
         return 4
 
+    def getTid(self, oid):
+        pass
+
 class FakeStorage(FakeStorageBase):
 
     def record_iternext(self, next=None):
@@ -41,9 +44,6 @@ class FakeStorage(FakeStorageBase):
             next = None
 
         return oid, oid*8, 'data ' + oid, next
-
-    def getTid(self, oid):
-        pass
 
 class FakeServer:
     storages = {
