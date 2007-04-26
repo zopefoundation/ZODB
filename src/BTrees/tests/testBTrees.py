@@ -26,18 +26,7 @@ from BTrees.LLBTree import LLBTree, LLBucket, LLSet, LLTreeSet
 from BTrees.LFBTree import LFBTree, LFBucket, LFSet, LFTreeSet
 from BTrees.OLBTree import OLBTree, OLBucket, OLSet, OLTreeSet
 
-import BTrees.family32
-import BTrees.family64
-import BTrees.OOBTree
-import BTrees.IOBTree
-import BTrees.IIBTree
-import BTrees.IFBTree
-import BTrees.OIBTree
-import BTrees.LOBTree
-import BTrees.LLBTree
-import BTrees.LFBTree
-import BTrees.OLBTree
-import BTrees.Interfaces
+import BTrees
 
 from BTrees.IIBTree import using64bits
 from BTrees.check import check
@@ -1691,15 +1680,17 @@ class FamilyTest(TestCase):
     def test32(self):
         self.assert_(
             zope.interface.verify.verifyObject(
-                BTrees.Interfaces.IIntegerFamily, BTrees.family32))
+                BTrees.Interfaces.IBTreeFamily, BTrees.family32))
         self.assertEquals(
-            BTrees.family32.IOModule, BTrees.IOBTree)
+            BTrees.family32.IO, BTrees.IOBTree)
         self.assertEquals(
-            BTrees.family32.OIModule, BTrees.OIBTree)
+            BTrees.family32.OI, BTrees.OIBTree)
         self.assertEquals(
-            BTrees.family32.IIModule, BTrees.IIBTree)
+            BTrees.family32.II, BTrees.IIBTree)
         self.assertEquals(
-            BTrees.family32.IFModule, BTrees.IFBTree)
+            BTrees.family32.IF, BTrees.IFBTree)
+        self.assertEquals(
+            BTrees.family32.OO, BTrees.OOBTree)
         s = IOTreeSet()
         s.insert(BTrees.family32.maxint)
         self.assert_(BTrees.family32.maxint in s)
@@ -1725,15 +1716,17 @@ class FamilyTest(TestCase):
     def test64(self):
         self.assert_(
             zope.interface.verify.verifyObject(
-                BTrees.Interfaces.IIntegerFamily, BTrees.family64))
+                BTrees.Interfaces.IBTreeFamily, BTrees.family64))
         self.assertEquals(
-            BTrees.family64.IOModule, BTrees.LOBTree)
+            BTrees.family64.IO, BTrees.LOBTree)
         self.assertEquals(
-            BTrees.family64.OIModule, BTrees.OLBTree)
+            BTrees.family64.OI, BTrees.OLBTree)
         self.assertEquals(
-            BTrees.family64.IIModule, BTrees.LLBTree)
+            BTrees.family64.II, BTrees.LLBTree)
         self.assertEquals(
-            BTrees.family64.IFModule, BTrees.LFBTree)
+            BTrees.family64.IF, BTrees.LFBTree)
+        self.assertEquals(
+            BTrees.family64.OO, BTrees.OOBTree)
         s = LOTreeSet()
         s.insert(BTrees.family64.maxint)
         self.assert_(BTrees.family64.maxint in s)

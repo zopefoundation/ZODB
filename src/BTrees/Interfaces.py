@@ -440,16 +440,13 @@ class IMergeIntegerKey(IMerge):
         linear-time pass.
         """
 
-class IIntegerFamily(Interface):
+class IBTreeFamily(Interface):
     """the 64-bit or 32-bit family"""
-    IOModule = Attribute(
-        'The IIntegerObjectBTreeModule for this family')
-    OIModule = Attribute(
-        'The IObjectIntegerBTreeModule for this family')
-    IIModule = Attribute(
-        'The IIntegerIntegerBTreeModule for this family')
-    IFModule = Attribute(
-        'The IIntegerFloatBTreeModule for this family')
+    IO = Attribute('The IIntegerObjectBTreeModule for this family')
+    OI = Attribute('The IObjectIntegerBTreeModule for this family')
+    II = Attribute('The IIntegerIntegerBTreeModule for this family')
+    IF = Attribute('The IIntegerFloatBTreeModule for this family')
+    OO = Attribute('The IObjectObjectBTreeModule for this family')
     maxint = Attribute('The maximum integer storable in this family')
     minint = Attribute('The minimum integer storable in this family')
 
@@ -459,7 +456,7 @@ class IIntegerObjectBTreeModule(IBTreeModule, IMerge):
     
     describes IOBTree and LOBTree"""
     
-    family = Attribute('The IIntegerFamily of this module')
+    family = Attribute('The IBTreeFamily of this module')
 
 
 class IObjectIntegerBTreeModule(IBTreeModule, IIMerge):
@@ -470,7 +467,7 @@ class IObjectIntegerBTreeModule(IBTreeModule, IIMerge):
     
     describes OIBTree and LOBTree"""
     
-    family = Attribute('The IIntegerFamily of this module')
+    family = Attribute('The IBTreeFamily of this module')
 
 
 class IIntegerIntegerBTreeModule(IBTreeModule, IIMerge, IMergeIntegerKey):
@@ -478,7 +475,7 @@ class IIntegerIntegerBTreeModule(IBTreeModule, IIMerge, IMergeIntegerKey):
     
     describes IIBTree and LLBTree"""
     
-    family = Attribute('The IIntegerFamily of this module')
+    family = Attribute('The IBTreeFamily of this module')
 
 
 class IObjectObjectBTreeModule(IBTreeModule, IMerge):
@@ -489,13 +486,16 @@ class IObjectObjectBTreeModule(IBTreeModule, IMerge):
     
     describes OOBTree"""
 
+    # Note that there's no ``family`` attribute; all families include
+    # the OO flavor of BTrees.
+
 
 class IIntegerFloatBTreeModule(IBTreeModule, IMerge):
     """keys, or set values, are integers; values are floats.
     
     describes IFBTree and LFBTree"""
     
-    family = Attribute('The IIntegerFamily of this module')
+    family = Attribute('The IBTreeFamily of this module')
 
 
 ###############################################################
