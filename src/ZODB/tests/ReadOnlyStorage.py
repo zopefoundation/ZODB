@@ -59,6 +59,5 @@ class ReadOnlyStorage:
         self.assertRaises(ReadOnlyError, self._storage.store,
                           '\000' * 8, None, '', '', t)
 
-        if self._storage.supportsTransactionalUndo():
-            self.assertRaises(ReadOnlyError, self._storage.undo,
-                              '\000' * 8, t)
+        self.assertRaises(ReadOnlyError, self._storage.undo,
+                          '\000' * 8, t)
