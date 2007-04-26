@@ -145,6 +145,11 @@ class MinimalMemoryStorage(BaseStorage, object):
         finally:
             self._lock_release()
 
+    def close(self):
+        pass
+
+    cleanup = close
+
 class MinimalTestSuite(StorageTestBase.StorageTestBase,
                        BasicStorage.BasicStorage,
                        MTStorage.MTStorage,

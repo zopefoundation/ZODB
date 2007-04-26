@@ -139,3 +139,9 @@ class MappingStorage(BaseStorage):
                      (u64(oid), TimeStamp(r[:8]), repr(r[8:])))
 
         return '\n'.join(o)
+
+    def cleanup(self):
+        pass
+
+    def close(self):
+        pass

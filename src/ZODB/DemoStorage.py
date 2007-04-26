@@ -566,3 +566,11 @@ class DemoStorage(BaseStorage):
                 o.append('    %s: %s' % (oid_repr(oid), r))
 
         return '\n'.join(o)
+
+    def cleanup(self):
+        if self._base is not None:
+            self._base.cleanup()
+
+    def close(self):
+        if self._base is not None:
+            self._base.close()
