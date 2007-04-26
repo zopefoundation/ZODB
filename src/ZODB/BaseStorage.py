@@ -54,20 +54,6 @@ class BaseStorage(UndoLogCompatible):
     If it stores multiple revisions, it should implement
     loadSerial()
     loadBefore()
-    iterator()
-
-    If the subclass wants to implement undo, it should implement the
-    multiple revision methods and:
-    undo()
-    undoInfo()
-    undoLog()
-
-    If the subclass wants to implement versions, it must implement:
-    abortVersion()
-    commitVersion()
-    modifiedInVersion()
-    versionEmpty()
-    versions()
 
     Each storage will have two locks that are accessed via lock
     acquire and release methods bound to the instance.  (Yuck.)
@@ -111,12 +97,6 @@ class BaseStorage(UndoLogCompatible):
             self._oid = z64
         else:
             self._oid = oid
-
-    def close(self):
-        pass
-
-    def cleanup(self):
-        pass
 
     def sortKey(self):
         """Return a string that can be used to sort storage instances.
@@ -186,7 +166,7 @@ class BaseStorage(UndoLogCompatible):
 
     def _abort(self):
         """Subclasses should redefine this to supply abort actions"""
-        raise NotImplementedError
+        pass
 
     def tpc_begin(self, transaction, tid=None, status=' '):
         if self._is_read_only:
@@ -230,7 +210,7 @@ class BaseStorage(UndoLogCompatible):
     def _begin(self, tid, u, d, e):
         """Subclasses should redefine this to supply transaction start actions.
         """
-        raise NotImplementedError
+        pass
 
     def tpc_vote(self, transaction):
         self._lock_acquire()
@@ -244,7 +224,7 @@ class BaseStorage(UndoLogCompatible):
     def _vote(self):
         """Subclasses should redefine this to supply transaction vote actions.
         """
-        raise NotImplementedError
+        pass
 
     def tpc_finish(self, transaction, f=None):
         # It's important that the storage calls the function we pass
@@ -279,7 +259,14 @@ class BaseStorage(UndoLogCompatible):
     def getTid(self, oid):
         self._lock_acquire()
         try:
-            v = self.modifiedInVersion(oid)
+            v = ''
+            try:
+                supportsVersions = self.supportsVersions
+            except AttributeError:
+                pass
+            else:
+                if supportsVersions():
+                    v = self.modifiedInVersion(oid)
             pickledata, serial = self.load(oid, v)
             return serial
         finally:
@@ -291,57 +278,7 @@ class BaseStorage(UndoLogCompatible):
 
     def loadBefore(self, oid, tid):
         """Return most recent revision of oid before tid committed."""
-
-        # Unsure: Is it okay for loadBefore() to return current data?
-        # There doesn't seem to be a good reason to forbid it, even
-        # though the typical use of this method will never find
-        # current data.  But maybe we should call it loadByTid()?
-
-        n = 2
-        start_time = None
-        end_time = None
-        while start_time is None:
-            # The history() approach is a hack, because the dict
-            # returned by history() doesn't contain a tid.  It
-            # contains a serialno, which is often the same, but isn't
-            # required to be.  We'll pretend it is for now.
-
-            # A second problem is that history() doesn't say anything
-            # about whether the transaction status.  If it falls before
-            # the pack time, we can't honor the MVCC request.
-
-            # Note: history() returns the most recent record first.
-
-            # TODO: The filter argument to history() only appears to be
-            # supported by FileStorage.  Perhaps it shouldn't be used.
-            L = self.history(oid, "", n, lambda d: not d["version"])
-            if not L:
-                return
-            for d in L:
-                if d["serial"] < tid:
-                    start_time = d["serial"]
-                    break
-                else:
-                    end_time = d["serial"]
-            if len(L) < n:
-                break
-            n *= 2
-        if start_time is None:
-            return None
-        data = self.loadSerial(oid, start_time)
-        return data, start_time, end_time
-
-    def getExtensionMethods(self):
-        """getExtensionMethods
-
-        This returns a dictionary whose keys are names of extra methods
-        provided by this storage. Storage proxies (such as ZEO) should
-        call this method to determine the extra methods that they need
-        to proxy in addition to the standard storage methods.
-        Dictionary values should be None; this will be a handy place
-        for extra marshalling information, should we need it
-        """
-        return {}
+        return None
 
     def copyTransactionsFrom(self, other, verbose=0):
         """Copy transactions from another storage.
@@ -349,61 +286,69 @@ class BaseStorage(UndoLogCompatible):
         This is typically used for converting data from one storage to
         another.  `other` must have an .iterator() method.
         """
-        _ts=None
-        ok=1
-        preindex={};
-        preget=preindex.get   # waaaa
-        # restore() is a new storage API method which has an identical
-        # signature to store() except that it does not return anything.
-        # Semantically, restore() is also identical to store() except that it
-        # doesn't do the ConflictError or VersionLockError consistency
-        # checks.  The reason to use restore() over store() in this method is
-        # that store() cannot be used to copy transactions spanning a version
-        # commit or abort, or over transactional undos.
-        #
-        # We'll use restore() if it's available, otherwise we'll fall back to
-        # using store().  However, if we use store, then
-        # copyTransactionsFrom() may fail with VersionLockError or
-        # ConflictError.
-        restoring = hasattr(self, 'restore')
-        fiter = other.iterator()
-        for transaction in fiter:
-            tid=transaction.tid
-            if _ts is None:
-                _ts=TimeStamp(tid)
+        copy(other, self, verbose)
+
+def copy(source, dest, verbose=0):
+    """Copy transactions from a source to a destination storage
+
+    This is typically used for converting data from one storage to
+    another.  `source` must have an .iterator() method.
+    """
+    _ts = None
+    ok = 1
+    preindex = {};
+    preget = preindex.get
+    # restore() is a new storage API method which has an identical
+    # signature to store() except that it does not return anything.
+    # Semantically, restore() is also identical to store() except that it
+    # doesn't do the ConflictError or VersionLockError consistency
+    # checks.  The reason to use restore() over store() in this method is
+    # that store() cannot be used to copy transactions spanning a version
+    # commit or abort, or over transactional undos.
+    #
+    # We'll use restore() if it's available, otherwise we'll fall back to
+    # using store().  However, if we use store, then
+    # copyTransactionsFrom() may fail with VersionLockError or
+    # ConflictError.
+    restoring = hasattr(dest, 'restore')
+    fiter = source.iterator()
+    for transaction in fiter:
+        tid = transaction.tid
+        if _ts is None:
+            _ts = TimeStamp(tid)
+        else:
+            t = TimeStamp(tid)
+            if t <= _ts:
+                if ok: print ('Time stamps out of order %s, %s' % (_ts, t))
+                ok = 0
+                _ts = t.laterThan(_ts)
+                tid = `_ts`
             else:
-                t=TimeStamp(tid)
-                if t <= _ts:
-                    if ok: print ('Time stamps out of order %s, %s' % (_ts, t))
-                    ok=0
-                    _ts=t.laterThan(_ts)
-                    tid=`_ts`
-                else:
-                    _ts = t
-                    if not ok:
-                        print ('Time stamps back in order %s' % (t))
-                        ok=1
+                _ts = t
+                if not ok:
+                    print ('Time stamps back in order %s' % (t))
+                    ok = 1
 
+        if verbose:
+            print _ts
+
+        dest.tpc_begin(transaction, tid, transaction.status)
+        for r in transaction:
+            oid = r.oid
             if verbose:
-                print _ts
+                print oid_repr(oid), r.version, len(r.data)
+            if restoring:
+                dest.restore(oid, r.tid, r.data, r.version,
+                             r.data_txn, transaction)
+            else:
+                pre = preget(oid, None)
+                s = dest.store(oid, pre, r.data, r.version, transaction)
+                preindex[oid] = s
 
-            self.tpc_begin(transaction, tid, transaction.status)
-            for r in transaction:
-                oid=r.oid
-                if verbose:
-                    print oid_repr(oid), r.version, len(r.data)
-                if restoring:
-                    self.restore(oid, r.tid, r.data, r.version,
-                                 r.data_txn, transaction)
-                else:
-                    pre=preget(oid, None)
-                    s=self.store(oid, pre, r.data, r.version, transaction)
-                    preindex[oid]=s
+        dest.tpc_vote(transaction)
+        dest.tpc_finish(transaction)
 
-            self.tpc_vote(transaction)
-            self.tpc_finish(transaction)
-
-        fiter.close()
+    fiter.close()
 
 class TransactionRecord:
     """Abstract base class for iterator protocol"""
