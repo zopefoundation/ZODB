@@ -250,10 +250,10 @@ class DB(object):
         except TypeError:
             storage.registerDB(self, None) # Backward compat
             
-        if not hasattr(storage, 'tpc_vote'):
+        if (not hasattr(storage, 'tpc_vote')) and not storage.isReadOnly():
             warnings.warn(
                 "Storage doesn't have a tpc_vote and this violates "
-                "the stirage API. Violently monkeypatching in a do-nothing "
+                "the storage API. Violently monkeypatching in a do-nothing "
                 "tpc_vote.",
                 DeprecationWarning, 2)
             storage.tpc_vote = lambda *args: None
@@ -370,6 +370,10 @@ class DB(object):
             self._r()
 
     def abortVersion(self, version, txn=None):
+        warnings.warn(
+            "Versions are deprecated and will become unsupported "
+            "in ZODB 3.9",
+            DeprecationWarning, 2)            
         if txn is None:
             txn = transaction.get()
         txn.register(AbortVersion(self, version))
@@ -487,6 +491,10 @@ class DB(object):
         self._storage.close()
 
     def commitVersion(self, source, destination='', txn=None):
+        warnings.warn(
+            "Versions are deprecated and will become unsupported "
+            "in ZODB 3.9",
+            DeprecationWarning, 2)            
         if txn is None:
             txn = transaction.get()
         txn.register(CommitVersion(self, source, destination))
@@ -507,9 +515,17 @@ class DB(object):
         return self._storage.getSize()
 
     def getVersionCacheSize(self):
+        warnings.warn(
+            "Versions are deprecated and will become unsupported "
+            "in ZODB 3.9",
+            DeprecationWarning, 2)            
         return self._version_cache_size
 
     def getVersionPoolSize(self):
+        warnings.warn(
+            "Versions are deprecated and will become unsupported "
+            "in ZODB 3.9",
+            DeprecationWarning, 2)            
         return self._version_pool_size
 
     def invalidate(self, tid, oids, connection=None, version=''):
@@ -558,6 +574,15 @@ class DB(object):
           - `synch`: boolean indicating whether Connection should
              register for afterCompletion() calls.
         """
+
+        if version:
+            if not self.supportsVersions():
+                raise ValueError(
+                    "Versions are not supported by this database.")
+            warnings.warn(
+                "Versions are deprecated and will become unsupported "
+                "in ZODB 3.9",
+                DeprecationWarning, 2)            
 
         self._a()
         try:
@@ -672,6 +697,10 @@ class DB(object):
             self._r()
 
     def setVersionCacheSize(self, size):
+        warnings.warn(
+            "Versions are deprecated and will become unsupported "
+            "in ZODB 3.9",
+            DeprecationWarning, 2)            
         self._a()
         try:
             self._version_cache_size = size
@@ -688,6 +717,10 @@ class DB(object):
         self._reset_pool_sizes(size, for_versions=False)
 
     def setVersionPoolSize(self, size):
+        warnings.warn(
+            "Versions are deprecated and will become unsupported "
+            "in ZODB 3.9",
+            DeprecationWarning, 2)            
         self._version_pool_size = size
         self._reset_pool_sizes(size, for_versions=True)
 
