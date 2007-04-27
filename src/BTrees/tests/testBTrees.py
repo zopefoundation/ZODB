@@ -11,7 +11,9 @@
 # FOR A PARTICULAR PURPOSE
 #
 ##############################################################################
+import pickle
 import random
+import StringIO
 from unittest import TestCase, TestSuite, TextTestRunner, makeSuite
 from types import ClassType
 import zope.interface.verify
@@ -1712,6 +1714,7 @@ class FamilyTest(TestCase):
             s = IOTreeSet()
             s.insert(BTrees.family32.minint - 1)
             self.assert_(BTrees.family32.minint - 1 not in s)
+        self.check_pickling(BTrees.family32)
 
     def test64(self):
         self.assert_(
@@ -1736,6 +1739,41 @@ class FamilyTest(TestCase):
         s = LOTreeSet()
         self.assertRaises(ValueError, s.insert, BTrees.family64.maxint + 1)
         self.assertRaises(ValueError, s.insert, BTrees.family64.minint - 1)
+        self.check_pickling(BTrees.family64)
+
+    def check_pickling(self, family):
+        # The "family" objects are singletons; they can be pickled and
+        # unpickled, and the same instances will always be returned on
+        # unpickling, whether from the same unpickler or different
+        # unpicklers.
+        s = pickle.dumps((family, family))
+        (f1, f2) = pickle.loads(s)
+        self.failUnless(f1 is family)
+        self.failUnless(f2 is family)
+
+        # Using a single memo across multiple pickles:
+        sio = StringIO.StringIO()
+        p = pickle.Pickler(sio)
+        p.dump(family)
+        p.dump([family])
+        u = pickle.Unpickler(StringIO.StringIO(sio.getvalue()))
+        f1 = u.load()
+        f2, = u.load()
+        self.failUnless(f1 is family)
+        self.failUnless(f2 is family)
+
+        # Using separate memos for each pickle:
+        sio = StringIO.StringIO()
+        p = pickle.Pickler(sio)
+        p.dump(family)
+        p.clear_memo()
+        p.dump([family])
+        u = pickle.Unpickler(StringIO.StringIO(sio.getvalue()))
+        f1 = u.load()
+        f2, = u.load()
+        self.failUnless(f1 is family)
+        self.failUnless(f2 is family)
+
 
 def test_suite():
     s = TestSuite()
