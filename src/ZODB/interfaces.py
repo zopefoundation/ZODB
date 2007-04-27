@@ -877,24 +877,6 @@ class IStorageUndoable(IStorage):
         # DB pass-through
 
 
-class IStoragePackable(Interface):
-
-    def pack(t, referencesf):
-        """Pack the storage
-
-        Pack and/or garbage-collect the storage. If the storage does
-        not support undo, then t is ignored. All records for objects
-        that are not reachable from the system root object as of time
-        t, or as of the current time, if undo is not supported, are
-        removed from the storage.
-
-        A storage implementation may treat this method as ano-op. A
-        storage implementation may also delay packing and return
-        immediately. Storage documentation should define the behavior
-        of this method.
-        """
-        # Called by DB
-
 class IStorageCurrentRecordIteration(IStorage):
 
     def record_iternext(next=None):
