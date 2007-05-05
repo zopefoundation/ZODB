@@ -89,7 +89,6 @@ class Connection(ExportImport, object):
         self.connections = {self._db.database_name: self}
 
         self._synch = None
-        self._mvcc = None
 
         self._version = version
         self._normal_storage = self._storage = db._storage
@@ -348,7 +347,7 @@ class Connection(ExportImport, object):
         if connection is None:
             new_con = self._db.databases[database_name].open(
                 transaction_manager=self.transaction_manager,
-                mvcc=self._mvcc, version=self._version, synch=self._synch,
+                version=self._version, synch=self._synch,
                 )
             self.connections.update(new_con.connections)
             new_con.connections = self.connections
@@ -871,7 +870,7 @@ class Connection(ExportImport, object):
 
     def _load_before_or_conflict(self, obj):
         """Load non-current state for obj or raise ReadConflictError."""
-        if not (self._mvcc and self._setstate_noncurrent(obj)):
+        if not ((not self._version) and self._setstate_noncurrent(obj)):
             self._register(obj)
             self._conflicts[obj._p_oid] = True
             raise ReadConflictError(object=obj)
@@ -971,8 +970,7 @@ class Connection(ExportImport, object):
         # return a list of [ghosts....not recently used.....recently used]
         return everything.items() + items
 
-    def open(self, transaction_manager=None, mvcc=True, synch=True,
-             delegate=True):
+    def open(self, transaction_manager=None, synch=True, delegate=True):
         """Register odb, the DB that this Connection uses.
 
         This method is called by the DB every time a Connection
@@ -984,13 +982,11 @@ class Connection(ExportImport, object):
 
         Parameters:
         odb: database that owns the Connection
-        mvcc: boolean indicating whether MVCC is enabled
         transaction_manager: transaction manager to use.  None means
             use the default transaction manager.
         synch: boolean indicating whether Connection should
         register for afterCompletion() calls.
         """
-
         # TODO:  Why do we go to all the trouble of setting _db and
         # other attributes on open and clearing them on close?
         # A Connection is only ever associated with a single DB
@@ -998,7 +994,6 @@ class Connection(ExportImport, object):
 
         self._opened = time()
         self._synch = synch
-        self._mvcc = mvcc and not self._version
 
         if transaction_manager is None:
             transaction_manager = transaction.manager
@@ -1021,7 +1016,7 @@ class Connection(ExportImport, object):
             # delegate open to secondary connections
             for connection in self.connections.values():
                 if connection is not self:
-                    connection.open(transaction_manager, mvcc, synch, False)
+                    connection.open(transaction_manager, synch, False)
 
     def _resetCache(self):
         """Creates a new cache, discarding the old one.
