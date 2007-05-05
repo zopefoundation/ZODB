@@ -16,7 +16,7 @@
 Any storage that supports versions should be able to pass all these tests.
 """
 
-import time
+import time, warnings
 
 import transaction
 from transaction import Transaction
@@ -36,6 +36,9 @@ def loadEx(storage, oid, version):
         data, serial = storage.load(oid, '')
         return data, serial, ''
         
+warnings.filterwarnings(
+    'ignore', message='Versions are deprecated', module=__name__)
+
 
 class VersionStorage:
 

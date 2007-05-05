@@ -35,6 +35,8 @@ class DBTests(unittest.TestCase):
         self.__path = os.path.abspath('test.fs')
         store = ZODB.FileStorage.FileStorage(self.__path)
         self.db = ZODB.DB(store)
+        warnings.filterwarnings(
+            'ignore', message='Versions are deprecated', module=__name__)
 
     def tearDown(self):
         self.db.close()
