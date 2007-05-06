@@ -355,20 +355,13 @@ class IDatabase(IStorageDB):
         entry.
         """)
 
-    def open(version='',
-             mvcc=True,
-             transaction_manager=None,
-             synch=True
-             ):
+    def open(version='', transaction_manager=None):
         """Return an IConnection object for use by application code.
 
         version: the "version" that all changes will be made
             in, defaults to no version.
-        mvcc: boolean indicating whether MVCC is enabled
         transaction_manager: transaction manager to use.  None means
             use the default transaction manager.
-        synch: boolean indicating whether Connection should
-            register for afterCompletion() calls.
 
         Note that the connection pool is managed as a stack, to
         increase the likelihood that the connection's stack will

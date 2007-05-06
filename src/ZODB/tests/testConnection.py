@@ -24,12 +24,6 @@ from ZODB.utils import p64, u64
 from ZODB.tests.warnhook import WarningsHook
 from zope.interface.verify import verifyObject
 
-# deprecated37  remove when subtransactions go away
-# Don't complain about subtxns in these tests.
-warnings.filterwarnings("ignore",
-                        ".*\nsubtransactions are deprecated",
-                        DeprecationWarning, __name__)
-
 class ConnectionDotAdd(unittest.TestCase):
 
     def setUp(self):
@@ -291,35 +285,6 @@ class UserMethodTests(unittest.TestCase):
         >>> cn2.root()['a']
         10
         >>> cn.close(); cn2.close()
-
-        Bug:  We weren't catching the case where the only changes pending
-        were in a subtransaction.
-        >>> cn = db.open()
-        >>> cn.root()['a'] = 100
-        >>> transaction.commit(True)
-        >>> cn.close()  # this was succeeding
-        Traceback (most recent call last):
-          ...
-        ConnectionStateError: Cannot close a connection joined to a transaction
-
-        Again this leaves the connection as it was.
-        >>> transaction.commit()
-        >>> cn2 = db.open()
-        >>> cn2.root()['a']
-        100
-        >>> cn.close(); cn2.close()
-
-        Make sure we can still close a connection after aborting a pending
-        subtransaction.
-        >>> cn = db.open()
-        >>> cn.root()['a'] = 1000
-        >>> transaction.commit(True)
-        >>> cn.root()['a']
-        1000
-        >>> transaction.abort()
-        >>> cn.root()['a']
-        100
-        >>> cn.close()
 
         >>> db.close()
         """

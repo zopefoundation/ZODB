@@ -88,8 +88,6 @@ class Connection(ExportImport, object):
         # Multi-database support
         self.connections = {self._db.database_name: self}
 
-        self._synch = None
-
         self._version = version
         self._normal_storage = self._storage = db._storage
         self.new_oid = db._storage.new_oid
@@ -283,9 +281,8 @@ class Connection(ExportImport, object):
 
         self._debug_info = ()
 
-        if self._synch:
+        if self._opened:
             self.transaction_manager.unregisterSynch(self)
-            self._synch = None
 
         if primary:
             for connection in self.connections.values():
@@ -347,7 +344,7 @@ class Connection(ExportImport, object):
         if connection is None:
             new_con = self._db.databases[database_name].open(
                 transaction_manager=self.transaction_manager,
-                version=self._version, synch=self._synch,
+                version=self._version,
                 )
             self.connections.update(new_con.connections)
             new_con.connections = self.connections
@@ -452,8 +449,6 @@ class Connection(ExportImport, object):
     def _tpc_cleanup(self):
         """Performs cleanup operations to support tpc_finish and tpc_abort."""
         self._conflicts.clear()
-        if not self._synch:
-            self._flush_invalidations()
         self._needs_to_join = True
         self._registered_objects = []
         self._creating.clear()
@@ -647,12 +642,6 @@ class Connection(ExportImport, object):
         # returned in batches by the ClientStorage.  ZEO1 can also
         # return an exception object and expect that the Connection
         # will raise the exception.
-
-        # When commit_sub() exceutes a store, there is no need to
-        # update the _p_changed flag, because the subtransaction
-        # tpc_vote() calls already did this.  The change=1 argument
-        # exists to allow commit_sub() to avoid setting the flag
-        # again.
 
         # When conflict resolution occurs, the object state held by
         # the connection does not match what is written to the
@@ -970,7 +959,7 @@ class Connection(ExportImport, object):
         # return a list of [ghosts....not recently used.....recently used]
         return everything.items() + items
 
-    def open(self, transaction_manager=None, synch=True, delegate=True):
+    def open(self, transaction_manager=None, delegate=True):
         """Register odb, the DB that this Connection uses.
 
         This method is called by the DB every time a Connection
@@ -984,16 +973,10 @@ class Connection(ExportImport, object):
         odb: database that owns the Connection
         transaction_manager: transaction manager to use.  None means
             use the default transaction manager.
-        synch: boolean indicating whether Connection should
         register for afterCompletion() calls.
         """
-        # TODO:  Why do we go to all the trouble of setting _db and
-        # other attributes on open and clearing them on close?
-        # A Connection is only ever associated with a single DB
-        # and Storage.
 
         self._opened = time()
-        self._synch = synch
 
         if transaction_manager is None:
             transaction_manager = transaction.manager
@@ -1006,8 +989,7 @@ class Connection(ExportImport, object):
         else:
             self._flush_invalidations()
 
-        if synch:
-            transaction_manager.registerSynch(self)
+        transaction_manager.registerSynch(self)
 
         if self._cache is not None:
             self._cache.incrgc() # This is a good time to do some GC
@@ -1016,7 +998,7 @@ class Connection(ExportImport, object):
             # delegate open to secondary connections
             for connection in self.connections.values():
                 if connection is not self:
-                    connection.open(transaction_manager, synch, False)
+                    connection.open(transaction_manager, False)
 
     def _resetCache(self):
         """Creates a new cache, discarding the old one.
@@ -1111,7 +1093,7 @@ class Connection(ExportImport, object):
         src.reset(*state)
 
     def _commit_savepoint(self, transaction):
-        """Commit all changes made in subtransactions and begin 2-phase commit
+        """Commit all changes made in savepoints and begin 2-phase commit
         """
         src = self._savepoint_storage
         self._storage = self._normal_storage
@@ -1143,7 +1125,7 @@ class Connection(ExportImport, object):
         src.close()
 
     def _abort_savepoint(self):
-        """Discard all subtransaction data."""
+        """Discard all savepoint data."""
         src = self._savepoint_storage
         self._storage = self._normal_storage
         self._savepoint_storage = None

@@ -25,11 +25,7 @@ from persistent import Persistent
 from persistent.mapping import PersistentMapping
 import transaction
 
-# deprecated37  remove when subtransactions go away
-# Don't complain about subtxns in these tests.
-warnings.filterwarnings("ignore",
-                        ".*\nsubtransactions are deprecated",
-                        DeprecationWarning, __name__)
+# deprecated39  remove when versions go away
 warnings.filterwarnings("ignore",
                         "Versions are deprecated",
                         DeprecationWarning, __name__)
@@ -217,70 +213,6 @@ class ZODBTests(unittest.TestCase):
             conn1.close()
             conn2.close()
 
-    def checkSubtxnCommitDoesntGetInvalidations(self):
-        # Prior to ZODB 3.2.9 and 3.4, Connection.tpc_finish() processed
-        # invalidations even for a subtxn commit.  This could make
-        # inconsistent state visible after a subtxn commit.  There was a
-        # suspicion that POSKeyError was possible as a result, but I wasn't
-        # able to construct a case where that happened.
-
-        # Set up the database, to hold
-        # root --> "p" -> value = 1
-        #      --> "q" -> value = 2
-        tm1 = transaction.TransactionManager()
-        conn = self._db.open(transaction_manager=tm1)
-        r1 = conn.root()
-        p = P()
-        p.value = 1
-        r1["p"] = p
-        q = P()
-        q.value = 2
-        r1["q"] = q
-        tm1.commit()
-
-        # Now txn T1 changes p.value to 3 locally (subtxn commit).
-        p.value = 3
-        tm1.commit(True)
-
-        # Start new txn T2 with a new connection.
-        tm2 = transaction.TransactionManager()
-        cn2 = self._db.open(transaction_manager=tm2)
-        r2 = cn2.root()
-        p2 = r2["p"]
-        self.assertEqual(p._p_oid, p2._p_oid)
-        # T2 shouldn't see T1's change of p.value to 3, because T1 didn't
-        # commit yet.
-        self.assertEqual(p2.value, 1)
-        # Change p.value to 4, and q.value to 5.  Neither should be visible
-        # to T1, because T1 is still in progress.
-        p2.value = 4
-        q2 = r2["q"]
-        self.assertEqual(q._p_oid, q2._p_oid)
-        self.assertEqual(q2.value, 2)
-        q2.value = 5
-        tm2.commit()
-
-        # Back to T1.  p and q still have the expected values.
-        rt = conn.root()
-        self.assertEqual(rt["p"].value, 3)
-        self.assertEqual(rt["q"].value, 2)
-
-        # Now do another subtxn commit in T1.  This shouldn't change what
-        # T1 sees for p and q.
-        rt["r"] = P()
-        tm1.commit(True)
-
-        # Doing that subtxn commit in T1 should not process invalidations
-        # from T2's commit.  p.value should still be 3 here (because that's
-        # what T1 subtxn-committed earlier), and q.value should still be 2.
-        # Prior to ZODB 3.2.9 and 3.4, q.value was 5 here.
-        rt = conn.root()
-        try:
-            self.assertEqual(rt["p"].value, 3)
-            self.assertEqual(rt["q"].value, 2)
-        finally:
-            tm1.abort()
-
     def checkSavepointDoesntGetInvalidations(self):
         # Prior to ZODB 3.2.9 and 3.4, Connection.tpc_finish() processed
         # invalidations even for a subtxn commit.  This could make
@@ -357,23 +289,14 @@ class ZODBTests(unittest.TestCase):
         rt = cn.root()
         self.assertRaises(KeyError, rt.__getitem__, 'a')
 
-        # A longstanding bug:  this didn't work if changes were only in
-        # subtransactions.
-        transaction.begin()
-        rt = cn.root()
-        rt['a'] = 2
-        transaction.commit(1)
-
         transaction.begin()
         rt = cn.root()
         self.assertRaises(KeyError, rt.__getitem__, 'a')
 
-        # One more time, mixing "top level" and subtransaction changes.
+        # One more time.
         transaction.begin()
         rt = cn.root()
         rt['a'] = 3
-        transaction.commit(1)
-        rt['b'] = 4
 
         transaction.begin()
         rt = cn.root()
@@ -389,7 +312,6 @@ class ZODBTests(unittest.TestCase):
         # rest of this test was tossed.
 
     def checkFailingCommitSticks(self):
-        # See also checkFailingSubtransactionCommitSticks.
         # See also checkFailingSavepointSticks.
         cn = self._db.open()
         rt = cn.root()
@@ -434,93 +356,6 @@ class ZODBTests(unittest.TestCase):
         self.assertEqual(rt['a'], 2)
 
         cn.close()
-
-    def checkFailingSubtransactionCommitSticks(self):
-        cn = self._db.open()
-        rt = cn.root()
-        rt['a'] = 1
-        transaction.commit(True)
-        self.assertEqual(rt['a'], 1)
-
-        rt['b'] = 2
-
-        # Make a jar that raises PoisonedError when a subtxn commit is done.
-        poisoned = PoisonedJar(break_savepoint=True)
-        transaction.get().join(poisoned)
-        # We're using try/except here instead of assertRaises so that this
-        # module's attempt to suppress subtransaction deprecation wngs
-        # works.
-        try:
-            transaction.commit(True)
-        except PoisonedError:
-            pass
-        else:
-            self.fail("expected PoisonedError")
-        # Trying to subtxn-commit again fails too.
-        try:
-            transaction.commit(True)
-        except TransactionFailedError:
-            pass
-        else:
-            self.fail("expected TransactionFailedError")
-        try:
-            transaction.commit(True)
-        except TransactionFailedError:
-            pass
-        else:
-            self.fail("expected TransactionFailedError")
-        # Top-level commit also fails.
-        self.assertRaises(TransactionFailedError, transaction.commit)
-
-        # The changes to rt['a'] and rt['b'] are lost.
-        self.assertRaises(KeyError, rt.__getitem__, 'a')
-        self.assertRaises(KeyError, rt.__getitem__, 'b')
-
-        # Trying to modify an object also fails, because Transaction.join()
-        # also raises TransactionFailedError.
-        self.assertRaises(TransactionFailedError, rt.__setitem__, 'b', 2)
-
-        # Clean up via abort(), and try again.
-        transaction.abort()
-        rt['a'] = 1
-        transaction.commit()
-        self.assertEqual(rt['a'], 1)
-
-        # Cleaning up via begin() should also work.
-        rt['a'] = 2
-        transaction.get().join(poisoned)
-        try:
-            transaction.commit(True)
-        except PoisonedError:
-            pass
-        else:
-            self.fail("expected PoisonedError")
-        # Trying to subtxn-commit again fails too.
-        try:
-            transaction.commit(True)
-        except TransactionFailedError:
-            pass
-        else:
-            self.fail("expected TransactionFailedError")
-
-        # The change to rt['a'] is lost.
-        self.assertEqual(rt['a'], 1)
-        # Trying to modify an object also fails.
-        self.assertRaises(TransactionFailedError, rt.__setitem__, 'b', 2)
-
-        # Clean up via begin(), and try again.
-        transaction.begin()
-        rt['a'] = 2
-        transaction.commit(True)
-        self.assertEqual(rt['a'], 2)
-        transaction.get().commit()
-
-        cn2 = self._db.open()
-        rt = cn.root()
-        self.assertEqual(rt['a'], 2)
-
-        cn.close()
-        cn2.close()
 
     def checkFailingSavepointSticks(self):
         cn = self._db.open()
@@ -786,8 +621,6 @@ class PoisonedJar:
     def sortKey(self):
         return str(id(self))
 
-    # A way that used to poison a subtransaction commit.  With the current
-    # implementation of subtxns, pass break_savepoint=True instead.
     def tpc_begin(self, *args):
         if self.break_tpc_begin:
             raise PoisonedError("tpc_begin fails")

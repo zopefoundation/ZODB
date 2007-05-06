@@ -554,7 +554,7 @@ class DB(object):
     def objectCount(self):
         return len(self._storage)
 
-    def open(self, version='', transaction_manager=None, synch=True):
+    def open(self, version='', transaction_manager=None):
         """Return a database Connection for use by application code.
 
         The optional `version` argument can be used to specify that a
@@ -569,8 +569,6 @@ class DB(object):
              in, defaults to no version.
           - `transaction_manager`: transaction manager to use.  None means
              use the default transaction manager.
-          - `synch`: boolean indicating whether Connection should
-             register for afterCompletion() calls.
         """
 
         if version:
@@ -607,7 +605,7 @@ class DB(object):
             assert result is not None
 
             # Tell the connection it belongs to self.
-            result.open(transaction_manager, synch)
+            result.open(transaction_manager)
 
             # A good time to do some cache cleanup.
             self._connectionMap(lambda c: c.cacheGC())
