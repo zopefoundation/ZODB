@@ -46,12 +46,6 @@ import transaction
 from ZODB.utils import positive_id
 from ZODB.tests.warnhook import WarningsHook
 
-# deprecated37  remove when subtransactions go away
-# Don't complain about subtxns in these tests.
-warnings.filterwarnings("ignore",
-                        ".*\nsubtransactions are deprecated",
-                        DeprecationWarning, __name__)
-
 class TransactionTests(unittest.TestCase):
 
     def setUp(self):
@@ -114,37 +108,6 @@ class TransactionTests(unittest.TestCase):
         assert self.nosub1._p_jar.ctpc_finish == 0
         assert self.nosub1._p_jar.cabort == 1
 
-    def BUGtestNSJSubTransactionCommitAbort(self):
-        """
-        this reveals a bug in transaction.py
-        the nosub jar should not have tpc_finish
-        called on it till the containing txn
-        ends.
-
-        sub calling method commit
-        nosub calling method tpc_begin
-        sub calling method tpc_finish
-        nosub calling method tpc_finish
-        nosub calling method abort
-        sub calling method abort_sub
-        """
-
-        self.sub1.modify(tracing='sub')
-        self.nosub1.modify(tracing='nosub')
-
-        self.transaction_manager.commit(1)
-
-        assert self.sub1._p_jar.ctpc_finish == 1
-
-        # bug, non sub trans jars are getting finished
-        # in a subtrans
-        assert self.nosub1._p_jar.ctpc_finish == 0
-
-        self.transaction_manager.abort()
-
-        assert self.nosub1._p_jar.cabort == 1
-        assert self.sub1._p_jar.cabort_sub == 1
-
 
     ### Failure Mode Tests
     #
@@ -158,7 +121,7 @@ class TransactionTests(unittest.TestCase):
 
     def testExceptionInAbort(self):
 
-        self.sub1._p_jar = SubTransactionJar(errors='abort')
+        self.sub1._p_jar = BasicJar(errors='abort')
 
         self.nosub1.modify()
         self.sub1.modify(nojar=1)
@@ -173,7 +136,7 @@ class TransactionTests(unittest.TestCase):
 
     def testExceptionInCommit(self):
 
-        self.sub1._p_jar = SubTransactionJar(errors='commit')
+        self.sub1._p_jar = BasicJar(errors='commit')
 
         self.nosub1.modify()
         self.sub1.modify(nojar=1)
@@ -188,7 +151,7 @@ class TransactionTests(unittest.TestCase):
 
     def testExceptionInTpcVote(self):
 
-        self.sub1._p_jar = SubTransactionJar(errors='tpc_vote')
+        self.sub1._p_jar = BasicJar(errors='tpc_vote')
 
         self.nosub1.modify()
         self.sub1.modify(nojar=1)
@@ -214,7 +177,7 @@ class TransactionTests(unittest.TestCase):
         sub calling method tpc_abort
         nosub calling method tpc_abort
         """
-        self.sub1._p_jar = SubTransactionJar(errors='tpc_begin')
+        self.sub1._p_jar = BasicJar(errors='tpc_begin')
 
         self.nosub1.modify()
         self.sub1.modify(nojar=1)
@@ -228,8 +191,7 @@ class TransactionTests(unittest.TestCase):
         assert self.sub1._p_jar.ctpc_abort == 1
 
     def testExceptionInTpcAbort(self):
-        self.sub1._p_jar = SubTransactionJar(
-                                errors=('tpc_abort', 'tpc_vote'))
+        self.sub1._p_jar = BasicJar(errors=('tpc_abort', 'tpc_vote'))
 
         self.nosub1.modify()
         self.sub1.modify(nojar=1)
@@ -283,9 +245,9 @@ class DataObject:
     def modify(self, nojar=0, tracing=0):
         if not nojar:
             if self.nost:
-                self._p_jar = NoSubTransactionJar(tracing=tracing)
+                self._p_jar = BasicJar(tracing=tracing)
             else:
-                self._p_jar = SubTransactionJar(tracing=tracing)
+                self._p_jar = BasicJar(tracing=tracing)
         self.transaction_manager.get().join(self._p_jar)
 
 class TestTxnException(Exception):
@@ -349,19 +311,6 @@ class BasicJar:
     def tpc_finish(self, *args):
         self.check('tpc_finish')
         self.ctpc_finish += 1
-
-class SubTransactionJar(BasicJar):
-
-    def abort_sub(self, txn):
-        self.check('abort_sub')
-        self.cabort_sub = 1
-
-    def commit_sub(self, txn):
-        self.check('commit_sub')
-        self.ccommit_sub = 1
-
-class NoSubTransactionJar(BasicJar):
-    pass
 
 class HoserJar(BasicJar):
 
@@ -482,15 +431,11 @@ def test_beforeCommitHook():
       >>> log
       []
 
-    The hook is only called for a full commit, not for a savepoint or
-    subtransaction.
+    The hook is only called for a full commit, not for a savepoint.
 
       >>> t = transaction.begin()
       >>> t.beforeCommitHook(hook, 'A', kw1='B')
       >>> dummy = t.savepoint()
-      >>> log
-      []
-      >>> t.commit(subtransaction=True)
       >>> log
       []
       >>> t.commit()
@@ -632,15 +577,11 @@ def test_addBeforeCommitHook():
       >>> log
       []
 
-    The hook is only called for a full commit, not for a savepoint or
-    subtransaction.
+    The hook is only called for a full commit, not for a savepoint.
 
       >>> t = transaction.begin()
       >>> t.addBeforeCommitHook(hook, 'A', dict(kw1='B'))
       >>> dummy = t.savepoint()
-      >>> log
-      []
-      >>> t.commit(subtransaction=True)
       >>> log
       []
       >>> t.commit()
@@ -810,15 +751,11 @@ def test_addAfterCommitHook():
       >>> log
       []
 
-    The hook is only called after a full commit, not for a savepoint or
-    subtransaction.
+    The hook is only called after a full commit, not for a savepoint.
 
       >>> t = transaction.begin()
       >>> t.addAfterCommitHook(hook, 'A', dict(kw1='B'))
       >>> dummy = t.savepoint()
-      >>> log
-      []
-      >>> t.commit(subtransaction=True)
       >>> log
       []
       >>> t.commit()
@@ -844,7 +781,7 @@ def test_addAfterCommitHook():
       >>> class CommitFailure(Exception):
       ...     pass
       >>> class FailingDataManager:
-      ...     def tpc_begin(self, txn, sub=False):
+      ...     def tpc_begin(self, txn):
       ...         raise CommitFailure
       ...     def abort(self, txn):
       ...         pass

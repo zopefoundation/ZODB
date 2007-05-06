@@ -89,24 +89,11 @@ class TransactionManager(object):
     def doom(self):
         return self.get().doom()
 
-    def commit(self, sub=_marker):
-        if sub is _marker:
-            sub = None
-        else:
-            deprecated37("subtransactions are deprecated; use "
-                         "transaction.savepoint() instead of "
-                         "transaction.commit(1)")
-        return self.get().commit(sub, deprecation_wng=False)
+    def commit(self):
+        return self.get().commit()
 
-    def abort(self, sub=_marker):
-        if sub is _marker:
-            sub = None
-        else:
-            deprecated37("subtransactions are deprecated; use "
-                         "sp.rollback() instead of "
-                         "transaction.abort(1), where `sp` is the "
-                         "corresponding savepoint captured earlier")
-        return self.get().abort(sub, deprecation_wng=False)
+    def abort(self):
+        return self.get().abort()
 
     def savepoint(self, optimistic=False):
         return self.get().savepoint(optimistic)

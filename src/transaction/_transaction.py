@@ -27,54 +27,6 @@ resource manager and adds it to the list of resources.  register() is
 for backwards compatibility.  It takes a persistent object and
 registers its _p_jar attribute.  TODO: explain adapter
 
-Subtransactions
----------------
-
-Note: Subtransactions are deprecated!  Use savepoint/rollback instead.
-
-A subtransaction applies the transaction notion recursively.  It
-allows a set of modifications within a transaction to be committed or
-aborted as a group.  A subtransaction is a strictly local activity;
-its changes are not visible to any other database connection until the
-top-level transaction commits.  In addition to its use to organize a
-large transaction, subtransactions can be used to optimize memory use.
-ZODB must keep modified objects in memory until a transaction commits
-and it can write the changes to the storage.  A subtransaction uses a
-temporary disk storage for its commits, allowing modified objects to
-be flushed from memory when the subtransaction commits.
-
-The commit() and abort() methods take an optional subtransaction
-argument that defaults to false.  If it is a true, the operation is
-performed on a subtransaction.
-
-Subtransactions add a lot of complexity to the transaction
-implementation.  Some resource managers support subtransactions, but
-they are not required to.  (ZODB Connection is the only standard
-resource manager that supports subtransactions.)  Resource managers
-that do support subtransactions implement abort_sub() and commit_sub()
-methods and support a second argument to tpc_begin().
-
-The second argument to tpc_begin() indicates that a subtransaction
-commit is beginning (if it is true).  In a subtransaction, there is no
-tpc_vote() call, because sub-transactions don't need 2-phase commit.
-If a sub-transaction abort or commit fails, we can abort the outer
-transaction.  The tpc_finish() or tpc_abort() call applies just to
-that subtransaction.
-
-Once a resource manager is involved in a subtransaction, all
-subsequent transactions will be treated as subtransactions until
-abort_sub() or commit_sub() is called.  abort_sub() will undo all the
-changes of the subtransactions.  commit_sub() will begin a top-level
-transaction and store all the changes from subtransactions.  After
-commit_sub(), the transaction must still call tpc_vote() and
-tpc_finish().
-
-If the resource manager does not support subtransactions, nothing
-happens when the subtransaction commits.  Instead, the resource
-manager is put on a list of managers to commit when the actual
-top-level transaction commits.  If this happens, it will not be
-possible to abort subtransactions.
-
 Two-phase commit
 ----------------
 
@@ -88,21 +40,6 @@ them.
     2. commit(txn)
     3. tpc_vote(txn)
     4. tpc_finish(txn)
-
-Subtransaction commit
----------------------
-
-Note: Subtransactions are deprecated!
-
-When a subtransaction commits, the protocol is different.
-
-1. tpc_begin() is passed a second argument, which indicates that a
-   subtransaction is being committed.
-2. tpc_vote() is not called.
-
-Once a subtransaction has been committed, the top-level transaction
-commit will start with a commit_sub() call instead of a tpc_begin()
-call.
 
 Before-commit hook
 ------------------
@@ -211,9 +148,6 @@ class Transaction(object):
     # If savepoints are used, keep a weak key dict of them.  This maps a
     # savepoint to its index (see above).
     _savepoint2index = None
-
-    # Remember the savepoint for the last subtransaction.
-    _subtransaction_savepoint = None
 
     # Meta data.  ._extension is also metadata, but is initialized to an
     # emtpy dict in __init__.
@@ -372,28 +306,12 @@ class Transaction(object):
             assert id(obj) not in map(id, adapter.objects)
             adapter.objects.append(obj)
 
-    def commit(self, subtransaction=_marker, deprecation_wng=True):
+    def commit(self):
         if self.status is Status.DOOMED:
             raise interfaces.DoomedTransaction()
 
-        if subtransaction is _marker:
-            subtransaction = 0
-        elif deprecation_wng:
-            deprecated37("subtransactions are deprecated; instead of "
-                         "transaction.commit(1), use "
-                         "transaction.savepoint(optimistic=True) in "
-                         "contexts where a subtransaction abort will never "
-                         "occur, or sp=transaction.savepoint() if later "
-                         "rollback is possible and then sp.rollback() "
-                         "instead of transaction.abort(1)")
-
         if self._savepoint2index:
             self._invalidate_all_savepoints()
-
-        if subtransaction:
-            # TODO deprecate subtransactions
-            self._subtransaction_savepoint = self.savepoint(optimistic=True)
-            return
 
         if self.status is Status.COMMITFAILED:
             self._prior_operation_failed() # doesn't return
@@ -546,28 +464,7 @@ class Transaction(object):
                 self.log.error("Error in tpc_abort() on manager %s",
                                rm, exc_info=sys.exc_info())
 
-    def abort(self, subtransaction=_marker, deprecation_wng=True):
-        if subtransaction is _marker:
-            subtransaction = 0
-        elif deprecation_wng:
-            deprecated37("subtransactions are deprecated; use "
-                         "sp.rollback() instead of "
-                         "transaction.abort(1), where `sp` is the "
-                         "corresponding savepoint captured earlier")
-
-        if subtransaction:
-            # TODO deprecate subtransactions.
-            if not self._subtransaction_savepoint:
-                raise interfaces.InvalidSavepointRollbackError
-            if self._subtransaction_savepoint.valid:
-                self._subtransaction_savepoint.rollback()
-                # We're supposed to be able to call abort(1) multiple
-                # times without additional effect, so mark the subtxn
-                # savepoint invalid now.
-                self._subtransaction_savepoint.transaction = None
-                assert not self._subtransaction_savepoint.valid
-            return
-
+    def abort(self):
         if self._savepoint2index:
             self._invalidate_all_savepoints()
 

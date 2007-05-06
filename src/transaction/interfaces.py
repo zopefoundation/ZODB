@@ -202,8 +202,8 @@ class ITransaction(zope.interface.Interface):
         hooks.  Applications should take care to avoid creating infinite loops
         by recursively registering hooks.
 
-        Hooks are called only for a top-level commit.  A subtransaction
-        commit does not call any hooks.  If the transaction is aborted, hooks
+        Hooks are called only for a top-level commit.  A savepoint
+        does not call any hooks.  If the transaction is aborted, hooks
         are not called, and are discarded.  Calling a hook "consumes" its
         registration too:  hook registrations do not persist across
         transactions.  If it's desired to call the same hook on every
@@ -231,8 +231,8 @@ class ITransaction(zope.interface.Interface):
         hooks.  Applications should take care to avoid creating infinite loops
         by recursively registering hooks.
 
-        Hooks are called only for a top-level commit.  A subtransaction
-        commit or savepoint creation does not call any hooks.  If the
+        Hooks are called only for a top-level commit.  A 
+        savepoint creation does not call any hooks.  If the
         transaction is aborted, hooks are not called, and are discarded.
         Calling a hook "consumes" its registration too:  hook registrations
         do not persist across transactions.  If it's desired to call the same
@@ -269,8 +269,8 @@ class ITransaction(zope.interface.Interface):
          hooks.  Applications should take care to avoid creating infinite loops
          by recursively registering hooks.
          
-         Hooks are called only for a top-level commit.  A subtransaction
-         commit or savepoint creation does not call any hooks.  Calling a
+         Hooks are called only for a top-level commit.  A 
+         savepoint creation does not call any hooks.  Calling a
          hook "consumes" its registration:  hook registrations do not
          persist across transactions.  If it's desired to call the same
          hook on every transaction commit, then addAfterCommitHook() must be
