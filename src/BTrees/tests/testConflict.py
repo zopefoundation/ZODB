@@ -399,11 +399,13 @@ class NastyConfict(Base, TestCase):
         # Invoke conflict resolution by committing a transaction.
         self.openDB()
 
-        r1 = self.db.open().root()
+        tm1 = transaction.TransactionManager()
+        r1 = self.db.open(transaction_manager=tm1).root()
         r1["t"] = self.t
-        transaction.commit()
+        tm1.commit()
 
-        r2 = self.db.open(synch=False).root()
+        tm2 = transaction.TransactionManager()
+        r2 = self.db.open(transaction_manager=tm2).root()
         copy = r2["t"]
         # Make sure all of copy is loaded.
         list(copy.values())
@@ -433,7 +435,7 @@ class NastyConfict(Base, TestCase):
         self.assertEqual(state[0][3], 75)
         self.assertEqual(state[0][5], 120)
 
-        transaction.commit()
+        tm1.commit()
 
         # In the other transaction, add 3 values near the tail end of bucket1.
         # This doesn't cause a split.
@@ -451,8 +453,7 @@ class NastyConfict(Base, TestCase):
         self.assertEqual(state[0][1], 60)
         self.assertEqual(state[0][3], 120)
 
-        self.assertRaises(ConflictError, transaction.commit)
-        transaction.abort()   # horrible things happen w/o this
+        self.assertRaises(ConflictError, tm2.commit)
 
     def testEmptyBucketConflict(self):
         # Tests that an emptied bucket *created by* conflict resolution is
@@ -476,11 +477,13 @@ class NastyConfict(Base, TestCase):
         # Invoke conflict resolution by committing a transaction.
         self.openDB()
 
-        r1 = self.db.open().root()
+        tm1 = transaction.TransactionManager()
+        r1 = self.db.open(transaction_manager=tm1).root()
         r1["t"] = self.t
-        transaction.commit()
+        tm1.commit()
 
-        r2 = self.db.open(synch=False).root()
+        tm2 = transaction.TransactionManager()
+        r2 = self.db.open(transaction_manager=tm2).root()
         copy = r2["t"]
         # Make sure all of copy is loaded.
         list(copy.values())
@@ -502,7 +505,7 @@ class NastyConfict(Base, TestCase):
         self.assertEqual(state[0][1], 60)
         self.assertEqual(state[0][3], 120)
 
-        transaction.commit()
+        tm1.commit()
 
         # In the other transaction, delete the other half of bucket 1.
         b = copy
@@ -523,8 +526,7 @@ class NastyConfict(Base, TestCase):
         # create an "insane" BTree (a legit BTree cannot contain an empty
         # bucket -- it contains NULL pointers the BTree code doesn't
         # expect, and segfaults result).
-        self.assertRaises(ConflictError, transaction.commit)
-        transaction.abort()   # horrible things happen w/o this
+        self.assertRaises(ConflictError, tm2.commit)
 
 
     def testEmptyBucketNoConflict(self):
@@ -599,12 +601,14 @@ class NastyConfict(Base, TestCase):
     def testThreeEmptyBucketsNoSegfault(self):
         self.openDB()
 
-        r1 = self.db.open().root()
+        tm1 = transaction.TransactionManager()
+        r1 = self.db.open(transaction_manager=tm1).root()
         self.assertEqual(len(self.t), 0)
         r1["t"] = b = self.t  # an empty tree
-        transaction.commit()
+        tm1.commit()
 
-        r2 = self.db.open(synch=False).root()
+        tm2 = transaction.TransactionManager()
+        r2 = self.db.open(transaction_manager=tm2).root()
         copy = r2["t"]
         # Make sure all of copy is loaded.
         list(copy.values())
@@ -612,15 +616,14 @@ class NastyConfict(Base, TestCase):
         # In one transaction, add and delete a key.
         b[2] = 2
         del b[2]
-        transaction.commit()
+        tm1.commit()
 
         # In the other transaction, also add and delete a key.
         b = copy
         b[1] = 1
         del b[1]
         # If the commit() segfaults, the C code is still wrong for this case.
-        self.assertRaises(ConflictError, transaction.commit)
-        transaction.abort()
+        self.assertRaises(ConflictError, tm2.commit)
 
     def testCantResolveBTreeConflict(self):
         # Test that a conflict involving two different changes to
@@ -646,11 +649,13 @@ class NastyConfict(Base, TestCase):
 
         # Set up database connections to provoke conflict.
         self.openDB()
-        r1 = self.db.open().root()
+        tm1 = transaction.TransactionManager()
+        r1 = self.db.open(transaction_manager=tm1).root()
         r1["t"] = self.t
-        transaction.commit()
+        tm1.commit()
 
-        r2 = self.db.open(synch=False).root()
+        tm2 = transaction.TransactionManager()
+        r2 = self.db.open(transaction_manager=tm2).root()
         copy = r2["t"]
         # Make sure all of copy is loaded.
         list(copy.values())
@@ -662,16 +667,15 @@ class NastyConfict(Base, TestCase):
 
         for k in range(200, 300, 4):
             self.t[k] = k
-        transaction.commit()
+        tm1.commit()
 
         for k in range(0, 60, 4):
             del copy[k]
 
         try:
-            transaction.commit()
+            tm2.commit()
         except ConflictError, detail:
             self.assert_(str(detail).startswith('database conflict error'))
-            transaction.abort()
         else:
             self.fail("expected ConflictError")
 
@@ -700,11 +704,13 @@ class NastyConfict(Base, TestCase):
 
         # Set up database connections to provoke conflict.
         self.openDB()
-        r1 = self.db.open().root()
+        tm1 = transaction.TransactionManager()
+        r1 = self.db.open(transaction_manager=tm1).root()
         r1["t"] = self.t
-        transaction.commit()
+        tm1.commit()
 
-        r2 = self.db.open(synch=False).root()
+        tm2 = transaction.TransactionManager()
+        r2 = self.db.open(transaction_manager=tm2).root()
         copy = r2["t"]
         # Make sure all of copy is loaded.
         list(copy.values())
@@ -716,15 +722,14 @@ class NastyConfict(Base, TestCase):
 
         for k in range(0, 60, 4):
             del self.t[k]
-        transaction.commit()
+        tm1.commit()
 
         copy[1] = 1
 
         try:
-            transaction.commit()
+            tm2.commit()
         except ConflictError, detail:
             self.assert_(str(detail).startswith('database conflict error'))
-            transaction.abort()
         else:
             self.fail("expected ConflictError")
 
@@ -733,11 +738,13 @@ class NastyConfict(Base, TestCase):
         for i in range(0, 200, 4):
             b[i] = i
 
-        r1 = self.db.open().root()
+        tm1 = transaction.TransactionManager()
+        r1 = self.db.open(transaction_manager=tm1).root()
         r1["t"] = b
-        transaction.commit()
+        tm1.commit()
 
-        r2 = self.db.open(synch=False).root()
+        tm2 = transaction.TransactionManager()
+        r2 = self.db.open(transaction_manager=tm2).root()
         copy = r2["t"]
         # Make sure all of copy is loaded.
         list(copy.values())
@@ -747,15 +754,14 @@ class NastyConfict(Base, TestCase):
         # Now one transaction empties the first bucket, and another adds a
         # key to the first bucket.
         b[1] = 1
-        transaction.commit()
+        tm1.commit()
 
         for k in range(0, 60, 4):
             del copy[k]
         try:
-            transaction.commit()
+            tm2.commit()
         except ConflictError, detail:
             self.assert_(str(detail).startswith('database conflict error'))
-            transaction.abort()
         else:
             self.fail("expected ConflictError")
 
