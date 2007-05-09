@@ -11,7 +11,9 @@
 # FOR A PARTICULAR PURPOSE
 #
 ##############################################################################
+import pickle
 import random
+import StringIO
 from unittest import TestCase, TestSuite, TextTestRunner, makeSuite
 from types import ClassType
 import zope.interface.verify
@@ -26,16 +28,7 @@ from BTrees.LLBTree import LLBTree, LLBucket, LLSet, LLTreeSet
 from BTrees.LFBTree import LFBTree, LFBucket, LFSet, LFTreeSet
 from BTrees.OLBTree import OLBTree, OLBucket, OLSet, OLTreeSet
 
-import BTrees.OOBTree
-import BTrees.IOBTree
-import BTrees.IIBTree
-import BTrees.IFBTree
-import BTrees.OIBTree
-import BTrees.LOBTree
-import BTrees.LLBTree
-import BTrees.LFBTree
-import BTrees.OLBTree
-import BTrees.Interfaces
+import BTrees
 
 from BTrees.IIBTree import using64bits
 from BTrees.check import check
@@ -1676,6 +1669,112 @@ class ModuleTest(TestCase):
         self.assert_(
             zope.interface.verify.verifyObject(self.iface, self.module))
 
+    def testFamily(self):
+        if self.prefix == 'OO':
+            self.assert_(
+                getattr(self.module, 'family', self) is self)
+        elif 'L' in self.prefix:
+            self.assert_(self.module.family is BTrees.family64)
+        elif 'I' in self.prefix:
+            self.assert_(self.module.family is BTrees.family32)
+
+class FamilyTest(TestCase):
+    def test32(self):
+        self.assert_(
+            zope.interface.verify.verifyObject(
+                BTrees.Interfaces.IBTreeFamily, BTrees.family32))
+        self.assertEquals(
+            BTrees.family32.IO, BTrees.IOBTree)
+        self.assertEquals(
+            BTrees.family32.OI, BTrees.OIBTree)
+        self.assertEquals(
+            BTrees.family32.II, BTrees.IIBTree)
+        self.assertEquals(
+            BTrees.family32.IF, BTrees.IFBTree)
+        self.assertEquals(
+            BTrees.family32.OO, BTrees.OOBTree)
+        s = IOTreeSet()
+        s.insert(BTrees.family32.maxint)
+        self.assert_(BTrees.family32.maxint in s)
+        s = IOTreeSet()
+        s.insert(BTrees.family32.minint)
+        self.assert_(BTrees.family32.minint in s)
+        s = IOTreeSet()
+        # this next bit illustrates an, um, "interesting feature".  If
+        # the characteristics change to match the 64 bit version, please
+        # feel free to change.
+        big = BTrees.family32.maxint + 1
+        if isinstance(big, long):
+            self.assertRaises(TypeError, s.insert, big)
+            self.assertRaises(TypeError, s.insert, BTrees.family32.minint - 1)
+        else: # 64 bit Python
+            s.insert(BTrees.family32.maxint + 1)
+            self.assert_(BTrees.family32.maxint + 1 not in s)
+            # yeah, it's len of 1 now...don't look...don't look...
+            s = IOTreeSet()
+            s.insert(BTrees.family32.minint - 1)
+            self.assert_(BTrees.family32.minint - 1 not in s)
+        self.check_pickling(BTrees.family32)
+
+    def test64(self):
+        self.assert_(
+            zope.interface.verify.verifyObject(
+                BTrees.Interfaces.IBTreeFamily, BTrees.family64))
+        self.assertEquals(
+            BTrees.family64.IO, BTrees.LOBTree)
+        self.assertEquals(
+            BTrees.family64.OI, BTrees.OLBTree)
+        self.assertEquals(
+            BTrees.family64.II, BTrees.LLBTree)
+        self.assertEquals(
+            BTrees.family64.IF, BTrees.LFBTree)
+        self.assertEquals(
+            BTrees.family64.OO, BTrees.OOBTree)
+        s = LOTreeSet()
+        s.insert(BTrees.family64.maxint)
+        self.assert_(BTrees.family64.maxint in s)
+        s = LOTreeSet()
+        s.insert(BTrees.family64.minint)
+        self.assert_(BTrees.family64.minint in s)
+        s = LOTreeSet()
+        self.assertRaises(ValueError, s.insert, BTrees.family64.maxint + 1)
+        self.assertRaises(ValueError, s.insert, BTrees.family64.minint - 1)
+        self.check_pickling(BTrees.family64)
+
+    def check_pickling(self, family):
+        # The "family" objects are singletons; they can be pickled and
+        # unpickled, and the same instances will always be returned on
+        # unpickling, whether from the same unpickler or different
+        # unpicklers.
+        s = pickle.dumps((family, family))
+        (f1, f2) = pickle.loads(s)
+        self.failUnless(f1 is family)
+        self.failUnless(f2 is family)
+
+        # Using a single memo across multiple pickles:
+        sio = StringIO.StringIO()
+        p = pickle.Pickler(sio)
+        p.dump(family)
+        p.dump([family])
+        u = pickle.Unpickler(StringIO.StringIO(sio.getvalue()))
+        f1 = u.load()
+        f2, = u.load()
+        self.failUnless(f1 is family)
+        self.failUnless(f2 is family)
+
+        # Using separate memos for each pickle:
+        sio = StringIO.StringIO()
+        p = pickle.Pickler(sio)
+        p.dump(family)
+        p.clear_memo()
+        p.dump([family])
+        u = pickle.Unpickler(StringIO.StringIO(sio.getvalue()))
+        f1 = u.load()
+        f2, = u.load()
+        self.failUnless(f1 is family)
+        self.failUnless(f2 is family)
+
+
 def test_suite():
     s = TestSuite()
 
@@ -1723,6 +1822,7 @@ def test_suite():
         DegenerateBTree,
         TestCmpError,
         BugFixes,
+        FamilyTest,
         ):
         s.addTest(makeSuite(klass))
 

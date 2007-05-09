@@ -1,1 +1,1 @@
-# python package
+"""The ZODB Blob package."""

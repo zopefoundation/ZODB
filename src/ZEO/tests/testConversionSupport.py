@@ -17,10 +17,10 @@ from zope.testing import doctest
 class FakeStorageBase:
 
     def __getattr__(self, name):
-        if name in ('versionEmpty', 'versions', 'getSerial',
+        if name in ('versionEmpty', 'versions', 'getTid',
                     'history', 'load', 'loadSerial', 'modifiedInVersion',
                     'lastTransaction', 'getSize', 'getName', 'supportsUndo',
-                    'supportsVersions'):
+                    'supportsVersions', 'tpc_transaction'):
            return lambda *a, **k: None
         raise AttributeError(name)
 

@@ -162,9 +162,25 @@ class ExtStorageClientThread(StorageClientThread):
     def runtest(self):
         # pick some other storage ops to execute, depending in part
         # on the features provided by the storage.
-        names = ["do_load", "do_modifiedInVersion"]
-        if self.storage.supportsUndo():
-            names += ["do_loadSerial", "do_undoLog", "do_iterator"]
+        names = ["do_load"]
+
+        storage = self.storage
+        try:
+            supportsVersions = storage.supportsVersions
+        except AttributeError:
+            pass
+        else:
+            if supportsVersions():
+                names.append("do_modifiedInVersion")
+
+        try:
+            supportsUndo = storage.supportsUndo
+        except AttributeError:
+            pass
+        else:
+            if supportsUndo():
+                names += ["do_loadSerial", "do_undoLog", "do_iterator"]
+
         ops = [getattr(self, meth) for meth in names]
         assert ops, "Didn't find an storage ops in %s" % self.storage
         # do a store to guarantee there's at least one oid in self.oids

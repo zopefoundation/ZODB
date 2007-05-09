@@ -177,13 +177,12 @@ class StorageServer:
         return self.rpc.call('zeoLoad', oid)
 
     ##
-    # Return current data for oid in version, the tid of the transaction that
-    # wrote the most recent revision, and the name of the version for the
-    # data returned.  Versions make this hard to understand; in particular,
-    # the version string returned may not equal the version string passed
-    # in, and that's "a feature" I don't understand.  Similarly, the tid
-    # returned is the tid of the most recent revision of oid, and that may
-    # not equal the tid of the transaction that wrote the data returned.
+    
+    # Return current data for oid in version, the tid of the
+    # transaction that wrote the most recent revision, and the name of
+    # the version for the data returned.  Note that if the object
+    # wasn't modified in the version, then the non-version data is
+    # returned and the returned version is an empty string.
     # @param oid object id
     # @param version string, name of version
     # @defreturn 3-tuple
@@ -275,8 +274,8 @@ class StorageServer:
     def loadBlob(self, oid, serial, version, offset):
         return self.rpc.call('loadBlob', oid, serial, version, offset)
 
-    def getSerial(self, oid):
-        return self.rpc.call('getSerial', oid)
+    def getTid(self, oid):
+        return self.rpc.call('getTid', oid)
 
     def loadSerial(self, oid, serial):
         return self.rpc.call('loadSerial', oid, serial)

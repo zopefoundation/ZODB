@@ -41,7 +41,7 @@ class BlobStorage(SpecificationDecoratorBase):
 
     # Proxies can't have a __dict__ so specifying __slots__ here allows
     # us to have instance attributes explicitly on the proxy.
-    __slots__ = ('fshelper', 'dirty_oids')
+    __slots__ = ('fshelper', 'dirty_oids', '_BlobStorage__supportsUndo')
 
     def __new__(self, base_directory, storage):
         return SpecificationDecoratorBase.__new__(self, storage)
@@ -53,6 +53,13 @@ class BlobStorage(SpecificationDecoratorBase):
         self.fshelper.create()
         self.fshelper.checkSecure()
         self.dirty_oids = []
+        try:
+            supportsUndo = storage.supportsUndo
+        except AttributeError:
+            supportsUndo = False
+        else:
+            supportsUndo = supportsUndo()
+        self.__supportsUndo = supportsUndo
 
     @non_overridable
     def __repr__(self):
@@ -184,7 +191,7 @@ class BlobStorage(SpecificationDecoratorBase):
         # perform a pack on blob data
         self._lock_acquire()
         try:
-            if unproxied.supportsUndo():
+            if self.__supportsUndo:
                 self._packUndoing(packtime, referencesf)
             else:
                 self._packNonUndoing(packtime, referencesf)

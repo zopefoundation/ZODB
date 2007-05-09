@@ -38,12 +38,14 @@ BLOB_SUFFIX = ".blob"
 
 
 class Blob(Persistent):
+    """A BLOB supports efficient handling of large data within ZODB."""
 
     zope.interface.implements(IBlob)
 
     # Binding this to an attribute allows overriding it in the unit tests
     if sys.platform == 'win32':
-        _os_link = lambda self, src, dst: win32file.CreateHardLink(dst, src, None)
+        _os_link = lambda self, src, dst: win32file.CreateHardLink(dst, src,
+                                                                   None)
     else:
         _os_link = os.link
 
@@ -92,7 +94,8 @@ class Blob(Persistent):
 
             if self._p_blob_uncommitted is None:
                 # Create a new working copy
-                uncommitted = BlobFile(self._create_uncommitted_file(), mode, self)
+                uncommitted = BlobFile(self._create_uncommitted_file(),
+                                       mode, self)
                 # NOTE: _p_blob data appears by virtue of Connection._setstate
                 utils.cp(file(self._p_blob_data), uncommitted)
                 uncommitted.seek(0)
@@ -153,8 +156,8 @@ class Blob(Persistent):
             if os.path.exists(target):
                 os.unlink(target)
 
-            # If there was a file moved aside, bring it back including the pointer to
-            # the uncommitted file.
+            # If there was a file moved aside, bring it back including the
+            # pointer to the uncommitted file.
             if previous_uncommitted:
                 os.rename(target_aside, target)
                 self._p_blob_uncommitted = target
@@ -179,7 +182,8 @@ class Blob(Persistent):
         return self._p_blob_uncommitted or self._p_blob_data
 
     def _create_uncommitted_file(self):
-        assert self._p_blob_uncommitted is None, "Uncommitted file already exists."
+        assert self._p_blob_uncommitted is None, (
+            "Uncommitted file already exists.")
         tempdir = os.environ.get('ZODB_BLOB_TEMPDIR', tempfile.gettempdir())
         self._p_blob_uncommitted = utils.mktemp(dir=tempdir)
         return self._p_blob_uncommitted
@@ -276,8 +280,8 @@ class BlobDataManager:
     def _remove_uncommitted_data(self):
         self.blob._p_blob_clear()
         self.fhrefs.map(lambda fhref: fhref.close())
-        if self.blob._p_blob_uncommitted is not None and \
-           os.path.exists(self.blob._p_blob_uncommitted):
+        if (self.blob._p_blob_uncommitted is not None and
+            os.path.exists(self.blob._p_blob_uncommitted)):
             os.unlink(self.blob._p_blob_uncommitted)
             self.blob._p_blob_uncommitted = None
 

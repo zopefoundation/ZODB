@@ -28,8 +28,6 @@ import transaction
 
 ZERO = '\0'*8
 
-
-
 class BasicStorage:
     def checkBasics(self):
         t = transaction.Transaction()
@@ -46,28 +44,39 @@ class BasicStorage:
             self._storage.store,
             0, 0, 0, 0, transaction.Transaction())
 
-        try:
-            self._storage.abortVersion('dummy', transaction.Transaction())
-        except (POSException.StorageTransactionError,
-                POSException.VersionCommitError):
-            pass # test passed ;)
-        else:
-            assert 0, "Should have failed, invalid transaction."
+        if self.__supportsVersions():
+            try:
+                self._storage.abortVersion(
+                    'dummy', transaction.Transaction())
+            except (POSException.StorageTransactionError,
+                    POSException.VersionCommitError):
+                pass # test passed ;)
+            else:
+                assert 0, "Should have failed, invalid transaction."
 
-        try:
-            self._storage.commitVersion('dummy', 'dummer',
-                                        transaction.Transaction())
-        except (POSException.StorageTransactionError,
-                POSException.VersionCommitError):
-            pass # test passed ;)
-        else:
-            assert 0, "Should have failed, invalid transaction."
+            try:
+                self._storage.commitVersion('dummy', 'dummer',
+                                            transaction.Transaction())
+            except (POSException.StorageTransactionError,
+                    POSException.VersionCommitError):
+                pass # test passed ;)
+            else:
+                assert 0, "Should have failed, invalid transaction."
 
         self.assertRaises(
             POSException.StorageTransactionError,
             self._storage.store,
             0, 1, 2, 3, transaction.Transaction())
         self._storage.tpc_abort(t)
+
+    def __supportsVersions(self):
+        storage = self._storage
+        try:
+            supportsVersions = storage.supportsVersions
+        except AttributeError:
+            return False
+        else:
+            return supportsVersions()
 
     def checkSerialIsNoneForInitialRevision(self):
         eq = self.assertEqual
@@ -107,9 +116,10 @@ class BasicStorage:
         eq(zodb_unpickle(data), MinPO(21))
 
     def checkNonVersionModifiedInVersion(self):
-        oid = self._storage.new_oid()
-        self._dostore(oid=oid)
-        self.assertEqual(self._storage.modifiedInVersion(oid), '')
+        if self.__supportsVersions():
+            oid = self._storage.new_oid()
+            self._dostore(oid=oid)
+            self.assertEqual(self._storage.modifiedInVersion(oid), '')
 
     def checkConflicts(self):
         oid = self._storage.new_oid()
@@ -161,19 +171,19 @@ class BasicStorage:
         revid4 = self._dostore(oid2, revid=revid2, data=p52)
         noteq(revid3, revid4)
 
-    def checkGetSerial(self):
-        if not hasattr(self._storage, 'getSerial'):
+    def checkGetTid(self):
+        if not hasattr(self._storage, 'getTid'):
             return
         eq = self.assertEqual
         p41, p42 = map(MinPO, (41, 42))
         oid = self._storage.new_oid()
-        self.assertRaises(KeyError, self._storage.getSerial, oid)
+        self.assertRaises(KeyError, self._storage.getTid, oid)
         # Now store a revision
         revid1 = self._dostore(oid, data=p41)
-        eq(revid1, self._storage.getSerial(oid))
+        eq(revid1, self._storage.getTid(oid))
         # And another one
         revid2 = self._dostore(oid, revid=revid1, data=p42)
-        eq(revid2, self._storage.getSerial(oid))
+        eq(revid2, self._storage.getTid(oid))
 
     def checkTwoArgBegin(self):
         # Unsure: how standard is three-argument tpc_begin()?
@@ -212,10 +222,3 @@ class BasicStorage:
         self._storage.store(oid, ZERO, zodb_pickle(MinPO(5)), '', t)
         self._storage.tpc_vote(t)
         self._storage.tpc_finish(t)
-
-    def checkGetExtensionMethods(self):
-        m = self._storage.getExtensionMethods()
-        self.assertEqual(type(m),type({}))
-        for k,v in m.items():
-            self.assertEqual(v,None)
-            self.assert_(callable(getattr(self._storage,k)))

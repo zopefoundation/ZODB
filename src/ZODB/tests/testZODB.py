@@ -16,6 +16,7 @@ import warnings
 
 import ZODB
 import ZODB.FileStorage
+import ZODB.MappingStorage
 from ZODB.POSException import ReadConflictError, ConflictError
 from ZODB.POSException import TransactionFailedError
 from ZODB.tests.warnhook import WarningsHook
@@ -24,10 +25,9 @@ from persistent import Persistent
 from persistent.mapping import PersistentMapping
 import transaction
 
-# deprecated37  remove when subtransactions go away
-# Don't complain about subtxns in these tests.
+# deprecated39  remove when versions go away
 warnings.filterwarnings("ignore",
-                        ".*\nsubtransactions are deprecated",
+                        "Versions are deprecated",
                         DeprecationWarning, __name__)
 
 class P(Persistent):
@@ -213,178 +213,6 @@ class ZODBTests(unittest.TestCase):
             conn1.close()
             conn2.close()
 
-    def checkReadConflict(self):
-        self.obj = P()
-        self.readConflict()
-
-    def readConflict(self, shouldFail=True):
-        # Two transactions run concurrently.  Each reads some object,
-        # then one commits and the other tries to read an object
-        # modified by the first.  This read should fail with a conflict
-        # error because the object state read is not necessarily
-        # consistent with the objects read earlier in the transaction.
-
-        tm1 = transaction.TransactionManager()
-        conn = self._db.open(mvcc=False, transaction_manager=tm1)
-        r1 = conn.root()
-        r1["p"] = self.obj
-        self.obj.child1 = P()
-        tm1.get().commit()
-
-        # start a new transaction with a new connection
-        tm2 = transaction.TransactionManager()
-        cn2 = self._db.open(mvcc=False, transaction_manager=tm2)
-        # start a new transaction with the other connection
-        r2 = cn2.root()
-
-        self.assertEqual(r1._p_serial, r2._p_serial)
-
-        self.obj.child2 = P()
-        tm1.get().commit()
-
-        # resume the transaction using cn2
-        obj = r2["p"]
-        # An attempt to access obj should fail, because r2 was read
-        # earlier in the transaction and obj was modified by the othe
-        # transaction.
-        if shouldFail:
-            self.assertRaises(ReadConflictError, lambda: obj.child1)
-            # And since ReadConflictError was raised, attempting to commit
-            # the transaction should re-raise it.  checkNotIndependent()
-            # failed this part of the test for a long time.
-            self.assertRaises(ReadConflictError, tm2.get().commit)
-
-            # And since that commit failed, trying to commit again should
-            # fail again.
-            self.assertRaises(TransactionFailedError, tm2.get().commit)
-            # And again.
-            self.assertRaises(TransactionFailedError, tm2.get().commit)
-            # Etc.
-            self.assertRaises(TransactionFailedError, tm2.get().commit)
-
-        else:
-            # make sure that accessing the object succeeds
-            obj.child1
-        tm2.get().abort()
-
-    def checkReadConflictIgnored(self):
-        # Test that an application that catches a read conflict and
-        # continues can not commit the transaction later.
-        root = self._db.open(mvcc=False).root()
-        root["real_data"] = real_data = PersistentMapping()
-        root["index"] = index = PersistentMapping()
-
-        real_data["a"] = PersistentMapping({"indexed_value": 0})
-        real_data["b"] = PersistentMapping({"indexed_value": 1})
-        index[1] = PersistentMapping({"b": 1})
-        index[0] = PersistentMapping({"a": 1})
-        transaction.commit()
-
-        # load some objects from one connection
-        tm = transaction.TransactionManager()
-        cn2 = self._db.open(mvcc=False, transaction_manager=tm)
-        r2 = cn2.root()
-        real_data2 = r2["real_data"]
-        index2 = r2["index"]
-
-        real_data["b"]["indexed_value"] = 0
-        del index[1]["b"]
-        index[0]["b"] = 1
-        transaction.commit()
-
-        del real_data2["a"]
-        try:
-            del index2[0]["a"]
-        except ReadConflictError:
-            # This is the crux of the text.  Ignore the error.
-            pass
-        else:
-            self.fail("No conflict occurred")
-
-        # real_data2 still ready to commit
-        self.assert_(real_data2._p_changed)
-
-        # index2 values not ready to commit
-        self.assert_(not index2._p_changed)
-        self.assert_(not index2[0]._p_changed)
-        self.assert_(not index2[1]._p_changed)
-
-        self.assertRaises(ReadConflictError, tm.get().commit)
-        self.assertRaises(TransactionFailedError, tm.get().commit)
-        tm.get().abort()
-
-    def checkIndependent(self):
-        self.obj = Independent()
-        self.readConflict(shouldFail=False)
-
-    def checkNotIndependent(self):
-        self.obj = DecoyIndependent()
-        self.readConflict()
-
-    def checkSubtxnCommitDoesntGetInvalidations(self):
-        # Prior to ZODB 3.2.9 and 3.4, Connection.tpc_finish() processed
-        # invalidations even for a subtxn commit.  This could make
-        # inconsistent state visible after a subtxn commit.  There was a
-        # suspicion that POSKeyError was possible as a result, but I wasn't
-        # able to construct a case where that happened.
-
-        # Set up the database, to hold
-        # root --> "p" -> value = 1
-        #      --> "q" -> value = 2
-        tm1 = transaction.TransactionManager()
-        conn = self._db.open(transaction_manager=tm1)
-        r1 = conn.root()
-        p = P()
-        p.value = 1
-        r1["p"] = p
-        q = P()
-        q.value = 2
-        r1["q"] = q
-        tm1.commit()
-
-        # Now txn T1 changes p.value to 3 locally (subtxn commit).
-        p.value = 3
-        tm1.commit(True)
-
-        # Start new txn T2 with a new connection.
-        tm2 = transaction.TransactionManager()
-        cn2 = self._db.open(transaction_manager=tm2)
-        r2 = cn2.root()
-        p2 = r2["p"]
-        self.assertEqual(p._p_oid, p2._p_oid)
-        # T2 shouldn't see T1's change of p.value to 3, because T1 didn't
-        # commit yet.
-        self.assertEqual(p2.value, 1)
-        # Change p.value to 4, and q.value to 5.  Neither should be visible
-        # to T1, because T1 is still in progress.
-        p2.value = 4
-        q2 = r2["q"]
-        self.assertEqual(q._p_oid, q2._p_oid)
-        self.assertEqual(q2.value, 2)
-        q2.value = 5
-        tm2.commit()
-
-        # Back to T1.  p and q still have the expected values.
-        rt = conn.root()
-        self.assertEqual(rt["p"].value, 3)
-        self.assertEqual(rt["q"].value, 2)
-
-        # Now do another subtxn commit in T1.  This shouldn't change what
-        # T1 sees for p and q.
-        rt["r"] = P()
-        tm1.commit(True)
-
-        # Doing that subtxn commit in T1 should not process invalidations
-        # from T2's commit.  p.value should still be 3 here (because that's
-        # what T1 subtxn-committed earlier), and q.value should still be 2.
-        # Prior to ZODB 3.2.9 and 3.4, q.value was 5 here.
-        rt = conn.root()
-        try:
-            self.assertEqual(rt["p"].value, 3)
-            self.assertEqual(rt["q"].value, 2)
-        finally:
-            tm1.abort()
-
     def checkSavepointDoesntGetInvalidations(self):
         # Prior to ZODB 3.2.9 and 3.4, Connection.tpc_finish() processed
         # invalidations even for a subtxn commit.  This could make
@@ -451,49 +279,6 @@ class ZODBTests(unittest.TestCase):
         finally:
             tm1.abort()
 
-    def checkReadConflictErrorClearedDuringAbort(self):
-        # When a transaction is aborted, the "memory" of which
-        # objects were the cause of a ReadConflictError during
-        # that transaction should be cleared.
-        root = self._db.open(mvcc=False).root()
-        data = PersistentMapping({'d': 1})
-        root["data"] = data
-        transaction.commit()
-
-        # Provoke a ReadConflictError.
-        tm2 = transaction.TransactionManager()
-        cn2 = self._db.open(mvcc=False, transaction_manager=tm2)
-        r2 = cn2.root()
-        data2 = r2["data"]
-
-        data['d'] = 2
-        transaction.commit()
-
-        try:
-            data2['d'] = 3
-        except ReadConflictError:
-            pass
-        else:
-            self.fail("No conflict occurred")
-
-        # Explicitly abort cn2's transaction.
-        tm2.get().abort()
-
-        # cn2 should retain no memory of the read conflict after an abort(),
-        # but 3.2.3 had a bug wherein it did.
-        data_conflicts = data._p_jar._conflicts
-        data2_conflicts = data2._p_jar._conflicts
-        self.failIf(data_conflicts)
-        self.failIf(data2_conflicts)  # this used to fail
-
-        # And because of that, we still couldn't commit a change to data2['d']
-        # in the new transaction.
-        cn2.sync()  # process the invalidation for data2['d']
-        data2['d'] = 3
-        tm2.get().commit()  # 3.2.3 used to raise ReadConflictError
-
-        cn2.close()
-
     def checkTxnBeginImpliesAbort(self):
         # begin() should do an abort() first, if needed.
         cn = self._db.open()
@@ -504,23 +289,14 @@ class ZODBTests(unittest.TestCase):
         rt = cn.root()
         self.assertRaises(KeyError, rt.__getitem__, 'a')
 
-        # A longstanding bug:  this didn't work if changes were only in
-        # subtransactions.
-        transaction.begin()
-        rt = cn.root()
-        rt['a'] = 2
-        transaction.commit(1)
-
         transaction.begin()
         rt = cn.root()
         self.assertRaises(KeyError, rt.__getitem__, 'a')
 
-        # One more time, mixing "top level" and subtransaction changes.
+        # One more time.
         transaction.begin()
         rt = cn.root()
         rt['a'] = 3
-        transaction.commit(1)
-        rt['b'] = 4
 
         transaction.begin()
         rt = cn.root()
@@ -536,7 +312,6 @@ class ZODBTests(unittest.TestCase):
         # rest of this test was tossed.
 
     def checkFailingCommitSticks(self):
-        # See also checkFailingSubtransactionCommitSticks.
         # See also checkFailingSavepointSticks.
         cn = self._db.open()
         rt = cn.root()
@@ -581,93 +356,6 @@ class ZODBTests(unittest.TestCase):
         self.assertEqual(rt['a'], 2)
 
         cn.close()
-
-    def checkFailingSubtransactionCommitSticks(self):
-        cn = self._db.open()
-        rt = cn.root()
-        rt['a'] = 1
-        transaction.commit(True)
-        self.assertEqual(rt['a'], 1)
-
-        rt['b'] = 2
-
-        # Make a jar that raises PoisonedError when a subtxn commit is done.
-        poisoned = PoisonedJar(break_savepoint=True)
-        transaction.get().join(poisoned)
-        # We're using try/except here instead of assertRaises so that this
-        # module's attempt to suppress subtransaction deprecation wngs
-        # works.
-        try:
-            transaction.commit(True)
-        except PoisonedError:
-            pass
-        else:
-            self.fail("expected PoisonedError")
-        # Trying to subtxn-commit again fails too.
-        try:
-            transaction.commit(True)
-        except TransactionFailedError:
-            pass
-        else:
-            self.fail("expected TransactionFailedError")
-        try:
-            transaction.commit(True)
-        except TransactionFailedError:
-            pass
-        else:
-            self.fail("expected TransactionFailedError")
-        # Top-level commit also fails.
-        self.assertRaises(TransactionFailedError, transaction.commit)
-
-        # The changes to rt['a'] and rt['b'] are lost.
-        self.assertRaises(KeyError, rt.__getitem__, 'a')
-        self.assertRaises(KeyError, rt.__getitem__, 'b')
-
-        # Trying to modify an object also fails, because Transaction.join()
-        # also raises TransactionFailedError.
-        self.assertRaises(TransactionFailedError, rt.__setitem__, 'b', 2)
-
-        # Clean up via abort(), and try again.
-        transaction.abort()
-        rt['a'] = 1
-        transaction.commit()
-        self.assertEqual(rt['a'], 1)
-
-        # Cleaning up via begin() should also work.
-        rt['a'] = 2
-        transaction.get().join(poisoned)
-        try:
-            transaction.commit(True)
-        except PoisonedError:
-            pass
-        else:
-            self.fail("expected PoisonedError")
-        # Trying to subtxn-commit again fails too.
-        try:
-            transaction.commit(True)
-        except TransactionFailedError:
-            pass
-        else:
-            self.fail("expected TransactionFailedError")
-
-        # The change to rt['a'] is lost.
-        self.assertEqual(rt['a'], 1)
-        # Trying to modify an object also fails.
-        self.assertRaises(TransactionFailedError, rt.__setitem__, 'b', 2)
-
-        # Clean up via begin(), and try again.
-        transaction.begin()
-        rt['a'] = 2
-        transaction.commit(True)
-        self.assertEqual(rt['a'], 2)
-        transaction.get().commit()
-
-        cn2 = self._db.open()
-        rt = cn.root()
-        self.assertEqual(rt['a'], 2)
-
-        cn.close()
-        cn2.close()
 
     def checkFailingSavepointSticks(self):
         cn = self._db.open()
@@ -762,7 +450,162 @@ class ZODBTests(unittest.TestCase):
             transaction.abort()
             conn.close()
 
-        
+class ReadConflictTests(unittest.TestCase):
+
+    def setUp(self):
+        self._storage = ZODB.MappingStorage.MappingStorage()
+
+    def readConflict(self, shouldFail=True):
+        # Two transactions run concurrently.  Each reads some object,
+        # then one commits and the other tries to read an object
+        # modified by the first.  This read should fail with a conflict
+        # error because the object state read is not necessarily
+        # consistent with the objects read earlier in the transaction.
+
+        tm1 = transaction.TransactionManager()
+        conn = self._db.open(transaction_manager=tm1)
+        r1 = conn.root()
+        r1["p"] = self.obj
+        self.obj.child1 = P()
+        tm1.get().commit()
+
+        # start a new transaction with a new connection
+        tm2 = transaction.TransactionManager()
+        cn2 = self._db.open(transaction_manager=tm2)
+        # start a new transaction with the other connection
+        r2 = cn2.root()
+
+        self.assertEqual(r1._p_serial, r2._p_serial)
+
+        self.obj.child2 = P()
+        tm1.get().commit()
+
+        # resume the transaction using cn2
+        obj = r2["p"]
+        # An attempt to access obj should fail, because r2 was read
+        # earlier in the transaction and obj was modified by the othe
+        # transaction.
+        if shouldFail:
+            self.assertRaises(ReadConflictError, lambda: obj.child1)
+            # And since ReadConflictError was raised, attempting to commit
+            # the transaction should re-raise it.  checkNotIndependent()
+            # failed this part of the test for a long time.
+            self.assertRaises(ReadConflictError, tm2.get().commit)
+
+            # And since that commit failed, trying to commit again should
+            # fail again.
+            self.assertRaises(TransactionFailedError, tm2.get().commit)
+            # And again.
+            self.assertRaises(TransactionFailedError, tm2.get().commit)
+            # Etc.
+            self.assertRaises(TransactionFailedError, tm2.get().commit)
+
+        else:
+            # make sure that accessing the object succeeds
+            obj.child1
+        tm2.get().abort()
+
+
+    def checkReadConflict(self):
+        self.obj = P()
+        self.readConflict()
+
+    def checkIndependent(self):
+        self.obj = Independent()
+        self.readConflict(shouldFail=False)
+
+    def checkNotIndependent(self):
+        self.obj = DecoyIndependent()
+        self.readConflict()
+    
+    def checkReadConflictIgnored(self):
+        # Test that an application that catches a read conflict and
+        # continues can not commit the transaction later.
+        root = self._db.open().root()
+        root["real_data"] = real_data = PersistentMapping()
+        root["index"] = index = PersistentMapping()
+
+        real_data["a"] = PersistentMapping({"indexed_value": 0})
+        real_data["b"] = PersistentMapping({"indexed_value": 1})
+        index[1] = PersistentMapping({"b": 1})
+        index[0] = PersistentMapping({"a": 1})
+        transaction.commit()
+
+        # load some objects from one connection
+        tm = transaction.TransactionManager()
+        cn2 = self._db.open(transaction_manager=tm)
+        r2 = cn2.root()
+        real_data2 = r2["real_data"]
+        index2 = r2["index"]
+
+        real_data["b"]["indexed_value"] = 0
+        del index[1]["b"]
+        index[0]["b"] = 1
+        transaction.commit()
+
+        del real_data2["a"]
+        try:
+            del index2[0]["a"]
+        except ReadConflictError:
+            # This is the crux of the text.  Ignore the error.
+            pass
+        else:
+            self.fail("No conflict occurred")
+
+        # real_data2 still ready to commit
+        self.assert_(real_data2._p_changed)
+
+        # index2 values not ready to commit
+        self.assert_(not index2._p_changed)
+        self.assert_(not index2[0]._p_changed)
+        self.assert_(not index2[1]._p_changed)
+
+        self.assertRaises(ReadConflictError, tm.get().commit)
+        self.assertRaises(TransactionFailedError, tm.get().commit)
+        tm.get().abort()
+
+    def checkReadConflictErrorClearedDuringAbort(self):
+        # When a transaction is aborted, the "memory" of which
+        # objects were the cause of a ReadConflictError during
+        # that transaction should be cleared.
+        root = self._db.open().root()
+        data = PersistentMapping({'d': 1})
+        root["data"] = data
+        transaction.commit()
+
+        # Provoke a ReadConflictError.
+        tm2 = transaction.TransactionManager()
+        cn2 = self._db.open(transaction_manager=tm2)
+        r2 = cn2.root()
+        data2 = r2["data"]
+
+        data['d'] = 2
+        transaction.commit()
+
+        try:
+            data2['d'] = 3
+        except ReadConflictError:
+            pass
+        else:
+            self.fail("No conflict occurred")
+
+        # Explicitly abort cn2's transaction.
+        tm2.get().abort()
+
+        # cn2 should retain no memory of the read conflict after an abort(),
+        # but 3.2.3 had a bug wherein it did.
+        data_conflicts = data._p_jar._conflicts
+        data2_conflicts = data2._p_jar._conflicts
+        self.failIf(data_conflicts)
+        self.failIf(data2_conflicts)  # this used to fail
+
+        # And because of that, we still couldn't commit a change to data2['d']
+        # in the new transaction.
+        cn2.sync()  # process the invalidation for data2['d']
+        data2['d'] = 3
+        tm2.get().commit()  # 3.2.3 used to raise ReadConflictError
+
+        cn2.close()
 
 class PoisonedError(Exception):
     pass
@@ -778,8 +621,6 @@ class PoisonedJar:
     def sortKey(self):
         return str(id(self))
 
-    # A way that used to poison a subtransaction commit.  With the current
-    # implementation of subtxns, pass break_savepoint=True instead.
     def tpc_begin(self, *args):
         if self.break_tpc_begin:
             raise PoisonedError("tpc_begin fails")
