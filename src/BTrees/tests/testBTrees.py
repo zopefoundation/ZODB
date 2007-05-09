@@ -1709,11 +1709,13 @@ class FamilyTest(TestCase):
             self.assertRaises(TypeError, s.insert, BTrees.family32.minint - 1)
         else: # 64 bit Python
             s.insert(BTrees.family32.maxint + 1)
-            self.assert_(BTrees.family32.maxint + 1 not in s)
-            # yeah, it's len of 1 now...don't look...don't look...
+            self.assert_(BTrees.family32.maxint + 1 not in list(s))
+            # yeah, it's len of 1 now, and rolled over to the minint...
+            # don't look...don't look...
             s = IOTreeSet()
             s.insert(BTrees.family32.minint - 1)
-            self.assert_(BTrees.family32.minint - 1 not in s)
+            self.assert_(BTrees.family32.minint - 1 not in list(s))
+            # similarly, this is a len of 1, rolling over to the maxint...
         self.check_pickling(BTrees.family32)
 
     def test64(self):
