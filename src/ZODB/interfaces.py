@@ -614,6 +614,12 @@ class IStorage(Interface):
 
         - An iterable of object-id and serial pairs giving new serials
           for objects.
+
+        A serial, returned as a string or in a sequence of oid/serial
+        pairs, may be the special value
+        ZODB.ConflictResolution.ResolvedSerial to indicate that a
+        conflict occured and that the object should be invalidated.
+        
         """
 
     def tpc_abort(transaction):
@@ -663,8 +669,14 @@ class IStorage(Interface):
         The return value can be either None or a sequence of object-id
         and serial pairs giving new serials for objects who's ids were
         passed to previous store calls in the same transaction.
-        After the tpc_vote call, bew serials must have been returned,
+        After the tpc_vote call, new serials must have been returned,
         either from tpc_vote or store for objects passed to store.
+
+        A serial returned in a sequence of oid/serial pairs, may be
+        the special value ZODB.ConflictResolution.ResolvedSerial to
+        indicate that a conflict occured and that the object should be
+        invalidated.
+
         """
 
 class IStorageRestoreable(IStorage):

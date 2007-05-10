@@ -1,7 +1,7 @@
 Storage Servers should call registerDB on storages to propigate invalidations
 =============================================================================
 
-Storages servers propigate invalidations from their storages. Among
+Storages servers propagate invalidations from their storages. Among
 other things, this allows client storages to be used in storage
 servers, allowing storage-server fan out, spreading read load over
 multiple storage servers.
@@ -23,11 +23,17 @@ We'll create a Faux storage that has a registerDB method.
     ...     def lastInvalidations(self, size):
     ...         return list(self.invalidations)
 
-We'll create a storage and a storage server using it:
+We dont' want the storage server to try to bind to a socket.  We'll
+subclass it and give it a do-nothing dispatcher "class":
+
+    >>> import ZEO.StorageServer
+    >>> class StorageServer(ZEO.StorageServer.StorageServer):
+    ...     DispatcherClass = lambda *a, **k: None
+
+We'll create a storage instance and a storage server using it:
 
     >>> storage = FauxStorage()
-    >>> import ZEO.StorageServer
-    >>> server = ZEO.StorageServer.StorageServer('addr', dict(t=storage))
+    >>> server = StorageServer('addr', dict(t=storage))
 
 Our storage now has a db attribute that provides IStorageDB.  It's
 references method is just the referencesf function from ZODB.Serialize
@@ -50,47 +56,50 @@ stub that implements the client invalidation calls:
     ...     def __init__(self, mgr, obj):
     ...         self.mgr = mgr
     ...         self.obj = obj
-    ...     def close(self):
+    ...     def should_close(self):
     ...         print 'closed', self.obj.name
     ...         self.mgr.close_conn(self)
 
     >>> class ZEOStorage:
     ...     def __init__(self, server, name):
+    ...         self.name = name
     ...         self.connection = Connection(server, self)
     ...         self.client = Client(name)
 
 Now, we'll register the client with the storage server:
 
-    >>> server.register_connection('t', ZEOStorage(server, 1))
-    >>> server.register_connection('t', ZEOStorage(server, 2))
+    >>> _ = server.register_connection('t', ZEOStorage(server, 1))
+    >>> _ = server.register_connection('t', ZEOStorage(server, 2))
     
 Now, if we call invalidate, we'll see it propigate to the client:
 
-    >>> storage.db.invalidate('trans2, ['ob1', 'ob2'])
-    invalidateTransaction trans1 1
+    >>> storage.db.invalidate('trans2', ['ob1', 'ob2'])
+    invalidateTransaction trans2 1
     [('ob1', ''), ('ob2', '')]
-    invalidateTransaction trans1 2
+    invalidateTransaction trans2 2
     [('ob1', ''), ('ob2', '')]
 
-    >>> storage.db.invalidate('trans3, ['ob1', 'ob2'], 'v')
-    invalidateTransaction trans2 1
+    >>> storage.db.invalidate('trans3', ['ob1', 'ob2'], 'v')
+    invalidateTransaction trans3 1
     [('ob1', 'v'), ('ob2', 'v')]
-    invalidateTransaction trans2 2
+    invalidateTransaction trans3 2
     [('ob1', 'v'), ('ob2', 'v')]
 
 The storage servers queue will reflect the invalidations:
 
     >>> for tid, invalidated in server.invq['t']:
     ...     print repr(tid), invalidated
-    `trans2` [('ob1', 'v'), ('ob2', 'v')]
-    `trans1` [('ob1', ''), ('ob2', '')]
+    'trans3' [('ob1', 'v'), ('ob2', 'v')]
+    'trans2' [('ob1', ''), ('ob2', '')]
+    'trans1' [('ob0', ''), ('ob1', '')]
+    'trans0' [('ob0', '')]
 
 If we call invalidateCache, the storage server will close each of it's
 connections:
 
     >>> storage.db.invalidateCache()
-    close 1
-    close 2
+    closed 1
+    closed 2
 
 The connections will then reopen and revalidate their caches.
     
@@ -98,3 +107,5 @@ The servers's invalidation queue will get reset
 
     >>> for tid, invalidated in server.invq['t']:
     ...     print repr(tid), invalidated
+    'trans1' [('ob0', ''), ('ob1', '')]
+    'trans0' [('ob0', '')]

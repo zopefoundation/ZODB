@@ -43,5 +43,5 @@ class IServeable(zope.interface.Interface):
         An iterable of up to size entries must be returned, where each
         entry is a transaction id and a sequence of object-id/version
         pairs describing the objects and versions written by the
-        transaction, ordered starting at the most recent.
+        transaction, in chronological order.
         """
