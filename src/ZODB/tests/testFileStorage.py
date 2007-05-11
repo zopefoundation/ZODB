@@ -483,7 +483,7 @@ def testTimeTravelOnOpen():
 def lastInvalidations():
     """
 
-The last invalidations method is used by a storage server to pupulate
+The last invalidations method is used by a storage server to populate
 it's data structure of recent invalidations.  The lastInvalidations
 method is passed a count and must return up to count number of the
 most recent transactions.
