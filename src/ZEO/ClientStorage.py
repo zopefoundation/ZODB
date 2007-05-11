@@ -39,7 +39,6 @@ from ZODB import POSException
 from ZODB import utils
 from ZODB.loglevels import BLATHER
 from ZODB.Blobs.interfaces import IBlobStorage
-from ZODB.Blobs.Blob import FilesystemHelper
 from persistent.TimeStamp import TimeStamp
 
 logger = logging.getLogger('ZEO.ClientStorage')
@@ -321,7 +320,10 @@ class ClientStorage(object):
         self.blob_dir = blob_dir
         self.blob_cache_writable = blob_cache_writable
         if blob_dir is not None:
-            self.fshelper = FilesystemHelper(blob_dir)
+            # Avoid doing this import unless we need it, as it
+            # currently requires pywin32 on Windows.
+            import ZODB.Blobs.Blob 
+            self.fshelper = ZODB.Blobs.Blob.FilesystemHelper(blob_dir)
             self.fshelper.create()
             self.fshelper.checkSecure()
         else:
