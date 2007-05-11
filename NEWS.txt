@@ -12,9 +12,16 @@ ZEO
   that a client that reconnects soon after a server restart won't have
   to verify its cache.
 
-- Fixed a serious bug that could cause clients that disconnect from and
+- (3.8a1) Fixed a serious bug that could cause clients that disconnect from and
   reconnect to a server to get bad invalidation data if the server
   serves multiple storages with active writes.
+
+- (3.8a1) It is now theoretically possible to use a ClientStorage in a storage
+  server.  This might make it possible to offload read load from a
+  storage server at the cost of increasing write latency.  This should
+  increase write throughput by offloading reads from the final storage
+  server.  This feature is somewhat experimental.  It has tests, but
+  hasn't been used in production.
 
 Transactions
 ------------
