@@ -34,8 +34,8 @@ Then we''ll start 2 others that use this one:
 Now, let's create some client storages that connect to these:
 
     >>> import ZEO.ClientStorage
-    >>> cs1 = ZEO.ClientStorage.ClientStorage(('', port1), '1')
-    >>> cs2 = ZEO.ClientStorage.ClientStorage(('', port2), '1')
+    >>> cs1 = ZEO.ClientStorage.ClientStorage(('localhost', port1), '1')
+    >>> cs2 = ZEO.ClientStorage.ClientStorage(('localhost', port2), '1')
 
 And some databases and connections around these:
 
@@ -142,3 +142,11 @@ Cleanup:
     >>> ZEO.tests.forker.shutdown_zeo_server(adminaddr0)
     >>> ZEO.tests.forker.shutdown_zeo_server(adminaddr1)
     >>> ZEO.tests.forker.shutdown_zeo_server(adminaddr2)
+
+Wait for processed to stop on windows, since we can't remove the test
+dir until they do. :(
+
+    >>> import sys
+    >>> if sys.platform == 'win32':
+    ...    import time
+    ...    time.sleep(10)
