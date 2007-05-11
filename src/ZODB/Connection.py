@@ -30,7 +30,6 @@ from persistent import PickleCache
 from persistent.interfaces import IPersistentDataManager
 from ZODB.interfaces import IConnection
 from ZODB.Blobs.interfaces import IBlob, IBlobStorage
-from ZODB.Blobs.BlobStorage import BlobStorage
 from transaction.interfaces import ISavepointDataManager
 from transaction.interfaces import IDataManagerSavepoint
 from transaction.interfaces import ISynchronizer
