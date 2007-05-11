@@ -26,6 +26,9 @@ import time
 import unittest
 import shutil
 
+import zope.testing.setupstack
+from zope.testing import doctest
+
 # ZODB test support
 import ZODB
 import ZODB.tests.util
@@ -150,11 +153,13 @@ class GenericTests(
         self._servers = [adminaddr]
         self._conf_path = path
         if not self.blob_cache_dir:
-            self.blob_cache_dir = tempfile.mkdtemp()  # This is the blob cache for ClientStorage
-        self._storage = ClientStorage(zport, '1', cache_size=20000000,
-                                      min_disconnect_poll=0.5, wait=1,
-                                      wait_timeout=60, blob_dir=self.blob_cache_dir,
-                                      blob_cache_writable=self.blob_cache_writable)
+            # This is the blob cache for ClientStorage
+            self.blob_cache_dir = tempfile.mkdtemp()
+        self._storage = ClientStorage(
+            zport, '1', cache_size=20000000,
+            min_disconnect_poll=0.5, wait=1,
+            wait_timeout=60, blob_dir=self.blob_cache_dir,
+            blob_cache_writable=self.blob_cache_writable)
         self._storage.registerDB(DummyDB())
 
     def tearDown(self):
@@ -816,10 +821,20 @@ test_classes = [FileStorageTests, MappingStorageTests, DemoStorageTests,
                 BlobAdaptedFileStorageTests, BlobWritableCacheTests]
 
 
+def zeoFanOutSetup(test):
+    zope.testing.setupstack.setUpDirectory(test)
+
 def test_suite():
     suite = unittest.TestSuite()
     suite.addTest(doctest.DocTestSuite(setUp=ZODB.tests.util.setUp,
                                        tearDown=ZODB.tests.util.tearDown))
+    suite.addTest(doctest.DocFileSuite('registerDB.test'))
+    suite.addTest(
+        doctest.DocFileSuite('zeo-fan-out.test',
+                             setUp=zeoFanOutSetup,
+                             tearDown=zope.testing.setupstack.tearDown,
+                             ),
+        )
     for klass in test_classes:
         sub = unittest.makeSuite(klass, "check")
         suite.addTest(sub)
