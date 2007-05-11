@@ -68,6 +68,8 @@ SEND_SIZE = 60000
 
 MAC_BIT = 0x80000000L
 
+_close_marker = object()
+
 class SizedMessageAsyncConnection(asyncore.dispatcher):
     __super_init = asyncore.dispatcher.__init__
     __super_close = asyncore.dispatcher.close
@@ -235,6 +237,9 @@ class SizedMessageAsyncConnection(asyncore.dispatcher):
         else:
             return True
 
+    def should_close(self):
+        self.__output.append(_close_marker)
+
     def handle_write(self):
         self.__output_lock.acquire()
         try:
@@ -250,7 +255,13 @@ class SizedMessageAsyncConnection(asyncore.dispatcher):
 
                 l = 0
                 for i in range(len(output)):
-                    l += len(output[i])
+                    try:
+                        l += len(output[i])
+                    except TypeError:
+                        # We had an output marker, close the connection
+                        assert output[i] is _close_marker
+                        return self.close()
+                    
                     if l > SEND_SIZE:
                         break
 
