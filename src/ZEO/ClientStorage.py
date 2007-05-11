@@ -1028,6 +1028,9 @@ class ClientStorage(object):
         self._server.vote(id(txn))
         return self._check_serials()
 
+    def tpc_transaction(self):
+        return self._transaction
+
     def tpc_begin(self, txn, tid=None, status=' '):
         """Storage API: begin a transaction."""
         if self._is_read_only:
