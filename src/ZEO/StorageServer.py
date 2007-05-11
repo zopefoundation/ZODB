@@ -33,6 +33,7 @@ import transaction
 
 import ZODB.serialize
 import ZEO.zrpc.error
+
 from ZEO import ClientStub
 from ZEO.CommitLog import CommitLog
 from ZEO.monitor import StorageStats, StatsServer
@@ -627,13 +628,13 @@ class ZEOStorage:
                 self.log(msg, logging.ERROR)
                 err = StorageServerError(msg)
             # The exception is reported back as newserial for this oid
-            newserial = err
+            newserial = [(oid, err)]
         else:
             if serial != "\0\0\0\0\0\0\0\0":
                 self.invalidated.append((oid, version))
 
-        if isinstance(newserial, str):
-            newserial = (oid, newserial)
+            if isinstance(newserial, str):
+                newserial = [(oid, newserial)]
 
         if newserial:
             for oid, s in newserial:
@@ -764,10 +765,18 @@ class StorageServerDB:
         self.references = ZODB.serialize.referencesf
 
     def invalidate(self, tid, oids, version=''):
+        storage_id = self.storage_id
         self.server.invalidate(
-            None, self.storage_id, tid,
+            None, storage_id, tid,
             [(oid, version) for oid in oids],
             )
+        for zeo_server in self.server.connections.get(storage_id, ())[:]:
+            try:
+                zeo_server.connection.poll()
+            except ZEO.zrpc.error.DisconnectedError:
+                pass
+            else:
+                break # We only need to pull one :)
 
     def invalidateCache(self):
         self.server._invalidateCache(self.storage_id)

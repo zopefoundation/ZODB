@@ -30,6 +30,7 @@ Then we''ll start 2 others that use this one:
     ...    '<zeoclient 1>\n  server %s\n</zeoclient>\n' % port0,
     ...     zconf2, port2)
 
+
 Now, let's create some client storages that connect to these:
 
     >>> import ZEO.ClientStorage
@@ -55,21 +56,27 @@ And some databases and connections around these:
     >>> r2
     {}
 
+    >>> db2 = DB(cs2)
+    >>> tm2 = transaction.TransactionManager()
+    >>> c2 = db2.open(transaction_manager=tm2)
+    >>> r2 = c2.root()
+    >>> r2
+    {}
+
 If we update c1, we'll eventually see the change in c2:
 
-    >>> import persistent
-    >>> class P(persistent.Persistent):
-    ...     pass
+    >>> import persistent.mapping
 
-    >>> r1[1] = P()
+    >>> r1[1] = persistent.mapping.PersistentMapping()
     >>> r1[1].v = 1000
-    >>> r1[2] = P()
+    >>> r1[2] = persistent.mapping.PersistentMapping()
     >>> r1[2].v = -1000
+    >>> tm1.commit()
 
     >>> import time
     >>> for i in range(100):
-    ...     c2.sync()
-    ...     if r2:
+    ...     t = tm2.begin()
+    ...     if 1 in r2:
     ...         break
     ...     time.sleep(0.01)
     
@@ -82,26 +89,30 @@ If we update c1, we'll eventually see the change in c2:
 Now, let's see if we can break it. :)
 
     >>> def f():
-    ...     for in in range(100):
-    ...         r1[1] -= 1
-    ...         r1[2] += 1
+    ...     for i in range(100):
+    ...         r1[1].v -= 1
+    ...         r1[2].v += 1
     ...         tm1.commit()
     ...         time.sleep(0.01)
-    >>> import thread
-    >>> thread.start_new_thread(f, ())
+    >>> import threading
+    >>> thread = threading.Thread(target=f)
+    >>> thread.start()
 
     >>> for i in range(1000):
-    ...     c2.sync()
-    ...     if c2[1] + c2[2]:
-    ...         print 'oops', c2[1], c2[2]
-    ...     if not c2[1]:
-    ...         break
+    ...     t = tm2.begin()
+    ...     if r2[1].v + r2[2].v:
+    ...         print 'oops', r2[1], r2[2]
+    ...     if r1[1].v == 900:
+    ...         break # we caught up
     ...     time.sleep(0.01)
+
+    >>> thread.join()
+    
     
 If we shutdown and restart the source server, the variables will be
 invalidated:
 
-    >>> forker.shutdown_zeo_server(adminaddr0)
+    >>> ZEO.tests.forker.shutdown_zeo_server(adminaddr0)
     >>> zport0, adminaddr0, pid0, path0 = ZEO.tests.forker.start_zeo_server(
     ...    '<filestorage 1>\n  path fs\n</filestorage>\n', zconf0, port0)
     

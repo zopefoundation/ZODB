@@ -27,6 +27,7 @@ import unittest
 import shutil
 
 import zope.testing.setupstack
+from zope.testing import doctest
 
 # ZODB test support
 import ZODB

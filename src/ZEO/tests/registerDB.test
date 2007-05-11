@@ -59,6 +59,8 @@ stub that implements the client invalidation calls:
     ...     def should_close(self):
     ...         print 'closed', self.obj.name
     ...         self.mgr.close_conn(self)
+    ...     def poll(self):
+    ...         pass
 
     >>> class ZEOStorage:
     ...     def __init__(self, server, name):
