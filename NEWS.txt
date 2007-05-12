@@ -1,6 +1,15 @@
 What's new on ZODB 3.8.0
 ========================
 
+General
+-------
+
+- The ZODB Storage APIs have been documented and cleaned up.
+
+- ZODB versions are now officially deprecated and support for them
+  will be removed in ZODB 3.9.  (They have been widely recognized as
+  deprecated for quite a while.)
+
 ZEO
 ---
 
@@ -46,6 +55,9 @@ Transactions
 
   Clean up weird import dance with ZODB. This is unnecessary since the
   transaction module stopped being imported in ZODB/__init__.py in rev 39622.
+
+- (3.8a1) Support for subtransactions has been removed in favor of
+  save points.
 
 Blobs
 -----
