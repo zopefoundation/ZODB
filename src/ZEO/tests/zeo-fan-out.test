@@ -139,14 +139,6 @@ Cleanup:
 
     >>> db1.close()
     >>> db2.close()
-    >>> ZEO.tests.forker.shutdown_zeo_server(adminaddr0)
-    >>> ZEO.tests.forker.shutdown_zeo_server(adminaddr1)
     >>> ZEO.tests.forker.shutdown_zeo_server(adminaddr2)
-
-Wait for processed to stop on windows, since we can't remove the test
-dir until they do. :(
-
-    >>> import sys
-    >>> if sys.platform == 'win32':
-    ...    import time
-    ...    time.sleep(10)
+    >>> ZEO.tests.forker.shutdown_zeo_server(adminaddr1)
+    >>> ZEO.tests.forker.shutdown_zeo_server(adminaddr0)
