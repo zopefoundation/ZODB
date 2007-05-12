@@ -26,9 +26,6 @@ import time
 import unittest
 import shutil
 
-import zope.testing.setupstack
-from zope.testing import doctest
-
 # ZODB test support
 import ZODB
 import ZODB.tests.util
@@ -820,10 +817,6 @@ transaction, we'll get a result:
 test_classes = [FileStorageTests, MappingStorageTests, DemoStorageTests,
                 BlobAdaptedFileStorageTests, BlobWritableCacheTests]
 
-
-def zeoFanOutSetup(test):
-    zope.testing.setupstack.setUpDirectory(test)
-
 def test_suite():
     suite = unittest.TestSuite()
     suite.addTest(doctest.DocTestSuite(setUp=ZODB.tests.util.setUp,
@@ -831,8 +824,8 @@ def test_suite():
     suite.addTest(doctest.DocFileSuite('registerDB.test'))
     suite.addTest(
         doctest.DocFileSuite('zeo-fan-out.test',
-                             setUp=zeoFanOutSetup,
-                             tearDown=zope.testing.setupstack.tearDown,
+                             setUp=ZODB.tests.util.setUp,
+                             tearDown=ZODB.tests.util.tearDown,
                              ),
         )
     for klass in test_classes:
