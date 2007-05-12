@@ -18,6 +18,7 @@ $Id$
 
 import os
 import shutil
+import sys
 import tempfile
 import time
 
@@ -46,11 +47,26 @@ class P(persistent.Persistent):
 def setUp(test):
     test.globs['__teardown_stack__'] = []
     tmp = tempfile.mkdtemp('test')
-    registerTearDown(test, lambda : shutil.rmtree(tmp))
+    registerTearDown(test, lambda : rmtree(tmp))
     here = os.getcwd()
     registerTearDown(test, lambda : os.chdir(here))
     os.chdir(tmp)
-    
+
+if sys.platform == 'win32':    
+    # On windows, we can't remove a directory of there are files upen.
+    # We may need to wait a while for processes to exit.
+    def rmtree(path):
+        for i in range(1000):
+            try:
+                shutil.rmtree(path)
+            except OSError:
+                time.sleep(0.01)
+            else:
+                break
+
+else:
+    rmtree = shutil.rmtree
+            
 def registerTearDown(test, func):
     test.globs['__teardown_stack__'].append(func)    
     
