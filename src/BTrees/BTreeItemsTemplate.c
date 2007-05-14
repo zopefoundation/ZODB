@@ -255,7 +255,7 @@ getBucketEntry(Bucket *b, int i, char kind)
                 break;
             }
 
-            result = PyTuple_New(2);
+            result = PyTuple_New((Py_ssize_t)2);
             if (result) {
                 PyTuple_SET_ITEM(result, 0, key);
                 PyTuple_SET_ITEM(result, 1, value);
@@ -386,11 +386,11 @@ BTreeItems_slice(BTreeItems *self, int ilow, int ihigh)
 }
 
 static PySequenceMethods BTreeItems_as_sequence = {
-  (inquiry) BTreeItems_length,
+  (lenfunc) BTreeItems_length,
   (binaryfunc)0,
-  (intargfunc)0,
-  (intargfunc) BTreeItems_item,
-  (intintargfunc) BTreeItems_slice,
+  (ssizeargfunc)0,
+  (ssizeargfunc) BTreeItems_item,
+  (ssizessizeargfunc) BTreeItems_slice,
 };
 
 /* Number Method items (just for nb_nonzero!) */
@@ -403,7 +403,7 @@ BTreeItems_nonzero(BTreeItems *self)
 
 static PyNumberMethods BTreeItems_as_number_for_nonzero = {
   0,0,0,0,0,0,0,0,0,0,
-   (inquiry)BTreeItems_nonzero};
+   (lenfunc)BTreeItems_nonzero};
 
 static PyTypeObject BTreeItemsType = {
   PyObject_HEAD_INIT(NULL)
