@@ -206,7 +206,7 @@ changed(cPersistentObject *self)
 	meth = PyObject_GetAttr((PyObject *)self->jar, s_register);
 	if (meth == NULL)
 	    return -1;
-	arg = PyTuple_New(1);
+	arg = PyTuple_New((Py_ssize_t)1);
 	if (arg == NULL) {
 	    Py_DECREF(meth);
 	    return -1;
@@ -309,7 +309,7 @@ pickle_copy_dict(PyObject *state)
     if (!state)
 	return copy;
 
-    while (PyDict_Next(state, &pos, &key, &value)) {
+    while ((int)PyDict_Next(state, &pos, &key, &value)) {
 	if (key && PyString_Check(key)) {
 	    ckey = PyString_AS_STRING(key);
 	    if (*ckey == '_' &&
@@ -421,7 +421,7 @@ pickle_setattrs_from_dict(PyObject *self, PyObject *dict)
 	return -1;
     }
 
-    while (PyDict_Next(dict, &pos, &key, &value)) {
+    while ((int)PyDict_Next(dict, &pos, &key, &value)) {
 	if (PyObject_SetAttr(self, key, value) < 0)
 	    return -1;
     }
@@ -493,7 +493,7 @@ static PyObject *
 pickle___reduce__(PyObject *self)
 {
     PyObject *args=NULL, *bargs=NULL, *state=NULL, *getnewargs=NULL;
-    int l, i;
+    Py_ssize_t l, i;
 
     getnewargs = PyObject_GetAttr(self, py___getnewargs__);
     if (getnewargs) {
@@ -510,7 +510,7 @@ pickle___reduce__(PyObject *self)
 	l = 0;
     }
 
-    args = PyTuple_New(l+1);
+    args = PyTuple_New((Py_ssize_t)(l+1));
     if (args == NULL)
 	goto end;
 
@@ -963,7 +963,7 @@ Per_set_jar(cPersistentObject *self, PyObject *v)
 static PyObject *
 Per_get_serial(cPersistentObject *self)
 {
-    return PyString_FromStringAndSize(self->serial, 8);
+    return PyString_FromStringAndSize(self->serial, (Py_ssize_t)8);
 }
 
 static int
