@@ -489,7 +489,7 @@ multiunion_m(PyObject *ignored, PyObject *args)
     UNLESS(PyArg_ParseTuple(args, "O", &seq))
         return NULL;
 
-    n = PyObject_Length(seq);
+    n = (int)PyObject_Length(seq);
     if (n < 0)
         return NULL;
 
@@ -501,7 +501,7 @@ multiunion_m(PyObject *ignored, PyObject *args)
     /* For each set in the input sequence, append its elements to the result
        set.  At this point, we ignore the possibility of duplicates. */
     for (i = 0; i < n; ++i) {
-        set = PySequence_GetItem(seq, i);
+        set = PySequence_GetItem(seq, (Py_ssize_t)i);
         if (set == NULL)
             goto Error;
 
