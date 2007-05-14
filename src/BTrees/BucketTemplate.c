@@ -821,13 +821,13 @@ bucket_keys(Bucket *self, PyObject *args, PyObject *kw)
   if (Bucket_rangeSearch(self, args, kw, &low, &high) < 0)
       goto err;
 
-  r = PyList_New(high-low+1);
+  r = PyList_New((Py_ssize_t)(high-low+1));
   if (r == NULL)
       goto err;
 
   for (i=low; i <= high; i++) {
       COPY_KEY_TO_OBJECT(key, self->keys[i]);
-      if (PyList_SetItem(r, i-low , key) < 0)
+      if (PyList_SetItem(r, (Py_ssize_t)(i-low) , key) < 0)
 	  goto err;
   }
 
@@ -860,13 +860,13 @@ bucket_values(Bucket *self, PyObject *args, PyObject *kw)
 
   if (Bucket_rangeSearch(self, args, kw, &low, &high) < 0) goto err;
 
-  UNLESS (r=PyList_New(high-low+1)) goto err;
+  UNLESS (r=PyList_New((Py_ssize_t)(high-low+1))) goto err;
 
   for (i=low; i <= high; i++)
     {
       COPY_VALUE_TO_OBJECT(v, self->values[i]);
       UNLESS (v) goto err;
-      if (PyList_SetItem(r, i-low, v) < 0) goto err;
+      if (PyList_SetItem(r, (Py_ssize_t)(i-low), v) < 0) goto err;
     }
 
   PER_UNUSE(self);
@@ -898,11 +898,11 @@ bucket_items(Bucket *self, PyObject *args, PyObject *kw)
 
   if (Bucket_rangeSearch(self, args, kw, &low, &high) < 0) goto err;
 
-  UNLESS (r=PyList_New(high-low+1)) goto err;
+  UNLESS (r=PyList_New((Py_ssize_t)(high-low+1))) goto err;
 
   for (i=low; i <= high; i++)
     {
-      UNLESS (item = PyTuple_New(2)) goto err;
+      UNLESS (item = PyTuple_New((Py_ssize_t)2)) goto err;
 
       COPY_KEY_TO_OBJECT(o, self->keys[i]);
       UNLESS (o) goto err;
@@ -912,7 +912,7 @@ bucket_items(Bucket *self, PyObject *args, PyObject *kw)
       UNLESS (o) goto err;
       PyTuple_SET_ITEM(item, 1, o);
 
-      if (PyList_SetItem(r, i-low, item) < 0) goto err;
+      if (PyList_SetItem(r, (Py_ssize_t)(i-low), item) < 0) goto err;
 
       item = 0;
     }
@@ -944,13 +944,13 @@ bucket_byValue(Bucket *self, PyObject *omin)
     if (TEST_VALUE(self->values[i], min) >= 0)
       l++;
 
-  UNLESS (r=PyList_New(l)) goto err;
+  UNLESS (r=PyList_New((Py_ssize_t)l)) goto err;
 
   for (i=0, l=0; i < self->len; i++)
     {
       if (TEST_VALUE(self->values[i], min) < 0) continue;
 
-      UNLESS (item = PyTuple_New(2)) goto err;
+      UNLESS (item = PyTuple_New((Py_ssize_t)2)) goto err;
 
       COPY_KEY_TO_OBJECT(o, self->keys[i]);
       UNLESS (o) goto err;
@@ -963,7 +963,7 @@ bucket_byValue(Bucket *self, PyObject *omin)
       UNLESS (o) goto err;
       PyTuple_SET_ITEM(item, 0, o);
 
-      if (PyList_SetItem(r, l, item) < 0) goto err;
+      if (PyList_SetItem(r, (Py_ssize_t)l, item) < 0) goto err;
       l++;
 
       item = 0;
@@ -1043,7 +1043,7 @@ bucket__p_deactivate(Bucket *self, PyObject *args, PyObject *keywords)
 	return NULL;
     }
     if (keywords) {
-	int size = PyDict_Size(keywords);
+	int size = (int)PyDict_Size(keywords);
 	force = PyDict_GetItemString(keywords, "force");
 	if (force)
 	    size--;
@@ -1127,7 +1127,7 @@ bucket_getstate(Bucket *self)
     len = self->len;
 
     if (self->values) { /* Bucket */
-	items = PyTuple_New(len * 2);
+	items = PyTuple_New((Py_ssize_t)(len * 2));
 	if (items == NULL)
 	    goto err;
 	for (i = 0, l = 0; i < len; i++) {
@@ -1144,7 +1144,7 @@ bucket_getstate(Bucket *self)
 	    l++;
         }
     } else { /* Set */
-	items = PyTuple_New(len);
+	items = PyTuple_New((Py_ssize_t)len);
 	if (items == NULL)
 	    goto err;
 	for (i = 0; i < len; i++) {
@@ -1182,7 +1182,7 @@ _bucket_setstate(Bucket *self, PyObject *state)
     if (!PyArg_ParseTuple(state, "O|O:__setstate__", &items, &next))
 	return -1;
 
-    len = PyTuple_Size(items);
+    len = (int)PyTuple_Size(items);
     if (len < 0)
 	return -1;
     len /= 2;
@@ -1462,7 +1462,7 @@ _bucket__p_resolveConflict(PyObject *ob_type, PyObject *s[3])
 	meth = PyObject_GetAttr((PyObject *)b[i], __setstate___str);
 	if (meth == NULL)
 	    goto Done;
-	a = PyTuple_New(1);
+	a = PyTuple_New((Py_ssize_t)1);
 	if (a == NULL)
 	    goto Done;
 	PyTuple_SET_ITEM(a, 0, s[i]);
@@ -1683,19 +1683,19 @@ Bucket_length( Bucket *self)
 }
 
 static PyMappingMethods Bucket_as_mapping = {
-  (inquiry)Bucket_length,		/*mp_length*/
+  (lenfunc)Bucket_length,		/*mp_length*/
   (binaryfunc)bucket_getitem,		/*mp_subscript*/
   (objobjargproc)bucket_setitem,	/*mp_ass_subscript*/
 };
 
 static PySequenceMethods Bucket_as_sequence = {
-    (inquiry)0,                     /* sq_length */
+    (lenfunc)0,                     /* sq_length */
     (binaryfunc)0,                  /* sq_concat */
-    (intargfunc)0,                  /* sq_repeat */
-    (intargfunc)0,                  /* sq_item */
-    (intintargfunc)0,               /* sq_slice */
-    (intobjargproc)0,               /* sq_ass_item */
-    (intintobjargproc)0,            /* sq_ass_slice */
+    (ssizeargfunc)0,                  /* sq_repeat */
+    (ssizeargfunc)0,                  /* sq_item */
+    (ssizessizeargfunc)0,               /* sq_slice */
+    (ssizeobjargproc)0,               /* sq_ass_item */
+    (ssizessizeobjargproc)0,            /* sq_ass_slice */
     (objobjproc)bucket_contains,    /* sq_contains */
     0,                              /* sq_inplace_concat */
     0,                              /* sq_inplace_repeat */
@@ -1721,7 +1721,7 @@ bucket_repr(Bucket *self)
 		       PyString_AS_STRING(r));
     if (rv > 0 && rv < sizeof(repr)) {
 	Py_DECREF(r);
-	return PyString_FromStringAndSize(repr, strlen(repr));
+	return PyString_FromStringAndSize(repr, (Py_ssize_t)strlen(repr));
     }
     else {
 	/* The static buffer wasn't big enough */
@@ -1730,7 +1730,7 @@ bucket_repr(Bucket *self)
 
 	/* 3 for the parens and the null byte */
 	size = strlen(self->ob_type->tp_name) + PyString_GET_SIZE(r) + 3;
-	s = PyString_FromStringAndSize(NULL, size);
+	s = PyString_FromStringAndSize(NULL, (Py_ssize_t)size);
 	if (!s) {
 	    Py_DECREF(r);
 	    return r;
@@ -1767,7 +1767,7 @@ static PyTypeObject BucketType = {
 	    Py_TPFLAGS_BASETYPE, 	/* tp_flags */
     0,					/* tp_doc */
     (traverseproc)bucket_traverse,	/* tp_traverse */
-    (inquiry)bucket_tp_clear,		/* tp_clear */
+    (lenfunc)bucket_tp_clear,		/* tp_clear */
     0,					/* tp_richcompare */
     0,					/* tp_weaklistoffset */
     (getiterfunc)Bucket_getiter,	/* tp_iter */
