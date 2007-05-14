@@ -806,7 +806,7 @@ cc_traverse(ccobject *self, visitproc visit, void *arg)
 static int
 cc_length(ccobject *self)
 {
-    return PyObject_Length(self->data);
+    return (int)PyObject_Length(self->data);
 }
 
 static PyObject *
