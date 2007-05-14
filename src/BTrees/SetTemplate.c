@@ -108,7 +108,7 @@ _set_setstate(Bucket *self, PyObject *args)
   UNLESS (PyArg_ParseTuple(args, "O|O", &items, &next))
     return -1;
 
-  if ((l=PyTuple_Size(items)) < 0) return -1;
+  if ((l=(int)PyTuple_Size(items)) < 0) return -1;
 
   for (i=self->len; --i >= 0; )
     {
@@ -232,7 +232,7 @@ set_repr(Bucket *self)
 
   if (!format)
       format = PyString_FromString(MOD_NAME_PREFIX "Set(%s)");
-  UNLESS (t = PyTuple_New(1)) return NULL;
+  UNLESS (t = PyTuple_New((Py_ssize_t)1)) return NULL;
   UNLESS (r = bucket_keys(self, NULL, NULL)) goto err;
   PyTuple_SET_ITEM(t, 0, r);
   r = t;
@@ -274,13 +274,13 @@ set_item(Bucket *self, int index)
 }
 
 static PySequenceMethods set_as_sequence = {
-	(inquiry)set_length,		/* sq_length */
+	(lenfunc)set_length,		/* sq_length */
 	(binaryfunc)0,                  /* sq_concat */
-	(intargfunc)0,                  /* sq_repeat */
-	(intargfunc)set_item,           /* sq_item */
-	(intintargfunc)0,               /* sq_slice */
-	(intobjargproc)0,               /* sq_ass_item */
-	(intintobjargproc)0,            /* sq_ass_slice */
+	(ssizeargfunc)0,                  /* sq_repeat */
+	(ssizeargfunc)set_item,           /* sq_item */
+	(ssizessizeargfunc)0,               /* sq_slice */
+	(ssizeobjargproc)0,               /* sq_ass_item */
+	(ssizessizeobjargproc)0,            /* sq_ass_slice */
         (objobjproc)bucket_contains,    /* sq_contains */
         0,                              /* sq_inplace_concat */
         0,                              /* sq_inplace_repeat */
@@ -311,7 +311,7 @@ static PyTypeObject SetType = {
 	    Py_TPFLAGS_BASETYPE, 	/* tp_flags */
     0,					/* tp_doc */
     (traverseproc)bucket_traverse,	/* tp_traverse */
-    (inquiry)bucket_tp_clear,		/* tp_clear */
+    (lenfunc)bucket_tp_clear,		/* tp_clear */
     0,					/* tp_richcompare */
     0,					/* tp_weaklistoffset */
     (getiterfunc)Bucket_getiter,	/* tp_iter */
