@@ -839,7 +839,7 @@ BTree__p_deactivate(BTree *self, PyObject *args, PyObject *keywords)
 	return NULL;
     }
     if (keywords) {
-	int size = PyDict_Size(keywords);
+	int size = (int)PyDict_Size(keywords);
 	force = PyDict_GetItemString(keywords, "force");
 	if (force)
 	    size--;
@@ -930,7 +930,7 @@ BTree_getstate(BTree *self)
     UNLESS (PER_USE(self)) return NULL;
 
     if (self->len) {
-	r = PyTuple_New(self->len * 2 - 1);
+	r = PyTuple_New((Py_ssize_t)(self->len * 2 - 1));
 	if (r == NULL)
 	    goto err;
 
@@ -1001,7 +1001,7 @@ _BTree_setstate(BTree *self, PyObject *state, int noval)
     if (!PyArg_ParseTuple(state, "O|O:__setstate__", &items, &firstbucket))
 	return -1;
 
-    len = PyTuple_Size(items);
+    len = (int)PyTuple_Size(items);
     if (len < 0)
 	return -1;
     len = (len + 1) / 2;
@@ -1625,7 +1625,7 @@ BTree_byValue(BTree *self, PyObject *omin)
   COPY_VALUE_FROM_ARG(min, omin, copied);
   UNLESS(copied) return NULL;
 
-  UNLESS (r=PyList_New(0)) goto err;
+  UNLESS (r=PyList_New((Py_ssize_t)0)) goto err;
 
   it.set=BTree_rangeSearch(self, NULL, NULL, 'i');
   UNLESS(it.set) goto err;
@@ -1636,7 +1636,7 @@ BTree_byValue(BTree *self, PyObject *omin)
     {
       if (TEST_VALUE(it.value, min) >= 0)
         {
-          UNLESS (item = PyTuple_New(2)) goto err;
+          UNLESS (item = PyTuple_New((Py_ssize_t)2)) goto err;
 
           COPY_KEY_TO_OBJECT(o, it.key);
           UNLESS (o) goto err;
@@ -2093,19 +2093,19 @@ BTree_length( BTree *self)
 }
 
 static PyMappingMethods BTree_as_mapping = {
-  (inquiry)BTree_length,		/*mp_length*/
+  (lenfunc)BTree_length,		/*mp_length*/
   (binaryfunc)BTree_get,		/*mp_subscript*/
   (objobjargproc)BTree_setitem,	        /*mp_ass_subscript*/
 };
 
 static PySequenceMethods BTree_as_sequence = {
-    (inquiry)0,                     /* sq_length */
+    (lenfunc)0,                     /* sq_length */
     (binaryfunc)0,                  /* sq_concat */
-    (intargfunc)0,                  /* sq_repeat */
-    (intargfunc)0,                  /* sq_item */
-    (intintargfunc)0,               /* sq_slice */
-    (intobjargproc)0,               /* sq_ass_item */
-    (intintobjargproc)0,            /* sq_ass_slice */
+    (ssizeargfunc)0,                  /* sq_repeat */
+    (ssizeargfunc)0,                  /* sq_item */
+    (ssizessizeargfunc)0,               /* sq_slice */
+    (ssizeobjargproc)0,               /* sq_ass_item */
+    (ssizessizeobjargproc)0,            /* sq_ass_slice */
     (objobjproc)BTree_contains,     /* sq_contains */
     0,                              /* sq_inplace_concat */
     0,                              /* sq_inplace_repeat */
@@ -2119,7 +2119,7 @@ BTree_nonzero(BTree *self)
 
 static PyNumberMethods BTree_as_number_for_nonzero = {
   0,0,0,0,0,0,0,0,0,0,
-  (inquiry)BTree_nonzero};
+  (lenfunc)BTree_nonzero};
 
 static PyTypeObject BTreeType = {
     PyObject_HEAD_INIT(NULL) /* PyPersist_Type */
@@ -2146,7 +2146,7 @@ static PyTypeObject BTreeType = {
 	    Py_TPFLAGS_BASETYPE, 	/* tp_flags */
     0,					/* tp_doc */
     (traverseproc)BTree_traverse,	/* tp_traverse */
-    (inquiry)BTree_tp_clear,		/* tp_clear */
+    (lenfunc)BTree_tp_clear,		/* tp_clear */
     0,					/* tp_richcompare */
     0,					/* tp_weaklistoffset */
     (getiterfunc)BTree_getiter,		/* tp_iter */
