@@ -218,7 +218,7 @@ TimeStamp_timeTime(TimeStamp *self)
 static PyObject *
 TimeStamp_raw(TimeStamp *self)
 {
-    return PyString_FromStringAndSize((const char*)self->data, 8);
+    return PyString_FromStringAndSize((const char*)self->data, (Py_ssize_t)8);
 }
 
 static PyObject *
@@ -233,7 +233,7 @@ TimeStamp_str(TimeStamp *self)
 	         p.y, p.m, p.d, p.mi / 60, p.mi % 60,
 	         TimeStamp_sec(self));
 
-    return PyString_FromStringAndSize(buf, len);
+    return PyString_FromStringAndSize(buf, (Py_ssize_t)len);
 }
 
 
