@@ -62,6 +62,11 @@ class BlobStorage(SpecificationDecoratorBase):
         self.__supportsUndo = supportsUndo
 
     @non_overridable
+    def temporaryDirectory(self):
+        return self.fshelper.base_dir
+
+
+    @non_overridable
     def __repr__(self):
         normal_storage = getProxiedObject(self)
         return '<BlobStorage proxy for %r at %s>' % (normal_storage,
@@ -116,11 +121,10 @@ class BlobStorage(SpecificationDecoratorBase):
     @non_overridable
     def loadBlob(self, oid, serial, version):
         """Return the filename where the blob file can be found.
-
         """
         filename = self.fshelper.getBlobFilename(oid, serial)
         if not os.path.exists(filename):
-            raise POSKeyError, "Not an existing blob."
+            return None
         return filename
 
     @non_overridable
