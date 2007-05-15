@@ -25,6 +25,7 @@ import cPickle
 import logging
 import os
 import sys
+import tempfile
 import threading
 import time
 import warnings
@@ -103,7 +104,7 @@ class ZEOStorage:
         self.log_label = _label
         self.authenticated = 0
         self.auth_realm = auth_realm
-        self.blob_transfer = {}
+        self.blob_tempfile = None
         self.blob_log = []
         self.blob_loads = {}
         # The authentication protocol may define extra methods.
@@ -525,25 +526,23 @@ class ZEOStorage:
         self.stats.stores += 1
         self.txnlog.store(oid, serial, data, version)
 
+
+    def storeBlobStart(self):
+        assert self.blob_tempfile is None
+        self.blob_tempfile = tempfile.mkstemp(
+            dir=self.storage.temporaryDirectory())
+        
+    def storeBlobChunk(self, chunk):
+        os.write(self.blob_tempfile[0], chunk)
+
     def storeBlobEnd(self, oid, serial, data, version, id):
-        key = (oid, id)
-        if key not in self.blob_transfer:
-            raise Exception, "Can't finish a non-started Blob"
-        tempname, tempfile = self.blob_transfer.pop(key)
-        tempfile.close()
+        fd, tempname = self.blob_tempfile
+        self.blob_tempfile = None
+        os.close(fd)
         self.blob_log.append((oid, serial, data, tempname, version))
 
-    def storeBlob(self, oid, serial, chunk, version, id):
-        # XXX check that underlying storage supports blobs
-        key = (oid, id)
-        if key not in self.blob_transfer:
-            tempname = mktemp()
-            tempfile = open(tempname, "wb")
-            # XXX Force close and remove them when Storage closes
-            self.blob_transfer[key] = (tempname, tempfile)
-        else:
-            tempname, tempfile = self.blob_transfer[key]
-        tempfile.write(chunk)
+    def storeEmptyBlob(self, oid, serial, data, version, id):
+        self.blob_log.append((oid, serial, data, None, version))
 
     def storeBlobShared(self, oid, serial, data, filename, version, id):
         # Reconstruct the full path from the filename in the OID directory

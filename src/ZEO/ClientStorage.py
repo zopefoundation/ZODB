@@ -896,9 +896,11 @@ class ClientStorage(object):
         """Storage API: store a blob object."""
         serials = self.store(oid, serial, data, version, txn)
         if self.blob_cache_writable:
-            self._storeBlob_shared(oid, serial, data, blobfilename, version, txn)
+            self._storeBlob_shared(
+                oid, serial, data, blobfilename, version, txn)
         else:
-            self._storeBlob_copy(oid, serial, data, blobfilename, version, txn)
+            self._server.storeBlob(
+                oid, serial, data, blobfilename, version, txn)
         return serials
 
     def _storeBlob_shared(self, oid, serial, data, filename, version, txn):
@@ -910,23 +912,9 @@ class ClientStorage(object):
         os.close(fd)
         os.rename(filename, target)
         # Now tell the server where we put it
-        self._server.storeBlobShared(oid, serial, data,
-                                     os.path.basename(target), version, id(txn))
-
-    def _storeBlob_copy(self, oid, serial, data, blobfilename, version, txn):
-        """Version of storeBlob() that copies the data over the ZEO protocol."""
-        blobfile = open(blobfilename, "rb")
-        while True:
-            chunk = blobfile.read(1<<16)
-            # even if the blobfile is completely empty, we need to call
-            # storeBlob at least once in order to be able to call
-            # storeBlobEnd successfully.
-            self._server.storeBlob(oid, serial, chunk, version, id(txn))
-            if not chunk:
-                self._server.storeBlobEnd(oid, serial, data, version, id(txn))
-                break
-        blobfile.close()
-        os.unlink(blobfilename)
+        self._server.storeBlobShared(
+            oid, serial, data,
+            os.path.basename(target), version, id(txn))
 
     def _do_load_blob(self, oid, serial, version):
         """Do the actual loading from the RPC server."""

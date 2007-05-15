@@ -13,6 +13,7 @@
 ##############################################################################
 """RPC stubs for interface exported by StorageServer."""
 
+import os
 import time
 
 ##
@@ -219,11 +220,30 @@ class StorageServer:
     def storea(self, oid, serial, data, version, id):
         self.rpc.callAsync('storea', oid, serial, data, version, id)
 
-    def storeBlobEnd(self, oid, serial, data, version, id):
-        self.rpc.callAsync('storeBlobEnd', oid, serial, data, version, id)
+    def storeBlob(self, oid, serial, data, blobfilename, version, txn):
 
-    def storeBlob(self, oid, serial, chunk, version, id):
-        self.rpc.callAsync('storeBlob', oid, serial, chunk, version, id)
+        # Store a blob to the server.  We don't want to real all of
+        # the data into memory, so we use a message iterator.  This
+        # allows us to read the blob data as needed.
+
+        if blobfilename is None:
+            self.rpc.callAsync('storeEmptyBlob',
+                               oid, serial, data, version, id(txn))
+            return
+
+        def store():
+            yield ('storeBlobStart', ())
+            f = open(blobfilename, 'rb')
+            while 1:
+                chunk = f.read(59000)
+                if not chunk:
+                    break
+                yield ('storeBlobChunk', (chunk, ))
+            f.close()
+            os.remove(blobfilename)
+            yield ('storeBlobEnd', (oid, serial, data, version, id(txn)))
+
+        self.rpc.callAsyncIterator(store())
 
     def storeBlobShared(self, oid, serial, data, filename, version, id):
         self.rpc.callAsync('storeBlobShared', oid, serial, data, filename, 
