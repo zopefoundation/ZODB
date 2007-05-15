@@ -68,3 +68,9 @@ class IBlobStorage(Interface):
 
         Raises POSKeyError if the blobfile cannot be found.
         """
+
+    def temporaryDirectory():
+        """Return a directory that should be used for uncommitted blob data.
+
+        If Blobs use this, then commits can be performed with a simple rename.
+        """
