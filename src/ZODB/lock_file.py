@@ -39,14 +39,14 @@ except ImportError:
             try:
                 ZODB.winlock.LockFile(file.fileno())
             except ZODB.winlock.LockError:
-                raise LockError("Couldn't lock %r", file.name)
+                raise LockError("Couldn't lock %r" % file.name)
             
 
         def _unlock_file(file):
             try:
                 ZODB.winlock.UnlockFile(file.fileno())
             except ZODB.winlock.LockError:
-                raise LockError("Couldn't unlock %r", file.name)
+                raise LockError("Couldn't unlock %r" % file.name)
                 
 else:
     # Unix
@@ -56,7 +56,7 @@ else:
         try:
             fcntl.flock(file.fileno(), _flags)
         except IOError:
-            raise LockError("Couldn't lock %r", file.name)
+            raise LockError("Couldn't lock %r" % file.name)
             
 
     def _unlock_file(file):
@@ -81,6 +81,7 @@ class LockFile:
         try:
             _lock_file(self._fp)
         except:
+            self._fp.close()
             logger.exception("Error locking file %s", path)
             raise
         print >> self._fp, os.getpid()
