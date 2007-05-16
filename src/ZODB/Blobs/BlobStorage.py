@@ -119,7 +119,7 @@ class BlobStorage(SpecificationDecoratorBase):
                 os.unlink(clean) 
 
     @non_overridable
-    def loadBlob(self, oid, serial, version):
+    def loadBlob(self, oid, serial):
         """Return the filename where the blob file can be found.
         """
         filename = self.fshelper.getBlobFilename(oid, serial)
