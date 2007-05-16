@@ -11,12 +11,6 @@ LockFile object with a file name:
     >>> import ZODB.lock_file
     >>> lock = ZODB.lock_file.LockFile('lock')
 
-The lock contains the pid of the creating process:
-
-    >>> import os
-    >>> open('lock').read().strip() == str(os.getpid())
-    True
-
 If we try to lock the same name, we'll get a lock error:
 
     >>> try:
@@ -31,6 +25,7 @@ To release the lock, use it's close method:
 
 The lock file is automatically removed:
 
+    >>> import os
     >>> os.path.exists('lock')
     False
 
@@ -43,7 +38,7 @@ Of course, now that we've released the lock, we can created it again:
 
 It's OK if the file exists, say because it wasn't cleaned up properly:
 
-    >>> _ = open('lock', 'w')
+    >>> open('lock', 'w').close()
     >>> os.path.exists('lock')
     True
     >>> lock = ZODB.lock_file.LockFile('lock')
