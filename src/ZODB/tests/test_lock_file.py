@@ -15,8 +15,8 @@ import os, sys, unittest
 from zope.testing import doctest
 
 def test_suite():
+    suite = unittest.TestSuite()
+    suite.addTest(doctest.DocFileSuite(os.path.join('..', 'lock_file.txt')))
     if sys.platform == 'win32':
-        return doctest.DocFileSuite(os.path.join('..', 'winlock.txt'))
-    else:
-        return unittest.TestSuite()
-
+        suite.addTest(doctest.DocFileSuite(os.path.join('..', 'winlock.txt')))
+    return suite
