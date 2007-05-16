@@ -20,8 +20,6 @@ static char winlock_doc_string[] =
 
 static PyObject *Error, *LockError;
 
-#ifdef MS_WIN32
-
 #include <windows.h>
 #include <io.h>
 
@@ -75,13 +73,6 @@ static struct PyMethodDef methods[] = {
   
   {NULL,		NULL}		/* sentinel */
 };
-#else
-
-static struct PyMethodDef methods[] = {
-  {NULL,		NULL}		/* sentinel */
-};
-
-#endif
 
 /* Initialization function for the module (*must* be called initwinlock) */
 
