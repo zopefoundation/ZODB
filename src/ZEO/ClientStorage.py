@@ -21,6 +21,7 @@ ClientStorage -- the main class, implementing the Storage API
 import cPickle
 import os
 import socket
+import sys
 import tempfile
 import threading
 import time
@@ -909,7 +910,24 @@ class ClientStorage(object):
             os.mkdir(dir)
         fd, target = self.fshelper.blob_mkstemp(oid, serial)
         os.close(fd)
-        os.rename(filename, target)
+
+        if sys.platform == 'win32':
+
+            # On windows, we can't rename to an existing file.  That's
+            # OK.  We don't care what file we get as long as it is
+            # unique.  We'll just keep trying until the rename suceeds.
+            os.remove(target)
+            i = 0
+            while 1:
+                try:
+                    os.rename(filename, target + str(i))
+                except OSError:
+                    i += 1
+                else:
+                    break
+            target += str(i)
+        else:
+            os.rename(filename, target)
         # Now tell the server where we put it
         self._server.storeBlobShared(
             oid, serial, data,
