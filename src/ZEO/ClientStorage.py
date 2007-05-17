@@ -946,13 +946,13 @@ class ClientStorage(object):
         assert os.path.exists(blob_filename+'.lock')
         blob_filename += '.dl'
         assert not os.path.exists(blob_filename)
-        f = open(blob_filename, 'w')
+        f = open(blob_filename, 'wb')
         f.close()
 
     def recieveBlobChunk(self, oid, serial, chunk):
         blob_filename = self.fshelper.getBlobFilename(oid, serial)+'.dl'
         assert os.path.exists(blob_filename)
-        f = open(blob_filename, 'a')
+        f = open(blob_filename, 'ab')
         f.write(chunk)
         f.close()
         
