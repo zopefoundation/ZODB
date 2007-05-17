@@ -25,7 +25,7 @@ try:
     import fcntl
 except ImportError:
     try:
-        import ZODB.winlock
+        import msvcrt
     except ImportError:
         def _lock_file(file):
             raise TypeError('No file-locking support on this platform')
@@ -37,15 +37,14 @@ except ImportError:
         def _lock_file(file):
             # Lock just the first byte
             try:
-                ZODB.winlock.LockFile(file.fileno())
-            except ZODB.winlock.LockError:
+                msvcrt.locking(file.fileno(), msvcrt.LK_NBLCK, 1)
+            except IOError:
                 raise LockError("Couldn't lock %r" % file.name)
-            
 
         def _unlock_file(file):
             try:
-                ZODB.winlock.UnlockFile(file.fileno())
-            except ZODB.winlock.LockError:
+                msvcrt.locking(file.fileno(), msvcrt.LK_UNLCK, 1)
+            except IOError:
                 raise LockError("Couldn't unlock %r" % file.name)
                 
 else:
@@ -70,26 +69,28 @@ else:
 # close both closes and unlocks the lock file.
 class LockFile:
 
+    _fp = None
+
     def __init__(self, path):
         self._path = path
+        fp = open(path, 'w+')
+
         try:
-            self._fp = open(path, 'r+')
-        except IOError, e:
-            if e.errno <> errno.ENOENT: raise
-            self._fp = open(path, 'w+')
-        # Acquire the lock and piss on the hydrant
-        try:
-            _lock_file(self._fp)
+            _lock_file(fp)
         except:
-            self._fp.close()
-            logger.exception("Error locking file %s", path)
+            fp.seek(1)
+            pid = fp.read().strip()[:20]
+            fp.close()
+            logger.exception("Error locking file", path, pid)
             raise
-        print >> self._fp, os.getpid()
-        self._fp.flush()
+
+        self._fp = fp
+        fp.write(" %s\n" % os.getpid())
+        fp.truncate()
+        fp.flush()
 
     def close(self):
         if self._fp is not None:
             _unlock_file(self._fp)
             self._fp.close()
-            os.unlink(self._path)
             self._fp = None

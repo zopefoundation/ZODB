@@ -168,13 +168,6 @@ exts += [cPersistence,
          TimeStamp,
         ]
 
-if sys.platform == 'win32':
-    exts.append(Extension(name = 'ZODB.winlock',
-                          include_dirs = include,
-                          sources = ['src/ZODB/winlock.c']
-                          )
-                )
-
 # The ZODB.zodb4 code is not being packaged, because it is only
 # need to convert early versions of Zope3 databases to ZODB3.
 

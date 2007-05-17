@@ -1,8 +1,6 @@
 Lock file support
 =================
 
-Obviously, this should move out of the ZODB package. :/
-
 The ZODB lock_file module provides support for creating file system
 locks.  These are locks that are implemented with lock files and
 OS-provided locking facilities.  To create a lock, instantiate a
@@ -23,27 +21,13 @@ To release the lock, use it's close method:
 
     >>> lock.close()
 
-The lock file is automatically removed:
+The lock file is not removed.  It is left behind:
 
     >>> import os
     >>> os.path.exists('lock')
-    False
+    True
 
 Of course, now that we've released the lock, we can created it again:
 
     >>> lock = ZODB.lock_file.LockFile('lock')
     >>> lock.close()
-    >>> os.path.exists('lock')
-    False
-
-It's OK if the file exists, say because it wasn't cleaned up properly:
-
-    >>> open('lock', 'w').close()
-    >>> os.path.exists('lock')
-    True
-    >>> lock = ZODB.lock_file.LockFile('lock')
-    >>> lock.close()
-    >>> os.path.exists('lock')
-    False
-
-Of course, it's a bad idea to put precious data into a lock file.
