@@ -58,8 +58,7 @@ class ExportImport:
                 if 'Blob' not in p:
                     continue # filter out most non-blobs
                 
-                blobfilename = self._storage.loadBlob(
-                    oid, serial, self._version)
+                blobfilename = self._storage.loadBlob(oid, serial)
                 if blobfilename is None:
                     # This could be a non-blob or a blob with unsaved data.
                     continue

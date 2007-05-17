@@ -853,8 +853,7 @@ class Connection(ExportImport, object):
         providedBy = getattr(obj, '__providedBy__', None)
         if providedBy is not None and IBlob in providedBy:
             obj._p_blob_uncommitted = None
-            obj._p_blob_data = self._storage.loadBlob(
-                obj._p_oid, serial, self._version)
+            obj._p_blob_data = self._storage.loadBlob(obj._p_oid, serial)
 
     def _load_before_or_conflict(self, obj):
         """Load non-current state for obj or raise ReadConflictError."""
@@ -1108,7 +1107,7 @@ class Connection(ExportImport, object):
         for oid in oids:
             data, serial = src.load(oid, src)
             try:
-                blobfilename = src.loadBlob(oid, serial, self._version)
+                blobfilename = src.loadBlob(oid, serial)
             except POSKeyError:
                 s = self._storage.store(oid, serial, data,
                                         self._version, transaction)
@@ -1250,7 +1249,7 @@ class TmpStore:
         targetname = self._getCleanFilename(oid, serial)
         os.rename(blobfilename, targetname)
 
-    def loadBlob(self, oid, serial, version):
+    def loadBlob(self, oid, serial):
         """Return the filename where the blob file can be found.
         """
         filename = self._getCleanFilename(oid, serial)
