@@ -129,6 +129,23 @@ class SizedMessageAsyncConnection(asyncore.dispatcher):
 
     def setSessionKey(self, sesskey):
         log("set session key %r" % sesskey)
+
+        # Low-level construction is now delayed until data are sent.
+        # This is to allow use of iterators that generate messages
+        # only when we're ready to do I/O so that we can effeciently
+        # transmit large files.  Because we delay messages, we also
+        # have to delay setting the session key to retain proper
+        # ordering.
+
+        # The low-level output queue supports strings, a special close
+        # marker, and iterators.  It doesn't support callbacks.  We
+        # can create a allback by providing an iterator that doesn't
+        # yield anything.
+
+        # The hack fucntion below is a callback in iterator's
+        # clothing. :)  It never yields anything, but is a generator
+        # and thus iterator, because it contains a yield statement.
+
         def hack():
             self.__hmac_send = hmac.HMAC(sesskey, digestmod=sha)
             self.__hmac_recv = hmac.HMAC(sesskey, digestmod=sha)
