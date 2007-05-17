@@ -543,7 +543,7 @@ class BlobAdaptedFileStorageTests(GenericTests, CommonBlobTests):
         somedata_path = os.path.join(self.blob_cache_dir, 'somedata')
         somedata = open(somedata_path, 'w+b')
         for i in range(1000000):
-            somedata.write("%s\n")
+            somedata.write("%s\n" % i)
         somedata.seek(0)
         
         blob = Blob()
