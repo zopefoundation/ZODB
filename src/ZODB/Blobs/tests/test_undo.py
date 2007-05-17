@@ -28,15 +28,16 @@ from ZODB import utils
 class BlobUndoTests(unittest.TestCase):
 
     def setUp(self):
-        self.storagefile = tempfile.mktemp()
-        self.blob_dir = tempfile.mkdtemp()
+        self.test_dir = tempfile.mkdtemp()
+        self.here = os.getcwd()
+        os.chdir(self.test_dir)
+        self.storagefile = 'Data.fs'
+        os.mkdir('blobs')
+        self.blob_dir = 'blobs'
 
     def tearDown(self):
-        try:
-            os.unlink(self.storagefile)
-        except (OSError, IOError):
-            pass
-        shutil.rmtree(self.blob_dir)
+        os.chdir(self.here)
+        shutil.rmtree(self.test_dir)
 
     def testUndoWithoutPreviousVersion(self):
         base_storage = FileStorage(self.storagefile)
@@ -60,7 +61,8 @@ class BlobUndoTests(unittest.TestCase):
         root = connection.root()
         # the blob footprint object should exist no longer
         self.assertRaises(KeyError, root.__getitem__, 'blob')
-
+        database.close()
+        
     def testUndo(self):
         base_storage = FileStorage(self.storagefile)
         blob_storage = BlobStorage(self.blob_dir, base_storage)
@@ -93,6 +95,7 @@ class BlobUndoTests(unittest.TestCase):
         blob = root['blob']
         self.assertEqual(blob.open('r').read(), 'this is state 1')
         transaction.abort()
+        database.close()
 
     def testUndoAfterConsumption(self):
         base_storage = FileStorage(self.storagefile)
@@ -101,22 +104,16 @@ class BlobUndoTests(unittest.TestCase):
         connection = database.open()
         root = connection.root()
         transaction.begin()
-        to_consume = tempfile.NamedTemporaryFile()
-        to_consume.write('this is state 1')
-        to_consume.flush()
-
+        open('consume1', 'w').write('this is state 1')
         blob = Blob()
-        blob.consumeFile(to_consume.name)
-
+        blob.consumeFile('consume1')
         root['blob'] = blob
         transaction.commit()
-
+        
         transaction.begin()
         blob = root['blob']
-        to_consume = tempfile.NamedTemporaryFile()
-        to_consume.write('this is state 2')
-        to_consume.flush()
-        blob.consumeFile(to_consume.name)
+        open('consume2', 'w').write('this is state 2')
+        blob.consumeFile('consume2')
         transaction.commit()
 
         transaction.begin()
@@ -134,6 +131,8 @@ class BlobUndoTests(unittest.TestCase):
         blob = root['blob']
         self.assertEqual(blob.open('r').read(), 'this is state 1')
         transaction.abort()
+
+        database.close()
 
     def testRedo(self):
         base_storage = FileStorage(self.storagefile)
@@ -174,7 +173,9 @@ class BlobUndoTests(unittest.TestCase):
         blob = root['blob']
         self.assertEqual(blob.open('r').read(), 'this is state 2')
         transaction.abort()
-        
+
+        database.close()
+
     def testRedoOfCreation(self):
         base_storage = FileStorage(self.storagefile)
         blob_storage = BlobStorage(self.blob_dir, base_storage)
@@ -207,6 +208,7 @@ class BlobUndoTests(unittest.TestCase):
         self.assertEqual(blob.open('r').read(), 'this is state 1')
         transaction.abort()
 
+        database.close()
 
 def test_suite():
     suite = unittest.TestSuite()
