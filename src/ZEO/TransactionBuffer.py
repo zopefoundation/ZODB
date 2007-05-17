@@ -59,12 +59,14 @@ class TransactionBuffer:
         self.closed = 0
         self.count = 0
         self.size = 0
+        self.blobs = []
         # It's safe to use a fast pickler because the only objects
         # stored are builtin types -- strings or None.
         self.pickler = cPickle.Pickler(self.file, 1)
         self.pickler.fast = 1
 
     def close(self):
+        self.clear()
         self.lock.acquire()
         try:
             self.closed = 1
@@ -81,6 +83,9 @@ class TransactionBuffer:
             self._store(oid, version, data)
         finally:
             self.lock.release()
+
+    def storeBlob(self, oid, blobfilename):
+        self.blobs.append((oid, blobfilename))
 
     def _store(self, oid, version, data):
         """Store oid, version, data for later retrieval"""
@@ -113,6 +118,10 @@ class TransactionBuffer:
             self.file.seek(0)
             self.count = 0
             self.size = 0
+            while self.blobs:
+                oid, serial, blobfilename = self.blobs.pop()
+                if os.path.exists(blobfilename):
+                    os.remove(blobfilename)
         finally:
             self.lock.release()
 

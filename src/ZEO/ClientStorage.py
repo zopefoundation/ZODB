@@ -330,10 +330,6 @@ class ClientStorage(object):
         else:
             self.fshelper = None
 
-        # Initialize locks
-        self.blob_status_lock = threading.Lock()
-        self.blob_status = {}
-
         # Decide whether to use non-temporary files
         if client is not None:
             dir = var or os.getcwd()
@@ -902,6 +898,8 @@ class ClientStorage(object):
         else:
             self._server.storeBlob(
                 oid, serial, data, blobfilename, version, txn)
+            if blobfilename is not None:
+                self._tbuf.storeBlob(oid, blobfilename)
         return serials
 
     def _storeBlob_shared(self, oid, serial, data, filename, version, txn):
@@ -923,6 +921,26 @@ class ClientStorage(object):
                 utils.tid_repr(serial)), level=BLATHER)
             return True
         return False
+
+    def recieveBlobStart(self, oid, serial):
+        blob_filename = self.fshelper.getBlobFilename(oid, serial)
+        assert not os.path.exists(blob_filename)
+        assert os.path.exists(blob_filename+'.lock')
+        blob_filename += '.dl'
+        assert not os.path.exists(blob_filename)
+        f = open(blob_filename, 'w')
+        f.close()
+
+    def recieveBlobChunk(self, oid, serial, chunk):
+        blob_filename = self.fshelper.getBlobFilename(oid, serial)+'.dl'
+        assert os.path.exists(blob_filename)
+        f = open(blob_filename, 'a')
+        f.write(chunk)
+        f.close()
+        
+    def recieveBlobStop(self, oid, serial):
+        blob_filename = self.fshelper.getBlobFilename(oid, serial)
+        os.rename(blob_filename+'.dl', blob_filename)
         
     def loadBlob(self, oid, serial):
 
@@ -943,16 +961,25 @@ class ClientStorage(object):
             # here, it's not anywahere.
             return None
 
+        # First, we'll create the directory for this oid, if it doesn't exist. 
+        targetpath = self.fshelper.getPathForOID(oid)
+        if not os.path.exists(targetpath):
+            try:
+                os.makedirs(targetpath, 0700)
+            except OSError:
+                # We might have lost a race.  If so, the directory
+                # must exist now
+                assert os.path.exists(targetpath)
+
         # OK, it's not here and we (or someone) needs to get it.  We
         # want to avoid getting it multiple times.  We want to avoid
         # getting it multiple times even accross separate client
         # processes on the same machine. We'll use file locking.
 
+        lockfilename = blob_filename+'.lock'
         try:
-            lock = ZODB.lock_file.LockFile(blob_filename+'.lock')
-        except Exception:
-            # TODO: fic LockFile so that it raises consistent
-            # exceptions accross platforms.
+            lock = ZODB.lock_file.LockFile(lockfilename)
+        except ZODB.lock_file.LockError:
 
             # Someone is already downloading the Blob. Wait for the
             # lock to be freed.  How long should we be willing to wait?
@@ -961,18 +988,22 @@ class ClientStorage(object):
             while 1:
                 time.sleep(0.1)
                 try:
-                    lock = ZODB.lock_file.LockFile(blob_filename+'.lock')
-                except Exception:
+                    lock = ZODB.lock_file.LockFile(lockfilename)
+                except ZODB.lock_file.LockError:
                     pass
                 else:
                     # We have the lock. We should be able to get the file now.
                     lock.close()
+                    try:
+                        os.remove(lockfilename)
+                    except OSError:
+                        pass
                     break
             
-                if self._have_blob(blob_filename, oid, serial):
-                    return blob_filename
+            if self._have_blob(blob_filename, oid, serial):
+                return blob_filename
 
-            raise AssertionError("Can't find downloaded blob file.")
+            return None
 
         try:
             # We got the lock, so it's our job to download it.  First,
@@ -991,14 +1022,14 @@ class ClientStorage(object):
             if self._have_blob(blob_filename, oid, serial):
                 return blob_filename
 
-            raise AssertionError("Can't find downloaded blob file.")
+            return None
 
         finally:
             lock.close()
-
-    def getBlobLock(self):
-        # indirection to support unit testing
-        return threading.Lock()
+            try:
+                os.remove(lockfilename)
+            except OSError:
+                pass
 
     def tpc_vote(self, txn):
         """Storage API: vote on a transaction."""
@@ -1121,6 +1152,20 @@ class ClientStorage(object):
                 if s != ResolvedSerial:
                     assert s == tid, (s, tid)
                     self._cache.store(oid, version, s, None, data)
+
+        
+        if self.fshelper is not None:
+            blobs = self._tbuf.blobs
+            while blobs:
+                oid, blobfilename = blobs.pop()
+                targetpath = self.fshelper.getPathForOID(oid)
+                if not os.path.exists(targetpath):
+                    os.makedirs(targetpath, 0700)
+                os.rename(blobfilename,
+                          self.fshelper.getBlobFilename(oid, tid),
+                          )
+
+                    
         self._tbuf.clear()
 
     def undo(self, trans_id, txn):

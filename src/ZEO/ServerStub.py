@@ -240,7 +240,6 @@ class StorageServer:
                     break
                 yield ('storeBlobChunk', (chunk, ))
             f.close()
-            os.remove(blobfilename)
             yield ('storeBlobEnd', (oid, serial, data, version, id(txn)))
 
         self.rpc.callAsyncIterator(store())
@@ -291,8 +290,8 @@ class StorageServer:
     def load(self, oid, version):
         return self.rpc.call('load', oid, version)
 
-    def loadBlob(self, oid, serial, version, offset):
-        return self.rpc.call('loadBlob', oid, serial, version, offset)
+    def sendBlob(self, oid, serial):
+        return self.rpc.call('sendBlob', oid, serial)
 
     def getTid(self, oid):
         return self.rpc.call('getTid', oid)

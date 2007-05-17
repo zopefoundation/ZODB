@@ -106,7 +106,6 @@ class ZEOStorage:
         self.auth_realm = auth_realm
         self.blob_tempfile = None
         self.blob_log = []
-        self.blob_loads = {}
         # The authentication protocol may define extra methods.
         self._extensions = {}
         for func in self.extensions:
@@ -526,7 +525,6 @@ class ZEOStorage:
         self.stats.stores += 1
         self.txnlog.store(oid, serial, data, version)
 
-
     def storeBlobStart(self):
         assert self.blob_tempfile is None
         self.blob_tempfile = tempfile.mkstemp(
@@ -550,17 +548,8 @@ class ZEOStorage:
                                 filename)
         self.blob_log.append((oid, serial, data, filename, version))
 
-    def loadBlob(self, oid, serial, version, offset):
-        key = (oid, serial)
-        if not key in self.blob_loads:
-            self.blob_loads[key] = \
-                    open(self.storage.loadBlob(oid, serial, version))
-        blobdata = self.blob_loads[key]
-        blobdata.seek(offset)
-        chunk = blobdata.read(4096)
-        if not chunk:
-            del self.blob_loads[key]
-        return chunk
+    def sendBlob(self, oid, serial):
+        self.client.storeBlob(oid, serial, self.storage.loadBlob(oid, serial))
 
     # The following four methods return values, so they must acquire
     # the storage lock and begin the transaction before returning.
