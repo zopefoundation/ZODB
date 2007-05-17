@@ -31,13 +31,15 @@ def inc():
     v += 1
     f.seek(0)
     f.write('%d\n' % v)
+    f.close()
     lock.close()
 
 def many_threads_read_and_write():
     r"""
     >>> open('f', 'w+b').write('0\n')
+    >>> open('f.lock', 'w+b').write('0\n')
 
-    >>> n = 10
+    >>> n = 50
     >>> threads = [threading.Thread(target=inc) for i in range(n)]
     >>> _ = [thread.start() for thread in threads]
     >>> _ = [thread.join() for thread in threads]
