@@ -43,6 +43,7 @@ except ImportError:
 
         def _unlock_file(file):
             try:
+                file.seek(0)
                 msvcrt.locking(file.fileno(), msvcrt.LK_UNLCK, 1)
             except IOError:
                 raise LockError("Couldn't unlock %r" % file.name)
