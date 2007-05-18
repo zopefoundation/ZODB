@@ -162,15 +162,10 @@ TimeStamp = Extension(name = 'persistent.TimeStamp',
                       sources= ['src/persistent/TimeStamp.c']
                       )
 
-winlock = Extension(name = 'ZODB.winlock',
-                    include_dirs = include,
-                    sources = ['src/ZODB/winlock.c']
-                    )
 
 exts += [cPersistence,
          cPickleCache,
          TimeStamp,
-         winlock,
         ]
 
 # The ZODB.zodb4 code is not being packaged, because it is only
