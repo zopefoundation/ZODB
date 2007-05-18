@@ -31,23 +31,16 @@ import transaction
 import transaction.interfaces
 from persistent import Persistent
 
-if sys.platform == 'win32':
-    import win32file
-
 BLOB_SUFFIX = ".blob"
 
+valid_modes = 'r', 'w', 'r+', 'a'
 
 class Blob(Persistent):
     """A BLOB supports efficient handling of large data within ZODB."""
 
     zope.interface.implements(IBlob)
 
-    # Binding this to an attribute allows overriding it in the unit tests
-    if sys.platform == 'win32':
-        _os_link = lambda self, src, dst: win32file.CreateHardLink(dst, src,
-                                                                   None)
-    else:
-        _os_link = os.link
+    _os_link = os.rename
 
     _p_blob_readers = 0
     _p_blob_writers = 0
@@ -68,8 +61,11 @@ class Blob(Persistent):
     def open(self, mode="r"):
         """Returns a file(-like) object representing blob data."""
         result = None
+            
+        if mode not in valid_modes:
+            raise ValueError("invalid mode", mode)
 
-        if (mode.startswith("r") or mode=="U"):
+        if mode == 'r':
             if self._current_filename() is None:
                 raise BlobError("Blob does not exist.")
 
@@ -79,7 +75,7 @@ class Blob(Persistent):
             self._p_blob_readers += 1
             result = BlobFile(self._current_filename(), mode, self)
 
-        elif mode.startswith("w"):
+        elif mode == 'w':
             if self._p_blob_readers != 0:
                 raise BlobError("Already opened for reading.")
 
@@ -88,7 +84,7 @@ class Blob(Persistent):
                 self._create_uncommitted_file()
             result = BlobFile(self._p_blob_uncommitted, mode, self)
 
-        elif mode.startswith("a"):
+        elif mode in ('a', 'r+'):
             if self._p_blob_readers != 0:
                 raise BlobError("Already opened for reading.")
 
@@ -233,12 +229,11 @@ class Blob(Persistent):
         self._p_blob_writers = 0
 
     def _p_blob_decref(self, mode):
-        if mode.startswith('r') or mode == 'U':
+        if mode == 'r':
             self._p_blob_readers = max(0, self._p_blob_readers - 1)
-        elif mode.startswith('w') or mode.startswith('a'):
-            self._p_blob_writers = max(0, self._p_blob_writers - 1)
         else:
-            raise AssertionError('Unknown mode %s' % mode)
+            assert mode in valid_modes, "Invalid mode %r" % mode
+            self._p_blob_writers = max(0, self._p_blob_writers - 1)
 
     def _p_blob_refcounts(self):
         # used by unit tests
@@ -345,7 +340,7 @@ class BlobFile(file):
     # the storage later puts them to avoid copying them ...
 
     def __init__(self, name, mode, blob):
-        super(BlobFile, self).__init__(name, mode)
+        super(BlobFile, self).__init__(name, mode+'b')
         self.blob = blob
         self.close_called = False
 
@@ -364,7 +359,7 @@ class BlobFile(file):
     def close(self):
         # we don't want to decref twice
         if not self.close_called:
-            self.blob._p_blob_decref(self.mode)
+            self.blob._p_blob_decref(self.mode[:-1])
             self.close_called = True
             super(BlobFile, self).close()
 

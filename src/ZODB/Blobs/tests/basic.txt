@@ -138,9 +138,9 @@ We can truncate a blob:
     ''
     >>> f8.close()
 
-We can explicitly open Blobs in the different modified modes:
+Blobs are always opened in binary mode:
 
-    >>> f9 = myblob.open("rb")
+    >>> f9 = myblob.open("r")
     >>> f9.mode
     'rb'
     >>> f9.close()
