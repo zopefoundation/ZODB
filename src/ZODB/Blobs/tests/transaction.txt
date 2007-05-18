@@ -206,20 +206,20 @@ We do support optimistic savepoints ::
     >>> connection5 = database.open()
     >>> root5 = connection5.root()
     >>> blob = Blob()
-    >>> blob_fh = blob.open("wb")
+    >>> blob_fh = blob.open("w")
     >>> blob_fh.write("I'm a happy blob.")
     >>> blob_fh.close()
     >>> root5['blob'] = blob
     >>> transaction.commit()
-    >>> root5['blob'].open("rb").read()
+    >>> root5['blob'].open("r").read()
     "I'm a happy blob."
     >>> blob_fh = root5['blob'].open("a")
     >>> blob_fh.write(" And I'm singing.")
     >>> blob_fh.close()
-    >>> root5['blob'].open("rb").read()
+    >>> root5['blob'].open("r").read()
     "I'm a happy blob. And I'm singing."
     >>> savepoint = transaction.savepoint(optimistic=True)
-    >>> root5['blob'].open("rb").read()
+    >>> root5['blob'].open("r").read()
     "I'm a happy blob. And I'm singing."
     >>> transaction.get().commit()
 
@@ -228,7 +228,7 @@ We do not support non-optimistic savepoints::
     >>> blob_fh = root5['blob'].open("a")
     >>> blob_fh.write(" And the weather is beautiful.")
     >>> blob_fh.close()
-    >>> root5['blob'].open("rb").read()
+    >>> root5['blob'].open("r").read()
     "I'm a happy blob. And I'm singing. And the weather is beautiful."
     >>> savepoint = transaction.savepoint()             # doctest: +ELLIPSIS
     Traceback (most recent call last):
@@ -245,7 +245,7 @@ stream a file to the browser), you can use the openDetached() method::
     >>> connection6 = database.open()
     >>> root6 = connection6.root()
     >>> blob = Blob()
-    >>> blob_fh = blob.open("wb")
+    >>> blob_fh = blob.open("w")
     >>> blob_fh.write("I'm a happy blob.")
     >>> blob_fh.close()
     >>> root6['blob'] = blob
@@ -264,7 +264,7 @@ Of course, that doesn't work for empty blobs::
 nor when the Blob is already opened for writing::
 
     >>> blob = Blob()
-    >>> blob_fh = blob.open("wb")
+    >>> blob_fh = blob.open("w")
     >>> blob.openDetached()
     Traceback (most recent call last):
         ...
@@ -290,13 +290,13 @@ would be evil.
 It does work when the transaction was aborted, though::
 
     >>> blob = Blob()
-    >>> blob_fh = blob.open("wb")
+    >>> blob_fh = blob.open("w")
     >>> blob_fh.write("I'm a happy blob.")
     >>> blob_fh.close()
     >>> root6['blob'] = blob
     >>> transaction.commit()
 
-    >>> blob_fh = blob.open("wb")
+    >>> blob_fh = blob.open("w")
     >>> blob_fh.write("And I'm singing.")
     >>> blob_fh.close()
     >>> transaction.abort()
