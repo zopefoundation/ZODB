@@ -295,17 +295,31 @@ class Connection(smac.SizedMessageAsyncConnection, object):
     # Z303 -- named after the ZODB release 3.3
     #         Added methods for MVCC:
     #             loadBefore()
-    #             loadEx()
     #         A Z303 client cannot talk to a Z201 server, because the latter
     #         doesn't support MVCC.  A Z201 client can talk to a Z303 server,
     #         but because (at least) the type of the root object changed
     #         from ZODB.PersistentMapping to persistent.mapping, the older
     #         client can't actually make progress if a Z303 client created,
     #         or ever modified, the root.
+    #
+    # Z308 -- named after the ZODB release 3.8
+    #         Added blob-support server methods:
+    #             sendBlob
+    #             storeEmptyBlob
+    #             storeBlobStart
+    #             storeBlobChunk
+    #             storeBlobEnd
+    #             storeBlobShared
+    #         Added blob-support client methods:
+    #             recieveBlobStart
+    #             recieveBlobChunk
+    #             recieveBlobStop
+    
+    # XXX add blob methods
 
     # Protocol variables:
     # Our preferred protocol.
-    current_protocol = "Z303"
+    current_protocol = "Z308"
 
     # If we're a client, an exhaustive list of the server protocols we
     # can accept.
@@ -313,7 +327,7 @@ class Connection(smac.SizedMessageAsyncConnection, object):
 
     # If we're a server, an exhaustive list of the client protocols we
     # can accept.
-    clients_we_can_talk_to = ["Z200", "Z201", current_protocol]
+    clients_we_can_talk_to = ["Z200", "Z201", "Z303", current_protocol]
 
     # This is pretty excruciating.  Details:
     #
@@ -619,14 +633,26 @@ class Connection(smac.SizedMessageAsyncConnection, object):
     # The next two public methods (call and callAsync) are used by
     # clients to invoke methods on remote objects
 
-    def send_call(self, method, args, flags):
-        # send a message and return its msgid
+    def __new_msgid(self):
         self.msgid_lock.acquire()
         try:
             msgid = self.msgid
             self.msgid = self.msgid + 1
+            return msgid
         finally:
             self.msgid_lock.release()
+
+    def __call_message(self, method, args, flags):
+        # compute a message and return it
+        msgid = self.__new_msgid()
+        if __debug__:
+            self.log("send msg: %d, %d, %s, ..." % (msgid, flags, method),
+                     level=TRACE)
+        return self.marshal.encode(msgid, flags, method, args)
+
+    def send_call(self, method, args, flags):
+        # send a message and return its msgid
+        msgid = self.__new_msgid()
         if __debug__:
             self.log("send msg: %d, %d, %s, ..." % (msgid, flags, method),
                      level=TRACE)
@@ -683,6 +709,18 @@ class Connection(smac.SizedMessageAsyncConnection, object):
         if self.closed:
             raise DisconnectedError()
         self.send_call(method, args, ASYNC)
+
+    def callAsyncIterator(self, iterator):
+        """Queue a sequence of calls using an iterator
+
+        The calls will not be interleaved with other calls from the same
+        client.
+        """
+        self.message_output(self.__outputIterator(iterator))
+
+    def __outputIterator(self, iterator):
+        for method, args in iterator:
+            yield self.__call_message(method, args, ASYNC)
 
     # handle IO, possibly in async mode
 
