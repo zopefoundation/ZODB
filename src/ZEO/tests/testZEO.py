@@ -22,6 +22,7 @@ import random
 import signal
 import socket
 import tempfile
+import threading
 import time
 import unittest
 import shutil
@@ -520,92 +521,100 @@ class CommonBlobTests:
             self._storage.tpc_abort(t)
             raise
 
-        filename = self._storage.loadBlob(oid, serial, version)
+        filename = self._storage.loadBlob(oid, serial)
         self.assertEquals(somedata, open(filename, 'rb').read())
-
 
 class BlobAdaptedFileStorageTests(GenericTests, CommonBlobTests):
     """ZEO backed by a BlobStorage-adapted FileStorage."""
 
     def setUp(self):
-        self.blobdir = tempfile.mkdtemp()  # This is the blob directory on the ZEO server
+        self.blobdir = tempfile.mkdtemp()  # blob directory on ZEO server
         self.filestorage = tempfile.mktemp()
         super(BlobAdaptedFileStorageTests, self).setUp()
 
-    def checkLoadBlobLocks(self):
+    def checkStoreAndLoadBlob(self):
+        from ZODB.utils import oid_repr, tid_repr
         from ZODB.Blobs.Blob import Blob
+        from ZODB.Blobs.BlobStorage import BLOB_SUFFIX
         from ZODB.tests.StorageTestBase import zodb_pickle, ZERO, \
              handle_serials
         import transaction
 
-        version = ''
-        somedata = 'a' * 10
-
+        somedata_path = os.path.join(self.blob_cache_dir, 'somedata')
+        somedata = open(somedata_path, 'w+b')
+        for i in range(1000000):
+            somedata.write("%s\n" % i)
+        somedata.seek(0)
+        
         blob = Blob()
         bd_fh = blob.open('w')
-        bd_fh.write(somedata)
+        ZODB.utils.cp(somedata, bd_fh)
         bd_fh.close()
         tfname = bd_fh.name
         oid = self._storage.new_oid()
         data = zodb_pickle(blob)
+        self.assert_(os.path.exists(tfname))
 
         t = transaction.Transaction()
         try:
             self._storage.tpc_begin(t)
             r1 = self._storage.storeBlob(oid, ZERO, data, tfname, '', t)
             r2 = self._storage.tpc_vote(t)
-            serial = handle_serials(oid, r1, r2)
+            revid = handle_serials(oid, r1, r2)
             self._storage.tpc_finish(t)
         except:
             self._storage.tpc_abort(t)
             raise
 
+        # The uncommitted data file should have been removed
+        self.assert_(not os.path.exists(tfname))
 
-        class Dummy:
-            def __init__(self):
-                self.acquired = 0
-                self.released = 0
-            def acquire(self):
-                self.acquired += 1
-            def release(self):
-                self.released += 1
-
-        class statusdict(dict):
-            def __init__(self):
-                self.added = []
-                self.removed = []
+        def check_data(path):
+            self.assert_(os.path.exists(path))
+            f = open(path, 'rb')
+            somedata.seek(0) 
+            d1 = d2 = 1
+            while d1 or d2:
+                d1 = f.read(8096)
+                d2 = somedata.read(8096)
+                self.assertEqual(d1, d2)
                 
-            def __setitem__(self, k, v):
-                self.added.append(k)
-                super(statusdict, self).__setitem__(k, v)
-
-            def __delitem__(self, k):
-                self.removed.append(k)
-                super(statusdict, self).__delitem__(k)
-
-        # ensure that we do locking properly
-        filename = self._storage.fshelper.getBlobFilename(oid, serial)
-        thestatuslock = self._storage.blob_status_lock = Dummy()
-        thebloblock = Dummy()
-
-        def getBlobLock():
-            return thebloblock
-
-        # override getBlobLock to test that locking is performed
-        self._storage.getBlobLock = getBlobLock
-        thestatusdict = self._storage.blob_status = statusdict()
-
-        filename = self._storage.loadBlob(oid, serial, version)
-
-        self.assertEqual(thestatuslock.acquired, 2)
-        self.assertEqual(thestatuslock.released, 2)
         
-        self.assertEqual(thebloblock.acquired, 1)
-        self.assertEqual(thebloblock.released, 1)
+        # The file should have been copied to the server:
+        filename = os.path.join(self.blobdir, oid_repr(oid),
+                                tid_repr(revid) + BLOB_SUFFIX)
+        check_data(filename)
 
-        self.assertEqual(thestatusdict.added, [(oid, serial)])
-        self.assertEqual(thestatusdict.removed, [(oid, serial)])
+        # It should also be in the cache:
+        filename = os.path.join(self.blob_cache_dir, oid_repr(oid),
+                                tid_repr(revid) + BLOB_SUFFIX)
+        check_data(filename)
 
+        # If we remove it from the cache and call loadBlob, it should
+        # come back. We can do this in many threads.  We'll instrument
+        # the method that is used to request data from teh server to
+        # verify that it is only called once.
+
+        sendBlob_org = ZEO.ServerStub.StorageServer.sendBlob
+        calls = []
+        def sendBlob(self, oid, serial):
+            calls.append((oid, serial))
+            sendBlob_org(self, oid, serial)
+
+        os.remove(filename)
+        returns = []
+        threads = [
+            threading.Thread(
+               target=lambda :
+                      returns.append(self._storage.loadBlob(oid, revid))
+               )
+            for i in range(10)
+            ]
+        [thread.start() for thread in threads]
+        [thread.join() for thread in threads]
+        [self.assertEqual(r, filename) for r in returns]        
+        check_data(filename)
+        
 
 class BlobWritableCacheTests(GenericTests, CommonBlobTests):
 

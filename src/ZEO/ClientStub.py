@@ -60,3 +60,18 @@ class ClientStorage:
 
     def info(self, arg):
         self.rpc.callAsync('info', arg)
+
+    def storeBlob(self, oid, serial, blobfilename):
+
+        def store():
+            yield ('recieveBlobStart', (oid, serial))
+            f = open(blobfilename, 'rb')
+            while 1:
+                chunk = f.read(59000)
+                if not chunk:
+                    break
+                yield ('recieveBlobChunk', (oid, serial, chunk, ))
+            f.close()
+            yield ('recieveBlobStop', (oid, serial))
+
+        self.rpc.callAsyncIterator(store())

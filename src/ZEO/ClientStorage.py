@@ -21,6 +21,7 @@ ClientStorage -- the main class, implementing the Storage API
 import cPickle
 import os
 import socket
+import sys
 import tempfile
 import threading
 import time
@@ -35,6 +36,7 @@ from ZEO.Exceptions import ClientStorageError, ClientDisconnected, AuthError
 from ZEO.auth import get_module
 from ZEO.zrpc.client import ConnectionManager
 
+import ZODB.lock_file
 from ZODB import POSException
 from ZODB import utils
 from ZODB.loglevels import BLATHER
@@ -328,10 +330,6 @@ class ClientStorage(object):
             self.fshelper.checkSecure()
         else:
             self.fshelper = None
-
-        # Initialize locks
-        self.blob_status_lock = threading.Lock()
-        self.blob_status = {}
 
         # Decide whether to use non-temporary files
         if client is not None:
@@ -896,9 +894,13 @@ class ClientStorage(object):
         """Storage API: store a blob object."""
         serials = self.store(oid, serial, data, version, txn)
         if self.blob_cache_writable:
-            self._storeBlob_shared(oid, serial, data, blobfilename, version, txn)
+            self._storeBlob_shared(
+                oid, serial, data, blobfilename, version, txn)
         else:
-            self._storeBlob_copy(oid, serial, data, blobfilename, version, txn)
+            self._server.storeBlob(
+                oid, serial, data, blobfilename, version, txn)
+            if blobfilename is not None:
+                self._tbuf.storeBlob(oid, blobfilename)
         return serials
 
     def _storeBlob_shared(self, oid, serial, data, filename, version, txn):
@@ -908,120 +910,144 @@ class ClientStorage(object):
             os.mkdir(dir)
         fd, target = self.fshelper.blob_mkstemp(oid, serial)
         os.close(fd)
-        os.rename(filename, target)
+
+        if sys.platform == 'win32':
+
+            # On windows, we can't rename to an existing file.  That's
+            # OK.  We don't care what file we get as long as it is
+            # unique.  We'll just keep trying until the rename suceeds.
+            os.remove(target)
+            i = 0
+            while 1:
+                try:
+                    os.rename(filename, target + str(i))
+                except OSError:
+                    i += 1
+                else:
+                    break
+            target += str(i)
+        else:
+            os.rename(filename, target)
         # Now tell the server where we put it
-        self._server.storeBlobShared(oid, serial, data,
-                                     os.path.basename(target), version, id(txn))
+        self._server.storeBlobShared(
+            oid, serial, data,
+            os.path.basename(target), version, id(txn))
 
-    def _storeBlob_copy(self, oid, serial, data, blobfilename, version, txn):
-        """Version of storeBlob() that copies the data over the ZEO protocol."""
-        blobfile = open(blobfilename, "rb")
-        while True:
-            chunk = blobfile.read(1<<16)
-            # even if the blobfile is completely empty, we need to call
-            # storeBlob at least once in order to be able to call
-            # storeBlobEnd successfully.
-            self._server.storeBlob(oid, serial, chunk, version, id(txn))
-            if not chunk:
-                self._server.storeBlobEnd(oid, serial, data, version, id(txn))
-                break
-        blobfile.close()
-        os.unlink(blobfilename)
+    def _have_blob(self, blob_filename, oid, serial):
+        if os.path.exists(blob_filename):
+            log2("Found blob %s/%s in cache." % (utils.oid_repr(oid),
+                utils.tid_repr(serial)), level=BLATHER)
+            return True
+        return False
 
-    def _do_load_blob(self, oid, serial, version):
-        """Do the actual loading from the RPC server."""
+    def recieveBlobStart(self, oid, serial):
         blob_filename = self.fshelper.getBlobFilename(oid, serial)
-        if self._server is None:
-            raise ClientDisconnected()
+        assert not os.path.exists(blob_filename)
+        assert os.path.exists(blob_filename+'.lock')
+        blob_filename += '.dl'
+        assert not os.path.exists(blob_filename)
+        f = open(blob_filename, 'wb')
+        f.close()
 
-        targetpath = self.fshelper.getPathForOID(oid)
-        if not os.path.exists(targetpath):
-            os.makedirs(targetpath, 0700)
+    def recieveBlobChunk(self, oid, serial, chunk):
+        blob_filename = self.fshelper.getBlobFilename(oid, serial)+'.dl'
+        assert os.path.exists(blob_filename)
+        f = open(blob_filename, 'ab')
+        f.write(chunk)
+        f.close()
+        
+    def recieveBlobStop(self, oid, serial):
+        blob_filename = self.fshelper.getBlobFilename(oid, serial)
+        os.rename(blob_filename+'.dl', blob_filename)
+        
+    def loadBlob(self, oid, serial):
 
-        # We write to a temporary file first, so we do not accidentally 
-        # allow half-baked copies of this blob be loaded
-        tempfd, tempfilename = self.fshelper.blob_mkstemp(oid, serial)
-        tempfile = os.fdopen(tempfd, 'wb')
-
-        offset = 0
-        while True:
-            chunk = self._server.loadBlob(oid, serial, version, offset)
-            if not chunk:
-                break
-            offset += len(chunk)
-            tempfile.write(chunk)
-
-        tempfile.close()
-        # XXX will fail on Windows if file is open
-        os.rename(tempfilename, blob_filename)
-        return blob_filename
-
-    def loadBlob(self, oid, serial, version):
-        """Loading a blob has to know about loading the same blob
-           from another thread as the same time.
-
-            1. Check if the blob is downloaded already
-            2. Check whether it is currently beeing downloaded
-            2a. Wait for other download to finish, return 
-            3. If not beeing downloaded, start download
-        """
+        # Load a blob.  If it isn't present and we have a shared blob
+        # directory, then assume that it doesn't exist on the server
+        # and return None.
         if self.fshelper is None:
             raise POSException.Unsupported("No blob cache directory is "
                                            "configured.")
 
         blob_filename = self.fshelper.getBlobFilename(oid, serial)
         # Case 1: Blob is available already, just use it
-        if os.path.exists(blob_filename):
-            log2("Found blob %s/%s in cache." % (utils.oid_repr(oid),
-                utils.tid_repr(serial)), level=BLATHER)
+        if self._have_blob(blob_filename, oid, serial):
             return blob_filename
 
-        # Case 2,3: Blob might still be downloading or not there yet
+        if self.blob_cache_writable:
+            # We're using a server shared cache.  If the file isn't
+            # here, it's not anywahere.
+            return None
 
-        # Try to get or create a lock for the downloading of this blob, 
-        # identified by it's oid and serial
-        lock_key = (oid, serial)
-        
-        # We need to make the check for an existing lock and the possible
-        # creation of a new one atomic, so there is another lock:
-        self.blob_status_lock.acquire()
-        try:
-            if not self.blob_status.has_key(oid):
-                self.blob_status[lock_key] = self.getBlobLock()
-            lock = self.blob_status[lock_key]
-        finally:
-            self.blob_status_lock.release()
+        # First, we'll create the directory for this oid, if it doesn't exist. 
+        targetpath = self.fshelper.getPathForOID(oid)
+        if not os.path.exists(targetpath):
+            try:
+                os.makedirs(targetpath, 0700)
+            except OSError:
+                # We might have lost a race.  If so, the directory
+                # must exist now
+                assert os.path.exists(targetpath)
 
-        # We acquire the lock to either start downloading, or wait
-        # for another download to finish
-        lock.acquire()
+        # OK, it's not here and we (or someone) needs to get it.  We
+        # want to avoid getting it multiple times.  We want to avoid
+        # getting it multiple times even accross separate client
+        # processes on the same machine. We'll use file locking.
+
+        lockfilename = blob_filename+'.lock'
         try:
-            # If there was another download that is finished by now,
-            # we just take the result.
-            if os.path.exists(blob_filename):
-                log2("Found blob %s/%s in cache after it was downloaded "
-                     "from another thread." % (utils.oid_repr(oid),
-                     utils.tid_repr(serial)), level=BLATHER)
+            lock = ZODB.lock_file.LockFile(lockfilename)
+        except ZODB.lock_file.LockError:
+
+            # Someone is already downloading the Blob. Wait for the
+            # lock to be freed.  How long should we be willing to wait?
+            # TODO: maybe find some way to assess download progress.
+
+            while 1:
+                time.sleep(0.1)
+                try:
+                    lock = ZODB.lock_file.LockFile(lockfilename)
+                except ZODB.lock_file.LockError:
+                    pass
+                else:
+                    # We have the lock. We should be able to get the file now.
+                    lock.close()
+                    try:
+                        os.remove(lockfilename)
+                    except OSError:
+                        pass
+                    break
+            
+            if self._have_blob(blob_filename, oid, serial):
                 return blob_filename
 
-            # Otherwise we download and use that
-            return self._do_load_blob(oid, serial, version)
+            return None
+
+        try:
+            # We got the lock, so it's our job to download it.  First,
+            # we'll double check that someone didn't download it while we
+            # were getting the lock:
+
+            if self._have_blob(blob_filename, oid, serial):
+                return blob_filename
+
+            # Ask the server to send it to us.  When this function
+            # returns, it will have been sent. (The recieving will
+            # have been handled by the asyncore thread.)
+            
+            self._server.sendBlob(oid, serial)
+
+            if self._have_blob(blob_filename, oid, serial):
+                return blob_filename
+
+            return None
+
         finally:
-            # When done we remove the download lock ...
-            lock.release()
-
-            # And the status information isn't needed as well,
-            # but we have to use the second lock here as well, to avoid
-            # making the creation of this status lock non-atomic (see above)
-            self.blob_status_lock.acquire()
+            lock.close()
             try:
-                del self.blob_status[lock_key]
-            finally:
-                self.blob_status_lock.release()
-
-    def getBlobLock(self):
-        # indirection to support unit testing
-        return threading.Lock()
+                os.remove(lockfilename)
+            except OSError:
+                pass
 
     def tpc_vote(self, txn):
         """Storage API: vote on a transaction."""
@@ -1144,6 +1170,20 @@ class ClientStorage(object):
                 if s != ResolvedSerial:
                     assert s == tid, (s, tid)
                     self._cache.store(oid, version, s, None, data)
+
+        
+        if self.fshelper is not None:
+            blobs = self._tbuf.blobs
+            while blobs:
+                oid, blobfilename = blobs.pop()
+                targetpath = self.fshelper.getPathForOID(oid)
+                if not os.path.exists(targetpath):
+                    os.makedirs(targetpath, 0700)
+                os.rename(blobfilename,
+                          self.fshelper.getBlobFilename(oid, tid),
+                          )
+
+                    
         self._tbuf.clear()
 
     def undo(self, trans_id, txn):
