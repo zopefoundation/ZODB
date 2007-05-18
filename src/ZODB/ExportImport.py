@@ -39,6 +39,7 @@ class ExportImport:
         done_oids = {}
         done=done_oids.has_key
         load=self._storage.load
+        supports_blobs = IBlobStorage.providedBy(self._storage)
         while oids:
             oid = oids.pop(0)
             if oid in done_oids:
@@ -52,20 +53,21 @@ class ExportImport:
             else:
                 referencesf(p, oids)
                 f.writelines([oid, p64(len(p)), p])
-            # Blob support
-            if not IBlobStorage.providedBy(self._storage):
-                continue
-            try:
-                blobfilename = self._storage.loadBlob(oid, 
-                                                      serial, self._version)
-            except POSKeyError: # Looks like this is not a blob
-                continue
 
-            f.write(blob_begin_marker)
-            f.write(p64(os.stat(blobfilename).st_size))
-            blobdata = open(blobfilename, "rb")
-            cp(blobdata, f)
-            blobdata.close()
+            if supports_blobs:
+                if 'Blob' not in p:
+                    continue # filter out most non-blobs
+                
+                blobfilename = self._storage.loadBlob(oid, serial)
+                if blobfilename is None:
+                    # This could be a non-blob or a blob with unsaved data.
+                    continue
+
+                f.write(blob_begin_marker)
+                f.write(p64(os.stat(blobfilename).st_size))
+                blobdata = open(blobfilename, "rb")
+                cp(blobdata, f)
+                blobdata.close()
             
         f.write(export_end_marker)
         return f

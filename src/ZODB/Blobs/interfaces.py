@@ -60,11 +60,16 @@ class IBlobStorage(Interface):
     def storeBlob(oid, oldserial, data, blob, version, transaction):
         """Stores data that has a BLOB attached."""
 
-    def loadBlob(oid, serial, version):
-        """Return the filename of the Blob data responding to this OID and
-        serial.
+    def loadBlob(oid, serial):
+        """Return the filename of the Blob data for this OID and serial.
 
         Returns a filename or None if no Blob data is connected with this OID. 
 
         Raises POSKeyError if the blobfile cannot be found.
+        """
+
+    def temporaryDirectory():
+        """Return a directory that should be used for uncommitted blob data.
+
+        If Blobs use this, then commits can be performed with a simple rename.
         """
