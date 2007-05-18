@@ -12,8 +12,13 @@
 #
 ##############################################################################
 
-from zope.testing.doctestunit import DocFileSuite
+from zope.testing import doctest
+import ZODB.tests.util
 
 def test_suite():
-    return DocFileSuite("basic.txt",  "connection.txt", "transaction.txt",
-                        "packing.txt", "importexport.txt", "consume.txt")
+    return doctest.DocFileSuite(
+        "basic.txt",  "connection.txt", "transaction.txt",
+        "packing.txt", "importexport.txt", "consume.txt",
+        setUp=ZODB.tests.util.setUp,
+        tearDown=ZODB.tests.util.tearDown,
+        )
