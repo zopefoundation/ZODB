@@ -161,10 +161,10 @@ class PersistenceTest(unittest.TestCase):
         obj = P()
         def setstate(value):
             obj._p_state = value
-        self.assertRaises(TypeError, setstate, GHOST)
-        self.assertRaises(TypeError, setstate, UPTODATE)
-        self.assertRaises(TypeError, setstate, CHANGED)
-        self.assertRaises(TypeError, setstate, STICKY)
+        self.assertRaises(AttributeError, setstate, GHOST)
+        self.assertRaises(AttributeError, setstate, UPTODATE)
+        self.assertRaises(AttributeError, setstate, CHANGED)
+        self.assertRaises(AttributeError, setstate, STICKY)
 
     def testInvalidate(self):
         obj = P()
