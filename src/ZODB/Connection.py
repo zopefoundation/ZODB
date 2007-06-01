@@ -529,7 +529,7 @@ class Connection(ExportImport, object):
         if self._import:
             # We are importing an export file. We alsways do this
             # while making a savepoint so we can copy export data
-            # directly to out storage, typically a TmpStore.
+            # directly to our storage, typically a TmpStore.
             self._importDuringCommit(transaction, *self._import)
             self._import = None
 
