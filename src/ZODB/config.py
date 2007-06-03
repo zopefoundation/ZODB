@@ -137,7 +137,7 @@ class FileStorage(BaseConfig):
 class BlobStorage(BaseConfig):
 
     def open(self):
-        from ZODB.Blobs.BlobStorage import BlobStorage
+        from ZODB.blob import BlobStorage
         base = self.config.base.open()
         return BlobStorage(self.config.blob_dir, base)
 

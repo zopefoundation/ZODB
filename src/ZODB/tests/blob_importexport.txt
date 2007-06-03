@@ -18,8 +18,7 @@ Import/export support for blob data
 Set up:
 
     >>> from ZODB.FileStorage import FileStorage
-    >>> from ZODB.Blobs.BlobStorage import BlobStorage
-    >>> from ZODB.Blobs.Blob import Blob
+    >>> from ZODB.blob import Blob, BlobStorage
     >>> from ZODB.DB import DB
     >>> from persistent.mapping import PersistentMapping
     >>> import shutil

@@ -11,12 +11,13 @@
 # FOR A PARTICULAR PURPOSE
 #
 ##############################################################################
-"""The blob class and related utilities.
-
+"""Blobs
 """
-__docformat__ = "reStructuredText"
 
+import base64
+import logging
 import os
+import shutil
 import sys
 import time
 import tempfile
@@ -24,21 +25,27 @@ import logging
 
 import zope.interface
 
-from ZODB.Blobs.interfaces import IBlob
-from ZODB.Blobs.exceptions import BlobError
+import ZODB.interfaces
+from ZODB.interfaces import BlobError
 from ZODB import utils
+from ZODB.POSException import POSKeyError
 import transaction
 import transaction.interfaces
-from persistent import Persistent
+import persistent
+
+from zope.proxy import getProxiedObject, non_overridable
+from zope.proxy.decorator import SpecificationDecoratorBase
+
+logger = logging.getLogger('ZODB.blob')
 
 BLOB_SUFFIX = ".blob"
 
 valid_modes = 'r', 'w', 'r+', 'a'
 
-class Blob(Persistent):
+class Blob(persistent.Persistent):
     """A BLOB supports efficient handling of large data within ZODB."""
 
-    zope.interface.implements(IBlob)
+    zope.interface.implements(ZODB.interfaces.IBlob)
 
     _os_link = os.rename
 
@@ -372,10 +379,7 @@ class BlobFile(file):
         # muddying the code needlessly.
         self.close()
 
-
-logger = logging.getLogger('ZODB.Blobs')
 _pid = str(os.getpid())
-
 
 def log(msg, level=logging.INFO, subsys=_pid, exc_info=False):
     message = "(%s) %s" % (subsys, msg)
@@ -471,3 +475,279 @@ class FilesystemHelper:
                 if search_serial == serial:
                     oids.append(oid)
         return oids
+
+class BlobStorage(SpecificationDecoratorBase):
+    """A storage to support blobs."""
+
+    zope.interface.implements(ZODB.interfaces.IBlobStorage)
+
+    # Proxies can't have a __dict__ so specifying __slots__ here allows
+    # us to have instance attributes explicitly on the proxy.
+    __slots__ = ('fshelper', 'dirty_oids', '_BlobStorage__supportsUndo')
+
+    def __new__(self, base_directory, storage):
+        return SpecificationDecoratorBase.__new__(self, storage)
+
+    def __init__(self, base_directory, storage):
+        # XXX Log warning if storage is ClientStorage
+        SpecificationDecoratorBase.__init__(self, storage)
+        self.fshelper = FilesystemHelper(base_directory)
+        self.fshelper.create()
+        self.fshelper.checkSecure()
+        self.dirty_oids = []
+        try:
+            supportsUndo = storage.supportsUndo
+        except AttributeError:
+            supportsUndo = False
+        else:
+            supportsUndo = supportsUndo()
+        self.__supportsUndo = supportsUndo
+
+    @non_overridable
+    def temporaryDirectory(self):
+        return self.fshelper.base_dir
+
+
+    @non_overridable
+    def __repr__(self):
+        normal_storage = getProxiedObject(self)
+        return '<BlobStorage proxy for %r at %s>' % (normal_storage,
+                                                     hex(id(self)))
+    @non_overridable
+    def storeBlob(self, oid, oldserial, data, blobfilename, version,
+                  transaction):
+        """Stores data that has a BLOB attached."""
+        serial = self.store(oid, oldserial, data, version, transaction)
+        assert isinstance(serial, str) # XXX in theory serials could be 
+                                       # something else
+
+        # the user may not have called "open" on the blob object,
+        # in which case, the blob will not have a filename.
+        if blobfilename is not None:
+            self._lock_acquire()
+            try:
+                targetpath = self.fshelper.getPathForOID(oid)
+                if not os.path.exists(targetpath):
+                    os.makedirs(targetpath, 0700)
+
+                targetname = self.fshelper.getBlobFilename(oid, serial)
+                os.rename(blobfilename, targetname)
+
+                # XXX if oid already in there, something is really hosed.
+                # The underlying storage should have complained anyway
+                self.dirty_oids.append((oid, serial))
+            finally:
+                self._lock_release()
+            return self._tid
+
+    @non_overridable
+    def tpc_finish(self, *arg, **kw):
+        # We need to override the base storage's tpc_finish instead of
+        # providing a _finish method because methods found on the proxied 
+        # object aren't rebound to the proxy
+        getProxiedObject(self).tpc_finish(*arg, **kw)
+        self.dirty_oids = []
+
+    @non_overridable
+    def tpc_abort(self, *arg, **kw):
+        # We need to override the base storage's abort instead of
+        # providing an _abort method because methods found on the proxied object
+        # aren't rebound to the proxy
+        getProxiedObject(self).tpc_abort(*arg, **kw)
+        while self.dirty_oids:
+            oid, serial = self.dirty_oids.pop()
+            clean = self.fshelper.getBlobFilename(oid, serial)
+            if os.exists(clean):
+                os.unlink(clean) 
+
+    @non_overridable
+    def loadBlob(self, oid, serial):
+        """Return the filename where the blob file can be found.
+        """
+        filename = self.fshelper.getBlobFilename(oid, serial)
+        if not os.path.exists(filename):
+            return None
+        return filename
+
+    @non_overridable
+    def _packUndoing(self, packtime, referencesf):
+        # Walk over all existing revisions of all blob files and check
+        # if they are still needed by attempting to load the revision
+        # of that object from the database.  This is maybe the slowest
+        # possible way to do this, but it's safe.
+
+        # XXX we should be tolerant of "garbage" directories/files in
+        # the base_directory here.
+
+        base_dir = self.fshelper.base_dir
+        for oid_repr in os.listdir(base_dir):
+            oid = utils.repr_to_oid(oid_repr)
+            oid_path = os.path.join(base_dir, oid_repr)
+            files = os.listdir(oid_path)
+            files.sort()
+
+            for filename in files:
+                filepath = os.path.join(oid_path, filename)
+                whatever, serial = self.fshelper.splitBlobFilename(filepath)
+                try:
+                    fn = self.fshelper.getBlobFilename(oid, serial)
+                    self.loadSerial(oid, serial)
+                except POSKeyError:
+                    os.unlink(filepath)
+
+            if not os.listdir(oid_path):
+                shutil.rmtree(oid_path)
+
+    @non_overridable
+    def _packNonUndoing(self, packtime, referencesf):
+        base_dir = self.fshelper.base_dir
+        for oid_repr in os.listdir(base_dir):
+            oid = utils.repr_to_oid(oid_repr)
+            oid_path = os.path.join(base_dir, oid_repr)
+            exists = True
+
+            try:
+                self.load(oid, None) # no version support
+            except (POSKeyError, KeyError):
+                exists = False
+
+            if exists:
+                files = os.listdir(oid_path)
+                files.sort()
+                latest = files[-1] # depends on ever-increasing tids
+                files.remove(latest)
+                for file in files:
+                    os.unlink(os.path.join(oid_path, file))
+            else:
+                shutil.rmtree(oid_path)
+                continue
+
+            if not os.listdir(oid_path):
+                shutil.rmtree(oid_path)
+
+    @non_overridable
+    def pack(self, packtime, referencesf):
+        """Remove all unused oid/tid combinations."""
+        unproxied = getProxiedObject(self)
+
+        # pack the underlying storage, which will allow us to determine
+        # which serials are current.
+        result = unproxied.pack(packtime, referencesf)
+
+        # perform a pack on blob data
+        self._lock_acquire()
+        try:
+            if self.__supportsUndo:
+                self._packUndoing(packtime, referencesf)
+            else:
+                self._packNonUndoing(packtime, referencesf)
+        finally:
+            self._lock_release()
+
+        return result
+
+    @non_overridable
+    def getSize(self):
+        """Return the size of the database in bytes."""
+        orig_size = getProxiedObject(self).getSize()
+
+        blob_size = 0
+        base_dir = self.fshelper.base_dir
+        for oid in os.listdir(base_dir):
+            for serial in os.listdir(os.path.join(base_dir, oid)):
+                if not serial.endswith(BLOB_SUFFIX):
+                    continue
+                file_path = os.path.join(base_dir, oid, serial)
+                blob_size += os.stat(file_path).st_size
+
+        return orig_size + blob_size
+
+    @non_overridable
+    def undo(self, serial_id, transaction):
+        undo_serial, keys = getProxiedObject(self).undo(serial_id, transaction)
+        # serial_id is the transaction id of the txn that we wish to undo.
+        # "undo_serial" is the transaction id of txn in which the undo is
+        # performed.  "keys" is the list of oids that are involved in the
+        # undo transaction.
+
+        # The serial_id is assumed to be given to us base-64 encoded
+        # (belying the web UI legacy of the ZODB code :-()
+        serial_id = base64.decodestring(serial_id+'\n')
+
+        self._lock_acquire()
+
+        try:
+            # we get all the blob oids on the filesystem related to the
+            # transaction we want to undo.
+            for oid in self.fshelper.getOIDsForSerial(serial_id):
+
+                # we want to find the serial id of the previous revision
+                # of this blob object.
+                load_result = self.loadBefore(oid, serial_id)
+
+                if load_result is None:
+                    # There was no previous revision of this blob
+                    # object.  The blob was created in the transaction
+                    # represented by serial_id.  We copy the blob data
+                    # to a new file that references the undo
+                    # transaction in case a user wishes to undo this
+                    # undo.
+                    orig_fn = self.fshelper.getBlobFilename(oid, serial_id)
+                    new_fn = self.fshelper.getBlobFilename(oid, undo_serial)
+                else:
+                    # A previous revision of this blob existed before the
+                    # transaction implied by "serial_id".  We copy the blob
+                    # data to a new file that references the undo transaction
+                    # in case a user wishes to undo this undo.
+                    data, serial_before, serial_after = load_result
+                    orig_fn = self.fshelper.getBlobFilename(oid, serial_before)
+                    new_fn = self.fshelper.getBlobFilename(oid, undo_serial)
+                orig = open(orig_fn, "r")
+                new = open(new_fn, "wb")
+                utils.cp(orig, new)
+                orig.close()
+                new.close()
+                self.dirty_oids.append((oid, undo_serial))
+
+        finally:
+            self._lock_release()
+        return undo_serial, keys
+
+# To do:
+# 
+# Production
+# 
+#     - Ensure we detect and replay a failed txn involving blobs forward or
+#       backward at startup.
+#
+#     Jim: What does this mean?
+# 
+# Far future
+# 
+#       More options for blob directory structures (e.g. dirstorages
+#       bushy/chunky/lawn/flat).
+# 
+#       Make the ClientStorage support minimizing the blob
+#       cache. (Idea: LRU principle via mstat access time and a
+#       size-based threshold) currently).
+# 
+#       Make blobs able to efficiently consume existing files from the
+#       filesystem
+# 
+# Savepoint support
+# =================
+# 
+#  - A savepoint represents the whole state of the data at a certain point in
+#    time
+# 
+#  - Need special storage for blob savepointing (in the spirit of tmpstorage) 
+# 
+#  - What belongs to the state of the data?
+# 
+#    - Data contained in files at that point in time
+# 
+#    - File handles are complex because they might be referred to from various
+#      places. We would have to introduce an abstraction layer to allow
+#      switching them around... 
+# 
+#      Simpler solution: :

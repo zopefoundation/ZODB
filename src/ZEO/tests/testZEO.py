@@ -460,8 +460,7 @@ class CommonBlobTests:
 
     def checkStoreBlob(self):
         from ZODB.utils import oid_repr, tid_repr
-        from ZODB.Blobs.Blob import Blob
-        from ZODB.Blobs.BlobStorage import BLOB_SUFFIX
+        from ZODB.blob import Blob, BLOB_SUFFIX
         from ZODB.tests.StorageTestBase import zodb_pickle, ZERO, \
              handle_serials
         import transaction
@@ -494,7 +493,7 @@ class CommonBlobTests:
         self.assertEqual(somedata, open(filename).read())
 
     def checkLoadBlob(self):
-        from ZODB.Blobs.Blob import Blob
+        from ZODB.blob import Blob
         from ZODB.tests.StorageTestBase import zodb_pickle, ZERO, \
              handle_serials
         import transaction
@@ -534,8 +533,7 @@ class BlobAdaptedFileStorageTests(GenericTests, CommonBlobTests):
 
     def checkStoreAndLoadBlob(self):
         from ZODB.utils import oid_repr, tid_repr
-        from ZODB.Blobs.Blob import Blob
-        from ZODB.Blobs.BlobStorage import BLOB_SUFFIX
+        from ZODB.blob import Blob, BLOB_SUFFIX
         from ZODB.tests.StorageTestBase import zodb_pickle, ZERO, \
              handle_serials
         import transaction

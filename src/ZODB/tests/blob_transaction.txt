@@ -18,7 +18,7 @@ Transaction support for Blobs
 We need a database with a blob supporting storage::
 
     >>> from ZODB.MappingStorage import MappingStorage
-    >>> from ZODB.Blobs.BlobStorage import BlobStorage
+    >>> from ZODB.blob import Blob, BlobStorage
     >>> from ZODB.DB import DB
     >>> import transaction
     >>> import tempfile
@@ -29,7 +29,6 @@ We need a database with a blob supporting storage::
     >>> database = DB(blob_storage)
     >>> connection1 = database.open()
     >>> root1 = connection1.root()
-    >>> from ZODB.Blobs.Blob import Blob
 
 Putting a Blob into a Connection works like any other Persistent object::
 
@@ -176,7 +175,7 @@ connections should result in a write conflict error::
     >>> tm2.get().commit()
     Traceback (most recent call last):
         ...
-    ConflictError: database conflict error (oid 0x01, class ZODB.Blobs.Blob.Blob)
+    ConflictError: database conflict error (oid 0x01, class ZODB.blob.Blob)
 
 After the conflict, the winning transaction's result is visible on both
 connections::
@@ -233,7 +232,7 @@ We do not support non-optimistic savepoints::
     >>> savepoint = transaction.savepoint()             # doctest: +ELLIPSIS
     Traceback (most recent call last):
         ...
-    TypeError: ('Savepoints unsupported', <ZODB.Blobs.Blob.BlobDataManager instance at 0x...>)
+    TypeError: ('Savepoints unsupported', <ZODB.blob.BlobDataManager instance at 0x...>)
     >>> transaction.abort()
 
 Reading Blobs outside of a transaction

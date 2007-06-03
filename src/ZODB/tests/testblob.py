@@ -11,19 +11,74 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
-import unittest
-import tempfile
-import os
-import shutil
-import base64
 
+import base64, os, shutil, tempfile, unittest
+from zope.testing import doctest
+import ZODB.tests.util
+
+from ZODB import utils
 from ZODB.FileStorage import FileStorage
-from ZODB.Blobs.BlobStorage import BlobStorage
-from ZODB.Blobs.Blob import Blob
+from ZODB.blob import Blob, BlobStorage
 from ZODB.DB import DB
 import transaction
-from ZODB.Blobs.Blob import Blob
-from ZODB import utils
+
+from ZODB.tests.testConfig import ConfigTestBase
+from ZConfig import ConfigurationSyntaxError
+
+class BlobConfigTestBase(ConfigTestBase):
+
+    def setUp(self):
+        super(BlobConfigTestBase, self).setUp()
+
+        self.blob_dir = tempfile.mkdtemp()
+
+    def tearDown(self):
+        super(BlobConfigTestBase, self).tearDown()
+
+        shutil.rmtree(self.blob_dir)
+
+
+class ZODBBlobConfigTest(BlobConfigTestBase):
+
+    def test_map_config1(self):
+        self._test(
+            """
+            <zodb>
+              <blobstorage>
+                blob-dir %s
+                <mappingstorage/>
+              </blobstorage>
+            </zodb>
+            """ % self.blob_dir)
+
+    def test_file_config1(self):
+        path = tempfile.mktemp()
+        self._test(
+            """
+            <zodb>
+              <blobstorage>
+                blob-dir %s
+                <filestorage>
+                  path %s
+                </filestorage>
+              </blobstorage>
+            </zodb>
+            """ %(self.blob_dir, path))
+        os.unlink(path)
+        os.unlink(path+".index")
+        os.unlink(path+".tmp")
+
+    def test_blob_dir_needed(self):
+        self.assertRaises(ConfigurationSyntaxError,
+                          self._test,
+                          """
+                          <zodb>
+                            <blobstorage>
+                              <mappingstorage/>
+                            </blobstorage>
+                          </zodb>
+                          """)
+
 
 class BlobUndoTests(unittest.TestCase):
 
@@ -212,9 +267,19 @@ class BlobUndoTests(unittest.TestCase):
 
 def test_suite():
     suite = unittest.TestSuite()
+    suite.addTest(unittest.makeSuite(ZODBBlobConfigTest))
+    suite.addTest(doctest.DocFileSuite(
+        "blob_basic.txt",  "blob_connection.txt", "blob_transaction.txt",
+        "blob_packing.txt", "blob_importexport.txt", "blob_consume.txt",
+        setUp=ZODB.tests.util.setUp,
+        tearDown=ZODB.tests.util.tearDown,
+        ))
     suite.addTest(unittest.makeSuite(BlobUndoTests))
 
     return suite
 
 if __name__ == '__main__':
     unittest.main(defaultTest = 'test_suite')
+
+
+

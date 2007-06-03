@@ -20,8 +20,7 @@ Set up:
     >>> from ZODB.FileStorage import FileStorage
     >>> from ZODB.MappingStorage import MappingStorage
     >>> from ZODB.serialize import referencesf
-    >>> from ZODB.Blobs.BlobStorage import BlobStorage
-    >>> from ZODB.Blobs.Blob import Blob
+    >>> from ZODB.blob import Blob, BlobStorage
     >>> from ZODB import utils
     >>> from ZODB.DB import DB
     >>> import shutil

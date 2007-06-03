@@ -17,12 +17,12 @@ ZODB Blob support
 
 You create a blob like this:
 
-    >>> from ZODB.Blobs.Blob import Blob
+    >>> from ZODB.blob import Blob
     >>> myblob = Blob()
 
 A blob implements the IBlob interface:
 
-    >>> from ZODB.Blobs.interfaces import IBlob
+    >>> from ZODB.interfaces import IBlob
     >>> IBlob.providedBy(myblob)
     True
 

@@ -22,7 +22,7 @@ import logging
 
 from ZODB.POSException import ExportError, POSKeyError
 from ZODB.utils import p64, u64, cp, mktemp
-from ZODB.Blobs.interfaces import IBlobStorage
+from ZODB.interfaces import IBlobStorage
 from ZODB.serialize import referencesf
 
 logger = logging.getLogger('ZODB.ExportImport')

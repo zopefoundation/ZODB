@@ -1,3 +1,0 @@
-
-class BlobError(Exception):
-    pass

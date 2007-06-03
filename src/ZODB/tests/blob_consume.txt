@@ -15,7 +15,7 @@ The file *must* be closed before giving it to consumeFile:
 
 Now, let's consume this file in a blob by specifying it's name::
 
-    >>> from ZODB.Blobs.Blob import Blob
+    >>> from ZODB.blob import Blob
     >>> blob = Blob()
     >>> blob.consumeFile('to_import')
 

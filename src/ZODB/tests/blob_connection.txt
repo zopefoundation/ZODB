@@ -17,8 +17,8 @@ Connection support for Blobs tests
 
 Connections handle Blobs specially. To demonstrate that, we first need a Blob with some data:
 
-    >>> from ZODB.Blobs.interfaces import IBlob
-    >>> from ZODB.Blobs.Blob import Blob
+    >>> from ZODB.interfaces import IBlob
+    >>> from ZODB.blob import Blob
     >>> import transaction
     >>> blob = Blob()
     >>> data = blob.open("w")
@@ -28,7 +28,7 @@ Connections handle Blobs specially. To demonstrate that, we first need a Blob wi
 We also need a database with a blob supporting storage:
 
     >>> from ZODB.MappingStorage import MappingStorage
-    >>> from ZODB.Blobs.BlobStorage import BlobStorage
+    >>> from ZODB.blob import BlobStorage
     >>> from ZODB.DB import DB
     >>> from tempfile import mkdtemp
     >>> base_storage = MappingStorage("test")
