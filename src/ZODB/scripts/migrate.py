@@ -258,16 +258,16 @@ def doit(srcdb, dstdb, options):
             t = TimeStamp(tid)
             if t <= ts:
                 if ok:
-                    print >> sys.stderr, \
-                          'Time stamps are out of order %s, %s' % (ts, t)
+                    print >> sys.stderr, (
+                        'Time stamps are out of order %s, %s' % (ts, t))
                     ok = False
                     ts = t.laterThan(ts)
                     tid = `ts`
                 else:
                     ts = t
                     if not ok:
-                        print >> sys.stderr, \
-                              'Time stamps are back in order %s' % t
+                        print >> sys.stderr, (
+                            'Time stamps are back in order %s' % t)
                         ok = True
         if verbose > 1:
             print ts

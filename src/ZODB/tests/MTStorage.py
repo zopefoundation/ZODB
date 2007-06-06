@@ -7,8 +7,8 @@ from persistent.mapping import PersistentMapping
 import transaction
 
 import ZODB
-from ZODB.tests.StorageTestBase \
-     import zodb_pickle, zodb_unpickle, handle_serials
+from ZODB.tests.StorageTestBase import zodb_pickle, zodb_unpickle
+from ZODB.tests.StorageTestBase import handle_serials
 from ZODB.tests.MinPO import MinPO
 from ZODB.POSException import ConflictError
 

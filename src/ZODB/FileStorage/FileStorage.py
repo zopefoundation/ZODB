@@ -30,15 +30,16 @@ from struct import pack, unpack
 fsync = getattr(os, "fsync", None)
 
 from ZODB import BaseStorage, ConflictResolution, POSException
-from ZODB.POSException \
-     import UndoError, POSKeyError, MultipleUndoErrors, VersionLockError
+from ZODB.POSException import UndoError, POSKeyError, MultipleUndoErrors
+from ZODB.POSException import VersionLockError
 from persistent.TimeStamp import TimeStamp
 from ZODB.lock_file import LockFile
 from ZODB.utils import p64, u64, cp, z64
 from ZODB.FileStorage.fspack import FileStoragePacker
-from ZODB.FileStorage.format \
-     import FileStorageFormatter, DataHeader, TxnHeader, DATA_HDR, \
-     DATA_HDR_LEN, TRANS_HDR, TRANS_HDR_LEN, CorruptedDataError
+from ZODB.FileStorage.format import FileStorageFormatter, DataHeader
+from ZODB.FileStorage.format import TxnHeader, DATA_HDR, DATA_HDR_LEN
+from ZODB.FileStorage.format import TRANS_HDR, TRANS_HDR_LEN
+from ZODB.FileStorage.format import CorruptedDataError
 from ZODB.loglevels import BLATHER
 from ZODB.fsIndex import fsIndex
 

@@ -14,8 +14,8 @@
 """Check loadSerial() on storages that support historical revisions."""
 
 from ZODB.tests.MinPO import MinPO
-from ZODB.tests.StorageTestBase import \
-     zodb_unpickle, zodb_pickle, snooze, handle_serials
+from ZODB.tests.StorageTestBase import zodb_unpickle, zodb_pickle, snooze
+from ZODB.tests.StorageTestBase import handle_serials
 from ZODB.utils import p64, u64
 
 import transaction

@@ -28,9 +28,8 @@ from ZODB import POSException
 from ZODB.utils import z64
 
 from ZODB.tests import StorageTestBase
-from ZODB.tests \
-     import BasicStorage, MTStorage, Synchronization, PackableStorage, \
-     RevisionStorage
+from ZODB.tests import BasicStorage, MTStorage, Synchronization
+from ZODB.tests import PackableStorage, RevisionStorage
 
 class Transaction(object):
     """Hold data for current transaction for MinimalMemoryStorage."""

@@ -21,8 +21,8 @@ All storages should be able to pass these tests.
 
 from ZODB import POSException
 from ZODB.tests.MinPO import MinPO
-from ZODB.tests.StorageTestBase \
-     import zodb_unpickle, zodb_pickle, handle_serials
+from ZODB.tests.StorageTestBase import zodb_unpickle, zodb_pickle
+from ZODB.tests.StorageTestBase import handle_serials
 
 import transaction
 

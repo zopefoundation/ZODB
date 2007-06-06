@@ -444,77 +444,75 @@ class InvalidationTests(unittest.TestCase):
         """
 
 def test_invalidateCache():
-    """\
+    """The invalidateCache method invalidates a connection's cache.  It also
+    prevents reads until the end of a transaction::
 
-The invalidateCache method invalidates a connection's cache.  It also
-prevents reads until the end of a transaction.
+        >>> from ZODB.tests.util import DB
+        >>> import transaction
+        >>> db = DB()
+        >>> tm = transaction.TransactionManager()
+        >>> connection = db.open(transaction_manager=tm)
+        >>> connection.root()['a'] = StubObject()
+        >>> connection.root()['a'].x = 1
+        >>> connection.root()['b'] = StubObject()
+        >>> connection.root()['b'].x = 1
+        >>> connection.root()['c'] = StubObject()
+        >>> connection.root()['c'].x = 1
+        >>> tm.commit()
+        >>> connection.root()['b']._p_deactivate()
+        >>> connection.root()['c'].x = 2
 
-    >>> from ZODB.tests.util import DB
-    >>> import transaction
-    >>> db = DB()
-    >>> tm = transaction.TransactionManager()
-    >>> connection = db.open(transaction_manager=tm)
-    >>> connection.root()['a'] = StubObject()
-    >>> connection.root()['a'].x = 1
-    >>> connection.root()['b'] = StubObject()
-    >>> connection.root()['b'].x = 1
-    >>> connection.root()['c'] = StubObject()
-    >>> connection.root()['c'].x = 1
-    >>> tm.commit()
-    >>> connection.root()['b']._p_deactivate()
-    >>> connection.root()['c'].x = 2
+    So we have a connection and an active transaction with some modifications.
+    Lets call invalidateCache:
 
-So we have a connection and an active transaction with some
-modifications. Lets call invalidateCache:
+        >>> connection.invalidateCache()
 
-    >>> connection.invalidateCache()
+    Now, if we try to load an object, we'll get a read conflict:
 
-Now, if we try to load an object, we'll get a read conflict:
+        >>> connection.root()['b'].x
+        Traceback (most recent call last):
+        ...
+        ReadConflictError: database read conflict error
 
-    >>> connection.root()['b'].x
-    Traceback (most recent call last):
-    ...
-    ReadConflictError: database read conflict error
+    If we try to commit the transaction, we'll get a conflict error:
 
-If we try to commit the transaction, we'll get a conflict error:
+        >>> tm.commit()
+        Traceback (most recent call last):
+        ...
+        ConflictError: database conflict error
 
-    >>> tm.commit()
-    Traceback (most recent call last):
-    ...
-    ConflictError: database conflict error
+    and the cache will have been cleared:
 
-and the cache will have been cleared:
+        >>> print connection.root()['a']._p_changed
+        None
+        >>> print connection.root()['b']._p_changed
+        None
+        >>> print connection.root()['c']._p_changed
+        None
 
-    >>> print connection.root()['a']._p_changed
-    None
-    >>> print connection.root()['b']._p_changed
-    None
-    >>> print connection.root()['c']._p_changed
-    None
+    But we'll be able to access data again:
 
-But we'll be able to access data again:
+        >>> connection.root()['b'].x
+        1
 
-    >>> connection.root()['b'].x
-    1
+    Aborting a transaction after a read conflict also lets us read data and go
+    on about our business:
 
-Aborting a transaction after a read conflict also lets us read data
-and go on about our business:
-    
-    >>> connection.invalidateCache()
+        >>> connection.invalidateCache()
 
-    >>> connection.root()['c'].x
-    Traceback (most recent call last):
-    ...
-    ReadConflictError: database read conflict error
+        >>> connection.root()['c'].x
+        Traceback (most recent call last):
+        ...
+        ReadConflictError: database read conflict error
 
-    >>> tm.abort()
-    >>> connection.root()['c'].x
-    1
+        >>> tm.abort()
+        >>> connection.root()['c'].x
+        1
 
-    >>> connection.root()['c'].x = 2
-    >>> tm.commit()
+        >>> connection.root()['c'].x = 2
+        >>> tm.commit()
 
-    >>> db.close()
+        >>> db.close()
     """
 
 # ---- stubs

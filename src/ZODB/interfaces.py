@@ -230,8 +230,8 @@ class IConnection(Interface):
 
     # Multi-database support.
 
-    connections = Attribute("""\
-        A mapping from database name to a Connection to that database.
+    connections = Attribute(
+        """A mapping from database name to a Connection to that database.
 
         In multi-database use, the Connections of all members of a database
         collection share the same .connections object.
@@ -345,8 +345,8 @@ class IDatabase(IStorageDB):
     TODO: This interface is incomplete.
     """
 
-    databases = Attribute("""\
-        A mapping from database name to DB (database) object.
+    databases = Attribute(
+        """A mapping from database name to DB (database) object.
 
         In multi-database use, all DB members of a database collection share
         the same .databases object.

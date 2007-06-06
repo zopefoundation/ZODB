@@ -143,45 +143,43 @@ class DBTests(unittest.TestCase):
 
 
 def test_invalidateCache():
-    """\
+    """The invalidateCache method invalidates a connection caches for all of
+    the connections attached to a database::
 
-The invalidateCache method invalidates a connection caches for all of the connections attached to a database.
+        >>> from ZODB.tests.util import DB
+        >>> import transaction
+        >>> db = DB()
+        >>> tm1 = transaction.TransactionManager()
+        >>> c1 = db.open(transaction_manager=tm1)
+        >>> c1.root()['a'] = MinPO(1)
+        >>> tm1.commit()
+        >>> tm2 = transaction.TransactionManager()
+        >>> c2 = db.open(transaction_manager=tm2)
+        >>> c1.root()['a']._p_deactivate()
+        >>> tm3 = transaction.TransactionManager()
+        >>> c3 = db.open(transaction_manager=tm3)
+        >>> c3.root()['a'].value
+        1
+        >>> c3.close()
+        >>> db.invalidateCache()
 
-    >>> from ZODB.tests.util import DB
-    >>> import transaction
-    >>> db = DB()
-    >>> tm1 = transaction.TransactionManager()
-    >>> c1 = db.open(transaction_manager=tm1)
-    >>> c1.root()['a'] = MinPO(1)
-    >>> tm1.commit()
-    >>> tm2 = transaction.TransactionManager()
-    >>> c2 = db.open(transaction_manager=tm2)
-    >>> c1.root()['a']._p_deactivate()
-    >>> tm3 = transaction.TransactionManager()
-    >>> c3 = db.open(transaction_manager=tm3)
-    >>> c3.root()['a'].value
-    1
-    >>> c3.close()
-    >>> db.invalidateCache()
-    
-    >>> c1.root()['a'].value
-    Traceback (most recent call last):
-    ...
-    ReadConflictError: database read conflict error
-    
-    >>> c2.root()['a'].value
-    Traceback (most recent call last):
-    ...
-    ReadConflictError: database read conflict error
+        >>> c1.root()['a'].value
+        Traceback (most recent call last):
+        ...
+        ReadConflictError: database read conflict error
 
-    >>> c3 is db.open(transaction_manager=tm3)
-    True
-    >>> print c3.root()['a']._p_changed
-    None
+        >>> c2.root()['a'].value
+        Traceback (most recent call last):
+        ...
+        ReadConflictError: database read conflict error
 
-    >>> db.close()
+        >>> c3 is db.open(transaction_manager=tm3)
+        True
+        >>> print c3.root()['a']._p_changed
+        None
+
+        >>> db.close()
     """
-
 
 
 def test_suite():

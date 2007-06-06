@@ -18,12 +18,12 @@ import ZODB.tests.util
 from ZODB import POSException
 from ZODB import DB
 
-from ZODB.tests import StorageTestBase, BasicStorage, \
-     TransactionalUndoStorage, VersionStorage, \
-     TransactionalUndoVersionStorage, PackableStorage, \
-     Synchronization, ConflictResolution, HistoryStorage, \
-     IteratorStorage, Corruption, RevisionStorage, PersistentStorage, \
-     MTStorage, ReadOnlyStorage, RecoveryStorage
+from ZODB.tests import StorageTestBase, BasicStorage, TransactionalUndoStorage
+from ZODB.tests import VersionStorage, TransactionalUndoVersionStorage
+from ZODB.tests import PackableStorage, Synchronization, ConflictResolution
+from ZODB.tests import HistoryStorage, IteratorStorage, Corruption
+from ZODB.tests import RevisionStorage, PersistentStorage, MTStorage
+from ZODB.tests import ReadOnlyStorage, RecoveryStorage
 from ZODB.tests.StorageTestBase import MinPO, zodb_pickle
 
 class BaseFileStorageTests(StorageTestBase.StorageTestBase):
