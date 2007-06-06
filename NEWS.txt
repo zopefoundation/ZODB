@@ -103,6 +103,10 @@ Connection management
   and/or store limited resources (such as RDB connections) in connection
   caches may benefit.
 
+- Changed the automatic garbage collection when opening a connection to only
+  apply the garbage collections on those connections in the pool that are
+  closed. (This fixed issue 113932.)
+
 ZEO
 ---
 

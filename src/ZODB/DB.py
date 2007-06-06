@@ -145,9 +145,17 @@ class _ConnectionPool(object):
             assert result in self.all
         return result
 
-    # For every live connection c, invoke f(c).
-    def map(self, f):
-        self.all.map(f)
+    def map(self, f, open_connections=True):
+        """For every live connection c, invoke f(c).
+
+        If `open_connections` is false then only call f(c) on closed
+        connections.
+
+        """
+        if open_connections:
+            self.all.map(f)
+        else:
+            map(f, self.available)
 
 class DB(object):
     """The Object Database
@@ -304,12 +312,17 @@ class DB(object):
         finally:
             self._r()
 
-    # Call f(c) for all connections c in all pools in all versions.
-    def _connectionMap(self, f):
+    def _connectionMap(self, f, open_connections=True):
+        """Call f(c) for all connections c in all pools in all versions.
+
+        If `open_connections` is false then f(c) is only called on closed
+        connections.
+
+        """
         self._a()
         try:
             for pool in self._pools.values():
-                pool.map(f)
+                pool.map(f, open_connections=open_connections)
         finally:
             self._r()
 
@@ -542,7 +555,7 @@ class DB(object):
             result.open(transaction_manager, mvcc, synch)
 
             # A good time to do some cache cleanup.
-            self._connectionMap(lambda c: c.cacheGC())
+            self._connectionMap(lambda c: c.cacheGC(), open_connections=False)
 
             return result
 
