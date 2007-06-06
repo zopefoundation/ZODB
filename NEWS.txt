@@ -10,6 +10,10 @@ General
   will be removed in ZODB 3.9.  (They have been widely recognized as
   deprecated for quite a while.)
 
+- Changed the automatic garbage collection when opening a connection to only
+  apply the garbage collections on those connections in the pool that are
+  closed. (This fixed issue 113932.)
+
 ZEO
 ---
 
