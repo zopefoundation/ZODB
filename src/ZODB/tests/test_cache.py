@@ -51,6 +51,9 @@ class RegularObject(Persistent):
 
     init = classmethod(init)
 
+class PersistentObject(Persistent):
+    pass
+
 class CacheTests:
 
     def test_cache(self):
@@ -202,6 +205,35 @@ class CacheTests:
         2
         >>> RegularObject.deactivations
         4
+        """
+
+    def test_gc_on_open_connections(self):
+        r"""Test that automatic GC is not applied to open connections.
+
+        This test (and the corresponding fix) was introduced because of bug
+        report 113923.
+
+        We start with a persistent object and add a list attribute::
+
+            >>> db = databaseFromString("<zodb>\n"
+            ...                         "cache-size 0\n"
+            ...                         "<mappingstorage/>\n"
+            ...                         "</zodb>")
+            >>> cn1 = db.open()
+            >>> r = cn1.root()
+            >>> r['ob'] = PersistentObject()
+            >>> r['ob'].l = []
+            >>> transaction.commit()
+
+        Now, let's modify the object in a way that doesn't get noticed. Then,
+        we open another connection which triggers automatic garbage
+        connection. After that, the object should not have been ghostified::
+
+            >>> r['ob'].l.append(1)
+            >>> cn2 = db.open()
+            >>> r['ob'].l
+            [1]
+
         """
 
 
