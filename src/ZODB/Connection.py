@@ -105,6 +105,12 @@ class Connection(ExportImport, object):
         # recently used. Its API is roughly that of a dict, with
         # additional gc-related and invalidation-related methods.
         self._cache = PickleCache(self, cache_size)
+
+        # The pre-cache is used by get to avoid infinite loops when
+        # objects immediately load their state whern they get their
+        # persistent data set.
+        self._pre_cache = {}
+        
         if version:
             # Caches for versions end up empty if the version
             # is not used for a while. Non-version caches
@@ -225,6 +231,9 @@ class Connection(ExportImport, object):
             return obj
         obj = self._added.get(oid, None)
         if obj is not None:
+            return obj        
+        obj = self._pre_cache.get(oid, None)
+        if obj is not None:
             return obj
 
         # This appears to be an MVCC violation because we are loading
@@ -233,11 +242,14 @@ class Connection(ExportImport, object):
         p, serial = self._storage.load(oid, self._version)
         obj = self._reader.getGhost(p)
 
+        # Avoid infiniate loop if obj tries to load its state before
+        # it is added to the cache and it's state refers to it.
+        self._pre_cache[oid] = obj
         obj._p_oid = oid
         obj._p_jar = self
         obj._p_changed = None
         obj._p_serial = serial
-
+        self._pre_cache.pop(oid)
         self._cache[oid] = obj
         return obj
 
