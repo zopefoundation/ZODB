@@ -69,24 +69,20 @@ exception will be re-raised and the target file will not exist::
 
     >>> open('to_import', 'wb').write('Some data.')
 
-    >>> def failing_link(self, filename):
+    >>> def failing_rename(self, filename):
     ...   raise Exception("I can't link.")
 
     >>> blob = Blob()
-    >>> blob.open('r')
-    Traceback (most recent call last):
-    BlobError: Blob does not exist.
-
-    >>> blob._os_link = failing_link
+    >>> os_rename = os.rename
+    >>> os.rename = failing_rename
     >>> blob.consumeFile('to_import')
     Traceback (most recent call last):
     Exception: I can't link.
 
-The blob did not exist before, so it shouldn't exist now::
+The blob did not have data before, so it shouldn't have data now::
 
-    >>> blob.open('r')
-    Traceback (most recent call last):
-    BlobError: Blob does not exist.
+    >>> blob.open('r').read()
+    ''
 
 Case 2: We thave uncommitted data, but the link operation fails. The
 exception will be re-raised and the target file will exist with the previous
@@ -97,7 +93,6 @@ uncomitted data::
     >>> blob_writing.write('Uncommitted data')
     >>> blob_writing.close()
 
-    >>> blob._os_link = failing_link
     >>> blob.consumeFile('to_import')
     Traceback (most recent call last):
     Exception: I can't link.
@@ -107,3 +102,5 @@ changed::
 
     >>> blob.open('r').read()
     'Uncommitted data'
+
+    >>> os.rename = os_rename
