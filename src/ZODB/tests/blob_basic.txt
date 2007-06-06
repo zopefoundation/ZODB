@@ -26,12 +26,10 @@ A blob implements the IBlob interface:
     >>> IBlob.providedBy(myblob)
     True
 
-Opening a new Blob for reading fails:
+We can open a new blob file for reading, but it won't have any data:
 
-    >>> myblob.open("r")
-    Traceback (most recent call last):
-        ...
-    BlobError: Blob does not exist.
+    >>> myblob.open("r").read()
+    ''
 
 But we can write data to a new Blob by opening it for writing:
 

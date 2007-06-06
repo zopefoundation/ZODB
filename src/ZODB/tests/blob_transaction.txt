@@ -35,21 +35,53 @@ Putting a Blob into a Connection works like any other Persistent object::
     >>> blob1 = Blob()
     >>> blob1.open('w').write('this is blob 1')
     >>> root1['blob1'] = blob1
-    >>> transaction.commit()
+    >>> 'blob1' in root1
+    True
+   
+Aborting a blob add leaves the blob unchanged:
 
-Aborting a transaction involving a blob write cleans up uncommitted
-file data::
+    >>> transaction.abort()
+    >>> 'blob1' in root1
+    False
 
-    >>> dead_blob = Blob()
-    >>> dead_blob.open('w').write('this is a dead blob')
-    >>> root1['dead_blob'] = dead_blob
-    >>> fname = dead_blob._p_blob_uncommitted
+    >>> blob1._p_oid
+    >>> blob1._p_jar
+    >>> blob1.open().read()
+    'this is blob 1'
+
+It doesn't clear the file because there is no previously committed version: 
+
+    >>> fname = blob1._p_blob_uncommitted
     >>> import os
     >>> os.path.exists(fname)
     True
+
+Let's put the blob back into the root and commit the change:
+
+    >>> root1['blob1'] = blob1
+    >>> transaction.commit()
+
+Now, if we make a change and abort it, we'll return to the committed
+state:
+
+    >>> os.path.exists(fname)
+    False
+    >>> blob1._p_blob_uncommitted
+
+    >>> blob1.open('w').write('this is new blob 1')
+    >>> blob1.open().read()
+    'this is new blob 1'
+    >>> fname = blob1._p_blob_uncommitted
+    >>> os.path.exists(fname)
+    True
+
     >>> transaction.abort()
     >>> os.path.exists(fname)
     False
+    >>> blob1._p_blob_uncommitted
+
+    >>> blob1.open().read()
+    'this is blob 1'
 
 Opening a blob gives us a filehandle.  Getting data out of the
 resulting filehandle is accomplished via the filehandle's read method::
@@ -57,66 +89,44 @@ resulting filehandle is accomplished via the filehandle's read method::
     >>> connection2 = database.open()
     >>> root2 = connection2.root()
     >>> blob1a = root2['blob1']
-    >>> blob1a._p_blob_refcounts()
-    (0, 0)
-    >>>
+
     >>> blob1afh1 = blob1a.open("r")
     >>> blob1afh1.read()
     'this is blob 1'
-    >>> # The filehandle keeps a reference to its blob object
-    >>> blob1afh1.blob._p_blob_refcounts()
-    (1, 0)
 
-Let's make another filehandle for read only to blob1a, this should bump
-up its refcount by one, and each file handle has a reference to the
-(same) underlying blob::
+Let's make another filehandle for read only to blob1a. Aach file
+handle has a reference to the (same) underlying blob::
 
     >>> blob1afh2 = blob1a.open("r")
-    >>> blob1afh2.blob._p_blob_refcounts()
-    (2, 0)
-    >>> blob1afh1.blob._p_blob_refcounts()
-    (2, 0)
     >>> blob1afh2.blob is blob1afh1.blob
     True
 
-Let's close the first filehandle we got from the blob, this should decrease
-its refcount by one::
+Let's close the first filehandle we got from the blob::
 
     >>> blob1afh1.close()
-    >>> blob1a._p_blob_refcounts()
-    (1, 0)
 
 Let's abort this transaction, and ensure that the filehandles that we
-opened are now closed and that the filehandle refcounts on the blob
-object are cleared::
+opened are still open::
 
     >>> transaction.abort()
-    >>> blob1afh1.blob._p_blob_refcounts()
-    (0, 0)
-    >>> blob1afh2.blob._p_blob_refcounts()
-    (0, 0)
-    >>> blob1a._p_blob_refcounts()
-    (0, 0)
     >>> blob1afh2.read()
-    Traceback (most recent call last):
-        ...
-    ValueError: I/O operation on closed file
+    'this is blob 1'
 
-If we open a blob for append, its write refcount should be nonzero.
-Additionally, writing any number of bytes to the blobfile should
-result in the blob being marked "dirty" in the connection (we just
-aborted above, so the object should be "clean" when we start)::
+    >>> blob1afh2.close()
+
+If we open a blob for append, writing any number of bytes to the
+blobfile should result in the blob being marked "dirty" in the
+connection (we just aborted above, so the object should be "clean"
+when we start)::
 
     >>> bool(blob1a._p_changed)
     False
     >>> blob1a.open('r').read()
     'this is blob 1'
     >>> blob1afh3 = blob1a.open('a')
-    >>> blob1afh3.write('woot!')
-    >>> blob1a._p_blob_refcounts()
-    (0, 1)
     >>> bool(blob1a._p_changed)
     True
+    >>> blob1afh3.write('woot!')
 
 We can open more than one blob object during the course of a single
 transaction::
@@ -125,10 +135,6 @@ transaction::
     >>> blob2.open('w').write('this is blob 3')
     >>> root2['blob2'] = blob2
     >>> transaction.commit()
-    >>> blob2._p_blob_refcounts()
-    (0, 0)
-    >>> blob1._p_blob_refcounts()
-    (0, 0)
 
 Since we committed the current transaction above, the aggregate
 changes we've made to blob, blob1a (these refer to the same object) and
@@ -200,7 +206,7 @@ int on 64-bit)::
 Savepoints and Blobs
 --------------------
 
-We do support optimistic savepoints ::
+We do support optimistic savepoints:
 
     >>> connection5 = database.open()
     >>> root5 = connection5.root()
@@ -222,17 +228,16 @@ We do support optimistic savepoints ::
     "I'm a happy blob. And I'm singing."
     >>> transaction.get().commit()
 
-We do not support non-optimistic savepoints::
+We support optimistic savepoints too:
 
-    >>> blob_fh = root5['blob'].open("a")
-    >>> blob_fh.write(" And the weather is beautiful.")
-    >>> blob_fh.close()
+    >>> root5['blob'].open("a").write(" And I'm dancing.")
     >>> root5['blob'].open("r").read()
-    "I'm a happy blob. And I'm singing. And the weather is beautiful."
-    >>> savepoint = transaction.savepoint()             # doctest: +ELLIPSIS
-    Traceback (most recent call last):
-        ...
-    TypeError: ('Savepoints unsupported', <ZODB.blob.BlobDataManager instance at 0x...>)
+    "I'm a happy blob. And I'm singing. And I'm dancing."
+    >>> savepoint = transaction.savepoint()
+    >>> root5['blob'].open("w").write(" And the weather is beautiful.")
+    >>> savepoint.rollback()
+    >>> root5['blob'].open("r").read()
+    "I'm a happy blob. And I'm singing. And I'm dancing."
     >>> transaction.abort()
 
 Reading Blobs outside of a transaction
