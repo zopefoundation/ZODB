@@ -78,6 +78,19 @@ Now we can open it for writing again and e.g. append data:
 
     >>> f4 = myblob.open("a")
     >>> f4.write("\nBlob is fine.")
+
+We can't open a blob while it is open for writing:
+
+    >>> myblob.open("w")
+    Traceback (most recent call last):
+    ...
+    BlobError: Already opened for writing.
+
+    >>> myblob.open("r")
+    Traceback (most recent call last):
+    ...
+    BlobError: Already opened for writing.
+
     >>> f4.close()
 
 Now we can read it:
