@@ -93,7 +93,6 @@ class Blob(persistent.Persistent):
             
         super(Blob, self)._p_invalidate()
 
-    @property
     def opened(self):
         return bool(self.readers or self.writers)
 
