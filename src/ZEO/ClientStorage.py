@@ -324,7 +324,7 @@ class ClientStorage(object):
         if blob_dir is not None:
             # Avoid doing this import unless we need it, as it
             # currently requires pywin32 on Windows.
-            import ZODB.blob 
+            import ZODB.blob
             self.fshelper = ZODB.blob.FilesystemHelper(blob_dir)
             self.fshelper.create()
             self.fshelper.checkSecure()
@@ -955,11 +955,11 @@ class ClientStorage(object):
         f = open(blob_filename, 'ab')
         f.write(chunk)
         f.close()
-        
+
     def recieveBlobStop(self, oid, serial):
         blob_filename = self.fshelper.getBlobFilename(oid, serial)
         os.rename(blob_filename+'.dl', blob_filename)
-        
+
     def loadBlob(self, oid, serial):
 
         # Load a blob.  If it isn't present and we have a shared blob
@@ -1017,7 +1017,7 @@ class ClientStorage(object):
                     except OSError:
                         pass
                     break
-            
+
             if self._have_blob(blob_filename, oid, serial):
                 return blob_filename
 
@@ -1034,7 +1034,7 @@ class ClientStorage(object):
             # Ask the server to send it to us.  When this function
             # returns, it will have been sent. (The recieving will
             # have been handled by the asyncore thread.)
-            
+
             self._server.sendBlob(oid, serial)
 
             if self._have_blob(blob_filename, oid, serial):
@@ -1048,6 +1048,9 @@ class ClientStorage(object):
                 os.remove(lockfilename)
             except OSError:
                 pass
+
+    def temporaryDirectory(self):
+        return self.blob_dir
 
     def tpc_vote(self, txn):
         """Storage API: vote on a transaction."""

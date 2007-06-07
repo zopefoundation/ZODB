@@ -257,7 +257,7 @@ class DB(object):
             storage.registerDB(self)
         except TypeError:
             storage.registerDB(self, None) # Backward compat
-            
+
         if (not hasattr(storage, 'tpc_vote')) and not storage.isReadOnly():
             warnings.warn(
                 "Storage doesn't have a tpc_vote and this violates "

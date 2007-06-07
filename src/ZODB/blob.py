@@ -64,7 +64,7 @@ class Blob(persistent.Persistent):
         # atomically
         self.readers = []
         self.writers = []
-        
+
     __init__ = __setstate__
 
     def __getstate__(self):
@@ -90,17 +90,15 @@ class Blob(persistent.Persistent):
             and os.path.exists(self._p_blob_uncommitted)
             ):
             os.remove(self._p_blob_uncommitted)
-            
+
         super(Blob, self)._p_invalidate()
 
     def opened(self):
         return bool(self.readers or self.writers)
 
     def closed(self, f):
-        
         # We use try/except below because another thread might remove
         # the ref after we check it if the file is GCed.
-
         for file_refs in (self.readers, self.writers):
             for ref in file_refs:
                 if ref() is f:
@@ -128,7 +126,7 @@ class Blob(persistent.Persistent):
                     readers.remove(ref)
                 except ValueError:
                     pass
-            
+
             self.readers.append(weakref.ref(result, destroyed))
         else:
             if self.readers:
@@ -155,7 +153,7 @@ class Blob(persistent.Persistent):
                     writers.remove(ref)
                 except ValueError:
                     pass
-            
+
             self.writers.append(weakref.ref(result, destroyed))
 
             self._p_changed = True
@@ -233,7 +231,10 @@ class Blob(persistent.Persistent):
     def _create_uncommitted_file(self):
         assert self._p_blob_uncommitted is None, (
             "Uncommitted file already exists.")
-        tempdir = os.environ.get('ZODB_BLOB_TEMPDIR', tempfile.gettempdir())
+        if self._p_jar:
+            tempdir = self._p_jar.db()._storage.temporaryDirectory()
+        else:
+            tempdir = tempfile.gettempdir()
         self._p_blob_uncommitted = utils.mktemp(dir=tempdir)
         return self._p_blob_uncommitted
 

@@ -35,7 +35,7 @@ We also need a database with a blob supporting storage:
     >>> blob_dir = mkdtemp()
     >>> blob_storage = BlobStorage(blob_dir, base_storage)
     >>> database = DB(blob_storage)
-    
+
 Putting a Blob into a Connection works like every other object:
 
     >>> connection = database.open()

@@ -523,6 +523,10 @@ class CommonBlobTests:
         filename = self._storage.loadBlob(oid, serial)
         self.assertEquals(somedata, open(filename, 'rb').read())
 
+    def checkTemporaryDirectory(self):
+        self.assertEquals(self.blob_cache_dir,
+                          self._storage.temporaryDirectory())
+
 class BlobAdaptedFileStorageTests(GenericTests, CommonBlobTests):
     """ZEO backed by a BlobStorage-adapted FileStorage."""
 

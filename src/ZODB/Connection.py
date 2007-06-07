@@ -1116,7 +1116,7 @@ class Connection(ExportImport, object):
             data, serial = src.load(oid, src)
             try:
                 blobfilename = src.loadBlob(oid, serial)
-            except POSKeyError:
+            except (POSKeyError, Unsupported):
                 s = self._storage.store(oid, serial, data,
                                         self._version, transaction)
             else:
@@ -1195,10 +1195,6 @@ class TmpStore:
                 self.versionEmpty = storage.versionEmpty
 
         self._base_version = base_version
-        tmpdir = os.environ.get('ZODB_BLOB_TEMPDIR')
-        if tmpdir is None:
-            tmpdir = tempfile.mkdtemp()
-        self._blobdir = tmpdir
         self._file = tempfile.TemporaryFile()
         # position: current file position
         # _tpos: file position at last commit point
@@ -1212,7 +1208,6 @@ class TmpStore:
 
     def close(self):
         self._file.close()
-        shutil.rmtree(self._blobdir)
 
     def load(self, oid, version):
         pos = self.index.get(oid)
@@ -1260,13 +1255,17 @@ class TmpStore:
     def loadBlob(self, oid, serial):
         """Return the filename where the blob file can be found.
         """
+        if not IBlobStorage.providedBy(self._storage):
+            raise Unsupported(
+                "Blobs are not supported by the underlying storage %r." %
+                self._storage)
         filename = self._getCleanFilename(oid, serial)
         if not os.path.exists(filename):
             raise POSKeyError, "Not an existing blob."
         return filename
 
     def _getBlobPath(self, oid):
-        return os.path.join(self._blobdir,
+        return os.path.join(self.temporaryDirectory(),
                             utils.oid_repr(oid)
                             )
 
@@ -1275,6 +1274,10 @@ class TmpStore:
                             "%s%s" % (utils.tid_repr(tid), 
                                       BLOB_SUFFIX,)
                             )
+
+    def temporaryDirectory(self):
+        return self._storage.temporaryDirectory()
+
     def reset(self, position, index):
         self._file.truncate(position)
         self.position = position
@@ -1288,4 +1291,3 @@ class TmpStore:
         # a copy of the index here.  An alternative would be to ensure that
         # all callers pass copies.  As is, our callers do not make copies.
         self.index = index.copy()
-
