@@ -127,6 +127,7 @@ when we start)::
     >>> bool(blob1a._p_changed)
     True
     >>> blob1afh3.write('woot!')
+    >>> blob1afh3.close()
 
 We can open more than one blob object during the course of a single
 transaction::
@@ -171,14 +172,12 @@ connections should result in a write conflict error::
     >>> root4 = database.open(transaction_manager=tm2).root()
     >>> blob1c3 = root3['blob1']
     >>> blob1c4 = root4['blob1']
-    >>> blob1c3fh1 = blob1c3.open('a')
-    >>> blob1c4fh1 = blob1c4.open('a')
-    >>> blob1c3fh1.write('this is from connection 3')
-    >>> blob1c4fh1.write('this is from connection 4')
-    >>> tm1.get().commit()
+    >>> blob1c3fh1 = blob1c3.open('a').write('this is from connection 3')
+    >>> blob1c4fh1 = blob1c4.open('a').write('this is from connection 4')
+    >>> tm1.commit()
     >>> root3['blob1'].open('r').read()
     'this is blob 1woot!this is from connection 3'
-    >>> tm2.get().commit()
+    >>> tm2.commit()
     Traceback (most recent call last):
         ...
     ConflictError: database conflict error (oid 0x01, class ZODB.blob.Blob)
@@ -188,7 +187,7 @@ connections::
 
     >>> root3['blob1'].open('r').read()
     'this is blob 1woot!this is from connection 3'
-    >>> tm2.get().abort()
+    >>> tm2.abort()
     >>> root4['blob1'].open('r').read()
     'this is blob 1woot!this is from connection 3'
 
@@ -202,6 +201,26 @@ int on 64-bit)::
     >>> int(blob_size - underlying_size)
     91
 
+You can't commit a transaction while blob files are open:
+
+    >>> f = root3['blob1'].open('w')
+    >>> tm1.commit()
+    Traceback (most recent call last):
+    ...
+    ValueError: Can't commit with opened blobs.
+
+    >>> f.close()
+    >>> tm1.abort()
+    >>> f = root3['blob1'].open('w')
+    >>> f.close()
+
+    >>> f = root3['blob1'].open('r')
+    >>> tm1.commit()
+    Traceback (most recent call last):
+    ...
+    ValueError: Can't commit with opened blobs.
+    >>> f.close()
+    >>> tm1.abort()
 
 Savepoints and Blobs
 --------------------
@@ -226,7 +245,7 @@ We do support optimistic savepoints:
     >>> savepoint = transaction.savepoint(optimistic=True)
     >>> root5['blob'].open("r").read()
     "I'm a happy blob. And I'm singing."
-    >>> transaction.get().commit()
+    >>> transaction.commit()
 
 We support optimistic savepoints too:
 
@@ -315,6 +334,6 @@ We don't need the storage directory and databases anymore::
 
     >>> import shutil
     >>> shutil.rmtree(blob_dir)
-    >>> tm1.get().abort()
-    >>> tm2.get().abort()
+    >>> tm1.abort()
+    >>> tm2.abort()
     >>> database.close()

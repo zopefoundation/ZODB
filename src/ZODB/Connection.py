@@ -613,6 +613,8 @@ class Connection(ExportImport, object):
                     raise Unsupported(
                         "Storing Blobs in %s is not supported." % 
                         repr(self._storage))
+                if obj.opened():
+                    raise ValueError("Can't commit with opened blobs.")
                 s = self._storage.storeBlob(oid, serial, p,
                                             obj._p_blob_uncommitted,
                                             self._version, transaction)
