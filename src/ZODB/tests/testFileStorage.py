@@ -483,7 +483,7 @@ def testTimeTravelOnOpen():
 def lastInvalidations():
     """
 
-The last invalidations method is used by a storage server to pupulate
+The last invalidations method is used by a storage server to populate
 it's data structure of recent invalidations.  The lastInvalidations
 method is passed a count and must return up to count number of the
 most recent transactions.
@@ -508,7 +508,7 @@ Now, we can call lastInvalidations on it:
     True
 
     >>> from ZODB.utils import u64
-    >>> [[u64(oid) for (oid, version) in oids]
+    >>> [[long(u64(oid)) for (oid, version) in oids]
     ...  for (i, oids) in invalidations]
     ... # doctest: +NORMALIZE_WHITESPACE
     [[0L, 91L], [0L, 92L], [0L, 93L], [0L, 94L], [0L, 95L],
