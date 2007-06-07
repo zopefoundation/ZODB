@@ -100,8 +100,9 @@ class IConnection(Interface):
     Groups of methods:
 
         User Methods:
-            root, get, add, close, db, sync, isReadOnly, cacheGC, cacheFullSweep,
-            cacheMinimize, getVersion, modifiedInVersion
+            root, get, add, close, db, sync, isReadOnly, cacheGC,
+            cacheFullSweep, cacheMinimize, getVersion,
+            modifiedInVersion
 
         Experimental Methods:
             onCloseCallbacks
@@ -902,27 +903,17 @@ class IBlob(Interface):
     """A BLOB supports efficient handling of large data within ZODB."""
 
     def open(mode):
-        """Returns a file(-like) object for handling the blob data.
+        """Open a blob
+
+        Returns a file(-like) object for handling the blob data.
 
         mode: Mode to open the file with. Possible values: r,w,r+,a
         """
 
-    def openDetached(class_=file):
-        """Returns a file(-like) object in read mode that can be used
-        outside of transaction boundaries.
-
-        The file handle returned by this method is read-only and at the
-        beginning of the file. 
-
-        The handle is not attached to the blob and can be used outside of a
-        transaction.
-
-        Optionally the class that should be used to open the file can be
-        specified. This can be used to e.g. use Zope's FileStreamIterator.
-        """
-
     def consumeFile(filename):
-        """Will replace the current data of the blob with the file given under
+        """Consume a file.
+
+        Eplace the current data of the blob with the file given under
         filename.
 
         This method uses link-like semantics internally and has the requirement
