@@ -920,14 +920,14 @@ class ClientStorage(object):
             i = 0
             while 1:
                 try:
-                    os.rename(filename, target + str(i))
+                    utils.rename_or_copy(filename, target + str(i))
                 except OSError:
                     i += 1
                 else:
                     break
             target += str(i)
         else:
-            os.rename(filename, target)
+            utils.rename_or_copy(filename, target)
         # Now tell the server where we put it
         self._server.storeBlobShared(
             oid, serial, data,

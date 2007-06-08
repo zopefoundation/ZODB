@@ -1242,7 +1242,7 @@ class TmpStore:
     def storeBlob(self, oid, serial, data, blobfilename, version,
                   transaction):
         serial = self.store(oid, serial, data, version, transaction)
-        assert isinstance(serial, str) # XXX in theory serials could be 
+        assert isinstance(serial, str) # XXX in theory serials could be
                                        # something else
 
         targetpath = self._getBlobPath(oid)
@@ -1250,7 +1250,7 @@ class TmpStore:
             os.makedirs(targetpath, 0700)
 
         targetname = self._getCleanFilename(oid, serial)
-        os.rename(blobfilename, targetname)
+        utils.rename_or_copy(blobfilename, targetname)
 
     def loadBlob(self, oid, serial):
         """Return the filename where the blob file can be found.

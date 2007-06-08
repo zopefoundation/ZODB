@@ -16,7 +16,6 @@
 
 import base64
 import logging
-import logging
 import os
 import shutil
 import sys
@@ -195,7 +194,7 @@ class Blob(persistent.Persistent):
             os.unlink(target)
 
         try:
-            os.rename(filename, target)
+            utils.rename_or_copy(filename, target)
         except:
             # Recover from the failed consumption: First remove the file, it
             # might exist and mark the pointer to the uncommitted file.
@@ -254,7 +253,7 @@ class BlobFile(file):
     def __init__(self, name, mode, blob):
         super(BlobFile, self).__init__(name, mode+'b')
         self.blob = blob
-            
+
     def close(self):
         self.blob.closed(self)
         file.close(self)
@@ -411,7 +410,7 @@ class BlobStorage(SpecificationDecoratorBase):
                     os.makedirs(targetpath, 0700)
 
                 targetname = self.fshelper.getBlobFilename(oid, serial)
-                os.rename(blobfilename, targetname)
+                utils.rename_or_copy(blobfilename, targetname)
 
                 # XXX if oid already in there, something is really hosed.
                 # The underlying storage should have complained anyway
@@ -610,9 +609,6 @@ class BlobStorage(SpecificationDecoratorBase):
 #       Make the ClientStorage support minimizing the blob
 #       cache. (Idea: LRU principle via mstat access time and a
 #       size-based threshold) currently).
-# 
-#       Make blobs able to efficiently consume existing files from the
-#       filesystem
 # 
 # Savepoint support
 # =================

@@ -12,6 +12,7 @@
 #
 ##############################################################################
 
+import exceptions
 import sys
 import time
 import struct
@@ -84,6 +85,7 @@ def u64(v):
 
 U64 = u64
 
+
 def cp(f1, f2, length=None):
     """Copy all data from one file to another.
     
@@ -111,6 +113,22 @@ def cp(f1, f2, length=None):
             break
         write(data)
         length -= len(data)
+
+
+def rename_or_copy(f1, f2):
+    """Try to rename f1 to f2, fallback to copy.
+
+    Under certain conditions a rename might not work, e.g. because the target
+    directory is on a different partition. In this case we try to copy the
+    data and remove the old file afterwards.
+
+    """
+    try:
+        os.rename(f1, f2)
+    except exceptions.OSError:
+        cp(open(f1, 'rb'), open(f2, 'wb'))
+        os.unlink(f1)
+
 
 def newTimeStamp(old=None,
                  TimeStamp=TimeStamp,

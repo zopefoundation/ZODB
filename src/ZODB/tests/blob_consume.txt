@@ -64,29 +64,53 @@ Edge cases
 There are some edge cases what happens when the link() operation
 fails. We simulate this in different states:
 
-Case 1: We don't have uncommitted data, but the link operation fails. The
-exception will be re-raised and the target file will not exist::
+Case 1: We don't have uncommitted data, but the link operation fails. We fall
+back to try a copy/remove operation that is successfull::
 
     >>> open('to_import', 'wb').write('Some data.')
 
-    >>> def failing_rename(self, filename):
-    ...   raise Exception("I can't link.")
+    >>> def failing_rename(f1, f2):
+    ...   import exceptions
+    ...   if f1 == 'to_import':
+    ...       raise exceptions.OSError("I can't link.")
+    ...   os_rename(f1, f2)
 
     >>> blob = Blob()
     >>> os_rename = os.rename
     >>> os.rename = failing_rename
     >>> blob.consumeFile('to_import')
+
+The blob did not have data before, so it shouldn't have data now::
+
+    >>> blob.open('r').read()
+    'Some data.'
+
+Case 2: We don't have uncommitted data and both the link operation and the
+copy fail. The exception will be re-raised and the target file will not
+exist::
+
+    >>> blob = Blob()
+    >>> import ZODB.utils
+    >>> utils_cp = ZODB.utils.cp
+
+    >>> def failing_copy(f1, f2):
+    ...     import exceptions
+    ...     raise exceptions.OSError("I can't copy.")
+
+    >>> ZODB.utils.cp = failing_copy
+    >>> open('to_import', 'wb').write('Some data.')
+    >>> blob.consumeFile('to_import')
     Traceback (most recent call last):
-    Exception: I can't link.
+    OSError: I can't copy.
 
 The blob did not have data before, so it shouldn't have data now::
 
     >>> blob.open('r').read()
     ''
 
-Case 2: We thave uncommitted data, but the link operation fails. The
-exception will be re-raised and the target file will exist with the previous
-uncomitted data::
+Case 3: We have uncommitted data, but the link and the copy operations fail.
+The exception will be re-raised and the target file will exist with the
+previous uncomitted data::
 
     >>> blob = Blob()
     >>> blob_writing = blob.open('w')
@@ -95,7 +119,7 @@ uncomitted data::
 
     >>> blob.consumeFile('to_import')
     Traceback (most recent call last):
-    Exception: I can't link.
+    OSError: I can't copy.
 
 The blob did existed before and had uncommitted data, this shouldn't have
 changed::
@@ -104,3 +128,4 @@ changed::
     'Uncommitted data'
 
     >>> os.rename = os_rename
+    >>> ZODB.utils.cp = utils_cp
