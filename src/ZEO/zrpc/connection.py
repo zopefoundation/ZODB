@@ -311,9 +311,9 @@ class Connection(smac.SizedMessageAsyncConnection, object):
     #             storeBlobEnd
     #             storeBlobShared
     #         Added blob-support client methods:
-    #             recieveBlobStart
-    #             recieveBlobChunk
-    #             recieveBlobStop
+    #             receiveBlobStart
+    #             receiveBlobChunk
+    #             receiveBlobStop
     
     # XXX add blob methods
 

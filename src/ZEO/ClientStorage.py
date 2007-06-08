@@ -940,7 +940,7 @@ class ClientStorage(object):
             return True
         return False
 
-    def recieveBlobStart(self, oid, serial):
+    def receiveBlobStart(self, oid, serial):
         blob_filename = self.fshelper.getBlobFilename(oid, serial)
         assert not os.path.exists(blob_filename)
         assert os.path.exists(blob_filename+'.lock')
@@ -949,14 +949,14 @@ class ClientStorage(object):
         f = open(blob_filename, 'wb')
         f.close()
 
-    def recieveBlobChunk(self, oid, serial, chunk):
+    def receiveBlobChunk(self, oid, serial, chunk):
         blob_filename = self.fshelper.getBlobFilename(oid, serial)+'.dl'
         assert os.path.exists(blob_filename)
         f = open(blob_filename, 'ab')
         f.write(chunk)
         f.close()
 
-    def recieveBlobStop(self, oid, serial):
+    def receiveBlobStop(self, oid, serial):
         blob_filename = self.fshelper.getBlobFilename(oid, serial)
         os.rename(blob_filename+'.dl', blob_filename)
 
