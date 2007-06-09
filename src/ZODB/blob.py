@@ -168,18 +168,6 @@ class Blob(persistent.Persistent):
             raise BlobError('Uncommitted changes')
         return self._p_blob_committed
 
-    def openDetached(self, class_=file):
-        """Returns a file(-like) object in read mode that can be used
-        outside of transaction boundaries.
-
-        """
-        if self._current_filename() is None:
-            raise BlobError("Blob does not exist.")
-        if self.writers:
-            raise BlobError("Already opened for writing.")
-        # XXX this should increase the reader number and have a test !?!
-        return class_(self._current_filename(), "rb")
-
     def consumeFile(self, filename):
         """Will replace the current data of the blob with the file given under
         filename.
