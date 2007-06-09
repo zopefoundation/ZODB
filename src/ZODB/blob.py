@@ -458,6 +458,10 @@ class BlobStorage(SpecificationDecoratorBase):
         # XXX we should be tolerant of "garbage" directories/files in
         # the base_directory here.
 
+        # XXX If this method gets refactored we have to watch out for extra
+        # files from uncommitted transactions. The current implementation
+        # doesn't have a problem, but future refactorings likely will.
+
         base_dir = self.fshelper.base_dir
         for oid_repr in os.listdir(base_dir):
             oid = utils.repr_to_oid(oid_repr)
@@ -591,39 +595,3 @@ class BlobStorage(SpecificationDecoratorBase):
         finally:
             self._lock_release()
         return undo_serial, keys
-
-# To do:
-# 
-# Production
-# 
-#     - Ensure we detect and replay a failed txn involving blobs forward or
-#       backward at startup.
-#
-#     Jim: What does this mean?
-# 
-# Far future
-# 
-#       More options for blob directory structures (e.g. dirstorages
-#       bushy/chunky/lawn/flat).
-# 
-#       Make the ClientStorage support minimizing the blob
-#       cache. (Idea: LRU principle via mstat access time and a
-#       size-based threshold) currently).
-# 
-# Savepoint support
-# =================
-# 
-#  - A savepoint represents the whole state of the data at a certain point in
-#    time
-# 
-#  - Need special storage for blob savepointing (in the spirit of tmpstorage) 
-# 
-#  - What belongs to the state of the data?
-# 
-#    - Data contained in files at that point in time
-# 
-#    - File handles are complex because they might be referred to from various
-#      places. We would have to introduce an abstraction layer to allow
-#      switching them around... 
-# 
-#      Simpler solution: :
