@@ -910,6 +910,18 @@ class IBlob(Interface):
         mode: Mode to open the file with. Possible values: r,w,r+,a
         """
 
+    def committed():
+        """Return a file name for committed data.
+
+        The returned file name may be opened for reading or handed to
+        other processes for reading.  The file name isn't guarenteed
+        to be valid indefinately.  The file may be removed in the
+        future as a result of garbage collection depending on system
+        configuration.
+
+        A BlobError will be raised if the blob has any uncommitted data.
+        """
+
     def consumeFile(filename):
         """Consume a file.
 

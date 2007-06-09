@@ -40,6 +40,7 @@ from zope.proxy.decorator import SpecificationDecoratorBase
 logger = logging.getLogger('ZODB.blob')
 
 BLOB_SUFFIX = ".blob"
+SAVEPOINT_SUFFIX = ".spb"
 
 valid_modes = 'r', 'w', 'r+', 'a'
 
@@ -85,9 +86,7 @@ class Blob(persistent.Persistent):
             if f is not None:
                 f.close()
 
-        if (self._p_blob_uncommitted
-            and os.path.exists(self._p_blob_uncommitted)
-            ):
+        if (self._p_blob_uncommitted):
             os.remove(self._p_blob_uncommitted)
 
         super(Blob, self)._p_invalidate()
@@ -158,6 +157,16 @@ class Blob(persistent.Persistent):
             self._p_changed = True
 
         return result
+
+    def committed(self):
+        if (self._p_blob_uncommitted
+            or
+            not self._p_blob_committed
+            or
+            self._p_blob_committed.endswith(SAVEPOINT_SUFFIX)
+            ):
+            raise BlobError('Uncommitted changes')
+        return self._p_blob_committed
 
     def openDetached(self, class_=file):
         """Returns a file(-like) object in read mode that can be used
@@ -234,8 +243,22 @@ class Blob(persistent.Persistent):
             tempdir = self._p_jar.db()._storage.temporaryDirectory()
         else:
             tempdir = tempfile.gettempdir()
-        self._p_blob_uncommitted = utils.mktemp(dir=tempdir)
-        return self._p_blob_uncommitted
+        filename = utils.mktemp(dir=tempdir)
+        self._p_blob_uncommitted = filename
+
+        def cleanup(ref):
+            if os.path.exists(filename):
+                os.remove(filename)
+        
+        self._p_blob_ref = weakref.ref(self, cleanup)
+        return filename
+
+    def _uncommitted(self):
+        # hand uncommitted data to connection, relinquishing responsibility
+        # for it.
+        filename = self._p_blob_uncommitted
+        self._p_blob_uncommitted = self._p_blob_ref = None
+        return filename
 
 class BlobFile(file):
     """A BlobFile that holds a file handle to actual blob data.

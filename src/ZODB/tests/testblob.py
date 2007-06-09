@@ -265,6 +265,19 @@ class BlobUndoTests(unittest.TestCase):
 
         database.close()
 
+def gc_blob_removes_uncommitted_data():
+    """
+    >>> from ZODB.blob import Blob
+    >>> blob = Blob()
+    >>> blob.open('w').write('x')
+    >>> fname = blob._p_blob_uncommitted
+    >>> os.path.exists(fname)
+    True
+    >>> blob = None
+    >>> os.path.exists(fname)
+    False
+    """
+
 def test_suite():
     suite = unittest.TestSuite()
     suite.addTest(unittest.makeSuite(ZODBBlobConfigTest))
@@ -275,12 +288,13 @@ def test_suite():
         setUp=ZODB.tests.util.setUp,
         tearDown=ZODB.tests.util.tearDown,
         ))
+    suite.addTest(doctest.DocTestSuite(
+        setUp=ZODB.tests.util.setUp,
+        tearDown=ZODB.tests.util.tearDown,
+        ))
     suite.addTest(unittest.makeSuite(BlobUndoTests))
 
     return suite
 
 if __name__ == '__main__':
     unittest.main(defaultTest = 'test_suite')
-
-
-

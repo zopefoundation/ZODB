@@ -263,7 +263,8 @@ Reading Blobs outside of a transaction
 --------------------------------------
 
 If you want to read from a Blob outside of transaction boundaries (e.g. to
-stream a file to the browser), you can use the openDetached() method::
+stream a file to the browser), committed method to get the name of a
+file that can be opened.
 
     >>> connection6 = database.open()
     >>> root6 = connection6.root()
@@ -273,58 +274,36 @@ stream a file to the browser), you can use the openDetached() method::
     >>> blob_fh.close()
     >>> root6['blob'] = blob
     >>> transaction.commit()
-    >>> blob.openDetached().read()
+    >>> open(blob.committed()).read()
     "I'm a happy blob."
 
-Of course, that doesn't work for empty blobs::
+An exception is raised if we call committed on a blob that has
+uncommitted changes:
 
     >>> blob = Blob()
-    >>> blob.openDetached()
+    >>> blob.committed()
     Traceback (most recent call last):
-        ...
-    BlobError: Blob does not exist.
+    ...
+    BlobError: Uncommitted changes
 
-nor when the Blob is already opened for writing::
-
-    >>> blob = Blob()
-    >>> blob_fh = blob.open("w")
-    >>> blob.openDetached()
+    >>> blob.open('w').write("I'm a happy blob.")
+    >>> root6['blob6'] = blob
+    >>> blob.committed()
     Traceback (most recent call last):
-        ...
-    BlobError: Already opened for writing.
+    ...
+    BlobError: Uncommitted changes
 
-You can also pass a factory to the openDetached method that will be used to
-instantiate the file. This is used for e.g. creating filestream iterators::
+    >>> s = transaction.savepoint()
+    >>> blob.committed()
+    Traceback (most recent call last):
+    ...
+    BlobError: Uncommitted changes
 
-    >>> class customfile(file):
-    ...   pass
-    >>> blob_fh.write('Something')
-    >>> blob_fh.close()
-    >>> fh = blob.openDetached(customfile)
-    >>> fh  # doctest: +ELLIPSIS
-    <open file '...', mode 'rb' at 0x...>
-    >>> isinstance(fh, customfile)
-    True
-
-
-Note: Nasty people could use a factory that opens the file for writing. This
-would be evil.
-
-It does work when the transaction was aborted, though::
-
-    >>> blob = Blob()
-    >>> blob_fh = blob.open("w")
-    >>> blob_fh.write("I'm a happy blob.")
-    >>> blob_fh.close()
-    >>> root6['blob'] = blob
     >>> transaction.commit()
-
-    >>> blob_fh = blob.open("w")
-    >>> blob_fh.write("And I'm singing.")
-    >>> blob_fh.close()
-    >>> transaction.abort()
-    >>> blob.openDetached().read()
+    >>> open(blob.committed()).read()
     "I'm a happy blob."
+
+
 
 
 Teardown

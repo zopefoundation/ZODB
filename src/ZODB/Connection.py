@@ -38,6 +38,7 @@ from zope.interface import implements
 
 import transaction
 
+from ZODB.blob import SAVEPOINT_SUFFIX
 from ZODB.ConflictResolution import ResolvedSerial
 from ZODB.ExportImport import ExportImport
 from ZODB import POSException
@@ -616,7 +617,7 @@ class Connection(ExportImport, object):
                 if obj.opened():
                     raise ValueError("Can't commit with opened blobs.")
                 s = self._storage.storeBlob(oid, serial, p,
-                                            obj._p_blob_uncommitted,
+                                            obj._uncommitted(),
                                             self._version, transaction)
                 # we invalidate the object here in order to ensure
                 # that that the next attribute access of its name
@@ -1170,9 +1171,6 @@ class Savepoint:
     def rollback(self):
         self.datamanager._rollback(self.state)
 
-BLOB_SUFFIX = ".blob"
-BLOB_DIRTY = "store"
-
 class TmpStore:
     """A storage-like thing to support savepoints."""
 
@@ -1271,8 +1269,7 @@ class TmpStore:
 
     def _getCleanFilename(self, oid, tid):
         return os.path.join(self._getBlobPath(oid),
-                            "%s%s" % (utils.tid_repr(tid), 
-                                      BLOB_SUFFIX,)
+                            "%s%s" % (utils.tid_repr(tid), SAVEPOINT_SUFFIX,)
                             )
 
     def temporaryDirectory(self):
