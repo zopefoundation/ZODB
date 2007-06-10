@@ -492,6 +492,16 @@ class CommonBlobTests:
         self.assert_(os.path.exists(filename))
         self.assertEqual(somedata, open(filename).read())
 
+    def checkStoreBlob_wrong_partition(self):
+        os_rename = os.rename
+        try:
+            def fail(*a):
+                raise OSError
+            os.rename = fail
+            self.checkStoreBlob()
+        finally:
+            os.rename = os_rename
+
     def checkLoadBlob(self):
         from ZODB.blob import Blob
         from ZODB.tests.StorageTestBase import zodb_pickle, ZERO, \

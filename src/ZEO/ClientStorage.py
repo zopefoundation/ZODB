@@ -41,6 +41,7 @@ from ZODB import POSException
 from ZODB import utils
 from ZODB.loglevels import BLATHER
 from ZODB.interfaces import IBlobStorage
+from ZODB.blob import rename_or_copy_blob
 from persistent.TimeStamp import TimeStamp
 
 logger = logging.getLogger('ZEO.ClientStorage')
@@ -911,22 +912,15 @@ class ClientStorage(object):
         os.close(fd)
 
         if sys.platform == 'win32':
-
-            # On windows, we can't rename to an existing file.  That's
-            # OK.  We don't care what file we get as long as it is
-            # unique.  We'll just keep trying until the rename suceeds.
-            os.remove(target)
-            i = 0
-            while 1:
-                try:
-                    utils.rename_or_copy(filename, target + str(i))
-                except OSError:
-                    i += 1
-                else:
-                    break
-            target += str(i)
+            # On windows, we can't rename to an existing file.  We'll
+            # use a slightly different file name. We keep the old one
+            # until we're done to avoid conflicts. Then remove the old name.
+            target += 'w'
+            rename_or_copy_blob(filename, target)
+            os.remove(target[:-1])
         else:
-            utils.rename_or_copy(filename, target)
+            rename_or_copy_blob(filename, target)
+
         # Now tell the server where we put it
         self._server.storeBlobShared(
             oid, serial, data,
@@ -1182,7 +1176,7 @@ class ClientStorage(object):
                 targetpath = self.fshelper.getPathForOID(oid)
                 if not os.path.exists(targetpath):
                     os.makedirs(targetpath, 0700)
-                os.rename(blobfilename,
+                rename_or_copy_blob(blobfilename,
                           self.fshelper.getBlobFilename(oid, tid),
                           )
 
