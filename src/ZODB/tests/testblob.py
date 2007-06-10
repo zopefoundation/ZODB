@@ -104,16 +104,9 @@ class BlobUndoTests(unittest.TestCase):
         root['blob'] = Blob()
         transaction.commit()
 
-        serial = base64.encodestring(blob_storage._tid)
-
-        # undo the creation of the previously added blob
-        transaction.begin()
-        database.undo(serial, blob_storage._transaction)
+        database.undo(database.undoLog(0, 1)[0]['id'])
         transaction.commit()
 
-        connection.close()
-        connection = database.open()
-        root = connection.root()
         # the blob footprint object should exist no longer
         self.assertRaises(KeyError, root.__getitem__, 'blob')
         database.close()
@@ -135,21 +128,11 @@ class BlobUndoTests(unittest.TestCase):
         blob.open('w').write('this is state 2')
         transaction.commit()
 
-        transaction.begin()
-        blob = root['blob']
-        self.assertEqual(blob.open('r').read(), 'this is state 2')
-        transaction.abort()
 
-        serial = base64.encodestring(blob_storage._tid)
-
-        transaction.begin()
-        blob_storage.undo(serial, blob_storage._transaction)
+        database.undo(database.undoLog(0, 1)[0]['id'])
         transaction.commit()
-
-        transaction.begin()
-        blob = root['blob']
         self.assertEqual(blob.open('r').read(), 'this is state 1')
-        transaction.abort()
+
         database.close()
 
     def testUndoAfterConsumption(self):
@@ -171,21 +154,10 @@ class BlobUndoTests(unittest.TestCase):
         blob.consumeFile('consume2')
         transaction.commit()
 
-        transaction.begin()
-        blob = root['blob']
-        self.assertEqual(blob.open('r').read(), 'this is state 2')
-        transaction.abort()
-
-        serial = base64.encodestring(blob_storage._tid)
-
-        transaction.begin()
-        blob_storage.undo(serial, blob_storage._transaction)
+        database.undo(database.undoLog(0, 1)[0]['id'])
         transaction.commit()
 
-        transaction.begin()
-        blob = root['blob']
         self.assertEqual(blob.open('r').read(), 'this is state 1')
-        transaction.abort()
 
         database.close()
 
@@ -207,27 +179,17 @@ class BlobUndoTests(unittest.TestCase):
         blob.open('w').write('this is state 2')
         transaction.commit()
 
-        serial = base64.encodestring(blob_storage._tid)
-
-        transaction.begin()
-        database.undo(serial)
+        database.undo(database.undoLog(0, 1)[0]['id'])
         transaction.commit()
 
-        transaction.begin()
-        blob = root['blob']
         self.assertEqual(blob.open('r').read(), 'this is state 1')
-        transaction.abort()
 
         serial = base64.encodestring(blob_storage._tid)
 
-        transaction.begin()
-        database.undo(serial)
+        database.undo(database.undoLog(0, 1)[0]['id'])
         transaction.commit()
 
-        transaction.begin()
-        blob = root['blob']
         self.assertEqual(blob.open('r').read(), 'this is state 2')
-        transaction.abort()
 
         database.close()
 
@@ -244,24 +206,15 @@ class BlobUndoTests(unittest.TestCase):
         root['blob'] = blob
         transaction.commit()
 
-        serial = base64.encodestring(blob_storage._tid)
-
-        transaction.begin()
-        database.undo(serial)
+        database.undo(database.undoLog(0, 1)[0]['id'])
         transaction.commit()
 
         self.assertRaises(KeyError, root.__getitem__, 'blob')
 
-        serial = base64.encodestring(blob_storage._tid)
-
-        transaction.begin()
-        database.undo(serial)
+        database.undo(database.undoLog(0, 1)[0]['id'])
         transaction.commit()
 
-        transaction.begin()
-        blob = root['blob']
         self.assertEqual(blob.open('r').read(), 'this is state 1')
-        transaction.abort()
 
         database.close()
 
