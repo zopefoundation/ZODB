@@ -191,7 +191,7 @@ class Blob(persistent.Persistent):
             os.unlink(target)
 
         try:
-            utils.rename_or_copy(filename, target)
+            rename_or_copy_blob(filename, target)
         except:
             # Recover from the failed consumption: First remove the file, it
             # might exist and mark the pointer to the uncommitted file.
@@ -413,8 +413,6 @@ class BlobStorage(SpecificationDecoratorBase):
         assert isinstance(serial, str) # XXX in theory serials could be 
                                        # something else
 
-        # the user may not have called "open" on the blob object,
-        # in which case, the blob will not have a filename.
         self._lock_acquire()
         try:
             targetpath = self.fshelper.getPathForOID(oid)
@@ -422,9 +420,9 @@ class BlobStorage(SpecificationDecoratorBase):
                 os.makedirs(targetpath, 0700)
 
             targetname = self.fshelper.getBlobFilename(oid, serial)
-            utils.rename_or_copy(blobfilename, targetname)
+            rename_or_copy_blob(blobfilename, targetname)
 
-            # XXX if oid already in there, something is really hosed.
+            # if oid already in there, something is really hosed.
             # The underlying storage should have complained anyway
             self.dirty_oids.append((oid, serial))
         finally:
@@ -607,3 +605,20 @@ class BlobStorage(SpecificationDecoratorBase):
         finally:
             self._lock_release()
         return undo_serial, keys
+
+
+copied = logging.getLogger('ZODB.blob.copied').debug
+def rename_or_copy_blob(f1, f2):
+    """Try to rename f1 to f2, fallback to copy.
+
+    Under certain conditions a rename might not work, e.g. because the target
+    directory is on a different partition. In this case we try to copy the
+    data and remove the old file afterwards.
+
+    """
+    try:
+        os.rename(f1, f2)
+    except OSError:
+        copied("Copied blob file %r to %r.", f1, f2)
+        utils.cp(open(f1, 'rb'), open(f2, 'wb'))
+        os.unlink(f1)
