@@ -21,6 +21,7 @@ import os
 import random
 import signal
 import socket
+import stat
 import tempfile
 import threading
 import time
@@ -532,6 +533,8 @@ class CommonBlobTests:
 
         filename = self._storage.loadBlob(oid, serial)
         self.assertEquals(somedata, open(filename, 'rb').read())
+        self.assert_(not(os.stat(filename).st_mode & stat.S_IWRITE))
+        self.assert_((os.stat(filename).st_mode & stat.S_IREAD))
 
     def checkTemporaryDirectory(self):
         self.assertEquals(self.blob_cache_dir,

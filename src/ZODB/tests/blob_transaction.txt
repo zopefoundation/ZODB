@@ -303,7 +303,12 @@ uncommitted changes:
     >>> open(blob.committed()).read()
     "I'm a happy blob."
 
+You can't open a committed blob file for writing:
 
+    >>> open(blob.committed(), 'w') # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ...
+    IOError: ...
 
 
 Teardown

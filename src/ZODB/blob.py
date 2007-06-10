@@ -18,6 +18,7 @@ import base64
 import logging
 import os
 import shutil
+import stat
 import sys
 import tempfile
 import threading
@@ -191,7 +192,7 @@ class Blob(persistent.Persistent):
             os.unlink(target)
 
         try:
-            rename_or_copy_blob(filename, target)
+            rename_or_copy_blob(filename, target, chmod=False)
         except:
             # Recover from the failed consumption: First remove the file, it
             # might exist and mark the pointer to the uncommitted file.
@@ -579,12 +580,14 @@ class BlobStorage(SpecificationDecoratorBase):
                 load_result = self.loadBefore(oid, serial_id)
 
                 if load_result is None:
+
                     # There was no previous revision of this blob
                     # object.  The blob was created in the transaction
                     # represented by serial_id.  We copy the blob data
                     # to a new file that references the undo
                     # transaction in case a user wishes to undo this
-                    # undo.
+                    # undo. It would be nice if we had some way to
+                    # link to old blobs.
                     orig_fn = self.fshelper.getBlobFilename(oid, serial_id)
                     new_fn = self.fshelper.getBlobFilename(oid, undo_serial)
                 else:
@@ -608,7 +611,7 @@ class BlobStorage(SpecificationDecoratorBase):
 
 
 copied = logging.getLogger('ZODB.blob.copied').debug
-def rename_or_copy_blob(f1, f2):
+def rename_or_copy_blob(f1, f2, chmod=True):
     """Try to rename f1 to f2, fallback to copy.
 
     Under certain conditions a rename might not work, e.g. because the target
@@ -622,3 +625,5 @@ def rename_or_copy_blob(f1, f2):
         copied("Copied blob file %r to %r.", f1, f2)
         utils.cp(open(f1, 'rb'), open(f2, 'wb'))
         os.unlink(f1)
+    if chmod:
+        os.chmod(f2, stat.S_IREAD)

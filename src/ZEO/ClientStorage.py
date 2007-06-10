@@ -21,6 +21,7 @@ ClientStorage -- the main class, implementing the Storage API
 import cPickle
 import os
 import socket
+import stat
 import sys
 import tempfile
 import threading
@@ -952,6 +953,7 @@ class ClientStorage(object):
     def receiveBlobStop(self, oid, serial):
         blob_filename = self.fshelper.getBlobFilename(oid, serial)
         os.rename(blob_filename+'.dl', blob_filename)
+        os.chmod(blob_filename, stat.S_IREAD)
 
     def loadBlob(self, oid, serial):
 
