@@ -245,6 +245,8 @@ class Blob(persistent.Persistent):
         # hand uncommitted data to connection, relinquishing responsibility
         # for it.
         filename = self._p_blob_uncommitted
+        if filename is None and self._p_blob_committed is None:
+            filename = self._create_uncommitted_file()
         self._p_blob_uncommitted = self._p_blob_ref = None
         return filename
 
@@ -413,22 +415,21 @@ class BlobStorage(SpecificationDecoratorBase):
 
         # the user may not have called "open" on the blob object,
         # in which case, the blob will not have a filename.
-        if blobfilename is not None:
-            self._lock_acquire()
-            try:
-                targetpath = self.fshelper.getPathForOID(oid)
-                if not os.path.exists(targetpath):
-                    os.makedirs(targetpath, 0700)
+        self._lock_acquire()
+        try:
+            targetpath = self.fshelper.getPathForOID(oid)
+            if not os.path.exists(targetpath):
+                os.makedirs(targetpath, 0700)
 
-                targetname = self.fshelper.getBlobFilename(oid, serial)
-                utils.rename_or_copy(blobfilename, targetname)
+            targetname = self.fshelper.getBlobFilename(oid, serial)
+            utils.rename_or_copy(blobfilename, targetname)
 
-                # XXX if oid already in there, something is really hosed.
-                # The underlying storage should have complained anyway
-                self.dirty_oids.append((oid, serial))
-            finally:
-                self._lock_release()
-            return self._tid
+            # XXX if oid already in there, something is really hosed.
+            # The underlying storage should have complained anyway
+            self.dirty_oids.append((oid, serial))
+        finally:
+            self._lock_release()
+        return self._tid
 
     @non_overridable
     def tpc_finish(self, *arg, **kw):
@@ -456,7 +457,7 @@ class BlobStorage(SpecificationDecoratorBase):
         """
         filename = self.fshelper.getBlobFilename(oid, serial)
         if not os.path.exists(filename):
-            return None
+            raise POSKeyError("No blob file", oid, serial)
         return filename
 
     @non_overridable

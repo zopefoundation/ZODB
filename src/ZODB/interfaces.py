@@ -946,7 +946,7 @@ class IBlobStorage(Interface):
     def loadBlob(oid, serial):
         """Return the filename of the Blob data for this OID and serial.
 
-        Returns a filename or None if no Blob data is connected with this OID. 
+        Returns a filename. 
 
         Raises POSKeyError if the blobfile cannot be found.
         """

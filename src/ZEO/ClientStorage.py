@@ -899,8 +899,7 @@ class ClientStorage(object):
         else:
             self._server.storeBlob(
                 oid, serial, data, blobfilename, version, txn)
-            if blobfilename is not None:
-                self._tbuf.storeBlob(oid, blobfilename)
+            self._tbuf.storeBlob(oid, blobfilename)
         return serials
 
     def _storeBlob_shared(self, oid, serial, data, filename, version, txn):
@@ -965,6 +964,7 @@ class ClientStorage(object):
         # Load a blob.  If it isn't present and we have a shared blob
         # directory, then assume that it doesn't exist on the server
         # and return None.
+
         if self.fshelper is None:
             raise POSException.Unsupported("No blob cache directory is "
                                            "configured.")
@@ -976,8 +976,8 @@ class ClientStorage(object):
 
         if self.blob_cache_writable:
             # We're using a server shared cache.  If the file isn't
-            # here, it's not anywahere.
-            return None
+            # here, it's not anywhere.
+            raise POSKeyError("No blob file", oid, serial)
 
         # First, we'll create the directory for this oid, if it doesn't exist. 
         targetpath = self.fshelper.getPathForOID(oid)
@@ -1040,7 +1040,7 @@ class ClientStorage(object):
             if self._have_blob(blob_filename, oid, serial):
                 return blob_filename
 
-            return None
+            raise POSKeyError("No blob file", oid, serial)
 
         finally:
             lock.close()

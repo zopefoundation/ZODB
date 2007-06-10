@@ -539,9 +539,6 @@ class ZEOStorage:
         os.close(fd)
         self.blob_log.append((oid, serial, data, tempname, version))
 
-    def storeEmptyBlob(self, oid, serial, data, version, id):
-        self.blob_log.append((oid, serial, data, None, version))
-
     def storeBlobShared(self, oid, serial, data, filename, version, id):
         # Reconstruct the full path from the filename in the OID directory
         filename = os.path.join(self.storage.fshelper.getPathForOID(oid),

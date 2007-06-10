@@ -20,10 +20,11 @@ from cPickle import Pickler, Unpickler
 from tempfile import TemporaryFile
 import logging
 
-from ZODB.POSException import ExportError, POSKeyError
-from ZODB.utils import p64, u64, cp, mktemp
+from ZODB.blob import Blob
 from ZODB.interfaces import IBlobStorage
+from ZODB.POSException import ExportError, POSKeyError
 from ZODB.serialize import referencesf
+from ZODB.utils import p64, u64, cp, mktemp
 
 logger = logging.getLogger('ZODB.ExportImport')
 
@@ -55,14 +56,10 @@ class ExportImport:
                 f.writelines([oid, p64(len(p)), p])
 
             if supports_blobs:
-                if 'Blob' not in p:
-                    continue # filter out most non-blobs
+                if not isinstance(self._reader.getGhost(p), Blob):
+                    continue # not a blob
                 
                 blobfilename = self._storage.loadBlob(oid, serial)
-                if blobfilename is None:
-                    # This could be a non-blob or a blob with unsaved data.
-                    continue
-
                 f.write(blob_begin_marker)
                 f.write(p64(os.stat(blobfilename).st_size))
                 blobdata = open(blobfilename, "rb")

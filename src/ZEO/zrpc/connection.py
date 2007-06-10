@@ -305,7 +305,6 @@ class Connection(smac.SizedMessageAsyncConnection, object):
     # Z308 -- named after the ZODB release 3.8
     #         Added blob-support server methods:
     #             sendBlob
-    #             storeEmptyBlob
     #             storeBlobStart
     #             storeBlobChunk
     #             storeBlobEnd

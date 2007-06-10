@@ -1072,7 +1072,6 @@ class Connection(ExportImport, object):
 
     def savepoint(self):
         if self._savepoint_storage is None:
-            # XXX what to do about IBlobStorages?
             tmpstore = TmpStore(self._version, self._normal_storage)
             self._savepoint_storage = tmpstore
             self._storage = self._savepoint_storage
@@ -1115,12 +1114,8 @@ class Connection(ExportImport, object):
 
         for oid in oids:
             data, serial = src.load(oid, src)
-            try:
+            if isinstance(self._reader.getGhost(data), Blob):
                 blobfilename = src.loadBlob(oid, serial)
-            except (POSKeyError, Unsupported):
-                s = self._storage.store(oid, serial, data,
-                                        self._version, transaction)
-            else:
                 s = self._storage.storeBlob(oid, serial, data, blobfilename,
                                             self._version, transaction)
                 # we invalidate the object here in order to ensure
@@ -1128,6 +1123,10 @@ class Connection(ExportImport, object):
                 # unghostify it, which will cause its blob data
                 # to be reattached "cleanly"
                 self.invalidate(s, {oid:True})
+            else:
+                s = self._storage.store(oid, serial, data,
+                                        self._version, transaction)
+
             self._handle_serial(s, oid, change=False)
         src.close()
 
@@ -1240,8 +1239,6 @@ class TmpStore:
     def storeBlob(self, oid, serial, data, blobfilename, version,
                   transaction):
         serial = self.store(oid, serial, data, version, transaction)
-        assert isinstance(serial, str) # XXX in theory serials could be
-                                       # something else
 
         targetpath = self._getBlobPath(oid)
         if not os.path.exists(targetpath):
@@ -1259,7 +1256,7 @@ class TmpStore:
                 self._storage)
         filename = self._getCleanFilename(oid, serial)
         if not os.path.exists(filename):
-            raise POSKeyError, "Not an existing blob."
+            raise POSKeyError("No blob file", oid, serial)
         return filename
 
     def _getBlobPath(self, oid):

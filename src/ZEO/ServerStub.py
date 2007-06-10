@@ -226,11 +226,6 @@ class StorageServer:
         # the data into memory, so we use a message iterator.  This
         # allows us to read the blob data as needed.
 
-        if blobfilename is None:
-            self.rpc.callAsync('storeEmptyBlob',
-                               oid, serial, data, version, id(txn))
-            return
-
         def store():
             yield ('storeBlobStart', ())
             f = open(blobfilename, 'rb')

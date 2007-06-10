@@ -44,7 +44,7 @@ Putting a Blob into a Connection works like every other object:
     >>> transaction.commit()
 
 We can also commit a transaction that seats a blob into place without
-calling the blob's open method (this currently fails):
+calling the blob's open method:
 
     >>> nothing = transaction.begin()
     >>> anotherblob = Blob()
