@@ -278,6 +278,66 @@ def gc_blob_removes_uncommitted_data():
     False
     """
 
+def commit_from_wrong_partition():
+    """
+    It should be possible to commit changes even when a blob is on a
+    different partition.
+
+    We can simulare this by temporarily breaking os.rename. :)
+
+    >>> def fail(*args):
+    ...     raise OSError
+
+    >>> os_rename = os.rename
+    >>> os.rename = fail
+
+    >>> import logging, sys
+    >>> logger = logging.getLogger('ZODB.blob.copied')
+    >>> handler = logging.StreamHandler(sys.stdout)
+    >>> logger.propagate = False
+    >>> logger.setLevel(logging.DEBUG)
+    >>> logger.addHandler(handler)
+
+    >>> import transaction
+    >>> from ZODB.MappingStorage import MappingStorage
+    >>> from ZODB.blob import BlobStorage
+    >>> from ZODB.DB import DB
+    >>> from tempfile import mkdtemp
+    >>> base_storage = MappingStorage("test")
+    >>> blob_dir = mkdtemp()
+    >>> blob_storage = BlobStorage(blob_dir, base_storage)
+    >>> database = DB(blob_storage)
+    >>> connection = database.open()
+    >>> root = connection.root()
+    >>> from ZODB.blob import Blob
+    >>> root['blob'] = Blob()
+    >>> root['blob'].open('w').write('test')
+    >>> transaction.commit() # doctest: +ELLIPSIS
+    Copied blob file ...
+
+    >>> root['blob'].open().read()
+    'test'
+
+Works with savepoints too:
+
+    >>> root['blob2'] = Blob()
+    >>> root['blob2'].open('w').write('test2')
+    >>> _ = transaction.savepoint() # doctest: +ELLIPSIS
+    Copied blob file ...
+
+    >>> transaction.commit() # doctest: +ELLIPSIS
+    Copied blob file ...
+    
+    >>> root['blob2'].open().read()
+    'test2'
+    
+    >>> os.rename = os_rename
+    >>> logger.propagate = True
+    >>> logger.setLevel(0)
+    >>> logger.removeHandler(handler)
+
+    """
+
 def test_suite():
     suite = unittest.TestSuite()
     suite.addTest(unittest.makeSuite(ZODBBlobConfigTest))

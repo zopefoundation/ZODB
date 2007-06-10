@@ -30,7 +30,7 @@ from persistent import PickleCache
 from persistent.interfaces import IPersistentDataManager
 from ZODB.interfaces import IConnection
 from ZODB.interfaces import IBlobStorage
-from ZODB.blob import Blob
+from ZODB.blob import Blob, rename_or_copy_blob
 from transaction.interfaces import ISavepointDataManager
 from transaction.interfaces import IDataManagerSavepoint
 from transaction.interfaces import ISynchronizer
@@ -1245,7 +1245,7 @@ class TmpStore:
             os.makedirs(targetpath, 0700)
 
         targetname = self._getCleanFilename(oid, serial)
-        utils.rename_or_copy(blobfilename, targetname)
+        rename_or_copy_blob(blobfilename, targetname)
 
     def loadBlob(self, oid, serial):
         """Return the filename where the blob file can be found.
