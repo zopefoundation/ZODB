@@ -623,7 +623,13 @@ def rename_or_copy_blob(f1, f2, chmod=True):
         os.rename(f1, f2)
     except OSError:
         copied("Copied blob file %r to %r.", f1, f2)
-        utils.cp(open(f1, 'rb'), open(f2, 'wb'))
+        file1 = open(f1, 'rb')
+        file2 = open(f2, 'wb')
+        try:
+            utils.cp(file1, file2)
+        finally:
+            file1.close()
+            file2.close()
         os.unlink(f1)
     if chmod:
         os.chmod(f2, stat.S_IREAD)
