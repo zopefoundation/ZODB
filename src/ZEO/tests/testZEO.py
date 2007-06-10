@@ -139,7 +139,7 @@ class GenericTests(
 
     """Combine tests from various origins in one class."""
 
-    blob_cache_writable = False
+    shared_blob_dir = False
     blob_cache_dir = None
 
     def setUp(self):
@@ -158,7 +158,7 @@ class GenericTests(
             zport, '1', cache_size=20000000,
             min_disconnect_poll=0.5, wait=1,
             wait_timeout=60, blob_dir=self.blob_cache_dir,
-            blob_cache_writable=self.blob_cache_writable)
+            shared_blob_dir=self.shared_blob_dir)
         self._storage.registerDB(DummyDB())
 
     def tearDown(self):
@@ -636,7 +636,7 @@ class BlobWritableCacheTests(GenericTests, CommonBlobTests):
     def setUp(self):
         self.blobdir = self.blob_cache_dir = tempfile.mkdtemp()
         self.filestorage = tempfile.mktemp()
-        self.blob_cache_writable = True
+        self.shared_blob_dir = True
         super(BlobWritableCacheTests, self).setUp()
 
 

@@ -152,7 +152,7 @@ class ZEOClient(BaseConfig):
         return ClientStorage(
             L,
             blob_dir=self.config.blob_dir,
-            blob_cache_writable=self.config.blob_cache_writable,
+            shared_blob_dir=self.config.shared_blob_dir,
             storage=self.config.storage,
             cache_size=self.config.cache_size,
             name=self.config.name,

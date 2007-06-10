@@ -70,7 +70,7 @@
         Path name to the blob cache directory.
       </description>
     </key>
-    <key name="blob-cache-writable" required="no" default="no"
+    <key name="shared-blob-dir" required="no" default="no"
         datatype="boolean">
       <description>
           Tells whether the cache is a shared writable directory

@@ -115,7 +115,7 @@ class ClientStorage(object):
                  wait=None, wait_timeout=None,
                  read_only=0, read_only_fallback=0,
                  username='', password='', realm=None,
-                 blob_dir=None, blob_cache_writable=False):
+                 blob_dir=None, shared_blob_dir=False):
         """ClientStorage constructor.
 
         This is typically invoked from a custom_zodb.py file.
@@ -191,7 +191,7 @@ class ClientStorage(object):
         blob_dir -- directory path for blob data.  'blob data' is data that
             is retrieved via the loadBlob API.
 
-        blob_cache_writable -- Flag whether the blob_dir is a writable shared
+        shared_blob_dir -- Flag whether the blob_dir is a server-shared
         filesystem that should be used instead of transferring blob data over
         zrpc.
 
@@ -322,7 +322,7 @@ class ClientStorage(object):
 
         # XXX need to check for POSIX-ness here
         self.blob_dir = blob_dir
-        self.blob_cache_writable = blob_cache_writable
+        self.shared_blob_dir = shared_blob_dir
         if blob_dir is not None:
             # Avoid doing this import unless we need it, as it
             # currently requires pywin32 on Windows.
@@ -895,7 +895,7 @@ class ClientStorage(object):
     def storeBlob(self, oid, serial, data, blobfilename, version, txn):
         """Storage API: store a blob object."""
         serials = self.store(oid, serial, data, version, txn)
-        if self.blob_cache_writable:
+        if self.shared_blob_dir:
             self._storeBlob_shared(
                 oid, serial, data, blobfilename, version, txn)
         else:
@@ -970,7 +970,7 @@ class ClientStorage(object):
         if self._have_blob(blob_filename, oid, serial):
             return blob_filename
 
-        if self.blob_cache_writable:
+        if self.shared_blob_dir:
             # We're using a server shared cache.  If the file isn't
             # here, it's not anywhere.
             raise POSKeyError("No blob file", oid, serial)
