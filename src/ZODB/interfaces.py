@@ -925,12 +925,8 @@ class IBlob(Interface):
     def consumeFile(filename):
         """Consume a file.
 
-        Eplace the current data of the blob with the file given under
+        Replace the current data of the blob with the file given under
         filename.
-
-        This method uses link-like semantics internally and has the requirement
-        that the file that is to be consumed lives on the same volume (or
-        mount/share) as the blob directory.
 
         The blob must not be opened for reading or writing when consuming a 
         file.
