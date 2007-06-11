@@ -19,6 +19,7 @@ import ZODB.tests.util
 from ZODB import utils
 from ZODB.FileStorage import FileStorage
 from ZODB.blob import Blob, BlobStorage
+import ZODB.blob
 from ZODB.DB import DB
 import transaction
 
@@ -92,7 +93,7 @@ class BlobUndoTests(unittest.TestCase):
 
     def tearDown(self):
         os.chdir(self.here)
-        shutil.rmtree(self.test_dir)
+        ZODB.blob.remove_committed_dir(self.test_dir)
 
     def testUndoWithoutPreviousVersion(self):
         base_storage = FileStorage(self.storagefile)

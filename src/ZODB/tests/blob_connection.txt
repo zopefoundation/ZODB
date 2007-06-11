@@ -76,8 +76,6 @@ You can't put blobs into a database that has uses a Non-Blob-Storage, though:
 While we are testing this, we don't need the storage directory and
 databases anymore:
 
-    >>> import shutil
-    >>> shutil.rmtree(blob_dir)
     >>> transaction.abort()
     >>> database.close()
     >>> database2.close()

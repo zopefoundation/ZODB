@@ -30,6 +30,7 @@ import shutil
 
 # ZODB test support
 import ZODB
+import ZODB.blob
 import ZODB.tests.util
 from ZODB.tests.MinPO import MinPO
 from ZODB.tests.StorageTestBase import zodb_unpickle
@@ -164,7 +165,7 @@ class GenericTests(
     def tearDown(self):
         self._storage.close()
         os.remove(self._conf_path)
-        shutil.rmtree(self.blob_cache_dir)
+        ZODB.blob.remove_committed_dir(self.blob_cache_dir)
         for server in self._servers:
             forker.shutdown_zeo_server(server)
         if hasattr(os, 'waitpid'):
@@ -616,7 +617,7 @@ class BlobAdaptedFileStorageTests(GenericTests, CommonBlobTests):
             calls.append((oid, serial))
             sendBlob_org(self, oid, serial)
 
-        os.remove(filename)
+        ZODB.blob.remove_committed(filename)
         returns = []
         threads = [
             threading.Thread(

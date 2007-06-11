@@ -189,7 +189,7 @@ class Blob(persistent.Persistent):
             target = self._create_uncommitted_file()
             # We need to unlink the freshly created target again
             # to allow link() to do its job
-            os.unlink(target)
+            os.remove(target)
 
         try:
             rename_or_copy_blob(filename, target, chmod=False)
@@ -198,7 +198,7 @@ class Blob(persistent.Persistent):
             # might exist and mark the pointer to the uncommitted file.
             self._p_blob_uncommitted = None
             if os.path.exists(target):
-                os.unlink(target)
+                os.remove(target)
 
             # If there was a file moved aside, bring it back including the
             # pointer to the uncommitted file.
@@ -212,7 +212,7 @@ class Blob(persistent.Persistent):
             if previous_uncommitted:
                 # The relinking worked so we can remove the data that we had 
                 # set aside.
-                os.unlink(target_aside)
+                os.remove(target_aside)
 
             # We changed the blob state and have to make sure we join the
             # transaction.
@@ -448,7 +448,7 @@ class BlobStorage(SpecificationDecoratorBase):
             oid, serial = self.dirty_oids.pop()
             clean = self.fshelper.getBlobFilename(oid, serial)
             if os.exists(clean):
-                os.unlink(clean) 
+                remove_committed(clean) 
 
     @non_overridable
     def loadBlob(self, oid, serial):
@@ -487,7 +487,7 @@ class BlobStorage(SpecificationDecoratorBase):
                     fn = self.fshelper.getBlobFilename(oid, serial)
                     self.loadSerial(oid, serial)
                 except POSKeyError:
-                    os.unlink(filepath)
+                    remove_committed(filepath)
 
             if not os.listdir(oid_path):
                 shutil.rmtree(oid_path)
@@ -511,9 +511,9 @@ class BlobStorage(SpecificationDecoratorBase):
                 latest = files[-1] # depends on ever-increasing tids
                 files.remove(latest)
                 for file in files:
-                    os.unlink(os.path.join(oid_path, file))
+                    remove_committed(os.path.join(oid_path, file))
             else:
-                shutil.rmtree(oid_path)
+                remove_committed_dir(oid_path)
                 continue
 
             if not os.listdir(oid_path):
@@ -630,6 +630,24 @@ def rename_or_copy_blob(f1, f2, chmod=True):
         finally:
             file1.close()
             file2.close()
-        os.unlink(f1)
+        remove_committed(f1)
     if chmod:
         os.chmod(f2, stat.S_IREAD)
+
+if sys.platform == 'win32':
+    # On Windows, you can't remove read-only files, so make the
+    # file writable first.
+
+    def remove_committed(filename):
+        os.chmod(filename, stat.S_IWRITE)
+        os.remove(filename)
+
+    def remove_committed_dir(path):
+        for (dirpath, dirnames, filenames) in os.walk(path):
+            for filename in filenames:
+                filename = os.path.join(dirpath, filename)
+                remove_committed(filename)
+        shutil.rmtree(path)
+else:
+    remove_committed = os.remove
+    remove_committed_dir = shutil.rmtree

@@ -316,8 +316,6 @@ Teardown
 
 We don't need the storage directory and databases anymore::
 
-    >>> import shutil
-    >>> shutil.rmtree(blob_dir)
     >>> tm1.abort()
     >>> tm2.abort()
     >>> database.close()
