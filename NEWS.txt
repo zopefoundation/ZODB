@@ -66,6 +66,13 @@ Transactions
 Blobs
 -----
 
+- (3.8b1) Updated the Blob implementation in a number of ways.  Some
+  of these are backward incompatible with 3.8a1:
+
+  o The Blob class now lives in ZODB.blob
+
+  o The blob openDetached method has been replaced by the committed method.
+
 - (3.8a1) Added new blob feature. See the ZODB/Blobs directory for
   documentation.
 
