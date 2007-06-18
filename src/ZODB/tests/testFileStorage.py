@@ -508,11 +508,11 @@ Now, we can call lastInvalidations on it:
     True
 
     >>> from ZODB.utils import u64
-    >>> [[u64(oid) for (oid, version) in oids]
+    >>> [[int(u64(oid)) for (oid, version) in oids]
     ...  for (i, oids) in invalidations]
     ... # doctest: +NORMALIZE_WHITESPACE
-    [[0L, 91L], [0L, 92L], [0L, 93L], [0L, 94L], [0L, 95L],
-     [0L, 96L], [0L, 97L], [0L, 98L], [0L, 99L], [0L, 100L]]
+    [[0, 91], [0, 92], [0, 93], [0, 94], [0, 95],
+     [0, 96], [0, 97], [0, 98], [0, 99], [0, 100]]
 
 If we ask for more transactions than there are, we'll get as many as
 there are:

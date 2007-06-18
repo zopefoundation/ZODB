@@ -731,8 +731,8 @@ def multiple_storages_invalidation_queue_is_not_insane():
     
     >>> trans, oids = s1.getInvalidations(last)
     >>> from ZODB.utils import u64
-    >>> sorted([u64(oid) for (oid, v) in oids])
-    [10L, 11L, 12L, 13L, 14L]
+    >>> sorted([int(u64(oid)) for (oid, v) in oids])
+    [10, 11, 12, 13, 14]
     
     >>> server.close_server()
     """
@@ -785,8 +785,8 @@ structure using lastTransactions.
 
 
     >>> from ZODB.utils import u64
-    >>> sorted([u64(oid) for (oid, version) in oids])
-    [0L, 92L, 93L, 94L, 95L, 96L, 97L, 98L, 99L, 100L]
+    >>> sorted([int(u64(oid)) for (oid, version) in oids])
+    [0, 92, 93, 94, 95, 96, 97, 98, 99, 100]
 
 (Note that the fact that we get oids for 92-100 is actually an
 artifact of the fact that the FileStorage lastInvalidations method
@@ -833,8 +833,8 @@ transaction, we'll get a result:
     >>> ntid == last[-1]
     True
 
-    >>> sorted([u64(oid) for (oid, version) in oids])
-    [0L, 101L, 102L, 103L, 104L]
+    >>> sorted([int(u64(oid)) for (oid, version) in oids])
+    [0, 101, 102, 103, 104]
 
     """
 
