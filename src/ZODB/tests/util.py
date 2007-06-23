@@ -25,10 +25,60 @@ import time
 import persistent
 import transaction
 from ZODB.MappingStorage import MappingStorage
+from ZODB.ConflictResolution import ConflictResolvingStorage
 from ZODB.DB import DB as _DB
+from ZODB import POSException
 
 def DB(name='Test', **dbargs):
     return _DB(MappingStorage(name), **dbargs)
+
+class ConflictResolvingMappingStorage(
+    MappingStorage, ConflictResolvingStorage):
+
+    def __init__(self, name='ConflictResolvingMappingStorage'):
+        MappingStorage.__init__(self, name)
+        self._old = {}
+
+    def loadSerial(self, oid, serial):
+        self._lock_acquire()
+        try:
+            old_info = self._old[oid]
+            try:
+                return old_info[serial]
+            except KeyError:
+                raise POSException.POSKeyError(oid)
+        finally:
+            self._lock_release()
+
+    def store(self, oid, serial, data, version, transaction):
+        if transaction is not self._transaction:
+            raise POSException.StorageTransactionError(self, transaction)
+
+        if version:
+            raise POSException.Unsupported("Versions aren't supported")
+
+        self._lock_acquire()
+        try:
+            if oid in self._index:
+                oserial = self._index[oid][:8]
+                if serial != oserial:
+                    rdata = self.tryToResolveConflict(
+                        oid, oserial, serial, data)
+                    if rdata is None:
+                        raise POSException.ConflictError(
+                            oid=oid, serials=(oserial, serial), data=data)
+                    else:
+                        data = rdata
+            self._tindex[oid] = self._tid + data
+        finally:
+            self._lock_release()
+        return self._tid
+
+    def _finish(self, tid, user, desc, ext):
+        self._index.update(self._tindex)
+        self._ltid = self._tid
+        for oid, record in self._tindex.items():
+            self._old.setdefault(oid, {})[self._tid] = record[8:]
 
 def commit():
     transaction.commit()
