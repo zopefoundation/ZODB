@@ -9,9 +9,10 @@ Conflict resolution is a way to resolve transaction conflicts that would
 otherwise abort a transaction.  As such, it risks data integrity in order to
 try to avoid throwing away potentially computationally expensive transactions.
 
-The risk of data integrity should not be underestimated.  Writing conflict
-resolution code takes responsibility away from the ZODB for transactional
-integrity, and puts it in the hands of the developer writing the code.
+The risk of harming data integrity should not be underestimated. Writing
+conflict resolution code takes some responsibility away from the ZODB
+for transactional integrity, and puts it in the hands of the developer
+writing the conflict resolution code.
 
 The current conflict resolution code is implemented with a storage mix-in
 found in ZODB/ConflictResolution.py.  The idea's proposal, and an explanation
