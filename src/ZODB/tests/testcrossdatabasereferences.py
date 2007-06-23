@@ -29,8 +29,8 @@ class MyClass_w_getnewargs(persistent.Persistent):
 def test_must_use_consistent_connections():
     """
 
-It's important to use consistent connections.  References to to
-separate connections to the ssme database or multi-database won't
+It's important to use consistent connections.  References to
+separate connections to the same database or multi-database won't
 work.
 
 For example, it's tempting to open a second database using the

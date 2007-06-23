@@ -530,7 +530,7 @@ class FileStorage(BaseStorage.BaseStorage,
                 return data, h.tid
             else:
                 # Get the data from the backpointer, but tid from
-                # currnt txn.
+                # current txn.
                 data = self._loadBack_impl(oid, h.back)[0]
                 return data, h.tid
         finally:
