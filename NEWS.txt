@@ -1,104 +1,36 @@
-What's new on ZODB 3.8.0
+What's new in ZODB 3.9.0
 ========================
 
 General
 -------
 
-- The ZODB Storage APIs have been documented and cleaned up.
+- (3.9.0a1) Document conflict resolution (see ZODB/ConflictResolution.txt).
 
-- ZODB versions are now officially deprecated and support for them
-  will be removed in ZODB 3.9.  (They have been widely recognized as
-  deprecated for quite a while.)
+- (3.9.0a1) Bugfix the situation in which comparing persistent objects (for
+  instance, as members in BTree set or keys of BTree) might cause data
+  inconsistency during conflict resolution.
 
-- Changed the automatic garbage collection when opening a connection to only
-  apply the garbage collections on those connections in the pool that are
-  closed. (This fixed issue 113932.)
+- (3.9.0a1) Support multidatabase references in conflict resolution.
+
+- (3.9.0a1) Make it possible to examine oid and (in some situations) database
+  name of persistent object references during conflict resolution.
 
 ZEO
 ---
 
-- (3.8a1) ZEO's strategoes for avoiding client cache verification were
-  improved in the case that servers are restarted.  Before, if
-  transactions were committed after the restart, clients that were up
-  to date or nearly up to date at the time of the restart and then
-  connected had to verify their caches.  Now, it is far more likely
-  that a client that reconnects soon after a server restart won't have
-  to verify its cache.
-
-- (3.8a1) Fixed a serious bug that could cause clients that disconnect from and
-  reconnect to a server to get bad invalidation data if the server
-  serves multiple storages with active writes.
-
-- (3.8a1) It is now theoretically possible to use a ClientStorage in a storage
-  server.  This might make it possible to offload read load from a
-  storage server at the cost of increasing write latency.  This should
-  increase write throughput by offloading reads from the final storage
-  server.  This feature is somewhat experimental.  It has tests, but
-  hasn't been used in production.
+- 
 
 Transactions
 ------------
 
-- (3.8a1) Add a doom() and isDoomed() interface to the transaction module.
-
-  First step towards the resolution of
-  http://www.zope.org/Collectors/Zope3-dev/655
-
-  A doomed transaction behaves exactly the same way as an active transaction
-  but raises an error on any attempt to commit it, thus forcing an abort.
-
-  Doom is useful in places where abort is unsafe and an exception cannot be
-  raised.  This occurs when the programmer wants the code following the doom to
-  run but not commit. It is unsafe to abort in these circumstances as a
-  following get() may implicitly open a new transaction.
-
-  Any attempt to commit a doomed transaction will raise a DoomedTransaction
-  exception.
-
-- (3.8a1) Clean up the ZODB imports in transaction.
-
-  Clean up weird import dance with ZODB. This is unnecessary since the
-  transaction module stopped being imported in ZODB/__init__.py in rev 39622.
-
-- (3.8a1) Support for subtransactions has been removed in favor of
-  save points.
+- 
 
 Blobs
 -----
 
-- (3.8b1) Updated the Blob implementation in a number of ways.  Some
-  of these are backward incompatible with 3.8a1:
-
-  o The Blob class now lives in ZODB.blob
-
-  o The blob openDetached method has been replaced by the committed method.
-
-- (3.8a1) Added new blob feature. See the ZODB/Blobs directory for
-  documentation.
-
-  ZODB now handles (reasonably) large binary objects efficiently. Useful to
-  use from a few kilobytes to at least multiple hundred megabytes.
+- 
 
 BTrees
 ------
 
-- (3.8a1) Added support for 64-bit integer BTrees as separate types.  
-
-  (For now, we're retaining compile-time support for making the regular
-  integer BTrees 64-bit.)
-
-- (3.8a1) Normalize names in modules so that BTrees, Buckets, Sets, and
-  TreeSets can all be accessed with those names in the modules (e.g.,
-  BTrees.IOBTree.BTree).  This is in addition to the older names (e.g.,
-  BTrees.IOBTree.IOBTree).  This allows easier drop-in replacement, which
-  can especially be simplify code for packages that want to support both
-  32-bit and 64-bit BTrees.
-
-- (3.8a1) Describe the interfaces for each module and actually declare
-  the interfaces for each.
-
-- (3.8a1) Fix module references so klass.__module__ points to the Python
-  wrapper module, not the C extension.
-
-- (3.8a1) introduce module families, to group all 32-bit and all 64-bit
-  modules.
+- 
