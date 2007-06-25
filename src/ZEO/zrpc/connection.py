@@ -17,7 +17,6 @@ import errno
 import select
 import sys
 import threading
-import types
 import logging
 
 import traceback, time
@@ -32,6 +31,8 @@ from ZODB.loglevels import BLATHER, TRACE
 
 REPLY = ".reply" # message name used for replies
 ASYNC = 1
+
+exception_type_type = type(Exception)
 
 ##############################################################################
 # Dedicated Client select loop:
@@ -361,7 +362,7 @@ class Connection(smac.SizedMessageAsyncConnection, object):
         assert tag in "CS"
         self.tag = tag
         self.logger = logging.getLogger('ZEO.zrpc.Connection(%c)' % tag)
-        if isinstance(addr, types.TupleType):
+        if isinstance(addr, tuple):
             self.log_label = "(%s:%d) " % addr
         else:
             self.log_label = "(%s) " % addr
@@ -604,7 +605,7 @@ class Connection(smac.SizedMessageAsyncConnection, object):
             self.log("Asynchronous call raised exception: %s" % self,
                      level=logging.ERROR, exc_info=True)
             return
-        if type(err_value) is not types.InstanceType:
+        if not isinstance(err_value, Exception):
             err_value = err_type, err_value
 
         # encode() can pass on a wide variety of exceptions from cPickle.
@@ -664,8 +665,8 @@ class Connection(smac.SizedMessageAsyncConnection, object):
             raise DisconnectedError()
         msgid = self.send_call(method, args, 0)
         r_flags, r_args = self.wait(msgid)
-        if (isinstance(r_args, types.TupleType) and len(r_args) > 1
-            and type(r_args[0]) == types.ClassType
+        if (isinstance(r_args, tuple) and len(r_args) > 1
+            and type(r_args[0]) == exception_type_type
             and issubclass(r_args[0], Exception)):
             inst = r_args[1]
             raise inst # error raised by server
@@ -687,8 +688,8 @@ class Connection(smac.SizedMessageAsyncConnection, object):
 
     def _deferred_wait(self, msgid):
         r_flags, r_args = self.wait(msgid)
-        if (isinstance(r_args, types.TupleType)
-            and type(r_args[0]) == types.ClassType
+        if (isinstance(r_args, tuple)
+            and type(r_args[0]) == exception_type_type
             and issubclass(r_args[0], Exception)):
             inst = r_args[1]
             raise inst # error raised by server

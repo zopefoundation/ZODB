@@ -13,7 +13,6 @@
 ##############################################################################
 import cPickle
 from cStringIO import StringIO
-import types
 import logging
 
 from ZEO.zrpc.error import ZRPCError
@@ -56,6 +55,8 @@ class Marshaller:
 _globals = globals()
 _silly = ('__doc__',)
 
+exception_type_type = type(Exception)
+
 def find_global(module, name):
     """Helper for message unpickler"""
     try:
@@ -73,7 +74,7 @@ def find_global(module, name):
         return r
 
     # TODO:  is there a better way to do this?
-    if type(r) == types.ClassType and issubclass(r, Exception):
+    if type(r) == exception_type_type and issubclass(r, Exception):
         return r
 
     raise ZRPCError("Unsafe global: %s.%s" % (module, name))
