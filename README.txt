@@ -1,69 +1,34 @@
-ZODB 3.7
+ZODB 3.8
 ========
 
 Introduction
 ------------
 
-The ZODB package provides a set of tools for using the Zope Object
-Database (ZODB) in Python programs separately from Zope.  The tools
-you get are identical to the ones provided in Zope, because they come
-from the same source repository.  They have been packaged for use in
-non-Zope stand-alone Python applications.
-
-The components you get with the ZODB release are as follows:
+The ZODB  package provides a  set of tools  for using the  Zope Object
+Database (ZODB).  The components you  get with the ZODB release are as
+follows:
 
 - Core ZODB, including the persistence machinery
 - Standard storages such as FileStorage
 - The persistent BTrees modules
 - ZEO
-- documentation
+- documentation (poor)
 
-Our primary development platforms are Linux and Windows 2000.  The
-test suite should pass without error on all of these platforms,
-although it can take a long time on Windows -- longer if you use
-ZoneAlarm.  Many particularly slow tests are skipped unless you pass
---all as an argument to test.py.
+Our primary development platforms are Linux, Mac OS X, and Windows
+XP.  The test suite should pass without error on all of these
+platforms, although it can take a long time on Windows -- longer if
+you use ZoneAlarm.  Many particularly slow tests are skipped unless
+you pass --all as an argument to test.py.
 
 Compatibility
 -------------
 
-ZODB 3.7 requires Python 2.4.2 or later.  The BTree code may be
-compiled with support for 64-bit keys and values for the "I" flavors;
-older versions of the BTrees package will not be able to load
-persistent BTrees that use 64-bit data (an exception will be raised on
-load).
-
-The Zope 2.10 release, and Zope 3.3 releases, should be compatible with this
-version of ZODB.  Note that Zope 2.7 and higher includes ZEO, so this package
-should only be needed to run a ZEO server.
+ZODB 3.8 requires Python 2.4.2 or later.
 
 ZEO servers and clients are wholly compatible among 3.3, 3.4, 3.5, 3.6 and
 3.7; a ZEO client from any of those versions can talk with a ZEO server from
-any.
-
-Trying to mix ZEO clients and servers from 3.3 or later from ZODB releases
-before 3.3 is much harder.   ZODB 3.3 introduced multiversion concurrency
-control (MVCC), and earlier ZEO servers do not support MVCC:  a 3.3+ ZEO
-client cannot talk with an older ZEO server as a result.
-
-In the other direction, a 3.3+ ZEO server can talk with older ZEO clients,
-but because the names of some basic classes have changed, if any 3.3+ clients
-commit modifications to the database it's likely that the database will
-contain instances of classes that don't exist in (can't be loaded by) older
-ZEO clients.  For example, the database root object was an instance of
-``ZODB.PersistentMapping.PersistentMapping`` before ZODB 3.3, but is an
-instance of ``persistent.mapping.PersistentMapping`` in ZODB 3.3.  A 3.3.1+
-client can still load a ``ZODB.PersistentMapping.PersistentMapping`` object,
-but this is just an alias for ``persistent.mapping.PersistentMapping``, and
-an object of the latter type will be stored if a 3.3 client commits a change
-to the root object.  An older ZEO client cannot load the root object so
-changed.
-
-This limits migration possibilities:  a 3.3+ ZEO server can be used with
-older (pre-3.3) ZEO clients and serve an older database, so long as no 3.3+
-ZEO clients commit changes to the database.  The most practical upgrade path
-is to bring up both servers and clients using 3.3+, not trying to mix pre-3.3
-and post-3.3 ZEO clients and servers.
+any.  ZODB 3.8 ZEO clients require ZODB 3.8 servers and later.  ZODB
+3.8 ZEO Servers will work with ZODB 3.2 clients and later.
 
 Prerequisites
 -------------
