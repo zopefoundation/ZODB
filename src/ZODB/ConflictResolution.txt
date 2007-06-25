@@ -171,7 +171,7 @@ Don't change it.  You make changes by returning the state.  This is
 effectively a class method.
 
 DANGERS: The changes you make to the instance will be discarded.  The
-instance is not initiated, so other methods that depend on instance
+instance is not initialized, so other methods that depend on instance
 attributes will not work.
 
 Here's an example of a broken _p_resolveConflict method.
