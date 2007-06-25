@@ -21,8 +21,22 @@ def _fmt_undo(oid, reason):
     s = reason and (": %s" % reason) or ""
     return "Undo error %s%s" % (oid_repr(oid), s)
 
+def _recon(class_, state):
+    err = class_.__new__(class_)
+    err.__setstate__(state)
+    return err
+_recon.__no_side_effects__ = True
+
 class POSError(StandardError):
     """Persistent object system error."""
+
+    def __reduce__(self):
+        # Cope extra data from internal structures
+        state = self.__dict__.copy()
+        state['message'] = self.message
+        state['args'] = self.args
+
+        return (_recon, (self.__class__, state))
 
 class POSKeyError(KeyError, POSError):
     """Key not found in database."""
