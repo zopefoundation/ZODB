@@ -1,6 +1,6 @@
 What's new in ZODB3 3.6.3?
 ==========================
-Release date: unreleased
+Release date: 03-Jul-2007
 
 
 
