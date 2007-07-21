@@ -106,11 +106,10 @@ class ConflictError(TransactionError):
             # avoid circular import chain
             from ZODB.utils import get_pickle_metadata
             self.class_name = "%s.%s" % get_pickle_metadata(data)
-##        else:
-##            if message != "data read conflict error":
-##                raise RuntimeError
 
         self.serials = serials
+
+        self.data = data
 
     def __str__(self):
         extras = []

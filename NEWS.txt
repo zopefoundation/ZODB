@@ -25,6 +25,8 @@ General
 - (3.8.0b3) Make it possible to examine oid and (in some situations) database
   name of persistent object references during conflict resolution.
 
+- (3.8.0b3) Added missing data attribute for conflict errors.
+
 ZEO
 ---
 
