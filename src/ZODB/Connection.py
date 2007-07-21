@@ -787,8 +787,8 @@ class Connection(ExportImport, object):
         return self._reader.getState(p)
 
     def setstate(self, obj):
-        """Turns the ghost 'obj' into a real object by loading it's from the
-        database."""
+        """Turns the ghost 'obj' into a real object by loading its state from
+        the database."""
         oid = obj._p_oid
 
         if self._opened is None:
@@ -822,7 +822,8 @@ class Connection(ExportImport, object):
         # 3. Raise ConflictError.
 
         # Does anything actually use _p_independent()?  It would simplify
-        # the code if we could drop support for it.
+        # the code if we could drop support for it.  
+        # (BTrees.Length does.)
 
         # There is a harmless data race with self._invalidated.  A
         # dict update could go on in another thread, but we don't care

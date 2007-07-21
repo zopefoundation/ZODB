@@ -106,11 +106,11 @@ oid
 
     'n'
         Multi-database simple object reference.  The arguments consist
-        of a databaase name, and an object id.
+        of a database name, and an object id.
 
     'm'
         Multi-database persistent object reference.  The arguments consist
-        of a databaase name, an object id, and class meta data.
+        of a database name, an object id, and class meta data.
 
 The following legacy format is also supported.
     
