@@ -17,6 +17,8 @@ from cStringIO import StringIO
 from cPickle import Unpickler, Pickler
 from pickle import PicklingError
 
+import zope.interface
+
 from ZODB.POSException import ConflictError
 from ZODB.loglevels import BLATHER
 
@@ -58,7 +60,87 @@ def state(self, oid, serial, prfactory, p=''):
     unpickler.load() # skip the class tuple
     return unpickler.load()
 
-class PersistentReference:
+class IPersistentReference(zope.interface.Interface):
+    '''public contract for references to persistent objects from an object
+    with conflicts.'''
+
+    oid = zope.interface.Attribute(
+        'The oid of the persistent object that this reference represents')
+
+    database_name = zope.interface.Attribute(
+        '''The name of the database of the reference, *if* different.
+
+        If not different, None.''')
+
+    klass = zope.interface.Attribute(
+        '''class meta data.  Presence is not reliable.''')
+
+    weak = zope.interface.Attribute(
+        '''bool: whether this reference is weak''')
+
+    def __cmp__(other):
+        '''if other is equivalent reference, return 0; else raise ValueError.
+        
+        Equivalent in this case means that oid and database_name are the same.
+
+        If either is a weak reference, we only support `is` equivalence, and
+        otherwise raise a ValueError even if the datbase_names and oids are
+        the same, rather than guess at the correct semantics.
+        
+        It is impossible to sort reliably, since the actual persistent
+        class may have its own comparison, and we have no idea what it is.
+        We assert that it is reasonably safe to assume that an object is
+        equivalent to itself, but that's as much as we can say.
+
+        We don't compare on 'is other', despite the
+        PersistentReferenceFactory.data cache, because it is possible to
+        have two references to the same object that are spelled with different
+        data (for instance, one with a class and one without).'''
+
+class PersistentReference(object):
+
+    zope.interface.implements(IPersistentReference)
+
+    weak = False
+    oid = database_name = klass = None
+
+    def __init__(self, data):
+        self.data = data
+        # see serialize.py, ObjectReader._persistent_load
+        if isinstance(data, tuple):
+            self.oid, self.klass = data
+        elif isinstance(data, str):
+            self.oid = data
+        else: # a list
+            reference_type = data[0]
+            # 'm' = multi_persistent: (database_name, oid, klass)
+            # 'n' = multi_oid: (database_name, oid)
+            # 'w' = persistent weakref: (oid)
+            # else it is a weakref: reference_type
+            if reference_type == 'm':
+                self.database_name, self.oid, self.klass = data[1]
+            elif reference_type == 'n':
+                self.database_name, self.oid = data[1]
+            elif reference_type == 'w':
+                self.oid, = data[1]
+                self.weak = True
+            else:
+                assert len(data) == 1, 'unknown reference format'
+                self.oid = data[0]
+                self.weak = True
+
+    def __cmp__(self, other):
+        if self is other or (
+            isinstance(other, PersistentReference) and 
+            self.oid == other.oid and
+            self.database_name == other.database_name and
+            not self.weak and
+            not other.weak):
+            return 0
+        else:
+            raise ValueError(
+                "can't reliably compare against different "
+                "PersistentReferences")
 
     def __repr__(self):
         return "PR(%s %s)" % (id(self), self.data)
@@ -70,15 +152,15 @@ class PersistentReferenceFactory:
 
     data = None
 
-    def persistent_load(self, oid):
+    def persistent_load(self, ref):
         if self.data is None:
             self.data = {}
-
-        r = self.data.get(oid, None)
+        key = tuple(ref) # lists are not hashable; formats are different enough
+        # even after eliminating list/tuple distinction
+        r = self.data.get(key, None)
         if r is None:
-            r = PersistentReference()
-            r.data = oid
-            self.data[oid] = r
+            r = PersistentReference(ref)
+            self.data[key] = r
 
         return r
 

@@ -14,6 +14,17 @@ General
   apply the garbage collections on those connections in the pool that are
   closed. (This fixed issue 113932.)
 
+- (3.8.0b3) Document conflict resolution (see ZODB/ConflictResolution.txt).
+
+- (3.8.0b3) Bugfix the situation in which comparing persistent objects (for
+  instance, as members in BTree set or keys of BTree) might cause data
+  inconsistency during conflict resolution.
+
+- (3.8.0b3) Support multidatabase references in conflict resolution.
+
+- (3.8.0b3) Make it possible to examine oid and (in some situations) database
+  name of persistent object references during conflict resolution.
+
 ZEO
 ---
 
