@@ -283,7 +283,8 @@ class SimpleObjectReference(ReferenceBase):
         self.oid = oid
 
     def serialize(self):
-        return oid
+        # XXX Untested
+        return self.oid
 
 
 class PersistentObjectReference(ReferenceBase):
