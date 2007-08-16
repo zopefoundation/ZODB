@@ -20,6 +20,8 @@ from cPickle import Pickler, Unpickler
 from tempfile import TemporaryFile
 import logging
 
+import zope.interface
+
 from ZODB.blob import Blob
 from ZODB.interfaces import IBlobStorage
 from ZODB.POSException import ExportError, POSKeyError
@@ -103,29 +105,70 @@ class ExportImport:
         Appends one item, the OID of the first object created,
         to return_oid_list.
         """
+
+        # A mapping from an oid in the import to a new oid in the storage.
         oids = {}
 
-        # IMPORTANT: This code should be consistent with the code in
-        # serialize.py. It is currently out of date and doesn't handle
-        # weak references.
+        def persistent_load(old_reference):
+            """Remap a persistent reference to a new oid and create a ghost for it.
 
-        def persistent_load(ooid):
-            """Remap a persistent id to a new ID and create a ghost for it."""
+            The remap has to take care for the various cases of persistent references
+            as described in serialize.py.
 
-            klass = None
-            if isinstance(ooid, tuple):
-                ooid, klass = ooid
+            """
+            # IMPORTANT: This code should be consistent with the code in
+            # serialize.py.
 
-            if ooid in oids:
-                oid = oids[ooid]
-            else:
-                if klass is None:
-                    oid = self._storage.new_oid()
+            # Notice: The mapping `oids` is held in the parent namespace of this
+            # function to make the signature of this function compatible with
+            # the unpickler.
+            if isinstance(old_reference, str):
+                # Case 1: A simple object reference
+                # Format: oid
+                reference = SimpleObjectReference(old_reference)
+
+            elif isinstance(old_reference, tuple) and len(old_reference) == 2:
+                # Case 2: A persistent object reference
+                # Format: (oid, class meta data)
+                reference = PersistentObjectReference(*old_reference)
+
+            elif isinstance(old_reference, list) and len(old_reference) > 1:
+                # Case 3: An extended reference
+                # Format: [reference_type, args]
+                extension_type, args = old_reference
+
+                if extension_type == 'w':
+                    # Case 3a: A weak reference
+                    # Format: ['w', oid]
+                    reference = PersistentWeakReference(args[0])
+
+                elif extension_type == 'n':
+                    # Case 3b: a multi-database simple object reference ['n', db_name,
+                    # oid] (XXX, currently unsupported)
+                    raise TypeError('Importing simple multi-database object '
+                                    'references is not supported.')
+                elif extension_type == 'm':
+                    # Case 3c: a multi-database persistent object reference ['m',
+                    # dbname, oid, metadata] (XXX, currently unsupported)
+                    raise TypeError('Importing persistent multi-database object '
+                                    'references is not supported.')
+
                 else:
-                    oid = self._storage.new_oid(), klass
-                oids[ooid] = oid
+                    raise TypeError('Unknown extended reference type: %r' % extension_type)
 
-            return Ghost(oid)
+            elif isinstance(old_reference, list) and isinstance(str, old_reference):
+                # Case 4: A supported legacy format of a weak reference:
+                # [oid]
+                reference = PersistentWeakReference(old_reference[0])
+
+            else:
+                raise Exception('Invalid persistent reference format: %r' % old_reference)
+
+            # Ask the reference to remap any oids from the old storage.
+            reference.map(self._storage, oids)
+            # Create a reference representation again and return the
+            # corresponding ghost.
+            return Ghost(reference.serialize())
 
         version = self._version
 
@@ -146,8 +189,6 @@ class ExportImport:
 
             if oids:
                 oid = oids[ooid]
-                if isinstance(oid, tuple):
-                    oid = oid[0]
             else:
                 oids[ooid] = oid = self._storage.new_oid()
                 return_oid_list.append(oid)
@@ -196,3 +237,79 @@ class Ghost(object):
 def persistent_id(obj):
     if isinstance(obj, Ghost):
         return obj.oid
+
+
+class IPersistentReference(zope.interface.Interface):
+
+    oid = zope.interface.Attribute("The oid that is referenced")
+
+    def serialize():
+        """Returns a serialized version of the reference, compatible with the
+        structures from serialize.py"""
+
+
+class ReferenceBase(object):
+    """Semi-abstract base class for references."""
+
+    zope.interface.implements(IPersistentReference)
+
+    # A helper to avoid accidental double mapping.
+    mapped = False
+
+    def map(self, storage, oids):
+        """Actually map the oid and store the mapping for future use.
+
+        If the oid was already mapped before, the re-use the mapped oid.
+
+        """
+        assert not self.mapped, "Trying to map reference multiple times."
+
+        if self.oid not in oids:
+            # The oid wasn't mapped yet, so map it.
+            oids[self.oid] = storage.new_oid()
+
+        self.oid = oids[self.oid]
+        self.mapped = True
+
+
+class SimpleObjectReference(ReferenceBase):
+    """A simple object reference.
+
+    Serialization format: oid
+
+    """
+
+    def __init__(self, oid):
+        self.oid = oid
+
+    def serialize(self):
+        return oid
+
+
+class PersistentObjectReference(ReferenceBase):
+    """A persistent object reference.
+
+    Serialization format: (oid, class meta data)
+
+    """
+
+    def __init__(self, oid, metadata):
+        self.oid = oid
+        self.metadata = metadata
+
+    def serialize(self):
+        return (self.oid, self.metadata)
+
+
+class PersistentWeakReference(ReferenceBase):
+    """A persistent weak reference
+
+    Serialization format (extended): ['w', (oid,)]
+
+    """
+
+    def __init__(self, oid):
+        self.oid = oid
+
+    def serialize(self):
+        return ['w', (self.oid,)]

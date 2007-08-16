@@ -15,6 +15,9 @@ General
 - (3.9.0a1) Make it possible to examine oid and (in some situations) database
   name of persistent object references during conflict resolution.
 
+- (3.9.0b1) Restructured the ZEXP import code and added support for importing
+  weak references.
+
 ZEO
 ---
 

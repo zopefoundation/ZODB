@@ -21,7 +21,7 @@ from ZODB.POSException import ReadConflictError, ConflictError
 from ZODB.POSException import TransactionFailedError
 from ZODB.tests.warnhook import WarningsHook
 
-from persistent import Persistent
+from persistent import Persistent, wref
 from persistent.mapping import PersistentMapping
 import transaction
 
@@ -77,6 +77,36 @@ class ZODBTests(unittest.TestCase):
             self.verify(conn, abort_it)
         finally:
             conn.close()
+
+    def checkExportImport_weakref(self):
+        conn = self._db.open()
+        root = conn.root()
+        # Fill the database
+        transaction.begin()
+
+        # Set up an isolated area with a target and a weakref.
+        parent = root['parent'] = PersistentMapping()
+        parent['target'] = PersistentMapping()
+        parent['weakref'] = wref.WeakRef(parent['target'])
+        transaction.commit()
+
+        # Export that area.
+        transaction.begin()
+        import tempfile
+        f = tempfile.TemporaryFile()
+        parent._p_jar.exportFile(parent._p_oid, f)
+
+        # Import it again
+        f.seek(0)
+        root['parent2'] = root._p_jar.importFile(f)
+        transaction.commit()
+
+        # Verify that the weakref points to the parent form the import, not
+        # the original target.
+        #  same target
+        self.failUnless(root['parent2']['weakref']() is
+                        root['parent2']['target'])
+
 
     def duplicate(self, conn, abort_it):
         transaction.begin()
