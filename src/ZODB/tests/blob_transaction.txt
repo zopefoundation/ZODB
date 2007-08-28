@@ -37,7 +37,7 @@ Putting a Blob into a Connection works like any other Persistent object::
     >>> root1['blob1'] = blob1
     >>> 'blob1' in root1
     True
-   
+
 Aborting a blob add leaves the blob unchanged:
 
     >>> transaction.abort()
@@ -310,6 +310,36 @@ You can't open a committed blob file for writing:
     ...
     IOError: ...
 
+tpc_abort with dirty data
+-------------------------
+
+When `tpc_abort` is called during the first commit phase we need to be able to
+clean up dirty files:
+
+    >>> class DummyBaseStorage(object):
+    ...     def tpc_abort(self):
+    ...         pass
+    >>> base_storage = DummyBaseStorage()
+    >>> blob_dir2 = mkdtemp()
+    >>> blob_storage = BlobStorage(blob_dir2, base_storage)
+    >>> committed_blob_dir = os.path.join(blob_dir2, '0')
+    >>> committed_blob_file = os.path.join(committed_blob_dir, '0.blob')
+    >>> os.mkdir(committed_blob_dir)
+    >>> open(os.path.join(committed_blob_file), 'w').write('foo')
+    >>> os.path.exists(committed_blob_file)
+    True
+
+Now, telling the storage that Blob 0 and Blob 1 (both with serial 0) are dirty
+will: remove the committed file for Blob 0 and ignore the fact that Blob 1 is
+set to dirty but doesn't actually have an existing file:
+
+    >>> blob_storage.dirty_oids = [(0, 0), (1, 0)]
+    >>> blob_storage.tpc_abort()
+    >>> os.path.exists(committed_blob_file)
+    False
+
+
+Note: This is a counter measure against regression of bug #126007.
 
 Teardown
 --------
@@ -319,3 +349,6 @@ We don't need the storage directory and databases anymore::
     >>> tm1.abort()
     >>> tm2.abort()
     >>> database.close()
+    >>> import shutil
+    >>> shutil.rmtree(blob_dir)
+    >>> shutil.rmtree(blob_dir2)

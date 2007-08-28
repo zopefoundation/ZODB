@@ -447,7 +447,7 @@ class BlobStorage(SpecificationDecoratorBase):
         while self.dirty_oids:
             oid, serial = self.dirty_oids.pop()
             clean = self.fshelper.getBlobFilename(oid, serial)
-            if os.exists(clean):
+            if os.path.exists(clean):
                 remove_committed(clean) 
 
     @non_overridable
