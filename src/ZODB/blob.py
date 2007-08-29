@@ -544,11 +544,13 @@ class BlobStorage(SpecificationDecoratorBase):
     def getSize(self):
         """Return the size of the database in bytes."""
         orig_size = getProxiedObject(self).getSize()
-
         blob_size = 0
         base_dir = self.fshelper.base_dir
         for oid in os.listdir(base_dir):
-            for serial in os.listdir(os.path.join(base_dir, oid)):
+            sub_dir = os.path.join(base_dir, oid)
+            if not os.path.isdir(sub_dir):
+                continue
+            for serial in os.listdir(sub_dir):
                 if not serial.endswith(BLOB_SUFFIX):
                     continue
                 file_path = os.path.join(base_dir, oid, serial)

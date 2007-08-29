@@ -321,7 +321,7 @@ clean up dirty files:
     ...         pass
     >>> base_storage = DummyBaseStorage()
     >>> blob_dir2 = mkdtemp()
-    >>> blob_storage = BlobStorage(blob_dir2, base_storage)
+    >>> blob_storage2 = BlobStorage(blob_dir2, base_storage)
     >>> committed_blob_dir = os.path.join(blob_dir2, '0')
     >>> committed_blob_file = os.path.join(committed_blob_dir, '0.blob')
     >>> os.mkdir(committed_blob_dir)
@@ -333,13 +333,28 @@ Now, telling the storage that Blob 0 and Blob 1 (both with serial 0) are dirty
 will: remove the committed file for Blob 0 and ignore the fact that Blob 1 is
 set to dirty but doesn't actually have an existing file:
 
-    >>> blob_storage.dirty_oids = [(0, 0), (1, 0)]
-    >>> blob_storage.tpc_abort()
+    >>> blob_storage2.dirty_oids = [(0, 0), (1, 0)]
+    >>> blob_storage2.tpc_abort()
     >>> os.path.exists(committed_blob_file)
     False
 
 
 Note: This is a counter measure against regression of bug #126007.
+
+getSize with garbage in the directory structure
+-----------------------------------------------
+
+`getSize` iterates over the existing blob files in the blob directory and adds
+up their size. The blob directory sometimes contains temporary files that the
+getSize function needs to ignore:
+
+    >>> garbage_file = os.path.join(blob_dir, 'garbage')
+    >>> open(garbage_file, 'w').write('garbage')
+    >>> int(blob_storage.getSize())
+    881
+
+
+Note: This is a counter measer against regression of bug #12991.
 
 Teardown
 --------

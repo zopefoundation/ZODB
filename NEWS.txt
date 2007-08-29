@@ -31,6 +31,9 @@ Blobs
 - (3.9.0a1) Fixed bug #126007: tpc_abort had untested code path that was
   broken.
 
+- (3.9.0a1) Fixed bug #129921: getSize() function in BlobStorage could not
+  deal with garbage files
+
 BTrees
 ------
 
