@@ -480,6 +480,8 @@ class Transaction(object):
                 self.log.error("Failed to abort resource manager: %s",
                                rm, exc_info=sys.exc_info())
 
+        self._callAfterCommitHooks(status=False)
+
         if self._manager:
             self._manager.free(self)
 

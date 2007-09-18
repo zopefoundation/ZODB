@@ -763,13 +763,14 @@ def test_addAfterCommitHook():
       ["True arg 'A' kw1 'B' kw2 'no_kw2'"]
       >>> reset_log()
 
-    If a transaction is aborted, no hook is called.
+    If a transaction is aborted, the hook is called with False:
 
       >>> t = transaction.begin()
       >>> t.addAfterCommitHook(hook, ["OOPS!"])
       >>> transaction.abort()
       >>> log
-      []
+      ["False arg 'OOPS!' kw1 'no_kw1' kw2 'no_kw2'"]
+      >>> reset_log()
       >>> transaction.commit()
       >>> log
       []
