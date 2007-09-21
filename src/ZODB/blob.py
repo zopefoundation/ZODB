@@ -60,13 +60,19 @@ class Blob(persistent.Persistent):
     _p_blob_committed = None    # Filename of the committed data
 
     readers = writers = None
+
+    def __init__(self):
+        # Raise exception if Blobs are getting subclassed
+        # refer to ZODB-Bug No.127182 by Jim Fulton on 2007-07-20
+        if (self.__class__ is not Blob):
+            raise TypeError('Blobs do not support subclassing.')
+        self.__setstate__()
+
     def __setstate__(self, state=None):
-        # We use lists here because it will allow is to add and remove
+        # we use lists here because it will allow us to add and remove
         # atomically
         self.readers = []
         self.writers = []
-
-    __init__ = __setstate__
 
     def __getstate__(self):
         return None
