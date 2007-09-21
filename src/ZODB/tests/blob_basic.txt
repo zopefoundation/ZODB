@@ -160,3 +160,16 @@ Some cleanup in this test is needed::
 
     >>> import transaction
     >>> transaction.get().abort()
+
+Subclassing Blobs
+-----------------
+
+Blobs are not subclassable::
+
+    >>> class SubBlob(Blob):
+    ...     pass
+    >>> my_sub_blob = SubBlob()
+    Traceback (most recent call last):
+        ...
+    TypeError: Blobs do not support subclassing.
+
