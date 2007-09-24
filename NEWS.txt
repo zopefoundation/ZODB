@@ -30,6 +30,10 @@ General
 ZEO
 ---
 
+- (3.8.0b4) Fixed a serious bug that could cause client I/O to stop
+  (hang). This was accomonied by a critical log message along the
+  lines of: "RuntimeError: dictionary changed size during iteration".
+
 - (3.8a1) ZEO's strategoes for avoiding client cache verification were
   improved in the case that servers are restarted.  Before, if
   transactions were committed after the restart, clients that were up
