@@ -53,8 +53,12 @@ def client_loop():
     
     while map:
         try:
-            r = e = list(client_map)
-            w = [fd for (fd, obj) in map.iteritems() if obj.writable()]
+            
+            # The next two lines intentionally don't use
+            # iterators. Other threads can close dispatchers, causeing
+            # the socket map to shrink.
+            r = e = client_map.keys()
+            w = [fd for (fd, obj) in map.items() if obj.writable()]
 
             try:
                 r, w, e = select.select(r, w, e, client_timeout)

@@ -18,7 +18,9 @@ General
 ZEO
 ---
 
-- 
+- (3.9.0a1) Fixed a serious bug that could cause client I/O to stop
+  (hang). This was accomonied by a critical log message along the
+  lines of: "RuntimeError: dictionary changed size during iteration".
 
 Transactions
 ------------
