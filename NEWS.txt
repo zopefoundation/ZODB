@@ -19,7 +19,7 @@ Packaging
 ClientStorage
 -------------
 
-- (3.7.1) Fixed a serious bug that could cause client I/O to stop
+- (3.7.2) Fixed a serious bug that could cause client I/O to stop
   (hang). This was accomonied by a critical log message along the
   lines of: "RuntimeError: dictionary changed size during iteration".
 
