@@ -1,5 +1,5 @@
-What's new on ZODB 3.7.0c1?
-===========================
+What's new on ZODB 3.7.1?
+=========================
 
 Packaging
 ---------
@@ -18,6 +18,10 @@ Packaging
 
 ClientStorage
 -------------
+
+- (3.7.1) Fixed a serious bug that could cause client I/O to stop
+  (hang). This was accomonied by a critical log message along the
+  lines of: "RuntimeError: dictionary changed size during iteration".
 
 - (3.7b4) Added logic to avoid spurious errors from the logging system
   on exit.
