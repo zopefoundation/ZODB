@@ -80,6 +80,7 @@ else:
             ],
         zip_safe = False,
         entry_points = entry_points,
+        include_package_data = True,
         )
     scripts = []
 
