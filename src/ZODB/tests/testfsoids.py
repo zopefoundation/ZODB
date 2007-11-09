@@ -94,12 +94,12 @@ oid 0x00 persistent.mapping.PersistentMapping 2 revisions
         tid user=''
         tid description='added an OOBTree'
         new revision persistent.mapping.PersistentMapping at 207
-        references 0x01 BTrees._OOBTree.OOBTree at 207
-oid 0x01 BTrees._OOBTree.OOBTree 1 revision
+        references 0x01 BTrees.OOBTree.OOBTree at 207
+oid 0x01 BTrees.OOBTree.OOBTree 1 revision
     tid 0x... offset=168 ...
         tid user=''
         tid description='added an OOBTree'
-        new revision BTrees._OOBTree.OOBTree at 363
+        new revision BTrees.OOBTree.OOBTree at 362
         referenced by 0x00 persistent.mapping.PersistentMapping at 207
 
 So there are two revisions of oid 0 now, and the second references oid 1.
@@ -122,22 +122,22 @@ oid 0x00 persistent.mapping.PersistentMapping 2 revisions
         tid user=''
         tid description='added an OOBTree'
         new revision persistent.mapping.PersistentMapping at 207
-        references 0x01 BTrees._OOBTree.OOBTree at 207
-    tid 0x... offset=443 ...
+        references 0x01 BTrees.OOBTree.OOBTree at 207
+    tid 0x... offset=441 ...
         tid user=''
         tid description='circling back to the root'
-        referenced by 0x01 BTrees._OOBTree.OOBTree at 491
-oid 0x01 BTrees._OOBTree.OOBTree 2 revisions
+        referenced by 0x01 BTrees.OOBTree.OOBTree at 489
+oid 0x01 BTrees.OOBTree.OOBTree 2 revisions
     tid 0x... offset=168 ...
         tid user=''
         tid description='added an OOBTree'
-        new revision BTrees._OOBTree.OOBTree at 363
+        new revision BTrees.OOBTree.OOBTree at 362
         referenced by 0x00 persistent.mapping.PersistentMapping at 207
-    tid 0x... offset=443 ...
+    tid 0x... offset=441 ...
         tid user=''
         tid description='circling back to the root'
-        new revision BTrees._OOBTree.OOBTree at 491
-        references 0x00 persistent.mapping.PersistentMapping at 491
+        new revision BTrees.OOBTree.OOBTree at 489
+        references 0x00 persistent.mapping.PersistentMapping at 489
 oid 0x02 <unknown> 0 revisions
     this oid was not defined (no data record for it found)
 

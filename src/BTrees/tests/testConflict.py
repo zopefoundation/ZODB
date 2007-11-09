@@ -13,12 +13,17 @@
 ##############################################################################
 import os
 from unittest import TestCase, TestSuite, makeSuite
+from types import ClassType
 
 from BTrees.OOBTree import OOBTree, OOBucket, OOSet, OOTreeSet
 from BTrees.IOBTree import IOBTree, IOBucket, IOSet, IOTreeSet
 from BTrees.IIBTree import IIBTree, IIBucket, IISet, IITreeSet
 from BTrees.IFBTree import IFBTree, IFBucket, IFSet, IFTreeSet
 from BTrees.OIBTree import OIBTree, OIBucket, OISet, OITreeSet
+from BTrees.LOBTree import LOBTree, LOBucket, LOSet, LOTreeSet
+from BTrees.LLBTree import LLBTree, LLBucket, LLSet, LLTreeSet
+from BTrees.LFBTree import LFBTree, LFBucket, LFSet, LFTreeSet
+from BTrees.OLBTree import OLBTree, OLBucket, OLSet, OLTreeSet
 
 import transaction
 from ZODB.POSException import ConflictError
@@ -27,6 +32,9 @@ class Base:
     """ Tests common to all types: sets, buckets, and BTrees """
 
     storage = None
+
+    def setUp(self):
+        self.t = self.t_type()
 
     def tearDown(self):
         transaction.abort()
@@ -322,98 +330,6 @@ def test_merge(o1, o2, o3, expect, message='failed to merge', should_fail=0):
         merged = o1._p_resolveConflict(s1, s2, s3)
         assert merged == expected, message
 
-class BucketTests(MappingBase):
-    """ Tests common to all buckets """
-
-class BTreeTests(MappingBase):
-    """ Tests common to all BTrees """
-
-## BTree tests
-
-class TestIOBTrees(BTreeTests, TestCase):
-    def setUp(self):
-        self.t = IOBTree()
-
-class TestOOBTrees(BTreeTests, TestCase):
-    def setUp(self):
-        self.t = OOBTree()
-
-class TestOIBTrees(BTreeTests, TestCase):
-    def setUp(self):
-        self.t = OIBTree()
-
-class TestIIBTrees(BTreeTests, TestCase):
-    def setUp(self):
-        self.t = IIBTree()
-
-class TestIFBTrees(BTreeTests, TestCase):
-    def setUp(self):
-        self.t = IFBTree()
-
-## Set tests
-
-class TestIOSets(SetTests, TestCase):
-    def setUp(self):
-        self.t = IOSet()
-
-class TestOOSets(SetTests, TestCase):
-    def setUp(self):
-        self.t = OOSet()
-
-class TestIISets(SetTests, TestCase):
-    def setUp(self):
-        self.t = IISet()
-
-class TestIFSets(SetTests, TestCase):
-    def setUp(self):
-        self.t = IFSet()
-
-class TestOISets(SetTests, TestCase):
-    def setUp(self):
-        self.t = OISet()
-
-class TestIOTreeSets(SetTests, TestCase):
-    def setUp(self):
-        self.t = IOTreeSet()
-
-class TestOOTreeSets(SetTests, TestCase):
-    def setUp(self):
-        self.t = OOTreeSet()
-
-class TestIITreeSets(SetTests, TestCase):
-    def setUp(self):
-        self.t = IITreeSet()
-
-class TestIFTreeSets(SetTests, TestCase):
-    def setUp(self):
-        self.t = IFTreeSet()
-
-class TestOITreeSets(SetTests, TestCase):
-    def setUp(self):
-        self.t = OITreeSet()
-
-## Bucket tests
-
-class TestIOBuckets(BucketTests, TestCase):
-    def setUp(self):
-        self.t = IOBucket()
-
-class TestOOBuckets(BucketTests, TestCase):
-    def setUp(self):
-        self.t = OOBucket()
-
-class TestIIBuckets(BucketTests, TestCase):
-    def setUp(self):
-        self.t = IIBucket()
-
-class TestIFBuckets(BucketTests, TestCase):
-    def setUp(self):
-        self.t = IFBucket()
-
-class TestOIBuckets(BucketTests, TestCase):
-    def setUp(self):
-        self.t = OIBucket()
-
 class NastyConfict(Base, TestCase):
     def setUp(self):
         self.t = OOBTree()
@@ -483,11 +399,13 @@ class NastyConfict(Base, TestCase):
         # Invoke conflict resolution by committing a transaction.
         self.openDB()
 
-        r1 = self.db.open().root()
+        tm1 = transaction.TransactionManager()
+        r1 = self.db.open(transaction_manager=tm1).root()
         r1["t"] = self.t
-        transaction.commit()
+        tm1.commit()
 
-        r2 = self.db.open(synch=False).root()
+        tm2 = transaction.TransactionManager()
+        r2 = self.db.open(transaction_manager=tm2).root()
         copy = r2["t"]
         # Make sure all of copy is loaded.
         list(copy.values())
@@ -517,7 +435,7 @@ class NastyConfict(Base, TestCase):
         self.assertEqual(state[0][3], 75)
         self.assertEqual(state[0][5], 120)
 
-        transaction.commit()
+        tm1.commit()
 
         # In the other transaction, add 3 values near the tail end of bucket1.
         # This doesn't cause a split.
@@ -535,8 +453,7 @@ class NastyConfict(Base, TestCase):
         self.assertEqual(state[0][1], 60)
         self.assertEqual(state[0][3], 120)
 
-        self.assertRaises(ConflictError, transaction.commit)
-        transaction.abort()   # horrible things happen w/o this
+        self.assertRaises(ConflictError, tm2.commit)
 
     def testEmptyBucketConflict(self):
         # Tests that an emptied bucket *created by* conflict resolution is
@@ -560,11 +477,13 @@ class NastyConfict(Base, TestCase):
         # Invoke conflict resolution by committing a transaction.
         self.openDB()
 
-        r1 = self.db.open().root()
+        tm1 = transaction.TransactionManager()
+        r1 = self.db.open(transaction_manager=tm1).root()
         r1["t"] = self.t
-        transaction.commit()
+        tm1.commit()
 
-        r2 = self.db.open(synch=False).root()
+        tm2 = transaction.TransactionManager()
+        r2 = self.db.open(transaction_manager=tm2).root()
         copy = r2["t"]
         # Make sure all of copy is loaded.
         list(copy.values())
@@ -586,7 +505,7 @@ class NastyConfict(Base, TestCase):
         self.assertEqual(state[0][1], 60)
         self.assertEqual(state[0][3], 120)
 
-        transaction.commit()
+        tm1.commit()
 
         # In the other transaction, delete the other half of bucket 1.
         b = copy
@@ -607,8 +526,7 @@ class NastyConfict(Base, TestCase):
         # create an "insane" BTree (a legit BTree cannot contain an empty
         # bucket -- it contains NULL pointers the BTree code doesn't
         # expect, and segfaults result).
-        self.assertRaises(ConflictError, transaction.commit)
-        transaction.abort()   # horrible things happen w/o this
+        self.assertRaises(ConflictError, tm2.commit)
 
 
     def testEmptyBucketNoConflict(self):
@@ -683,12 +601,14 @@ class NastyConfict(Base, TestCase):
     def testThreeEmptyBucketsNoSegfault(self):
         self.openDB()
 
-        r1 = self.db.open().root()
+        tm1 = transaction.TransactionManager()
+        r1 = self.db.open(transaction_manager=tm1).root()
         self.assertEqual(len(self.t), 0)
         r1["t"] = b = self.t  # an empty tree
-        transaction.commit()
+        tm1.commit()
 
-        r2 = self.db.open(synch=False).root()
+        tm2 = transaction.TransactionManager()
+        r2 = self.db.open(transaction_manager=tm2).root()
         copy = r2["t"]
         # Make sure all of copy is loaded.
         list(copy.values())
@@ -696,15 +616,14 @@ class NastyConfict(Base, TestCase):
         # In one transaction, add and delete a key.
         b[2] = 2
         del b[2]
-        transaction.commit()
+        tm1.commit()
 
         # In the other transaction, also add and delete a key.
         b = copy
         b[1] = 1
         del b[1]
         # If the commit() segfaults, the C code is still wrong for this case.
-        self.assertRaises(ConflictError, transaction.commit)
-        transaction.abort()
+        self.assertRaises(ConflictError, tm2.commit)
 
     def testCantResolveBTreeConflict(self):
         # Test that a conflict involving two different changes to
@@ -730,11 +649,13 @@ class NastyConfict(Base, TestCase):
 
         # Set up database connections to provoke conflict.
         self.openDB()
-        r1 = self.db.open().root()
+        tm1 = transaction.TransactionManager()
+        r1 = self.db.open(transaction_manager=tm1).root()
         r1["t"] = self.t
-        transaction.commit()
+        tm1.commit()
 
-        r2 = self.db.open(synch=False).root()
+        tm2 = transaction.TransactionManager()
+        r2 = self.db.open(transaction_manager=tm2).root()
         copy = r2["t"]
         # Make sure all of copy is loaded.
         list(copy.values())
@@ -746,16 +667,15 @@ class NastyConfict(Base, TestCase):
 
         for k in range(200, 300, 4):
             self.t[k] = k
-        transaction.commit()
+        tm1.commit()
 
         for k in range(0, 60, 4):
             del copy[k]
 
         try:
-            transaction.commit()
+            tm2.commit()
         except ConflictError, detail:
             self.assert_(str(detail).startswith('database conflict error'))
-            transaction.abort()
         else:
             self.fail("expected ConflictError")
 
@@ -784,11 +704,13 @@ class NastyConfict(Base, TestCase):
 
         # Set up database connections to provoke conflict.
         self.openDB()
-        r1 = self.db.open().root()
+        tm1 = transaction.TransactionManager()
+        r1 = self.db.open(transaction_manager=tm1).root()
         r1["t"] = self.t
-        transaction.commit()
+        tm1.commit()
 
-        r2 = self.db.open(synch=False).root()
+        tm2 = transaction.TransactionManager()
+        r2 = self.db.open(transaction_manager=tm2).root()
         copy = r2["t"]
         # Make sure all of copy is loaded.
         list(copy.values())
@@ -800,15 +722,14 @@ class NastyConfict(Base, TestCase):
 
         for k in range(0, 60, 4):
             del self.t[k]
-        transaction.commit()
+        tm1.commit()
 
         copy[1] = 1
 
         try:
-            transaction.commit()
+            tm2.commit()
         except ConflictError, detail:
             self.assert_(str(detail).startswith('database conflict error'))
-            transaction.abort()
         else:
             self.fail("expected ConflictError")
 
@@ -817,11 +738,13 @@ class NastyConfict(Base, TestCase):
         for i in range(0, 200, 4):
             b[i] = i
 
-        r1 = self.db.open().root()
+        tm1 = transaction.TransactionManager()
+        r1 = self.db.open(transaction_manager=tm1).root()
         r1["t"] = b
-        transaction.commit()
+        tm1.commit()
 
-        r2 = self.db.open(synch=False).root()
+        tm2 = transaction.TransactionManager()
+        r2 = self.db.open(transaction_manager=tm2).root()
         copy = r2["t"]
         # Make sure all of copy is loaded.
         list(copy.values())
@@ -831,27 +754,33 @@ class NastyConfict(Base, TestCase):
         # Now one transaction empties the first bucket, and another adds a
         # key to the first bucket.
         b[1] = 1
-        transaction.commit()
+        tm1.commit()
 
         for k in range(0, 60, 4):
             del copy[k]
         try:
-            transaction.commit()
+            tm2.commit()
         except ConflictError, detail:
             self.assert_(str(detail).startswith('database conflict error'))
-            transaction.abort()
         else:
             self.fail("expected ConflictError")
 
 
 def test_suite():
     suite = TestSuite()
-    for k in (
-        TestIIBTrees, TestIISets, TestIITreeSets, TestIIBuckets,
-        TestIFBTrees, TestIFSets, TestIFTreeSets, TestIFBuckets,
-        TestIOBTrees, TestIOSets, TestIOTreeSets, TestIOBuckets,
-        TestOOBTrees, TestOOSets, TestOOTreeSets, TestOOBuckets,
-        TestOIBTrees, TestOISets, TestOITreeSets, TestOIBuckets,
-        NastyConfict):
-        suite.addTest(makeSuite(k))
+
+    for kv in ('OO',
+               'II', 'IO', 'OI', 'IF',
+               'LL', 'LO', 'OL', 'LF',
+               ):
+        for name, bases in (('BTree', (MappingBase, TestCase)),
+                            ('Bucket', (MappingBase, TestCase)),
+                            ('TreeSet', (SetTests, TestCase)),
+                            ('Set', (SetTests, TestCase)),
+                            ):
+            klass = ClassType(kv + name + 'Test', bases,
+                              dict(t_type=globals()[kv+name]))
+            suite.addTest(makeSuite(klass))
+    
+    suite.addTest(makeSuite(NastyConfict))
     return suite

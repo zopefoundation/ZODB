@@ -87,11 +87,6 @@ class IteratorStorage(IteratorCompare):
                 pass
 
     def checkUndoZombieNonVersion(self):
-        if not hasattr(self._storage, 'supportsTransactionalUndo'):
-            return
-        if not self._storage.supportsTransactionalUndo():
-            return
-
         oid = self._storage.new_oid()
         revid = self._dostore(oid, data=MinPO(94))
         # Get the undo information
@@ -149,10 +144,10 @@ class IteratorStorage(IteratorCompare):
         finally:
             self._storage.tpc_finish(t)
 
-    def checkLoadEx(self):
+    def checkLoad_was_checkLoadEx(self):
         oid = self._storage.new_oid()
         self._dostore(oid, data=42)
-        data, tid, ver = self._storage.loadEx(oid, "")
+        data, tid = self._storage.load(oid, "")
         self.assertEqual(zodb_unpickle(data), MinPO(42))
         match = False
         for txn in self._storage.iterator():
@@ -162,6 +157,7 @@ class IteratorStorage(IteratorCompare):
                     match = True
         if not match:
             self.fail("Could not find transaction with matching id")
+ 
 
 
 class ExtendedIteratorStorage(IteratorCompare):

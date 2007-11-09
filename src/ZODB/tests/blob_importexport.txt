@@ -1,0 +1,102 @@
+##############################################################################
+#
+# Copyright (c) 2005 Zope Corporation and Contributors.
+# All Rights Reserved.
+#
+# This software is subject to the provisions of the Zope Public License,
+# Version 2.1 (ZPL).  A copy of the ZPL should accompany this distribution.
+# THIS SOFTWARE IS PROVIDED "AS IS" AND ANY AND ALL EXPRESS OR IMPLIED
+# WARRANTIES ARE DISCLAIMED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+# WARRANTIES OF TITLE, MERCHANTABILITY, AGAINST INFRINGEMENT, AND FITNESS
+# FOR A PARTICULAR PURPOSE.
+#
+##############################################################################
+
+Import/export support for blob data
+===================================
+
+Set up:
+
+    >>> from ZODB.FileStorage import FileStorage
+    >>> from ZODB.blob import Blob, BlobStorage
+    >>> from ZODB.DB import DB
+    >>> from persistent.mapping import PersistentMapping
+    >>> import shutil
+    >>> import transaction
+    >>> from tempfile import mkdtemp, mktemp
+    >>> storagefile1 = mktemp()
+    >>> blob_dir1 = mkdtemp()
+    >>> storagefile2 = mktemp()
+    >>> blob_dir2 = mkdtemp()
+
+We need an database with an undoing blob supporting storage:
+
+    >>> base_storage1 = FileStorage(storagefile1)
+    >>> blob_storage1 = BlobStorage(blob_dir1, base_storage1)
+    >>> base_storage2 = FileStorage(storagefile2)
+    >>> blob_storage2 = BlobStorage(blob_dir2, base_storage2)
+    >>> database1 = DB(blob_storage1)
+    >>> database2 = DB(blob_storage2)
+
+Create our root object for database1:
+
+    >>> connection1 = database1.open()
+    >>> root1 = connection1.root()
+
+Put a couple blob objects in our database1 and on the filesystem:
+
+    >>> import time, os
+    >>> nothing = transaction.begin()
+    >>> tid = blob_storage1._tid
+    >>> data1 = 'x'*100000
+    >>> blob1 = Blob()
+    >>> blob1.open('w').write(data1)
+    >>> data2 = 'y'*100000
+    >>> blob2 = Blob()
+    >>> blob2.open('w').write(data2)
+    >>> d = PersistentMapping({'blob1':blob1, 'blob2':blob2})
+    >>> root1['blobdata'] = d
+    >>> transaction.commit()
+
+Export our blobs from a database1 connection:
+
+    >>> conn = root1['blobdata']._p_jar
+    >>> oid = root1['blobdata']._p_oid
+    >>> exportfile = mktemp()
+    >>> nothing = connection1.exportFile(oid, exportfile)
+
+Import our exported data into database2:
+
+    >>> connection2 = database2.open()
+    >>> root2 = connection2.root()
+    >>> nothing = transaction.begin()
+    >>> data = root2._p_jar.importFile(exportfile)
+    >>> root2['blobdata'] = data
+    >>> transaction.commit()
+
+Make sure our data exists:
+
+    >>> items1 = root1['blobdata']
+    >>> items2 = root2['blobdata']
+    >>> bool(items1.keys() == items2.keys())
+    True
+    >>> items1['blob1'].open().read() == items2['blob1'].open().read()
+    True
+    >>> items1['blob2'].open().read() == items2['blob2'].open().read()
+    True
+    >>> transaction.get().abort()
+
+Clean up our blob directory:
+
+    >>> base_storage1.close()
+    >>> base_storage2.close()
+    >>> import ZODB.blob
+    >>> ZODB.blob.remove_committed_dir(blob_dir1)
+    >>> ZODB.blob.remove_committed_dir(blob_dir2)
+    >>> os.unlink(exportfile)
+    >>> os.unlink(storagefile1)
+    >>> os.unlink(storagefile1+".index")
+    >>> os.unlink(storagefile1+".tmp")
+    >>> os.unlink(storagefile2)
+    >>> os.unlink(storagefile2+".index")
+    >>> os.unlink(storagefile2+".tmp")

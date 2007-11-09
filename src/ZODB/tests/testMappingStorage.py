@@ -15,8 +15,8 @@ import ZODB.MappingStorage
 import unittest
 
 from ZODB.tests import StorageTestBase
-from ZODB.tests \
-     import BasicStorage, MTStorage, Synchronization, PackableStorage
+from ZODB.tests import BasicStorage, MTStorage, Synchronization
+from ZODB.tests import PackableStorage
 
 class MappingStorageTests(StorageTestBase.StorageTestBase,
                           BasicStorage.BasicStorage,

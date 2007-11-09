@@ -106,11 +106,11 @@ oid
 
     'n'
         Multi-database simple object reference.  The arguments consist
-        of a databaase name, and an object id.
+        of a database name, and an object id.
 
     'm'
         Multi-database persistent object reference.  The arguments consist
-        of a databaase name, an object id, and class meta data.
+        of a database name, an object id, and class meta data.
 
 The following legacy format is also supported.
     
@@ -229,11 +229,11 @@ class ObjectWriter:
         If the jar doesn't match that of the writer, an error is raised:
 
         >>> bob._p_jar = DummyJar()
-        >>> writer.persistent_id(bob)
+        >>> writer.persistent_id(bob)   # doctest: +NORMALIZE_WHITESPACE
         Traceback (most recent call last):
           ...
-        InvalidObjectReference: Attempt to store an object from a """ \
-               """foreign database connection
+        InvalidObjectReference: Attempt to store an object from a
+            foreign database connection
 
         Constructor arguments used by __new__(), as returned by
         __getnewargs__(), can affect memory allocation, but may also

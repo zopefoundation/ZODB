@@ -1,0 +1,254 @@
+##############################################################################
+#
+# Copyright (c) 2005 Zope Corporation and Contributors.
+# All Rights Reserved.
+#
+# This software is subject to the provisions of the Zope Public License,
+# Version 2.1 (ZPL).  A copy of the ZPL should accompany this distribution.
+# THIS SOFTWARE IS PROVIDED "AS IS" AND ANY AND ALL EXPRESS OR IMPLIED
+# WARRANTIES ARE DISCLAIMED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+# WARRANTIES OF TITLE, MERCHANTABILITY, AGAINST INFRINGEMENT, AND FITNESS
+# FOR A PARTICULAR PURPOSE.
+#
+##############################################################################
+
+Packing support for blob data
+=============================
+
+Set up:
+
+    >>> from ZODB.FileStorage import FileStorage
+    >>> from ZODB.MappingStorage import MappingStorage
+    >>> from ZODB.serialize import referencesf
+    >>> from ZODB.blob import Blob, BlobStorage
+    >>> from ZODB import utils
+    >>> from ZODB.DB import DB
+    >>> import shutil
+    >>> import transaction
+    >>> from tempfile import mkdtemp, mktemp
+    >>> storagefile = mktemp()
+    >>> blob_dir = mkdtemp()
+
+A helper method to assure a unique timestamp across multiple platforms.  This
+method also makes sure that after retrieving a timestamp that was *before* a
+transaction was committed, that at least one second passes so the packing time
+actually is before the commit time.
+
+   >>> import time
+   >>> def new_time():
+   ...     now = new_time = time.time()
+   ...     while new_time <= now:
+   ...         new_time = time.time()
+   ...     time.sleep(1)
+   ...     return new_time
+
+UNDOING
+=======
+
+We need a database with an undoing blob supporting storage:
+
+    >>> base_storage = FileStorage(storagefile)
+    >>> blob_storage = BlobStorage(blob_dir, base_storage)
+    >>> database = DB(blob_storage)
+
+Create our root object:
+
+    >>> connection1 = database.open()
+    >>> root = connection1.root()
+
+Put some revisions of a blob object in our database and on the filesystem:
+
+    >>> import os
+    >>> tids = []
+    >>> times = []
+    >>> nothing = transaction.begin()
+    >>> times.append(new_time())
+    >>> blob = Blob()
+    >>> blob.open('w').write('this is blob data 0')
+    >>> root['blob'] = blob
+    >>> transaction.commit()
+    >>> tids.append(blob_storage._tid)
+
+    >>> nothing = transaction.begin()
+    >>> times.append(new_time())
+    >>> root['blob'].open('w').write('this is blob data 1')
+    >>> transaction.commit()
+    >>> tids.append(blob_storage._tid)
+
+    >>> nothing = transaction.begin()
+    >>> times.append(new_time())
+    >>> root['blob'].open('w').write('this is blob data 2')
+    >>> transaction.commit()
+    >>> tids.append(blob_storage._tid)
+
+    >>> nothing = transaction.begin()
+    >>> times.append(new_time())
+    >>> root['blob'].open('w').write('this is blob data 3')
+    >>> transaction.commit()
+    >>> tids.append(blob_storage._tid)
+
+    >>> nothing = transaction.begin()
+    >>> times.append(new_time())
+    >>> root['blob'].open('w').write('this is blob data 4')
+    >>> transaction.commit()
+    >>> tids.append(blob_storage._tid)
+
+    >>> oid = root['blob']._p_oid
+    >>> fns = [ blob_storage.fshelper.getBlobFilename(oid, x) for x in tids ]
+    >>> [ os.path.exists(x) for x in fns ]
+    [True, True, True, True, True]
+
+Do a pack to the slightly before the first revision was written:
+
+    >>> packtime = times[0]
+    >>> blob_storage.pack(packtime, referencesf)
+    >>> [ os.path.exists(x) for x in fns ]
+    [True, True, True, True, True]
+    
+Do a pack to the slightly before the second revision was written:
+
+    >>> packtime = times[1]
+    >>> blob_storage.pack(packtime, referencesf)
+    >>> [ os.path.exists(x) for x in fns ]
+    [True, True, True, True, True]
+
+Do a pack to the slightly before the third revision was written:
+
+    >>> packtime = times[2]
+    >>> blob_storage.pack(packtime, referencesf)
+    >>> [ os.path.exists(x) for x in fns ]
+    [False, True, True, True, True]
+
+Do a pack to the slightly before the fourth revision was written:
+
+    >>> packtime = times[3]
+    >>> blob_storage.pack(packtime, referencesf)
+    >>> [ os.path.exists(x) for x in fns ]
+    [False, False, True, True, True]
+
+Do a pack to the slightly before the fifth revision was written:
+
+    >>> packtime = times[4]
+    >>> blob_storage.pack(packtime, referencesf)
+    >>> [ os.path.exists(x) for x in fns ]
+    [False, False, False, True, True]
+
+Do a pack to now:
+
+    >>> packtime = new_time()
+    >>> blob_storage.pack(packtime, referencesf)
+    >>> [ os.path.exists(x) for x in fns ]
+    [False, False, False, False, True]
+
+Delete the object and do a pack, it should get rid of the most current
+revision as well as the entire directory:
+
+    >>> nothing = transaction.begin()
+    >>> del root['blob']
+    >>> transaction.commit()
+    >>> packtime = new_time()
+    >>> blob_storage.pack(packtime, referencesf)
+    >>> [ os.path.exists(x) for x in fns ]
+    [False, False, False, False, False]
+    >>> os.path.exists(os.path.split(fns[0])[0])
+    False
+
+Clean up our blob directory and database:
+
+    >>> shutil.rmtree(blob_dir)
+    >>> base_storage.close()
+    >>> os.unlink(storagefile)
+    >>> os.unlink(storagefile+".index")
+    >>> os.unlink(storagefile+".tmp")
+    >>> os.unlink(storagefile+".old")
+
+NON-UNDOING
+===========
+
+We need an database with a NON-undoing blob supporting storage:
+
+    >>> base_storage = MappingStorage('storage')
+    >>> blob_storage = BlobStorage(blob_dir, base_storage)
+    >>> database = DB(blob_storage)
+    
+Create our root object:
+
+    >>> connection1 = database.open()
+    >>> root = connection1.root()
+
+Put some revisions of a blob object in our database and on the filesystem:
+
+    >>> import time, os
+    >>> tids = []
+    >>> times = []
+    >>> nothing = transaction.begin()
+    >>> times.append(new_time())
+    >>> blob = Blob()
+    >>> blob.open('w').write('this is blob data 0')
+    >>> root['blob'] = blob
+    >>> transaction.commit()
+    >>> tids.append(blob_storage._tid)
+
+    >>> nothing = transaction.begin()
+    >>> times.append(new_time())
+    >>> root['blob'].open('w').write('this is blob data 1')
+    >>> transaction.commit()
+    >>> tids.append(blob_storage._tid)
+
+    >>> nothing = transaction.begin()
+    >>> times.append(new_time())
+    >>> root['blob'].open('w').write('this is blob data 2')
+    >>> transaction.commit()
+    >>> tids.append(blob_storage._tid)
+
+    >>> nothing = transaction.begin()
+    >>> times.append(new_time())
+    >>> root['blob'].open('w').write('this is blob data 3')
+    >>> transaction.commit()
+    >>> tids.append(blob_storage._tid)
+
+    >>> nothing = transaction.begin()
+    >>> times.append(new_time())
+    >>> root['blob'].open('w').write('this is blob data 4')
+    >>> transaction.commit()
+    >>> tids.append(blob_storage._tid)
+
+    >>> oid = root['blob']._p_oid
+    >>> fns = [ blob_storage.fshelper.getBlobFilename(oid, x) for x in tids ]
+    >>> [ os.path.exists(x) for x in fns ]
+    [True, True, True, True, True]
+
+Get our blob filenames for this oid.
+
+    >>> fns = [ blob_storage.fshelper.getBlobFilename(oid, x) for x in tids ]
+
+Do a pack to the slightly before the first revision was written:
+
+    >>> packtime = times[0]
+    >>> blob_storage.pack(packtime, referencesf)
+    >>> [ os.path.exists(x) for x in fns ]
+    [False, False, False, False, True]
+    
+Do a pack to now:
+
+    >>> packtime = new_time()
+    >>> blob_storage.pack(packtime, referencesf)
+    >>> [ os.path.exists(x) for x in fns ]
+    [False, False, False, False, True]
+
+Delete the object and do a pack, it should get rid of the most current
+revision as well as the entire directory:
+
+    >>> nothing = transaction.begin()
+    >>> del root['blob']
+    >>> transaction.commit()
+    >>> packtime = new_time()
+    >>> blob_storage.pack(packtime, referencesf)
+    >>> [ os.path.exists(x) for x in fns ]
+    [False, False, False, False, False]
+    >>> os.path.exists(os.path.split(fns[0])[0])
+    False
+
+Clean up our blob directory:
+
+    >>> shutil.rmtree(blob_dir)

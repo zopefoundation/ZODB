@@ -1,0 +1,144 @@
+ZEO Fan Out
+===========
+
+We should be able to set up ZEO servers with ZEO clients.  Let's see
+if we can make it work.
+
+We'll use some helper functions.  The first is a helpter that starts
+ZEO servers for us and another one that picks ports.
+
+We'll start the first server:
+
+    >>> import ZEO.tests.forker, ZEO.tests.testZEO
+    >>> port0 = ZEO.tests.testZEO.get_port()
+    >>> zconf0 = ZEO.tests.forker.ZEOConfig(('', port0))
+    >>> zport0, adminaddr0, pid0, path0 = ZEO.tests.forker.start_zeo_server(
+    ...    '<filestorage 1>\n  path fs\n</filestorage>\n', zconf0, port0)
+
+
+Then we''ll start 2 others that use this one:
+
+    >>> port1 = ZEO.tests.testZEO.get_port()
+    >>> zconf1 = ZEO.tests.forker.ZEOConfig(('', port1))
+    >>> zport1, adminaddr1, pid1, path1 = ZEO.tests.forker.start_zeo_server(
+    ...    '<zeoclient 1>\n  server %s\n</zeoclient>\n' % port0,
+    ...     zconf1, port1)
+
+    >>> port2 = ZEO.tests.testZEO.get_port()
+    >>> zconf2 = ZEO.tests.forker.ZEOConfig(('', port2))
+    >>> zport2, adminaddr2, pid2, path2 = ZEO.tests.forker.start_zeo_server(
+    ...    '<zeoclient 1>\n  server %s\n</zeoclient>\n' % port0,
+    ...     zconf2, port2)
+
+
+Now, let's create some client storages that connect to these:
+
+    >>> import ZEO.ClientStorage
+    >>> cs1 = ZEO.ClientStorage.ClientStorage(('localhost', port1), '1')
+    >>> cs2 = ZEO.ClientStorage.ClientStorage(('localhost', port2), '1')
+
+And some databases and connections around these:
+
+    >>> from ZODB.DB import DB
+    >>> import transaction
+
+    >>> db1 = DB(cs1)
+    >>> tm1 = transaction.TransactionManager()
+    >>> c1 = db1.open(transaction_manager=tm1)
+    >>> r1 = c1.root()
+    >>> r1
+    {}
+
+    >>> db2 = DB(cs2)
+    >>> tm2 = transaction.TransactionManager()
+    >>> c2 = db2.open(transaction_manager=tm2)
+    >>> r2 = c2.root()
+    >>> r2
+    {}
+
+    >>> db2 = DB(cs2)
+    >>> tm2 = transaction.TransactionManager()
+    >>> c2 = db2.open(transaction_manager=tm2)
+    >>> r2 = c2.root()
+    >>> r2
+    {}
+
+If we update c1, we'll eventually see the change in c2:
+
+    >>> import persistent.mapping
+
+    >>> r1[1] = persistent.mapping.PersistentMapping()
+    >>> r1[1].v = 1000
+    >>> r1[2] = persistent.mapping.PersistentMapping()
+    >>> r1[2].v = -1000
+    >>> tm1.commit()
+
+    >>> import time
+    >>> for i in range(100):
+    ...     t = tm2.begin()
+    ...     if 1 in r2:
+    ...         break
+    ...     time.sleep(0.01)
+    
+    >>> r2[1].v
+    1000
+
+    >>> r2[2].v
+    -1000
+
+Now, let's see if we can break it. :)
+
+    >>> def f():
+    ...     for i in range(100):
+    ...         r1[1].v -= 1
+    ...         r1[2].v += 1
+    ...         tm1.commit()
+    ...         time.sleep(0.01)
+    >>> import threading
+    >>> thread = threading.Thread(target=f)
+    >>> thread.start()
+
+    >>> for i in range(1000):
+    ...     t = tm2.begin()
+    ...     if r2[1].v + r2[2].v:
+    ...         print 'oops', r2[1], r2[2]
+    ...     if r1[1].v == 900:
+    ...         break # we caught up
+    ...     time.sleep(0.01)
+
+    >>> thread.join()
+    
+    
+If we shutdown and restart the source server, the variables will be
+invalidated:
+
+    >>> ZEO.tests.forker.shutdown_zeo_server(adminaddr0)
+    >>> zport0, adminaddr0, pid0, path0 = ZEO.tests.forker.start_zeo_server(
+    ...    '<filestorage 1>\n  path fs\n</filestorage>\n', zconf0, port0)
+    
+    >>> for i in range(1000):
+    ...     c1.sync()
+    ...     c2.sync()
+    ...     if (
+    ...         (r1[1]._p_changed is None)
+    ...         and
+    ...         (r1[2]._p_changed is None)
+    ...         and
+    ...         (r2[1]._p_changed is None)
+    ...         and
+    ...         (r2[2]._p_changed is None)
+    ...        ):
+    ...        print 'Cool'
+    ...        break
+    ...     time.sleep(0.01)
+    ... else:
+    ...     print 'Dang'
+    Cool
+
+Cleanup:
+
+    >>> db1.close()
+    >>> db2.close()
+    >>> ZEO.tests.forker.shutdown_zeo_server(adminaddr2)
+    >>> ZEO.tests.forker.shutdown_zeo_server(adminaddr1)
+    >>> ZEO.tests.forker.shutdown_zeo_server(adminaddr0)

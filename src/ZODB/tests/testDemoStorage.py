@@ -11,11 +11,14 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
-import ZODB.DemoStorage
 import unittest
 
-from ZODB.tests import StorageTestBase, BasicStorage, \
-     VersionStorage, Synchronization
+import transaction
+from ZODB.DB import DB
+import ZODB.utils
+import ZODB.DemoStorage
+from ZODB.tests import StorageTestBase, BasicStorage, VersionStorage
+from ZODB.tests import Synchronization
 
 class DemoStorageTests(StorageTestBase.StorageTestBase,
                        BasicStorage.BasicStorage,
@@ -54,9 +57,48 @@ class DemoStorageTests(StorageTestBase.StorageTestBase,
     def checkPackVersionsInPast(self):
         pass
 
+    def checkLoadDelegation(self):
+        # Minimal test of loadEX w/o version -- ironically
+        db = DB(self._storage) # creates object 0. :)
+        s2 = ZODB.DemoStorage.DemoStorage(base=self._storage)
+        self.assertEqual(s2.load(ZODB.utils.z64, ''),
+                         self._storage.load(ZODB.utils.z64, ''))
+
+
+class DemoStorageWrappedBase(DemoStorageTests):
+
+    def setUp(self):
+        import ZODB.DemoStorage
+        self._base = self._makeBaseStorage()
+        self._storage = ZODB.DemoStorage.DemoStorage(base=self._base)
+
+    def tearDown(self):
+        self._storage.close()
+        self._base.close()
+
+    def _makeBaseStorage(self):
+        raise NotImplementedError
+
+class DemoStorageWrappedAroundFileStorage(DemoStorageWrappedBase):
+
+    def _makeBaseStorage(self):
+        from ZODB.MappingStorage import MappingStorage
+        return MappingStorage()
+
+class DemoStorageWrappedAroundMappingStorage(DemoStorageWrappedBase):
+
+    def _makeBaseStorage(self):
+        from ZODB.FileStorage import FileStorage
+        return FileStorage('FileStorageTests.fs')
+                       
 
 def test_suite():
-    suite = unittest.makeSuite(DemoStorageTests, 'check')
+    suite = unittest.TestSuite()
+    suite.addTest(unittest.makeSuite(DemoStorageTests, 'check'))
+    suite.addTest(unittest.makeSuite(DemoStorageWrappedAroundFileStorage,
+                                     'check'))
+    suite.addTest(unittest.makeSuite(DemoStorageWrappedAroundMappingStorage,
+                                     'check'))
     return suite
 
 if __name__ == "__main__":

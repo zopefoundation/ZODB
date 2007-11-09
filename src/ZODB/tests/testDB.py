@@ -18,6 +18,8 @@ import warnings
 
 import transaction
 
+from zope.testing import doctest
+
 import ZODB
 import ZODB.FileStorage
 
@@ -33,6 +35,8 @@ class DBTests(unittest.TestCase):
         self.__path = os.path.abspath('test.fs')
         store = ZODB.FileStorage.FileStorage(self.__path)
         self.db = ZODB.DB(store)
+        warnings.filterwarnings(
+            'ignore', message='Versions are deprecated', module=__name__)
 
     def tearDown(self):
         self.db.close()
@@ -129,6 +133,56 @@ class DBTests(unittest.TestCase):
         self.assertEqual(len(pools), 3)
         self.assertEqual(nconn(pools), 3)
 
+    def test_references(self):
+
+        # TODO: For now test that we're using referencesf.  We really should
+        #       have tests of referencesf.  
+
+        import ZODB.serialize
+        self.assert_(self.db.references is ZODB.serialize.referencesf)
+
+
+def test_invalidateCache():
+    """The invalidateCache method invalidates a connection caches for all of
+    the connections attached to a database::
+
+        >>> from ZODB.tests.util import DB
+        >>> import transaction
+        >>> db = DB()
+        >>> tm1 = transaction.TransactionManager()
+        >>> c1 = db.open(transaction_manager=tm1)
+        >>> c1.root()['a'] = MinPO(1)
+        >>> tm1.commit()
+        >>> tm2 = transaction.TransactionManager()
+        >>> c2 = db.open(transaction_manager=tm2)
+        >>> c1.root()['a']._p_deactivate()
+        >>> tm3 = transaction.TransactionManager()
+        >>> c3 = db.open(transaction_manager=tm3)
+        >>> c3.root()['a'].value
+        1
+        >>> c3.close()
+        >>> db.invalidateCache()
+
+        >>> c1.root()['a'].value
+        Traceback (most recent call last):
+        ...
+        ReadConflictError: database read conflict error
+
+        >>> c2.root()['a'].value
+        Traceback (most recent call last):
+        ...
+        ReadConflictError: database read conflict error
+
+        >>> c3 is db.open(transaction_manager=tm3)
+        True
+        >>> print c3.root()['a']._p_changed
+        None
+
+        >>> db.close()
+    """
+
 
 def test_suite():
-    return unittest.makeSuite(DBTests)
+    s = unittest.makeSuite(DBTests)
+    s.addTest(doctest.DocTestSuite())
+    return s

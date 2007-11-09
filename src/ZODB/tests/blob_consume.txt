@@ -1,0 +1,131 @@
+Consuming existing files
+========================
+
+The ZODB Blob implementation allows to import existing files as Blobs within
+an O(1) operation we call `consume`::
+
+Let's create a file::
+
+    >>> to_import = open('to_import', 'wb')
+    >>> to_import.write("I'm a Blob and I feel fine.")
+
+The file *must* be closed before giving it to consumeFile:
+
+    >>> to_import.close()
+
+Now, let's consume this file in a blob by specifying it's name::
+
+    >>> from ZODB.blob import Blob
+    >>> blob = Blob()
+    >>> blob.consumeFile('to_import')
+
+After the consumeFile operation, the original file has been removed:
+
+    >>> import os
+    >>> os.path.exists('to_import')
+    False
+
+We now can call open on the blob and read and write the data::
+
+    >>> blob_read = blob.open('r')
+    >>> blob_read.read()
+    "I'm a Blob and I feel fine."
+    >>> blob_read.close()
+    >>> blob_write = blob.open('w')
+    >>> blob_write.write('I was changed.')
+    >>> blob_write.close()
+
+We can not consume a file when there is a reader or writer around for a blob
+already::
+
+    >>> open('to_import', 'wb').write('I am another blob.')
+    >>> blob_read = blob.open('r')
+    >>> blob.consumeFile('to_import')
+    Traceback (most recent call last):
+    BlobError: Already opened for reading.
+    >>> blob_read.close()
+    >>> blob_write = blob.open('w')
+    >>> blob.consumeFile('to_import')
+    Traceback (most recent call last):
+    BlobError: Already opened for writing.
+    >>> blob_write.close()
+
+Now, after closing all readers and writers we can consume files again::
+
+    >>> blob.consumeFile('to_import')
+    >>> blob_read = blob.open('r')
+    >>> blob_read.read()
+    'I am another blob.'
+
+
+Edge cases
+==========
+
+There are some edge cases what happens when the link() operation
+fails. We simulate this in different states:
+
+Case 1: We don't have uncommitted data, but the link operation fails. We fall
+back to try a copy/remove operation that is successfull::
+
+    >>> open('to_import', 'wb').write('Some data.')
+
+    >>> def failing_rename(f1, f2):
+    ...   import exceptions
+    ...   if f1 == 'to_import':
+    ...       raise exceptions.OSError("I can't link.")
+    ...   os_rename(f1, f2)
+
+    >>> blob = Blob()
+    >>> os_rename = os.rename
+    >>> os.rename = failing_rename
+    >>> blob.consumeFile('to_import')
+
+The blob did not have data before, so it shouldn't have data now::
+
+    >>> blob.open('r').read()
+    'Some data.'
+
+Case 2: We don't have uncommitted data and both the link operation and the
+copy fail. The exception will be re-raised and the target file will not
+exist::
+
+    >>> blob = Blob()
+    >>> import ZODB.utils
+    >>> utils_cp = ZODB.utils.cp
+
+    >>> def failing_copy(f1, f2):
+    ...     import exceptions
+    ...     raise exceptions.OSError("I can't copy.")
+
+    >>> ZODB.utils.cp = failing_copy
+    >>> open('to_import', 'wb').write('Some data.')
+    >>> blob.consumeFile('to_import')
+    Traceback (most recent call last):
+    OSError: I can't copy.
+
+The blob did not have data before, so it shouldn't have data now::
+
+    >>> blob.open('r').read()
+    ''
+
+Case 3: We have uncommitted data, but the link and the copy operations fail.
+The exception will be re-raised and the target file will exist with the
+previous uncomitted data::
+
+    >>> blob = Blob()
+    >>> blob_writing = blob.open('w')
+    >>> blob_writing.write('Uncommitted data')
+    >>> blob_writing.close()
+
+    >>> blob.consumeFile('to_import')
+    Traceback (most recent call last):
+    OSError: I can't copy.
+
+The blob did existed before and had uncommitted data, this shouldn't have
+changed::
+
+    >>> blob.open('r').read()
+    'Uncommitted data'
+
+    >>> os.rename = os_rename
+    >>> ZODB.utils.cp = utils_cp

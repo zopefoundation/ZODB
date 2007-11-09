@@ -89,6 +89,21 @@ from cPickle import loads
 from BTrees import OOBTree
 
 class DemoStorage(BaseStorage):
+    """Demo storage
+
+    Demo storages provide useful storages for writing tests because
+    they store their data in memory and throw away their data
+    (implicitly) when they are closed.
+
+    They were originally designed to allow demonstrations using base
+    data provided on a CD.  They can optionally wrap an *unchanging*
+    base storage.  It is critical that the base storage does not
+    change. Using a changing base storage is not just unsupported, it
+    is known not to work and can even lead to serious errors and even
+    core dumps.
+    
+    """
+    
 
     def __init__(self, name='Demo Storage', base=None, quota=None):
         BaseStorage.__init__(self, name, base)
@@ -102,17 +117,15 @@ class DemoStorage(BaseStorage):
         self._quota = quota
         self._ltid = None
         self._clear_temp()
-        if base is not None and base.versions():
-            raise POSException.StorageError(
-                "Demo base storage has version data")
 
-    # While we officially don't support wrapping a non-read-only base
-    # storage, it has proved useful for test suites to wrap a ClientStorage
-    # in DemoStorage.  The least we can do to help support that case is
-    # to arrange for invalidations to get delivered to the base storage.
-    def registerDB(self, db, limit):
-        if self._base is not None: # delegate
-            self._base.registerDB(db, limit)
+        try:
+            versions = base.versions
+        except AttributeError:
+            pass
+        else:
+            if base.versions():
+                raise POSException.StorageError(
+                    "Demo base storage has version data")
 
     # When DemoStorage needs to create a new oid, and there is a base
     # storage, it must use that storage's new_oid() method.  Else
@@ -205,36 +218,31 @@ class DemoStorage(BaseStorage):
         finally:
             self._lock_release()
 
-    def loadEx(self, oid, version):
+    def load(self, oid, version):
         self._lock_acquire()
         try:
             try:
                 oid, pre, vdata, p, tid = self._index[oid]
             except KeyError:
                 if self._base:
-                    return self._base.load(oid, '')
+                    return self._base.load(oid, version)
                 raise KeyError(oid)
 
-            ver = ""
             if vdata:
                 oversion, nv = vdata
                 if oversion != version:
                     if nv:
                         # Return the current txn's tid with the non-version
                         # data.
-                        oid, pre, vdata, p, skiptid = nv
+                        p = nv[3]
                     else:
                         raise KeyError(oid)
-                ver = oversion
 
             if p is None:
                 raise KeyError(oid)
 
-            return p, tid, ver
+            return p, tid
         finally: self._lock_release()
-
-    def load(self, oid, version):
-        return self.loadEx(oid, version)[:2]
 
     def modifiedInVersion(self, oid):
         self._lock_acquire()
@@ -553,3 +561,11 @@ class DemoStorage(BaseStorage):
                 o.append('    %s: %s' % (oid_repr(oid), r))
 
         return '\n'.join(o)
+
+    def cleanup(self):
+        if self._base is not None:
+            self._base.cleanup()
+
+    def close(self):
+        if self._base is not None:
+            self._base.close()

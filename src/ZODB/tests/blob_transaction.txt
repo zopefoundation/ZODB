@@ -1,0 +1,369 @@
+##############################################################################
+#
+# Copyright (c) 2005-2007 Zope Corporation and Contributors.
+# All Rights Reserved.
+#
+# This software is subject to the provisions of the Zope Public License,
+# Version 2.1 (ZPL).  A copy of the ZPL should accompany this distribution.
+# THIS SOFTWARE IS PROVIDED "AS IS" AND ANY AND ALL EXPRESS OR IMPLIED
+# WARRANTIES ARE DISCLAIMED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+# WARRANTIES OF TITLE, MERCHANTABILITY, AGAINST INFRINGEMENT, AND FITNESS
+# FOR A PARTICULAR PURPOSE.
+#
+##############################################################################
+
+Transaction support for Blobs
+=============================
+
+We need a database with a blob supporting storage::
+
+    >>> from ZODB.MappingStorage import MappingStorage
+    >>> from ZODB.blob import Blob, BlobStorage
+    >>> from ZODB.DB import DB
+    >>> import transaction
+    >>> import tempfile
+    >>> from tempfile import mkdtemp
+    >>> base_storage = MappingStorage("test")
+    >>> blob_dir = mkdtemp()
+    >>> blob_storage = BlobStorage(blob_dir, base_storage)
+    >>> database = DB(blob_storage)
+    >>> connection1 = database.open()
+    >>> root1 = connection1.root()
+
+Putting a Blob into a Connection works like any other Persistent object::
+
+    >>> blob1 = Blob()
+    >>> blob1.open('w').write('this is blob 1')
+    >>> root1['blob1'] = blob1
+    >>> 'blob1' in root1
+    True
+
+Aborting a blob add leaves the blob unchanged:
+
+    >>> transaction.abort()
+    >>> 'blob1' in root1
+    False
+
+    >>> blob1._p_oid
+    >>> blob1._p_jar
+    >>> blob1.open().read()
+    'this is blob 1'
+
+It doesn't clear the file because there is no previously committed version: 
+
+    >>> fname = blob1._p_blob_uncommitted
+    >>> import os
+    >>> os.path.exists(fname)
+    True
+
+Let's put the blob back into the root and commit the change:
+
+    >>> root1['blob1'] = blob1
+    >>> transaction.commit()
+
+Now, if we make a change and abort it, we'll return to the committed
+state:
+
+    >>> os.path.exists(fname)
+    False
+    >>> blob1._p_blob_uncommitted
+
+    >>> blob1.open('w').write('this is new blob 1')
+    >>> blob1.open().read()
+    'this is new blob 1'
+    >>> fname = blob1._p_blob_uncommitted
+    >>> os.path.exists(fname)
+    True
+
+    >>> transaction.abort()
+    >>> os.path.exists(fname)
+    False
+    >>> blob1._p_blob_uncommitted
+
+    >>> blob1.open().read()
+    'this is blob 1'
+
+Opening a blob gives us a filehandle.  Getting data out of the
+resulting filehandle is accomplished via the filehandle's read method::
+
+    >>> connection2 = database.open()
+    >>> root2 = connection2.root()
+    >>> blob1a = root2['blob1']
+
+    >>> blob1afh1 = blob1a.open("r")
+    >>> blob1afh1.read()
+    'this is blob 1'
+
+Let's make another filehandle for read only to blob1a. Aach file
+handle has a reference to the (same) underlying blob::
+
+    >>> blob1afh2 = blob1a.open("r")
+    >>> blob1afh2.blob is blob1afh1.blob
+    True
+
+Let's close the first filehandle we got from the blob::
+
+    >>> blob1afh1.close()
+
+Let's abort this transaction, and ensure that the filehandles that we
+opened are still open::
+
+    >>> transaction.abort()
+    >>> blob1afh2.read()
+    'this is blob 1'
+
+    >>> blob1afh2.close()
+
+If we open a blob for append, writing any number of bytes to the
+blobfile should result in the blob being marked "dirty" in the
+connection (we just aborted above, so the object should be "clean"
+when we start)::
+
+    >>> bool(blob1a._p_changed)
+    False
+    >>> blob1a.open('r').read()
+    'this is blob 1'
+    >>> blob1afh3 = blob1a.open('a')
+    >>> bool(blob1a._p_changed)
+    True
+    >>> blob1afh3.write('woot!')
+    >>> blob1afh3.close()
+
+We can open more than one blob object during the course of a single
+transaction::
+
+    >>> blob2 = Blob()
+    >>> blob2.open('w').write('this is blob 3')
+    >>> root2['blob2'] = blob2
+    >>> transaction.commit()
+
+Since we committed the current transaction above, the aggregate
+changes we've made to blob, blob1a (these refer to the same object) and
+blob2 (a different object) should be evident::
+
+    >>> blob1.open('r').read()
+    'this is blob 1woot!'
+    >>> blob1a.open('r').read()
+    'this is blob 1woot!'
+    >>> blob2.open('r').read()
+    'this is blob 3'
+
+We shouldn't be able to persist a blob filehandle at commit time
+(although the exception which is raised when an object cannot be
+pickled appears to be particulary unhelpful for casual users at the
+moment)::
+
+    >>> root1['wontwork'] = blob1.open('r')
+    >>> transaction.commit()
+    Traceback (most recent call last):
+        ...
+    TypeError: coercing to Unicode: need string or buffer, BlobFile found
+
+Abort for good measure::
+
+    >>> transaction.abort()
+
+Attempting to change a blob simultaneously from two different
+connections should result in a write conflict error::
+
+    >>> tm1 = transaction.TransactionManager()
+    >>> tm2 = transaction.TransactionManager()
+    >>> root3 = database.open(transaction_manager=tm1).root()
+    >>> root4 = database.open(transaction_manager=tm2).root()
+    >>> blob1c3 = root3['blob1']
+    >>> blob1c4 = root4['blob1']
+    >>> blob1c3fh1 = blob1c3.open('a').write('this is from connection 3')
+    >>> blob1c4fh1 = blob1c4.open('a').write('this is from connection 4')
+    >>> tm1.commit()
+    >>> root3['blob1'].open('r').read()
+    'this is blob 1woot!this is from connection 3'
+    >>> tm2.commit()
+    Traceback (most recent call last):
+        ...
+    ConflictError: database conflict error (oid 0x01, class ZODB.blob.Blob)
+
+After the conflict, the winning transaction's result is visible on both
+connections::
+
+    >>> root3['blob1'].open('r').read()
+    'this is blob 1woot!this is from connection 3'
+    >>> tm2.abort()
+    >>> root4['blob1'].open('r').read()
+    'this is blob 1woot!this is from connection 3'
+
+BlobStorages implementation of getSize() includes the blob data and adds it to
+the underlying storages result of getSize(). (We need to ensure the last
+number to be an int, otherwise it will be a long on 32-bit platforms and an
+int on 64-bit)::
+
+    >>> underlying_size = base_storage.getSize()
+    >>> blob_size = blob_storage.getSize()
+    >>> int(blob_size - underlying_size)
+    91
+
+You can't commit a transaction while blob files are open:
+
+    >>> f = root3['blob1'].open('w')
+    >>> tm1.commit()
+    Traceback (most recent call last):
+    ...
+    ValueError: Can't commit with opened blobs.
+
+    >>> f.close()
+    >>> tm1.abort()
+    >>> f = root3['blob1'].open('w')
+    >>> f.close()
+
+    >>> f = root3['blob1'].open('r')
+    >>> tm1.commit()
+    Traceback (most recent call last):
+    ...
+    ValueError: Can't commit with opened blobs.
+    >>> f.close()
+    >>> tm1.abort()
+
+Savepoints and Blobs
+--------------------
+
+We do support optimistic savepoints:
+
+    >>> connection5 = database.open()
+    >>> root5 = connection5.root()
+    >>> blob = Blob()
+    >>> blob_fh = blob.open("w")
+    >>> blob_fh.write("I'm a happy blob.")
+    >>> blob_fh.close()
+    >>> root5['blob'] = blob
+    >>> transaction.commit()
+    >>> root5['blob'].open("r").read()
+    "I'm a happy blob."
+    >>> blob_fh = root5['blob'].open("a")
+    >>> blob_fh.write(" And I'm singing.")
+    >>> blob_fh.close()
+    >>> root5['blob'].open("r").read()
+    "I'm a happy blob. And I'm singing."
+    >>> savepoint = transaction.savepoint(optimistic=True)
+    >>> root5['blob'].open("r").read()
+    "I'm a happy blob. And I'm singing."
+    >>> transaction.commit()
+
+We support optimistic savepoints too:
+
+    >>> root5['blob'].open("a").write(" And I'm dancing.")
+    >>> root5['blob'].open("r").read()
+    "I'm a happy blob. And I'm singing. And I'm dancing."
+    >>> savepoint = transaction.savepoint()
+    >>> root5['blob'].open("w").write(" And the weather is beautiful.")
+    >>> savepoint.rollback()
+    >>> root5['blob'].open("r").read()
+    "I'm a happy blob. And I'm singing. And I'm dancing."
+    >>> transaction.abort()
+
+Reading Blobs outside of a transaction
+--------------------------------------
+
+If you want to read from a Blob outside of transaction boundaries (e.g. to
+stream a file to the browser), committed method to get the name of a
+file that can be opened.
+
+    >>> connection6 = database.open()
+    >>> root6 = connection6.root()
+    >>> blob = Blob()
+    >>> blob_fh = blob.open("w")
+    >>> blob_fh.write("I'm a happy blob.")
+    >>> blob_fh.close()
+    >>> root6['blob'] = blob
+    >>> transaction.commit()
+    >>> open(blob.committed()).read()
+    "I'm a happy blob."
+
+An exception is raised if we call committed on a blob that has
+uncommitted changes:
+
+    >>> blob = Blob()
+    >>> blob.committed()
+    Traceback (most recent call last):
+    ...
+    BlobError: Uncommitted changes
+
+    >>> blob.open('w').write("I'm a happy blob.")
+    >>> root6['blob6'] = blob
+    >>> blob.committed()
+    Traceback (most recent call last):
+    ...
+    BlobError: Uncommitted changes
+
+    >>> s = transaction.savepoint()
+    >>> blob.committed()
+    Traceback (most recent call last):
+    ...
+    BlobError: Uncommitted changes
+
+    >>> transaction.commit()
+    >>> open(blob.committed()).read()
+    "I'm a happy blob."
+
+You can't open a committed blob file for writing:
+
+    >>> open(blob.committed(), 'w') # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ...
+    IOError: ...
+
+tpc_abort with dirty data
+-------------------------
+
+When `tpc_abort` is called during the first commit phase we need to be able to
+clean up dirty files:
+
+    >>> class DummyBaseStorage(object):
+    ...     def tpc_abort(self):
+    ...         pass
+    >>> base_storage = DummyBaseStorage()
+    >>> blob_dir2 = mkdtemp()
+    >>> blob_storage2 = BlobStorage(blob_dir2, base_storage)
+    >>> committed_blob_dir = os.path.join(blob_dir2, '0')
+    >>> committed_blob_file = os.path.join(committed_blob_dir, '0.blob')
+    >>> os.mkdir(committed_blob_dir)
+    >>> open(os.path.join(committed_blob_file), 'w').write('foo')
+    >>> os.path.exists(committed_blob_file)
+    True
+
+Now, telling the storage that Blob 0 and Blob 1 (both with serial 0) are dirty
+will: remove the committed file for Blob 0 and ignore the fact that Blob 1 is
+set to dirty but doesn't actually have an existing file:
+
+    >>> blob_storage2.dirty_oids = [(0, 0), (1, 0)]
+    >>> blob_storage2.tpc_abort()
+    >>> os.path.exists(committed_blob_file)
+    False
+
+
+Note: This is a counter measure against regression of bug #126007.
+
+getSize with garbage in the directory structure
+-----------------------------------------------
+
+`getSize` iterates over the existing blob files in the blob directory and adds
+up their size. The blob directory sometimes contains temporary files that the
+getSize function needs to ignore:
+
+    >>> garbage_file = os.path.join(blob_dir, 'garbage')
+    >>> open(garbage_file, 'w').write('garbage')
+    >>> int(blob_storage.getSize())
+    881
+
+
+Note: This is a counter measer against regression of bug #12991.
+
+Teardown
+--------
+
+We don't need the storage directory and databases anymore::
+
+    >>> tm1.abort()
+    >>> tm2.abort()
+    >>> database.close()
+    >>> import shutil
+    >>> shutil.rmtree(blob_dir)
+    >>> shutil.rmtree(blob_dir2)

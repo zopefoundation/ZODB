@@ -54,10 +54,7 @@ savepoint.
 The problem was that we were effectively commiting the object twice --
 when commiting the current data and when committing the savepoint.
 The fix was to first make a new savepoint to move new changes to the
-savepoint storage and *then* to commit the savepoint storage. (This is
-similar to the strategy that was used for subtransactions prior to
-savepoints.)
-
+savepoint storage and *then* to commit the savepoint storage.
 
     >>> import ZODB.tests.util
     >>> db = ZODB.tests.util.DB()
@@ -90,8 +87,7 @@ def testSavepointDoesCacheGC():
     """\
 Although the interface doesn't guarantee this internal detail, making a
 savepoint should do incremental gc on connection memory caches.  Indeed,
-one traditional use for savepoints (started by the older, related
-"subtransaction commit" idea) is simply to free memory space midstream
+one traditional use for savepoints is simply to free memory space midstream
 during a long transaction.  Before ZODB 3.4.2, making a savepoint failed
 to trigger cache gc, and this test verifies that it now does.
 

@@ -85,7 +85,7 @@ unghostify(cPersistentObject *self)
     if (self->state < 0 && self->jar) {
         PyObject *r;
 
-        /* Is it ever possibly to not have a cache? */
+        /* Is it ever possible to not have a cache? */
         if (self->cache) {
             /* Create a node in the ring for this unghostified object. */
             self->cache->non_ghost_count++;

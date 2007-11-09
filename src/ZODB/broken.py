@@ -281,11 +281,11 @@ class PersistentBroken(Broken, persistent.Persistent):
 
         and persistent broken objects aren't directly picklable:
 
-          >>> a.__reduce__()
+          >>> a.__reduce__()    # doctest: +NORMALIZE_WHITESPACE
           Traceback (most recent call last):
           ...
-          BrokenModified: """ \
-        r"""<persistent broken not.there.Atall instance '\x00\x00\x00\x00****'>
+          BrokenModified: 
+          <persistent broken not.there.Atall instance '\x00\x00\x00\x00****'>
 
         but you can get their state:
 

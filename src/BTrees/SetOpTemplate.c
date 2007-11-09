@@ -206,7 +206,7 @@ set_operation(PyObject *s1, PyObject *s2,
 The following ifdef works around a template/type problem
 
 Weights are passed as integers. In particular, the weight passed by
-difference is one.  This works find in the int value and float value
+difference is one.  This works fine in the int value and float value
 cases but makes no sense in the object value case.  In the object
 value case, we don't do merging, so we don't use the weights, so it
 doesn't matter what they are. 
@@ -543,7 +543,7 @@ multiunion_m(PyObject *ignored, PyObject *args)
     */
     if (result->len > 0) {
         size_t newlen;          /* number of elements in final result set */
-        newlen = sort_int4_nodups(result->keys, (size_t)result->len);
+        newlen = sort_int_nodups(result->keys, (size_t)result->len);
         result->len = (int)newlen;
     }
     return (PyObject *)result;

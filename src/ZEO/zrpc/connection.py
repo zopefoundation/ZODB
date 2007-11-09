@@ -12,12 +12,14 @@
 #
 ##############################################################################
 import asyncore
+import atexit
 import errno
 import select
 import sys
 import threading
-import types
 import logging
+
+import traceback, time
 
 import ThreadedAsync
 from ZEO.zrpc import smac
@@ -29,6 +31,113 @@ from ZODB.loglevels import BLATHER, TRACE
 
 REPLY = ".reply" # message name used for replies
 ASYNC = 1
+
+exception_type_type = type(Exception)
+
+##############################################################################
+# Dedicated Client select loop:
+client_timeout = 30.0
+client_timeout_count = 0 # for testing
+client_map = {}
+client_trigger = trigger(client_map)
+client_logger = logging.getLogger('ZEO.zrpc.client_loop')
+atexit.register(client_map.clear)
+
+def client_loop():
+    map = client_map
+
+    read = asyncore.read
+    write = asyncore.write
+    _exception = asyncore._exception
+    loop_failures = 0
+    
+    while map:
+        try:
+            
+            # The next two lines intentionally don't use
+            # iterators. Other threads can close dispatchers, causeing
+            # the socket map to shrink.
+            r = e = client_map.keys()
+            w = [fd for (fd, obj) in map.items() if obj.writable()]
+
+            try:
+                r, w, e = select.select(r, w, e, client_timeout)
+            except select.error, err:
+                if err[0] != errno.EINTR:
+                    if err[0] == errno.EBADF:
+
+                        # If a connection is closed while we are
+                        # calling select on it, we can get a bad
+                        # file-descriptor error.  We'll check for this
+                        # case by looking for entries in r and w that
+                        # are not in the socket map.
+
+                        if [fd for fd in r if fd not in client_map]:
+                            continue
+                        if [fd for fd in w if fd not in client_map]:
+                            continue
+                        
+                    raise
+                else:
+                    continue
+
+            if not (r or w or e):
+                for obj in client_map.itervalues():
+                    if isinstance(obj, Connection):
+                        # Send a heartbeat message as a reply to a
+                        # non-existent message id.
+                        try:
+                            obj.send_reply(-1, None)
+                        except DisconnectedError:
+                            pass
+                global client_timeout_count
+                client_timeout_count += 1
+                continue
+
+            for fd in r:
+                obj = map.get(fd)
+                if obj is None:
+                    continue
+                read(obj)
+
+            for fd in w:
+                obj = map.get(fd)
+                if obj is None:
+                    continue
+                write(obj)
+
+            for fd in e:
+                obj = map.get(fd)
+                if obj is None:
+                    continue
+                _exception(obj)
+
+        except:
+            if map:
+                try:
+                    client_logger.critical('The ZEO cient loop failed.',
+                                           exc_info=sys.exc_info())
+                except:
+                    pass
+
+                for fd, obj in map.items():
+                    if obj is client_trigger:
+                        continue
+                    try:
+                        obj.mgr.client.close()
+                    except:
+                        map.pop(fd, None)
+                        try:
+                            client_logger.critical("Couldn't close a dispatcher.",
+                                                   exc_info=sys.exc_info())
+                        except:
+                            pass
+
+client_thread = threading.Thread(target=client_loop)
+client_thread.setDaemon(True)
+client_thread.start()
+#
+##############################################################################
 
 class Delay:
     """Used to delay response to client for synchronous calls.
@@ -191,17 +300,30 @@ class Connection(smac.SizedMessageAsyncConnection, object):
     # Z303 -- named after the ZODB release 3.3
     #         Added methods for MVCC:
     #             loadBefore()
-    #             loadEx()
     #         A Z303 client cannot talk to a Z201 server, because the latter
     #         doesn't support MVCC.  A Z201 client can talk to a Z303 server,
     #         but because (at least) the type of the root object changed
     #         from ZODB.PersistentMapping to persistent.mapping, the older
     #         client can't actually make progress if a Z303 client created,
     #         or ever modified, the root.
+    #
+    # Z308 -- named after the ZODB release 3.8
+    #         Added blob-support server methods:
+    #             sendBlob
+    #             storeBlobStart
+    #             storeBlobChunk
+    #             storeBlobEnd
+    #             storeBlobShared
+    #         Added blob-support client methods:
+    #             receiveBlobStart
+    #             receiveBlobChunk
+    #             receiveBlobStop
+    
+    # XXX add blob methods
 
     # Protocol variables:
     # Our preferred protocol.
-    current_protocol = "Z303"
+    current_protocol = "Z308"
 
     # If we're a client, an exhaustive list of the server protocols we
     # can accept.
@@ -209,7 +331,7 @@ class Connection(smac.SizedMessageAsyncConnection, object):
 
     # If we're a server, an exhaustive list of the client protocols we
     # can accept.
-    clients_we_can_talk_to = ["Z200", "Z201", current_protocol]
+    clients_we_can_talk_to = ["Z200", "Z201", "Z303", current_protocol]
 
     # This is pretty excruciating.  Details:
     #
@@ -235,7 +357,7 @@ class Connection(smac.SizedMessageAsyncConnection, object):
     # Client constructor passes 'C' for tag, server constructor 'S'.  This
     # is used in log messages, and to determine whether we can speak with
     # our peer.
-    def __init__(self, sock, addr, obj, tag):
+    def __init__(self, sock, addr, obj, tag, map=None):
         self.obj = None
         self.marshal = Marshaller()
         self.closed = False
@@ -244,7 +366,7 @@ class Connection(smac.SizedMessageAsyncConnection, object):
         assert tag in "CS"
         self.tag = tag
         self.logger = logging.getLogger('ZEO.zrpc.Connection(%c)' % tag)
-        if isinstance(addr, types.TupleType):
+        if isinstance(addr, tuple):
             self.log_label = "(%s:%d) " % addr
         else:
             self.log_label = "(%s) " % addr
@@ -315,8 +437,10 @@ class Connection(smac.SizedMessageAsyncConnection, object):
         # isn't necessary before Python 2.4, but doesn't hurt then (it just
         # gives us an unused attribute in 2.3); updating the global socket
         # map is necessary regardless of Python version.
-        self._map = asyncore.socket_map
-        asyncore.socket_map.update(ourmap)
+        if map is None:
+            map = asyncore.socket_map
+        self._map = map
+        map.update(ourmap)
 
     def __repr__(self):
         return "<%s %s>" % (self.__class__.__name__, self.addr)
@@ -331,12 +455,16 @@ class Connection(smac.SizedMessageAsyncConnection, object):
             return
         self._singleton.clear()
         self.closed = True
-        self.close_trigger()
         self.__super_close()
+        self.close_trigger()
+        self.replies_cond.acquire()
+        self.replies_cond.notifyAll()
+        self.replies_cond.release()
 
     def close_trigger(self):
         # Overridden by ManagedClientConnection.
         if self.trigger is not None:
+            self.trigger.pull_trigger()
             self.trigger.close()
 
     def register_object(self, obj):
@@ -481,7 +609,7 @@ class Connection(smac.SizedMessageAsyncConnection, object):
             self.log("Asynchronous call raised exception: %s" % self,
                      level=logging.ERROR, exc_info=True)
             return
-        if type(err_value) is not types.InstanceType:
+        if not isinstance(err_value, Exception):
             err_value = err_type, err_value
 
         # encode() can pass on a wide variety of exceptions from cPickle.
@@ -509,14 +637,26 @@ class Connection(smac.SizedMessageAsyncConnection, object):
     # The next two public methods (call and callAsync) are used by
     # clients to invoke methods on remote objects
 
-    def send_call(self, method, args, flags):
-        # send a message and return its msgid
+    def __new_msgid(self):
         self.msgid_lock.acquire()
         try:
             msgid = self.msgid
             self.msgid = self.msgid + 1
+            return msgid
         finally:
             self.msgid_lock.release()
+
+    def __call_message(self, method, args, flags):
+        # compute a message and return it
+        msgid = self.__new_msgid()
+        if __debug__:
+            self.log("send msg: %d, %d, %s, ..." % (msgid, flags, method),
+                     level=TRACE)
+        return self.marshal.encode(msgid, flags, method, args)
+
+    def send_call(self, method, args, flags):
+        # send a message and return its msgid
+        msgid = self.__new_msgid()
         if __debug__:
             self.log("send msg: %d, %d, %s, ..." % (msgid, flags, method),
                      level=TRACE)
@@ -529,8 +669,8 @@ class Connection(smac.SizedMessageAsyncConnection, object):
             raise DisconnectedError()
         msgid = self.send_call(method, args, 0)
         r_flags, r_args = self.wait(msgid)
-        if (isinstance(r_args, types.TupleType) and len(r_args) > 1
-            and type(r_args[0]) == types.ClassType
+        if (isinstance(r_args, tuple) and len(r_args) > 1
+            and type(r_args[0]) == exception_type_type
             and issubclass(r_args[0], Exception)):
             inst = r_args[1]
             raise inst # error raised by server
@@ -538,22 +678,22 @@ class Connection(smac.SizedMessageAsyncConnection, object):
             return r_args
 
     # For testing purposes, it is useful to begin a synchronous call
-    # but not block waiting for its response.  Since these methods are
-    # used for testing they can assume they are not in async mode and
-    # call asyncore.poll() directly to get the message out without
-    # also waiting for the reply.
+    # but not block waiting for its response.
 
     def _deferred_call(self, method, *args):
         if self.closed:
             raise DisconnectedError()
         msgid = self.send_call(method, args, 0)
-        asyncore.poll(0.01, self._singleton)
+        if self.is_async():
+            self.trigger.pull_trigger()
+        else:
+            asyncore.poll(0.01, self._singleton)
         return msgid
 
     def _deferred_wait(self, msgid):
         r_flags, r_args = self.wait(msgid)
-        if (isinstance(r_args, types.TupleType)
-            and type(r_args[0]) == types.ClassType
+        if (isinstance(r_args, tuple)
+            and type(r_args[0]) == exception_type_type
             and issubclass(r_args[0], Exception)):
             inst = r_args[1]
             raise inst # error raised by server
@@ -573,6 +713,18 @@ class Connection(smac.SizedMessageAsyncConnection, object):
         if self.closed:
             raise DisconnectedError()
         self.send_call(method, args, ASYNC)
+
+    def callAsyncIterator(self, iterator):
+        """Queue a sequence of calls using an iterator
+
+        The calls will not be interleaved with other calls from the same
+        client.
+        """
+        self.message_output(self.__outputIterator(iterator))
+
+    def __outputIterator(self, iterator):
+        for method, args in iterator:
+            yield self.__call_message(method, args, ASYNC)
 
     # handle IO, possibly in async mode
 
@@ -626,24 +778,8 @@ class Connection(smac.SizedMessageAsyncConnection, object):
                         self.log("wait(%d): reply=%s" %
                                  (msgid, short_repr(reply)), level=TRACE)
                     return reply
-                if self.is_async():
-                    self.replies_cond.wait(10.0)
-                else:
-                    self.replies_cond.release()
-                    try:
-                        try:
-                            if __debug__:
-                                self.log("wait(%d): asyncore.poll(%s)" %
-                                         (msgid, delay), level=TRACE)
-                            asyncore.poll(delay, self._singleton)
-                            if delay < 1.0:
-                                delay += delay
-                        except select.error, err:
-                            self.log("Closing.  asyncore.poll() raised %s."
-                                     % err, level=BLATHER)
-                            self.close()
-                    finally:
-                        self.replies_cond.acquire()
+                assert self.is_async() # XXX we're such cowards
+                self.replies_cond.wait()
         finally:
             self.replies_cond.release()
 
@@ -663,7 +799,7 @@ class Connection(smac.SizedMessageAsyncConnection, object):
         else:
             asyncore.poll(0.0, self._singleton)
 
-    def pending(self, timeout=0):
+    def _pending(self, timeout=0):
         """Invoke mainloop until any pending messages are handled."""
         if __debug__:
             self.log("pending(), async=%d" % self.is_async(), level=TRACE)
@@ -758,8 +894,10 @@ class ManagedClientConnection(Connection):
         self.queue_output = True
         self.queued_messages = []
 
-        self.__super_init(sock, addr, obj, tag='C')
-        self.check_mgr_async()
+        self.__super_init(sock, addr, obj, tag='C', map=client_map)
+        self.thr_async = True
+        self.trigger = client_trigger
+        client_trigger.pull_trigger()
 
     # Our message_ouput() queues messages until recv_handshake() gets the
     # protocol handshake from the server.
@@ -806,9 +944,12 @@ class ManagedClientConnection(Connection):
     # Defer the ThreadedAsync work to the manager.
 
     def close_trigger(self):
-        # the manager should actually close the trigger
-        # TODO: what is that comment trying to say?  What 'manager'?
-        del self.trigger
+        # We are using a shared trigger for all client connections.
+        # We never want to close it.
+
+        # We do want to pull it to make sure the select loop detects that
+        # we're closed.
+        self.trigger.pull_trigger()
 
     def set_async(self, map):
         pass
@@ -817,20 +958,8 @@ class ManagedClientConnection(Connection):
         # Don't do the register_loop_callback that the superclass does
         pass
 
-    def check_mgr_async(self):
-        if not self.thr_async and self.mgr.thr_async:
-            assert self.mgr.trigger is not None, \
-                   "manager (%s) has no trigger" % self.mgr
-            self.thr_async = True
-            self.trigger = self.mgr.trigger
-            return 1
-        return 0
-
     def is_async(self):
-        # TODO: could the check_mgr_async() be avoided on each test?
-        if self.thr_async:
-            return 1
-        return self.check_mgr_async()
+        return True
 
     def close(self):
         self.mgr.close_conn(self)

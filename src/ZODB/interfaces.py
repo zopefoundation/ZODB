@@ -100,8 +100,9 @@ class IConnection(Interface):
     Groups of methods:
 
         User Methods:
-            root, get, add, close, db, sync, isReadOnly, cacheGC, cacheFullSweep,
-            cacheMinimize, getVersion, modifiedInVersion
+            root, get, add, close, db, sync, isReadOnly, cacheGC,
+            cacheFullSweep, cacheMinimize, getVersion,
+            modifiedInVersion
 
         Experimental Methods:
             onCloseCallbacks
@@ -230,8 +231,8 @@ class IConnection(Interface):
 
     # Multi-database support.
 
-    connections = Attribute("""\
-        A mapping from database name to a Connection to that database.
+    connections = Attribute(
+        """A mapping from database name to a Connection to that database.
 
         In multi-database use, the Connections of all members of a database
         collection share the same .connections object.
@@ -284,6 +285,14 @@ class IConnection(Interface):
         If clear is True, reset the counters.
         """
 
+    def invalidateCache():
+        """Invalidate the connection cache
+
+        This invalidates *all* objects in the cache. If the connection
+        is open, subsequent reads will fail until a new transaction
+        begins or until the connection os reopned.
+        """
+
 class IStorageDB(Interface):
     """Database interface exposed to storages
 
@@ -302,10 +311,34 @@ class IStorageDB(Interface):
       IDs from a database record.  This can be used by storages to
       provide more advanced garbage collection.
 
-    This interface may be implemented by storage adapters.  For
-    example, a storage adapter that provides encryption and/or
-    compresssion will apply record transformations in it's references method.
+    This interface may be implemented by storage adapters or other
+    intermediaries.  For example, a storage adapter that provides
+    encryption and/or compresssion will apply record transformations
+    in it's references method.
     """
+
+    def invalidateCache():
+        """Discard all cached data
+
+        This can be necessary if there have been major changes to
+        stored data and it is either impractical to enumerate them or
+        there would be so many that it would be inefficient to do so.        
+        """
+
+    def invalidate(transaction_id, oids, version=''):
+        """Invalidate object ids committed by the given transaction
+
+        The oids argument is an iterable of object identifiers.
+        """
+
+    def references(record, oids=None):
+        """Scan the given record for object ids
+
+        A list of object ids is returned.  If a list is passed in,
+        then it will be used and augmented. Otherwise, a new list will
+        be created and returned.
+        """
+
 
 class IDatabase(IStorageDB):
     """ZODB DB.
@@ -313,37 +346,8 @@ class IDatabase(IStorageDB):
     TODO: This interface is incomplete.
     """
 
-    def __init__(storage,
-                 pool_size=7,
-                 cache_size=400,
-                 version_pool_size=3,
-                 version_cache_size=100,
-                 database_name='unnamed',
-                 databases=None
-                 ):
-        """Create an object database.
-
-        storage: the storage used by the database, e.g. FileStorage
-        pool_size: expected maximum number of open connections
-        cache_size: target size of Connection object cache, in number of
-            objects
-        version_pool_size: expected maximum number of connections (per
-            version)
-        version_cache_size: target size of Connection object cache for
-             version connections, in number of objects
-        database_name: when using a multi-database, the name of this DB
-            within the database group.  It's a (detected) error if databases
-            is specified too and database_name is already a key in it.
-            This becomes the value of the DB's database_name attribute.
-        databases: when using a multi-database, a mapping to use as the
-            binding of this DB's .databases attribute.  It's intended
-            that the second and following DB's added to a multi-database
-            pass the .databases attribute set on the first DB added to the
-            collection.
-        """
-
-    databases = Attribute("""\
-        A mapping from database name to DB (database) object.
+    databases = Attribute(
+        """A mapping from database name to DB (database) object.
 
         In multi-database use, all DB members of a database collection share
         the same .databases object.
@@ -352,20 +356,13 @@ class IDatabase(IStorageDB):
         entry.
         """)
 
-    def open(version='',
-             mvcc=True,
-             transaction_manager=None,
-             synch=True
-             ):
+    def open(version='', transaction_manager=None):
         """Return an IConnection object for use by application code.
 
         version: the "version" that all changes will be made
             in, defaults to no version.
-        mvcc: boolean indicating whether MVCC is enabled
         transaction_manager: transaction manager to use.  None means
             use the default transaction manager.
-        synch: boolean indicating whether Connection should
-            register for afterCompletion() calls.
 
         Note that the connection pool is managed as a stack, to
         increase the likelihood that the connection's stack will
@@ -425,48 +422,108 @@ class IStorage(Interface):
     """A storage is responsible for storing and retrieving data of objects.
     """
 
+    def close():
+        """Close the storage.
+        """
+
     def getName():
         """The name of the storage
 
         The format and interpretation of this name is storage
         dependent. It could be a file name, a database name, etc.
 
-        This is used soley for documentation purposes.
-        """
-
-    def sortKey():
-        """Sort key used to order distributed transactions
-
-        When a transaction involved multiple storages, 2-phase commit
-        operations are applied in sort-key order.
-
+        This is used soley for informational purposes.
         """
 
     def getSize():
         """An approximate size of the database, in bytes.
+        
+        This is used soley for informational purposes.
         """
 
+    def history(oid, version, size=1):
+        """Return a sequence of history information dictionaries.
+
+        Up to size objects (including no objects) may be returned.
+        
+        The information provides a log of the changes made to the
+        object. Data are reported in reverse chronological order.
+
+        Each dictionary has the following keys:
+
+        time
+            UTC seconds since the epoch (as in time.time) that the
+            object revision was committed.
+        tid
+            The transaction identifier of the transaction that
+            committed the version.
+        version
+            The version that the revision is in.  If the storage
+            doesn't support versions, then this must be an empty
+            string.
+        user_name
+            The user identifier, if any (or an empty string) of the
+            user on whos behalf the revision was committed.
+        description
+            The transaction description for the transaction that
+            committed the revision.
+        size
+            The size of the revision data record.
+
+        If the transaction had extension items, then these items are
+        also included if they don't conflict with the keys above.
+        """
+
+    def isReadOnly():
+        """Test whether a storage allows committing new transactions
+
+        For a given storage instance, this method always returns the
+        same value.  Read-only-ness is a static property of a storage.
+        """
+
+    def lastTransaction():
+        """Return the id of the last committed transaction
+        """
+
+    def __len__():
+        """The approximate number of objects in the storage
+        
+        This is used soley for informational purposes.
+        """
 
     def load(oid, version):
-        """Load data for an objeject id and version
-        """
+        """Load data for an object id and version
 
-    def loadSerial(oid, serial):
-        """Load the object record for the give transaction id
+        A data record and serial are returned.  The serial is a
+        transaction identifier of the transaction that wrote the data
+        record.
 
-        A single string is returned.
+        A POSKeyError is raised if there is no record for the object
+        id and version.
+
+        Storages that don't support versions must ignore the version
+        argument.
         """
 
     def loadBefore(oid, tid):
         """Load the object data written before a transaction id
 
-        Three values are returned:
+        If there isn't data before the object before the given
+        transaction, then None is returned, otherwise three values are
+        returned:
 
         - The data record
 
         - The transaction id of the data record
 
-        - The transaction id of the following revision, if any.
+        - The transaction id of the following revision, if any, or None.
+        """
+
+    def loadSerial(oid, serial):
+        """Load the object record for the give transaction id
+
+        If a matching data record can be found, it is returned,
+        otherwise, POSKeyError is raised.
         """
 
     def new_oid():
@@ -475,64 +532,29 @@ class IStorage(Interface):
         The object id returned is reserved at least as long as the
         storage is opened.
 
-        TODO: study race conditions.
-
         The return value is a string.
         """
 
-    def store(oid, serial, data, version, transaction):
-        """Store data for the object id, oid.
+    def pack(pack_time, referencesf):
+        """Pack the storage
 
-        Data is given as a string that may contain binary data. A
-        Storage need not and often will not write data immediately. If
-        data are written, then the storage should be prepared to undo
-        the write if a transaction is aborted.
+        It is up to the storage to interpret this call, however, the
+        general idea is that the storage free space by:
 
-        """
+        - discarding object revisions that were old and not current as of the
+          given pack time.
 
-    # XXX restore
+        - garbage collecting objects that aren't reachable from the
+          root object via revisions remaining after discarding
+          revisions that were not current as of the pack time.
 
-    def supportsUndo():
-        """true if the storage supports undo, and false otherwise
-        """
+        The pack time is given as a UTC time in seconds since the
+        empoch.
 
-    def supportsVersions():
-        """true if the storage supports versions, and false otherwise
-        """
-
-    def tpc_abort(transaction):
-        """Abort the transaction.
-
-        Any changes made by the transaction are discarded.
-        """
-
-    def tpc_begin(transaction):
-        """Begin the two-phase commit process.
-        """
-
-    def tpc_vote(transaction):
-        """Provide a storage with an opportunity to veto a transaction
-
-        If a transaction can be committed by a storage, then the
-        method should return. The returned value is ignored.
-
-        If a transaction cannot be committed, then an exception should
-        be raised.
-
-        """
-
-    def tpc_finish(transaction, func = lambda: None):
-        """Finish the transaction, making any transaction changes permanent.
-
-        Changes must be made permanent at this point.
-        """
-
-    def history(oid, version = None, size = 1, filter = lambda e: 1):
-        """Return a sequence of HistoryEntry objects.
-
-        The information provides a log of the changes made to the
-        object. Data are reported in reverse chronological order.
-
+        The second argument is a function that should be used to
+        extract object references from database records.  This is
+        needed to determine which objects are referenced from object
+        revisions.
         """
 
     def registerDB(db):
@@ -541,23 +563,182 @@ class IStorage(Interface):
         Note that, for historical reasons, an implementation may
         require a second argument, however, if required, the None will
         be passed as the second argument.
+        """
+
+    def sortKey():
+        """Sort key used to order distributed transactions
+
+        When a transaction involved multiple storages, 2-phase commit
+        operations are applied in sort-key order.  This must be unique
+        among storages used in a transaction. Obviously, the storage
+        can't assure this, but it should construct the sort key so it
+        has a reasonable chance of being unique.
+        """
+
+    def store(oid, serial, data, version, transaction):
+        """Store data for the object id, oid.
+
+        Arguments:
+
+        oid
+            The object identifier.  This is either a string
+            consisting of 8 nulls or a string previously returned by
+            new_oid. 
+
+        serial
+            The serial of the data that was read when the object was
+            loaded from the database.  If the object was created in
+            the current transaction this will be a string consisting
+            of 8 nulls.
+
+        data
+            The data record. This is opaque to the storage.
+
+        version
+            The version to store the data is.  If the storage doesn't
+            support versions, this should be an empty string and the
+            storage is allowed to ignore it.
+
+        transaction
+            A transaction object.  This should match the current
+            transaction for the storage, set by tpc_begin.
+
+        The new serial for the object is returned, but not necessarily
+        immediately.  It may be returned directly, or un a subsequent
+        store or tpc_vote call.
+
+        The return value may be:
+
+        - None
+
+        - A new serial (string) for the object, or
+
+        - An iterable of object-id and serial pairs giving new serials
+          for objects.
+
+        A serial, returned as a string or in a sequence of oid/serial
+        pairs, may be the special value
+        ZODB.ConflictResolution.ResolvedSerial to indicate that a
+        conflict occured and that the object should be invalidated.
+        
+        """
+
+    def tpc_abort(transaction):
+        """Abort the transaction.
+
+        Any changes made by the transaction are discarded.
+
+        This call is ignored is the storage is not participating in
+        two-phase commit or if the given transaction is not the same
+        as the transaction the storage is commiting.
+        """
+
+    def tpc_begin(transaction):
+        """Begin the two-phase commit process.
+
+        If storage is already participating in a two-phase commit
+        using the same transaction, the call is ignored.
+
+        If the storage is already participating in a two-phase commit
+        using a different transaction, the call blocks until the
+        current transaction ends (commits or aborts).
+        """
+
+    def tpc_finish(transaction, func = lambda: None):
+        """Finish the transaction, making any transaction changes permanent.
+
+        Changes must be made permanent at this point.
+
+        This call is ignored if the storage isn't participating in
+        two-phase commit or if it is commiting a different
+        transaction.  Failure of this method is extremely serious.
+        """
+
+    def tpc_vote(transaction):
+        """Provide a storage with an opportunity to veto a transaction
+
+        This call is ignored if the storage isn't participating in
+        two-phase commit or if it is commiting a different
+        transaction.  Failure of this method is extremely serious.
+
+        If a transaction can be committed by a storage, then the
+        method should return.  If a transaction cannot be committed,
+        then an exception should be raised.  If this method returns
+        without an error, then there must not be an error if
+        tpc_finish or tpc_abort is called subsequently.
+
+        The return value can be either None or a sequence of object-id
+        and serial pairs giving new serials for objects who's ids were
+        passed to previous store calls in the same transaction.
+        After the tpc_vote call, new serials must have been returned,
+        either from tpc_vote or store for objects passed to store.
+
+        A serial returned in a sequence of oid/serial pairs, may be
+        the special value ZODB.ConflictResolution.ResolvedSerial to
+        indicate that a conflict occured and that the object should be
+        invalidated.
 
         """
 
-    def close():
-        """Close the storage.
+class IStorageRestoreable(IStorage):
+
+    def tpc_begin(transaction, tid=None):
+        """Begin the two-phase commit process.
+
+        If storage is already participating in a two-phase commit
+        using the same transaction, the call is ignored.
+
+        If the storage is already participating in a two-phase commit
+        using a different transaction, the call blocks until the
+        current transaction ends (commits or aborts).
+
+        If a transaction id is given, then the transaction will use
+        the given id rather than generating a new id.  This is used
+        when copying already committed transactions from another
+        storage.
         """
 
-    def lastTransaction():
-        """Return the last committed transaction id
-        """
+        # Note that the current implementation also accepts a status.
+        # This is an artifact of:
+        # - Earlier use of an undo status to undo revisions in place,
+        #   and,
+        # - Incorrect pack garbage-collection algorithms (possibly
+        #   including the existing FileStorage implementation), that
+        #   failed to take into account records after the pack time.
+        
 
-    def isReadOnly():
-        """Test whether a storage supports writes
+    def restore(oid, serial, data, version, prev_txn, transaction):
+        """Write data already committed in a separate database
 
-        XXX is this dynamic?  Can a storage support writes some of the
-        time, and not others?
+        The restore method is used when copying data from one database
+        to a replica of the database.  It differs from store in that
+        the data have already been committed, so there is no check for
+        conflicts and no new transaction is is used for the data.
 
+        Arguments:
+
+        oid
+             The object id for the record
+        
+        serial
+             The transaction identifier that originally committed this object.
+
+        data
+             The record data.  This will be None if the transaction
+             undid the creation of the object.
+
+        version
+             The version identifier for the record
+
+        prev_txn
+             The identifier of a previous transaction that held the
+             object data.  The target storage can sometimes use this
+             as a hint to save space.
+
+        transaction
+             The current transaction.
+
+        Nothing is returned.
         """
 
 class IStorageRecordInformation(Interface):
@@ -567,7 +748,6 @@ class IStorageRecordInformation(Interface):
     oid = Attribute("The object id")
     version = Attribute("The version")
     data = Attribute("The data record")
-
 
 class IStorageTransactionInformation(Interface):
     """Provide information about a storage transaction
@@ -582,7 +762,6 @@ class IStorageTransactionInformation(Interface):
     def __iter__():
         """Return an iterable of IStorageTransactionInformation
         """
-
 
 class IStorageIteration(Interface):
     """API for iterating over the contents of a storage
@@ -612,11 +791,22 @@ class IStorageUndoable(IStorage):
     """A storage supporting transactional undo.
     """
 
+    def supportsUndo():
+        """Return True, indicating that the storage supports undo.
+        """
+
     def undo(transaction_id, transaction):
         """Undo the transaction corresponding to the given transaction id.
 
-        This method is not state dependent. If the transaction_id
-        cannot be undone, then an UndoError is raised.
+        The transaction id is a value returned from undoInfo or
+        undoLog, which may not be a stored transaction identifier as
+        used elsewhere in the storage APIs.
+
+        This method must only be called in the first phase of
+        two-phase commit (after tpc_begin but before tpc_vote). It
+        returns a serial (transaction id) and a sequence of object ids
+        for objects affected by the transaction.
+
         """
         # Used by DB (Actually, by TransactionalUndo)
 
@@ -693,58 +883,75 @@ class IStorageUndoable(IStorage):
         # DB pass-through
 
 
-class IPackableStorage(Interface):
+class IStorageCurrentRecordIteration(IStorage):
 
-    def pack(t, referencesf):
-        """Pack the storage
+    def record_iternext(next=None):
+        """Iterate over the records in a storage
 
-        Pack and/or garbage-collect the storage. If the storage does
-        not support undo, then t is ignored. All records for objects
-        that are not reachable from the system root object as of time
-        t, or as of the current time, if undo is not supported, are
-        removed from the storage.
+        Use like this:
 
-        A storage implementation may treat this method as ano-op. A
-        storage implementation may also delay packing and return
-        immediately. Storage documentation should define the behavior
-        of this method.
+            >>> next = None
+            >>> while 1:
+            ...     oid, tid, data, next = storage.record_iternext(next)
+            ...     # do things with oid, tid, and data
+            ...     if next is None:
+            ...         break
+        
         """
-        # Called by DB
 
-class IStorageVersioning(IStorage):
-    """A storage supporting versions.
-    """
+class IBlob(Interface):
+    """A BLOB supports efficient handling of large data within ZODB."""
 
-    def abortVersion(version, transaction):
-        """Clear any changes made by the given version.
+    def open(mode):
+        """Open a blob
+
+        Returns a file(-like) object for handling the blob data.
+
+        mode: Mode to open the file with. Possible values: r,w,r+,a
         """
-        # used by DB
 
-    def commitVersion(source, destination, transaction):
-        """Save version changes
+    def committed():
+        """Return a file name for committed data.
 
-        Store changes made in the source version into the destination
-        version. A VersionCommitError is raised if the source and
-        destination are equal or if the source is an empty string. The
-        destination may be an empty string, in which case the data are
-        saved to non-version storage.
+        The returned file name may be opened for reading or handed to
+        other processes for reading.  The file name isn't guarenteed
+        to be valid indefinately.  The file may be removed in the
+        future as a result of garbage collection depending on system
+        configuration.
+
+        A BlobError will be raised if the blob has any uncommitted data.
         """
-        # used by DB
 
-    def versionEmpty(version):
-        """true if the version for the given version string is empty.
+    def consumeFile(filename):
+        """Consume a file.
+
+        Replace the current data of the blob with the file given under
+        filename.
+
+        The blob must not be opened for reading or writing when consuming a 
+        file.
         """
-        # DB pass through
 
-    def modifiedInVersion(oid):
-        """the version that the object was modified in,
 
-        or an empty string if the object was not modified in a version
+class IBlobStorage(Interface):
+    """A storage supporting BLOBs."""
+
+    def storeBlob(oid, oldserial, data, blob, version, transaction):
+        """Stores data that has a BLOB attached."""
+
+    def loadBlob(oid, serial):
+        """Return the filename of the Blob data for this OID and serial.
+
+        Returns a filename. 
+
+        Raises POSKeyError if the blobfile cannot be found.
         """
-        # DB pass through, sor of.  In the past (including present :),
-        # the DB tried to cache this.  We'll probably stop bothering.
 
-    def versions(max = None):
-        """A sequence of version strings for active cersions
+    def temporaryDirectory():
+        """Return a directory that should be used for uncommitted blob data.
+
+        If Blobs use this, then commits can be performed with a simple rename.
         """
-        # DB pass through
+
+class BlobError(Exception):
+    pass

@@ -25,7 +25,7 @@ import logging
 from ZODB.broken import find_global
 from ZODB.utils import z64
 from ZODB.Connection import Connection
-from ZODB.serialize import referencesf
+import ZODB.serialize
 from ZODB.utils import WeakSet
 
 from zope.interface import implements
@@ -160,9 +160,17 @@ class _ConnectionPool(object):
             assert result in self.all
         return result
 
-    def map(self, f):
-        """For every live connection c, invoke f(c)."""
-        self.all.map(f)
+    def map(self, f, open_connections=True):
+        """For every live connection c, invoke f(c).
+
+        If `open_connections` is false then only call f(c) on closed
+        connections.
+
+        """
+        if open_connections:
+            self.all.map(f)
+        else:
+            map(f, self.available)
 
 class DB(object):
     """The Object Database
@@ -242,23 +250,24 @@ class DB(object):
         self._version_pool_size = version_pool_size
         self._version_cache_size = version_cache_size
 
-        self._miv_cache = {}
-
         # Setup storage
         self._storage=storage
+        self.references = ZODB.serialize.referencesf
+        try:
+            storage.registerDB(self)
+        except TypeError:
+            storage.registerDB(self, None) # Backward compat
 
-        storage.registerDB(self, None)
-
-        if not hasattr(storage,'tpc_vote'):
+        if (not hasattr(storage, 'tpc_vote')) and not storage.isReadOnly():
             warnings.warn(
                 "Storage doesn't have a tpc_vote and this violates "
-                "the stirage API. Violently monkeypatching in a do-nothing "
+                "the storage API. Violently monkeypatching in a do-nothing "
                 "tpc_vote.",
                 DeprecationWarning, 2)
             storage.tpc_vote = lambda *args: None
 
         try:
-            storage.load(z64,'')
+            storage.load(z64, '')
         except KeyError:
             # Create the database's root in the storage if it doesn't exist
             from persistent.mapping import PersistentMapping
@@ -286,13 +295,45 @@ class DB(object):
                              database_name)
         databases[database_name] = self
 
-        # Pass through methods:
-        for m in ['history', 'supportsUndo', 'supportsVersions', 'undoLog',
-                  'versionEmpty', 'versions']:
-            setattr(self, m, getattr(storage, m))
+        self._setupUndoMethods()
+        self._setupVersionMethods()
+        self.history = storage.history
 
-        if hasattr(storage, 'undoInfo'):
-            self.undoInfo = storage.undoInfo
+    def _setupUndoMethods(self):
+        storage = self._storage
+        try:
+            self.supportsUndo = storage.supportsUndo
+        except AttributeError:
+            self.supportsUndo = lambda : False
+
+        if self.supportsUndo():
+            self.undoLog = storage.undoLog
+            if hasattr(storage, 'undoInfo'):
+                self.undoInfo = storage.undoInfo
+        else:
+            self.undoLog = self.undoInfo = lambda *a,**k: ()
+            def undo(*a, **k):
+                raise NotImplementedError
+            self.undo = undo
+
+    def _setupVersionMethods(self):
+        storage = self._storage
+        try:
+            self.supportsVersions = storage.supportsVersions
+        except AttributeError:
+            self.supportsVersions = lambda : False
+
+        if self.supportsVersions():
+            self.versionEmpty = storage.versionEmpty
+            self.versions = storage.versions
+            self.modifiedInVersion = storage.modifiedInVersion
+        else:
+            self.versionEmpty = lambda version: True
+            self.versions = lambda max=None: ()
+            self.modifiedInVersion = lambda oid: ''
+            def commitVersion(*a, **k):
+                raise NotImplementedError
+            self.commitVersion = self.abortVersion = commitVersion
 
     # This is called by Connection.close().
     def _returnToPool(self, connection):
@@ -327,16 +368,25 @@ class DB(object):
         finally:
             self._r()
 
-    # Call f(c) for all connections c in all pools in all versions.
-    def _connectionMap(self, f):
+    def _connectionMap(self, f, open_connections=True):
+        """Call f(c) for all connections c in all pools in all versions.
+
+        If `open_connections` is false then f(c) is only called on closed
+        connections.
+
+        """
         self._a()
         try:
             for pool in self._pools.values():
-                pool.map(f)
+                pool.map(f, open_connections=open_connections)
         finally:
             self._r()
 
     def abortVersion(self, version, txn=None):
+        warnings.warn(
+            "Versions are deprecated and will become unsupported "
+            "in ZODB 3.9",
+            DeprecationWarning, 2)            
         if txn is None:
             txn = transaction.get()
         txn.register(AbortVersion(self, version))
@@ -454,6 +504,10 @@ class DB(object):
         self._storage.close()
 
     def commitVersion(self, source, destination='', txn=None):
+        warnings.warn(
+            "Versions are deprecated and will become unsupported "
+            "in ZODB 3.9",
+            DeprecationWarning, 2)            
         if txn is None:
             txn = transaction.get()
         txn.register(CommitVersion(self, source, destination))
@@ -474,9 +528,17 @@ class DB(object):
         return self._storage.getSize()
 
     def getVersionCacheSize(self):
+        warnings.warn(
+            "Versions are deprecated and will become unsupported "
+            "in ZODB 3.9",
+            DeprecationWarning, 2)            
         return self._version_cache_size
 
     def getVersionPoolSize(self):
+        warnings.warn(
+            "Versions are deprecated and will become unsupported "
+            "in ZODB 3.9",
+            DeprecationWarning, 2)            
         return self._version_pool_size
 
     def invalidate(self, tid, oids, connection=None, version=''):
@@ -489,12 +551,6 @@ class DB(object):
         """
         if connection is not None:
             version = connection._version
-        # Update modified in version cache
-        for oid in oids.keys():
-            h = hash(oid) % 131
-            o = self._miv_cache.get(h, None)
-            if o is not None and o[0]==oid:
-                del self._miv_cache[h]
 
         # Notify connections.
         def inval(c):
@@ -503,21 +559,15 @@ class DB(object):
                 c.invalidate(tid, oids)
         self._connectionMap(inval)
 
-    def modifiedInVersion(self, oid):
-        h = hash(oid) % 131
-        cache = self._miv_cache
-        o = cache.get(h, None)
-        if o and o[0] == oid:
-            return o[1]
-        v = self._storage.modifiedInVersion(oid)
-        cache[h] = oid, v
-        return v
+    def invalidateCache(self):
+        """Invalidate each of the connection caches
+        """
+        self._connectionMap(lambda c: c.invalidateCache())
 
     def objectCount(self):
         return len(self._storage)
 
-    def open(self, version='', mvcc=True,
-             transaction_manager=None, synch=True):
+    def open(self, version='', transaction_manager=None):
         """Return a database Connection for use by application code.
 
         The optional `version` argument can be used to specify that a
@@ -530,12 +580,18 @@ class DB(object):
         :Parameters:
           - `version`: the "version" that all changes will be made
              in, defaults to no version.
-          - `mvcc`: boolean indicating whether MVCC is enabled
           - `transaction_manager`: transaction manager to use.  None means
              use the default transaction manager.
-          - `synch`: boolean indicating whether Connection should
-             register for afterCompletion() calls.
         """
+
+        if version:
+            if not self.supportsVersions():
+                raise ValueError(
+                    "Versions are not supported by this database.")
+            warnings.warn(
+                "Versions are deprecated and will become unsupported "
+                "in ZODB 3.9",
+                DeprecationWarning, 2)            
 
         self._a()
         try:
@@ -562,10 +618,10 @@ class DB(object):
             assert result is not None
 
             # Tell the connection it belongs to self.
-            result.open(transaction_manager, mvcc, synch)
+            result.open(transaction_manager)
 
             # A good time to do some cache cleanup.
-            self._connectionMap(lambda c: c.cacheGC())
+            self._connectionMap(lambda c: c.cacheGC(), open_connections=False)
 
             return result
 
@@ -625,7 +681,7 @@ class DB(object):
             t = time()
         t -= days * 86400
         try:
-            self._storage.pack(t, referencesf)
+            self._storage.pack(t, self.references)
         except:
             logger.error("packing", exc_info=True)
             raise
@@ -650,6 +706,10 @@ class DB(object):
             self._r()
 
     def setVersionCacheSize(self, size):
+        warnings.warn(
+            "Versions are deprecated and will become unsupported "
+            "in ZODB 3.9",
+            DeprecationWarning, 2)            
         self._a()
         try:
             self._version_cache_size = size
@@ -666,6 +726,10 @@ class DB(object):
         self._reset_pool_sizes(size, for_versions=False)
 
     def setVersionPoolSize(self, size):
+        warnings.warn(
+            "Versions are deprecated and will become unsupported "
+            "in ZODB 3.9",
+            DeprecationWarning, 2)            
         self._version_pool_size = size
         self._reset_pool_sizes(size, for_versions=True)
 
@@ -699,14 +763,17 @@ class DB(object):
             txn = transaction.get()
         txn.register(TransactionalUndo(self, id))
 
-    def versionEmpty(self, version):
-        return self._storage.versionEmpty(version)
 
 resource_counter_lock = threading.Lock()
 resource_counter = 0
 
 class ResourceManager(object):
     """Transaction participation for a version or undo resource."""
+
+    # XXX This implementation is broken.  Subclasses invalidate oids
+    # in their commit calls. Invalidations should not be sent until
+    # tpc_finish is called.  In fact, invalidations should be sent to
+    # the db *while* tpc_finish is being called on the storage.
 
     def __init__(self, db):
         self._db = db
@@ -739,10 +806,10 @@ class ResourceManager(object):
     # argument to the methods below is self.
 
     def abort(self, obj, txn):
-        pass
+        raise NotImplementedError
 
     def commit(self, obj, txn):
-        pass
+        raise NotImplementedError
 
 class CommitVersion(ResourceManager):
 
@@ -752,6 +819,7 @@ class CommitVersion(ResourceManager):
         self._dest = dest
 
     def commit(self, ob, t):
+        # XXX see XXX in ResourceManager
         dest = self._dest
         tid, oids = self._db._storage.commitVersion(self._version,
                                                     self._dest,
@@ -770,6 +838,7 @@ class AbortVersion(ResourceManager):
         self._version = version
 
     def commit(self, ob, t):
+        # XXX see XXX in ResourceManager
         tid, oids = self._db._storage.abortVersion(self._version, t)
         self._db.invalidate(tid,
                             dict.fromkeys(oids, 1),
@@ -782,5 +851,6 @@ class TransactionalUndo(ResourceManager):
         self._tid = tid
 
     def commit(self, ob, t):
+        # XXX see XXX in ResourceManager
         tid, oids = self._db._storage.undo(self._tid, t)
         self._db.invalidate(tid, dict.fromkeys(oids, 1))

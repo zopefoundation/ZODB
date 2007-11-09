@@ -11,15 +11,26 @@
 # FOR A PARTICULAR PURPOSE
 #
 ##############################################################################
+import pickle
 import random
+import StringIO
 from unittest import TestCase, TestSuite, TextTestRunner, makeSuite
+from types import ClassType
+import zope.interface.verify
 
 from BTrees.OOBTree import OOBTree, OOBucket, OOSet, OOTreeSet
 from BTrees.IOBTree import IOBTree, IOBucket, IOSet, IOTreeSet
 from BTrees.IIBTree import IIBTree, IIBucket, IISet, IITreeSet
 from BTrees.IFBTree import IFBTree, IFBucket, IFSet, IFTreeSet
 from BTrees.OIBTree import OIBTree, OIBucket, OISet, OITreeSet
+from BTrees.LOBTree import LOBTree, LOBucket, LOSet, LOTreeSet
+from BTrees.LLBTree import LLBTree, LLBucket, LLSet, LLTreeSet
+from BTrees.LFBTree import LFBTree, LFBucket, LFSet, LFTreeSet
+from BTrees.OLBTree import OLBTree, OLBucket, OLSet, OLTreeSet
 
+import BTrees
+
+from BTrees.IIBTree import using64bits
 from BTrees.check import check
 
 import transaction
@@ -30,6 +41,9 @@ class Base(TestCase):
     """ Tests common to all types: sets, buckets, and BTrees """
 
     db = None
+
+    def setUp(self):
+        self.t = self.t_class()
 
     def tearDown(self):
         if self.db is not None:
@@ -1145,6 +1159,113 @@ class BTreeTests(MappingBase):
                                               "changed size")
                 break
 
+
+LARGEST_32_BITS = 2147483647
+SMALLEST_32_BITS = -LARGEST_32_BITS - 1
+
+SMALLEST_POSITIVE_33_BITS = LARGEST_32_BITS + 1
+LARGEST_NEGATIVE_33_BITS = SMALLEST_32_BITS - 1
+
+LARGEST_64_BITS = 0x7fffffffffffffff
+SMALLEST_64_BITS = -LARGEST_64_BITS - 1
+
+SMALLEST_POSITIVE_65_BITS = LARGEST_64_BITS + 1
+LARGEST_NEGATIVE_65_BITS = SMALLEST_64_BITS - 1
+
+class TestLongIntSupport:
+
+    def getTwoValues(self):
+        """Return two distinct values; these must compare as un-equal.
+
+        These values must be usable as values.
+
+        """
+        return object(), object()
+
+    def getTwoKeys(self):
+        """Return two distinct values, these must compare as un-equal.
+
+        These values must be usable as keys.
+
+        """
+        return 0, 1
+
+    def _set_value(self, key, value):
+        self.t[key] = value
+
+class TestLongIntKeys(TestLongIntSupport):
+
+    def testLongIntKeysWork(self):
+        o1, o2 = self.getTwoValues()
+        assert o1 != o2
+
+        # Test some small key values first:
+        self.t[0L] = o1
+        self.assertEqual(self.t[0], o1)
+        self.t[0] = o2
+        self.assertEqual(self.t[0L], o2)
+        self.assertEqual(list(self.t.keys()), [0])
+
+        # Test some large key values too:
+        k1 = SMALLEST_POSITIVE_33_BITS
+        k2 = LARGEST_64_BITS
+        k3 = SMALLEST_64_BITS
+        self.t[k1] = o1
+        self.t[k2] = o2
+        self.t[k3] = o1
+        self.assertEqual(self.t[k1], o1)
+        self.assertEqual(self.t[k2], o2)
+        self.assertEqual(self.t[k3], o1)
+        self.assertEqual(list(self.t.keys()), [k3, 0, k1, k2])
+
+    def testLongIntKeysOutOfRange(self):
+        o1, o2 = self.getTwoValues()
+        self.assertRaises(
+            ValueError,
+            self._set_value, SMALLEST_POSITIVE_65_BITS, o1)
+        self.assertRaises(
+            ValueError,
+            self._set_value, LARGEST_NEGATIVE_65_BITS, o1)
+
+class TestLongIntValues(TestLongIntSupport):
+
+    def testLongIntValuesWork(self):
+        keys = list(self.getTwoKeys())
+        keys.sort()
+        k1, k2 = keys
+        assert k1 != k2
+
+        # This is the smallest positive integer that requires 33 bits:
+        v1 = SMALLEST_POSITIVE_33_BITS
+        v2 = v1 + 1
+
+        self.t[k1] = v1
+        self.t[k2] = v2
+        self.assertEqual(self.t[k1], v1)
+        self.assertEqual(self.t[k2], v2)
+        self.assertEqual(list(self.t.values()), [v1, v2])
+
+    def testLongIntValuesOutOfRange(self):
+        k1, k2 = self.getTwoKeys()
+        self.assertRaises(
+            ValueError,
+            self._set_value, k1, SMALLEST_POSITIVE_65_BITS)
+        self.assertRaises(
+            ValueError,
+            self._set_value, k1, LARGEST_NEGATIVE_65_BITS)
+
+
+if not using64bits:
+    # We're not using 64-bit ints in this build, so we don't expect
+    # the long-integer tests to pass.
+
+    class TestLongIntKeys:
+        pass
+
+    class TestLongIntValues:
+        pass
+
+
 # tests of various type errors
 
 class TypeTest(TestCase):
@@ -1441,63 +1562,19 @@ class DegenerateBTree(TestCase):
             # at some unrelated line.
             del t   # trigger destructor
 
-class IIBucketTest(MappingBase):
-    def setUp(self):
-        self.t = IIBucket()
-class IFBucketTest(MappingBase):
-    def setUp(self):
-        self.t = IFBucket()
-class IOBucketTest(MappingBase):
-    def setUp(self):
-        self.t = IOBucket()
-class OIBucketTest(MappingBase):
-    def setUp(self):
-        self.t = OIBucket()
-class OOBucketTest(MappingBase):
-    def setUp(self):
-        self.t = OOBucket()
 
-class IITreeSetTest(NormalSetTests):
-    def setUp(self):
-        self.t = IITreeSet()
-class IFTreeSetTest(NormalSetTests):
-    def setUp(self):
-        self.t = IFTreeSet()
-class IOTreeSetTest(NormalSetTests):
-    def setUp(self):
-        self.t = IOTreeSet()
-class OITreeSetTest(NormalSetTests):
-    def setUp(self):
-        self.t = OITreeSet()
-class OOTreeSetTest(NormalSetTests):
-    def setUp(self):
-        self.t = OOTreeSet()
-
-class IISetTest(ExtendedSetTests):
-    def setUp(self):
-        self.t = IISet()
+class BugFixes(TestCase):
 
     # Collector 1843.  Error returns were effectively ignored in
     # Bucket_rangeSearch(), leading to "delayed" errors, or worse.
-    def testNonIntKeyRaises(self):
-        self.t.insert(1)
+    def testFixed1843(self):
+        t = IISet()
+        t.insert(1)
         # This one used to fail to raise the TypeError when it occurred.
-        self.assertRaises(TypeError, self.t.keys, "")
+        self.assertRaises(TypeError, t.keys, "")
         # This one used to segfault.
-        self.assertRaises(TypeError, self.t.keys, 0, "")
+        self.assertRaises(TypeError, t.keys, 0, "")
 
-class IFSetTest(ExtendedSetTests):
-    def setUp(self):
-        self.t = IFSet()
-class IOSetTest(ExtendedSetTests):
-    def setUp(self):
-        self.t = IOSet()
-class OISetTest(ExtendedSetTests):
-    def setUp(self):
-        self.t = OISet()
-class OOSetTest(ExtendedSetTests):
-    def setUp(self):
-        self.t = OOSet()
 
 class IIBTreeTest(BTreeTests):
     def setUp(self):
@@ -1514,6 +1591,49 @@ class OIBTreeTest(BTreeTests):
 class OOBTreeTest(BTreeTests):
     def setUp(self):
         self.t = OOBTree()
+
+if using64bits:
+    class IIBTreeTest(BTreeTests, TestLongIntKeys, TestLongIntValues):
+        def setUp(self):
+            self.t = IIBTree()
+        def getTwoValues(self):
+            return 1, 2
+    class IFBTreeTest(BTreeTests, TestLongIntKeys):
+        def setUp(self):
+            self.t = IFBTree()
+        def getTwoValues(self):
+            return 0.5, 1.5
+    class IOBTreeTest(BTreeTests, TestLongIntKeys):
+        def setUp(self):
+            self.t = IOBTree()
+    class OIBTreeTest(BTreeTests, TestLongIntValues):
+        def setUp(self):
+            self.t = OIBTree()
+        def getTwoKeys(self):
+            return object(), object()
+    
+class LLBTreeTest(BTreeTests, TestLongIntKeys, TestLongIntValues):
+    def setUp(self):
+        self.t = LLBTree()
+    def getTwoValues(self):
+        return 1, 2
+class LFBTreeTest(BTreeTests, TestLongIntKeys):
+    def setUp(self):
+        self.t = LFBTree()
+    def getTwoValues(self):
+        return 0.5, 1.5
+class LOBTreeTest(BTreeTests, TestLongIntKeys):
+    def setUp(self):
+        self.t = LOBTree()
+class OLBTreeTest(BTreeTests, TestLongIntValues):
+    def setUp(self):
+        self.t = OLBTree()
+    def getTwoKeys(self):
+        return object(), object()
+class OOBTreeTest(BTreeTests):
+    def setUp(self):
+        self.t = OOBTree()
+
 
 # cmp error propagation tests
 
@@ -1533,23 +1653,179 @@ class TestCmpError(TestCase):
             self.fail('incomarable objects should not be allowed into '
                       'the tree')
 
+# test for presence of generic names in module
+
+class ModuleTest(TestCase):
+    module = None
+    prefix = None
+    iface = None
+    def testNames(self):
+        for name in ('Bucket', 'BTree', 'Set', 'TreeSet'):
+            klass = getattr(self.module, name)
+            self.assertEqual(klass.__module__, self.module.__name__)
+            self.assert_(klass is getattr(self.module, self.prefix + name))
+
+    def testModuleProvides(self):
+        self.assert_(
+            zope.interface.verify.verifyObject(self.iface, self.module))
+
+    def testFamily(self):
+        if self.prefix == 'OO':
+            self.assert_(
+                getattr(self.module, 'family', self) is self)
+        elif 'L' in self.prefix:
+            self.assert_(self.module.family is BTrees.family64)
+        elif 'I' in self.prefix:
+            self.assert_(self.module.family is BTrees.family32)
+
+class FamilyTest(TestCase):
+    def test32(self):
+        self.assert_(
+            zope.interface.verify.verifyObject(
+                BTrees.Interfaces.IBTreeFamily, BTrees.family32))
+        self.assertEquals(
+            BTrees.family32.IO, BTrees.IOBTree)
+        self.assertEquals(
+            BTrees.family32.OI, BTrees.OIBTree)
+        self.assertEquals(
+            BTrees.family32.II, BTrees.IIBTree)
+        self.assertEquals(
+            BTrees.family32.IF, BTrees.IFBTree)
+        self.assertEquals(
+            BTrees.family32.OO, BTrees.OOBTree)
+        s = IOTreeSet()
+        s.insert(BTrees.family32.maxint)
+        self.assert_(BTrees.family32.maxint in s)
+        s = IOTreeSet()
+        s.insert(BTrees.family32.minint)
+        self.assert_(BTrees.family32.minint in s)
+        s = IOTreeSet()
+        # this next bit illustrates an, um, "interesting feature".  If
+        # the characteristics change to match the 64 bit version, please
+        # feel free to change.
+        big = BTrees.family32.maxint + 1
+        if isinstance(big, long):
+            self.assertRaises(TypeError, s.insert, big)
+            self.assertRaises(TypeError, s.insert, BTrees.family32.minint - 1)
+        else: # 64 bit Python
+            s.insert(BTrees.family32.maxint + 1)
+            self.assert_(BTrees.family32.maxint + 1 not in list(s))
+            # yeah, it's len of 1 now, and rolled over to the minint...
+            # don't look...don't look...
+            s = IOTreeSet()
+            s.insert(BTrees.family32.minint - 1)
+            self.assert_(BTrees.family32.minint - 1 not in list(s))
+            # similarly, this is a len of 1, rolling over to the maxint...
+        self.check_pickling(BTrees.family32)
+
+    def test64(self):
+        self.assert_(
+            zope.interface.verify.verifyObject(
+                BTrees.Interfaces.IBTreeFamily, BTrees.family64))
+        self.assertEquals(
+            BTrees.family64.IO, BTrees.LOBTree)
+        self.assertEquals(
+            BTrees.family64.OI, BTrees.OLBTree)
+        self.assertEquals(
+            BTrees.family64.II, BTrees.LLBTree)
+        self.assertEquals(
+            BTrees.family64.IF, BTrees.LFBTree)
+        self.assertEquals(
+            BTrees.family64.OO, BTrees.OOBTree)
+        s = LOTreeSet()
+        s.insert(BTrees.family64.maxint)
+        self.assert_(BTrees.family64.maxint in s)
+        s = LOTreeSet()
+        s.insert(BTrees.family64.minint)
+        self.assert_(BTrees.family64.minint in s)
+        s = LOTreeSet()
+        self.assertRaises(ValueError, s.insert, BTrees.family64.maxint + 1)
+        self.assertRaises(ValueError, s.insert, BTrees.family64.minint - 1)
+        self.check_pickling(BTrees.family64)
+
+    def check_pickling(self, family):
+        # The "family" objects are singletons; they can be pickled and
+        # unpickled, and the same instances will always be returned on
+        # unpickling, whether from the same unpickler or different
+        # unpicklers.
+        s = pickle.dumps((family, family))
+        (f1, f2) = pickle.loads(s)
+        self.failUnless(f1 is family)
+        self.failUnless(f2 is family)
+
+        # Using a single memo across multiple pickles:
+        sio = StringIO.StringIO()
+        p = pickle.Pickler(sio)
+        p.dump(family)
+        p.dump([family])
+        u = pickle.Unpickler(StringIO.StringIO(sio.getvalue()))
+        f1 = u.load()
+        f2, = u.load()
+        self.failUnless(f1 is family)
+        self.failUnless(f2 is family)
+
+        # Using separate memos for each pickle:
+        sio = StringIO.StringIO()
+        p = pickle.Pickler(sio)
+        p.dump(family)
+        p.clear_memo()
+        p.dump([family])
+        u = pickle.Unpickler(StringIO.StringIO(sio.getvalue()))
+        f1 = u.load()
+        f2, = u.load()
+        self.failUnless(f1 is family)
+        self.failUnless(f2 is family)
+
+
 def test_suite():
     s = TestSuite()
 
+    for kv in ('OO',
+               'II', 'IO', 'OI', 'IF',
+               'LL', 'LO', 'OL', 'LF',
+               ):
+        for name, bases in (('Bucket', (MappingBase,)),
+                            ('TreeSet', (NormalSetTests,)),
+                            ('Set', (ExtendedSetTests,)),
+                            ):
+            klass = ClassType(kv + name + 'Test', bases,
+                              dict(t_class=globals()[kv+name]))
+            s.addTest(makeSuite(klass))
+    for kv, iface in (
+        ('OO', BTrees.Interfaces.IObjectObjectBTreeModule),
+        ('IO', BTrees.Interfaces.IIntegerObjectBTreeModule),
+        ('LO', BTrees.Interfaces.IIntegerObjectBTreeModule),
+        ('OI', BTrees.Interfaces.IObjectIntegerBTreeModule),
+        ('OL', BTrees.Interfaces.IObjectIntegerBTreeModule),
+        ('II', BTrees.Interfaces.IIntegerIntegerBTreeModule),
+        ('LL', BTrees.Interfaces.IIntegerIntegerBTreeModule),
+        ('IF', BTrees.Interfaces.IIntegerFloatBTreeModule),
+        ('LF', BTrees.Interfaces.IIntegerFloatBTreeModule)):
+        s.addTest(
+            makeSuite(
+                ClassType(
+                    kv + 'ModuleTest',
+                    (ModuleTest,),
+                    dict(
+                        prefix=kv,
+                        module=getattr(BTrees, kv + 'BTree'),
+                        iface=iface))))
+
     for klass in (
-        IIBucketTest, IIBTreeTest, IISetTest, IITreeSetTest,
-        IFBucketTest, IFBTreeTest, IFSetTest, IFTreeSetTest,
-        IOBucketTest, IOBTreeTest, IOSetTest, IOTreeSetTest,
-        OOBucketTest, OOBTreeTest, OOSetTest, OOTreeSetTest,
-        OIBucketTest, OIBTreeTest, OISetTest, OITreeSetTest,
+        IIBTreeTest, IFBTreeTest, IOBTreeTest, OIBTreeTest,
+        LLBTreeTest, LFBTreeTest, LOBTreeTest, OLBTreeTest,
+        OOBTreeTest,
 
         # Note:  there is no TestOOBTrees.  The next three are
         # checking for assorted TypeErrors, and when both keys
-        # and values oare objects (OO), there's nothing to test.
+        # and values are objects (OO), there's nothing to test.
         TestIIBTrees, TestIFBTrees,  TestIOBTrees,  TestOIBTrees,
         TestIOSets,
         DegenerateBTree,
-        TestCmpError):
+        TestCmpError,
+        BugFixes,
+        FamilyTest,
+        ):
         s.addTest(makeSuite(klass))
 
     return s

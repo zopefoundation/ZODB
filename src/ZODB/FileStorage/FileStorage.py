@@ -30,15 +30,16 @@ from struct import pack, unpack
 fsync = getattr(os, "fsync", None)
 
 from ZODB import BaseStorage, ConflictResolution, POSException
-from ZODB.POSException \
-     import UndoError, POSKeyError, MultipleUndoErrors, VersionLockError
+from ZODB.POSException import UndoError, POSKeyError, MultipleUndoErrors
+from ZODB.POSException import VersionLockError
 from persistent.TimeStamp import TimeStamp
 from ZODB.lock_file import LockFile
 from ZODB.utils import p64, u64, cp, z64
 from ZODB.FileStorage.fspack import FileStoragePacker
-from ZODB.FileStorage.format \
-     import FileStorageFormatter, DataHeader, TxnHeader, DATA_HDR, \
-     DATA_HDR_LEN, TRANS_HDR, TRANS_HDR_LEN, CorruptedDataError
+from ZODB.FileStorage.format import FileStorageFormatter, DataHeader
+from ZODB.FileStorage.format import TxnHeader, DATA_HDR, DATA_HDR_LEN
+from ZODB.FileStorage.format import TRANS_HDR, TRANS_HDR_LEN
+from ZODB.FileStorage.format import CorruptedDataError
 from ZODB.loglevels import BLATHER
 from ZODB.fsIndex import fsIndex
 
@@ -515,32 +516,6 @@ class FileStorage(BaseStorage.BaseStorage,
         except TypeError:
             raise TypeError("invalid oid %r" % (oid,))
 
-    def loadEx(self, oid, version):
-        # A variant of load() that also returns the version string.
-        # ZEO wants this for managing its cache.
-        self._lock_acquire()
-        try:
-            pos = self._lookup_pos(oid)
-            h = self._read_data_header(pos, oid)
-            if h.version and h.version != version:
-                # Return data and tid from pnv (non-version data).
-                # If we return the old record's transaction id, then
-                # it will look to the cache like old data is current.
-                # The tid for the current data must always be greater
-                # than any non-current data.
-                data = self._loadBack_impl(oid, h.pnv)[0]
-                return data, h.tid, ""
-            if h.plen:
-                data = self._file.read(h.plen)
-                return data, h.tid, h.version
-            else:
-                # Get the data from the backpointer, but tid from
-                # currnt txn.
-                data = self._loadBack_impl(oid, h.back)[0]
-                return data, h.tid, h.version
-        finally:
-            self._lock_release()
-
     def load(self, oid, version):
         """Return pickle data and serial number."""
         self._lock_acquire()
@@ -555,7 +530,7 @@ class FileStorage(BaseStorage.BaseStorage,
                 return data, h.tid
             else:
                 # Get the data from the backpointer, but tid from
-                # currnt txn.
+                # current txn.
                 data = self._loadBack_impl(oid, h.back)[0]
                 return data, h.tid
         finally:
@@ -628,7 +603,7 @@ class FileStorage(BaseStorage.BaseStorage,
         finally:
             self._lock_release()
 
-    def store(self, oid, serial, data, version, transaction):
+    def store(self, oid, oldserial, data, version, transaction):
         if self._is_read_only:
             raise POSException.ReadOnlyError()
         if transaction is not self._transaction:
@@ -651,12 +626,12 @@ class FileStorage(BaseStorage.BaseStorage,
                         pnv = h.pnv
                     cached_tid = h.tid
 
-                if serial != cached_tid:
+                if oldserial != cached_tid:
                     rdata = self.tryToResolveConflict(oid, cached_tid,
-                                                     serial, data)
+                                                     oldserial, data)
                     if rdata is None:
                         raise POSException.ConflictError(
-                            oid=oid, serials=(cached_tid, serial), data=data)
+                            oid=oid, serials=(cached_tid, oldserial), data=data)
                     else:
                         data = rdata
 
@@ -686,7 +661,7 @@ class FileStorage(BaseStorage.BaseStorage,
                 raise FileStorageQuotaError(
                     "The storage quota has been exceeded.")
 
-            if old and serial != cached_tid:
+            if old and oldserial != cached_tid:
                 return ConflictResolution.ResolvedSerial
             else:
                 return self._tid
@@ -940,9 +915,6 @@ class FileStorage(BaseStorage.BaseStorage,
             self._file.truncate(self._pos)
             self._nextpos=0
 
-    def supportsTransactionalUndo(self):
-        return 1
-
     def _undoDataInfo(self, oid, pos, tpos):
         """Return the tid, data pointer, data, and version for the oid
         record at pos"""
@@ -974,16 +946,16 @@ class FileStorage(BaseStorage.BaseStorage,
             result = self._get_cached_tid(oid)
             if result is None:
                 pos = self._lookup_pos(oid)
-                result = self._getTid(oid, pos)
+                h = self._read_data_header(pos, oid)
+                if h.plen == 0 and h.back == 0:
+                    # Undone creation
+                    raise POSKeyError(oid)
+                else:
+                    result = h.tid
+                    self._oid2tid[oid] = result
             return result
         finally:
             self._lock_release()
-
-    def _getTid(self, oid, pos):
-        self._file.seek(pos)
-        h = self._file.read(16)
-        assert oid == h[:8]
-        return h[8:]
 
     def _getVersion(self, oid, pos):
         h = self._read_data_header(pos, oid)
@@ -1390,6 +1362,25 @@ class FileStorage(BaseStorage.BaseStorage,
         """Return transaction id for last committed transaction"""
         return self._ltid
 
+    def lastInvalidations(self, count):
+        file = self._file
+        seek = file.seek
+        read = file.read
+        self._lock_acquire()
+        try:
+            pos = self._pos
+            while count > 0 and pos > 4:
+                count -= 1
+                seek(pos-8)
+                pos = pos - 8 - u64(read(8))
+
+            seek(0)
+            return [(trans.tid, [(r.oid, r.version) for r in trans])
+                    for trans in FileIterator(self._file, pos=pos)]
+        finally:
+            self._lock_release()
+        
+
     def lastTid(self, oid):
         """Return last serialno committed for object oid.
 
@@ -1421,7 +1412,10 @@ class FileStorage(BaseStorage.BaseStorage,
         except ValueError: # "empty tree" error
             next_oid = None
 
-        data, tid = self.load(oid, "") # ignore versions
+        # ignore versions
+        # XXX if the object was created in a version, this will fail.
+        data, tid = self.load(oid, "")
+
         return oid, tid, data, next_oid
 
 
@@ -1822,7 +1816,7 @@ class FileIterator(Iterator, FileStorageFormatter):
     _ltid = z64
     _file = None
 
-    def __init__(self, file, start=None, stop=None):
+    def __init__(self, file, start=None, stop=None, pos=4L):
         if isinstance(file, str):
             file = open(file, 'rb')
         self._file = file
@@ -1830,7 +1824,7 @@ class FileIterator(Iterator, FileStorageFormatter):
             raise FileStorageFormatError(file.name)
         file.seek(0,2)
         self._file_size = file.tell()
-        self._pos = 4L
+        self._pos = pos
         assert start is None or isinstance(start, str)
         assert stop is None or isinstance(stop, str)
         if start:

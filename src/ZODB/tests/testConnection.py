@@ -24,12 +24,6 @@ from ZODB.utils import p64, u64
 from ZODB.tests.warnhook import WarningsHook
 from zope.interface.verify import verifyObject
 
-# deprecated37  remove when subtransactions go away
-# Don't complain about subtxns in these tests.
-warnings.filterwarnings("ignore",
-                        ".*\nsubtransactions are deprecated",
-                        DeprecationWarning, __name__)
-
 class ConnectionDotAdd(unittest.TestCase):
 
     def setUp(self):
@@ -292,35 +286,6 @@ class UserMethodTests(unittest.TestCase):
         10
         >>> cn.close(); cn2.close()
 
-        Bug:  We weren't catching the case where the only changes pending
-        were in a subtransaction.
-        >>> cn = db.open()
-        >>> cn.root()['a'] = 100
-        >>> transaction.commit(True)
-        >>> cn.close()  # this was succeeding
-        Traceback (most recent call last):
-          ...
-        ConnectionStateError: Cannot close a connection joined to a transaction
-
-        Again this leaves the connection as it was.
-        >>> transaction.commit()
-        >>> cn2 = db.open()
-        >>> cn2.root()['a']
-        100
-        >>> cn.close(); cn2.close()
-
-        Make sure we can still close a connection after aborting a pending
-        subtransaction.
-        >>> cn = db.open()
-        >>> cn.root()['a'] = 1000
-        >>> transaction.commit(True)
-        >>> cn.root()['a']
-        1000
-        >>> transaction.abort()
-        >>> cn.root()['a']
-        100
-        >>> cn.close()
-
         >>> db.close()
         """
 
@@ -474,9 +439,81 @@ class InvalidationTests(unittest.TestCase):
         >>> p3._p_state
         0
         >>> cn._invalidated
-        {}
+        set([])
 
         """
+
+def test_invalidateCache():
+    """The invalidateCache method invalidates a connection's cache.  It also
+    prevents reads until the end of a transaction::
+
+        >>> from ZODB.tests.util import DB
+        >>> import transaction
+        >>> db = DB()
+        >>> tm = transaction.TransactionManager()
+        >>> connection = db.open(transaction_manager=tm)
+        >>> connection.root()['a'] = StubObject()
+        >>> connection.root()['a'].x = 1
+        >>> connection.root()['b'] = StubObject()
+        >>> connection.root()['b'].x = 1
+        >>> connection.root()['c'] = StubObject()
+        >>> connection.root()['c'].x = 1
+        >>> tm.commit()
+        >>> connection.root()['b']._p_deactivate()
+        >>> connection.root()['c'].x = 2
+
+    So we have a connection and an active transaction with some modifications.
+    Lets call invalidateCache:
+
+        >>> connection.invalidateCache()
+
+    Now, if we try to load an object, we'll get a read conflict:
+
+        >>> connection.root()['b'].x
+        Traceback (most recent call last):
+        ...
+        ReadConflictError: database read conflict error
+
+    If we try to commit the transaction, we'll get a conflict error:
+
+        >>> tm.commit()
+        Traceback (most recent call last):
+        ...
+        ConflictError: database conflict error
+
+    and the cache will have been cleared:
+
+        >>> print connection.root()['a']._p_changed
+        None
+        >>> print connection.root()['b']._p_changed
+        None
+        >>> print connection.root()['c']._p_changed
+        None
+
+    But we'll be able to access data again:
+
+        >>> connection.root()['b'].x
+        1
+
+    Aborting a transaction after a read conflict also lets us read data and go
+    on about our business:
+
+        >>> connection.invalidateCache()
+
+        >>> connection.root()['c'].x
+        Traceback (most recent call last):
+        ...
+        ReadConflictError: database read conflict error
+
+        >>> tm.abort()
+        >>> connection.root()['c'].x
+        1
+
+        >>> connection.root()['c'].x = 2
+        >>> tm.commit()
+
+        >>> db.close()
+    """
 
 # ---- stubs
 

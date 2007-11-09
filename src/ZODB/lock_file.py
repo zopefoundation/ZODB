@@ -17,31 +17,49 @@ import errno
 import logging
 logger = logging.getLogger("ZODB.lock_file")
 
+class LockError(Exception):
+    """Couldn't lock a file
+    """
+
 try:
     import fcntl
 except ImportError:
     try:
-        from winlock import LockFile as _LockFile
-        from winlock import UnlockFile as _UnlockFile
+        import msvcrt
     except ImportError:
-        def lock_file(file):
-            logger.info('No file-locking support on this platform')
+        def _lock_file(file):
+            raise TypeError('No file-locking support on this platform')
+        def _unlock_file(file):
+            raise TypeError('No file-locking support on this platform')
 
-    # Windows
-    def lock_file(file):
-        # Lock just the first byte
-        _LockFile(file.fileno(), 0, 0, 1, 0)
+    else:
+        # Windows
+        def _lock_file(file):
+            # Lock just the first byte
+            try:
+                msvcrt.locking(file.fileno(), msvcrt.LK_NBLCK, 1)
+            except IOError:
+                raise LockError("Couldn't lock %r" % file.name)
 
-    def unlock_file(file):
-        _UnlockFile(file.fileno(), 0, 0, 1, 0)
+        def _unlock_file(file):
+            try:
+                file.seek(0)
+                msvcrt.locking(file.fileno(), msvcrt.LK_UNLCK, 1)
+            except IOError:
+                raise LockError("Couldn't unlock %r" % file.name)
+                
 else:
     # Unix
     _flags = fcntl.LOCK_EX | fcntl.LOCK_NB
 
-    def lock_file(file):
-        fcntl.flock(file.fileno(), _flags)
+    def _lock_file(file):
+        try:
+            fcntl.flock(file.fileno(), _flags)
+        except IOError:
+            raise LockError("Couldn't lock %r" % file.name)
+            
 
-    def unlock_file(file):
+    def _unlock_file(file):
         # File is automatically unlocked on close
         pass
 
@@ -51,25 +69,29 @@ else:
 # Creating the instance acquires the lock.  The file remains open.  Calling
 # close both closes and unlocks the lock file.
 class LockFile:
+
+    _fp = None
+
     def __init__(self, path):
         self._path = path
+        fp = open(path, 'w+')
+
         try:
-            self._fp = open(path, 'r+')
-        except IOError, e:
-            if e.errno <> errno.ENOENT: raise
-            self._fp = open(path, 'w+')
-        # Acquire the lock and piss on the hydrant
-        try:
-            lock_file(self._fp)
+            _lock_file(fp)
         except:
-            logger.exception("Error locking file %s", path)
+            fp.seek(1)
+            pid = fp.read().strip()[:20]
+            fp.close()
+            logger.exception("Error locking file", path, pid)
             raise
-        print >> self._fp, os.getpid()
-        self._fp.flush()
+
+        self._fp = fp
+        fp.write(" %s\n" % os.getpid())
+        fp.truncate()
+        fp.flush()
 
     def close(self):
         if self._fp is not None:
-            unlock_file(self._fp)
+            _unlock_file(self._fp)
             self._fp.close()
-            os.unlink(self._path)
             self._fp = None

@@ -21,7 +21,28 @@ import unittest
 import ZODB.tests.util
 import transaction
 from zope.testing import doctest
+import ZODB.persistentclass
 
+def class_with_circular_ref_to_self():
+    """
+It should be possible for a class to reger to itself.
+
+    >>> class C:
+    ...     __metaclass__ = ZODB.persistentclass.PersistentMetaClass
+
+    >>> C.me = C
+    >>> db = ZODB.tests.util.DB()
+    >>> conn = db.open()
+    >>> conn.root()['C'] = C
+    >>> transaction.commit()
+
+    >>> conn2 = db.open()
+    >>> C2 = conn2.root()['C']
+    >>> c = C2()
+    >>> c.__class__.__name__
+    'C'
+    
+"""
 
 # XXX need to update files to get newer testing package
 class FakeModule:
@@ -44,6 +65,7 @@ def test_suite():
     return unittest.TestSuite((
         doctest.DocFileSuite("../persistentclass.txt",
                              setUp=setUp, tearDown=tearDown),
+        doctest.DocTestSuite(setUp=setUp, tearDown=tearDown),
         ))
 
 if __name__ == '__main__':

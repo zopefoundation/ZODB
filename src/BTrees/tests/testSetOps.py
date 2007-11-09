@@ -15,8 +15,13 @@ from unittest import TestCase, TestSuite, TextTestRunner, makeSuite
 
 from BTrees.OOBTree import OOBTree, OOBucket, OOSet, OOTreeSet
 from BTrees.IOBTree import IOBTree, IOBucket, IOSet, IOTreeSet
+from BTrees.IFBTree import IFBTree, IFBucket, IFSet, IFTreeSet
 from BTrees.IIBTree import IIBTree, IIBucket, IISet, IITreeSet
 from BTrees.OIBTree import OIBTree, OIBucket, OISet, OITreeSet
+from BTrees.LOBTree import LOBTree, LOBucket, LOSet, LOTreeSet
+from BTrees.LFBTree import LFBTree, LFBucket, LFSet, LFTreeSet
+from BTrees.LLBTree import LLBTree, LLBucket, LLSet, LLTreeSet
+from BTrees.OLBTree import OLBTree, OLBucket, OLSet, OLTreeSet
 
 # Subclasses have to set up:
 #     builders - functions to build inputs, taking an optional keys arg
@@ -169,6 +174,10 @@ def makeBuilder(mapbuilder):
         return mapbuilder(zip(keys, keys))
     return result
 
+class PureOO(SetResult):
+    from BTrees.OOBTree import union, intersection, difference
+    builders = OOSet, OOTreeSet, makeBuilder(OOBTree), makeBuilder(OOBucket)
+
 class PureII(SetResult):
     from BTrees.IIBTree import union, intersection, difference
     builders = IISet, IITreeSet, makeBuilder(IIBTree), makeBuilder(IIBucket)
@@ -177,13 +186,29 @@ class PureIO(SetResult):
     from BTrees.IOBTree import union, intersection, difference
     builders = IOSet, IOTreeSet, makeBuilder(IOBTree), makeBuilder(IOBucket)
 
-class PureOO(SetResult):
-    from BTrees.OOBTree import union, intersection, difference
-    builders = OOSet, OOTreeSet, makeBuilder(OOBTree), makeBuilder(OOBucket)
+class PureIF(SetResult):
+    from BTrees.IFBTree import union, intersection, difference
+    builders = IFSet, IFTreeSet, makeBuilder(IFBTree), makeBuilder(IFBucket)
 
 class PureOI(SetResult):
     from BTrees.OIBTree import union, intersection, difference
     builders = OISet, OITreeSet, makeBuilder(OIBTree), makeBuilder(OIBucket)
+
+class PureLL(SetResult):
+    from BTrees.LLBTree import union, intersection, difference
+    builders = LLSet, LLTreeSet, makeBuilder(LLBTree), makeBuilder(LLBucket)
+
+class PureLO(SetResult):
+    from BTrees.LOBTree import union, intersection, difference
+    builders = LOSet, LOTreeSet, makeBuilder(LOBTree), makeBuilder(LOBucket)
+
+class PureLF(SetResult):
+    from BTrees.LFBTree import union, intersection, difference
+    builders = LFSet, LFTreeSet, makeBuilder(LFBTree), makeBuilder(LFBucket)
+
+class PureOL(SetResult):
+    from BTrees.OLBTree import union, intersection, difference
+    builders = OLSet, OLTreeSet, makeBuilder(OLBTree), makeBuilder(OLBucket)
 
 # Subclasses must set up (as class variables):
 #     multiunion, union
@@ -261,6 +286,26 @@ class TestIOMultiUnion(MultiUnion):
     from BTrees.IOBTree import IOSet as mkset, IOTreeSet as mktreeset
     from BTrees.IOBTree import IOBucket as mkbucket, IOBTree as mkbtree
 
+class TestIFMultiUnion(MultiUnion):
+    from BTrees.IFBTree import multiunion, union
+    from BTrees.IFBTree import IFSet as mkset, IFTreeSet as mktreeset
+    from BTrees.IFBTree import IFBucket as mkbucket, IFBTree as mkbtree
+
+class TestLLMultiUnion(MultiUnion):
+    from BTrees.LLBTree import multiunion, union
+    from BTrees.LLBTree import LLSet as mkset, LLTreeSet as mktreeset
+    from BTrees.LLBTree import LLBucket as mkbucket, LLBTree as mkbtree
+
+class TestLOMultiUnion(MultiUnion):
+    from BTrees.LOBTree import multiunion, union
+    from BTrees.LOBTree import LOSet as mkset, LOTreeSet as mktreeset
+    from BTrees.LOBTree import LOBucket as mkbucket, LOBTree as mkbtree
+
+class TestLFMultiUnion(MultiUnion):
+    from BTrees.LFBTree import multiunion, union
+    from BTrees.LFBTree import LFSet as mkset, LFTreeSet as mktreeset
+    from BTrees.LFBTree import LFBucket as mkbucket, LFBTree as mkbtree
+
 # Check that various special module functions are and aren't imported from
 # the expected BTree modules.
 class TestImports(TestCase):
@@ -274,6 +319,16 @@ class TestImports(TestCase):
             pass
         else:
             self.fail("IOBTree shouldn't have weightedUnion")
+
+        from BTrees.LLBTree import weightedUnion
+        from BTrees.OLBTree import weightedUnion
+
+        try:
+            from BTrees.LOBTree import weightedUnion
+        except ImportError:
+            pass
+        else:
+            self.fail("LOBTree shouldn't have weightedUnion")
 
         try:
             from BTrees.OOBTree import weightedUnion
@@ -293,6 +348,16 @@ class TestImports(TestCase):
         else:
             self.fail("IOBTree shouldn't have weightedIntersection")
 
+        from BTrees.LLBTree import weightedIntersection
+        from BTrees.OLBTree import weightedIntersection
+
+        try:
+            from BTrees.LOBTree import weightedIntersection
+        except ImportError:
+            pass
+        else:
+            self.fail("LOBTree shouldn't have weightedIntersection")
+
         try:
             from BTrees.OOBTree import weightedIntersection
         except ImportError:
@@ -310,6 +375,16 @@ class TestImports(TestCase):
             pass
         else:
             self.fail("OIBTree shouldn't have multiunion")
+
+        from BTrees.LLBTree import multiunion
+        from BTrees.LOBTree import multiunion
+
+        try:
+            from BTrees.OLBTree import multiunion
+        except ImportError:
+            pass
+        else:
+            self.fail("OLBTree shouldn't have multiunion")
 
         try:
             from BTrees.OOBTree import multiunion
@@ -462,6 +537,18 @@ class TestWeightedOI(Weighted):
     from BTrees.OIBTree import OIBucket as mkbucket
     builders = OIBucket, OIBTree, itemsToSet(OISet), itemsToSet(OITreeSet)
 
+class TestWeightedLL(Weighted):
+    from BTrees.LLBTree import weightedUnion, weightedIntersection
+    from BTrees.LLBTree import union, intersection
+    from BTrees.LLBTree import LLBucket as mkbucket
+    builders = LLBucket, LLBTree, itemsToSet(LLSet), itemsToSet(LLTreeSet)
+
+class TestWeightedOL(Weighted):
+    from BTrees.OLBTree import weightedUnion, weightedIntersection
+    from BTrees.OLBTree import union, intersection
+    from BTrees.OLBTree import OLBucket as mkbucket
+    builders = OLBucket, OLBTree, itemsToSet(OLSet), itemsToSet(OLTreeSet)
+
 
 # 'thing' is a bucket, btree, set or treeset.  Return true iff it's one of the
 # latter two.
@@ -471,10 +558,16 @@ def isaset(thing):
 
 def test_suite():
     s = TestSuite()
-    for klass in (TestIIMultiUnion, TestIOMultiUnion,
-                  TestImports,
-                  PureII, PureIO, PureOI, PureOO,
-                  TestWeightedII, TestWeightedOI):
+    for klass in (
+        TestIIMultiUnion, TestIOMultiUnion, TestIFMultiUnion,
+        TestLLMultiUnion, TestLOMultiUnion, TestLFMultiUnion,
+        TestImports,
+        PureOO,
+        PureII, PureIO, PureIF, PureOI,
+        PureLL, PureLO, PureLF, PureOL,
+        TestWeightedII, TestWeightedOI,
+        TestWeightedLL, TestWeightedOL,
+        ):
         s.addTest(makeSuite(klass))
     return s
 

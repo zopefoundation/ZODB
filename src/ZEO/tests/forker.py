@@ -185,7 +185,12 @@ def shutdown_zeo_server(adminaddr):
                 break
             raise
         except socket.error, e:
-            if e[0] == errno.ECONNREFUSED and i > 0:
+            if (e[0] == errno.ECONNREFUSED
+                or
+                # MAC OS X uses EINVAL when connecting to a port
+                # that isn't being listened on.
+                (sys.platform == 'darwin' and e[0] == errno.EINVAL)
+                ) and i > 0:
                 break
             raise
         try:

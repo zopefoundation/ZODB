@@ -13,6 +13,9 @@
 ##############################################################################
 """RPC stubs for interface exported by StorageServer."""
 
+import os
+import time
+
 ##
 # ZEO storage server.
 # <p>
@@ -44,9 +47,11 @@ class StorageServer:
         zrpc.connection.Connection class.
         """
         self.rpc = rpc
+        
         # Wait until we know what version the other side is using.
         while rpc.peer_protocol_version is None:
-            rpc.pending()
+            time.sleep(0.1)
+
         if rpc.peer_protocol_version == 'Z200':
             self.lastTransaction = lambda: None
             self.getInvalidations = lambda tid: None
@@ -173,13 +178,12 @@ class StorageServer:
         return self.rpc.call('zeoLoad', oid)
 
     ##
-    # Return current data for oid in version, the tid of the transaction that
-    # wrote the most recent revision, and the name of the version for the
-    # data returned.  Versions make this hard to understand; in particular,
-    # the version string returned may not equal the version string passed
-    # in, and that's "a feature" I don't understand.  Similarly, the tid
-    # returned is the tid of the most recent revision of oid, and that may
-    # not equal the tid of the transaction that wrote the data returned.
+    
+    # Return current data for oid in version, the tid of the
+    # transaction that wrote the most recent revision, and the name of
+    # the version for the data returned.  Note that if the object
+    # wasn't modified in the version, then the non-version data is
+    # returned and the returned version is an empty string.
     # @param oid object id
     # @param version string, name of version
     # @defreturn 3-tuple
@@ -215,6 +219,29 @@ class StorageServer:
 
     def storea(self, oid, serial, data, version, id):
         self.rpc.callAsync('storea', oid, serial, data, version, id)
+
+    def storeBlob(self, oid, serial, data, blobfilename, version, txn):
+
+        # Store a blob to the server.  We don't want to real all of
+        # the data into memory, so we use a message iterator.  This
+        # allows us to read the blob data as needed.
+
+        def store():
+            yield ('storeBlobStart', ())
+            f = open(blobfilename, 'rb')
+            while 1:
+                chunk = f.read(59000)
+                if not chunk:
+                    break
+                yield ('storeBlobChunk', (chunk, ))
+            f.close()
+            yield ('storeBlobEnd', (oid, serial, data, version, id(txn)))
+
+        self.rpc.callAsyncIterator(store())
+
+    def storeBlobShared(self, oid, serial, data, filename, version, id):
+        self.rpc.callAsync('storeBlobShared', oid, serial, data, filename, 
+                           version, id)
 
     ##
     # Start two-phase commit for a transaction
@@ -258,8 +285,11 @@ class StorageServer:
     def load(self, oid, version):
         return self.rpc.call('load', oid, version)
 
-    def getSerial(self, oid):
-        return self.rpc.call('getSerial', oid)
+    def sendBlob(self, oid, serial):
+        return self.rpc.call('sendBlob', oid, serial)
+
+    def getTid(self, oid):
+        return self.rpc.call('getTid', oid)
 
     def loadSerial(self, oid, serial):
         return self.rpc.call('loadSerial', oid, serial)

@@ -13,14 +13,18 @@
 ##############################################################################
 """Support for database export and import."""
 
+import os
+
 from cStringIO import StringIO
 from cPickle import Pickler, Unpickler
 from tempfile import TemporaryFile
 import logging
 
-from ZODB.POSException import ExportError
-from ZODB.utils import p64, u64
+from ZODB.blob import Blob
+from ZODB.interfaces import IBlobStorage
+from ZODB.POSException import ExportError, POSKeyError
 from ZODB.serialize import referencesf
+from ZODB.utils import p64, u64, cp, mktemp
 
 logger = logging.getLogger('ZODB.ExportImport')
 
@@ -36,6 +40,7 @@ class ExportImport:
         done_oids = {}
         done=done_oids.has_key
         load=self._storage.load
+        supports_blobs = IBlobStorage.providedBy(self._storage)
         while oids:
             oid = oids.pop(0)
             if oid in done_oids:
@@ -49,6 +54,18 @@ class ExportImport:
             else:
                 referencesf(p, oids)
                 f.writelines([oid, p64(len(p)), p])
+
+            if supports_blobs:
+                if not isinstance(self._reader.getGhost(p), Blob):
+                    continue # not a blob
+                
+                blobfilename = self._storage.loadBlob(oid, serial)
+                f.write(blob_begin_marker)
+                f.write(p64(os.stat(blobfilename).st_size))
+                blobdata = open(blobfilename, "rb")
+                cp(blobdata, f)
+                blobdata.close()
+            
         f.write(export_end_marker)
         return f
 
@@ -113,17 +130,20 @@ class ExportImport:
         version = self._version
 
         while 1:
-            h = f.read(16)
-            if h == export_end_marker:
+            header = f.read(16)
+            if header == export_end_marker:
                 break
-            if len(h) != 16:
-                raise ExportError("Truncated export file")
-            l = u64(h[8:16])
-            p = f.read(l)
-            if len(p) != l:
+            if len(header) != 16:
                 raise ExportError("Truncated export file")
 
-            ooid = h[:8]
+            # Extract header information
+            ooid = header[:8]
+            length = u64(header[8:16])
+            data = f.read(length)
+
+            if len(data) != length:
+                raise ExportError("Truncated export file")
+
             if oids:
                 oid = oids[ooid]
                 if isinstance(oid, tuple):
@@ -132,7 +152,21 @@ class ExportImport:
                 oids[ooid] = oid = self._storage.new_oid()
                 return_oid_list.append(oid)
 
-            pfile = StringIO(p)
+            # Blob support
+            blob_begin = f.read(len(blob_begin_marker))
+            if blob_begin == blob_begin_marker:
+                # Copy the blob data to a temporary file
+                # and remember the name
+                blob_len = u64(f.read(8))
+                blob_filename = mktemp()
+                blob_file = open(blob_filename, "wb")
+                cp(f, blob_file, blob_len)
+                blob_file.close()
+            else:
+                f.seek(-len(blob_begin_marker),1)
+                blob_filename = None
+
+            pfile = StringIO(data)
             unpickler = Unpickler(pfile)
             unpickler.persistent_load = persistent_load
 
@@ -142,12 +176,17 @@ class ExportImport:
 
             pickler.dump(unpickler.load())
             pickler.dump(unpickler.load())
-            p = newp.getvalue()
+            data = newp.getvalue()
 
-            self._storage.store(oid, None, p, version, transaction)
+            if blob_filename is not None:
+                self._storage.storeBlob(oid, None, data, blob_filename, 
+                                        version, transaction)
+            else:
+                self._storage.store(oid, None, data, version, transaction)
 
 
 export_end_marker = '\377'*16
+blob_begin_marker = '\000BLOBSTART'
 
 class Ghost(object):
     __slots__ = ("oid",)

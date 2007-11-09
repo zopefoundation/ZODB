@@ -21,12 +21,15 @@ ClientStorage -- the main class, implementing the Storage API
 import cPickle
 import os
 import socket
+import stat
+import sys
 import tempfile
 import threading
 import time
 import types
 import logging
 
+from zope.interface import implements
 from ZEO import ServerStub
 from ZEO.cache import ClientCache
 from ZEO.TransactionBuffer import TransactionBuffer
@@ -34,8 +37,12 @@ from ZEO.Exceptions import ClientStorageError, ClientDisconnected, AuthError
 from ZEO.auth import get_module
 from ZEO.zrpc.client import ConnectionManager
 
+import ZODB.lock_file
 from ZODB import POSException
+from ZODB import utils
 from ZODB.loglevels import BLATHER
+from ZODB.interfaces import IBlobStorage
+from ZODB.blob import rename_or_copy_blob
 from persistent.TimeStamp import TimeStamp
 
 logger = logging.getLogger('ZEO.ClientStorage')
@@ -93,6 +100,7 @@ class ClientStorage(object):
     tpc_begin().
     """
 
+    implements(IBlobStorage)
     # Classes we instantiate.  A subclass might override.
 
     TransactionBufferClass = TransactionBuffer
@@ -106,7 +114,8 @@ class ClientStorage(object):
                  wait_for_server_on_startup=None, # deprecated alias for wait
                  wait=None, wait_timeout=None,
                  read_only=0, read_only_fallback=0,
-                 username='', password='', realm=None):
+                 username='', password='', realm=None,
+                 blob_dir=None, shared_blob_dir=False):
         """ClientStorage constructor.
 
         This is typically invoked from a custom_zodb.py file.
@@ -176,6 +185,15 @@ class ClientStorage(object):
 
         password -- string with plaintext password to be used
             when authenticated.
+
+        realm -- not documented.
+
+        blob_dir -- directory path for blob data.  'blob data' is data that
+            is retrieved via the loadBlob API.
+
+        shared_blob_dir -- Flag whether the blob_dir is a server-shared
+        filesystem that should be used instead of transferring blob data over
+        zrpc.
 
         Note that the authentication protocol is defined by the server
         and is detected by the ClientStorage upon connecting (see
@@ -251,8 +269,7 @@ class ClientStorage(object):
         self._pickler = None
 
         self._info = {'length': 0, 'size': 0, 'name': 'ZEO Client',
-                      'supportsUndo':0, 'supportsVersions': 0,
-                      'supportsTransactionalUndo': 0}
+                      'supportsUndo':0, 'supportsVersions': 0}
 
         self._tbuf = self.TransactionBufferClass()
         self._db = None
@@ -303,6 +320,19 @@ class ClientStorage(object):
         # is executing.
         self._lock = threading.Lock()
 
+        # XXX need to check for POSIX-ness here
+        self.blob_dir = blob_dir
+        self.shared_blob_dir = shared_blob_dir
+        if blob_dir is not None:
+            # Avoid doing this import unless we need it, as it
+            # currently requires pywin32 on Windows.
+            import ZODB.blob
+            self.fshelper = ZODB.blob.FilesystemHelper(blob_dir)
+            self.fshelper.create()
+            self.fshelper.checkSecure()
+        else:
+            self.fshelper = None
+
         # Decide whether to use non-temporary files
         if client is not None:
             dir = var or os.getcwd()
@@ -339,43 +369,16 @@ class ClientStorage(object):
         # still be going on.  This code must wait until validation
         # finishes, but if the connection isn't a zrpc async
         # connection it also needs to poll for input.
-        if self._connection.is_async():
-            while 1:
-                self._ready.wait(30)
-                if self._ready.isSet():
-                    break
-                if timeout and time.time() > deadline:
-                    log2("Timed out waiting for connection",
-                         level=logging.WARNING)
-                    break
-                log2("Waiting for cache verification to finish")
-        else:
-            self._wait_sync(deadline)
-
-    def _wait_sync(self, deadline=None):
-        # Log no more than one "waiting" message per LOG_THROTTLE seconds.
-        LOG_THROTTLE = 300 # 5 minutes
-        next_log_time = time.time()
-
-        while not self._ready.isSet():
-            now = time.time()
-            if deadline and now > deadline:
-                log2("Timed out waiting for connection", level=logging.WARNING)
+        assert self._connection.is_async()
+        while 1:
+            self._ready.wait(30)
+            if self._ready.isSet():
                 break
-            if now >= next_log_time:
-                log2("Waiting for cache verification to finish")
-                next_log_time = now + LOG_THROTTLE
-            if self._connection is None:
-                # If the connection was closed while we were
-                # waiting for it to become ready, start over.
-                if deadline is None:
-                    timeout = None
-                else:
-                    timeout = deadline - now
-                return self._wait(timeout)
-            # No mainloop ia running, so we need to call something fancy to
-            # handle asyncore events.
-            self._connection.pending(30)
+            if timeout and time.time() > deadline:
+                log2("Timed out waiting for connection",
+                     level=logging.WARNING)
+                break
+            log2("Waiting for cache verification to finish")
 
     def close(self):
         """Storage API: finalize the storage, releasing external resources."""
@@ -387,7 +390,7 @@ class ClientStorage(object):
             self._rpc_mgr.close()
             self._rpc_mgr = None
 
-    def registerDB(self, db, limit):
+    def registerDB(self, db):
         """Storage API: register a database for invalidation messages.
 
         This is called by ZODB.DB (and by some tests).
@@ -403,17 +406,8 @@ class ClientStorage(object):
         return self._ready.isSet()
 
     def sync(self):
-        """Handle any pending invalidation messages.
-
-        This is called by the sync method in ZODB.Connection.
-        """
-        # If there is no connection, return immediately.  Technically,
-        # there are no pending invalidations so they are all handled.
-        # There doesn't seem to be much benefit to raising an exception.
-
-        cn = self._connection
-        if cn is not None:
-            cn.pending()
+        # The separate async thread should keep us up to date
+        pass
 
     def doAuth(self, protocol, stub):
         if not (self._username and self._password):
@@ -496,6 +490,10 @@ class ClientStorage(object):
             # this method before it was stopped.
             return
 
+        # invalidate our db cache
+        if self._db is not None:
+            self._db.invalidateCache()
+
         # TODO:  report whether we get a read-only connection.
         if self._connection is not None:
             reconnect = 1
@@ -517,11 +515,17 @@ class ClientStorage(object):
 
         stub = self.StorageServerStubClass(conn)
         self._oids = []
-        self._info.update(stub.get_info())
         self.verify_cache(stub)
-        if not conn.is_async():
-            log2("Waiting for cache verification to finish")
-            self._wait_sync()
+
+        # It's important to call get_info after calling verify_cache.
+        # If we end up doing a full-verification, we need to wait till
+        # it's done.  By doing a synchonous call, we are guarenteed
+        # that the verification will be done because operations are
+        # handled in order.        
+        self._info.update(stub.get_info())
+
+        assert conn.is_async()
+
         self._handle_extensions()
 
     def _handle_extensions(self):
@@ -667,10 +671,6 @@ class ClientStorage(object):
         """Storage API: return whether we support versions."""
         return self._info['supportsVersions']
 
-    def supportsTransactionalUndo(self):
-        """Storage API: return whether we support transactional undo."""
-        return self._info['supportsTransactionalUndo']
-
     def isReadOnly(self):
         """Storage API: return whether we are in read-only mode."""
         if self._is_read_only:
@@ -729,15 +729,15 @@ class ClientStorage(object):
         return self._server.history(oid, version, length)
 
     def record_iternext(self, next=None):
-        """Storage API: get the mext database record.
+        """Storage API: get the next database record.
 
         This is part of the conversion-support API.
         """
         return self._server.record_iternext(next)
 
-    def getSerial(self, oid):
+    def getTid(self, oid):
         """Storage API: return current serial number for oid."""
-        return self._server.getSerial(oid)
+        return self._server.getTid(oid)
 
     def loadSerial(self, oid, serial):
         """Storage API: load a historical revision of an object."""
@@ -892,12 +892,171 @@ class ClientStorage(object):
         self._tbuf.store(oid, version, data)
         return self._check_serials()
 
+    def storeBlob(self, oid, serial, data, blobfilename, version, txn):
+        """Storage API: store a blob object."""
+        serials = self.store(oid, serial, data, version, txn)
+        if self.shared_blob_dir:
+            self._storeBlob_shared(
+                oid, serial, data, blobfilename, version, txn)
+        else:
+            self._server.storeBlob(
+                oid, serial, data, blobfilename, version, txn)
+            self._tbuf.storeBlob(oid, blobfilename)
+        return serials
+
+    def _storeBlob_shared(self, oid, serial, data, filename, version, txn):
+        # First, move the blob into the blob directory
+        dir = self.fshelper.getPathForOID(oid)
+        if not os.path.exists(dir):
+            os.mkdir(dir)
+        fd, target = self.fshelper.blob_mkstemp(oid, serial)
+        os.close(fd)
+
+        if sys.platform == 'win32':
+            # On windows, we can't rename to an existing file.  We'll
+            # use a slightly different file name. We keep the old one
+            # until we're done to avoid conflicts. Then remove the old name.
+            target += 'w'
+            rename_or_copy_blob(filename, target)
+            os.remove(target[:-1])
+        else:
+            rename_or_copy_blob(filename, target)
+
+        # Now tell the server where we put it
+        self._server.storeBlobShared(
+            oid, serial, data,
+            os.path.basename(target), version, id(txn))
+
+    def _have_blob(self, blob_filename, oid, serial):
+        if os.path.exists(blob_filename):
+            log2("Found blob %s/%s in cache." % (utils.oid_repr(oid),
+                utils.tid_repr(serial)), level=BLATHER)
+            return True
+        return False
+
+    def receiveBlobStart(self, oid, serial):
+        blob_filename = self.fshelper.getBlobFilename(oid, serial)
+        assert not os.path.exists(blob_filename)
+        assert os.path.exists(blob_filename+'.lock')
+        blob_filename += '.dl'
+        assert not os.path.exists(blob_filename)
+        f = open(blob_filename, 'wb')
+        f.close()
+
+    def receiveBlobChunk(self, oid, serial, chunk):
+        blob_filename = self.fshelper.getBlobFilename(oid, serial)+'.dl'
+        assert os.path.exists(blob_filename)
+        f = open(blob_filename, 'ab')
+        f.write(chunk)
+        f.close()
+
+    def receiveBlobStop(self, oid, serial):
+        blob_filename = self.fshelper.getBlobFilename(oid, serial)
+        os.rename(blob_filename+'.dl', blob_filename)
+        os.chmod(blob_filename, stat.S_IREAD)
+
+    def loadBlob(self, oid, serial):
+
+        # Load a blob.  If it isn't present and we have a shared blob
+        # directory, then assume that it doesn't exist on the server
+        # and return None.
+
+        if self.fshelper is None:
+            raise POSException.Unsupported("No blob cache directory is "
+                                           "configured.")
+
+        blob_filename = self.fshelper.getBlobFilename(oid, serial)
+        # Case 1: Blob is available already, just use it
+        if self._have_blob(blob_filename, oid, serial):
+            return blob_filename
+
+        if self.shared_blob_dir:
+            # We're using a server shared cache.  If the file isn't
+            # here, it's not anywhere.
+            raise POSKeyError("No blob file", oid, serial)
+
+        # First, we'll create the directory for this oid, if it doesn't exist. 
+        targetpath = self.fshelper.getPathForOID(oid)
+        if not os.path.exists(targetpath):
+            try:
+                os.makedirs(targetpath, 0700)
+            except OSError:
+                # We might have lost a race.  If so, the directory
+                # must exist now
+                assert os.path.exists(targetpath)
+
+        # OK, it's not here and we (or someone) needs to get it.  We
+        # want to avoid getting it multiple times.  We want to avoid
+        # getting it multiple times even accross separate client
+        # processes on the same machine. We'll use file locking.
+
+        lockfilename = blob_filename+'.lock'
+        try:
+            lock = ZODB.lock_file.LockFile(lockfilename)
+        except ZODB.lock_file.LockError:
+
+            # Someone is already downloading the Blob. Wait for the
+            # lock to be freed.  How long should we be willing to wait?
+            # TODO: maybe find some way to assess download progress.
+
+            while 1:
+                time.sleep(0.1)
+                try:
+                    lock = ZODB.lock_file.LockFile(lockfilename)
+                except ZODB.lock_file.LockError:
+                    pass
+                else:
+                    # We have the lock. We should be able to get the file now.
+                    lock.close()
+                    try:
+                        os.remove(lockfilename)
+                    except OSError:
+                        pass
+                    break
+
+            if self._have_blob(blob_filename, oid, serial):
+                return blob_filename
+
+            return None
+
+        try:
+            # We got the lock, so it's our job to download it.  First,
+            # we'll double check that someone didn't download it while we
+            # were getting the lock:
+
+            if self._have_blob(blob_filename, oid, serial):
+                return blob_filename
+
+            # Ask the server to send it to us.  When this function
+            # returns, it will have been sent. (The recieving will
+            # have been handled by the asyncore thread.)
+
+            self._server.sendBlob(oid, serial)
+
+            if self._have_blob(blob_filename, oid, serial):
+                return blob_filename
+
+            raise POSKeyError("No blob file", oid, serial)
+
+        finally:
+            lock.close()
+            try:
+                os.remove(lockfilename)
+            except OSError:
+                pass
+
+    def temporaryDirectory(self):
+        return self.blob_dir
+
     def tpc_vote(self, txn):
         """Storage API: vote on a transaction."""
         if txn is not self._transaction:
             return
         self._server.vote(id(txn))
         return self._check_serials()
+
+    def tpc_transaction(self):
+        return self._transaction
 
     def tpc_begin(self, txn, tid=None, status=' '):
         """Storage API: begin a transaction."""
@@ -1010,6 +1169,20 @@ class ClientStorage(object):
                 if s != ResolvedSerial:
                     assert s == tid, (s, tid)
                     self._cache.store(oid, version, s, None, data)
+
+        
+        if self.fshelper is not None:
+            blobs = self._tbuf.blobs
+            while blobs:
+                oid, blobfilename = blobs.pop()
+                targetpath = self.fshelper.getPathForOID(oid)
+                if not os.path.exists(targetpath):
+                    os.makedirs(targetpath, 0700)
+                rename_or_copy_blob(blobfilename,
+                          self.fshelper.getBlobFilename(oid, tid),
+                          )
+
+                    
         self._tbuf.clear()
 
     def undo(self, trans_id, txn):
@@ -1087,7 +1260,11 @@ class ClientStorage(object):
                 if oid == self._load_oid:
                     self._load_status = 0
                 self._cache.invalidate(oid, version, tid)
-                versions.setdefault((version, tid), {})[oid] = tid
+                oids = versions.get((version, tid))
+                if not oids:
+                    versions[(version, tid)] = [oid]
+                else:
+                    oids.append(oid)
 
             if self._db is not None:
                 for (version, tid), d in versions.items():

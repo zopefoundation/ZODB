@@ -30,9 +30,8 @@ from ZODB.serialize import referencesf
 from ZODB.utils import p64, u64, z64
 
 from ZODB.fsIndex import fsIndex
-from ZODB.FileStorage.format \
-     import FileStorageFormatter, CorruptedDataError, DataHeader, \
-     TRANS_HDR_LEN
+from ZODB.FileStorage.format import FileStorageFormatter, CorruptedDataError
+from ZODB.FileStorage.format import DataHeader, TRANS_HDR_LEN
 
 class DataCopier(FileStorageFormatter):
     """Mixin class for copying transactions into a storage.

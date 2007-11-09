@@ -20,6 +20,8 @@ import sys
 import tempfile
 import threading
 import warnings
+import os
+import shutil
 from time import time
 
 from persistent import PickleCache
@@ -27,6 +29,8 @@ from persistent import PickleCache
 # interfaces
 from persistent.interfaces import IPersistentDataManager
 from ZODB.interfaces import IConnection
+from ZODB.interfaces import IBlobStorage
+from ZODB.blob import Blob, rename_or_copy_blob
 from transaction.interfaces import ISavepointDataManager
 from transaction.interfaces import IDataManagerSavepoint
 from transaction.interfaces import ISynchronizer
@@ -34,13 +38,17 @@ from zope.interface import implements
 
 import transaction
 
+from ZODB.blob import SAVEPOINT_SUFFIX
 from ZODB.ConflictResolution import ResolvedSerial
 from ZODB.ExportImport import ExportImport
 from ZODB import POSException
 from ZODB.POSException import InvalidObjectReference, ConnectionStateError
 from ZODB.POSException import ConflictError, ReadConflictError
+from ZODB.POSException import Unsupported
+from ZODB.POSException import POSKeyError
 from ZODB.serialize import ObjectWriter, ObjectReader, myhasattr
 from ZODB.utils import p64, u64, z64, oid_repr, positive_id
+from ZODB import utils
 
 global_reset_counter = 0
 
@@ -74,45 +82,75 @@ class Connection(ExportImport, object):
     def __init__(self, db, version='', cache_size=400):
         """Create a new Connection."""
 
+        self._log = logging.getLogger('ZODB.Connection')
+        self._debug_info = ()
+
         self._db = db
+        # Multi-database support
+        self.connections = {self._db.database_name: self}
+
+        self._version = version
         self._normal_storage = self._storage = db._storage
         self.new_oid = db._storage.new_oid
         self._savepoint_storage = None
 
-        self.transaction_manager = self._synch = self._mvcc = None
-
-
-        self._log = logging.getLogger("ZODB.Connection")
-        self._debug_info = ()
+        # Do we need to join a txn manager?
+        self._needs_to_join = True
+        self.transaction_manager = None
         self._opened = None # time.time() when DB.open() opened us
 
-        self._version = version
-        self._cache = cache = PickleCache(self, cache_size)
+        self._reset_counter = global_reset_counter
+        self._load_count = 0   # Number of objects unghosted
+        self._store_count = 0  # Number of objects stored
+
+        # Cache which can ghostify (forget the state of) objects not
+        # recently used. Its API is roughly that of a dict, with
+        # additional gc-related and invalidation-related methods.
+        self._cache = PickleCache(self, cache_size)
+
+        # The pre-cache is used by get to avoid infinite loops when
+        # objects immediately load their state whern they get their
+        # persistent data set.
+        self._pre_cache = {}
+        
         if version:
             # Caches for versions end up empty if the version
             # is not used for a while. Non-version caches
             # keep their content indefinitely.
             # Unclear:  Why do we want version caches to behave this way?
-
             self._cache.cache_drain_resistance = 100
 
-        self._committed = []
-        self._added = {}
-        self._added_during_commit = None
-        self._reset_counter = global_reset_counter
-        self._load_count = 0   # Number of objects unghosted
-        self._store_count = 0  # Number of objects stored
-        self._creating = {}
-
-        # List of oids of modified objects (to be invalidated on an abort).
-        self._modified = []
-
         # List of all objects (not oids) registered as modified by the
-        # persistence machinery.
+        # persistence machinery, or by add(), or whose access caused a
+        # ReadConflictError (just to be able to clean them up from the
+        # cache on abort with the other modified objects). All objects
+        # of this list are either in _cache or in _added.
         self._registered_objects = []
 
-        # Do we need to join a txn manager?
-        self._needs_to_join = True
+        # Dict of oid->obj added explicitly through add(). Used as a
+        # preliminary cache until commit time when objects are all moved
+        # to the real _cache. The objects are moved to _creating at
+        # commit time.
+        self._added = {}
+
+        # During commit this is turned into a list, which receives
+        # objects added as a side-effect of storing a modified object.
+        self._added_during_commit = None
+
+        # During commit, all objects go to either _modified or _creating:
+
+        # Dict of oid->flag of new objects (without serial), either
+        # added by add() or implicitely added (discovered by the
+        # serializer during commit). The flag is True for implicit
+        # adding. Used during abort to remove created objects from the
+        # _cache, and by persistent_id to check that a new object isn't
+        # reachable from multiple databases.
+        self._creating = {}
+
+        # List of oids of modified objects, which have to be invalidated
+        # in the cache on abort and in other connections on finish.
+        self._modified = []
+
 
         # _invalidated queues invalidate messages delivered from the DB
         # _inv_lock prevents one thread from modifying the set while
@@ -130,7 +168,10 @@ class Connection(ExportImport, object):
         # critical sections (if any -- this needs careful thought).
 
         self._inv_lock = threading.Lock()
-        self._invalidated = d = {}
+        self._invalidated = set()
+
+        # Flag indicating whether the cache has been invalidated:
+        self._invalidatedCache = False
 
         # We intend to prevent committing a transaction in which
         # ReadConflictError occurs.  _conflicts is the set of oids that
@@ -155,11 +196,7 @@ class Connection(ExportImport, object):
         # to pass to _importDuringCommit().
         self._import = None
 
-
         self._reader = ObjectReader(self, self._cache, self._db.classFactory)
-
-        # Multi-database support
-        self.connections = {self._db.database_name: self}
 
 
     def add(self, obj):
@@ -196,16 +233,25 @@ class Connection(ExportImport, object):
             return obj
         obj = self._added.get(oid, None)
         if obj is not None:
+            return obj        
+        obj = self._pre_cache.get(oid, None)
+        if obj is not None:
             return obj
 
+        # This appears to be an MVCC violation because we are loading
+        # the must recent data when perhaps we shouldnt. The key is
+        # that we are only creating a ghost!        
         p, serial = self._storage.load(oid, self._version)
         obj = self._reader.getGhost(p)
 
+        # Avoid infiniate loop if obj tries to load its state before
+        # it is added to the cache and it's state refers to it.
+        self._pre_cache[oid] = obj
         obj._p_oid = oid
         obj._p_jar = self
         obj._p_changed = None
         obj._p_serial = serial
-
+        self._pre_cache.pop(oid)
         self._cache[oid] = obj
         return obj
 
@@ -248,9 +294,8 @@ class Connection(ExportImport, object):
 
         self._debug_info = ()
 
-        if self._synch:
+        if self._opened:
             self.transaction_manager.unregisterSynch(self)
-            self._synch = None
 
         if primary:
             for connection in self.connections.values():
@@ -288,6 +333,14 @@ class Connection(ExportImport, object):
         finally:
             self._inv_lock.release()
 
+    def invalidateCache(self):
+        self._inv_lock.acquire()
+        try:
+            self._invalidatedCache = True
+        finally:
+            self._inv_lock.release()
+        
+
     def root(self):
         """Return the database root object."""
         return self.get(z64)
@@ -304,7 +357,7 @@ class Connection(ExportImport, object):
         if connection is None:
             new_con = self._db.databases[database_name].open(
                 transaction_manager=self.transaction_manager,
-                mvcc=self._mvcc, version=self._version, synch=self._synch,
+                version=self._version,
                 )
             self.connections.update(new_con.connections)
             new_con.connections = self.connections
@@ -409,8 +462,6 @@ class Connection(ExportImport, object):
     def _tpc_cleanup(self):
         """Performs cleanup operations to support tpc_finish and tpc_abort."""
         self._conflicts.clear()
-        if not self._synch:
-            self._flush_invalidations()
         self._needs_to_join = True
         self._registered_objects = []
         self._creating.clear()
@@ -447,9 +498,12 @@ class Connection(ExportImport, object):
             # using a class while objects are being invalidated seems
             # small enough to be acceptable.
 
-            invalidated = self._invalidated
-            self._invalidated = {}
+            invalidated = dict.fromkeys(self._invalidated)
+            self._invalidated = set()
             self._txn_time = None
+            if self._invalidatedCache:
+                self._invalidatedCache = False
+                invalidated = self._cache.cache_data.copy()
         finally:
             self._inv_lock.release()
 
@@ -489,7 +543,7 @@ class Connection(ExportImport, object):
         if self._import:
             # We are importing an export file. We alsways do this
             # while making a savepoint so we can copy export data
-            # directly to out storage, typically a TmpStore.
+            # directly to our storage, typically a TmpStore.
             self._importDuringCommit(transaction, *self._import)
             self._import = None
 
@@ -500,6 +554,9 @@ class Connection(ExportImport, object):
         # happened.
 
         self._added_during_commit = []
+
+        if self._invalidatedCache:
+            raise ConflictError()            
 
         for obj in self._registered_objects:
             oid = obj._p_oid
@@ -551,7 +608,25 @@ class Connection(ExportImport, object):
                     raise ConflictError(object=obj)
                 self._modified.append(oid)
             p = writer.serialize(obj)  # This calls __getstate__ of obj
-            s = self._storage.store(oid, serial, p, self._version, transaction)
+
+            if isinstance(obj, Blob):
+                if not IBlobStorage.providedBy(self._storage):
+                    raise Unsupported(
+                        "Storing Blobs in %s is not supported." % 
+                        repr(self._storage))
+                if obj.opened():
+                    raise ValueError("Can't commit with opened blobs.")
+                s = self._storage.storeBlob(oid, serial, p,
+                                            obj._uncommitted(),
+                                            self._version, transaction)
+                # we invalidate the object here in order to ensure
+                # that that the next attribute access of its name
+                # unghostify it, which will cause its blob data
+                # to be reattached "cleanly"
+                obj._p_invalidate()
+            else:
+                s = self._storage.store(oid, serial, p, self._version,
+                                        transaction)
             self._store_count += 1
             # Put the object in the cache before handling the
             # response, just in case the response contains the
@@ -576,12 +651,6 @@ class Connection(ExportImport, object):
         # returned in batches by the ClientStorage.  ZEO1 can also
         # return an exception object and expect that the Connection
         # will raise the exception.
-
-        # When commit_sub() exceutes a store, there is no need to
-        # update the _p_changed flag, because the subtransaction
-        # tpc_vote() calls already did this.  The change=1 argument
-        # exists to allow commit_sub() to avoid setting the flag
-        # again.
 
         # When conflict resolution occurs, the object state held by
         # the connection does not match what is written to the
@@ -718,8 +787,8 @@ class Connection(ExportImport, object):
         return self._reader.getState(p)
 
     def setstate(self, obj):
-        """Turns the ghost 'obj' into a real object by loading it's from the
-        database."""
+        """Turns the ghost 'obj' into a real object by loading its state from
+        the database."""
         oid = obj._p_oid
 
         if self._opened is None:
@@ -753,11 +822,16 @@ class Connection(ExportImport, object):
         # 3. Raise ConflictError.
 
         # Does anything actually use _p_independent()?  It would simplify
-        # the code if we could drop support for it.
+        # the code if we could drop support for it.  
+        # (BTrees.Length does.)
 
         # There is a harmless data race with self._invalidated.  A
         # dict update could go on in another thread, but we don't care
         # because we have to check again after the load anyway.
+
+
+        if self._invalidatedCache:
+            raise ReadConflictError()
 
         if (obj._p_oid in self._invalidated and
                 not myhasattr(obj, "_p_independent")):
@@ -786,9 +860,14 @@ class Connection(ExportImport, object):
         self._reader.setGhostState(obj, p)
         obj._p_serial = serial
 
+        # Blob support
+        if isinstance(obj, Blob):
+            obj._p_blob_uncommitted = None
+            obj._p_blob_committed = self._storage.loadBlob(obj._p_oid, serial)
+
     def _load_before_or_conflict(self, obj):
         """Load non-current state for obj or raise ReadConflictError."""
-        if not (self._mvcc and self._setstate_noncurrent(obj)):
+        if not ((not self._version) and self._setstate_noncurrent(obj)):
             self._register(obj)
             self._conflicts[obj._p_oid] = True
             raise ReadConflictError(object=obj)
@@ -826,7 +905,7 @@ class Connection(ExportImport, object):
             self._inv_lock.acquire()
             try:
                 try:
-                    del self._invalidated[obj._p_oid]
+                    self._invalidated.remove(obj._p_oid)
                 except KeyError:
                     pass
             finally:
@@ -888,8 +967,7 @@ class Connection(ExportImport, object):
         # return a list of [ghosts....not recently used.....recently used]
         return everything.items() + items
 
-    def open(self, transaction_manager=None, mvcc=True, synch=True,
-             delegate=True):
+    def open(self, transaction_manager=None, delegate=True):
         """Register odb, the DB that this Connection uses.
 
         This method is called by the DB every time a Connection
@@ -901,21 +979,12 @@ class Connection(ExportImport, object):
 
         Parameters:
         odb: database that owns the Connection
-        mvcc: boolean indicating whether MVCC is enabled
         transaction_manager: transaction manager to use.  None means
             use the default transaction manager.
-        synch: boolean indicating whether Connection should
         register for afterCompletion() calls.
         """
 
-        # TODO:  Why do we go to all the trouble of setting _db and
-        # other attributes on open and clearing them on close?
-        # A Connection is only ever associated with a single DB
-        # and Storage.
-
         self._opened = time()
-        self._synch = synch
-        self._mvcc = mvcc and not self._version
 
         if transaction_manager is None:
             transaction_manager = transaction.manager
@@ -928,8 +997,7 @@ class Connection(ExportImport, object):
         else:
             self._flush_invalidations()
 
-        if synch:
-            transaction_manager.registerSynch(self)
+        transaction_manager.registerSynch(self)
 
         if self._cache is not None:
             self._cache.incrgc() # This is a good time to do some GC
@@ -938,7 +1006,7 @@ class Connection(ExportImport, object):
             # delegate open to secondary connections
             for connection in self.connections.values():
                 if connection is not self:
-                    connection.open(transaction_manager, mvcc, synch, False)
+                    connection.open(transaction_manager, False)
 
     def _resetCache(self):
         """Creates a new cache, discarding the old one.
@@ -947,6 +1015,7 @@ class Connection(ExportImport, object):
         """
         self._reset_counter = global_reset_counter
         self._invalidated.clear()
+        self._invalidatedCache = False
         cache_size = self._cache.cache_size
         self._cache = cache = PickleCache(self, cache_size)
 
@@ -1004,8 +1073,8 @@ class Connection(ExportImport, object):
 
     def savepoint(self):
         if self._savepoint_storage is None:
-            self._savepoint_storage = TmpStore(self._version,
-                                               self._normal_storage)
+            tmpstore = TmpStore(self._version, self._normal_storage)
+            self._savepoint_storage = tmpstore
             self._storage = self._savepoint_storage
 
         self._creating.clear()
@@ -1031,13 +1100,13 @@ class Connection(ExportImport, object):
         src.reset(*state)
 
     def _commit_savepoint(self, transaction):
-        """Commit all changes made in subtransactions and begin 2-phase commit
+        """Commit all changes made in savepoints and begin 2-phase commit
         """
         src = self._savepoint_storage
         self._storage = self._normal_storage
         self._savepoint_storage = None
 
-        self._log.debug("Commiting savepoints of size %s", src.getSize())
+        self._log.debug("Committing savepoints of size %s", src.getSize())
         oids = src.index.keys()
 
         # Copy invalidating and creating info from temporary storage:
@@ -1046,14 +1115,24 @@ class Connection(ExportImport, object):
 
         for oid in oids:
             data, serial = src.load(oid, src)
-            s = self._storage.store(oid, serial, data,
-                                    self._version, transaction)
-            self._handle_serial(s, oid, change=False)
+            if isinstance(self._reader.getGhost(data), Blob):
+                blobfilename = src.loadBlob(oid, serial)
+                s = self._storage.storeBlob(oid, serial, data, blobfilename,
+                                            self._version, transaction)
+                # we invalidate the object here in order to ensure
+                # that that the next attribute access of its name
+                # unghostify it, which will cause its blob data
+                # to be reattached "cleanly"
+                self.invalidate(s, {oid:True})
+            else:
+                s = self._storage.store(oid, serial, data,
+                                        self._version, transaction)
 
+            self._handle_serial(s, oid, change=False)
         src.close()
 
     def _abort_savepoint(self):
-        """Discard all subtransaction data."""
+        """Discard all savepoint data."""
         src = self._savepoint_storage
         self._storage = self._normal_storage
         self._savepoint_storage = None
@@ -1095,13 +1174,23 @@ class Savepoint:
 class TmpStore:
     """A storage-like thing to support savepoints."""
 
+    implements(IBlobStorage)
+
     def __init__(self, base_version, storage):
         self._storage = storage
         for method in (
-            'getName', 'new_oid', 'modifiedInVersion', 'getSize',
-            'undoLog', 'versionEmpty', 'sortKey', 'loadBefore',
+            'getName', 'new_oid', 'getSize', 'sortKey', 'loadBefore',
             ):
             setattr(self, method, getattr(storage, method))
+
+        try:
+            supportsVersions = storage.supportsVersions
+        except AttributeError:
+            pass
+        else:
+            if supportsVersions():
+                self.modifiedInVersion = storage.modifiedInVersion
+                self.versionEmpty = storage.versionEmpty
 
         self._base_version = base_version
         self._file = tempfile.TemporaryFile()
@@ -1147,6 +1236,42 @@ class TmpStore:
         self.index[oid] = self.position
         self.position += l + len(header)
         return serial
+
+    def storeBlob(self, oid, serial, data, blobfilename, version,
+                  transaction):
+        serial = self.store(oid, serial, data, version, transaction)
+
+        targetpath = self._getBlobPath(oid)
+        if not os.path.exists(targetpath):
+            os.makedirs(targetpath, 0700)
+
+        targetname = self._getCleanFilename(oid, serial)
+        rename_or_copy_blob(blobfilename, targetname, chmod=False)
+
+    def loadBlob(self, oid, serial):
+        """Return the filename where the blob file can be found.
+        """
+        if not IBlobStorage.providedBy(self._storage):
+            raise Unsupported(
+                "Blobs are not supported by the underlying storage %r." %
+                self._storage)
+        filename = self._getCleanFilename(oid, serial)
+        if not os.path.exists(filename):
+            raise POSKeyError("No blob file", oid, serial)
+        return filename
+
+    def _getBlobPath(self, oid):
+        return os.path.join(self.temporaryDirectory(),
+                            utils.oid_repr(oid)
+                            )
+
+    def _getCleanFilename(self, oid, tid):
+        return os.path.join(self._getBlobPath(oid),
+                            "%s%s" % (utils.tid_repr(tid), SAVEPOINT_SUFFIX,)
+                            )
+
+    def temporaryDirectory(self):
+        return self._storage.temporaryDirectory()
 
     def reset(self, position, index):
         self._file.truncate(position)
