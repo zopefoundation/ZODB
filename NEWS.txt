@@ -15,6 +15,12 @@ General
 - (3.9.0a1) Make it possible to examine oid and (in some situations) database
   name of persistent object references during conflict resolution.
 
+- (unreleased, after 3.9.0a1) Moved 'transaction' module out of ZODB.
+  ZODB depends upon this module, but it must be installed separately.
+
+- (unreleased, after 3.9.0a1) ZODB installation now requires
+  setuptools.
+
 ZEO
 ---
 
@@ -25,7 +31,9 @@ ZEO
 Transactions
 ------------
 
-- 
+- (unlreleased, after 3.9.0a1) 'transaction' module is not included in
+  ZODB anymore.  It is now just a ZODB dependency (via setuptools
+  declarations).
 
 Blobs
 -----

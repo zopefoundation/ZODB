@@ -38,26 +38,9 @@ Operating System :: Microsoft :: Windows
 Operating System :: Unix
 """
 
-try:
-    from setuptools import setup
-except ImportError:
-    from distutils.core import setup
-    extra = dict(
-        scripts = ["src/ZODB/scripts/fsdump.py",
-                   "src/ZODB/scripts/fsoids.py",
-                   "src/ZODB/scripts/fsrefs.py",
-                   "src/ZODB/scripts/fstail.py",
-                   "src/ZODB/scripts/fstest.py",
-                   "src/ZODB/scripts/repozo.py",
-                   "src/ZEO/scripts/zeopack.py",
-                   "src/ZEO/scripts/runzeo.py",
-                   "src/ZEO/scripts/zeopasswd.py",
-                   "src/ZEO/scripts/mkzeoinst.py",
-                   "src/ZEO/scripts/zeoctl.py",
-                   ],
-        )
-else:
-    entry_points = """
+from setuptools import setup
+
+entry_points = """
     [console_scripts]
     fsdump = ZODB.FileStorage.fsdump:main
     fsoids = ZODB.scripts.fsoids:main
@@ -70,19 +53,8 @@ else:
     mkzeoinst = ZEO.mkzeoinst:main
     zeoctl = ZEO.zeoctl:main
     """
-    extra = dict(
-        install_requires = [
-            'zope.interface',
-            'zope.proxy',
-            'zope.testing',
-            'ZConfig',
-            'zdaemon',
-            ],
-        zip_safe = False,
-        entry_points = entry_points,
-        include_package_data = True,
-        )
-    scripts = []
+
+scripts = []
 
 import glob
 import os
@@ -177,7 +149,6 @@ packages = ["BTrees", "BTrees.tests",
             "ZODB", "ZODB.FileStorage", "ZODB.tests",
                     "ZODB.scripts",
             "persistent", "persistent.tests",
-            "transaction", "transaction.tests",
             "ThreadedAsync",
             "ZopeUndo", "ZopeUndo.tests",
             ]
@@ -188,8 +159,6 @@ def copy_other_files(cmd, outputbase):
     extensions = ["*.conf", "*.xml", "*.txt", "*.sh"]
     directories = [
         "BTrees",
-        "transaction",
-        "transaction/tests",
         "persistent/tests",
         "ZEO",
         "ZEO/scripts",
@@ -260,4 +229,27 @@ setup(name="ZODB3",
       classifiers = filter(None, classifiers.split("\n")),
       long_description = "\n".join(doclines[2:]),
       distclass = MyDistribution,
-      **extra)
+      install_requires = [
+        'zope.interface',
+        'zope.proxy',
+        'zope.testing',
+        'ZConfig',
+        'zdaemon',
+        'transaction',
+        ],
+      zip_safe = False,
+      entry_points = """
+      [console_scripts]
+      fsdump = ZODB.FileStorage.fsdump:main
+      fsoids = ZODB.scripts.fsoids:main
+      fsrefs = ZODB.scripts.fsrefs:main
+      fstail = ZODB.scripts.fstail:Main
+      repozo = ZODB.scripts.repozo:main
+      zeopack = ZEO.scripts.zeopack:main
+      runzeo = ZEO.runzeo:main
+      zeopasswd = ZEO.zeopasswd:main
+      mkzeoinst = ZEO.mkzeoinst:main
+      zeoctl = ZEO.zeoctl:main
+      """,
+      include_package_data = True,
+      )
