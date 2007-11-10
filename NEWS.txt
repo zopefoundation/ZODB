@@ -21,6 +21,9 @@ General
 - (unreleased, after 3.9.0a1) ZODB installation now requires
   setuptools.
 
+- (unreleased, after 3.9.0a1) Added `offset` information to output of `fstail`
+  script. Added test harness for this script.
+
 ZEO
 ---
 
