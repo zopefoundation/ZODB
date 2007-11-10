@@ -244,7 +244,7 @@ class Blob(persistent.Persistent):
         def cleanup(ref):
             if os.path.exists(filename):
                 os.remove(filename)
-        
+
         self._p_blob_ref = weakref.ref(self, cleanup)
         return filename
 
@@ -294,12 +294,18 @@ class FilesystemHelper:
 
     def __init__(self, base_dir):
         self.base_dir = base_dir
+        self.temp_dir = os.path.join(base_dir, 'tmp')
 
     def create(self):
         if not os.path.exists(self.base_dir):
             os.makedirs(self.base_dir, 0700)
             log("Blob cache directory '%s' does not exist. "
                 "Created new directory." % self.base_dir,
+                level=logging.INFO)
+        if not os.path.exists(self.temp_dir):
+            os.makedirs(self.temp_dir, 0700)
+            log("Blob temporary directory '%s' does not exist. "
+                "Created new directory." % self.temp_dir,
                 level=logging.INFO)
 
     def isSecure(self, path):
@@ -375,6 +381,17 @@ class FilesystemHelper:
                     oids.append(oid)
         return oids
 
+    def listOIDs(self):
+        """Lists all OIDs and their paths.
+
+        """
+        for candidate in os.listdir(self.base_dir):
+            if candidate == 'tmp':
+                continue
+            oid = utils.repr_to_oid(candidate)
+            yield oid, self.getPathForOID(oid)
+
+
 class BlobStorage(SpecificationDecoratorBase):
     """A storage to support blobs."""
 
@@ -404,8 +421,7 @@ class BlobStorage(SpecificationDecoratorBase):
 
     @non_overridable
     def temporaryDirectory(self):
-        return self.fshelper.base_dir
-
+        return self.fshelper.temp_dir
 
     @non_overridable
     def __repr__(self):
@@ -471,18 +487,8 @@ class BlobStorage(SpecificationDecoratorBase):
         # if they are still needed by attempting to load the revision
         # of that object from the database.  This is maybe the slowest
         # possible way to do this, but it's safe.
-
-        # XXX we should be tolerant of "garbage" directories/files in
-        # the base_directory here.
-
-        # XXX If this method gets refactored we have to watch out for extra
-        # files from uncommitted transactions. The current implementation
-        # doesn't have a problem, but future refactorings likely will.
-
         base_dir = self.fshelper.base_dir
-        for oid_repr in os.listdir(base_dir):
-            oid = utils.repr_to_oid(oid_repr)
-            oid_path = os.path.join(base_dir, oid_repr)
+        for oid, oid_path in self.fshelper.listOIDs():
             files = os.listdir(oid_path)
             files.sort()
 
@@ -501,11 +507,8 @@ class BlobStorage(SpecificationDecoratorBase):
     @non_overridable
     def _packNonUndoing(self, packtime, referencesf):
         base_dir = self.fshelper.base_dir
-        for oid_repr in os.listdir(base_dir):
-            oid = utils.repr_to_oid(oid_repr)
-            oid_path = os.path.join(base_dir, oid_repr)
+        for oid, oid_path in self.fshelper.listOIDs():
             exists = True
-
             try:
                 self.load(oid, None) # no version support
             except (POSKeyError, KeyError):
