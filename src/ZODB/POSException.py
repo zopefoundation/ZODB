@@ -17,6 +17,10 @@ $Id$"""
 
 from ZODB.utils import oid_repr, readable_tid_repr
 
+# BBB: We moved the two transactions to the transaction package
+from transaction.interfaces import TransactionError, TransactionFailedError
+
+
 def _fmt_undo(oid, reason):
     s = reason and (": %s" % reason) or ""
     return "Undo error %s%s" % (oid_repr(oid), s)
@@ -44,18 +48,6 @@ class POSKeyError(KeyError, POSError):
     def __str__(self):
         return oid_repr(self.args[0])
 
-class TransactionError(POSError):
-    """An error occurred due to normal transaction processing."""
-
-class TransactionFailedError(POSError):
-    """Cannot perform an operation on a transaction that previously failed.
-
-    An attempt was made to commit a transaction, or to join a transaction,
-    but this transaction previously raised an exception during an attempt
-    to commit it.  The transaction must be explicitly aborted, either by
-    invoking abort() on the transaction, or begin() on its transaction
-    manager.
-    """
 
 class ConflictError(TransactionError):
     """Two transactions tried to modify the same object at once.
