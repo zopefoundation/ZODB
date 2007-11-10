@@ -29,18 +29,9 @@ Set up:
     >>> storagefile = mktemp()
     >>> blob_dir = mkdtemp()
 
-A helper method to assure a unique timestamp across multiple platforms.  This
-method also makes sure that after retrieving a timestamp that was *before* a
-transaction was committed, that at least one second passes so the packing time
-actually is before the commit time.
+A helper method to assure a unique timestamp across multiple platforms:
 
-   >>> import time
-   >>> def new_time():
-   ...     now = new_time = time.time()
-   ...     while new_time <= now:
-   ...         new_time = time.time()
-   ...     time.sleep(1)
-   ...     return new_time
+    >>> from ZODB.tests.testblob import new_time
 
 UNDOING
 =======
@@ -170,7 +161,7 @@ We need an database with a NON-undoing blob supporting storage:
     >>> base_storage = MappingStorage('storage')
     >>> blob_storage = BlobStorage(blob_dir, base_storage)
     >>> database = DB(blob_storage)
-    
+
 Create our root object:
 
     >>> connection1 = database.open()
@@ -228,7 +219,7 @@ Do a pack to the slightly before the first revision was written:
     >>> blob_storage.pack(packtime, referencesf)
     >>> [ os.path.exists(x) for x in fns ]
     [False, False, False, False, True]
-    
+
 Do a pack to now:
 
     >>> packtime = new_time()

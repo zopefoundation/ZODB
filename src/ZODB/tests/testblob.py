@@ -13,6 +13,7 @@
 ##############################################################################
 
 import base64, os, shutil, tempfile, unittest
+import time
 from zope.testing import doctest
 import ZODB.tests.util
 
@@ -25,6 +26,22 @@ import transaction
 
 from ZODB.tests.testConfig import ConfigTestBase
 from ZConfig import ConfigurationSyntaxError
+
+
+def new_time():
+    """Create a _new_ time stamp.
+
+    This method also makes sure that after retrieving a timestamp that was
+    *before* a transaction was committed, that at least one second passes so
+    the packing time actually is before the commit time.
+
+    """
+    now = new_time = time.time()
+    while new_time <= now:
+        new_time = time.time()
+    time.sleep(1)
+    return new_time
+
 
 class BlobConfigTestBase(ConfigTestBase):
 
@@ -284,13 +301,93 @@ Works with savepoints too:
     
     >>> root['blob2'].open().read()
     'test2'
-    
+
     >>> os.rename = os_rename
     >>> logger.propagate = True
     >>> logger.setLevel(0)
     >>> logger.removeHandler(handler)
 
     """
+
+
+def packing_with_uncommitted_data_non_undoing():
+    """
+    This covers regression for bug #130459.
+
+    When uncommitted data exists it formerly was written to the root of the
+    blob_directory and confused our packing strategy. We now use a separate
+    temporary directory that is ignored while packing.
+
+    >>> import transaction
+    >>> from ZODB.MappingStorage import MappingStorage
+    >>> from ZODB.blob import BlobStorage
+    >>> from ZODB.DB import DB
+    >>> from ZODB.serialize import referencesf
+    >>> from tempfile import mkdtemp
+
+    >>> base_storage = MappingStorage("test")
+    >>> blob_dir = mkdtemp()
+    >>> blob_storage = BlobStorage(blob_dir, base_storage)
+    >>> database = DB(blob_storage)
+    >>> connection = database.open()
+    >>> root = connection.root()
+    >>> from ZODB.blob import Blob
+    >>> root['blob'] = Blob()
+    >>> connection.add(root['blob'])
+    >>> root['blob'].open('w').write('test')
+
+    >>> blob_storage.pack(new_time(), referencesf)
+
+    Clean up:
+
+    >>> database.close()
+    >>> import shutil
+    >>> shutil.rmtree(blob_dir)
+
+    """
+
+def packing_with_uncommitted_data_undoing():
+    """
+    This covers regression for bug #130459.
+
+    When uncommitted data exists it formerly was written to the root of the
+    blob_directory and confused our packing strategy. We now use a separate
+    temporary directory that is ignored while packing.
+
+    >>> import transaction
+    >>> from ZODB.FileStorage.FileStorage import FileStorage
+    >>> from ZODB.blob import BlobStorage
+    >>> from ZODB.DB import DB
+    >>> from ZODB.serialize import referencesf
+    >>> from tempfile import mkdtemp, mktemp
+
+    >>> storagefile = mktemp()
+    >>> base_storage = FileStorage(storagefile)
+    >>> blob_dir = mkdtemp()
+    >>> blob_storage = BlobStorage(blob_dir, base_storage)
+    >>> database = DB(blob_storage)
+    >>> connection = database.open()
+    >>> root = connection.root()
+    >>> from ZODB.blob import Blob
+    >>> root['blob'] = Blob()
+    >>> connection.add(root['blob'])
+    >>> root['blob'].open('w').write('test')
+
+    >>> blob_storage.pack(new_time(), referencesf)
+
+    Clean up:
+
+    >>> database.close()
+    >>> import shutil
+    >>> shutil.rmtree(blob_dir)
+
+    >>> os.unlink(storagefile)
+    >>> os.unlink(storagefile+".index")
+    >>> os.unlink(storagefile+".tmp")
+
+
+    """
+
 
 def test_suite():
     suite = unittest.TestSuite()
