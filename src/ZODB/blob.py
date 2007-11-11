@@ -490,8 +490,6 @@ class BlobStorage(SpecificationDecoratorBase):
         base_dir = self.fshelper.base_dir
         for oid, oid_path in self.fshelper.listOIDs():
             files = os.listdir(oid_path)
-            files.sort()
-
             for filename in files:
                 filepath = os.path.join(oid_path, filename)
                 whatever, serial = self.fshelper.splitBlobFilename(filepath)
