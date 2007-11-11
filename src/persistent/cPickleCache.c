@@ -378,7 +378,7 @@ static PyObject *
 cc_invalidate(ccobject *self, PyObject *inv)
 {
   PyObject *key, *v;
-  int i = 0;
+  Py_ssize_t i = 0;
 
   if (PyDict_Check(inv))
     {
@@ -448,7 +448,7 @@ static PyObject *
 cc_klass_items(ccobject *self)
 {
     PyObject *l,*k,*v;
-    int p = 0;
+    Py_ssize_t p = 0;
 
     l = PyList_New(0);
     if (l == NULL)
@@ -477,7 +477,7 @@ static PyObject *
 cc_debug_info(ccobject *self)
 {
     PyObject *l,*k,*v;
-    int p = 0;
+    Py_ssize_t p = 0;
 
     l = PyList_New(0);
     if (l == NULL)
@@ -707,7 +707,7 @@ cc_dealloc(ccobject *self)
 static int
 cc_clear(ccobject *self)
 {
-    int pos = 0;
+    Py_ssize_t pos = 0;
     PyObject *k, *v;
     /* Clearing the cache is delicate.
 

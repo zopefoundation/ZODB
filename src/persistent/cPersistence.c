@@ -300,7 +300,7 @@ pickle_copy_dict(PyObject *state)
 {
     PyObject *copy, *key, *value;
     char *ckey;
-    int pos = 0;
+    Py_ssize_t pos = 0;
 
     copy = PyDict_New();
     if (!copy)
@@ -414,7 +414,7 @@ static int
 pickle_setattrs_from_dict(PyObject *self, PyObject *dict)
 {
     PyObject *key, *value;
-    int pos = 0;
+    Py_ssize_t pos = 0;
 
     if (!PyDict_Check(dict)) {
 	PyErr_SetString(PyExc_TypeError, "Expected dictionary");

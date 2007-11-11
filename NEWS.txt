@@ -27,6 +27,9 @@ General
 
 - (3.8.0b3) Added missing data attribute for conflict errors.
 
+- (3.8.0b5) Fixed bug 153316: persistent and BTrees gave errors on x86_64
+  Intel XEON platforms.
+
 ZEO
 ---
 

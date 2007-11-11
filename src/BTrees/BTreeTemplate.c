@@ -1730,7 +1730,7 @@ BTree_setdefault(BTree *self, PyObject *args)
 }
 
 /* forward declaration */
-static int
+static Py_ssize_t
 BTree_length_or_nonzero(BTree *self, int nonzero);
 
 static PyObject *
@@ -2062,7 +2062,7 @@ BTree_tp_clear(BTree *self)
  *          -1  error
  *        >= 0  number of elements.
  */
-static int
+static Py_ssize_t
 BTree_length_or_nonzero(BTree *self, int nonzero)
 {
     int result;
@@ -2086,32 +2086,32 @@ BTree_length_or_nonzero(BTree *self, int nonzero)
     return result;
 }
 
-static int
-BTree_length( BTree *self)
+static Py_ssize_t
+BTree_length(BTree *self)
 {
   return BTree_length_or_nonzero(self, 0);
 }
 
 static PyMappingMethods BTree_as_mapping = {
-  (inquiry)BTree_length,		/*mp_length*/
+  (lenfunc)BTree_length,		/*mp_length*/
   (binaryfunc)BTree_get,		/*mp_subscript*/
   (objobjargproc)BTree_setitem,	        /*mp_ass_subscript*/
 };
 
 static PySequenceMethods BTree_as_sequence = {
-    (inquiry)0,                     /* sq_length */
+    (lenfunc)0,                     /* sq_length */
     (binaryfunc)0,                  /* sq_concat */
-    (intargfunc)0,                  /* sq_repeat */
-    (intargfunc)0,                  /* sq_item */
-    (intintargfunc)0,               /* sq_slice */
-    (intobjargproc)0,               /* sq_ass_item */
-    (intintobjargproc)0,            /* sq_ass_slice */
+    (ssizeargfunc)0,                /* sq_repeat */
+    (ssizeargfunc)0,                /* sq_item */
+    (ssizessizeargfunc)0,           /* sq_slice */
+    (ssizeobjargproc)0,             /* sq_ass_item */
+    (ssizessizeobjargproc)0,        /* sq_ass_slice */
     (objobjproc)BTree_contains,     /* sq_contains */
     0,                              /* sq_inplace_concat */
     0,                              /* sq_inplace_repeat */
 };
 
-static int
+static Py_ssize_t
 BTree_nonzero(BTree *self)
 {
   return BTree_length_or_nonzero(self, 1);
