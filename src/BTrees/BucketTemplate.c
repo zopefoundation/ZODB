@@ -1683,19 +1683,19 @@ Bucket_length( Bucket *self)
 }
 
 static PyMappingMethods Bucket_as_mapping = {
-  (inquiry)Bucket_length,		/*mp_length*/
+  (lenfunc)Bucket_length,		/*mp_length*/
   (binaryfunc)bucket_getitem,		/*mp_subscript*/
   (objobjargproc)bucket_setitem,	/*mp_ass_subscript*/
 };
 
 static PySequenceMethods Bucket_as_sequence = {
-    (inquiry)0,                     /* sq_length */
+    (lenfunc)0,                     /* sq_length */
     (binaryfunc)0,                  /* sq_concat */
-    (intargfunc)0,                  /* sq_repeat */
-    (intargfunc)0,                  /* sq_item */
-    (intintargfunc)0,               /* sq_slice */
-    (intobjargproc)0,               /* sq_ass_item */
-    (intintobjargproc)0,            /* sq_ass_slice */
+    (ssizeargfunc)0,                /* sq_repeat */
+    (ssizeargfunc)0,                /* sq_item */
+    (ssizessizeargfunc)0,           /* sq_slice */
+    (ssizeobjargproc)0,             /* sq_ass_item */
+    (ssizessizeobjargproc)0,        /* sq_ass_slice */
     (objobjproc)bucket_contains,    /* sq_contains */
     0,                              /* sq_inplace_concat */
     0,                              /* sq_inplace_repeat */

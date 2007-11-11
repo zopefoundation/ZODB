@@ -24,6 +24,10 @@ General
 - (unreleased, after 3.9.0a1) Added `offset` information to output of `fstail`
   script. Added test harness for this script.
 
+- (unreleased, after 3.9.0a1) Fixed bug 153316: persistent and BTrees were
+  using `int` for memory sizes which caused errors on x86_64 Intel Xeon
+  machines (using 64-bit Linux).
+
 ZEO
 ---
 

@@ -16,6 +16,8 @@
 #define CPERSISTENCE_H
 
 #include "Python.h"
+#include "py24compat.h"
+
 #include "ring.h"
 
 #define CACHE_HEAD \

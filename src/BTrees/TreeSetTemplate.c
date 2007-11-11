@@ -170,17 +170,17 @@ static struct PyMethodDef TreeSet_methods[] = {
 };
 
 static PyMappingMethods TreeSet_as_mapping = {
-  (inquiry)BTree_length,		/*mp_length*/
+  (lenfunc)BTree_length,	/*mp_length*/
 };
 
 static PySequenceMethods TreeSet_as_sequence = {
-    (inquiry)0,                     /* sq_length */
+    (lenfunc)0,                     /* sq_length */
     (binaryfunc)0,                  /* sq_concat */
-    (intargfunc)0,                  /* sq_repeat */
-    (intargfunc)0,                  /* sq_item */
-    (intintargfunc)0,               /* sq_slice */
-    (intobjargproc)0,               /* sq_ass_item */
-    (intintobjargproc)0,            /* sq_ass_slice */
+    (ssizeargfunc)0,                /* sq_repeat */
+    (ssizeargfunc)0,                /* sq_item */
+    (ssizessizeargfunc)0,           /* sq_slice */
+    (ssizeobjargproc)0,             /* sq_ass_item */
+    (ssizessizeobjargproc)0,        /* sq_ass_slice */
     (objobjproc)BTree_contains,     /* sq_contains */
     0,                              /* sq_inplace_concat */
     0,                              /* sq_inplace_repeat */

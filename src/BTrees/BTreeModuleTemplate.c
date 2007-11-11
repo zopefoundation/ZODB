@@ -27,6 +27,8 @@
 #define PER_ACCESSED(O) 1
 #endif
 
+#include "py24compat.h"
+
 /* So sue me.  This pair gets used all over the place, so much so that it
  * interferes with understanding non-persistence parts of algorithms.
  * PER_UNUSE can be used after a successul PER_USE or PER_USE_OR_RETURN.

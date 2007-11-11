@@ -69,10 +69,10 @@ BTreeItems_dealloc(BTreeItems *self)
   PyObject_DEL(self);
 }
 
-static int
+static Py_ssize_t
 BTreeItems_length_or_nonzero(BTreeItems *self, int nonzero)
 {
-    int r;
+    Py_ssize_t r;
     Bucket *b, *next;
 
     b = self->firstbucket;
@@ -111,8 +111,8 @@ BTreeItems_length_or_nonzero(BTreeItems *self, int nonzero)
     return r >= 0 ? r : 0;
 }
 
-static int
-BTreeItems_length( BTreeItems *self)
+static Py_ssize_t
+BTreeItems_length(BTreeItems *self)
 {
   return BTreeItems_length_or_nonzero(self, 0);
 }
@@ -132,7 +132,7 @@ BTreeItems_length( BTreeItems *self)
 ** self->currentbucket.
 */
 static int
-BTreeItems_seek(BTreeItems *self, int i)
+BTreeItems_seek(BTreeItems *self, Py_ssize_t i)
 {
     int delta, pseudoindex, currentoffset;
     Bucket *b, *currentbucket;
@@ -285,7 +285,7 @@ getBucketEntry(Bucket *b, int i, char kind)
 **		(ie pulls the ith item out)
 */
 static PyObject *
-BTreeItems_item(BTreeItems *self, int i)
+BTreeItems_item(BTreeItems *self, Py_ssize_t i)
 {
     PyObject *result;
 
@@ -311,13 +311,13 @@ BTreeItems_item(BTreeItems *self, int i)
 ** Returns:	BTreeItems item
 */
 static PyObject *
-BTreeItems_slice(BTreeItems *self, int ilow, int ihigh)
+BTreeItems_slice(BTreeItems *self, Py_ssize_t ilow, Py_ssize_t ihigh)
 {
   Bucket *lowbucket;
   Bucket *highbucket;
   int lowoffset;
   int highoffset;
-  int length = -1;  /* len(self), but computed only if needed */
+  Py_ssize_t length = -1;  /* len(self), but computed only if needed */
 
   /* Complications:
    * A Python slice never raises IndexError, but BTreeItems_seek does.
@@ -386,11 +386,11 @@ BTreeItems_slice(BTreeItems *self, int ilow, int ihigh)
 }
 
 static PySequenceMethods BTreeItems_as_sequence = {
-  (inquiry) BTreeItems_length,
+  (lenfunc) BTreeItems_length,
   (binaryfunc)0,
-  (intargfunc)0,
-  (intargfunc) BTreeItems_item,
-  (intintargfunc) BTreeItems_slice,
+  (ssizeargfunc)0,
+  (ssizeargfunc) BTreeItems_item,
+  (ssizessizeargfunc) BTreeItems_slice,
 };
 
 /* Number Method items (just for nb_nonzero!) */

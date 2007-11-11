@@ -243,7 +243,7 @@ err:
   return NULL;
 }
 
-static int
+static Py_ssize_t
 set_length(Bucket *self)
 {
   int r;
@@ -256,7 +256,7 @@ set_length(Bucket *self)
 }
 
 static PyObject *
-set_item(Bucket *self, int index)
+set_item(Bucket *self, Py_ssize_t index)
 {
   PyObject *r=0;
 
@@ -274,16 +274,16 @@ set_item(Bucket *self, int index)
 }
 
 static PySequenceMethods set_as_sequence = {
-	(inquiry)set_length,		/* sq_length */
-	(binaryfunc)0,                  /* sq_concat */
-	(intargfunc)0,                  /* sq_repeat */
-	(intargfunc)set_item,           /* sq_item */
-	(intintargfunc)0,               /* sq_slice */
-	(intobjargproc)0,               /* sq_ass_item */
-	(intintobjargproc)0,            /* sq_ass_slice */
-        (objobjproc)bucket_contains,    /* sq_contains */
-        0,                              /* sq_inplace_concat */
-        0,                              /* sq_inplace_repeat */
+  (lenfunc)set_length,            /* sq_length */
+  (binaryfunc)0,                  /* sq_concat */
+  (ssizeargfunc)0,                /* sq_repeat */
+  (ssizeargfunc)set_item,         /* sq_item */
+  (ssizessizeargfunc)0,           /* sq_slice */
+  (ssizeobjargproc)0,             /* sq_ass_item */
+  (ssizessizeobjargproc)0,        /* sq_ass_slice */
+  (objobjproc)bucket_contains,    /* sq_contains */
+  0,                              /* sq_inplace_concat */
+  0,                              /* sq_inplace_repeat */
 };
 
 static PyTypeObject SetType = {
