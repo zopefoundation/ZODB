@@ -210,8 +210,23 @@ class MyDistribution(Distribution):
         self.cmdclass['build_py'] = MyPyBuilder
         self.cmdclass['install_lib'] = MyLibInstaller
 
-doclines = __doc__.split("\n")
+def alltests():
+    # use the zope.testing testrunner machinery to find all the
+    # test suites we've put under ourselves
+    from zope.testing.testrunner import get_options
+    from zope.testing.testrunner import find_suites
+    from zope.testing.testrunner import configure_logging
+    configure_logging()
+    from unittest import TestSuite
+    here = os.path.abspath(os.path.dirname(sys.argv[0]))
+    args = sys.argv[:]
+    src = os.path.join(here, 'src')
+    defaults = ['--test-path', src]
+    options = get_options(args, defaults)
+    suites = list(find_suites(options))
+    return TestSuite(suites)
 
+doclines = __doc__.split("\n")
 
 setup(name="ZODB3",
       version=VERSION,
@@ -229,6 +244,14 @@ setup(name="ZODB3",
       classifiers = filter(None, classifiers.split("\n")),
       long_description = "\n".join(doclines[2:]),
       distclass = MyDistribution,
+      test_suite="__main__.alltests", # to support "setup.py test"
+      tests_require = [
+        'zope.interface',
+        'zope.proxy',
+        'zope.testing',
+        'transaction',
+        'zdaemon',
+        ],
       install_requires = [
         'zope.interface',
         'zope.proxy',
