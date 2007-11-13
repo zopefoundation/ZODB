@@ -15,7 +15,8 @@
 Connection support for Blobs tests
 ==================================
 
-Connections handle Blobs specially. To demonstrate that, we first need a Blob with some data:
+Connections handle Blobs specially. To demonstrate that, we first need a Blob
+with some data:
 
     >>> from ZODB.interfaces import IBlob
     >>> from ZODB.blob import Blob
@@ -25,13 +26,16 @@ Connections handle Blobs specially. To demonstrate that, we first need a Blob wi
     >>> data.write("I'm a happy Blob.")
     >>> data.close()
 
-We also need a database with a blob supporting storage:
+We also need a database with a blob supporting storage.  (We're going to use
+FileStorage rather than MappingStorage here because we will want ``loadBefore``
+for one of our examples.)
 
-    >>> from ZODB.MappingStorage import MappingStorage
+    >>> import ZODB.FileStorage
     >>> from ZODB.blob import BlobStorage
     >>> from ZODB.DB import DB
     >>> from tempfile import mkdtemp
-    >>> base_storage = MappingStorage("test")
+    >>> base_storage = ZODB.FileStorage.FileStorage(
+    ...     'BlobTests.fs', create=True)
     >>> blob_dir = mkdtemp()
     >>> blob_storage = BlobStorage(blob_dir, base_storage)
     >>> database = DB(blob_storage)
@@ -51,31 +55,55 @@ calling the blob's open method:
     >>> root['anotherblob'] = anotherblob
     >>> nothing = transaction.commit()
 
-Getting stuff out of there works similar:
+Getting stuff out of there works similarly:
 
-    >>> connection2 = database.open()
+    >>> transaction2 = transaction.TransactionManager()
+    >>> connection2 = database.open(transaction_manager=transaction2)
     >>> root = connection2.root()
     >>> blob2 = root['myblob']
     >>> IBlob.providedBy(blob2)
     True
     >>> blob2.open("r").read()
     "I'm a happy Blob."
+    >>> transaction2.abort()
+
+MVCC also works.
+
+    >>> transaction3 = transaction.TransactionManager()
+    >>> connection3 = database.open(transaction_manager=transaction3)
+    >>> f = connection.root()['myblob'].open('w')
+    >>> f.write('I am an ecstatic Blob.')
+    >>> f.close()
+    >>> transaction.commit()
+    >>> connection3.root()['myblob'].open('r').read()
+    "I'm a happy Blob."
+
+    >>> transaction2.abort()
+    >>> transaction3.abort()
+    >>> connection2.close()
+    >>> connection3.close()
 
 You can't put blobs into a database that has uses a Non-Blob-Storage, though:
 
+    >>> from ZODB.MappingStorage import MappingStorage
     >>> no_blob_storage = MappingStorage()
     >>> database2 = DB(no_blob_storage)
-    >>> connection3 = database2.open()
-    >>> root = connection3.root()
+    >>> connection2 = database2.open(transaction_manager=transaction2)
+    >>> root = connection2.root()
     >>> root['myblob'] = Blob()
-    >>> transaction.commit()        # doctest: +ELLIPSIS
+    >>> transaction2.commit()        # doctest: +ELLIPSIS
     Traceback (most recent call last):
         ...
     Unsupported: Storing Blobs in <ZODB.MappingStorage.MappingStorage instance at ...> is not supported.
 
-While we are testing this, we don't need the storage directory and
-databases anymore:
+    >>> transaction2.abort()
+    >>> connection2.close()
+
+After testing this, we don't need the storage directory and databases anymore:
 
     >>> transaction.abort()
+    >>> connection.close()
     >>> database.close()
     >>> database2.close()
+    >>> blob_storage.close()
+    >>> base_storage.cleanup()

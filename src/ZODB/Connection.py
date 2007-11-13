@@ -894,6 +894,12 @@ class Connection(ExportImport, object):
         assert self._txn_time <= end, (u64(self._txn_time), u64(end))
         self._reader.setGhostState(obj, data)
         obj._p_serial = start
+
+        # MVCC Blob support
+        if isinstance(obj, Blob):
+            obj._p_blob_uncommitted = None
+            obj._p_blob_committed = self._storage.loadBlob(obj._p_oid, start)
+
         return True
 
     def _handle_independent(self, obj):
