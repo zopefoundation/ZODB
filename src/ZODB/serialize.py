@@ -371,7 +371,7 @@ class ObjectWriter:
             return oid
 
         # Note that we never get here for persistent classes.
-        # We'll use driect refs for normal classes.
+        # We'll use direct refs for normal classes.
 
         if database_name:
             return ['m', (database_name, oid, klass)]

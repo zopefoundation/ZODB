@@ -14,7 +14,7 @@
 import os
 import time
 import unittest
-import warnings
+import datetime
 
 import transaction
 
@@ -35,8 +35,6 @@ class DBTests(unittest.TestCase):
         self.__path = os.path.abspath('test.fs')
         store = ZODB.FileStorage.FileStorage(self.__path)
         self.db = ZODB.DB(store)
-        warnings.filterwarnings(
-            'ignore', message='Versions are deprecated', module=__name__)
 
     def tearDown(self):
         self.db.close()
@@ -44,8 +42,8 @@ class DBTests(unittest.TestCase):
             if os.path.exists(self.__path+s):
                 os.remove(self.__path+s)
 
-    def dowork(self, version=''):
-        c = self.db.open(version)
+    def dowork(self):
+        c = self.db.open()
         r = c.root()
         o = r[time.time()] = MinPO(0)
         transaction.commit()
@@ -53,85 +51,95 @@ class DBTests(unittest.TestCase):
             o.value = MinPO(i)
             transaction.commit()
             o = o.value
+        serial = o._p_serial
+        root_serial = r._p_serial
         c.close()
+        return serial, root_serial
 
     # make sure the basic methods are callable
 
     def testSets(self):
         self.db.setCacheSize(15)
-        self.db.setVersionCacheSize(15)
+        self.db.setHistoricalCacheSize(15)
 
-    def test_removeVersionPool(self):
-        # Test that we can remove a version pool
+    def test_removeHistoricalPool(self):
+        # Test that we can remove a historical pool
 
         # This is white box because we check some internal data structures
 
-        self.dowork()
-        self.dowork('v2')
-        c1 = self.db.open('v1')
+        serial1, root_serial1 = self.dowork()
+        now = datetime.datetime.utcnow()
+        serial2, root_serial2 = self.dowork()
+        self.failUnless(root_serial1 < root_serial2)
+        c1 = self.db.open(at=now)
+        root = c1.root()
+        root.keys() # wake up object to get proper serial set
+        self.assertEqual(root._p_serial, root_serial1)
         c1.close() # return to pool
-        c12 = self.db.open('v1')
+        c12 = self.db.open(at=now)
         c12.close() # return to pool
         self.assert_(c1 is c12) # should be same
 
         pools = self.db._pools
 
-        self.assertEqual(len(pools), 3)
-        self.assertEqual(nconn(pools), 3)
-
-        self.db.removeVersionPool('v1')
-
         self.assertEqual(len(pools), 2)
         self.assertEqual(nconn(pools), 2)
 
-        c12 = self.db.open('v1')
+        self.db.removeHistoricalPool(at=now)
+
+        self.assertEqual(len(pools), 1)
+        self.assertEqual(nconn(pools), 1)
+
+        c12 = self.db.open(at=now)
         c12.close() # return to pool
         self.assert_(c1 is not c12) # should be different
 
-        self.assertEqual(len(pools), 3)
-        self.assertEqual(nconn(pools), 3)
+        self.assertEqual(len(pools), 2)
+        self.assertEqual(nconn(pools), 2)
 
     def _test_for_leak(self):
         self.dowork()
-        self.dowork('v2')
+        now = datetime.datetime.utcnow()
+        self.dowork()
         while 1:
-            c1 = self.db.open('v1')
-            self.db.removeVersionPool('v1')
+            c1 = self.db.open(at=now)
+            self.db.removeHistoricalPool(at=now)
             c1.close() # return to pool
 
-    def test_removeVersionPool_while_connection_open(self):
+    def test_removeHistoricalPool_while_connection_open(self):
         # Test that we can remove a version pool
 
         # This is white box because we check some internal data structures
 
         self.dowork()
-        self.dowork('v2')
-        c1 = self.db.open('v1')
+        now = datetime.datetime.utcnow()
+        self.dowork()
+        c1 = self.db.open(at=now)
         c1.close() # return to pool
-        c12 = self.db.open('v1')
+        c12 = self.db.open(at=now)
         self.assert_(c1 is c12) # should be same
 
         pools = self.db._pools
 
-        self.assertEqual(len(pools), 3)
-        self.assertEqual(nconn(pools), 3)
-
-        self.db.removeVersionPool('v1')
-
         self.assertEqual(len(pools), 2)
         self.assertEqual(nconn(pools), 2)
+
+        self.db.removeHistoricalPool(at=now)
+
+        self.assertEqual(len(pools), 1)
+        self.assertEqual(nconn(pools), 1)
 
         c12.close() # should leave pools alone
 
-        self.assertEqual(len(pools), 2)
-        self.assertEqual(nconn(pools), 2)
+        self.assertEqual(len(pools), 1)
+        self.assertEqual(nconn(pools), 1)
 
-        c12 = self.db.open('v1')
+        c12 = self.db.open(at=now)
         c12.close() # return to pool
         self.assert_(c1 is not c12) # should be different
 
-        self.assertEqual(len(pools), 3)
-        self.assertEqual(nconn(pools), 3)
+        self.assertEqual(len(pools), 2)
+        self.assertEqual(nconn(pools), 2)
 
     def test_references(self):
 

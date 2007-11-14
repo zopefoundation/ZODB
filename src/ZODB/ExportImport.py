@@ -47,7 +47,7 @@ class ExportImport:
                 continue
             done_oids[oid] = True
             try:
-                p, serial = load(oid, self._version)
+                p, serial = load(oid, '')
             except:
                 logger.debug("broken reference for oid %s", repr(oid),
                              exc_info=True)
@@ -55,16 +55,16 @@ class ExportImport:
                 referencesf(p, oids)
                 f.writelines([oid, p64(len(p)), p])
 
-            if supports_blobs:
-                if not isinstance(self._reader.getGhost(p), Blob):
-                    continue # not a blob
-                
-                blobfilename = self._storage.loadBlob(oid, serial)
-                f.write(blob_begin_marker)
-                f.write(p64(os.stat(blobfilename).st_size))
-                blobdata = open(blobfilename, "rb")
-                cp(blobdata, f)
-                blobdata.close()
+                if supports_blobs:
+                    if not isinstance(self._reader.getGhost(p), Blob):
+                        continue # not a blob
+                    
+                    blobfilename = self._storage.loadBlob(oid, serial)
+                    f.write(blob_begin_marker)
+                    f.write(p64(os.stat(blobfilename).st_size))
+                    blobdata = open(blobfilename, "rb")
+                    cp(blobdata, f)
+                    blobdata.close()
             
         f.write(export_end_marker)
         return f
@@ -127,8 +127,6 @@ class ExportImport:
 
             return Ghost(oid)
 
-        version = self._version
-
         while 1:
             header = f.read(16)
             if header == export_end_marker:
@@ -180,9 +178,9 @@ class ExportImport:
 
             if blob_filename is not None:
                 self._storage.storeBlob(oid, None, data, blob_filename, 
-                                        version, transaction)
+                                        '', transaction)
             else:
-                self._storage.store(oid, None, data, version, transaction)
+                self._storage.store(oid, None, data, '', transaction)
 
 
 export_end_marker = '\377'*16

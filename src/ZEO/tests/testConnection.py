@@ -46,7 +46,7 @@ class MappingStorageConfig:
     def getConfig(self, path, create, read_only):
         return """<mappingstorage 1/>"""
 
-
+
 class FileStorageConnectionTests(
     FileStorageConfig,
     ConnectionTests.ConnectionTests,

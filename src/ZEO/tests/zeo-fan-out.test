@@ -4,7 +4,7 @@ ZEO Fan Out
 We should be able to set up ZEO servers with ZEO clients.  Let's see
 if we can make it work.
 
-We'll use some helper functions.  The first is a helpter that starts
+We'll use some helper functions.  The first is a helper that starts
 ZEO servers for us and another one that picks ports.
 
 We'll start the first server:
@@ -16,7 +16,7 @@ We'll start the first server:
     ...    '<filestorage 1>\n  path fs\n</filestorage>\n', zconf0, port0)
 
 
-Then we''ll start 2 others that use this one:
+Then we'll start 2 others that use this one:
 
     >>> port1 = ZEO.tests.testZEO.get_port()
     >>> zconf1 = ZEO.tests.forker.ZEOConfig(('', port1))

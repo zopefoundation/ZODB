@@ -234,6 +234,10 @@ class DanglingReferenceError(TransactionError):
         return "from %s to %s" % (oid_repr(self.referer),
                                   oid_repr(self.missing))
 
+
+############################################################################
+# Only used in storages; versions are no longer supported.
+
 class VersionError(POSError):
     """An error in handling versions occurred."""
 
@@ -246,6 +250,7 @@ class VersionLockError(VersionError, TransactionError):
     An attempt was made to modify an object that has been modified in an
     unsaved version.
     """
+############################################################################
 
 class UndoError(POSError):
     """An attempt was made to undo a non-undoable transaction."""
@@ -291,6 +296,9 @@ class ExportError(POSError):
 
 class Unsupported(POSError):
     """A feature was used that is not supported by the storage."""
+
+class ReadOnlyHistoryError(POSError):
+    """Unable to add or modify objects in an historical connection."""
 
 class InvalidObjectReference(POSError):
     """An object contains an invalid reference to another object.

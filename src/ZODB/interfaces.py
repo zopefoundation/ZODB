@@ -34,9 +34,10 @@ class IConnection(Interface):
     loading objects from that Connection.  Objects loaded by one
     thread should not be used by another thread.
 
-    A Connection can be associated with a single version when it is
-    created.  By default, a Connection is not associated with a
-    version; it uses non-version data.
+    A Connection can be frozen to a serial--a transaction id, a single point in
+    history-- when it is created. By default, a Connection is not associated
+    with a serial; it uses current data. A Connection frozen to a serial is
+    read-only.
 
     Each Connection provides an isolated, consistent view of the
     database, by managing independent copies of objects in the
@@ -101,8 +102,7 @@ class IConnection(Interface):
 
         User Methods:
             root, get, add, close, db, sync, isReadOnly, cacheGC,
-            cacheFullSweep, cacheMinimize, getVersion,
-            modifiedInVersion
+            cacheFullSweep, cacheMinimize
 
         Experimental Methods:
             onCloseCallbacks
@@ -226,9 +226,6 @@ class IConnection(Interface):
         The root is a persistent.mapping.PersistentMapping.
         """
 
-    def getVersion():
-        """Returns the version this connection is attached to."""
-
     # Multi-database support.
 
     connections = Attribute(
@@ -325,7 +322,7 @@ class IStorageDB(Interface):
         there would be so many that it would be inefficient to do so.        
         """
 
-    def invalidate(transaction_id, oids, version=''):
+    def invalidate(transaction_id, oids):
         """Invalidate object ids committed by the given transaction
 
         The oids argument is an iterable of object identifiers.
@@ -356,13 +353,15 @@ class IDatabase(IStorageDB):
         entry.
         """)
 
-    def open(version='', transaction_manager=None):
+    def open(transaction_manager=None, serial=''):
         """Return an IConnection object for use by application code.
 
-        version: the "version" that all changes will be made
-            in, defaults to no version.
         transaction_manager: transaction manager to use.  None means
             use the default transaction manager.
+        serial: the serial (transaction id) of the database to open.
+            An empty string (the default) means to open it to the newest
+            serial. Specifying a serial results in a read-only historical
+            connection.
 
         Note that the connection pool is managed as a stack, to
         increase the likelihood that the connection's stack will
@@ -441,7 +440,7 @@ class IStorage(Interface):
         This is used soley for informational purposes.
         """
 
-    def history(oid, version, size=1):
+    def history(oid, size=1):
         """Return a sequence of history information dictionaries.
 
         Up to size objects (including no objects) may be returned.
@@ -457,10 +456,6 @@ class IStorage(Interface):
         tid
             The transaction identifier of the transaction that
             committed the version.
-        version
-            The version that the revision is in.  If the storage
-            doesn't support versions, then this must be an empty
-            string.
         user_name
             The user identifier, if any (or an empty string) of the
             user on whos behalf the revision was committed.
@@ -491,18 +486,14 @@ class IStorage(Interface):
         This is used soley for informational purposes.
         """
 
-    def load(oid, version):
-        """Load data for an object id and version
+    def load(oid):
+        """Load data for an object id
 
         A data record and serial are returned.  The serial is a
         transaction identifier of the transaction that wrote the data
         record.
 
-        A POSKeyError is raised if there is no record for the object
-        id and version.
-
-        Storages that don't support versions must ignore the version
-        argument.
+        A POSKeyError is raised if there is no record for the object id.
         """
 
     def loadBefore(oid, tid):
@@ -575,7 +566,7 @@ class IStorage(Interface):
         has a reasonable chance of being unique.
         """
 
-    def store(oid, serial, data, version, transaction):
+    def store(oid, serial, data, transaction):
         """Store data for the object id, oid.
 
         Arguments:
@@ -593,11 +584,6 @@ class IStorage(Interface):
 
         data
             The data record. This is opaque to the storage.
-
-        version
-            The version to store the data is.  If the storage doesn't
-            support versions, this should be an empty string and the
-            storage is allowed to ignore it.
 
         transaction
             A transaction object.  This should match the current
@@ -707,7 +693,7 @@ class IStorageRestoreable(IStorage):
         #   failed to take into account records after the pack time.
         
 
-    def restore(oid, serial, data, version, prev_txn, transaction):
+    def restore(oid, serial, data, prev_txn, transaction):
         """Write data already committed in a separate database
 
         The restore method is used when copying data from one database
@@ -727,9 +713,6 @@ class IStorageRestoreable(IStorage):
              The record data.  This will be None if the transaction
              undid the creation of the object.
 
-        version
-             The version identifier for the record
-
         prev_txn
              The identifier of a previous transaction that held the
              object data.  The target storage can sometimes use this
@@ -746,7 +729,6 @@ class IStorageRecordInformation(Interface):
     """
 
     oid = Attribute("The object id")
-    version = Attribute("The version")
     data = Attribute("The data record")
 
 class IStorageTransactionInformation(Interface):
@@ -936,7 +918,7 @@ class IBlob(Interface):
 class IBlobStorage(Interface):
     """A storage supporting BLOBs."""
 
-    def storeBlob(oid, oldserial, data, blob, version, transaction):
+    def storeBlob(oid, oldserial, data, blob, transaction):
         """Stores data that has a BLOB attached."""
 
     def loadBlob(oid, serial):

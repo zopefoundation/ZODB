@@ -180,15 +180,21 @@
         and exceeding twice pool-size connections causes a critical
         message to be logged.
       </description>
-    <key name="version-pool-size" datatype="integer" default="3"/>
+    <key name="historical-pool-size" datatype="integer" default="3"/>
       <description>
         The expected maximum number of connections simultaneously open
-        per version.
+        per historical revision.
       </description>
-    <key name="version-cache-size" datatype="integer" default="100"/>
+    <key name="historical-cache-size" datatype="integer" default="1000"/>
       <description>
-        Target size, in number of objects, of each version connection's
+        Target size, in number of objects, of each historical connection's
         object cache.
+      </description>
+    <key name="historical-timeout" datatype="time-interval"
+         default="5m"/>
+      <description>
+        The minimum interval that an unused historical connection should be
+        kept.
       </description>
     <key name="database-name" default="unnamed"/>
       <description>

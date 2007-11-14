@@ -28,6 +28,14 @@ General
   using `int` for memory sizes which caused errors on x86_64 Intel Xeon
   machines (using 64-bit Linux).
 
+- (unreleased, after 3.9.0a1) Removed version support from connections and
+  DB.  Versions are still in the storages; this is an incremental step.
+
+- (unreleased, after 3.9.0a1) Added support for read-only, historical
+  connections based on datetimes or serials (TIDs).  See
+  src/ZODB/historical_connections.txt.
+  
+
 ZEO
 ---
 

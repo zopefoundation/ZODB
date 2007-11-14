@@ -21,6 +21,8 @@ import cPickle, cStringIO, sys
 import threading
 from time import time, ctime
 import logging
+import datetime
+import calendar
 
 from ZODB.broken import find_global
 from ZODB.utils import z64
@@ -31,7 +33,10 @@ from ZODB.utils import WeakSet
 from zope.interface import implements
 from ZODB.interfaces import IDatabase
 
+import BTrees.OOBTree
 import transaction
+
+from persistent.TimeStamp import TimeStamp
 
 
 logger = logging.getLogger('ZODB.DB')
@@ -62,9 +67,13 @@ class _ConnectionPool(object):
     connectionDebugInfo() can still gather statistics.
     """
 
-    def __init__(self, pool_size):
+    def __init__(self, pool_size, timeout=None):
         # The largest # of connections we expect to see alive simultaneously.
         self.pool_size = pool_size
+
+        # The minimum number of seconds that an available connection should
+        # be kept, or None.
+        self.timeout = timeout
 
         # A weak set of all connections we've seen.  A connection vanishes
         # from this set if pop() hands it out, it's not reregistered via
@@ -75,10 +84,9 @@ class _ConnectionPool(object):
         # of self.all.  push() and repush() add to this, and may remove
         # the oldest available connections if the pool is too large.
         # pop() pops this stack.  There are never more than pool_size entries
-        # in this stack.
-        # In Python 2.4, a collections.deque would make more sense than
-        # a list (we push only "on the right", but may pop from both ends).
-        self.available = []
+        # in this stack.  The keys are time.time() values of the push or
+        # repush calls.
+        self.available = BTrees.OOBTree.Bucket()
 
     def set_pool_size(self, pool_size):
         """Change our belief about the expected maximum # of live connections.
@@ -89,6 +97,13 @@ class _ConnectionPool(object):
         self.pool_size = pool_size
         self._reduce_size()
 
+    def set_timeout(self, timeout):
+        old = self.timeout
+        self.timeout = timeout
+        if timeout is not None and old != timeout and (
+            old is None or old > timeout):
+            self._reduce_size()
+
     def push(self, c):
         """Register a new available connection.
 
@@ -96,10 +111,10 @@ class _ConnectionPool(object):
         stack even if we're over the pool size limit.
         """
         assert c not in self.all
-        assert c not in self.available
+        assert c not in self.available.values()
         self._reduce_size(strictly_less=True)
         self.all.add(c)
-        self.available.append(c)
+        self.available[time()] = c
         n = len(self.all)
         limit = self.pool_size
         if n > limit:
@@ -116,34 +131,46 @@ class _ConnectionPool(object):
         older available connections.
         """
         assert c in self.all
-        assert c not in self.available
+        assert c not in self.available.values()
         self._reduce_size(strictly_less=True)
-        self.available.append(c)
+        self.available[time()] = c
 
     def _reduce_size(self, strictly_less=False):
         """Throw away the oldest available connections until we're under our
         target size (strictly_less=False, the default) or no more than that
         (strictly_less=True).
         """
+        if self.timeout is None:
+            threshhold = None
+        else:
+            threshhold = time() - self.timeout
         target = self.pool_size
         if strictly_less:
             target -= 1
-        while len(self.available) > target:
-            c = self.available.pop(0)
-            self.all.remove(c)
-            # While application code may still hold a reference to `c`,
-            # there's little useful that can be done with this Connection
-            # anymore.  Its cache may be holding on to limited resources,
-            # and we replace the cache with an empty one now so that we
-            # don't have to wait for gc to reclaim it.  Note that it's not
-            # possible for DB.open() to return `c` again:  `c` can never
-            # be in an open state again.
-            # TODO:  Perhaps it would be better to break the reference
-            # cycles between `c` and `c._cache`, so that refcounting reclaims
-            # both right now.  But if user code _does_ have a strong
-            # reference to `c` now, breaking the cycle would not reclaim `c`
-            # now, and `c` would be left in a user-visible crazy state.
-            c._resetCache()
+        for t, c in list(self.available.items()):
+            if (len(self.available) > target or
+                threshhold is not None and t < threshhold):
+                del self.available[t]
+                self.all.remove(c)
+                # While application code may still hold a reference to `c`,
+                # there's little useful that can be done with this Connection
+                # anymore. Its cache may be holding on to limited resources,
+                # and we replace the cache with an empty one now so that we
+                # don't have to wait for gc to reclaim it. Note that it's not
+                # possible for DB.open() to return `c` again: `c` can never be
+                # in an open state again.
+                # TODO: Perhaps it would be better to break the reference
+                # cycles between `c` and `c._cache`, so that refcounting
+                # reclaims both right now. But if user code _does_ have a
+                # strong reference to `c` now, breaking the cycle would not
+                # reclaim `c` now, and `c` would be left in a user-visible
+                # crazy state.
+                c._resetCache()
+            else:
+                break
+
+    def reduce_size(self):
+        self._reduce_size()
 
     def pop(self):
         """Pop an available connection and return it.
@@ -154,23 +181,56 @@ class _ConnectionPool(object):
         """
         result = None
         if self.available:
-            result = self.available.pop()
+            result = self.available.pop(self.available.maxKey())
             # Leave it in self.all, so we can still get at it for statistics
             # while it's alive.
             assert result in self.all
         return result
 
-    def map(self, f, open_connections=True):
-        """For every live connection c, invoke f(c).
+    def map(self, f):
+        """For every live connection c, invoke f(c)."""
+        self.all.map(f)
 
-        If `open_connections` is false then only call f(c) on closed
-        connections.
-
-        """
-        if open_connections:
-            self.all.map(f)
+    def availableGC(self):
+        """Perform garbage collection on available connections.
+        
+        If a connection is no longer viable because it has timed out, it is
+        garbage collected."""
+        if self.timeout is None:
+            threshhold = None
         else:
-            map(f, self.available)
+            threshhold = time() - self.timeout
+        for t, c in tuple(self.available.items()):
+            if threshhold is not None and t < threshhold:
+                del self.available[t]
+                self.all.remove(c)
+                c._resetCache()
+            else:
+                c.cacheGC()
+
+def toTimeStamp(dt):
+    utc_struct = dt.utctimetuple()
+    # if this is a leapsecond, this will probably fail.  That may be a good
+    # thing: leapseconds are not really accounted for with serials.
+    args = utc_struct[:5]+(utc_struct[5] + dt.microsecond/1000000.0,)
+    return TimeStamp(*args)
+
+def getTID(at, before):
+    if at is not None:
+        if before is not None:
+            raise ValueError('can only pass zero or one of `at` and `before`')
+        if isinstance(at, datetime.datetime):
+            at = toTimeStamp(at)
+        else:
+            at = TimeStamp(at)
+        before = repr(at.laterThan(at))
+    elif before is not None:
+        if isinstance(before, datetime.datetime):
+            before = repr(toTimeStamp(before))
+        else:
+            before = repr(TimeStamp(before))
+    return before
+
 
 class DB(object):
     """The Object Database
@@ -202,27 +262,27 @@ class DB(object):
       - `User Methods`: __init__, open, close, undo, pack, classFactory
       - `Inspection Methods`: getName, getSize, objectCount,
         getActivityMonitor, setActivityMonitor
-      - `Connection Pool Methods`: getPoolSize, getVersionPoolSize,
-        removeVersionPool, setPoolSize, setVersionPoolSize
+      - `Connection Pool Methods`: getPoolSize, getHistoricalPoolSize,
+        removeHistoricalPool, setPoolSize, setHistoricalPoolSize,
+        getHistoricalTimeout, setHistoricalTimeout
       - `Transaction Methods`: invalidate
       - `Other Methods`: lastTransaction, connectionDebugInfo
-      - `Version Methods`: modifiedInVersion, abortVersion, commitVersion,
-        versionEmpty
       - `Cache Inspection Methods`: cacheDetail, cacheExtremeDetail,
         cacheFullSweep, cacheLastGCTime, cacheMinimize, cacheSize,
-        cacheDetailSize, getCacheSize, getVersionCacheSize, setCacheSize,
-        setVersionCacheSize
+        cacheDetailSize, getCacheSize, getHistoricalCacheSize, setCacheSize,
+        setHistoricalCacheSize
     """
     implements(IDatabase)
 
     klass = Connection  # Class to use for connections
-    _activity_monitor = None
+    _activity_monitor = next = previous = None
 
     def __init__(self, storage,
                  pool_size=7,
                  cache_size=400,
-                 version_pool_size=3,
-                 version_cache_size=100,
+                 historical_pool_size=3,
+                 historical_cache_size=1000,
+                 historical_timeout=300,
                  database_name='unnamed',
                  databases=None,
                  ):
@@ -232,10 +292,12 @@ class DB(object):
           - `storage`: the storage used by the database, e.g. FileStorage
           - `pool_size`: expected maximum number of open connections
           - `cache_size`: target size of Connection object cache
-          - `version_pool_size`: expected maximum number of connections (per
-            version)
-          - `version_cache_size`: target size of Connection object cache for
-            version connections
+          - `historical_pool_size`: expected maximum number of connections (per
+            historical, or transaction, identifier)
+          - `historical_cache_size`: target size of Connection object cache for
+            historical (`at` or `before`) connections
+          - `historical_timeout`: minimum number of seconds that
+            an unused historical connection will be kept, or None.
         """
         # Allocate lock.
         x = threading.RLock()
@@ -243,12 +305,13 @@ class DB(object):
         self._r = x.release
 
         # Setup connection pools and cache info
-        # _pools maps a version string to a _ConnectionPool object.
+        # _pools maps a tid identifier, or '', to a _ConnectionPool object.
         self._pools = {}
         self._pool_size = pool_size
         self._cache_size = cache_size
-        self._version_pool_size = version_pool_size
-        self._version_cache_size = version_cache_size
+        self._historical_pool_size = historical_pool_size
+        self._historical_cache_size = historical_cache_size
+        self._historical_timeout = historical_timeout
 
         # Setup storage
         self._storage=storage
@@ -296,7 +359,6 @@ class DB(object):
         databases[database_name] = self
 
         self._setupUndoMethods()
-        self._setupVersionMethods()
         self.history = storage.history
 
     def _setupUndoMethods(self):
@@ -316,25 +378,6 @@ class DB(object):
                 raise NotImplementedError
             self.undo = undo
 
-    def _setupVersionMethods(self):
-        storage = self._storage
-        try:
-            self.supportsVersions = storage.supportsVersions
-        except AttributeError:
-            self.supportsVersions = lambda : False
-
-        if self.supportsVersions():
-            self.versionEmpty = storage.versionEmpty
-            self.versions = storage.versions
-            self.modifiedInVersion = storage.modifiedInVersion
-        else:
-            self.versionEmpty = lambda version: True
-            self.versions = lambda max=None: ()
-            self.modifiedInVersion = lambda oid: ''
-            def commitVersion(*a, **k):
-                raise NotImplementedError
-            self.commitVersion = self.abortVersion = commitVersion
-
     # This is called by Connection.close().
     def _returnToPool(self, connection):
         """Return a connection to the pool.
@@ -351,11 +394,11 @@ class DB(object):
             if am is not None:
                 am.closedConnection(connection)
 
-            version = connection._version
+            before = connection.before or ''
             try:
-                pool = self._pools[version]
+                pool = self._pools[before]
             except KeyError:
-                # No such version. We must have deleted the pool.
+                # No such tid. We must have deleted the pool.
                 # Just let the connection go.
 
                 # We need to break circular refs to make it really go.
@@ -368,28 +411,15 @@ class DB(object):
         finally:
             self._r()
 
-    def _connectionMap(self, f, open_connections=True):
-        """Call f(c) for all connections c in all pools in all versions.
-
-        If `open_connections` is false then f(c) is only called on closed
-        connections.
-
+    def _connectionMap(self, f):
+        """Call f(c) for all connections c in all pools, live and historical.
         """
         self._a()
         try:
             for pool in self._pools.values():
-                pool.map(f, open_connections=open_connections)
+                pool.map(f)
         finally:
             self._r()
-
-    def abortVersion(self, version, txn=None):
-        warnings.warn(
-            "Versions are deprecated and will become unsupported "
-            "in ZODB 3.9",
-            DeprecationWarning, 2)            
-        if txn is None:
-            txn = transaction.get()
-        txn.register(AbortVersion(self, version))
 
     def cacheDetail(self):
         """Return information on objects in the various caches
@@ -503,15 +533,6 @@ class DB(object):
         """
         self._storage.close()
 
-    def commitVersion(self, source, destination='', txn=None):
-        warnings.warn(
-            "Versions are deprecated and will become unsupported "
-            "in ZODB 3.9",
-            DeprecationWarning, 2)            
-        if txn is None:
-            txn = transaction.get()
-        txn.register(CommitVersion(self, source, destination))
-
     def getCacheSize(self):
         return self._cache_size
 
@@ -527,19 +548,14 @@ class DB(object):
     def getSize(self):
         return self._storage.getSize()
 
-    def getVersionCacheSize(self):
-        warnings.warn(
-            "Versions are deprecated and will become unsupported "
-            "in ZODB 3.9",
-            DeprecationWarning, 2)            
-        return self._version_cache_size
+    def getHistoricalCacheSize(self):            
+        return self._historical_cache_size
 
-    def getVersionPoolSize(self):
-        warnings.warn(
-            "Versions are deprecated and will become unsupported "
-            "in ZODB 3.9",
-            DeprecationWarning, 2)            
-        return self._version_pool_size
+    def getHistoricalPoolSize(self):
+        return self._historical_pool_size
+
+    def getHistoricalTimeout(self):
+        return self._historical_timeout
 
     def invalidate(self, tid, oids, connection=None, version=''):
         """Invalidate references to a given oid.
@@ -549,13 +565,11 @@ class DB(object):
         passed in to prevent useless (but harmless) messages to the
         connection.
         """
-        if connection is not None:
-            version = connection._version
-
+        # Storages, esp. ZEO tests, need the version argument still. :-/
+        assert version==''
         # Notify connections.
         def inval(c):
-            if (c is not connection and
-                  (not version or c._version == version)):
+            if c is not connection:
                 c.invalidate(tid, oids)
         self._connectionMap(inval)
 
@@ -567,52 +581,51 @@ class DB(object):
     def objectCount(self):
         return len(self._storage)
 
-    def open(self, version='', transaction_manager=None):
+    def open(self, transaction_manager=None, at=None, before=None):
         """Return a database Connection for use by application code.
-
-        The optional `version` argument can be used to specify that a
-        version connection is desired.
 
         Note that the connection pool is managed as a stack, to
         increase the likelihood that the connection's stack will
         include useful objects.
 
         :Parameters:
-          - `version`: the "version" that all changes will be made
-             in, defaults to no version.
           - `transaction_manager`: transaction manager to use.  None means
-             use the default transaction manager.
+            use the default transaction manager.
+          - `at`: a datetime.datetime or 8 character transaction id of the
+            time to open the database with a read-only connection.  Passing
+            both `at` and `before` raises a ValueError, and passing neither
+            opens a standard writable transaction of the newest state.
+            A timezone-naive datetime.datetime is treated as a UTC value.
+          - `before`: like `at`, but opens the readonly state before the
+            tid or datetime.
         """
-
-        if version:
-            if not self.supportsVersions():
-                raise ValueError(
-                    "Versions are not supported by this database.")
-            warnings.warn(
-                "Versions are deprecated and will become unsupported "
-                "in ZODB 3.9",
-                DeprecationWarning, 2)            
+        # `at` is normalized to `before`, since we use storage.loadBefore
+        # as the underlying implementation of both.
+        before = getTID(at, before)
 
         self._a()
         try:
-            # pool <- the _ConnectionPool for this version
-            pool = self._pools.get(version)
+            # pool <- the _ConnectionPool for this `before` tid
+            pool = self._pools.get(before or '')
             if pool is None:
-                if version:
-                    size = self._version_pool_size
+                if before is not None:
+                    size = self._historical_pool_size
+                    timeout = self._historical_timeout
                 else:
                     size = self._pool_size
-                self._pools[version] = pool = _ConnectionPool(size)
+                    timeout = None
+                self._pools[before or ''] = pool = _ConnectionPool(
+                    size, timeout)
             assert pool is not None
 
             # result <- a connection
             result = pool.pop()
             if result is None:
-                if version:
-                    size = self._version_cache_size
+                if before is not None:
+                    size = self._historical_cache_size
                 else:
                     size = self._cache_size
-                c = self.klass(self, version, size)
+                c = self.klass(self, size, before)
                 pool.push(c)
                 result = pool.pop()
             assert result is not None
@@ -621,16 +634,23 @@ class DB(object):
             result.open(transaction_manager)
 
             # A good time to do some cache cleanup.
-            self._connectionMap(lambda c: c.cacheGC(), open_connections=False)
+            # (note we already have the lock)
+            for key, pool in tuple(self._pools.items()):
+                pool.availableGC()
+                if not len(pool.available) and not len(pool.all):
+                    del self._pools[key]
 
             return result
 
         finally:
             self._r()
 
-    def removeVersionPool(self, version):
+    def removeHistoricalPool(self, at=None, before=None):
+        if at is None and before is None:
+            raise ValueError('must pass one of `at` or `before`')
+        before = getTID(at, before)
         try:
-            del self._pools[version]
+            del self._pools[before]
         except KeyError:
             pass
 
@@ -639,7 +659,7 @@ class DB(object):
         t = time()
 
         def get_info(c):
-            # `result`, `time` and `version` are lexically inherited.
+            # `result`, `time` and `before` are lexically inherited.
             o = c._opened
             d = c.getDebugInfo()
             if d:
@@ -652,10 +672,10 @@ class DB(object):
             result.append({
                 'opened': o and ("%s (%.2fs)" % (ctime(o), t-o)),
                 'info': d,
-                'version': version,
+                'before': before,
                 })
 
-        for version, pool in self._pools.items():
+        for before, pool in self._pools.items():
             pool.map(get_info)
         return result
 
@@ -705,40 +725,44 @@ class DB(object):
         finally:
             self._r()
 
-    def setVersionCacheSize(self, size):
-        warnings.warn(
-            "Versions are deprecated and will become unsupported "
-            "in ZODB 3.9",
-            DeprecationWarning, 2)            
+    def setHistoricalCacheSize(self, size):       
         self._a()
         try:
-            self._version_cache_size = size
+            self._historical_cache_size = size
             def setsize(c):
                 c._cache.cache_size = size
-            for version, pool in self._pools.items():
-                if version:
+            for tid, pool in self._pools.items():
+                if tid:
                     pool.map(setsize)
         finally:
             self._r()
 
     def setPoolSize(self, size):
         self._pool_size = size
-        self._reset_pool_sizes(size, for_versions=False)
+        self._reset_pool_sizes(size, for_historical=False)
 
-    def setVersionPoolSize(self, size):
-        warnings.warn(
-            "Versions are deprecated and will become unsupported "
-            "in ZODB 3.9",
-            DeprecationWarning, 2)            
-        self._version_pool_size = size
-        self._reset_pool_sizes(size, for_versions=True)
+    def setHistoricalPoolSize(self, size):        
+        self._historical_pool_size = size
+        self._reset_pool_sizes(size, for_historical=True)
 
-    def _reset_pool_sizes(self, size, for_versions=False):
+    def _reset_pool_sizes(self, size, for_historical=False):
         self._a()
         try:
-            for version, pool in self._pools.items():
-                if (version != '') == for_versions:
+            for tid, pool in self._pools.items():
+                if (tid != '') == for_historical:
                     pool.set_pool_size(size)
+        finally:
+            self._r()
+
+    def setHistoricalTimeout(self, timeout):
+        self._historical_timeout = timeout
+        self._a()
+        try:
+            for tid, pool in tuple(self._pools.items()):
+                if tid:
+                    pool.set_timeout(timeout)
+                    if not pool.available and not pool.all:
+                        del self._pools[tid]
         finally:
             self._r()
 
@@ -768,7 +792,7 @@ resource_counter_lock = threading.Lock()
 resource_counter = 0
 
 class ResourceManager(object):
-    """Transaction participation for a version or undo resource."""
+    """Transaction participation for an undo resource."""
 
     # XXX This implementation is broken.  Subclasses invalidate oids
     # in their commit calls. Invalidations should not be sent until
@@ -810,39 +834,6 @@ class ResourceManager(object):
 
     def commit(self, obj, txn):
         raise NotImplementedError
-
-class CommitVersion(ResourceManager):
-
-    def __init__(self, db, version, dest=''):
-        super(CommitVersion, self).__init__(db)
-        self._version = version
-        self._dest = dest
-
-    def commit(self, ob, t):
-        # XXX see XXX in ResourceManager
-        dest = self._dest
-        tid, oids = self._db._storage.commitVersion(self._version,
-                                                    self._dest,
-                                                    t)
-        oids = dict.fromkeys(oids, 1)
-        self._db.invalidate(tid, oids, version=self._dest)
-        if self._dest:
-            # the code above just invalidated the dest version.
-            # now we need to invalidate the source!
-            self._db.invalidate(tid, oids, version=self._version)
-
-class AbortVersion(ResourceManager):
-
-    def __init__(self, db, version):
-        super(AbortVersion, self).__init__(db)
-        self._version = version
-
-    def commit(self, ob, t):
-        # XXX see XXX in ResourceManager
-        tid, oids = self._db._storage.abortVersion(self._version, t)
-        self._db.invalidate(tid,
-                            dict.fromkeys(oids, 1),
-                            version=self._version)
 
 class TransactionalUndo(ResourceManager):
 

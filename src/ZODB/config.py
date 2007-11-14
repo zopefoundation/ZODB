@@ -68,7 +68,6 @@ def storageFromURL(url):
 def storageFromConfig(section):
     return section.open()
 
-
 class BaseConfig:
     """Object representing a configured storage or database.
 
@@ -99,8 +98,9 @@ class ZODBDatabase(BaseConfig):
             return ZODB.DB(storage,
                            pool_size=section.pool_size,
                            cache_size=section.cache_size,
-                           version_pool_size=section.version_pool_size,
-                           version_cache_size=section.version_cache_size,
+                           historical_pool_size=section.historical_pool_size,
+                           historical_cache_size=section.historical_cache_size,
+                           historical_timeout=section.historical_timeout,
                            database_name=section.database_name,
                            databases=databases)
         except:
