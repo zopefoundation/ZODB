@@ -15,24 +15,23 @@ General
 - (3.9.0a1) Make it possible to examine oid and (in some situations) database
   name of persistent object references during conflict resolution.
 
-- (unreleased, after 3.9.0a1) Moved 'transaction' module out of ZODB.
+- (3.9.0a1) Moved 'transaction' module out of ZODB.
   ZODB depends upon this module, but it must be installed separately.
 
-- (unreleased, after 3.9.0a1) ZODB installation now requires
-  setuptools.
+- (3.9.0a1) ZODB installation now requires setuptools.
 
-- (unreleased, after 3.9.0a1) Added `offset` information to output of `fstail`
+- (3.9.0a1) Added `offset` information to output of `fstail`
   script. Added test harness for this script.
 
-- (unreleased, after 3.9.0a1) Fixed bug 153316: persistent and BTrees were
-  using `int` for memory sizes which caused errors on x86_64 Intel Xeon
-  machines (using 64-bit Linux).
+- (3.9.0a1) Fixed bug 153316: persistent and BTrees were using `int`
+  for memory sizes which caused errors on x86_64 Intel Xeon machines
+  (using 64-bit Linux).
 
-- (unreleased, after 3.9.0a1) Removed version support from connections and
-  DB.  Versions are still in the storages; this is an incremental step.
+- (3.9.0a1) Removed version support from connections and DB.  Versions
+  are still in the storages; this is an incremental step.
 
-- (unreleased, after 3.9.0a1) Added support for read-only, historical
-  connections based on datetimes or serials (TIDs).  See
+- (3.9.0a1) Added support for read-only, historical connections based
+  on datetimes or serials (TIDs).  See
   src/ZODB/historical_connections.txt.
   
 
@@ -46,9 +45,8 @@ ZEO
 Transactions
 ------------
 
-- (unlreleased, after 3.9.0a1) 'transaction' module is not included in
-  ZODB anymore.  It is now just a ZODB dependency (via setuptools
-  declarations).
+- (3.9.0a1) 'transaction' module is not included in ZODB anymore.  It
+  is now just a ZODB dependency (via setuptools declarations).
 
 Blobs
 -----
