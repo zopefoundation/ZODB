@@ -59,8 +59,7 @@ Blobs
 - (3.9.0a1) Fixed bug #129921: getSize() function in BlobStorage could not
   deal with garbage files
 
-- (unreleased, after 3.9.0a1) Fixed bug in which MVCC would not work for
-  blobs.
+- (3.9.0a1) Fixed bug in which MVCC would not work for blobs.
 
 BTrees
 ------

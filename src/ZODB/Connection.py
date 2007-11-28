@@ -136,7 +136,7 @@ class Connection(ExportImport, object):
         # During commit, all objects go to either _modified or _creating:
 
         # Dict of oid->flag of new objects (without serial), either
-        # added by add() or implicitely added (discovered by the
+        # added by add() or implicitly added (discovered by the
         # serializer during commit). The flag is True for implicit
         # adding. Used during abort to remove created objects from the
         # _cache, and by persistent_id to check that a new object isn't
@@ -322,9 +322,8 @@ class Connection(ExportImport, object):
 
     def invalidate(self, tid, oids):
         """Notify the Connection that transaction 'tid' invalidated oids."""
-        if self.before is not None and tid > self.before:
-            # this is an historical connection, and the tid is after the
-            # freeze.  Invalidations are irrelevant.
+        if self.before is not None:
+            # this is an historical connection.  Invalidations are irrelevant.
             return
         self._inv_lock.acquire()
         try:
@@ -824,28 +823,11 @@ class Connection(ExportImport, object):
 
         if self.before is not None:
             # Load data that was current before the time we have.
-            if self._txn_time is not None: # MVCC for readonly future conn.
-                before = self._txn_time
-                has_invalidated = True
-            else:
-                before = self.before
-                has_invalidated = False
+            before = self.before
             t = self._storage.loadBefore(obj._p_oid, before)
             if t is None:
-                raise POSKeyError()
+                raise POSKeyError() # historical connection!
             p, serial, end = t
-            if not has_invalidated and end is None:
-                # MVCC: make sure another thread has not beaten us to the punch
-                self._inv_lock.acquire()
-                try:
-                    txn_time = self._txn_time
-                finally:
-                    self._inv_lock.release()
-                if txn_time is not None and txn_time < before:
-                    t = self._storage.loadBefore(obj._p_oid, txn_time)
-                    if t is None:
-                        raise POSKeyError()
-                    p, serial, end = t
         
         else:
             # There is a harmless data race with self._invalidated.  A

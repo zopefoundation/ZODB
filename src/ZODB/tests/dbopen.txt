@@ -146,7 +146,7 @@ Reaching into the internals, we can see that db's connection pool now has
 two connections available for reuse, and knows about three connections in
 all:
 
-    >>> pool = db._pools['']
+    >>> pool = db.pool
     >>> len(pool.available)
     2
     >>> len(pool.all)
@@ -219,7 +219,7 @@ closed one out of the available connection stack.
     >>> conns = [db.open() for dummy in range(6)]
     >>> len(handler.records)  # 3 warnings for the "excess" connections
     3
-    >>> pool = db._pools['']
+    >>> pool = db.pool
     >>> len(pool.available), len(pool.all)
     (0, 6)
 
@@ -297,7 +297,7 @@ Now open more connections so that the total exceeds pool_size (2):
 
     >>> conn1 = db.open()
     >>> conn2 = db.open()
-    >>> pool = db._pools['']
+    >>> pool = db.pool
     >>> len(pool.all), len(pool.available)  # all Connections are in use
     (3, 0)
 

@@ -41,7 +41,7 @@ from persistent.TimeStamp import TimeStamp
 
 logger = logging.getLogger('ZODB.DB')
 
-class _ConnectionPool(object):
+class AbstractConnectionPool(object):
     """Manage a pool of connections.
 
     CAUTION:  Methods should be called under the protection of a lock.
@@ -67,42 +67,57 @@ class _ConnectionPool(object):
     connectionDebugInfo() can still gather statistics.
     """
 
-    def __init__(self, pool_size, timeout=None):
+    def __init__(self, size, timeout=None):
         # The largest # of connections we expect to see alive simultaneously.
-        self.pool_size = pool_size
+        self._size = size
 
         # The minimum number of seconds that an available connection should
         # be kept, or None.
-        self.timeout = timeout
+        self._timeout = timeout
 
         # A weak set of all connections we've seen.  A connection vanishes
         # from this set if pop() hands it out, it's not reregistered via
         # repush(), and it becomes unreachable.
         self.all = WeakSet()
 
-        # A stack of connections available to hand out.  This is a subset
-        # of self.all.  push() and repush() add to this, and may remove
-        # the oldest available connections if the pool is too large.
-        # pop() pops this stack.  There are never more than pool_size entries
-        # in this stack.  The keys are time.time() values of the push or
-        # repush calls.
-        self.available = BTrees.OOBTree.Bucket()
-
-    def set_pool_size(self, pool_size):
+    def setSize(self, size):
         """Change our belief about the expected maximum # of live connections.
 
         If the pool_size is smaller than the current value, this may discard
         the oldest available connections.
         """
-        self.pool_size = pool_size
+        self._size = size
         self._reduce_size()
 
-    def set_timeout(self, timeout):
-        old = self.timeout
-        self.timeout = timeout
+    def setTimeout(self, timeout):
+        old = self._timeout
+        self._timeout = timeout
         if timeout is not None and old != timeout and (
             old is None or old > timeout):
             self._reduce_size()
+
+    def getSize(self):
+        return self._size
+
+    def getTimeout(self):
+        return self._timeout
+
+    timeout = property(getTimeout, setTimeout)
+
+    size = property(getSize, setSize)
+
+class ConnectionPool(AbstractConnectionPool):
+
+    def __init__(self, size, timeout=None):
+        super(ConnectionPool, self).__init__(size, timeout)
+
+        # A stack of connections available to hand out.  This is a subset
+        # of self.all.  push() and repush() add to this, and may remove
+        # the oldest available connections if the pool is too large.
+        # pop() pops this stack.  There are never more than size entries
+        # in this stack.  The keys are time.time() values of the push or
+        # repush calls.
+        self.available = BTrees.OOBTree.Bucket()
 
     def push(self, c):
         """Register a new available connection.
@@ -116,7 +131,7 @@ class _ConnectionPool(object):
         self.all.add(c)
         self.available[time()] = c
         n = len(self.all)
-        limit = self.pool_size
+        limit = self.size
         if n > limit:
             reporter = logger.warn
             if n > 2 * limit:
@@ -144,7 +159,7 @@ class _ConnectionPool(object):
             threshhold = None
         else:
             threshhold = time() - self.timeout
-        target = self.pool_size
+        target = self.size
         if strictly_less:
             target -= 1
         for t, c in list(self.available.items()):
@@ -208,6 +223,109 @@ class _ConnectionPool(object):
             else:
                 c.cacheGC()
 
+
+class KeyedConnectionPool(AbstractConnectionPool):
+    # this pool keeps track of keyed connections all together.  It makes
+    # it possible to make assertions about total numbers of keyed connections.
+    # The keys in this case are "before" TIDs, but this is used by other
+    # packages as well.
+
+    # see the comments in ConnectionPool for method descriptions.
+
+    def __init__(self, size, timeout=None):
+        super(KeyedConnectionPool, self).__init__(size, timeout)
+        # key: {time.time: connection}
+        self.available = BTrees.family32.OO.Bucket()
+        # time.time: key
+        self.closed = BTrees.family32.OO.Bucket()
+
+    def push(self, c, key):
+        assert c not in self.all
+        available = self.available.get(key)
+        if available is None:
+            available = self.available[key] = BTrees.family32.OO.Bucket()
+        else:
+            assert c not in available.values()
+        self._reduce_size(strictly_less=True)
+        self.all.add(c)
+        t = time()
+        available[t] = c
+        self.closed[t] = key
+        n = len(self.all)
+        limit = self.size
+        if n > limit:
+            reporter = logger.warn
+            if n > 2 * limit:
+                reporter = logger.critical
+            reporter("DB.open() has %s open connections with a size "
+                     "of %s", n, limit)
+
+    def repush(self, c, key):
+        assert c in self.all
+        self._reduce_size(strictly_less=True)
+        available = self.available.get(key)
+        if available is None:
+            available = self.available[key] = BTrees.family32.OO.Bucket()
+        else:
+            assert c not in available.values()
+        t = time()
+        available[t] = c
+        self.closed[t] = key
+
+    def _reduce_size(self, strictly_less=False):
+        if self.timeout is None:
+            threshhold = None
+        else:
+            threshhold = time() - self.timeout
+        target = self.size
+        if strictly_less:
+            target -= 1
+        for t, key in tuple(self.closed.items()):
+            if (len(self.available) > target or
+                threshhold is not None and t < threshhold):
+                del self.closed[t]
+                c = self.available[key].pop(t)
+                if not self.available[key]:
+                    del self.available[key]
+                self.all.remove(c)
+                c._resetCache()
+            else:
+                break
+
+    def reduce_size(self):
+        self._reduce_size()
+
+    def pop(self, key):
+        result = None
+        available = self.available.get(key)
+        if available:
+            t = available.maxKey()
+            result = available.pop(t)
+            del self.closed[t]
+            if not available:
+                del self.available[key]
+            assert result in self.all
+        return result
+
+    def map(self, f):
+        self.all.map(f)
+
+    def availableGC(self):
+        if self.timeout is None:
+            threshhold = None
+        else:
+            threshhold = time() - self.timeout
+        for t, key in tuple(self.closed.items()):
+            if threshhold is not None and t < threshhold:
+                del self.closed[t]
+                c = self.available[key].pop(t)
+                if not self.available[key]:
+                    del self.available[key]
+                self.all.remove(c)
+                c._resetCache()
+            else:
+                self.available[key][t].cacheGC()
+
 def toTimeStamp(dt):
     utc_struct = dt.utctimetuple()
     # if this is a leapsecond, this will probably fail.  That may be a good
@@ -263,8 +381,8 @@ class DB(object):
       - `Inspection Methods`: getName, getSize, objectCount,
         getActivityMonitor, setActivityMonitor
       - `Connection Pool Methods`: getPoolSize, getHistoricalPoolSize,
-        removeHistoricalPool, setPoolSize, setHistoricalPoolSize,
-        getHistoricalTimeout, setHistoricalTimeout
+        setPoolSize, setHistoricalPoolSize, getHistoricalTimeout,
+        setHistoricalTimeout
       - `Transaction Methods`: invalidate
       - `Other Methods`: lastTransaction, connectionDebugInfo
       - `Cache Inspection Methods`: cacheDetail, cacheExtremeDetail,
@@ -292,8 +410,8 @@ class DB(object):
           - `storage`: the storage used by the database, e.g. FileStorage
           - `pool_size`: expected maximum number of open connections
           - `cache_size`: target size of Connection object cache
-          - `historical_pool_size`: expected maximum number of connections (per
-            historical, or transaction, identifier)
+          - `historical_pool_size`: expected maximum number of total
+            historical connections
           - `historical_cache_size`: target size of Connection object cache for
             historical (`at` or `before`) connections
           - `historical_timeout`: minimum number of seconds that
@@ -304,14 +422,12 @@ class DB(object):
         self._a = x.acquire
         self._r = x.release
 
-        # Setup connection pools and cache info
-        # _pools maps a tid identifier, or '', to a _ConnectionPool object.
-        self._pools = {}
-        self._pool_size = pool_size
+        # pools and cache sizes
+        self.pool = ConnectionPool(pool_size)
+        self.historical_pool = KeyedConnectionPool(historical_pool_size,
+                                                   historical_timeout)
         self._cache_size = cache_size
-        self._historical_pool_size = historical_pool_size
         self._historical_cache_size = historical_cache_size
-        self._historical_timeout = historical_timeout
 
         # Setup storage
         self._storage=storage
@@ -394,20 +510,10 @@ class DB(object):
             if am is not None:
                 am.closedConnection(connection)
 
-            before = connection.before or ''
-            try:
-                pool = self._pools[before]
-            except KeyError:
-                # No such tid. We must have deleted the pool.
-                # Just let the connection go.
-
-                # We need to break circular refs to make it really go.
-                # TODO:  Figure out exactly which objects are involved in the
-                # cycle.
-                connection.__dict__.clear()
-                return
-            pool.repush(connection)
-
+            if connection.before:
+                self.historical_pool.repush(connection, connection.before)
+            else:
+                self.pool.repush(connection)
         finally:
             self._r()
 
@@ -416,8 +522,8 @@ class DB(object):
         """
         self._a()
         try:
-            for pool in self._pools.values():
-                pool.map(f)
+            self.pool.map(f)
+            self.historical_pool.map(f)
         finally:
             self._r()
 
@@ -543,19 +649,19 @@ class DB(object):
         return self._storage.getName()
 
     def getPoolSize(self):
-        return self._pool_size
+        return self.pool.size
 
     def getSize(self):
         return self._storage.getSize()
 
-    def getHistoricalCacheSize(self):            
+    def getHistoricalCacheSize(self):
         return self._historical_cache_size
 
     def getHistoricalPoolSize(self):
-        return self._historical_pool_size
+        return self.historical_pool.size
 
     def getHistoricalTimeout(self):
-        return self._historical_timeout
+        return self.historical_pool.timeout
 
     def invalidate(self, tid, oids, connection=None, version=''):
         """Invalidate references to a given oid.
@@ -602,57 +708,41 @@ class DB(object):
         # `at` is normalized to `before`, since we use storage.loadBefore
         # as the underlying implementation of both.
         before = getTID(at, before)
+        if (before is not None and
+            before > self.lastTransaction() and
+            before > getTID(self.lastTransaction(), None)):
+            raise ValueError(
+                'cannot open an historical connection in the future.')
 
         self._a()
         try:
-            # pool <- the _ConnectionPool for this `before` tid
-            pool = self._pools.get(before or '')
-            if pool is None:
-                if before is not None:
-                    size = self._historical_pool_size
-                    timeout = self._historical_timeout
-                else:
-                    size = self._pool_size
-                    timeout = None
-                self._pools[before or ''] = pool = _ConnectionPool(
-                    size, timeout)
-            assert pool is not None
-
             # result <- a connection
-            result = pool.pop()
-            if result is None:
-                if before is not None:
-                    size = self._historical_cache_size
-                else:
-                    size = self._cache_size
-                c = self.klass(self, size, before)
-                pool.push(c)
-                result = pool.pop()
+            if before is not None:
+                result = self.historical_pool.pop(before)
+                if result is None:
+                    c = self.klass(self, self._historical_cache_size, before)
+                    self.historical_pool.push(c, before)
+                    result = self.historical_pool.pop(before)
+            else:
+                result = self.pool.pop()
+                if result is None:
+                    c = self.klass(self, self._cache_size)
+                    self.pool.push(c)
+                    result = self.pool.pop()
             assert result is not None
 
-            # Tell the connection it belongs to self.
+            # open the connection.
             result.open(transaction_manager)
 
             # A good time to do some cache cleanup.
             # (note we already have the lock)
-            for key, pool in tuple(self._pools.items()):
-                pool.availableGC()
-                if not len(pool.available) and not len(pool.all):
-                    del self._pools[key]
+            self.pool.availableGC()
+            self.historical_pool.availableGC()
 
             return result
 
         finally:
             self._r()
-
-    def removeHistoricalPool(self, at=None, before=None):
-        if at is None and before is None:
-            raise ValueError('must pass one of `at` or `before`')
-        before = getTID(at, before)
-        try:
-            del self._pools[before]
-        except KeyError:
-            pass
 
     def connectionDebugInfo(self):
         result = []
@@ -717,11 +807,9 @@ class DB(object):
         self._a()
         try:
             self._cache_size = size
-            pool = self._pools.get('')
-            if pool is not None:
-                def setsize(c):
-                    c._cache.cache_size = size
-                pool.map(setsize)
+            def setsize(c):
+                c._cache.cache_size = size
+            self.pool.map(setsize)
         finally:
             self._r()
 
@@ -731,38 +819,28 @@ class DB(object):
             self._historical_cache_size = size
             def setsize(c):
                 c._cache.cache_size = size
-            for tid, pool in self._pools.items():
-                if tid:
-                    pool.map(setsize)
+            self.historical_pool.map(setsize)
         finally:
             self._r()
 
     def setPoolSize(self, size):
-        self._pool_size = size
-        self._reset_pool_sizes(size, for_historical=False)
-
-    def setHistoricalPoolSize(self, size):        
-        self._historical_pool_size = size
-        self._reset_pool_sizes(size, for_historical=True)
-
-    def _reset_pool_sizes(self, size, for_historical=False):
         self._a()
         try:
-            for tid, pool in self._pools.items():
-                if (tid != '') == for_historical:
-                    pool.set_pool_size(size)
+            self.pool.size = size
+        finally:
+            self._r()
+
+    def setHistoricalPoolSize(self, size):
+        self._a()
+        try:
+            self.historical_pool.size = size
         finally:
             self._r()
 
     def setHistoricalTimeout(self, timeout):
-        self._historical_timeout = timeout
         self._a()
         try:
-            for tid, pool in tuple(self._pools.items()):
-                if tid:
-                    pool.set_timeout(timeout)
-                    if not pool.available and not pool.all:
-                        del self._pools[tid]
+            self.historical_pool.timeout = timeout
         finally:
             self._r()
 
