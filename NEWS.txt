@@ -34,6 +34,8 @@ General
   on datetimes or serials (TIDs).  See
   src/ZODB/historical_connections.txt.
   
+- (3.9.0a1) Fixed small bug that the Connection.isReadOnly method didn't
+  work after a savepoint.
 
 ZEO
 ---

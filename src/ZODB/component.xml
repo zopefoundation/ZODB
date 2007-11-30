@@ -182,8 +182,8 @@
       </description>
     <key name="historical-pool-size" datatype="integer" default="3"/>
       <description>
-        The expected maximum number of connections simultaneously open
-        per historical revision.
+        The expected maximum total number of historical connections
+        simultaneously open.
       </description>
     <key name="historical-cache-size" datatype="integer" default="1000"/>
       <description>
