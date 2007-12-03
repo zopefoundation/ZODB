@@ -364,7 +364,7 @@ class ClientCache(object):
             return
 
         # Add the data we have to the list of non-current data for oid.
-        assert tid is not None and cur_tid < tid
+        assert tid is not None and cur_tid <= tid
         # 0x1C = invalidate (hit, saving non-current)
         self._trace(0x1C, oid, version, tid)
         del self.current[oid]   # because we no longer have current data

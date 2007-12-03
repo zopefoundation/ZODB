@@ -34,6 +34,8 @@ import ZODB.blob
 import ZODB.tests.util
 from ZODB.tests.MinPO import MinPO
 from ZODB.tests.StorageTestBase import zodb_unpickle
+import persistent
+import transaction
 
 # ZODB test mixin classes
 from ZODB.tests import StorageTestBase, BasicStorage, VersionStorage, \
@@ -67,8 +69,33 @@ class OneTimeTests(unittest.TestCase):
         # be identical.
         self.assertEqual(ZODB.__version__, ZEO.version)
 
+
+class CreativeGetState(persistent.Persistent):
+    def __getstate__(self):
+        self.name = 'me'
+        return super(CreativeGetState, self).__getstate__()
+
+
 class MiscZEOTests:
     """ZEO tests that don't fit in elsewhere."""
+
+    def checkCreativeGetState(self):
+        # This test covers persistent objects that provide their own 
+        # __getstate__ which modifies the state of the object.
+        # For details see bug #98275
+
+        db = ZODB.DB(self._storage)
+        cn = db.open()
+        rt = cn.root()
+        m = CreativeGetState()
+        m.attr = 'hi'
+        rt['a'] = m
+
+        # This commit used to fail because of the `Mine` object being put back
+        # into `changed` state although it was already stored causing the ZEO
+        # cache to bail out.
+        transaction.commit()
+        cn.close()
 
     def checkLargeUpdate(self):
         obj = MinPO("X" * (10 * 128 * 1024))
