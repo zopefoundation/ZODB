@@ -16,15 +16,40 @@
 import os
 import tempfile
 import unittest
+import doctest
+import string
 
 import ZEO.cache
 from ZODB.utils import p64
+
 
 n1 = p64(1)
 n2 = p64(2)
 n3 = p64(3)
 n4 = p64(4)
 n5 = p64(5)
+
+
+def hexprint(file):
+    file.seek(0)
+    data = file.read()
+    offset = 0
+    while data:
+        line, data = data[:16], data[16:]
+        printable = ""
+        hex = ""
+        for character in line:
+            if character in string.printable:
+                printable += character
+            else:
+                printable += '.'
+            hex += character.encode('hex') + ' '
+        hex = hex[:24] + ' ' + hex[24:]
+        hex = hex.ljust(49)
+        printable = printable.ljust(16)
+        print '%08x  %s |%s|' % (offset, hex, printable)
+        offset += 16
+
 
 class CacheTests(unittest.TestCase):
 
@@ -152,5 +177,9 @@ class CacheTests(unittest.TestCase):
         eq(copy.current, self.cache.current)
         eq(copy.noncurrent, self.cache.noncurrent)
 
+
 def test_suite():
-    return unittest.makeSuite(CacheTests)
+    suite = unittest.TestSuite()
+    suite.addTest(unittest.makeSuite(CacheTests))
+    suite.addTest(doctest.DocFileSuite('filecache.txt'))
+    return suite

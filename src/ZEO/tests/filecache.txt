@@ -1,0 +1,160 @@
+====================================
+The client cache file implementation
+====================================
+
+This test exercises the FileCache implementation which is responsible for
+maintaining the ZEO client cache on disk. Specifics of persistent cache files
+are not tested.
+
+As the FileCache calls back to the client cache we'll use a dummy to monitor
+those calls:
+
+  >>> class ClientCacheDummy(object):
+  ...     def _evicted(self, o):
+  ...         pass
+  >>> cache_dummy = ClientCacheDummy()
+
+We'll instanciate a FileCache with 200 bytes of space:
+
+  >>> from ZEO.cache import FileCache
+  >>> fc = FileCache(maxsize=200, fpath=None, parent=cache_dummy)
+
+Initially the cache is empty:
+
+  >>> len(fc)
+  0
+  >>> list(fc)
+  []
+  >>> fc.getStats()
+  (0, 0, 0, 0, 0)
+
+We'll use a helper function to allow writing OIDs and TIDs as simple integers
+in this test:
+
+  >>> from ZODB.utils import repr_to_oid
+  >>> def oid(o):
+  ...     repr = '%016x' % o
+  ...     return repr_to_oid(repr)
+  >>> tid = oid
+
+Basic usage
+===========
+
+Objects are represented in the cache using a special `Object` object. Let's
+start with an object of the size 100 bytes:
+
+  >>> from ZEO.cache import Object
+  >>> obj1_1 = Object(key=(oid(1), tid(1)), version='', data='#'*100,
+  ...                 start_tid=tid(1), end_tid=None)
+
+Notice that the actual object size is a bit larger because of the headers that
+are written for each object:
+
+  >>> obj1_1.size
+  122
+
+Initially the object is not in the cache:
+
+  >>> (oid(1), tid(1)) in fc
+  False
+
+We can add it to the cache:
+
+  >>> fc.add(obj1_1)
+
+And now it's in the cache:
+
+  >>> (oid(1), tid(1)) in fc
+  True
+  >>> len(fc)
+  1
+
+We can get it back and the object will be equal but not identical to the one we
+stored:
+
+  >>> obj1_1_copy = fc.access((oid(1), tid(1)))
+  >>> obj1_1_copy.data == obj1_1.data
+  True
+  >>> obj1_1_copy.key == obj1_1.key
+  True
+  >>> obj1_1_copy is obj1_1
+  False
+
+When an object gets superseded we can update it. This only modifies the header,
+not the actual data. This is useful when invalidations tell us about the
+`end_tid` of an object:
+
+  >>> obj1_1.data = '.' * 100
+  >>> obj1_1.end_tid = tid(2)
+  >>> fc.update(obj1_1)
+
+When loading it again we can see that the data was not changed:
+
+  >>> obj1_1_copy = fc.access((oid(1), tid(1)))
+  >>> obj1_1_copy.data    # doctest: +ELLIPSIS
+  '#############...################'
+  >>> obj1_1_copy.end_tid
+  '\x00\x00\x00\x00\x00\x00\x00\x02'
+
+Objects can be explicitly removed from the cache:
+
+  >>> fc.remove((oid(1), tid(1)))
+  >>> len(fc)
+  0
+  >>> (oid(1), tid(1)) in fc
+  False
+
+Evicting objects
+================
+
+When the cached data consumes the whole cache file and more objects need to be
+stored the oldest stored objects are evicted until enough space is available.
+In the next sections we'll exercise some of the special cases of the file
+format and look at the cache after each step.
+
+
+The current state is a cache with two records: the one object which we removed
+from the cache and another free record the reaches to the end of the file.
+
+The first record has a size of 143 bytes:
+
+  1 ('f') + 4 (size) + 8 (OID) + 8 (TID) + 8 (end_tid) + 2 (version length) + 4 (data length) + 100 (old data) + 8 (OID) == 143
+
+The second record has a size of 45 bytes:
+
+  1 ('f') + 4 (size) + 40 (free space)
+
+Note that the last byt is an 'x' because the initialisation of the cache file
+forced the absolute size of the file by seeking to byte 200 and writing an 'x'.
+
+  >>> from ZEO.tests.test_cache import hexprint
+  >>> hexprint(fc.f)
+  00000000  5a 45 43 33 00 00 00 00  00 00 00 00 66 00 00 00  |ZEC3........f...|
+  00000010  8f 00 00 00 00 00 00 00  01 00 00 00 00 00 00 00  |................|
+  00000020  01 00 00 00 00 00 00 00  02 00 00 00 00 00 64 23  |..............d#|
+  00000030  23 23 23 23 23 23 23 23  23 23 23 23 23 23 23 23  |################|
+  00000040  23 23 23 23 23 23 23 23  23 23 23 23 23 23 23 23  |################|
+  00000050  23 23 23 23 23 23 23 23  23 23 23 23 23 23 23 23  |################|
+  00000060  23 23 23 23 23 23 23 23  23 23 23 23 23 23 23 23  |################|
+  00000070  23 23 23 23 23 23 23 23  23 23 23 23 23 23 23 23  |################|
+  00000080  23 23 23 23 23 23 23 23  23 23 23 23 23 23 23 23  |################|
+  00000090  23 23 23 00 00 00 00 00  00 00 01 66 00 00 00 2d  |###........f...-|
+  000000a0  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+  000000b0  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+  000000c0  00 00 00 00 00 00 00 78                           |.......x        |
+
+Statistic functions
+===================
+
+clearStats
+getStats
+__len__
+__iter__
+__contains__
+__close__
+
+
+Cleanup
+=======
+
+  >>> fc.close()
