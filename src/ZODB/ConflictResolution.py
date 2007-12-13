@@ -19,6 +19,7 @@ from pickle import PicklingError
 
 import zope.interface
 
+from ZODB.config import PICKLE_PROTOCOL_VERSION
 from ZODB.POSException import ConflictError
 from ZODB.loglevels import BLATHER
 
@@ -207,7 +208,7 @@ def tryToResolveConflict(self, oid, committedSerial, oldSerial, newpickle,
         resolved = resolve(old, committed, newstate)
 
         file = StringIO()
-        pickler = Pickler(file,1)
+        pickler = Pickler(file, PICKLE_PROTOCOL_VERSION)
         pickler.persistent_id = persistent_id
         pickler.dump(meta)
         pickler.dump(resolved)

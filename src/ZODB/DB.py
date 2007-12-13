@@ -25,6 +25,7 @@ import datetime
 import calendar
 
 from ZODB.broken import find_global
+from ZODB.config import PICKLE_PROTOCOL_VERSION
 from ZODB.utils import z64
 from ZODB.Connection import Connection
 import ZODB.serialize
@@ -454,7 +455,7 @@ class DB(object):
             # Manually create a pickle for the root to put in the storage.
             # The pickle must be in the special ZODB format.
             file = cStringIO.StringIO()
-            p = cPickle.Pickler(file, 1)
+            p = cPickle.Pickler(file, PICKLE_PROTOCOL_VERSION)
             p.dump((root.__class__, None))
             p.dump(root.__getstate__())
             t = transaction.Transaction()

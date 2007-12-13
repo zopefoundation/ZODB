@@ -25,6 +25,8 @@ import cPickle
 import tempfile
 from threading import Lock
 
+from ZODB.config import PICKLE_PROTOCOL_VERSION
+
 class TransactionBuffer:
 
     # Valid call sequences:
@@ -62,7 +64,7 @@ class TransactionBuffer:
         self.blobs = []
         # It's safe to use a fast pickler because the only objects
         # stored are builtin types -- strings or None.
-        self.pickler = cPickle.Pickler(self.file, 1)
+        self.pickler = cPickle.Pickler(self.file, PICKLE_PROTOCOL_VERSION)
         self.pickler.fast = 1
 
     def close(self):

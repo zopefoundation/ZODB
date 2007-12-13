@@ -28,6 +28,7 @@ from cStringIO import StringIO
 
 import transaction
 
+from ZODB.config import PICKLE_PROTOCOL_VERSION
 from ZODB.utils import u64
 from ZODB.tests.MinPO import MinPO
 
@@ -52,7 +53,7 @@ def _persistent_id(obj):
 def zodb_pickle(obj):
     """Create a pickle in the format expected by ZODB."""
     f = StringIO()
-    p = Pickler(f, 1)
+    p = Pickler(f, PICKLE_PROTOCOL_VERSION)
     p.persistent_id = _persistent_id
     klass = obj.__class__
     assert not hasattr(obj, '__getinitargs__'), "not ready for constructors"

@@ -87,6 +87,16 @@ class Broken(object):
          >>> a2.__Broken_state__
          {'x': 1}
 
+         >>> import cPickle
+         >>> a2 = cPickle.loads(cPickle.dumps(a, 2))
+         >>> a2
+         <broken not.there.Atall instance>
+         >>> a2.__Broken_newargs__
+         (1, 2)
+         >>> a2.__Broken_initargs__
+         >>> a2.__Broken_state__
+         {'x': 1}
+
        Cleanup::
 
          >>> broken_cache.clear()

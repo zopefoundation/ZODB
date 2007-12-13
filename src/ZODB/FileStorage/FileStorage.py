@@ -33,6 +33,7 @@ from ZODB import BaseStorage, ConflictResolution, POSException
 from ZODB.POSException import UndoError, POSKeyError, MultipleUndoErrors
 from ZODB.POSException import VersionLockError
 from persistent.TimeStamp import TimeStamp
+from ZODB.config import PICKLE_PROTOCOL_VERSION
 from ZODB.lock_file import LockFile
 from ZODB.utils import p64, u64, cp, z64
 from ZODB.FileStorage.fspack import FileStoragePacker
@@ -242,7 +243,7 @@ class FileStorage(BaseStorage.BaseStorage,
         tmp_name = index_name + '.index_tmp'
 
         f=open(tmp_name,'wb')
-        p=Pickler(f,1)
+        p=Pickler(f, PICKLE_PROTOCOL_VERSION)
 
         # Note:  starting with ZODB 3.2.6, the 'oid' value stored is ignored
         # by the code that reads the index.  We still write it, so that
@@ -382,7 +383,7 @@ class FileStorage(BaseStorage.BaseStorage,
             if not self._is_read_only:
                 # Save the converted index.
                 f = open(index_name, 'wb')
-                p = Pickler(f, 1)
+                p = Pickler(f, PICKLE_PROTOCOL_VERSION)
                 info['index'] = index
                 p.dump(info)
                 f.close()

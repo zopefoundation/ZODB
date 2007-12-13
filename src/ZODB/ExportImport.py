@@ -21,6 +21,7 @@ from tempfile import TemporaryFile
 import logging
 
 from ZODB.blob import Blob
+from ZODB.config import PICKLE_PROTOCOL_VERSION
 from ZODB.interfaces import IBlobStorage
 from ZODB.POSException import ExportError, POSKeyError
 from ZODB.serialize import referencesf
@@ -169,7 +170,7 @@ class ExportImport:
             unpickler.persistent_load = persistent_load
 
             newp = StringIO()
-            pickler = Pickler(newp, 1)
+            pickler = Pickler(newp, PICKLE_PROTOCOL_VERSION)
             pickler.persistent_id = persistent_id
 
             pickler.dump(unpickler.load())

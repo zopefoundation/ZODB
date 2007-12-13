@@ -24,6 +24,7 @@ from struct import pack as _structpack, unpack as _structunpack
 from persistent.TimeStamp import TimeStamp
 
 from ZODB import POSException
+from ZODB.config import PICKLE_PROTOCOL_VERSION
 from ZODB.utils import z64, oid_repr
 from ZODB.UndoLogCompatible import UndoLogCompatible
 
@@ -185,7 +186,7 @@ class BaseStorage(UndoLogCompatible):
             desc = transaction.description
             ext = transaction._extension
             if ext:
-                ext = cPickle.dumps(ext, 1)
+                ext = cPickle.dumps(ext, PICKLE_PROTOCOL_VERSION)
             else:
                 ext = ""
             self._ude = user, desc, ext

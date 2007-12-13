@@ -19,6 +19,7 @@ import sys
 import unittest
 
 from ZODB import serialize
+from ZODB.config import PICKLE_PROTOCOL_VERSION
 
 
 class ClassWithNewargs(int):
@@ -34,7 +35,7 @@ class ClassWithoutNewargs(object):
 
 def make_pickle(ob):
     sio = StringIO.StringIO()
-    p = cPickle.Pickler(sio, 1)
+    p = cPickle.Pickler(sio, PICKLE_PROTOCOL_VERSION)
     p.dump(ob)
     return sio.getvalue()
 

@@ -142,6 +142,7 @@ from persistent import Persistent
 from persistent.wref import WeakRefMarker, WeakRef
 from ZODB import broken
 from ZODB.broken import Broken
+from ZODB.config import PICKLE_PROTOCOL_VERSION
 from ZODB.POSException import InvalidObjectReference
 
 _oidtypes = str, type(None)
@@ -172,7 +173,7 @@ class ObjectWriter:
 
     def __init__(self, obj=None):
         self._file = cStringIO.StringIO()
-        self._p = cPickle.Pickler(self._file, 1)
+        self._p = cPickle.Pickler(self._file, PICKLE_PROTOCOL_VERSION)
         self._p.persistent_id = self.persistent_id
         self._stack = []
         if obj is not None:

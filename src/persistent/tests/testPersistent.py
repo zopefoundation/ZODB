@@ -215,6 +215,14 @@ class PersistenceTest(unittest.TestCase):
         obj2 = pickle.loads(s)
         self.assertEqual(obj.attr, obj2.attr)
 
+        s = pickle.dumps(obj, 1)
+        obj2 = pickle.loads(s)
+        self.assertEqual(obj.attr, obj2.attr)
+
+        s = pickle.dumps(obj, 2)
+        obj2 = pickle.loads(s)
+        self.assertEqual(obj.attr, obj2.attr)
+
     def testGetattr(self):
         obj = H1()
         self.assertEqual(obj.larry, 1)

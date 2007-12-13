@@ -15,6 +15,8 @@ import cPickle
 from cStringIO import StringIO
 import logging
 
+from ZODB.config import PICKLE_PROTOCOL_VERSION
+
 from ZEO.zrpc.error import ZRPCError
 from ZEO.zrpc.log import log, short_repr
 
@@ -31,7 +33,7 @@ class Marshaller:
         # being represented by \xij escapes in proto 0).
         # Undocumented:  cPickle.Pickler accepts a lone protocol argument;
         # pickle.py does not.
-        pickler = cPickle.Pickler(1)
+        pickler = cPickle.Pickler(PICKLE_PROTOCOL_VERSION)
         pickler.fast = 1
 
         # Undocumented:  pickler.dump(), for a cPickle.Pickler, takes

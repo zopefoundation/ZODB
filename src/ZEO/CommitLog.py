@@ -22,11 +22,13 @@ real storage.
 import cPickle
 import tempfile
 
+from ZODB.config import PICKLE_PROTOCOL_VERSION
+
 class CommitLog:
 
     def __init__(self):
         self.file = tempfile.TemporaryFile(suffix=".log")
-        self.pickler = cPickle.Pickler(self.file, 1)
+        self.pickler = cPickle.Pickler(self.file, PICKLE_PROTOCOL_VERSION)
         self.pickler.fast = 1
         self.stores = 0
         self.read = 0

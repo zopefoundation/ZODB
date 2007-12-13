@@ -28,6 +28,11 @@ _db_schema = None
 s_schema_path = os.path.join(ZODB.__path__[0], "storage.xml")
 _s_schema = None
 
+# TODO: Turn this into a configurable option on a per storage basis
+# Does is make sense to use a different protocol version for ZEO transport?
+PICKLE_PROTOCOL_VERSION = 2
+
+
 def getDbSchema():
     global _db_schema
     if _db_schema is None:

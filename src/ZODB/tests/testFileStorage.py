@@ -17,6 +17,7 @@ import ZODB.FileStorage
 import ZODB.tests.util
 from ZODB import POSException
 from ZODB import DB
+from ZODB.config import PICKLE_PROTOCOL_VERSION
 
 from ZODB.tests import StorageTestBase, BasicStorage, TransactionalUndoStorage
 from ZODB.tests import VersionStorage, TransactionalUndoVersionStorage
@@ -96,7 +97,7 @@ class FileStorageTests(
 
         f.seek(0)
         f.truncate()
-        p = pickle.Pickler(f, 1)
+        p = pickle.Pickler(f, PICKLE_PROTOCOL_VERSION)
         p.dump(data)
         f.close()
         return index
@@ -212,7 +213,7 @@ class FileStorageTests(
         data['oid'] = z64
         f.seek(0)
         f.truncate()
-        p = pickle.Pickler(f, 1)
+        p = pickle.Pickler(f, PICKLE_PROTOCOL_VERSION)
         p.dump(data)
         f.close()
 

@@ -31,6 +31,7 @@ from persistent import Persistent
 from persistent.mapping import PersistentMapping
 import transaction
 from ZODB import DB
+from ZODB.config import PICKLE_PROTOCOL_VERSION
 from ZODB.serialize import referencesf
 from ZODB.tests.MinPO import MinPO
 from ZODB.tests.StorageTestBase import snooze
@@ -83,6 +84,7 @@ def dumps(obj):
             return obj.getoid()
         return None
     s = StringIO()
+    # TODO: Pickle protocol 0?
     p = pickle.Pickler(s)
     p.persistent_id = getpersid
     p.dump(obj)
@@ -91,6 +93,7 @@ def dumps(obj):
 
 def pdumps(obj):
     s = StringIO()
+    # TODO: Pickle protocol 0?
     p = pickle.Pickler(s)
     p.dump(obj)
     p.dump(None)
@@ -137,7 +140,7 @@ class PackableStorageBase:
         except KeyError:
             from transaction import Transaction
             file = StringIO()
-            p = cPickle.Pickler(file, 1)
+            p = cPickle.Pickler(file, PICKLE_PROTOCOL_VERSION)
             p.dump((PersistentMapping, None))
             p.dump({'_container': {}})
             t=Transaction()

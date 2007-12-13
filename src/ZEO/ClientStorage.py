@@ -40,6 +40,7 @@ from ZEO.zrpc.client import ConnectionManager
 import ZODB.lock_file
 from ZODB import POSException
 from ZODB import utils
+from ZODB.config import PICKLE_PROTOCOL_VERSION
 from ZODB.loglevels import BLATHER
 from ZODB.interfaces import IBlobStorage
 from ZODB.blob import rename_or_copy_blob
@@ -598,7 +599,7 @@ class ClientStorage(object):
         log2("Verifying cache")
         # setup tempfile to hold zeoVerify results
         self._tfile = tempfile.TemporaryFile(suffix=".inv")
-        self._pickler = cPickle.Pickler(self._tfile, 1)
+        self._pickler = cPickle.Pickler(self._tfile, PICKLE_PROTOCOL_VERSION)
         self._pickler.fast = 1 # Don't use the memo
 
         # TODO:  should batch these operations for efficiency; would need

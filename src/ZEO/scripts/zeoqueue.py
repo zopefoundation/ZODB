@@ -31,6 +31,8 @@ import errno
 import getopt
 import cPickle as pickle
 
+from ZODB.config import PICKLE_PROTOCOL_VERSION
+
 COMMASPACE = ', '
 STATEFILE = 'zeoqueue.pck'
 PROGRAM = sys.argv[0]
@@ -389,7 +391,7 @@ def main():
         fp.close()
     # Save state
     statefp = open(file, 'wb')
-    pickle.dump(status, statefp, 1)
+    pickle.dump(status, statefp, PICKLE_PROTOCOL_VERSION)
     statefp.close()
     # Print the report and return the number of blocked clients in the exit
     # status code.
