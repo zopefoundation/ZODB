@@ -14,13 +14,15 @@
 """Basic unit tests for a multi-version client cache."""
 
 import os
+import random
 import tempfile
 import unittest
 import doctest
 import string
+import sys
 
 import ZEO.cache
-from ZODB.utils import p64
+from ZODB.utils import p64, repr_to_oid
 
 
 n1 = p64(1)
@@ -39,7 +41,7 @@ def hexprint(file):
         printable = ""
         hex = ""
         for character in line:
-            if character in string.printable:
+            if character in string.printable and not ord(character) in [12,13,9]:
                 printable += character
             else:
                 printable += '.'
@@ -49,6 +51,38 @@ def hexprint(file):
         printable = printable.ljust(16)
         print '%08x  %s |%s|' % (offset, hex, printable)
         offset += 16
+
+
+class ClientCacheDummy(object):
+
+    def __init__(self):
+        self.objects = {}
+
+    def _evicted(self, o):
+        if o.key in self.objects:
+            del self.objects[o.key]
+
+
+def oid(o):
+    repr = '%016x' % o
+    return repr_to_oid(repr)
+tid = oid
+
+
+class FileCacheFuzzing(unittest.TestCase):
+
+    def testFileCacheFuzzing(self):
+        cache_dummy = ClientCacheDummy()
+        fc = ZEO.cache.FileCache(maxsize=5000, fpath=None,
+                                      parent=cache_dummy)
+        for i in xrange(10000):
+            size = random.randint(0,5500)
+            obj = ZEO.cache.Object(key=(oid(i), oid(1)), version='',
+                                   data='*'*size, start_tid=oid(1),
+                                   end_tid=None)
+            fc.add(obj)
+        hexprint(fc.f)
+        fc.close()
 
 
 class CacheTests(unittest.TestCase):
@@ -151,6 +185,76 @@ class CacheTests(unittest.TestCase):
         # TODO:  Need to make sure eviction of non-current data
         # and of version data are handled correctly.
 
+    def _run_fuzzing(self):
+        current_tid = 1
+        current_oid = 1
+        def log(*args):
+            #print args
+            pass
+        cache = self.fuzzy_cache
+        objects = self.fuzzy_cache_client.objects
+        for operation in xrange(10000):
+            op = random.choice(['add', 'access', 'remove', 'update', 'settid'])
+            if not objects:
+                op = 'add'
+            log(op)
+            if op == 'add':
+                current_oid += 1
+                key = (oid(current_oid), tid(current_tid))
+                object = ZEO.cache.Object(
+                    key=key, version='', data='*'*random.randint(1,60*1024),
+                    start_tid=tid(current_tid), end_tid=None)
+                assert key not in objects
+                log(key, len(object.data), current_tid)
+                cache.add(object)
+                if (object.size + ZEO.cache.OBJECT_HEADER_SIZE >
+                    cache.maxsize - ZEO.cache.ZEC3_HEADER_SIZE):
+                    assert key not in cache
+                else:
+                    objects[key] = object
+                    assert key in cache, key
+            elif op == 'access':
+                key = random.choice(objects.keys())
+                log(key)
+                object = objects[key]
+                found = cache.access(key)
+                assert object.data == found.data
+                assert object.key == found.key
+                assert object.size == found.size == (len(object.data)+object.TOTAL_FIXED_SIZE)
+            elif op == 'remove':
+                key = random.choice(objects.keys())
+                log(key)
+                cache.remove(key)
+                assert key not in cache
+                assert key not in objects
+            elif op == 'update':
+                key = random.choice(objects.keys())
+                object = objects[key]
+                log(key, object.key)
+                if not object.end_tid:
+                    object.end_tid = tid(current_tid)
+                    log(key, current_tid)
+                    cache.update(object)
+            elif op == 'settid':
+                current_tid += 1
+                log(current_tid)
+                cache.settid(tid(current_tid))
+        cache.close()
+
+    def testFuzzing(self):
+        random.seed()
+        seed = random.randint(0, sys.maxint)
+        random.seed(seed)
+        self.fuzzy_cache_client = ClientCacheDummy()
+        self.fuzzy_cache = ZEO.cache.FileCache(
+            random.randint(100, 50*1024), None, self.fuzzy_cache_client)
+        try:
+            self._run_fuzzing()
+        except:
+            print "Error in fuzzing with seed", seed
+            hexprint(self.fuzzy_cache.f)
+            raise
+
     def testSerialization(self):
         self.cache.store(n1, "", n2, None, "data for n1")
         self.cache.store(n2, "version", n2, None, "version data for n2")
@@ -181,5 +285,6 @@ class CacheTests(unittest.TestCase):
 def test_suite():
     suite = unittest.TestSuite()
     suite.addTest(unittest.makeSuite(CacheTests))
+    suite.addTest(unittest.makeSuite(FileCacheFuzzing))
     suite.addTest(doctest.DocFileSuite('filecache.txt'))
     return suite
