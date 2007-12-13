@@ -72,11 +72,11 @@ configuration should look like this::
         <filestorage>
             path $INSTANCE/var/Data.fs
         <filestorage>
-        bob-dir $SERVER/blobs
+        blob-dir $SERVER/blobs
     </blobstorage>
 
 (Remember to manually replace $SERVER and $CLIENT with the exported directory
-as accessible bei either the ZEO server or the ZEO client.)
+as accessible by either the ZEO server or the ZEO client.)
 
 Conclusion
 ----------
