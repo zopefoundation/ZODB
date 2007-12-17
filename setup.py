@@ -20,7 +20,7 @@ to application logic.  ZODB includes features such as a plugable storage
 interface, rich transaction support, and undo.
 """
 
-VERSION = "3.9.0dev"
+VERSION = "3.8.0c1"
 
 # The (non-obvious!) choices for the Trove Development Status line:
 # Development Status :: 5 - Production/Stable
@@ -28,7 +28,7 @@ VERSION = "3.9.0dev"
 # Development Status :: 3 - Alpha
 
 classifiers = """\
-Development Status :: 3 - Alpha
+Development Status :: 4 - Beta
 Intended Audience :: Developers
 License :: OSI Approved :: Zope Public License
 Programming Language :: Python
