@@ -82,7 +82,10 @@ def client_loop():
                     continue
 
             if not (r or w or e):
-                for obj in client_map.itervalues():
+                # The line intentionally doesn't use iterators. Other
+                # threads can close dispatchers, causeing the socket
+                # map to shrink.
+                for obj in client_map.values():
                     if isinstance(obj, Connection):
                         # Send a heartbeat message as a reply to a
                         # non-existent message id.

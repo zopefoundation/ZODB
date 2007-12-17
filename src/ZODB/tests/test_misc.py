@@ -1,6 +1,6 @@
 ##############################################################################
 #
-# Copyright (c) 2004 Zope Corporation and Contributors.
+# Copyright (c) 2006 Zope Corporation and Contributors.
 # All Rights Reserved.
 #
 # This software is subject to the provisions of the Zope Public License,
@@ -11,15 +11,27 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
-"""XXX short summary goes here.
-
-$Id$
+"""Misc tests :)
 """
+
 import unittest
 from zope.testing import doctest
 
+def conflict_error_retains_data_passed():
+    r"""
+    
+ConflictError can be passed a data record which it claims to retain as
+an attribute.
+
+    >>> import ZODB.POSException
+    >>> 
+    >>> ZODB.POSException.ConflictError(data='cM\nC\n').data
+    'cM\nC\n'
+
+    """
+
 def test_suite():
     return unittest.TestSuite((
-        doctest.DocFileSuite('referrers.txt'),
+        doctest.DocTestSuite(),
         ))
 

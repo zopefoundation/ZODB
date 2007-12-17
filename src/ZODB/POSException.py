@@ -17,10 +17,6 @@ $Id$"""
 
 from ZODB.utils import oid_repr, readable_tid_repr
 
-# BBB: We moved the two transactions to the transaction package
-from transaction.interfaces import TransactionError, TransactionFailedError
-
-
 def _fmt_undo(oid, reason):
     s = reason and (": %s" % reason) or ""
     return "Undo error %s%s" % (oid_repr(oid), s)
@@ -48,6 +44,18 @@ class POSKeyError(KeyError, POSError):
     def __str__(self):
         return oid_repr(self.args[0])
 
+class TransactionError(POSError):
+    """An error occurred due to normal transaction processing."""
+
+class TransactionFailedError(POSError):
+    """Cannot perform an operation on a transaction that previously failed.
+
+    An attempt was made to commit a transaction, or to join a transaction,
+    but this transaction previously raised an exception during an attempt
+    to commit it.  The transaction must be explicitly aborted, either by
+    invoking abort() on the transaction, or begin() on its transaction
+    manager.
+    """
 
 class ConflictError(TransactionError):
     """Two transactions tried to modify the same object at once.
@@ -98,11 +106,10 @@ class ConflictError(TransactionError):
             # avoid circular import chain
             from ZODB.utils import get_pickle_metadata
             self.class_name = "%s.%s" % get_pickle_metadata(data)
-##        else:
-##            if message != "data read conflict error":
-##                raise RuntimeError
 
         self.serials = serials
+
+        self.data = data
 
     def __str__(self):
         extras = []
@@ -234,10 +241,6 @@ class DanglingReferenceError(TransactionError):
         return "from %s to %s" % (oid_repr(self.referer),
                                   oid_repr(self.missing))
 
-
-############################################################################
-# Only used in storages; versions are no longer supported.
-
 class VersionError(POSError):
     """An error in handling versions occurred."""
 
@@ -250,7 +253,6 @@ class VersionLockError(VersionError, TransactionError):
     An attempt was made to modify an object that has been modified in an
     unsaved version.
     """
-############################################################################
 
 class UndoError(POSError):
     """An attempt was made to undo a non-undoable transaction."""
@@ -296,9 +298,6 @@ class ExportError(POSError):
 
 class Unsupported(POSError):
     """A feature was used that is not supported by the storage."""
-
-class ReadOnlyHistoryError(POSError):
-    """Unable to add or modify objects in an historical connection."""
 
 class InvalidObjectReference(POSError):
     """An object contains an invalid reference to another object.

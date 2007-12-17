@@ -172,4 +172,3 @@ Blobs are not subclassable::
     Traceback (most recent call last):
         ...
     TypeError: Blobs do not support subclassing.
-

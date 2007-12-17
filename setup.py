@@ -20,7 +20,7 @@ to application logic.  ZODB includes features such as a plugable storage
 interface, rich transaction support, and undo.
 """
 
-VERSION = "3.8.0c1"
+VERSION = "3.8.0b6"
 
 # The (non-obvious!) choices for the Trove Development Status line:
 # Development Status :: 5 - Production/Stable
@@ -28,7 +28,6 @@ VERSION = "3.8.0c1"
 # Development Status :: 3 - Alpha
 
 classifiers = """\
-Development Status :: 4 - Beta
 Intended Audience :: Developers
 License :: OSI Approved :: Zope Public License
 Programming Language :: Python
@@ -38,9 +37,26 @@ Operating System :: Microsoft :: Windows
 Operating System :: Unix
 """
 
-from setuptools import setup
-
-entry_points = """
+try:
+    from setuptools import setup
+except ImportError:
+    from distutils.core import setup
+    extra = dict(
+        scripts = ["src/ZODB/scripts/fsdump.py",
+                   "src/ZODB/scripts/fsoids.py",
+                   "src/ZODB/scripts/fsrefs.py",
+                   "src/ZODB/scripts/fstail.py",
+                   "src/ZODB/scripts/fstest.py",
+                   "src/ZODB/scripts/repozo.py",
+                   "src/ZEO/scripts/zeopack.py",
+                   "src/ZEO/scripts/runzeo.py",
+                   "src/ZEO/scripts/zeopasswd.py",
+                   "src/ZEO/scripts/mkzeoinst.py",
+                   "src/ZEO/scripts/zeoctl.py",
+                   ],
+        )
+else:
+    entry_points = """
     [console_scripts]
     fsdump = ZODB.FileStorage.fsdump:main
     fsoids = ZODB.scripts.fsoids:main
@@ -53,8 +69,19 @@ entry_points = """
     mkzeoinst = ZEO.mkzeoinst:main
     zeoctl = ZEO.zeoctl:main
     """
-
-scripts = []
+    extra = dict(
+        install_requires = [
+            'zope.interface',
+            'zope.proxy',
+            'zope.testing',
+            'ZConfig',
+            'zdaemon',
+            ],
+        zip_safe = False,
+        entry_points = entry_points,
+        include_package_data = True,
+        )
+    scripts = []
 
 import glob
 import os
@@ -149,6 +176,7 @@ packages = ["BTrees", "BTrees.tests",
             "ZODB", "ZODB.FileStorage", "ZODB.tests",
                     "ZODB.scripts",
             "persistent", "persistent.tests",
+            "transaction", "transaction.tests",
             "ThreadedAsync",
             "ZopeUndo", "ZopeUndo.tests",
             ]
@@ -159,6 +187,8 @@ def copy_other_files(cmd, outputbase):
     extensions = ["*.conf", "*.xml", "*.txt", "*.sh"]
     directories = [
         "BTrees",
+        "transaction",
+        "transaction/tests",
         "persistent/tests",
         "ZEO",
         "ZEO/scripts",
@@ -210,23 +240,8 @@ class MyDistribution(Distribution):
         self.cmdclass['build_py'] = MyPyBuilder
         self.cmdclass['install_lib'] = MyLibInstaller
 
-def alltests():
-    # use the zope.testing testrunner machinery to find all the
-    # test suites we've put under ourselves
-    from zope.testing.testrunner import get_options
-    from zope.testing.testrunner import find_suites
-    from zope.testing.testrunner import configure_logging
-    configure_logging()
-    from unittest import TestSuite
-    here = os.path.abspath(os.path.dirname(sys.argv[0]))
-    args = sys.argv[:]
-    src = os.path.join(here, 'src')
-    defaults = ['--test-path', src]
-    options = get_options(args, defaults)
-    suites = list(find_suites(options))
-    return TestSuite(suites)
-
 doclines = __doc__.split("\n")
+
 
 setup(name="ZODB3",
       version=VERSION,
@@ -244,35 +259,4 @@ setup(name="ZODB3",
       classifiers = filter(None, classifiers.split("\n")),
       long_description = "\n".join(doclines[2:]),
       distclass = MyDistribution,
-      test_suite="__main__.alltests", # to support "setup.py test"
-      tests_require = [
-        'zope.interface',
-        'zope.proxy',
-        'zope.testing',
-        'transaction',
-        'zdaemon',
-        ],
-      install_requires = [
-        'zope.interface',
-        'zope.proxy',
-        'zope.testing',
-        'ZConfig',
-        'zdaemon',
-        'transaction',
-        ],
-      zip_safe = False,
-      entry_points = """
-      [console_scripts]
-      fsdump = ZODB.FileStorage.fsdump:main
-      fsoids = ZODB.scripts.fsoids:main
-      fsrefs = ZODB.scripts.fsrefs:main
-      fstail = ZODB.scripts.fstail:Main
-      repozo = ZODB.scripts.repozo:main
-      zeopack = ZEO.scripts.zeopack:main
-      runzeo = ZEO.runzeo:main
-      zeopasswd = ZEO.zeopasswd:main
-      mkzeoinst = ZEO.mkzeoinst:main
-      zeoctl = ZEO.zeoctl:main
-      """,
-      include_package_data = True,
-      )
+      **extra)
