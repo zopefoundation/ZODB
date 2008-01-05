@@ -68,23 +68,6 @@ def oid(o):
     return repr_to_oid(repr)
 tid = oid
 
-
-class FileCacheFuzzing(unittest.TestCase):
-
-    def testFileCacheFuzzing(self):
-        cache_dummy = ClientCacheDummy()
-        fc = ZEO.cache.FileCache(maxsize=5000, fpath=None,
-                                      parent=cache_dummy)
-        for i in xrange(10000):
-            size = random.randint(0,5500)
-            obj = ZEO.cache.Object(key=(oid(i), oid(1)), version='',
-                                   data='*'*size, start_tid=oid(1),
-                                   end_tid=None)
-            fc.add(obj)
-        #hexprint(fc.f)
-        fc.close()
-
-
 class CacheTests(unittest.TestCase):
 
     def setUp(self):
@@ -285,6 +268,5 @@ class CacheTests(unittest.TestCase):
 def test_suite():
     suite = unittest.TestSuite()
     suite.addTest(unittest.makeSuite(CacheTests))
-    suite.addTest(unittest.makeSuite(FileCacheFuzzing))
     suite.addTest(doctest.DocFileSuite('filecache.txt'))
     return suite
