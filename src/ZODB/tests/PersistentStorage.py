@@ -28,8 +28,6 @@ class PersistentStorage:
         self._dostore()
         oid = self._storage.new_oid()
         revid = self._dostore(oid)
-        if self._storage.supportsVersions():
-            self._dostore(oid, revid, data=8, version='b')
         oid = self._storage.new_oid()
         revid = self._dostore(oid, data=1)
         revid = self._dostore(oid, revid, data=2)
@@ -40,10 +38,6 @@ class PersistentStorage:
         for oid in oids:
             p, s = self._storage.load(oid, '')
             objects.append((oid, '', p, s))
-            ver = self._storage.modifiedInVersion(oid)
-            if ver:
-                p, s = self._storage.load(oid, ver)
-                objects.append((oid, ver, p, s))
 
         self._storage.close()
         self.open()

@@ -25,11 +25,6 @@ from persistent import Persistent
 from persistent.mapping import PersistentMapping
 import transaction
 
-# deprecated39  remove when versions go away
-warnings.filterwarnings("ignore",
-                        "Versions are deprecated",
-                        DeprecationWarning, __name__)
-
 class P(Persistent):
     pass
 

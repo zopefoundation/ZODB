@@ -19,7 +19,6 @@ from ZODB import POSException
 from ZODB import DB
 
 from ZODB.tests import StorageTestBase, BasicStorage, TransactionalUndoStorage
-from ZODB.tests import VersionStorage, TransactionalUndoVersionStorage
 from ZODB.tests import PackableStorage, Synchronization, ConflictResolution
 from ZODB.tests import HistoryStorage, IteratorStorage, Corruption
 from ZODB.tests import RevisionStorage, PersistentStorage, MTStorage
@@ -44,8 +43,6 @@ class FileStorageTests(
     BasicStorage.BasicStorage,
     TransactionalUndoStorage.TransactionalUndoStorage,
     RevisionStorage.RevisionStorage,
-    VersionStorage.VersionStorage,
-    TransactionalUndoVersionStorage.TransactionalUndoVersionStorage,
     PackableStorage.PackableStorage,
     PackableStorage.PackableUndoStorage,
     Synchronization.SynchronizedStorage,
@@ -181,45 +178,6 @@ class FileStorageTests(
         os.remove('FileStorageTests.fs.index')
         self.open()
         self.assertEqual(self._storage._saved, 1)
-
-    def check_index_oid_ignored(self):
-        # Prior to ZODB 3.2.6, the 'oid' value stored in the .index file
-        # was believed.  But there were cases where adding larger oids
-        # didn't update the FileStorage ._oid attribute -- the restore()
-        # method in particular didn't update it, and that's about the only
-        # method copyTransactionsFrom() uses.  A database copy created that
-        # way then stored an 'oid' of z64 in the .index file.  This created
-        # torturous problems, as when that file was opened, "new" oids got
-        # generated starting over from 0 again.
-        # Now the cached 'oid' value is ignored:  verify that this is so.
-        import cPickle as pickle
-        from ZODB.utils import z64
-
-        # Create some data.
-        db = DB(self._storage)
-        conn = db.open()
-        conn.root()['xyz'] = 1
-        transaction.commit()
-        true_max_oid = self._storage._oid
-
-        # Save away the index, and poke in a bad 'oid' value by hand.
-        db.close()
-        f = open('FileStorageTests.fs.index', 'r+b')
-        p = pickle.Unpickler(f)
-        data = p.load()
-        saved_oid = data['oid']
-        self.assertEqual(true_max_oid, saved_oid)
-        data['oid'] = z64
-        f.seek(0)
-        f.truncate()
-        p = pickle.Pickler(f, 1)
-        p.dump(data)
-        f.close()
-
-        # Verify that we get the correct oid again when we reopen, despite
-        # that we stored nonsense in the .index file's 'oid'.
-        self.open()
-        self.assertEqual(self._storage._oid, true_max_oid)
 
     # This would make the unit tests too slow
     # check_save_after_load_that_worked_hard(self)

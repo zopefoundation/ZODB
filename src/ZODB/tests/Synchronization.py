@@ -45,7 +45,7 @@ undo(): how's that handled?
 
 Methods that have nothing to do with committing/non-committing:
 load(), loadSerial(), getName(), getSize(), __len__(), history(),
-undoLog(), modifiedInVersion(), versionEmpty(), versions(), pack().
+undoLog(), pack().
 
 Specific questions:
 
@@ -65,7 +65,6 @@ tested?  Is it a general restriction?
 from transaction import Transaction
 from ZODB.POSException import StorageTransactionError
 
-VERSION = "testversion"
 OID = "\000" * 8
 SERIALNO = "\000" * 8
 TID = "\000" * 8
@@ -83,35 +82,6 @@ class SynchronizedStorage:
         self._storage.tpc_begin(t)
         self.assertRaises(StorageTransactionError, callable, *args)
         self._storage.tpc_abort(t)
-
-    def __supportsVersions(self):
-        storage = self._storage
-        try:
-            supportsVersions = storage.supportsVersions
-        except AttributeError:
-            return False
-        return supportsVersions()
-
-    def checkAbortVersionNotCommitting(self):
-        if self.__supportsVersions():
-            self.verifyNotCommitting(self._storage.abortVersion,
-                                     VERSION, Transaction())
-
-    def checkAbortVersionWrongTrans(self):
-        if self.__supportsVersions():
-            self.verifyWrongTrans(self._storage.abortVersion,
-                                  VERSION, Transaction())
-
-    def checkCommitVersionNotCommitting(self):
-        if self.__supportsVersions():
-            self.verifyNotCommitting(self._storage.commitVersion,
-                                     VERSION, "", Transaction())
-
-    def checkCommitVersionWrongTrans(self):
-        if self.__supportsVersions():
-            self.verifyWrongTrans(self._storage.commitVersion,
-                                  VERSION, "", Transaction())
-
 
     def checkStoreNotCommitting(self):
         self.verifyNotCommitting(self._storage.store,

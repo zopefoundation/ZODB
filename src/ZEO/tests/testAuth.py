@@ -82,7 +82,7 @@ class AuthTest(CommonSetupTearDown):
         self._storage._connection.poll()
         self.assert_(self._storage.is_connected())
         # Make a call to make sure the mechanism is working
-        self._storage.versions()
+        self._storage.undoInfo()
 
     def testNOK(self):
         self._storage = self.openClientStorage(wait=0, username="foo",
@@ -101,11 +101,11 @@ class AuthTest(CommonSetupTearDown):
         # Sleep for 0.2 seconds to give the server some time to start up
         # seems to be needed before and after creating the storage
         self.wait()
-        self._storage.versions()
+        self._storage.undoInfo()
         # Manually clear the state of the hmac connection
         self._storage._connection._SizedMessageAsyncConnection__hmac_send = None
         # Once the client stops using the hmac, it should be disconnected.
-        self.assertRaises(ClientDisconnected, self._storage.versions)
+        self.assertRaises(ClientDisconnected, self._storage.undoInfo)
 
 
 class PlainTextAuth(AuthTest):

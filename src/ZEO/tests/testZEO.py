@@ -38,8 +38,8 @@ import persistent
 import transaction
 
 # ZODB test mixin classes
-from ZODB.tests import StorageTestBase, BasicStorage, VersionStorage, \
-     TransactionalUndoStorage, TransactionalUndoVersionStorage, \
+from ZODB.tests import StorageTestBase, BasicStorage,  \
+     TransactionalUndoStorage,  \
      PackableStorage, Synchronization, ConflictResolution, RevisionStorage, \
      MTStorage, ReadOnlyStorage
 
@@ -223,7 +223,6 @@ class GenericTests(
 
 class FullGenericTests(
     GenericTests,
-    Cache.StorageWithCache,
     Cache.TransUndoStorageWithCache,
     CommitLockTests.CommitLockUndoTests,
     ConflictResolution.ConflictResolvingStorage,
@@ -231,8 +230,6 @@ class FullGenericTests(
     PackableStorage.PackableUndoStorage,
     RevisionStorage.RevisionStorage,
     TransactionalUndoStorage.TransactionalUndoStorage,
-    TransactionalUndoVersionStorage.TransactionalUndoVersionStorage,
-    VersionStorage.VersionStorage,
     ):
     """Extend GenericTests with tests that MappingStorage can't pass."""
 
@@ -256,8 +253,6 @@ class MappingStorageTests(GenericTests):
 
 class DemoStorageTests(
     GenericTests,
-    Cache.StorageWithCache,
-    VersionStorage.VersionStorage,
     ):
 
     def getConfig(self):
@@ -268,21 +263,6 @@ class DemoStorageTests(
           </filestorage>
         </demostorage>
         """ % tempfile.mktemp()
-
-    def checkLoadBeforeVersion(self):
-        # Doesn't implement loadBefore, except as a kind of place holder.
-        pass
-    
-    # the next three pack tests depend on undo
-
-    def checkPackVersionReachable(self):
-        pass
-
-    def checkPackVersions(self):
-        pass
-
-    def checkPackVersionsInPast(self):
-        pass
 
 class HeartbeatTests(ZEO.tests.ConnectionTests.CommonSetupTearDown):
     """Make sure a heartbeat is being sent and that it does no harm

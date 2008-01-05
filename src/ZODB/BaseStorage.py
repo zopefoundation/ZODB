@@ -338,7 +338,7 @@ def copy(source, dest, verbose=0):
             if verbose:
                 print oid_repr(oid), r.version, len(r.data)
             if restoring:
-                dest.restore(oid, r.tid, r.data, r.version,
+                dest.restore(oid, r.tid, r.data, '',
                              r.data_txn, transaction)
             else:
                 pre = preget(oid, None)

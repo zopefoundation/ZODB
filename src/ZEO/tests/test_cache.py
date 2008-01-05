@@ -11,7 +11,7 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
-"""Basic unit tests for a multi-version client cache."""
+"""Basic unit tests for a client cache."""
 
 import os
 import random

@@ -22,7 +22,7 @@ import cPickle
 import struct
 
 from ZODB.FileStorage.format import TRANS_HDR, DATA_HDR, TRANS_HDR_LEN
-from ZODB.FileStorage.format import DATA_HDR_LEN, DATA_VERSION_HDR_LEN
+from ZODB.FileStorage.format import DATA_HDR_LEN
 from ZODB.utils import u64
 from persistent.TimeStamp import TimeStamp
 
@@ -103,12 +103,9 @@ class DataHeader:
     serial              8-16    object serial numver
     prev_rec_pos       16-24    position of previous data record for object
     txn_pos            24-32    position of txn header
-    version_len        32-34    length of version
+    version_len        32-34    length of version (always 0)
     data_len           34-42    length of data
-    nonversion_pos     42-50*   position of nonversion data record
-    prev_version_pos   50-58*   pos of previous version data record
-
-    * these attributes are only present if version_len != 0.
+    
     """
 
     def __init__(self, file, pos):
@@ -118,28 +115,19 @@ class DataHeader:
 
     def _read_header(self):
         self._file.seek(self._pos)
-        self._hdr = self._file.read(DATA_VERSION_HDR_LEN)
+        self._hdr = self._file.read(DATA_HDR_LEN)
         # always read the longer header, just in case
-        (self.oid, self.serial, prev_rec_pos, txn_pos, self.version_len,
-         data_len) = struct.unpack(DATA_HDR, self._hdr[:DATA_HDR_LEN])
+        (self.oid, self.serial, prev_rec_pos, txn_pos, vlen, data_len
+         ) = struct.unpack(DATA_HDR, self._hdr[:DATA_HDR_LEN])
+        assert not vlen
         self.prev_rec_pos = u64(prev_rec_pos)
         self.txn_pos = u64(txn_pos)
         self.data_len = u64(data_len)
-        if self.version_len:
-            s = self._hdr[DATA_HDR_LEN:]
-            self.nonversion_pos = u64(s[:8])
-            self.prev_version_pos = u64(s[8:])
-        else:
-            self.nonversion_pos = None
-            self.prev_version_pos = None
-
+        
     def next_offset(self):
         """Return offset of next record."""
         off = self._pos + self.data_len
-        if self.version_len:
-            off += self.version_len + DATA_VERSION_HDR_LEN
-        else:
-            off += DATA_HDR_LEN
+        off += DATA_HDR_LEN
         if self.data_len == 0:
             off += 8 # backpointer
         return off

@@ -31,7 +31,6 @@ fsync = getattr(os, "fsync", None)
 
 from ZODB import BaseStorage, ConflictResolution, POSException
 from ZODB.POSException import UndoError, POSKeyError, MultipleUndoErrors
-from ZODB.POSException import VersionLockError
 from persistent.TimeStamp import TimeStamp
 from ZODB.lock_file import LockFile
 from ZODB.utils import p64, u64, cp, z64
@@ -120,10 +119,8 @@ class FileStorage(BaseStorage.BaseStorage,
 
         BaseStorage.BaseStorage.__init__(self, file_name)
 
-        (index, vindex, tindex, tvindex,
-         oid2tid, toid2tid, toid2tid_delete) = self._newIndexes()
-        self._initIndex(index, vindex, tindex, tvindex,
-                        oid2tid, toid2tid, toid2tid_delete)
+        (index, tindex, oid2tid, toid2tid, toid2tid_delete) = self._newIndexes()
+        self._initIndex(index, tindex, oid2tid, toid2tid, toid2tid_delete)
 
         # Now open the file
 
@@ -155,18 +152,17 @@ class FileStorage(BaseStorage.BaseStorage,
         r = self._restore_index()
         if r is not None:
             self._used_index = 1 # Marker for testing
-            index, vindex, start, ltid = r
+            index, start, ltid = r
 
-            self._initIndex(index, vindex, tindex, tvindex,
-                            oid2tid, toid2tid, toid2tid_delete)
+            self._initIndex(index, tindex, oid2tid, toid2tid, toid2tid_delete)
             self._pos, self._oid, tid = read_index(
-                self._file, file_name, index, vindex, tindex, stop,
+                self._file, file_name, index, tindex, stop,
                 ltid=ltid, start=start, read_only=read_only,
                 )
         else:
             self._used_index = 0 # Marker for testing
             self._pos, self._oid, tid = read_index(
-                self._file, file_name, index, vindex, tindex, stop,
+                self._file, file_name, index, tindex, stop,
                 read_only=read_only,
                 )
             self._save_index()
@@ -195,20 +191,14 @@ class FileStorage(BaseStorage.BaseStorage,
         # tid cache statistics.
         self._oid2tid_nlookups = self._oid2tid_nhits = 0
 
-    def _initIndex(self, index, vindex, tindex, tvindex,
-                   oid2tid, toid2tid, toid2tid_delete):
+    def _initIndex(self, index, tindex, oid2tid, toid2tid, toid2tid_delete):
         self._index=index
-        self._vindex=vindex
         self._tindex=tindex
-        self._tvindex=tvindex
         self._index_get=index.get
-        self._vindex_get=vindex.get
 
         # .store() needs to compare the passed-in serial to the
         # current tid in the database.  _oid2tid caches the oid ->
-        # current tid mapping for non-version data (if the current
-        # record for oid is version data, the oid is not a key in
-        # _oid2tid).  The point is that otherwise seeking into the
+        # current tid mapping. The point is that otherwise seeking into the
         # storage is needed to extract the current tid, and that's
         # an expensive operation.  For example, if a transaction
         # stores 4000 objects, and each random seek + read takes 7ms
@@ -220,8 +210,7 @@ class FileStorage(BaseStorage.BaseStorage,
         # oid->tid map to transactionally add to _oid2tid.
         self._toid2tid = toid2tid
         # Set of oids to transactionally delete from _oid2tid (e.g.,
-        # oids reverted by undo, or for which the most recent record
-        # becomes version data).
+        # oids reverted by undo).
         self._toid2tid_delete = toid2tid_delete
 
     def __len__(self):
@@ -229,7 +218,7 @@ class FileStorage(BaseStorage.BaseStorage,
 
     def _newIndexes(self):
         # hook to use something other than builtin dict
-        return fsIndex(), {}, {}, {}, {}, {}, {}
+        return fsIndex(), {}, {}, {}, {}
 
     _saved = 0
     def _save_index(self):
@@ -244,11 +233,7 @@ class FileStorage(BaseStorage.BaseStorage,
         f=open(tmp_name,'wb')
         p=Pickler(f,1)
 
-        # Note:  starting with ZODB 3.2.6, the 'oid' value stored is ignored
-        # by the code that reads the index.  We still write it, so that
-        # .index files can still be read by older ZODBs.
-        info={'index': self._index, 'pos': self._pos,
-              'oid': self._oid, 'vindex': self._vindex}
+        info={'index': self._index, 'pos': self._pos}
 
         p.dump(info)
         f.flush()
@@ -338,10 +323,7 @@ class FileStorage(BaseStorage.BaseStorage,
 
     def _restore_index(self):
         """Load database index to support quick startup."""
-        # Returns (index, vindex, pos, tid), or None in case of
-        # error.
-        # Starting with ZODB 3.2.6, the 'oid' value stored in the index
-        # is ignored.
+        # Returns (index, pos, tid), or None in case of error.
         # The index returned is always an instance of fsIndex.  If the
         # index cached in the file is a Python dict, it's converted to
         # fsIndex here, and, if we're not in read-only mode, the .index
@@ -365,8 +347,7 @@ class FileStorage(BaseStorage.BaseStorage,
             return None
         index = info.get('index')
         pos = info.get('pos')
-        vindex = info.get('vindex')
-        if index is None or pos is None or vindex is None:
+        if index is None or pos is None:
             return None
         pos = long(pos)
 
@@ -393,7 +374,7 @@ class FileStorage(BaseStorage.BaseStorage,
         if not tid:
             return None
 
-        return index, vindex, pos, tid
+        return index, pos, tid
 
     def close(self):
         self._file.close()
@@ -428,83 +409,6 @@ class FileStorage(BaseStorage.BaseStorage,
 
         return result
 
-    def abortVersion(self, src, transaction):
-        return self.commitVersion(src, '', transaction, abort=True)
-
-    def commitVersion(self, src, dest, transaction, abort=False):
-        # We are going to commit by simply storing back pointers.
-        if self._is_read_only:
-            raise POSException.ReadOnlyError()
-        if not (src and isinstance(src, StringType)
-                and isinstance(dest, StringType)):
-            raise POSException.VersionCommitError('Invalid source version')
-
-        if src == dest:
-            raise POSException.VersionCommitError(
-                "Can't commit to same version: %s" % repr(src))
-
-        if dest and abort:
-            raise POSException.VersionCommitError(
-                "Internal error, can't abort to a version")
-
-        if transaction is not self._transaction:
-            raise POSException.StorageTransactionError(self, transaction)
-
-        self._lock_acquire()
-        try:
-            return self._commitVersion(src, dest, transaction, abort)
-        finally:
-            self._lock_release()
-
-    def _commitVersion(self, src, dest, transaction, abort=False):
-        # call after checking arguments and acquiring lock
-        srcpos = self._vindex_get(src, 0)
-        spos = p64(srcpos)
-        # middle holds bytes 16:34 of a data record:
-        #    pos of transaction, len of version name, data length
-        #    commit version never writes data, so data length is always 0
-        middle = pack(">8sH8s", p64(self._pos), len(dest), z64)
-
-        if dest:
-            sd = p64(self._vindex_get(dest, 0))
-            heredelta = 66 + len(dest)
-        else:
-            sd = ''
-            heredelta = 50
-
-        here = self._pos + (self._tfile.tell() + self._thl)
-        oids = []
-        current_oids = {}
-
-        while srcpos:
-            h = self._read_data_header(srcpos)
-
-            if self._index.get(h.oid) == srcpos:
-                # This is a current record!
-                self._tindex[h.oid] = here
-                oids.append(h.oid)
-                self._tfile.write(h.oid + self._tid + spos + middle)
-                if dest:
-                    self._tvindex[dest] = here
-                    self._tfile.write(p64(h.pnv) + sd + dest)
-                    sd = p64(here)
-
-                self._tfile.write(abort and p64(h.pnv) or spos)
-                # data backpointer to src data
-                here += heredelta
-
-                current_oids[h.oid] = 1
-            else:
-                # Hm.  This is a non-current record.  Is there a
-                # current record for this oid?
-                if not current_oids.has_key(h.oid):
-                    break
-
-            srcpos = h.vprev
-            spos = p64(srcpos)
-        self._toid2tid_delete.update(current_oids)
-        return self._tid, oids
-
     def getSize(self):
         return self._pos
 
@@ -516,15 +420,14 @@ class FileStorage(BaseStorage.BaseStorage,
         except TypeError:
             raise TypeError("invalid oid %r" % (oid,))
 
-    def load(self, oid, version):
+    def load(self, oid, version=''):
         """Return pickle data and serial number."""
+        assert not version
+
         self._lock_acquire()
         try:
             pos = self._lookup_pos(oid)
             h = self._read_data_header(pos, oid)
-            if h.version and h.version != version:
-                data = self._loadBack_impl(oid, h.pnv)[0]
-                return data, h.tid
             if h.plen:
                 data = self._file.read(h.plen)
                 return data, h.tid
@@ -537,8 +440,6 @@ class FileStorage(BaseStorage.BaseStorage,
             self._lock_release()
 
     def loadSerial(self, oid, serial):
-        # loadSerial must always return non-version data, because it
-        # is used by conflict resolution.
         self._lock_acquire()
         try:
             pos = self._lookup_pos(oid)
@@ -549,8 +450,6 @@ class FileStorage(BaseStorage.BaseStorage,
                 pos = h.prev
                 if not pos:
                     raise POSKeyError(oid)
-            if h.version:
-                return self._loadBack_impl(oid, h.pnv)[0]
             if h.plen:
                 return self._file.read(h.plen)
             else:
@@ -565,18 +464,6 @@ class FileStorage(BaseStorage.BaseStorage,
             end_tid = None
             while True:
                 h = self._read_data_header(pos, oid)
-                if h.version:
-                    # Just follow the pnv pointer to the previous
-                    # non-version data.
-                    if not h.pnv:
-                        # Object was created in version.  There is no
-                        # before data to find.
-                        return None
-                    pos = h.pnv
-                    # The end_tid for the non-version data is not affected
-                    # by versioned data records.
-                    continue
-
                 if h.tid < tid:
                     break
 
@@ -594,21 +481,13 @@ class FileStorage(BaseStorage.BaseStorage,
         finally:
             self._lock_release()
 
-    def modifiedInVersion(self, oid):
-        self._lock_acquire()
-        try:
-            pos = self._lookup_pos(oid)
-            h = self._read_data_header(pos, oid)
-            return h.version
-        finally:
-            self._lock_release()
-
     def store(self, oid, oldserial, data, version, transaction):
         if self._is_read_only:
             raise POSException.ReadOnlyError()
         if transaction is not self._transaction:
             raise POSException.StorageTransactionError(self, transaction)
-
+        assert not version
+        
         self._lock_acquire()
         try:
             if oid > self._oid:
@@ -620,10 +499,6 @@ class FileStorage(BaseStorage.BaseStorage,
                 cached_tid = self._get_cached_tid(oid)
                 if cached_tid is None:
                     h = self._read_data_header(old, oid)
-                    if h.version:
-                        if h.version != version:
-                            raise VersionLockError(oid, h.version)
-                        pnv = h.pnv
                     cached_tid = h.tid
 
                 if oldserial != cached_tid:
@@ -638,20 +513,9 @@ class FileStorage(BaseStorage.BaseStorage,
             pos = self._pos
             here = pos + self._tfile.tell() + self._thl
             self._tindex[oid] = here
-            new = DataHeader(oid, self._tid, old, pos, len(version),
-                             len(data))
+            new = DataHeader(oid, self._tid, old, pos, 0, len(data))
 
-            if version:
-                # Link to last record for this version:
-                pv = (self._tvindex.get(version, 0)
-                      or self._vindex.get(version, 0))
-                if pnv is None:
-                    pnv = old
-                new.setVersion(version, pnv, pv)
-                self._tvindex[version] = here
-                self._toid2tid_delete[oid] = 1
-            else:
-                self._toid2tid[oid] = self._tid
+            self._toid2tid[oid] = self._tid
 
             self._tfile.write(new.asString())
             self._tfile.write(data)
@@ -737,6 +601,8 @@ class FileStorage(BaseStorage.BaseStorage,
             raise POSException.ReadOnlyError()
         if transaction is not self._transaction:
             raise POSException.StorageTransactionError(self, transaction)
+        if version:
+            raise TypeError("Versions are no-longer supported")
 
         self._lock_acquire()
         try:
@@ -761,17 +627,8 @@ class FileStorage(BaseStorage.BaseStorage,
                 dlen = len(data)
 
             # Write the recovery data record
-            new = DataHeader(oid, serial, old, self._pos, len(version), dlen)
-            if version:
-                pnv = self._restore_pnv(oid, old, version, prev_pos) or old
-                vprev = self._tvindex.get(version, 0)
-                if not vprev:
-                    vprev = self._vindex.get(version, 0)
-                new.setVersion(version, pnv, vprev)
-                self._tvindex[version] = here
-                self._toid2tid_delete[oid] = 1
-            else:
-                self._toid2tid[oid] = serial
+            new = DataHeader(oid, serial, old, self._pos, 0, dlen)
+            self._toid2tid[oid] = serial
 
             self._tfile.write(new.asString())
 
@@ -788,38 +645,11 @@ class FileStorage(BaseStorage.BaseStorage,
         finally:
             self._lock_release()
 
-    def _restore_pnv(self, oid, prev, version, bp):
-        # Find a valid pnv (previous non-version) pointer for this version.
-
-        # If there is no previous record, there can't be a pnv.
-        if not prev:
-            return None
-
-        # Load the record pointed to be prev
-        h = self._read_data_header(prev, oid)
-        if h.version:
-            return h.pnv
-        if h.back:
-            # TODO:  Not sure the following is always true:
-            # The previous record is not for this version, yet we
-            # have a backpointer to it.  The current record must
-            # be an undo of an abort or commit, so the backpointer
-            # must be to a version record with a pnv.
-            h2 = self._read_data_header(h.back, oid)
-            if h2.version:
-                return h2.pnv
-
-        return None
-
     def supportsUndo(self):
-        return 1
-
-    def supportsVersions(self):
         return 1
 
     def _clear_temp(self):
         self._tindex.clear()
-        self._tvindex.clear()
         self._toid2tid.clear()
         self._toid2tid_delete.clear()
         if self._tfile is not None:
@@ -891,7 +721,6 @@ class FileStorage(BaseStorage.BaseStorage,
             self._pos = nextpos
 
             self._index.update(self._tindex)
-            self._vindex.update(self._tvindex)
             self._oid2tid.update(self._toid2tid)
             for oid in self._toid2tid_delete.keys():
                 try:
@@ -916,8 +745,8 @@ class FileStorage(BaseStorage.BaseStorage,
             self._nextpos=0
 
     def _undoDataInfo(self, oid, pos, tpos):
-        """Return the tid, data pointer, data, and version for the oid
-        record at pos"""
+        """Return the tid, data pointer, and data for the oid record at pos
+        """
         if tpos:
             pos = tpos - self._pos - self._thl
             tpos = self._tfile.tell()
@@ -938,7 +767,7 @@ class FileStorage(BaseStorage.BaseStorage,
         if tpos:
             self._tfile.seek(tpos) # Restore temp file to end
 
-        return h.tid, pos, data, h.version
+        return h.tid, pos, data
 
     def getTid(self, oid):
         self._lock_acquire()
@@ -957,24 +786,17 @@ class FileStorage(BaseStorage.BaseStorage,
         finally:
             self._lock_release()
 
-    def _getVersion(self, oid, pos):
-        h = self._read_data_header(pos, oid)
-        if h.version:
-            return h.version, h.pnv
-        else:
-            return "", None
-
-    def _transactionalUndoRecord(self, oid, pos, tid, pre, version):
+    def _transactionalUndoRecord(self, oid, pos, tid, pre):
         """Get the undo information for a data record
 
         'pos' points to the data header for 'oid' in the transaction
         being undone.  'tid' refers to the transaction being undone.
         'pre' is the 'prev' field of the same data header.
 
-        Return a 5-tuple consisting of a pickle, data pointer,
-        version, packed non-version data pointer, and current
-        position.  If the pickle is true, then the data pointer must
-        be 0, but the pickle can be empty *and* the pointer 0.
+        Return a 3-tuple consisting of a pickle, data pointer, and
+        current position.  If the pickle is true, then the data
+        pointer must be 0, but the pickle can be empty *and* the
+        pointer 0.
         """
 
         copy = 1 # Can we just copy a data pointer
@@ -987,11 +809,8 @@ class FileStorage(BaseStorage.BaseStorage,
         if tipos != pos:
             # Eek, a later transaction modified the data, but,
             # maybe it is pointing at the same data we are.
-            ctid, cdataptr, cdata, cver = self._undoDataInfo(oid, ipos, tpos)
-            # Versions of undone record and current record *must* match!
-            if cver != version:
-                raise UndoError('Current and undone versions differ', oid)
-
+            ctid, cdataptr, cdata = self._undoDataInfo(oid, ipos, tpos)
+            
             if cdataptr != pos:
                 # We aren't sure if we are talking about the same data
                 try:
@@ -1018,12 +837,11 @@ class FileStorage(BaseStorage.BaseStorage,
         if not pre:
             # There is no previous revision, because the object creation
             # is being undone.
-            return "", 0, "", "", ipos
+            return "", 0, ipos
 
-        version, snv = self._getVersion(oid, pre)
         if copy:
             # we can just copy our previous-record pointer forward
-            return "", pre, version, snv, ipos
+            return "", pre, ipos
 
         try:
             bdata = self._loadBack_impl(oid, pre)[0]
@@ -1033,7 +851,7 @@ class FileStorage(BaseStorage.BaseStorage,
         data = self.tryToResolveConflict(oid, ctid, tid, bdata, cdata)
 
         if data:
-            return data, 0, version, snv, ipos
+            return data, 0, ipos
 
         raise UndoError("Some data were modified by a later transaction", oid)
 
@@ -1148,18 +966,13 @@ class FileStorage(BaseStorage.BaseStorage,
             assert base + self._tfile.tell() == here, (here, base,
                                                        self._tfile.tell())
             try:
-                p, prev, v, snv, ipos = self._transactionalUndoRecord(
-                    h.oid, pos, h.tid, h.prev, h.version)
+                p, prev, ipos = self._transactionalUndoRecord(
+                    h.oid, pos, h.tid, h.prev)
             except UndoError, v:
                 # Don't fail right away. We may be redeemed later!
                 failures[h.oid] = v
             else:
-                new = DataHeader(h.oid, self._tid, ipos, otloc, len(v),
-                                 len(p))
-                if v:
-                    vprev = self._tvindex.get(v, 0) or self._vindex.get(v, 0)
-                    new.setVersion(v, snv, vprev)
-                    self._tvindex[v] = here
+                new = DataHeader(h.oid, self._tid, ipos, otloc, 0, len(p))
 
                 # TODO:  This seek shouldn't be necessary, but some other
                 # bit of code is messing with the file pointer.
@@ -1182,77 +995,16 @@ class FileStorage(BaseStorage.BaseStorage,
 
         return tindex
 
-
-    def versionEmpty(self, version):
-        if not version:
-            # The interface is silent on this case. I think that this should
-            # be an error, but Barry thinks this should return 1 if we have
-            # any non-version data. This would be excruciatingly painful to
-            # test, so I must be right. ;)
-            raise POSException.VersionError(
-                'The version must be an non-empty string')
-        self._lock_acquire()
-        try:
-            index=self._index
-            file=self._file
-            seek=file.seek
-            read=file.read
-            srcpos=self._vindex_get(version, 0)
-            t=tstatus=None
-            while srcpos:
-                seek(srcpos)
-                oid=read(8)
-                if index[oid]==srcpos: return 0
-                h=read(50) # serial, prev(oid), tloc, vlen, plen, pnv, pv
-                tloc=h[16:24]
-                if t != tloc:
-                    # We haven't checked this transaction before,
-                    # get its status.
-                    t=tloc
-                    seek(u64(t)+16)
-                    tstatus=read(1)
-
-                if tstatus != 'u': return 1
-
-                spos=h[-8:]
-                srcpos=u64(spos)
-
-            return 1
-        finally: self._lock_release()
-
-    def versions(self, max=None):
-        r=[]
-        a=r.append
-        keys=self._vindex.keys()
-        if max is not None: keys=keys[:max]
-        for version in keys:
-            if self.versionEmpty(version): continue
-            a(version)
-            if max and len(r) >= max: return r
-
-        return r
-
     def history(self, oid, version=None, size=1, filter=None):
+        assert not version
         self._lock_acquire()
         try:
             r = []
             pos = self._lookup_pos(oid)
-            wantver = version
 
             while 1:
                 if len(r) >= size: return r
                 h = self._read_data_header(pos)
-
-                if h.version:
-                    if wantver is not None and h.version != wantver:
-                        if h.prev:
-                            pos = h.prev
-                            continue
-                        else:
-                            return r
-                else:
-                    version = ""
-                    wantver = None
 
                 th = self._read_txn_header(h.tloc)
                 if th.ext:
@@ -1264,7 +1016,6 @@ class FileStorage(BaseStorage.BaseStorage,
                           "user_name": th.user,
                           "description": th.descr,
                           "tid": h.tid,
-                          "version": h.version,
                           "size": h.plen,
                           })
 
@@ -1341,7 +1092,7 @@ class FileStorage(BaseStorage.BaseStorage,
                 # OK, we're beyond the point of no return
                 os.rename(self._file_name + '.pack', self._file_name)
                 self._file = open(self._file_name, 'r+b')
-                self._initIndex(p.index, p.vindex, p.tindex, p.tvindex,
+                self._initIndex(p.index, p.tindex,
                                 p.oid2tid, p.toid2tid,
                                 p.toid2tid_delete)
                 self._pos = opos
@@ -1375,7 +1126,7 @@ class FileStorage(BaseStorage.BaseStorage,
                 pos = pos - 8 - u64(read(8))
 
             seek(0)
-            return [(trans.tid, [(r.oid, r.version) for r in trans])
+            return [(trans.tid, [(r.oid, '') for r in trans])
                     for trans in FileIterator(self._file, pos=pos)]
         finally:
             self._lock_release()
@@ -1412,15 +1163,13 @@ class FileStorage(BaseStorage.BaseStorage,
         except ValueError: # "empty tree" error
             next_oid = None
 
-        # ignore versions
-        # XXX if the object was created in a version, this will fail.
         data, tid = self.load(oid, "")
 
         return oid, tid, data, next_oid
 
 
 
-def shift_transactions_forward(index, vindex, tindex, file, pos, opos):
+def shift_transactions_forward(index, tindex, file, pos, opos):
     """Copy transactions forward in the data file
 
     This might be done as part of a recovery effort
@@ -1432,7 +1181,6 @@ def shift_transactions_forward(index, vindex, tindex, file, pos, opos):
     write=file.write
 
     index_get=index.get
-    vindex_get=vindex.get
 
     # Initialize,
     pv=z64
@@ -1482,17 +1230,9 @@ def shift_transactions_forward(index, vindex, tindex, file, pos, opos):
             seek(pos)
             h=read(DATA_HDR_LEN)
             oid,serial,sprev,stloc,vlen,splen = unpack(DATA_HDR, h)
+            assert not vlen
             plen=u64(splen)
             dlen=DATA_HDR_LEN+(plen or 8)
-
-            if vlen:
-                dlen=dlen+(16+vlen)
-                pnv=u64(read(8))
-                # skip position of previous version record
-                seek(8,1)
-                version=read(vlen)
-                pv=p64(vindex_get(version, 0))
-                if status != 'u': vindex[version]=opos
 
             tindex[oid]=opos
 
@@ -1511,17 +1251,7 @@ def shift_transactions_forward(index, vindex, tindex, file, pos, opos):
             seek(opos)
             sprev=p64(index_get(oid, 0))
             write(pack(DATA_HDR,
-                       oid,serial,sprev,p64(otpos),vlen,splen))
-            if vlen:
-                if not pnv: write(z64)
-                else:
-                    if pnv >= p2: pnv=pnv-offset
-                    elif pnv >= p1:
-                        pnv=index_get(oid, 0)
-
-                    write(p64(pnv))
-                write(pv)
-                write(version)
+                       oid, serial, sprev, p64(otpos), 0, splen))
 
             write(p)
 
@@ -1557,11 +1287,9 @@ def search_back(file, pos):
 def recover(file_name):
     file=open(file_name, 'r+b')
     index={}
-    vindex={}
     tindex={}
 
-    pos, oid, tid = read_index(
-        file, file_name, index, vindex, tindex, recover=1)
+    pos, oid, tid = read_index(file, file_name, index, tindex, recover=1)
     if oid is not None:
         print "Nothing to recover"
         return
@@ -1569,9 +1297,7 @@ def recover(file_name):
     opos=pos
     pos, sz = search_back(file, pos)
     if pos < sz:
-        npos = shift_transactions_forward(
-            index, vindex, tindex, file, pos, opos,
-            )
+        npos = shift_transactions_forward(index, tindex, file, pos, opos)
 
     file.truncate(npos)
 
@@ -1580,7 +1306,7 @@ def recover(file_name):
 
 
 
-def read_index(file, name, index, vindex, tindex, stop='\377'*8,
+def read_index(file, name, index, tindex, stop='\377'*8,
                ltid=z64, start=4L, maxoid=z64, recover=0, read_only=0):
     """Scan the file storage and update the index.
 
@@ -1591,7 +1317,6 @@ def read_index(file, name, index, vindex, tindex, stop='\377'*8,
     file -- a file object (the Data.fs)
     name -- the name of the file (presumably file.name)
     index -- fsIndex, oid -> data record file offset
-    vindex -- dictionary, oid -> data record offset for version data
     tindex -- dictionary, oid -> data record offset
               tindex is cleared before return
 
@@ -1718,9 +1443,6 @@ def read_index(file, name, index, vindex, tindex, stop='\377'*8,
             h = fmt._read_data_header(pos)
             dlen = h.recordlen()
             tindex[h.oid] = pos
-
-            if h.version:
-                vindex[h.version] = pos
 
             if pos + dlen > tend or h.tloc != tpos:
                 if recover:
@@ -2006,8 +1728,7 @@ class RecordIterator(Iterator, BaseStorage.TransactionRecord,
             else:
                 if h.back == 0:
                     # If the backpointer is 0, then this transaction
-                    # undoes the object creation.  It either aborts
-                    # the version that created the object or undid the
+                    # undoes the object creation.  It undid the
                     # transaction that created it.  Return None
                     # instead of a pickle to indicate this.
                     data = None
@@ -2017,17 +1738,16 @@ class RecordIterator(Iterator, BaseStorage.TransactionRecord,
                     # Should it go to the original data like BDBFullStorage?
                     prev_txn = self.getTxnFromData(h.oid, h.back)
 
-            r = Record(h.oid, h.tid, h.version, data, prev_txn, pos)
+            r = Record(h.oid, h.tid, data, prev_txn, pos)
             return r
 
         raise IndexError(index)
 
 class Record(BaseStorage.DataRecord):
     """An abstract database record."""
-    def __init__(self, oid, tid, version, data, prev, pos):
+    def __init__(self, oid, tid, data, prev, pos):
         self.oid = oid
         self.tid = tid
-        self.version = version
         self.data = data
         self.data_txn = prev
         self.pos = pos

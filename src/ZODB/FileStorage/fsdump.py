@@ -14,8 +14,8 @@
 import struct
 
 from ZODB.FileStorage import FileIterator
-from ZODB.FileStorage.format import TRANS_HDR, TRANS_HDR_LEN, DATA_HDR, DATA_HDR_LEN
-from ZODB.FileStorage.format import DATA_HDR_LEN
+from ZODB.FileStorage.format import TRANS_HDR, TRANS_HDR_LEN
+from ZODB.FileStorage.format import DATA_HDR, DATA_HDR_LEN
 from ZODB.TimeStamp import TimeStamp
 from ZODB.utils import u64, get_pickle_metadata
 from ZODB.tests.StorageTestBase import zodb_unpickle
@@ -41,11 +41,6 @@ def fsdump(path, file=None, with_offset=1):
                 size = " size=%d" % len(rec.data)
                 fullclass = "%s.%s" % (modname, classname)
 
-            if rec.version:
-                version = " version=%r" % rec.version
-            else:
-                version = ""
-
             if rec.data_txn:
                 # It would be nice to print the transaction number
                 # (i) but it would be expensive to keep track of.
@@ -53,8 +48,8 @@ def fsdump(path, file=None, with_offset=1):
             else:
                 bp = ""
 
-            print >> file, ("  data #%05d oid=%016x%s%s class=%s%s" %
-                  (j, u64(rec.oid), version, size, fullclass, bp))
+            print >> file, ("  data #%05d oid=%016x%s class=%s%s" %
+                  (j, u64(rec.oid), size, fullclass, bp))
     iter.close()
 
 def fmt(p64):
@@ -117,14 +112,7 @@ class Dumper:
         print >> self.dest, "revid: %s" % fmt(revid)
         print >> self.dest, "previous record offset: %d" % prev
         print >> self.dest, "transaction offset: %d" % tloc
-        if vlen:
-            pnv = self.file.read(8)
-            sprevdata = self.file.read(8)
-            version = self.file.read(vlen)
-            print >> self.dest, "version: %r" % version
-            print >> self.dest, "non-version data offset: %d" % u64(pnv)
-            print >> self.dest, ("previous version data offset: %d" %
-                                 u64(sprevdata))
+        assert not vlen
         print >> self.dest, "len(data): %d" % dlen
         self.file.read(dlen)
         if not dlen:

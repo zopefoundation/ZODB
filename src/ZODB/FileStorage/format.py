@@ -64,18 +64,9 @@
 #
 #   - 8-byte beginning of transaction record file position.
 #
-#   - 2-byte version length
+#   - 2-bytes with zero values. (Was version length.)
 #
 #   - 8-byte data length
-#
-#   ? 8-byte position of non-version data record
-#     (if version length > 0)
-#
-#   ? 8-byte position of previous record in this version
-#     (if version length > 0)
-#
-#   ? version string
-#     (if version length > 0)
 #
 #   ? data
 #     (data length > 0)
@@ -87,41 +78,10 @@
 # Also, the object ids time stamps are big-endian, so comparisons
 # are meaningful.
 #
-# Version handling
-#
-#   There isn't a separate store for versions.  Each record has a
-#   version field, indicating what version it is in.  The records in a
-#   version form a linked list.  Each record that has a non-empty
-#   version string has a pointer to the previous record in the version.
-#   Version back pointers are retained *even* when versions are
-#   committed or aborted or when transactions are undone.
-#
-#   There is a notion of "current" version records, which are the
-#   records in a version that are the current records for their
-#   respective objects.  When a version is comitted, the current records
-#   are committed to the destination version.  When a version is
-#   aborted, the current records are aborted.
-#
-#   When committing or aborting, we search backward through the linked
-#   list until we find a record for an object that does not have a
-#   current record in the version.  If we find a record for which the
-#   non-version pointer is the same as the previous pointer, then we
-#   forget that the corresponding object had a current record in the
-#   version. This strategy allows us to avoid searching backward through
-#   previously committed or aborted version records.
-#
-#   Of course, we ignore records in undone transactions when committing
-#   or aborting.
-#
 # Backpointers
 #
-#   When we commit or abort a version, we don't copy (or delete)
-#   and data.  Instead, we write records with back pointers.
-#
-#   A version record *never* has a back pointer to a non-version
-#   record, because we never abort to a version.  A non-version record
-#   may have a back pointer to a version record or to a non-version
-#   record.
+#   When we undo a record, we don't copy (or delete)
+#   data.  Instead, we write records with back pointers.
 
 import struct
 import logging
@@ -156,7 +116,6 @@ DATA_HDR = ">8s8sQQHQ"
 # constants to support various header sizes
 TRANS_HDR_LEN = 23
 DATA_HDR_LEN = 42
-DATA_VERSION_HDR_LEN = 58
 assert struct.calcsize(TRANS_HDR) == TRANS_HDR_LEN
 assert struct.calcsize(DATA_HDR) == DATA_HDR_LEN
 
@@ -180,9 +139,6 @@ class FileStorageFormatter(object):
 
         If ois is not None, raise CorruptedDataError if oid passed
         does not match oid in file.
-
-        If there is version data, reads the version part of the header.
-        If there is no pickle data, reads the back pointer.
         """
         self._file.seek(pos)
         s = self._file.read(DATA_HDR_LEN)
@@ -191,16 +147,9 @@ class FileStorageFormatter(object):
         h = DataHeaderFromString(s)
         if oid is not None and oid != h.oid:
             raise CorruptedDataError(oid, s, pos)
-        if h.vlen:
-            s = self._file.read(16 + h.vlen)
-            h.parseVersion(s)
         if not h.plen:
             h.back = u64(self._file.read(8))
         return h
-
-    def _write_version_header(self, file, pnv, vprev, version):
-        s = struct.pack(">8s8s", pnv, vprev)
-        file.write(s + version)
 
     def _read_txn_header(self, pos, tid=None):
         self._file.seek(pos)
@@ -284,47 +233,26 @@ def DataHeaderFromString(s):
 class DataHeader(object):
     """Header for a data record."""
 
-    __slots__ = (
-        "oid", "tid", "prev", "tloc", "vlen", "plen", "back",
-        # These three attributes are only defined when vlen > 0
-        "pnv", "vprev", "version")
+    __slots__ = ("oid", "tid", "prev", "tloc", "plen", "back")
 
     def __init__(self, oid, tid, prev, tloc, vlen, plen):
-        self.back = 0 # default
-        self.version = "" # default
+        if vlen:
+            raise ValueError(
+                "Non-zero version length. Versions aren't supported.")
+        
         self.oid = oid
         self.tid = tid
         self.prev = prev
         self.tloc = tloc
-        self.vlen = vlen
         self.plen = plen
+        self.back = 0 # default
 
     def asString(self):
-        s = struct.pack(DATA_HDR, self.oid, self.tid, self.prev,
-                        self.tloc, self.vlen, self.plen)
-        if self.version:
-            v = struct.pack(">QQ", self.pnv, self.vprev)
-            return s + v + self.version
-        else:
-            return s
-
-    def setVersion(self, version, pnv, vprev):
-        self.version = version
-        self.vlen = len(version)
-        self.pnv = pnv
-        self.vprev = vprev
-
-    def parseVersion(self, buf):
-        pnv, vprev = struct.unpack(">QQ", buf[:16])
-        self.pnv = pnv
-        self.vprev = vprev
-        self.version = buf[16:]
+        return struct.pack(DATA_HDR, self.oid, self.tid, self.prev,
+                           self.tloc, 0, self.plen)
 
     def recordlen(self):
-        rlen = DATA_HDR_LEN + (self.plen or 8)
-        if self.version:
-            rlen += 16 + self.vlen
-        return rlen
+        return DATA_HDR_LEN + (self.plen or 8)
 
 def TxnHeaderFromString(s):
     return TxnHeader(*struct.unpack(TRANS_HDR, s))

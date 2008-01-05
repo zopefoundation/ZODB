@@ -44,39 +44,11 @@ class BasicStorage:
             self._storage.store,
             0, 0, 0, 0, transaction.Transaction())
 
-        if self.__supportsVersions():
-            try:
-                self._storage.abortVersion(
-                    'dummy', transaction.Transaction())
-            except (POSException.StorageTransactionError,
-                    POSException.VersionCommitError):
-                pass # test passed ;)
-            else:
-                assert 0, "Should have failed, invalid transaction."
-
-            try:
-                self._storage.commitVersion('dummy', 'dummer',
-                                            transaction.Transaction())
-            except (POSException.StorageTransactionError,
-                    POSException.VersionCommitError):
-                pass # test passed ;)
-            else:
-                assert 0, "Should have failed, invalid transaction."
-
         self.assertRaises(
             POSException.StorageTransactionError,
             self._storage.store,
             0, 1, 2, 3, transaction.Transaction())
         self._storage.tpc_abort(t)
-
-    def __supportsVersions(self):
-        storage = self._storage
-        try:
-            supportsVersions = storage.supportsVersions
-        except AttributeError:
-            return False
-        else:
-            return supportsVersions()
 
     def checkSerialIsNoneForInitialRevision(self):
         eq = self.assertEqual
@@ -95,13 +67,13 @@ class BasicStorage:
         eq(value, MinPO(11))
         eq(revid, newrevid)
 
-    def checkNonVersionStore(self):
+    def checkStore(self):
         revid = ZERO
         newrevid = self._dostore(revid=None)
         # Finish the transaction.
         self.assertNotEqual(newrevid, revid)
 
-    def checkNonVersionStoreAndLoad(self):
+    def checkStoreAndLoad(self):
         eq = self.assertEqual
         oid = self._storage.new_oid()
         self._dostore(oid=oid, data=MinPO(7))
@@ -114,12 +86,6 @@ class BasicStorage:
         # Now get the latest revision of the object
         data, revid = self._storage.load(oid, '')
         eq(zodb_unpickle(data), MinPO(21))
-
-    def checkNonVersionModifiedInVersion(self):
-        if self.__supportsVersions():
-            oid = self._storage.new_oid()
-            self._dostore(oid=oid)
-            self.assertEqual(self._storage.modifiedInVersion(oid), '')
 
     def checkConflicts(self):
         oid = self._storage.new_oid()

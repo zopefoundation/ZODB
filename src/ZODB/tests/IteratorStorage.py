@@ -34,7 +34,6 @@ class IteratorCompare:
             for rec in reciter:
                 eq(rec.oid, oid)
                 eq(rec.tid, revid)
-                eq(rec.version, '')
                 eq(zodb_unpickle(rec.data), MinPO(val))
                 val = val + 1
         eq(val, val0 + len(revids))
@@ -59,34 +58,7 @@ class IteratorStorage(IteratorCompare):
         txniter.close()
         self.assertRaises(IOError, txniter.__getitem__, 0)
 
-    def checkVersionIterator(self):
-        if not self._storage.supportsVersions():
-            return
-        self._dostore()
-        self._dostore(version='abort')
-        self._dostore()
-        self._dostore(version='abort')
-        t = Transaction()
-        self._storage.tpc_begin(t)
-        self._storage.abortVersion('abort', t)
-        self._storage.tpc_vote(t)
-        self._storage.tpc_finish(t)
-
-        self._dostore(version='commit')
-        self._dostore()
-        self._dostore(version='commit')
-        t = Transaction()
-        self._storage.tpc_begin(t)
-        self._storage.commitVersion('commit', '', t)
-        self._storage.tpc_vote(t)
-        self._storage.tpc_finish(t)
-
-        txniter = self._storage.iterator()
-        for trans in txniter:
-            for data in trans:
-                pass
-
-    def checkUndoZombieNonVersion(self):
+    def checkUndoZombie(self):
         oid = self._storage.new_oid()
         revid = self._dostore(oid, data=MinPO(94))
         # Get the undo information
@@ -215,7 +187,6 @@ class IteratorDeepCompare:
             for rec1, rec2 in zip(txn1, txn2):
                 eq(rec1.oid,     rec2.oid)
                 eq(rec1.tid,  rec2.tid)
-                eq(rec1.version, rec2.version)
                 eq(rec1.data,    rec2.data)
             # Make sure there are no more records left in rec1 and rec2,
             # meaning they were the same length.

@@ -338,8 +338,8 @@ def recover(inp, outp, verbose=0, partial=False, force=False, pack=None):
                     else:
                         l = len(r.data)
 
-                    print "%7d %s %s" % (u64(r.oid), l, r.version)
-                ofs.restore(r.oid, r.tid, r.data, r.version, r.data_txn,
+                    print "%7d %s %s" % (u64(r.oid), l)
+                ofs.restore(r.oid, r.tid, r.data, '', r.data_txn,
                             txn)
                 nrec += 1
         except (KeyboardInterrupt, SystemExit):

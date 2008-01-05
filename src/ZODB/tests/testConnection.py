@@ -145,9 +145,6 @@ class UserMethodTests(unittest.TestCase):
     # add isn't tested here, because there are a bunch of traditional
     # unit tests for it.
 
-    # The version tests would require a storage that supports versions
-    # which is a bit more work.
-
     def test_root(self):
         r"""doctest of root() method
 
@@ -547,7 +544,6 @@ class StubStorage:
 
     Only one concurrent transaction is supported.
     Voting is not supported.
-    Versions are not supported.
 
     Inspect self._stored and self._finished to see how the storage has been
     used during a unit test. Whenever an object is stored in the store()
@@ -607,7 +603,7 @@ class StubStorage:
         self._transdata.clear()
         self._transstored = []
 
-    def load(self, oid, version):
+    def load(self, oid, version=''):
         if version != '':
             raise TypeError('StubStorage does not support versions.')
         return self._data[oid]
