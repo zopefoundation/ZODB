@@ -81,7 +81,7 @@ class FileCacheFuzzing(unittest.TestCase):
                                    data='*'*size, start_tid=oid(1),
                                    end_tid=None)
             fc.add(obj)
-        hexprint(fc.f)
+        #hexprint(fc.f)
         fc.close()
 
 
