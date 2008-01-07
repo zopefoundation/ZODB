@@ -47,7 +47,7 @@ class BasicStorage:
         self.assertRaises(
             POSException.StorageTransactionError,
             self._storage.store,
-            0, 1, 2, 3, transaction.Transaction())
+            0, 1, 2, '', transaction.Transaction())
         self._storage.tpc_abort(t)
 
     def checkSerialIsNoneForInitialRevision(self):

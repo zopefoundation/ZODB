@@ -116,23 +116,21 @@ class StorageServer:
     # server will make an asynchronous invalidateVerify() call.
     # @param oid object id
     # @param s serial number on non-version data
-    # @param sv serial number of version data or None
     # @defreturn async
 
-    def zeoVerify(self, oid, s, sv):
-        self.rpc.callAsync('zeoVerify', oid, s, sv)
+    def zeoVerify(self, oid, s):
+        self.rpc.callAsync('zeoVerify', oid, s, None)
 
     ##
-    # Check whether current serial number is valid for oid and version.
+    # Check whether current serial number is valid for oid.
     # If the serial number is not current, the server will make an
     # asynchronous invalidateVerify() call.
     # @param oid object id
-    # @param version name of version for oid
     # @param serial client's current serial number
     # @defreturn async
 
-    def verify(self, oid, version, serial):
-        self.rpc.callAsync('verify', oid, version, serial)
+    def verify(self, oid, serial):
+        self.rpc.callAsync('verify', oid, '', serial)
 
     ##
     # Signal to the server that cache verification is done.
@@ -166,34 +164,26 @@ class StorageServer:
             self.rpc.call('pack', t, wait)
 
     ##
-    # Return current data for oid.  Version data is returned if
-    # present.
+    # Return current data for oid.
     # @param oid object id
-    # @defreturn 5-tuple
-    # @return 5-tuple, current non-version data, serial number,
-    #         version name, version data, version data serial number
+    # @defreturn 2-tuple
+    # @return 2-tuple, current non-version data, serial number
     # @exception KeyError if oid is not found
 
     def zeoLoad(self, oid):
-        return self.rpc.call('zeoLoad', oid)
+        return self.rpc.call('zeoLoad', oid)[:2]
 
     ##
     
-    # Return current data for oid in version, the tid of the
-    # transaction that wrote the most recent revision, and the name of
-    # the version for the data returned.  Note that if the object
-    # wasn't modified in the version, then the non-version data is
-    # returned and the returned version is an empty string.
+    # Return current data for oid, and the tid of the
+    # transaction that wrote the most recent revision.
     # @param oid object id
-    # @param version string, name of version
-    # @defreturn 3-tuple
-    # @return data, transaction id, version
-    #         where version is the name of the version the data came
-    #         from or "" for non-version data
+    # @defreturn 2-tuple
+    # @return data, transaction id
     # @exception KeyError if oid is not found
 
-    def loadEx(self, oid, version):
-        return self.rpc.call("loadEx", oid, version)
+    def loadEx(self, oid):
+        return self.rpc.call("loadEx", oid, '')[:2]
 
     ##
     # Return non-current data along with transaction ids that identify
@@ -213,14 +203,13 @@ class StorageServer:
     # @param oid object id
     # @param serial serial number that this transaction read
     # @param data new data record for oid
-    # @param version name of version or ""
     # @param id id of current transaction
     # @defreturn async
 
-    def storea(self, oid, serial, data, version, id):
-        self.rpc.callAsync('storea', oid, serial, data, version, id)
+    def storea(self, oid, serial, data, id):
+        self.rpc.callAsync('storea', oid, serial, data, '', id)
 
-    def storeBlob(self, oid, serial, data, blobfilename, version, txn):
+    def storeBlob(self, oid, serial, data, blobfilename, txn):
 
         # Store a blob to the server.  We don't want to real all of
         # the data into memory, so we use a message iterator.  This
@@ -235,13 +224,13 @@ class StorageServer:
                     break
                 yield ('storeBlobChunk', (chunk, ))
             f.close()
-            yield ('storeBlobEnd', (oid, serial, data, version, id(txn)))
+            yield ('storeBlobEnd', (oid, serial, data, '', id(txn)))
 
         self.rpc.callAsyncIterator(store())
 
-    def storeBlobShared(self, oid, serial, data, filename, version, id):
+    def storeBlobShared(self, oid, serial, data, filename, id):
         self.rpc.callAsync('storeBlobShared', oid, serial, data, filename, 
-                           version, id)
+                           '', id)
 
     ##
     # Start two-phase commit for a transaction
@@ -267,23 +256,17 @@ class StorageServer:
     def tpc_abort(self, id):
         self.rpc.callAsync('tpc_abort', id)
 
-    def abortVersion(self, src, id):
-        return self.rpc.call('abortVersion', src, id)
-
-    def commitVersion(self, src, dest, id):
-        return self.rpc.call('commitVersion', src, dest, id)
-
-    def history(self, oid, version, length=None):
+    def history(self, oid, length=None):
         if length is None:
-            return self.rpc.call('history', oid, version)
+            return self.rpc.call('history', oid, '')
         else:
-            return self.rpc.call('history', oid, version, length)
+            return self.rpc.call('history', oid, '', length)
 
     def record_iternext(self, next):
         return self.rpc.call('record_iternext', next)
 
-    def load(self, oid, version):
-        return self.rpc.call('load', oid, version)
+    def load(self, oid):
+        return self.rpc.call('load', oid, '')
 
     def sendBlob(self, oid, serial):
         return self.rpc.call('sendBlob', oid, serial)
@@ -294,14 +277,11 @@ class StorageServer:
     def loadSerial(self, oid, serial):
         return self.rpc.call('loadSerial', oid, serial)
 
-    def modifiedInVersion(self, oid):
-        return self.rpc.call('modifiedInVersion', oid)
-
     def new_oid(self):
         return self.rpc.call('new_oid')
 
-    def store(self, oid, serial, data, version, trans):
-        return self.rpc.call('store', oid, serial, data, version, trans)
+    def store(self, oid, serial, data, trans):
+        return self.rpc.call('store', oid, serial, data, '', trans)
 
     def undo(self, trans_id, trans):
         return self.rpc.call('undo', trans_id, trans)
@@ -311,15 +291,6 @@ class StorageServer:
 
     def undoInfo(self, first, last, spec):
         return self.rpc.call('undoInfo', first, last, spec)
-
-    def versionEmpty(self, vers):
-        return self.rpc.call('versionEmpty', vers)
-
-    def versions(self, max=None):
-        if max is None:
-            return self.rpc.call('versions')
-        else:
-            return self.rpc.call('versions', max)
 
 class ExtensionMethodWrapper:
     def __init__(self, rpc, name):

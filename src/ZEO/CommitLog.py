@@ -34,8 +34,8 @@ class CommitLog:
     def size(self):
         return self.file.tell()
 
-    def store(self, oid, serial, data, version):
-        self.pickler.dump((oid, serial, data, version))
+    def store(self, oid, serial, data):
+        self.pickler.dump((oid, serial, data))
         self.stores += 1
 
     def get_loader(self):

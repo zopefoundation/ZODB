@@ -111,9 +111,17 @@ class CommonSetupTearDown(StorageTestBase):
         self._newAddr()
         self.startServer()
 
+#         self._old_log_level = logging.getLogger().getEffectiveLevel()
+#         logging.getLogger().setLevel(logging.WARNING)
+#         self._log_handler = logging.StreamHandler()
+#         logging.getLogger().addHandler(self._log_handler)
+
     def tearDown(self):
         """Try to cause the tests to halt"""
-        logging.info("tearDown() %s" % self.id())
+#         logging.getLogger().setLevel(self._old_log_level)
+#         logging.getLogger().removeHandler(self._log_handler)
+#         logging.info("tearDown() %s" % self.id())
+
         for p in self.conf_paths:
             os.remove(p)
         if getattr(self, '_storage', None) is not None:

@@ -23,18 +23,18 @@ def random_string(size):
 
 def new_store_data():
     """Return arbitrary data to use as argument to store() method."""
-    return random_string(8), '', random_string(random.randrange(1000))
+    return random_string(8), random_string(random.randrange(1000))
 
 def new_invalidate_data():
     """Return arbitrary data to use as argument to invalidate() method."""
-    return random_string(8), ''
+    return random_string(8)
 
 class TransBufTests(unittest.TestCase):
 
     def checkTypicalUsage(self):
         tbuf = TransactionBuffer()
         tbuf.store(*new_store_data())
-        tbuf.invalidate(*new_invalidate_data())
+        tbuf.invalidate(new_invalidate_data())
         for o in tbuf:
             pass
 
@@ -45,13 +45,13 @@ class TransBufTests(unittest.TestCase):
             tbuf.store(*d)
             data.append(d)
             d = new_invalidate_data()
-            tbuf.invalidate(*d)
+            tbuf.invalidate(d)
             data.append(d)
 
         for i, x in enumerate(tbuf):
-            if x[2] is None:
+            if x[1] is None:
                 # the tbuf add a dummy None to invalidates
-                x = x[:2]
+                x = x[0]
             self.assertEqual(x, data[i])
 
     def checkOrderPreserved(self):

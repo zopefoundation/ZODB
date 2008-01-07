@@ -217,7 +217,7 @@ class IConnection(Interface):
 
         Parameters:
         tid: the storage-level id of the transaction that committed
-        oids: oids is a set of oids, represented as a dict with oids as keys.
+        oids: oids is an iterable of oids.
         """
 
     def root():

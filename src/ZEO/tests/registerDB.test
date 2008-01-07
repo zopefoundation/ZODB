@@ -81,17 +81,17 @@ Now, if we call invalidate, we'll see it propigate to the client:
     invalidateTransaction trans2 2
     [('ob1', ''), ('ob2', '')]
 
-    >>> storage.db.invalidate('trans3', ['ob1', 'ob2'], 'v')
+    >>> storage.db.invalidate('trans3', ['ob1', 'ob2'])
     invalidateTransaction trans3 1
-    [('ob1', 'v'), ('ob2', 'v')]
+    [('ob1', ''), ('ob2', '')]
     invalidateTransaction trans3 2
-    [('ob1', 'v'), ('ob2', 'v')]
+    [('ob1', ''), ('ob2', '')]
 
 The storage servers queue will reflect the invalidations:
 
     >>> for tid, invalidated in server.invq['t']:
     ...     print repr(tid), invalidated
-    'trans3' [('ob1', 'v'), ('ob2', 'v')]
+    'trans3' [('ob1', ''), ('ob2', '')]
     'trans2' [('ob1', ''), ('ob2', '')]
     'trans1' [('ob0', ''), ('ob1', '')]
     'trans0' [('ob0', '')]

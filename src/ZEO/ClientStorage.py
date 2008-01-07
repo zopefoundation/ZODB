@@ -265,11 +265,11 @@ class ClientStorage(object):
 
         # _server_addr is used by sortKey()
         self._server_addr = None
-        self._tfile = None
-        self._pickler = None
+        
+        self._verification_invalidations = None
 
         self._info = {'length': 0, 'size': 0, 'name': 'ZEO Client',
-                      'supportsUndo':0, 'supportsVersions': 0}
+                      'supportsUndo':0}
 
         self._tbuf = self.TransactionBufferClass()
         self._db = None
@@ -572,6 +572,13 @@ class ClientStorage(object):
         # it should set self._server.  If it goes through full cache
         # verification, then endVerify() should self._server.
 
+#         if not self._cache:
+#             log2("No verification necessary -- empty cache")
+#             self._server = server
+#             self._ready.set()
+#             return "full verification"
+
+
         last_inval_tid = self._cache.getLastTid()
         if last_inval_tid is not None:
             ltid = server.lastTransaction()
@@ -594,17 +601,15 @@ class ClientStorage(object):
                 self._server = server
                 self._ready.set()
                 return "quick verification"
-
+        
         log2("Verifying cache")
         # setup tempfile to hold zeoVerify results
-        self._tfile = tempfile.TemporaryFile(suffix=".inv")
-        self._pickler = cPickle.Pickler(self._tfile, 1)
-        self._pickler.fast = 1 # Don't use the memo
+        self._verification_invalidations = []
 
         # TODO:  should batch these operations for efficiency; would need
         # to acquire lock ...
         for oid, tid, version in self._cache.contents():
-            server.verify(oid, version, tid)
+            server.verify(oid, tid)
         self._pending_server = server
         server.endZeoVerify()
         return "full verification"
@@ -667,10 +672,6 @@ class ClientStorage(object):
         """Storage API: return whether we support undo."""
         return self._info['supportsUndo']
 
-    def supportsVersions(self):
-        """Storage API: return whether we support versions."""
-        return self._info['supportsVersions']
-
     def isReadOnly(self):
         """Storage API: return whether we are in read-only mode."""
         if self._is_read_only:
@@ -689,44 +690,10 @@ class ClientStorage(object):
             raise POSException.StorageTransactionError(self._transaction,
                                                        trans)
 
-    def abortVersion(self, version, txn):
-        """Storage API: clear any changes made by the given version."""
-        self._check_trans(txn)
-        tid, oids = self._server.abortVersion(version, id(txn))
-        # When a version aborts, invalidate the version and
-        # non-version data.  The non-version data should still be
-        # valid, but older versions of ZODB will change the
-        # non-version serialno on an abort version.  With those
-        # versions of ZODB, you'd get a conflict error if you tried to
-        # commit a transaction with the cached data.
-
-        # If we could guarantee that ZODB gave the right answer,
-        # we could just invalidate the version data.
-        for oid in oids:
-            self._tbuf.invalidate(oid, '')
-        return tid, oids
-
-    def commitVersion(self, source, destination, txn):
-        """Storage API: commit the source version in the destination."""
-        self._check_trans(txn)
-        tid, oids = self._server.commitVersion(source, destination, id(txn))
-        if destination:
-            # just invalidate our version data
-            for oid in oids:
-                self._tbuf.invalidate(oid, source)
-        else:
-            # destination is "", so invalidate version and non-version
-            for oid in oids:
-                self._tbuf.invalidate(oid, "")
-        return tid, oids
-
-    def history(self, oid, version, length=1):
+    def history(self, oid, length=1):
         """Storage API: return a sequence of HistoryEntry objects.
-
-        This does not support the optional filter argument defined by
-        the Storage API.
         """
-        return self._server.history(oid, version, length)
+        return self._server.history(oid, length)
 
     def record_iternext(self, next=None):
         """Storage API: get the next database record.
@@ -743,21 +710,18 @@ class ClientStorage(object):
         """Storage API: load a historical revision of an object."""
         return self._server.loadSerial(oid, serial)
 
-    def load(self, oid, version):
+    def load(self, oid, version=''):
         """Storage API: return the data for a given object.
 
         This returns the pickle data and serial number for the object
-        specified by the given object id and version, if they exist;
+        specified by the given object id, if they exist;
         otherwise a KeyError is raised.
         """
-        return self.loadEx(oid, version)[:2]
-
-    def loadEx(self, oid, version):
         self._lock.acquire()    # for atomic processing of invalidations
         try:
-            t = self._cache.load(oid, version)
+            t = self._cache.load(oid, '')
             if t:
-                return t
+                return t[:2] # XXX strip version
         finally:
             self._lock.release()
 
@@ -773,19 +737,19 @@ class ClientStorage(object):
             finally:
                 self._lock.release()
 
-            data, tid, ver = self._server.loadEx(oid, version)
+            data, tid = self._server.loadEx(oid)
 
             self._lock.acquire()    # for atomic processing of invalidations
             try:
                 if self._load_status:
-                    self._cache.store(oid, ver, tid, None, data)
+                    self._cache.store(oid, '', tid, None, data)
                 self._load_oid = None
             finally:
                 self._lock.release()
         finally:
             self._load_lock.release()
 
-        return data, tid, ver
+        return data, tid
 
     def loadBefore(self, oid, tid):
         self._lock.acquire()
@@ -822,20 +786,6 @@ class ClientStorage(object):
             self._lock.release()
 
         return data, start, end
-
-    def modifiedInVersion(self, oid):
-        """Storage API: return the version, if any, that modfied an object.
-
-        If no version modified the object, return an empty string.
-        """
-        self._lock.acquire()
-        try:
-            v = self._cache.modifiedInVersion(oid)
-            if v is not None:
-                return v
-        finally:
-            self._lock.release()
-        return self._server.modifiedInVersion(oid)
 
     def new_oid(self):
         """Storage API: return a new object identifier."""
@@ -887,24 +837,25 @@ class ClientStorage(object):
 
     def store(self, oid, serial, data, version, txn):
         """Storage API: store data for an object."""
+        assert not version
+
         self._check_trans(txn)
-        self._server.storea(oid, serial, data, version, id(txn))
-        self._tbuf.store(oid, version, data)
+        self._server.storea(oid, serial, data, id(txn))
+        self._tbuf.store(oid, data)
         return self._check_serials()
 
     def storeBlob(self, oid, serial, data, blobfilename, version, txn):
         """Storage API: store a blob object."""
-        serials = self.store(oid, serial, data, version, txn)
+        assert not version
+        serials = self.store(oid, serial, data, '', txn)
         if self.shared_blob_dir:
-            self._storeBlob_shared(
-                oid, serial, data, blobfilename, version, txn)
+            self._storeBlob_shared(oid, serial, data, blobfilename, txn)
         else:
-            self._server.storeBlob(
-                oid, serial, data, blobfilename, version, txn)
+            self._server.storeBlob(oid, serial, data, blobfilename, txn)
             self._tbuf.storeBlob(oid, blobfilename)
         return serials
 
-    def _storeBlob_shared(self, oid, serial, data, filename, version, txn):
+    def _storeBlob_shared(self, oid, serial, data, filename, txn):
         # First, move the blob into the blob directory
         dir = self.fshelper.getPathForOID(oid)
         if not os.path.exists(dir):
@@ -924,8 +875,7 @@ class ClientStorage(object):
 
         # Now tell the server where we put it
         self._server.storeBlobShared(
-            oid, serial, data,
-            os.path.basename(target), version, id(txn))
+            oid, serial, data, os.path.basename(target), id(txn))
 
     def _have_blob(self, blob_filename, oid, serial):
         if os.path.exists(blob_filename):
@@ -1161,14 +1111,14 @@ class ClientStorage(object):
         if self._cache is None:
             return
 
-        for oid, version, data in self._tbuf:
-            self._cache.invalidate(oid, version, tid)
+        for oid, data in self._tbuf:
+            self._cache.invalidate(oid, '', tid)
             # If data is None, we just invalidate.
             if data is not None:
                 s = self._seriald[oid]
                 if s != ResolvedSerial:
                     assert s == tid, (s, tid)
-                    self._cache.store(oid, version, s, None, data)
+                    self._cache.store(oid, '', s, None, data)
 
         
         if self.fshelper is not None:
@@ -1197,7 +1147,7 @@ class ClientStorage(object):
         self._check_trans(txn)
         tid, oids = self._server.undo(trans_id, id(txn))
         for oid in oids:
-            self._tbuf.invalidate(oid, '')
+            self._tbuf.invalidate(oid)
         return tid, oids
 
     def undoInfo(self, first=0, last=-20, specification=None):
@@ -1216,14 +1166,6 @@ class ClientStorage(object):
             return []
         return self._server.undoLog(first, last)
 
-    def versionEmpty(self, version):
-        """Storage API: return whether the version has no transactions."""
-        return self._server.versionEmpty(version)
-
-    def versions(self, max=None):
-        """Storage API: return a sequence of versions in the storage."""
-        return self._server.versions(max)
-
     # Below are methods invoked by the StorageServer
 
     def serialnos(self, args):
@@ -1235,55 +1177,38 @@ class ClientStorage(object):
         self._info.update(dict)
 
     def invalidateVerify(self, args):
-        """Server callback to invalidate an (oid, version) pair.
+        """Server callback to invalidate an (oid, '') pair.
 
         This is called as part of cache validation.
         """
         # Invalidation as result of verify_cache().
         # Queue an invalidate for the end the verification procedure.
-        if self._pickler is None:
+        if self._verification_invalidations is None:
             # This should never happen.  TODO:  assert it doesn't, or log
             # if it does.
             return
-        self._pickler.dump(args)
+        self._verification_invalidations.append(args[0])
 
-    def _process_invalidations(self, invs):
-        # Invalidations are sent by the ZEO server as a sequence of
-        # oid, version pairs.  The DB's invalidate() method expects a
-        # dictionary of oids.
-
+    def _process_invalidations(self, tid, oids):
         self._lock.acquire()
         try:
-            # versions maps version names to dictionary of invalidations
-            versions = {}
-            for oid, version, tid in invs:
+            for oid in oids:
                 if oid == self._load_oid:
                     self._load_status = 0
-                self._cache.invalidate(oid, version, tid)
-                oids = versions.get((version, tid))
-                if not oids:
-                    versions[(version, tid)] = [oid]
-                else:
-                    oids.append(oid)
+                self._cache.invalidate(oid, '', tid)
 
             if self._db is not None:
-                for (version, tid), d in versions.items():
-                    self._db.invalidate(tid, d, version=version)
+                self._db.invalidate(tid, oids)
         finally:
             self._lock.release()
 
     def endVerify(self):
         """Server callback to signal end of cache validation."""
-        if self._pickler is None:
+        if self._verification_invalidations is None:
             return
         # write end-of-data marker
-        self._pickler.dump((None, None))
-        self._pickler = None
-        self._tfile.seek(0)
-        f = self._tfile
-        self._tfile = None
-        self._process_invalidations(InvalidationLogIterator(f))
-        f.close()
+        self._process_invalidations(None, self._verification_invalidations)
+        self._verification_invalidations = None
 
         log2("endVerify finishing")
         self._server = self._pending_server
@@ -1293,19 +1218,18 @@ class ClientStorage(object):
 
     def invalidateTransaction(self, tid, args):
         """Invalidate objects modified by tid."""
+        oids = (a[0] for a in args)
         self._lock.acquire()
         try:
             self._cache.setLastTid(tid)
         finally:
             self._lock.release()
-        if self._pickler is not None:
+        if self._verification_invalidations is not None:
             log2("Transactional invalidation during cache verification",
                  level=BLATHER)
-            for t in args:
-                self._pickler.dump(t)
+            self._verification_invalidations.extend(oids)
             return
-        self._process_invalidations([(oid, version, tid)
-                                     for oid, version in args])
+        self._process_invalidations(tid, list(oids))
 
     # The following are for compatibility with protocol version 2.0.0
 
@@ -1316,10 +1240,3 @@ class ClientStorage(object):
     end = endVerify
     Invalidate = invalidateTrans
 
-def InvalidationLogIterator(fileobj):
-    unpickler = cPickle.Unpickler(fileobj)
-    while 1:
-        oid, version = unpickler.load()
-        if oid is None:
-            break
-        yield oid, version, None

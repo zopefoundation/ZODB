@@ -94,12 +94,10 @@ class CacheTests(unittest.TestCase):
     def testLoad(self):
         data1 = "data for n1"
         self.assertEqual(self.cache.load(n1, ""), None)
-        self.assertEqual(self.cache.load(n1, "version"), None)
         self.cache.store(n1, "", n3, None, data1)
         self.assertEqual(self.cache.load(n1, ""), (data1, n3, ""))
         # The cache doesn't know whether version exists, because it
         # only has non-version data.
-        self.assertEqual(self.cache.load(n1, "version"), None)
         self.assertEqual(self.cache.modifiedInVersion(n1), None)
 
     def testInvalidate(self):

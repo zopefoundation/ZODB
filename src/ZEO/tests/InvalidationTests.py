@@ -24,8 +24,7 @@ from BTrees.OOBTree import OOBTree
 from ZEO.tests.TestThread import TestThread
 
 from ZODB.DB import DB
-from ZODB.POSException \
-     import ReadConflictError, ConflictError, VersionLockError
+from ZODB.POSException import ReadConflictError, ConflictError
 
 # The tests here let several threads have a go at one or more database
 # instances simultaneously.  Each thread appends a disjoint (from the
@@ -417,44 +416,6 @@ class InvalidationTests:
         t1 = self.StressThread(db1, stop, 1, cd, 1, 3)
         t2 = self.StressThread(db2, stop, 2, cd, 2, 3, 0.01)
         t3 = self.StressThread(db2, stop, 3, cd, 3, 3, 0.01)
-        self.go(stop, cd, t1, t2, t3)
-
-        while db1.lastTransaction() != db2.lastTransaction():
-            db1._storage.sync()
-            db2._storage.sync()
-
-
-        cn = db1.open()
-        tree = cn.root()["tree"]
-        self._check_tree(cn, tree)
-        self._check_threads(tree, t1, t2, t3)
-
-        cn.close()
-        db1.close()
-        db2.close()
-
-    # TODO:  Temporarily disabled.  I know it fails, and there's no point
-    # getting an endless number of reports about that.
-    def xxxcheckConcurrentUpdatesInVersions(self):
-        self._storage = storage1 = self.openClientStorage()
-        db1 = DB(storage1)
-        db2 = DB(self.openClientStorage())
-        stop = threading.Event()
-
-        cn = db1.open()
-        tree = cn.root()["tree"] = OOBTree()
-        transaction.commit()
-        cn.close()
-
-        # Run three threads that update the BTree.
-        # Two of the threads share a single storage so that it
-        # is possible for both threads to read the same object
-        # at the same time.
-
-        cd = {}
-        t1 = VersionStressThread(db1, stop, 1, cd, 1, 3)
-        t2 = VersionStressThread(db2, stop, 2, cd, 2, 3, 0.01)
-        t3 = VersionStressThread(db2, stop, 3, cd, 3, 3, 0.01)
         self.go(stop, cd, t1, t2, t3)
 
         while db1.lastTransaction() != db2.lastTransaction():

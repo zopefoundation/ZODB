@@ -162,17 +162,6 @@ class ZEOStorage:
         storage = self.storage
 
         info = self.get_info()
-        if info['supportsVersions']:
-            self.versionEmpty = storage.versionEmpty
-            self.versions = storage.versions
-            self.modifiedInVersion = storage.modifiedInVersion
-        else:
-            self.versionEmpty = lambda version: True
-            self.versions = lambda max=None: ()
-            self.modifiedInVersion = lambda oid: ''
-            def commitVersion(*a, **k):
-                raise NotImplementedError
-            self.commitVersion = self.abortVersion = commitVersion
 
         if not info['supportsUndo']:
             self.undoLog = self.undoInfo = lambda *a,**k: ()
@@ -277,13 +266,6 @@ class ZEOStorage:
         storage = self.storage
 
         try:
-            supportsVersions = storage.supportsVersions
-        except AttributeError:
-            supportsVersions = False
-        else:
-            supportsVersions = supportsVersions()
-
-        try:
             supportsUndo = storage.supportsUndo
         except AttributeError:
             supportsUndo = False
@@ -294,7 +276,7 @@ class ZEOStorage:
                 'size': storage.getSize(),
                 'name': storage.getName(),
                 'supportsUndo': supportsUndo,
-                'supportsVersions': supportsVersions,
+                'supportsVersions': False,
                 'extensionMethods': self.getExtensionMethods(),
                 'supports_record_iternext': hasattr(self, 'record_iternext'),
                 }
@@ -307,13 +289,10 @@ class ZEOStorage:
     def getExtensionMethods(self):
         return self._extensions
 
-    def loadEx(self, oid, version):
+    def loadEx(self, oid, version=''):
         self.stats.loads += 1
         if version:
-            oversion = self.storage.modifiedInVersion(oid)
-            if oversion == version:
-                data, serial = self.storage.load(oid, version)
-                return data, serial, version
+            raise StorageServerError("Versions aren't supported.")
 
         data, serial = self.storage.load(oid, '')
         return data, serial, ''
@@ -324,20 +303,8 @@ class ZEOStorage:
 
     def zeoLoad(self, oid):
         self.stats.loads += 1
-        v = self.storage.modifiedInVersion(oid)
-        if v:
-            pv, sv = self.storage.load(oid, v)
-        else:
-            pv = sv = None
-        try:
-            p, s = self.storage.load(oid, '')
-        except KeyError:
-            if sv:
-                # Created in version, no non-version data
-                p = s = None
-            else:
-                raise
-        return p, s, v, pv, sv
+        p, s = self.storage.load(oid, '')
+        return p, s, '', None, None
 
     def getInvalidations(self, tid):
         invtid, invlist = self.server.get_invalidations(self.storage_id, tid)
@@ -348,20 +315,17 @@ class ZEOStorage:
         return invtid, invlist
 
     def verify(self, oid, version, tid):
+        if version:
+            raise StorageServerError("Versions aren't supported.")
         try:
             t = self.getTid(oid)
         except KeyError:
             self.client.invalidateVerify((oid, ""))
         else:
             if tid != t:
-                # This will invalidate non-version data when the
-                # client only has invalid version data.  Since this is
-                # an uncommon case, we avoid the cost of checking
-                # whether the serial number matches the current
-                # non-version data.
-                self.client.invalidateVerify((oid, version))
+                self.client.invalidateVerify((oid, ''))
 
-    def zeoVerify(self, oid, s, sv):
+    def zeoVerify(self, oid, s, sv=None):
         if not self.verifying:
             self.verifying = 1
             self.stats.verifying_clients += 1
@@ -374,22 +338,8 @@ class ZEOStorage:
             # invalidation is right.  It could be an application bug
             # that left a dangling reference, in which case it's bad.
         else:
-            # If the client has version data, the logic is a bit more
-            # complicated.  If the current serial number matches the
-            # client serial number, then the non-version data must
-            # also be valid.  If the current serialno is for a
-            # version, then the non-version data can't change.
-
-            # If the version serialno isn't valid, then the
-            # non-version serialno may or may not be valid.  Rather
-            # than trying to figure it whether it is valid, we just
-            # invalidate it.  Sending an invalidation for the
-            # non-version data implies invalidating the version data
-            # too, since an update to non-version data can only occur
-            # after the version is aborted or committed.
             if sv:
-                if sv != os:
-                    self.client.invalidateVerify((oid, ''))
+                raise StorageServerError("Versions aren't supported.")
             else:
                 if s != os:
                     self.client.invalidateVerify((oid, ''))
@@ -521,9 +471,11 @@ class ZEOStorage:
     # an _.
 
     def storea(self, oid, serial, data, version, id):
+        if version:
+            raise StorageServerError("Versions aren't supported.")
         self._check_tid(id, exc=StorageTransactionError)
         self.stats.stores += 1
-        self.txnlog.store(oid, serial, data, version)
+        self.txnlog.store(oid, serial, data)
 
     def storeBlobStart(self):
         assert self.blob_tempfile is None
@@ -534,16 +486,20 @@ class ZEOStorage:
         os.write(self.blob_tempfile[0], chunk)
 
     def storeBlobEnd(self, oid, serial, data, version, id):
+        if version:
+            raise StorageServerError("Versions aren't supported.")
         fd, tempname = self.blob_tempfile
         self.blob_tempfile = None
         os.close(fd)
-        self.blob_log.append((oid, serial, data, tempname, version))
+        self.blob_log.append((oid, serial, data, tempname))
 
     def storeBlobShared(self, oid, serial, data, filename, version, id):
+        if version:
+            raise StorageServerError("Versions aren't supported.")
         # Reconstruct the full path from the filename in the OID directory
         filename = os.path.join(self.storage.fshelper.getPathForOID(oid),
                                 filename)
-        self.blob_log.append((oid, serial, data, filename, version))
+        self.blob_log.append((oid, serial, data, filename))
 
     def sendBlob(self, oid, serial):
         self.client.storeBlob(oid, serial, self.storage.loadBlob(oid, serial))
@@ -558,20 +514,6 @@ class ZEOStorage:
         else:
             return self._wait(lambda: self._vote())
 
-    def abortVersion(self, src, id):
-        self._check_tid(id, exc=StorageTransactionError)
-        if self.locked:
-            return self._abortVersion(src)
-        else:
-            return self._wait(lambda: self._abortVersion(src))
-
-    def commitVersion(self, src, dest, id):
-        self._check_tid(id, exc=StorageTransactionError)
-        if self.locked:
-            return self._commitVersion(src, dest)
-        else:
-            return self._wait(lambda: self._commitVersion(src, dest))
-
     def undo(self, trans_id, id):
         self._check_tid(id, exc=StorageTransactionError)
         if self.locked:
@@ -585,10 +527,10 @@ class ZEOStorage:
         self.stats.lock_time = time.time()
         self.storage.tpc_begin(txn, tid, status)
 
-    def _store(self, oid, serial, data, version):
+    def _store(self, oid, serial, data):
         err = None
         try:
-            newserial = self.storage.store(oid, serial, data, version,
+            newserial = self.storage.store(oid, serial, data, '',
                                            self.transaction)
         except (SystemExit, KeyboardInterrupt):
             raise
@@ -616,7 +558,7 @@ class ZEOStorage:
             newserial = [(oid, err)]
         else:
             if serial != "\0\0\0\0\0\0\0\0":
-                self.invalidated.append((oid, version))
+                self.invalidated.append((oid, ''))
 
             if isinstance(newserial, str):
                 newserial = [(oid, newserial)]
@@ -644,21 +586,6 @@ class ZEOStorage:
 
         self.client.serialnos(self.serials)
         return
-
-    def _abortVersion(self, src):
-        tid, oids = self.storage.abortVersion(src, self.transaction)
-        inv = [(oid, src) for oid in oids]
-        self.invalidated.extend(inv)
-        return tid, oids
-
-    def _commitVersion(self, src, dest):
-        tid, oids = self.storage.commitVersion(src, dest, self.transaction)
-        inv = [(oid, dest) for oid in oids]
-        self.invalidated.extend(inv)
-        if dest:
-            inv = [(oid, src) for oid in oids]
-            self.invalidated.extend(inv)
-        return tid, oids
 
     def _undo(self, trans_id):
         tid, oids = self.storage.undo(trans_id, self.transaction)
@@ -706,9 +633,9 @@ class ZEOStorage:
 
         # Blob support
         while self.blob_log:
-            oid, oldserial, data, blobfilename, version = self.blob_log.pop()
+            oid, oldserial, data, blobfilename = self.blob_log.pop()
             self.storage.storeBlob(oid, oldserial, data, blobfilename, 
-                                   version, self.transaction,)
+                                   '', self.transaction,)
 
         resp = self._thunk()
         if delay is not None:
@@ -742,6 +669,20 @@ class ZEOStorage:
         else:
             return 1
 
+    def modifiedInVersion(self, oid):
+        return ''
+
+    def versions(self):
+        return ()
+
+    def versionEmpty(self, version):
+        return True
+
+    def commitVersion(self, *a, **k):
+        raise NotImplementedError
+
+    abortVersion = commitVersion
+
 class StorageServerDB:
 
     def __init__(self, server, storage_id):
@@ -750,10 +691,12 @@ class StorageServerDB:
         self.references = ZODB.serialize.referencesf
 
     def invalidate(self, tid, oids, version=''):
+        if version:
+            raise StorageServerError("Versions aren't supported.")
         storage_id = self.storage_id
         self.server.invalidate(
             None, storage_id, tid,
-            [(oid, version) for oid in oids],
+            [(oid, '') for oid in oids],
             )
         for zeo_server in self.server.connections.get(storage_id, ())[:]:
             try:
@@ -1026,7 +969,7 @@ class StorageServer:
 
         This is called from several ZEOStorage methods.
 
-        invalidated is a sequence of oid, version pairs.
+        invalidated is a sequence of oid, empty-string pairs.
 
         This can do three different things:
 

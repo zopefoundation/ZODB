@@ -517,7 +517,6 @@ class CommonBlobTests:
              handle_serials
         import transaction
 
-        version = ''
         somedata = 'a' * 10
 
         blob = Blob()
@@ -680,9 +679,6 @@ class StorageServerWrapper:
     def supportsUndo(self):
         return False
 
-    def supportsVersions(self):
-        return False
-
     def new_oid(self):
         return self.server.new_oids(1)[0]
 
@@ -696,8 +692,8 @@ class StorageServerWrapper:
         del self.server.client.serials[:]
         return result
 
-    def store(self, oid, serial, data, version, transaction):
-        self.server.storea(oid, serial, data, version, id(transaction))
+    def store(self, oid, serial, data, version_ignored, transaction):
+        self.server.storea(oid, serial, data, '', id(transaction))
 
     def tpc_finish(self, transaction, func = lambda: None):
         self.server.tpc_finish(id(transaction))
@@ -792,7 +788,7 @@ structure using lastTransactions.
 
 
     >>> from ZODB.utils import u64
-    >>> sorted([int(u64(oid)) for (oid, version) in oids])
+    >>> sorted([int(u64(oid)) for (oid, _) in oids])
     [0, 92, 93, 94, 95, 96, 97, 98, 99, 100]
 
 (Note that the fact that we get oids for 92-100 is actually an
@@ -840,7 +836,7 @@ transaction, we'll get a result:
     >>> ntid == last[-1]
     True
 
-    >>> sorted([int(u64(oid)) for (oid, version) in oids])
+    >>> sorted([int(u64(oid)) for (oid, _) in oids])
     [0, 101, 102, 103, 104]
 
     """
