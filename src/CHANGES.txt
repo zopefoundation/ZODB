@@ -1,0 +1,64 @@
+
+Change History
+**************
+
+3.9.0a1 (2008-??-??)
+====================
+
+New Features
+------------
+
+- Versions are no-longer supported.
+
+- ZEO cache files can be larger than 4G. Note that lder ZEO cache
+  files are not supported.
+
+- Document conflict resolution (see ZODB/ConflictResolution.txt).
+
+- Support multidatabase references in conflict resolution.
+
+- Make it possible to examine oid and (in some situations) database
+  name of persistent object references during conflict resolution.
+
+- Moved 'transaction' module out of ZODB.
+  ZODB depends upon this module, but it must be installed separately.
+
+- ZODB installation now requires setuptools.
+
+- Added `offset` information to output of `fstail`
+  script. Added test harness for this script.
+
+- Added support for read-only, historical connections based
+  on datetimes or serials (TIDs).  See
+  src/ZODB/historical_connections.txt.
+
+Bugs Fixed
+----------
+
+- Bugfix the situation in which comparing persistent objects (for
+  instance, as members in BTree set or keys of BTree) might cause data
+  inconsistency during conflict resolution.
+
+- Fixed bug 153316: persistent and BTrees were using `int`
+  for memory sizes which caused errors on x86_64 Intel Xeon machines
+  (using 64-bit Linux).
+  
+- Fixed small bug that the Connection.isReadOnly method didn't
+  work after a savepoint.
+
+- Bug #98275: Made ZEO cache more tolerant when invalidating current
+  versions of objects.
+
+- Fixed a serious bug that could cause client I/O to stop
+  (hang). This was accomonied by a critical log message along the
+  lines of: "RuntimeError: dictionary changed size during iteration".
+
+- Fixed bug #127182: Blobs were subclassable which was not desired.
+
+- Fixed bug #126007: tpc_abort had untested code path that was
+  broken.
+
+- Fixed bug #129921: getSize() function in BlobStorage could not
+  deal with garbage files
+
+- Fixed bug in which MVCC would not work for blobs.
