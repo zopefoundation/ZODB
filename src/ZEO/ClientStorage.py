@@ -572,11 +572,11 @@ class ClientStorage(object):
         # it should set self._server.  If it goes through full cache
         # verification, then endVerify() should self._server.
 
-#         if not self._cache:
-#             log2("No verification necessary -- empty cache")
-#             self._server = server
-#             self._ready.set()
-#             return "full verification"
+        if not self._cache:
+            log2("No verification necessary -- empty cache")
+            self._server = server
+            self._ready.set()
+            return "full verification"
 
 
         last_inval_tid = self._cache.getLastTid()
@@ -608,7 +608,7 @@ class ClientStorage(object):
 
         # TODO:  should batch these operations for efficiency; would need
         # to acquire lock ...
-        for oid, tid, version in self._cache.contents():
+        for oid, tid in self._cache.contents():
             server.verify(oid, tid)
         self._pending_server = server
         server.endZeoVerify()
@@ -719,7 +719,7 @@ class ClientStorage(object):
         """
         self._lock.acquire()    # for atomic processing of invalidations
         try:
-            t = self._cache.load(oid, '')
+            t = self._cache.load(oid)
             if t:
                 return t[:2] # XXX strip version
         finally:
@@ -742,7 +742,7 @@ class ClientStorage(object):
             self._lock.acquire()    # for atomic processing of invalidations
             try:
                 if self._load_status:
-                    self._cache.store(oid, '', tid, None, data)
+                    self._cache.store(oid, tid, None, data)
                 self._load_oid = None
             finally:
                 self._lock.release()
@@ -781,7 +781,7 @@ class ClientStorage(object):
             return data, start, end
         self._lock.acquire()
         try:
-            self._cache.store(oid, "", start, end, data)
+            self._cache.store(oid, start, end, data)
         finally:
             self._lock.release()
 
@@ -1112,13 +1112,13 @@ class ClientStorage(object):
             return
 
         for oid, data in self._tbuf:
-            self._cache.invalidate(oid, '', tid)
+            self._cache.invalidate(oid, tid)
             # If data is None, we just invalidate.
             if data is not None:
                 s = self._seriald[oid]
                 if s != ResolvedSerial:
                     assert s == tid, (s, tid)
-                    self._cache.store(oid, '', s, None, data)
+                    self._cache.store(oid, s, None, data)
 
         
         if self.fshelper is not None:
@@ -1195,7 +1195,7 @@ class ClientStorage(object):
             for oid in oids:
                 if oid == self._load_oid:
                     self._load_status = 0
-                self._cache.invalidate(oid, '', tid)
+                self._cache.invalidate(oid, tid)
 
             if self._db is not None:
                 self._db.invalidate(tid, oids)

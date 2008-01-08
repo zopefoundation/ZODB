@@ -85,86 +85,67 @@ class CacheTests(unittest.TestCase):
         self.assertEqual(self.cache.getLastTid(), None)
         self.cache.setLastTid(n2)
         self.assertEqual(self.cache.getLastTid(), n2)
-        self.cache.invalidate(None, "", n1)
+        self.cache.invalidate(None, n1)
         self.assertEqual(self.cache.getLastTid(), n2)
-        self.cache.invalidate(None, "", n3)
+        self.cache.invalidate(None, n3)
         self.assertEqual(self.cache.getLastTid(), n3)
         self.assertRaises(ValueError, self.cache.setLastTid, n2)
 
     def testLoad(self):
         data1 = "data for n1"
-        self.assertEqual(self.cache.load(n1, ""), None)
-        self.cache.store(n1, "", n3, None, data1)
-        self.assertEqual(self.cache.load(n1, ""), (data1, n3, ""))
-        # The cache doesn't know whether version exists, because it
-        # only has non-version data.
-        self.assertEqual(self.cache.modifiedInVersion(n1), None)
+        self.assertEqual(self.cache.load(n1), None)
+        self.cache.store(n1, n3, None, data1)
+        self.assertEqual(self.cache.load(n1), (data1, n3))
 
     def testInvalidate(self):
         data1 = "data for n1"
-        self.cache.store(n1, "", n3, None, data1)
-        self.cache.invalidate(n1, "", n4)
-        self.cache.invalidate(n2, "", n2)
-        self.assertEqual(self.cache.load(n1, ""), None)
-        self.assertEqual(self.cache.loadBefore(n1, n4),
-                         (data1, n3, n4))
-
-    def testVersion(self):
-        data1 = "data for n1"
-        data1v = "data for n1 in version"
-        self.cache.store(n1, "version", n3, None, data1v)
-        self.assertEqual(self.cache.load(n1, ""), None)
-        self.assertEqual(self.cache.load(n1, "version"),
-                         (data1v, n3, "version"))
-        self.assertEqual(self.cache.load(n1, "random"), None)
-        self.assertEqual(self.cache.modifiedInVersion(n1), "version")
-        self.cache.invalidate(n1, "version", n4)
-        self.assertEqual(self.cache.load(n1, "version"), None)
+        self.cache.store(n1, n3, None, data1)
+        self.cache.invalidate(n1, n4)
+        self.cache.invalidate(n2, n2)
+        self.assertEqual(self.cache.load(n1), None)
+        self.assertEqual(self.cache.loadBefore(n1, n4), (data1, n3, n4))
 
     def testNonCurrent(self):
         data1 = "data for n1"
         data2 = "data for n2"
-        self.cache.store(n1, "", n4, None, data1)
-        self.cache.store(n1, "", n2, n3, data2)
+        self.cache.store(n1, n4, None, data1)
+        self.cache.store(n1, n2, n3, data2)
         # can't say anything about state before n2
         self.assertEqual(self.cache.loadBefore(n1, n2), None)
         # n3 is the upper bound of non-current record n2
         self.assertEqual(self.cache.loadBefore(n1, n3), (data2, n2, n3))
         # no data for between n2 and n3
         self.assertEqual(self.cache.loadBefore(n1, n4), None)
-        self.cache.invalidate(n1, "", n5)
+        self.cache.invalidate(n1, n5)
         self.assertEqual(self.cache.loadBefore(n1, n5), (data1, n4, n5))
         self.assertEqual(self.cache.loadBefore(n2, n4), None)
 
     def testException(self):
+        self.cache.store(n1, n2, None, "data")
         self.assertRaises(ValueError,
                           self.cache.store,
-                          n1, "version", n2, n3, "data")
-        self.cache.store(n1, "", n2, None, "data")
-        self.assertRaises(ValueError,
-                          self.cache.store,
-                          n1, "", n3, None, "data")
+                          n1, n3, None, "data")
 
     def testEviction(self):
         # Manually override the current maxsize
-        maxsize = self.cache.size = self.cache.fc.maxsize = 3395 # 1245
-        self.cache.fc = ZEO.cache.FileCache(3395, None, self.cache)
+        maxsize = self.cache.size = self.cache.fc.maxsize = 3295 # 1245
+        self.cache.fc = ZEO.cache.FileCache(3295, None, self.cache)
 
         # Trivial test of eviction code.  Doesn't test non-current
         # eviction.
         data = ["z" * i for i in range(100)]
         for i in range(50):
             n = p64(i)
-            self.cache.store(n, "", n, None, data[i])
+            self.cache.store(n, n, None, data[i])
             self.assertEquals(len(self.cache), i + 1)
         # The cache now uses 1225 bytes.  The next insert
         # should delete some objects.
         n = p64(50)
-        self.cache.store(n, "", n, None, data[51])
+        self.cache.store(n, n, None, data[51])
         self.assert_(len(self.cache) < 51)
 
         # TODO:  Need to make sure eviction of non-current data
-        # and of version data are handled correctly.
+        # are handled correctly.
 
     def _run_fuzzing(self):
         current_tid = 1
@@ -183,13 +164,13 @@ class CacheTests(unittest.TestCase):
                 current_oid += 1
                 key = (oid(current_oid), tid(current_tid))
                 object = ZEO.cache.Object(
-                    key=key, version='', data='*'*random.randint(1,60*1024),
+                    key=key, data='*'*random.randint(1,60*1024),
                     start_tid=tid(current_tid), end_tid=None)
                 assert key not in objects
                 log(key, len(object.data), current_tid)
                 cache.add(object)
                 if (object.size + ZEO.cache.OBJECT_HEADER_SIZE >
-                    cache.maxsize - ZEO.cache.ZEC3_HEADER_SIZE):
+                    cache.maxsize - ZEO.cache.ZEC4_HEADER_SIZE):
                     assert key not in cache
                 else:
                     objects[key] = object
@@ -237,10 +218,9 @@ class CacheTests(unittest.TestCase):
             raise
 
     def testSerialization(self):
-        self.cache.store(n1, "", n2, None, "data for n1")
-        self.cache.store(n2, "version", n2, None, "version data for n2")
-        self.cache.store(n3, "", n3, n4, "non-current data for n3")
-        self.cache.store(n3, "", n4, n5, "more non-current data for n3")
+        self.cache.store(n1, n2, None, "data for n1")
+        self.cache.store(n3, n3, n4, "non-current data for n3")
+        self.cache.store(n3, n4, n5, "more non-current data for n3")
 
         path = tempfile.mktemp()
         # Copy data from self.cache into path, reaching into the cache
@@ -258,7 +238,6 @@ class CacheTests(unittest.TestCase):
         eq = self.assertEqual
         eq(copy.getLastTid(), self.cache.getLastTid())
         eq(len(copy), len(self.cache))
-        eq(copy.version, self.cache.version)
         eq(copy.current, self.cache.current)
         eq(copy.noncurrent, self.cache.noncurrent)
 
