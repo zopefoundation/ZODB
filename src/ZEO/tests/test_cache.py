@@ -241,6 +241,36 @@ class CacheTests(unittest.TestCase):
         eq(copy.current, self.cache.current)
         eq(copy.noncurrent, self.cache.noncurrent)
 
+    def testCurrentObjectLargerThanCache(self):
+        if self.cache.path:
+            os.remove(self.cache.path)
+        self.cache = ZEO.cache.ClientCache(size=50)
+        self.cache.open()
+
+        # We store an object that is a bit larger than the cache can handle.
+        self.cache.store(n1, n2, None, "x"*64)
+        # We can see that it was not stored.
+        self.assertEquals(None, self.cache.load(n1))
+        # If an object cannot be stored in the cache, it must not be
+        # recorded as current.
+        self.assert_(n1 not in self.cache.current)
+        # Regression test: invalidation must still work.
+        self.cache.invalidate(n1, n2)
+
+    def testOldObjectLargerThanCache(self):
+        if self.cache.path:
+            os.remove(self.cache.path)
+        self.cache = ZEO.cache.ClientCache(size=50)
+        self.cache.open()
+
+        # We store an object that is a bit larger than the cache can handle.
+        self.cache.store(n1, n2, n3, "x"*64)
+        # We can see that it was not stored.
+        self.assertEquals(None, self.cache.load(n1))
+        # If an object cannot be stored in the cache, it must not be
+        # recorded as non-current.
+        self.assert_((n2, n3) not in self.cache.noncurrent[n1])
+
 
 def test_suite():
     suite = unittest.TestSuite()

@@ -52,6 +52,7 @@ Initially the object is not in the cache:
 We can add it to the cache:
 
   >>> fc.add(obj1_1)
+  True
 
 And now it's in the cache:
 
@@ -146,6 +147,7 @@ Case 1: Allocating a new block that fits after the last used one
   >>> obj2_1 = Object(key=(oid(2), tid(1)), data='******',
   ...                 start_tid=tid(1), end_tid=None)
   >>> fc.add(obj2_1)
+  True
 
 The new block fits exactly in the remaining 47 bytes (41 bytes header + 6
 bytes payload) so the beginning of the data is the same except for the last 47
@@ -171,6 +173,7 @@ Case 2: Allocating a block that wraps around and frees *exactly* one block
   >>> obj3_1 = Object(key=(oid(3), tid(1)), data='@'*100,
   ...                 start_tid=tid(1), end_tid=None)
   >>> fc.add(obj3_1)
+  True
 
   >>> hexprint(fc.f)
   00000000  5a 45 43 34 00 00 00 00  00 00 00 00 61 00 00 00  |ZEC4........a...|
@@ -192,6 +195,7 @@ Case 3: Allocating a block that requires 1 byte less than the next block
   >>> obj4_1 = Object(key=(oid(4), tid(1)), data='~~~~~',
   ...                 start_tid=tid(1), end_tid=None)
   >>> fc.add(obj4_1)
+  True
 
   >>> hexprint(fc.f)
   00000000  5a 45 43 34 00 00 00 00  00 00 00 00 61 00 00 00  |ZEC4........a...|
@@ -213,6 +217,7 @@ Case 4: Allocating a block that requires 2 bytes less than the next block
   >>> obj4_1 = Object(key=(oid(5), tid(1)), data='^'*98,
   ...                 start_tid=tid(1), end_tid=None)
   >>> fc.add(obj4_1)
+  True
 
   >>> hexprint(fc.f)
   00000000  5a 45 43 34 00 00 00 00  00 00 00 00 61 00 00 00  |ZEC4........a...|
@@ -239,6 +244,7 @@ it.
   >>> obj4_1 = Object(key=(oid(6), tid(1)), data='+'*95,
   ...                 start_tid=tid(1), end_tid=None)
   >>> fc.add(obj4_1)
+  True
 
   >>> hexprint(fc.f)
   00000000  5a 45 43 34 00 00 00 00  00 00 00 00 61 00 00 00  |ZEC4........a...|
@@ -264,6 +270,7 @@ file.
   >>> obj4_1 = Object(key=(oid(7), tid(1)), data='-'*89,
   ...                 start_tid=tid(1), end_tid=None)
   >>> fc.add(obj4_1)
+  True
 
   >>> hexprint(fc.f)
   00000000  5a 45 43 34 00 00 00 00  00 00 00 00 61 00 00 00  |ZEC4........a...|
@@ -287,6 +294,7 @@ Again, we replace the block at the beginning of the cache.
   >>> obj4_1 = Object(key=(oid(8), tid(1)), data='='*80,
   ...                 start_tid=tid(1), end_tid=None)
   >>> fc.add(obj4_1)
+  True
 
   >>> hexprint(fc.f)
   00000000  5a 45 43 34 00 00 00 00  00 00 00 00 61 00 00 00  |ZEC4........a...|

@@ -10,7 +10,7 @@ New Features
 
 - Versions are no-longer supported.
 
-- ZEO cache files can be larger than 4G. Note that lder ZEO cache
+- ZEO cache files can be larger than 4G. Note that older ZEO cache
   files are not supported.
 
 - Document conflict resolution (see ZODB/ConflictResolution.txt).
@@ -62,3 +62,6 @@ Bugs Fixed
   deal with garbage files
 
 - Fixed bug in which MVCC would not work for blobs.
+
+- Fixed bug in ClientCache that occurred with objects larger than the total
+  cache size.
