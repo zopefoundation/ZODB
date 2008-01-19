@@ -322,10 +322,14 @@ class IStorageDB(Interface):
         there would be so many that it would be inefficient to do so.        
         """
 
-    def invalidate(transaction_id, oids):
+    def invalidate(transaction_id, oids, version=''):
         """Invalidate object ids committed by the given transaction
 
         The oids argument is an iterable of object identifiers.
+
+        The version argument is provided for backward
+        compatibility. If passed, it must be an empty string.
+        
         """
 
     def references(record, oids=None):
@@ -339,9 +343,10 @@ class IStorageDB(Interface):
 
 class IDatabase(IStorageDB):
     """ZODB DB.
-
-    TODO: This interface is incomplete.
     """
+
+    # TODO: This interface is incomplete.
+    # XXX how is it incomplete? 
 
     databases = Attribute(
         """A mapping from database name to DB (database) object.
@@ -423,13 +428,16 @@ class IStorage(Interface):
 
     def close():
         """Close the storage.
+
+        Finalize the storage, releasing any external resources.  The
+        storage should not be used after this method is called.
         """
 
     def getName():
         """The name of the storage
 
         The format and interpretation of this name is storage
-        dependent. It could be a file name, a database name, etc.
+        dependent. It could be a file name, a database name, etc..
 
         This is used soley for informational purposes.
         """
@@ -440,7 +448,7 @@ class IStorage(Interface):
         This is used soley for informational purposes.
         """
 
-    def history(oid, size=1):
+    def history(oid, version='', size=1):
         """Return a sequence of history information dictionaries.
 
         Up to size objects (including no objects) may be returned.
@@ -453,20 +461,31 @@ class IStorage(Interface):
         time
             UTC seconds since the epoch (as in time.time) that the
             object revision was committed.
+            
         tid
             The transaction identifier of the transaction that
             committed the version.
+
+        serial
+            An alias for tid, which expected by older clients.
+
         user_name
             The user identifier, if any (or an empty string) of the
             user on whos behalf the revision was committed.
+
         description
             The transaction description for the transaction that
             committed the revision.
+
         size
             The size of the revision data record.
 
         If the transaction had extension items, then these items are
         also included if they don't conflict with the keys above.
+
+        The version argument is provided for backward
+        compatibility. It should always be an empty string.
+        
         """
 
     def isReadOnly():
@@ -475,6 +494,11 @@ class IStorage(Interface):
         For a given storage instance, this method always returns the
         same value.  Read-only-ness is a static property of a storage.
         """
+
+        # XXX Note that this method doesn't really buy us much,
+        # especially since we have to account for the fact that a
+        # ostensibly non-read-only storage may be read-only
+        # transiently.  It would be better to just have read-only errors.
 
     def lastTransaction():
         """Return the id of the last committed transaction
@@ -486,8 +510,12 @@ class IStorage(Interface):
         This is used soley for informational purposes.
         """
 
-    def load(oid):
+    def load(oid, version):
         """Load data for an object id
+
+        The version argumement should always be an empty string. It
+        exists soley for backward compatibility with older storage
+        implementations.
 
         A data record and serial are returned.  The serial is a
         transaction identifier of the transaction that wrote the data
@@ -566,7 +594,7 @@ class IStorage(Interface):
         has a reasonable chance of being unique.
         """
 
-    def store(oid, serial, data, transaction):
+    def store(oid, serial, data, version, transaction):
         """Store data for the object id, oid.
 
         Arguments:
@@ -585,12 +613,15 @@ class IStorage(Interface):
         data
             The data record. This is opaque to the storage.
 
+        version
+            This must be an empty string. It exists for backward compatibility.
+
         transaction
             A transaction object.  This should match the current
             transaction for the storage, set by tpc_begin.
 
         The new serial for the object is returned, but not necessarily
-        immediately.  It may be returned directly, or un a subsequent
+        immediately.  It may be returned directly, or on a subsequent
         store or tpc_vote call.
 
         The return value may be:
@@ -606,6 +637,21 @@ class IStorage(Interface):
         pairs, may be the special value
         ZODB.ConflictResolution.ResolvedSerial to indicate that a
         conflict occured and that the object should be invalidated.
+
+        Several different exceptions may be raised when an error occurs.
+
+        ConflictError
+          is raised when serial does not match the most recent serial
+          number for object oid and the conflict was not resolved by
+          the storage.
+
+        StorageTransactionError
+          is raised when transaction does not match the current
+          transaction.
+
+        StorageError or, more often, a subclass of it
+          is raised when an internal error occurs while the storage is
+          handling the store() call.
         
         """
 
@@ -667,6 +713,13 @@ class IStorage(Interface):
         """
 
 class IStorageRestoreable(IStorage):
+    """Copying Transactions
+
+    The IStorageRestoreable interface supports copying
+    already-committed transactions from one storage to another. This
+    is typically done for replication or for moving data from one
+    storage implementation to another.
+    """
 
     def tpc_begin(transaction, tid=None):
         """Begin the two-phase commit process.
