@@ -11,10 +11,6 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
-"""Interfaces for ZODB.
-
-$Id$
-"""
 
 from zope.interface import Interface, Attribute
 
@@ -592,6 +588,8 @@ class IStorage(Interface):
         among storages used in a transaction. Obviously, the storage
         can't assure this, but it should construct the sort key so it
         has a reasonable chance of being unique.
+
+        The result must be a string.
         """
 
     def store(oid, serial, data, version, transaction):
