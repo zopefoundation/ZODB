@@ -184,7 +184,7 @@ packages = ["BTrees", "BTrees.tests",
 def copy_other_files(cmd, outputbase):
     # A delicate dance to copy files with certain extensions
     # into a package just like .py files.
-    extensions = ["*.conf", "*.xml", "*.txt", "*.sh"]
+    extensions = ["*.conf", "*.xml", "*.txt", "*.sh", "*.test"]
     directories = [
         "BTrees",
         "transaction",
@@ -192,6 +192,7 @@ def copy_other_files(cmd, outputbase):
         "persistent/tests",
         "ZEO",
         "ZEO/scripts",
+        "ZEO/tests",
         "ZODB",
         "ZODB/scripts",
         "ZODB/tests",
