@@ -28,7 +28,10 @@
 # suffix to 6-byte data. This should reduce the overall memory usage to
 # 8-16 bytes per OID.
 #
-# Since the mapping from suffix to data contains at most 256 entries,
+# Because
+#  - the mapping from suffix to data contains at most 65535 entries,
+#  - this is an in-memory data structure
+#  - new keys are inserted sequentially, 
 # we use a BTree bucket instead of a full BTree to store the results.
 #
 # We use p64 to convert integers to 8-byte strings and lop off the two
