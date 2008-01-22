@@ -49,8 +49,6 @@ class RevisionStorage:
             # guarantees that the next timestamp will be at least one
             # larger (and probably much more than that) than the previous
             # one.
-            snooze()
-            snooze()
             revid = self._dostore(oid, revid, data=MinPO(i))
             revs.append(self._storage.load(oid, ""))
 
