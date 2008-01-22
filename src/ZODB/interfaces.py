@@ -564,7 +564,7 @@ class IStorage(Interface):
           revisions that were not current as of the pack time.
 
         The pack time is given as a UTC time in seconds since the
-        empoch.
+        epoch.
 
         The second argument is a function that should be used to
         extract object references from database records.  This is
