@@ -923,7 +923,7 @@ class ClientStorage(object):
         if self.shared_blob_dir:
             # We're using a server shared cache.  If the file isn't
             # here, it's not anywhere.
-            raise POSKeyError("No blob file", oid, serial)
+            raise POSException.POSKeyError("No blob file", oid, serial)
 
         # First, we'll create the directory for this oid, if it doesn't exist. 
         targetpath = self.fshelper.getPathForOID(oid)
@@ -986,7 +986,7 @@ class ClientStorage(object):
             if self._have_blob(blob_filename, oid, serial):
                 return blob_filename
 
-            raise POSKeyError("No blob file", oid, serial)
+            raise POSException.POSKeyError("No blob file", oid, serial)
 
         finally:
             lock.close()
