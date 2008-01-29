@@ -389,6 +389,60 @@ def packing_with_uncommitted_data_undoing():
     """
 
 
+def secure_blob_directory():
+    """
+    This is a test for secure creation and verification of secure settings of
+    blob directories.
+
+    >>> from ZODB.FileStorage.FileStorage import FileStorage
+    >>> from ZODB.blob import BlobStorage
+    >>> from tempfile import mkdtemp
+    >>> import os.path
+
+    >>> working_directory = mkdtemp()
+    >>> base_storage = FileStorage(os.path.join(working_directory, 'Data.fs'))
+    >>> blob_storage = BlobStorage(os.path.join(working_directory, 'blobs'),
+    ...                            base_storage)
+
+    Two directories are created:
+
+    >>> blob_dir = os.path.join(working_directory, 'blobs')
+    >>> os.path.isdir(blob_dir)
+    True
+    >>> tmp_dir = os.path.join(blob_dir, 'tmp')
+    >>> os.path.isdir(tmp_dir)
+    True
+
+    They are only accessible by the owner:
+
+    >>> oct(os.stat(blob_dir).st_mode)
+    '040700'
+    >>> oct(os.stat(tmp_dir).st_mode)
+    '040700'
+
+    These settings are recognized as secure:
+
+    >>> blob_storage.fshelper.isSecure(blob_dir)
+    True
+    >>> blob_storage.fshelper.isSecure(tmp_dir)
+    True
+
+    After making the permissions of tmp_dir more liberal, the directory is
+    recognized as insecure:
+
+    >>> os.chmod(tmp_dir, 040711)
+    >>> blob_storage.fshelper.isSecure(tmp_dir)
+    False
+
+    Clean up:
+
+    >>> blob_storage.close()
+    >>> import shutil
+    >>> shutil.rmtree(working_directory)
+
+    """
+
+
 def test_suite():
     suite = unittest.TestSuite()
     suite.addTest(unittest.makeSuite(ZODBBlobConfigTest))

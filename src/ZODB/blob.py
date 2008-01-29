@@ -310,7 +310,7 @@ class FilesystemHelper:
 
     def isSecure(self, path):
         """Ensure that (POSIX) path mode bits are 0700."""
-        return (os.stat(path).st_mode & 077) != 0
+        return (os.stat(path).st_mode & 077) == 0
 
     def checkSecure(self):
         if not self.isSecure(self.base_dir):
