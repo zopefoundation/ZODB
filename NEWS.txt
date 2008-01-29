@@ -33,6 +33,8 @@ General
 ZEO
 ---
 
+- (???) Fixed bug in blob filesystem helper: the `isSecure` check was inversed.
+
 - (3.8.0b6) Bug #98275: Made ZEO cache more tolerant when invalidating current
   versions of objects.
 
