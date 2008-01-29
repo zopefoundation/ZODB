@@ -21,6 +21,7 @@ is used to store the data until a commit or abort.
 # A faster implementation might store trans data in memory until it
 # reaches a certain size.
 
+import os
 import cPickle
 import tempfile
 from threading import Lock
@@ -113,7 +114,7 @@ class TransactionBuffer:
             self.count = 0
             self.size = 0
             while self.blobs:
-                oid, serial, blobfilename = self.blobs.pop()
+                oid, blobfilename = self.blobs.pop()
                 if os.path.exists(blobfilename):
                     os.remove(blobfilename)
         finally:

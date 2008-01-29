@@ -547,6 +547,17 @@ class CommonBlobTests:
         self.assertEquals(self.blob_cache_dir,
                           self._storage.temporaryDirectory())
 
+    def checkTransactionBufferCleanup(self):
+        oid = self._storage.new_oid()
+        handle, blob_file_name = tempfile.mkstemp() #XXX cleanup temp file
+        open(blob_file_name, 'w').write('I am a happy blob.')
+        t = transaction.Transaction()
+        self._storage.tpc_begin(t)
+        self._storage.storeBlob(
+          oid, ZODB.utils.z64, 'foo', blob_file_name, '', t)
+        self._storage.close()
+
+
 class BlobAdaptedFileStorageTests(GenericTests, CommonBlobTests):
     """ZEO backed by a BlobStorage-adapted FileStorage."""
 

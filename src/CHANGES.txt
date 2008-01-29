@@ -35,6 +35,9 @@ New Features
 Bugs Fixed
 ----------
 
+- Fixed bug in transaction buffer: a tuple was unpacked incorrectly in
+  `clear`.
+
 - Bugfix the situation in which comparing persistent objects (for
   instance, as members in BTree set or keys of BTree) might cause data
   inconsistency during conflict resolution.
