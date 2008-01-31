@@ -567,21 +567,22 @@ class ClientStorage(object):
         The return value (indicating which path we took) is used by
         the test suite.
         """
-
         # If verify_cache() finishes the cache verification process,
         # it should set self._server.  If it goes through full cache
-        # verification, then endVerify() should self._server.
+        # verification, then endVerify() should set self._server.
+
+        ltid = server.lastTransaction()
 
         if not self._cache:
             log2("No verification necessary -- empty cache")
             self._server = server
+            if ltid and ltid != utils.z64:
+                self._cache.setLastTid(ltid)
             self._ready.set()
             return "full verification"
 
-
         last_inval_tid = self._cache.getLastTid()
         if last_inval_tid is not None:
-            ltid = server.lastTransaction()
             if ltid == last_inval_tid:
                 log2("No verification necessary (last_inval_tid up-to-date)")
                 self._server = server

@@ -57,9 +57,11 @@ import ZEO.StorageServer
 
 logger = logging.getLogger('ZEO.tests.testZEO')
 
+
 class DummyDB:
     def invalidate(self, *args):
         pass
+
 
 class OneTimeTests(unittest.TestCase):
 
@@ -127,6 +129,23 @@ class MiscZEOTests:
                 raise AssertionError('Invalidation message was not sent!')
         finally:
             storage2.close()
+
+    def checkVolatileCacheWithImmediateLastTransaction(self):
+        # Earlier, a ClientStorage would not have the last transaction id
+        # available right after successful connection, this is required now.
+        addr = self._storage._addr
+        storage2 = ClientStorage(addr)
+        self.assert_(storage2.is_connected())
+        self.assertEquals(None, storage2.lastTransaction())
+        storage2.close()
+
+        self._dostore()
+        storage3 = ClientStorage(addr)
+        self.assert_(storage3.is_connected())
+        self.assertEquals(8, len(storage3.lastTransaction()))
+        self.assertNotEquals(ZODB.utils.z64, storage3.lastTransaction())
+        storage3.close()
+
 
 def get_port():
     """Return a port that is not in use.
@@ -645,9 +664,9 @@ class BlobAdaptedFileStorageTests(GenericTests, CommonBlobTests):
             ]
         [thread.start() for thread in threads]
         [thread.join() for thread in threads]
-        [self.assertEqual(r, filename) for r in returns]        
+        [self.assertEqual(r, filename) for r in returns]
         check_data(filename)
-        
+
 
 class BlobWritableCacheTests(GenericTests, CommonBlobTests):
 

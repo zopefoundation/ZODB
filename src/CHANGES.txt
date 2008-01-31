@@ -35,6 +35,9 @@ New Features
 Bugs Fixed
 ----------
 
+- Fix for bug #181712: Make ClientStorage update `lastTransaction` directly
+  after connecting to a server, even when no cache verification is necessary.
+
 - Fixed bug in blob filesystem helper: the `isSecure` check was inversed.
 
 - Fixed bug in transaction buffer: a tuple was unpacked incorrectly in
