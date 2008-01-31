@@ -969,7 +969,7 @@ class IBlob(Interface):
 class IBlobStorage(Interface):
     """A storage supporting BLOBs."""
 
-    def storeBlob(oid, oldserial, data, blob, transaction):
+    def storeBlob(oid, oldserial, data, blobfilename, version, transaction):
         """Stores data that has a BLOB attached."""
 
     def loadBlob(oid, serial):
