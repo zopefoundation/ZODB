@@ -33,7 +33,7 @@ General
 ZEO
 ---
 
-- (???) Fixed bug in transaction buffer: a tuple was unpackged incorrectly in
+- (???) Fixed bug in transaction buffer: a tuple was unpacked incorrectly in
   `clear`.
 
 - (???) Fixed bug in blob filesystem helper: the `isSecure` check was inversed.
@@ -94,6 +94,9 @@ Transactions
 
 Blobs
 -----
+
+- (???) Fixed bug in Connection.TmpStore: load() would not defer to the
+  backend storage for loading blobs.
 
 - (3.8b5) Fixed bug #130459: Packing was broken by uncommitted blob data.
 
