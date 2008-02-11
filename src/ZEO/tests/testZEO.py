@@ -678,6 +678,11 @@ class BlobWritableCacheTests(GenericTests, CommonBlobTests):
         self.shared_blob_dir = True
         super(BlobWritableCacheTests, self).setUp()
 
+    def checkLoadNonExistingBlob(self):
+        # Regression test for #189542
+        self.assertRaises(ZODB.POSException.POSKeyError,
+                          self._storage.loadBlob, 'foo', 'foo')
+
 
 class StorageServerClientWrapper:
 

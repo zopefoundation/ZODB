@@ -33,6 +33,8 @@ General
 ZEO
 ---
 
+- (???) Fixed bug #190884: Wrong reference to `POSKeyError` caused NameError.
+
 - (???) Fixed bug in transaction buffer: a tuple was unpacked incorrectly in
   `clear`.
 

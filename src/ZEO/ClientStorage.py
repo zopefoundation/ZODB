@@ -973,7 +973,7 @@ class ClientStorage(object):
         if self.shared_blob_dir:
             # We're using a server shared cache.  If the file isn't
             # here, it's not anywhere.
-            raise POSKeyError("No blob file", oid, serial)
+            raise POSException.POSKeyError("No blob file", oid, serial)
 
         # First, we'll create the directory for this oid, if it doesn't exist. 
         targetpath = self.fshelper.getPathForOID(oid)
@@ -1028,11 +1028,10 @@ class ClientStorage(object):
                 return blob_filename
 
             # Ask the server to send it to us.  When this function
-            # returns, it will have been sent. (The recieving will
+            # returns, it will have been sent. (The receiving will
             # have been handled by the asyncore thread.)
 
             self._server.sendBlob(oid, serial)
-
             if self._have_blob(blob_filename, oid, serial):
                 return blob_filename
 
