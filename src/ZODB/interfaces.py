@@ -811,12 +811,12 @@ class IStorageIteration(Interface):
         iterating over the transactions in the storage.
 
         If the start argument is not None, then iteration will start
-        with the first transaction whos identifier is greater than or
+        with the first transaction whose identifier is greater than or
         equal to start.
 
         If the stop argument is not None, then iteration will end with
-        the last transaction whos identifier is less than or equal to
-        start.
+        the last transaction whose identifier is less than or equal to
+        stop.
 
         """
 
