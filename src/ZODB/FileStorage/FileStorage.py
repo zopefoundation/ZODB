@@ -1526,7 +1526,10 @@ class Iterator:
         __index=self.__index
         while i > __index:
             __index=__index+1
-            self.__current=self.next(__index)
+            try:
+                self.__current=self.next()
+            except StopIteration:
+                raise IndexError(i)
 
         self.__index=__index
         return self.__current
@@ -1602,7 +1605,7 @@ class FileIterator(Iterator, FileStorageFormatter):
                     panic("%s has inconsistent transaction length at %s "
                           "(%s != %s)", file.name, pos, u64(rtl), u64(stl))
 
-    def next(self, index=0):
+    def next(self):
         if self._file is None:
             # A closed iterator.  Is IOError the best we can do?  For
             # now, mimic a read on a closed file.
@@ -1625,11 +1628,11 @@ class FileIterator(Iterator, FileStorageFormatter):
             self._ltid = h.tid
 
             if self._stop is not None and h.tid > self._stop:
-                raise IndexError(index)
+                raise StopIteration
 
             if h.status == "c":
                 # Assume we've hit the last, in-progress transaction
-                raise IndexError(index)
+                raise StopIteration
 
             if pos + h.tlen + 8 > self._file_size:
                 # Hm, the data were truncated or the checkpoint flag wasn't
@@ -1693,16 +1696,15 @@ class FileIterator(Iterator, FileStorageFormatter):
 
             return result
 
-        raise IndexError(index)
+        raise StopIteration
+
 
 class RecordIterator(Iterator, BaseStorage.TransactionRecord,
                      FileStorageFormatter):
     """Iterate over the transactions in a FileStorage file."""
     def __init__(self, tid, status, user, desc, ext, pos, tend, file, tpos):
-        self.tid = tid
-        self.status = status
-        self.user = user
-        self.description = desc
+        BaseStorage.TransactionRecord.__init__(
+            self, tid, status, user, desc, ext)
         self._extension = ext
         self._pos = pos
         self._tend = tend
@@ -1743,14 +1745,13 @@ class RecordIterator(Iterator, BaseStorage.TransactionRecord,
 
         raise IndexError(index)
 
+
 class Record(BaseStorage.DataRecord):
-    """An abstract database record."""
+
     def __init__(self, oid, tid, data, prev, pos):
-        self.oid = oid
-        self.tid = tid
-        self.data = data
-        self.data_txn = prev
+        super(Record, self).__init__(oid, tid, data, '', prev)
         self.pos = pos
+
 
 class UndoSearch:
 

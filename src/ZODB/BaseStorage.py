@@ -21,13 +21,17 @@ import time
 import logging
 from struct import pack as _structpack, unpack as _structunpack
 
+import zope.interface
+
 from persistent.TimeStamp import TimeStamp
 
+import ZODB.interfaces
 from ZODB import POSException
 from ZODB.utils import z64, oid_repr
 from ZODB.UndoLogCompatible import UndoLogCompatible
 
 log = logging.getLogger("ZODB.BaseStorage")
+
 
 class BaseStorage(UndoLogCompatible):
     """Base class that supports storage implementations.
@@ -338,7 +342,7 @@ def copy(source, dest, verbose=0):
             if verbose:
                 print oid_repr(oid), r.version, len(r.data)
             if restoring:
-                dest.restore(oid, r.tid, r.data, '',
+                dest.restore(oid, r.tid, r.data, r.version,
                              r.data_txn, transaction)
             else:
                 pre = preget(oid, None)
@@ -350,8 +354,28 @@ def copy(source, dest, verbose=0):
 
     fiter.close()
 
-class TransactionRecord:
+
+class TransactionRecord(object):
     """Abstract base class for iterator protocol"""
 
-class DataRecord:
+    zope.interface.implements(ZODB.interfaces.IStorageTransactionInformation)
+
+    def __init__(self, tid, status, user, description, extension):
+        self.tid = tid
+        self.status = status
+        self.user = user
+        self.description = description
+        self.extension = extension
+
+
+class DataRecord(object):
     """Abstract base class for iterator protocol"""
+
+    zope.interface.implements(ZODB.interfaces.IStorageRecordInformation)
+
+    def __init__(self, oid, tid, data, version, prev):
+        self.oid = oid
+        self.tid = tid
+        self.data = data
+        self.version = version
+        self.data_txn = prev
