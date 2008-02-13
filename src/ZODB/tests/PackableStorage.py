@@ -309,7 +309,10 @@ class PackableStorage(PackableStorageBase):
         for txn in it:
             for data in txn:
                 pass
-        it.close()
+        # XXX see bug #191573
+        if hasattr(it, "close"):
+            it.close()
+
 
 class PackableUndoStorage(PackableStorageBase):
 

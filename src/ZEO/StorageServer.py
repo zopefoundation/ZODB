@@ -29,6 +29,7 @@ import tempfile
 import threading
 import time
 import warnings
+import itertools
 
 import transaction
 
@@ -52,7 +53,6 @@ from ZODB.loglevels import BLATHER
 
 
 logger = logging.getLogger('ZEO.StorageServer')
-
 
 # TODO:  This used to say "ZSS", which is now implied in the logger name.
 # Can this be either set to str(os.getpid()) (if that makes sense) or removed?
@@ -110,6 +110,8 @@ class ZEOStorage:
         self._extensions = {}
         for func in self.extensions:
             self._extensions[func.func_name] = None
+        self._iterators = {}
+        self._iterator_ids = itertools.count()
 
     def finish_auth(self, authenticated):
         if not self.auth_realm:
@@ -682,6 +684,51 @@ class ZEOStorage:
         raise NotImplementedError
 
     abortVersion = commitVersion
+
+    # IStorageIteration support
+
+    def iterator_start(self, start, stop):
+        iid = self._iterator_ids.next()
+        self._iterators[iid] = self.storage.iterator(start, stop)
+        return iid
+
+    def iterator_next(self, iid):
+        iterator = self._iterators[iid]
+        try:
+            info = iterator.next()
+        except StopIteration:
+            del self._iterators[iid]
+            item = None
+        else:
+            item = (info.tid,
+                    info.status,
+                    info.user,
+                    info.description,
+                    info.extension)
+        return item
+
+    def iterator_record_start(self, tid):
+        iid = self._iterator_ids.next()
+        txn_infos = list(self.storage.iterator(tid, tid))
+        assert len(txn_infos) == 1
+        self._iterators[iid] = iter(txn_infos[0])
+        return iid
+
+    def iterator_record_next(self, iid):
+        iterator = self._iterators[iid]
+        try:
+            info = iterator.next()
+        except StopIteration:
+            del self._iterators[iid]
+            item = None
+        else:
+            item = (info.oid,
+                    info.tid,
+                    info.data,
+                    info.version,
+                    info.data_txn)
+        return item
+
 
 class StorageServerDB:
 

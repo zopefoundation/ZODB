@@ -292,6 +292,19 @@ class StorageServer:
     def undoInfo(self, first, last, spec):
         return self.rpc.call('undoInfo', first, last, spec)
 
+    def iterator_start(self, start, stop):
+        return self.rpc.call('iterator_start', start, stop)
+
+    def iterator_next(self, iid):
+        return self.rpc.call('iterator_next', iid)
+
+    def iterator_record_start(self, tid):
+        return self.rpc.call('iterator_record_start', tid)
+
+    def iterator_record_next(self, iid):
+        return self.rpc.call('iterator_record_next', iid)
+
+
 class ExtensionMethodWrapper:
     def __init__(self, rpc, name):
         self.rpc = rpc

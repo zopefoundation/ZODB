@@ -28,6 +28,7 @@ import threading
 import time
 import types
 import logging
+import weakref
 
 from zope.interface import implements
 from ZEO import ServerStub
@@ -37,11 +38,12 @@ from ZEO.Exceptions import ClientStorageError, ClientDisconnected, AuthError
 from ZEO.auth import get_module
 from ZEO.zrpc.client import ConnectionManager
 
+import ZODB.interfaces
 import ZODB.lock_file
+import ZODB.BaseStorage
 from ZODB import POSException
 from ZODB import utils
 from ZODB.loglevels import BLATHER
-from ZODB.interfaces import IBlobStorage
 from ZODB.blob import rename_or_copy_blob
 from persistent.TimeStamp import TimeStamp
 
@@ -91,7 +93,6 @@ disconnected_stub = DisconnectedServerStub()
 MB = 1024**2
 
 class ClientStorage(object):
-
     """A Storage class that is a network client to a remote storage.
 
     This is a faithful implementation of the Storage API.
@@ -100,9 +101,10 @@ class ClientStorage(object):
     tpc_begin().
     """
 
-    implements(IBlobStorage)
-    # Classes we instantiate.  A subclass might override.
+    implements(ZODB.interfaces.IBlobStorage,
+               ZODB.interfaces.IStorageIteration)
 
+    # Classes we instantiate.  A subclass might override.
     TransactionBufferClass = TransactionBuffer
     ClientCacheClass = ClientCache
     ConnectionManagerClass = ConnectionManager
@@ -258,6 +260,8 @@ class ClientStorage(object):
         self._username = username
         self._password = password
         self._realm = realm
+
+        self._iterators = weakref.WeakValueDictionary()
 
         # Flag tracking disconnections in the middle of a transaction.  This
         # is reset in tpc_begin() and set in notifyDisconnected().
@@ -1241,3 +1245,43 @@ class ClientStorage(object):
     end = endVerify
     Invalidate = invalidateTrans
 
+    # IStorageIteration
+
+    def iterator(self, start=None, stop=None):
+        """Return an IStorageTransactionInformation iterator."""
+        # iids are "iterator IDs" that can be used to query an iterator whose
+        # status is held on the server.
+        iid = self._server.iterator_start(start, stop)
+        iterator = self._iterators[iid] = self._iterator(iid, start, stop)
+        return iterator
+
+    def _iterator(self, iid, start, stop):
+        while True:
+            item = self._server.iterator_next(iid)
+            if item is None:
+                break
+            yield ClientStorageTransactionInformation(self, *item)
+
+
+class ClientStorageTransactionInformation(ZODB.BaseStorage.TransactionRecord):
+
+    def __init__(self, storage, tid, status, user, description, extension):
+        self._storage = storage
+
+        self.tid = tid
+        self.status = status
+        self.user = user
+        self.description = description
+        self.extension = extension
+
+    def __iter__(self):
+        riid = self._storage._server.iterator_record_start(self.tid)
+        iterator = self._storage._iterators[riid] = self._iterator(riid)
+        return iterator
+
+    def _iterator(self, riid):
+        while True:
+            item = self._storage._server.iterator_record_next(riid)
+            if item is None:
+                break
+            yield ZODB.BaseStorage.DataRecord(*item)

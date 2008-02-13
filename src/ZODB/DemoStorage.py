@@ -81,14 +81,14 @@ and call it to monitor the storage.
 """
 
 import base64, time
+import ZODB.BaseStorage
 from ZODB import POSException
 from ZODB.utils import z64, oid_repr
-from ZODB.BaseStorage import BaseStorage
 from persistent.TimeStamp import TimeStamp
 from cPickle import loads
 from BTrees import OOBTree
 
-class DemoStorage(BaseStorage):
+class DemoStorage(ZODB.BaseStorage.BaseStorage):
     """Demo storage
 
     Demo storages provide useful storages for writing tests because
@@ -106,7 +106,7 @@ class DemoStorage(BaseStorage):
     
 
     def __init__(self, name='Demo Storage', base=None, quota=None):
-        BaseStorage.__init__(self, name, base)
+        ZODB.BaseStorage.BaseStorage.__init__(self, name, base)
 
         # We use a BTree because the items are sorted!
         self._data = OOBTree.OOBTree()
@@ -133,7 +133,7 @@ class DemoStorage(BaseStorage):
     # by the base storage, leading to a variety of "impossible" problems.
     def new_oid(self):
         if self._base is None:
-            return BaseStorage.new_oid(self)
+            return ZODB.BaseStorage.BaseStorage.new_oid(self)
         else:
             return self._base.new_oid()
 
@@ -569,3 +569,35 @@ class DemoStorage(BaseStorage):
     def close(self):
         if self._base is not None:
             self._base.close()
+
+    def iterator(self, start, stop):
+        for tid, (packed, user, description, extension, records) \
+                in self._data.items():
+            if tid < start:
+                continue
+            if tid > stop:
+                break
+            if packed:
+                status = 'p'
+            else:
+                status = ' '
+            yield TransactionRecord(
+                tid, status, user, description, extension, records)
+
+
+class TransactionRecord(ZODB.BaseStorage.TransactionRecord):
+
+    def __init__(self, tid, status, user, description, extension, records):
+        super(TransactionRecord, self).__init__(
+            tid, status, user, description, extension)
+        self._records = records
+
+    def __iter__(self):
+        for oid, pre, vdata, data, tid in self._records:
+            if vdata is None:
+                version = ''
+            else:
+                version, data = vdata
+            prev = pre[-1] # pre is supposed to be the previous data record,
+                           # which has its tid as its last element
+            yield ZODB.BaseStorage.DataRecord(oid, tid, data, version, prev)

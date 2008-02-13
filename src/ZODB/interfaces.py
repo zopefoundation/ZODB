@@ -780,7 +780,11 @@ class IStorageRecordInformation(Interface):
     """
 
     oid = Attribute("The object id")
+    tid = Attribute("The transaction id")
     data = Attribute("The data record")
+    version = Attribute("The version id")
+    data_txn = Attribute("The previous transaction id")
+
 
 class IStorageTransactionInformation(Interface):
     """Provide information about a storage transaction
