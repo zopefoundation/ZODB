@@ -793,7 +793,7 @@ class IStorageTransactionInformation(Interface):
     extension = Attribute("Transaction extension data")
 
     def __iter__():
-        """Return an iterable of IStorageTransactionInformation
+        """Return an iterable of IStorageRecordInformation
         """
 
 class IStorageIteration(Interface):
