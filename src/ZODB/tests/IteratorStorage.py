@@ -56,7 +56,7 @@ class IteratorStorage(IteratorCompare):
         revid1 = self._dostore(oid, data=MinPO(11))
         txniter = self._storage.iterator()
         txniter.close()
-        self.assertRaises(IOError, txniter.__getitem__, 0)
+        self.assertRaises(IOError, txniter.next)
 
     def checkUndoZombie(self):
         oid = self._storage.new_oid()
@@ -190,11 +190,11 @@ class IteratorDeepCompare:
                 eq(rec1.data,    rec2.data)
             # Make sure there are no more records left in rec1 and rec2,
             # meaning they were the same length.
-            self.assertRaises(IndexError, txn1.next)
-            self.assertRaises(IndexError, txn2.next)
+            self.assertRaises(StopIteration, txn1.next)
+            self.assertRaises(StopIteration, txn2.next)
         # Make sure ther are no more records left in txn1 and txn2, meaning
         # they were the same length
-        self.assertRaises(IndexError, iter1.next)
-        self.assertRaises(IndexError, iter2.next)
+        self.assertRaises(StopIteration, iter1.next)
+        self.assertRaises(StopIteration, iter2.next)
         iter1.close()
         iter2.close()

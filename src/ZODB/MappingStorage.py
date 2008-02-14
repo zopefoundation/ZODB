@@ -140,3 +140,6 @@ class MappingStorage(BaseStorage):
 
     def close(self):
         pass
+
+    def iterator(self, start=None, stop=None):
+        return iter(())

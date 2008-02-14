@@ -1516,26 +1516,8 @@ def _truncate(file, name, pos):
     file.seek(pos)
     file.truncate()
 
-class Iterator:
-    """A General simple iterator that uses the Python for-loop index protocol
-    """
-    __index=-1
-    __current=None
 
-    def __getitem__(self, i):
-        __index=self.__index
-        while i > __index:
-            __index=__index+1
-            try:
-                self.__current=self.next()
-            except StopIteration:
-                raise IndexError(i)
-
-        self.__index=__index
-        return self.__current
-
-
-class FileIterator(Iterator, FileStorageFormatter):
+class FileIterator(FileStorageFormatter):
     """Iterate over the transactions in a FileStorage file.
     """
     _ltid = z64
@@ -1569,6 +1551,9 @@ class FileIterator(Iterator, FileStorageFormatter):
     # can create the iterator manually, e.g. setting start and stop, and then
     # just let copyTransactionsFrom() do its thing.
     def iterator(self):
+        return self
+
+    def __iter__(self):
         return self
 
     def close(self):
@@ -1699,9 +1684,9 @@ class FileIterator(Iterator, FileStorageFormatter):
         raise StopIteration
 
 
-class RecordIterator(Iterator, BaseStorage.TransactionRecord,
-                     FileStorageFormatter):
+class RecordIterator(BaseStorage.TransactionRecord, FileStorageFormatter):
     """Iterate over the transactions in a FileStorage file."""
+
     def __init__(self, tid, status, user, desc, ext, pos, tend, file, tpos):
         BaseStorage.TransactionRecord.__init__(
             self, tid, status, user, desc, ext)
@@ -1711,7 +1696,10 @@ class RecordIterator(Iterator, BaseStorage.TransactionRecord,
         self._file = file
         self._tpos = tpos
 
-    def next(self, index=0):
+    def __iter__(self):
+        return self
+
+    def next(self):
         pos = self._pos
         while pos < self._tend:
             # Read the data records for this transaction
@@ -1743,7 +1731,7 @@ class RecordIterator(Iterator, BaseStorage.TransactionRecord,
             r = Record(h.oid, h.tid, data, prev_txn, pos)
             return r
 
-        raise IndexError(index)
+        raise StopIteration
 
 
 class Record(BaseStorage.DataRecord):

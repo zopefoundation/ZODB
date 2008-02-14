@@ -147,6 +147,18 @@ class PackableStorageBase:
             self._storage.tpc_vote(t)
             self._storage.tpc_finish(t)
 
+    def _sanity_check(self):
+        # Iterate over the storage to make sure it's sane.
+        if not hasattr(self._storage, "iterator"):
+            return
+        it = self._storage.iterator()
+        for txn in it:
+            for data in txn:
+                pass
+        # XXX see bug #191573
+        if hasattr(it, "close"):
+            it.close()
+
 class PackableStorage(PackableStorageBase):
 
     def checkPackEmptyStorage(self):
@@ -251,16 +263,7 @@ class PackableStorage(PackableStorageBase):
 
             self.fail('a thread is still alive')
 
-        # Iterate over the storage to make sure it's sane, but not every
-        # storage supports iterators.
-        if not hasattr(self._storage, "iterator"):
-            return
-
-        it = self._storage.iterator()
-        for txn in it:
-            for data in txn:
-                pass
-        it.close()
+        self._sanity_check()
 
     def checkPackWhileWriting(self):
         self._PackWhileWriting(pack_now=False)
@@ -302,17 +305,7 @@ class PackableStorage(PackableStorageBase):
             packt = time.time()
         thread.join()
 
-        # Iterate over the storage to make sure it's sane.
-        if not hasattr(self._storage, "iterator"):
-            return
-        it = self._storage.iterator()
-        for txn in it:
-            for data in txn:
-                pass
-        # XXX see bug #191573
-        if hasattr(it, "close"):
-            it.close()
-
+        self._sanity_check()
 
 class PackableUndoStorage(PackableStorageBase):
 
