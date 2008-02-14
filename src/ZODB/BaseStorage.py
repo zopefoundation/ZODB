@@ -188,10 +188,7 @@ class BaseStorage(UndoLogCompatible):
             user = transaction.user
             desc = transaction.description
             ext = transaction._extension
-            if ext:
-                ext = cPickle.dumps(ext, 1)
-            else:
-                ext = ""
+            ext = cPickle.dumps(ext, 1)
             self._ude = user, desc, ext
 
             if tid is None:
