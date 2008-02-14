@@ -14,7 +14,6 @@
 """ZEO iterator protocol tests."""
 
 import transaction
-from ZODB.tests.StorageTestBase import zodb_pickle, MinPO
 
 
 class IterationTests:
@@ -72,3 +71,17 @@ class IterationTests:
         self._storage.tpc_abort(t)
         self.assertEquals(0, len(self._storage._iterator_ids))
         self.assertRaises(KeyError, self._storage._server.iterator_next, iid)
+
+    def checkIteratorParallel(self):
+        self._dostore()
+        self._dostore()
+        iter1 = self._storage.iterator()
+        iter2 = self._storage.iterator()
+        txn_info1 = iter1.next()
+        txn_info2 = iter2.next()
+        self.assertEquals(txn_info1.tid, txn_info2.tid)
+        txn_info1 = iter1.next()
+        txn_info2 = iter2.next()
+        self.assertEquals(txn_info1.tid, txn_info2.tid)
+        self.assertRaises(StopIteration, iter1.next)
+        self.assertRaises(StopIteration, iter2.next)
