@@ -80,13 +80,15 @@ and call it to monitor the storage.
 
 """
 
+import cPickle
 import base64, time
+
 import ZODB.BaseStorage
 from ZODB import POSException
 from ZODB.utils import z64, oid_repr
 from persistent.TimeStamp import TimeStamp
-from cPickle import loads
 from BTrees import OOBTree
+
 
 class DemoStorage(ZODB.BaseStorage.BaseStorage):
     """Demo storage
@@ -317,6 +319,10 @@ class DemoStorage(ZODB.BaseStorage.BaseStorage):
         self._tsize = self._size + 120 + len(u) + len(d) + len(e)
 
     def _finish(self, tid, user, desc, ext):
+        if not self._tindex:
+            # No data, so we don't update anything.
+            return
+
         self._size = self._tsize
 
         self._data[tid] = None, user, desc, ext, tuple(self._tindex)
@@ -364,7 +370,7 @@ class DemoStorage(ZODB.BaseStorage.BaseStorage):
                      'time': TimeStamp(tid).timeTime(),
                      'user_name': u, 'description': d}
                 if e:
-                    d.update(loads(e))
+                    d.update(cPickle.loads(e))
                 if filter is None or filter(d):
                     if i >= first:
                         r.append(d)
@@ -575,12 +581,13 @@ class DemoStorage(ZODB.BaseStorage.BaseStorage):
                 in self._data.items():
             if tid < start:
                 continue
-            if tid > stop:
+            if stop is not None and tid > stop:
                 break
             if packed:
                 status = 'p'
             else:
                 status = ' '
+            extension = cPickle.loads(extension)
             yield TransactionRecord(
                 tid, status, user, description, extension, records)
 
