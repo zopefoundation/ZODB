@@ -1690,7 +1690,6 @@ class RecordIterator(BaseStorage.TransactionRecord, FileStorageFormatter):
     def __init__(self, tid, status, user, desc, ext, pos, tend, file, tpos):
         BaseStorage.TransactionRecord.__init__(
             self, tid, status, user, desc, ext)
-        self._extension = ext
         self._pos = pos
         self._tend = tend
         self._file = file

@@ -46,7 +46,10 @@ class IterationTests:
 
     def checkIteratorGCSpanTransactions(self):
         iterator = self._storage.iterator()
-        self._dostore()
+        t = transaction.Transaction()
+        self._storage.tpc_begin(t)
+        self._storage.tpc_vote(t)
+        self._storage.tpc_finish(t)
         self.assertEquals([], list(iterator))
 
     def checkIteratorGCStorageCommitting(self):

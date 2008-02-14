@@ -89,7 +89,7 @@ class IteratorStorage(IteratorCompare):
         iter = self._storage.iterator()
         count = 0
         for txn in iter:
-            self.assertEqual(txn._extension, {})
+            self.assertEqual(txn.extension, {})
             count +=1
         self.assertEqual(count, 1)
 
@@ -183,7 +183,7 @@ class IteratorDeepCompare:
             eq(txn1.status,      txn2.status)
             eq(txn1.user,        txn2.user)
             eq(txn1.description, txn2.description)
-            eq(txn1._extension,  txn2._extension)
+            eq(txn1.extension,  txn2.extension)
             for rec1, rec2 in zip(txn1, txn2):
                 eq(rec1.oid,     rec2.oid)
                 eq(rec1.tid,  rec2.tid)

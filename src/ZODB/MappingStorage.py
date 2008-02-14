@@ -21,16 +21,16 @@ It is meant to illustrate the simplest possible storage.
 The Mapping storage uses a single data structure to map object ids to data.
 """
 
+import ZODB.BaseStorage
 from ZODB.utils import u64, z64
-from ZODB.BaseStorage import BaseStorage
 from ZODB import POSException
 from persistent.TimeStamp import TimeStamp
 
 
-class MappingStorage(BaseStorage):
+class MappingStorage(ZODB.BaseStorage.BaseStorage):
 
     def __init__(self, name='Mapping Storage'):
-        BaseStorage.__init__(self, name)
+        ZODB.BaseStorage.BaseStorage.__init__(self, name)
         # ._index maps an oid to a string s.  s[:8] is the tid of the
         # transaction that created oid's current state, and s[8:] is oid's
         # current state.
@@ -142,4 +142,26 @@ class MappingStorage(BaseStorage):
         pass
 
     def iterator(self, start=None, stop=None):
-        return iter(())
+        """Return an IStorageTransactionInformation iterator."""
+        tid2oid = {}
+        for oid, odata in self._index.items():
+            tid = odata[:8]
+            oids = tid2oid.setdefault(tid, [])
+            oids.append(oid)
+
+        for tid, oids in sorted(tid2oid.items()):
+            yield TransactionRecord(self, tid, oids)
+
+
+class TransactionRecord(ZODB.BaseStorage.TransactionRecord):
+
+    def __init__(self, storage, tid, oids):
+        super(TransactionRecord, self).__init__(tid, 'p', '', '', {})
+        self._storage = storage
+        self._oids = oids
+
+    def __iter__(self):
+        for oid in self._oids:
+            storage_data = self._storage._index[oid]
+            tid, data = storage_data[:8], storage_data[8:]
+            yield ZODB.BaseStorage.DataRecord(oid, tid, data, '', None)

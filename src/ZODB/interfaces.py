@@ -794,7 +794,7 @@ class IStorageTransactionInformation(Interface):
     status = Attribute("Transaction Status") # XXX what are valid values?
     user = Attribute("Transaction user")
     description = Attribute("Transaction Description")
-    extension = Attribute("Transaction extension data")
+    extension = Attribute("A dictionary carrying the transaction's extension data")
 
     def __iter__():
         """Return an iterable of IStorageRecordInformation

@@ -41,7 +41,7 @@ import transaction
 from ZODB.tests import StorageTestBase, BasicStorage,  \
      TransactionalUndoStorage,  \
      PackableStorage, Synchronization, ConflictResolution, RevisionStorage, \
-     MTStorage, ReadOnlyStorage
+     MTStorage, ReadOnlyStorage, IteratorStorage
 
 from ZODB.tests.testDemoStorage import DemoStorageWrappedBase
 
@@ -177,6 +177,7 @@ class GenericTests(
     Synchronization.SynchronizedStorage,
     MTStorage.MTStorage,
     ReadOnlyStorage.ReadOnlyStorage,
+    IteratorStorage.IteratorStorage,
     # ZEO test mixin classes (in the same order as imported)
     CommitLockTests.CommitLockVoteTests,
     ThreadTests.ThreadTests,
