@@ -37,7 +37,9 @@ class IteratorCompare:
                 eq(zodb_unpickle(rec.data), MinPO(val))
                 val = val + 1
         eq(val, val0 + len(revids))
-        txniter.close()
+        if hasattr(txniter, 'close'):
+            # XXX See bug #191573
+            txniter.close()
 
 class IteratorStorage(IteratorCompare):
 
@@ -55,8 +57,10 @@ class IteratorStorage(IteratorCompare):
         self._oid = oid = self._storage.new_oid()
         revid1 = self._dostore(oid, data=MinPO(11))
         txniter = self._storage.iterator()
-        txniter.close()
-        self.assertRaises(IOError, txniter.next)
+        if hasattr(txniter, 'close'):
+            # XXX See bug #191573
+            txniter.close()
+            self.assertRaises(IOError, txniter.next)
 
     def checkUndoZombie(self):
         oid = self._storage.new_oid()
@@ -129,7 +133,20 @@ class IteratorStorage(IteratorCompare):
                     match = True
         if not match:
             self.fail("Could not find transaction with matching id")
- 
+
+    def checkIterateRepeatedly(self):
+        self._dostore()
+        transactions = self._storage.iterator()
+        self.assertEquals(1, len(list(transactions)))
+        # The iterator can only be consumed once:
+        self.assertEquals(0, len(list(transactions)))
+
+    def checkIterateRecordsRepeatedly(self):
+        self._dostore()
+        tinfo = self._storage.iterator().next()
+        self.assertEquals(1, len(list(tinfo)))
+        # The iterator can only be consumed once:
+        self.assertEquals(0, len(list(tinfo)))
 
 
 class ExtendedIteratorStorage(IteratorCompare):

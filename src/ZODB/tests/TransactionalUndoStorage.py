@@ -670,11 +670,11 @@ class TransactionalUndoStorage:
         #     OBJECTS * BATCHES modifications, followed by
         #     BATCHES undos
 
-        iter = s.iterator()
+        transactions = s.iterator()
         eq = self.assertEqual
 
         for i in range(BATCHES):
-            txn = iter.next()
+            txn = transactions.next()
 
             tid = p64(i + 1)
             eq(txn.tid, tid)
@@ -686,11 +686,11 @@ class TransactionalUndoStorage:
             eq(L1, L2)
 
         for i in range(BATCHES * OBJECTS):
-            txn = iter.next()
+            txn = transactions.next()
             eq(len([rec for rec in txn if rec.data_txn is None]), 1)
 
         for i in range(BATCHES):
-            txn = iter.next()
+            txn = transactions.next()
 
             # The undos are performed in reverse order.
             otid = p64(BATCHES - i)
@@ -701,7 +701,7 @@ class TransactionalUndoStorage:
             L2.sort()
             eq(L1, L2)
 
-        self.assertRaises(StopIteration, iter.next)
+        self.assertRaises(StopIteration, transactions.next)
 
     def checkUndoLogMetadata(self):
         # test that the metadata is correct in the undo log

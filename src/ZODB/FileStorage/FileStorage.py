@@ -1553,9 +1553,6 @@ class FileIterator(FileStorageFormatter):
     def iterator(self):
         return self
 
-    def __iter__(self):
-        return self
-
     def close(self):
         file = self._file
         if file is not None:
@@ -1590,14 +1587,19 @@ class FileIterator(FileStorageFormatter):
                     panic("%s has inconsistent transaction length at %s "
                           "(%s != %s)", file.name, pos, u64(rtl), u64(stl))
 
+    # Iterator protocol
+    def __iter__(self):
+        return self
+
     def next(self):
         if self._file is None:
             # A closed iterator.  Is IOError the best we can do?  For
             # now, mimic a read on a closed file.
-            raise IOError('iterator is closed')
+            raise IOError("The iterator's file is closed.")
 
         pos = self._pos
-        while 1:
+        while True:
+
             # Read the transaction record
             try:
                 h = self._read_txn_header(pos)
@@ -1613,11 +1615,11 @@ class FileIterator(FileStorageFormatter):
             self._ltid = h.tid
 
             if self._stop is not None and h.tid > self._stop:
-                raise StopIteration
+                break
 
             if h.status == "c":
                 # Assume we've hit the last, in-progress transaction
-                raise StopIteration
+                break
 
             if pos + h.tlen + 8 > self._file_size:
                 # Hm, the data were truncated or the checkpoint flag wasn't
@@ -1667,8 +1669,8 @@ class FileIterator(FileStorageFormatter):
                     except:
                         pass
 
-                result = RecordIterator(h.tid, h.status, h.user, h.descr,
-                                        e, pos, tend, self._file, tpos)
+                result = TransactionRecord(h.tid, h.status, h.user, h.descr,
+                                           e, pos, tend, self._file, tpos)
 
             # Read the (intentionally redundant) transaction length
             self._file.seek(tend)
@@ -1684,7 +1686,7 @@ class FileIterator(FileStorageFormatter):
         raise StopIteration
 
 
-class RecordIterator(BaseStorage.TransactionRecord, FileStorageFormatter):
+class TransactionRecord(BaseStorage.TransactionRecord, FileStorageFormatter):
     """Iterate over the transactions in a FileStorage file."""
 
     def __init__(self, tid, status, user, desc, ext, pos, tend, file, tpos):
@@ -1727,8 +1729,7 @@ class RecordIterator(BaseStorage.TransactionRecord, FileStorageFormatter):
                     # Should it go to the original data like BDBFullStorage?
                     prev_txn = self.getTxnFromData(h.oid, h.back)
 
-            r = Record(h.oid, h.tid, data, prev_txn, pos)
-            return r
+            return Record(h.oid, h.tid, data, prev_txn, pos)
 
         raise StopIteration
 

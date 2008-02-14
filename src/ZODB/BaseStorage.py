@@ -364,6 +364,14 @@ class TransactionRecord(object):
         self.description = description
         self.extension = extension
 
+    # XXX This is a workaround to make the TransactionRecord compatible with a
+    # transaction object because it is passe
+    def _ext_set(self, value):
+        self.extension = value
+    def _ext_get(self):
+        return self.extension
+    _extension = property(fset=_ext_set, fget=_ext_get)
+
 
 class DataRecord(object):
     """Abstract base class for iterator protocol"""

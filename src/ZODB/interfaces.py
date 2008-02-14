@@ -787,7 +787,10 @@ class IStorageRecordInformation(Interface):
 
 
 class IStorageTransactionInformation(Interface):
-    """Provide information about a storage transaction
+    """Provide information about a storage transaction.
+
+    Can be iterated over to retrieve the records modified in the transaction.
+
     """
 
     tid = Attribute("Transaction id")
@@ -797,8 +800,11 @@ class IStorageTransactionInformation(Interface):
     extension = Attribute("A dictionary carrying the transaction's extension data")
 
     def __iter__():
-        """Return an iterable of IStorageRecordInformation
+        """Iterate over the transaction's records given as
+        IStorageRecordInformation objects.
+
         """
+
 
 class IStorageIteration(Interface):
     """API for iterating over the contents of a storage
@@ -811,9 +817,6 @@ class IStorageIteration(Interface):
     def iterator(start=None, stop=None):
         """Return an IStorageTransactionInformation iterator.
 
-        An IStorageTransactionInformation iterator is returned for
-        iterating over the transactions in the storage.
-
         If the start argument is not None, then iteration will start
         with the first transaction whose identifier is greater than or
         equal to start.
@@ -823,6 +826,7 @@ class IStorageIteration(Interface):
         stop.
 
         """
+
 
 class IStorageUndoable(IStorage):
     """A storage supporting transactional undo.

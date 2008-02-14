@@ -272,6 +272,16 @@ class MappingStorageTests(GenericTests):
     def getConfig(self):
         return """<mappingstorage 1/>"""
 
+    def checkSimpleIteration(self):
+        # The test base class IteratorStorage assumes that we keep undo data
+        # to construct our iterator, which we don't, so we disable this test.
+        pass
+
+    def checkUndoZombie(self):
+        # The test base class IteratorStorage assumes that we keep undo data
+        # to construct our iterator, which we don't, so we disable this test.
+        pass
+
 class DemoStorageTests(
     GenericTests,
     ):
@@ -284,6 +294,11 @@ class DemoStorageTests(
           </filestorage>
         </demostorage>
         """ % tempfile.mktemp()
+
+    def checkUndoZombie(self):
+        # The test base class IteratorStorage assumes that we keep undo data
+        # to construct our iterator, which we don't, so we disable this test.
+        pass
 
 class HeartbeatTests(ZEO.tests.ConnectionTests.CommonSetupTearDown):
     """Make sure a heartbeat is being sent and that it does no harm

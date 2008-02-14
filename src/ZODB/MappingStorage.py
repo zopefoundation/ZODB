@@ -148,8 +148,11 @@ class MappingStorage(ZODB.BaseStorage.BaseStorage):
             tid = odata[:8]
             oids = tid2oid.setdefault(tid, [])
             oids.append(oid)
-
         for tid, oids in sorted(tid2oid.items()):
+            if tid < start:
+                continue
+            if stop is not None and tid > stop:
+                break
             yield TransactionRecord(self, tid, oids)
 
 
@@ -158,10 +161,15 @@ class TransactionRecord(ZODB.BaseStorage.TransactionRecord):
     def __init__(self, storage, tid, oids):
         super(TransactionRecord, self).__init__(tid, 'p', '', '', {})
         self._storage = storage
-        self._oids = oids
+        self._oids = list(oids)
 
     def __iter__(self):
-        for oid in self._oids:
+        return self
+
+    def next(self):
+        while self._oids:
+            oid = self._oids.pop()
             storage_data = self._storage._index[oid]
             tid, data = storage_data[:8], storage_data[8:]
-            yield ZODB.BaseStorage.DataRecord(oid, tid, data, '', None)
+            return ZODB.BaseStorage.DataRecord(oid, tid, data, '', None)
+        raise StopIteration

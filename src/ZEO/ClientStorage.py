@@ -1265,10 +1265,14 @@ class ClientStorage(object):
                 # disposed it.
                 self._forget_iterator(iid)
                 break
-            yield ClientStorageTransactionInformation(self, *item)
 
-    def _setup_iterator(self, factory, iid):
-        self._iterators[iid] = iterator = factory(iid)
+            tid = item[0]
+            riid = self._server.iterator_record_start(tid)
+            yield self._setup_iterator(ClientStorageTransactionInformation,
+                                       riid, self, *item)
+
+    def _setup_iterator(self, factory, iid, *args):
+        self._iterators[iid] = iterator = factory(iid, *args)
         self._iterator_ids.add(iid)
         return iterator
 
@@ -1293,8 +1297,10 @@ class ClientStorage(object):
 
 class ClientStorageTransactionInformation(ZODB.BaseStorage.TransactionRecord):
 
-    def __init__(self, storage, tid, status, user, description, extension):
+    def __init__(self, riid, storage, tid, status, user, description, extension):
         self._storage = storage
+        self._riid = riid
+        self._completed = False
 
         self.tid = tid
         self.status = status
@@ -1303,15 +1309,18 @@ class ClientStorageTransactionInformation(ZODB.BaseStorage.TransactionRecord):
         self.extension = extension
 
     def __iter__(self):
-        riid = self._storage._server.iterator_record_start(self.tid)
-        return self._storage._setup_iterator(self._iterator, riid)
+        return self
 
-    def _iterator(self, riid):
-        while True:
-            item = self._storage._server.iterator_record_next(riid)
-            if item is None:
-                # The iterator is exhausted, and the server has already
-                # disposed it.
-                self._storage._forget_iterator(riid)
-                break
-            yield ZODB.BaseStorage.DataRecord(*item)
+    def next(self):
+        if self._completed:
+            # We finished iteration once already and the server can't know
+            # about the iteration anymore.
+            raise StopIteration
+        item = self._storage._server.iterator_record_next(self._riid)
+        if item is None:
+            # The iterator is exhausted, and the server has already
+            # disposed it.
+            self._storage._forget_iterator(self._riid)
+            self._completed = True
+            raise StopIteration
+        return ZODB.BaseStorage.DataRecord(*item)

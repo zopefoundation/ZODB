@@ -689,7 +689,7 @@ class ZEOStorage:
 
     def iterator_start(self, start, stop):
         iid = self._iterator_ids.next()
-        self._iterators[iid] = self.storage.iterator(start, stop)
+        self._iterators[iid] = iter(self.storage.iterator(start, stop))
         return iid
 
     def iterator_next(self, iid):
@@ -710,7 +710,7 @@ class ZEOStorage:
     def iterator_record_start(self, tid):
         iid = self._iterator_ids.next()
         txn_infos = list(self.storage.iterator(tid, tid))
-        assert len(txn_infos) == 1
+        assert len(txn_infos) == 1, "%s" % txn_infos
         self._iterators[iid] = iter(txn_infos[0])
         return iid
 

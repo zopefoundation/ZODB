@@ -576,7 +576,7 @@ class DemoStorage(ZODB.BaseStorage.BaseStorage):
         if self._base is not None:
             self._base.close()
 
-    def iterator(self, start, stop):
+    def iterator(self, start=None, stop=None):
         for tid, (packed, user, description, extension, records) \
                 in self._data.items():
             if tid < start:
@@ -597,14 +597,17 @@ class TransactionRecord(ZODB.BaseStorage.TransactionRecord):
     def __init__(self, tid, status, user, description, extension, records):
         super(TransactionRecord, self).__init__(
             tid, status, user, description, extension)
-        self._records = records
+        self._records = list(records)
 
     def __iter__(self):
-        for oid, pre, vdata, data, tid in self._records:
+        while self._records:
+            oid, prev, vdata, data, tid = self._records.pop()
             if vdata is None:
                 version = ''
             else:
                 version, data = vdata
-            prev = pre[-1] # pre is supposed to be the previous data record,
-                           # which has its tid as its last element
+            if prev is not None:
+                # prev is supposed to be the previous data record,
+                # which has its tid as its last element
+                prev = prev[-1]
             yield ZODB.BaseStorage.DataRecord(oid, tid, data, version, prev)

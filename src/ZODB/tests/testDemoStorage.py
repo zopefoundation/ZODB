@@ -18,11 +18,12 @@ from ZODB.DB import DB
 import ZODB.utils
 import ZODB.DemoStorage
 from ZODB.tests import StorageTestBase, BasicStorage
-from ZODB.tests import Synchronization
+from ZODB.tests import Synchronization, IteratorStorage
 
 class DemoStorageTests(StorageTestBase.StorageTestBase,
                        BasicStorage.BasicStorage,
                        Synchronization.SynchronizedStorage,
+                       IteratorStorage.IteratorStorage
                        ):
 
     def setUp(self):
@@ -44,6 +45,10 @@ class DemoStorageTests(StorageTestBase.StorageTestBase,
         self.assertEqual(s2.load(ZODB.utils.z64, ''),
                          self._storage.load(ZODB.utils.z64, ''))
 
+    def checkUndoZombie(self):
+        # The test base class IteratorStorage assumes that we keep undo data
+        # to construct our iterator, which we don't, so we disable this test.
+        pass
 
 class DemoStorageWrappedBase(DemoStorageTests):
 
