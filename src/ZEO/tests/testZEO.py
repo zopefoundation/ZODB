@@ -49,7 +49,8 @@ from ZEO.ClientStorage import ClientStorage
 
 import ZEO.zrpc.connection
 
-from ZEO.tests import forker, Cache, CommitLockTests, ThreadTests
+from ZEO.tests import forker, Cache, CommitLockTests, ThreadTests, \
+     IterationTests
 
 import ZEO.tests.ConnectionTests
 
@@ -179,8 +180,9 @@ class GenericTests(
     # ZEO test mixin classes (in the same order as imported)
     CommitLockTests.CommitLockVoteTests,
     ThreadTests.ThreadTests,
+    IterationTests.IterationTests,
     # Locally defined (see above)
-    MiscZEOTests
+    MiscZEOTests,
     ):
 
     """Combine tests from various origins in one class."""

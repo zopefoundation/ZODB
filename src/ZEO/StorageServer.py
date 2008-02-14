@@ -729,6 +729,10 @@ class ZEOStorage:
                     info.data_txn)
         return item
 
+    def iterator_gc(self, iids):
+        for iid in iids:
+            self._iterators.pop(iid, None)
+
 
 class StorageServerDB:
 

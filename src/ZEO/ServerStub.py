@@ -304,6 +304,9 @@ class StorageServer:
     def iterator_record_next(self, iid):
         return self.rpc.call('iterator_record_next', iid)
 
+    def iterator_gc(self, iids):
+        return self.rpc.call('iterator_gc', iids)
+
 
 class ExtensionMethodWrapper:
     def __init__(self, rpc, name):

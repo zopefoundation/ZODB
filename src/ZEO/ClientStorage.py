@@ -262,6 +262,7 @@ class ClientStorage(object):
         self._realm = realm
 
         self._iterators = weakref.WeakValueDictionary()
+        self._iterator_ids = set()
 
         # Flag tracking disconnections in the middle of a transaction.  This
         # is reset in tpc_begin() and set in notifyDisconnected().
@@ -1073,6 +1074,7 @@ class ClientStorage(object):
             self._tbuf.clear()
             self._seriald.clear()
             del self._serials[:]
+            self._iterator_gc()
             self.end_transaction()
 
     def tpc_finish(self, txn, f=None):
@@ -1102,6 +1104,7 @@ class ClientStorage(object):
             assert r is None or len(r) == 0, "unhandled serialnos: %s" % r
         finally:
             self._load_lock.release()
+            self._iterator_gc()
             self.end_transaction()
 
     def _update_cache(self, tid):
@@ -1252,15 +1255,40 @@ class ClientStorage(object):
         # iids are "iterator IDs" that can be used to query an iterator whose
         # status is held on the server.
         iid = self._server.iterator_start(start, stop)
-        iterator = self._iterators[iid] = self._iterator(iid, start, stop)
-        return iterator
+        return self._setup_iterator(self._iterator, iid)
 
-    def _iterator(self, iid, start, stop):
+    def _iterator(self, iid):
         while True:
             item = self._server.iterator_next(iid)
             if item is None:
+                # The iterator is exhausted, and the server has already
+                # disposed it.
+                self._forget_iterator(iid)
                 break
             yield ClientStorageTransactionInformation(self, *item)
+
+    def _setup_iterator(self, factory, iid):
+        self._iterators[iid] = iterator = factory(iid)
+        self._iterator_ids.add(iid)
+        return iterator
+
+    def _forget_iterator(self, iid):
+        self._iterators.pop(iid, None)
+        self._iterator_ids.remove(iid)
+
+    def _iterator_gc(self):
+        iids = self._iterator_ids - set(self._iterators)
+        try:
+            self._server.iterator_gc(list(iids))
+        except ClientDisconnected:
+            # We could not successfully garbage-collect iterators.
+            # The server might have been restarted, so the IIDs might mean
+            # something different now. We simply forget our unused IIDs to
+            # avoid gc'ing foreign iterators.
+            # In the case that the server was not restarted, we accept the
+            # risk of leaking resources on the ZEO server.
+            pass
+        self._iterator_ids -= iids
 
 
 class ClientStorageTransactionInformation(ZODB.BaseStorage.TransactionRecord):
@@ -1276,12 +1304,14 @@ class ClientStorageTransactionInformation(ZODB.BaseStorage.TransactionRecord):
 
     def __iter__(self):
         riid = self._storage._server.iterator_record_start(self.tid)
-        iterator = self._storage._iterators[riid] = self._iterator(riid)
-        return iterator
+        return self._storage._setup_iterator(self._iterator, riid)
 
     def _iterator(self, riid):
         while True:
             item = self._storage._server.iterator_record_next(riid)
             if item is None:
+                # The iterator is exhausted, and the server has already
+                # disposed it.
+                self._storage._forget_iterator(riid)
                 break
             yield ZODB.BaseStorage.DataRecord(*item)
