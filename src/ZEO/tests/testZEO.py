@@ -56,7 +56,6 @@ import ZEO.tests.ConnectionTests
 import ZEO.StorageServer
 
 logger = logging.getLogger('ZEO.tests.testZEO')
-logging.getLogger().addHandler(logging.StreamHandler())
 
 class DummyDB:
     def invalidate(self, *args):
