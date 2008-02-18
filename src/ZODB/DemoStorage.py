@@ -575,39 +575,3 @@ class DemoStorage(ZODB.BaseStorage.BaseStorage):
     def close(self):
         if self._base is not None:
             self._base.close()
-
-    def iterator(self, start=None, stop=None):
-        for tid, (packed, user, description, extension, records) \
-                in self._data.items():
-            if tid < start:
-                continue
-            if stop is not None and tid > stop:
-                break
-            if packed:
-                status = 'p'
-            else:
-                status = ' '
-            extension = cPickle.loads(extension)
-            yield TransactionRecord(
-                tid, status, user, description, extension, records)
-
-
-class TransactionRecord(ZODB.BaseStorage.TransactionRecord):
-
-    def __init__(self, tid, status, user, description, extension, records):
-        super(TransactionRecord, self).__init__(
-            tid, status, user, description, extension)
-        self._records = list(records)
-
-    def __iter__(self):
-        while self._records:
-            oid, prev, vdata, data, tid = self._records.pop()
-            if vdata is None:
-                version = ''
-            else:
-                version, data = vdata
-            if prev is not None:
-                # prev is supposed to be the previous data record,
-                # which has its tid as its last element
-                prev = prev[-1]
-            yield ZODB.BaseStorage.DataRecord(oid, tid, data, version, prev)

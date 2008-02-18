@@ -140,36 +140,3 @@ class MappingStorage(ZODB.BaseStorage.BaseStorage):
 
     def close(self):
         pass
-
-    def iterator(self, start=None, stop=None):
-        """Return an IStorageTransactionInformation iterator."""
-        tid2oid = {}
-        for oid, odata in self._index.items():
-            tid = odata[:8]
-            oids = tid2oid.setdefault(tid, [])
-            oids.append(oid)
-        for tid, oids in sorted(tid2oid.items()):
-            if tid < start:
-                continue
-            if stop is not None and tid > stop:
-                break
-            yield TransactionRecord(self, tid, oids)
-
-
-class TransactionRecord(ZODB.BaseStorage.TransactionRecord):
-
-    def __init__(self, storage, tid, oids):
-        super(TransactionRecord, self).__init__(tid, 'p', '', '', {})
-        self._storage = storage
-        self._oids = list(oids)
-
-    def __iter__(self):
-        return self
-
-    def next(self):
-        while self._oids:
-            oid = self._oids.pop()
-            storage_data = self._storage._index[oid]
-            tid, data = storage_data[:8], storage_data[8:]
-            return ZODB.BaseStorage.DataRecord(oid, tid, data, '', None)
-        raise StopIteration

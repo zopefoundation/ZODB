@@ -807,12 +807,7 @@ class IStorageTransactionInformation(Interface):
 
 
 class IStorageIteration(Interface):
-    """API for iterating over the contents of a storage
-
-    Note that this is a future API.  Some storages now provide an
-    approximation of this.
-
-    """
+    """API for iterating over the contents of a storage."""
 
     def iterator(start=None, stop=None):
         """Return an IStorageTransactionInformation iterator.
@@ -824,6 +819,9 @@ class IStorageIteration(Interface):
         If the stop argument is not None, then iteration will end with
         the last transaction whose identifier is less than or equal to
         stop.
+
+        The iterator provides access to the data as available at the time when
+        the iterator was retrieved.
 
         """
 

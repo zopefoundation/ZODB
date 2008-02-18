@@ -177,11 +177,9 @@ class GenericTests(
     Synchronization.SynchronizedStorage,
     MTStorage.MTStorage,
     ReadOnlyStorage.ReadOnlyStorage,
-    IteratorStorage.IteratorStorage,
     # ZEO test mixin classes (in the same order as imported)
     CommitLockTests.CommitLockVoteTests,
     ThreadTests.ThreadTests,
-    IterationTests.IterationTests,
     # Locally defined (see above)
     MiscZEOTests,
     ):
@@ -251,6 +249,8 @@ class FullGenericTests(
     PackableStorage.PackableUndoStorage,
     RevisionStorage.RevisionStorage,
     TransactionalUndoStorage.TransactionalUndoStorage,
+    IteratorStorage.IteratorStorage,
+    IterationTests.IterationTests,
     ):
     """Extend GenericTests with tests that MappingStorage can't pass."""
 
@@ -594,7 +594,7 @@ class CommonBlobTests:
         self._storage.close()
 
 
-class BlobAdaptedFileStorageTests(GenericTests, CommonBlobTests):
+class BlobAdaptedFileStorageTests(FullGenericTests, CommonBlobTests):
     """ZEO backed by a BlobStorage-adapted FileStorage."""
 
     def setUp(self):
@@ -685,7 +685,7 @@ class BlobAdaptedFileStorageTests(GenericTests, CommonBlobTests):
         check_data(filename)
 
 
-class BlobWritableCacheTests(GenericTests, CommonBlobTests):
+class BlobWritableCacheTests(FullGenericTests, CommonBlobTests):
 
     def setUp(self):
         self.blobdir = self.blob_cache_dir = tempfile.mkdtemp()
@@ -863,7 +863,7 @@ without this method:
     >>> st = StorageServerWrapper(sv, 'fs')
     >>> s = st.server
     
-Now, if we ask fior the invalidations since the last committed
+Now, if we ask for the invalidations since the last committed
 transaction, we'll get a result:
 
     >>> tid, oids = s.getInvalidations(last[-1])

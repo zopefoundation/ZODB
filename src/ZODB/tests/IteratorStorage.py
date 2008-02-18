@@ -148,6 +148,18 @@ class IteratorStorage(IteratorCompare):
         # The iterator can only be consumed once:
         self.assertEquals(0, len(list(tinfo)))
 
+    def checkIterateWhileWriting(self):
+        self._dostore()
+        iterator = self._storage.iterator()
+        # We have one transaction with 1 modified object.
+        txn_1 = iterator.next()
+        self.assertEquals(1, len(list(txn_1)))
+
+        # We store another transaction with 1 object, the already running
+        # iterator does not pick this up.
+        self._dostore()
+        self.assertRaises(StopIteration, iterator.next)
+
 
 class ExtendedIteratorStorage(IteratorCompare):
 

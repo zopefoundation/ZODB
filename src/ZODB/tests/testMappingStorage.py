@@ -16,14 +16,13 @@ import unittest
 
 from ZODB.tests import StorageTestBase
 from ZODB.tests import BasicStorage, MTStorage, Synchronization
-from ZODB.tests import PackableStorage, IteratorStorage
+from ZODB.tests import PackableStorage
 
 class MappingStorageTests(StorageTestBase.StorageTestBase,
                           BasicStorage.BasicStorage,
                           MTStorage.MTStorage,
                           PackableStorage.PackableStorage,
                           Synchronization.SynchronizedStorage,
-                          IteratorStorage.IteratorStorage
                           ):
 
     def setUp(self):
@@ -38,15 +37,6 @@ class MappingStorageTests(StorageTestBase.StorageTestBase,
         # have this limit, so we inhibit this test here.
         pass
 
-    def checkSimpleIteration(self):
-        # The test base class IteratorStorage assumes that we keep undo data
-        # to construct our iterator, which we don't, so we disable this test.
-        pass
-
-    def checkUndoZombie(self):
-        # The test base class IteratorStorage assumes that we keep undo data
-        # to construct our iterator, which we don't, so we disable this test.
-        pass
 
 def test_suite():
     suite = unittest.makeSuite(MappingStorageTests, 'check')
