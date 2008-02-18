@@ -32,6 +32,8 @@ New Features
   on datetimes or serials (TIDs).  See
   src/ZODB/historical_connections.txt.
 
+- Removed the ThreadedAsync module.
+
 Bugs Fixed
 ----------
 

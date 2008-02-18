@@ -369,7 +369,6 @@ class ClientStorage(object):
         # still be going on.  This code must wait until validation
         # finishes, but if the connection isn't a zrpc async
         # connection it also needs to poll for input.
-        assert self._connection.is_async()
         while 1:
             self._ready.wait(30)
             if self._ready.isSet():
@@ -523,8 +522,6 @@ class ClientStorage(object):
         # that the verification will be done because operations are
         # handled in order.        
         self._info.update(stub.get_info())
-
-        assert conn.is_async()
 
         self._handle_extensions()
 

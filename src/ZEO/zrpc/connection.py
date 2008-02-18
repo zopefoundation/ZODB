@@ -21,7 +21,6 @@ import logging
 
 import traceback, time
 
-import ThreadedAsync
 from ZEO.zrpc import smac
 from ZEO.zrpc.error import ZRPCError, DisconnectedError
 from ZEO.zrpc.marshal import Marshaller
@@ -383,15 +382,7 @@ class Connection(smac.SizedMessageAsyncConnection, object):
         ourmap = {}
         self.__super_init(sock, addr, map=ourmap)
 
-        # A Connection either uses asyncore directly or relies on an
-        # asyncore mainloop running in a separate thread.  If
-        # thr_async is true, then the mainloop is running in a
-        # separate thread.  If thr_async is true, then the asyncore
-        # trigger (self.trigger) is used to notify that thread of
-        # activity on the current thread.
-        self.thr_async = False
-        self.trigger = None
-        self._prepare_async()
+        self.trigger = trigger()
 
         # The singleton dict is used in synchronous mode when a method
         # needs to call into asyncore to try to force some I/O to occur.
@@ -684,10 +675,7 @@ class Connection(smac.SizedMessageAsyncConnection, object):
         if self.closed:
             raise DisconnectedError()
         msgid = self.send_call(method, args, 0)
-        if self.is_async():
-            self.trigger.pull_trigger()
-        else:
-            asyncore.poll(0.01, self._singleton)
+        self.trigger.pull_trigger()
         return msgid
 
     def _deferred_wait(self, msgid):
@@ -728,23 +716,6 @@ class Connection(smac.SizedMessageAsyncConnection, object):
 
     # handle IO, possibly in async mode
 
-    def _prepare_async(self):
-        self.thr_async = False
-        ThreadedAsync.register_loop_callback(self.set_async)
-        # TODO:  If we are not in async mode, this will cause dead
-        # Connections to be leaked.
-
-    def set_async(self, map):
-        self.trigger = trigger()
-        self.thr_async = True
-
-    def is_async(self):
-        # Overridden by ManagedConnection
-        if self.thr_async:
-            return 1
-        else:
-            return 0
-
     def _pull_trigger(self, tryagain=10):
         try:
             self.trigger.pull_trigger()
@@ -757,10 +728,9 @@ class Connection(smac.SizedMessageAsyncConnection, object):
     def wait(self, msgid):
         """Invoke asyncore mainloop and wait for reply."""
         if __debug__:
-            self.log("wait(%d), async=%d" % (msgid, self.is_async()),
-                     level=TRACE)
-        if self.is_async():
-            self._pull_trigger()
+            self.log("wait(%d)" % msgid, level=TRACE)
+
+        self._pull_trigger()
 
         # Delay used when we call asyncore.poll() directly.
         # Start with a 1 msec delay, double until 1 sec.
@@ -778,7 +748,6 @@ class Connection(smac.SizedMessageAsyncConnection, object):
                         self.log("wait(%d): reply=%s" %
                                  (msgid, short_repr(reply)), level=TRACE)
                     return reply
-                assert self.is_async() # XXX we're such cowards
                 self.replies_cond.wait()
         finally:
             self.replies_cond.release()
@@ -793,65 +762,9 @@ class Connection(smac.SizedMessageAsyncConnection, object):
     def poll(self):
         """Invoke asyncore mainloop to get pending message out."""
         if __debug__:
-            self.log("poll(), async=%d" % self.is_async(), level=TRACE)
-        if self.is_async():
-            self._pull_trigger()
-        else:
-            asyncore.poll(0.0, self._singleton)
-
-    def _pending(self, timeout=0):
-        """Invoke mainloop until any pending messages are handled."""
-        if __debug__:
-            self.log("pending(), async=%d" % self.is_async(), level=TRACE)
-        if self.is_async():
-            return
-        # Inline the asyncore poll() function to know whether any input
-        # was actually read.  Repeat until no input is ready.
-
-        # Pending does reads and writes.  In the case of server
-        # startup, we may need to write out zeoVerify() messages.
-        # Always check for read status, but don't check for write status
-        # only there is output to do.  Only continue in this loop as
-        # long as there is data to read.
-        r = r_in = [self._fileno]
-        x_in = []
-        while r and not self.closed:
-            if self.writable():
-                w_in = [self._fileno]
-            else:
-                w_in = []
-            try:
-                r, w, x = select.select(r_in, w_in, x_in, timeout)
-            except select.error, err:
-                if err[0] == errno.EINTR:
-                    timeout = 0
-                    continue
-                else:
-                    raise
-            else:
-                # Make sure any subsequent select does not block.  The
-                # loop is only intended to make sure all incoming data is
-                # returned.
-
-                # Insecurity:  What if the server sends a lot of
-                # invalidations, such that pending never finishes?  Seems
-                # unlikely, but possible.
-                timeout = 0
-            if r:
-                try:
-                    self.handle_read_event()
-                except asyncore.ExitNow:
-                    raise
-                except:
-                    self.handle_error()
-            if w:
-                try:
-                    self.handle_write_event()
-                except asyncore.ExitNow:
-                    raise
-                except:
-                    self.handle_error()
-
+            self.log("poll()", level=TRACE)
+        self._pull_trigger()
+        
 class ManagedServerConnection(Connection):
     """Server-side Connection subclass."""
     __super_init = Connection.__init__
@@ -895,7 +808,6 @@ class ManagedClientConnection(Connection):
         self.queued_messages = []
 
         self.__super_init(sock, addr, obj, tag='C', map=client_map)
-        self.thr_async = True
         self.trigger = client_trigger
         client_trigger.pull_trigger()
 
@@ -950,16 +862,6 @@ class ManagedClientConnection(Connection):
         # We do want to pull it to make sure the select loop detects that
         # we're closed.
         self.trigger.pull_trigger()
-
-    def set_async(self, map):
-        pass
-
-    def _prepare_async(self):
-        # Don't do the register_loop_callback that the superclass does
-        pass
-
-    def is_async(self):
-        return True
 
     def close(self):
         self.mgr.close_conn(self)
