@@ -1244,7 +1244,7 @@ class TmpStore:
                 self._storage)
         filename = self._getCleanFilename(oid, serial)
         if not os.path.exists(filename):
-            raise POSKeyError("No blob file", oid, serial)
+            return self._storage.loadBlob(oid, serial)
         return filename
 
     def _getBlobPath(self, oid):

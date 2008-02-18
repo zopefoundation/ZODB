@@ -443,6 +443,60 @@ def secure_blob_directory():
     """
 
 
+def loadblob_tmpstore():
+    """
+    This is a test for assuring that the TmpStore's loadBlob implementation
+    falls back correctly to loadBlob on the backend.
+
+    First, let's setup a regular database and store a blob:
+
+    >>> import transaction
+    >>> from ZODB.FileStorage.FileStorage import FileStorage
+    >>> from ZODB.blob import BlobStorage
+    >>> from ZODB.DB import DB
+    >>> from ZODB.serialize import referencesf
+    >>> from tempfile import mkdtemp, mktemp
+
+    >>> storagefile = mktemp()
+    >>> base_storage = FileStorage(storagefile)
+    >>> blob_dir = mkdtemp()
+    >>> blob_storage = BlobStorage(blob_dir, base_storage)
+    >>> database = DB(blob_storage)
+    >>> connection = database.open()
+    >>> root = connection.root()
+    >>> from ZODB.blob import Blob
+    >>> root['blob'] = Blob()
+    >>> connection.add(root['blob'])
+    >>> root['blob'].open('w').write('test')
+    >>> import transaction
+    >>> transaction.commit()
+    >>> blob_oid = root['blob']._p_oid
+    >>> tid = blob_storage.lastTransaction()
+
+    Now we open a database with a TmpStore in front:
+
+    >>> database.close()
+
+    >>> from ZODB.Connection import TmpStore
+    >>> tmpstore = TmpStore(blob_storage)
+
+    We can access the blob correctly:
+
+    >>> tmpstore.loadBlob(blob_oid, tid) # doctest: +ELLIPSIS
+    '.../0x01/0x...blob'
+
+    Clean up:
+
+    >>> database.close()
+    >>> import shutil
+    >>> shutil.rmtree(blob_dir)
+
+    >>> os.unlink(storagefile)
+    >>> os.unlink(storagefile+".index")
+    >>> os.unlink(storagefile+".tmp")
+"""
+
+
 def test_suite():
     suite = unittest.TestSuite()
     suite.addTest(unittest.makeSuite(ZODBBlobConfigTest))

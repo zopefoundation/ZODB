@@ -247,7 +247,7 @@ We do support optimistic savepoints:
     "I'm a happy blob. And I'm singing."
     >>> transaction.commit()
 
-We support optimistic savepoints too:
+We support non-optimistic savepoints too:
 
     >>> root5['blob'].open("a").write(" And I'm dancing.")
     >>> root5['blob'].open("r").read()
