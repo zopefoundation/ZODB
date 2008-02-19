@@ -365,7 +365,7 @@ class TransactionRecord(object):
         self.extension = extension
 
     # XXX This is a workaround to make the TransactionRecord compatible with a
-    # transaction object because it is passe
+    # transaction object because it is passed to tpc_begin().
     def _ext_set(self, value):
         self.extension = value
     def _ext_get(self):
