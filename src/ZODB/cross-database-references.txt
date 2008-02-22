@@ -79,8 +79,8 @@ happens.  Consider:
     >>> p2.p4 = p4
 
 In this example, the new object is reachable from both `p1` in database
-1 and `p2` in database 2.  If we commit, which database will `p4` end up
-in?  This sort of ambiguity can lead to subtle bugs. For that reason,
+1 and `p2` in database 2.  If we commit, which database should `p4` end up
+in?  This sort of ambiguity could lead to subtle bugs.  For that reason,
 an error is generated if we commit changes when new objects are
 reachable from multiple databases:
 
@@ -120,8 +120,7 @@ This doesn't work with a savepoint:
 (Maybe it should.)
 
 We can disambiguate this situation by using the connection add method
-to explicitly say waht database an object belongs to:
-
+to explicitly say what database an object belongs to:
 
     >>> p5 = MyClass()
     >>> p1.p5 = p5
