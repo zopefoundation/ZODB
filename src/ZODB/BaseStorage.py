@@ -339,6 +339,7 @@ def copy(source, dest, verbose=0):
             if verbose:
                 print oid_repr(oid), r.version, len(r.data)
             if restoring:
+                print r.data_txn
                 dest.restore(oid, r.tid, r.data, r.version,
                              r.data_txn, transaction)
             else:
@@ -349,7 +350,10 @@ def copy(source, dest, verbose=0):
         dest.tpc_vote(transaction)
         dest.tpc_finish(transaction)
 
-    fiter.close()
+    if hasattr(fiter, 'close'):
+        # XXX close is not part of the iterator interface but FileStorage's
+        # iterator has this method to get rid of a file handle.
+        fiter.close()
 
 
 class TransactionRecord(object):

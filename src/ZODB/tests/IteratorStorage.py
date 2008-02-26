@@ -225,5 +225,7 @@ class IteratorDeepCompare:
         # they were the same length
         self.assertRaises(StopIteration, iter1.next)
         self.assertRaises(StopIteration, iter2.next)
-        iter1.close()
-        iter2.close()
+        if hasattr(iter1, 'close'):
+            iter1.close()
+        if hasattr(iter2, 'close'):
+            iter2.close()

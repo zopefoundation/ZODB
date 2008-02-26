@@ -209,6 +209,10 @@ class StorageServer:
     def storea(self, oid, serial, data, id):
         self.rpc.callAsync('storea', oid, serial, data, '', id)
 
+    def restorea(self, oid, serial, data, prev_txn, id):
+        self.rpc.callAsync('restorea', oid, serial, data, prev_txn, id)
+
+
     def storeBlob(self, oid, serial, data, blobfilename, txn):
 
         # Store a blob to the server.  We don't want to real all of

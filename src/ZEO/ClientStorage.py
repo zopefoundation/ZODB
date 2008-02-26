@@ -1174,6 +1174,25 @@ class ClientStorage(object):
             return []
         return self._server.undoLog(first, last)
 
+    # Recovery support
+
+    def copyTransactionsFrom(self, other, verbose=0):
+        """Copy transactions from another storage.
+
+        This is typically used for converting data from one storage to
+        another.  `other` must have an .iterator() method.
+        """
+        ZODB.BaseStorage.copy(other, self, verbose)
+
+    def restore(self, oid, serial, data, version, prev_txn, transaction):
+        """Write data already committed in a separate database."""
+        assert not version
+        self._check_trans(transaction)
+        self._server.restorea(oid, serial, data, prev_txn, id(transaction))
+        # XXX I'm not updating the transaction buffer here because I can't
+        # exactly predict how invalidation should work with restore. :/
+        return self._check_serials()
+
     # Below are methods invoked by the StorageServer
 
     def serialnos(self, args):

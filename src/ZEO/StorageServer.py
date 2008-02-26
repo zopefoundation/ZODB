@@ -479,6 +479,11 @@ class ZEOStorage:
         self.stats.stores += 1
         self.txnlog.store(oid, serial, data)
 
+    def restorea(self, oid, serial, data, prev_txn, id):
+        self._check_tid(id, exc=StorageTransactionError)
+        self.stats.stores += 1
+        self.txnlog.restore(oid, serial, data, prev_txn)
+
     def storeBlobStart(self):
         assert self.blob_tempfile is None
         self.blob_tempfile = tempfile.mkstemp(
@@ -577,6 +582,33 @@ class ZEOStorage:
 
         return err is None
 
+    def _restore(self, oid, serial, data, prev_txn):
+        err = None
+        try:
+            self.storage.restore(oid, serial, data, '', prev_txn, self.transaction)
+        except (SystemExit, KeyboardInterrupt):
+            raise
+        except Exception, err:
+            self.store_failed = 1
+            if not isinstance(err, TransactionError):
+                # Unexpected errors are logged and passed to the client
+                self.log("store error: %s, %s" % sys.exc_info()[:2],
+                         logging.ERROR, exc_info=True)
+            # Try to pickle the exception.  If it can't be pickled,
+            # the RPC response would fail, so use something else.
+            pickler = cPickle.Pickler()
+            pickler.fast = 1
+            try:
+                pickler.dump(err, 1)
+            except:
+                msg = "Couldn't pickle storage exception: %s" % repr(err)
+                self.log(msg, logging.ERROR)
+                err = StorageServerError(msg)
+            # The exception is reported back as newserial for this oid
+            self.serials.append((oid, err))
+
+        return err is None
+
     def _vote(self):
         if not self.store_failed:
             # Only call tpc_vote of no store call failed, otherwise
@@ -629,8 +661,16 @@ class ZEOStorage:
         self._tpc_begin(self.transaction, self.tid, self.status)
         loads, loader = self.txnlog.get_loader()
         for i in range(loads):
-            # load oid, serial, data, version
-            if not self._store(*loader.load()):
+            store = loader.load()
+            store_type = store[0]
+            store_args = store[1:]
+
+            if store_type == 'store':
+                do_store = self._store
+            elif store_type == 'restore':
+                do_store = self._restore
+
+            if not do_store(*store_args):
                 break
 
         # Blob support

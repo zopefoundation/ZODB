@@ -744,7 +744,7 @@ class IStorageRestoreable(IStorage):
         #   failed to take into account records after the pack time.
         
 
-    def restore(oid, serial, data, prev_txn, transaction):
+    def restore(oid, serial, data, version, prev_txn, transaction):
         """Write data already committed in a separate database
 
         The restore method is used when copying data from one database
