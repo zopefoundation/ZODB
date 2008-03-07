@@ -374,7 +374,7 @@ class CatastrophicClientLoopFailure(
         self.failIf(self._storage.is_connected())
         self.assertEqual(len(ZEO.zrpc.connection.client_map), 1)
         del ZEO.zrpc.connection.client_logger.critical
-        self.assertEqual(log[0][0], 'The ZEO cient loop failed.')
+        self.assertEqual(log[0][0], 'The ZEO client loop failed.')
         self.assert_('exc_info' in log[0][1])
         self.assertEqual(log[1][0], "Couldn't close a dispatcher.")
         self.assert_('exc_info' in log[1][1])

@@ -114,7 +114,7 @@ def client_loop():
         except:
             if map:
                 try:
-                    client_logger.critical('The ZEO cient loop failed.',
+                    client_logger.critical('The ZEO client loop failed.',
                                            exc_info=sys.exc_info())
                 except:
                     pass
