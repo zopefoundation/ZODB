@@ -68,7 +68,7 @@ Connection management
 
 - (3.7.0c1) Changed the automatic garbage collection when opening a connection
   to only apply the garbage collections on those connections in the pool that
-  are closed. (This fixed issue 113932.)
+  are closed. (This fixed issue 113923.)
 
 DemoStorage
 -----------
