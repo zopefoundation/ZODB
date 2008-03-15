@@ -105,7 +105,7 @@ Connection management
 
 - Changed the automatic garbage collection when opening a connection to only
   apply the garbage collections on those connections in the pool that are
-  closed. (This fixed issue 113932.)
+  closed. (This fixed issue 113923.)
 
 ZEO
 ---
