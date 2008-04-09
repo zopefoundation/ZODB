@@ -78,7 +78,7 @@ Macros for Keys
     ``PyObject*``, write this to do ``Py_DECREF(K)``.  Else (e.g.,
     ``KEY_TYPE`` is ``int``) make it a nop.
 
-`INCREF_KEY(K)`
+``INCREF_KEY(K)``
 
     ``K`` is a value of `KEY_TYPE`.  If `KEY_TYPE` is a flavor of
     ``PyObject*``, write this to do ``Py_INCREF(K)``.  Else (e.g., `KEY_TYPE`
