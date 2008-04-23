@@ -162,7 +162,10 @@ class ZEOClient(BaseConfig):
             max_disconnect_poll=self.config.max_disconnect_poll,
             wait=self.config.wait,
             read_only=self.config.read_only,
-            read_only_fallback=self.config.read_only_fallback)
+            read_only_fallback=self.config.read_only_fallback,
+            username=self.config.username,
+            password=self.config.password,
+            realm=self.config.realm)
 
 class BDBStorage(BaseConfig):
 
