@@ -324,6 +324,21 @@ class FilesystemHelper:
         """
         return os.path.join(self.base_dir, utils.oid_repr(oid))
 
+    def createPathForOID(self, oid):
+        """Given an OID, creates a directory on the filesystem where
+        the blob data relating to that OID is stored, if it doesn't exist.
+
+        """
+        path = self.getPathForOID(oid)
+        if os.path.exists(path):
+            return
+        try:
+            os.makedirs(path, 0700)
+        except OSError:
+            # We might have lost a race.  If so, the directory
+            # must exist now
+            assert os.path.exists(path)
+
     def getBlobFilename(self, oid, tid):
         """Given an oid and a tid, return the full filename of the
         'committed' blob file related to that oid and tid.

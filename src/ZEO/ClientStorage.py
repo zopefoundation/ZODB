@@ -932,14 +932,7 @@ class ClientStorage(object):
             raise POSException.POSKeyError("No blob file", oid, serial)
 
         # First, we'll create the directory for this oid, if it doesn't exist. 
-        targetpath = self.fshelper.getPathForOID(oid)
-        if not os.path.exists(targetpath):
-            try:
-                os.makedirs(targetpath, 0700)
-            except OSError:
-                # We might have lost a race.  If so, the directory
-                # must exist now
-                assert os.path.exists(targetpath)
+        self.fshelper.createPathForOID(oid)
 
         # OK, it's not here and we (or someone) needs to get it.  We
         # want to avoid getting it multiple times.  We want to avoid
