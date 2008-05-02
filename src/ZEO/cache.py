@@ -269,6 +269,8 @@ class ClientCache(object):
                 if self.version[oid] != (version, start_tid):
                     raise ValueError("data already exists for version %r"
                                      % self.version[oid][0])
+            if not self.fc.add(o):
+                return # too large
             self.version[oid] = version, start_tid
             self._trace(0x50, oid, version, start_tid, dlen=len(data))
         else:
@@ -280,6 +282,8 @@ class ClientCache(object):
                             "already have current data for oid")
                     else:
                         return
+                if not self.fc.add(o):
+                    return # too large
                 self.current[oid] = start_tid
                 self._trace(0x52, oid, version, start_tid, dlen=len(data))
             else:
@@ -287,10 +291,11 @@ class ClientCache(object):
                 p = start_tid, end_tid
                 if p in L:
                     return # duplicate store
+                if not self.fc.add(o):
+                    return # too large
                 bisect.insort_left(L, p)
                 self._trace(0x54, oid, version, start_tid, end_tid,
                             dlen=len(data))
-        self.fc.add(o)
 
     ##
     # Remove all knowledge of noncurrent revisions of oid, both in
@@ -960,7 +965,8 @@ class FileCache(object):
     ##
     # Add Object object to the cache.  This may evict existing objects, to
     # make room (and almost certainly will, in steady state once the cache
-    # is first full).  The object must not already be in the cache.
+    # is first full).  The object must not already be in the cache.  If the
+    # object is too large for the cache, False is returned, otherwise True.
     def add(self, object):
         size = OBJECT_HEADER_SIZE + object.size
         # A number of cache simulation experiments all concluded that the
@@ -968,7 +974,7 @@ class FileCache(object):
         # objects simply weren't cached.  For now, we ignore the request
         # only if the entire cache file is too small to hold the object.
         if size > self.maxsize - ZEC3_HEADER_SIZE:
-            return
+            return False
 
         assert object.key not in self.key2entry
         assert len(object.key[0]) == 8
@@ -979,6 +985,7 @@ class FileCache(object):
 
         available = self._makeroom(size)
         self._writeobj(object, available)
+        return True
 
     ##
     # Evict the object represented by Entry `e` from the cache, freeing

@@ -1,3 +1,11 @@
+Whats new in ZODB 3.8.1
+=======================
+
+Bugs Fixed:
+
+- When using ZEO Client Storages, Errors occured when trying to store
+  objects too big to fit in the ZEO cache file.
+
 What's new on ZODB 3.8.0
 ========================
 
