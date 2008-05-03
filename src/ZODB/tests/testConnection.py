@@ -209,12 +209,12 @@ class UserMethodTests(unittest.TestCase):
         >>> obj._p_state
         0
 
-        A request for an object that doesn't exist will raise a KeyError.
+        A request for an object that doesn't exist will raise a POSKeyError.
 
         >>> cn.get(p64(1))
         Traceback (most recent call last):
           ...
-        KeyError: '\x00\x00\x00\x00\x00\x00\x00\x01'
+        POSKeyError: 0x01
         """
 
     def test_close(self):

@@ -37,6 +37,9 @@ New Features
 Bugs Fixed
 ----------
 
+- Fix for bug #184054: MappingStorage used to raise a KeyError during `load`
+  instead of a POSKeyError.
+
 - Fixed bug in Connection.TmpStore: load() would not defer to the backend
   storage for loading blobs.
 

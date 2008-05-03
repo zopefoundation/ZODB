@@ -58,8 +58,11 @@ class MappingStorage(BaseStorage):
     def load(self, oid, version):
         self._lock_acquire()
         try:
-            p = self._index[oid]
-            return p[8:], p[:8] # pickle, serial
+            try:
+                p = self._index[oid]
+                return p[8:], p[:8] # pickle, serial
+            except KeyError:
+                raise POSException.POSKeyError(oid)
         finally:
             self._lock_release()
 
