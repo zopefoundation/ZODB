@@ -6,8 +6,17 @@ Bugs Fixed:
 - When using ZEO Client Storages, Errors occured when trying to store
   objects too big to fit in the ZEO cache file.
 
-- Completed implementation of ZEO authentication. This fixes issue 220856.
+- Fixed bug in blob filesystem helper: the `isSecure` check was inversed.
 
+- Fixed bug in transaction buffer: a tuple was unpacked incorrectly in
+  `clear`.
+
+- Fixed bug in Connection.TmpStore: load() would not defer to the
+  backend storage for loading blobs.
+
+- Fixed bug #190884: Wrong reference to `POSKeyError` caused NameError.
+
+- Completed implementation of ZEO authentication. This fixes issue 220856.
 
 What's new on ZODB 3.8.0
 ========================
@@ -43,13 +52,6 @@ General
 
 ZEO
 ---
-
-- (???) Fixed bug #190884: Wrong reference to `POSKeyError` caused NameError.
-
-- (???) Fixed bug in transaction buffer: a tuple was unpacked incorrectly in
-  `clear`.
-
-- (???) Fixed bug in blob filesystem helper: the `isSecure` check was inversed.
 
 - (3.8.0b6) Bug #98275: Made ZEO cache more tolerant when invalidating current
   versions of objects.
@@ -107,9 +109,6 @@ Transactions
 
 Blobs
 -----
-
-- (???) Fixed bug in Connection.TmpStore: load() would not defer to the
-  backend storage for loading blobs.
 
 - (3.8b5) Fixed bug #130459: Packing was broken by uncommitted blob data.
 
