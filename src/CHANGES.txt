@@ -37,6 +37,8 @@ New Features
 Bugs Fixed
 ----------
 
+- Fix for bug# 220856: Completed implementation of ZEO authentication.
+
 - Fix for bug #184057: Make initialisation of small ZEO client file cache
   sizes not fail.
 
