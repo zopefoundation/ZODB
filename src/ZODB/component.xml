@@ -146,6 +146,16 @@
         read_only_fallback should be true.
       </description>
     </key>
+    <key name="username" required="no">
+      <description>
+        The authentication username of the server.
+      </description>
+    </key>
+    <key name="password" required="no">
+      <description>
+        The authentication password of the server.
+      </description>
+    </key>
     <key name="realm" required="no">
       <description>
         The authentication realm of the server.  Some authentication
