@@ -14,6 +14,8 @@ General
   apply the garbage collections on those connections in the pool that are
   closed. (This fixed issue 113923.)
 
+- Completed implementation of ZEO authentication. This fixes issue 220856.
+
 ZEO
 ---
 
