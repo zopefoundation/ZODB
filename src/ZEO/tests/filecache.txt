@@ -326,6 +326,107 @@ We can reset the stats by calling the `clearStats` method:
   >>> fc.getStats()
   (0, 0, 0, 0, 0)
 
+Small file cache sizes
+======================
+
+The file cache requires a few bytes at the beginning of the file for itself.
+Therefore cache sizes smaller than this threshold do not create a file and
+will cause the cache to be disabled.
+
+  >>> obj_small = Object(key=(oid(1), tid(1)), data='#',
+  ...     start_tid=tid(1), end_tid=None)
+  >>> sizes = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 53, 54]
+  >>> for i in sizes:    # doctest: +ELLIPSIS
+  ...   print "*" * 20
+  ...   print "Cache file size", i
+  ...   try:
+  ...     fc = FileCache(maxsize=i, fpath=None, parent=cache_dummy)
+  ...   except Exception, v:
+  ...     print i, v
+  ...     continue
+  ...   print "Added", fc.add(obj_small)
+  ...   print "Length", len(fc)
+  ...   print "Content", list(fc)
+  ...   print "Statistics", fc.getStats()
+  ********************
+  Cache file size 0
+  Added False
+  Length 0
+  Content []
+  Statistics (0, 0, 0, 0, 0)
+  ********************
+  Cache file size 1
+  Added False
+  Length 0
+  Content []
+  Statistics (0, 0, 0, 0, 0)
+  ********************
+  Cache file size 2
+  Added False
+  Length 0
+  Content []
+  Statistics (0, 0, 0, 0, 0)
+  ********************
+  Cache file size 3
+  Added False
+  Length 0
+  Content []
+  Statistics (0, 0, 0, 0, 0)
+  ********************
+  Cache file size 4
+  Added False
+  Length 0
+  Content []
+  Statistics (0, 0, 0, 0, 0)
+  ********************
+  Cache file size 5
+  Added False
+  Length 0
+  Content []
+  Statistics (0, 0, 0, 0, 0)
+  ********************
+  Cache file size 6
+  Added False
+  Length 0
+  Content []
+  Statistics (0, 0, 0, 0, 0)
+  ********************
+  Cache file size 7
+  Added False
+  Length 0
+  Content []
+  Statistics (0, 0, 0, 0, 0)
+  ********************
+  Cache file size 8
+  Added False
+  Length 0
+  Content []
+  Statistics (0, 0, 0, 0, 0)
+  ********************
+  Cache file size 9
+  Added False
+  Length 0
+  Content []
+  Statistics (0, 0, 0, 0, 0)
+  ********************
+  Cache file size 10
+  Added False
+  Length 0
+  Content []
+  Statistics (0, 0, 0, 0, 0)
+  ********************
+  Cache file size 53
+  Added False
+  Length 0
+  Content []
+  Statistics (0, 0, 0, 0, 0)
+  ********************
+  Cache file size 54
+  Added True
+  Length 1
+  Content [<ZEO.cache.Entry object at 0x...>]
+  Statistics (1, 42, 0, 0, 0)
+
 
 Cleanup
 =======

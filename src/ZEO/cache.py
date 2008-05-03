@@ -684,11 +684,11 @@ class FileCache(object):
         # (and it sets self.f).
 
         self.fpath = fpath
+        self.f = None
         if fpath and os.path.exists(fpath):
             # Reuse an existing file.  scan() will open & read it.
-            self.f = None
             logger.info("reusing persistent cache file %r", fpath)
-        else:
+        elif self.maxsize >= 12:
             if fpath:
                 self.f = open(fpath, 'wb+')
                 logger.info("created persistent cache file %r", fpath)
