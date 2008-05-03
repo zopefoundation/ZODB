@@ -6,6 +6,9 @@ Bugs Fixed:
 - When using ZEO Client Storages, Errors occured when trying to store
   objects too big to fit in the ZEO cache file.
 
+- Completed implementation of ZEO authentication. This fixes issue 220856.
+
+
 What's new on ZODB 3.8.0
 ========================
 
