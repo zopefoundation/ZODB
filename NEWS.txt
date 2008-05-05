@@ -5,7 +5,7 @@ Bugs Fixed:
 
 - Fixed a number of bugs in the handling of persistent ZEO caches:
 
-  - Cache records are written in several stems.  If a process exits
+  - Cache records are written in several steps.  If a process exits
     after writing begins and before it is finishes, the cache will be
     corrupt on restart.  The way records are writted was changed to
     make cache record updates atomic.
