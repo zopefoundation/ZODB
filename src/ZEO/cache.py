@@ -29,6 +29,7 @@ import struct
 import tempfile
 import time
 
+import ZODB.lock_file
 from ZODB.utils import z64, u64
 
 logger = logging.getLogger("ZEO.cache")
@@ -770,6 +771,10 @@ class FileCache(object):
         # (and it sets self.f).
 
         self.fpath = fpath
+
+        if fpath:
+            self._lock_file = ZODB.lock_file.LockFile(fpath + '.lock')
+        
         if fpath and os.path.exists(fpath):
             # Reuse an existing file.  scan() will open & read it.
             self.f = None
@@ -826,8 +831,8 @@ class FileCache(object):
         # file, and tell our parent about it too (via the `install` callback).
         # Remember the location of the largest free block.  That seems a
         # decent place to start currentofs.
-        max_free_size = max_free_offset = 0
-        ofs = ZEC3_HEADER_SIZE
+        max_free_size = 0
+        ofs = max_free_offset = ZEC3_HEADER_SIZE
         while ofs < fsize:
             self.f.seek(ofs)
             ent = None
@@ -895,6 +900,8 @@ class FileCache(object):
     # Close the underlying file.  No methods accessing the cache should be
     # used after this.
     def close(self):
+        if hasattr(self,'_lock_file'):
+            self._lock_file.close()
         if self.f:
             self.sync()
             self.f.close()
@@ -946,11 +953,23 @@ class FileCache(object):
             extra = 'f' + struct.pack(">I", excess)
 
         self.f.seek(self.currentofs)
-        self.f.writelines(('a',
-                           struct.pack(">I8s8s", size,
-                                       obj.key[0], obj.key[1])))
+
+        # Before writing data, we'll write a free block for the space freed.
+        # We'll come back with a last atomic write to rewrite the start of the
+        # allocated-block header.
+        self.f.write('f'+struct.pack(">I", nfreebytes))
+
+        # Now write the rest of the allocation block header and object data.
+        self.f.write(struct.pack(">8s8s", obj.key[0], obj.key[1]))
         obj.serialize(self.f)
         self.f.write(extra)
+
+        # Now, we'll go back and rewrite the beginning of the
+        # allocated block header.
+        self.f.seek(self.currentofs)
+        self.f.write('a'+struct.pack(">I", size))
+        
+        # Update index
         e = Entry(obj.key, self.currentofs)
         self.key2entry[obj.key] = e
         self.filemap[self.currentofs] = size, e

@@ -3,6 +3,20 @@ Whats new in ZODB 3.8.1
 
 Bugs Fixed:
 
+- Fixed a number of bugs in the handling of persistent ZEO caches:
+
+  - Cache records are written in several stems.  If a process exits
+    after writing begins and before it is finishes, the cache will be
+    corrupt on restart.  The way records are writted was changed to
+    make cache record updates atomic.
+
+  - There was no lock file to prevent opening a cache multiple times
+    at once, which would lead to corruption.  Persistent caches now
+    use lock files, in the same way that file storages do.
+
+  - A bug in the cache-opening logic led to cache failure in the
+    unlikely event that a cache has no free blocks.
+
 - When using ZEO Client Storages, Errors occured when trying to store
   objects too big to fit in the ZEO cache file.
 

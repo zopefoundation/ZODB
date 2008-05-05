@@ -16,6 +16,8 @@
 import os
 import tempfile
 import unittest
+import zope.testing.setupstack
+from zope.testing import doctest
 
 import ZEO.cache
 from ZODB.utils import p64
@@ -181,7 +183,84 @@ class CacheTests(unittest.TestCase):
         # If an object cannot be stored in the cache, it must not be
         # recorded as non-current.
         self.assert_((n2, n3) not in cache.noncurrent[n1])
-  	 
+
+__test__ = dict(
+    kill_does_not_cause_cache_corruption =
+    r"""
+
+    If we kill a process while a cache is being written to, the cache
+    isn't corrupted.  To see this, we'll write a little script that
+    writes records to a cache file repeatedly.
+
+    >>> import os, random, sys, time
+    >>> open('t', 'w').write('''
+    ... import os, random, sys, thread, time
+    ... sys.path = %r
+    ... 
+    ... def suicide():
+    ...     time.sleep(random.random()/10)
+    ...     os._exit(0)
+    ... 
+    ... import ZEO.cache, ZODB.utils
+    ... cache = ZEO.cache.ClientCache('cache')
+    ... oid = 0
+    ... t = 0
+    ... thread.start_new_thread(suicide, ())
+    ... while 1:
+    ...     oid += 1
+    ...     t += 1
+    ...     data = 'X' * random.randint(5000,25000)
+    ...     cache.store(ZODB.utils.p64(oid), '', ZODB.utils.p64(t), None, data)
+    ... 
+    ... ''' % sys.path)
+
+    >>> for i in range(10):
+    ...     _ = os.spawnl(os.P_WAIT, sys.executable, sys.executable, 't')
+    ...     if os.path.exists('cache'):
+    ...         cache = ZEO.cache.ClientCache('cache').open()
+    ...         os.remove('cache')
+    ...         os.remove('cache.lock')
+       
+    
+    """,
+
+    full_cache_is_valid =
+    r"""
+
+    If we fill up the cache without any free space, the cache can
+    still be used.
+
+    >>> import ZEO.cache, ZODB.utils
+    >>> cache = ZEO.cache.ClientCache('cache', 1000)
+    >>> data = 'X' * (1000 - ZEO.cache.ZEC3_HEADER_SIZE
+    ...               - ZEO.cache.OBJECT_HEADER_SIZE
+    ...               - ZEO.cache.Object.TOTAL_FIXED_SIZE)
+    >>> cache.store(ZODB.utils.p64(1), '', ZODB.utils.p64(1), None, data)
+    >>> cache.close()
+    >>> cache = ZEO.cache.ClientCache('cache', 1000)
+    >>> cache.open()
+    >>> cache.store(ZODB.utils.p64(2), '', ZODB.utils.p64(2), None, 'XXX')
+    
+    """,
+
+    cannot_open_same_cache_file_twice =
+    r"""
+    >>> import ZEO.cache
+    >>> cache = ZEO.cache.ClientCache('cache', 1000)
+    >>> cache = ZEO.cache.ClientCache('cache', 1000)
+    Traceback (most recent call last):
+    ...
+    LockError: Couldn't lock 'cache.lock'
+    
+    """,
+    )
+
 
 def test_suite():
-    return unittest.makeSuite(CacheTests)
+    return unittest.TestSuite((
+        unittest.makeSuite(CacheTests),
+        doctest.DocTestSuite(
+            setUp=zope.testing.setupstack.setUpDirectory,
+            tearDown=zope.testing.setupstack.tearDown,
+            ),
+        ))
