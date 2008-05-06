@@ -217,7 +217,9 @@ __test__ = dict(
     >>> for i in range(10):
     ...     _ = os.spawnl(os.P_WAIT, sys.executable, sys.executable, 't')
     ...     if os.path.exists('cache'):
-    ...         cache = ZEO.cache.ClientCache('cache').open()
+    ...         cache = ZEO.cache.ClientCache('cache')
+    ...         cache.open()
+    ...         cache.close()
     ...         os.remove('cache')
     ...         os.remove('cache.lock')
        
@@ -240,18 +242,20 @@ __test__ = dict(
     >>> cache = ZEO.cache.ClientCache('cache', 1000)
     >>> cache.open()
     >>> cache.store(ZODB.utils.p64(2), '', ZODB.utils.p64(2), None, 'XXX')
-    
+
+    >>> cache.close()
     """,
 
     cannot_open_same_cache_file_twice =
     r"""
     >>> import ZEO.cache
     >>> cache = ZEO.cache.ClientCache('cache', 1000)
-    >>> cache = ZEO.cache.ClientCache('cache', 1000)
+    >>> cache2 = ZEO.cache.ClientCache('cache', 1000)
     Traceback (most recent call last):
     ...
     LockError: Couldn't lock 'cache.lock'
-    
+
+    >>> cache.close()
     """,
     )
 
