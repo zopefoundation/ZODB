@@ -109,21 +109,20 @@ class CacheTests(unittest.TestCase):
 
     def testEviction(self):
         # Manually override the current maxsize
-        maxsize = self.cache.size = self.cache.fc.maxsize = 3395 # 1245
-        self.cache.fc = ZEO.cache.FileCache(3395, None, self.cache)
+        cache = ZEO.cache.ClientCache(None, 3395)
 
         # Trivial test of eviction code.  Doesn't test non-current
         # eviction.
         data = ["z" * i for i in range(100)]
         for i in range(50):
             n = p64(i)
-            self.cache.store(n, "", n, None, data[i])
-            self.assertEquals(len(self.cache), i + 1)
+            cache.store(n, "", n, None, data[i])
+            self.assertEquals(len(cache), i + 1)
         # The cache now uses 1225 bytes.  The next insert
         # should delete some objects.
         n = p64(50)
-        self.cache.store(n, "", n, None, data[51])
-        self.assert_(len(self.cache) < 51)
+        cache.store(n, "", n, None, data[51])
+        self.assert_(len(cache) < 51)
 
         # TODO:  Need to make sure eviction of non-current data
         # and of version data are handled correctly.
@@ -138,9 +137,9 @@ class CacheTests(unittest.TestCase):
         # Copy data from self.cache into path, reaching into the cache
         # guts to make the copy.
         dst = open(path, "wb+")
-        src = self.cache.fc.f
+        src = self.cache.f
         src.seek(0)
-        dst.write(src.read(self.cache.fc.maxsize))
+        dst.write(src.read(self.cache.maxsize))
         dst.close()
         copy = ZEO.cache.ClientCache(path)
         copy.open()
