@@ -266,7 +266,7 @@ class ClientCache(object):
     def _set_noncurrent(self, oid, tid, ofs):
         noncurrent_for_oid = self.noncurrent.get(u64(oid))
         if noncurrent_for_oid is None:
-            noncurrent_for_oid = BTrees.LLBTree.LLBTree()
+            noncurrent_for_oid = BTrees.LLBTree.LLBucket()
             self.noncurrent[u64(oid)] = noncurrent_for_oid
         noncurrent_for_oid[u64(tid)] = ofs
 
