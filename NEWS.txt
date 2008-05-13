@@ -5,6 +5,9 @@ Whats new in ZODB 3.8.1
 
 Bugs Fixed:
 
+- (beta 2) The cache used an excessive amount of memory, causing applications
+  with large caches to exhaust available memory. 
+
 - Fixed a number of bugs in the handling of persistent ZEO caches:
 
   - Cache records are written in several steps.  If a process exits
@@ -18,9 +21,6 @@ Bugs Fixed:
 
   - A bug in the cache-opening logic led to cache failure in the
     unlikely event that a cache has no free blocks.
-
-- The cache used an excessive amount of memory, causing applications
-  with large caches to exhaust available memory. 
 
 - When using ZEO Client Storages, Errors occured when trying to store
   objects too big to fit in the ZEO cache file.
