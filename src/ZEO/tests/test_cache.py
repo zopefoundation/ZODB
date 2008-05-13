@@ -20,7 +20,7 @@ import zope.testing.setupstack
 from zope.testing import doctest
 
 import ZEO.cache
-from ZODB.utils import p64
+from ZODB.utils import p64, u64
 
 n1 = p64(1)
 n2 = p64(2)
@@ -45,9 +45,9 @@ class CacheTests(unittest.TestCase):
         self.assertEqual(self.cache.getLastTid(), None)
         self.cache.setLastTid(n2)
         self.assertEqual(self.cache.getLastTid(), n2)
-        self.cache.invalidate(None, "", n1)
+        self.cache.invalidate(n1, "", n1)
         self.assertEqual(self.cache.getLastTid(), n2)
-        self.cache.invalidate(None, "", n3)
+        self.cache.invalidate(n1, "", n3)
         self.assertEqual(self.cache.getLastTid(), n3)
         self.assertRaises(ValueError, self.cache.setLastTid, n2)
 
@@ -99,9 +99,9 @@ class CacheTests(unittest.TestCase):
         self.assertEqual(self.cache.loadBefore(n2, n4), None)
 
     def testException(self):
+        # Not allowed  to save non-current version data
         self.assertRaises(ValueError,
-                          self.cache.store,
-                          n1, "version", n2, n3, "data")
+                          self.cache.store, n1, "version", n2, n3, "data")
         self.cache.store(n1, "", n2, None, "data")
         self.assertRaises(ValueError,
                           self.cache.store,
@@ -149,9 +149,10 @@ class CacheTests(unittest.TestCase):
         eq = self.assertEqual
         eq(copy.getLastTid(), self.cache.getLastTid())
         eq(len(copy), len(self.cache))
-        eq(copy.version, self.cache.version)
-        eq(copy.current, self.cache.current)
-        eq(copy.noncurrent, self.cache.noncurrent)
+        eq(dict(copy.current), dict(self.cache.current))
+        eq(dict([(k, dict(v)) for (k, v) in copy.noncurrent.items()]),
+           dict([(k, dict(v)) for (k, v) in self.cache.noncurrent.items()]),
+           )
 
     def testCurrentObjectLargerThanCache(self):
         if self.cache.path:
@@ -181,7 +182,7 @@ class CacheTests(unittest.TestCase):
         self.assertEquals(None, self.cache.load(n1))
         # If an object cannot be stored in the cache, it must not be
         # recorded as non-current.
-        self.assert_((n2, n3) not in cache.noncurrent[n1])
+        self.assert_(1 not in cache.noncurrent)
 
 __test__ = dict(
     kill_does_not_cause_cache_corruption =
@@ -233,9 +234,7 @@ __test__ = dict(
 
     >>> import ZEO.cache, ZODB.utils
     >>> cache = ZEO.cache.ClientCache('cache', 1000)
-    >>> data = 'X' * (1000 - ZEO.cache.ZEC3_HEADER_SIZE
-    ...               - ZEO.cache.OBJECT_HEADER_SIZE
-    ...               - ZEO.cache.Object.TOTAL_FIXED_SIZE)
+    >>> data = 'X' * (1000 - ZEO.cache.ZEC3_HEADER_SIZE - 43)
     >>> cache.store(ZODB.utils.p64(1), '', ZODB.utils.p64(1), None, data)
     >>> cache.close()
     >>> cache = ZEO.cache.ClientCache('cache', 1000)
