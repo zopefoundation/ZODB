@@ -5,6 +5,9 @@ Whats new in ZODB 3.8.1
 
 Bugs Fixed:
 
+- (beta 3) Cross-database references to databases with empty names
+  weren't constructed properly.
+
 - (beta 2) The cache used an excessive amount of memory, causing applications
   with large caches to exhaust available memory. 
 
