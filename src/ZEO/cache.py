@@ -542,7 +542,7 @@ class ClientCache(object):
         write('f'+pack(">I", nfreebytes))
 
         # Now write the rest of the allocation block header and object data.
-        write(pack(">8s8s8shi",
+        write(pack(">8s8s8shI",
                    oid, start_tid, end_tid or z64, len(version), len(data),
                    ))
         if version:
