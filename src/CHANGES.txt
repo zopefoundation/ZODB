@@ -86,3 +86,53 @@ Bugs Fixed
 
 - Fixed bug in ClientCache that occurred with objects larger than the total
   cache size.
+
+3.8.1b3 (2008-05-14)
+====================
+
+Bugs Fixed:
+
+- Cross-database references to databases with empty names
+  weren't constructed properly.
+
+3.8.1b2 (2008-05-13)
+====================
+
+Bugs Fixed:
+
+- The cache used an excessive amount of memory, causing applications
+  with large caches to exhaust available memory. 
+
+3.8.1b1 (2008-05-08)
+====================
+
+Bugs Fixed:
+
+- Fixed a number of bugs in the handling of persistent ZEO caches:
+
+  - Cache records are written in several steps.  If a process exits
+    after writing begins and before it is finishes, the cache will be
+    corrupt on restart.  The way records are writted was changed to
+    make cache record updates atomic.
+
+  - There was no lock file to prevent opening a cache multiple times
+    at once, which would lead to corruption.  Persistent caches now
+    use lock files, in the same way that file storages do.
+
+  - A bug in the cache-opening logic led to cache failure in the
+    unlikely event that a cache has no free blocks.
+
+- When using ZEO Client Storages, Errors occured when trying to store
+  objects too big to fit in the ZEO cache file.
+
+- Fixed bug in blob filesystem helper: the `isSecure` check was inversed.
+
+- Fixed bug in transaction buffer: a tuple was unpacked incorrectly in
+  `clear`.
+
+- Fixed bug in Connection.TmpStore: load() would not defer to the
+  backend storage for loading blobs.
+
+- Fixed bug #190884: Wrong reference to `POSKeyError` caused NameError.
+
+- Completed implementation of ZEO authentication. This fixes issue 220856.
