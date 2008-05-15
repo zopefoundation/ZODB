@@ -365,7 +365,7 @@ class ObjectWriter:
             # __getnewargs__ of its own, we'll lose the optimization
             # of caching the class info.
 
-            if database_name:
+            if database_name is not None:
                 return ['n', (database_name, oid)]
 
             return oid
@@ -373,7 +373,7 @@ class ObjectWriter:
         # Note that we never get here for persistent classes.
         # We'll use direct refs for normal classes.
 
-        if database_name:
+        if database_name is not None:
             return ['m', (database_name, oid, klass)]
 
         return oid, klass
