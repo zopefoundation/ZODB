@@ -86,6 +86,15 @@ class fsIndex(object):
             self._data[treekey] = tree
         tree[key[6:]] = value
 
+    def __delitem__(self, key):
+        treekey = key[:6]
+        tree = self._data.get(treekey)
+        if tree is None:
+            raise KeyError, key
+        del tree[key[6:]]
+        if not tree:
+            del self._data[treekey]
+
     def __len__(self):
         r = 0
         for tree in self._data.itervalues():
