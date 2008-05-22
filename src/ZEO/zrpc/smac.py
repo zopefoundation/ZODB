@@ -298,11 +298,17 @@ class SizedMessageAsyncConnection(asyncore.dispatcher):
             i += 1
             # It is very unlikely that i will be 1.
             v = "".join(output[:i])
+            # Note: "output" usually contains the output not yet sent
+            #  The "del" below breaks this invariant temporarily.
+            #  We must ensure its satisfaction again when we leave the loop
             del output[:i]
 
             try:
                 n = self.send(v)
             except socket.error, err:
+                # Fix for https://bugs.launchpad.net/zodb/+bug/182833
+                #  ensure the above mentioned "output" invariant
+                output.insert(0, v)
                 if err[0] in expected_socket_write_errors:
                     break # we couldn't write anything
                 raise
