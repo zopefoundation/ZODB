@@ -5,6 +5,9 @@ Whats new in ZODB 3.8.1
 
 Bugs Fixed:
 
+- (beta 5) Improved the the ZEO client shutdown support to try to
+  avoid spurious errors on exit, especially for scripts, such as zeopack.
+
 - (beta 4) Packing failed for databases containing cross-database references.
 
 - (beta 3) Cross-database references to databases with empty names
