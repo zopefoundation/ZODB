@@ -605,17 +605,14 @@ class ObjectReader:
         obj.__setstate__(state)
 
 
-oid_loaders = {
-    'w': lambda oid: None,
-    }
-
 def referencesf(p, oids=None):
     """Return a list of object ids found in a pickle
 
     A list may be passed in, in which case, information is
     appended to it.
 
-    Weak references are not included.
+    Only ordinary internal references are included.
+    Weak and multi-database references are not included.
     """
 
     refs = []
@@ -636,16 +633,10 @@ def referencesf(p, oids=None):
         elif isinstance(reference, str):
             oid = reference
         else:
-            try:
-                reference_type, args = reference
-            except ValueError:
-                # weakref
-                continue
-            else:
-                oid = oid_loaders[reference_type](*args)
+            assert isinstance(reference, list)
+            continue
 
-        if oid:
-            oids.append(oid)
+        oids.append(oid)
     
     return oids
 
@@ -678,15 +669,9 @@ def get_refs(a_pickle):
         elif isinstance(reference, str):
             data = reference, None
         else:
-            try:
-                reference_type, args = reference
-            except ValueError:
-                # weakref
-                continue
-            else:
-                data = oid_klass_loaders[reference_type](*args)
+            assert isinstance(reference, list)
+            continue
 
-        if data:
-            result.append(data)
+        result.append(data)
     
     return result

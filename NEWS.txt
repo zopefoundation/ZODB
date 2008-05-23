@@ -5,6 +5,8 @@ Whats new in ZODB 3.8.1
 
 Bugs Fixed:
 
+- (beta 4) Packing failed for databases containing cross-database references.
+
 - (beta 3) Cross-database references to databases with empty names
   weren't constructed properly.
 
