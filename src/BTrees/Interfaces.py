@@ -99,7 +99,10 @@ class ISetMutable(IKeyed):
         """
 
     def remove(key):
-        """Remove the key from the set."""
+        """Remove the key from the set.
+
+        Raises KeyError if key is not in the set.
+        """
 
     def update(seq):
         """Add the items from the given sequence to the set."""
