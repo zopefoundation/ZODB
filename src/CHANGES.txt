@@ -8,6 +8,11 @@ Change History
 New Features
 ------------
 
+- Changed layout strategy for the blob directory to a bushy approach (8 levels
+  deep, at most ~256 entries per directory level, one directory for each
+  blob). Old directories are automatically detected and will be handled with
+  the old strategy.
+
 - Versions are no-longer supported.
 
 - ZEO cache files can be larger than 4G. Note that older ZEO cache

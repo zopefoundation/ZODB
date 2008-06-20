@@ -105,7 +105,6 @@ class BlobUndoTests(unittest.TestCase):
         self.here = os.getcwd()
         os.chdir(self.test_dir)
         self.storagefile = 'Data.fs'
-        os.mkdir('blobs')
         self.blob_dir = 'blobs'
 
     def tearDown(self):
@@ -483,7 +482,7 @@ def loadblob_tmpstore():
     We can access the blob correctly:
 
     >>> tmpstore.loadBlob(blob_oid, tid) # doctest: +ELLIPSIS
-    '.../0x01/0x...blob'
+    '.../0x01/0x00/0x00/0x00/0x00/0x00/0x00/0x00/0x...blob'
 
     Clean up:
 
@@ -503,7 +502,7 @@ def test_suite():
     suite.addTest(doctest.DocFileSuite(
         "blob_basic.txt",  "blob_connection.txt", "blob_transaction.txt",
         "blob_packing.txt", "blob_importexport.txt", "blob_consume.txt",
-        "blob_tempdir.txt",
+        "blob_tempdir.txt", "blob_layout.txt",
         setUp=ZODB.tests.util.setUp,
         tearDown=ZODB.tests.util.tearDown,
         ))

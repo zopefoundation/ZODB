@@ -1,0 +1,164 @@
+======================
+Blob directory layouts
+======================
+
+The internal structure of the blob directories is governed by so called
+`layouts`. The current default layout is called `bushy`.
+
+The original blob implementation used a layout that we now call `lawn` and
+which is still available for backwards compatibility.
+
+Layouts implement two methods: one for computing a relative path for an
+OID and one for turning a relative path back into an OID.
+
+Our terminology is roughly the same as used in `DirectoryStorage`.
+
+The `bushy` layout
+==================
+
+The bushy layout splits the OID into the 8 byte parts, reverses them and
+creates one directory level for each part, named by the hexlified
+representation of the byte value. This results in 8 levels of directories, the
+leaf directories being used for the revisions of the blobs and at most 256
+entries per directory level:
+
+>>> from ZODB.blob import BushyLayout
+>>> bushy = BushyLayout()
+>>> bushy.oid_to_path('\x00\x00\x00\x00\x00\x00\x00\x00')
+'0x00/0x00/0x00/0x00/0x00/0x00/0x00/0x00'
+>>> bushy.oid_to_path('\x00\x00\x00\x00\x00\x00\x00\x01')
+'0x01/0x00/0x00/0x00/0x00/0x00/0x00/0x00'
+
+>>> bushy.path_to_oid('0x01/0x00/0x00/0x00/0x00/0x00/0x00/0x00')
+'\x00\x00\x00\x00\x00\x00\x00\x01'
+
+Paths that do not represent an OID will cause a ValueError:
+
+>>> bushy.path_to_oid('tmp')
+Traceback (most recent call last):
+ValueError: Not a valid OID path: tmp
+
+
+The `lawn` layout
+=================
+
+The lawn layout creates on directory for each blob named by the blob's hex
+representation of its OID. This has some limitations on various file systems
+like performance penalties or the inability to store more than a given number
+of blobs at the same time (e.g. 32k on ext3).
+
+>>> from ZODB.blob import LawnLayout
+>>> lawn = LawnLayout()
+>>> lawn.oid_to_path('\x00\x00\x00\x00\x00\x00\x00\x00')
+'0x00'
+>>> lawn.oid_to_path('\x00\x00\x00\x00\x00\x00\x00\x01')
+'0x01'
+
+>>> lawn.path_to_oid('0x01')
+'\x00\x00\x00\x00\x00\x00\x00\x01'
+
+Paths that do not represent an OID will cause a ValueError:
+
+>>> lawn.path_to_oid('tmp')
+Traceback (most recent call last):
+ValueError: Not a valid OID path: tmp
+
+
+Auto-detecting the layout of a directory
+========================================
+
+To allow easier migration, we provide an auto-detection feature that analyses a
+blob directory and decides for a strategy to use. In general it prefers to
+choose the `bushy` layout, except if it determines that the directory has
+already been used to create a lawn structure.
+
+>>> from ZODB.blob import auto_layout_select
+
+1. Non-existing directories will trigger a bushy layout:
+
+>>> import tempfile
+>>> import shutil
+>>> d = tempfile.mkdtemp()
+>>> shutil.rmtree(d)
+>>> auto_layout_select(d)
+'bushy'
+
+2. Empty directories will trigger a bushy layout too:
+
+>>> d = tempfile.mkdtemp()
+>>> auto_layout_select(d)
+'bushy'
+
+3. If the directory contains a marker for the strategy it will be used:
+
+>>> from ZODB.blob import LAYOUT_MARKER
+>>> import os.path
+>>> open(os.path.join(d, LAYOUT_MARKER), 'wb').write('bushy')
+>>> auto_layout_select(d)
+'bushy'
+>>> open(os.path.join(d, LAYOUT_MARKER), 'wb').write('lawn')
+>>> auto_layout_select(d)
+'lawn'
+>>> shutil.rmtree(d)
+
+4. If the directory does not contain a marker but other files, we assume that
+it was created with an earlier version of the blob implementation and uses our
+`lawn` layout:
+
+>>> d = tempfile.mkdtemp()
+>>> open(os.path.join(d, '0x0101'), 'wb').write('foo')
+>>> auto_layout_select(d)
+'lawn'
+>>> shutil.rmtree(d)
+
+
+Directory layout markers
+========================
+
+When the file system helper (FSH) is asked to create the directory structure,
+it will leave a marker with the choosen layout if no marker exists yet:
+
+>>> from ZODB.blob import FilesystemHelper
+>>> d = tempfile.mkdtemp()
+>>> blobs = os.path.join(d, 'blobs')
+>>> fsh = FilesystemHelper(blobs)
+>>> fsh.layout_name
+'bushy'
+>>> fsh.create()
+>>> open(os.path.join(blobs, LAYOUT_MARKER), 'rb').read()
+'bushy'
+
+If the FSH finds a marker, then it verifies whether its content matches the
+strategy that was chosen. It will raise an exception if we try to work with a
+directory that has a different marker than the chosen strategy:
+
+>>> fsh = FilesystemHelper(blobs, 'lawn')
+>>> fsh.layout_name
+'lawn'
+>>> fsh.create() # doctest: +ELLIPSIS
+Traceback (most recent call last):
+ValueError: Directory layout `lawn` selected for blob directory /.../blobs/, but marker found for layout `bushy`
+>>> shutil.rmtree(blobs)
+
+This function interacts with the automatic detection in the way, that an
+unmarked directory will be marked the first time when it is auto-guessed and
+the marker will be used in the future:
+
+>>> import ZODB.FileStorage
+>>> from ZODB.blob import BlobStorage
+>>> datafs = os.path.join(d, 'data.fs')
+>>> base_storage = ZODB.FileStorage.FileStorage(datafs)
+
+>>> os.mkdir(blobs)
+>>> open(os.path.join(blobs, 'foo'), 'wb').write('foo')
+>>> blob_storage = BlobStorage(blobs, base_storage)
+>>> blob_storage.fshelper.layout_name
+'lawn'
+>>> open(os.path.join(blobs, LAYOUT_MARKER), 'rb').read()
+'lawn'
+>>> blob_storage = BlobStorage(blobs, base_storage, layout='bushy') # doctest: +ELLIPSIS
+Traceback (most recent call last):
+ValueError: Directory layout `bushy` selected for blob directory /.../blobs/, but marker found for layout `lawn`
+
+
+>>> shutil.rmtree(d)
