@@ -32,7 +32,7 @@ First, we need a datatabase with blob support::
   >>> from ZODB.DB import DB
   >>> from tempfile import mkdtemp
   >>> import os.path
-  >>> base_storage = MappingStorage("test")
+  >>> base_storage = MappingStorage('test')
   >>> blob_dir = mkdtemp()
   >>> blob_storage = BlobStorage(blob_dir, base_storage)
   >>> database = DB(blob_storage)

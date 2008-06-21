@@ -322,9 +322,9 @@ clean up dirty files:
     >>> base_storage = DummyBaseStorage()
     >>> blob_dir2 = mkdtemp()
     >>> blob_storage2 = BlobStorage(blob_dir2, base_storage)
-    >>> committed_blob_dir = os.path.join(blob_dir2, '0')
-    >>> committed_blob_file = os.path.join(committed_blob_dir, '0.blob')
-    >>> os.mkdir(committed_blob_dir)
+    >>> committed_blob_dir = blob_storage2.fshelper.getPathForOID(0)
+    >>> os.makedirs(committed_blob_dir)
+    >>> committed_blob_file = blob_storage2.fshelper.getBlobFilename(0, 0)
     >>> open(os.path.join(committed_blob_file), 'w').write('foo')
     >>> os.path.exists(committed_blob_file)
     True
