@@ -31,12 +31,14 @@ entries per directory level:
 
 >>> bushy.path_to_oid('0x01/0x00/0x00/0x00/0x00/0x00/0x00/0x00')
 '\x00\x00\x00\x00\x00\x00\x00\x01'
+>>> bushy.path_to_oid('0xff/0x00/0x00/0x00/0x00/0x00/0x00/0x00')
+'\x00\x00\x00\x00\x00\x00\x00\xff'
 
 Paths that do not represent an OID will cause a ValueError:
 
 >>> bushy.path_to_oid('tmp')
 Traceback (most recent call last):
-ValueError: Not a valid OID path: tmp
+ValueError: Not a valid OID path: `tmp`
 
 
 The `lawn` layout
@@ -61,7 +63,10 @@ Paths that do not represent an OID will cause a ValueError:
 
 >>> lawn.path_to_oid('tmp')
 Traceback (most recent call last):
-ValueError: Not a valid OID path: tmp
+ValueError: Not a valid OID path: `tmp`
+>>> lawn.path_to_oid('')
+Traceback (most recent call last):
+ValueError: Not a valid OID path: ``
 
 
 Auto-detecting the layout of a directory
@@ -160,5 +165,119 @@ the marker will be used in the future:
 Traceback (most recent call last):
 ValueError: Directory layout `bushy` selected for blob directory /.../blobs/, but marker found for layout `lawn`
 
+
+>>> shutil.rmtree(d)
+
+
+Migrating between directory layouts
+===================================
+
+A script called `migrateblobs.py` is distributed with the ZODB for offline
+migration capabilities between different directory layouts. It can migrate any
+blob directory layout to any other layout. It leaves the original blob
+directory untouched (except from eventually creating a temporary directory and
+the storage layout marker).
+
+The migration is accessible as a library function:
+
+>>> from ZODB.scripts.migrateblobs import migrate
+
+Create a `lawn` directory structure and migrate it to the new `bushy` one:
+
+>>> from ZODB.blob import FilesystemHelper
+>>> d = tempfile.mkdtemp()
+>>> old = os.path.join(d, 'old')
+>>> old_fsh = FilesystemHelper(old, 'lawn')
+>>> old_fsh.create()
+>>> blob1 = old_fsh.getPathForOID(7039, create=True)
+>>> blob2 = old_fsh.getPathForOID(10, create=True)
+>>> blob3 = old_fsh.getPathForOID(7034, create=True)
+>>> open(os.path.join(blob1, 'foo'), 'wb').write('foo')
+>>> open(os.path.join(blob1, 'foo2'), 'wb').write('bar')
+>>> open(os.path.join(blob2, 'foo3'), 'wb').write('baz')
+>>> open(os.path.join(blob2, 'foo4'), 'wb').write('qux')
+>>> open(os.path.join(blob3, 'foo5'), 'wb').write('quux')
+>>> open(os.path.join(blob3, 'foo6'), 'wb').write('corge')
+
+Committed blobs have their permissions set to 000
+
+The migration function is called with the old and the new path and the layout
+that shall be used for the new directory:
+
+>>> bushy = os.path.join(d, 'bushy')
+>>> migrate(old, bushy, 'bushy')  # doctest: +ELLIPSIS +NORMALIZE_WHITESPACE
+Migrating blob data from `/.../old` (lawn) to `/.../bushy` (bushy)
+    OID: 0x1b7f - 2 files 
+    OID: 0x0a - 2 files 
+    OID: 0x1b7a - 2 files 
+
+The new directory now contains the same files in different directories, but
+with the same sizes and permissions:
+
+>>> import string
+>>> def stat(path):
+...     s = os.stat(path)
+...     print "%s\t%s\t%s" % (string.rjust(oct(s.st_mode), 10), s.st_size, path)
+>>> def ls(path):
+...     for p, dirs, files in os.walk(path):
+...         stat(p)
+...         for file in files:
+...             stat(os.path.join(p, file))
+>>> ls(bushy)
+     040700  4096  /.../bushy
+    0100644  5     /.../bushy/.layout
+     040700  4096  /.../bushy/0x7a
+     040700  4096  /.../bushy/0x7a/0x1b
+     040700  4096  /.../bushy/0x7a/0x1b/0x00
+     040700  4096  /.../bushy/0x7a/0x1b/0x00/0x00
+     040700  4096  /.../bushy/0x7a/0x1b/0x00/0x00/0x00
+     040700  4096  /.../bushy/0x7a/0x1b/0x00/0x00/0x00/0x00
+     040700  4096  /.../bushy/0x7a/0x1b/0x00/0x00/0x00/0x00/0x00
+     040700  4096  /.../bushy/0x7a/0x1b/0x00/0x00/0x00/0x00/0x00/0x00
+    0100644  5     /.../bushy/0x7a/0x1b/0x00/0x00/0x00/0x00/0x00/0x00/foo6
+    0100644  4     /.../bushy/0x7a/0x1b/0x00/0x00/0x00/0x00/0x00/0x00/foo5
+     040700  4096  /.../bushy/tmp
+     040700  4096  /.../bushy/0x0a
+     040700  4096  /.../bushy/0x0a/0x00
+     040700  4096  /.../bushy/0x0a/0x00/0x00
+     040700  4096  /.../bushy/0x0a/0x00/0x00/0x00
+     040700  4096  /.../bushy/0x0a/0x00/0x00/0x00/0x00
+     040700  4096  /.../bushy/0x0a/0x00/0x00/0x00/0x00/0x00
+     040700  4096  /.../bushy/0x0a/0x00/0x00/0x00/0x00/0x00/0x00
+     040700  4096  /.../bushy/0x0a/0x00/0x00/0x00/0x00/0x00/0x00/0x00
+    0100644  3     /.../bushy/0x0a/0x00/0x00/0x00/0x00/0x00/0x00/0x00/foo4
+    0100644  3     /.../bushy/0x0a/0x00/0x00/0x00/0x00/0x00/0x00/0x00/foo3
+     040700  4096  /.../bushy/0x7f
+     040700  4096  /.../bushy/0x7f/0x1b
+     040700  4096  /.../bushy/0x7f/0x1b/0x00
+     040700  4096  /.../bushy/0x7f/0x1b/0x00/0x00
+     040700  4096  /.../bushy/0x7f/0x1b/0x00/0x00/0x00
+     040700  4096  /.../bushy/0x7f/0x1b/0x00/0x00/0x00/0x00
+     040700  4096  /.../bushy/0x7f/0x1b/0x00/0x00/0x00/0x00/0x00
+     040700  4096  /.../bushy/0x7f/0x1b/0x00/0x00/0x00/0x00/0x00/0x00
+    0100644  3     /.../bushy/0x7f/0x1b/0x00/0x00/0x00/0x00/0x00/0x00/foo
+    0100644  3     /.../bushy/0x7f/0x1b/0x00/0x00/0x00/0x00/0x00/0x00/foo2
+
+We can also migrate the bushy layout back to the lawn layout:
+
+>>> lawn = os.path.join(d, 'lawn')
+>>> migrate(bushy, lawn, 'lawn')
+Migrating blob data from `/.../bushy` (bushy) to `/.../lawn` (lawn)
+    OID: 0x1b7a - 2 files 
+    OID: 0x0a - 2 files 
+    OID: 0x1b7f - 2 files 
+>>> ls(lawn)
+    040700  4096    /.../lawn
+   0100644  4       /.../lawn/.layout
+    040700  4096    /.../lawn/0x1b7f
+   0100644  3       /.../lawn/0x1b7f/foo
+   0100644  3       /.../lawn/0x1b7f/foo2
+    040700  4096    /.../lawn/tmp
+    040700  4096    /.../lawn/0x0a
+   0100644  3       /.../lawn/0x0a/foo4
+   0100644  3       /.../lawn/0x0a/foo3
+    040700  4096    /.../lawn/0x1b7a
+   0100644  5       /.../lawn/0x1b7a/foo6
+   0100644  4       /.../lawn/0x1b7a/foo5
 
 >>> shutil.rmtree(d)

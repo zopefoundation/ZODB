@@ -11,7 +11,8 @@ New Features
 - Changed layout strategy for the blob directory to a bushy approach (8 levels
   deep, at most ~256 entries per directory level, one directory for each
   blob). Old directories are automatically detected and will be handled with
-  the old strategy.
+  the old strategy. A migration script (`migrateblobs.py`) is provided to
+  convert the different layouts.
 
 - Versions are no-longer supported.
 

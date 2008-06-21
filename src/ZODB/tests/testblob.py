@@ -502,7 +502,13 @@ def test_suite():
     suite.addTest(doctest.DocFileSuite(
         "blob_basic.txt",  "blob_connection.txt", "blob_transaction.txt",
         "blob_packing.txt", "blob_importexport.txt", "blob_consume.txt",
-        "blob_tempdir.txt", "blob_layout.txt",
+        "blob_tempdir.txt",
+        setUp=ZODB.tests.util.setUp,
+        tearDown=ZODB.tests.util.tearDown,
+        ))
+    suite.addTest(doctest.DocFileSuite(
+        "blob_layout.txt",
+        optionflags=doctest.ELLIPSIS|doctest.NORMALIZE_WHITESPACE|doctest.REPORT_NDIFF,
         setUp=ZODB.tests.util.setUp,
         tearDown=ZODB.tests.util.tearDown,
         ))

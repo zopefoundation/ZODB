@@ -451,26 +451,24 @@ class FilesystemHelper:
 
 def auto_layout_select(path):
     # A heuristic to look at a path and determine which directory layout to
-    # use. Basically we try to figure out if the directory is either already
-    # used and contains an explicit marker, is unused or used without a
-    # marker.
+    # use.
     layout_marker = os.path.join(path, LAYOUT_MARKER)
     if not os.path.exists(path):
         log('Blob directory %s does not exist. '
             'Selected `bushy` layout. ' % path)
         layout = 'bushy'
     elif len(os.listdir(path)) == 0:
-        log('Blob directory %s is unused and has no layout marker set.'
+        log('Blob directory `%s` is unused and has no layout marker set. '
             'Selected `bushy` layout. ' % path)
         layout = 'bushy'
     elif LAYOUT_MARKER not in os.listdir(path):
-        log('Blob directory %s is used but has no layout marker set.'
+        log('Blob directory `%s` is used but has no layout marker set. '
             'Selected `lawn` layout. ' % path)
         layout = 'lawn'
     else:
         layout = open(layout_marker, 'rb').read()
         layout = layout.strip()
-        log('Blob directory %s has layout marker set.'
+        log('Blob directory `%s` has layout marker set. '
             'Selected `%s` layout. ' % (path, layout))
     return layout
 
@@ -483,7 +481,7 @@ class BushyLayout(object):
 
     """
 
-    blob_path_pattern = r'^' + (r'0x[0-9]{1,2}/*'*8) + r'$'
+    blob_path_pattern = r'^' + (r'0x[0-9a-f]{1,2}/*'*8) + r'$'
     blob_path_pattern = re.compile(blob_path_pattern)
 
     def oid_to_path(self, oid):
@@ -496,8 +494,7 @@ class BushyLayout(object):
 
     def path_to_oid(self, path):
         if self.blob_path_pattern.match(path) is None:
-            raise ValueError("Not a valid OID path: %s" % path)
-        # The path always has a leading slash that we need to ignore.
+            raise ValueError("Not a valid OID path: `%s`" % path)
         path = path.split('/')
         # The path contains the OID in little endian form but the OID itself
         # is big endian.
@@ -522,9 +519,13 @@ class LawnLayout(object):
 
     def path_to_oid(self, path):
         try:
+            if path == '':
+                # This is a special case where repr_to_oid converts '' to the
+                # OID z64.
+                raise TypeError()
             return utils.repr_to_oid(path)
         except TypeError:
-            raise ValueError('Not a valid OID path: %s' % path)
+            raise ValueError('Not a valid OID path: `%s`' % path)
 
 LAYOUTS['lawn'] = LawnLayout()
 
