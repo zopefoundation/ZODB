@@ -562,7 +562,7 @@ class CommonBlobTests:
         self.assert_((os.stat(filename).st_mode & stat.S_IREAD))
 
     def checkTemporaryDirectory(self):
-        self.assertEquals(self.blob_cache_dir,
+        self.assertEquals(os.path.join(self.blob_cache_dir, 'tmp'),
                           self._storage.temporaryDirectory())
 
     def checkTransactionBufferCleanup(self):
