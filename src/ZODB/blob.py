@@ -683,16 +683,9 @@ class BlobStorage(SpecificationDecoratorBase):
     @non_overridable
     def getSize(self):
         """Return the size of the database in bytes."""
-        orig_size = getProxiedObject(self).getSize()
-        blob_size = 0
-        for oid, path in self.fshelper.listOIDs():
-            for serial in os.listdir(path):
-                if not serial.endswith(BLOB_SUFFIX):
-                    continue
-                file_path = os.path.join(path, serial)
-                blob_size += os.stat(file_path).st_size
-
-        return orig_size + blob_size
+        # XXX The old way of computing is way to resource hungry. We need to
+        # do some kind of estimation instead.
+        return getProxiedObject(self).getSize()
 
     @non_overridable
     def undo(self, serial_id, transaction):

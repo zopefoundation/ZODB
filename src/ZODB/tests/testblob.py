@@ -503,6 +503,7 @@ def test_suite():
         "blob_basic.txt",  "blob_connection.txt", "blob_transaction.txt",
         "blob_packing.txt", "blob_importexport.txt", "blob_consume.txt",
         "blob_tempdir.txt",
+        optionflags=doctest.ELLIPSIS,
         setUp=ZODB.tests.util.setUp,
         tearDown=ZODB.tests.util.tearDown,
         ))

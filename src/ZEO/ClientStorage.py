@@ -1036,7 +1036,7 @@ class ClientStorage(object):
                 pass
 
     def temporaryDirectory(self):
-        return self.blob_dir
+        return self.fshelper.temp_dir
 
     def tpc_vote(self, txn):
         """Storage API: vote on a transaction."""
