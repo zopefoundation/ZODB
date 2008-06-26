@@ -191,15 +191,15 @@ connections::
     >>> root4['blob1'].open('r').read()
     'this is blob 1woot!this is from connection 3'
 
-BlobStorages implementation of getSize() includes the blob data and adds it to
-the underlying storages result of getSize(). (We need to ensure the last
+BlobStorages implementation of getSize() does not include the blob data and
+only returns what the underlying storages do.  (We need to ensure the last
 number to be an int, otherwise it will be a long on 32-bit platforms and an
 int on 64-bit)::
 
     >>> underlying_size = base_storage.getSize()
     >>> blob_size = blob_storage.getSize()
     >>> int(blob_size - underlying_size)
-    91
+    0
 
 You can't commit a transaction while blob files are open:
 
@@ -341,20 +341,6 @@ set to dirty but doesn't actually have an existing file:
 
 Note: This is a counter measure against regression of bug #126007.
 
-getSize with garbage in the directory structure
------------------------------------------------
-
-`getSize` iterates over the existing blob files in the blob directory and adds
-up their size. The blob directory sometimes contains temporary files that the
-getSize function needs to ignore:
-
-    >>> garbage_file = os.path.join(blob_dir, 'garbage')
-    >>> open(garbage_file, 'w').write('garbage')
-    >>> int(blob_storage.getSize())
-    881
-
-
-Note: This is a counter measer against regression of bug #12991.
 
 Teardown
 --------
