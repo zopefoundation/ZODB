@@ -53,36 +53,28 @@ This tests tries to provoke this bug by:
     >>> thread.start()
 
 - restarting the first client, and 
+- testing for cache validity.
 
     >>> import zope.testing.loggingsupport, logging
     >>> handler = zope.testing.loggingsupport.InstalledHandler(
     ...    'ZEO', level=logging.ERROR)
 
     >>> import time
-    >>> for i in range(10):
+    >>> for c in range(10):
     ...    time.sleep(.1)
     ...    db = ZODB.DB(ZEO.ClientStorage.ClientStorage(addr, client='x'))
     ...    time.sleep(.1)
+    ...    conn = db.open()
+    ...    for i in range(1000):
+    ...        if conn.root()[i].value != conn2.root()[i].value:
+    ...            print 'bad', c, i, conn.root()[i].value,
+    ...            print  conn2.root()[i].value
     ...    db.close()
-
-    >>> time.sleep(.1)
-    >>> db = ZODB.DB(ZEO.ClientStorage.ClientStorage(addr, client='x'))
-
 
     >>> stop = True
     >>> thread.join(10)
     >>> thread.isAlive()
     False
-
-    >>> time.sleep(.1)
-
-- testing for cache validity.
-
-    >>> conn = db.open()
-    >>> for i in range(1000):
-    ...     if conn.root()[i].value != conn2.root()[i].value:
-    ...         print i, conn.root()[i].value, conn2.root()[i].value
-
 
     >>> for record in handler.records:
     ...     print record.name, record.levelname
