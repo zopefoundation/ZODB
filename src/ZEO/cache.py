@@ -614,8 +614,13 @@ class ClientCache(object):
     #        revision, and non-current revisions)
     @locked
     def invalidate(self, oid, version, tid):
-        if tid > self.tid and tid is not None:
-            self.setLastTid(tid)
+        if tid is not None:
+            if tid > self.tid:
+                self.setLastTid(tid)
+            elif tid < self.tid:
+                raise ValueError("invalidation tid (%s) must not be less than "
+                                 "previous one (%s)" % (u64(tid),
+                                                        u64(self.tid)))
 
         ofs = self.current.get(oid)
         if ofs is None:
