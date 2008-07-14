@@ -5,7 +5,7 @@ Whats new in ZODB 3.8.1
 
 Bugs Fixed:
 
-- (beta 7) Fixed serveral bugs that caused cache ZEO cache corruption
+- (beta 5) Fixed serveral bugs that caused cache ZEO cache corruption
   when connecting to servers.  These bugs affected both persistent and
   non-persistetn caches. 
 
