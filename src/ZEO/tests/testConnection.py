@@ -21,7 +21,7 @@ platform-dependent scaffolding.
 import unittest
 # Import the actual test class
 from ZEO.tests import ConnectionTests, InvalidationTests
-
+from zope.testing import doctest, setupstack
 
 class FileStorageConfig:
     def getConfig(self, path, create, read_only):
@@ -135,6 +135,10 @@ def test_suite():
     for klass in test_classes:
         sub = unittest.makeSuite(klass, 'check')
         suite.addTest(sub)
+    suite.addTest(doctest.DocFileSuite(
+        'invalidations_while_connecting.test',
+        setUp=setupstack.setUpDirectory, tearDown=setupstack.tearDown,
+        ))
     return suite
 
 
