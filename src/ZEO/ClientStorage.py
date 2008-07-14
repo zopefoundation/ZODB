@@ -1115,7 +1115,7 @@ class ClientStorage(object):
             return
 
         for oid, version, data in self._tbuf:
-            self._cache.invalidate(oid, version, tid)
+            self._cache.invalidate(oid, version, tid, False)
             # If data is None, we just invalidate.
             if data is not None:
                 s = self._seriald[oid]
