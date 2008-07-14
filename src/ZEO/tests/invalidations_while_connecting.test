@@ -100,3 +100,5 @@ This tests tries to provoke this bug by:
 
     >>> db.close()
     >>> db2.close()
+    >>> ZEO.tests.forker.shutdown_zeo_server(adminaddr)
+
