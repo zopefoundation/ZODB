@@ -392,6 +392,10 @@ class FilesystemHelper:
             yield oid, self.getPathForOID(oid)
 
 
+class BlobStorageError(Exception):
+    """The blob storage encountered an invalid state."""
+
+
 class BlobStorage(SpecificationDecoratorBase):
     """A storage to support blobs."""
 
@@ -399,7 +403,8 @@ class BlobStorage(SpecificationDecoratorBase):
 
     # Proxies can't have a __dict__ so specifying __slots__ here allows
     # us to have instance attributes explicitly on the proxy.
-    __slots__ = ('fshelper', 'dirty_oids', '_BlobStorage__supportsUndo')
+    __slots__ = ('fshelper', 'dirty_oids', '_BlobStorage__supportsUndo',
+                 '_blobs_pack_is_in_progress', )
 
     def __new__(self, base_directory, storage):
         return SpecificationDecoratorBase.__new__(self, storage)
@@ -418,6 +423,7 @@ class BlobStorage(SpecificationDecoratorBase):
         else:
             supportsUndo = supportsUndo()
         self.__supportsUndo = supportsUndo
+        self._blobs_pack_is_in_progress = False
 
     @non_overridable
     def temporaryDirectory(self):
@@ -528,21 +534,29 @@ class BlobStorage(SpecificationDecoratorBase):
 
     @non_overridable
     def pack(self, packtime, referencesf):
-        """Remove all unused oid/tid combinations."""
-        unproxied = getProxiedObject(self)
-
-        # pack the underlying storage, which will allow us to determine
-        # which serials are current.
-        result = unproxied.pack(packtime, referencesf)
-
-        # perform a pack on blob data
+        """Remove all unused OID/TID combinations."""
         self._lock_acquire()
         try:
+            if self._blobs_pack_is_in_progress:
+                raise BlobStorageError('Already packing')
+            self._blobs_pack_is_in_progress = True
+        finally:
+            self._lock_release()
+
+        try:
+            # Pack the underlying storage, which will allow us to determine
+            # which serials are current.
+            unproxied = getProxiedObject(self)
+            result = unproxied.pack(packtime, referencesf)
+
+            # Perform a pack on the blob data.
             if self.__supportsUndo:
                 self._packUndoing(packtime, referencesf)
             else:
                 self._packNonUndoing(packtime, referencesf)
         finally:
+            self._lock_acquire()
+            self._blobs_pack_is_in_progress = False
             self._lock_release()
 
         return result
