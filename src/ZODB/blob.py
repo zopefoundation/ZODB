@@ -442,6 +442,10 @@ class FilesystemHelper:
         files.
         """
         for path, dirs, files in os.walk(self.base_dir):
+            # Make sure we traverse in a stable order. This is mainly to make
+            # testing predictable.
+            dirs.sort()
+            files.sort()
             try:
                 oid = self.getOIDForPath(path)
             except ValueError:
@@ -477,7 +481,7 @@ class BushyLayout(object):
     """A bushy directory layout for blob directories.
 
     Creates an 8-level directory structure (one level per byte) in
-    little-endian order from the OID of an object.
+    big-endian order from the OID of an object.
 
     """
 
@@ -488,7 +492,7 @@ class BushyLayout(object):
         directories = []
         # Create the bushy directory structure with the least significant byte
         # first
-        for byte in reversed(str(oid)):
+        for byte in str(oid):
             directories.append('0x%s' % binascii.hexlify(byte))
         return '/'.join(directories)
 
@@ -496,9 +500,6 @@ class BushyLayout(object):
         if self.blob_path_pattern.match(path) is None:
             raise ValueError("Not a valid OID path: `%s`" % path)
         path = path.split('/')
-        # The path contains the OID in little endian form but the OID itself
-        # is big endian.
-        path.reverse()
         # Each path segment stores a byte in hex representation. Turn it into
         # an int and then get the character for our byte string.
         oid = ''.join(binascii.unhexlify(byte[2:]) for byte in path)
