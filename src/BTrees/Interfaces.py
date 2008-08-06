@@ -140,13 +140,19 @@ class IMinimalDictionary(ISized, IKeyed):
         Return the default if has_key(key) is false.
         """
 
+    def __getitem__(key):
+        """Get the value associated with the given key.
+
+        Raise KeyError if has_key(key) is false.
+        """
+
     def __setitem__(key, value):
         """Set the value associated with the given key."""
 
     def __delitem__(key):
         """Delete the value associated with the given key.
 
-        Raise KeyError if the key if has_key(key) is false.
+        Raise KeyError if has_key(key) is false.
         """
 
     def values(min=None, max=None, excludemin=False, excludemax=False):
