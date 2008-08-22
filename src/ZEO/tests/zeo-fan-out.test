@@ -4,7 +4,7 @@ ZEO Fan Out
 We should be able to set up ZEO servers with ZEO clients.  Let's see
 if we can make it work.
 
-We'll use some helper functions.  The first is a helpter that starts
+We'll use some helper functions.  The first is a helper that starts
 ZEO servers for us and another one that picks ports.
 
 We'll start the first server:
@@ -13,7 +13,8 @@ We'll start the first server:
     >>> port0 = ZEO.tests.testZEO.get_port()
     >>> zconf0 = ZEO.tests.forker.ZEOConfig(('', port0))
     >>> zport0, adminaddr0, pid0, path0 = ZEO.tests.forker.start_zeo_server(
-    ...    '<filestorage 1>\n  path fs\n</filestorage>\n', zconf0, port0)
+    ...    '<filestorage 1>\n  path fs\n</filestorage>\n', zconf0,
+    ...    port0, keep=1)
 
 
 Then we''ll start 2 others that use this one:
@@ -47,13 +48,6 @@ And some databases and connections around these:
     >>> c1 = db1.open(transaction_manager=tm1)
     >>> r1 = c1.root()
     >>> r1
-    {}
-
-    >>> db2 = DB(cs2)
-    >>> tm2 = transaction.TransactionManager()
-    >>> c2 = db2.open(transaction_manager=tm2)
-    >>> r2 = c2.root()
-    >>> r2
     {}
 
     >>> db2 = DB(cs2)

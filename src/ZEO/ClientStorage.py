@@ -1219,6 +1219,10 @@ class ClientStorage(object):
                 log2("No verification necessary (last_inval_tid up-to-date)")
                 self.finish_verification()
                 return "no verification"
+            elif ltid < last_inval_tid:
+                message = "Client has seen newer trasnactions than server!"
+                log2(message, level=logging.CRITICAL)
+                raise ClientStorageError(message)
 
             # log some hints about last transaction
             log2("last inval tid: %r %s\n"
