@@ -1013,10 +1013,11 @@ class StorageServer:
         # connections indirectoy by closing them.  We don't care about
         # later transactions since they will have to validate their
         # caches anyway.
-        connections = connections[:]        
+        connections = connections[:]
         for p in connections:
             try:
                 p.connection.should_close()
+                p.connection.trigger.pull_trigger()
             except ZEO.zrpc.error.DisconnectedError:
                 pass
         

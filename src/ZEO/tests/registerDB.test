@@ -61,6 +61,14 @@ stub that implements the client invalidation calls:
     ...         self.mgr.close_conn(self)
     ...     def poll(self):
     ...         pass
+    ...
+    ...     @property
+    ...     def trigger(self):
+    ...         return self
+    ...
+    ...     def pull_trigger(self):
+    ...         pass
+
 
     >>> class ZEOStorage:
     ...     def __init__(self, server, name):
