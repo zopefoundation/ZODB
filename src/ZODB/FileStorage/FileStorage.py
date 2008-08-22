@@ -43,6 +43,8 @@ from ZODB.FileStorage.format import CorruptedDataError
 from ZODB.loglevels import BLATHER
 from ZODB.fsIndex import fsIndex
 
+import BTrees.OOBTree
+
 packed_version = "FS21"
 
 logger = logging.getLogger('ZODB.FileStorage')
@@ -229,7 +231,7 @@ class FileStorage(BaseStorage.BaseStorage,
 
     def _newIndexes(self):
         # hook to use something other than builtin dict
-        return fsIndex(), {}, {}, {}, {}, {}, {}
+        return fsIndex(), {}, {}, {}, BTrees.OOBTree.OOBTree(), {}, {}
 
     _saved = 0
     def _save_index(self):

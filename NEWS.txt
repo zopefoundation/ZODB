@@ -5,7 +5,10 @@ Whats new in ZODB 3.8.1
 
 Bugs Fixed:
 
-- (???) Fixed bug #251037: Made packing of blob storages non-blocking.
+- (beta 7) Fixed bug that could lead to memory errors due to the use
+  of a Python disctionary for a mapping that can grow large.
+
+- (beta 7) Fixed bug #251037: Made packing of blob storages non-blocking.
 
 - (beta 6) Fixed a bug that could cause InvalidObjectReference errors
   for objects that were explicitly added to a database if the object
