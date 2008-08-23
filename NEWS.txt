@@ -5,7 +5,7 @@ Whats new in ZODB 3.8.1
 
 Bugs Fixed:
 
-- (beta 7) Fixed a bug, intriduced in an earlier beta, that allowed
+- (beta 7) Fixed a bug, introduced in an earlier beta, that allowed
   clients to connect to out of date servers.
 
 - (beta 7) Fixed bug that could lead to memory errors due to the use
