@@ -16,6 +16,7 @@
 Public contents of this module:
 
 ClientStorage -- the main class, implementing the Storage API
+
 """
 
 import cPickle
@@ -66,6 +67,7 @@ def get_timestamp(prev_ts=None):
     If the optional argument is not None, it must be a TimeStamp; the
     return value is then guaranteed to be at least 1 microsecond later
     the argument.
+
     """
     t = time.time()
     t = TimeStamp(*time.gmtime(t)[:5] + (t % 60,))
@@ -80,6 +82,7 @@ class DisconnectedServerStub:
 
     This is a singleton class -- there should be only one instance,
     the global disconnected_stub, os it can be tested by identity.
+
     """
 
     def __getattr__(self, attr):
@@ -91,18 +94,18 @@ disconnected_stub = DisconnectedServerStub()
 MB = 1024**2
 
 class ClientStorage(object):
-
-    """A Storage class that is a network client to a remote storage.
+    """A storage class that is a network client to a remote storage.
 
     This is a faithful implementation of the Storage API.
 
     This class is thread-safe; transactions are serialized in
     tpc_begin().
+
     """
 
     implements(IBlobStorage)
-    # Classes we instantiate.  A subclass might override.
 
+    # Classes we instantiate.  A subclass might override.
     TransactionBufferClass = TransactionBuffer
     ClientCacheClass = ClientCache
     ConnectionManagerClass = ConnectionManager
@@ -198,8 +201,8 @@ class ClientStorage(object):
         Note that the authentication protocol is defined by the server
         and is detected by the ClientStorage upon connecting (see
         testConnection() and doAuth() for details).
-        """
 
+        """
         log2("%s (pid=%d) created %s/%s for storage: %r" %
              (self.__class__.__name__,
               os.getpid(),
@@ -450,6 +453,7 @@ class ClientStorage(object):
         this is deemed a suboptimal match.  In all other cases, a
         succeeding register() call is deemed an optimal match, and any
         exception raised by register() is passed through.
+
         """
         log2("Testing connection %r" % conn)
         # TODO:  Should we check the protocol version here?
@@ -625,6 +629,7 @@ class ClientStorage(object):
 
         This is called by ConnectionManager when the connection is
         closed or when certain problems with the connection occur.
+
         """
         log2("Disconnected from storage: %s" % repr(self._server_addr))
         self._connection = None
@@ -645,6 +650,7 @@ class ClientStorage(object):
         constructor, and the string 'connected' or 'disconnected' in
         parentheses indicating whether the storage is (currently)
         connected.
+
         """
         return "%s (%s)" % (
             self.__name__,
@@ -663,6 +669,7 @@ class ClientStorage(object):
         to proxy in addition to the standard storage methods.
         Dictionary values should be None; this will be a handy place
         for extra marshalling information, should we need it
+
         """
         return self._info.get('extensionMethods', {})
 
@@ -714,6 +721,7 @@ class ClientStorage(object):
         This returns the pickle data and serial number for the object
         specified by the given object id, if they exist;
         otherwise a KeyError is raised.
+
         """
         self._lock.acquire()    # for atomic processing of invalidations
         try:
@@ -811,6 +819,7 @@ class ClientStorage(object):
 
         days -- a number of days to subtract from the pack time;
             defaults to zero.
+
         """
         # TODO: Is it okay that read-only connections allow pack()?
         # rf argument ignored; server will provide its own implementation
@@ -904,7 +913,6 @@ class ClientStorage(object):
         os.chmod(blob_filename, stat.S_IREAD)
 
     def loadBlob(self, oid, serial):
-
         # Load a blob.  If it isn't present and we have a shared blob
         # directory, then assume that it doesn't exist on the server
         # and return None.
@@ -1102,6 +1110,7 @@ class ClientStorage(object):
 
         This iterates over the objects in the transaction buffer and
         update or invalidate the cache.
+
         """
         # Must be called with _lock already acquired.
 
@@ -1141,6 +1150,7 @@ class ClientStorage(object):
 
         Zope uses this to implement undo unless it is not supported by
         a storage.
+
         """
         self._check_trans(txn)
         tid, oids = self._server.undo(trans_id, id(txn))
@@ -1159,6 +1169,7 @@ class ClientStorage(object):
         it is impossible to pass the filter function to the server to
         be executed there.  If filter is not None, an empty sequence
         is returned.
+
         """
         if filter is not None:
             return []
@@ -1237,4 +1248,3 @@ class ClientStorage(object):
     invalidate = invalidateVerify
     end = endVerify
     Invalidate = invalidateTrans
-
