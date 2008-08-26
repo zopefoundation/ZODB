@@ -22,6 +22,7 @@ from ZODB.serialize import referencesf
 
 import time
 
+
 class RecoveryStorage(IteratorDeepCompare):
     # Requires a setUp() that creates a self._dst destination storage
     def checkSimpleRecovery(self):
@@ -49,12 +50,16 @@ class RecoveryStorage(IteratorDeepCompare):
         # copy the final transaction manually.  even though there
         # was a pack, the restore() ought to succeed.
         it = self._storage.iterator()
-        final = list(it)[-1]
+        # Get the last transaction and its record iterator. Record iterators
+        # can't be accessed out-of-order, so we need to do this in a bit
+        # complicated way:
+        for final  in it:
+            records = list(final)
+
         self._dst.tpc_begin(final, final.tid, final.status)
-        for r in final:
+        for r in records:
             self._dst.restore(r.oid, r.tid, r.data, '', r.data_txn,
                               final)
-        it.close()
         self._dst.tpc_vote(final)
         self._dst.tpc_finish(final)
 

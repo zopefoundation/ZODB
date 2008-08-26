@@ -84,6 +84,8 @@ import cPickle
 import base64, time
 
 import ZODB.BaseStorage
+import ZODB.interfaces
+import zope.interface
 from ZODB import POSException
 from ZODB.utils import z64, oid_repr
 from persistent.TimeStamp import TimeStamp
@@ -106,6 +108,7 @@ class DemoStorage(ZODB.BaseStorage.BaseStorage):
     
     """
     
+    zope.interface.implements(ZODB.interfaces.IStorageIteration)
 
     def __init__(self, name='Demo Storage', base=None, quota=None):
         ZODB.BaseStorage.BaseStorage.__init__(self, name, base)
@@ -575,3 +578,27 @@ class DemoStorage(ZODB.BaseStorage.BaseStorage):
     def close(self):
         if self._base is not None:
             self._base.close()
+
+    def iterator(self, start=None, end=None):
+        # First iterate over the base storage
+        if self._base is not None:
+            for transaction in self._base.iterator(start, end):
+                yield transaction
+        # Then iterate over our local transactions
+        for tid, transaction in self._data.items():
+            if tid >= start and tid <= end:
+                yield TransactionRecord(tid, transaction)
+
+
+class TransactionRecord(ZODB.BaseStorage.TransactionRecord):
+    
+    def __init__(self, tid, transaction):
+        packed, user, description, extension, records = transaction
+        super(TransactionRecord, self).__init__(
+            tid, packed, user, description, extension)
+        self.records = transaction
+
+    def __iter__(self):
+        for record in self.records:
+            oid, prev, version, data, tid = record
+            yield ZODB.BaseStorage.DataRecord(oid, tid, data, version, prev)

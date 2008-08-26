@@ -30,6 +30,7 @@ import time
 from persistent import Persistent
 from persistent.mapping import PersistentMapping
 import transaction
+import ZODB.interfaces
 from ZODB import DB
 from ZODB.serialize import referencesf
 from ZODB.tests.MinPO import MinPO
@@ -149,7 +150,7 @@ class PackableStorageBase:
 
     def _sanity_check(self):
         # Iterate over the storage to make sure it's sane.
-        if not hasattr(self._storage, "iterator"):
+        if not ZODB.interfaces.IStorageIteration.providedBy(self._storage):
             return
         it = self._storage.iterator()
         for txn in it:

@@ -302,8 +302,8 @@ class StorageServer:
     def iterator_next(self, iid):
         return self.rpc.call('iterator_next', iid)
 
-    def iterator_record_start(self, tid):
-        return self.rpc.call('iterator_record_start', tid)
+    def iterator_record_start(self, txn_iid, tid):
+        return self.rpc.call('iterator_record_start', txn_iid, tid)
 
     def iterator_record_next(self, iid):
         return self.rpc.call('iterator_record_next', iid)

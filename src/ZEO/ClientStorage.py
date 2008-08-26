@@ -30,7 +30,7 @@ import types
 import logging
 import weakref
 
-from zope.interface import implements
+import zope.interface
 from ZEO import ServerStub
 from ZEO.cache import ClientCache
 from ZEO.TransactionBuffer import TransactionBuffer
@@ -101,8 +101,9 @@ class ClientStorage(object):
     tpc_begin().
     """
 
-    implements(ZODB.interfaces.IBlobStorage,
-               ZODB.interfaces.IStorageIteration)
+    # ClientStorage does not declare any interfaces here. Interfaces are
+    # declared according to the server's storage once a connection is
+    # established.
 
     # Classes we instantiate.  A subclass might override.
     TransactionBufferClass = TransactionBuffer
@@ -274,7 +275,7 @@ class ClientStorage(object):
         self._verification_invalidations = None
 
         self._info = {'length': 0, 'size': 0, 'name': 'ZEO Client',
-                      'supportsUndo':0}
+                      'supportsUndo': 0, 'interfaces': ()}
 
         self._tbuf = self.TransactionBufferClass()
         self._db = None
@@ -533,6 +534,15 @@ class ClientStorage(object):
 
         self._handle_extensions()
 
+        # Decorate ClientStorage with all interfaces that the backend storage
+        # supports.
+        remote_interfaces = []
+        for module_name, interface_name in self._info['interfaces']:
+            module = __import__(module_name, globals(), locals(), [interface_name])
+            interface = getattr(module, interface_name)
+            remote_interfaces.append(interface)
+        zope.interface.directlyProvides(self, remote_interfaces)
+
     def _handle_extensions(self):
         for name in self.getExtensionMethods().keys():
             if not hasattr(self, name):
@@ -639,6 +649,7 @@ class ClientStorage(object):
         self._ready.clear()
         self._server = disconnected_stub
         self._midtxn_disconnect = 1
+        self._iterator_gc()
 
     def __len__(self):
         """Return the size of the storage."""
@@ -1182,8 +1193,8 @@ class ClientStorage(object):
         assert not version
         self._check_trans(transaction)
         self._server.restorea(oid, serial, data, prev_txn, id(transaction))
-        # XXX I'm not updating the transaction buffer here because I can't
-        # exactly predict how invalidation should work with restore. :/
+        # Don't update the transaction buffer, because current data are
+        # unaffected.
         return self._check_serials()
 
     # Below are methods invoked by the StorageServer
@@ -1267,24 +1278,10 @@ class ClientStorage(object):
         # iids are "iterator IDs" that can be used to query an iterator whose
         # status is held on the server.
         iid = self._server.iterator_start(start, stop)
-        return self._setup_iterator(self._iterator, iid)
-
-    def _iterator(self, iid):
-        while True:
-            item = self._server.iterator_next(iid)
-            if item is None:
-                # The iterator is exhausted, and the server has already
-                # disposed it.
-                self._forget_iterator(iid)
-                break
-
-            tid = item[0]
-            riid = self._server.iterator_record_start(tid)
-            yield self._setup_iterator(ClientStorageTransactionInformation,
-                                       riid, self, *item)
+        return self._setup_iterator(TransactionIterator, iid)
 
     def _setup_iterator(self, factory, iid, *args):
-        self._iterators[iid] = iterator = factory(iid, *args)
+        self._iterators[iid] = iterator = factory(self, iid, *args)
         self._iterator_ids.add(iid)
         return iterator
 
@@ -1307,12 +1304,38 @@ class ClientStorage(object):
         self._iterator_ids -= iids
 
 
+class TransactionIterator(object):
+
+    def __init__(self, storage, iid, *args):
+        self._storage = storage 
+        self._iid = iid
+        self._ended = False
+
+    def __iter__(self):
+        return self
+
+    def next(self):
+        if self._ended:
+            raise ZODB.interfaces.StorageStopIteration()
+
+        tx_data = self._storage._server.iterator_next(self._iid)
+        if tx_data is None:
+            # The iterator is exhausted, and the server has already
+            # disposed it.
+            self._ended = True
+            self._storage._forget_iterator(self._iid)
+            raise ZODB.interfaces.StorageStopIteration()
+
+        return ClientStorageTransactionInformation(self._storage, self, *tx_data)
+
+
 class ClientStorageTransactionInformation(ZODB.BaseStorage.TransactionRecord):
 
-    def __init__(self, riid, storage, tid, status, user, description, extension):
+    def __init__(self, storage, txiter, tid, status, user, description, extension):
         self._storage = storage
-        self._riid = riid
+        self._txiter = txiter
         self._completed = False
+        self._riid = None
 
         self.tid = tid
         self.status = status
@@ -1321,18 +1344,29 @@ class ClientStorageTransactionInformation(ZODB.BaseStorage.TransactionRecord):
         self.extension = extension
 
     def __iter__(self):
+        riid = self._storage._server.iterator_record_start(self._txiter._iid, self.tid)
+        return self._storage._setup_iterator(RecordIterator, riid)
+
+
+class RecordIterator(object):
+
+    def __init__(self, storage, riid):
+        self._riid = riid
+        self._completed = False
+        self._storage = storage
+
+    def __iter__(self):
         return self
 
     def next(self):
         if self._completed:
             # We finished iteration once already and the server can't know
             # about the iteration anymore.
-            raise StopIteration
+            raise ZODB.interfaces.StorageStopIteration()
         item = self._storage._server.iterator_record_next(self._riid)
         if item is None:
             # The iterator is exhausted, and the server has already
             # disposed it.
-            self._storage._forget_iterator(self._riid)
             self._completed = True
-            raise StopIteration
+            raise ZODB.interfaces.StorageStopIteration()
         return ZODB.BaseStorage.DataRecord(*item)

@@ -286,6 +286,7 @@ class IConnection(Interface):
         begins or until the connection os reopned.
         """
 
+
 class IStorageDB(Interface):
     """Database interface exposed to storages
 
@@ -417,6 +418,7 @@ class IDatabase(IStorageDB):
         is closed, so they stop behaving usefully.  Perhaps close()
         should also close all the Connections.
         """
+
 
 class IStorage(Interface):
     """A storage is responsible for storing and retrieving data of objects.
@@ -710,6 +712,7 @@ class IStorage(Interface):
 
         """
 
+
 class IStorageRestoreable(IStorage):
     """Copying Transactions
 
@@ -774,6 +777,7 @@ class IStorageRestoreable(IStorage):
 
         Nothing is returned.
         """
+
 
 class IStorageRecordInformation(Interface):
     """Provide information about a single storage record
@@ -938,6 +942,7 @@ class IStorageCurrentRecordIteration(IStorage):
         
         """
 
+
 class IBlob(Interface):
     """A BLOB supports efficient handling of large data within ZODB."""
 
@@ -992,5 +997,12 @@ class IBlobStorage(Interface):
         If Blobs use this, then commits can be performed with a simple rename.
         """
 
+
 class BlobError(Exception):
     pass
+
+
+class StorageStopIteration(IndexError, StopIteration):
+    """A combination of StopIteration and IndexError to provide a
+    backwards-compatible exception.
+    """

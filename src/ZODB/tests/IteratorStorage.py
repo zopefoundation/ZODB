@@ -15,6 +15,7 @@
 
 Any storage that supports the iterator() method should be able to pass
 all these tests.
+
 """
 
 from ZODB.tests.MinPO import MinPO
@@ -23,13 +24,16 @@ from ZODB.utils import U64, p64
 
 from transaction import Transaction
 
+import itertools
+
+
 class IteratorCompare:
 
     def iter_verify(self, txniter, revids, val0):
         eq = self.assertEqual
         oid = self._oid
         val = val0
-        for reciter, revid in zip(txniter, revids + [None]):
+        for reciter, revid in itertools.izip(txniter, revids + [None]):
             eq(reciter.tid, revid)
             for rec in reciter:
                 eq(rec.oid, oid)
@@ -37,9 +41,7 @@ class IteratorCompare:
                 eq(zodb_unpickle(rec.data), MinPO(val))
                 val = val + 1
         eq(val, val0 + len(revids))
-        if hasattr(txniter, 'close'):
-            # XXX See bug #191573
-            txniter.close()
+
 
 class IteratorStorage(IteratorCompare):
 
@@ -52,15 +54,6 @@ class IteratorStorage(IteratorCompare):
         # Now iterate over all the transactions and compare carefully
         txniter = self._storage.iterator()
         self.iter_verify(txniter, [revid1, revid2, revid3], 11)
-
-    def checkClose(self):
-        self._oid = oid = self._storage.new_oid()
-        revid1 = self._dostore(oid, data=MinPO(11))
-        txniter = self._storage.iterator()
-        if hasattr(txniter, 'close'):
-            # XXX See bug #191573
-            txniter.close()
-            self.assertRaises(IOError, txniter.next)
 
     def checkUndoZombie(self):
         oid = self._storage.new_oid()
@@ -202,30 +195,36 @@ class ExtendedIteratorStorage(IteratorCompare):
         txniter = self._storage.iterator(revid3, revid3)
         self.iter_verify(txniter, [revid3], 13)
 
+
 class IteratorDeepCompare:
+
     def compare(self, storage1, storage2):
         eq = self.assertEqual
         iter1 = storage1.iterator()
         iter2 = storage2.iterator()
-        for txn1, txn2 in zip(iter1, iter2):
+        for txn1, txn2 in itertools.izip(iter1, iter2):
             eq(txn1.tid,         txn2.tid)
             eq(txn1.status,      txn2.status)
             eq(txn1.user,        txn2.user)
             eq(txn1.description, txn2.description)
             eq(txn1.extension,  txn2.extension)
-            for rec1, rec2 in zip(txn1, txn2):
+            itxn1 = iter(txn1)
+            itxn2 = iter(txn2)
+            for rec1, rec2 in itertools.izip(itxn1, itxn2):
                 eq(rec1.oid,     rec2.oid)
                 eq(rec1.tid,  rec2.tid)
                 eq(rec1.data,    rec2.data)
             # Make sure there are no more records left in rec1 and rec2,
             # meaning they were the same length.
-            self.assertRaises(StopIteration, txn1.next)
-            self.assertRaises(StopIteration, txn2.next)
+            # Additionally, check that we're backwards compatible to the
+            # IndexError we used to raise before.
+            self.assertRaises(IndexError, itxn1.next)
+            self.assertRaises(IndexError, itxn2.next)
+            self.assertRaises(StopIteration, itxn1.next)
+            self.assertRaises(StopIteration, itxn2.next)
         # Make sure ther are no more records left in txn1 and txn2, meaning
         # they were the same length
+        self.assertRaises(IndexError, iter1.next)
+        self.assertRaises(IndexError, iter2.next)
         self.assertRaises(StopIteration, iter1.next)
         self.assertRaises(StopIteration, iter2.next)
-        if hasattr(iter1, 'close'):
-            iter1.close()
-        if hasattr(iter2, 'close'):
-            iter2.close()

@@ -330,6 +330,20 @@ class FileStorageTests(FullGenericTests):
         </filestorage>
         """ % filename
 
+    def checkInterfaceFromRemoteStorage(self):
+        # ClientStorage itself doesn't implement IStorageIteration, but the
+        # FileStorage on the other end does, and thus the ClientStorage
+        # instance that is connected to it reflects this.
+        self.failIf(ZODB.interfaces.IStorageIteration.implementedBy(
+            ZEO.ClientStorage.ClientStorage))
+        self.failUnless(ZODB.interfaces.IStorageIteration.providedBy(
+            self._storage))
+        # This is communicated using ClientStorage's _info object:
+        self.assertEquals((('ZODB.interfaces', 'IStorageIteration'),
+                           ('zope.interface', 'Interface')),
+                          self._storage._info['interfaces'])
+
+
 class MappingStorageTests(GenericTests):
     """ZEO backed by a Mapping storage."""
 

@@ -75,6 +75,17 @@ class IterationTests:
         self.assertEquals(0, len(self._storage._iterator_ids))
         self.assertRaises(KeyError, self._storage._server.iterator_next, iid)
 
+    def checkIteratorGCStorageDisconnect(self):
+        self._storage.iterator()
+        iid = list(self._storage._iterator_ids)[0]
+        t = transaction.Transaction()
+        self._storage.tpc_begin(t)
+        # Show that after disconnecting, the client side GCs the iterators
+        # as well. I'm calling this directly to avoid accidentally
+        # calling tpc_abort implicitly.
+        self._storage.notifyDisconnected()
+        self.assertEquals(0, len(self._storage._iterator_ids))
+
     def checkIteratorParallel(self):
         self._dostore()
         self._dostore()

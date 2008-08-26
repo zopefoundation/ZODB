@@ -188,7 +188,11 @@ class BaseStorage(UndoLogCompatible):
             user = transaction.user
             desc = transaction.description
             ext = transaction._extension
-            ext = cPickle.dumps(ext, 1)
+            if ext:
+                ext = cPickle.dumps(ext, 1)
+            else:
+                ext = ""
+
             self._ude = user, desc, ext
 
             if tid is None:
@@ -348,11 +352,6 @@ def copy(source, dest, verbose=0):
 
         dest.tpc_vote(transaction)
         dest.tpc_finish(transaction)
-
-    if hasattr(fiter, 'close'):
-        # XXX close is not part of the iterator interface but FileStorage's
-        # iterator has this method to get rid of a file handle.
-        fiter.close()
 
 
 class TransactionRecord(object):

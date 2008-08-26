@@ -29,6 +29,8 @@ from struct import pack, unpack
 # Not all platforms have fsync
 fsync = getattr(os, "fsync", None)
 
+import zope.interface
+import ZODB.interfaces
 from ZODB import BaseStorage, ConflictResolution, POSException
 from ZODB.POSException import UndoError, POSKeyError, MultipleUndoErrors
 from persistent.TimeStamp import TimeStamp
@@ -87,6 +89,8 @@ class TempFormatter(FileStorageFormatter):
 class FileStorage(BaseStorage.BaseStorage,
                   ConflictResolution.ConflictResolvingStorage,
                   FileStorageFormatter):
+
+    zope.interface.implements(ZODB.interfaces.IStorageIteration)
 
     # Set True while a pack is in progress; undo is blocked for the duration.
     _pack_is_in_progress = False
@@ -1683,7 +1687,7 @@ class FileIterator(FileStorageFormatter):
 
             return result
 
-        raise StopIteration
+        raise ZODB.interfaces.StorageStopIteration()
 
 
 class TransactionRecord(BaseStorage.TransactionRecord, FileStorageFormatter):
@@ -1731,7 +1735,7 @@ class TransactionRecord(BaseStorage.TransactionRecord, FileStorageFormatter):
 
             return Record(h.oid, h.tid, data, prev_txn, pos)
 
-        raise StopIteration
+        raise ZODB.interfaces.StorageStopIteration()
 
 
 class Record(BaseStorage.DataRecord):
