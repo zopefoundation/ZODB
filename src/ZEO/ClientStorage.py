@@ -865,9 +865,7 @@ class ClientStorage(object):
 
     def _storeBlob_shared(self, oid, serial, data, filename, version, txn):
         # First, move the blob into the blob directory
-        dir = self.fshelper.getPathForOID(oid)
-        if not os.path.exists(dir):
-            os.mkdir(dir)
+        self.fshelper.getPathForOID(oid, create=True)
         fd, target = self.fshelper.blob_mkstemp(oid, serial)
         os.close(fd)
 
@@ -935,14 +933,7 @@ class ClientStorage(object):
             raise POSException.POSKeyError("No blob file", oid, serial)
 
         # First, we'll create the directory for this oid, if it doesn't exist. 
-        targetpath = self.fshelper.getPathForOID(oid)
-        if not os.path.exists(targetpath):
-            try:
-                os.makedirs(targetpath, 0700)
-            except OSError:
-                # We might have lost a race.  If so, the directory
-                # must exist now
-                assert os.path.exists(targetpath)
+        targetpath = self.fshelper.getPathForOID(oid, create=True)
 
         # OK, it's not here and we (or someone) needs to get it.  We
         # want to avoid getting it multiple times.  We want to avoid
@@ -1004,7 +995,7 @@ class ClientStorage(object):
                 pass
 
     def temporaryDirectory(self):
-        return self.blob_dir
+        return self.fshelper.temp_dir
 
     def tpc_vote(self, txn):
         """Storage API: vote on a transaction."""
@@ -1128,19 +1119,15 @@ class ClientStorage(object):
                     assert s == tid, (s, tid)
                     self._cache.store(oid, version, s, None, data)
 
-        
         if self.fshelper is not None:
             blobs = self._tbuf.blobs
             while blobs:
                 oid, blobfilename = blobs.pop()
-                targetpath = self.fshelper.getPathForOID(oid)
-                if not os.path.exists(targetpath):
-                    os.makedirs(targetpath, 0700)
+                targetpath = self.fshelper.getPathForOID(oid, create=True)
                 rename_or_copy_blob(blobfilename,
                           self.fshelper.getBlobFilename(oid, tid),
                           )
 
-                    
         self._tbuf.clear()
 
     def undo(self, trans_id, txn):

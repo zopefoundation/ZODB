@@ -12,9 +12,9 @@
 #
 ##############################################################################
 
-import base64, os, shutil, tempfile, unittest
+import base64, os, re, shutil, tempfile, unittest
 import time
-from zope.testing import doctest
+from zope.testing import doctest, renormalizing
 import ZODB.tests.util
 
 from ZODB import utils
@@ -105,7 +105,6 @@ class BlobUndoTests(unittest.TestCase):
         self.here = os.getcwd()
         os.chdir(self.test_dir)
         self.storagefile = 'Data.fs'
-        os.mkdir('blobs')
         self.blob_dir = 'blobs'
 
     def tearDown(self):
@@ -483,7 +482,7 @@ def loadblob_tmpstore():
     We can access the blob correctly:
 
     >>> tmpstore.loadBlob(blob_oid, tid) # doctest: +ELLIPSIS
-    '.../0x01/0x...blob'
+    '.../0x00/0x00/0x00/0x00/0x00/0x00/0x00/0x01/0x...blob'
 
     Clean up:
 
@@ -504,8 +503,19 @@ def test_suite():
         "blob_basic.txt",  "blob_connection.txt", "blob_transaction.txt",
         "blob_packing.txt", "blob_importexport.txt", "blob_consume.txt",
         "blob_tempdir.txt",
+        optionflags=doctest.ELLIPSIS,
         setUp=ZODB.tests.util.setUp,
         tearDown=ZODB.tests.util.tearDown,
+        ))
+    suite.addTest(doctest.DocFileSuite(
+        "blob_layout.txt",
+        optionflags=doctest.ELLIPSIS|doctest.NORMALIZE_WHITESPACE,
+        setUp=ZODB.tests.util.setUp,
+        tearDown=ZODB.tests.util.tearDown,
+        checker = renormalizing.RENormalizing([
+            (re.compile(r'[%(sep)s]' % dict(sep=os.path.sep)), '/'),
+            (re.compile(r'\S+/((old|bushy|lawn)/\S+/foo[23456]?)'), r'\1'),
+            ]),
         ))
     suite.addTest(doctest.DocTestSuite(
         setUp=ZODB.tests.util.setUp,
