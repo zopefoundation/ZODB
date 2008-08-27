@@ -12,9 +12,9 @@
 #
 ##############################################################################
 
-import base64, os, shutil, tempfile, unittest
+import base64, os, re, shutil, tempfile, unittest
 import time
-from zope.testing import doctest
+from zope.testing import doctest, renormalizing
 import ZODB.tests.util
 
 from ZODB import utils
@@ -509,9 +509,13 @@ def test_suite():
         ))
     suite.addTest(doctest.DocFileSuite(
         "blob_layout.txt",
-        optionflags=doctest.ELLIPSIS|doctest.NORMALIZE_WHITESPACE|doctest.REPORT_NDIFF,
+        optionflags=doctest.ELLIPSIS|doctest.NORMALIZE_WHITESPACE,
         setUp=ZODB.tests.util.setUp,
         tearDown=ZODB.tests.util.tearDown,
+        checker = renormalizing.RENormalizing([
+            (re.compile(r'[%(sep)s]' % dict(sep=os.path.sep)), '/'),
+            (re.compile(r'\S+/((old|bushy|lawn)/\S+/foo[23456]?)'), r'\1'),
+            ]),
         ))
     suite.addTest(doctest.DocTestSuite(
         setUp=ZODB.tests.util.setUp,

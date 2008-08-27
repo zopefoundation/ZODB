@@ -214,36 +214,35 @@ Migrating blob data from `/.../old` (lawn) to `/.../bushy` (bushy)
 The new directory now contains the same files in different directories, but
 with the same sizes and permissions:
 
->>> import string
->>> def stat(path):
-...     s = os.stat(path)
-...     print "%s\t%s\t%s" % (string.rjust(oct(s.st_mode), 10), s.st_size, path)
->>> def ls(path):
-...     for p, dirs, files in os.walk(path):
-...         stat(p)
-...         for file in files:
-...             stat(os.path.join(p, file))
->>> ls(bushy)
-    040700  4096  /.../bushy
-   0100644  5     /.../bushy/.layout
-    040700  4096  /.../bushy/tmp
-    040700  4096  /.../bushy/0x00
-    040700  4096  /.../bushy/0x00/0x00
-    040700  4096  /.../bushy/0x00/0x00/0x00
-    040700  4096  /.../bushy/0x00/0x00/0x00/0x00
-    040700  4096  /.../bushy/0x00/0x00/0x00/0x00/0x00
-    040700  4096  /.../bushy/0x00/0x00/0x00/0x00/0x00/0x00
-    040700  4096  /.../bushy/0x00/0x00/0x00/0x00/0x00/0x00/0x1b
-    040700  4096  /.../bushy/0x00/0x00/0x00/0x00/0x00/0x00/0x1b/0x7f
-   0100644  3     /.../bushy/0x00/0x00/0x00/0x00/0x00/0x00/0x1b/0x7f/foo2
-   0100644  3     /.../bushy/0x00/0x00/0x00/0x00/0x00/0x00/0x1b/0x7f/foo
-    040700  4096  /.../bushy/0x00/0x00/0x00/0x00/0x00/0x00/0x1b/0x7a
-   0100644  4     /.../bushy/0x00/0x00/0x00/0x00/0x00/0x00/0x1b/0x7a/foo5
-   0100644  5     /.../bushy/0x00/0x00/0x00/0x00/0x00/0x00/0x1b/0x7a/foo6
-    040700  4096  /.../bushy/0x00/0x00/0x00/0x00/0x00/0x00/0x00
-    040700  4096  /.../bushy/0x00/0x00/0x00/0x00/0x00/0x00/0x00/0x0a
-   0100644  3     /.../bushy/0x00/0x00/0x00/0x00/0x00/0x00/0x00/0x0a/foo4
-   0100644  3     /.../bushy/0x00/0x00/0x00/0x00/0x00/0x00/0x00/0x0a/foo3
+>>> lawn_files = {}
+>>> for base, dirs, files in os.walk(d):
+...     for file_name in files:
+...         lawn_files[file_name] = os.path.join(base, file_name)
+
+>>> bushy_files = {}
+>>> for base, dirs, files in os.walk(bushy):
+...     for file_name in files:
+...         bushy_files[file_name] = os.path.join(base, file_name)
+
+>>> len(lawn_files) == len(bushy_files)
+True
+
+>>> for file_name, lawn_path in sorted(lawn_files.items()):
+...     if file_name == '.layout':
+...         continue
+...     lawn_stat = os.stat(lawn_path)
+...     bushy_path = bushy_files[file_name]
+...     bushy_stat = os.stat(bushy_path)
+...     print lawn_path, '-->', bushy_path
+...     if ((lawn_stat.st_mode, lawn_stat.st_size) !=
+...         (bushy_stat.st_mode, bushy_stat.st_size)):
+...         print 'oops'
+old/0x1b7f/foo --> bushy/0x00/0x00/0x00/0x00/0x00/0x00/0x1b/0x7f/foo
+old/0x1b7f/foo2 --> bushy/0x00/0x00/0x00/0x00/0x00/0x00/0x1b/0x7f/foo2
+old/0x0a/foo3 --> bushy/0x00/0x00/0x00/0x00/0x00/0x00/0x00/0x0a/foo3
+old/0x0a/foo4 --> bushy/0x00/0x00/0x00/0x00/0x00/0x00/0x00/0x0a/foo4
+old/0x1b7a/foo5 --> bushy/0x00/0x00/0x00/0x00/0x00/0x00/0x1b/0x7a/foo5
+old/0x1b7a/foo6 --> bushy/0x00/0x00/0x00/0x00/0x00/0x00/0x1b/0x7a/foo6
 
 We can also migrate the bushy layout back to the lawn layout:
 
@@ -253,18 +252,30 @@ Migrating blob data from `/.../bushy` (bushy) to `/.../lawn` (lawn)
    OID: 0x0a - 2 files
    OID: 0x1b7a - 2 files
    OID: 0x1b7f - 2 files
->>> ls(lawn)
-     040700  4096  /.../lawn
-    0100644  4     /.../lawn/.layout
-     040700  4096  /.../lawn/0x1b7a
-    0100644  4     /.../lawn/0x1b7a/foo5
-    0100644  5     /.../lawn/0x1b7a/foo6
-     040700  4096  /.../lawn/0x0a
-    0100644  3     /.../lawn/0x0a/foo4
-    0100644  3     /.../lawn/0x0a/foo3
-     040700  4096  /.../lawn/0x1b7f
-    0100644  3     /.../lawn/0x1b7f/foo2
-    0100644  3     /.../lawn/0x1b7f/foo
-     040700  4096  /.../lawn/tmp
+
+>>> lawn_files = {}
+>>> for base, dirs, files in os.walk(lawn):
+...     for file_name in files:
+...         lawn_files[file_name] = os.path.join(base, file_name)
+
+>>> len(lawn_files) == len(bushy_files)
+True
+
+>>> for file_name, lawn_path in sorted(lawn_files.items()):
+...     if file_name == '.layout':
+...         continue
+...     lawn_stat = os.stat(lawn_path)
+...     bushy_path = bushy_files[file_name]
+...     bushy_stat = os.stat(bushy_path)
+...     print bushy_path, '-->', lawn_path
+...     if ((lawn_stat.st_mode, lawn_stat.st_size) !=
+...         (bushy_stat.st_mode, bushy_stat.st_size)):
+...         print 'oops'
+bushy/0x00/0x00/0x00/0x00/0x00/0x00/0x1b/0x7f/foo --> lawn/0x1b7f/foo
+bushy/0x00/0x00/0x00/0x00/0x00/0x00/0x1b/0x7f/foo2 --> lawn/0x1b7f/foo2
+bushy/0x00/0x00/0x00/0x00/0x00/0x00/0x00/0x0a/foo3 --> lawn/0x0a/foo3
+bushy/0x00/0x00/0x00/0x00/0x00/0x00/0x00/0x0a/foo4 --> lawn/0x0a/foo4
+bushy/0x00/0x00/0x00/0x00/0x00/0x00/0x1b/0x7a/foo5 --> lawn/0x1b7a/foo5
+bushy/0x00/0x00/0x00/0x00/0x00/0x00/0x1b/0x7a/foo6 --> lawn/0x1b7a/foo6
 
 >>> shutil.rmtree(d)
