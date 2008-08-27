@@ -85,6 +85,24 @@ Try all sorts of different ways to change the object's state.
   >>> p.x
   2
 
+We can store a size estimation in ``_p_estimated_size``. Its default is 0.
+The size estimation can be used by a cache associated with the data manager
+to help in the implementation of its replacement strategy or its size bounds.
+Of course, the estimated size must not be negative.
+
+  >>> p._p_estimated_size
+  0
+  >>> p._p_estimated_size = 1000
+  >>> p._p_estimated_size
+  1000
+  >>> p._p_estimated_size = -1
+  Traceback (most recent call last):
+  ....
+  ValueError: _p_estimated_size must not be negative
+  
+    
+
+
 
 Test Persistent with Data Manager
 ---------------------------------
