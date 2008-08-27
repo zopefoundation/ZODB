@@ -39,7 +39,15 @@ Operating System :: Unix
 
 try:
     from setuptools import setup
+    from setuptools.extension import Extension
+    from setuptools.dist import Distribution
+    from setuptools.command.install_lib import install_lib
+    from setuptools.command.build_py import build_py
 except ImportError:
+    from distutils.extension import Extension
+    from distutils.dist import Distribution
+    from distutils.command.install_lib import install_lib
+    from distutils.command.build_py import build_py
     from distutils.core import setup
     extra = dict(
         scripts = ["src/ZODB/scripts/fsdump.py",
@@ -86,11 +94,7 @@ else:
 import glob
 import os
 import sys
-from distutils.extension import Extension
 from distutils import dir_util
-from distutils.dist import Distribution
-from distutils.command.install_lib import install_lib
-from distutils.command.build_py import build_py
 from distutils.util import convert_path
 
 if sys.version_info < (2, 4, 2):

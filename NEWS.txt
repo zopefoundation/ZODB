@@ -4,6 +4,9 @@ Whats new in ZODB 3.8.1
 
 Bugs Fixed:
 
+- (unreleased) Fixed setup.py use of setuptools vs distutils, so .c and .h
+  files are included in the bdist_egg.
+
 - (beta 7) Fixed a bug, introduced in an earlier beta, that allowed
   clients to connect to out of date servers.
 
