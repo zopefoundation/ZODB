@@ -4,6 +4,9 @@ What's new in ZODB 3.8.0
 General
 -------
 
+- (unreleased) Fixed setup.py use of setuptools vs distutils, so .c and .h
+  files are included in the bdist_egg.
+
 - The ZODB Storage APIs have been documented and cleaned up.
 
 - ZODB versions are now officially deprecated and support for them
