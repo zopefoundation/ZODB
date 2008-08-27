@@ -144,25 +144,24 @@ class StressThread(FailableThread):
         self.commitdict = commitdict
 
     def _testrun(self):
-        tm = transaction.TransactionManager()
-        cn = self.db.open(transaction_manager=tm)
+        cn = self.db.open()
         while not self.stop.isSet():
             try:
                 tree = cn.root()["tree"]
                 break
             except (ConflictError, KeyError):
-                tm.abort()
+                transaction.abort()
         key = self.startnum
         while not self.stop.isSet():
             try:
                 tree[key] = self.threadnum
-                tm.get().note("add key %s" % key)
-                tm.commit()
+                transaction.get().note("add key %s" % key)
+                transaction.commit()
                 self.commitdict[self] = 1
                 if self.sleep:
                     time.sleep(self.sleep)
             except (ReadConflictError, ConflictError), msg:
-                tm.abort()
+                transaction.abort()
             else:
                 self.added_keys.append(key)
             key += self.step
@@ -339,23 +338,16 @@ class InvalidationTests:
     def _check_threads(self, tree, *threads):
         # Make sure the thread's view of the world is consistent with
         # the actual database state.
-
         expected_keys = []
+        errormsgs = []
+        err = errormsgs.append
         for t in threads:
             if not t.added_keys:
                 err("thread %d didn't add any keys" % t.threadnum)
             expected_keys.extend(t.added_keys)
         expected_keys.sort()
-
-        for i in range(100):
-            tree._p_jar.sync()
-            actual_keys = list(tree.keys())
-            if expected_keys == actual_keys:
-                break
-            time.sleep(.1)
-        else:
-            errormsgs = []
-            err = errormsgs.append
+        actual_keys = list(tree.keys())
+        if expected_keys != actual_keys:
             err("expected keys != actual keys")
             for k in expected_keys:
                 if k not in actual_keys:
@@ -363,7 +355,8 @@ class InvalidationTests:
             for k in actual_keys:
                 if k not in expected_keys:
                     err("key %s in tree but not expected" % k)
-
+        if errormsgs:
+            display(tree)
             self.fail('\n'.join(errormsgs))
 
     def go(self, stop, commitdict, *threads):
@@ -495,9 +488,10 @@ class InvalidationTests:
         self.go(stop, cd, t1, t2, t3)
 
         while db1.lastTransaction() != db2.lastTransaction():
-            time.sleep(.1)
+            db1._storage.sync()
+            db2._storage.sync()
 
-        time.sleep(.1)
+
         cn = db1.open()
         tree = cn.root()["tree"]
         self._check_tree(cn, tree)

@@ -240,37 +240,6 @@ revision as well as the entire directory:
     >>> os.path.exists(os.path.split(fns[0])[0])
     False
 
-Avoiding parallel packs
-=======================
-
-Blob packing (similar to FileStorage) can only be run once at a time. For
-this, a flag (_blobs_pack_is_in_progress) is set. If the pack method is called
-while this flag is set, it will refuse to perform another pack, until the flag
-is reset:
-
-    >>> blob_storage._blobs_pack_is_in_progress
-    False
-    >>> blob_storage._blobs_pack_is_in_progress = True
-    >>> blob_storage.pack(packtime, referencesf)
-    Traceback (most recent call last):
-    BlobStorageError: Already packing
-    >>> blob_storage._blobs_pack_is_in_progress = False
-    >>> blob_storage.pack(packtime, referencesf)
-
-We can also see, that the flag is set during the pack, by leveraging the
-knowledge that the underlying storage's pack method is also called:
-
-    >>> def dummy_pack(time, ref):
-    ...     print "_blobs_pack_is_in_progress =", blob_storage._blobs_pack_is_in_progress
-    ...     return base_pack(time, ref)
-    >>> base_pack = base_storage.pack
-    >>> base_storage.pack = dummy_pack
-    >>> blob_storage.pack(packtime, referencesf)
-    _blobs_pack_is_in_progress = True
-    >>> blob_storage._blobs_pack_is_in_progress
-    False
-    >>> base_storage.pack = base_pack
-
 Clean up our blob directory:
 
     >>> shutil.rmtree(blob_dir)

@@ -14,7 +14,6 @@
 """Library for forking storage server and connecting client storage"""
 
 import os
-import random
 import sys
 import time
 import errno
@@ -202,29 +201,3 @@ def shutdown_zeo_server(adminaddr):
             ack = 'no ack received'
         logger.debug('shutdown_zeo_server(): acked: %s' % ack)
         s.close()
-
-def get_port():
-    """Return a port that is not in use.
-
-    Checks if a port is in use by trying to connect to it.  Assumes it
-    is not in use if connect raises an exception. We actually look for
-    2 consective free ports because most of the clients of this
-    function will use the returned port and the next one.
-
-    Raises RuntimeError after 10 tries.
-    """
-    for i in range(10):
-        port = random.randrange(20000, 30000)
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s1 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        try:
-            try:
-                s.connect(('localhost', port))
-                s1.connect(('localhost', port+1))
-            except socket.error:
-                # Perhaps we should check value of error too.
-                return port
-        finally:
-            s.close()
-            s1.close()
-    raise RuntimeError("Can't find port")

@@ -18,7 +18,9 @@ import asyncore
 import doctest
 import logging
 import os
+import random
 import signal
+import socket
 import stat
 import tempfile
 import threading
@@ -48,7 +50,6 @@ from ZEO.ClientStorage import ClientStorage
 import ZEO.zrpc.connection
 
 from ZEO.tests import forker, Cache, CommitLockTests, ThreadTests
-from ZEO.tests.forker import get_port
 
 import ZEO.tests.ConnectionTests
 
@@ -126,6 +127,27 @@ class MiscZEOTests:
                 raise AssertionError('Invalidation message was not sent!')
         finally:
             storage2.close()
+
+def get_port():
+    """Return a port that is not in use.
+
+    Checks if a port is in use by trying to connect to it.  Assumes it
+    is not in use if connect raises an exception.
+
+    Raises RuntimeError after 10 tries.
+    """
+    for i in range(10):
+        port = random.randrange(20000, 30000)
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        try:
+            try:
+                s.connect(('localhost', port))
+            except socket.error:
+                # Perhaps we should check value of error too.
+                return port
+        finally:
+            s.close()
+    raise RuntimeError("Can't find port")
 
 class GenericTests(
     # Base class for all ZODB tests

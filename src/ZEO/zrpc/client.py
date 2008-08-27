@@ -447,7 +447,8 @@ class ConnectWrapper:
         Call the client's testConnection(), giving the client a chance
         to do app-level check of the connection.
         """
-        self.conn = ManagedClientConnection(self.sock, self.addr, self.mgr)
+        self.conn = ManagedClientConnection(self.sock, self.addr,
+                                            self.client, self.mgr)
         self.sock = None # The socket is now owned by the connection
         try:
             self.preferred = self.client.testConnection(self.conn)

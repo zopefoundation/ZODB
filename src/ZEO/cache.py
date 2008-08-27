@@ -30,7 +30,6 @@ import BTrees.LOBTree
 import logging
 import os
 import tempfile
-import threading
 import time
 
 import ZODB.fsIndex
@@ -122,21 +121,6 @@ ZEC3_HEADER_SIZE = 12
 # to the end of the file that the new object can't fit in one
 # contiguous chunk, currentofs is reset to ZEC3_HEADER_SIZE first.
 
-class locked(object):
-
-    def __init__(self, func):
-        self.func = func
-
-    def __get__(self, inst, class_):
-        if inst is None:
-            return self
-        def call(*args, **kw):
-            inst._lock.acquire()
-            try:
-                return self.func(inst, *args, **kw)
-            finally:
-                inst._lock.release()
-        return call
 
 class ClientCache(object):
     """A simple in-memory cache."""
@@ -215,10 +199,6 @@ class ClientCache(object):
         self.clearStats()
 
         self._setup_trace(path)
-
-        self.open()
-
-        self._lock = threading.RLock()
 
     # Backward compatibility. Client code used to have to use the fc
     # attr to get to the file cache to get cache stats.
@@ -373,7 +353,6 @@ class ClientCache(object):
     # instance, and also written out near the start of the cache file.  The
     # new tid must be strictly greater than our current idea of the most
     # recent tid.
-    @locked
     def setLastTid(self, tid):
         if self.tid is not None and tid <= self.tid:
             raise ValueError("new last tid (%s) must be greater than "
@@ -390,11 +369,10 @@ class ClientCache(object):
     # @return a transaction id
     # @defreturn string, or None if no transaction is yet known
     def getLastTid(self):
-        tid = self.tid
-        if tid == z64:
+        if self.tid == z64:
             return None
         else:
-            return tid
+            return self.tid
 
     ##
     # Return the current data record for oid and version.
@@ -404,7 +382,6 @@ class ClientCache(object):
     #         in the cache
     # @defreturn 3-tuple: (string, string, string)
 
-    @locked
     def load(self, oid, version=""):
         ofs = self.current.get(oid)
         if ofs is None:
@@ -437,7 +414,6 @@ class ClientCache(object):
     # @return data record, serial number, start tid, and end tid
     # @defreturn 4-tuple: (string, string, string, string)
 
-    @locked
     def loadBefore(self, oid, before_tid):
         noncurrent_for_oid = self.noncurrent.get(u64(oid))
         if noncurrent_for_oid is None:
@@ -479,7 +455,6 @@ class ClientCache(object):
     # @defreturn string or None
 
     # XXX This approac is wrong, but who cares
-    @locked
     def modifiedInVersion(self, oid):
         ofs = self.current.get(oid)
         if ofs is None:
@@ -507,7 +482,6 @@ class ClientCache(object):
     # @param data the actual data
     # @exception ValueError tried to store non-current version data
 
-    @locked
     def store(self, oid, version, start_tid, end_tid, data):
         # It's hard for the client to avoid storing the same object
         # more than once.  One case is when the client requests
@@ -607,30 +581,14 @@ class ClientCache(object):
     # data for `oid`, stop believing we have current data, and mark the
     # data we had as being valid only up to `tid`.  In all other cases, do
     # nothing.
-    #
-    # Paramters:
-    #
-    # - oid object id
-    # - version name of version to invalidate.
-    # - tid the id of the transaction that wrote a new revision of oid,
+    # @param oid object id
+    # @param version name of version to invalidate.
+    # @param tid the id of the transaction that wrote a new revision of oid,
     #        or None to forget all cached info about oid (version, current
     #        revision, and non-current revisions)
-    # - server_invalidation, a flag indicating whether the
-    #       invalidation has come from the server. It's possible, due
-    #       to threading issues, that when applying a local
-    #       invalidation after a store, that later invalidations from
-    #       the server may already have arrived.
-    
-    @locked
-    def invalidate(self, oid, version, tid, server_invalidation=True):
-        if tid is not None:
-            if tid > self.tid:
-                self.setLastTid(tid)
-            elif tid < self.tid:
-                if server_invalidation:
-                    raise ValueError("invalidation tid (%s) must not be less"
-                                     " than previous one (%s)" %
-                                     (u64(tid), u64(self.tid)))
+    def invalidate(self, oid, version, tid):
+        if tid > self.tid and tid is not None:
+            self.setLastTid(tid)
 
         ofs = self.current.get(oid)
         if ofs is None:
@@ -672,24 +630,16 @@ class ClientCache(object):
         seek = self.f.seek
         read = self.f.read
         for oid, ofs in self.current.iteritems():
-
-            self._lock.acquire()
-            try:
-                seek(ofs)
-                assert read(1) == 'a', (ofs, self.f.tell(), oid)
-                size, saved_oid, tid, end_tid, lver = unpack(
-                    ">I8s8s8sh", read(30))
-                assert saved_oid == oid, (ofs, self.f.tell(), oid, saved_oid)
-                assert end_tid == z64, (ofs, self.f.tell(), oid)
-                if lver:
-                    version = read(lver)
-                else:
-                    version = ''
-                result = oid, tid, version
-            finally:
-                self._lock.release()
-
-            yield result
+            seek(ofs)
+            assert read(1) == 'a', (ofs, self.f.tell(), oid)
+            size, saved_oid, tid, end_tid, lver = unpack(">I8s8s8sh", read(30))
+            assert saved_oid == oid, (ofs, self.f.tell(), oid, saved_oid)
+            assert end_tid == z64, (ofs, self.f.tell(), oid)
+            if lver:
+                version = read(lver)
+            else:
+                version = ''
+            yield oid, tid, version
 
     def dump(self):
         from ZODB.utils import oid_repr

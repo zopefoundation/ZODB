@@ -251,6 +251,8 @@ class ClientStorage(object):
 
         # _is_read_only stores the constructor argument
         self._is_read_only = read_only
+        # _conn_is_read_only stores the status of the current connection
+        self._conn_is_read_only = 0
         self._storage = storage
         self._read_only_fallback = read_only_fallback
         self._username = username
@@ -338,6 +340,8 @@ class ClientStorage(object):
         else:
             cache_path = None
         self._cache = self.ClientCacheClass(cache_path, size=cache_size)
+        # TODO:  maybe there's a better time to open the cache?  Unclear.
+        self._cache.open()
 
         self._rpc_mgr = self.ConnectionManagerClass(addr, self,
                                                     tmin=min_disconnect_poll,
@@ -378,18 +382,13 @@ class ClientStorage(object):
 
     def close(self):
         """Storage API: finalize the storage, releasing external resources."""
-        if self._rpc_mgr is not None:
-            self._rpc_mgr.close()
-            self._rpc_mgr = None
-        if self._connection is not None:
-            self._connection.register_object(None) # Don't call me!
-            self._connection.close()
-            self._connection = None
-
         self._tbuf.close()
         if self._cache is not None:
             self._cache.close()
             self._cache = None
+        if self._rpc_mgr is not None:
+            self._rpc_mgr.close()
+            self._rpc_mgr = None
 
     def registerDB(self, db):
         """Storage API: register a database for invalidation messages.
@@ -455,7 +454,7 @@ class ClientStorage(object):
         """
         log2("Testing connection %r" % conn)
         # TODO:  Should we check the protocol version here?
-        conn._is_read_only = self._is_read_only
+        self._conn_is_read_only = 0
         stub = self.StorageServerStubClass(conn)
 
         auth = stub.getAuthProtocol()
@@ -477,7 +476,7 @@ class ClientStorage(object):
                 raise
             log2("Got ReadOnlyError; trying again with read_only=1")
             stub.register(str(self._storage), read_only=1)
-            conn._is_read_only = True
+            self._conn_is_read_only = 1
             return 0
 
     def notifyConnected(self, conn):
@@ -491,25 +490,23 @@ class ClientStorage(object):
             # this method before it was stopped.
             return
 
-
-        if self._connection is not None:
-            # If we are upgrading from a read-only fallback connection,
-            # we must close the old connection to prevent it from being
-            # used while the cache is verified against the new connection.
-            self._connection.register_object(None) # Don't call me!
-            self._connection.close()
-            self._connection = None
-            self._ready.clear()
-            reconnect = 1
-        else:
-            reconnect = 0
-
-        self.set_server_addr(conn.get_addr())
-        self._connection = conn
-
         # invalidate our db cache
         if self._db is not None:
             self._db.invalidateCache()
+
+        # TODO:  report whether we get a read-only connection.
+        if self._connection is not None:
+            reconnect = 1
+        else:
+            reconnect = 0
+        self.set_server_addr(conn.get_addr())
+
+        # If we are upgrading from a read-only fallback connection,
+        # we must close the old connection to prevent it from being
+        # used while the cache is verified against the new connection.
+        if self._connection is not None:
+            self._connection.close()
+        self._connection = conn
 
         if reconnect:
             log2("Reconnected to storage: %s" % self._server_addr)
@@ -563,6 +560,54 @@ class ClientStorage(object):
             raise ClientDisconnected
         else:
             return '%s:%s' % (self._storage, self._server_addr)
+
+    def verify_cache(self, server):
+        """Internal routine called to verify the cache.
+
+        The return value (indicating which path we took) is used by
+        the test suite.
+        """
+
+        # If verify_cache() finishes the cache verification process,
+        # it should set self._server.  If it goes through full cache
+        # verification, then endVerify() should self._server.
+
+        last_inval_tid = self._cache.getLastTid()
+        if last_inval_tid is not None:
+            ltid = server.lastTransaction()
+            if ltid == last_inval_tid:
+                log2("No verification necessary (last_inval_tid up-to-date)")
+                self._server = server
+                self._ready.set()
+                return "no verification"
+
+            # log some hints about last transaction
+            log2("last inval tid: %r %s\n"
+                 % (last_inval_tid, tid2time(last_inval_tid)))
+            log2("last transaction: %r %s" %
+                 (ltid, ltid and tid2time(ltid)))
+
+            pair = server.getInvalidations(last_inval_tid)
+            if pair is not None:
+                log2("Recovering %d invalidations" % len(pair[1]))
+                self.invalidateTransaction(*pair)
+                self._server = server
+                self._ready.set()
+                return "quick verification"
+
+        log2("Verifying cache")
+        # setup tempfile to hold zeoVerify results
+        self._tfile = tempfile.TemporaryFile(suffix=".inv")
+        self._pickler = cPickle.Pickler(self._tfile, 1)
+        self._pickler.fast = 1 # Don't use the memo
+
+        # TODO:  should batch these operations for efficiency; would need
+        # to acquire lock ...
+        for oid, tid, version in self._cache.contents():
+            server.verify(oid, version, tid)
+        self._pending_server = server
+        server.endZeoVerify()
+        return "full verification"
 
     ### Is there a race condition between notifyConnected and
     ### notifyDisconnected? In Particular, what if we get
@@ -629,16 +674,12 @@ class ClientStorage(object):
     def isReadOnly(self):
         """Storage API: return whether we are in read-only mode."""
         if self._is_read_only:
-            return True
+            return 1
         else:
             # If the client is configured for a read-write connection
-            # but has a read-only fallback connection, conn._is_read_only
-            # will be True.  If self._connection is None, we'll behave as
-            # read_only
-            try:
-                return self._connection._is_read_only
-            except AttributeError:
-                return True
+            # but has a read-only fallback connection, _conn_is_read_only
+            # will be True.
+            return self._conn_is_read_only
 
     def _check_trans(self, trans):
         """Internal helper to check a transaction argument for sanity."""
@@ -1111,7 +1152,7 @@ class ClientStorage(object):
             return
 
         for oid, version, data in self._tbuf:
-            self._cache.invalidate(oid, version, tid, False)
+            self._cache.invalidate(oid, version, tid)
             # If data is None, we just invalidate.
             if data is not None:
                 s = self._seriald[oid]
@@ -1169,6 +1210,8 @@ class ClientStorage(object):
         """Storage API: return a sequence of versions in the storage."""
         return self._server.versions(max)
 
+    # Below are methods invoked by the StorageServer
+
     def serialnos(self, args):
         """Server callback to pass a list of changed (oid, serial) pairs."""
         self._serials.extend(args)
@@ -1176,57 +1219,6 @@ class ClientStorage(object):
     def info(self, dict):
         """Server callback to update the info dictionary."""
         self._info.update(dict)
-
-    def verify_cache(self, server):
-        """Internal routine called to verify the cache.
-
-        The return value (indicating which path we took) is used by
-        the test suite.
-        """
-
-        self._pending_server = server
-
-        # setup tempfile to hold zeoVerify results and interim
-        # invalidation results
-        self._tfile = tempfile.TemporaryFile(suffix=".inv")
-        self._pickler = cPickle.Pickler(self._tfile, 1)
-        self._pickler.fast = 1 # Don't use the memo
-
-        # allow incoming invalidations:
-        self._connection.register_object(self)
-
-        # If verify_cache() finishes the cache verification process,
-        # it should set self._server.  If it goes through full cache
-        # verification, then endVerify() should self._server.
-
-        last_inval_tid = self._cache.getLastTid()
-        if last_inval_tid is not None:
-            ltid = server.lastTransaction()
-            if ltid == last_inval_tid:
-                log2("No verification necessary (last_inval_tid up-to-date)")
-                self.finish_verification()
-                return "no verification"
-
-            # log some hints about last transaction
-            log2("last inval tid: %r %s\n"
-                 % (last_inval_tid, tid2time(last_inval_tid)))
-            log2("last transaction: %r %s" %
-                 (ltid, ltid and tid2time(ltid)))
-
-            pair = server.getInvalidations(last_inval_tid)
-            if pair is not None:
-                log2("Recovering %d invalidations" % len(pair[1]))
-                self.finish_verification(pair)
-                return "quick verification"
-
-        log2("Verifying cache")
-
-        # TODO:  should batch these operations for efficiency; would need
-        # to acquire lock ...
-        for oid, tid, version in self._cache.contents():
-            server.verify(oid, version, tid)
-        server.endZeoVerify()
-        return "full verification"
 
     def invalidateVerify(self, args):
         """Server callback to invalidate an (oid, version) pair.
@@ -1239,92 +1231,67 @@ class ClientStorage(object):
             # This should never happen.  TODO:  assert it doesn't, or log
             # if it does.
             return
-        oid, version = args
-        self._pickler.dump((oid, version, None))
-
-    def endVerify(self):
-        """Server callback to signal end of cache validation."""
-
-        log2("endVerify finishing")
-        self.finish_verification()
-        log2("endVerify finished")
-
-    def finish_verification(self, catch_up=None):
-        self._lock.acquire()
-        try:
-            if catch_up:
-                # process catch-up invalidations
-                tid, invalidations = catch_up
-                self._process_invalidations(
-                    (oid, version, tid)
-                    for oid, version in invalidations
-                    )
-            
-            if self._pickler is None:
-                return
-            # write end-of-data marker
-            self._pickler.dump((None, None, None))
-            self._pickler = None
-            self._tfile.seek(0)
-            unpickler = cPickle.Unpickler(self._tfile)
-            min_tid = self._cache.getLastTid()
-            def InvalidationLogIterator():
-                while 1:
-                    oid, version, tid = unpickler.load()
-                    if oid is None:
-                        break
-                    if ((tid is None)
-                        or (min_tid is None)
-                        or (tid > min_tid)
-                        ):
-                        yield oid, version, tid
-
-            self._process_invalidations(InvalidationLogIterator())
-            self._tfile.close()
-            self._tfile = None
-        finally:
-            self._lock.release()
-
-        self._server = self._pending_server
-        self._ready.set()
-        self._pending_server = None
-
-
-    def invalidateTransaction(self, tid, args):
-        """Server callback: Invalidate objects modified by tid."""
-        self._lock.acquire()
-        try:
-            if self._pickler is not None:
-                log2("Transactional invalidation during cache verification",
-                     level=BLATHER)
-                for oid, version in args:
-                    self._pickler.dump((oid, version, tid))
-                return
-            self._process_invalidations([(oid, version, tid)
-                                         for oid, version in args])
-        finally:
-            self._lock.release()
+        self._pickler.dump(args)
 
     def _process_invalidations(self, invs):
         # Invalidations are sent by the ZEO server as a sequence of
-        # oid, version, tid triples.  The DB's invalidate() method expects a
+        # oid, version pairs.  The DB's invalidate() method expects a
         # dictionary of oids.
 
-        # versions maps version names to dictionary of invalidations
-        versions = {}
-        for oid, version, tid in invs:
-            if oid == self._load_oid:
-                self._load_status = 0
-            self._cache.invalidate(oid, version, tid)
-            oids = versions.get((version, tid))
-            if not oids:
-                versions[(version, tid)] = [oid]
-            else:
-                oids.append(oid)
+        self._lock.acquire()
+        try:
+            # versions maps version names to dictionary of invalidations
+            versions = {}
+            for oid, version, tid in invs:
+                if oid == self._load_oid:
+                    self._load_status = 0
+                self._cache.invalidate(oid, version, tid)
+                oids = versions.get((version, tid))
+                if not oids:
+                    versions[(version, tid)] = [oid]
+                else:
+                    oids.append(oid)
 
-        if self._db is not None:
-            for (version, tid), d in versions.items():
-                self._db.invalidate(tid, d, version=version)
+            if self._db is not None:
+                for (version, tid), d in versions.items():
+                    self._db.invalidate(tid, d, version=version)
+        finally:
+            self._lock.release()
+
+    def endVerify(self):
+        """Server callback to signal end of cache validation."""
+        if self._pickler is None:
+            return
+        # write end-of-data marker
+        self._pickler.dump((None, None))
+        self._pickler = None
+        self._tfile.seek(0)
+        f = self._tfile
+        self._tfile = None
+        self._process_invalidations(InvalidationLogIterator(f))
+        f.close()
+
+        log2("endVerify finishing")
+        self._server = self._pending_server
+        self._ready.set()
+        self._pending_conn = None
+        log2("endVerify finished")
+
+    def invalidateTransaction(self, tid, args):
+        """Invalidate objects modified by tid."""
+        self._lock.acquire()
+        try:
+            self._cache.setLastTid(tid)
+        finally:
+            self._lock.release()
+        if self._pickler is not None:
+            log2("Transactional invalidation during cache verification",
+                 level=BLATHER)
+            for t in args:
+                self._pickler.dump(t)
+            return
+        self._process_invalidations([(oid, version, tid)
+                                     for oid, version in args])
 
     # The following are for compatibility with protocol version 2.0.0
 
@@ -1334,3 +1301,11 @@ class ClientStorage(object):
     invalidate = invalidateVerify
     end = endVerify
     Invalidate = invalidateTrans
+
+def InvalidationLogIterator(fileobj):
+    unpickler = cPickle.Unpickler(fileobj)
+    while 1:
+        oid, version = unpickler.load()
+        if oid is None:
+            break
+        yield oid, version, None
