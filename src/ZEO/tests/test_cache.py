@@ -76,8 +76,6 @@ class CacheTests(unittest.TestCase):
         self.assertEqual(self.cache.getLastTid(), None)
         self.cache.setLastTid(n2)
         self.assertEqual(self.cache.getLastTid(), n2)
-        self.cache.invalidate(n1, n1)
-        self.cache.invalidate(n1, n1)
         self.assertEqual(self.cache.getLastTid(), n2)
         self.cache.invalidate(n1, n3)
         self.assertEqual(self.cache.getLastTid(), n3)
@@ -92,10 +90,11 @@ class CacheTests(unittest.TestCase):
     def testInvalidate(self):
         data1 = "data for n1"
         self.cache.store(n1, n3, None, data1)
-        self.cache.invalidate(n1, n4)
         self.cache.invalidate(n2, n2)
+        self.cache.invalidate(n1, n4)
         self.assertEqual(self.cache.load(n1), None)
-        self.assertEqual(self.cache.loadBefore(n1, n4), (data1, n3, n4))
+        self.assertEqual(self.cache.loadBefore(n1, n4),
+                         (data1, n3, n4))
 
     def testNonCurrent(self):
         data1 = "data for n1"

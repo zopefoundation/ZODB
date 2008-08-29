@@ -555,13 +555,28 @@ class ClientCache(object):
     # data for `oid`, stop believing we have current data, and mark the
     # data we had as being valid only up to `tid`.  In all other cases, do
     # nothing.
-    # @param oid object id
-    # @param tid the id of the transaction that wrote a new revision of oid,
+    #
+    # Paramters:
+    #
+    # - oid object id
+    # - tid the id of the transaction that wrote a new revision of oid,
     #        or None to forget all cached info about oid.
+    # - server_invalidation, a flag indicating whether the
+    #       invalidation has come from the server. It's possible, due
+    #       to threading issues, that when applying a local
+    #       invalidation after a store, that later invalidations from
+    #       the server may already have arrived.
+    
     @locked
-    def invalidate(self, oid, tid):
-        if tid > self.tid and tid is not None:
-            self.setLastTid(tid)
+    def invalidate(self, oid, tid, server_invalidation=True):
+        if tid is not None:
+            if tid > self.tid:
+                self.setLastTid(tid)
+            elif tid < self.tid:
+                if server_invalidation:
+                    raise ValueError("invalidation tid (%s) must not be less"
+                                     " than previous one (%s)" %
+                                     (u64(tid), u64(self.tid)))
 
         ofs = self.current.get(oid)
         if ofs is None:
