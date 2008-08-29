@@ -230,6 +230,9 @@ class ClientCache(object):
         # file, and tell our parent about it too (via the `install` callback).
         # Remember the location of the largest free block.  That seems a
         # decent place to start currentofs.
+
+        self.current = ZODB.fsIndex.fsIndex()
+        self.noncurrent = BTrees.LOBTree.LOBTree()
         max_free_size = l = 0
         ofs = max_free_offset = ZEC_HEADER_SIZE
         current = self.current
@@ -240,9 +243,10 @@ class ClientCache(object):
                 size, oid, start_tid, end_tid = unpack(">I8s8s8s", read(28))
 
                 if end_tid == z64:
+                    assert oid not in current, (ofs, self.f.tell())
                     current[oid] = ofs
                 else:
-                    assert start_tid < end_tid
+                    assert start_tid < end_tid, (ofs, self.f.tell())
                     self._set_noncurrent(oid, start_tid, ofs)
                 l += 1
             elif status == 'f':
@@ -293,12 +297,12 @@ class ClientCache(object):
     # Close the underlying file.  No methods accessing the cache should be
     # used after this.
     def close(self):
-        if hasattr(self,'_lock_file'):
-            self._lock_file.close()
         if self.f:
             sync(self.f)
             self.f.close()
             self.f = None
+        if hasattr(self,'_lock_file'):
+            self._lock_file.close()
 
     ##
     # Evict objects as necessary to free up at least nbytes bytes,
@@ -312,7 +316,8 @@ class ClientCache(object):
     # freed (starting at currentofs when _makeroom returns, and
     # spanning the number of bytes retured by _makeroom).
     def _makeroom(self, nbytes):
-        assert 0 < nbytes <= self.maxsize - ZEC_HEADER_SIZE
+        assert 0 < nbytes <= self.maxsize - ZEC_HEADER_SIZE, (
+            nbytes, self.maxsize)
         if self.currentofs + nbytes > self.maxsize:
             self.currentofs = ZEC_HEADER_SIZE
         ofs = self.currentofs
@@ -351,7 +356,7 @@ class ClientCache(object):
             raise ValueError("new last tid (%s) must be greater than "
                              "previous one (%s)" % (u64(tid),
                                                     u64(self.tid)))
-        assert isinstance(tid, str) and len(tid) == 8
+        assert isinstance(tid, str) and len(tid) == 8, tid
         self.tid = tid
         self.f.seek(len(magic))
         self.f.write(tid)
@@ -381,14 +386,14 @@ class ClientCache(object):
             return None
         self.f.seek(ofs)
         read = self.f.read
-        assert read(1) == 'a'
+        assert read(1) == 'a', (ofs, self.f.tell(), oid)
         size, saved_oid, tid, end_tid, ldata = unpack(
             ">I8s8s8sI", read(32))
-        assert saved_oid == oid
+        assert saved_oid == oid, (ofs, self.f.tell(), oid, saved_oid)
 
         data = read(ldata)
-        assert len(data) == ldata
-        assert read(8) == oid
+        assert len(data) == ldata, (ofs, self.f.tell(), oid, len(data), ldata)
+        assert read(8) == oid, (ofs, self.f.tell(), oid) 
 
         self._n_accesses += 1
         self._trace(0x22, oid, tid, end_tid, ldata)
@@ -415,15 +420,15 @@ class ClientCache(object):
 
         self.f.seek(ofs)
         read = self.f.read
-        assert read(1) == 'a'
+        assert read(1) == 'a', (ofs, self.f.tell(), oid, before_tid)
         size, saved_oid, saved_tid, end_tid, ldata = unpack(
             ">I8s8s8sI", read(32))
-        assert saved_oid == oid
-        assert saved_tid == p64(tid)
-        assert end_tid != z64
+        assert saved_oid == oid, (ofs, self.f.tell(), oid, saved_oid)
+        assert saved_tid == p64(tid), (ofs, self.f.tell(), oid, saved_tid, tid)
+        assert end_tid != z64, (ofs, self.f.tell(), oid)
         data = read(ldata)
-        assert len(data) == ldata
-        assert read(8) == oid
+        assert len(data) == ldata, (ofs, self.f.tell())
+        assert read(8) == oid, (ofs, self.f.tell(), oid)
         
         if end_tid < before_tid:
             self._trace(0x24, oid, "", before_tid)
@@ -449,11 +454,11 @@ class ClientCache(object):
             if ofs:
                 seek(ofs)
                 read = self.f.read
-                assert read(1) == 'a'
+                assert read(1) == 'a', (ofs, self.f.tell(), oid)
                 size, saved_oid, saved_tid, end_tid = unpack(
                     ">I8s8s8s", read(28))
-                assert saved_oid == oid
-                assert end_tid == z64
+                assert saved_oid == oid, (ofs, self.f.tell(), oid, saved_oid)
+                assert end_tid == z64, (ofs, self.f.tell(), oid)
                 if saved_tid == start_tid:
                     return
                 raise ValueError("already have current data for oid")
@@ -476,7 +481,7 @@ class ClientCache(object):
         self._len += 1
 
         nfreebytes = self._makeroom(size)
-        assert size <= nfreebytes
+        assert size <= nfreebytes, (size, nfreebytes)
         excess = nfreebytes - size
         # If there's any excess (which is likely), we need to record a
         # free block following the end of the data record.  That isn't
@@ -540,10 +545,10 @@ class ClientCache(object):
 
         self.f.seek(ofs)
         read = self.f.read
-        assert read(1) == 'a'
+        assert read(1) == 'a', (ofs, self.f.tell(), oid)
         size, saved_oid, saved_tid, end_tid = unpack(">I8s8s8s", read(28))
-        assert saved_oid == oid
-        assert end_tid == z64
+        assert saved_oid == oid, (ofs, self.f.tell(), oid, saved_oid)
+        assert end_tid == z64, (ofs, self.f.tell(), oid)
         del self.current[oid]
         if tid is None:
             self.f.seek(ofs)
@@ -568,10 +573,10 @@ class ClientCache(object):
         read = self.f.read
         for oid, ofs in self.current.iteritems():
             seek(ofs)
-            assert read(1) == 'a'
+            assert read(1) == 'a', (ofs, self.f.tell(), oid)
             size, saved_oid, tid, end_tid = unpack(">I8s8s8s", read(28))
-            assert saved_oid == oid
-            assert end_tid == z64
+            assert saved_oid == oid, (ofs, self.f.tell(), oid, saved_oid)
+            assert end_tid == z64, (ofs, self.f.tell(), oid)
             yield oid, tid
 
     def dump(self):
@@ -632,7 +637,6 @@ class ClientCache(object):
                 
         self._trace = _trace
         _trace(0x00)
-
 
 def sync(f):
     f.flush()
