@@ -341,8 +341,6 @@ class ClientStorage(object):
         else:
             cache_path = None
         self._cache = self.ClientCacheClass(cache_path, size=cache_size)
-        # TODO:  maybe there's a better time to open the cache?  Unclear.
-        self._cache.open()
 
         self._rpc_mgr = self.ConnectionManagerClass(addr, self,
                                                     tmin=min_disconnect_poll,

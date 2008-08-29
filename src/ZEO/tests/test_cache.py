@@ -67,7 +67,6 @@ class CacheTests(unittest.TestCase):
         # testSerialization reads the entire file into a string, it's not
         # good to leave it that big.
         self.cache = ZEO.cache.ClientCache(size=1024**2)
-        self.cache.open()
 
     def tearDown(self):
         if self.cache.path:
@@ -154,7 +153,6 @@ class CacheTests(unittest.TestCase):
         dst.write(src.read(self.cache.maxsize))
         dst.close()
         copy = ZEO.cache.ClientCache(path)
-        copy.open()
 
         # Verify that internals of both objects are the same.
         # Could also test that external API produces the same results.
@@ -170,7 +168,6 @@ class CacheTests(unittest.TestCase):
         if self.cache.path:
             os.remove(self.cache.path)
         self.cache = ZEO.cache.ClientCache(size=50)
-        self.cache.open()
 
         # We store an object that is a bit larger than the cache can handle.
         self.cache.store(n1, n2, None, "x"*64)
@@ -186,7 +183,6 @@ class CacheTests(unittest.TestCase):
         if self.cache.path:
             os.remove(self.cache.path)
         cache = ZEO.cache.ClientCache(size=50)
-        cache.open()
 
         # We store an object that is a bit larger than the cache can handle.
         cache.store(n1, n2, n3, "x"*64)
@@ -231,7 +227,6 @@ __test__ = dict(
     ...     _ = os.spawnl(os.P_WAIT, sys.executable, sys.executable, 't')
     ...     if os.path.exists('cache'):
     ...         cache = ZEO.cache.ClientCache('cache')
-    ...         cache.open()
     ...         cache.close()
     ...         os.remove('cache')
     ...         os.remove('cache.lock')
@@ -251,7 +246,6 @@ __test__ = dict(
     >>> cache.store(p64(1), p64(1), None, data)
     >>> cache.close()
     >>> cache = ZEO.cache.ClientCache('cache', 1000)
-    >>> cache.open()
     >>> cache.store(p64(2), p64(2), None, 'XXX')
 
     >>> cache.close()
@@ -267,6 +261,56 @@ __test__ = dict(
     LockError: Couldn't lock 'cache.lock'
 
     >>> cache.close()
+    """,
+
+    thread_safe =
+    r"""
+
+    >>> import ZEO.cache, ZODB.utils
+    >>> cache = ZEO.cache.ClientCache('cache', 1000000)
+
+    >>> for i in range(100):
+    ...     cache.store(ZODB.utils.p64(i), ZODB.utils.p64(1), None, '0')
+
+    >>> import random, sys, threading
+    >>> random = random.Random(0)
+    >>> stop = False
+    >>> read_failure = None
+
+    >>> def read_thread():
+    ...     def pick_oid():
+    ...         return ZODB.utils.p64(random.randint(0,99))
+    ...
+    ...     try:
+    ...         while not stop:
+    ...             cache.load(pick_oid())
+    ...             cache.loadBefore(pick_oid(), ZODB.utils.p64(2))
+    ...     except:
+    ...         global read_failure
+    ...         read_failure = sys.exc_info()
+
+    >>> thread = threading.Thread(target=read_thread)
+    >>> thread.start()
+
+    >>> for tid in range(2,10):
+    ...     for oid in range(100):
+    ...         oid = ZODB.utils.p64(oid)
+    ...         cache.invalidate(oid, ZODB.utils.p64(tid))
+    ...         cache.store(oid, ZODB.utils.p64(tid), None, str(tid))
+
+    >>> stop = True
+    >>> thread.join()
+    >>> if read_failure:
+    ...    print 'Read failure:'
+    ...    import traceback
+    ...    traceback.print_exception(*read_failure)
+
+    >>> expected = '9', ZODB.utils.p64(9)
+    >>> for oid in range(100):
+    ...     loaded = cache.load(ZODB.utils.p64(oid))
+    ...     if loaded != expected:
+    ...         print oid, loaded
+    
     """,
     )
 

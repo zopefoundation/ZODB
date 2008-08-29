@@ -30,6 +30,7 @@ import BTrees.LOBTree
 import logging
 import os
 import tempfile
+import threading
 import time
 
 import ZODB.fsIndex
@@ -119,6 +120,21 @@ ZEC_HEADER_SIZE = 12
 # to the end of the file that the new object can't fit in one
 # contiguous chunk, currentofs is reset to ZEC_HEADER_SIZE first.
 
+class locked(object):
+
+    def __init__(self, func):
+        self.func = func
+
+    def __get__(self, inst, class_):
+        if inst is None:
+            return self
+        def call(*args, **kw):
+            inst._lock.acquire()
+            try:
+                return self.func(inst, *args, **kw)
+            finally:
+                inst._lock.release()
+        return call
 
 class ClientCache(object):
     """A simple in-memory cache."""
@@ -196,6 +212,10 @@ class ClientCache(object):
         self.clearStats()
 
         self._setup_trace(path)
+
+        self.open()
+
+        self._lock = threading.RLock()
 
     # Backward compatibility. Client code used to have to use the fc
     # attr to get to the file cache to get cache stats.
@@ -351,6 +371,7 @@ class ClientCache(object):
     # instance, and also written out near the start of the cache file.  The
     # new tid must be strictly greater than our current idea of the most
     # recent tid.
+    @locked
     def setLastTid(self, tid):
         if self.tid is not None and tid <= self.tid:
             raise ValueError("new last tid (%s) must be greater than "
@@ -367,10 +388,11 @@ class ClientCache(object):
     # @return a transaction id
     # @defreturn string, or None if no transaction is yet known
     def getLastTid(self):
-        if self.tid == z64:
+        tid = self.tid
+        if tid == z64:
             return None
         else:
-            return self.tid
+            return tid
 
     ##
     # Return the current data record for oid.
@@ -379,6 +401,7 @@ class ClientCache(object):
     #         in the cache
     # @defreturn 3-tuple: (string, string, string)
 
+    @locked
     def load(self, oid):
         ofs = self.current.get(oid)
         if ofs is None:
@@ -406,6 +429,7 @@ class ClientCache(object):
     # @return data record, serial number, start tid, and end tid
     # @defreturn 4-tuple: (string, string, string, string)
 
+    @locked
     def loadBefore(self, oid, before_tid):
         noncurrent_for_oid = self.noncurrent.get(u64(oid))
         if noncurrent_for_oid is None:
@@ -447,6 +471,7 @@ class ClientCache(object):
     #                current.
     # @param data the actual data
 
+    @locked
     def store(self, oid, start_tid, end_tid, data):
         seek = self.f.seek
         if end_tid is None:
@@ -533,6 +558,7 @@ class ClientCache(object):
     # @param oid object id
     # @param tid the id of the transaction that wrote a new revision of oid,
     #        or None to forget all cached info about oid.
+    @locked
     def invalidate(self, oid, tid):
         if tid > self.tid and tid is not None:
             self.setLastTid(tid)
@@ -572,12 +598,18 @@ class ClientCache(object):
         seek = self.f.seek
         read = self.f.read
         for oid, ofs in self.current.iteritems():
-            seek(ofs)
-            assert read(1) == 'a', (ofs, self.f.tell(), oid)
-            size, saved_oid, tid, end_tid = unpack(">I8s8s8s", read(28))
-            assert saved_oid == oid, (ofs, self.f.tell(), oid, saved_oid)
-            assert end_tid == z64, (ofs, self.f.tell(), oid)
-            yield oid, tid
+            self._lock.acquire()
+            try:
+                seek(ofs)
+                assert read(1) == 'a', (ofs, self.f.tell(), oid)
+                size, saved_oid, tid, end_tid = unpack(">I8s8s8s", read(28))
+                assert saved_oid == oid, (ofs, self.f.tell(), oid, saved_oid)
+                assert end_tid == z64, (ofs, self.f.tell(), oid)
+                result = oid, tid
+            finally:
+                self._lock.release()
+
+            yield result
 
     def dump(self):
         from ZODB.utils import oid_repr
