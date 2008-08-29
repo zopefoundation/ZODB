@@ -254,8 +254,6 @@ class ClientStorage(object):
 
         # _is_read_only stores the constructor argument
         self._is_read_only = read_only
-        # _conn_is_read_only stores the status of the current connection
-        self._conn_is_read_only = 0
         self._storage = storage
         self._read_only_fallback = read_only_fallback
         self._username = username
@@ -457,7 +455,7 @@ class ClientStorage(object):
         """
         log2("Testing connection %r" % conn)
         # TODO:  Should we check the protocol version here?
-        self._conn_is_read_only = 0
+        conn._is_read_only = self._is_read_only
         stub = self.StorageServerStubClass(conn)
 
         auth = stub.getAuthProtocol()
@@ -479,7 +477,7 @@ class ClientStorage(object):
                 raise
             log2("Got ReadOnlyError; trying again with read_only=1")
             stub.register(str(self._storage), read_only=1)
-            self._conn_is_read_only = 1
+            conn._is_read_only = True
             return 0
 
     def notifyConnected(self, conn):
@@ -680,12 +678,16 @@ class ClientStorage(object):
     def isReadOnly(self):
         """Storage API: return whether we are in read-only mode."""
         if self._is_read_only:
-            return 1
+            return True
         else:
             # If the client is configured for a read-write connection
-            # but has a read-only fallback connection, _conn_is_read_only
-            # will be True.
-            return self._conn_is_read_only
+            # but has a read-only fallback connection, conn._is_read_only
+            # will be True.  If self._connection is None, we'll behave as
+            # read_only
+            try:
+                return self._connection._is_read_only
+            except AttributeError:
+                return True
 
     def _check_trans(self, trans):
         """Internal helper to check a transaction argument for sanity."""
