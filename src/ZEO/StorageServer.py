@@ -1079,6 +1079,7 @@ class StorageServer:
                 s.close()
             except:
                 pass
+        asyncore.socket_map.clear()
 
     def close_conn(self, conn):
         """Internal: remove the given connection from self.connections.
