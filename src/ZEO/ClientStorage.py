@@ -491,22 +491,24 @@ class ClientStorage(object):
             # this method before it was stopped.
             return
 
-        # invalidate our db cache
-        if self._db is not None:
-            self._db.invalidateCache()
 
         if self._connection is not None:
+            # If we are upgrading from a read-only fallback connection,
+            # we must close the old connection to prevent it from being
+            # used while the cache is verified against the new connection.
+            self._connection.close()
+            self._connection = None
+            self._ready.clear()
             reconnect = 1
         else:
             reconnect = 0
-        self.set_server_addr(conn.get_addr())
 
-        # If we are upgrading from a read-only fallback connection,
-        # we must close the old connection to prevent it from being
-        # used while the cache is verified against the new connection.
-        if self._connection is not None:
-            self._connection.close()
+        self.set_server_addr(conn.get_addr())
         self._connection = conn
+
+        # invalidate our db cache
+        if self._db is not None:
+            self._db.invalidateCache()
 
         if reconnect:
             log2("Reconnected to storage: %s" % self._server_addr)
