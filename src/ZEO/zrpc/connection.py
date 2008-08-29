@@ -40,7 +40,15 @@ client_timeout_count = 0 # for testing
 client_map = {}
 client_trigger = trigger(client_map)
 client_logger = logging.getLogger('ZEO.zrpc.client_loop')
-atexit.register(client_map.clear)
+client_exit_event = threading.Event()
+client_running = True
+def client_exit():
+    global client_running
+    client_running = False
+    client_trigger.pull_trigger()
+    client_exit_event.wait()
+
+atexit.register(client_exit)
 
 def client_loop():
     map = client_map
@@ -49,8 +57,11 @@ def client_loop():
     write = asyncore.write
     _exception = asyncore._exception
     loop_failures = 0
+    client_exit_event.clear()
+    global client_running
+    client_running = True
     
-    while map:
+    while client_running and map:
         try:
             
             # The next two lines intentionally don't use
@@ -71,17 +82,23 @@ def client_loop():
                         # case by looking for entries in r and w that
                         # are not in the socket map.
 
-                        if [fd for fd in r if fd not in client_map]:
+                        if [fd for fd in r if fd not in map]:
                             continue
-                        if [fd for fd in w if fd not in client_map]:
+                        if [fd for fd in w if fd not in map]:
                             continue
                         
                     raise
                 else:
                     continue
 
+            if not client_running:
+                break
+
             if not (r or w or e):
-                for obj in client_map.itervalues():
+                # The line intentionally doesn't use iterators. Other
+                # threads can close dispatchers, causeing the socket
+                # map to shrink.
+                for obj in map.values():
                     if isinstance(obj, Connection):
                         # Send a heartbeat message as a reply to a
                         # non-existent message id.
@@ -127,10 +144,13 @@ def client_loop():
                     except:
                         map.pop(fd, None)
                         try:
-                            client_logger.critical("Couldn't close a dispatcher.",
-                                                   exc_info=sys.exc_info())
+                            client_logger.critical(
+                                "Couldn't close a dispatcher.",
+                                exc_info=sys.exc_info())
                         except:
                             pass
+
+    client_exit_event.set()
 
 client_thread = threading.Thread(target=client_loop)
 client_thread.setDaemon(True)
