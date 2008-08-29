@@ -382,8 +382,6 @@ class Connection(smac.SizedMessageAsyncConnection, object):
         ourmap = {}
         self.__super_init(sock, addr, map=ourmap)
 
-        self.trigger = trigger()
-
         # The singleton dict is used in synchronous mode when a method
         # needs to call into asyncore to try to force some I/O to occur.
         # The singleton dict is a socket map containing only this object.
@@ -764,11 +762,16 @@ class Connection(smac.SizedMessageAsyncConnection, object):
         if __debug__:
             self.log("poll()", level=TRACE)
         self._pull_trigger()
+
+
         
 class ManagedServerConnection(Connection):
     """Server-side Connection subclass."""
     __super_init = Connection.__init__
     __super_close = Connection.close
+
+    # Servers use a shared server trigger that uses the asyncore socket map
+    trigger = trigger()
 
     def __init__(self, sock, addr, obj, mgr):
         self.mgr = mgr
