@@ -38,6 +38,8 @@ from ZODB.POSException import ConflictError, StorageError
 
 from ZODB.tests.MTStorage import TestThread
 
+import ZODB.tests.util
+
 ZERO = '\0'*8
 
 
@@ -310,6 +312,24 @@ class PackableStorage(PackableStorageBase):
             for data in txn:
                 pass
         it.close()
+
+    def checkPackWithMultiDatabaseReferences(self):
+        databases = {}
+        db = DB(self._storage, databases=databases, database_name='')
+        otherdb = ZODB.tests.util.DB(databases=databases, database_name='o')
+        conn = db.open()
+        root = conn.root()
+        root[1] = C()
+        transaction.commit()
+        del root[1]
+        transaction.commit()
+        root[2] = conn.get_connection('o').root()
+        transaction.commit()
+        db.pack(time.time()+1)
+        assert(len(self._storage) == 1)
+                
+        
+        
 
 class PackableUndoStorage(PackableStorageBase):
 
@@ -705,3 +725,4 @@ class ElapsedTimer:
 
     def elapsed_millis(self):
         return int((time.time() - self.start_time) * 1000)
+
