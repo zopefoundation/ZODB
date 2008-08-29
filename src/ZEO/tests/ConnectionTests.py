@@ -166,8 +166,7 @@ class CommonSetupTearDown(StorageTestBase):
         self.addr.append(self._getAddr())
 
     def _getAddr(self):
-        # port+1 is also used, so only draw even port numbers
-        return 'localhost', random.randrange(25000, 30000, 2)
+        return 'localhost', forker.get_port()
 
     def getConfig(self, path, create, read_only):
         raise NotImplementedError
