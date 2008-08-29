@@ -495,7 +495,6 @@ class ClientStorage(object):
         if self._db is not None:
             self._db.invalidateCache()
 
-        # TODO:  report whether we get a read-only connection.
         if self._connection is not None:
             reconnect = 1
         else:
