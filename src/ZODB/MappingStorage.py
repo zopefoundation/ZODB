@@ -21,16 +21,16 @@ It is meant to illustrate the simplest possible storage.
 The Mapping storage uses a single data structure to map object ids to data.
 """
 
+import ZODB.BaseStorage
 from ZODB.utils import u64, z64
-from ZODB.BaseStorage import BaseStorage
 from ZODB import POSException
 from persistent.TimeStamp import TimeStamp
 
 
-class MappingStorage(BaseStorage):
+class MappingStorage(ZODB.BaseStorage.BaseStorage):
 
     def __init__(self, name='Mapping Storage'):
-        BaseStorage.__init__(self, name)
+        ZODB.BaseStorage.BaseStorage.__init__(self, name)
         # ._index maps an oid to a string s.  s[:8] is the tid of the
         # transaction that created oid's current state, and s[8:] is oid's
         # current state.

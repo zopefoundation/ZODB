@@ -30,6 +30,7 @@ import time
 from persistent import Persistent
 from persistent.mapping import PersistentMapping
 import transaction
+import ZODB.interfaces
 from ZODB import DB
 from ZODB.serialize import referencesf
 from ZODB.tests.MinPO import MinPO
@@ -149,6 +150,16 @@ class PackableStorageBase:
             self._storage.tpc_vote(t)
             self._storage.tpc_finish(t)
 
+    def _sanity_check(self):
+        # Iterate over the storage to make sure it's sane.
+        if not ZODB.interfaces.IStorageIteration.providedBy(self._storage):
+            return
+        it = self._storage.iterator()
+        for txn in it:
+            for data in txn:
+                pass
+
+
 class PackableStorage(PackableStorageBase):
 
     def checkPackEmptyStorage(self):
@@ -253,16 +264,7 @@ class PackableStorage(PackableStorageBase):
 
             self.fail('a thread is still alive')
 
-        # Iterate over the storage to make sure it's sane, but not every
-        # storage supports iterators.
-        if not hasattr(self._storage, "iterator"):
-            return
-
-        it = self._storage.iterator()
-        for txn in it:
-            for data in txn:
-                pass
-        it.close()
+        self._sanity_check()
 
     def checkPackWhileWriting(self):
         self._PackWhileWriting(pack_now=False)
@@ -304,14 +306,7 @@ class PackableStorage(PackableStorageBase):
             packt = time.time()
         thread.join()
 
-        # Iterate over the storage to make sure it's sane.
-        if not hasattr(self._storage, "iterator"):
-            return
-        it = self._storage.iterator()
-        for txn in it:
-            for data in txn:
-                pass
-        it.close()
+        self._sanity_check()
 
     def checkPackWithMultiDatabaseReferences(self):
         databases = {}

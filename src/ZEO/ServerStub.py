@@ -209,6 +209,10 @@ class StorageServer:
     def storea(self, oid, serial, data, id):
         self.rpc.callAsync('storea', oid, serial, data, '', id)
 
+    def restorea(self, oid, serial, data, prev_txn, id):
+        self.rpc.callAsync('restorea', oid, serial, data, prev_txn, id)
+
+
     def storeBlob(self, oid, serial, data, blobfilename, txn):
 
         # Store a blob to the server.  We don't want to real all of
@@ -291,6 +295,22 @@ class StorageServer:
 
     def undoInfo(self, first, last, spec):
         return self.rpc.call('undoInfo', first, last, spec)
+
+    def iterator_start(self, start, stop):
+        return self.rpc.call('iterator_start', start, stop)
+
+    def iterator_next(self, iid):
+        return self.rpc.call('iterator_next', iid)
+
+    def iterator_record_start(self, txn_iid, tid):
+        return self.rpc.call('iterator_record_start', txn_iid, tid)
+
+    def iterator_record_next(self, iid):
+        return self.rpc.call('iterator_record_next', iid)
+
+    def iterator_gc(self, iids):
+        return self.rpc.call('iterator_gc', iids)
+
 
 class ExtensionMethodWrapper:
     def __init__(self, rpc, name):

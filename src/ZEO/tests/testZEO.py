@@ -39,7 +39,7 @@ import transaction
 from ZODB.tests import StorageTestBase, BasicStorage,  \
      TransactionalUndoStorage,  \
      PackableStorage, Synchronization, ConflictResolution, RevisionStorage, \
-     MTStorage, ReadOnlyStorage
+     MTStorage, ReadOnlyStorage, IteratorStorage, RecoveryStorage
 
 from ZODB.tests.testDemoStorage import DemoStorageWrappedBase
 
@@ -47,7 +47,8 @@ from ZEO.ClientStorage import ClientStorage
 
 import ZEO.zrpc.connection
 
-from ZEO.tests import forker, Cache, CommitLockTests, ThreadTests
+from ZEO.tests import forker, Cache, CommitLockTests, ThreadTests, \
+     IterationTests
 from ZEO.tests.forker import get_port
 
 import ZEO.tests.ConnectionTests
@@ -55,7 +56,6 @@ import ZEO.tests.ConnectionTests
 import ZEO.StorageServer
 
 logger = logging.getLogger('ZEO.tests.testZEO')
-
 
 class DummyDB:
     def invalidate(self, *args):
@@ -158,7 +158,7 @@ class GenericTests(
     CommitLockTests.CommitLockVoteTests,
     ThreadTests.ThreadTests,
     # Locally defined (see above)
-    MiscZEOTests
+    MiscZEOTests,
     ):
 
     """Combine tests from various origins in one class."""
@@ -196,6 +196,15 @@ class GenericTests(
             for pid in self._pids:
                 os.waitpid(pid, 0)
 
+    def runTest(self):
+        try:
+            super(GenericTests, self).runTest()
+        except:
+            self._failed = True
+            raise
+        else:
+            self._failed = False
+
     def open(self, read_only=0):
         # Needed to support ReadOnlyStorage tests.  Ought to be a
         # cleaner way.
@@ -226,8 +235,74 @@ class FullGenericTests(
     PackableStorage.PackableUndoStorage,
     RevisionStorage.RevisionStorage,
     TransactionalUndoStorage.TransactionalUndoStorage,
+    IteratorStorage.IteratorStorage,
+    IterationTests.IterationTests,
     ):
     """Extend GenericTests with tests that MappingStorage can't pass."""
+
+class FileStorageRecoveryTests(StorageTestBase.StorageTestBase,
+                               RecoveryStorage.RecoveryStorage):
+
+    level = 2
+
+    def setUp(self):
+        self._storage = ZODB.FileStorage.FileStorage("Source.fs", create=True)
+        self._dst = ZODB.FileStorage.FileStorage("Dest.fs", create=True)
+
+    def getConfig(self):
+        filename = self.__fs_base = tempfile.mktemp()
+        return """\
+        <filestorage 1>
+        path %s
+        </filestorage>
+        """ % filename
+
+    def _new_storage(self):
+        port = get_port()
+        zconf = forker.ZEOConfig(('', port))
+        zport, adminaddr, pid, path = forker.start_zeo_server(self.getConfig(),
+                                                              zconf, port)
+        blob_cache_dir = tempfile.mkdtemp()
+
+        self._pids.append(pid)
+        self._servers.append(adminaddr)
+        self._conf_paths.append(path)
+        self.blob_cache_dirs.append(blob_cache_dir)
+
+        storage = ClientStorage(
+            zport, '1', cache_size=20000000,
+            min_disconnect_poll=0.5, wait=1,
+            wait_timeout=60, blob_dir=blob_cache_dir)
+        storage.registerDB(DummyDB())
+        return storage
+
+    def setUp(self):
+        self._pids = []
+        self._servers = []
+        self._conf_paths = []
+        self.blob_cache_dirs = []
+
+        self._storage = self._new_storage()
+        self._dst = self._new_storage()
+
+    def tearDown(self):
+        self._storage.close()
+        self._dst.close()
+
+        for p in self._conf_paths:
+            os.remove(p)
+        for p in self.blob_cache_dirs:
+            ZODB.blob.remove_committed_dir(p)
+        for server in self._servers:
+            forker.shutdown_zeo_server(server)
+        if hasattr(os, 'waitpid'):
+            # Not in Windows Python until 2.3
+            for pid in self._pids:
+                os.waitpid(pid, 0)
+
+    def new_dest(self):
+        return self._new_storage()
+
 
 class FileStorageTests(FullGenericTests):
     """Test ZEO backed by a FileStorage."""
@@ -241,11 +316,35 @@ class FileStorageTests(FullGenericTests):
         </filestorage>
         """ % filename
 
+    def checkInterfaceFromRemoteStorage(self):
+        # ClientStorage itself doesn't implement IStorageIteration, but the
+        # FileStorage on the other end does, and thus the ClientStorage
+        # instance that is connected to it reflects this.
+        self.failIf(ZODB.interfaces.IStorageIteration.implementedBy(
+            ZEO.ClientStorage.ClientStorage))
+        self.failUnless(ZODB.interfaces.IStorageIteration.providedBy(
+            self._storage))
+        # This is communicated using ClientStorage's _info object:
+        self.assertEquals((('ZODB.interfaces', 'IStorageIteration'),
+                           ('zope.interface', 'Interface')),
+                          self._storage._info['interfaces'])
+
+
 class MappingStorageTests(GenericTests):
     """ZEO backed by a Mapping storage."""
 
     def getConfig(self):
         return """<mappingstorage 1/>"""
+
+    def checkSimpleIteration(self):
+        # The test base class IteratorStorage assumes that we keep undo data
+        # to construct our iterator, which we don't, so we disable this test.
+        pass
+
+    def checkUndoZombie(self):
+        # The test base class IteratorStorage assumes that we keep undo data
+        # to construct our iterator, which we don't, so we disable this test.
+        pass
 
 class DemoStorageTests(
     GenericTests,
@@ -259,6 +358,11 @@ class DemoStorageTests(
           </filestorage>
         </demostorage>
         """ % tempfile.mktemp()
+
+    def checkUndoZombie(self):
+        # The test base class IteratorStorage assumes that we keep undo data
+        # to construct our iterator, which we don't, so we disable this test.
+        pass
 
 class HeartbeatTests(ZEO.tests.ConnectionTests.CommonSetupTearDown):
     """Make sure a heartbeat is being sent and that it does no harm
@@ -554,7 +658,7 @@ class CommonBlobTests:
         self._storage.close()
 
 
-class BlobAdaptedFileStorageTests(GenericTests, CommonBlobTests):
+class BlobAdaptedFileStorageTests(FullGenericTests, CommonBlobTests):
     """ZEO backed by a BlobStorage-adapted FileStorage."""
 
     def setUp(self):
@@ -645,7 +749,7 @@ class BlobAdaptedFileStorageTests(GenericTests, CommonBlobTests):
         check_data(filename)
 
 
-class BlobWritableCacheTests(GenericTests, CommonBlobTests):
+class BlobWritableCacheTests(FullGenericTests, CommonBlobTests):
 
     def setUp(self):
         self.blobdir = self.blob_cache_dir = tempfile.mkdtemp()
@@ -823,7 +927,7 @@ without this method:
     >>> st = StorageServerWrapper(sv, 'fs')
     >>> s = st.server
     
-Now, if we ask fior the invalidations since the last committed
+Now, if we ask for the invalidations since the last committed
 transaction, we'll get a result:
 
     >>> tid, oids = s.getInvalidations(last[-1])
@@ -849,7 +953,8 @@ transaction, we'll get a result:
     """
 
 
-test_classes = [FileStorageTests, MappingStorageTests, DemoStorageTests,
+test_classes = [FileStorageTests, FileStorageRecoveryTests,
+                MappingStorageTests, DemoStorageTests,
                 BlobAdaptedFileStorageTests, BlobWritableCacheTests]
 
 def test_suite():

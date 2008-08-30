@@ -308,6 +308,7 @@ class FileStorageTests(
             else:
                 self.assertNotEqual(next_oid, None)
 
+
 class FileStorageRecoveryTest(
     StorageTestBase.StorageTestBase,
     RecoveryStorage.RecoveryStorage,
@@ -325,6 +326,40 @@ class FileStorageRecoveryTest(
 
     def new_dest(self):
         return ZODB.FileStorage.FileStorage('Dest.fs')
+
+
+class FileStorageNoRestore(ZODB.FileStorage.FileStorage):
+
+    @property
+    def restore(self):
+        raise Exception
+
+
+class FileStorageNoRestoreRecoveryTest(
+    StorageTestBase.StorageTestBase,
+    RecoveryStorage.RecoveryStorage,
+    ):
+    # This test actually verifies a code path of
+    # BaseStorage.copyTransactionsFrom. For simplicity of implementation, we
+    # use a FileStorage deprived of its restore method.
+
+    def setUp(self):
+        self._storage = FileStorageNoRestore("Source.fs", create=True)
+        self._dst = FileStorageNoRestore("Dest.fs", create=True)
+
+    def tearDown(self):
+        self._storage.close()
+        self._dst.close()
+        self._storage.cleanup()
+        self._dst.cleanup()
+
+    def new_dest(self):
+        return FileStorageNoRestore('Dest.fs')
+
+    def checkRestoreAcrossPack(self):
+        # Skip this check as it calls restore directly.
+        pass
+
 
 class SlowFileStorageTest(BaseFileStorageTests):
 
@@ -492,7 +527,8 @@ def test_suite():
 
     suite = unittest.TestSuite()
     for klass in [FileStorageTests, Corruption.FileStorageCorruptTests,
-                  FileStorageRecoveryTest, SlowFileStorageTest]:
+                  FileStorageRecoveryTest, FileStorageNoRestoreRecoveryTest,
+                  SlowFileStorageTest]:
         suite.addTest(unittest.makeSuite(klass, "check"))
     suite.addTest(doctest.DocTestSuite(setUp=ZODB.tests.util.setUp,
                                        tearDown=ZODB.tests.util.tearDown))

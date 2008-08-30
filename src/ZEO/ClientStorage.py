@@ -29,8 +29,9 @@ import threading
 import time
 import types
 import logging
+import weakref
 
-from zope.interface import implements
+import zope.interface
 from ZEO import ServerStub
 from ZEO.cache import ClientCache
 from ZEO.TransactionBuffer import TransactionBuffer
@@ -38,11 +39,12 @@ from ZEO.Exceptions import ClientStorageError, ClientDisconnected, AuthError
 from ZEO.auth import get_module
 from ZEO.zrpc.client import ConnectionManager
 
+import ZODB.interfaces
 import ZODB.lock_file
+import ZODB.BaseStorage
 from ZODB import POSException
 from ZODB import utils
 from ZODB.loglevels import BLATHER
-from ZODB.interfaces import IBlobStorage
 from ZODB.blob import rename_or_copy_blob
 from persistent.TimeStamp import TimeStamp
 
@@ -103,7 +105,10 @@ class ClientStorage(object):
 
     """
 
-    implements(IBlobStorage)
+    # ClientStorage does not declare any interfaces here. Interfaces are
+    # declared according to the server's storage once a connection is
+    # established.
+
 
     # Classes we instantiate.  A subclass might override.
     TransactionBufferClass = TransactionBuffer
@@ -260,6 +265,9 @@ class ClientStorage(object):
         self._password = password
         self._realm = realm
 
+        self._iterators = weakref.WeakValueDictionary()
+        self._iterator_ids = set()
+
         # Flag tracking disconnections in the middle of a transaction.  This
         # is reset in tpc_begin() and set in notifyDisconnected().
         self._midtxn_disconnect = 0
@@ -270,7 +278,7 @@ class ClientStorage(object):
         self._verification_invalidations = None
 
         self._info = {'length': 0, 'size': 0, 'name': 'ZEO Client',
-                      'supportsUndo':0}
+                      'supportsUndo': 0, 'interfaces': ()}
 
         self._tbuf = self.TransactionBufferClass()
         self._db = None
@@ -526,6 +534,15 @@ class ClientStorage(object):
 
         self._handle_extensions()
 
+        # Decorate ClientStorage with all interfaces that the backend storage
+        # supports.
+        remote_interfaces = []
+        for module_name, interface_name in self._info['interfaces']:
+            module = __import__(module_name, globals(), locals(), [interface_name])
+            interface = getattr(module, interface_name)
+            remote_interfaces.append(interface)
+        zope.interface.directlyProvides(self, remote_interfaces)
+
     def _handle_extensions(self):
         for name in self.getExtensionMethods().keys():
             if not hasattr(self, name):
@@ -633,6 +650,7 @@ class ClientStorage(object):
         self._ready.clear()
         self._server = disconnected_stub
         self._midtxn_disconnect = 1
+        self._iterator_gc()
 
     def __len__(self):
         """Return the size of the storage."""
@@ -933,14 +951,7 @@ class ClientStorage(object):
             raise POSException.POSKeyError("No blob file", oid, serial)
 
         # First, we'll create the directory for this oid, if it doesn't exist. 
-        targetpath = self.fshelper.getPathForOID(oid)
-        if not os.path.exists(targetpath):
-            try:
-                os.makedirs(targetpath, 0700)
-            except OSError:
-                # We might have lost a race.  If so, the directory
-                # must exist now
-                assert os.path.exists(targetpath)
+        self.fshelper.createPathForOID(oid)
 
         # OK, it's not here and we (or someone) needs to get it.  We
         # want to avoid getting it multiple times.  We want to avoid
@@ -1075,6 +1086,7 @@ class ClientStorage(object):
             self._tbuf.clear()
             self._seriald.clear()
             del self._serials[:]
+            self._iterator_gc()
             self.end_transaction()
 
     def tpc_finish(self, txn, f=None):
@@ -1104,6 +1116,7 @@ class ClientStorage(object):
             assert r is None or len(r) == 0, "unhandled serialnos: %s" % r
         finally:
             self._load_lock.release()
+            self._iterator_gc()
             self.end_transaction()
 
     def _update_cache(self, tid):
@@ -1175,6 +1188,25 @@ class ClientStorage(object):
         if filter is not None:
             return []
         return self._server.undoLog(first, last)
+
+    # Recovery support
+
+    def copyTransactionsFrom(self, other, verbose=0):
+        """Copy transactions from another storage.
+
+        This is typically used for converting data from one storage to
+        another.  `other` must have an .iterator() method.
+        """
+        ZODB.BaseStorage.copy(other, self, verbose)
+
+    def restore(self, oid, serial, data, version, prev_txn, transaction):
+        """Write data already committed in a separate database."""
+        assert not version
+        self._check_trans(transaction)
+        self._server.restorea(oid, serial, data, prev_txn, id(transaction))
+        # Don't update the transaction buffer, because current data are
+        # unaffected.
+        return self._check_serials()
 
     # Below are methods invoked by the StorageServer
 
@@ -1249,3 +1281,103 @@ class ClientStorage(object):
     invalidate = invalidateVerify
     end = endVerify
     Invalidate = invalidateTrans
+
+    # IStorageIteration
+
+    def iterator(self, start=None, stop=None):
+        """Return an IStorageTransactionInformation iterator."""
+        # iids are "iterator IDs" that can be used to query an iterator whose
+        # status is held on the server.
+        iid = self._server.iterator_start(start, stop)
+        return self._setup_iterator(TransactionIterator, iid)
+
+    def _setup_iterator(self, factory, iid, *args):
+        self._iterators[iid] = iterator = factory(self, iid, *args)
+        self._iterator_ids.add(iid)
+        return iterator
+
+    def _forget_iterator(self, iid):
+        self._iterators.pop(iid, None)
+        self._iterator_ids.remove(iid)
+
+    def _iterator_gc(self):
+        iids = self._iterator_ids - set(self._iterators)
+        try:
+            self._server.iterator_gc(list(iids))
+        except ClientDisconnected:
+            # We could not successfully garbage-collect iterators.
+            # The server might have been restarted, so the IIDs might mean
+            # something different now. We simply forget our unused IIDs to
+            # avoid gc'ing foreign iterators.
+            # In the case that the server was not restarted, we accept the
+            # risk of leaking resources on the ZEO server.
+            pass
+        self._iterator_ids -= iids
+
+
+class TransactionIterator(object):
+
+    def __init__(self, storage, iid, *args):
+        self._storage = storage 
+        self._iid = iid
+        self._ended = False
+
+    def __iter__(self):
+        return self
+
+    def next(self):
+        if self._ended:
+            raise ZODB.interfaces.StorageStopIteration()
+
+        tx_data = self._storage._server.iterator_next(self._iid)
+        if tx_data is None:
+            # The iterator is exhausted, and the server has already
+            # disposed it.
+            self._ended = True
+            self._storage._forget_iterator(self._iid)
+            raise ZODB.interfaces.StorageStopIteration()
+
+        return ClientStorageTransactionInformation(self._storage, self, *tx_data)
+
+
+class ClientStorageTransactionInformation(ZODB.BaseStorage.TransactionRecord):
+
+    def __init__(self, storage, txiter, tid, status, user, description, extension):
+        self._storage = storage
+        self._txiter = txiter
+        self._completed = False
+        self._riid = None
+
+        self.tid = tid
+        self.status = status
+        self.user = user
+        self.description = description
+        self.extension = extension
+
+    def __iter__(self):
+        riid = self._storage._server.iterator_record_start(self._txiter._iid, self.tid)
+        return self._storage._setup_iterator(RecordIterator, riid)
+
+
+class RecordIterator(object):
+
+    def __init__(self, storage, riid):
+        self._riid = riid
+        self._completed = False
+        self._storage = storage
+
+    def __iter__(self):
+        return self
+
+    def next(self):
+        if self._completed:
+            # We finished iteration once already and the server can't know
+            # about the iteration anymore.
+            raise ZODB.interfaces.StorageStopIteration()
+        item = self._storage._server.iterator_record_next(self._riid)
+        if item is None:
+            # The iterator is exhausted, and the server has already
+            # disposed it.
+            self._completed = True
+            raise ZODB.interfaces.StorageStopIteration()
+        return ZODB.BaseStorage.DataRecord(*item)

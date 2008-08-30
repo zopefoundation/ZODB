@@ -80,15 +80,19 @@ and call it to monitor the storage.
 
 """
 
+import cPickle
 import base64, time
+
+import ZODB.BaseStorage
+import ZODB.interfaces
+import zope.interface
 from ZODB import POSException
 from ZODB.utils import z64, oid_repr
-from ZODB.BaseStorage import BaseStorage
 from persistent.TimeStamp import TimeStamp
-from cPickle import loads
 from BTrees import OOBTree
 
-class DemoStorage(BaseStorage):
+
+class DemoStorage(ZODB.BaseStorage.BaseStorage):
     """Demo storage
 
     Demo storages provide useful storages for writing tests because
@@ -104,9 +108,10 @@ class DemoStorage(BaseStorage):
     
     """
     
+    zope.interface.implements(ZODB.interfaces.IStorageIteration)
 
     def __init__(self, name='Demo Storage', base=None, quota=None):
-        BaseStorage.__init__(self, name, base)
+        ZODB.BaseStorage.BaseStorage.__init__(self, name, base)
 
         # We use a BTree because the items are sorted!
         self._data = OOBTree.OOBTree()
@@ -133,7 +138,7 @@ class DemoStorage(BaseStorage):
     # by the base storage, leading to a variety of "impossible" problems.
     def new_oid(self):
         if self._base is None:
-            return BaseStorage.new_oid(self)
+            return ZODB.BaseStorage.BaseStorage.new_oid(self)
         else:
             return self._base.new_oid()
 
@@ -317,6 +322,10 @@ class DemoStorage(BaseStorage):
         self._tsize = self._size + 120 + len(u) + len(d) + len(e)
 
     def _finish(self, tid, user, desc, ext):
+        if not self._tindex:
+            # No data, so we don't update anything.
+            return
+
         self._size = self._tsize
 
         self._data[tid] = None, user, desc, ext, tuple(self._tindex)
@@ -364,7 +373,7 @@ class DemoStorage(BaseStorage):
                      'time': TimeStamp(tid).timeTime(),
                      'user_name': u, 'description': d}
                 if e:
-                    d.update(loads(e))
+                    d.update(cPickle.loads(e))
                 if filter is None or filter(d):
                     if i >= first:
                         r.append(d)
@@ -569,3 +578,27 @@ class DemoStorage(BaseStorage):
     def close(self):
         if self._base is not None:
             self._base.close()
+
+    def iterator(self, start=None, end=None):
+        # First iterate over the base storage
+        if self._base is not None:
+            for transaction in self._base.iterator(start, end):
+                yield transaction
+        # Then iterate over our local transactions
+        for tid, transaction in self._data.items():
+            if tid >= start and tid <= end:
+                yield TransactionRecord(tid, transaction)
+
+
+class TransactionRecord(ZODB.BaseStorage.TransactionRecord):
+    
+    def __init__(self, tid, transaction):
+        packed, user, description, extension, records = transaction
+        super(TransactionRecord, self).__init__(
+            tid, packed, user, description, extension)
+        self.records = transaction
+
+    def __iter__(self):
+        for record in self.records:
+            oid, prev, version, data, tid = record
+            yield ZODB.BaseStorage.DataRecord(oid, tid, data, version, prev)

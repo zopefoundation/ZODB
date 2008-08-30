@@ -29,12 +29,14 @@ import tempfile
 import threading
 import time
 import warnings
+import itertools
 
 import transaction
 
 import ZODB.serialize
 import ZEO.zrpc.error
 
+import zope.interface
 from ZEO import ClientStub
 from ZEO.CommitLog import CommitLog
 from ZEO.monitor import StorageStats, StatsServer
@@ -52,7 +54,6 @@ from ZODB.loglevels import BLATHER
 
 
 logger = logging.getLogger('ZEO.StorageServer')
-
 
 # TODO:  This used to say "ZSS", which is now implied in the logger name.
 # Can this be either set to str(os.getpid()) (if that makes sense) or removed?
@@ -110,6 +111,11 @@ class ZEOStorage:
         self._extensions = {}
         for func in self.extensions:
             self._extensions[func.func_name] = None
+        self._iterators = {}
+        self._iterator_ids = itertools.count()
+        # Stores the last item that was handed out for a
+        # transaction iterator.
+        self._txn_iterators_last = {}
 
     def finish_auth(self, authenticated):
         if not self.auth_realm:
@@ -272,6 +278,12 @@ class ZEOStorage:
         else:
             supportsUndo = supportsUndo()
 
+        # Communicate the backend storage interfaces to the client
+        storage_provides = zope.interface.providedBy(storage)
+        interfaces = []
+        for candidate in storage_provides.__iro__:
+            interfaces.append((candidate.__module__, candidate.__name__))
+
         return {'length': len(storage),
                 'size': storage.getSize(),
                 'name': storage.getName(),
@@ -279,6 +291,7 @@ class ZEOStorage:
                 'supportsVersions': False,
                 'extensionMethods': self.getExtensionMethods(),
                 'supports_record_iternext': hasattr(self, 'record_iternext'),
+                'interfaces': tuple(interfaces),
                 }
 
     def get_size_info(self):
@@ -477,6 +490,11 @@ class ZEOStorage:
         self.stats.stores += 1
         self.txnlog.store(oid, serial, data)
 
+    def restorea(self, oid, serial, data, prev_txn, id):
+        self._check_tid(id, exc=StorageTransactionError)
+        self.stats.stores += 1
+        self.txnlog.restore(oid, serial, data, prev_txn)
+
     def storeBlobStart(self):
         assert self.blob_tempfile is None
         self.blob_tempfile = tempfile.mkstemp(
@@ -544,16 +562,7 @@ class ZEOStorage:
                 # Unexpected errors are logged and passed to the client
                 self.log("store error: %s, %s" % sys.exc_info()[:2],
                          logging.ERROR, exc_info=True)
-            # Try to pickle the exception.  If it can't be pickled,
-            # the RPC response would fail, so use something else.
-            pickler = cPickle.Pickler()
-            pickler.fast = 1
-            try:
-                pickler.dump(err, 1)
-            except:
-                msg = "Couldn't pickle storage exception: %s" % repr(err)
-                self.log(msg, logging.ERROR)
-                err = StorageServerError(msg)
+            err = self._marshal_error(err)
             # The exception is reported back as newserial for this oid
             newserial = [(oid, err)]
         else:
@@ -574,6 +583,37 @@ class ZEOStorage:
                 self.serials.append((oid, s))
 
         return err is None
+
+    def _restore(self, oid, serial, data, prev_txn):
+        err = None
+        try:
+            self.storage.restore(oid, serial, data, '', prev_txn, self.transaction)
+        except (SystemExit, KeyboardInterrupt):
+            raise
+        except Exception, err:
+            self.store_failed = 1
+            if not isinstance(err, TransactionError):
+                # Unexpected errors are logged and passed to the client
+                self.log("store error: %s, %s" % sys.exc_info()[:2],
+                         logging.ERROR, exc_info=True)
+            err = self._marshal_error(err)
+            # The exception is reported back as newserial for this oid
+            self.serials.append((oid, err))
+
+        return err is None
+
+    def _marshal_error(self, error):
+        # Try to pickle the exception.  If it can't be pickled,
+        # the RPC response would fail, so use something that can be pickled.
+        pickler = cPickle.Pickler()
+        pickler.fast = 1
+        try:
+            pickler.dump(error, 1)
+        except:
+            msg = "Couldn't pickle storage exception: %s" % repr(error)
+            self.log(msg, logging.ERROR)
+            error = StorageServerError(msg)
+        return error
 
     def _vote(self):
         if not self.store_failed:
@@ -627,8 +667,18 @@ class ZEOStorage:
         self._tpc_begin(self.transaction, self.tid, self.status)
         loads, loader = self.txnlog.get_loader()
         for i in range(loads):
-            # load oid, serial, data, version
-            if not self._store(*loader.load()):
+            store = loader.load()
+            store_type = store[0]
+            store_args = store[1:]
+
+            if store_type == 's':
+                do_store = self._store
+            elif store_type == 'r':
+                do_store = self._restore
+            else:
+                raise ValueError('Invalid store type: %r' % store_type)
+
+            if not do_store(*store_args):
                 break
 
         # Blob support
@@ -682,6 +732,62 @@ class ZEOStorage:
         raise NotImplementedError
 
     abortVersion = commitVersion
+
+    # IStorageIteration support
+
+    def iterator_start(self, start, stop):
+        iid = self._iterator_ids.next()
+        self._iterators[iid] = iter(self.storage.iterator(start, stop))
+        return iid
+
+    def iterator_next(self, iid):
+        iterator = self._iterators[iid]
+        try:
+            info = iterator.next()
+        except StopIteration:
+            del self._iterators[iid]
+            item = None
+            if iid in self._txn_iterators_last:
+                del self._txn_iterators_last[iid]
+        else:
+            item = (info.tid,
+                    info.status,
+                    info.user,
+                    info.description,
+                    info.extension)
+            # Keep a reference to the last iterator result to allow starting a
+            # record iterator off it.
+            self._txn_iterators_last[iid] = info
+        return item
+
+    def iterator_record_start(self, txn_iid, tid):
+        record_iid = self._iterator_ids.next()
+        txn_info = self._txn_iterators_last[txn_iid]
+        if txn_info.tid != tid:
+            raise Exception(
+                'Out-of-order request for record iterator for transaction %r' % tid)
+        self._iterators[record_iid] = iter(txn_info)
+        return record_iid
+
+    def iterator_record_next(self, iid):
+        iterator = self._iterators[iid]
+        try:
+            info = iterator.next()
+        except StopIteration:
+            del self._iterators[iid]
+            item = None
+        else:
+            item = (info.oid,
+                    info.tid,
+                    info.data,
+                    info.version,
+                    info.data_txn)
+        return item
+
+    def iterator_gc(self, iids):
+        for iid in iids:
+            self._iterators.pop(iid, None)
+
 
 class StorageServerDB:
 

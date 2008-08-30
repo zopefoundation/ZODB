@@ -18,9 +18,12 @@ must serialize them as the actually execute at the server.  The
 concurrent commits are achieved by logging actions up until the
 tpc_vote().  At that point, the entire transaction is committed on the
 real storage.
+
 """
+
 import cPickle
 import tempfile
+
 
 class CommitLog:
 
@@ -35,7 +38,11 @@ class CommitLog:
         return self.file.tell()
 
     def store(self, oid, serial, data):
-        self.pickler.dump((oid, serial, data))
+        self.pickler.dump(('s', oid, serial, data))
+        self.stores += 1
+
+    def restore(self, oid, serial, data, prev_txn):
+        self.pickler.dump(('r', oid, serial, data, prev_txn))
         self.stores += 1
 
     def get_loader(self):

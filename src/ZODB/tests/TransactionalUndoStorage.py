@@ -636,10 +636,12 @@ class TransactionalUndoStorage:
             for j in range(OBJECTS):
                 oid = s.new_oid()
                 obj = MinPO(i * OBJECTS + j)
-                revid = s.store(oid, None, zodb_pickle(obj), '', t)
-                orig.append((tid, oid, revid))
+                s.store(oid, None, zodb_pickle(obj), '', t)
+                orig.append((tid, oid))
             s.tpc_vote(t)
             s.tpc_finish(t)
+
+        orig = [(tid, oid, s.getTid(oid)) for tid, oid in orig]
 
         i = 0
         for tid, oid, revid in orig:
@@ -668,14 +670,11 @@ class TransactionalUndoStorage:
         #     OBJECTS * BATCHES modifications, followed by
         #     BATCHES undos
 
-        iter = s.iterator()
-        offset = 0
-
+        transactions = s.iterator()
         eq = self.assertEqual
 
         for i in range(BATCHES):
-            txn = iter[offset]
-            offset += 1
+            txn = transactions.next()
 
             tid = p64(i + 1)
             eq(txn.tid, tid)
@@ -687,13 +686,11 @@ class TransactionalUndoStorage:
             eq(L1, L2)
 
         for i in range(BATCHES * OBJECTS):
-            txn = iter[offset]
-            offset += 1
+            txn = transactions.next()
             eq(len([rec for rec in txn if rec.data_txn is None]), 1)
 
         for i in range(BATCHES):
-            txn = iter[offset]
-            offset += 1
+            txn = transactions.next()
 
             # The undos are performed in reverse order.
             otid = p64(BATCHES - i)
@@ -704,7 +701,7 @@ class TransactionalUndoStorage:
             L2.sort()
             eq(L1, L2)
 
-        self.assertRaises(IndexError, iter.__getitem__, offset)
+        self.assertRaises(StopIteration, transactions.next)
 
     def checkUndoLogMetadata(self):
         # test that the metadata is correct in the undo log

@@ -102,7 +102,8 @@ class CommonSetupTearDown(StorageTestBase):
         """
         self.__super_setUp()
         logging.info("setUp() %s", self.id())
-        self.file = tempfile.mktemp()
+        fd, self.file = tempfile.mkstemp()
+        os.close(fd)
         self.addr = []
         self._pids = []
         self._servers = []

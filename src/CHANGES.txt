@@ -8,6 +8,9 @@ Change History
 New Features
 ------------
 
+- Cleaned-up the storage iteration API and provided an iterator implementation
+  for ZEO.
+
 - Versions are no-longer supported.
 
 - ZEO cache files can be larger than 4G. Note that older ZEO cache

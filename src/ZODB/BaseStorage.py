@@ -21,13 +21,17 @@ import time
 import logging
 from struct import pack as _structpack, unpack as _structunpack
 
+import zope.interface
+
 from persistent.TimeStamp import TimeStamp
 
+import ZODB.interfaces
 from ZODB import POSException
 from ZODB.utils import z64, oid_repr
 from ZODB.UndoLogCompatible import UndoLogCompatible
 
 log = logging.getLogger("ZODB.BaseStorage")
+
 
 class BaseStorage(UndoLogCompatible):
     """Base class that supports storage implementations.
@@ -188,6 +192,7 @@ class BaseStorage(UndoLogCompatible):
                 ext = cPickle.dumps(ext, 1)
             else:
                 ext = ""
+
             self._ude = user, desc, ext
 
             if tid is None:
@@ -338,7 +343,7 @@ def copy(source, dest, verbose=0):
             if verbose:
                 print oid_repr(oid), r.version, len(r.data)
             if restoring:
-                dest.restore(oid, r.tid, r.data, '',
+                dest.restore(oid, r.tid, r.data, r.version,
                              r.data_txn, transaction)
             else:
                 pre = preget(oid, None)
@@ -348,10 +353,36 @@ def copy(source, dest, verbose=0):
         dest.tpc_vote(transaction)
         dest.tpc_finish(transaction)
 
-    fiter.close()
 
-class TransactionRecord:
+class TransactionRecord(object):
     """Abstract base class for iterator protocol"""
 
-class DataRecord:
+    zope.interface.implements(ZODB.interfaces.IStorageTransactionInformation)
+
+    def __init__(self, tid, status, user, description, extension):
+        self.tid = tid
+        self.status = status
+        self.user = user
+        self.description = description
+        self.extension = extension
+
+    # XXX This is a workaround to make the TransactionRecord compatible with a
+    # transaction object because it is passed to tpc_begin().
+    def _ext_set(self, value):
+        self.extension = value
+    def _ext_get(self):
+        return self.extension
+    _extension = property(fset=_ext_set, fget=_ext_get)
+
+
+class DataRecord(object):
     """Abstract base class for iterator protocol"""
+
+    zope.interface.implements(ZODB.interfaces.IStorageRecordInformation)
+
+    def __init__(self, oid, tid, data, version, prev):
+        self.oid = oid
+        self.tid = tid
+        self.data = data
+        self.version = version
+        self.data_txn = prev

@@ -29,6 +29,8 @@ from struct import pack, unpack
 # Not all platforms have fsync
 fsync = getattr(os, "fsync", None)
 
+import zope.interface
+import ZODB.interfaces
 from ZODB import BaseStorage, ConflictResolution, POSException
 from ZODB.POSException import UndoError, POSKeyError, MultipleUndoErrors
 from persistent.TimeStamp import TimeStamp
@@ -87,6 +89,8 @@ class TempFormatter(FileStorageFormatter):
 class FileStorage(BaseStorage.BaseStorage,
                   ConflictResolution.ConflictResolvingStorage,
                   FileStorageFormatter):
+
+    zope.interface.implements(ZODB.interfaces.IStorageIteration)
 
     # Set True while a pack is in progress; undo is blocked for the duration.
     _pack_is_in_progress = False
@@ -1127,7 +1131,7 @@ class FileStorage(BaseStorage.BaseStorage,
 
             seek(0)
             return [(trans.tid, [(r.oid, '') for r in trans])
-                    for trans in FileIterator(self._file, pos=pos)]
+                    for trans in FileIterator(self._file_name, pos=pos)]
         finally:
             self._lock_release()
         
@@ -1516,31 +1520,16 @@ def _truncate(file, name, pos):
     file.seek(pos)
     file.truncate()
 
-class Iterator:
-    """A General simple iterator that uses the Python for-loop index protocol
-    """
-    __index=-1
-    __current=None
 
-    def __getitem__(self, i):
-        __index=self.__index
-        while i > __index:
-            __index=__index+1
-            self.__current=self.next(__index)
-
-        self.__index=__index
-        return self.__current
-
-
-class FileIterator(Iterator, FileStorageFormatter):
+class FileIterator(FileStorageFormatter):
     """Iterate over the transactions in a FileStorage file.
     """
     _ltid = z64
     _file = None
 
-    def __init__(self, file, start=None, stop=None, pos=4L):
-        if isinstance(file, str):
-            file = open(file, 'rb')
+    def __init__(self, filename, start=None, stop=None, pos=4L):
+        assert isinstance(filename, str)
+        file = open(filename, 'rb')
         self._file = file
         if file.read(4) != packed_version:
             raise FileStorageFormatError(file.name)
@@ -1602,14 +1591,17 @@ class FileIterator(Iterator, FileStorageFormatter):
                     panic("%s has inconsistent transaction length at %s "
                           "(%s != %s)", file.name, pos, u64(rtl), u64(stl))
 
-    def next(self, index=0):
+    # Iterator protocol
+    def __iter__(self):
+        return self
+
+    def next(self):
         if self._file is None:
-            # A closed iterator.  Is IOError the best we can do?  For
-            # now, mimic a read on a closed file.
-            raise IOError('iterator is closed')
+            raise ZODB.interfaces.StorageStopIteration()
 
         pos = self._pos
-        while 1:
+        while True:
+
             # Read the transaction record
             try:
                 h = self._read_txn_header(pos)
@@ -1625,11 +1617,11 @@ class FileIterator(Iterator, FileStorageFormatter):
             self._ltid = h.tid
 
             if self._stop is not None and h.tid > self._stop:
-                raise IndexError(index)
+                break
 
             if h.status == "c":
                 # Assume we've hit the last, in-progress transaction
-                raise IndexError(index)
+                break
 
             if pos + h.tlen + 8 > self._file_size:
                 # Hm, the data were truncated or the checkpoint flag wasn't
@@ -1679,8 +1671,8 @@ class FileIterator(Iterator, FileStorageFormatter):
                     except:
                         pass
 
-                result = RecordIterator(h.tid, h.status, h.user, h.descr,
-                                        e, pos, tend, self._file, tpos)
+                result = TransactionRecord(h.tid, h.status, h.user, h.descr,
+                                           e, pos, tend, self._file, tpos)
 
             # Read the (intentionally redundant) transaction length
             self._file.seek(tend)
@@ -1693,23 +1685,25 @@ class FileIterator(Iterator, FileStorageFormatter):
 
             return result
 
-        raise IndexError(index)
+        self.close()
+        raise ZODB.interfaces.StorageStopIteration()
 
-class RecordIterator(Iterator, BaseStorage.TransactionRecord,
-                     FileStorageFormatter):
+
+class TransactionRecord(BaseStorage.TransactionRecord, FileStorageFormatter):
     """Iterate over the transactions in a FileStorage file."""
+
     def __init__(self, tid, status, user, desc, ext, pos, tend, file, tpos):
-        self.tid = tid
-        self.status = status
-        self.user = user
-        self.description = desc
-        self._extension = ext
+        BaseStorage.TransactionRecord.__init__(
+            self, tid, status, user, desc, ext)
         self._pos = pos
         self._tend = tend
         self._file = file
         self._tpos = tpos
 
-    def next(self, index=0):
+    def __iter__(self):
+        return self
+
+    def next(self):
         pos = self._pos
         while pos < self._tend:
             # Read the data records for this transaction
@@ -1738,19 +1732,17 @@ class RecordIterator(Iterator, BaseStorage.TransactionRecord,
                     # Should it go to the original data like BDBFullStorage?
                     prev_txn = self.getTxnFromData(h.oid, h.back)
 
-            r = Record(h.oid, h.tid, data, prev_txn, pos)
-            return r
+            return Record(h.oid, h.tid, data, prev_txn, pos)
 
-        raise IndexError(index)
+        raise ZODB.interfaces.StorageStopIteration()
+
 
 class Record(BaseStorage.DataRecord):
-    """An abstract database record."""
+
     def __init__(self, oid, tid, data, prev, pos):
-        self.oid = oid
-        self.tid = tid
-        self.data = data
-        self.data_txn = prev
+        super(Record, self).__init__(oid, tid, data, '', prev)
         self.pos = pos
+
 
 class UndoSearch:
 

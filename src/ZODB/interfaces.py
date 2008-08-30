@@ -286,6 +286,7 @@ class IConnection(Interface):
         begins or until the connection os reopned.
         """
 
+
 class IStorageDB(Interface):
     """Database interface exposed to storages
 
@@ -417,6 +418,7 @@ class IDatabase(IStorageDB):
         is closed, so they stop behaving usefully.  Perhaps close()
         should also close all the Connections.
         """
+
 
 class IStorage(Interface):
     """A storage is responsible for storing and retrieving data of objects.
@@ -710,6 +712,7 @@ class IStorage(Interface):
 
         """
 
+
 class IStorageRestoreable(IStorage):
     """Copying Transactions
 
@@ -744,7 +747,7 @@ class IStorageRestoreable(IStorage):
         #   failed to take into account records after the pack time.
         
 
-    def restore(oid, serial, data, prev_txn, transaction):
+    def restore(oid, serial, data, version, prev_txn, transaction):
         """Write data already committed in a separate database
 
         The restore method is used when copying data from one database
@@ -775,40 +778,43 @@ class IStorageRestoreable(IStorage):
         Nothing is returned.
         """
 
+
 class IStorageRecordInformation(Interface):
     """Provide information about a single storage record
     """
 
     oid = Attribute("The object id")
+    tid = Attribute("The transaction id")
     data = Attribute("The data record")
+    version = Attribute("The version id")
+    data_txn = Attribute("The previous transaction id")
+
 
 class IStorageTransactionInformation(Interface):
-    """Provide information about a storage transaction
+    """Provide information about a storage transaction.
+
+    Can be iterated over to retrieve the records modified in the transaction.
+
     """
 
     tid = Attribute("Transaction id")
     status = Attribute("Transaction Status") # XXX what are valid values?
     user = Attribute("Transaction user")
     description = Attribute("Transaction Description")
-    extension = Attribute("Transaction extension data")
+    extension = Attribute("A dictionary carrying the transaction's extension data")
 
     def __iter__():
-        """Return an iterable of IStorageRecordInformation
+        """Iterate over the transaction's records given as
+        IStorageRecordInformation objects.
+
         """
 
+
 class IStorageIteration(Interface):
-    """API for iterating over the contents of a storage
-
-    Note that this is a future API.  Some storages now provide an
-    approximation of this.
-
-    """
+    """API for iterating over the contents of a storage."""
 
     def iterator(start=None, stop=None):
         """Return an IStorageTransactionInformation iterator.
-
-        An IStorageTransactionInformation iterator is returned for
-        iterating over the transactions in the storage.
 
         If the start argument is not None, then iteration will start
         with the first transaction whose identifier is greater than or
@@ -818,7 +824,11 @@ class IStorageIteration(Interface):
         the last transaction whose identifier is less than or equal to
         stop.
 
+        The iterator provides access to the data as available at the time when
+        the iterator was retrieved.
+
         """
+
 
 class IStorageUndoable(IStorage):
     """A storage supporting transactional undo.
@@ -932,6 +942,7 @@ class IStorageCurrentRecordIteration(IStorage):
         
         """
 
+
 class IBlob(Interface):
     """A BLOB supports efficient handling of large data within ZODB."""
 
@@ -986,5 +997,12 @@ class IBlobStorage(Interface):
         If Blobs use this, then commits can be performed with a simple rename.
         """
 
+
 class BlobError(Exception):
     pass
+
+
+class StorageStopIteration(IndexError, StopIteration):
+    """A combination of StopIteration and IndexError to provide a
+    backwards-compatible exception.
+    """
