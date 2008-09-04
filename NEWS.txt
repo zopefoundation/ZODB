@@ -4,7 +4,12 @@ Whats new in ZODB 3.8.1
 
 Bugs Fixed:
 
-- (unreleased) Fixed setup.py use of setuptools vs distutils, so .c and .h
+- (beta 8) An ZEO cache internal data structure can get out of sync
+  with the data in a way that prevents data from being loaded into the
+  cache. We don't yet know why, but added an exception handler to
+  prevent this error from being fatal.
+
+- (beta 8) Fixed setup.py use of setuptools vs distutils, so .c and .h
   files are included in the bdist_egg.
 
 - (beta 7) Fixed a bug, introduced in an earlier beta, that allowed
