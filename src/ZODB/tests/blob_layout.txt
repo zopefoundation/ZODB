@@ -215,7 +215,7 @@ The new directory now contains the same files in different directories, but
 with the same sizes and permissions:
 
 >>> lawn_files = {}
->>> for base, dirs, files in os.walk(d):
+>>> for base, dirs, files in os.walk(old):
 ...     for file_name in files:
 ...         lawn_files[file_name] = os.path.join(base, file_name)
 
