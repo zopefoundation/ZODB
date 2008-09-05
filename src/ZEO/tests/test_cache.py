@@ -309,6 +309,8 @@ __test__ = dict(
     ...     loaded = cache.load(ZODB.utils.p64(oid))
     ...     if loaded != expected:
     ...         print oid, loaded
+
+    >>> cache.close()
     
     """,
     )
