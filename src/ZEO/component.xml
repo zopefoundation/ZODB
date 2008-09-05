@@ -102,6 +102,13 @@
       <metadefault>$INSTANCE/var/ZEO.pid (or $clienthome/ZEO.pid)</metadefault>
     </key>
 
+    <key name="stop-instead-of-verify" datatype="boolean"
+        required="no" default="false">
+       <description>
+         Exit the application instead of initiating a cache verification.
+       </description>
+    </key>
+
   </sectiontype>
 
 </component>

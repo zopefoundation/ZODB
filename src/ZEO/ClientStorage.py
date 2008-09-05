@@ -123,7 +123,8 @@ class ClientStorage(object):
                  wait=None, wait_timeout=None,
                  read_only=0, read_only_fallback=0,
                  username='', password='', realm=None,
-                 blob_dir=None, shared_blob_dir=False):
+                 blob_dir=None, shared_blob_dir=False,
+                 stop_instead_of_verify=False):
         """ClientStorage constructor.
 
         This is typically invoked from a custom_zodb.py file.
@@ -200,8 +201,11 @@ class ClientStorage(object):
             is retrieved via the loadBlob API.
 
         shared_blob_dir -- Flag whether the blob_dir is a server-shared
-        filesystem that should be used instead of transferring blob data over
-        zrpc.
+            filesystem that should be used instead of transferring blob data
+            over zrpc.
+
+        stop_instead_of_verify -- if True, a SystemExit should be raised
+            instead of initiating a cache verification.
 
         Note that the authentication protocol is defined by the server
         and is detected by the ClientStorage upon connecting (see
@@ -264,6 +268,7 @@ class ClientStorage(object):
         self._username = username
         self._password = password
         self._realm = realm
+        self._stop_instead_of_verify = stop_instead_of_verify
 
         self._iterators = weakref.WeakValueDictionary()
         self._iterator_ids = set()
@@ -1224,6 +1229,16 @@ class ClientStorage(object):
                 return "quick verification"
         elif ltid and ltid != utils.z64:
             self._cache.setLastTid(ltid)
+
+        # we're about to verify the cache; that may not be desired
+        if self._stop_instead_of_verify:
+            log2("Would have verified the cache, but the "
+                "\"stop-instead-of-verify\" configuration option is enabled, "
+                "therefore stopping.  Either disable the configuration "
+                "option, remove the out of date cache file, or replace the "
+                "cache file with one that doesn't have to be verified and "
+                "then restart.")
+            raise SystemExit("stopping instead of verifying cache")
 
         log2("Verifying cache")
         for oid, tid in self._cache.contents():

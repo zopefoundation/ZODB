@@ -163,6 +163,12 @@
         that are accepted by this server.
       </description>
     </key>
+    <key name="stop-instead-of-verify" datatype="boolean" default="off">
+      <description>
+        A flag indicating whether the application should exit instead of
+        doing a -- potentially expensive -- full cache verification.
+      </description>
+    </key>
   </sectiontype>
 
   <sectiontype name="demostorage" datatype=".DemoStorage"
@@ -228,9 +234,5 @@
     </key>
     <section type="ZODB.storage" name="*" attribute="base"/>
   </sectiontype>
-
-
-    
-
 
 </component>
