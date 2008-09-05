@@ -388,13 +388,18 @@ class ClientStorage(object):
 
     def close(self):
         """Storage API: finalize the storage, releasing external resources."""
+        if self._rpc_mgr is not None:
+            self._rpc_mgr.close()
+            self._rpc_mgr = None
+        if self._connection is not None:
+            self._connection.register_object(None) # Don't call me!
+            self._connection.close()
+            self._connection = None
+
         self._tbuf.close()
         if self._cache is not None:
             self._cache.close()
             self._cache = None
-        if self._rpc_mgr is not None:
-            self._rpc_mgr.close()
-            self._rpc_mgr = None
 
     def registerDB(self, db):
         """Storage API: register a database for invalidation messages.
