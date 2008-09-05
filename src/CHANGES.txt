@@ -92,6 +92,67 @@ Bugs Fixed
 - Fixed bug in ClientCache that occurred with objects larger than the total
   cache size.
 
+3.8.1b8 (2008-09-??)
+====================
+
+Bugs Fixed:
+
+- Refactored handling of invalidations on ZEO clients to fix
+  a possible ordering problem for invalidation messages.
+
+- An ZEO cache internal data structure can get out of sync
+  with the data in a way that prevents data from being loaded into the
+  cache. We don't yet know why, but added an exception handler to
+  prevent this error from being fatal.
+
+- Fixed setup.py use of setuptools vs distutils, so .c and .h
+  files are included in the bdist_egg.
+
+- On many systems, it was impossible to create more than 32K
+  blobs. Added a new blob-directory layout to work around this
+  limitation.
+
+
+3.8.1b7 (2008-08-23)
+====================
+
+Bugs Fixed:
+
+- Fixed a bug, introduced in an earlier beta, that allowed
+  clients to connect to out of date servers.
+
+- Fixed bug that could lead to memory errors due to the use
+  of a Python dictionary for a mapping that can grow large.
+
+- Fixed bug #251037: Made packing of blob storages non-blocking.
+
+3.8.1b6 (2008-07-24)
+====================
+
+Bugs Fixed:
+
+- Fixed a bug that could cause InvalidObjectReference errors
+  for objects that were explicitly added to a database if the object
+  was modified after a savepoint that added the object.
+
+3.8.1b5 (2008-07-14)
+====================
+
+Bugs Fixed:
+
+- Fixed several bugs that caused ZEO cache corruption when connecting
+  to servers. These bugs affected both persistent and non-persistent caches. 
+
+- Improved the the ZEO client shutdown support to try to
+  avoid spurious errors on exit, especially for scripts, such as zeopack.
+
+3.8.1b4 (2008-05-23)
+====================
+
+Bugs Fixed:
+
+- Packing failed for databases containing cross-database references.
+
 3.8.1b3 (2008-05-14)
 ====================
 
