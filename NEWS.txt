@@ -12,6 +12,10 @@ Bugs Fixed:
 - (beta 8) Fixed setup.py use of setuptools vs distutils, so .c and .h
   files are included in the bdist_egg.
 
+- (beta 8) On many systems, it was impossible to create more than 32K
+  blobs. Added a new blob-directory layout to work around this
+  limitation.
+
 - (beta 7) Fixed a bug, introduced in an earlier beta, that allowed
   clients to connect to out of date servers.
 
