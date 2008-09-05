@@ -544,14 +544,23 @@ class Connection(smac.SizedMessageAsyncConnection, object):
             self.replies_cond.release()
 
     def handle_request(self, msgid, flags, name, args):
-        if not self.check_method(name):
-            msg = "Invalid method name: %s on %s" % (name, repr(self.obj))
+        obj = self.obj
+        
+        if name.startswith('_') or not hasattr(obj, name):
+            if obj is None:
+                if __debug__:
+                    self.log("no object calling %s%s"
+                             % (name, short_repr(args)),
+                             level=logging.DEBUG)
+                return
+                
+            msg = "Invalid method name: %s on %s" % (name, repr(obj))
             raise ZRPCError(msg)
         if __debug__:
             self.log("calling %s%s" % (name, short_repr(args)),
                      level=logging.DEBUG)
 
-        meth = getattr(self.obj, name)
+        meth = getattr(obj, name)
         try:
             self.waiting_for_reply = True
             try:
@@ -589,12 +598,6 @@ class Connection(smac.SizedMessageAsyncConnection, object):
         self.log("Error caught in asyncore",
                  level=logging.ERROR, exc_info=True)
         self.close()
-
-    def check_method(self, name):
-        # TODO:  This is hardly "secure".
-        if name.startswith('_'):
-            return None
-        return hasattr(self.obj, name)
 
     def send_reply(self, msgid, ret):
         # encode() can pass on a wide variety of exceptions from cPickle.
@@ -813,7 +816,7 @@ class ManagedClientConnection(Connection):
     __super_close = Connection.close
     base_message_output = Connection.message_output
 
-    def __init__(self, sock, addr, obj, mgr):
+    def __init__(self, sock, addr, mgr):
         self.mgr = mgr
 
         # We can't use the base smac's message_output directly because the
@@ -830,7 +833,7 @@ class ManagedClientConnection(Connection):
         self.queue_output = True
         self.queued_messages = []
 
-        self.__super_init(sock, addr, obj, tag='C', map=client_map)
+        self.__super_init(sock, addr, None, tag='C', map=client_map)
         self.trigger = client_trigger
         client_trigger.pull_trigger()
 
