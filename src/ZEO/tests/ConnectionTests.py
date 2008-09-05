@@ -131,7 +131,7 @@ class CommonSetupTearDown(StorageTestBase):
                 os.waitpid(pid, 0)
         for c in self.caches:
             for i in 0, 1:
-                for ext in "", ".trace":
+                for ext in "", ".trace", ".lock":
                     base = "%s-%s.zec%s" % (c, "1", ext)
                     path = os.path.join(tempfile.tempdir, base)
                     # On Windows before 2.3, we don't have a way to wait for
