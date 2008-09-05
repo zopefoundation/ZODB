@@ -460,21 +460,16 @@ class Connection(smac.SizedMessageAsyncConnection, object):
         self.logger.log(level, self.log_label + message, exc_info=exc_info)
 
     def close(self):
+        self.mgr.close_conn(self)
         if self.closed:
             return
         self._singleton.clear()
         self.closed = True
         self.__super_close()
-        self.close_trigger()
+        self.trigger.pull_trigger()
         self.replies_cond.acquire()
         self.replies_cond.notifyAll()
         self.replies_cond.release()
-
-    def close_trigger(self):
-        # Overridden by ManagedClientConnection.
-        if self.trigger is not None:
-            self.trigger.pull_trigger()
-            self.trigger.close()
 
     def register_object(self, obj):
         """Register obj as the true object to invoke methods on."""
@@ -735,23 +730,13 @@ class Connection(smac.SizedMessageAsyncConnection, object):
         for method, args in iterator:
             yield self.__call_message(method, args, ASYNC)
 
-    # handle IO, possibly in async mode
-
-    def _pull_trigger(self, tryagain=10):
-        try:
-            self.trigger.pull_trigger()
-        except OSError:
-            self.trigger.close()
-            self.trigger = trigger()
-            if tryagain > 0:
-                self._pull_trigger(tryagain=tryagain-1)
 
     def wait(self, msgid):
         """Invoke asyncore mainloop and wait for reply."""
         if __debug__:
             self.log("wait(%d)" % msgid, level=TRACE)
 
-        self._pull_trigger()
+        self.trigger.pull_trigger()
 
         # Delay used when we call asyncore.poll() directly.
         # Start with a 1 msec delay, double until 1 sec.
@@ -784,7 +769,7 @@ class Connection(smac.SizedMessageAsyncConnection, object):
         """Invoke asyncore mainloop to get pending message out."""
         if __debug__:
             self.log("poll()", level=TRACE)
-        self._pull_trigger()
+        self.trigger.pull_trigger()
 
 
         
@@ -807,7 +792,6 @@ class ManagedServerConnection(Connection):
 
     def close(self):
         self.obj.notifyDisconnected()
-        self.mgr.close_conn(self)
         self.__super_close()
 
 class ManagedClientConnection(Connection):
@@ -815,6 +799,8 @@ class ManagedClientConnection(Connection):
     __super_init = Connection.__init__
     __super_close = Connection.close
     base_message_output = Connection.message_output
+
+    trigger = client_trigger
 
     def __init__(self, sock, addr, mgr):
         self.mgr = mgr
@@ -834,7 +820,6 @@ class ManagedClientConnection(Connection):
         self.queued_messages = []
 
         self.__super_init(sock, addr, None, tag='C', map=client_map)
-        self.trigger = client_trigger
         client_trigger.pull_trigger()
 
     # Our message_ouput() queues messages until recv_handshake() gets the
@@ -878,17 +863,3 @@ class ManagedClientConnection(Connection):
             self.queue_output = False
         finally:
             self.output_lock.release()
-
-    # Defer the ThreadedAsync work to the manager.
-
-    def close_trigger(self):
-        # We are using a shared trigger for all client connections.
-        # We never want to close it.
-
-        # We do want to pull it to make sure the select loop detects that
-        # we're closed.
-        self.trigger.pull_trigger()
-
-    def close(self):
-        self.mgr.close_conn(self)
-        self.__super_close()
